@@ -108,3 +108,45 @@ namespace torque_internal {
   }
 
 }  // namespace torque_internal
+
+// These intrinsics should never be called from Torque code. They're used
+// internally by the 'new' operator and only declared here because it's simpler
+// than building the definition from C++.
+intrinsic %GetAllocationBaseSize<Class : type extends HeapObject>(map: Map):
+    intptr;
+intrinsic %Allocate<Class : type extends HeapObject>(size: intptr): Class;
+intrinsic %GetStructMap(instanceKind: constexpr InstanceType): Map;
+
+intrinsic %AddIndexedFieldSizeToObjectSize<T: type>(
+    baseSize: intptr, indexSize: T, fieldSize: int32): intptr {
+  const convertedIndexSize = Convert<int32>(indexSize);
+  const variableSize: int32 =
+      TryInt32Mul(convertedIndexSize, fieldSize) otherwise unreachable;
+  const convertedVariableSize = Convert<intptr>(variableSize);
+  return TryIntPtrAdd(baseSize, convertedVariableSize) otherwise unreachable;
+}
+
+intrinsic
+%InitializeFieldsFromIterator<Container: type, Index: type, Iterator: type>(
+    c: Container, length: Index, i: Iterator) {
+  try {
+    let mutableIterator = i;
+    let current: Index = 0;
+    while (current < length) {
+      // TODO(danno): The indexed accessor on the container requires that the
+      // '[]=' operator be defined explicitly for the Container
+      // (e.g. FixedArray). We should change this to use slice references
+      // once they are implemented.
+      c[current++] = mutableIterator.Next() otherwise NoMore;
+    }
+  }
+  label NoMore deferred {
+    unreachable;
+  }
+}
+
+// %RawDownCast should *never* be used anywhere in Torque code except for
+// in Torque-based UnsafeCast operators preceeded by an appropriate
+// type assert()
+intrinsic %RawDownCast<To: type, From: type>(x: From): To;
+intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;

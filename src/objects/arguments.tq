@@ -1,0 +1,33 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@generateCppClass
+extern class JSArgumentsObject extends JSObject {
+}
+
+// Just a starting shape for JSObject; properties can move after initialization.
+@noVerifier
+@hasSameInstanceTypeAsParent
+extern class JSArgumentsObjectWithLength extends JSArgumentsObject {
+  length: JSAny;
+}
+
+// Just a starting shape for JSObject; properties can move after initialization.
+@hasSameInstanceTypeAsParent
+extern class JSSloppyArgumentsObject extends JSArgumentsObjectWithLength {
+  callee: JSAny;
+}
+
+// Just a starting shape for JSObject; properties can move after initialization.
+@hasSameInstanceTypeAsParent
+@noVerifier
+extern class JSStrictArgumentsObject extends JSArgumentsObjectWithLength {
+}
+
+type SloppyArgumentsElements extends FixedArray;
+
+@generateCppClass
+extern class AliasedArgumentsEntry extends Struct {
+  aliased_context_slot: Smi;
+}
