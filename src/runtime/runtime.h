@@ -435,6 +435,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_SYMBOL(F, I)    \
   F(CreatePrivateNameSymbol, 1, 1)         \
+  F(CreatePrivateBrandSymbol, 1, 1)        \
   F(CreatePrivateSymbol, -1 /* <= 1 */, 1) \
   F(SymbolDescriptiveString, 1, 1)         \
   F(SymbolIsPrivate, 1, 1)

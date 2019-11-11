@@ -198,7 +198,7 @@ bytecodes: [
                 B(PushContext), R(1),
                 B(LdaConstant), U8(2),
                 B(Star), R(3),
-                B(CallRuntime), U16(Runtime::kCreatePrivateNameSymbol), R(3), U8(1),
+                B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(3), U8(1),
                 B(StaCurrentContextSlot), U8(4),
                 B(LdaTheHole),
                 B(Star), R(6),

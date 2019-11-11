@@ -26,6 +26,15 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
   return *symbol;
 }
 
+RUNTIME_FUNCTION(Runtime_CreatePrivateBrandSymbol) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<Symbol> symbol = isolate->factory()->NewPrivateNameSymbol(name);
+  symbol->set_is_private_brand();
+  return *symbol;
+}
+
 RUNTIME_FUNCTION(Runtime_CreatePrivateNameSymbol) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

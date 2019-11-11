@@ -50,6 +50,11 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   inline bool IsPrivateName() const;
   inline bool IsPrivateName(Isolate* isolate) const;
 
+  // If the name is a private brand, it should behave like a private name
+  // symbol but is filtered out when generating list of private fields.
+  inline bool IsPrivateBrand() const;
+  inline bool IsPrivateBrand(Isolate* isolate) const;
+
   inline bool IsUniqueName() const;
   inline bool IsUniqueName(Isolate* isolate) const;
 
@@ -168,6 +173,14 @@ class Symbol : public TorqueGeneratedSymbol<Symbol, Name> {
   inline bool is_private_name() const;
   inline void set_is_private_name();
 
+  // [is_private_name]: Whether this is a brand symbol.  Brand symbols are
+  // private name symbols that are used for validating access to
+  // private methods and storing information about the private methods.
+  //
+  // This also sets the is_private bit.
+  inline bool is_private_brand() const;
+  inline void set_is_private_brand();
+
   // Dispatched behavior.
   DECL_PRINTER(Symbol)
   DECL_VERIFIER(Symbol)
@@ -178,7 +191,8 @@ class Symbol : public TorqueGeneratedSymbol<Symbol, Name> {
   V(IsWellKnownSymbolBit, bool, 1, _)     \
   V(IsInPublicSymbolTableBit, bool, 1, _) \
   V(IsInterestingSymbolBit, bool, 1, _)   \
-  V(IsPrivateNameBit, bool, 1, _)
+  V(IsPrivateNameBit, bool, 1, _)         \
+  V(IsPrivateBrandBit, bool, 1, _)
 
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS

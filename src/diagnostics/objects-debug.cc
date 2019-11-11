@@ -278,6 +278,7 @@ void Symbol::SymbolVerify(Isolate* isolate) {
   CHECK_GT(Hash(), 0);
   CHECK(description().IsUndefined(isolate) || description().IsString());
   CHECK_IMPLIES(IsPrivateName(), IsPrivate());
+  CHECK_IMPLIES(IsPrivateBrand(), IsPrivateName());
 }
 
 USE_TORQUE_VERIFIER(ByteArray)
