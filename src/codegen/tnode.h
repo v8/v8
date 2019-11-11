@@ -137,6 +137,10 @@ struct MachineTypeOf<HeapObjectSubtype,
                          HeapObject, HeapObjectSubtype>::value>::type> {
   static constexpr MachineType value = MachineType::TaggedPointer();
 };
+template <>
+struct MachineTypeOf<ExternalReference> {
+  static constexpr MachineType value = MachineType::Pointer();
+};
 
 template <class HeapObjectSubtype>
 constexpr MachineType MachineTypeOf<

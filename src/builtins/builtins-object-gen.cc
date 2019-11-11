@@ -262,10 +262,10 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
 
     TVARIABLE(IntPtrT, var_result_index, IntPtrConstant(0));
     TVARIABLE(IntPtrT, var_descriptor_number, IntPtrConstant(0));
-    VariableList vars({&var_descriptor_number, &var_result_index}, zone());
     // Let desc be ? O.[[GetOwnProperty]](key).
     TNode<DescriptorArray> descriptors = LoadMapDescriptors(map);
-    Label loop(this, vars), after_loop(this), next_descriptor(this);
+    Label loop(this, {&var_descriptor_number, &var_result_index}),
+        after_loop(this), next_descriptor(this);
     Branch(IntPtrEqual(var_descriptor_number.value(), object_enum_length),
            &after_loop, &loop);
 

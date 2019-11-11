@@ -3112,13 +3112,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                         Label* if_absent, Label* if_not_found,
                         Label* if_bailout);
 
-  // This is a type of a lookup in holder generator function. In case of a
-  // property lookup the {key} is guaranteed to be an unique name and in case of
-  // element lookup the key is an Int32 index.
-  using LookupInHolder = std::function<void(
-      Node* receiver, Node* holder, Node* map, Node* instance_type, Node* key,
-      Label* next_holder, Label* if_bailout)>;
-
   // For integer indexed exotic cases, check if the given string cannot be a
   // special index. If we are not sure that the given string is not a special
   // index with a simple check, return False. Note that "False" return value
@@ -3128,6 +3121,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                  Label* if_maybe_special_index,
                                  Label* if_not_special_index);
 
+  // This is a type of a lookup property in holder generator function. The {key}
+  // is guaranteed to be an unique name.
+  using LookupPropertyInHolder = std::function<void(
+      TNode<HeapObject> receiver, TNode<HeapObject> holder, TNode<Map> map,
+      TNode<Int32T> instance_type, TNode<Name> key, Label* next_holder,
+      Label* if_bailout)>;
+
+  // This is a type of a lookup element in holder generator function. The {key}
+  // is an Int32 index.
+  using LookupElementInHolder = std::function<void(
+      TNode<HeapObject> receiver, TNode<HeapObject> holder, TNode<Map> map,
+      TNode<Int32T> instance_type, TNode<IntPtrT> key, Label* next_holder,
+      Label* if_bailout)>;
+
   // Generic property prototype chain lookup generator.
   // For properties it generates lookup using given {lookup_property_in_holder}
   // and for elements it uses {lookup_element_in_holder}.
@@ -3135,11 +3142,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // If it can't handle the case {receiver}/{key} case then the control goes
   // to {if_bailout}.
   // If {if_proxy} is nullptr, proxies go to if_bailout.
-  void TryPrototypeChainLookup(Node* receiver, Node* object, Node* key,
-                               const LookupInHolder& lookup_property_in_holder,
-                               const LookupInHolder& lookup_element_in_holder,
-                               Label* if_end, Label* if_bailout,
-                               Label* if_proxy);
+  void TryPrototypeChainLookup(
+      TNode<Object> receiver, TNode<Object> object, TNode<Object> key,
+      const LookupPropertyInHolder& lookup_property_in_holder,
+      const LookupElementInHolder& lookup_element_in_holder, Label* if_end,
+      Label* if_bailout, Label* if_proxy);
 
   // Instanceof helpers.
   // Returns true if {object} has {prototype} somewhere in it's prototype

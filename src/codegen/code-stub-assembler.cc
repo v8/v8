@@ -9298,13 +9298,13 @@ void CodeStubAssembler::BranchIfMaybeSpecialIndex(TNode<String> name_string,
 }
 
 void CodeStubAssembler::TryPrototypeChainLookup(
-    Node* receiver, Node* object, Node* key,
-    const LookupInHolder& lookup_property_in_holder,
-    const LookupInHolder& lookup_element_in_holder, Label* if_end,
+    TNode<Object> receiver, TNode<Object> object_arg, TNode<Object> key,
+    const LookupPropertyInHolder& lookup_property_in_holder,
+    const LookupElementInHolder& lookup_element_in_holder, Label* if_end,
     Label* if_bailout, Label* if_proxy) {
   // Ensure receiver is JSReceiver, otherwise bailout.
   GotoIf(TaggedIsSmi(receiver), if_bailout);
-  CSA_ASSERT(this, TaggedIsNotSmi(object));
+  TNode<HeapObject> object = CAST(object_arg);
 
   TNode<Map> map = LoadMap(object);
   TNode<Uint16T> instance_type = LoadMapInstanceType(map);
@@ -9328,7 +9328,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
 
   BIND(&if_iskeyunique);
   {
-    TVARIABLE(HeapObject, var_holder, CAST(object));
+    TVARIABLE(HeapObject, var_holder, object);
     TVARIABLE(Map, var_holder_map, map);
     TVARIABLE(Int32T, var_holder_instance_type, instance_type);
 
@@ -9340,7 +9340,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
       TNode<Int32T> holder_instance_type = var_holder_instance_type.value();
 
       Label next_proto(this), check_integer_indexed_exotic(this);
-      lookup_property_in_holder(receiver, var_holder.value(), holder_map,
+      lookup_property_in_holder(CAST(receiver), var_holder.value(), holder_map,
                                 holder_instance_type, var_unique.value(),
                                 &check_integer_indexed_exotic, if_bailout);
 
@@ -9371,7 +9371,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
   }
   BIND(&if_keyisindex);
   {
-    TVARIABLE(HeapObject, var_holder, CAST(object));
+    TVARIABLE(HeapObject, var_holder, object);
     TVARIABLE(Map, var_holder_map, map);
     TVARIABLE(Int32T, var_holder_instance_type, instance_type);
 
@@ -9380,7 +9380,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
     BIND(&loop);
     {
       Label next_proto(this);
-      lookup_element_in_holder(receiver, var_holder.value(),
+      lookup_element_in_holder(CAST(receiver), var_holder.value(),
                                var_holder_map.value(),
                                var_holder_instance_type.value(),
                                var_index.value(), &next_proto, if_bailout);
@@ -12135,19 +12135,20 @@ TNode<Oddball> CodeStubAssembler::HasProperty(SloppyTNode<Context> context,
   Label call_runtime(this, Label::kDeferred), return_true(this),
       return_false(this), end(this), if_proxy(this, Label::kDeferred);
 
-  CodeStubAssembler::LookupInHolder lookup_property_in_holder =
-      [this, &return_true](Node* receiver, Node* holder, Node* holder_map,
-                           Node* holder_instance_type, Node* unique_name,
-                           Label* next_holder, Label* if_bailout) {
+  CodeStubAssembler::LookupPropertyInHolder lookup_property_in_holder =
+      [this, &return_true](
+          TNode<HeapObject> receiver, TNode<HeapObject> holder,
+          TNode<Map> holder_map, TNode<Int32T> holder_instance_type,
+          TNode<Name> unique_name, Label* next_holder, Label* if_bailout) {
         TryHasOwnProperty(holder, holder_map, holder_instance_type, unique_name,
                           &return_true, next_holder, if_bailout);
       };
 
-  CodeStubAssembler::LookupInHolder lookup_element_in_holder =
+  CodeStubAssembler::LookupElementInHolder lookup_element_in_holder =
       [this, &return_true, &return_false](
-          Node* receiver, Node* holder, Node* holder_map,
-          Node* holder_instance_type, Node* index, Label* next_holder,
-          Label* if_bailout) {
+          TNode<HeapObject> receiver, TNode<HeapObject> holder,
+          TNode<Map> holder_map, TNode<Int32T> holder_instance_type,
+          TNode<IntPtrT> index, Label* next_holder, Label* if_bailout) {
         TryLookupElement(holder, holder_map, holder_instance_type, index,
                          &return_true, &return_false, next_holder, if_bailout);
       };
