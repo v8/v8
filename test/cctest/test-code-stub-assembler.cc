@@ -2003,9 +2003,10 @@ TEST(OneToTwoByteStringCopy) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   StringBuiltinsAssembler m(asm_tester.state());
 
-  m.CopyStringCharacters(m.Parameter(0), m.Parameter(1), m.IntPtrConstant(0),
-                         m.IntPtrConstant(0), m.IntPtrConstant(5),
-                         String::ONE_BYTE_ENCODING, String::TWO_BYTE_ENCODING);
+  m.CopyStringCharacters<String>(m.CAST(m.Parameter(0)), m.CAST(m.Parameter(1)),
+                                 m.IntPtrConstant(0), m.IntPtrConstant(0),
+                                 m.IntPtrConstant(5), String::ONE_BYTE_ENCODING,
+                                 String::TWO_BYTE_ENCODING);
   m.Return(m.SmiConstant(Smi::FromInt(0)));
 
   Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
@@ -2035,9 +2036,10 @@ TEST(OneToOneByteStringCopy) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   StringBuiltinsAssembler m(asm_tester.state());
 
-  m.CopyStringCharacters(m.Parameter(0), m.Parameter(1), m.IntPtrConstant(0),
-                         m.IntPtrConstant(0), m.IntPtrConstant(5),
-                         String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING);
+  m.CopyStringCharacters<String>(m.CAST(m.Parameter(0)), m.CAST(m.Parameter(1)),
+                                 m.IntPtrConstant(0), m.IntPtrConstant(0),
+                                 m.IntPtrConstant(5), String::ONE_BYTE_ENCODING,
+                                 String::ONE_BYTE_ENCODING);
   m.Return(m.SmiConstant(Smi::FromInt(0)));
 
   Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
@@ -2067,9 +2069,10 @@ TEST(OneToOneByteStringCopyNonZeroStart) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   StringBuiltinsAssembler m(asm_tester.state());
 
-  m.CopyStringCharacters(m.Parameter(0), m.Parameter(1), m.IntPtrConstant(0),
-                         m.IntPtrConstant(3), m.IntPtrConstant(2),
-                         String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING);
+  m.CopyStringCharacters<String>(m.CAST(m.Parameter(0)), m.CAST(m.Parameter(1)),
+                                 m.IntPtrConstant(0), m.IntPtrConstant(3),
+                                 m.IntPtrConstant(2), String::ONE_BYTE_ENCODING,
+                                 String::ONE_BYTE_ENCODING);
   m.Return(m.SmiConstant(Smi::FromInt(0)));
 
   Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
@@ -2096,9 +2099,10 @@ TEST(TwoToTwoByteStringCopy) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   StringBuiltinsAssembler m(asm_tester.state());
 
-  m.CopyStringCharacters(m.Parameter(0), m.Parameter(1), m.IntPtrConstant(0),
-                         m.IntPtrConstant(0), m.IntPtrConstant(5),
-                         String::TWO_BYTE_ENCODING, String::TWO_BYTE_ENCODING);
+  m.CopyStringCharacters<String>(m.CAST(m.Parameter(0)), m.CAST(m.Parameter(1)),
+                                 m.IntPtrConstant(0), m.IntPtrConstant(0),
+                                 m.IntPtrConstant(5), String::TWO_BYTE_ENCODING,
+                                 String::TWO_BYTE_ENCODING);
   m.Return(m.SmiConstant(Smi::FromInt(0)));
 
   uc16 array1[] = {2000, 2001, 2002, 2003, 2004};

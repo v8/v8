@@ -6099,7 +6099,7 @@ TNode<BoolT> CodeStubAssembler::IsStringInstanceType(
 }
 
 TNode<BoolT> CodeStubAssembler::IsOneByteStringInstanceType(
-    SloppyTNode<Int32T> instance_type) {
+    TNode<Int32T> instance_type) {
   CSA_ASSERT(this, IsStringInstanceType(instance_type));
   return Word32Equal(
       Word32And(instance_type, Int32Constant(kStringEncodingMask)),

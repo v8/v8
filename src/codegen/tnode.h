@@ -26,8 +26,7 @@ struct IntegralT : UntaggedT {};
 
 struct WordT : IntegralT {
   static const MachineRepresentation kMachineRepresentation =
-      (kSystemPointerSize == 4) ? MachineRepresentation::kWord32
-                                : MachineRepresentation::kWord64;
+      MachineType::PointerRepresentation();
 };
 
 struct RawPtrT : WordT {
