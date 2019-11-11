@@ -11,6 +11,15 @@ from . import base
 # Extra flags randomly added to all fuzz tests with numfuzz. List of tuples
 # (probability, flag).
 EXTRA_FLAGS = [
+  (0.1, '--always-opt'),
+  (0.1, '--assert-types'),
+  (0.1, '--cache=code'),
+  (0.1, '--force-slow-path'),
+  (0.2, '--future'),
+  (0.1, '--jitless'),
+  (0.1, '--liftoff'),
+  (0.1, '--minor-mc'),
+  (0.2, '--no-analyze-environment-liveness'),
   (0.1, '--no-enable-sse3'),
   (0.1, '--no-enable-ssse3'),
   (0.1, '--no-enable-sse4_1'),
@@ -22,6 +31,17 @@ EXTRA_FLAGS = [
   (0.1, '--no-enable-bmi2'),
   (0.1, '--no-enable-lzcnt'),
   (0.1, '--no-enable-popcnt'),
+  (0.1, '--no-liftoff'),
+  (0.1, '--no-opt'),
+  (0.2, '--no-regexp-tier-up'),
+  (0.1, '--no-wasm-tier-up'),
+  (0.1, '--regexp-interpret-all'),
+  (0.1, '--regexp-tier-up-ticks=10'),
+  (0.1, '--regexp-tier-up-ticks=100'),
+  (0.1, '--stress-background-compile'),
+  (0.1, '--turbo-instruction-scheduling'),
+  (0.1, '--turbo-stress-instruction-scheduling'),
+  (0.1, '--turboprop'),
 ]
 
 def random_extra_flags(rng):
