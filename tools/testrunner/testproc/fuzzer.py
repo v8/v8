@@ -16,7 +16,6 @@ EXTRA_FLAGS = [
   (0.1, '--cache=code'),
   (0.1, '--force-slow-path'),
   (0.2, '--future'),
-  (0.1, '--jitless'),
   (0.1, '--liftoff'),
   (0.1, '--minor-mc'),
   (0.2, '--no-analyze-environment-liveness'),
