@@ -1329,64 +1329,6 @@ void InstructionSelector::VisitChangeTaggedToCompressed(Node* node) {
   return EmitIdentity(node);
 }
 
-void InstructionSelector::VisitChangeTaggedPointerToCompressedPointer(
-    Node* node) {
-  // The top 32 bits in the 64-bit register will be undefined, and
-  // must not be used by a dependent node.
-  return EmitIdentity(node);
-}
-
-void InstructionSelector::VisitChangeTaggedSignedToCompressedSigned(
-    Node* node) {
-  // The top 32 bits in the 64-bit register will be undefined, and
-  // must not be used by a dependent node.
-  return EmitIdentity(node);
-}
-
-void InstructionSelector::VisitChangeCompressedToTagged(Node* node) {
-  Node* const value = node->InputAt(0);
-  if ((value->opcode() == IrOpcode::kLoad ||
-       value->opcode() == IrOpcode::kPoisonedLoad) &&
-      CanCover(node, value)) {
-    DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
-              MachineRepresentation::kCompressed);
-    VisitLoad(node, value, kX64MovqDecompressAnyTagged);
-  } else {
-    X64OperandGenerator g(this);
-    Emit(kX64DecompressAny, g.DefineAsRegister(node), g.Use(value));
-  }
-}
-
-void InstructionSelector::VisitChangeCompressedPointerToTaggedPointer(
-    Node* node) {
-  Node* const value = node->InputAt(0);
-  if ((value->opcode() == IrOpcode::kLoad ||
-       value->opcode() == IrOpcode::kPoisonedLoad) &&
-      CanCover(node, value)) {
-    DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
-              MachineRepresentation::kCompressedPointer);
-    VisitLoad(node, value, kX64MovqDecompressTaggedPointer);
-  } else {
-    X64OperandGenerator g(this);
-    Emit(kX64DecompressPointer, g.DefineAsRegister(node), g.Use(value));
-  }
-}
-
-void InstructionSelector::VisitChangeCompressedSignedToTaggedSigned(
-    Node* node) {
-  Node* const value = node->InputAt(0);
-  if ((value->opcode() == IrOpcode::kLoad ||
-       value->opcode() == IrOpcode::kPoisonedLoad) &&
-      CanCover(node, value)) {
-    DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
-              MachineRepresentation::kCompressedSigned);
-    VisitLoad(node, value, kX64MovqDecompressTaggedSigned);
-  } else {
-    X64OperandGenerator g(this);
-    Emit(kX64DecompressSigned, g.DefineAsRegister(node), g.Use(value));
-  }
-}
-
 namespace {
 
 void VisitRO(InstructionSelector* selector, Node* node,

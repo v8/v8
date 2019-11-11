@@ -157,7 +157,6 @@ bool CheckSubsumes(Node const* a, Node const* b) {
         case IrOpcode::kCheckNumber:
         case IrOpcode::kCheckBigInt:
           break;
-        case IrOpcode::kCheckedInt32ToCompressedSigned:
         case IrOpcode::kCheckedInt32ToTaggedSigned:
         case IrOpcode::kCheckedInt64ToInt32:
         case IrOpcode::kCheckedInt64ToTaggedSigned:
@@ -165,10 +164,6 @@ bool CheckSubsumes(Node const* a, Node const* b) {
         case IrOpcode::kCheckedTaggedToTaggedPointer:
         case IrOpcode::kCheckedTaggedToTaggedSigned:
         case IrOpcode::kCheckedTaggedToArrayIndex:
-        case IrOpcode::kCheckedCompressedToTaggedPointer:
-        case IrOpcode::kCheckedCompressedToTaggedSigned:
-        case IrOpcode::kCheckedTaggedToCompressedPointer:
-        case IrOpcode::kCheckedTaggedToCompressedSigned:
         case IrOpcode::kCheckedUint32Bounds:
         case IrOpcode::kCheckedUint32ToInt32:
         case IrOpcode::kCheckedUint32ToTaggedSigned:

@@ -1531,12 +1531,6 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kBitcastWordToTaggedSigned:
       return MarkAsRepresentation(MachineRepresentation::kTaggedSigned, node),
              EmitIdentity(node);
-    case IrOpcode::kBitcastWord32ToCompressedSigned:
-      return MarkAsRepresentation(MachineRepresentation::kCompressedSigned,
-                                  node),
-             EmitIdentity(node);
-    case IrOpcode::kBitcastCompressedSignedToWord32:
-      return MarkAsWord32(node), EmitIdentity(node);
     case IrOpcode::kChangeFloat32ToFloat64:
       return MarkAsFloat64(node), VisitChangeFloat32ToFloat64(node);
     case IrOpcode::kChangeInt32ToFloat64:
@@ -1580,27 +1574,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitChangeInt32ToInt64(node);
     case IrOpcode::kChangeUint32ToUint64:
       return MarkAsWord64(node), VisitChangeUint32ToUint64(node);
-// TODO(mips-team): Support compress pointers.
-#ifdef V8_COMPRESS_POINTERS
     case IrOpcode::kChangeTaggedToCompressed:
       return MarkAsCompressed(node), VisitChangeTaggedToCompressed(node);
-    case IrOpcode::kChangeTaggedPointerToCompressedPointer:
-      return MarkAsRepresentation(MachineRepresentation::kCompressedPointer,
-                                  node),
-             VisitChangeTaggedPointerToCompressedPointer(node);
-    case IrOpcode::kChangeTaggedSignedToCompressedSigned:
-      return MarkAsRepresentation(MachineRepresentation::kCompressedSigned,
-                                  node),
-             VisitChangeTaggedSignedToCompressedSigned(node);
-    case IrOpcode::kChangeCompressedToTagged:
-      return MarkAsTagged(node), VisitChangeCompressedToTagged(node);
-    case IrOpcode::kChangeCompressedPointerToTaggedPointer:
-      return MarkAsRepresentation(MachineRepresentation::kTaggedPointer, node),
-             VisitChangeCompressedPointerToTaggedPointer(node);
-    case IrOpcode::kChangeCompressedSignedToTaggedSigned:
-      return MarkAsRepresentation(MachineRepresentation::kTaggedSigned, node),
-             VisitChangeCompressedSignedToTaggedSigned(node);
-#endif
     case IrOpcode::kTruncateFloat64ToFloat32:
       return MarkAsFloat32(node), VisitTruncateFloat64ToFloat32(node);
     case IrOpcode::kTruncateFloat64ToWord32:
@@ -2474,36 +2449,9 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   UNIMPLEMENTED();
 }
 
-// TODO(mips-team): Support compress pointers.
-#ifdef V8_COMPRESS_POINTERS
 void InstructionSelector::VisitChangeTaggedToCompressed(Node* node) {
   UNIMPLEMENTED();
 }
-
-void InstructionSelector::VisitChangeTaggedPointerToCompressedPointer(
-    Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitChangeTaggedSignedToCompressedSigned(
-    Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitChangeCompressedToTagged(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitChangeCompressedPointerToTaggedPointer(
-    Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitChangeCompressedSignedToTaggedSigned(
-    Node* node) {
-  UNIMPLEMENTED();
-}
-#endif
 
 void InstructionSelector::VisitChangeFloat64ToInt64(Node* node) {
   UNIMPLEMENTED();

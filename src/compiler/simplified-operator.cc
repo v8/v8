@@ -732,7 +732,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(PlainPrimitiveToNumber, Operator::kNoProperties, 1, 0)         \
   V(PlainPrimitiveToWord32, Operator::kNoProperties, 1, 0)         \
   V(PlainPrimitiveToFloat64, Operator::kNoProperties, 1, 0)        \
-  V(ChangeCompressedSignedToInt32, Operator::kNoProperties, 1, 0)  \
   V(ChangeTaggedSignedToInt32, Operator::kNoProperties, 1, 0)      \
   V(ChangeTaggedSignedToInt64, Operator::kNoProperties, 1, 0)      \
   V(ChangeTaggedToInt32, Operator::kNoProperties, 1, 0)            \
@@ -740,10 +739,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(ChangeTaggedToUint32, Operator::kNoProperties, 1, 0)           \
   V(ChangeTaggedToFloat64, Operator::kNoProperties, 1, 0)          \
   V(ChangeTaggedToTaggedSigned, Operator::kNoProperties, 1, 0)     \
-  V(ChangeCompressedToTaggedSigned, Operator::kNoProperties, 1, 0) \
-  V(ChangeTaggedToCompressedSigned, Operator::kNoProperties, 1, 0) \
   V(ChangeFloat64ToTaggedPointer, Operator::kNoProperties, 1, 0)   \
-  V(ChangeInt31ToCompressedSigned, Operator::kNoProperties, 1, 0)  \
   V(ChangeInt31ToTaggedSigned, Operator::kNoProperties, 1, 0)      \
   V(ChangeInt32ToTagged, Operator::kNoProperties, 1, 0)            \
   V(ChangeInt64ToTagged, Operator::kNoProperties, 1, 0)            \
@@ -828,7 +824,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckSmi, 1, 1)                         \
   V(CheckString, 1, 1)                      \
   V(CheckBigInt, 1, 1)                      \
-  V(CheckedInt32ToCompressedSigned, 1, 1)   \
   V(CheckedInt32ToTaggedSigned, 1, 1)       \
   V(CheckedInt64ToInt32, 1, 1)              \
   V(CheckedInt64ToTaggedSigned, 1, 1)       \
@@ -836,10 +831,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckedTaggedSignedToInt32, 1, 1)       \
   V(CheckedTaggedToTaggedPointer, 1, 1)     \
   V(CheckedTaggedToTaggedSigned, 1, 1)      \
-  V(CheckedCompressedToTaggedPointer, 1, 1) \
-  V(CheckedCompressedToTaggedSigned, 1, 1)  \
-  V(CheckedTaggedToCompressedPointer, 1, 1) \
-  V(CheckedTaggedToCompressedSigned, 1, 1)  \
   V(CheckedUint32ToInt32, 1, 1)             \
   V(CheckedUint32ToTaggedSigned, 1, 1)      \
   V(CheckedUint64Bounds, 2, 1)              \

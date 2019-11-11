@@ -1069,6 +1069,9 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kWord64:
     case MachineRepresentation::kFloat32:
+    case MachineRepresentation::kCompressedSigned:
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
       // TODO(turbofan): Add support for doing the truncations.
       break;
     case MachineRepresentation::kFloat64:
@@ -1076,9 +1079,6 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
-    case MachineRepresentation::kCompressedSigned:
-    case MachineRepresentation::kCompressedPointer:
-    case MachineRepresentation::kCompressed:
       if (Node* replacement = state->LookupElement(
               object, index, access.machine_type.representation())) {
         // Make sure we don't resurrect dead {replacement} nodes.
@@ -1124,6 +1124,9 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kWord64:
     case MachineRepresentation::kFloat32:
+    case MachineRepresentation::kCompressedSigned:
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
       // TODO(turbofan): Add support for doing the truncations.
       break;
     case MachineRepresentation::kFloat64:
@@ -1131,9 +1134,6 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
-    case MachineRepresentation::kCompressedSigned:
-    case MachineRepresentation::kCompressedPointer:
-    case MachineRepresentation::kCompressed:
       state = state->AddElement(object, index, new_value,
                                 access.machine_type.representation(), zone());
       break;

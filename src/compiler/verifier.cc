@@ -1356,7 +1356,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckNotTyped(node);
       break;
 
-    case IrOpcode::kChangeCompressedSignedToInt32:
     case IrOpcode::kChangeTaggedSignedToInt32: {
       // Signed32 /\ Tagged -> Signed32 /\ UntaggedInt32
       // TODO(neis): Activate once ChangeRepresentation works in typer.
@@ -1398,8 +1397,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     }
     case IrOpcode::kChangeTaggedToTaggedSigned:      // Fall through.
-    case IrOpcode::kChangeCompressedToTaggedSigned:  // Fall through.
-    case IrOpcode::kChangeTaggedToCompressedSigned:
       break;
     case IrOpcode::kTruncateTaggedToFloat64: {
       // NumberOrUndefined /\ Tagged -> Number /\ UntaggedFloat64
@@ -1411,7 +1408,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckTypeIs(node, to));
       break;
     }
-    case IrOpcode::kChangeInt31ToCompressedSigned:
     case IrOpcode::kChangeInt31ToTaggedSigned: {
       // Signed31 /\ UntaggedInt32 -> Signed31 /\ Tagged
       // TODO(neis): Activate once ChangeRepresentation works in typer.
@@ -1558,7 +1554,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedUint32Div:
     case IrOpcode::kCheckedUint32Mod:
     case IrOpcode::kCheckedInt32Mul:
-    case IrOpcode::kCheckedInt32ToCompressedSigned:
     case IrOpcode::kCheckedInt32ToTaggedSigned:
     case IrOpcode::kCheckedInt64ToInt32:
     case IrOpcode::kCheckedInt64ToTaggedSigned:
@@ -1577,10 +1572,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedTaggedToFloat64:
     case IrOpcode::kCheckedTaggedToTaggedSigned:
     case IrOpcode::kCheckedTaggedToTaggedPointer:
-    case IrOpcode::kCheckedCompressedToTaggedSigned:
-    case IrOpcode::kCheckedCompressedToTaggedPointer:
-    case IrOpcode::kCheckedTaggedToCompressedSigned:
-    case IrOpcode::kCheckedTaggedToCompressedPointer:
     case IrOpcode::kCheckedTruncateTaggedToWord32:
     case IrOpcode::kAssertType:
       break;
@@ -1829,16 +1820,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
     case IrOpcode::kBitcastWordToTagged:
     case IrOpcode::kBitcastWordToTaggedSigned:
-    case IrOpcode::kBitcastWord32ToCompressedSigned:
-    case IrOpcode::kBitcastCompressedSignedToWord32:
     case IrOpcode::kChangeInt32ToInt64:
     case IrOpcode::kChangeUint32ToUint64:
     case IrOpcode::kChangeTaggedToCompressed:
-    case IrOpcode::kChangeTaggedPointerToCompressedPointer:
-    case IrOpcode::kChangeTaggedSignedToCompressedSigned:
-    case IrOpcode::kChangeCompressedToTagged:
-    case IrOpcode::kChangeCompressedPointerToTaggedPointer:
-    case IrOpcode::kChangeCompressedSignedToTaggedSigned:
     case IrOpcode::kChangeInt32ToFloat64:
     case IrOpcode::kChangeInt64ToFloat64:
     case IrOpcode::kChangeUint32ToFloat64:

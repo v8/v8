@@ -373,9 +373,6 @@ TEST_F(DecompressionOptimizerTest, CascadingPhi) {
 }
 
 TEST_F(DecompressionOptimizerTest, PhiWithOneCompressedAndOneTagged) {
-  // If the phi is Compressed but one of the inputs is Tagged, then we insert a
-  // ChangeTaggedToCompressed node.
-
   // Define variables.
   Node* const control = graph()->start();
   Node* object = Parameter(Type::Any(), 0);

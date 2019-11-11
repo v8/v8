@@ -81,14 +81,6 @@ Node* MachineOperatorReducer::Word32Equal(Node* lhs, Node* rhs) {
   return graph()->NewNode(machine()->Word32Equal(), lhs, rhs);
 }
 
-Node* MachineOperatorReducer::BitcastWord32ToCompressedSigned(Node* value) {
-  return graph()->NewNode(machine()->BitcastWord32ToCompressedSigned(), value);
-}
-
-Node* MachineOperatorReducer::BitcastCompressedSignedToWord32(Node* value) {
-  return graph()->NewNode(machine()->BitcastCompressedSignedToWord32(), value);
-}
-
 Node* MachineOperatorReducer::Int32Add(Node* lhs, Node* rhs) {
   Node* const node = graph()->NewNode(machine()->Int32Add(), lhs, rhs);
   Reduction const reduction = ReduceInt32Add(node);
@@ -661,17 +653,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.HasValue()) return ReplaceInt64(static_cast<uint64_t>(m.Value()));
       break;
     }
-    case IrOpcode::kChangeTaggedToCompressed: {
-      Int64Matcher m(node->InputAt(0));
-      if (m.IsBitcastWordToTaggedSigned()) {
-        Int64Matcher n(m.node()->InputAt(0));
-        if (n.IsChangeInt32ToInt64()) {
-          DCHECK(machine()->Is64() && SmiValuesAre31Bits());
-          return Replace(BitcastWord32ToCompressedSigned(n.node()->InputAt(0)));
-        }
-      }
-      break;
-    }
     case IrOpcode::kTruncateFloat64ToWord32: {
       Float64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
@@ -684,10 +665,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeInt32ToInt64()) return Replace(m.node()->InputAt(0));
       if (m.IsBitcastTaggedToWordForTagAndSmiBits()) {
         Int64Matcher n(m.node()->InputAt(0));
-        if (n.IsChangeCompressedToTagged()) {
-          DCHECK(machine()->Is64() && SmiValuesAre31Bits());
-          return Replace(BitcastCompressedSignedToWord32(n.node()->InputAt(0)));
-        }
       }
       break;
     }

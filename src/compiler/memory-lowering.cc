@@ -401,10 +401,7 @@ bool ValueNeedsWriteBarrier(Node* value, Isolate* isolate) {
   while (true) {
     switch (value->opcode()) {
       case IrOpcode::kBitcastWordToTaggedSigned:
-      case IrOpcode::kChangeTaggedSignedToCompressedSigned:
-      case IrOpcode::kChangeTaggedToCompressedSigned:
         return false;
-      case IrOpcode::kChangeTaggedPointerToCompressedPointer:
       case IrOpcode::kChangeTaggedToCompressed:
         value = NodeProperties::GetValueInput(value, 0);
         continue;

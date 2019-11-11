@@ -359,12 +359,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // This operator reinterprets the bits of a word as a Smi.
   const Operator* BitcastWordToTaggedSigned();
 
-  // This operator reinterprets the bits of a word32 as a Compressed Smi.
-  const Operator* BitcastWord32ToCompressedSigned();
-
-  // This operator reinterprets the bits of a Compressed Smi as a word32.
-  const Operator* BitcastCompressedSignedToWord32();
-
   // JavaScript float64 to int32/uint32 truncation.
   const Operator* TruncateFloat64ToWord32();
 
@@ -392,11 +386,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* ChangeUint32ToFloat64();
   const Operator* ChangeUint32ToUint64();
   const Operator* ChangeTaggedToCompressed();
-  const Operator* ChangeTaggedPointerToCompressedPointer();
-  const Operator* ChangeTaggedSignedToCompressedSigned();
-  const Operator* ChangeCompressedToTagged();
-  const Operator* ChangeCompressedPointerToTaggedPointer();
-  const Operator* ChangeCompressedSignedToTaggedSigned();
 
   // These operators truncate or round numbers, both changing the representation
   // of the number and mapping multiple input values onto the same output value.

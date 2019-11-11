@@ -210,16 +210,6 @@ class UseInfo {
   static UseInfo TaggedPointer() {
     return UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any());
   }
-  static UseInfo AnyCompressed() {
-    return UseInfo(MachineRepresentation::kCompressed, Truncation::Any());
-  }
-  static UseInfo CompressedSigned() {
-    return UseInfo(MachineRepresentation::kCompressedSigned, Truncation::Any());
-  }
-  static UseInfo CompressedPointer() {
-    return UseInfo(MachineRepresentation::kCompressedPointer,
-                   Truncation::Any());
-  }
 
   // Possibly deoptimizing conversions.
   static UseInfo CheckedTaggedAsArrayIndex(const FeedbackSource& feedback) {
@@ -367,17 +357,6 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
                                           UseInfo use_info);
   Node* GetTaggedRepresentationFor(Node* node, MachineRepresentation output_rep,
                                    Type output_type, Truncation truncation);
-  Node* GetCompressedSignedRepresentationFor(Node* node,
-                                             MachineRepresentation output_rep,
-                                             Type output_type, Node* use_node,
-                                             UseInfo use_info);
-  Node* GetCompressedPointerRepresentationFor(Node* node,
-                                              MachineRepresentation output_rep,
-                                              Type output_type, Node* use_node,
-                                              UseInfo use_info);
-  Node* GetCompressedRepresentationFor(Node* node,
-                                       MachineRepresentation output_rep,
-                                       Type output_type, Truncation truncation);
   Node* GetFloat32RepresentationFor(Node* node,
                                     MachineRepresentation output_rep,
                                     Type output_type, Truncation truncation);
@@ -404,9 +383,6 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
   Node* InsertChangeTaggedSignedToInt32(Node* node);
   Node* InsertChangeTaggedToFloat64(Node* node);
   Node* InsertChangeUint32ToFloat64(Node* node);
-  Node* InsertChangeCompressedPointerToTaggedPointer(Node* node);
-  Node* InsertChangeCompressedSignedToTaggedSigned(Node* node);
-  Node* InsertChangeCompressedToTagged(Node* node);
   Node* InsertCheckedFloat64ToInt32(Node* node, CheckForMinusZeroMode check,
                                     const FeedbackSource& feedback,
                                     Node* use_node);

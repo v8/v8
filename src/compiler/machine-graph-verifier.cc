@@ -194,6 +194,9 @@ class MachineRepresentationInferrer {
                 UnalignedStoreRepresentationOf(node->op()));
             break;
           case IrOpcode::kHeapConstant:
+            representation_vector_[node->id()] =
+                MachineRepresentation::kTaggedPointer;
+            break;
           case IrOpcode::kNumberConstant:
           case IrOpcode::kDelayedStringConstant:
           case IrOpcode::kChangeBitToTagged:
@@ -203,28 +206,11 @@ class MachineRepresentationInferrer {
           case IrOpcode::kChangeUint32ToTagged:
           case IrOpcode::kBitcastWordToTagged:
           case IrOpcode::kTaggedPoisonOnSpeculation:
-          case IrOpcode::kChangeCompressedToTagged:
             representation_vector_[node->id()] = MachineRepresentation::kTagged;
-            break;
-          case IrOpcode::kChangeCompressedPointerToTaggedPointer:
-            representation_vector_[node->id()] =
-                MachineRepresentation::kTaggedPointer;
-            break;
-          case IrOpcode::kChangeCompressedSignedToTaggedSigned:
-            representation_vector_[node->id()] =
-                MachineRepresentation::kTaggedSigned;
             break;
           case IrOpcode::kChangeTaggedToCompressed:
             representation_vector_[node->id()] =
                 MachineRepresentation::kCompressed;
-            break;
-          case IrOpcode::kChangeTaggedPointerToCompressedPointer:
-            representation_vector_[node->id()] =
-                MachineRepresentation::kCompressedPointer;
-            break;
-          case IrOpcode::kChangeTaggedSignedToCompressedSigned:
-            representation_vector_[node->id()] =
-                MachineRepresentation::kCompressedSigned;
             break;
           case IrOpcode::kWord32PoisonOnSpeculation:
             representation_vector_[node->id()] = MachineRepresentation::kWord32;
@@ -248,13 +234,6 @@ class MachineRepresentationInferrer {
           case IrOpcode::kBitcastWordToTaggedSigned:
             representation_vector_[node->id()] =
                 MachineRepresentation::kTaggedSigned;
-            break;
-          case IrOpcode::kBitcastWord32ToCompressedSigned:
-            representation_vector_[node->id()] =
-                MachineRepresentation::kCompressedSigned;
-            break;
-          case IrOpcode::kBitcastCompressedSignedToWord32:
-            representation_vector_[node->id()] = MachineRepresentation::kWord32;
             break;
           case IrOpcode::kWord32Equal:
           case IrOpcode::kInt32LessThan:
@@ -393,28 +372,8 @@ class MachineRepresentationChecker {
             CHECK_EQ(MachineRepresentation::kTagged,
                      inferrer_->GetRepresentation(node->InputAt(0)));
             break;
-          case IrOpcode::kChangeCompressedToTagged:
-            CHECK(IsAnyCompressed(
-                inferrer_->GetRepresentation(node->InputAt(0))));
-            break;
-          case IrOpcode::kChangeCompressedPointerToTaggedPointer:
-            CHECK(CanBeCompressedPointer(
-                inferrer_->GetRepresentation(node->InputAt(0))));
-            break;
-          case IrOpcode::kChangeCompressedSignedToTaggedSigned:
-            CHECK(CanBeCompressedSigned(
-                inferrer_->GetRepresentation(node->InputAt(0))));
-            break;
           case IrOpcode::kChangeTaggedToCompressed:
               CheckValueInputIsCompressedOrTagged(node, 0);
-            break;
-          case IrOpcode::kChangeTaggedPointerToCompressedPointer:
-            CHECK(CanBeTaggedPointer(
-                inferrer_->GetRepresentation(node->InputAt(0))));
-            break;
-          case IrOpcode::kChangeTaggedSignedToCompressedSigned:
-            CHECK(CanBeTaggedSigned(
-                inferrer_->GetRepresentation(node->InputAt(0))));
             break;
           case IrOpcode::kRoundInt64ToFloat64:
           case IrOpcode::kRoundUint64ToFloat64:
@@ -440,13 +399,6 @@ class MachineRepresentationChecker {
           case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
           case IrOpcode::kTaggedPoisonOnSpeculation:
             CheckValueInputIsTagged(node, 0);
-            break;
-          case IrOpcode::kBitcastWord32ToCompressedSigned:
-            CheckValueInputRepresentationIs(node, 0,
-                                            MachineRepresentation::kWord32);
-            break;
-          case IrOpcode::kBitcastCompressedSignedToWord32:
-            CheckValueInputIsCompressed(node, 0);
             break;
           case IrOpcode::kTruncateFloat64ToWord32:
           case IrOpcode::kTruncateFloat64ToUint32:
@@ -625,11 +577,6 @@ class MachineRepresentationChecker {
                 } else {
                   CheckValueInputIsTagged(node, 2);
                 }
-                break;
-              case MachineRepresentation::kCompressed:
-              case MachineRepresentation::kCompressedPointer:
-              case MachineRepresentation::kCompressedSigned:
-                CheckValueInputIsCompressed(node, 2);
                 break;
               default:
                 CheckValueInputRepresentationIs(

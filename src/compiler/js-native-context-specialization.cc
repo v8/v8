@@ -748,11 +748,9 @@ FieldAccess ForPropertyCellValue(MachineRepresentation representation,
                                  Type type, MaybeHandle<Map> map,
                                  NameRef const& name) {
   WriteBarrierKind kind = kFullWriteBarrier;
-  if (representation == MachineRepresentation::kTaggedSigned ||
-      representation == MachineRepresentation::kCompressedSigned) {
+  if (representation == MachineRepresentation::kTaggedSigned) {
     kind = kNoWriteBarrier;
-  } else if (representation == MachineRepresentation::kTaggedPointer ||
-             representation == MachineRepresentation::kCompressedPointer) {
+  } else if (representation == MachineRepresentation::kTaggedPointer) {
     kind = kPointerWriteBarrier;
   }
   MachineType r = MachineType::TypeForRepresentation(representation);
@@ -2396,9 +2394,6 @@ JSNativeContextSpecialization::BuildPropertyStore(
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTagged:
-      case MachineRepresentation::kCompressedSigned:
-      case MachineRepresentation::kCompressedPointer:
-      case MachineRepresentation::kCompressed:
         if (store_to_existing_constant_field) {
           DCHECK(!access_info.HasTransitionMap());
           // If the field is constant check that the value we are going
@@ -2414,16 +2409,13 @@ JSNativeContextSpecialization::BuildPropertyStore(
           return ValueEffectControl(value, effect, control);
         }
 
-        if (field_representation == MachineRepresentation::kTaggedSigned ||
-            field_representation == MachineRepresentation::kCompressedSigned) {
+        if (field_representation == MachineRepresentation::kTaggedSigned) {
           value = effect = graph()->NewNode(
               simplified()->CheckSmi(FeedbackSource()), value, effect, control);
           field_access.write_barrier_kind = kNoWriteBarrier;
 
         } else if (field_representation ==
-                       MachineRepresentation::kTaggedPointer ||
-                   field_representation ==
-                       MachineRepresentation::kCompressedPointer) {
+                   MachineRepresentation::kTaggedPointer) {
           Handle<Map> field_map;
           if (access_info.field_map().ToHandle(&field_map)) {
             // Emit a map check for the value.
@@ -2439,12 +2431,14 @@ JSNativeContextSpecialization::BuildPropertyStore(
           field_access.write_barrier_kind = kPointerWriteBarrier;
 
         } else {
-          DCHECK(field_representation == MachineRepresentation::kTagged ||
-                 field_representation == MachineRepresentation::kCompressed);
+          DCHECK(field_representation == MachineRepresentation::kTagged);
         }
         break;
       case MachineRepresentation::kNone:
       case MachineRepresentation::kBit:
+      case MachineRepresentation::kCompressedSigned:
+      case MachineRepresentation::kCompressedPointer:
+      case MachineRepresentation::kCompressed:
       case MachineRepresentation::kWord8:
       case MachineRepresentation::kWord16:
       case MachineRepresentation::kWord32:

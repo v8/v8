@@ -132,11 +132,6 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
       return UseInfo::AnyTagged();
-    case MachineRepresentation::kCompressedSigned:
-      return UseInfo::CompressedSigned();
-    case MachineRepresentation::kCompressedPointer:
-    case MachineRepresentation::kCompressed:
-      return UseInfo::AnyCompressed();
     case MachineRepresentation::kFloat64:
       return UseInfo::TruncatingFloat64();
     case MachineRepresentation::kFloat32:
@@ -149,6 +144,9 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
       return UseInfo::Word64();
     case MachineRepresentation::kBit:
       return UseInfo::Bool();
+    case MachineRepresentation::kCompressedSigned:
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
     case MachineRepresentation::kSimd128:
     case MachineRepresentation::kNone:
       break;
@@ -1151,10 +1149,6 @@ class RepresentationSelector {
     if (IsAnyTagged(rep)) {
       return MachineType::AnyTagged();
     }
-    // Do not distinguish between various Compressed variations.
-    if (IsAnyCompressed(rep)) {
-      return MachineType::AnyCompressed();
-    }
     if (rep == MachineRepresentation::kWord64) {
       if (type.Is(Type::BigInt())) {
         return MachineType::AnyTagged();
@@ -1308,10 +1302,9 @@ class RepresentationSelector {
       MachineRepresentation field_representation, Type field_type,
       MachineRepresentation value_representation, Node* value) {
     if (base_taggedness == kTaggedBase &&
-        CanBeTaggedOrCompressedPointer(field_representation)) {
+        CanBeTaggedPointer(field_representation)) {
       Type value_type = NodeProperties::GetType(value);
-      if (value_representation == MachineRepresentation::kTaggedSigned ||
-          value_representation == MachineRepresentation::kCompressedSigned) {
+      if (value_representation == MachineRepresentation::kTaggedSigned) {
         // Write barriers are only for stores of heap objects.
         return kNoWriteBarrier;
       }
@@ -1333,9 +1326,7 @@ class RepresentationSelector {
         }
       }
       if (field_representation == MachineRepresentation::kTaggedPointer ||
-          value_representation == MachineRepresentation::kTaggedPointer ||
-          field_representation == MachineRepresentation::kCompressedPointer ||
-          value_representation == MachineRepresentation::kCompressedPointer) {
+          value_representation == MachineRepresentation::kTaggedPointer) {
         // Write barriers for heap objects are cheaper.
         return kPointerWriteBarrier;
       }
@@ -1821,10 +1812,6 @@ class RepresentationSelector {
             // BooleanNot(x: kRepTagged) => WordEqual(x, #false)
             node->AppendInput(jsgraph_->zone(), jsgraph_->FalseConstant());
             NodeProperties::ChangeOp(node, lowering->machine()->WordEqual());
-          } else if (CanBeCompressedPointer(input_info->representation())) {
-            // BooleanNot(x: kRepCompressed) => Word32Equal(x, #false)
-            node->AppendInput(jsgraph_->zone(), jsgraph_->FalseConstant());
-            NodeProperties::ChangeOp(node, lowering->machine()->Word32Equal());
           } else {
             DCHECK(TypeOf(node->InputAt(0)).IsNone());
             DeferReplacement(node, lowering->jsgraph()->Int32Constant(0));

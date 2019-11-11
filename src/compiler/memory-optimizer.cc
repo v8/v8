@@ -24,11 +24,6 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kAbortCSAAssert:
     case IrOpcode::kBitcastTaggedToWord:
     case IrOpcode::kBitcastWordToTagged:
-    case IrOpcode::kChangeCompressedPointerToTaggedPointer:
-    case IrOpcode::kChangeCompressedSignedToTaggedSigned:
-    case IrOpcode::kChangeCompressedToTagged:
-    case IrOpcode::kChangeTaggedPointerToCompressedPointer:
-    case IrOpcode::kChangeTaggedSignedToCompressedSigned:
     case IrOpcode::kChangeTaggedToCompressed:
     case IrOpcode::kComment:
     case IrOpcode::kDebugBreak:
@@ -245,7 +240,8 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
 
 bool MemoryOptimizer::AllocationTypeNeedsUpdateToOld(Node* const node,
                                                      const Edge edge) {
-  if (COMPRESS_POINTERS_BOOL && IrOpcode::IsCompressOpcode(node->opcode())) {
+  if (COMPRESS_POINTERS_BOOL &&
+      node->opcode() == IrOpcode::kChangeTaggedToCompressed) {
     // In Pointer Compression we might have a Compress node between an
     // AllocateRaw and the value used as input. This case is trickier since we
     // have to check all of the Compress node edges to test for a StoreField.
@@ -291,7 +287,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
         // AllocateRaw and the value used as input. If so, we need to update
         // child to point to the StoreField.
         if (COMPRESS_POINTERS_BOOL &&
-            IrOpcode::IsCompressOpcode(child->opcode())) {
+            child->opcode() == IrOpcode::kChangeTaggedToCompressed) {
           child = child->InputAt(0);
         }
 

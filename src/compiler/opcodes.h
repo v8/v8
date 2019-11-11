@@ -234,7 +234,6 @@
 
 // Opcodes for VirtuaMachine-level operators.
 #define SIMPLIFIED_CHANGE_OP_LIST(V) \
-  V(ChangeCompressedSignedToInt32)   \
   V(ChangeTaggedSignedToInt32)       \
   V(ChangeTaggedSignedToInt64)       \
   V(ChangeTaggedToInt32)             \
@@ -242,9 +241,6 @@
   V(ChangeTaggedToUint32)            \
   V(ChangeTaggedToFloat64)           \
   V(ChangeTaggedToTaggedSigned)      \
-  V(ChangeCompressedToTaggedSigned)  \
-  V(ChangeTaggedToCompressedSigned)  \
-  V(ChangeInt31ToCompressedSigned)   \
   V(ChangeInt31ToTaggedSigned)       \
   V(ChangeInt32ToTagged)             \
   V(ChangeInt64ToTagged)             \
@@ -269,7 +265,6 @@
   V(CheckedUint32Div)                 \
   V(CheckedUint32Mod)                 \
   V(CheckedInt32Mul)                  \
-  V(CheckedInt32ToCompressedSigned)   \
   V(CheckedInt32ToTaggedSigned)       \
   V(CheckedInt64ToInt32)              \
   V(CheckedInt64ToTaggedSigned)       \
@@ -288,11 +283,7 @@
   V(CheckedTaggedToFloat64)           \
   V(CheckedTaggedToInt64)             \
   V(CheckedTaggedToTaggedSigned)      \
-  V(CheckedTaggedToTaggedPointer)     \
-  V(CheckedCompressedToTaggedSigned)  \
-  V(CheckedCompressedToTaggedPointer) \
-  V(CheckedTaggedToCompressedSigned)  \
-  V(CheckedTaggedToCompressedPointer)
+  V(CheckedTaggedToTaggedPointer)
 
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
   V(NumberEqual)                         \
@@ -681,8 +672,6 @@
   V(BitcastTaggedToWordForTagAndSmiBits)    \
   V(BitcastWordToTagged)                    \
   V(BitcastWordToTaggedSigned)              \
-  V(BitcastWord32ToCompressedSigned)        \
-  V(BitcastCompressedSignedToWord32)        \
   V(TruncateFloat64ToWord32)                \
   V(ChangeFloat32ToFloat64)                 \
   V(ChangeFloat64ToInt32)                   \
@@ -704,11 +693,6 @@
   V(ChangeUint32ToFloat64)                  \
   V(ChangeUint32ToUint64)                   \
   V(ChangeTaggedToCompressed)               \
-  V(ChangeTaggedPointerToCompressedPointer) \
-  V(ChangeTaggedSignedToCompressedSigned)   \
-  V(ChangeCompressedToTagged)               \
-  V(ChangeCompressedPointerToTaggedPointer) \
-  V(ChangeCompressedSignedToTaggedSigned)   \
   V(TruncateFloat64ToFloat32)               \
   V(TruncateInt64ToInt32)                   \
   V(RoundFloat64ToInt32)                    \
@@ -1017,18 +1001,6 @@ class V8_EXPORT_PRIVATE IrOpcode {
     return (kJSEqual <= value && value <= kJSGreaterThanOrEqual) ||
            (kNumberEqual <= value && value <= kStringLessThanOrEqual) ||
            (kWord32Equal <= value && value <= kFloat64LessThanOrEqual);
-  }
-
-  // Returns true if opcode for decompress operator.
-  static bool IsDecompressOpcode(Value value) {
-    return kChangeCompressedToTagged <= value &&
-           value <= kChangeCompressedSignedToTaggedSigned;
-  }
-
-  // Returns true if opcode for compress operator.
-  static bool IsCompressOpcode(Value value) {
-    return kChangeTaggedToCompressed <= value &&
-           value <= kChangeTaggedSignedToCompressedSigned;
   }
 
   static bool IsContextChainExtendingOpcode(Value value) {
