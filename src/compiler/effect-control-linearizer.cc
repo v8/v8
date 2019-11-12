@@ -2265,13 +2265,13 @@ Node* EffectControlLinearizer::LowerCheckedInt32ToTaggedSigned(
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
 
-  // Check for the lost precision at the same time that we are smi tagging.
   Node* add = __ Int32AddWithOverflow(value, value);
   Node* check = __ Projection(1, add);
   __ DeoptimizeIf(DeoptimizeReason::kLostPrecision, params.feedback(), check,
                   frame_state);
-  // Since smi tagging shifts left by one, it's the same as adding value twice.
-  return __ Projection(0, add);
+  Node* result = __ Projection(0, add);
+  result = ChangeInt32ToIntPtr(result);
+  return result;
 }
 
 Node* EffectControlLinearizer::LowerCheckedInt64ToInt32(Node* node,
@@ -2299,7 +2299,13 @@ Node* EffectControlLinearizer::LowerCheckedInt64ToTaggedSigned(
   if (SmiValuesAre32Bits()) {
     return ChangeInt64ToSmi(value);
   } else {
-    return LowerCheckedInt32ToTaggedSigned(value32, frame_state);
+    Node* add = __ Int32AddWithOverflow(value32, value32);
+    Node* check = __ Projection(1, add);
+    __ DeoptimizeIf(DeoptimizeReason::kLostPrecision, params.feedback(), check,
+                    frame_state);
+    Node* result = __ Projection(0, add);
+    result = ChangeInt32ToIntPtr(result);
+    return result;
   }
 }
 
