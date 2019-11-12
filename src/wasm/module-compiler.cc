@@ -1365,8 +1365,10 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
       OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
 
   // Create a new {NativeModule} first.
+  const bool uses_liftoff = module->origin == kWasmOrigin && FLAG_liftoff;
   size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get(),
+                                                          uses_liftoff);
   auto native_module = isolate->wasm_engine()->NewNativeModule(
       isolate, enabled, std::move(module), code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes_copy));
@@ -1823,8 +1825,10 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
     } else {
       // Decode passed.
       std::shared_ptr<WasmModule> module = std::move(result).value();
+      const bool kUsesLiftoff = false;
       size_t code_size_estimate =
-          wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
+          wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get(),
+                                                              kUsesLiftoff);
       job->DoSync<PrepareAndStartCompile>(std::move(module), true,
                                           code_size_estimate);
     }
@@ -2053,9 +2057,12 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
   // task.
   int num_imported_functions =
       static_cast<int>(decoder_.module()->num_imported_functions);
+  DCHECK_EQ(kWasmOrigin, decoder_.module()->origin);
+  const bool uses_liftoff = FLAG_liftoff;
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          num_functions, num_imported_functions, code_section_length);
+          num_functions, num_imported_functions, code_section_length,
+          uses_liftoff);
   job_->DoImmediately<AsyncCompileJob::PrepareAndStartCompile>(
       decoder_.shared_module(), false, code_size_estimate);
   auto* compilation_state = Impl(job_->native_module_->compilation_state());

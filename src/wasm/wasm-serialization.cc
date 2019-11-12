@@ -619,8 +619,10 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   Handle<Script> script = CreateWasmScript(
       isolate, wire_bytes, module->source_map_url, module->name);
 
+  const bool kIncludeLiftoff = false;
   size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get(),
+                                                          kIncludeLiftoff);
   auto shared_native_module = isolate->wasm_engine()->NewNativeModule(
       isolate, enabled_features, std::move(module), code_size_estimate);
   shared_native_module->SetWireBytes(OwnedVector<uint8_t>::Of(wire_bytes_vec));

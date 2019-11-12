@@ -192,8 +192,10 @@ Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
     Handle<Script> script, Handle<FixedArray> export_wrappers) {
   const WasmModule* module = native_module->module();
+  const bool uses_liftoff =
+      FLAG_liftoff && native_module->module()->origin == wasm::kWasmOrigin;
   size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module);
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module, uses_liftoff);
   return New(isolate, std::move(native_module), script, export_wrappers,
              code_size_estimate);
 }
@@ -2030,8 +2032,10 @@ Handle<AsmWasmData> AsmWasmData::New(
     Handle<FixedArray> export_wrappers, Handle<ByteArray> asm_js_offset_table,
     Handle<HeapNumber> uses_bitset) {
   const WasmModule* module = native_module->module();
+  const bool kUsesLiftoff = false;
   size_t memory_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module) +
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module,
+                                                          kUsesLiftoff) +
       wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
   Handle<Managed<wasm::NativeModule>> managed_native_module =
       Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,

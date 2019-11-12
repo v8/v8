@@ -693,12 +693,14 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   }
 
   // Estimate the needed code space from a completely decoded module.
-  static size_t EstimateNativeModuleCodeSize(const WasmModule* module);
+  static size_t EstimateNativeModuleCodeSize(const WasmModule* module,
+                                             bool include_liftoff);
   // Estimate the needed code space from the number of functions and total code
   // section length.
   static size_t EstimateNativeModuleCodeSize(int num_functions,
                                              int num_imported_functions,
-                                             int code_section_length);
+                                             int code_section_length,
+                                             bool include_liftoff);
   // Estimate the size of meta data needed for the NativeModule, excluding
   // generated code. This data still be stored on the C++ heap.
   static size_t EstimateNativeModuleMetaDataSize(const WasmModule* module);
