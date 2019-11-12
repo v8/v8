@@ -1028,31 +1028,64 @@ class HandlerRangeMatcher {
       : bytecode_iterator_(bytecode_iterator) {
     HandlerTable table(*bytecode_array);
     for (int i = 0, n = table.NumberOfRangeEntries(); i < n; ++i) {
-      ranges_.insert(
-          std::make_pair(table.GetRangeStart(i), table.GetRangeHandler(i)));
+      ranges_.insert({table.GetRangeStart(i), table.GetRangeEnd(i),
+                      table.GetRangeHandler(i)});
     }
     ranges_iterator_ = ranges_.cbegin();
   }
 
-  int NextHandlerOffsetForRangeStart() {
+  using OffsetReporter = std::function<void(int handler_offset)>;
+
+  void HandlerOffsetForCurrentPosition(const OffsetReporter& offset_reporter) {
     CHECK(!bytecode_iterator_.done());
-    int handler_offset = -1;
+    const int current_offset = bytecode_iterator_.current_offset();
+
+    // Remove outdated try ranges from the stack.
+    while (!stack_.empty()) {
+      const int end = stack_.top().end;
+      if (end < current_offset) {
+        stack_.pop();
+      } else {
+        break;
+      }
+    }
+
+    // Advance the iterator and maintain the stack.
     while (ranges_iterator_ != ranges_.cend() &&
-           ranges_iterator_->first < bytecode_iterator_.current_offset()) {
+           ranges_iterator_->start <= current_offset) {
+      if (ranges_iterator_->end >= current_offset) {
+        stack_.push(*ranges_iterator_);
+        if (ranges_iterator_->start == current_offset) {
+          offset_reporter(ranges_iterator_->handler);
+        }
+      }
       ranges_iterator_++;
     }
-    if (ranges_iterator_ != ranges_.cend() &&
-        ranges_iterator_->first == bytecode_iterator_.current_offset()) {
-      handler_offset = ranges_iterator_->second;
-      ranges_iterator_++;
+
+    if (!stack_.empty() && stack_.top().start < current_offset) {
+      offset_reporter(stack_.top().handler);
     }
-    return handler_offset;
   }
 
  private:
   BytecodeArrayIterator const& bytecode_iterator_;
-  std::multimap<int, int> ranges_;
-  std::multimap<int, int>::const_iterator ranges_iterator_;
+
+  struct Range {
+    int start;
+    int end;
+    int handler;
+    friend bool operator<(const Range& a, const Range& b) {
+      if (a.start < b.start) return true;
+      if (a.start == b.start) {
+        if (a.end < b.end) return true;
+        CHECK_GT(a.end, b.end);
+      }
+      return false;
+    }
+  };
+  std::set<Range> ranges_;
+  std::set<Range>::const_iterator ranges_iterator_;
+  std::stack<Range> stack_;
 };
 
 Handle<FeedbackVector> SerializerForBackgroundCompilation::feedback_vector()
@@ -1104,16 +1137,16 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
       continue;  // Skip this bytecode since TF won't generate code for it.
     }
 
-    int handler_offset = try_start_matcher.NextHandlerOffsetForRangeStart();
-    while (handler_offset >= 0) {
-      // We may have nested try ranges that nonetheless start at the same
-      // offset. We loop here in order to save the environment for each catch
-      // handler.
-      TRACE_BROKER(broker(),
-                   "Entered try block. Handler at offset " << handler_offset);
-      ContributeToJumpTargetEnvironment(handler_offset);
-      handler_offset = try_start_matcher.NextHandlerOffsetForRangeStart();
-    }
+    auto save_handler_environments = [&](int handler_offset) {
+      auto it = jump_target_environments_.find(handler_offset);
+      if (it == jump_target_environments_.end()) {
+        ContributeToJumpTargetEnvironment(handler_offset);
+        TRACE_BROKER(broker(),
+                     "Handler offset for current pos: " << handler_offset);
+      }
+    };
+    try_start_matcher.HandlerOffsetForCurrentPosition(
+        save_handler_environments);
 
     if (bytecode_analysis.IsLoopHeader(current_offset)) {
       // Graph builder might insert jumps to resume targets in the loop body.
