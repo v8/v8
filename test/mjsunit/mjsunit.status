@@ -1058,24 +1058,6 @@
 }], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm
 
 ##############################################################################
-['variant == slow_path and gc_stress', {
-  # Slow tests.
-  'regress/regress-crbug-493779': [SKIP],
-  'string-replace-gc': [SKIP],
-}],  # variant == slow_path and gc_stress
-
-##############################################################################
-['variant == slow_path', {
-  # Slow tests doing too many array manipulations each of which takes slow
-  # path usually through a runtime call.
-  'regress/wasm/regress-9759': [SKIP],
-  'wasm/stack': [SKIP],
-
-  # Tests that are not compatible with the --force-slow-path mode.
-  'filter-element-kinds': [SKIP],
-}],  # variant == slow_path
-
-##############################################################################
 ['arch not in [x64, arm, arm64] or system != linux', {
   # Unwinding info writer is only supported on x64, arm, and arm64 Linux
   'regress/regress-913844': [SKIP],
