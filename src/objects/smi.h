@@ -74,8 +74,8 @@ class Smi : public Object {
   // Returns whether value can be represented in a Smi.
   static inline bool constexpr IsValid(intptr_t value) {
 #if V8_HAS_CXX14_CONSTEXPR
-    DCHECK(Internals::IsValidSmi(value) ==
-           (value >= kMinValue && value <= kMaxValue));
+    DCHECK_EQ(Internals::IsValidSmi(value),
+              value >= kMinValue && value <= kMaxValue);
 #endif
     return Internals::IsValidSmi(value);
   }

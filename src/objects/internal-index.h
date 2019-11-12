@@ -41,8 +41,7 @@ class InternalIndex {
   }
   constexpr int as_int() const {
 #if V8_HAS_CXX14_CONSTEXPR
-    // TODO(clemensb): DCHECK_LE is not constexpr.
-    DCHECK(entry_ <= std::numeric_limits<int>::max());
+    DCHECK_LE(entry_, std::numeric_limits<int>::max());
 #endif
     return static_cast<int>(entry_);
   }

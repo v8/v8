@@ -31,7 +31,7 @@ template <InstanceType upper_limit>
 struct InstanceRangeChecker<FIRST_TYPE, upper_limit> {
   static constexpr bool Check(InstanceType value) {
 #if V8_HAS_CXX14_CONSTEXPR
-    DCHECK(value >= FIRST_TYPE);
+    DCHECK_LE(FIRST_TYPE, value);
 #endif
     return value <= upper_limit;
   }
@@ -40,7 +40,7 @@ template <InstanceType lower_limit>
 struct InstanceRangeChecker<lower_limit, LAST_TYPE> {
   static constexpr bool Check(InstanceType value) {
 #if V8_HAS_CXX14_CONSTEXPR
-    DCHECK(value <= LAST_TYPE);
+    DCHECK_GE(LAST_TYPE, value);
 #endif
     return value >= lower_limit;
   }
