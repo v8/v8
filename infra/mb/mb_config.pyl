@@ -109,28 +109,28 @@
       'V8 Clusterfuzz Win64 ASAN - debug builder':
         'release_x64_asan_no_lsan_verify_heap_dchecks',
       'V8 Clusterfuzz Mac64 ASAN - release builder':
-          'release_x64_asan_no_lsan_edge_verify_heap',
+          'release_x64_asan_no_lsan_verify_heap',
       'V8 Clusterfuzz Mac64 ASAN - debug builder':
-          'debug_x64_asan_no_lsan_static_edge',
+          'debug_x64_asan_no_lsan_static',
       'V8 Clusterfuzz Linux64 - release builder':
           'release_x64_correctness_fuzzer',
       'V8 Clusterfuzz Linux64 - debug builder': 'debug_x64',
       'V8 Clusterfuzz Linux64 ASAN no inline - release builder':
-          'release_x64_asan_symbolized_edge_verify_heap',
-      'V8 Clusterfuzz Linux64 ASAN - debug builder': 'debug_x64_asan_edge',
+          'release_x64_asan_symbolized_verify_heap',
+      'V8 Clusterfuzz Linux64 ASAN - debug builder': 'debug_x64_asan',
       'V8 Clusterfuzz Linux64 ASAN arm64 - debug builder':
-          'debug_simulate_arm64_asan_edge',
+          'debug_simulate_arm64_asan',
       'V8 Clusterfuzz Linux ASAN arm - debug builder':
-          'debug_simulate_arm_asan_edge',
+          'debug_simulate_arm_asan',
       'V8 Clusterfuzz Linux64 CFI - release builder':
           'release_x64_cfi_clusterfuzz',
       'V8 Clusterfuzz Linux MSAN no origins':
-          'release_simulate_arm64_msan_no_origins_edge',
+          'release_simulate_arm64_msan_no_origins',
       'V8 Clusterfuzz Linux MSAN chained origins':
-          'release_simulate_arm64_msan_edge',
+          'release_simulate_arm64_msan',
       'V8 Clusterfuzz Linux64 TSAN - release builder': 'release_x64_tsan',
       'V8 Clusterfuzz Linux64 UBSan - release builder':
-          'release_x64_ubsan_recover_edge',
+          'release_x64_ubsan_recover',
     },
     'client.v8.perf' : {
       'V8 Arm - builder - perf': 'official_arm',
@@ -332,14 +332,14 @@
     # Debug configs for simulators.
     'debug_simulate_arm': [
       'debug_bot', 'simulate_arm'],
-    'debug_simulate_arm_asan_edge': [
-      'debug_bot', 'simulate_arm', 'asan', 'edge'],
+    'debug_simulate_arm_asan': [
+      'debug_bot', 'simulate_arm', 'asan'],
     'debug_simulate_arm_lite': [
       'debug_bot', 'simulate_arm', 'v8_enable_lite_mode'],
     'debug_simulate_arm64': [
       'debug_bot', 'simulate_arm64'],
-    'debug_simulate_arm64_asan_edge': [
-      'debug_bot', 'simulate_arm64', 'asan', 'lsan', 'edge'],
+    'debug_simulate_arm64_asan': [
+      'debug_bot', 'simulate_arm64', 'asan', 'lsan'],
 
     # Release configs for simulators.
     'release_simulate_arm': [
@@ -362,10 +362,10 @@
       'release_bot', 'simulate_arm64', 'msan'],
     'release_simulate_arm64_msan_minimal_symbols': [
       'release_bot', 'simulate_arm64', 'msan', 'minimal_symbols'],
-    'release_simulate_arm64_msan_edge': [
-      'release_bot', 'simulate_arm64', 'edge', 'msan'],
-    'release_simulate_arm64_msan_no_origins_edge': [
-      'release_bot', 'simulate_arm64', 'edge', 'msan_no_origins'],
+    'release_simulate_arm64_msan': [
+      'release_bot', 'simulate_arm64', 'msan'],
+    'release_simulate_arm64_msan_no_origins': [
+      'release_bot', 'simulate_arm64', 'msan_no_origins'],
     'release_simulate_arm64_trybot': [
       'release_trybot', 'simulate_arm64'],
     'release_simulate_mipsel': [
@@ -418,15 +418,15 @@
       'release_bot', 'x64', 'asan', 'bb', 'coverage', 'lsan', 'minimal_symbols'],
     'release_x64_asan_no_lsan': [
       'release_bot', 'x64', 'asan'],
-    'release_x64_asan_no_lsan_edge_verify_heap': [
-      'release_bot', 'x64', 'asan', 'edge', 'v8_verify_heap'],
+    'release_x64_asan_no_lsan_verify_heap': [
+      'release_bot', 'x64', 'asan', 'v8_verify_heap'],
     'release_x64_asan_no_lsan_verify_heap': [
       'release_bot', 'x64', 'asan', 'v8_verify_heap'],
     'release_x64_asan_no_lsan_verify_heap_dchecks': [
       'release_bot', 'x64', 'asan', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_heap'],
-    'release_x64_asan_symbolized_edge_verify_heap': [
-      'release_bot', 'x64', 'asan', 'edge', 'lsan', 'symbolized',
+    'release_x64_asan_symbolized_verify_heap': [
+      'release_bot', 'x64', 'asan', 'lsan', 'symbolized',
       'v8_verify_heap'],
     'release_x64_cfi': [
       'release_bot', 'x64', 'cfi'],
@@ -466,8 +466,8 @@
       'release_bot', 'x64', 'ubsan'],
     'release_x64_ubsan_minimal_symbols': [
       'release_bot', 'x64', 'ubsan', 'minimal_symbols'],
-    'release_x64_ubsan_recover_edge': [
-      'release_bot', 'x64', 'edge', 'ubsan_recover'],
+    'release_x64_ubsan_recover': [
+      'release_bot', 'x64', 'ubsan_recover'],
     'release_x64_shared_verify_heap': [
       'release_bot', 'x64', 'shared', 'v8_verify_heap'],
     'release_x64_verify_csa': [
@@ -481,11 +481,11 @@
     # Debug configs for x64.
     'debug_x64': [
       'debug_bot', 'x64'],
-    'debug_x64_asan_edge': [
-      'debug_bot', 'x64', 'asan', 'lsan', 'edge'],
-    'debug_x64_asan_no_lsan_static_edge': [
+    'debug_x64_asan': [
+      'debug_bot', 'x64', 'asan', 'lsan'],
+    'debug_x64_asan_no_lsan_static': [
       'debug', 'static', 'goma', 'v8_enable_slow_dchecks', 'v8_optimized_debug',
-      'x64', 'asan', 'edge'],
+      'x64', 'asan'],
     'debug_x64_custom': [
       'debug_bot', 'x64', 'v8_snapshot_custom'],
     'debug_x64_fuchsia': [
@@ -610,10 +610,6 @@
 
     'debug_trybot': {
       'mixins': ['debug_bot', 'minimal_symbols'],
-    },
-
-    'edge': {
-      'gn_args': 'sanitizer_coverage_flags="trace-pc-guard"',
     },
 
     'fuchsia': {
