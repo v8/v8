@@ -63,12 +63,6 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     }
 
    private:
-    uintptr_t SkipZeroBits(uintptr_t val) {
-      uintptr_t trailing_zeros = base::bits::CountTrailingZeros(val);
-      current_ += trailing_zeros;
-      return val >> trailing_zeros;
-    }
-
     BitVector* target_;
     int current_index_;
     uintptr_t current_value_;
