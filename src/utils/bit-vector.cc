@@ -25,21 +25,6 @@ void BitVector::Print() {
 }
 #endif
 
-void BitVector::Iterator::Advance() {
-  current_++;
-  uintptr_t val = current_value_;
-  while (val == 0) {
-    current_index_++;
-    if (Done()) return;
-    DCHECK(!target_->is_inline());
-    val = target_->data_.ptr_[current_index_];
-    current_ = current_index_ << kDataBitShift;
-  }
-  val = SkipZeroBytes(val);
-  val = SkipZeroBits(val);
-  current_value_ = val >> 1;
-}
-
 int BitVector::Count() const {
   if (is_inline()) return base::bits::CountPopulation(data_.inline_);
 
