@@ -2723,7 +2723,7 @@ TEST(CheckCodeNames) {
   CHECK(ValidateSnapshot(snapshot));
 
   const char* builtin_path1[] = {"::(GC roots)", "::(Builtins)",
-                                 "::(KeyedLoadIC_PolymorphicName builtin)"};
+                                 "::(KeyedLoadIC_Slow builtin)"};
   const v8::HeapGraphNode* node = GetNodeByPath(
       env->GetIsolate(), snapshot, builtin_path1, arraysize(builtin_path1));
   CHECK(node);

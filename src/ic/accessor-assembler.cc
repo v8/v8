@@ -1564,9 +1564,6 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kNormal)),
            &if_add_normal);
 
-    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kSlow)),
-           &if_slow);
-
     TNode<MaybeObject> maybe_holder = LoadHandlerDataField(handler, 1);
     CSA_ASSERT(this, IsWeakOrCleared(maybe_holder));
     TNode<HeapObject> holder = GetHeapObjectAssumeWeak(maybe_holder, miss);
@@ -1583,6 +1580,9 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
     GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kApiSetter)),
            &if_api_setter);
+
+    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kSlow)),
+           &if_slow);
 
     GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kInterceptor)),
            &if_interceptor);
