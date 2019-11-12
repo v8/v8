@@ -1077,6 +1077,7 @@ class V8_EXPORT_PRIVATE Factory {
       ElementsKind elements_kind, int capacity,
       ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
 
+  Handle<SharedFunctionInfo> NewSharedFunctionInfo();
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       MaybeHandle<String> name, MaybeHandle<HeapObject> maybe_function_data,
       int maybe_builtin_index, FunctionKind kind = kNormalFunction);

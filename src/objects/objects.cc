@@ -66,6 +66,7 @@
 #include "src/objects/map-updater.h"
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/property-details.h"
+#include "src/roots/roots.h"
 #include "src/utils/identity-map.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator.h"
@@ -4822,6 +4823,44 @@ uint32_t SharedFunctionInfo::Hash() {
   int start_pos = StartPosition();
   int script_id = script().IsScript() ? Script::cast(script()).id() : 0;
   return static_cast<uint32_t>(base::hash_combine(start_pos, script_id));
+}
+
+void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
+  DisallowHeapAllocation no_allocation;
+
+  // Set the function data to the "illegal" builtin. Ideally we'd use some sort
+  // of "uninitialized" marker here, but it's cheaper to use a valid buitin and
+  // avoid having to do uninitialized checks elsewhere.
+  set_builtin_id(Builtins::kIllegal);
+
+  // Set the name to the no-name sentinel, this can be updated later.
+  set_name_or_scope_info(SharedFunctionInfo::kNoSharedNameSentinel,
+                         SKIP_WRITE_BARRIER);
+
+  // Generally functions won't have feedback, unless they have been created
+  // from a FunctionLiteral. Those can just reset this field to keep the
+  // SharedFunctionInfo in a consistent state.
+  set_raw_outer_scope_info_or_feedback_metadata(ro_roots.the_hole_value(),
+                                                SKIP_WRITE_BARRIER);
+  set_script_or_debug_info(ro_roots.undefined_value(), SKIP_WRITE_BARRIER);
+  set_function_literal_id(kFunctionLiteralIdInvalid);
+#if V8_SFI_HAS_UNIQUE_ID
+  set_unique_id(unique_id);
+#endif
+
+  // Set integer fields (smi or int, depending on the architecture).
+  set_length(0);
+  set_internal_formal_parameter_count(0);
+  set_expected_nof_properties(0);
+  set_raw_function_token_offset(0);
+
+  // All flags default to false or 0, except ConstructAsBuiltinBit just because
+  // we're using the kIllegal builtin.
+  set_flags(ConstructAsBuiltinBit::encode(true));
+
+  UpdateFunctionMapIndex();
+
+  clear_padding();
 }
 
 Code SharedFunctionInfo::GetCode() const {

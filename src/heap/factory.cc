@@ -56,6 +56,7 @@
 #include "src/objects/struct-inl.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/transitions-inl.h"
+#include "src/roots/roots.h"
 #include "src/strings/unicode-inl.h"
 
 namespace v8 {
@@ -3441,70 +3442,59 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     MaybeHandle<String> maybe_name, MaybeHandle<HeapObject> maybe_function_data,
     int maybe_builtin_index, FunctionKind kind) {
+  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo();
+
   // Function names are assumed to be flat elsewhere. Must flatten before
   // allocating SharedFunctionInfo to avoid GC seeing the uninitialized SFI.
   Handle<String> shared_name;
   bool has_shared_name = maybe_name.ToHandle(&shared_name);
   if (has_shared_name) {
     shared_name = String::Flatten(isolate(), shared_name, AllocationType::kOld);
+    shared->set_name_or_scope_info(*shared_name);
+  } else {
+    DCHECK_EQ(shared->name_or_scope_info(),
+              SharedFunctionInfo::kNoSharedNameSentinel);
   }
 
-  Handle<Map> map = shared_function_info_map();
-  Handle<SharedFunctionInfo> share(
-      SharedFunctionInfo::cast(New(map, AllocationType::kOld)), isolate());
-  {
-    DisallowHeapAllocation no_allocation;
-
-    // Set pointer fields.
-    share->set_name_or_scope_info(
-        has_shared_name ? Object::cast(*shared_name)
-                        : SharedFunctionInfo::kNoSharedNameSentinel);
-    Handle<HeapObject> function_data;
-    if (maybe_function_data.ToHandle(&function_data)) {
-      // If we pass function_data then we shouldn't pass a builtin index, and
-      // the function_data should not be code with a builtin.
-      DCHECK(!Builtins::IsBuiltinId(maybe_builtin_index));
-      DCHECK_IMPLIES(function_data->IsCode(),
-                     !Code::cast(*function_data).is_builtin());
-      share->set_function_data(*function_data);
-    } else if (Builtins::IsBuiltinId(maybe_builtin_index)) {
-      share->set_builtin_id(maybe_builtin_index);
-    } else {
-      share->set_builtin_id(Builtins::kIllegal);
-    }
-    // Generally functions won't have feedback, unless they have been created
-    // from a FunctionLiteral. Those can just reset this field to keep the
-    // SharedFunctionInfo in a consistent state.
-    if (maybe_builtin_index == Builtins::kCompileLazy) {
-      share->set_raw_outer_scope_info_or_feedback_metadata(*the_hole_value(),
-                                                           SKIP_WRITE_BARRIER);
-    } else {
-      share->set_raw_outer_scope_info_or_feedback_metadata(
-          *empty_feedback_metadata(), SKIP_WRITE_BARRIER);
-    }
-    share->set_script_or_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
-    share->set_function_literal_id(kFunctionLiteralIdInvalid);
-#if V8_SFI_HAS_UNIQUE_ID
-    share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());
-#endif
-
-    // Set integer fields (smi or int, depending on the architecture).
-    share->set_length(0);
-    share->set_internal_formal_parameter_count(0);
-    share->set_expected_nof_properties(0);
-    share->set_raw_function_token_offset(0);
-    // All flags default to false or 0.
-    share->set_flags(0);
-    share->CalculateConstructAsBuiltin();
-    share->set_kind(kind);
-
-    share->clear_padding();
+  Handle<HeapObject> function_data;
+  if (maybe_function_data.ToHandle(&function_data)) {
+    // If we pass function_data then we shouldn't pass a builtin index, and
+    // the function_data should not be code with a builtin.
+    DCHECK(!Builtins::IsBuiltinId(maybe_builtin_index));
+    DCHECK_IMPLIES(function_data->IsCode(),
+                   !Code::cast(*function_data).is_builtin());
+    shared->set_function_data(*function_data);
+  } else if (Builtins::IsBuiltinId(maybe_builtin_index)) {
+    shared->set_builtin_id(maybe_builtin_index);
+  } else {
+    shared->set_builtin_id(Builtins::kIllegal);
   }
+
+  shared->CalculateConstructAsBuiltin();
+  shared->set_kind(kind);
 
 #ifdef VERIFY_HEAP
-  share->SharedFunctionInfoVerify(isolate());
-#endif
-  return share;
+  shared->SharedFunctionInfoVerify(isolate());
+#endif  // VERIFY_HEAP
+  return shared;
+}
+
+Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo() {
+  Handle<Map> map = shared_function_info_map();
+
+  Handle<SharedFunctionInfo> shared(
+      SharedFunctionInfo::cast(New(map, AllocationType::kOld)), isolate());
+  int unique_id = -1;
+#if V8_SFI_HAS_UNIQUE_ID
+  unique_id = isolate()->GetNextUniqueSharedFunctionInfoId();
+#endif  // V8_SFI_HAS_UNIQUE_ID
+
+  shared->Init(ReadOnlyRoots(isolate()), unique_id);
+
+#ifdef VERIFY_HEAP
+  shared->SharedFunctionInfoVerify(isolate());
+#endif  // VERIFY_HEAP
+  return shared;
 }
 
 namespace {

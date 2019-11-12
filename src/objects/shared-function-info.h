@@ -169,6 +169,13 @@ class SharedFunctionInfo : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
 
+  // This initializes the SharedFunctionInfo after allocation. It must
+  // initialize all fields, and leave the SharedFunctionInfo in a state where
+  // it is safe for the GC to visit it.
+  //
+  // Important: This function MUST not allocate.
+  void Init(ReadOnlyRoots roots, int unique_id);
+
   V8_EXPORT_PRIVATE static constexpr Object const kNoSharedNameSentinel =
       Smi::kZero;
 
