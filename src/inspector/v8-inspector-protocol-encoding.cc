@@ -5,21 +5,24 @@
 #include "src/inspector/v8-inspector-protocol-encoding.h"
 
 #include <cmath>
-#include "../../third_party/inspector_protocol/encoding/encoding.h"
+#include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "src/numbers/conversions.h"
 #include "src/utils/vector.h"
 
 namespace v8_inspector {
 namespace {
-using IPEStatus = ::v8_inspector_protocol_encoding::Status;
-using ::v8_inspector_protocol_encoding::span;
+using v8_crdtp::span;
+using v8_crdtp::Status;
 
-class Platform : public ::v8_inspector_protocol_encoding::json::Platform {
- public:
+class Platform : public v8_crdtp::json::Platform {
+  // Parses |str| into |result|. Returns false iff there are
+  // leftover characters or parsing errors.
   bool StrToD(const char* str, double* result) const override {
     *result = v8::internal::StringToDouble(str, v8::internal::NO_FLAGS);
     return !std::isnan(*result);
   }
+
+  // Prints |value| in a format suitable for JSON.
   std::unique_ptr<char[]> DToStr(double value) const override {
     v8::internal::ScopedVector<char> buffer(
         v8::internal::kDoubleToCStringMinBufferSize);
@@ -33,19 +36,18 @@ class Platform : public ::v8_inspector_protocol_encoding::json::Platform {
 };
 }  // namespace
 
-IPEStatus ConvertCBORToJSON(span<uint8_t> cbor, std::vector<uint8_t>* json) {
+Status ConvertCBORToJSON(span<uint8_t> cbor, std::vector<uint8_t>* json) {
   Platform platform;
-  return ConvertCBORToJSON(platform, cbor, json);
+  return v8_crdtp::json::ConvertCBORToJSON(platform, cbor, json);
 }
 
-IPEStatus ConvertJSONToCBOR(span<uint8_t> json, std::vector<uint8_t>* cbor) {
+Status ConvertJSONToCBOR(span<uint8_t> json, std::vector<uint8_t>* cbor) {
   Platform platform;
-  return ConvertJSONToCBOR(platform, json, cbor);
+  return v8_crdtp::json::ConvertJSONToCBOR(platform, json, cbor);
 }
 
-IPEStatus ConvertJSONToCBOR(span<uint16_t> json, std::vector<uint8_t>* cbor) {
+Status ConvertJSONToCBOR(span<uint16_t> json, std::vector<uint8_t>* cbor) {
   Platform platform;
-  return ConvertJSONToCBOR(platform, json, cbor);
+  return v8_crdtp::json::ConvertJSONToCBOR(platform, json, cbor);
 }
-
 }  // namespace v8_inspector

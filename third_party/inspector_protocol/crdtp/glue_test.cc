@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "bindings.h"
+#include "glue.h"
 
 #include <string>
 #include <vector>
 
-#include "bindings_test_helper.h"
+#include "test_platform.h"
 
-namespace v8_inspector_protocol_bindings {
+namespace v8_crdtp {
 namespace glue {
 // =============================================================================
 // glue::detail::PtrMaybe, glue::detail::ValueMaybe, templates for optional
@@ -41,4 +41,4 @@ TEST(PtrValueTest, SmokeTest) {
   EXPECT_EQ(out, 42);
 }
 }  // namespace glue
-}  // namespace v8_inspector_protocol_bindings
+}  // namespace v8_crdtp

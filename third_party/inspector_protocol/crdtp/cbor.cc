@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "encoding.h"
+#include "cbor.h"
 
 #include <algorithm>
 #include <cassert>
@@ -11,108 +11,7 @@
 #include <limits>
 #include <stack>
 
-namespace v8_inspector_protocol_encoding {
-// =============================================================================
-// Status and Error codes
-// =============================================================================
-
-std::string Status::ToASCIIString() const {
-  switch (error) {
-    case Error::OK:
-      return "OK";
-    case Error::JSON_PARSER_UNPROCESSED_INPUT_REMAINS:
-      return ToASCIIString("JSON: unprocessed input remains");
-    case Error::JSON_PARSER_STACK_LIMIT_EXCEEDED:
-      return ToASCIIString("JSON: stack limit exceeded");
-    case Error::JSON_PARSER_NO_INPUT:
-      return ToASCIIString("JSON: no input");
-    case Error::JSON_PARSER_INVALID_TOKEN:
-      return ToASCIIString("JSON: invalid token");
-    case Error::JSON_PARSER_INVALID_NUMBER:
-      return ToASCIIString("JSON: invalid number");
-    case Error::JSON_PARSER_INVALID_STRING:
-      return ToASCIIString("JSON: invalid string");
-    case Error::JSON_PARSER_UNEXPECTED_ARRAY_END:
-      return ToASCIIString("JSON: unexpected array end");
-    case Error::JSON_PARSER_COMMA_OR_ARRAY_END_EXPECTED:
-      return ToASCIIString("JSON: comma or array end expected");
-    case Error::JSON_PARSER_STRING_LITERAL_EXPECTED:
-      return ToASCIIString("JSON: string literal expected");
-    case Error::JSON_PARSER_COLON_EXPECTED:
-      return ToASCIIString("JSON: colon expected");
-    case Error::JSON_PARSER_UNEXPECTED_MAP_END:
-      return ToASCIIString("JSON: unexpected map end");
-    case Error::JSON_PARSER_COMMA_OR_MAP_END_EXPECTED:
-      return ToASCIIString("JSON: comma or map end expected");
-    case Error::JSON_PARSER_VALUE_EXPECTED:
-      return ToASCIIString("JSON: value expected");
-
-    case Error::CBOR_INVALID_INT32:
-      return ToASCIIString("CBOR: invalid int32");
-    case Error::CBOR_INVALID_DOUBLE:
-      return ToASCIIString("CBOR: invalid double");
-    case Error::CBOR_INVALID_ENVELOPE:
-      return ToASCIIString("CBOR: invalid envelope");
-    case Error::CBOR_ENVELOPE_CONTENTS_LENGTH_MISMATCH:
-      return ToASCIIString("CBOR: envelope contents length mismatch");
-    case Error::CBOR_MAP_OR_ARRAY_EXPECTED_IN_ENVELOPE:
-      return ToASCIIString("CBOR: map or array expected in envelope");
-    case Error::CBOR_INVALID_STRING8:
-      return ToASCIIString("CBOR: invalid string8");
-    case Error::CBOR_INVALID_STRING16:
-      return ToASCIIString("CBOR: invalid string16");
-    case Error::CBOR_INVALID_BINARY:
-      return ToASCIIString("CBOR: invalid binary");
-    case Error::CBOR_UNSUPPORTED_VALUE:
-      return ToASCIIString("CBOR: unsupported value");
-    case Error::CBOR_NO_INPUT:
-      return ToASCIIString("CBOR: no input");
-    case Error::CBOR_INVALID_START_BYTE:
-      return ToASCIIString("CBOR: invalid start byte");
-    case Error::CBOR_UNEXPECTED_EOF_EXPECTED_VALUE:
-      return ToASCIIString("CBOR: unexpected eof expected value");
-    case Error::CBOR_UNEXPECTED_EOF_IN_ARRAY:
-      return ToASCIIString("CBOR: unexpected eof in array");
-    case Error::CBOR_UNEXPECTED_EOF_IN_MAP:
-      return ToASCIIString("CBOR: unexpected eof in map");
-    case Error::CBOR_INVALID_MAP_KEY:
-      return ToASCIIString("CBOR: invalid map key");
-    case Error::CBOR_STACK_LIMIT_EXCEEDED:
-      return ToASCIIString("CBOR: stack limit exceeded");
-    case Error::CBOR_TRAILING_JUNK:
-      return ToASCIIString("CBOR: trailing junk");
-    case Error::CBOR_MAP_START_EXPECTED:
-      return ToASCIIString("CBOR: map start expected");
-    case Error::CBOR_MAP_STOP_EXPECTED:
-      return ToASCIIString("CBOR: map stop expected");
-    case Error::CBOR_ARRAY_START_EXPECTED:
-      return ToASCIIString("CBOR: array start expected");
-    case Error::CBOR_ENVELOPE_SIZE_LIMIT_EXCEEDED:
-      return ToASCIIString("CBOR: envelope size limit exceeded");
-
-    case Error::BINDINGS_MANDATORY_FIELD_MISSING:
-      return ToASCIIString("BINDINGS: mandatory field missing");
-    case Error::BINDINGS_BOOL_VALUE_EXPECTED:
-      return ToASCIIString("BINDINGS: bool value expected");
-    case Error::BINDINGS_INT32_VALUE_EXPECTED:
-      return ToASCIIString("BINDINGS: int32 value expected");
-    case Error::BINDINGS_DOUBLE_VALUE_EXPECTED:
-      return ToASCIIString("BINDINGS: double value expected");
-    case Error::BINDINGS_STRING_VALUE_EXPECTED:
-      return ToASCIIString("BINDINGS: string value expected");
-    case Error::BINDINGS_STRING8_VALUE_EXPECTED:
-      return ToASCIIString("BINDINGS: string8 value expected");
-    case Error::BINDINGS_BINARY_VALUE_EXPECTED:
-      return ToASCIIString("BINDINGS: binary value expected");
-  }
-  // Some compilers can't figure out that we can't get here.
-  return "INVALID ERROR CODE";
-}
-
-std::string Status::ToASCIIString(const char* msg) const {
-  return std::string(msg) + " at position " + std::to_string(pos);
-}
-
+namespace v8_crdtp {
 namespace cbor {
 namespace {
 // Indicates the number of bits the "initial byte" needs to be shifted to the
@@ -284,11 +183,13 @@ void WriteTokenStartTmpl(MajorType type, uint64_t value, C* encoded) {
   encoded->push_back(EncodeInitialByte(type, kAdditionalInformation8Bytes));
   WriteBytesMostSignificantByteFirst<uint64_t>(value, encoded);
 }
+
 void WriteTokenStart(MajorType type,
                      uint64_t value,
                      std::vector<uint8_t>* encoded) {
   WriteTokenStartTmpl(type, value, encoded);
 }
+
 void WriteTokenStart(MajorType type, uint64_t value, std::string* encoded) {
   WriteTokenStartTmpl(type, value, encoded);
 }
@@ -301,9 +202,11 @@ void WriteTokenStart(MajorType type, uint64_t value, std::string* encoded) {
 uint8_t InitialByteForEnvelope() {
   return kInitialByteForEnvelope;
 }
+
 uint8_t InitialByteFor32BitLengthByteString() {
   return kInitialByteFor32BitLengthByteString;
 }
+
 bool IsCBORMessage(span<uint8_t> msg) {
   return msg.size() >= 6 && msg[0] == InitialByteForEnvelope() &&
          msg[1] == InitialByteFor32BitLengthByteString();
@@ -316,9 +219,11 @@ bool IsCBORMessage(span<uint8_t> msg) {
 uint8_t EncodeTrue() {
   return kEncodedTrue;
 }
+
 uint8_t EncodeFalse() {
   return kEncodedFalse;
 }
+
 uint8_t EncodeNull() {
   return kEncodedNull;
 }
@@ -344,9 +249,11 @@ void EncodeInt32Tmpl(int32_t value, C* out) {
     internals::WriteTokenStart(MajorType::NEGATIVE, representation, out);
   }
 }
+
 void EncodeInt32(int32_t value, std::vector<uint8_t>* out) {
   EncodeInt32Tmpl(value, out);
 }
+
 void EncodeInt32(int32_t value, std::string* out) {
   EncodeInt32Tmpl(value, out);
 }
@@ -369,9 +276,11 @@ void EncodeString16Tmpl(span<uint16_t> in, C* out) {
     out->push_back(two_bytes >> 8);
   }
 }
+
 void EncodeString16(span<uint16_t> in, std::vector<uint8_t>* out) {
   EncodeString16Tmpl(in, out);
 }
+
 void EncodeString16(span<uint16_t> in, std::string* out) {
   EncodeString16Tmpl(in, out);
 }
@@ -382,9 +291,11 @@ void EncodeString8Tmpl(span<uint8_t> in, C* out) {
                              static_cast<uint64_t>(in.size_bytes()), out);
   out->insert(out->end(), in.begin(), in.end());
 }
+
 void EncodeString8(span<uint8_t> in, std::vector<uint8_t>* out) {
   EncodeString8Tmpl(in, out);
 }
+
 void EncodeString8(span<uint8_t> in, std::string* out) {
   EncodeString8Tmpl(in, out);
 }
@@ -410,9 +321,11 @@ void EncodeFromLatin1Tmpl(span<uint8_t> latin1, C* out) {
   }
   EncodeString8(latin1, out);
 }
+
 void EncodeFromLatin1(span<uint8_t> latin1, std::vector<uint8_t>* out) {
   EncodeFromLatin1Tmpl(latin1, out);
 }
+
 void EncodeFromLatin1(span<uint8_t> latin1, std::string* out) {
   EncodeFromLatin1Tmpl(latin1, out);
 }
@@ -431,9 +344,11 @@ void EncodeFromUTF16Tmpl(span<uint16_t> utf16, C* out) {
                              static_cast<uint64_t>(utf16.size()), out);
   out->insert(out->end(), utf16.begin(), utf16.end());
 }
+
 void EncodeFromUTF16(span<uint16_t> utf16, std::vector<uint8_t>* out) {
   EncodeFromUTF16Tmpl(utf16, out);
 }
+
 void EncodeFromUTF16(span<uint16_t> utf16, std::string* out) {
   EncodeFromUTF16Tmpl(utf16, out);
 }
@@ -445,9 +360,11 @@ void EncodeBinaryTmpl(span<uint8_t> in, C* out) {
   internals::WriteTokenStart(MajorType::BYTE_STRING, byte_length, out);
   out->insert(out->end(), in.begin(), in.end());
 }
+
 void EncodeBinary(span<uint8_t> in, std::vector<uint8_t>* out) {
   EncodeBinaryTmpl(in, out);
 }
+
 void EncodeBinary(span<uint8_t> in, std::string* out) {
   EncodeBinaryTmpl(in, out);
 }
@@ -473,9 +390,11 @@ void EncodeDoubleTmpl(double value, C* out) {
   reinterpret.from_double = value;
   WriteBytesMostSignificantByteFirst<uint64_t>(reinterpret.to_uint64, out);
 }
+
 void EncodeDouble(double value, std::vector<uint8_t>* out) {
   EncodeDoubleTmpl(value, out);
 }
+
 void EncodeDouble(double value, std::string* out) {
   EncodeDoubleTmpl(value, out);
 }
@@ -644,6 +563,7 @@ std::unique_ptr<StreamingParserHandler> NewCBOREncoder(
   return std::unique_ptr<StreamingParserHandler>(
       new CBOREncoder<std::vector<uint8_t>>(out, status));
 }
+
 std::unique_ptr<StreamingParserHandler> NewCBOREncoder(std::string* out,
                                                        Status* status) {
   return std::unique_ptr<StreamingParserHandler>(
@@ -657,6 +577,7 @@ std::unique_ptr<StreamingParserHandler> NewCBOREncoder(std::string* out,
 CBORTokenizer::CBORTokenizer(span<uint8_t> bytes) : bytes_(bytes) {
   ReadNextToken(/*enter_envelope=*/false);
 }
+
 CBORTokenizer::~CBORTokenizer() {}
 
 CBORTokenTag CBORTokenizer::TokenTag() const {
@@ -855,7 +776,7 @@ void CBORTokenizer::ReadNextToken(bool enter_envelope) {
       switch (token_start_type_) {
         case MajorType::UNSIGNED:  // INT32.
           // INT32 is a signed int32 (int32 makes sense for the
-          // inspector_protocol, it's not a CBOR limitation), so we check
+          // inspector protocol, it's not a CBOR limitation), so we check
           // against the signed max, so that the allowable values are
           // 0, 1, 2, ... 2^31 - 1.
           if (!bytes_read || std::numeric_limits<int32_t>::max() <
@@ -867,7 +788,7 @@ void CBORTokenizer::ReadNextToken(bool enter_envelope) {
           return;
         case MajorType::NEGATIVE: {  // INT32.
           // INT32 is a signed int32 (int32 makes sense for the
-          // inspector_protocol, it's not a CBOR limitation); in CBOR, the
+          // inspector protocol, it's not a CBOR limitation); in CBOR, the
           // negative values for INT32 are represented as NEGATIVE, that is, -1
           // INT32 is represented as 1 << 5 | 0 (major type 1, additional info
           // value 0).
@@ -950,12 +871,15 @@ static constexpr int kStackLimit = 300;
 bool ParseMap(int32_t stack_depth,
               CBORTokenizer* tokenizer,
               StreamingParserHandler* out);
+
 bool ParseArray(int32_t stack_depth,
                 CBORTokenizer* tokenizer,
                 StreamingParserHandler* out);
+
 bool ParseValue(int32_t stack_depth,
                 CBORTokenizer* tokenizer,
                 StreamingParserHandler* out);
+
 bool ParseEnvelope(int32_t stack_depth,
                    CBORTokenizer* tokenizer,
                    StreamingParserHandler* out);
@@ -1218,1040 +1142,17 @@ Status AppendString8EntryToCBORMapTmpl(span<uint8_t> string8_key,
   *(out) = new_envelope_size & 0xff;
   return Status();
 }
+
 Status AppendString8EntryToCBORMap(span<uint8_t> string8_key,
                                    span<uint8_t> string8_value,
                                    std::vector<uint8_t>* cbor) {
   return AppendString8EntryToCBORMapTmpl(string8_key, string8_value, cbor);
 }
+
 Status AppendString8EntryToCBORMap(span<uint8_t> string8_key,
                                    span<uint8_t> string8_value,
                                    std::string* cbor) {
   return AppendString8EntryToCBORMapTmpl(string8_key, string8_value, cbor);
 }
 }  // namespace cbor
-
-namespace json {
-
-// =============================================================================
-// json::NewJSONEncoder - for encoding streaming parser events as JSON
-// =============================================================================
-
-namespace {
-// Prints |value| to |out| with 4 hex digits, most significant chunk first.
-template <typename C>
-void PrintHex(uint16_t value, C* out) {
-  for (int ii = 3; ii >= 0; --ii) {
-    int four_bits = 0xf & (value >> (4 * ii));
-    out->push_back(four_bits + ((four_bits <= 9) ? '0' : ('a' - 10)));
-  }
-}
-
-// In the writer below, we maintain a stack of State instances.
-// It is just enough to emit the appropriate delimiters and brackets
-// in JSON.
-enum class Container {
-  // Used for the top-level, initial state.
-  NONE,
-  // Inside a JSON object.
-  MAP,
-  // Inside a JSON array.
-  ARRAY
-};
-class State {
- public:
-  explicit State(Container container) : container_(container) {}
-  void StartElement(std::vector<uint8_t>* out) { StartElementTmpl(out); }
-  void StartElement(std::string* out) { StartElementTmpl(out); }
-  Container container() const { return container_; }
-
- private:
-  template <typename C>
-  void StartElementTmpl(C* out) {
-    assert(container_ != Container::NONE || size_ == 0);
-    if (size_ != 0) {
-      char delim = (!(size_ & 1) || container_ == Container::ARRAY) ? ',' : ':';
-      out->push_back(delim);
-    }
-    ++size_;
-  }
-
-  Container container_ = Container::NONE;
-  int size_ = 0;
-};
-
-constexpr char kBase64Table[] =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "abcdefghijklmnopqrstuvwxyz0123456789+/";
-
-template <typename C>
-void Base64Encode(const span<uint8_t>& in, C* out) {
-  // The following three cases are based on the tables in the example
-  // section in https://en.wikipedia.org/wiki/Base64. We process three
-  // input bytes at a time, emitting 4 output bytes at a time.
-  size_t ii = 0;
-
-  // While possible, process three input bytes.
-  for (; ii + 3 <= in.size(); ii += 3) {
-    uint32_t twentyfour_bits = (in[ii] << 16) | (in[ii + 1] << 8) | in[ii + 2];
-    out->push_back(kBase64Table[(twentyfour_bits >> 18)]);
-    out->push_back(kBase64Table[(twentyfour_bits >> 12) & 0x3f]);
-    out->push_back(kBase64Table[(twentyfour_bits >> 6) & 0x3f]);
-    out->push_back(kBase64Table[twentyfour_bits & 0x3f]);
-  }
-  if (ii + 2 <= in.size()) {  // Process two input bytes.
-    uint32_t twentyfour_bits = (in[ii] << 16) | (in[ii + 1] << 8);
-    out->push_back(kBase64Table[(twentyfour_bits >> 18)]);
-    out->push_back(kBase64Table[(twentyfour_bits >> 12) & 0x3f]);
-    out->push_back(kBase64Table[(twentyfour_bits >> 6) & 0x3f]);
-    out->push_back('=');  // Emit padding.
-    return;
-  }
-  if (ii + 1 <= in.size()) {  // Process a single input byte.
-    uint32_t twentyfour_bits = (in[ii] << 16);
-    out->push_back(kBase64Table[(twentyfour_bits >> 18)]);
-    out->push_back(kBase64Table[(twentyfour_bits >> 12) & 0x3f]);
-    out->push_back('=');  // Emit padding.
-    out->push_back('=');  // Emit padding.
-  }
-}
-
-// Implements a handler for JSON parser events to emit a JSON string.
-template <typename C>
-class JSONEncoder : public StreamingParserHandler {
- public:
-  JSONEncoder(const Platform* platform, C* out, Status* status)
-      : platform_(platform), out_(out), status_(status) {
-    *status_ = Status();
-    state_.emplace(Container::NONE);
-  }
-
-  void HandleMapBegin() override {
-    if (!status_->ok())
-      return;
-    assert(!state_.empty());
-    state_.top().StartElement(out_);
-    state_.emplace(Container::MAP);
-    Emit('{');
-  }
-
-  void HandleMapEnd() override {
-    if (!status_->ok())
-      return;
-    assert(state_.size() >= 2 && state_.top().container() == Container::MAP);
-    state_.pop();
-    Emit('}');
-  }
-
-  void HandleArrayBegin() override {
-    if (!status_->ok())
-      return;
-    state_.top().StartElement(out_);
-    state_.emplace(Container::ARRAY);
-    Emit('[');
-  }
-
-  void HandleArrayEnd() override {
-    if (!status_->ok())
-      return;
-    assert(state_.size() >= 2 && state_.top().container() == Container::ARRAY);
-    state_.pop();
-    Emit(']');
-  }
-
-  void HandleString16(span<uint16_t> chars) override {
-    if (!status_->ok())
-      return;
-    state_.top().StartElement(out_);
-    Emit('"');
-    for (const uint16_t ch : chars) {
-      if (ch == '"') {
-        Emit("\\\"");
-      } else if (ch == '\\') {
-        Emit("\\\\");
-      } else if (ch == '\b') {
-        Emit("\\b");
-      } else if (ch == '\f') {
-        Emit("\\f");
-      } else if (ch == '\n') {
-        Emit("\\n");
-      } else if (ch == '\r') {
-        Emit("\\r");
-      } else if (ch == '\t') {
-        Emit("\\t");
-      } else if (ch >= 32 && ch <= 126) {
-        Emit(ch);
-      } else {
-        Emit("\\u");
-        PrintHex(ch, out_);
-      }
-    }
-    Emit('"');
-  }
-
-  void HandleString8(span<uint8_t> chars) override {
-    if (!status_->ok())
-      return;
-    state_.top().StartElement(out_);
-    Emit('"');
-    for (size_t ii = 0; ii < chars.size(); ++ii) {
-      uint8_t c = chars[ii];
-      if (c == '"') {
-        Emit("\\\"");
-      } else if (c == '\\') {
-        Emit("\\\\");
-      } else if (c == '\b') {
-        Emit("\\b");
-      } else if (c == '\f') {
-        Emit("\\f");
-      } else if (c == '\n') {
-        Emit("\\n");
-      } else if (c == '\r') {
-        Emit("\\r");
-      } else if (c == '\t') {
-        Emit("\\t");
-      } else if (c >= 32 && c <= 126) {
-        Emit(c);
-      } else if (c < 32) {
-        Emit("\\u");
-        PrintHex(static_cast<uint16_t>(c), out_);
-      } else {
-        // Inspect the leading byte to figure out how long the utf8
-        // byte sequence is; while doing this initialize |codepoint|
-        // with the first few bits.
-        // See table in: https://en.wikipedia.org/wiki/UTF-8
-        // byte one is 110x xxxx -> 2 byte utf8 sequence
-        // byte one is 1110 xxxx -> 3 byte utf8 sequence
-        // byte one is 1111 0xxx -> 4 byte utf8 sequence
-        uint32_t codepoint;
-        int num_bytes_left;
-        if ((c & 0xe0) == 0xc0) {  // 2 byte utf8 sequence
-          num_bytes_left = 1;
-          codepoint = c & 0x1f;
-        } else if ((c & 0xf0) == 0xe0) {  // 3 byte utf8 sequence
-          num_bytes_left = 2;
-          codepoint = c & 0x0f;
-        } else if ((c & 0xf8) == 0xf0) {  // 4 byte utf8 sequence
-          codepoint = c & 0x07;
-          num_bytes_left = 3;
-        } else {
-          continue;  // invalid leading byte
-        }
-
-        // If we have enough bytes in our input, decode the remaining ones
-        // belonging to this Unicode character into |codepoint|.
-        if (ii + num_bytes_left >= chars.size())
-          continue;
-        while (num_bytes_left > 0) {
-          c = chars[++ii];
-          --num_bytes_left;
-          // Check the next byte is a continuation byte, that is 10xx xxxx.
-          if ((c & 0xc0) != 0x80)
-            continue;
-          codepoint = (codepoint << 6) | (c & 0x3f);
-        }
-
-        // Disallow overlong encodings for ascii characters, as these
-        // would include " and other characters significant to JSON
-        // string termination / control.
-        if (codepoint <= 0x7f)
-          continue;
-        // Invalid in UTF8, and can't be represented in UTF16 anyway.
-        if (codepoint > 0x10ffff)
-          continue;
-
-        // So, now we transcode to UTF16,
-        // using the math described at https://en.wikipedia.org/wiki/UTF-16,
-        // for either one or two 16 bit characters.
-        if (codepoint < 0xffff) {
-          Emit("\\u");
-          PrintHex(static_cast<uint16_t>(codepoint), out_);
-          continue;
-        }
-        codepoint -= 0x10000;
-        // high surrogate
-        Emit("\\u");
-        PrintHex(static_cast<uint16_t>((codepoint >> 10) + 0xd800), out_);
-        // low surrogate
-        Emit("\\u");
-        PrintHex(static_cast<uint16_t>((codepoint & 0x3ff) + 0xdc00), out_);
-      }
-    }
-    Emit('"');
-  }
-
-  void HandleBinary(span<uint8_t> bytes) override {
-    if (!status_->ok())
-      return;
-    state_.top().StartElement(out_);
-    Emit('"');
-    Base64Encode(bytes, out_);
-    Emit('"');
-  }
-
-  void HandleDouble(double value) override {
-    if (!status_->ok())
-      return;
-    state_.top().StartElement(out_);
-    // JSON cannot represent NaN or Infinity. So, for compatibility,
-    // we behave like the JSON object in web browsers: emit 'null'.
-    if (!std::isfinite(value)) {
-      Emit("null");
-      return;
-    }
-    std::unique_ptr<char[]> str_value = platform_->DToStr(value);
-
-    // DToStr may fail to emit a 0 before the decimal dot. E.g. this is
-    // the case in base::NumberToString in Chromium (which is based on
-    // dmg_fp). So, much like
-    // https://cs.chromium.org/chromium/src/base/json/json_writer.cc
-    // we probe for this and emit the leading 0 anyway if necessary.
-    const char* chars = str_value.get();
-    if (chars[0] == '.') {
-      Emit('0');
-    } else if (chars[0] == '-' && chars[1] == '.') {
-      Emit("-0");
-      ++chars;
-    }
-    Emit(chars);
-  }
-
-  void HandleInt32(int32_t value) override {
-    if (!status_->ok())
-      return;
-    state_.top().StartElement(out_);
-    Emit(std::to_string(value));
-  }
-
-  void HandleBool(bool value) override {
-    if (!status_->ok())
-      return;
-    state_.top().StartElement(out_);
-    Emit(value ? "true" : "false");
-  }
-
-  void HandleNull() override {
-    if (!status_->ok())
-      return;
-    state_.top().StartElement(out_);
-    Emit("null");
-  }
-
-  void HandleError(Status error) override {
-    assert(!error.ok());
-    *status_ = error;
-    out_->clear();
-  }
-
- private:
-  void Emit(char c) { out_->push_back(c); }
-  void Emit(const char* str) {
-    out_->insert(out_->end(), str, str + strlen(str));
-  }
-  void Emit(const std::string& str) {
-    out_->insert(out_->end(), str.begin(), str.end());
-  }
-
-  const Platform* platform_;
-  C* out_;
-  Status* status_;
-  std::stack<State> state_;
-};
-}  // namespace
-
-std::unique_ptr<StreamingParserHandler> NewJSONEncoder(
-    const Platform* platform,
-    std::vector<uint8_t>* out,
-    Status* status) {
-  return std::unique_ptr<StreamingParserHandler>(
-      new JSONEncoder<std::vector<uint8_t>>(platform, out, status));
-}
-std::unique_ptr<StreamingParserHandler> NewJSONEncoder(const Platform* platform,
-                                                       std::string* out,
-                                                       Status* status) {
-  return std::unique_ptr<StreamingParserHandler>(
-      new JSONEncoder<std::string>(platform, out, status));
-}
-
-// =============================================================================
-// json::ParseJSON - for receiving streaming parser events for JSON.
-// =============================================================================
-
-namespace {
-const int kStackLimit = 300;
-
-enum Token {
-  ObjectBegin,
-  ObjectEnd,
-  ArrayBegin,
-  ArrayEnd,
-  StringLiteral,
-  Number,
-  BoolTrue,
-  BoolFalse,
-  NullToken,
-  ListSeparator,
-  ObjectPairSeparator,
-  InvalidToken,
-  NoInput
-};
-
-const char* const kNullString = "null";
-const char* const kTrueString = "true";
-const char* const kFalseString = "false";
-
-template <typename Char>
-class JsonParser {
- public:
-  JsonParser(const Platform* platform, StreamingParserHandler* handler)
-      : platform_(platform), handler_(handler) {}
-
-  void Parse(const Char* start, size_t length) {
-    start_pos_ = start;
-    const Char* end = start + length;
-    const Char* tokenEnd = nullptr;
-    ParseValue(start, end, &tokenEnd, 0);
-    if (error_)
-      return;
-    if (tokenEnd != end) {
-      HandleError(Error::JSON_PARSER_UNPROCESSED_INPUT_REMAINS, tokenEnd);
-    }
-  }
-
- private:
-  bool CharsToDouble(const uint16_t* chars, size_t length, double* result) {
-    std::string buffer;
-    buffer.reserve(length + 1);
-    for (size_t ii = 0; ii < length; ++ii) {
-      bool is_ascii = !(chars[ii] & ~0x7F);
-      if (!is_ascii)
-        return false;
-      buffer.push_back(static_cast<char>(chars[ii]));
-    }
-    return platform_->StrToD(buffer.c_str(), result);
-  }
-
-  bool CharsToDouble(const uint8_t* chars, size_t length, double* result) {
-    std::string buffer(reinterpret_cast<const char*>(chars), length);
-    return platform_->StrToD(buffer.c_str(), result);
-  }
-
-  static bool ParseConstToken(const Char* start,
-                              const Char* end,
-                              const Char** token_end,
-                              const char* token) {
-    // |token| is \0 terminated, it's one of the constants at top of the file.
-    while (start < end && *token != '\0' && *start++ == *token++) {
-    }
-    if (*token != '\0')
-      return false;
-    *token_end = start;
-    return true;
-  }
-
-  static bool ReadInt(const Char* start,
-                      const Char* end,
-                      const Char** token_end,
-                      bool allow_leading_zeros) {
-    if (start == end)
-      return false;
-    bool has_leading_zero = '0' == *start;
-    int length = 0;
-    while (start < end && '0' <= *start && *start <= '9') {
-      ++start;
-      ++length;
-    }
-    if (!length)
-      return false;
-    if (!allow_leading_zeros && length > 1 && has_leading_zero)
-      return false;
-    *token_end = start;
-    return true;
-  }
-
-  static bool ParseNumberToken(const Char* start,
-                               const Char* end,
-                               const Char** token_end) {
-    // We just grab the number here. We validate the size in DecodeNumber.
-    // According to RFC4627, a valid number is: [minus] int [frac] [exp]
-    if (start == end)
-      return false;
-    Char c = *start;
-    if ('-' == c)
-      ++start;
-
-    if (!ReadInt(start, end, &start, /*allow_leading_zeros=*/false))
-      return false;
-    if (start == end) {
-      *token_end = start;
-      return true;
-    }
-
-    // Optional fraction part
-    c = *start;
-    if ('.' == c) {
-      ++start;
-      if (!ReadInt(start, end, &start, /*allow_leading_zeros=*/true))
-        return false;
-      if (start == end) {
-        *token_end = start;
-        return true;
-      }
-      c = *start;
-    }
-
-    // Optional exponent part
-    if ('e' == c || 'E' == c) {
-      ++start;
-      if (start == end)
-        return false;
-      c = *start;
-      if ('-' == c || '+' == c) {
-        ++start;
-        if (start == end)
-          return false;
-      }
-      if (!ReadInt(start, end, &start, /*allow_leading_zeros=*/true))
-        return false;
-    }
-
-    *token_end = start;
-    return true;
-  }
-
-  static bool ReadHexDigits(const Char* start,
-                            const Char* end,
-                            const Char** token_end,
-                            int digits) {
-    if (end - start < digits)
-      return false;
-    for (int i = 0; i < digits; ++i) {
-      Char c = *start++;
-      if (!(('0' <= c && c <= '9') || ('a' <= c && c <= 'f') ||
-            ('A' <= c && c <= 'F')))
-        return false;
-    }
-    *token_end = start;
-    return true;
-  }
-
-  static bool ParseStringToken(const Char* start,
-                               const Char* end,
-                               const Char** token_end) {
-    while (start < end) {
-      Char c = *start++;
-      if ('\\' == c) {
-        if (start == end)
-          return false;
-        c = *start++;
-        // Make sure the escaped char is valid.
-        switch (c) {
-          case 'x':
-            if (!ReadHexDigits(start, end, &start, 2))
-              return false;
-            break;
-          case 'u':
-            if (!ReadHexDigits(start, end, &start, 4))
-              return false;
-            break;
-          case '\\':
-          case '/':
-          case 'b':
-          case 'f':
-          case 'n':
-          case 'r':
-          case 't':
-          case 'v':
-          case '"':
-            break;
-          default:
-            return false;
-        }
-      } else if ('"' == c) {
-        *token_end = start;
-        return true;
-      }
-    }
-    return false;
-  }
-
-  static bool SkipComment(const Char* start,
-                          const Char* end,
-                          const Char** comment_end) {
-    if (start == end)
-      return false;
-
-    if (*start != '/' || start + 1 >= end)
-      return false;
-    ++start;
-
-    if (*start == '/') {
-      // Single line comment, read to newline.
-      for (++start; start < end; ++start) {
-        if (*start == '\n' || *start == '\r') {
-          *comment_end = start + 1;
-          return true;
-        }
-      }
-      *comment_end = end;
-      // Comment reaches end-of-input, which is fine.
-      return true;
-    }
-
-    if (*start == '*') {
-      Char previous = '\0';
-      // Block comment, read until end marker.
-      for (++start; start < end; previous = *start++) {
-        if (previous == '*' && *start == '/') {
-          *comment_end = start + 1;
-          return true;
-        }
-      }
-      // Block comment must close before end-of-input.
-      return false;
-    }
-
-    return false;
-  }
-
-  static bool IsSpaceOrNewLine(Char c) {
-    // \v = vertial tab; \f = form feed page break.
-    return c == ' ' || c == '\n' || c == '\v' || c == '\f' || c == '\r' ||
-           c == '\t';
-  }
-
-  static void SkipWhitespaceAndComments(const Char* start,
-                                        const Char* end,
-                                        const Char** whitespace_end) {
-    while (start < end) {
-      if (IsSpaceOrNewLine(*start)) {
-        ++start;
-      } else if (*start == '/') {
-        const Char* comment_end = nullptr;
-        if (!SkipComment(start, end, &comment_end))
-          break;
-        start = comment_end;
-      } else {
-        break;
-      }
-    }
-    *whitespace_end = start;
-  }
-
-  static Token ParseToken(const Char* start,
-                          const Char* end,
-                          const Char** tokenStart,
-                          const Char** token_end) {
-    SkipWhitespaceAndComments(start, end, tokenStart);
-    start = *tokenStart;
-
-    if (start == end)
-      return NoInput;
-
-    switch (*start) {
-      case 'n':
-        if (ParseConstToken(start, end, token_end, kNullString))
-          return NullToken;
-        break;
-      case 't':
-        if (ParseConstToken(start, end, token_end, kTrueString))
-          return BoolTrue;
-        break;
-      case 'f':
-        if (ParseConstToken(start, end, token_end, kFalseString))
-          return BoolFalse;
-        break;
-      case '[':
-        *token_end = start + 1;
-        return ArrayBegin;
-      case ']':
-        *token_end = start + 1;
-        return ArrayEnd;
-      case ',':
-        *token_end = start + 1;
-        return ListSeparator;
-      case '{':
-        *token_end = start + 1;
-        return ObjectBegin;
-      case '}':
-        *token_end = start + 1;
-        return ObjectEnd;
-      case ':':
-        *token_end = start + 1;
-        return ObjectPairSeparator;
-      case '0':
-      case '1':
-      case '2':
-      case '3':
-      case '4':
-      case '5':
-      case '6':
-      case '7':
-      case '8':
-      case '9':
-      case '-':
-        if (ParseNumberToken(start, end, token_end))
-          return Number;
-        break;
-      case '"':
-        if (ParseStringToken(start + 1, end, token_end))
-          return StringLiteral;
-        break;
-    }
-    return InvalidToken;
-  }
-
-  static int HexToInt(Char c) {
-    if ('0' <= c && c <= '9')
-      return c - '0';
-    if ('A' <= c && c <= 'F')
-      return c - 'A' + 10;
-    if ('a' <= c && c <= 'f')
-      return c - 'a' + 10;
-    assert(false);  // Unreachable.
-    return 0;
-  }
-
-  static bool DecodeString(const Char* start,
-                           const Char* end,
-                           std::vector<uint16_t>* output) {
-    if (start == end)
-      return true;
-    if (start > end)
-      return false;
-    output->reserve(end - start);
-    while (start < end) {
-      uint16_t c = *start++;
-      // If the |Char| we're dealing with is really a byte, then
-      // we have utf8 here, and we need to check for multibyte characters
-      // and transcode them to utf16 (either one or two utf16 chars).
-      if (sizeof(Char) == sizeof(uint8_t) && c > 0x7f) {
-        // Inspect the leading byte to figure out how long the utf8
-        // byte sequence is; while doing this initialize |codepoint|
-        // with the first few bits.
-        // See table in: https://en.wikipedia.org/wiki/UTF-8
-        // byte one is 110x xxxx -> 2 byte utf8 sequence
-        // byte one is 1110 xxxx -> 3 byte utf8 sequence
-        // byte one is 1111 0xxx -> 4 byte utf8 sequence
-        uint32_t codepoint;
-        int num_bytes_left;
-        if ((c & 0xe0) == 0xc0) {  // 2 byte utf8 sequence
-          num_bytes_left = 1;
-          codepoint = c & 0x1f;
-        } else if ((c & 0xf0) == 0xe0) {  // 3 byte utf8 sequence
-          num_bytes_left = 2;
-          codepoint = c & 0x0f;
-        } else if ((c & 0xf8) == 0xf0) {  // 4 byte utf8 sequence
-          codepoint = c & 0x07;
-          num_bytes_left = 3;
-        } else {
-          return false;  // invalid leading byte
-        }
-
-        // If we have enough bytes in our inpput, decode the remaining ones
-        // belonging to this Unicode character into |codepoint|.
-        if (start + num_bytes_left > end)
-          return false;
-        while (num_bytes_left > 0) {
-          c = *start++;
-          --num_bytes_left;
-          // Check the next byte is a continuation byte, that is 10xx xxxx.
-          if ((c & 0xc0) != 0x80)
-            return false;
-          codepoint = (codepoint << 6) | (c & 0x3f);
-        }
-
-        // Disallow overlong encodings for ascii characters, as these
-        // would include " and other characters significant to JSON
-        // string termination / control.
-        if (codepoint <= 0x7f)
-          return false;
-        // Invalid in UTF8, and can't be represented in UTF16 anyway.
-        if (codepoint > 0x10ffff)
-          return false;
-
-        // So, now we transcode to UTF16,
-        // using the math described at https://en.wikipedia.org/wiki/UTF-16,
-        // for either one or two 16 bit characters.
-        if (codepoint < 0xffff) {
-          output->push_back(codepoint);
-          continue;
-        }
-        codepoint -= 0x10000;
-        output->push_back((codepoint >> 10) + 0xd800);    // high surrogate
-        output->push_back((codepoint & 0x3ff) + 0xdc00);  // low surrogate
-        continue;
-      }
-      if ('\\' != c) {
-        output->push_back(c);
-        continue;
-      }
-      if (start == end)
-        return false;
-      c = *start++;
-
-      if (c == 'x') {
-        // \x is not supported.
-        return false;
-      }
-
-      switch (c) {
-        case '"':
-        case '/':
-        case '\\':
-          break;
-        case 'b':
-          c = '\b';
-          break;
-        case 'f':
-          c = '\f';
-          break;
-        case 'n':
-          c = '\n';
-          break;
-        case 'r':
-          c = '\r';
-          break;
-        case 't':
-          c = '\t';
-          break;
-        case 'v':
-          c = '\v';
-          break;
-        case 'u':
-          c = (HexToInt(*start) << 12) + (HexToInt(*(start + 1)) << 8) +
-              (HexToInt(*(start + 2)) << 4) + HexToInt(*(start + 3));
-          start += 4;
-          break;
-        default:
-          return false;
-      }
-      output->push_back(c);
-    }
-    return true;
-  }
-
-  void ParseValue(const Char* start,
-                  const Char* end,
-                  const Char** value_token_end,
-                  int depth) {
-    if (depth > kStackLimit) {
-      HandleError(Error::JSON_PARSER_STACK_LIMIT_EXCEEDED, start);
-      return;
-    }
-    const Char* token_start = nullptr;
-    const Char* token_end = nullptr;
-    Token token = ParseToken(start, end, &token_start, &token_end);
-    switch (token) {
-      case NoInput:
-        HandleError(Error::JSON_PARSER_NO_INPUT, token_start);
-        return;
-      case InvalidToken:
-        HandleError(Error::JSON_PARSER_INVALID_TOKEN, token_start);
-        return;
-      case NullToken:
-        handler_->HandleNull();
-        break;
-      case BoolTrue:
-        handler_->HandleBool(true);
-        break;
-      case BoolFalse:
-        handler_->HandleBool(false);
-        break;
-      case Number: {
-        double value;
-        if (!CharsToDouble(token_start, token_end - token_start, &value)) {
-          HandleError(Error::JSON_PARSER_INVALID_NUMBER, token_start);
-          return;
-        }
-        if (value >= std::numeric_limits<int32_t>::min() &&
-            value <= std::numeric_limits<int32_t>::max() &&
-            static_cast<int32_t>(value) == value)
-          handler_->HandleInt32(static_cast<int32_t>(value));
-        else
-          handler_->HandleDouble(value);
-        break;
-      }
-      case StringLiteral: {
-        std::vector<uint16_t> value;
-        bool ok = DecodeString(token_start + 1, token_end - 1, &value);
-        if (!ok) {
-          HandleError(Error::JSON_PARSER_INVALID_STRING, token_start);
-          return;
-        }
-        handler_->HandleString16(span<uint16_t>(value.data(), value.size()));
-        break;
-      }
-      case ArrayBegin: {
-        handler_->HandleArrayBegin();
-        start = token_end;
-        token = ParseToken(start, end, &token_start, &token_end);
-        while (token != ArrayEnd) {
-          ParseValue(start, end, &token_end, depth + 1);
-          if (error_)
-            return;
-
-          // After a list value, we expect a comma or the end of the list.
-          start = token_end;
-          token = ParseToken(start, end, &token_start, &token_end);
-          if (token == ListSeparator) {
-            start = token_end;
-            token = ParseToken(start, end, &token_start, &token_end);
-            if (token == ArrayEnd) {
-              HandleError(Error::JSON_PARSER_UNEXPECTED_ARRAY_END, token_start);
-              return;
-            }
-          } else if (token != ArrayEnd) {
-            // Unexpected value after list value. Bail out.
-            HandleError(Error::JSON_PARSER_COMMA_OR_ARRAY_END_EXPECTED,
-                        token_start);
-            return;
-          }
-        }
-        handler_->HandleArrayEnd();
-        break;
-      }
-      case ObjectBegin: {
-        handler_->HandleMapBegin();
-        start = token_end;
-        token = ParseToken(start, end, &token_start, &token_end);
-        while (token != ObjectEnd) {
-          if (token != StringLiteral) {
-            HandleError(Error::JSON_PARSER_STRING_LITERAL_EXPECTED,
-                        token_start);
-            return;
-          }
-          std::vector<uint16_t> key;
-          if (!DecodeString(token_start + 1, token_end - 1, &key)) {
-            HandleError(Error::JSON_PARSER_INVALID_STRING, token_start);
-            return;
-          }
-          handler_->HandleString16(span<uint16_t>(key.data(), key.size()));
-          start = token_end;
-
-          token = ParseToken(start, end, &token_start, &token_end);
-          if (token != ObjectPairSeparator) {
-            HandleError(Error::JSON_PARSER_COLON_EXPECTED, token_start);
-            return;
-          }
-          start = token_end;
-
-          ParseValue(start, end, &token_end, depth + 1);
-          if (error_)
-            return;
-          start = token_end;
-
-          // After a key/value pair, we expect a comma or the end of the
-          // object.
-          token = ParseToken(start, end, &token_start, &token_end);
-          if (token == ListSeparator) {
-            start = token_end;
-            token = ParseToken(start, end, &token_start, &token_end);
-            if (token == ObjectEnd) {
-              HandleError(Error::JSON_PARSER_UNEXPECTED_MAP_END, token_start);
-              return;
-            }
-          } else if (token != ObjectEnd) {
-            // Unexpected value after last object value. Bail out.
-            HandleError(Error::JSON_PARSER_COMMA_OR_MAP_END_EXPECTED,
-                        token_start);
-            return;
-          }
-        }
-        handler_->HandleMapEnd();
-        break;
-      }
-
-      default:
-        // We got a token that's not a value.
-        HandleError(Error::JSON_PARSER_VALUE_EXPECTED, token_start);
-        return;
-    }
-
-    SkipWhitespaceAndComments(token_end, end, value_token_end);
-  }
-
-  void HandleError(Error error, const Char* pos) {
-    assert(error != Error::OK);
-    if (!error_) {
-      handler_->HandleError(
-          Status{error, static_cast<size_t>(pos - start_pos_)});
-      error_ = true;
-    }
-  }
-
-  const Char* start_pos_ = nullptr;
-  bool error_ = false;
-  const Platform* platform_;
-  StreamingParserHandler* handler_;
-};
-}  // namespace
-
-void ParseJSON(const Platform& platform,
-               span<uint8_t> chars,
-               StreamingParserHandler* handler) {
-  JsonParser<uint8_t> parser(&platform, handler);
-  parser.Parse(chars.data(), chars.size());
-}
-
-void ParseJSON(const Platform& platform,
-               span<uint16_t> chars,
-               StreamingParserHandler* handler) {
-  JsonParser<uint16_t> parser(&platform, handler);
-  parser.Parse(chars.data(), chars.size());
-}
-
-// =============================================================================
-// json::ConvertCBORToJSON, json::ConvertJSONToCBOR - for transcoding
-// =============================================================================
-template <typename C>
-Status ConvertCBORToJSONTmpl(const Platform& platform,
-                             span<uint8_t> cbor,
-                             C* json) {
-  Status status;
-  std::unique_ptr<StreamingParserHandler> json_writer =
-      NewJSONEncoder(&platform, json, &status);
-  cbor::ParseCBOR(cbor, json_writer.get());
-  return status;
-}
-
-Status ConvertCBORToJSON(const Platform& platform,
-                         span<uint8_t> cbor,
-                         std::vector<uint8_t>* json) {
-  return ConvertCBORToJSONTmpl(platform, cbor, json);
-}
-Status ConvertCBORToJSON(const Platform& platform,
-                         span<uint8_t> cbor,
-                         std::string* json) {
-  return ConvertCBORToJSONTmpl(platform, cbor, json);
-}
-
-template <typename T, typename C>
-Status ConvertJSONToCBORTmpl(const Platform& platform, span<T> json, C* cbor) {
-  Status status;
-  std::unique_ptr<StreamingParserHandler> encoder =
-      cbor::NewCBOREncoder(cbor, &status);
-  ParseJSON(platform, json, encoder.get());
-  return status;
-}
-Status ConvertJSONToCBOR(const Platform& platform,
-                         span<uint8_t> json,
-                         std::string* cbor) {
-  return ConvertJSONToCBORTmpl(platform, json, cbor);
-}
-Status ConvertJSONToCBOR(const Platform& platform,
-                         span<uint16_t> json,
-                         std::string* cbor) {
-  return ConvertJSONToCBORTmpl(platform, json, cbor);
-}
-Status ConvertJSONToCBOR(const Platform& platform,
-                         span<uint8_t> json,
-                         std::vector<uint8_t>* cbor) {
-  return ConvertJSONToCBORTmpl(platform, json, cbor);
-}
-Status ConvertJSONToCBOR(const Platform& platform,
-                         span<uint16_t> json,
-                         std::vector<uint8_t>* cbor) {
-  return ConvertJSONToCBORTmpl(platform, json, cbor);
-}
-}  // namespace json
-}  // namespace v8_inspector_protocol_encoding
+}  // namespace v8_crdtp

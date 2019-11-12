@@ -24,9 +24,9 @@
 
 namespace v8_inspector {
 namespace {
-using ::v8_inspector_protocol_encoding::span;
-using ::v8_inspector_protocol_encoding::SpanFrom;
-using IPEStatus = ::v8_inspector_protocol_encoding::Status;
+using v8_crdtp::span;
+using v8_crdtp::SpanFrom;
+using IPEStatus = v8_crdtp::Status;
 
 bool IsCBORMessage(const StringView& msg) {
   return msg.is8Bit() && msg.length() >= 2 && msg.characters8()[0] == 0xd8 &&
@@ -332,8 +332,8 @@ void V8InspectorSessionImpl::reportAllContexts(V8RuntimeAgentImpl* agent) {
 
 void V8InspectorSessionImpl::dispatchProtocolMessage(
     const StringView& message) {
-  using ::v8_inspector_protocol_encoding::span;
-  using ::v8_inspector_protocol_encoding::SpanFrom;
+  using v8_crdtp::span;
+  using v8_crdtp::SpanFrom;
   span<uint8_t> cbor;
   std::vector<uint8_t> converted_cbor;
   if (IsCBORMessage(message)) {

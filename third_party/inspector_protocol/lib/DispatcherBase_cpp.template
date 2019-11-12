@@ -316,10 +316,10 @@ std::unique_ptr<Serializable> InternalResponse::createErrorResponse(int callId, 
 
 void InternalResponse::AppendSerialized(std::vector<uint8_t>* out) const
 {
-    using {{config.encoding_lib.namespace}}::cbor::NewCBOREncoder;
-    using {{config.encoding_lib.namespace}}::StreamingParserHandler;
-    using {{config.encoding_lib.namespace}}::Status;
-    using {{config.encoding_lib.namespace}}::SpanFrom;
+    using {{config.crdtp.namespace}}::cbor::NewCBOREncoder;
+    using {{config.crdtp.namespace}}::StreamingParserHandler;
+    using {{config.crdtp.namespace}}::Status;
+    using {{config.crdtp.namespace}}::SpanFrom;
 
     Status status;
     std::unique_ptr<StreamingParserHandler> encoder =

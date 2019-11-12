@@ -65,9 +65,7 @@ config("inspector_config") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   configs = [ "../../:internal_config" ]
-  include_dirs = [
-    "../../include",
-  ]
+  include_dirs = [ "../../include" ]
 }
 
 v8_header_set("inspector_test_headers") {
@@ -97,8 +95,7 @@ v8_source_set("inspector") {
   deps = [
     ":inspector_string_conversions",
     "../..:v8_version",
-    "../../third_party/inspector_protocol:encoding",
-    "../../third_party/inspector_protocol:bindings",
+    "../../third_party/inspector_protocol:crdtp",
   ]
 
   public_deps = [

@@ -6,7 +6,7 @@
 
 //#include "Values.h"
 
-#include "{{config.encoding_lib.header}}"
+#include "{{config.crdtp.dir}}/cbor.h"
 
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
@@ -66,26 +66,26 @@ void escapeStringForJSONInternal(const Char* str, unsigned len,
 // to this constant.
 static constexpr int kStackLimitValues = 1000;
 
-using {{config.encoding_lib.namespace}}::Error;
-using {{config.encoding_lib.namespace}}::Status;
-using {{config.encoding_lib.namespace}}::span;
+using {{config.crdtp.namespace}}::Error;
+using {{config.crdtp.namespace}}::Status;
+using {{config.crdtp.namespace}}::span;
 namespace cbor {
-using {{config.encoding_lib.namespace}}::cbor::CBORTokenTag;
-using {{config.encoding_lib.namespace}}::cbor::CBORTokenizer;
-using {{config.encoding_lib.namespace}}::cbor::EncodeBinary;
-using {{config.encoding_lib.namespace}}::cbor::EncodeDouble;
-using {{config.encoding_lib.namespace}}::cbor::EncodeFalse;
-using {{config.encoding_lib.namespace}}::cbor::EncodeFromLatin1;
-using {{config.encoding_lib.namespace}}::cbor::EncodeFromUTF16;
-using {{config.encoding_lib.namespace}}::cbor::EncodeIndefiniteLengthArrayStart;
-using {{config.encoding_lib.namespace}}::cbor::EncodeIndefiniteLengthMapStart;
-using {{config.encoding_lib.namespace}}::cbor::EncodeInt32;
-using {{config.encoding_lib.namespace}}::cbor::EncodeNull;
-using {{config.encoding_lib.namespace}}::cbor::EncodeStop;
-using {{config.encoding_lib.namespace}}::cbor::EncodeString8;
-using {{config.encoding_lib.namespace}}::cbor::EncodeTrue;
-using {{config.encoding_lib.namespace}}::cbor::EnvelopeEncoder;
-using {{config.encoding_lib.namespace}}::cbor::InitialByteForEnvelope;
+using {{config.crdtp.namespace}}::cbor::CBORTokenTag;
+using {{config.crdtp.namespace}}::cbor::CBORTokenizer;
+using {{config.crdtp.namespace}}::cbor::EncodeBinary;
+using {{config.crdtp.namespace}}::cbor::EncodeDouble;
+using {{config.crdtp.namespace}}::cbor::EncodeFalse;
+using {{config.crdtp.namespace}}::cbor::EncodeFromLatin1;
+using {{config.crdtp.namespace}}::cbor::EncodeFromUTF16;
+using {{config.crdtp.namespace}}::cbor::EncodeIndefiniteLengthArrayStart;
+using {{config.crdtp.namespace}}::cbor::EncodeIndefiniteLengthMapStart;
+using {{config.crdtp.namespace}}::cbor::EncodeInt32;
+using {{config.crdtp.namespace}}::cbor::EncodeNull;
+using {{config.crdtp.namespace}}::cbor::EncodeStop;
+using {{config.crdtp.namespace}}::cbor::EncodeString8;
+using {{config.crdtp.namespace}}::cbor::EncodeTrue;
+using {{config.crdtp.namespace}}::cbor::EnvelopeEncoder;
+using {{config.crdtp.namespace}}::cbor::InitialByteForEnvelope;
 }  // namespace cbor
 
 // Below are three parsing routines for CBOR, which cover enough
