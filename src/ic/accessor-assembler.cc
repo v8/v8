@@ -345,7 +345,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       {
         GotoIfNot(IsStringInstanceType(var_instance_type.value()), miss);
 
-        Node* function = ExternalConstant(
+        TNode<ExternalReference> function = ExternalConstant(
             ExternalReference::string_to_array_index_function());
         TNode<Int32T> result = UncheckedCast<Int32T>(
             CallCFunction(function, MachineType::Int32(),
@@ -1941,7 +1941,7 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
   // helpers that do the correct op based on the mode.
   TVARIABLE(HeapObject, var_properties);
   TVARIABLE(Int32T, var_encoded_hash);
-  VARIABLE(var_length, ParameterRepresentation(mode));
+  TVARIABLE(BInt, var_length);
 
   TNode<Object> properties =
       LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
@@ -1955,7 +1955,7 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
     TNode<Int32T> encoded_hash =
         Word32Shl(hash, Int32Constant(PropertyArray::HashField::kShift));
     var_encoded_hash = encoded_hash;
-    var_length.Bind(IntPtrOrSmiConstant(0, mode));
+    var_length = BIntConstant(0);
     var_properties = EmptyFixedArrayConstant();
     Goto(&extend_store);
   }
@@ -1970,8 +1970,7 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
     TNode<IntPtrT> length_intptr = ChangeInt32ToIntPtr(
         Word32And(length_and_hash_int32,
                   Int32Constant(PropertyArray::LengthField::kMask)));
-    Node* length = IntPtrToParameter(length_intptr, mode);
-    var_length.Bind(length);
+    var_length = IntPtrToBInt(length_intptr);
     Goto(&extend_store);
   }
 
