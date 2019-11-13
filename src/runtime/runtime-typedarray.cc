@@ -85,7 +85,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   DCHECK(!array->WasDetached());
 
   size_t length = array->length();
-  if (length <= 1) return *array;
+  DCHECK_LT(1, length);
 
   // In case of a SAB, the data is copied into temporary memory, as
   // std::sort might crash in case the underlying data is concurrently
@@ -95,14 +95,20 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   const bool copy_data = buffer->is_shared();
 
   Handle<ByteArray> array_copy;
+  std::vector<uint8_t> offheap_copy;
+  void* data_copy_ptr = nullptr;
   if (copy_data) {
     const size_t bytes = array->byte_length();
-    // TODO(szuend): Re-check this approach once support for larger typed
-    //               arrays has landed.
-    CHECK_LE(bytes, INT_MAX);
-    array_copy = isolate->factory()->NewByteArray(static_cast<int>(bytes));
-    std::memcpy(static_cast<void*>(array_copy->GetDataStartAddress()),
-                static_cast<void*>(array->DataPtr()), bytes);
+    if (bytes <= static_cast<unsigned>(
+                     ByteArray::LengthFor(kMaxRegularHeapObjectSize))) {
+      array_copy = isolate->factory()->NewByteArray(static_cast<int>(bytes));
+      data_copy_ptr = array_copy->GetDataStartAddress();
+    } else {
+      // Allocate copy in C++ heap.
+      offheap_copy.resize(bytes);
+      data_copy_ptr = &offheap_copy[0];
+    }
+    std::memcpy(data_copy_ptr, static_cast<void*>(array->DataPtr()), bytes);
   }
 
   DisallowHeapAllocation no_gc;
@@ -110,10 +116,8 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   switch (array->type()) {
 #define TYPED_ARRAY_SORT(Type, type, TYPE, ctype)                          \
   case kExternal##Type##Array: {                                           \
-    ctype* data =                                                          \
-        copy_data                                                          \
-            ? reinterpret_cast<ctype*>(array_copy->GetDataStartAddress())  \
-            : static_cast<ctype*>(array->DataPtr());                       \
+    ctype* data = copy_data ? reinterpret_cast<ctype*>(data_copy_ptr)      \
+                            : static_cast<ctype*>(array->DataPtr());       \
     if (kExternal##Type##Array == kExternalFloat64Array ||                 \
         kExternal##Type##Array == kExternalFloat32Array) {                 \
       if (COMPRESS_POINTERS_BOOL && alignof(ctype) > kTaggedSize) {        \
@@ -140,10 +144,10 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   }
 
   if (copy_data) {
-    DCHECK(!array_copy.is_null());
+    DCHECK_NOT_NULL(data_copy_ptr);
+    DCHECK_NE(array_copy.is_null(), offheap_copy.empty());
     const size_t bytes = array->byte_length();
-    std::memcpy(static_cast<void*>(array->DataPtr()),
-                static_cast<void*>(array_copy->GetDataStartAddress()), bytes);
+    std::memcpy(static_cast<void*>(array->DataPtr()), data_copy_ptr, bytes);
   }
 
   return *array;

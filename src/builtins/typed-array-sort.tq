@@ -104,16 +104,16 @@ namespace typed_array {
     const array: JSTypedArray =
         ValidateTypedArray(context, obj, kBuiltinNameSort);
 
-    // Default sorting is done in C++ using std::sort
-    if (comparefnObj == Undefined) {
-      return TypedArraySortFast(context, obj);
-    }
-
     // 4. Let len be obj.[[ArrayLength]].
     const len: uintptr = array.length;
 
     // Arrays of length 1 or less are considered sorted.
     if (len < 2) return array;
+
+    // Default sorting is done in C++ using std::sort
+    if (comparefnObj == Undefined) {
+      return TypedArraySortFast(context, obj);
+    }
 
     const comparefn: Callable =
         Cast<Callable>(comparefnObj) otherwise unreachable;
