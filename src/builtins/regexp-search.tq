@@ -93,7 +93,7 @@ namespace regexp {
     ThrowIfNotJSReceiver(
         receiver, kIncompatibleMethodReceiver, 'RegExp.prototype.@@search');
     const receiver = UnsafeCast<JSReceiver>(receiver);
-    const string: String = ToString_Inline(context, string);
+    const string: String = ToString_Inline(string);
 
     if (IsFastRegExpPermissive(receiver)) {
       // TODO(pwong): Could be optimized to remove the overhead of calling the

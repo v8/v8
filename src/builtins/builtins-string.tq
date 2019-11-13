@@ -66,8 +66,7 @@ namespace string {
     const string: String = ToThisString(receiver, methodName);
 
     // 3. Let position be ? ToInteger(pos).
-    const indexNumber: Number =
-        ToInteger_Inline(context, position, kTruncateMinusZero);
+    const indexNumber: Number = ToInteger_Inline(position, kTruncateMinusZero);
 
     // Convert the {position} to a uintptr and check that it's in bounds of
     // the {string}.
@@ -153,7 +152,7 @@ namespace string {
     // Concatenate all the arguments passed to this builtin.
     const length: intptr = Convert<intptr>(arguments.length);
     for (let i: intptr = 0; i < length; i++) {
-      const temp: String = ToString_Inline(context, arguments[i]);
+      const temp: String = ToString_Inline(arguments[i]);
       string = string + temp;
     }
     return string;
@@ -186,7 +185,7 @@ namespace string {
         }
       }
       // 2. b. Let s be ? ToString(value).
-      s = ToString_Inline(context, arguments[0]);
+      s = ToString_Inline(arguments[0]);
     }
     // 3. If NewTarget is undefined, return s.
     if (newTarget == Undefined) {

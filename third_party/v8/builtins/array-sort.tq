@@ -346,10 +346,10 @@ namespace array {
     }
 
     // 5. Let xString be ? ToString(x).
-    const xString = ToString_Inline(context, x);
+    const xString = ToString_Inline(x);
 
     // 6. Let yString be ? ToString(y).
-    const yString = ToString_Inline(context, y);
+    const yString = ToString_Inline(y);
 
     // 7. Let xSmaller be the result of performing
     //    Abstract Relational Comparison xString < yString.
@@ -371,7 +371,7 @@ namespace array {
     const cmpfn = UnsafeCast<Callable>(comparefn);
 
     // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
-    const v = ToNumber_Inline(context, Call(context, cmpfn, Undefined, x, y));
+    const v = ToNumber_Inline(Call(context, cmpfn, Undefined, x, y));
 
     // b. If v is NaN, return +0.
     if (NumberIsNaN(v)) return 0;

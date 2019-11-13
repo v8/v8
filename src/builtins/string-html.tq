@@ -13,7 +13,7 @@ namespace string {
     let result = '<' + tagName;
     if (attr != kEmptyString) {
       const attrStringValue: String =
-          StringEscapeQuotes(context, ToString_Inline(context, attrValue));
+          StringEscapeQuotes(context, ToString_Inline(attrValue));
       result = result + ' ' + attr + '=\"' + attrStringValue + '\"';
     }
 

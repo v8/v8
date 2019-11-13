@@ -628,14 +628,10 @@ namespace internal {
   TFS(MapIteratorToList, kSource)                                              \
                                                                                \
   /* Math */                                                                   \
-  /* ES6 #sec-math.abs */                                                      \
-  TFJ(MathAbs, 1, kReceiver, kX)                                               \
   /* ES6 #sec-math.ceil */                                                     \
   TFJ(MathCeil, 1, kReceiver, kX)                                              \
   /* ES6 #sec-math.floor */                                                    \
   TFJ(MathFloor, 1, kReceiver, kX)                                             \
-  /* ES6 #sec-math.imul */                                                     \
-  TFJ(MathImul, 2, kReceiver, kX, kY)                                          \
   /* ES6 #sec-math.max */                                                      \
   TFJ(MathMax, SharedFunctionInfo::kDontAdaptArgumentsSentinel)                \
   /* ES6 #sec-math.min */                                                      \

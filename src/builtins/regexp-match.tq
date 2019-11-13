@@ -34,7 +34,7 @@ namespace regexp {
     ThrowIfNotJSReceiver(
         receiver, kIncompatibleMethodReceiver, 'RegExp.prototype.@@match');
     const receiver = UnsafeCast<JSReceiver>(receiver);
-    const string: String = ToString_Inline(context, string);
+    const string: String = ToString_Inline(string);
 
     // Strict: Reads global and unicode properties.
     // TODO(jgruber): Handle slow flag accesses on the fast path and make this

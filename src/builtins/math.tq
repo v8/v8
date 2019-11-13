@@ -3,12 +3,73 @@
 // LICENSE file.
 
 namespace math {
+
+  extern transitioning builtin
+  NonNumberToNumber(implicit context: Context)(HeapObject): Number;
+
+  transitioning macro ReduceToSmiOrFloat64(implicit context: Context)(x: JSAny):
+      never
+      labels SmiResult(Smi), Float64Result(float64) {
+    let x1: JSAny = x;
+    while (true) {
+      typeswitch (x1) {
+        case (s: Smi): {
+          goto SmiResult(s);
+        }
+        case (h: HeapNumber): {
+          goto Float64Result(Convert<float64>(h));
+        }
+        case (a: JSAnyNotNumber): {
+          x1 = NonNumberToNumber(a);
+        }
+      }
+    }
+    VerifiedUnreachable();
+  }
+
+  // ES6 #sec-math.abs
+  extern macro IsIntPtrAbsWithOverflowSupported(): constexpr bool;
+  extern macro TrySmiSub(Smi, Smi): Smi labels Overflow;
+  extern macro Float64Abs(float64): float64;
+  extern macro EasyIntPtrAbsWithOverflow(intptr): intptr labels Overflow;
+  const kSmiMaxValuePlusOne:
+      constexpr float64 generates '0.0 - kSmiMinValue';
+
+  transitioning javascript builtin
+  MathAbs(js-implicit context: Context)(x: JSAny): Number {
+    try {
+      ReduceToSmiOrFloat64(x) otherwise SmiResult, Float64Result;
+    }
+    label SmiResult(s: Smi) {
+      try {
+        if constexpr (IsIntPtrAbsWithOverflowSupported()) {
+          const result: intptr = EasyIntPtrAbsWithOverflow(Convert<intptr>(s))
+              otherwise SmiOverflow;
+          return Convert<Smi>(result);
+        } else {
+          if (0 <= s) {
+            return s;
+          } else {
+            const result: Smi = TrySmiSub(0, s) otherwise SmiOverflow;
+            return result;
+          }
+        }
+      }
+      label SmiOverflow {
+        return NumberConstant(kSmiMaxValuePlusOne);
+      }
+    }
+    label Float64Result(f: float64) {
+      return Convert<Number>(Float64Abs(f));
+    }
+  }
+
   // ES6 #sec-math.acos
   extern macro Float64Acos(float64): float64;
 
   transitioning javascript builtin
   MathAcos(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Acos(value));
   }
 
@@ -17,7 +78,7 @@ namespace math {
 
   transitioning javascript builtin
   MathAcosh(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Acosh(value));
   }
 
@@ -26,7 +87,7 @@ namespace math {
 
   transitioning javascript builtin
   MathAsin(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Asin(value));
   }
 
@@ -35,7 +96,7 @@ namespace math {
 
   transitioning javascript builtin
   MathAsinh(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Asinh(value));
   }
 
@@ -44,7 +105,7 @@ namespace math {
 
   transitioning javascript builtin
   MathAtan(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Atan(value));
   }
 
@@ -53,8 +114,8 @@ namespace math {
 
   transitioning javascript builtin
   MathAtan2(js-implicit context: Context)(y: JSAny, x: JSAny): Number {
-    const yValue = Convert<float64>(ToNumber_Inline(context, y));
-    const xValue = Convert<float64>(ToNumber_Inline(context, x));
+    const yValue = Convert<float64>(ToNumber_Inline(y));
+    const xValue = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Atan2(yValue, xValue));
   }
 
@@ -63,7 +124,7 @@ namespace math {
 
   transitioning javascript builtin
   MathAtanh(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Atanh(value));
   }
 
@@ -72,7 +133,7 @@ namespace math {
 
   transitioning javascript builtin
   MathCbrt(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Cbrt(value));
   }
 
@@ -81,18 +142,7 @@ namespace math {
 
   transitioning javascript builtin
   MathClz32(js-implicit context: Context)(x: JSAny): Number {
-    const num = ToNumber_Inline(context, x);
-
-    let value: int32;
-    typeswitch (num) {
-      case (s: Smi): {
-        value = Convert<int32>(s);
-      }
-      case (h: HeapNumber): {
-        value = TruncateHeapNumberValueToWord32(h);
-      }
-    }
-
+    const value: int32 = Convert<int32>(ToNumber_Inline(x));
     return Convert<Number>(Word32Clz(value));
   }
 
@@ -101,7 +151,7 @@ namespace math {
 
   transitioning javascript builtin
   MathCos(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Cos(value));
   }
 
@@ -110,7 +160,7 @@ namespace math {
 
   transitioning javascript builtin
   MathCosh(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Cosh(value));
   }
 
@@ -119,7 +169,7 @@ namespace math {
 
   transitioning javascript builtin
   MathExp(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Exp(value));
   }
 
@@ -128,16 +178,24 @@ namespace math {
 
   transitioning javascript builtin
   MathExpm1(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Expm1(value));
   }
 
   // ES6 #sec-math.fround
   transitioning javascript builtin
   MathFround(js-implicit context: Context)(x: JSAny): Number {
-    const x32 = Convert<float32>(ToNumber_Inline(context, x));
+    const x32 = Convert<float32>(ToNumber_Inline(x));
     const x64 = Convert<float64>(x32);
     return Convert<Number>(x64);
+  }
+
+  // ES6 #sec-math.imul
+  transitioning javascript builtin
+  MathImul(js-implicit context: Context)(x: JSAny, y: JSAny): Number {
+    const x = Convert<int32>(ToNumber_Inline(x));
+    const y = Convert<int32>(ToNumber_Inline(y));
+    return Convert<Number>(x * y);
   }
 
   // ES6 #sec-math.log
@@ -145,7 +203,7 @@ namespace math {
 
   transitioning javascript builtin
   MathLog(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Log(value));
   }
 
@@ -154,7 +212,7 @@ namespace math {
 
   transitioning javascript builtin
   MathLog1p(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Log1p(value));
   }
 
@@ -163,7 +221,7 @@ namespace math {
 
   transitioning javascript builtin
   MathLog10(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Log10(value));
   }
 
@@ -172,7 +230,7 @@ namespace math {
 
   transitioning javascript builtin
   MathLog2(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Log2(value));
   }
 
@@ -181,14 +239,14 @@ namespace math {
 
   transitioning javascript builtin
   MathSin(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Sin(value));
   }
 
   // ES6 #sec-math.sign
   transitioning javascript builtin
   MathSign(js-implicit context: Context)(x: JSAny): Number {
-    const num = ToNumber_Inline(context, x);
+    const num = ToNumber_Inline(x);
     const value = Convert<float64>(num);
 
     if (value < 0) {
@@ -205,7 +263,7 @@ namespace math {
 
   transitioning javascript builtin
   MathSinh(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Sinh(value));
   }
 
@@ -214,7 +272,7 @@ namespace math {
 
   transitioning javascript builtin
   MathSqrt(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Sqrt(value));
   }
 
@@ -223,7 +281,7 @@ namespace math {
 
   transitioning javascript builtin
   MathTan(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Tan(value));
   }
 
@@ -232,11 +290,9 @@ namespace math {
 
   transitioning javascript builtin
   MathTanh(js-implicit context: Context)(x: JSAny): Number {
-    const value = Convert<float64>(ToNumber_Inline(context, x));
+    const value = Convert<float64>(ToNumber_Inline(x));
     return Convert<Number>(Float64Tanh(value));
   }
-
-  extern macro Float64Abs(float64): float64;
 
   // ES6 #sec-math.hypot
   transitioning javascript builtin
@@ -250,7 +306,7 @@ namespace math {
     let oneArgIsNaN: bool = false;
     let max: float64 = 0;
     for (let i: intptr = 0; i < length; ++i) {
-      const value = Convert<float64>(ToNumber_Inline(context, arguments[i]));
+      const value = Convert<float64>(ToNumber_Inline(arguments[i]));
       if (Float64IsNaN(value)) {
         oneArgIsNaN = true;
       } else {

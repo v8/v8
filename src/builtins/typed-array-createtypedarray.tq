@@ -327,7 +327,7 @@ namespace typed_array {
     }
     label IfIteratorUndefined {
       const lengthObj: JSAny = GetProperty(obj, kLengthString);
-      const lengthNumber: Number = ToLength_Inline(context, lengthObj);
+      const lengthNumber: Number = ToLength_Inline(lengthObj);
       // Throw RangeError here if the length does not fit in uintptr because
       // such a length will not pass bounds checks in ConstructByArrayLike()
       // anyway.

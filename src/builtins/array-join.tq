@@ -74,7 +74,7 @@ namespace array {
       } else {
         result = Call(context, callable, element, locales, options);
       }
-      return ToString_Inline(context, result);
+      return ToString_Inline(result);
     }
     label TypeError {
       ThrowTypeError(kCalledNonCallable, prop);
@@ -528,8 +528,7 @@ namespace array {
       sepObj: JSAny, locales: JSAny, options: JSAny): JSAny {
     // 3. If separator is undefined, let sep be the single-element String ",".
     // 4. Else, let sep be ? ToString(separator).
-    const sep: String =
-        sepObj == Undefined ? ',' : ToString_Inline(context, sepObj);
+    const sep: String = sepObj == Undefined ? ',' : ToString_Inline(sepObj);
 
     // If the receiver is not empty and not already being joined, continue with
     // the normal join algorithm.

@@ -58,7 +58,7 @@ namespace regexp {
     ThrowIfNotJSReceiver(
         receiver, kIncompatibleMethodReceiver, 'RegExp.prototype.@@split');
     const receiver = UnsafeCast<JSReceiver>(receiver);
-    const string: String = ToString_Inline(context, arguments[0]);
+    const string: String = ToString_Inline(arguments[0]);
     const limit = arguments[1];
 
     // Strict: Reads the flags property.

@@ -50,7 +50,7 @@ namespace regexp {
         case (elString: String): {
           const replacementObj: JSAny =
               Call(context, replaceFn, Undefined, elString, matchStart, string);
-          const replacement: String = ToString_Inline(context, replacementObj);
+          const replacement: String = ToString_Inline(replacementObj);
           matchesElements.objects[i] = replacement;
           matchStart += elString.length_smi;
         }
@@ -75,7 +75,7 @@ namespace regexp {
 
       // Overwrite the i'th element in the results with the string
       // we got back from the callback function.
-      matchesElements.objects[i] = ToString_Inline(context, replacementObj);
+      matchesElements.objects[i] = ToString_Inline(replacementObj);
     }
   }
 
@@ -163,7 +163,7 @@ namespace regexp {
           }
           case (Object): {
             const lastIndex: JSAny = SlowLoadLastIndex(regexp);
-            const thisIndex: Number = ToLength_Inline(context, lastIndex);
+            const thisIndex: Number = ToLength_Inline(lastIndex);
             const nextIndex: Number =
                 AdvanceStringIndexSlow(string, thisIndex, unicode);
             SlowStoreLastIndex(regexp, nextIndex);
@@ -190,7 +190,7 @@ namespace regexp {
       }
       case (JSAny): {
         const stableRegexp: JSRegExp = regexp;
-        const replaceString: String = ToString_Inline(context, replaceValue);
+        const replaceString: String = ToString_Inline(replaceValue);
 
         try {
           // ToString(replaceValue) could potentially change the shape of the
@@ -245,7 +245,7 @@ namespace regexp {
         otherwise ThrowTypeError(kIncompatibleMethodReceiver, methodName);
 
     // Let S be ? ToString(string).
-    const s = ToString_Inline(context, string);
+    const s = ToString_Inline(string);
 
     // Fast-path checks: 1. Is the {receiver} an unmodified JSRegExp instance?
     try {

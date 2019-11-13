@@ -64,7 +64,7 @@ namespace array {
     //    else let n be len - 1.
     const n: Number = arguments.length < 2 ?
         length - 1 :
-        ToInteger_Inline(context, arguments[1], kTruncateMinusZero);
+        ToInteger_Inline(arguments[1], kTruncateMinusZero);
 
     // 5. If n >= 0, then.
     let k: Number = SmiConstant(0);

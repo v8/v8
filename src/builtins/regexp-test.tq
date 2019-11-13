@@ -13,7 +13,7 @@ namespace regexp {
     const methodName: constexpr string = 'RegExp.prototype.test';
     const receiver = Cast<JSReceiver>(receiver)
         otherwise ThrowTypeError(kIncompatibleMethodReceiver, methodName);
-    const str: String = ToString_Inline(context, string);
+    const str: String = ToString_Inline(string);
     if (IsFastRegExpPermissive(receiver)) {
       RegExpPrototypeExecBodyWithoutResultFast(
           UnsafeCast<JSRegExp>(receiver), str)

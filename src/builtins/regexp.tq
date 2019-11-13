@@ -286,9 +286,8 @@ namespace regexp {
   @export
   transitioning macro RegExpCreate(implicit context: Context)(
       initialMap: Map, maybeString: JSAny, flags: String): JSAny {
-    const pattern: String = maybeString == Undefined ?
-        kEmptyString :
-        ToString_Inline(context, maybeString);
+    const pattern: String =
+        maybeString == Undefined ? kEmptyString : ToString_Inline(maybeString);
     const regexp =
         UnsafeCast<JSRegExp>(AllocateFastOrSlowJSObjectFromMap(initialMap));
     return RegExpInitializeAndCompile(context, regexp, pattern, flags);

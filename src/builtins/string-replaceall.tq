@@ -76,8 +76,7 @@ namespace string {
         const flags = GetProperty(searchValue, 'flags');
         RequireObjectCoercible(flags, 'String.prototype.replaceAll');
         shouldThrow =
-            StringIndexOf(
-                ToString_Inline(context, flags), StringConstant('g'), 0) == -1;
+            StringIndexOf(ToString_Inline(flags), StringConstant('g'), 0) == -1;
       }
     }
     if (shouldThrow) {
@@ -119,10 +118,10 @@ namespace string {
     }
 
     // 3. Let string be ? ToString(O).
-    const string = ToString_Inline(context, receiver);
+    const string = ToString_Inline(receiver);
 
     // 4. Let searchString be ? ToString(searchValue).
-    const searchString = ToString_Inline(context, searchValue);
+    const searchString = ToString_Inline(searchValue);
 
     // 5. Let functionalReplace be IsCallable(replaceValue).
     let replaceValueArg = replaceValue;
@@ -131,7 +130,7 @@ namespace string {
     // 6. If functionalReplace is false, then
     if (!functionalReplace) {
       // a. Let replaceValue be ? ToString(replaceValue).
-      replaceValueArg = ToString_Inline(context, replaceValue);
+      replaceValueArg = ToString_Inline(replaceValue);
     }
 
     // 7. Let searchLength be the length of searchString.
@@ -163,11 +162,9 @@ namespace string {
         // i. Let replacement be ? ToString(? Call(replaceValue, undefined,
         //                                         « searchString, position,
         //                                           string »).
-        replacement = ToString_Inline(
-            context,
-            Call(
-                context, UnsafeCast<Callable>(replaceValueArg), Undefined,
-                searchString, position, string));
+        replacement = ToString_Inline(Call(
+            context, UnsafeCast<Callable>(replaceValueArg), Undefined,
+            searchString, position, string));
       } else {
         // i. Assert: Type(replaceValue) is String.
         const replaceValueString = UnsafeCast<String>(replaceValueArg);

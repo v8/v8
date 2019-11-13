@@ -21,7 +21,7 @@ namespace string {
     if (arguments.length == 0) {
       return receiverString;
     }
-    const maxLength: Number = ToLength_Inline(context, arguments[0]);
+    const maxLength: Number = ToLength_Inline(arguments[0]);
     assert(IsNumberNormalized(maxLength));
 
     typeswitch (maxLength) {
@@ -40,7 +40,7 @@ namespace string {
     if (arguments.length != 1) {
       const fill = arguments[1];
       if (fill != Undefined) {
-        fillString = ToString_Inline(context, fill);
+        fillString = ToString_Inline(fill);
         fillLength = fillString.length_intptr;
         if (fillLength == 0) {
           return receiverString;

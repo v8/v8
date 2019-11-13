@@ -654,6 +654,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         WordShl(BitcastTaggedToWordForTagAndSmiBits(a), shift));
   }
 
+  TNode<IntPtrT> EasyIntPtrAbsWithOverflow(TNode<IntPtrT> a,
+                                           Label* if_overflow) {
+    TNode<PairT<IntPtrT, BoolT>> pair = IntPtrAbsWithOverflow(a);
+    Node* overflow = Projection(1, pair);
+    GotoIf(overflow, if_overflow);
+    return UncheckedCast<IntPtrT>(Projection(0, pair));
+  }
+
   TNode<Smi> SmiShr(TNode<Smi> a, int shift) {
     if (kTaggedSize == kInt64Size) {
       return BitcastWordToTaggedSigned(

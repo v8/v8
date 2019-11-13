@@ -20,7 +20,7 @@ namespace regexp {
     const receiver = UnsafeCast<JSReceiver>(receiver);
 
     // 3. Let S be ? ToString(O).
-    const string: String = ToString_Inline(context, string);
+    const string: String = ToString_Inline(string);
 
     let matcher: Object;
     let global: bool;
@@ -64,14 +64,13 @@ namespace regexp {
 
         // 5. Let flags be ? ToString(? Get(R, "flags")).
         const flags = GetProperty(receiver, 'flags');
-        const flagsString = ToString_Inline(context, flags);
+        const flagsString = ToString_Inline(flags);
 
         // 6. Let matcher be ? Construct(C, « R, flags »).
         matcher = Construct(speciesConstructor, receiver, flagsString);
 
         // 7. Let lastIndex be ? ToLength(? Get(R, "lastIndex")).
-        const lastIndex: Number =
-            ToLength_Inline(context, SlowLoadLastIndex(receiver));
+        const lastIndex: Number = ToLength_Inline(SlowLoadLastIndex(receiver));
 
         // 8. Perform ? Set(matcher, "lastIndex", lastIndex, true).
         SlowStoreLastIndex(UnsafeCast<JSReceiver>(matcher), lastIndex);
@@ -216,13 +215,12 @@ namespace regexp {
         assert(!isFastRegExp);
         // i. Let matchStr be ? ToString(? Get(match, "0")).
         const match = UnsafeCast<JSAny>(match);
-        const matchStr =
-            ToString_Inline(context, GetProperty(match, SmiConstant(0)));
+        const matchStr = ToString_Inline(GetProperty(match, SmiConstant(0)));
 
         if (matchStr == kEmptyString) {
           // 1. Let thisIndex be ? ToLength(? Get(R, "lastIndex")).
           const lastIndex: JSAny = SlowLoadLastIndex(iteratingRegExp);
-          const thisIndex: Number = ToLength_Inline(context, lastIndex);
+          const thisIndex: Number = ToLength_Inline(lastIndex);
 
           // 2. Let nextIndex be ! AdvanceStringIndex(S, thisIndex,
           // fullUnicode).

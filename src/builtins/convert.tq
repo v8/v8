@@ -140,6 +140,17 @@ Convert<int32, uint31>(i: uint31): int32 {
 Convert<int32, intptr>(i: intptr): int32 {
   return TruncateIntPtrToInt32(i);
 }
+Convert<int32, Number>(n: Number): int32 {
+  typeswitch (n) {
+    case (s: Smi): {
+      return Convert<int32>(s);
+    }
+    case (h: HeapNumber): {
+      return TruncateHeapNumberValueToWord32(h);
+    }
+  }
+}
+
 Convert<Smi, intptr>(i: intptr): Smi {
   return SmiTag(i);
 }

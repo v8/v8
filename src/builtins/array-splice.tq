@@ -360,7 +360,7 @@ namespace array {
 
     // 3. Let relativeStart be ? ToInteger(start).
     const start: JSAny = arguments[0];
-    const relativeStart: Number = ToInteger_Inline(context, start);
+    const relativeStart: Number = ToInteger_Inline(start);
 
     // 4. If relativeStart < 0, let actualStart be max((len + relativeStart),
     // 0);
@@ -389,7 +389,7 @@ namespace array {
       insertCount = Convert<Smi>(arguments.length) - 2;
       // b. Let dc be ? ToInteger(deleteCount).
       const deleteCount: JSAny = arguments[1];
-      const dc: Number = ToInteger_Inline(context, deleteCount);
+      const dc: Number = ToInteger_Inline(deleteCount);
       // c. Let actualDeleteCount be min(max(dc, 0), len - actualStart).
       actualDeleteCount = Min(Max(dc, 0), len - actualStart);
     }

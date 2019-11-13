@@ -143,7 +143,7 @@ namespace array {
 
     // 3. Let relativeStart be ? ToInteger(start).
     const start: JSAny = arguments[0];
-    const relativeStart: Number = ToInteger_Inline(context, start);
+    const relativeStart: Number = ToInteger_Inline(start);
 
     // 4. If relativeStart < 0, let k be max((len + relativeStart), 0);
     //    else let k be min(relativeStart, len).
@@ -153,8 +153,7 @@ namespace array {
     // 5. If end is undefined, let relativeEnd be len;
     //    else let relativeEnd be ? ToInteger(end).
     const end: JSAny = arguments[1];
-    const relativeEnd: Number =
-        end == Undefined ? len : ToInteger_Inline(context, end);
+    const relativeEnd: Number = end == Undefined ? len : ToInteger_Inline(end);
 
     // 6. If relativeEnd < 0, let final be max((len + relativeEnd), 0);
     //    else let final be min(relativeEnd, len).

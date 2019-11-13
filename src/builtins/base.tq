@@ -460,12 +460,16 @@ extern macro Comment(constexpr string);
 extern macro StaticAssert(bool);
 extern macro Print(Object);
 extern macro DebugBreak();
-extern transitioning macro ToInteger_Inline(Context, JSAny): Number;
-extern transitioning macro ToInteger_Inline(
-    Context, JSAny, constexpr ToIntegerTruncationMode): Number;
-extern transitioning macro ToLength_Inline(Context, JSAny): Number;
-extern transitioning macro ToNumber_Inline(Context, JSAny): Number;
-extern transitioning macro ToString_Inline(Context, JSAny): String;
+extern transitioning macro ToInteger_Inline(implicit context: Context)(JSAny):
+    Number;
+extern transitioning macro ToInteger_Inline(implicit context: Context)(
+    JSAny, constexpr ToIntegerTruncationMode): Number;
+extern transitioning macro ToLength_Inline(implicit context: Context)(JSAny):
+    Number;
+extern transitioning macro ToNumber_Inline(implicit context: Context)(JSAny):
+    Number;
+extern transitioning macro ToString_Inline(implicit context: Context)(JSAny):
+    String;
 extern transitioning macro ToThisString(implicit context: Context)(
     JSAny, String): String;
 extern transitioning macro ToThisValue(implicit context: Context)(
@@ -1197,7 +1201,7 @@ macro ChangeSafeIntegerNumberToUintPtr(value: Number):
 transitioning macro ToUintPtr(implicit context: Context)(value: JSAny):
     uintptr labels IfLessThanZero, IfUIntPtrOverflow, IfSafeIntegerOverflow {
   if (value == Undefined) return 0;
-  const indexNumber = ToInteger_Inline(context, value, kTruncateMinusZero);
+  const indexNumber = ToInteger_Inline(value, kTruncateMinusZero);
   return TryNumberToUintPtr(indexNumber, kModeValueIsAnyNumber)
       otherwise IfLessThanZero, IfUIntPtrOverflow, IfSafeIntegerOverflow;
 }
@@ -1211,7 +1215,7 @@ transitioning macro ToUintPtr(implicit context: Context)(value: JSAny):
 transitioning macro ToIndex(implicit context: Context)(value: JSAny):
     uintptr labels IfRangeError {
   if (value == Undefined) return 0;
-  const indexNumber = ToInteger_Inline(context, value, kTruncateMinusZero);
+  const indexNumber = ToInteger_Inline(value, kTruncateMinusZero);
   // Less than 0 case, uintptr range overflow and safe integer range overflow
   // imply IfRangeError.
   return TryNumberToUintPtr(indexNumber, kModeValueIsAnyNumber)
@@ -1234,7 +1238,7 @@ transitioning macro GetLengthProperty(implicit context: Context)(o: JSAny):
     }
   }
   label ToLength(length: JSAny) deferred {
-    return ToLength_Inline(context, length);
+    return ToLength_Inline(length);
   }
 }
 
@@ -1282,8 +1286,7 @@ extern macro AllocateSeqTwoByteString(uint32): String;
 @export
 transitioning macro ConvertToRelativeIndex(implicit context: Context)(
     index: JSAny, length: uintptr): uintptr {
-  const indexNumber: Number =
-      ToInteger_Inline(context, index, kTruncateMinusZero);
+  const indexNumber: Number = ToInteger_Inline(index, kTruncateMinusZero);
   return ConvertToRelativeIndex(indexNumber, length);
 }
 
@@ -1330,8 +1333,7 @@ macro ConvertToRelativeIndex(indexNumber: Number, length: uintptr): uintptr {
 @export
 transitioning macro ClampToIndexRange(implicit context: Context)(
     index: JSAny, limit: uintptr): uintptr {
-  const indexNumber: Number =
-      ToInteger_Inline(context, index, kTruncateMinusZero);
+  const indexNumber: Number = ToInteger_Inline(index, kTruncateMinusZero);
   return ClampToIndexRange(indexNumber, limit);
 }
 

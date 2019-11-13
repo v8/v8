@@ -278,7 +278,7 @@ namespace typed_array {
       comparefn: Callable)(a: JSAny, b: JSAny): Number {
     // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
     const v: Number =
-        ToNumber_Inline(context, Call(context, comparefn, Undefined, a, b));
+        ToNumber_Inline(Call(context, comparefn, Undefined, a, b));
 
     // b. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
     if (IsDetachedBuffer(array.buffer)) {
