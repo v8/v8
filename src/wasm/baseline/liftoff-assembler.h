@@ -258,6 +258,15 @@ class LiftoffAssembler : public TurboAssembler {
     cache_state_.stack_state.emplace_back(type, reg);
   }
 
+  void PushConstant(ValueType type, int32_t i32_const) {
+    DCHECK(type == kWasmI32 || type == kWasmI64);
+    cache_state_.stack_state.emplace_back(type, i32_const);
+  }
+
+  void PushStack(ValueType type) {
+    cache_state_.stack_state.emplace_back(type);
+  }
+
   void SpillRegister(LiftoffRegister);
 
   uint32_t GetNumUses(LiftoffRegister reg) {

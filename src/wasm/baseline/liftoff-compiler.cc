@@ -438,13 +438,13 @@ class LiftoffCompiler {
       for (uint32_t param_idx = num_params; param_idx < __ num_locals();
            ++param_idx) {
         ValueType type = decoder->GetLocalType(param_idx);
-        __ cache_state()->stack_state.emplace_back(type);
+        __ PushStack(type);
       }
     } else {
       for (uint32_t param_idx = num_params; param_idx < __ num_locals();
            ++param_idx) {
         ValueType type = decoder->GetLocalType(param_idx);
-        __ cache_state()->stack_state.emplace_back(type, int32_t{0});
+        __ PushConstant(type, int32_t{0});
       }
     }
 
@@ -1218,7 +1218,7 @@ class LiftoffCompiler {
   }
 
   void I32Const(FullDecoder* decoder, Value* result, int32_t value) {
-    __ cache_state()->stack_state.emplace_back(kWasmI32, value);
+    __ PushConstant(kWasmI32, value);
   }
 
   void I64Const(FullDecoder* decoder, Value* result, int64_t value) {
@@ -1228,7 +1228,7 @@ class LiftoffCompiler {
     // a register immediately.
     int32_t value_i32 = static_cast<int32_t>(value);
     if (value_i32 == value) {
-      __ cache_state()->stack_state.emplace_back(kWasmI64, value_i32);
+      __ PushConstant(kWasmI64, value_i32);
     } else {
       LiftoffRegister reg = __ GetUnusedRegister(reg_class_for(kWasmI64));
       __ LoadConstant(reg, WasmValue(value));
@@ -1287,7 +1287,7 @@ class LiftoffCompiler {
         __ PushRegister(slot.type(), slot.reg());
         break;
       case kIntConst:
-        __ cache_state()->stack_state.emplace_back(imm.type, slot.i32_const());
+        __ PushConstant(imm.type, slot.i32_const());
         break;
       case kStack: {
         auto rc = reg_class_for(imm.type);
