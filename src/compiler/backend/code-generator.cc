@@ -125,7 +125,7 @@ bool CodeGenerator::ShouldApplyOffsetToStackCheck(Instruction* instr,
   if (kind != StackCheckKind::kJSFunctionEntry) return false;
 
   uint32_t stack_check_offset = *offset = GetStackCheckOffset();
-  return stack_check_offset > 0;
+  return stack_check_offset > kStackLimitSlackForDeoptimizationInBytes;
 }
 
 uint32_t CodeGenerator::GetStackCheckOffset() {

@@ -29,6 +29,10 @@ class RecursiveMutex;
 
 namespace internal {
 
+constexpr int KB = 1024;
+constexpr int MB = KB * 1024;
+constexpr int GB = MB * 1024;
+
 // Determine whether we are running in a simulated environment.
 // Setting USE_SIMULATOR explicitly from the build script will force
 // the use of a simulated environment.
@@ -74,6 +78,17 @@ namespace internal {
 
 // Minimum stack size in KB required by compilers.
 constexpr int kStackSpaceRequiredForCompilation = 40;
+
+// In order to emit more efficient stack checks in optimized code,
+// deoptimization may implicitly exceed the V8 stack limit by this many bytes.
+// Stack checks in functions with `difference between optimized and unoptimized
+// stack frame sizes <= slack` can simply emit the simple stack check.
+constexpr int kStackLimitSlackForDeoptimizationInBytes = 256;
+
+// Sanity-check, assuming that we aim for a real OS stack size of at least 1MB.
+STATIC_ASSERT(V8_DEFAULT_STACK_SIZE_KB* KB +
+                  kStackLimitSlackForDeoptimizationInBytes <=
+              MB);
 
 // Determine whether double field unboxing feature is enabled.
 #if V8_TARGET_ARCH_64_BIT && !defined(V8_COMPRESS_POINTERS)
@@ -123,9 +138,6 @@ using byte = uint8_t;
 // -----------------------------------------------------------------------------
 // Constants
 
-constexpr int KB = 1024;
-constexpr int MB = KB * KB;
-constexpr int GB = KB * KB * KB;
 constexpr int kMaxInt = 0x7FFFFFFF;
 constexpr int kMinInt = -kMaxInt - 1;
 constexpr int kMaxInt8 = (1 << 7) - 1;

@@ -822,8 +822,11 @@ void Deoptimizer::DoComputeOutputFrames() {
   // the optimized frame in stack checks in optimized code. We do this by
   // applying an offset to stack checks (see kArchStackPointerGreaterThan in the
   // code generator).
-  CHECK_GT(static_cast<uintptr_t>(caller_frame_top_) - total_output_frame_size,
-           stack_guard->real_jslimit());
+  // Note that we explicitly allow deopts to exceed the limit by a certain
+  // number of slack bytes.
+  CHECK_GT(
+      static_cast<uintptr_t>(caller_frame_top_) - total_output_frame_size,
+      stack_guard->real_jslimit() - kStackLimitSlackForDeoptimizationInBytes);
 }
 
 void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
