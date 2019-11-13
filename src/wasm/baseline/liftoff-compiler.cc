@@ -2031,11 +2031,6 @@ class LiftoffCompiler {
                   const Vector<Value> inputs, Value* result) {
     unsupported(decoder, kSimd, "simd");
   }
-  void SimdShiftOp(FullDecoder* decoder, WasmOpcode opcode,
-                   const SimdShiftImmediate<validate>& imm, const Value& input,
-                   Value* result) {
-    unsupported(decoder, kSimd, "simd");
-  }
   void Simd8x16ShuffleOp(FullDecoder* decoder,
                          const Simd8x16ShuffleImmediate<validate>& imm,
                          const Value& input0, const Value& input1,

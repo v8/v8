@@ -486,17 +486,6 @@ struct SimdLaneImmediate {
   }
 };
 
-// Immediate for SIMD shift operations.
-template <Decoder::ValidateFlag validate>
-struct SimdShiftImmediate {
-  uint8_t shift;
-  uint32_t length = 1;
-
-  inline SimdShiftImmediate(Decoder* decoder, const byte* pc) {
-    shift = decoder->read_u8<validate>(pc + 2, "shift");
-  }
-};
-
 // Immediate for SIMD S8x16 shuffle operations.
 template <Decoder::ValidateFlag validate>
 struct Simd8x16ShuffleImmediate {
@@ -1092,42 +1081,6 @@ class WasmDecoder : public Decoder {
     }
     if (!VALIDATE(imm.lane >= 0 && imm.lane < num_lanes)) {
       error(pc_ + 2, "invalid lane index");
-      return false;
-    } else {
-      return true;
-    }
-  }
-
-  inline bool Validate(const byte* pc, WasmOpcode opcode,
-                       SimdShiftImmediate<validate>& imm) {
-    uint8_t max_shift = 0;
-    switch (opcode) {
-      case kExprI64x2Shl:
-      case kExprI64x2ShrS:
-      case kExprI64x2ShrU:
-        max_shift = 64;
-        break;
-      case kExprI32x4Shl:
-      case kExprI32x4ShrS:
-      case kExprI32x4ShrU:
-        max_shift = 32;
-        break;
-      case kExprI16x8Shl:
-      case kExprI16x8ShrS:
-      case kExprI16x8ShrU:
-        max_shift = 16;
-        break;
-      case kExprI8x16Shl:
-      case kExprI8x16ShrS:
-      case kExprI8x16ShrU:
-        max_shift = 8;
-        break;
-      default:
-        UNREACHABLE();
-        break;
-    }
-    if (!VALIDATE(imm.shift >= 0 && imm.shift < max_shift)) {
-      error(pc_ + 2, "invalid shift amount");
       return false;
     } else {
       return true;
