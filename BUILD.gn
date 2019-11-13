@@ -1006,6 +1006,7 @@ torque_files = [
   "src/builtins/typed-array-set.tq",
   "src/builtins/typed-array-slice.tq",
   "src/builtins/typed-array-some.tq",
+  "src/builtins/typed-array-sort.tq",
   "src/builtins/typed-array-subarray.tq",
   "src/builtins/typed-array.tq",
   "src/ic/handler-configuration.tq",
