@@ -57,6 +57,9 @@ class WasmInstructionBufferImpl {
     WasmInstructionBufferImpl* const holder_;
   };
 
+  explicit WasmInstructionBufferImpl(size_t size)
+      : buffer_(OwnedVector<uint8_t>::New(size)) {}
+
   std::unique_ptr<AssemblerBuffer> CreateView() {
     DCHECK_NOT_NULL(buffer_);
     return std::make_unique<View>(buffer_.as_vector(), this);
@@ -72,8 +75,7 @@ class WasmInstructionBufferImpl {
 
  private:
   // The current buffer used to emit code.
-  OwnedVector<uint8_t> buffer_ =
-      OwnedVector<uint8_t>::New(AssemblerBase::kMinimalBufferSize);
+  OwnedVector<uint8_t> buffer_;
 
   // While the buffer is grown, we need to temporarily also keep the old buffer
   // alive.
@@ -100,10 +102,10 @@ std::unique_ptr<uint8_t[]> WasmInstructionBuffer::ReleaseBuffer() {
 }
 
 // static
-std::unique_ptr<WasmInstructionBuffer> WasmInstructionBuffer::New() {
+std::unique_ptr<WasmInstructionBuffer> WasmInstructionBuffer::New(size_t size) {
   return std::unique_ptr<WasmInstructionBuffer>{
-      reinterpret_cast<WasmInstructionBuffer*>(
-          new WasmInstructionBufferImpl())};
+      reinterpret_cast<WasmInstructionBuffer*>(new WasmInstructionBufferImpl(
+          std::max(size_t{AssemblerBase::kMinimalBufferSize}, size)))};
 }
 // End of PIMPL interface WasmInstructionBuffer for WasmInstBufferImpl
 

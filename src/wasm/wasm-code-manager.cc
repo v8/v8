@@ -1539,6 +1539,64 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   return mem;
 }
 
+namespace {
+// The numbers here are rough estimates, used to calculate the size of the
+// initial code reservation and for estimating the amount of external memory
+// reported to the GC.
+// They do not need to be accurate. Choosing them too small will result in
+// separate code spaces being allocated (compile time and runtime overhead),
+// choosing them too large results in over-reservation (virtual address space
+// only).
+// The current numbers have been determined on 2019-11-11 by clemensb@, based
+// on one small and one large module compiled from C++ by Emscripten. If in
+// doubt, they where chosen slightly larger than required, as over-reservation
+// is not a big issue currently.
+// Numbers will change when Liftoff or TurboFan evolve, other toolchains are
+// used to produce the wasm code, or characteristics of wasm modules on the
+// web change. They might require occasional tuning.
+// This patch might help to find reasonable numbers for any future adaptation:
+// https://crrev.com/c/1910945
+#if V8_TARGET_ARCH_X64
+constexpr size_t kTurbofanFunctionOverhead = 20;
+constexpr size_t kTurbofanCodeSizeMultiplier = 3;
+constexpr size_t kLiftoffFunctionOverhead = 60;
+constexpr size_t kLiftoffCodeSizeMultiplier = 4;
+constexpr size_t kImportSize = 350;
+#elif V8_TARGET_ARCH_IA32
+constexpr size_t kTurbofanFunctionOverhead = 20;
+constexpr size_t kTurbofanCodeSizeMultiplier = 4;
+constexpr size_t kLiftoffFunctionOverhead = 60;
+constexpr size_t kLiftoffCodeSizeMultiplier = 5;
+constexpr size_t kImportSize = 480;
+#elif V8_TARGET_ARCH_ARM
+constexpr size_t kTurbofanFunctionOverhead = 40;
+constexpr size_t kTurbofanCodeSizeMultiplier = 4;
+constexpr size_t kLiftoffFunctionOverhead = 108;
+constexpr size_t kLiftoffCodeSizeMultiplier = 7;
+constexpr size_t kImportSize = 750;
+#elif V8_TARGET_ARCH_ARM64
+constexpr size_t kTurbofanFunctionOverhead = 60;
+constexpr size_t kTurbofanCodeSizeMultiplier = 4;
+constexpr size_t kLiftoffFunctionOverhead = 80;
+constexpr size_t kLiftoffCodeSizeMultiplier = 7;
+constexpr size_t kImportSize = 750;
+#else
+// Other platforms should add their own estimates if needed. Numbers below are
+// the minimum of other architectures.
+constexpr size_t kTurbofanFunctionOverhead = 20;
+constexpr size_t kTurbofanCodeSizeMultiplier = 3;
+constexpr size_t kLiftoffFunctionOverhead = 60;
+constexpr size_t kLiftoffCodeSizeMultiplier = 4;
+constexpr size_t kImportSize = 350;
+#endif
+}  // namespace
+
+// static
+size_t WasmCodeManager::EstimateLiftoffCodeSize(int body_size) {
+  return kLiftoffFunctionOverhead + kCodeAlignment / 2 +
+         body_size * kLiftoffCodeSizeMultiplier;
+}
+
 // static
 size_t WasmCodeManager::EstimateNativeModuleCodeSize(const WasmModule* module,
                                                      bool include_liftoff) {
@@ -1561,56 +1619,6 @@ size_t WasmCodeManager::EstimateNativeModuleCodeSize(int num_functions,
                                                      int num_imported_functions,
                                                      int code_section_length,
                                                      bool include_liftoff) {
-  // The numbers here are rough estimates, used to calculate the size of the
-  // initial code reservation and for estimating the amount of external memory
-  // reported to the GC.
-  // They do not need to be accurate. Choosing them too small will result in
-  // separate code spaces being allocated (compile time and runtime overhead),
-  // choosing them too large results in over-reservation (virtual address space
-  // only).
-  // The current numbers have been determined on 2019-11-11 by clemensb@, based
-  // on one small and one large module compiled from C++ by Emscripten. If in
-  // doubt, they where chosen slightly larger than required, as over-reservation
-  // is not a big issue currently.
-  // Numbers will change when Liftoff or TurboFan evolve, other toolchains are
-  // used to produce the wasm code, or characteristics of wasm modules on the
-  // web change. They might require occasional tuning.
-  // This patch might help to find reasonable numbers for any future adaptation:
-  // https://crrev.com/c/1910945
-#if V8_TARGET_ARCH_X64
-  constexpr size_t kTurbofanFunctionOverhead = 20;
-  constexpr size_t kTurbofanCodeSizeMultiplier = 3;
-  constexpr size_t kLiftoffFunctionOverhead = 60;
-  constexpr size_t kLiftoffCodeSizeMultiplier = 4;
-  constexpr size_t kImportSize = 350;
-#elif V8_TARGET_ARCH_IA32
-  constexpr size_t kTurbofanFunctionOverhead = 20;
-  constexpr size_t kTurbofanCodeSizeMultiplier = 4;
-  constexpr size_t kLiftoffFunctionOverhead = 60;
-  constexpr size_t kLiftoffCodeSizeMultiplier = 5;
-  constexpr size_t kImportSize = 480;
-#elif V8_TARGET_ARCH_ARM
-  constexpr size_t kTurbofanFunctionOverhead = 40;
-  constexpr size_t kTurbofanCodeSizeMultiplier = 4;
-  constexpr size_t kLiftoffFunctionOverhead = 108;
-  constexpr size_t kLiftoffCodeSizeMultiplier = 7;
-  constexpr size_t kImportSize = 750;
-#elif V8_TARGET_ARCH_ARM64
-  constexpr size_t kTurbofanFunctionOverhead = 60;
-  constexpr size_t kTurbofanCodeSizeMultiplier = 4;
-  constexpr size_t kLiftoffFunctionOverhead = 80;
-  constexpr size_t kLiftoffCodeSizeMultiplier = 7;
-  constexpr size_t kImportSize = 750;
-#else
-  // Other platforms should add their own estimates if needed. Numbers below are
-  // the minimum of other architectures.
-  constexpr size_t kTurbofanFunctionOverhead = 20;
-  constexpr size_t kTurbofanCodeSizeMultiplier = 3;
-  constexpr size_t kLiftoffFunctionOverhead = 60;
-  constexpr size_t kLiftoffCodeSizeMultiplier = 4;
-  constexpr size_t kImportSize = 350;
-#endif
-
   const size_t overhead_per_function =
       kTurbofanFunctionOverhead + kCodeAlignment / 2 +
       (include_liftoff ? kLiftoffFunctionOverhead + kCodeAlignment / 2 : 0);

@@ -692,6 +692,9 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
     return total_committed_code_space_.load();
   }
 
+  // Estimate the needed code space for a Liftoff function based on the size of
+  // the function body (wasm byte code).
+  static size_t EstimateLiftoffCodeSize(int body_size);
   // Estimate the needed code space from a completely decoded module.
   static size_t EstimateNativeModuleCodeSize(const WasmModule* module,
                                              bool include_liftoff);

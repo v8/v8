@@ -477,8 +477,6 @@ constexpr AssemblerOptions DefaultLiftoffOptions() {
 
 }  // namespace
 
-// TODO(clemensb): Provide a reasonably sized buffer, based on wasm function
-// size.
 LiftoffAssembler::LiftoffAssembler(std::unique_ptr<AssemblerBuffer> buffer)
     : TurboAssembler(nullptr, DefaultLiftoffOptions(), CodeObjectRequired::kNo,
                      std::move(buffer)) {

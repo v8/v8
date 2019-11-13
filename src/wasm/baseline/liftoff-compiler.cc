@@ -2159,17 +2159,22 @@ WasmCompilationResult ExecuteLiftoffCompilation(AccountingAllocator* allocator,
                                                 int func_index,
                                                 Counters* counters,
                                                 WasmFeatures* detected) {
+  int func_body_size = static_cast<int>(func_body.end - func_body.start);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteLiftoffCompilation", "func_index", func_index,
-               "body_size", func_body.end - func_body.start);
+               "body_size", func_body_size);
 
   Zone zone(allocator, "LiftoffCompilationZone");
   const WasmModule* module = env ? env->module : nullptr;
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
       base::in_place, counters->liftoff_compile_time());
+  size_t code_size_estimate =
+      WasmCodeManager::EstimateLiftoffCodeSize(func_body_size);
+  // Allocate the initial buffer a bit bigger to avoid reallocation during code
+  // generation.
   std::unique_ptr<wasm::WasmInstructionBuffer> instruction_buffer =
-      wasm::WasmInstructionBuffer::New();
+      wasm::WasmInstructionBuffer::New(128 + code_size_estimate * 4 / 3);
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
       &zone, module, env->enabled_features, detected, func_body,
       call_descriptor, env, &zone, instruction_buffer->CreateView());
