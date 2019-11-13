@@ -2741,42 +2741,38 @@ TNode<BoolT> CodeStubAssembler::IsGeneratorFunction(
           shared_function_info, SharedFunctionInfo::kFlagsOffset,
           MachineType::Uint32()));
 
-  return TNode<BoolT>::UncheckedCast(Word32Or(
-      Word32Or(
-          Word32Or(
-              Word32Equal(function_kind,
-                          Int32Constant(FunctionKind::kAsyncGeneratorFunction)),
-              Word32Equal(
-                  function_kind,
-                  Int32Constant(FunctionKind::kAsyncConciseGeneratorMethod))),
-          Word32Equal(function_kind,
-                      Int32Constant(FunctionKind::kGeneratorFunction))),
-      Word32Equal(function_kind,
-                  Int32Constant(FunctionKind::kConciseGeneratorMethod))));
+  // See IsGeneratorFunction(FunctionKind kind).
+  return IsInRange(function_kind, FunctionKind::kAsyncConciseGeneratorMethod,
+                   FunctionKind::kConciseGeneratorMethod);
 }
 
-TNode<BoolT> CodeStubAssembler::HasPrototypeSlot(TNode<JSFunction> function) {
-  return TNode<BoolT>::UncheckedCast(IsSetWord32<Map::HasPrototypeSlotBit>(
-      LoadMapBitField(LoadMap(function))));
+TNode<BoolT> CodeStubAssembler::IsJSFunctionWithPrototypeSlot(
+    TNode<HeapObject> object) {
+  // Only JSFunction maps may have HasPrototypeSlotBit set.
+  return TNode<BoolT>::UncheckedCast(
+      IsSetWord32<Map::HasPrototypeSlotBit>(LoadMapBitField(LoadMap(object))));
 }
 
-TNode<BoolT> CodeStubAssembler::HasPrototypeProperty(TNode<JSFunction> function,
-                                                     TNode<Map> map) {
+void CodeStubAssembler::BranchIfHasPrototypeProperty(
+    TNode<JSFunction> function, TNode<Int32T> function_map_bit_field,
+    Label* if_true, Label* if_false) {
   // (has_prototype_slot() && IsConstructor()) ||
   // IsGeneratorFunction(shared()->kind())
   uint32_t mask =
       Map::HasPrototypeSlotBit::kMask | Map::IsConstructorBit::kMask;
-  return TNode<BoolT>::UncheckedCast(
-      Word32Or(IsAllSetWord32(LoadMapBitField(map), mask),
-               IsGeneratorFunction(function)));
+
+  GotoIf(IsAllSetWord32(function_map_bit_field, mask), if_true);
+  Branch(IsGeneratorFunction(function), if_true, if_false);
 }
 
 void CodeStubAssembler::GotoIfPrototypeRequiresRuntimeLookup(
     TNode<JSFunction> function, TNode<Map> map, Label* runtime) {
   // !has_prototype_property() || has_non_instance_prototype()
-  GotoIfNot(HasPrototypeProperty(function, map), runtime);
-  GotoIf(IsSetWord32<Map::HasNonInstancePrototypeBit>(LoadMapBitField(map)),
-         runtime);
+  TNode<Int32T> map_bit_field = LoadMapBitField(map);
+  Label next_check(this);
+  BranchIfHasPrototypeProperty(function, map_bit_field, &next_check, runtime);
+  BIND(&next_check);
+  GotoIf(IsSetWord32<Map::HasNonInstancePrototypeBit>(map_bit_field), runtime);
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadJSFunctionPrototype(
@@ -12953,14 +12949,6 @@ TNode<BoolT> CodeStubAssembler::IsElementsKindGreaterThan(
 TNode<BoolT> CodeStubAssembler::IsElementsKindLessThanOrEqual(
     TNode<Int32T> target_kind, ElementsKind reference_kind) {
   return Int32LessThanOrEqual(target_kind, Int32Constant(reference_kind));
-}
-
-TNode<BoolT> CodeStubAssembler::IsElementsKindInRange(
-    TNode<Int32T> target_kind, ElementsKind lower_reference_kind,
-    ElementsKind higher_reference_kind) {
-  return Uint32LessThanOrEqual(
-      Int32Sub(target_kind, Int32Constant(lower_reference_kind)),
-      Int32Constant(higher_reference_kind - lower_reference_kind));
 }
 
 TNode<BoolT> CodeStubAssembler::IsDebugActive() {

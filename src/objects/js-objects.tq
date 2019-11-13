@@ -70,15 +70,13 @@ extern class JSFunction extends JSFunctionOrBoundFunction {
   @noVerifier weak prototype_or_initial_map: JSReceiver|Map;
 }
 
-extern macro HasPrototypeSlot(JSFunction): bool;
+type JSFunctionWithPrototypeSlot extends JSFunction;
 
 macro GetDerivedMap(implicit context: Context)(
     target: JSFunction, newTarget: JSReceiver): Map {
   try {
-    const constructor = Cast<JSFunction>(newTarget) otherwise SlowPath;
-    if (!HasPrototypeSlot(constructor)) {
-      goto SlowPath;
-    }
+    const constructor =
+        Cast<JSFunctionWithPrototypeSlot>(newTarget) otherwise SlowPath;
     assert(IsConstructor(constructor));
     const map =
         Cast<Map>(constructor.prototype_or_initial_map) otherwise SlowPath;

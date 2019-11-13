@@ -456,6 +456,9 @@ void Map::MapVerify(Isolate* isolate) {
                   .IsConsistentWithBackPointers());
   SLOW_DCHECK(!FLAG_unbox_double_fields ||
               layout_descriptor().IsConsistentWithMap(*this));
+  // Only JSFunction maps have has_prototype_slot() bit set and constructible
+  // JSFunction objects must have prototype slot.
+  CHECK_IMPLIES(has_prototype_slot(), instance_type() == JS_FUNCTION_TYPE);
   if (!may_have_interesting_symbols()) {
     CHECK(!has_named_interceptor());
     CHECK(!is_dictionary_map());

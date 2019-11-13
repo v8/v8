@@ -457,6 +457,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(heap_object);
   }
 
+  TNode<JSFunction> HeapObjectToJSFunctionWithPrototypeSlot(
+      TNode<HeapObject> heap_object, Label* fail) {
+    GotoIfNot(IsJSFunctionWithPrototypeSlot(heap_object), fail);
+    return CAST(heap_object);
+  }
+
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName)                    \
@@ -931,6 +937,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Check that a word has a word-aligned address.
   TNode<BoolT> WordIsAligned(SloppyTNode<WordT> word, size_t alignment);
   TNode<BoolT> WordIsPowerOfTwo(SloppyTNode<IntPtrT> value);
+
+  // Check if lower_limit <= value <= higher_limit.
+  template <typename U>
+  TNode<BoolT> IsInRange(TNode<Word32T> value, U lower_limit, U higher_limit) {
+    DCHECK_LE(lower_limit, higher_limit);
+    STATIC_ASSERT(sizeof(U) <= kInt32Size);
+    return Uint32LessThanOrEqual(Int32Sub(value, Int32Constant(lower_limit)),
+                                 Int32Constant(higher_limit - lower_limit));
+  }
 
 #if DEBUG
   void Bind(Label* label, AssemblerDebugInfo debug_info);
@@ -1479,9 +1494,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Map> LoadJSArrayElementsMap(SloppyTNode<Int32T> kind,
                                     SloppyTNode<NativeContext> native_context);
 
-  TNode<BoolT> HasPrototypeSlot(TNode<JSFunction> function);
+  TNode<BoolT> IsJSFunctionWithPrototypeSlot(TNode<HeapObject> object);
   TNode<BoolT> IsGeneratorFunction(TNode<JSFunction> function);
-  TNode<BoolT> HasPrototypeProperty(TNode<JSFunction> function, TNode<Map> map);
+  void BranchIfHasPrototypeProperty(TNode<JSFunction> function,
+                                    TNode<Int32T> function_map_bit_field,
+                                    Label* if_true, Label* if_false);
   void GotoIfPrototypeRequiresRuntimeLookup(TNode<JSFunction> function,
                                             TNode<Map> map, Label* runtime);
   // Load the "prototype" property of a JSFunction.
@@ -2599,10 +2616,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                          ElementsKind reference_kind);
   TNode<BoolT> IsElementsKindLessThanOrEqual(TNode<Int32T> target_kind,
                                              ElementsKind reference_kind);
-  // Check if reference_kind_a <= target_kind <= reference_kind_b
+  // Check if lower_reference_kind <= target_kind <= higher_reference_kind.
   TNode<BoolT> IsElementsKindInRange(TNode<Int32T> target_kind,
                                      ElementsKind lower_reference_kind,
-                                     ElementsKind higher_reference_kind);
+                                     ElementsKind higher_reference_kind) {
+    return IsInRange(target_kind, lower_reference_kind, higher_reference_kind);
+  }
 
   // String helpers.
   // Load a character from a String (might flatten a ConsString).

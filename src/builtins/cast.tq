@@ -69,6 +69,9 @@ extern macro HeapObjectToString(HeapObject): String
     labels CastError;
 extern macro HeapObjectToConstructor(HeapObject): Constructor
     labels CastError;
+extern macro HeapObjectToJSFunctionWithPrototypeSlot(HeapObject):
+    JSFunctionWithPrototypeSlot
+    labels CastError;
 extern macro HeapObjectToHeapNumber(HeapObject): HeapNumber
     labels CastError;
 extern macro HeapObjectToSloppyArgumentsElements(HeapObject):
@@ -418,6 +421,11 @@ Cast<DirectString>(o: HeapObject): DirectString
 Cast<Constructor>(o: HeapObject): Constructor
     labels CastError {
   return HeapObjectToConstructor(o) otherwise CastError;
+}
+
+Cast<JSFunctionWithPrototypeSlot>(o: HeapObject): JSFunctionWithPrototypeSlot
+    labels CastError {
+  return HeapObjectToJSFunctionWithPrototypeSlot(o) otherwise CastError;
 }
 
 Cast<HeapNumber>(o: HeapObject): HeapNumber
