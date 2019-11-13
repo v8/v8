@@ -192,7 +192,7 @@ HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
   Handle<HeapNumber> value = factory->NewHeapNumber(1.000123);
   CHECK(Heap::InYoungGeneration(*value));
 
-  i::byte buffer[i::Assembler::kMinimalBufferSize];
+  i::byte buffer[i::Assembler::kDefaultBufferSize];
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   // Add a new-space reference to the code.
@@ -4338,7 +4338,7 @@ TEST(NextCodeLinkInCodeDataContainerIsCleared) {
 }
 
 static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
-  i::byte buffer[i::Assembler::kMinimalBufferSize];
+  i::byte buffer[i::Assembler::kDefaultBufferSize];
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   CodeDesc desc;

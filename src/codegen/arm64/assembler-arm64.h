@@ -2639,6 +2639,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // relocation info entries, and debug strings encoded in the instruction
   // stream.
   static constexpr int kGap = 64;
+  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
  public:
 #ifdef DEBUG

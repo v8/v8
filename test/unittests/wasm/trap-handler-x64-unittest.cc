@@ -88,7 +88,7 @@ class TrapHandlerTest : public TestWithIsolate,
     crash_address_ = reinterpret_cast<Address>(backing_store_->buffer_start()) +
                      backing_store_->byte_length() + 32;
     // Allocate a buffer for the generated code.
-    buffer_ = AllocateAssemblerBuffer(AssemblerBase::kMinimalBufferSize,
+    buffer_ = AllocateAssemblerBuffer(AssemblerBase::kDefaultBufferSize,
                                       GetRandomMmapAddr());
 
     InitRecoveryCode();
@@ -138,7 +138,7 @@ class TrapHandlerTest : public TestWithIsolate,
     // Create a code snippet where we can jump to to recover from a signal or
     // exception. The code snippet only consists of a return statement.
     recovery_buffer_ = AllocateAssemblerBuffer(
-        AssemblerBase::kMinimalBufferSize, GetRandomMmapAddr());
+        AssemblerBase::kDefaultBufferSize, GetRandomMmapAddr());
 
     MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
                         recovery_buffer_->CreateView());

@@ -271,7 +271,13 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     }
   }
 
-  static const int kMinimalBufferSize = 4 * KB;
+  // The minimum buffer size. Should be at least two times the platform-specific
+  // {Assembler::kGap}.
+  static constexpr int kMinimalBufferSize = 128;
+
+  // The default buffer size used if we do not know the final size of the
+  // generated code.
+  static constexpr int kDefaultBufferSize = 4 * KB;
 
  protected:
   // Add 'target' to the {code_targets_} vector, if necessary, and return the

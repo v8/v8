@@ -140,7 +140,7 @@ AssemblerBase::AssemblerBase(const AssemblerOptions& options,
       predictable_code_size_(false),
       constant_pool_available_(false),
       jump_optimization_info_(nullptr) {
-  if (!buffer_) buffer_ = NewAssemblerBuffer(kMinimalBufferSize);
+  if (!buffer_) buffer_ = NewAssemblerBuffer(kDefaultBufferSize);
   buffer_start_ = buffer_->start();
   pc_ = buffer_start_;
 }
