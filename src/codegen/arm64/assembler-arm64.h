@@ -2638,7 +2638,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries, and debug strings encoded in the instruction
   // stream.
-  static constexpr int kGap = 128;
+  static constexpr int kGap = 64;
 
  public:
 #ifdef DEBUG
