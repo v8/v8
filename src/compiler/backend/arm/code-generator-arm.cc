@@ -1923,6 +1923,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ReplaceLane(dst, dst, i.InputRegister(3), NeonS32, lane * 2 + 1);
       break;
     }
+    case kArmI64x2Neg: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vmov(dst, static_cast<uint64_t>(0));
+      __ vqsub(NeonS64, dst, dst, i.InputSimd128Register(0));
+      break;
+    }
     case kArmF32x4Splat: {
       int src_code = i.InputFloatRegister(0).code();
       __ vdup(Neon32, i.OutputSimd128Register(),

@@ -3931,7 +3931,7 @@ void SubSaturate(Simulator* simulator, int Vd, int Vm, int Vn) {
   simulator->get_neon_register(Vn, src1);
   simulator->get_neon_register(Vm, src2);
   for (int i = 0; i < kLanes; i++) {
-    src1[i] = Clamp<T>(Widen<T, int64_t>(src1[i]) - Widen<T, int64_t>(src2[i]));
+    src1[i] = SaturateSub<T>(src1[i], src2[i]);
   }
   simulator->set_neon_register(Vd, src1);
 }
@@ -4294,6 +4294,9 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               case Neon32:
                 SubSaturate<int32_t>(this, Vd, Vm, Vn);
                 break;
+              case Neon64:
+                SubSaturate<int64_t>(this, Vd, Vm, Vn);
+                break;
               default:
                 UNREACHABLE();
                 break;
@@ -4535,8 +4538,28 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
       break;
     }
     case 5:
-      if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
-          (instr->Bit(4) == 1)) {
+      if (instr->Bit(23) == 1 && instr->Bits(21, 19) == 0 &&
+          instr->Bit(7) == 0 && instr->Bit(4) == 1) {
+        // One register and a modified immediate value, see ARM DDI 0406C.d
+        // A7.4.6. Handles vmov, vorr, vmvn, vbic.
+        // Only handle vmov.i32 for now.
+        byte cmode = instr->Bits(11, 8);
+        switch (cmode) {
+          case 0: {
+            // vmov.i32 Qd, #<imm>
+            int vd = instr->VFPDRegValue(kSimd128Precision);
+            uint64_t imm = instr->Bit(24, 24) << 7;  // i
+            imm |= instr->Bits(18, 16) << 4;         // imm3
+            imm |= instr->Bits(3, 0);                // imm4
+            imm |= imm << 32;
+            set_neon_register(vd, {imm, imm});
+            break;
+          }
+          default:
+            UNIMPLEMENTED();
+        }
+      } else if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
+                 (instr->Bit(4) == 1)) {
         // vmovl signed
         if ((instr->VdValue() & 1) != 0) UNIMPLEMENTED();
         int Vd = instr->VFPDRegValue(kSimd128Precision);

@@ -2588,6 +2588,12 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
        low, high);
 }
 
+void InstructionSelector::VisitI64x2Neg(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmI64x2Neg, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)));
+}
+
 void InstructionSelector::VisitF32x4Sqrt(Node* node) {
   ArmOperandGenerator g(this);
   // Use fixed registers in the lower 8 Q-registers so we can directly access

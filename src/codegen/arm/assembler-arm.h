@@ -850,6 +850,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmov(NeonDataType dt, DwVfpRegister dst, int index, Register src);
   void vmov(NeonDataType dt, Register dst, DwVfpRegister src, int index);
 
+  void vmov(QwNeonRegister dst, uint64_t imm);
   void vmov(QwNeonRegister dst, QwNeonRegister src);
   void vdup(NeonSize size, QwNeonRegister dst, Register src);
   void vdup(NeonSize size, QwNeonRegister dst, DwVfpRegister src, int index);
