@@ -4375,7 +4375,8 @@ Node* EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value) {
 Node* EffectControlLinearizer::ChangeIntPtrToSmi(Node* value) {
   // Do shift on 32bit values if Smis are stored in the lower word.
   if (machine()->Is64() && SmiValuesAre31Bits()) {
-    return __ Word32Shl(value, SmiShiftBitsConstant());
+    return __ ChangeInt32ToInt64(
+        __ Word32Shl(__ TruncateInt64ToInt32(value), SmiShiftBitsConstant()));
   }
   return __ WordShl(value, SmiShiftBitsConstant());
 }
@@ -4397,7 +4398,7 @@ Node* EffectControlLinearizer::ChangeIntPtrToInt32(Node* value) {
 Node* EffectControlLinearizer::ChangeInt32ToSmi(Node* value) {
   // Do shift on 32bit values if Smis are stored in the lower word.
   if (machine()->Is64() && SmiValuesAre31Bits()) {
-    return __ Word32Shl(value, SmiShiftBitsConstant());
+    return __ ChangeInt32ToInt64(__ Word32Shl(value, SmiShiftBitsConstant()));
   }
   return ChangeIntPtrToSmi(ChangeInt32ToIntPtr(value));
 }
@@ -4417,7 +4418,7 @@ Node* EffectControlLinearizer::ChangeUint32ToUintPtr(Node* value) {
 Node* EffectControlLinearizer::ChangeUint32ToSmi(Node* value) {
   // Do shift on 32bit values if Smis are stored in the lower word.
   if (machine()->Is64() && SmiValuesAre31Bits()) {
-    return __ Word32Shl(value, SmiShiftBitsConstant());
+    return __ ChangeUint32ToUint64(__ Word32Shl(value, SmiShiftBitsConstant()));
   } else {
     return __ WordShl(ChangeUint32ToUintPtr(value), SmiShiftBitsConstant());
   }

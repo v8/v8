@@ -195,10 +195,13 @@ TEST_F(DecompressionOptimizerTest, Word32ShlSmiTag) {
   // Create the graph.
   Node* load = graph()->NewNode(machine()->Load(MachineType::AnyTagged()),
                                 object, index, effect, control);
+  Node* truncation = graph()->NewNode(machine()->TruncateInt64ToInt32(), load);
   Node* smi_shift_bits =
       graph()->NewNode(common()->Int32Constant(kSmiShiftSize + kSmiTagSize));
+  Node* word32_shl =
+      graph()->NewNode(machine()->Word32Shl(), truncation, smi_shift_bits);
   graph()->SetEnd(
-      graph()->NewNode(machine()->Word32Shl(), load, smi_shift_bits));
+      graph()->NewNode(machine()->ChangeInt32ToInt64(), word32_shl));
   // Change the nodes, and test the change.
   Reduce();
   EXPECT_EQ(LoadMachRep(load), CompressedMachRep(MachineType::AnyTagged()));
