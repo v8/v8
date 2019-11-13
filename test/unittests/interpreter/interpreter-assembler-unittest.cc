@@ -46,7 +46,7 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::
     GetAccumulator();
   }
   if (Bytecodes::WritesAccumulator(bytecode())) {
-    SetAccumulator(nullptr);
+    SetAccumulator(NullConstant());
   }
 }
 

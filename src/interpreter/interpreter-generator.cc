@@ -1692,7 +1692,7 @@ IGNITION_HANDLER(CallRuntime, InterpreterAssembler) {
   TNode<Uint32T> function_id = BytecodeOperandRuntimeId(0);
   RegListNodePair args = GetRegisterListAtOperandIndex(1);
   TNode<Context> context = GetContext();
-  Node* result = CallRuntimeN(function_id, context, args);
+  TNode<Object> result = CAST(CallRuntimeN(function_id, context, args));
   SetAccumulator(result);
   Dispatch();
 }
