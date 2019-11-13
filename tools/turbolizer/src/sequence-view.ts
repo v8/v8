@@ -14,6 +14,7 @@ export class SequenceView extends TextView {
     const pane = document.createElement('div');
     pane.setAttribute('id', "sequence");
     pane.classList.add("scrollable");
+    pane.setAttribute("tabindex", "0");
     return pane;
   }
 

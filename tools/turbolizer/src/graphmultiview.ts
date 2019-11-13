@@ -33,7 +33,7 @@ export class GraphMultiView extends View {
   createViewElement() {
     const pane = document.createElement("div");
     pane.setAttribute("id", multiviewID);
-    pane.setAttribute("tabindex", "0");
+    pane.setAttribute("tabindex", "1");
     pane.className = "viewpane";
     return pane;
   }
