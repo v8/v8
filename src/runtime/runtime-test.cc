@@ -1392,6 +1392,15 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   return isolate->heap()->ToBoolean(code && code->is_liftoff());
 }
 
+// TODO(9973): Replace this runtime function with a true feature testing
+// function in "wasm-module-builder.js" that can be used by "mjsunit" to
+// determine whether Simd128 is supported on the running architecture.
+RUNTIME_FUNCTION(Runtime_WasmSupportsSimd128) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(CpuFeatures::SupportsWasmSimd128());
+}
+
 RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
