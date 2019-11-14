@@ -1790,10 +1790,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <typename CollectionType>
   TNode<CollectionType> AllocateSmallOrderedHashTable(TNode<IntPtrT> capacity);
 
-  Node* AllocateStruct(Node* map, AllocationFlags flags = kNone);
-  void InitializeStructBody(TNode<HeapObject> object, TNode<IntPtrT> size,
-                            int start_offset = Struct::kHeaderSize);
-
   TNode<JSObject> AllocateJSObjectFromMap(
       SloppyTNode<Map> map, SloppyTNode<HeapObject> properties = nullptr,
       SloppyTNode<FixedArray> elements = nullptr, AllocationFlags flags = kNone,

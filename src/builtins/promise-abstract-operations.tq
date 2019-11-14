@@ -266,6 +266,7 @@ namespace promise {
     return executorContext;
   }
 
+  @export
   macro CreatePromiseCapability(
       promise: JSReceiver|Undefined, resolve: JSFunction|Undefined,
       reject: JSFunction|Undefined): PromiseCapability {

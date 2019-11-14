@@ -3745,29 +3745,6 @@ template V8_EXPORT_PRIVATE TNode<SmallOrderedHashSet>
 CodeStubAssembler::AllocateSmallOrderedHashTable<SmallOrderedHashSet>(
     TNode<IntPtrT> capacity);
 
-Node* CodeStubAssembler::AllocateStruct(Node* map, AllocationFlags flags) {
-  Comment("AllocateStruct");
-  CSA_ASSERT(this, IsMap(map));
-  TNode<IntPtrT> size = TimesTaggedSize(LoadMapInstanceSizeInWords(map));
-  TNode<HeapObject> object = Allocate(size, flags);
-  StoreMapNoWriteBarrier(object, map);
-  InitializeStructBody(object, size, Struct::kHeaderSize);
-  return object;
-}
-
-void CodeStubAssembler::InitializeStructBody(TNode<HeapObject> object,
-                                             TNode<IntPtrT> size,
-                                             int start_offset) {
-  Comment("InitializeStructBody");
-  TNode<Oddball> filler = UndefinedConstant();
-  // Calculate the untagged field addresses.
-  TNode<IntPtrT> start_address =
-      IntPtrAdd(BitcastTaggedToWord(object),
-                IntPtrConstant(start_offset - kHeapObjectTag));
-  TNode<IntPtrT> end_address = IntPtrAdd(start_address, size);
-  StoreFieldsNoWriteBarrier(start_address, end_address, filler);
-}
-
 TNode<JSObject> CodeStubAssembler::AllocateJSObjectFromMap(
     SloppyTNode<Map> map, SloppyTNode<HeapObject> properties,
     SloppyTNode<FixedArray> elements, AllocationFlags flags,

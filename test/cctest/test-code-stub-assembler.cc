@@ -2711,19 +2711,13 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   PromiseBuiltinsAssembler m(asm_tester.state());
 
-  Node* const context = m.Parameter(kNumParams + 2);
-  const TNode<NativeContext> native_context = m.LoadNativeContext(context);
+  TNode<Context> context = m.CAST(m.Parameter(kNumParams + 2));
+  TNode<NativeContext> native_context = m.LoadNativeContext(context);
 
-  const TNode<Map> map = m.PromiseCapabilityMapConstant();
-  Node* const capability = m.AllocateStruct(map);
-  m.StoreObjectFieldNoWriteBarrier(
-      capability, PromiseCapability::kPromiseOffset, m.UndefinedConstant());
-  m.StoreObjectFieldNoWriteBarrier(
-      capability, PromiseCapability::kResolveOffset, m.UndefinedConstant());
-  m.StoreObjectFieldNoWriteBarrier(capability, PromiseCapability::kRejectOffset,
-                                   m.UndefinedConstant());
-  Node* const executor_context = m.CreatePromiseCapabilitiesExecutorContext(
-      native_context, m.CAST(capability));
+  TNode<PromiseCapability> capability = m.CreatePromiseCapability(
+      m.UndefinedConstant(), m.UndefinedConstant(), m.UndefinedConstant());
+  TNode<Context> executor_context =
+      m.CreatePromiseCapabilitiesExecutorContext(native_context, capability);
   m.Return(executor_context);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -3046,40 +3040,6 @@ TEST(LoadJSArrayElementsMap) {
         isolate->native_context()->GetInitialJSArrayMap(elements_kind),
         isolate);
     CHECK_EQ(*csa_result, *result);
-  }
-}
-
-TEST(AllocateStruct) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-
-  const int kNumParams = 3;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
-
-  {
-    Node* map = m.Parameter(0);
-    Node* result = m.AllocateStruct(map);
-
-    m.Return(result);
-  }
-
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-
-  Handle<Map> maps[] = {
-      handle(ReadOnlyRoots(isolate).tuple3_map(), isolate),
-      handle(ReadOnlyRoots(isolate).tuple2_map(), isolate),
-  };
-
-  {
-    for (size_t i = 0; i < 2; i++) {
-      Handle<Map> map = maps[i];
-      Handle<Struct> result =
-          Handle<Struct>::cast(ft.Call(map).ToHandleChecked());
-      CHECK_EQ(result->map(), *map);
-#ifdef VERIFY_HEAP
-      isolate->heap()->Verify();
-#endif
-    }
   }
 }
 
