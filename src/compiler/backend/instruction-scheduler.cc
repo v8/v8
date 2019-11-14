@@ -311,8 +311,10 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchTailCallAddress:
     case kArchTailCallWasm:
     case kArchAbortCSAAssert:
-    case kArchDebugBreak:
       return kHasSideEffect;
+
+    case kArchDebugBreak:
+      return kIsBarrier;
 
     case kArchSaveCallerRegisters:
     case kArchRestoreCallerRegisters:
