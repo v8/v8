@@ -121,35 +121,34 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
 
   RegisterType type() const { return reg_type_; }
   int SizeInBits() const {
-    DCHECK(IsValid());
+    DCHECK(is_valid());
     return reg_size_;
   }
   int SizeInBytes() const {
-    DCHECK(IsValid());
+    DCHECK(is_valid());
     DCHECK_EQ(SizeInBits() % 8, 0);
     return reg_size_ / 8;
   }
   bool Is8Bits() const {
-    DCHECK(IsValid());
+    DCHECK(is_valid());
     return reg_size_ == 8;
   }
   bool Is16Bits() const {
-    DCHECK(IsValid());
+    DCHECK(is_valid());
     return reg_size_ == 16;
   }
   bool Is32Bits() const {
-    DCHECK(IsValid());
+    DCHECK(is_valid());
     return reg_size_ == 32;
   }
   bool Is64Bits() const {
-    DCHECK(IsValid());
+    DCHECK(is_valid());
     return reg_size_ == 64;
   }
   bool Is128Bits() const {
-    DCHECK(IsValid());
+    DCHECK(is_valid());
     return reg_size_ == 128;
   }
-  bool IsValid() const { return reg_type_ != kNoRegister; }
   bool IsNone() const { return reg_type_ == kNoRegister; }
   constexpr bool Is(const CPURegister& other) const {
     return Aliases(other) && (reg_size_ == other.reg_size_);
@@ -205,7 +204,6 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   bool IsSameSizeAndType(const CPURegister& other) const;
 
   bool is(const CPURegister& other) const { return Is(other); }
-  bool is_valid() const { return IsValid(); }
 
  protected:
   int reg_size_;
@@ -571,12 +569,12 @@ class V8_EXPORT_PRIVATE CPURegList {
         size_(reg0.SizeInBits()),
         type_(reg0.type()) {
     DCHECK(AreSameSizeAndType(reg0, regs...));
-    DCHECK(IsValid());
+    DCHECK(is_valid());
   }
 
   CPURegList(CPURegister::RegisterType type, int size, RegList list)
       : list_(list), size_(size), type_(type) {
-    DCHECK(IsValid());
+    DCHECK(is_valid());
   }
 
   CPURegList(CPURegister::RegisterType type, int size, int first_reg,
@@ -589,7 +587,7 @@ class V8_EXPORT_PRIVATE CPURegList {
     DCHECK(last_reg >= first_reg);
     list_ = (1ULL << (last_reg + 1)) - 1;
     list_ &= ~((1ULL << first_reg) - 1);
-    DCHECK(IsValid());
+    DCHECK(is_valid());
   }
 
   CPURegister::RegisterType type() const {
@@ -602,7 +600,7 @@ class V8_EXPORT_PRIVATE CPURegList {
 
   inline void set_list(RegList new_list) {
     list_ = new_list;
-    DCHECK(IsValid());
+    DCHECK(is_valid());
   }
 
   // Combine another CPURegList into this one. Registers that already exist in
@@ -688,7 +686,7 @@ class V8_EXPORT_PRIVATE CPURegList {
   int size_;
   CPURegister::RegisterType type_;
 
-  bool IsValid() const {
+  bool is_valid() const {
     constexpr RegList kValidRegisters{0x8000000ffffffff};
     constexpr RegList kValidVRegisters{0x0000000ffffffff};
     switch (type_) {

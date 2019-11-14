@@ -216,7 +216,7 @@ bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
       number_of_valid_fpregs++;
       unique_fpregs |= regs[i].bit();
     } else {
-      DCHECK(!regs[i].IsValid());
+      DCHECK(!regs[i].is_valid());
     }
   }
 
@@ -236,44 +236,44 @@ bool AreSameSizeAndType(const CPURegister& reg1, const CPURegister& reg2,
                         const CPURegister& reg3, const CPURegister& reg4,
                         const CPURegister& reg5, const CPURegister& reg6,
                         const CPURegister& reg7, const CPURegister& reg8) {
-  DCHECK(reg1.IsValid());
+  DCHECK(reg1.is_valid());
   bool match = true;
-  match &= !reg2.IsValid() || reg2.IsSameSizeAndType(reg1);
-  match &= !reg3.IsValid() || reg3.IsSameSizeAndType(reg1);
-  match &= !reg4.IsValid() || reg4.IsSameSizeAndType(reg1);
-  match &= !reg5.IsValid() || reg5.IsSameSizeAndType(reg1);
-  match &= !reg6.IsValid() || reg6.IsSameSizeAndType(reg1);
-  match &= !reg7.IsValid() || reg7.IsSameSizeAndType(reg1);
-  match &= !reg8.IsValid() || reg8.IsSameSizeAndType(reg1);
+  match &= !reg2.is_valid() || reg2.IsSameSizeAndType(reg1);
+  match &= !reg3.is_valid() || reg3.IsSameSizeAndType(reg1);
+  match &= !reg4.is_valid() || reg4.IsSameSizeAndType(reg1);
+  match &= !reg5.is_valid() || reg5.IsSameSizeAndType(reg1);
+  match &= !reg6.is_valid() || reg6.IsSameSizeAndType(reg1);
+  match &= !reg7.is_valid() || reg7.IsSameSizeAndType(reg1);
+  match &= !reg8.is_valid() || reg8.IsSameSizeAndType(reg1);
   return match;
 }
 
 bool AreSameFormat(const VRegister& reg1, const VRegister& reg2,
                    const VRegister& reg3, const VRegister& reg4) {
-  DCHECK(reg1.IsValid());
-  return (!reg2.IsValid() || reg2.IsSameFormat(reg1)) &&
-         (!reg3.IsValid() || reg3.IsSameFormat(reg1)) &&
-         (!reg4.IsValid() || reg4.IsSameFormat(reg1));
+  DCHECK(reg1.is_valid());
+  return (!reg2.is_valid() || reg2.IsSameFormat(reg1)) &&
+         (!reg3.is_valid() || reg3.IsSameFormat(reg1)) &&
+         (!reg4.is_valid() || reg4.IsSameFormat(reg1));
 }
 
 bool AreConsecutive(const VRegister& reg1, const VRegister& reg2,
                     const VRegister& reg3, const VRegister& reg4) {
-  DCHECK(reg1.IsValid());
-  if (!reg2.IsValid()) {
-    DCHECK(!reg3.IsValid() && !reg4.IsValid());
+  DCHECK(reg1.is_valid());
+  if (!reg2.is_valid()) {
+    DCHECK(!reg3.is_valid() && !reg4.is_valid());
     return true;
   } else if (reg2.code() != ((reg1.code() + 1) % kNumberOfVRegisters)) {
     return false;
   }
 
-  if (!reg3.IsValid()) {
-    DCHECK(!reg4.IsValid());
+  if (!reg3.is_valid()) {
+    DCHECK(!reg4.is_valid());
     return true;
   } else if (reg3.code() != ((reg2.code() + 1) % kNumberOfVRegisters)) {
     return false;
   }
 
-  if (!reg4.IsValid()) {
+  if (!reg4.is_valid()) {
     return true;
   } else if (reg4.code() != ((reg3.code() + 1) % kNumberOfVRegisters)) {
     return false;

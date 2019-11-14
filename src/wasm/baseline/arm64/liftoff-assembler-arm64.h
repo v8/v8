@@ -103,7 +103,7 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm,
   // immediate value (in 31 bits, interpreted as signed value).
   // If the offset is bigger, we always trap and this code is not reached.
   DCHECK(is_uint31(offset_imm));
-  if (offset.IsValid()) {
+  if (offset.is_valid()) {
     if (offset_imm == 0) return MemOperand(addr.X(), offset.W(), UXTW);
     Register tmp = temps->AcquireW();
     assm->Add(tmp, offset.W(), offset_imm);
@@ -925,14 +925,14 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
                                       Register rhs) {
   switch (type) {
     case kWasmI32:
-      if (rhs.IsValid()) {
+      if (rhs.is_valid()) {
         Cmp(lhs.W(), rhs.W());
       } else {
         Cmp(lhs.W(), wzr);
       }
       break;
     case kWasmI64:
-      if (rhs.IsValid()) {
+      if (rhs.is_valid()) {
         Cmp(lhs.X(), rhs.X());
       } else {
         Cmp(lhs.X(), xzr);
@@ -1070,7 +1070,7 @@ void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
                                     Register target) {
   // For Arm64, we have more cache registers than wasm parameters. That means
   // that target will always be in a register.
-  DCHECK(target.IsValid());
+  DCHECK(target.is_valid());
   Call(target);
 }
 

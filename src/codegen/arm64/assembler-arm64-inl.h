@@ -44,12 +44,12 @@ inline bool CPURegister::IsSameSizeAndType(const CPURegister& other) const {
 }
 
 inline bool CPURegister::IsZero() const {
-  DCHECK(IsValid());
+  DCHECK(is_valid());
   return IsRegister() && (reg_code_ == kZeroRegCode);
 }
 
 inline bool CPURegister::IsSP() const {
-  DCHECK(IsValid());
+  DCHECK(is_valid());
   return IsRegister() && (reg_code_ == kSPRegInternalCode);
 }
 
@@ -82,13 +82,13 @@ inline void CPURegList::Remove(const CPURegister& other1,
 }
 
 inline void CPURegList::Combine(int code) {
-  DCHECK(CPURegister::Create(code, size_, type_).IsValid());
+  DCHECK(CPURegister::Create(code, size_, type_).is_valid());
   list_ |= (1ULL << code);
-  DCHECK(IsValid());
+  DCHECK(is_valid());
 }
 
 inline void CPURegList::Remove(int code) {
-  DCHECK(CPURegister::Create(code, size_, type_).IsValid());
+  DCHECK(CPURegister::Create(code, size_, type_).is_valid());
   list_ &= ~(1ULL << code);
 }
 
@@ -261,7 +261,7 @@ Operand::Operand(Register reg, Extend extend, unsigned shift_amount)
       shift_(NO_SHIFT),
       extend_(extend),
       shift_amount_(shift_amount) {
-  DCHECK(reg.IsValid());
+  DCHECK(reg.is_valid());
   DCHECK_LE(shift_amount, 4);
   DCHECK(!reg.IsSP());
 
@@ -287,11 +287,11 @@ bool Operand::IsImmediate() const {
 }
 
 bool Operand::IsShiftedRegister() const {
-  return reg_.IsValid() && (shift_ != NO_SHIFT);
+  return reg_.is_valid() && (shift_ != NO_SHIFT);
 }
 
 bool Operand::IsExtendedRegister() const {
-  return reg_.IsValid() && (extend_ != NO_EXTEND);
+  return reg_.is_valid() && (extend_ != NO_EXTEND);
 }
 
 bool Operand::IsZero() const {
@@ -782,7 +782,7 @@ void RelocInfo::WipeOut() {
 }
 
 LoadStoreOp Assembler::LoadOpFor(const CPURegister& rt) {
-  DCHECK(rt.IsValid());
+  DCHECK(rt.is_valid());
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? LDR_x : LDR_w;
   } else {
@@ -804,7 +804,7 @@ LoadStoreOp Assembler::LoadOpFor(const CPURegister& rt) {
 }
 
 LoadStoreOp Assembler::StoreOpFor(const CPURegister& rt) {
-  DCHECK(rt.IsValid());
+  DCHECK(rt.is_valid());
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? STR_x : STR_w;
   } else {

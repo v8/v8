@@ -1049,7 +1049,7 @@ void TurboAssembler::Push(const CPURegister& src0, const CPURegister& src1,
                           const CPURegister& src2, const CPURegister& src3) {
   DCHECK(AreSameSizeAndType(src0, src1, src2, src3));
 
-  int count = 1 + src1.IsValid() + src2.IsValid() + src3.IsValid();
+  int count = 1 + src1.is_valid() + src2.is_valid() + src3.is_valid();
   int size = src0.SizeInBytes();
   DCHECK_EQ(0, (size * count) % 16);
 
@@ -1062,7 +1062,7 @@ void TurboAssembler::Push(const CPURegister& src0, const CPURegister& src1,
                           const CPURegister& src6, const CPURegister& src7) {
   DCHECK(AreSameSizeAndType(src0, src1, src2, src3, src4, src5, src6, src7));
 
-  int count = 5 + src5.IsValid() + src6.IsValid() + src6.IsValid();
+  int count = 5 + src5.is_valid() + src6.is_valid() + src6.is_valid();
   int size = src0.SizeInBytes();
   DCHECK_EQ(0, (size * count) % 16);
 
@@ -1076,9 +1076,9 @@ void TurboAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
   // instruction, not even into the zero register.
   DCHECK(!AreAliased(dst0, dst1, dst2, dst3));
   DCHECK(AreSameSizeAndType(dst0, dst1, dst2, dst3));
-  DCHECK(dst0.IsValid());
+  DCHECK(dst0.is_valid());
 
-  int count = 1 + dst1.IsValid() + dst2.IsValid() + dst3.IsValid();
+  int count = 1 + dst1.is_valid() + dst2.is_valid() + dst3.is_valid();
   int size = dst0.SizeInBytes();
   DCHECK_EQ(0, (size * count) % 16);
 
@@ -1093,9 +1093,9 @@ void TurboAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
   // instruction, not even into the zero register.
   DCHECK(!AreAliased(dst0, dst1, dst2, dst3, dst4, dst5, dst6, dst7));
   DCHECK(AreSameSizeAndType(dst0, dst1, dst2, dst3, dst4, dst5, dst6, dst7));
-  DCHECK(dst0.IsValid());
+  DCHECK(dst0.is_valid());
 
-  int count = 5 + dst5.IsValid() + dst6.IsValid() + dst7.IsValid();
+  int count = 5 + dst5.is_valid() + dst6.is_valid() + dst7.is_valid();
   int size = dst0.SizeInBytes();
   DCHECK_EQ(0, (size * count) % 16);
 
