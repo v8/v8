@@ -4094,12 +4094,14 @@ Node* CodeStubAssembler::ExtractFastJSArray(
 }
 
 TNode<JSArray> CodeStubAssembler::CloneFastJSArray(
-    TNode<Context> context, TNode<JSArray> array, ParameterMode mode,
+    TNode<Context> context, TNode<JSArray> array,
     TNode<AllocationSite> allocation_site, HoleConversionMode convert_holes) {
   // TODO(dhai): we should be able to assert IsFastJSArray(array) here, but this
   // function is also used to copy boilerplates even when the no-elements
   // protector is invalid. This function should be renamed to reflect its uses.
 
+  // TODO(v8:9708): remove ParameterMode
+  ParameterMode mode = OptimalParameterMode();
   TNode<Number> length = LoadJSArrayLength(array);
   TNode<FixedArrayBase> new_elements;
   TVARIABLE(FixedArrayBase, var_new_elements);

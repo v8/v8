@@ -345,11 +345,10 @@ TNode<JSArray> ConstructorBuiltinsAssembler::EmitCreateShallowArrayLiteral(
   TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);
   TNode<JSArray> boilerplate = CAST(LoadBoilerplate(allocation_site));
 
-  ParameterMode mode = OptimalParameterMode();
   if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
-    return CloneFastJSArray(context, boilerplate, mode, allocation_site);
+    return CloneFastJSArray(context, boilerplate, allocation_site);
   } else {
-    return CloneFastJSArray(context, boilerplate, mode);
+    return CloneFastJSArray(context, boilerplate);
   }
 }
 

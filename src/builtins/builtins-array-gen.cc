@@ -459,8 +459,7 @@ TF_BUILTIN(CloneFastJSArray, ArrayBuiltinsAssembler) {
                           LoadElementsKind(array))),
                       Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
 
-  ParameterMode mode = OptimalParameterMode();
-  Return(CloneFastJSArray(context, array, mode));
+  Return(CloneFastJSArray(context, array));
 }
 
 // This builtin copies the backing store of fast arrays, while converting any
@@ -479,8 +478,7 @@ TF_BUILTIN(CloneFastJSArrayFillingHoles, ArrayBuiltinsAssembler) {
                           LoadElementsKind(array))),
                       Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
 
-  ParameterMode mode = OptimalParameterMode();
-  Return(CloneFastJSArray(context, array, mode, {},
+  Return(CloneFastJSArray(context, array, {},
                           HoleConversionMode::kConvertToUndefined));
 }
 
