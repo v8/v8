@@ -136,6 +136,23 @@ std::string AbstractType::GetGeneratedTNodeTypeNameImpl() const {
   return generated_type_;
 }
 
+std::vector<RuntimeType> AbstractType::GetRuntimeTypes() const {
+  std::string type_name = GetGeneratedTNodeTypeName();
+  if (auto strong_type =
+          Type::MatchUnaryGeneric(this, TypeOracle::GetWeakGeneric())) {
+    auto strong_runtime_types = (*strong_type)->GetRuntimeTypes();
+    std::vector<RuntimeType> result;
+    for (const RuntimeType& type : strong_runtime_types) {
+      // Generic parameter in Weak<T> should have already been checked to
+      // extend HeapObject, so it couldn't itself be another weak type.
+      DCHECK(type.weak_ref_to.empty());
+      result.push_back({type_name, type.type});
+    }
+    return result;
+  }
+  return {{type_name, ""}};
+}
+
 std::string BuiltinPointerType::ToExplicitString() const {
   std::stringstream result;
   result << "builtin (";
@@ -340,17 +357,8 @@ std::string Type::ComputeName(const std::string& basename,
 std::string StructType::SimpleNameImpl() const { return decl_->name->value; }
 
 // static
-base::Optional<const Type*> StructType::MatchUnaryGeneric(
-    const Type* type, GenericType* generic) {
-  if (auto* struct_type = StructType::DynamicCast(type)) {
-    return MatchUnaryGeneric(struct_type, generic);
-  }
-  return base::nullopt;
-}
-
-// static
-base::Optional<const Type*> StructType::MatchUnaryGeneric(
-    const StructType* type, GenericType* generic) {
+base::Optional<const Type*> Type::MatchUnaryGeneric(const Type* type,
+                                                    GenericType* generic) {
   DCHECK_EQ(generic->generic_parameters().size(), 1);
   if (!type->GetSpecializedFrom()) {
     return base::nullopt;

@@ -303,12 +303,7 @@ USE_TORQUE_VERIFIER(FreeSpace)
 
 USE_TORQUE_VERIFIER(HeapNumber)
 
-void FeedbackVector::FeedbackVectorVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::FeedbackVectorVerify(*this, isolate);
-  MaybeObject code = optimized_code_weak_or_smi();
-  MaybeObject::VerifyMaybeObjectPointer(isolate, code);
-  CHECK(code->IsSmi() || code->IsWeakOrCleared());
-}
+USE_TORQUE_VERIFIER(FeedbackVector)
 
 USE_TORQUE_VERIFIER(JSReceiver)
 
@@ -513,13 +508,7 @@ void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
   }
 }
 
-void WeakArrayList::WeakArrayListVerify(Isolate* isolate) {
-  VerifySmiField(kCapacityOffset);
-  VerifySmiField(kLengthOffset);
-  for (int i = 0; i < length(); i++) {
-    MaybeObject::VerifyMaybeObjectPointer(isolate, Get(i));
-  }
-}
+USE_TORQUE_VERIFIER(WeakArrayList)
 
 void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::PropertyArrayVerify(*this, isolate);

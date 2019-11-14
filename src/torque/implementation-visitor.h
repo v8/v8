@@ -54,8 +54,8 @@ class LocationReference {
   // pointer.
   static LocationReference HeapReference(VisitResult heap_reference) {
     LocationReference result;
-    DCHECK(StructType::MatchUnaryGeneric(heap_reference.type(),
-                                         TypeOracle::GetReferenceGeneric()));
+    DCHECK(Type::MatchUnaryGeneric(heap_reference.type(),
+                                   TypeOracle::GetReferenceGeneric()));
     result.heap_reference_ = std::move(heap_reference);
     return result;
   }
@@ -63,8 +63,8 @@ class LocationReference {
   // encode an inner pointer, and the number of elements.
   static LocationReference HeapSlice(VisitResult heap_slice) {
     LocationReference result;
-    DCHECK(StructType::MatchUnaryGeneric(heap_slice.type(),
-                                         TypeOracle::GetSliceGeneric()));
+    DCHECK(Type::MatchUnaryGeneric(heap_slice.type(),
+                                   TypeOracle::GetSliceGeneric()));
     result.heap_slice_ = std::move(heap_slice);
     return result;
   }
@@ -109,11 +109,11 @@ class LocationReference {
 
   const Type* ReferencedType() const {
     if (IsHeapReference()) {
-      return *StructType::MatchUnaryGeneric(heap_reference().type(),
-                                            TypeOracle::GetReferenceGeneric());
+      return *Type::MatchUnaryGeneric(heap_reference().type(),
+                                      TypeOracle::GetReferenceGeneric());
     } else if (IsHeapSlice()) {
-      return *StructType::MatchUnaryGeneric(heap_slice().type(),
-                                            TypeOracle::GetSliceGeneric());
+      return *Type::MatchUnaryGeneric(heap_slice().type(),
+                                      TypeOracle::GetSliceGeneric());
     }
     return GetVisitResult().type();
   }

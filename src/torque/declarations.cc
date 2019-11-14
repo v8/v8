@@ -137,6 +137,12 @@ GenericType* Declarations::LookupUniqueGenericType(const QualifiedName& name) {
                       "generic type");
 }
 
+GenericType* Declarations::LookupGlobalUniqueGenericType(
+    const std::string& name) {
+  return EnsureUnique(FilterDeclarables<GenericType>(LookupGlobalScope(name)),
+                      name, "generic type");
+}
+
 base::Optional<GenericType*> Declarations::TryLookupGenericType(
     const QualifiedName& name) {
   std::vector<GenericType*> results = TryLookup<GenericType>(name);

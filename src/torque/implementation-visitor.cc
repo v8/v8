@@ -1977,8 +1977,7 @@ LocationReference ImplementationVisitor::GetLocationReference(
 LocationReference ImplementationVisitor::GetLocationReference(
     DereferenceExpression* expr) {
   VisitResult ref = Visit(expr->reference);
-  if (!StructType::MatchUnaryGeneric(ref.type(),
-                                     TypeOracle::GetReferenceGeneric())) {
+  if (!Type::MatchUnaryGeneric(ref.type(), TypeOracle::GetReferenceGeneric())) {
     ReportError("Operator * expects a reference but found a value of type ",
                 *ref.type());
   }
@@ -3262,9 +3261,9 @@ void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
        << " value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);\n\n";
 
   std::string type_check;
-  for (const std::string& runtime_type : field_type->GetRuntimeTypes()) {
+  for (const RuntimeType& runtime_type : field_type->GetRuntimeTypes()) {
     if (!type_check.empty()) type_check += " || ";
-    type_check += "value.Is" + runtime_type + "()";
+    type_check += "value.Is" + runtime_type.type + "()";
   }
 
   // Generate implementation in inline header.
@@ -3487,15 +3486,34 @@ void GenerateClassFieldVerifier(const std::string& class_name,
   // the Object type because it would not check anything beyond what we already
   // checked with VerifyPointer.
   if (f.name_and_type.type != TypeOracle::GetObjectType()) {
-    std::string type_check = maybe_object ? value + ".IsWeakOrCleared()" : "";
-    std::string strong_value =
-        value + (maybe_object ? ".GetHeapObjectOrSmi()" : "");
-    for (const std::string& runtime_type : field_type->GetRuntimeTypes()) {
-      if (runtime_type == "MaybeObject") continue;
-      if (!type_check.empty()) type_check += " || ";
-      type_check += strong_value + ".Is" + runtime_type + "()";
+    std::stringstream type_check;
+    bool at_start = true;
+    // If weak pointers are allowed, then start by checking for a cleared value.
+    if (maybe_object) {
+      type_check << value << ".IsCleared()";
+      at_start = false;
     }
-    cc_contents << "    CHECK(" << type_check << ");\n";
+    for (const RuntimeType& runtime_type : field_type->GetRuntimeTypes()) {
+      if (!at_start) type_check << " || ";
+      at_start = false;
+      if (maybe_object) {
+        bool strong = runtime_type.weak_ref_to.empty();
+        if (strong && runtime_type.type == "MaybeObject") {
+          // Rather than a generic Weak<T>, this is a basic type Tagged or
+          // WeakHeapObject. We can't validate anything more about the type of
+          // the object pointed to, so just check that it's weak.
+          type_check << value << ".IsWeak()";
+        } else {
+          type_check << "(" << (strong ? "!" : "") << value << ".IsWeak() && "
+                     << value << ".GetHeapObjectOrSmi().Is"
+                     << (strong ? runtime_type.type : runtime_type.weak_ref_to)
+                     << "())";
+        }
+      } else {
+        type_check << value << ".Is" << runtime_type.type << "()";
+      }
+    }
+    cc_contents << "    CHECK(" << type_check.str() << ");\n";
   }
   cc_contents << "  }\n";
 }

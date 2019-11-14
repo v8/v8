@@ -76,6 +76,7 @@ class Declarations {
   static GenericCallable* LookupUniqueGeneric(const QualifiedName& name);
 
   static GenericType* LookupUniqueGenericType(const QualifiedName& name);
+  static GenericType* LookupGlobalUniqueGenericType(const std::string& name);
   static base::Optional<GenericType*> TryLookupGenericType(
       const QualifiedName& name);
 

@@ -81,6 +81,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
         QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING}, SLICE_TYPE_STRING));
   }
 
+  static GenericType* GetWeakGeneric() {
+    return Declarations::LookupGlobalUniqueGenericType(WEAK_TYPE_STRING);
+  }
+
   static const Type* GetReferenceType(const Type* referenced_type) {
     return GetGenericTypeInstance(GetReferenceGeneric(), {referenced_type});
   }

@@ -91,6 +91,13 @@ struct SpecializationKey {
 
 using MaybeSpecializationKey = base::Optional<SpecializationKey<GenericType>>;
 
+struct RuntimeType {
+  std::string type;
+  // If {type} is "MaybeObject", then {weak_ref_to} indicates the corresponding
+  // strong object type. Otherwise, {weak_ref_to} is empty.
+  std::string weak_ref_to;
+};
+
 class V8_EXPORT_PRIVATE Type : public TypeBase {
  public:
   virtual bool IsSubtypeOf(const Type* supertype) const;
@@ -119,13 +126,15 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   virtual const Type* NonConstexprVersion() const { return this; }
   virtual const Type* ConstexprVersion() const { return nullptr; }
   base::Optional<const ClassType*> ClassSupertype() const;
-  virtual std::vector<std::string> GetRuntimeTypes() const { return {}; }
+  virtual std::vector<RuntimeType> GetRuntimeTypes() const { return {}; }
   static const Type* CommonSupertype(const Type* a, const Type* b);
   void AddAlias(std::string alias) const { aliases_.insert(std::move(alias)); }
   size_t id() const { return id_; }
   const MaybeSpecializationKey& GetSpecializedFrom() const {
     return specialized_from_;
   }
+  static base::Optional<const Type*> MatchUnaryGeneric(const Type* type,
+                                                       GenericType* generic);
 
  protected:
   Type(TypeBase::Kind kind, const Type* parent,
@@ -241,9 +250,7 @@ class AbstractType final : public Type {
     return nullptr;
   }
 
-  std::vector<std::string> GetRuntimeTypes() const override {
-    return {GetGeneratedTNodeTypeName()};
-  }
+  std::vector<RuntimeType> GetRuntimeTypes() const override;
 
  private:
   friend class TypeOracle;
@@ -310,7 +317,9 @@ class V8_EXPORT_PRIVATE BuiltinPointerType final : public Type {
   }
   size_t function_pointer_type_id() const { return function_pointer_type_id_; }
 
-  std::vector<std::string> GetRuntimeTypes() const override { return {"Smi"}; }
+  std::vector<RuntimeType> GetRuntimeTypes() const override {
+    return {{"Smi", ""}};
+  }
 
  private:
   friend class TypeOracle;
@@ -408,10 +417,10 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
     return union_type ? UnionType(*union_type) : UnionType(t);
   }
 
-  std::vector<std::string> GetRuntimeTypes() const override {
-    std::vector<std::string> result;
+  std::vector<RuntimeType> GetRuntimeTypes() const override {
+    std::vector<RuntimeType> result;
     for (const Type* member : types_) {
-      std::vector<std::string> sub_result = member->GetRuntimeTypes();
+      std::vector<RuntimeType> sub_result = member->GetRuntimeTypes();
       result.insert(result.end(), sub_result.begin(), sub_result.end());
     }
     return result;
@@ -460,7 +469,9 @@ class AggregateType : public Type {
   std::vector<Method*> Methods(const std::string& name) const;
 
   std::vector<const AggregateType*> GetHierarchy() const;
-  std::vector<std::string> GetRuntimeTypes() const override { return {name_}; }
+  std::vector<RuntimeType> GetRuntimeTypes() const override {
+    return {{name_, ""}};
+  }
 
  protected:
   AggregateType(Kind kind, const Type* parent, Namespace* nspace,
@@ -491,11 +502,6 @@ class StructType final : public AggregateType {
   DECLARE_TYPE_BOILERPLATE(StructType)
 
   std::string GetGeneratedTypeNameImpl() const override;
-
-  static base::Optional<const Type*> MatchUnaryGeneric(const Type* type,
-                                                       GenericType* generic);
-  static base::Optional<const Type*> MatchUnaryGeneric(const StructType* type,
-                                                       GenericType* generic);
 
  private:
   friend class TypeOracle;
