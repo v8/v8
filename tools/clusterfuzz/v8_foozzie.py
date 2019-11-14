@@ -88,25 +88,12 @@ CONFIGS = dict(
   ],
 )
 
-# Timeout in seconds for one d8 run.
-TIMEOUT = 3
-
 # Return codes.
 RETURN_PASS = 0
 RETURN_FAIL = 2
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-PREAMBLE = [
-  os.path.join(BASE_PATH, 'v8_mock.js'),
-  os.path.join(BASE_PATH, 'v8_suppressions.js'),
-]
-ARCH_MOCKS = os.path.join(BASE_PATH, 'v8_mock_archs.js')
 SANITY_CHECKS = os.path.join(BASE_PATH, 'v8_sanity_checks.js')
-
-FLAGS = ['--correctness-fuzzer-suppressions', '--expose-gc',
-         '--allow-natives-syntax', '--invoke-weak-callbacks', '--omit-quit',
-         '--es-staging', '--wasm-staging', '--no-wasm-async-compilation',
-         '--suppress-asm-messages']
 
 SUPPORTED_ARCHS = ['ia32', 'x64', 'arm', 'arm64']
 
@@ -274,7 +261,7 @@ def fail_bailout(output, ignore_by_output_fun):
 
 
 def print_difference(
-    options, source_key, first_config_flags, second_config_flags,
+    options, source_key, first_command, second_command,
     first_config_output, second_config_output, difference, source=None):
   # The first three entries will be parsed by clusterfuzz. Format changes
   # will require changes on the clusterfuzz side.
@@ -288,8 +275,8 @@ def print_difference(
       suppression='', # We can't tie bugs to differences.
       first_config_label=first_config_label,
       second_config_label=second_config_label,
-      first_config_flags=' '.join(first_config_flags),
-      second_config_flags=' '.join(second_config_flags),
+      first_config_flags=' '.join(first_command.flags),
+      second_config_flags=' '.join(second_command.flags),
       first_config_output=
           first_config_output.stdout.decode('utf-8', 'replace'),
       second_config_output=
@@ -317,36 +304,21 @@ def main():
     return RETURN_FAIL
 
   # Set up runtime arguments.
-  common_flags = FLAGS + ['--random-seed', str(options.random_seed)]
-  first_config_flags = (common_flags + CONFIGS[options.first_config] +
+  first_config_flags = (CONFIGS[options.first_config] +
                         options.first_config_extra_flags)
-  second_config_flags = (common_flags + CONFIGS[options.second_config] +
+  second_config_flags = (CONFIGS[options.second_config] +
                          options.second_config_extra_flags)
 
-  def run_d8(d8, config_flags, config_label=None, testcase=options.testcase):
-    preamble = PREAMBLE[:]
-    if options.first_arch != options.second_arch:
-      preamble.append(ARCH_MOCKS)
-    args = [d8] + config_flags + preamble + [testcase]
-    if config_label:
-      print('# Command line for %s comparison:' % config_label)
-      print(' '.join(args))
-    if d8.endswith('.py'):
-      # Wrap with python in tests.
-      args = [sys.executable] + args
-    return v8_commands.Execute(
-        args,
-        cwd=os.path.dirname(os.path.abspath(testcase)),
-        timeout=TIMEOUT,
-    )
+  first_cmd = v8_commands.Command(
+      options,'first', options.first_d8, first_config_flags)
+  second_cmd = v8_commands.Command(
+      options, 'second', options.second_d8, second_config_flags)
 
   # Sanity checks. Run both configurations with the sanity-checks file only and
   # bail out early if different.
   if not options.skip_sanity_checks:
-    first_config_output = run_d8(
-        options.first_d8, first_config_flags, testcase=SANITY_CHECKS)
-    second_config_output = run_d8(
-        options.second_d8, second_config_flags, testcase=SANITY_CHECKS)
+    first_config_output = first_cmd.run(SANITY_CHECKS)
+    second_config_output = second_cmd.run(SANITY_CHECKS)
     difference, _ = suppress.diff(
         first_config_output.stdout, second_config_output.stdout)
     if difference:
@@ -354,18 +326,17 @@ def main():
       # cases on this in case it's hit.
       source_key = 'sanity check failed'
       print_difference(
-          options, source_key, first_config_flags, second_config_flags,
+          options, source_key, first_cmd, second_cmd,
           first_config_output, second_config_output, difference)
       return RETURN_FAIL
 
-  first_config_output = run_d8(options.first_d8, first_config_flags, 'first')
+  first_config_output = first_cmd.run(options.testcase, verbose=True)
 
   # Early bailout based on first run's output.
   if pass_bailout(first_config_output, 1):
     return RETURN_PASS
 
-  second_config_output = run_d8(
-      options.second_d8, second_config_flags, 'second')
+  second_config_output = second_cmd.run(options.testcase, verbose=True)
 
   # Bailout based on second run's output.
   if pass_bailout(second_config_output, 2):
@@ -389,7 +360,7 @@ def main():
       return RETURN_FAIL
 
     print_difference(
-        options, source_key, first_config_flags, second_config_flags,
+        options, source_key, first_cmd, second_cmd,
         first_config_output, second_config_output, difference, source)
     return RETURN_FAIL
 
