@@ -53,9 +53,10 @@ enum class MachineSemantic : uint8_t {
   kAny
 };
 
-V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep);
+V8_EXPORT_PRIVATE inline constexpr int ElementSizeLog2Of(MachineRepresentation);
 
-V8_EXPORT_PRIVATE inline int ElementSizeInBytes(MachineRepresentation rep);
+V8_EXPORT_PRIVATE inline constexpr int ElementSizeInBytes(
+    MachineRepresentation);
 
 class MachineType {
  public:
@@ -322,7 +323,8 @@ inline bool IsAnyCompressed(MachineRepresentation rep) {
 }
 
 // Gets the log2 of the element size in bytes of the machine type.
-V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep) {
+V8_EXPORT_PRIVATE inline constexpr int ElementSizeLog2Of(
+    MachineRepresentation rep) {
   switch (rep) {
     case MachineRepresentation::kBit:
     case MachineRepresentation::kWord8:
@@ -344,12 +346,17 @@ V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep) {
     case MachineRepresentation::kCompressed:
       return kTaggedSizeLog2;
     default:
-      break;
+#if V8_HAS_CXX14_CONSTEXPR
+      UNREACHABLE();
+#else
+      // Return something for older compilers.
+      return -1;
+#endif
   }
-  UNREACHABLE();
 }
 
-V8_EXPORT_PRIVATE inline int ElementSizeInBytes(MachineRepresentation rep) {
+V8_EXPORT_PRIVATE inline constexpr int ElementSizeInBytes(
+    MachineRepresentation rep) {
   return 1 << ElementSizeLog2Of(rep);
 }
 
