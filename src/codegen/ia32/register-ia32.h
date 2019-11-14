@@ -59,7 +59,7 @@ enum RegisterCode {
 
 class Register : public RegisterBase<Register, kRegAfterLast> {
  public:
-  bool is_byte_register() const { return reg_code_ <= 3; }
+  bool is_byte_register() const { return code() <= 3; }
 
  private:
   friend class RegisterBase<Register, kRegAfterLast>;

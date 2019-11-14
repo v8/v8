@@ -3208,10 +3208,10 @@ void TurboAssembler::Printf(const char* format, CPURegister arg0,
     // If any of the arguments are the current stack pointer, allocate a new
     // register for them, and adjust the value to compensate for pushing the
     // caller-saved registers.
-    bool arg0_sp = sp.Aliases(arg0);
-    bool arg1_sp = sp.Aliases(arg1);
-    bool arg2_sp = sp.Aliases(arg2);
-    bool arg3_sp = sp.Aliases(arg3);
+    bool arg0_sp = arg0.is_valid() && sp.Aliases(arg0);
+    bool arg1_sp = arg1.is_valid() && sp.Aliases(arg1);
+    bool arg2_sp = arg2.is_valid() && sp.Aliases(arg2);
+    bool arg3_sp = arg3.is_valid() && sp.Aliases(arg3);
     if (arg0_sp || arg1_sp || arg2_sp || arg3_sp) {
       // Allocate a register to hold the original stack pointer value, to pass
       // to PrintfNoPreserve as an argument.

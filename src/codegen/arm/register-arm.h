@@ -223,7 +223,7 @@ using DoubleRegister = DwVfpRegister;
 class LowDwVfpRegister
     : public RegisterBase<LowDwVfpRegister, kDoubleCode_d16> {
  public:
-  constexpr operator DwVfpRegister() const { return DwVfpRegister(reg_code_); }
+  constexpr operator DwVfpRegister() const { return DwVfpRegister(code()); }
 
   SwVfpRegister low() const { return SwVfpRegister::from_code(code() * 2); }
   SwVfpRegister high() const {

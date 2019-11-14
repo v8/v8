@@ -69,6 +69,8 @@ class RegisterBase {
 
  protected:
   explicit constexpr RegisterBase(int code) : reg_code_(code) {}
+
+ private:
   int reg_code_;
 };
 

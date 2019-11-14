@@ -45,12 +45,12 @@ inline bool CPURegister::IsSameSizeAndType(const CPURegister& other) const {
 
 inline bool CPURegister::IsZero() const {
   DCHECK(is_valid());
-  return IsRegister() && (reg_code_ == kZeroRegCode);
+  return IsRegister() && (code() == kZeroRegCode);
 }
 
 inline bool CPURegister::IsSP() const {
   DCHECK(is_valid());
-  return IsRegister() && (reg_code_ == kSPRegInternalCode);
+  return IsRegister() && (code() == kSPRegInternalCode);
 }
 
 inline void CPURegList::Combine(const CPURegList& other) {
@@ -142,52 +142,52 @@ inline VRegister VRegister::VRegFromCode(unsigned code) {
 
 inline Register CPURegister::W() const {
   DCHECK(IsRegister());
-  return Register::WRegFromCode(reg_code_);
+  return Register::WRegFromCode(code());
 }
 
 inline Register CPURegister::Reg() const {
   DCHECK(IsRegister());
-  return Register::Create(reg_code_, reg_size_);
+  return Register::Create(code(), reg_size_);
 }
 
 inline VRegister CPURegister::VReg() const {
   DCHECK(IsVRegister());
-  return VRegister::Create(reg_code_, reg_size_);
+  return VRegister::Create(code(), reg_size_);
 }
 
 inline Register CPURegister::X() const {
   DCHECK(IsRegister());
-  return Register::XRegFromCode(reg_code_);
+  return Register::XRegFromCode(code());
 }
 
 inline VRegister CPURegister::V() const {
   DCHECK(IsVRegister());
-  return VRegister::VRegFromCode(reg_code_);
+  return VRegister::VRegFromCode(code());
 }
 
 inline VRegister CPURegister::B() const {
   DCHECK(IsVRegister());
-  return VRegister::BRegFromCode(reg_code_);
+  return VRegister::BRegFromCode(code());
 }
 
 inline VRegister CPURegister::H() const {
   DCHECK(IsVRegister());
-  return VRegister::HRegFromCode(reg_code_);
+  return VRegister::HRegFromCode(code());
 }
 
 inline VRegister CPURegister::S() const {
   DCHECK(IsVRegister());
-  return VRegister::SRegFromCode(reg_code_);
+  return VRegister::SRegFromCode(code());
 }
 
 inline VRegister CPURegister::D() const {
   DCHECK(IsVRegister());
-  return VRegister::DRegFromCode(reg_code_);
+  return VRegister::DRegFromCode(code());
 }
 
 inline VRegister CPURegister::Q() const {
   DCHECK(IsVRegister());
-  return VRegister::QRegFromCode(reg_code_);
+  return VRegister::QRegFromCode(code());
 }
 
 // Immediate.

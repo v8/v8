@@ -151,7 +151,7 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   }
   bool IsNone() const { return reg_type_ == kNoRegister; }
   constexpr bool Aliases(const CPURegister& other) const {
-    return (reg_code_ == other.reg_code_) && (reg_type_ == other.reg_type_);
+    return RegisterBase::operator==(other) && reg_type_ == other.reg_type_;
   }
 
   constexpr bool operator==(const CPURegister& other) const {
