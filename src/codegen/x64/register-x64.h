@@ -70,7 +70,7 @@ static_assert(sizeof(Register) == sizeof(int),
               "Register can efficiently be passed by value");
 
 #define DECLARE_REGISTER(R) \
-  constexpr Register R = Register::from_code<kRegCode_##R>();
+  constexpr Register R = Register::from_code(kRegCode_##R);
 GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 constexpr Register no_reg = Register::no_reg();
@@ -78,10 +78,9 @@ constexpr Register no_reg = Register::no_reg();
 constexpr int kNumRegs = 16;
 
 constexpr RegList kJSCallerSaved =
-    Register::ListOf<rax, rcx, rdx,
+    Register::ListOf(rax, rcx, rdx,
                      rbx,  // used as a caller-saved register in JavaScript code
-                     rdi   // callee function
-                     >();
+                     rdi);  // callee function
 
 constexpr int kNumJSCallerSaved = 5;
 
@@ -176,7 +175,7 @@ using DoubleRegister = XMMRegister;
 using Simd128Register = XMMRegister;
 
 #define DECLARE_REGISTER(R) \
-  constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();
+  constexpr DoubleRegister R = DoubleRegister::from_code(kDoubleCode_##R);
 DOUBLE_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();

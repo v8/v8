@@ -1792,7 +1792,7 @@ class LiftoffCompiler {
     __ SpillAllRegisters();
 
     constexpr Register kGpReturnReg = kGpReturnRegisters[0];
-    static_assert(kLiftoffAssemblerGpCacheRegs & Register::bit<kGpReturnReg>(),
+    static_assert(kLiftoffAssemblerGpCacheRegs & kGpReturnReg.bit(),
                   "first return register is a cache register (needs more "
                   "complex code here otherwise)");
     LiftoffRegister result = pinned.set(LiftoffRegister(kGpReturnReg));

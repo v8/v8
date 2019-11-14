@@ -3036,9 +3036,9 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
     constexpr RegList gp_regs =
-        Register::ListOf<x0, x1, x2, x3, x4, x5, x6, x7>();
+        Register::ListOf(x0, x1, x2, x3, x4, x5, x6, x7);
     constexpr RegList fp_regs =
-        Register::ListOf<d0, d1, d2, d3, d4, d5, d6, d7>();
+        Register::ListOf(d0, d1, d2, d3, d4, d5, d6, d7);
     __ PushXRegList(gp_regs);
     __ PushDRegList(fp_regs);
 

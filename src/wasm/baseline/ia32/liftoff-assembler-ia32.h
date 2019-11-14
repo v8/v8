@@ -45,7 +45,7 @@ inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
 inline Operand GetInstanceOperand() { return Operand(ebp, -8); }
 
 static constexpr LiftoffRegList kByteRegs =
-    LiftoffRegList::FromBits<Register::ListOf<eax, ecx, edx>()>();
+    LiftoffRegList::FromBits<Register::ListOf(eax, ecx, edx)>();
 
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
                  int32_t offset, ValueType type) {

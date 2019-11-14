@@ -2495,7 +2495,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Save all parameter registers (see wasm-linkage.cc). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    constexpr RegList gp_regs = Register::ListOf<r0, r1, r2, r3>();
+    constexpr RegList gp_regs = Register::ListOf(r0, r1, r2, r3);
     constexpr DwVfpRegister lowest_fp_reg = d0;
     constexpr DwVfpRegister highest_fp_reg = d7;
 

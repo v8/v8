@@ -1225,7 +1225,7 @@ void Assembler::sub(Operand dst, Register src) {
 void Assembler::sub_sp_32(uint32_t imm) {
   EnsureSpace ensure_space(this);
   EMIT(0x81);  // using a literal 32-bit immediate.
-  static constexpr Register ireg = Register::from_code<5>();
+  static constexpr Register ireg = Register::from_code(5);
   emit_operand(ireg, Operand(esp));
   emit(imm);
 }
@@ -2932,7 +2932,7 @@ void Assembler::bmi2(SIMDPrefix pp, byte op, Register reg, Register vreg,
 void Assembler::rorx(Register dst, Operand src, byte imm8) {
   DCHECK(IsEnabled(BMI2));
   DCHECK(is_uint8(imm8));
-  Register vreg = Register::from_code<0>();  // VEX.vvvv unused
+  Register vreg = Register::from_code(0);  // VEX.vvvv unused
   EnsureSpace ensure_space(this);
   emit_vex_prefix(vreg, kLZ, kF2, k0F3A, kW0);
   EMIT(0xF0);

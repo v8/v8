@@ -26,15 +26,15 @@ namespace liftoff {
 constexpr Register kScratchRegister2 = r11;
 static_assert(kScratchRegister != kScratchRegister2, "collision");
 static_assert((kLiftoffAssemblerGpCacheRegs &
-               Register::ListOf<kScratchRegister, kScratchRegister2>()) == 0,
+               Register::ListOf(kScratchRegister, kScratchRegister2)) == 0,
               "scratch registers must not be used as cache registers");
 
 constexpr DoubleRegister kScratchDoubleReg2 = xmm14;
 static_assert(kScratchDoubleReg != kScratchDoubleReg2, "collision");
-static_assert(
-    (kLiftoffAssemblerFpCacheRegs &
-     DoubleRegister::ListOf<kScratchDoubleReg, kScratchDoubleReg2>()) == 0,
-    "scratch registers must not be used as cache registers");
+static_assert((kLiftoffAssemblerFpCacheRegs &
+               DoubleRegister::ListOf(kScratchDoubleReg, kScratchDoubleReg2)) ==
+                  0,
+              "scratch registers must not be used as cache registers");
 
 // rbp-8 holds the stack marker, rbp-16 is the instance parameter, first stack
 // slot is located at rbp-24.
