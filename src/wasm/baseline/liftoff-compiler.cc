@@ -1316,7 +1316,7 @@ class LiftoffCompiler {
     RegClass rc = reg_class_for(type);
     LiftoffRegister dst_reg = __ GetUnusedRegister(rc);
     __ Fill(dst_reg, __ cache_state()->stack_height() - 1, type);
-    *dst_slot = LiftoffAssembler::VarState(type, dst_reg);
+    *dst_slot = LiftoffAssembler::VarState(type, dst_reg, dst_slot->offset());
     __ cache_state()->inc_used(dst_reg);
   }
 

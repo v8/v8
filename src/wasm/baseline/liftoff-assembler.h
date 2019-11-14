@@ -42,13 +42,17 @@ class LiftoffAssembler : public TurboAssembler {
    public:
     enum Location : uint8_t { kStack, kRegister, kIntConst };
 
-    explicit VarState(ValueType type) : loc_(kStack), type_(type) {}
-    explicit VarState(ValueType type, LiftoffRegister r)
-        : loc_(kRegister), type_(type), reg_(r) {
+    explicit VarState(ValueType type, uint32_t offset)
+        : loc_(kStack), type_(type), spill_offset_(offset) {}
+    explicit VarState(ValueType type, LiftoffRegister r, uint32_t offset)
+        : loc_(kRegister), type_(type), reg_(r), spill_offset_(offset) {
       DCHECK_EQ(r.reg_class(), reg_class_for(type));
     }
-    explicit VarState(ValueType type, int32_t i32_const)
-        : loc_(kIntConst), type_(type), i32_const_(i32_const) {
+    explicit VarState(ValueType type, int32_t i32_const, uint32_t offset)
+        : loc_(kIntConst),
+          type_(type),
+          i32_const_(i32_const),
+          spill_offset_(offset) {
       DCHECK(type_ == kWasmI32 || type_ == kWasmI64);
     }
 
@@ -87,6 +91,8 @@ class LiftoffAssembler : public TurboAssembler {
                                : WasmValue(int64_t{i32_const_});
     }
 
+    uint32_t offset() const { return spill_offset_; }
+
     Register gp_reg() const { return reg().gp(); }
     DoubleRegister fp_reg() const { return reg().fp(); }
     LiftoffRegister reg() const {
@@ -107,6 +113,7 @@ class LiftoffAssembler : public TurboAssembler {
       LiftoffRegister reg_;  // used if loc_ == kRegister
       int32_t i32_const_;    // used if loc_ == kIntConst
     };
+    uint32_t spill_offset_;
   };
 
   ASSERT_TRIVIALLY_COPYABLE(VarState);
@@ -252,19 +259,29 @@ class LiftoffAssembler : public TurboAssembler {
 
   LiftoffRegister PopToRegister(LiftoffRegList pinned = {});
 
+  uint32_t NextSpillOffset() {
+    if (cache_state_.stack_state.empty()) {
+      return 0;
+    }
+    VarState last = cache_state_.stack_state.back();
+    uint32_t offset =
+        last.offset() + ValueTypes::ElementSizeInBytes(last.type());
+    return offset;
+  }
+
   void PushRegister(ValueType type, LiftoffRegister reg) {
     DCHECK_EQ(reg_class_for(type), reg.reg_class());
     cache_state_.inc_used(reg);
-    cache_state_.stack_state.emplace_back(type, reg);
+    cache_state_.stack_state.emplace_back(type, reg, NextSpillOffset());
   }
 
   void PushConstant(ValueType type, int32_t i32_const) {
     DCHECK(type == kWasmI32 || type == kWasmI64);
-    cache_state_.stack_state.emplace_back(type, i32_const);
+    cache_state_.stack_state.emplace_back(type, i32_const, NextSpillOffset());
   }
 
   void PushStack(ValueType type) {
-    cache_state_.stack_state.emplace_back(type);
+    cache_state_.stack_state.emplace_back(type, NextSpillOffset());
   }
 
   void SpillRegister(LiftoffRegister);
