@@ -15,6 +15,23 @@
 // globals.h defines USE_SIMULATOR.
 #include "src/common/globals.h"
 
+template <typename T>
+int Compare(const T& a, const T& b) {
+  if (a == b)
+    return 0;
+  else if (a < b)
+    return -1;
+  else
+    return 1;
+}
+
+// Returns the negative absolute value of its argument.
+template <typename T,
+          typename = typename std::enable_if<std::is_signed<T>::value>::type>
+T Nabs(T a) {
+  return a < 0 ? a : -a;
+}
+
 #if defined(USE_SIMULATOR)
 // Running with a simulator.
 
@@ -693,26 +710,9 @@ class Simulator : public SimulatorBase {
   LocalMonitor local_monitor_;
   GlobalMonitor::LinkedAddress global_monitor_thread_;
 };
-#endif  // defined(USE_SIMULATOR)
-
-template <typename T>
-int Compare(const T& a, const T& b) {
-  if (a == b)
-    return 0;
-  else if (a < b)
-    return -1;
-  else
-    return 1;
-}
-
-// Returns the negative absolute value of its argument.
-template <typename T,
-          typename = typename std::enable_if<std::is_signed<T>::value>::type>
-T Nabs(T a) {
-  return a < 0 ? a : -a;
-}
 
 }  // namespace internal
 }  // namespace v8
 
+#endif  // defined(USE_SIMULATOR)
 #endif  // V8_EXECUTION_MIPS_SIMULATOR_MIPS_H_
