@@ -823,7 +823,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleArchLookupSwitch(instr);
       break;
     case kArchAbortCSAAssert:
-      DCHECK(i.InputRegister(0).is(x1));
+      DCHECK_EQ(i.InputRegister(0), x1);
       {
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
@@ -1427,9 +1427,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Float64Mod: {
       // TODO(turbofan): implement directly.
       FrameScope scope(tasm(), StackFrame::MANUAL);
-      DCHECK(d0.is(i.InputDoubleRegister(0)));
-      DCHECK(d1.is(i.InputDoubleRegister(1)));
-      DCHECK(d0.is(i.OutputDoubleRegister()));
+      DCHECK_EQ(d0, i.InputDoubleRegister(0));
+      DCHECK_EQ(d1, i.InputDoubleRegister(1));
+      DCHECK_EQ(d0, i.OutputDoubleRegister());
       // TODO(turbofan): make sure this saves all relevant registers.
       __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
       break;
@@ -1565,11 +1565,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Umov(i.OutputRegister32(), i.InputFloat64Register(0).V2S(), 1);
       break;
     case kArm64Float64InsertLowWord32:
-      DCHECK(i.OutputFloat64Register().Is(i.InputFloat64Register(0)));
+      DCHECK_EQ(i.OutputFloat64Register(), i.InputFloat64Register(0));
       __ Ins(i.OutputFloat64Register().V2S(), 0, i.InputRegister32(1));
       break;
     case kArm64Float64InsertHighWord32:
-      DCHECK(i.OutputFloat64Register().Is(i.InputFloat64Register(0)));
+      DCHECK_EQ(i.OutputFloat64Register(), i.InputFloat64Register(0));
       __ Ins(i.OutputFloat64Register().V2S(), 1, i.InputRegister32(1));
       break;
     case kArm64Float64MoveU64:
@@ -1833,7 +1833,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64F64x2ReplaceLane: {
       VRegister dst = i.OutputSimd128Register().V2D(),
                 src1 = i.InputSimd128Register(0).V2D();
-      if (!dst.is(src1)) {
+      if (dst != src1) {
         __ Mov(dst, src1);
       }
       __ Mov(dst, i.InputInt8(1), i.InputSimd128Register(2).V2D(), 0);
@@ -1890,7 +1890,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64F32x4ReplaceLane: {
       VRegister dst = i.OutputSimd128Register().V4S(),
                 src1 = i.InputSimd128Register(0).V4S();
-      if (!dst.is(src1)) {
+      if (dst != src1) {
         __ Mov(dst, src1);
       }
       __ Mov(dst, i.InputInt8(1), i.InputSimd128Register(2).V4S(), 0);
@@ -1952,7 +1952,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64I64x2ReplaceLane: {
       VRegister dst = i.OutputSimd128Register().V2D(),
                 src1 = i.InputSimd128Register(0).V2D();
-      if (!dst.is(src1)) {
+      if (dst != src1) {
         __ Mov(dst, src1);
       }
       __ Mov(dst, i.InputInt8(1), i.InputRegister64(2));
@@ -2076,7 +2076,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64I32x4ReplaceLane: {
       VRegister dst = i.OutputSimd128Register().V4S(),
                 src1 = i.InputSimd128Register(0).V4S();
-      if (!dst.is(src1)) {
+      if (dst != src1) {
         __ Mov(dst, src1);
       }
       __ Mov(dst, i.InputInt8(1), i.InputRegister32(2));
@@ -2153,7 +2153,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64I16x8ReplaceLane: {
       VRegister dst = i.OutputSimd128Register().V8H(),
                 src1 = i.InputSimd128Register(0).V8H();
-      if (!dst.is(src1)) {
+      if (dst != src1) {
         __ Mov(dst, src1);
       }
       __ Mov(dst, i.InputInt8(1), i.InputRegister32(2));
@@ -2189,7 +2189,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 src1 = i.InputSimd128Register(1);
       UseScratchRegisterScope scope(tasm());
       VRegister temp = scope.AcquireV(kFormat4S);
-      if (dst.is(src1)) {
+      if (dst == src1) {
         __ Mov(temp, src1.V4S());
         src1 = temp;
       }
@@ -2241,7 +2241,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 src1 = i.InputSimd128Register(1);
       UseScratchRegisterScope scope(tasm());
       VRegister temp = scope.AcquireV(kFormat4S);
-      if (dst.is(src1)) {
+      if (dst == src1) {
         __ Mov(temp, src1.V4S());
         src1 = temp;
       }
@@ -2267,7 +2267,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64I8x16ReplaceLane: {
       VRegister dst = i.OutputSimd128Register().V16B(),
                 src1 = i.InputSimd128Register(0).V16B();
-      if (!dst.is(src1)) {
+      if (dst != src1) {
         __ Mov(dst, src1);
       }
       __ Mov(dst, i.InputInt8(1), i.InputRegister32(2));
@@ -2301,7 +2301,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 src1 = i.InputSimd128Register(1);
       UseScratchRegisterScope scope(tasm());
       VRegister temp = scope.AcquireV(kFormat8H);
-      if (dst.is(src1)) {
+      if (dst == src1) {
         __ Mov(temp, src1.V8H());
         src1 = temp;
       }
@@ -2343,7 +2343,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 src1 = i.InputSimd128Register(1);
       UseScratchRegisterScope scope(tasm());
       VRegister temp = scope.AcquireV(kFormat8H);
-      if (dst.is(src1)) {
+      if (dst == src1) {
         __ Mov(temp, src1.V8H());
         src1 = temp;
       }
@@ -2388,7 +2388,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArm64S128Select: {
       VRegister dst = i.OutputSimd128Register().V16B();
-      DCHECK(dst.is(i.InputSimd128Register(0).V16B()));
+      DCHECK_EQ(dst, i.InputSimd128Register(0).V16B());
       __ Bsl(dst, i.InputSimd128Register(1).V16B(),
              i.InputSimd128Register(2).V16B());
       break;
@@ -2401,10 +2401,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // If dst == src0 == src1, then the shuffle is unary and we only use src0.
       UseScratchRegisterScope scope(tasm());
       VRegister temp = scope.AcquireV(kFormat4S);
-      if (dst.is(src0)) {
+      if (dst == src0) {
         __ Mov(temp, src0);
         src0 = temp;
-      } else if (dst.is(src1)) {
+      } else if (dst == src1) {
         __ Mov(temp, src1);
         src1 = temp;
       }
@@ -2457,7 +2457,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Unary shuffle table is in src0, binary shuffle table is in src0, src1,
       // which must be consecutive.
       int64_t mask = 0;
-      if (src0.is(src1)) {
+      if (src0 == src1) {
         mask = 0x0F0F0F0F;
       } else {
         mask = 0x1F1F1F1F;
@@ -2471,7 +2471,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VRegister temp = scope.AcquireV(kFormat16B);
       __ Movi(temp, imm2, imm1);
 
-      if (src0.is(src1)) {
+      if (src0 == src1) {
         __ Tbl(dst, src0, temp.V16B());
       } else {
         __ Tbl(dst, src0, src1, temp.V16B());

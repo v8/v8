@@ -270,7 +270,7 @@ Operand::Operand(Register reg, Extend extend, unsigned shift_amount)
 }
 
 bool Operand::IsHeapObjectRequest() const {
-  DCHECK_IMPLIES(heap_object_request_.has_value(), reg_.Is(NoReg));
+  DCHECK_IMPLIES(heap_object_request_.has_value(), reg_ == NoReg);
   DCHECK_IMPLIES(heap_object_request_.has_value(),
                  immediate_.rmode() == RelocInfo::FULL_EMBEDDED_OBJECT ||
                      immediate_.rmode() == RelocInfo::CODE_TARGET);
@@ -283,7 +283,7 @@ HeapObjectRequest Operand::heap_object_request() const {
 }
 
 bool Operand::IsImmediate() const {
-  return reg_.Is(NoReg) && !IsHeapObjectRequest();
+  return reg_ == NoReg && !IsHeapObjectRequest();
 }
 
 bool Operand::IsShiftedRegister() const {
@@ -452,11 +452,11 @@ MemOperand::MemOperand(Register base, const Operand& offset, AddrMode addrmode)
 }
 
 bool MemOperand::IsImmediateOffset() const {
-  return (addrmode_ == Offset) && regoffset_.Is(NoReg);
+  return (addrmode_ == Offset) && regoffset_ == NoReg;
 }
 
 bool MemOperand::IsRegisterOffset() const {
-  return (addrmode_ == Offset) && !regoffset_.Is(NoReg);
+  return (addrmode_ == Offset) && regoffset_ != NoReg;
 }
 
 bool MemOperand::IsPreIndex() const { return addrmode_ == PreIndex; }

@@ -150,19 +150,16 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
     return reg_size_ == 128;
   }
   bool IsNone() const { return reg_type_ == kNoRegister; }
-  constexpr bool Is(const CPURegister& other) const {
-    return Aliases(other) && (reg_size_ == other.reg_size_);
-  }
   constexpr bool Aliases(const CPURegister& other) const {
     return (reg_code_ == other.reg_code_) && (reg_type_ == other.reg_type_);
   }
 
   constexpr bool operator==(const CPURegister& other) const {
-    return Is(other);
+    return RegisterBase::operator==(other) && reg_size_ == other.reg_size_ &&
+           reg_type_ == other.reg_type_;
   }
-
   constexpr bool operator!=(const CPURegister& other) const {
-    return !(*this == other);
+    return !operator==(other);
   }
 
   bool IsZero() const;
@@ -202,8 +199,6 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   VRegister Q() const;
 
   bool IsSameSizeAndType(const CPURegister& other) const;
-
-  bool is(const CPURegister& other) const { return Is(other); }
 
  protected:
   int reg_size_;
@@ -455,8 +450,8 @@ class VRegister : public CPURegister {
 ASSERT_TRIVIALLY_COPYABLE(VRegister);
 
 // No*Reg is used to indicate an unused argument, or an error case. Note that
-// these all compare equal (using the Is() method). The Register and VRegister
-// variants are provided for convenience.
+// these all compare equal. The Register and VRegister variants are provided for
+// convenience.
 constexpr Register NoReg = Register::no_reg();
 constexpr VRegister NoVReg = VRegister::no_reg();
 constexpr CPURegister NoCPUReg = CPURegister::no_reg();

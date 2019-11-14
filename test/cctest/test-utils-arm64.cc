@@ -289,7 +289,7 @@ void Clobber(MacroAssembler* masm, RegList reg_list, uint64_t const value) {
     if (reg_list & (1ULL << i)) {
       Register xn = Register::Create(i, kXRegSizeInBits);
       // We should never write into sp here.
-      CHECK(!xn.Is(sp));
+      CHECK_NE(xn, sp);
       if (!xn.IsZero()) {
         if (!first.is_valid()) {
           // This is the first register we've hit, so construct the literal.

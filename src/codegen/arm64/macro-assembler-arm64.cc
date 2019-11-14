@@ -165,7 +165,7 @@ void TurboAssembler::LogicalMacro(const Register& rd, const Register& rn,
 
       // If the left-hand input is the stack pointer, we can't pre-shift the
       // immediate, as the encoding won't allow the subsequent post shift.
-      PreShiftImmMode mode = rn.Is(sp) ? kNoShift : kAnyShift;
+      PreShiftImmMode mode = rn == sp ? kNoShift : kAnyShift;
       Operand imm_operand = MoveImmediateForShiftedOp(temp, immediate, mode);
 
       if (rd.IsSP()) {
@@ -327,7 +327,7 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
     // this case, the instruction is discarded.
     //
     // If sp is an operand, add #0 is emitted, otherwise, orr #0.
-    if (!rd.Is(operand.reg()) ||
+    if (rd != operand.reg() ||
         (rd.Is32Bits() && (discard_mode == kDontDiscardForSameWReg))) {
       Assembler::mov(rd, operand.reg());
     }
@@ -336,7 +336,7 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
   }
 
   // Copy the result to the system stack pointer.
-  if (!dst.Is(rd)) {
+  if (dst != rd) {
     DCHECK(rd.IsSP());
     Assembler::mov(rd, dst);
   }
@@ -697,7 +697,7 @@ Operand TurboAssembler::MoveImmediateForShiftedOp(const Register& dst,
 void TurboAssembler::AddSubMacro(const Register& rd, const Register& rn,
                                  const Operand& operand, FlagsUpdate S,
                                  AddSubOp op) {
-  if (operand.IsZero() && rd.Is(rn) && rd.Is64Bits() && rn.Is64Bits() &&
+  if (operand.IsZero() && rd == rn && rd.Is64Bits() && rn.Is64Bits() &&
       !operand.NeedsRelocation(this) && (S == LeaveFlags)) {
     // The instruction would be a nop. Avoid generating useless code.
     return;
@@ -720,11 +720,11 @@ void TurboAssembler::AddSubMacro(const Register& rd, const Register& rn,
       // If the destination or source register is the stack pointer, we can
       // only pre-shift the immediate right by values supported in the add/sub
       // extend encoding.
-      if (rd.Is(sp)) {
+      if (rd == sp) {
         // If the destination is SP and flags will be set, we can't pre-shift
         // the immediate at all.
         mode = (S == SetFlags) ? kNoShift : kLimitShiftForSP;
-      } else if (rn.Is(sp)) {
+      } else if (rn == sp) {
         mode = kLimitShiftForSP;
       }
 
@@ -910,7 +910,7 @@ void TurboAssembler::Adr(const Register& rd, Label* label, AdrHint hint) {
 }
 
 void TurboAssembler::B(Label* label, BranchType type, Register reg, int bit) {
-  DCHECK((reg.Is(NoReg) || type >= kBranchTypeFirstUsingReg) &&
+  DCHECK((reg == NoReg || type >= kBranchTypeFirstUsingReg) &&
          (bit == -1 || type >= kBranchTypeFirstUsingBit));
   if (kBranchTypeFirstCondition <= type && type <= kBranchTypeLastCondition) {
     B(static_cast<Condition>(type), label);
@@ -1487,7 +1487,7 @@ void TurboAssembler::MovePair(Register dst0, Register src0, Register dst1,
 
 void TurboAssembler::Swap(Register lhs, Register rhs) {
   DCHECK(lhs.IsSameSizeAndType(rhs));
-  DCHECK(!lhs.Is(rhs));
+  DCHECK_NE(lhs, rhs);
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
   Mov(temp, rhs);
@@ -1497,7 +1497,7 @@ void TurboAssembler::Swap(Register lhs, Register rhs) {
 
 void TurboAssembler::Swap(VRegister lhs, VRegister rhs) {
   DCHECK(lhs.IsSameSizeAndType(rhs));
-  DCHECK(!lhs.Is(rhs));
+  DCHECK_NE(lhs, rhs);
   UseScratchRegisterScope temps(this);
   VRegister temp = VRegister::no_reg();
   if (lhs.IsS()) {
@@ -2179,8 +2179,8 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
                                         InvokeFlag flag) {
   // You can't call a function without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
-  DCHECK(function.is(x1));
-  DCHECK_IMPLIES(new_target.is_valid(), new_target.is(x3));
+  DCHECK_EQ(function, x1);
+  DCHECK_IMPLIES(new_target.is_valid(), new_target == x3);
 
   // On function call, call into the debugger if necessary.
   Label debug_hook, continue_after_hook;
@@ -2235,7 +2235,7 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
 
   // Contract with called JS functions requires that function is passed in x1.
   // (See FullCodeGenerator::Generate().)
-  DCHECK(function.is(x1));
+  DCHECK_EQ(function, x1);
 
   Register expected_parameter_count = x2;
 
@@ -2264,7 +2264,7 @@ void MacroAssembler::InvokeFunction(Register function,
 
   // Contract with called JS functions requires that function is passed in x1.
   // (See FullCodeGenerator::Generate().)
-  DCHECK(function.Is(x1));
+  DCHECK_EQ(function, x1);
 
   // Set up the context.
   LoadTaggedPointerField(cp,

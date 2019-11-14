@@ -1856,7 +1856,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   __ Bind(&no_arguments);
   {
     __ Mov(x0, 0);
-    DCHECK(receiver.Is(x1));
+    DCHECK_EQ(receiver, x1);
     __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
   }
 }
@@ -3362,7 +3362,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   const int kLevelOffset = AddressOffset(
       ExternalReference::handle_scope_level_address(isolate), next_address);
 
-  DCHECK(function_address.is(x1) || function_address.is(x2));
+  DCHECK(function_address == x1 || function_address == x2);
 
   Label profiler_enabled, end_profiler_check;
   __ Mov(x10, ExternalReference::is_profiling_address(isolate));

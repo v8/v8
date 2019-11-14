@@ -1493,7 +1493,7 @@ void RegExpMacroAssemblerARM64::CheckStackLimit() {
 
 void RegExpMacroAssemblerARM64::Push(Register source) {
   DCHECK(source.Is32Bits());
-  DCHECK(!source.is(backtrack_stackpointer()));
+  DCHECK_NE(source, backtrack_stackpointer());
   __ Str(source,
          MemOperand(backtrack_stackpointer(),
                     -static_cast<int>(kWRegSize),
@@ -1503,7 +1503,7 @@ void RegExpMacroAssemblerARM64::Push(Register source) {
 
 void RegExpMacroAssemblerARM64::Pop(Register target) {
   DCHECK(target.Is32Bits());
-  DCHECK(!target.is(backtrack_stackpointer()));
+  DCHECK_NE(target, backtrack_stackpointer());
   __ Ldr(target,
          MemOperand(backtrack_stackpointer(), kWRegSize, PostIndex));
 }
@@ -1560,7 +1560,7 @@ void RegExpMacroAssemblerARM64::StoreRegister(int register_index,
       break;
     case CACHED_LSW: {
       Register cached_register = GetCachedRegister(register_index);
-      if (!source.Is(cached_register.W())) {
+      if (source != cached_register.W()) {
         __ Bfi(cached_register, source.X(), 0, kWRegSizeInBits);
       }
       break;

@@ -299,7 +299,7 @@ MemOperand::PairResult MemOperand::AreConsistentForPair(
   DCHECK_LE(access_size_log2, 3);
   // Step one: check that they share the same base, that the mode is Offset
   // and that the offset is a multiple of access size.
-  if (!operandA.base().Is(operandB.base()) || (operandA.addrmode() != Offset) ||
+  if (operandA.base() != operandB.base() || (operandA.addrmode() != Offset) ||
       (operandB.addrmode() != Offset) ||
       ((operandA.offset() & ((1 << access_size_log2) - 1)) != 0)) {
     return kNotPair;
@@ -752,7 +752,7 @@ void Assembler::blr(const Register& xn) {
   DCHECK(xn.Is64Bits());
   // The pattern 'blr xzr' is used as a guard to detect when execution falls
   // through the constant pool. It should not be emitted.
-  DCHECK(!xn.Is(xzr));
+  DCHECK_NE(xn, xzr);
   Emit(BLR | Rn(xn));
 }
 
@@ -1209,7 +1209,7 @@ void Assembler::ldpsw(const Register& rt, const Register& rt2,
 void Assembler::LoadStorePair(const CPURegister& rt, const CPURegister& rt2,
                               const MemOperand& addr, LoadStorePairOp op) {
   // 'rt' and 'rt2' can only be aliased for stores.
-  DCHECK(((op & LoadStorePairLBit) == 0) || !rt.Is(rt2));
+  DCHECK(((op & LoadStorePairLBit) == 0) || rt != rt2);
   DCHECK(AreSameSizeAndType(rt, rt2));
   DCHECK(IsImmLSPair(addr.offset(), CalcLSPairDataSize(op)));
   int offset = static_cast<int>(addr.offset());
@@ -1222,8 +1222,8 @@ void Assembler::LoadStorePair(const CPURegister& rt, const CPURegister& rt2,
     addrmodeop = LoadStorePairOffsetFixed;
   } else {
     // Pre-index and post-index modes.
-    DCHECK(!rt.Is(addr.base()));
-    DCHECK(!rt2.Is(addr.base()));
+    DCHECK_NE(rt, addr.base());
+    DCHECK_NE(rt2, addr.base());
     DCHECK_NE(addr.offset(), 0);
     if (addr.IsPreIndex()) {
       addrmodeop = LoadStorePairPreIndexFixed;
@@ -1337,7 +1337,7 @@ void Assembler::stlr(const Register& rt, const Register& rn) {
 void Assembler::stlxr(const Register& rs, const Register& rt,
                       const Register& rn) {
   DCHECK(rn.Is64Bits());
-  DCHECK(!rs.Is(rt) && !rs.Is(rn));
+  DCHECK(rs != rt && rs != rn);
   LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? STLXR_w : STLXR_x;
   Emit(op | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
@@ -1365,7 +1365,7 @@ void Assembler::stlxrb(const Register& rs, const Register& rt,
   DCHECK(rs.Is32Bits());
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
-  DCHECK(!rs.Is(rt) && !rs.Is(rn));
+  DCHECK(rs != rt && rs != rn);
   Emit(STLXR_b | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
@@ -1392,7 +1392,7 @@ void Assembler::stlxrh(const Register& rs, const Register& rt,
   DCHECK(rs.Is32Bits());
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
-  DCHECK(!rs.Is(rt) && !rs.Is(rn));
+  DCHECK(rs != rt && rs != rn);
   Emit(STLXR_h | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
@@ -2282,7 +2282,7 @@ void Assembler::LoadStoreStructVerify(const VRegister& vt,
       default:
         UNREACHABLE();
     }
-    DCHECK(!addr.regoffset().Is(NoReg) || addr.offset() == offset);
+    DCHECK(addr.regoffset() != NoReg || addr.offset() == offset);
   }
 #else
   USE(vt);
@@ -3947,7 +3947,7 @@ void Assembler::LoadStore(const CPURegister& rt, const MemOperand& addr,
          ExtendMode(ext) | ImmShiftLS((shift_amount > 0) ? 1 : 0));
   } else {
     // Pre-index and post-index modes.
-    DCHECK(!rt.Is(addr.base()));
+    DCHECK_NE(rt, addr.base());
     if (IsImmLSUnscaled(addr.offset())) {
       int offset = static_cast<int>(addr.offset());
       if (addr.IsPreIndex()) {
