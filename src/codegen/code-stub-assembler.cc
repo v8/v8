@@ -894,6 +894,26 @@ TNode<Smi> CodeStubAssembler::TrySmiSub(TNode<Smi> lhs, TNode<Smi> rhs,
   }
 }
 
+TNode<Smi> CodeStubAssembler::TrySmiAbs(TNode<Smi> a, Label* if_overflow) {
+  if (SmiValuesAre32Bits()) {
+    TNode<PairT<IntPtrT, BoolT>> pair =
+        IntPtrAbsWithOverflow(BitcastTaggedToWordForTagAndSmiBits(a));
+    TNode<BoolT> overflow = Projection<1>(pair);
+    GotoIf(overflow, if_overflow);
+    TNode<IntPtrT> result = Projection<0>(pair);
+    return BitcastWordToTaggedSigned(result);
+  } else {
+    CHECK(SmiValuesAre31Bits());
+    CHECK(IsInt32AbsWithOverflowSupported());
+    TNode<PairT<Int32T, BoolT>> pair = Int32AbsWithOverflow(
+        TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(a)));
+    TNode<BoolT> overflow = Projection<1>(pair);
+    GotoIf(overflow, if_overflow);
+    TNode<Int32T> result = Projection<0>(pair);
+    return BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(result));
+  }
+}
+
 TNode<Number> CodeStubAssembler::NumberMax(SloppyTNode<Number> a,
                                            SloppyTNode<Number> b) {
   // TODO(danno): This could be optimized by specifically handling smi cases.

@@ -654,18 +654,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                             Label* if_overflow);
   TNode<Smi> TrySmiAdd(TNode<Smi> a, TNode<Smi> b, Label* if_overflow);
   TNode<Smi> TrySmiSub(TNode<Smi> a, TNode<Smi> b, Label* if_overflow);
+  TNode<Smi> TrySmiAbs(TNode<Smi> a, Label* if_overflow);
 
   TNode<Smi> SmiShl(TNode<Smi> a, int shift) {
     return BitcastWordToTaggedSigned(
         WordShl(BitcastTaggedToWordForTagAndSmiBits(a), shift));
-  }
-
-  TNode<IntPtrT> EasyIntPtrAbsWithOverflow(TNode<IntPtrT> a,
-                                           Label* if_overflow) {
-    TNode<PairT<IntPtrT, BoolT>> pair = IntPtrAbsWithOverflow(a);
-    Node* overflow = Projection(1, pair);
-    GotoIf(overflow, if_overflow);
-    return UncheckedCast<IntPtrT>(Projection(0, pair));
   }
 
   TNode<Smi> SmiShr(TNode<Smi> a, int shift) {

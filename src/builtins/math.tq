@@ -30,8 +30,8 @@ namespace math {
   // ES6 #sec-math.abs
   extern macro IsIntPtrAbsWithOverflowSupported(): constexpr bool;
   extern macro TrySmiSub(Smi, Smi): Smi labels Overflow;
+  extern macro TrySmiAbs(Smi): Smi labels Overflow;
   extern macro Float64Abs(float64): float64;
-  extern macro EasyIntPtrAbsWithOverflow(intptr): intptr labels Overflow;
   const kSmiMaxValuePlusOne:
       constexpr float64 generates '0.0 - kSmiMinValue';
 
@@ -43,9 +43,9 @@ namespace math {
     label SmiResult(s: Smi) {
       try {
         if constexpr (IsIntPtrAbsWithOverflowSupported()) {
-          const result: intptr = EasyIntPtrAbsWithOverflow(Convert<intptr>(s))
+          const result: Smi = TrySmiAbs(s)
               otherwise SmiOverflow;
-          return Convert<Smi>(result);
+          return result;
         } else {
           if (0 <= s) {
             return s;
