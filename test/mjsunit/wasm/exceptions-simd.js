@@ -26,7 +26,6 @@ load("test/mjsunit/wasm/exceptions-utils.js");
 })();
 
 (function TestThrowCatchS128Default() {
-  if (!%WasmSupportsSimd128()) return;
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
   var kSig_v_s = makeSig([kWasmS128], []);
@@ -52,7 +51,6 @@ load("test/mjsunit/wasm/exceptions-utils.js");
 })();
 
 (function TestThrowCatchS128WithValue() {
-  if (!%WasmSupportsSimd128()) return;
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
   var kSig_v_s = makeSig([kWasmS128], []);

@@ -3724,6 +3724,10 @@ Node* WasmGraphBuilder::LoadTransform(MachineType memtype,
                                       Node* index, uint32_t offset,
                                       uint32_t alignment,
                                       wasm::WasmCodePosition position) {
+  if (memtype.representation() == MachineRepresentation::kSimd128) {
+    has_simd_ = true;
+  }
+
   // Wasm semantics throw on OOB. Introduce explicit bounds check and
   // conditioning when not using the trap handler.
   index = BoundsCheckMem(wasm::ValueTypes::MemSize(memtype), index, offset,
@@ -3756,6 +3760,10 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
                                 uint32_t alignment,
                                 wasm::WasmCodePosition position) {
   Node* load;
+
+  if (memtype.representation() == MachineRepresentation::kSimd128) {
+    has_simd_ = true;
+  }
 
   // Wasm semantics throw on OOB. Introduce explicit bounds check and
   // conditioning when not using the trap handler.
@@ -3811,6 +3819,10 @@ Node* WasmGraphBuilder::StoreMem(MachineRepresentation mem_rep, Node* index,
                                  wasm::WasmCodePosition position,
                                  wasm::ValueType type) {
   Node* store;
+
+  if (mem_rep == MachineRepresentation::kSimd128) {
+    has_simd_ = true;
+  }
 
   index = BoundsCheckMem(i::ElementSizeInBytes(mem_rep), index, offset,
                          position, kCanOmitBoundsCheck);
