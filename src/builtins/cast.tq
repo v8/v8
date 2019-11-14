@@ -77,8 +77,6 @@ extern macro HeapObjectToHeapNumber(HeapObject): HeapNumber
 extern macro HeapObjectToSloppyArgumentsElements(HeapObject):
     SloppyArgumentsElements
     labels CastError;
-extern macro HeapObjectToRegExpMatchInfo(HeapObject):
-    RegExpMatchInfo labels CastError;
 extern macro TaggedToNumber(Object): Number
     labels CastError;
 
@@ -684,4 +682,10 @@ Cast<SharedFunctionInfo>(o: HeapObject): SharedFunctionInfo labels CastError {
 Cast<JSPromise>(o: HeapObject): JSPromise labels CastError {
   if (IsJSPromise(o)) return %RawDownCast<JSPromise>(o);
   goto CastError;
+}
+
+UnsafeCast<RegExpMatchInfo>(implicit context: Context)(o: Object):
+    RegExpMatchInfo {
+  assert(Is<FixedArray>(o));
+  return %RawDownCast<RegExpMatchInfo>(o);
 }

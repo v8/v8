@@ -35,15 +35,11 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
     return CAST(FastLoadLastIndexBeforeSmiCheck(regexp));
   }
   TNode<Object> SlowLoadLastIndex(TNode<Context> context, TNode<Object> regexp);
-  TNode<Object> LoadLastIndex(TNode<Context> context, TNode<Object> regexp,
-                              bool is_fastpath);
 
   void FastStoreLastIndex(TNode<JSRegExp> regexp, TNode<Smi> value);
   void SlowStoreLastIndex(SloppyTNode<Context> context,
                           SloppyTNode<Object> regexp,
                           SloppyTNode<Object> value);
-  void StoreLastIndex(TNode<Context> context, TNode<Object> regexp,
-                      TNode<Number> value, bool is_fastpath);
 
   // Loads {var_string_start} and {var_string_end} with the corresponding
   // offsets into the given {string_data}.
@@ -64,10 +60,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   TNode<JSRegExpResult> ConstructNewResultFromMatchInfo(
       TNode<Context> context, TNode<JSReceiver> maybe_regexp,
       TNode<RegExpMatchInfo> match_info, TNode<String> string);
-
-  TNode<RegExpMatchInfo> RegExpPrototypeExecBodyWithoutResult(
-      TNode<Context> context, TNode<JSReceiver> maybe_regexp,
-      TNode<String> string, const bool is_fastpath, Label* if_didnotmatch);
 
   // Fast path check logic.
   //

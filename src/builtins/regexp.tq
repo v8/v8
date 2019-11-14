@@ -55,11 +55,87 @@ namespace regexp {
       implicit context: Context)(JSReceiver, RegExpMatchInfo, String):
       JSRegExpResult;
 
-  extern transitioning macro
-  RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
-      implicit context: Context)(JSReceiver, String, constexpr bool):
-      RegExpMatchInfo labels IfDidNotMatch;
+  const kGlobalOrSticky: constexpr int31
+  generates 'JSRegExp::kGlobal | JSRegExp::kSticky';
 
+  extern macro RegExpBuiltinsAssembler::RegExpExecInternal(
+      implicit context: Context)(JSRegExp, String, Number, RegExpMatchInfo):
+      HeapObject;
+
+  // ES#sec-regexp.prototype.exec
+  // RegExp.prototype.exec ( string )
+  // Implements the core of RegExp.prototype.exec but without actually
+  // constructing the JSRegExpResult. Returns a fixed array containing match
+  // indices as returned by RegExpExecStub on successful match, and jumps to
+  // IfDidNotMatch otherwise.
+  transitioning macro RegExpPrototypeExecBodyWithoutResult(implicit context:
+                                                               Context)(
+      maybeRegexp: JSReceiver, string: String,
+      isFastPath: constexpr bool): RegExpMatchInfo labels IfDidNotMatch {
+    if (!isFastPath) {
+      IncrementUseCounter(context, SmiConstant(kRegExpExecCalledOnSlowRegExp));
+      if (!Is<JSRegExp>(maybeRegexp)) {
+        ThrowTypeError(
+            kIncompatibleMethodReceiver, 'RegExp.prototype.exec', maybeRegexp);
+      }
+    }
+    const regexp = UnsafeCast<JSRegExp>(maybeRegexp);
+
+    let lastIndex: Number;
+    const regexpLastIndex = LoadLastIndex(regexp, isFastPath);
+    if (isFastPath) {
+      // ToLength on a positive smi is a nop and can be skipped.
+      assert(TaggedIsPositiveSmi(regexpLastIndex));
+      lastIndex = UnsafeCast<Number>(regexpLastIndex);
+    } else {
+      // Omit ToLength if lastindex is a non-negative smi.
+      lastIndex = TaggedIsPositiveSmi(regexpLastIndex) ?
+          UnsafeCast<Number>(regexpLastIndex) :
+          ToLength_Inline(regexpLastIndex);
+    }
+
+    // Check whether the regexp is global or sticky, which determines whether we
+    // update last index later on.
+    const flags = UnsafeCast<Smi>(regexp.flags);
+    const isGlobalOrSticky: intptr =
+        SmiUntag(flags) & IntPtrConstant(kGlobalOrSticky);
+    const shouldUpdateLastIndex: bool = isGlobalOrSticky != 0;
+
+    // Grab and possibly update last index.
+    if (shouldUpdateLastIndex) {
+      if (!TaggedIsSmi(lastIndex) || (lastIndex > string.length_smi)) {
+        StoreLastIndex(regexp, SmiConstant(0), isFastPath);
+        goto IfDidNotMatch;
+      }
+    } else {
+      lastIndex = SmiConstant(0);
+    }
+
+    const lastMatchInfo: RegExpMatchInfo = GetRegExpLastMatchInfo();
+
+    const matchIndices =
+        RegExpExecInternal(regexp, string, lastIndex, lastMatchInfo);
+
+    // {match_indices} is either null or the RegExpMatchInfo array.
+    // Return early if exec failed, possibly updating last index.
+    if (matchIndices != Null) {
+      const matchIndicesRegExpMatchInfo =
+          UnsafeCast<RegExpMatchInfo>(matchIndices);
+      if (shouldUpdateLastIndex) {
+        // Update the new last index from {match_indices}.
+        const newLastIndex: Smi =
+            matchIndicesRegExpMatchInfo.GetEndOfCapture(0);
+        StoreLastIndex(regexp, newLastIndex, isFastPath);
+      }
+      return matchIndicesRegExpMatchInfo;
+    }
+    if (shouldUpdateLastIndex) {
+      StoreLastIndex(regexp, SmiConstant(0), isFastPath);
+    }
+    goto IfDidNotMatch;
+  }
+
+  @export
   transitioning macro RegExpPrototypeExecBodyWithoutResultFast(
       implicit context: Context)(regexp: JSRegExp, string: String):
       RegExpMatchInfo labels IfDidNotMatch {
@@ -224,6 +300,23 @@ namespace regexp {
   extern macro RegExpBuiltinsAssembler::FastLoadLastIndex(JSRegExp): Smi;
   extern macro RegExpBuiltinsAssembler::FastStoreLastIndex(JSRegExp, Smi): void;
 
+  @export
+  transitioning macro LoadLastIndex(implicit context: Context)(
+      regexp: JSAny, isFastPath: constexpr bool): JSAny {
+    return isFastPath ? FastLoadLastIndex(UnsafeCast<JSRegExp>(regexp)) :
+                        SlowLoadLastIndex(regexp);
+  }
+
+  @export
+  transitioning macro StoreLastIndex(implicit context: Context)(
+      regexp: JSAny, value: Number, isFastPath: constexpr bool): void {
+    if (isFastPath) {
+      FastStoreLastIndex(UnsafeCast<JSRegExp>(regexp), UnsafeCast<Smi>(value));
+    } else {
+      SlowStoreLastIndex(regexp, value);
+    }
+  }
+
   extern builtin
   StringIndexOf(implicit context: Context)(String, String, Smi): Smi;
 
@@ -240,6 +333,8 @@ namespace regexp {
   generates 'v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp';
   const kRegExpPrototypeSourceGetter: constexpr UseCounterFeature
   generates 'v8::Isolate::kRegExpPrototypeSourceGetter';
+  const kRegExpExecCalledOnSlowRegExp: constexpr UseCounterFeature
+  generates 'v8::Isolate::kRegExpExecCalledOnSlowRegExp';
 
   // ES#sec-isregexp IsRegExp ( argument )
   @export

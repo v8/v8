@@ -144,13 +144,6 @@ TNode<Object> RegExpBuiltinsAssembler::SlowLoadLastIndex(TNode<Context> context,
   return GetProperty(context, regexp, isolate()->factory()->lastIndex_string());
 }
 
-TNode<Object> RegExpBuiltinsAssembler::LoadLastIndex(TNode<Context> context,
-                                                     TNode<Object> regexp,
-                                                     bool is_fastpath) {
-  return is_fastpath ? FastLoadLastIndex(CAST(regexp))
-                     : SlowLoadLastIndex(context, regexp);
-}
-
 // The fast-path of StoreLastIndex when regexp is guaranteed to be an unmodified
 // JSRegExp instance.
 void RegExpBuiltinsAssembler::FastStoreLastIndex(TNode<JSRegExp> regexp,
@@ -166,17 +159,6 @@ void RegExpBuiltinsAssembler::SlowStoreLastIndex(SloppyTNode<Context> context,
                                                  SloppyTNode<Object> value) {
   TNode<String> name = HeapConstant(isolate()->factory()->lastIndex_string());
   SetPropertyStrict(context, regexp, name, value);
-}
-
-void RegExpBuiltinsAssembler::StoreLastIndex(TNode<Context> context,
-                                             TNode<Object> regexp,
-                                             TNode<Number> value,
-                                             bool is_fastpath) {
-  if (is_fastpath) {
-    FastStoreLastIndex(CAST(regexp), CAST(value));
-  } else {
-    SlowStoreLastIndex(context, regexp, value);
-  }
 }
 
 TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
@@ -688,132 +670,6 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   BIND(&out);
   return var_result.value();
-}
-
-// ES#sec-regexp.prototype.exec
-// RegExp.prototype.exec ( string )
-// Implements the core of RegExp.prototype.exec but without actually
-// constructing the JSRegExpResult. Returns a fixed array containing match
-// indices as returned by RegExpExecStub on successful match, and jumps to
-// if_didnotmatch otherwise.
-TNode<RegExpMatchInfo>
-RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
-    TNode<Context> context, TNode<JSReceiver> maybe_regexp,
-    TNode<String> string, const bool is_fastpath, Label* if_didnotmatch) {
-  if (!is_fastpath) {
-    CallRuntime(Runtime::kIncrementUseCounter, context,
-                SmiConstant(v8::Isolate::kRegExpExecCalledOnSlowRegExp));
-    ThrowIfNotInstanceType(context, maybe_regexp, JS_REG_EXP_TYPE,
-                           "RegExp.prototype.exec");
-  }
-
-  TNode<JSRegExp> regexp = CAST(maybe_regexp);
-
-  TVARIABLE(HeapObject, var_result);
-  Label out(this);
-
-  // Load lastIndex.
-  TVARIABLE(Number, var_lastindex);
-  {
-    TNode<Object> regexp_lastindex =
-        LoadLastIndex(context, regexp, is_fastpath);
-
-    if (is_fastpath) {
-      // ToLength on a positive smi is a nop and can be skipped.
-      CSA_ASSERT(this, TaggedIsPositiveSmi(regexp_lastindex));
-      var_lastindex = CAST(regexp_lastindex);
-    } else {
-      // Omit ToLength if lastindex is a non-negative smi.
-      Label call_tolength(this, Label::kDeferred), is_smi(this), next(this);
-      Branch(TaggedIsPositiveSmi(regexp_lastindex), &is_smi, &call_tolength);
-
-      BIND(&call_tolength);
-      var_lastindex = ToLength_Inline(context, regexp_lastindex);
-      Goto(&next);
-
-      BIND(&is_smi);
-      var_lastindex = CAST(regexp_lastindex);
-      Goto(&next);
-
-      BIND(&next);
-    }
-  }
-
-  // Check whether the regexp is global or sticky, which determines whether we
-  // update last index later on.
-  TNode<Smi> flags = CAST(LoadObjectField(regexp, JSRegExp::kFlagsOffset));
-  TNode<IntPtrT> is_global_or_sticky = WordAnd(
-      SmiUntag(flags), IntPtrConstant(JSRegExp::kGlobal | JSRegExp::kSticky));
-  TNode<BoolT> should_update_last_index =
-      WordNotEqual(is_global_or_sticky, IntPtrZero());
-
-  // Grab and possibly update last index.
-  Label run_exec(this);
-  {
-    Label if_doupdate(this), if_dontupdate(this);
-    Branch(should_update_last_index, &if_doupdate, &if_dontupdate);
-
-    BIND(&if_doupdate);
-    {
-      Label if_isoob(this, Label::kDeferred);
-      GotoIfNot(TaggedIsSmi(var_lastindex.value()), &if_isoob);
-      TNode<Smi> string_length = LoadStringLengthAsSmi(string);
-      GotoIfNot(SmiLessThanOrEqual(CAST(var_lastindex.value()), string_length),
-                &if_isoob);
-      Goto(&run_exec);
-
-      BIND(&if_isoob);
-      {
-        StoreLastIndex(context, regexp, SmiZero(), is_fastpath);
-        Goto(if_didnotmatch);
-      }
-    }
-
-    BIND(&if_dontupdate);
-    {
-      var_lastindex = SmiZero();
-      Goto(&run_exec);
-    }
-  }
-
-  TNode<HeapObject> match_indices;
-  Label successful_match(this);
-  BIND(&run_exec);
-  {
-    // Get last match info from the context.
-    TNode<NativeContext> native_context = LoadNativeContext(context);
-    TNode<RegExpMatchInfo> last_match_info = CAST(LoadContextElement(
-        native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX));
-
-    // Call the exec stub.
-    match_indices = RegExpExecInternal(context, regexp, string,
-                                       var_lastindex.value(), last_match_info);
-    var_result = match_indices;
-
-    // {match_indices} is either null or the RegExpMatchInfo array.
-    // Return early if exec failed, possibly updating last index.
-    GotoIfNot(IsNull(match_indices), &successful_match);
-
-    GotoIfNot(should_update_last_index, if_didnotmatch);
-
-    StoreLastIndex(context, regexp, SmiZero(), is_fastpath);
-    Goto(if_didnotmatch);
-  }
-
-  BIND(&successful_match);
-  {
-    GotoIfNot(should_update_last_index, &out);
-
-    // Update the new last index from {match_indices}.
-    TNode<Smi> new_lastindex = CAST(UnsafeLoadFixedArrayElement(
-        CAST(match_indices), RegExpMatchInfo::kFirstCaptureIndex + 1));
-
-    StoreLastIndex(context, regexp, new_lastindex, is_fastpath);
-    Goto(&out);
-  }
-
-  BIND(&out);
-  return CAST(var_result.value());
 }
 
 TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(
@@ -1550,8 +1406,8 @@ TNode<Object> RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(
         // On the fast path, grab the matching string from the raw match index
         // array.
         TNode<RegExpMatchInfo> match_indices =
-            RegExpPrototypeExecBodyWithoutResult(context, CAST(regexp), string,
-                                                 true, &if_didnotmatch);
+            RegExpPrototypeExecBodyWithoutResultFast(context, CAST(regexp),
+                                                     string, &if_didnotmatch);
         Label dosubstring(this), donotsubstring(this);
         Branch(var_atom.value(), &donotsubstring, &dosubstring);
 
