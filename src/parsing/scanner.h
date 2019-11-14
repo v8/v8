@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "include/v8.h"
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"

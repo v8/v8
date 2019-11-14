@@ -12,7 +12,6 @@
 #include <string>
 #include <type_traits>
 
-#include "include/v8.h"
 #include "src/base/bits.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"

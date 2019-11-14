@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "include/v8.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
 #include "src/objects/elements-kind.h"
