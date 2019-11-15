@@ -5,7 +5,7 @@
   transition-timing-function: ease;
 }
 
-.collapse-pane {
+.show-hide-pane {
   background: #A0A0A0;
   bottom: 0;
   position: absolute;
@@ -319,7 +319,7 @@ ul.noindent {
 }
 
 input:hover,
-.collapse-pane:hover input {
+.show-hide-pane:hover input {
   opacity: 1;
   cursor: pointer;
 }
@@ -356,11 +356,11 @@ input:hover,
 }
 
 
-#disassembly-collapse {
+#show-hide-disassembly {
   right: 0;
 }
 
-#source-collapse {
+#show-hide-source {
   left: 0;
 }
 
