@@ -1884,6 +1884,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               fixed_array_map);
   }
 
+  TNode<FixedArrayBase> AllocateFixedArray(
+      ElementsKind kind, TNode<Smi> capacity, AllocationFlags flags,
+      SloppyTNode<Map> fixed_array_map = nullptr) {
+    return AllocateFixedArray(kind, capacity, SMI_PARAMETERS, flags,
+                              fixed_array_map);
+  }
+
   TNode<NativeContext> GetCreationContext(TNode<JSReceiver> receiver,
                                           Label* if_bailout);
   TNode<Object> GetConstructor(TNode<Map> map);
@@ -3332,6 +3339,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                last_element_exclusive, body, mode, direction);
   }
 
+  TNode<IntPtrT> GetArrayAllocationSize(TNode<IntPtrT> element_count,
+                                        ElementsKind kind, int header_size) {
+    return ElementOffsetFromIndex(element_count, kind, header_size);
+  }
+
+  // TODO(v8:9708): remove once all uses are ported.
   TNode<IntPtrT> GetArrayAllocationSize(Node* element_count, ElementsKind kind,
                                         ParameterMode mode, int header_size) {
     return ElementOffsetFromIndex(element_count, kind, mode, header_size);

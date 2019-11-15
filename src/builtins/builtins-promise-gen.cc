@@ -1814,7 +1814,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     const TNode<Smi> new_capacity = var_index.value();
     GotoIf(SmiGreaterThanOrEqual(old_capacity, new_capacity), &return_promise);
     const TNode<FixedArrayBase> new_elements =
-        AllocateFixedArray(PACKED_ELEMENTS, new_capacity, SMI_PARAMETERS,
+        AllocateFixedArray(PACKED_ELEMENTS, new_capacity,
                            AllocationFlag::kAllowLargeObjectAllocation);
     CopyFixedArrayElements(PACKED_ELEMENTS, old_elements, PACKED_ELEMENTS,
                            new_elements, SmiConstant(0), old_capacity,

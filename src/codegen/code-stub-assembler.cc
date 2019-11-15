@@ -3304,7 +3304,7 @@ TNode<ByteArray> CodeStubAssembler::AllocateByteArray(TNode<UintPtrT> length,
   GotoIf(WordEqual(length, UintPtrConstant(0)), &if_lengthiszero);
 
   TNode<IntPtrT> raw_size =
-      GetArrayAllocationSize(Signed(length), UINT8_ELEMENTS, INTPTR_PARAMETERS,
+      GetArrayAllocationSize(Signed(length), UINT8_ELEMENTS,
                              ByteArray::kHeaderSize + kObjectAlignmentMask);
   TNode<IntPtrT> size =
       WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
@@ -3379,7 +3379,7 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
   GotoIf(Word32Equal(length, Uint32Constant(0)), &if_lengthiszero);
 
   TNode<IntPtrT> raw_size = GetArrayAllocationSize(
-      Signed(ChangeUint32ToWord(length)), UINT8_ELEMENTS, INTPTR_PARAMETERS,
+      Signed(ChangeUint32ToWord(length)), UINT8_ELEMENTS,
       SeqOneByteString::kHeaderSize + kObjectAlignmentMask);
   TNode<IntPtrT> size =
       WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
@@ -3451,7 +3451,7 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
   GotoIf(Word32Equal(length, Uint32Constant(0)), &if_lengthiszero);
 
   TNode<IntPtrT> raw_size = GetArrayAllocationSize(
-      Signed(ChangeUint32ToWord(length)), UINT16_ELEMENTS, INTPTR_PARAMETERS,
+      Signed(ChangeUint32ToWord(length)), UINT16_ELEMENTS,
       SeqOneByteString::kHeaderSize + kObjectAlignmentMask);
   TNode<IntPtrT> size =
       WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
