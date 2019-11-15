@@ -146,7 +146,7 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
 
   /* This is already an in-object field. */
   // TODO(v8:8944): improve handling of in-object fields
-  static constexpr int kLastIndexOffset = kSize;
+  static constexpr int kLastIndexOffset = kHeaderSize;
 
   // Indices in the data array.
   static const int kTagIndex = 0;
@@ -236,7 +236,7 @@ class JSRegExpResult : public JSArray {
   // instance type as JSArray.
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSArray::kSize,
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSArray::kHeaderSize,
                                 TORQUE_GENERATED_JS_REG_EXP_RESULT_FIELDS)
 
   static Handle<JSArray> GetAndCacheIndices(
@@ -267,7 +267,7 @@ class JSRegExpResultIndices : public JSArray {
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSArray::kSize, TORQUE_GENERATED_JS_REG_EXP_RESULT_INDICES_FIELDS)
+      JSArray::kHeaderSize, TORQUE_GENERATED_JS_REG_EXP_RESULT_INDICES_FIELDS)
 
   static Handle<JSRegExpResultIndices> BuildIndices(
       Isolate* isolate, Handle<RegExpMatchInfo> match_info,

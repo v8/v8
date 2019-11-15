@@ -1005,7 +1005,7 @@ bool JSGlobalProxy::IsDetachedFrom(JSGlobalObject global) const {
 
 inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
   DCHECK_GE(embedder_field_count, 0);
-  return kSize + embedder_field_count * kEmbedderDataSlotSize;
+  return kHeaderSize + embedder_field_count * kEmbedderDataSlotSize;
 }
 
 ACCESSORS(JSIteratorResult, value, Object, kValueOffset)

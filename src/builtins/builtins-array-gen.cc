@@ -2066,7 +2066,7 @@ void ArrayBuiltinsAssembler::GenerateConstructor(
           IsDoubleElementsKind(elements_kind) ? kDoubleSize : kTaggedSize;
       int max_fast_elements =
           (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize -
-           JSArray::kSize - AllocationMemento::kSize) /
+           JSArray::kHeaderSize - AllocationMemento::kSize) /
           element_size;
       Branch(SmiAboveOrEqual(array_size_smi, SmiConstant(max_fast_elements)),
              &call_runtime, &small_smi_size);

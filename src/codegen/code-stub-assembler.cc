@@ -4051,7 +4051,7 @@ TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArray(
                        RootIndex::kEmptyFixedArray);
 
   if (!allocation_site.is_null()) {
-    InitializeAllocationMemento(array, IntPtrConstant(JSArray::kSize),
+    InitializeAllocationMemento(array, IntPtrConstant(JSArray::kHeaderSize),
                                 allocation_site);
   }
 
@@ -10348,7 +10348,7 @@ void CodeStubAssembler::TrapAllocationMemento(Node* object,
 
   TNode<ExternalReference> new_space_top_address = ExternalConstant(
       ExternalReference::new_space_allocation_top_address(isolate()));
-  const int kMementoMapOffset = JSArray::kSize;
+  const int kMementoMapOffset = JSArray::kHeaderSize;
   const int kMementoLastWordOffset =
       kMementoMapOffset + AllocationMemento::kSize - kTaggedSize;
 
@@ -12624,7 +12624,7 @@ TNode<JSArrayIterator> CodeStubAssembler::CreateArrayIterator(
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> iterator_map = CAST(LoadContextElement(
       native_context, Context::INITIAL_ARRAY_ITERATOR_MAP_INDEX));
-  TNode<HeapObject> iterator = Allocate(JSArrayIterator::kSize);
+  TNode<HeapObject> iterator = Allocate(JSArrayIterator::kHeaderSize);
   StoreMapNoWriteBarrier(iterator, iterator_map);
   StoreObjectFieldRoot(iterator, JSArrayIterator::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);
@@ -12664,7 +12664,7 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
   TNode<Smi> length = SmiConstant(2);
   int const elements_size = FixedArray::SizeFor(2);
   TNode<FixedArray> elements = UncheckedCast<FixedArray>(
-      Allocate(elements_size + JSArray::kSize + JSIteratorResult::kSize));
+      Allocate(elements_size + JSArray::kHeaderSize + JSIteratorResult::kSize));
   StoreObjectFieldRoot(elements, FixedArray::kMapOffset,
                        RootIndex::kFixedArrayMap);
   StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
@@ -12680,7 +12680,7 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
   StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
   TNode<Object> iterator_map =
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
-  TNode<HeapObject> result = InnerAllocate(array, JSArray::kSize);
+  TNode<HeapObject> result = InnerAllocate(array, JSArray::kHeaderSize);
   StoreMapNoWriteBarrier(result, iterator_map);
   StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);

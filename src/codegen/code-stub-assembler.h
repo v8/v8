@@ -1816,7 +1816,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
       TNode<AllocationSite> allocation_site, TNode<IntPtrT> capacity,
       AllocationFlags allocation_flags = kNone,
-      int array_header_size = JSArray::kSize);
+      int array_header_size = JSArray::kHeaderSize);
 
   // Allocate a JSArray and fill elements with the hole.
   TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
@@ -1848,7 +1848,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                  TNode<FixedArrayBase> elements,
                                  TNode<Smi> length,
                                  TNode<AllocationSite> allocation_site = {},
-                                 int array_header_size = JSArray::kSize);
+                                 int array_header_size = JSArray::kHeaderSize);
 
   enum class HoleConversionMode { kDontConvert, kConvertToUndefined };
   // Clone a fast JSArray |array| into a new fast JSArray.

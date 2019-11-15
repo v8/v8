@@ -2855,11 +2855,20 @@ class FieldOffsetsGenerator {
       End(FieldSectionType::kStrongSection);
     }
     is_finished_ = true;
-    if (type_->IsAbstract()) {
+    if (type_->IsSubtypeOf(TypeOracle::GetJSObjectType()) &&
+        !type_->HasSameInstanceTypeAsParent()) {
+      // TODO(tebbi): That's a minimal hack to be cleaned up soon:
+      // @hasSameInstanceTypeAsParent is usually used for classes describing a
+      // specific set of maps instead of a proper class with instance type. This
+      // will be replaced with a proper notion of "shape" in Torque.
       WriteMarker("kHeaderSize");
-    }
-    if (!type_->IsAbstract() || type_->IsInstantiatedAbstractClass()) {
-      WriteMarker("kSize");
+    } else {
+      if (type_->IsAbstract()) {
+        WriteMarker("kHeaderSize");
+      }
+      if (!type_->IsAbstract() || type_->IsInstantiatedAbstractClass()) {
+        WriteMarker("kSize");
+      }
     }
   }
 

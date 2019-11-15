@@ -119,19 +119,20 @@ TNode<JSObject> ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(
   GotoIf(IntPtrOrSmiLessThanOrEqual(rest_count, zero), &no_rest_parameters);
 
   GotoIfFixedArraySizeDoesntFitInNewSpace(
-      rest_count, &runtime, JSArray::kSize + FixedArray::kHeaderSize, mode);
+      rest_count, &runtime, JSArray::kHeaderSize + FixedArray::kHeaderSize,
+      mode);
 
   // Allocate the Rest JSArray and the elements together and fill in the
   // contents with the arguments above |formal_parameter_count|.
   result = ConstructParametersObjectFromArgs(
       array_map, info.frame, info.argument_count, info.formal_parameter_count,
-      rest_count, JSArray::kSize);
+      rest_count, JSArray::kHeaderSize);
   Goto(&done);
 
   BIND(&no_rest_parameters);
   {
     ArgumentsAllocationResult alloc_result =
-        AllocateArgumentsObject(array_map, zero, {}, JSArray::kSize);
+        AllocateArgumentsObject(array_map, zero, {}, JSArray::kHeaderSize);
     result = alloc_result.arguments_object;
     Goto(&done);
   }

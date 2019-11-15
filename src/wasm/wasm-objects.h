@@ -459,12 +459,11 @@ class WasmInstanceObject : public JSObject {
   V(kDataSegmentSizesOffset, kSystemPointerSize)                          \
   V(kDroppedDataSegmentsOffset, kSystemPointerSize)                       \
   V(kDroppedElemSegmentsOffset, kSystemPointerSize)                       \
-  /* Header size. */                                                      \
-  V(kSize, 0)
+  V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 WASM_INSTANCE_OBJECT_FIELDS)
-  STATIC_ASSERT(IsAligned(kSize, kTaggedSize));
+  STATIC_ASSERT(IsAligned(kHeaderSize, kTaggedSize));
   // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
   // fields (external pointers, doubles and BigInt data) are only kTaggedSize
   // aligned so checking for alignments of fields bigger than kTaggedSize

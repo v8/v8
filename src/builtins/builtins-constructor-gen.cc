@@ -297,7 +297,8 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::EmitCreateRegExpLiteral(
   GotoIf(NotHasBoilerplate(literal_site), &call_runtime);
   {
     TNode<JSRegExp> boilerplate = CAST(literal_site);
-    int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kTaggedSize;
+    int size =
+        JSRegExp::kHeaderSize + JSRegExp::kInObjectFieldCount * kTaggedSize;
     TNode<HeapObject> copy = Allocate(size);
     for (int offset = 0; offset < size; offset += kTaggedSize) {
       TNode<Object> value = LoadObjectField(boilerplate, offset);

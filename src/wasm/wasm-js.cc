@@ -2027,7 +2027,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSObject> module_proto(
       JSObject::cast(module_constructor->instance_prototype()), isolate);
   Handle<Map> module_map = isolate->factory()->NewMap(
-      i::WASM_MODULE_OBJECT_TYPE, WasmModuleObject::kSize);
+      i::WASM_MODULE_OBJECT_TYPE, WasmModuleObject::kHeaderSize);
   JSFunction::SetInitialMap(module_constructor, module_map, module_proto);
   InstallFunc(isolate, module_constructor, "imports", WebAssemblyModuleImports,
               1);
@@ -2047,7 +2047,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSObject> instance_proto(
       JSObject::cast(instance_constructor->instance_prototype()), isolate);
   Handle<Map> instance_map = isolate->factory()->NewMap(
-      i::WASM_INSTANCE_OBJECT_TYPE, WasmInstanceObject::kSize);
+      i::WASM_INSTANCE_OBJECT_TYPE, WasmInstanceObject::kHeaderSize);
   JSFunction::SetInitialMap(instance_constructor, instance_map, instance_proto);
   InstallGetter(isolate, instance_proto, "exports",
                 WebAssemblyInstanceGetExports);
@@ -2067,8 +2067,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   JSFunction::EnsureHasInitialMap(table_constructor);
   Handle<JSObject> table_proto(
       JSObject::cast(table_constructor->instance_prototype()), isolate);
-  Handle<Map> table_map = isolate->factory()->NewMap(i::WASM_TABLE_OBJECT_TYPE,
-                                                     WasmTableObject::kSize);
+  Handle<Map> table_map = isolate->factory()->NewMap(
+      i::WASM_TABLE_OBJECT_TYPE, WasmTableObject::kHeaderSize);
   JSFunction::SetInitialMap(table_constructor, table_map, table_proto);
   InstallGetter(isolate, table_proto, "length", WebAssemblyTableGetLength);
   InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow, 1);
@@ -2089,7 +2089,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSObject> memory_proto(
       JSObject::cast(memory_constructor->instance_prototype()), isolate);
   Handle<Map> memory_map = isolate->factory()->NewMap(
-      i::WASM_MEMORY_OBJECT_TYPE, WasmMemoryObject::kSize);
+      i::WASM_MEMORY_OBJECT_TYPE, WasmMemoryObject::kHeaderSize);
   JSFunction::SetInitialMap(memory_constructor, memory_map, memory_proto);
   InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow, 1);
   InstallGetter(isolate, memory_proto, "buffer", WebAssemblyMemoryGetBuffer);
@@ -2108,7 +2108,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSObject> global_proto(
       JSObject::cast(global_constructor->instance_prototype()), isolate);
   Handle<Map> global_map = isolate->factory()->NewMap(
-      i::WASM_GLOBAL_OBJECT_TYPE, WasmGlobalObject::kSize);
+      i::WASM_GLOBAL_OBJECT_TYPE, WasmGlobalObject::kHeaderSize);
   JSFunction::SetInitialMap(global_constructor, global_map, global_proto);
   InstallFunc(isolate, global_proto, "valueOf", WebAssemblyGlobalValueOf, 0);
   InstallGetterSetter(isolate, global_proto, "value", WebAssemblyGlobalGetValue,
@@ -2129,7 +2129,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     Handle<JSObject> exception_proto(
         JSObject::cast(exception_constructor->instance_prototype()), isolate);
     Handle<Map> exception_map = isolate->factory()->NewMap(
-        i::WASM_EXCEPTION_OBJECT_TYPE, WasmExceptionObject::kSize);
+        i::WASM_EXCEPTION_OBJECT_TYPE, WasmExceptionObject::kHeaderSize);
     JSFunction::SetInitialMap(exception_constructor, exception_map,
                               exception_proto);
   }

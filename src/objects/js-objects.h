@@ -1157,11 +1157,26 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).
   static Handle<String> ToString(Handle<JSFunction> function);
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSFunctionOrBoundFunction::kHeaderSize,
-                                TORQUE_GENERATED_JS_FUNCTION_FIELDS)
+  struct FieldOffsets {
+    DEFINE_FIELD_OFFSET_CONSTANTS(JSFunctionOrBoundFunction::kHeaderSize,
+                                  TORQUE_GENERATED_JS_FUNCTION_FIELDS)
+  };
+  static constexpr int kSharedFunctionInfoOffset =
+      FieldOffsets::kSharedFunctionInfoOffset;
+  static constexpr int kContextOffset = FieldOffsets::kContextOffset;
+  static constexpr int kFeedbackCellOffset = FieldOffsets::kFeedbackCellOffset;
+  static constexpr int kCodeOffset = FieldOffsets::kCodeOffset;
+  static constexpr int kPrototypeOrInitialMapOffset =
+      FieldOffsets::kPrototypeOrInitialMapOffset;
 
+ private:
+  // JSFunction doesn't have a fixed header size:
+  // Hide JSFunctionOrBoundFunction::kHeaderSize to avoid confusion.
+  static const int kHeaderSize;
+
+ public:
   static constexpr int kSizeWithoutPrototype = kPrototypeOrInitialMapOffset;
-  static constexpr int kSizeWithPrototype = kSize;
+  static constexpr int kSizeWithPrototype = FieldOffsets::kHeaderSize;
 
   OBJECT_CONSTRUCTORS(JSFunction, JSFunctionOrBoundFunction);
 };
@@ -1362,8 +1377,9 @@ class JSMessageObject : public JSObject {
   // TODO(v8:8989): [torque] Support marker constants.
   static const int kPointerFieldsEndOffset = kStartPositionOffset;
 
-  using BodyDescriptor = FixedBodyDescriptor<HeapObject::kMapOffset,
-                                             kPointerFieldsEndOffset, kSize>;
+  using BodyDescriptor =
+      FixedBodyDescriptor<HeapObject::kMapOffset, kPointerFieldsEndOffset,
+                          kHeaderSize>;
 
  private:
   friend class Factory;

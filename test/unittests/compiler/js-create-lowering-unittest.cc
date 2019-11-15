@@ -144,9 +144,9 @@ TEST_F(JSCreateLoweringTest, JSCreateArgumentsInlinedRestArray) {
       javascript()->CreateArguments(CreateArgumentsType::kRestParameter),
       closure, context, frame_state_inner, effect));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(
-      r.replacement(),
-      IsFinishRegion(IsAllocate(IsNumberConstant(JSArray::kSize), _, _), _));
+  EXPECT_THAT(r.replacement(),
+              IsFinishRegion(
+                  IsAllocate(IsNumberConstant(JSArray::kHeaderSize), _, _), _));
 }
 
 // -----------------------------------------------------------------------------

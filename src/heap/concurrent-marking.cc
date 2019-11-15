@@ -219,7 +219,7 @@ class ConcurrentMarkingVisitor final
     int size = TBodyDescriptor::SizeOf(map, object);
     int used_size = map.UsedInstanceSize();
     DCHECK_LE(used_size, size);
-    DCHECK_GE(used_size, T::kHeaderSize);
+    DCHECK_GE(used_size, JSObject::GetHeaderSize(map));
     return VisitPartiallyWithSnapshot<T, TBodyDescriptor>(map, object,
                                                           used_size, size);
   }

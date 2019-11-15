@@ -48,7 +48,7 @@ void PromiseBuiltinsAssembler::PromiseInit(Node* promise) {
                                  SmiConstant(Smi::zero()));
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset,
                                  SmiConstant(Smi::zero()));
-  for (int offset = JSPromise::kSize;
+  for (int offset = JSPromise::kHeaderSize;
        offset < JSPromise::kSizeWithEmbedderFields; offset += kTaggedSize) {
     StoreObjectFieldNoWriteBarrier(promise, offset, SmiConstant(Smi::zero()));
   }
@@ -84,7 +84,7 @@ TNode<JSPromise> PromiseBuiltinsAssembler::AllocateAndSetJSPromise(
   STATIC_ASSERT(JSPromise::kStatusShift == 0);
   StoreObjectFieldNoWriteBarrier(instance, JSPromise::kFlagsOffset,
                                  SmiConstant(status));
-  for (int offset = JSPromise::kSize;
+  for (int offset = JSPromise::kHeaderSize;
        offset < JSPromise::kSizeWithEmbedderFields; offset += kTaggedSize) {
     StoreObjectFieldNoWriteBarrier(instance, offset, SmiConstant(0));
   }

@@ -2086,110 +2086,108 @@ int JSObject::GetHeaderSize(InstanceType type,
     case JS_SPECIAL_API_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     case JS_GENERATOR_OBJECT_TYPE:
-      return JSGeneratorObject::kSize;
+      return JSGeneratorObject::kHeaderSize;
     case JS_ASYNC_FUNCTION_OBJECT_TYPE:
-      return JSAsyncFunctionObject::kSize;
+      return JSAsyncFunctionObject::kHeaderSize;
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
-      return JSAsyncGeneratorObject::kSize;
+      return JSAsyncGeneratorObject::kHeaderSize;
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
-      return JSAsyncFromSyncIterator::kSize;
+      return JSAsyncFromSyncIterator::kHeaderSize;
     case JS_GLOBAL_PROXY_TYPE:
-      return JSGlobalProxy::kSize;
+      return JSGlobalProxy::kHeaderSize;
     case JS_GLOBAL_OBJECT_TYPE:
-      return JSGlobalObject::kSize;
+      return JSGlobalObject::kHeaderSize;
     case JS_BOUND_FUNCTION_TYPE:
-      return JSBoundFunction::kSize;
+      return JSBoundFunction::kHeaderSize;
     case JS_FUNCTION_TYPE:
       return JSFunction::GetHeaderSize(function_has_prototype_slot);
     case JS_PRIMITIVE_WRAPPER_TYPE:
-      return JSPrimitiveWrapper::kSize;
+      return JSPrimitiveWrapper::kHeaderSize;
     case JS_DATE_TYPE:
-      return JSDate::kSize;
+      return JSDate::kHeaderSize;
     case JS_ARRAY_TYPE:
-      return JSArray::kSize;
+      return JSArray::kHeaderSize;
     case JS_ARRAY_BUFFER_TYPE:
       return JSArrayBuffer::kHeaderSize;
     case JS_ARRAY_ITERATOR_TYPE:
-      return JSArrayIterator::kSize;
+      return JSArrayIterator::kHeaderSize;
     case JS_TYPED_ARRAY_TYPE:
       return JSTypedArray::kHeaderSize;
     case JS_DATA_VIEW_TYPE:
       return JSDataView::kHeaderSize;
     case JS_SET_TYPE:
-      return JSSet::kSize;
+      return JSSet::kHeaderSize;
     case JS_MAP_TYPE:
-      return JSMap::kSize;
+      return JSMap::kHeaderSize;
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
-      return JSSetIterator::kSize;
+      return JSSetIterator::kHeaderSize;
     case JS_MAP_KEY_ITERATOR_TYPE:
     case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
     case JS_MAP_VALUE_ITERATOR_TYPE:
-      return JSMapIterator::kSize;
-    case WEAK_CELL_TYPE:
-      return WeakCell::kSize;
+      return JSMapIterator::kHeaderSize;
     case JS_WEAK_REF_TYPE:
-      return JSWeakRef::kSize;
+      return JSWeakRef::kHeaderSize;
     case JS_FINALIZATION_GROUP_TYPE:
-      return JSFinalizationGroup::kSize;
+      return JSFinalizationGroup::kHeaderSize;
     case JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE:
-      return JSFinalizationGroupCleanupIterator::kSize;
+      return JSFinalizationGroupCleanupIterator::kHeaderSize;
     case JS_WEAK_MAP_TYPE:
-      return JSWeakMap::kSize;
+      return JSWeakMap::kHeaderSize;
     case JS_WEAK_SET_TYPE:
-      return JSWeakSet::kSize;
+      return JSWeakSet::kHeaderSize;
     case JS_PROMISE_TYPE:
-      return JSPromise::kSize;
+      return JSPromise::kHeaderSize;
     case JS_REG_EXP_TYPE:
-      return JSRegExp::kSize;
+      return JSRegExp::kHeaderSize;
     case JS_REG_EXP_STRING_ITERATOR_TYPE:
-      return JSRegExpStringIterator::kSize;
+      return JSRegExpStringIterator::kHeaderSize;
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     case JS_MESSAGE_OBJECT_TYPE:
-      return JSMessageObject::kSize;
+      return JSMessageObject::kHeaderSize;
     case JS_ARGUMENTS_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     case JS_ERROR_TYPE:
       return JSObject::kHeaderSize;
     case JS_STRING_ITERATOR_TYPE:
-      return JSStringIterator::kSize;
+      return JSStringIterator::kHeaderSize;
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kHeaderSize;
 #ifdef V8_INTL_SUPPORT
     case JS_V8_BREAK_ITERATOR_TYPE:
-      return JSV8BreakIterator::kSize;
+      return JSV8BreakIterator::kHeaderSize;
     case JS_COLLATOR_TYPE:
-      return JSCollator::kSize;
+      return JSCollator::kHeaderSize;
     case JS_DATE_TIME_FORMAT_TYPE:
-      return JSDateTimeFormat::kSize;
+      return JSDateTimeFormat::kHeaderSize;
     case JS_LIST_FORMAT_TYPE:
-      return JSListFormat::kSize;
+      return JSListFormat::kHeaderSize;
     case JS_LOCALE_TYPE:
-      return JSLocale::kSize;
+      return JSLocale::kHeaderSize;
     case JS_NUMBER_FORMAT_TYPE:
-      return JSNumberFormat::kSize;
+      return JSNumberFormat::kHeaderSize;
     case JS_PLURAL_RULES_TYPE:
-      return JSPluralRules::kSize;
+      return JSPluralRules::kHeaderSize;
     case JS_RELATIVE_TIME_FORMAT_TYPE:
-      return JSRelativeTimeFormat::kSize;
+      return JSRelativeTimeFormat::kHeaderSize;
     case JS_SEGMENT_ITERATOR_TYPE:
-      return JSSegmentIterator::kSize;
+      return JSSegmentIterator::kHeaderSize;
     case JS_SEGMENTER_TYPE:
-      return JSSegmenter::kSize;
+      return JSSegmenter::kHeaderSize;
 #endif  // V8_INTL_SUPPORT
     case WASM_GLOBAL_OBJECT_TYPE:
-      return WasmGlobalObject::kSize;
+      return WasmGlobalObject::kHeaderSize;
     case WASM_INSTANCE_OBJECT_TYPE:
-      return WasmInstanceObject::kSize;
+      return WasmInstanceObject::kHeaderSize;
     case WASM_MEMORY_OBJECT_TYPE:
-      return WasmMemoryObject::kSize;
+      return WasmMemoryObject::kHeaderSize;
     case WASM_MODULE_OBJECT_TYPE:
-      return WasmModuleObject::kSize;
+      return WasmModuleObject::kHeaderSize;
     case WASM_TABLE_OBJECT_TYPE:
-      return WasmTableObject::kSize;
+      return WasmTableObject::kHeaderSize;
     case WASM_EXCEPTION_OBJECT_TYPE:
-      return WasmExceptionObject::kSize;
+      return WasmExceptionObject::kHeaderSize;
     default:
       UNREACHABLE();
   }

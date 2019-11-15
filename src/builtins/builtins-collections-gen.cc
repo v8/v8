@@ -828,7 +828,8 @@ TNode<HeapObject> CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
   const TNode<NativeContext> native_context = LoadNativeContext(context);
   const TNode<Object> iterator_map =
       LoadContextElement(native_context, map_index);
-  const TNode<HeapObject> iterator = AllocateInNewSpace(IteratorType::kSize);
+  const TNode<HeapObject> iterator =
+      AllocateInNewSpace(IteratorType::kHeaderSize);
   StoreMapNoWriteBarrier(iterator, iterator_map);
   StoreObjectFieldRoot(iterator, IteratorType::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);

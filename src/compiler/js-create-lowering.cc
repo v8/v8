@@ -243,8 +243,8 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
             native_context().js_array_packed_elements_map());
         // Actually allocate and initialize the jsarray.
         AllocationBuilder a(jsgraph(), effect, control);
-        STATIC_ASSERT(JSArray::kSize == 4 * kTaggedSize);
-        a.Allocate(JSArray::kSize);
+        STATIC_ASSERT(JSArray::kHeaderSize == 4 * kTaggedSize);
+        a.Allocate(JSArray::kHeaderSize);
         a.Store(AccessBuilder::ForMap(), jsarray_map);
         a.Store(AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(),
                 jsgraph()->EmptyFixedArrayConstant());
@@ -365,8 +365,8 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       // -1 to minus receiver
       int argument_count = args_state_info.parameter_count() - 1;
       int length = std::max(0, argument_count - start_index);
-      STATIC_ASSERT(JSArray::kSize == 4 * kTaggedSize);
-      a.Allocate(JSArray::kSize);
+      STATIC_ASSERT(JSArray::kHeaderSize == 4 * kTaggedSize);
+      a.Allocate(JSArray::kHeaderSize);
       a.Store(AccessBuilder::ForMap(), jsarray_map);
       a.Store(AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(),
               jsgraph()->EmptyFixedArrayConstant());
@@ -736,7 +736,7 @@ Reduction JSCreateLowering::ReduceJSCreateArrayIterator(Node* node) {
 
   // Create the JSArrayIterator result.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(JSArrayIterator::kSize, AllocationType::kYoung,
+  a.Allocate(JSArrayIterator::kHeaderSize, AllocationType::kYoung,
              Type::OtherObject());
   a.Store(AccessBuilder::ForMap(),
           native_context().initial_array_iterator_map());
@@ -776,7 +776,7 @@ Reduction JSCreateLowering::ReduceJSCreateAsyncFunctionObject(Node* node) {
 
   // Create the JSAsyncFunctionObject result.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(JSAsyncFunctionObject::kSize);
+  a.Allocate(JSAsyncFunctionObject::kHeaderSize);
   a.Store(AccessBuilder::ForMap(),
           native_context().async_function_object_map());
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(),
@@ -846,7 +846,7 @@ Reduction JSCreateLowering::ReduceJSCreateCollectionIterator(Node* node) {
 
   // Create the JSCollectionIterator result.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(JSCollectionIterator::kSize, AllocationType::kYoung,
+  a.Allocate(JSCollectionIterator::kHeaderSize, AllocationType::kYoung,
              Type::OtherObject());
   a.Store(AccessBuilder::ForMap(),
           MapForCollectionIterationKind(native_context(), p.collection_kind(),
@@ -888,7 +888,7 @@ Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
 
   // Create the JSBoundFunction result.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(JSBoundFunction::kSize, AllocationType::kYoung,
+  a.Allocate(JSBoundFunction::kHeaderSize, AllocationType::kYoung,
              Type::BoundFunction());
   a.Store(AccessBuilder::ForMap(), map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(),
@@ -999,7 +999,7 @@ Reduction JSCreateLowering::ReduceJSCreateStringIterator(Node* node) {
       jsgraph()->Constant(native_context().initial_string_iterator_map());
   // Allocate new iterator and attach the iterator to this string.
   AllocationBuilder a(jsgraph(), effect, graph()->start());
-  a.Allocate(JSStringIterator::kSize, AllocationType::kYoung,
+  a.Allocate(JSStringIterator::kHeaderSize, AllocationType::kYoung,
              Type::OtherObject());
   a.Store(AccessBuilder::ForMap(), map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(),
@@ -1032,13 +1032,13 @@ Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
   Node* elements = aa.Finish();
 
   AllocationBuilder a(jsgraph(), elements, graph()->start());
-  a.Allocate(JSArray::kSize);
+  a.Allocate(JSArray::kHeaderSize);
   a.Store(AccessBuilder::ForMap(), array_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(),
           jsgraph()->EmptyFixedArrayConstant());
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
   a.Store(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS), length);
-  STATIC_ASSERT(JSArray::kSize == 4 * kTaggedSize);
+  STATIC_ASSERT(JSArray::kHeaderSize == 4 * kTaggedSize);
   a.FinishAndChange(node);
   return Changed(node);
 }
@@ -1061,8 +1061,8 @@ Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
   STATIC_ASSERT(v8::Promise::kPending == 0);
   a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kFlagsOffset),
           jsgraph()->ZeroConstant());
-  STATIC_ASSERT(JSPromise::kSize == 5 * kTaggedSize);
-  for (int offset = JSPromise::kSize;
+  STATIC_ASSERT(JSPromise::kHeaderSize == 5 * kTaggedSize);
+  for (int offset = JSPromise::kHeaderSize;
        offset < JSPromise::kSizeWithEmbedderFields; offset += kTaggedSize) {
     a.Store(AccessBuilder::ForJSObjectOffset(offset),
             jsgraph()->ZeroConstant());
@@ -1782,13 +1782,13 @@ Node* JSCreateLowering::AllocateLiteralRegExp(Node* effect, Node* control,
   STATIC_ASSERT(JSRegExp::kSourceOffset == JSRegExp::kDataOffset + kTaggedSize);
   STATIC_ASSERT(JSRegExp::kFlagsOffset ==
                 JSRegExp::kSourceOffset + kTaggedSize);
-  STATIC_ASSERT(JSRegExp::kSize == JSRegExp::kFlagsOffset + kTaggedSize);
-  STATIC_ASSERT(JSRegExp::kLastIndexOffset == JSRegExp::kSize);
+  STATIC_ASSERT(JSRegExp::kHeaderSize == JSRegExp::kFlagsOffset + kTaggedSize);
+  STATIC_ASSERT(JSRegExp::kLastIndexOffset == JSRegExp::kHeaderSize);
   STATIC_ASSERT(JSRegExp::kInObjectFieldCount == 1);  // LastIndex.
 
   const AllocationType allocation = AllocationType::kYoung;
   const int size =
-      JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kTaggedSize;
+      JSRegExp::kHeaderSize + JSRegExp::kInObjectFieldCount * kTaggedSize;
 
   AllocationBuilder builder(jsgraph(), effect, control);
   builder.Allocate(size, allocation, Type::For(boilerplate_map));

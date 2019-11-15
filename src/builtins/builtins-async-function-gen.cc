@@ -105,7 +105,7 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
 
   // Allocate space for the promise, the async function object.
   TNode<IntPtrT> size = IntPtrConstant(JSPromise::kSizeWithEmbedderFields +
-                                       JSAsyncFunctionObject::kSize);
+                                       JSAsyncFunctionObject::kHeaderSize);
   TNode<HeapObject> base = AllocateInNewSpace(size);
 
   // Initialize the promise.
@@ -115,7 +115,7 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
   TNode<Map> promise_map = LoadObjectField<Map>(
       promise_function, JSFunction::kPrototypeOrInitialMapOffset);
   TNode<JSPromise> promise = UncheckedCast<JSPromise>(
-      InnerAllocate(base, JSAsyncFunctionObject::kSize));
+      InnerAllocate(base, JSAsyncFunctionObject::kHeaderSize));
   StoreMapNoWriteBarrier(promise, promise_map);
   StoreObjectFieldRoot(promise, JSPromise::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);

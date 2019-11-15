@@ -4551,7 +4551,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
 
   // We rely on being able to allocate new arrays in paged spaces.
   DCHECK(kMaxRegularHeapObjectSize >=
-         (JSArray::kSize +
+         (JSArray::kHeaderSize +
           FixedArray::SizeFor(JSArray::kInitialMaxFastElementArray) +
           AllocationMemento::kSize));
 

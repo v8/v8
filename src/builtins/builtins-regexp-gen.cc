@@ -135,7 +135,7 @@ TNode<Object> RegExpBuiltinsAssembler::FastLoadLastIndexBeforeSmiCheck(
     TNode<JSRegExp> regexp) {
   // Load the in-object field.
   static const int field_offset =
-      JSRegExp::kSize + JSRegExp::kLastIndexFieldIndex * kTaggedSize;
+      JSRegExp::kHeaderSize + JSRegExp::kLastIndexFieldIndex * kTaggedSize;
   return LoadObjectField(regexp, field_offset);
 }
 
@@ -150,7 +150,7 @@ void RegExpBuiltinsAssembler::FastStoreLastIndex(TNode<JSRegExp> regexp,
                                                  TNode<Smi> value) {
   // Store the in-object field.
   static const int field_offset =
-      JSRegExp::kSize + JSRegExp::kLastIndexFieldIndex * kTaggedSize;
+      JSRegExp::kHeaderSize + JSRegExp::kLastIndexFieldIndex * kTaggedSize;
   StoreObjectField(regexp, field_offset, value);
 }
 
@@ -1508,7 +1508,7 @@ TNode<Object> RegExpMatchAllAssembler::CreateRegExpStringIterator(
   // 4. Let iterator be ObjectCreate(%RegExpStringIteratorPrototype%, «
   // [[IteratingRegExp]], [[IteratedString]], [[Global]], [[Unicode]],
   // [[Done]] »).
-  TNode<HeapObject> iterator = Allocate(JSRegExpStringIterator::kSize);
+  TNode<HeapObject> iterator = Allocate(JSRegExpStringIterator::kHeaderSize);
   StoreMapNoWriteBarrier(iterator, map);
   StoreObjectFieldRoot(iterator,
                        JSRegExpStringIterator::kPropertiesOrHashOffset,

@@ -63,7 +63,7 @@ class JSPromise : public TorqueGeneratedJSPromise<JSPromise, JSObject> {
   DECL_VERIFIER(JSPromise)
 
   static const int kSizeWithEmbedderFields =
-      kSize + v8::Promise::kEmbedderFieldCount * kEmbedderDataSlotSize;
+      kHeaderSize + v8::Promise::kEmbedderFieldCount * kEmbedderDataSlotSize;
 
   // Flags layout.
   // The first two bits store the v8::Promise::PromiseState.
