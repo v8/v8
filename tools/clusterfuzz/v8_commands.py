@@ -43,7 +43,7 @@ TIMEOUT = 3
 def _startup_files(options):
   """Default files and optional architecture-specific mock file."""
   files = DEFAULT_FILES[:]
-  if options.first_arch != options.second_arch:
+  if options.first.arch != options.second.arch:
     files.append(ARCH_MOCKS)
   return files
 
