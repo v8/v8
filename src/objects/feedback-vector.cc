@@ -268,14 +268,14 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kForIn:
       case FeedbackSlotKind::kCompareOp:
       case FeedbackSlotKind::kBinaryOp:
-        vector->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
+        vector->set(index, Smi::zero(), SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kLiteral:
-        vector->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
+        vector->set(index, Smi::zero(), SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kCall:
         vector->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
-        extra_value = Smi::kZero;
+        extra_value = Smi::zero();
         break;
       case FeedbackSlotKind::kCloneObject:
       case FeedbackSlotKind::kLoadProperty:
@@ -445,7 +445,7 @@ void FeedbackNexus::ConfigureUninitialized() {
     case FeedbackSlotKind::kCall: {
       SetFeedback(*FeedbackVector::UninitializedSentinel(isolate),
                   SKIP_WRITE_BARRIER);
-      SetFeedbackExtra(Smi::kZero, SKIP_WRITE_BARRIER);
+      SetFeedbackExtra(Smi::zero(), SKIP_WRITE_BARRIER);
       break;
     }
     case FeedbackSlotKind::kInstanceOf: {
@@ -489,7 +489,7 @@ bool FeedbackNexus::Clear() {
       break;
 
     case FeedbackSlotKind::kLiteral:
-      SetFeedback(Smi::kZero, SKIP_WRITE_BARRIER);
+      SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER);
       feedback_updated = true;
       break;
 

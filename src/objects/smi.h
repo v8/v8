@@ -96,12 +96,8 @@ class Smi : public Object {
   V8_EXPORT_PRIVATE void SmiPrint(std::ostream& os) const;  // NOLINT
   DECL_VERIFIER(Smi)
 
-  // C++ does not allow us to have an object of type Smi within class Smi,
-  // so the kZero value has type Object. Consider it deprecated; new code
-  // should use zero() instead.
-  V8_EXPORT_PRIVATE static constexpr Object kZero = Object(0);
-  // If you need something with type Smi, call zero() instead. Since it is
-  // a constexpr, "calling" it is just as efficient as reading kZero.
+  // Since this is a constexpr, "calling" it is just as efficient
+  // as reading a constant.
   static inline constexpr Smi zero() { return Smi::FromInt(0); }
   static constexpr int kMinValue = kSmiMinValue;
   static constexpr int kMaxValue = kSmiMaxValue;

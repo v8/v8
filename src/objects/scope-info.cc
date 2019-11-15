@@ -324,7 +324,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
     if (has_function_name) {
       Variable* var = scope->AsDeclarationScope()->function_var();
       int var_index = -1;
-      Object name = Smi::kZero;
+      Object name = Smi::zero();
       if (var != nullptr) {
         var_index = var->index();
         name = *var->name();
@@ -509,7 +509,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   DCHECK_EQ(index, scope_info->FunctionNameInfoIndex());
   if (is_empty_function) {
     scope_info->set(index++, *isolate->factory()->empty_string());
-    scope_info->set(index++, Smi::kZero);
+    scope_info->set(index++, Smi::zero());
   }
   DCHECK_EQ(index, scope_info->InferredFunctionNameIndex());
   if (has_inferred_function_name) {
@@ -517,8 +517,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   }
   DCHECK_EQ(index, scope_info->PositionInfoIndex());
   // Store dummy position to be in sync with the {scope_type}.
-  scope_info->set(index++, Smi::kZero);
-  scope_info->set(index++, Smi::kZero);
+  scope_info->set(index++, Smi::zero());
+  scope_info->set(index++, Smi::zero());
   DCHECK_EQ(index, scope_info->OuterScopeInfoIndex());
   DCHECK_EQ(index, scope_info->length());
   DCHECK_EQ(scope_info->ParameterCount(), parameter_count);

@@ -115,7 +115,7 @@ void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
   std::vector<Object>* cache = isolate->partial_snapshot_cache();
   for (size_t i = 0;; ++i) {
     // Extend the array ready to get a value when deserializing.
-    if (cache->size() <= i) cache->push_back(Smi::kZero);
+    if (cache->size() <= i) cache->push_back(Smi::zero());
     // During deserialization, the visitor populates the partial snapshot cache
     // and eventually terminates the cache with undefined.
     visitor->VisitRootPointer(Root::kPartialSnapshotCache, nullptr,

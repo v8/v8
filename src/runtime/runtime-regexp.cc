@@ -803,7 +803,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
                                    &last_match_cache_unused,
                                    RegExpResultsCache::STRING_SPLIT_SUBSTRINGS),
         isolate);
-    if (*cached_answer != Smi::kZero) {
+    if (*cached_answer != Smi::zero()) {
       // The cache FixedArray is a COW-array and can therefore be reused.
       Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(
           Handle<FixedArray>::cast(cached_answer));
@@ -1301,7 +1301,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
     }
 
     if (match_indices_obj->IsNull(isolate)) {
-      if (sticky) regexp->set_last_index(Smi::kZero, SKIP_WRITE_BARRIER);
+      if (sticky) regexp->set_last_index(Smi::zero(), SKIP_WRITE_BARRIER);
       return string;
     }
 
@@ -1443,7 +1443,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   }
 
   if (match_indices_obj->IsNull(isolate)) {
-    if (sticky) regexp->set_last_index(Smi::kZero, SKIP_WRITE_BARRIER);
+    if (sticky) regexp->set_last_index(Smi::zero(), SKIP_WRITE_BARRIER);
     return *subject;
   }
 

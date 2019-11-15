@@ -340,9 +340,9 @@ void Debug::ThreadInit() {
   thread_local_.last_statement_position_ = kNoSourcePosition;
   thread_local_.last_frame_count_ = -1;
   thread_local_.fast_forward_to_return_ = false;
-  thread_local_.ignore_step_into_function_ = Smi::kZero;
+  thread_local_.ignore_step_into_function_ = Smi::zero();
   thread_local_.target_frame_count_ = -1;
-  thread_local_.return_value_ = Smi::kZero;
+  thread_local_.return_value_ = Smi::zero();
   thread_local_.last_breakpoint_id_ = 0;
   clear_suspended_generator();
   thread_local_.restart_fp_ = kNullAddress;
@@ -857,7 +857,7 @@ void Debug::PrepareStepIn(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
   if (IsBlackboxed(shared)) return;
   if (*function == thread_local_.ignore_step_into_function_) return;
-  thread_local_.ignore_step_into_function_ = Smi::kZero;
+  thread_local_.ignore_step_into_function_ = Smi::zero();
   FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared(), isolate_));
 }
 
@@ -1106,7 +1106,7 @@ void Debug::ClearStepping() {
 
   thread_local_.last_step_action_ = StepNone;
   thread_local_.last_statement_position_ = kNoSourcePosition;
-  thread_local_.ignore_step_into_function_ = Smi::kZero;
+  thread_local_.ignore_step_into_function_ = Smi::zero();
   thread_local_.fast_forward_to_return_ = false;
   thread_local_.last_frame_count_ = -1;
   thread_local_.target_frame_count_ = -1;

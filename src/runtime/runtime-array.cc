@@ -164,14 +164,14 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_NUMBER_CHECKED(int, key, Int32, args[1]);
 
-  if (key < 0) return Smi::kZero;
+  if (key < 0) return Smi::zero();
 
   uint32_t capacity = static_cast<uint32_t>(object->elements().length());
   uint32_t index = static_cast<uint32_t>(key);
 
   if (index >= capacity) {
     if (!object->GetElementsAccessor()->GrowCapacity(object, index)) {
-      return Smi::kZero;
+      return Smi::zero();
     }
   }
 

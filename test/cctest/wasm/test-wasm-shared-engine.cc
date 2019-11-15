@@ -186,7 +186,7 @@ void PumpMessageLoop(SharedEngineIsolate* isolate) {
 
 Handle<WasmInstanceObject> CompileAndInstantiateAsync(
     SharedEngineIsolate* isolate, ZoneBuffer* buffer) {
-  Handle<Object> maybe_instance = handle(Smi::kZero, isolate->isolate());
+  Handle<Object> maybe_instance = handle(Smi::zero(), isolate->isolate());
   auto enabled_features = WasmFeaturesFromIsolate(isolate->isolate());
   constexpr const char* kAPIMethodName = "Test.CompileAndInstantiateAsync";
   isolate->isolate()->wasm_engine()->AsyncCompile(

@@ -404,11 +404,11 @@ class V8_EXPORT_PRIVATE Debug {
   }
 
   void clear_suspended_generator() {
-    thread_local_.suspended_generator_ = Smi::kZero;
+    thread_local_.suspended_generator_ = Smi::zero();
   }
 
   bool has_suspended_generator() const {
-    return thread_local_.suspended_generator_ != Smi::kZero;
+    return thread_local_.suspended_generator_ != Smi::zero();
   }
 
   bool IsExceptionBlackboxed(bool uncaught);

@@ -176,8 +176,8 @@ class SharedFunctionInfo : public HeapObject {
   // Important: This function MUST not allocate.
   void Init(ReadOnlyRoots roots, int unique_id);
 
-  V8_EXPORT_PRIVATE static constexpr Object const kNoSharedNameSentinel =
-      Smi::kZero;
+  V8_EXPORT_PRIVATE static constexpr Smi const kNoSharedNameSentinel =
+      Smi::zero();
 
   // [name]: Returns shared name if it exists or an empty string otherwise.
   inline String Name() const;

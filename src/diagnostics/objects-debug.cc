@@ -472,7 +472,7 @@ void Map::MapVerify(Isolate* isolate) {
                     IsAnyHoleyNonextensibleElementsKind(elements_kind()));
   CHECK_IMPLIES(is_deprecated(), !is_stable());
   if (is_prototype_map()) {
-    DCHECK(prototype_info() == Smi::kZero ||
+    DCHECK(prototype_info() == Smi::zero() ||
            prototype_info().IsPrototypeInfo());
   }
 }
@@ -1499,7 +1499,7 @@ void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
   CHECK(dependent_code().IsDependentCode());
   CHECK(transition_info_or_boilerplate().IsSmi() ||
         transition_info_or_boilerplate().IsJSObject());
-  CHECK(nested_site().IsAllocationSite() || nested_site() == Smi::kZero);
+  CHECK(nested_site().IsAllocationSite() || nested_site() == Smi::zero());
 }
 
 USE_TORQUE_VERIFIER(AllocationMemento)

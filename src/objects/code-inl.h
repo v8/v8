@@ -75,7 +75,7 @@ Object AbstractCode::stack_frame_cache() {
     return SourcePositionTableWithFrameCache::cast(maybe_table)
         .stack_frame_cache();
   }
-  return Smi::kZero;
+  return Smi::zero();
 }
 
 int AbstractCode::SizeIncludingMetadata() {

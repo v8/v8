@@ -243,7 +243,7 @@ TEST(SmiTag) {
   __ movq(rax, Immediate(1));  // Test number.
   __ movq(rcx, Immediate(0));
   __ SmiTag(rcx);
-  __ Set(rdx, Smi::kZero.ptr());
+  __ Set(rdx, Smi::zero().ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 

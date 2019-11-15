@@ -3060,7 +3060,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ Sd(scratch, MemOperand(sp, (PCA::kIsolateIndex + 1) * kPointerSize));
   __ Sd(holder, MemOperand(sp, (PCA::kHolderIndex + 1) * kPointerSize));
   // should_throw_on_error -> false
-  DCHECK_EQ(0, Smi::kZero.ptr());
+  DCHECK_EQ(0, Smi::zero().ptr());
   __ Sd(zero_reg,
         MemOperand(sp, (PCA::kShouldThrowOnErrorIndex + 1) * kPointerSize));
   __ Ld(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));

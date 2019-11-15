@@ -1853,7 +1853,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Create the %NumberPrototype%
     Handle<JSPrimitiveWrapper> prototype = Handle<JSPrimitiveWrapper>::cast(
         factory->NewJSObject(number_fun, AllocationType::kOld));
-    prototype->set_value(Smi::kZero);
+    prototype->set_value(Smi::zero());
     JSFunction::SetPrototype(number_fun, prototype);
 
     // Install the "constructor" property on the {prototype}.

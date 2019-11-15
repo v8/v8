@@ -150,7 +150,7 @@ void* JSTypedArray::DataPtr() {
 }
 
 void JSTypedArray::SetOffHeapDataPtr(void* base, Address offset) {
-  set_base_pointer(Smi::kZero, SKIP_WRITE_BARRIER);
+  set_base_pointer(Smi::zero(), SKIP_WRITE_BARRIER);
   Address address = reinterpret_cast<Address>(base) + offset;
   set_external_pointer(address);
   DCHECK_EQ(address, reinterpret_cast<Address>(DataPtr()));

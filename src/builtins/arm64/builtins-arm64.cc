@@ -1465,7 +1465,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   Label builtin_trampoline, trampoline_loaded;
   Smi interpreter_entry_return_pc_offset(
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
-  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
+  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::zero());
 
   // If the SFI function_data is an InterpreterData, the function will have a
   // custom copy of the interpreter entry trampoline for profiling. If so,
@@ -1590,7 +1590,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
 
     Label at_least_one_arg;
     Label three_args;
-    DCHECK_EQ(0, Smi::kZero.ptr());
+    DCHECK_EQ(0, Smi::zero().ptr());
     __ Cbnz(argc, &at_least_one_arg);
 
     // No arguments.

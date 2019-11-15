@@ -1354,7 +1354,7 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     storage = NumberDictionary::New(isolate, estimate_nof);
   } else {
     DCHECK(species->IsConstructor());
-    Handle<Object> length(Smi::kZero, isolate);
+    Handle<Object> length(Smi::zero(), isolate);
     Handle<Object> storage_object;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, storage_object,

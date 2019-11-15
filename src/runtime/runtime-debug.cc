@@ -308,14 +308,14 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeCount) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  if (!args[0].IsJSGeneratorObject()) return Smi::kZero;
+  if (!args[0].IsJSGeneratorObject()) return Smi::zero();
 
   // Check arguments.
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
 
   // Only inspect suspended generator scopes.
   if (!gen->is_suspended()) {
-    return Smi::kZero;
+    return Smi::zero();
   }
 
   // Count the visible scopes.

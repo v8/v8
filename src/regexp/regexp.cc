@@ -459,7 +459,7 @@ void RegExpImpl::SetIrregexpMaxRegisterCount(FixedArray re, int value) {
 void RegExpImpl::SetIrregexpCaptureNameMap(FixedArray re,
                                            Handle<FixedArray> value) {
   if (value.is_null()) {
-    re.set(JSRegExp::kIrregexpCaptureNameMapIndex, Smi::kZero);
+    re.set(JSRegExp::kIrregexpCaptureNameMapIndex, Smi::zero());
   } else {
     re.set(JSRegExp::kIrregexpCaptureNameMapIndex, *value);
   }
@@ -1047,10 +1047,10 @@ Object RegExpResultsCache::Lookup(Heap* heap, String key_string,
                                   FixedArray* last_match_cache,
                                   ResultsCacheType type) {
   FixedArray cache;
-  if (!key_string.IsInternalizedString()) return Smi::kZero;
+  if (!key_string.IsInternalizedString()) return Smi::zero();
   if (type == STRING_SPLIT_SUBSTRINGS) {
     DCHECK(key_pattern.IsString());
-    if (!key_pattern.IsInternalizedString()) return Smi::kZero;
+    if (!key_pattern.IsInternalizedString()) return Smi::zero();
     cache = heap->string_split_cache();
   } else {
     DCHECK(type == REGEXP_MULTIPLE_INDICES);
@@ -1067,7 +1067,7 @@ Object RegExpResultsCache::Lookup(Heap* heap, String key_string,
         ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
     if (cache.get(index + kStringOffset) != key_string ||
         cache.get(index + kPatternOffset) != key_pattern) {
-      return Smi::kZero;
+      return Smi::zero();
     }
   }
 
@@ -1096,7 +1096,7 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
   uint32_t hash = key_string->Hash();
   uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
                     ~(kArrayEntriesPerCacheEntry - 1));
-  if (cache->get(index + kStringOffset) == Smi::kZero) {
+  if (cache->get(index + kStringOffset) == Smi::zero()) {
     cache->set(index + kStringOffset, *key_string);
     cache->set(index + kPatternOffset, *key_pattern);
     cache->set(index + kArrayOffset, *value_array);
@@ -1104,16 +1104,16 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
   } else {
     uint32_t index2 =
         ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
-    if (cache->get(index2 + kStringOffset) == Smi::kZero) {
+    if (cache->get(index2 + kStringOffset) == Smi::zero()) {
       cache->set(index2 + kStringOffset, *key_string);
       cache->set(index2 + kPatternOffset, *key_pattern);
       cache->set(index2 + kArrayOffset, *value_array);
       cache->set(index2 + kLastMatchOffset, *last_match_cache);
     } else {
-      cache->set(index2 + kStringOffset, Smi::kZero);
-      cache->set(index2 + kPatternOffset, Smi::kZero);
-      cache->set(index2 + kArrayOffset, Smi::kZero);
-      cache->set(index2 + kLastMatchOffset, Smi::kZero);
+      cache->set(index2 + kStringOffset, Smi::zero());
+      cache->set(index2 + kPatternOffset, Smi::zero());
+      cache->set(index2 + kArrayOffset, Smi::zero());
+      cache->set(index2 + kLastMatchOffset, Smi::zero());
       cache->set(index + kStringOffset, *key_string);
       cache->set(index + kPatternOffset, *key_pattern);
       cache->set(index + kArrayOffset, *value_array);
@@ -1136,7 +1136,7 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
 
 void RegExpResultsCache::Clear(FixedArray cache) {
   for (int i = 0; i < kRegExpResultsCacheSize; i++) {
-    cache.set(i, Smi::kZero);
+    cache.set(i, Smi::zero());
   }
 }
 

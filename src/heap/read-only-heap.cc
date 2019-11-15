@@ -142,7 +142,7 @@ bool ReadOnlyHeap::Contains(HeapObject object) {
 }
 
 Object* ReadOnlyHeap::ExtendReadOnlyObjectCache() {
-  read_only_object_cache_.push_back(Smi::kZero);
+  read_only_object_cache_.push_back(Smi::zero());
   return &read_only_object_cache_.back();
 }
 

@@ -309,7 +309,7 @@ Handle<HeapObject> Factory::NewFillerObject(int size, bool double_align,
 Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   Handle<PrototypeInfo> result = Handle<PrototypeInfo>::cast(
       NewStruct(PROTOTYPE_INFO_TYPE, AllocationType::kOld));
-  result->set_prototype_users(Smi::kZero);
+  result->set_prototype_users(Smi::zero());
   result->set_registry_slot(PrototypeInfo::UNREGISTERED);
   result->set_bit_field(0);
   result->set_module_namespace(*undefined_value());
@@ -632,7 +632,7 @@ Handle<FrameArray> Factory::NewFrameArray(int number_of_frames) {
   DCHECK_LE(0, number_of_frames);
   Handle<FixedArray> result =
       NewFixedArrayWithHoles(FrameArray::LengthFor(number_of_frames));
-  result->set(FrameArray::kFrameCountIndex, Smi::kZero);
+  result->set(FrameArray::kFrameCountIndex, Smi::zero());
   return Handle<FrameArray>::cast(result);
 }
 
@@ -1611,9 +1611,9 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
   info->set_initial_property_attributes(NONE);
 
   // Clear some other fields that should not be undefined.
-  info->set_getter(Smi::kZero);
-  info->set_setter(Smi::kZero);
-  info->set_js_getter(Smi::kZero);
+  info->set_getter(Smi::zero());
+  info->set_setter(Smi::zero());
+  info->set_js_getter(Smi::zero());
 
   return info;
 }
@@ -1848,7 +1848,7 @@ Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,
     heap->mark_compact_collector()->AddTransitionArray(*array);
   }
   array->WeakFixedArray::Set(TransitionArray::kPrototypeTransitionsIndex,
-                             MaybeObject::FromObject(Smi::kZero));
+                             MaybeObject::FromObject(Smi::zero()));
   array->WeakFixedArray::Set(
       TransitionArray::kTransitionLengthIndex,
       MaybeObject::FromObject(Smi::FromInt(number_of_transitions)));
@@ -2020,7 +2020,7 @@ void initialize_length<PropertyArray>(Handle<PropertyArray> array, int length) {
 inline void ZeroEmbedderFields(i::Handle<i::JSObject> obj) {
   auto count = obj->GetEmbedderFieldCount();
   for (int i = 0; i < count; i++) {
-    obj->SetEmbedderField(i, Smi::kZero);
+    obj->SetEmbedderField(i, Smi::zero());
   }
 }
 
@@ -2798,7 +2798,7 @@ void Factory::InitializeJSObjectFromMap(Handle<JSObject> obj,
   // TODO(1240798): Initialize the object's body using valid initial values
   // according to the object's initial map.  For example, if the map's
   // instance type is JS_ARRAY_TYPE, the length field should be initialized
-  // to a number (e.g. Smi::kZero) and the elements initialized to a
+  // to a number (e.g. Smi::zero()) and the elements initialized to a
   // fixed array (e.g. Heap::empty_fixed_array()).  Currently, the object
   // verification code has to cope with (temporarily) invalid objects.  See
   // for example, JSArray::JSArrayVerify).
@@ -2938,7 +2938,7 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array, int length, int capacity,
   DCHECK(capacity >= length);
 
   if (capacity == 0) {
-    array->set_length(Smi::kZero);
+    array->set_length(Smi::zero());
     array->set_elements(*empty_fixed_array());
     return;
   }
@@ -3894,7 +3894,7 @@ void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
   store->set(JSRegExp::kIrregexpUC16CodeIndex, uninitialized);
   store->set(JSRegExp::kIrregexpLatin1BytecodeIndex, uninitialized);
   store->set(JSRegExp::kIrregexpUC16BytecodeIndex, uninitialized);
-  store->set(JSRegExp::kIrregexpMaxRegisterCountIndex, Smi::kZero);
+  store->set(JSRegExp::kIrregexpMaxRegisterCountIndex, Smi::zero());
   store->set(JSRegExp::kIrregexpCaptureCountIndex, Smi::FromInt(capture_count));
   store->set(JSRegExp::kIrregexpCaptureNameMapIndex, uninitialized);
   store->set(JSRegExp::kIrregexpTicksUntilTierUpIndex, ticks_until_tier_up);
@@ -4138,7 +4138,7 @@ Handle<Map> Factory::CreateClassFunctionMap(Handle<JSFunction> empty_function) {
 Handle<JSPromise> Factory::NewJSPromiseWithoutHook() {
   Handle<JSPromise> promise =
       Handle<JSPromise>::cast(NewJSObject(isolate()->promise_function()));
-  promise->set_reactions_or_result(Smi::kZero);
+  promise->set_reactions_or_result(Smi::zero());
   promise->set_flags(0);
   ZeroEmbedderFields(promise);
   DCHECK_EQ(promise->GetEmbedderFieldCount(), v8::Promise::kEmbedderFieldCount);

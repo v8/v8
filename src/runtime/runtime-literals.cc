@@ -21,7 +21,7 @@ namespace internal {
 namespace {
 
 bool IsUninitializedLiteralSite(Object literal_site) {
-  return literal_site == Smi::kZero;
+  return literal_site == Smi::zero();
 }
 
 bool HasBoilerplate(Handle<Object> literal_site) {
@@ -415,7 +415,7 @@ Handle<JSObject> CreateObjectLiteral(
     if (key->ToArrayIndex(&element_index)) {
       // Array index (uint32).
       if (value->IsUninitialized(isolate)) {
-        value = handle(Smi::kZero, isolate);
+        value = handle(Smi::zero(), isolate);
       }
       JSObject::SetOwnElementIgnoreAttributes(boilerplate, element_index, value,
                                               NONE)

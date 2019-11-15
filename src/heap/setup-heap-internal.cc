@@ -503,7 +503,7 @@ bool Heap::CreateInitialMaps() {
 
     FixedArray::cast(obj).set_length(1);
     FixedArray::cast(obj).set(ObjectBoilerplateDescription::kLiteralTypeOffset,
-                              Smi::kZero);
+                              Smi::zero());
   }
   set_empty_object_boilerplate_description(
       ObjectBoilerplateDescription::cast(obj));
@@ -639,7 +639,7 @@ void Heap::CreateInitialObjects() {
 
   // Initialize the null_value.
   Oddball::Initialize(isolate(), factory->null_value(), "null",
-                      handle(Smi::kZero, isolate()), "object", Oddball::kNull);
+                      handle(Smi::zero(), isolate()), "object", Oddball::kNull);
 
   // Initialize the_hole_value.
   Oddball::Initialize(isolate(), factory->the_hole_value(), "hole",
@@ -653,7 +653,7 @@ void Heap::CreateInitialObjects() {
 
   // Initialize the false_value.
   Oddball::Initialize(isolate(), factory->false_value(), "false",
-                      handle(Smi::kZero, isolate()), "boolean",
+                      handle(Smi::zero(), isolate()), "boolean",
                       Oddball::kFalse);
 
   set_uninitialized_value(
@@ -783,7 +783,7 @@ void Heap::CreateInitialObjects() {
   empty_ordered_hash_map->set_map_no_write_barrier(
       *factory->ordered_hash_map_map());
   for (int i = 0; i < empty_ordered_hash_map->length(); ++i) {
-    empty_ordered_hash_map->set(i, Smi::kZero);
+    empty_ordered_hash_map->set(i, Smi::zero());
   }
   set_empty_ordered_hash_map(*empty_ordered_hash_map);
 
@@ -793,7 +793,7 @@ void Heap::CreateInitialObjects() {
   empty_ordered_hash_set->set_map_no_write_barrier(
       *factory->ordered_hash_set_map());
   for (int i = 0; i < empty_ordered_hash_set->length(); ++i) {
-    empty_ordered_hash_set->set(i, Smi::kZero);
+    empty_ordered_hash_set->set(i, Smi::zero());
   }
   set_empty_ordered_hash_set(*empty_ordered_hash_set);
 

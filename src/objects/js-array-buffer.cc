@@ -41,7 +41,7 @@ void JSArrayBuffer::Setup(SharedFlag shared,
   set_is_shared(shared == SharedFlag::kShared);
   set_is_detachable(shared != SharedFlag::kShared);
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
-    SetEmbedderField(i, Smi::kZero);
+    SetEmbedderField(i, Smi::zero());
   }
   if (!backing_store) {
     set_backing_store(nullptr);

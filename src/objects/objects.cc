@@ -562,7 +562,7 @@ MaybeHandle<Object> Object::ConvertToLength(Isolate* isolate,
   }
   double len = DoubleToInteger(input->Number());
   if (len <= 0.0) {
-    return handle(Smi::kZero, isolate);
+    return handle(Smi::zero(), isolate);
   } else if (len >= kMaxSafeInteger) {
     len = kMaxSafeInteger;
   }
@@ -573,7 +573,7 @@ MaybeHandle<Object> Object::ConvertToLength(Isolate* isolate,
 MaybeHandle<Object> Object::ConvertToIndex(Isolate* isolate,
                                            Handle<Object> input,
                                            MessageTemplate error_index) {
-  if (input->IsUndefined(isolate)) return handle(Smi::kZero, isolate);
+  if (input->IsUndefined(isolate)) return handle(Smi::zero(), isolate);
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(isolate, input), Object);
   if (input->IsSmi() && Smi::ToInt(*input) >= 0) return input;
   double len = DoubleToInteger(input->Number()) + 0.0;
@@ -1242,10 +1242,7 @@ bool Object::ToInt32(int32_t* value) {
   return false;
 }
 
-// static constexpr object declarations need a definition to make the
-// compiler happy.
-constexpr Object Smi::kZero;
-V8_EXPORT_PRIVATE constexpr Object SharedFunctionInfo::kNoSharedNameSentinel;
+V8_EXPORT_PRIVATE constexpr Smi SharedFunctionInfo::kNoSharedNameSentinel;
 
 Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
     Isolate* isolate, Handle<FunctionTemplateInfo> info,
@@ -1321,7 +1318,7 @@ FunctionTemplateRareData FunctionTemplateInfo::AllocateFunctionTemplateRareData(
 Handle<TemplateList> TemplateList::New(Isolate* isolate, int size) {
   Handle<FixedArray> list =
       isolate->factory()->NewFixedArray(kLengthIndex + size);
-  list->set(kLengthIndex, Smi::kZero);
+  list->set(kLengthIndex, Smi::zero());
   return Handle<TemplateList>::cast(list);
 }
 
@@ -5907,7 +5904,7 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
   {
     DisallowHeapAllocation no_gc;
     Object current = *reactions;
-    Object reversed = Smi::kZero;
+    Object reversed = Smi::zero();
     while (!current.IsSmi()) {
       Object next = PromiseReaction::cast(current).next();
       PromiseReaction::cast(current).set_next(reversed);
@@ -6099,7 +6096,7 @@ void JSRegExp::MarkTierUpForNextExec() {
   DCHECK(FLAG_regexp_tier_up);
   DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
   FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
-                               Smi::kZero);
+                               Smi::zero());
 }
 
 namespace {
@@ -6259,7 +6256,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   if (constructor.IsJSFunction() &&
       JSFunction::cast(constructor).initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
-    regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex, Smi::kZero,
+    regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex, Smi::zero(),
                                   SKIP_WRITE_BARRIER);
   } else {
     // Map has changed, so use generic, but slower, method.

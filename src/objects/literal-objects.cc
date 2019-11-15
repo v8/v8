@@ -304,7 +304,7 @@ class ObjectDescriptor {
                                      ClassBoilerplate::kFullComputedEntrySize)
             : factory->empty_fixed_array();
 
-    temp_handle_ = handle(Smi::kZero, isolate);
+    temp_handle_ = handle(Smi::zero(), isolate);
   }
 
   void AddConstant(Isolate* isolate, Handle<Name> name, Handle<Object> value,

@@ -1138,7 +1138,7 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
   if (is_asmjs_module(module_)) {
     // Accepting {JSFunction} on top of just primitive values here is a
     // workaround to support legacy asm.js code with broken binding. Note
-    // that using {NaN} (or Smi::kZero) here is what using the observable
+    // that using {NaN} (or Smi::zero()) here is what using the observable
     // conversion via {ToPrimitive} would produce as well.
     // TODO(mstarzinger): Still observable if Function.prototype.valueOf
     // or friends are patched, we might need to check for that as well.

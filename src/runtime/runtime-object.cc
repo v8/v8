@@ -756,7 +756,7 @@ RUNTIME_FUNCTION(Runtime_ShrinkPropertyDictionary) {
   Handle<NameDictionary> new_properties =
       NameDictionary::Shrink(isolate, dictionary);
   receiver->SetProperties(*new_properties);
-  return Smi::kZero;
+  return Smi::zero();
 }
 
 // ES6 section 12.9.3, operator in.
@@ -852,15 +852,15 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  if (!object->IsJSObject()) return Smi::kZero;
+  if (!object->IsJSObject()) return Smi::zero();
   Handle<JSObject> js_object = Handle<JSObject>::cast(object);
   // It could have been a DCHECK but we call this function directly from tests.
-  if (!js_object->map().is_deprecated()) return Smi::kZero;
+  if (!js_object->map().is_deprecated()) return Smi::zero();
   // This call must not cause lazy deopts, because it's called from deferred
   // code where we can't handle lazy deopts for lack of a suitable bailout
   // ID. So we just try migration and signal failure if necessary,
   // which will also trigger a deopt.
-  if (!JSObject::TryMigrateInstance(isolate, js_object)) return Smi::kZero;
+  if (!JSObject::TryMigrateInstance(isolate, js_object)) return Smi::zero();
   return *object;
 }
 

@@ -125,22 +125,22 @@ void Heap_GenerationalEphemeronKeyBarrierSlow(Heap* heap,
 }
 
 void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
-  DCHECK_EQ(Smi::kZero, arguments_adaptor_deopt_pc_offset());
+  DCHECK_EQ(Smi::zero(), arguments_adaptor_deopt_pc_offset());
   set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetConstructStubCreateDeoptPCOffset(int pc_offset) {
-  DCHECK(construct_stub_create_deopt_pc_offset() == Smi::kZero);
+  DCHECK_EQ(Smi::zero(), construct_stub_create_deopt_pc_offset());
   set_construct_stub_create_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetConstructStubInvokeDeoptPCOffset(int pc_offset) {
-  DCHECK(construct_stub_invoke_deopt_pc_offset() == Smi::kZero);
+  DCHECK_EQ(Smi::zero(), construct_stub_invoke_deopt_pc_offset());
   set_construct_stub_invoke_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetInterpreterEntryReturnPCOffset(int pc_offset) {
-  DCHECK_EQ(Smi::kZero, interpreter_entry_return_pc_offset());
+  DCHECK_EQ(Smi::zero(), interpreter_entry_return_pc_offset());
   set_interpreter_entry_return_pc_offset(Smi::FromInt(pc_offset));
 }
 
@@ -189,8 +189,8 @@ Heap::Heap()
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size_ & (Page::kPageSize - 1));
 
-  set_native_contexts_list(Smi::kZero);
-  set_allocation_sites_list(Smi::kZero);
+  set_native_contexts_list(Smi::zero());
+  set_allocation_sites_list(Smi::zero());
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
   RememberUnmappedPage(kNullAddress, false);
@@ -4276,7 +4276,7 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
       }
       DCHECK(current.IsFixedArrayBase());
 #endif  // DEBUG
-      p.store(Smi::kZero);
+      p.store(Smi::zero());
     }
   }
 

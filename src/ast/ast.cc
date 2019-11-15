@@ -602,7 +602,7 @@ void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
     }
 
     if (boilerplate_value->IsUninitialized(isolate)) {
-      boilerplate_value = handle(Smi::kZero, isolate);
+      boilerplate_value = handle(Smi::zero(), isolate);
     }
 
     kind = GetMoreGeneralElementsKind(

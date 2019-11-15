@@ -57,7 +57,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
 
   // Initialize indices length to avoid having a partially initialized object
   // should GC be triggered by creating a NewFixedArray.
-  indices->set_length(Smi::kZero);
+  indices->set_length(Smi::zero());
 
   // Build indices array from RegExpMatchInfo.
   int num_indices = match_info->NumberOfCaptureRegisters();

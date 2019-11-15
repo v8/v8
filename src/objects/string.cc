@@ -453,7 +453,7 @@ Handle<Object> String::ToNumber(Isolate* isolate, Handle<String> subject) {
   // Fast case: short integer or some sorts of junk values.
   if (subject->IsSeqOneByteString()) {
     int len = subject->length();
-    if (len == 0) return handle(Smi::kZero, isolate);
+    if (len == 0) return handle(Smi::zero(), isolate);
 
     DisallowHeapAllocation no_gc;
     uint8_t const* data =
