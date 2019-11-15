@@ -2119,7 +2119,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
                                           PropertyConstness constness,
                                           StoreOrigin store_origin) {
   RuntimeCallTimerScope stats_scope(
-      isolate, *map,
+      isolate,
       map->is_prototype_map()
           ? RuntimeCallCounterId::kPrototypeMap_TransitionToDataProperty
           : RuntimeCallCounterId::kMap_TransitionToDataProperty);
@@ -2634,7 +2634,7 @@ bool Map::IsPrototypeChainInvalidated(Map map) {
 void Map::SetPrototype(Isolate* isolate, Handle<Map> map,
                        Handle<HeapObject> prototype,
                        bool enable_prototype_setup_mode) {
-  RuntimeCallTimerScope stats_scope(isolate, *map,
+  RuntimeCallTimerScope stats_scope(isolate,
                                     RuntimeCallCounterId::kMap_SetPrototype);
 
   if (prototype->IsJSObject()) {
