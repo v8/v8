@@ -889,7 +889,11 @@ std::ostream& operator<<(
       Hints const& hints = env.ephemeral_hints_[i];
       if (!hints.IsEmpty()) {
         if (i < env.parameter_count()) {
-          output_stream << "Hints for a" << i << ":\n";
+          if (i == 0) {
+            output_stream << "Hints for <this>:\n";
+          } else {
+            output_stream << "Hints for a" << i - 1 << ":\n";
+          }
         } else if (i < env.parameter_count() + env.register_count()) {
           int local_register = i - env.parameter_count();
           output_stream << "Hints for r" << local_register << ":\n";
