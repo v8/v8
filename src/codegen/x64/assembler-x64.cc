@@ -3649,12 +3649,12 @@ void Assembler::vmovdqu(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
-void Assembler::vmovdqu(Operand src, XMMRegister dst) {
+void Assembler::vmovdqu(Operand dst, XMMRegister src) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, xmm0, src, kL128, kF3, k0F, kWIG);
+  emit_vex_prefix(src, xmm0, dst, kL128, kF3, k0F, kWIG);
   emit(0x7F);
-  emit_sse_operand(dst, src);
+  emit_sse_operand(src, dst);
 }
 
 void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1,
