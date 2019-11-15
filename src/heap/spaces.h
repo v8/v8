@@ -2460,8 +2460,9 @@ class V8_EXPORT_PRIVATE PagedSpace
   bool is_local_space() { return local_space_kind_ != LocalSpaceKind::kNone; }
 
   bool is_compaction_space() {
-    return IsInRange(local_space_kind_, LocalSpaceKind::kFirstCompactionSpace,
-                     LocalSpaceKind::kLastCompactionSpace);
+    return base::IsInRange(local_space_kind_,
+                           LocalSpaceKind::kFirstCompactionSpace,
+                           LocalSpaceKind::kLastCompactionSpace);
   }
 
   LocalSpaceKind local_space_kind() { return local_space_kind_; }

@@ -7,6 +7,7 @@
 
 #include "src/objects/fixed-array.h"
 // TODO(jkummerow): Consider forward-declaring instead.
+#include "src/base/bit-field.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"

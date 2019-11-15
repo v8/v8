@@ -48,7 +48,7 @@ class LoadHandler final : public DataHandler {
     kNonExistent,
     kModuleExport
   };
-  using KindBits = BitField<Kind, 0, 4>;
+  using KindBits = base::BitField<Kind, 0, 4>;
 
   // Defines whether access rights check should be done on receiver object.
   // Applicable to named property kinds only when loading value from prototype
@@ -206,7 +206,7 @@ class StoreHandler final : public DataHandler {
     kProxy,
     kKindsNumber  // Keep last
   };
-  using KindBits = BitField<Kind, 0, 4>;
+  using KindBits = base::BitField<Kind, 0, 4>;
 
   // Applicable to kGlobalProxy, kProxy kinds.
 

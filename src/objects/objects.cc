@@ -2186,11 +2186,12 @@ int HeapObject::SizeFromMap(Map map) const {
   if (instance_size != kVariableSizeSentinel) return instance_size;
   // Only inline the most frequent cases.
   InstanceType instance_type = map.instance_type();
-  if (IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE)) {
+  if (base::IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE,
+                      LAST_FIXED_ARRAY_TYPE)) {
     return FixedArray::SizeFor(
         FixedArray::unchecked_cast(*this).synchronized_length());
   }
-  if (IsInRange(instance_type, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)) {
+  if (base::IsInRange(instance_type, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)) {
     if (instance_type == NATIVE_CONTEXT_TYPE) return NativeContext::kSize;
     return Context::SizeFor(Context::unchecked_cast(*this).length());
   }
@@ -2231,8 +2232,8 @@ int HeapObject::SizeFromMap(Map map) const {
     return DescriptorArray::SizeFor(
         DescriptorArray::unchecked_cast(*this).number_of_all_descriptors());
   }
-  if (IsInRange(instance_type, FIRST_WEAK_FIXED_ARRAY_TYPE,
-                LAST_WEAK_FIXED_ARRAY_TYPE)) {
+  if (base::IsInRange(instance_type, FIRST_WEAK_FIXED_ARRAY_TYPE,
+                      LAST_WEAK_FIXED_ARRAY_TYPE)) {
     return WeakFixedArray::SizeFor(
         WeakFixedArray::unchecked_cast(*this).synchronized_length());
   }

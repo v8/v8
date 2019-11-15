@@ -491,7 +491,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
                                      elem_segment.table_index)),
                                  isolate_);
       size_t table_size = table_object->entries().length();
-      if (!IsInBounds(base, elem_segment.entries.size(), table_size)) {
+      if (!base::IsInBounds(base, elem_segment.entries.size(), table_size)) {
         thrower_->LinkError("table initializer is out of bounds");
         return {};
       }
@@ -503,7 +503,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     for (const WasmDataSegment& seg : module_->data_segments) {
       if (!seg.active) continue;
       uint32_t base = EvalUint32InitExpr(instance, seg.dest_addr);
-      if (!IsInBounds(base, seg.source.length(), instance->memory_size())) {
+      if (!base::IsInBounds(base, seg.source.length(),
+                            instance->memory_size())) {
         thrower_->LinkError("data segment is out of bounds");
         return {};
       }
@@ -662,8 +663,8 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
       if (!segment.active) continue;
 
       uint32_t dest_offset = EvalUint32InitExpr(instance, segment.dest_addr);
-      bool ok = ClampToBounds(dest_offset, &size,
-                              static_cast<uint32_t>(instance->memory_size()));
+      bool ok = base::ClampToBounds(
+          dest_offset, &size, static_cast<uint32_t>(instance->memory_size()));
       Address dest_addr =
           reinterpret_cast<Address>(instance->memory_start()) + dest_offset;
       Address src_addr = reinterpret_cast<Address>(wire_bytes.begin()) +
@@ -679,7 +680,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
       if (size == 0) continue;
 
       uint32_t dest_offset = EvalUint32InitExpr(instance, segment.dest_addr);
-      DCHECK(IsInBounds(dest_offset, size, instance->memory_size()));
+      DCHECK(base::IsInBounds(dest_offset, size, instance->memory_size()));
       byte* dest = instance->memory_start() + dest_offset;
       const byte* src = wire_bytes.begin() + segment.source.offset();
       memcpy(dest, src, size);
@@ -1633,10 +1634,10 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
   // TODO(wasm): Move this functionality into wasm-objects, since it is used
   // for both instantiation and in the implementation of the table.init
   // instruction.
-  bool ok =
-      ClampToBounds<size_t>(dst, &count, table_object->entries().length());
+  bool ok = base::ClampToBounds<size_t>(dst, &count,
+                                        table_object->entries().length());
   // Use & instead of && so the clamp is not short-circuited.
-  ok &= ClampToBounds<size_t>(src, &count, elem_segment.entries.size());
+  ok &= base::ClampToBounds<size_t>(src, &count, elem_segment.entries.size());
 
   const WasmModule* module = instance->module();
   for (size_t i = 0; i < count; ++i) {

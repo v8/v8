@@ -540,9 +540,9 @@ class CompilationStateImpl {
   //////////////////////////////////////////////////////////////////////////////
 
   // Encoding of fields in the {compilation_progress_} vector.
-  using RequiredBaselineTierField = BitField8<ExecutionTier, 0, 2>;
-  using RequiredTopTierField = BitField8<ExecutionTier, 2, 2>;
-  using ReachedTierField = BitField8<ExecutionTier, 4, 2>;
+  using RequiredBaselineTierField = base::BitField8<ExecutionTier, 0, 2>;
+  using RequiredTopTierField = base::BitField8<ExecutionTier, 2, 2>;
+  using ReachedTierField = base::BitField8<ExecutionTier, 4, 2>;
 };
 
 CompilationStateImpl* Impl(CompilationState* compilation_state) {

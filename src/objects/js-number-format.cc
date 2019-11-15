@@ -282,7 +282,9 @@ int CurrencyDigits(const icu::UnicodeString& currency) {
   return U_SUCCESS(status) ? fraction_digits : 2;
 }
 
-bool IsAToZ(char ch) { return IsInRange(AsciiAlphaToLower(ch), 'a', 'z'); }
+bool IsAToZ(char ch) {
+  return base::IsInRange(AsciiAlphaToLower(ch), 'a', 'z');
+}
 
 // ecma402/#sec-iswellformedcurrencycode
 bool IsWellFormedCurrencyCode(const std::string& currency) {

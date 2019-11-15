@@ -1645,8 +1645,8 @@ class ThreadImpl {
     if (effective_index < index) {
       return kNullAddress;  // wraparound => oob
     }
-    if (!IsInBounds(effective_index, sizeof(mtype),
-                    instance_object_->memory_size())) {
+    if (!base::IsInBounds(effective_index, sizeof(mtype),
+                          instance_object_->memory_size())) {
       return kNullAddress;  // oob
     }
     return EffectiveAddress(effective_index);
@@ -1654,7 +1654,7 @@ class ThreadImpl {
 
   inline bool BoundsCheckMemRange(uint32_t index, uint32_t* size,
                                   Address* out_address) {
-    bool ok = ClampToBounds(
+    bool ok = base::ClampToBounds(
         index, size, static_cast<uint32_t>(instance_object_->memory_size()));
     *out_address = EffectiveAddress(index);
     return ok;
@@ -1807,7 +1807,7 @@ class ThreadImpl {
         auto src_max =
             instance_object_->data_segment_sizes()[imm.data_segment_index];
         // Use & instead of && so the clamp is not short-circuited.
-        ok &= ClampToBounds(src, &size, src_max);
+        ok &= base::ClampToBounds(src, &size, src_max);
         Address src_addr =
             instance_object_->data_segment_starts()[imm.data_segment_index] +
             src;

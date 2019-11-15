@@ -248,7 +248,7 @@ class ScopeInfo : public FixedArray {
   enum VariableAllocationInfo { NONE, STACK, CONTEXT, UNUSED };
 
   // Properties of scopes.
-  using ScopeTypeField = BitField<ScopeType, 0, 4>;
+  using ScopeTypeField = base::BitField<ScopeType, 0, 4>;
   using SloppyEvalCanExtendVarsField = ScopeTypeField::Next<bool, 1>;
   STATIC_ASSERT(LanguageModeSize == 2);
   using LanguageModeField = SloppyEvalCanExtendVarsField::Next<LanguageMode, 1>;
@@ -347,7 +347,7 @@ class ScopeInfo : public FixedArray {
   static const int kPositionInfoEntries = 2;
 
   // Properties of variables.
-  using VariableModeField = BitField<VariableMode, 0, 4>;
+  using VariableModeField = base::BitField<VariableMode, 0, 4>;
   using InitFlagField = VariableModeField::Next<InitializationFlag, 1>;
   using MaybeAssignedFlagField = InitFlagField::Next<MaybeAssignedFlag, 1>;
   using ParameterNumberField = MaybeAssignedFlagField::Next<uint32_t, 16>;

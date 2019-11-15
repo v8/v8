@@ -170,7 +170,7 @@ class AstNode: public ZoneObject {
   void* operator new(size_t size);
 
   int position_;
-  using NodeTypeField = BitField<NodeType, 0, 6>;
+  using NodeTypeField = base::BitField<NodeType, 0, 6>;
 
  protected:
   uint32_t bit_field_;
@@ -259,7 +259,7 @@ class Expression : public AstNode {
 
   bool IsPattern() {
     STATIC_ASSERT(kObjectLiteral + 1 == kArrayLiteral);
-    return IsInRange(node_type(), kObjectLiteral, kArrayLiteral);
+    return base::IsInRange(node_type(), kObjectLiteral, kArrayLiteral);
   }
 
   bool is_parenthesized() const {

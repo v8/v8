@@ -10,6 +10,7 @@
 #include <stack>
 
 #include "src/base/atomic-utils.h"
+#include "src/base/bit-field.h"
 #include "src/base/bits.h"
 #include "src/heap/worklist.h"
 #include "src/objects/compressed-slots.h"
@@ -543,8 +544,8 @@ class V8_EXPORT_PRIVATE TypedSlots {
   void Merge(TypedSlots* other);
 
  protected:
-  using OffsetField = BitField<int, 0, 29>;
-  using TypeField = BitField<SlotType, 29, 3>;
+  using OffsetField = base::BitField<int, 0, 29>;
+  using TypeField = base::BitField<SlotType, 29, 3>;
   struct TypedSlot {
     uint32_t type_and_offset;
   };

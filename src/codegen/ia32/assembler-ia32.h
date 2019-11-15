@@ -343,8 +343,8 @@ class Displacement {
  private:
   int data_;
 
-  using TypeField = BitField<Type, 0, 2>;
-  using NextField = BitField<int, 2, 32 - 2>;
+  using TypeField = base::BitField<Type, 0, 2>;
+  using NextField = base::BitField<int, 2, 32 - 2>;
 
   void init(Label* L, Type type);
 };

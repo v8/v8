@@ -53,7 +53,7 @@ class BigIntBase : public PrimitiveHeapObject {
   // able to read the length concurrently, the getters and setters are atomic.
   static const int kLengthFieldBits = 30;
   STATIC_ASSERT(kMaxLength <= ((1 << kLengthFieldBits) - 1));
-  using SignBits = BitField<bool, 0, 1>;
+  using SignBits = base::BitField<bool, 0, 1>;
   using LengthBits = SignBits::Next<int, kLengthFieldBits>;
   STATIC_ASSERT(LengthBits::kLastUsedBit < 32);
 

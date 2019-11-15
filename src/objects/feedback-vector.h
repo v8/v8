@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "src/base/bit-field.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/common/globals.h"
@@ -554,8 +555,8 @@ class FeedbackMetadata : public HeapObject {
   void SetKind(FeedbackSlot slot, FeedbackSlotKind kind);
 
   using VectorICComputer =
-      BitSetComputer<FeedbackSlotKind, kFeedbackSlotKindBits,
-                     kInt32Size * kBitsPerByte, uint32_t>;
+      base::BitSetComputer<FeedbackSlotKind, kFeedbackSlotKindBits,
+                           kInt32Size * kBitsPerByte, uint32_t>;
 
   OBJECT_CONSTRUCTORS(FeedbackMetadata, HeapObject);
 };
@@ -699,8 +700,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   // count (taken from the type feedback vector).
   float ComputeCallFrequency();
 
-  using SpeculationModeField = BitField<SpeculationMode, 0, 1>;
-  using CallCountField = BitField<uint32_t, 1, 31>;
+  using SpeculationModeField = base::BitField<SpeculationMode, 0, 1>;
+  using CallCountField = base::BitField<uint32_t, 1, 31>;
 
   // For InstanceOf ICs.
   MaybeHandle<JSObject> GetConstructorFeedback() const;

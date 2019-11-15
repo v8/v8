@@ -6,9 +6,9 @@
 #define V8_STRINGS_UNICODE_H_
 
 #include <sys/types.h>
+#include "src/base/bit-field.h"
 #include "src/common/globals.h"
 #include "src/third_party/utf8-decoder/utf8-decoder.h"
-#include "src/utils/utils.h"
 /**
  * \file
  * Definitions and convenience functions for working with unicode.
@@ -51,8 +51,8 @@ class Predicate {
     bool value() const { return ValueField::decode(bit_field_); }
 
    private:
-    using CodePointField = v8::internal::BitField<uchar, 0, 21>;
-    using ValueField = v8::internal::BitField<bool, 21, 1>;
+    using CodePointField = v8::base::BitField<uchar, 0, 21>;
+    using ValueField = v8::base::BitField<bool, 21, 1>;
 
     uint32_t bit_field_;
   };

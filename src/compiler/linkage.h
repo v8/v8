@@ -157,7 +157,7 @@ class LinkageLocation {
  private:
   enum LocationType { REGISTER, STACK_SLOT };
 
-  using TypeField = BitField<LocationType, 0, 1>;
+  using TypeField = base::BitField<LocationType, 0, 1>;
   using LocationField = TypeField::Next<int32_t, 31>;
 
   static constexpr int32_t ANY_REGISTER = -1;

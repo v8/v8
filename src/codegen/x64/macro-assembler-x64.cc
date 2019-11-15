@@ -181,8 +181,8 @@ void MacroAssembler::PushRoot(RootIndex index) {
 
 void TurboAssembler::CompareRoot(Register with, RootIndex index) {
   DCHECK(root_array_available_);
-  if (IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
-                RootIndex::kLastStrongOrReadOnlyRoot)) {
+  if (base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
+                      RootIndex::kLastStrongOrReadOnlyRoot)) {
     cmp_tagged(with,
                Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
   } else {
@@ -195,8 +195,8 @@ void TurboAssembler::CompareRoot(Operand with, RootIndex index) {
   DCHECK(root_array_available_);
   DCHECK(!with.AddressUsesRegister(kScratchRegister));
   LoadRoot(kScratchRegister, index);
-  if (IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
-                RootIndex::kLastStrongOrReadOnlyRoot)) {
+  if (base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
+                      RootIndex::kLastStrongOrReadOnlyRoot)) {
     cmp_tagged(with, kScratchRegister);
   } else {
     // Some smi roots contain system pointer size values like stack limits.

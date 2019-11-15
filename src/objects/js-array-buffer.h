@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_H_
 
+#include "src/base/bit-field.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/js-objects.h"
 

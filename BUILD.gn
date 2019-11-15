@@ -1398,7 +1398,9 @@ v8_source_set("v8_snapshot") {
   # Do not publicize any header to remove build dependency.
   public = []
 
-  sources = [ "src/init/setup-isolate-deserialize.cc" ]
+  sources = [
+    "src/init/setup-isolate-deserialize.cc",
+  ]
   if (emit_builtins_as_inline_asm) {
     deps += [ ":asm_to_inline_asm_default" ]
     sources += [ "$target_gen_dir/embedded.cc" ]
@@ -3422,10 +3424,12 @@ v8_component("v8_libbase") {
     "src/base/atomicops_internals_portable.h",
     "src/base/atomicops_internals_std.h",
     "src/base/base-export.h",
+    "src/base/bit-field.h",
     "src/base/bits.cc",
     "src/base/bits.h",
     "src/base/bounded-page-allocator.cc",
     "src/base/bounded-page-allocator.h",
+    "src/base/bounds.h",
     "src/base/build_config.h",
     "src/base/compiler-specific.h",
     "src/base/cpu.cc",

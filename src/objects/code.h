@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_CODE_H_
 #define V8_OBJECTS_CODE_H_
 
+#include "src/base/bit-field.h"
 #include "src/codegen/handler-table.h"
 #include "src/objects/contexts.h"
 #include "src/objects/fixed-array.h"
@@ -434,7 +435,7 @@ class Code : public HeapObject {
 
   class BodyDescriptor;
 
-  // Flags layout.  BitField<type, shift, size>.
+  // Flags layout.  base::BitField<type, shift, size>.
 #define CODE_FLAGS_BIT_FIELDS(V, _)    \
   V(HasUnwindingInfoField, bool, 1, _) \
   V(KindField, Kind, 5, _)             \
@@ -712,8 +713,8 @@ class DependentCode : public WeakFixedArray {
 
   inline int flags();
   inline void set_flags(int flags);
-  using GroupField = BitField<int, 0, 3>;
-  using CountField = BitField<int, 3, 27>;
+  using GroupField = base::BitField<int, 0, 3>;
+  using CountField = base::BitField<int, 3, 27>;
   STATIC_ASSERT(kGroupCount <= GroupField::kMax + 1);
 
   OBJECT_CONSTRUCTORS(DependentCode, WeakFixedArray);

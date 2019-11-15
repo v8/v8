@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_NAME_H_
 #define V8_OBJECTS_NAME_H_
 
+#include "src/base/bit-field.h"
 #include "src/objects/objects.h"
 #include "src/objects/primitive-heap-object.h"
 
@@ -114,10 +115,10 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   STATIC_ASSERT(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
 
   using ArrayIndexValueBits =
-      BitField<unsigned int, kNofHashBitFields, kArrayIndexValueBits>;
+      base::BitField<unsigned int, kNofHashBitFields, kArrayIndexValueBits>;
   using ArrayIndexLengthBits =
-      BitField<unsigned int, kNofHashBitFields + kArrayIndexValueBits,
-               kArrayIndexLengthBits>;
+      base::BitField<unsigned int, kNofHashBitFields + kArrayIndexValueBits,
+                     kArrayIndexLengthBits>;
 
   // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
   // could use a mask to test if the length of string is less than or equal to

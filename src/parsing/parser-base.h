@@ -1051,8 +1051,8 @@ class ParserBase {
   ExpressionT ParseArrayLiteral();
 
   inline static bool IsAccessor(ParsePropertyKind kind) {
-    return IsInRange(kind, ParsePropertyKind::kAccessorGetter,
-                     ParsePropertyKind::kAccessorSetter);
+    return base::IsInRange(kind, ParsePropertyKind::kAccessorGetter,
+                           ParsePropertyKind::kAccessorSetter);
   }
 
   ExpressionT ParseProperty(ParsePropertyInfo* prop_info);
@@ -1503,7 +1503,7 @@ template <typename Impl>
 typename ParserBase<Impl>::IdentifierT
 ParserBase<Impl>::ParseAndClassifyIdentifier(Token::Value next) {
   DCHECK_EQ(scanner()->current_token(), next);
-  if (V8_LIKELY(IsInRange(next, Token::IDENTIFIER, Token::ASYNC))) {
+  if (V8_LIKELY(base::IsInRange(next, Token::IDENTIFIER, Token::ASYNC))) {
     IdentifierT name = impl()->GetIdentifier();
     if (V8_UNLIKELY(impl()->IsArguments(name) &&
                     scope()->ShouldBanArguments())) {
@@ -2013,7 +2013,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
   }
 
   if (prop_info->kind == ParsePropertyKind::kNotSet &&
-      IsInRange(peek(), Token::GET, Token::SET)) {
+      base::IsInRange(peek(), Token::GET, Token::SET)) {
     Token::Value token = Next();
     if (prop_info->ParsePropertyKindFromToken(peek())) {
       prop_info->name = impl()->GetIdentifier();

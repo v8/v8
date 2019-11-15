@@ -27,8 +27,8 @@
 #define TARGET_ARCH_OPCODE_LIST(V)
 #define TARGET_ADDRESSING_MODE_LIST(V)
 #endif
+#include "src/base/bit-field.h"
 #include "src/compiler/write-barrier-kind.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -267,11 +267,11 @@ using InstructionCode = uint32_t;
 // for code generation. We encode the instruction, addressing mode, and flags
 // continuation into a single InstructionCode which is stored as part of
 // the instruction.
-using ArchOpcodeField = BitField<ArchOpcode, 0, 9>;
-using AddressingModeField = BitField<AddressingMode, 9, 5>;
-using FlagsModeField = BitField<FlagsMode, 14, 3>;
-using FlagsConditionField = BitField<FlagsCondition, 17, 5>;
-using MiscField = BitField<int, 22, 10>;
+using ArchOpcodeField = base::BitField<ArchOpcode, 0, 9>;
+using AddressingModeField = base::BitField<AddressingMode, 9, 5>;
+using FlagsModeField = base::BitField<FlagsMode, 14, 3>;
+using FlagsConditionField = base::BitField<FlagsCondition, 17, 5>;
+using MiscField = base::BitField<int, 22, 10>;
 
 }  // namespace compiler
 }  // namespace internal

@@ -208,12 +208,12 @@ class CodeEntry {
   V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
       CodeEntry, RootEntryCreateTrait>::type kRootEntry;
 
-  using TagField = BitField<CodeEventListener::LogEventsAndTags, 0, 8>;
-  using BuiltinIdField = BitField<Builtins::Name, 8, 22>;
+  using TagField = base::BitField<CodeEventListener::LogEventsAndTags, 0, 8>;
+  using BuiltinIdField = base::BitField<Builtins::Name, 8, 22>;
   static_assert(Builtins::builtin_count <= BuiltinIdField::kNumValues,
                 "builtin_count exceeds size of bitfield");
-  using UsedField = BitField<bool, 30, 1>;
-  using SharedCrossOriginField = BitField<bool, 31, 1>;
+  using UsedField = base::BitField<bool, 30, 1>;
+  using SharedCrossOriginField = base::BitField<bool, 31, 1>;
 
   uint32_t bit_field_;
   const char* name_;

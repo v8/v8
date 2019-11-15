@@ -1580,7 +1580,7 @@ class LiftoffCompiler {
   bool BoundsCheckMem(FullDecoder* decoder, uint32_t access_size,
                       uint32_t offset, Register index, LiftoffRegList pinned) {
     const bool statically_oob =
-        !IsInBounds(offset, access_size, env_->max_memory_size);
+        !base::IsInBounds(offset, access_size, env_->max_memory_size);
 
     if (!statically_oob &&
         (FLAG_wasm_no_bounds_checks || env_->use_trap_handler)) {

@@ -24,7 +24,7 @@ INSTANCE_TYPE_CHECKERS_SINGLE(INSTANCE_TYPE_CHECKER)
 template <InstanceType lower_limit, InstanceType upper_limit>
 struct InstanceRangeChecker {
   static constexpr bool Check(InstanceType value) {
-    return IsInRange(value, lower_limit, upper_limit);
+    return base::IsInRange(value, lower_limit, upper_limit);
   }
 };
 template <InstanceType upper_limit>

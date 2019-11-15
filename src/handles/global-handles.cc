@@ -600,7 +600,7 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
 
   // This stores three flags (independent, partially_dependent and
   // in_young_list) and a State.
-  using NodeState = BitField8<State, 0, 3>;
+  using NodeState = base::BitField8<State, 0, 3>;
   using IsInYoungList = NodeState::Next<bool, 1>;
   using NodeWeaknessType = IsInYoungList::Next<WeaknessType, 2>;
 
@@ -674,7 +674,7 @@ class GlobalHandles::TracedNode final
   }
 
  protected:
-  using NodeState = BitField8<State, 0, 2>;
+  using NodeState = base::BitField8<State, 0, 2>;
   using IsInYoungList = NodeState::Next<bool, 1>;
   using IsRoot = IsInYoungList::Next<bool, 1>;
   using HasDestructor = IsRoot::Next<bool, 1>;

@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "include/v8.h"
+#include "src/base/bit-field.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
 #include "src/objects/elements-kind.h"
@@ -786,11 +787,11 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, Runtime::FunctionId);
 //---------------------------------------------------------------------------
 // Constants used by interface to runtime functions.
 
-using AllocateDoubleAlignFlag = BitField<bool, 0, 1>;
+using AllocateDoubleAlignFlag = base::BitField<bool, 0, 1>;
 
-using AllowLargeObjectAllocationFlag = BitField<bool, 1, 1>;
+using AllowLargeObjectAllocationFlag = base::BitField<bool, 1, 1>;
 
-using DeclareGlobalsEvalFlag = BitField<bool, 0, 1>;
+using DeclareGlobalsEvalFlag = base::BitField<bool, 0, 1>;
 
 // A set of bits returned by Runtime_GetOptimizationStatus.
 // These bits must be in sync with bits defined in test/mjsunit/mjsunit.js

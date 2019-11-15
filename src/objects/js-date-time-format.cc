@@ -250,13 +250,13 @@ std::string GetGMTTzID(Isolate* isolate, const std::string& input) {
       break;
     case 9:
       if ((input[7] == '+' || input[7] == '-') &&
-          IsInRange(input[8], '0', '9')) {
+          base::IsInRange(input[8], '0', '9')) {
         return ret + input[7] + input[8];
       }
       break;
     case 10:
       if ((input[7] == '+' || input[7] == '-') && (input[8] == '1') &&
-          IsInRange(input[9], '0', '4')) {
+          base::IsInRange(input[9], '0', '4')) {
         return ret + input[7] + input[8] + input[9];
       }
       break;
@@ -267,18 +267,18 @@ std::string GetGMTTzID(Isolate* isolate, const std::string& input) {
 // Locale independenty version of isalpha for ascii range. This will return
 // false if the ch is alpha but not in ascii range.
 bool IsAsciiAlpha(char ch) {
-  return IsInRange(ch, 'A', 'Z') || IsInRange(ch, 'a', 'z');
+  return base::IsInRange(ch, 'A', 'Z') || base::IsInRange(ch, 'a', 'z');
 }
 
 // Locale independent toupper for ascii range. This will not return İ (dotted I)
 // for i under Turkish locale while std::toupper may.
 char LocaleIndependentAsciiToUpper(char ch) {
-  return (IsInRange(ch, 'a', 'z')) ? (ch - 'a' + 'A') : ch;
+  return (base::IsInRange(ch, 'a', 'z')) ? (ch - 'a' + 'A') : ch;
 }
 
 // Locale independent tolower for ascii range.
 char LocaleIndependentAsciiToLower(char ch) {
-  return (IsInRange(ch, 'A', 'Z')) ? (ch - 'A' + 'a') : ch;
+  return (base::IsInRange(ch, 'A', 'Z')) ? (ch - 'A' + 'a') : ch;
 }
 
 // Returns titlecased location, bueNos_airES -> Buenos_Aires

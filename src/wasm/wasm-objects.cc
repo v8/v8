@@ -1444,9 +1444,9 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
   uint32_t max_dst = static_cast<uint32_t>(table_dst->entries().length());
   uint32_t max_src = static_cast<uint32_t>(table_src->entries().length());
   bool copy_backward = src < dst;
-  bool ok = ClampToBounds(dst, &count, max_dst);
+  bool ok = base::ClampToBounds(dst, &count, max_dst);
   // Use & instead of && so the clamp is not short-circuited.
-  ok &= ClampToBounds(src, &count, max_src);
+  ok &= base::ClampToBounds(src, &count, max_src);
 
   // If performing a partial copy when copying backward, then the first access
   // will be out-of-bounds, so no entries should be copied.

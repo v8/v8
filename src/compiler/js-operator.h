@@ -85,8 +85,8 @@ class ConstructForwardVarargsParameters final {
     return p.bit_field_;
   }
 
-  using ArityField = BitField<size_t, 0, 16>;
-  using StartIndexField = BitField<uint32_t, 16, 16>;
+  using ArityField = base::BitField<size_t, 0, 16>;
+  using StartIndexField = base::BitField<uint32_t, 16, 16>;
 
   uint32_t const bit_field_;
 };
@@ -147,8 +147,8 @@ class CallForwardVarargsParameters final {
     return p.bit_field_;
   }
 
-  using ArityField = BitField<size_t, 0, 15>;
-  using StartIndexField = BitField<uint32_t, 15, 15>;
+  using ArityField = base::BitField<size_t, 0, 15>;
+  using StartIndexField = base::BitField<uint32_t, 15, 15>;
 
   uint32_t const bit_field_;
 };
@@ -209,10 +209,10 @@ class CallParameters final {
                               feedback_hash(p.feedback_));
   }
 
-  using ArityField = BitField<size_t, 0, 27>;
-  using CallFeedbackRelationField = BitField<CallFeedbackRelation, 27, 1>;
-  using SpeculationModeField = BitField<SpeculationMode, 28, 1>;
-  using ConvertReceiverModeField = BitField<ConvertReceiverMode, 29, 2>;
+  using ArityField = base::BitField<size_t, 0, 27>;
+  using CallFeedbackRelationField = base::BitField<CallFeedbackRelation, 27, 1>;
+  using SpeculationModeField = base::BitField<SpeculationMode, 28, 1>;
+  using ConvertReceiverModeField = base::BitField<ConvertReceiverMode, 29, 2>;
 
   uint32_t const bit_field_;
   CallFrequency const frequency_;
