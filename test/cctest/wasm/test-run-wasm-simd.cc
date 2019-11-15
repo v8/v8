@@ -526,6 +526,26 @@ bool IsExtreme(float x) {
          (abs_x < kSmallFloatThreshold || abs_x > kLargeFloatThreshold);
 }
 
+WASM_SIMD_TEST(S128Globals) {
+  WasmRunner<int32_t> r(execution_tier, lower_simd);
+  // Set up a global to hold input and output vectors.
+  int32_t* g0 = r.builder().AddGlobal<int32_t>(kWasmS128);
+  int32_t* g1 = r.builder().AddGlobal<int32_t>(kWasmS128);
+  BUILD(r, WASM_SET_GLOBAL(1, WASM_GET_GLOBAL(0)), WASM_ONE);
+
+  FOR_INT32_INPUTS(x) {
+    for (int i = 0; i < 4; i++) {
+      WriteLittleEndianValue<int32_t>(&g0[i], x);
+    }
+    r.Call();
+    int32_t expected = x;
+    for (int i = 0; i < 4; i++) {
+      int32_t actual = ReadLittleEndianValue<int32_t>(&g1[i]);
+      CHECK_EQ(actual, expected);
+    }
+  }
+}
+
 WASM_SIMD_TEST(F32x4Splat) {
   WasmRunner<int32_t, float> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.

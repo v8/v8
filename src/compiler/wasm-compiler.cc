@@ -3322,6 +3322,9 @@ Node* WasmGraphBuilder::GlobalGet(uint32_t index) {
 
   MachineType mem_type =
       wasm::ValueTypes::MachineTypeFor(env_->module->globals[index].type);
+  if (mem_type.representation() == MachineRepresentation::kSimd128) {
+    has_simd_ = true;
+  }
   Node* base = nullptr;
   Node* offset = nullptr;
   GetGlobalBaseAndOffset(mem_type, env_->module->globals[index], &base,
@@ -3354,6 +3357,9 @@ Node* WasmGraphBuilder::GlobalSet(uint32_t index, Node* val) {
 
   MachineType mem_type =
       wasm::ValueTypes::MachineTypeFor(env_->module->globals[index].type);
+  if (mem_type.representation() == MachineRepresentation::kSimd128) {
+    has_simd_ = true;
+  }
   Node* base = nullptr;
   Node* offset = nullptr;
   GetGlobalBaseAndOffset(mem_type, env_->module->globals[index], &base,
