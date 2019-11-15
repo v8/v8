@@ -84,7 +84,7 @@ namespace regexp {
       regexp: FastJSRegExp, string: String, replaceFn: Callable): String {
     regexp.lastIndex = 0;
 
-    const kInitialCapacity: Smi = 16;
+    const kInitialCapacity: intptr = 16;
     const kInitialLength: Smi = 0;
     const result: Null|JSArray = RegExpExecMultiple(
         regexp, string, GetRegExpLastMatchInfo(),

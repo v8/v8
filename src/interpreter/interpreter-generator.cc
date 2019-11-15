@@ -2537,9 +2537,10 @@ IGNITION_HANDLER(CreateEmptyArrayLiteral, InterpreterAssembler) {
   {
     TNode<Map> array_map = LoadJSArrayElementsMap(GetInitialFastElementsKind(),
                                                   LoadNativeContext(context));
-    result =
-        AllocateJSArray(GetInitialFastElementsKind(), array_map, SmiConstant(0),
-                        SmiConstant(0), {}, ParameterMode::SMI_PARAMETERS);
+    TNode<Smi> length = SmiConstant(0);
+    TNode<IntPtrT> capacity = IntPtrConstant(0);
+    result = AllocateJSArray(GetInitialFastElementsKind(), array_map, capacity,
+                             length);
     Goto(&end);
   }
 

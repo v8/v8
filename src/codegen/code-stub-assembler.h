@@ -1825,24 +1825,28 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       int array_header_size = JSArray::kSize);
 
   // Allocate a JSArray and fill elements with the hole.
-  // The ParameterMode argument is only used for the capacity parameter.
-  TNode<JSArray> AllocateJSArray(
-      ElementsKind kind, TNode<Map> array_map, Node* capacity,
-      TNode<Smi> length, TNode<AllocationSite> allocation_site = {},
-      ParameterMode capacity_mode = INTPTR_PARAMETERS,
-      AllocationFlags allocation_flags = kNone);
-
   TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
-                                 TNode<Smi> capacity, TNode<Smi> length) {
-    return AllocateJSArray(kind, array_map, capacity, length, {},
-                           SMI_PARAMETERS);
+                                 TNode<IntPtrT> capacity, TNode<Smi> length,
+                                 TNode<AllocationSite> allocation_site,
+                                 AllocationFlags allocation_flags = kNone);
+  TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
+                                 TNode<Smi> capacity, TNode<Smi> length,
+                                 TNode<AllocationSite> allocation_site,
+                                 AllocationFlags allocation_flags = kNone) {
+    return AllocateJSArray(kind, array_map, SmiUntag(capacity), length,
+                           allocation_site, allocation_flags);
   }
-
+  TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
+                                 TNode<Smi> capacity, TNode<Smi> length,
+                                 AllocationFlags allocation_flags = kNone) {
+    return AllocateJSArray(kind, array_map, SmiUntag(capacity), length, {},
+                           allocation_flags);
+  }
   TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
                                  TNode<IntPtrT> capacity, TNode<Smi> length,
                                  AllocationFlags allocation_flags = kNone) {
     return AllocateJSArray(kind, array_map, capacity, length, {},
-                           INTPTR_PARAMETERS, allocation_flags);
+                           allocation_flags);
   }
 
   // Allocate a JSArray and initialize the header fields.

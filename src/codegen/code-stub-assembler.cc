@@ -4044,12 +4044,12 @@ TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArray(
 }
 
 TNode<JSArray> CodeStubAssembler::AllocateJSArray(
-    ElementsKind kind, TNode<Map> array_map, Node* capacity, TNode<Smi> length,
-    TNode<AllocationSite> allocation_site, ParameterMode capacity_mode,
+    ElementsKind kind, TNode<Map> array_map, TNode<IntPtrT> capacity,
+    TNode<Smi> length, TNode<AllocationSite> allocation_site,
     AllocationFlags allocation_flags) {
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, capacity_mode));
 
+  ParameterMode capacity_mode = INTPTR_PARAMETERS;
   TNode<JSArray> array;
   TNode<FixedArrayBase> elements;
 
@@ -4059,8 +4059,7 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
 
   Label out(this), nonempty(this);
 
-  Branch(SmiEqual(ParameterToTagged(capacity, capacity_mode), SmiConstant(0)),
-         &out, &nonempty);
+  Branch(WordEqual(capacity, IntPtrConstant(0)), &out, &nonempty);
 
   BIND(&nonempty);
   {
@@ -13296,7 +13295,7 @@ TNode<JSArray> CodeStubAssembler::ArrayCreate(TNode<Context> context,
   }
 
   BIND(&next);
-  CSA_ASSERT(this, TaggedIsSmi(length));
+  TNode<Smi> length_smi = CAST(length);
 
   TNode<Map> array_map = CAST(LoadContextElement(
       context, Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX));
@@ -13304,8 +13303,8 @@ TNode<JSArray> CodeStubAssembler::ArrayCreate(TNode<Context> context,
   // TODO(delphick): Consider using
   // AllocateUninitializedJSArrayWithElements to avoid initializing an
   // array and then writing over it.
-  array = AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, length,
-                          SmiConstant(0), {}, ParameterMode::SMI_PARAMETERS);
+  array = AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, length_smi,
+                          SmiConstant(0));
   Goto(&done);
 
   BIND(&done);

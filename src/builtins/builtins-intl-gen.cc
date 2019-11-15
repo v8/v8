@@ -178,7 +178,7 @@ TNode<JSArray> IntlBuiltinsAssembler::AllocateEmptyJSArray(
   return CodeStubAssembler::AllocateJSArray(
       PACKED_ELEMENTS,
       LoadJSArrayElementsMap(PACKED_ELEMENTS, LoadNativeContext(context)),
-      SmiConstant(0), SmiConstant(0));
+      IntPtrConstant(0), SmiConstant(0));
 }
 
 TF_BUILTIN(ListFormatPrototypeFormat, IntlBuiltinsAssembler) {

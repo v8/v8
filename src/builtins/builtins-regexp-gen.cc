@@ -1593,8 +1593,8 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
       {
         TNode<Smi> length = SmiConstant(1);
         TNode<IntPtrT> capacity = IntPtrConstant(1);
-        var_result = AllocateJSArray(kind, array_map, capacity, length,
-                                     allocation_site, mode);
+        var_result =
+            AllocateJSArray(kind, array_map, capacity, length, allocation_site);
 
         TNode<FixedArray> fixed_array = CAST(LoadElements(var_result.value()));
         UnsafeStoreFixedArrayElement(fixed_array, 0, string);
@@ -1767,8 +1767,8 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
   {
     TNode<Smi> length = SmiZero();
     TNode<IntPtrT> capacity = IntPtrZero();
-    var_result = AllocateJSArray(kind, array_map, capacity, length,
-                                 allocation_site, mode);
+    var_result =
+        AllocateJSArray(kind, array_map, capacity, length, allocation_site);
     Goto(&done);
   }
 

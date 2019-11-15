@@ -404,11 +404,12 @@ TNode<JSArray> ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
   TNode<NativeContext> native_context = LoadNativeContext(context);
   Comment("LoadJSArrayElementsMap");
   TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
+  TNode<IntPtrT> zero_intptr = IntPtrConstant(0);
   TNode<Smi> zero = SmiConstant(0);
   Comment("Allocate JSArray");
   TNode<JSArray> result =
-      AllocateJSArray(GetInitialFastElementsKind(), array_map, zero, zero,
-                      allocation_site.value(), ParameterMode::SMI_PARAMETERS);
+      AllocateJSArray(GetInitialFastElementsKind(), array_map, zero_intptr,
+                      zero, allocation_site.value());
 
   Goto(&done);
   BIND(&done);

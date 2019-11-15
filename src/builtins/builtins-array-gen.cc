@@ -507,9 +507,9 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
       TNode<Map> array_map = CAST(LoadContextElement(
           context, Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX));
 
-      array =
-          AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, SmiConstant(0),
-                          SmiConstant(0), {}, ParameterMode::SMI_PARAMETERS);
+      TNode<IntPtrT> capacity = IntPtrConstant(0);
+      TNode<Smi> length = SmiConstant(0);
+      array = AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, capacity, length);
       Goto(&done);
     }
 
@@ -2077,8 +2077,7 @@ void ArrayBuiltinsAssembler::GenerateConstructor(
       TNode<JSArray> array = AllocateJSArray(
           elements_kind, array_map, array_size_smi, array_size_smi,
           mode == DONT_TRACK_ALLOCATION_SITE ? TNode<AllocationSite>()
-                                             : CAST(allocation_site),
-          CodeStubAssembler::SMI_PARAMETERS);
+                                             : CAST(allocation_site));
       Return(array);
     }
   }
