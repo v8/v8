@@ -41,7 +41,7 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
 
   TNode<JSArray> AllocateJSArrayForCodeStubArguments(
       TNode<Context> context, const CodeStubArguments& args,
-      TNode<IntPtrT> argc, ParameterMode mode);
+      TNode<IntPtrT> argc);
 
  private:
   TNode<Context> CreateProxyRevokeFunctionContext(

@@ -59,28 +59,29 @@ TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
 }
 
 TNode<JSArray> ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
-    TNode<Context> context, const CodeStubArguments& args, TNode<IntPtrT> argc,
-    ParameterMode mode) {
+    TNode<Context> context, const CodeStubArguments& args,
+    TNode<IntPtrT> argc) {
   Comment("AllocateJSArrayForCodeStubArguments");
+  CSA_ASSERT(this, IsValidPositiveSmi(argc));
 
   Label if_empty_array(this), allocate_js_array(this);
   // Do not use AllocateJSArray since {elements} might end up in LOS.
   TVARIABLE(FixedArrayBase, elements);
 
-  TNode<Smi> length = ParameterToTagged(argc, mode);
-  GotoIf(SmiEqual(length, SmiConstant(0)), &if_empty_array);
+  GotoIf(WordEqual(argc, IntPtrConstant(0)), &if_empty_array);
   {
     Label if_large_object(this, Label::kDeferred);
     TNode<FixedArrayBase> allocated_elements = AllocateFixedArray(
-        PACKED_ELEMENTS, argc, mode, kAllowLargeObjectAllocation);
+        PACKED_ELEMENTS, argc, INTPTR_PARAMETERS, kAllowLargeObjectAllocation);
     elements = allocated_elements;
 
     TVARIABLE(IntPtrT, offset,
               IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
     VariableList list({&offset}, zone());
 
-    GotoIf(SmiGreaterThan(length, SmiConstant(FixedArray::kMaxRegularLength)),
-           &if_large_object);
+    GotoIf(
+        UintPtrGreaterThan(argc, IntPtrConstant(FixedArray::kMaxRegularLength)),
+        &if_large_object);
     args.ForEach(list, [&](TNode<Object> arg) {
       StoreNoWriteBarrier(MachineRepresentation::kTagged, allocated_elements,
                           offset.value(), arg);
@@ -109,6 +110,7 @@ TNode<JSArray> ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> array_map =
       LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+  TNode<Smi> length = SmiTag(argc);
   TNode<JSArray> array = AllocateJSArray(array_map, elements.value(), length);
 
   return array;
@@ -174,8 +176,8 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
   TNode<Object> receiver = args.GetReceiver();
 
   // 7. Let argArray be CreateArrayFromList(argumentsList).
-  TNode<JSArray> array = AllocateJSArrayForCodeStubArguments(
-      context, args, argc_ptr, INTPTR_PARAMETERS);
+  TNode<JSArray> array =
+      AllocateJSArrayForCodeStubArguments(context, args, argc_ptr);
 
   // 8. Return Call(trap, handler, «target, thisArgument, argArray»).
   TNode<Object> result = CallJS(CodeFactory::Call(isolate()), context, trap,
@@ -227,8 +229,8 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
   CodeStubArguments args(this, argc_ptr);
 
   // 7. Let argArray be CreateArrayFromList(argumentsList).
-  TNode<JSArray> array = AllocateJSArrayForCodeStubArguments(
-      context, args, argc_ptr, INTPTR_PARAMETERS);
+  TNode<JSArray> array =
+      AllocateJSArrayForCodeStubArguments(context, args, argc_ptr);
 
   // 8. Let newObj be ? Call(trap, handler, « target, argArray, newTarget »).
   TNode<Object> new_obj = CallJS(CodeFactory::Call(isolate()), context, trap,
