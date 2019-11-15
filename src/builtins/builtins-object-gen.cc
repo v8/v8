@@ -516,8 +516,8 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
     TNode<Smi> array_length = SmiTag(Signed(object_enum_length));
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-        PACKED_ELEMENTS, array_map, array_length, {}, object_enum_length,
-        INTPTR_PARAMETERS);
+        PACKED_ELEMENTS, array_map, array_length, {},
+        Signed(object_enum_length));
     CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_keys, elements,
                            object_enum_length, SKIP_WRITE_BARRIER);
     Return(array);
@@ -611,8 +611,8 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
     TNode<JSArray> array;
     TNode<FixedArrayBase> elements;
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-        PACKED_ELEMENTS, array_map, array_length, {}, object_enum_length,
-        INTPTR_PARAMETERS);
+        PACKED_ELEMENTS, array_map, array_length, {},
+        Signed(object_enum_length));
     CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_keys, elements,
                            object_enum_length, SKIP_WRITE_BARRIER);
     Return(array);

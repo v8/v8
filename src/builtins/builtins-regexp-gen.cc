@@ -99,7 +99,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   TNode<FixedArrayBase> elements;
   std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
       elements_kind, map, length, no_allocation_site, length_intptr,
-      INTPTR_PARAMETERS, kAllowLargeObjectAllocation, JSRegExpResult::kSize);
+      kAllowLargeObjectAllocation, JSRegExpResult::kSize);
 
   // Finish result initialization.
 

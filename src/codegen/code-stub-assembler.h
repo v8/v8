@@ -1809,8 +1809,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       SloppyTNode<IntPtrT> instance_size,
       int start_offset = JSObject::kHeaderSize);
 
-  TNode<BoolT> IsValidFastJSArrayCapacity(Node* capacity,
-                                          ParameterMode capacity_mode);
+  TNode<BoolT> IsValidFastJSArrayCapacity(TNode<IntPtrT> capacity);
 
   //
   // Allocate and return a JSArray with initialized header fields and its
@@ -1819,8 +1818,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   std::pair<TNode<JSArray>, TNode<FixedArrayBase>>
   AllocateUninitializedJSArrayWithElements(
       ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
-      TNode<AllocationSite> allocation_site, Node* capacity,
-      ParameterMode capacity_mode = INTPTR_PARAMETERS,
+      TNode<AllocationSite> allocation_site, TNode<IntPtrT> capacity,
       AllocationFlags allocation_flags = kNone,
       int array_header_size = JSArray::kSize);
 

@@ -3882,10 +3882,9 @@ void CodeStubAssembler::StoreFieldsNoWriteBarrier(TNode<IntPtrT> start_address,
 }
 
 TNode<BoolT> CodeStubAssembler::IsValidFastJSArrayCapacity(
-    Node* capacity, ParameterMode capacity_mode) {
-  return UncheckedCast<BoolT>(
-      UintPtrLessThanOrEqual(ParameterToIntPtr(capacity, capacity_mode),
-                             IntPtrConstant(JSArray::kMaxFastArrayLength)));
+    TNode<IntPtrT> capacity) {
+  return UintPtrLessThanOrEqual(capacity,
+                                UintPtrConstant(JSArray::kMaxFastArrayLength));
 }
 
 TNode<JSArray> CodeStubAssembler::AllocateJSArray(
@@ -3909,9 +3908,8 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
 std::pair<TNode<JSArray>, TNode<FixedArrayBase>>
 CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
     ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
-    TNode<AllocationSite> allocation_site, Node* capacity,
-    ParameterMode capacity_mode, AllocationFlags allocation_flags,
-    int array_header_size) {
+    TNode<AllocationSite> allocation_site, TNode<IntPtrT> capacity,
+    AllocationFlags allocation_flags, int array_header_size) {
   Comment("begin allocation of JSArray with elements");
   CHECK_EQ(allocation_flags & ~kAllowLargeObjectAllocation, 0);
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
@@ -3922,7 +3920,7 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   Label out(this), empty(this), nonempty(this);
 
   int capacity_int;
-  if (TryGetIntPtrOrSmiConstantValue(capacity, &capacity_int, capacity_mode)) {
+  if (ToInt32Constant(capacity, &capacity_int)) {
     if (capacity_int == 0) {
       TNode<FixedArray> empty_array = EmptyFixedArrayConstant();
       array = AllocateJSArray(array_map, empty_array, length, allocation_site,
@@ -3932,8 +3930,7 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
       Goto(&nonempty);
     }
   } else {
-    Branch(SmiEqual(ParameterToTagged(capacity, capacity_mode), SmiConstant(0)),
-           &empty, &nonempty);
+    Branch(WordEqual(capacity, IntPtrConstant(0)), &empty, &nonempty);
 
     BIND(&empty);
     {
@@ -3956,8 +3953,7 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
 
     // Compute space for elements
     base_size += FixedArray::kHeaderSize;
-    TNode<IntPtrT> size =
-        ElementOffsetFromIndex(capacity, kind, capacity_mode, base_size);
+    TNode<IntPtrT> size = ElementOffsetFromIndex(capacity, kind, base_size);
 
     // For very large arrays in which the requested allocation exceeds the
     // maximal size of a regular heap object, we cannot use the allocation
@@ -3968,19 +3964,16 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
       Label next(this);
       GotoIf(IsRegularHeapObjectSize(size), &next);
 
-      CSA_CHECK(this, IsValidFastJSArrayCapacity(capacity, capacity_mode));
+      CSA_CHECK(this, IsValidFastJSArrayCapacity(capacity));
 
       // Allocate and initialize the elements first. Full initialization is
       // needed because the upcoming JSArray allocation could trigger GC.
-      elements =
-          AllocateFixedArray(kind, capacity, capacity_mode, allocation_flags);
+      elements = AllocateFixedArray(kind, capacity, allocation_flags);
 
       if (IsDoubleElementsKind(kind)) {
-        FillFixedDoubleArrayWithZero(
-            CAST(elements.value()), ParameterToIntPtr(capacity, capacity_mode));
+        FillFixedDoubleArrayWithZero(CAST(elements.value()), capacity);
       } else {
-        FillFixedArrayWithSmiZero(CAST(elements.value()),
-                                  ParameterToIntPtr(capacity, capacity_mode));
+        FillFixedArrayWithSmiZero(CAST(elements.value()), capacity);
       }
 
       // The JSArray and possibly allocation memento next. Note that
@@ -4011,8 +4004,8 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
     DCHECK(RootsTable::IsImmortalImmovable(elements_map_index));
     StoreMapNoWriteBarrier(elements.value(), elements_map_index);
 
-    TNode<Smi> capacity_smi = ParameterToTagged(capacity, capacity_mode);
-    CSA_ASSERT(this, SmiGreaterThan(capacity_smi, SmiConstant(0)));
+    CSA_ASSERT(this, WordNotEqual(capacity, IntPtrConstant(0)));
+    TNode<Smi> capacity_smi = SmiTag(capacity);
     StoreObjectFieldNoWriteBarrier(elements.value(), FixedArray::kLengthOffset,
                                    capacity_smi);
     Goto(&out);
@@ -4054,8 +4047,7 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
   TNode<FixedArrayBase> elements;
 
   std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-      kind, array_map, length, allocation_site, capacity, capacity_mode,
-      allocation_flags);
+      kind, array_map, length, allocation_site, capacity, allocation_flags);
 
   Label out(this), nonempty(this);
 
