@@ -145,9 +145,11 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   // Rehashes the table in-place.
   void Rehash(ReadOnlyRoots roots);
 
-  // Tells whether k is a real key.  The hole and undefined are not allowed
-  // as keys and can be used to indicate missing or deleted elements.
-  static bool IsKey(ReadOnlyRoots roots, Object k);
+  // Returns whether k is a real key.  The hole and undefined are not allowed as
+  // keys and can be used to indicate missing or deleted elements.
+  static bool IsKey(ReadOnlyRoots roots, Object k) {
+    return Shape::IsKey(roots, k);
+  }
 
   inline bool ToKey(ReadOnlyRoots roots, InternalIndex entry, Object* out_k);
   inline bool ToKey(Isolate* isolate, InternalIndex entry, Object* out_k);

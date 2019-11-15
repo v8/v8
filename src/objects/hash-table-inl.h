@@ -161,11 +161,6 @@ InternalIndex HashTable<Derived, Shape>::FindEntry(ReadOnlyRoots roots, Key key,
 }
 
 template <typename Derived, typename Shape>
-bool HashTable<Derived, Shape>::IsKey(ReadOnlyRoots roots, Object k) {
-  return Shape::IsKey(roots, k);
-}
-
-template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::ToKey(ReadOnlyRoots roots, InternalIndex entry,
                                       Object* out_k) {
   Object k = KeyAt(entry);
