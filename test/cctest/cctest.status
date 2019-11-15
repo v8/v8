@@ -230,6 +230,9 @@
 
   # BUG(5920): Flaky crash.
   'test-serialize/PartialSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
+
+  # Test is just big and quite slow.
+  'test-cpu-profiler/Inlining2': [PASS, SLOW],
 }],  # 'system == windows'
 
 ##############################################################################

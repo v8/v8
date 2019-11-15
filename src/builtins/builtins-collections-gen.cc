@@ -842,9 +842,11 @@ TNode<HeapObject> CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
 
 TNode<HeapObject> CollectionsBuiltinsAssembler::AllocateTable(
     Variant variant, TNode<IntPtrT> at_least_space_for) {
-  return CAST((variant == kMap || variant == kWeakMap)
-                  ? AllocateOrderedHashTable<OrderedHashMap>()
-                  : AllocateOrderedHashTable<OrderedHashSet>());
+  if (variant == kMap || variant == kWeakMap) {
+    return AllocateOrderedHashTable<OrderedHashMap>();
+  } else {
+    return AllocateOrderedHashTable<OrderedHashSet>();
+  }
 }
 
 TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {

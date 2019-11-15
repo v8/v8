@@ -790,11 +790,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> NumberDec(SloppyTNode<Number> value);
   TNode<Number> NumberAdd(SloppyTNode<Number> a, SloppyTNode<Number> b);
   TNode<Number> NumberSub(SloppyTNode<Number> a, SloppyTNode<Number> b);
-  void GotoIfNotNumber(Node* value, Label* is_not_number);
-  void GotoIfNumber(Node* value, Label* is_number);
+  void GotoIfNotNumber(TNode<Object> value, Label* is_not_number);
+  void GotoIfNumber(TNode<Object> value, Label* is_number);
   TNode<Number> SmiToNumber(TNode<Smi> v) { return v; }
 
-  TNode<Number> BitwiseOp(Node* left32, Node* right32, Operation bitwise_op);
+  TNode<Number> BitwiseOp(TNode<Word32T> left32, TNode<Word32T> right32,
+                          Operation bitwise_op);
 
   // Allocate an object of the given size.
   TNode<HeapObject> AllocateInNewSpace(TNode<IntPtrT> size,
@@ -811,7 +812,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   using BranchGenerator = std::function<void(Label*, Label*)>;
   using NodeGenerator = std::function<Node*()>;
-  using ExtraNode = std::pair<Node*, const char*>;
+  using ExtraNode = std::pair<TNode<Object>, const char*>;
 
   void Assert(const BranchGenerator& branch, const char* message,
               const char* file, int line,
@@ -1198,8 +1199,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // This is only used on a newly allocated PropertyArray which
   // doesn't have an existing hash.
-  void InitializePropertyArrayLength(Node* property_array, Node* length,
-                                     ParameterMode mode);
+  void InitializePropertyArrayLength(TNode<PropertyArray> property_array,
+                                     Node* length, ParameterMode mode);
 
   // Check if the map is set for slow properties.
   TNode<BoolT> IsDictionaryMap(SloppyTNode<Map> map);
@@ -1385,9 +1386,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       Label* if_hole = nullptr);
 
-  Node* LoadFixedDoubleArrayElement(TNode<FixedDoubleArray> object,
-                                    TNode<Smi> index,
-                                    Label* if_hole = nullptr) {
+  TNode<Float64T> LoadFixedDoubleArrayElement(TNode<FixedDoubleArray> object,
+                                              TNode<Smi> index,
+                                              Label* if_hole = nullptr) {
     return LoadFixedDoubleArrayElement(object, index, MachineType::Float64(), 0,
                                        SMI_PARAMETERS, if_hole);
   }
@@ -1476,8 +1477,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Context> LoadModuleContext(SloppyTNode<Context> context);
 
   void GotoIfContextElementEqual(SloppyTNode<Object> value,
-                                 Node* native_context, int slot_index,
-                                 Label* if_equal) {
+                                 TNode<NativeContext> native_context,
+                                 int slot_index, Label* if_equal) {
     GotoIf(TaggedEqual(value, LoadContextElement(native_context, slot_index)),
            if_equal);
   }
@@ -1707,15 +1708,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                  TNode<IntPtrT> end_address,
                                  TNode<Object> value);
 
-  Node* AllocateCellWithValue(Node* value,
-                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  Node* AllocateSmiCell(int value = 0) {
+  TNode<Cell> AllocateCellWithValue(
+      TNode<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  TNode<Cell> AllocateSmiCell(int value = 0) {
     return AllocateCellWithValue(SmiConstant(value), SKIP_WRITE_BARRIER);
   }
 
-  TNode<Object> LoadCellValue(Node* cell);
+  TNode<Object> LoadCellValue(TNode<Cell> cell);
 
-  void StoreCellValue(Node* cell, Node* value,
+  void StoreCellValue(TNode<Cell> cell, TNode<Object> value,
                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Allocate a HeapNumber without initializing its value.
@@ -1778,20 +1779,22 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                            Label* large_object_fallback);
 
   template <typename CollectionType>
-  Node* AllocateOrderedHashTable();
+  TNode<CollectionType> AllocateOrderedHashTable();
 
   template <typename CollectionType>
   TNode<CollectionType> AllocateSmallOrderedHashTable(TNode<IntPtrT> capacity);
 
   TNode<JSObject> AllocateJSObjectFromMap(
-      SloppyTNode<Map> map, SloppyTNode<HeapObject> properties = nullptr,
-      SloppyTNode<FixedArray> elements = nullptr, AllocationFlags flags = kNone,
+      TNode<Map> map,
+      base::Optional<TNode<HeapObject>> properties = base::nullopt,
+      base::Optional<TNode<FixedArray>> elements = base::nullopt,
+      AllocationFlags flags = kNone,
       SlackTrackingMode slack_tracking_mode = kNoSlackTracking);
 
   void InitializeJSObjectFromMap(
-      SloppyTNode<HeapObject> object, SloppyTNode<Map> map,
-      SloppyTNode<IntPtrT> instance_size, Node* properties = nullptr,
-      Node* elements = nullptr,
+      TNode<HeapObject> object, TNode<Map> map, TNode<IntPtrT> instance_size,
+      base::Optional<TNode<HeapObject>> properties = base::nullopt,
+      base::Optional<TNode<FixedArray>> elements = base::nullopt,
       SlackTrackingMode slack_tracking_mode = kNoSlackTracking);
 
   void InitializeJSObjectBodyWithSlackTracking(

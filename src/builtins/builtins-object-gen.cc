@@ -1251,8 +1251,8 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,
                           IntPtrConstant(0), size, RootIndex::kUndefinedValue);
   // TODO(cbruni): support start_offset to avoid double initialization.
-  TNode<JSObject> result =
-      AllocateJSObjectFromMap(map, nullptr, nullptr, kNone, kWithSlackTracking);
+  TNode<JSObject> result = AllocateJSObjectFromMap(
+      map, base::nullopt, base::nullopt, kNone, kWithSlackTracking);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kFunctionOffset,
                                  closure);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContextOffset,
