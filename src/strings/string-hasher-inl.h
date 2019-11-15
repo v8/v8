@@ -33,9 +33,18 @@ uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
 
 uint32_t StringHasher::GetTrivialHash(int length) {
   DCHECK_GT(length, String::kMaxHashCalcLength);
-  // String hash of a large string is simply the length.
-  return (static_cast<uint32_t>(length) << String::kHashShift) |
-         String::kIsNotArrayIndexMask | String::kIsNotIntegerIndexMask;
+  // The hash of a large string is simply computed from the length. We don't
+  // have quite enough bits, so we drop the least significant bit.
+  // TODO(9904): Free up one bit, so we don't have to drop anything here.
+  constexpr int kDroppedBits = 1;
+  // Ensure that the max length after dropping bits is small enough to be
+  // shifted without losing information.
+  STATIC_ASSERT(base::bits::CountLeadingZeros32(String::kMaxLength) +
+                    kDroppedBits >=
+                String::kHashShift);
+  uint32_t hash = static_cast<uint32_t>(length) >> kDroppedBits;
+  return (hash << String::kHashShift) | String::kIsNotArrayIndexMask |
+         String::kIsNotIntegerIndexMask;
 }
 
 template <typename schar>
