@@ -3703,6 +3703,14 @@ LoadTransformation GetLoadTransformation(
         return LoadTransformation::kI16x8Load8x8S;
       } else if (memtype == MachineType::Uint8()) {
         return LoadTransformation::kI16x8Load8x8U;
+      } else if (memtype == MachineType::Int16()) {
+        return LoadTransformation::kI32x4Load16x4S;
+      } else if (memtype == MachineType::Uint16()) {
+        return LoadTransformation::kI32x4Load16x4U;
+      } else if (memtype == MachineType::Int32()) {
+        return LoadTransformation::kI64x2Load32x2S;
+      } else if (memtype == MachineType::Uint32()) {
+        return LoadTransformation::kI64x2Load32x2U;
       }
       break;
     }

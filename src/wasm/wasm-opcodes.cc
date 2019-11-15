@@ -329,6 +329,10 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S64x2_OP(LoadSplat, "load_splat")
     CASE_I16x8_OP(Load8x8S, "load8x8_s")
     CASE_I16x8_OP(Load8x8U, "load8x8_u")
+    CASE_I32x4_OP(Load16x4S, "load16x4_s")
+    CASE_I32x4_OP(Load16x4U, "load16x4_u")
+    CASE_I64x2_OP(Load32x2S, "load32x2_s")
+    CASE_I64x2_OP(Load32x2U, "load32x2_u")
 
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")

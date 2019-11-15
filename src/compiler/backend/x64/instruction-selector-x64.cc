@@ -348,6 +348,18 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
     case LoadTransformation::kI16x8Load8x8U:
       opcode = kX64I16x8Load8x8U;
       break;
+    case LoadTransformation::kI32x4Load16x4S:
+      opcode = kX64I32x4Load16x4S;
+      break;
+    case LoadTransformation::kI32x4Load16x4U:
+      opcode = kX64I32x4Load16x4U;
+      break;
+    case LoadTransformation::kI64x2Load32x2S:
+      opcode = kX64I64x2Load32x2S;
+      break;
+    case LoadTransformation::kI64x2Load32x2U:
+      opcode = kX64I64x2Load32x2U;
+      break;
     default:
       UNREACHABLE();
   }

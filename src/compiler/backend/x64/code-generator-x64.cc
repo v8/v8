@@ -3718,13 +3718,39 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8Load8x8S: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ pmovsxbw(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
     case kX64I16x8Load8x8U: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ pmovzxbw(i.OutputSimd128Register(), i.MemoryOperand());
+      break;
+    }
+    case kX64I32x4Load16x4S: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ pmovsxwd(i.OutputSimd128Register(), i.MemoryOperand());
+      break;
+    }
+    case kX64I32x4Load16x4U: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ pmovzxwd(i.OutputSimd128Register(), i.MemoryOperand());
+      break;
+    }
+    case kX64I64x2Load32x2S: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ pmovsxdq(i.OutputSimd128Register(), i.MemoryOperand());
+      break;
+    }
+    case kX64I64x2Load32x2U: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ pmovzxdq(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
     case kX64S32x4Swizzle: {

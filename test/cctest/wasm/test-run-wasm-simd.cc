@@ -3352,6 +3352,26 @@ WASM_SIMD_TEST_NO_LOWERING(I16x8Load8x8S) {
   RunLoadExtendTest<int8_t, int16_t>(execution_tier, lower_simd,
                                      kExprI16x8Load8x8S);
 }
+
+WASM_SIMD_TEST_NO_LOWERING(I32x4Load16x4U) {
+  RunLoadExtendTest<uint16_t, uint32_t>(execution_tier, lower_simd,
+                                        kExprI32x4Load16x4U);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I32x4Load16x4S) {
+  RunLoadExtendTest<int16_t, int32_t>(execution_tier, lower_simd,
+                                      kExprI32x4Load16x4S);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2Load32x2U) {
+  RunLoadExtendTest<uint32_t, uint64_t>(execution_tier, lower_simd,
+                                        kExprI64x2Load32x2U);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2Load32x2S) {
+  RunLoadExtendTest<int32_t, int64_t>(execution_tier, lower_simd,
+                                      kExprI64x2Load32x2S);
+}
 #endif  // V8_TARGET_ARCH_X64
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \

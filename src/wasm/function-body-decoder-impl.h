@@ -2732,6 +2732,22 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         len = DecodeLoadTransformMem(LoadType::kI32Load8U,
                                      LoadTransformationKind::kExtend);
         break;
+      case kExprI32x4Load16x4S:
+        len = DecodeLoadTransformMem(LoadType::kI32Load16S,
+                                     LoadTransformationKind::kExtend);
+        break;
+      case kExprI32x4Load16x4U:
+        len = DecodeLoadTransformMem(LoadType::kI32Load16U,
+                                     LoadTransformationKind::kExtend);
+        break;
+      case kExprI64x2Load32x2S:
+        len = DecodeLoadTransformMem(LoadType::kI64Load32S,
+                                     LoadTransformationKind::kExtend);
+        break;
+      case kExprI64x2Load32x2U:
+        len = DecodeLoadTransformMem(LoadType::kI64Load32U,
+                                     LoadTransformationKind::kExtend);
+        break;
       default: {
         FunctionSig* sig = WasmOpcodes::Signature(opcode);
         if (!VALIDATE(sig != nullptr)) {

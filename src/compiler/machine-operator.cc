@@ -62,6 +62,14 @@ std::ostream& operator<<(std::ostream& os, LoadTransformation rep) {
       return os << "kI16x8Load8x8S";
     case LoadTransformation::kI16x8Load8x8U:
       return os << "kI16x8Load8x8U";
+    case LoadTransformation::kI32x4Load16x4S:
+      return os << "kI32x4Load16x4S";
+    case LoadTransformation::kI32x4Load16x4U:
+      return os << "kI32x4Load16x4U";
+    case LoadTransformation::kI64x2Load32x2S:
+      return os << "kI64x2Load32x2S";
+    case LoadTransformation::kI64x2Load32x2U:
+      return os << "kI64x2Load32x2U";
   }
   UNREACHABLE();
 }
@@ -523,7 +531,11 @@ MachineType AtomicOpType(Operator const* op) {
   V(S32x4LoadSplat)            \
   V(S64x2LoadSplat)            \
   V(I16x8Load8x8S)             \
-  V(I16x8Load8x8U)
+  V(I16x8Load8x8U)             \
+  V(I32x4Load16x4S)            \
+  V(I32x4Load16x4U)            \
+  V(I64x2Load32x2S)            \
+  V(I64x2Load32x2U)
 
 #define ATOMIC_U32_TYPE_LIST(V) \
   V(Uint8)                      \

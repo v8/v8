@@ -336,8 +336,18 @@ constexpr Vector<const int16_t> ValueHelper::GetVector() {
 }
 
 template <>
+constexpr Vector<const uint16_t> ValueHelper::GetVector() {
+  return uint16_vector();
+}
+
+template <>
 constexpr Vector<const int32_t> ValueHelper::GetVector() {
   return int32_vector();
+}
+
+template <>
+constexpr Vector<const uint32_t> ValueHelper::GetVector() {
+  return uint32_vector();
 }
 
 template <>
