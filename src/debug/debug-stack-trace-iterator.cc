@@ -115,10 +115,11 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
 }
 
 v8::Local<v8::Value> DebugStackTraceIterator::GetReturnValue() const {
-  DCHECK(!Done());
+  CHECK(!Done());
   if (frame_inspector_ && frame_inspector_->IsWasm()) {
     return v8::Local<v8::Value>();
   }
+  CHECK_NOT_NULL(iterator_.frame());
   bool is_optimized = iterator_.frame()->is_optimized();
   if (is_optimized || !is_top_frame_ ||
       !isolate_->debug()->IsBreakAtReturn(iterator_.javascript_frame())) {
