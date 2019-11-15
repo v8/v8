@@ -294,10 +294,14 @@ Callable* DeclarationVisitor::SpecializeImplicit(
                 " with types <", key.specialized_types, "> declared at ",
                 key.generic->Position());
   }
+  SpecializationRequester requester{CurrentSourcePosition::Get(),
+                                    CurrentScope::Get(), ""};
   CurrentScope::Scope generic_scope(key.generic->ParentScope());
   Callable* result = Specialize(key, key.generic->declaration(), base::nullopt,
                                 body, CurrentSourcePosition::Get());
   result->SetIsUserDefined(false);
+  requester.name = result->ReadableName();
+  result->SetSpecializationRequester(requester);
   CurrentScope::Scope callable_scope(result);
   DeclareSpecializedTypes(key);
   return result;

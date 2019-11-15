@@ -133,6 +133,28 @@ class Declarable {
     return static_cast<const x*>(declarable);                 \
   }
 
+// Information about what code caused a specialization to exist. This is used
+// for error reporting.
+struct SpecializationRequester {
+  // The position of the expression that caused this specialization.
+  SourcePosition position;
+  // The Scope which contains the expression that caused this specialization.
+  // It may in turn also be within a specialization, which allows us to print
+  // the stack of requesters when an error occurs.
+  Scope* scope;
+  // The name of the specialization.
+  std::string name;
+
+  static SpecializationRequester None() {
+    return {SourcePosition::Invalid(), nullptr, ""};
+  }
+
+  bool IsNone() const {
+    return position == SourcePosition::Invalid() && scope == nullptr &&
+           name == "";
+  }
+};
+
 class Scope : public Declarable {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Scope, scope)
@@ -174,8 +196,20 @@ class Scope : public Declarable {
     return declarable;
   }
 
+  const SpecializationRequester& GetSpecializationRequester() const {
+    return requester_;
+  }
+  void SetSpecializationRequester(const SpecializationRequester& requester) {
+    requester_ = requester;
+  }
+
  private:
   std::unordered_map<std::string, std::vector<Declarable*>> declarations_;
+
+  // If this Scope was created for specializing a generic type or callable,
+  // then {requester_} refers to the place that caused the specialization so we
+  // can construct useful error messages.
+  SpecializationRequester requester_ = SpecializationRequester::None();
 };
 
 class Namespace : public Scope {

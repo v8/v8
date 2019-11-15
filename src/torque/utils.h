@@ -66,6 +66,7 @@ class V8_EXPORT_PRIVATE MessageBuilder {
   void Report() const;
 
   TorqueMessage message_;
+  std::vector<TorqueMessage> extra_messages_;
 };
 
 // Used for throwing exceptions. Retrieve TorqueMessage from the contextual

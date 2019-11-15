@@ -277,7 +277,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
 
   static size_t FreshTypeId() { return Get().next_type_id_++; }
 
-  static Namespace* CreateGenericTypeInstatiationNamespace();
+  static Namespace* CreateGenericTypeInstantiationNamespace();
 
  private:
   const Type* GetBuiltinType(const std::string& name) {

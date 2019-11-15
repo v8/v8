@@ -16,11 +16,16 @@ namespace internal {
 namespace torque {
 
 const Type* TypeVisitor::ComputeType(TypeDeclaration* decl,
-                                     MaybeSpecializationKey specialized_from) {
+                                     MaybeSpecializationKey specialized_from,
+                                     Scope* specialization_requester) {
+  SourcePosition requester_position = CurrentSourcePosition::Get();
   CurrentSourcePosition::Scope scope(decl->pos);
   Scope* current_scope = CurrentScope::Get();
   if (specialized_from) {
-    current_scope = TypeOracle::CreateGenericTypeInstatiationNamespace();
+    current_scope = TypeOracle::CreateGenericTypeInstantiationNamespace();
+    current_scope->SetSpecializationRequester(
+        {requester_position, specialization_requester,
+         Type::ComputeName(decl->name->value, specialized_from)});
   }
   CurrentScope::Scope new_current_scope_scope(current_scope);
   if (specialized_from) {
