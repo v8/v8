@@ -64,6 +64,104 @@ namespace math {
     }
   }
 
+  // ES6 #sec-math.ceil
+  extern macro Float64Ceil(float64): float64;
+  transitioning javascript builtin
+  MathCeil(js-implicit context: Context)(x: JSAny): Number {
+    try {
+      ReduceToSmiOrFloat64(x) otherwise SmiResult, Float64Result;
+    }
+    label SmiResult(s: Smi) {
+      return s;
+    }
+    label Float64Result(f: float64) {
+      return Convert<Number>(Float64Ceil(f));
+    }
+  }
+
+  // ES6 #sec-math.floor
+  extern macro Float64Floor(float64): float64;
+  transitioning javascript builtin
+  MathFloor(js-implicit context: Context)(x: JSAny): Number {
+    try {
+      ReduceToSmiOrFloat64(x) otherwise SmiResult, Float64Result;
+    }
+    label SmiResult(s: Smi) {
+      return s;
+    }
+    label Float64Result(f: float64) {
+      return Convert<Number>(Float64Floor(f));
+    }
+  }
+
+  // ES6 #sec-math.round
+  extern macro Float64Round(float64): float64;
+  transitioning javascript builtin
+  MathRound(js-implicit context: Context)(x: JSAny): Number {
+    try {
+      ReduceToSmiOrFloat64(x) otherwise SmiResult, Float64Result;
+    }
+    label SmiResult(s: Smi) {
+      return s;
+    }
+    label Float64Result(f: float64) {
+      return Convert<Number>(Float64Round(f));
+    }
+  }
+
+  // ES6 #sec-math.trunc
+  extern macro Float64Trunc(float64): float64;
+  transitioning javascript builtin
+  MathTrunc(js-implicit context: Context)(x: JSAny): Number {
+    try {
+      ReduceToSmiOrFloat64(x) otherwise SmiResult, Float64Result;
+    }
+    label SmiResult(s: Smi) {
+      return s;
+    }
+    label Float64Result(f: float64) {
+      return Convert<Number>(Float64Trunc(f));
+    }
+  }
+
+  // ES6 #sec-math.pow
+  extern macro TruncateTaggedToFloat64(implicit context: Context)(JSAny):
+      float64;
+  extern macro Float64Pow(float64, float64): float64;
+  transitioning javascript builtin
+  MathPow(js-implicit context: Context)(base: JSAny, exponent: JSAny): Number {
+    const baseValue: float64 = TruncateTaggedToFloat64(base);
+    const exponentValue: float64 = TruncateTaggedToFloat64(exponent);
+    const result: float64 = Float64Pow(baseValue, exponentValue);
+    return Convert<Number>(result);
+  }
+
+  // ES6 #sec-math.max
+  extern macro Float64Max(float64, float64): float64;
+  transitioning javascript builtin
+  MathMax(js-implicit context: Context)(...arguments): Number {
+    let result: float64 = MINUS_V8_INFINITY;
+    const argCount = arguments.length;
+    for (let i: intptr = 0; i < argCount; i++) {
+      const doubleValue = TruncateTaggedToFloat64(arguments[i]);
+      result = Float64Max(result, doubleValue);
+    }
+    return Convert<Number>(result);
+  }
+
+  // ES6 #sec-math.min
+  extern macro Float64Min(float64, float64): float64;
+  transitioning javascript builtin
+  MathMin(js-implicit context: Context)(...arguments): Number {
+    let result: float64 = V8_INFINITY;
+    const argCount = arguments.length;
+    for (let i: intptr = 0; i < argCount; i++) {
+      const doubleValue = TruncateTaggedToFloat64(arguments[i]);
+      result = Float64Min(result, doubleValue);
+    }
+    return Convert<Number>(result);
+  }
+
   // ES6 #sec-math.acos
   extern macro Float64Acos(float64): float64;
 

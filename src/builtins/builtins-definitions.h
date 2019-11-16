@@ -628,22 +628,8 @@ namespace internal {
   TFS(MapIteratorToList, kSource)                                              \
                                                                                \
   /* Math */                                                                   \
-  /* ES6 #sec-math.ceil */                                                     \
-  TFJ(MathCeil, 1, kReceiver, kX)                                              \
-  /* ES6 #sec-math.floor */                                                    \
-  TFJ(MathFloor, 1, kReceiver, kX)                                             \
-  /* ES6 #sec-math.max */                                                      \
-  TFJ(MathMax, SharedFunctionInfo::kDontAdaptArgumentsSentinel)                \
-  /* ES6 #sec-math.min */                                                      \
-  TFJ(MathMin, SharedFunctionInfo::kDontAdaptArgumentsSentinel)                \
-  /* ES6 #sec-math.pow */                                                      \
-  TFJ(MathPow, 2, kReceiver, kBase, kExponent)                                 \
   /* ES6 #sec-math.random */                                                   \
   TFJ(MathRandom, 0, kReceiver)                                                \
-  /* ES6 #sec-math.round */                                                    \
-  TFJ(MathRound, 1, kReceiver, kX)                                             \
-  /* ES6 #sec-math.trunc */                                                    \
-  TFJ(MathTrunc, 1, kReceiver, kX)                                             \
                                                                                \
   /* Number */                                                                 \
   TFC(AllocateHeapNumber, AllocateHeapNumber)                                  \

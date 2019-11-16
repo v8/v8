@@ -19,8 +19,6 @@ namespace number {
   const kAsciiZero: constexpr int32 = 48;        // '0' (ascii)
   const kAsciiLowerCaseA: constexpr int32 = 97;  // 'a' (ascii)
 
-  const MINUS_V8_INFINITY: constexpr float64 generates '-V8_INFINITY';
-
   transitioning macro ThisNumberValue(implicit context: Context)(
       receiver: JSAny, method: constexpr string): Number {
     return UnsafeCast<Number>(ToThisValue(receiver, kNumber, method));

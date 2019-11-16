@@ -17,15 +17,6 @@ class MathBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<Number> MathPow(TNode<Context> context, TNode<Object> base,
                         TNode<Object> exponent);
-
- protected:
-  void MathRoundingOperation(
-      TNode<Context> context, TNode<Object> x,
-      TNode<Float64T> (CodeStubAssembler::*float64op)(SloppyTNode<Float64T>));
-  void MathMaxMin(TNode<Context> context, TNode<Int32T> argc,
-                  TNode<Float64T> (CodeStubAssembler::*float64op)(
-                      SloppyTNode<Float64T>, SloppyTNode<Float64T>),
-                  double default_val);
 };
 
 }  // namespace internal

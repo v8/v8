@@ -208,7 +208,7 @@ Convert<float32, Number>(n: Number): float32 {
   return Convert<float32>(ChangeNumberToFloat64(n));
 }
 Convert<Number, float64>(d: float64): Number {
-  return AllocateHeapNumberWithValue(d);
+  return ChangeFloat64ToTagged(d);
 }
 Convert<float64, uintptr>(ui: uintptr): float64 {
   return ChangeUintPtrToFloat64(ui);
