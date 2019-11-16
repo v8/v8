@@ -110,6 +110,20 @@ TEST(SlotSet, Remove) {
   SlotSet::Delete(set, SlotSet::kBucketsRegularPage);
 }
 
+TEST(PossiblyEmptyBuckets, ContainsAndInsert) {
+  static const int kBuckets = 100;
+  PossiblyEmptyBuckets possibly_empty_buckets;
+  possibly_empty_buckets.Insert(0, kBuckets);
+  int last = sizeof(uintptr_t) * kBitsPerByte - 2;
+  possibly_empty_buckets.Insert(last, kBuckets);
+  EXPECT_TRUE(possibly_empty_buckets.Contains(0));
+  EXPECT_TRUE(possibly_empty_buckets.Contains(last));
+  possibly_empty_buckets.Insert(last + 1, kBuckets);
+  EXPECT_TRUE(possibly_empty_buckets.Contains(0));
+  EXPECT_TRUE(possibly_empty_buckets.Contains(last));
+  EXPECT_TRUE(possibly_empty_buckets.Contains(last + 1));
+}
+
 void CheckRemoveRangeOn(uint32_t start, uint32_t end) {
   SlotSet* set = SlotSet::Allocate(SlotSet::kBucketsRegularPage);
   uint32_t first = start == 0 ? 0 : start - kTaggedSize;
