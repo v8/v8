@@ -68,7 +68,7 @@ class TestSuite(testsuite.TestSuite):
       return MkTest
     with open(pathname) as f:
       text = f.read()
-    exec text in {"Test": Test, "Template": Template}
+    exec(text, {"Test": Test, "Template": Template})
 
   def ListTests(self):
     result = []
