@@ -12,6 +12,9 @@ namespace torque_internal {
   SizeOf<float64>(): constexpr int31 {
     return kDoubleSize;
   }
+  SizeOf<DescriptorEntry>(): constexpr int31 {
+    return kTaggedSize * 3;
+  }
 
   // Unsafe is a marker that we require to be passed when calling internal APIs
   // that might lead to unsoundness when used incorrectly. Unsafe markers should

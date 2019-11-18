@@ -3013,37 +3013,15 @@ void CodeStubAssembler::StoreFeedbackVectorSlot(
   }
 }
 
-void CodeStubAssembler::EnsureArrayLengthWritable(TNode<Map> map,
-                                                  Label* bailout) {
-  // Don't support arrays in dictionary named property mode.
-  GotoIf(IsDictionaryMap(map), bailout);
-
-  // Check whether the length property is writable. The length property is the
-  // only default named property on arrays. It's nonconfigurable, hence is
-  // guaranteed to stay the first property.
-  TNode<DescriptorArray> descriptors = LoadMapDescriptors(map);
-
-  int length_index = JSArray::kLengthDescriptorIndex;
-#ifdef DEBUG
-  TNode<Name> maybe_length =
-      LoadKeyByDescriptorEntry(descriptors, length_index);
-  CSA_ASSERT(this, TaggedEqual(maybe_length, LengthStringConstant()));
-#endif
-
-  TNode<Uint32T> details =
-      LoadDetailsByDescriptorEntry(descriptors, length_index);
-  GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
-         bailout);
-}
-
-TNode<Int32T> CodeStubAssembler::EnsureArrayPushable(TNode<Map> map,
+TNode<Int32T> CodeStubAssembler::EnsureArrayPushable(TNode<Context> context,
+                                                     TNode<Map> map,
                                                      Label* bailout) {
   // Disallow pushing onto prototypes. It might be the JSArray prototype.
   // Disallow pushing onto non-extensible objects.
   Comment("Disallow pushing onto prototypes");
   GotoIfNot(IsExtensibleNonPrototypeMap(map), bailout);
 
-  EnsureArrayLengthWritable(map, bailout);
+  EnsureArrayLengthWritable(context, map, bailout);
 
   TNode<Uint32T> kind =
       DecodeWord32<Map::ElementsKindBits>(LoadMapBitField2(map));

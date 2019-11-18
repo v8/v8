@@ -250,7 +250,7 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
     GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
 
     // 2) Ensure that the length is writable.
-    EnsureArrayLengthWritable(LoadMap(array_receiver), &runtime);
+    EnsureArrayLengthWritable(context, LoadMap(array_receiver), &runtime);
 
     // 3) Check that the elements backing store isn't copy-on-write.
     TNode<FixedArrayBase> elements = LoadElements(array_receiver);
@@ -339,7 +339,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   {
     array_receiver = CAST(receiver);
     arg_index = IntPtrConstant(0);
-    kind = EnsureArrayPushable(LoadMap(array_receiver), &runtime);
+    kind = EnsureArrayPushable(context, LoadMap(array_receiver), &runtime);
     GotoIf(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS),
            &object_push_pre);
 

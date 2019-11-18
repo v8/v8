@@ -1834,6 +1834,40 @@ LocationReference ImplementationVisitor::GetLocationReference(
         ProjectStructField(reference.temporary(), fieldname),
         reference.temporary_description());
   }
+  if (reference.IsHeapReference()) {
+    VisitResult ref = reference.heap_reference();
+    auto generic_type = StructType::MatchUnaryGeneric(
+        ref.type(), TypeOracle::GetReferenceGeneric());
+    if (!generic_type) {
+      ReportError(
+          "Left-hand side of field access expression is marked as a reference "
+          "but is not of type Reference<...>. Found type: ",
+          ref.type()->ToString());
+    }
+    if (const StructType* struct_type =
+            StructType::DynamicCast(*generic_type)) {
+      const Field& field = struct_type->LookupField(expr->field->value);
+      // Update the Reference's type to refer to the field type within the
+      // struct.
+      ref.SetType(TypeOracle::GetReferenceType(field.name_and_type.type));
+      if (field.offset != 0) {
+        // Copy the Reference struct up the stack and update the new copy's
+        // |offset| value to point to the struct field.
+        StackScope scope(this);
+        ref = GenerateCopy(ref);
+        VisitResult ref_offset = ProjectStructField(ref, "offset");
+        VisitResult struct_offset{
+            TypeOracle::GetIntPtrType()->ConstexprVersion(),
+            std::to_string(field.offset)};
+        VisitResult updated_offset =
+            GenerateCall("+", {{ref_offset, struct_offset}, {}});
+        assembler().Poke(ref_offset.stack_range(), updated_offset.stack_range(),
+                         ref_offset.type());
+        ref = scope.Yield(ref);
+      }
+      return LocationReference::HeapReference(ref);
+    }
+  }
   VisitResult object_result = GenerateFetchFromLocation(reference);
   if (base::Optional<const ClassType*> class_type =
           object_result.type()->ClassSupertype()) {

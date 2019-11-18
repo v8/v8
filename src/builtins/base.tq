@@ -520,9 +520,8 @@ extern macro ArrayCreate(implicit context: Context)(Number): JSArray;
 extern macro BuildAppendJSArray(
     constexpr ElementsKind, FastJSArray, JSAny): void labels Bailout;
 
-extern macro EnsureArrayPushable(Map): ElementsKind
+extern macro EnsureArrayPushable(implicit context: Context)(Map): ElementsKind
     labels Bailout;
-extern macro EnsureArrayLengthWritable(Map) labels Bailout;
 // TODO: Reduce duplication once varargs are supported in macros.
 extern macro Construct(implicit context: Context)(
     Constructor, JSAny): JSReceiver;

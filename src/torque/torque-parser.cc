@@ -1334,6 +1334,16 @@ base::Optional<ParseResult> MakeFieldAccessExpression(
   return ParseResult{result};
 }
 
+base::Optional<ParseResult> MakeReferenceFieldAccessExpression(
+    ParseResultIterator* child_results) {
+  auto object = child_results->NextAs<Expression*>();
+  auto field = child_results->NextAs<Identifier*>();
+  // `a->b` is equivalent to `(*a).b`.
+  Expression* deref = MakeNode<DereferenceExpression>(object);
+  Expression* result = MakeNode<FieldAccessExpression>(deref, field);
+  return ParseResult{result};
+}
+
 base::Optional<ParseResult> MakeElementAccessExpression(
     ParseResultIterator* child_results) {
   auto object = child_results->NextAs<Expression*>();
@@ -1834,6 +1844,8 @@ struct TorqueGrammar : Grammar {
       Rule({&intrinsicCallExpression}),
       Rule({&identifierExpression}),
       Rule({&primaryExpression, Token("."), &name}, MakeFieldAccessExpression),
+      Rule({&primaryExpression, Token("->"), &name},
+           MakeReferenceFieldAccessExpression),
       Rule({&primaryExpression, Token("["), expression, Token("]")},
            MakeElementAccessExpression),
       Rule({&decimalLiteral}, MakeNumberLiteralExpression),

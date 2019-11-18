@@ -1684,14 +1684,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0);
 
-  void EnsureArrayLengthWritable(TNode<Map> map, Label* bailout);
-
   // EnsureArrayPushable verifies that receiver with this map is:
   //   1. Is not a prototype.
   //   2. Is not a dictionary.
   //   3. Has a writeable length property.
   // It returns ElementsKind as a node for further division into cases.
-  TNode<Int32T> EnsureArrayPushable(TNode<Map> map, Label* bailout);
+  TNode<Int32T> EnsureArrayPushable(TNode<Context> context, TNode<Map> map,
+                                    Label* bailout);
 
   void TryStoreArrayElement(ElementsKind kind, ParameterMode mode,
                             Label* bailout, Node* elements, Node* index,

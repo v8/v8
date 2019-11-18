@@ -9,6 +9,7 @@ extern class EnumCache extends Struct {
   indices: FixedArray;
 }
 
+// Keep in sync with hand-coded SizeOf<DescriptorEntry> in torque-internal.tq.
 @export
 struct DescriptorEntry {
   key: Name|Undefined;
