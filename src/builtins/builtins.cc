@@ -443,7 +443,12 @@ bool Builtins::CodeObjectIsExecutable(int builtin_index) {
   // that they are builtins at generation time. E.g.
   //   f = Array.of;
   //   f(1, 2, 3);
-  if (Builtins::KindOf(builtin_index) == Builtins::TFJ) return true;
+  // TODO(delphick): This is probably too loose but for now Wasm can call any JS
+  // linkage builtin via its Code object. Once Wasm is fixed this can either be
+  // tighted or removed completely.
+  if (Builtins::KindOf(builtin_index) != BCH && HasJSLinkage(builtin_index)) {
+    return true;
+  }
 
   // There are some other non-TF builtins that also have JS linkage like
   // InterpreterEntryTrampoline which are explicitly allow-listed below.
