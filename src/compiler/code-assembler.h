@@ -51,6 +51,7 @@ class JSAsyncGeneratorObject;
 class JSCollator;
 class JSCollection;
 class JSDateTimeFormat;
+class JSDisplayNames;
 class JSListFormat;
 class JSLocale;
 class JSNumberFormat;

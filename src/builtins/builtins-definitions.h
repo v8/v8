@@ -1081,6 +1081,14 @@ namespace internal {
   CPP(DateTimeFormatPrototypeResolvedOptions)                          \
   /* ecma402 #sec-intl.datetimeformat.supportedlocalesof */            \
   CPP(DateTimeFormatSupportedLocalesOf)                                \
+  /* ecma402 #sec-Intl.DisplayNames */                                 \
+  CPP(DisplayNamesConstructor)                                         \
+  /* ecma402 #sec-Intl.DisplayNames.prototype.of */                    \
+  CPP(DisplayNamesPrototypeOf)                                         \
+  /* ecma402 #sec-Intl.DisplayNames.prototype.resolvedOptions */       \
+  CPP(DisplayNamesPrototypeResolvedOptions)                            \
+  /* ecma402 #sec-Intl.DisplayNames.supportedLocalesOf */              \
+  CPP(DisplayNamesSupportedLocalesOf)                                  \
   /* ecma402 #sec-intl.getcanonicallocales */                          \
   CPP(IntlGetCanonicalLocales)                                         \
   /* ecma402 #sec-intl-listformat-constructor */                       \

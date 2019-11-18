@@ -1587,6 +1587,11 @@ bool Intl::IsWellFormedCalendar(const std::string& value) {
   return JSLocale::Is38AlphaNumList(value);
 }
 
+// ecma402/#sec-iswellformedcurrencycode
+bool Intl::IsWellFormedCurrency(const std::string& currency) {
+  return JSLocale::Is3Alpha(currency);
+}
+
 bool Intl::IsValidCalendar(const icu::Locale& locale,
                            const std::string& value) {
   return IsValidExtension<icu::Calendar>(locale, "calendar", value);

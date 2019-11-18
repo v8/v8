@@ -37,6 +37,7 @@
 #include "src/objects/js-collection.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-date-time-format.h"
+#include "src/objects/js-display-names.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-generator-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -2161,6 +2162,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSCollator::kHeaderSize;
     case JS_DATE_TIME_FORMAT_TYPE:
       return JSDateTimeFormat::kHeaderSize;
+    case JS_DISPLAY_NAMES_TYPE:
+      return JSDisplayNames::kHeaderSize;
     case JS_LIST_FORMAT_TYPE:
       return JSListFormat::kHeaderSize;
     case JS_LOCALE_TYPE:
@@ -5213,6 +5216,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
 #ifdef V8_INTL_SUPPORT
     case JS_COLLATOR_TYPE:
     case JS_DATE_TIME_FORMAT_TYPE:
+    case JS_DISPLAY_NAMES_TYPE:
     case JS_LIST_FORMAT_TYPE:
     case JS_LOCALE_TYPE:
     case JS_NUMBER_FORMAT_TYPE:

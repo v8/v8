@@ -39,6 +39,7 @@
 #include "src/objects/js-collection-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-date-time-format-inl.h"
+#include "src/objects/js-display-names-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-generator-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -1547,6 +1548,8 @@ USE_TORQUE_VERIFIER(JSV8BreakIterator)
 USE_TORQUE_VERIFIER(JSCollator)
 
 USE_TORQUE_VERIFIER(JSDateTimeFormat)
+
+USE_TORQUE_VERIFIER(JSDisplayNames)
 
 USE_TORQUE_VERIFIER(JSListFormat)
 

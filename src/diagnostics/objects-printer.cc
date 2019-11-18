@@ -35,6 +35,7 @@
 #include "src/objects/js-collection-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-date-time-format-inl.h"
+#include "src/objects/js-display-names-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-generator-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -2020,6 +2021,14 @@ void JSDateTimeFormat::JSDateTimeFormatPrint(std::ostream& os) {  // NOLINT
   os << "\n - icu date interval format: " << Brief(icu_date_interval_format());
   os << "\n - bound format: " << Brief(bound_format());
   os << "\n - hour cycle: " << HourCycleAsString();
+  JSObjectPrintBody(os, *this);
+}
+
+void JSDisplayNames::JSDisplayNamesPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, *this, "JSDisplayNames");
+  os << "\n - internal: " << Brief(internal());
+  os << "\n - style: " << StyleAsString();
+  os << "\n - fallback: " << FallbackAsString();
   JSObjectPrintBody(os, *this);
 }
 

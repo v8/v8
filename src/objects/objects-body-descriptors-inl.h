@@ -947,6 +947,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_V8_BREAK_ITERATOR_TYPE:
     case JS_COLLATOR_TYPE:
     case JS_DATE_TIME_FORMAT_TYPE:
+    case JS_DISPLAY_NAMES_TYPE:
     case JS_LIST_FORMAT_TYPE:
     case JS_LOCALE_TYPE:
     case JS_NUMBER_FORMAT_TYPE:

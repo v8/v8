@@ -23,6 +23,7 @@
   V(_, currencyDisplay_string, "currencyDisplay")                   \
   V(_, currencySign_string, "currencySign")                         \
   V(_, dateStyle_string, "dateStyle")                               \
+  V(_, dateTimeField_string, "dateTimeField")                       \
   V(_, day_string, "day")                                           \
   V(_, dayPeriod_string, "dayPeriod")                               \
   V(_, decimal_string, "decimal")                                   \
@@ -33,6 +34,7 @@
   V(_, exponentInteger_string, "exponentInteger")                   \
   V(_, exponentMinusSign_string, "exponentMinusSign")               \
   V(_, exponentSeparator_string, "exponentSeparator")               \
+  V(_, fallback_string, "fallback")                                 \
   V(_, first_string, "first")                                       \
   V(_, format_string, "format")                                     \
   V(_, fraction_string, "fraction")                                 \

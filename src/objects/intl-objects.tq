@@ -4,13 +4,14 @@
 
 #include 'src/objects/js-break-iterator.h'
 #include 'src/objects/js-collator.h'
+#include 'src/objects/js-date-time-format.h'
+#include 'src/objects/js-display-names.h'
+#include 'src/objects/js-list-format.h'
+#include 'src/objects/js-locale.h'
 #include 'src/objects/js-number-format.h'
 #include 'src/objects/js-objects.h'
 #include 'src/objects/js-plural-rules.h'
 #include 'src/objects/js-relative-time-format.h'
-#include 'src/objects/js-date-time-format.h'
-#include 'src/objects/js-list-format.h'
-#include 'src/objects/js-locale.h'
 #include 'src/objects/js-segment-iterator.h'
 #include 'src/objects/js-segmenter.h'
 
@@ -20,6 +21,11 @@ extern class JSDateTimeFormat extends JSObject {
   icu_simple_date_format: Foreign;    // Managed<icu::SimpleDateFormat>
   icu_date_interval_format: Foreign;  // Managed<icu::DateIntervalFormat>
   bound_format: JSFunction|Undefined;
+  flags: Smi;
+}
+
+extern class JSDisplayNames extends JSObject {
+  internal: Foreign;  // Managed<DisplayNamesInternal>
   flags: Smi;
 }
 

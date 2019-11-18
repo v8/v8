@@ -249,6 +249,7 @@ class ZoneForwardList;
   V(JSV8BreakIterator)                    \
   V(JSCollator)                           \
   V(JSDateTimeFormat)                     \
+  V(JSDisplayNames)                       \
   V(JSListFormat)                         \
   V(JSLocale)                             \
   V(JSNumberFormat)                       \
