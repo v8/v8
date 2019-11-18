@@ -1070,6 +1070,7 @@
   'compiler/native-context-specialization-hole-check': [SKIP],
   'compiler/number-comparison-truncations': [SKIP],
   'compiler/redundancy-elimination': [SKIP],
+  'compiler/regress-9945-*': [SKIP],
 
   # Static asserts for optimizations don't hold due to removed optimization
   # phases.
