@@ -11,7 +11,6 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/persistent-map.h"
 #include "src/strings/string-stream.h"
 #include "src/utils/vector.h"
 
@@ -95,209 +94,6 @@ int GetByteWidth(MachineRepresentation rep) {
 }
 
 }  // namespace
-
-// Represents a set of live virtual registers.
-// Implemented as an adaptive data structure to handle two extremes of usage
-// patterns:
-//
-// 1. Low-ish virtual register counts should use a statically-sized bit vector
-//    for constant-time insertions/lookups and compact memory-representation.
-//    This is expected to be the common case.
-// 2. For high virtual register counts, the set is expected to be very sparsely
-//    populated. In this case, a bit vector would lead to unacceptable memory
-//    overhead (since it reserves O(capacity) memory instead of O(size)), and
-//    we use a set of indices instead. The PersistentMap was chosen for its
-//    memory-efficient add/remove/copy operations.
-//
-// The maximal capacity of the set is determined at construction.
-class LiveSet : public ZoneObject {
- private:
-  // Switch to a set backing store when this limit is exceeded.
-  // The threshold is fairly arbitrary, picked s.t. benchmarks do not regress.
-  // It should be a good tradeoff between wasted space and fast/simple bit
-  // operations on small bit vectors sizes.
-  static constexpr int kMaxSmallSetSize = 4096;
-
-  // Key k contains a bitvector value that represents indices:
-  //   [ k * kBitsPerSystemPointer, (k + 1) * kBitsPerSystemPointer [
-  using KeyT = int;
-  using ValueT = uintptr_t;
-
-  static constexpr ValueT kDefault = 0;
-
-  using PersistentLiveSet = PersistentMap<KeyT, ValueT>;
-
-  static PersistentLiveSet* NewPersistentLiveSet(Zone* zone) {
-    return new (zone->New(sizeof(PersistentLiveSet)))
-        PersistentLiveSet(zone, kDefault);
-  }
-
-  static constexpr ValueT kOne = static_cast<ValueT>(1);
-  static constexpr int kBitsPerBucket = kBitsPerSystemPointer;
-  static constexpr int MapIndex(int v) { return v / kBitsPerBucket; }
-  static constexpr int BitIndex(int v) { return v % kBitsPerBucket; }
-  static constexpr ValueT BitMask(int v) { return kOne << BitIndex(v); }
-
- public:
-  LiveSet(int size, Zone* zone)
-      : vector_(size <= kMaxSmallSetSize ? new (zone) BitVector(size, zone)
-                                         : nullptr),
-        map_(size <= kMaxSmallSetSize ? nullptr : NewPersistentLiveSet(zone)) {}
-
-  void Add(int v) {
-    if (is_small()) {
-      vector_->Add(v);
-    } else {
-      ValueT bits = map_->Get(MapIndex(v));
-      map_->Set(MapIndex(v), bits | BitMask(v));
-    }
-  }
-
-  bool Contains(int v) {
-    if (is_small()) return vector_->Contains(v);
-    return ((map_->Get(MapIndex(v)) & BitMask(v)) != 0);
-  }
-
-  void Remove(int v) {
-    if (is_small()) {
-      vector_->Remove(v);
-    } else {
-      ValueT bits = map_->Get(MapIndex(v));
-      if ((bits & BitMask(v)) != 0) {
-        map_->Set(MapIndex(v), bits & ~BitMask(v));
-      }
-      deletions_++;
-      MaybePrune();
-    }
-  }
-
-  void Union(const LiveSet& that) {
-    if (is_small()) {
-      vector_->Union(*that.vector_);
-    } else {
-      DCHECK(!that.is_small());
-
-      // The other map is empty, nothing to do.
-      if (that.map_->begin() == that.map_->end()) return;
-
-      // This map is empty, copy the other map. Note that PersistentMap copies
-      // have only low, constant memory cost.
-      if (map_->begin() == map_->end()) {
-        *map_ = *that.map_;
-        deletions_ = that.deletions_;
-        return;
-      }
-
-      // Both are non-empty.
-      for (const auto& entry : *that.map_) {
-        if (entry.second != 0) {
-          map_->Set(entry.first, map_->Get(entry.first) | entry.second);
-        }
-      }
-    }
-  }
-
-  int Count() const {
-    if (is_small()) return vector_->Count();
-
-    // Slow. Use only for debugging purposes.
-    int count = 0;
-    for (const auto& entry : *map_) {
-      count += base::bits::CountPopulation(entry.second);
-    }
-    return count;
-  }
-
-  class Iterator {
-   private:
-    BitVector empty_vector_;
-
-   public:
-    explicit Iterator(LiveSet* target)
-        : is_small_(target->is_small()),
-          small_it_(is_small_ ? target->vector_ : &empty_vector_),
-          large_it_(is_small_ ? PersistentLiveSet::iterator::end(kDefault)
-                              : target->map_->begin()) {
-      if (!is_small_ && !Done()) {
-        large_bits_ = (*large_it_).second;
-      }
-    }
-    ~Iterator() = default;
-
-    bool Done() const {
-      return is_small_ ? small_it_.Done() : large_it_.is_end();
-    }
-
-    void Advance() {
-      DCHECK(!Done());
-      if (is_small_) {
-        small_it_.Advance();
-      } else {
-        DCHECK_NE(large_bits_, 0);
-
-        // Mask out the lowest set bit.
-        int trailing_zeroes = base::bits::CountTrailingZeros(large_bits_);
-        large_bits_ &= ~(kOne << trailing_zeroes);
-
-        // If the current bitvector is empty, advance to the next non-empty
-        // bitvector.
-        if (large_bits_ == 0) {
-          ++large_it_;
-          large_bits_ = Done() ? 0 : (*large_it_).second;
-        }
-      }
-    }
-
-    int Current() const {
-      if (is_small_) return small_it_.Current();
-      int trailing_zeroes = base::bits::CountTrailingZeros(large_bits_);
-      return (*large_it_).first * kBitsPerBucket + trailing_zeroes;
-    }
-
-   private:
-    const bool is_small_;
-    BitVector::Iterator small_it_;
-    PersistentLiveSet::iterator large_it_;
-    ValueT large_bits_ = 0;
-  };
-
- private:
-  bool is_small() const { return vector_ != nullptr; }
-
-  void MaybePrune() {
-    DCHECK(!is_small());
-
-    // The PersistentMap data structure never shrinks by itself; deletions are
-    // internally treated as insertions of the kNotPresent value. This becomes
-    // problematic when the data structure begins to drag along more deleted
-    // keys than non-deleted keys. Pruning addresses this by creating a fresh
-    // deep copy of the map after a threshold is reached.
-    //
-    // Note: This is where the adaptive data structure starts to get hacky.
-    // Ideally we'd be able to avoid arbitrary parametrization such as
-    // kMaxDeletions and kMaxSmallSetSize. Maybe it's just a complexity cost we
-    // have to pay.
-
-    // Fairly arbitrary constant, chosen s.t. our tests do not regress.
-    static constexpr uint16_t kMaxDeletionsBeforePrune = 128;
-    if (deletions_ < kMaxDeletionsBeforePrune) return;
-
-    PersistentLiveSet* new_map = NewPersistentLiveSet(map_->zone());
-    for (const auto& entry : *map_) {
-      if (entry.second != 0) new_map->Set(entry.first, entry.second);
-    }
-
-    map_ = new_map;
-    deletions_ = 0;
-  }
-
-  // The decision between backing stores is made once when the LiveSet is
-  // constructed. The chosen backing store is set while the other remains
-  // nullptr.
-  BitVector* const vector_;
-  PersistentLiveSet* map_;
-  uint16_t deletions_ = 0;
-};
 
 class LiveRangeBound {
  public:
@@ -1797,7 +1593,7 @@ RegisterAllocationData::PhiMapValue* RegisterAllocationData::GetPhiMapValueFor(
 
 bool RegisterAllocationData::ExistsUseWithoutDefinition() {
   bool found = false;
-  LiveSet::Iterator iterator(live_in_sets()[0]);
+  BitVector::Iterator iterator(live_in_sets()[0]);
   while (!iterator.Done()) {
     found = true;
     int operand_index = iterator.Current();
@@ -2225,23 +2021,23 @@ LiveRangeBuilder::LiveRangeBuilder(RegisterAllocationData* data,
                                    Zone* local_zone)
     : data_(data), phi_hints_(local_zone) {}
 
-LiveSet* LiveRangeBuilder::ComputeLiveOut(const InstructionBlock* block,
-                                          RegisterAllocationData* data) {
+BitVector* LiveRangeBuilder::ComputeLiveOut(const InstructionBlock* block,
+                                            RegisterAllocationData* data) {
   size_t block_index = block->rpo_number().ToSize();
-  LiveSet* live_out = data->live_out_sets()[block_index];
+  BitVector* live_out = data->live_out_sets()[block_index];
   if (live_out == nullptr) {
     // Compute live out for the given block, except not including backward
     // successor edges.
     Zone* zone = data->allocation_zone();
     const InstructionSequence* code = data->code();
 
-    live_out = new (zone) LiveSet(code->VirtualRegisterCount(), zone);
+    live_out = new (zone) BitVector(code->VirtualRegisterCount(), zone);
 
     // Process all successor blocks.
     for (const RpoNumber& succ : block->successors()) {
       // Add values live on entry to the successor.
       if (succ <= block->rpo_number()) continue;
-      LiveSet* live_in = data->live_in_sets()[succ.ToSize()];
+      BitVector* live_in = data->live_in_sets()[succ.ToSize()];
       if (live_in != nullptr) live_out->Union(*live_in);
 
       // All phi input operands corresponding to this successor edge are live
@@ -2259,7 +2055,7 @@ LiveSet* LiveRangeBuilder::ComputeLiveOut(const InstructionBlock* block,
 }
 
 void LiveRangeBuilder::AddInitialIntervals(const InstructionBlock* block,
-                                           LiveSet* live_out) {
+                                           BitVector* live_out) {
   // Add an interval that includes the entire block to the live range for
   // each live_out value.
   LifetimePosition start = LifetimePosition::GapFromInstructionIndex(
@@ -2267,7 +2063,7 @@ void LiveRangeBuilder::AddInitialIntervals(const InstructionBlock* block,
   LifetimePosition end = LifetimePosition::InstructionFromInstructionIndex(
                              block->last_instruction_index())
                              .NextStart();
-  LiveSet::Iterator iterator(live_out);
+  BitVector::Iterator iterator(live_out);
   while (!iterator.Done()) {
     int operand_index = iterator.Current();
     TopLevelLiveRange* range = data()->GetOrCreateLiveRangeFor(operand_index);
@@ -2427,7 +2223,7 @@ UsePosition* LiveRangeBuilder::Use(LifetimePosition block_start,
 }
 
 void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
-                                           LiveSet* live) {
+                                           BitVector* live) {
   int block_start = block->first_instruction_index();
   LifetimePosition block_start_position =
       LifetimePosition::GapFromInstructionIndex(block_start);
@@ -2643,7 +2439,7 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
 }
 
 void LiveRangeBuilder::ProcessPhis(const InstructionBlock* block,
-                                   LiveSet* live) {
+                                   BitVector* live) {
   for (PhiInstruction* phi : block->phis()) {
     // The live range interval already ends at the first instruction of the
     // block.
@@ -2765,11 +2561,11 @@ void LiveRangeBuilder::ProcessPhis(const InstructionBlock* block,
 }
 
 void LiveRangeBuilder::ProcessLoopHeader(const InstructionBlock* block,
-                                         LiveSet* live) {
+                                         BitVector* live) {
   DCHECK(block->IsLoopHeader());
   // Add a live range stretching from the first loop instruction to the last
   // for each value live on entry to the header.
-  LiveSet::Iterator iterator(live);
+  BitVector::Iterator iterator(live);
   LifetimePosition start = LifetimePosition::GapFromInstructionIndex(
       block->first_instruction_index());
   LifetimePosition end = LifetimePosition::GapFromInstructionIndex(
@@ -2796,7 +2592,7 @@ void LiveRangeBuilder::BuildLiveRanges() {
     data_->tick_counter()->DoTick();
     InstructionBlock* block =
         code()->InstructionBlockAt(RpoNumber::FromInt(block_id));
-    LiveSet* live = ComputeLiveOut(block, data());
+    BitVector* live = ComputeLiveOut(block, data());
     // Initially consider all live_out values live for the entire block. We
     // will shorten these intervals if necessary.
     AddInitialIntervals(block, live);
@@ -5152,11 +4948,11 @@ bool LiveRangeConnector::CanEagerlyResolveControlFlow(
 void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
   // Lazily linearize live ranges in memory for fast lookup.
   LiveRangeFinder finder(data(), local_zone);
-  ZoneVector<LiveSet*>& live_in_sets = data()->live_in_sets();
+  ZoneVector<BitVector*>& live_in_sets = data()->live_in_sets();
   for (const InstructionBlock* block : code()->instruction_blocks()) {
     if (CanEagerlyResolveControlFlow(block)) continue;
-    LiveSet* live = live_in_sets[block->rpo_number().ToInt()];
-    LiveSet::Iterator iterator(live);
+    BitVector* live = live_in_sets[block->rpo_number().ToInt()];
+    BitVector::Iterator iterator(live);
     while (!iterator.Done()) {
       data()->tick_counter()->DoTick();
       int vreg = iterator.Current();
