@@ -142,8 +142,7 @@ void AccessorAssembler::HandleLoadICHandlerCase(
   TVARIABLE(Object, var_holder, p->holder());
   TVARIABLE(Object, var_smi_handler, handler);
 
-  Variable* vars[] = {&var_holder, &var_smi_handler};
-  Label if_smi_handler(this, 2, vars);
+  Label if_smi_handler(this, {&var_holder, &var_smi_handler});
   Label try_proto_handler(this, Label::kDeferred),
       call_handler(this, Label::kDeferred);
 
@@ -234,7 +233,7 @@ void AccessorAssembler::HandleLoadAccessor(
 
 void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
                                         TNode<WordT> handler_word,
-                                        Variable* var_double_value,
+                                        TVariable<Float64T>* var_double_value,
                                         Label* rebox_double, Label* miss,
                                         ExitPoint* exit_point) {
   Comment("field_load");
@@ -254,8 +253,7 @@ void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
 
     BIND(&is_double);
     if (FLAG_unbox_double_fields) {
-      var_double_value->Bind(
-          LoadObjectField(holder, offset, MachineType::Float64()));
+      *var_double_value = LoadObjectField<Float64T>(holder, offset);
     } else {
       TNode<Object> heap_number = LoadObjectField(holder, offset);
       // This is not an "old" Smi value from before a Smi->Double transition.
@@ -263,7 +261,7 @@ void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
       // field transitioned to a Tagged field, and was then assigned a Smi.
       GotoIf(TaggedIsSmi(heap_number), miss);
       GotoIfNot(IsHeapNumber(CAST(heap_number)), miss);
-      var_double_value->Bind(LoadHeapNumberValue(CAST(heap_number)));
+      *var_double_value = LoadHeapNumberValue(CAST(heap_number));
     }
     Goto(rebox_double);
   }
@@ -284,7 +282,7 @@ void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
       GotoIf(TaggedIsSmi(value), miss);
       GotoIfNot(IsHeapNumber(CAST(value)), miss);
     }
-    var_double_value->Bind(LoadHeapNumberValue(CAST(value)));
+    *var_double_value = LoadHeapNumberValue(CAST(value));
     Goto(rebox_double);
   }
 }
@@ -459,7 +457,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     const LazyLoadICParameters* p, TNode<Object> holder,
     TNode<IntPtrT> handler_kind, TNode<WordT> handler_word, Label* rebox_double,
-    Variable* var_double_value, TNode<Object> handler, Label* miss,
+    TVariable<Float64T>* var_double_value, TNode<Object> handler, Label* miss,
     ExitPoint* exit_point, ICMode ic_mode, OnNonExistent on_nonexistent,
     ElementSupport support_elements) {
   Label constant(this), field(this), normal(this, Label::kDeferred),
@@ -1984,7 +1982,7 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
     GotoIf(UintPtrLessThan(index, ParameterToIntPtr(var_length.value(), mode)),
            &done);
 
-    Node* delta = IntPtrOrSmiConstant(JSObject::kFieldsAdded, mode);
+    TNode<BInt> delta = BIntConstant(JSObject::kFieldsAdded);
     Node* new_capacity = IntPtrOrSmiAdd(var_length.value(), delta, mode);
 
     // Grow properties array.
@@ -2468,8 +2466,7 @@ void AccessorAssembler::GenericPropertyLoad(TNode<HeapObject> receiver,
     TVARIABLE(Map, var_holder_map);
     TVARIABLE(Int32T, var_holder_instance_type);
     Label return_undefined(this), is_private_symbol(this);
-    Variable* merged_variables[] = {&var_holder_map, &var_holder_instance_type};
-    Label loop(this, arraysize(merged_variables), merged_variables);
+    Label loop(this, {&var_holder_map, &var_holder_instance_type});
 
     var_holder_map = receiver_map;
     var_holder_instance_type = instance_type;

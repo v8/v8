@@ -286,8 +286,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                           TNode<IntPtrT> handler_kind, ExitPoint* exit_point);
 
   void HandleLoadField(TNode<JSObject> holder, TNode<WordT> handler_word,
-                       Variable* var_double_value, Label* rebox_double,
-                       Label* miss, ExitPoint* exit_point);
+                       TVariable<Float64T>* var_double_value,
+                       Label* rebox_double, Label* miss, ExitPoint* exit_point);
 
   void EmitAccessCheck(TNode<Context> expected_native_context,
                        TNode<Context> context, TNode<Object> receiver,
@@ -296,8 +296,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void HandleLoadICSmiHandlerLoadNamedCase(
       const LazyLoadICParameters* p, TNode<Object> holder,
       TNode<IntPtrT> handler_kind, TNode<WordT> handler_word,
-      Label* rebox_double, Variable* var_double_value, TNode<Object> handler,
-      Label* miss, ExitPoint* exit_point, ICMode ic_mode,
+      Label* rebox_double, TVariable<Float64T>* var_double_value,
+      TNode<Object> handler, Label* miss, ExitPoint* exit_point, ICMode ic_mode,
       OnNonExistent on_nonexistent, ElementSupport support_elements);
 
   void HandleLoadICSmiHandlerHasNamedCase(const LazyLoadICParameters* p,
