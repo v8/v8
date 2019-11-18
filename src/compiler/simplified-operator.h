@@ -666,6 +666,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* NumberSilenceNaN();
 
   const Operator* BigIntAdd();
+  const Operator* BigIntSubtract();
   const Operator* BigIntNegate();
 
   const Operator* SpeculativeSafeIntegerAdd(NumberOperationHint hint);
@@ -688,6 +689,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SpeculativeNumberEqual(NumberOperationHint hint);
 
   const Operator* SpeculativeBigIntAdd(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntSubtract(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntNegate(BigIntOperationHint hint);
   const Operator* BigIntAsUintN(int bits);
 

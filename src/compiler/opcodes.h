@@ -318,7 +318,9 @@
   V(NumberMin)                          \
   V(NumberPow)
 
-#define SIMPLIFIED_BIGINT_BINOP_LIST(V) V(BigIntAdd)
+#define SIMPLIFIED_BIGINT_BINOP_LIST(V) \
+  V(BigIntAdd)                          \
+  V(BigIntSubtract)
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
   V(SpeculativeNumberAdd)                           \
@@ -475,7 +477,10 @@
   V(AssertType)                         \
   V(DateNow)
 
-#define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) V(SpeculativeBigIntAdd)
+#define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) \
+  V(SpeculativeBigIntAdd)                           \
+  V(SpeculativeBigIntSubtract)
+
 #define SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(V) V(SpeculativeBigIntNegate)
 
 #define SIMPLIFIED_OP_LIST(V)                 \

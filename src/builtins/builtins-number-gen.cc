@@ -712,8 +712,8 @@ TF_BUILTIN(Subtract, NumberBuiltinsAssembler) {
   BIND(&do_bigint_sub);
   {
     TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-    Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
-                       var_right.value(), SmiConstant(Operation::kSubtract)));
+    TailCallBuiltin(Builtins::kBigIntSubtract, context, var_left.value(),
+                    var_right.value());
   }
 }
 

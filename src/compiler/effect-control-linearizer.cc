@@ -167,6 +167,7 @@ class EffectControlLinearizer {
   Node* LowerStringLessThan(Node* node);
   Node* LowerStringLessThanOrEqual(Node* node);
   Node* LowerBigIntAdd(Node* node, Node* frame_state);
+  Node* LowerBigIntSubtract(Node* node, Node* frame_state);
   Node* LowerBigIntNegate(Node* node);
   Node* LowerCheckFloat64Hole(Node* node, Node* frame_state);
   Node* LowerCheckNotTaggedHole(Node* node, Node* frame_state);
@@ -1147,6 +1148,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kBigIntAdd:
       result = LowerBigIntAdd(node, frame_state);
+      break;
+    case IrOpcode::kBigIntSubtract:
+      result = LowerBigIntSubtract(node, frame_state);
       break;
     case IrOpcode::kBigIntNegate:
       result = LowerBigIntNegate(node);
@@ -4195,6 +4199,27 @@ Node* EffectControlLinearizer::LowerBigIntAdd(Node* node, Node* frame_state) {
 
   Callable const callable =
       Builtins::CallableFor(isolate(), Builtins::kBigIntAddNoThrow);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kFoldable | Operator::kNoThrow);
+  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
+                        rhs, __ NoContextConstant());
+
+  // Check for exception sentinel: Smi is returned to signal BigIntTooBig.
+  __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, FeedbackSource{},
+                  ObjectIsSmi(value), frame_state);
+
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerBigIntSubtract(Node* node,
+                                                   Node* frame_state) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtins::kBigIntSubtractNoThrow);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,

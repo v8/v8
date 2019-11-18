@@ -2719,6 +2719,25 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kSpeculativeBigIntSubtract: {
+        if (truncation.IsUsedAsWord64()) {
+          VisitBinop(node,
+                     UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
+                     MachineRepresentation::kWord64);
+          if (lower()) {
+            ChangeToPureOp(node, lowering->machine()->Int64Sub());
+          }
+        } else {
+          VisitBinop(node,
+                     UseInfo::CheckedBigIntAsTaggedPointer(FeedbackSource{}),
+                     MachineRepresentation::kTaggedPointer);
+          if (lower()) {
+            NodeProperties::ChangeOp(node,
+                                     lowering->simplified()->BigIntSubtract());
+          }
+        }
+        return;
+      }
       case IrOpcode::kSpeculativeBigIntNegate: {
         if (truncation.IsUsedAsWord64()) {
           VisitUnop(node,
