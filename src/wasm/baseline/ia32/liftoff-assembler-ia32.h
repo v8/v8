@@ -14,11 +14,8 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define REQUIRE_CPU_FEATURE(name, ...)        \
-  if (!CpuFeatures::IsSupported(name)) {      \
-    bailout(kMissingCPUFeature, "no " #name); \
-    return __VA_ARGS__;                       \
-  }                                           \
+#define RETURN_FALSE_IF_MISSING_CPU_FEATURE(name)    \
+  if (!CpuFeatures::IsSupported(name)) return false; \
   CpuFeatureScope feature(this, name);
 
 namespace liftoff {
@@ -1300,40 +1297,28 @@ void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
 }
 
 bool LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope feature(this, SSE4_1);
-    roundss(dst, src, kRoundUp);
-    return true;
-  }
-  return false;
+  RETURN_FALSE_IF_MISSING_CPU_FEATURE(SSE4_1);
+  roundss(dst, src, kRoundUp);
+  return true;
 }
 
 bool LiftoffAssembler::emit_f32_floor(DoubleRegister dst, DoubleRegister src) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope feature(this, SSE4_1);
-    roundss(dst, src, kRoundDown);
-    return true;
-  }
-  return false;
+  RETURN_FALSE_IF_MISSING_CPU_FEATURE(SSE4_1);
+  roundss(dst, src, kRoundDown);
+  return true;
 }
 
 bool LiftoffAssembler::emit_f32_trunc(DoubleRegister dst, DoubleRegister src) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope feature(this, SSE4_1);
-    roundss(dst, src, kRoundToZero);
-    return true;
-  }
-  return false;
+  RETURN_FALSE_IF_MISSING_CPU_FEATURE(SSE4_1);
+  roundss(dst, src, kRoundToZero);
+  return true;
 }
 
 bool LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
                                             DoubleRegister src) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope feature(this, SSE4_1);
-    roundss(dst, src, kRoundToNearest);
-    return true;
-  }
-  return false;
+  RETURN_FALSE_IF_MISSING_CPU_FEATURE(SSE4_1);
+  roundss(dst, src, kRoundToNearest);
+  return true;
 }
 
 void LiftoffAssembler::emit_f32_sqrt(DoubleRegister dst, DoubleRegister src) {
@@ -1449,26 +1434,26 @@ void LiftoffAssembler::emit_f64_neg(DoubleRegister dst, DoubleRegister src) {
 }
 
 bool LiftoffAssembler::emit_f64_ceil(DoubleRegister dst, DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1, true);
+  RETURN_FALSE_IF_MISSING_CPU_FEATURE(SSE4_1);
   roundsd(dst, src, kRoundUp);
   return true;
 }
 
 bool LiftoffAssembler::emit_f64_floor(DoubleRegister dst, DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1, true);
+  RETURN_FALSE_IF_MISSING_CPU_FEATURE(SSE4_1);
   roundsd(dst, src, kRoundDown);
   return true;
 }
 
 bool LiftoffAssembler::emit_f64_trunc(DoubleRegister dst, DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1, true);
+  RETURN_FALSE_IF_MISSING_CPU_FEATURE(SSE4_1);
   roundsd(dst, src, kRoundToZero);
   return true;
 }
 
 bool LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
                                             DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1, true);
+  RETURN_FALSE_IF_MISSING_CPU_FEATURE(SSE4_1);
   roundsd(dst, src, kRoundToNearest);
   return true;
 }
@@ -1968,7 +1953,7 @@ void LiftoffStackSlots::Construct() {
   }
 }
 
-#undef REQUIRE_CPU_FEATURE
+#undef RETURN_FALSE_IF_MISSING_CPU_FEATURE
 
 }  // namespace wasm
 }  // namespace internal
