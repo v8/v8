@@ -13366,6 +13366,21 @@ void CodeStubAssembler::SetPropertyLength(TNode<Context> context,
   BIND(&done);
 }
 
+TNode<Smi> CodeStubAssembler::RefillMathRandom(
+    TNode<NativeContext> native_context) {
+  // Cache exhausted, populate the cache. Return value is the new index.
+  const TNode<ExternalReference> refill_math_random =
+      ExternalConstant(ExternalReference::refill_math_random());
+  const TNode<ExternalReference> isolate_ptr =
+      ExternalConstant(ExternalReference::isolate_address(isolate()));
+  MachineType type_tagged = MachineType::AnyTagged();
+  MachineType type_ptr = MachineType::Pointer();
+
+  return CAST(CallCFunction(refill_math_random, type_tagged,
+                            std::make_pair(type_ptr, isolate_ptr),
+                            std::make_pair(type_tagged, native_context)));
+}
+
 TNode<String> CodeStubAssembler::TaggedToDirectString(TNode<Object> value,
                                                       Label* fail) {
   ToDirectStringAssembler to_direct(state(), CAST(value));

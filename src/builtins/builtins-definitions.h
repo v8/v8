@@ -627,10 +627,6 @@ namespace internal {
   TFJ(MapIteratorPrototypeNext, 0, kReceiver)                                  \
   TFS(MapIteratorToList, kSource)                                              \
                                                                                \
-  /* Math */                                                                   \
-  /* ES6 #sec-math.random */                                                   \
-  TFJ(MathRandom, 0, kReceiver)                                                \
-                                                                               \
   /* Number */                                                                 \
   TFC(AllocateHeapNumber, AllocateHeapNumber)                                  \
   /* ES #sec-number-constructor */                                             \

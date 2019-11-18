@@ -37,6 +37,10 @@ const JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX: constexpr NativeContextSlot
     generates 'Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX';
 const JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX: constexpr NativeContextSlot
     generates 'Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX';
+const MATH_RANDOM_CACHE_INDEX: constexpr NativeContextSlot
+    generates 'Context::MATH_RANDOM_CACHE_INDEX';
+const MATH_RANDOM_INDEX_INDEX: constexpr NativeContextSlot
+    generates 'Context::MATH_RANDOM_INDEX_INDEX';
 const PROXY_REVOCABLE_RESULT_MAP_INDEX: constexpr NativeContextSlot
     generates 'Context::PROXY_REVOCABLE_RESULT_MAP_INDEX';
 const REFLECT_APPLY_INDEX: constexpr NativeContextSlot

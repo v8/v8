@@ -3692,6 +3692,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // HeapNumber.
   TNode<Object> CloneIfMutablePrimitive(TNode<Object> object);
 
+  TNode<Smi> RefillMathRandom(TNode<NativeContext> native_context);
+
  private:
   friend class CodeStubArguments;
 

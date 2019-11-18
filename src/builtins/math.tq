@@ -125,15 +125,22 @@ namespace math {
   }
 
   // ES6 #sec-math.pow
+  extern macro Float64Pow(float64, float64): float64;
   extern macro TruncateTaggedToFloat64(implicit context: Context)(JSAny):
       float64;
-  extern macro Float64Pow(float64, float64): float64;
-  transitioning javascript builtin
-  MathPow(js-implicit context: Context)(base: JSAny, exponent: JSAny): Number {
+
+  @export
+  macro MathPowImpl(implicit context: Context)(base: JSAny, exponent: JSAny):
+      Number {
     const baseValue: float64 = TruncateTaggedToFloat64(base);
     const exponentValue: float64 = TruncateTaggedToFloat64(exponent);
     const result: float64 = Float64Pow(baseValue, exponentValue);
     return Convert<Number>(result);
+  }
+
+  transitioning javascript builtin
+  MathPow(js-implicit context: Context)(base: JSAny, exponent: JSAny): Number {
+    return MathPowImpl(base, exponent);
   }
 
   // ES6 #sec-math.max
@@ -436,5 +443,27 @@ namespace math {
       sum = preliminary;
     }
     return Convert<Number>(Float64Sqrt(sum) * max);
+  }
+
+  // ES6 #sec-math.random
+  extern macro RefillMathRandom(NativeContext): Smi;
+
+  transitioning javascript builtin
+  MathRandom(js-implicit context: Context, receiver: JSAny)(): Number {
+    const nativeContext: NativeContext = LoadNativeContext(context);
+    let smiIndex: Smi = Cast<Smi>(nativeContext[MATH_RANDOM_INDEX_INDEX])
+        otherwise unreachable;
+    if (smiIndex == 0) {
+      // refill math random.
+      smiIndex = RefillMathRandom(nativeContext);
+    }
+    const newSmiIndex: Smi = smiIndex - 1;
+    nativeContext[MATH_RANDOM_INDEX_INDEX] = newSmiIndex;
+
+    const array: FixedDoubleArray =
+        Cast<FixedDoubleArray>(nativeContext[MATH_RANDOM_CACHE_INDEX])
+        otherwise unreachable;
+    const random: float64 = array.floats[Convert<intptr>(newSmiIndex)];
+    return AllocateHeapNumberWithValue(random);
   }
 }

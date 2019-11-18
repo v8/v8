@@ -1479,8 +1479,6 @@ v8_source_set("v8_initializers") {
     "src/builtins/builtins-iterator-gen.h",
     "src/builtins/builtins-lazy-gen.cc",
     "src/builtins/builtins-lazy-gen.h",
-    "src/builtins/builtins-math-gen.cc",
-    "src/builtins/builtins-math-gen.h",
     "src/builtins/builtins-microtask-queue-gen.cc",
     "src/builtins/builtins-number-gen.cc",
     "src/builtins/builtins-object-gen.cc",
