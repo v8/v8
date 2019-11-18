@@ -41,6 +41,20 @@ class RememberedSetOperations {
     return slots;
   }
 
+  template <typename Callback>
+  static int IterateAndTrackEmptyBuckets(
+      SlotSet* slot_set, MemoryChunk* chunk, Callback callback,
+      Worklist<MemoryChunk*, 64>::View empty_chunks) {
+    int slots = 0;
+    if (slot_set != nullptr) {
+      bool found_empty_bucket = false;
+      slots += slot_set->IterateAndTrackEmptyBuckets(
+          chunk->address(), chunk->buckets(), callback, &found_empty_bucket);
+      if (found_empty_bucket) empty_chunks.Push(chunk);
+    }
+    return slots;
+  }
+
   static void Remove(SlotSet* slot_set, MemoryChunk* chunk, Address slot_addr) {
     if (slot_set != nullptr) {
       uintptr_t offset = slot_addr - chunk->address();
@@ -154,16 +168,12 @@ class RememberedSet : public AllStatic {
   static int IterateAndTrackEmptyBuckets(
       MemoryChunk* chunk, Callback callback,
       Worklist<MemoryChunk*, 64>::View empty_chunks) {
-    SlotSet* slot_set = chunk->slot_set<type>();
-    int slots = 0;
-    if (slot_set != nullptr) {
-      PossiblyEmptyBuckets* possibly_empty_buckets =
-          chunk->possibly_empty_buckets();
-      slots += slot_set->IterateAndTrackEmptyBuckets(
-          chunk->address(), chunk->buckets(), callback, possibly_empty_buckets);
-      if (!possibly_empty_buckets->IsEmpty()) empty_chunks.Push(chunk);
-    }
-    return slots;
+    SlotSet* slots = chunk->slot_set<type>();
+    bool empty_bucket_found = false;
+    int slot_count = RememberedSetOperations::IterateAndTrackEmptyBuckets(
+        slots, chunk, callback, empty_chunks);
+    if (empty_bucket_found) empty_chunks.Push(chunk);
+    return slot_count;
   }
 
   static void FreeEmptyBuckets(MemoryChunk* chunk) {
@@ -178,8 +188,7 @@ class RememberedSet : public AllStatic {
     DCHECK(type == OLD_TO_NEW);
     SlotSet* slot_set = chunk->slot_set<type, AccessMode::NON_ATOMIC>();
     if (slot_set != nullptr &&
-        slot_set->CheckPossiblyEmptyBuckets(chunk->buckets(),
-                                            chunk->possibly_empty_buckets())) {
+        slot_set->CheckPossiblyEmptyBuckets(chunk->buckets())) {
       chunk->ReleaseSlotSet<type>();
       return true;
     }

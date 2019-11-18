@@ -373,7 +373,9 @@ void ScavengerCollector::CollectGarbage() {
 #ifdef DEBUG
     RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
         heap_, [](MemoryChunk* chunk) {
-          DCHECK(chunk->possibly_empty_buckets()->IsEmpty());
+          SlotSet* slot_set = chunk->slot_set<OLD_TO_NEW>();
+          DCHECK_IMPLIES(slot_set != nullptr,
+                         slot_set->IsPossiblyEmptyCleared());
         });
 #endif
   }

@@ -24,7 +24,6 @@
 #include "src/heap/heap.h"
 #include "src/heap/invalidated-slots.h"
 #include "src/heap/marking.h"
-#include "src/heap/slot-set.h"
 #include "src/objects/free-space.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/map.h"
@@ -623,8 +622,7 @@ class MemoryChunk : public BasicMemoryChunk {
       + kSystemPointerSize      // LocalArrayBufferTracker* local_tracker_
       + kIntptrSize  // std::atomic<intptr_t> young_generation_live_byte_count_
       + kSystemPointerSize   // Bitmap* young_generation_bitmap_
-      + kSystemPointerSize   // CodeObjectRegistry* code_object_registry_
-      + kSystemPointerSize;  // PossiblyEmptyBuckets possibly_empty_buckets_
+      + kSystemPointerSize;  // CodeObjectRegistry* code_object_registry_
 
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
@@ -871,10 +869,6 @@ class MemoryChunk : public BasicMemoryChunk {
 
   FreeList* free_list() { return owner()->free_list(); }
 
-  PossiblyEmptyBuckets* possibly_empty_buckets() {
-    return &possibly_empty_buckets_;
-  }
-
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                  Address area_start, Address area_end,
@@ -969,8 +963,6 @@ class MemoryChunk : public BasicMemoryChunk {
   Bitmap* young_generation_bitmap_;
 
   CodeObjectRegistry* code_object_registry_;
-
-  PossiblyEmptyBuckets possibly_empty_buckets_;
 
  private:
   void InitializeReservedMemory() { reservation_.Reset(); }

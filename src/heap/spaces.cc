@@ -750,8 +750,6 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
     chunk->code_object_registry_ = nullptr;
   }
 
-  chunk->possibly_empty_buckets_.Initialize();
-
   return chunk;
 }
 
@@ -1396,7 +1394,6 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
     code_object_registry_ = nullptr;
   }
 
-  possibly_empty_buckets_.Release();
   ReleaseSlotSet<OLD_TO_NEW>();
   ReleaseSweepingSlotSet();
   ReleaseSlotSet<OLD_TO_OLD>();
