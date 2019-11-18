@@ -155,7 +155,7 @@ class DescriptorArray : public HeapObject {
     return OffsetOfDescriptorAt(number_of_all_descriptors);
   }
   static constexpr int OffsetOfDescriptorAt(int descriptor) {
-    return kHeaderSize + descriptor * kEntrySize * kTaggedSize;
+    return kDescriptorsOffset + descriptor * kEntrySize * kTaggedSize;
   }
   inline ObjectSlot GetFirstPointerSlot();
   inline ObjectSlot GetDescriptorSlot(int descriptor);
@@ -164,6 +164,8 @@ class DescriptorArray : public HeapObject {
                 "Weak fields follow strong fields.");
   static_assert(kEndOfWeakFieldsOffset == kHeaderSize,
                 "Weak fields extend up to the end of the header.");
+  static_assert(kDescriptorsOffset == kHeaderSize,
+                "Variable-size array follows header.");
   // We use this visitor to also visitor to also visit the enum_cache, which is
   // the only tagged field in the header, and placed at the end of the header.
   using BodyDescriptor = FlexibleWeakBodyDescriptor<kStartOfStrongFieldsOffset>;

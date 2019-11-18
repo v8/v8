@@ -183,14 +183,28 @@ struct Field {
   // reliance of string types is quite clunky.
   std::tuple<size_t, std::string> GetFieldSizeInformation() const;
 
+  // Like GetFieldSizeInformation, but rather than raising an error if the
+  // field's size is unknown, it returns no value.
+  base::Optional<std::tuple<size_t, std::string>>
+  GetOptionalFieldSizeInformation() const;
+
   SourcePosition pos;
   const AggregateType* aggregate;
   base::Optional<NameAndType> index;
   NameAndType name_and_type;
+
+  // The byte offset of this field from the beginning of the containing class or
+  // struct. Most structs are never packed together in memory, and are only used
+  // to hold a batch of related CSA TNode values, in which case |offset| is
+  // irrelevant. In structs, this value can be set to kInvalidOffset to indicate
+  // that the struct should never be used in packed form.
   size_t offset;
+
   bool is_weak;
   bool const_qualified;
   bool generate_verify;
+
+  static constexpr size_t kInvalidOffset = SIZE_MAX;
 };
 
 std::ostream& operator<<(std::ostream& os, const Field& name_and_type);
@@ -502,6 +516,9 @@ class StructType final : public AggregateType {
   DECLARE_TYPE_BOILERPLATE(StructType)
 
   std::string GetGeneratedTypeNameImpl() const override;
+
+  // Returns the sum of the size of all members. Does not validate alignment.
+  size_t PackedSize() const;
 
  private:
   friend class TypeOracle;

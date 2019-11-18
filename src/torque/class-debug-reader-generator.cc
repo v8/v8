@@ -82,6 +82,7 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
   for (const Field& field : type.fields()) {
     const Type* field_type = field.name_and_type.type;
     if (field_type == TypeOracle::GetVoidType()) continue;
+    if (field_type->IsStructType()) continue;  // Not yet supported.
     const std::string& field_name = field.name_and_type.name;
     bool is_field_tagged = field_type->IsSubtypeOf(TypeOracle::GetTaggedType());
     base::Optional<const ClassType*> field_class_type =

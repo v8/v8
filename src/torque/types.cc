@@ -336,6 +336,29 @@ std::string StructType::GetGeneratedTypeNameImpl() const {
   return generated_type_name_;
 }
 
+size_t StructType::PackedSize() const {
+  size_t result = 0;
+  if (!fields_.empty()) {
+    const Field& last = fields_.back();
+    if (last.offset == Field::kInvalidOffset) {
+      // This struct can't be packed. Find the first invalid field and use its
+      // name and position for the error.
+      for (const Field& field : fields_) {
+        if (field.offset == Field::kInvalidOffset) {
+          Error("Cannot compute packed size of ", ToString(), " due to field ",
+                field.name_and_type.name, " of unknown size")
+              .Position(field.pos);
+          return 0;
+        }
+      }
+    }
+    size_t field_size = 0;
+    std::tie(field_size, std::ignore) = last.GetFieldSizeInformation();
+    result = last.offset + field_size;
+  }
+  return result;
+}
+
 // static
 std::string Type::ComputeName(const std::string& basename,
                               MaybeSpecializationKey specialized_from) {
@@ -695,7 +718,18 @@ VisitResult VisitResult::NeverResult() {
 }
 
 std::tuple<size_t, std::string> Field::GetFieldSizeInformation() const {
-  std::string size_string = "#no size";
+  auto optional = GetOptionalFieldSizeInformation();
+  if (optional.has_value()) {
+    return *optional;
+  }
+  Error("fields of type ", *name_and_type.type, " are not (yet) supported")
+      .Position(pos);
+  return std::make_tuple(0, "#no size");
+}
+
+base::Optional<std::tuple<size_t, std::string>>
+Field::GetOptionalFieldSizeInformation() const {
+  std::string size_string;
   const Type* field_type = this->name_and_type.type;
   size_t field_size = 0;
   if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
@@ -734,8 +768,12 @@ std::tuple<size_t, std::string> Field::GetFieldSizeInformation() const {
   } else if (field_type->IsSubtypeOf(TypeOracle::GetUIntPtrType())) {
     field_size = TargetArchitecture::RawPtrSize();
     size_string = "kIntptrSize";
+  } else if (const StructType* struct_type =
+                 StructType::DynamicCast(field_type)) {
+    field_size = struct_type->PackedSize();
+    size_string = std::to_string(field_size);
   } else {
-    ReportError("fields of type ", *field_type, " are not (yet) supported");
+    return {};
   }
   return std::make_tuple(field_size, size_string);
 }

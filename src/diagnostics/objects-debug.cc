@@ -569,13 +569,6 @@ void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
 
 void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::DescriptorArrayVerify(*this, isolate);
-  for (int i = 0; i < number_of_all_descriptors(); i++) {
-    MaybeObjectSlot slot(GetDescriptorSlot(i));
-    MaybeObject::VerifyMaybeObjectPointer(isolate, *(slot + kEntryKeyIndex));
-    MaybeObject::VerifyMaybeObjectPointer(isolate,
-                                          *(slot + kEntryDetailsIndex));
-    MaybeObject::VerifyMaybeObjectPointer(isolate, *(slot + kEntryValueIndex));
-  }
   if (number_of_all_descriptors() == 0) {
     CHECK_EQ(ReadOnlyRoots(isolate).empty_descriptor_array(), *this);
     CHECK_EQ(0, number_of_all_descriptors());

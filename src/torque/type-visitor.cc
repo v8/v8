@@ -138,6 +138,7 @@ const StructType* TypeVisitor::ComputeType(
   CurrentSourcePosition::Scope position_activator(decl->pos);
 
   size_t offset = 0;
+  bool packable = true;
   for (auto& field : decl->fields) {
     CurrentSourcePosition::Scope position_activator(
         field.name_and_type.type->pos);
@@ -146,15 +147,36 @@ const StructType* TypeVisitor::ComputeType(
       ReportError("struct field \"", field.name_and_type.name->value,
                   "\" carries constexpr type \"", *field_type, "\"");
     }
-    struct_type->RegisterField({field.name_and_type.name->pos,
-                                struct_type,
-                                base::nullopt,
-                                {field.name_and_type.name->value, field_type},
-                                offset,
-                                false,
-                                field.const_qualified,
-                                false});
-    offset += LoweredSlotCount(field_type);
+    Field f{field.name_and_type.name->pos,
+            struct_type,
+            base::nullopt,
+            {field.name_and_type.name->value, field_type},
+            offset,
+            false,
+            field.const_qualified,
+            false};
+    auto optional_size = f.GetOptionalFieldSizeInformation();
+    // Structs may contain fields that aren't representable in packed form. If
+    // so, then this field and any subsequent fields should have their offsets
+    // marked as invalid.
+    if (!optional_size.has_value()) {
+      packable = false;
+    }
+    if (!packable) {
+      f.offset = Field::kInvalidOffset;
+    }
+    struct_type->RegisterField(f);
+    // Offsets are assigned based on an assumption of no space between members.
+    // This might lead to invalid alignment in some cases, but most structs are
+    // never actually packed in memory together (they just represent a batch of
+    // CSA TNode values that should be passed around together). For any struct
+    // that is used as a class field, we verify its offsets when setting up the
+    // class type.
+    if (optional_size.has_value()) {
+      size_t field_size = 0;
+      std::tie(field_size, std::ignore) = *optional_size;
+      offset += field_size;
+    }
   }
   return struct_type;
 }
@@ -298,6 +320,22 @@ void TypeVisitor::VisitClassFieldsAndMethods(
         ReportError("non-extern classes do not support weak fields");
       }
     }
+    if (const StructType* struct_type = StructType::DynamicCast(field_type)) {
+      for (const Field& struct_field : struct_type->fields()) {
+        if (!struct_field.name_and_type.type->IsSubtypeOf(
+                TypeOracle::GetTaggedType())) {
+          // If we ever actually need different sizes of struct fields, then we
+          // can define the packing and alignment rules. Until then, let's keep
+          // it simple. This restriction also helps keep the tagged and untagged
+          // regions separate in the class layout (see also
+          // FieldOffsetsGenerator::GetSectionFor).
+          Error(
+              "Classes do not support fields which are structs containing "
+              "untagged data.");
+        }
+      }
+    }
+    base::Optional<NameAndType> index_field;
     if (field_expression.index) {
       if (seen_indexed_field ||
           (super_class && super_class->HasIndexedField())) {
@@ -305,18 +343,8 @@ void TypeVisitor::VisitClassFieldsAndMethods(
             "only one indexable field is currently supported per class");
       }
       seen_indexed_field = true;
-      const NameAndType& index_field =
-          class_type->LookupFieldInternal(*field_expression.index)
-              .name_and_type;
-      class_type->RegisterField(
-          {field_expression.name_and_type.name->pos,
-           class_type,
-           index_field,
-           {field_expression.name_and_type.name->value, field_type},
-           class_offset,
-           field_expression.weak,
-           field_expression.const_qualified,
-           field_expression.generate_verify});
+      index_field = class_type->LookupFieldInternal(*field_expression.index)
+                        .name_and_type;
     } else {
       if (seen_indexed_field) {
         ReportError("cannot declare non-indexable field \"",
@@ -324,27 +352,26 @@ void TypeVisitor::VisitClassFieldsAndMethods(
                     "\" after an indexable field "
                     "declaration");
       }
-      const Field& field = class_type->RegisterField(
-          {field_expression.name_and_type.name->pos,
-           class_type,
-           base::nullopt,
-           {field_expression.name_and_type.name->value, field_type},
-           class_offset,
-           field_expression.weak,
-           field_expression.const_qualified,
-           field_expression.generate_verify});
-      size_t field_size;
-      std::string size_string;
-      std::string machine_type;
-      std::tie(field_size, size_string) = field.GetFieldSizeInformation();
-      // Our allocations don't support alignments beyond kTaggedSize.
-      size_t alignment = std::min(
-          static_cast<size_t>(TargetArchitecture::TaggedSize()), field_size);
-      if (alignment > 0 && class_offset % alignment != 0) {
-        ReportError("field ", field_expression.name_and_type.name,
-                    " at offset ", class_offset, " is not ", alignment,
-                    "-byte aligned.");
-      }
+    }
+    const Field& field = class_type->RegisterField(
+        {field_expression.name_and_type.name->pos,
+         class_type,
+         index_field,
+         {field_expression.name_and_type.name->value, field_type},
+         class_offset,
+         field_expression.weak,
+         field_expression.const_qualified,
+         field_expression.generate_verify});
+    size_t field_size;
+    std::tie(field_size, std::ignore) = field.GetFieldSizeInformation();
+    // Our allocations don't support alignments beyond kTaggedSize.
+    size_t alignment = std::min(
+        static_cast<size_t>(TargetArchitecture::TaggedSize()), field_size);
+    if (alignment > 0 && class_offset % alignment != 0) {
+      ReportError("field ", field_expression.name_and_type.name, " at offset ",
+                  class_offset, " is not ", alignment, "-byte aligned.");
+    }
+    if (!field_expression.index) {
       class_offset += field_size;
     }
   }

@@ -9,8 +9,15 @@ extern class EnumCache extends Struct {
   indices: FixedArray;
 }
 
-// We make this class abstract because it is missing the variable-sized part,
-// which is still impossible to express in Torque.
+@export
+struct DescriptorEntry {
+  key: Name|Undefined;
+  details: Smi|Undefined;
+  value: JSAny|Weak<Map>|AccessorInfo|AccessorPair|ClassPositions;
+}
+
+// We make this class abstract because kHeaderSize is a more natural name for
+// the part of the class before the variable-size array.
 @abstract
 @dirtyInstantiatedAbstractClass
 extern class DescriptorArray extends HeapObject {
@@ -19,6 +26,5 @@ extern class DescriptorArray extends HeapObject {
   raw_number_of_marked_descriptors: uint16;
   filler16_bits: uint16;
   enum_cache: EnumCache;
-  // DescriptorEntry needs to be a struct with three fields.
-  // desriptors : DescriptorEntry[number_of_all_descriptors]
+  descriptors[number_of_all_descriptors]: DescriptorEntry;
 }

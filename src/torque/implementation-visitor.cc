@@ -2881,7 +2881,10 @@ class FieldOffsetsGenerator {
       // Allow void type for marker constants of size zero.
       return current_section_;
     }
-    if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    // Currently struct-valued fields are only allowed to have tagged data; see
+    // TypeVisitor::VisitClassFieldsAndMethods.
+    if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType()) ||
+        f.name_and_type.type->IsStructType()) {
       if (f.is_weak) {
         return FieldSectionType::kWeakSection;
       } else {
@@ -3445,47 +3448,33 @@ void ImplementationVisitor::GeneratePrintDefinitions(
 
 namespace {
 
-void GenerateClassFieldVerifier(const std::string& class_name,
-                                const ClassType& class_type, const Field& f,
-                                std::ostream& h_contents,
+// Generate verification code for a single piece of class data, which might be
+// nested within a struct or might be a single element in an indexed field (or
+// both).
+void GenerateFieldValueVerifier(const std::string& class_name,
+                                const Field& class_field,
+                                const Field& leaf_field, size_t struct_offset,
+                                std::string field_size,
                                 std::ostream& cc_contents) {
-  if (!f.generate_verify) return;
-  const Type* field_type = f.name_and_type.type;
-
-  // We only verify tagged types, not raw numbers or pointers.
-  if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) return;
-  // Do not verify if the field may be uninitialized.
-  if (TypeOracle::GetUninitializedType()->IsSubtypeOf(field_type)) return;
-
-  if (f.index) {
-    const Type* index_type = f.index->type;
-    if (index_type != TypeOracle::GetSmiType()) {
-      Error("Expected type Smi for indexed field but found type ", *index_type)
-          .Position(f.pos);
-    }
-    // We already verified the index field because it was listed earlier, so we
-    // can assume it's safe to read here.
-    cc_contents << "  for (int i = 0; i < TaggedField<Smi, " << class_name
-                << "::k" << CamelifyString(f.index->name)
-                << "Offset>::load(o).value(); ++i) {\n";
-  } else {
-    cc_contents << "  {\n";
-  }
+  const Type* field_type = leaf_field.name_and_type.type;
 
   bool maybe_object =
-      !f.name_and_type.type->IsSubtypeOf(TypeOracle::GetStrongTaggedType());
+      !field_type->IsSubtypeOf(TypeOracle::GetStrongTaggedType());
   const char* object_type = maybe_object ? "MaybeObject" : "Object";
   const char* verify_fn =
       maybe_object ? "VerifyMaybeObjectPointer" : "VerifyPointer";
-  const char* index_offset = f.index ? "i * kTaggedSize" : "0";
+  std::string index_offset = std::to_string(struct_offset);
+  if (class_field.index) {
+    index_offset += " + i * " + field_size;
+  }
   // Name the local var based on the field name for nicer CHECK output.
-  const std::string value = f.name_and_type.name + "__value";
+  const std::string value = leaf_field.name_and_type.name + "__value";
 
   // Read the field.
   cc_contents << "    " << object_type << " " << value << " = TaggedField<"
               << object_type << ", " << class_name << "::k"
-              << CamelifyString(f.name_and_type.name) << "Offset>::load(o, "
-              << index_offset << ");\n";
+              << CamelifyString(class_field.name_and_type.name)
+              << "Offset>::load(o, " << index_offset << ");\n";
 
   // Call VerifyPointer or VerifyMaybeObjectPointer on it.
   cc_contents << "    " << object_type << "::" << verify_fn << "(isolate, "
@@ -3494,7 +3483,7 @@ void GenerateClassFieldVerifier(const std::string& class_name,
   // Check that the value is of an appropriate type. We can skip this part for
   // the Object type because it would not check anything beyond what we already
   // checked with VerifyPointer.
-  if (f.name_and_type.type != TypeOracle::GetObjectType()) {
+  if (field_type != TypeOracle::GetObjectType()) {
     std::stringstream type_check;
     bool at_start = true;
     // If weak pointers are allowed, then start by checking for a cleared value.
@@ -3524,6 +3513,58 @@ void GenerateClassFieldVerifier(const std::string& class_name,
     }
     cc_contents << "    CHECK(" << type_check.str() << ");\n";
   }
+}
+
+void GenerateClassFieldVerifier(const std::string& class_name,
+                                const ClassType& class_type, const Field& f,
+                                std::ostream& h_contents,
+                                std::ostream& cc_contents) {
+  if (!f.generate_verify) return;
+  const Type* field_type = f.name_and_type.type;
+
+  // We only verify tagged types, not raw numbers or pointers. Structs
+  // consisting of tagged types are also included.
+  if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType()) &&
+      !field_type->IsStructType())
+    return;
+  // Do not verify if the field may be uninitialized.
+  if (TypeOracle::GetUninitializedType()->IsSubtypeOf(field_type)) return;
+
+  if (f.index) {
+    const Type* index_type = f.index->type;
+    std::string index_offset =
+        class_name + "::k" + CamelifyString(f.index->name) + "Offset";
+    cc_contents << "  for (int i = 0; i < ";
+    if (index_type == TypeOracle::GetSmiType()) {
+      // We already verified the index field because it was listed earlier, so
+      // we can assume it's safe to read here.
+      cc_contents << "TaggedField<Smi, " << index_offset
+                  << ">::load(o).value()";
+    } else {
+      const Type* constexpr_version = index_type->ConstexprVersion();
+      if (constexpr_version == nullptr) {
+        Error("constexpr representation for type ", index_type->ToString(),
+              " is required due to usage as index")
+            .Position(f.pos);
+      }
+      cc_contents << "o.ReadField<" << constexpr_version->GetGeneratedTypeName()
+                  << ">(" << index_offset << ")";
+    }
+    cc_contents << "; ++i) {\n";
+  } else {
+    cc_contents << "  {\n";
+  }
+
+  if (const StructType* struct_type = StructType::DynamicCast(field_type)) {
+    for (const Field& field : struct_type->fields()) {
+      GenerateFieldValueVerifier(class_name, f, field, field.offset,
+                                 std::to_string(struct_type->PackedSize()),
+                                 cc_contents);
+    }
+  } else {
+    GenerateFieldValueVerifier(class_name, f, f, 0, "kTaggedSize", cc_contents);
+  }
+
   cc_contents << "  }\n";
 }
 
