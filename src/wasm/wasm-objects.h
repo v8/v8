@@ -830,6 +830,10 @@ class WasmDebugInfo : public Struct {
   V8_EXPORT_PRIVATE static wasm::WasmInterpreter* SetupForTesting(
       Handle<WasmInstanceObject>);
 
+  // Prepare WasmDebugInfo for stepping in the given function.
+  V8_EXPORT_PRIVATE static void PrepareStepIn(Handle<WasmDebugInfo>,
+                                              int func_index);
+
   // Set a breakpoint in the given function at the given byte offset within that
   // function. This will redirect all future calls to this function to the
   // interpreter and will always pause at the given offset.

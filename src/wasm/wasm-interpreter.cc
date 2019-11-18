@@ -4123,6 +4123,13 @@ void WasmInterpreter::Run() { internals_->threads_[0].Run(); }
 
 void WasmInterpreter::Pause() { internals_->threads_[0].Pause(); }
 
+void WasmInterpreter::PrepareStepIn(const WasmFunction* function) {
+  // Set a breakpoint at the start of function.
+  InterpreterCode* code = internals_->codemap_.GetCode(function);
+  pc_t pc = code->locals.encoded_size;
+  SetBreakpoint(function, pc, true);
+}
+
 bool WasmInterpreter::SetBreakpoint(const WasmFunction* function, pc_t pc,
                                     bool enabled) {
   InterpreterCode* code = internals_->codemap_.GetCode(function);

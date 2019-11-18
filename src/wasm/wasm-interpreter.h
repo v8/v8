@@ -180,6 +180,9 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   void Run();
   void Pause();
 
+  // Prepare {function} for stepping in from Javascript.
+  void PrepareStepIn(const WasmFunction* function);
+
   // Set a breakpoint at {pc} in {function} to be {enabled}. Returns the
   // previous state of the breakpoint at {pc}.
   bool SetBreakpoint(const WasmFunction* function, pc_t pc, bool enabled);

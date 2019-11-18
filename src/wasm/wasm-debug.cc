@@ -234,6 +234,7 @@ class InterpreterHandle {
     }
 
     FinishActivation(frame_pointer, activation_id);
+    ClearStepping();
 
     return true;
   }
@@ -529,6 +530,18 @@ wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
       isolate, interpreter_size, isolate, debug_info);
   debug_info->set_interpreter_handle(*interp_handle);
   return interp_handle->raw()->interpreter();
+}
+
+// static
+void WasmDebugInfo::PrepareStepIn(Handle<WasmDebugInfo> debug_info,
+                                  int func_index) {
+  Isolate* isolate = debug_info->GetIsolate();
+  auto* handle = GetOrCreateInterpreterHandle(isolate, debug_info);
+  RedirectToInterpreter(debug_info, Vector<int>(&func_index, 1));
+  const wasm::WasmFunction* func = &handle->module()->functions[func_index];
+  handle->interpreter()->PrepareStepIn(func);
+  // Debug break would be considered as a step-in inside wasm.
+  handle->PrepareStep(StepAction::StepIn);
 }
 
 // static
