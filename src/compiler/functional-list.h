@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_FUNCTIONAL_LIST_H_
 #define V8_COMPILER_FUNCTIONAL_LIST_H_
 
+#include <iterator>
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -105,6 +106,14 @@ class FunctionalList {
       return this->current_ == other.current_;
     }
     bool operator!=(const iterator& other) const { return !(*this == other); }
+
+    // Implemented so that std::find and friends can use std::iterator_traits
+    // for this iterator type.
+    typedef std::forward_iterator_tag iterator_category;
+    typedef ptrdiff_t difference_type;
+    typedef A value_type;
+    typedef A* pointer;
+    typedef A& reference;
 
    private:
     Cons* current_;
