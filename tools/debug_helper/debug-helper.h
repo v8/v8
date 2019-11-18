@@ -66,10 +66,12 @@ enum class PropertyKind {
   kArrayOfUnknownSizeDueToValidButInaccessibleMemory,
 };
 
-struct ObjectProperty {
+struct PropertyBase {
   const char* name;
 
-  // Statically-determined type, such as from .tq definition.
+  // Statically-determined type, such as from .tq definition. Can be an empty
+  // string if this property is itself a Torque-defined struct; in that case use
+  // |struct_fields| instead.
   const char* type;
 
   // In some cases, |type| may be a simple type representing a compressed
@@ -79,7 +81,14 @@ struct ObjectProperty {
   // to pass the |decompressed_type| value as the type_hint on a subsequent call
   // to GetObjectProperties.
   const char* decompressed_type;
+};
 
+struct StructProperty : public PropertyBase {
+  // The offset from the beginning of the struct to this field.
+  size_t offset;
+};
+
+struct ObjectProperty : public PropertyBase {
   // The address where the property value can be found in the debuggee's address
   // space, or the address of the first value for an array.
   uintptr_t address;
@@ -89,6 +98,18 @@ struct ObjectProperty {
   // semantic difference between num_values=1 and kind=kSingle (normal property)
   // versus num_values=1 and kind=kArrayOfKnownSize (one-element array).
   size_t num_values;
+
+  // The number of bytes occupied by a single instance of the value type for
+  // this property. This can also be used as the array stride because arrays are
+  // tightly packed like in C.
+  size_t size;
+
+  // If |type| is nullptr, then this property does not correspond directly to
+  // any C++ type. Instead, the property is a struct made up of several pieces
+  // of data packed together. In that case, the |struct_fields| array contains
+  // the struct fields.
+  size_t num_struct_fields;
+  StructProperty** struct_fields;
 
   PropertyKind kind;
 };
