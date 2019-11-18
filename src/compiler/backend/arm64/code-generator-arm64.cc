@@ -2495,6 +2495,52 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Add(i.OutputRegister32(), i.OutputRegister32(), 1);
       break;
     }
+    case kArm64S8x16LoadSplat: {
+      __ ld1r(i.OutputSimd128Register().V16B(), i.MemoryOperand(0));
+      break;
+    }
+    case kArm64S16x8LoadSplat: {
+      __ ld1r(i.OutputSimd128Register().V8H(), i.MemoryOperand(0));
+      break;
+    }
+    case kArm64S32x4LoadSplat: {
+      __ ld1r(i.OutputSimd128Register().V4S(), i.MemoryOperand(0));
+      break;
+    }
+    case kArm64S64x2LoadSplat: {
+      __ ld1r(i.OutputSimd128Register().V2D(), i.MemoryOperand(0));
+      break;
+    }
+    case kArm64I16x8Load8x8S: {
+      __ ld1(i.OutputSimd128Register().V8B(), i.MemoryOperand(0));
+      __ Sxtl(i.OutputSimd128Register().V8H(), i.OutputSimd128Register().V8B());
+      break;
+    }
+    case kArm64I16x8Load8x8U: {
+      __ ld1(i.OutputSimd128Register().V8B(), i.MemoryOperand(0));
+      __ Uxtl(i.OutputSimd128Register().V8H(), i.OutputSimd128Register().V8B());
+      break;
+    }
+    case kArm64I32x4Load16x4S: {
+      __ ld1(i.OutputSimd128Register().V4H(), i.MemoryOperand(0));
+      __ Sxtl(i.OutputSimd128Register().V4S(), i.OutputSimd128Register().V4H());
+      break;
+    }
+    case kArm64I32x4Load16x4U: {
+      __ ld1(i.OutputSimd128Register().V4H(), i.MemoryOperand(0));
+      __ Uxtl(i.OutputSimd128Register().V4S(), i.OutputSimd128Register().V4H());
+      break;
+    }
+    case kArm64I64x2Load32x2S: {
+      __ ld1(i.OutputSimd128Register().V2S(), i.MemoryOperand(0));
+      __ Sxtl(i.OutputSimd128Register().V2D(), i.OutputSimd128Register().V2S());
+      break;
+    }
+    case kArm64I64x2Load32x2U: {
+      __ ld1(i.OutputSimd128Register().V2S(), i.MemoryOperand(0));
+      __ Uxtl(i.OutputSimd128Register().V2D(), i.OutputSimd128Register().V2S());
+      break;
+    }
 #define SIMD_REDUCE_OP_CASE(Op, Instr, format, FORMAT)     \
   case Op: {                                               \
     UseScratchRegisterScope scope(tasm());                 \

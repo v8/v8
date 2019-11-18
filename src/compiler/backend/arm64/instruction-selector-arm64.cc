@@ -592,6 +592,66 @@ void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
   selector->Emit(opcode, arraysize(outputs), outputs, input_count, inputs);
 }
 
+void InstructionSelector::VisitLoadTransform(Node* node) {
+  LoadTransformParameters params = LoadTransformParametersOf(node->op());
+  InstructionCode opcode = kArchNop;
+  switch (params.transformation) {
+    case LoadTransformation::kS8x16LoadSplat:
+      opcode = kArm64S8x16LoadSplat;
+      break;
+    case LoadTransformation::kS16x8LoadSplat:
+      opcode = kArm64S16x8LoadSplat;
+      break;
+    case LoadTransformation::kS32x4LoadSplat:
+      opcode = kArm64S32x4LoadSplat;
+      break;
+    case LoadTransformation::kS64x2LoadSplat:
+      opcode = kArm64S64x2LoadSplat;
+      break;
+    case LoadTransformation::kI16x8Load8x8S:
+      opcode = kArm64I16x8Load8x8S;
+      break;
+    case LoadTransformation::kI16x8Load8x8U:
+      opcode = kArm64I16x8Load8x8U;
+      break;
+    case LoadTransformation::kI32x4Load16x4S:
+      opcode = kArm64I32x4Load16x4S;
+      break;
+    case LoadTransformation::kI32x4Load16x4U:
+      opcode = kArm64I32x4Load16x4U;
+      break;
+    case LoadTransformation::kI64x2Load32x2S:
+      opcode = kArm64I64x2Load32x2S;
+      break;
+    case LoadTransformation::kI64x2Load32x2U:
+      opcode = kArm64I64x2Load32x2U;
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+  // ARM64 supports unaligned loads
+  DCHECK_NE(params.kind, LoadKind::kUnaligned);
+
+  Arm64OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  InstructionOperand inputs[2];
+  InstructionOperand outputs[1];
+
+  inputs[0] = g.UseRegister(base);
+  inputs[1] = g.UseRegister(index);
+  outputs[0] = g.DefineAsRegister(node);
+
+  // ld1r uses post-index, so construct address first.
+  // TODO(v8:9886) If index can be immediate, use vldr without this add.
+  InstructionOperand addr = g.TempRegister();
+  Emit(kArm64Add, 1, &addr, 2, inputs);
+  inputs[0] = addr;
+  inputs[1] = g.TempImmediate(0);
+  opcode |= AddressingModeField::encode(kMode_MRI);
+  Emit(opcode, 1, outputs, 2, inputs);
+}
+
 void InstructionSelector::VisitLoad(Node* node) {
   InstructionCode opcode = kArchNop;
   ImmediateMode immediate_mode = kNoImmediate;
