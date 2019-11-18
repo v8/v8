@@ -47,6 +47,16 @@
     ],
   },
   ##############################################################################
+  # Fuchsia
+  'v8_fuchsia_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-16.04',
+    },
+    'tests': [
+      {'name': 'unittests'},
+    ],
+  },
+  ##############################################################################
   # Linux32
   'v8_linux_dbg_ng_triggered': {
     'swarming_dimensions' : {
