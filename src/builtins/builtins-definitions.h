@@ -132,7 +132,7 @@ namespace internal {
   /* Code life-cycle */                                                        \
   TFC(CompileLazy, JSTrampoline)                                               \
   TFC(CompileLazyDeoptimizedCode, JSTrampoline)                                \
-  ASM(InstantiateAsmJs, Dummy)                                                 \
+  TFC(InstantiateAsmJs, JSTrampoline)                                          \
   ASM(NotifyDeoptimized, Dummy)                                                \
                                                                                \
   /* Trampolines called when returning from a deoptimization that expects   */ \

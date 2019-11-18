@@ -1133,5 +1133,33 @@ TF_BUILTIN(SetPropertyInLiteral, CodeStubAssembler) {
                                                    key, value);
 }
 
+TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
+  Label tailcall_to_function(this);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<Int32T> arg_count =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+  TNode<JSFunction> function = CAST(Parameter(Descriptor::kTarget));
+
+  // Retrieve arguments from caller (stdlib, foreign, heap).
+  CodeStubArguments args(this, arg_count);
+  TNode<Object> stdlib = args.GetOptionalArgumentValue(0);
+  TNode<Object> foreign = args.GetOptionalArgumentValue(1);
+  TNode<Object> heap = args.GetOptionalArgumentValue(2);
+
+  // Call runtime, on success just pass the result to the caller and pop all
+  // arguments. A smi 0 is returned on failure, an object on success.
+  TNode<Object> maybe_result_or_smi_zero = CallRuntime(
+      Runtime::kInstantiateAsmJs, context, function, stdlib, foreign, heap);
+  GotoIf(TaggedIsSmi(maybe_result_or_smi_zero), &tailcall_to_function);
+  args.PopAndReturn(maybe_result_or_smi_zero);
+
+  BIND(&tailcall_to_function);
+  // On failure, tail call back to regular JavaScript by re-calling the given
+  // function which has been reset to the compile lazy builtin.
+  TNode<Code> code = CAST(LoadObjectField(function, JSFunction::kCodeOffset));
+  TailCallJSCode(code, context, function, new_target, arg_count);
+}
+
 }  // namespace internal
 }  // namespace v8
