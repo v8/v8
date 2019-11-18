@@ -1102,6 +1102,8 @@ action("run_torque") {
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.h",
     "$target_gen_dir/torque-generated/csa-types-tq.h",
     "$target_gen_dir/torque-generated/instance-types-tq.h",
+    "$target_gen_dir/torque-generated/internal-class-definitions-tq.h",
+    "$target_gen_dir/torque-generated/internal-class-definitions-tq-inl.h",
   ]
   foreach(file, torque_files) {
     filetq = string_replace(file, ".tq", "-tq-csa")
@@ -3321,6 +3323,7 @@ v8_source_set("torque_base") {
     "src/torque/instance-type-generator.cc",
     "src/torque/instructions.cc",
     "src/torque/instructions.h",
+    "src/torque/parameter-difference.h",
     "src/torque/server-data.cc",
     "src/torque/server-data.h",
     "src/torque/source-positions.cc",
