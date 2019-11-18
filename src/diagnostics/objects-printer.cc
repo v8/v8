@@ -654,6 +654,7 @@ void JSPromise::JSPromisePrint(std::ostream& os) {  // NOLINT
     os << "\n - result: " << Brief(result());
   }
   os << "\n - has_handler: " << has_handler();
+  os << "\n - handled_hint: " << handled_hint();
   JSObjectPrintBody(os, *this);
 }
 
