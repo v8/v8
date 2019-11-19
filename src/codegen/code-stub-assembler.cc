@@ -13187,7 +13187,12 @@ TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<HeapObject> receiver,
   {
     // Avoid runtime-call for empty dictionary receivers.
     GotoIfNot(IsDictionaryMap(receiver_map), if_runtime);
-    TNode<NameDictionary> properties = CAST(LoadSlowProperties(CAST(receiver)));
+    TNode<HashTableBase> properties =
+        UncheckedCast<HashTableBase>(LoadSlowProperties(CAST(receiver)));
+    CSA_ASSERT(this, Word32Or(IsNameDictionary(properties),
+                              IsGlobalDictionary(properties)));
+    STATIC_ASSERT(static_cast<int>(NameDictionary::kNumberOfElementsIndex) ==
+                  static_cast<int>(GlobalDictionary::kNumberOfElementsIndex));
     TNode<Smi> length = GetNumberOfElements(properties);
     GotoIfNot(TaggedEqual(length, SmiConstant(0)), if_runtime);
     // Check that there are no elements on the {receiver} and its prototype
