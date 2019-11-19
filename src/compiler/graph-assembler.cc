@@ -392,8 +392,10 @@ Node* GraphAssembler::LoadFramePointer() {
   return AddNode(graph()->NewNode(machine()->LoadFramePointer()));
 }
 
-#define SINGLETON_CONST_DEF(Name) \
-  Node* GraphAssembler::Name() { return AddClonedNode(jsgraph()->Name()); }
+#define SINGLETON_CONST_DEF(Name)                      \
+  Node* GraphAssembler::Name##Constant() {             \
+    return AddClonedNode(jsgraph()->Name##Constant()); \
+  }
 JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DEF)
 #undef SINGLETON_CONST_DEF
 

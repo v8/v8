@@ -22,96 +22,98 @@ class Schedule;
 class BasicBlock;
 
 #define PURE_ASSEMBLER_MACH_UNOP_LIST(V) \
-  V(ChangeInt32ToInt64)                  \
-  V(ChangeInt32ToFloat64)                \
-  V(ChangeInt64ToFloat64)                \
-  V(ChangeUint32ToFloat64)               \
-  V(ChangeUint32ToUint64)                \
+  V(BitcastFloat32ToInt32)               \
+  V(BitcastFloat64ToInt64)               \
+  V(BitcastInt32ToFloat32)               \
+  V(BitcastInt64ToFloat64)               \
   V(ChangeFloat64ToInt32)                \
   V(ChangeFloat64ToInt64)                \
   V(ChangeFloat64ToUint32)               \
-  V(TruncateInt64ToInt32)                \
+  V(ChangeInt32ToFloat64)                \
+  V(ChangeInt32ToInt64)                  \
+  V(ChangeInt64ToFloat64)                \
+  V(ChangeTaggedToCompressed)            \
+  V(ChangeUint32ToFloat64)               \
+  V(ChangeUint32ToUint64)                \
+  V(Float64Abs)                          \
+  V(Float64ExtractHighWord32)            \
+  V(Float64ExtractLowWord32)             \
+  V(Float64SilenceNaN)                   \
   V(RoundFloat64ToInt32)                 \
   V(TruncateFloat64ToInt64)              \
   V(TruncateFloat64ToWord32)             \
-  V(Float64ExtractLowWord32)             \
-  V(Float64ExtractHighWord32)            \
-  V(BitcastInt32ToFloat32)               \
-  V(BitcastInt64ToFloat64)               \
-  V(BitcastFloat32ToInt32)               \
-  V(BitcastFloat64ToInt64)               \
-  V(Float64Abs)                          \
+  V(TruncateInt64ToInt32)                \
   V(Word32ReverseBytes)                  \
-  V(Word64ReverseBytes)                  \
-  V(Float64SilenceNaN)                   \
-  V(ChangeTaggedToCompressed)
+  V(Word64ReverseBytes)
 
 #define PURE_ASSEMBLER_MACH_BINOP_LIST(V) \
-  V(WordShl)                              \
-  V(WordSar)                              \
-  V(WordAnd)                              \
-  V(Word32Or)                             \
-  V(Word32And)                            \
-  V(Word32Xor)                            \
-  V(Word32Shr)                            \
-  V(Word32Shl)                            \
-  V(Word32Sar)                            \
-  V(Word64And)                            \
-  V(IntAdd)                               \
-  V(IntSub)                               \
-  V(IntMul)                               \
-  V(IntLessThan)                          \
-  V(UintLessThan)                         \
+  V(Float64Add)                           \
+  V(Float64Div)                           \
+  V(Float64Equal)                         \
+  V(Float64InsertHighWord32)              \
+  V(Float64InsertLowWord32)               \
+  V(Float64LessThan)                      \
+  V(Float64LessThanOrEqual)               \
+  V(Float64Mod)                           \
+  V(Float64Sub)                           \
   V(Int32Add)                             \
-  V(Int32Sub)                             \
-  V(Int32Mul)                             \
+  V(Int32LessThan)                        \
   V(Int32LessThanOrEqual)                 \
+  V(Int32Mul)                             \
+  V(Int32Sub)                             \
+  V(Int64Sub)                             \
+  V(IntAdd)                               \
+  V(IntLessThan)                          \
+  V(IntMul)                               \
+  V(IntSub)                               \
   V(Uint32LessThan)                       \
   V(Uint32LessThanOrEqual)                \
   V(Uint64LessThan)                       \
   V(Uint64LessThanOrEqual)                \
-  V(Int32LessThan)                        \
-  V(Int64Sub)                             \
-  V(Float64Add)                           \
-  V(Float64Sub)                           \
-  V(Float64Div)                           \
-  V(Float64Mod)                           \
-  V(Float64Equal)                         \
-  V(Float64LessThan)                      \
-  V(Float64LessThanOrEqual)               \
-  V(Float64InsertLowWord32)               \
-  V(Float64InsertHighWord32)              \
+  V(UintLessThan)                         \
+  V(Word32And)                            \
   V(Word32Equal)                          \
+  V(Word32Or)                             \
+  V(Word32Sar)                            \
+  V(Word32Shl)                            \
+  V(Word32Shr)                            \
+  V(Word32Xor)                            \
+  V(Word64And)                            \
   V(Word64Equal)                          \
-  V(WordEqual)
+  V(WordAnd)                              \
+  V(WordEqual)                            \
+  V(WordSar)                              \
+  V(WordShl)
 
 #define CHECKED_ASSEMBLER_MACH_BINOP_LIST(V) \
   V(Int32AddWithOverflow)                    \
-  V(Int32SubWithOverflow)                    \
-  V(Int32MulWithOverflow)                    \
-  V(Int32Mod)                                \
   V(Int32Div)                                \
-  V(Uint32Mod)                               \
-  V(Uint32Div)
+  V(Int32Mod)                                \
+  V(Int32MulWithOverflow)                    \
+  V(Int32SubWithOverflow)                    \
+  V(Uint32Div)                               \
+  V(Uint32Mod)
 
-#define JSGRAPH_SINGLETON_CONSTANT_LIST(V)        \
-  V(TrueConstant)                                 \
-  V(FalseConstant)                                \
-  V(NullConstant)                                 \
-  V(BigIntMapConstant)                            \
-  V(BooleanMapConstant)                           \
-  V(HeapNumberMapConstant)                        \
-  V(NoContextConstant)                            \
-  V(EmptyStringConstant)                          \
-  V(UndefinedConstant)                            \
-  V(TheHoleConstant)                              \
-  V(FixedArrayMapConstant)                        \
-  V(FixedDoubleArrayMapConstant)                  \
-  V(ToNumberBuiltinConstant)                      \
-  V(AllocateInYoungGenerationStubConstant)        \
-  V(AllocateRegularInYoungGenerationStubConstant) \
-  V(AllocateInOldGenerationStubConstant)          \
-  V(AllocateRegularInOldGenerationStubConstant)
+#define JSGRAPH_SINGLETON_CONSTANT_LIST(V) \
+  V(AllocateInOldGenerationStub)           \
+  V(AllocateInYoungGenerationStub)         \
+  V(AllocateRegularInOldGenerationStub)    \
+  V(AllocateRegularInYoungGenerationStub)  \
+  V(BigIntMap)                             \
+  V(BooleanMap)                            \
+  V(EmptyString)                           \
+  V(False)                                 \
+  V(FixedArrayMap)                         \
+  V(FixedDoubleArrayMap)                   \
+  V(HeapNumberMap)                         \
+  V(NaN)                                   \
+  V(NoContext)                             \
+  V(Null)                                  \
+  V(TheHole)                               \
+  V(ToNumberBuiltin)                       \
+  V(True)                                  \
+  V(Undefined)                             \
+  V(Zero)
 
 class GraphAssembler;
 
@@ -214,7 +216,7 @@ class GraphAssembler {
 
   Node* LoadFramePointer();
 
-#define SINGLETON_CONST_DECL(Name) Node* Name();
+#define SINGLETON_CONST_DECL(Name) Node* Name##Constant();
   JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DECL)
 #undef SINGLETON_CONST_DECL
 
