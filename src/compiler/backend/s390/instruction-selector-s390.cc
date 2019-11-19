@@ -2837,6 +2837,8 @@ void InstructionSelector::VisitF64x2Lt(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF64x2Le(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitI64x2Neg(Node* node) { UNIMPLEMENTED(); }
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
