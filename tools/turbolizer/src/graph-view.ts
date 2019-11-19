@@ -492,6 +492,7 @@ export class GraphView extends PhaseView {
       this.updateGraphVisibility();
       searchBar.blur();
       this.viewSelection();
+      (document.getElementById("graph").childNodes[0] as HTMLElement).focus();
     }
     e.stopPropagation();
   }
