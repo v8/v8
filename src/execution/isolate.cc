@@ -749,7 +749,8 @@ class FrameArrayBuilder {
     for (int i = 0; i < frame_count; ++i) {
       // Caching stack frames only happens for user JS frames.
       const bool cache_frame =
-          enable_frame_caching && !elements_->IsAnyWasmFrame(i) &&
+          enable_frame_caching && !isolate_->serializer_enabled() &&
+          !elements_->IsAnyWasmFrame(i) &&
           elements_->Function(i).shared().IsUserJavaScript();
       if (cache_frame) {
         MaybeHandle<StackTraceFrame> maybe_frame =

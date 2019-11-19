@@ -3992,5 +3992,53 @@ UNINITIALIZED_TEST(SnapshotCreatorAnonClassWithKeep) {
   delete[] blob.data;
 }
 
+class DisableLazySourcePositionScope {
+ public:
+  DisableLazySourcePositionScope()
+      : backup_value_(FLAG_enable_lazy_source_positions) {
+    FLAG_enable_lazy_source_positions = false;
+  }
+  ~DisableLazySourcePositionScope() {
+    FLAG_enable_lazy_source_positions = backup_value_;
+  }
+
+ private:
+  bool backup_value_;
+};
+
+UNINITIALIZED_TEST(NoStackFrameCacheSerialization) {
+  // Checks that exceptions caught are not cached in the
+  // stack frame cache during serialization. The individual frames
+  // can point to JSFunction objects, which need to be stored in a
+  // context snapshot, *not* isolate snapshot.
+  DisableAlwaysOpt();
+  DisableLazySourcePositionScope lazy_scope;
+
+  v8::SnapshotCreator creator;
+  v8::Isolate* isolate = creator.GetIsolate();
+  isolate->SetCaptureStackTraceForUncaughtExceptions(true);
+  {
+    v8::HandleScope handle_scope(isolate);
+    {
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      v8::TryCatch try_catch(isolate);
+      CompileRun(R"(
+        function foo() { throw new Error('bar'); }
+        function bar() {
+          foo();
+        }
+        bar();
+      )");
+
+      creator.SetDefaultContext(context);
+    }
+  }
+  v8::StartupData blob =
+      creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kKeep);
+
+  delete[] blob.data;
+}
+
 }  // namespace internal
 }  // namespace v8
