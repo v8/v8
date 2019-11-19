@@ -15,6 +15,7 @@ function foo(x) { bar(x) }
 
 %PrepareFunctionForOptimization(foo);
 %PrepareFunctionForOptimization(bar);
+%PrepareFunctionForOptimization(mkbar);
 
 // Create map transitions such that a's final map is not stable.
 var dummy = [];
