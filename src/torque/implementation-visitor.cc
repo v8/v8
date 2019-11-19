@@ -3037,7 +3037,7 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
 
       // TODO(danno): Remove this once all classes use ClassFieldOffsetGenerator
       // to generate field offsets without the use of macros.
-      if (!type->GenerateCppClassDefinitions()) {
+      if (!type->GenerateCppClassDefinitions() && !type->HasUndefinedLayout()) {
         MacroFieldOffsetsGenerator g(header, type);
         for (auto f : type->fields()) {
           CurrentSourcePosition::Scope scope(f.pos);
