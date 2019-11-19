@@ -838,6 +838,9 @@
 
   # Too slow tests.
   'regress/regress-740784': [SKIP],
+
+  # https://crbug.com/v8/9984
+  'compiler/opt-higher-order-functions': [SKIP],
 }],  # 'deopt_fuzzer'
 
 ##############################################################################
