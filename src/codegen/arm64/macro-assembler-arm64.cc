@@ -2644,6 +2644,11 @@ void TurboAssembler::DecompressTaggedSigned(const Register& destination,
                                             const MemOperand& field_operand) {
   RecordComment("[ DecompressTaggedSigned");
   Ldr(destination.W(), field_operand);
+  if (FLAG_debug_code) {
+    // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
+    Add(destination, destination,
+        ((kDebugZapValue << 16) | (pc_offset() & 0xffff)) << 32);
+  }
   RecordComment("]");
 }
 
@@ -2651,6 +2656,11 @@ void TurboAssembler::DecompressTaggedSigned(const Register& destination,
                                             const Register& source) {
   RecordComment("[ DecompressTaggedSigned");
   Mov(destination.W(), source.W());
+  if (FLAG_debug_code) {
+    // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
+    Add(destination, destination,
+        ((kDebugZapValue << 16) | (pc_offset() & 0xffff)) << 32);
+  }
   RecordComment("]");
 }
 
