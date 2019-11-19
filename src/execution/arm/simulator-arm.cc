@@ -4395,8 +4395,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               case Neon32:
                 Add<uint32_t, kSimd128Size>(this, Vd, Vm, Vn);
                 break;
-              default:
-                UNREACHABLE();
+              case Neon64:
+                Add<uint64_t, kSimd128Size>(this, Vd, Vm, Vn);
                 break;
             }
           } else {
@@ -4828,8 +4828,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               case Neon32:
                 Sub<uint32_t, kSimd128Size>(this, Vd, Vm, Vn);
                 break;
-              default:
-                UNREACHABLE();
+              case Neon64:
+                Sub<uint64_t, kSimd128Size>(this, Vd, Vm, Vn);
                 break;
             }
           } else {
