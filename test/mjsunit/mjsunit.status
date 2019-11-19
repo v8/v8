@@ -1039,7 +1039,9 @@
 ['no_harness', {
     # skip assertion tests since the stack trace is broken if mjsunit is
     # included in the snapshot
-    'mjsunit-assertion-error' : [SKIP],
+    'mjsunit-assertion-error': [SKIP],
+    # v8:9983
+    'compiler/regress-9945-2': [SKIP],
 }], # no_harness
 
 ##############################################################################
