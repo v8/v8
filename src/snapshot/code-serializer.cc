@@ -235,9 +235,10 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
   Handle<String> name_handle(name, isolate);
 
   SharedFunctionInfo::ScriptIterator iter(isolate, script);
-  for (SharedFunctionInfo info = iter.Next(); !info.is_null();
-       info = iter.Next()) {
-    if (!info.HasBytecodeArray()) continue;
+  for (SharedFunctionInfo shared_info = iter.Next(); !shared_info.is_null();
+       shared_info = iter.Next()) {
+    if (!shared_info.HasBytecodeArray()) continue;
+    Handle<SharedFunctionInfo> info = handle(shared_info, isolate);
     Handle<Code> code = isolate->factory()->CopyCode(Handle<Code>::cast(
         isolate->factory()->interpreter_entry_trampoline_for_profiling()));
 
@@ -245,18 +246,18 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
         Handle<InterpreterData>::cast(isolate->factory()->NewStruct(
             INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
-    interpreter_data->set_bytecode_array(info.GetBytecodeArray());
+    interpreter_data->set_bytecode_array(info->GetBytecodeArray());
     interpreter_data->set_interpreter_trampoline(*code);
 
-    info.set_interpreter_data(*interpreter_data);
+    info->set_interpreter_data(*interpreter_data);
 
     if (!log_code_creation) continue;
     Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
-    int line_num = script.GetLineNumber(info.StartPosition()) + 1;
-    int column_num = script.GetColumnNumber(info.StartPosition()) + 1;
+    int line_num = script.GetLineNumber(info->StartPosition()) + 1;
+    int column_num = script.GetColumnNumber(info->StartPosition()) + 1;
     PROFILE(isolate,
             CodeCreateEvent(CodeEventListener::INTERPRETED_FUNCTION_TAG,
-                            *abstract_code, info, *name_handle, line_num,
+                            *abstract_code, *info, *name_handle, line_num,
                             column_num));
   }
 }
