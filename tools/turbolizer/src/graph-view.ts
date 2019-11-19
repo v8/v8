@@ -71,7 +71,6 @@ export class GraphView extends PhaseView {
     // Listen for key events. Note that the focus handler seems
     // to be important even if it does nothing.
     svg
-      .attr("focusable", false)
       .on("focus", e => { })
       .on("keydown", e => { view.svgKeyDown(); });
 
