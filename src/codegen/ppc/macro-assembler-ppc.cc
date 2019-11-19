@@ -1940,6 +1940,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
     LoadP(ip, MemOperand(function, 0));
     dest = ip;
   } else if (ABI_CALL_VIA_IP) {
+    // pLinux and Simualtor, not AIX
     Move(ip, function);
     dest = ip;
   }
