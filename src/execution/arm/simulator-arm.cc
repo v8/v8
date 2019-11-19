@@ -4351,6 +4351,9 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             case Neon32:
               ShiftByRegister<int32_t, int32_t, kSimd128Size>(this, Vd, Vm, Vn);
               break;
+            case Neon64:
+              ShiftByRegister<int64_t, int64_t, kSimd128Size>(this, Vd, Vm, Vn);
+              break;
             default:
               UNREACHABLE();
               break;
@@ -4779,6 +4782,10 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               break;
             case Neon32:
               ShiftByRegister<uint32_t, int32_t, kSimd128Size>(this, Vd, Vm,
+                                                               Vn);
+              break;
+            case Neon64:
+              ShiftByRegister<uint64_t, int64_t, kSimd128Size>(this, Vd, Vm,
                                                                Vn);
               break;
             default:

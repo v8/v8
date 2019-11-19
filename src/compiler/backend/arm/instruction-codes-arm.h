@@ -145,6 +145,9 @@ namespace compiler {
   V(ArmI64x2SplatI32Pair)          \
   V(ArmI64x2ReplaceLaneI32Pair)    \
   V(ArmI64x2Neg)                   \
+  V(ArmI64x2Shl)                   \
+  V(ArmI64x2ShrS)                  \
+  V(ArmI64x2ShrU)                  \
   V(ArmF32x4Splat)                 \
   V(ArmF32x4ExtractLane)           \
   V(ArmF32x4ReplaceLane)           \

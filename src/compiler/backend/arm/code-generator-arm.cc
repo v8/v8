@@ -1929,6 +1929,41 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vqsub(NeonS64, dst, dst, i.InputSimd128Register(0));
       break;
     }
+    case kArmI64x2Shl: {
+      QwNeonRegister tmp = i.TempSimd128Register(0);
+      Register shift = i.TempRegister(1);
+      // Take shift value modulo 64.
+      __ and_(shift, i.InputRegister(1), Operand(63));
+      // Only the least significant byte of each lane is used.
+      __ vdup(Neon32, tmp, shift);
+      __ vshl(NeonS64, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              tmp);
+      break;
+    }
+    case kArmI64x2ShrS: {
+      QwNeonRegister tmp = i.TempSimd128Register(0);
+      Register shift = i.TempRegister(1);
+      // Take shift value modulo 64.
+      __ and_(shift, i.InputRegister(1), Operand(63));
+      // Only the least significant byte of each lane is used.
+      __ vdup(Neon32, tmp, shift);
+      __ vneg(Neon32, tmp, tmp);
+      __ vshl(NeonS64, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              tmp);
+      break;
+    }
+    case kArmI64x2ShrU: {
+      QwNeonRegister tmp = i.TempSimd128Register(0);
+      Register shift = i.TempRegister(1);
+      // Take shift value modulo 64.
+      __ and_(shift, i.InputRegister(1), Operand(63));
+      // Only the least significant byte of each lane is used.
+      __ vdup(Neon32, tmp, shift);
+      __ vneg(Neon32, tmp, tmp);
+      __ vshl(NeonU64, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              tmp);
+      break;
+    }
     case kArmF32x4Splat: {
       int src_code = i.InputFloatRegister(0).code();
       __ vdup(Neon32, i.OutputSimd128Register(),
