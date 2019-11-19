@@ -43,12 +43,12 @@ constexpr int32_t kInstanceOffset = 2 * kSystemPointerSize;
 constexpr int32_t kFirstStackSlotOffset = kInstanceOffset + kSystemPointerSize;
 constexpr int32_t kConstantStackSpace = 0;
 
-inline int GetStackSlotOffset(uint32_t index) {
-  return kFirstStackSlotOffset + index * LiftoffAssembler::kStackSlotSize;
+inline int GetStackSlotOffset(uint32_t offset) {
+  return kFirstStackSlotOffset + offset;
 }
 
-inline MemOperand GetStackSlot(uint32_t index) {
-  return MemOperand(fp, -GetStackSlotOffset(index));
+inline MemOperand GetStackSlot(uint32_t offset) {
+  return MemOperand(fp, -GetStackSlotOffset(offset));
 }
 
 inline MemOperand GetInstanceOperand() {
@@ -327,12 +327,12 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
   Ldr(liftoff::GetRegFromType(dst, type), MemOperand(fp, offset));
 }
 
-void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
+void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueType type) {
   UseScratchRegisterScope temps(this);
   CPURegister scratch = liftoff::AcquireByType(&temps, type);
-  Ldr(scratch, liftoff::GetStackSlot(src_index));
-  Str(scratch, liftoff::GetStackSlot(dst_index));
+  Ldr(scratch, liftoff::GetStackSlot(src_offset));
+  Str(scratch, liftoff::GetStackSlot(dst_offset));
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
@@ -354,16 +354,16 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
+void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
                              ValueType type) {
-  RecordUsedSpillSlot(index);
-  MemOperand dst = liftoff::GetStackSlot(index);
+  RecordUsedSpillSlot(offset);
+  MemOperand dst = liftoff::GetStackSlot(offset);
   Str(liftoff::GetRegFromType(reg, type), dst);
 }
 
-void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
-  RecordUsedSpillSlot(index);
-  MemOperand dst = liftoff::GetStackSlot(index);
+void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
+  RecordUsedSpillSlot(offset);
+  MemOperand dst = liftoff::GetStackSlot(offset);
   UseScratchRegisterScope temps(this);
   CPURegister src = CPURegister::no_reg();
   switch (value.type()) {
@@ -390,37 +390,41 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
   Str(src, dst);
 }
 
-void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
+void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t offset,
                             ValueType type) {
-  MemOperand src = liftoff::GetStackSlot(index);
+  MemOperand src = liftoff::GetStackSlot(offset);
   Ldr(liftoff::GetRegFromType(reg, type), src);
 }
 
-void LiftoffAssembler::FillI64Half(Register, uint32_t index, RegPairHalf) {
+void LiftoffAssembler::FillI64Half(Register, uint32_t offset, RegPairHalf) {
   UNREACHABLE();
 }
 
 void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
   DCHECK_LT(0, count);
   uint32_t last_stack_slot = index + count - 1;
-  RecordUsedSpillSlot(last_stack_slot);
+  RecordUsedSpillSlot(GetStackOffsetFromIndex(last_stack_slot));
 
-  int max_stp_offset = -liftoff::GetStackSlotOffset(index + count - 1);
+  int max_stp_offset =
+      -liftoff::GetStackSlotOffset(GetStackOffsetFromIndex(index + count - 1));
   if (count <= 12 && IsImmLSPair(max_stp_offset, kXRegSizeLog2)) {
     // Special straight-line code for up to 12 slots. Generates one
     // instruction per two slots (<= 6 instructions total).
     for (; count > 1; count -= 2) {
       STATIC_ASSERT(kStackSlotSize == kSystemPointerSize);
-      stp(xzr, xzr, liftoff::GetStackSlot(index + count - 1));
+      stp(xzr, xzr,
+          liftoff::GetStackSlot(GetStackOffsetFromIndex(index + count - 1)));
     }
     DCHECK(count == 0 || count == 1);
-    if (count) str(xzr, liftoff::GetStackSlot(index));
+    if (count) {
+      str(xzr, liftoff::GetStackSlot(GetStackOffsetFromIndex(index)));
+    }
   } else {
     // General case for bigger counts (5-8 instructions).
     UseScratchRegisterScope temps(this);
     Register address_reg = temps.AcquireX();
     // This {Sub} might use another temp register if the offset is too large.
-    Sub(address_reg, fp, liftoff::GetStackSlotOffset(last_stack_slot));
+    Sub(address_reg, fp, GetStackOffsetFromIndex(last_stack_slot));
     Register count_reg = temps.AcquireX();
     Mov(count_reg, count);
 
@@ -1104,7 +1108,7 @@ void LiftoffStackSlots::Construct() {
       case LiftoffAssembler::VarState::kStack: {
         UseScratchRegisterScope temps(asm_);
         CPURegister scratch = liftoff::AcquireByType(&temps, slot.src_.type());
-        asm_->Ldr(scratch, liftoff::GetStackSlot(slot.src_index_));
+        asm_->Ldr(scratch, liftoff::GetStackSlot(slot.src_offset_));
         asm_->Poke(scratch, poke_offset);
         break;
       }

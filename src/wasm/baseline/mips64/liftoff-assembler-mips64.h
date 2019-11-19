@@ -45,12 +45,12 @@ constexpr int32_t kConstantStackSpace = 16;
 constexpr int32_t kFirstStackSlotOffset =
     kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
 
-inline int GetStackSlotOffset(uint32_t index) {
-  return kFirstStackSlotOffset + index * LiftoffAssembler::kStackSlotSize;
+inline int GetStackSlotOffset(uint32_t offset) {
+  return kFirstStackSlotOffset + offset;
 }
 
-inline MemOperand GetStackSlot(uint32_t index) {
-  return MemOperand(fp, -GetStackSlotOffset(index));
+inline MemOperand GetStackSlot(uint32_t offset) {
+  return MemOperand(fp, -GetStackSlotOffset(offset));
 }
 
 inline MemOperand GetInstanceOperand() { return MemOperand(fp, -16); }
@@ -437,12 +437,12 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
   liftoff::Load(this, dst, src, type);
 }
 
-void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
+void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueType type) {
-  DCHECK_NE(dst_index, src_index);
+  DCHECK_NE(dst_offset, src_offset);
   LiftoffRegister reg = GetUnusedRegister(reg_class_for(type));
-  Fill(reg, src_index, type);
-  Spill(dst_index, reg, type);
+  Fill(reg, src_offset, type);
+  Spill(dst_offset, reg, type);
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
@@ -457,10 +457,10 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   TurboAssembler::Move(dst, src);
 }
 
-void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
+void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
                              ValueType type) {
-  RecordUsedSpillSlot(index);
-  MemOperand dst = liftoff::GetStackSlot(index);
+  RecordUsedSpillSlot(offset);
+  MemOperand dst = liftoff::GetStackSlot(offset);
   switch (type) {
     case kWasmI32:
       Sw(reg.gp(), dst);
@@ -479,9 +479,9 @@ void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
-  RecordUsedSpillSlot(index);
-  MemOperand dst = liftoff::GetStackSlot(index);
+void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
+  RecordUsedSpillSlot(offset);
+  MemOperand dst = liftoff::GetStackSlot(offset);
   switch (value.type()) {
     case kWasmI32: {
       LiftoffRegister tmp = GetUnusedRegister(kGpReg);
@@ -502,9 +502,9 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
   }
 }
 
-void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
+void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t offset,
                             ValueType type) {
-  MemOperand src = liftoff::GetStackSlot(index);
+  MemOperand src = liftoff::GetStackSlot(offset);
   switch (type) {
     case kWasmI32:
       Lw(reg.gp(), src);
@@ -523,28 +523,32 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
   }
 }
 
-void LiftoffAssembler::FillI64Half(Register, uint32_t index, RegPairHalf) {
+void LiftoffAssembler::FillI64Half(Register, uint32_t offset, RegPairHalf) {
   UNREACHABLE();
 }
 
 void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
   DCHECK_LT(0, count);
   uint32_t last_stack_slot = index + count - 1;
-  RecordUsedSpillSlot(last_stack_slot);
+  RecordUsedSpillSlot(GetStackOffsetFromIndex(last_stack_slot));
 
   if (count <= 12) {
     // Special straight-line code for up to 12 slots. Generates one
     // instruction per slot (<= 12 instructions total).
     for (uint32_t offset = 0; offset < count; ++offset) {
-      Sd(zero_reg, liftoff::GetStackSlot(index + offset));
+      Sd(zero_reg,
+         liftoff::GetStackSlot(GetStackOffsetFromIndex(index + offset)));
     }
   } else {
     // General case for bigger counts (12 instructions).
     // Use a0 for start address (inclusive), a1 for end address (exclusive).
     Push(a1, a0);
-    Daddu(a0, fp, Operand(-liftoff::GetStackSlotOffset(last_stack_slot)));
+    Daddu(a0, fp,
+          Operand(-liftoff::GetStackSlotOffset(
+              GetStackOffsetFromIndex(last_stack_slot))));
     Daddu(a1, fp,
-          Operand(-liftoff::GetStackSlotOffset(index) + kStackSlotSize));
+          Operand(-liftoff::GetStackSlotOffset(GetStackOffsetFromIndex(index)) +
+                  kStackSlotSize));
 
     Label loop;
     bind(&loop);
@@ -1399,7 +1403,7 @@ void LiftoffStackSlots::Construct() {
     const LiftoffAssembler::VarState& src = slot.src_;
     switch (src.loc()) {
       case LiftoffAssembler::VarState::kStack:
-        asm_->ld(kScratchReg, liftoff::GetStackSlot(slot.src_index_));
+        asm_->ld(kScratchReg, liftoff::GetStackSlot(slot.src_offset_));
         asm_->push(kScratchReg);
         break;
       case LiftoffAssembler::VarState::kRegister:
