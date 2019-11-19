@@ -441,8 +441,20 @@ void Map::MapVerify(Isolate* isolate) {
   if (IsContextMap()) {
     CHECK(native_context().IsNativeContext());
   } else {
-    CHECK_IMPLIES(!GetBackPointer().IsUndefined(isolate),
-                  !Map::cast(GetBackPointer()).is_stable());
+    if (GetBackPointer().IsUndefined(isolate)) {
+      // Root maps must keep the ownership and there must be no descriptors
+      // in the descriptors array that do not belong to the map.
+      CHECK(owns_descriptors() || is_prototype_map());
+      CHECK_EQ(NumberOfOwnDescriptors(),
+               instance_descriptors().number_of_descriptors());
+      if (!is_prototype_map()) {
+        // There must be no slack in root maps' descriptors array.
+        CHECK_EQ(0, instance_descriptors().number_of_slack_descriptors());
+      }
+    } else {
+      // If there is a parent map it must be non-stable.
+      CHECK(!Map::cast(GetBackPointer()).is_stable());
+    }
   }
   SLOW_DCHECK(instance_descriptors().IsSortedNoDuplicates());
   DisallowHeapAllocation no_gc;

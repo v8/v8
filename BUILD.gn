@@ -1318,6 +1318,10 @@ template("run_mksnapshot") {
         args += [ "--no-enable-slow-asserts" ]
       }
     }
+
+    if (v8_enable_verify_heap) {
+      args += [ "--verify-heap" ]
+    }
   }
 }
 
