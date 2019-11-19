@@ -2493,11 +2493,11 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToArrayIndex(
   Node* value = node->InputAt(0);
 
   auto if_not_smi = __ MakeDeferredLabel();
-  auto done = __ MakeLabel(MachineRepresentation::kWord32);
+  auto done = __ MakeLabel(MachineType::PointerRepresentation());
 
   __ GotoIfNot(ObjectIsSmi(value), &if_not_smi);
-  // In the Smi case, just convert to int32.
-  __ Goto(&done, ChangeSmiToInt32(value));
+  // In the Smi case, just convert to intptr_t.
+  __ Goto(&done, ChangeSmiToIntPtr(value));
 
   // In the non-Smi case, check the heap numberness, load the number and convert
   // to int32.
@@ -2523,7 +2523,7 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToArrayIndex(
                      is_string, frame_state);
 
   MachineSignature::Builder builder(graph()->zone(), 1, 1);
-  builder.AddReturn(MachineType::Int32());
+  builder.AddReturn(MachineType::IntPtr());
   builder.AddParam(MachineType::TaggedPointer());
   Node* string_to_array_index_function =
       __ ExternalConstant(ExternalReference::string_to_array_index_function());

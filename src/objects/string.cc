@@ -1377,7 +1377,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
   }
   if (length == 0 || length > kMaxArrayIndexSize) return false;
   StringCharacterStream stream(*this);
-  return StringToArrayIndex(&stream, index);
+  return StringToIndex(&stream, index);
 }
 
 bool String::SlowAsIntegerIndex(size_t* index) {
@@ -1397,7 +1397,7 @@ bool String::SlowAsIntegerIndex(size_t* index) {
   }
   if (length == 0 || length > kMaxIntegerIndexSize) return false;
   StringCharacterStream stream(*this);
-  return StringToArrayIndex(&stream, index);
+  return StringToIndex(&stream, index);
 }
 
 void String::PrintOn(FILE* file) {

@@ -3543,30 +3543,38 @@ Handle<Object> Factory::NumberToStringCacheGet(Object number, int hash) {
 
 Handle<String> Factory::NumberToString(Handle<Object> number,
                                        bool check_cache) {
-  if (number->IsSmi()) return NumberToString(Smi::cast(*number), check_cache);
+  if (number->IsSmi()) return SmiToString(Smi::cast(*number), check_cache);
 
   double double_value = Handle<HeapNumber>::cast(number)->value();
   // Try to canonicalize doubles.
   int smi_value;
   if (DoubleToSmiInteger(double_value, &smi_value)) {
-    return NumberToString(Smi::FromInt(smi_value), check_cache);
+    return SmiToString(Smi::FromInt(smi_value), check_cache);
   }
+  return HeapNumberToString(Handle<HeapNumber>::cast(number), double_value,
+                            check_cache);
+}
 
+// Must be large enough to fit any double, int, or size_t.
+static const int kNumberToStringBufferSize = 32;
+
+Handle<String> Factory::HeapNumberToString(Handle<HeapNumber> number,
+                                           double value, bool check_cache) {
   int hash = 0;
   if (check_cache) {
-    hash = NumberToStringCacheHash(number_string_cache(), double_value);
+    hash = NumberToStringCacheHash(number_string_cache(), value);
     Handle<Object> cached = NumberToStringCacheGet(*number, hash);
     if (!cached->IsUndefined(isolate())) return Handle<String>::cast(cached);
   }
 
-  char arr[100];
+  char arr[kNumberToStringBufferSize];
   Vector<char> buffer(arr, arraysize(arr));
-  const char* string = DoubleToCString(double_value, buffer);
+  const char* string = DoubleToCString(value, buffer);
 
   return NumberToStringCacheSet(number, hash, string, check_cache);
 }
 
-Handle<String> Factory::NumberToString(Smi number, bool check_cache) {
+Handle<String> Factory::SmiToString(Smi number, bool check_cache) {
   int hash = 0;
   if (check_cache) {
     hash = NumberToStringCacheHash(number_string_cache(), number);
@@ -3574,12 +3582,46 @@ Handle<String> Factory::NumberToString(Smi number, bool check_cache) {
     if (!cached->IsUndefined(isolate())) return Handle<String>::cast(cached);
   }
 
-  char arr[100];
+  char arr[kNumberToStringBufferSize];
   Vector<char> buffer(arr, arraysize(arr));
   const char* string = IntToCString(number.value(), buffer);
 
   return NumberToStringCacheSet(handle(number, isolate()), hash, string,
                                 check_cache);
+}
+
+Handle<String> Factory::SizeToString(size_t value, bool check_cache) {
+  Handle<String> result;
+  if (value <= Smi::kMaxValue) {
+    int32_t int32v = static_cast<int32_t>(static_cast<uint32_t>(value));
+    result = SmiToString(Smi::FromInt(int32v), check_cache);
+  } else if (value <= kMaxSafeInteger) {
+    // TODO(jkummerow): Refactor the cache to not require Objects as keys.
+    double double_value = static_cast<double>(value);
+    result =
+        HeapNumberToString(NewHeapNumber(double_value), value, check_cache);
+  } else {
+    char arr[kNumberToStringBufferSize];
+    Vector<char> buffer(arr, arraysize(arr));
+    // Build the string backwards from the least significant digit.
+    int i = buffer.length();
+    size_t value_copy = value;
+    buffer[--i] = '\0';
+    do {
+      buffer[--i] = '0' + (value_copy % 10);
+      value_copy /= 10;
+    } while (value_copy > 0);
+    char* string = buffer.begin() + i;
+    // No way to cache this; we'd need an {Object} to use as key.
+    result = NewStringFromAsciiChecked(string);
+  }
+  if (value <= JSArray::kMaxArrayIndex &&
+      result->hash_field() == String::kEmptyHashField) {
+    uint32_t field = StringHasher::MakeArrayIndexHash(
+        static_cast<uint32_t>(value), result->length());
+    result->set_hash_field(field);
+  }
+  return result;
 }
 
 Handle<ClassPositions> Factory::NewClassPositions(int start, int end) {

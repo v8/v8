@@ -1009,8 +1009,8 @@ MaybeHandle<Object> GetPropertyWithInterceptorInternal(
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
                                  *holder, Just(kDontThrow));
 
-  if (it->IsElement()) {
-    result = args.CallIndexedGetter(interceptor, it->index());
+  if (it->IsElement(*holder)) {
+    result = args.CallIndexedGetter(interceptor, it->array_index());
   } else {
     result = args.CallNamedGetter(interceptor, it->name());
   }
@@ -1031,7 +1031,7 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
   HandleScope scope(isolate);
 
   Handle<JSObject> holder = it->GetHolder<JSObject>();
-  DCHECK_IMPLIES(!it->IsElement() && it->name()->IsSymbol(),
+  DCHECK_IMPLIES(!it->IsElement(*holder) && it->name()->IsSymbol(),
                  interceptor->can_intercept_symbols());
   Handle<Object> receiver = it->GetReceiver();
   if (!receiver->IsJSReceiver()) {
@@ -1043,8 +1043,8 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
                                  *holder, Just(kDontThrow));
   if (!interceptor->query().IsUndefined(isolate)) {
     Handle<Object> result;
-    if (it->IsElement()) {
-      result = args.CallIndexedQuery(interceptor, it->index());
+    if (it->IsElement(*holder)) {
+      result = args.CallIndexedQuery(interceptor, it->array_index());
     } else {
       result = args.CallNamedQuery(interceptor, it->name());
     }
@@ -1056,8 +1056,8 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
   } else if (!interceptor->getter().IsUndefined(isolate)) {
     // TODO(verwaest): Use GetPropertyWithInterceptor?
     Handle<Object> result;
-    if (it->IsElement()) {
-      result = args.CallIndexedGetter(interceptor, it->index());
+    if (it->IsElement(*holder)) {
+      result = args.CallIndexedGetter(interceptor, it->array_index());
     } else {
       result = args.CallNamedGetter(interceptor, it->name());
     }
@@ -1089,10 +1089,11 @@ Maybe<bool> SetPropertyWithInterceptorInternal(
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
                                  *holder, should_throw);
 
-  if (it->IsElement()) {
+  if (it->IsElement(*holder)) {
     // TODO(neis): In the future, we may want to actually return the
     // interceptor's result, which then should be a boolean.
-    result = !args.CallIndexedSetter(interceptor, it->index(), value).is_null();
+    result = !args.CallIndexedSetter(interceptor, it->array_index(), value)
+                  .is_null();
   } else {
     result = !args.CallNamedSetter(interceptor, it->name(), value).is_null();
   }
@@ -1143,9 +1144,10 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
     descriptor->set_configurable(desc->configurable());
   }
 
-  if (it->IsElement()) {
-    result = !args.CallIndexedDefiner(interceptor, it->index(), *descriptor)
-                  .is_null();
+  if (it->IsElement(*holder)) {
+    result =
+        !args.CallIndexedDefiner(interceptor, it->array_index(), *descriptor)
+             .is_null();
   } else {
     result =
         !args.CallNamedDefiner(interceptor, it->name(), *descriptor).is_null();
@@ -1552,8 +1554,8 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
 
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
                                  *holder, Just(kDontThrow));
-  if (it->IsElement()) {
-    result = args.CallIndexedDescriptor(interceptor, it->index());
+  if (it->IsElement(*holder)) {
+    result = args.CallIndexedDescriptor(interceptor, it->array_index());
   } else {
     result = args.CallNamedDescriptor(interceptor, it->name());
   }
@@ -1562,8 +1564,8 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
     // descriptor.
     Utils::ApiCheck(
         PropertyDescriptor::ToPropertyDescriptor(isolate, result, desc),
-        it->IsElement() ? "v8::IndexedPropertyDescriptorCallback"
-                        : "v8::NamedPropertyDescriptorCallback",
+        it->IsElement(*holder) ? "v8::IndexedPropertyDescriptorCallback"
+                               : "v8::NamedPropertyDescriptorCallback",
         "Invalid property descriptor.");
 
     return Just(true);
@@ -3274,8 +3276,9 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
 }
 
 MaybeHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
-    Handle<JSObject> object, uint32_t index, Handle<Object> value,
+    Handle<JSObject> object, size_t index, Handle<Object> value,
     PropertyAttributes attributes) {
+  DCHECK(!object->IsJSTypedArray());
   Isolate* isolate = object->GetIsolate();
   LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
   return DefineOwnPropertyIgnoreAttributes(&it, value, attributes);
@@ -3559,8 +3562,8 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
                                  *holder, Just(should_throw));
   Handle<Object> result;
-  if (it->IsElement()) {
-    result = args.CallIndexedDeleter(interceptor, it->index());
+  if (it->IsElement(*holder)) {
+    result = args.CallIndexedDeleter(interceptor, it->array_index());
   } else {
     result = args.CallNamedDeleter(interceptor, it->name());
   }

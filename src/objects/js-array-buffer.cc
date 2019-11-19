@@ -152,9 +152,9 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
       // 3b i. If IsInteger(numericIndex) is false, return false.
       // 3b ii. If numericIndex = -0, return false.
       // 3b iii. If numericIndex < 0, return false.
-      // FIXME: the standard allows up to 2^53 elements.
-      uint32_t index;
-      if (numeric_index->IsMinusZero() || !numeric_index->ToUint32(&index)) {
+      size_t index;
+      if (numeric_index->IsMinusZero() ||
+          !numeric_index->ToIntegerIndex(&index)) {
         RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                        NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
       }
@@ -190,10 +190,11 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
         if (!desc->has_enumerable()) desc->set_enumerable(true);
         if (!desc->has_writable()) desc->set_writable(true);
         Handle<Object> value = desc->value();
-        RETURN_ON_EXCEPTION_VALUE(isolate,
-                                  SetOwnElementIgnoreAttributes(
-                                      o, index, value, desc->ToAttributes()),
-                                  Nothing<bool>());
+        LookupIterator it(isolate, o, index, LookupIterator::OWN);
+        RETURN_ON_EXCEPTION_VALUE(
+            isolate,
+            DefineOwnPropertyIgnoreAttributes(&it, value, desc->ToAttributes()),
+            Nothing<bool>());
       }
       // 3b xi. Return true.
       return Just(true);

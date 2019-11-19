@@ -39,31 +39,58 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
       name_(isolate_->factory()->InternalizeName(name)),
       receiver_(receiver),
       initial_holder_(holder),
-      // kMaxUInt32 isn't a valid index.
-      index_(kMaxUInt32) {
+      index_(kInvalidIndex) {
 #ifdef DEBUG
-  uint32_t index;  // Assert that the name is not an array index.
-  DCHECK(!name->AsArrayIndex(&index));
+  // Assert that the name is not an index.
+  if (configuration & kGuaranteedNotTypedArray) {
+    uint32_t index;
+    DCHECK(!name->AsArrayIndex(&index));
+  } else {
+    size_t index;
+    DCHECK(!name->AsIntegerIndex(&index));
+  }
 #endif  // DEBUG
   Start<false>();
 }
 
 LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
-                               uint32_t index, Configuration configuration)
+                               size_t index, Configuration configuration,
+                               Handle<Name> key_as_string)
     : LookupIterator(isolate, receiver, index,
-                     GetRoot(isolate, receiver, index), configuration) {}
+                     GetRoot(isolate, receiver, index), configuration,
+                     key_as_string) {}
+
+LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                               size_t index, Handle<JSReceiver> holder,
+                               Configuration configuration,
+                               Handle<Name> key_as_string)
+    : configuration_(configuration),
+      interceptor_state_(InterceptorState::kUninitialized),
+      property_details_(PropertyDetails::Empty()),
+      isolate_(isolate),
+      receiver_(receiver),
+      initial_holder_(holder),
+      index_(index) {
+  // If we're not looking at a TypedArray, we will need the key represented
+  // as an internalized string.
+  if (index_ > JSArray::kMaxArrayIndex && !receiver->IsJSTypedArray()) {
+    if (key_as_string.is_null()) {
+      key_as_string = isolate->factory()->SizeToString(index_);
+    }
+    name_ = isolate->factory()->InternalizeName(key_as_string);
+  }
+  Start<true>();
+}
 
 LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
                                                  Handle<Object> receiver,
                                                  Handle<Name> name,
                                                  Handle<JSReceiver> holder,
                                                  Configuration configuration) {
-  uint32_t index;
-  if (name->AsArrayIndex(&index)) {
-    LookupIterator it =
-        LookupIterator(isolate, receiver, index, holder, configuration);
-    it.name_ = name;
-    return it;
+  size_t index;
+  if (name->AsIntegerIndex(&index)) {
+    return LookupIterator(isolate, receiver, index, holder, configuration,
+                          name);
   }
   return LookupIterator(isolate, receiver, name, holder, configuration);
 }
@@ -72,21 +99,29 @@ LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
                                                  Handle<Object> receiver,
                                                  Handle<Name> name,
                                                  Configuration configuration) {
-  uint32_t index;
-  if (name->AsArrayIndex(&index)) {
-    LookupIterator it = LookupIterator(isolate, receiver, index, configuration);
-    it.name_ = name;
-    return it;
+  size_t index;
+  if (name->AsIntegerIndex(&index)) {
+    return LookupIterator(isolate, receiver, index, configuration, name);
   }
   return LookupIterator(isolate, receiver, name, configuration);
+}
+
+Handle<Name> LookupIterator::name() const {
+  DCHECK(!IsElement(*holder_));
+  return name_;
 }
 
 Handle<Name> LookupIterator::GetName() {
   if (name_.is_null()) {
     DCHECK(IsElement());
-    name_ = factory()->Uint32ToString(index_);
+    name_ = factory()->SizeToString(index_);
   }
   return name_;
+}
+
+bool LookupIterator::IsElement(JSReceiver object) const {
+  return index_ <= JSArray::kMaxArrayIndex ||
+         (index_ != kInvalidIndex && object.map().has_typed_array_elements());
 }
 
 bool LookupIterator::is_dictionary_holder() const {
@@ -143,14 +178,14 @@ void LookupIterator::UpdateProtector() {
 }
 
 InternalIndex LookupIterator::descriptor_number() const {
-  DCHECK(!IsElement());
+  DCHECK(!IsElement(*holder_));
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties(isolate_));
   return number_;
 }
 
 InternalIndex LookupIterator::dictionary_entry() const {
-  DCHECK(!IsElement());
+  DCHECK(!IsElement(*holder_));
   DCHECK(has_property_);
   DCHECK(!holder_->HasFastProperties(isolate_));
   return number_;
@@ -165,9 +200,10 @@ LookupIterator::Configuration LookupIterator::ComputeConfiguration(
 // static
 Handle<JSReceiver> LookupIterator::GetRoot(Isolate* isolate,
                                            Handle<Object> receiver,
-                                           uint32_t index) {
-  if (receiver->IsJSReceiver(isolate))
+                                           size_t index) {
+  if (receiver->IsJSReceiver(isolate)) {
     return Handle<JSReceiver>::cast(receiver);
+  }
   return GetRootForNonJSReceiver(isolate, receiver, index);
 }
 
@@ -184,20 +220,20 @@ Handle<T> LookupIterator::GetStoreTarget() const {
   return Handle<T>::cast(receiver_);
 }
 
-// static
 template <bool is_element>
-InterceptorInfo LookupIterator::GetInterceptor(Isolate* isolate,
-                                               JSObject holder) {
-  return is_element ? holder.GetIndexedInterceptor(isolate)
-                    : holder.GetNamedInterceptor(isolate);
+InterceptorInfo LookupIterator::GetInterceptor(JSObject holder) const {
+  if (is_element && index_ <= JSArray::kMaxArrayIndex) {
+    return holder.GetIndexedInterceptor(isolate_);
+  } else {
+    return holder.GetNamedInterceptor(isolate_);
+  }
 }
 
 inline Handle<InterceptorInfo> LookupIterator::GetInterceptor() const {
   DCHECK_EQ(INTERCEPTOR, state_);
   JSObject holder = JSObject::cast(*holder_);
-  InterceptorInfo result = IsElement()
-                               ? GetInterceptor<true>(isolate_, holder)
-                               : GetInterceptor<false>(isolate_, holder);
+  InterceptorInfo result = IsElement(holder) ? GetInterceptor<true>(holder)
+                                             : GetInterceptor<false>(holder);
   return handle(result, isolate_);
 }
 

@@ -398,9 +398,6 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
 
     BIND(&if_index);
     {
-      // Handle negative keys in the runtime.
-      GotoIf(IntPtrLessThan(var_index.value(), IntPtrConstant(0)),
-             &call_runtime);
       TryLookupElement(object, map, instance_type, var_index.value(),
                        &return_true, &return_false, &return_false,
                        &call_runtime);

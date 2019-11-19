@@ -38,7 +38,7 @@ namespace internal {
 
 namespace {
 
-// For using StringToArrayIndex.
+// For using StringToIndex.
 class OneByteStringStream {
  public:
   explicit OneByteStringStream(Vector<const byte> lb) :
@@ -76,9 +76,13 @@ bool AstRawString::AsArrayIndex(uint32_t* index) const {
     *index = Name::ArrayIndexValueBits::decode(hash_field_);
   } else {
     OneByteStringStream stream(literal_bytes_);
-    CHECK(StringToArrayIndex(&stream, index));
+    CHECK(StringToIndex(&stream, index));
   }
   return true;
+}
+
+bool AstRawString::IsIntegerIndex() const {
+  return (hash_field_ & Name::kIsNotIntegerIndexMask) == 0;
 }
 
 bool AstRawString::IsOneByteEqualTo(const char* data) const {

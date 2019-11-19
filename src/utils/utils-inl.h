@@ -59,7 +59,7 @@ bool TryAddIndexChar(uint64_t* index, Char c) {
 }
 
 template <typename Stream, typename index_t>
-bool StringToArrayIndex(Stream* stream, index_t* index) {
+bool StringToIndex(Stream* stream, index_t* index) {
   uint16_t ch = stream->GetNext();
 
   // If the string begins with a '0' character, it must only consist

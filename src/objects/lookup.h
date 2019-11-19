@@ -22,10 +22,18 @@ class V8_EXPORT_PRIVATE LookupIterator final {
     // Configuration bits.
     kInterceptor = 1 << 0,
     kPrototypeChain = 1 << 1,
+    // For lookups on arbitrary objects, keys that are strings representing
+    // integers larger than kMaxArrayIndex but still in size_t range must
+    // be treated as "elements" lookups, even though for non-TypedArray holders
+    // such keys are converted back to strings. For efficiency, we allow
+    // annotating use cases where it is guaranteed that no TypedArrays will be
+    // encountered by the LookupIterator, so they can run in "property" mode.
+    kGuaranteedNotTypedArray = 1 << 2,
 
     // Convenience combinations of bits.
     OWN_SKIP_INTERCEPTOR = 0,
     OWN = kInterceptor,
+    OWN_NO_TYPEDARRAY = OWN | kGuaranteedNotTypedArray,
     PROTOTYPE_CHAIN_SKIP_INTERCEPTOR = kPrototypeChain,
     PROTOTYPE_CHAIN = kPrototypeChain | kInterceptor,
     DEFAULT = PROTOTYPE_CHAIN
@@ -57,23 +65,14 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                         Handle<Name> name, Handle<JSReceiver> holder,
                         Configuration configuration = DEFAULT);
 
-  inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
-                        uint32_t index, Configuration configuration = DEFAULT);
+  inline LookupIterator(Isolate* isolate, Handle<Object> receiver, size_t index,
+                        Configuration configuration = DEFAULT,
+                        Handle<Name> key_as_string = Handle<Name>());
 
-  LookupIterator(Isolate* isolate, Handle<Object> receiver, uint32_t index,
-                 Handle<JSReceiver> holder,
-                 Configuration configuration = DEFAULT)
-      : configuration_(configuration),
-        interceptor_state_(InterceptorState::kUninitialized),
-        property_details_(PropertyDetails::Empty()),
-        isolate_(isolate),
-        receiver_(receiver),
-        initial_holder_(holder),
-        index_(index) {
-    // kMaxUInt32 isn't a valid index.
-    DCHECK_NE(kMaxUInt32, index_);
-    Start<true>();
-  }
+  inline LookupIterator(Isolate* isolate, Handle<Object> receiver, size_t index,
+                        Handle<JSReceiver> holder,
+                        Configuration configuration = DEFAULT,
+                        Handle<Name> key_as_string = Handle<Name>());
 
   static inline LookupIterator PropertyOrElement(
       Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
@@ -100,14 +99,21 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   Isolate* isolate() const { return isolate_; }
   State state() const { return state_; }
 
-  Handle<Name> name() const {
-    DCHECK(!IsElement());
-    return name_;
-  }
+  inline Handle<Name> name() const;
   inline Handle<Name> GetName();
-  uint32_t index() const { return index_; }
+  size_t index() const { return index_; }
+  uint32_t array_index() const {
+    DCHECK_LE(index_, JSArray::kMaxArrayIndex);
+    return static_cast<uint32_t>(index_);
+  }
 
-  bool IsElement() const { return index_ != kMaxUInt32; }
+  // Returns true if this LookupIterator has an index in the range
+  // [0, size_t::max).
+  bool IsElement() const { return index_ != kInvalidIndex; }
+  // Returns true if this LookupIterator has an index that counts as an
+  // element for the given object (up to kMaxArrayIndex for JSArrays,
+  // any integer for JSTypedArrays).
+  inline bool IsElement(JSReceiver object) const;
 
   bool IsFound() const { return state_ != NOT_FOUND; }
   void Next();
@@ -191,6 +197,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   bool LookupCachedProperty();
 
  private:
+  static const size_t kInvalidIndex = std::numeric_limits<size_t>::max();
+
   // For |ForTransitionHandler|.
   LookupIterator(Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
                  Handle<Map> transition_map, PropertyDetails details,
@@ -209,6 +217,9 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
   V8_WARN_UNUSED_RESULT inline JSReceiver NextHolder(Map map);
 
+  bool is_js_array_element(bool is_element) const {
+    return is_element && index_ <= JSArray::kMaxArrayIndex;
+  }
   template <bool is_element>
   V8_EXPORT_PRIVATE void Start();
   template <bool is_element>
@@ -237,8 +248,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   template <bool is_element>
   bool SkipInterceptor(JSObject holder);
   template <bool is_element>
-  static inline InterceptorInfo GetInterceptor(Isolate* isolate,
-                                               JSObject holder);
+  inline InterceptorInfo GetInterceptor(JSObject holder) const;
 
   bool check_interceptor() const {
     return (configuration_ & kInterceptor) != 0;
@@ -251,10 +261,10 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                                                    Handle<Name> name);
 
   static Handle<JSReceiver> GetRootForNonJSReceiver(
-      Isolate* isolate, Handle<Object> receiver, uint32_t index = kMaxUInt32);
+      Isolate* isolate, Handle<Object> receiver, size_t index = kInvalidIndex);
   static inline Handle<JSReceiver> GetRoot(Isolate* isolate,
                                            Handle<Object> receiver,
-                                           uint32_t index = kMaxUInt32);
+                                           size_t index = kInvalidIndex);
 
   State NotFound(JSReceiver const holder) const;
 
@@ -271,7 +281,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   const Handle<Object> receiver_;
   Handle<JSReceiver> holder_;
   const Handle<JSReceiver> initial_holder_;
-  const uint32_t index_;
+  const size_t index_;
   InternalIndex number_ = InternalIndex::NotFound();
 };
 

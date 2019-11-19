@@ -2764,10 +2764,10 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
         NewTypeError(MessageTemplate::kObjectNotExtensible, it->GetName()));
   }
 
-  if (it->IsElement()) {
+  if (it->IsElement(*receiver)) {
     if (receiver->IsJSArray()) {
       Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-      if (JSArray::WouldChangeReadOnlyLength(array, it->index())) {
+      if (JSArray::WouldChangeReadOnlyLength(array, it->array_index())) {
         RETURN_FAILURE(isolate, GetShouldThrow(it->isolate(), should_throw),
                        NewTypeError(MessageTemplate::kStrictReadOnlyProperty,
                                     isolate->factory()->length_string(),
@@ -2776,7 +2776,8 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
     }
 
     Handle<JSObject> receiver_obj = Handle<JSObject>::cast(receiver);
-    JSObject::AddDataElement(receiver_obj, it->index(), value, attributes);
+    JSObject::AddDataElement(receiver_obj, it->array_index(), value,
+                             attributes);
     JSObject::ValidateElements(*receiver_obj);
     return Just(true);
   } else {

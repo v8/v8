@@ -392,7 +392,14 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       // in case of typed arrays, where integer indexed properties
       // aren't looked up in the prototype chain.
       GotoIf(IsJSTypedArray(CAST(holder)), &return_undefined);
-      GotoIf(IntPtrLessThan(var_intptr_index.value(), IntPtrConstant(0)), miss);
+      if (Is64()) {
+        GotoIfNot(UintPtrLessThan(var_intptr_index.value(),
+                                  IntPtrConstant(JSArray::kMaxArrayIndex)),
+                  miss);
+      } else {
+        GotoIf(IntPtrLessThan(var_intptr_index.value(), IntPtrConstant(0)),
+               miss);
+      }
 
       // For all other receivers we need to check that the prototype chain
       // doesn't contain any elements.
@@ -1002,7 +1009,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     const StoreICParameters* p, TNode<MaybeObject> handler, Label* miss,
     ICMode ic_mode, ElementSupport support_elements) {
   Label if_smi_handler(this), if_nonsmi_handler(this);
-  Label if_proto_handler(this), if_element_handler(this), call_handler(this),
+  Label if_proto_handler(this), call_handler(this),
       store_transition_or_global(this);
 
   Branch(TaggedIsSmi(handler), &if_smi_handler, &if_nonsmi_handler);
@@ -2149,7 +2156,13 @@ void AccessorAssembler::EmitElementLoad(
     BIND(&if_dictionary);
     {
       Comment("dictionary elements");
-      GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), out_of_bounds);
+      if (Is64()) {
+        GotoIf(UintPtrLessThan(IntPtrConstant(JSArray::kMaxArrayIndex),
+                               intptr_index),
+               out_of_bounds);
+      } else {
+        GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), out_of_bounds);
+      }
 
       TNode<FixedArrayBase> elements = LoadJSObjectElements(CAST(object));
       TNode<Object> value = BasicLoadNumberDictionaryElement(
@@ -2305,12 +2318,12 @@ void AccessorAssembler::GenericElementLoad(TNode<HeapObject> receiver,
   ExitPoint direct_exit(this);
 
   Label if_custom(this), if_element_hole(this), if_oob(this);
+  Label return_undefined(this);
   // Receivers requiring non-standard element accesses (interceptors, access
   // checks, strings and string wrappers, proxies) are handled in the runtime.
   GotoIf(IsCustomElementsReceiverInstanceType(instance_type), &if_custom);
   TNode<Int32T> elements_kind = LoadMapElementsKind(receiver_map);
-  TNode<BoolT> is_jsarray_condition =
-      InstanceTypeEqual(instance_type, JS_ARRAY_TYPE);
+  TNode<BoolT> is_jsarray_condition = IsJSArrayInstanceType(instance_type);
   TVARIABLE(Float64T, var_double_value);
   Label rebox_double(this, &var_double_value);
 
@@ -2327,22 +2340,23 @@ void AccessorAssembler::GenericElementLoad(TNode<HeapObject> receiver,
   BIND(&if_oob);
   {
     Comment("out of bounds");
-    // Positive OOB indices are effectively the same as hole loads.
-    GotoIf(IntPtrGreaterThanOrEqual(index, IntPtrConstant(0)),
-           &if_element_hole);
-    // Negative keys can't take the fast OOB path, except for typed arrays.
-    GotoIfNot(InstanceTypeEqual(instance_type, JS_TYPED_ARRAY_TYPE), slow);
-    Return(UndefinedConstant());
+    // On TypedArrays, all OOB loads (positive and negative) return undefined
+    // without ever checking the prototype chain.
+    GotoIf(IsJSTypedArrayInstanceType(instance_type), &return_undefined);
+    // Positive OOB indices within JSArray index range are effectively the same
+    // as hole loads. Larger keys and negative keys are named loads.
+    if (Is64()) {
+      Branch(UintPtrLessThan(index, IntPtrConstant(JSArray::kMaxArrayIndex)),
+             &if_element_hole, slow);
+    } else {
+      Branch(IntPtrLessThan(index, IntPtrConstant(0)), slow, &if_element_hole);
+    }
   }
 
   BIND(&if_element_hole);
   {
     Comment("found the hole");
-    Label return_undefined(this);
     BranchIfPrototypesHaveNoElements(receiver_map, &return_undefined, slow);
-
-    BIND(&return_undefined);
-    Return(UndefinedConstant());
   }
 
   BIND(&if_custom);
@@ -2356,6 +2370,9 @@ void AccessorAssembler::GenericElementLoad(TNode<HeapObject> receiver,
     TailCallBuiltin(Builtins::kStringCharAt, NoContextConstant(), receiver,
                     index);
   }
+
+  BIND(&return_undefined);
+  Return(UndefinedConstant());
 }
 
 void AccessorAssembler::GenericPropertyLoad(TNode<HeapObject> receiver,
@@ -4054,7 +4071,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
       GotoIf(TaggedIsSmi(source_properties), &allocate_object);
       GotoIf(IsEmptyFixedArray(source_properties), &allocate_object);
 
-      // This IC requires that the source object has fast properties
+      // This IC requires that the source object has fast properties.
       CSA_SLOW_ASSERT(this, IsPropertyArray(CAST(source_properties)));
       TNode<IntPtrT> length = LoadPropertyArrayLength(
           UncheckedCast<PropertyArray>(source_properties));

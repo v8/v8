@@ -817,6 +817,27 @@ bool Object::ToArrayIndex(uint32_t* index) const {
   return Object::ToUint32(index) && *index != kMaxUInt32;
 }
 
+bool Object::ToIntegerIndex(size_t* index) const {
+  if (IsSmi()) {
+    int num = Smi::ToInt(*this);
+    if (num < 0) return false;
+    *index = static_cast<size_t>(num);
+    return true;
+  }
+  if (IsHeapNumber()) {
+    double num = HeapNumber::cast(*this).value();
+    if (!(num >= 0)) return false;  // Negation to catch NaNs.
+    // We must exclude the max size_t, because the LookupIterator uses that
+    // as the "invalid index" sentinel.
+    if (num >= std::numeric_limits<size_t>::max()) return false;
+    size_t result = static_cast<size_t>(num);
+    if (num != result) return false;  // Conversion lost fractional precision.
+    *index = result;
+    return true;
+  }
+  return false;
+}
+
 int RegExpMatchInfo::NumberOfCaptureRegisters() {
   DCHECK_GE(length(), kLastMatchOverhead);
   Object obj = get(kNumberOfCapturesIndex);

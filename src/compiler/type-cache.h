@@ -38,6 +38,7 @@ class V8_EXPORT_PRIVATE TypeCache final {
   Type const kUint32 = Type::Unsigned32();
   Type const kInt64 = CreateRange<int64_t>();
   Type const kUint64 = CreateRange<uint64_t>();
+  Type const kIntPtr = CreateRange<intptr_t>();
   Type const kFloat32 = Type::Number();
   Type const kFloat64 = Type::Number();
   Type const kBigInt64 = Type::BigInt();

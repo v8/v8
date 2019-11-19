@@ -382,7 +382,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                  PropertyAttributes attributes);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  SetOwnElementIgnoreAttributes(Handle<JSObject> object, uint32_t index,
+  SetOwnElementIgnoreAttributes(Handle<JSObject> object, size_t index,
                                 Handle<Object> value,
                                 PropertyAttributes attributes);
 

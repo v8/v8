@@ -806,9 +806,15 @@ class V8_EXPORT_PRIVATE Factory {
 #undef DECLARE_ERROR
 
   Handle<String> NumberToString(Handle<Object> number, bool check_cache = true);
-  Handle<String> NumberToString(Smi number, bool check_cache = true);
+  Handle<String> SmiToString(Smi number, bool check_cache = true);
+  Handle<String> HeapNumberToString(Handle<HeapNumber> number, double value,
+                                    bool check_cache = true);
 
-  inline Handle<String> Uint32ToString(uint32_t value, bool check_cache = true);
+  Handle<String> SizeToString(size_t value, bool check_cache = true);
+  inline Handle<String> Uint32ToString(uint32_t value,
+                                       bool check_cache = true) {
+    return SizeToString(value, check_cache);
+  }
 
 #define ROOT_ACCESSOR(Type, name, CamelName) inline Handle<Type> name();
   ROOT_LIST(ROOT_ACCESSOR)

@@ -3266,9 +3266,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                         Variable* maybe_converted_value = nullptr);
 
   Node* CheckForCapacityGrow(Node* object, Node* elements, ElementsKind kind,
-                             SloppyTNode<UintPtrT> length,
-                             SloppyTNode<WordT> key, ParameterMode mode,
-                             Label* bailout);
+                             SloppyTNode<UintPtrT> length, TNode<IntPtrT> key,
+                             ParameterMode mode, Label* bailout);
 
   Node* CopyElementsOnWrite(Node* object, Node* elements, ElementsKind kind,
                             Node* length, ParameterMode mode, Label* bailout);

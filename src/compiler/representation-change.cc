@@ -209,7 +209,8 @@ Node* RepresentationChanger::GetRepresentationFor(
     case MachineRepresentation::kWord64:
       DCHECK(use_info.type_check() == TypeCheckKind::kNone ||
              use_info.type_check() == TypeCheckKind::kSigned64 ||
-             use_info.type_check() == TypeCheckKind::kBigInt);
+             use_info.type_check() == TypeCheckKind::kBigInt ||
+             use_info.type_check() == TypeCheckKind::kArrayIndex);
       return GetWord64RepresentationFor(node, output_rep, output_type, use_node,
                                         use_info);
     case MachineRepresentation::kSimd128:
@@ -1091,7 +1092,8 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
       // float32 -> float64 -> uint64
       node = InsertChangeFloat32ToFloat64(node);
       op = machine()->ChangeFloat64ToUint64();
-    } else if (use_info.type_check() == TypeCheckKind::kSigned64) {
+    } else if (use_info.type_check() == TypeCheckKind::kSigned64 ||
+               use_info.type_check() == TypeCheckKind::kArrayIndex) {
       // float32 -> float64 -> int64
       node = InsertChangeFloat32ToFloat64(node);
       op = simplified()->CheckedFloat64ToInt64(
@@ -1108,7 +1110,8 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
       op = machine()->ChangeFloat64ToInt64();
     } else if (output_type.Is(cache_->kUint64)) {
       op = machine()->ChangeFloat64ToUint64();
-    } else if (use_info.type_check() == TypeCheckKind::kSigned64) {
+    } else if (use_info.type_check() == TypeCheckKind::kSigned64 ||
+               use_info.type_check() == TypeCheckKind::kArrayIndex) {
       op = simplified()->CheckedFloat64ToInt64(
           output_type.Maybe(Type::MinusZero())
               ? use_info.minus_zero_check()
@@ -1135,7 +1138,8 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
   } else if (CanBeTaggedPointer(output_rep)) {
     if (output_type.Is(cache_->kInt64)) {
       op = simplified()->ChangeTaggedToInt64();
-    } else if (use_info.type_check() == TypeCheckKind::kSigned64) {
+    } else if (use_info.type_check() == TypeCheckKind::kSigned64 ||
+               use_info.type_check() == TypeCheckKind::kArrayIndex) {
       op = simplified()->CheckedTaggedToInt64(
           output_type.Maybe(Type::MinusZero())
               ? use_info.minus_zero_check()

@@ -162,12 +162,22 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_NUMBER_CHECKED(int, key, Int32, args[1]);
-
-  if (key < 0) return Smi::zero();
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  uint32_t index;
+  if (key->IsSmi()) {
+    int value = Smi::ToInt(*key);
+    if (value < 0) return Smi::zero();
+    index = static_cast<uint32_t>(value);
+  } else {
+    CHECK(key->IsHeapNumber());
+    double value = HeapNumber::cast(*key).value();
+    if (value < 0 || value > std::numeric_limits<uint32_t>::max()) {
+      return Smi::zero();
+    }
+    index = static_cast<uint32_t>(value);
+  }
 
   uint32_t capacity = static_cast<uint32_t>(object->elements().length());
-  uint32_t index = static_cast<uint32_t>(key);
 
   if (index >= capacity) {
     if (!object->GetElementsAccessor()->GrowCapacity(object, index)) {

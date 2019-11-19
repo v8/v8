@@ -569,6 +569,10 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // allow kMaxUInt32.
   V8_WARN_UNUSED_RESULT inline bool ToArrayIndex(uint32_t* index) const;
 
+  // Tries to convert an object to an index (in the range 0..size_t::max).
+  // Returns true and sets the output parameter if it succeeds.
+  inline bool ToIntegerIndex(size_t* index) const;
+
   // Returns true if the result of iterating over the object is the same
   // (including observable effects) as simply accessing the properties between 0
   // and length.

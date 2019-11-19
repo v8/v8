@@ -213,7 +213,7 @@ class UseInfo {
 
   // Possibly deoptimizing conversions.
   static UseInfo CheckedTaggedAsArrayIndex(const FeedbackSource& feedback) {
-    return UseInfo(MachineRepresentation::kWord32,
+    return UseInfo(MachineType::PointerRepresentation(),
                    Truncation::Any(kIdentifyZeros), TypeCheckKind::kArrayIndex,
                    feedback);
   }

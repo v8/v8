@@ -632,8 +632,9 @@ bool DoubleToBoolean(double d);
 template <typename Char>
 bool TryAddIndexChar(uint32_t* index, Char c);
 
+// {index_t} is meant to be {uint32_t} or {size_t}.
 template <typename Stream, typename index_t>
-bool StringToArrayIndex(Stream* stream, index_t* index);
+bool StringToIndex(Stream* stream, index_t* index);
 
 // Returns the current stack top. Works correctly with ASAN and SafeStack.
 // GetCurrentStackPosition() should not be inlined, because it works on stack

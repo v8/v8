@@ -328,6 +328,20 @@ bool MigrateDeprecated(Isolate* isolate, Handle<Object> object) {
   return true;
 }
 
+// For string keys that are outside JSArray index range but inside TypedArray
+// index range, we generate named loads/stores, because for most JSObjects
+// that makes sense. We have to be careful to create an indexed LookupIterator
+// for such keys though.
+LookupIterator CreateLookupIterator(Isolate* isolate, Handle<Object> receiver,
+                                    Handle<Name> name) {
+  size_t index = 0;
+  if (name->AsIntegerIndex(&index)) {
+    return LookupIterator(isolate, receiver, index, LookupIterator::DEFAULT,
+                          name);
+  }
+  return LookupIterator(isolate, receiver, name);
+}
+
 }  // namespace
 
 bool IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
@@ -405,7 +419,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
   JSObject::MakePrototypesFast(object, kStartAtReceiver, isolate());
   update_receiver_map(object);
 
-  LookupIterator it(isolate(), object, name);
+  LookupIterator it = CreateLookupIterator(isolate(), object, name);
 
   // Named lookup in the object.
   LookupForRead(&it, IsAnyHas());
@@ -697,9 +711,11 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
     }
     code = ComputeHandler(lookup);
   }
-
-  SetCache(lookup->name(), code);
-  TraceIC("LoadIC", lookup->name());
+  // Can't use {lookup->name()} because the LookupIterator might be in
+  // "elements" mode for keys that are strings representing integers above
+  // JSArray::kMaxIndex.
+  SetCache(lookup->GetName(), code);
+  TraceIC("LoadIC", lookup->GetName());
 }
 
 StubCache* IC::stub_cache() {
@@ -975,29 +991,6 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
   return Handle<Code>::null();
 }
 
-static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
-  // This helper implements a few common fast cases for converting
-  // non-smi keys of keyed loads/stores to a smi or a string.
-  if (key->IsHeapNumber()) {
-    double value = Handle<HeapNumber>::cast(key)->value();
-    if (std::isnan(value)) {
-      key = isolate->factory()->NaN_string();
-    } else {
-      // Check bounds first to avoid undefined behavior in the conversion
-      // to int.
-      if (value <= Smi::kMaxValue && value >= Smi::kMinValue) {
-        int int_value = FastD2I(value);
-        if (value == int_value) {
-          key = handle(Smi::FromInt(int_value), isolate);
-        }
-      }
-    }
-  } else if (key->IsString()) {
-    key = isolate->factory()->InternalizeString(Handle<String>::cast(key));
-  }
-  return key;
-}
-
 bool KeyedLoadIC::CanChangeToAllowOutOfBounds(Handle<Map> receiver_map) {
   const MaybeObjectHandle& handler = nexus()->FindHandlerForMap(receiver_map);
   if (handler.is_null()) return false;
@@ -1199,20 +1192,65 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
 
 namespace {
 
-bool ConvertKeyToIndex(Handle<Object> receiver, Handle<Object> key,
-                       uint32_t* index) {
-  DCHECK(receiver->IsJSReceiver() || receiver->IsString());
-  if (key->ToArrayIndex(index)) return true;
+enum KeyType { kIntPtr, kName, kBailout };
 
-  if (!receiver->IsJSTypedArray()) return false;
+// The cases where kIntPtr is returned must match what
+// CodeStubAssembler::TryToIntptr can handle!
+KeyType TryConvertKey(Handle<Object> key, Isolate* isolate, intptr_t* index_out,
+                      Handle<Name>* name_out) {
+  if (key->IsSmi()) {
+    *index_out = Smi::ToInt(*key);
+    return kIntPtr;
+  }
+  if (key->IsHeapNumber()) {
+    double num = HeapNumber::cast(*key).value();
+    if (!(num >= std::numeric_limits<intptr_t>::min())) return kBailout;
+    if (num > std::numeric_limits<intptr_t>::max()) return kBailout;
+    *index_out = static_cast<intptr_t>(num);
+    if (*index_out != num) return kBailout;
+    return kIntPtr;
+  }
+  if (key->IsString()) {
+    key = isolate->factory()->InternalizeString(Handle<String>::cast(key));
+    uint32_t maybe_array_index;
+    if (String::cast(*key).AsArrayIndex(&maybe_array_index)) {
+      if (maybe_array_index <= INT_MAX) {
+        *index_out = static_cast<intptr_t>(maybe_array_index);
+        return kIntPtr;
+      }
+      // {key} is a string representation of an array index beyond the range
+      // that the IC could handle. Don't try to take the named-property path.
+      return kBailout;
+    }
+    *name_out = Handle<String>::cast(key);
+    return kName;
+  }
+  if (key->IsSymbol()) {
+    *name_out = Handle<Symbol>::cast(key);
+    return kName;
+  }
+  return kBailout;
+}
 
-  // For JSTypedArray receivers, we can also support negative keys, which we
-  // just map into the [2**31, 2**32 - 1] range via a bit_cast. This is valid
-  // because JSTypedArray::length is always a Smi, so such keys will always
-  // be detected as OOB.
-  int32_t signed_index;
-  if (!key->ToInt32(&signed_index)) return false;
-  *index = bit_cast<uint32_t>(signed_index);
+bool IntPtrKeyToSize(intptr_t index, Handle<HeapObject> receiver, size_t* out) {
+  if (index < 0) {
+    if (receiver->IsJSTypedArray()) {
+      // For JSTypedArray receivers, we can support negative keys, which we
+      // just map to a very large value. This is valid because all OOB accesses
+      // (negative or positive) are handled the same way, and size_t::max is
+      // guaranteed to be an OOB access.
+      *out = std::numeric_limits<size_t>::max();
+      return true;
+    }
+    return false;
+  }
+#if V8_HOST_ARCH_64_BIT
+  // On 32-bit platforms, any intptr_t is less than kMaxArrayIndex.
+  if (index > JSArray::kMaxArrayIndex && !receiver->IsJSTypedArray()) {
+    return false;
+  }
+#endif
+  *out = static_cast<size_t>(index);
   return true;
 }
 
@@ -1222,7 +1260,7 @@ bool CanCache(Handle<Object> receiver, InlineCacheState state) {
   return !receiver->IsAccessCheckNeeded() && !receiver->IsJSPrimitiveWrapper();
 }
 
-bool IsOutOfBoundsAccess(Handle<Object> receiver, uint32_t index) {
+bool IsOutOfBoundsAccess(Handle<Object> receiver, size_t index) {
   size_t length;
   if (receiver->IsJSArray()) {
     length = JSArray::cast(*receiver).length().Number();
@@ -1239,7 +1277,7 @@ bool IsOutOfBoundsAccess(Handle<Object> receiver, uint32_t index) {
 }
 
 KeyedAccessLoadMode GetLoadMode(Isolate* isolate, Handle<Object> receiver,
-                                uint32_t index) {
+                                size_t index) {
   if (IsOutOfBoundsAccess(receiver, index)) {
     DCHECK(receiver->IsHeapObject());
     Handle<Map> receiver_map(Handle<HeapObject>::cast(receiver)->map(),
@@ -1278,23 +1316,17 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
 
   Handle<Object> load_handle;
 
-  // Check for non-string values that can be converted into an
-  // internalized string directly or is representable as a smi.
-  key = TryConvertKey(key, isolate());
+  intptr_t maybe_index;
+  size_t index;
+  Handle<Name> maybe_name;
+  KeyType key_type = TryConvertKey(key, isolate(), &maybe_index, &maybe_name);
 
-  uint32_t index;
-  bool already_found_index = false;
-  if (key->IsInternalizedString()) {
-    already_found_index = String::cast(*key).AsArrayIndex(&index);
-  }
-
-  if ((key->IsInternalizedString() && !already_found_index) ||
-      key->IsSymbol()) {
+  if (key_type == kName) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle,
-                               LoadIC::Load(object, Handle<Name>::cast(key)),
-                               Object);
-  } else if (CanCache(object, state()) &&
-             (already_found_index || ConvertKeyToIndex(object, key, &index))) {
+                               LoadIC::Load(object, maybe_name), Object);
+  } else if (key_type == kIntPtr && CanCache(object, state()) &&
+             IntPtrKeyToSize(maybe_index, Handle<HeapObject>::cast(object),
+                             &index)) {
     KeyedAccessLoadMode load_mode = GetLoadMode(isolate(), object, index);
     UpdateLoadElement(Handle<HeapObject>::cast(object), load_mode);
     if (is_vector_set()) {
@@ -1464,7 +1496,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   }
 
   JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
-  LookupIterator it(isolate(), object, name);
+  LookupIterator it = CreateLookupIterator(isolate(), object, name);
 
   if (name->IsPrivate()) {
     if (name->IsPrivateName() && !it.IsFound()) {
@@ -1502,7 +1534,7 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
         DCHECK(lookup->GetReceiver()->IsJSGlobalObject());
         // Now update the cell in the feedback vector.
         nexus()->ConfigurePropertyCellMode(lookup->GetPropertyCell());
-        TraceIC("StoreGlobalIC", lookup->name());
+        TraceIC("StoreGlobalIC", lookup->GetName());
         return;
       }
     }
@@ -1511,9 +1543,11 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
     set_slow_stub_reason("LookupForWrite said 'false'");
     handler = MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
   }
-
-  SetCache(lookup->name(), handler);
-  TraceIC("StoreIC", lookup->name());
+  // Can't use {lookup->name()} because the LookupIterator might be in
+  // "elements" mode for keys that are strings representing integers above
+  // JSArray::kMaxIndex.
+  SetCache(lookup->GetName(), handler);
+  TraceIC("StoreIC", lookup->GetName());
 }
 
 MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
@@ -1552,13 +1586,13 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       Handle<JSObject> holder = lookup->GetHolder<JSObject>();
       InterceptorInfo info = holder->GetNamedInterceptor();
 
-      // If the interceptor is on the receiver
+      // If the interceptor is on the receiver...
       if (lookup->HolderIsReceiverOrHiddenPrototype() && !info.non_masking()) {
-        // return a store interceptor smi handler if there is one,
+        // ...return a store interceptor Smi handler if there is one...
         if (!info.setter().IsUndefined(isolate())) {
           return MaybeObjectHandle(StoreHandler::StoreInterceptor(isolate()));
         }
-        // otherwise return a slow-case smi handler.
+        // ...otherwise return a slow-case Smi handler.
         return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
       }
 
@@ -1975,12 +2009,13 @@ bool MayHaveTypedArrayInPrototypeChain(Handle<JSObject> object) {
   return false;
 }
 
-KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver, uint32_t index) {
+KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver, size_t index) {
   bool oob_access = IsOutOfBoundsAccess(receiver, index);
   // Don't consider this a growing store if the store would send the receiver to
   // dictionary mode.
-  bool allow_growth = receiver->IsJSArray() && oob_access &&
-                      !receiver->WouldConvertToSlowElements(index);
+  bool allow_growth =
+      receiver->IsJSArray() && oob_access && index <= JSArray::kMaxArrayIndex &&
+      !receiver->WouldConvertToSlowElements(static_cast<uint32_t>(index));
   if (allow_growth) {
     return STORE_AND_GROW_HANDLE_COW;
   }
@@ -2007,20 +2042,17 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     return result;
   }
 
-  // Check for non-string values that can be converted into an
-  // internalized string directly or is representable as a smi.
-  key = TryConvertKey(key, isolate());
-
   Handle<Object> store_handle;
 
-  uint32_t index;
-  if ((key->IsInternalizedString() &&
-       !String::cast(*key).AsArrayIndex(&index)) ||
-      key->IsSymbol()) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate(), store_handle,
-                               StoreIC::Store(object, Handle<Name>::cast(key),
-                                              value, StoreOrigin::kMaybeKeyed),
-                               Object);
+  intptr_t maybe_index;
+  Handle<Name> maybe_name;
+  KeyType key_type = TryConvertKey(key, isolate(), &maybe_index, &maybe_name);
+
+  if (key_type == kName) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate(), store_handle,
+        StoreIC::Store(object, maybe_name, value, StoreOrigin::kMaybeKeyed),
+        Object);
     if (vector_needs_update()) {
       if (ConfigureVectorState(MEGAMORPHIC, key)) {
         set_slow_stub_reason("unhandled internalized string key");
@@ -2032,6 +2064,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
 
   JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
 
+  // TODO(jkummerow): Refactor the condition logic here and below.
   bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic &&
                 !object->IsStringWrapper() && !object->IsAccessCheckNeeded() &&
                 !object->IsJSGlobalProxy();
@@ -2048,23 +2081,17 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
 
   Handle<Map> old_receiver_map;
   bool is_arguments = false;
-  bool key_is_valid_index = false;
+  bool key_is_valid_index = (key_type == kIntPtr);
   KeyedAccessStoreMode store_mode = STANDARD_STORE;
-  if (use_ic && object->IsJSReceiver()) {
+  if (use_ic && object->IsJSReceiver() && key_is_valid_index) {
     Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
     old_receiver_map = handle(receiver->map(), isolate());
     is_arguments = receiver->IsJSArgumentsObject();
     bool is_proxy = receiver->IsJSProxy();
-    // For JSTypedArray {object}s we can handle negative indices as OOB
-    // accesses, since integer indexed properties are never looked up
-    // on the prototype chain. For this we simply map the negative {key}s
-    // to the [2**31,2**32-1] range, which is safe since JSTypedArray::length
-    // is always an unsigned Smi.
-    key_is_valid_index =
-        key->IsSmi() && (Smi::ToInt(*key) >= 0 || object->IsJSTypedArray());
+    size_t index;
+    key_is_valid_index = IntPtrKeyToSize(maybe_index, receiver, &index);
     if (!is_arguments && !is_proxy) {
       if (key_is_valid_index) {
-        uint32_t index = static_cast<uint32_t>(Smi::ToInt(*key));
         Handle<JSObject> receiver_object = Handle<JSObject>::cast(object);
         store_mode = GetStoreMode(receiver_object, index);
       }

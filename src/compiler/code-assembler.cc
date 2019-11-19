@@ -915,6 +915,14 @@ TNode<IntPtrT> CodeAssembler::ChangeInt32ToIntPtr(SloppyTNode<Word32T> value) {
   return ReinterpretCast<IntPtrT>(value);
 }
 
+TNode<IntPtrT> CodeAssembler::ChangeFloat64ToIntPtr(TNode<Float64T> value) {
+  if (raw_assembler()->machine()->Is64()) {
+    return ReinterpretCast<IntPtrT>(
+        raw_assembler()->ChangeFloat64ToInt64(value));
+  }
+  return ReinterpretCast<IntPtrT>(raw_assembler()->ChangeFloat64ToInt32(value));
+}
+
 TNode<UintPtrT> CodeAssembler::ChangeFloat64ToUintPtr(
     SloppyTNode<Float64T> value) {
   if (raw_assembler()->machine()->Is64()) {

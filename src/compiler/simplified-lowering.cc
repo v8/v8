@@ -1659,12 +1659,17 @@ class RepresentationSelector {
         }
       } else {
         VisitBinop(node, UseInfo::CheckedTaggedAsArrayIndex(p.feedback()),
-                   UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
+                   UseInfo::Word(), MachineType::PointerRepresentation());
         if (lower()) {
-          NodeProperties::ChangeOp(
-              node,
-              simplified()->CheckedUint32Bounds(
-                  p.feedback(), CheckBoundsParameters::kDeoptOnOutOfBounds));
+          if (jsgraph_->machine()->Is64()) {
+            NodeProperties::ChangeOp(
+                node, simplified()->CheckedUint64Bounds(p.feedback()));
+          } else {
+            NodeProperties::ChangeOp(
+                node,
+                simplified()->CheckedUint32Bounds(
+                    p.feedback(), CheckBoundsParameters::kDeoptOnOutOfBounds));
+          }
         }
       }
     } else {

@@ -9241,9 +9241,15 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   }
   BIND(&if_oob);
   {
-    // Positive OOB indices mean "not found", negative indices must be
-    // converted to property names.
-    GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), if_bailout);
+    // Positive OOB indices mean "not found", negative indices and indices
+    // out of array index range must be converted to property names.
+    if (Is64()) {
+      GotoIf(UintPtrLessThan(IntPtrConstant(JSArray::kMaxArrayIndex),
+                             intptr_index),
+             if_bailout);
+    } else {
+      GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), if_bailout);
+    }
     Goto(if_not_found);
   }
 }
@@ -9754,10 +9760,10 @@ TNode<IntPtrT> CodeStubAssembler::TryToIntptr(
   BIND(&key_is_heapnumber);
   {
     TNode<Float64T> value = LoadHeapNumberValue(CAST(key));
-    TNode<Int32T> int_value = RoundFloat64ToInt32(value);
-    GotoIfNot(Float64Equal(value, ChangeInt32ToFloat64(int_value)),
+    TNode<IntPtrT> int_value = ChangeFloat64ToIntPtr(value);
+    GotoIfNot(Float64Equal(value, RoundIntPtrToFloat64(int_value)),
               if_not_intptr);
-    var_intptr_key = ChangeInt32ToIntPtr(int_value);
+    var_intptr_key = int_value;
     Goto(&done);
   }
 
@@ -10190,7 +10196,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
 Node* CodeStubAssembler::CheckForCapacityGrow(Node* object, Node* elements,
                                               ElementsKind kind,
                                               SloppyTNode<UintPtrT> length,
-                                              SloppyTNode<WordT> key,
+                                              TNode<IntPtrT> key,
                                               ParameterMode mode,
                                               Label* bailout) {
   DCHECK(IsFastElementsKind(kind));
@@ -10225,9 +10231,11 @@ Node* CodeStubAssembler::CheckForCapacityGrow(Node* object, Node* elements,
 
     BIND(&grow_bailout);
     {
+      GotoIf(IntPtrOrSmiLessThan(key, IntPtrOrSmiConstant(0, mode), mode),
+             bailout);
       Node* tagged_key = mode == SMI_PARAMETERS
                              ? static_cast<Node*>(key)
-                             : ChangeInt32ToTagged(TruncateWordToInt32(key));
+                             : ChangeUintPtrToTagged(Unsigned(key));
       TNode<Object> maybe_elements = CallRuntime(
           Runtime::kGrowArrayElements, NoContextConstant(), object, tagged_key);
       GotoIf(TaggedIsSmi(maybe_elements), bailout);
