@@ -162,12 +162,14 @@ namespace regexp {
       let isFastRegExp: bool = false;
       try {
         if (IsFastRegExpPermissive(iteratingRegExp)) {
+          const regexp = UnsafeCast<JSRegExp>(iteratingRegExp);
+          const lastIndex = LoadLastIndexAsLength(regexp, true);
           const matchIndices: RegExpMatchInfo =
               RegExpPrototypeExecBodyWithoutResultFast(
-                  UnsafeCast<JSRegExp>(iteratingRegExp), iteratingString)
+                  regexp, iteratingString, lastIndex)
               otherwise IfNoMatch;
           match = ConstructNewResultFromMatchInfo(
-              iteratingRegExp, matchIndices, iteratingString);
+              regexp, matchIndices, iteratingString, lastIndex);
           isFastRegExp = true;
         } else {
           match = RegExpExec(iteratingRegExp, iteratingString);

@@ -20,7 +20,8 @@ namespace regexp {
     // Call exec.
     try {
       const matchIndices: RegExpMatchInfo =
-          RegExpPrototypeExecBodyWithoutResultFast(regexp, string)
+          RegExpPrototypeExecBodyWithoutResultFast(
+              UnsafeCast<JSRegExp>(regexp), string)
           otherwise DidNotMatch;
 
       // Successful match.

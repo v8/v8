@@ -78,7 +78,7 @@ TNode<RawPtrT> RegExpBuiltinsAssembler::LoadCodeObjectEntry(TNode<Code> code) {
 
 TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
     TNode<Context> context, TNode<Smi> length, TNode<Smi> index,
-    TNode<String> input, TNode<RegExpMatchInfo> match_info,
+    TNode<String> input, TNode<JSRegExp> regexp, TNode<Number> last_index,
     TNode<FixedArray>* elements_out) {
   CSA_ASSERT(this, SmiLessThanOrEqual(
                        length, SmiConstant(JSArray::kMaxFastArrayLength)));
@@ -117,10 +117,19 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kNamesOffset,
                                  undefined_value);
 
-  // Stash match_info in order to build JSRegExpResultIndices lazily when the
-  // 'indices' property is accessed.
-  StoreObjectField(result, JSRegExpResult::kCachedIndicesOrMatchInfoOffset,
-                   match_info);
+  // Stash regexp in order to re-execute and build JSRegExpResultIndices lazily
+  // when the 'indices' property is accessed.
+  StoreObjectField(result, JSRegExpResult::kCachedIndicesOrRegexpOffset,
+                   regexp);
+  StoreObjectField(result, JSRegExpResult::kRegexpInputOffset, input);
+
+  // If non-smi last_index then store an SmiZero instead.
+  {
+    TNode<Smi> last_index_smi = SelectConstant<Smi>(
+        TaggedIsSmi(last_index), CAST(last_index), SmiZero());
+    StoreObjectField(result, JSRegExpResult::kRegexpLastIndexOffset,
+                     last_index_smi);
+  }
 
   // Finish elements initialization.
 
@@ -162,8 +171,9 @@ void RegExpBuiltinsAssembler::SlowStoreLastIndex(SloppyTNode<Context> context,
 }
 
 TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
-    TNode<Context> context, TNode<JSReceiver> maybe_regexp,
-    TNode<RegExpMatchInfo> match_info, TNode<String> string) {
+    TNode<Context> context, TNode<JSRegExp> regexp,
+    TNode<RegExpMatchInfo> match_info, TNode<String> string,
+    TNode<Number> last_index) {
   Label named_captures(this), out(this);
 
   TNode<IntPtrT> num_indices = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
@@ -181,8 +191,9 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
       CAST(CallBuiltin(Builtins::kSubString, context, string, start, end));
 
   TNode<FixedArray> result_elements;
-  TNode<JSRegExpResult> result = AllocateRegExpResult(
-      context, num_results, start, string, match_info, &result_elements);
+  TNode<JSRegExpResult> result =
+      AllocateRegExpResult(context, num_results, start, string, regexp,
+                           last_index, &result_elements);
 
   UnsafeStoreFixedArrayElement(result_elements, 0, first);
 
@@ -231,16 +242,14 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   {
     CSA_ASSERT(this, SmiGreaterThan(num_results, SmiConstant(1)));
 
-    // We reach this point only if captures exist, implying that this is an
-    // IRREGEXP JSRegExp.
-
-    TNode<JSRegExp> regexp = CAST(maybe_regexp);
-
     // Preparations for named capture properties. Exit early if the result does
     // not have any named captures to minimize performance impact.
 
     TNode<FixedArray> data =
         CAST(LoadObjectField(regexp, JSRegExp::kDataOffset));
+
+    // We reach this point only if captures exist, implying that this is an
+    // IRREGEXP JSRegExp.
     CSA_ASSERT(this,
                SmiEqual(CAST(LoadFixedArrayElement(data, JSRegExp::kTagIndex)),
                         SmiConstant(JSRegExp::IRREGEXP)));
