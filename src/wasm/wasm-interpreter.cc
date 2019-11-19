@@ -2644,9 +2644,39 @@ class ThreadImpl {
         QFM_CASE(F64x2Qfma, f64x2, float2, 2, +)
         QFM_CASE(F64x2Qfms, f64x2, float2, 2, -)
 #undef QFM_CASE
+      case kExprS8x16LoadSplat: {
+        return DoSimdLoadSplat<int16, int32_t, int8_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord8);
+      }
+      case kExprS16x8LoadSplat: {
+        return DoSimdLoadSplat<int8, int32_t, int16_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord16);
+      }
+      case kExprS32x4LoadSplat: {
+        return DoSimdLoadSplat<int4, int32_t, int32_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord32);
+      }
+      case kExprS64x2LoadSplat: {
+        return DoSimdLoadSplat<int2, int64_t, int64_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord64);
+      }
       default:
         return false;
     }
+  }
+
+  template <typename s_type, typename result_type, typename load_type>
+  bool DoSimdLoadSplat(Decoder* decoder, InterpreterCode* code, pc_t pc,
+                       int* const len, MachineRepresentation rep) {
+    if (!ExecuteLoad<result_type, load_type>(decoder, code, pc, len, rep,
+                                             /*prefix_len=*/1)) {
+      return false;
+    }
+    result_type v = Pop().to<result_type>();
+    s_type s;
+    for (size_t i = 0; i < arraysize(s.val); i++) s.val[i] = v;
+    Push(WasmValue(Simd128(s)));
+    return true;
   }
 
   // Check if our control stack (frames_) exceeds the limit. Trigger stack

@@ -3277,10 +3277,6 @@ WASM_SIMD_TEST(SimdLoadStoreLoadMemargOffset) {
 template <typename T>
 void RunLoadSplatTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode op) {
-  if (execution_tier == ExecutionTier::kInterpreter) {
-    // TODO(zhin): implement for interpreter
-    return;
-  }
   constexpr int lanes = 16 / sizeof(T);
   constexpr int mem_index = 16;  // Load from mem index 16 (bytes).
   WasmRunner<int32_t> r(execution_tier, lower_simd);
