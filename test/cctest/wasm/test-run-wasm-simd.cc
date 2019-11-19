@@ -3307,10 +3307,6 @@ WASM_SIMD_TEST_NO_LOWERING(S64x2LoadSplat) {
 template <typename S, typename T>
 void RunLoadExtendTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode op) {
-  if (execution_tier == ExecutionTier::kInterpreter) {
-    // TODO(zhin): implement for interpreter
-    return;
-  }
   constexpr int lanes_s = 16 / sizeof(S);
   constexpr int lanes_t = 16 / sizeof(T);
   constexpr int mem_index = 16;  // Load from mem index 16 (bytes).

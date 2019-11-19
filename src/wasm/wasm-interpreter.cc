@@ -2654,6 +2654,30 @@ class ThreadImpl {
         return DoSimdLoadSplat<int2, int64_t, int64_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
+      case kExprI16x8Load8x8S: {
+        return DoSimdLoadExtend<int8, int16_t, int8_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord64);
+      }
+      case kExprI16x8Load8x8U: {
+        return DoSimdLoadExtend<int8, uint16_t, uint8_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord64);
+      }
+      case kExprI32x4Load16x4S: {
+        return DoSimdLoadExtend<int4, int32_t, int16_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord64);
+      }
+      case kExprI32x4Load16x4U: {
+        return DoSimdLoadExtend<int4, uint32_t, uint16_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord64);
+      }
+      case kExprI64x2Load32x2S: {
+        return DoSimdLoadExtend<int2, int64_t, int32_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord64);
+      }
+      case kExprI64x2Load32x2U: {
+        return DoSimdLoadExtend<int2, uint64_t, uint32_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord64);
+      }
       default:
         return false;
     }
@@ -2669,6 +2693,27 @@ class ThreadImpl {
     result_type v = Pop().to<result_type>();
     s_type s;
     for (size_t i = 0; i < arraysize(s.val); i++) s.val[i] = v;
+    Push(WasmValue(Simd128(s)));
+    return true;
+  }
+
+  template <typename s_type, typename wide_type, typename narrow_type>
+  bool DoSimdLoadExtend(Decoder* decoder, InterpreterCode* code, pc_t pc,
+                        int* const len, MachineRepresentation rep) {
+    static_assert(sizeof(wide_type) == sizeof(narrow_type) * 2,
+                  "size mismatch for wide and narrow types");
+    if (!ExecuteLoad<uint64_t, uint64_t>(decoder, code, pc, len, rep,
+                                         /*prefix_len=*/1)) {
+      return false;
+    }
+    constexpr int lanes = kSimd128Size / sizeof(wide_type);
+    uint64_t v = Pop().to_u64();
+    s_type s;
+    for (int i = 0; i < lanes; i++) {
+      uint8_t shift = i * (sizeof(narrow_type) * 8);
+      narrow_type el = static_cast<narrow_type>(v >> shift);
+      s.val[i] = static_cast<wide_type>(el);
+    }
     Push(WasmValue(Simd128(s)));
     return true;
   }
