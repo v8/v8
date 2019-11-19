@@ -2033,8 +2033,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI32x4GeU(node);
     case IrOpcode::kI16x8Splat:
       return MarkAsSimd128(node), VisitI16x8Splat(node);
-    case IrOpcode::kI16x8ExtractLane:
-      return MarkAsWord32(node), VisitI16x8ExtractLane(node);
+    case IrOpcode::kI16x8ExtractLaneU:
+      return MarkAsWord32(node), VisitI16x8ExtractLaneU(node);
+    case IrOpcode::kI16x8ExtractLaneS:
+      return MarkAsWord32(node), VisitI16x8ExtractLaneS(node);
     case IrOpcode::kI16x8ReplaceLane:
       return MarkAsSimd128(node), VisitI16x8ReplaceLane(node);
     case IrOpcode::kI16x8SConvertI8x16Low:
@@ -2095,8 +2097,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8GeU(node);
     case IrOpcode::kI8x16Splat:
       return MarkAsSimd128(node), VisitI8x16Splat(node);
-    case IrOpcode::kI8x16ExtractLane:
-      return MarkAsWord32(node), VisitI8x16ExtractLane(node);
+    case IrOpcode::kI8x16ExtractLaneU:
+      return MarkAsWord32(node), VisitI8x16ExtractLaneU(node);
+    case IrOpcode::kI8x16ExtractLaneS:
+      return MarkAsWord32(node), VisitI8x16ExtractLaneS(node);
     case IrOpcode::kI8x16ReplaceLane:
       return MarkAsSimd128(node), VisitI8x16ReplaceLane(node);
     case IrOpcode::kI8x16Neg:

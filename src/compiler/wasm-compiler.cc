@@ -4556,23 +4556,19 @@ Node* WasmGraphBuilder::SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane,
       return graph()->NewNode(mcgraph()->machine()->I32x4ReplaceLane(lane),
                               inputs[0], inputs[1]);
     case wasm::kExprI16x8ExtractLaneS:
-      return graph()->NewNode(
-          mcgraph()->machine()->SignExtendWord16ToInt32(),
-          graph()->NewNode(mcgraph()->machine()->I16x8ExtractLane(lane),
-                           inputs[0]));
+      return graph()->NewNode(mcgraph()->machine()->I16x8ExtractLaneS(lane),
+                              inputs[0]);
     case wasm::kExprI16x8ExtractLaneU:
-      return graph()->NewNode(mcgraph()->machine()->I16x8ExtractLane(lane),
+      return graph()->NewNode(mcgraph()->machine()->I16x8ExtractLaneU(lane),
                               inputs[0]);
     case wasm::kExprI16x8ReplaceLane:
       return graph()->NewNode(mcgraph()->machine()->I16x8ReplaceLane(lane),
                               inputs[0], inputs[1]);
     case wasm::kExprI8x16ExtractLaneS:
-      return graph()->NewNode(
-          mcgraph()->machine()->SignExtendWord8ToInt32(),
-          graph()->NewNode(mcgraph()->machine()->I8x16ExtractLane(lane),
-                           inputs[0]));
+      return graph()->NewNode(mcgraph()->machine()->I8x16ExtractLaneS(lane),
+                              inputs[0]);
     case wasm::kExprI8x16ExtractLaneU:
-      return graph()->NewNode(mcgraph()->machine()->I8x16ExtractLane(lane),
+      return graph()->NewNode(mcgraph()->machine()->I8x16ExtractLaneU(lane),
                               inputs[0]);
     case wasm::kExprI8x16ReplaceLane:
       return graph()->NewNode(mcgraph()->machine()->I8x16ReplaceLane(lane),

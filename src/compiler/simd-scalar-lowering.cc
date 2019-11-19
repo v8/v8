@@ -153,7 +153,8 @@ void SimdScalarLowering::LowerGraph() {
 
 #define FOREACH_INT16X8_OPCODE(V) \
   V(I16x8Splat)                   \
-  V(I16x8ExtractLane)             \
+  V(I16x8ExtractLaneU)            \
+  V(I16x8ExtractLaneS)            \
   V(I16x8ReplaceLane)             \
   V(I16x8SConvertI8x16Low)        \
   V(I16x8SConvertI8x16High)       \
@@ -186,7 +187,8 @@ void SimdScalarLowering::LowerGraph() {
 
 #define FOREACH_INT8X16_OPCODE(V) \
   V(I8x16Splat)                   \
-  V(I8x16ExtractLane)             \
+  V(I8x16ExtractLaneU)            \
+  V(I8x16ExtractLaneS)            \
   V(I8x16ReplaceLane)             \
   V(I8x16SConvertI16x8)           \
   V(I8x16Neg)                     \
@@ -1282,8 +1284,10 @@ void SimdScalarLowering::LowerNode(Node* node) {
     }
     case IrOpcode::kI32x4ExtractLane:
     case IrOpcode::kF32x4ExtractLane:
-    case IrOpcode::kI16x8ExtractLane:
-    case IrOpcode::kI8x16ExtractLane: {
+    case IrOpcode::kI16x8ExtractLaneU:
+    case IrOpcode::kI16x8ExtractLaneS:
+    case IrOpcode::kI8x16ExtractLaneU:
+    case IrOpcode::kI8x16ExtractLaneS: {
       int32_t lane = OpParameter<int32_t>(node->op());
       Node** rep_node = zone()->NewArray<Node*>(num_lanes);
       rep_node[0] = GetReplacementsWithType(node->InputAt(0), rep_type)[lane];

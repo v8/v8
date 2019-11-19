@@ -199,7 +199,7 @@ namespace compiler {
   V(ArmI32x4GtU)                   \
   V(ArmI32x4GeU)                   \
   V(ArmI16x8Splat)                 \
-  V(ArmI16x8ExtractLane)           \
+  V(ArmI16x8ExtractLaneS)          \
   V(ArmI16x8ReplaceLane)           \
   V(ArmI16x8SConvertI8x16Low)      \
   V(ArmI16x8SConvertI8x16High)     \
@@ -219,6 +219,7 @@ namespace compiler {
   V(ArmI16x8Ne)                    \
   V(ArmI16x8GtS)                   \
   V(ArmI16x8GeS)                   \
+  V(ArmI16x8ExtractLaneU)          \
   V(ArmI16x8UConvertI8x16Low)      \
   V(ArmI16x8UConvertI8x16High)     \
   V(ArmI16x8ShrU)                  \
@@ -230,7 +231,7 @@ namespace compiler {
   V(ArmI16x8GtU)                   \
   V(ArmI16x8GeU)                   \
   V(ArmI8x16Splat)                 \
-  V(ArmI8x16ExtractLane)           \
+  V(ArmI8x16ExtractLaneS)          \
   V(ArmI8x16ReplaceLane)           \
   V(ArmI8x16Neg)                   \
   V(ArmI8x16Shl)                   \
@@ -247,6 +248,7 @@ namespace compiler {
   V(ArmI8x16Ne)                    \
   V(ArmI8x16GtS)                   \
   V(ArmI8x16GeS)                   \
+  V(ArmI8x16ExtractLaneU)          \
   V(ArmI8x16ShrU)                  \
   V(ArmI8x16UConvertI16x8)         \
   V(ArmI8x16AddSaturateU)          \

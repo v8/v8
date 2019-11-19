@@ -243,7 +243,8 @@ namespace compiler {
   V(X64I32x4GtU)                          \
   V(X64I32x4GeU)                          \
   V(X64I16x8Splat)                        \
-  V(X64I16x8ExtractLane)                  \
+  V(X64I16x8ExtractLaneU)                 \
+  V(X64I16x8ExtractLaneS)                 \
   V(X64I16x8ReplaceLane)                  \
   V(X64I16x8SConvertI8x16Low)             \
   V(X64I16x8SConvertI8x16High)            \
@@ -274,7 +275,8 @@ namespace compiler {
   V(X64I16x8GtU)                          \
   V(X64I16x8GeU)                          \
   V(X64I8x16Splat)                        \
-  V(X64I8x16ExtractLane)                  \
+  V(X64I8x16ExtractLaneU)                 \
+  V(X64I8x16ExtractLaneS)                 \
   V(X64I8x16ReplaceLane)                  \
   V(X64I8x16SConvertI16x8)                \
   V(X64I8x16Neg)                          \

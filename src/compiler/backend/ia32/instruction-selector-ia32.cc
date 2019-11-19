@@ -276,7 +276,7 @@ void VisitRRISimd(InstructionSelector* selector, Node* node,
       g.UseImmediate(OpParameter<int32_t>(node->op()));
   // 8x16 uses movsx_b on dest to extract a byte, which only works
   // if dest is a byte register.
-  InstructionOperand dest = opcode == kIA32I8x16ExtractLane
+  InstructionOperand dest = opcode == kIA32I8x16ExtractLaneS
                                 ? g.DefineAsFixed(node, eax)
                                 : g.DefineAsRegister(node);
   selector->Emit(opcode, dest, operand0, operand1);
@@ -2231,12 +2231,16 @@ void InstructionSelector::VisitS128Select(Node* node) {
 SIMD_INT_TYPES(VISIT_SIMD_SPLAT)
 #undef VISIT_SIMD_SPLAT
 
-#define VISIT_SIMD_EXTRACT_LANE(Type)                              \
-  void InstructionSelector::Visit##Type##ExtractLane(Node* node) { \
-    VisitRRISimd(this, node, kIA32##Type##ExtractLane);            \
+#define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                              \
+  void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) { \
+    VisitRRISimd(this, node, kIA32##Type##ExtractLane##Sign);            \
   }
-SIMD_INT_TYPES(VISIT_SIMD_EXTRACT_LANE)
-#undef VISIT_SIMD_EXTRACT_LANE
+SIMD_VISIT_EXTRACT_LANE(I32x4, )
+SIMD_VISIT_EXTRACT_LANE(I16x8, U)
+SIMD_VISIT_EXTRACT_LANE(I16x8, S)
+SIMD_VISIT_EXTRACT_LANE(I8x16, U)
+SIMD_VISIT_EXTRACT_LANE(I8x16, S)
+#undef SIMD_VISIT_EXTRACT_LANE
 
 #define VISIT_SIMD_REPLACE_LANE(Type)                                    \
   void InstructionSelector::Visit##Type##ReplaceLane(Node* node) {       \

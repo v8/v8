@@ -634,7 +634,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x4GeU();
 
   const Operator* I16x8Splat();
-  const Operator* I16x8ExtractLane(int32_t);
+  const Operator* I16x8ExtractLaneU(int32_t);
+  const Operator* I16x8ExtractLaneS(int32_t);
   const Operator* I16x8ReplaceLane(int32_t);
   const Operator* I16x8SConvertI8x16Low();
   const Operator* I16x8SConvertI8x16High();
@@ -667,7 +668,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8GeU();
 
   const Operator* I8x16Splat();
-  const Operator* I8x16ExtractLane(int32_t);
+  const Operator* I8x16ExtractLaneU(int32_t);
+  const Operator* I8x16ExtractLaneS(int32_t);
   const Operator* I8x16ReplaceLane(int32_t);
   const Operator* I8x16Neg();
   const Operator* I8x16Shl();

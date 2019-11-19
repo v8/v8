@@ -2258,8 +2258,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vdup(Neon16, i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
-    case kArmI16x8ExtractLane: {
+    case kArmI16x8ExtractLaneU: {
       __ ExtractLane(i.OutputRegister(), i.InputSimd128Register(0), NeonU16,
+                     i.InputInt8(1));
+      break;
+    }
+    case kArmI16x8ExtractLaneS: {
+      __ ExtractLane(i.OutputRegister(), i.InputSimd128Register(0), NeonS16,
                      i.InputInt8(1));
       break;
     }
@@ -2424,8 +2429,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vdup(Neon8, i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
-    case kArmI8x16ExtractLane: {
+    case kArmI8x16ExtractLaneU: {
       __ ExtractLane(i.OutputRegister(), i.InputSimd128Register(0), NeonU8,
+                     i.InputInt8(1));
+      break;
+    }
+    case kArmI8x16ExtractLaneS: {
+      __ ExtractLane(i.OutputRegister(), i.InputSimd128Register(0), NeonS8,
                      i.InputInt8(1));
       break;
     }

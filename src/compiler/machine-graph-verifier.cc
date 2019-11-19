@@ -261,8 +261,10 @@ class MachineRepresentationInferrer {
           case IrOpcode::kTruncateFloat32ToUint32:
           case IrOpcode::kBitcastFloat32ToInt32:
           case IrOpcode::kI32x4ExtractLane:
-          case IrOpcode::kI16x8ExtractLane:
-          case IrOpcode::kI8x16ExtractLane:
+          case IrOpcode::kI16x8ExtractLaneU:
+          case IrOpcode::kI16x8ExtractLaneS:
+          case IrOpcode::kI8x16ExtractLaneU:
+          case IrOpcode::kI8x16ExtractLaneS:
           case IrOpcode::kInt32Constant:
           case IrOpcode::kRelocatableInt32Constant:
           case IrOpcode::kTruncateFloat64ToWord32:
@@ -434,8 +436,10 @@ class MachineRepresentationChecker {
             CheckValueInputForInt64Op(node, 1);
             break;
           case IrOpcode::kI32x4ExtractLane:
-          case IrOpcode::kI16x8ExtractLane:
-          case IrOpcode::kI8x16ExtractLane:
+          case IrOpcode::kI16x8ExtractLaneU:
+          case IrOpcode::kI16x8ExtractLaneS:
+          case IrOpcode::kI8x16ExtractLaneU:
+          case IrOpcode::kI8x16ExtractLaneS:
             CheckValueInputRepresentationIs(node, 0,
                                             MachineRepresentation::kSimd128);
             break;

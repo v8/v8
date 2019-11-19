@@ -3141,10 +3141,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ pshufd(dst, dst, 0x0);
       break;
     }
-    case kX64I16x8ExtractLane: {
+    case kX64I16x8ExtractLaneU: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       Register dst = i.OutputRegister();
       __ Pextrw(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      break;
+    }
+    case kX64I16x8ExtractLaneS: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      Register dst = i.OutputRegister();
+      __ Pextrw(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      __ movsxwl(dst, dst);
       break;
     }
     case kX64I16x8ReplaceLane: {
@@ -3340,10 +3347,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pshufb(dst, kScratchDoubleReg);
       break;
     }
-    case kX64I8x16ExtractLane: {
+    case kX64I8x16ExtractLaneU: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       Register dst = i.OutputRegister();
       __ Pextrb(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      break;
+    }
+    case kX64I8x16ExtractLaneS: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      Register dst = i.OutputRegister();
+      __ Pextrb(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      __ movsxbl(dst, dst);
       break;
     }
     case kX64I8x16ReplaceLane: {

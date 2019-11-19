@@ -1466,14 +1466,25 @@ const Operator* MachineOperatorBuilder::Word64PoisonOnSpeculation() {
   return &cache_.kWord64PoisonOnSpeculation;
 }
 
-#define SIMD_LANE_OPS(Type, lane_count)                                     \
-  const Operator* MachineOperatorBuilder::Type##ExtractLane(                \
-      int32_t lane_index) {                                                 \
-    DCHECK(0 <= lane_index && lane_index < lane_count);                     \
-    return new (zone_)                                                      \
-        Operator1<int32_t>(IrOpcode::k##Type##ExtractLane, Operator::kPure, \
-                           "Extract lane", 1, 0, 0, 1, 0, 0, lane_index);   \
-  }                                                                         \
+#define EXTRACT_LANE_OP(Type, Sign, lane_count)                                \
+  const Operator* MachineOperatorBuilder::Type##ExtractLane##Sign(             \
+      int32_t lane_index) {                                                    \
+    DCHECK(0 <= lane_index && lane_index < lane_count);                        \
+    return new (zone_) Operator1<int32_t>(                                     \
+        IrOpcode::k##Type##ExtractLane##Sign, Operator::kPure, "Extract lane", \
+        1, 0, 0, 1, 0, 0, lane_index);                                         \
+  }
+EXTRACT_LANE_OP(F64x2, , 2)
+EXTRACT_LANE_OP(F32x4, , 4)
+EXTRACT_LANE_OP(I64x2, , 2)
+EXTRACT_LANE_OP(I32x4, , 4)
+EXTRACT_LANE_OP(I16x8, U, 8)
+EXTRACT_LANE_OP(I16x8, S, 8)
+EXTRACT_LANE_OP(I8x16, U, 16)
+EXTRACT_LANE_OP(I8x16, S, 16)
+#undef EXTRACT_LANE_OP
+
+#define REPLACE_LANE_OP(Type, lane_count)                                   \
   const Operator* MachineOperatorBuilder::Type##ReplaceLane(                \
       int32_t lane_index) {                                                 \
     DCHECK(0 <= lane_index && lane_index < lane_count);                     \
@@ -1481,8 +1492,8 @@ const Operator* MachineOperatorBuilder::Word64PoisonOnSpeculation() {
         Operator1<int32_t>(IrOpcode::k##Type##ReplaceLane, Operator::kPure, \
                            "Replace lane", 2, 0, 0, 1, 0, 0, lane_index);   \
   }
-SIMD_LANE_OP_LIST(SIMD_LANE_OPS)
-#undef SIMD_LANE_OPS
+SIMD_LANE_OP_LIST(REPLACE_LANE_OP)
+#undef REPLACE_LANE_OP
 
 const Operator* MachineOperatorBuilder::I64x2ReplaceLaneI32Pair(
     int32_t lane_index) {

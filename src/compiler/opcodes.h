@@ -841,7 +841,8 @@
   V(I32x4GtU)                   \
   V(I32x4GeU)                   \
   V(I16x8Splat)                 \
-  V(I16x8ExtractLane)           \
+  V(I16x8ExtractLaneU)          \
+  V(I16x8ExtractLaneS)          \
   V(I16x8ReplaceLane)           \
   V(I16x8SConvertI8x16Low)      \
   V(I16x8SConvertI8x16High)     \
@@ -876,7 +877,8 @@
   V(I16x8GtU)                   \
   V(I16x8GeU)                   \
   V(I8x16Splat)                 \
-  V(I8x16ExtractLane)           \
+  V(I8x16ExtractLaneU)          \
+  V(I8x16ExtractLaneS)          \
   V(I8x16ReplaceLane)           \
   V(I8x16SConvertI16x8)         \
   V(I8x16Neg)                   \
