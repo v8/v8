@@ -482,8 +482,9 @@ class SerializerForBackgroundCompilation {
                                      bool honor_bailout_on_uninitialized);
 
   PropertyAccessInfo ProcessMapForNamedPropertyAccess(
-      MapRef receiver_map, NameRef const& name, AccessMode access_mode,
-      base::Optional<JSObjectRef> receiver, Hints* result_hints);
+      Hints* receiver, MapRef receiver_map, NameRef const& name,
+      AccessMode access_mode, base::Optional<JSObjectRef> concrete_receiver,
+      Hints* result_hints);
 
   void ProcessCreateContext(interpreter::BytecodeArrayIterator* iterator,
                             int scopeinfo_operand_index);
@@ -2860,8 +2861,9 @@ void SerializerForBackgroundCompilation::ProcessUnaryOrBinaryOperation(
 
 PropertyAccessInfo
 SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
-    MapRef receiver_map, NameRef const& name, AccessMode access_mode,
-    base::Optional<JSObjectRef> receiver, Hints* result_hints) {
+    Hints* receiver, MapRef receiver_map, NameRef const& name,
+    AccessMode access_mode, base::Optional<JSObjectRef> concrete_receiver,
+    Hints* result_hints) {
   // For JSNativeContextSpecialization::InferReceiverRootMap
   receiver_map.SerializeRootMap();
 
@@ -2916,28 +2918,45 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
     CellRef(broker(), access_info.constant());
   }
 
-  // For PropertyAccessBuilder::TryBuildLoadConstantDataField
-  if (access_mode == AccessMode::kLoad) {
-    if (access_info.IsDataConstant()) {
-      base::Optional<JSObjectRef> holder;
-      Handle<JSObject> prototype;
-      if (access_info.holder().ToHandle(&prototype)) {
-        holder = JSObjectRef(broker(), prototype);
-      } else {
-        CHECK_IMPLIES(receiver.has_value(),
-                      receiver->map().equals(receiver_map));
-        holder = receiver;
-      }
+  switch (access_mode) {
+    case AccessMode::kLoad:
+      // For PropertyAccessBuilder::TryBuildLoadConstantDataField
+      if (access_info.IsDataConstant()) {
+        base::Optional<JSObjectRef> holder;
+        Handle<JSObject> prototype;
+        if (access_info.holder().ToHandle(&prototype)) {
+          holder = JSObjectRef(broker(), prototype);
+        } else {
+          CHECK_IMPLIES(concrete_receiver.has_value(),
+                        concrete_receiver->map().equals(receiver_map));
+          holder = concrete_receiver;
+        }
 
-      if (holder.has_value()) {
-        base::Optional<ObjectRef> constant(holder->GetOwnDataProperty(
-            access_info.field_representation(), access_info.field_index(),
-            SerializationPolicy::kSerializeIfNeeded));
-        if (constant.has_value()) {
-          result_hints->AddConstant(constant->object(), zone());
+        if (holder.has_value()) {
+          base::Optional<ObjectRef> constant(holder->GetOwnDataProperty(
+              access_info.field_representation(), access_info.field_index(),
+              SerializationPolicy::kSerializeIfNeeded));
+          if (constant.has_value()) {
+            result_hints->AddConstant(constant->object(), zone());
+          }
         }
       }
-    }
+      break;
+    case AccessMode::kStore:
+    case AccessMode::kStoreInLiteral:
+      // For MapInference (StoreField case).
+      if (access_info.IsDataField() || access_info.IsDataConstant()) {
+        Handle<Map> transition_map;
+        if (access_info.transition_map().ToHandle(&transition_map)) {
+          MapRef map_ref(broker(), transition_map);
+          TRACE_BROKER(broker(), "Propagating transition map "
+                                     << map_ref << " to receiver hints.");
+          receiver->AddMap(transition_map, zone(), false);
+        }
+      }
+      break;
+    case AccessMode::kHas:
+      break;
   }
 
   return access_info;
@@ -3029,16 +3048,17 @@ void SerializerForBackgroundCompilation::ProcessNamedAccess(
   for (Handle<Map> map :
        GetRelevantReceiverMaps(broker()->isolate(), receiver->maps())) {
     MapRef map_ref(broker(), map);
-    ProcessMapForNamedPropertyAccess(map_ref, feedback.name(), access_mode,
-                                     base::nullopt, result_hints);
+    ProcessMapForNamedPropertyAccess(receiver, map_ref, feedback.name(),
+                                     access_mode, base::nullopt, result_hints);
   }
 
   for (Handle<Object> hint : receiver->constants()) {
     ObjectRef object(broker(), hint);
     if (access_mode == AccessMode::kLoad && object.IsJSObject()) {
       MapRef map_ref = object.AsJSObject().map();
-      ProcessMapForNamedPropertyAccess(map_ref, feedback.name(), access_mode,
-                                       object.AsJSObject(), result_hints);
+      ProcessMapForNamedPropertyAccess(receiver, map_ref, feedback.name(),
+                                       access_mode, object.AsJSObject(),
+                                       result_hints);
     }
     // For JSNativeContextSpecialization::ReduceJSLoadNamed.
     if (access_mode == AccessMode::kLoad && object.IsJSFunction() &&
