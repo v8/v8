@@ -2360,7 +2360,19 @@ VisitResult ImplementationVisitor::GenerateCall(
       return VisitResult(return_type, assembler().TopRange(slot_count));
     }
   } else if (auto* intrinsic = Intrinsic::DynamicCast(callable)) {
-    if (intrinsic->ExternalName() == "%RawConstexprCast") {
+    if (intrinsic->ExternalName() == "%SizeOf") {
+      if (specialization_types.size() != 1) {
+        ReportError("%SizeOf must take a single type parameter");
+      }
+      const Type* type = specialization_types[0];
+      std::string size_string;
+      if (base::Optional<std::tuple<size_t, std::string>> size = SizeOf(type)) {
+        size_string = std::get<1>(*size);
+      } else {
+        Error("size of ", *type, " is not known.");
+      }
+      return VisitResult(return_type, size_string);
+    } else if (intrinsic->ExternalName() == "%RawConstexprCast") {
       if (intrinsic->signature().parameter_types.types.size() != 1 ||
           constexpr_arguments.size() != 1) {
         ReportError(

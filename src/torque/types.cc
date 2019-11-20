@@ -718,7 +718,7 @@ VisitResult VisitResult::NeverResult() {
 }
 
 std::tuple<size_t, std::string> Field::GetFieldSizeInformation() const {
-  auto optional = GetOptionalFieldSizeInformation();
+  auto optional = SizeOf(this->name_and_type.type);
   if (optional.has_value()) {
     return *optional;
   }
@@ -727,55 +727,52 @@ std::tuple<size_t, std::string> Field::GetFieldSizeInformation() const {
   return std::make_tuple(0, "#no size");
 }
 
-base::Optional<std::tuple<size_t, std::string>>
-Field::GetOptionalFieldSizeInformation() const {
+base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type) {
   std::string size_string;
-  const Type* field_type = this->name_and_type.type;
-  size_t field_size = 0;
-  if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    field_size = TargetArchitecture::TaggedSize();
+  size_t size;
+  if (type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    size = TargetArchitecture::TaggedSize();
     size_string = "kTaggedSize";
-  } else if (field_type->IsSubtypeOf(TypeOracle::GetRawPtrType())) {
-    field_size = TargetArchitecture::RawPtrSize();
+  } else if (type->IsSubtypeOf(TypeOracle::GetRawPtrType())) {
+    size = TargetArchitecture::RawPtrSize();
     size_string = "kSystemPointerSize";
-  } else if (field_type->IsSubtypeOf(TypeOracle::GetVoidType())) {
-    field_size = 0;
+  } else if (type->IsSubtypeOf(TypeOracle::GetVoidType())) {
+    size = 0;
     size_string = "0";
-  } else if (field_type->IsSubtypeOf(TypeOracle::GetInt8Type())) {
-    field_size = kUInt8Size;
+  } else if (type->IsSubtypeOf(TypeOracle::GetInt8Type())) {
+    size = kUInt8Size;
     size_string = "kUInt8Size";
-  } else if (field_type->IsSubtypeOf(TypeOracle::GetUint8Type())) {
-    field_size = kUInt8Size;
+  } else if (type->IsSubtypeOf(TypeOracle::GetUint8Type())) {
+    size = kUInt8Size;
     size_string = "kUInt8Size";
-  } else if (field_type->IsSubtypeOf(TypeOracle::GetInt16Type())) {
-    field_size = kUInt16Size;
+  } else if (type->IsSubtypeOf(TypeOracle::GetInt16Type())) {
+    size = kUInt16Size;
     size_string = "kUInt16Size";
-  } else if (field_type->IsSubtypeOf(TypeOracle::GetUint16Type())) {
-    field_size = kUInt16Size;
+  } else if (type->IsSubtypeOf(TypeOracle::GetUint16Type())) {
+    size = kUInt16Size;
     size_string = "kUInt16Size";
-  } else if (field_type->IsSubtypeOf(TypeOracle::GetInt32Type())) {
-    field_size = kInt32Size;
+  } else if (type->IsSubtypeOf(TypeOracle::GetInt32Type())) {
+    size = kInt32Size;
     size_string = "kInt32Size";
-  } else if (field_type->IsSubtypeOf(TypeOracle::GetUint32Type())) {
-    field_size = kInt32Size;
+  } else if (type->IsSubtypeOf(TypeOracle::GetUint32Type())) {
+    size = kInt32Size;
     size_string = "kInt32Size";
-  } else if (field_type->IsSubtypeOf(TypeOracle::GetFloat64Type())) {
-    field_size = kDoubleSize;
+  } else if (type->IsSubtypeOf(TypeOracle::GetFloat64Type())) {
+    size = kDoubleSize;
     size_string = "kDoubleSize";
-  } else if (field_type->IsSubtypeOf(TypeOracle::GetIntPtrType())) {
-    field_size = TargetArchitecture::RawPtrSize();
+  } else if (type->IsSubtypeOf(TypeOracle::GetIntPtrType())) {
+    size = TargetArchitecture::RawPtrSize();
     size_string = "kIntptrSize";
-  } else if (field_type->IsSubtypeOf(TypeOracle::GetUIntPtrType())) {
-    field_size = TargetArchitecture::RawPtrSize();
+  } else if (type->IsSubtypeOf(TypeOracle::GetUIntPtrType())) {
+    size = TargetArchitecture::RawPtrSize();
     size_string = "kIntptrSize";
-  } else if (const StructType* struct_type =
-                 StructType::DynamicCast(field_type)) {
-    field_size = struct_type->PackedSize();
-    size_string = std::to_string(field_size);
+  } else if (const StructType* struct_type = StructType::DynamicCast(type)) {
+    size = struct_type->PackedSize();
+    size_string = std::to_string(size);
   } else {
     return {};
   }
-  return std::make_tuple(field_size, size_string);
+  return std::make_tuple(size, size_string);
 }
 
 }  // namespace torque

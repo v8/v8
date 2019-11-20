@@ -155,7 +155,7 @@ const StructType* TypeVisitor::ComputeType(
             false,
             field.const_qualified,
             false};
-    auto optional_size = f.GetOptionalFieldSizeInformation();
+    auto optional_size = SizeOf(f.name_and_type.type);
     // Structs may contain fields that aren't representable in packed form. If
     // so, then this field and any subsequent fields should have their offsets
     // marked as invalid.

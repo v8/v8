@@ -242,7 +242,7 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
              "%GetAllocationBaseSize") {
     if (instruction.specialization_types.size() != 1) {
       ReportError(
-          "incorrect number of specialization classes for "
+          "incorrect number of type parameters for "
           "%GetAllocationBaseSize (should be one)");
     }
     const ClassType* class_type =

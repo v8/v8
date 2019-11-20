@@ -3,23 +3,14 @@
 // found in the LICENSE file.
 
 namespace torque_internal {
-  // TODO(gsps): Synthesize SizeOf<T> in the compiler
-
-  macro SizeOf<T: type>(): constexpr int31;
-  SizeOf<Object>(): constexpr int31 {
-    return kTaggedSize;
-  }
-  SizeOf<float64>(): constexpr int31 {
-    return kDoubleSize;
-  }
-  SizeOf<DescriptorEntry>(): constexpr int31 {
-    return kTaggedSize * 3;
-  }
-
   // Unsafe is a marker that we require to be passed when calling internal APIs
   // that might lead to unsoundness when used incorrectly. Unsafe markers should
   // therefore not be instantiated anywhere outside of this namespace.
   struct Unsafe {}
+
+  // Size of a type in memory (on the heap). For class types, this is the size
+  // of the pointer, not of the instance.
+  intrinsic %SizeOf<T: type>(): constexpr int31;
 
   struct Reference<T: type> {
     const object: HeapObject;
@@ -39,7 +30,7 @@ namespace torque_internal {
     TryAtIndex(index: intptr):&T labels OutOfBounds {
       if (Convert<uintptr>(index) < Convert<uintptr>(this.length)) {
         return UnsafeNewReference<T>(
-            this.object, this.offset + index * SizeOf<T>());
+            this.object, this.offset + index * %SizeOf<T>());
       } else {
         goto OutOfBounds;
       }
@@ -64,7 +55,7 @@ namespace torque_internal {
     }
 
     Iterator(): SliceIterator<T> {
-      const end = this.offset + this.length * SizeOf<T>();
+      const end = this.offset + this.length * %SizeOf<T>();
       return SliceIterator<T>{
         object: this.object,
         start: this.offset,
@@ -99,7 +90,7 @@ namespace torque_internal {
         goto NoMore;
       } else {
         const result = UnsafeNewReference<T>(this.object, this.start);
-        this.start += SizeOf<T>();
+        this.start += %SizeOf<T>();
         return result;
       }
     }

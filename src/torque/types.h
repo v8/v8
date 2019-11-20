@@ -183,11 +183,6 @@ struct Field {
   // reliance of string types is quite clunky.
   std::tuple<size_t, std::string> GetFieldSizeInformation() const;
 
-  // Like GetFieldSizeInformation, but rather than raising an error if the
-  // field's size is unknown, it returns no value.
-  base::Optional<std::tuple<size_t, std::string>>
-  GetOptionalFieldSizeInformation() const;
-
   SourcePosition pos;
   const AggregateType* aggregate;
   base::Optional<NameAndType> index;
@@ -733,6 +728,8 @@ size_t LoweredSlotCount(const Type* type);
 TypeVector LowerParameterTypes(const TypeVector& parameters);
 TypeVector LowerParameterTypes(const ParameterTypes& parameter_types,
                                size_t vararg_count = 0);
+
+base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type);
 
 }  // namespace torque
 }  // namespace internal
