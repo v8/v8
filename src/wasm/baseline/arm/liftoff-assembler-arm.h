@@ -46,18 +46,20 @@ constexpr int32_t kConstantStackSpace = kSystemPointerSize;
 // Three instructions are required to sub a large constant, movw + movt + sub.
 constexpr int32_t kPatchInstructionsRequired = 3;
 
-inline int GetStackSlotOffset(uint32_t offset) {
-  return kFirstStackSlotOffset + offset;
+inline int GetStackSlotOffset(uint32_t index) {
+  return kFirstStackSlotOffset + index * LiftoffAssembler::kStackSlotSize;
 }
 
-inline MemOperand GetStackSlot(uint32_t offset) {
-  return MemOperand(fp, -GetStackSlotOffset(offset));
+inline MemOperand GetStackSlot(uint32_t index) {
+  return MemOperand(fp, -GetStackSlotOffset(index));
 }
 
-inline MemOperand GetHalfStackSlot(uint32_t offset, RegPairHalf half) {
+inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
   int32_t half_offset =
       half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
-  return MemOperand(fp, -kFirstStackSlotOffset - offset + half_offset);
+  int32_t offset = kFirstStackSlotOffset +
+                   index * LiftoffAssembler::kStackSlotSize - half_offset;
+  return MemOperand(fp, -offset);
 }
 
 inline MemOperand GetInstanceOperand() {
@@ -537,12 +539,12 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
   }
 }
 
-void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
+void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
                                       ValueType type) {
-  DCHECK_NE(dst_offset, src_offset);
+  DCHECK_NE(dst_index, src_index);
   LiftoffRegister reg = GetUnusedRegister(reg_class_for(type));
-  Fill(reg, src_offset, type);
-  Spill(dst_offset, reg, type);
+  Fill(reg, src_index, type);
+  Spill(dst_index, reg, type);
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
@@ -562,17 +564,17 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
+void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
                              ValueType type) {
-  RecordUsedSpillSlot(offset);
-  MemOperand dst = liftoff::GetStackSlot(offset);
+  RecordUsedSpillSlot(index);
+  MemOperand dst = liftoff::GetStackSlot(index);
   switch (type) {
     case kWasmI32:
       str(reg.gp(), dst);
       break;
     case kWasmI64:
-      str(reg.low_gp(), liftoff::GetHalfStackSlot(offset, kLowWord));
-      str(reg.high_gp(), liftoff::GetHalfStackSlot(offset, kHighWord));
+      str(reg.low_gp(), liftoff::GetHalfStackSlot(index, kLowWord));
+      str(reg.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
       break;
     case kWasmF32:
       vstr(liftoff::GetFloatRegister(reg.fp()), dst);
@@ -585,9 +587,9 @@ void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
-  RecordUsedSpillSlot(offset);
-  MemOperand dst = liftoff::GetStackSlot(offset);
+void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
+  RecordUsedSpillSlot(index);
+  MemOperand dst = liftoff::GetStackSlot(index);
   UseScratchRegisterScope temps(this);
   Register src = no_reg;
   // The scratch register will be required by str if multiple instructions
@@ -605,10 +607,10 @@ void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
     case kWasmI64: {
       int32_t low_word = value.to_i64();
       mov(src, Operand(low_word));
-      str(src, liftoff::GetHalfStackSlot(offset, kLowWord));
+      str(src, liftoff::GetHalfStackSlot(index, kLowWord));
       int32_t high_word = value.to_i64() >> 32;
       mov(src, Operand(high_word));
-      str(src, liftoff::GetHalfStackSlot(offset, kHighWord));
+      str(src, liftoff::GetHalfStackSlot(index, kHighWord));
       break;
     }
     default:
@@ -617,36 +619,36 @@ void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
   }
 }
 
-void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t offset,
+void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
                             ValueType type) {
   switch (type) {
     case kWasmI32:
-      ldr(reg.gp(), liftoff::GetStackSlot(offset));
+      ldr(reg.gp(), liftoff::GetStackSlot(index));
       break;
     case kWasmI64:
-      ldr(reg.low_gp(), liftoff::GetHalfStackSlot(offset, kLowWord));
-      ldr(reg.high_gp(), liftoff::GetHalfStackSlot(offset, kHighWord));
+      ldr(reg.low_gp(), liftoff::GetHalfStackSlot(index, kLowWord));
+      ldr(reg.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
       break;
     case kWasmF32:
-      vldr(liftoff::GetFloatRegister(reg.fp()), liftoff::GetStackSlot(offset));
+      vldr(liftoff::GetFloatRegister(reg.fp()), liftoff::GetStackSlot(index));
       break;
     case kWasmF64:
-      vldr(reg.fp(), liftoff::GetStackSlot(offset));
+      vldr(reg.fp(), liftoff::GetStackSlot(index));
       break;
     default:
       UNREACHABLE();
   }
 }
 
-void LiftoffAssembler::FillI64Half(Register reg, uint32_t offset,
+void LiftoffAssembler::FillI64Half(Register reg, uint32_t index,
                                    RegPairHalf half) {
-  ldr(reg, liftoff::GetHalfStackSlot(offset, half));
+  ldr(reg, liftoff::GetHalfStackSlot(index, half));
 }
 
 void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
   DCHECK_LT(0, count);
   uint32_t last_stack_slot = index + count - 1;
-  RecordUsedSpillSlot(GetStackOffsetFromIndex(last_stack_slot));
+  RecordUsedSpillSlot(last_stack_slot);
 
   // We need a zero reg. Always use r0 for that, and push it before to restore
   // its value afterwards.
@@ -657,22 +659,16 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
     // Special straight-line code for up to five slots. Generates two
     // instructions per slot.
     for (uint32_t offset = 0; offset < count; ++offset) {
-      str(r0, liftoff::GetHalfStackSlot(GetStackOffsetFromIndex(index + offset),
-                                        kLowWord));
-      str(r0, liftoff::GetHalfStackSlot(GetStackOffsetFromIndex(index + offset),
-                                        kHighWord));
+      str(r0, liftoff::GetHalfStackSlot(index + offset, kLowWord));
+      str(r0, liftoff::GetHalfStackSlot(index + offset, kHighWord));
     }
   } else {
     // General case for bigger counts (9 instructions).
     // Use r1 for start address (inclusive), r2 for end address (exclusive).
     push(r1);
     push(r2);
-    sub(r1, fp,
-        Operand(liftoff::GetStackSlotOffset(
-            GetStackOffsetFromIndex(last_stack_slot))));
-    sub(r2, fp,
-        Operand(liftoff::GetStackSlotOffset(GetStackOffsetFromIndex(index)) -
-                kStackSlotSize));
+    sub(r1, fp, Operand(liftoff::GetStackSlotOffset(last_stack_slot)));
+    sub(r2, fp, Operand(liftoff::GetStackSlotOffset(index) - kStackSlotSize));
 
     Label loop;
     bind(&loop);
@@ -1638,13 +1634,13 @@ void LiftoffStackSlots::Construct() {
             UseScratchRegisterScope temps(asm_);
             Register scratch = temps.Acquire();
             asm_->ldr(scratch,
-                      liftoff::GetHalfStackSlot(slot.src_offset_, slot.half_));
+                      liftoff::GetHalfStackSlot(slot.src_index_, slot.half_));
             asm_->Push(scratch);
           } break;
           case kWasmF64: {
             UseScratchRegisterScope temps(asm_);
             DwVfpRegister scratch = temps.AcquireD();
-            asm_->vldr(scratch, liftoff::GetStackSlot(slot.src_offset_));
+            asm_->vldr(scratch, liftoff::GetStackSlot(slot.src_index_));
             asm_->vpush(scratch);
           } break;
           default:

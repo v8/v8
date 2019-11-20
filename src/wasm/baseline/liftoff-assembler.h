@@ -38,16 +38,6 @@ class LiftoffAssembler : public TurboAssembler {
   static constexpr ValueType kWasmIntPtr =
       kSystemPointerSize == 8 ? kWasmI64 : kWasmI32;
 
-  // TODO(zhin): Temporary while migrating away from fixed slot sizes.
-  inline static constexpr uint32_t SlotSizeForType(ValueType type) {
-    return kStackSlotSize;
-  }
-
-  // TODO(zhin): Temporary for migration from index to offset.
-  inline static uint32_t GetStackOffsetFromIndex(uint32_t index) {
-    return index * LiftoffAssembler::kStackSlotSize;
-  }
-
   class VarState {
    public:
     enum Location : uint8_t { kStack, kRegister, kIntConst };
@@ -112,18 +102,6 @@ class LiftoffAssembler : public TurboAssembler {
     RegClass reg_class() const { return reg().reg_class(); }
 
     void MakeStack() { loc_ = kStack; }
-
-    // Copy src to this, except for offset, since src and this could have been
-    // from different stack states.
-    void Copy(VarState src) {
-      loc_ = src.loc();
-      type_ = src.type();
-      if (loc_ == kRegister) {
-        reg_ = src.reg();
-      } else if (loc_ == kIntConst) {
-        i32_const_ = src.i32_const();
-      }
-    }
 
    private:
     Location loc_;
@@ -281,29 +259,29 @@ class LiftoffAssembler : public TurboAssembler {
 
   LiftoffRegister PopToRegister(LiftoffRegList pinned = {});
 
-  uint32_t NextSpillOffset(ValueType type) {
+  uint32_t NextSpillOffset() {
     if (cache_state_.stack_state.empty()) {
-      return SlotSizeForType(type);
+      return 0;
     }
     VarState last = cache_state_.stack_state.back();
-    uint32_t offset = last.offset() + SlotSizeForType(type);
+    uint32_t offset =
+        last.offset() + ValueTypes::ElementSizeInBytes(last.type());
     return offset;
   }
 
   void PushRegister(ValueType type, LiftoffRegister reg) {
     DCHECK_EQ(reg_class_for(type), reg.reg_class());
     cache_state_.inc_used(reg);
-    cache_state_.stack_state.emplace_back(type, reg, NextSpillOffset(type));
+    cache_state_.stack_state.emplace_back(type, reg, NextSpillOffset());
   }
 
   void PushConstant(ValueType type, int32_t i32_const) {
     DCHECK(type == kWasmI32 || type == kWasmI64);
-    cache_state_.stack_state.emplace_back(type, i32_const,
-                                          NextSpillOffset(type));
+    cache_state_.stack_state.emplace_back(type, i32_const, NextSpillOffset());
   }
 
   void PushStack(ValueType type) {
-    cache_state_.stack_state.emplace_back(type, NextSpillOffset(type));
+    cache_state_.stack_state.emplace_back(type, NextSpillOffset());
   }
 
   void SpillRegister(LiftoffRegister);
@@ -355,9 +333,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   // Call this method whenever spilling something, such that the number of used
   // spill slot can be tracked and the stack frame will be allocated big enough.
-  void RecordUsedSpillSlot(uint32_t offset) {
-    // TODO(zhin): Temporary for migration from index to offset.
-    uint32_t index = offset / kStackSlotSize;
+  void RecordUsedSpillSlot(uint32_t index) {
     if (index >= num_used_spill_slots_) num_used_spill_slots_ = index + 1;
   }
 
@@ -425,18 +401,17 @@ class LiftoffAssembler : public TurboAssembler {
                     bool is_store_mem = false);
   inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,
                                   ValueType);
-  inline void MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
-                             ValueType);
+  inline void MoveStackValue(uint32_t dst_index, uint32_t src_index, ValueType);
 
   inline void Move(Register dst, Register src, ValueType);
   inline void Move(DoubleRegister dst, DoubleRegister src, ValueType);
 
-  inline void Spill(uint32_t offset, LiftoffRegister, ValueType);
-  inline void Spill(uint32_t offset, WasmValue);
-  inline void Fill(LiftoffRegister, uint32_t offset, ValueType);
+  inline void Spill(uint32_t index, LiftoffRegister, ValueType);
+  inline void Spill(uint32_t index, WasmValue);
+  inline void Fill(LiftoffRegister, uint32_t index, ValueType);
   // Only used on 32-bit systems: Fill a register from a "half stack slot", i.e.
   // 4 bytes on the stack holding half of a 64-bit value.
-  inline void FillI64Half(Register, uint32_t offset, RegPairHalf);
+  inline void FillI64Half(Register, uint32_t index, RegPairHalf);
   inline void FillStackSlotsWithZero(uint32_t index, uint32_t count);
 
   // i32 binops.
@@ -835,9 +810,9 @@ class LiftoffStackSlots {
  public:
   explicit LiftoffStackSlots(LiftoffAssembler* wasm_asm) : asm_(wasm_asm) {}
 
-  void Add(const LiftoffAssembler::VarState& src, uint32_t src_offset,
+  void Add(const LiftoffAssembler::VarState& src, uint32_t src_index,
            RegPairHalf half) {
-    slots_.emplace_back(src, src_offset, half);
+    slots_.emplace_back(src, src_index, half);
   }
   void Add(const LiftoffAssembler::VarState& src) { slots_.emplace_back(src); }
 
@@ -847,14 +822,14 @@ class LiftoffStackSlots {
   struct Slot {
     // Allow move construction.
     Slot(Slot&&) V8_NOEXCEPT = default;
-    Slot(const LiftoffAssembler::VarState& src, uint32_t src_offset,
+    Slot(const LiftoffAssembler::VarState& src, uint32_t src_index,
          RegPairHalf half)
-        : src_(src), src_offset_(src_offset), half_(half) {}
+        : src_(src), src_index_(src_index), half_(half) {}
     explicit Slot(const LiftoffAssembler::VarState& src)
         : src_(src), half_(kLowWord) {}
 
     const LiftoffAssembler::VarState src_;
-    uint32_t src_offset_ = 0;
+    uint32_t src_index_ = 0;
     RegPairHalf half_;
   };
 

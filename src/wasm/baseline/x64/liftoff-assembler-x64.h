@@ -39,7 +39,8 @@ constexpr int32_t kConstantStackSpace = 16;
 constexpr int32_t kFirstStackSlotOffset =
     kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
 
-inline Operand GetStackSlot(uint32_t offset) {
+inline Operand GetStackSlot(uint32_t index) {
+  int32_t offset = index * LiftoffAssembler::kStackSlotSize;
   return Operand(rbp, -kFirstStackSlotOffset - offset);
 }
 
@@ -338,11 +339,11 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
   liftoff::Load(this, dst, src, type);
 }
 
-void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
+void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
                                       ValueType type) {
-  DCHECK_NE(dst_offset, src_offset);
-  Operand dst = liftoff::GetStackSlot(dst_offset);
-  Operand src = liftoff::GetStackSlot(src_offset);
+  DCHECK_NE(dst_index, src_index);
+  Operand src = liftoff::GetStackSlot(src_index);
+  Operand dst = liftoff::GetStackSlot(dst_index);
   if (ValueTypes::ElementSizeLog2Of(type) == 2) {
     movl(kScratchRegister, src);
     movl(dst, kScratchRegister);
@@ -374,10 +375,10 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
+void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
                              ValueType type) {
-  RecordUsedSpillSlot(offset);
-  Operand dst = liftoff::GetStackSlot(offset);
+  RecordUsedSpillSlot(index);
+  Operand dst = liftoff::GetStackSlot(index);
   switch (type) {
     case kWasmI32:
       movl(dst, reg.gp());
@@ -396,9 +397,9 @@ void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
-  RecordUsedSpillSlot(offset);
-  Operand dst = liftoff::GetStackSlot(offset);
+void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
+  RecordUsedSpillSlot(index);
+  Operand dst = liftoff::GetStackSlot(index);
   switch (value.type()) {
     case kWasmI32:
       movl(dst, Immediate(value.to_i32()));
@@ -423,9 +424,9 @@ void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
   }
 }
 
-void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t offset,
+void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
                             ValueType type) {
-  Operand src = liftoff::GetStackSlot(offset);
+  Operand src = liftoff::GetStackSlot(index);
   switch (type) {
     case kWasmI32:
       movl(reg.gp(), src);
@@ -444,22 +445,20 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t offset,
   }
 }
 
-void LiftoffAssembler::FillI64Half(Register, uint32_t offset, RegPairHalf) {
+void LiftoffAssembler::FillI64Half(Register, uint32_t index, RegPairHalf) {
   UNREACHABLE();
 }
 
 void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
   DCHECK_LT(0, count);
   uint32_t last_stack_slot = index + count - 1;
-  RecordUsedSpillSlot(
-      LiftoffAssembler::GetStackOffsetFromIndex(last_stack_slot));
+  RecordUsedSpillSlot(last_stack_slot);
 
   if (count <= 3) {
     // Special straight-line code for up to three slots
     // (7-10 bytes per slot: REX C7 <1-4 bytes op> <4 bytes imm>).
     for (uint32_t offset = 0; offset < count; ++offset) {
-      movq(liftoff::GetStackSlot(GetStackOffsetFromIndex(index + offset)),
-           Immediate(0));
+      movq(liftoff::GetStackSlot(index + offset), Immediate(0));
     }
   } else {
     // General case for bigger counts.
@@ -469,7 +468,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
     pushq(rax);
     pushq(rcx);
     pushq(rdi);
-    leaq(rdi, liftoff::GetStackSlot(GetStackOffsetFromIndex(last_stack_slot)));
+    leaq(rdi, liftoff::GetStackSlot(last_stack_slot));
     xorl(rax, rax);
     movl(rcx, Immediate(count));
     repstosq();
@@ -1664,14 +1663,14 @@ void LiftoffStackSlots::Construct() {
         if (src.type() == kWasmI32) {
           // Load i32 values to a register first to ensure they are zero
           // extended.
-          asm_->movl(kScratchRegister, liftoff::GetStackSlot(slot.src_offset_));
+          asm_->movl(kScratchRegister, liftoff::GetStackSlot(slot.src_index_));
           asm_->pushq(kScratchRegister);
         } else {
           // For all other types, just push the whole (8-byte) stack slot.
           // This is also ok for f32 values (even though we copy 4 uninitialized
           // bytes), because f32 and f64 values are clearly distinguished in
           // Turbofan, so the uninitialized bytes are never accessed.
-          asm_->pushq(liftoff::GetStackSlot(slot.src_offset_));
+          asm_->pushq(liftoff::GetStackSlot(slot.src_index_));
         }
         break;
       case LiftoffAssembler::VarState::kRegister:
