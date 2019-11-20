@@ -609,29 +609,27 @@ void SharedFunctionInfo::ClearPreparseData() {
   DCHECK(HasUncompiledDataWithoutPreparseData());
 }
 
-// static
-void UncompiledData::Initialize(
-    UncompiledData data, String inferred_name, int start_position,
-    int end_position,
+void UncompiledData::Init(
+    String inferred_name, int start_position, int end_position,
     std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
         gc_notify_updated_slot) {
-  data.set_inferred_name(inferred_name);
-  gc_notify_updated_slot(
-      data, data.RawField(UncompiledData::kInferredNameOffset), inferred_name);
-  data.set_start_position(start_position);
-  data.set_end_position(end_position);
+  set_inferred_name(inferred_name);
+  gc_notify_updated_slot(*this, RawField(UncompiledData::kInferredNameOffset),
+                         inferred_name);
+  set_start_position(start_position);
+  set_end_position(end_position);
 }
 
-void UncompiledDataWithPreparseData::Initialize(
-    UncompiledDataWithPreparseData data, String inferred_name,
-    int start_position, int end_position, PreparseData scope_data,
+void UncompiledDataWithPreparseData::Init(
+    String inferred_name, int start_position, int end_position,
+    PreparseData scope_data,
     std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
         gc_notify_updated_slot) {
-  UncompiledData::Initialize(data, inferred_name, start_position, end_position,
+  this->UncompiledData::Init(inferred_name, start_position, end_position,
                              gc_notify_updated_slot);
-  data.set_preparse_data(scope_data);
+  set_preparse_data(scope_data);
   gc_notify_updated_slot(
-      data, data.RawField(UncompiledDataWithPreparseData::kPreparseDataOffset),
+      *this, RawField(UncompiledDataWithPreparseData::kPreparseDataOffset),
       scope_data);
 }
 

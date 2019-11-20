@@ -97,9 +97,8 @@ class PreparseData
 class UncompiledData
     : public TorqueGeneratedUncompiledData<UncompiledData, HeapObject> {
  public:
-  inline static void Initialize(
-      UncompiledData data, String inferred_name, int start_position,
-      int end_position,
+  inline void Init(
+      String inferred_name, int start_position, int end_position,
       std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
           gc_notify_updated_slot =
               [](HeapObject object, ObjectSlot slot, HeapObject target) {});
@@ -134,9 +133,9 @@ class UncompiledDataWithPreparseData
  public:
   DECL_PRINTER(UncompiledDataWithPreparseData)
 
-  inline static void Initialize(
-      UncompiledDataWithPreparseData data, String inferred_name,
-      int start_position, int end_position, PreparseData scope_data,
+  inline void Init(
+      String inferred_name, int start_position, int end_position,
+      PreparseData scope_data,
       std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
           gc_notify_updated_slot =
               [](HeapObject object, ObjectSlot slot, HeapObject target) {});

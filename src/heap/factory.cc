@@ -2557,8 +2557,7 @@ Factory::NewUncompiledDataWithoutPreparseData(Handle<String> inferred_name,
           uncompiled_data_without_preparse_data_map(), AllocationType::kOld)),
       isolate());
 
-  UncompiledData::Initialize(*result, *inferred_name, start_position,
-                             end_position);
+  result->Init(*inferred_name, start_position, end_position);
   return result;
 }
 
@@ -2572,8 +2571,7 @@ Factory::NewUncompiledDataWithPreparseData(Handle<String> inferred_name,
           New(uncompiled_data_with_preparse_data_map(), AllocationType::kOld)),
       isolate());
 
-  UncompiledDataWithPreparseData::Initialize(
-      *result, *inferred_name, start_position, end_position, *preparse_data);
+  result->Init(*inferred_name, start_position, end_position, *preparse_data);
 
   return result;
 }
