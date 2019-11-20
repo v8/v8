@@ -1634,10 +1634,10 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
   // TODO(wasm): Move this functionality into wasm-objects, since it is used
   // for both instantiation and in the implementation of the table.init
   // instruction.
-  bool ok = base::ClampToBounds<size_t>(dst, &count,
-                                        table_object->entries().length());
-  // Use & instead of && so the clamp is not short-circuited.
-  ok &= base::ClampToBounds<size_t>(src, &count, elem_segment.entries.size());
+  if (!base::IsInBounds(dst, count, table_object->entries().length()) ||
+      !base::IsInBounds(src, count, elem_segment.entries.size())) {
+    return false;
+  }
 
   const WasmModule* module = instance->module();
   for (size_t i = 0; i < count; ++i) {
@@ -1691,7 +1691,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
                                             func_index);
     }
   }
-  return ok;
+  return true;
 }
 
 void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {

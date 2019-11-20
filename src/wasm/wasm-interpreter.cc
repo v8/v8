@@ -1803,17 +1803,18 @@ class ThreadImpl {
           return true;
         }
         Address dst_addr;
-        bool ok = BoundsCheckMemRange(dst, &size, &dst_addr);
         auto src_max =
             instance_object_->data_segment_sizes()[imm.data_segment_index];
-        // Use & instead of && so the clamp is not short-circuited.
-        ok &= base::ClampToBounds(src, &size, src_max);
+        if (!BoundsCheckMemRange(dst, &size, &dst_addr) ||
+            !base::IsInBounds(src, size, src_max)) {
+          DoTrap(kTrapMemOutOfBounds, pc);
+          return false;
+        }
         Address src_addr =
             instance_object_->data_segment_starts()[imm.data_segment_index] +
             src;
         memory_copy_wrapper(dst_addr, src_addr, size);
-        if (!ok) DoTrap(kTrapMemOutOfBounds, pc);
-        return ok;
+        return true;
       }
       case kExprDataDrop: {
         DataDropImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
@@ -1834,20 +1835,15 @@ class ThreadImpl {
           return true;
         }
         Address dst_addr;
-        bool copy_backward = src < dst;
-        bool ok = BoundsCheckMemRange(dst, &size, &dst_addr);
-        // Trap without copying any bytes if we are copying backward and the
-        // copy is partially out-of-bounds. We only need to check that the dst
-        // region is out-of-bounds, because we know that {src < dst}, so the src
-        // region is always out of bounds if the dst region is.
-        if (ok || !copy_backward) {
-          Address src_addr;
-          // Use & instead of && so the bounds check is not short-circuited.
-          ok &= BoundsCheckMemRange(src, &size, &src_addr);
-          memory_copy_wrapper(dst_addr, src_addr, size);
+        Address src_addr;
+        if (!BoundsCheckMemRange(dst, &size, &dst_addr) ||
+            !BoundsCheckMemRange(src, &size, &src_addr)) {
+          DoTrap(kTrapMemOutOfBounds, pc);
+          return false;
         }
-        if (!ok) DoTrap(kTrapMemOutOfBounds, pc);
-        return ok;
+
+        memory_copy_wrapper(dst_addr, src_addr, size);
+        return true;
       }
       case kExprMemoryFill: {
         MemoryIndexImmediate<Decoder::kNoValidate> imm(decoder,

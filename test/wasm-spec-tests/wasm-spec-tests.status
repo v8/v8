@@ -23,10 +23,6 @@
   'proposals/bulk-memory-operations/elem': [FAIL],
   'proposals/bulk-memory-operations/data': [FAIL],
 
-  'proposals/bulk-memory-operations/table_init': [FAIL],
-  'proposals/bulk-memory-operations/memory_init': [FAIL],
-  'proposals/bulk-memory-operations/table_copy': [FAIL],
-  'proposals/bulk-memory-operations/memory_copy': [FAIL],
   # TODO(thibaudm): Spec tests do not check multi-return functions correctly.
   'proposals/multi-value/call': [FAIL],
   'proposals/multi-value/if': [FAIL],

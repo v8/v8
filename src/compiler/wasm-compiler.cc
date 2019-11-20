@@ -4849,9 +4849,9 @@ Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
   SetControl(size_null_if_false);
 
   Node* dst_fail = BoundsCheckMemRange(&dst, &size, position);
+  TrapIfTrue(wasm::kTrapMemOutOfBounds, dst_fail, position);
 
   Node* seg_index = Uint32Constant(data_segment_index);
-  Node* src_fail;
 
   {
     // Load segment size from WasmInstanceObject::data_segment_sizes.
@@ -4865,7 +4865,8 @@ Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
                                                 Effect(), Control()));
 
     // Bounds check the src index against the segment size.
-    src_fail = BoundsCheckRange(src, &size, seg_size, position);
+    Node* src_fail = BoundsCheckRange(src, &size, seg_size, position);
+    TrapIfTrue(wasm::kTrapMemOutOfBounds, src_fail, position);
   }
 
   {
@@ -4890,8 +4891,6 @@ Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
                              MachineType::Uint32()};
   MachineSignature sig(0, 3, sig_types);
   BuildCCall(&sig, function, dst, src, size);
-  TrapIfTrue(wasm::kTrapMemOutOfBounds,
-             graph()->NewNode(m->Word32Or(), dst_fail, src_fail), position);
   Node* size_null_if_true =
       graph()->NewNode(common->IfTrue(), size_null_branch);
 
@@ -4928,20 +4927,12 @@ Node* WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
   Node* size_null_if_false =
       graph()->NewNode(common->IfFalse(), size_null_branch);
   SetControl(size_null_if_false);
-  // The data must be copied backward if src < dst.
-  Node* copy_backward = graph()->NewNode(m->Uint32LessThan(), src, dst);
 
   Node* dst_fail = BoundsCheckMemRange(&dst, &size, position);
-
-  // Trap without copying any bytes if we are copying backward and the copy is
-  // partially out-of-bounds. We only need to check that the dst region is
-  // out-of-bounds, because we know that {src < dst}, so the src region is
-  // always out of bounds if the dst region is.
-  TrapIfTrue(wasm::kTrapMemOutOfBounds,
-             graph()->NewNode(m->Word32And(), dst_fail, copy_backward),
-             position);
+  TrapIfTrue(wasm::kTrapMemOutOfBounds, dst_fail, position);
 
   Node* src_fail = BoundsCheckMemRange(&src, &size, position);
+  TrapIfTrue(wasm::kTrapMemOutOfBounds, src_fail, position);
 
   Node* function = graph()->NewNode(mcgraph()->common()->ExternalConstant(
       ExternalReference::wasm_memory_copy()));
@@ -4949,8 +4940,6 @@ Node* WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
                              MachineType::Uint32()};
   MachineSignature sig(0, 3, sig_types);
   BuildCCall(&sig, function, dst, src, size);
-  TrapIfTrue(wasm::kTrapMemOutOfBounds,
-             graph()->NewNode(m->Word32Or(), dst_fail, src_fail), position);
   Node* size_null_if_true =
       graph()->NewNode(common->IfTrue(), size_null_branch);
 

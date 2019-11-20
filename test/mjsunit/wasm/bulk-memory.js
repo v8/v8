@@ -184,30 +184,6 @@ function getMemoryFill(mem) {
   assertEquals(0, view[0]);
 })();
 
-(function TestLazyElementSegmentBoundsCheck() {
-  const table = new WebAssembly.Table({initial: 3, element: 'anyfunc'});
-  const builder = new WasmModuleBuilder();
-  builder.addImportedTable('m', 'table', 1);
-  const f = builder.addFunction('f', kSig_i_v).addBody([kExprI32Const, 42]);
-
-  const tableIndex = 0;
-  const isGlobal = false;
-  builder.addElementSegment(tableIndex, 2, isGlobal, [f.index, f.index]);
-  builder.addElementSegment(tableIndex, 0, isGlobal, [f.index, f.index]);
-
-  assertEquals(null, table.get(0));
-  assertEquals(null, table.get(1));
-  assertEquals(null, table.get(2));
-
-  // Instantiation fails, but still modifies the table.
-  assertThrows(() => builder.instantiate({m: {table}}), WebAssembly.LinkError);
-
-  // The second segment is not initialized.
-  assertEquals(null, table.get(0));
-  assertEquals(null, table.get(1));
-  assertEquals(42, table.get(2)());
-})();
-
 (function TestLazyDataAndElementSegments() {
   const table = new WebAssembly.Table({initial: 1, element: 'anyfunc'});
   const memory = new WebAssembly.Memory({initial: 1});
@@ -228,6 +204,5 @@ function getMemoryFill(mem) {
   assertThrows(
       () => builder.instantiate({m: {memory, table}}), WebAssembly.LinkError);
 
-  assertEquals(42, table.get(0)());
   assertEquals(0, view[0]);
 })();
