@@ -913,7 +913,7 @@ TBR=reviewer@chromium.org"""
 
     expectations = [
       Cmd("git fetch origin +refs/heads/*:refs/heads/*", ""),
-      Cmd("git checkout -f origin/master", ""),
+      Cmd("git checkout -f origin/master", "", cb=self.WriteFakeWatchlistsFile),
       Cmd("git branch", ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git tag", self.TAGS),
@@ -933,8 +933,6 @@ TBR=reviewer@chromium.org"""
       Cmd("git checkout -f 3.22.4 -- ChangeLog", "", cb=ResetChangeLog),
       Cmd("git checkout -f 3.22.4 -- include/v8-version.h", "",
           cb=self.WriteFakeVersionFile),
-      Cmd("git checkout -f 3.22.4 -- WATCHLISTS", "",
-          cb=self.WriteFakeWatchlistsFile),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
       Cmd("git cl upload --send-mail "

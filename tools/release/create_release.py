@@ -169,7 +169,6 @@ class MakeBranch(Step):
     self.Git("new-branch work-branch --upstream origin/%s" % self["version"])
     self.GitCheckoutFile(CHANGELOG_FILE, self["latest_version"])
     self.GitCheckoutFile(VERSION_FILE, self["latest_version"])
-    self.GitCheckoutFile(WATCHLISTS_FILE, self["latest_version"])
 
 
 class AddChangeLog(Step):
