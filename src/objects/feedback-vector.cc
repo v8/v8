@@ -764,11 +764,15 @@ void FeedbackNexus::ConfigureHandlerMode(const MaybeObjectHandle& handler) {
 void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
                                          Handle<Map> result_map) {
   Isolate* isolate = GetIsolate();
-  MaybeObject maybe_feedback = GetFeedback();
-  Handle<HeapObject> feedback(maybe_feedback->IsStrongOrWeak()
-                                  ? maybe_feedback->GetHeapObject()
-                                  : HeapObject(),
-                              isolate);
+  Handle<HeapObject> feedback;
+  {
+    MaybeObject maybe_feedback = GetFeedback();
+    if (maybe_feedback->IsStrongOrWeak()) {
+      feedback = handle(maybe_feedback->GetHeapObject(), isolate);
+    } else {
+      DCHECK(maybe_feedback->IsCleared());
+    }
+  }
   switch (ic_state()) {
     case UNINITIALIZED:
       // Cache the first map seen which meets the fast case requirements.
@@ -776,16 +780,15 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
       SetFeedbackExtra(*result_map);
       break;
     case MONOMORPHIC:
-      if (maybe_feedback->IsCleared() || feedback.is_identical_to(source_map) ||
+      if (feedback.is_null() || feedback.is_identical_to(source_map) ||
           Map::cast(*feedback).is_deprecated()) {
-        // Remain in MONOMORPHIC state if previous feedback has been collected.
         SetFeedback(HeapObjectReference::Weak(*source_map));
         SetFeedbackExtra(*result_map);
       } else {
         // Transition to POLYMORPHIC.
         Handle<WeakFixedArray> array =
             EnsureArrayOfSize(2 * kCloneObjectPolymorphicEntrySize);
-        array->Set(0, maybe_feedback);
+        array->Set(0, HeapObjectReference::Weak(*feedback));
         array->Set(1, GetFeedbackExtra());
         array->Set(2, HeapObjectReference::Weak(*source_map));
         array->Set(3, MaybeObject::FromObject(*result_map));
@@ -798,9 +801,10 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
       Handle<WeakFixedArray> array = Handle<WeakFixedArray>::cast(feedback);
       int i = 0;
       for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {
-        MaybeObject feedback = array->Get(i);
-        if (feedback->IsCleared()) break;
-        Handle<Map> cached_map(Map::cast(feedback->GetHeapObject()), isolate);
+        MaybeObject feedback_map = array->Get(i);
+        if (feedback_map->IsCleared()) break;
+        Handle<Map> cached_map(Map::cast(feedback_map->GetHeapObject()),
+                               isolate);
         if (cached_map.is_identical_to(source_map) ||
             cached_map->is_deprecated())
           break;
