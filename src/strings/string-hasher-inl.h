@@ -7,6 +7,8 @@
 
 #include "src/strings/string-hasher.h"
 
+#include <type_traits>
+
 #include "src/objects/objects.h"
 #include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
@@ -47,9 +49,13 @@ uint32_t StringHasher::GetTrivialHash(int length) {
          String::kIsNotIntegerIndexMask;
 }
 
-template <typename schar>
-uint32_t StringHasher::HashSequentialString(const schar* chars, int length,
+template <typename char_t>
+uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
                                             uint64_t seed) {
+  STATIC_ASSERT(std::is_integral<char_t>::value);
+  STATIC_ASSERT(sizeof(char_t) <= 2);
+  using schar = typename std::make_signed<char_t>::type;
+  const schar* chars = reinterpret_cast<const schar*>(chars_raw);
   DCHECK_LE(0, length);
   DCHECK_IMPLIES(0 < length, chars != nullptr);
   if (length >= 1) {
