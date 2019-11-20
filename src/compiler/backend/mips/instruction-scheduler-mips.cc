@@ -55,6 +55,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsF64x2Splat:
     case kMipsF64x2ExtractLane:
     case kMipsF64x2ReplaceLane:
+    case kMipsI64x2Neg:
     case kMipsF32x4Abs:
     case kMipsF32x4Add:
     case kMipsF32x4AddHoriz:
