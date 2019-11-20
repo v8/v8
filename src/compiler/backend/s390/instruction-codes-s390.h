@@ -166,9 +166,6 @@ namespace compiler {
   V(S390_StoreReverseSimd128)               \
   V(S390_StoreFloat32)                      \
   V(S390_StoreDouble)                       \
-  V(S390_DecompressSigned)                  \
-  V(S390_DecompressPointer)                 \
-  V(S390_DecompressAny)                     \
   V(S390_CompressSigned)                    \
   V(S390_CompressPointer)                   \
   V(S390_CompressAny)                       \
