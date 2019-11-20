@@ -27,7 +27,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   // and input string.
   TNode<JSRegExpResult> AllocateRegExpResult(
       TNode<Context> context, TNode<Smi> length, TNode<Smi> index,
-      TNode<String> input, TNode<RegExpMatchInfo> match_info,
+      TNode<String> input, TNode<JSRegExp> regexp, TNode<Number> last_index,
       TNode<FixedArray>* elements_out = nullptr);
 
   TNode<Object> FastLoadLastIndexBeforeSmiCheck(TNode<JSRegExp> regexp);
@@ -58,8 +58,9 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                        TNode<RegExpMatchInfo> match_info);
 
   TNode<JSRegExpResult> ConstructNewResultFromMatchInfo(
-      TNode<Context> context, TNode<JSReceiver> maybe_regexp,
-      TNode<RegExpMatchInfo> match_info, TNode<String> string);
+      TNode<Context> context, TNode<JSRegExp> regexp,
+      TNode<RegExpMatchInfo> match_info, TNode<String> string,
+      TNode<Number> last_index);
 
   // Fast path check logic.
   //

@@ -6,46 +6,80 @@
 
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/regexp/regexp.h"
 
 namespace v8 {
 namespace internal {
-Handle<JSArray> JSRegExpResult::GetAndCacheIndices(
+MaybeHandle<JSArray> JSRegExpResult::GetAndCacheIndices(
     Isolate* isolate, Handle<JSRegExpResult> regexp_result) {
   // Check for cached indices. We do a slow lookup and set of
   // the cached_indices_or_match_info and names fields just in
   // case they have been migrated to dictionaries.
-  Handle<Object> indices_or_match_info(
-      GetProperty(isolate, regexp_result,
-                  isolate->factory()
-                      ->regexp_result_cached_indices_or_match_info_symbol())
+  Handle<Object> indices_or_regexp(
+      GetProperty(
+          isolate, regexp_result,
+          isolate->factory()->regexp_result_cached_indices_or_regexp_symbol())
           .ToHandleChecked());
-  if (indices_or_match_info->IsRegExpMatchInfo()) {
+  if (indices_or_regexp->IsJSRegExp()) {
     // Build and cache indices for next lookup.
     // TODO(joshualitt): Instead of caching the indices, we could call
     // ReconfigureToDataProperty on 'indices' setting its value to this
     // newly created array. However, care would have to be taken to ensure
     // a new map is not created each time.
-    Handle<RegExpMatchInfo> match_info(
-        RegExpMatchInfo::cast(*indices_or_match_info), isolate);
+
+    // Grab regexp, its last_index, and the original subject string from the
+    // result and the re-execute the regexp to generate a new MatchInfo.
+    Handle<JSRegExp> regexp(JSRegExp::cast(*indices_or_regexp), isolate);
+    Handle<Object> input_object(
+        GetProperty(isolate, regexp_result,
+                    isolate->factory()->regexp_result_regexp_input_symbol())
+            .ToHandleChecked());
+    Handle<String> subject(String::cast(*input_object), isolate);
+    Handle<Object> last_index_object(
+        GetProperty(
+            isolate, regexp_result,
+            isolate->factory()->regexp_result_regexp_last_index_symbol())
+            .ToHandleChecked());
+
+    int capture_count = regexp->CaptureCount();
+    Handle<RegExpMatchInfo> match_info =
+        RegExpMatchInfo::New(isolate, capture_count);
+
+    int last_index = Smi::ToInt(*last_index_object);
+    Handle<Object> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result,
+        RegExp::Exec(isolate, regexp, subject, last_index, match_info),
+        JSArray);
+    DCHECK_EQ(*result, *match_info);
+
     Handle<Object> maybe_names(
         GetProperty(isolate, regexp_result,
                     isolate->factory()->regexp_result_names_symbol())
             .ToHandleChecked());
-    indices_or_match_info =
+    indices_or_regexp =
         JSRegExpResultIndices::BuildIndices(isolate, match_info, maybe_names);
 
-    // Cache the result and clear the names array.
+    // Cache the result and clear the names array, last_index and subject.
     SetProperty(
         isolate, regexp_result,
-        isolate->factory()->regexp_result_cached_indices_or_match_info_symbol(),
-        indices_or_match_info)
+        isolate->factory()->regexp_result_cached_indices_or_regexp_symbol(),
+        indices_or_regexp)
         .ToHandleChecked();
     SetProperty(isolate, regexp_result,
                 isolate->factory()->regexp_result_names_symbol(),
                 isolate->factory()->undefined_value())
         .ToHandleChecked();
+    SetProperty(isolate, regexp_result,
+                isolate->factory()->regexp_result_regexp_last_index_symbol(),
+                isolate->factory()->undefined_value())
+        .ToHandleChecked();
+    SetProperty(isolate, regexp_result,
+                isolate->factory()->regexp_result_regexp_input_symbol(),
+                isolate->factory()->undefined_value())
+        .ToHandleChecked();
   }
-  return Handle<JSArray>::cast(indices_or_match_info);
+  return Handle<JSArray>::cast(indices_or_regexp);
 }
 
 Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
