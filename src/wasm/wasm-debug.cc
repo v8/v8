@@ -674,9 +674,12 @@ Handle<Code> WasmDebugInfo::GetCWasmEntry(Handle<WasmDebugInfo> debug_info,
 
 namespace {
 
-#ifdef DEBUG
-bool IsBreakablePosition(wasm::NativeModule* native_module, int func_index,
-                         int offset_in_func) {
+// Return the next breakable position after {offset_in_func} in function
+// {func_index}, or 0 if there is none.
+// Note that 0 is never a breakable position in wasm, since the first byte
+// contains the locals count for the function.
+int FindNextBreakablePosition(wasm::NativeModule* native_module, int func_index,
+                              int offset_in_func) {
   AccountingAllocator alloc;
   Zone tmp(&alloc, ZONE_NAME);
   wasm::BodyLocalDecls locals(&tmp);
@@ -687,13 +690,12 @@ bool IsBreakablePosition(wasm::NativeModule* native_module, int func_index,
                                   module_start + func.code.end_offset(),
                                   &locals);
   DCHECK_LT(0, locals.encoded_size);
+  if (offset_in_func < 0) return 0;
   for (uint32_t offset : iterator.offsets()) {
-    if (offset > static_cast<uint32_t>(offset_in_func)) break;
-    if (offset == static_cast<uint32_t>(offset_in_func)) return true;
+    if (offset >= static_cast<uint32_t>(offset_in_func)) return offset;
   }
-  return false;
+  return 0;
 }
-#endif  // DEBUG
 
 }  // namespace
 
@@ -709,10 +711,10 @@ bool WasmScript::SetBreakPoint(Handle<Script> script, int* position,
   const wasm::WasmFunction& func = module->functions[func_index];
   int offset_in_func = *position - func.code.offset();
 
-  // According to the current design, we should only be called with valid
-  // breakable positions.
-  DCHECK(IsBreakablePosition(script->wasm_native_module(), func_index,
-                             offset_in_func));
+  int breakable_offset = FindNextBreakablePosition(script->wasm_native_module(),
+                                                   func_index, offset_in_func);
+  if (breakable_offset == 0) return false;
+  *position = func.code.offset() + breakable_offset;
 
   // Insert new break point into break_positions of module object.
   WasmScript::AddBreakpointToInfo(script, *position, break_point);
@@ -729,7 +731,7 @@ bool WasmScript::SetBreakPoint(Handle<Script> script, int* position,
           isolate);
       Handle<WasmDebugInfo> debug_info =
           WasmInstanceObject::GetOrCreateDebugInfo(instance);
-      WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset_in_func);
+      WasmDebugInfo::SetBreakpoint(debug_info, func_index, breakable_offset);
     }
   }
 

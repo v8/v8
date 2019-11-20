@@ -1,16 +1,16 @@
-// Copyright 2018 the V8 project authors. All rights reserved.
+// Copyright 2019 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 let {session, contextGroup, Protocol} =
-    InspectorTest.start('Tests stepping through wasm scripts with source maps');
+    InspectorTest.start('Tests stepping through wasm scripts by byte offsets');
 
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();
 
 var func_a_idx =
-    builder.addFunction('wasm_A', kSig_v_v).addBody([kExprNop, kExprNop]).index;
+    builder.addFunction('wasm_A', kSig_v_i).addBody([kExprNop, kExprNop]).index;
 
 // wasm_B calls wasm_A <param0> times.
 builder.addFunction('wasm_B', kSig_v_i)
@@ -23,6 +23,7 @@ builder.addFunction('wasm_B', kSig_v_i)
           kExprI32Const, 1,               // -
           kExprI32Sub,                    // -
           kExprLocalSet, 0,               // decrease <param0>
+          ...wasmI32Const(1024),          // some longer i32 const (2 byte imm)
           kExprCallFunction, func_a_idx,  // -
           kExprBr, 1,                     // continue
           kExprEnd,                       // -
@@ -51,9 +52,10 @@ function instantiate(bytes) {
     InspectorTest.logProtocolCommandCalls('Debugger.' + action);
 
   await Protocol.Debugger.enable();
-  InspectorTest.log('Installing code an global variable and instantiate.');
+  InspectorTest.log('Setting up global instance variable.');
   Protocol.Runtime.evaluate({
-    expression: `var instance;(${instantiate.toString()})(${JSON.stringify(module_bytes)})`
+    expression: `var instance;` +
+        `(${instantiate.toString()})(${JSON.stringify(module_bytes)})`
   });
   const [, {params: wasmScript}, ,] = await Protocol.Debugger.onceScriptParsed(4);
 
@@ -62,39 +64,39 @@ function instantiate(bytes) {
   const msg =
       await Protocol.Debugger.getScriptSource({scriptId: wasmScript.scriptId});
   InspectorTest.log(`Source retrieved without error: ${!msg.error}`);
-  // TODO: Add check that source text is empty but bytecode is present.
+  // TODO(leese): Add check that source text is empty but bytecode is present.
 
+  // Set the breakpoint on a non-breakable position. This should resolve to the
+  // next instruction.
   InspectorTest.log(
-      `Setting breakpoint on offset 54 (on the setlocal before the call), url ${wasmScript.url}`);
+      `Setting breakpoint on offset 59 (should be propagated to 60, the ` +
+      `offset of the call), url ${wasmScript.url}`);
   const bpmsg = await Protocol.Debugger.setBreakpoint({
-    location: {scriptId: wasmScript.scriptId, lineNumber: 0, columnNumber: 54}
+    location: {scriptId: wasmScript.scriptId, lineNumber: 0, columnNumber: 59}
   });
 
-  InspectorTest.log(`Result: ${JSON.stringify(bpmsg)}`);
   const actualLocation = bpmsg.result.actualLocation;
   InspectorTest.logMessage(actualLocation);
   Protocol.Runtime.evaluate({ expression: 'instance.exports.main(4)' });
-  await waitForPauseAndStep('stepInto');  // == stepOver, to call instruction
   await waitForPauseAndStep('stepInto');  // into call to wasm_A
   await waitForPauseAndStep('stepOver');  // over first nop
   await waitForPauseAndStep('stepOut');   // out of wasm_A
-  await waitForPauseAndStep('stepOut');  // out of wasm_B, stop on breakpoint again
-  await waitForPauseAndStep('stepOver');  // to call
+  await waitForPauseAndStep('stepOut');   // out of wasm_B, stop on breakpoint
   await waitForPauseAndStep('stepOver');  // over call
-  await waitForPauseAndStep('resume');  // to next breakpoint (third iteration)
-  await waitForPauseAndStep('stepInto');  // to call
+  await waitForPauseAndStep('stepInto');  // == stepOver br
+  await waitForPauseAndStep('resume');    // to next breakpoint (3rd iteration)
   await waitForPauseAndStep('stepInto');  // into wasm_A
   await waitForPauseAndStep('stepOut');   // out to wasm_B
-  // now step 9 times, until we are in wasm_A again.
-  for (let i = 0; i < 9; ++i) await waitForPauseAndStep('stepInto');
+  // Now step 10 times, until we are in wasm_A again.
+  for (let i = 0; i < 10; ++i) await waitForPauseAndStep('stepInto');
   // 3 more times, back to wasm_B.
   for (let i = 0; i < 3; ++i) await waitForPauseAndStep('stepInto');
-  // then just resume.
+  // Then just resume.
   await waitForPauseAndStep('resume');
   InspectorTest.log('exports.main returned!');
   InspectorTest.log('Finished!');
-  //InspectorTest.completeTest();
-})().catch(reason => InspectorTest.log(`Failed: ${reason}`)).finally(InspectorTest.completeTest);
+})().catch(reason => InspectorTest.log(`Failed: ${reason}`))
+    .finally(InspectorTest.completeTest);
 
 async function waitForPauseAndStep(stepAction) {
   const {params: {callFrames}} = await Protocol.Debugger.oncePaused();
