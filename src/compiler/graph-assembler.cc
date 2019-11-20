@@ -333,8 +333,8 @@ BasicBlock* GraphAssembler::BasicBlockUpdater::Finalize(BasicBlock* original) {
 GraphAssembler::GraphAssembler(JSGraph* jsgraph, Zone* zone, Schedule* schedule)
     : temp_zone_(zone),
       jsgraph_(jsgraph),
-      current_effect_(nullptr),
-      current_control_(nullptr),
+      effect_(nullptr),
+      control_(nullptr),
       block_updater_(schedule != nullptr ? new BasicBlockUpdater(
                                                schedule, jsgraph->graph(), zone)
                                          : nullptr) {}
@@ -413,10 +413,10 @@ PURE_ASSEMBLER_MACH_UNOP_LIST(PURE_UNOP_DEF)
 PURE_ASSEMBLER_MACH_BINOP_LIST(PURE_BINOP_DEF)
 #undef PURE_BINOP_DEF
 
-#define CHECKED_BINOP_DEF(Name)                                              \
-  Node* GraphAssembler::Name(Node* left, Node* right) {                      \
-    return AddNode(                                                          \
-        graph()->NewNode(machine()->Name(), left, right, current_control_)); \
+#define CHECKED_BINOP_DEF(Name)                                       \
+  Node* GraphAssembler::Name(Node* left, Node* right) {               \
+    return AddNode(                                                   \
+        graph()->NewNode(machine()->Name(), left, right, control())); \
   }
 CHECKED_ASSEMBLER_MACH_BINOP_LIST(CHECKED_BINOP_DEF)
 #undef CHECKED_BINOP_DEF
@@ -462,62 +462,59 @@ Node* GraphAssembler::Float64RoundTruncate(Node* value) {
 
 Node* GraphAssembler::Projection(int index, Node* value) {
   return AddNode(
-      graph()->NewNode(common()->Projection(index), value, current_control_));
+      graph()->NewNode(common()->Projection(index), value, control()));
 }
 
 Node* GraphAssembler::Allocate(AllocationType allocation, Node* size) {
   return AddNode(
       graph()->NewNode(simplified()->AllocateRaw(Type::Any(), allocation), size,
-                       current_effect_, current_control_));
+                       effect(), control()));
 }
 
 Node* GraphAssembler::LoadField(FieldAccess const& access, Node* object) {
-  Node* value =
-      AddNode(graph()->NewNode(simplified()->LoadField(access), object,
-                               current_effect_, current_control_));
+  Node* value = AddNode(graph()->NewNode(simplified()->LoadField(access),
+                                         object, effect(), control()));
   return value;
 }
 
 Node* GraphAssembler::LoadElement(ElementAccess const& access, Node* object,
                                   Node* index) {
-  Node* value =
-      AddNode(graph()->NewNode(simplified()->LoadElement(access), object, index,
-                               current_effect_, current_control_));
+  Node* value = AddNode(graph()->NewNode(simplified()->LoadElement(access),
+                                         object, index, effect(), control()));
   return value;
 }
 
 Node* GraphAssembler::StoreField(FieldAccess const& access, Node* object,
                                  Node* value) {
   return AddNode(graph()->NewNode(simplified()->StoreField(access), object,
-                                  value, current_effect_, current_control_));
+                                  value, effect(), control()));
 }
 
 Node* GraphAssembler::StoreElement(ElementAccess const& access, Node* object,
                                    Node* index, Node* value) {
   return AddNode(graph()->NewNode(simplified()->StoreElement(access), object,
-                                  index, value, current_effect_,
-                                  current_control_));
+                                  index, value, effect(), control()));
 }
 
 Node* GraphAssembler::DebugBreak() {
-  return AddNode(graph()->NewNode(machine()->DebugBreak(), current_effect_,
-                                  current_control_));
+  return AddNode(
+      graph()->NewNode(machine()->DebugBreak(), effect(), control()));
 }
 
 Node* GraphAssembler::Unreachable() {
-  return AddNode(graph()->NewNode(common()->Unreachable(), current_effect_,
-                                  current_control_));
+  return AddNode(
+      graph()->NewNode(common()->Unreachable(), effect(), control()));
 }
 
 Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, Node* offset,
                             Node* value) {
   return AddNode(graph()->NewNode(machine()->Store(rep), object, offset, value,
-                                  current_effect_, current_control_));
+                                  effect(), control()));
 }
 
 Node* GraphAssembler::Load(MachineType type, Node* object, Node* offset) {
   Node* value = AddNode(graph()->NewNode(machine()->Load(type), object, offset,
-                                         current_effect_, current_control_));
+                                         effect(), control()));
   return value;
 }
 
@@ -528,8 +525,8 @@ Node* GraphAssembler::StoreUnaligned(MachineRepresentation rep, Node* object,
        machine()->UnalignedStoreSupported(rep))
           ? machine()->Store(StoreRepresentation(rep, kNoWriteBarrier))
           : machine()->UnalignedStore(rep);
-  return AddNode(graph()->NewNode(op, object, offset, value, current_effect_,
-                                  current_control_));
+  return AddNode(
+      graph()->NewNode(op, object, offset, value, effect(), control()));
 }
 
 Node* GraphAssembler::LoadUnaligned(MachineType type, Node* object,
@@ -539,53 +536,52 @@ Node* GraphAssembler::LoadUnaligned(MachineType type, Node* object,
        machine()->UnalignedLoadSupported(type.representation()))
           ? machine()->Load(type)
           : machine()->UnalignedLoad(type);
-  return AddNode(
-      graph()->NewNode(op, object, offset, current_effect_, current_control_));
+  return AddNode(graph()->NewNode(op, object, offset, effect(), control()));
 }
 
 Node* GraphAssembler::Retain(Node* buffer) {
-  return AddNode(graph()->NewNode(common()->Retain(), buffer, current_effect_));
+  return AddNode(graph()->NewNode(common()->Retain(), buffer, effect()));
 }
 
 Node* GraphAssembler::UnsafePointerAdd(Node* base, Node* external) {
   return AddNode(graph()->NewNode(machine()->UnsafePointerAdd(), base, external,
-                                  current_effect_, current_control_));
+                                  effect(), control()));
 }
 
 Node* GraphAssembler::ToNumber(Node* value) {
   return AddNode(graph()->NewNode(ToNumberOperator(), ToNumberBuiltinConstant(),
-                                  value, NoContextConstant(), current_effect_));
+                                  value, NoContextConstant(), effect()));
 }
 
 Node* GraphAssembler::BitcastWordToTagged(Node* value) {
   return AddNode(graph()->NewNode(machine()->BitcastWordToTagged(), value,
-                                  current_effect_, current_control_));
+                                  effect(), control()));
 }
 
 Node* GraphAssembler::BitcastTaggedToWord(Node* value) {
   return AddNode(graph()->NewNode(machine()->BitcastTaggedToWord(), value,
-                                  current_effect_, current_control_));
+                                  effect(), control()));
 }
 
 Node* GraphAssembler::BitcastTaggedToWordForTagAndSmiBits(Node* value) {
   return AddNode(
       graph()->NewNode(machine()->BitcastTaggedToWordForTagAndSmiBits(), value,
-                       current_effect_, current_control_));
+                       effect(), control()));
 }
 
 Node* GraphAssembler::Word32PoisonOnSpeculation(Node* value) {
   return AddNode(graph()->NewNode(machine()->Word32PoisonOnSpeculation(), value,
-                                  current_effect_, current_control_));
+                                  effect(), control()));
 }
 
 Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
                                    FeedbackSource const& feedback,
                                    Node* condition, Node* frame_state,
                                    IsSafetyCheck is_safety_check) {
-  return AddNode(graph()->NewNode(
-      common()->DeoptimizeIf(DeoptimizeKind::kEager, reason, feedback,
-                             is_safety_check),
-      condition, frame_state, current_effect_, current_control_));
+  return AddNode(
+      graph()->NewNode(common()->DeoptimizeIf(DeoptimizeKind::kEager, reason,
+                                              feedback, is_safety_check),
+                       condition, frame_state, effect(), control()));
 }
 
 Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
@@ -595,13 +591,13 @@ Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
   return AddNode(graph()->NewNode(
       common()->DeoptimizeUnless(DeoptimizeKind::kEager, reason, feedback,
                                  is_safety_check),
-      condition, frame_state, current_effect_, current_control_));
+      condition, frame_state, effect(), control()));
 }
 
 void GraphAssembler::Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
                             GraphAssemblerLabel<0u>* if_false,
                             IsSafetyCheck is_safety_check) {
-  DCHECK_NOT_NULL(current_control_);
+  DCHECK_NOT_NULL(control());
 
   BranchHint hint = BranchHint::kNone;
   if (if_true->IsDeferred() != if_false->IsDeferred()) {
@@ -609,13 +605,13 @@ void GraphAssembler::Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
   }
 
   Node* branch = graph()->NewNode(common()->Branch(hint, is_safety_check),
-                                  condition, current_control_);
+                                  condition, control());
 
-  Node* if_true_control = current_control_ =
+  Node* if_true_control = control_ =
       graph()->NewNode(common()->IfTrue(), branch);
   MergeState(if_true);
 
-  Node* if_false_control = current_control_ =
+  Node* if_false_control = control_ =
       graph()->NewNode(common()->IfFalse(), branch);
   MergeState(if_false);
 
@@ -634,8 +630,8 @@ void GraphAssembler::Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
     block_updater_->AddGoto(if_false_target, if_false->basic_block());
   }
 
-  current_control_ = nullptr;
-  current_effect_ = nullptr;
+  control_ = nullptr;
+  effect_ = nullptr;
 }
 
 void GraphAssembler::BindBasicBlock(BasicBlock* block) {
@@ -670,7 +666,7 @@ void GraphAssembler::GotoIfBasicBlock(BasicBlock* block, Node* branch,
       block_updater_->AddBranch(branch, fallthrough_target, goto_target);
     }
 
-    block_updater_->AddNode(current_control_, goto_target);
+    block_updater_->AddNode(control(), goto_target);
     block_updater_->AddGoto(goto_target, block);
 
     block_updater_->AddBind(fallthrough_target);
@@ -680,24 +676,23 @@ void GraphAssembler::GotoIfBasicBlock(BasicBlock* block, Node* branch,
 BasicBlock* GraphAssembler::FinalizeCurrentBlock(BasicBlock* block) {
   if (block_updater_) {
     block = block_updater_->Finalize(block);
-    if (current_control_ == jsgraph()->Dead()) {
+    if (control() == jsgraph()->Dead()) {
       // If the block's end is unreachable, then reset current effect and
       // control to that of the block's throw control node.
       DCHECK(block->control() == BasicBlock::kThrow);
       Node* throw_node = block->control_input();
-      current_control_ = NodeProperties::GetControlInput(throw_node);
-      current_effect_ = NodeProperties::GetEffectInput(throw_node);
+      control_ = NodeProperties::GetControlInput(throw_node);
+      effect_ = NodeProperties::GetEffectInput(throw_node);
     }
   }
   return block;
 }
 
 void GraphAssembler::ConnectUnreachableToEnd() {
-  DCHECK_EQ(current_effect_->opcode(), IrOpcode::kUnreachable);
-  Node* throw_node =
-      graph()->NewNode(common()->Throw(), current_effect_, current_control_);
+  DCHECK_EQ(effect()->opcode(), IrOpcode::kUnreachable);
+  Node* throw_node = graph()->NewNode(common()->Throw(), effect(), control());
   NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
-  current_effect_ = current_control_ = jsgraph()->Dead();
+  effect_ = control_ = jsgraph()->Dead();
   if (block_updater_) {
     block_updater_->AddThrow(throw_node);
   }
@@ -727,16 +722,16 @@ Node* GraphAssembler::AddNode(Node* node) {
 }
 
 void GraphAssembler::Reset(BasicBlock* block) {
-  current_effect_ = nullptr;
-  current_control_ = nullptr;
+  effect_ = nullptr;
+  control_ = nullptr;
   if (block_updater_) {
     block_updater_->StartBlock(block);
   }
 }
 
 void GraphAssembler::InitializeEffectControl(Node* effect, Node* control) {
-  current_effect_ = effect;
-  current_control_ = control;
+  effect_ = effect;
+  control_ = control;
 }
 
 Operator const* GraphAssembler::ToNumberOperator() {

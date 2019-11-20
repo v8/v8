@@ -713,10 +713,10 @@ void EffectControlLinearizer::Run() {
     for (BasicBlock* successor : block->successors()) {
       BlockEffectControlData* data = &block_effects.For(block, successor);
       if (data->current_effect == nullptr) {
-        data->current_effect = gasm()->current_effect();
+        data->current_effect = gasm()->effect();
       }
       if (data->current_control == nullptr) {
-        data->current_control = gasm()->current_control();
+        data->current_control = gasm()->control();
       }
       data->current_frame_state = frame_state;
     }
@@ -739,7 +739,7 @@ void EffectControlLinearizer::UpdateEffectControlForNode(Node* node) {
   // If the node takes an effect, replace with the current one.
   if (node->op()->EffectInputCount() > 0) {
     DCHECK_EQ(1, node->op()->EffectInputCount());
-    NodeProperties::ReplaceEffectInput(node, gasm()->current_effect());
+    NodeProperties::ReplaceEffectInput(node, gasm()->effect());
   } else {
     // New effect chain is only started with a Start or ValueEffect node.
     DCHECK(node->op()->EffectOutputCount() == 0 ||
@@ -748,7 +748,7 @@ void EffectControlLinearizer::UpdateEffectControlForNode(Node* node) {
 
   // Rewire control inputs.
   for (int i = 0; i < node->op()->ControlInputCount(); i++) {
-    NodeProperties::ReplaceControlInput(node, gasm()->current_control(), i);
+    NodeProperties::ReplaceControlInput(node, gasm()->control(), i);
   }
 }
 
@@ -759,7 +759,7 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state) {
 
   // If basic block is unreachable after this point, update the node's effect
   // and control inputs to mark it as dead, but don't process further.
-  if (gasm()->current_effect() == jsgraph()->Dead()) {
+  if (gasm()->effect() == jsgraph()->Dead()) {
     UpdateEffectControlForNode(node);
     return;
   }
@@ -1297,8 +1297,8 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
         node->op()->mnemonic());
   }
 
-  NodeProperties::ReplaceUses(node, result, gasm()->current_effect(),
-                              gasm()->current_control());
+  NodeProperties::ReplaceUses(node, result, gasm()->effect(),
+                              gasm()->control());
   return true;
 }
 

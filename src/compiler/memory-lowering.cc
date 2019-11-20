@@ -166,8 +166,8 @@ Reduction MemoryLowering::ReduceAllocateRaw(
       // Compute the effective inner allocated address.
       value = __ BitcastWordToTagged(
           __ IntAdd(state->top(), __ IntPtrConstant(kHeapObjectTag)));
-      effect = gasm()->current_effect();
-      control = gasm()->current_control();
+      effect = gasm()->effect();
+      control = gasm()->control();
 
       // Extend the allocation {group}.
       group->Add(value);
@@ -220,8 +220,8 @@ Reduction MemoryLowering::ReduceAllocateRaw(
       // Compute the initial object address.
       value = __ BitcastWordToTagged(
           __ IntAdd(done.PhiAt(0), __ IntPtrConstant(kHeapObjectTag)));
-      effect = gasm()->current_effect();
-      control = gasm()->current_control();
+      effect = gasm()->effect();
+      control = gasm()->control();
 
       // Start a new allocation group.
       AllocationGroup* group =
@@ -268,8 +268,8 @@ Reduction MemoryLowering::ReduceAllocateRaw(
 
     __ Bind(&done);
     value = done.PhiAt(0);
-    effect = gasm()->current_effect();
-    control = gasm()->current_control();
+    effect = gasm()->effect();
+    control = gasm()->control();
 
     if (state_ptr) {
       // Create an unfoldable allocation group.

@@ -304,10 +304,10 @@ class GraphAssembler {
   // Updates current effect and control based on outputs of {node}.
   V8_INLINE void UpdateEffectControlWith(Node* node) {
     if (node->op()->EffectOutputCount() > 0) {
-      current_effect_ = node;
+      effect_ = node;
     }
     if (node->op()->ControlOutputCount() > 0) {
-      current_control_ = node;
+      control_ = node;
     }
   }
 
@@ -321,8 +321,8 @@ class GraphAssembler {
 
   void ConnectUnreachableToEnd();
 
-  Node* current_control() { return current_control_; }
-  Node* current_effect() { return current_effect_; }
+  Node* control() { return control_; }
+  Node* effect() { return effect_; }
 
  private:
   class BasicBlockUpdater;
@@ -352,8 +352,8 @@ class GraphAssembler {
   SetOncePointer<Operator const> to_number_operator_;
   Zone* temp_zone_;
   JSGraph* jsgraph_;
-  Node* current_effect_;
-  Node* current_control_;
+  Node* effect_;
+  Node* control_;
   std::unique_ptr<BasicBlockUpdater> block_updater_;
 };
 
@@ -372,10 +372,10 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
   if (label->IsLoop()) {
     if (merged_count == 0) {
       DCHECK(!label->IsBound());
-      label->control_ = graph()->NewNode(common()->Loop(2), current_control_,
-                                         current_control_);
-      label->effect_ = graph()->NewNode(common()->EffectPhi(2), current_effect_,
-                                        current_effect_, label->control_);
+      label->control_ =
+          graph()->NewNode(common()->Loop(2), control(), control());
+      label->effect_ = graph()->NewNode(common()->EffectPhi(2), effect(),
+                                        effect(), label->control_);
       Node* terminate = graph()->NewNode(common()->Terminate(), label->effect_,
                                          label->control_);
       NodeProperties::MergeControlToEnd(graph(), common(), terminate);
@@ -387,8 +387,8 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
     } else {
       DCHECK(label->IsBound());
       DCHECK_EQ(1, merged_count);
-      label->control_->ReplaceInput(1, current_control_);
-      label->effect_->ReplaceInput(1, current_effect_);
+      label->control_->ReplaceInput(1, control());
+      label->effect_->ReplaceInput(1, effect());
       for (size_t i = 0; i < sizeof...(vars); i++) {
         label->bindings_[i]->ReplaceInput(1, var_array[i + 1]);
       }
@@ -398,17 +398,17 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
     if (merged_count == 0) {
       // Just set the control, effect and variables directly.
       DCHECK(!label->IsBound());
-      label->control_ = current_control_;
-      label->effect_ = current_effect_;
+      label->control_ = control();
+      label->effect_ = effect();
       for (size_t i = 0; i < sizeof...(vars); i++) {
         label->bindings_[i] = var_array[i + 1];
       }
     } else if (merged_count == 1) {
       // Create merge, effect phi and a phi for each variable.
-      label->control_ = graph()->NewNode(common()->Merge(2), label->control_,
-                                         current_control_);
+      label->control_ =
+          graph()->NewNode(common()->Merge(2), label->control_, control());
       label->effect_ = graph()->NewNode(common()->EffectPhi(2), label->effect_,
-                                        current_effect_, label->control_);
+                                        effect(), label->control_);
       for (size_t i = 0; i < sizeof...(vars); i++) {
         label->bindings_[i] = graph()->NewNode(
             common()->Phi(label->representations_[i], 2), label->bindings_[i],
@@ -417,12 +417,12 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
     } else {
       // Append to the merge, effect phi and phis.
       DCHECK_EQ(IrOpcode::kMerge, label->control_->opcode());
-      label->control_->AppendInput(graph()->zone(), current_control_);
+      label->control_->AppendInput(graph()->zone(), control());
       NodeProperties::ChangeOp(label->control_,
                                common()->Merge(merged_count + 1));
 
       DCHECK_EQ(IrOpcode::kEffectPhi, label->effect_->opcode());
-      label->effect_->ReplaceInput(merged_count, current_effect_);
+      label->effect_->ReplaceInput(merged_count, effect());
       label->effect_->AppendInput(graph()->zone(), label->control_);
       NodeProperties::ChangeOp(label->effect_,
                                common()->EffectPhi(merged_count + 1));
@@ -442,12 +442,12 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
 
 template <size_t VarCount>
 void GraphAssembler::Bind(GraphAssemblerLabel<VarCount>* label) {
-  DCHECK_NULL(current_control_);
-  DCHECK_NULL(current_effect_);
+  DCHECK_NULL(control());
+  DCHECK_NULL(effect());
   DCHECK_LT(0, label->merged_count_);
 
-  current_control_ = label->control_;
-  current_effect_ = label->effect_;
+  control_ = label->control_;
+  effect_ = label->effect_;
   BindBasicBlock(label->basic_block());
 
   label->SetBound();
@@ -461,21 +461,20 @@ void GraphAssembler::Bind(GraphAssemblerLabel<VarCount>* label) {
   } else {
     // If the basic block does not have a control node, insert a dummy
     // Merge node, so that other passes have a control node to start from.
-    current_control_ =
-        AddNode(graph()->NewNode(common()->Merge(1), current_control_));
+    control_ = AddNode(graph()->NewNode(common()->Merge(1), control()));
   }
 }
 
 template <typename... Vars>
 void GraphAssembler::Goto(GraphAssemblerLabel<sizeof...(Vars)>* label,
                           Vars... vars) {
-  DCHECK_NOT_NULL(current_control_);
-  DCHECK_NOT_NULL(current_effect_);
+  DCHECK_NOT_NULL(control());
+  DCHECK_NOT_NULL(effect());
   MergeState(label, vars...);
   GotoBasicBlock(label->basic_block());
 
-  current_control_ = nullptr;
-  current_effect_ = nullptr;
+  control_ = nullptr;
+  effect_ = nullptr;
 }
 
 template <typename... Vars>
@@ -484,14 +483,13 @@ void GraphAssembler::GotoIf(Node* condition,
                             Vars... vars) {
   BranchHint hint =
       label->IsDeferred() ? BranchHint::kFalse : BranchHint::kNone;
-  Node* branch =
-      graph()->NewNode(common()->Branch(hint), condition, current_control_);
+  Node* branch = graph()->NewNode(common()->Branch(hint), condition, control());
 
-  current_control_ = graph()->NewNode(common()->IfTrue(), branch);
+  control_ = graph()->NewNode(common()->IfTrue(), branch);
   MergeState(label, vars...);
 
   GotoIfBasicBlock(label->basic_block(), branch, IrOpcode::kIfTrue);
-  current_control_ = AddNode(graph()->NewNode(common()->IfFalse(), branch));
+  control_ = AddNode(graph()->NewNode(common()->IfFalse(), branch));
 }
 
 template <typename... Vars>
@@ -499,14 +497,13 @@ void GraphAssembler::GotoIfNot(Node* condition,
                                GraphAssemblerLabel<sizeof...(Vars)>* label,
                                Vars... vars) {
   BranchHint hint = label->IsDeferred() ? BranchHint::kTrue : BranchHint::kNone;
-  Node* branch =
-      graph()->NewNode(common()->Branch(hint), condition, current_control_);
+  Node* branch = graph()->NewNode(common()->Branch(hint), condition, control());
 
-  current_control_ = graph()->NewNode(common()->IfFalse(), branch);
+  control_ = graph()->NewNode(common()->IfFalse(), branch);
   MergeState(label, vars...);
 
   GotoIfBasicBlock(label->basic_block(), branch, IrOpcode::kIfFalse);
-  current_control_ = AddNode(graph()->NewNode(common()->IfTrue(), branch));
+  control_ = AddNode(graph()->NewNode(common()->IfTrue(), branch));
 }
 
 template <typename... Args>
@@ -519,12 +516,12 @@ Node* GraphAssembler::Call(const CallDescriptor* call_descriptor,
 template <typename... Args>
 Node* GraphAssembler::Call(const Operator* op, Args... args) {
   DCHECK_EQ(IrOpcode::kCall, op->opcode());
-  Node* args_array[] = {args..., current_effect_, current_control_};
+  Node* args_array[] = {args..., effect(), control()};
   int size = static_cast<int>(sizeof...(args)) + op->EffectInputCount() +
              op->ControlInputCount();
   Node* call = graph()->NewNode(op, size, args_array);
   DCHECK_EQ(0, op->ControlOutputCount());
-  current_effect_ = call;
+  effect_ = call;
   return AddNode(call);
 }
 

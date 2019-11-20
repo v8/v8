@@ -46,9 +46,8 @@ void ScheduledMachineLowering::Run() {
         if (replacement != node) {
           // Replace all uses of node and kill the node to make sure we don't
           // leave dangling dead uses.
-          NodeProperties::ReplaceUses(node, replacement,
-                                      gasm()->current_effect(),
-                                      gasm()->current_control());
+          NodeProperties::ReplaceUses(node, replacement, gasm()->effect(),
+                                      gasm()->control());
           node->Kill();
         } else {
           gasm()->AddNode(replacement);

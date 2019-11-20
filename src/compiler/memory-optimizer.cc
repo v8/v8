@@ -316,8 +316,8 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
   // Replace all uses of node and kill the node to make sure we don't leave
   // dangling dead uses.
   NodeProperties::ReplaceUses(node, reduction.replacement(),
-                              graph_assembler_.current_effect(),
-                              graph_assembler_.current_control());
+                              graph_assembler_.effect(),
+                              graph_assembler_.control());
   node->Kill();
 
   EnqueueUses(state->effect(), state);
