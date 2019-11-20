@@ -74,7 +74,7 @@ namespace data_view {
 
   // ES6 section 24.2.4.1 get DataView.prototype.buffer
   javascript builtin DataViewPrototypeGetBuffer(
-      js-implicit context: Context,
+      js-implicit context: NativeContext,
       receiver: JSAny)(...arguments): JSArrayBuffer {
     const dataView: JSDataView =
         ValidateDataView(context, receiver, 'get DataView.prototype.buffer');
@@ -83,7 +83,8 @@ namespace data_view {
 
   // ES6 section 24.2.4.2 get DataView.prototype.byteLength
   javascript builtin DataViewPrototypeGetByteLength(
-      js-implicit context: Context, receiver: JSAny)(...arguments): Number {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): Number {
     const dataView: JSDataView = ValidateDataView(
         context, receiver, 'get DataView.prototype.byte_length');
     if (WasDetached(dataView)) {
@@ -96,7 +97,8 @@ namespace data_view {
 
   // ES6 section 24.2.4.3 get DataView.prototype.byteOffset
   javascript builtin DataViewPrototypeGetByteOffset(
-      js-implicit context: Context, receiver: JSAny)(...arguments): Number {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): Number {
     const dataView: JSDataView = ValidateDataView(
         context, receiver, 'get DataView.prototype.byte_offset');
     if (WasDetached(dataView)) {
@@ -426,19 +428,22 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeGetUint8(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     return DataViewGet(context, receiver, offset, Undefined, UINT8_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeGetInt8(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     return DataViewGet(context, receiver, offset, Undefined, INT8_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeGetUint16(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
@@ -447,7 +452,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeGetInt16(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
@@ -456,7 +462,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeGetUint32(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
@@ -465,7 +472,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeGetInt32(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
@@ -474,7 +482,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeGetFloat32(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
@@ -483,7 +492,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeGetFloat64(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
@@ -492,7 +502,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeGetBigUint64(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
@@ -501,7 +512,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeGetBigInt64(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
@@ -729,7 +741,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeSetUint8(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const value: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
     return DataViewSet(
@@ -737,7 +750,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeSetInt8(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const value: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
     return DataViewSet(
@@ -745,7 +759,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeSetUint16(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const value: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
     const isLittleEndian: JSAny =
@@ -755,7 +770,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeSetInt16(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const value: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
     const isLittleEndian: JSAny =
@@ -765,7 +781,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeSetUint32(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const value: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
     const isLittleEndian: JSAny =
@@ -775,7 +792,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeSetInt32(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const value: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
     const isLittleEndian: JSAny =
@@ -785,7 +803,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeSetFloat32(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const value: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
     const isLittleEndian: JSAny =
@@ -795,7 +814,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeSetFloat64(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const value: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
     const isLittleEndian: JSAny =
@@ -805,7 +825,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeSetBigUint64(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const value: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
     const isLittleEndian: JSAny =
@@ -815,7 +836,8 @@ namespace data_view {
   }
 
   transitioning javascript builtin DataViewPrototypeSetBigInt64(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const value: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
     const isLittleEndian: JSAny =

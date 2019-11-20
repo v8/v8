@@ -253,6 +253,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(CONTEXT_TYPE_STRING);
   }
 
+  static const Type* GetNativeContextType() {
+    return Get().GetBuiltinType(NATIVE_CONTEXT_TYPE_STRING);
+  }
+
   static const Type* GetJSFunctionType() {
     return Get().GetBuiltinType(JS_FUNCTION_TYPE_STRING);
   }

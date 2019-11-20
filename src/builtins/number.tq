@@ -26,7 +26,8 @@ namespace number {
 
   // https://tc39.github.io/ecma262/#sec-number.prototype.tostring
   transitioning javascript builtin NumberPrototypeToString(
-      js-implicit context: Context, receiver: JSAny)(...arguments): String {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): String {
     // 1. Let x be ? thisNumberValue(this value).
     const x = ThisNumberValue(receiver, 'Number.prototype.toString');
 

@@ -89,7 +89,8 @@ namespace regexp {
   // ES#sec-regexp.prototype-@@search
   // RegExp.prototype [ @@search ] ( string )
   transitioning javascript builtin RegExpPrototypeSearch(
-      js-implicit context: Context, receiver: JSAny)(string: JSAny): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(string: JSAny): JSAny {
     ThrowIfNotJSReceiver(
         receiver, kIncompatibleMethodReceiver, 'RegExp.prototype.@@search');
     const receiver = UnsafeCast<JSReceiver>(receiver);

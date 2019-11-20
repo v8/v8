@@ -87,7 +87,7 @@ namespace string {
 
   // https://tc39.es/ecma262/#sec-string.prototype.replaceall
   transitioning javascript builtin StringPrototypeReplaceAll(
-      js-implicit context: Context,
+      js-implicit context: NativeContext,
       receiver: JSAny)(searchValue: JSAny, replaceValue: JSAny): JSAny {
     // 1. Let O be ? RequireObjectCoercible(this value).
     RequireObjectCoercible(receiver, 'String.prototype.replaceAll');

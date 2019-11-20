@@ -30,7 +30,7 @@ namespace typed_array {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.find
   transitioning javascript builtin
-  TypedArrayPrototypeFind(js-implicit context: Context, receiver: JSAny)(
+  TypedArrayPrototypeFind(js-implicit context: NativeContext, receiver: JSAny)(
       ...arguments): JSAny {
     // arguments[0] = callback
     // arguments[1] = thisArg

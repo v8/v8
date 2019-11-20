@@ -455,11 +455,11 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
       const Type* actual_type = signature.parameter_types.types[i];
       const Type* expected_type;
       if (param_name == "context") {
-        source_out() << "  TNode<Context> " << generated_name
-                     << " = UncheckedCast<Context>(Parameter("
+        source_out() << "  TNode<NativeContext> " << generated_name
+                     << " = UncheckedCast<NativeContext>(Parameter("
                      << "Descriptor::kContext));\n";
         source_out() << "  USE(" << generated_name << ");\n";
-        expected_type = TypeOracle::GetContextType();
+        expected_type = TypeOracle::GetNativeContextType();
       } else if (param_name == "receiver") {
         source_out()
             << "  TNode<Object> " << generated_name << " = "

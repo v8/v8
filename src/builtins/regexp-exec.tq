@@ -30,7 +30,8 @@ namespace regexp {
   // ES#sec-regexp.prototype.exec
   // RegExp.prototype.exec ( string )
   transitioning javascript builtin RegExpPrototypeExec(
-      js-implicit context: Context, receiver: JSAny)(string: JSAny): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(string: JSAny): JSAny {
     // Ensure {receiver} is a JSRegExp.
     const receiver = Cast<JSRegExp>(receiver) otherwise ThrowTypeError(
         kIncompatibleMethodReceiver, 'RegExp.prototype.exec', receiver);

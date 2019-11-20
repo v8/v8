@@ -99,9 +99,9 @@ namespace regexp {
   // https://tc39.github.io/proposal-string-matchall/
   // RegExp.prototype [ @@matchAll ] ( string )
   transitioning javascript builtin RegExpPrototypeMatchAll(
-      js-implicit context: Context, receiver: JSAny)(string: JSAny): JSAny {
-    const nativeContext: NativeContext = LoadNativeContext(context);
-    return RegExpPrototypeMatchAllImpl(nativeContext, receiver, string);
+      js-implicit context: NativeContext,
+      receiver: JSAny)(string: JSAny): JSAny {
+    return RegExpPrototypeMatchAllImpl(context, receiver, string);
   }
 
   const kJSRegExpStringIteratorDone:
@@ -133,7 +133,7 @@ namespace regexp {
   // https://tc39.github.io/proposal-string-matchall/
   // %RegExpStringIteratorPrototype%.next ( )
   transitioning javascript builtin RegExpStringIteratorPrototypeNext(
-      js-implicit context: Context, receiver: JSAny)(): JSAny {
+      js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     // 1. Let O be the this value.
     // 2. If Type(O) is not Object, throw a TypeError exception.
     // 3. If O does not have all of the internal slots of a RegExp String

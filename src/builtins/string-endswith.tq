@@ -26,7 +26,8 @@ namespace string {
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.endswith
   transitioning javascript builtin StringPrototypeEndsWith(
-      js-implicit context: Context, receiver: JSAny)(...arguments): Boolean {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): Boolean {
     const searchString: JSAny = arguments[0];
     const endPosition: JSAny = arguments[1];
     const kBuiltinName: constexpr string = 'String.prototype.endsWith';

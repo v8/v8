@@ -95,7 +95,7 @@ namespace string {
 
   // ES6 #sec-string.prototype.padstart
   transitioning javascript builtin
-  StringPrototypePadStart(js-implicit context: Context, receiver: JSAny)(
+  StringPrototypePadStart(js-implicit context: NativeContext, receiver: JSAny)(
       ...arguments): String {
     const methodName: constexpr string = 'String.prototype.padStart';
     return StringPad(receiver, arguments, methodName, kStringPadStart);
@@ -103,7 +103,7 @@ namespace string {
 
   // ES6 #sec-string.prototype.padend
   transitioning javascript builtin
-  StringPrototypePadEnd(js-implicit context: Context, receiver: JSAny)(
+  StringPrototypePadEnd(js-implicit context: NativeContext, receiver: JSAny)(
       ...arguments): String {
     const methodName: constexpr string = 'String.prototype.padEnd';
     return StringPad(receiver, arguments, methodName, kStringPadEnd);

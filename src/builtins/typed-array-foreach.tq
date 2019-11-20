@@ -28,8 +28,9 @@ namespace typed_array {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.every
   transitioning javascript builtin
-  TypedArrayPrototypeForEach(js-implicit context: Context, receiver: JSAny)(
-      ...arguments): Undefined {
+  TypedArrayPrototypeForEach(
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): Undefined {
     // arguments[0] = callback
     // arguments[1] = this_arg.
 

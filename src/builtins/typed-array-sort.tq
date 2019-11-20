@@ -87,7 +87,7 @@ namespace typed_array {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.sort
   transitioning javascript builtin TypedArrayPrototypeSort(
-      js-implicit context: Context,
+      js-implicit context: NativeContext,
       receiver: JSAny)(...arguments): JSTypedArray {
     // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
     //    throw a TypeError exception.

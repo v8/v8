@@ -138,25 +138,27 @@ namespace object {
 
   // ES6 section 19.1.2.11 Object.isExtensible ( O )
   transitioning javascript builtin
-  ObjectIsExtensible(js-implicit context: Context)(object: JSAny): JSAny {
+  ObjectIsExtensible(js-implicit context: NativeContext)(object: JSAny): JSAny {
     return object::ObjectIsExtensibleImpl(object);
   }
 
   // ES6 section 19.1.2.18 Object.preventExtensions ( O )
   transitioning javascript builtin
-  ObjectPreventExtensions(js-implicit context: Context)(object: JSAny): JSAny {
+  ObjectPreventExtensions(js-implicit context: NativeContext)(object: JSAny):
+      JSAny {
     return object::ObjectPreventExtensionsThrow(object);
   }
 
   // ES6 section 19.1.2.9 Object.getPrototypeOf ( O )
   transitioning javascript builtin
-  ObjectGetPrototypeOf(js-implicit context: Context)(object: JSAny): JSAny {
+  ObjectGetPrototypeOf(js-implicit context: NativeContext)(object: JSAny):
+      JSAny {
     return object::ObjectGetPrototypeOfImpl(object);
   }
 
   // ES6 section 19.1.2.21 Object.setPrototypeOf ( O, proto )
   transitioning javascript builtin ObjectSetPrototypeOf(
-      js-implicit context: Context)(object: JSAny, proto: JSAny): JSAny {
+      js-implicit context: NativeContext)(object: JSAny, proto: JSAny): JSAny {
     // 1. Set O to ? RequireObjectCoercible(O).
     RequireObjectCoercible(object, 'Object.setPrototypeOf');
 

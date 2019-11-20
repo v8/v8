@@ -549,7 +549,7 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.join
   transitioning javascript builtin
-  ArrayPrototypeJoin(js-implicit context: Context, receiver: JSAny)(
+  ArrayPrototypeJoin(js-implicit context: NativeContext, receiver: JSAny)(
       ...arguments): JSAny {
     const separator: JSAny = arguments[0];
 
@@ -569,7 +569,8 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.tolocalestring
   transitioning javascript builtin ArrayPrototypeToLocaleString(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const locales: JSAny = arguments[0];
     const options: JSAny = arguments[1];
 
@@ -589,7 +590,8 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.tostring
   transitioning javascript builtin ArrayPrototypeToString(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     // 1. Let array be ? ToObject(this value).
     const array: JSReceiver = ToObject_Inline(context, receiver);
 
@@ -610,7 +612,8 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.join
   transitioning javascript builtin TypedArrayPrototypeJoin(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const separator: JSAny = arguments[0];
 
     // Spec: ValidateTypedArray is applied to the this value prior to evaluating
@@ -625,7 +628,8 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.tolocalestring
   transitioning javascript builtin TypedArrayPrototypeToLocaleString(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const locales: JSAny = arguments[0];
     const options: JSAny = arguments[1];
 

@@ -138,7 +138,8 @@ namespace regexp {
   // ES#sec-regexp.prototype-@@match
   // RegExp.prototype [ @@match ] ( string )
   transitioning javascript builtin RegExpPrototypeMatch(
-      js-implicit context: Context, receiver: JSAny)(string: JSAny): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(string: JSAny): JSAny {
     ThrowIfNotJSReceiver(
         receiver, kIncompatibleMethodReceiver, 'RegExp.prototype.@@match');
     const receiver = UnsafeCast<JSReceiver>(receiver);

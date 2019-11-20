@@ -360,8 +360,9 @@ namespace promise {
 
   // https://tc39.es/ecma262/#sec-promise-reject-functions
   transitioning javascript builtin
-  PromiseCapabilityDefaultReject(js-implicit context: Context, receiver: JSAny)(
-      reason: JSAny): JSAny {
+  PromiseCapabilityDefaultReject(
+      js-implicit context: NativeContext,
+      receiver: JSAny)(reason: JSAny): JSAny {
     // 2. Let promise be F.[[Promise]].
     const promise = UnsafeCast<JSPromise>(context[kPromiseBuiltinsPromiseSlot]);
 
@@ -386,7 +387,8 @@ namespace promise {
   // https://tc39.es/ecma262/#sec-promise-resolve-functions
   transitioning javascript builtin
   PromiseCapabilityDefaultResolve(
-      js-implicit context: Context, receiver: JSAny)(resolution: JSAny): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(resolution: JSAny): JSAny {
     // 2. Let promise be F.[[Promise]].
     const promise = UnsafeCast<JSPromise>(context[kPromiseBuiltinsPromiseSlot]);
 

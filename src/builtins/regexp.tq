@@ -212,7 +212,7 @@ namespace regexp {
   // ES6 21.2.5.4.
   // ES #sec-get-regexp.prototype.global
   transitioning javascript builtin RegExpPrototypeGlobalGetter(
-      js-implicit context: Context, receiver: JSAny)(): JSAny {
+      js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     return FlagGetter(
         receiver, kGlobal, kRegExpPrototypeOldFlagGetter,
         'RegExp.prototype.global');
@@ -221,7 +221,7 @@ namespace regexp {
   // ES6 21.2.5.5.
   // ES #sec-get-regexp.prototype.ignorecase
   transitioning javascript builtin RegExpPrototypeIgnoreCaseGetter(
-      js-implicit context: Context, receiver: JSAny)(): JSAny {
+      js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     return FlagGetter(
         receiver, kIgnoreCase, kRegExpPrototypeOldFlagGetter,
         'RegExp.prototype.ignoreCase');
@@ -230,7 +230,7 @@ namespace regexp {
   // ES6 21.2.5.7.
   // ES #sec-get-regexp.prototype.multiline
   transitioning javascript builtin RegExpPrototypeMultilineGetter(
-      js-implicit context: Context, receiver: JSAny)(): JSAny {
+      js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     return FlagGetter(
         receiver, kMultiline, kRegExpPrototypeOldFlagGetter,
         'RegExp.prototype.multiline');
@@ -238,7 +238,7 @@ namespace regexp {
 
   // ES #sec-get-regexp.prototype.dotAll
   transitioning javascript builtin RegExpPrototypeDotAllGetter(
-      js-implicit context: Context, receiver: JSAny)(): JSAny {
+      js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     const kNoCounter: constexpr int31 = -1;
     return FlagGetter(receiver, kDotAll, kNoCounter, 'RegExp.prototype.dotAll');
   }
@@ -246,7 +246,7 @@ namespace regexp {
   // ES6 21.2.5.12.
   // ES #sec-get-regexp.prototype.sticky
   transitioning javascript builtin RegExpPrototypeStickyGetter(
-      js-implicit context: Context, receiver: JSAny)(): JSAny {
+      js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     return FlagGetter(
         receiver, kSticky, kRegExpPrototypeStickyGetter,
         'RegExp.prototype.sticky');
@@ -255,7 +255,7 @@ namespace regexp {
   // ES6 21.2.5.15.
   // ES #sec-get-regexp.prototype.unicode
   transitioning javascript builtin RegExpPrototypeUnicodeGetter(
-      js-implicit context: Context, receiver: JSAny)(): JSAny {
+      js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     return FlagGetter(
         receiver, kUnicode, kRegExpPrototypeUnicodeGetter,
         'RegExp.prototype.unicode');
@@ -281,7 +281,7 @@ namespace regexp {
   // ES #sec-get-regexp.prototype.flags
   // TFJ(RegExpPrototypeFlagsGetter, 0, kReceiver) \
   transitioning javascript builtin RegExpPrototypeFlagsGetter(
-      js-implicit context: Context, receiver: JSAny)(): String {
+      js-implicit context: NativeContext, receiver: JSAny)(): String {
     ThrowIfNotJSReceiver(receiver, kRegExpNonObject, 'RegExp.prototype.flags');
 
     // The check is strict because the following code relies on individual flag

@@ -17,8 +17,8 @@ namespace typed_array {
   // %TypedArray%.from ( source [ , mapfn [ , thisArg ] ] )
   // https://tc39.github.io/ecma262/#sec-%typedarray%.from
   transitioning javascript builtin
-  TypedArrayFrom(js-implicit context: Context, receiver: JSAny)(...arguments):
-      JSTypedArray {
+  TypedArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(
+      ...arguments): JSTypedArray {
     try {
       const source: JSAny = arguments[0];
 

@@ -215,7 +215,8 @@ namespace regexp {
   generates 'v8::Isolate::kRegExpReplaceCalledOnSlowRegExp';
 
   transitioning javascript builtin RegExpPrototypeReplace(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const methodName: constexpr string = 'RegExp.prototype.@@replace';
 
     // RegExpPrototypeReplace is a bit of a beast - a summary of dispatch logic:

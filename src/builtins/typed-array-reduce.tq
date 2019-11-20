@@ -42,8 +42,9 @@ namespace typed_array {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.reduce
   transitioning javascript builtin
-  TypedArrayPrototypeReduce(js-implicit context: Context, receiver: JSAny)(
-      ...arguments): JSAny {
+  TypedArrayPrototypeReduce(
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     // arguments[0] = callback
     // arguments[1] = initialValue.
     try {

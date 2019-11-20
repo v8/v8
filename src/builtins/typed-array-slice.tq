@@ -52,7 +52,8 @@ namespace typed_array {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.slice
   transitioning javascript builtin TypedArrayPrototypeSlice(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     // arguments[0] = start
     // arguments[1] = end
 

@@ -10,14 +10,14 @@ namespace string {
 
   // ES6 #sec-string.prototype.tostring
   transitioning javascript builtin
-  StringPrototypeToString(js-implicit context: Context, receiver: JSAny)():
-      JSAny {
+  StringPrototypeToString(
+      js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     return ToThisValue(receiver, kString, 'String.prototype.toString');
   }
 
   // ES6 #sec-string.prototype.valueof
   transitioning javascript builtin
-  StringPrototypeValueOf(js-implicit context: Context, receiver: JSAny)():
+  StringPrototypeValueOf(js-implicit context: NativeContext, receiver: JSAny)():
       JSAny {
     return ToThisValue(receiver, kString, 'String.prototype.valueOf');
   }
@@ -93,7 +93,8 @@ namespace string {
 
   // ES6 #sec-string.prototype.charat
   transitioning javascript builtin StringPrototypeCharAt(
-      js-implicit context: Context, receiver: JSAny)(position: JSAny): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(position: JSAny): JSAny {
     try {
       GenerateStringAt(receiver, position, 'String.prototype.charAt')
           otherwise IfInBounds, IfOutOfBounds;
@@ -109,7 +110,8 @@ namespace string {
 
   // ES6 #sec-string.prototype.charcodeat
   transitioning javascript builtin StringPrototypeCharCodeAt(
-      js-implicit context: Context, receiver: JSAny)(position: JSAny): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(position: JSAny): JSAny {
     try {
       GenerateStringAt(receiver, position, 'String.prototype.charCodeAt')
           otherwise IfInBounds, IfOutOfBounds;
@@ -125,7 +127,8 @@ namespace string {
 
   // ES6 #sec-string.prototype.codepointat
   transitioning javascript builtin StringPrototypeCodePointAt(
-      js-implicit context: Context, receiver: JSAny)(position: JSAny): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(position: JSAny): JSAny {
     try {
       GenerateStringAt(receiver, position, 'String.prototype.codePointAt')
           otherwise IfInBounds, IfOutOfBounds;
@@ -145,7 +148,8 @@ namespace string {
   // ES6 String.prototype.concat(...args)
   // ES6 #sec-string.prototype.concat
   transitioning javascript builtin StringPrototypeConcat(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     // Check that {receiver} is coercible to Object and convert it to a String.
     let string: String = ToThisString(receiver, 'String.prototype.concat');
 
@@ -164,7 +168,7 @@ namespace string {
   // ES #sec-string-constructor
   // https://tc39.github.io/ecma262/#sec-string-constructor
   transitioning javascript builtin StringConstructor(
-      js-implicit context: Context, receiver: JSAny, newTarget: JSAny,
+      js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
       target: JSFunction)(...arguments): JSAny {
     const length: intptr = Convert<intptr>(arguments.length);
     let s: String;

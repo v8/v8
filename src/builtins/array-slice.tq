@@ -122,7 +122,7 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.slice
   transitioning javascript builtin
-  ArrayPrototypeSlice(js-implicit context: Context, receiver: JSAny)(
+  ArrayPrototypeSlice(js-implicit context: NativeContext, receiver: JSAny)(
       ...arguments): JSAny {
     // Handle array cloning case if the receiver is a fast array.
     if (arguments.length == 0) {
@@ -171,7 +171,7 @@ namespace array {
     assert(count <= len);
 
     try {
-      return HandleFastSlice(UnsafeCast<NativeContext>(context), o, k, count)
+      return HandleFastSlice(context, o, k, count)
           otherwise Slow;
     }
     label Slow {}
