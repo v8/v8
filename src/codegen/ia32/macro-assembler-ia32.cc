@@ -511,12 +511,10 @@ void MacroAssembler::MaybeDropFrames() {
 }
 
 void TurboAssembler::Cvtsi2ss(XMMRegister dst, Operand src) {
-  xorps(dst, dst);
   cvtsi2ss(dst, src);
 }
 
 void TurboAssembler::Cvtsi2sd(XMMRegister dst, Operand src) {
-  xorpd(dst, dst);
   cvtsi2sd(dst, src);
 }
 
