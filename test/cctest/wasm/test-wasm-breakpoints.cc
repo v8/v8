@@ -280,6 +280,13 @@ std::vector<WasmValue> wasmVec(Args... args) {
   return std::vector<WasmValue>{arr.begin(), arr.end()};
 }
 
+int GetIntReturnValue(MaybeHandle<Object> retval) {
+  CHECK(!retval.is_null());
+  int result;
+  CHECK(retval.ToHandleChecked()->ToInt32(&result));
+  return result;
+}
+
 }  // namespace
 
 WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
@@ -324,10 +331,25 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
   Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
-  CHECK(!retval.is_null());
-  int result;
-  CHECK(retval.ToHandleChecked()->ToInt32(&result));
-  CHECK_EQ(14, result);
+  CHECK_EQ(14, GetIntReturnValue(retval));
+}
+
+WASM_COMPILED_EXEC_TEST(WasmNonBreakablePosition) {
+  WasmRunner<int> runner(execution_tier);
+  Isolate* isolate = runner.main_isolate();
+
+  BUILD(runner, WASM_RETURN1(WASM_I32V_2(1024)));
+
+  Handle<JSFunction> main_fun_wrapper =
+      runner.builder().WrapCode(runner.function_index());
+  SetBreakpoint(&runner, runner.function_index(), 2, 4);
+
+  BreakHandler count_breaks(isolate, {{4, BreakHandler::Continue}});
+
+  Handle<Object> global(isolate->context().global_object(), isolate);
+  MaybeHandle<Object> retval =
+      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
+  CHECK_EQ(1024, GetIntReturnValue(retval));
 }
 
 WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
@@ -351,10 +373,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
   Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
-  CHECK(!retval.is_null());
-  int result;
-  CHECK(retval.ToHandleChecked()->ToInt32(&result));
-  CHECK_EQ(14, result);
+  CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
 WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
@@ -470,10 +489,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveBreakPoint) {
   Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
-  CHECK(!retval.is_null());
-  int result;
-  CHECK(retval.ToHandleChecked()->ToInt32(&result));
-  CHECK_EQ(14, result);
+  CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
 WASM_COMPILED_EXEC_TEST(WasmRemoveLastBreakPoint) {
@@ -501,10 +517,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveLastBreakPoint) {
   Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
-  CHECK(!retval.is_null());
-  int result;
-  CHECK(retval.ToHandleChecked()->ToInt32(&result));
-  CHECK_EQ(14, result);
+  CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
 WASM_COMPILED_EXEC_TEST(WasmRemoveAllBreakPoint) {
@@ -534,10 +547,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveAllBreakPoint) {
   Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
-  CHECK(!retval.is_null());
-  int result;
-  CHECK(retval.ToHandleChecked()->ToInt32(&result));
-  CHECK_EQ(14, result);
+  CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
 }  // namespace wasm
