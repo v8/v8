@@ -551,10 +551,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadTaggedPointerField(Register destination, Operand field_operand);
 
   // Loads a field containing any tagged value and decompresses it if necessary.
-  // When pointer compression is enabled, uses |scratch| to decompress the
-  // value.
-  void LoadAnyTaggedField(Register destination, Operand field_operand,
-                          Register scratch = kScratchRegister);
+  void LoadAnyTaggedField(Register destination, Operand field_operand);
 
   // Loads a field containing a HeapObject, decompresses it if necessary and
   // pushes full pointer to the stack. When pointer compression is enabled,
@@ -563,9 +560,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Loads a field containing any tagged value, decompresses it if necessary and
   // pushes the full pointer to the stack. When pointer compression is enabled,
-  // uses |scratch1| and |scratch2| to decompress the value.
-  void PushTaggedAnyField(Operand field_operand, Register scratch1,
-                          Register scratch2);
+  // uses |scratch| to decompress the value.
+  void PushTaggedAnyField(Operand field_operand, Register scratch);
 
   // Loads a field containing smi value and untags it.
   void SmiUntagField(Register dst, Operand src);
@@ -579,11 +575,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void DecompressTaggedSigned(Register destination, Operand field_operand);
   void DecompressTaggedPointer(Register destination, Operand field_operand);
   void DecompressTaggedPointer(Register destination, Register source);
-  // Auxiliary function used by DecompressAnyTagged to perform the actual
-  // decompression. Assumes destination is already signed extended.
-  void DecompressRegisterAnyTagged(Register destination, Register scratch);
-  void DecompressAnyTagged(Register destination, Operand field_operand,
-                           Register scratch = kScratchRegister);
+  void DecompressAnyTagged(Register destination, Operand field_operand);
 
  protected:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;

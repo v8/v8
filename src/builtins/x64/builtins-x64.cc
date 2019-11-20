@@ -718,7 +718,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
                       kDontSaveFPRegs);
 
   Register decompr_scratch1 = COMPRESS_POINTERS_BOOL ? r11 : no_reg;
-  Register decompr_scratch2 = COMPRESS_POINTERS_BOOL ? r12 : no_reg;
 
   // Load suspended function and context.
   __ LoadTaggedPointerField(
@@ -782,7 +781,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ j(greater_equal, &done_loop, Label::kNear);
     __ PushTaggedAnyField(
         FieldOperand(rbx, r9, times_tagged_size, FixedArray::kHeaderSize),
-        decompr_scratch1, decompr_scratch2);
+        decompr_scratch1);
     __ addl(r9, Immediate(1));
     __ jmp(&loop);
 
@@ -1071,13 +1070,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // is optimized code or an optimization marker, call that instead.
 
   Register optimized_code_entry = rcx;
-  Register decompr_scratch = COMPRESS_POINTERS_BOOL ? r11 : no_reg;
 
   __ LoadAnyTaggedField(
       optimized_code_entry,
       FieldOperand(feedback_vector,
-                   FeedbackVector::kOptimizedCodeWeakOrSmiOffset),
-      decompr_scratch);
+                   FeedbackVector::kOptimizedCodeWeakOrSmiOffset));
 
   // Check if the optimized code slot is not empty.
   Label optimized_code_slot_not_empty;
@@ -1960,7 +1957,6 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   //  -- rsp[0] : return address
   // -----------------------------------
   Register scratch = r11;
-  Register decompr_scratch = COMPRESS_POINTERS_BOOL ? r12 : no_reg;
 
   if (masm->emit_debug_code()) {
     // Allow rbx to be a FixedArray, or a FixedDoubleArray if rcx == 0.
@@ -1994,10 +1990,8 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ cmpl(r9, rcx);
     __ j(equal, &done, Label::kNear);
     // Turn the hole into undefined as we go.
-    __ LoadAnyTaggedField(
-        value,
-        FieldOperand(rbx, r9, times_tagged_size, FixedArray::kHeaderSize),
-        decompr_scratch);
+    __ LoadAnyTaggedField(value, FieldOperand(rbx, r9, times_tagged_size,
+                                              FixedArray::kHeaderSize));
     __ CompareRoot(value, RootIndex::kTheHoleValue);
     __ j(not_equal, &push, Label::kNear);
     __ LoadRoot(value, RootIndex::kUndefinedValue);
@@ -2241,8 +2235,6 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   //  -- rdi : target (checked to be a JSBoundFunction)
   // -----------------------------------
 
-  Register decompr_scratch = COMPRESS_POINTERS_BOOL ? r11 : no_reg;
-
   // Load [[BoundArguments]] into rcx and length of that into rbx.
   Label no_bound_arguments;
   __ LoadTaggedPointerField(
@@ -2311,10 +2303,9 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       // offset in order to move be able to move decl(rbx) right before the loop
       // condition. This is necessary in order to avoid flags corruption by
       // pointer decompression code.
-      __ LoadAnyTaggedField(r12,
-                            FieldOperand(rcx, rbx, times_tagged_size,
-                                         FixedArray::kHeaderSize - kTaggedSize),
-                            decompr_scratch);
+      __ LoadAnyTaggedField(
+          r12, FieldOperand(rcx, rbx, times_tagged_size,
+                            FixedArray::kHeaderSize - kTaggedSize));
       __ movq(Operand(rsp, rax, times_system_pointer_size, 0), r12);
       __ leal(rax, Operand(rax, 1));
       __ decl(rbx);
@@ -2339,13 +2330,10 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertBoundFunction(rdi);
 
-  Register decompr_scratch = COMPRESS_POINTERS_BOOL ? r11 : no_reg;
-
   // Patch the receiver to [[BoundThis]].
   StackArgumentsAccessor args(rsp, rax);
   __ LoadAnyTaggedField(rbx,
-                        FieldOperand(rdi, JSBoundFunction::kBoundThisOffset),
-                        decompr_scratch);
+                        FieldOperand(rdi, JSBoundFunction::kBoundThisOffset));
   __ movq(args.GetReceiverOperand(), rbx);
 
   // Push the [[BoundArguments]] onto the stack.
@@ -3122,10 +3110,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Register callback = ApiGetterDescriptor::CallbackRegister();
   Register scratch = rax;
   Register decompr_scratch1 = COMPRESS_POINTERS_BOOL ? r11 : no_reg;
-  Register decompr_scratch2 = COMPRESS_POINTERS_BOOL ? r12 : no_reg;
 
-  DCHECK(!AreAliased(receiver, holder, callback, scratch, decompr_scratch1,
-                     decompr_scratch2));
+  DCHECK(!AreAliased(receiver, holder, callback, scratch, decompr_scratch1));
 
   // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
   // name below the exit frame to make GC aware of them.
@@ -3142,7 +3128,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ PopReturnAddressTo(scratch);
   __ Push(receiver);
   __ PushTaggedAnyField(FieldOperand(callback, AccessorInfo::kDataOffset),
-                        decompr_scratch1, decompr_scratch2);
+                        decompr_scratch1);
   __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
   __ Push(kScratchRegister);  // return value
   __ Push(kScratchRegister);  // return value default

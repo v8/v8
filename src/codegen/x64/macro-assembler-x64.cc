@@ -219,10 +219,9 @@ void TurboAssembler::LoadTaggedPointerField(Register destination,
 }
 
 void TurboAssembler::LoadAnyTaggedField(Register destination,
-                                        Operand field_operand,
-                                        Register scratch) {
+                                        Operand field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
-    DecompressAnyTagged(destination, field_operand, scratch);
+    DecompressAnyTagged(destination, field_operand);
   } else {
     mov_tagged(destination, field_operand);
   }
@@ -240,13 +239,11 @@ void TurboAssembler::PushTaggedPointerField(Operand field_operand,
 }
 
 void TurboAssembler::PushTaggedAnyField(Operand field_operand,
-                                        Register scratch1, Register scratch2) {
+                                        Register scratch) {
   if (COMPRESS_POINTERS_BOOL) {
-    DCHECK(!AreAliased(scratch1, scratch2));
-    DCHECK(!field_operand.AddressUsesRegister(scratch1));
-    DCHECK(!field_operand.AddressUsesRegister(scratch2));
-    DecompressAnyTagged(scratch1, field_operand, scratch2);
-    Push(scratch1);
+    DCHECK(!field_operand.AddressUsesRegister(scratch));
+    DecompressAnyTagged(scratch, field_operand);
+    Push(scratch);
   } else {
     Push(field_operand);
   }
@@ -297,18 +294,11 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
   RecordComment("]");
 }
 
-void TurboAssembler::DecompressRegisterAnyTagged(Register destination,
-                                                 Register scratch) {
-  addq(destination, kRootRegister);
-}
-
 void TurboAssembler::DecompressAnyTagged(Register destination,
-                                         Operand field_operand,
-                                         Register scratch) {
-  DCHECK(!AreAliased(destination, scratch));
+                                         Operand field_operand) {
   RecordComment("[ DecompressAnyTagged");
   movl(destination, field_operand);
-  DecompressRegisterAnyTagged(destination, scratch);
+  addq(destination, kRootRegister);
   RecordComment("]");
 }
 
