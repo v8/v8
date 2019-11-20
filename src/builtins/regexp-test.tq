@@ -25,12 +25,8 @@ namespace regexp {
     return SelectBooleanConstant(matchIndices != Null);
   }
 
-  extern macro RegExpBuiltinsAssembler::IsFastRegExpWithOriginalExec(
-      implicit context: Context)(JSRegExp): bool;
-
   transitioning builtin RegExpPrototypeTestFast(implicit context: Context)(
       receiver: JSRegExp, string: String): Object {
-    assert(IsFastRegExpWithOriginalExec(receiver));
     RegExpPrototypeExecBodyWithoutResultFast(receiver, string)
         otherwise return False;
     return True;

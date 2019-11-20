@@ -115,10 +115,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   TNode<BoolT> IsFastRegExpNoPrototype(TNode<Context> context,
                                        TNode<Object> object, TNode<Map> map);
 
-  // For debugging only. Uses a slow GetProperty call to fetch object.exec.
-  TNode<BoolT> IsFastRegExpWithOriginalExec(TNode<Context> context,
-                                            TNode<JSRegExp> object);
-
   void BranchIfFastRegExpResult(const TNode<Context> context,
                                 const TNode<Object> object,
                                 Label* if_isunmodified, Label* if_ismodified);

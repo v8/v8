@@ -72,7 +72,9 @@ namespace regexp {
                                                                Context)(
       maybeRegexp: JSReceiver, string: String,
       isFastPath: constexpr bool): RegExpMatchInfo labels IfDidNotMatch {
-    if (!isFastPath) {
+    if (isFastPath) {
+      assert(HasInitialRegExpMap(maybeRegexp));
+    } else {
       IncrementUseCounter(context, SmiConstant(kRegExpExecCalledOnSlowRegExp));
       if (!Is<JSRegExp>(maybeRegexp)) {
         ThrowTypeError(
@@ -153,11 +155,24 @@ namespace regexp {
     return ConstructNewResultFromMatchInfo(maybeRegexp, matchIndices, string);
   }
 
+  macro LoadRegExpFunction(implicit context: Context)(
+      nativeContext: NativeContext): JSFunction {
+    return UnsafeCast<JSFunction>(nativeContext[REGEXP_FUNCTION_INDEX]);
+  }
+
+  // Note this doesn't guarantee const-ness of object properties, just
+  // unchanged object layout.
+  macro HasInitialRegExpMap(implicit context: Context)(o: HeapObject): bool {
+    const nativeContext = LoadNativeContext(context);
+    const function = LoadRegExpFunction(nativeContext);
+    const initialMap = UnsafeCast<Map>(function.prototype_or_initial_map);
+    return initialMap == o.map;
+  }
+
   macro IsReceiverInitialRegExpPrototype(implicit context:
                                              Context)(receiver: Object): bool {
-    const nativeContext: NativeContext = LoadNativeContext(context);
-    const regexpFun =
-        UnsafeCast<JSFunction>(nativeContext[REGEXP_FUNCTION_INDEX]);
+    const nativeContext = LoadNativeContext(context);
+    const regexpFun = LoadRegExpFunction(nativeContext);
     const initialMap = UnsafeCast<Map>(regexpFun.prototype_or_initial_map);
     const initialPrototype: HeapObject = initialMap.prototype;
     return TaggedEqual(receiver, initialPrototype);
@@ -374,8 +389,7 @@ namespace regexp {
   @export
   transitioning macro RegExpCreate(implicit context: Context)(
       nativeContext: NativeContext, maybeString: JSAny, flags: String): JSAny {
-    const regexpFun =
-        UnsafeCast<JSFunction>(nativeContext[REGEXP_FUNCTION_INDEX]);
+    const regexpFun = LoadRegExpFunction(nativeContext);
     const initialMap = UnsafeCast<Map>(regexpFun.prototype_or_initial_map);
     return RegExpCreate(initialMap, maybeString, flags);
   }

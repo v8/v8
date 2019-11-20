@@ -702,51 +702,6 @@ TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(
   return var_result.value();
 }
 
-// We also return true if exec is undefined (and hence per spec)
-// the original {exec} will be used.
-TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExpWithOriginalExec(
-    TNode<Context> context, TNode<JSRegExp> object) {
-  CSA_ASSERT(this, TaggedIsNotSmi(object));
-  Label out(this);
-  Label check_last_index(this);
-  TVARIABLE(BoolT, var_result);
-
-#ifdef V8_ENABLE_FORCE_SLOW_PATH
-  var_result = BoolConstant(false);
-  GotoIfForceSlowPath(&out);
-#endif
-
-  TNode<BoolT> is_regexp = HasInstanceType(object, JS_REG_EXP_TYPE);
-
-  var_result = is_regexp;
-  GotoIfNot(is_regexp, &out);
-
-  TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<Object> original_exec =
-      LoadContextElement(native_context, Context::REGEXP_EXEC_FUNCTION_INDEX);
-
-  TNode<Object> regexp_exec =
-      GetProperty(context, object, isolate()->factory()->exec_string());
-
-  TNode<BoolT> has_initialexec = TaggedEqual(regexp_exec, original_exec);
-  var_result = has_initialexec;
-  GotoIf(has_initialexec, &check_last_index);
-  TNode<BoolT> is_undefined = IsUndefined(regexp_exec);
-  var_result = is_undefined;
-  GotoIfNot(is_undefined, &out);
-  Goto(&check_last_index);
-
-  BIND(&check_last_index);
-  // The smi check is required to omit ToLength(lastIndex) calls with possible
-  // user-code execution on the fast path.
-  TNode<Object> last_index = FastLoadLastIndexBeforeSmiCheck(object);
-  var_result = TaggedIsPositiveSmi(last_index);
-  Goto(&out);
-
-  BIND(&out);
-  return var_result.value();
-}
-
 TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(
     TNode<Context> context, TNode<Object> object) {
   CSA_ASSERT(this, TaggedIsNotSmi(object));

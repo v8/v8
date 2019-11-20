@@ -57,8 +57,7 @@ namespace regexp {
       }
       case (Object): {
         // 4. Let C be ? SpeciesConstructor(R, %RegExp%).
-        const regexpFun =
-            UnsafeCast<JSFunction>(nativeContext[REGEXP_FUNCTION_INDEX]);
+        const regexpFun = LoadRegExpFunction(nativeContext);
         const speciesConstructor =
             UnsafeCast<Constructor>(SpeciesConstructor(receiver, regexpFun));
 
