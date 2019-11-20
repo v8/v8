@@ -542,7 +542,7 @@ std::unique_ptr<BackingStore> BackingStore::EmptyBackingStore(
                                  0,        // capacity
                                  shared,   // shared
                                  false,    // is_wasm_memory
-                                 false,    // free_on_destruct
+                                 true,     // free_on_destruct
                                  false,    // has_guard_regions
                                  false);   // custom_deleter
 
