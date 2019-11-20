@@ -553,7 +553,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return WriteJSPrimitiveWrapper(
           Handle<JSPrimitiveWrapper>::cast(receiver));
     case JS_REG_EXP_TYPE:
-      WriteJSRegExp(JSRegExp::cast(*receiver));
+      WriteJSRegExp(Handle<JSRegExp>::cast(receiver));
       return ThrowIfOutOfMemory();
     case JS_MAP_TYPE:
       return WriteJSMap(Handle<JSMap>::cast(receiver));
@@ -791,10 +791,10 @@ Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
   return ThrowIfOutOfMemory();
 }
 
-void ValueSerializer::WriteJSRegExp(JSRegExp regexp) {
+void ValueSerializer::WriteJSRegExp(Handle<JSRegExp> regexp) {
   WriteTag(SerializationTag::kRegExp);
-  WriteString(handle(regexp.Pattern(), isolate_));
-  WriteVarint(static_cast<uint32_t>(regexp.GetFlags()));
+  WriteString(handle(regexp->Pattern(), isolate_));
+  WriteVarint(static_cast<uint32_t>(regexp->GetFlags()));
 }
 
 Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> map) {
