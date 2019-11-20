@@ -61,7 +61,6 @@ TEST_MAP = {
     "wasm-js",
     "fuzzer",
     "message",
-    "preparser",
     "intl",
     "unittests",
     "wasm-api-tests",
@@ -77,7 +76,6 @@ TEST_MAP = {
     "wasm-js",
     "fuzzer",
     "message",
-    "preparser",
     "intl",
     "unittests",
     "wasm-api-tests",
@@ -88,7 +86,6 @@ TEST_MAP = {
     "mjsunit",
     "webkit",
     "message",
-    "preparser",
     "intl",
   ],
   # This needs to stay in sync with "v8_optimize_for_size" in test/BUILD.gn.
