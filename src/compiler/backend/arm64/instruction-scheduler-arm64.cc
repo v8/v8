@@ -326,9 +326,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64TestAndBranch:
     case kArm64CompareAndBranch32:
     case kArm64CompareAndBranch:
-    case kArm64DecompressSigned:
-    case kArm64DecompressPointer:
-    case kArm64DecompressAny:
       return kNoOpcodeFlags;
 
     case kArm64LdrS:

@@ -2014,24 +2014,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kX64DecompressSigned: {
-      CHECK(instr->HasOutput());
-      ASSEMBLE_MOVX(DecompressTaggedSigned);
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
-      break;
-    }
-    case kX64DecompressPointer: {
-      CHECK(instr->HasOutput());
-      ASSEMBLE_MOVX(DecompressTaggedPointer);
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
-      break;
-    }
-    case kX64DecompressAny: {
-      CHECK(instr->HasOutput());
-      ASSEMBLE_MOVX(DecompressAnyTagged);
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
-      break;
-    }
     case kX64Movq:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (instr->HasOutput()) {

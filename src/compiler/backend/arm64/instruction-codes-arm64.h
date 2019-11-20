@@ -166,9 +166,6 @@ namespace compiler {
   V(Arm64LdrDecompressAnyTagged)            \
   V(Arm64Str)                               \
   V(Arm64StrCompressTagged)                 \
-  V(Arm64DecompressSigned)                  \
-  V(Arm64DecompressPointer)                 \
-  V(Arm64DecompressAny)                     \
   V(Arm64DmbIsh)                            \
   V(Arm64DsbIsb)                            \
   V(Arm64F64x2Splat)                        \

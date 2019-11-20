@@ -281,13 +281,6 @@ void TurboAssembler::DecompressTaggedSigned(Register destination,
   RecordComment("]");
 }
 
-void TurboAssembler::DecompressTaggedSigned(Register destination,
-                                            Register source) {
-  RecordComment("[ DecompressTaggedSigned");
-  movl(destination, source);
-  RecordComment("]");
-}
-
 void TurboAssembler::DecompressTaggedPointer(Register destination,
                                              Operand field_operand) {
   RecordComment("[ DecompressTaggedPointer");
@@ -315,15 +308,6 @@ void TurboAssembler::DecompressAnyTagged(Register destination,
   DCHECK(!AreAliased(destination, scratch));
   RecordComment("[ DecompressAnyTagged");
   movl(destination, field_operand);
-  DecompressRegisterAnyTagged(destination, scratch);
-  RecordComment("]");
-}
-
-void TurboAssembler::DecompressAnyTagged(Register destination, Register source,
-                                         Register scratch) {
-  DCHECK(!AreAliased(destination, scratch));
-  RecordComment("[ DecompressAnyTagged");
-  movl(destination, source);
   DecompressRegisterAnyTagged(destination, scratch);
   RecordComment("]");
 }

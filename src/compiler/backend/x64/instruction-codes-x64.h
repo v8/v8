@@ -137,9 +137,6 @@ namespace compiler {
   V(X64MovqDecompressTaggedPointer)       \
   V(X64MovqDecompressAnyTagged)           \
   V(X64MovqCompressTagged)                \
-  V(X64DecompressSigned)                  \
-  V(X64DecompressPointer)                 \
-  V(X64DecompressAny)                     \
   V(X64Movq)                              \
   V(X64Movsd)                             \
   V(X64Movss)                             \

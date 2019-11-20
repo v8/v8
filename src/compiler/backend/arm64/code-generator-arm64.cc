@@ -1636,18 +1636,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64StrCompressTagged:
       __ StoreTaggedField(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
-    case kArm64DecompressSigned: {
-      __ DecompressTaggedSigned(i.OutputRegister(), i.InputRegister(0));
-      break;
-    }
-    case kArm64DecompressPointer: {
-      __ DecompressTaggedPointer(i.OutputRegister(), i.InputRegister(0));
-      break;
-    }
-    case kArm64DecompressAny: {
-      __ DecompressAnyTagged(i.OutputRegister(), i.InputRegister(0));
-      break;
-    }
     case kArm64LdrS:
       EmitMaybePoisonedFPLoad(this, opcode, &i, i.OutputDoubleRegister().S());
       break;
