@@ -5,16 +5,7 @@
 #ifndef V8_CRDTP_PARSER_HANDLER_H_
 #define V8_CRDTP_PARSER_HANDLER_H_
 
-#include <algorithm>
-#include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <limits>
-#include <memory>
-#include <string>
-#include <vector>
-
-#include "export.h"
 #include "span.h"
 #include "status.h"
 
@@ -22,9 +13,9 @@ namespace v8_crdtp {
 // Handler interface for parser events emitted by a streaming parser.
 // See cbor::NewCBOREncoder, cbor::ParseCBOR, json::NewJSONEncoder,
 // json::ParseJSON.
-class StreamingParserHandler {
+class ParserHandler {
  public:
-  virtual ~StreamingParserHandler() = default;
+  virtual ~ParserHandler() = default;
   virtual void HandleMapBegin() = 0;
   virtual void HandleMapEnd() = 0;
   virtual void HandleArrayBegin() = 0;

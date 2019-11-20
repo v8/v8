@@ -6,15 +6,10 @@
 #define V8_CRDTP_SPAN_H_
 
 #include <algorithm>
-#include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <limits>
-#include <memory>
 #include <string>
 #include <vector>
-
-#include "export.h"
 
 namespace v8_crdtp {
 // =============================================================================

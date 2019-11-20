@@ -2,17 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CRDTP_ENCODING_H_
-#define V8_CRDTP_ENCODING_H_
+#ifndef V8_CRDTP_STATUS_H_
+#define V8_CRDTP_STATUS_H_
 
-#include <algorithm>
 #include <cstddef>
-#include <cstdint>
-#include <cstring>
 #include <limits>
-#include <memory>
 #include <string>
-#include <vector>
 
 #include "export.h"
 
@@ -20,6 +15,7 @@ namespace v8_crdtp {
 // =============================================================================
 // Status and Error codes
 // =============================================================================
+
 enum class Error {
   OK = 0,
   // JSON parsing errors - json_parser.{h,cc}.
@@ -89,4 +85,4 @@ struct Status {
 };
 }  // namespace v8_crdtp
 
-#endif  // V8_CRDTP_ENCODING_H_
+#endif  // V8_CRDTP_STATUS_H_

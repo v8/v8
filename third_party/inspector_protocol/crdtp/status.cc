@@ -4,13 +4,6 @@
 
 #include "status.h"
 
-#include <algorithm>
-#include <cassert>
-#include <cmath>
-#include <cstring>
-#include <limits>
-#include <stack>
-
 namespace v8_crdtp {
 // =============================================================================
 // Status and Error codes

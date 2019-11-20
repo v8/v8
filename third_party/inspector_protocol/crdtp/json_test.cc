@@ -16,8 +16,6 @@
 
 #include "test_platform.h"
 
-using testing::ElementsAreArray;
-
 namespace v8_crdtp {
 namespace {
 class TestPlatform : public json::Platform {
@@ -61,14 +59,14 @@ namespace json {
 // json::NewJSONEncoder - for encoding streaming parser events as JSON
 // =============================================================================
 
-void WriteUTF8AsUTF16(StreamingParserHandler* writer, const std::string& utf8) {
+void WriteUTF8AsUTF16(ParserHandler* writer, const std::string& utf8) {
   writer->HandleString16(SpanFrom(UTF8ToUTF16(SpanFrom(utf8))));
 }
 
 TEST(JsonEncoder, OverlongEncodings) {
   std::string out;
   Status status;
-  std::unique_ptr<StreamingParserHandler> writer =
+  std::unique_ptr<ParserHandler> writer =
       NewJSONEncoder(&GetTestPlatform(), &out, &status);
 
   // We encode 0x7f, which is the DEL ascii character, as a 4 byte UTF8
@@ -87,7 +85,7 @@ TEST(JsonEncoder, OverlongEncodings) {
 TEST(JsonEncoder, IncompleteUtf8Sequence) {
   std::string out;
   Status status;
-  std::unique_ptr<StreamingParserHandler> writer =
+  std::unique_ptr<ParserHandler> writer =
       NewJSONEncoder(&GetTestPlatform(), &out, &status);
 
   writer->HandleArrayBegin();  // This emits [, which starts an array.
@@ -113,7 +111,7 @@ TEST(JsonEncoder, IncompleteUtf8Sequence) {
 TEST(JsonStdStringWriterTest, HelloWorld) {
   std::string out;
   Status status;
-  std::unique_ptr<StreamingParserHandler> writer =
+  std::unique_ptr<ParserHandler> writer =
       NewJSONEncoder(&GetTestPlatform(), &out, &status);
   writer->HandleMapBegin();
   WriteUTF8AsUTF16(writer.get(), "msg1");
@@ -157,7 +155,7 @@ TEST(JsonStdStringWriterTest, RepresentingNonFiniteValuesAsNull) {
   // So in practice it's mapped to null.
   std::string out;
   Status status;
-  std::unique_ptr<StreamingParserHandler> writer =
+  std::unique_ptr<ParserHandler> writer =
       NewJSONEncoder(&GetTestPlatform(), &out, &status);
   writer->HandleMapBegin();
   writer->HandleString8(SpanFrom("Infinity"));
@@ -172,13 +170,13 @@ TEST(JsonStdStringWriterTest, RepresentingNonFiniteValuesAsNull) {
 }
 
 TEST(JsonStdStringWriterTest, BinaryEncodedAsJsonString) {
-  // The encoder emits binary submitted to StreamingParserHandler::HandleBinary
+  // The encoder emits binary submitted to ParserHandler::HandleBinary
   // as base64. The following three examples are taken from
   // https://en.wikipedia.org/wiki/Base64.
   {
     std::string out;
     Status status;
-    std::unique_ptr<StreamingParserHandler> writer =
+    std::unique_ptr<ParserHandler> writer =
         NewJSONEncoder(&GetTestPlatform(), &out, &status);
     writer->HandleBinary(SpanFrom(std::vector<uint8_t>({'M', 'a', 'n'})));
     EXPECT_TRUE(status.ok());
@@ -187,7 +185,7 @@ TEST(JsonStdStringWriterTest, BinaryEncodedAsJsonString) {
   {
     std::string out;
     Status status;
-    std::unique_ptr<StreamingParserHandler> writer =
+    std::unique_ptr<ParserHandler> writer =
         NewJSONEncoder(&GetTestPlatform(), &out, &status);
     writer->HandleBinary(SpanFrom(std::vector<uint8_t>({'M', 'a'})));
     EXPECT_TRUE(status.ok());
@@ -196,7 +194,7 @@ TEST(JsonStdStringWriterTest, BinaryEncodedAsJsonString) {
   {
     std::string out;
     Status status;
-    std::unique_ptr<StreamingParserHandler> writer =
+    std::unique_ptr<ParserHandler> writer =
         NewJSONEncoder(&GetTestPlatform(), &out, &status);
     writer->HandleBinary(SpanFrom(std::vector<uint8_t>({'M'})));
     EXPECT_TRUE(status.ok());
@@ -205,7 +203,7 @@ TEST(JsonStdStringWriterTest, BinaryEncodedAsJsonString) {
   {  // "Hello, world.", verified with base64decode.org.
     std::string out;
     Status status;
-    std::unique_ptr<StreamingParserHandler> writer =
+    std::unique_ptr<ParserHandler> writer =
         NewJSONEncoder(&GetTestPlatform(), &out, &status);
     writer->HandleBinary(SpanFrom(std::vector<uint8_t>(
         {'H', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '.'})));
@@ -219,7 +217,7 @@ TEST(JsonStdStringWriterTest, HandlesErrors) {
   // status and clears the output.
   std::string out;
   Status status;
-  std::unique_ptr<StreamingParserHandler> writer =
+  std::unique_ptr<ParserHandler> writer =
       NewJSONEncoder(&GetTestPlatform(), &out, &status);
   writer->HandleMapBegin();
   WriteUTF8AsUTF16(writer.get(), "msg1");
@@ -257,7 +255,7 @@ TEST(JsonStdStringWriterTest, DoubleToString) {
 
   std::string out;
   Status status;
-  std::unique_ptr<StreamingParserHandler> writer =
+  std::unique_ptr<ParserHandler> writer =
       NewJSONEncoder(&platform, &out, &status);
   writer->HandleArrayBegin();
   writer->HandleDouble(.1);
@@ -270,7 +268,7 @@ TEST(JsonStdStringWriterTest, DoubleToString) {
 // json::ParseJSON - for receiving streaming parser events for JSON
 // =============================================================================
 
-class Log : public StreamingParserHandler {
+class Log : public ParserHandler {
  public:
   void HandleMapBegin() override { log_ << "map begin\n"; }
 

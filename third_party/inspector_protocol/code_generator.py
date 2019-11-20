@@ -114,7 +114,7 @@ def read_config():
       ".lib.export_header": False,
       ".crdtp": False,
       ".crdtp.dir": os.path.join(inspector_protocol_dir, "crdtp"),
-      ".crdtp.namespace": "inspector_protocol",
+      ".crdtp.namespace": "crdtp",
     }
     for key_value in config_values:
       parts = key_value.split("=")

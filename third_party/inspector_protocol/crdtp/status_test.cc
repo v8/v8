@@ -3,20 +3,7 @@
 // found in the LICENSE file.
 
 #include "status.h"
-
-#include <array>
-#include <clocale>
-#include <cmath>
-#include <cstdlib>
-#include <cstring>
-#include <iomanip>
-#include <iostream>
-#include <sstream>
-#include <string>
-
 #include "test_platform.h"
-
-using testing::ElementsAreArray;
 
 namespace v8_crdtp {
 // =============================================================================

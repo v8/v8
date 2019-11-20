@@ -451,7 +451,7 @@ bool EnvelopeEncoder::EncodeStop(std::string* out) {
 
 namespace {
 template <typename C>
-class CBOREncoder : public StreamingParserHandler {
+class CBOREncoder : public ParserHandler {
  public:
   CBOREncoder(C* out, Status* status) : out_(out), status_(status) {
     *status_ = Status();
@@ -557,16 +557,14 @@ class CBOREncoder : public StreamingParserHandler {
 };
 }  // namespace
 
-std::unique_ptr<StreamingParserHandler> NewCBOREncoder(
-    std::vector<uint8_t>* out,
-    Status* status) {
-  return std::unique_ptr<StreamingParserHandler>(
+std::unique_ptr<ParserHandler> NewCBOREncoder(std::vector<uint8_t>* out,
+                                              Status* status) {
+  return std::unique_ptr<ParserHandler>(
       new CBOREncoder<std::vector<uint8_t>>(out, status));
 }
-
-std::unique_ptr<StreamingParserHandler> NewCBOREncoder(std::string* out,
-                                                       Status* status) {
-  return std::unique_ptr<StreamingParserHandler>(
+std::unique_ptr<ParserHandler> NewCBOREncoder(std::string* out,
+                                              Status* status) {
+  return std::unique_ptr<ParserHandler>(
       new CBOREncoder<std::string>(out, status));
 }
 
@@ -870,21 +868,18 @@ static constexpr int kStackLimit = 300;
 // to roundtrip JSON messages.
 bool ParseMap(int32_t stack_depth,
               CBORTokenizer* tokenizer,
-              StreamingParserHandler* out);
-
+              ParserHandler* out);
 bool ParseArray(int32_t stack_depth,
                 CBORTokenizer* tokenizer,
-                StreamingParserHandler* out);
-
+                ParserHandler* out);
 bool ParseValue(int32_t stack_depth,
                 CBORTokenizer* tokenizer,
-                StreamingParserHandler* out);
-
+                ParserHandler* out);
 bool ParseEnvelope(int32_t stack_depth,
                    CBORTokenizer* tokenizer,
-                   StreamingParserHandler* out);
+                   ParserHandler* out);
 
-void ParseUTF16String(CBORTokenizer* tokenizer, StreamingParserHandler* out) {
+void ParseUTF16String(CBORTokenizer* tokenizer, ParserHandler* out) {
   std::vector<uint16_t> value;
   span<uint8_t> rep = tokenizer->GetString16WireRep();
   for (size_t ii = 0; ii < rep.size(); ii += 2)
@@ -893,7 +888,7 @@ void ParseUTF16String(CBORTokenizer* tokenizer, StreamingParserHandler* out) {
   tokenizer->Next();
 }
 
-bool ParseUTF8String(CBORTokenizer* tokenizer, StreamingParserHandler* out) {
+bool ParseUTF8String(CBORTokenizer* tokenizer, ParserHandler* out) {
   assert(tokenizer->TokenTag() == CBORTokenTag::STRING8);
   out->HandleString8(tokenizer->GetString8());
   tokenizer->Next();
@@ -902,7 +897,7 @@ bool ParseUTF8String(CBORTokenizer* tokenizer, StreamingParserHandler* out) {
 
 bool ParseEnvelope(int32_t stack_depth,
                    CBORTokenizer* tokenizer,
-                   StreamingParserHandler* out) {
+                   ParserHandler* out) {
   assert(tokenizer->TokenTag() == CBORTokenTag::ENVELOPE);
   // Before we enter the envelope, we save the position that we
   // expect to see after we're done parsing the envelope contents.
@@ -948,7 +943,7 @@ bool ParseEnvelope(int32_t stack_depth,
 
 bool ParseValue(int32_t stack_depth,
                 CBORTokenizer* tokenizer,
-                StreamingParserHandler* out) {
+                ParserHandler* out) {
   if (stack_depth > kStackLimit) {
     out->HandleError(
         Status{Error::CBOR_STACK_LIMIT_EXCEEDED, tokenizer->Status().pos});
@@ -1010,7 +1005,7 @@ bool ParseValue(int32_t stack_depth,
 // detected.
 bool ParseArray(int32_t stack_depth,
                 CBORTokenizer* tokenizer,
-                StreamingParserHandler* out) {
+                ParserHandler* out) {
   assert(tokenizer->TokenTag() == CBORTokenTag::ARRAY_START);
   tokenizer->Next();
   out->HandleArrayBegin();
@@ -1038,7 +1033,7 @@ bool ParseArray(int32_t stack_depth,
 // detected.
 bool ParseMap(int32_t stack_depth,
               CBORTokenizer* tokenizer,
-              StreamingParserHandler* out) {
+              ParserHandler* out) {
   assert(tokenizer->TokenTag() == CBORTokenTag::MAP_START);
   out->HandleMapBegin();
   tokenizer->Next();
@@ -1073,7 +1068,7 @@ bool ParseMap(int32_t stack_depth,
 }
 }  // namespace
 
-void ParseCBOR(span<uint8_t> bytes, StreamingParserHandler* out) {
+void ParseCBOR(span<uint8_t> bytes, ParserHandler* out) {
   if (bytes.empty()) {
     out->HandleError(Status{Error::CBOR_NO_INPUT, 0});
     return;

@@ -102,7 +102,7 @@ void Base64Encode(const span<uint8_t>& in, C* out) {
 
 // Implements a handler for JSON parser events to emit a JSON string.
 template <typename C>
-class JSONEncoder : public StreamingParserHandler {
+class JSONEncoder : public ParserHandler {
  public:
   JSONEncoder(const Platform* platform, C* out, Status* status)
       : platform_(platform), out_(out), status_(status) {
@@ -343,18 +343,17 @@ class JSONEncoder : public StreamingParserHandler {
 };
 }  // namespace
 
-std::unique_ptr<StreamingParserHandler> NewJSONEncoder(
-    const Platform* platform,
-    std::vector<uint8_t>* out,
-    Status* status) {
-  return std::unique_ptr<StreamingParserHandler>(
+std::unique_ptr<ParserHandler> NewJSONEncoder(const Platform* platform,
+                                              std::vector<uint8_t>* out,
+                                              Status* status) {
+  return std::unique_ptr<ParserHandler>(
       new JSONEncoder<std::vector<uint8_t>>(platform, out, status));
 }
 
-std::unique_ptr<StreamingParserHandler> NewJSONEncoder(const Platform* platform,
-                                                       std::string* out,
-                                                       Status* status) {
-  return std::unique_ptr<StreamingParserHandler>(
+std::unique_ptr<ParserHandler> NewJSONEncoder(const Platform* platform,
+                                              std::string* out,
+                                              Status* status) {
+  return std::unique_ptr<ParserHandler>(
       new JSONEncoder<std::string>(platform, out, status));
 }
 
@@ -388,7 +387,7 @@ const char* const kFalseString = "false";
 template <typename Char>
 class JsonParser {
  public:
-  JsonParser(const Platform* platform, StreamingParserHandler* handler)
+  JsonParser(const Platform* platform, ParserHandler* handler)
       : platform_(platform), handler_(handler) {}
 
   void Parse(const Char* start, size_t length) {
@@ -968,20 +967,20 @@ class JsonParser {
   const Char* start_pos_ = nullptr;
   bool error_ = false;
   const Platform* platform_;
-  StreamingParserHandler* handler_;
+  ParserHandler* handler_;
 };
 }  // namespace
 
 void ParseJSON(const Platform& platform,
                span<uint8_t> chars,
-               StreamingParserHandler* handler) {
+               ParserHandler* handler) {
   JsonParser<uint8_t> parser(&platform, handler);
   parser.Parse(chars.data(), chars.size());
 }
 
 void ParseJSON(const Platform& platform,
                span<uint16_t> chars,
-               StreamingParserHandler* handler) {
+               ParserHandler* handler) {
   JsonParser<uint16_t> parser(&platform, handler);
   parser.Parse(chars.data(), chars.size());
 }
@@ -994,7 +993,7 @@ Status ConvertCBORToJSONTmpl(const Platform& platform,
                              span<uint8_t> cbor,
                              C* json) {
   Status status;
-  std::unique_ptr<StreamingParserHandler> json_writer =
+  std::unique_ptr<ParserHandler> json_writer =
       NewJSONEncoder(&platform, json, &status);
   cbor::ParseCBOR(cbor, json_writer.get());
   return status;
@@ -1015,8 +1014,7 @@ Status ConvertCBORToJSON(const Platform& platform,
 template <typename T, typename C>
 Status ConvertJSONToCBORTmpl(const Platform& platform, span<T> json, C* cbor) {
   Status status;
-  std::unique_ptr<StreamingParserHandler> encoder =
-      cbor::NewCBOREncoder(cbor, &status);
+  std::unique_ptr<ParserHandler> encoder = cbor::NewCBOREncoder(cbor, &status);
   ParseJSON(platform, json, encoder.get());
   return status;
 }

@@ -317,13 +317,12 @@ std::unique_ptr<Serializable> InternalResponse::createErrorResponse(int callId, 
 void InternalResponse::AppendSerialized(std::vector<uint8_t>* out) const
 {
     using {{config.crdtp.namespace}}::cbor::NewCBOREncoder;
-    using {{config.crdtp.namespace}}::StreamingParserHandler;
+    using {{config.crdtp.namespace}}::ParserHandler;
     using {{config.crdtp.namespace}}::Status;
     using {{config.crdtp.namespace}}::SpanFrom;
 
     Status status;
-    std::unique_ptr<StreamingParserHandler> encoder =
-        NewCBOREncoder(out, &status);
+    std::unique_ptr<ParserHandler> encoder = NewCBOREncoder(out, &status);
     encoder->HandleMapBegin();
     if (m_method) {
         encoder->HandleString8(SpanFrom("method"));

@@ -2,21 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "span.h"
-
-#include <array>
-#include <clocale>
-#include <cmath>
 #include <cstdlib>
-#include <cstring>
-#include <iomanip>
-#include <iostream>
-#include <sstream>
 #include <string>
 
+#include "span.h"
 #include "test_platform.h"
-
-using testing::ElementsAreArray;
 
 namespace v8_crdtp {
 // =============================================================================

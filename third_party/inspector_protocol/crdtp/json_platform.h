@@ -5,15 +5,7 @@
 #ifndef V8_CRDTP_JSON_PLATFORM_H_
 #define V8_CRDTP_JSON_PLATFORM_H_
 
-#include <algorithm>
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-#include <limits>
 #include <memory>
-#include <string>
-#include <vector>
-
 #include "export.h"
 
 namespace v8_crdtp {
