@@ -5794,6 +5794,35 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (ContainsInt64(sig_)) LowerInt64(kCalledFromJS);
   }
 
+  Node* BuildReceiverNode(Node* callable_node, Node* native_context,
+                          Node* undefined_node) {
+    // Check function strict bit.
+    Node* shared_function_info = LOAD_RAW(
+        callable_node,
+        wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction(),
+        MachineType::TaggedPointer());
+    Node* flags =
+        LOAD_RAW(shared_function_info,
+                 wasm::ObjectAccess::FlagsOffsetInSharedFunctionInfo(),
+                 MachineType::Int32());
+    Node* strict_check =
+        Binop(wasm::kExprI32And, flags,
+              mcgraph()->Int32Constant(SharedFunctionInfo::IsNativeBit::kMask |
+                                       SharedFunctionInfo::IsStrictBit::kMask));
+
+    // Load global receiver if sloppy else use undefined.
+    Diamond strict_d(graph(), mcgraph()->common(), strict_check,
+                     BranchHint::kNone);
+    Node* effect = Effect();
+    SetControl(strict_d.if_false);
+    Node* global_proxy =
+        LOAD_FIXED_ARRAY_SLOT_PTR(native_context, Context::GLOBAL_PROXY_INDEX);
+    SetEffect(strict_d.EffectPhi(effect, global_proxy));
+    SetControl(strict_d.merge);
+    return strict_d.Phi(MachineRepresentation::kTagged, undefined_node,
+                        global_proxy);
+  }
+
   bool BuildWasmImportCallWrapper(WasmImportCallKind kind) {
     int wasm_count = static_cast<int>(sig_->parameter_count());
 
@@ -5822,7 +5851,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* undefined_node = BuildLoadUndefinedValueFromInstance();
 
     Node* call = nullptr;
-    bool sloppy_receiver = true;
 
     // Clear the ThreadInWasm flag.
     BuildModifyThreadInWasmFlag(false);
@@ -5831,10 +5859,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // =======================================================================
       // === JS Functions with matching arity ==================================
       // =======================================================================
-      case WasmImportCallKind::kJSFunctionArityMatch:
-        sloppy_receiver = false;
-        V8_FALLTHROUGH;  // fallthru
-      case WasmImportCallKind::kJSFunctionArityMatchSloppy: {
+      case WasmImportCallKind::kJSFunctionArityMatch: {
         base::SmallVector<Node*, 16> args(wasm_count + 7);
         int pos = 0;
         Node* function_context =
@@ -5842,14 +5867,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                      wasm::ObjectAccess::ContextOffsetInTaggedJSFunction(),
                      MachineType::TaggedPointer());
         args[pos++] = callable_node;  // target callable.
-        // Receiver.
-        if (sloppy_receiver) {
-          Node* global_proxy = LOAD_FIXED_ARRAY_SLOT_PTR(
-              native_context, Context::GLOBAL_PROXY_INDEX);
-          args[pos++] = global_proxy;
-        } else {
-          args[pos++] = undefined_node;
-        }
+
+        // Determine receiver at runtime.
+        args[pos++] =
+            BuildReceiverNode(callable_node, native_context, undefined_node);
 
         auto call_descriptor = Linkage::GetJSCallDescriptor(
             graph()->zone(), false, wasm_count + 1, CallDescriptor::kNoFlags);
@@ -5871,10 +5892,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // =======================================================================
       // === JS Functions with arguments adapter ===============================
       // =======================================================================
-      case WasmImportCallKind::kJSFunctionArityMismatch:
-        sloppy_receiver = false;
-        V8_FALLTHROUGH;  // fallthru
-      case WasmImportCallKind::kJSFunctionArityMismatchSloppy: {
+      case WasmImportCallKind::kJSFunctionArityMismatch: {
         base::SmallVector<Node*, 16> args(wasm_count + 9);
         int pos = 0;
         Node* function_context =
@@ -5902,14 +5920,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             Effect(), Control()));
         args[pos++] = formal_param_count;
 
-        // Receiver.
-        if (sloppy_receiver) {
-          Node* global_proxy = LOAD_FIXED_ARRAY_SLOT_PTR(
-              native_context, Context::GLOBAL_PROXY_INDEX);
-          args[pos++] = global_proxy;
-        } else {
-          args[pos++] = undefined_node;
-        }
+        // Determine receiver at runtime.
+        args[pos++] =
+            BuildReceiverNode(callable_node, native_context, undefined_node);
 
         auto call_descriptor = Linkage::GetStubCallDescriptor(
             mcgraph()->zone(), ArgumentsAdaptorDescriptor{}, 1 + wasm_count,
@@ -6450,8 +6463,7 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
   if (!wasm::IsJSCompatibleSignature(expected_sig, enabled_features)) {
     return std::make_pair(WasmImportCallKind::kRuntimeTypeError, callable);
   }
-  // For JavaScript calls, determine whether the target has an arity match
-  // and whether it has a sloppy receiver.
+  // For JavaScript calls, determine whether the target has an arity match.
   if (callable->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(callable);
     SharedFunctionInfo shared = function->shared();
@@ -6510,18 +6522,13 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
       // Class constructor will throw anyway.
       return std::make_pair(WasmImportCallKind::kUseCallBuiltin, callable);
     }
-    bool sloppy = is_sloppy(shared.language_mode()) && !shared.native();
     if (shared.internal_formal_parameter_count() ==
         expected_sig->parameter_count()) {
-      return std::make_pair(
-          sloppy ? WasmImportCallKind::kJSFunctionArityMatchSloppy
-                 : WasmImportCallKind::kJSFunctionArityMatch,
-          callable);
+      return std::make_pair(WasmImportCallKind::kJSFunctionArityMatch,
+                            callable);
     }
-    return std::make_pair(
-        sloppy ? WasmImportCallKind::kJSFunctionArityMismatchSloppy
-               : WasmImportCallKind::kJSFunctionArityMismatch,
-        callable);
+    return std::make_pair(WasmImportCallKind::kJSFunctionArityMismatch,
+                          callable);
   }
   // Unknown case. Use the call builtin.
   return std::make_pair(WasmImportCallKind::kUseCallBuiltin, callable);

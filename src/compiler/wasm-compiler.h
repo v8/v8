@@ -66,9 +66,7 @@ enum class WasmImportCallKind : uint8_t {
   kWasmToCapi,                     // fast WASM->C-API call
   kWasmToWasm,                     // fast WASM->WASM call
   kJSFunctionArityMatch,           // fast WASM->JS call
-  kJSFunctionArityMatchSloppy,     // fast WASM->JS call, sloppy receiver
   kJSFunctionArityMismatch,        // WASM->JS, needs adapter frame
-  kJSFunctionArityMismatchSloppy,  // WASM->JS, needs adapter frame, sloppy
   // Math functions imported from JavaScript that are intrinsified
   kFirstMathIntrinsic,
   kF64Acos = kFirstMathIntrinsic,
@@ -99,11 +97,8 @@ enum class WasmImportCallKind : uint8_t {
   kUseCallBuiltin
 };
 
-// TODO(wasm): There should be only one import kind for sloppy and strict in
-// order to reduce wrapper cache misses. The mode can be checked at runtime
-// instead.
 constexpr WasmImportCallKind kDefaultImportCallKind =
-    WasmImportCallKind::kJSFunctionArityMatchSloppy;
+    WasmImportCallKind::kJSFunctionArityMatch;
 
 // Resolves which import call wrapper is required for the given JS callable.
 // Returns the kind of wrapper need and the ultimate target callable. Note that
