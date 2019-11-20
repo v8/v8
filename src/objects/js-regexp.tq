@@ -33,10 +33,8 @@ extern class JSRegExpResult extends JSArray {
   groups: JSAny;
 
   // The below fields are for internal use only.
-  cached_indices_or_regexp: JSRegExpResultIndices|JSRegExp;
+  cached_indices_or_match_info: JSRegExpResultIndices|RegExpMatchInfo;
   names: FixedArray|Undefined;
-  regexp_input: String;
-  regexp_last_index: Smi;
 }
 
 @hasSameInstanceTypeAsParent

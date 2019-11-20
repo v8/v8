@@ -52,7 +52,7 @@ namespace regexp {
   }
 
   extern macro RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
-      implicit context: Context)(JSRegExp, RegExpMatchInfo, String, Number):
+      implicit context: Context)(JSReceiver, RegExpMatchInfo, String):
       JSRegExpResult;
 
   const kGlobalOrSticky: constexpr int31
@@ -70,13 +70,29 @@ namespace regexp {
   // IfDidNotMatch otherwise.
   transitioning macro RegExpPrototypeExecBodyWithoutResult(implicit context:
                                                                Context)(
-      regexp: JSRegExp, string: String, regexpLastIndex: Number,
+      maybeRegexp: JSReceiver, string: String,
       isFastPath: constexpr bool): RegExpMatchInfo labels IfDidNotMatch {
     if (!isFastPath) {
       IncrementUseCounter(context, SmiConstant(kRegExpExecCalledOnSlowRegExp));
+      if (!Is<JSRegExp>(maybeRegexp)) {
+        ThrowTypeError(
+            kIncompatibleMethodReceiver, 'RegExp.prototype.exec', maybeRegexp);
+      }
     }
+    const regexp = UnsafeCast<JSRegExp>(maybeRegexp);
 
-    let lastIndex = regexpLastIndex;
+    let lastIndex: Number;
+    const regexpLastIndex = LoadLastIndex(regexp, isFastPath);
+    if (isFastPath) {
+      // ToLength on a positive smi is a nop and can be skipped.
+      assert(TaggedIsPositiveSmi(regexpLastIndex));
+      lastIndex = UnsafeCast<Number>(regexpLastIndex);
+    } else {
+      // Omit ToLength if lastindex is a non-negative smi.
+      lastIndex = TaggedIsPositiveSmi(regexpLastIndex) ?
+          UnsafeCast<Number>(regexpLastIndex) :
+          ToLength_Inline(regexpLastIndex);
+    }
 
     // Check whether the regexp is global or sticky, which determines whether we
     // update last index later on.
@@ -123,35 +139,18 @@ namespace regexp {
   transitioning macro RegExpPrototypeExecBodyWithoutResultFast(
       implicit context: Context)(regexp: JSRegExp, string: String):
       RegExpMatchInfo labels IfDidNotMatch {
-    const lastIndex = LoadLastIndexAsLength(regexp, true);
-    return RegExpPrototypeExecBodyWithoutResult(regexp, string, lastIndex, true)
-        otherwise IfDidNotMatch;
-  }
-
-  transitioning macro RegExpPrototypeExecBodyWithoutResultFast(
-      implicit context:
-          Context)(regexp: JSRegExp, string: String, lastIndex: Number):
-      RegExpMatchInfo labels IfDidNotMatch {
-    return RegExpPrototypeExecBodyWithoutResult(regexp, string, lastIndex, true)
+    return RegExpPrototypeExecBodyWithoutResult(regexp, string, true)
         otherwise IfDidNotMatch;
   }
 
   // ES#sec-regexp.prototype.exec
   // RegExp.prototype.exec ( string )
   transitioning macro RegExpPrototypeExecBody(implicit context: Context)(
-      receiver: JSReceiver, string: String, isFastPath: constexpr bool): JSAny {
-    let regexp: JSRegExp;
-    if constexpr (!isFastPath) {
-      regexp = UnsafeCast<JSRegExp>(receiver);
-    } else {
-      regexp = Cast<JSRegExp>(receiver) otherwise ThrowTypeError(
-          kIncompatibleMethodReceiver, 'RegExp.prototype.exec', receiver);
-    }
-    const lastIndex = LoadLastIndexAsLength(regexp, isFastPath);
+      maybeRegexp: JSReceiver, string: String,
+      isFastPath: constexpr bool): JSAny {
     const matchIndices: RegExpMatchInfo = RegExpPrototypeExecBodyWithoutResult(
-        regexp, string, lastIndex, isFastPath) otherwise return Null;
-    return ConstructNewResultFromMatchInfo(
-        regexp, matchIndices, string, lastIndex);
+        maybeRegexp, string, isFastPath) otherwise return Null;
+    return ConstructNewResultFromMatchInfo(maybeRegexp, matchIndices, string);
   }
 
   macro IsReceiverInitialRegExpPrototype(implicit context:
@@ -306,26 +305,6 @@ namespace regexp {
       regexp: JSAny, isFastPath: constexpr bool): JSAny {
     return isFastPath ? FastLoadLastIndex(UnsafeCast<JSRegExp>(regexp)) :
                         SlowLoadLastIndex(regexp);
-  }
-
-  @export
-  transitioning macro LoadLastIndexAsLength(implicit context: Context)(
-      regexp: JSRegExp, isFastPath: constexpr bool): Number {
-    const lastIndex = LoadLastIndex(regexp, isFastPath);
-    if (isFastPath) {
-      // ToLength on a positive smi is a nop and can be skipped.
-      return UnsafeCast<PositiveSmi>(lastIndex);
-    } else {
-      // Omit ToLength if last_index is a non-negative smi.
-      typeswitch (lastIndex) {
-        case (i: PositiveSmi): {
-          return i;
-        }
-        case (o: JSAny): {
-          return ToLength_Inline(o);
-        }
-      }
-    }
   }
 
   @export

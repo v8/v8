@@ -4096,22 +4096,12 @@ WeakArrayList PrototypeUsers::Compact(Handle<WeakArrayList> array, Heap* heap,
   return *new_array;
 }
 
-Handle<RegExpMatchInfo> RegExpMatchInfo::New(Isolate* isolate,
-                                             int capture_count) {
-  Handle<RegExpMatchInfo> match_info = isolate->factory()->NewRegExpMatchInfo();
-  return ReserveCaptures(isolate, match_info, capture_count);
-}
-
 Handle<RegExpMatchInfo> RegExpMatchInfo::ReserveCaptures(
     Isolate* isolate, Handle<RegExpMatchInfo> match_info, int capture_count) {
   DCHECK_GE(match_info->length(), kLastMatchOverhead);
-
-  int capture_register_count = (capture_count + 1) * 2;
-  const int required_length = kFirstCaptureIndex + capture_register_count;
-  Handle<RegExpMatchInfo> result = Handle<RegExpMatchInfo>::cast(
+  const int required_length = kFirstCaptureIndex + capture_count;
+  return Handle<RegExpMatchInfo>::cast(
       EnsureSpaceInFixedArray(isolate, match_info, required_length));
-  result->SetNumberOfCaptureRegisters(capture_register_count);
-  return result;
 }
 
 // static

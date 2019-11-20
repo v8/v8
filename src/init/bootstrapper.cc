@@ -4842,15 +4842,14 @@ bool Genesis::InstallABunchOfRandomThings() {
 
     // Private internal only fields. All of the remaining fields have special
     // symbols to prevent their use in Javascript.
+    // cached_indices_or_match_info descriptor.
     {
       PropertyAttributes attribs = DONT_ENUM;
-
-      // cached_indices_or_regexp descriptor.
       {
         Descriptor d = Descriptor::DataField(
             isolate(),
-            factory()->regexp_result_cached_indices_or_regexp_symbol(),
-            JSRegExpResult::kCachedIndicesOrRegExpIndex, attribs,
+            factory()->regexp_result_cached_indices_or_match_info_symbol(),
+            JSRegExpResult::kCachedIndicesOrMatchInfoIndex, attribs,
             Representation::Tagged());
         initial_map->AppendDescriptor(isolate(), &d);
       }
@@ -4860,24 +4859,6 @@ bool Genesis::InstallABunchOfRandomThings() {
         Descriptor d = Descriptor::DataField(
             isolate(), factory()->regexp_result_names_symbol(),
             JSRegExpResult::kNamesIndex, attribs, Representation::Tagged());
-        initial_map->AppendDescriptor(isolate(), &d);
-      }
-
-      // regexp_input_index descriptor.
-      {
-        Descriptor d = Descriptor::DataField(
-            isolate(), factory()->regexp_result_regexp_input_symbol(),
-            JSRegExpResult::kRegExpInputIndex, attribs,
-            Representation::Tagged());
-        initial_map->AppendDescriptor(isolate(), &d);
-      }
-
-      // regexp_last_index descriptor.
-      {
-        Descriptor d = Descriptor::DataField(
-            isolate(), factory()->regexp_result_regexp_last_index_symbol(),
-            JSRegExpResult::kRegExpLastIndex, attribs,
-            Representation::Tagged());
         initial_map->AppendDescriptor(isolate(), &d);
       }
     }

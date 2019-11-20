@@ -239,7 +239,7 @@ class JSRegExpResult : public JSArray {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSArray::kHeaderSize,
                                 TORQUE_GENERATED_JS_REG_EXP_RESULT_FIELDS)
 
-  static MaybeHandle<JSArray> GetAndCacheIndices(
+  static Handle<JSArray> GetAndCacheIndices(
       Isolate* isolate, Handle<JSRegExpResult> regexp_result);
 
   // Indices of in-object properties.
@@ -248,11 +248,9 @@ class JSRegExpResult : public JSArray {
   static const int kGroupsIndex = 2;
 
   // Private internal only fields.
-  static const int kCachedIndicesOrRegExpIndex = 3;
+  static const int kCachedIndicesOrMatchInfoIndex = 3;
   static const int kNamesIndex = 4;
-  static const int kRegExpInputIndex = 5;
-  static const int kRegExpLastIndex = 6;
-  static const int kInObjectPropertyCount = 7;
+  static const int kInObjectPropertyCount = 5;
 
   OBJECT_CONSTRUCTORS(JSRegExpResult, JSArray);
 };

@@ -673,8 +673,12 @@ Handle<RegExpMatchInfo> RegExp::SetLastMatchInfo(
   // regexp, RegExpExecStub finds that the match info is too small, it restarts
   // execution in RegExpImpl::Exec, which finally grows the match info right
   // here.
-  Handle<RegExpMatchInfo> result =
-      RegExpMatchInfo::ReserveCaptures(isolate, last_match_info, capture_count);
+
+  int capture_register_count = (capture_count + 1) * 2;
+  Handle<RegExpMatchInfo> result = RegExpMatchInfo::ReserveCaptures(
+      isolate, last_match_info, capture_register_count);
+  result->SetNumberOfCaptureRegisters(capture_register_count);
+
   if (*result != *last_match_info) {
     if (*last_match_info == *isolate->regexp_last_match_info()) {
       // This inner condition is only needed for special situations like the
@@ -685,7 +689,6 @@ Handle<RegExpMatchInfo> RegExp::SetLastMatchInfo(
     }
   }
 
-  int capture_register_count = (capture_count + 1) * 2;
   DisallowHeapAllocation no_allocation;
   if (match != nullptr) {
     for (int i = 0; i < capture_register_count; i += 2) {

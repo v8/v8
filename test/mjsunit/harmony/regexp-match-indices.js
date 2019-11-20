@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-regexp-match-indices --expose-gc --stack-size=100
+// Flags: --harmony-regexp-match-indices --expose-gc
 
 // Sanity test.
 {
@@ -104,34 +104,10 @@
   assertEquals(m.indices.groups, {'Z': [4, 5]})
 }
 
-// Test atomic regexp.
-{
-  const m = /undefined/.exec();
-
-  assertEquals(m.indices, [[0, 9]]);
-}
-
 // Test deleting unrelated fields does not break.
 {
   const m = /undefined/.exec();
   delete m['index'];
   gc();
   assertEquals(m.indices, [[0, 9]]);
-}
-
-// Stack overflow.
-{
-  const re = /a+(?<Z>z)?/;
-  const m = re.exec("xaaaz");
-
-  function rec() {
-    try {
-      return rec();
-    } catch (e) {
-      assertEquals(m.indices, [[1, 5], [4, 5]]);
-      assertEquals(m.indices.groups, {'Z': [4, 5]})
-      return true;
-    }
-  }
-  assertTrue(rec());
 }
