@@ -42,7 +42,7 @@ class StackTransferRecipe {
 
     LoadKind kind;
     ValueType type;
-    int32_t value;  // i32 constant value or stack index, depending on kind.
+    int32_t value;  // i32 constant value or stack offset, depending on kind.
 
     // Named constructors.
     static RegisterLoad Const(WasmValue constant) {
@@ -53,12 +53,12 @@ class StackTransferRecipe {
       DCHECK_EQ(constant.to_i32_unchecked(), constant.to_i64_unchecked());
       return {kConstant, kWasmI64, constant.to_i32_unchecked()};
     }
-    static RegisterLoad Stack(int32_t stack_index, ValueType type) {
-      return {kStack, type, stack_index};
+    static RegisterLoad Stack(int32_t offset, ValueType type) {
+      return {kStack, type, offset};
     }
-    static RegisterLoad HalfStack(int32_t stack_index, RegPairHalf half) {
+    static RegisterLoad HalfStack(int32_t offset, RegPairHalf half) {
       return {half == kLowWord ? kLowHalfStack : kHighHalfStack, kWasmI32,
-              stack_index};
+              offset};
     }
 
    private:
@@ -91,18 +91,23 @@ class StackTransferRecipe {
         switch (src.loc()) {
           case VarState::kStack:
             if (src_index == dst_index) break;
-            asm_->MoveStackValue(dst_index, src_index, src.type());
+            asm_->MoveStackValue(asm_->GetStackOffsetFromIndex(dst_index),
+                                 asm_->GetStackOffsetFromIndex(src_index),
+                                 src.type());
             break;
           case VarState::kRegister:
-            asm_->Spill(dst_index, src.reg(), src.type());
+            asm_->Spill(asm_->GetStackOffsetFromIndex(dst_index), src.reg(),
+                        src.type());
             break;
           case VarState::kIntConst:
-            asm_->Spill(dst_index, src.constant());
+            asm_->Spill(asm_->GetStackOffsetFromIndex(dst_index),
+                        src.constant());
             break;
         }
         break;
       case VarState::kRegister:
-        LoadIntoRegister(dst.reg(), src, src_index);
+        LoadIntoRegister(dst.reg(), src,
+                         asm_->GetStackOffsetFromIndex(src_index));
         break;
       case VarState::kIntConst:
         DCHECK_EQ(dst, src);
@@ -112,10 +117,10 @@ class StackTransferRecipe {
 
   void LoadIntoRegister(LiftoffRegister dst,
                         const LiftoffAssembler::VarState& src,
-                        uint32_t src_index) {
+                        uint32_t src_offset) {
     switch (src.loc()) {
       case VarState::kStack:
-        LoadStackSlot(dst, src_index, src.type());
+        LoadStackSlot(dst, src_offset, src.type());
         break;
       case VarState::kRegister:
         DCHECK_EQ(dst.reg_class(), src.reg_class());
@@ -129,14 +134,14 @@ class StackTransferRecipe {
 
   void LoadI64HalfIntoRegister(LiftoffRegister dst,
                                const LiftoffAssembler::VarState& src,
-                               uint32_t index, RegPairHalf half) {
+                               uint32_t offset, RegPairHalf half) {
     // Use CHECK such that the remaining code is statically dead if
     // {kNeedI64RegPair} is false.
     CHECK(kNeedI64RegPair);
     DCHECK_EQ(kWasmI64, src.type());
     switch (src.loc()) {
       case VarState::kStack:
-        LoadI64HalfStackSlot(dst, index, half);
+        LoadI64HalfStackSlot(dst, offset, half);
         break;
       case VarState::kRegister: {
         LiftoffRegister src_half =
@@ -194,7 +199,7 @@ class StackTransferRecipe {
     }
   }
 
-  void LoadStackSlot(LiftoffRegister dst, uint32_t stack_index,
+  void LoadStackSlot(LiftoffRegister dst, uint32_t stack_offset,
                      ValueType type) {
     if (load_dst_regs_.has(dst)) {
       // It can happen that we spilled the same register to different stack
@@ -206,15 +211,15 @@ class StackTransferRecipe {
     if (dst.is_pair()) {
       DCHECK_EQ(kWasmI64, type);
       *register_load(dst.low()) =
-          RegisterLoad::HalfStack(stack_index, kLowWord);
+          RegisterLoad::HalfStack(stack_offset, kLowWord);
       *register_load(dst.high()) =
-          RegisterLoad::HalfStack(stack_index, kHighWord);
+          RegisterLoad::HalfStack(stack_offset, kHighWord);
     } else {
-      *register_load(dst) = RegisterLoad::Stack(stack_index, type);
+      *register_load(dst) = RegisterLoad::Stack(stack_offset, type);
     }
   }
 
-  void LoadI64HalfStackSlot(LiftoffRegister dst, uint32_t stack_index,
+  void LoadI64HalfStackSlot(LiftoffRegister dst, uint32_t offset,
                             RegPairHalf half) {
     if (load_dst_regs_.has(dst)) {
       // It can happen that we spilled the same register to different stack
@@ -223,7 +228,7 @@ class StackTransferRecipe {
       return;
     }
     load_dst_regs_.set(dst);
-    *register_load(dst) = RegisterLoad::HalfStack(stack_index, half);
+    *register_load(dst) = RegisterLoad::HalfStack(offset, half);
   }
 
  private:
@@ -294,9 +299,11 @@ class StackTransferRecipe {
       LiftoffRegister dst = move_dst_regs_.GetFirstRegSet();
       RegisterMove* move = register_move(dst);
       LiftoffRegister spill_reg = move->src;
-      asm_->Spill(next_spill_slot, spill_reg, move->type);
+      asm_->Spill(LiftoffAssembler::GetStackOffsetFromIndex(next_spill_slot),
+                  spill_reg, move->type);
       // Remember to reload into the destination register later.
-      LoadStackSlot(dst, next_spill_slot, move->type);
+      LoadStackSlot(dst, asm_->GetStackOffsetFromIndex(next_spill_slot),
+                    move->type);
       ++next_spill_slot;
       ClearExecutedMove(dst);
     }
@@ -497,7 +504,8 @@ LiftoffRegister LiftoffAssembler::PopToRegister(LiftoffRegList pinned) {
     case VarState::kStack: {
       LiftoffRegister reg =
           GetUnusedRegister(reg_class_for(slot.type()), pinned);
-      Fill(reg, cache_state_.stack_height(), slot.type());
+      Fill(reg, GetStackOffsetFromIndex(cache_state_.stack_height()),
+           slot.type());
       return reg;
     }
     case VarState::kRegister:
@@ -554,11 +562,11 @@ void LiftoffAssembler::Spill(uint32_t index) {
     case VarState::kStack:
       return;
     case VarState::kRegister:
-      Spill(index, slot.reg(), slot.type());
+      Spill(GetStackOffsetFromIndex(index), slot.reg(), slot.type());
       cache_state_.dec_used(slot.reg());
       break;
     case VarState::kIntConst:
-      Spill(index, slot.constant());
+      Spill(GetStackOffsetFromIndex(index), slot.constant());
       break;
   }
   slot.MakeStack();
@@ -574,7 +582,7 @@ void LiftoffAssembler::SpillAllRegisters() {
   for (uint32_t i = 0, e = cache_state_.stack_height(); i < e; ++i) {
     auto& slot = cache_state_.stack_state[i];
     if (!slot.is_reg()) continue;
-    Spill(i, slot.reg(), slot.type());
+    Spill(GetStackOffsetFromIndex(i), slot.reg(), slot.type());
     slot.MakeStack();
   }
   cache_state_.reset_used_registers();
@@ -594,7 +602,7 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
        idx < end; ++idx) {
     VarState& slot = cache_state_.stack_state[idx];
     if (!slot.is_reg()) continue;
-    Spill(idx, slot.reg(), slot.type());
+    Spill(GetStackOffsetFromIndex(idx), slot.reg(), slot.type());
     slot.MakeStack();
   }
 
@@ -628,6 +636,7 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
     const bool is_pair = kNeedI64RegPair && type == kWasmI64;
     const int num_lowered_params = is_pair ? 2 : 1;
     const uint32_t stack_idx = param_base + param;
+    const uint32_t stack_offset = GetStackOffsetFromIndex(stack_idx);
     const VarState& slot = cache_state_.stack_state[stack_idx];
     // Process both halfs of a register pair separately, because they are passed
     // as separate parameters. One or both of them could end up on the stack.
@@ -654,13 +663,14 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
 #endif
         param_regs.set(reg);
         if (is_pair) {
-          stack_transfers.LoadI64HalfIntoRegister(reg, slot, stack_idx, half);
+          stack_transfers.LoadI64HalfIntoRegister(reg, slot, stack_offset,
+                                                  half);
         } else {
-          stack_transfers.LoadIntoRegister(reg, slot, stack_idx);
+          stack_transfers.LoadIntoRegister(reg, slot, stack_offset);
         }
       } else {
         DCHECK(loc.IsCallerFrameSlot());
-        stack_slots.Add(slot, stack_idx, half);
+        stack_slots.Add(slot, stack_offset, half);
       }
     }
   }
@@ -765,8 +775,9 @@ void LiftoffAssembler::MoveToReturnRegisters(FunctionSig* sig) {
           : reg_class_for(return_type) == kGpReg
                 ? LiftoffRegister(kGpReturnRegisters[0])
                 : LiftoffRegister(kFpReturnRegisters[0]);
-  stack_transfers.LoadIntoRegister(return_reg, cache_state_.stack_state.back(),
-                                   cache_state_.stack_height() - 1);
+  stack_transfers.LoadIntoRegister(
+      return_reg, cache_state_.stack_state.back(),
+      GetStackOffsetFromIndex(cache_state_.stack_height() - 1));
 }
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -820,7 +831,7 @@ void LiftoffAssembler::SpillRegister(LiftoffRegister reg) {
       cache_state_.dec_used(slot->reg().low());
       cache_state_.dec_used(slot->reg().high());
     }
-    Spill(idx, slot->reg(), slot->type());
+    Spill(GetStackOffsetFromIndex(idx), slot->reg(), slot->type());
     slot->MakeStack();
     if (--remaining_uses == 0) break;
   }
