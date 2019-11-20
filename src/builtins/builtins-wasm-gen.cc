@@ -76,10 +76,11 @@ TF_BUILTIN(WasmAtomicNotify, WasmBuiltinsAssembler) {
   TNode<Object> instance = LoadInstanceFromFrame();
   TNode<Number> address_number = ChangeUint32ToTagged(address);
   TNode<Number> count_number = ChangeUint32ToTagged(count);
+  TNode<Object> context = LoadContextFromInstance(instance);
 
-  TNode<Smi> result_smi = UncheckedCast<Smi>(
-      CallRuntime(Runtime::kWasmAtomicNotify, NoContextConstant(), instance,
-                  address_number, count_number));
+  TNode<Smi> result_smi =
+      UncheckedCast<Smi>(CallRuntime(Runtime::kWasmAtomicNotify, context,
+                                     instance, address_number, count_number));
   ReturnRaw(SmiToInt32(result_smi));
 }
 
@@ -95,9 +96,10 @@ TF_BUILTIN(WasmI32AtomicWait, WasmBuiltinsAssembler) {
   TNode<Number> address_number = ChangeUint32ToTagged(address);
   TNode<Number> expected_value_number = ChangeInt32ToTagged(expected_value);
   TNode<Number> timeout_number = ChangeFloat64ToTagged(timeout);
+  TNode<Object> context = LoadContextFromInstance(instance);
 
   TNode<Smi> result_smi = UncheckedCast<Smi>(
-      CallRuntime(Runtime::kWasmI32AtomicWait, NoContextConstant(), instance,
+      CallRuntime(Runtime::kWasmI32AtomicWait, context, instance,
                   address_number, expected_value_number, timeout_number));
   ReturnRaw(SmiToInt32(result_smi));
 }
@@ -119,11 +121,11 @@ TF_BUILTIN(WasmI64AtomicWait, WasmBuiltinsAssembler) {
   TNode<Number> expected_value_low_number =
       ChangeUint32ToTagged(expected_value_low);
   TNode<Number> timeout_number = ChangeFloat64ToTagged(timeout);
+  TNode<Object> context = LoadContextFromInstance(instance);
 
-  TNode<Smi> result_smi = UncheckedCast<Smi>(
-      CallRuntime(Runtime::kWasmI64AtomicWait, NoContextConstant(), instance,
-                  address_number, expected_value_high_number,
-                  expected_value_low_number, timeout_number));
+  TNode<Smi> result_smi = UncheckedCast<Smi>(CallRuntime(
+      Runtime::kWasmI64AtomicWait, context, instance, address_number,
+      expected_value_high_number, expected_value_low_number, timeout_number));
   ReturnRaw(SmiToInt32(result_smi));
 }
 
