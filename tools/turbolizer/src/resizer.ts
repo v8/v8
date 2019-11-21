@@ -74,8 +74,6 @@ export class Resizer {
   right: HTMLElement;
   sepLeft: number;
   sepRight: number;
-  sepLeftSnap: number;
-  sepRightSnap: number;
   panesUpdatedCallback: () => void;
   resizerRight: d3.Selection<HTMLDivElement, any, any, any>;
   resizerLeft: d3.Selection<HTMLDivElement, any, any, any>;
@@ -91,8 +89,6 @@ export class Resizer {
     resizer.right = document.getElementById(C.GENERATED_PANE_ID);
     resizer.resizerLeft = d3.select('#resizer-left');
     resizer.resizerRight = d3.select('#resizer-right');
-    resizer.sepLeftSnap = 0;
-    resizer.sepRightSnap = 0;
     // Set default sizes, if they weren't set.
     if (window.sessionStorage.getItem("source-pane-percent") === null) {
       window.sessionStorage.setItem("source-pane-percent", `${this.SOURCE_PANE_DEFAULT_PERCENT}`);
@@ -111,12 +107,14 @@ export class Resizer {
       })
       .on('start', function () {
         resizer.resizerLeft.classed("dragged", true);
-        const x = d3.mouse(this.parentElement)[0];
-        if (x > deadWidth) {
-          resizer.sepLeftSnap = resizer.sepLeft;
-        }
       })
       .on('end', function () {
+        // If the panel is close enough to the left, treat it as if it was pulled all the way to the lefg.
+        const x = d3.mouse(this.parentElement)[0];
+        if (x <= deadWidth) {
+          resizer.sepLeft = 0;
+          resizer.updatePanes();
+        }
         // Snap if dragged all the way to the left.
         resizer.resizerLeft.classed("snapped", resizer.sepLeft === 0);
         if (!resizer.isLeftSnapped()) {
@@ -135,16 +133,19 @@ export class Resizer {
       })
       .on('start', function () {
         resizer.resizerRight.classed("dragged", true);
-        const x = d3.mouse(this.parentElement)[0];
-        if (x < (document.body.getBoundingClientRect().width - deadWidth)) {
-          resizer.sepRightSnap = resizer.sepRight;
-        }
       })
       .on('end', function () {
+        // If the panel is close enough to the right, treat it as if it was pulled all the way to the right.
+        const x = d3.mouse(this.parentElement)[0];
+        const clientWidth = document.body.getBoundingClientRect().width;
+        if (x >= (clientWidth - deadWidth)) {
+          resizer.sepRight = clientWidth - 1;
+          resizer.updatePanes();
+        }
         // Snap if dragged all the way to the right.
-        resizer.resizerRight.classed("snapped", resizer.sepRight >= document.body.getBoundingClientRect().width - 1);
+        resizer.resizerRight.classed("snapped", resizer.sepRight >= clientWidth - 1);
         if (!resizer.isRightSnapped()) {
-          window.sessionStorage.setItem("disassembly-pane-percent", `${resizer.sepRight / document.body.getBoundingClientRect().width}`);
+          window.sessionStorage.setItem("disassembly-pane-percent", `${resizer.sepRight / clientWidth}`);
         }
         resizer.snapper.setDisassemblyExpanded(!resizer.isRightSnapped());
         resizer.resizerRight.classed("dragged", false);
