@@ -19,7 +19,9 @@ namespace {
 FrameStateFunctionInfo const* GetFunctionInfo(Node* checkpoint) {
   DCHECK_EQ(IrOpcode::kCheckpoint, checkpoint->opcode());
   Node* frame_state = NodeProperties::GetFrameStateInput(checkpoint);
-  return FrameStateInfoOf(frame_state->op()).function_info();
+  return frame_state->opcode() == IrOpcode::kFrameState
+             ? FrameStateInfoOf(frame_state->op()).function_info()
+             : nullptr;
 }
 
 // The given checkpoint is redundant if it is effect-wise dominated by another
@@ -35,6 +37,7 @@ FrameStateFunctionInfo const* GetFunctionInfo(Node* checkpoint) {
 // exists. See regress-9945-*.js and v8:9945.
 bool IsRedundantCheckpoint(Node* node) {
   FrameStateFunctionInfo const* function_info = GetFunctionInfo(node);
+  if (function_info == nullptr) return false;
   Node* effect = NodeProperties::GetEffectInput(node);
   while (effect->op()->HasProperty(Operator::kNoWrite) &&
          effect->op()->EffectInputCount() == 1) {
