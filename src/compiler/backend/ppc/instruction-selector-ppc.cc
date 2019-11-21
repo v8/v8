@@ -2424,6 +2424,10 @@ void InstructionSelector::VisitF64x2Le(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI64x2Neg(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitI64x2Add(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI64x2Sub(Node* node) { UNIMPLEMENTED(); }
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
