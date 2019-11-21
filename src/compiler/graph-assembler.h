@@ -163,12 +163,12 @@ class GraphAssemblerLabel {
   MachineRepresentation representations_[VarCount + 1];
 };
 
-class GraphAssembler {
+class V8_EXPORT_PRIVATE GraphAssembler {
  public:
   // Constructs a GraphAssembler. If {schedule} is not null, the graph assembler
   // will maintain the schedule as it updates blocks.
   GraphAssembler(JSGraph* jsgraph, Zone* zone, Schedule* schedule = nullptr);
-  ~GraphAssembler();
+  virtual ~GraphAssembler();
 
   void Reset(BasicBlock* block);
   void InitializeEffectControl(Node* effect, Node* control);
@@ -220,6 +220,10 @@ class GraphAssembler {
   JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DECL)
 #undef SINGLETON_CONST_DECL
 
+#define SINGLETON_CONST_TEST_DECL(Name) Node* Is##Name(Node* value);
+  JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_TEST_DECL)
+#undef SINGLETON_CONST_TEST_DECL
+
 #define PURE_UNOP_DECL(Name) Node* Name(Node* input);
   PURE_ASSEMBLER_MACH_UNOP_LIST(PURE_UNOP_DECL)
 #undef PURE_UNOP_DECL
@@ -253,6 +257,15 @@ class GraphAssembler {
   Node* StoreField(FieldAccess const&, Node* object, Node* value);
   Node* StoreElement(ElementAccess const&, Node* object, Node* index,
                      Node* value);
+  Node* StringLength(Node* string);
+  Node* ReferenceEqual(Node* lhs, Node* rhs);
+  Node* NumberMin(Node* lhs, Node* rhs);
+  Node* NumberMax(Node* lhs, Node* rhs);
+  Node* NumberLessThan(Node* lhs, Node* rhs);
+  Node* NumberAdd(Node* lhs, Node* rhs);
+  Node* StringSubstring(Node* string, Node* from, Node* to);
+
+  Node* TypeGuard(Type type, Node* value);
 
   Node* Store(StoreRepresentation rep, Node* object, Node* offset, Node* value);
   Node* Load(MachineType type, Node* object, Node* offset);
@@ -324,7 +337,7 @@ class GraphAssembler {
   Node* control() { return control_; }
   Node* effect() { return effect_; }
 
- private:
+ protected:
   class BasicBlockUpdater;
 
   template <typename... Vars>

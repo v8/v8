@@ -37,7 +37,7 @@ class JSCallReducerTest : public TypedGraphTest {
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph(), tick_counter());
 
-    JSCallReducer reducer(&graph_reducer, &jsgraph, broker(),
+    JSCallReducer reducer(&graph_reducer, &jsgraph, broker(), zone(),
                           JSCallReducer::kNoFlags, &deps_);
     return reducer.Reduce(node);
   }

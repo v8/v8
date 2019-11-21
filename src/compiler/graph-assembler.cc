@@ -399,6 +399,13 @@ Node* GraphAssembler::LoadFramePointer() {
 JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DEF)
 #undef SINGLETON_CONST_DEF
 
+#define SINGLETON_CONST_TEST_DEF(Name)              \
+  Node* GraphAssembler::Is##Name(Node* value) {     \
+    return ReferenceEqual(value, Name##Constant()); \
+  }
+JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_TEST_DEF)
+#undef SINGLETON_CONST_TEST_DEF
+
 #define PURE_UNOP_DEF(Name)                                     \
   Node* GraphAssembler::Name(Node* input) {                     \
     return AddNode(graph()->NewNode(machine()->Name(), input)); \
@@ -494,6 +501,40 @@ Node* GraphAssembler::StoreElement(ElementAccess const& access, Node* object,
                                    Node* index, Node* value) {
   return AddNode(graph()->NewNode(simplified()->StoreElement(access), object,
                                   index, value, effect(), control()));
+}
+
+Node* GraphAssembler::StringLength(Node* string) {
+  return AddNode(graph()->NewNode(simplified()->StringLength(), string));
+}
+
+Node* GraphAssembler::ReferenceEqual(Node* lhs, Node* rhs) {
+  return AddNode(graph()->NewNode(simplified()->ReferenceEqual(), lhs, rhs));
+}
+
+Node* GraphAssembler::NumberMin(Node* lhs, Node* rhs) {
+  return AddNode(graph()->NewNode(simplified()->NumberMin(), lhs, rhs));
+}
+
+Node* GraphAssembler::NumberMax(Node* lhs, Node* rhs) {
+  return AddNode(graph()->NewNode(simplified()->NumberMax(), lhs, rhs));
+}
+
+Node* GraphAssembler::NumberAdd(Node* lhs, Node* rhs) {
+  return AddNode(graph()->NewNode(simplified()->NumberAdd(), lhs, rhs));
+}
+
+Node* GraphAssembler::NumberLessThan(Node* lhs, Node* rhs) {
+  return AddNode(graph()->NewNode(simplified()->NumberLessThan(), lhs, rhs));
+}
+
+Node* GraphAssembler::StringSubstring(Node* string, Node* from, Node* to) {
+  return AddNode(graph()->NewNode(simplified()->StringSubstring(), string, from,
+                                  to, effect(), control()));
+}
+
+Node* GraphAssembler::TypeGuard(Type type, Node* value) {
+  return AddNode(
+      graph()->NewNode(common()->TypeGuard(type), value, effect(), control()));
 }
 
 Node* GraphAssembler::DebugBreak() {

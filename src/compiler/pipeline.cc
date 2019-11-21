@@ -1285,6 +1285,7 @@ struct InliningPhase {
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
     JSCallReducer call_reducer(&graph_reducer, data->jsgraph(), data->broker(),
+                               temp_zone,
                                data->info()->is_bailout_on_uninitialized()
                                    ? JSCallReducer::kBailoutOnUninitialized
                                    : JSCallReducer::kNoFlags,
