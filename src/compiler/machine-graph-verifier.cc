@@ -455,6 +455,7 @@ class MachineRepresentationChecker {
           case IrOpcode::kRoundInt32ToFloat32:
           case IrOpcode::kRoundUint32ToFloat32:
           case IrOpcode::kBitcastInt32ToFloat32:
+          case IrOpcode::kBitcastWord32ToWord64:
           case IrOpcode::kChangeInt32ToInt64:
           case IrOpcode::kChangeUint32ToUint64:
             MACHINE_UNOP_32_LIST(LABEL) { CheckValueInputForInt32Op(node, 0); }

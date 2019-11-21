@@ -1570,6 +1570,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitTryTruncateFloat32ToUint64(node);
     case IrOpcode::kTryTruncateFloat64ToUint64:
       return MarkAsWord64(node), VisitTryTruncateFloat64ToUint64(node);
+    case IrOpcode::kBitcastWord32ToWord64:
+      return MarkAsWord64(node), VisitBitcastWord32ToWord64(node);
     case IrOpcode::kChangeInt32ToInt64:
       return MarkAsWord64(node), VisitChangeInt32ToInt64(node);
     case IrOpcode::kChangeUint32ToUint64:
@@ -2436,6 +2438,10 @@ void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
 }
 
 void InstructionSelector::VisitUint64Mod(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
+  UNIMPLEMENTED();
+}
 
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   UNIMPLEMENTED();

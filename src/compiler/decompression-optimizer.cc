@@ -80,6 +80,7 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
     case IrOpcode::kUint32LessThanOrEqual:
     case IrOpcode::kWord32And:
     case IrOpcode::kWord32Equal:
+    case IrOpcode::kWord32Shl:
       DCHECK_EQ(node->op()->ValueInputCount(), 2);
       MaybeMarkAndQueueForRevisit(node->InputAt(0),
                                   State::kOnly32BitsObserved);  // value_0

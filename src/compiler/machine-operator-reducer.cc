@@ -632,6 +632,11 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.HasValue()) return ReplaceFloat64(FastI2D(m.Value()));
       break;
     }
+    case IrOpcode::kBitcastWord32ToWord64: {
+      Int32Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceInt64(m.Value());
+      break;
+    }
     case IrOpcode::kChangeInt32ToInt64: {
       Int32Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt64(m.Value());

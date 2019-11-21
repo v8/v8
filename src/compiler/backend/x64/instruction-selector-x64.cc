@@ -1225,6 +1225,12 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint64(Node* node) {
   Emit(kSSEFloat64ToUint64, output_count, outputs, 1, inputs);
 }
 
+void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
+  DCHECK(SmiValuesAre31Bits());
+  DCHECK(COMPRESS_POINTERS_BOOL);
+  EmitIdentity(node);
+}
+
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   X64OperandGenerator g(this);
   Node* const value = node->InputAt(0);

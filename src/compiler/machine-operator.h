@@ -385,6 +385,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* TryTruncateFloat32ToUint64();
   const Operator* TryTruncateFloat64ToUint64();
   const Operator* ChangeInt32ToFloat64();
+  const Operator* BitcastWord32ToWord64();
   const Operator* ChangeInt32ToInt64();
   const Operator* ChangeInt64ToFloat64();
   const Operator* ChangeUint32ToFloat64();

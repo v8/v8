@@ -25,6 +25,7 @@ class BasicBlock;
   V(BitcastFloat32ToInt32)               \
   V(BitcastFloat64ToInt64)               \
   V(BitcastInt32ToFloat32)               \
+  V(BitcastWord32ToWord64)               \
   V(BitcastInt64ToFloat64)               \
   V(ChangeFloat64ToInt32)                \
   V(ChangeFloat64ToInt64)                \
