@@ -40,11 +40,10 @@ namespace liftoff {
 //
 
 constexpr int32_t kInstanceOffset = 2 * kSystemPointerSize;
-constexpr int32_t kFirstStackSlotOffset = kInstanceOffset + kSystemPointerSize;
 constexpr int32_t kConstantStackSpace = 0;
 
 inline int GetStackSlotOffset(uint32_t offset) {
-  return kFirstStackSlotOffset + offset;
+  return kInstanceOffset + offset;
 }
 
 inline MemOperand GetStackSlot(uint32_t offset) {

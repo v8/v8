@@ -21,19 +21,17 @@ namespace wasm {
 namespace liftoff {
 
 // ebp-4 holds the stack marker, ebp-8 is the instance parameter, first stack
-// slot is located at ebp-16.
+// slot is located at ebp-8-offset.
 constexpr int32_t kConstantStackSpace = 8;
-constexpr int32_t kFirstStackSlotOffset =
-    kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
 
 inline Operand GetStackSlot(uint32_t offset) {
-  return Operand(ebp, -kFirstStackSlotOffset - offset);
+  return Operand(ebp, -kConstantStackSpace - offset);
 }
 
 inline MemOperand GetHalfStackSlot(uint32_t offset, RegPairHalf half) {
   int32_t half_offset =
       half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
-  return Operand(ebp, -kFirstStackSlotOffset - offset + half_offset);
+  return Operand(ebp, -kConstantStackSpace - offset + half_offset);
 }
 
 // TODO(clemensb): Make this a constexpr variable once Operand is constexpr.

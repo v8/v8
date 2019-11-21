@@ -45,7 +45,11 @@ class LiftoffAssembler : public TurboAssembler {
 
   // TODO(zhin): Temporary for migration from index to offset.
   inline static uint32_t GetStackOffsetFromIndex(uint32_t index) {
-    return index * LiftoffAssembler::kStackSlotSize;
+    // The idea of a stack offset changed from being relative to first stack
+    // offset (instance offset + kStackSlotSize), to being relative to instance
+    // offset. So the stack offset of a particular index needs to take into
+    // account the size of the first slot.
+    return (index + 1) * LiftoffAssembler::kStackSlotSize;
   }
 
   class VarState {

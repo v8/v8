@@ -40,13 +40,11 @@ namespace liftoff {
 //
 
 // fp-8 holds the stack marker, fp-16 is the instance parameter, first stack
-// slot is located at fp-24.
+// slot is located at fp-16-offset.
 constexpr int32_t kConstantStackSpace = 16;
-constexpr int32_t kFirstStackSlotOffset =
-    kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
 
 inline int GetStackSlotOffset(uint32_t offset) {
-  return kFirstStackSlotOffset + offset;
+  return kConstantStackSpace + offset;
 }
 
 inline MemOperand GetStackSlot(uint32_t offset) {

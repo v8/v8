@@ -44,13 +44,11 @@ constexpr int32_t kHighWordOffset = 4;
 #endif
 
 // fp-4 holds the stack marker, fp-8 is the instance parameter, first stack
-// slot is located at fp-16.
+// slot is located at fp-8-offset.
 constexpr int32_t kConstantStackSpace = 8;
-constexpr int32_t kFirstStackSlotOffset =
-    kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
 
 inline int GetStackSlotOffset(uint32_t offset) {
-  return kFirstStackSlotOffset + offset;
+  return kConstantStackSpace + offset;
 }
 
 inline MemOperand GetStackSlot(uint32_t offset) {
@@ -60,7 +58,7 @@ inline MemOperand GetStackSlot(uint32_t offset) {
 inline MemOperand GetHalfStackSlot(uint32_t offset, RegPairHalf half) {
   int32_t half_offset =
       half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
-  return MemOperand(fp, -kFirstStackSlotOffset - offset + half_offset);
+  return MemOperand(fp, -kConstantStackSpace - offset + half_offset);
 }
 
 inline MemOperand GetInstanceOperand() { return MemOperand(fp, -8); }

@@ -34,13 +34,11 @@ static_assert((kLiftoffAssemblerFpCacheRegs &
               "scratch registers must not be used as cache registers");
 
 // rbp-8 holds the stack marker, rbp-16 is the instance parameter, first stack
-// slot is located at rbp-24.
+// slot is located at rbp-16-offset.
 constexpr int32_t kConstantStackSpace = 16;
-constexpr int32_t kFirstStackSlotOffset =
-    kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
 
 inline Operand GetStackSlot(uint32_t offset) {
-  return Operand(rbp, -kFirstStackSlotOffset - offset);
+  return Operand(rbp, -kConstantStackSpace - offset);
 }
 
 // TODO(clemensb): Make this a constexpr variable once Operand is constexpr.

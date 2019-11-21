@@ -1292,7 +1292,7 @@ class LiftoffCompiler {
       case kStack: {
         auto rc = reg_class_for(imm.type);
         LiftoffRegister reg = __ GetUnusedRegister(rc);
-        __ Fill(reg, __ GetStackOffsetFromIndex(imm.index), imm.type);
+        __ Fill(reg, slot.offset(), imm.type);
         __ PushRegister(slot.type(), reg);
         break;
       }
@@ -1302,12 +1302,12 @@ class LiftoffCompiler {
   void LocalSetFromStackSlot(LiftoffAssembler::VarState* dst_slot,
                              uint32_t local_index) {
     auto& state = *__ cache_state();
+    auto& src_slot = state.stack_state.back();
     ValueType type = dst_slot->type();
     if (dst_slot->is_reg()) {
       LiftoffRegister slot_reg = dst_slot->reg();
       if (state.get_use_count(slot_reg) == 1) {
-        __ Fill(dst_slot->reg(),
-                __ GetStackOffsetFromIndex(state.stack_height() - 1), type);
+        __ Fill(dst_slot->reg(), src_slot.offset(), type);
         return;
       }
       state.dec_used(slot_reg);
@@ -1316,9 +1316,7 @@ class LiftoffCompiler {
     DCHECK_EQ(type, __ local_type(local_index));
     RegClass rc = reg_class_for(type);
     LiftoffRegister dst_reg = __ GetUnusedRegister(rc);
-    __ Fill(dst_reg,
-            __ GetStackOffsetFromIndex(__ cache_state()->stack_height() - 1),
-            type);
+    __ Fill(dst_reg, src_slot.offset(), type);
     *dst_slot = LiftoffAssembler::VarState(type, dst_reg, dst_slot->offset());
     __ cache_state()->inc_used(dst_reg);
   }

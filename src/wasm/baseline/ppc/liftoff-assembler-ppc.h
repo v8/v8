@@ -38,17 +38,15 @@ namespace liftoff {
 //
 
 constexpr int32_t kInstanceOffset = 2 * kSystemPointerSize;
-constexpr int32_t kFirstStackSlotOffset =
-    kInstanceOffset + 2 * kSystemPointerSize;
 
 inline int GetStackSlotOffset(uint32_t offset) {
-  return kFirstStackSlotOffset + offset;
+  return kInstanceOffset + offset;
 }
 
 inline MemOperand GetHalfStackSlot(uint32_t offset, RegPairHalf half) {
   int32_t half_offset =
       half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
-  return MemOperand(fp, -kFirstStackSlotOffset - offset + half_offset);
+  return MemOperand(fp, -kInstanceOffset - offset + half_offset);
 }
 
 }  // namespace liftoff

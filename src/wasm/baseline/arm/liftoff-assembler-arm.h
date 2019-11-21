@@ -38,8 +38,6 @@ namespace liftoff {
 static_assert(2 * kSystemPointerSize == LiftoffAssembler::kStackSlotSize,
               "Slot size should be twice the size of the 32 bit pointer.");
 constexpr int32_t kInstanceOffset = 2 * kSystemPointerSize;
-constexpr int32_t kFirstStackSlotOffset =
-    kInstanceOffset + 2 * kSystemPointerSize;
 constexpr int32_t kConstantStackSpace = kSystemPointerSize;
 // kPatchInstructionsRequired sets a maximum limit of how many instructions that
 // PatchPrepareStackFrame will use in order to increase the stack appropriately.
@@ -47,7 +45,7 @@ constexpr int32_t kConstantStackSpace = kSystemPointerSize;
 constexpr int32_t kPatchInstructionsRequired = 3;
 
 inline int GetStackSlotOffset(uint32_t offset) {
-  return kFirstStackSlotOffset + offset;
+  return kInstanceOffset + offset;
 }
 
 inline MemOperand GetStackSlot(uint32_t offset) {
@@ -57,7 +55,7 @@ inline MemOperand GetStackSlot(uint32_t offset) {
 inline MemOperand GetHalfStackSlot(uint32_t offset, RegPairHalf half) {
   int32_t half_offset =
       half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
-  return MemOperand(fp, -kFirstStackSlotOffset - offset + half_offset);
+  return MemOperand(fp, -kInstanceOffset - offset + half_offset);
 }
 
 inline MemOperand GetInstanceOperand() {
