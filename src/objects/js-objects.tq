@@ -11,8 +11,6 @@ extern class JSReceiver extends HeapObject {
 
 type Constructor extends JSReceiver;
 
-@abstract
-@dirtyInstantiatedAbstractClass
 @generateCppClass
 @apiExposedInstanceTypeValue(0x421)
 @highestInstanceTypeWithinParentClassRange
@@ -183,9 +181,9 @@ extern class JSAsyncFromSyncIterator extends JSObject {
 
 @generateCppClass
 extern class JSStringIterator extends JSObject {
-  // The [[IteratedString]] inobject property.
+  // The [[IteratedString]] slot.
   string: String;
-  // The [[StringIteratorNextIndex]] inobject property.
+  // The [[StringIteratorNextIndex]] slot.
   index: Smi;
 }
 

@@ -11,9 +11,7 @@ extern class Module extends HeapObject {
   exception: Object;
 }
 
-@abstract
 @generateCppClass
-@dirtyInstantiatedAbstractClass
 extern class JSModuleNamespace extends JSSpecialObject {
   module: Module;
 }

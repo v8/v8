@@ -8,8 +8,6 @@
 extern class Struct extends HeapObject {
 }
 
-@abstract
-@dirtyInstantiatedAbstractClass
 @generatePrint
 @generateCppClass
 extern class Tuple2 extends Struct {
@@ -17,8 +15,6 @@ extern class Tuple2 extends Struct {
   value2: Object;
 }
 
-@abstract
-@dirtyInstantiatedAbstractClass
 @generatePrint
 @generateCppClass
 extern class Tuple3 extends Struct {

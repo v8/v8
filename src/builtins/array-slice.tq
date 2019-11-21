@@ -93,31 +93,41 @@ namespace array {
     const count: Smi = Cast<Smi>(countNumber) otherwise Bailout;
     assert(start >= 0);
 
-    typeswitch (o) {
-      case (a: FastJSArrayForCopy): {
-        // It's possible to modify the array length from a valueOf
-        // callback between the original array length read and this
-        // point. That can change the length of the array backing store,
-        // in the worst case, making it smaller than the region that needs
-        // to be copied out. Therefore, re-check the length before calling
-        // the appropriate fast path. See regress-785804.js
-        if (SmiAbove(start + count, a.length)) goto Bailout;
-        return ExtractFastJSArray(context, a, start, count);
-      }
-      case (a: JSArgumentsObjectWithLength): {
-        const map: Map = a.map;
-        if (IsFastAliasedArgumentsMap(map)) {
-          return HandleFastAliasedSloppyArgumentsSlice(context, a, start, count)
-              otherwise Bailout;
-        } else if (IsStrictArgumentsMap(map) || IsSloppyArgumentsMap(map)) {
-          return HandleSimpleArgumentsSlice(context, a, start, count)
-              otherwise Bailout;
+    try {
+      typeswitch (o) {
+        case (a: FastJSArrayForCopy): {
+          // It's possible to modify the array length from a valueOf
+          // callback between the original array length read and this
+          // point. That can change the length of the array backing store,
+          // in the worst case, making it smaller than the region that needs
+          // to be copied out. Therefore, re-check the length before calling
+          // the appropriate fast path. See regress-785804.js
+          if (SmiAbove(start + count, a.length)) goto Bailout;
+          return ExtractFastJSArray(context, a, start, count);
+        }
+        case (a: JSStrictArgumentsObject): {
+          goto HandleSimpleArgumentsSlice(a);
+        }
+        case (a: JSSloppyArgumentsObject): {
+          const map: Map = a.map;
+          if (IsFastAliasedArgumentsMap(map)) {
+            return HandleFastAliasedSloppyArgumentsSlice(
+                context, a, start, count)
+                otherwise Bailout;
+          } else if (IsSloppyArgumentsMap(map)) {
+            goto HandleSimpleArgumentsSlice(a);
+          }
+          goto Bailout;
+        }
+        case (JSAny): {
+          goto Bailout;
         }
       }
-      case (JSAny): {
-      }
     }
-    goto Bailout;
+    label HandleSimpleArgumentsSlice(a: JSArgumentsObjectWithLength) {
+      return HandleSimpleArgumentsSlice(context, a, start, count)
+          otherwise Bailout;
+    }
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.slice

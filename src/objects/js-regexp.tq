@@ -24,8 +24,7 @@ RegExpBuiltinsAssembler::FastLoadLastIndex(FastJSRegExp): Smi;
 extern operator '.lastIndex=' macro
 RegExpBuiltinsAssembler::FastStoreLastIndex(FastJSRegExp, Smi): void;
 
-@hasSameInstanceTypeAsParent
-extern class JSRegExpResult extends JSArray {
+extern shape JSRegExpResult extends JSArray {
   // In-object properties:
   // The below fields are externally exposed.
   index: JSAny;
@@ -39,11 +38,8 @@ extern class JSRegExpResult extends JSArray {
   regexp_last_index: Smi;
 }
 
-@hasSameInstanceTypeAsParent
-extern class JSRegExpResultIndices extends JSArray {
+extern shape JSRegExpResultIndices extends JSArray {
   // In-object properties:
   // The groups field is externally exposed.
   groups: JSAny;
 }
-
-transient type FastJSRegExpResult extends JSRegExpResult;

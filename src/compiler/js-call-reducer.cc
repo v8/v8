@@ -3291,7 +3291,10 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
           // Ignore uses for arguments#length.
           STATIC_ASSERT(
               static_cast<int>(JSArray::kLengthOffset) ==
-              static_cast<int>(JSArgumentsObjectWithLength::kLengthOffset));
+              static_cast<int>(JSStrictArgumentsObject::kLengthOffset));
+          STATIC_ASSERT(
+              static_cast<int>(JSArray::kLengthOffset) ==
+              static_cast<int>(JSSloppyArgumentsObject::kLengthOffset));
           continue;
         } else if (access.offset == JSObject::kElementsOffset) {
           // Ignore safe uses for arguments#elements.

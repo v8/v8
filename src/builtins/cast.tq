@@ -443,10 +443,9 @@ Cast<JSRegExp>(o: HeapObject): JSRegExp
   goto CastError;
 }
 
-Cast<FastJSRegExpResult>(implicit context: Context)(o: HeapObject):
-    FastJSRegExpResult
+Cast<JSRegExpResult>(implicit context: Context)(o: HeapObject): JSRegExpResult
     labels CastError {
-  if (regexp::IsFastRegExpResult(o)) return %RawDownCast<FastJSRegExpResult>(o);
+  if (regexp::IsRegExpResult(o)) return %RawDownCast<JSRegExpResult>(o);
   goto CastError;
 }
 
@@ -468,19 +467,38 @@ Cast<JSPrimitiveWrapper>(o: HeapObject): JSPrimitiveWrapper
   goto CastError;
 }
 
+Cast<JSSloppyArgumentsObject>(implicit context: Context)(o: HeapObject):
+    JSSloppyArgumentsObject
+    labels CastError {
+  const map: Map = o.map;
+  if (IsFastAliasedArgumentsMap(map) || IsSloppyArgumentsMap(map) ||
+      IsSlowAliasedArgumentsMap(map)) {
+    return %RawDownCast<JSSloppyArgumentsObject>(o);
+  }
+  goto CastError;
+}
+
+Cast<JSStrictArgumentsObject>(implicit context: Context)(o: HeapObject):
+    JSStrictArgumentsObject
+    labels CastError {
+  const map: Map = o.map;
+  if (!IsStrictArgumentsMap(map)) goto CastError;
+  return %RawDownCast<JSStrictArgumentsObject>(o);
+}
+
 Cast<JSArgumentsObjectWithLength>(implicit context: Context)(o: HeapObject):
     JSArgumentsObjectWithLength
     labels CastError {
-  const map: Map = o.map;
-  try {
-    if (IsFastAliasedArgumentsMap(map)) goto True;
-    if (IsSloppyArgumentsMap(map)) goto True;
-    if (IsStrictArgumentsMap(map)) goto True;
-    if (IsSlowAliasedArgumentsMap(map)) goto True;
-    goto CastError;
-  }
-  label True {
-    return %RawDownCast<JSArgumentsObjectWithLength>(o);
+  typeswitch (o) {
+    case (o: JSStrictArgumentsObject): {
+      return o;
+    }
+    case (o: JSSloppyArgumentsObject): {
+      return o;
+    }
+    case (HeapObject): {
+      goto CastError;
+    }
   }
 }
 

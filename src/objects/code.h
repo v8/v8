@@ -836,7 +836,6 @@ class BytecodeArray : public FixedArrayBase {
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize,
                                 TORQUE_GENERATED_BYTECODE_ARRAY_FIELDS)
-  static constexpr int kHeaderSize = kSize;
 
   // InterpreterEntryTrampoline expects these fields to be next to each other
   // and writes a 16-bit value to reset them.

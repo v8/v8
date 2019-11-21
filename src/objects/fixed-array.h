@@ -374,7 +374,6 @@ class WeakArrayList : public HeapObject {
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_WEAK_ARRAY_LIST_FIELDS)
-  static constexpr int kHeaderSize = kSize;
 
   using BodyDescriptor = WeakArrayBodyDescriptor;
 

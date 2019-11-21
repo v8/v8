@@ -8,10 +8,7 @@ extern class JSProxy extends JSReceiver {
   handler: JSReceiver|Null;
 }
 
-// Just a starting shape for JSObject; properties can move after initialization.
-@noVerifier
-@hasSameInstanceTypeAsParent
-extern class JSProxyRevocableResult extends JSObject {
+extern shape JSProxyRevocableResult extends JSObject {
   proxy: JSAny;
   revoke: JSAny;
 }

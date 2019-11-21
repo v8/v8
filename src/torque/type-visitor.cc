@@ -189,6 +189,13 @@ const ClassType* TypeVisitor::ComputeType(
       Declarations::LookupTypeAlias(QualifiedName(decl->name->value));
   GlobalContext::RegisterClass(alias);
   DCHECK_EQ(*alias->delayed_, decl);
+  bool is_shape = decl->flags & ClassFlag::kIsShape;
+  if (is_shape && !(decl->flags & ClassFlag::kExtern)) {
+    ReportError("Shapes must be extern, add \"extern\" to the declaration.");
+  }
+  if (is_shape && decl->flags & ClassFlag::kUndefinedLayout) {
+    ReportError("Shapes need to define their layout.");
+  }
   if (decl->flags & ClassFlag::kExtern) {
     if (!decl->super) {
       ReportError("Extern class must extend another type.");
@@ -210,6 +217,18 @@ const ClassType* TypeVisitor::ComputeType(
     }
 
     std::string generates = decl->name->value;
+    if (is_shape) {
+      const ClassType* super_class = ClassType::DynamicCast(super_type);
+      if (!super_class ||
+          !super_class->IsSubtypeOf(TypeOracle::GetJSObjectType())) {
+        Error("Shapes need to extend a subclass of ",
+              *TypeOracle::GetJSObjectType())
+            .Throw();
+      }
+      // Shapes use their super class in CSA code since they have incomplete
+      // support for type-checks on the C++ side.
+      generates = super_class->name();
+    }
     if (decl->generates) {
       bool enforce_tnode_type = true;
       generates = ComputeGeneratesType(decl->generates, enforce_tnode_type);
@@ -309,6 +328,17 @@ void TypeVisitor::VisitClassFieldsAndMethods(
     CurrentSourcePosition::Scope position_activator(
         field_expression.name_and_type.type->pos);
     const Type* field_type = ComputeType(field_expression.name_and_type.type);
+    if (class_type->IsShape()) {
+      if (!field_type->IsSubtypeOf(TypeOracle::GetObjectType())) {
+        ReportError(
+            "in-object properties only support subtypes of Object, but "
+            "found type ",
+            *field_type);
+      }
+      if (field_expression.weak) {
+        ReportError("in-object properties cannot be weak");
+      }
+    }
     if (!(class_declaration->flags & ClassFlag::kExtern)) {
       if (!field_type->IsSubtypeOf(TypeOracle::GetObjectType())) {
         ReportError(

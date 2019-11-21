@@ -82,9 +82,7 @@ void PropagateInstanceTypeConstraints(InstanceTypeTree* root) {
   }
   const InstanceTypeConstraints& constraints =
       root->type->GetInstanceTypeConstraints();
-  if ((!root->type->IsAbstract() ||
-       root->type->IsInstantiatedAbstractClass()) &&
-      !root->type->HasSameInstanceTypeAsParent()) {
+  if (!root->type->IsAbstract() && !root->type->HasSameInstanceTypeAsParent()) {
     root->num_own_values = 1;
   }
   root->num_values += root->num_own_values;

@@ -16,10 +16,6 @@ struct DescriptorEntry {
   value: JSAny|Weak<Map>|AccessorInfo|AccessorPair|ClassPositions;
 }
 
-// We make this class abstract because kHeaderSize is a more natural name for
-// the part of the class before the variable-size array.
-@abstract
-@dirtyInstantiatedAbstractClass
 extern class DescriptorArray extends HeapObject {
   number_of_all_descriptors: uint16;
   number_of_descriptors: uint16;

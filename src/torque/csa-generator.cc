@@ -718,7 +718,7 @@ void CSAGenerator::EmitInstruction(
   stack->Push(offset_name);
 
   out_ << "    TNode<IntPtrT> " << offset_name << " = ca_.IntPtrConstant(";
-  out_ << field.aggregate->GetGeneratedTNodeTypeName() << "::k"
+  out_ << field.aggregate->name() << "::k"
        << CamelifyString(field.name_and_type.name) << "Offset";
   out_ << ");\n"
        << "    USE(" << stack->Top() << ");\n";

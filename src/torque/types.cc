@@ -454,8 +454,7 @@ std::string ClassType::ToExplicitString() const {
 }
 
 bool ClassType::AllowInstantiation() const {
-  return (!IsExtern() || nspace()->IsDefaultNamespace()) &&
-         (!IsAbstract() || IsInstantiatedAbstractClass());
+  return (!IsExtern() || nspace()->IsDefaultNamespace()) && !IsAbstract();
 }
 
 void ClassType::Finalize() const {
@@ -465,14 +464,6 @@ void ClassType::Finalize() const {
   if (parent()) {
     if (const ClassType* super_class = ClassType::DynamicCast(parent())) {
       if (super_class->HasIndexedField()) flags_ |= ClassFlag::kHasIndexedField;
-      if (!super_class->IsAbstract() && !HasSameInstanceTypeAsParent()) {
-        Error("Super class must either be abstract (annotate super class with ",
-              ANNOTATION_ABSTRACT,
-              ") or this class must have the same instance type as the super "
-              "class (annotate this class with ",
-              ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT, ").")
-            .Position(this->decl_->name->pos);
-      }
     }
   }
   TypeVisitor::VisitClassFieldsAndMethods(const_cast<ClassType*>(this),
@@ -549,6 +540,14 @@ void ClassType::GenerateAccessors() {
                                store_signature, store_body, base::nullopt,
                                false);
   }
+}
+
+bool ClassType::HasStaticSize() const {
+  if (IsShape()) return true;
+  if (IsSubtypeOf(TypeOracle::GetJSObjectType())) return false;
+  if (IsAbstract()) return false;
+  if (HasIndexedField()) return false;
+  return true;
 }
 
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {

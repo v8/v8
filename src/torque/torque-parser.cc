@@ -787,7 +787,6 @@ base::Optional<ParseResult> MakeClassDeclaration(
   AnnotationSet annotations(
       child_results,
       {ANNOTATION_GENERATE_PRINT, ANNOTATION_NO_VERIFIER, ANNOTATION_ABSTRACT,
-       ANNOTATION_INSTANTIATED_ABSTRACT_CLASS,
        ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT,
        ANNOTATION_GENERATE_CPP_CLASS,
        ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT,
@@ -801,9 +800,6 @@ base::Optional<ParseResult> MakeClassDeclaration(
   if (generate_verify) flags |= ClassFlag::kGenerateVerify;
   if (annotations.Contains(ANNOTATION_ABSTRACT)) {
     flags |= ClassFlag::kAbstract;
-  }
-  if (annotations.Contains(ANNOTATION_INSTANTIATED_ABSTRACT_CLASS)) {
-    flags |= ClassFlag::kInstantiatedAbstractClass;
   }
   if (annotations.Contains(ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT)) {
     flags |= ClassFlag::kHasSameInstanceTypeAsParent;
@@ -822,6 +818,14 @@ base::Optional<ParseResult> MakeClassDeclaration(
   if (is_extern) flags |= ClassFlag::kExtern;
   auto transient = child_results->NextAs<bool>();
   if (transient) flags |= ClassFlag::kTransient;
+  std::string kind = child_results->NextAs<Identifier*>()->value;
+  if (kind == "shape") {
+    flags |= ClassFlag::kIsShape;
+    flags |= ClassFlag::kTransient;
+    flags |= ClassFlag::kHasSameInstanceTypeAsParent;
+  } else {
+    DCHECK_EQ(kind, "class");
+  }
   auto name = child_results->NextAs<Identifier*>();
   if (!IsValidTypeName(name->value)) {
     NamingConventionError("Type", name, "UpperCamelCase");
@@ -2043,7 +2047,7 @@ struct TorqueGrammar : Grammar {
             &externalString, Token(";")},
            AsSingletonVector<Declaration*, MakeExternConstDeclaration>()),
       Rule({annotations, CheckIf(Token("extern")), CheckIf(Token("transient")),
-            Token("class"), &name,
+            OneOf({"class", "shape"}), &name,
             Optional<TypeExpression*>(Sequence({Token("extends"), &type})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),

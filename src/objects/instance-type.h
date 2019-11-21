@@ -219,9 +219,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(CachedTemplateObject, TUPLE3_TYPE)                     \
   V(CoverageInfo, FIXED_ARRAY_TYPE)                        \
   V(FixedArrayExact, FIXED_ARRAY_TYPE)                     \
-  V(JSArgumentsObjectWithLength, JS_ARGUMENTS_OBJECT_TYPE) \
-  V(JSRegExpResult, JS_ARRAY_TYPE)                         \
-  V(JSRegExpResultIndices, JS_ARRAY_TYPE)                  \
   V(PropertyDescriptorObject, FIXED_ARRAY_TYPE)
 
 #define INSTANCE_TYPE_CHECKERS_RANGE(V)           \

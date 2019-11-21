@@ -62,8 +62,6 @@ static const char* const GENERIC_TYPE_INSTANTIATION_NAMESPACE_STRING =
 static const char* const ANNOTATION_GENERATE_PRINT = "@generatePrint";
 static const char* const ANNOTATION_NO_VERIFIER = "@noVerifier";
 static const char* const ANNOTATION_ABSTRACT = "@abstract";
-static const char* const ANNOTATION_INSTANTIATED_ABSTRACT_CLASS =
-    "@dirtyInstantiatedAbstractClass";
 static const char* const ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT =
     "@hasSameInstanceTypeAsParent";
 static const char* const ANNOTATION_GENERATE_CPP_CLASS = "@generateCppClass";
@@ -100,7 +98,7 @@ enum class ClassFlag {
   kGenerateVerify = 1 << 2,
   kTransient = 1 << 3,
   kAbstract = 1 << 4,
-  kInstantiatedAbstractClass = 1 << 5,
+  kIsShape = 1 << 5,
   kHasSameInstanceTypeAsParent = 1 << 6,
   kGenerateCppClassDefinitions = 1 << 7,
   kHasIndexedField = 1 << 8,

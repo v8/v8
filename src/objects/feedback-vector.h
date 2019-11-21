@@ -314,8 +314,6 @@ class FeedbackVector : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_FEEDBACK_VECTOR_FIELDS)
 
-  static const int kHeaderSize = kSize;
-
   static_assert(kSize % kObjectAlignment == 0,
                 "Header must be padded for alignment");
   static const int kFeedbackSlotsOffset = kHeaderSize;

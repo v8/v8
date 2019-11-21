@@ -1432,7 +1432,7 @@ class JSStringIterator
   DECL_PRINTER(JSStringIterator)
   DECL_VERIFIER(JSStringIterator)
 
-  // [index]: The [[StringIteratorNextIndex]] inobject property.
+  // [index]: The [[StringIteratorNextIndex]] slot.
   inline int index() const;
   inline void set_index(int value);
 

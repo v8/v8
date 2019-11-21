@@ -70,10 +70,6 @@ DEF_GETTER(HeapObject, IsSloppyArgumentsElements, bool) {
   return IsFixedArrayExact(isolate);
 }
 
-DEF_GETTER(HeapObject, IsJSSloppyArgumentsObject, bool) {
-  return IsJSArgumentsObject(isolate);
-}
-
 DEF_GETTER(HeapObject, IsClassBoilerplate, bool) {
   return IsFixedArrayExact(isolate);
 }

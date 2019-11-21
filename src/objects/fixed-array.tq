@@ -7,11 +7,7 @@ extern class FixedArrayBase extends HeapObject {
   length: Smi;
 }
 
-@abstract
-@dirtyInstantiatedAbstractClass
-extern class FixedArray extends FixedArrayBase {
-  objects[length]: Object;
-}
+extern class FixedArray extends FixedArrayBase { objects[length]: Object; }
 
 type EmptyFixedArray extends FixedArray;
 
@@ -19,11 +15,7 @@ extern class FixedDoubleArray extends FixedArrayBase {
   floats[length]: float64;
 }
 
-@abstract
-@dirtyInstantiatedAbstractClass
-extern class WeakFixedArray extends HeapObject {
-  length: Smi;
-}
+extern class WeakFixedArray extends HeapObject { length: Smi; }
 
 extern class ByteArray extends FixedArrayBase {}
 

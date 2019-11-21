@@ -545,19 +545,18 @@ class ClassType final : public AggregateType {
   }
   bool ShouldGenerateVerify() const {
     return (flags_ & ClassFlag::kGenerateVerify || !IsExtern()) &&
-           !HasUndefinedLayout();
+           !HasUndefinedLayout() && !IsShape();
   }
   bool IsTransient() const override { return flags_ & ClassFlag::kTransient; }
   bool IsAbstract() const { return flags_ & ClassFlag::kAbstract; }
-  bool IsInstantiatedAbstractClass() const {
-    return flags_ & ClassFlag::kInstantiatedAbstractClass;
-  }
   bool HasSameInstanceTypeAsParent() const {
     return flags_ & ClassFlag::kHasSameInstanceTypeAsParent;
   }
   bool GenerateCppClassDefinitions() const {
     return flags_ & ClassFlag::kGenerateCppClassDefinitions || !IsExtern();
   }
+  bool IsShape() const { return flags_ & ClassFlag::kIsShape; }
+  bool HasStaticSize() const;
   bool HasIndexedField() const override;
   size_t size() const { return size_; }
   const ClassType* GetSuperClass() const {

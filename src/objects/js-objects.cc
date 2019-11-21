@@ -4590,7 +4590,7 @@ static bool ShouldConvertToFastElements(JSObject object,
     Object length = JSArray::cast(object).length();
     if (!length.IsSmi()) return false;
     *new_capacity = static_cast<uint32_t>(Smi::ToInt(length));
-  } else if (object.IsJSSloppyArgumentsObject()) {
+  } else if (object.IsJSArgumentsObject()) {
     return false;
   } else {
     *new_capacity = dictionary.max_number_key() + 1;

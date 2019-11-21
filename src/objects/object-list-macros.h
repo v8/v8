@@ -128,7 +128,6 @@ class ZoneForwardList;
   V(HeapNumber)                                \
   V(InternalizedString)                        \
   V(JSArgumentsObject)                         \
-  V(JSArgumentsObjectWithLength)               \
   V(JSArray)                                   \
   V(JSArrayBuffer)                             \
   V(JSArrayBufferView)                         \
@@ -161,12 +160,9 @@ class ZoneForwardList;
   V(JSProxy)                                   \
   V(JSReceiver)                                \
   V(JSRegExp)                                  \
-  V(JSRegExpResult)                            \
-  V(JSRegExpResultIndices)                     \
   V(JSRegExpStringIterator)                    \
   V(JSSet)                                     \
   V(JSSetIterator)                             \
-  V(JSSloppyArgumentsObject)                   \
   V(JSSpecialObject)                           \
   V(JSStringIterator)                          \
   V(JSTypedArray)                              \

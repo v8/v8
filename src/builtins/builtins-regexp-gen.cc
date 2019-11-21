@@ -103,7 +103,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
 
   // Finish result initialization.
 
-  TNode<JSRegExpResult> result = CAST(array);
+  TNode<JSRegExpResult> result = UncheckedCast<JSRegExpResult>(array);
 
   // Load undefined value once here to avoid multiple LoadRoots.
   TNode<Oddball> undefined_value = UncheckedCast<Oddball>(
@@ -788,9 +788,10 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp_Permissive(
                      if_isunmodified, if_ismodified);
 }
 
-void RegExpBuiltinsAssembler::BranchIfFastRegExpResult(
-    const TNode<Context> context, const TNode<Object> object,
-    Label* if_isunmodified, Label* if_ismodified) {
+void RegExpBuiltinsAssembler::BranchIfRegExpResult(const TNode<Context> context,
+                                                   const TNode<Object> object,
+                                                   Label* if_isunmodified,
+                                                   Label* if_ismodified) {
   // Could be a Smi.
   const TNode<Map> map = LoadReceiverMap(object);
 

@@ -168,9 +168,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   BIND(&if_arguments);
   {
     TNode<JSArgumentsObject> js_arguments = CAST(arguments_list);
-    // Try to extract the elements from an JSArgumentsObjectWithLength.
-    TNode<Object> length = LoadObjectField(
-        js_arguments, JSArgumentsObjectWithLength::kLengthOffset);
+    // Try to extract the elements from a JSArgumentsObject with standard map.
+    TNode<Object> length = LoadJSArgumentsObjectLength(context, js_arguments);
     TNode<FixedArrayBase> elements = LoadElements(js_arguments);
     TNode<Smi> elements_length = LoadFixedArrayBaseLength(elements);
     GotoIfNot(TaggedEqual(length, elements_length), &if_runtime);

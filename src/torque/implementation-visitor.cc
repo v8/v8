@@ -2865,13 +2865,19 @@ class FieldOffsetsGenerator {
 
   virtual void WriteField(const Field& f, const std::string& size_string) = 0;
   virtual void WriteMarker(const std::string& marker) = 0;
-  virtual void BeginPrivateOffsets() = 0;
 
   virtual ~FieldOffsetsGenerator() { CHECK(is_finished_); }
 
   void RecordOffsetFor(const Field& f) {
     CHECK(!is_finished_);
     UpdateSection(f);
+
+    // Emit kHeaderSize before any indexed field.
+    // TODO(tebbi): Generalize this code to work with multiple indexed fields.
+    if (f.index.has_value()) {
+      WriteMarker("kHeaderSize");
+    }
+
     // We don't know statically how much space an indexed field takes, so report
     // it as zero.
     std::string size_string = "0";
@@ -2880,14 +2886,6 @@ class FieldOffsetsGenerator {
       std::tie(field_size, size_string) = f.GetFieldSizeInformation();
     }
     WriteField(f, size_string);
-
-    // Offsets for anything after an indexed field are likely to cause
-    // confusion, because the indexed field itself takes up a variable amount of
-    // space. We could not emit them at all, but that might allow an inherited
-    // kSize to be accessible (and wrong), so we emit them as private.
-    if (f.index.has_value()) {
-      BeginPrivateOffsets();
-    }
   }
 
   void Finish() {
@@ -2901,20 +2899,14 @@ class FieldOffsetsGenerator {
       End(FieldSectionType::kStrongSection);
     }
     is_finished_ = true;
-    if (type_->IsSubtypeOf(TypeOracle::GetJSObjectType()) &&
-        !type_->HasSameInstanceTypeAsParent()) {
-      // TODO(tebbi): That's a minimal hack to be cleaned up soon:
-      // @hasSameInstanceTypeAsParent is usually used for classes describing a
-      // specific set of maps instead of a proper class with instance type. This
-      // will be replaced with a proper notion of "shape" in Torque.
+
+    // In the presence of indexed fields, we already emitted kHeaderSize before
+    // the indexed field.
+    if (!type_->IsShape() && !type_->HasIndexedField()) {
       WriteMarker("kHeaderSize");
-    } else {
-      if (type_->IsAbstract()) {
-        WriteMarker("kHeaderSize");
-      }
-      if (!type_->IsAbstract() || type_->IsInstantiatedAbstractClass()) {
-        WriteMarker("kSize");
-      }
+    }
+    if (type_->HasStaticSize()) {
+      WriteMarker("kSize");
     }
   }
 
@@ -2986,9 +2978,6 @@ class MacroFieldOffsetsGenerator : public FieldOffsetsGenerator {
   }
   void WriteMarker(const std::string& marker) override {
     out_ << "V(" << marker << ", 0) \\\n";
-  }
-  void BeginPrivateOffsets() override {
-    // Can't do anything meaningful here in the macro generator.
   }
 
  private:
@@ -3084,11 +3073,6 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
   void WriteMarker(const std::string& marker) override {
     hdr_ << "  static constexpr int " << marker << " = " << previous_field_end_
          << ";\n";
-  }
-  void BeginPrivateOffsets() override {
-    // The following section must re-establish public mode (currently done by
-    // GenerateClassConstructors).
-    hdr_ << " private:\n";
   }
 
  private:
@@ -3210,13 +3194,7 @@ void CppClassGenerator::GenerateClassConstructors() {
   inl_ << "template<class D, class P>\n";
   inl_ << "inline " << gen_name_T_ << "::" << gen_name_ << "(Address ptr)\n";
   inl_ << "  : P(ptr) {\n";
-  if (type_->IsInstantiatedAbstractClass()) {
-    // This is a hack to prevent wrong instance type checks.
-    inl_ << "  // Instance check omitted because class is annotated with "
-         << ANNOTATION_INSTANTIATED_ABSTRACT_CLASS << ".\n";
-  } else {
     inl_ << "  SLOW_DCHECK(this->Is" << name_ << "());\n";
-  }
   inl_ << "}\n";
 }
 
@@ -3687,12 +3665,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
       }
 
       // Second, verify that this object is what it claims to be.
-      if (type->IsInstantiatedAbstractClass()) {
-        cc_contents << "  // Instance type check skipped because\n";
-        cc_contents << "  // it is an instantiated abstract class.\n";
-      } else {
         cc_contents << "  CHECK(o.Is" << name << "());\n";
-      }
 
       // Third, verify its properties.
       for (auto f : type->fields()) {

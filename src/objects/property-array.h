@@ -55,7 +55,6 @@ class PropertyArray : public HeapObject {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_PROPERTY_ARRAY_FIELDS)
-  static const int kHeaderSize = kSize;
 
   // Garbage collection support.
   using BodyDescriptor = FlexibleBodyDescriptor<kHeaderSize>;

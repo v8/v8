@@ -39,13 +39,13 @@ namespace regexp {
     }
   }
 
-  extern macro RegExpBuiltinsAssembler::BranchIfFastRegExpResult(
+  extern macro RegExpBuiltinsAssembler::BranchIfRegExpResult(
       implicit context: Context)(Object): never labels IsUnmodified,
       IsModified;
 
   macro
-  IsFastRegExpResult(implicit context: Context)(execResult: HeapObject): bool {
-    BranchIfFastRegExpResult(execResult) otherwise return true, return false;
+  IsRegExpResult(implicit context: Context)(execResult: HeapObject): bool {
+    BranchIfRegExpResult(execResult) otherwise return true, return false;
   }
 
   transitioning macro RegExpPrototypeSearchBodySlow(implicit context: Context)(
@@ -74,7 +74,7 @@ namespace regexp {
     }
 
     // Return the index of the match.
-    const fastExecResult = Cast<FastJSRegExpResult>(execResult)
+    const fastExecResult = Cast<JSRegExpResult>(execResult)
         otherwise return GetProperty(execResult, 'index');
     return fastExecResult.index;
   }

@@ -116,9 +116,9 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   TNode<BoolT> IsFastRegExpNoPrototype(TNode<Context> context,
                                        TNode<Object> object, TNode<Map> map);
 
-  void BranchIfFastRegExpResult(const TNode<Context> context,
-                                const TNode<Object> object,
-                                Label* if_isunmodified, Label* if_ismodified);
+  void BranchIfRegExpResult(const TNode<Context> context,
+                            const TNode<Object> object, Label* if_isunmodified,
+                            Label* if_ismodified);
 
   TNode<String> FlagsGetter(TNode<Context> context, TNode<Object> regexp,
                             const bool is_fastpath);

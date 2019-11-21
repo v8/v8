@@ -1667,9 +1667,12 @@ TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
       [=] { return CAST(properties); });
 }
 
-TNode<Object> CodeStubAssembler::LoadJSArgumentsObjectWithLength(
-    SloppyTNode<JSArgumentsObjectWithLength> array) {
-  return LoadObjectField(array, JSArgumentsObjectWithLength::kLengthOffset);
+TNode<Object> CodeStubAssembler::LoadJSArgumentsObjectLength(
+    TNode<Context> context, TNode<JSArgumentsObject> array) {
+  CSA_ASSERT(this, IsJSArgumentsObjectWithLength(context, array));
+  constexpr int offset = JSStrictArgumentsObject::kLengthOffset;
+  STATIC_ASSERT(offset == JSSloppyArgumentsObject::kLengthOffset);
+  return LoadObjectField(array, offset);
 }
 
 TNode<Smi> CodeStubAssembler::LoadFastJSArrayLength(

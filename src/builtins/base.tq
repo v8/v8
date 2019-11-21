@@ -106,7 +106,6 @@ type string constexpr 'const char*';
 // The HashTable inheritance hierarchy doesn't actually look like this in C++
 // because it uses some class templates that we can't yet (and may never)
 // express in Torque, but this is the expected organization of instance types.
-@abstract @dirtyInstantiatedAbstractClass
 extern class HashTable extends FixedArray generates 'TNode<FixedArray>';
 extern class OrderedHashMap extends HashTable;
 extern class OrderedHashSet extends HashTable;
@@ -1230,7 +1229,10 @@ transitioning macro GetLengthProperty(implicit context: Context)(o: JSAny):
       case (a: JSArray): {
         return a.length;
       }
-      case (a: JSArgumentsObjectWithLength): {
+      case (a: JSStrictArgumentsObject): {
+        goto ToLength(a.length);
+      }
+      case (a: JSSloppyArgumentsObject): {
         goto ToLength(a.length);
       }
       case (JSAny): deferred {

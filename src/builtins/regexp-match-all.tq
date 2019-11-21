@@ -189,7 +189,7 @@ namespace regexp {
         assert(HasGlobalFlag(flags));
         if (isFastRegExp) {
           // i. Let matchStr be ? ToString(? Get(match, "0")).
-          const match = UnsafeCast<FastJSRegExpResult>(match);
+          const match = UnsafeCast<JSRegExpResult>(match);
           const resultFixedArray = UnsafeCast<FixedArray>(match.elements);
           const matchStr = UnsafeCast<String>(resultFixedArray.objects[0]);
 

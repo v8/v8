@@ -6,23 +6,24 @@
 extern class JSArgumentsObject extends JSObject {
 }
 
-// Just a starting shape for JSObject; properties can move after initialization.
-@noVerifier
-@hasSameInstanceTypeAsParent
-extern class JSArgumentsObjectWithLength extends JSArgumentsObject {
-  length: JSAny;
+type JSArgumentsObjectWithLength =
+    JSSloppyArgumentsObject|JSStrictArgumentsObject;
+
+@export
+macro IsJSArgumentsObjectWithLength(implicit context: Context)(o: Object):
+    bool {
+  return Is<JSArgumentsObjectWithLength>(o);
 }
 
 // Just a starting shape for JSObject; properties can move after initialization.
-@hasSameInstanceTypeAsParent
-extern class JSSloppyArgumentsObject extends JSArgumentsObjectWithLength {
+extern shape JSSloppyArgumentsObject extends JSArgumentsObject {
+  length: JSAny;
   callee: JSAny;
 }
 
 // Just a starting shape for JSObject; properties can move after initialization.
-@hasSameInstanceTypeAsParent
-@noVerifier
-extern class JSStrictArgumentsObject extends JSArgumentsObjectWithLength {
+extern shape JSStrictArgumentsObject extends JSArgumentsObject {
+  length: JSAny;
 }
 
 type SloppyArgumentsElements extends FixedArray;

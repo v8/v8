@@ -781,11 +781,12 @@ FieldAccess AccessBuilder::ForJSStringIteratorIndex() {
 
 // static
 FieldAccess AccessBuilder::ForArgumentsLength() {
-  FieldAccess access = {
-      kTaggedBase,         JSArgumentsObjectWithLength::kLengthOffset,
-      Handle<Name>(),      MaybeHandle<Map>(),
-      Type::NonInternal(), MachineType::AnyTagged(),
-      kFullWriteBarrier};
+  constexpr int offset = JSStrictArgumentsObject::kLengthOffset;
+  STATIC_ASSERT(offset == JSSloppyArgumentsObject::kLengthOffset);
+  FieldAccess access = {kTaggedBase,         offset,
+                        Handle<Name>(),      MaybeHandle<Map>(),
+                        Type::NonInternal(), MachineType::AnyTagged(),
+                        kFullWriteBarrier};
   return access;
 }
 
