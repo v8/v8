@@ -1486,12 +1486,29 @@ void Heap::EnsureFillerObjectAtTop() {
   }
 }
 
+Heap::DevToolsTraceEventScope::DevToolsTraceEventScope(Heap* heap,
+                                                       const char* event_name,
+                                                       const char* event_type)
+    : heap_(heap), event_name_(event_name) {
+  TRACE_EVENT_BEGIN2("devtools.timeline,v8", event_name_, "usedHeapSizeBefore",
+                     heap_->SizeOfObjects(), "type", event_type);
+}
+
+Heap::DevToolsTraceEventScope::~DevToolsTraceEventScope() {
+  TRACE_EVENT_END1("devtools.timeline,v8", event_name_, "usedHeapSizeAfter",
+                   heap_->SizeOfObjects());
+}
+
 bool Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
   const char* collector_reason = nullptr;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
   is_current_gc_forced_ = gc_callback_flags & v8::kGCCallbackFlagForced;
+
+  DevToolsTraceEventScope devtools_trace_event_scope(
+      this, IsYoungGenerationCollector(collector) ? "MinorGC" : "MajorGC",
+      GarbageCollectionReasonToString(gc_reason));
 
   if (!CanExpandOldGeneration(new_space()->Capacity() +
                               new_lo_space()->Size())) {
@@ -3334,6 +3351,9 @@ void Heap::FinalizeIncrementalMarkingIncrementally(
         "[IncrementalMarking] (%s).\n",
         Heap::GarbageCollectionReasonToString(gc_reason));
   }
+
+  DevToolsTraceEventScope devtools_trace_event_scope(
+      this, "MajorGC", "incremental finalization step");
 
   HistogramTimerScope incremental_marking_scope(
       isolate()->counters()->gc_incremental_marking_finalize());

@@ -1015,6 +1015,8 @@ void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
 void GlobalHandles::InvokeSecondPassPhantomCallbacksFromTask() {
   DCHECK(second_pass_callbacks_task_posted_);
   second_pass_callbacks_task_posted_ = false;
+  Heap::DevToolsTraceEventScope devtools_trace_event_scope(
+      isolate()->heap(), "MajorGC", "invoke weak phantom callbacks");
   TRACE_EVENT0("v8", "V8.GCPhantomHandleProcessingCallback");
   isolate()->heap()->CallGCPrologueCallbacks(
       GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
@@ -1141,6 +1143,8 @@ void GlobalHandles::InvokeOrScheduleSecondPassPhantomCallbacks(
     bool synchronous_second_pass) {
   if (!second_pass_callbacks_.empty()) {
     if (FLAG_optimize_for_size || FLAG_predictable || synchronous_second_pass) {
+      Heap::DevToolsTraceEventScope devtools_trace_event_scope(
+          isolate()->heap(), "MajorGC", "invoke weak phantom callbacks");
       isolate()->heap()->CallGCPrologueCallbacks(
           GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
       InvokeSecondPassPhantomCallbacks();
