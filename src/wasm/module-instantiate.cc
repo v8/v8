@@ -671,7 +671,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
                          segment.source.offset();
       memory_copy_wrapper(dest_addr, src_addr, size);
       if (!ok) {
-        thrower_->LinkError("data segment is out of bounds");
+        thrower_->RuntimeError("data segment is out of bounds");
         return;
       }
     } else {
@@ -1713,7 +1713,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
         table_index, elem_segment, dst, src, count);
     if (enabled_.bulk_memory) {
       if (!success) {
-        thrower_->LinkError("table initializer is out of bounds");
+        thrower_->RuntimeError("table initializer is out of bounds");
         // Break out instead of returning; we don't want to continue to
         // initialize any further element segments, but still need to add
         // dispatch tables below.

@@ -295,7 +295,7 @@ WASM_EXEC_TEST(MemoryFillOutOfBoundsData) {
       kExprI32Const, 0);
   const byte v = 123;
   CHECK_EQ(0xDEADBEEF, r.Call(kWasmPageSize - 5, v, 999));
-  CheckMemoryEquals(&r.builder(), kWasmPageSize - 6, {0, v, v, v, v, v});
+  CheckMemoryEquals(&r.builder(), kWasmPageSize - 6, {0, 0, 0, 0, 0, 0});
 }
 
 WASM_EXEC_TEST(MemoryFillOutOfBounds) {
@@ -870,14 +870,16 @@ WASM_EXEC_TEST(ElemDropTwice) {
 
 WASM_EXEC_TEST(ElemDropThenTableInit) {
   EXPERIMENTAL_FLAG_SCOPE(bulk_memory);
-  WasmRunner<uint32_t> r(execution_tier);
+  WasmRunner<uint32_t, uint32_t> r(execution_tier);
   r.builder().AddIndirectFunctionTable(nullptr, 1);
   r.builder().AddPassiveElementSegment({});
-  BUILD(r, WASM_ELEM_DROP(0),
-        WASM_TABLE_INIT(0, 0, WASM_I32V_1(0), WASM_I32V_1(0), WASM_I32V_1(0)),
-        kExprI32Const, 0);
+  BUILD(
+      r, WASM_ELEM_DROP(0),
+      WASM_TABLE_INIT(0, 0, WASM_I32V_1(0), WASM_I32V_1(0), WASM_GET_LOCAL(0)),
+      kExprI32Const, 0);
 
-  r.CheckCallViaJS(0xDEADBEEF);
+  r.CheckCallViaJS(0, 0);
+  r.CheckCallViaJS(0xDEADBEEF, 1);
 }
 
 }  // namespace test_run_wasm_bulk_memory

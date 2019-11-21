@@ -4835,7 +4835,6 @@ Node* WasmGraphBuilder::CheckDataSegmentIsPassiveAndNotDropped(
 Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
                                    Node* src, Node* size,
                                    wasm::WasmCodePosition position) {
-  CheckDataSegmentIsPassiveAndNotDropped(data_segment_index, position);
   auto m = mcgraph()->machine();
   auto common = mcgraph()->common();
   Node* size_null_check =
@@ -4847,6 +4846,7 @@ Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
   Node* size_null_if_false =
       graph()->NewNode(common->IfFalse(), size_null_branch);
   SetControl(size_null_if_false);
+  CheckDataSegmentIsPassiveAndNotDropped(data_segment_index, position);
 
   Node* dst_fail = BoundsCheckMemRange(&dst, &size, position);
   TrapIfTrue(wasm::kTrapMemOutOfBounds, dst_fail, position);
@@ -4965,13 +4965,13 @@ Node* WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,
       graph()->NewNode(common->IfFalse(), size_null_branch);
   SetControl(size_null_if_false);
   Node* fail = BoundsCheckMemRange(&dst, &size, position);
+  TrapIfTrue(wasm::kTrapMemOutOfBounds, fail, position);
   Node* function = graph()->NewNode(mcgraph()->common()->ExternalConstant(
       ExternalReference::wasm_memory_fill()));
   MachineType sig_types[] = {MachineType::Pointer(), MachineType::Uint32(),
                              MachineType::Uint32()};
   MachineSignature sig(0, 3, sig_types);
   BuildCCall(&sig, function, dst, value, size);
-  TrapIfTrue(wasm::kTrapMemOutOfBounds, fail, position);
   Node* size_null_if_true =
       graph()->NewNode(common->IfTrue(), size_null_branch);
 
@@ -5001,6 +5001,18 @@ Node* WasmGraphBuilder::TableInit(uint32_t table_index,
                                   uint32_t elem_segment_index, Node* dst,
                                   Node* src, Node* size,
                                   wasm::WasmCodePosition position) {
+  auto machine = mcgraph()->machine();
+  auto common = mcgraph()->common();
+  // If size == 0, then table.init is a no-op.
+  Node* size_zero_check = graph()->NewNode(machine->Word32Equal(), size,
+                                           mcgraph()->Int32Constant(0));
+  Node* size_zero_branch = graph()->NewNode(common->Branch(BranchHint::kFalse),
+                                            size_zero_check, Control());
+
+  Node* size_zero_etrue = Effect();
+  Node* size_zero_if_false =
+      graph()->NewNode(common->IfFalse(), size_zero_branch);
+  SetControl(size_zero_if_false);
   CheckElemSegmentIsPassiveAndNotDropped(elem_segment_index, position);
   Node* args[] = {
       graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)),
@@ -5008,10 +5020,15 @@ Node* WasmGraphBuilder::TableInit(uint32_t table_index,
       BuildConvertUint32ToSmiWithSaturation(dst, FLAG_wasm_max_table_size),
       BuildConvertUint32ToSmiWithSaturation(src, FLAG_wasm_max_table_size),
       BuildConvertUint32ToSmiWithSaturation(size, FLAG_wasm_max_table_size)};
-  Node* result =
-      BuildCallToRuntime(Runtime::kWasmTableInit, args, arraysize(args));
+  BuildCallToRuntime(Runtime::kWasmTableInit, args, arraysize(args));
+  Node* size_zero_if_true =
+      graph()->NewNode(common->IfTrue(), size_zero_branch);
 
-  return result;
+  Node* merge = SetControl(
+      graph()->NewNode(common->Merge(2), size_zero_if_true, Control()));
+  SetEffect(
+      graph()->NewNode(common->EffectPhi(2), size_zero_etrue, Effect(), merge));
+  return merge;
 }
 
 Node* WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,

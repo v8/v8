@@ -1792,15 +1792,15 @@ class ThreadImpl {
         MemoryInitImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
         DCHECK_LT(imm.data_segment_index, module()->num_declared_data_segments);
         *len += imm.length;
-        if (!CheckDataSegmentIsPassiveAndNotDropped(imm.data_segment_index,
-                                                    pc)) {
-          return false;
-        }
         auto size = Pop().to<uint32_t>();
         auto src = Pop().to<uint32_t>();
         auto dst = Pop().to<uint32_t>();
         if (size == 0) {
           return true;
+        }
+        if (!CheckDataSegmentIsPassiveAndNotDropped(imm.data_segment_index,
+                                                    pc)) {
+          return false;
         }
         Address dst_addr;
         auto src_max =
@@ -1857,20 +1857,26 @@ class ThreadImpl {
         }
         Address dst_addr;
         bool ok = BoundsCheckMemRange(dst, &size, &dst_addr);
+        if (!ok) {
+          DoTrap(kTrapMemOutOfBounds, pc);
+          return false;
+        }
         memory_fill_wrapper(dst_addr, value, size);
-        if (!ok) DoTrap(kTrapMemOutOfBounds, pc);
-        return ok;
+        return true;
       }
       case kExprTableInit: {
         TableInitImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
         *len += imm.length;
+        auto size = Pop().to<uint32_t>();
+        auto src = Pop().to<uint32_t>();
+        auto dst = Pop().to<uint32_t>();
+        if (size == 0) {
+          return true;
+        }
         if (!CheckElemSegmentIsPassiveAndNotDropped(imm.elem_segment_index,
                                                     pc)) {
           return false;
         }
-        auto size = Pop().to<uint32_t>();
-        auto src = Pop().to<uint32_t>();
-        auto dst = Pop().to<uint32_t>();
         HandleScope scope(isolate_);  // Avoid leaking handles.
         bool ok = WasmInstanceObject::InitTableEntries(
             instance_object_->GetIsolate(), instance_object_, imm.table.index,
