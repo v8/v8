@@ -300,8 +300,7 @@ class BlockBindings {
 };
 
 struct LocalValue {
-  bool is_const;
-  VisitResult value;
+  LocationReference value;
 };
 
 struct LocalLabel {
@@ -321,7 +320,9 @@ template <>
 inline bool Binding<LocalValue>::CheckWritten() const {
   // Do the check only for non-const variables and non struct types.
   auto binding = *manager_->current_bindings_[name_];
-  return !binding->is_const && !binding->value.type()->IsStructType();
+  const LocationReference& ref = binding->value;
+  if (!ref.IsVariableAccess()) return false;
+  return !ref.GetVisitResult().type()->IsStructType();
 }
 template <>
 inline std::string Binding<LocalLabel>::BindingTypeString() const {

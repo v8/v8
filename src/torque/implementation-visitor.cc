@@ -180,9 +180,8 @@ VisitResult ImplementationVisitor::InlineMacro(
   // than read operations.
   if (this_reference) {
     DCHECK(macro->IsMethod());
-    LocalValue this_value = LocalValue{!this_reference->IsVariableAccess(),
-                                       this_reference->GetVisitResult()};
-    parameter_bindings.Add(kThisParameterName, this_value, true);
+    parameter_bindings.Add(kThisParameterName, LocalValue{*this_reference},
+                           true);
   }
 
   size_t i = 0;
@@ -190,7 +189,10 @@ VisitResult ImplementationVisitor::InlineMacro(
     if (this_reference && i == signature.implicit_count) i++;
     const bool mark_as_used = signature.implicit_count > i;
     const Identifier* name = macro->parameter_names()[i++];
-    parameter_bindings.Add(name, LocalValue{true, arg}, mark_as_used);
+    parameter_bindings.Add(name,
+                           LocalValue{LocationReference::Temporary(
+                               arg, "parameter " + name->value)},
+                           mark_as_used);
   }
 
   DCHECK_EQ(label_blocks.size(), signature.labels.size());
@@ -391,8 +393,11 @@ std::string AddParameter(size_t i, Builtin* builtin,
   std::string external_name = "parameter" + std::to_string(i);
   parameters->Push(external_name);
   StackRange range = parameter_types->PushMany(LowerType(type));
-  parameter_bindings->Add(name, LocalValue{true, VisitResult(type, range)},
-                          mark_as_used);
+  parameter_bindings->Add(
+      name,
+      LocalValue{LocationReference::Temporary(VisitResult(type, range),
+                                              "parameter " + name->value)},
+      mark_as_used);
   return external_name;
 }
 
@@ -442,9 +447,11 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
       parameters.Push("torque_arguments.length");
       const Type* arguments_type = TypeOracle::GetArgumentsType();
       StackRange range = parameter_types.PushMany(LowerType(arguments_type));
-      parameter_bindings.Add(
-          *signature.arguments_variable,
-          LocalValue{true, VisitResult(arguments_type, range)}, true);
+      parameter_bindings.Add(*signature.arguments_variable,
+                             LocalValue{LocationReference::Temporary(
+                                 VisitResult(arguments_type, range),
+                                 "parameter " + *signature.arguments_variable)},
+                             true);
     }
 
     for (size_t i = 0; i < signature.implicit_count; ++i) {
@@ -597,8 +604,11 @@ const Type* ImplementationVisitor::Visit(
     init_result =
         VisitResult(*type, assembler().TopRange(lowered_types.size()));
   }
-  block_bindings->Add(stmt->name,
-                      LocalValue{stmt->const_qualified, *init_result});
+  LocationReference ref = stmt->const_qualified
+                              ? LocationReference::Temporary(
+                                    *init_result, "const " + stmt->name->value)
+                              : LocationReference::VariableAccess(*init_result);
+  block_bindings->Add(stmt->name, LocalValue{std::move(ref)});
   return TypeOracle::GetVoidType();
 }
 
@@ -1145,8 +1155,10 @@ VisitResult ImplementationVisitor::Visit(TryLabelExpression* expr) {
   {
     BlockBindings<LocalValue> parameter_bindings(&ValueBindingsManager::Get());
     for (size_t i = 0; i < parameter_count; ++i) {
-      parameter_bindings.Add(expr->label_block->parameters.names[i],
-                             LocalValue{true, parameters[i]});
+      Identifier* name = expr->label_block->parameters.names[i];
+      parameter_bindings.Add(name,
+                             LocalValue{LocationReference::Temporary(
+                                 parameters[i], "parameter " + name->value)});
     }
 
     label_result = Visit(expr->label_block->body);
@@ -1930,8 +1942,12 @@ LocationReference ImplementationVisitor::GetLocationReference(
     const AggregateType* slice_type =
         AggregateType::cast(reference.heap_slice().type());
     Method* method = LookupMethod("AtIndex", slice_type, arguments, {});
+    // The reference has to be treated like a normal value when calling methods
+    // on the underlying slice implementation.
+    LocationReference slice_value = LocationReference::Temporary(
+        reference.GetVisitResult(), "slice as value");
     return LocationReference::HeapReference(
-        GenerateCall(method, reference, arguments, {}, false));
+        GenerateCall(method, std::move(slice_value), arguments, {}, false));
   } else {
     return LocationReference::ArrayAccess(GenerateFetchFromLocation(reference),
                                           index);
@@ -1951,11 +1967,12 @@ LocationReference ImplementationVisitor::GetLocationReference(
         ReportError("cannot have generic parameters on local name ",
                     expr->name);
       }
-      if ((*value)->is_const) {
-        return LocationReference::Temporary(
-            (*value)->value, "constant value " + expr->name->value);
+      const LocationReference& ref = (*value)->value;
+      if (ref.IsVariableAccess()) {
+        // Attach the binding to enable the never-assigned-to lint check.
+        return LocationReference::VariableAccess(ref.GetVisitResult(), *value);
       }
-      return LocationReference::VariableAccess((*value)->value, *value);
+      return ref;
     }
   }
 
@@ -2165,14 +2182,9 @@ VisitResult ImplementationVisitor::GenerateCall(
     }
   }
 
-  std::vector<VisitResult> converted_arguments;
-  StackRange argument_range = assembler().TopRange(0);
-  std::vector<std::string> constexpr_arguments;
-
-  size_t current = 0;
-  for (; current < callable->signature().implicit_count; ++current) {
-    std::string implicit_name =
-        callable->signature().parameter_names[current]->value;
+  std::vector<VisitResult> implicit_arguments;
+  for (size_t i = 0; i < callable->signature().implicit_count; ++i) {
+    std::string implicit_name = callable->signature().parameter_names[i]->value;
     base::Optional<Binding<LocalValue>*> val =
         TryLookupLocalValue(implicit_name);
     if (!val) {
@@ -2180,7 +2192,16 @@ VisitResult ImplementationVisitor::GenerateCall(
                   "' required for call to '", callable->ReadableName(),
                   "' is not defined");
     }
-    AddCallParameter(callable, (*val)->value,
+    implicit_arguments.push_back(GenerateFetchFromLocation((*val)->value));
+  }
+
+  std::vector<VisitResult> converted_arguments;
+  StackRange argument_range = assembler().TopRange(0);
+  std::vector<std::string> constexpr_arguments;
+
+  size_t current = 0;
+  for (; current < callable->signature().implicit_count; ++current) {
+    AddCallParameter(callable, implicit_arguments[current],
                      callable->signature().parameter_types.types[current],
                      &converted_arguments, &argument_range,
                      &constexpr_arguments);
