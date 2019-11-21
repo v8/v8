@@ -116,6 +116,12 @@ class _Driver(object):
     # these files didn't exist. Or for bots that don't produce these files.
     self.push_file(
         shell_dir,
+        'natives_blob.bin',
+        target_dir,
+        skip_if_missing=True,
+    )
+    self.push_file(
+        shell_dir,
         'snapshot_blob.bin',
         target_dir,
         skip_if_missing=True,
