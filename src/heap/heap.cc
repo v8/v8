@@ -2505,8 +2505,8 @@ void Heap::ExternalStringTable::UpdateYoungReferences(
     Heap::ExternalStringTableUpdaterCallback updater_func) {
   if (young_strings_.empty()) return;
 
-  FullObjectSlot start(&young_strings_[0]);
-  FullObjectSlot end(&young_strings_[young_strings_.size()]);
+  FullObjectSlot start(young_strings_.data());
+  FullObjectSlot end(young_strings_.data() + young_strings_.size());
   FullObjectSlot last = start;
 
   for (FullObjectSlot p = start; p < end; ++p) {
