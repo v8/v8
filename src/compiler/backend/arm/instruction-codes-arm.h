@@ -296,6 +296,16 @@ namespace compiler {
   V(ArmS1x8AllTrue)                \
   V(ArmS1x16AnyTrue)               \
   V(ArmS1x16AllTrue)               \
+  V(ArmS8x16LoadSplat)             \
+  V(ArmS16x8LoadSplat)             \
+  V(ArmS32x4LoadSplat)             \
+  V(ArmS64x2LoadSplat)             \
+  V(ArmI16x8Load8x8S)              \
+  V(ArmI16x8Load8x8U)              \
+  V(ArmI32x4Load16x4S)             \
+  V(ArmI32x4Load16x4U)             \
+  V(ArmI64x2Load32x2S)             \
+  V(ArmI64x2Load32x2U)             \
   V(ArmWord32AtomicPairLoad)       \
   V(ArmWord32AtomicPairStore)      \
   V(ArmWord32AtomicPairAdd)        \

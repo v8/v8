@@ -839,6 +839,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // All these APIs support D0 to D31 and Q0 to Q15.
   void vld1(NeonSize size, const NeonListOperand& dst,
             const NeonMemOperand& src);
+  void vld1r(NeonSize size, const NeonListOperand& dst,
+             const NeonMemOperand& src);
   void vst1(NeonSize size, const NeonListOperand& src,
             const NeonMemOperand& dst);
   // dt represents the narrower type

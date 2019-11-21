@@ -3663,6 +3663,17 @@ void Assembler::vld1(NeonSize size, const NeonListOperand& dst,
        src.rm().code());
 }
 
+// vld1r(eplicate)
+void Assembler::vld1r(NeonSize size, const NeonListOperand& dst,
+                      const NeonMemOperand& src) {
+  DCHECK(IsEnabled(NEON));
+  int vd, d;
+  dst.base().split_code(&vd, &d);
+  emit(0xFU * B28 | 4 * B24 | 1 * B23 | d * B22 | 2 * B20 |
+       src.rn().code() * B16 | vd * B12 | 0xC * B8 | size * B6 |
+       dst.length() * B5 | src.rm().code());
+}
+
 void Assembler::vst1(NeonSize size, const NeonListOperand& src,
                      const NeonMemOperand& dst) {
   // Instruction details available in ARM DDI 0406C.b, A8.8.404.

@@ -5556,6 +5556,63 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         UNIMPLEMENTED();
       }
       break;
+    case 9: {
+      if (instr->Bits(21, 20) == 2) {
+        // Bits(11, 8) is the B field in A7.7 Advanced SIMD element or structure
+        // load/store instructions.
+        if (instr->Bits(11, 8) == 0xC) {
+          // vld1 (single element to all lanes).
+          DCHECK_EQ(instr->Bits(11, 8), 0b1100);  // Type field.
+          int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+          int Rn = instr->VnValue();
+          int Rm = instr->VmValue();
+          int32_t address = get_register(Rn);
+          int regs = instr->Bit(5) + 1;
+          int size = instr->Bits(7, 6);
+          uint32_t q_data[4];
+          switch (size) {
+            case Neon8: {
+              uint8_t data = ReadBU(address);
+              uint8_t* dst = reinterpret_cast<uint8_t*>(q_data);
+              for (int i = 0; i < 16; i++) {
+                dst[i] = data;
+              }
+              break;
+            }
+            case Neon16: {
+              uint16_t data = ReadHU(address);
+              uint16_t* dst = reinterpret_cast<uint16_t*>(q_data);
+              for (int i = 0; i < 8; i++) {
+                dst[i] = data;
+              }
+              break;
+            }
+            case Neon32: {
+              uint32_t data = ReadW(address);
+              for (int i = 0; i < 4; i++) {
+                q_data[i] = data;
+              }
+              break;
+            }
+          }
+          for (int r = 0; r < regs; r++) {
+            set_neon_register(Vd + r, q_data);
+          }
+          if (Rm != 15) {
+            if (Rm == 13) {
+              set_register(Rn, address);
+            } else {
+              set_register(Rn, get_register(Rn) + get_register(Rm));
+            }
+          }
+        } else {
+          UNIMPLEMENTED();
+        }
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    }
     case 0xA:
     case 0xB:
       if ((instr->Bits(22, 20) == 5) && (instr->Bits(15, 12) == 0xF)) {

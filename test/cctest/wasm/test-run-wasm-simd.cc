@@ -3264,7 +3264,7 @@ WASM_SIMD_TEST(SimdLoadStoreLoadMemargOffset) {
   }
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
 template <typename T>
 void RunLoadSplatTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode op) {
@@ -3354,7 +3354,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2Load32x2S) {
   RunLoadExtendTest<int32_t, int64_t>(execution_tier, lower_simd,
                                       kExprI64x2Load32x2S);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
     V8_TARGET_ARCH_ARM

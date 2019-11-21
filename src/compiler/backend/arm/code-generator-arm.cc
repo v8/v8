@@ -2957,6 +2957,63 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mov(i.OutputRegister(), Operand(1), LeaveCC, ne);
       break;
     }
+    case kArmS8x16LoadSplat: {
+      __ vld1r(Neon8, NeonListOperand(i.OutputSimd128Register()),
+               i.NeonInputOperand(0));
+      break;
+    }
+    case kArmS16x8LoadSplat: {
+      __ vld1r(Neon16, NeonListOperand(i.OutputSimd128Register()),
+               i.NeonInputOperand(0));
+      break;
+    }
+    case kArmS32x4LoadSplat: {
+      __ vld1r(Neon32, NeonListOperand(i.OutputSimd128Register()),
+               i.NeonInputOperand(0));
+      break;
+    }
+    case kArmS64x2LoadSplat: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vld1(Neon32, NeonListOperand(dst.low()), i.NeonInputOperand(0));
+      __ Move(dst.high(), dst.low());
+      break;
+    }
+    case kArmI16x8Load8x8S: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vld1(Neon8, NeonListOperand(dst.low()), i.NeonInputOperand(0));
+      __ vmovl(NeonS8, dst, dst.low());
+      break;
+    }
+    case kArmI16x8Load8x8U: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vld1(Neon8, NeonListOperand(dst.low()), i.NeonInputOperand(0));
+      __ vmovl(NeonU8, dst, dst.low());
+      break;
+    }
+    case kArmI32x4Load16x4S: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vld1(Neon16, NeonListOperand(dst.low()), i.NeonInputOperand(0));
+      __ vmovl(NeonS16, dst, dst.low());
+      break;
+    }
+    case kArmI32x4Load16x4U: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vld1(Neon16, NeonListOperand(dst.low()), i.NeonInputOperand(0));
+      __ vmovl(NeonU16, dst, dst.low());
+      break;
+    }
+    case kArmI64x2Load32x2S: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vld1(Neon32, NeonListOperand(dst.low()), i.NeonInputOperand(0));
+      __ vmovl(NeonS32, dst, dst.low());
+      break;
+    }
+    case kArmI64x2Load32x2U: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vld1(Neon32, NeonListOperand(dst.low()), i.NeonInputOperand(0));
+      __ vmovl(NeonU32, dst, dst.low());
+      break;
+    }
     case kWord32AtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(ldrsb);
       break;

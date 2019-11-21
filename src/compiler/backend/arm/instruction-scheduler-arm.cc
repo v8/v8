@@ -289,6 +289,16 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmLdr:
     case kArmPeek:
     case kArmWord32AtomicPairLoad:
+    case kArmS8x16LoadSplat:
+    case kArmS16x8LoadSplat:
+    case kArmS32x4LoadSplat:
+    case kArmS64x2LoadSplat:
+    case kArmI16x8Load8x8S:
+    case kArmI16x8Load8x8U:
+    case kArmI32x4Load16x4S:
+    case kArmI32x4Load16x4U:
+    case kArmI64x2Load32x2S:
+    case kArmI64x2Load32x2U:
       return kIsLoadOperation;
 
     case kArmVstrF32:

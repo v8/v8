@@ -361,7 +361,6 @@ void EmitAddBeforeS128LoadStore(InstructionSelector* selector,
                                 InstructionCode* opcode_return,
                                 size_t* input_count_return,
                                 InstructionOperand* inputs) {
-  DCHECK(*opcode_return == kArmVld1S128 || *opcode_return == kArmVst1S128);
   ArmOperandGenerator g(selector);
   InstructionOperand addr = g.TempRegister();
   InstructionCode op = kArmAdd;
@@ -471,6 +470,54 @@ void InstructionSelector::VisitStackSlot(Node* node) {
 void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), r1));
+}
+
+void InstructionSelector::VisitLoadTransform(Node* node) {
+  LoadTransformParameters params = LoadTransformParametersOf(node->op());
+  InstructionCode opcode = kArchNop;
+  switch (params.transformation) {
+    case LoadTransformation::kS8x16LoadSplat:
+      opcode = kArmS8x16LoadSplat;
+      break;
+    case LoadTransformation::kS16x8LoadSplat:
+      opcode = kArmS16x8LoadSplat;
+      break;
+    case LoadTransformation::kS32x4LoadSplat:
+      opcode = kArmS32x4LoadSplat;
+      break;
+    case LoadTransformation::kS64x2LoadSplat:
+      opcode = kArmS64x2LoadSplat;
+      break;
+    case LoadTransformation::kI16x8Load8x8S:
+      opcode = kArmI16x8Load8x8S;
+      break;
+    case LoadTransformation::kI16x8Load8x8U:
+      opcode = kArmI16x8Load8x8U;
+      break;
+    case LoadTransformation::kI32x4Load16x4S:
+      opcode = kArmI32x4Load16x4S;
+      break;
+    case LoadTransformation::kI32x4Load16x4U:
+      opcode = kArmI32x4Load16x4U;
+      break;
+    case LoadTransformation::kI64x2Load32x2S:
+      opcode = kArmI64x2Load32x2S;
+      break;
+    case LoadTransformation::kI64x2Load32x2U:
+      opcode = kArmI64x2Load32x2U;
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+
+  ArmOperandGenerator g(this);
+  InstructionOperand output = g.DefineAsRegister(node);
+  InstructionOperand inputs[2];
+  size_t input_count = 2;
+  inputs[0] = g.UseRegister(node->InputAt(0));
+  inputs[1] = g.UseRegister(node->InputAt(1));
+  EmitAddBeforeS128LoadStore(this, &opcode, &input_count, &inputs[0]);
+  Emit(opcode, 1, &output, input_count, inputs);
 }
 
 void InstructionSelector::VisitLoad(Node* node) {
