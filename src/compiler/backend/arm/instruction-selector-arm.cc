@@ -2496,6 +2496,8 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(F64x2Sub, kArmF64x2Sub)                     \
   V(F64x2Mul, kArmF64x2Mul)                     \
   V(F64x2Div, kArmF64x2Div)                     \
+  V(F64x2Min, kArmF64x2Min)                     \
+  V(F64x2Max, kArmF64x2Max)                     \
   V(F64x2Eq, kArmF64x2Eq)                       \
   V(F64x2Ne, kArmF64x2Ne)                       \
   V(F64x2Lt, kArmF64x2Lt)                       \

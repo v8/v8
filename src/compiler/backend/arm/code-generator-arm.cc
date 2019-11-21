@@ -1836,6 +1836,46 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_F64X2_ARITHMETIC_BINOP(vdiv);
       break;
     }
+    case kArmF64x2Min: {
+      Simd128Register result = i.OutputSimd128Register();
+      Simd128Register left = i.InputSimd128Register(0);
+      Simd128Register right = i.InputSimd128Register(1);
+      if (left == right) {
+        __ Move(result, left);
+      } else {
+        auto ool_low = new (zone())
+            OutOfLineFloat64Min(this, result.low(), left.low(), right.low());
+        auto ool_high = new (zone())
+            OutOfLineFloat64Min(this, result.high(), left.high(), right.high());
+        __ FloatMin(result.low(), left.low(), right.low(), ool_low->entry());
+        __ bind(ool_low->exit());
+        __ FloatMin(result.high(), left.high(), right.high(),
+                    ool_high->entry());
+        __ bind(ool_high->exit());
+      }
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
+    case kArmF64x2Max: {
+      Simd128Register result = i.OutputSimd128Register();
+      Simd128Register left = i.InputSimd128Register(0);
+      Simd128Register right = i.InputSimd128Register(1);
+      if (left == right) {
+        __ Move(result, left);
+      } else {
+        auto ool_low = new (zone())
+            OutOfLineFloat64Max(this, result.low(), left.low(), right.low());
+        auto ool_high = new (zone())
+            OutOfLineFloat64Max(this, result.high(), left.high(), right.high());
+        __ FloatMax(result.low(), left.low(), right.low(), ool_low->entry());
+        __ bind(ool_low->exit());
+        __ FloatMax(result.high(), left.high(), right.high(),
+                    ool_high->entry());
+        __ bind(ool_high->exit());
+      }
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
 #undef ASSEMBLE_F64X2_ARITHMETIC_BINOP
     case kArmF64x2Eq: {
       UseScratchRegisterScope temps(tasm());

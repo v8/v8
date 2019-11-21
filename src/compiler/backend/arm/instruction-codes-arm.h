@@ -138,6 +138,8 @@ namespace compiler {
   V(ArmF64x2Sub)                   \
   V(ArmF64x2Mul)                   \
   V(ArmF64x2Div)                   \
+  V(ArmF64x2Min)                   \
+  V(ArmF64x2Max)                   \
   V(ArmF64x2Eq)                    \
   V(ArmF64x2Ne)                    \
   V(ArmF64x2Lt)                    \
