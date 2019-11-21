@@ -478,6 +478,7 @@
   'array-splice': [PASS, SLOW],
   'compiler/alloc-number': [PASS, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
+  'frozen-array-reduce': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
   'json2': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
