@@ -228,13 +228,12 @@ void CodeSerializer::SerializeGeneric(HeapObject heap_object) {
 void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
                                               Handle<SharedFunctionInfo> sfi,
                                               bool log_code_creation) {
-  Script script = Script::cast(sfi->script());
-  Handle<Script> script_handle(script, isolate);
+  Handle<Script> script(Script::cast(sfi->script()), isolate);
   String name = ReadOnlyRoots(isolate).empty_string();
-  if (script.name().IsString()) name = String::cast(script.name());
+  if (script->name().IsString()) name = String::cast(script->name());
   Handle<String> name_handle(name, isolate);
 
-  SharedFunctionInfo::ScriptIterator iter(isolate, script);
+  SharedFunctionInfo::ScriptIterator iter(isolate, *script);
   for (SharedFunctionInfo shared_info = iter.Next(); !shared_info.is_null();
        shared_info = iter.Next()) {
     if (!shared_info.HasBytecodeArray()) continue;
@@ -253,8 +252,8 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
 
     if (!log_code_creation) continue;
     Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
-    int line_num = script.GetLineNumber(info->StartPosition()) + 1;
-    int column_num = script.GetColumnNumber(info->StartPosition()) + 1;
+    int line_num = script->GetLineNumber(info->StartPosition()) + 1;
+    int column_num = script->GetColumnNumber(info->StartPosition()) + 1;
     PROFILE(isolate,
             CodeCreateEvent(CodeEventListener::INTERPRETED_FUNCTION_TAG,
                             *abstract_code, *info, *name_handle, line_num,
