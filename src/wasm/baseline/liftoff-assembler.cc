@@ -90,7 +90,7 @@ class StackTransferRecipe {
       case VarState::kStack:
         switch (src.loc()) {
           case VarState::kStack:
-            if (src_index == dst_index) break;
+            if (src.offset() == dst.offset()) break;
             asm_->MoveStackValue(dst.offset(), src.offset(), src.type());
             break;
           case VarState::kRegister:
