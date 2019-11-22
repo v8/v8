@@ -54,8 +54,8 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
                                             uint64_t seed) {
   STATIC_ASSERT(std::is_integral<char_t>::value);
   STATIC_ASSERT(sizeof(char_t) <= 2);
-  using schar = typename std::make_signed<char_t>::type;
-  const schar* chars = reinterpret_cast<const schar*>(chars_raw);
+  using uchar = typename std::make_unsigned<char_t>::type;
+  const uchar* chars = reinterpret_cast<const uchar*>(chars_raw);
   DCHECK_LE(0, length);
   DCHECK_IMPLIES(0 < length, chars != nullptr);
   if (length >= 1) {
@@ -86,7 +86,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
         uint32_t is_integer_index = 0;
         uint32_t running_hash = static_cast<uint32_t>(seed);
         uint64_t index_big = index;
-        const schar* end = &chars[length];
+        const uchar* end = &chars[length];
         while (chars != end) {
           if (is_integer_index == 0 && !TryAddIndexChar(&index_big, *chars)) {
             is_integer_index = String::kIsNotIntegerIndexMask;
@@ -107,7 +107,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
 
   // Non-index hash.
   uint32_t running_hash = static_cast<uint32_t>(seed);
-  const schar* end = &chars[length];
+  const uchar* end = &chars[length];
   while (chars != end) {
     running_hash = AddCharacterCore(running_hash, *chars++);
   }
