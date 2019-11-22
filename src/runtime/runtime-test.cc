@@ -751,7 +751,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
     Object object = maybe_object.GetHeapObjectOrSmi();
     bool weak = maybe_object.IsWeak();
 
-#ifdef DEBUG
+#ifdef OBJECT_PRINT
     if (object.IsString() && !isolate->context().is_null()) {
       DCHECK(!weak);
       // If we have a string, assume it's a code "marker"
