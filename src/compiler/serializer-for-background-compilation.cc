@@ -266,22 +266,14 @@ class FunctionBlueprint {
   const Hints& context_hints() const { return context_hints_; }
 
   bool operator==(const FunctionBlueprint& other) const {
-    // A feedback vector is never used for more than one SFI. Moreover, we can
-    // never have two blueprints with identical feedback vector (and SFI) but
-    // different hints, because:
-    // (1) A blueprint originates either (i) from the data associated with a
-    //     CreateClosure bytecode, in which case two different CreateClosure
-    //     bytecodes never have the same feedback vector, or (ii) from a
-    //     JSFunction, in which case the hints are determined by the closure.
-    // (2) We never extend a blueprint's hints after construction.
-    //
-    // It is therefore sufficient to look at the feedback vector in order to
-    // decide equality.
+    // A feedback vector is never used for more than one SFI.  There might,
+    // however, be two blueprints with the same SFI and vector, but different
+    // context hints. crbug.com/1024282 has a link to a document describing
+    // why the context_hints_ might be different in that case.
     DCHECK_IMPLIES(feedback_vector_.equals(other.feedback_vector_),
                    shared_.equals(other.shared_));
-    SLOW_DCHECK(!feedback_vector_.equals(other.feedback_vector_) ||
-                context_hints_.Equals(other.context_hints_));
-    return feedback_vector_.equals(other.feedback_vector_);
+    return feedback_vector_.equals(other.feedback_vector_) &&
+           context_hints_ == other.context_hints_;
   }
 
  private:
