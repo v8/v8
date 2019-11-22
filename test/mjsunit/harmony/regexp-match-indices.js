@@ -135,3 +135,12 @@
   }
   assertTrue(rec());
 }
+
+// Match between matches.
+{
+  const re = /a+(?<A>zz)?(?<B>ii)?/;
+  const m = re.exec("xaaazzii");
+  assertTrue(/b+(?<C>cccc)?/.test("llllllbbbbbbcccc"));
+  assertEquals(m.indices, [[1, 8], [4, 6], [6, 8]]);
+  assertEquals(m.indices.groups, {'A': [4, 6], 'B': [6, 8]});
+}
