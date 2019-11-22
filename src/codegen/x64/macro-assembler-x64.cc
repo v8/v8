@@ -987,20 +987,20 @@ void ConvertFloatToUint64(TurboAssembler* tasm, Register dst,
 }
 }  // namespace
 
-void TurboAssembler::Cvttsd2uiq(Register dst, Operand src, Label* success) {
-  ConvertFloatToUint64<Operand, true>(this, dst, src, success);
+void TurboAssembler::Cvttsd2uiq(Register dst, Operand src, Label* fail) {
+  ConvertFloatToUint64<Operand, true>(this, dst, src, fail);
 }
 
-void TurboAssembler::Cvttsd2uiq(Register dst, XMMRegister src, Label* success) {
-  ConvertFloatToUint64<XMMRegister, true>(this, dst, src, success);
+void TurboAssembler::Cvttsd2uiq(Register dst, XMMRegister src, Label* fail) {
+  ConvertFloatToUint64<XMMRegister, true>(this, dst, src, fail);
 }
 
-void TurboAssembler::Cvttss2uiq(Register dst, Operand src, Label* success) {
-  ConvertFloatToUint64<Operand, false>(this, dst, src, success);
+void TurboAssembler::Cvttss2uiq(Register dst, Operand src, Label* fail) {
+  ConvertFloatToUint64<Operand, false>(this, dst, src, fail);
 }
 
-void TurboAssembler::Cvttss2uiq(Register dst, XMMRegister src, Label* success) {
-  ConvertFloatToUint64<XMMRegister, false>(this, dst, src, success);
+void TurboAssembler::Cvttss2uiq(Register dst, XMMRegister src, Label* fail) {
+  ConvertFloatToUint64<XMMRegister, false>(this, dst, src, fail);
 }
 
 void TurboAssembler::Set(Register dst, int64_t x) {
