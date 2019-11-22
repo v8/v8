@@ -81,6 +81,13 @@
 namespace v8 {
 namespace internal {
 
+#ifdef V8_ENABLE_THIRD_PARTY_HEAP
+Isolate* Heap::GetIsolateFromWritableObject(HeapObject object) {
+  return reinterpret_cast<Isolate*>(
+      third_party_heap::Heap::GetIsolate(object.address()));
+}
+#endif
+
 // These are outside the Heap class so they can be forward-declared
 // in heap-write-barrier-inl.h.
 bool Heap_PageFlagsAreConsistent(HeapObject object) {
@@ -1058,8 +1065,7 @@ void Heap::ProcessPretenuringFeedback() {
 }
 
 void Heap::InvalidateCodeDeoptimizationData(Code code) {
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(code);
-  CodePageMemoryModificationScope modification_scope(chunk);
+  CodePageMemoryModificationScope modification_scope(code);
   code.set_deoptimization_data(ReadOnlyRoots(this).empty_fixed_array());
 }
 
@@ -2859,7 +2865,8 @@ HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
                    (size / kTaggedSize) - 2);
     }
   }
-  if (clear_slots_mode == ClearRecordedSlots::kYes) {
+  if (clear_slots_mode == ClearRecordedSlots::kYes &&
+      !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     ClearRecordedSlotRange(addr, addr + size);
   }
 
@@ -2884,6 +2891,12 @@ bool Heap::CanMoveObjectStart(HeapObject object) {
 }
 
 bool Heap::IsImmovable(HeapObject object) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    // TODO(steveblackburn): For now all objects are immovable.
+    // Will need to revisit once moving is supported.
+    return true;
+  }
+
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   return chunk->NeverEvacuate() || IsLargeObject(object);
 }
@@ -3849,6 +3862,9 @@ const char* Heap::GarbageCollectionReasonToString(
 }
 
 bool Heap::Contains(HeapObject value) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    return true;
+  }
   if (ReadOnlyHeap::Contains(value)) {
     return false;
   }
@@ -4862,7 +4878,9 @@ HeapObject Heap::EnsureImmovableCode(HeapObject heap_object, int object_size) {
   // in the first page of code space, in large object space, or (during
   // snapshot creation) the containing page is marked as immovable.
   DCHECK(!heap_object.is_null());
+#ifndef V8_ENABLE_THIRD_PARTY_HEAP
   DCHECK(code_space_->Contains(heap_object));
+#endif
   DCHECK_GE(object_size, 0);
   if (!Heap::IsImmovable(heap_object)) {
     if (isolate()->serializer_enabled() ||
@@ -4964,6 +4982,11 @@ HeapObject Heap::AllocateRawCodeInLargeObjectSpace(int size) {
 void Heap::SetUp() {
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   allocation_timeout_ = NextAllocationTimeout();
+#endif
+
+#ifdef V8_ENABLE_THIRD_PARTY_HEAP
+  tp_heap_ =
+      third_party_heap::Heap::New(reinterpret_cast<v8::Isolate*>(isolate()));
 #endif
 
   // Initialize heap spaces and initial maps and objects.
@@ -6128,6 +6151,11 @@ Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
   Code code = InstructionStream::TryLookupCode(isolate(), inner_pointer);
   if (!code.is_null()) return code;
 
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    Address start = tp_heap_->GetObjectFromInnerPointer(inner_pointer);
+    return GcSafeCastToCode(HeapObject::FromAddress(start), inner_pointer);
+  }
+
   // Check if the inner pointer points into a large object chunk.
   LargePage* large_page = code_lo_space()->FindPage(inner_pointer);
   if (large_page != nullptr) {
@@ -6357,6 +6385,9 @@ void Heap::MarkingBarrierForDescriptorArraySlow(Heap* heap, HeapObject host,
 }
 
 bool Heap::PageFlagsAreConsistent(HeapObject object) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    return true;
+  }
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   heap_internals::MemoryChunk* slim_chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);

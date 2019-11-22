@@ -149,7 +149,8 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     if (is_executable_) {
       DCHECK(IsAligned(code->address(), kCodeAlignment));
       DCHECK_IMPLIES(
-          !heap->memory_allocator()->code_range().is_empty(),
+          !V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
+              !heap->memory_allocator()->code_range().is_empty(),
           heap->memory_allocator()->code_range().contains(code->address()));
     }
 
@@ -1894,7 +1895,8 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   map.set_constructor_or_backpointer(*null_value(), SKIP_WRITE_BARRIER);
   map.set_instance_size(instance_size);
   if (map.IsJSObjectMap()) {
-    DCHECK(!ReadOnlyHeap::Contains(map));
+    DCHECK_IMPLIES(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL,
+                   !ReadOnlyHeap::Contains(map));
     map.SetInObjectPropertiesStartInWords(instance_size / kTaggedSize -
                                           inobject_properties);
     DCHECK_EQ(map.GetInObjectProperties(), inobject_properties);
@@ -2612,8 +2614,7 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   // The trampoline code object must inherit specific flags from the original
   // builtin (e.g. the safepoint-table offset). We set them manually here.
   {
-    MemoryChunk* chunk = MemoryChunk::FromHeapObject(*result);
-    CodePageMemoryModificationScope code_allocation(chunk);
+    CodePageMemoryModificationScope code_allocation(*result);
 
     const bool set_is_off_heap_trampoline = true;
     const int stack_slots =

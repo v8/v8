@@ -163,6 +163,9 @@ bool NewSpace::ToSpaceContains(Object o) { return to_space_.Contains(o); }
 bool NewSpace::FromSpaceContains(Object o) { return from_space_.Contains(o); }
 
 bool PagedSpace::Contains(Address addr) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    return true;
+  }
   return Page::FromAddress(addr)->owner() == this;
 }
 
@@ -205,14 +208,18 @@ bool PagedSpace::TryFreeLast(HeapObject object, int object_size) {
 
 void MemoryChunk::IncrementExternalBackingStoreBytes(
     ExternalBackingStoreType type, size_t amount) {
+#ifndef V8_ENABLE_THIRD_PARTY_HEAP
   base::CheckedIncrement(&external_backing_store_bytes_[type], amount);
   owner()->IncrementExternalBackingStoreBytes(type, amount);
+#endif
 }
 
 void MemoryChunk::DecrementExternalBackingStoreBytes(
     ExternalBackingStoreType type, size_t amount) {
+#ifndef V8_ENABLE_THIRD_PARTY_HEAP
   base::CheckedDecrement(&external_backing_store_bytes_[type], amount);
   owner()->DecrementExternalBackingStoreBytes(type, amount);
+#endif
 }
 
 void MemoryChunk::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,

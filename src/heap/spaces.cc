@@ -1535,6 +1535,7 @@ void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object) {
 }
 
 void MemoryChunk::InvalidateRecordedSlots(HeapObject object) {
+  if (V8_DISABLE_WRITE_BARRIERS_BOOL) return;
   if (heap()->incremental_marking()->IsCompacting()) {
     // We cannot check slot_set_[OLD_TO_OLD] here, since the
     // concurrent markers might insert slots concurrently.
@@ -3924,6 +3925,10 @@ void ReadOnlySpace::RepairFreeListsAfterDeserialization() {
 }
 
 void ReadOnlySpace::ClearStringPaddingIfNeeded() {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    // TODO(ulan): Revisit this once third-party heap supports iteration.
+    return;
+  }
   if (is_string_padding_cleared_) return;
 
   ReadOnlyHeapObjectIterator iterator(this);

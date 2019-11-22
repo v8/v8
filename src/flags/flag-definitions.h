@@ -313,6 +313,15 @@ DEFINE_IMPLICATION(lite_mode, jitless)
 DEFINE_IMPLICATION(lite_mode, lazy_feedback_allocation)
 DEFINE_IMPLICATION(lite_mode, optimize_for_size)
 
+#ifdef V8_ENABLE_THIRD_PARTY_HEAP
+#define V8_ENABLE_THIRD_PARTY_HEAP_BOOL true
+#else
+#define V8_ENABLE_THIRD_PARTY_HEAP_BOOL false
+#endif
+
+DEFINE_BOOL_READONLY(enable_third_party_heap, V8_ENABLE_THIRD_PARTY_HEAP_BOOL,
+                     "Use third-party heap")
+
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define V8_DISABLE_WRITE_BARRIERS_BOOL true
 #else
