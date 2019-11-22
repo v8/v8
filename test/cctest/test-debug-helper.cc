@@ -78,15 +78,21 @@ void CheckStructProp(const d::StructProperty& property,
   CHECK_EQ(property.offset, expected_offset);
 }
 
-template <typename TValue>
-TValue ReadProp(const d::ObjectPropertiesResult& props, std::string name) {
+const d::ObjectProperty& FindProp(const d::ObjectPropertiesResult& props,
+                                  std::string name) {
   for (size_t i = 0; i < props.num_properties; ++i) {
     if (name == props.properties[i]->name) {
-      return *reinterpret_cast<TValue*>(props.properties[i]->address);
+      return *props.properties[i];
     }
   }
   CHECK_WITH_MSG(false, ("property '" + name + "' not found").c_str());
-  return {};
+  UNREACHABLE();
+}
+
+template <typename TValue>
+TValue ReadProp(const d::ObjectPropertiesResult& props, std::string name) {
+  const d::ObjectProperty& prop = FindProp(props, name);
+  return *reinterpret_cast<TValue*>(prop.address);
 }
 
 }  // namespace
@@ -278,12 +284,25 @@ TEST(GetObjectProperties) {
   props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
   CHECK(std::string(props->brief).substr(79, 7) == std::string("aa...\" "));
 
-  // Verify the result for a heap object field which is itself a struct: the
-  // "descriptors" field on a DescriptorArray.
-  // First we need to construct an object and get its map's descriptor array.
+  // Build a basic JS object and get its properties.
   v = CompileRun("({a: 1, b: 2})");
   o = v8::Utils::OpenHandle(*v);
   props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+
+  // Objects constructed from literals get their properties placed inline, so
+  // the GetObjectProperties response should include an array.
+  const d::ObjectProperty& prop = FindProp(*props, "in-object properties");
+  CheckProp(prop, "v8::internal::Object", "in-object properties",
+            d::PropertyKind::kArrayOfKnownSize, 2);
+  // The second item in that array is the SMI value 2 from the object literal.
+  props2 =
+      d::GetObjectProperties(reinterpret_cast<i::Tagged_t*>(prop.address)[1],
+                             &ReadMemory, heap_addresses);
+  CHECK(props2->brief == std::string("2 (0x2)"));
+
+  // Verify the result for a heap object field which is itself a struct: the
+  // "descriptors" field on a DescriptorArray.
+  // Start by getting the object's map and the map's descriptor array.
   props = d::GetObjectProperties(ReadProp<i::Tagged_t>(*props, "map"),
                                  &ReadMemory, heap_addresses);
   props = d::GetObjectProperties(
