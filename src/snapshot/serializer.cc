@@ -643,6 +643,8 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
 void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
                                                  MaybeObjectSlot start,
                                                  MaybeObjectSlot end) {
+  DisallowHeapAllocation no_gc;
+
   MaybeObjectSlot current = start;
   while (current < end) {
     while (current < end && (*current)->IsSmi()) {

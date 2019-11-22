@@ -101,6 +101,8 @@ void Deserializer::Synchronize(VisitorSynchronization::SyncTag tag) {
 }
 
 void Deserializer::DeserializeDeferredObjects() {
+  DisallowHeapAllocation no_gc;
+
   for (int code = source_.Get(); code != kSynchronize; code = source_.Get()) {
     switch (code) {
       case kAlignmentPrefix:
@@ -196,6 +198,8 @@ String ForwardStringIfExists(Isolate* isolate, StringTableInsertionKey* key) {
 
 HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
                                               SnapshotSpace space) {
+  DisallowHeapAllocation no_gc;
+
   if ((FLAG_rehash_snapshot && can_rehash_) || deserializing_user_code()) {
     if (obj.IsString()) {
       // Uninitialize hash field as we need to recompute the hash.
@@ -373,6 +377,8 @@ HeapObject Deserializer::ReadObject() {
 }
 
 HeapObject Deserializer::ReadObject(SnapshotSpace space) {
+  DisallowHeapAllocation no_gc;
+
   const int size = source_.GetInt() << kObjectAlignmentBits;
 
   Address address = allocator()->Allocate(space, size);
