@@ -2165,6 +2165,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputSimd128Register(0));
       break;
     }
+    case kMips64I64x2Shl: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ slli_d(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputInt6(1));
+      break;
+    }
+    case kMips64I64x2ShrS: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ srai_d(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputInt6(1));
+      break;
+    }
+    case kMips64I64x2ShrU: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ srli_d(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputInt6(1));
+      break;
+    }
     case kMips64F32x4Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ FmoveLow(kScratchReg, i.InputSingleRegister(0));

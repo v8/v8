@@ -2730,6 +2730,9 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(S1x16AllTrue, kMips64S1x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
+  V(I64x2Shl)                 \
+  V(I64x2ShrS)                \
+  V(I64x2ShrU)                \
   V(I32x4Shl)                 \
   V(I32x4ShrS)                \
   V(I32x4ShrU)                \
