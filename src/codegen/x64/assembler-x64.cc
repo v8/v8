@@ -1394,7 +1394,7 @@ void Assembler::int3() {
 
 void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
   if (cc == always) {
-    jmp(L);
+    jmp(L, distance);
     return;
   } else if (cc == never) {
     return;
