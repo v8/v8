@@ -10,6 +10,9 @@ namespace runtime {
   RejectPromise(implicit context: Context)(JSPromise, JSAny, Boolean): JSAny;
 
   extern transitioning runtime
+  PromiseRevokeReject(implicit context: Context)(JSPromise): JSAny;
+
+  extern transitioning runtime
   PromiseRejectAfterResolved(implicit context: Context)(JSPromise, JSAny):
       JSAny;
 
@@ -73,7 +76,23 @@ namespace promise {
     goto NotFound;
   }
 
-  transitioning macro MorpAndEnqueuePromiseReaction(implicit context: Context)(
+  // According to the HTML specification, we use the handler's context to
+  // EnqueueJob for Promise resolution.
+  macro
+  ExtractHandlerContext(implicit context: Context)(
+      primary: Callable|Undefined, secondary: Callable|Undefined): Context {
+    try {
+      return ExtractHandlerContext(primary) otherwise NotFound;
+    }
+    label NotFound {
+      return ExtractHandlerContext(secondary) otherwise Default;
+    }
+    label Default {
+      return context;
+    }
+  }
+
+  transitioning macro MorphAndEnqueuePromiseReaction(implicit context: Context)(
       promiseReaction: PromiseReaction, argument: JSAny,
       reactionType: constexpr PromiseReactionType): void {
     let primaryHandler: Callable|Undefined;
@@ -87,17 +106,8 @@ namespace promise {
       secondaryHandler = promiseReaction.fulfill_handler;
     }
 
-    let handlerContext: Context;
-    try {
-      handlerContext = ExtractHandlerContext(primaryHandler) otherwise NotFound;
-    }
-    label NotFound {
-      handlerContext =
-          ExtractHandlerContext(secondaryHandler) otherwise Default;
-    }
-    label Default {
-      handlerContext = context;
-    }
+    const handlerContext: Context =
+        ExtractHandlerContext(primaryHandler, secondaryHandler);
 
     // Morph {current} from a PromiseReaction into a PromiseReactionJobTask
     // and schedule that on the microtask queue. We try to minimize the number
@@ -169,7 +179,7 @@ namespace promise {
         }
         case (currentReaction: PromiseReaction): {
           current = currentReaction.next;
-          MorpAndEnqueuePromiseReaction(
+          MorphAndEnqueuePromiseReaction(
               currentReaction, argument, reactionType);
         }
       }
@@ -407,5 +417,64 @@ namespace promise {
     // The rest of the logic (and the catch prediction) is
     // encapsulated in the dedicated ResolvePromise builtin.
     return ResolvePromise(context, promise, resolution);
+  }
+
+  extern macro
+  PromiseBuiltinsAssembler::AllocatePromiseReaction(
+      Object, HeapObject, HeapObject, HeapObject): PromiseReaction;
+
+  extern macro
+  PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
+      Map, Context, Object, HeapObject, HeapObject): PromiseReactionJobTask;
+
+  @export
+  transitioning macro PerformPromiseThenImpl(implicit context: Context)(
+      promise: JSPromise, onFulfilled: Callable|Undefined,
+      onRejected: Callable|Undefined,
+      resultPromiseOrCapability: JSPromise|PromiseCapability|Undefined): void {
+    if (promise.Status() == kPromisePending) {
+      // The {promise} is still in "Pending" state, so we just record a new
+      // PromiseReaction holding both the onFulfilled and onRejected callbacks.
+      // Once the {promise} is resolved we decide on the concrete handler to
+      // push onto the microtask queue.
+      const promiseReactions = promise.reactions_or_result;
+      const reaction = AllocatePromiseReaction(
+          promiseReactions, resultPromiseOrCapability, onFulfilled, onRejected);
+      promise.reactions_or_result = reaction;
+    } else {
+      let map: Map;
+      let handler: HeapObject;
+      let handlerContext: Context;
+      if (promise.Status() == kPromiseFulfilled) {
+        map = PromiseFulfillReactionJobTaskMapConstant();
+        handler = onFulfilled;
+        handlerContext = ExtractHandlerContext(onFulfilled, onRejected);
+      } else {
+        assert(promise.Status() == kPromiseRejected);
+        map = PromiseRejectReactionJobTaskMapConstant();
+        handler = onRejected;
+        handlerContext = ExtractHandlerContext(onRejected, onFulfilled);
+        if (!promise.HasHandler()) {
+          runtime::PromiseRevokeReject(promise);
+        }
+      }
+
+      const reactionsOrResult = promise.reactions_or_result;
+      const microtask = AllocatePromiseReactionJobTask(
+          map, handlerContext, reactionsOrResult, handler,
+          resultPromiseOrCapability);
+      EnqueueMicrotask(handlerContext, microtask);
+    }
+    promise.SetHasHandler();
+  }
+
+  // https://tc39.es/ecma262/#sec-performpromisethen
+  transitioning builtin
+  PerformPromiseThen(implicit context: Context)(
+      promise: JSPromise, onFulfilled: Callable|Undefined,
+      onRejected: Callable|Undefined,
+      resultPromise: JSPromise|Undefined): HeapObject {
+    PerformPromiseThenImpl(promise, onFulfilled, onRejected, resultPromise);
+    return resultPromise;
   }
 }

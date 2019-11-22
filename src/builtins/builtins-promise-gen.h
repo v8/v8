@@ -72,11 +72,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   void PromiseSetHasHandler(Node* promise);
   void PromiseSetHandledHint(Node* promise);
 
-  void PerformPromiseThen(TNode<Context> context, TNode<JSPromise> promise,
-                          TNode<HeapObject> on_fulfilled,
-                          TNode<HeapObject> on_rejected,
-                          TNode<HeapObject> result_promise_or_capability);
-
   // We can skip the "resolve" lookup on {constructor} if it's the (initial)
   // Promise constructor and the Promise.resolve() protector is intact, as
   // that guards the lookup path for the "resolve" property on the %Promise%

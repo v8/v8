@@ -254,125 +254,6 @@ void PromiseBuiltinsAssembler::PromiseSetHandledHint(Node* promise) {
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset, new_flags);
 }
 
-// ES #sec-performpromisethen
-void PromiseBuiltinsAssembler::PerformPromiseThen(
-    TNode<Context> context, TNode<JSPromise> promise,
-    TNode<HeapObject> on_fulfilled, TNode<HeapObject> on_rejected,
-    TNode<HeapObject> result_promise_or_capability) {
-  CSA_ASSERT(this,
-             Word32Or(IsCallable(on_fulfilled), IsUndefined(on_fulfilled)));
-  CSA_ASSERT(this, Word32Or(IsCallable(on_rejected), IsUndefined(on_rejected)));
-  CSA_ASSERT(
-      this,
-      Word32Or(Word32Or(IsJSPromise(result_promise_or_capability),
-                        IsPromiseCapability(result_promise_or_capability)),
-               IsUndefined(result_promise_or_capability)));
-
-  Label if_pending(this), if_notpending(this), done(this);
-  const TNode<Word32T> status = PromiseStatus(promise);
-  Branch(IsPromiseStatus(status, v8::Promise::kPending), &if_pending,
-         &if_notpending);
-
-  BIND(&if_pending);
-  {
-    // The {promise} is still in "Pending" state, so we just record a new
-    // PromiseReaction holding both the onFulfilled and onRejected callbacks.
-    // Once the {promise} is resolved we decide on the concrete handler to
-    // push onto the microtask queue.
-    const TNode<Object> promise_reactions =
-        LoadObjectField(promise, JSPromise::kReactionsOrResultOffset);
-    const TNode<PromiseReaction> reaction =
-        AllocatePromiseReaction(promise_reactions, result_promise_or_capability,
-                                on_fulfilled, on_rejected);
-    StoreObjectField(promise, JSPromise::kReactionsOrResultOffset, reaction);
-    Goto(&done);
-  }
-
-  BIND(&if_notpending);
-  {
-    TVARIABLE(Map, var_map);
-    TVARIABLE(HeapObject, var_handler);
-    TVARIABLE(Object, var_handler_context, UndefinedConstant());
-    Label if_fulfilled(this), if_rejected(this, Label::kDeferred),
-        enqueue(this);
-    Branch(IsPromiseStatus(status, v8::Promise::kFulfilled), &if_fulfilled,
-           &if_rejected);
-
-    BIND(&if_fulfilled);
-    {
-      var_map = PromiseFulfillReactionJobTaskMapConstant();
-      var_handler = on_fulfilled;
-
-      Label use_fallback(this, Label::kDeferred), done(this);
-      ExtractHandlerContext(on_fulfilled, &var_handler_context);
-      Branch(IsUndefined(var_handler_context.value()), &use_fallback, &done);
-
-      BIND(&use_fallback);
-      var_handler_context = context;
-      ExtractHandlerContext(on_rejected, &var_handler_context);
-      Goto(&done);
-
-      BIND(&done);
-      Goto(&enqueue);
-    }
-
-    BIND(&if_rejected);
-    {
-      CSA_ASSERT(this, IsPromiseStatus(status, v8::Promise::kRejected));
-      var_map = PromiseRejectReactionJobTaskMapConstant();
-      var_handler = on_rejected;
-
-      Label use_fallback(this, Label::kDeferred), done(this);
-      ExtractHandlerContext(on_rejected, &var_handler_context);
-      Branch(IsUndefined(var_handler_context.value()), &use_fallback, &done);
-
-      BIND(&use_fallback);
-      var_handler_context = context;
-      ExtractHandlerContext(on_fulfilled, &var_handler_context);
-      Goto(&done);
-      BIND(&done);
-
-      GotoIf(PromiseHasHandler(promise), &enqueue);
-      CallRuntime(Runtime::kPromiseRevokeReject, context, promise);
-      Goto(&enqueue);
-    }
-
-    BIND(&enqueue);
-    {
-      TNode<Object> argument =
-          LoadObjectField(promise, JSPromise::kReactionsOrResultOffset);
-      TNode<PromiseReactionJobTask> microtask = AllocatePromiseReactionJobTask(
-          var_map.value(), CAST(var_handler_context.value()), argument,
-          var_handler.value(), result_promise_or_capability);
-      CallBuiltin(Builtins::kEnqueueMicrotask, var_handler_context.value(),
-                  microtask);
-      Goto(&done);
-    }
-  }
-
-  BIND(&done);
-  PromiseSetHasHandler(promise);
-}
-
-// ES #sec-performpromisethen
-TF_BUILTIN(PerformPromiseThen, PromiseBuiltinsAssembler) {
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  const TNode<JSPromise> promise = CAST(Parameter(Descriptor::kPromise));
-  const TNode<HeapObject> on_fulfilled =
-      CAST(Parameter(Descriptor::kOnFulfilled));
-  const TNode<HeapObject> on_rejected =
-      CAST(Parameter(Descriptor::kOnRejected));
-  const TNode<HeapObject> result_promise =
-      CAST(Parameter(Descriptor::kResultPromise));
-
-  CSA_ASSERT(
-      this, Word32Or(IsJSPromise(result_promise), IsUndefined(result_promise)));
-
-  PerformPromiseThen(context, promise, on_fulfilled, on_rejected,
-                     result_promise);
-  Return(result_promise);
-}
-
 TNode<PromiseReaction> PromiseBuiltinsAssembler::AllocatePromiseReaction(
     TNode<Object> next, TNode<HeapObject> promise_or_capability,
     TNode<HeapObject> fulfill_handler, TNode<HeapObject> reject_handler) {
@@ -848,9 +729,9 @@ TF_BUILTIN(PromisePrototypeThen, PromiseBuiltinsAssembler) {
     Goto(&if_rejected_done);
     BIND(&if_rejected_done);
 
-    PerformPromiseThen(context, js_promise, CAST(var_on_fulfilled.value()),
-                       CAST(var_on_rejected.value()),
-                       var_result_promise_or_capability.value());
+    PerformPromiseThenImpl(context, js_promise, CAST(var_on_fulfilled.value()),
+                           CAST(var_on_rejected.value()),
+                           var_result_promise_or_capability.value());
     Return(var_result_promise.value());
   }
 }
@@ -1721,9 +1602,9 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
       // Register the PromiseReaction immediately on the {next_value}, not
       // passing any chained promise since neither async_hooks nor DevTools
       // are enabled, so there's no use of the resulting promise.
-      PerformPromiseThen(native_context, CAST(next_value),
-                         CAST(resolve_element_fun), CAST(reject_element_fun),
-                         UndefinedConstant());
+      PerformPromiseThenImpl(native_context, CAST(next_value),
+                             CAST(resolve_element_fun),
+                             CAST(reject_element_fun), UndefinedConstant());
       Goto(&loop);
     }
 

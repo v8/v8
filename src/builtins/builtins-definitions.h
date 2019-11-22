@@ -722,8 +722,6 @@ namespace internal {
   CPP(IsPromise)                                                               \
   /* ES #sec-promise.prototype.then */                                         \
   TFJ(PromisePrototypeThen, 2, kReceiver, kOnFulfilled, kOnRejected)           \
-  /* ES #sec-performpromisethen */                                             \
-  TFS(PerformPromiseThen, kPromise, kOnFulfilled, kOnRejected, kResultPromise) \
   /* ES #sec-promise.prototype.catch */                                        \
   TFJ(PromisePrototypeCatch, 1, kReceiver, kOnRejected)                        \
   /* ES #sec-promisereactionjob */                                             \

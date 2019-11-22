@@ -30,6 +30,10 @@ extern class JSPromise extends JSObject {
     return (this.flags & kJSPromiseHasHandlerMask) != 0;
   }
 
+  SetHasHandler(): void {
+    this.flags |= kJSPromiseHasHandlerMask;
+  }
+
   // Smi 0 terminated list of PromiseReaction objects in case the JSPromise was
   // not settled yet, otherwise the result.
   reactions_or_result: Zero|PromiseReaction|JSAny;
