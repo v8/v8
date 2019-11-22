@@ -893,6 +893,25 @@ class RuntimeCallTimer final {
   V(WeakMap_New)                                           \
   V(WeakMap_Set)
 
+#define ADD_THREAD_SPECIFIC_COUNTER(V, Prefix, Suffix) \
+  V(Prefix##Suffix)                                    \
+  V(Prefix##Background##Suffix)
+
+#define FOR_EACH_THREAD_SPECIFIC_COUNTER(V)                      \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Analyse)               \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Eval)                  \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Function)              \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Ignition)              \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, RewriteReturnResult)   \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, ScopeAnalysis)         \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Script)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssembleCode)         \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Parse, ArrowFunctionLiteral)    \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Parse, FunctionLiteral)         \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Parse, Program)                 \
+  ADD_THREAD_SPECIFIC_COUNTER(V, PreParse, ArrowFunctionLiteral) \
+  ADD_THREAD_SPECIFIC_COUNTER(V, PreParse, WithVariableResolution)
+
 #define FOR_EACH_MANUAL_COUNTER(V)             \
   V(AccessorGetterCallback)                    \
   V(AccessorSetterCallback)                    \
@@ -901,28 +920,14 @@ class RuntimeCallTimer final {
   V(BoundFunctionLengthGetter)                 \
   V(BoundFunctionNameGetter)                   \
   V(CodeGenerationFromStringsCallbacks)        \
-  V(CompileAnalyse)                            \
-  V(CompileBackgroundAnalyse)                  \
   V(CompileBackgroundCompileTask)              \
-  V(CompileBackgroundEval)                     \
-  V(CompileBackgroundFunction)                 \
-  V(CompileBackgroundIgnition)                 \
-  V(CompileBackgroundRewriteReturnResult)      \
-  V(CompileBackgroundScopeAnalysis)            \
-  V(CompileBackgroundScript)                   \
   V(CompileCollectSourcePositions)             \
   V(CompileDeserialize)                        \
   V(CompileEnqueueOnDispatcher)                \
-  V(CompileEval)                               \
   V(CompileFinalizeBackgroundCompileTask)      \
   V(CompileFinishNowOnDispatcher)              \
-  V(CompileFunction)                           \
   V(CompileGetFromOptimizedCodeMap)            \
-  V(CompileIgnition)                           \
   V(CompileIgnitionFinalization)               \
-  V(CompileRewriteReturnResult)                \
-  V(CompileScopeAnalysis)                      \
-  V(CompileScript)                             \
   V(CompileSerialize)                          \
   V(CompileWaitForDispatcher)                  \
   V(DeoptimizeCode)                            \
@@ -964,18 +969,8 @@ class RuntimeCallTimer final {
   V(Object_DeleteProperty)                     \
   V(ObjectVerify)                              \
   V(OptimizeCode)                              \
-  V(ParseArrowFunctionLiteral)                 \
-  V(ParseBackgroundArrowFunctionLiteral)       \
-  V(ParseBackgroundFunctionLiteral)            \
-  V(ParseBackgroundProgram)                    \
   V(ParseEval)                                 \
   V(ParseFunction)                             \
-  V(ParseFunctionLiteral)                      \
-  V(ParseProgram)                              \
-  V(PreParseArrowFunctionLiteral)              \
-  V(PreParseBackgroundArrowFunctionLiteral)    \
-  V(PreParseBackgroundWithVariableResolution)  \
-  V(PreParseWithVariableResolution)            \
   V(PropertyCallback)                          \
   V(PrototypeMap_TransitionToAccessorProperty) \
   V(PrototypeMap_TransitionToDataProperty)     \
@@ -1046,29 +1041,34 @@ class RuntimeCallTimer final {
 
 enum RuntimeCallCounterId {
 #define CALL_RUNTIME_COUNTER(name) kGC_##name,
-  FOR_EACH_GC_COUNTER(CALL_RUNTIME_COUNTER)
+  FOR_EACH_GC_COUNTER(CALL_RUNTIME_COUNTER)  //
 #undef CALL_RUNTIME_COUNTER
 #define CALL_RUNTIME_COUNTER(name) k##name,
-      FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
+  FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)  //
 #undef CALL_RUNTIME_COUNTER
 #define CALL_RUNTIME_COUNTER(name, nargs, ressize) kRuntime_##name,
-          FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
+  FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)  //
 #undef CALL_RUNTIME_COUNTER
 #define CALL_BUILTIN_COUNTER(name) kBuiltin_##name,
-              BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
+  BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)  //
 #undef CALL_BUILTIN_COUNTER
 #define CALL_BUILTIN_COUNTER(name) kAPI_##name,
-                  FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)
+  FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)  //
 #undef CALL_BUILTIN_COUNTER
 #define CALL_BUILTIN_COUNTER(name) kHandler_##name,
-                      FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
+  FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)  //
 #undef CALL_BUILTIN_COUNTER
-                          kNumberOfCounters
+#define THREAD_SPECIFIC_COUNTER(name) k##name,
+  FOR_EACH_THREAD_SPECIFIC_COUNTER(THREAD_SPECIFIC_COUNTER)  //
+#undef THREAD_SPECIFIC_COUNTER
+  kNumberOfCounters,
 };
 
 class RuntimeCallStats final {
  public:
-  V8_EXPORT_PRIVATE RuntimeCallStats();
+  enum ThreadType { kMainIsolateThread, kWorkerThread };
+
+  explicit V8_EXPORT_PRIVATE RuntimeCallStats(ThreadType thread_type);
 
   // Starting measuring the time for a function. This will establish the
   // connection to the parent counter for properly calculating the own times.
@@ -1098,6 +1098,32 @@ class RuntimeCallStats final {
   bool InUse() { return in_use_; }
   bool IsCalledOnTheSameThread();
 
+  V8_EXPORT_PRIVATE bool IsBackgroundThreadSpecificVariant(
+      RuntimeCallCounterId id);
+  V8_EXPORT_PRIVATE bool HasThreadSpecificCounterVariants(
+      RuntimeCallCounterId id);
+
+  // This should only be called for counters with a dual Background variant. If
+  // on the main thread, this just returns the counter. If on a worker thread,
+  // it returns Background variant of the counter.
+  RuntimeCallCounterId CounterIdForThread(RuntimeCallCounterId id) {
+    DCHECK(HasThreadSpecificCounterVariants(id));
+    // All thread specific counters are laid out with the main thread variant
+    // first followed by the background variant.
+    return thread_type_ == kWorkerThread
+               ? static_cast<RuntimeCallCounterId>(id + 1)
+               : id;
+  }
+
+  bool IsCounterAppropriateForThread(RuntimeCallCounterId id) {
+    // TODO(delphick): We should add background-only counters and ensure that
+    // all counters (not just the thread-specific variants) are only invoked on
+    // the correct thread.
+    if (!HasThreadSpecificCounterVariants(id)) return true;
+    return IsBackgroundThreadSpecificVariant(id) ==
+           (thread_type_ == kWorkerThread);
+  }
+
   static const int kNumberOfCounters =
       static_cast<int>(RuntimeCallCounterId::kNumberOfCounters);
   RuntimeCallCounter* GetCounter(RuntimeCallCounterId counter_id) {
@@ -1114,6 +1140,7 @@ class RuntimeCallStats final {
   base::AtomicValue<RuntimeCallCounter*> current_counter_;
   // Used to track nested tracing scopes.
   bool in_use_;
+  ThreadType thread_type_;
   ThreadId thread_id_;
   RuntimeCallCounter counters_[kNumberOfCounters];
 };
@@ -1171,14 +1198,26 @@ class WorkerThreadRuntimeCallStatsScope final {
 // the time of C++ scope.
 class RuntimeCallTimerScope {
  public:
+  // If kExact is chosen the counter will be use as given. With kThreadSpecific,
+  // if the RuntimeCallStats was created for a worker thread, then the
+  // background specific version of the counter will be used instead.
+  enum CounterMode { kExact, kThreadSpecific };
+
   inline RuntimeCallTimerScope(Isolate* isolate,
                                RuntimeCallCounterId counter_id);
   inline RuntimeCallTimerScope(RuntimeCallStats* stats,
-                               RuntimeCallCounterId counter_id) {
+                               RuntimeCallCounterId counter_id,
+                               CounterMode mode = CounterMode::kExact) {
     if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled() ||
-                  stats == nullptr))
+                  stats == nullptr)) {
       return;
+    }
     stats_ = stats;
+    if (mode == CounterMode::kThreadSpecific) {
+      counter_id = stats->CounterIdForThread(counter_id);
+    }
+
+    DCHECK(stats->IsCounterAppropriateForThread(counter_id));
     stats_->Enter(&timer_, counter_id);
   }
 
