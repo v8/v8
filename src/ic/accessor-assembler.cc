@@ -1094,8 +1094,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     {
       Comment("store_interceptor");
       TailCallRuntime(Runtime::kStorePropertyWithInterceptor, p->context(),
-                      p->value(), p->slot(), p->vector(), p->receiver(),
-                      p->name());
+                      p->value(), p->receiver(), p->name());
     }
 
     BIND(&if_slow);
@@ -1558,8 +1557,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
   {
     Label if_add_normal(this), if_store_global_proxy(this), if_api_setter(this),
-        if_accessor(this), if_native_data_property(this), if_slow(this),
-        if_interceptor(this);
+        if_accessor(this), if_native_data_property(this), if_slow(this);
 
     CSA_ASSERT(this, TaggedIsSmi(smi_handler));
     TNode<Int32T> handler_word = SmiToInt32(CAST(smi_handler));
@@ -1589,9 +1587,6 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kApiSetter)),
            &if_api_setter);
 
-    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kInterceptor)),
-           &if_interceptor);
-
     GotoIf(
         Word32Equal(handler_kind,
                     Int32Constant(StoreHandler::kApiSetterHolderIsPrototype)),
@@ -1614,14 +1609,6 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         TailCallRuntime(Runtime::kKeyedStoreIC_Slow, p->context(), p->value(),
                         p->receiver(), p->name());
       }
-    }
-
-    BIND(&if_interceptor);
-    {
-      Comment("store_interceptor");
-      TailCallRuntime(Runtime::kStorePropertyWithInterceptor, p->context(),
-                      p->value(), p->slot(), p->vector(), p->receiver(),
-                      p->name());
     }
 
     BIND(&if_add_normal);
