@@ -548,6 +548,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                            Condition cond);
 
   void Clz(Register rd, Register rs);
+  void Dclz(Register rd, Register rs);
   void Ctz(Register rd, Register rs);
   void Dctz(Register rd, Register rs);
   void Popcnt(Register rd, Register rs);

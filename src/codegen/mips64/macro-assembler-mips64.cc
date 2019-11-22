@@ -2990,6 +2990,8 @@ void TurboAssembler::Movf(Register rd, Register rs, uint16_t cc) {
 
 void TurboAssembler::Clz(Register rd, Register rs) { clz(rd, rs); }
 
+void TurboAssembler::Dclz(Register rd, Register rs) { dclz(rd, rs); }
+
 void TurboAssembler::Ctz(Register rd, Register rs) {
   if (kArchVariant == kMips64r6) {
     // We don't have an instruction to count the number of trailing zeroes.

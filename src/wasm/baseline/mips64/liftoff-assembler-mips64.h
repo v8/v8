@@ -559,16 +559,16 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
 }
 
 void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
-  Clz(dst.gp(), src.gp());
+  TurboAssembler::Dclz(dst.gp(), src.gp());
 }
 
 void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
-  Ctz(dst.gp(), src.gp());
+  TurboAssembler::Dctz(dst.gp(), src.gp());
 }
 
 bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  TurboAssembler::Popcnt(dst.gp(), src.gp());
+  TurboAssembler::Dpopcnt(dst.gp(), src.gp());
   return true;
 }
 
@@ -765,7 +765,10 @@ I64_BINOP_I(xor, Xor)
   void LiftoffAssembler::emit_i64_##name(LiftoffRegister dst,               \
                                          LiftoffRegister src, int amount) { \
     DCHECK(is_uint6(amount));                                               \
-    instruction(dst.gp(), src.gp(), amount);                                \
+    if (amount < 32)                                                        \
+      instruction(dst.gp(), src.gp(), amount);                              \
+    else                                                                    \
+      instruction##32(dst.gp(), src.gp(), amount - 32);                     \
   }
 
 I64_SHIFTOP_I(shl, dsll)
