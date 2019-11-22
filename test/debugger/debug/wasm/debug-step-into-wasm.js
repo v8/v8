@@ -34,7 +34,7 @@ function listener(event, exec_state, event_data, data) {
       break_count++;
       assertTrue(
         event_data.sourceLineText().indexOf(`Line ${js_break_line}.`) > 0);
-        js_break_line += 2;
+      js_break_line++;
     } else {
       assertTrue(event_data.functionName() == 'sub');
       wasm_break_count++;
@@ -85,8 +85,8 @@ Debug.setListener(listener2);
 f();
 Debug.setListener(null);
 
-assertEquals(break_count, 2);
-assertEquals(js_break_line, 4);
+assertEquals(break_count, 3);
+assertEquals(js_break_line, 3);
 assertEquals(wasm_break_count, 4);
 assertEquals(break_count2, 2);
 assertNull(exception);

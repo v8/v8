@@ -959,7 +959,6 @@ void Debug::PrepareStepOnThrow() {
   }
 }
 
-
 void Debug::PrepareStep(StepAction step_action) {
   HandleScope scope(isolate_);
 
@@ -981,53 +980,62 @@ void Debug::PrepareStep(StepAction step_action) {
   StandardFrame* frame = frames_it.frame();
 
   // Handle stepping in wasm functions via the wasm interpreter.
-  if (frame->is_wasm()) {
-    // If the top frame is compiled, we cannot step.
-    if (frame->is_wasm_compiled()) return;
+  if (frame->is_wasm_interpreter_entry()) {
     WasmInterpreterEntryFrame* wasm_frame =
         WasmInterpreterEntryFrame::cast(frame);
-    wasm_frame->debug_info().PrepareStep(step_action);
-    return;
-  }
-
-  JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-  DCHECK(js_frame->function().IsJSFunction());
-
-  // Get the debug info (create it if it does not exist).
-  auto summary = FrameSummary::GetTop(frame).AsJavaScript();
-  Handle<JSFunction> function(summary.function());
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
-  if (!EnsureBreakInfo(shared)) return;
-  PrepareFunctionForDebugExecution(shared);
-
-  Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
-
-  BreakLocation location = BreakLocation::FromFrame(debug_info, js_frame);
-
-  // Any step at a return is a step-out, and a step-out at a suspend behaves
-  // like a return.
-  if (location.IsReturn() || (location.IsSuspend() && step_action == StepOut)) {
-    // On StepOut we'll ignore our further calls to current function in
-    // PrepareStepIn callback.
-    if (last_step_action() == StepOut) {
-      thread_local_.ignore_step_into_function_ = *function;
+    if (wasm_frame->NumberOfActiveFrames() > 0) {
+      wasm_frame->debug_info().PrepareStep(step_action);
+      return;
     }
-    step_action = StepOut;
-    thread_local_.last_step_action_ = StepIn;
   }
+  // If this is wasm, but there are no interpreted frames on top, all we can do
+  // is step out.
+  if (frame->is_wasm()) step_action = StepOut;
 
-  // We need to schedule DebugOnFunction call callback
-  UpdateHookOnFunctionCall();
-
-  // A step-next in blackboxed function is a step-out.
-  if (step_action == StepNext && IsBlackboxed(shared)) step_action = StepOut;
-
-  thread_local_.last_statement_position_ =
-      summary.abstract_code()->SourceStatementPosition(summary.code_offset());
+  BreakLocation location = BreakLocation::Invalid();
+  Handle<SharedFunctionInfo> shared;
   int current_frame_count = CurrentFrameCount();
-  thread_local_.last_frame_count_ = current_frame_count;
-  // No longer perform the current async step.
-  clear_suspended_generator();
+
+  if (frame->is_java_script()) {
+    JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
+    DCHECK(js_frame->function().IsJSFunction());
+
+    // Get the debug info (create it if it does not exist).
+    auto summary = FrameSummary::GetTop(frame).AsJavaScript();
+    Handle<JSFunction> function(summary.function());
+    shared = Handle<SharedFunctionInfo>(function->shared(), isolate_);
+    if (!EnsureBreakInfo(shared)) return;
+    PrepareFunctionForDebugExecution(shared);
+
+    Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
+
+    location = BreakLocation::FromFrame(debug_info, js_frame);
+
+    // Any step at a return is a step-out, and a step-out at a suspend behaves
+    // like a return.
+    if (location.IsReturn() ||
+        (location.IsSuspend() && step_action == StepOut)) {
+      // On StepOut we'll ignore our further calls to current function in
+      // PrepareStepIn callback.
+      if (last_step_action() == StepOut) {
+        thread_local_.ignore_step_into_function_ = *function;
+      }
+      step_action = StepOut;
+      thread_local_.last_step_action_ = StepIn;
+    }
+
+    // We need to schedule DebugOnFunction call callback
+    UpdateHookOnFunctionCall();
+
+    // A step-next in blackboxed function is a step-out.
+    if (step_action == StepNext && IsBlackboxed(shared)) step_action = StepOut;
+
+    thread_local_.last_statement_position_ =
+        summary.abstract_code()->SourceStatementPosition(summary.code_offset());
+    thread_local_.last_frame_count_ = current_frame_count;
+    // No longer perform the current async step.
+    clear_suspended_generator();
+  }
 
   switch (step_action) {
     case StepNone:
@@ -1036,7 +1044,8 @@ void Debug::PrepareStep(StepAction step_action) {
       // Clear last position info. For stepping out it does not matter.
       thread_local_.last_statement_position_ = kNoSourcePosition;
       thread_local_.last_frame_count_ = -1;
-      if (!location.IsReturnOrSuspend() && !IsBlackboxed(shared)) {
+      if (!shared.is_null() && !location.IsReturnOrSuspend() &&
+          !IsBlackboxed(shared)) {
         // At not return position we flood return positions with one shots and
         // will repeat StepOut automatically at next break.
         thread_local_.target_frame_count_ = current_frame_count;
@@ -1048,8 +1057,10 @@ void Debug::PrepareStep(StepAction step_action) {
       // and deoptimize every frame along the way.
       bool in_current_frame = true;
       for (; !frames_it.done(); frames_it.Advance()) {
-        // TODO(clemensb): Implement stepping out from JS to wasm.
-        if (frames_it.frame()->is_wasm()) continue;
+        if (frames_it.frame()->is_wasm()) {
+          in_current_frame = false;
+          continue;
+        }
         JavaScriptFrame* frame = JavaScriptFrame::cast(frames_it.frame());
         if (last_step_action() == StepIn) {
           // Deoptimize frame to ensure calls are checked for step-in.

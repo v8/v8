@@ -61,6 +61,7 @@ enum IgnoreBreakMode {
 
 class BreakLocation {
  public:
+  static BreakLocation Invalid() { return BreakLocation(-1, NOT_DEBUG_BREAK); }
   static BreakLocation FromFrame(Handle<DebugInfo> debug_info,
                                  JavaScriptFrame* frame);
 

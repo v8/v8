@@ -1002,6 +1002,7 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
   Code unchecked_code() const override;
 
   // Accessors.
+  int NumberOfActiveFrames() const;
   WasmDebugInfo debug_info() const;
   WasmInstanceObject wasm_instance() const;
 

@@ -121,6 +121,10 @@ class InterpreterHandle {
     activations_.erase(frame_pointer);
   }
 
+  bool HasActivation(Address frame_pointer) {
+    return activations_.count(frame_pointer);
+  }
+
   std::pair<uint32_t, uint32_t> GetActivationFrameRange(
       WasmInterpreter::Thread* thread, Address frame_pointer) {
     DCHECK_EQ(1, activations_.count(frame_pointer));
@@ -234,6 +238,15 @@ class InterpreterHandle {
     }
 
     FinishActivation(frame_pointer, activation_id);
+
+    // If we do stepping and it exits wasm interpreter then debugger need to
+    // prepare for it.
+    if (next_step_action_ != StepNone) {
+      // Enter the debugger.
+      DebugScope debug_scope(isolate_->debug());
+
+      isolate_->debug()->PrepareStep(StepOut);
+    }
     ClearStepping();
 
     return true;
@@ -344,6 +357,18 @@ class InterpreterHandle {
       stack.emplace_back(frame->function()->func_index, frame->pc());
     }
     return stack;
+  }
+
+  int NumberOfActiveFrames(Address frame_pointer) {
+    if (!HasActivation(frame_pointer)) return 0;
+
+    DCHECK_EQ(1, interpreter()->GetThreadCount());
+    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
+
+    std::pair<uint32_t, uint32_t> frame_range =
+        GetActivationFrameRange(thread, frame_pointer);
+
+    return frame_range.second - frame_range.first;
   }
 
   WasmInterpreter::FramePtr GetInterpretedFrame(Address frame_pointer,
@@ -621,6 +646,10 @@ bool WasmDebugInfo::RunInterpreter(Isolate* isolate,
 std::vector<std::pair<uint32_t, int>> WasmDebugInfo::GetInterpretedStack(
     Address frame_pointer) {
   return GetInterpreterHandle(*this)->GetInterpretedStack(frame_pointer);
+}
+
+int WasmDebugInfo::NumberOfActiveFrames(Address frame_pointer) {
+  return GetInterpreterHandle(*this)->NumberOfActiveFrames(frame_pointer);
 }
 
 wasm::WasmInterpreter::FramePtr WasmDebugInfo::GetInterpretedFrame(

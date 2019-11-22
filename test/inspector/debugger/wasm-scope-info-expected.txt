@@ -333,4 +333,12 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
 
+Paused:
+instance.exports.main(4)#
+
+Scope:
+at (anonymous) (0:24):
+ - scope (global):
+   -- skipped globals
+
 exports.main returned. Test finished.

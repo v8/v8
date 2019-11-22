@@ -1988,6 +1988,11 @@ void WasmInterpreterEntryFrame::Summarize(
 
 Code WasmInterpreterEntryFrame::unchecked_code() const { return Code(); }
 
+int WasmInterpreterEntryFrame::NumberOfActiveFrames() const {
+  Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
+  return instance->debug_info().NumberOfActiveFrames(fp());
+}
+
 WasmInstanceObject WasmInterpreterEntryFrame::wasm_instance() const {
   const int offset = WasmCompiledFrameConstants::kWasmInstanceOffset;
   Object instance(Memory<Address>(fp() + offset));
