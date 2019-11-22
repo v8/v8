@@ -1627,13 +1627,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ Ucomiss(kScratchDoubleReg, i.InputOperand(0));
         }
         // If the input is NaN, then the conversion fails.
-        __ j(parity_even, &fail);
+        __ j(parity_even, &fail, Label::kNear);
         // If the input is INT64_MIN, then the conversion succeeds.
-        __ j(equal, &done);
+        __ j(equal, &done, Label::kNear);
         __ cmpq(i.OutputRegister(0), Immediate(1));
         // If the conversion results in INT64_MIN, but the input was not
         // INT64_MIN, then the conversion fails.
-        __ j(no_overflow, &done);
+        __ j(no_overflow, &done, Label::kNear);
         __ bind(&fail);
         __ Set(i.OutputRegister(1), 0);
         __ bind(&done);
@@ -1656,13 +1656,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ Ucomisd(kScratchDoubleReg, i.InputOperand(0));
         }
         // If the input is NaN, then the conversion fails.
-        __ j(parity_even, &fail);
+        __ j(parity_even, &fail, Label::kNear);
         // If the input is INT64_MIN, then the conversion succeeds.
-        __ j(equal, &done);
+        __ j(equal, &done, Label::kNear);
         __ cmpq(i.OutputRegister(0), Immediate(1));
         // If the conversion results in INT64_MIN, but the input was not
         // INT64_MIN, then the conversion fails.
-        __ j(no_overflow, &done);
+        __ j(no_overflow, &done, Label::kNear);
         __ bind(&fail);
         __ Set(i.OutputRegister(1), 0);
         __ bind(&done);
@@ -4230,7 +4230,7 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
     __ pushq(rax);
     __ load_rax(counter);
     __ decl(rax);
-    __ j(not_zero, &nodeopt);
+    __ j(not_zero, &nodeopt, Label::kNear);
 
     __ Set(rax, FLAG_deopt_every_n_times);
     __ store_rax(counter);
@@ -4259,7 +4259,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
   Label* tlabel = ool->entry();
   Label end;
   if (condition == kUnorderedEqual) {
-    __ j(parity_even, &end);
+    __ j(parity_even, &end, Label::kNear);
   } else if (condition == kUnorderedNotEqual) {
     __ j(parity_even, tlabel);
   }
@@ -4443,7 +4443,7 @@ void CodeGenerator::AssembleConstructFrame() {
         __ addq(kScratchRegister,
                 Immediate(required_slots * kSystemPointerSize));
         __ cmpq(rsp, kScratchRegister);
-        __ j(above_equal, &done);
+        __ j(above_equal, &done, Label::kNear);
       }
 
       __ near_call(wasm::WasmCode::kWasmStackOverflow,

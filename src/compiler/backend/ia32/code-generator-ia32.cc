@@ -641,7 +641,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ pop(eax);  // Restore eax.
 
   Label skip;
-  __ j(zero, &skip);
+  __ j(zero, &skip, Label::kNear);
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET);
   __ bind(&skip);
@@ -4365,7 +4365,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
   Label* tlabel = ool->entry();
   Label end;
   if (condition == kUnorderedEqual) {
-    __ j(parity_even, &end);
+    __ j(parity_even, &end, Label::kNear);
   } else if (condition == kUnorderedNotEqual) {
     __ j(parity_even, tlabel);
   }
@@ -4667,7 +4667,7 @@ void CodeGenerator::AssembleConstructFrame() {
         __ add(scratch, Immediate(required_slots * kSystemPointerSize));
         __ cmp(esp, scratch);
         __ pop(scratch);
-        __ j(above_equal, &done);
+        __ j(above_equal, &done, Label::kNear);
       }
 
       __ wasm_call(wasm::WasmCode::kWasmStackOverflow,
