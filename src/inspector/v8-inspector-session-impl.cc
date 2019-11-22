@@ -4,6 +4,8 @@
 
 #include "src/inspector/v8-inspector-session-impl.h"
 
+#include "../../third_party/inspector_protocol/crdtp/cbor.h"
+#include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/inspector/injected-script.h"
@@ -17,7 +19,6 @@
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-heap-profiler-agent-impl.h"
 #include "src/inspector/v8-inspector-impl.h"
-#include "src/inspector/v8-inspector-protocol-encoding.h"
 #include "src/inspector/v8-profiler-agent-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-schema-agent-impl.h"
@@ -26,14 +27,16 @@ namespace v8_inspector {
 namespace {
 using v8_crdtp::span;
 using v8_crdtp::SpanFrom;
-using IPEStatus = v8_crdtp::Status;
+using v8_crdtp::Status;
+using v8_crdtp::json::ConvertCBORToJSON;
+using v8_crdtp::json::ConvertJSONToCBOR;
 
 bool IsCBORMessage(const StringView& msg) {
   return msg.is8Bit() && msg.length() >= 2 && msg.characters8()[0] == 0xd8 &&
          msg.characters8()[1] == 0x5a;
 }
 
-IPEStatus ConvertToCBOR(const StringView& state, std::vector<uint8_t>* cbor) {
+Status ConvertToCBOR(const StringView& state, std::vector<uint8_t>* cbor) {
   return state.is8Bit()
              ? ConvertJSONToCBOR(
                    span<uint8_t>(state.characters8(), state.length()), cbor)
@@ -168,7 +171,7 @@ std::unique_ptr<StringBuffer> V8InspectorSessionImpl::serializeForFrontend(
     return std::unique_ptr<StringBuffer>(
         new BinaryStringBuffer(std::move(cbor)));
   std::vector<uint8_t> json;
-  IPEStatus status = ConvertCBORToJSON(SpanFrom(cbor), &json);
+  Status status = ConvertCBORToJSON(SpanFrom(cbor), &json);
   DCHECK(status.ok());
   USE(status);
   String16 string16(reinterpret_cast<const char*>(json.data()), json.size());

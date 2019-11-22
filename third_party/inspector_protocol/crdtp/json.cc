@@ -12,10 +12,10 @@
 #include <stack>
 
 #include "cbor.h"
+#include "json_platform.h"
 
 namespace v8_crdtp {
 namespace json {
-
 // =============================================================================
 // json::NewJSONEncoder - for encoding streaming parser events as JSON
 // =============================================================================
@@ -104,8 +104,7 @@ void Base64Encode(const span<uint8_t>& in, C* out) {
 template <typename C>
 class JSONEncoder : public ParserHandler {
  public:
-  JSONEncoder(const Platform* platform, C* out, Status* status)
-      : platform_(platform), out_(out), status_(status) {
+  JSONEncoder(C* out, Status* status) : out_(out), status_(status) {
     *status_ = Status();
     state_.emplace(Container::NONE);
   }
@@ -283,14 +282,14 @@ class JSONEncoder : public ParserHandler {
       Emit("null");
       return;
     }
-    std::unique_ptr<char[]> str_value = platform_->DToStr(value);
+    std::string str_value = json::platform::DToStr(value);
 
     // DToStr may fail to emit a 0 before the decimal dot. E.g. this is
     // the case in base::NumberToString in Chromium (which is based on
     // dmg_fp). So, much like
     // https://cs.chromium.org/chromium/src/base/json/json_writer.cc
     // we probe for this and emit the leading 0 anyway if necessary.
-    const char* chars = str_value.get();
+    const char* chars = str_value.c_str();
     if (chars[0] == '.') {
       Emit('0');
     } else if (chars[0] == '-' && chars[1] == '.') {
@@ -336,25 +335,22 @@ class JSONEncoder : public ParserHandler {
     out_->insert(out_->end(), str.begin(), str.end());
   }
 
-  const Platform* platform_;
   C* out_;
   Status* status_;
   std::stack<State> state_;
 };
 }  // namespace
 
-std::unique_ptr<ParserHandler> NewJSONEncoder(const Platform* platform,
-                                              std::vector<uint8_t>* out,
+std::unique_ptr<ParserHandler> NewJSONEncoder(std::vector<uint8_t>* out,
                                               Status* status) {
   return std::unique_ptr<ParserHandler>(
-      new JSONEncoder<std::vector<uint8_t>>(platform, out, status));
+      new JSONEncoder<std::vector<uint8_t>>(out, status));
 }
 
-std::unique_ptr<ParserHandler> NewJSONEncoder(const Platform* platform,
-                                              std::string* out,
+std::unique_ptr<ParserHandler> NewJSONEncoder(std::string* out,
                                               Status* status) {
   return std::unique_ptr<ParserHandler>(
-      new JSONEncoder<std::string>(platform, out, status));
+      new JSONEncoder<std::string>(out, status));
 }
 
 // =============================================================================
@@ -387,8 +383,7 @@ const char* const kFalseString = "false";
 template <typename Char>
 class JsonParser {
  public:
-  JsonParser(const Platform* platform, ParserHandler* handler)
-      : platform_(platform), handler_(handler) {}
+  explicit JsonParser(ParserHandler* handler) : handler_(handler) {}
 
   void Parse(const Char* start, size_t length) {
     start_pos_ = start;
@@ -412,12 +407,12 @@ class JsonParser {
         return false;
       buffer.push_back(static_cast<char>(chars[ii]));
     }
-    return platform_->StrToD(buffer.c_str(), result);
+    return platform::StrToD(buffer.c_str(), result);
   }
 
   bool CharsToDouble(const uint8_t* chars, size_t length, double* result) {
     std::string buffer(reinterpret_cast<const char*>(chars), length);
-    return platform_->StrToD(buffer.c_str(), result);
+    return platform::StrToD(buffer.c_str(), result);
   }
 
   static bool ParseConstToken(const Char* start,
@@ -966,22 +961,17 @@ class JsonParser {
 
   const Char* start_pos_ = nullptr;
   bool error_ = false;
-  const Platform* platform_;
   ParserHandler* handler_;
 };
 }  // namespace
 
-void ParseJSON(const Platform& platform,
-               span<uint8_t> chars,
-               ParserHandler* handler) {
-  JsonParser<uint8_t> parser(&platform, handler);
+void ParseJSON(span<uint8_t> chars, ParserHandler* handler) {
+  JsonParser<uint8_t> parser(handler);
   parser.Parse(chars.data(), chars.size());
 }
 
-void ParseJSON(const Platform& platform,
-               span<uint16_t> chars,
-               ParserHandler* handler) {
-  JsonParser<uint16_t> parser(&platform, handler);
+void ParseJSON(span<uint16_t> chars, ParserHandler* handler) {
+  JsonParser<uint16_t> parser(handler);
   parser.Parse(chars.data(), chars.size());
 }
 
@@ -989,58 +979,43 @@ void ParseJSON(const Platform& platform,
 // json::ConvertCBORToJSON, json::ConvertJSONToCBOR - for transcoding
 // =============================================================================
 template <typename C>
-Status ConvertCBORToJSONTmpl(const Platform& platform,
-                             span<uint8_t> cbor,
-                             C* json) {
+Status ConvertCBORToJSONTmpl(span<uint8_t> cbor, C* json) {
   Status status;
-  std::unique_ptr<ParserHandler> json_writer =
-      NewJSONEncoder(&platform, json, &status);
+  std::unique_ptr<ParserHandler> json_writer = NewJSONEncoder(json, &status);
   cbor::ParseCBOR(cbor, json_writer.get());
   return status;
 }
 
-Status ConvertCBORToJSON(const Platform& platform,
-                         span<uint8_t> cbor,
-                         std::vector<uint8_t>* json) {
-  return ConvertCBORToJSONTmpl(platform, cbor, json);
+Status ConvertCBORToJSON(span<uint8_t> cbor, std::vector<uint8_t>* json) {
+  return ConvertCBORToJSONTmpl(cbor, json);
 }
 
-Status ConvertCBORToJSON(const Platform& platform,
-                         span<uint8_t> cbor,
-                         std::string* json) {
-  return ConvertCBORToJSONTmpl(platform, cbor, json);
+Status ConvertCBORToJSON(span<uint8_t> cbor, std::string* json) {
+  return ConvertCBORToJSONTmpl(cbor, json);
 }
 
 template <typename T, typename C>
-Status ConvertJSONToCBORTmpl(const Platform& platform, span<T> json, C* cbor) {
+Status ConvertJSONToCBORTmpl(span<T> json, C* cbor) {
   Status status;
   std::unique_ptr<ParserHandler> encoder = cbor::NewCBOREncoder(cbor, &status);
-  ParseJSON(platform, json, encoder.get());
+  ParseJSON(json, encoder.get());
   return status;
 }
 
-Status ConvertJSONToCBOR(const Platform& platform,
-                         span<uint8_t> json,
-                         std::string* cbor) {
-  return ConvertJSONToCBORTmpl(platform, json, cbor);
+Status ConvertJSONToCBOR(span<uint8_t> json, std::string* cbor) {
+  return ConvertJSONToCBORTmpl(json, cbor);
 }
 
-Status ConvertJSONToCBOR(const Platform& platform,
-                         span<uint16_t> json,
-                         std::string* cbor) {
-  return ConvertJSONToCBORTmpl(platform, json, cbor);
+Status ConvertJSONToCBOR(span<uint16_t> json, std::string* cbor) {
+  return ConvertJSONToCBORTmpl(json, cbor);
 }
 
-Status ConvertJSONToCBOR(const Platform& platform,
-                         span<uint8_t> json,
-                         std::vector<uint8_t>* cbor) {
-  return ConvertJSONToCBORTmpl(platform, json, cbor);
+Status ConvertJSONToCBOR(span<uint8_t> json, std::vector<uint8_t>* cbor) {
+  return ConvertJSONToCBORTmpl(json, cbor);
 }
 
-Status ConvertJSONToCBOR(const Platform& platform,
-                         span<uint16_t> json,
-                         std::vector<uint8_t>* cbor) {
-  return ConvertJSONToCBORTmpl(platform, json, cbor);
+Status ConvertJSONToCBOR(span<uint16_t> json, std::vector<uint8_t>* cbor) {
+  return ConvertJSONToCBORTmpl(json, cbor);
 }
 }  // namespace json
 }  // namespace v8_crdtp

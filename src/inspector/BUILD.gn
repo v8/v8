@@ -143,8 +143,6 @@ v8_source_set("inspector") {
     "v8-heap-profiler-agent-impl.h",
     "v8-inspector-impl.cc",
     "v8-inspector-impl.h",
-    "v8-inspector-protocol-encoding.cc",
-    "v8-inspector-protocol-encoding.h",
     "v8-inspector-session-impl.cc",
     "v8-inspector-session-impl.h",
     "v8-profiler-agent-impl.cc",

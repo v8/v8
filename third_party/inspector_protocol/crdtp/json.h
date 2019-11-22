@@ -6,9 +6,7 @@
 #define V8_CRDTP_JSON_H_
 
 #include <memory>
-
 #include "export.h"
-#include "json_platform.h"
 #include "parser_handler.h"
 
 namespace v8_crdtp {
@@ -23,45 +21,34 @@ namespace json {
 // Except for calling the HandleError routine at any time, the client
 // code must call the Handle* methods in an order in which they'd occur
 // in valid JSON; otherwise we may crash (the code uses assert).
-std::unique_ptr<ParserHandler> NewJSONEncoder(const Platform* platform,
-                                              std::vector<uint8_t>* out,
+std::unique_ptr<ParserHandler> NewJSONEncoder(std::vector<uint8_t>* out,
                                               Status* status);
-std::unique_ptr<ParserHandler> NewJSONEncoder(const Platform* platform,
-                                              std::string* out,
-                                              Status* status);
+
+std::unique_ptr<ParserHandler> NewJSONEncoder(std::string* out, Status* status);
 
 // =============================================================================
 // json::ParseJSON - for receiving streaming parser events for JSON
 // =============================================================================
 
-void ParseJSON(const Platform& platform,
-               span<uint8_t> chars,
-               ParserHandler* handler);
-void ParseJSON(const Platform& platform,
-               span<uint16_t> chars,
-               ParserHandler* handler);
+void ParseJSON(span<uint8_t> chars, ParserHandler* handler);
+
+void ParseJSON(span<uint16_t> chars, ParserHandler* handler);
 
 // =============================================================================
 // json::ConvertCBORToJSON, json::ConvertJSONToCBOR - for transcoding
 // =============================================================================
-Status ConvertCBORToJSON(const Platform& platform,
-                         span<uint8_t> cbor,
-                         std::string* json);
-Status ConvertCBORToJSON(const Platform& platform,
-                         span<uint8_t> cbor,
-                         std::vector<uint8_t>* json);
-Status ConvertJSONToCBOR(const Platform& platform,
-                         span<uint8_t> json,
-                         std::vector<uint8_t>* cbor);
-Status ConvertJSONToCBOR(const Platform& platform,
-                         span<uint16_t> json,
-                         std::vector<uint8_t>* cbor);
-Status ConvertJSONToCBOR(const Platform& platform,
-                         span<uint8_t> json,
-                         std::string* cbor);
-Status ConvertJSONToCBOR(const Platform& platform,
-                         span<uint16_t> json,
-                         std::string* cbor);
+
+Status ConvertCBORToJSON(span<uint8_t> cbor, std::string* json);
+
+Status ConvertCBORToJSON(span<uint8_t> cbor, std::vector<uint8_t>* json);
+
+Status ConvertJSONToCBOR(span<uint8_t> json, std::vector<uint8_t>* cbor);
+
+Status ConvertJSONToCBOR(span<uint16_t> json, std::vector<uint8_t>* cbor);
+
+Status ConvertJSONToCBOR(span<uint8_t> json, std::string* cbor);
+
+Status ConvertJSONToCBOR(span<uint16_t> json, std::string* cbor);
 }  // namespace json
 }  // namespace v8_crdtp
 

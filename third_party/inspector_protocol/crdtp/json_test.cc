@@ -14,47 +14,14 @@
 #include <sstream>
 #include <string>
 
+#include "cbor.h"
+#include "parser_handler.h"
+#include "span.h"
+#include "status.h"
 #include "test_platform.h"
 
 namespace v8_crdtp {
-namespace {
-class TestPlatform : public json::Platform {
-  bool StrToD(const char* str, double* result) const override {
-    // This is not thread-safe
-    // (see https://en.cppreference.com/w/cpp/locale/setlocale)
-    // but good enough for a unittest.
-    const char* saved_locale = std::setlocale(LC_NUMERIC, nullptr);
-    char* end;
-    *result = std::strtod(str, &end);
-    std::setlocale(LC_NUMERIC, saved_locale);
-    if (errno == ERANGE) {
-      // errno must be reset, e.g. see the example here:
-      // https://en.cppreference.com/w/cpp/string/byte/strtof
-      errno = 0;
-      return false;
-    }
-    return end == str + strlen(str);
-  }
-
-  std::unique_ptr<char[]> DToStr(double value) const override {
-    std::stringstream ss;
-    ss.imbue(std::locale("C"));
-    ss << value;
-    std::string str = ss.str();
-    std::unique_ptr<char[]> result(new char[str.size() + 1]);
-    memcpy(result.get(), str.c_str(), str.size() + 1);
-    return result;
-  }
-};
-
-const json::Platform& GetTestPlatform() {
-  static TestPlatform* platform = new TestPlatform;
-  return *platform;
-}
-}  // namespace
-
 namespace json {
-
 // =============================================================================
 // json::NewJSONEncoder - for encoding streaming parser events as JSON
 // =============================================================================
@@ -66,8 +33,7 @@ void WriteUTF8AsUTF16(ParserHandler* writer, const std::string& utf8) {
 TEST(JsonEncoder, OverlongEncodings) {
   std::string out;
   Status status;
-  std::unique_ptr<ParserHandler> writer =
-      NewJSONEncoder(&GetTestPlatform(), &out, &status);
+  std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
 
   // We encode 0x7f, which is the DEL ascii character, as a 4 byte UTF8
   // sequence. This is called an overlong encoding, because only 1 byte
@@ -85,8 +51,7 @@ TEST(JsonEncoder, OverlongEncodings) {
 TEST(JsonEncoder, IncompleteUtf8Sequence) {
   std::string out;
   Status status;
-  std::unique_ptr<ParserHandler> writer =
-      NewJSONEncoder(&GetTestPlatform(), &out, &status);
+  std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
 
   writer->HandleArrayBegin();  // This emits [, which starts an array.
 
@@ -111,8 +76,7 @@ TEST(JsonEncoder, IncompleteUtf8Sequence) {
 TEST(JsonStdStringWriterTest, HelloWorld) {
   std::string out;
   Status status;
-  std::unique_ptr<ParserHandler> writer =
-      NewJSONEncoder(&GetTestPlatform(), &out, &status);
+  std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
   writer->HandleMapBegin();
   WriteUTF8AsUTF16(writer.get(), "msg1");
   WriteUTF8AsUTF16(writer.get(), "Hello, 🌎.");
@@ -155,8 +119,7 @@ TEST(JsonStdStringWriterTest, RepresentingNonFiniteValuesAsNull) {
   // So in practice it's mapped to null.
   std::string out;
   Status status;
-  std::unique_ptr<ParserHandler> writer =
-      NewJSONEncoder(&GetTestPlatform(), &out, &status);
+  std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
   writer->HandleMapBegin();
   writer->HandleString8(SpanFrom("Infinity"));
   writer->HandleDouble(std::numeric_limits<double>::infinity());
@@ -176,8 +139,7 @@ TEST(JsonStdStringWriterTest, BinaryEncodedAsJsonString) {
   {
     std::string out;
     Status status;
-    std::unique_ptr<ParserHandler> writer =
-        NewJSONEncoder(&GetTestPlatform(), &out, &status);
+    std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
     writer->HandleBinary(SpanFrom(std::vector<uint8_t>({'M', 'a', 'n'})));
     EXPECT_TRUE(status.ok());
     EXPECT_EQ("\"TWFu\"", out);
@@ -185,8 +147,7 @@ TEST(JsonStdStringWriterTest, BinaryEncodedAsJsonString) {
   {
     std::string out;
     Status status;
-    std::unique_ptr<ParserHandler> writer =
-        NewJSONEncoder(&GetTestPlatform(), &out, &status);
+    std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
     writer->HandleBinary(SpanFrom(std::vector<uint8_t>({'M', 'a'})));
     EXPECT_TRUE(status.ok());
     EXPECT_EQ("\"TWE=\"", out);
@@ -194,8 +155,7 @@ TEST(JsonStdStringWriterTest, BinaryEncodedAsJsonString) {
   {
     std::string out;
     Status status;
-    std::unique_ptr<ParserHandler> writer =
-        NewJSONEncoder(&GetTestPlatform(), &out, &status);
+    std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
     writer->HandleBinary(SpanFrom(std::vector<uint8_t>({'M'})));
     EXPECT_TRUE(status.ok());
     EXPECT_EQ("\"TQ==\"", out);
@@ -203,8 +163,7 @@ TEST(JsonStdStringWriterTest, BinaryEncodedAsJsonString) {
   {  // "Hello, world.", verified with base64decode.org.
     std::string out;
     Status status;
-    std::unique_ptr<ParserHandler> writer =
-        NewJSONEncoder(&GetTestPlatform(), &out, &status);
+    std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
     writer->HandleBinary(SpanFrom(std::vector<uint8_t>(
         {'H', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '.'})));
     EXPECT_TRUE(status.ok());
@@ -217,8 +176,7 @@ TEST(JsonStdStringWriterTest, HandlesErrors) {
   // status and clears the output.
   std::string out;
   Status status;
-  std::unique_ptr<ParserHandler> writer =
-      NewJSONEncoder(&GetTestPlatform(), &out, &status);
+  std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
   writer->HandleMapBegin();
   WriteUTF8AsUTF16(writer.get(), "msg1");
   writer->HandleError(Status{Error::JSON_PARSER_VALUE_EXPECTED, 42});
@@ -227,36 +185,11 @@ TEST(JsonStdStringWriterTest, HandlesErrors) {
   EXPECT_EQ("", out);
 }
 
-// We'd use Gmock but unfortunately it only handles copyable return types.
-class MockPlatform : public Platform {
- public:
-  // Not implemented.
-  bool StrToD(const char* str, double* result) const override { return false; }
-
-  // A map with pre-registered responses for DToSTr.
-  std::map<double, std::string> dtostr_responses_;
-
-  std::unique_ptr<char[]> DToStr(double value) const override {
-    auto it = dtostr_responses_.find(value);
-    CHECK(it != dtostr_responses_.end());
-    const std::string& str = it->second;
-    std::unique_ptr<char[]> response(new char[str.size() + 1]);
-    memcpy(response.get(), str.c_str(), str.size() + 1);
-    return response;
-  }
-};
-
-TEST(JsonStdStringWriterTest, DoubleToString) {
-  // This "broken" platform responds without the leading 0 before the
-  // decimal dot, so it'd be invalid JSON.
-  MockPlatform platform;
-  platform.dtostr_responses_[.1] = ".1";
-  platform.dtostr_responses_[-.7] = "-.7";
-
+TEST(JsonStdStringWriterTest, DoubleToString_LeadingZero) {
+  // In JSON, .1 must be rendered as 0.1, and -.7 must be rendered as -0.7.
   std::string out;
   Status status;
-  std::unique_ptr<ParserHandler> writer =
-      NewJSONEncoder(&platform, &out, &status);
+  std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
   writer->HandleArrayBegin();
   writer->HandleDouble(.1);
   writer->HandleDouble(-.7);
@@ -320,7 +253,7 @@ class JsonParserTest : public ::testing::Test {
 
 TEST_F(JsonParserTest, SimpleDictionary) {
   std::string json = "{\"foo\": 42}";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_TRUE(log_.status().ok());
   EXPECT_EQ(
       "map begin\n"
@@ -336,7 +269,7 @@ TEST_F(JsonParserTest, UsAsciiDelCornerCase) {
   // character in https://tools.ietf.org/html/rfc7159#section-7, so
   // it can be placed directly into the JSON string, without JSON escaping.
   std::string json = "{\"foo\": \"a\x7f\"}";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_TRUE(log_.status().ok());
   EXPECT_EQ(
       "map begin\n"
@@ -355,7 +288,7 @@ TEST_F(JsonParserTest, UsAsciiDelCornerCase) {
 
 TEST_F(JsonParserTest, Whitespace) {
   std::string json = "\n  {\n\"msg\"\n: \v\"Hello, world.\"\t\r}\t";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_TRUE(log_.status().ok());
   EXPECT_EQ(
       "map begin\n"
@@ -367,7 +300,7 @@ TEST_F(JsonParserTest, Whitespace) {
 
 TEST_F(JsonParserTest, NestedDictionary) {
   std::string json = "{\"foo\": {\"bar\": {\"baz\": 1}, \"bar2\": 2}}";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_TRUE(log_.status().ok());
   EXPECT_EQ(
       "map begin\n"
@@ -387,7 +320,7 @@ TEST_F(JsonParserTest, NestedDictionary) {
 
 TEST_F(JsonParserTest, Doubles) {
   std::string json = "{\"foo\": 3.1415, \"bar\": 31415e-4}";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_TRUE(log_.status().ok());
   EXPECT_EQ(
       "map begin\n"
@@ -402,7 +335,7 @@ TEST_F(JsonParserTest, Doubles) {
 TEST_F(JsonParserTest, Unicode) {
   // Globe character. 0xF0 0x9F 0x8C 0x8E in utf8, 0xD83C 0xDF0E in utf16.
   std::string json = "{\"msg\": \"Hello, \\uD83C\\uDF0E.\"}";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_TRUE(log_.status().ok());
   EXPECT_EQ(
       "map begin\n"
@@ -420,7 +353,7 @@ TEST_F(JsonParserTest, Unicode_ParseUtf16) {
   // Either way they arrive as utf8 (after decoding in log_.str()).
   std::vector<uint16_t> json =
       UTF8ToUTF16(SpanFrom("{\"space\": \"🌎 \\uD83C\\uDF19.\"}"));
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_TRUE(log_.status().ok());
   EXPECT_EQ(
       "map begin\n"
@@ -446,7 +379,7 @@ TEST_F(JsonParserTest, Unicode_ParseUtf8) {
       "\"3 byte\":\"屋\","
       "\"4 byte\":\"🌎\""
       "}";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_TRUE(log_.status().ok());
   EXPECT_EQ(
       "map begin\n"
@@ -467,7 +400,7 @@ TEST_F(JsonParserTest, UnprocessedInputRemainsError) {
   std::string json = "{\"foo\": 3.1415} junk";
   size_t junk_idx = json.find("junk");
   EXPECT_NE(junk_idx, std::string::npos);
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_EQ(Error::JSON_PARSER_UNPROCESSED_INPUT_REMAINS, log_.status().error);
   EXPECT_EQ(junk_idx, log_.status().pos);
   EXPECT_EQ("", log_.str());
@@ -487,7 +420,7 @@ TEST_F(JsonParserTest, StackLimitExceededError_BelowLimit) {
   // kStackLimit is 300 (see json_parser.cc). First let's
   // try with a small nested example.
   std::string json_3 = MakeNestedJson(3);
-  ParseJSON(GetTestPlatform(), SpanFrom(json_3), &log_);
+  ParseJSON(SpanFrom(json_3), &log_);
   EXPECT_TRUE(log_.status().ok());
   EXPECT_EQ(
       "map begin\n"
@@ -506,8 +439,7 @@ TEST_F(JsonParserTest, StackLimitExceededError_BelowLimit) {
 TEST_F(JsonParserTest, StackLimitExceededError_AtLimit) {
   // Now with kStackLimit (300).
   std::string json_limit = MakeNestedJson(300);
-  ParseJSON(GetTestPlatform(),
-            span<uint8_t>(reinterpret_cast<const uint8_t*>(json_limit.data()),
+  ParseJSON(span<uint8_t>(reinterpret_cast<const uint8_t*>(json_limit.data()),
                           json_limit.size()),
             &log_);
   EXPECT_TRUE(log_.status().ok());
@@ -516,7 +448,7 @@ TEST_F(JsonParserTest, StackLimitExceededError_AtLimit) {
 TEST_F(JsonParserTest, StackLimitExceededError_AboveLimit) {
   // Now with kStackLimit + 1 (301) - it exceeds in the innermost instance.
   std::string exceeded = MakeNestedJson(301);
-  ParseJSON(GetTestPlatform(), SpanFrom(exceeded), &log_);
+  ParseJSON(SpanFrom(exceeded), &log_);
   EXPECT_EQ(Error::JSON_PARSER_STACK_LIMIT_EXCEEDED, log_.status().error);
   EXPECT_EQ(strlen("{\"foo\":") * 301, log_.status().pos);
 }
@@ -524,14 +456,14 @@ TEST_F(JsonParserTest, StackLimitExceededError_AboveLimit) {
 TEST_F(JsonParserTest, StackLimitExceededError_WayAboveLimit) {
   // Now way past the limit. Still, the point of exceeding is 301.
   std::string far_out = MakeNestedJson(320);
-  ParseJSON(GetTestPlatform(), SpanFrom(far_out), &log_);
+  ParseJSON(SpanFrom(far_out), &log_);
   EXPECT_EQ(Error::JSON_PARSER_STACK_LIMIT_EXCEEDED, log_.status().error);
   EXPECT_EQ(strlen("{\"foo\":") * 301, log_.status().pos);
 }
 
 TEST_F(JsonParserTest, NoInputError) {
   std::string json = "";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_EQ(Error::JSON_PARSER_NO_INPUT, log_.status().error);
   EXPECT_EQ(0u, log_.status().pos);
   EXPECT_EQ("", log_.str());
@@ -539,7 +471,7 @@ TEST_F(JsonParserTest, NoInputError) {
 
 TEST_F(JsonParserTest, InvalidTokenError) {
   std::string json = "|";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_EQ(Error::JSON_PARSER_INVALID_TOKEN, log_.status().error);
   EXPECT_EQ(0u, log_.status().pos);
   EXPECT_EQ("", log_.str());
@@ -548,7 +480,7 @@ TEST_F(JsonParserTest, InvalidTokenError) {
 TEST_F(JsonParserTest, InvalidNumberError) {
   // Mantissa exceeds max (the constant used here is int64_t max).
   std::string json = "1E9223372036854775807";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_EQ(Error::JSON_PARSER_INVALID_NUMBER, log_.status().error);
   EXPECT_EQ(0u, log_.status().pos);
   EXPECT_EQ("", log_.str());
@@ -557,7 +489,7 @@ TEST_F(JsonParserTest, InvalidNumberError) {
 TEST_F(JsonParserTest, InvalidStringError) {
   // \x22 is an unsupported escape sequence
   std::string json = "\"foo\\x22\"";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_EQ(Error::JSON_PARSER_INVALID_STRING, log_.status().error);
   EXPECT_EQ(0u, log_.status().pos);
   EXPECT_EQ("", log_.str());
@@ -565,7 +497,7 @@ TEST_F(JsonParserTest, InvalidStringError) {
 
 TEST_F(JsonParserTest, UnexpectedArrayEndError) {
   std::string json = "[1,2,]";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_EQ(Error::JSON_PARSER_UNEXPECTED_ARRAY_END, log_.status().error);
   EXPECT_EQ(5u, log_.status().pos);
   EXPECT_EQ("", log_.str());
@@ -573,7 +505,7 @@ TEST_F(JsonParserTest, UnexpectedArrayEndError) {
 
 TEST_F(JsonParserTest, CommaOrArrayEndExpectedError) {
   std::string json = "[1,2 2";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_EQ(Error::JSON_PARSER_COMMA_OR_ARRAY_END_EXPECTED,
             log_.status().error);
   EXPECT_EQ(5u, log_.status().pos);
@@ -583,7 +515,7 @@ TEST_F(JsonParserTest, CommaOrArrayEndExpectedError) {
 TEST_F(JsonParserTest, StringLiteralExpectedError) {
   // There's an error because the key bar, a string, is not terminated.
   std::string json = "{\"foo\": 3.1415, \"bar: 31415e-4}";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_EQ(Error::JSON_PARSER_STRING_LITERAL_EXPECTED, log_.status().error);
   EXPECT_EQ(16u, log_.status().pos);
   EXPECT_EQ("", log_.str());
@@ -591,7 +523,7 @@ TEST_F(JsonParserTest, StringLiteralExpectedError) {
 
 TEST_F(JsonParserTest, ColonExpectedError) {
   std::string json = "{\"foo\", 42}";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_EQ(Error::JSON_PARSER_COLON_EXPECTED, log_.status().error);
   EXPECT_EQ(6u, log_.status().pos);
   EXPECT_EQ("", log_.str());
@@ -599,7 +531,7 @@ TEST_F(JsonParserTest, ColonExpectedError) {
 
 TEST_F(JsonParserTest, UnexpectedMapEndError) {
   std::string json = "{\"foo\": 42, }";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_EQ(Error::JSON_PARSER_UNEXPECTED_MAP_END, log_.status().error);
   EXPECT_EQ(12u, log_.status().pos);
   EXPECT_EQ("", log_.str());
@@ -608,7 +540,7 @@ TEST_F(JsonParserTest, UnexpectedMapEndError) {
 TEST_F(JsonParserTest, CommaOrMapEndExpectedError) {
   // The second separator should be a comma.
   std::string json = "{\"foo\": 3.1415: \"bar\": 0}";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_EQ(Error::JSON_PARSER_COMMA_OR_MAP_END_EXPECTED, log_.status().error);
   EXPECT_EQ(14u, log_.status().pos);
   EXPECT_EQ("", log_.str());
@@ -616,7 +548,7 @@ TEST_F(JsonParserTest, CommaOrMapEndExpectedError) {
 
 TEST_F(JsonParserTest, ValueExpectedError) {
   std::string json = "}";
-  ParseJSON(GetTestPlatform(), SpanFrom(json), &log_);
+  ParseJSON(SpanFrom(json), &log_);
   EXPECT_EQ(Error::JSON_PARSER_VALUE_EXPECTED, log_.status().error);
   EXPECT_EQ(0u, log_.status().pos);
   EXPECT_EQ("", log_.str());
@@ -633,14 +565,13 @@ TYPED_TEST(ConvertJSONToCBORTest, RoundTripValidJson) {
   TypeParam json(json_in.begin(), json_in.end());
   TypeParam cbor;
   {
-    Status status = ConvertJSONToCBOR(GetTestPlatform(), SpanFrom(json), &cbor);
+    Status status = ConvertJSONToCBOR(SpanFrom(json), &cbor);
     EXPECT_EQ(Error::OK, status.error);
     EXPECT_EQ(Status::npos(), status.pos);
   }
   TypeParam roundtrip_json;
   {
-    Status status =
-        ConvertCBORToJSON(GetTestPlatform(), SpanFrom(cbor), &roundtrip_json);
+    Status status = ConvertCBORToJSON(SpanFrom(cbor), &roundtrip_json);
     EXPECT_EQ(Error::OK, status.error);
     EXPECT_EQ(Status::npos(), status.pos);
   }
@@ -654,15 +585,14 @@ TYPED_TEST(ConvertJSONToCBORTest, RoundTripValidJson16) {
       '"', ':', '[', '1',    ',',    '2', ',', '3', ']', '}'};
   TypeParam cbor;
   {
-    Status status = ConvertJSONToCBOR(
-        GetTestPlatform(), span<uint16_t>(json16.data(), json16.size()), &cbor);
+    Status status =
+        ConvertJSONToCBOR(span<uint16_t>(json16.data(), json16.size()), &cbor);
     EXPECT_EQ(Error::OK, status.error);
     EXPECT_EQ(Status::npos(), status.pos);
   }
   TypeParam roundtrip_json;
   {
-    Status status =
-        ConvertCBORToJSON(GetTestPlatform(), SpanFrom(cbor), &roundtrip_json);
+    Status status = ConvertCBORToJSON(SpanFrom(cbor), &roundtrip_json);
     EXPECT_EQ(Error::OK, status.error);
     EXPECT_EQ(Status::npos(), status.pos);
   }
