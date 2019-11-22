@@ -19,6 +19,26 @@
 
 [
   {
+    "bisect_buildername": "V8 Win32 - debug builder",
+    "bisect_mastername": "client.v8",
+    "bug_url": "https://crbug.com/v8/10011",
+    "build_config": "Debug",
+    "extra_args": [],
+    "isolated_name": "bot_default",
+    "num_shards": 4,
+    "repetitions": 5000,
+    "swarming_dimensions": [
+      "cpu:x86-64",
+      "gpu:none",
+      "os:Windows-7-SP1",
+      "pool:chromium.tests",
+    ],
+    "test_name": "cctest/test-cpu-profiler/CpuProfileDeepStack",
+    "timeout_sec": 60,
+    "total_timeout_sec": 120,
+    "variant": "default",
+  },
+  {
     "bisect_buildername": "V8 Linux64 - shared",
     "bisect_mastername": "client.v8",
     "bug_url": "https://crbug.com/v8/9054",
