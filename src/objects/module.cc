@@ -67,7 +67,12 @@ void Module::RecordError(Isolate* isolate, Handle<Object> error) {
   PrintStatusTransition(Module::kErrored);
 #endif  // DEBUG
   set_status(Module::kErrored);
-  set_exception(*error);
+  if (isolate->is_catchable_by_javascript(*error)) {
+    set_exception(*error);
+  } else {
+    // v8::TryCatch uses `null` for termination exceptions.
+    set_exception(*isolate->factory()->null_value());
+  }
 }
 
 void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
