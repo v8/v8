@@ -1366,11 +1366,6 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
       isolate->native_context()->set_error_to_string(*to_string_fun);
       isolate->native_context()->set_initial_error_prototype(*prototype);
     } else {
-      DCHECK(isolate->native_context()->error_to_string().IsJSFunction());
-
-      JSObject::AddProperty(isolate, prototype, factory->toString_string(),
-                            isolate->error_to_string(), DONT_ENUM);
-
       Handle<JSFunction> global_error = isolate->error_function();
       CHECK(JSReceiver::SetPrototype(error_fun, global_error, false,
                                      kThrowOnError)
