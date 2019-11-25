@@ -33,6 +33,17 @@ class FunctionalSet {
     data_.PushFront(elem, zone);
   }
 
+  void Union(FunctionalSet<T, EqualTo> other, Zone* zone) {
+    if (!data_.TriviallyEquals(other.data_)) {
+      // Choose the larger side as tail.
+      if (data_.Size() < other.data_.Size()) std::swap(data_, other.data_);
+      for (auto const& elem : other.data_) Add(elem, zone);
+    }
+  }
+
+  bool IsEmpty() const { return data_.begin() == data_.end(); }
+
+  // Warning: quadratic time complexity.
   bool Includes(FunctionalSet<T, EqualTo> const& other) const {
     return std::all_of(other.begin(), other.end(), [&](T const& other_elem) {
       return std::any_of(this->begin(), this->end(), [&](T const& this_elem) {
@@ -40,15 +51,10 @@ class FunctionalSet {
       });
     });
   }
-
-  bool IsEmpty() const { return data_.begin() == data_.end(); }
-
-  void Clear() { data_.Clear(); }
-
-  // Warning: quadratic time complexity.
   bool operator==(const FunctionalSet<T, EqualTo>& other) const {
-    return this->data_.Size() == other.data_.Size() && this->Includes(other) &&
-           other.Includes(*this);
+    return this->data_.TriviallyEquals(other.data_) ||
+           (this->data_.Size() == other.data_.Size() && this->Includes(other) &&
+            other.Includes(*this));
   }
   bool operator!=(const FunctionalSet<T, EqualTo>& other) const {
     return !(*this == other);
@@ -92,46 +98,62 @@ using BlueprintsSet =
 using BoundFunctionsSet =
     FunctionalSet<VirtualBoundFunction, std::equal_to<VirtualBoundFunction>>;
 
+struct HintsImpl;
+
 class Hints {
  public:
-  Hints() = default;
-
+  Hints() = default;  // Empty.
   static Hints SingleConstant(Handle<Object> constant, Zone* zone);
 
-  const ConstantsSet& constants() const;
-  const MapsSet& maps() const;
-  const BlueprintsSet& function_blueprints() const;
-  const VirtualContextsSet& virtual_contexts() const;
-  const BoundFunctionsSet& virtual_bound_functions() const;
+  // For inspection only.
+  ConstantsSet constants() const;
+  MapsSet maps() const;
+  BlueprintsSet function_blueprints() const;
+  VirtualContextsSet virtual_contexts() const;
+  BoundFunctionsSet virtual_bound_functions() const;
 
+  bool IsEmpty() const;
+  bool operator==(Hints const& other) const;
+  bool operator!=(Hints const& other) const;
+
+#ifdef ENABLE_SLOW_DCHECKS
+  bool Includes(Hints const& other) const;
+#endif
+
+  Hints Copy(Zone* zone) const;              // Shallow.
+  Hints CopyToParentZone(Zone* zone) const;  // Deep.
+
+  // As an optimization, empty hints can be represented as {impl_} being
+  // {nullptr}, i.e., as not having allocated a {HintsImpl} object. As a
+  // consequence, some operations need to force allocation prior to doing their
+  // job. In particular, backpropagation from a child serialization
+  // can only work if the hints were already allocated in the parent zone.
+  bool IsAllocated() const { return impl_ != nullptr; }
+  void EnsureShareable(Zone* zone) { EnsureAllocated(zone, false); }
+
+  // Make {this} an alias of {other}.
+  void Reset(Hints* other, Zone* zone);
+
+  void Merge(Hints const& other, Zone* zone);
+
+  // Destructive updates: if the hints are shared by several registers,
+  // then the following updates will be seen by all of them:
   void AddConstant(Handle<Object> constant, Zone* zone);
-  void AddMap(Handle<Map> map, Zone* zone);
+  void AddMap(Handle<Map> map, Zone* zone, bool check_zone_equality = true);
   void AddFunctionBlueprint(FunctionBlueprint const& function_blueprint,
                             Zone* zone);
   void AddVirtualContext(VirtualContext const& virtual_context, Zone* zone);
   void AddVirtualBoundFunction(VirtualBoundFunction const& bound_function,
                                Zone* zone);
-
-  void Add(const Hints& other, Zone* zone);
-  void AddFromChildSerializer(const Hints& other, Zone* zone);
-
-  void Clear();
-  bool IsEmpty() const;
-
-  bool operator==(Hints const& other) const;
-  bool operator!=(Hints const& other) const { return !(*this == other); }
-
-#ifdef ENABLE_SLOW_DCHECKS
-  bool Includes(Hints const& other) const;
-  bool Equals(Hints const& other) const;
-#endif
+  void Add(Hints const& other, Zone* zone);
 
  private:
-  VirtualContextsSet virtual_contexts_;
-  ConstantsSet constants_;
-  MapsSet maps_;
-  BlueprintsSet function_blueprints_;
-  BoundFunctionsSet virtual_bound_functions_;
+  HintsImpl* impl_ = nullptr;
+
+  void EnsureAllocated(Zone* zone, bool check_zone_equality = true);
+
+  // Helper for Add and Merge.
+  void Union(Hints const& other);
 };
 
 using HintsVector = ZoneVector<Hints>;

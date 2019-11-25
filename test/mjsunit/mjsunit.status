@@ -1083,6 +1083,7 @@
   'compiler/diamond-followedby-branch': [SKIP],
   'compiler/load-elimination-const-field': [SKIP],
   'compiler/constant-fold-add-static': [SKIP],
+  'compiler/serializer-feedback-propagation-*': [SKIP],
 
   # Some tests rely on inlining.
   'compiler/opt-higher-order-functions': [SKIP],

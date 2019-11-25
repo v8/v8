@@ -2525,15 +2525,8 @@ bool JSHeapBroker::ShouldBeSerializedForCompilation(
 void JSHeapBroker::SetSerializedForCompilation(
     const SharedFunctionInfoRef& shared, const FeedbackVectorRef& feedback,
     const HintsVector& arguments) {
-  HintsVector arguments_copy_in_broker_zone(zone());
-  for (auto const& hints : arguments) {
-    Hints hint_copy_in_broker_zone;
-    hint_copy_in_broker_zone.AddFromChildSerializer(hints, zone());
-    arguments_copy_in_broker_zone.push_back(hint_copy_in_broker_zone);
-  }
-
-  SerializedFunction function = {shared, feedback};
-  serialized_functions_.insert({function, arguments_copy_in_broker_zone});
+  SerializedFunction function{shared, feedback};
+  serialized_functions_.insert({function, arguments});
   TRACE(this, "Set function " << shared << " with " << feedback
                               << " as serialized for compilation");
 }

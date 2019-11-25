@@ -46,6 +46,10 @@ class FunctionalList {
     return !(*this == other);
   }
 
+  bool TriviallyEquals(const FunctionalList<A>& other) const {
+    return elements_ == other.elements_;
+  }
+
   const A& Front() const {
     DCHECK_GT(Size(), 0);
     return elements_->top;
