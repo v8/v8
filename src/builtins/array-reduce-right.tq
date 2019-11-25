@@ -17,12 +17,13 @@ namespace array {
     const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
     const callbackfn = Cast<Callable>(callback) otherwise unreachable;
     const numberLength = Cast<Number>(length) otherwise unreachable;
+    const initialK = numberLength - 1;
 
-    // Simulate starting the loop at 0, but ensuring that the accumulator is
-    // the hole. The continuation stub will search for the initial non-hole
-    // element, rightly throwing an exception if not found.
+    // Simulate starting the loop at {length - 1}, but ensuring that the
+    // accumulator is the hole. The continuation stub will search for the
+    // last non-hole element, rightly throwing an exception if not found.
     return ArrayReduceRightLoopContinuation(
-        jsreceiver, callbackfn, TheHole, jsreceiver, 0, numberLength);
+        jsreceiver, callbackfn, TheHole, jsreceiver, initialK, numberLength);
   }
 
   transitioning javascript builtin
