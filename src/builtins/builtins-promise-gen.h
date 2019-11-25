@@ -66,9 +66,13 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
       TNode<JSPromise> promise, TNode<Object> debug_event,
       TNode<NativeContext> native_context);
 
- protected:
+  void BranchIfAccessCheckFailed(SloppyTNode<Context> context,
+                                 SloppyTNode<Context> native_context,
+                                 TNode<Object> promise_constructor,
+                                 TNode<Object> executor, Label* if_noaccess);
   void PromiseInit(Node* promise);
 
+ protected:
   void PromiseSetHasHandler(Node* promise);
   void PromiseSetHandledHint(Node* promise);
 
@@ -105,11 +109,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
                     Node* value, Label* if_exception, Variable* var_exception);
   template <typename... TArgs>
   Node* InvokeThen(Node* native_context, Node* receiver, TArgs... args);
-
-  void BranchIfAccessCheckFailed(SloppyTNode<Context> context,
-                                 SloppyTNode<Context> native_context,
-                                 Node* promise_constructor, Node* executor,
-                                 Label* if_noaccess);
 
   std::pair<Node*, Node*> CreatePromiseFinallyFunctions(Node* on_finally,
                                                         Node* constructor,

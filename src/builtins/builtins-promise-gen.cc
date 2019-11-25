@@ -441,7 +441,8 @@ void PromiseBuiltinsAssembler::BranchIfPromiseThenLookupChainIntact(
 
 void PromiseBuiltinsAssembler::BranchIfAccessCheckFailed(
     SloppyTNode<Context> context, SloppyTNode<Context> native_context,
-    Node* promise_constructor, Node* executor, Label* if_noaccess) {
+    TNode<Object> promise_constructor, TNode<Object> executor,
+    Label* if_noaccess) {
   VARIABLE(var_executor, MachineRepresentation::kTagged);
   var_executor.Bind(executor);
   Label has_access(this), call_runtime(this, Label::kDeferred);
@@ -526,119 +527,6 @@ TF_BUILTIN(PromiseConstructorLazyDeoptContinuation, PromiseBuiltinsAssembler) {
 
   BIND(&finally);
   Return(promise);
-}
-
-// ES6 #sec-promise-executor
-TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
-  TNode<Object> executor = CAST(Parameter(Descriptor::kExecutor));
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  Isolate* isolate = this->isolate();
-
-  Label if_targetisundefined(this, Label::kDeferred);
-
-  GotoIf(IsUndefined(new_target), &if_targetisundefined);
-
-  Label if_notcallable(this, Label::kDeferred);
-
-  GotoIf(TaggedIsSmi(executor), &if_notcallable);
-
-  const TNode<Map> executor_map = LoadMap(CAST(executor));
-  GotoIfNot(IsCallableMap(executor_map), &if_notcallable);
-
-  const TNode<NativeContext> native_context = LoadNativeContext(context);
-  const TNode<JSFunction> promise_fun =
-      CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
-  Node* const is_debug_active = IsDebugActive();
-  Label if_targetisnotmodified(this),
-      if_targetismodified(this, Label::kDeferred), run_executor(this),
-      debug_push(this), if_noaccess(this, Label::kDeferred);
-
-  BranchIfAccessCheckFailed(context, native_context, promise_fun, executor,
-                            &if_noaccess);
-
-  Branch(TaggedEqual(promise_fun, new_target), &if_targetisnotmodified,
-         &if_targetismodified);
-
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-  VARIABLE(var_reject_call, MachineRepresentation::kTagged);
-  VARIABLE(var_reason, MachineRepresentation::kTagged);
-
-  BIND(&if_targetisnotmodified);
-  {
-    const TNode<JSPromise> instance = AllocateAndInitJSPromise(context);
-    var_result.Bind(instance);
-    Goto(&debug_push);
-  }
-
-  BIND(&if_targetismodified);
-  {
-    ConstructorBuiltinsAssembler constructor_assembler(this->state());
-    TNode<JSObject> instance = constructor_assembler.EmitFastNewObject(
-        context, promise_fun, CAST(new_target));
-    PromiseInit(instance);
-    var_result.Bind(instance);
-
-    GotoIfNot(IsPromiseHookEnabledOrHasAsyncEventDelegate(), &debug_push);
-    CallRuntime(Runtime::kPromiseHookInit, context, instance,
-                UndefinedConstant());
-    Goto(&debug_push);
-  }
-
-  BIND(&debug_push);
-  {
-    GotoIfNot(is_debug_active, &run_executor);
-    CallRuntime(Runtime::kDebugPushPromise, context, var_result.value());
-    Goto(&run_executor);
-  }
-
-  BIND(&run_executor);
-  {
-    Label out(this), if_rejectpromise(this), debug_pop(this, Label::kDeferred);
-
-    PromiseResolvingFunctions funcs = CreatePromiseResolvingFunctions(
-        context, CAST(var_result.value()), TrueConstant(), native_context);
-    Node *resolve = funcs.resolve, *reject = funcs.reject;
-
-    Node* const maybe_exception = CallJS(
-        CodeFactory::Call(isolate, ConvertReceiverMode::kNullOrUndefined),
-        context, executor, UndefinedConstant(), resolve, reject);
-
-    GotoIfException(maybe_exception, &if_rejectpromise, &var_reason);
-    Branch(is_debug_active, &debug_pop, &out);
-
-    BIND(&if_rejectpromise);
-    {
-      CallJS(CodeFactory::Call(isolate, ConvertReceiverMode::kNullOrUndefined),
-             context, reject, UndefinedConstant(), var_reason.value());
-      Branch(is_debug_active, &debug_pop, &out);
-    }
-
-    BIND(&debug_pop);
-    {
-      CallRuntime(Runtime::kDebugPopPromise, context);
-      Goto(&out);
-    }
-    BIND(&out);
-    Return(var_result.value());
-  }
-
-  // 1. If NewTarget is undefined, throw a TypeError exception.
-  BIND(&if_targetisundefined);
-  ThrowTypeError(context, MessageTemplate::kNotAPromise, new_target);
-
-  // 2. If IsCallable(executor) is false, throw a TypeError exception.
-  BIND(&if_notcallable);
-  ThrowTypeError(context, MessageTemplate::kResolverNotAFunction, executor);
-
-  // Silently fail if the stack looks fishy.
-  BIND(&if_noaccess);
-  {
-    const TNode<Smi> counter_id =
-        SmiConstant(v8::Isolate::kPromiseConstructorReturnedUndefined);
-    CallRuntime(Runtime::kIncrementUseCounter, context, counter_id);
-    Return(UndefinedConstant());
-  }
 }
 
 // ES#sec-promise.prototype.then
