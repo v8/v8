@@ -442,18 +442,30 @@ void Map::MapVerify(Isolate* isolate) {
     CHECK(native_context().IsNativeContext());
   } else {
     if (GetBackPointer().IsUndefined(isolate)) {
-      // Root maps must keep the ownership and there must be no descriptors
-      // in the descriptors array that do not belong to the map.
-      CHECK(owns_descriptors() || is_prototype_map());
+      // Root maps must not have descriptors in the descriptor array that do not
+      // belong to the map.
       CHECK_EQ(NumberOfOwnDescriptors(),
                instance_descriptors().number_of_descriptors());
-      if (!is_prototype_map()) {
-        // There must be no slack in root maps' descriptors array.
-        CHECK_EQ(0, instance_descriptors().number_of_slack_descriptors());
-      }
     } else {
       // If there is a parent map it must be non-stable.
-      CHECK(!Map::cast(GetBackPointer()).is_stable());
+      Map parent = Map::cast(GetBackPointer());
+      CHECK(!parent.is_stable());
+      DescriptorArray descriptors = instance_descriptors();
+      if (descriptors == parent.instance_descriptors()) {
+        if (NumberOfOwnDescriptors() == parent.NumberOfOwnDescriptors() + 1) {
+          // Descriptors sharing through property transitions takes over
+          // ownership from the parent map.
+          CHECK(!parent.owns_descriptors());
+        } else {
+          CHECK_EQ(NumberOfOwnDescriptors(), parent.NumberOfOwnDescriptors());
+          // Descriptors sharing through special transitions takes over
+          // ownership from the parent map unless it uses the canonical empty
+          // descriptor array.
+          CHECK_IMPLIES(
+              descriptors != ReadOnlyRoots(isolate).empty_descriptor_array(),
+              !parent.owns_descriptors());
+        }
+      }
     }
   }
   SLOW_DCHECK(instance_descriptors().IsSortedNoDuplicates());

@@ -634,9 +634,8 @@ Map Map::FindRootMap(Isolate* isolate) const {
   while (true) {
     Object back = result.GetBackPointer(isolate);
     if (back.IsUndefined(isolate)) {
-      // Initial map always owns descriptors and doesn't have unused entries
-      // in the descriptor array.
-      DCHECK(result.owns_descriptors());
+      // Initial map must not contain descriptors in the descriptors array
+      // that do not belong to the map.
       DCHECK_EQ(result.NumberOfOwnDescriptors(),
                 result.instance_descriptors().number_of_descriptors());
       return result;
@@ -1572,9 +1571,8 @@ void EnsureInitialMap(Isolate* isolate, Handle<Map> map) {
          *map == *isolate->async_function_with_home_object_map() ||
          *map == *isolate->async_function_with_name_and_home_object_map());
 #endif
-  // Initial maps must always own their descriptors and it's descriptor array
-  // does not contain descriptors that do not belong to the map.
-  DCHECK(map->owns_descriptors());
+  // Initial maps must not contain descriptors in the descriptors array
+  // that do not belong to the map.
   DCHECK_EQ(map->NumberOfOwnDescriptors(),
             map->instance_descriptors().number_of_descriptors());
 }
@@ -1592,6 +1590,11 @@ Handle<Map> Map::CopyInitialMap(Isolate* isolate, Handle<Map> map,
                                 int instance_size, int inobject_properties,
                                 int unused_property_fields) {
   EnsureInitialMap(isolate, map);
+  // Initial map must not contain descriptors in the descriptors array
+  // that do not belong to the map.
+  DCHECK_EQ(map->NumberOfOwnDescriptors(),
+            map->instance_descriptors().number_of_descriptors());
+
   Handle<Map> result =
       RawCopy(isolate, map, instance_size, inobject_properties);
 
@@ -1600,9 +1603,10 @@ Handle<Map> Map::CopyInitialMap(Isolate* isolate, Handle<Map> map,
 
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors > 0) {
-    // The copy will use the same descriptors array.
-    result->UpdateDescriptors(isolate, map->instance_descriptors(),
-                              map->GetLayoutDescriptor(),
+    // The copy will use the same descriptors array without ownership.
+    DescriptorArray descriptors = map->instance_descriptors();
+    result->set_owns_descriptors(false);
+    result->UpdateDescriptors(isolate, descriptors, map->GetLayoutDescriptor(),
                               number_of_own_descriptors);
 
     DCHECK_EQ(result->NumberOfFields(),
@@ -1682,9 +1686,8 @@ void Map::ConnectTransition(Isolate* isolate, Handle<Map> parent,
   if (!parent->GetBackPointer().IsUndefined(isolate)) {
     parent->set_owns_descriptors(false);
   } else {
-    // |parent| is initial map and it must keep the ownership, there must be no
-    // descriptors in the descriptors array that do not belong to the map.
-    DCHECK(parent->owns_descriptors());
+    // |parent| is initial map and it must not contain descriptors in the
+    // descriptors array that do not belong to the map.
     DCHECK_EQ(parent->NumberOfOwnDescriptors(),
               parent->instance_descriptors().number_of_descriptors());
   }
@@ -1928,6 +1931,7 @@ Handle<Map> Map::CopyForElementsTransition(Isolate* isolate, Handle<Map> map) {
     // In case the map owned its own descriptors, share the descriptors and
     // transfer ownership to the new map.
     // The properties did not change, so reuse descriptors.
+    map->set_owns_descriptors(false);
     new_map->InitializeDescriptors(isolate, map->instance_descriptors(),
                                    map->GetLayoutDescriptor());
   } else {
