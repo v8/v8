@@ -45,9 +45,9 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   static const GlobalClassList& GetClasses() { return Get().classes_; }
 
   static void AddCppInclude(std::string include_path) {
-    Get().cpp_includes_.push_back(std::move(include_path));
+    Get().cpp_includes_.insert(std::move(include_path));
   }
-  static const std::vector<std::string>& CppIncludes() {
+  static const std::set<std::string>& CppIncludes() {
     return Get().cpp_includes_;
   }
 
@@ -82,7 +82,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   Namespace* default_namespace_;
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;
-  std::vector<std::string> cpp_includes_;
+  std::set<std::string> cpp_includes_;
   std::map<SourceId, PerFileStreams> generated_per_file_;
   GlobalClassList classes_;
   std::map<std::string, size_t> fresh_ids_;
