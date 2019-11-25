@@ -3301,6 +3301,8 @@ v8_source_set("v8_base_without_compiler") {
     ]
   }
 
+  deps += [ "//third_party/zlib" ]
+
   if (v8_postmortem_support) {
     sources += [ "$target_gen_dir/debug-support.cc" ]
     deps += [ ":postmortem-metadata" ]

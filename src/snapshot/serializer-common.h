@@ -358,50 +358,7 @@ class SerializedData {
   DISALLOW_COPY_AND_ASSIGN(SerializedData);
 };
 
-class Checksum {
- public:
-  explicit Checksum(Vector<const byte> payload) {
-#ifdef MEMORY_SANITIZER
-    // Computing the checksum includes padding bytes for objects like strings.
-    // Mark every object as initialized in the code serializer.
-    MSAN_MEMORY_IS_INITIALIZED(payload.begin(), payload.length());
-#endif  // MEMORY_SANITIZER
-    // Fletcher's checksum. Modified to reduce 64-bit sums to 32-bit.
-    uintptr_t a = 1;
-    uintptr_t b = 0;
-    // TODO(jgruber, v8:9171): The following DCHECK should ideally hold since we
-    // access payload through an uintptr_t pointer later on; and some
-    // architectures, e.g. arm, may generate instructions that expect correct
-    // alignment. However, we do not control alignment for external snapshots.
-    // DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload.begin()),
-    //                  kIntptrSize));
-    DCHECK(IsAligned(payload.length(), kIntptrSize));
-    const uintptr_t* cur = reinterpret_cast<const uintptr_t*>(payload.begin());
-    const uintptr_t* end = cur + payload.length() / kIntptrSize;
-    while (cur < end) {
-      // Unsigned overflow expected and intended.
-      a += *cur++;
-      b += a;
-    }
-#if V8_HOST_ARCH_64_BIT
-    a ^= a >> 32;
-    b ^= b >> 32;
-#endif  // V8_HOST_ARCH_64_BIT
-    a_ = static_cast<uint32_t>(a);
-    b_ = static_cast<uint32_t>(b);
-  }
-
-  bool Check(uint32_t a, uint32_t b) const { return a == a_ && b == b_; }
-
-  uint32_t a() const { return a_; }
-  uint32_t b() const { return b_; }
-
- private:
-  uint32_t a_;
-  uint32_t b_;
-
-  DISALLOW_COPY_AND_ASSIGN(Checksum);
-};
+V8_EXPORT_PRIVATE uint32_t Checksum(Vector<const byte> payload);
 
 }  // namespace internal
 }  // namespace v8

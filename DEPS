@@ -256,6 +256,8 @@ deps = {
     Var('android_url') + '/platform/external/perfetto.git' + '@' + '12dc10e0278cded35205cf84f80a821348cb6c56',
   'v8/third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + 'b68a347f56137b4b1a746e8c7438495a6ac1bd91',
+  'v8/third_party/zlib':
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'e5c4d8c45ed18f84ea68f5029c9bceb1f67268b8',
 }
 
 include_rules = [

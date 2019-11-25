@@ -403,9 +403,7 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   CopyBytes(data_ + padded_payload_offset, payload->data(),
             static_cast<size_t>(payload->size()));
 
-  Checksum checksum(ChecksummedContent());
-  SetHeaderValue(kChecksumPartAOffset, checksum.a());
-  SetHeaderValue(kChecksumPartBOffset, checksum.b());
+  SetHeaderValue(kChecksumOffset, Checksum(ChecksummedContent()));
 }
 
 SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
@@ -417,8 +415,7 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
   uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
   uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
-  uint32_t c1 = GetHeaderValue(kChecksumPartAOffset);
-  uint32_t c2 = GetHeaderValue(kChecksumPartBOffset);
+  uint32_t c = GetHeaderValue(kChecksumOffset);
   if (version_hash != Version::Hash()) return VERSION_MISMATCH;
   if (source_hash != expected_source_hash) return SOURCE_MISMATCH;
   if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
@@ -427,7 +424,7 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
       POINTER_SIZE_ALIGN(kHeaderSize +
                          GetHeaderValue(kNumReservationsOffset) * kInt32Size);
   if (payload_length > max_payload_length) return LENGTH_MISMATCH;
-  if (!Checksum(ChecksummedContent()).Check(c1, c2)) return CHECKSUM_MISMATCH;
+  if (Checksum(ChecksummedContent()) != c) return CHECKSUM_MISMATCH;
   return CHECK_SUCCESS;
 }
 

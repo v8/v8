@@ -29,7 +29,7 @@ void ReadOnlyHeap::SetUp(Isolate* isolate, ReadOnlyDeserializer* des) {
   DCHECK_NOT_NULL(isolate);
 #ifdef V8_SHARED_RO_HEAP
   bool call_once_ran = false;
-  base::Optional<Checksum> des_checksum;
+  base::Optional<uint32_t> des_checksum;
 #ifdef DEBUG
   if (des != nullptr) des_checksum = des->GetChecksum();
 #endif  // DEBUG
@@ -50,7 +50,7 @@ void ReadOnlyHeap::SetUp(Isolate* isolate, ReadOnlyDeserializer* des) {
   USE(call_once_ran);
   USE(des_checksum);
 #ifdef DEBUG
-  const base::Optional<Checksum> last_checksum =
+  const base::Optional<uint32_t> last_checksum =
       shared_ro_heap_->read_only_blob_checksum_;
   if (last_checksum || des_checksum) {
     // The read-only heap was set up from a snapshot. Make sure it's the always
