@@ -397,7 +397,8 @@ TEST(DisasmX64) {
 #define EMIT_SSE_INSTR(instruction, notUsed1, notUsed2) \
   __ instruction(xmm1, xmm0);                           \
   __ instruction(xmm1, Operand(rbx, rcx, times_4, 10000));
-    SSE_INSTRUCTION_LIST(EMIT_SSE_INSTR)
+    SSE_BINOP_INSTRUCTION_LIST(EMIT_SSE_INSTR)
+    SSE_UNOP_INSTRUCTION_LIST(EMIT_SSE_INSTR)
 #undef EMIT_SSE_INSTR
 
 #define EMIT_SSE_INSTR(instruction, notUsed1, notUsed2, notUse3) \
@@ -710,6 +711,20 @@ TEST(DisasmX64) {
       __ vcmpnlepd(xmm5, xmm4, xmm1);
       __ vcmpnlepd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
 
+#define EMIT_SSE_UNOP_AVXINSTR(instruction, notUsed1, notUsed2) \
+  __ v##instruction(xmm10, xmm1);                               \
+  __ v##instruction(xmm10, Operand(rbx, rcx, times_4, 10000));
+
+      SSE_UNOP_INSTRUCTION_LIST(EMIT_SSE_UNOP_AVXINSTR)
+#undef EMIT_SSE_UNOP_AVXINSTR
+
+#define EMIT_SSE_BINOP_AVXINSTR(instruction, notUsed1, notUsed2) \
+  __ v##instruction(xmm10, xmm5, xmm1);                          \
+  __ v##instruction(xmm10, xmm5, Operand(rbx, rcx, times_4, 10000));
+
+      SSE_BINOP_INSTRUCTION_LIST(EMIT_SSE_BINOP_AVXINSTR)
+#undef EMIT_SSE_BINOP_AVXINSTR
+
 #define EMIT_SSE2_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3) \
   __ v##instruction(xmm10, xmm5, xmm1);                               \
   __ v##instruction(xmm10, xmm5, Operand(rdx, 4));
@@ -749,9 +764,6 @@ TEST(DisasmX64) {
       __ vpinsrd(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 2);
       __ vpshufd(xmm1, xmm2, 85);
       __ vshufps(xmm3, xmm2, xmm3, 3);
-
-      __ vcvtdq2ps(xmm5, xmm1);
-      __ vcvtdq2ps(xmm5, Operand(rdx, 4));
     }
   }
 

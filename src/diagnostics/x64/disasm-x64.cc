@@ -1272,25 +1272,32 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer("vmovmskps %s,", NameOfCPURegister(regop));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x51:
+      case 0x52:
+      case 0x53:
       case 0x54:
-        AppendToBuffer("vandps %s,%s,", NameOfXMMRegister(regop),
-                       NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
       case 0x55:
-        AppendToBuffer("vandnps %s,%s,", NameOfXMMRegister(regop),
-                       NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
+      case 0x56:
       case 0x57:
-        AppendToBuffer("vxorps %s,%s,", NameOfXMMRegister(regop),
-                       NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
+      case 0x58:
+      case 0x59:
+      case 0x5A:
       case 0x5B:
-        AppendToBuffer("vcvtdq2ps %s,", NameOfXMMRegister(regop));
+      case 0x5C:
+      case 0x5D:
+      case 0x5E:
+      case 0x5F: {
+        const char* const pseudo_op[] = {
+            "vsqrtps",   "vrsqrtps", "vrcpps", "vandps", "vandnps",
+            "vorps",     "vxorps",   "vaddps", "vmulps", "vcvtps2pd",
+            "vcvtdq2ps", "vsubps",   "vminps", "vdivps", "vmaxps",
+        };
+
+        AppendToBuffer("%s %s,%s,", pseudo_op[opcode - 0x51],
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
+      }
       case 0xC2: {
         AppendToBuffer("vcmpps %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
@@ -1756,7 +1763,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("pblendw %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
-        AppendToBuffer(",0x%x", (*current) & 3);
+        AppendToBuffer(",0x%x", *current);
         current += 1;
       } else if (third_byte == 0x0F) {
         get_modrm(*current, &mod, &regop, &rm);

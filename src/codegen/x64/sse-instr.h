@@ -5,19 +5,24 @@
 #ifndef V8_CODEGEN_X64_SSE_INSTR_H_
 #define V8_CODEGEN_X64_SSE_INSTR_H_
 
-#define SSE_INSTRUCTION_LIST(V) \
-  V(sqrtps, 0F, 51)             \
-  V(rsqrtps, 0F, 52)            \
-  V(rcpps, 0F, 53)              \
-  V(andps, 0F, 54)              \
-  V(andnps, 0F, 55)             \
-  V(orps, 0F, 56)               \
-  V(xorps, 0F, 57)              \
-  V(addps, 0F, 58)              \
-  V(mulps, 0F, 59)              \
-  V(subps, 0F, 5C)              \
-  V(minps, 0F, 5D)              \
-  V(divps, 0F, 5E)              \
+// SSE instructions whose AVX version has two operands.
+#define SSE_UNOP_INSTRUCTION_LIST(V) \
+  V(sqrtps, 0F, 51)                  \
+  V(rsqrtps, 0F, 52)                 \
+  V(rcpps, 0F, 53)                   \
+  V(cvtdq2ps, 0F, 5B)
+
+// SSE instructions whose AVX version has three operands.
+#define SSE_BINOP_INSTRUCTION_LIST(V) \
+  V(andps, 0F, 54)                    \
+  V(andnps, 0F, 55)                   \
+  V(orps, 0F, 56)                     \
+  V(xorps, 0F, 57)                    \
+  V(addps, 0F, 58)                    \
+  V(mulps, 0F, 59)                    \
+  V(subps, 0F, 5C)                    \
+  V(minps, 0F, 5D)                    \
+  V(divps, 0F, 5E)                    \
   V(maxps, 0F, 5F)
 
 // Instructions dealing with scalar single-precision values.
