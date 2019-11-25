@@ -968,15 +968,21 @@ class RuntimeCallTimer final {
   V(NamedSetterCallback)                       \
   V(Object_DeleteProperty)                     \
   V(ObjectVerify)                              \
+  V(OptimizeBackgroundDispatcherJob)           \
   V(OptimizeCode)                              \
+  V(OptimizeConcurrentPrepare)                 \
+  V(OptimizeConcurrentFinalize)                \
+  V(OptimizeFinalizePipelineJob)               \
+  V(OptimizeHeapBrokerInitialization)          \
+  V(OptimizeNonConcurrent)                     \
+  V(OptimizeSerialize)                         \
+  V(OptimizeSerializeMetadata)                 \
   V(ParseEval)                                 \
   V(ParseFunction)                             \
   V(PropertyCallback)                          \
   V(PrototypeMap_TransitionToAccessorProperty) \
   V(PrototypeMap_TransitionToDataProperty)     \
   V(PrototypeObject_DeleteProperty)            \
-  V(RecompileConcurrent)                       \
-  V(RecompileSynchronous)                      \
   V(ReconfigureToDataProperty)                 \
   V(StringLengthGetter)                        \
   V(TestCounter1)                              \

@@ -736,10 +736,10 @@ void InsertCodeIntoOptimizedCodeCache(
 bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(
-      isolate, RuntimeCallCounterId::kRecompileSynchronous);
+      isolate, RuntimeCallCounterId::kOptimizeNonConcurrent);
   OptimizedCompilationInfo* compilation_info = job->compilation_info();
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.RecompileSynchronous");
+               "V8.OptimizeNonConcurrent");
 
   if (job->PrepareJob(isolate) != CompilationJob::SUCCEEDED ||
       job->ExecuteJob() != CompilationJob::SUCCEEDED ||
@@ -783,9 +783,9 @@ bool GetOptimizedCodeLater(OptimizedCompilationJob* job, Isolate* isolate) {
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(
-      isolate, RuntimeCallCounterId::kRecompileSynchronous);
+      isolate, RuntimeCallCounterId::kOptimizeConcurrentPrepare);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.RecompileSynchronous");
+               "V8.OptimizeConcurrentPrepare");
 
   if (job->PrepareJob(isolate) != CompilationJob::SUCCEEDED) return false;
   isolate->optimizing_compile_dispatcher()->QueueForOptimization(job);
@@ -2298,9 +2298,9 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(
-      isolate, RuntimeCallCounterId::kRecompileSynchronous);
+      isolate, RuntimeCallCounterId::kOptimizeConcurrentFinalize);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.RecompileSynchronous");
+               "V8.OptimizeConcurrentFinalize");
 
   Handle<SharedFunctionInfo> shared = compilation_info->shared_info();
 

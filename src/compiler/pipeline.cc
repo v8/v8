@@ -83,6 +83,7 @@
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/isolate-inl.h"
 #include "src/init/bootstrapper.h"
+#include "src/logging/counters.h"
 #include "src/objects/shared-function-info.h"
 #include "src/parsing/parse-info.h"
 #include "src/tracing/trace-event.h"
@@ -1084,6 +1085,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl() {
 
 PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
     Isolate* isolate) {
+  RuntimeCallTimerScope runtimeTimer(
+      isolate, RuntimeCallCounterId::kOptimizeFinalizePipelineJob);
   MaybeHandle<Code> maybe_code = pipeline_.FinalizeCode();
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
@@ -1384,6 +1387,9 @@ struct HeapBrokerInitializationPhase {
   static const char* phase_name() { return "V8.TFHeapBrokerInitialization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
+    RuntimeCallTimerScope runtimeTimer(
+        data->isolate(),
+        RuntimeCallCounterId::kOptimizeHeapBrokerInitialization);
     data->broker()->InitializeAndStartSerializing(data->native_context());
   }
 };
@@ -1392,6 +1398,8 @@ struct CopyMetadataForConcurrentCompilePhase {
   static const char* phase_name() { return "V8.TFSerializeMetadata"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
+    RuntimeCallTimerScope runtimeTimer(
+        data->isolate(), RuntimeCallCounterId::kOptimizeSerializeMetadata);
     GraphReducer graph_reducer(temp_zone, data->graph(),
                                &data->info()->tick_counter(),
                                data->jsgraph()->Dead());
@@ -1410,6 +1418,8 @@ struct SerializationPhase {
   static const char* phase_name() { return "V8.TFSerialization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
+    RuntimeCallTimerScope runtimeTimer(
+        data->isolate(), RuntimeCallCounterId::kOptimizeSerialize);
     SerializerForBackgroundCompilationFlags flags;
     if (data->info()->is_bailout_on_uninitialized()) {
       flags |= SerializerForBackgroundCompilationFlag::kBailoutOnUninitialized;
