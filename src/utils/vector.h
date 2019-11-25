@@ -242,14 +242,6 @@ inline Vector<const uint8_t> OneByteVector(const char* data) {
   return OneByteVector(data, strlen(data));
 }
 
-inline Vector<char> MutableCStrVector(char* data) {
-  return Vector<char>(data, strlen(data));
-}
-
-inline Vector<char> MutableCStrVector(char* data, size_t max) {
-  return Vector<char>(data, strnlen(data, max));
-}
-
 // For string literals, ArrayVector("foo") returns a vector ['f', 'o', 'o', \0]
 // with length 4 and null-termination.
 // If you want ['f', 'o', 'o'], use CStrVector("foo").
