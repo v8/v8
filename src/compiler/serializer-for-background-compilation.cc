@@ -2212,7 +2212,7 @@ void SerializerForBackgroundCompilation::ProcessReceiverMapForApiCall(
     FunctionTemplateInfoRef target, Handle<Map> receiver) {
   if (!receiver->is_access_check_needed()) {
     MapRef receiver_map(broker(), receiver);
-    TRACE_BROKER(broker(), "Serializing holder for target:" << target);
+    TRACE_BROKER(broker(), "Serializing holder for target: " << target);
     target.LookupHolderOfExpectedType(receiver_map,
                                       SerializationPolicy::kSerializeIfNeeded);
   }
@@ -2896,8 +2896,10 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
       if (sfi->IsApiFunction()) {
         FunctionTemplateInfoRef fti_ref(
             broker(), handle(sfi->get_api_func_data(), broker()->isolate()));
-        if (fti_ref.has_call_code()) fti_ref.SerializeCallCode();
-        ProcessReceiverMapForApiCall(fti_ref, receiver_map.object());
+        if (fti_ref.has_call_code()) {
+          fti_ref.SerializeCallCode();
+          ProcessReceiverMapForApiCall(fti_ref, receiver_map.object());
+        }
       }
     } else if (access_info.constant()->IsJSBoundFunction()) {
       JSBoundFunctionRef function(broker(), access_info.constant());
