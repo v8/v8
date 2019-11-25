@@ -1100,9 +1100,9 @@ BackgroundCompileTask::~BackgroundCompileTask() = default;
 
 namespace {
 
-// A scope object that ensures a parse info's runtime call stats, stack limit
-// and on_background_thread fields is set correctly during worker-thread
-// compile, and restores it after going out of scope.
+// A scope object that ensures a parse info's runtime call stats and stack limit
+// are set correctly during worker-thread compile, and restores it after going
+// out of scope.
 class OffThreadParseInfoScope {
  public:
   OffThreadParseInfoScope(
@@ -1112,7 +1112,6 @@ class OffThreadParseInfoScope {
         original_runtime_call_stats_(parse_info_->runtime_call_stats()),
         original_stack_limit_(parse_info_->stack_limit()),
         worker_thread_scope_(worker_thread_runtime_stats) {
-    parse_info_->set_on_background_thread(true);
     parse_info_->set_runtime_call_stats(worker_thread_scope_.Get());
     parse_info_->set_stack_limit(GetCurrentStackPosition() - stack_size * KB);
   }
@@ -1120,7 +1119,6 @@ class OffThreadParseInfoScope {
   ~OffThreadParseInfoScope() {
     parse_info_->set_stack_limit(original_stack_limit_);
     parse_info_->set_runtime_call_stats(original_runtime_call_stats_);
-    parse_info_->set_on_background_thread(false);
   }
 
  private:
@@ -1170,11 +1168,9 @@ void BackgroundCompileTask::Run() {
 
 bool Compiler::Analyze(ParseInfo* parse_info) {
   DCHECK_NOT_NULL(parse_info->literal());
-  RuntimeCallTimerScope runtimeTimer(
-      parse_info->runtime_call_stats(),
-      parse_info->on_background_thread()
-          ? RuntimeCallCounterId::kCompileBackgroundAnalyse
-          : RuntimeCallCounterId::kCompileAnalyse);
+  RuntimeCallTimerScope runtimeTimer(parse_info->runtime_call_stats(),
+                                     RuntimeCallCounterId::kCompileAnalyse,
+                                     RuntimeCallStats::kThreadSpecific);
   if (!Rewriter::Rewrite(parse_info)) return false;
   if (!DeclarationScope::Analyze(parse_info)) return false;
   return true;

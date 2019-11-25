@@ -515,9 +515,14 @@ void RuntimeCallStats::Add(RuntimeCallStats* other) {
 }
 
 // static
-void RuntimeCallStats::CorrectCurrentCounterId(
-    RuntimeCallCounterId counter_id) {
+void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallCounterId counter_id,
+                                               CounterMode mode) {
   DCHECK(IsCalledOnTheSameThread());
+  if (mode == RuntimeCallStats::CounterMode::kThreadSpecific) {
+    counter_id = CounterIdForThread(counter_id);
+  }
+  DCHECK(IsCounterAppropriateForThread(counter_id));
+
   RuntimeCallTimer* timer = current_timer();
   if (timer == nullptr) return;
   RuntimeCallCounter* counter = GetCounter(counter_id);

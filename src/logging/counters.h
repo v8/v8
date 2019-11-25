@@ -1068,6 +1068,11 @@ class RuntimeCallStats final {
  public:
   enum ThreadType { kMainIsolateThread, kWorkerThread };
 
+  // If kExact is chosen the counter will be use as given. With kThreadSpecific,
+  // if the RuntimeCallStats was created for a worker thread, then the
+  // background specific version of the counter will be used instead.
+  enum CounterMode { kExact, kThreadSpecific };
+
   explicit V8_EXPORT_PRIVATE RuntimeCallStats(ThreadType thread_type);
 
   // Starting measuring the time for a function. This will establish the
@@ -1083,7 +1088,7 @@ class RuntimeCallStats final {
   // Set counter id for the innermost measurement. It can be used to refine
   // event kind when a runtime entry counter is too generic.
   V8_EXPORT_PRIVATE void CorrectCurrentCounterId(
-      RuntimeCallCounterId counter_id);
+      RuntimeCallCounterId counter_id, CounterMode mode = kExact);
 
   V8_EXPORT_PRIVATE void Reset();
   // Add all entries from another stats object.
@@ -1198,22 +1203,18 @@ class WorkerThreadRuntimeCallStatsScope final {
 // the time of C++ scope.
 class RuntimeCallTimerScope {
  public:
-  // If kExact is chosen the counter will be use as given. With kThreadSpecific,
-  // if the RuntimeCallStats was created for a worker thread, then the
-  // background specific version of the counter will be used instead.
-  enum CounterMode { kExact, kThreadSpecific };
-
   inline RuntimeCallTimerScope(Isolate* isolate,
                                RuntimeCallCounterId counter_id);
   inline RuntimeCallTimerScope(RuntimeCallStats* stats,
                                RuntimeCallCounterId counter_id,
-                               CounterMode mode = CounterMode::kExact) {
+                               RuntimeCallStats::CounterMode mode =
+                                   RuntimeCallStats::CounterMode::kExact) {
     if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled() ||
                   stats == nullptr)) {
       return;
     }
     stats_ = stats;
-    if (mode == CounterMode::kThreadSpecific) {
+    if (mode == RuntimeCallStats::CounterMode::kThreadSpecific) {
       counter_id = stats->CounterIdForThread(counter_id);
     }
 

@@ -17,6 +17,7 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/common/message-template.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
+#include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/scope-info.h"
@@ -2333,10 +2334,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   const bool is_lazy_inner_function = is_lazy && !is_top_level;
 
   RuntimeCallTimerScope runtime_timer(
-      runtime_call_stats_,
-      parsing_on_main_thread_
-          ? RuntimeCallCounterId::kParseFunctionLiteral
-          : RuntimeCallCounterId::kParseBackgroundFunctionLiteral);
+      runtime_call_stats_, RuntimeCallCounterId::kParseFunctionLiteral,
+      RuntimeCallStats::kThreadSpecific);
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
@@ -2429,12 +2428,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   }
   if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled()) &&
       did_preparse_successfully) {
-    const RuntimeCallCounterId counters[2] = {
-        RuntimeCallCounterId::kPreParseBackgroundWithVariableResolution,
-        RuntimeCallCounterId::kPreParseWithVariableResolution};
     if (runtime_call_stats_) {
       runtime_call_stats_->CorrectCurrentCounterId(
-          counters[parsing_on_main_thread_]);
+          RuntimeCallCounterId::kPreParseWithVariableResolution,
+          RuntimeCallStats::kThreadSpecific);
     }
   }
 
