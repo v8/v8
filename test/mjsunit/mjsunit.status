@@ -506,6 +506,7 @@
   'compiler/osr-big': [PASS, SLOW],
   'regress/regress-454725': [PASS, SLOW],
   'try': [PASS, SLOW],
+  'non-extensible-array-reduce': [PASS, SLOW],
 }],  # 'arch == arm64 and simulator_run'
 
 ##############################################################################
