@@ -39,7 +39,6 @@ SerializerTester::SerializerTester(const char* source)
       *v8::Local<v8::Function>::Cast(CompileRun(function_string.c_str()))));
   uint32_t flags = i::OptimizedCompilationInfo::kInliningEnabled |
                    i::OptimizedCompilationInfo::kFunctionContextSpecializing |
-                   i::OptimizedCompilationInfo::kAccessorInliningEnabled |
                    i::OptimizedCompilationInfo::kLoopPeelingEnabled |
                    i::OptimizedCompilationInfo::kBailoutOnUninitialized |
                    i::OptimizedCompilationInfo::kAllocationFoldingEnabled |

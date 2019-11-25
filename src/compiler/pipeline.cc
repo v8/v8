@@ -1003,9 +1003,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   if (FLAG_turbo_inlining) {
     compilation_info()->MarkAsInliningEnabled();
   }
-  if (FLAG_inline_accessors) {
-    compilation_info()->MarkAsAccessorInliningEnabled();
-  }
 
   // This is the bottleneck for computing and setting poisoning level in the
   // optimizing compiler.
@@ -1301,9 +1298,6 @@ struct InliningPhase {
             : MaybeHandle<JSFunction>());
     JSNativeContextSpecialization::Flags flags =
         JSNativeContextSpecialization::kNoFlags;
-    if (data->info()->is_accessor_inlining_enabled()) {
-      flags |= JSNativeContextSpecialization::kAccessorInliningEnabled;
-    }
     if (data->info()->is_bailout_on_uninitialized()) {
       flags |= JSNativeContextSpecialization::kBailoutOnUninitialized;
     }

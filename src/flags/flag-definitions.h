@@ -484,7 +484,6 @@ DEFINE_BOOL(trace_generalization, false, "trace map generalization")
 DEFINE_BOOL(turboprop, false,
             "enable experimental turboprop mid-tier compiler.")
 DEFINE_NEG_IMPLICATION(turboprop, turbo_inlining)
-DEFINE_NEG_IMPLICATION(turboprop, inline_accessors)
 DEFINE_VALUE_IMPLICATION(turboprop, interrupt_budget, 10 * KB)
 
 // Flags for concurrent recompilation.
@@ -597,7 +596,6 @@ DEFINE_VALUE_IMPLICATION(stress_inline, max_inlined_bytecode_size_absolute,
 DEFINE_VALUE_IMPLICATION(stress_inline, min_inlining_frequency, 0)
 DEFINE_IMPLICATION(stress_inline, polymorphic_inlining)
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
-DEFINE_BOOL(inline_accessors, true, "inline JavaScript accessors")
 DEFINE_BOOL(turbo_inline_array_builtins, true,
             "inline array builtins in TurboFan code")
 DEFINE_BOOL(use_osr, true, "use on-stack replacement")
