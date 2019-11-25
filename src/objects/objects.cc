@@ -966,6 +966,8 @@ MaybeHandle<FixedArray> CreateListFromArrayLikeFastPath(
           length > static_cast<size_t>(FixedArray::kMaxLength)) {
         return MaybeHandle<FixedArray>();
       }
+      STATIC_ASSERT(FixedArray::kMaxLength <=
+                    std::numeric_limits<uint32_t>::max());
       return array->GetElementsAccessor()->CreateListFromArrayLike(
           isolate, array, static_cast<uint32_t>(length));
     }

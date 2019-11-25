@@ -528,9 +528,8 @@ V8_WARN_UNUSED_RESULT ExceptionStatus FilterForEnumerableProperties(
   DCHECK(result->IsJSArray() || result->HasSloppyArgumentsElements());
   ElementsAccessor* accessor = result->GetElementsAccessor();
 
-  uint32_t length = accessor->GetCapacity(*result, result->elements());
-  for (uint32_t i = 0; i < length; i++) {
-    InternalIndex entry(i);
+  size_t length = accessor->GetCapacity(*result, result->elements());
+  for (InternalIndex entry : InternalIndex::Range(length)) {
     if (!accessor->HasEntry(*result, entry)) continue;
 
     // args are invalid after args.Call(), create a new one in every iteration.

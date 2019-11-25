@@ -166,12 +166,9 @@ RUNTIME_FUNCTION(Runtime_TypedArraySet) {
 
   size_t offset;
   CHECK(TryNumberToSize(*offset_obj, &offset));
-  DCHECK_LE(offset, kMaxUInt32);
 
   ElementsAccessor* accessor = target->GetElementsAccessor();
-  // TODO(v8:4153): Support huge TypedArrays.
-  return accessor->CopyElements(source, target, length,
-                                static_cast<uint32_t>(offset));
+  return accessor->CopyElements(source, target, length, offset);
 }
 
 }  // namespace internal

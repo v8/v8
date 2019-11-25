@@ -1847,17 +1847,18 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
 
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-  int number_of_own_elements =
+  size_t number_of_own_elements =
       object->GetElementsAccessor()->GetCapacity(*object, object->elements());
 
   if (number_of_own_elements >
-      FixedArray::kMaxLength - number_of_own_descriptors) {
+      static_cast<size_t>(FixedArray::kMaxLength - number_of_own_descriptors)) {
     isolate->Throw(*isolate->factory()->NewRangeError(
         MessageTemplate::kInvalidArrayLength));
     return Nothing<bool>();
   }
+  // The static cast is safe after the range check right above.
   Handle<FixedArray> values_or_entries = isolate->factory()->NewFixedArray(
-      number_of_own_descriptors + number_of_own_elements);
+      static_cast<int>(number_of_own_descriptors + number_of_own_elements));
   int count = 0;
 
   if (object->elements() != ReadOnlyRoots(isolate).empty_fixed_array()) {
@@ -3667,8 +3668,9 @@ bool TestElementsIntegrityLevel(JSObject object, PropertyAttributes level) {
         level);
   }
   if (IsTypedArrayElementsKind(kind)) {
-    if (level == FROZEN && JSArrayBufferView::cast(object).byte_length() > 0)
+    if (level == FROZEN && JSArrayBufferView::cast(object).byte_length() > 0) {
       return false;  // TypedArrays with elements can't be frozen.
+    }
     return TestPropertiesIntegrityLevel(object, level);
   }
   if (IsFrozenElementsKind(kind)) return true;

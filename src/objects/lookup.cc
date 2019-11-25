@@ -1165,12 +1165,8 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
     JSObject js_object = JSObject::cast(holder);
     ElementsAccessor* accessor = js_object.GetElementsAccessor(isolate_);
     FixedArrayBase backing_store = js_object.elements(isolate_);
-    // TODO(4153): Update elements.cc and drop the cast to uint32_t.
-    uint32_t index = index_ > std::numeric_limits<uint32_t>::max()
-                         ? std::numeric_limits<uint32_t>::max()
-                         : static_cast<uint32_t>(index_);
     number_ =
-        accessor->GetEntryForIndex(isolate_, js_object, backing_store, index);
+        accessor->GetEntryForIndex(isolate_, js_object, backing_store, index_);
     if (number_.is_not_found()) {
       return holder.IsJSTypedArray(isolate_) ? INTEGER_INDEXED_EXOTIC
                                              : NOT_FOUND;

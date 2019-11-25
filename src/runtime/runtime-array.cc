@@ -288,9 +288,8 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
       JSObject::PrototypeHasNoElements(isolate, JSObject::cast(*object))) {
     Handle<JSObject> obj = Handle<JSObject>::cast(object);
     ElementsAccessor* elements = obj->GetElementsAccessor();
-    Maybe<bool> result = elements->IncludesValue(isolate, obj, search_element,
-                                                 static_cast<uint32_t>(index),
-                                                 static_cast<uint32_t>(len));
+    Maybe<bool> result =
+        elements->IncludesValue(isolate, obj, search_element, index, len);
     MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
     return *isolate->factory()->ToBoolean(result.FromJust());
   }

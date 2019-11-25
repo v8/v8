@@ -1071,9 +1071,9 @@ static inline uint32_t ObjectAddressForHashing(Address object) {
   return value & kPageAlignmentMask;
 }
 
-static inline Handle<Object> MakeEntryPair(Isolate* isolate, uint32_t index,
+static inline Handle<Object> MakeEntryPair(Isolate* isolate, size_t index,
                                            Handle<Object> value) {
-  Handle<Object> key = isolate->factory()->Uint32ToString(index);
+  Handle<Object> key = isolate->factory()->SizeToString(index);
   Handle<FixedArray> entry_storage =
       isolate->factory()->NewUninitializedFixedArray(2);
   {
