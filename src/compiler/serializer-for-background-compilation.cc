@@ -1969,7 +1969,9 @@ void SerializerForBackgroundCompilation::ProcessCalleeForCallOrConstruct(
     ProcessBuiltinCall(shared, new_target, arguments, speculation_mode, padding,
                        result_hints);
     DCHECK_NE(shared->GetInlineability(), SharedFunctionInfo::kIsInlineable);
-  } else if (shared->GetInlineability() == SharedFunctionInfo::kIsInlineable &&
+  } else if ((flags() &
+              SerializerForBackgroundCompilationFlag::kEnableTurboInlining) &&
+             shared->GetInlineability() == SharedFunctionInfo::kIsInlineable &&
              callee.HasFeedbackVector()) {
     CompilationSubject subject =
         callee.ToCompilationSubject(broker()->isolate(), zone());

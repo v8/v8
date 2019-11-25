@@ -1431,6 +1431,9 @@ struct SerializationPhase {
       flags |=
           SerializerForBackgroundCompilationFlag::kAnalyzeEnvironmentLiveness;
     }
+    if (data->info()->is_inlining_enabled()) {
+      flags |= SerializerForBackgroundCompilationFlag::kEnableTurboInlining;
+    }
     RunSerializerForBackgroundCompilation(
         data->zone_stats(), data->broker(), data->dependencies(),
         data->info()->closure(), flags, data->info()->osr_offset());
