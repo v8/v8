@@ -1138,13 +1138,14 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
   } else if (CanBeTaggedPointer(output_rep)) {
     if (output_type.Is(cache_->kInt64)) {
       op = simplified()->ChangeTaggedToInt64();
-    } else if (use_info.type_check() == TypeCheckKind::kSigned64 ||
-               use_info.type_check() == TypeCheckKind::kArrayIndex) {
+    } else if (use_info.type_check() == TypeCheckKind::kSigned64) {
       op = simplified()->CheckedTaggedToInt64(
           output_type.Maybe(Type::MinusZero())
               ? use_info.minus_zero_check()
               : CheckForMinusZeroMode::kDontCheckForMinusZero,
           use_info.feedback());
+    } else if (use_info.type_check() == TypeCheckKind::kArrayIndex) {
+      op = simplified()->CheckedTaggedToArrayIndex(use_info.feedback());
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
