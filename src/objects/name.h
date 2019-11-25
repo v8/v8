@@ -95,14 +95,13 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   // Maximum number of characters to consider when trying to convert a string
   // value into an array index.
   static const int kMaxArrayIndexSize = 10;
-  // Maximum number of characters that might be parsed into a size_t:
-  // 10 characters per 32 bits of size_t width.
-  // We choose this as large as possible (rather than MAX_SAFE_INTEGER range)
-  // because TypedArray accesses will treat all string keys that are
-  // canonical representations of numbers in the range [MAX_SAFE_INTEGER ..
-  // size_t::max] as out-of-bounds accesses, and we can handle those in the
-  // fast path if we tag them as such (see kIsNotIntegerIndexMask).
-  static const int kMaxIntegerIndexSize = 10 * (sizeof(size_t) / 4);
+  // Maximum number of characters in a string that can possibly be an
+  // "integer index" in the spec sense, i.e. a canonical representation of a
+  // number in the range up to MAX_SAFE_INTEGER. We parse these into a size_t,
+  // so the size of that type also factors in as a limit: 10 characters per
+  // 32 bits of size_t width.
+  static const int kMaxIntegerIndexSize =
+      std::min(16, int{10 * (sizeof(size_t) / 4)});
 
   // For strings which are array indexes the hash value has the string length
   // mixed into the hash, mainly to avoid a hash value of zero which would be

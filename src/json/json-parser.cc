@@ -362,7 +362,7 @@ JsonString JsonParser<Char>::ScanJsonPropertyKey(JsonContinuation* cont) {
         uint32_t index = first - '0';
         while (true) {
           cursor_ = std::find_if(cursor_ + 1, end_, [&index](Char c) {
-            return !TryAddIndexChar(&index, c);
+            return !TryAddArrayIndexChar(&index, c);
           });
 
           if (CurrentCharacter() == '"') {
@@ -374,7 +374,7 @@ JsonString JsonParser<Char>::ScanJsonPropertyKey(JsonContinuation* cont) {
           }
 
           if (CurrentCharacter() == '\\' && NextCharacter() == 'u') {
-            if (TryAddIndexChar(&index, ScanUnicodeCharacter())) continue;
+            if (TryAddArrayIndexChar(&index, ScanUnicodeCharacter())) continue;
           }
 
           break;

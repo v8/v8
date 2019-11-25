@@ -270,21 +270,23 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   HandleScope scope(isolate);
   Handle<Object> property = args.at(1);
 
+  // The spec says we must look at the key first, which is why we can't
+  // use LookupIterator::PropertyOrElement here but have to duplicate its
+  // functionality instead.
   Handle<Name> key;
-  uint32_t index;
-  bool key_is_array_index = property->ToArrayIndex(&index);
-
-  if (!key_is_array_index) {
+  size_t index;
+  bool key_is_index = property->ToIntegerIndex(&index);
+  if (!key_is_index) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
                                        Object::ToName(isolate, property));
-    key_is_array_index = key->AsArrayIndex(&index);
+    key_is_index = key->AsIntegerIndex(&index);
   }
 
   Handle<Object> object = args.at(0);
 
   if (object->IsJSModuleNamespace()) {
     if (key.is_null()) {
-      DCHECK(key_is_array_index);
+      DCHECK(key_is_index);
       // Namespace objects can't have indexed properties.
       return ReadOnlyRoots(isolate).false_value();
     }
@@ -304,8 +306,8 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
     {
       LookupIterator::Configuration c = LookupIterator::OWN_SKIP_INTERCEPTOR;
       LookupIterator it =
-          key_is_array_index ? LookupIterator(isolate, js_obj, index, js_obj, c)
-                             : LookupIterator(js_obj, key, js_obj, c);
+          key_is_index ? LookupIterator(isolate, js_obj, index, js_obj, c)
+                       : LookupIterator(js_obj, key, js_obj, c);
       Maybe<bool> maybe = JSReceiver::HasProperty(&it);
       if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
       DCHECK(!isolate->has_pending_exception());
@@ -314,14 +316,15 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
 
     Map map = js_obj->map();
     if (!map.IsJSGlobalProxyMap() &&
-        (key_is_array_index ? !map.has_indexed_interceptor()
-                            : !map.has_named_interceptor())) {
+        (key_is_index && index <= JSArray::kMaxArrayIndex
+             ? !map.has_indexed_interceptor()
+             : !map.has_named_interceptor())) {
       return ReadOnlyRoots(isolate).false_value();
     }
 
     // Slow case.
     LookupIterator::Configuration c = LookupIterator::OWN;
-    LookupIterator it = key_is_array_index
+    LookupIterator it = key_is_index
                             ? LookupIterator(isolate, js_obj, index, js_obj, c)
                             : LookupIterator(js_obj, key, js_obj, c);
 
@@ -332,10 +335,9 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
 
   } else if (object->IsJSProxy()) {
     if (key.is_null()) {
-      DCHECK(key_is_array_index);
-      key = isolate->factory()->Uint32ToString(index);
+      DCHECK(key_is_index);
+      key = isolate->factory()->SizeToString(index);
     }
-
     Maybe<bool> result =
         JSReceiver::HasOwnProperty(Handle<JSProxy>::cast(object), key);
     if (result.IsNothing()) return ReadOnlyRoots(isolate).exception();
@@ -343,8 +345,8 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
 
   } else if (object->IsString()) {
     return isolate->heap()->ToBoolean(
-        key_is_array_index
-            ? index < static_cast<uint32_t>(String::cast(*object).length())
+        key_is_index
+            ? index < static_cast<size_t>(String::cast(*object).length())
             : key->Equals(ReadOnlyRoots(isolate).length_string()));
   } else if (object->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(

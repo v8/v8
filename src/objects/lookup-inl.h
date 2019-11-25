@@ -71,6 +71,7 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
       receiver_(receiver),
       initial_holder_(holder),
       index_(index) {
+  DCHECK_NE(index, kInvalidIndex);
   // If we're not looking at a TypedArray, we will need the key represented
   // as an internalized string.
   if (index_ > JSArray::kMaxArrayIndex && !receiver->IsJSTypedArray()) {
@@ -78,6 +79,10 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
       key_as_string = isolate->factory()->SizeToString(index_);
     }
     name_ = isolate->factory()->InternalizeName(key_as_string);
+  } else if (!key_as_string.is_null() &&
+             key_as_string->IsInternalizedString()) {
+    // Even for TypedArrays: if we have a name, keep it. ICs will need it.
+    name_ = key_as_string;
   }
   Start<true>();
 }
