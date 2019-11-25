@@ -1179,9 +1179,6 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
       if (*(maybe_code_handler.object()) ==
           *StoreHandler::StoreProxy(GetIsolate()))
         continue;
-      // Verify it is Slow handler
-      DCHECK(*(maybe_code_handler.object()) ==
-                 *StoreHandler::StoreSlow(GetIsolate()));
       // Decode the KeyedAccessStoreMode information from the Handler.
       mode = StoreHandler::GetKeyedAccessStoreMode(*maybe_code_handler);
       if (mode != STANDARD_STORE) return mode;
