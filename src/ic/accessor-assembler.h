@@ -105,54 +105,14 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     base::Optional<TNode<Object>> holder_;
   };
 
-  struct LazyLoadICParameters {
-    LazyLoadICParameters(LazyNode<Context> context, TNode<Object> receiver,
-                         LazyNode<Object> name, LazyNode<Smi> slot,
-                         TNode<HeapObject> vector,
-                         base::Optional<TNode<Object>> holder = base::nullopt)
-        : context_(context),
-          receiver_(receiver),
-          name_(name),
-          slot_(slot),
-          vector_(vector),
-          holder_(holder ? holder.value() : receiver) {}
-
-    explicit LazyLoadICParameters(const LoadICParameters* p)
-        : receiver_(p->receiver()),
-          vector_(p->vector()),
-          holder_(p->holder()) {
-      slot_ = [=] { return p->slot(); };
-      context_ = [=] { return p->context(); };
-      name_ = [=] { return p->name(); };
-    }
-
-    TNode<Context> context() const { return context_(); }
-    TNode<Object> receiver() const { return receiver_; }
-    TNode<Object> name() const { return name_(); }
-    TNode<Smi> slot() const { return slot_(); }
-    TNode<HeapObject> vector() const { return vector_; }
-    TNode<Object> holder() const { return holder_; }
-
-   private:
-    LazyNode<Context> context_;
-    TNode<Object> receiver_;
-    LazyNode<Object> name_;
-    LazyNode<Smi> slot_;
-    TNode<HeapObject> vector_;
-    TNode<Object> holder_;
-  };
-
   void LoadGlobalIC(TNode<HeapObject> maybe_feedback_vector,
-                    const LazyNode<Smi>& lazy_smi_slot,
-                    const LazyNode<UintPtrT>& lazy_slot,
-                    const LazyNode<Context>& lazy_context,
-                    const LazyNode<Name>& lazy_name, TypeofMode typeof_mode,
-                    ExitPoint* exit_point);
+                    TNode<Smi> smi_slot, TNode<UintPtrT> slot,
+                    TNode<Context> context, TNode<Name> name,
+                    TypeofMode typeof_mode, ExitPoint* exit_point);
 
   // Specialized LoadIC for inlined bytecode handler, hand-tuned to omit frame
   // construction on common paths.
-  void LoadIC_BytecodeHandler(const LazyLoadICParameters* p,
-                              ExitPoint* exit_point);
+  void LoadIC_BytecodeHandler(const LoadICParameters* p, ExitPoint* exit_point);
 
   // Loads dataX field from the DataHandler object.
   TNode<MaybeObject> LoadHandlerDataField(TNode<DataHandler> handler,
@@ -253,13 +213,13 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   // LoadIC implementation.
   void HandleLoadICHandlerCase(
-      const LazyLoadICParameters* p, TNode<Object> handler, Label* miss,
+      const LoadICParameters* p, TNode<Object> handler, Label* miss,
       ExitPoint* exit_point, ICMode ic_mode = ICMode::kNonGlobalIC,
       OnNonExistent on_nonexistent = OnNonExistent::kReturnUndefined,
       ElementSupport support_elements = kOnlyProperties,
       LoadAccessMode access_mode = LoadAccessMode::kLoad);
 
-  void HandleLoadICSmiHandlerCase(const LazyLoadICParameters* p,
+  void HandleLoadICSmiHandlerCase(const LoadICParameters* p,
                                   TNode<Object> holder, TNode<Smi> smi_handler,
                                   TNode<Object> handler, Label* miss,
                                   ExitPoint* exit_point, ICMode ic_mode,
@@ -267,7 +227,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                   ElementSupport support_elements,
                                   LoadAccessMode access_mode);
 
-  void HandleLoadICProtoHandler(const LazyLoadICParameters* p,
+  void HandleLoadICProtoHandler(const LoadICParameters* p,
                                 TNode<DataHandler> handler,
                                 TVariable<Object>* var_holder,
                                 TVariable<Object>* var_smi_handler,
@@ -275,12 +235,12 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                 ExitPoint* exit_point, ICMode ic_mode,
                                 LoadAccessMode access_mode);
 
-  void HandleLoadCallbackProperty(const LazyLoadICParameters* p,
+  void HandleLoadCallbackProperty(const LoadICParameters* p,
                                   TNode<JSObject> holder,
                                   TNode<WordT> handler_word,
                                   ExitPoint* exit_point);
 
-  void HandleLoadAccessor(const LazyLoadICParameters* p,
+  void HandleLoadAccessor(const LoadICParameters* p,
                           TNode<CallHandlerInfo> call_handler_info,
                           TNode<WordT> handler_word, TNode<DataHandler> handler,
                           TNode<IntPtrT> handler_kind, ExitPoint* exit_point);
@@ -294,13 +254,13 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                        Label* can_access, Label* miss);
 
   void HandleLoadICSmiHandlerLoadNamedCase(
-      const LazyLoadICParameters* p, TNode<Object> holder,
+      const LoadICParameters* p, TNode<Object> holder,
       TNode<IntPtrT> handler_kind, TNode<WordT> handler_word,
       Label* rebox_double, TVariable<Float64T>* var_double_value,
       TNode<Object> handler, Label* miss, ExitPoint* exit_point, ICMode ic_mode,
       OnNonExistent on_nonexistent, ElementSupport support_elements);
 
-  void HandleLoadICSmiHandlerHasNamedCase(const LazyLoadICParameters* p,
+  void HandleLoadICSmiHandlerHasNamedCase(const LoadICParameters* p,
                                           TNode<Object> holder,
                                           TNode<IntPtrT> handler_kind,
                                           Label* miss, ExitPoint* exit_point,
@@ -310,15 +270,13 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   void LoadGlobalIC_TryPropertyCellCase(TNode<FeedbackVector> vector,
                                         TNode<UintPtrT> slot,
-                                        const LazyNode<Context>& lazy_context,
+                                        TNode<Context> context,
                                         ExitPoint* exit_point,
                                         Label* try_handler, Label* miss);
 
   void LoadGlobalIC_TryHandlerCase(TNode<FeedbackVector> vector,
-                                   TNode<UintPtrT> slot,
-                                   const LazyNode<Smi>& lazy_smi_slot,
-                                   const LazyNode<Context>& lazy_context,
-                                   const LazyNode<Name>& lazy_name,
+                                   TNode<UintPtrT> slot, TNode<Smi> smi_slot,
+                                   TNode<Context> context, TNode<Name> name,
                                    TypeofMode typeof_mode,
                                    ExitPoint* exit_point, Label* miss);
 
