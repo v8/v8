@@ -215,6 +215,7 @@ v8_source_set("unittests_sources") {
     "utils/detachable-vector-unittest.cc",
     "utils/locked-queue-unittest.cc",
     "utils/utils-unittest.cc",
+    "utils/vector-unittest.cc",
     "wasm/control-transfer-unittest.cc",
     "wasm/decoder-unittest.cc",
     "wasm/function-body-decoder-unittest.cc",
