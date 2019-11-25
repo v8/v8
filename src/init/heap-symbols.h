@@ -174,6 +174,7 @@
   V(_, dot_iterator_string, ".iterator")                             \
   V(_, dot_promise_string, ".promise")                               \
   V(_, dot_result_string, ".result")                                 \
+  V(_, dot_repl_result_string, ".repl_result")                       \
   V(_, dot_string, ".")                                              \
   V(_, dot_switch_tag_string, ".switch_tag")                         \
   V(_, dotAll_string, "dotAll")                                      \

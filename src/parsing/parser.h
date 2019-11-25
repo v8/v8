@@ -225,6 +225,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                     ScopedPtrList<Statement>* body, DeclarationScope* scope,
                     Zone* zone);
 
+  void ParseREPLProgram(ParseInfo* info, ScopedPtrList<Statement>* body,
+                        DeclarationScope* scope);
+  Expression* WrapREPLResult(Expression* value);
+
   ZonePtrList<const AstRawString>* PrepareWrappedArguments(Isolate* isolate,
                                                            ParseInfo* info,
                                                            Zone* zone);

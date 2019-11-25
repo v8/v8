@@ -7,54 +7,56 @@ Debug = debug.Debug
 const evaluate = Debug.evaluateGlobalREPL;
 const evaluateNonREPL = (source) => Debug.evaluateGlobal(source, false).value();
 
+(async () => {
+
 // Declare let and get value
 let result;
-result = evaluate("let x = 7;");
-result = evaluate("x;");
+result = await evaluate("let x = 7;");
+result = await evaluate("x;");
 assertEquals(7, result);
 
 // Re-declare in the same script after declaration in another script.
-assertThrows(() => result = evaluate("let x = 8; let x = 9;"));
-result = evaluate("x;");
+assertThrows(() => evaluate("let x = 8; let x = 9;"));
+result = await evaluate("x;");
 assertEquals(7, result);
 
 // Re-declare let as let
-assertDoesNotThrow(() => result = evaluate("let x = 8;"));
-result = evaluate("x;");
+assertDoesNotThrow(async () => result = await evaluate("let x = 8;"));
+result = await evaluate("x;");
 assertEquals(8, result);
 
-evaluate("let x = 8;");
+await evaluate("let x = 8;");
 
 // Close over let. Inner function is only pre-parsed.
-result = evaluate("function getter() { return x; }");
+result = await evaluate("function getter() { return x; }");
 assertEquals(undefined, result);
-result = evaluate("getter();");
+result = await evaluate("getter();");
 assertEquals(8, result);
-result = evaluate("x = 9;");
+result = await evaluate("x = 9;");
 assertEquals(9, result);
-result = evaluate("x;");
+result = await evaluate("x;");
 assertEquals(9, result);
-result = evaluate("getter();");
+result = await evaluate("getter();");
 assertEquals(9, result);
 // Modifies the original x; does not create a new one/shadow.
-result = evaluate("let x = 10;");
+result = await evaluate("let x = 10;");
 assertEquals(undefined, result);
-result = evaluate("x;");
+result = await evaluate("x;");
 assertEquals(10, result);
-result = evaluate("getter();");
+result = await evaluate("getter();");
 assertEquals(10, result);
 
-evaluate("let x = 10");
+await evaluate("let x = 10");
 
 // Check store from an inner scope.
-result = evaluate("{ let z; x = 11; } x;");
+result = await evaluate("{ let z; x = 11; } x;");
 assertEquals(11, result);
 
 // Check re-declare from an inner scope does nothing.
-result = evaluate("{ let z; let x = 12; } x;");
+result = await evaluate("{ let z; let x = 12; } x;");
 assertEquals(11, result);
 
-assertThrows(() => result = evaluate("{ let qq = 10; } qq;"),
+assertThrowsAsync(evaluate("{ let qq = 10; } qq;"),
     ReferenceError, "qq is not defined");
 
 // Re-declare in the same script (no previous declaration).
@@ -64,30 +66,30 @@ assertThrows(() => result = evaluate("let y = 7; let y = 8;"),
 // Check TDZ; use before initialization.
 // Do not check exact error message, it depends on the path taken through
 // the IC machinery and changes sometimes, causing the test to be flaky.
-assertThrows(() => result = evaluate("a; let a = 7;"), ReferenceError);
-assertThrows(() => result = evaluate("a;"), ReferenceError);
+assertThrowsAsync(evaluate("a; let a = 7;"), ReferenceError);
+assertThrowsAsync(evaluate("a;"), ReferenceError);
 // This is different to non-REPL mode, which throws the kUndefined error here.
-assertThrows(() => result = evaluate("a = 7;"),
+assertThrowsAsync(evaluate("a = 7;"),
     ReferenceError, "Cannot access 'a' before initialization");
 
-result = evaluate("let a = 8;");
+result = await evaluate("let a = 8;");
 assertEquals(undefined, result);
-result = evaluate("a;")
+result = await evaluate("a;")
 assertEquals(8, result);
 
 // Check TDZ; store before initialization.
-assertThrows(() => result = evaluate("b = 10; let b;"),
+assertThrowsAsync(evaluate("b = 10; let b;"),
     ReferenceError, "Cannot access 'b' before initialization");
 // Check that b is still broken.
-assertThrows(() => result = evaluate("b = 10; let b;"),
+assertThrowsAsync(evaluate("b = 10; let b;"),
     ReferenceError, "Cannot access 'b' before initialization");
 // Check that b is still broken when the let defines a value.
-assertThrows(() => result = evaluate("b = 10; let b = 7;"),
+assertThrowsAsync(evaluate("b = 10; let b = 7;"),
     ReferenceError, "Cannot access 'b' before initialization");
-result = evaluate("let b = 11;");
+result = await evaluate("let b = 11;");
 assertEquals(undefined, result);
 // We fixed 'b'!
-result = evaluate("b;");
+result = await evaluate("b;");
 assertEquals(11, result);
 
 // Check that class works the same. Internally there is no difference between
@@ -105,14 +107,14 @@ assertDoesNotThrow(() => result = evaluate("class K {};"));
 evaluate("let z = 10;");
 assertThrows(() => result = evaluate("const z = 9;"),
     SyntaxError, "Identifier 'z' has already been declared");
-result = evaluate("z;");
+result = await evaluate("z;");
 assertEquals(10, result);
 
 // Re-declare const as const
-result = evaluate("const c = 10;");
+result = await evaluate("const c = 10;");
 assertThrows(() => result = evaluate("const c = 11;"),
     SyntaxError, "Identifier 'c' has already been declared");
-result = evaluate("c;");
+result = await evaluate("c;");
 assertEquals(10, result);
 
 // Const vs. const in same script.
@@ -120,29 +122,29 @@ assertThrows(() => result = evaluate("const d = 9; const d = 10;"),
 SyntaxError, "Identifier 'd' has already been declared");
 
 // Close over const
-result = evaluate("const e = 10; function closure() { return e; }");
-result = evaluate("e;");
+result = await evaluate("const e = 10; function closure() { return e; }");
+result = await evaluate("e;");
 assertEquals(10, result);
 
 // Assign to const
-assertThrows(() => result = evaluate("e = 11;"),
+assertThrowsAsync(evaluate("e = 11;"),
     TypeError, "Assignment to constant variable.");
-result = evaluate("e;");
+result = await evaluate("e;");
 assertEquals(10, result);
-result = evaluate("closure();");
+result = await evaluate("closure();");
 assertEquals(10, result);
 
 // Assign to const in TDZ
-assertThrows(() => result = evaluate("f; const f = 11;"),
+assertThrowsAsync(evaluate("f; const f = 11;"),
     ReferenceError, "Cannot access 'f' before initialization");
-assertThrows(() => result = evaluate("f = 12;"),
+assertThrowsAsync(evaluate("f = 12;"),
     TypeError, "Assignment to constant variable.");
 
 // Re-declare const as let
-result = evaluate("const g = 12;");
+result = await evaluate("const g = 12;");
 assertThrows(() => result = evaluate("let g = 13;"),
     SyntaxError, "Identifier 'g' has already been declared");
-result = evaluate("g;");
+result = await evaluate("g;");
 assertEquals(12, result);
 
 // Let vs. const in the same script
@@ -152,61 +154,61 @@ assertThrows(() => result = evaluate("const i = 13; let i = 14;"),
     SyntaxError, "Identifier 'i' has already been declared");
 
 // Configurable properties of the global object can be re-declared as let.
-result = evaluate(`Object.defineProperty(globalThis, 'j', {
+result = await evaluate(`Object.defineProperty(globalThis, 'j', {
   value: 1,
   configurable: true
 });`);
-result = evaluate("j;");
+result = await evaluate("j;");
 assertEquals(1, result);
-result = evaluate("let j = 2;");
-result = evaluate("j;");
+result = await evaluate("let j = 2;");
+result = await evaluate("j;");
 assertEquals(2, result);
 
 // Non-configurable properties of the global object (also created by plain old
 // top-level var declarations) cannot be re-declared as let.
-result = evaluate(`Object.defineProperty(globalThis, 'k', {
+result = await evaluate(`Object.defineProperty(globalThis, 'k', {
   value: 1,
   configurable: false
 });`);
-result = evaluate("k;");
+result = await evaluate("k;");
 assertEquals(1, result);
 assertThrows(() => result = evaluate("let k = 2;"),
     SyntaxError, "Identifier 'k' has already been declared");
-result = evaluate("k;");
+result = await evaluate("k;");
 assertEquals(1, result);
 
 // ... Except if you do it in the same script.
-result = evaluate(`Object.defineProperty(globalThis, 'k2', {
+result = await evaluate(`Object.defineProperty(globalThis, 'k2', {
   value: 1,
   configurable: false
 });
 let k2 = 2;`);
-result = evaluate("k2;");
+result = await evaluate("k2;");
 assertEquals(2, result);
-result = evaluate("globalThis.k2;");
+result = await evaluate("globalThis.k2;");
 assertEquals(1, result);
 
 // But if the property is configurable then both versions are allowed.
-result = evaluate(`Object.defineProperty(globalThis, 'k3', {
+result = await evaluate(`Object.defineProperty(globalThis, 'k3', {
   value: 1,
   configurable: true
 });`);
-result = evaluate("k3;");
+result = await evaluate("k3;");
 assertEquals(1, result);
-result = evaluate("let k3 = 2;");
-result = evaluate("k3;");
+result = await evaluate("let k3 = 2;");
+result = await evaluate("k3;");
 assertEquals(2, result);
-result = evaluate("globalThis.k3;");
+result = await evaluate("globalThis.k3;");
 assertEquals(1, result);
 
-result = evaluate(`Object.defineProperty(globalThis, 'k4', {
+result = await evaluate(`Object.defineProperty(globalThis, 'k4', {
   value: 1,
   configurable: true
 });
 let k4 = 2;`);
-result = evaluate("k4;");
+result = await evaluate("k4;");
 assertEquals(2, result);
-result = evaluate("globalThis.k4;");
+result = await evaluate("globalThis.k4;");
 assertEquals(1, result);
 
 // Check var followed by let in the same script.
@@ -214,7 +216,7 @@ assertThrows(() => result = evaluate("var k5 = 1; let k5 = 2;"),
 SyntaxError, "Identifier 'k5' has already been declared");
 
 // In different scripts.
-result = evaluate("var k6 = 1;");
+result = await evaluate("var k6 = 1;");
 assertThrows(() => result = evaluate("let k6 = 2;"),
     SyntaxError, "Identifier 'k6' has already been declared");
 
@@ -228,20 +230,20 @@ assertThrows(() => result = evaluate("var k8 = 2;"),
     SyntaxError, "Identifier 'k8' has already been declared");
 
 // Check var followed by var in the same script.
-result = evaluate("var k9 = 1; var k9 = 2;");
-result = evaluate("k9;");
+result = await evaluate("var k9 = 1; var k9 = 2;");
+result = await evaluate("k9;");
 assertEquals(2, result);
 
 // In different scripts.
-result = evaluate("var k10 = 1;");
-result = evaluate("var k10 = 2;");
-result = evaluate("k10;");
+result = await evaluate("var k10 = 1;");
+result = await evaluate("var k10 = 2;");
+result = await evaluate("k10;");
 assertEquals(2, result);
-result = evaluate("globalThis.k10;");
+result = await evaluate("globalThis.k10;");
 assertEquals(2, result);
 
 // typeof should not throw for undeclared variables
-result = evaluate("typeof k11");
+result = await evaluate("typeof k11");
 assertEquals("undefined", result);
 
 // Test lets with names on the object prototype e.g. toString to make sure
@@ -252,7 +254,7 @@ assertEquals("undefined", result);
 
 // We can still read let values cross-mode.
 result = evaluateNonREPL("let l1 = 1; let l2 = 2; let l3 = 3;");
-result = evaluate("l1;");
+result = await evaluate("l1;");
 assertEquals(1, result);
 
 // But we can't re-declare page script lets in a REPL script. We might want to
@@ -268,30 +270,30 @@ assertThrows(() => result = evaluate("const l3 = 4;"),
 
 // Re-declaring var across modes works.
 result = evaluateNonREPL("var l4 = 1; const l5 = 1;");
-result = evaluate("var l4 = 2;");
-result = evaluate("l4;");
+result = await evaluate("var l4 = 2;");
+result = await evaluate("l4;");
 assertEquals(2, result);
 
 // Const doesn't.
 assertThrows(() => result = evaluate("const l5 = 2;"),
     SyntaxError, "Identifier 'l5' has already been declared") ;
-result = evaluate("l5;");
+result = await evaluate("l5;");
 assertEquals(1, result);
 
 // Now REPL followed by non-REPL
-result = evaluate("let l6 = 1; const l7 = 2; let l8 = 3;");
+result = await evaluate("let l6 = 1; const l7 = 2; let l8 = 3;");
 result = evaluateNonREPL("l7;");
 assertEquals(2, result);
-// result = evaluateNonREPL("l6;");
-// assertEquals(1, result);
+result = evaluateNonREPL("l6;");
+assertEquals(1, result);
 
 // Check that the pattern of `l9; let l9;` does not throw for REPL scripts.
 // If REPL scripts behaved the same as normal scripts, this case would
 // re-introduce the hole in 'l9's script context slot, causing the IC and feedback
 // to 'lie' about the current state.
-result = evaluate("let l9;");
-result = evaluate("l9; let l9;"),
-assertEquals(undefined, evaluate('l9;'));
+result = await evaluate("let l9;");
+result = await evaluate("l9; let l9;"),
+assertEquals(undefined, await evaluate('l9;'));
 
 // Check that binding and re-declaring a function via let works.
 result = evaluate("let fn1 = function() { return 21; }");
@@ -304,3 +306,9 @@ evaluate("let l10 = 21;");
 evaluate("let l10 = 42; function fn2() { return l10; }");
 evaluate("let l10 = 'foo';");
 assertEquals("foo", fn2());
+
+})().catch(e => {
+    print(e);
+    print(e.stack);
+    %AbortJS("Async test is failing");
+});
