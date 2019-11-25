@@ -22,6 +22,7 @@
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/object-access.h"
+#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
@@ -150,6 +151,52 @@ constexpr Condition GetCompareCondition(WasmOpcode opcode) {
 #endif
   }
 }
+
+// Builds a {DebugSideTable}.
+class DebugSideTableBuilder {
+ public:
+  class EntryBuilder {
+   public:
+    explicit EntryBuilder(int pc_offset, int stack_height)
+        : pc_offset_(pc_offset), stack_height_(stack_height) {}
+
+    void SetConstant(int index, int32_t i32_const) {
+      // Add constants in order.
+      DCHECK(constants_.empty() || constants_.back().index < index);
+      constants_.push_back({index, i32_const});
+    }
+
+    DebugSideTable::Entry ToTableEntry() const {
+      DCHECK_LE(0, stack_height_);
+      return DebugSideTable::Entry{pc_offset_, stack_height_, constants_};
+    }
+
+    int pc_offset() const { return pc_offset_; }
+
+   private:
+    const int pc_offset_;
+    const int stack_height_;
+    std::vector<DebugSideTable::Entry::Constant> constants_;
+  };
+
+  // Adds a new entry, and returns a reference for modifying that entry. The
+  // reference can only be used until the next call to {NewEntry}.
+  EntryBuilder& NewEntry(int pc_offset, int stack_height) {
+    DCHECK(entries_.empty() || entries_.back().pc_offset() < pc_offset);
+    entries_.emplace_back(pc_offset, stack_height);
+    return entries_.back();
+  }
+
+  DebugSideTable GenerateDebugSideTable() {
+    std::vector<DebugSideTable::Entry> table_entries;
+    table_entries.reserve(entries_.size());
+    for (auto& entry : entries_) table_entries.push_back(entry.ToTableEntry());
+    return DebugSideTable{std::move(table_entries)};
+  }
+
+ private:
+  std::vector<EntryBuilder> entries_;
+};
 
 class LiftoffCompiler {
  public:
@@ -485,6 +532,7 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(ool->position), false);
     __ CallRuntimeStub(ool->stub);
+    RegisterDebugSideTableEntry();
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
     DCHECK_EQ(ool->continuation.get()->is_bound(), is_stack_check);
     if (!ool->regs_to_save.is_empty()) __ PopRegisters(ool->regs_to_save);
@@ -1808,6 +1856,7 @@ class LiftoffCompiler {
     if (input.gp() != param_reg) __ Move(param_reg, input.gp(), kWasmI32);
 
     __ CallRuntimeStub(WasmCode::kWasmMemoryGrow);
+    RegisterDebugSideTableEntry();
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     if (kReturnRegister0 != result.gp()) {
@@ -1815,6 +1864,18 @@ class LiftoffCompiler {
     }
 
     __ PushRegister(kWasmI32, result);
+  }
+
+  void RegisterDebugSideTableEntry() {
+    if (V8_LIKELY(!debug_sidetable_builder_)) return;
+    int stack_height = static_cast<int>(__ cache_state()->stack_height());
+    auto entry =
+        debug_sidetable_builder_->NewEntry(__ pc_offset(), stack_height);
+    // Record all constants on the stack.
+    for (int idx = 0; idx < stack_height; ++idx) {
+      auto& slot = __ cache_state()->stack_state[idx];
+      if (slot.is_const()) entry.SetConstant(idx, slot.i32_const());
+    }
   }
 
   void CallDirect(FullDecoder* decoder,
@@ -1860,10 +1921,6 @@ class LiftoffCompiler {
           __ pc_offset(), SourcePosition(decoder->position()), false);
 
       __ CallIndirect(imm.sig, call_descriptor, target);
-
-      safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
-
-      __ FinishCall(imm.sig, call_descriptor);
     } else {
       // A direct call within this module just gets the current instance.
       __ PrepareCall(imm.sig, call_descriptor);
@@ -1874,11 +1931,12 @@ class LiftoffCompiler {
       // Just encode the function index. This will be patched at instantiation.
       Address addr = static_cast<Address>(imm.index);
       __ CallNativeWasmCode(addr);
-
-      safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
-
-      __ FinishCall(imm.sig, call_descriptor);
     }
+
+    RegisterDebugSideTableEntry();
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+
+    __ FinishCall(imm.sig, call_descriptor);
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index_val,
@@ -2008,6 +2066,7 @@ class LiftoffCompiler {
     __ PrepareCall(imm.sig, call_descriptor, &target, explicit_instance);
     __ CallIndirect(imm.sig, call_descriptor, target);
 
+    RegisterDebugSideTableEntry();
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     __ FinishCall(imm.sig, call_descriptor);
@@ -2110,6 +2169,8 @@ class LiftoffCompiler {
 
   compiler::CallDescriptor* const descriptor_;
   CompilationEnv* const env_;
+  // TODO(clemensb): Provide a DebugSideTableBuilder here.
+  DebugSideTableBuilder* const debug_sidetable_builder_ = nullptr;
   LiftoffBailoutReason bailout_reason_ = kSuccess;
   std::vector<OutOfLineCode> out_of_line_code_;
   SourcePositionTableBuilder source_position_table_builder_;
