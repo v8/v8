@@ -823,9 +823,11 @@ bool Object::ToIntegerIndex(size_t* index) const {
   if (IsHeapNumber()) {
     double num = HeapNumber::cast(*this).value();
     if (!(num >= 0)) return false;  // Negation to catch NaNs.
-    // We must exclude the max size_t, because the LookupIterator uses that
-    // as the "invalid index" sentinel.
-    if (num >= std::numeric_limits<size_t>::max()) return false;
+    constexpr double max =
+        std::min(kMaxSafeInteger,
+                 // The maximum size_t is reserved as "invalid" sentinel.
+                 static_cast<double>(std::numeric_limits<size_t>::max() - 1));
+    if (num > max) return false;
     size_t result = static_cast<size_t>(num);
     if (num != result) return false;  // Conversion lost fractional precision.
     *index = result;
