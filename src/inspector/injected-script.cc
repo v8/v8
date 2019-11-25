@@ -68,7 +68,8 @@ class InjectedScript::ProtocolPromiseHandler {
   static bool add(V8InspectorSessionImpl* session,
                   v8::Local<v8::Context> context, v8::Local<v8::Value> value,
                   int executionContextId, const String16& objectGroup,
-                  WrapMode wrapMode, EvaluateCallback* callback) {
+                  WrapMode wrapMode, bool replMode,
+                  EvaluateCallback* callback) {
     v8::Local<v8::Promise::Resolver> resolver;
     if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) {
       callback->sendFailure(Response::InternalError());
@@ -82,21 +83,18 @@ class InjectedScript::ProtocolPromiseHandler {
     v8::Local<v8::Promise> promise = resolver->GetPromise();
     V8InspectorImpl* inspector = session->inspector();
     ProtocolPromiseHandler* handler = new ProtocolPromiseHandler(
-        session, executionContextId, objectGroup, wrapMode, callback);
+        session, executionContextId, objectGroup, wrapMode, replMode, callback);
     v8::Local<v8::Value> wrapper = handler->m_wrapper.Get(inspector->isolate());
     v8::Local<v8::Function> thenCallbackFunction =
         v8::Function::New(context, thenCallback, wrapper, 0,
                           v8::ConstructorBehavior::kThrow)
             .ToLocalChecked();
-    if (promise->Then(context, thenCallbackFunction).IsEmpty()) {
-      callback->sendFailure(Response::InternalError());
-      return false;
-    }
     v8::Local<v8::Function> catchCallbackFunction =
         v8::Function::New(context, catchCallback, wrapper, 0,
                           v8::ConstructorBehavior::kThrow)
             .ToLocalChecked();
-    if (promise->Catch(context, catchCallbackFunction).IsEmpty()) {
+    if (promise->Then(context, thenCallbackFunction, catchCallbackFunction)
+            .IsEmpty()) {
       callback->sendFailure(Response::InternalError());
       return false;
     }
@@ -104,6 +102,13 @@ class InjectedScript::ProtocolPromiseHandler {
   }
 
  private:
+  static v8::Local<v8::String> GetDotReplResultString(v8::Isolate* isolate) {
+    // TODO(szuend): Cache the string in a v8::Persistent handle.
+    return v8::String::NewFromOneByte(
+               isolate, reinterpret_cast<const uint8_t*>(".repl_result"))
+        .ToLocalChecked();
+  }
+
   static void thenCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     ProtocolPromiseHandler* handler = static_cast<ProtocolPromiseHandler*>(
         info.Data().As<v8::External>()->Value());
@@ -130,13 +135,15 @@ class InjectedScript::ProtocolPromiseHandler {
 
   ProtocolPromiseHandler(V8InspectorSessionImpl* session,
                          int executionContextId, const String16& objectGroup,
-                         WrapMode wrapMode, EvaluateCallback* callback)
+                         WrapMode wrapMode, bool replMode,
+                         EvaluateCallback* callback)
       : m_inspector(session->inspector()),
         m_sessionId(session->sessionId()),
         m_contextGroupId(session->contextGroupId()),
         m_executionContextId(executionContextId),
         m_objectGroup(objectGroup),
         m_wrapMode(wrapMode),
+        m_replMode(replMode),
         m_callback(std::move(callback)),
         m_wrapper(m_inspector->isolate(),
                   v8::External::New(m_inspector->isolate(), this)) {
@@ -154,19 +161,40 @@ class InjectedScript::ProtocolPromiseHandler {
     }
   }
 
-  void thenCallback(v8::Local<v8::Value> result) {
+  void thenCallback(v8::Local<v8::Value> value) {
     V8InspectorSessionImpl* session =
         m_inspector->sessionById(m_contextGroupId, m_sessionId);
     if (!session) return;
     InjectedScript::ContextScope scope(session, m_executionContextId);
     Response response = scope.initialize();
     if (!response.isSuccess()) return;
-    if (m_objectGroup == "console") {
-      scope.injectedScript()->setLastEvaluationResult(result);
-    }
+
     std::unique_ptr<EvaluateCallback> callback =
         scope.injectedScript()->takeEvaluateCallback(m_callback);
     if (!callback) return;
+
+    // In REPL mode the result is additionally wrapped in an object.
+    // The evaluation result can be found at ".repl_result".
+    v8::Local<v8::Value> result = value;
+    if (m_replMode) {
+      v8::Local<v8::Object> object;
+      if (!result->ToObject(scope.context()).ToLocal(&object)) {
+        callback->sendFailure(response);
+        return;
+      }
+
+      v8::Local<v8::String> name =
+          GetDotReplResultString(m_inspector->isolate());
+      if (!object->Get(scope.context(), name).ToLocal(&result)) {
+        callback->sendFailure(response);
+        return;
+      }
+    }
+
+    if (m_objectGroup == "console") {
+      scope.injectedScript()->setLastEvaluationResult(result);
+    }
+
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
     response = scope.injectedScript()->wrapObject(result, m_objectGroup,
                                                   m_wrapMode, &wrappedValue);
@@ -212,10 +240,18 @@ class InjectedScript::ProtocolPromiseHandler {
     if (!stack) {
       stack = m_inspector->debugger()->captureStackTrace(true);
     }
+
+    // REPL mode implicitly handles the script like an async function.
+    // Do not prepend the '(in promise)' prefix for these exceptions since that
+    // would be confusing for the user. The stringified error is part of the
+    // exception and does not need to be added in REPL mode, otherwise it would
+    // be printed twice.
+    String16 exceptionDetailsText =
+        m_replMode ? "Uncaught" : "Uncaught (in promise)" + message;
     std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails =
         protocol::Runtime::ExceptionDetails::create()
             .setExceptionId(m_inspector->nextExceptionId())
-            .setText("Uncaught (in promise)" + message)
+            .setText(exceptionDetailsText)
             .setLineNumber(stack && !stack->isEmpty() ? stack->topLineNumber()
                                                       : 0)
             .setColumnNumber(
@@ -254,6 +290,7 @@ class InjectedScript::ProtocolPromiseHandler {
   int m_executionContextId;
   String16 m_objectGroup;
   WrapMode m_wrapMode;
+  bool m_replMode;
   EvaluateCallback* m_callback;
   v8::Global<v8::External> m_wrapper;
 };
@@ -533,7 +570,7 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
 
 void InjectedScript::addPromiseCallback(
     V8InspectorSessionImpl* session, v8::MaybeLocal<v8::Value> value,
-    const String16& objectGroup, WrapMode wrapMode,
+    const String16& objectGroup, WrapMode wrapMode, bool replMode,
     std::unique_ptr<EvaluateCallback> callback) {
   if (value.IsEmpty()) {
     callback->sendFailure(Response::InternalError());
@@ -541,9 +578,10 @@ void InjectedScript::addPromiseCallback(
   }
   v8::MicrotasksScope microtasksScope(m_context->isolate(),
                                       v8::MicrotasksScope::kRunMicrotasks);
-  if (ProtocolPromiseHandler::add(
-          session, m_context->context(), value.ToLocalChecked(),
-          m_context->contextId(), objectGroup, wrapMode, callback.get())) {
+  if (ProtocolPromiseHandler::add(session, m_context->context(),
+                                  value.ToLocalChecked(),
+                                  m_context->contextId(), objectGroup, wrapMode,
+                                  replMode, callback.get())) {
     m_evaluateCallbacks.insert(callback.release());
   }
 }

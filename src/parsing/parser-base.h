@@ -658,8 +658,9 @@ class ParserBase {
     return ast_value_factory->GetOneByteString(name.c_str());
   }
 
-  DeclarationScope* NewScriptScope() const {
-    return new (zone()) DeclarationScope(zone(), ast_value_factory());
+  DeclarationScope* NewScriptScope(REPLMode repl_mode) const {
+    return new (zone())
+        DeclarationScope(zone(), ast_value_factory(), repl_mode);
   }
 
   DeclarationScope* NewVarblockScope() const {

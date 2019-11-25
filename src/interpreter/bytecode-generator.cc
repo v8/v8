@@ -4413,7 +4413,8 @@ void BytecodeGenerator::BuildAwait(int position) {
   // multiple debug events for the same uncaught exception. There is no point
   // in the body of an async function where catch prediction is
   // HandlerTable::UNCAUGHT.
-  DCHECK(catch_prediction() != HandlerTable::UNCAUGHT);
+  DCHECK(catch_prediction() != HandlerTable::UNCAUGHT ||
+         info()->scope()->is_repl_mode_scope());
 
   {
     // Await(operand) and suspend.

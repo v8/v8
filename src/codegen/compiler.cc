@@ -135,12 +135,6 @@ ScriptOriginOptions OriginOptionsForEval(Object script) {
                              outer_origin_options.IsOpaque());
 }
 
-REPLMode OriginReplMode(Object script) {
-  if (!script.IsScript()) return REPLMode::kNo;
-
-  return Script::cast(script).is_repl_mode() ? REPLMode::kYes : REPLMode::kNo;
-}
-
 }  // namespace
 
 // ----------------------------------------------------------------------------
@@ -1555,9 +1549,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     allow_eval_cache = true;
   } else {
     ParseInfo parse_info(isolate);
-    script = parse_info.CreateScript(isolate, source,
-                                     OriginOptionsForEval(outer_info->script()),
-                                     OriginReplMode(outer_info->script()));
+    script = parse_info.CreateScript(
+        isolate, source, OriginOptionsForEval(outer_info->script()));
     script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
     script->set_eval_from_shared(*outer_info);
     if (eval_position == kNoSourcePosition) {

@@ -438,10 +438,10 @@ Parser::Parser(ParseInfo* info)
 void Parser::InitializeEmptyScopeChain(ParseInfo* info) {
   DCHECK_NULL(original_scope_);
   DCHECK_NULL(info->script_scope());
-  DeclarationScope* script_scope = NewScriptScope();
+  DeclarationScope* script_scope =
+      NewScriptScope(info->is_repl_mode() ? REPLMode::kYes : REPLMode::kNo);
   info->set_script_scope(script_scope);
   original_scope_ = script_scope;
-  if (info->is_repl_mode()) script_scope->set_is_repl_mode_scope();
 }
 
 void Parser::DeserializeScopeChain(
@@ -612,6 +612,8 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
       }
     } else if (info->is_wrapped_as_function()) {
       ParseWrapped(isolate, info, &body, scope, zone());
+    } else if (info->is_repl_mode()) {
+      ParseREPLProgram(info, &body, scope);
     } else {
       // Don't count the mode in the use counters--give the program a chance
       // to enable script-wide strict mode below.
@@ -710,6 +712,59 @@ void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
   Statement* return_statement = factory()->NewReturnStatement(
       function_literal, kNoSourcePosition, kNoSourcePosition);
   body->Add(return_statement);
+}
+
+void Parser::ParseREPLProgram(ParseInfo* info, ScopedPtrList<Statement>* body,
+                              DeclarationScope* scope) {
+  // REPL scripts are handled nearly the same way as the body of an async
+  // function. The difference is the value used to resolve the async
+  // promise.
+  // For a REPL script this is the completion value of the
+  // script instead of the expression of some "return" statement. The
+  // completion value of the script is obtained by manually invoking
+  // the {Rewriter} which will return a VariableProxy referencing the
+  // result.
+  DCHECK(info->is_repl_mode());
+  this->scope()->SetLanguageMode(info->language_mode());
+  PrepareGeneratorVariables();
+
+  BlockT block = impl()->NullBlock();
+  {
+    StatementListT statements(pointer_buffer());
+    ParseStatementList(&statements, Token::EOS);
+    block = factory()->NewBlock(true, statements);
+  }
+
+  base::Optional<VariableProxy*> maybe_result =
+      Rewriter::RewriteBody(info, scope, block->statements());
+  Expression* result_value =
+      (maybe_result && *maybe_result)
+          ? static_cast<Expression*>(*maybe_result)
+          : factory()->NewUndefinedLiteral(kNoSourcePosition);
+
+  impl()->RewriteAsyncFunctionBody(body, block, WrapREPLResult(result_value));
+}
+
+Expression* Parser::WrapREPLResult(Expression* value) {
+  // REPL scripts additionally wrap the ".result" variable in an
+  // object literal:
+  //
+  //     return %_AsyncFunctionResolve(
+  //                .generator_object, {.repl_result: .result});
+  //
+  // Should ".result" be a resolved promise itself, the async return
+  // would chain the promises and return the resolve value instead of
+  // the promise.
+
+  Literal* property_name = factory()->NewStringLiteral(
+      ast_value_factory()->dot_repl_result_string(), kNoSourcePosition);
+  ObjectLiteralProperty* property =
+      factory()->NewObjectLiteralProperty(property_name, value, true);
+
+  ScopedPtrList<ObjectLiteralProperty> properties(pointer_buffer());
+  properties.Add(property);
+  return factory()->NewObjectLiteral(properties, false, kNoSourcePosition,
+                                     false);
 }
 
 FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,

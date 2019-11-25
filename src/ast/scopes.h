@@ -537,7 +537,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool is_debug_evaluate_scope() const { return is_debug_evaluate_scope_; }
   bool IsSkippableFunctionScope();
   void set_is_repl_mode_scope() { is_repl_mode_scope_ = true; }
-  bool is_repl_mode_scope() const { return is_repl_mode_scope_; }
+  bool is_repl_mode_scope() const {
+    DCHECK_IMPLIES(is_repl_mode_scope_, is_script_scope());
+    return is_repl_mode_scope_;
+  }
 
   bool RemoveInnerScope(Scope* inner_scope) {
     DCHECK_NOT_NULL(inner_scope);
@@ -768,7 +771,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   DeclarationScope(Zone* zone, ScopeType scope_type,
                    Handle<ScopeInfo> scope_info);
   // Creates a script scope.
-  DeclarationScope(Zone* zone, AstValueFactory* ast_value_factory);
+  DeclarationScope(Zone* zone, AstValueFactory* ast_value_factory,
+                   REPLMode repl_mode = REPLMode::kNo);
 
   FunctionKind function_kind() const { return function_kind_; }
 
@@ -954,9 +958,9 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   // The variable holding the JSGeneratorObject for generator, async
   // and async generator functions, and modules. Only valid for
-  // function and module scopes.
+  // function, module and REPL mode script scopes.
   Variable* generator_object_var() const {
-    DCHECK(is_function_scope() || is_module_scope());
+    DCHECK(is_function_scope() || is_module_scope() || is_repl_mode_scope());
     return GetRareVariable(RareVariable::kGeneratorObject);
   }
 
