@@ -214,8 +214,6 @@ class EffectControlLinearizer {
   Node* BuildCheckedFloat64ToInt64(CheckForMinusZeroMode mode,
                                    const FeedbackSource& feedback, Node* value,
                                    Node* frame_state);
-  Node* BuildCheckedFloat64ToIndex(const FeedbackSource& feedback, Node* value,
-                                   Node* frame_state);
   Node* BuildCheckedHeapNumberOrOddballToFloat64(CheckTaggedInputMode mode,
                                                  const FeedbackSource& feedback,
                                                  Node* value,
@@ -2431,31 +2429,6 @@ Node* EffectControlLinearizer::BuildCheckedFloat64ToInt32(
   return value32;
 }
 
-Node* EffectControlLinearizer::BuildCheckedFloat64ToIndex(
-    const FeedbackSource& feedback, Node* value, Node* frame_state) {
-  if (machine()->Is64()) {
-    Node* value64 = __ ChangeFloat64ToInt64(value);
-    Node* check_same = __ Float64Equal(value, __ ChangeInt64ToFloat64(value64));
-    __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecisionOrNaN, feedback,
-                       check_same, frame_state);
-    Node* check_max =
-        __ IntLessThan(value64, __ Int64Constant(kMaxSafeInteger));
-    __ DeoptimizeIfNot(DeoptimizeReason::kNotAnArrayIndex, feedback, check_max,
-                       frame_state);
-    Node* check_min =
-        __ IntLessThan(__ Int64Constant(-kMaxSafeInteger), value64);
-    __ DeoptimizeIfNot(DeoptimizeReason::kNotAnArrayIndex, feedback, check_min,
-                       frame_state);
-    return value64;
-  } else {
-    Node* value32 = __ RoundFloat64ToInt32(value);
-    Node* check_same = __ Float64Equal(value, __ ChangeInt32ToFloat64(value32));
-    __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecisionOrNaN, feedback,
-                       check_same, frame_state);
-    return value32;
-  }
-}
-
 Node* EffectControlLinearizer::LowerCheckedFloat64ToInt32(Node* node,
                                                           Node* frame_state) {
   const CheckMinusZeroParameters& params =
@@ -2527,7 +2500,7 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToArrayIndex(
   __ Goto(&done, ChangeSmiToIntPtr(value));
 
   // In the non-Smi case, check the heap numberness, load the number and convert
-  // to integer.
+  // to int32.
   __ Bind(&if_not_smi);
   auto if_not_heap_number = __ MakeDeferredLabel();
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
@@ -2535,7 +2508,9 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToArrayIndex(
   __ GotoIfNot(is_heap_number, &if_not_heap_number);
 
   Node* number = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
-  number = BuildCheckedFloat64ToIndex(params.feedback(), number, frame_state);
+  number =
+      BuildCheckedFloat64ToInt32(CheckForMinusZeroMode::kDontCheckForMinusZero,
+                                 params.feedback(), number, frame_state);
   __ Goto(&done, number);
 
   __ Bind(&if_not_heap_number);

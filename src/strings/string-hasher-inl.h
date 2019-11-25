@@ -60,15 +60,16 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
   DCHECK_IMPLIES(0 < length, chars != nullptr);
   if (length >= 1) {
     if (IsDecimalDigit(chars[0]) && (length == 1 || chars[0] != '0')) {
+      uint32_t index = 0;
       if (length <= String::kMaxArrayIndexSize) {
         // Possible array index; try to compute the array index hash.
-        uint32_t index = chars[0] - '0';
+        index = chars[0] - '0';
         int i = 1;
         do {
           if (i == length) {
             return MakeArrayIndexHash(index, length);
           }
-        } while (TryAddArrayIndexChar(&index, chars[i++]));
+        } while (TryAddIndexChar(&index, chars[i++]));
       }
       // The following block wouldn't do anything on 32-bit platforms,
       // because kMaxArrayIndexSize == kMaxIntegerIndexSize there, and
@@ -84,11 +85,10 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
         // if there are non-digit characters.
         uint32_t is_integer_index = 0;
         uint32_t running_hash = static_cast<uint32_t>(seed);
-        uint64_t index_big = 0;
+        uint64_t index_big = index;
         const uchar* end = &chars[length];
         while (chars != end) {
-          if (is_integer_index == 0 &&
-              !TryAddIntegerIndexChar(&index_big, *chars)) {
+          if (is_integer_index == 0 && !TryAddIndexChar(&index_big, *chars)) {
             is_integer_index = String::kIsNotIntegerIndexMask;
           }
           running_hash = AddCharacterCore(running_hash, *chars++);

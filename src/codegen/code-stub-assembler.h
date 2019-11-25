@@ -941,13 +941,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                  Int32Constant(higher_limit - lower_limit));
   }
 
-  TNode<BoolT> IsInRange(TNode<WordT> value, intptr_t lower_limit,
-                         intptr_t higher_limit) {
-    DCHECK_LE(lower_limit, higher_limit);
-    return UintPtrLessThanOrEqual(IntPtrSub(value, IntPtrConstant(lower_limit)),
-                                  IntPtrConstant(higher_limit - lower_limit));
-  }
-
 #if DEBUG
   void Bind(Label* label, AssemblerDebugInfo debug_info);
 #endif  // DEBUG

@@ -1203,8 +1203,8 @@ KeyType TryConvertKey(Handle<Object> key, Isolate* isolate, intptr_t* index_out,
   }
   if (key->IsHeapNumber()) {
     double num = HeapNumber::cast(*key).value();
-    if (!(num >= -kMaxSafeInteger)) return kBailout;
-    if (num > kMaxSafeInteger) return kBailout;
+    if (!(num >= std::numeric_limits<intptr_t>::min())) return kBailout;
+    if (num > std::numeric_limits<intptr_t>::max()) return kBailout;
     *index_out = static_cast<intptr_t>(num);
     if (*index_out != num) return kBailout;
     return kIntPtr;

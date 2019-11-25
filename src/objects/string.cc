@@ -1397,8 +1397,7 @@ bool String::SlowAsIntegerIndex(size_t* index) {
   }
   if (length == 0 || length > kMaxIntegerIndexSize) return false;
   StringCharacterStream stream(*this);
-  return StringToIndex<StringCharacterStream, size_t, kToIntegerIndex>(&stream,
-                                                                       index);
+  return StringToIndex(&stream, index);
 }
 
 void String::PrintOn(FILE* file) {

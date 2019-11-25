@@ -632,11 +632,8 @@ bool DoubleToBoolean(double d);
 template <typename Char>
 bool TryAddIndexChar(uint32_t* index, Char c);
 
-enum ToIndexMode { kToArrayIndex, kToIntegerIndex };
-
 // {index_t} is meant to be {uint32_t} or {size_t}.
-template <typename Stream, typename index_t,
-          enum ToIndexMode mode = kToArrayIndex>
+template <typename Stream, typename index_t>
 bool StringToIndex(Stream* stream, index_t* index);
 
 // Returns the current stack top. Works correctly with ASAN and SafeStack.
