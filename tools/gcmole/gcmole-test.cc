@@ -130,5 +130,36 @@ void TestFollowingVirtualFunctions(Isolate* isolate) {
   so_handle->Method(*base->VirtualCauseGC(obj1, isolate));
 }
 
+// --------- Test for correctly resolving static methods ----------
+
+class SomeClass {
+ public:
+  static Handle<Object> StaticCauseGC(Handle<Object> obj, Isolate* isolate) {
+    isolate->heap()->CollectGarbage(OLD_SPACE,
+                                    GarbageCollectionReason::kTesting);
+
+    return obj;
+  }
+};
+
+void TestFollowingStaticFunctions(Isolate* isolate) {
+  SomeObject so;
+  Handle<SomeObject> so_handle = handle(so, isolate);
+
+  Handle<JSObject> obj1 = isolate->factory()->NewJSObjectWithNullProto();
+  // Should cause warning.
+  so_handle->Method(*SomeClass::StaticCauseGC(obj1, isolate));
+}
+
+// --------- Test basic dead variable analysis ----------
+
+void TestDeadVarAnalysis(Isolate* isolate) {
+  JSObject raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
+  CauseGCRaw(raw_obj, isolate);
+
+  // Should cause warning.
+  raw_obj.Print();
+}
+
 }  // namespace internal
 }  // namespace v8

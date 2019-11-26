@@ -45,6 +45,30 @@
 
 namespace {
 
+bool g_tracing_enabled = false;
+
+#define TRACE(str)                   \
+  do {                               \
+    if (g_tracing_enabled) {         \
+      std::cout << str << std::endl; \
+    }                                \
+  } while (false)
+
+#define TRACE_LLVM_TYPE(str, type)                                \
+  do {                                                            \
+    if (g_tracing_enabled) {                                      \
+      std::cout << str << " " << type.getAsString() << std::endl; \
+    }                                                             \
+  } while (false)
+
+#define TRACE_LLVM_DECL(str, decl)   \
+  do {                               \
+    if (g_tracing_enabled) {         \
+      std::cout << str << std::endl; \
+      decl->dump();                  \
+    }                                \
+  } while (false)
+
 typedef std::string MangledName;
 typedef std::set<MangledName> CalleesSet;
 typedef std::map<MangledName, MangledName> CalleesMap;
@@ -272,7 +296,7 @@ static void LoadSuspectsWhitelist() {
   whitelist_loaded = true;
 }
 
-// Looks for exact match of the mangled name
+// Looks for exact match of the mangled name.
 static bool KnownToCauseGC(clang::MangleContext* ctx,
                            const clang::FunctionDecl* decl) {
   LoadGCSuspects();
@@ -287,7 +311,7 @@ static bool KnownToCauseGC(clang::MangleContext* ctx,
   return false;
 }
 
-// Looks for partial match of only the function name
+// Looks for partial match of only the function name.
 static bool SuspectedToCauseGC(clang::MangleContext* ctx,
                                const clang::FunctionDecl* decl) {
   LoadGCSuspects();
@@ -729,7 +753,7 @@ class FunctionAnalyzer {
 
   DECL_VISIT_EXPR(ArraySubscriptExpr) {
     clang::Expr* exprs[2] = {expr->getBase(), expr->getIdx()};
-    return Par(expr, 2, exprs, env);
+    return Parallel(expr, 2, exprs, env);
   }
 
   bool IsRawPointerVar(clang::Expr* expr, std::string* var_name) {
@@ -749,14 +773,14 @@ class FunctionAnalyzer {
 
     switch (expr->getOpcode()) {
       case clang::BO_Comma:
-        return Seq(expr, 2, exprs, env);
+        return Sequential(expr, 2, exprs, env);
 
       case clang::BO_LAnd:
       case clang::BO_LOr:
         return ExprEffect::Merge(VisitExpr(lhs, env), VisitExpr(rhs, env));
 
       default:
-        return Par(expr, 2, exprs, env);
+        return Parallel(expr, 2, exprs, env);
     }
   }
 
@@ -797,7 +821,7 @@ class FunctionAnalyzer {
   DECL_VISIT_EXPR(ConstantExpr) { return VisitExpr(expr->getSubExpr(), env); }
 
   DECL_VISIT_EXPR(InitListExpr) {
-    return Seq(expr, expr->getNumInits(), expr->getInits(), env);
+    return Sequential(expr, expr->getNumInits(), expr->getInits(), env);
   }
 
   DECL_VISIT_EXPR(MemberExpr) {
@@ -813,7 +837,7 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_EXPR(ParenListExpr) {
-    return Par(expr, expr->getNumExprs(), expr->getExprs(), env);
+    return Parallel(expr, expr->getNumExprs(), expr->getExprs(), env);
   }
 
   DECL_VISIT_EXPR(UnaryOperator) {
@@ -848,10 +872,10 @@ class FunctionAnalyzer {
     return Use(expr, expr->getDecl(), env);
   }
 
-  ExprEffect Par(clang::Expr* parent,
-                 int n,
-                 clang::Expr** exprs,
-                 const Environment& env) {
+  // Represents a node in the AST {parent} whose children {exprs} have
+  // undefined order of evaluation, e.g. array subscript or a binary operator.
+  ExprEffect Parallel(clang::Expr* parent, int n, clang::Expr** exprs,
+                      const Environment& env) {
     CallProps props;
 
     for (int i = 0; i < n; ++i) {
@@ -864,10 +888,10 @@ class FunctionAnalyzer {
         RepresentsRawPointerType(parent->getType()));
   }
 
-  ExprEffect Seq(clang::Stmt* parent,
-                 int n,
-                 clang::Expr** exprs,
-                 const Environment& env) {
+  // Represents a node in the AST {parent} whose children {exprs} are
+  // executed in sequence, e.g. a switch statement or an initializer list.
+  ExprEffect Sequential(clang::Stmt* parent, int n, clang::Expr** exprs,
+                        const Environment& env) {
     ExprEffect out = ExprEffect::None();
     Environment out_env = env;
     for (int i = 0; i < n; ++i) {
@@ -877,11 +901,22 @@ class FunctionAnalyzer {
     return out;
   }
 
+  // Represents a node in the AST {parent} which uses the variable {var_name},
+  // e.g. this expression or operator&.
+  // Here we observe the type in {var_type} of a previously declared variable
+  // and if it's a raw heap object type, we do the following:
+  // 1. If it got stale due to GC since its declaration, we report it as such.
+  // 2. Mark its raw usage in the ExprEffect returned by this function.
   ExprEffect Use(const clang::Expr* parent,
                  const clang::QualType& var_type,
                  const std::string& var_name,
                  const Environment& env) {
-    if (RepresentsRawPointerType(var_type)) {
+    // We currently care only about our internal pointer types and not about
+    // raw C++ pointers, because normally special care is taken when storing
+    // raw pointers to the managed heap. Furthermore, checking for raw
+    // pointers produces too many false positives in the dead variable
+    // analysis.
+    if (IsInternalPointerType(var_type)) {
       if (!env.IsAlive(var_name) && dead_vars_analysis_) {
         ReportUnsafe(parent, DEAD_VAR_MSG);
       }
@@ -918,7 +953,9 @@ class FunctionAnalyzer {
     }
   }
 
-
+  // After visiting the receiver and the arguments of the {call} node, this
+  // function might report a GC-unsafe usage (due to the undefined evaluation
+  // order of the receiver and the rest of the arguments).
   ExprEffect VisitCallExpr(clang::CallExpr* call,
                            const Environment& env) {
     CallProps props;
@@ -956,6 +993,7 @@ class FunctionAnalyzer {
         out.setGC();
       }
 
+      // Support for virtual methods that might be GC suspects.
       clang::CXXMethodDecl* method =
           llvm::dyn_cast_or_null<clang::CXXMethodDecl>(callee);
       if (method != NULL && method->isVirtual()) {
@@ -969,6 +1007,10 @@ class FunctionAnalyzer {
               out.setGC();
             }
           } else {
+            // According to the documentation, {getDevirtualizedMethod} might
+            // return NULL, in which case we still want to use the partial
+            // match of the {method}'s name against the GC suspects in order
+            // to increase coverage.
             if (SuspectedToCauseGC(ctx_, method)) {
               out.setGC();
             }
@@ -1082,26 +1124,26 @@ class FunctionAnalyzer {
       out_ = Environment::Merge(out_, env);
     }
 
-    void Seq(clang::Stmt* a, clang::Stmt* b, clang::Stmt* c) {
+    void Sequential(clang::Stmt* a, clang::Stmt* b, clang::Stmt* c) {
       Environment a_out = owner_->VisitStmt(a, in());
       Environment b_out = owner_->VisitStmt(b, a_out);
       Environment c_out = owner_->VisitStmt(c, b_out);
       MergeOut(c_out);
     }
 
-    void Seq(clang::Stmt* a, clang::Stmt* b) {
+    void Sequential(clang::Stmt* a, clang::Stmt* b) {
       Environment a_out = owner_->VisitStmt(a, in());
       Environment b_out = owner_->VisitStmt(b, a_out);
       MergeOut(b_out);
     }
 
     void Loop(clang::Stmt* a, clang::Stmt* b, clang::Stmt* c) {
-      Seq(a, b, c);
+      Sequential(a, b, c);
       MergeIn(out());
     }
 
     void Loop(clang::Stmt* a, clang::Stmt* b) {
-      Seq(a, b);
+      Sequential(a, b);
       MergeIn(out());
     }
 
@@ -1171,7 +1213,7 @@ class FunctionAnalyzer {
 
   DECL_VISIT_STMT(SwitchStmt) {
     Block block (env, this);
-    block.Seq(stmt->getCond(), stmt->getBody());
+    block.Sequential(stmt->getCond(), stmt->getBody());
     return block.out();
   }
 
@@ -1225,42 +1267,38 @@ class FunctionAnalyzer {
     return record->getDefinition();
   }
 
-  bool IsRawPointerType(const clang::PointerType* type) {
-    const clang::CXXRecordDecl* record = type->getPointeeCXXRecordDecl();
-
+  bool IsDerivedFromInternalPointer(const clang::CXXRecordDecl* record) {
     const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
     if (!definition) {
       return false;
     }
 
-    // TODO(mstarzinger): Unify the common parts of {IsRawPointerType} and
-    // {IsInternalPointerType} once gcmole is up and running again.
     bool result = (IsDerivedFrom(record, object_decl_) &&
                    !IsDerivedFrom(record, smi_decl_)) ||
                   IsDerivedFrom(record, maybe_object_decl_);
     return result;
   }
 
+  bool IsRawPointerType(const clang::PointerType* type) {
+    const clang::CXXRecordDecl* record = type->getPointeeCXXRecordDecl();
+    bool result = IsDerivedFromInternalPointer(record);
+    TRACE("is raw " << result << " " << record->getNameAsString());
+    return result;
+  }
+
   bool IsInternalPointerType(clang::QualType qtype) {
+    // Not yet assigned pointers can't get moved by the GC.
     if (qtype.isNull()) {
       return false;
     }
+    // nullptr can't get moved by the GC.
     if (qtype->isNullPtrType()) {
-      return true;
-    }
-
-    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
-
-    const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
-    if (!definition) {
       return false;
     }
 
-    // TODO(mstarzinger): Unify the common parts of {IsRawPointerType} and
-    // {IsInternalPointerType} once gcmole is up and running again.
-    bool result = (IsDerivedFrom(record, object_decl_) &&
-                   !IsDerivedFrom(record, smi_decl_)) ||
-                  IsDerivedFrom(record, maybe_object_decl_);
+    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
+    bool result = IsDerivedFromInternalPointer(record);
+    TRACE_LLVM_TYPE("is internal " << result, qtype);
     return result;
   }
 
@@ -1365,6 +1403,9 @@ class ProblemsFinder : public clang::ASTConsumer,
       if (args[i] == "--dead-vars") {
         dead_vars_analysis_ = true;
       }
+      if (args[i] == "--verbose") {
+        g_tracing_enabled = true;
+      }
     }
   }
 
@@ -1410,7 +1451,17 @@ class ProblemsFinder : public clang::ASTConsumer,
   }
 
   virtual bool VisitFunctionDecl(clang::FunctionDecl* decl) {
+    // Don't print tracing from includes, otherwise the output is too big.
+    bool tracing = g_tracing_enabled;
+    const auto& fileID = sm_.getFileID(decl->getLocation());
+    if (fileID != sm_.getMainFileID()) {
+      g_tracing_enabled = false;
+    }
+
+    TRACE("Visiting function " << decl->getNameAsString());
     function_analyzer_->AnalyzeFunction(decl);
+
+    g_tracing_enabled = tracing;
     return true;
   }
 
@@ -1453,3 +1504,11 @@ FindProblems("find-problems", "Find GC-unsafe places.");
 static clang::FrontendPluginRegistry::Add<
   Action<FunctionDeclarationFinder> >
 DumpCallees("dump-callees", "Dump callees for each function.");
+
+#undef TRACE
+#undef TRACE_LLVM_TYPE
+#undef TRACE_LLVM_DECL
+#undef DECL_VISIT_EXPR
+#undef IGNORE_EXPR
+#undef DECL_VISIT_STMT
+#undef IGNORE_STMT
