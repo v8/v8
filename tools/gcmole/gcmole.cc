@@ -137,10 +137,72 @@ struct Resolver {
     clang::DeclContext::lookup_iterator end = result.end();
     for (clang::DeclContext::lookup_iterator i = result.begin(); i != end;
          i++) {
-      if (llvm::isa<T>(*i)) return llvm::cast<T>(*i);
+      if (llvm::isa<T>(*i)) {
+        return llvm::cast<T>(*i);
+      } else {
+        llvm::errs() << "Didn't match declaration template against "
+                     << (*i)->getNameAsString() << "\n";
+      }
     }
 
     return NULL;
+  }
+
+  clang::CXXRecordDecl* ResolveTemplate(const char* n) {
+    clang::NamedDecl* initial_template = Resolve<clang::NamedDecl>(n);
+    if (!initial_template) return NULL;
+
+    clang::NamedDecl* underlying_template =
+        initial_template->getUnderlyingDecl();
+    if (!underlying_template) {
+      llvm::errs() << "Couldn't resolve underlying template\n";
+      return NULL;
+    }
+    const clang::TypeAliasDecl* type_alias_decl =
+        llvm::dyn_cast_or_null<clang::TypeAliasDecl>(underlying_template);
+    if (!type_alias_decl) {
+      llvm::errs() << "Couldn't resolve TypeAliasDecl\n";
+      return NULL;
+    }
+    const clang::Type* type = type_alias_decl->getTypeForDecl();
+    if (!type) {
+      llvm::errs() << "Couldn't resolve TypeAliasDecl to Type\n";
+      return NULL;
+    }
+    const clang::TypedefType* typedef_type =
+        llvm::dyn_cast_or_null<clang::TypedefType>(type);
+    if (!typedef_type) {
+      llvm::errs() << "Couldn't resolve TypedefType\n";
+      return NULL;
+    }
+    const clang::TypedefNameDecl* typedef_name_decl = typedef_type->getDecl();
+    if (!typedef_name_decl) {
+      llvm::errs() << "Couldn't resolve TypedefType to TypedefNameDecl\n";
+      return NULL;
+    }
+
+    clang::QualType underlying_type = typedef_name_decl->getUnderlyingType();
+    if (!llvm::isa<clang::TemplateSpecializationType>(underlying_type)) {
+      llvm::errs() << "Couldn't resolve TemplateSpecializationType\n";
+      return NULL;
+    }
+
+    const clang::TemplateSpecializationType* templ_specialization_type =
+        llvm::cast<clang::TemplateSpecializationType>(underlying_type);
+    if (!llvm::isa<clang::RecordType>(templ_specialization_type->desugar())) {
+      llvm::errs() << "Couldn't resolve RecordType\n";
+      return NULL;
+    }
+
+    const clang::RecordType* record_type =
+        llvm::cast<clang::RecordType>(templ_specialization_type->desugar());
+    clang::CXXRecordDecl* record_decl =
+        llvm::dyn_cast_or_null<clang::CXXRecordDecl>(record_type->getDecl());
+    if (!record_decl) {
+      llvm::errs() << "Couldn't resolve CXXRecordDecl\n";
+      return NULL;
+    }
+    return record_decl;
   }
 
  private:
@@ -454,7 +516,7 @@ class Environment {
       std::cout << e.first;
       comma = true;
     }
-    std::cout << "}";
+    std::cout << "}" << std::endl;
   }
 
   static Environment* Allocate(const Environment& env) {
@@ -610,15 +672,19 @@ static std::string THIS ("this");
 
 class FunctionAnalyzer {
  public:
-  FunctionAnalyzer(clang::MangleContext* ctx,
-                   clang::CXXRecordDecl* object_decl,
+  FunctionAnalyzer(clang::MangleContext* ctx, clang::CXXRecordDecl* object_decl,
                    clang::CXXRecordDecl* maybe_object_decl,
-                   clang::CXXRecordDecl* smi_decl, clang::DiagnosticsEngine& d,
-                   clang::SourceManager& sm, bool dead_vars_analysis)
+                   clang::CXXRecordDecl* smi_decl,
+                   clang::CXXRecordDecl* no_gc_decl,
+                   clang::CXXRecordDecl* no_heap_access_decl,
+                   clang::DiagnosticsEngine& d, clang::SourceManager& sm,
+                   bool dead_vars_analysis)
       : ctx_(ctx),
         object_decl_(object_decl),
         maybe_object_decl_(maybe_object_decl),
         smi_decl_(smi_decl),
+        no_gc_decl_(no_gc_decl),
+        no_heap_access_decl_(no_heap_access_decl),
         d_(d),
         sm_(sm),
         block_(NULL),
@@ -911,13 +977,14 @@ class FunctionAnalyzer {
                  const clang::QualType& var_type,
                  const std::string& var_name,
                  const Environment& env) {
-    // We currently care only about our internal pointer types and not about
-    // raw C++ pointers, because normally special care is taken when storing
-    // raw pointers to the managed heap. Furthermore, checking for raw
-    // pointers produces too many false positives in the dead variable
-    // analysis.
-    if (IsInternalPointerType(var_type)) {
-      if (!env.IsAlive(var_name) && dead_vars_analysis_) {
+    if (RepresentsRawPointerType(var_type)) {
+      // We currently care only about our internal pointer types and not about
+      // raw C++ pointers, because normally special care is taken when storing
+      // raw pointers to the managed heap. Furthermore, checking for raw
+      // pointers produces too many false positives in the dead variable
+      // analysis.
+      if (IsInternalPointerType(var_type) && !env.IsAlive(var_name) &&
+          !HasActiveGuard() && dead_vars_analysis_) {
         ReportUnsafe(parent, DEAD_VAR_MSG);
       }
       return ExprEffect::RawUse();
@@ -1168,6 +1235,7 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(CompoundStmt) {
+    scopes_.push_back(GCGuard(stmt, false));
     Environment out = env;
     clang::CompoundStmt::body_iterator end = stmt->body_end();
     for (clang::CompoundStmt::body_iterator s = stmt->body_begin();
@@ -1175,6 +1243,7 @@ class FunctionAnalyzer {
          ++s) {
       out = VisitStmt(*s, out);
     }
+    scopes_.pop_back();
     return out;
   }
 
@@ -1314,12 +1383,35 @@ class FunctionAnalyzer {
     }
   }
 
-  Environment VisitDecl(clang::Decl* decl, const Environment& env) {
+  bool IsGCGuard(clang::QualType qtype) {
+    if (qtype.isNull()) {
+      return false;
+    }
+    if (qtype->isNullPtrType()) {
+      return false;
+    }
+
+    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
+    const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
+
+    if (!definition) {
+      return false;
+    }
+
+    return (no_gc_decl_ && IsDerivedFrom(definition, no_gc_decl_)) ||
+           (no_heap_access_decl_ &&
+            IsDerivedFrom(definition, no_heap_access_decl_));
+  }
+
+  Environment VisitDecl(clang::Decl* decl, Environment& env) {
     if (clang::VarDecl* var = llvm::dyn_cast<clang::VarDecl>(decl)) {
       Environment out = var->hasInit() ? VisitStmt(var->getInit(), env) : env;
 
       if (RepresentsRawPointerType(var->getType())) {
         out = out.Define(var->getNameAsString());
+      }
+      if (IsGCGuard(var->getType())) {
+        scopes_.back().has_guard = true;
       }
 
       return out;
@@ -1372,6 +1464,13 @@ class FunctionAnalyzer {
     block_ = block;
   }
 
+  bool HasActiveGuard() {
+    for (auto s : scopes_) {
+      if (s.has_guard) return true;
+    }
+    return false;
+  }
+
  private:
   void ReportUnsafe(const clang::Expr* expr, const std::string& msg) {
     d_.Report(clang::FullSourceLoc(expr->getExprLoc(), sm_),
@@ -1384,14 +1483,24 @@ class FunctionAnalyzer {
   clang::CXXRecordDecl* object_decl_;
   clang::CXXRecordDecl* maybe_object_decl_;
   clang::CXXRecordDecl* smi_decl_;
+  clang::CXXRecordDecl* no_gc_decl_;
+  clang::CXXRecordDecl* no_heap_access_decl_;
 
   clang::DiagnosticsEngine& d_;
   clang::SourceManager& sm_;
 
   Block* block_;
   bool dead_vars_analysis_;
-};
 
+  struct GCGuard {
+    clang::CompoundStmt* stmt = NULL;
+    bool has_guard = false;
+
+    GCGuard(clang::CompoundStmt* stmt_, bool has_guard_)
+        : stmt(stmt_), has_guard(has_guard_) {}
+  };
+  std::vector<GCGuard> scopes_;
+};
 
 class ProblemsFinder : public clang::ASTConsumer,
                        public clang::RecursiveASTVisitor<ProblemsFinder> {
@@ -1411,6 +1520,19 @@ class ProblemsFinder : public clang::ASTConsumer,
 
   virtual void HandleTranslationUnit(clang::ASTContext &ctx) {
     Resolver r(ctx);
+
+    // It is a valid situation that no_gc_decl == NULL when the
+    // DisallowHeapAllocation is not included and can't be resolved.
+    // This is gracefully handled in the FunctionAnalyzer later.
+    clang::CXXRecordDecl* no_gc_decl =
+        r.ResolveNamespace("v8")
+            .ResolveNamespace("internal")
+            .ResolveTemplate("DisallowHeapAllocation");
+
+    clang::CXXRecordDecl* no_heap_access_decl =
+        r.ResolveNamespace("v8")
+            .ResolveNamespace("internal")
+            .Resolve<clang::CXXRecordDecl>("DisallowHeapAccess");
 
     clang::CXXRecordDecl* object_decl =
         r.ResolveNamespace("v8").ResolveNamespace("internal").
@@ -1432,10 +1554,14 @@ class ProblemsFinder : public clang::ASTConsumer,
 
     if (smi_decl != NULL) smi_decl = smi_decl->getDefinition();
 
+    if (no_heap_access_decl != NULL)
+      no_heap_access_decl = no_heap_access_decl->getDefinition();
+
     if (object_decl != NULL && smi_decl != NULL && maybe_object_decl != NULL) {
       function_analyzer_ = new FunctionAnalyzer(
           clang::ItaniumMangleContext::create(ctx, d_), object_decl,
-          maybe_object_decl, smi_decl, d_, sm_, dead_vars_analysis_);
+          maybe_object_decl, smi_decl, no_gc_decl, no_heap_access_decl, d_, sm_,
+          dead_vars_analysis_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else {
       if (object_decl == NULL) {

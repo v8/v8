@@ -475,7 +475,8 @@ end
 local function TestRun()
    local errors, output = SafeCheckCorrectnessForArch('x64', true)
    if not errors then
-      log("** Test file should produce errors, but none were found.")
+      log("** Test file should produce errors, but none were found. Output:")
+      log(output)
       return false
    end
 
