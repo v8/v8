@@ -411,27 +411,29 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define TABLE_ZERO 0
 
 // TODO(titzer): change usages of these macros to put func last.
-#define WASM_CALL_INDIRECT0(index, func) \
-  func, kExprCallIndirect, static_cast<byte>(index), TABLE_ZERO
-#define WASM_CALL_INDIRECT1(index, func, a) \
-  a, func, kExprCallIndirect, static_cast<byte>(index), TABLE_ZERO
-#define WASM_CALL_INDIRECT2(index, func, a, b) \
-  a, b, func, kExprCallIndirect, static_cast<byte>(index), TABLE_ZERO
-#define WASM_CALL_INDIRECT3(index, func, a, b, c) \
-  a, b, c, func, kExprCallIndirect, static_cast<byte>(index), TABLE_ZERO
-#define WASM_CALL_INDIRECT4(index, func, a, b, c, d) \
-  a, b, c, d, func, kExprCallIndirect, static_cast<byte>(index), TABLE_ZERO
-#define WASM_CALL_INDIRECT5(index, func, a, b, c, d, e) \
-  a, b, c, d, e, func, kExprCallIndirect, static_cast<byte>(index), TABLE_ZERO
-#define WASM_CALL_INDIRECTN(arity, index, func, ...) \
-  __VA_ARGS__, func, kExprCallIndirect, static_cast<byte>(index), TABLE_ZERO
-#define WASM_CALL_INDIRECT_TABLE0(table, index, func) \
-  func, kExprCallIndirect, static_cast<byte>(index), static_cast<byte>(table)
+#define WASM_CALL_INDIRECT0(sig_index, func) \
+  func, kExprCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
+#define WASM_CALL_INDIRECT1(sig_index, func, a) \
+  a, func, kExprCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
+#define WASM_CALL_INDIRECT2(sig_index, func, a, b) \
+  a, b, func, kExprCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
+#define WASM_CALL_INDIRECT3(sig_index, func, a, b, c) \
+  a, b, c, func, kExprCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
+#define WASM_CALL_INDIRECT4(sig_index, func, a, b, c, d) \
+  a, b, c, d, func, kExprCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
+#define WASM_CALL_INDIRECT5(sig_index, func, a, b, c, d, e)             \
+  a, b, c, d, e, func, kExprCallIndirect, static_cast<byte>(sig_index), \
+      TABLE_ZERO
+#define WASM_CALL_INDIRECTN(arity, sig_index, func, ...) \
+  __VA_ARGS__, func, kExprCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
+#define WASM_CALL_INDIRECT_TABLE0(table, sig_index, func) \
+  func, kExprCallIndirect, static_cast<byte>(sig_index),  \
+      static_cast<byte>(table)
 
-#define WASM_RETURN_CALL_INDIRECT0(index, func) \
-  func, kExprReturnCallIndirect, static_cast<byte>(index), TABLE_ZERO
-#define WASM_RETURN_CALL_INDIRECT(index, func, ...)                     \
-  __VA_ARGS__, func, kExprReturnCallIndirect, static_cast<byte>(index), \
+#define WASM_RETURN_CALL_INDIRECT0(sig_index, func) \
+  func, kExprReturnCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
+#define WASM_RETURN_CALL_INDIRECT(sig_index, func, ...)                     \
+  __VA_ARGS__, func, kExprReturnCallIndirect, static_cast<byte>(sig_index), \
       TABLE_ZERO
 
 #define WASM_NOT(x) x, kExprI32Eqz
