@@ -862,13 +862,19 @@ void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
 void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
                                     int32_t amount) {
   UseScratchRegisterScope temps(this);
-  // {src.low_gp()} will still be needed after writing {dst.high_gp()}.
+  // {src.low_gp()} will still be needed after writing {dst.high_gp()} and
+  // {dst.low_gp()}.
   Register src_low = liftoff::EnsureNoAlias(this, src.low_gp(), dst, &temps);
+  Register src_high = src.high_gp();
+  // {src.high_gp()} will still be needed after writing {dst.high_gp()}.
+  if (src_high == dst.high_gp()) {
+    mov(kScratchReg, src_high);
+    src_high = kScratchReg;
+  }
   DCHECK_NE(dst.low_gp(), kScratchReg);
   DCHECK_NE(dst.high_gp(), kScratchReg);
 
-  ShlPair(dst.low_gp(), dst.high_gp(), src_low, src.high_gp(), amount,
-          kScratchReg);
+  ShlPair(dst.low_gp(), dst.high_gp(), src_low, src_high, amount, kScratchReg);
 }
 
 void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
@@ -880,7 +886,8 @@ void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
 void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
                                     int32_t amount) {
   UseScratchRegisterScope temps(this);
-  // {src.high_gp()} will still be needed after writing {dst.low_gp()}.
+  // {src.high_gp()} will still be needed after writing {dst.high_gp()} and
+  // {dst.low_gp()}.
   Register src_high = liftoff::EnsureNoAlias(this, src.high_gp(), dst, &temps);
   DCHECK_NE(dst.low_gp(), kScratchReg);
   DCHECK_NE(dst.high_gp(), kScratchReg);
@@ -898,7 +905,8 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                     int32_t amount) {
   UseScratchRegisterScope temps(this);
-  // {src.high_gp()} will still be needed after writing {dst.low_gp()}.
+  // {src.high_gp()} will still be needed after writing {dst.high_gp()} and
+  // {dst.low_gp()}.
   Register src_high = liftoff::EnsureNoAlias(this, src.high_gp(), dst, &temps);
   DCHECK_NE(dst.low_gp(), kScratchReg);
   DCHECK_NE(dst.high_gp(), kScratchReg);
