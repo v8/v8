@@ -766,8 +766,11 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
     }
 
 #ifdef DEBUG
-    for (auto declaration : *result->declarations()) {
-      DCHECK_NE(declaration->var()->initializer_position(), kNoSourcePosition);
+    if (!this->has_error()) {
+      for (auto declaration : *result->declarations()) {
+        DCHECK_NE(declaration->var()->initializer_position(),
+                  kNoSourcePosition);
+      }
     }
 #endif  // DEBUG
 
