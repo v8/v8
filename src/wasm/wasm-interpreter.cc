@@ -815,7 +815,7 @@ class SideTable : public ZoneObject {
         case kExprBlock:
         case kExprLoop: {
           bool is_loop = opcode == kExprLoop;
-          BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
+          BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
                                                        i.pc());
           if (imm.type == kWasmBottom) {
             imm.sig = module->signatures[imm.sig_index];
@@ -831,7 +831,7 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprIf: {
-          BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
+          BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
                                                        i.pc());
           if (imm.type == kWasmBottom) {
             imm.sig = module->signatures[imm.sig_index];
@@ -866,7 +866,7 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprTry: {
-          BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
+          BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
                                                        i.pc());
           if (imm.type == kWasmBottom) {
             imm.sig = module->signatures[imm.sig_index];
@@ -1525,7 +1525,7 @@ class ThreadImpl {
         return pc + 1 + imm.length;
       }
       case kExprCallIndirect: {
-        CallIndirectImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures,
+        CallIndirectImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(),
                                                         decoder, code->at(pc));
         return pc + 1 + imm.length;
       }
@@ -3006,13 +3006,13 @@ class ThreadImpl {
         case kExprBlock:
         case kExprLoop:
         case kExprTry: {
-          BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures,
+          BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(),
                                                        &decoder, code->at(pc));
           len = 1 + imm.length;
           break;
         }
         case kExprIf: {
-          BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures,
+          BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(),
                                                        &decoder, code->at(pc));
           WasmValue cond = Pop();
           bool is_true = cond.to<uint32_t>() != 0;
@@ -3233,7 +3233,7 @@ class ThreadImpl {
 
         case kExprCallIndirect: {
           CallIndirectImmediate<Decoder::kNoValidate> imm(
-              kAllWasmFeatures, &decoder, code->at(pc));
+              WasmFeatures::All(), &decoder, code->at(pc));
           uint32_t entry_index = Pop().to<uint32_t>();
           CommitPc(pc);  // TODO(wasm): Be more disciplined about committing PC.
           ExternalCallResult result =
@@ -3303,7 +3303,7 @@ class ThreadImpl {
 
         case kExprReturnCallIndirect: {
           CallIndirectImmediate<Decoder::kNoValidate> imm(
-              kAllWasmFeatures, &decoder, code->at(pc));
+              WasmFeatures::All(), &decoder, code->at(pc));
           uint32_t entry_index = Pop().to<uint32_t>();
           CommitPc(pc);  // TODO(wasm): Be more disciplined about committing PC.
 
@@ -3798,7 +3798,7 @@ class ThreadImpl {
                                               const WasmCode* code,
                                               FunctionSig* sig) {
     int num_args = static_cast<int>(sig->parameter_count());
-    WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
+    WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
 
     if (code->kind() == WasmCode::kWasmToJsWrapper &&
         !IsJSCompatibleSignature(sig, enabled_features)) {

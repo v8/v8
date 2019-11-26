@@ -22,7 +22,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     : test_module_(std::make_shared<WasmModule>()),
       test_module_ptr_(test_module_.get()),
       isolate_(CcTest::InitIsolateOnce()),
-      enabled_features_(WasmFeaturesFromIsolate(isolate_)),
+      enabled_features_(WasmFeatures::FromIsolate(isolate_)),
       execution_tier_(tier),
       runtime_exception_support_(exception_support),
       lower_simd_(lower_simd) {
@@ -346,14 +346,14 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
   WasmFeatures unused_detected_features;
   FunctionBody body(sig, 0, start, end);
   DecodeResult result =
-      BuildTFGraph(zone->allocator(), kAllWasmFeatures, nullptr, builder,
+      BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr, builder,
                    &unused_detected_features, body, nullptr);
   if (result.failed()) {
 #ifdef DEBUG
     if (!FLAG_trace_wasm_decoder) {
       // Retry the compilation with the tracing flag on, to help in debugging.
       FLAG_trace_wasm_decoder = true;
-      result = BuildTFGraph(zone->allocator(), kAllWasmFeatures, nullptr,
+      result = BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr,
                             builder, &unused_detected_features, body, nullptr);
     }
 #endif

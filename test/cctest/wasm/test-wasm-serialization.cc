@@ -146,7 +146,7 @@ class WasmSerializationTest {
       HandleScope scope(serialization_isolate);
       testing::SetupIsolateForWasmModule(serialization_isolate);
 
-      auto enabled_features = WasmFeaturesFromIsolate(serialization_isolate);
+      auto enabled_features = WasmFeatures::FromIsolate(serialization_isolate);
       MaybeHandle<WasmModuleObject> maybe_module_object =
           serialization_isolate->wasm_engine()->SyncCompile(
               serialization_isolate, enabled_features, &thrower,
@@ -291,7 +291,7 @@ UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
     Isolate* from_i_isolate = reinterpret_cast<Isolate*>(from_isolate);
     testing::SetupIsolateForWasmModule(from_i_isolate);
     ErrorThrower thrower(from_i_isolate, "TestCompiledWasmModulesTransfer");
-    auto enabled_features = WasmFeaturesFromIsolate(from_i_isolate);
+    auto enabled_features = WasmFeatures::FromIsolate(from_i_isolate);
     MaybeHandle<WasmModuleObject> maybe_module_object =
         from_i_isolate->wasm_engine()->SyncCompile(
             from_i_isolate, enabled_features, &thrower,

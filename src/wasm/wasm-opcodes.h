@@ -15,7 +15,7 @@ namespace internal {
 
 namespace wasm {
 
-struct WasmFeatures;
+class WasmFeatures;
 
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);

@@ -40,7 +40,7 @@ class WasmStreaming::WasmStreamingImpl {
       std::shared_ptr<internal::wasm::CompilationResultResolver> resolver)
       : isolate_(isolate), resolver_(std::move(resolver)) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
-    auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+    auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
     streaming_decoder_ = i_isolate->wasm_engine()->StartStreamingCompilation(
         i_isolate, enabled_features, handle(i_isolate->context(), i_isolate),
         api_method_name, resolver_);
@@ -518,7 +518,7 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   // Asynchronous compilation handles copying wire bytes if necessary.
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
   i_isolate->wasm_engine()->AsyncCompile(i_isolate, enabled_features,
                                          std::move(resolver), bytes, is_shared,
                                          kAPIMethodName);
@@ -633,7 +633,7 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
   bool validated = false;
   if (is_shared) {
     // Make a copy of the wire bytes to avoid concurrent modification.
@@ -676,7 +676,7 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (thrower.error()) {
     return;
   }
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
   i::MaybeHandle<i::Object> module_obj;
   if (is_shared) {
     // Make a copy of the wire bytes to avoid concurrent modification.
@@ -973,7 +973,7 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   // Asynchronous compilation handles copying wire bytes if necessary.
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
   i_isolate->wasm_engine()->AsyncCompile(i_isolate, enabled_features,
                                          std::move(compilation_resolver), bytes,
                                          is_shared, kAPIMethodName);
@@ -1043,8 +1043,8 @@ bool GetInitialOrMinimumProperty(v8::Isolate* isolate, ErrorThrower* thrower,
                                   result, lower_bound, upper_bound)) {
     return false;
   }
-  auto enabled_features = i::wasm::WasmFeaturesFromFlags();
-  if (!has_initial && enabled_features.type_reflection) {
+  auto enabled_features = i::wasm::WasmFeatures::FromFlags();
+  if (!has_initial && enabled_features.has_type_reflection()) {
     if (!GetOptionalIntegerProperty(isolate, thrower, context, object,
                                     v8_str(isolate, "minimum"), &has_initial,
                                     result, lower_bound, upper_bound)) {
@@ -1084,10 +1084,10 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     if (!maybe.ToLocal(&value)) return;
     v8::Local<v8::String> string;
     if (!value->ToString(context).ToLocal(&string)) return;
-    auto enabled_features = i::wasm::WasmFeaturesFromFlags();
+    auto enabled_features = i::wasm::WasmFeatures::FromFlags();
     if (string->StringEquals(v8_str(isolate, "anyfunc"))) {
       type = i::wasm::kWasmFuncRef;
-    } else if (enabled_features.anyref &&
+    } else if (enabled_features.has_anyref() &&
                string->StringEquals(v8_str(isolate, "anyref"))) {
       type = i::wasm::kWasmAnyRef;
     } else {
@@ -1149,8 +1149,8 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   auto shared = i::SharedFlag::kNotShared;
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
-  if (enabled_features.threads) {
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  if (enabled_features.has_threads()) {
     // Shared property of descriptor
     Local<String> shared_key = v8_str(isolate, "shared");
     v8::MaybeLocal<v8::Value> maybe_value =
@@ -1209,13 +1209,13 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
     *type = i::wasm::kWasmI64;
   } else if (string->StringEquals(v8_str(isolate, "f64"))) {
     *type = i::wasm::kWasmF64;
-  } else if (enabled_features.anyref &&
+  } else if (enabled_features.has_anyref() &&
              string->StringEquals(v8_str(isolate, "anyref"))) {
     *type = i::wasm::kWasmAnyRef;
-  } else if (enabled_features.anyref &&
+  } else if (enabled_features.has_anyref() &&
              string->StringEquals(v8_str(isolate, "anyfunc"))) {
     *type = i::wasm::kWasmFuncRef;
-  } else if (enabled_features.eh &&
+  } else if (enabled_features.has_eh() &&
              string->StringEquals(v8_str(isolate, "exnref"))) {
     *type = i::wasm::kWasmExnRef;
   } else {
@@ -1241,7 +1241,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   Local<Context> context = isolate->GetCurrentContext();
   Local<v8::Object> descriptor = Local<Object>::Cast(args[0]);
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
 
   // The descriptor's 'mutable'.
   bool is_mutable = false;
@@ -1298,7 +1298,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     case i::wasm::kWasmI64: {
       int64_t i64_value = 0;
       if (!value->IsUndefined()) {
-        if (!enabled_features.bigint) {
+        if (!enabled_features.has_bigint()) {
           thrower.TypeError("Can't set the value of i64 WebAssembly.Global");
           return;
         }
@@ -1406,7 +1406,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   Local<Object> function_type = Local<Object>::Cast(args[0]);
   Local<Context> context = isolate->GetCurrentContext();
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
 
   // Load the 'parameters' property of the function type.
   Local<String> parameters_key = v8_str(isolate, "parameters");
@@ -1445,7 +1445,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.TypeError("Argument 0 contains results without 'length'");
     return;
   }
-  if (results_len > (enabled_features.mv
+  if (results_len > (enabled_features.has_mv()
                          ? i::wasm::kV8MaxWasmFunctionMultiReturns
                          : i::wasm::kV8MaxWasmFunctionReturns)) {
     thrower.TypeError("Argument 0 contains too many results");
@@ -1756,8 +1756,8 @@ void WebAssemblyGlobalGetValueCommon(
       return_value.Set(receiver->GetI32());
       break;
     case i::wasm::kWasmI64: {
-      auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
-      if (enabled_features.bigint) {
+      auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+      if (enabled_features.has_bigint()) {
         Local<BigInt> value = BigInt::New(isolate, receiver->GetI64());
 
         return_value.Set(value);
@@ -1820,8 +1820,8 @@ void WebAssemblyGlobalSetValue(
       break;
     }
     case i::wasm::kWasmI64: {
-      auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
-      if (enabled_features.bigint) {
+      auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+      if (enabled_features.has_bigint()) {
         v8::Local<v8::BigInt> bigint_value;
         if (!args[0]->ToBigInt(context).ToLocal(&bigint_value)) return;
         receiver->SetI64(bigint_value->Int64Value());
@@ -2056,8 +2056,9 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
                         v8_str(isolate, "WebAssembly.Instance"), ro_attributes);
 
   // The context is not set up completely yet. That's why we cannot use
-  // {WasmFeaturesFromIsolate} and have to use {WasmFeaturesFromFlags} instead.
-  auto enabled_features = i::wasm::WasmFeaturesFromFlags();
+  // {WasmFeatures::FromIsolate} and have to use {WasmFeatures::FromFlags}
+  // instead.
+  auto enabled_features = i::wasm::WasmFeatures::FromFlags();
 
   // Setup Table
   Handle<JSFunction> table_constructor =
@@ -2074,7 +2075,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow, 1);
   InstallFunc(isolate, table_proto, "get", WebAssemblyTableGet, 1);
   InstallFunc(isolate, table_proto, "set", WebAssemblyTableSet, 2);
-  if (enabled_features.type_reflection) {
+  if (enabled_features.has_type_reflection()) {
     InstallFunc(isolate, table_constructor, "type", WebAssemblyTableType, 1);
   }
   JSObject::AddProperty(isolate, table_proto, factory->to_string_tag_symbol(),
@@ -2093,7 +2094,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   JSFunction::SetInitialMap(memory_constructor, memory_map, memory_proto);
   InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow, 1);
   InstallGetter(isolate, memory_proto, "buffer", WebAssemblyMemoryGetBuffer);
-  if (enabled_features.type_reflection) {
+  if (enabled_features.has_type_reflection()) {
     InstallFunc(isolate, memory_constructor, "type", WebAssemblyMemoryType, 1);
   }
   JSObject::AddProperty(isolate, memory_proto, factory->to_string_tag_symbol(),
@@ -2113,14 +2114,14 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   InstallFunc(isolate, global_proto, "valueOf", WebAssemblyGlobalValueOf, 0);
   InstallGetterSetter(isolate, global_proto, "value", WebAssemblyGlobalGetValue,
                       WebAssemblyGlobalSetValue);
-  if (enabled_features.type_reflection) {
+  if (enabled_features.has_type_reflection()) {
     InstallFunc(isolate, global_constructor, "type", WebAssemblyGlobalType, 1);
   }
   JSObject::AddProperty(isolate, global_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Global"), ro_attributes);
 
   // Setup Exception
-  if (enabled_features.eh) {
+  if (enabled_features.has_eh()) {
     Handle<JSFunction> exception_constructor = InstallConstructorFunc(
         isolate, webassembly, "Exception", WebAssemblyException);
     context->set_wasm_exception_constructor(*exception_constructor);
@@ -2135,7 +2136,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   }
 
   // Setup Function
-  if (enabled_features.type_reflection) {
+  if (enabled_features.has_type_reflection()) {
     Handle<JSFunction> function_constructor = InstallConstructorFunc(
         isolate, webassembly, "Function", WebAssemblyFunction);
     SetDummyInstanceTemplate(isolate, function_constructor);

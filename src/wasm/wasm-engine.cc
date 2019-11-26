@@ -242,8 +242,8 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
                             ? kAsmJsSloppyOrigin
                             : kAsmJsStrictOrigin;
   ModuleResult result =
-      DecodeWasmModule(kAsmjsWasmFeatures, bytes.start(), bytes.end(), false,
-                       origin, isolate->counters(), allocator());
+      DecodeWasmModule(WasmFeatures::ForAsmjs(), bytes.start(), bytes.end(),
+                       false, origin, isolate->counters(), allocator());
   if (result.failed()) {
     // This happens once in a while when we have missed some limit check
     // in the asm parser. Output an error message to help diagnose, but crash.
@@ -255,7 +255,7 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   // in {CompileToNativeModule}.
   Handle<FixedArray> export_wrappers;
   std::shared_ptr<NativeModule> native_module =
-      CompileToNativeModule(isolate, kAsmjsWasmFeatures, thrower,
+      CompileToNativeModule(isolate, WasmFeatures::ForAsmjs(), thrower,
                             std::move(result).value(), bytes, &export_wrappers);
   if (!native_module) return {};
 
@@ -427,7 +427,7 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
 void WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
                                  uint32_t function_index, ExecutionTier tier) {
   // Note we assume that "one-off" compilations can discard detected features.
-  WasmFeatures detected = kNoWasmFeatures;
+  WasmFeatures detected = WasmFeatures::None();
   WasmCompilationUnit::CompileWasmFunction(
       isolate, native_module, &detected,
       &native_module->module()->functions[function_index], tier);

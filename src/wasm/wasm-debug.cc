@@ -228,7 +228,7 @@ class InterpreterHandle {
 
     // Copy back the return value.
 #ifdef DEBUG
-    const int max_count = WasmFeaturesFromIsolate(isolate_).mv
+    const int max_count = WasmFeatures::FromIsolate(isolate_).has_mv()
                               ? kV8MaxWasmFunctionMultiReturns
                               : kV8MaxWasmFunctionReturns;
 #endif

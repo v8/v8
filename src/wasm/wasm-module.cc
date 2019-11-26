@@ -295,7 +295,8 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
     // and then use that constant everywhere.
     element = factory->InternalizeUtf8String("anyfunc");
   } else {
-    DCHECK(WasmFeaturesFromFlags().anyref && type == ValueType::kWasmAnyRef);
+    DCHECK(WasmFeatures::FromFlags().has_anyref() &&
+           type == ValueType::kWasmAnyRef);
     element = factory->InternalizeUtf8String("anyref");
   }
 
@@ -317,7 +318,7 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
 
 Handle<JSArray> GetImports(Isolate* isolate,
                            Handle<WasmModuleObject> module_object) {
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(isolate);
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(isolate);
   Factory* factory = isolate->factory();
 
   Handle<String> module_string = factory->InternalizeUtf8String("module");
@@ -352,14 +353,14 @@ Handle<JSArray> GetImports(Isolate* isolate,
     Handle<JSObject> type_value;
     switch (import.kind) {
       case kExternalFunction:
-        if (enabled_features.type_reflection) {
+        if (enabled_features.has_type_reflection()) {
           auto& func = module->functions[import.index];
           type_value = GetTypeForFunction(isolate, func.sig);
         }
         import_kind = function_string;
         break;
       case kExternalTable:
-        if (enabled_features.type_reflection) {
+        if (enabled_features.has_type_reflection()) {
           auto& table = module->tables[import.index];
           base::Optional<uint32_t> maximum_size;
           if (table.has_maximum_size) maximum_size.emplace(table.maximum_size);
@@ -369,7 +370,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
         import_kind = table_string;
         break;
       case kExternalMemory:
-        if (enabled_features.type_reflection) {
+        if (enabled_features.has_type_reflection()) {
           DCHECK_EQ(0, import.index);  // Only one memory supported.
           base::Optional<uint32_t> maximum_size;
           if (module->has_maximum_pages) {
@@ -381,7 +382,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
         import_kind = memory_string;
         break;
       case kExternalGlobal:
-        if (enabled_features.type_reflection) {
+        if (enabled_features.has_type_reflection()) {
           auto& global = module->globals[import.index];
           type_value =
               GetTypeForGlobal(isolate, global.mutability, global.type);
@@ -420,7 +421,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
 
 Handle<JSArray> GetExports(Isolate* isolate,
                            Handle<WasmModuleObject> module_object) {
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(isolate);
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(isolate);
   Factory* factory = isolate->factory();
 
   Handle<String> name_string = factory->InternalizeUtf8String("name");
@@ -452,14 +453,14 @@ Handle<JSArray> GetExports(Isolate* isolate,
     Handle<JSObject> type_value;
     switch (exp.kind) {
       case kExternalFunction:
-        if (enabled_features.type_reflection) {
+        if (enabled_features.has_type_reflection()) {
           auto& func = module->functions[exp.index];
           type_value = GetTypeForFunction(isolate, func.sig);
         }
         export_kind = function_string;
         break;
       case kExternalTable:
-        if (enabled_features.type_reflection) {
+        if (enabled_features.has_type_reflection()) {
           auto& table = module->tables[exp.index];
           base::Optional<uint32_t> maximum_size;
           if (table.has_maximum_size) maximum_size.emplace(table.maximum_size);
@@ -469,7 +470,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
         export_kind = table_string;
         break;
       case kExternalMemory:
-        if (enabled_features.type_reflection) {
+        if (enabled_features.has_type_reflection()) {
           DCHECK_EQ(0, exp.index);  // Only one memory supported.
           base::Optional<uint32_t> maximum_size;
           if (module->has_maximum_pages) {
@@ -481,7 +482,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
         export_kind = memory_string;
         break;
       case kExternalGlobal:
-        if (enabled_features.type_reflection) {
+        if (enabled_features.has_type_reflection()) {
           auto& global = module->globals[exp.index];
           type_value =
               GetTypeForGlobal(isolate, global.mutability, global.type);

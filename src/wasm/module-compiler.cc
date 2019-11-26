@@ -511,7 +511,7 @@ class CompilationStateImpl {
 
   // Features detected to be used in this module. Features can be detected
   // as a module is being compiled.
-  WasmFeatures detected_features_ = kNoWasmFeatures;
+  WasmFeatures detected_features_ = WasmFeatures::None();
 
   // Abstraction over the storage of the wire bytes. Held in a shared_ptr so
   // that background compilation jobs can keep the storage alive while
@@ -557,7 +557,7 @@ CompilationStateImpl* BackgroundCompileScope::compilation_state() {
 }
 
 void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
-  if (detected.threads) {
+  if (detected.has_threads()) {
     isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmThreadOpcodes);
   }
 }
@@ -641,7 +641,9 @@ CompileStrategy GetCompileStrategy(const WasmModule* module,
                                    const WasmFeatures& enabled_features,
                                    uint32_t func_index, bool lazy_module) {
   if (lazy_module) return CompileStrategy::kLazy;
-  if (!enabled_features.compilation_hints) return CompileStrategy::kDefault;
+  if (!enabled_features.has_compilation_hints()) {
+    return CompileStrategy::kDefault;
+  }
   auto* hint = GetCompilationHint(module, func_index);
   if (hint == nullptr) return CompileStrategy::kDefault;
   switch (hint->strategy) {
@@ -680,7 +682,7 @@ ExecutionTierPair GetRequestedExecutionTiers(
       result.top_tier = ExecutionTier::kTurbofan;
 
       // Check if compilation hints override default tiering behaviour.
-      if (enabled_features.compilation_hints) {
+      if (enabled_features.has_compilation_hints()) {
         const WasmCompilationHint* hint =
             GetCompilationHint(module, func_index);
         if (hint != nullptr) {
@@ -1001,7 +1003,7 @@ bool ExecuteCompilationUnits(
   std::shared_ptr<const WasmModule> module;
   WasmEngine* wasm_engine = nullptr;
   base::Optional<WasmCompilationUnit> unit;
-  WasmFeatures detected_features = kNoWasmFeatures;
+  WasmFeatures detected_features = WasmFeatures::None();
 
   auto stop = [is_foreground, task_id,
                &detected_features](BackgroundCompileScope& compile_scope) {
@@ -1192,7 +1194,7 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
   int num_import_wrappers = AddImportWrapperUnits(native_module, &builder);
   int num_export_wrappers =
       AddExportWrapperUnits(isolate, isolate->wasm_engine(), native_module,
-                            &builder, WasmFeaturesFromIsolate(isolate));
+                            &builder, WasmFeatures::FromIsolate(isolate));
   compilation_state->InitializeCompilationProgress(
       lazy_module, num_import_wrappers + num_export_wrappers);
   builder.Commit();
@@ -1201,7 +1203,7 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
 bool MayCompriseLazyFunctions(const WasmModule* module,
                               const WasmFeatures& enabled_features,
                               bool lazy_module) {
-  if (lazy_module || enabled_features.compilation_hints) return true;
+  if (lazy_module || enabled_features.has_compilation_hints()) return true;
 #ifdef ENABLE_SLOW_DCHECKS
   int start = module->num_imported_functions;
   int end = start + module->num_declared_functions;
@@ -2503,7 +2505,7 @@ void CompilationStateImpl::OnBackgroundTaskStopped(
                             available_task_ids_.end(), task_id));
     DCHECK_GT(max_background_tasks_, available_task_ids_.size());
     available_task_ids_.push_back(task_id);
-    UnionFeaturesInto(&detected_features_, detected);
+    detected_features_.Add(detected);
   }
 
   // The background task could have stopped while we were adding new units, or
@@ -2515,7 +2517,7 @@ void CompilationStateImpl::OnBackgroundTaskStopped(
 void CompilationStateImpl::UpdateDetectedFeatures(
     const WasmFeatures& detected) {
   base::MutexGuard guard(&mutex_);
-  UnionFeaturesInto(&detected_features_, detected);
+  detected_features_.Add(detected);
 }
 
 void CompilationStateImpl::PublishDetectedFeatures(Isolate* isolate) {
@@ -2620,7 +2622,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
 
   JSToWasmWrapperQueue queue;
   JSToWasmWrapperUnitMap compilation_units;
-  WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
+  WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
 
   // Prepare compilation units in the main thread.
   for (auto exp : module->export_table) {

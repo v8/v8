@@ -60,7 +60,7 @@ class FunctionBodyDecoderTest : public TestWithZone {
   using LocalsDecl = std::pair<uint32_t, ValueType>;
   // All features are disabled by default and must be activated with
   // a WASM_FEATURE_SCOPE in individual tests.
-  WasmFeatures enabled_features_;
+  WasmFeatures enabled_features_ = WasmFeatures::None();
 
   FunctionBodyDecoderTest() : module(nullptr), local_decls(zone()) {}
 
@@ -117,7 +117,7 @@ class FunctionBodyDecoderTest : public TestWithZone {
 
     // Validate the code.
     FunctionBody body(sig, 0, code.begin(), code.end());
-    WasmFeatures unused_detected_features;
+    WasmFeatures unused_detected_features = WasmFeatures::None();
     DecodeResult result =
         VerifyWasmCode(zone()->allocator(), enabled_features_, module,
                        &unused_detected_features, body);
@@ -199,17 +199,6 @@ class FunctionBodyDecoderTest : public TestWithZone {
 };
 
 namespace {
-
-class EnableBoolScope {
- public:
-  bool prev_;
-  bool* ptr_;
-  explicit EnableBoolScope(bool* ptr) : prev_(*ptr), ptr_(ptr) { *ptr = true; }
-  ~EnableBoolScope() { *ptr_ = prev_; }
-};
-
-#define WASM_FEATURE_SCOPE(feat) \
-  EnableBoolScope feat##_scope(&this->enabled_features_.feat);
 
 constexpr size_t kMaxByteSizedLeb128 = 127;
 
@@ -3075,7 +3064,7 @@ TEST_F(FunctionBodyDecoderTest, Regression709741) {
     FunctionBody body(sigs.v_v(), 0, code, code + i);
     WasmFeatures unused_detected_features;
     DecodeResult result =
-        VerifyWasmCode(zone()->allocator(), kAllWasmFeatures, nullptr,
+        VerifyWasmCode(zone()->allocator(), WasmFeatures::All(), nullptr,
                        &unused_detected_features, body);
     if (result.ok()) {
       std::ostringstream str;
@@ -3811,7 +3800,6 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
   EXPECT_FALSE(iter.has_next());
 }
 
-#undef WASM_FEATURE_SCOPE
 #undef B1
 #undef B2
 #undef B3

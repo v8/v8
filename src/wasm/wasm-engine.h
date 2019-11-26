@@ -29,7 +29,7 @@ namespace wasm {
 class AsyncCompileJob;
 class ErrorThrower;
 struct ModuleWireBytes;
-struct WasmFeatures;
+class WasmFeatures;
 
 class V8_EXPORT_PRIVATE CompilationResultResolver {
  public:

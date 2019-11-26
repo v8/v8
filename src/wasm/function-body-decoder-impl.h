@@ -43,19 +43,19 @@ struct WasmException;
 
 #define RET_ON_PROTOTYPE_OPCODE(feat)                                          \
   DCHECK(!this->module_ || this->module_->origin == kWasmOrigin);              \
-  if (!this->enabled_.feat) {                                                  \
+  if (!this->enabled_.has_##feat()) {                                          \
     this->error("Invalid opcode (enable with --experimental-wasm-" #feat ")"); \
   } else {                                                                     \
-    this->detected_->feat = true;                                              \
+    this->detected_->Add(kFeature_##feat);                                     \
   }
 
 #define CHECK_PROTOTYPE_OPCODE(feat)                                           \
   DCHECK(!this->module_ || this->module_->origin == kWasmOrigin);              \
-  if (!this->enabled_.feat) {                                                  \
+  if (!this->enabled_.has_##feat()) {                                          \
     this->error("Invalid opcode (enable with --experimental-wasm-" #feat ")"); \
     break;                                                                     \
   } else {                                                                     \
-    this->detected_->feat = true;                                              \
+    this->detected_->Add(kFeature_##feat);                                     \
   }
 
 #define OPCODE_ERROR(opcode, message)                                 \
@@ -281,7 +281,7 @@ struct BlockTypeImmediate {
     uint8_t val = decoder->read_u8<validate>(pc + 1, "block type");
     if (!function_body_decoder::decode_local_type(val, &type)) {
       // Handle multi-value blocks.
-      if (!VALIDATE(enabled.mv)) {
+      if (!VALIDATE(enabled.has_mv())) {
         decoder->error(pc + 1, "invalid block type");
         return;
       }
@@ -381,7 +381,8 @@ struct CallIndirectImmediate {
     uint32_t len = 0;
     sig_index = decoder->read_u32v<validate>(pc + 1, &len, "signature index");
     TableIndexImmediate<validate> table(decoder, pc + len);
-    if (!VALIDATE((table.index == 0 && table.length == 1) || enabled.anyref)) {
+    if (!VALIDATE((table.index == 0 && table.length == 1) ||
+                  enabled.has_anyref())) {
       decoder->errorf(pc + 1 + len, "expected table index 0, found %u",
                       table.index);
     }
@@ -840,7 +841,7 @@ class WasmDecoder : public Decoder {
           type = kWasmF64;
           break;
         case kLocalAnyRef:
-          if (enabled.anyref) {
+          if (enabled.has_anyref()) {
             type = kWasmAnyRef;
             break;
           }
@@ -849,7 +850,7 @@ class WasmDecoder : public Decoder {
                          "--experimental-wasm-anyref");
           return false;
         case kLocalFuncRef:
-          if (enabled.anyref) {
+          if (enabled.has_anyref()) {
             type = kWasmFuncRef;
             break;
           }
@@ -858,7 +859,7 @@ class WasmDecoder : public Decoder {
                          "--experimental-wasm-anyref");
           return false;
         case kLocalExnRef:
-          if (enabled.eh) {
+          if (enabled.has_eh()) {
             type = kWasmExnRef;
             break;
           }
@@ -867,7 +868,7 @@ class WasmDecoder : public Decoder {
                          "--experimental-wasm-eh");
           return false;
         case kLocalS128:
-          if (enabled.simd) {
+          if (enabled.has_simd()) {
             type = kWasmS128;
             break;
           }
@@ -1231,7 +1232,7 @@ class WasmDecoder : public Decoder {
       }
       case kExprCallIndirect:
       case kExprReturnCallIndirect: {
-        CallIndirectImmediate<validate> imm(kAllWasmFeatures, decoder, pc);
+        CallIndirectImmediate<validate> imm(WasmFeatures::All(), decoder, pc);
         return 1 + imm.length;
       }
 
@@ -1239,7 +1240,7 @@ class WasmDecoder : public Decoder {
       case kExprIf:  // fall through
       case kExprLoop:
       case kExprBlock: {
-        BlockTypeImmediate<validate> imm(kAllWasmFeatures, decoder, pc);
+        BlockTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc);
         return 1 + imm.length;
       }
 
@@ -2569,7 +2570,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
 
     for (int i = 0; i < br_arity; ++i) {
-      if (this->enabled_.anyref) {
+      if (this->enabled_.has_anyref()) {
         // The expected type is the biggest common sub type of all targets.
         (*result_types)[i] =
             ValueTypes::CommonSubType((*result_types)[i], (*merge)[i].type);

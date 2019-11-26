@@ -7247,7 +7247,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(Isolate* isolate,
   i::MaybeHandle<i::JSObject> maybe_compiled;
   {
     i::wasm::ErrorThrower thrower(i_isolate, "WasmModuleObject::Compile()");
-    auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+    auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
     maybe_compiled = i_isolate->wasm_engine()->SyncCompile(
         i_isolate, enabled_features, &thrower,
         i::wasm::ModuleWireBytes(start, start + length));

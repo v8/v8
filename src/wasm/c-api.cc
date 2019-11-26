@@ -970,7 +970,7 @@ auto Module::validate(Store* store_abs, const vec<byte_t>& binary) -> bool {
   i::wasm::ModuleWireBytes bytes(
       {reinterpret_cast<const uint8_t*>(binary.get()), binary.size()});
   i::Isolate* isolate = impl(store_abs)->i_isolate();
-  i::wasm::WasmFeatures features = i::wasm::WasmFeaturesFromIsolate(isolate);
+  i::wasm::WasmFeatures features = i::wasm::WasmFeatures::FromIsolate(isolate);
   return isolate->wasm_engine()->SyncValidate(isolate, features, bytes);
 }
 
@@ -980,7 +980,7 @@ auto Module::make(Store* store_abs, const vec<byte_t>& binary) -> own<Module> {
   i::HandleScope scope(isolate);
   i::wasm::ModuleWireBytes bytes(
       {reinterpret_cast<const uint8_t*>(binary.get()), binary.size()});
-  i::wasm::WasmFeatures features = i::wasm::WasmFeaturesFromIsolate(isolate);
+  i::wasm::WasmFeatures features = i::wasm::WasmFeatures::FromIsolate(isolate);
   i::wasm::ErrorThrower thrower(isolate, "ignored");
   i::Handle<i::WasmModuleObject> module;
   if (!isolate->wasm_engine()
@@ -1763,7 +1763,8 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
       i_type = i::wasm::kWasmFuncRef;
       break;
     case ANYREF:
-      DCHECK(i::wasm::WasmFeaturesFromFlags().anyref);  // See Engine::make().
+      // See Engine::make().
+      DCHECK(i::wasm::WasmFeatures::FromFlags().has_anyref());
       i_type = i::wasm::kWasmAnyRef;
       break;
     default:

@@ -43,7 +43,7 @@ struct DecodeStruct;
 using TFNode = compiler::Node;
 using TFGraph = compiler::MachineGraph;
 class WasmCode;
-struct WasmFeatures;
+class WasmFeatures;
 enum class LoadTransformationKind : uint8_t;
 }  // namespace wasm
 

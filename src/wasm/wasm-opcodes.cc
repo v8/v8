@@ -474,11 +474,11 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
 
 bool IsJSCompatibleSignature(const FunctionSig* sig,
                              const WasmFeatures& enabled_features) {
-  if (!enabled_features.mv && sig->return_count() > 1) {
+  if (!enabled_features.has_mv() && sig->return_count() > 1) {
     return false;
   }
   for (auto type : sig->all()) {
-    if (!enabled_features.bigint && type == kWasmI64) {
+    if (!enabled_features.has_bigint() && type == kWasmI64) {
       return false;
     }
 

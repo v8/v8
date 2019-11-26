@@ -28,7 +28,7 @@ class NativeModule;
 class SignatureMap;
 class WasmCode;
 struct WasmException;
-struct WasmFeatures;
+class WasmFeatures;
 struct WasmGlobal;
 class WasmInterpreter;
 struct WasmModule;

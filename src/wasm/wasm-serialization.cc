@@ -498,7 +498,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   size_t code_section_size = reader->Read<size_t>();
   if (code_section_size == 0) {
     DCHECK(FLAG_wasm_lazy_compilation ||
-           native_module_->enabled_features().compilation_hints);
+           native_module_->enabled_features().has_compilation_hints());
     native_module_->UseLazyStub(fn_index);
     return true;
   }
@@ -608,7 +608,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
 
   ModuleWireBytes wire_bytes(wire_bytes_vec);
   // TODO(titzer): module features should be part of the serialization format.
-  WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
+  WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult decode_result =
       DecodeWasmModule(enabled_features, wire_bytes.start(), wire_bytes.end(),
                        false, i::wasm::kWasmOrigin, isolate->counters(),

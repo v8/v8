@@ -169,6 +169,11 @@ class CcTest {
   static v8::Local<v8::Context> NewContext(
       CcTestExtensionFlags extension_flags,
       v8::Isolate* isolate = CcTest::isolate());
+  static v8::Local<v8::Context> NewContext(
+      std::initializer_list<CcTestExtensionId> extensions,
+      v8::Isolate* isolate = CcTest::isolate()) {
+    return NewContext(CcTestExtensionFlags{extensions}, isolate);
+  }
 
   static void TearDown();
 

@@ -187,7 +187,7 @@ void PumpMessageLoop(SharedEngineIsolate* isolate) {
 Handle<WasmInstanceObject> CompileAndInstantiateAsync(
     SharedEngineIsolate* isolate, ZoneBuffer* buffer) {
   Handle<Object> maybe_instance = handle(Smi::zero(), isolate->isolate());
-  auto enabled_features = WasmFeaturesFromIsolate(isolate->isolate());
+  auto enabled_features = WasmFeatures::FromIsolate(isolate->isolate());
   constexpr const char* kAPIMethodName = "Test.CompileAndInstantiateAsync";
   isolate->isolate()->wasm_engine()->AsyncCompile(
       isolate->isolate(), enabled_features,
@@ -350,7 +350,7 @@ TEST(SharedEngineRunThreadedTierUp) {
   threads.emplace_back(&engine, [module](SharedEngineIsolate* isolate) {
     HandleScope scope(isolate->isolate());
     Handle<WasmInstanceObject> instance = isolate->ImportInstance(module);
-    WasmFeatures detected = kNoWasmFeatures;
+    WasmFeatures detected = WasmFeatures::None();
     WasmCompilationUnit::CompileWasmFunction(
         isolate->isolate(), module.get(), &detected,
         &module->module()->functions[0], ExecutionTier::kTurbofan);

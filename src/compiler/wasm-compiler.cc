@@ -5485,7 +5485,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kWasmS128:
         UNREACHABLE();
       case wasm::kWasmI64: {
-        DCHECK(enabled_features_.bigint);
+        DCHECK(enabled_features_.has_bigint());
         return BuildChangeInt64ToBigInt(node);
       }
       case wasm::kWasmF32:
@@ -5590,7 +5590,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         break;
       }
       case wasm::kWasmI64: {
-        DCHECK(enabled_features_.bigint);
+        DCHECK(enabled_features_.has_bigint());
         num = BuildChangeBigIntToInt64(node, js_context);
         break;
       }
@@ -6600,7 +6600,7 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
   wasm::CompilationEnv env(
       nullptr, wasm::UseTrapHandler::kNoTrapHandler,
       wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport,
-      wasm::kAllWasmFeatures, wasm::LowerSimd::kNoLowerSimd);
+      wasm::WasmFeatures::All(), wasm::LowerSimd::kNoLowerSimd);
 
   WasmGraphBuilder builder(&env, mcgraph->zone(), mcgraph, sig,
                            source_positions);
@@ -6816,7 +6816,7 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
 
   WasmWrapperGraphBuilder builder(zone.get(), &mcgraph, sig, nullptr,
                                   StubCallMode::kCallBuiltinPointer,
-                                  wasm::WasmFeaturesFromIsolate(isolate));
+                                  wasm::WasmFeatures::FromIsolate(isolate));
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildJSToJSWrapper(isolate);
@@ -6863,7 +6863,7 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
 
   WasmWrapperGraphBuilder builder(zone.get(), &mcgraph, sig, nullptr,
                                   StubCallMode::kCallBuiltinPointer,
-                                  wasm::WasmFeaturesFromIsolate(isolate));
+                                  wasm::WasmFeatures::FromIsolate(isolate));
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildCWasmEntry();

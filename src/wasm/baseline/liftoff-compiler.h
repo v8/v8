@@ -17,7 +17,7 @@ namespace wasm {
 
 struct CompilationEnv;
 struct FunctionBody;
-struct WasmFeatures;
+class WasmFeatures;
 
 // Note: If this list changes, also the histogram "V8.LiftoffBailoutReasons"
 // on the chromium side needs to be updated.
