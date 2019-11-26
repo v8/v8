@@ -49,6 +49,13 @@ namespace string {
       return fromIndex;
     }
 
+    // Don't bother to search if the searchString would go past the end
+    // of the string. This is actually necessary because of runtime
+    // checks.
+    if (fromIndex + searchString.length_smi > string.length_smi) {
+      return -1;
+    }
+
     try {
       return TryFastAbstractStringIndexOf(string, searchString, fromIndex)
           otherwise Slow;

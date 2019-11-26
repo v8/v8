@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-string-replaceall
+// Flags: --harmony-string-replaceall --allow-natives-syntax
 
 assertEquals('a-b-c-d', 'a+b+c+d'.replaceAll('+', '-'));
 assertEquals('aaaa', 'abcd'.replaceAll(/./g, 'a'));
@@ -98,3 +98,9 @@ assertEquals('ii', '.+*$.+*$'.replaceAll('.+*$', 'i'));
 assertEquals('o ppercase!', 'No Uppercase!'.replaceAll(/[A-Z]/g,  ''));
 assertEquals('o Uppercase?', 'No Uppercase?'.replaceAll(/[A-Z]/gy, ''));
 assertEquals(' UPPERCASE!', 'NO UPPERCASE!'.replaceAll(/[A-Z]/gy, ''));
+
+// Tests for slow path.
+assertEquals('a', 'a'.replaceAll(%ConstructConsString('abcdefghijklmn',
+                                                      'def'), 'b'));
+assertEquals('b', 'abcdefghijklmndef'.replaceAll(
+    %ConstructConsString('abcdefghijklmn', 'def'), 'b'));
