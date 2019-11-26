@@ -1613,6 +1613,12 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint64(Node* node) {
 
 #endif
 
+void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
+  DCHECK(SmiValuesAre31Bits());
+  DCHECK(COMPRESS_POINTERS_BOOL);
+  EmitIdentity(node);
+}
+
 void InstructionSelector::VisitFloat64Mod(Node* node) {
   S390OperandGenerator g(this);
   Emit(kS390_ModDouble, g.DefineAsFixed(node, d1),
