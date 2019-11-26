@@ -1261,7 +1261,13 @@ class RepresentationSelector {
   void VisitObjectState(Node* node) {
     if (propagate()) {
       for (int i = 0; i < node->InputCount(); i++) {
-        EnqueueInput(node, i, UseInfo::Any());
+        // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
+        // truncated BigInts.
+        if (TypeOf(node->InputAt(i)).Is(Type::BigInt())) {
+          EnqueueInput(node, i, UseInfo::AnyTagged());
+        } else {
+          EnqueueInput(node, i, UseInfo::Any());
+        }
       }
     } else if (lower()) {
       Zone* zone = jsgraph_->zone();
@@ -1272,6 +1278,11 @@ class RepresentationSelector {
         Node* input = node->InputAt(i);
         (*types)[i] =
             DeoptMachineTypeOf(GetInfo(input)->representation(), TypeOf(input));
+        // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
+        // truncated BigInts.
+        if (TypeOf(node->InputAt(i)).Is(Type::BigInt())) {
+          ConvertInput(node, i, UseInfo::AnyTagged());
+        }
       }
       NodeProperties::ChangeOp(node, jsgraph_->common()->TypedObjectState(
                                          ObjectIdOf(node->op()), types));
