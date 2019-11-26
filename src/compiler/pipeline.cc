@@ -1308,9 +1308,6 @@ struct InliningPhase {
         &graph_reducer, data->jsgraph(), data->broker(), flags,
         data->dependencies(), temp_zone, info->zone());
     JSInliningHeuristic inlining(&graph_reducer,
-                                 data->info()->is_inlining_enabled()
-                                     ? JSInliningHeuristic::kGeneralInlining
-                                     : JSInliningHeuristic::kRestrictedInlining,
                                  temp_zone, data->info(), data->jsgraph(),
                                  data->broker(), data->source_positions());
     JSIntrinsicLowering intrinsic_lowering(&graph_reducer, data->jsgraph(),
@@ -1322,7 +1319,9 @@ struct InliningPhase {
     AddReducer(data, &graph_reducer, &context_specialization);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
     AddReducer(data, &graph_reducer, &call_reducer);
-    AddReducer(data, &graph_reducer, &inlining);
+    if (data->info()->is_inlining_enabled()) {
+      AddReducer(data, &graph_reducer, &inlining);
+    }
     graph_reducer.ReduceGraph();
   }
 };

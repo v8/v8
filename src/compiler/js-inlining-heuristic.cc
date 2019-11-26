@@ -131,8 +131,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
   if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
 
-  if (total_inlined_bytecode_size_ >= FLAG_max_inlined_bytecode_size_absolute &&
-      mode_ != kStressInlining) {
+  if (total_inlined_bytecode_size_ >= FLAG_max_inlined_bytecode_size_absolute) {
     return NoChange();
   }
 
@@ -199,18 +198,6 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   } else {
     ConstructParameters const p = ConstructParametersOf(node->op());
     candidate.frequency = p.frequency();
-  }
-
-  // Handling of special inlining modes right away:
-  //  - For restricted inlining: stop all handling at this point.
-  //  - For stressing inlining: immediately handle all functions.
-  switch (mode_) {
-    case kRestrictedInlining:
-      return NoChange();
-    case kStressInlining:
-      return InlineCandidate(candidate, false);
-    case kGeneralInlining:
-      break;
   }
 
   // Don't consider a {candidate} whose frequency is below the
