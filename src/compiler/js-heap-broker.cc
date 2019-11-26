@@ -2218,7 +2218,7 @@ Isolate* ObjectRef::isolate() const { return broker()->isolate(); }
 ContextRef ContextRef::previous(size_t* depth,
                                 SerializationPolicy policy) const {
   DCHECK_NOT_NULL(depth);
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
     Context current = *object();
@@ -2234,7 +2234,7 @@ ContextRef ContextRef::previous(size_t* depth,
 
 base::Optional<ObjectRef> ContextRef::get(int index,
                                           SerializationPolicy policy) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
     Handle<Object> value(object()->get(index), broker()->isolate());
@@ -2712,7 +2712,7 @@ int ObjectRef::AsSmi() const {
 }
 
 base::Optional<MapRef> JSObjectRef::GetObjectCreateMap() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     AllowHeapAllocation heap_allocation;
@@ -2737,7 +2737,7 @@ INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 #undef DEF_TESTER
 
 base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHeapAllocation heap_allocation;
     AllowHandleDereference allow_handle_dereference;
@@ -2817,7 +2817,7 @@ bool MapRef::HasOnlyStablePrototypesWithFastElements(
 }
 
 bool MapRef::supports_fast_array_iteration() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     AllowHandleAllocation handle_allocation;
     return SupportsFastArrayIteration(broker()->isolate(), object());
@@ -2826,7 +2826,7 @@ bool MapRef::supports_fast_array_iteration() const {
 }
 
 bool MapRef::supports_fast_array_resize() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     AllowHandleAllocation handle_allocation;
     return SupportsFastArrayResize(broker()->isolate(), object());
@@ -2835,7 +2835,7 @@ bool MapRef::supports_fast_array_resize() const {
 }
 
 int JSFunctionRef::InitialMapInstanceSizeWithMinSlack() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     AllowHandleAllocation handle_allocation;
     return object()->ComputeInstanceSizeWithMinSlack(broker()->isolate());
@@ -2891,7 +2891,7 @@ OddballType MapRef::oddball_type() const {
 }
 
 FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(int index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
     return FeedbackCellRef(broker(), object()->GetClosureFeedbackCell(index));
@@ -2903,7 +2903,7 @@ FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(int index) const {
 }
 
 double JSObjectRef::RawFastDoublePropertyAt(FieldIndex index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference handle_dereference;
     return object()->RawFastDoublePropertyAt(index);
   }
@@ -2913,7 +2913,7 @@ double JSObjectRef::RawFastDoublePropertyAt(FieldIndex index) const {
 }
 
 uint64_t JSObjectRef::RawFastDoublePropertyAsBitsAt(FieldIndex index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference handle_dereference;
     return object()->RawFastDoublePropertyAsBitsAt(index);
   }
@@ -2923,7 +2923,7 @@ uint64_t JSObjectRef::RawFastDoublePropertyAsBitsAt(FieldIndex index) const {
 }
 
 ObjectRef JSObjectRef::RawFastPropertyAt(FieldIndex index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
     return ObjectRef(broker(), handle(object()->RawFastPropertyAt(index),
@@ -2937,7 +2937,7 @@ ObjectRef JSObjectRef::RawFastPropertyAt(FieldIndex index) const {
 }
 
 bool AllocationSiteRef::IsFastLiteral() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHeapAllocation allow_heap_allocation;  // For TryMigrateInstance.
     AllowHandleAllocation allow_handle_allocation;
     AllowHandleDereference allow_handle_dereference;
@@ -2958,7 +2958,7 @@ void JSObjectRef::SerializeElements() {
 }
 
 void JSObjectRef::EnsureElementsTenured() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation allow_handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     AllowHeapAllocation allow_heap_allocation;
@@ -2979,7 +2979,7 @@ void JSObjectRef::EnsureElementsTenured() {
 }
 
 FieldIndex MapRef::GetFieldIndexFor(InternalIndex descriptor_index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return FieldIndex::ForDescriptor(*object(), descriptor_index);
   }
@@ -2988,7 +2988,7 @@ FieldIndex MapRef::GetFieldIndexFor(InternalIndex descriptor_index) const {
 }
 
 int MapRef::GetInObjectPropertyOffset(int i) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return object()->GetInObjectPropertyOffset(i);
   }
@@ -2997,7 +2997,7 @@ int MapRef::GetInObjectPropertyOffset(int i) const {
 
 PropertyDetails MapRef::GetPropertyDetails(
     InternalIndex descriptor_index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return object()->instance_descriptors().GetDetails(descriptor_index);
   }
@@ -3006,7 +3006,7 @@ PropertyDetails MapRef::GetPropertyDetails(
 }
 
 NameRef MapRef::GetPropertyKey(InternalIndex descriptor_index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     return NameRef(
@@ -3030,7 +3030,7 @@ bool MapRef::IsPrimitiveMap() const {
 }
 
 MapRef MapRef::FindFieldOwner(InternalIndex descriptor_index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     Handle<Map> owner(
@@ -3045,7 +3045,7 @@ MapRef MapRef::FindFieldOwner(InternalIndex descriptor_index) const {
 }
 
 ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     Handle<FieldType> field_type(
@@ -3060,7 +3060,7 @@ ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
 }
 
 bool MapRef::IsUnboxedDoubleField(InternalIndex descriptor_index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return object()->IsUnboxedDoubleField(
         FieldIndex::ForDescriptor(*object(), descriptor_index));
@@ -3072,7 +3072,7 @@ bool MapRef::IsUnboxedDoubleField(InternalIndex descriptor_index) const {
 }
 
 uint16_t StringRef::GetFirstChar() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return object()->Get(0);
   }
@@ -3080,7 +3080,7 @@ uint16_t StringRef::GetFirstChar() {
 }
 
 base::Optional<double> StringRef::ToNumber() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     AllowHandleAllocation allow_handle_allocation;
     AllowHeapAllocation allow_heap_allocation;
@@ -3091,7 +3091,7 @@ base::Optional<double> StringRef::ToNumber() {
 }
 
 int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return object()->constant_elements().length();
   }
@@ -3099,7 +3099,7 @@ int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
 }
 
 int ObjectBoilerplateDescriptionRef::size() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return object()->size();
   }
@@ -3107,7 +3107,7 @@ int ObjectBoilerplateDescriptionRef::size() const {
 }
 
 ObjectRef FixedArrayRef::get(int i) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     return ObjectRef(broker(), handle(object()->get(i), broker()->isolate()));
@@ -3116,7 +3116,7 @@ ObjectRef FixedArrayRef::get(int i) const {
 }
 
 bool FixedDoubleArrayRef::is_the_hole(int i) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return object()->is_the_hole(i);
   }
@@ -3124,7 +3124,7 @@ bool FixedDoubleArrayRef::is_the_hole(int i) const {
 }
 
 double FixedDoubleArrayRef::get_scalar(int i) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return object()->get_scalar(i);
   }
@@ -3133,7 +3133,7 @@ double FixedDoubleArrayRef::get_scalar(int i) const {
 }
 
 uint8_t BytecodeArrayRef::get(int index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     return object()->get(index);
@@ -3142,7 +3142,7 @@ uint8_t BytecodeArrayRef::get(int index) const {
 }
 
 Address BytecodeArrayRef::GetFirstBytecodeAddress() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     return object()->GetFirstBytecodeAddress();
@@ -3151,7 +3151,7 @@ Address BytecodeArrayRef::GetFirstBytecodeAddress() const {
 }
 
 Handle<Object> BytecodeArrayRef::GetConstantAtIndex(int index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     return handle(object()->constant_pool().get(index), broker()->isolate());
@@ -3161,7 +3161,7 @@ Handle<Object> BytecodeArrayRef::GetConstantAtIndex(int index) const {
 }
 
 bool BytecodeArrayRef::IsConstantAtIndexSmi(int index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     return object()->constant_pool().get(index).IsSmi();
@@ -3170,7 +3170,7 @@ bool BytecodeArrayRef::IsConstantAtIndexSmi(int index) const {
 }
 
 Smi BytecodeArrayRef::GetConstantAtIndexAsSmi(int index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     return Smi::cast(object()->constant_pool().get(index));
@@ -3179,12 +3179,12 @@ Smi BytecodeArrayRef::GetConstantAtIndexAsSmi(int index) const {
 }
 
 void BytecodeArrayRef::SerializeForCompilation() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return;
   data()->AsBytecodeArray()->SerializeForCompilation(broker());
 }
 
 const byte* BytecodeArrayRef::source_positions_address() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return object()->SourcePositionTableIfCollected().GetDataStartAddress();
   }
@@ -3192,7 +3192,7 @@ const byte* BytecodeArrayRef::source_positions_address() const {
 }
 
 int BytecodeArrayRef::source_positions_size() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return object()->SourcePositionTableIfCollected().length();
   }
@@ -3200,7 +3200,7 @@ int BytecodeArrayRef::source_positions_size() const {
 }
 
 Address BytecodeArrayRef::handler_table_address() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return reinterpret_cast<Address>(
         object()->handler_table().GetDataStartAddress());
@@ -3209,22 +3209,22 @@ Address BytecodeArrayRef::handler_table_address() const {
 }
 
 int BytecodeArrayRef::handler_table_size() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return object()->handler_table().length();
   }
   return data()->AsBytecodeArray()->handler_table_size();
 }
 
-#define IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name) \
-  if (broker()->mode() == JSHeapBroker::kDisabled) {     \
-    AllowHandleAllocation handle_allocation;             \
-    AllowHandleDereference allow_handle_dereference;     \
-    return object()->name();                             \
+#define IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name)          \
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) { \
+    AllowHandleAllocation handle_allocation;                      \
+    AllowHandleDereference allow_handle_dereference;              \
+    return object()->name();                                      \
   }
 
 #define IF_BROKER_DISABLED_ACCESS_HANDLE(holder, result, name)         \
-  if (broker()->mode() == JSHeapBroker::kDisabled) {                   \
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {      \
     AllowHandleAllocation handle_allocation;                           \
     AllowHandleDereference allow_handle_dereference;                   \
     return result##Ref(broker(),                                       \
@@ -3330,7 +3330,7 @@ BIMODAL_ACCESSOR(PropertyCell, Object, value)
 BIMODAL_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
 
 base::Optional<CallHandlerInfoRef> FunctionTemplateInfoRef::call_code() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     return CallHandlerInfoRef(
         broker(), handle(object()->call_code(), broker()->isolate()));
   }
@@ -3341,7 +3341,7 @@ base::Optional<CallHandlerInfoRef> FunctionTemplateInfoRef::call_code() const {
 }
 
 bool FunctionTemplateInfoRef::is_signature_undefined() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     AllowHandleAllocation allow_handle_allocation;
 
@@ -3351,7 +3351,7 @@ bool FunctionTemplateInfoRef::is_signature_undefined() const {
 }
 
 bool FunctionTemplateInfoRef::has_call_code() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     AllowHandleAllocation allow_handle_allocation;
 
@@ -3367,7 +3367,7 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
     MapRef receiver_map, SerializationPolicy policy) {
   const HolderLookupResult not_found;
 
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     AllowHandleAllocation allow_handle_allocation;
 
@@ -3447,7 +3447,7 @@ BIMODAL_ACCESSOR_C(String, int, length)
 BIMODAL_ACCESSOR(FeedbackCell, HeapObject, value)
 
 ObjectRef MapRef::GetStrongValue(InternalIndex descriptor_index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return ObjectRef(broker(),
                      handle(object()->instance_descriptors().GetStrongValue(
@@ -3458,13 +3458,13 @@ ObjectRef MapRef::GetStrongValue(InternalIndex descriptor_index) const {
 }
 
 void MapRef::SerializeRootMap() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsMap()->SerializeRootMap(broker());
 }
 
 base::Optional<MapRef> MapRef::FindRootMap() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return MapRef(broker(), handle(object()->FindRootMap(broker()->isolate()),
                                    broker()->isolate()));
@@ -3478,7 +3478,7 @@ base::Optional<MapRef> MapRef::FindRootMap() const {
 }
 
 void* JSTypedArrayRef::data_ptr() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return object()->DataPtr();
   }
@@ -3543,7 +3543,7 @@ bool ScopeInfoRef::HasOuterScopeInfo() const {
 }
 
 ScopeInfoRef ScopeInfoRef::OuterScopeInfo() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
     return ScopeInfoRef(
@@ -3563,7 +3563,7 @@ bool StringRef::IsExternalString() const {
 }
 
 Address CallHandlerInfoRef::callback() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     return v8::ToCData<Address>(object()->callback());
   }
   return HeapObjectRef::data()->AsCallHandlerInfo()->callback();
@@ -3575,7 +3575,7 @@ bool StringRef::IsSeqString() const {
 }
 
 ScopeInfoRef NativeContextRef::scope_info() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
     return ScopeInfoRef(broker(),
@@ -3587,7 +3587,7 @@ ScopeInfoRef NativeContextRef::scope_info() const {
 MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {
   DCHECK_GE(index, Context::FIRST_FUNCTION_MAP_INDEX);
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     return get(index).value().AsMap();
   }
   return MapRef(broker(), data()->AsNativeContext()->function_maps().at(
@@ -3641,7 +3641,7 @@ bool ObjectRef::IsNullOrUndefined() const {
 }
 
 bool ObjectRef::BooleanValue() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return object()->BooleanValue(broker()->isolate());
   }
@@ -3675,7 +3675,7 @@ Maybe<double> ObjectRef::OddballToNumber() const {
 
 base::Optional<ObjectRef> ObjectRef::GetOwnConstantElement(
     uint32_t index, SerializationPolicy policy) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     return (IsJSObject() || IsString())
                ? GetOwnElementFromHeap(broker(), object(), index, true)
                : base::nullopt;
@@ -3694,7 +3694,7 @@ base::Optional<ObjectRef> ObjectRef::GetOwnConstantElement(
 base::Optional<ObjectRef> JSObjectRef::GetOwnDataProperty(
     Representation field_representation, FieldIndex index,
     SerializationPolicy policy) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     return GetOwnDataPropertyFromHeap(broker(),
                                       Handle<JSObject>::cast(object()),
                                       field_representation, index);
@@ -3707,7 +3707,7 @@ base::Optional<ObjectRef> JSObjectRef::GetOwnDataProperty(
 
 base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
     uint32_t index, SerializationPolicy policy) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     if (!object()->elements().IsCowArray()) return base::nullopt;
     return GetOwnElementFromHeap(broker(), object(), index, false);
   }
@@ -3737,7 +3737,7 @@ uint64_t BigIntRef::AsUint64() const {
 }
 
 base::Optional<CellRef> SourceTextModuleRef::GetCell(int cell_index) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     return CellRef(broker(),
@@ -3810,7 +3810,7 @@ OddballType GetOddballType(Isolate* isolate, Map map) {
 }  // namespace
 
 HeapObjectType HeapObjectRef::GetHeapObjectType() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference handle_dereference;
     Map map = Handle<HeapObject>::cast(object())->map();
     HeapObjectType::Flags flags(0);
@@ -3825,7 +3825,7 @@ HeapObjectType HeapObjectRef::GetHeapObjectType() const {
   return HeapObjectType(map().instance_type(), flags, map().oddball_type());
 }
 base::Optional<JSObjectRef> AllocationSiteRef::boilerplate() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     return JSObjectRef(broker(),
@@ -3844,7 +3844,7 @@ ElementsKind JSObjectRef::GetElementsKind() const {
 }
 
 FixedArrayBaseRef JSObjectRef::elements() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     return FixedArrayBaseRef(broker(),
@@ -4005,18 +4005,18 @@ void NativeContextData::Serialize(JSHeapBroker* broker) {
 }
 
 void JSFunctionRef::Serialize() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsJSFunction()->Serialize(broker());
 }
 
 bool JSBoundFunctionRef::serialized() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return true;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return true;
   return data()->AsJSBoundFunction()->serialized();
 }
 
 bool JSFunctionRef::serialized() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return true;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return true;
   return data()->AsJSFunction()->serialized();
 }
 
@@ -4034,7 +4034,7 @@ JSArrayRef SharedFunctionInfoRef::GetTemplateObject(
     return feedback.AsTemplateObject().value();
   }
 
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     Handle<JSArray> template_object =
@@ -4072,7 +4072,7 @@ void SharedFunctionInfoRef::SerializeScopeInfoChain() {
 
 base::Optional<FunctionTemplateInfoRef>
 SharedFunctionInfoRef::function_template_info() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     if (object()->IsApiFunction()) {
       return FunctionTemplateInfoRef(
           broker(), handle(object()->function_data(), broker()->isolate()));
@@ -4092,7 +4092,7 @@ int SharedFunctionInfoRef::context_header_size() const {
 }
 
 ScopeInfoRef SharedFunctionInfoRef::scope_info() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
     return ScopeInfoRef(broker(),
@@ -4102,26 +4102,26 @@ ScopeInfoRef SharedFunctionInfoRef::scope_info() const {
 }
 
 void JSObjectRef::SerializeObjectCreateMap() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsJSObject()->SerializeObjectCreateMap(broker());
 }
 
 void MapRef::SerializeOwnDescriptors() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsMap()->SerializeOwnDescriptors(broker());
 }
 
 void MapRef::SerializeOwnDescriptor(InternalIndex descriptor_index) {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsMap()->SerializeOwnDescriptor(broker(), descriptor_index);
 }
 
 bool MapRef::serialized_own_descriptor(InternalIndex descriptor_index) const {
   CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  if (broker()->mode() == JSHeapBroker::kDisabled) return true;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return true;
   DescriptorArrayData* desc_array_data =
       data()->AsMap()->instance_descriptors();
   if (!desc_array_data) return false;
@@ -4130,13 +4130,13 @@ bool MapRef::serialized_own_descriptor(InternalIndex descriptor_index) const {
 }
 
 void MapRef::SerializeBackPointer() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsMap()->SerializeBackPointer(broker());
 }
 
 void MapRef::SerializePrototype() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsMap()->SerializePrototype(broker());
 }
@@ -4147,19 +4147,19 @@ bool MapRef::serialized_prototype() const {
 }
 
 void SourceTextModuleRef::Serialize() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsSourceTextModule()->Serialize(broker());
 }
 
 void NativeContextRef::Serialize() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsNativeContext()->Serialize(broker());
 }
 
 void JSTypedArrayRef::Serialize() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsJSTypedArray()->Serialize(broker());
 }
@@ -4170,26 +4170,26 @@ bool JSTypedArrayRef::serialized() const {
 }
 
 void JSBoundFunctionRef::Serialize() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsJSBoundFunction()->Serialize(broker());
 }
 
 void PropertyCellRef::Serialize() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsPropertyCell()->Serialize(broker());
 }
 
 void FunctionTemplateInfoRef::SerializeCallCode() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsFunctionTemplateInfo()->SerializeCallCode(broker());
 }
 
 base::Optional<PropertyCellRef> JSGlobalObjectRef::GetPropertyCell(
     NameRef const& name, SerializationPolicy policy) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
+  if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     return GetPropertyCellFromHeap(broker(), name.object());
   }
   PropertyCellData* property_cell_data =
@@ -4894,7 +4894,7 @@ void ElementAccessFeedback::AddGroup(TransitionGroup&& group) {
 }
 
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {
-  if (ref.broker()->mode() == JSHeapBroker::kDisabled ||
+  if (ref.data_->kind() == ObjectDataKind::kUnserializedHeapObject ||
       !FLAG_concurrent_recompilation) {
     // We cannot be in a background thread so it's safe to read the heap.
     AllowHandleDereference allow_handle_dereference;
