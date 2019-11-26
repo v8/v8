@@ -51,7 +51,7 @@ enum LiftoffBailoutReason : int8_t {
   kNumBailoutReasons
 };
 
-WasmCompilationResult ExecuteLiftoffCompilation(
+V8_EXPORT_PRIVATE WasmCompilationResult ExecuteLiftoffCompilation(
     AccountingAllocator*, CompilationEnv*, const FunctionBody&, int func_index,
     Counters*, WasmFeatures* detected_features);
 

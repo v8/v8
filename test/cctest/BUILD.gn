@@ -272,6 +272,7 @@ v8_source_set("cctest_sources") {
     "wasm/test-c-wasm-entry.cc",
     "wasm/test-grow-memory.cc",
     "wasm/test-jump-table-assembler.cc",
+    "wasm/test-liftoff-inspection.cc",
     "wasm/test-run-wasm-64.cc",
     "wasm/test-run-wasm-asmjs.cc",
     "wasm/test-run-wasm-atomics.cc",
