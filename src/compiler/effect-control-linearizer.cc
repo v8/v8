@@ -231,6 +231,12 @@ class EffectControlLinearizer {
   Node* BuildTypedArrayDataPointer(Node* base, Node* external);
 
   Node* ChangeInt32ToSmi(Node* value);
+  // In pointer compression, we smi-corrupt. This means the upper bits of a Smi
+  // are not important. ChangeTaggedInt32ToSmi has a known tagged int32 as input
+  // and takes advantage of the smi corruption by emitting a Bitcast node
+  // instead of a Change node in order to save instructions.
+  // In non pointer compression, it behaves like ChangeInt32ToSmi.
+  Node* ChangeTaggedInt32ToSmi(Node* value);
   Node* ChangeInt32ToIntPtr(Node* value);
   Node* ChangeInt64ToSmi(Node* value);
   Node* ChangeIntPtrToInt32(Node* value);
@@ -1349,7 +1355,7 @@ Node* EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node) {
       Node* ovf = __ Projection(1, add);
       __ GotoIf(ovf, &if_heapnumber);
       Node* value_smi = __ Projection(0, add);
-      value_smi = ChangeInt32ToIntPtr(value_smi);
+      value_smi = ChangeTaggedInt32ToSmi(value_smi);
       __ Goto(&done, value_smi);
     }
   }
@@ -1405,7 +1411,7 @@ Node* EffectControlLinearizer::LowerChangeInt32ToTagged(Node* node) {
   Node* ovf = __ Projection(1, add);
   __ GotoIf(ovf, &if_overflow);
   Node* value_smi = __ Projection(0, add);
-  value_smi = ChangeInt32ToIntPtr(value_smi);
+  value_smi = ChangeTaggedInt32ToSmi(value_smi);
   __ Goto(&done, value_smi);
 
   __ Bind(&if_overflow);
@@ -1433,7 +1439,7 @@ Node* EffectControlLinearizer::LowerChangeInt64ToTagged(Node* node) {
     Node* add = __ Int32AddWithOverflow(value32, value32);
     Node* ovf = __ Projection(1, add);
     __ GotoIf(ovf, &if_not_in_smi_range);
-    Node* value_smi = ChangeInt32ToIntPtr(__ Projection(0, add));
+    Node* value_smi = ChangeTaggedInt32ToSmi(__ Projection(0, add));
     __ Goto(&done, value_smi);
   }
 
@@ -2271,12 +2277,14 @@ Node* EffectControlLinearizer::LowerCheckedInt32ToTaggedSigned(
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
 
+  // Check for the lost precision at the same time that we are smi tagging.
   Node* add = __ Int32AddWithOverflow(value, value);
   Node* check = __ Projection(1, add);
   __ DeoptimizeIf(DeoptimizeReason::kLostPrecision, params.feedback(), check,
                   frame_state);
+  // Since smi tagging shifts left by one, it's the same as adding value twice.
   Node* result = __ Projection(0, add);
-  result = ChangeInt32ToIntPtr(result);
+  result = ChangeTaggedInt32ToSmi(result);
   return result;
 }
 
@@ -2310,7 +2318,7 @@ Node* EffectControlLinearizer::LowerCheckedInt64ToTaggedSigned(
     __ DeoptimizeIf(DeoptimizeReason::kLostPrecision, params.feedback(), check,
                     frame_state);
     Node* result = __ Projection(0, add);
-    result = ChangeInt32ToIntPtr(result);
+    result = ChangeTaggedInt32ToSmi(result);
     return result;
   }
 }
@@ -4425,13 +4433,17 @@ Node* EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value) {
 Node* EffectControlLinearizer::ChangeIntPtrToSmi(Node* value) {
   // Do shift on 32bit values if Smis are stored in the lower word.
   if (machine()->Is64() && SmiValuesAre31Bits()) {
-    Node* smi_value = __ Word32Shl(value, SmiShiftBitsConstant());
-    // In pointer compression, we smi-corrupt. Then, the upper bits are not
-    // important.
-    return COMPRESS_POINTERS_BOOL ? __ BitcastWord32ToWord64(smi_value)
-                                  : __ ChangeInt32ToInt64(smi_value);
+    return ChangeTaggedInt32ToSmi(__ Word32Shl(value, SmiShiftBitsConstant()));
   }
   return __ WordShl(value, SmiShiftBitsConstant());
+}
+
+Node* EffectControlLinearizer::ChangeTaggedInt32ToSmi(Node* value) {
+  DCHECK(SmiValuesAre31Bits());
+  // In pointer compression, we smi-corrupt. Then, the upper bits are not
+  // important.
+  return COMPRESS_POINTERS_BOOL ? __ BitcastWord32ToWord64(value)
+                                : ChangeInt32ToIntPtr(value);
 }
 
 Node* EffectControlLinearizer::ChangeInt32ToIntPtr(Node* value) {
