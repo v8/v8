@@ -58,3 +58,42 @@
   var target = {};
   Reflect.set(target, key, value, receiver);
 })();
+
+// crbug.com/1028213
+(function() {
+  function load(obj, key) {
+    return obj[key];
+  }
+  %PrepareFunctionForOptimization(load);
+  let obj = function() {};
+  obj.__proto__ = new Int8Array(1);
+  let key = Object(4294967297);
+  for (let i = 0; i < 3; i++) {
+    load(obj, key);
+  }
+})();
+(function() {
+  function load(obj, key) {
+    return obj[key];
+  }
+  %PrepareFunctionForOptimization(load);
+  let obj = new String("abc");
+  obj.__proto__ = new Int8Array(1);
+  let key = Object(4294967297);
+  for (let i = 0; i < 3; i++) {
+    load(obj, key);
+  }
+})();
+
+// crbug.com/1027461#c12
+(function() {
+  let arr = new Int32Array(2);
+  Object.defineProperty(arr, "foo", {get:function() { this.valueOf = 1; }});
+  arr[9007199254740991] = 1;
+  Object.values(arr);
+
+  let obj = [1, 2, 3];
+  Object.defineProperty(obj, 2, {get:function() { this.valueOf = 1; }});
+  obj[9007199254740991] = 1;
+  Object.values(obj);
+})();

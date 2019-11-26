@@ -742,7 +742,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
   // `in` cannot be called on strings, and will always return true for string
   // wrapper length and function prototypes. The latter two cases are given
   // LoadHandler::LoadNativeDataProperty below.
-  if (!IsAnyHas()) {
+  if (!IsAnyHas() && !lookup->IsElement()) {
     if (receiver->IsString() && *lookup->name() == roots.length_string()) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_StringLength);
       return BUILTIN_CODE(isolate(), LoadIC_StringLength);

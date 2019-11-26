@@ -417,15 +417,14 @@ Handle<JSObject> CreateObjectLiteral(
       if (value->IsUninitialized(isolate)) {
         value = handle(Smi::zero(), isolate);
       }
-      LookupIterator it(isolate, boilerplate, element_index, boilerplate,
-                        LookupIterator::OWN_NO_TYPEDARRAY);
-      JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE).Check();
+      JSObject::SetOwnElementIgnoreAttributes(boilerplate, element_index, value,
+                                              NONE)
+          .Check();
     } else {
       Handle<String> name = Handle<String>::cast(key);
       DCHECK(!name->AsArrayIndex(&element_index));
-      LookupIterator it(boilerplate, name, boilerplate,
-                        LookupIterator::OWN_NO_TYPEDARRAY);
-      JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE).Check();
+      JSObject::SetOwnPropertyIgnoreAttributes(boilerplate, name, value, NONE)
+          .Check();
     }
   }
 

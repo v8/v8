@@ -648,8 +648,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     DCHECK(!key->AsArrayIndex(&index));
 #endif
     Handle<Object> value = property.value;
-    LookupIterator it(isolate_, object, key, object,
-                      LookupIterator::OWN_NO_TYPEDARRAY);
+    LookupIterator it(isolate_, object, key, object, LookupIterator::OWN);
     JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE).Check();
   }
 

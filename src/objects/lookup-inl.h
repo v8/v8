@@ -42,7 +42,10 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
       index_(kInvalidIndex) {
 #ifdef DEBUG
   // Assert that the name is not an index.
-  if (configuration & kGuaranteedNotTypedArray) {
+  // If we're not looking at the prototype chain and the initial holder is
+  // not a typed array, then this means "array index", otherwise we need to
+  // ensure the full generality so that typed arrays are handled correctly.
+  if (!check_prototype_chain() && !holder->IsJSTypedArray()) {
     uint32_t index;
     DCHECK(!name->AsArrayIndex(&index));
   } else {

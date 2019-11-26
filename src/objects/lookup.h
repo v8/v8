@@ -22,18 +22,10 @@ class V8_EXPORT_PRIVATE LookupIterator final {
     // Configuration bits.
     kInterceptor = 1 << 0,
     kPrototypeChain = 1 << 1,
-    // For lookups on arbitrary objects, keys that are strings representing
-    // integers larger than kMaxArrayIndex but still in size_t range must
-    // be treated as "elements" lookups, even though for non-TypedArray holders
-    // such keys are converted back to strings. For efficiency, we allow
-    // annotating use cases where it is guaranteed that no TypedArrays will be
-    // encountered by the LookupIterator, so they can run in "property" mode.
-    kGuaranteedNotTypedArray = 1 << 2,
 
     // Convenience combinations of bits.
     OWN_SKIP_INTERCEPTOR = 0,
     OWN = kInterceptor,
-    OWN_NO_TYPEDARRAY = OWN | kGuaranteedNotTypedArray,
     PROTOTYPE_CHAIN_SKIP_INTERCEPTOR = kPrototypeChain,
     PROTOTYPE_CHAIN = kPrototypeChain | kInterceptor,
     DEFAULT = PROTOTYPE_CHAIN
