@@ -458,12 +458,13 @@ void Map::MapVerify(Isolate* isolate) {
           CHECK(!parent.owns_descriptors());
         } else {
           CHECK_EQ(NumberOfOwnDescriptors(), parent.NumberOfOwnDescriptors());
-          // Descriptors sharing through special transitions takes over
+          // Descriptors sharing through special transitions properly takes over
           // ownership from the parent map unless it uses the canonical empty
           // descriptor array.
-          CHECK_IMPLIES(
-              descriptors != ReadOnlyRoots(isolate).empty_descriptor_array(),
-              !parent.owns_descriptors());
+          if (descriptors != ReadOnlyRoots(isolate).empty_descriptor_array()) {
+            CHECK_IMPLIES(owns_descriptors(), !parent.owns_descriptors());
+            CHECK_IMPLIES(parent.owns_descriptors(), !owns_descriptors());
+          }
         }
       }
     }
