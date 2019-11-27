@@ -441,8 +441,12 @@ int Context::IntrinsicIndexForName(Handle<String> string) {
 
 #undef COMPARE_NAME
 
-#define COMPARE_NAME(index, type, name) \
-  if (strncmp(string, #name, length) == 0) return index;
+#define COMPARE_NAME(index, type, name)                                      \
+  {                                                                          \
+    const int name_length = static_cast<int>(arraysize(#name)) - 1;          \
+    if ((length == name_length) && strncmp(string, #name, name_length) == 0) \
+      return index;                                                          \
+  }
 
 int Context::IntrinsicIndexForName(const unsigned char* unsigned_string,
                                    int length) {
