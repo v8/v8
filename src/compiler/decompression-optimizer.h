@@ -67,6 +67,10 @@ class V8_EXPORT_PRIVATE DecompressionOptimizer final {
   // Change node's load into a compressed one.
   void ChangeLoad(Node* const node);
 
+  // Remove a ChangeTaggedToCompressed if its input is going to become a
+  // compressed node.
+  void RemoveChangeTaggedToCompressed(Node* const node);
+
   // Go through the already marked nodes and changed the operation for the nodes
   // that can use compressed outputs.
   void ChangeNodes();
@@ -92,6 +96,10 @@ class V8_EXPORT_PRIVATE DecompressionOptimizer final {
 
   bool IsEverythingObserved(Node* const node) {
     return states_.Get(node) == State::kEverythingObserved;
+  }
+
+  bool IsOnly32BitsObserved(Node* const node) {
+    return states_.Get(node) == State::kOnly32BitsObserved;
   }
 
   Graph* graph() const { return graph_; }

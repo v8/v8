@@ -121,13 +121,17 @@ TEST_F(DecompressionOptimizerTest, Word32EqualTwoDecompresses) {
                                       effect, control);
       Node* change_to_tagged_2 =
           graph()->NewNode(machine()->ChangeTaggedToCompressed(), load_2);
-      graph()->SetEnd(graph()->NewNode(machine()->Word32Equal(),
-                                       change_to_tagged_1, change_to_tagged_2));
+      Node* equal = graph()->NewNode(machine()->Word32Equal(),
+                                     change_to_tagged_1, change_to_tagged_2);
+      graph()->SetEnd(equal);
 
       // Change the nodes, and test the change.
       Reduce();
       EXPECT_EQ(LoadMachRep(load_1), CompressedMachRep(types[i]));
       EXPECT_EQ(LoadMachRep(load_2), CompressedMachRep(types[j]));
+      // Test that we eliminate the ChangeTaggedToCompressed nodes.
+      EXPECT_EQ(equal->InputAt(0), load_1);
+      EXPECT_EQ(equal->InputAt(1), load_2);
     }
   }
 }
@@ -149,13 +153,16 @@ TEST_F(DecompressionOptimizerTest, Word32EqualDecompressAndConstant) {
           graph()->NewNode(machine()->ChangeTaggedToCompressed(), load);
       Node* constant =
           graph()->NewNode(common()->HeapConstant(heap_constants[j]));
-      graph()->SetEnd(graph()->NewNode(machine()->Word32Equal(),
-                                       change_to_tagged, constant));
+      Node* equal = graph()->NewNode(machine()->Word32Equal(), change_to_tagged,
+                                     constant);
+      graph()->SetEnd(equal);
 
       // Change the nodes, and test the change.
       Reduce();
       EXPECT_EQ(LoadMachRep(load), CompressedMachRep(types[i]));
       EXPECT_EQ(constant->opcode(), IrOpcode::kCompressedHeapConstant);
+      // Test that we eliminate the ChangeTaggedToCompressed node.
+      EXPECT_EQ(equal->InputAt(0), load);
     }
   }
 }
