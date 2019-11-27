@@ -235,11 +235,11 @@ namespace compiler {
 struct HintsImpl : public ZoneObject {
   explicit HintsImpl(Zone* zone) : zone_(zone) {}
 
-  VirtualContextsSet virtual_contexts_;
   ConstantsSet constants_;
   MapsSet maps_;
-  BlueprintsSet function_blueprints_;
-  BoundFunctionsSet virtual_bound_functions_;
+  VirtualClosuresSet virtual_closures_;
+  VirtualContextsSet virtual_contexts_;
+  VirtualBoundFunctionsSet virtual_bound_functions_;
 
   Zone* const zone_;
 };
@@ -273,26 +273,25 @@ struct VirtualBoundFunction {
   }
 };
 
-// A FunctionBlueprint is a SharedFunctionInfo and a FeedbackVector, plus
+// A VirtualClosure is a SharedFunctionInfo and a FeedbackVector, plus
 // Hints about the context in which a closure will be created from them.
-// TODO(neis): Rename FunctionBlueprint to VirtualClosure for consistency.
-class FunctionBlueprint {
+class VirtualClosure {
  public:
-  FunctionBlueprint(Handle<JSFunction> function, Isolate* isolate, Zone* zone);
+  VirtualClosure(Handle<JSFunction> function, Isolate* isolate, Zone* zone);
 
-  FunctionBlueprint(Handle<SharedFunctionInfo> shared,
-                    Handle<FeedbackVector> feedback_vector,
-                    Hints const& context_hints);
+  VirtualClosure(Handle<SharedFunctionInfo> shared,
+                 Handle<FeedbackVector> feedback_vector,
+                 Hints const& context_hints);
 
   Handle<SharedFunctionInfo> shared() const { return shared_; }
   Handle<FeedbackVector> feedback_vector() const { return feedback_vector_; }
   Hints const& context_hints() const { return context_hints_; }
 
-  bool operator==(const FunctionBlueprint& other) const {
+  bool operator==(const VirtualClosure& other) const {
     // A feedback vector is never used for more than one SFI.  There might,
-    // however, be two blueprints with the same SFI and vector, but different
-    // context hints. crbug.com/1024282 has a link to a document describing
-    // why the context_hints_ might be different in that case.
+    // however, be two virtual closures with the same SFI and vector, but
+    // different context hints. crbug.com/1024282 has a link to a document
+    // describing why the context_hints_ might be different in that case.
     DCHECK_IMPLIES(feedback_vector_.equals(other.feedback_vector_),
                    shared_.equals(other.shared_));
     return feedback_vector_.equals(other.feedback_vector_) &&
@@ -305,58 +304,58 @@ class FunctionBlueprint {
   Hints const context_hints_;
 };
 
-// A CompilationSubject is a FunctionBlueprint, optionally with a matching
-// closure.
+// A CompilationSubject is a VirtualClosure, optionally with a matching
+// concrete closure.
 class CompilationSubject {
  public:
-  explicit CompilationSubject(FunctionBlueprint blueprint)
-      : blueprint_(blueprint) {}
+  explicit CompilationSubject(VirtualClosure virtual_closure)
+      : virtual_closure_(virtual_closure) {}
 
-  // The zone parameter is to correctly initialize the blueprint,
+  // The zone parameter is to correctly initialize the virtual closure,
   // which contains zone-allocated context information.
   CompilationSubject(Handle<JSFunction> closure, Isolate* isolate, Zone* zone);
 
-  const FunctionBlueprint& blueprint() const { return blueprint_; }
+  const VirtualClosure& virtual_closure() const { return virtual_closure_; }
   MaybeHandle<JSFunction> closure() const { return closure_; }
 
  private:
-  FunctionBlueprint const blueprint_;
+  VirtualClosure const virtual_closure_;
   MaybeHandle<JSFunction> const closure_;
 };
 
 // A Callee is either a JSFunction (which may not have a feedback vector), or a
-// FunctionBlueprint. Note that this is different from CompilationSubject, which
-// always has a FunctionBlueprint.
+// VirtualClosure. Note that this is different from CompilationSubject, which
+// always has a VirtualClosure.
 class Callee {
  public:
   explicit Callee(Handle<JSFunction> jsfunction)
-      : jsfunction_(jsfunction), blueprint_() {}
-  explicit Callee(FunctionBlueprint const& blueprint)
-      : jsfunction_(), blueprint_(blueprint) {}
+      : jsfunction_(jsfunction), virtual_closure_() {}
+  explicit Callee(VirtualClosure const& virtual_closure)
+      : jsfunction_(), virtual_closure_(virtual_closure) {}
 
   Handle<SharedFunctionInfo> shared(Isolate* isolate) const {
-    return blueprint_.has_value()
-               ? blueprint_->shared()
+    return virtual_closure_.has_value()
+               ? virtual_closure_->shared()
                : handle(jsfunction_.ToHandleChecked()->shared(), isolate);
   }
 
   bool HasFeedbackVector() const {
     Handle<JSFunction> function;
-    return blueprint_.has_value() ||
+    return virtual_closure_.has_value() ||
            jsfunction_.ToHandleChecked()->has_feedback_vector();
   }
 
   CompilationSubject ToCompilationSubject(Isolate* isolate, Zone* zone) const {
     CHECK(HasFeedbackVector());
-    return blueprint_.has_value()
-               ? CompilationSubject(*blueprint_)
+    return virtual_closure_.has_value()
+               ? CompilationSubject(*virtual_closure_)
                : CompilationSubject(jsfunction_.ToHandleChecked(), isolate,
                                     zone);
   }
 
  private:
   MaybeHandle<JSFunction> const jsfunction_;
-  base::Optional<FunctionBlueprint> const blueprint_;
+  base::Optional<VirtualClosure> const virtual_closure_;
 };
 
 // If a list of arguments (hints) is shorter than the function's parameter
@@ -556,29 +555,29 @@ void RunSerializerForBackgroundCompilation(
 
 using BytecodeArrayIterator = interpreter::BytecodeArrayIterator;
 
-FunctionBlueprint::FunctionBlueprint(Handle<SharedFunctionInfo> shared,
-                                     Handle<FeedbackVector> feedback_vector,
-                                     Hints const& context_hints)
+VirtualClosure::VirtualClosure(Handle<SharedFunctionInfo> shared,
+                               Handle<FeedbackVector> feedback_vector,
+                               Hints const& context_hints)
     : shared_(shared),
       feedback_vector_(feedback_vector),
       context_hints_(context_hints) {
   // The checked invariant rules out recursion and thus avoids complexity.
-  CHECK(context_hints_.function_blueprints().IsEmpty());
+  CHECK(context_hints_.virtual_closures().IsEmpty());
 }
 
-FunctionBlueprint::FunctionBlueprint(Handle<JSFunction> function,
-                                     Isolate* isolate, Zone* zone)
+VirtualClosure::VirtualClosure(Handle<JSFunction> function, Isolate* isolate,
+                               Zone* zone)
     : shared_(handle(function->shared(), isolate)),
       feedback_vector_(function->feedback_vector(), isolate),
       context_hints_(
           Hints::SingleConstant(handle(function->context(), isolate), zone)) {
   // The checked invariant rules out recursion and thus avoids complexity.
-  CHECK(context_hints_.function_blueprints().IsEmpty());
+  CHECK(context_hints_.virtual_closures().IsEmpty());
 }
 
 CompilationSubject::CompilationSubject(Handle<JSFunction> closure,
                                        Isolate* isolate, Zone* zone)
-    : blueprint_(closure, isolate, zone), closure_(closure) {
+    : virtual_closure_(closure, isolate, zone), closure_(closure) {
   CHECK(closure->has_feedback_vector());
 }
 
@@ -589,7 +588,7 @@ Hints Hints::Copy(Zone* zone) const {
   result.impl_->constants_ = impl_->constants_;
   result.impl_->maps_ = impl_->maps_;
   result.impl_->virtual_contexts_ = impl_->virtual_contexts_;
-  result.impl_->function_blueprints_ = impl_->function_blueprints_;
+  result.impl_->virtual_closures_ = impl_->virtual_closures_;
   result.impl_->virtual_bound_functions_ = impl_->virtual_bound_functions_;
   return result;
 }
@@ -599,7 +598,7 @@ bool Hints::operator==(Hints const& other) const {
   if (IsEmpty() && other.IsEmpty()) return true;
   return IsAllocated() && other.IsAllocated() &&
          constants() == other.constants() &&
-         function_blueprints() == other.function_blueprints() &&
+         virtual_closures() == other.virtual_closures() &&
          maps() == other.maps() &&
          virtual_contexts() == other.virtual_contexts() &&
          virtual_bound_functions() == other.virtual_bound_functions();
@@ -611,7 +610,7 @@ bool Hints::operator!=(Hints const& other) const { return !(*this == other); }
 bool Hints::Includes(Hints const& other) const {
   if (impl_ == other.impl_ || other.IsEmpty()) return true;
   return IsAllocated() && constants().Includes(other.constants()) &&
-         function_blueprints().Includes(other.function_blueprints()) &&
+         virtual_closures().Includes(other.virtual_closures()) &&
          maps().Includes(other.maps());
 }
 #endif
@@ -628,16 +627,17 @@ ConstantsSet Hints::constants() const {
 
 MapsSet Hints::maps() const { return IsAllocated() ? impl_->maps_ : MapsSet(); }
 
-BlueprintsSet Hints::function_blueprints() const {
-  return IsAllocated() ? impl_->function_blueprints_ : BlueprintsSet();
+VirtualClosuresSet Hints::virtual_closures() const {
+  return IsAllocated() ? impl_->virtual_closures_ : VirtualClosuresSet();
 }
 
 VirtualContextsSet Hints::virtual_contexts() const {
   return IsAllocated() ? impl_->virtual_contexts_ : VirtualContextsSet();
 }
 
-BoundFunctionsSet Hints::virtual_bound_functions() const {
-  return IsAllocated() ? impl_->virtual_bound_functions_ : BoundFunctionsSet();
+VirtualBoundFunctionsSet Hints::virtual_bound_functions() const {
+  return IsAllocated() ? impl_->virtual_bound_functions_
+                       : VirtualBoundFunctionsSet();
 }
 
 void Hints::AddVirtualContext(VirtualContext const& virtual_context,
@@ -656,10 +656,10 @@ void Hints::AddMap(Handle<Map> map, Zone* zone, bool check_zone_equality) {
   impl_->maps_.Add(map, impl_->zone_);
 }
 
-void Hints::AddFunctionBlueprint(FunctionBlueprint const& function_blueprint,
-                                 Zone* zone) {
+void Hints::AddVirtualClosure(VirtualClosure const& virtual_closure,
+                              Zone* zone) {
   EnsureAllocated(zone);
-  impl_->function_blueprints_.Add(function_blueprint, impl_->zone_);
+  impl_->virtual_closures_.Add(virtual_closure, impl_->zone_);
 }
 
 void Hints::AddVirtualBoundFunction(VirtualBoundFunction const& bound_function,
@@ -687,13 +687,14 @@ Hints Hints::CopyToParentZone(Zone* zone) const {
   for (auto const& x : virtual_contexts()) result.AddVirtualContext(x, zone);
 
   // Adding hints from a child serializer run means copying data out from
-  // a zone that's being destroyed. FunctionBlueprints and VirtualBoundFunction
+  // a zone that's being destroyed. VirtualClosures and VirtualBoundFunction
   // have zone allocated data, so we've got to make a deep copy to eliminate
   // traces of the dying zone.
-  for (auto const& x : function_blueprints()) {
-    FunctionBlueprint new_blueprint(x.shared(), x.feedback_vector(),
-                                    x.context_hints().CopyToParentZone(zone));
-    result.AddFunctionBlueprint(new_blueprint, zone);
+  for (auto const& x : virtual_closures()) {
+    VirtualClosure new_virtual_closure(
+        x.shared(), x.feedback_vector(),
+        x.context_hints().CopyToParentZone(zone));
+    result.AddVirtualClosure(new_virtual_closure, zone);
   }
   for (auto const& x : virtual_bound_functions()) {
     HintsVector new_arguments_hints(zone);
@@ -711,7 +712,7 @@ Hints Hints::CopyToParentZone(Zone* zone) const {
 bool Hints::IsEmpty() const {
   if (!IsAllocated()) return true;
   return constants().IsEmpty() && maps().IsEmpty() &&
-         function_blueprints().IsEmpty() && virtual_contexts().IsEmpty() &&
+         virtual_closures().IsEmpty() && virtual_contexts().IsEmpty() &&
          virtual_bound_functions().IsEmpty();
 }
 
@@ -725,11 +726,11 @@ std::ostream& operator<<(std::ostream& out,
 std::ostream& operator<<(std::ostream& out, const Hints& hints);
 
 std::ostream& operator<<(std::ostream& out,
-                         const FunctionBlueprint& blueprint) {
-  out << Brief(*blueprint.shared()) << std::endl;
-  out << Brief(*blueprint.feedback_vector()) << std::endl;
-  !blueprint.context_hints().IsEmpty() && out << blueprint.context_hints()
-                                              << "):" << std::endl;
+                         const VirtualClosure& virtual_closure) {
+  out << Brief(*virtual_closure.shared()) << std::endl;
+  out << Brief(*virtual_closure.feedback_vector()) << std::endl;
+  !virtual_closure.context_hints().IsEmpty() &&
+      out << virtual_closure.context_hints() << "):" << std::endl;
   return out;
 }
 
@@ -750,8 +751,8 @@ std::ostream& operator<<(std::ostream& out, const Hints& hints) {
   for (Handle<Map> map : hints.maps()) {
     out << "  map " << Brief(*map) << std::endl;
   }
-  for (FunctionBlueprint const& blueprint : hints.function_blueprints()) {
-    out << "  blueprint " << blueprint << std::endl;
+  for (VirtualClosure const& virtual_closure : hints.virtual_closures()) {
+    out << "  virtual closure " << virtual_closure << std::endl;
   }
   for (VirtualContext const& virtual_context : hints.virtual_contexts()) {
     out << "  virtual context " << virtual_context << std::endl;
@@ -787,7 +788,7 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
   // Merge {other} into {this} environment (leaving {other} unmodified).
   void Merge(Environment* other, Zone* zone);
 
-  FunctionBlueprint function() const { return function_; }
+  VirtualClosure function() const { return function_; }
 
   Hints const& closure_hints() const { return closure_hints_; }
   Hints const& current_context_hints() const { return current_context_hints_; }
@@ -820,9 +821,9 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
   int parameter_count() const { return parameter_count_; }
   int register_count() const { return register_count_; }
 
-  // Instead of storing the blueprint here, we could extract it from the
+  // Instead of storing the virtual_closure here, we could extract it from the
   // (closure) hints but that would be cumbersome.
-  FunctionBlueprint const function_;
+  VirtualClosure const function_;
   int const parameter_count_;
   int const register_count_;
 
@@ -841,7 +842,7 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
 
 SerializerForBackgroundCompilation::Environment::Environment(
     Zone* zone, CompilationSubject function)
-    : function_(function.blueprint()),
+    : function_(function.virtual_closure()),
       parameter_count_(
           function_.shared()->GetBytecodeArray().parameter_count()),
       register_count_(function_.shared()->GetBytecodeArray().register_count()),
@@ -853,11 +854,11 @@ SerializerForBackgroundCompilation::Environment::Environment(
   if (function.closure().ToHandle(&closure)) {
     closure_hints_.AddConstant(closure, zone);
   } else {
-    closure_hints_.AddFunctionBlueprint(function.blueprint(), zone);
+    closure_hints_.AddVirtualClosure(function.virtual_closure(), zone);
   }
 
-  // Consume blueprint context hint information.
-  current_context_hints_ = function.blueprint().context_hints();
+  // Consume the virtual_closure's context hint information.
+  current_context_hints_ = function.virtual_closure().context_hints();
 }
 
 SerializerForBackgroundCompilation::Environment::Environment(
@@ -924,7 +925,7 @@ void Hints::Union(Hints const& other) {
   Zone* zone = impl_->zone_;
   impl_->constants_.Union(other.constants(), zone);
   impl_->maps_.Union(other.maps(), zone);
-  impl_->function_blueprints_.Union(other.function_blueprints(), zone);
+  impl_->virtual_closures_.Union(other.virtual_closures(), zone);
   impl_->virtual_contexts_.Union(other.virtual_contexts(), zone);
   impl_->virtual_bound_functions_.Union(other.virtual_bound_functions(), zone);
 }
@@ -1744,10 +1745,10 @@ void SerializerForBackgroundCompilation::VisitCreateClosure(
 
   Hints result_hints;
   if (cell_value->IsFeedbackVector()) {
-    FunctionBlueprint blueprint(shared,
-                                Handle<FeedbackVector>::cast(cell_value),
-                                environment()->current_context_hints());
-    result_hints.AddFunctionBlueprint(blueprint, zone());
+    VirtualClosure virtual_closure(shared,
+                                   Handle<FeedbackVector>::cast(cell_value),
+                                   environment()->current_context_hints());
+    result_hints.AddVirtualClosure(virtual_closure, zone());
   }
   environment()->accumulator_hints() = result_hints;
 }
@@ -2103,7 +2104,7 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstructRecursive(
   }
 
   // For JSCallReducer::ReduceJSCall and JSCallReducer::ReduceJSConstruct.
-  for (auto hint : callee.function_blueprints()) {
+  for (auto hint : callee.virtual_closures()) {
     ProcessCalleeForCallOrConstruct(Callee(hint), new_target, arguments,
                                     speculation_mode, padding, result_hints);
   }
@@ -2321,10 +2322,10 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
               constant, base::nullopt, new_arguments, speculation_mode,
               kMissingArgumentsAreUndefined, result_hints);
         }
-        for (auto blueprint : callback.function_blueprints()) {
+        for (auto virtual_closure : callback.virtual_closures()) {
           ProcessCalleeForCallOrConstruct(
-              Callee(blueprint), base::nullopt, new_arguments, speculation_mode,
-              kMissingArgumentsAreUndefined, result_hints);
+              Callee(virtual_closure), base::nullopt, new_arguments,
+              speculation_mode, kMissingArgumentsAreUndefined, result_hints);
         }
       }
       break;
@@ -2346,10 +2347,10 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
               constant, base::nullopt, new_arguments, speculation_mode,
               kMissingArgumentsAreUndefined, result_hints);
         }
-        for (auto blueprint : callback.function_blueprints()) {
+        for (auto virtual_closure : callback.virtual_closures()) {
           ProcessCalleeForCallOrConstruct(
-              Callee(blueprint), base::nullopt, new_arguments, speculation_mode,
-              kMissingArgumentsAreUndefined, result_hints);
+              Callee(virtual_closure), base::nullopt, new_arguments,
+              speculation_mode, kMissingArgumentsAreUndefined, result_hints);
         }
       }
       break;
@@ -2384,9 +2385,9 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
               SpeculationMode::kDisallowSpeculation,
               kMissingArgumentsAreUnknown, result_hints);
         }
-        for (auto blueprint : arguments[0].function_blueprints()) {
+        for (auto virtual_closure : arguments[0].virtual_closures()) {
           ProcessCalleeForCallOrConstruct(
-              Callee(blueprint), base::nullopt, new_arguments,
+              Callee(virtual_closure), base::nullopt, new_arguments,
               SpeculationMode::kDisallowSpeculation,
               kMissingArgumentsAreUnknown, result_hints);
         }

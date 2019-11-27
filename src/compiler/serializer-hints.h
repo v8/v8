@@ -86,16 +86,16 @@ struct VirtualContext {
   }
 };
 
-class FunctionBlueprint;
+class VirtualClosure;
 struct VirtualBoundFunction;
 
 using ConstantsSet = FunctionalSet<Handle<Object>, Handle<Object>::equal_to>;
 using VirtualContextsSet =
     FunctionalSet<VirtualContext, std::equal_to<VirtualContext>>;
 using MapsSet = FunctionalSet<Handle<Map>, Handle<Map>::equal_to>;
-using BlueprintsSet =
-    FunctionalSet<FunctionBlueprint, std::equal_to<FunctionBlueprint>>;
-using BoundFunctionsSet =
+using VirtualClosuresSet =
+    FunctionalSet<VirtualClosure, std::equal_to<VirtualClosure>>;
+using VirtualBoundFunctionsSet =
     FunctionalSet<VirtualBoundFunction, std::equal_to<VirtualBoundFunction>>;
 
 struct HintsImpl;
@@ -108,9 +108,9 @@ class Hints {
   // For inspection only.
   ConstantsSet constants() const;
   MapsSet maps() const;
-  BlueprintsSet function_blueprints() const;
+  VirtualClosuresSet virtual_closures() const;
   VirtualContextsSet virtual_contexts() const;
-  BoundFunctionsSet virtual_bound_functions() const;
+  VirtualBoundFunctionsSet virtual_bound_functions() const;
 
   bool IsEmpty() const;
   bool operator==(Hints const& other) const;
@@ -140,8 +140,7 @@ class Hints {
   // then the following updates will be seen by all of them:
   void AddConstant(Handle<Object> constant, Zone* zone);
   void AddMap(Handle<Map> map, Zone* zone, bool check_zone_equality = true);
-  void AddFunctionBlueprint(FunctionBlueprint const& function_blueprint,
-                            Zone* zone);
+  void AddVirtualClosure(VirtualClosure const& virtual_closure, Zone* zone);
   void AddVirtualContext(VirtualContext const& virtual_context, Zone* zone);
   void AddVirtualBoundFunction(VirtualBoundFunction const& bound_function,
                                Zone* zone);
