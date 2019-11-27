@@ -539,17 +539,16 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* Parameter(int value);
 
   TNode<Context> GetJSContextParameter();
-  void Return(SloppyTNode<Object> value);
-  void Return(SloppyTNode<Object> value1, SloppyTNode<Object> value2);
-  void Return(SloppyTNode<Object> value1, SloppyTNode<Object> value2,
-              SloppyTNode<Object> value3);
+  void Return(TNode<Object> value);
+  void Return(TNode<Object> value1, TNode<Object> value2);
+  void Return(TNode<Object> value1, TNode<Object> value2, TNode<Object> value3);
   void Return(TNode<Int32T> value);
   void Return(TNode<Uint32T> value);
-  void Return(TNode<WordT>);
+  void Return(TNode<WordT> value);
   void Return(TNode<WordT> value1, TNode<WordT> value2);
   void PopAndReturn(Node* pop, Node* value);
 
-  void ReturnIf(Node* condition, Node* value);
+  void ReturnIf(Node* condition, TNode<Object> value);
 
   void AbortCSAAssert(Node* message);
   void DebugBreak();

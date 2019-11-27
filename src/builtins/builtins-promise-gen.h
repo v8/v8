@@ -108,7 +108,7 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* CallResolve(Node* native_context, Node* constructor, Node* resolve,
                     Node* value, Label* if_exception, Variable* var_exception);
   template <typename... TArgs>
-  Node* InvokeThen(Node* native_context, Node* receiver, TArgs... args);
+  TNode<Object> InvokeThen(Node* native_context, Node* receiver, TArgs... args);
 
   std::pair<Node*, Node*> CreatePromiseFinallyFunctions(Node* on_finally,
                                                         Node* constructor,
@@ -122,7 +122,7 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
                                   TNode<NativeContext> native_context,
                                   TNode<PromiseCapability> capability)>;
 
-  Node* PerformPromiseAll(
+  TNode<Object> PerformPromiseAll(
       Node* context, Node* constructor, Node* capability,
       const TorqueStructIteratorRecord& record,
       const PromiseAllResolvingElementFunction& create_resolve_element_function,

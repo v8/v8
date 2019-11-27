@@ -1411,7 +1411,7 @@ TEST(TryGetOwnProperty) {
                         &if_bailout);
 
     m.BIND(&if_found);
-    m.Return(var_value.value());
+    m.Return(m.UncheckedCast<Object>(var_value.value()));
 
     m.BIND(&if_not_found);
     m.Return(m.HeapConstant(not_found_symbol));
@@ -2610,8 +2610,8 @@ TEST(NewElementsCapacity) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester asm_tester(isolate, 1);
   CodeStubAssembler m(asm_tester.state());
-  m.Return(m.SmiTag(m.CalculateNewElementsCapacity(
-      m.SmiUntag(m.Parameter(0)), CodeStubAssembler::INTPTR_PARAMETERS)));
+  m.Return(
+      m.SmiTag(m.CalculateNewElementsCapacity(m.SmiUntag(m.Parameter(0)))));
 
   FunctionTester ft(asm_tester.GenerateCode(), 1);
   Handle<Smi> test_value = Handle<Smi>(Smi::FromInt(0), isolate);
@@ -2640,8 +2640,8 @@ TEST(NewElementsCapacitySmi) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester asm_tester(isolate, 1);
   CodeStubAssembler m(asm_tester.state());
-  m.Return(m.CalculateNewElementsCapacity(m.Parameter(0),
-                                          CodeStubAssembler::SMI_PARAMETERS));
+  m.Return(
+      m.CalculateNewElementsCapacity(m.UncheckedCast<Smi>(m.Parameter(0))));
 
   FunctionTester ft(asm_tester.GenerateCode(), 1);
   Handle<Smi> test_value = Handle<Smi>(Smi::FromInt(0), isolate);
@@ -3493,7 +3493,7 @@ TEST(SingleInputPhiElimination) {
     m.BIND(&temp_label);
     m.Goto(&end_label);
     m.BIND(&end_label);
-    m.Return(temp1.value());
+    m.Return(m.UncheckedCast<Object>(temp1.value()));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   // Generating code without an assert is enough to make sure that the

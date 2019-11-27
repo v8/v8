@@ -168,7 +168,8 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
 }
 
 TF_BUILTIN(ReturnReceiver, CodeStubAssembler) {
-  Return(Parameter(Descriptor::kReceiver));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  Return(receiver);
 }
 
 TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {

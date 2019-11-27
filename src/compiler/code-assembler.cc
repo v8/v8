@@ -381,23 +381,21 @@ TNode<Context> CodeAssembler::GetJSContextParameter() {
       static_cast<int>(call_descriptor->JSParameterCount()))));
 }
 
-void CodeAssembler::Return(SloppyTNode<Object> value) {
+void CodeAssembler::Return(TNode<Object> value) {
   DCHECK_EQ(1, raw_assembler()->call_descriptor()->ReturnCount());
   DCHECK(raw_assembler()->call_descriptor()->GetReturnType(0).IsTagged());
   return raw_assembler()->Return(value);
 }
 
-void CodeAssembler::Return(SloppyTNode<Object> value1,
-                           SloppyTNode<Object> value2) {
+void CodeAssembler::Return(TNode<Object> value1, TNode<Object> value2) {
   DCHECK_EQ(2, raw_assembler()->call_descriptor()->ReturnCount());
   DCHECK(raw_assembler()->call_descriptor()->GetReturnType(0).IsTagged());
   DCHECK(raw_assembler()->call_descriptor()->GetReturnType(1).IsTagged());
   return raw_assembler()->Return(value1, value2);
 }
 
-void CodeAssembler::Return(SloppyTNode<Object> value1,
-                           SloppyTNode<Object> value2,
-                           SloppyTNode<Object> value3) {
+void CodeAssembler::Return(TNode<Object> value1, TNode<Object> value2,
+                           TNode<Object> value3) {
   DCHECK_EQ(3, raw_assembler()->call_descriptor()->ReturnCount());
   DCHECK(raw_assembler()->call_descriptor()->GetReturnType(0).IsTagged());
   DCHECK(raw_assembler()->call_descriptor()->GetReturnType(1).IsTagged());
@@ -443,7 +441,7 @@ void CodeAssembler::PopAndReturn(Node* pop, Node* value) {
   return raw_assembler()->PopAndReturn(pop, value);
 }
 
-void CodeAssembler::ReturnIf(Node* condition, Node* value) {
+void CodeAssembler::ReturnIf(Node* condition, TNode<Object> value) {
   Label if_return(this), if_continue(this);
   Branch(condition, &if_return, &if_continue);
   Bind(&if_return);

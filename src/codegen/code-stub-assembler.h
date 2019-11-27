@@ -1872,11 +1872,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<AllocationSite> allocation_site = {},
       HoleConversionMode convert_holes = HoleConversionMode::kDontConvert);
 
-  Node* ExtractFastJSArray(TNode<Context> context, TNode<JSArray> array,
-                           Node* begin, Node* count,
-                           ParameterMode mode = INTPTR_PARAMETERS,
-                           Node* capacity = nullptr,
-                           TNode<AllocationSite> allocation_site = {});
+  TNode<JSArray> ExtractFastJSArray(TNode<Context> context,
+                                    TNode<JSArray> array, Node* begin,
+                                    Node* count,
+                                    ParameterMode mode = INTPTR_PARAMETERS,
+                                    Node* capacity = nullptr,
+                                    TNode<AllocationSite> allocation_site = {});
 
   TNode<FixedArrayBase> AllocateFixedArray(
       ElementsKind kind, Node* capacity, ParameterMode mode = INTPTR_PARAMETERS,

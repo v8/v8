@@ -310,11 +310,12 @@ PromiseBuiltinsAssembler::AllocatePromiseResolveThenableJobTask(
 }
 
 template <typename... TArgs>
-Node* PromiseBuiltinsAssembler::InvokeThen(Node* native_context, Node* receiver,
-                                           TArgs... args) {
+TNode<Object> PromiseBuiltinsAssembler::InvokeThen(Node* native_context,
+                                                   Node* receiver,
+                                                   TArgs... args) {
   CSA_ASSERT(this, IsNativeContext(native_context));
 
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  TVARIABLE(Object, var_result);
   Label if_fast(this), if_slow(this, Label::kDeferred), done(this, &var_result);
   GotoIf(TaggedIsSmi(receiver), &if_slow);
   const TNode<Map> receiver_map = LoadMap(receiver);
@@ -329,11 +330,10 @@ Node* PromiseBuiltinsAssembler::InvokeThen(Node* native_context, Node* receiver,
   {
     const TNode<Object> then =
         LoadContextElement(native_context, Context::PROMISE_THEN_INDEX);
-    Node* const result =
+    var_result =
         CallJS(CodeFactory::CallFunction(
                    isolate(), ConvertReceiverMode::kNotNullOrUndefined),
                native_context, then, receiver, args...);
-    var_result.Bind(result);
     Goto(&done);
   }
 
@@ -341,10 +341,9 @@ Node* PromiseBuiltinsAssembler::InvokeThen(Node* native_context, Node* receiver,
   {
     const TNode<Object> then = GetProperty(native_context, receiver,
                                            isolate()->factory()->then_string());
-    Node* const result = CallJS(
+    var_result = CallJS(
         CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
         native_context, then, receiver, args...);
-    var_result.Bind(result);
     Goto(&done);
   }
 
@@ -513,7 +512,7 @@ void PromiseBuiltinsAssembler::SetPromiseHandledByIfTrue(
 }
 
 TF_BUILTIN(PromiseConstructorLazyDeoptContinuation, PromiseBuiltinsAssembler) {
-  Node* promise = Parameter(Descriptor::kPromise);
+  TNode<Object> promise = CAST(Parameter(Descriptor::kPromise));
   Node* reject = Parameter(Descriptor::kReject);
   Node* exception = Parameter(Descriptor::kException);
   Node* const context = Parameter(Descriptor::kContext);
@@ -707,7 +706,7 @@ TF_BUILTIN(PromiseResolveThenableJob, PromiseBuiltinsAssembler) {
 
     Label if_exception(this, Label::kDeferred);
     VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
-    Node* const result = CallJS(
+    const TNode<Object> result = CallJS(
         CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
         native_context, then, thenable, resolve, reject);
     GotoIfException(result, &if_exception, &var_exception);
@@ -716,7 +715,7 @@ TF_BUILTIN(PromiseResolveThenableJob, PromiseBuiltinsAssembler) {
     BIND(&if_exception);
     {
       // We need to reject the {thenable}.
-      Node* const result = CallJS(
+      const TNode<Object> result = CallJS(
           CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
           native_context, reject, UndefinedConstant(), var_exception.value());
       Return(result);
@@ -785,7 +784,7 @@ void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
       // promiseCapability.[[Resolve]] function.
       const TNode<Object> resolve = LoadObjectField(
           promise_or_capability, PromiseCapability::kResolveOffset);
-      Node* const result = CallJS(
+      const TNode<Object> result = CallJS(
           CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
           context, resolve, UndefinedConstant(), value);
       GotoIfException(result, &if_reject, &var_handler_result);
@@ -818,7 +817,7 @@ void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
                TheHoleConstant());
       const TNode<Object> reject = LoadObjectField(
           promise_or_capability, PromiseCapability::kRejectOffset);
-      Node* const result = CallJS(
+      const TNode<Object> result = CallJS(
           CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
           context, reject, UndefinedConstant(), reason);
       GotoIfException(result, &if_exception, &var_exception);
@@ -1357,7 +1356,7 @@ TF_BUILTIN(ResolvePromise, PromiseBuiltinsAssembler) {
   }
 }
 
-Node* PromiseBuiltinsAssembler::PerformPromiseAll(
+TNode<Object> PromiseBuiltinsAssembler::PerformPromiseAll(
     Node* context, Node* constructor, Node* capability,
     const IteratorRecord& iterator,
     const PromiseAllResolvingElementFunction& create_resolve_element_function,
@@ -1649,7 +1648,7 @@ void PromiseBuiltinsAssembler::Generate_PromiseAll(
   //   If iteratorRecord.[[Done]] is false, let result be
   //       IteratorClose(iterator, result).
   //    IfAbruptRejectPromise(result, promiseCapability).
-  Node* const result = PerformPromiseAll(
+  const TNode<Object> result = PerformPromiseAll(
       context, receiver, capability, iterator, create_resolve_element_function,
       create_reject_element_function, &reject_promise, &var_exception);
 

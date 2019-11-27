@@ -4068,7 +4068,7 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
   return array;
 }
 
-Node* CodeStubAssembler::ExtractFastJSArray(
+TNode<JSArray> CodeStubAssembler::ExtractFastJSArray(
     TNode<Context> context, TNode<JSArray> array, Node* begin, Node* count,
     ParameterMode mode, Node* capacity, TNode<AllocationSite> allocation_site) {
   TNode<Map> original_array_map = LoadMap(array);
