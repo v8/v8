@@ -498,6 +498,21 @@ bool MarkCompactCollector::StartCompaction() {
   return compacting_;
 }
 
+void MarkCompactCollector::StartMarking() {
+  marking_visitor_ = std::make_unique<MarkingVisitor>(
+      marking_state(), marking_worklist()->shared(),
+      marking_worklist()->embedder(), weak_objects(), heap_, epoch(),
+      Heap::GetBytecodeFlushMode(),
+      heap_->local_embedder_heap_tracer()->InUse(),
+      heap_->is_current_gc_forced());
+// Marking bits are cleared by the sweeper.
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    VerifyMarkbitsAreClean();
+  }
+#endif
+}
+
 void MarkCompactCollector::CollectGarbage() {
   // Make sure that Prepare() has been called. The individual steps below will
   // update the state as they proceed.
@@ -811,15 +826,15 @@ void MarkCompactCollector::Prepare() {
   }
 
   if (!was_marked_incrementally_) {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
-    heap_->local_embedder_heap_tracer()->TracePrologue(
-        heap_->flags_for_embedder_tracer());
-  }
-
-  // Don't start compaction if we are in the middle of incremental
-  // marking cycle. We did not collect any slots.
-  if (!FLAG_never_compact && !was_marked_incrementally_) {
-    StartCompaction();
+    {
+      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
+      heap_->local_embedder_heap_tracer()->TracePrologue(
+          heap_->flags_for_embedder_tracer());
+    }
+    if (!FLAG_never_compact) {
+      StartCompaction();
+    }
+    StartMarking();
   }
 
   PagedSpaceIterator spaces(heap());
@@ -828,12 +843,6 @@ void MarkCompactCollector::Prepare() {
     space->PrepareForMarkCompact();
   }
   heap()->account_external_memory_concurrently_freed();
-
-#ifdef VERIFY_HEAP
-  if (!was_marked_incrementally_ && FLAG_verify_heap) {
-    VerifyMarkbitsAreClean();
-  }
-#endif
 }
 
 void MarkCompactCollector::FinishConcurrentMarking(
@@ -1550,6 +1559,26 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
   ProcessTopOptimizedFrame(custom_root_body_visitor);
 }
 
+void MarkCompactCollector::VisitObject(HeapObject obj) {
+  marking_visitor_->Visit(obj.map(), obj);
+}
+
+void MarkCompactCollector::RevisitObject(HeapObject obj) {
+  DCHECK(marking_state()->IsBlack(obj));
+  DCHECK_IMPLIES(MemoryChunk::FromHeapObject(obj)->IsFlagSet(
+                     MemoryChunk::HAS_PROGRESS_BAR),
+                 0u == MemoryChunk::FromHeapObject(obj)->ProgressBar());
+  MarkingVisitor::RevisitScope revisit(marking_visitor_.get());
+  marking_visitor_->Visit(obj.map(), obj);
+}
+
+void MarkCompactCollector::MarkDescriptorArrayFromWriteBarrier(
+    HeapObject host, DescriptorArray descriptors,
+    int number_of_own_descriptors) {
+  marking_visitor_->MarkDescriptorArrayFromWriteBarrier(
+      host, descriptors, number_of_own_descriptors);
+}
+
 void MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
   bool work_to_do = true;
   int iterations = 0;
@@ -1735,11 +1764,6 @@ void MarkCompactCollector::DrainMarkingWorklist() { ProcessMarkingWorklist(0); }
 template <MarkCompactCollector::MarkingWorklistProcessingMode mode>
 size_t MarkCompactCollector::ProcessMarkingWorklist(size_t bytes_to_process) {
   HeapObject object;
-  MarkingVisitor visitor(marking_state(), marking_worklist()->shared(),
-                         marking_worklist()->embedder(), weak_objects(), heap_,
-                         epoch(), Heap::GetBytecodeFlushMode(),
-                         heap_->local_embedder_heap_tracer()->InUse(),
-                         heap_->is_current_gc_forced());
   size_t bytes_processed = 0;
   while (!(object = marking_worklist()->Pop()).is_null()) {
     // Left trimming may result in grey or black filler objects on the marking
@@ -1764,7 +1788,7 @@ size_t MarkCompactCollector::ProcessMarkingWorklist(size_t bytes_to_process) {
                     kTrackNewlyDiscoveredObjects) {
       AddNewlyDiscovered(object);
     }
-    bytes_processed += visitor.Visit(object.map(), object);
+    bytes_processed += marking_visitor_->Visit(object.map(), object);
     if (bytes_to_process && bytes_processed >= bytes_to_process) {
       break;
     }

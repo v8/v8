@@ -68,11 +68,6 @@ IncrementalMarking::IncrementalMarking(
   SetState(STOPPED);
 }
 
-IncrementalMarking::~IncrementalMarking() {
-  // Avoid default destructor, which would be inlined in the header file
-  // and cause compile errors due marking_visitor_ not fully defined.
-}
-
 void IncrementalMarking::RecordWriteSlow(HeapObject obj, HeapObjectSlot slot,
                                          HeapObject value) {
   if (BaseRecordWrite(obj, value) && slot.address() != kNullAddress) {
@@ -105,7 +100,7 @@ void IncrementalMarking::MarkBlackAndVisitObjectDueToLayoutChange(
   TRACE_EVENT0("v8", "V8.GCIncrementalMarkingLayoutChange");
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_LAYOUT_CHANGE);
   marking_state()->WhiteToGrey(obj);
-  marking_visitor_->Visit(obj.map(), obj);
+  collector_->VisitObject(obj);
 }
 
 void IncrementalMarking::NotifyLeftTrimming(HeapObject from, HeapObject to) {
@@ -334,24 +329,11 @@ void IncrementalMarking::StartMarking() {
   }
 
   is_compacting_ = !FLAG_never_compact && collector_->StartCompaction();
+  collector_->StartMarking();
 
   SetState(MARKING);
 
   ActivateIncrementalWriteBarrier();
-
-  marking_visitor_ = std::make_unique<MarkCompactCollector::MarkingVisitor>(
-      collector_->marking_state(), collector_->marking_worklist()->shared(),
-      collector_->marking_worklist()->embedder(), collector_->weak_objects(),
-      heap_, collector_->epoch(), Heap::GetBytecodeFlushMode(),
-      heap_->local_embedder_heap_tracer()->InUse(),
-      heap_->is_current_gc_forced());
-
-// Marking bits are cleared by the sweeper.
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    collector_->VerifyMarkbitsAreClean();
-  }
-#endif
 
   heap_->isolate()->compilation_cache()->MarkCompactPrologue();
 
@@ -689,26 +671,8 @@ void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
 
 void IncrementalMarking::ProcessBlackAllocatedObject(HeapObject obj) {
   if (IsMarking() && marking_state()->IsBlack(obj)) {
-    RevisitObject(obj);
+    collector_->RevisitObject(obj);
   }
-}
-
-void IncrementalMarking::RevisitObject(HeapObject obj) {
-  DCHECK(IsMarking());
-  DCHECK(marking_state()->IsBlack(obj));
-  DCHECK_IMPLIES(MemoryChunk::FromHeapObject(obj)->IsFlagSet(
-                     MemoryChunk::HAS_PROGRESS_BAR),
-                 0u == MemoryChunk::FromHeapObject(obj)->ProgressBar());
-  MarkCompactCollector::MarkingVisitor::RevisitScope revisit(
-      marking_visitor_.get());
-  marking_visitor_->Visit(obj.map(), obj);
-}
-
-void IncrementalMarking::MarkDescriptorArrayFromWriteBarrier(
-    HeapObject host, DescriptorArray descriptors,
-    int number_of_own_descriptors) {
-  marking_visitor_->MarkDescriptorArrayFromWriteBarrier(
-      host, descriptors, number_of_own_descriptors);
 }
 
 StepResult IncrementalMarking::EmbedderStep(double duration_ms) {

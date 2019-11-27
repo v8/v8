@@ -89,7 +89,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   IncrementalMarking(Heap* heap,
                      MarkCompactCollector::MarkingWorklist* marking_worklist,
                      WeakObjects* weak_objects);
-  ~IncrementalMarking();
 
   MarkingState* marking_state() { return &marking_state_; }
 
@@ -199,13 +198,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   template <typename TSlot>
   V8_INLINE void RecordWrite(HeapObject obj, TSlot slot,
                              typename TSlot::TObject value);
-  void RevisitObject(HeapObject obj);
-  // Ensures that all descriptors int range [0, number_of_own_descripts)
-  // are visited.
-  void MarkDescriptorArrayFromWriteBarrier(HeapObject host,
-                                           DescriptorArray array,
-                                           int number_of_own_descriptors);
-
   void RecordWriteSlow(HeapObject obj, HeapObjectSlot slot, HeapObject value);
   void RecordWriteIntoCode(Code host, RelocInfo* rinfo, HeapObject value);
 
@@ -315,8 +307,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   MarkCompactCollector* const collector_;
   MarkCompactCollector::MarkingWorklist* const marking_worklist_;
   WeakObjects* weak_objects_;
-
-  std::unique_ptr<MarkCompactCollector::MarkingVisitor> marking_visitor_;
 
   double start_time_ms_;
   size_t initial_old_generation_size_;

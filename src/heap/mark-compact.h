@@ -586,6 +586,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void AbortCompaction();
 
+  void StartMarking();
+
   static inline bool IsOnEvacuationCandidate(Object obj) {
     return Page::FromAddress(obj.ptr())->IsEvacuationCandidate();
   }
@@ -673,6 +675,15 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   // Used by wrapper tracing.
   V8_INLINE void MarkExternallyReferencedObject(HeapObject obj);
+  // Used by incremental marking for object that change their layout.
+  void VisitObject(HeapObject obj);
+  // Used by incremental marking for black-allocated objects.
+  void RevisitObject(HeapObject obj);
+  // Ensures that all descriptors int range [0, number_of_own_descripts)
+  // are visited.
+  void MarkDescriptorArrayFromWriteBarrier(HeapObject host,
+                                           DescriptorArray array,
+                                           int number_of_own_descriptors);
 
   // Drains the main thread marking worklist until the specified number of
   // bytes are processed. If the number of bytes is zero, then the worklist
@@ -850,6 +861,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   MarkingWorklist marking_worklist_;
   WeakObjects weak_objects_;
   EphemeronMarking ephemeron_marking_;
+
+  std::unique_ptr<MarkingVisitor> marking_visitor_;
 
   // Candidates for pages that should be evacuated.
   std::vector<Page*> evacuation_candidates_;

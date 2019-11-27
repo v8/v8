@@ -6399,7 +6399,7 @@ void Heap::MarkingBarrierForDescriptorArraySlow(Heap* heap, HeapObject host,
   if (NumberOfMarkedDescriptors::decode(heap->mark_compact_collector()->epoch(),
                                         raw_marked) <
       number_of_own_descriptors) {
-    heap->incremental_marking()->MarkDescriptorArrayFromWriteBarrier(
+    heap->mark_compact_collector()->MarkDescriptorArrayFromWriteBarrier(
         host, descriptor_array, number_of_own_descriptors);
   }
 }
