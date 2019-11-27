@@ -48,6 +48,7 @@ IncrementalMarking::IncrementalMarking(
     Heap* heap, MarkCompactCollector::MarkingWorklist* marking_worklist,
     WeakObjects* weak_objects)
     : heap_(heap),
+      collector_(heap->mark_compact_collector()),
       marking_worklist_(marking_worklist),
       weak_objects_(weak_objects),
       initial_old_generation_size_(0),
@@ -76,7 +77,7 @@ void IncrementalMarking::RecordWriteSlow(HeapObject obj, HeapObjectSlot slot,
                                          HeapObject value) {
   if (BaseRecordWrite(obj, value) && slot.address() != kNullAddress) {
     // Object is not going to be rescanned we need to record the slot.
-    heap_->mark_compact_collector()->RecordSlot(obj, slot, value);
+    collector_->RecordSlot(obj, slot, value);
   }
 }
 
@@ -95,7 +96,7 @@ void IncrementalMarking::RecordWriteIntoCode(Code host, RelocInfo* rinfo,
   DCHECK(IsMarking());
   if (BaseRecordWrite(host, value)) {
     // Object is not going to be rescanned.  We need to record the slot.
-    heap_->mark_compact_collector()->RecordRelocSlot(host, rinfo, value);
+    collector_->RecordRelocSlot(host, rinfo, value);
   }
 }
 
@@ -300,7 +301,7 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   should_hurry_ = false;
   was_activated_ = true;
 
-  if (!heap_->mark_compact_collector()->sweeping_in_progress()) {
+  if (!collector_->sweeping_in_progress()) {
     StartMarking();
   } else {
     if (FLAG_trace_incremental_marking) {
@@ -332,26 +333,23 @@ void IncrementalMarking::StartMarking() {
         "[IncrementalMarking] Start marking\n");
   }
 
-  is_compacting_ =
-      !FLAG_never_compact && heap_->mark_compact_collector()->StartCompaction();
+  is_compacting_ = !FLAG_never_compact && collector_->StartCompaction();
 
   SetState(MARKING);
 
   ActivateIncrementalWriteBarrier();
 
-  MarkCompactCollector* collector = heap_->mark_compact_collector();
-
   marking_visitor_ = std::make_unique<MarkCompactCollector::MarkingVisitor>(
-      collector->marking_state(), collector->marking_worklist()->shared(),
-      collector->marking_worklist()->embedder(), collector->weak_objects(),
-      heap_, collector->epoch(), Heap::GetBytecodeFlushMode(),
+      collector_->marking_state(), collector_->marking_worklist()->shared(),
+      collector_->marking_worklist()->embedder(), collector_->weak_objects(),
+      heap_, collector_->epoch(), Heap::GetBytecodeFlushMode(),
       heap_->local_embedder_heap_tracer()->InUse(),
       heap_->is_current_gc_forced());
 
 // Marking bits are cleared by the sweeper.
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    heap_->mark_compact_collector()->VerifyMarkbitsAreClean();
+    collector_->VerifyMarkbitsAreClean();
   }
 #endif
 
@@ -713,32 +711,6 @@ void IncrementalMarking::MarkDescriptorArrayFromWriteBarrier(
       host, descriptors, number_of_own_descriptors);
 }
 
-intptr_t IncrementalMarking::ProcessMarkingWorklist(
-    intptr_t bytes_to_process, ForceCompletionAction completion) {
-  intptr_t bytes_processed = 0;
-  while (bytes_processed < bytes_to_process || completion == FORCE_COMPLETION) {
-    HeapObject obj = marking_worklist()->Pop();
-    if (obj.is_null()) break;
-    // Left trimming may result in grey or black filler objects on the marking
-    // worklist. Ignore these objects.
-    if (obj.IsFreeSpaceOrFiller()) {
-      // Due to copying mark bits and the fact that grey and black have their
-      // first bit set, one word fillers are always black.
-      DCHECK_IMPLIES(
-          obj.map() == ReadOnlyRoots(heap()).one_pointer_filler_map(),
-          marking_state()->IsBlack(obj));
-      // Other fillers may be black or grey depending on the color of the object
-      // that was trimmed.
-      DCHECK_IMPLIES(
-          obj.map() != ReadOnlyRoots(heap()).one_pointer_filler_map(),
-          marking_state()->IsBlackOrGrey(obj));
-      continue;
-    }
-    bytes_processed += marking_visitor_->Visit(obj.map(), obj);
-  }
-  return bytes_processed;
-}
-
 StepResult IncrementalMarking::EmbedderStep(double duration_ms) {
   if (!ShouldDoEmbedderStep()) return StepResult::kNoImmediateWork;
 
@@ -785,9 +757,7 @@ void IncrementalMarking::Hurry() {
         heap()->isolate()->PrintWithTimestamp("[IncrementalMarking] Hurry\n");
       }
     }
-    // TODO(gc) hurry can mark objects it encounters black as mutator
-    // was stopped.
-    ProcessMarkingWorklist(0, FORCE_COMPLETION);
+    collector_->ProcessMarkingWorklist(0);
     SetState(COMPLETE);
     if (FLAG_trace_incremental_marking) {
       double end = heap_->MonotonicallyIncreasingTimeInMs();
@@ -965,12 +935,12 @@ StepResult IncrementalMarking::AdvanceWithDeadline(
 
 void IncrementalMarking::FinalizeSweeping() {
   DCHECK(state_ == SWEEPING);
-  if (heap_->mark_compact_collector()->sweeping_in_progress() &&
+  if (collector_->sweeping_in_progress() &&
       (!FLAG_concurrent_sweeping ||
-       !heap_->mark_compact_collector()->sweeper()->AreSweeperTasksRunning())) {
-    heap_->mark_compact_collector()->EnsureSweepingCompleted();
+       !collector_->sweeper()->AreSweeperTasksRunning())) {
+    collector_->EnsureSweepingCompleted();
   }
-  if (!heap_->mark_compact_collector()->sweeping_in_progress()) {
+  if (!collector_->sweeping_in_progress()) {
 #ifdef DEBUG
     heap_->VerifyCountersAfterSweeping();
 #endif
@@ -1124,8 +1094,8 @@ StepResult IncrementalMarking::V8Step(double max_step_size_in_ms,
       result = StepResult::kNoImmediateWork;
     }
 
-    bytes_processed =
-        ProcessMarkingWorklist(Max(bytes_to_process, kMinStepSizeInBytes));
+    bytes_processed = collector_->ProcessMarkingWorklist(
+        Max(bytes_to_process, kMinStepSizeInBytes));
 
     bytes_marked_ += bytes_processed;
 

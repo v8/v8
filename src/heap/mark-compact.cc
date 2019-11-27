@@ -1611,7 +1611,7 @@ bool MarkCompactCollector::ProcessEphemerons() {
 
   // Drain marking worklist and push discovered ephemerons into
   // discovered_ephemerons.
-  ProcessMarkingWorklist();
+  DrainMarkingWorklist();
 
   // Drain discovered_ephemerons (filled in the drain MarkingWorklist-phase
   // before) and push ephemerons where key and value are still unreachable into
@@ -1661,9 +1661,9 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING);
       // Drain marking worklist and push all discovered objects into
       // newly_discovered.
-      ProcessMarkingWorklistInternal<
+      ProcessMarkingWorklist<
           MarkCompactCollector::MarkingWorklistProcessingMode::
-              kTrackNewlyDiscoveredObjects>();
+              kTrackNewlyDiscoveredObjects>(0);
     }
 
     while (
@@ -1730,19 +1730,17 @@ void MarkCompactCollector::PerformWrapperTracing() {
   }
 }
 
-void MarkCompactCollector::ProcessMarkingWorklist() {
-  ProcessMarkingWorklistInternal<
-      MarkCompactCollector::MarkingWorklistProcessingMode::kDefault>();
-}
+void MarkCompactCollector::DrainMarkingWorklist() { ProcessMarkingWorklist(0); }
 
 template <MarkCompactCollector::MarkingWorklistProcessingMode mode>
-void MarkCompactCollector::ProcessMarkingWorklistInternal() {
+size_t MarkCompactCollector::ProcessMarkingWorklist(size_t bytes_to_process) {
   HeapObject object;
   MarkingVisitor visitor(marking_state(), marking_worklist()->shared(),
                          marking_worklist()->embedder(), weak_objects(), heap_,
                          epoch(), Heap::GetBytecodeFlushMode(),
                          heap_->local_embedder_heap_tracer()->InUse(),
                          heap_->is_current_gc_forced());
+  size_t bytes_processed = 0;
   while (!(object = marking_worklist()->Pop()).is_null()) {
     // Left trimming may result in grey or black filler objects on the marking
     // worklist. Ignore these objects.
@@ -1766,8 +1764,12 @@ void MarkCompactCollector::ProcessMarkingWorklistInternal() {
                     kTrackNewlyDiscoveredObjects) {
       AddNewlyDiscovered(object);
     }
-    visitor.Visit(object.map(), object);
+    bytes_processed += visitor.Visit(object.map(), object);
+    if (bytes_to_process && bytes_processed >= bytes_to_process) {
+      break;
+    }
   }
+  return bytes_processed;
 }
 
 bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
@@ -1875,11 +1877,11 @@ void MarkCompactCollector::MarkLiveObjects() {
     if (FLAG_parallel_marking) {
       heap_->concurrent_marking()->RescheduleTasksIfNeeded();
     }
-    ProcessMarkingWorklist();
+    DrainMarkingWorklist();
 
     FinishConcurrentMarking(
         ConcurrentMarking::StopRequest::COMPLETE_ONGOING_TASKS);
-    ProcessMarkingWorklist();
+    DrainMarkingWorklist();
   }
 
   {
@@ -1898,7 +1900,7 @@ void MarkCompactCollector::MarkLiveObjects() {
         // concurrent markers. As a result this call needs to happen at least
         // once.
         PerformWrapperTracing();
-        ProcessMarkingWorklist();
+        DrainMarkingWorklist();
       } while (!heap_->local_embedder_heap_tracer()->IsRemoteTracingDone() ||
                !marking_worklist()->IsEmbedderEmpty());
       DCHECK(marking_worklist()->IsEmbedderEmpty());
@@ -1927,7 +1929,7 @@ void MarkCompactCollector::MarkLiveObjects() {
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES);
       heap()->isolate()->global_handles()->IterateWeakRootsIdentifyFinalizers(
           &IsUnmarkedHeapObject);
-      ProcessMarkingWorklist();
+      DrainMarkingWorklist();
     }
 
     // Process finalizers, effectively keeping them alive until the next
@@ -1937,7 +1939,7 @@ void MarkCompactCollector::MarkLiveObjects() {
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS);
       heap()->isolate()->global_handles()->IterateWeakRootsForFinalizers(
           &root_visitor);
-      ProcessMarkingWorklist();
+      DrainMarkingWorklist();
     }
 
     // Repeat ephemeron processing from the newly marked objects.
@@ -4829,7 +4831,7 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
   // Mark rest on the main thread.
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_WEAK);
-    ProcessMarkingWorklist();
+    DrainMarkingWorklist();
   }
 
   {
@@ -4842,11 +4844,11 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
         ->global_handles()
         ->IterateYoungWeakUnmodifiedRootsForPhantomHandles(
             &root_visitor, &IsUnmarkedObjectForYoungGeneration);
-    ProcessMarkingWorklist();
+    DrainMarkingWorklist();
   }
 }
 
-void MinorMarkCompactCollector::ProcessMarkingWorklist() {
+void MinorMarkCompactCollector::DrainMarkingWorklist() {
   MarkingWorklist::View marking_worklist(worklist(), kMainMarker);
   HeapObject object;
   while (marking_worklist.Pop(&object)) {

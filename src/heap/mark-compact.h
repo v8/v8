@@ -202,7 +202,7 @@ class MarkCompactCollectorBase {
   virtual void MarkLiveObjects() = 0;
   // Mark objects reachable (transitively) from objects in the marking
   // work list.
-  virtual void ProcessMarkingWorklist() = 0;
+  virtual void DrainMarkingWorklist() = 0;
   // Clear non-live references held in side data structures.
   virtual void ClearNonLiveReferences() = 0;
   virtual void EvacuatePrologue() = 0;
@@ -554,6 +554,11 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     kClearMarkbits,
   };
 
+  enum class MarkingWorklistProcessingMode {
+    kDefault,
+    kTrackNewlyDiscoveredObjects
+  };
+
   MarkingState* marking_state() { return &marking_state_; }
 
   NonAtomicMarkingState* non_atomic_marking_state() {
@@ -669,6 +674,13 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Used by wrapper tracing.
   V8_INLINE void MarkExternallyReferencedObject(HeapObject obj);
 
+  // Drains the main thread marking worklist until the specified number of
+  // bytes are processed. If the number of bytes is zero, then the worklist
+  // is drained until it is empty.
+  template <MarkingWorklistProcessingMode mode =
+                MarkingWorklistProcessingMode::kDefault>
+  size_t ProcessMarkingWorklist(size_t bytes_to_process);
+
  private:
   void ComputeEvacuationHeuristics(size_t area_size,
                                    int* target_fragmentation_percent,
@@ -707,15 +719,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   // Drains the main thread marking work list. Will mark all pending objects
   // if no concurrent threads are running.
-  void ProcessMarkingWorklist() override;
-
-  enum class MarkingWorklistProcessingMode {
-    kDefault,
-    kTrackNewlyDiscoveredObjects
-  };
-
-  template <MarkingWorklistProcessingMode mode>
-  void ProcessMarkingWorklistInternal();
+  void DrainMarkingWorklist() override;
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
@@ -924,7 +928,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void MarkLiveObjects() override;
   void MarkRootSetInParallel(RootMarkingVisitor* root_visitor);
   V8_INLINE void MarkRootObject(HeapObject obj);
-  void ProcessMarkingWorklist() override;
+  void DrainMarkingWorklist() override;
   void ClearNonLiveReferences() override;
 
   void EvacuatePrologue() override;

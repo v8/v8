@@ -32,8 +32,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   enum CompletionAction { GC_VIA_STACK_GUARD, NO_GC_VIA_STACK_GUARD };
 
-  enum ForceCompletionAction { FORCE_COMPLETION, DO_NOT_FORCE_COMPLETION };
-
   enum GCRequestType { NONE, COMPLETE_MARKING, FINALIZATION };
 
   using MarkingState = MarkCompactCollector::MarkingState;
@@ -283,10 +281,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void DeactivateIncrementalWriteBarrierForSpace(NewSpace* space);
   void DeactivateIncrementalWriteBarrier();
 
-  V8_INLINE intptr_t ProcessMarkingWorklist(
-      intptr_t bytes_to_process,
-      ForceCompletionAction completion = DO_NOT_FORCE_COMPLETION);
-
   // Updates scheduled_bytes_to_mark_ to ensure marking progress based on
   // time.
   void ScheduleBytesToMarkBasedOnTime(double time_ms);
@@ -318,6 +312,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   }
 
   Heap* const heap_;
+  MarkCompactCollector* const collector_;
   MarkCompactCollector::MarkingWorklist* const marking_worklist_;
   WeakObjects* weak_objects_;
 
