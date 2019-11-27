@@ -6327,6 +6327,7 @@ class V8_EXPORT FunctionTemplate : public Template {
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect);
 
   /** Get a template included in the snapshot by index. */
+  V8_DEPRECATED("Use v8::Isolate::GetDataFromSnapshotOnce instead")
   static MaybeLocal<FunctionTemplate> FromSnapshot(Isolate* isolate,
                                                    size_t index);
 
@@ -6618,6 +6619,7 @@ class V8_EXPORT ObjectTemplate : public Template {
       Local<FunctionTemplate> constructor = Local<FunctionTemplate>());
 
   /** Get a template included in the snapshot by index. */
+  V8_DEPRECATED("Use v8::Isolate::GetDataFromSnapshotOnce instead")
   static MaybeLocal<ObjectTemplate> FromSnapshot(Isolate* isolate,
                                                  size_t index);
 
@@ -9596,6 +9598,7 @@ class V8_EXPORT SnapshotCreator {
    * Add a template to be included in the snapshot blob.
    * \returns the index of the template in the snapshot blob.
    */
+  V8_DEPRECATED("use AddData instead")
   size_t AddTemplate(Local<Template> template_obj);
 
   /**

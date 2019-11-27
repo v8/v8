@@ -3175,8 +3175,8 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
                creator.AddContext(context, v8::SerializeInternalFieldsCallback(
                                                SerializeInternalFields,
                                                reinterpret_cast<void*>(2000))));
-      CHECK_EQ(0u, creator.AddTemplate(callback));
-      CHECK_EQ(1u, creator.AddTemplate(global_template));
+      CHECK_EQ(0u, creator.AddData(callback));
+      CHECK_EQ(1u, creator.AddData(global_template));
     }
     blob =
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
@@ -3211,7 +3211,8 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
 
         // Retrieve the snapshotted object template.
         v8::Local<v8::ObjectTemplate> obj_template =
-            v8::ObjectTemplate::FromSnapshot(isolate, 1).ToLocalChecked();
+            isolate->GetDataFromSnapshotOnce<v8::ObjectTemplate>(1)
+                .ToLocalChecked();
         CHECK(!obj_template.IsEmpty());
         v8::Local<v8::Object> object =
             obj_template->NewInstance(context).ToLocalChecked();
@@ -3223,7 +3224,8 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
 
         // Retrieve the snapshotted function template.
         v8::Local<v8::FunctionTemplate> fun_template =
-            v8::FunctionTemplate::FromSnapshot(isolate, 0).ToLocalChecked();
+            isolate->GetDataFromSnapshotOnce<v8::FunctionTemplate>(0)
+                .ToLocalChecked();
         CHECK(!fun_template.IsEmpty());
         v8::Local<v8::Function> fun =
             fun_template->GetFunction(context).ToLocalChecked();
@@ -3269,9 +3271,11 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
                  v8::Local<v8::External>::Cast(b2)->Value());
         CHECK(c2->IsInt32() && c2->Int32Value(context).FromJust() == 35);
 
-        // Accessing out of bound returns empty MaybeHandle.
-        CHECK(v8::ObjectTemplate::FromSnapshot(isolate, 2).IsEmpty());
-        CHECK(v8::FunctionTemplate::FromSnapshot(isolate, 2).IsEmpty());
+        // Calling GetDataFromSnapshotOnce again returns an empty MaybeLocal.
+        CHECK(
+            isolate->GetDataFromSnapshotOnce<v8::ObjectTemplate>(1).IsEmpty());
+        CHECK(isolate->GetDataFromSnapshotOnce<v8::FunctionTemplate>(0)
+                  .IsEmpty());
         CHECK(v8::Context::FromSnapshot(isolate, 1).IsEmpty());
 
         for (auto data : deserialized_data) delete data;
