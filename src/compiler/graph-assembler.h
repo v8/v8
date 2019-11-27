@@ -110,6 +110,7 @@ class BasicBlock;
   V(NaN)                                   \
   V(NoContext)                             \
   V(Null)                                  \
+  V(One)                                   \
   V(TheHole)                               \
   V(ToNumberBuiltin)                       \
   V(True)                                  \
@@ -265,8 +266,13 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* NumberLessThan(Node* lhs, Node* rhs);
   Node* NumberAdd(Node* lhs, Node* rhs);
   Node* StringSubstring(Node* string, Node* from, Node* to);
+  Node* ObjectIsCallable(Node* value);
+  Node* NumberIsFloat64Hole(Node* value);
 
   Node* TypeGuard(Type type, Node* value);
+  Node* Checkpoint(Node* frame_state);
+  Node* LoopExit(Node* loop_header);
+  Node* LoopExitEffect();
 
   Node* Store(StoreRepresentation rep, Node* object, Node* offset, Node* value);
   Node* Load(MachineType type, Node* object, Node* offset);
@@ -300,6 +306,11 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   template <typename... Vars>
   void Goto(GraphAssemblerLabel<sizeof...(Vars)>* label, Vars...);
 
+  void Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
+              GraphAssemblerLabel<0u>* if_false, BranchHint hint,
+              IsSafetyCheck is_safety_check = IsSafetyCheck::kNoSafetyCheck);
+  // Branch hints in this version are inferred from if_true/if_false deferred
+  // states.
   void Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
               GraphAssemblerLabel<0u>* if_false,
               IsSafetyCheck is_safety_check = IsSafetyCheck::kNoSafetyCheck);

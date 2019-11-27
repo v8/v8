@@ -27,6 +27,7 @@ class CommonOperatorBuilder;
 class CompilationDependencies;
 struct FeedbackSource;
 struct FieldAccess;
+class JSCallReducerAssembler;
 class JSGraph;
 class JSHeapBroker;
 class JSOperatorBuilder;
@@ -196,6 +197,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Reduction ReduceNumberConstructor(Node* node);
   Reduction ReduceBigIntAsUintN(Node* node);
+
+  // The pendant to ReplaceWithValue when using GraphAssembler-based reductions.
+  Reduction ReplaceWithSubgraph(JSCallReducerAssembler* gasm, Node* subgraph);
 
   // Helper to verify promise receiver maps are as expected.
   // On bailout from a reduction, be sure to return inference.NoChange().

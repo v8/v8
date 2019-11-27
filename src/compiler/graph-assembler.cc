@@ -532,9 +532,32 @@ Node* GraphAssembler::StringSubstring(Node* string, Node* from, Node* to) {
                                   to, effect(), control()));
 }
 
+Node* GraphAssembler::ObjectIsCallable(Node* value) {
+  return AddNode(graph()->NewNode(simplified()->ObjectIsCallable(), value));
+}
+
+Node* GraphAssembler::NumberIsFloat64Hole(Node* value) {
+  return AddNode(graph()->NewNode(simplified()->NumberIsFloat64Hole(), value));
+}
+
 Node* GraphAssembler::TypeGuard(Type type, Node* value) {
   return AddNode(
       graph()->NewNode(common()->TypeGuard(type), value, effect(), control()));
+}
+
+Node* GraphAssembler::Checkpoint(Node* frame_state) {
+  return AddNode(graph()->NewNode(common()->Checkpoint(), frame_state, effect(),
+                                  control()));
+}
+
+Node* GraphAssembler::LoopExit(Node* loop_header) {
+  return AddNode(
+      graph()->NewNode(common()->LoopExit(), control(), loop_header));
+}
+
+Node* GraphAssembler::LoopExitEffect() {
+  return AddNode(
+      graph()->NewNode(common()->LoopExitEffect(), effect(), control()));
 }
 
 Node* GraphAssembler::DebugBreak() {
@@ -638,12 +661,18 @@ Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
 void GraphAssembler::Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
                             GraphAssemblerLabel<0u>* if_false,
                             IsSafetyCheck is_safety_check) {
-  DCHECK_NOT_NULL(control());
-
   BranchHint hint = BranchHint::kNone;
   if (if_true->IsDeferred() != if_false->IsDeferred()) {
     hint = if_false->IsDeferred() ? BranchHint::kTrue : BranchHint::kFalse;
   }
+
+  Branch(condition, if_true, if_false, hint, is_safety_check);
+}
+
+void GraphAssembler::Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
+                            GraphAssemblerLabel<0u>* if_false, BranchHint hint,
+                            IsSafetyCheck is_safety_check) {
+  DCHECK_NOT_NULL(control());
 
   Node* branch = graph()->NewNode(common()->Branch(hint, is_safety_check),
                                   condition, control());
