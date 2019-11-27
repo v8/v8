@@ -102,15 +102,17 @@ TEST_MAP = {
   ],
 }
 
-# Double the timeout for these:
-SLOW_ARCHS = ["arm",
-              "mips",
-              "mipsel",
-              "mips64",
-              "mips64el",
-              "s390",
-              "s390x",
-              "arm64"]
+# Increase the timeout for these:
+SLOW_ARCHS = [
+  "arm",
+  "arm64",
+  "mips",
+  "mipsel",
+  "mips64",
+  "mips64el",
+  "s390",
+  "s390x",
+]
 
 
 class ModeConfig(object):
@@ -720,7 +722,7 @@ class BaseTestRunner(object):
     """Increases timeout for slow build configurations."""
     factor = self.mode_options.timeout_scalefactor
     if self.build_config.arch in SLOW_ARCHS:
-      factor *= 4
+      factor *= 4.5
     if self.build_config.lite_mode:
       factor *= 2
     if self.build_config.predictable:
