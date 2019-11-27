@@ -524,7 +524,8 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
 
   // Add name accessor to the class object if necessary.
   bool install_class_name_accessor = false;
-  if (!expr->has_name_static_property()) {
+  if (!expr->has_name_static_property() &&
+      expr->constructor()->has_shared_name()) {
     if (static_desc.HasDictionaryProperties()) {
       // Install class name accessor if necessary during class literal
       // instantiation.

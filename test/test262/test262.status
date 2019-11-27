@@ -512,6 +512,10 @@
   'intl402/Locale/constructor-non-iana-canon': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9646
+  'built-ins/ThrowTypeError/name': [FAIL],
+  'language/expressions/class/name': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=9742
   'intl402/Locale/getters': [FAIL],
 

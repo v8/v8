@@ -650,21 +650,17 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic() {
   Handle<JSFunction> function = factory()->NewFunction(args);
   function->shared().DontAdaptArguments();
 
-  PropertyAttributes ro_attribs =
-      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-
-  // %ThrowTypeError% must have a name property with an empty string value.
-  // Per spec, ThrowTypeError's name must also be non-configurable, otherwise
-  // we could omit explicitly setting a property attribute here and just fall
-  // back to the default name attribute on function.
-  JSObject::SetOwnPropertyIgnoreAttributes(
-      function, factory()->name_string(), factory()->empty_string(), ro_attribs)
-      .Assert();
+  // %ThrowTypeError% must not have a name property.
+  if (JSReceiver::DeleteProperty(function, factory()->name_string())
+          .IsNothing()) {
+    DCHECK(false);
+  }
 
   // length needs to be non configurable.
   Handle<Object> value(Smi::FromInt(function->length()), isolate());
-  JSObject::SetOwnPropertyIgnoreAttributes(function, factory()->length_string(),
-                                           value, ro_attribs)
+  JSObject::SetOwnPropertyIgnoreAttributes(
+      function, factory()->length_string(), value,
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY))
       .Assert();
 
   if (JSObject::PreventExtensions(function, kThrowOnError).IsNothing()) {
