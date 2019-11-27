@@ -6832,7 +6832,8 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
           Code::JS_TO_JS_FUNCTION, std::move(debug_name),
           AssemblerOptions::Default(isolate)));
 
-  if (job->ExecuteJob() == CompilationJob::FAILED ||
+  if (job->ExecuteJob(isolate->counters()->runtime_call_stats()) ==
+          CompilationJob::FAILED ||
       job->FinalizeJob(isolate) == CompilationJob::FAILED) {
     return {};
   }
@@ -6888,7 +6889,8 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
           Code::C_WASM_ENTRY, std::move(debug_name),
           AssemblerOptions::Default(isolate)));
 
-  if (job->ExecuteJob() == CompilationJob::FAILED ||
+  if (job->ExecuteJob(isolate->counters()->runtime_call_stats()) ==
+          CompilationJob::FAILED ||
       job->FinalizeJob(isolate) == CompilationJob::FAILED) {
     return {};
   }

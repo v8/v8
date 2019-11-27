@@ -225,12 +225,13 @@ CompilationJob::Status OptimizedCompilationJob::PrepareJob(Isolate* isolate) {
   return UpdateState(PrepareJobImpl(isolate), State::kReadyToExecute);
 }
 
-CompilationJob::Status OptimizedCompilationJob::ExecuteJob() {
+CompilationJob::Status OptimizedCompilationJob::ExecuteJob(
+    RuntimeCallStats* stats) {
   DisallowHeapAccess no_heap_access;
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToExecute);
   ScopedTimer t(&time_taken_to_execute_);
-  return UpdateState(ExecuteJobImpl(), State::kReadyToFinalize);
+  return UpdateState(ExecuteJobImpl(stats), State::kReadyToFinalize);
 }
 
 CompilationJob::Status OptimizedCompilationJob::FinalizeJob(Isolate* isolate) {
@@ -742,7 +743,8 @@ bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate) {
                "V8.OptimizeNonConcurrent");
 
   if (job->PrepareJob(isolate) != CompilationJob::SUCCEEDED ||
-      job->ExecuteJob() != CompilationJob::SUCCEEDED ||
+      job->ExecuteJob(isolate->counters()->runtime_call_stats()) !=
+          CompilationJob::SUCCEEDED ||
       job->FinalizeJob(isolate) != CompilationJob::SUCCEEDED) {
     if (FLAG_trace_opt) {
       PrintF("[aborted optimizing ");

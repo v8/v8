@@ -76,7 +76,8 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
             dispatcher_->recompilation_delay_));
       }
 
-      dispatcher_->CompileNext(dispatcher_->NextInput(true));
+      dispatcher_->CompileNext(dispatcher_->NextInput(true),
+                               runtime_call_stats_scope.Get());
     }
     {
       base::MutexGuard lock_guard(&dispatcher_->ref_count_mutex_);
@@ -122,11 +123,12 @@ OptimizedCompilationJob* OptimizingCompileDispatcher::NextInput(
   return job;
 }
 
-void OptimizingCompileDispatcher::CompileNext(OptimizedCompilationJob* job) {
+void OptimizingCompileDispatcher::CompileNext(OptimizedCompilationJob* job,
+                                              RuntimeCallStats* stats) {
   if (!job) return;
 
   // The function may have already been optimized by OSR.  Simply continue.
-  CompilationJob::Status status = job->ExecuteJob();
+  CompilationJob::Status status = job->ExecuteJob(stats);
   USE(status);  // Prevent an unused-variable error.
 
   {

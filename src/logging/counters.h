@@ -1175,6 +1175,10 @@ class WorkerThreadRuntimeCallStats final {
   base::Mutex mutex_;
   std::vector<std::unique_ptr<RuntimeCallStats>> tables_;
   base::Optional<base::Thread::LocalStorageKey> tls_key_;
+  // Since this is for creating worker thread runtime-call stats, record the
+  // main thread ID to ensure we never create a worker RCS table for the main
+  // thread.
+  ThreadId isolate_thread_id_;
 };
 
 // Creating a WorkerThreadRuntimeCallStatsScope will provide a thread-local

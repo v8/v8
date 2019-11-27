@@ -514,6 +514,16 @@ class PipelineData {
     return roots_relative_addressing_enabled_;
   }
 
+  // RuntimeCallStats that is only available during job execution but not
+  // finalization.
+  // TODO(delphick): Currently even during execution this can be nullptr, due to
+  // JSToWasmWrapperCompilationUnit::Execute. Once a table can be extracted
+  // there, this method can DCHECK that it is never nullptr.
+  RuntimeCallStats* runtime_call_stats() const { return runtime_call_stats_; }
+  void set_runtime_call_stats(RuntimeCallStats* stats) {
+    runtime_call_stats_ = stats;
+  }
+
  private:
   Isolate* const isolate_;
   wasm::WasmEngine* const wasm_engine_ = nullptr;
@@ -585,6 +595,7 @@ class PipelineData {
   // state. Calculated during instruction selection, applied during code
   // generation.
   size_t max_unoptimized_frame_height_ = 0;
+  RuntimeCallStats* runtime_call_stats_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(PipelineData);
 };
@@ -946,7 +957,7 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
 
  protected:
   Status PrepareJobImpl(Isolate* isolate) final;
-  Status ExecuteJobImpl() final;
+  Status ExecuteJobImpl(RuntimeCallStats* stats) final;
   Status FinalizeJobImpl(Isolate* isolate) final;
 
   // Registers weak object to optimized code dependencies.
@@ -1061,7 +1072,28 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   return SUCCEEDED;
 }
 
-PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl() {
+namespace {
+// Ensure that the RuntimeStats table is set on the PipelineData for duration of
+// the Execute phase and unset immediately afterwards.
+class PipelineExecuteJobScope {
+ public:
+  PipelineExecuteJobScope(PipelineData* data, RuntimeCallStats* stats)
+      : data_(data) {
+    data_->set_runtime_call_stats(stats);
+  }
+
+  ~PipelineExecuteJobScope() { data_->set_runtime_call_stats(nullptr); }
+
+ private:
+  PipelineData* data_;
+};
+}  // namespace
+
+PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
+    RuntimeCallStats* stats) {
+  // Ensure that the RuntimeCallStats table is only available during execution
+  // and not during finalization as that might be on a different thread.
+  PipelineExecuteJobScope scope(&data_, stats);
   if (FLAG_concurrent_inlining) {
     if (!pipeline_.CreateGraph()) {
       return AbortOptimization(BailoutReason::kGraphBuildingFailed);
@@ -1077,6 +1109,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl() {
   if (!success) return FAILED;
 
   pipeline_.AssembleCode(linkage_);
+
   return SUCCEEDED;
 }
 
@@ -1154,7 +1187,7 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
 
  protected:
   Status PrepareJobImpl(Isolate* isolate) final;
-  Status ExecuteJobImpl() final;
+  Status ExecuteJobImpl(RuntimeCallStats* stats) final;
   Status FinalizeJobImpl(Isolate* isolate) final;
 
  private:
@@ -1188,7 +1221,8 @@ CompilationJob::Status WasmHeapStubCompilationJob::PrepareJobImpl(
   UNREACHABLE();
 }
 
-CompilationJob::Status WasmHeapStubCompilationJob::ExecuteJobImpl() {
+CompilationJob::Status WasmHeapStubCompilationJob::ExecuteJobImpl(
+    RuntimeCallStats* stats) {
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(
@@ -3137,6 +3171,9 @@ std::ostream& operator<<(std::ostream& out,
 void PipelineImpl::AssembleCode(Linkage* linkage,
                                 std::unique_ptr<AssemblerBuffer> buffer) {
   PipelineData* data = this->data_;
+  RuntimeCallTimerScope scope(data_->runtime_call_stats(),
+                              RuntimeCallCounterId::kOptimizeAssembleCode,
+                              RuntimeCallStats::kThreadSpecific);
   data->BeginPhaseKind("V8.TFCodeGeneration");
   data->InitializeCodeGenerator(linkage, std::move(buffer));
 
