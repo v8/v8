@@ -284,7 +284,6 @@ class V8_EXPORT_PRIVATE ProfileNode {
   unsigned self_ticks() const { return self_ticks_; }
   const std::vector<ProfileNode*>* children() const { return &children_list_; }
   unsigned id() const { return id_; }
-  unsigned function_id() const;
   ProfileNode* parent() const { return parent_; }
   int line_number() const {
     return line_number_ != 0 ? line_number_ : entry_->line_number();
@@ -354,7 +353,6 @@ class V8_EXPORT_PRIVATE ProfileTree {
       ContextFilter* context_filter = nullptr);
   ProfileNode* root() const { return root_; }
   unsigned next_node_id() { return next_node_id_++; }
-  unsigned GetFunctionId(const ProfileNode* node);
 
   void Print() {
     root_->Print(0);
@@ -377,9 +375,6 @@ class V8_EXPORT_PRIVATE ProfileTree {
   unsigned next_node_id_;
   ProfileNode* root_;
   Isolate* isolate_;
-
-  unsigned next_function_id_;
-  std::unordered_map<CodeEntry*, unsigned> function_ids_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileTree);
 };

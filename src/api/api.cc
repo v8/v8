@@ -10188,10 +10188,6 @@ unsigned CpuProfileNode::GetHitCount() const {
   return reinterpret_cast<const i::ProfileNode*>(this)->self_ticks();
 }
 
-unsigned CpuProfileNode::GetCallUid() const {
-  return reinterpret_cast<const i::ProfileNode*>(this)->function_id();
-}
-
 unsigned CpuProfileNode::GetNodeId() const {
   return reinterpret_cast<const i::ProfileNode*>(this)->id();
 }
