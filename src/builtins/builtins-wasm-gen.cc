@@ -81,7 +81,7 @@ TF_BUILTIN(WasmAtomicNotify, WasmBuiltinsAssembler) {
   TNode<Smi> result_smi =
       UncheckedCast<Smi>(CallRuntime(Runtime::kWasmAtomicNotify, context,
                                      instance, address_number, count_number));
-  ReturnRaw(SmiToInt32(result_smi));
+  Return(Unsigned(SmiToInt32(result_smi)));
 }
 
 TF_BUILTIN(WasmI32AtomicWait, WasmBuiltinsAssembler) {
@@ -101,7 +101,7 @@ TF_BUILTIN(WasmI32AtomicWait, WasmBuiltinsAssembler) {
   TNode<Smi> result_smi = UncheckedCast<Smi>(
       CallRuntime(Runtime::kWasmI32AtomicWait, context, instance,
                   address_number, expected_value_number, timeout_number));
-  ReturnRaw(SmiToInt32(result_smi));
+  Return(Unsigned(SmiToInt32(result_smi)));
 }
 
 TF_BUILTIN(WasmI64AtomicWait, WasmBuiltinsAssembler) {
@@ -126,7 +126,7 @@ TF_BUILTIN(WasmI64AtomicWait, WasmBuiltinsAssembler) {
   TNode<Smi> result_smi = UncheckedCast<Smi>(CallRuntime(
       Runtime::kWasmI64AtomicWait, context, instance, address_number,
       expected_value_high_number, expected_value_low_number, timeout_number));
-  ReturnRaw(SmiToInt32(result_smi));
+  Return(Unsigned(SmiToInt32(result_smi)));
 }
 
 TF_BUILTIN(WasmMemoryGrow, WasmBuiltinsAssembler) {
@@ -143,11 +143,10 @@ TF_BUILTIN(WasmMemoryGrow, WasmBuiltinsAssembler) {
   TNode<Object> context = LoadContextFromInstance(instance);
   TNode<Smi> ret_smi = UncheckedCast<Smi>(
       CallRuntime(Runtime::kWasmMemoryGrow, context, instance, num_pages_smi));
-  TNode<Int32T> ret = SmiToInt32(ret_smi);
-  ReturnRaw(ret);
+  Return(SmiToInt32(ret_smi));
 
   BIND(&num_pages_out_of_range);
-  ReturnRaw(Int32Constant(-1));
+  Return(Int32Constant(-1));
 }
 
 TF_BUILTIN(WasmTableGet, WasmBuiltinsAssembler) {

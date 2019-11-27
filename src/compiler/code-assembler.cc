@@ -382,24 +382,64 @@ TNode<Context> CodeAssembler::GetJSContextParameter() {
 }
 
 void CodeAssembler::Return(SloppyTNode<Object> value) {
-  // TODO(leszeks): This could also return a non-object, depending on the call
-  // descriptor. We should probably have multiple return overloads with
-  // different TNode types which DCHECK the call descriptor.
+  DCHECK_EQ(1, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK(raw_assembler()->call_descriptor()->GetReturnType(0).IsTagged());
   return raw_assembler()->Return(value);
 }
 
 void CodeAssembler::Return(SloppyTNode<Object> value1,
                            SloppyTNode<Object> value2) {
+  DCHECK_EQ(2, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK(raw_assembler()->call_descriptor()->GetReturnType(0).IsTagged());
+  DCHECK(raw_assembler()->call_descriptor()->GetReturnType(1).IsTagged());
   return raw_assembler()->Return(value1, value2);
 }
 
 void CodeAssembler::Return(SloppyTNode<Object> value1,
                            SloppyTNode<Object> value2,
                            SloppyTNode<Object> value3) {
+  DCHECK_EQ(3, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK(raw_assembler()->call_descriptor()->GetReturnType(0).IsTagged());
+  DCHECK(raw_assembler()->call_descriptor()->GetReturnType(1).IsTagged());
+  DCHECK(raw_assembler()->call_descriptor()->GetReturnType(2).IsTagged());
   return raw_assembler()->Return(value1, value2, value3);
 }
 
+void CodeAssembler::Return(TNode<Int32T> value) {
+  DCHECK_EQ(1, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK_EQ(MachineType::Int32(),
+            raw_assembler()->call_descriptor()->GetReturnType(0));
+  return raw_assembler()->Return(value);
+}
+
+void CodeAssembler::Return(TNode<Uint32T> value) {
+  DCHECK_EQ(1, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK_EQ(MachineType::Uint32(),
+            raw_assembler()->call_descriptor()->GetReturnType(0));
+  return raw_assembler()->Return(value);
+}
+
+void CodeAssembler::Return(TNode<WordT> value) {
+  DCHECK_EQ(1, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK_EQ(
+      MachineType::PointerRepresentation(),
+      raw_assembler()->call_descriptor()->GetReturnType(0).representation());
+  return raw_assembler()->Return(value);
+}
+
+void CodeAssembler::Return(TNode<WordT> value1, TNode<WordT> value2) {
+  DCHECK_EQ(2, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK_EQ(
+      MachineType::PointerRepresentation(),
+      raw_assembler()->call_descriptor()->GetReturnType(0).representation());
+  DCHECK_EQ(
+      MachineType::PointerRepresentation(),
+      raw_assembler()->call_descriptor()->GetReturnType(1).representation());
+  return raw_assembler()->Return(value1, value2);
+}
+
 void CodeAssembler::PopAndReturn(Node* pop, Node* value) {
+  DCHECK_EQ(1, raw_assembler()->call_descriptor()->ReturnCount());
   return raw_assembler()->PopAndReturn(pop, value);
 }
 
@@ -409,10 +449,6 @@ void CodeAssembler::ReturnIf(Node* condition, Node* value) {
   Bind(&if_return);
   Return(value);
   Bind(&if_continue);
-}
-
-void CodeAssembler::ReturnRaw(Node* value) {
-  return raw_assembler()->Return(value);
 }
 
 void CodeAssembler::AbortCSAAssert(Node* message) {

@@ -543,11 +543,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Return(SloppyTNode<Object> value1, SloppyTNode<Object> value2);
   void Return(SloppyTNode<Object> value1, SloppyTNode<Object> value2,
               SloppyTNode<Object> value3);
+  void Return(TNode<Int32T> value);
+  void Return(TNode<Uint32T> value);
+  void Return(TNode<WordT>);
+  void Return(TNode<WordT> value1, TNode<WordT> value2);
   void PopAndReturn(Node* pop, Node* value);
 
   void ReturnIf(Node* condition, Node* value);
-
-  void ReturnRaw(Node* value);
 
   void AbortCSAAssert(Node* message);
   void DebugBreak();
