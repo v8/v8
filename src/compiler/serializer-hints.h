@@ -104,6 +104,7 @@ class Hints {
  public:
   Hints() = default;  // Empty.
   static Hints SingleConstant(Handle<Object> constant, Zone* zone);
+  static Hints SingleMap(Handle<Map> map, Zone* zone);
 
   // For inspection only.
   ConstantsSet constants() const;

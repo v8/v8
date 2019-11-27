@@ -621,6 +621,12 @@ Hints Hints::SingleConstant(Handle<Object> constant, Zone* zone) {
   return result;
 }
 
+Hints Hints::SingleMap(Handle<Map> map, Zone* zone) {
+  Hints result;
+  result.AddMap(map, zone);
+  return result;
+}
+
 ConstantsSet Hints::constants() const {
   return IsAllocated() ? impl_->constants_ : ConstantsSet();
 }
@@ -2084,8 +2090,7 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
   }
 
   // For JSNativeContextSpecialization::InferReceiverRootMap
-  Hints new_accumulator_hints =
-      result_hints_from_new_target.Copy(zone());  // XXX
+  Hints new_accumulator_hints = result_hints_from_new_target.Copy(zone());
 
   ProcessCallOrConstructRecursive(callee, new_target, *arguments,
                                   speculation_mode, padding,
@@ -2893,8 +2898,16 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
     if (access_info.constant()->IsJSFunction()) {
       JSFunctionRef function(broker(), access_info.constant());
 
-      // For JSCallReducer::ReduceJSCall.
-      function.Serialize();
+      // For JSCallReducer and JSInlining(Heuristic).
+      HintsVector arguments({Hints::SingleMap(receiver_map.object(), zone())},
+                            zone());
+      // In the case of a setter any added result hints won't make sense, but
+      // they will be ignored anyways by Process*PropertyAccess due to the
+      // access mode not being kLoad.
+      ProcessCalleeForCallOrConstruct(
+          function.object(), base::nullopt, arguments,
+          SpeculationMode::kDisallowSpeculation, kMissingArgumentsAreUndefined,
+          result_hints);
 
       // For JSCallReducer::ReduceCallApiFunction.
       Handle<SharedFunctionInfo> sfi = function.shared().object();
@@ -3033,8 +3046,6 @@ void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
 
   if (access_mode == AccessMode::kLoad) {
     environment()->accumulator_hints() = new_accumulator_hints;
-  } else {
-    DCHECK(new_accumulator_hints.IsEmpty());
   }
 }
 
