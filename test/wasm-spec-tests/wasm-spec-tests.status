@@ -21,6 +21,16 @@
   'proposals/multi-value/call': [FAIL],
   'proposals/multi-value/if': [FAIL],
   'proposals/multi-value/func': [FAIL],
+
+  # TODO(ahaas): Most recent changes to the bulk-memory proposal.
+  'proposals/bulk-memory-operations/memory_copy': [FAIL],
+  'proposals/bulk-memory-operations/table_copy': [FAIL],
+  'proposals/bulk-memory-operations/table_init': [FAIL],
+  'proposals/bulk-memory-operations/memory_init': [FAIL],
+  'proposals/bulk-memory-operations/memory_fill': [FAIL],
+  'proposals/bulk-memory-operations/elem': [FAIL],
+  'proposals/bulk-memory-operations/data': [FAIL],
+  'proposals/bulk-memory-operations/bulk': [FAIL],
 }],  # ALWAYS
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
