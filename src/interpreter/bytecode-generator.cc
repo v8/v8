@@ -4636,14 +4636,19 @@ void BytecodeGenerator::VisitKeyedSuperPropertyLoad(Property* property,
   }
 }
 
-void BytecodeGenerator::VisitOptionalChain(OptionalChain* expr) {
+template <typename ExpressionFunc>
+void BytecodeGenerator::BuildOptionalChain(ExpressionFunc expression_func) {
   BytecodeLabel done;
   OptionalChainNullLabelScope label_scope(this);
-  VisitForAccumulatorValue(expr->expression());
+  expression_func();
   builder()->Jump(&done);
   label_scope.labels()->Bind(builder());
   builder()->LoadUndefined();
   builder()->Bind(&done);
+}
+
+void BytecodeGenerator::VisitOptionalChain(OptionalChain* expr) {
+  BuildOptionalChain([&]() { VisitForAccumulatorValue(expr->expression()); });
 }
 
 void BytecodeGenerator::VisitProperty(Property* expr) {
@@ -4763,6 +4768,16 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       builder()->StoreAccumulatorInRegister(callee);
       break;
     }
+    case Call::NAMED_OPTIONAL_CHAIN_PROPERTY_CALL:
+    case Call::KEYED_OPTIONAL_CHAIN_PROPERTY_CALL: {
+      OptionalChain* chain = callee_expr->AsOptionalChain();
+      Property* property = chain->expression()->AsProperty();
+      BuildOptionalChain([&]() {
+        VisitAndPushIntoRegisterList(property->obj(), &args);
+        VisitPropertyLoadForRegister(args.last_register(), property, callee);
+      });
+      break;
+    }
     case Call::SUPER_CALL:
       UNREACHABLE();
   }
@@ -4815,8 +4830,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   } else if (optimize_as_one_shot) {
     DCHECK(!implicit_undefined_receiver);
     builder()->CallNoFeedback(callee, args);
-  } else if (call_type == Call::NAMED_PROPERTY_CALL ||
-             call_type == Call::KEYED_PROPERTY_CALL) {
+  } else if (Call::IsNonSuperPropertyCall(call_type)) {
     DCHECK(!implicit_undefined_receiver);
     builder()->CallProperty(callee, args,
                             feedback_index(feedback_spec()->AddCallICSlot()));
