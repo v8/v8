@@ -97,7 +97,6 @@ namespace internal {
   V(NativeFunctionLiteral)      \
   V(OptionalChain)              \
   V(Property)                   \
-  V(ResolvedProperty)           \
   V(Spread)                     \
   V(StoreInArrayLiteral)        \
   V(SuperCallReference)         \
@@ -1692,26 +1691,6 @@ class Property final : public Expression {
   Expression* key_;
 };
 
-// ResolvedProperty pairs a receiver field with a value field. It allows Call
-// to support arbitrary receivers while still taking advantage of TypeFeedback.
-class ResolvedProperty final : public Expression {
- public:
-  VariableProxy* object() const { return object_; }
-  VariableProxy* property() const { return property_; }
-
-  void set_object(VariableProxy* e) { object_ = e; }
-  void set_property(VariableProxy* e) { property_ = e; }
-
- private:
-  friend class AstNodeFactory;
-
-  ResolvedProperty(VariableProxy* obj, VariableProxy* property, int pos)
-      : Expression(pos, kResolvedProperty), object_(obj), property_(property) {}
-
-  VariableProxy* object_;
-  VariableProxy* property_;
-};
-
 class Call final : public Expression {
  public:
   Expression* expression() const { return expression_; }
@@ -1742,7 +1721,6 @@ class Call final : public Expression {
     KEYED_SUPER_PROPERTY_CALL,
     PRIVATE_CALL,
     SUPER_CALL,
-    RESOLVED_PROPERTY_CALL,
     OTHER_CALL
   };
 
@@ -3089,12 +3067,6 @@ class AstNodeFactory final {
   Property* NewProperty(Expression* obj, Expression* key, int pos,
                         bool optional_chain = false) {
     return new (zone_) Property(obj, key, pos, optional_chain);
-  }
-
-  ResolvedProperty* NewResolvedProperty(VariableProxy* obj,
-                                        VariableProxy* property,
-                                        int pos = kNoSourcePosition) {
-    return new (zone_) ResolvedProperty(obj, property, pos);
   }
 
   Call* NewCall(Expression* expression,
