@@ -203,6 +203,8 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
  public:
   DECL_CAST(WasmTableObject)
 
+  // The entries array is at least as big as {current_length()}, but might be
+  // bigger to make future growth more efficient.
   DECL_ACCESSORS(entries, FixedArray)
   DECL_INT_ACCESSORS(current_length)
   // TODO(titzer): introduce DECL_I64_ACCESSORS macro

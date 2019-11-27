@@ -485,9 +485,20 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
   if (max_size - old_size < count) return -1;
 
   uint32_t new_size = old_size + count;
-  auto new_store = isolate->factory()->CopyFixedArrayAndGrow(
-      handle(table->entries(), isolate), count);
-  table->set_entries(*new_store, WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  // Even with 2x over-allocation, there should not be an integer overflow.
+  STATIC_ASSERT(wasm::kV8MaxWasmTableSize <= kMaxInt / 2);
+  DCHECK_GE(kMaxInt, new_size);
+  int old_capacity = table->entries().length();
+  if (new_size > static_cast<uint32_t>(old_capacity)) {
+    int grow = static_cast<int>(new_size) - old_capacity;
+    // Grow at least by the old capacity, to implement exponential growing.
+    grow = std::max(grow, old_capacity);
+    // Never grow larger than the max size.
+    grow = std::min(grow, static_cast<int>(max_size - old_capacity));
+    auto new_store = isolate->factory()->CopyFixedArrayAndGrow(
+        handle(table->entries(), isolate), grow);
+    table->set_entries(*new_store, WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  }
   table->set_current_length(new_size);
 
   Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
