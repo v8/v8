@@ -1294,6 +1294,10 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint64(Node* node) {
   Emit(kMips64TruncUlD, output_count, outputs, 1, inputs);
 }
 
+void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   Node* value = node->InputAt(0);
   if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
