@@ -204,6 +204,7 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
   DECL_CAST(WasmTableObject)
 
   DECL_ACCESSORS(entries, FixedArray)
+  DECL_INT_ACCESSORS(current_length)
   // TODO(titzer): introduce DECL_I64_ACCESSORS macro
   DECL_ACCESSORS(maximum_length, Object)
   DECL_ACCESSORS(dispatch_tables, FixedArray)
@@ -216,7 +217,6 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_WASM_TABLE_OBJECT_FIELDS)
 
-  inline uint32_t current_length();
   inline wasm::ValueType type();
 
   static int Grow(Isolate* isolate, Handle<WasmTableObject> table,

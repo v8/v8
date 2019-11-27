@@ -490,7 +490,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       auto table_object = handle(WasmTableObject::cast(instance->tables().get(
                                      elem_segment.table_index)),
                                  isolate_);
-      size_t table_size = table_object->entries().length();
+      size_t table_size = table_object->current_length();
       if (!base::IsInBounds(base, elem_segment.entries.size(), table_size)) {
         thrower_->LinkError("table initializer is out of bounds");
         return {};
@@ -909,7 +909,7 @@ bool InstanceBuilder::ProcessImportedFunction(
 bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     Handle<WasmInstanceObject> instance, int table_index, int import_index,
     Handle<WasmTableObject> table_object) {
-  int imported_table_size = table_object->entries().length();
+  int imported_table_size = table_object->current_length();
   // Allocate a new dispatch table.
   WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
       instance, table_index, imported_table_size);
@@ -968,7 +968,7 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
 
   auto table_object = Handle<WasmTableObject>::cast(value);
 
-  int imported_table_size = table_object->entries().length();
+  int imported_table_size = table_object->current_length();
   if (imported_table_size < static_cast<int>(table.initial_size)) {
     thrower_->LinkError("table import %d is smaller than initial %d, got %u",
                         import_index, table.initial_size, imported_table_size);
@@ -1634,7 +1634,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
   // TODO(wasm): Move this functionality into wasm-objects, since it is used
   // for both instantiation and in the implementation of the table.init
   // instruction.
-  if (!base::IsInBounds(dst, count, table_object->entries().length()) ||
+  if (!base::IsInBounds(dst, count, table_object->current_length()) ||
       !base::IsInBounds(src, count, elem_segment.entries.size())) {
     return false;
   }

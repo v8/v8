@@ -1822,7 +1822,7 @@ auto Table::type() const -> own<TableType> {
 
 auto Table::get(size_t index) const -> own<Ref> {
   i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
-  if (index >= table->current_length()) return own<Ref>();
+  if (index >= static_cast<size_t>(table->current_length())) return own<Ref>();
   i::Isolate* isolate = table->GetIsolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> result =
@@ -1835,7 +1835,7 @@ auto Table::get(size_t index) const -> own<Ref> {
 
 auto Table::set(size_t index, const Ref* ref) -> bool {
   i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
-  if (index >= table->current_length()) return false;
+  if (index >= static_cast<size_t>(table->current_length())) return false;
   i::Isolate* isolate = table->GetIsolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);

@@ -562,7 +562,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
   Handle<WasmTableObject> table(
       WasmTableObject::cast(instance->tables().get(table_index)), isolate);
 
-  uint32_t table_size = static_cast<uint32_t>(table->entries().length());
+  uint32_t table_size = table->current_length();
 
   if (start > table_size) {
     return ThrowTableOutOfBounds(isolate, instance);

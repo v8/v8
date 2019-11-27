@@ -3381,26 +3381,25 @@ void WasmGraphBuilder::BoundsCheckTable(uint32_t table_index, Node* entry_index,
   Node* tables = LOAD_INSTANCE_FIELD(Tables, MachineType::TaggedPointer());
   Node* table = LOAD_FIXED_ARRAY_SLOT_ANY(tables, table_index);
 
-  int storage_field_size =
-      WasmTableObject::kEntriesOffsetEnd - WasmTableObject::kEntriesOffset + 1;
-  Node* storage = LOAD_RAW(
-      table, wasm::ObjectAccess::ToTagged(WasmTableObject::kEntriesOffset),
-      assert_size(storage_field_size, MachineType::TaggedPointer()));
+  int length_field_size = WasmTableObject::kCurrentLengthOffsetEnd -
+                          WasmTableObject::kCurrentLengthOffset + 1;
+  Node* length_smi = LOAD_RAW(
+      table,
+      wasm::ObjectAccess::ToTagged(WasmTableObject::kCurrentLengthOffset),
+      assert_size(length_field_size, MachineType::TaggedSigned()));
+  Node* length = BuildChangeSmiToInt32(length_smi);
 
-  int length_field_size =
-      FixedArray::kLengthOffsetEnd - FixedArray::kLengthOffset + 1;
-  Node* storage_size =
-      LOAD_RAW(storage, wasm::ObjectAccess::ToTagged(FixedArray::kLengthOffset),
-               assert_size(length_field_size, MachineType::TaggedSigned()));
-
-  storage_size = BuildChangeSmiToInt32(storage_size);
   // Bounds check against the table size.
   Node* in_bounds = graph()->NewNode(mcgraph()->machine()->Uint32LessThan(),
-                                     entry_index, storage_size);
+                                     entry_index, length);
   TrapIfFalse(trap_reason, in_bounds, position);
 
   if (base_node) {
-    *base_node = storage;
+    int storage_field_size = WasmTableObject::kEntriesOffsetEnd -
+                             WasmTableObject::kEntriesOffset + 1;
+    *base_node = LOAD_RAW(
+        table, wasm::ObjectAccess::ToTagged(WasmTableObject::kEntriesOffset),
+        assert_size(storage_field_size, MachineType::TaggedPointer()));
   }
 }
 
@@ -5073,19 +5072,14 @@ Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
   Node* tables = LOAD_INSTANCE_FIELD(Tables, MachineType::TaggedPointer());
   Node* table = LOAD_FIXED_ARRAY_SLOT_ANY(tables, table_index);
 
-  int storage_field_size = WasmTableObject::kElementsOffsetEnd -
-                           WasmTableObject::kElementsOffset + 1;
-  Node* storage = LOAD_RAW(
-      table, wasm::ObjectAccess::ToTagged(WasmTableObject::kEntriesOffset),
-      assert_size(storage_field_size, MachineType::TaggedPointer()));
+  int length_field_size = WasmTableObject::kCurrentLengthOffsetEnd -
+                          WasmTableObject::kCurrentLengthOffset + 1;
+  Node* length_smi = LOAD_RAW(
+      table,
+      wasm::ObjectAccess::ToTagged(WasmTableObject::kCurrentLengthOffset),
+      assert_size(length_field_size, MachineType::TaggedSigned()));
 
-  int length_field_size =
-      FixedArray::kLengthOffsetEnd - FixedArray::kLengthOffset + 1;
-  Node* table_size =
-      LOAD_RAW(storage, wasm::ObjectAccess::ToTagged(FixedArray::kLengthOffset),
-               assert_size(length_field_size, MachineType::TaggedSigned()));
-
-  return BuildChangeSmiToInt32(table_size);
+  return BuildChangeSmiToInt32(length_smi);
 }
 
 Node* WasmGraphBuilder::TableFill(uint32_t table_index, Node* start,

@@ -435,9 +435,10 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
       isolate->factory()->NewJSObject(table_ctor));
   DisallowHeapAllocation no_gc;
 
-  table_obj->set_raw_type(static_cast<int>(type));
   table_obj->set_entries(*backing_store);
+  table_obj->set_current_length(initial);
   table_obj->set_maximum_length(*max);
+  table_obj->set_raw_type(static_cast<int>(type));
 
   table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());
   if (entries != nullptr) {
@@ -487,6 +488,7 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
   auto new_store = isolate->factory()->CopyFixedArrayAndGrow(
       handle(table->entries(), isolate), count);
   table->set_entries(*new_store, WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  table->set_current_length(new_size);
 
   Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
   DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
@@ -519,9 +521,7 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
 bool WasmTableObject::IsInBounds(Isolate* isolate,
                                  Handle<WasmTableObject> table,
                                  uint32_t entry_index) {
-  return (entry_index <
-              static_cast<uint32_t>(std::numeric_limits<int>::max()) &&
-          static_cast<int>(entry_index) < table->entries().length());
+  return entry_index < static_cast<uint32_t>(table->current_length());
 }
 
 bool WasmTableObject::IsValidElement(Isolate* isolate,
@@ -629,9 +629,9 @@ void WasmTableObject::Fill(Isolate* isolate, Handle<WasmTableObject> table,
                            uint32_t start, Handle<Object> entry,
                            uint32_t count) {
   // Bounds checks must be done by the caller.
-  DCHECK_LE(start, table->entries().length());
-  DCHECK_LE(count, table->entries().length());
-  DCHECK_LE(start + count, table->entries().length());
+  DCHECK_LE(start, table->current_length());
+  DCHECK_LE(count, table->current_length());
+  DCHECK_LE(start + count, table->current_length());
 
   for (uint32_t i = 0; i < count; i++) {
     WasmTableObject::Set(isolate, table, start + i, entry);
@@ -775,7 +775,7 @@ void WasmTableObject::GetFunctionTableEntry(
     bool* is_valid, bool* is_null, MaybeHandle<WasmInstanceObject>* instance,
     int* function_index, MaybeHandle<WasmJSFunction>* maybe_js_function) {
   DCHECK_EQ(table->type(), wasm::kWasmFuncRef);
-  DCHECK_LT(entry_index, table->entries().length());
+  DCHECK_LT(entry_index, table->current_length());
   // We initialize {is_valid} with {true}. We may change it later.
   *is_valid = true;
   Handle<Object> element(table->entries().get(entry_index), isolate);
@@ -1441,8 +1441,8 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
       WasmTableObject::cast(instance->tables().get(table_dst_index)), isolate);
   auto table_src = handle(
       WasmTableObject::cast(instance->tables().get(table_src_index)), isolate);
-  uint32_t max_dst = static_cast<uint32_t>(table_dst->entries().length());
-  uint32_t max_src = static_cast<uint32_t>(table_src->entries().length());
+  uint32_t max_dst = table_dst->current_length();
+  uint32_t max_src = table_src->current_length();
   bool copy_backward = src < dst;
   if (!base::IsInBounds(dst, count, max_dst) ||
       !base::IsInBounds(src, count, max_src)) {
