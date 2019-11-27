@@ -7872,7 +7872,7 @@ int JSGeneratorObject::source_position() const {
 }
 
 // static
-AccessCheckInfo AccessCheckInfo::Get(Isolate* isolate,
+AccessCheckInfo AccessCheckInfo::Get(const Isolate* isolate,
                                      Handle<JSObject> receiver) {
   DisallowHeapAllocation no_gc;
   DCHECK(receiver->map().is_access_check_needed());

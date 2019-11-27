@@ -999,8 +999,9 @@ namespace {
 std::string FormatAssertSource(const std::string& str) {
   // Replace all whitespace characters with a space character.
   std::string str_no_newlines = str;
-  std::replace_if(str_no_newlines.begin(), str_no_newlines.end(),
-                  [](unsigned char c) { return isspace(c); }, ' ');
+  std::replace_if(
+      str_no_newlines.begin(), str_no_newlines.end(),
+      [](unsigned char c) { return isspace(c); }, ' ');
 
   // str might include indentation, squash multiple space characters into one.
   std::string result;
@@ -3215,7 +3216,7 @@ void CppClassGenerator::GenerateClassConstructors() {
   inl_ << "template<class D, class P>\n";
   inl_ << "inline " << gen_name_T_ << "::" << gen_name_ << "(Address ptr)\n";
   inl_ << "  : P(ptr) {\n";
-    inl_ << "  SLOW_DCHECK(this->Is" << name_ << "());\n";
+  inl_ << "  SLOW_DCHECK(this->Is" << name_ << "());\n";
   inl_ << "}\n";
 }
 
@@ -3313,7 +3314,8 @@ void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
     hdr_ << "  // Torque type: " << field_type->ToString() << "\n";
   }
   hdr_ << "  inline " << type << " " << name << "() const;\n";
-  hdr_ << "  inline " << type << " " << name << "(Isolate* isolate) const;\n";
+  hdr_ << "  inline " << type << " " << name
+       << "(const Isolate* isolate) const;\n";
   hdr_ << "  inline void set_" << name << "(" << type
        << " value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);\n\n";
 
@@ -3326,13 +3328,13 @@ void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
   // Generate implementation in inline header.
   inl_ << "template <class D, class P>\n";
   inl_ << type << " " << gen_name_ << "<D, P>::" << name << "() const {\n";
-  inl_ << "  Isolate* isolate = GetIsolateForPtrCompr(*this);\n";
+  inl_ << "  const Isolate* isolate = GetIsolateForPtrCompr(*this);\n";
   inl_ << "  return " << gen_name_ << "::" << name << "(isolate);\n";
   inl_ << "}\n";
 
   inl_ << "template <class D, class P>\n";
   inl_ << type << " " << gen_name_ << "<D, P>::" << name
-       << "(Isolate* isolate) const {\n";
+       << "(const Isolate* isolate) const {\n";
   if (class_type) {
     inl_ << "  return TaggedField<" << type << ", " << offset
          << ">::load(isolate, *this);\n";
@@ -3686,7 +3688,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
       }
 
       // Second, verify that this object is what it claims to be.
-        cc_contents << "  CHECK(o.Is" << name << "());\n";
+      cc_contents << "  CHECK(o.Is" << name << "());\n";
 
       // Third, verify its properties.
       for (auto f : type->fields()) {

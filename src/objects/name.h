@@ -39,25 +39,20 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   // We optimize this by setting a flag on the object's map when such
   // symbol properties are added, so we can optimize lookups on objects
   // that don't have the flag.
-  inline bool IsInterestingSymbol() const;
-  inline bool IsInterestingSymbol(Isolate* isolate) const;
+  DECL_GETTER(IsInterestingSymbol, bool)
 
   // If the name is private, it can only name own properties.
-  inline bool IsPrivate() const;
-  inline bool IsPrivate(Isolate* isolate) const;
+  DECL_GETTER(IsPrivate, bool)
 
   // If the name is a private name, it should behave like a private
   // symbol but also throw on property access miss.
-  inline bool IsPrivateName() const;
-  inline bool IsPrivateName(Isolate* isolate) const;
+  DECL_GETTER(IsPrivateName, bool)
 
   // If the name is a private brand, it should behave like a private name
   // symbol but is filtered out when generating list of private fields.
-  inline bool IsPrivateBrand() const;
-  inline bool IsPrivateBrand(Isolate* isolate) const;
+  DECL_GETTER(IsPrivateBrand, bool)
 
-  inline bool IsUniqueName() const;
-  inline bool IsUniqueName(Isolate* isolate) const;
+  DECL_GETTER(IsUniqueName, bool)
 
   static inline bool ContainsCachedArrayIndex(uint32_t hash);
 

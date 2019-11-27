@@ -169,10 +169,8 @@ class String : public TorqueGeneratedString<String, Name> {
   // be one-byte encoded.  This might be the case even if the string is
   // two-byte.  Such strings may appear when the embedder prefers
   // two-byte external representations even for one-byte data.
-  inline bool IsOneByteRepresentation() const;
-  inline bool IsOneByteRepresentation(Isolate* isolate) const;
-  inline bool IsTwoByteRepresentation() const;
-  inline bool IsTwoByteRepresentation(Isolate* isolate) const;
+  DECL_GETTER(IsOneByteRepresentation, bool)
+  DECL_GETTER(IsTwoByteRepresentation, bool)
 
   // Cons and slices have an encoding flag that may not represent the actual
   // encoding of the underlying string.  This is taken into account here.
@@ -636,8 +634,7 @@ class ConsString : public TorqueGeneratedConsString<ConsString, String> {
 // ThinStrings can be thought of as "one-part cons strings".
 class ThinString : public TorqueGeneratedThinString<ThinString, String> {
  public:
-  inline HeapObject unchecked_actual() const;
-  inline HeapObject unchecked_actual(Isolate* isolate) const;
+  DECL_GETTER(unchecked_actual, HeapObject)
 
   V8_EXPORT_PRIVATE uint16_t Get(int index);
 

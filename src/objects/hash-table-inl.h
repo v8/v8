@@ -180,12 +180,13 @@ bool HashTable<Derived, Shape>::ToKey(Isolate* isolate, InternalIndex entry,
 
 template <typename Derived, typename Shape>
 Object HashTable<Derived, Shape>::KeyAt(InternalIndex entry) {
-  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  const Isolate* isolate = GetIsolateForPtrCompr(*this);
   return KeyAt(isolate, entry);
 }
 
 template <typename Derived, typename Shape>
-Object HashTable<Derived, Shape>::KeyAt(Isolate* isolate, InternalIndex entry) {
+Object HashTable<Derived, Shape>::KeyAt(const Isolate* isolate,
+                                        InternalIndex entry) {
   return get(isolate, EntryToIndex(entry) + kEntryKeyIndex);
 }
 

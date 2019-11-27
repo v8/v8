@@ -53,11 +53,11 @@ SMI_ACCESSORS(Context, length, kLengthOffset)
 CAST_ACCESSOR(NativeContext)
 
 Object Context::get(int index) const {
-  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  const Isolate* isolate = GetIsolateForPtrCompr(*this);
   return get(isolate, index);
 }
 
-Object Context::get(Isolate* isolate, int index) const {
+Object Context::get(const Isolate* isolate, int index) const {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length()));
   return TaggedField<Object>::Relaxed_Load(isolate, *this,

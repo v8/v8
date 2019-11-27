@@ -302,11 +302,12 @@ void JSObject::SetEmbedderField(int index, Smi value) {
 }
 
 bool JSObject::IsUnboxedDoubleField(FieldIndex index) const {
-  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  const Isolate* isolate = GetIsolateForPtrCompr(*this);
   return IsUnboxedDoubleField(isolate, index);
 }
 
-bool JSObject::IsUnboxedDoubleField(Isolate* isolate, FieldIndex index) const {
+bool JSObject::IsUnboxedDoubleField(const Isolate* isolate,
+                                    FieldIndex index) const {
   if (!FLAG_unbox_double_fields) return false;
   return map(isolate).IsUnboxedDoubleField(isolate, index);
 }
@@ -315,11 +316,12 @@ bool JSObject::IsUnboxedDoubleField(Isolate* isolate, FieldIndex index) const {
 // is needed to correctly distinguish between properties stored in-object and
 // properties stored in the properties array.
 Object JSObject::RawFastPropertyAt(FieldIndex index) const {
-  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  const Isolate* isolate = GetIsolateForPtrCompr(*this);
   return RawFastPropertyAt(isolate, index);
 }
 
-Object JSObject::RawFastPropertyAt(Isolate* isolate, FieldIndex index) const {
+Object JSObject::RawFastPropertyAt(const Isolate* isolate,
+                                   FieldIndex index) const {
   DCHECK(!IsUnboxedDoubleField(isolate, index));
   if (index.is_inobject()) {
     return TaggedField<Object>::load(isolate, *this, index.offset());

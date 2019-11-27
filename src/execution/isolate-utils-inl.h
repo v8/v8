@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-inline Isolate* GetIsolateForPtrCompr(HeapObject object) {
+inline const Isolate* GetIsolateForPtrCompr(HeapObject object) {
 #ifdef V8_COMPRESS_POINTERS
   return Isolate::FromRoot(GetIsolateRoot(object.ptr()));
 #else

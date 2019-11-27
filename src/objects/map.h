@@ -863,7 +863,8 @@ class Map : public HeapObject {
 
   // Returns true if given field is unboxed double.
   inline bool IsUnboxedDoubleField(FieldIndex index) const;
-  inline bool IsUnboxedDoubleField(Isolate* isolate, FieldIndex index) const;
+  inline bool IsUnboxedDoubleField(const Isolate* isolate,
+                                   FieldIndex index) const;
 
   void PrintMapDetails(std::ostream& os);
 
@@ -1006,7 +1007,7 @@ class NormalizedMapCache : public WeakFixedArray {
   DECL_VERIFIER(NormalizedMapCache)
 
  private:
-  friend bool HeapObject::IsNormalizedMapCache(Isolate* isolate) const;
+  friend bool HeapObject::IsNormalizedMapCache(const Isolate* isolate) const;
 
   static const int kEntries = 64;
 

@@ -275,7 +275,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
 #define IS_TYPE_FUNCTION_DECL(Type) \
   V8_INLINE bool Is##Type() const;  \
-  V8_INLINE bool Is##Type(Isolate* isolate) const;
+  V8_INLINE bool Is##Type(const Isolate* isolate) const;
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   IS_TYPE_FUNCTION_DECL(HashTableBase)
@@ -284,9 +284,9 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
-#define IS_TYPE_FUNCTION_DECL(Type, Value)            \
-  V8_INLINE bool Is##Type(Isolate* isolate) const;    \
-  V8_INLINE bool Is##Type(ReadOnlyRoots roots) const; \
+#define IS_TYPE_FUNCTION_DECL(Type, Value)               \
+  V8_INLINE bool Is##Type(const Isolate* isolate) const; \
+  V8_INLINE bool Is##Type(ReadOnlyRoots roots) const;    \
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
   IS_TYPE_FUNCTION_DECL(NullOrUndefined, /* unused */)
@@ -301,7 +301,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) \
   V8_INLINE bool Is##Name() const;              \
-  V8_INLINE bool Is##Name(Isolate* isolate) const;
+  V8_INLINE bool Is##Name(const Isolate* isolate) const;
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 
@@ -316,9 +316,9 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_EXPORT_PRIVATE bool ToInt32(int32_t* value);
   inline bool ToUint32(uint32_t* value) const;
 
-  inline Representation OptimalRepresentation(Isolate* isolate) const;
+  inline Representation OptimalRepresentation(const Isolate* isolate) const;
 
-  inline ElementsKind OptimalElementsKind(Isolate* isolate) const;
+  inline ElementsKind OptimalElementsKind(const Isolate* isolate) const;
 
   inline bool FitsRepresentation(Representation representation);
 

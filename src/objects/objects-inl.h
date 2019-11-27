@@ -78,7 +78,7 @@ DEF_GETTER(HeapObject, IsClassBoilerplate, bool) {
   bool Object::Is##type_() const {                                       \
     return IsHeapObject() && HeapObject::cast(*this).Is##type_();        \
   }                                                                      \
-  bool Object::Is##type_(Isolate* isolate) const {                       \
+  bool Object::Is##type_(const Isolate* isolate) const {                 \
     return IsHeapObject() && HeapObject::cast(*this).Is##type_(isolate); \
   }
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
@@ -86,28 +86,28 @@ IS_TYPE_FUNCTION_DEF(HashTableBase)
 IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
 #undef IS_TYPE_FUNCTION_DEF
 
-#define IS_TYPE_FUNCTION_DEF(Type, Value)                        \
-  bool Object::Is##Type(Isolate* isolate) const {                \
-    return Is##Type(ReadOnlyRoots(isolate->heap()));             \
-  }                                                              \
-  bool Object::Is##Type(ReadOnlyRoots roots) const {             \
-    return *this == roots.Value();                               \
-  }                                                              \
-  bool Object::Is##Type() const {                                \
-    return IsHeapObject() && HeapObject::cast(*this).Is##Type(); \
-  }                                                              \
-  bool HeapObject::Is##Type(Isolate* isolate) const {            \
-    return Object::Is##Type(isolate);                            \
-  }                                                              \
-  bool HeapObject::Is##Type(ReadOnlyRoots roots) const {         \
-    return Object::Is##Type(roots);                              \
-  }                                                              \
+#define IS_TYPE_FUNCTION_DEF(Type, Value)                               \
+  bool Object::Is##Type(const Isolate* isolate) const {                 \
+    return IsHeapObject() && HeapObject::cast(*this).Is##Type(isolate); \
+  }                                                                     \
+  bool Object::Is##Type(ReadOnlyRoots roots) const {                    \
+    return *this == roots.Value();                                      \
+  }                                                                     \
+  bool Object::Is##Type() const {                                       \
+    return IsHeapObject() && HeapObject::cast(*this).Is##Type();        \
+  }                                                                     \
+  bool HeapObject::Is##Type(const Isolate* isolate) const {             \
+    return Is##Type(GetReadOnlyRoots(isolate));                         \
+  }                                                                     \
+  bool HeapObject::Is##Type(ReadOnlyRoots roots) const {                \
+    return Object::Is##Type(roots);                                     \
+  }                                                                     \
   bool HeapObject::Is##Type() const { return Is##Type(GetReadOnlyRoots()); }
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
 
-bool Object::IsNullOrUndefined(Isolate* isolate) const {
-  return IsNullOrUndefined(ReadOnlyRoots(isolate));
+bool Object::IsNullOrUndefined(const Isolate* isolate) const {
+  return IsHeapObject() && HeapObject::cast(*this).IsNullOrUndefined(isolate);
 }
 
 bool Object::IsNullOrUndefined(ReadOnlyRoots roots) const {
@@ -131,8 +131,8 @@ bool Object::IsNoSharedNameSentinel() const {
   return *this == SharedFunctionInfo::kNoSharedNameSentinel;
 }
 
-bool HeapObject::IsNullOrUndefined(Isolate* isolate) const {
-  return Object::IsNullOrUndefined(isolate);
+bool HeapObject::IsNullOrUndefined(const Isolate* isolate) const {
+  return IsNullOrUndefined(GetReadOnlyRoots(isolate));
 }
 
 bool HeapObject::IsNullOrUndefined(ReadOnlyRoots roots) const {
@@ -231,23 +231,23 @@ DEF_GETTER(HeapObject, IsExternalTwoByteString, bool) {
 bool Object::IsNumber() const {
   if (IsSmi()) return true;
   HeapObject this_heap_object = HeapObject::cast(*this);
-  Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
+  const Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
   return this_heap_object.IsHeapNumber(isolate);
 }
 
-bool Object::IsNumber(Isolate* isolate) const {
+bool Object::IsNumber(const Isolate* isolate) const {
   return IsSmi() || IsHeapNumber(isolate);
 }
 
 bool Object::IsNumeric() const {
   if (IsSmi()) return true;
   HeapObject this_heap_object = HeapObject::cast(*this);
-  Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
+  const Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
   return this_heap_object.IsHeapNumber(isolate) ||
          this_heap_object.IsBigInt(isolate);
 }
 
-bool Object::IsNumeric(Isolate* isolate) const {
+bool Object::IsNumeric(const Isolate* isolate) const {
   return IsNumber(isolate) || IsBigInt(isolate);
 }
 
@@ -275,11 +275,11 @@ DEF_GETTER(HeapObject, IsRegExpMatchInfo, bool) {
 bool Object::IsLayoutDescriptor() const {
   if (IsSmi()) return true;
   HeapObject this_heap_object = HeapObject::cast(*this);
-  Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
+  const Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
   return this_heap_object.IsByteArray(isolate);
 }
 
-bool Object::IsLayoutDescriptor(Isolate* isolate) const {
+bool Object::IsLayoutDescriptor(const Isolate* isolate) const {
   return IsSmi() || IsByteArray(isolate);
 }
 
@@ -384,11 +384,11 @@ DEF_GETTER(HeapObject, IsWasmExceptionPackage, bool) {
 bool Object::IsPrimitive() const {
   if (IsSmi()) return true;
   HeapObject this_heap_object = HeapObject::cast(*this);
-  Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
+  const Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
   return this_heap_object.map(isolate).IsPrimitiveMap();
 }
 
-bool Object::IsPrimitive(Isolate* isolate) const {
+bool Object::IsPrimitive(const Isolate* isolate) const {
   return IsSmi() || HeapObject::cast(*this).map(isolate).IsPrimitiveMap();
 }
 
@@ -418,7 +418,7 @@ DEF_GETTER(HeapObject, IsAccessCheckNeeded, bool) {
   bool Object::Is##Name() const {                                       \
     return IsHeapObject() && HeapObject::cast(*this).Is##Name();        \
   }                                                                     \
-  bool Object::Is##Name(Isolate* isolate) const {                       \
+  bool Object::Is##Name(const Isolate* isolate) const {                 \
     return IsHeapObject() && HeapObject::cast(*this).Is##Name(isolate); \
   }
 STRUCT_LIST(MAKE_STRUCT_PREDICATE)
@@ -484,7 +484,7 @@ bool Object::FilterKey(PropertyFilter filter) {
   return false;
 }
 
-Representation Object::OptimalRepresentation(Isolate* isolate) const {
+Representation Object::OptimalRepresentation(const Isolate* isolate) const {
   if (!FLAG_track_fields) return Representation::Tagged();
   if (IsSmi()) {
     return Representation::Smi();
@@ -503,7 +503,7 @@ Representation Object::OptimalRepresentation(Isolate* isolate) const {
   }
 }
 
-ElementsKind Object::OptimalElementsKind(Isolate* isolate) const {
+ElementsKind Object::OptimalElementsKind(const Isolate* isolate) const {
   if (IsSmi()) return PACKED_SMI_ELEMENTS;
   if (IsNumber(isolate)) return PACKED_DOUBLE_ELEMENTS;
   return PACKED_ELEMENTS;
@@ -685,9 +685,10 @@ ReadOnlyRoots HeapObject::GetReadOnlyRoots() const {
   return ReadOnlyHeap::GetReadOnlyRoots(*this);
 }
 
-ReadOnlyRoots HeapObject::GetReadOnlyRoots(Isolate* isolate) const {
+ReadOnlyRoots HeapObject::GetReadOnlyRoots(const Isolate* isolate) const {
 #ifdef V8_COMPRESS_POINTERS
-  return ReadOnlyRoots(isolate);
+  DCHECK_NOT_NULL(isolate);
+  return ReadOnlyRoots(const_cast<Isolate*>(isolate));
 #else
   return GetReadOnlyRoots();
 #endif

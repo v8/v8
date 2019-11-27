@@ -32,7 +32,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   using Key = typename Shape::Key;
   // Returns the value at entry.
   inline Object ValueAt(InternalIndex entry);
-  inline Object ValueAt(Isolate* isolate, InternalIndex entry);
+  inline Object ValueAt(const Isolate* isolate, InternalIndex entry);
 
   // Set the value for entry.
   inline void ValueAtPut(InternalIndex entry, Object value);
@@ -183,7 +183,7 @@ class V8_EXPORT_PRIVATE NameDictionary
   static const int kInitialCapacity = 2;
 
   inline Name NameAt(InternalIndex entry);
-  inline Name NameAt(Isolate* isolate, InternalIndex entry);
+  inline Name NameAt(const Isolate* isolate, InternalIndex entry);
 
   inline void set_hash(int hash);
   inline int hash() const;
@@ -223,13 +223,13 @@ class V8_EXPORT_PRIVATE GlobalDictionary
   DECL_CAST(GlobalDictionary)
 
   inline Object ValueAt(InternalIndex entry);
-  inline Object ValueAt(Isolate* isolate, InternalIndex entry);
+  inline Object ValueAt(const Isolate* isolate, InternalIndex entry);
   inline PropertyCell CellAt(InternalIndex entry);
-  inline PropertyCell CellAt(Isolate* isolate, InternalIndex entry);
+  inline PropertyCell CellAt(const Isolate* isolate, InternalIndex entry);
   inline void SetEntry(Isolate* isolate, InternalIndex entry, Object key,
                        Object value, PropertyDetails details);
   inline Name NameAt(InternalIndex entry);
-  inline Name NameAt(Isolate* isolate, InternalIndex entry);
+  inline Name NameAt(const Isolate* isolate, InternalIndex entry);
   inline void ValueAtPut(InternalIndex entry, Object value);
 
   OBJECT_CONSTRUCTORS(
