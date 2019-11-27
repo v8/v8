@@ -278,10 +278,14 @@ bool Builtins::IsWasmRuntimeStub(int index) {
 
 // static
 void Builtins::InitializeBuiltinEntryTable(Isolate* isolate) {
-  Heap* heap = isolate->heap();
+  EmbeddedData d = EmbeddedData::FromBlob();
   Address* builtin_entry_table = isolate->builtin_entry_table();
   for (int i = 0; i < builtin_count; i++) {
-    builtin_entry_table[i] = heap->builtin(i).InstructionStart();
+    // TODO(jgruber,chromium:1020986): Remove the CHECK once the linked issue is
+    // resolved.
+    CHECK(Builtins::IsBuiltinId(isolate->heap()->builtin(i).builtin_index()));
+    DCHECK(isolate->heap()->builtin(i).is_off_heap_trampoline());
+    builtin_entry_table[i] = d.InstructionStartOfBuiltin(i);
   }
 }
 
