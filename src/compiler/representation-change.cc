@@ -1042,7 +1042,8 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     }
     case IrOpcode::kHeapConstant: {
       HeapObjectMatcher m(node);
-      if (m.HasValue() && m.Ref(broker_).IsBigInt()) {
+      if (m.HasValue() && m.Ref(broker_).IsBigInt() &&
+          use_info.truncation().IsUsedAsWord64()) {
         auto bigint = m.Ref(broker_).AsBigInt();
         return jsgraph()->Int64Constant(
             static_cast<int64_t>(bigint.AsUint64()));
