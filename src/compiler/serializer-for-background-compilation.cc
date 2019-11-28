@@ -3017,8 +3017,6 @@ void SerializerForBackgroundCompilation::ProcessKeyedPropertyAccess(
 
   if (access_mode == AccessMode::kLoad) {
     environment()->accumulator_hints() = new_accumulator_hints;
-  } else {
-    DCHECK(new_accumulator_hints.IsEmpty());
   }
 }
 
