@@ -246,7 +246,8 @@ void DecompressionOptimizer::ChangeLoad(Node* const node) {
   }
 }
 
-void DecompressionOptimizer::RemoveChangeTaggedToCompressed(Node* const node) {
+void DecompressionOptimizer::TryRemoveChangeTaggedToCompressed(
+    Node* const node) {
   DCHECK(IsChangeTaggedToCompressed(node));
   Node* input = node->InputAt(0);
   // We can safely eliminate a ChangeTaggedToCompressed node if its input is
@@ -271,7 +272,7 @@ void DecompressionOptimizer::ChangeNodes() {
 
     switch (node->opcode()) {
       case IrOpcode::kChangeTaggedToCompressed:
-        RemoveChangeTaggedToCompressed(node);
+        TryRemoveChangeTaggedToCompressed(node);
         break;
       case IrOpcode::kHeapConstant:
         ChangeHeapConstant(node);
