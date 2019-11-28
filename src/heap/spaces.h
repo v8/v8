@@ -585,15 +585,15 @@ class MemoryChunk : public BasicMemoryChunk {
   static const Flags kSkipEvacuationSlotsRecordingMask =
       kEvacuationCandidateMask | kIsInYoungGenerationMask;
 
-  // |kSweepingDone|: The page state when sweeping is complete or sweeping must
-  //   not be performed on that page. Sweeper threads that are done with their
-  //   work will set this value and not touch the page anymore.
-  // |kSweepingPending|: This page is ready for parallel sweeping.
-  // |kSweepingInProgress|: This page is currently swept by a sweeper thread.
-  enum ConcurrentSweepingState {
-    kSweepingDone,
-    kSweepingPending,
-    kSweepingInProgress,
+  // |kDone|: The page state when sweeping is complete or sweeping must not be
+  //   performed on that page. Sweeper threads that are done with their work
+  //   will set this value and not touch the page anymore.
+  // |kPending|: This page is ready for parallel sweeping.
+  // |kInProgress|: This page is currently swept by a sweeper thread.
+  enum class ConcurrentSweepingState : intptr_t {
+    kDone,
+    kPending,
+    kInProgress,
   };
 
   static const size_t kHeaderSize =
@@ -673,7 +673,9 @@ class MemoryChunk : public BasicMemoryChunk {
     return static_cast<ConcurrentSweepingState>(concurrent_sweeping_.load());
   }
 
-  bool SweepingDone() { return concurrent_sweeping_ == kSweepingDone; }
+  bool SweepingDone() {
+    return concurrent_sweeping_ == ConcurrentSweepingState::kDone;
+  }
 
   inline Heap* heap() const {
     DCHECK_NOT_NULL(heap_);
@@ -925,7 +927,7 @@ class MemoryChunk : public BasicMemoryChunk {
 
   base::Mutex* mutex_;
 
-  std::atomic<intptr_t> concurrent_sweeping_;
+  std::atomic<ConcurrentSweepingState> concurrent_sweeping_;
 
   base::Mutex* page_protection_change_mutex_;
 

@@ -400,7 +400,7 @@ int Sweeper::RawSweep(
     // The allocated_bytes() counter is precisely the total size of objects.
     DCHECK_EQ(live_bytes, p->allocated_bytes());
   }
-  p->set_concurrent_sweeping_state(Page::kSweepingDone);
+  p->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kDone);
   if (code_object_registry) code_object_registry->Finalize();
   if (free_list_mode == IGNORE_FREE_LIST) return 0;
 
@@ -468,8 +468,10 @@ int Sweeper::ParallelSweepPage(
     // the page protection mode from rx -> rw while sweeping.
     CodePageMemoryModificationScope code_page_scope(page);
 
-    DCHECK_EQ(Page::kSweepingPending, page->concurrent_sweeping_state());
-    page->set_concurrent_sweeping_state(Page::kSweepingInProgress);
+    DCHECK_EQ(Page::ConcurrentSweepingState::kPending,
+              page->concurrent_sweeping_state());
+    page->set_concurrent_sweeping_state(
+        Page::ConcurrentSweepingState::kInProgress);
     const FreeSpaceTreatmentMode free_space_mode =
         Heap::ShouldZapGarbage() ? ZAP_FREE_SPACE : IGNORE_FREE_SPACE;
     max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode,
@@ -507,7 +509,8 @@ void Sweeper::AddPage(AllocationSpace space, Page* page,
     // happened when the page was initially added, so it is skipped here.
     DCHECK_EQ(Sweeper::READD_TEMPORARY_REMOVED_PAGE, mode);
   }
-  DCHECK_EQ(Page::kSweepingPending, page->concurrent_sweeping_state());
+  DCHECK_EQ(Page::ConcurrentSweepingState::kPending,
+            page->concurrent_sweeping_state());
   sweeping_list_[GetSweepSpaceIndex(space)].push_back(page);
 }
 
@@ -515,13 +518,14 @@ void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
 #ifdef DEBUG
   DCHECK_GE(page->area_size(),
             static_cast<size_t>(marking_state_->live_bytes(page)));
-  DCHECK_EQ(Page::kSweepingDone, page->concurrent_sweeping_state());
+  DCHECK_EQ(Page::ConcurrentSweepingState::kDone,
+            page->concurrent_sweeping_state());
   page->ForAllFreeListCategories([page](FreeListCategory* category) {
     DCHECK(!category->is_linked(page->owner()->free_list()));
   });
 #endif  // DEBUG
   page->MoveOldToNewRememberedSetForSweeping();
-  page->set_concurrent_sweeping_state(Page::kSweepingPending);
+  page->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kPending);
   heap_->paged_space(space)->IncreaseAllocatedBytes(
       marking_state_->live_bytes(page), page);
 }
@@ -613,10 +617,11 @@ void Sweeper::AddPageForIterability(Page* page) {
   DCHECK(iterability_in_progress_);
   DCHECK(!iterability_task_started_);
   DCHECK(IsValidIterabilitySpace(page->owner_identity()));
-  DCHECK_EQ(Page::kSweepingDone, page->concurrent_sweeping_state());
+  DCHECK_EQ(Page::ConcurrentSweepingState::kDone,
+            page->concurrent_sweeping_state());
 
   iterability_list_.push_back(page);
-  page->set_concurrent_sweeping_state(Page::kSweepingPending);
+  page->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kPending);
 }
 
 void Sweeper::MakeIterable(Page* page) {

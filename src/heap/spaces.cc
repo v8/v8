@@ -702,7 +702,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->invalidated_slots_[OLD_TO_OLD] = nullptr;
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_ = static_cast<intptr_t>(area_start - base);
-  chunk->set_concurrent_sweeping_state(kSweepingDone);
+  chunk->set_concurrent_sweeping_state(ConcurrentSweepingState::kDone);
   chunk->page_protection_change_mutex_ = new base::Mutex();
   chunk->write_unprotect_counter_ = 0;
   chunk->mutex_ = new base::Mutex();
