@@ -167,6 +167,11 @@ struct MachineRepresentationOf<ExternalReference> {
   static const MachineRepresentation value = RawPtrT::kMachineRepresentation;
 };
 
+template <typename T>
+constexpr bool IsMachineRepresentationOf(MachineRepresentation r) {
+  return MachineRepresentationOf<T>::value == r;
+}
+
 template <class T>
 struct is_valid_type_tag {
   static const bool value = std::is_base_of<Object, T>::value ||

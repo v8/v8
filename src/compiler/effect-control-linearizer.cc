@@ -4536,7 +4536,7 @@ Node* EffectControlLinearizer::SmiShiftBitsConstant() {
 
 Node* EffectControlLinearizer::LowerPlainPrimitiveToNumber(Node* node) {
   Node* value = node->InputAt(0);
-  return __ ToNumber(value);
+  return __ ToNumber(TNode<Object>::UncheckedCast(value));
 }
 
 Node* EffectControlLinearizer::LowerPlainPrimitiveToWord32(Node* node) {
@@ -4551,7 +4551,7 @@ Node* EffectControlLinearizer::LowerPlainPrimitiveToWord32(Node* node) {
   __ Goto(&done, ChangeSmiToInt32(value));
 
   __ Bind(&if_not_smi);
-  Node* to_number = __ ToNumber(value);
+  Node* to_number = __ ToNumber(TNode<Object>::UncheckedCast(value));
 
   Node* check1 = ObjectIsSmi(to_number);
   __ GotoIf(check1, &if_to_number_smi);
@@ -4578,7 +4578,7 @@ Node* EffectControlLinearizer::LowerPlainPrimitiveToFloat64(Node* node) {
   __ Goto(&done, __ ChangeInt32ToFloat64(from_smi));
 
   __ Bind(&if_not_smi);
-  Node* to_number = __ ToNumber(value);
+  Node* to_number = __ ToNumber(TNode<Object>::UncheckedCast(value));
   Node* check1 = ObjectIsSmi(to_number);
   __ GotoIf(check1, &if_to_number_smi);
 

@@ -398,15 +398,15 @@ Node* GraphAssembler::LoadFramePointer() {
   return AddNode(graph()->NewNode(machine()->LoadFramePointer()));
 }
 
-#define SINGLETON_CONST_DEF(Name)                    \
-  TNode<Object> GraphAssembler::Name##Constant() {   \
-    return TNode<Object>::UncheckedCast(             \
+#define SINGLETON_CONST_DEF(Name, Type)              \
+  TNode<Type> GraphAssembler::Name##Constant() {     \
+    return TNode<Type>::UncheckedCast(               \
         AddClonedNode(jsgraph()->Name##Constant())); \
   }
 JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DEF)
 #undef SINGLETON_CONST_DEF
 
-#define SINGLETON_CONST_TEST_DEF(Name)                           \
+#define SINGLETON_CONST_TEST_DEF(Name, ...)                      \
   TNode<Boolean> GraphAssembler::Is##Name(TNode<Object> value) { \
     return TNode<Boolean>::UncheckedCast(                        \
         ReferenceEqual(value, Name##Constant()));                \
@@ -516,8 +516,10 @@ TNode<Number> GraphAssembler::StringLength(TNode<String> string) {
       graph()->NewNode(simplified()->StringLength(), string));
 }
 
-Node* GraphAssembler::ReferenceEqual(Node* lhs, Node* rhs) {
-  return AddNode(graph()->NewNode(simplified()->ReferenceEqual(), lhs, rhs));
+TNode<Boolean> GraphAssembler::ReferenceEqual(TNode<Object> lhs,
+                                              TNode<Object> rhs) {
+  return AddNode<Boolean>(
+      graph()->NewNode(simplified()->ReferenceEqual(), lhs, rhs));
 }
 
 TNode<Number> GraphAssembler::NumberMin(TNode<Number> lhs, TNode<Number> rhs) {
@@ -550,13 +552,14 @@ TNode<Boolean> GraphAssembler::NumberLessThanOrEqual(TNode<Number> lhs,
       graph()->NewNode(simplified()->NumberLessThanOrEqual(), lhs, rhs));
 }
 
-TNode<String> GraphAssembler::StringSubstring(Node* string, Node* from,
-                                              Node* to) {
+TNode<String> GraphAssembler::StringSubstring(TNode<String> string,
+                                              TNode<Number> from,
+                                              TNode<Number> to) {
   return AddNode<String>(graph()->NewNode(
       simplified()->StringSubstring(), string, from, to, effect(), control()));
 }
 
-TNode<Boolean> GraphAssembler::ObjectIsCallable(Node* value) {
+TNode<Boolean> GraphAssembler::ObjectIsCallable(TNode<Object> value) {
   return AddNode<Boolean>(
       graph()->NewNode(simplified()->ObjectIsCallable(), value));
 }
@@ -566,8 +569,9 @@ Node* GraphAssembler::CheckIf(Node* cond, DeoptimizeReason reason) {
                                   control()));
 }
 
-Node* GraphAssembler::NumberIsFloat64Hole(Node* value) {
-  return AddNode(graph()->NewNode(simplified()->NumberIsFloat64Hole(), value));
+TNode<Boolean> GraphAssembler::NumberIsFloat64Hole(TNode<Number> value) {
+  return AddNode<Boolean>(
+      graph()->NewNode(simplified()->NumberIsFloat64Hole(), value));
 }
 
 Node* GraphAssembler::TypeGuard(Type type, Node* value) {
@@ -642,9 +646,10 @@ Node* GraphAssembler::UnsafePointerAdd(Node* base, Node* external) {
                                   effect(), control()));
 }
 
-Node* GraphAssembler::ToNumber(Node* value) {
-  return AddNode(graph()->NewNode(ToNumberOperator(), ToNumberBuiltinConstant(),
-                                  value, NoContextConstant(), effect()));
+TNode<Number> GraphAssembler::ToNumber(TNode<Object> value) {
+  return AddNode<Number>(graph()->NewNode(ToNumberOperator(),
+                                          ToNumberBuiltinConstant(), value,
+                                          NoContextConstant(), effect()));
 }
 
 Node* GraphAssembler::BitcastWordToTagged(Node* value) {

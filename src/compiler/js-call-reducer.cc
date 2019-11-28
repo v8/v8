@@ -38,24 +38,13 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-namespace {
-
 // Shorter lambda declarations with less visual clutter.
 #define _ [&]()  // NOLINT(whitespace/braces)
-
-template <class T>
-constexpr TNode<T> ToTNode(Node* node) {
-  return TNode<T>::UncheckedCast(node);
-}
-
-}  // namespace
 
 class JSCallReducerAssembler : public GraphAssembler {
  public:
   JSCallReducerAssembler(JSGraph* jsgraph, Zone* zone, Node* node)
-      : GraphAssembler(jsgraph, zone),
-        node_(ToTNode<Object>(node)),
-        if_exception_nodes_(zone) {
+      : GraphAssembler(jsgraph, zone), node_(node), if_exception_nodes_(zone) {
     InitializeEffectControl(NodeProperties::GetEffectInput(node),
                             NodeProperties::GetControlInput(node));
 
@@ -83,7 +72,7 @@ class JSCallReducerAssembler : public GraphAssembler {
   // Returns {value, effect, control}.
   std::tuple<Node*, Node*, Node*> MergeExceptionalPaths();
 
-  Node* node_ptr() const { return static_cast<Node*>(node_); }
+  Node* node_ptr() const { return node_; }
 
  protected:
   using NodeGenerator0 = std::function<TNode<Object>()>;
@@ -204,7 +193,7 @@ class JSCallReducerAssembler : public GraphAssembler {
       gasm_->Goto(&merge, else_result);
 
       gasm_->Bind(&merge);
-      return ToTNode<T>(merge.PhiAt(0));
+      return merge.PhiAt<T>(0);
     }
 
    private:
@@ -305,7 +294,7 @@ class JSCallReducerAssembler : public GraphAssembler {
 
       gasm_->Bind(&loop_header);
       Node* loop_header_control = gasm_->control();  // For LoopExit below.
-      TNode<Number> i = ToTNode<Number>(loop_header.PhiAt(0));
+      TNode<Number> i = loop_header.PhiAt<Number>(0);
 
       gasm_->BranchWithHint(cond_(i), &loop_body, &loop_exit,
                             BranchHint::kTrue);
@@ -332,20 +321,16 @@ class JSCallReducerAssembler : public GraphAssembler {
   };
 
   ForBuilder0 ForSmiZeroUntil(TNode<Number> excluded_limit) {
-    TNode<Number> initial_value = ToTNode<Number>(ZeroConstant());
+    TNode<Number> initial_value = ZeroConstant();
     auto cond = [=](TNode<Number> i) {
       return NumberLessThan(i, excluded_limit);
     };
-    auto step = [=](TNode<Number> i) {
-      return NumberAdd(i, ToTNode<Number>(OneConstant()));
-    };
+    auto step = [=](TNode<Number> i) { return NumberAdd(i, OneConstant()); };
     return {this, initial_value, cond, step};
   }
 
   ForBuilder0 Forever(TNode<Number> initial_value, const StepFunction1& step) {
-    TNode<Boolean> true_constant =
-        ToTNode<Boolean>(jsgraph()->BooleanConstant(true));
-    return {this, initial_value, [=](TNode<Number>) { return true_constant; },
+    return {this, initial_value, [=](TNode<Number>) { return TrueConstant(); },
             step};
   }
 
@@ -379,8 +364,8 @@ class JSCallReducerAssembler : public GraphAssembler {
 
       gasm_->Bind(&loop_header);
       Node* loop_header_control = gasm_->control();  // For LoopExit below.
-      TNode<Number> i = ToTNode<Number>(loop_header.PhiAt(0));
-      arg0 = ToTNode<Object>(loop_header.PhiAt(1));
+      TNode<Number> i = loop_header.PhiAt<Number>(0);
+      arg0 = loop_header.PhiAt<Object>(1);
 
       gasm_->BranchWithHint(cond_(i), &loop_body, &loop_exit, BranchHint::kTrue,
                             arg0);
@@ -395,7 +380,7 @@ class JSCallReducerAssembler : public GraphAssembler {
       gasm_->LoopExit(loop_header_control);
       gasm_->LoopExitEffect();
 
-      return ToTNode<Object>(loop_exit.PhiAt(0));
+      return loop_exit.PhiAt<Object>(0);
     }
 
    private:
@@ -421,23 +406,27 @@ class JSCallReducerAssembler : public GraphAssembler {
   }
 
   TNode<Object> ValueInput(int index) const {
-    return ToTNode<Object>(NodeProperties::GetValueInput(node_, index));
+    return TNode<Object>::UncheckedCast(
+        NodeProperties::GetValueInput(node_, index));
   }
 
   TNode<Object> ValueInputOrNaN(int index) {
-    return ToTNode<Object>(node_ptr()->op()->ValueInputCount() > index
-                               ? NodeProperties::GetValueInput(node_, index)
-                               : NaNConstant());
+    return TNode<Object>::UncheckedCast(
+        node_ptr()->op()->ValueInputCount() > index
+            ? NodeProperties::GetValueInput(node_, index)
+            : NaNConstant());
   }
 
   TNode<Object> ValueInputOrUndefined(int index) {
-    return ToTNode<Object>(node_ptr()->op()->ValueInputCount() > index
-                               ? NodeProperties::GetValueInput(node_, index)
-                               : UndefinedConstant());
+    return TNode<Object>::UncheckedCast(
+        node_ptr()->op()->ValueInputCount() > index
+            ? NodeProperties::GetValueInput(node_, index)
+            : UndefinedConstant());
   }
 
   TNode<Context> ContextInput() const {
-    return ToTNode<Context>(NodeProperties::GetContextInput(node_));
+    return TNode<Context>::UncheckedCast(
+        NodeProperties::GetContextInput(node_));
   }
 
   Node* FrameStateInput() const {
@@ -447,7 +436,7 @@ class JSCallReducerAssembler : public GraphAssembler {
   JSOperatorBuilder* javascript() const { return jsgraph()->javascript(); }
 
  private:
-  const TNode<Object> node_;
+  Node* const node_;
 
   bool has_external_exception_handler_;
   Node* external_exception_handler_;
@@ -490,28 +479,29 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
   // Returns {index,value}. Assumes that the map has not changed, but possibly
   // the length and backing store.
   std::pair<TNode<Number>, TNode<Object>> SafeLoadElement(ElementsKind kind,
-                                                          TNode<Object> o,
+                                                          TNode<HeapObject> o,
                                                           TNode<Number> index) {
     // Make sure that the access is still in bounds, since the callback could
     // have changed the array's size.
     TNode<Number> length =
-        ToTNode<Number>(LoadField(AccessBuilder::ForJSArrayLength(kind), o));
+        LoadField<Smi>(AccessBuilder::ForJSArrayLength(kind), o);
     index = CheckBounds(index, length);
 
     // Reload the elements pointer before calling the callback, since the
     // previous callback might have resized the array causing the elements
     // buffer to be re-allocated.
-    TNode<Object> elements =
-        ToTNode<Object>(LoadField(AccessBuilder::ForJSObjectElements(), o));
-    TNode<Object> value = ToTNode<Object>(LoadElement(
+    TNode<HeapObject> elements =
+        LoadField<HeapObject>(AccessBuilder::ForJSObjectElements(), o);
+    TNode<Object> value = LoadElement<Object>(
         AccessBuilder::ForFixedArrayElement(kind, LoadSensitivity::kCritical),
-        elements, index));
+        elements, index);
     return std::make_pair(index, value);
   }
 
   TNode<Boolean> HoleCheck(ElementsKind kind, TNode<Object> v) {
-    return ToTNode<Boolean>(IsDoubleElementsKind(kind) ? NumberIsFloat64Hole(v)
-                                                       : IsTheHole(v));
+    return IsDoubleElementsKind(kind)
+               ? NumberIsFloat64Hole(TNode<Number>::UncheckedCast(v))
+               : IsTheHole(v);
   }
 };
 
@@ -539,12 +529,12 @@ TNode<Number> JSCallReducerAssembler::CheckBounds(TNode<Number> value,
 }
 
 TNode<Smi> JSCallReducerAssembler::TypeGuardUnsignedSmall(TNode<Object> value) {
-  return ToTNode<Smi>(TypeGuard(Type::UnsignedSmall(), value));
+  return TNode<Smi>::UncheckedCast(TypeGuard(Type::UnsignedSmall(), value));
 }
 
 TNode<Object> JSCallReducerAssembler::TypeGuardNonInternal(
     TNode<Object> value) {
-  return ToTNode<Object>(TypeGuard(Type::NonInternal(), value));
+  return TNode<Object>::UncheckedCast(TypeGuard(Type::NonInternal(), value));
 }
 
 TNode<Object> JSCallReducerAssembler::JSCall3(
@@ -620,7 +610,7 @@ JSCallReducerAssembler::MergeExceptionalPaths() {
 TNode<Object> JSCallReducerAssembler::ReduceMathUnary(const Operator* op) {
   TNode<Object> input = ValueInput(2);
   TNode<Number> input_as_number = SpeculativeToNumber(input);
-  return ToTNode<Object>(graph()->NewNode(op, input_as_number));
+  return TNode<Object>::UncheckedCast(graph()->NewNode(op, input_as_number));
 }
 
 TNode<Object> JSCallReducerAssembler::ReduceMathBinary(const Operator* op) {
@@ -628,7 +618,8 @@ TNode<Object> JSCallReducerAssembler::ReduceMathBinary(const Operator* op) {
   TNode<Object> right = ValueInputOrNaN(3);
   TNode<Number> left_number = SpeculativeToNumber(left);
   TNode<Number> right_number = SpeculativeToNumber(right);
-  return ToTNode<Object>(graph()->NewNode(op, left_number, right_number));
+  return TNode<Object>::UncheckedCast(
+      graph()->NewNode(op, left_number, right_number));
 }
 
 TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSubstring() {
@@ -695,7 +686,7 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSlice() {
 
   return SelectIf<String>(NumberLessThan(from, to))
       .Then(_ { return StringSubstring(receiver_string, from, to); })
-      .Else(_ { return ToTNode<String>(EmptyStringConstant()); })
+      .Else(_ { return EmptyStringConstant(); })
       .ExpectTrue()
       .Value();
 }
@@ -747,20 +738,19 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeForEach(
   Node* outer_frame_state = FrameStateInput();
   TNode<Context> context = ContextInput();
   TNode<Object> target = ValueInput(0);
-  TNode<Object> receiver = ValueInput(1);
+  TNode<HeapObject> receiver = TNode<HeapObject>::UncheckedCast(ValueInput(1));
   TNode<Object> fncallback = ValueInputOrUndefined(2);
   TNode<Object> this_arg = ValueInputOrUndefined(3);
 
-  TNode<Number> original_length = ToTNode<Number>(
-      LoadField(AccessBuilder::ForJSArrayLength(kind), receiver));
+  TNode<Number> original_length =
+      LoadField<Smi>(AccessBuilder::ForJSArrayLength(kind), receiver);
 
   ForEachFrameStateParams frame_state_params{
       jsgraph(), shared,     context,  target,         outer_frame_state,
       receiver,  fncallback, this_arg, original_length};
 
-  ThrowIfNotCallable(
-      fncallback, ForEachLoopLazyFrameState(frame_state_params,
-                                            ToTNode<Object>(ZeroConstant())));
+  ThrowIfNotCallable(fncallback, ForEachLoopLazyFrameState(frame_state_params,
+                                                           ZeroConstant()));
 
   ForSmiZeroUntil(original_length).Do([&](TNode<Number> k) {
     Checkpoint(ForEachLoopEagerFrameState(frame_state_params, k));
@@ -785,7 +775,7 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeForEach(
       element = TypeGuardNonInternal(element);
     }
 
-    TNode<Number> next_k = NumberAdd(k, ToTNode<Number>(OneConstant()));
+    TNode<Number> next_k = NumberAdd(k, OneConstant());
     JSCall3(fncallback, this_arg, element, k, receiver,
             ForEachLoopLazyFrameState(frame_state_params, next_k));
 
@@ -878,21 +868,21 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeReduce(
   Node* outer_frame_state = FrameStateInput();
   TNode<Context> context = ContextInput();
   TNode<Object> target = ValueInput(0);
-  TNode<Object> receiver = ValueInput(1);
+  TNode<HeapObject> receiver = TNode<HeapObject>::UncheckedCast(ValueInput(1));
   TNode<Object> fncallback = ValueInputOrUndefined(2);
 
   ReduceFrameStateParams frame_state_params{
       jsgraph(), shared, direction, context, target, outer_frame_state};
 
-  TNode<Number> original_length = ToTNode<Number>(
-      LoadField(AccessBuilder::ForJSArrayLength(kind), receiver));
+  TNode<Number> original_length =
+      LoadField<Smi>(AccessBuilder::ForJSArrayLength(kind), receiver);
 
   // Set up variable behavior depending on the reduction kind (left/right).
   TNode<Number> k;
   StepFunction1 step;
   ConditionFunction1 cond;
-  TNode<Number> zero = ToTNode<Number>(ZeroConstant());
-  TNode<Number> one = ToTNode<Number>(OneConstant());
+  TNode<Number> zero = ZeroConstant();
+  TNode<Number> one = OneConstant();
   if (direction == ArrayReduceDirection::kLeft) {
     k = zero;
     step = [&](TNode<Number> i) { return NumberAdd(i, one); };
@@ -935,8 +925,8 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeReduce(
     // TODO(jgruber): This manual fiddling with blocks could be avoided by
     // implementing a `break` mechanic for loop builders.
     Bind(&found_initial_element);
-    k = step(ToTNode<Number>(found_initial_element.PhiAt(0)));
-    accumulator = ToTNode<Object>(found_initial_element.PhiAt(1));
+    k = step(found_initial_element.PhiAt<Number>(0));
+    accumulator = found_initial_element.PhiAt<Object>(1);
     accumulator = TypeGuardNonInternal(accumulator);
   }
 
@@ -975,7 +965,7 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeReduce(
             Goto(&continue_label, next_accumulator);
 
             Bind(&continue_label);
-            *accumulator = ToTNode<Object>(continue_label.PhiAt(0));
+            *accumulator = continue_label.PhiAt<Object>(0);
           })
           .Value();
 

@@ -102,27 +102,27 @@ class BasicBlock;
   V(Uint32Div)                               \
   V(Uint32Mod)
 
-#define JSGRAPH_SINGLETON_CONSTANT_LIST(V) \
-  V(AllocateInOldGenerationStub)           \
-  V(AllocateInYoungGenerationStub)         \
-  V(AllocateRegularInOldGenerationStub)    \
-  V(AllocateRegularInYoungGenerationStub)  \
-  V(BigIntMap)                             \
-  V(BooleanMap)                            \
-  V(EmptyString)                           \
-  V(False)                                 \
-  V(FixedArrayMap)                         \
-  V(FixedDoubleArrayMap)                   \
-  V(HeapNumberMap)                         \
-  V(NaN)                                   \
-  V(NoContext)                             \
-  V(Null)                                  \
-  V(One)                                   \
-  V(TheHole)                               \
-  V(ToNumberBuiltin)                       \
-  V(True)                                  \
-  V(Undefined)                             \
-  V(Zero)
+#define JSGRAPH_SINGLETON_CONSTANT_LIST(V)      \
+  V(AllocateInOldGenerationStub, Code)          \
+  V(AllocateInYoungGenerationStub, Code)        \
+  V(AllocateRegularInOldGenerationStub, Code)   \
+  V(AllocateRegularInYoungGenerationStub, Code) \
+  V(BigIntMap, Map)                             \
+  V(BooleanMap, Map)                            \
+  V(EmptyString, String)                        \
+  V(False, Boolean)                             \
+  V(FixedArrayMap, Map)                         \
+  V(FixedDoubleArrayMap, Map)                   \
+  V(HeapNumberMap, Map)                         \
+  V(NaN, Number)                                \
+  V(NoContext, Object)                          \
+  V(Null, Oddball)                              \
+  V(One, Number)                                \
+  V(TheHole, Oddball)                           \
+  V(ToNumberBuiltin, Code)                      \
+  V(True, Boolean)                              \
+  V(Undefined, Oddball)                         \
+  V(Zero, Number)
 
 class GraphAssembler;
 
@@ -133,6 +133,13 @@ template <size_t VarCount>
 class GraphAssemblerLabel {
  public:
   Node* PhiAt(size_t index);
+
+  template <typename T>
+  TNode<T> PhiAt(size_t index) {
+    // TODO(jgruber): Investigate issues on ptr compression bots and enable.
+    // DCHECK(IsMachineRepresentationOf<T>(representations_[index]));
+    return TNode<T>::UncheckedCast(PhiAt(index));
+  }
 
   template <typename... Reps>
   explicit GraphAssemblerLabel(GraphAssemblerLabelType type,
@@ -225,11 +232,11 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   Node* LoadFramePointer();
 
-#define SINGLETON_CONST_DECL(Name) TNode<Object> Name##Constant();
+#define SINGLETON_CONST_DECL(Name, Type) TNode<Type> Name##Constant();
   JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DECL)
 #undef SINGLETON_CONST_DECL
 
-#define SINGLETON_CONST_TEST_DECL(Name) \
+#define SINGLETON_CONST_TEST_DECL(Name, ...) \
   TNode<Boolean> Is##Name(TNode<Object> value);
   JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_TEST_DECL)
 #undef SINGLETON_CONST_TEST_DECL
@@ -257,28 +264,44 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* Float64RoundDown(Node* value);
   Node* Float64RoundTruncate(Node* value);
 
-  Node* ToNumber(Node* value);
+  TNode<Number> ToNumber(TNode<Object> value);
   Node* BitcastWordToTagged(Node* value);
   Node* BitcastTaggedToWord(Node* value);
   Node* BitcastTaggedToWordForTagAndSmiBits(Node* value);
   Node* Allocate(AllocationType allocation, Node* size);
   Node* LoadField(FieldAccess const&, Node* object);
+  template <typename T>
+  TNode<T> LoadField(FieldAccess const& access, TNode<HeapObject> object) {
+    // TODO(jgruber): Investigate issues on ptr compression bots and enable.
+    // DCHECK(IsMachineRepresentationOf<T>(
+    //     access.machine_type.representation()));
+    return TNode<T>::UncheckedCast(LoadField(access, object));
+  }
   Node* LoadElement(ElementAccess const&, Node* object, Node* index);
+  template <typename T>
+  TNode<T> LoadElement(ElementAccess const& access, TNode<HeapObject> object,
+                       TNode<Number> index) {
+    // TODO(jgruber): Investigate issues on ptr compression bots and enable.
+    // DCHECK(IsMachineRepresentationOf<T>(
+    //     access.machine_type.representation()));
+    return TNode<T>::UncheckedCast(LoadElement(access, object, index));
+  }
   Node* StoreField(FieldAccess const&, Node* object, Node* value);
   Node* StoreElement(ElementAccess const&, Node* object, Node* index,
                      Node* value);
   TNode<Number> StringLength(TNode<String> string);
-  Node* ReferenceEqual(Node* lhs, Node* rhs);
+  TNode<Boolean> ReferenceEqual(TNode<Object> lhs, TNode<Object> rhs);
   TNode<Number> NumberMin(TNode<Number> lhs, TNode<Number> rhs);
   TNode<Number> NumberMax(TNode<Number> lhs, TNode<Number> rhs);
   TNode<Boolean> NumberLessThan(TNode<Number> lhs, TNode<Number> rhs);
   TNode<Boolean> NumberLessThanOrEqual(TNode<Number> lhs, TNode<Number> rhs);
   TNode<Number> NumberAdd(TNode<Number> lhs, TNode<Number> rhs);
   TNode<Number> NumberSubtract(TNode<Number> lhs, TNode<Number> rhs);
-  TNode<String> StringSubstring(Node* string, Node* from, Node* to);
-  TNode<Boolean> ObjectIsCallable(Node* value);
+  TNode<String> StringSubstring(TNode<String> string, TNode<Number> from,
+                                TNode<Number> to);
+  TNode<Boolean> ObjectIsCallable(TNode<Object> value);
   Node* CheckIf(Node* cond, DeoptimizeReason reason);
-  Node* NumberIsFloat64Hole(Node* value);
+  TNode<Boolean> NumberIsFloat64Hole(TNode<Number> value);
 
   Node* TypeGuard(Type type, Node* value);
   Node* Checkpoint(Node* frame_state);
