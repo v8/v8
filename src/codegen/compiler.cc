@@ -483,6 +483,15 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(
   CompilationJob::Status status = job->FinalizeJob(shared_info, isolate);
   if (status == CompilationJob::SUCCEEDED) {
     InstallUnoptimizedCode(compilation_info, shared_info, parse_info, isolate);
+
+    // It's possible that source position collection was enabled after the
+    // background compile was started in which the compiled bytecode will not be
+    // missing source positions (for instance by enabling the cpu profiler). So
+    // force source position collection now in that case.
+    if (isolate->NeedsDetailedOptimizedCodeLineInfo()) {
+      SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
+    }
+
     CodeEventListener::LogEventsAndTags log_tag;
     if (parse_info->is_toplevel()) {
       log_tag = compilation_info->is_eval() ? CodeEventListener::EVAL_TAG

@@ -562,7 +562,7 @@ class SharedFunctionInfo : public HeapObject {
   static void EnsureSourcePositionsAvailable(
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info);
 
-  bool AreSourcePositionsAvailable() const;
+  V8_EXPORT_PRIVATE bool AreSourcePositionsAvailable() const;
 
   // Hash based on function literal id and script id.
   V8_EXPORT_PRIVATE uint32_t Hash();
