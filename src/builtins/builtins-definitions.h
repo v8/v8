@@ -1213,32 +1213,6 @@ namespace internal {
   V(PromiseRace)                                     \
   V(ResolvePromise)
 
-// Convenience macro listing all wasm runtime stubs. Note that the first few
-// elements of the list coincide with {compiler::TrapId}, order matters.
-#define WASM_RUNTIME_STUB_LIST(V, VTRAP) \
-  FOREACH_WASM_TRAPREASON(VTRAP)         \
-  V(WasmCompileLazy)                     \
-  V(WasmAtomicNotify)                    \
-  V(WasmI32AtomicWait)                   \
-  V(WasmI64AtomicWait)                   \
-  V(WasmMemoryGrow)                      \
-  V(WasmTableGet)                        \
-  V(WasmTableSet)                        \
-  V(WasmStackGuard)                      \
-  V(WasmStackOverflow)                   \
-  V(WasmThrow)                           \
-  V(WasmRethrow)                         \
-  V(WasmTraceMemory)                     \
-  V(AllocateHeapNumber)                  \
-  V(ArgumentsAdaptorTrampoline)          \
-  V(BigIntToI32Pair)                     \
-  V(BigIntToI64)                         \
-  V(DoubleToI)                           \
-  V(I32PairToBigInt)                     \
-  V(I64ToBigInt)                         \
-  V(RecordWrite)                         \
-  V(ToNumber)
-
 // The exception thrown in the following builtins are caught internally and will
 // not be propagated further or re-thrown
 #define BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(V) V(PromiseRejectReactionJob)

@@ -136,8 +136,6 @@ class Builtins {
     return kAllBuiltinsAreIsolateIndependent;
   }
 
-  static bool IsWasmRuntimeStub(int index);
-
   // Initializes the table of builtin entry points based on the current contents
   // of the builtins table.
   static void InitializeBuiltinEntryTable(Isolate* isolate);

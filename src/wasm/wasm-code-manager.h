@@ -42,6 +42,32 @@ class WasmEngine;
 class WasmImportWrapperCache;
 struct WasmModule;
 
+// Convenience macro listing all wasm runtime stubs. Note that the first few
+// elements of the list coincide with {compiler::TrapId}, order matters.
+#define WASM_RUNTIME_STUB_LIST(V, VTRAP) \
+  FOREACH_WASM_TRAPREASON(VTRAP)         \
+  V(WasmCompileLazy)                     \
+  V(WasmAtomicNotify)                    \
+  V(WasmI32AtomicWait)                   \
+  V(WasmI64AtomicWait)                   \
+  V(WasmMemoryGrow)                      \
+  V(WasmTableGet)                        \
+  V(WasmTableSet)                        \
+  V(WasmStackGuard)                      \
+  V(WasmStackOverflow)                   \
+  V(WasmThrow)                           \
+  V(WasmRethrow)                         \
+  V(WasmTraceMemory)                     \
+  V(AllocateHeapNumber)                  \
+  V(ArgumentsAdaptorTrampoline)          \
+  V(BigIntToI32Pair)                     \
+  V(BigIntToI64)                         \
+  V(DoubleToI)                           \
+  V(I32PairToBigInt)                     \
+  V(I64ToBigInt)                         \
+  V(RecordWrite)                         \
+  V(ToNumber)
+
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
 // form [start, end). So there's no [start, end), [end, other_end),
 // because that should have been reduced to [start, other_end).
