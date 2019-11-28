@@ -82,6 +82,7 @@ class WasmInstanceNativeAllocations {
     SET(instance, dropped_elem_segments,
         reinterpret_cast<uint8_t*>(calloc(num_elem_segments, sizeof(uint8_t))));
   }
+
   ~WasmInstanceNativeAllocations() {
     ::free(indirect_function_table_sig_ids_);
     indirect_function_table_sig_ids_ = nullptr;
@@ -100,44 +101,52 @@ class WasmInstanceNativeAllocations {
     ::free(dropped_elem_segments_);
     dropped_elem_segments_ = nullptr;
   }
+
+  uint32_t indirect_function_table_capacity() const {
+    return indirect_function_table_capacity_;
+  }
+
   // Resizes the indirect function table.
   void resize_indirect_function_table(Isolate* isolate,
                                       Handle<WasmInstanceObject> instance,
-                                      uint32_t new_size) {
-    uint32_t old_size = instance->indirect_function_table_size();
+                                      uint32_t new_capacity) {
+    uint32_t old_capacity = indirect_function_table_capacity_;
+    DCHECK_LT(old_capacity, new_capacity);
+    // Grow exponentially to support repeated re-allocation.
+    new_capacity = std::max(new_capacity, 2 * old_capacity);
+    CHECK_GE(kMaxInt, old_capacity);
+    CHECK_GE(kMaxInt, new_capacity);
     void* new_sig_ids = nullptr;
     void* new_targets = nullptr;
     Handle<FixedArray> new_refs;
     if (indirect_function_table_sig_ids_) {
       // Reallocate the old storage.
       new_sig_ids = realloc(indirect_function_table_sig_ids_,
-                            new_size * sizeof(uint32_t));
-      new_targets =
-          realloc(indirect_function_table_targets_, new_size * sizeof(Address));
+                            new_capacity * sizeof(uint32_t));
+      new_targets = realloc(indirect_function_table_targets_,
+                            new_capacity * sizeof(Address));
 
       Handle<FixedArray> old(instance->indirect_function_table_refs(), isolate);
       new_refs = isolate->factory()->CopyFixedArrayAndGrow(
-          old, static_cast<int>(new_size - old_size));
+          old, static_cast<int>(new_capacity - old_capacity));
     } else {
       // Allocate new storage.
-      new_sig_ids = malloc(new_size * sizeof(uint32_t));
-      new_targets = malloc(new_size * sizeof(Address));
-      new_refs = isolate->factory()->NewFixedArray(static_cast<int>(new_size));
+      new_sig_ids = malloc(new_capacity * sizeof(uint32_t));
+      new_targets = malloc(new_capacity * sizeof(Address));
+      new_refs =
+          isolate->factory()->NewFixedArray(static_cast<int>(new_capacity));
     }
     // Initialize new entries.
-    instance->set_indirect_function_table_size(new_size);
     SET(instance, indirect_function_table_sig_ids,
         reinterpret_cast<uint32_t*>(new_sig_ids));
     SET(instance, indirect_function_table_targets,
         reinterpret_cast<Address*>(new_targets));
 
     instance->set_indirect_function_table_refs(*new_refs);
-    for (uint32_t j = old_size; j < new_size; j++) {
-      // {WasmInstanceNativeAllocations} only manages the memory of table 0.
-      // Therefore we pass the {table_index} as a constant here.
-      IndirectFunctionTableEntry(instance, 0, static_cast<int>(j)).clear();
-    }
+    indirect_function_table_capacity_ = new_capacity;
   }
+
+  uint32_t indirect_function_table_capacity_ = 0;
   uint32_t* indirect_function_table_sig_ids_ = nullptr;
   Address* indirect_function_table_targets_ = nullptr;
   Address* imported_function_targets_ = nullptr;
@@ -1268,13 +1277,25 @@ bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
     WasmIndirectFunctionTable::Resize(isolate, table, minimum_size);
     return true;
   }
+
   uint32_t old_size = instance->indirect_function_table_size();
   if (old_size >= minimum_size) return false;  // Nothing to do.
 
-  HandleScope scope(isolate);
   auto native_allocations = GetNativeAllocations(*instance);
-  native_allocations->resize_indirect_function_table(isolate, instance,
-                                                     minimum_size);
+  if (native_allocations->indirect_function_table_capacity() < minimum_size) {
+    HandleScope scope(isolate);
+    native_allocations->resize_indirect_function_table(isolate, instance,
+                                                       minimum_size);
+    DCHECK_GE(native_allocations->indirect_function_table_capacity(),
+              minimum_size);
+  }
+  instance->set_indirect_function_table_size(minimum_size);
+  for (uint32_t j = old_size; j < minimum_size; j++) {
+    // {WasmInstanceNativeAllocations} only manages the memory of table 0.
+    // Therefore we pass the {table_index} as a constant here.
+    IndirectFunctionTableEntry(instance, 0, static_cast<int>(j)).clear();
+  }
+
   return true;
 }
 
