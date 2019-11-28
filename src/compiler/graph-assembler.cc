@@ -579,12 +579,12 @@ Node* GraphAssembler::TypeGuard(Type type, Node* value) {
       graph()->NewNode(common()->TypeGuard(type), value, effect(), control()));
 }
 
-Node* GraphAssembler::Checkpoint(Node* frame_state) {
+Node* GraphAssembler::Checkpoint(FrameState frame_state) {
   return AddNode(graph()->NewNode(common()->Checkpoint(), frame_state, effect(),
                                   control()));
 }
 
-Node* GraphAssembler::LoopExit(Node* loop_header) {
+Node* GraphAssembler::LoopExit(Control loop_header) {
   return AddNode(
       graph()->NewNode(common()->LoopExit(), control(), loop_header));
 }

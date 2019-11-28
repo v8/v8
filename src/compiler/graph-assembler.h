@@ -126,6 +126,46 @@ class BasicBlock;
 
 class GraphAssembler;
 
+// Wrapper classes for special node/edge types (effect, control, frame states)
+// that otherwise don't fit into the type system.
+
+class NodeWrapper {
+ public:
+  explicit constexpr NodeWrapper(Node* node) : node_(node) {}
+  operator Node*() const { return node_; }
+  Node* operator->() const { return node_; }
+
+ private:
+  Node* const node_;
+};
+
+class Effect : public NodeWrapper {
+ public:
+  explicit constexpr Effect(Node* node) : NodeWrapper(node) {
+    // TODO(jgruber): Remove the End/Dead special case.
+    SLOW_DCHECK(node == nullptr || node->op()->opcode() == IrOpcode::kEnd ||
+                node->op()->opcode() == IrOpcode::kDead ||
+                node->op()->EffectOutputCount() > 0);
+  }
+};
+
+class Control : public NodeWrapper {
+ public:
+  explicit constexpr Control(Node* node) : NodeWrapper(node) {
+    // TODO(jgruber): Remove the End/Dead special case.
+    SLOW_DCHECK(node == nullptr || node->op()->opcode() == IrOpcode::kEnd ||
+                node->op()->opcode() == IrOpcode::kDead ||
+                node->op()->ControlOutputCount() > 0);
+  }
+};
+
+class FrameState : public NodeWrapper {
+ public:
+  explicit constexpr FrameState(Node* node) : NodeWrapper(node) {
+    SLOW_DCHECK(node->op()->opcode() == IrOpcode::kFrameState);
+  }
+};
+
 enum class GraphAssemblerLabelType { kDeferred, kNonDeferred, kLoop };
 
 // Label with statically known count of incoming branches and phis.
@@ -304,8 +344,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   TNode<Boolean> NumberIsFloat64Hole(TNode<Number> value);
 
   Node* TypeGuard(Type type, Node* value);
-  Node* Checkpoint(Node* frame_state);
-  Node* LoopExit(Node* loop_header);
+  Node* Checkpoint(FrameState frame_state);
+  Node* LoopExit(Control loop_header);
   Node* LoopExitEffect();
 
   Node* Store(StoreRepresentation rep, Node* object, Node* offset, Node* value);
@@ -392,8 +432,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   void ConnectUnreachableToEnd();
 
-  Node* control() { return control_; }
-  Node* effect() { return effect_; }
+  Control control() { return Control(control_); }
+  Effect effect() { return Effect(effect_); }
 
  protected:
   class BasicBlockUpdater;

@@ -227,14 +227,14 @@ class JSCallReducerAssembler : public GraphAssembler {
   // Javascript operators.
   TNode<Object> JSCall3(TNode<Object> function, TNode<Object> this_arg,
                         TNode<Object> arg0, TNode<Object> arg1,
-                        TNode<Object> arg2, Node* frame_state);
+                        TNode<Object> arg2, FrameState frame_state);
   TNode<Object> JSCall4(TNode<Object> function, TNode<Object> this_arg,
                         TNode<Object> arg0, TNode<Object> arg1,
                         TNode<Object> arg2, TNode<Object> arg3,
-                        Node* frame_state);
+                        FrameState frame_state);
   TNode<Object> JSCallRuntime2(Runtime::FunctionId function_id,
                                TNode<Object> arg0, TNode<Object> arg1,
-                               Node* frame_state);
+                               FrameState frame_state);
 
   void MaybeInsertMapChecks(MapInference* inference,
                             bool has_stability_dependency) {
@@ -257,8 +257,8 @@ class JSCallReducerAssembler : public GraphAssembler {
     TNode<Object> result = body();
 
     if (has_external_exception_handler()) {
-      Node* e = effect();
-      Node* c = control();
+      Effect e = effect();
+      Control c = control();
 
       // The IfException node is later merged into the outer graph.
       Node* if_exception =
@@ -293,7 +293,7 @@ class JSCallReducerAssembler : public GraphAssembler {
       gasm_->Goto(&loop_header, initial_value_);
 
       gasm_->Bind(&loop_header);
-      Node* loop_header_control = gasm_->control();  // For LoopExit below.
+      Control loop_header_control = gasm_->control();  // For LoopExit below.
       TNode<Number> i = loop_header.PhiAt<Number>(0);
 
       gasm_->BranchWithHint(cond_(i), &loop_body, &loop_exit,
@@ -363,7 +363,7 @@ class JSCallReducerAssembler : public GraphAssembler {
       gasm_->Goto(&loop_header, initial_value_, initial_arg0_);
 
       gasm_->Bind(&loop_header);
-      Node* loop_header_control = gasm_->control();  // For LoopExit below.
+      Control loop_header_control = gasm_->control();  // For LoopExit below.
       TNode<Number> i = loop_header.PhiAt<Number>(0);
       arg0 = loop_header.PhiAt<Object>(1);
 
@@ -429,8 +429,8 @@ class JSCallReducerAssembler : public GraphAssembler {
         NodeProperties::GetContextInput(node_));
   }
 
-  Node* FrameStateInput() const {
-    return NodeProperties::GetFrameStateInput(node_);
+  FrameState FrameStateInput() const {
+    return FrameState(NodeProperties::GetFrameStateInput(node_));
   }
 
   JSOperatorBuilder* javascript() const { return jsgraph()->javascript(); }
@@ -462,7 +462,8 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
                                            ArrayReduceDirection direction,
                                            const SharedFunctionInfoRef& shared);
 
-  void ThrowIfNotCallable(TNode<Object> maybe_callable, Node* frame_state) {
+  void ThrowIfNotCallable(TNode<Object> maybe_callable,
+                          FrameState frame_state) {
     IfNot(ObjectIsCallable(maybe_callable))
         .Then(_ {
           JSCallRuntime2(Runtime::kThrowTypeError,
@@ -539,7 +540,7 @@ TNode<Object> JSCallReducerAssembler::TypeGuardNonInternal(
 
 TNode<Object> JSCallReducerAssembler::JSCall3(
     TNode<Object> function, TNode<Object> this_arg, TNode<Object> arg0,
-    TNode<Object> arg1, TNode<Object> arg2, Node* frame_state) {
+    TNode<Object> arg1, TNode<Object> arg2, FrameState frame_state) {
   CallParameters const& p = CallParametersOf(node_ptr()->op());
   return MayThrow(_ {
     return AddNode<Object>(graph()->NewNode(
@@ -554,7 +555,7 @@ TNode<Object> JSCallReducerAssembler::JSCall3(
 TNode<Object> JSCallReducerAssembler::JSCall4(
     TNode<Object> function, TNode<Object> this_arg, TNode<Object> arg0,
     TNode<Object> arg1, TNode<Object> arg2, TNode<Object> arg3,
-    Node* frame_state) {
+    FrameState frame_state) {
   CallParameters const& p = CallParametersOf(node_ptr()->op());
   return MayThrow(_ {
     return AddNode<Object>(graph()->NewNode(
@@ -568,7 +569,7 @@ TNode<Object> JSCallReducerAssembler::JSCall4(
 
 TNode<Object> JSCallReducerAssembler::JSCallRuntime2(
     Runtime::FunctionId function_id, TNode<Object> arg0, TNode<Object> arg1,
-    Node* frame_state) {
+    FrameState frame_state) {
   return MayThrow(_ {
     return AddNode<Object>(
         graph()->NewNode(javascript()->CallRuntime(function_id, 2), arg0, arg1,
@@ -698,33 +699,33 @@ struct ForEachFrameStateParams {
   SharedFunctionInfoRef shared;
   TNode<Context> context;
   TNode<Object> target;
-  Node* outer_frame_state;
+  FrameState outer_frame_state;
   TNode<Object> receiver;
   TNode<Object> callback;
   TNode<Object> this_arg;
   TNode<Object> original_length;
 };
 
-Node* ForEachLoopLazyFrameState(const ForEachFrameStateParams& params,
-                                TNode<Object> k) {
+FrameState ForEachLoopLazyFrameState(const ForEachFrameStateParams& params,
+                                     TNode<Object> k) {
   Builtins::Name builtin = Builtins::kArrayForEachLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
-  return CreateJavaScriptBuiltinContinuationFrameState(
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::LAZY);
+      ContinuationFrameStateMode::LAZY));
 }
 
-Node* ForEachLoopEagerFrameState(const ForEachFrameStateParams& params,
-                                 TNode<Object> k) {
+FrameState ForEachLoopEagerFrameState(const ForEachFrameStateParams& params,
+                                      TNode<Object> k) {
   Builtins::Name builtin = Builtins::kArrayForEachLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
-  return CreateJavaScriptBuiltinContinuationFrameState(
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::EAGER);
+      ContinuationFrameStateMode::EAGER));
 }
 
 }  // namespace
@@ -735,7 +736,7 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeForEach(
     ElementsKind kind, const SharedFunctionInfoRef& shared) {
   DCHECK(FLAG_turbo_inline_array_builtins);
 
-  Node* outer_frame_state = FrameStateInput();
+  FrameState outer_frame_state = FrameStateInput();
   TNode<Context> context = ContextInput();
   TNode<Object> target = ValueInput(0);
   TNode<HeapObject> receiver = TNode<HeapObject>::UncheckedCast(ValueInput(1));
@@ -794,67 +795,69 @@ struct ReduceFrameStateParams {
   ArrayReduceDirection direction;
   TNode<Context> context;
   TNode<Object> target;
-  Node* outer_frame_state;
+  FrameState outer_frame_state;
 };
 
-Node* ReducePreLoopLazyFrameState(const ReduceFrameStateParams& params,
-                                  TNode<Object> receiver,
-                                  TNode<Object> callback, TNode<Object> k,
-                                  TNode<Number> original_length) {
+FrameState ReducePreLoopLazyFrameState(const ReduceFrameStateParams& params,
+                                       TNode<Object> receiver,
+                                       TNode<Object> callback, TNode<Object> k,
+                                       TNode<Number> original_length) {
   Builtins::Name builtin =
       (params.direction == ArrayReduceDirection::kLeft)
           ? Builtins::kArrayReduceLoopLazyDeoptContinuation
           : Builtins::kArrayReduceRightLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, k, original_length};
-  return CreateJavaScriptBuiltinContinuationFrameState(
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::LAZY);
+      ContinuationFrameStateMode::LAZY));
 }
 
-Node* ReducePreLoopEagerFrameState(const ReduceFrameStateParams& params,
-                                   TNode<Object> receiver,
-                                   TNode<Object> callback,
-                                   TNode<Number> original_length) {
+FrameState ReducePreLoopEagerFrameState(const ReduceFrameStateParams& params,
+                                        TNode<Object> receiver,
+                                        TNode<Object> callback,
+                                        TNode<Number> original_length) {
   Builtins::Name builtin =
       (params.direction == ArrayReduceDirection::kLeft)
           ? Builtins::kArrayReducePreLoopEagerDeoptContinuation
           : Builtins::kArrayReduceRightPreLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, original_length};
-  return CreateJavaScriptBuiltinContinuationFrameState(
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::EAGER);
+      ContinuationFrameStateMode::EAGER));
 }
 
-Node* ReduceLoopLazyFrameState(const ReduceFrameStateParams& params,
-                               TNode<Object> receiver, TNode<Object> callback,
-                               TNode<Object> k, TNode<Number> original_length) {
+FrameState ReduceLoopLazyFrameState(const ReduceFrameStateParams& params,
+                                    TNode<Object> receiver,
+                                    TNode<Object> callback, TNode<Object> k,
+                                    TNode<Number> original_length) {
   Builtins::Name builtin =
       (params.direction == ArrayReduceDirection::kLeft)
           ? Builtins::kArrayReduceLoopLazyDeoptContinuation
           : Builtins::kArrayReduceRightLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, k, original_length};
-  return CreateJavaScriptBuiltinContinuationFrameState(
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::LAZY);
+      ContinuationFrameStateMode::LAZY));
 }
 
-Node* ReduceLoopEagerFrameState(const ReduceFrameStateParams& params,
-                                TNode<Object> receiver, TNode<Object> callback,
-                                TNode<Object> k, TNode<Number> original_length,
-                                TNode<Object> accumulator) {
+FrameState ReduceLoopEagerFrameState(const ReduceFrameStateParams& params,
+                                     TNode<Object> receiver,
+                                     TNode<Object> callback, TNode<Object> k,
+                                     TNode<Number> original_length,
+                                     TNode<Object> accumulator) {
   Builtins::Name builtin =
       (params.direction == ArrayReduceDirection::kLeft)
           ? Builtins::kArrayReduceLoopEagerDeoptContinuation
           : Builtins::kArrayReduceRightLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, k, original_length,
                                accumulator};
-  return CreateJavaScriptBuiltinContinuationFrameState(
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::EAGER);
+      ContinuationFrameStateMode::EAGER));
 }
 
 }  // namespace
@@ -865,7 +868,7 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeReduce(
     const SharedFunctionInfoRef& shared) {
   DCHECK(FLAG_turbo_inline_array_builtins);
 
-  Node* outer_frame_state = FrameStateInput();
+  FrameState outer_frame_state = FrameStateInput();
   TNode<Context> context = ContextInput();
   TNode<Object> target = ValueInput(0);
   TNode<HeapObject> receiver = TNode<HeapObject>::UncheckedCast(ValueInput(1));
