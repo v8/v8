@@ -377,8 +377,13 @@ Node* GraphAssembler::Float64Constant(double value) {
   return AddClonedNode(jsgraph()->Float64Constant(value));
 }
 
-Node* GraphAssembler::HeapConstant(Handle<HeapObject> object) {
-  return AddClonedNode(jsgraph()->HeapConstant(object));
+TNode<HeapObject> GraphAssembler::HeapConstant(Handle<HeapObject> object) {
+  return TNode<HeapObject>::UncheckedCast(
+      AddClonedNode(jsgraph()->HeapConstant(object)));
+}
+
+TNode<Object> GraphAssembler::Constant(const ObjectRef& ref) {
+  return TNode<Object>::UncheckedCast(AddClonedNode(jsgraph()->Constant(ref)));
 }
 
 TNode<Number> GraphAssembler::NumberConstant(double value) {
@@ -509,6 +514,16 @@ Node* GraphAssembler::StoreElement(ElementAccess const& access, Node* object,
                                    Node* index, Node* value) {
   return AddNode(graph()->NewNode(simplified()->StoreElement(access), object,
                                   index, value, effect(), control()));
+}
+
+void GraphAssembler::TransitionAndStoreElement(MapRef double_map,
+                                               MapRef fast_map,
+                                               TNode<HeapObject> object,
+                                               TNode<Number> index,
+                                               TNode<Object> value) {
+  AddNode(graph()->NewNode(simplified()->TransitionAndStoreElement(
+                               double_map.object(), fast_map.object()),
+                           object, index, value, effect(), control()));
 }
 
 TNode<Number> GraphAssembler::StringLength(TNode<String> string) {

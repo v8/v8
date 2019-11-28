@@ -193,6 +193,16 @@ class GraphAssemblerLabel {
     }
   }
 
+  // Multiple merge variables with the same representation.
+  explicit GraphAssemblerLabel(GraphAssemblerLabelType type,
+                               BasicBlock* basic_block,
+                               MachineRepresentation rep)
+      : type_(type), basic_block_(basic_block) {
+    for (size_t i = 0; i < VarCount; i++) {
+      representations_[i] = rep;
+    }
+  }
+
   ~GraphAssemblerLabel() { DCHECK(IsBound() || merged_count_ == 0); }
 
  private:
@@ -265,7 +275,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* SmiConstant(int32_t value);
   Node* Float64Constant(double value);
   Node* Projection(int index, Node* value);
-  Node* HeapConstant(Handle<HeapObject> object);
+  TNode<HeapObject> HeapConstant(Handle<HeapObject> object);
+  TNode<Object> Constant(const ObjectRef& ref);
   TNode<Number> NumberConstant(double value);
   Node* CEntryStubConstant(int result_size);
   Node* ExternalConstant(ExternalReference ref);
@@ -329,6 +340,9 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* StoreField(FieldAccess const&, Node* object, Node* value);
   Node* StoreElement(ElementAccess const&, Node* object, Node* index,
                      Node* value);
+  void TransitionAndStoreElement(MapRef double_map, MapRef fast_map,
+                                 TNode<HeapObject> object, TNode<Number> index,
+                                 TNode<Object> value);
   TNode<Number> StringLength(TNode<String> string);
   TNode<Boolean> ReferenceEqual(TNode<Object> lhs, TNode<Object> rhs);
   TNode<Number> NumberMin(TNode<Number> lhs, TNode<Number> rhs);
