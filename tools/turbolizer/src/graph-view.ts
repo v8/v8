@@ -599,12 +599,28 @@ export class GraphView extends PhaseView {
           eventHandled = false;
         }
         break;
-      case 83:
-        // 's'
+      case 80:
+        // 'p'
         view.selectOrigins();
         break;
       default:
         eventHandled = false;
+        break;
+      case 83:
+        // 's'
+        if (!d3.event.ctrlKey && !d3.event.shiftKey) {
+          this.hideSelectedAction(this);
+        } else {
+          eventHandled = false;
+        }
+        break;
+      case 85:
+        // 'u'
+        if (!d3.event.ctrlKey && !d3.event.shiftKey) {
+          this.hideUnselectedAction(this);
+        } else {
+          eventHandled = false;
+        }
         break;
     }
     if (eventHandled) {
