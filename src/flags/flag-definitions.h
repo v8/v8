@@ -305,6 +305,12 @@ DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 #define V8_LAZY_SOURCE_POSITIONS_BOOL false
 #endif
 
+#ifdef V8_SHARED_RO_HEAP
+#define V8_SHARED_RO_HEAP_BOOL true
+#else
+#define V8_SHARED_RO_HEAP_BOOL false
+#endif
+
 DEFINE_BOOL(lite_mode, V8_LITE_BOOL,
             "enables trade-off of performance for memory savings")
 

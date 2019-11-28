@@ -120,6 +120,11 @@ void ReadOnlyHeap::OnHeapTearDown() {
 #endif
 }
 
+#ifdef V8_SHARED_RO_HEAP
+// static
+const ReadOnlyHeap* ReadOnlyHeap::Instance() { return shared_ro_heap_; }
+#endif
+
 // static
 void ReadOnlyHeap::ClearSharedHeapForTest() {
 #ifdef V8_SHARED_RO_HEAP

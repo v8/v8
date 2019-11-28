@@ -5766,9 +5766,17 @@ void v8::V8::InitializeExternalStartupDataFromFile(const char* snapshot_blob) {
 const char* v8::V8::GetVersion() { return i::Version::GetVersion(); }
 
 void V8::GetSharedMemoryStatistics(SharedMemoryStatistics* statistics) {
+#ifdef V8_SHARED_RO_HEAP
+  i::ReadOnlySpace* ro_space = i::ReadOnlyHeap::Instance()->read_only_space();
+  statistics->read_only_space_size_ = ro_space->CommittedMemory();
+  statistics->read_only_space_used_size_ = ro_space->SizeOfObjects();
+  statistics->read_only_space_physical_size_ =
+      ro_space->CommittedPhysicalMemory();
+#else
   statistics->read_only_space_size_ = 0;
   statistics->read_only_space_used_size_ = 0;
   statistics->read_only_space_physical_size_ = 0;
+#endif  // V8_SHARED_RO_HEAP
 }
 
 template <typename ObjectType>
@@ -8487,18 +8495,22 @@ i::Address* Isolate::GetDataFromSnapshotOnce(size_t index) {
 void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = isolate->heap();
-  i::ReadOnlySpace* ro_space = heap->read_only_space();
 
-  heap_statistics->total_heap_size_ =
-      heap->CommittedMemory() + ro_space->CommittedMemory();
+  heap_statistics->total_heap_size_ = heap->CommittedMemory();
+  heap_statistics->total_physical_size_ = heap->CommittedPhysicalMemory();
+  heap_statistics->total_available_size_ = heap->Available();
+  heap_statistics->used_heap_size_ = heap->SizeOfObjects();
+
+#ifndef V8_SHARED_RO_HEAP
+  i::ReadOnlySpace* ro_space = heap->read_only_space();
+  heap_statistics->total_heap_size_ += ro_space->CommittedMemory();
+  heap_statistics->total_physical_size_ += ro_space->CommittedPhysicalMemory();
+  heap_statistics->total_available_size_ += ro_space->Available();
+  heap_statistics->used_heap_size_ += ro_space->SizeOfObjects();
+#endif  // V8_SHARED_RO_HEAP
+
   heap_statistics->total_heap_size_executable_ =
       heap->CommittedMemoryExecutable();
-  heap_statistics->total_physical_size_ =
-      heap->CommittedPhysicalMemory() + ro_space->CommittedPhysicalMemory();
-  heap_statistics->total_available_size_ =
-      heap->Available() + ro_space->Available();
-  heap_statistics->used_heap_size_ =
-      heap->SizeOfObjects() + ro_space->SizeOfObjects();
   heap_statistics->heap_size_limit_ = heap->MaxReserved();
   // TODO(7424): There is no public API for the {WasmEngine} yet. Once such an
   // API becomes available we should report the malloced memory separately. For
@@ -8530,12 +8542,21 @@ bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
   i::Heap* heap = isolate->heap();
   i::Space* space = heap->space(static_cast<int>(index));
 
-  space_statistics->space_name_ =
-      i::Heap::GetSpaceName(static_cast<i::AllocationSpace>(index));
-  space_statistics->space_size_ = space->CommittedMemory();
-  space_statistics->space_used_size_ = space->SizeOfObjects();
-  space_statistics->space_available_size_ = space->Available();
-  space_statistics->physical_space_size_ = space->CommittedPhysicalMemory();
+  i::AllocationSpace allocation_space = static_cast<i::AllocationSpace>(index);
+  space_statistics->space_name_ = i::Heap::GetSpaceName(allocation_space);
+
+  if (allocation_space == i::RO_SPACE && V8_SHARED_RO_HEAP_BOOL) {
+    // RO_SPACE memory is accounted for elsewhere when ReadOnlyHeap is shared.
+    space_statistics->space_size_ = 0;
+    space_statistics->space_used_size_ = 0;
+    space_statistics->space_available_size_ = 0;
+    space_statistics->physical_space_size_ = 0;
+  } else {
+    space_statistics->space_size_ = space->CommittedMemory();
+    space_statistics->space_used_size_ = space->SizeOfObjects();
+    space_statistics->space_available_size_ = space->Available();
+    space_statistics->physical_space_size_ = space->CommittedPhysicalMemory();
+  }
   return true;
 }
 
