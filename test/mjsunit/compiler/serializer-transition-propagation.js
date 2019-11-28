@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt --no-always-opt
+
+var expect_interpreted = true;
 
 function C() {
   this.a = 1;
+  assertEquals(expect_interpreted, %IsBeingInterpreted());
   %TurbofanStaticAssert(this.x == 42);
 };
 
@@ -47,4 +50,5 @@ new G;
 foo();
 foo();
 %OptimizeFunctionOnNextCall(foo);
+expect_interpreted = false;
 foo();

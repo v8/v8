@@ -33,7 +33,7 @@ namespace internal {
 // * Each compiler has an explicit list of intrisics it supports, falling back
 //   to a simple runtime call if necessary.
 
-// Entries have the form F(name, number of arguments, number of values):
+// Entries have the form F(name, number of arguments, number of return values):
 // A variable number of arguments is specified by a -1, additional restrictions
 // are specified by inline comments. To declare only the runtime version (no
 // inline), use the F macro below. To declare the runtime version and the inline
@@ -500,6 +500,7 @@ namespace internal {
   F(ICsAreEnabled, 0, 1)                      \
   F(InYoungGeneration, 1, 1)                  \
   F(IsAsmWasmCode, 1, 1)                      \
+  F(IsBeingInterpreted, 0, 1)                 \
   F(IsConcurrentRecompilationSupported, 0, 1) \
   F(IsLiftoffFunction, 1, 1)                  \
   F(IsThreadInWasm, 0, 1)                     \

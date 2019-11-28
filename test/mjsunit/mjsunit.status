@@ -404,6 +404,11 @@
   'regexp-tier-up-multiple': [SKIP],
   'regress/regress-996234': [SKIP],
 
+  # Tests that depend on optimization (beyond doing assertOptimized).
+  'compiler/is-being-interpreted-*': [SKIP],
+  'compiler/serializer-accessors': [SKIP],
+  'compiler/serializer-transition-propagation': [SKIP],
+
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
   'tools/compiler-trace-flags-wasm': [SKIP],
@@ -1082,11 +1087,13 @@
   # phases.
   'compiler/concurrent-inlining-1': [SKIP],
   'compiler/concurrent-inlining-2': [SKIP],
-  'compiler/diamond-followedby-branch': [SKIP],
-  'compiler/load-elimination-const-field': [SKIP],
   'compiler/constant-fold-add-static': [SKIP],
-  'compiler/serializer-feedback-propagation-*': [SKIP],
+  'compiler/diamond-followedby-branch': [SKIP],
+  'compiler/is-being-interpreted-*': [SKIP],
+  'compiler/load-elimination-const-field': [SKIP],
   'compiler/serializer-accessors': [SKIP],
+  'compiler/serializer-feedback-propagation-*': [SKIP],
+  'compiler/serializer-transition-propagation': [SKIP],
 
   # Some tests rely on inlining.
   'compiler/opt-higher-order-functions': [SKIP],

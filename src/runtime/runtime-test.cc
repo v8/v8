@@ -1413,9 +1413,15 @@ RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
 
 RUNTIME_FUNCTION(Runtime_TurbofanStaticAssert) {
   SealHandleScope shs(isolate);
-  // Always lowered to StaticAssert node in Turbofan, so we should never get
-  // here in compiled code.
+  // Always lowered to StaticAssert node in Turbofan, so we never get here in
+  // compiled code.
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_IsBeingInterpreted) {
+  SealHandleScope shs(isolate);
+  // Always lowered to false in Turbofan, so we never get here in compiled code.
+  return ReadOnlyRoots(isolate).true_value();
 }
 
 RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
