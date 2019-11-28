@@ -7982,10 +7982,11 @@ Node* CodeStubAssembler::ComputeSeededHash(Node* key) {
 
   MachineType type_ptr = MachineType::Pointer();
   MachineType type_uint32 = MachineType::Uint32();
+  MachineType type_int32 = MachineType::Int32();
 
   Node* const result = CallCFunction(
       function_addr, type_uint32, std::make_pair(type_ptr, isolate_ptr),
-      std::make_pair(type_uint32, TruncateIntPtrToInt32(key)));
+      std::make_pair(type_int32, TruncateIntPtrToInt32(key)));
   return result;
 }
 

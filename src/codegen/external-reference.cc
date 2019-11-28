@@ -628,9 +628,9 @@ static Address JSReceiverCreateIdentityHash(Isolate* isolate, Address raw_key) {
 FUNCTION_REFERENCE(jsreceiver_create_identity_hash,
                    JSReceiverCreateIdentityHash)
 
-static uint32_t ComputeSeededIntegerHash(Isolate* isolate, uint32_t key) {
+static uint32_t ComputeSeededIntegerHash(Isolate* isolate, int32_t key) {
   DisallowHeapAllocation no_gc;
-  return ComputeSeededHash(key, HashSeed(isolate));
+  return ComputeSeededHash(static_cast<uint32_t>(key), HashSeed(isolate));
 }
 
 FUNCTION_REFERENCE(compute_integer_hash, ComputeSeededIntegerHash)
