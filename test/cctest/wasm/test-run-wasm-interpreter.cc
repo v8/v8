@@ -229,16 +229,16 @@ TEST(Run_Wasm_returnCallIndirectFactorial) {
   r.builder().AddIndirectFunctionTable(indirect_function_table,
                                        arraysize(indirect_function_table));
 
-  BUILD(r, WASM_RETURN_CALL_INDIRECT(sig_index, WASM_I32V(0), WASM_GET_LOCAL(0),
-                                     WASM_I32V(1)));
+  BUILD(r, WASM_RETURN_CALL_INDIRECT(sig_index, WASM_GET_LOCAL(0), WASM_I32V(1),
+                                     WASM_ZERO));
 
-  BUILD(fact_aux_fn,
-        WASM_IF_ELSE_I(
-            WASM_I32_EQ(WASM_I32V(1), WASM_GET_LOCAL(0)), WASM_GET_LOCAL(1),
-            WASM_RETURN_CALL_INDIRECT(
-                sig_index, WASM_I32V(0),
-                WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)),
-                WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)))));
+  BUILD(
+      fact_aux_fn,
+      WASM_IF_ELSE_I(
+          WASM_I32_EQ(WASM_I32V(1), WASM_GET_LOCAL(0)), WASM_GET_LOCAL(1),
+          WASM_RETURN_CALL_INDIRECT(
+              sig_index, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)),
+              WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)), WASM_ZERO)));
 
   uint32_t test_values[] = {1, 2, 5, 10, 20};
 

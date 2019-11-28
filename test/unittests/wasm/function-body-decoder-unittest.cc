@@ -1618,11 +1618,11 @@ TEST_F(FunctionBodyDecoderTest, SimpleIndirectReturnCalls) {
   byte sig1 = builder.AddSignature(sigs.i_i());
   byte sig2 = builder.AddSignature(sigs.i_ii());
 
-  ExpectValidates(sig, {WASM_RETURN_CALL_INDIRECT0(sig0, WASM_ZERO)});
+  ExpectValidates(sig, {WASM_RETURN_CALL_INDIRECT(sig0, WASM_ZERO)});
   ExpectValidates(
-      sig, {WASM_RETURN_CALL_INDIRECT(sig1, WASM_ZERO, WASM_I32V_1(22))});
-  ExpectValidates(sig, {WASM_RETURN_CALL_INDIRECT(
-                           sig2, WASM_ZERO, WASM_I32V_1(32), WASM_I32V_2(72))});
+      sig, {WASM_RETURN_CALL_INDIRECT(sig1, WASM_I32V_1(22), WASM_ZERO)});
+  ExpectValidates(sig, {WASM_RETURN_CALL_INDIRECT(sig2, WASM_I32V_1(32),
+                                                  WASM_I32V_2(72), WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsOutOfBounds) {
@@ -1633,18 +1633,18 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsOutOfBounds) {
   builder.AddTable(kWasmFuncRef, 20, false, 20);
   module = builder.module();
 
-  ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT0(0, WASM_ZERO)});
+  ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT(0, WASM_ZERO)});
   builder.AddSignature(sigs.i_v());
-  ExpectValidates(sig, {WASM_RETURN_CALL_INDIRECT0(0, WASM_ZERO)});
+  ExpectValidates(sig, {WASM_RETURN_CALL_INDIRECT(0, WASM_ZERO)});
 
   ExpectFailure(sig,
-                {WASM_RETURN_CALL_INDIRECT(1, WASM_ZERO, WASM_I32V_1(22))});
+                {WASM_RETURN_CALL_INDIRECT(1, WASM_I32V_1(22), WASM_ZERO)});
   builder.AddSignature(sigs.i_i());
   ExpectValidates(sig,
-                  {WASM_RETURN_CALL_INDIRECT(1, WASM_ZERO, WASM_I32V_1(27))});
+                  {WASM_RETURN_CALL_INDIRECT(1, WASM_I32V_1(27), WASM_ZERO)});
 
   ExpectFailure(sig,
-                {WASM_RETURN_CALL_INDIRECT(2, WASM_ZERO, WASM_I32V_1(27))});
+                {WASM_RETURN_CALL_INDIRECT(2, WASM_I32V_1(27), WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithMismatchedSigs3) {
@@ -1658,24 +1658,24 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithMismatchedSigs3) {
   byte sig0 = builder.AddSignature(sigs.i_f());
 
   ExpectFailure(sig,
-                {WASM_RETURN_CALL_INDIRECT(sig0, WASM_ZERO, WASM_I32V_1(17))});
+                {WASM_RETURN_CALL_INDIRECT(sig0, WASM_I32V_1(17), WASM_ZERO)});
   ExpectFailure(sig,
-                {WASM_RETURN_CALL_INDIRECT(sig0, WASM_ZERO, WASM_I64V_1(27))});
+                {WASM_RETURN_CALL_INDIRECT(sig0, WASM_I64V_1(27), WASM_ZERO)});
   ExpectFailure(sig,
-                {WASM_RETURN_CALL_INDIRECT(sig0, WASM_ZERO, WASM_F64(37.2))});
+                {WASM_RETURN_CALL_INDIRECT(sig0, WASM_F64(37.2), WASM_ZERO)});
 
-  ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT0(sig0, WASM_I32V_1(17))});
-  ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT0(sig0, WASM_I64V_1(27))});
-  ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT0(sig0, WASM_F64(37.2))});
+  ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT(sig0, WASM_I32V_1(17))});
+  ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT(sig0, WASM_I64V_1(27))});
+  ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT(sig0, WASM_F64(37.2))});
 
   byte sig1 = builder.AddFunction(sigs.i_d());
 
   ExpectFailure(sig,
-                {WASM_RETURN_CALL_INDIRECT(sig1, WASM_ZERO, WASM_I32V_1(16))});
+                {WASM_RETURN_CALL_INDIRECT(sig1, WASM_I32V_1(16), WASM_ZERO)});
   ExpectFailure(sig,
-                {WASM_RETURN_CALL_INDIRECT(sig1, WASM_ZERO, WASM_I64V_1(16))});
+                {WASM_RETURN_CALL_INDIRECT(sig1, WASM_I64V_1(16), WASM_ZERO)});
   ExpectFailure(sig,
-                {WASM_RETURN_CALL_INDIRECT(sig1, WASM_ZERO, WASM_F32(17.6))});
+                {WASM_RETURN_CALL_INDIRECT(sig1, WASM_F32(17.6), WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithoutTableCrash) {
@@ -1689,11 +1689,11 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithoutTableCrash) {
   byte sig1 = builder.AddSignature(sigs.i_i());
   byte sig2 = builder.AddSignature(sigs.i_ii());
 
-  ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT0(sig0, WASM_ZERO)});
+  ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT(sig0, WASM_ZERO)});
   ExpectFailure(sig,
-                {WASM_RETURN_CALL_INDIRECT(sig1, WASM_ZERO, WASM_I32V_1(22))});
-  ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT(
-                         sig2, WASM_ZERO, WASM_I32V_1(32), WASM_I32V_2(72))});
+                {WASM_RETURN_CALL_INDIRECT(sig1, WASM_I32V_1(22), WASM_ZERO)});
+  ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT(sig2, WASM_I32V_1(32),
+                                                WASM_I32V_2(72), WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, IncompleteIndirectReturnCall) {
@@ -1760,10 +1760,10 @@ TEST_F(FunctionBodyDecoderTest, SimpleIndirectCalls) {
   byte sig1 = builder.AddSignature(sigs.i_i());
   byte sig2 = builder.AddSignature(sigs.i_ii());
 
-  ExpectValidates(sig, {WASM_CALL_INDIRECT0(sig0, WASM_ZERO)});
-  ExpectValidates(sig, {WASM_CALL_INDIRECT1(sig1, WASM_ZERO, WASM_I32V_1(22))});
-  ExpectValidates(sig, {WASM_CALL_INDIRECT2(sig2, WASM_ZERO, WASM_I32V_1(32),
-                                            WASM_I32V_2(72))});
+  ExpectValidates(sig, {WASM_CALL_INDIRECT(sig0, WASM_ZERO)});
+  ExpectValidates(sig, {WASM_CALL_INDIRECT(sig1, WASM_I32V_1(22), WASM_ZERO)});
+  ExpectValidates(sig, {WASM_CALL_INDIRECT(sig2, WASM_I32V_1(32),
+                                           WASM_I32V_2(72), WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, IndirectCallsOutOfBounds) {
@@ -1772,15 +1772,15 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsOutOfBounds) {
   builder.AddTable(kWasmFuncRef, 20, false, 20);
   module = builder.module();
 
-  ExpectFailure(sig, {WASM_CALL_INDIRECT0(0, WASM_ZERO)});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT(0, WASM_ZERO)});
   builder.AddSignature(sigs.i_v());
-  ExpectValidates(sig, {WASM_CALL_INDIRECT0(0, WASM_ZERO)});
+  ExpectValidates(sig, {WASM_CALL_INDIRECT(0, WASM_ZERO)});
 
-  ExpectFailure(sig, {WASM_CALL_INDIRECT1(1, WASM_ZERO, WASM_I32V_1(22))});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT(1, WASM_I32V_1(22), WASM_ZERO)});
   builder.AddSignature(sigs.i_i());
-  ExpectValidates(sig, {WASM_CALL_INDIRECT1(1, WASM_ZERO, WASM_I32V_1(27))});
+  ExpectValidates(sig, {WASM_CALL_INDIRECT(1, WASM_I32V_1(27), WASM_ZERO)});
 
-  ExpectFailure(sig, {WASM_CALL_INDIRECT1(2, WASM_ZERO, WASM_I32V_1(27))});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT(2, WASM_I32V_1(27), WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs3) {
@@ -1791,19 +1791,19 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs3) {
 
   byte sig0 = builder.AddSignature(sigs.i_f());
 
-  ExpectFailure(sig, {WASM_CALL_INDIRECT1(sig0, WASM_ZERO, WASM_I32V_1(17))});
-  ExpectFailure(sig, {WASM_CALL_INDIRECT1(sig0, WASM_ZERO, WASM_I64V_1(27))});
-  ExpectFailure(sig, {WASM_CALL_INDIRECT1(sig0, WASM_ZERO, WASM_F64(37.2))});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT(sig0, WASM_I32V_1(17), WASM_ZERO)});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT(sig0, WASM_I64V_1(27), WASM_ZERO)});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT(sig0, WASM_F64(37.2), WASM_ZERO)});
 
-  ExpectFailure(sig, {WASM_CALL_INDIRECT0(sig0, WASM_I32V_1(17))});
-  ExpectFailure(sig, {WASM_CALL_INDIRECT0(sig0, WASM_I64V_1(27))});
-  ExpectFailure(sig, {WASM_CALL_INDIRECT0(sig0, WASM_F64(37.2))});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT(sig0, WASM_I32V_1(17))});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT(sig0, WASM_I64V_1(27))});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT(sig0, WASM_F64(37.2))});
 
   byte sig1 = builder.AddFunction(sigs.i_d());
 
-  ExpectFailure(sig, {WASM_CALL_INDIRECT1(sig1, WASM_ZERO, WASM_I32V_1(16))});
-  ExpectFailure(sig, {WASM_CALL_INDIRECT1(sig1, WASM_ZERO, WASM_I64V_1(16))});
-  ExpectFailure(sig, {WASM_CALL_INDIRECT1(sig1, WASM_ZERO, WASM_F32(17.6))});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT(sig1, WASM_I32V_1(16), WASM_ZERO)});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT(sig1, WASM_I64V_1(16), WASM_ZERO)});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT(sig1, WASM_F32(17.6), WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, IndirectCallsWithoutTableCrash) {
@@ -1815,10 +1815,10 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithoutTableCrash) {
   byte sig1 = builder.AddSignature(sigs.i_i());
   byte sig2 = builder.AddSignature(sigs.i_ii());
 
-  ExpectFailure(sig, {WASM_CALL_INDIRECT0(sig0, WASM_ZERO)});
-  ExpectFailure(sig, {WASM_CALL_INDIRECT1(sig1, WASM_ZERO, WASM_I32V_1(22))});
-  ExpectFailure(sig, {WASM_CALL_INDIRECT2(sig2, WASM_ZERO, WASM_I32V_1(32),
-                                          WASM_I32V_2(72))});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT(sig0, WASM_ZERO)});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT(sig1, WASM_I32V_1(22), WASM_ZERO)});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT(sig2, WASM_I32V_1(32), WASM_I32V_2(72),
+                                         WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, IncompleteIndirectCall) {

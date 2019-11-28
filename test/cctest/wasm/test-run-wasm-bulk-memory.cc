@@ -438,7 +438,7 @@ void TestTableInitElems(ExecutionTier execution_tier, int table_index) {
 
   WasmFunctionCompiler& call = r.NewFunction(sigs.i_i(), "call");
   BUILD(call,
-        WASM_CALL_INDIRECT_TABLE0(table_index, sig_index, WASM_GET_LOCAL(0)));
+        WASM_CALL_INDIRECT_TABLE(table_index, sig_index, WASM_GET_LOCAL(0)));
   const uint32_t call_index = call.function_index();
 
   BUILD(r,
@@ -510,7 +510,7 @@ void TestTableInitOob(ExecutionTier execution_tier, int table_index) {
 
   WasmFunctionCompiler& call = r.NewFunction(sigs.i_i(), "call");
   BUILD(call,
-        WASM_CALL_INDIRECT_TABLE0(table_index, sig_index, WASM_GET_LOCAL(0)));
+        WASM_CALL_INDIRECT_TABLE(table_index, sig_index, WASM_GET_LOCAL(0)));
   const uint32_t call_index = call.function_index();
 
   BUILD(r,
@@ -671,7 +671,7 @@ void TestTableCopyCalls(ExecutionTier execution_tier, int table_dst,
 
   WasmFunctionCompiler& call = r.NewFunction(sigs.i_i(), "call");
   BUILD(call,
-        WASM_CALL_INDIRECT_TABLE0(table_dst, sig_index, WASM_GET_LOCAL(0)));
+        WASM_CALL_INDIRECT_TABLE(table_dst, sig_index, WASM_GET_LOCAL(0)));
   const uint32_t call_index = call.function_index();
 
   BUILD(r,

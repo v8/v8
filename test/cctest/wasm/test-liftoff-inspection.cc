@@ -84,7 +84,7 @@ TEST(Liftoff_deterministic_call) {
 TEST(Liftoff_deterministic_indirect_call) {
   CheckDeterministicCompilation(
       {kWasmI32}, {kWasmI32},
-      {WASM_I32_ADD(WASM_CALL_INDIRECT1(0, WASM_I32V_1(47), WASM_GET_LOCAL(0)),
+      {WASM_I32_ADD(WASM_CALL_INDIRECT(0, WASM_GET_LOCAL(0), WASM_I32V_1(47)),
                     WASM_GET_LOCAL(0))});
 }
 
