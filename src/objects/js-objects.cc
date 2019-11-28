@@ -262,7 +262,10 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
     }
 
     if (use_set) {
-      LookupIterator it(target, next_key, target);
+      bool success;
+      LookupIterator it = LookupIterator::PropertyOrElement(isolate, target,
+                                                            next_key, &success);
+      CHECK(success);
       Maybe<bool> result =
           Object::SetProperty(&it, prop_value, StoreOrigin::kNamed,
                               Just(ShouldThrow::kThrowOnError));

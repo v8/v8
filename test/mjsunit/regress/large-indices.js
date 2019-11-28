@@ -97,3 +97,10 @@
   obj[9007199254740991] = 1;
   Object.values(obj);
 })();
+
+// crbug.com/1027461#c18
+(function() {
+  const v7 = Object(1);
+  v7[4294967297] = 1;
+  const v8 = Object.assign({}, v7);
+})();
