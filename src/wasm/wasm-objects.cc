@@ -54,11 +54,7 @@ class WasmInstanceNativeAllocations {
 // Helper macro to set an internal field and the corresponding field
 // on an instance.
 #define SET(instance, field, value) \
-  {                                 \
-    auto v = value;                 \
-    this->field##_ = v;             \
-    instance->set_##field(v);       \
-  }
+  instance->set_##field((this->field##_ = value).get());
 
   // Allocates initial native storage for a given instance.
   WasmInstanceNativeAllocations(Handle<WasmInstanceObject> instance,
@@ -67,39 +63,17 @@ class WasmInstanceNativeAllocations {
                                 size_t num_data_segments,
                                 size_t num_elem_segments) {
     SET(instance, imported_function_targets,
-        reinterpret_cast<Address*>(
-            calloc(num_imported_functions, sizeof(Address))));
+        std::make_unique<Address[]>(num_imported_functions));
     SET(instance, imported_mutable_globals,
-        reinterpret_cast<Address*>(
-            calloc(num_imported_mutable_globals, sizeof(Address))));
+        std::make_unique<Address[]>(num_imported_mutable_globals));
     SET(instance, data_segment_starts,
-        reinterpret_cast<Address*>(calloc(num_data_segments, sizeof(Address))));
+        std::make_unique<Address[]>(num_data_segments));
     SET(instance, data_segment_sizes,
-        reinterpret_cast<uint32_t*>(
-            calloc(num_data_segments, sizeof(uint32_t))));
+        std::make_unique<uint32_t[]>(num_data_segments));
     SET(instance, dropped_data_segments,
-        reinterpret_cast<uint8_t*>(calloc(num_data_segments, sizeof(uint8_t))));
+        std::make_unique<uint8_t[]>(num_data_segments));
     SET(instance, dropped_elem_segments,
-        reinterpret_cast<uint8_t*>(calloc(num_elem_segments, sizeof(uint8_t))));
-  }
-
-  ~WasmInstanceNativeAllocations() {
-    ::free(indirect_function_table_sig_ids_);
-    indirect_function_table_sig_ids_ = nullptr;
-    ::free(indirect_function_table_targets_);
-    indirect_function_table_targets_ = nullptr;
-    ::free(imported_function_targets_);
-    imported_function_targets_ = nullptr;
-    ::free(imported_mutable_globals_);
-    imported_mutable_globals_ = nullptr;
-    ::free(data_segment_starts_);
-    data_segment_starts_ = nullptr;
-    ::free(data_segment_sizes_);
-    data_segment_sizes_ = nullptr;
-    ::free(dropped_data_segments_);
-    dropped_data_segments_ = nullptr;
-    ::free(dropped_elem_segments_);
-    dropped_elem_segments_ = nullptr;
+        std::make_unique<uint8_t[]>(num_elem_segments));
   }
 
   uint32_t indirect_function_table_capacity() const {
@@ -116,45 +90,39 @@ class WasmInstanceNativeAllocations {
     new_capacity = std::max(new_capacity, 2 * old_capacity);
     CHECK_GE(kMaxInt, old_capacity);
     CHECK_GE(kMaxInt, new_capacity);
-    void* new_sig_ids = nullptr;
-    void* new_targets = nullptr;
-    Handle<FixedArray> new_refs;
-    if (indirect_function_table_sig_ids_) {
-      // Reallocate the old storage.
-      new_sig_ids = realloc(indirect_function_table_sig_ids_,
-                            new_capacity * sizeof(uint32_t));
-      new_targets = realloc(indirect_function_table_targets_,
-                            new_capacity * sizeof(Address));
 
-      Handle<FixedArray> old(instance->indirect_function_table_refs(), isolate);
-      new_refs = isolate->factory()->CopyFixedArrayAndGrow(
-          old, static_cast<int>(new_capacity - old_capacity));
-    } else {
-      // Allocate new storage.
-      new_sig_ids = malloc(new_capacity * sizeof(uint32_t));
-      new_targets = malloc(new_capacity * sizeof(Address));
-      new_refs =
-          isolate->factory()->NewFixedArray(static_cast<int>(new_capacity));
-    }
-    // Initialize new entries.
     SET(instance, indirect_function_table_sig_ids,
-        reinterpret_cast<uint32_t*>(new_sig_ids));
+        grow(indirect_function_table_sig_ids_.get(), old_capacity,
+             new_capacity));
     SET(instance, indirect_function_table_targets,
-        reinterpret_cast<Address*>(new_targets));
+        grow(indirect_function_table_targets_.get(), old_capacity,
+             new_capacity));
 
+    Handle<FixedArray> old_refs(instance->indirect_function_table_refs(),
+                                isolate);
+    Handle<FixedArray> new_refs = isolate->factory()->CopyFixedArrayAndGrow(
+        old_refs, static_cast<int>(new_capacity - old_capacity));
     instance->set_indirect_function_table_refs(*new_refs);
     indirect_function_table_capacity_ = new_capacity;
   }
 
+ private:
+  template <typename T>
+  std::unique_ptr<T[]> grow(T* old_arr, size_t old_size, size_t new_size) {
+    std::unique_ptr<T[]> new_arr = std::make_unique<T[]>(new_size);
+    std::copy_n(old_arr, old_size, new_arr.get());
+    return new_arr;
+  }
+
   uint32_t indirect_function_table_capacity_ = 0;
-  uint32_t* indirect_function_table_sig_ids_ = nullptr;
-  Address* indirect_function_table_targets_ = nullptr;
-  Address* imported_function_targets_ = nullptr;
-  Address* imported_mutable_globals_ = nullptr;
-  Address* data_segment_starts_ = nullptr;
-  uint32_t* data_segment_sizes_ = nullptr;
-  uint8_t* dropped_data_segments_ = nullptr;
-  uint8_t* dropped_elem_segments_ = nullptr;
+  std::unique_ptr<uint32_t[]> indirect_function_table_sig_ids_;
+  std::unique_ptr<Address[]> indirect_function_table_targets_;
+  std::unique_ptr<Address[]> imported_function_targets_;
+  std::unique_ptr<Address[]> imported_mutable_globals_;
+  std::unique_ptr<Address[]> data_segment_starts_;
+  std::unique_ptr<uint32_t[]> data_segment_sizes_;
+  std::unique_ptr<uint8_t[]> dropped_data_segments_;
+  std::unique_ptr<uint8_t[]> dropped_elem_segments_;
 #undef SET
 };
 
@@ -1369,6 +1337,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       isolate->stack_guard()->address_of_real_jslimit());
   instance->set_globals_start(nullptr);
   instance->set_indirect_function_table_size(0);
+  instance->set_indirect_function_table_refs(
+      ReadOnlyRoots(isolate).empty_fixed_array());
   instance->set_indirect_function_table_sig_ids(nullptr);
   instance->set_indirect_function_table_targets(nullptr);
   instance->set_native_context(*isolate->native_context());
