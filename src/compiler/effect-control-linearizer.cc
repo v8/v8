@@ -1731,10 +1731,10 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
       Node* map = __ HeapConstant(maps[i]);
       Node* check = __ TaggedEqual(value_map, map);
       if (i == map_count - 1) {
-        __ Branch(check, &done, &migrate, IsSafetyCheck::kCriticalSafetyCheck);
+        __ BranchWithCriticalSafetyCheck(check, &done, &migrate);
       } else {
         auto next_map = __ MakeLabel();
-        __ Branch(check, &done, &next_map, IsSafetyCheck::kCriticalSafetyCheck);
+        __ BranchWithCriticalSafetyCheck(check, &done, &next_map);
         __ Bind(&next_map);
       }
     }
@@ -1777,7 +1777,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
                            frame_state, IsSafetyCheck::kCriticalSafetyCheck);
       } else {
         auto next_map = __ MakeLabel();
-        __ Branch(check, &done, &next_map, IsSafetyCheck::kCriticalSafetyCheck);
+        __ BranchWithCriticalSafetyCheck(check, &done, &next_map);
         __ Bind(&next_map);
       }
     }
@@ -1799,7 +1799,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
                            frame_state, IsSafetyCheck::kCriticalSafetyCheck);
       } else {
         auto next_map = __ MakeLabel();
-        __ Branch(check, &done, &next_map, IsSafetyCheck::kCriticalSafetyCheck);
+        __ BranchWithCriticalSafetyCheck(check, &done, &next_map);
         __ Bind(&next_map);
       }
     }
@@ -1824,7 +1824,7 @@ Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
 
     auto next_map = __ MakeLabel();
     auto passed = __ MakeLabel();
-    __ Branch(check, &passed, &next_map, IsSafetyCheck::kCriticalSafetyCheck);
+    __ BranchWithCriticalSafetyCheck(check, &passed, &next_map);
 
     __ Bind(&passed);
     __ Goto(&done, __ Int32Constant(1));

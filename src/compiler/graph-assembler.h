@@ -264,9 +264,12 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* NumberMin(Node* lhs, Node* rhs);
   Node* NumberMax(Node* lhs, Node* rhs);
   Node* NumberLessThan(Node* lhs, Node* rhs);
+  Node* NumberLessThanOrEqual(Node* lhs, Node* rhs);
   Node* NumberAdd(Node* lhs, Node* rhs);
+  Node* NumberSubtract(Node* lhs, Node* rhs);
   Node* StringSubstring(Node* string, Node* from, Node* to);
   Node* ObjectIsCallable(Node* value);
+  Node* CheckIf(Node* cond, DeoptimizeReason reason);
   Node* NumberIsFloat64Hole(Node* value);
 
   Node* TypeGuard(Type type, Node* value);
@@ -306,14 +309,21 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   template <typename... Vars>
   void Goto(GraphAssemblerLabel<sizeof...(Vars)>* label, Vars...);
 
-  void Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
-              GraphAssemblerLabel<0u>* if_false, BranchHint hint,
-              IsSafetyCheck is_safety_check = IsSafetyCheck::kNoSafetyCheck);
-  // Branch hints in this version are inferred from if_true/if_false deferred
-  // states.
-  void Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
-              GraphAssemblerLabel<0u>* if_false,
-              IsSafetyCheck is_safety_check = IsSafetyCheck::kNoSafetyCheck);
+  // Branch hints are inferred from if_true/if_false deferred states.
+  void BranchWithCriticalSafetyCheck(Node* condition,
+                                     GraphAssemblerLabel<0u>* if_true,
+                                     GraphAssemblerLabel<0u>* if_false);
+
+  // Branch hints are inferred from if_true/if_false deferred states.
+  template <typename... Vars>
+  void Branch(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* if_true,
+              GraphAssemblerLabel<sizeof...(Vars)>* if_false, Vars...);
+
+  template <typename... Vars>
+  void BranchWithHint(Node* condition,
+                      GraphAssemblerLabel<sizeof...(Vars)>* if_true,
+                      GraphAssemblerLabel<sizeof...(Vars)>* if_false,
+                      BranchHint hint, Vars...);
 
   // Control helpers.
   // {GotoIf(c, l)} is equivalent to {Branch(c, l, templ);Bind(templ)}.
@@ -373,6 +383,17 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   SimplifiedOperatorBuilder* simplified() const {
     return jsgraph()->simplified();
   }
+
+ private:
+  template <typename... Vars>
+  void BranchImpl(Node* condition,
+                  GraphAssemblerLabel<sizeof...(Vars)>* if_true,
+                  GraphAssemblerLabel<sizeof...(Vars)>* if_false,
+                  BranchHint hint, IsSafetyCheck is_safety_check, Vars...);
+  void RecordBranchInBlockUpdater(Node* branch, Node* if_true_control,
+                                  Node* if_false_control,
+                                  BasicBlock* if_true_block,
+                                  BasicBlock* if_false_block);
 
   SetOncePointer<Operator const> to_number_operator_;
   Zone* temp_zone_;
@@ -488,6 +509,57 @@ void GraphAssembler::Bind(GraphAssemblerLabel<VarCount>* label) {
     // Merge node, so that other passes have a control node to start from.
     control_ = AddNode(graph()->NewNode(common()->Merge(1), control()));
   }
+}
+
+template <typename... Vars>
+void GraphAssembler::Branch(Node* condition,
+                            GraphAssemblerLabel<sizeof...(Vars)>* if_true,
+                            GraphAssemblerLabel<sizeof...(Vars)>* if_false,
+                            Vars... vars) {
+  BranchHint hint = BranchHint::kNone;
+  if (if_true->IsDeferred() != if_false->IsDeferred()) {
+    hint = if_false->IsDeferred() ? BranchHint::kTrue : BranchHint::kFalse;
+  }
+
+  BranchImpl(condition, if_true, if_false, hint, IsSafetyCheck::kNoSafetyCheck,
+             vars...);
+}
+
+template <typename... Vars>
+void GraphAssembler::BranchWithHint(
+    Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* if_true,
+    GraphAssemblerLabel<sizeof...(Vars)>* if_false, BranchHint hint,
+    Vars... vars) {
+  BranchImpl(condition, if_true, if_false, hint, IsSafetyCheck::kNoSafetyCheck,
+             vars...);
+}
+
+template <typename... Vars>
+void GraphAssembler::BranchImpl(Node* condition,
+                                GraphAssemblerLabel<sizeof...(Vars)>* if_true,
+                                GraphAssemblerLabel<sizeof...(Vars)>* if_false,
+                                BranchHint hint, IsSafetyCheck is_safety_check,
+                                Vars... vars) {
+  DCHECK_NOT_NULL(control());
+
+  Node* branch = graph()->NewNode(common()->Branch(hint, is_safety_check),
+                                  condition, control());
+
+  Node* if_true_control = control_ =
+      graph()->NewNode(common()->IfTrue(), branch);
+  MergeState(if_true, vars...);
+
+  Node* if_false_control = control_ =
+      graph()->NewNode(common()->IfFalse(), branch);
+  MergeState(if_false, vars...);
+
+  if (block_updater_) {
+    RecordBranchInBlockUpdater(branch, if_true_control, if_false_control,
+                               if_true->basic_block(), if_false->basic_block());
+  }
+
+  control_ = nullptr;
+  effect_ = nullptr;
 }
 
 template <typename... Vars>

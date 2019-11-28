@@ -523,8 +523,17 @@ Node* GraphAssembler::NumberAdd(Node* lhs, Node* rhs) {
   return AddNode(graph()->NewNode(simplified()->NumberAdd(), lhs, rhs));
 }
 
+Node* GraphAssembler::NumberSubtract(Node* lhs, Node* rhs) {
+  return AddNode(graph()->NewNode(simplified()->NumberSubtract(), lhs, rhs));
+}
+
 Node* GraphAssembler::NumberLessThan(Node* lhs, Node* rhs) {
   return AddNode(graph()->NewNode(simplified()->NumberLessThan(), lhs, rhs));
+}
+
+Node* GraphAssembler::NumberLessThanOrEqual(Node* lhs, Node* rhs) {
+  return AddNode(
+      graph()->NewNode(simplified()->NumberLessThanOrEqual(), lhs, rhs));
 }
 
 Node* GraphAssembler::StringSubstring(Node* string, Node* from, Node* to) {
@@ -534,6 +543,11 @@ Node* GraphAssembler::StringSubstring(Node* string, Node* from, Node* to) {
 
 Node* GraphAssembler::ObjectIsCallable(Node* value) {
   return AddNode(graph()->NewNode(simplified()->ObjectIsCallable(), value));
+}
+
+Node* GraphAssembler::CheckIf(Node* cond, DeoptimizeReason reason) {
+  return AddNode(graph()->NewNode(simplified()->CheckIf(reason), cond, effect(),
+                                  control()));
 }
 
 Node* GraphAssembler::NumberIsFloat64Hole(Node* value) {
@@ -658,50 +672,36 @@ Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
       condition, frame_state, effect(), control()));
 }
 
-void GraphAssembler::Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
-                            GraphAssemblerLabel<0u>* if_false,
-                            IsSafetyCheck is_safety_check) {
+void GraphAssembler::BranchWithCriticalSafetyCheck(
+    Node* condition, GraphAssemblerLabel<0u>* if_true,
+    GraphAssemblerLabel<0u>* if_false) {
   BranchHint hint = BranchHint::kNone;
   if (if_true->IsDeferred() != if_false->IsDeferred()) {
     hint = if_false->IsDeferred() ? BranchHint::kTrue : BranchHint::kFalse;
   }
 
-  Branch(condition, if_true, if_false, hint, is_safety_check);
+  BranchImpl(condition, if_true, if_false, hint,
+             IsSafetyCheck::kCriticalSafetyCheck);
 }
 
-void GraphAssembler::Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
-                            GraphAssemblerLabel<0u>* if_false, BranchHint hint,
-                            IsSafetyCheck is_safety_check) {
-  DCHECK_NOT_NULL(control());
+void GraphAssembler::RecordBranchInBlockUpdater(Node* branch,
+                                                Node* if_true_control,
+                                                Node* if_false_control,
+                                                BasicBlock* if_true_block,
+                                                BasicBlock* if_false_block) {
+  DCHECK_NOT_NULL(block_updater_);
+  // TODO(9684): Only split the current basic block if the label's target
+  // block has multiple merges.
+  BasicBlock* if_true_target = block_updater_->SplitBasicBlock();
+  BasicBlock* if_false_target = block_updater_->SplitBasicBlock();
 
-  Node* branch = graph()->NewNode(common()->Branch(hint, is_safety_check),
-                                  condition, control());
+  block_updater_->AddBranch(branch, if_true_target, if_false_target);
 
-  Node* if_true_control = control_ =
-      graph()->NewNode(common()->IfTrue(), branch);
-  MergeState(if_true);
+  block_updater_->AddNode(if_true_control, if_true_target);
+  block_updater_->AddGoto(if_true_target, if_true_block);
 
-  Node* if_false_control = control_ =
-      graph()->NewNode(common()->IfFalse(), branch);
-  MergeState(if_false);
-
-  if (block_updater_) {
-    // TODO(9684): Only split the current basic block if the label's target
-    // block has multiple merges.
-    BasicBlock* if_true_target = block_updater_->SplitBasicBlock();
-    BasicBlock* if_false_target = block_updater_->SplitBasicBlock();
-
-    block_updater_->AddBranch(branch, if_true_target, if_false_target);
-
-    block_updater_->AddNode(if_true_control, if_true_target);
-    block_updater_->AddGoto(if_true_target, if_true->basic_block());
-
-    block_updater_->AddNode(if_false_control, if_false_target);
-    block_updater_->AddGoto(if_false_target, if_false->basic_block());
-  }
-
-  control_ = nullptr;
-  effect_ = nullptr;
+  block_updater_->AddNode(if_false_control, if_false_target);
+  block_updater_->AddGoto(if_false_target, if_false_block);
 }
 
 void GraphAssembler::BindBasicBlock(BasicBlock* block) {
