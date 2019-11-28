@@ -153,8 +153,31 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op)
 
 MachineType AtomicOpType(Operator const* op) V8_WARN_UNUSED_RESULT;
 
-V8_EXPORT_PRIVATE const uint8_t* S8x16ShuffleOf(Operator const* op)
-    V8_WARN_UNUSED_RESULT;
+class S8x16ShuffleParameter {
+ public:
+  explicit S8x16ShuffleParameter(const uint8_t shuffle[16]) {
+    std::copy(shuffle, shuffle + 16, shuffle_.begin());
+  }
+  const std::array<uint8_t, 16>& shuffle() const { return shuffle_; }
+  const uint8_t* data() const { return shuffle_.data(); }
+  uint8_t operator[](int x) const { return shuffle_[x]; }
+
+ private:
+  std::array<uint8_t, 16> shuffle_;
+};
+
+V8_EXPORT_PRIVATE bool operator==(S8x16ShuffleParameter const& lhs,
+                                  S8x16ShuffleParameter const& rhs);
+bool operator!=(S8x16ShuffleParameter const& lhs,
+                S8x16ShuffleParameter const& rhs);
+
+size_t hash_value(S8x16ShuffleParameter const& p);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           S8x16ShuffleParameter const&);
+
+V8_EXPORT_PRIVATE S8x16ShuffleParameter const& S8x16ShuffleParameterOf(
+    Operator const* op) V8_WARN_UNUSED_RESULT;
 
 StackCheckKind StackCheckKindOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 

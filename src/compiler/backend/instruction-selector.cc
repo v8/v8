@@ -3142,7 +3142,7 @@ void InstructionSelector::CanonicalizeShuffle(bool inputs_equal,
 void InstructionSelector::CanonicalizeShuffle(Node* node, uint8_t* shuffle,
                                               bool* is_swizzle) {
   // Get raw shuffle indices.
-  memcpy(shuffle, S8x16ShuffleOf(node->op()), kSimd128Size);
+  memcpy(shuffle, S8x16ShuffleParameterOf(node->op()).data(), kSimd128Size);
   bool needs_swap;
   bool inputs_equal = GetVirtualRegister(node->InputAt(0)) ==
                       GetVirtualRegister(node->InputAt(1));
