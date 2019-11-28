@@ -7,6 +7,11 @@
 #include "src/codegen/code-factory.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/schedule.h"
+// For TNode types.
+#include "src/objects/heap-number.h"
+#include "src/objects/oddball.h"
+#include "src/objects/smi.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {
@@ -376,8 +381,9 @@ Node* GraphAssembler::HeapConstant(Handle<HeapObject> object) {
   return AddClonedNode(jsgraph()->HeapConstant(object));
 }
 
-Node* GraphAssembler::NumberConstant(double value) {
-  return AddClonedNode(jsgraph()->Constant(value));
+TNode<Number> GraphAssembler::NumberConstant(double value) {
+  return TNode<Number>::UncheckedCast(
+      AddClonedNode(jsgraph()->Constant(value)));
 }
 
 Node* GraphAssembler::ExternalConstant(ExternalReference ref) {
@@ -392,16 +398,18 @@ Node* GraphAssembler::LoadFramePointer() {
   return AddNode(graph()->NewNode(machine()->LoadFramePointer()));
 }
 
-#define SINGLETON_CONST_DEF(Name)                      \
-  Node* GraphAssembler::Name##Constant() {             \
-    return AddClonedNode(jsgraph()->Name##Constant()); \
+#define SINGLETON_CONST_DEF(Name)                    \
+  TNode<Object> GraphAssembler::Name##Constant() {   \
+    return TNode<Object>::UncheckedCast(             \
+        AddClonedNode(jsgraph()->Name##Constant())); \
   }
 JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DEF)
 #undef SINGLETON_CONST_DEF
 
-#define SINGLETON_CONST_TEST_DEF(Name)              \
-  Node* GraphAssembler::Is##Name(Node* value) {     \
-    return ReferenceEqual(value, Name##Constant()); \
+#define SINGLETON_CONST_TEST_DEF(Name)                           \
+  TNode<Boolean> GraphAssembler::Is##Name(TNode<Object> value) { \
+    return TNode<Boolean>::UncheckedCast(                        \
+        ReferenceEqual(value, Name##Constant()));                \
   }
 JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_TEST_DEF)
 #undef SINGLETON_CONST_TEST_DEF
@@ -503,46 +511,54 @@ Node* GraphAssembler::StoreElement(ElementAccess const& access, Node* object,
                                   index, value, effect(), control()));
 }
 
-Node* GraphAssembler::StringLength(Node* string) {
-  return AddNode(graph()->NewNode(simplified()->StringLength(), string));
+TNode<Number> GraphAssembler::StringLength(TNode<String> string) {
+  return AddNode<Number>(
+      graph()->NewNode(simplified()->StringLength(), string));
 }
 
 Node* GraphAssembler::ReferenceEqual(Node* lhs, Node* rhs) {
   return AddNode(graph()->NewNode(simplified()->ReferenceEqual(), lhs, rhs));
 }
 
-Node* GraphAssembler::NumberMin(Node* lhs, Node* rhs) {
-  return AddNode(graph()->NewNode(simplified()->NumberMin(), lhs, rhs));
+TNode<Number> GraphAssembler::NumberMin(TNode<Number> lhs, TNode<Number> rhs) {
+  return AddNode<Number>(graph()->NewNode(simplified()->NumberMin(), lhs, rhs));
 }
 
-Node* GraphAssembler::NumberMax(Node* lhs, Node* rhs) {
-  return AddNode(graph()->NewNode(simplified()->NumberMax(), lhs, rhs));
+TNode<Number> GraphAssembler::NumberMax(TNode<Number> lhs, TNode<Number> rhs) {
+  return AddNode<Number>(graph()->NewNode(simplified()->NumberMax(), lhs, rhs));
 }
 
-Node* GraphAssembler::NumberAdd(Node* lhs, Node* rhs) {
-  return AddNode(graph()->NewNode(simplified()->NumberAdd(), lhs, rhs));
+TNode<Number> GraphAssembler::NumberAdd(TNode<Number> lhs, TNode<Number> rhs) {
+  return AddNode<Number>(graph()->NewNode(simplified()->NumberAdd(), lhs, rhs));
 }
 
-Node* GraphAssembler::NumberSubtract(Node* lhs, Node* rhs) {
-  return AddNode(graph()->NewNode(simplified()->NumberSubtract(), lhs, rhs));
+TNode<Number> GraphAssembler::NumberSubtract(TNode<Number> lhs,
+                                             TNode<Number> rhs) {
+  return AddNode<Number>(
+      graph()->NewNode(simplified()->NumberSubtract(), lhs, rhs));
 }
 
-Node* GraphAssembler::NumberLessThan(Node* lhs, Node* rhs) {
-  return AddNode(graph()->NewNode(simplified()->NumberLessThan(), lhs, rhs));
+TNode<Boolean> GraphAssembler::NumberLessThan(TNode<Number> lhs,
+                                              TNode<Number> rhs) {
+  return AddNode<Boolean>(
+      graph()->NewNode(simplified()->NumberLessThan(), lhs, rhs));
 }
 
-Node* GraphAssembler::NumberLessThanOrEqual(Node* lhs, Node* rhs) {
-  return AddNode(
+TNode<Boolean> GraphAssembler::NumberLessThanOrEqual(TNode<Number> lhs,
+                                                     TNode<Number> rhs) {
+  return AddNode<Boolean>(
       graph()->NewNode(simplified()->NumberLessThanOrEqual(), lhs, rhs));
 }
 
-Node* GraphAssembler::StringSubstring(Node* string, Node* from, Node* to) {
-  return AddNode(graph()->NewNode(simplified()->StringSubstring(), string, from,
-                                  to, effect(), control()));
+TNode<String> GraphAssembler::StringSubstring(Node* string, Node* from,
+                                              Node* to) {
+  return AddNode<String>(graph()->NewNode(
+      simplified()->StringSubstring(), string, from, to, effect(), control()));
 }
 
-Node* GraphAssembler::ObjectIsCallable(Node* value) {
-  return AddNode(graph()->NewNode(simplified()->ObjectIsCallable(), value));
+TNode<Boolean> GraphAssembler::ObjectIsCallable(Node* value) {
+  return AddNode<Boolean>(
+      graph()->NewNode(simplified()->ObjectIsCallable(), value));
 }
 
 Node* GraphAssembler::CheckIf(Node* cond, DeoptimizeReason reason) {

@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_GRAPH_ASSEMBLER_H_
 #define V8_COMPILER_GRAPH_ASSEMBLER_H_
 
+#include "src/codegen/tnode.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"
@@ -15,6 +16,12 @@ namespace internal {
 
 class JSGraph;
 class Graph;
+class Oddball;
+
+// TODO(jgruber): Currently this is too permissive, but at least it lets us
+// document which functions expect JS booleans. If a real Boolean type becomes
+// possible in the future, use that instead.
+using Boolean = Oddball;
 
 namespace compiler {
 
@@ -212,17 +219,18 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* Float64Constant(double value);
   Node* Projection(int index, Node* value);
   Node* HeapConstant(Handle<HeapObject> object);
-  Node* NumberConstant(double value);
+  TNode<Number> NumberConstant(double value);
   Node* CEntryStubConstant(int result_size);
   Node* ExternalConstant(ExternalReference ref);
 
   Node* LoadFramePointer();
 
-#define SINGLETON_CONST_DECL(Name) Node* Name##Constant();
+#define SINGLETON_CONST_DECL(Name) TNode<Object> Name##Constant();
   JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DECL)
 #undef SINGLETON_CONST_DECL
 
-#define SINGLETON_CONST_TEST_DECL(Name) Node* Is##Name(Node* value);
+#define SINGLETON_CONST_TEST_DECL(Name) \
+  TNode<Boolean> Is##Name(TNode<Object> value);
   JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_TEST_DECL)
 #undef SINGLETON_CONST_TEST_DECL
 
@@ -259,16 +267,16 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* StoreField(FieldAccess const&, Node* object, Node* value);
   Node* StoreElement(ElementAccess const&, Node* object, Node* index,
                      Node* value);
-  Node* StringLength(Node* string);
+  TNode<Number> StringLength(TNode<String> string);
   Node* ReferenceEqual(Node* lhs, Node* rhs);
-  Node* NumberMin(Node* lhs, Node* rhs);
-  Node* NumberMax(Node* lhs, Node* rhs);
-  Node* NumberLessThan(Node* lhs, Node* rhs);
-  Node* NumberLessThanOrEqual(Node* lhs, Node* rhs);
-  Node* NumberAdd(Node* lhs, Node* rhs);
-  Node* NumberSubtract(Node* lhs, Node* rhs);
-  Node* StringSubstring(Node* string, Node* from, Node* to);
-  Node* ObjectIsCallable(Node* value);
+  TNode<Number> NumberMin(TNode<Number> lhs, TNode<Number> rhs);
+  TNode<Number> NumberMax(TNode<Number> lhs, TNode<Number> rhs);
+  TNode<Boolean> NumberLessThan(TNode<Number> lhs, TNode<Number> rhs);
+  TNode<Boolean> NumberLessThanOrEqual(TNode<Number> lhs, TNode<Number> rhs);
+  TNode<Number> NumberAdd(TNode<Number> lhs, TNode<Number> rhs);
+  TNode<Number> NumberSubtract(TNode<Number> lhs, TNode<Number> rhs);
+  TNode<String> StringSubstring(Node* string, Node* from, Node* to);
+  TNode<Boolean> ObjectIsCallable(Node* value);
   Node* CheckIf(Node* cond, DeoptimizeReason reason);
   Node* NumberIsFloat64Hole(Node* value);
 
@@ -349,6 +357,11 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   // Adds {node} to the current position and updates assembler's current effect
   // and control.
   Node* AddNode(Node* node);
+
+  template <typename T>
+  TNode<T> AddNode(Node* node) {
+    return TNode<T>::UncheckedCast(AddNode(node));
+  }
 
   // Finalizes the {block} being processed by the assembler, returning the
   // finalized block (which may be different from the original block).

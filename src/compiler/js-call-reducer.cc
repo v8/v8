@@ -43,22 +43,6 @@ namespace {
 // Shorter lambda declarations with less visual clutter.
 #define _ [&]()  // NOLINT(whitespace/braces)
 
-// STNode<T> is a shorter alias of SloppyTNode<T> for improved readability.
-// TODO(jgruber): Switch to TNode once fewer explicit casts are necessary, i.e.
-// once more underlying operations return typed nodes.
-template <class T>
-using STNode = SloppyTNode<T>;
-
-template <class T>
-constexpr Node* ToNodePtr(STNode<T> tnode) {
-  return static_cast<Node*>(tnode);
-}
-
-template <class T>
-constexpr Node* ToNodePtr(TNode<T> tnode) {
-  return static_cast<Node*>(tnode);
-}
-
 template <class T>
 constexpr TNode<T> ToTNode(Node* node) {
   return TNode<T>::UncheckedCast(node);
@@ -68,8 +52,10 @@ constexpr TNode<T> ToTNode(Node* node) {
 
 class JSCallReducerAssembler : public GraphAssembler {
  public:
-  JSCallReducerAssembler(JSGraph* jsgraph, Zone* zone, STNode<Object> node)
-      : GraphAssembler(jsgraph, zone), node_(node), if_exception_nodes_(zone) {
+  JSCallReducerAssembler(JSGraph* jsgraph, Zone* zone, Node* node)
+      : GraphAssembler(jsgraph, zone),
+        node_(ToTNode<Object>(node)),
+        if_exception_nodes_(zone) {
     InitializeEffectControl(NodeProperties::GetEffectInput(node),
                             NodeProperties::GetControlInput(node));
 
@@ -97,14 +83,11 @@ class JSCallReducerAssembler : public GraphAssembler {
   // Returns {value, effect, control}.
   std::tuple<Node*, Node*, Node*> MergeExceptionalPaths();
 
-  Node* node_ptr() const { return ToNodePtr(node_); }
+  Node* node_ptr() const { return static_cast<Node*>(node_); }
 
  protected:
-  using NodeGenerator = std::function<Node*()>;
-  using NodeGenerator1 = std::function<Node*(Node*)>;
-  using VoidGenerator = std::function<void()>;
-  using VoidGenerator1 = std::function<void(Node*)>;
-  using VoidGenerator2 = std::function<void(Node*, Node*)>;
+  using NodeGenerator0 = std::function<TNode<Object>()>;
+  using VoidGenerator0 = std::function<void()>;
 
   // TODO(jgruber): Currently IfBuilder0 and IfBuilder1 are implemented as
   // separate classes. If, in the future, we encounter additional use cases that
@@ -112,7 +95,7 @@ class JSCallReducerAssembler : public GraphAssembler {
   // implementation.
   class IfBuilder0 {
    public:
-    IfBuilder0(GraphAssembler* gasm, STNode<Object> cond, bool negate_cond)
+    IfBuilder0(GraphAssembler* gasm, TNode<Boolean> cond, bool negate_cond)
         : gasm_(gasm), cond_(cond), negate_cond_(negate_cond) {}
 
     V8_WARN_UNUSED_RESULT IfBuilder0& ExpectTrue() {
@@ -127,11 +110,11 @@ class JSCallReducerAssembler : public GraphAssembler {
       return *this;
     }
 
-    V8_WARN_UNUSED_RESULT IfBuilder0& Then(const VoidGenerator& body) {
+    V8_WARN_UNUSED_RESULT IfBuilder0& Then(const VoidGenerator0& body) {
       then_body_ = body;
       return *this;
     }
-    V8_WARN_UNUSED_RESULT IfBuilder0& Else(const VoidGenerator& body) {
+    V8_WARN_UNUSED_RESULT IfBuilder0& Else(const VoidGenerator0& body) {
       else_body_ = body;
       return *this;
     }
@@ -163,19 +146,22 @@ class JSCallReducerAssembler : public GraphAssembler {
 
    private:
     GraphAssembler* const gasm_;
-    const STNode<Object> cond_;
+    const TNode<Boolean> cond_;
     const bool negate_cond_;
     BranchHint hint_ = BranchHint::kNone;
-    VoidGenerator then_body_;
-    VoidGenerator else_body_;
+    VoidGenerator0 then_body_;
+    VoidGenerator0 else_body_;
   };
 
-  IfBuilder0 If(STNode<Object> cond) { return {this, cond, false}; }
-  IfBuilder0 IfNot(STNode<Object> cond) { return {this, cond, true}; }
+  IfBuilder0 If(TNode<Boolean> cond) { return {this, cond, false}; }
+  IfBuilder0 IfNot(TNode<Boolean> cond) { return {this, cond, true}; }
 
+  template <typename T>
   class IfBuilder1 {
+    using If1BodyFunction = std::function<TNode<T>()>;
+
    public:
-    IfBuilder1(GraphAssembler* gasm, STNode<Object> cond)
+    IfBuilder1(GraphAssembler* gasm, TNode<Boolean> cond)
         : gasm_(gasm), cond_(cond) {}
 
     V8_WARN_UNUSED_RESULT IfBuilder1& ExpectTrue() {
@@ -190,16 +176,16 @@ class JSCallReducerAssembler : public GraphAssembler {
       return *this;
     }
 
-    V8_WARN_UNUSED_RESULT IfBuilder1& Then(const NodeGenerator& body) {
+    V8_WARN_UNUSED_RESULT IfBuilder1& Then(const If1BodyFunction& body) {
       then_body_ = body;
       return *this;
     }
-    V8_WARN_UNUSED_RESULT IfBuilder1& Else(const NodeGenerator& body) {
+    V8_WARN_UNUSED_RESULT IfBuilder1& Else(const If1BodyFunction& body) {
       else_body_ = body;
       return *this;
     }
 
-    V8_WARN_UNUSED_RESULT TNode<Object> Value() {
+    V8_WARN_UNUSED_RESULT TNode<T> Value() {
       DCHECK(then_body_);
       DCHECK(else_body_);
       auto if_true = (hint_ == BranchHint::kFalse) ? gasm_->MakeDeferredLabel()
@@ -210,15 +196,15 @@ class JSCallReducerAssembler : public GraphAssembler {
       gasm_->Branch(cond_, &if_true, &if_false);
 
       gasm_->Bind(&if_true);
-      Node* then_result = then_body_();
+      TNode<T> then_result = then_body_();
       gasm_->Goto(&merge, then_result);
 
       gasm_->Bind(&if_false);
-      Node* else_result = else_body_();
+      TNode<T> else_result = else_body_();
       gasm_->Goto(&merge, else_result);
 
       gasm_->Bind(&merge);
-      return ToTNode<Object>(merge.PhiAt(0));
+      return ToTNode<T>(merge.PhiAt(0));
     }
 
    private:
@@ -226,37 +212,40 @@ class JSCallReducerAssembler : public GraphAssembler {
         MachineRepresentation::kTagged;
 
     GraphAssembler* const gasm_;
-    const STNode<Object> cond_;
+    const TNode<Boolean> cond_;
     BranchHint hint_ = BranchHint::kNone;
-    NodeGenerator then_body_;
-    NodeGenerator else_body_;
+    If1BodyFunction then_body_;
+    If1BodyFunction else_body_;
   };
 
-  IfBuilder1 SelectIf(STNode<Object> cond) { return {this, cond}; }
+  template <typename T>
+  IfBuilder1<T> SelectIf(TNode<Boolean> cond) {
+    return {this, cond};
+  }
 
   // Simplified operators.
   TNode<Number> SpeculativeToNumber(
-      STNode<Object> value,
+      TNode<Object> value,
       NumberOperationHint hint = NumberOperationHint::kNumberOrOddball);
-  TNode<Smi> CheckSmi(STNode<Object> value);
-  TNode<String> CheckString(STNode<Object> value);
+  TNode<Smi> CheckSmi(TNode<Object> value);
+  TNode<String> CheckString(TNode<Object> value);
   TNode<Number> CheckBounds(TNode<Number> value, TNode<Number> limit);
 
   // Common operators.
-  TNode<Smi> TypeGuardUnsignedSmall(STNode<Object> value);
-  TNode<Object> TypeGuardNonInternal(STNode<Object> value);
+  TNode<Smi> TypeGuardUnsignedSmall(TNode<Object> value);
+  TNode<Object> TypeGuardNonInternal(TNode<Object> value);
 
   // Javascript operators.
-  TNode<Object> JSCall3(STNode<Object> function, STNode<Object> this_arg,
-                        STNode<Object> arg0, STNode<Object> arg1,
-                        STNode<Object> arg2, TNode<Object> frame_state);
-  TNode<Object> JSCall4(STNode<Object> function, STNode<Object> this_arg,
-                        STNode<Object> arg0, STNode<Object> arg1,
-                        STNode<Object> arg2, STNode<Object> arg3,
-                        TNode<Object> frame_state);
+  TNode<Object> JSCall3(TNode<Object> function, TNode<Object> this_arg,
+                        TNode<Object> arg0, TNode<Object> arg1,
+                        TNode<Object> arg2, Node* frame_state);
+  TNode<Object> JSCall4(TNode<Object> function, TNode<Object> this_arg,
+                        TNode<Object> arg0, TNode<Object> arg1,
+                        TNode<Object> arg2, TNode<Object> arg3,
+                        Node* frame_state);
   TNode<Object> JSCallRuntime2(Runtime::FunctionId function_id,
-                               STNode<Object> arg0, STNode<Object> arg1,
-                               TNode<Object> frame_state);
+                               TNode<Object> arg0, TNode<Object> arg1,
+                               Node* frame_state);
 
   void MaybeInsertMapChecks(MapInference* inference,
                             bool has_stability_dependency) {
@@ -275,8 +264,8 @@ class JSCallReducerAssembler : public GraphAssembler {
   // would be good. Note also that this only handles the very basic case (not
   // involving custom handlers) so far and will probably have to be extended in
   // the future.
-  TNode<Object> MayThrow(const NodeGenerator& body) {
-    TNode<Object> result = ToTNode<Object>(body());
+  TNode<Object> MayThrow(const NodeGenerator0& body) {
+    TNode<Object> result = body();
 
     if (has_external_exception_handler()) {
       Node* e = effect();
@@ -294,16 +283,20 @@ class JSCallReducerAssembler : public GraphAssembler {
     return result;
   }
 
+  using ConditionFunction1 = std::function<TNode<Boolean>(TNode<Number>)>;
+  using StepFunction1 = std::function<TNode<Number>(TNode<Number>)>;
   class ForBuilder0 {
+    using For0BodyFunction = std::function<void(TNode<Number>)>;
+
    public:
-    ForBuilder0(GraphAssembler* gasm, STNode<Object> initial_value,
-                const NodeGenerator1& cond, const NodeGenerator1& step)
+    ForBuilder0(GraphAssembler* gasm, TNode<Number> initial_value,
+                const ConditionFunction1& cond, const StepFunction1& step)
         : gasm_(gasm),
           initial_value_(initial_value),
           cond_(cond),
           step_(step) {}
 
-    void Do(const VoidGenerator1& body) {
+    void Do(const For0BodyFunction& body) {
       auto loop_header = gasm_->MakeLoopLabel(kPhiRepresentation);
       auto loop_body = gasm_->MakeLabel();
       auto loop_exit = gasm_->MakeLabel();
@@ -312,7 +305,7 @@ class JSCallReducerAssembler : public GraphAssembler {
 
       gasm_->Bind(&loop_header);
       Node* loop_header_control = gasm_->control();  // For LoopExit below.
-      STNode<Object> i = loop_header.PhiAt(0);
+      TNode<Number> i = ToTNode<Number>(loop_header.PhiAt(0));
 
       gasm_->BranchWithHint(cond_(i), &loop_body, &loop_exit,
                             BranchHint::kTrue);
@@ -333,44 +326,49 @@ class JSCallReducerAssembler : public GraphAssembler {
         MachineRepresentation::kTagged;
 
     GraphAssembler* const gasm_;
-    const STNode<Object> initial_value_;
-    const NodeGenerator1 cond_;
-    const NodeGenerator1 step_;
+    const TNode<Number> initial_value_;
+    const ConditionFunction1 cond_;
+    const StepFunction1 step_;
   };
 
-  ForBuilder0 ForSmiZeroUntil(STNode<Smi> excluded_limit) {
-    STNode<Smi> initial_value = ZeroConstant();
-    auto cond = [=](Node* i) { return NumberLessThan(i, excluded_limit); };
-    auto step = [=](Node* i) { return NumberAdd(i, OneConstant()); };
+  ForBuilder0 ForSmiZeroUntil(TNode<Number> excluded_limit) {
+    TNode<Number> initial_value = ToTNode<Number>(ZeroConstant());
+    auto cond = [=](TNode<Number> i) {
+      return NumberLessThan(i, excluded_limit);
+    };
+    auto step = [=](TNode<Number> i) {
+      return NumberAdd(i, ToTNode<Number>(OneConstant()));
+    };
     return {this, initial_value, cond, step};
   }
 
-  ForBuilder0 Forever(STNode<Object> initial_value,
-                      const NodeGenerator1& step) {
-    STNode<BoolT> true_constant = jsgraph()->BooleanConstant(true);
-    return {this, initial_value, [=](Node*) { return true_constant; }, step};
+  ForBuilder0 Forever(TNode<Number> initial_value, const StepFunction1& step) {
+    TNode<Boolean> true_constant =
+        ToTNode<Boolean>(jsgraph()->BooleanConstant(true));
+    return {this, initial_value, [=](TNode<Number>) { return true_constant; },
+            step};
   }
 
-  using For1Body = std::function<void(Node*, Node**)>;
+  using For1BodyFunction = std::function<void(TNode<Number>, TNode<Object>*)>;
   class ForBuilder1 {
    public:
-    ForBuilder1(GraphAssembler* gasm, STNode<Object> initial_value,
-                const NodeGenerator1& cond, const NodeGenerator1& step,
-                STNode<Object> initial_arg0)
+    ForBuilder1(GraphAssembler* gasm, TNode<Number> initial_value,
+                const ConditionFunction1& cond, const StepFunction1& step,
+                TNode<Object> initial_arg0)
         : gasm_(gasm),
           initial_value_(initial_value),
           cond_(cond),
           step_(step),
           initial_arg0_(initial_arg0) {}
 
-    V8_WARN_UNUSED_RESULT ForBuilder1& Do(const For1Body& body) {
+    V8_WARN_UNUSED_RESULT ForBuilder1& Do(const For1BodyFunction& body) {
       body_ = body;
       return *this;
     }
 
     TNode<Object> Value() {
       DCHECK(body_);
-      Node* arg0 = ToNodePtr(initial_arg0_);
+      TNode<Object> arg0 = initial_arg0_;
 
       auto loop_header =
           gasm_->MakeLoopLabel(kPhiRepresentation, kPhiRepresentation);
@@ -381,8 +379,8 @@ class JSCallReducerAssembler : public GraphAssembler {
 
       gasm_->Bind(&loop_header);
       Node* loop_header_control = gasm_->control();  // For LoopExit below.
-      STNode<Object> i = loop_header.PhiAt(0);
-      arg0 = loop_header.PhiAt(1);
+      TNode<Number> i = ToTNode<Number>(loop_header.PhiAt(0));
+      arg0 = ToTNode<Object>(loop_header.PhiAt(1));
 
       gasm_->BranchWithHint(cond_(i), &loop_body, &loop_exit, BranchHint::kTrue,
                             arg0);
@@ -405,15 +403,15 @@ class JSCallReducerAssembler : public GraphAssembler {
         MachineRepresentation::kTagged;
 
     GraphAssembler* const gasm_;
-    const STNode<Object> initial_value_;
-    const NodeGenerator1 cond_;
-    const NodeGenerator1 step_;
-    For1Body body_;
-    const STNode<Object> initial_arg0_;
+    const TNode<Number> initial_value_;
+    const ConditionFunction1 cond_;
+    const StepFunction1 step_;
+    For1BodyFunction body_;
+    const TNode<Object> initial_arg0_;
   };
 
-  ForBuilder1 For1(STNode<Object> initial_value, const NodeGenerator1& cond,
-                   const NodeGenerator1& step, STNode<Object> initial_arg0) {
+  ForBuilder1 For1(TNode<Number> initial_value, const ConditionFunction1& cond,
+                   const StepFunction1& step, TNode<Object> initial_arg0) {
     return {this, initial_value, cond, step, initial_arg0};
   }
 
@@ -422,7 +420,7 @@ class JSCallReducerAssembler : public GraphAssembler {
     return p.feedback();
   }
 
-  TNode<Object> ValueInput(int index) {
+  TNode<Object> ValueInput(int index) const {
     return ToTNode<Object>(NodeProperties::GetValueInput(node_, index));
   }
 
@@ -438,18 +436,18 @@ class JSCallReducerAssembler : public GraphAssembler {
                                : UndefinedConstant());
   }
 
-  TNode<Context> ContextInput() {
+  TNode<Context> ContextInput() const {
     return ToTNode<Context>(NodeProperties::GetContextInput(node_));
   }
 
-  TNode<Object> FrameStateInput() {
-    return ToTNode<Object>(NodeProperties::GetFrameStateInput(node_));
+  Node* FrameStateInput() const {
+    return NodeProperties::GetFrameStateInput(node_);
   }
 
   JSOperatorBuilder* javascript() const { return jsgraph()->javascript(); }
 
  private:
-  const STNode<Object> node_;
+  const TNode<Object> node_;
 
   bool has_external_exception_handler_;
   Node* external_exception_handler_;
@@ -463,10 +461,9 @@ enum class ArrayReduceDirection { kLeft, kRight };
 class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
  public:
   IteratingArrayBuiltinReducerAssembler(JSGraph* jsgraph, Zone* zone,
-                                        STNode<Object> node)
+                                        Node* node)
       : JSCallReducerAssembler(jsgraph, zone, node) {}
 
-  // TODO(jgruber): Move common args to the constructor.
   TNode<Object> ReduceArrayPrototypeForEach(
       MapInference* inference, const bool has_stability_dependency,
       ElementsKind kind, const SharedFunctionInfoRef& shared);
@@ -476,14 +473,14 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
                                            ArrayReduceDirection direction,
                                            const SharedFunctionInfoRef& shared);
 
-  void ThrowIfNotCallable(TNode<Object> maybe_callable,
-                          TNode<Object> frame_state) {
+  void ThrowIfNotCallable(TNode<Object> maybe_callable, Node* frame_state) {
     IfNot(ObjectIsCallable(maybe_callable))
         .Then(_ {
           JSCallRuntime2(Runtime::kThrowTypeError,
                          NumberConstant(static_cast<double>(
                              MessageTemplate::kCalledNonCallable)),
                          maybe_callable, frame_state);
+
           Unreachable();  // The runtime call throws unconditionally.
         })
         .ExpectTrue()
@@ -504,96 +501,88 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
     // Reload the elements pointer before calling the callback, since the
     // previous callback might have resized the array causing the elements
     // buffer to be re-allocated.
-    STNode<Object> elements =
-        LoadField(AccessBuilder::ForJSObjectElements(), o);
+    TNode<Object> elements =
+        ToTNode<Object>(LoadField(AccessBuilder::ForJSObjectElements(), o));
     TNode<Object> value = ToTNode<Object>(LoadElement(
         AccessBuilder::ForFixedArrayElement(kind, LoadSensitivity::kCritical),
         elements, index));
     return std::make_pair(index, value);
   }
 
-  TNode<BoolT> HoleCheck(ElementsKind kind, TNode<Object> v) {
-    return ToTNode<BoolT>(IsDoubleElementsKind(kind) ? NumberIsFloat64Hole(v)
-                                                     : IsTheHole(v));
+  TNode<Boolean> HoleCheck(ElementsKind kind, TNode<Object> v) {
+    return ToTNode<Boolean>(IsDoubleElementsKind(kind) ? NumberIsFloat64Hole(v)
+                                                       : IsTheHole(v));
   }
 };
 
 TNode<Number> JSCallReducerAssembler::SpeculativeToNumber(
-    STNode<Object> value, NumberOperationHint hint) {
-  return ToTNode<Number>(AddNode(
+    TNode<Object> value, NumberOperationHint hint) {
+  return AddNode<Number>(
       graph()->NewNode(simplified()->SpeculativeToNumber(hint, feedback()),
-                       ToNodePtr(value), effect(), control())));
+                       value, effect(), control()));
 }
 
-TNode<Smi> JSCallReducerAssembler::CheckSmi(STNode<Object> value) {
-  return ToTNode<Smi>(
-      AddNode(graph()->NewNode(simplified()->CheckSmi(feedback()),
-                               ToNodePtr(value), effect(), control())));
+TNode<Smi> JSCallReducerAssembler::CheckSmi(TNode<Object> value) {
+  return AddNode<Smi>(graph()->NewNode(simplified()->CheckSmi(feedback()),
+                                       value, effect(), control()));
 }
 
-TNode<String> JSCallReducerAssembler::CheckString(STNode<Object> value) {
-  return ToTNode<String>(
-      AddNode(graph()->NewNode(simplified()->CheckString(feedback()),
-                               ToNodePtr(value), effect(), control())));
+TNode<String> JSCallReducerAssembler::CheckString(TNode<Object> value) {
+  return AddNode<String>(graph()->NewNode(simplified()->CheckString(feedback()),
+                                          value, effect(), control()));
 }
 
 TNode<Number> JSCallReducerAssembler::CheckBounds(TNode<Number> value,
                                                   TNode<Number> limit) {
-  return ToTNode<Number>(AddNode(
-      graph()->NewNode(simplified()->CheckBounds(feedback()), ToNodePtr(value),
-                       ToNodePtr(limit), effect(), control())));
+  return AddNode<Number>(graph()->NewNode(simplified()->CheckBounds(feedback()),
+                                          value, limit, effect(), control()));
 }
 
-TNode<Smi> JSCallReducerAssembler::TypeGuardUnsignedSmall(
-    STNode<Object> value) {
+TNode<Smi> JSCallReducerAssembler::TypeGuardUnsignedSmall(TNode<Object> value) {
   return ToTNode<Smi>(TypeGuard(Type::UnsignedSmall(), value));
 }
 
 TNode<Object> JSCallReducerAssembler::TypeGuardNonInternal(
-    STNode<Object> value) {
+    TNode<Object> value) {
   return ToTNode<Object>(TypeGuard(Type::NonInternal(), value));
 }
 
 TNode<Object> JSCallReducerAssembler::JSCall3(
-    STNode<Object> function, STNode<Object> this_arg, STNode<Object> arg0,
-    STNode<Object> arg1, STNode<Object> arg2, TNode<Object> frame_state) {
+    TNode<Object> function, TNode<Object> this_arg, TNode<Object> arg0,
+    TNode<Object> arg1, TNode<Object> arg2, Node* frame_state) {
   CallParameters const& p = CallParametersOf(node_ptr()->op());
   return MayThrow(_ {
-    return ToTNode<Object>(AddNode(graph()->NewNode(
+    return AddNode<Object>(graph()->NewNode(
         javascript()->Call(5, p.frequency(), p.feedback(),
                            ConvertReceiverMode::kAny, p.speculation_mode(),
                            CallFeedbackRelation::kUnrelated),
-        ToNodePtr(function), ToNodePtr(this_arg), ToNodePtr(arg0),
-        ToNodePtr(arg1), ToNodePtr(arg2), ToNodePtr(ContextInput()),
-        ToNodePtr(frame_state), effect(), control())));
+        function, this_arg, arg0, arg1, arg2, ContextInput(), frame_state,
+        effect(), control()));
   });
 }
 
 TNode<Object> JSCallReducerAssembler::JSCall4(
-    STNode<Object> function, STNode<Object> this_arg, STNode<Object> arg0,
-    STNode<Object> arg1, STNode<Object> arg2, STNode<Object> arg3,
-    TNode<Object> frame_state) {
+    TNode<Object> function, TNode<Object> this_arg, TNode<Object> arg0,
+    TNode<Object> arg1, TNode<Object> arg2, TNode<Object> arg3,
+    Node* frame_state) {
   CallParameters const& p = CallParametersOf(node_ptr()->op());
   return MayThrow(_ {
-    return ToTNode<Object>(AddNode(graph()->NewNode(
+    return AddNode<Object>(graph()->NewNode(
         javascript()->Call(6, p.frequency(), p.feedback(),
                            ConvertReceiverMode::kAny, p.speculation_mode(),
                            CallFeedbackRelation::kUnrelated),
-        ToNodePtr(function), ToNodePtr(this_arg), ToNodePtr(arg0),
-        ToNodePtr(arg1), ToNodePtr(arg2), ToNodePtr(arg3),
-        ToNodePtr(ContextInput()), ToNodePtr(frame_state), effect(),
-        control())));
+        function, this_arg, arg0, arg1, arg2, arg3, ContextInput(), frame_state,
+        effect(), control()));
   });
 }
 
 TNode<Object> JSCallReducerAssembler::JSCallRuntime2(
-    Runtime::FunctionId function_id, STNode<Object> arg0, STNode<Object> arg1,
-    TNode<Object> frame_state) {
+    Runtime::FunctionId function_id, TNode<Object> arg0, TNode<Object> arg1,
+    Node* frame_state) {
   return MayThrow(_ {
-    return ToTNode<Object>(AddNode(graph()->NewNode(
-        javascript()->CallRuntime(function_id, 2), ToNodePtr(arg0),
-        ToNodePtr(arg1), ToNodePtr(ContextInput()), ToNodePtr(frame_state),
-        effect(), control())));
+    return AddNode<Object>(
+        graph()->NewNode(javascript()->CallRuntime(function_id, 2), arg0, arg1,
+                         ContextInput(), frame_state, effect(), control()));
   });
 }
 
@@ -629,90 +618,86 @@ JSCallReducerAssembler::MergeExceptionalPaths() {
 }
 
 TNode<Object> JSCallReducerAssembler::ReduceMathUnary(const Operator* op) {
-  STNode<Object> input = ValueInput(2);
-  STNode<Number> input_as_number = SpeculativeToNumber(input);
-  return ToTNode<Object>(graph()->NewNode(op, ToNodePtr(input_as_number)));
+  TNode<Object> input = ValueInput(2);
+  TNode<Number> input_as_number = SpeculativeToNumber(input);
+  return ToTNode<Object>(graph()->NewNode(op, input_as_number));
 }
 
 TNode<Object> JSCallReducerAssembler::ReduceMathBinary(const Operator* op) {
-  STNode<Object> left = ValueInput(2);
-  STNode<Object> right = ValueInputOrNaN(3);
-  STNode<Number> left_number = SpeculativeToNumber(left);
-  STNode<Number> right_number = SpeculativeToNumber(right);
-  return ToTNode<Object>(
-      graph()->NewNode(op, ToNodePtr(left_number), ToNodePtr(right_number)));
+  TNode<Object> left = ValueInput(2);
+  TNode<Object> right = ValueInputOrNaN(3);
+  TNode<Number> left_number = SpeculativeToNumber(left);
+  TNode<Number> right_number = SpeculativeToNumber(right);
+  return ToTNode<Object>(graph()->NewNode(op, left_number, right_number));
 }
 
 TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSubstring() {
-  STNode<Object> receiver = ValueInput(1);
-  STNode<Object> start = ValueInput(2);
-  STNode<Object> end = ValueInputOrUndefined(3);
+  TNode<Object> receiver = ValueInput(1);
+  TNode<Object> start = ValueInput(2);
+  TNode<Object> end = ValueInputOrUndefined(3);
 
-  STNode<String> receiver_string = CheckString(receiver);
-  STNode<Smi> start_smi = CheckSmi(start);
+  TNode<String> receiver_string = CheckString(receiver);
+  TNode<Number> start_smi = CheckSmi(start);
 
-  STNode<Smi> length = StringLength(receiver_string);
+  TNode<Number> length = StringLength(receiver_string);
 
-  STNode<Smi> end_smi =
-      STNode<Smi>::UncheckedCast(SelectIf(IsUndefined(end))
-                                     .Then(_ { return length; })
-                                     .Else(_ { return CheckSmi(end); })
-                                     .ExpectFalse()
-                                     .Value());
+  TNode<Number> end_smi = SelectIf<Number>(IsUndefined(end))
+                              .Then(_ { return length; })
+                              .Else(_ { return CheckSmi(end); })
+                              .ExpectFalse()
+                              .Value();
 
-  STNode<Number> zero = ZeroConstant();
-  STNode<Number> finalStart = NumberMin(NumberMax(start_smi, zero), length);
-  STNode<Number> finalEnd = NumberMin(NumberMax(end_smi, zero), length);
-  STNode<Number> from = NumberMin(finalStart, finalEnd);
-  STNode<Number> to = NumberMax(finalStart, finalEnd);
+  TNode<Number> zero = TNode<Number>::UncheckedCast(ZeroConstant());
+  TNode<Number> finalStart = NumberMin(NumberMax(start_smi, zero), length);
+  TNode<Number> finalEnd = NumberMin(NumberMax(end_smi, zero), length);
+  TNode<Number> from = NumberMin(finalStart, finalEnd);
+  TNode<Number> to = NumberMax(finalStart, finalEnd);
 
-  return ToTNode<String>(StringSubstring(receiver_string, from, to));
+  return StringSubstring(receiver_string, from, to);
 }
 
 TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSlice() {
-  STNode<Object> receiver = ValueInput(1);
-  STNode<Object> start = ValueInput(2);
-  STNode<Object> end = ValueInputOrUndefined(3);
+  TNode<Object> receiver = ValueInput(1);
+  TNode<Object> start = ValueInput(2);
+  TNode<Object> end = ValueInputOrUndefined(3);
 
-  STNode<String> receiver_string = CheckString(receiver);
-  STNode<Smi> start_smi = CheckSmi(start);
+  TNode<String> receiver_string = CheckString(receiver);
+  TNode<Number> start_smi = CheckSmi(start);
 
-  STNode<Smi> length = StringLength(receiver_string);
+  TNode<Number> length = StringLength(receiver_string);
 
-  STNode<Smi> end_smi =
-      STNode<Smi>::UncheckedCast(SelectIf(IsUndefined(end))
-                                     .Then(_ { return length; })
-                                     .Else(_ { return CheckSmi(end); })
-                                     .ExpectFalse()
-                                     .Value());
+  TNode<Number> end_smi = SelectIf<Number>(IsUndefined(end))
+                              .Then(_ { return length; })
+                              .Else(_ { return CheckSmi(end); })
+                              .ExpectFalse()
+                              .Value();
 
-  STNode<Number> zero = ZeroConstant();
-  STNode<Object> from_untyped =
-      SelectIf(NumberLessThan(start_smi, zero))
+  TNode<Number> zero = TNode<Number>::UncheckedCast(ZeroConstant());
+  TNode<Number> from_untyped =
+      SelectIf<Number>(NumberLessThan(start_smi, zero))
           .Then(_ { return NumberMax(NumberAdd(length, start_smi), zero); })
           .Else(_ { return NumberMin(start_smi, length); })
           .ExpectFalse()
           .Value();
   // {from} is always in non-negative Smi range, but our typer cannot figure
   // that out yet.
-  STNode<Smi> from = TypeGuardUnsignedSmall(from_untyped);
+  TNode<Smi> from = TypeGuardUnsignedSmall(from_untyped);
 
-  STNode<Number> to_untyped = STNode<Number>::UncheckedCast(
-      SelectIf(NumberLessThan(end_smi, zero))
+  TNode<Number> to_untyped =
+      SelectIf<Number>(NumberLessThan(end_smi, zero))
           .Then(_ { return NumberMax(NumberAdd(length, end_smi), zero); })
           .Else(_ { return NumberMin(end_smi, length); })
           .ExpectFalse()
-          .Value());
+          .Value();
   // {to} is always in non-negative Smi range, but our typer cannot figure that
   // out yet.
-  STNode<Smi> to = TypeGuardUnsignedSmall(to_untyped);
+  TNode<Smi> to = TypeGuardUnsignedSmall(to_untyped);
 
-  return ToTNode<String>(
-      (SelectIf(NumberLessThan(from, to))
-           .Then(_ { return StringSubstring(receiver_string, from, to); })
-           .Else(_ { return EmptyStringConstant(); })
-           .ExpectTrue()
-           .Value()));
+  return SelectIf<String>(NumberLessThan(from, to))
+      .Then(_ { return StringSubstring(receiver_string, from, to); })
+      .Else(_ { return ToTNode<String>(EmptyStringConstant()); })
+      .ExpectTrue()
+      .Value();
 }
 
 namespace {
@@ -722,33 +707,33 @@ struct ForEachFrameStateParams {
   SharedFunctionInfoRef shared;
   TNode<Context> context;
   TNode<Object> target;
-  TNode<Object> outer_frame_state;
+  Node* outer_frame_state;
   TNode<Object> receiver;
   TNode<Object> callback;
   TNode<Object> this_arg;
   TNode<Object> original_length;
 };
 
-TNode<Object> ForEachLoopLazyFrameState(const ForEachFrameStateParams& params,
-                                        TNode<Object> k) {
+Node* ForEachLoopLazyFrameState(const ForEachFrameStateParams& params,
+                                TNode<Object> k) {
   Builtins::Name builtin = Builtins::kArrayForEachLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
-  return ToTNode<Object>(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::LAZY));
+      ContinuationFrameStateMode::LAZY);
 }
 
-TNode<Object> ForEachLoopEagerFrameState(const ForEachFrameStateParams& params,
-                                         TNode<Object> k) {
+Node* ForEachLoopEagerFrameState(const ForEachFrameStateParams& params,
+                                 TNode<Object> k) {
   Builtins::Name builtin = Builtins::kArrayForEachLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
-  return ToTNode<Object>(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::EAGER));
+      ContinuationFrameStateMode::EAGER);
 }
 
 }  // namespace
@@ -759,15 +744,15 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeForEach(
     ElementsKind kind, const SharedFunctionInfoRef& shared) {
   DCHECK(FLAG_turbo_inline_array_builtins);
 
-  TNode<Object> outer_frame_state = FrameStateInput();
+  Node* outer_frame_state = FrameStateInput();
   TNode<Context> context = ContextInput();
   TNode<Object> target = ValueInput(0);
   TNode<Object> receiver = ValueInput(1);
   TNode<Object> fncallback = ValueInputOrUndefined(2);
   TNode<Object> this_arg = ValueInputOrUndefined(3);
 
-  STNode<Smi> original_length =
-      LoadField(AccessBuilder::ForJSArrayLength(kind), receiver);
+  TNode<Number> original_length = ToTNode<Number>(
+      LoadField(AccessBuilder::ForJSArrayLength(kind), receiver));
 
   ForEachFrameStateParams frame_state_params{
       jsgraph(), shared,     context,  target,         outer_frame_state,
@@ -777,15 +762,14 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeForEach(
       fncallback, ForEachLoopLazyFrameState(frame_state_params,
                                             ToTNode<Object>(ZeroConstant())));
 
-  ForSmiZeroUntil(original_length).Do([&](Node* k) {
-    TNode<Number> k_number = ToTNode<Number>(k);
-    Checkpoint(ForEachLoopEagerFrameState(frame_state_params, k_number));
+  ForSmiZeroUntil(original_length).Do([&](TNode<Number> k) {
+    Checkpoint(ForEachLoopEagerFrameState(frame_state_params, k));
 
     // Deopt if the map has changed during the iteration.
     MaybeInsertMapChecks(inference, has_stability_dependency);
 
     TNode<Object> element;
-    std::tie(k_number, element) = SafeLoadElement(kind, receiver, k_number);
+    std::tie(k, element) = SafeLoadElement(kind, receiver, k);
 
     auto continue_label = MakeLabel();
     if (IsHoleyElementsKind(kind)) {
@@ -801,15 +785,15 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeForEach(
       element = TypeGuardNonInternal(element);
     }
 
-    TNode<Number> next_k = ToTNode<Number>(NumberAdd(k, OneConstant()));
-    JSCall3(fncallback, this_arg, element, k_number, receiver,
+    TNode<Number> next_k = NumberAdd(k, ToTNode<Number>(OneConstant()));
+    JSCall3(fncallback, this_arg, element, k, receiver,
             ForEachLoopLazyFrameState(frame_state_params, next_k));
 
     Goto(&continue_label);
     Bind(&continue_label);
   });
 
-  return ToTNode<Object>(UndefinedConstant());
+  return UndefinedConstant();
 }
 
 namespace {
@@ -820,70 +804,67 @@ struct ReduceFrameStateParams {
   ArrayReduceDirection direction;
   TNode<Context> context;
   TNode<Object> target;
-  TNode<Object> outer_frame_state;
+  Node* outer_frame_state;
 };
 
-TNode<Object> ReducePreLoopLazyFrameState(const ReduceFrameStateParams& params,
-                                          TNode<Object> receiver,
-                                          TNode<Object> callback,
-                                          TNode<Object> k,
-                                          TNode<Smi> original_length) {
+Node* ReducePreLoopLazyFrameState(const ReduceFrameStateParams& params,
+                                  TNode<Object> receiver,
+                                  TNode<Object> callback, TNode<Object> k,
+                                  TNode<Number> original_length) {
   Builtins::Name builtin =
       (params.direction == ArrayReduceDirection::kLeft)
           ? Builtins::kArrayReduceLoopLazyDeoptContinuation
           : Builtins::kArrayReduceRightLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, k, original_length};
-  return ToTNode<Object>(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::LAZY));
+      ContinuationFrameStateMode::LAZY);
 }
 
-TNode<Object> ReducePreLoopEagerFrameState(const ReduceFrameStateParams& params,
-                                           TNode<Object> receiver,
-                                           TNode<Object> callback,
-                                           TNode<Smi> original_length) {
+Node* ReducePreLoopEagerFrameState(const ReduceFrameStateParams& params,
+                                   TNode<Object> receiver,
+                                   TNode<Object> callback,
+                                   TNode<Number> original_length) {
   Builtins::Name builtin =
       (params.direction == ArrayReduceDirection::kLeft)
           ? Builtins::kArrayReducePreLoopEagerDeoptContinuation
           : Builtins::kArrayReduceRightPreLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, original_length};
-  return ToTNode<Object>(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::EAGER));
+      ContinuationFrameStateMode::EAGER);
 }
 
-TNode<Object> ReduceLoopLazyFrameState(const ReduceFrameStateParams& params,
-                                       TNode<Object> receiver,
-                                       TNode<Object> callback, TNode<Object> k,
-                                       TNode<Smi> original_length) {
+Node* ReduceLoopLazyFrameState(const ReduceFrameStateParams& params,
+                               TNode<Object> receiver, TNode<Object> callback,
+                               TNode<Object> k, TNode<Number> original_length) {
   Builtins::Name builtin =
       (params.direction == ArrayReduceDirection::kLeft)
           ? Builtins::kArrayReduceLoopLazyDeoptContinuation
           : Builtins::kArrayReduceRightLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, k, original_length};
-  return ToTNode<Object>(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::LAZY));
+      ContinuationFrameStateMode::LAZY);
 }
 
-TNode<Object> ReduceLoopEagerFrameState(const ReduceFrameStateParams& params,
-                                        TNode<Object> receiver,
-                                        TNode<Object> callback, TNode<Object> k,
-                                        TNode<Smi> original_length,
-                                        TNode<Object> accumulator) {
+Node* ReduceLoopEagerFrameState(const ReduceFrameStateParams& params,
+                                TNode<Object> receiver, TNode<Object> callback,
+                                TNode<Object> k, TNode<Number> original_length,
+                                TNode<Object> accumulator) {
   Builtins::Name builtin =
       (params.direction == ArrayReduceDirection::kLeft)
           ? Builtins::kArrayReduceLoopEagerDeoptContinuation
           : Builtins::kArrayReduceRightLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, k, original_length,
                                accumulator};
-  return ToTNode<Object>(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::EAGER));
+      ContinuationFrameStateMode::EAGER);
 }
 
 }  // namespace
@@ -894,7 +875,7 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeReduce(
     const SharedFunctionInfoRef& shared) {
   DCHECK(FLAG_turbo_inline_array_builtins);
 
-  TNode<Object> outer_frame_state = FrameStateInput();
+  Node* outer_frame_state = FrameStateInput();
   TNode<Context> context = ContextInput();
   TNode<Object> target = ValueInput(0);
   TNode<Object> receiver = ValueInput(1);
@@ -903,21 +884,23 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeReduce(
   ReduceFrameStateParams frame_state_params{
       jsgraph(), shared, direction, context, target, outer_frame_state};
 
-  STNode<Smi> original_length =
-      LoadField(AccessBuilder::ForJSArrayLength(kind), receiver);
+  TNode<Number> original_length = ToTNode<Number>(
+      LoadField(AccessBuilder::ForJSArrayLength(kind), receiver));
 
   // Set up variable behavior depending on the reduction kind (left/right).
   TNode<Number> k;
-  NodeGenerator1 step;
-  NodeGenerator1 cond;
+  StepFunction1 step;
+  ConditionFunction1 cond;
+  TNode<Number> zero = ToTNode<Number>(ZeroConstant());
+  TNode<Number> one = ToTNode<Number>(OneConstant());
   if (direction == ArrayReduceDirection::kLeft) {
-    k = ToTNode<Number>(ZeroConstant());
-    step = [&](Node* i) { return NumberAdd(i, OneConstant()); };
-    cond = [&](Node* i) { return NumberLessThan(i, original_length); };
+    k = zero;
+    step = [&](TNode<Number> i) { return NumberAdd(i, one); };
+    cond = [&](TNode<Number> i) { return NumberLessThan(i, original_length); };
   } else {
-    k = ToTNode<Number>(NumberSubtract(original_length, OneConstant()));
-    step = [&](Node* i) { return NumberSubtract(i, OneConstant()); };
-    cond = [&](Node* i) { return NumberLessThanOrEqual(ZeroConstant(), i); };
+    k = NumberSubtract(original_length, one);
+    step = [&](TNode<Number> i) { return NumberSubtract(i, one); };
+    cond = [&](TNode<Number> i) { return NumberLessThanOrEqual(zero, i); };
   }
 
   ThrowIfNotCallable(
@@ -936,14 +919,13 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeReduce(
     // throw the TypeError here from optimized code.
     auto found_initial_element = MakeLabel(MachineRepresentation::kTagged,
                                            MachineRepresentation::kTagged);
-    Forever(k, step).Do([&](Node* k) {
+    Forever(k, step).Do([&](TNode<Number> k) {
       Checkpoint(ReducePreLoopEagerFrameState(frame_state_params, receiver,
                                               fncallback, original_length));
       CheckIf(cond(k), DeoptimizeReason::kNoInitialElement);
 
       TNode<Object> element;
-      std::tie(k, element) =
-          SafeLoadElement(kind, receiver, ToTNode<Number>(k));
+      std::tie(k, element) = SafeLoadElement(kind, receiver, k);
 
       GotoIfNot(HoleCheck(kind, element), &found_initial_element, k, element);
     });
@@ -953,24 +935,23 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeReduce(
     // TODO(jgruber): This manual fiddling with blocks could be avoided by
     // implementing a `break` mechanic for loop builders.
     Bind(&found_initial_element);
-    k = ToTNode<Number>(step(found_initial_element.PhiAt(0)));
+    k = step(ToTNode<Number>(found_initial_element.PhiAt(0)));
     accumulator = ToTNode<Object>(found_initial_element.PhiAt(1));
     accumulator = TypeGuardNonInternal(accumulator);
   }
 
   TNode<Object> result =
       For1(k, cond, step, accumulator)
-          .Do([&](Node* k, Node** accumulator) {
-            Checkpoint(ReduceLoopEagerFrameState(
-                frame_state_params, receiver, fncallback, ToTNode<Object>(k),
-                original_length, ToTNode<Object>(*accumulator)));
+          .Do([&](TNode<Number> k, TNode<Object>* accumulator) {
+            Checkpoint(ReduceLoopEagerFrameState(frame_state_params, receiver,
+                                                 fncallback, k, original_length,
+                                                 *accumulator));
 
             // Deopt if the map has changed during the iteration.
             MaybeInsertMapChecks(inference, has_stability_dependency);
 
             TNode<Object> element;
-            std::tie(k, element) =
-                SafeLoadElement(kind, receiver, ToTNode<Number>(k));
+            std::tie(k, element) = SafeLoadElement(kind, receiver, k);
 
             auto continue_label = MakeLabel(MachineRepresentation::kTagged);
             if (IsHoleyElementsKind(kind)) {
@@ -986,16 +967,15 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeReduce(
               element = TypeGuardNonInternal(element);
             }
 
-            TNode<Object> next_accumulator =
-                JSCall4(fncallback, UndefinedConstant(), *accumulator, element,
-                        k, receiver,
-                        ReduceLoopLazyFrameState(frame_state_params, receiver,
-                                                 fncallback, ToTNode<Object>(k),
-                                                 original_length));
+            TNode<Object> next_accumulator = JSCall4(
+                fncallback, UndefinedConstant(), *accumulator, element, k,
+                receiver,
+                ReduceLoopLazyFrameState(frame_state_params, receiver,
+                                         fncallback, k, original_length));
             Goto(&continue_label, next_accumulator);
 
             Bind(&continue_label);
-            *accumulator = continue_label.PhiAt(0);
+            *accumulator = ToTNode<Object>(continue_label.PhiAt(0));
           })
           .Value();
 
@@ -2051,7 +2031,8 @@ class IteratingArrayBuiltinHelper {
   IteratingArrayBuiltinHelper(Node* node, JSHeapBroker* broker,
                               JSGraph* jsgraph,
                               CompilationDependencies* dependencies)
-      : receiver_(NodeProperties::GetValueInput(node, 1)),
+      : disallow_heap_access_(FLAG_concurrent_inlining),
+        receiver_(NodeProperties::GetValueInput(node, 1)),
         effect_(NodeProperties::GetEffectInput(node)),
         control_(NodeProperties::GetControlInput(node)),
         inference_(broker, receiver_, effect_) {
@@ -2087,6 +2068,7 @@ class IteratingArrayBuiltinHelper {
   ElementsKind elements_kind() const { return elements_kind_; }
 
  private:
+  DisallowHeapAccessIf disallow_heap_access_;
   bool can_reduce_ = false;
   bool has_stability_dependency_ = false;
   Node* receiver_;
@@ -2100,26 +2082,24 @@ class IteratingArrayBuiltinHelper {
 
 Reduction JSCallReducer::ReduceArrayForEach(
     Node* node, const SharedFunctionInfoRef& shared) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
   IteratingArrayBuiltinReducerAssembler a(jsgraph(), temp_zone(), node);
   a.InitializeEffectControl(h.effect(), h.control());
-  STNode<Object> subgraph = a.ReduceArrayPrototypeForEach(
+  TNode<Object> subgraph = a.ReduceArrayPrototypeForEach(
       h.inference(), h.has_stability_dependency(), h.elements_kind(), shared);
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
 Reduction JSCallReducer::ReduceArrayReduce(
     Node* node, const SharedFunctionInfoRef& shared) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
   IteratingArrayBuiltinReducerAssembler a(jsgraph(), temp_zone(), node);
   a.InitializeEffectControl(h.effect(), h.control());
-  STNode<Object> subgraph = a.ReduceArrayPrototypeReduce(
+  TNode<Object> subgraph = a.ReduceArrayPrototypeReduce(
       h.inference(), h.has_stability_dependency(), h.elements_kind(),
       ArrayReduceDirection::kLeft, shared);
   return ReplaceWithSubgraph(&a, subgraph);
@@ -2127,13 +2107,12 @@ Reduction JSCallReducer::ReduceArrayReduce(
 
 Reduction JSCallReducer::ReduceArrayReduceRight(
     Node* node, const SharedFunctionInfoRef& shared) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
   IteratingArrayBuiltinReducerAssembler a(jsgraph(), temp_zone(), node);
   a.InitializeEffectControl(h.effect(), h.control());
-  STNode<Object> subgraph = a.ReduceArrayPrototypeReduce(
+  TNode<Object> subgraph = a.ReduceArrayPrototypeReduce(
       h.inference(), h.has_stability_dependency(), h.elements_kind(),
       ArrayReduceDirection::kRight, shared);
   return ReplaceWithSubgraph(&a, subgraph);
