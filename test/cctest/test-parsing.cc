@@ -1802,7 +1802,7 @@ TEST(StrictOctal) {
       "    01;               \n"
       "  };                  \n"
       "};                    \n";
-  v8_compile(v8_str(script));
+  CHECK(v8_try_compile(v8_str(script)).IsEmpty());
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value exception(isolate, try_catch.Exception());
   CHECK_EQ(0,

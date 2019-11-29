@@ -8894,7 +8894,7 @@ TEST(CompilationErrorUsingTryCatchHandler) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::TryCatch try_catch(env->GetIsolate());
-  v8_compile("This doesn't &*&@#$&*^ compile.");
+  CHECK(v8_try_compile("This doesn't &*&@#$&*^ compile.").IsEmpty());
   CHECK(*try_catch.Exception());
   CHECK(try_catch.HasCaught());
 }
