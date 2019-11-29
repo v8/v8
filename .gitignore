@@ -24,6 +24,7 @@
 .#*
 .*.sw?
 .ccls-cache
+.clangd
 .cpplint-cache
 .cproject
 .gclient_entries
