@@ -1880,10 +1880,10 @@ void WebAssemblyGlobalType(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // TODO(titzer): we use the API to create the function template because the
 // internal guts are too ugly to replicate here.
 static i::Handle<i::FunctionTemplateInfo> NewFunctionTemplate(
-    i::Isolate* i_isolate, FunctionCallback func) {
+    i::Isolate* i_isolate, FunctionCallback func, bool has_prototype) {
   Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
   Local<FunctionTemplate> templ = FunctionTemplate::New(isolate, func);
-  templ->ReadOnlyPrototype();
+  has_prototype ? templ->ReadOnlyPrototype() : templ->RemovePrototype();
   return v8::Utils::OpenHandle(*templ);
 }
 
@@ -1897,20 +1897,23 @@ static i::Handle<i::ObjectTemplateInfo> NewObjectTemplate(
 namespace internal {
 
 Handle<JSFunction> CreateFunc(Isolate* isolate, Handle<String> name,
-                              FunctionCallback func) {
-  Handle<FunctionTemplateInfo> temp = NewFunctionTemplate(isolate, func);
+                              FunctionCallback func, bool has_prototype) {
+  Handle<FunctionTemplateInfo> temp =
+      NewFunctionTemplate(isolate, func, has_prototype);
   Handle<JSFunction> function =
       ApiNatives::InstantiateFunction(temp, name).ToHandleChecked();
   DCHECK(function->shared().HasSharedName());
   return function;
 }
 
+// TODO(mstarzinger): Pass {has_prototype} as an argument and audit all calls
+// for whether a "prototype" property is expected. Also add respective tests.
 Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
                                const char* str, FunctionCallback func,
                                int length = 0,
                                PropertyAttributes attributes = NONE) {
   Handle<String> name = v8_str(isolate, str);
-  Handle<JSFunction> function = CreateFunc(isolate, name, func);
+  Handle<JSFunction> function = CreateFunc(isolate, name, func, true);
   function->shared().set_length(length);
   JSObject::AddProperty(isolate, object, name, function, attributes);
   return function;
@@ -1932,7 +1935,7 @@ void InstallGetter(Isolate* isolate, Handle<JSObject> object, const char* str,
                    FunctionCallback func) {
   Handle<String> name = v8_str(isolate, str);
   Handle<JSFunction> function =
-      CreateFunc(isolate, GetterName(isolate, name), func);
+      CreateFunc(isolate, GetterName(isolate, name), func, false);
 
   Utils::ToLocal(object)->SetAccessorProperty(Utils::ToLocal(name),
                                               Utils::ToLocal(function),
@@ -1949,9 +1952,9 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
                          FunctionCallback setter) {
   Handle<String> name = v8_str(isolate, str);
   Handle<JSFunction> getter_func =
-      CreateFunc(isolate, GetterName(isolate, name), getter);
+      CreateFunc(isolate, GetterName(isolate, name), getter, false);
   Handle<JSFunction> setter_func =
-      CreateFunc(isolate, SetterName(isolate, name), setter);
+      CreateFunc(isolate, SetterName(isolate, name), setter, false);
   setter_func->shared().set_length(1);
 
   v8::PropertyAttribute attributes = v8::None;
