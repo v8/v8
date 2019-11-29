@@ -4398,11 +4398,6 @@ void InvalidateOnePrototypeValidityCellInternal(Map map) {
     Cell cell = Cell::cast(maybe_cell);
     cell.set_value(Smi::FromInt(Map::kPrototypeChainInvalid));
   }
-  Object maybe_prototype_info = map.prototype_info();
-  if (maybe_prototype_info.IsPrototypeInfo()) {
-    PrototypeInfo prototype_info = PrototypeInfo::cast(maybe_prototype_info);
-    prototype_info.set_prototype_chain_enum_cache(Object());
-  }
 }
 
 void InvalidatePrototypeChainsInternal(Map map) {
