@@ -760,9 +760,9 @@ void InnerTryCallTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
                             v8::Utils::OpenHandle((*global)), 0, nullptr,
                             i::Execution::MessageHandling::kReport, &exception);
   CHECK(result.is_null());
-  CHECK(exception.is_null());
-  // TryCall reschedules the termination exception.
-  CHECK(args.GetIsolate()->IsExecutionTerminating());
+  // TryCall ignores terminate execution, but rerequests the interrupt.
+  CHECK(!args.GetIsolate()->IsExecutionTerminating());
+  CHECK(CompileRun("1 + 1;").IsEmpty());
 }
 
 
@@ -781,13 +781,7 @@ TEST(TerminationInInnerTryCall) {
     v8::TryCatch try_catch(isolate);
     CompileRun("inner_try_call_terminate()");
     CHECK(try_catch.HasTerminated());
-    // Any further exectutions in this TryCatch scope fail.
-    CHECK(isolate->IsExecutionTerminating());
-    CHECK(CompileRun("1 + 1").IsEmpty());
-    CHECK(CompileRun("1 + 1").IsEmpty());
-    CHECK(CompileRun("1 + 1").IsEmpty());
   }
-  // Leaving the TryCatch cleared the termination exception.
   v8::Maybe<int32_t> result =
       CompileRun("2 + 2")->Int32Value(isolate->GetCurrentContext());
   CHECK_EQ(4, result.FromJust());
@@ -817,14 +811,11 @@ TEST(TerminateAndTryCall) {
             ->Get(isolate->GetCurrentContext(), v8_str("terminate"))
             .ToLocalChecked();
     CHECK(value->IsFunction());
-    // Any further executions in this TryCatch scope fail.
-    CHECK(!isolate->IsExecutionTerminating());
+    // The first stack check after terminate has been re-requested fails.
     CHECK(CompileRun("1 + 1").IsEmpty());
     CHECK(isolate->IsExecutionTerminating());
-    CHECK(CompileRun("1 + 1").IsEmpty());
-    CHECK(CompileRun("1 + 1").IsEmpty());
   }
-  // Leaving the TryCatch cleared the termination exception.
+  // V8 then recovers.
   v8::Maybe<int32_t> result =
       CompileRun("2 + 2")->Int32Value(isolate->GetCurrentContext());
   CHECK_EQ(4, result.FromJust());
@@ -903,36 +894,26 @@ TEST(TerminateInMicrotask) {
       isolate, TerminateCurrentThread, DoLoopCancelTerminate);
   v8::Local<v8::Context> context1 = v8::Context::New(isolate, nullptr, global);
   v8::Local<v8::Context> context2 = v8::Context::New(isolate, nullptr, global);
+  v8::TryCatch try_catch(isolate);
   {
-    v8::TryCatch try_catch(isolate);
-    {
-      v8::Context::Scope context_scope(context1);
-      CHECK(!isolate->IsExecutionTerminating());
-      CHECK(!CompileRun("Promise.resolve().then(function() {"
-                        "terminate(); loop(); fail();})")
-                 .IsEmpty());
-      CHECK(!try_catch.HasCaught());
-    }
-    {
-      v8::Context::Scope context_scope(context2);
-      CHECK(context2 == isolate->GetCurrentContext());
-      CHECK(context2 == isolate->GetEnteredOrMicrotaskContext());
-      CHECK(!isolate->IsExecutionTerminating());
-      isolate->RunMicrotasks();
-      CHECK(context2 == isolate->GetCurrentContext());
-      CHECK(context2 == isolate->GetEnteredOrMicrotaskContext());
-      CHECK(try_catch.HasCaught());
-      CHECK(try_catch.HasTerminated());
-      CHECK(isolate->IsExecutionTerminating());
-      CHECK(!CcTest::i_isolate()->stack_guard()->CheckTerminateExecution());
-      // Any further exectutions in this TryCatch scope fail.
-      CHECK(isolate->IsExecutionTerminating());
-      CHECK(CompileRun("1 + 1").IsEmpty());
-      CHECK(CompileRun("1 + 1").IsEmpty());
-      CHECK(CompileRun("1 + 1").IsEmpty());
-    }
+    v8::Context::Scope context_scope(context1);
+    CHECK(!isolate->IsExecutionTerminating());
+    CHECK(!CompileRun("Promise.resolve().then(function() {"
+                      "terminate(); loop(); fail();})")
+               .IsEmpty());
+    CHECK(!try_catch.HasCaught());
   }
-  CHECK(!CcTest::i_isolate()->stack_guard()->CheckTerminateExecution());
+  {
+    v8::Context::Scope context_scope(context2);
+    CHECK(context2 == isolate->GetCurrentContext());
+    CHECK(context2 == isolate->GetEnteredOrMicrotaskContext());
+    CHECK(!isolate->IsExecutionTerminating());
+    isolate->RunMicrotasks();
+    CHECK(context2 == isolate->GetCurrentContext());
+    CHECK(context2 == isolate->GetEnteredOrMicrotaskContext());
+    CHECK(try_catch.HasCaught());
+    CHECK(try_catch.HasTerminated());
+  }
   CHECK(!isolate->IsExecutionTerminating());
 }
 
@@ -951,8 +932,8 @@ TEST(TerminateInApiMicrotask) {
   v8::Local<v8::ObjectTemplate> global = CreateGlobalTemplate(
       isolate, TerminateCurrentThread, DoLoopCancelTerminate);
   v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
+  v8::TryCatch try_catch(isolate);
   {
-    v8::TryCatch try_catch(isolate);
     v8::Context::Scope context_scope(context);
     CHECK(!isolate->IsExecutionTerminating());
     isolate->EnqueueMicrotask(TerminationMicrotask);
@@ -960,7 +941,6 @@ TEST(TerminateInApiMicrotask) {
     isolate->RunMicrotasks();
     CHECK(try_catch.HasCaught());
     CHECK(try_catch.HasTerminated());
-    CHECK(isolate->IsExecutionTerminating());
   }
   CHECK(!isolate->IsExecutionTerminating());
 }
