@@ -1565,7 +1565,7 @@ class RepresentationSelector {
       } else if (BothInputsAre(node, Type::Unsigned32OrMinusZeroOrNaN())) {
         VisitBinop(node, lhs_use, rhs_use, MachineRepresentation::kWord32,
                    Type::Unsigned32());
-        if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
+        if (lower()) ChangeToUint32OverflowOp(node);
       } else {
         VisitBinop(node, lhs_use, rhs_use, MachineRepresentation::kWord32,
                    Type::Signed32());
