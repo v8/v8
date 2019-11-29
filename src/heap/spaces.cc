@@ -55,7 +55,9 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
       heap_(heap),
       space_(space),
       page_range_(space->first_page(), nullptr),
-      current_page_(page_range_.begin()) {}
+      current_page_(page_range_.begin()) {
+  heap_->mark_compact_collector()->EnsureSweepingCompleted();
+}
 
 PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
                                                    PagedSpace* space,
@@ -66,6 +68,7 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
       space_(space),
       page_range_(page),
       current_page_(page_range_.begin()) {
+  heap_->mark_compact_collector()->EnsureSweepingCompleted();
 #ifdef DEBUG
   AllocationSpace owner = page->owner_identity();
   DCHECK(owner == RO_SPACE || owner == OLD_SPACE || owner == MAP_SPACE ||
@@ -79,17 +82,6 @@ bool PagedSpaceObjectIterator::AdvanceToNextPage() {
   DCHECK_EQ(cur_addr_, cur_end_);
   if (current_page_ == page_range_.end()) return false;
   Page* cur_page = *(current_page_++);
-
-#ifdef ENABLE_MINOR_MC
-  heap_->mark_compact_collector()->sweeper()->EnsurePageIsIterable(cur_page);
-  if (cur_page->IsFlagSet(Page::SWEEP_TO_ITERATE)) {
-    heap_->minor_mark_compact_collector()->MakeIterable(
-        cur_page, MarkingTreatmentMode::CLEAR,
-        FreeSpaceTreatmentMode::IGNORE_FREE_SPACE);
-  }
-#else
-  DCHECK(!cur_page->IsFlagSet(Page::SWEEP_TO_ITERATE));
-#endif  // ENABLE_MINOR_MC
 
   cur_addr_ = cur_page->area_start();
   cur_end_ = cur_page->area_end();

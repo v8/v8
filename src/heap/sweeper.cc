@@ -191,18 +191,6 @@ void Sweeper::StartSweeperTasks() {
   }
 }
 
-void Sweeper::SweepOrWaitUntilSweepingCompleted(Page* page) {
-  if (!page->SweepingDone()) {
-    ParallelSweepPage(page, page->owner_identity());
-    if (!page->SweepingDone()) {
-      // We were not able to sweep that page, i.e., a concurrent
-      // sweeper thread currently owns this page. Wait for the sweeper
-      // thread to be done with this page.
-      page->WaitUntilSweepingCompleted();
-    }
-  }
-}
-
 Page* Sweeper::GetSweptPageSafe(PagedSpace* space) {
   base::MutexGuard guard(&mutex_);
   SweptList& list = swept_list_[GetSweepSpaceIndex(space->identity())];
@@ -453,17 +441,15 @@ int Sweeper::ParallelSweepSpace(
 int Sweeper::ParallelSweepPage(
     Page* page, AllocationSpace identity,
     FreeSpaceMayContainInvalidatedSlots invalidated_slots_in_free_space) {
-  // Early bailout for pages that are swept outside of the regular sweeping
-  // path. This check here avoids taking the lock first, avoiding deadlocks.
+  DCHECK(IsValidSweepingSpace(identity));
+
+  // The Scavenger may add already swept pages back.
   if (page->SweepingDone()) return 0;
 
-  DCHECK(IsValidSweepingSpace(identity));
   int max_freed = 0;
   {
     base::MutexGuard guard(page->mutex());
-    // If this page was already swept in the meantime, we can return here.
-    if (page->SweepingDone()) return 0;
-
+    DCHECK(!page->SweepingDone());
     // If the page is a code page, the CodePageMemoryModificationScope changes
     // the page protection mode from rx -> rw while sweeping.
     CodePageMemoryModificationScope code_page_scope(page);
@@ -540,16 +526,6 @@ Page* Sweeper::GetSweepingPageSafe(AllocationSpace space) {
     sweeping_list_[space_index].pop_back();
   }
   return page;
-}
-
-void Sweeper::EnsurePageIsIterable(Page* page) {
-  AllocationSpace space = page->owner_identity();
-  if (IsValidSweepingSpace(space)) {
-    SweepOrWaitUntilSweepingCompleted(page);
-  } else {
-    DCHECK(IsValidIterabilitySpace(space));
-    EnsureIterabilityCompleted();
-  }
 }
 
 void Sweeper::EnsureIterabilityCompleted() {
