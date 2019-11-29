@@ -44,6 +44,42 @@ static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
   return true;
 }
 
+static int AddKey(Object key, Handle<FixedArray> combined_keys,
+                  Handle<DescriptorArray> descs, int nof_descriptors,
+                  int target) {
+  for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
+    if (descs->GetKey(i) == key) return 0;
+  }
+  combined_keys->set(target, key);
+  return 1;
+}
+
+static Handle<FixedArray> CombineKeys(Isolate* isolate,
+                                      Handle<FixedArray> own_keys,
+                                      Handle<FixedArray> prototype_chain_keys,
+                                      Handle<JSReceiver> receiver) {
+  int prototype_chain_keys_length = prototype_chain_keys->length();
+  if (prototype_chain_keys_length == 0) return own_keys;
+
+  Map map = receiver->map();
+  int nof_descriptors = map.NumberOfOwnDescriptors();
+  if (nof_descriptors == 0) return prototype_chain_keys;
+
+  Handle<DescriptorArray> descs(map.instance_descriptors(), isolate);
+  int own_keys_length = own_keys.is_null() ? 0 : own_keys->length();
+  Handle<FixedArray> combined_keys = isolate->factory()->NewFixedArray(
+      own_keys_length + prototype_chain_keys_length);
+  if (own_keys_length != 0) {
+    own_keys->CopyTo(0, *combined_keys, 0, own_keys_length);
+  }
+  int target_keys_length = own_keys_length;
+  for (int i = 0; i < prototype_chain_keys_length; i++) {
+    target_keys_length += AddKey(prototype_chain_keys->get(i), combined_keys,
+                                 descs, nof_descriptors, target_keys_length);
+  }
+  return FixedArray::ShrinkOrEmpty(isolate, combined_keys, target_keys_length);
+}
+
 }  // namespace
 
 // static
@@ -68,6 +104,14 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
   Handle<FixedArray> result =
       OrderedHashSet::ConvertToKeysArray(isolate(), keys(), convert);
   DCHECK(ContainsOnlyValidKeys(result));
+
+  if (try_prototype_info_cache_ && !first_prototype_map_.is_null()) {
+    PrototypeInfo::cast(first_prototype_map_->prototype_info())
+        .set_prototype_chain_enum_cache(*result);
+    Map::GetOrCreatePrototypeChainValidityCell(
+        Handle<Map>(receiver_->map(), isolate_), isolate_);
+    DCHECK(first_prototype_map_->IsPrototypeValidityCellValid());
+  }
   return result;
 }
 
@@ -275,6 +319,9 @@ void FastKeyAccumulator::Prepare() {
   DisallowHeapAllocation no_gc;
   // Directly go for the fast path for OWN_ONLY keys.
   if (mode_ == KeyCollectionMode::kOwnOnly) return;
+  // Check if we should try to create/use prototype info cache.
+  try_prototype_info_cache_ = TryPrototypeInfoCache(receiver_);
+  if (has_prototype_info_cache_) return;
   // Fully walk the prototype chain and find the last prototype with keys.
   is_receiver_simple_enum_ = false;
   has_empty_prototype_ = true;
@@ -432,6 +479,9 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeys(
     if (isolate_->has_pending_exception()) return MaybeHandle<FixedArray>();
   }
 
+  if (try_prototype_info_cache_) {
+    return GetKeysWithPrototypeInfoCache(keys_conversion);
+  }
   return GetKeysSlow(keys_conversion);
 }
 
@@ -503,10 +553,39 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysSlow(
   accumulator.set_skip_indices(skip_indices_);
   accumulator.set_last_non_empty_prototype(last_non_empty_prototype_);
   accumulator.set_may_have_elements(may_have_elements_);
+  accumulator.set_first_prototype_map(first_prototype_map_);
+  accumulator.set_try_prototype_info_cache(try_prototype_info_cache_);
 
   MAYBE_RETURN(accumulator.CollectKeys(receiver_, receiver_),
                MaybeHandle<FixedArray>());
   return accumulator.GetKeys(keys_conversion);
+}
+
+MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysWithPrototypeInfoCache(
+    GetKeysConversion keys_conversion) {
+  Handle<FixedArray> own_keys = KeyAccumulator::GetOwnEnumPropertyKeys(
+      isolate_, Handle<JSObject>::cast(receiver_));
+  Handle<FixedArray> prototype_chain_keys;
+  if (has_prototype_info_cache_) {
+    prototype_chain_keys =
+        handle(FixedArray::cast(
+                   PrototypeInfo::cast(first_prototype_map_->prototype_info())
+                       .prototype_chain_enum_cache()),
+               isolate_);
+  } else {
+    KeyAccumulator accumulator(isolate_, mode_, filter_);
+    accumulator.set_is_for_in(is_for_in_);
+    accumulator.set_skip_indices(skip_indices_);
+    accumulator.set_last_non_empty_prototype(last_non_empty_prototype_);
+    accumulator.set_may_have_elements(may_have_elements_);
+    accumulator.set_receiver(receiver_);
+    accumulator.set_first_prototype_map(first_prototype_map_);
+    accumulator.set_try_prototype_info_cache(try_prototype_info_cache_);
+    MAYBE_RETURN(accumulator.CollectKeys(first_prototype_, first_prototype_),
+                 MaybeHandle<FixedArray>());
+    prototype_chain_keys = accumulator.GetKeys(keys_conversion);
+  }
+  return CombineKeys(isolate_, own_keys, prototype_chain_keys, receiver_);
 }
 
 bool FastKeyAccumulator::MayHaveElements(JSReceiver receiver) {
@@ -515,6 +594,28 @@ bool FastKeyAccumulator::MayHaveElements(JSReceiver receiver) {
   if (object.HasEnumerableElements()) return true;
   if (object.HasIndexedInterceptor()) return true;
   return false;
+}
+
+bool FastKeyAccumulator::TryPrototypeInfoCache(Handle<JSReceiver> receiver) {
+  if (MayHaveElements(*receiver)) return false;
+  Handle<JSObject> object = Handle<JSObject>::cast(receiver);
+  if (!object->HasFastProperties()) return false;
+  if (object->HasNamedInterceptor()) return false;
+  if (object->IsAccessCheckNeeded() &&
+      !isolate_->MayAccess(handle(isolate_->context(), isolate_), object)) {
+    return false;
+  }
+  HeapObject prototype = receiver->map().prototype();
+  if (prototype.is_null()) return false;
+  if (!prototype.map().is_prototype_map()) return false;
+  first_prototype_ = handle(JSReceiver::cast(prototype), isolate_);
+  Handle<Map> map(prototype.map(), isolate_);
+  first_prototype_map_ = map;
+  has_prototype_info_cache_ = map->IsPrototypeValidityCellValid() &&
+                              PrototypeInfo::cast(map->prototype_info())
+                                  .prototype_chain_enum_cache()
+                                  .IsFixedArray();
+  return true;
 }
 
 namespace {
