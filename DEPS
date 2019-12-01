@@ -79,7 +79,7 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '15fd848ea0131dc1b650028c961e3838eb4a36e4',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '00a14decbb5ca1a108ab48d6d86fab5fef18b75d',
   'v8/third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '5ae4817ada0bd02f8c0d9f141d0f3c65701068a5',
   'v8/third_party/icu':
@@ -187,7 +187,7 @@ deps = {
     'condition': 'checkout_fuchsia',
   },
   'v8/third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'bf0fe874a27bd6c9a4a35b98e662d2d02f8879a2',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '5395345ca4f0c596110188688ed990e0de5a181c',
   'v8/third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'b41863e42637544c2941b574c7877d3e1f663e25',
   'v8/third_party/markupsafe':
@@ -223,7 +223,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e3d29823b6dfd20a4ca2f575d45839f4275a6496',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ae5343c9ab8fa70c6992fc61b868f32701568f28',
   'v8/tools/luci-go': {
       'packages': [
         {
