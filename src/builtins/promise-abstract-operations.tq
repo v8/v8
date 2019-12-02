@@ -84,10 +84,10 @@ namespace promise {
     try {
       return ExtractHandlerContext(primary) otherwise NotFound;
     }
-    label NotFound {
+    label NotFound deferred {
       return ExtractHandlerContext(secondary) otherwise Default;
     }
-    label Default {
+    label Default deferred {
       return context;
     }
   }
@@ -449,15 +449,16 @@ namespace promise {
         map = PromiseFulfillReactionJobTaskMapConstant();
         handler = onFulfilled;
         handlerContext = ExtractHandlerContext(onFulfilled, onRejected);
-      } else {
-        assert(promise.Status() == kPromiseRejected);
-        map = PromiseRejectReactionJobTaskMapConstant();
-        handler = onRejected;
-        handlerContext = ExtractHandlerContext(onRejected, onFulfilled);
-        if (!promise.HasHandler()) {
-          runtime::PromiseRevokeReject(promise);
+      } else
+        deferred {
+          assert(promise.Status() == kPromiseRejected);
+          map = PromiseRejectReactionJobTaskMapConstant();
+          handler = onRejected;
+          handlerContext = ExtractHandlerContext(onRejected, onFulfilled);
+          if (!promise.HasHandler()) {
+            runtime::PromiseRevokeReject(promise);
+          }
         }
-      }
 
       const reactionsOrResult = promise.reactions_or_result;
       const microtask = AllocatePromiseReactionJobTask(
