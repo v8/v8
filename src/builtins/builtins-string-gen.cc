@@ -1569,7 +1569,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     }
 
     BIND(&throw_exception);
-    ThrowTypeError(context, MessageTemplate::kRegExpGlobalInvokedOnNonGlobal);
+    ThrowTypeError(context, MessageTemplate::kRegExpGlobalInvokedOnNonGlobal,
+                   method_name);
 
     BIND(&throw_flags_exception);
     ThrowTypeError(context,
