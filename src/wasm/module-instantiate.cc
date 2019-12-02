@@ -658,22 +658,23 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
     uint32_t size = segment.source.length();
 
     if (enabled_.has_bulk_memory()) {
-      if (size == 0) continue;
       // Passive segments are not copied during instantiation.
       if (!segment.active) continue;
 
       uint32_t dest_offset = EvalUint32InitExpr(instance, segment.dest_addr);
       bool ok = base::ClampToBounds(
           dest_offset, &size, static_cast<uint32_t>(instance->memory_size()));
+      if (!ok) {
+        thrower_->RuntimeError("data segment is out of bounds");
+        return;
+      }
+      // No need to copy empty segments.
+      if (size == 0) continue;
       Address dest_addr =
           reinterpret_cast<Address>(instance->memory_start()) + dest_offset;
       Address src_addr = reinterpret_cast<Address>(wire_bytes.begin()) +
                          segment.source.offset();
       memory_copy_wrapper(dest_addr, src_addr, size);
-      if (!ok) {
-        thrower_->RuntimeError("data segment is out of bounds");
-        return;
-      }
     } else {
       DCHECK(segment.active);
       // Segments of size == 0 are just nops.
@@ -1627,15 +1628,18 @@ void InstanceBuilder::InitializeIndirectFunctionTables(
 
 bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
                          Handle<WasmTableObject> table_object,
-                         uint32_t table_index,
-                         const WasmElemSegment& elem_segment, uint32_t dst,
-                         uint32_t src, size_t count) {
-  if (count == 0) return true;
+                         uint32_t table_index, uint32_t segment_index,
+                         uint32_t dst, uint32_t src, size_t count) {
+  DCHECK_LT(segment_index, instance->module()->elem_segments.size());
+  auto& elem_segment = instance->module()->elem_segments[segment_index];
   // TODO(wasm): Move this functionality into wasm-objects, since it is used
   // for both instantiation and in the implementation of the table.init
   // instruction.
   if (!base::IsInBounds(dst, count, table_object->current_length()) ||
-      !base::IsInBounds(src, count, elem_segment.entries.size())) {
+      !base::IsInBounds(src, count,
+                        instance->dropped_elem_segments()[segment_index] == 0
+                            ? elem_segment.entries.size()
+                            : 0)) {
     return false;
   }
 
@@ -1695,7 +1699,9 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
 }
 
 void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
-  for (auto& elem_segment : module_->elem_segments) {
+  for (uint32_t segment_index = 0;
+       segment_index < module_->elem_segments.size(); ++segment_index) {
+    auto& elem_segment = instance->module()->elem_segments[segment_index];
     // Passive segments are not copied during instantiation.
     if (!elem_segment.active) continue;
 
@@ -1703,14 +1709,17 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
     uint32_t dst = EvalUint32InitExpr(instance, elem_segment.offset);
     uint32_t src = 0;
     size_t count = elem_segment.entries.size();
-    if (enabled_.has_bulk_memory() && count == 0) continue;
 
     bool success = LoadElemSegmentImpl(
         isolate_, instance,
         handle(WasmTableObject::cast(
                    instance->tables().get(elem_segment.table_index)),
                isolate_),
-        table_index, elem_segment, dst, src, count);
+        table_index, segment_index, dst, src, count);
+    // Set the active segments to being already dropped, since memory.init on
+    // a dropped passive segment and an active segment have the same
+    // behavior.
+    instance->dropped_elem_segments()[segment_index] = 1;
     if (enabled_.has_bulk_memory()) {
       if (!success) {
         thrower_->RuntimeError("table initializer is out of bounds");
@@ -1751,12 +1760,11 @@ void InstanceBuilder::InitializeExceptions(
 bool LoadElemSegment(Isolate* isolate, Handle<WasmInstanceObject> instance,
                      uint32_t table_index, uint32_t segment_index, uint32_t dst,
                      uint32_t src, uint32_t count) {
-  auto& elem_segment = instance->module()->elem_segments[segment_index];
   return LoadElemSegmentImpl(
       isolate, instance,
       handle(WasmTableObject::cast(instance->tables().get(table_index)),
              isolate),
-      table_index, elem_segment, dst, src, count);
+      table_index, segment_index, dst, src, count);
 }
 
 }  // namespace wasm

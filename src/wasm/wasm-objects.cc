@@ -70,8 +70,6 @@ class WasmInstanceNativeAllocations {
         std::make_unique<Address[]>(num_data_segments));
     SET(instance, data_segment_sizes,
         std::make_unique<uint32_t[]>(num_data_segments));
-    SET(instance, dropped_data_segments,
-        std::make_unique<uint8_t[]>(num_data_segments));
     SET(instance, dropped_elem_segments,
         std::make_unique<uint8_t[]>(num_elem_segments));
   }
@@ -121,7 +119,6 @@ class WasmInstanceNativeAllocations {
   std::unique_ptr<Address[]> imported_mutable_globals_;
   std::unique_ptr<Address[]> data_segment_starts_;
   std::unique_ptr<uint32_t[]> data_segment_sizes_;
-  std::unique_ptr<uint8_t[]> dropped_data_segments_;
   std::unique_ptr<uint8_t[]> dropped_elem_segments_;
 #undef SET
 };
@@ -1379,17 +1376,16 @@ void WasmInstanceObject::InitDataSegmentArrays(
          num_data_segments == module->data_segments.size());
   for (size_t i = 0; i < num_data_segments; ++i) {
     const wasm::WasmDataSegment& segment = module->data_segments[i];
-    // Set the active segments to being already dropped, since memory.init on
-    // a dropped passive segment and an active segment have the same
-    // behavior.
-    instance->dropped_data_segments()[i] = segment.active ? 1 : 0;
-
     // Initialize the pointer and size of passive segments.
     auto source_bytes = wire_bytes.SubVector(segment.source.offset(),
                                              segment.source.end_offset());
     instance->data_segment_starts()[i] =
         reinterpret_cast<Address>(source_bytes.begin());
-    instance->data_segment_sizes()[i] = source_bytes.length();
+    // Set the active segments to being already dropped, since memory.init on
+    // a dropped passive segment and an active segment have the same
+    // behavior.
+    instance->data_segment_sizes()[i] =
+        segment.active ? 0 : source_bytes.length();
   }
 }
 
@@ -1399,11 +1395,7 @@ void WasmInstanceObject::InitElemSegmentArrays(
   auto module = module_object->module();
   auto num_elem_segments = module->elem_segments.size();
   for (size_t i = 0; i < num_elem_segments; ++i) {
-    const wasm::WasmElemSegment& segment = module->elem_segments[i];
-    // Set the active segments to being already dropped, since table.init on
-    // a dropped passive segment and an active segment have the same
-    // behavior.
-    instance->dropped_elem_segments()[i] = segment.active ? 1 : 0;
+    instance->dropped_elem_segments()[i] = 0;
   }
 }
 
@@ -1435,8 +1427,6 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
                                           uint32_t table_src_index,
                                           uint32_t dst, uint32_t src,
                                           uint32_t count) {
-  // Copying 0 elements is a no-op.
-  if (count == 0) return true;
   CHECK_LT(table_dst_index, instance->tables().length());
   CHECK_LT(table_src_index, instance->tables().length());
   auto table_dst = handle(
@@ -1471,8 +1461,6 @@ bool WasmInstanceObject::InitTableEntries(Isolate* isolate,
                                           uint32_t table_index,
                                           uint32_t segment_index, uint32_t dst,
                                           uint32_t src, uint32_t count) {
-  // Copying 0 elements is a no-op.
-  if (count == 0) return true;
   // Note that this implementation just calls through to module instantiation.
   // This is intentional, so that the runtime only depends on the object
   // methods, and not the module instantiation logic.

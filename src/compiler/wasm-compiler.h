@@ -370,12 +370,6 @@ class WasmGraphBuilder {
                  wasm::WasmCodePosition position);
   Node* AtomicFence();
 
-  // Returns a pointer to the dropped_data_segments array. Traps if the data
-  // segment is active or has been dropped.
-  Node* CheckDataSegmentIsPassiveAndNotDropped(uint32_t data_segment_index,
-                                               wasm::WasmCodePosition position);
-  Node* CheckElemSegmentIsPassiveAndNotDropped(uint32_t elem_segment_index,
-                                               wasm::WasmCodePosition position);
   Node* MemoryInit(uint32_t data_segment_index, Node* dst, Node* src,
                    Node* size, wasm::WasmCodePosition position);
   Node* MemoryCopy(Node* dst, Node* src, Node* size,

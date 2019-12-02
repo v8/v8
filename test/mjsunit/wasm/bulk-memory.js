@@ -79,11 +79,12 @@ function getMemoryInit(mem, segment_data) {
   // is a trap, not a validation error.
   const instance = builder.instantiate();
 
-  // Initialization succeeds, because the size is 0 which is always valid.
+  // Initialization succeeds, because source address and size are 0
+  // which is valid on a dropped segment.
   instance.exports.init(0);
 
-  // Initialization fails, because the size > 0 on dropped segment
-  assertTraps(kTrapDataSegmentDropped, () => instance.exports.init(1));
+  // Initialization fails, because the segment is implicitly dropped.
+  assertTraps(kTrapMemOutOfBounds, () => instance.exports.init(1));
 })();
 
 (function TestDataDropOnActiveSegment() {
@@ -99,7 +100,8 @@ function getMemoryInit(mem, segment_data) {
       .exportAs('drop');
 
   const instance = builder.instantiate();
-  assertTraps(kTrapDataSegmentDropped, () => instance.exports.drop());
+  // Drop on passive segment is equivalent to double drop which is allowed.
+  instance.exports.drop();
 })();
 
 function getMemoryCopy(mem) {
@@ -167,7 +169,9 @@ function getMemoryFill(mem) {
       .exportAs('drop');
 
   const instance = builder.instantiate();
-  assertTraps(kTrapElemSegmentDropped, () => instance.exports.drop());
+  // Segment already got dropped after initialization and is therefore
+  // not active anymore.
+  instance.exports.drop();
 })();
 
 (function TestLazyDataSegmentBoundsCheck() {
@@ -180,10 +184,10 @@ function getMemoryFill(mem) {
 
   assertEquals(0, view[kPageSize - 1]);
 
-  // Instantiation fails, but still modifies memory.
+  // Instantiation fails, memory remains unmodified.
   assertThrows(() => builder.instantiate({m: {memory}}), WebAssembly.RuntimeError);
 
-  assertEquals(42, view[kPageSize - 1]);
+  assertEquals(0, view[kPageSize - 1]);
   // The second segment is not initialized.
   assertEquals(0, view[0]);
 })();

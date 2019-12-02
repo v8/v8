@@ -223,8 +223,6 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, data_segment_starts, Address*,
                     kDataSegmentStartsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, data_segment_sizes, uint32_t*,
                     kDataSegmentSizesOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, dropped_data_segments, byte*,
-                    kDroppedDataSegmentsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, dropped_elem_segments, byte*,
                     kDroppedElemSegmentsOffset)
 

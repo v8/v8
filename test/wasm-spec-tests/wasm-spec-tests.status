@@ -6,6 +6,7 @@
 [ALWAYS, {
   #TODO(ahaas): Add additional stack checks on mips.
   'skip-stack-guard-page': [PASS, ['arch == mipsel or arch == mips64el or ((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
+
   # TODO(v8:9144): The MVP behavior when bounds-checking segments changed in
   # the bulk-memory proposal. Since we've enabled bulk-memory by default, we
   # need to update to use its testsuite.
@@ -13,24 +14,16 @@
   'binary-leb128': [FAIL],
   'elem': [FAIL],
   'data': [FAIL],
+
   # TODO(mstarzinger): Roll newest tests into "js-types" repository.
   'proposals/js-types/exports': [FAIL],
   'proposals/js-types/globals': [FAIL],
   'proposals/js-types/linking': [FAIL],
+
   # TODO(thibaudm): Spec tests do not check multi-return functions correctly.
   'proposals/multi-value/call': [FAIL],
   'proposals/multi-value/if': [FAIL],
   'proposals/multi-value/func': [FAIL],
-
-  # TODO(ahaas): Most recent changes to the bulk-memory proposal.
-  'proposals/bulk-memory-operations/memory_copy': [FAIL],
-  'proposals/bulk-memory-operations/table_copy': [FAIL],
-  'proposals/bulk-memory-operations/table_init': [FAIL],
-  'proposals/bulk-memory-operations/memory_init': [FAIL],
-  'proposals/bulk-memory-operations/memory_fill': [FAIL],
-  'proposals/bulk-memory-operations/elem': [FAIL],
-  'proposals/bulk-memory-operations/data': [FAIL],
-  'proposals/bulk-memory-operations/bulk': [FAIL],
 }],  # ALWAYS
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {

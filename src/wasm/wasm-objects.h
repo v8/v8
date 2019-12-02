@@ -412,7 +412,6 @@ class WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
   DECL_PRIMITIVE_ACCESSORS(data_segment_starts, Address*)
   DECL_PRIMITIVE_ACCESSORS(data_segment_sizes, uint32_t*)
-  DECL_PRIMITIVE_ACCESSORS(dropped_data_segments, byte*)
   DECL_PRIMITIVE_ACCESSORS(dropped_elem_segments, byte*)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
@@ -459,7 +458,6 @@ class WasmInstanceObject : public JSObject {
   V(kRealStackLimitAddressOffset, kSystemPointerSize)                     \
   V(kDataSegmentStartsOffset, kSystemPointerSize)                         \
   V(kDataSegmentSizesOffset, kSystemPointerSize)                          \
-  V(kDroppedDataSegmentsOffset, kSystemPointerSize)                       \
   V(kDroppedElemSegmentsOffset, kSystemPointerSize)                       \
   V(kHeaderSize, 0)
 

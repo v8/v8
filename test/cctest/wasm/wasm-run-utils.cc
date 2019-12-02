@@ -241,7 +241,6 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(Vector<const byte> bytes) {
   DCHECK_EQ(index, test_module_->data_segments.size());
   DCHECK_EQ(index, data_segment_starts_.size());
   DCHECK_EQ(index, data_segment_sizes_.size());
-  DCHECK_EQ(index, dropped_data_segments_.size());
 
   // Add a passive data segment. This isn't used by function compilation, but
   // but it keeps the index in sync. The data segment's source will not be
@@ -268,12 +267,10 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(Vector<const byte> bytes) {
   }
   data_segment_starts_.push_back(new_data_address + old_data_size);
   data_segment_sizes_.push_back(bytes.length());
-  dropped_data_segments_.push_back(0);
 
   // The vector pointers may have moved, so update the instance object.
   instance_object_->set_data_segment_starts(data_segment_starts_.data());
   instance_object_->set_data_segment_sizes(data_segment_sizes_.data());
-  instance_object_->set_dropped_data_segments(dropped_data_segments_.data());
   return index;
 }
 

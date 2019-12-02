@@ -1725,24 +1725,6 @@ class ThreadImpl {
     return true;
   }
 
-  bool CheckDataSegmentIsPassiveAndNotDropped(uint32_t index, pc_t pc) {
-    DCHECK_LT(index, module()->num_declared_data_segments);
-    if (instance_object_->dropped_data_segments()[index]) {
-      DoTrap(kTrapDataSegmentDropped, pc);
-      return false;
-    }
-    return true;
-  }
-
-  bool CheckElemSegmentIsPassiveAndNotDropped(uint32_t index, pc_t pc) {
-    DCHECK_LT(index, module()->elem_segments.size());
-    if (instance_object_->dropped_elem_segments()[index]) {
-      DoTrap(kTrapElemSegmentDropped, pc);
-      return false;
-    }
-    return true;
-  }
-
   template <typename type, typename op_type>
   bool ExtractAtomicOpParams(Decoder* decoder, InterpreterCode* code,
                              Address* address, pc_t pc, int* const len,
@@ -1790,18 +1772,13 @@ class ThreadImpl {
         return true;
       case kExprMemoryInit: {
         MemoryInitImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
+        // The data segment index must be in bounds since it is required by
+        // validation.
         DCHECK_LT(imm.data_segment_index, module()->num_declared_data_segments);
         *len += imm.length;
         auto size = Pop().to<uint32_t>();
         auto src = Pop().to<uint32_t>();
         auto dst = Pop().to<uint32_t>();
-        if (size == 0) {
-          return true;
-        }
-        if (!CheckDataSegmentIsPassiveAndNotDropped(imm.data_segment_index,
-                                                    pc)) {
-          return false;
-        }
         Address dst_addr;
         auto src_max =
             instance_object_->data_segment_sizes()[imm.data_segment_index];
@@ -1818,11 +1795,11 @@ class ThreadImpl {
       }
       case kExprDataDrop: {
         DataDropImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
+        // The data segment index must be in bounds since it is required by
+        // validation.
+        DCHECK_LT(imm.index, module()->num_declared_data_segments);
         *len += imm.length;
-        if (!CheckDataSegmentIsPassiveAndNotDropped(imm.index, pc)) {
-          return false;
-        }
-        instance_object_->dropped_data_segments()[imm.index] = 1;
+        instance_object_->data_segment_sizes()[imm.index] = 0;
         return true;
       }
       case kExprMemoryCopy: {
@@ -1831,9 +1808,6 @@ class ThreadImpl {
         auto size = Pop().to<uint32_t>();
         auto src = Pop().to<uint32_t>();
         auto dst = Pop().to<uint32_t>();
-        if (size == 0) {
-          return true;
-        }
         Address dst_addr;
         Address src_addr;
         if (!BoundsCheckMemRange(dst, &size, &dst_addr) ||
@@ -1852,9 +1826,6 @@ class ThreadImpl {
         auto size = Pop().to<uint32_t>();
         auto value = Pop().to<uint32_t>();
         auto dst = Pop().to<uint32_t>();
-        if (size == 0) {
-          return true;
-        }
         Address dst_addr;
         bool ok = BoundsCheckMemRange(dst, &size, &dst_addr);
         if (!ok) {
@@ -1870,13 +1841,6 @@ class ThreadImpl {
         auto size = Pop().to<uint32_t>();
         auto src = Pop().to<uint32_t>();
         auto dst = Pop().to<uint32_t>();
-        if (size == 0) {
-          return true;
-        }
-        if (!CheckElemSegmentIsPassiveAndNotDropped(imm.elem_segment_index,
-                                                    pc)) {
-          return false;
-        }
         HandleScope scope(isolate_);  // Avoid leaking handles.
         bool ok = WasmInstanceObject::InitTableEntries(
             instance_object_->GetIsolate(), instance_object_, imm.table.index,
@@ -1887,9 +1851,6 @@ class ThreadImpl {
       case kExprElemDrop: {
         ElemDropImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
         *len += imm.length;
-        if (!CheckElemSegmentIsPassiveAndNotDropped(imm.index, pc)) {
-          return false;
-        }
         instance_object_->dropped_elem_segments()[imm.index] = 1;
         return true;
       }

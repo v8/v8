@@ -128,9 +128,9 @@ WASM_EXEC_TEST(MemoryInitOutOfBounds) {
   CHECK_EQ(0xDEADBEEF, r.Call(1000, 0, kWasmPageSize));
   CHECK_EQ(0xDEADBEEF, r.Call(kWasmPageSize, 0, 1));
 
-  // Copy 0 out-of-bounds succeeds.
-  CHECK_EQ(0, r.Call(kWasmPageSize + 1, 0, 0));
-  CHECK_EQ(0, r.Call(0, kWasmPageSize + 1, 0));
+  // Copy 0 out-of-bounds fails if target is invalid.
+  CHECK_EQ(0xDEADBEEF, r.Call(kWasmPageSize + 1, 0, 0));
+  CHECK_EQ(0xDEADBEEF, r.Call(0, kWasmPageSize + 1, 0));
 
   // Make sure bounds aren't checked with 32-bit wrapping.
   CHECK_EQ(0xDEADBEEF, r.Call(1, 1, 0xFFFFFFFF));
@@ -239,9 +239,9 @@ WASM_EXEC_TEST(MemoryCopyOutOfBounds) {
   CHECK_EQ(0xDEADBEEF, r.Call(1000, 0, kWasmPageSize));
   CHECK_EQ(0xDEADBEEF, r.Call(kWasmPageSize, 0, 1));
 
-  // Copy 0 out-of-bounds always succeeds.
-  CHECK_EQ(0, r.Call(kWasmPageSize + 1, 0, 0));
-  CHECK_EQ(0, r.Call(0, kWasmPageSize + 1, 0));
+  // Copy 0 out-of-bounds fails if target is invalid.
+  CHECK_EQ(0xDEADBEEF, r.Call(kWasmPageSize + 1, 0, 0));
+  CHECK_EQ(0xDEADBEEF, r.Call(0, kWasmPageSize + 1, 0));
 
   // Make sure bounds aren't checked with 32-bit wrapping.
   CHECK_EQ(0xDEADBEEF, r.Call(1, 1, 0xFFFFFFFF));
@@ -314,8 +314,8 @@ WASM_EXEC_TEST(MemoryFillOutOfBounds) {
   CHECK_EQ(0xDEADBEEF, r.Call(1000, v, kWasmPageSize));
   CHECK_EQ(0xDEADBEEF, r.Call(kWasmPageSize, v, 1));
 
-  // Fill 0 out-of-bounds succeeds.
-  CHECK_EQ(0, r.Call(kWasmPageSize + 1, v, 0));
+  // Fill 0 out-of-bounds still fails.
+  CHECK_EQ(0xDEADBEEF, r.Call(kWasmPageSize + 1, v, 0));
 
   // Make sure bounds aren't checked with 32-bit wrapping.
   CHECK_EQ(0xDEADBEEF, r.Call(1, v, 0xFFFFFFFF));
@@ -330,7 +330,7 @@ WASM_EXEC_TEST(DataDropTwice) {
   BUILD(r, WASM_DATA_DROP(0), kExprI32Const, 0);
 
   CHECK_EQ(0, r.Call());
-  CHECK_EQ(0xDEADBEEF, r.Call());
+  CHECK_EQ(0, r.Call());
 }
 
 WASM_EXEC_TEST(DataDropThenMemoryInit) {
@@ -533,9 +533,9 @@ void TestTableInitOob(ExecutionTier execution_tier, int table_index) {
   r.CheckCallViaJS(0xDEADBEEF, 0, 3, 3);
   CheckTableCall(isolate, table, &r, call_index, null, null, null, null, null);
 
-  // 0-count is never oob.
-  r.CheckCallViaJS(0, kTableSize + 1, 0, 0);
-  r.CheckCallViaJS(0, 0, kTableSize + 1, 0);
+  // 0-count is still oob if target is invalid.
+  r.CheckCallViaJS(0xDEADBEEF, kTableSize + 1, 0, 0);
+  r.CheckCallViaJS(0xDEADBEEF, 0, kTableSize + 1, 0);
 
   r.CheckCallViaJS(0xDEADBEEF, 0, 0, 6);
   r.CheckCallViaJS(0xDEADBEEF, 0, 1, 5);
@@ -821,8 +821,8 @@ void TestTableCopyOob1(ExecutionTier execution_tier, int table_dst,
 
   {
     const uint32_t big = 1000000;
-    r.CheckCallViaJS(0, big, 0, 0);
-    r.CheckCallViaJS(0, 0, big, 0);
+    r.CheckCallViaJS(0xDEADBEEF, big, 0, 0);
+    r.CheckCallViaJS(0xDEADBEEF, 0, big, 0);
   }
 
   for (uint32_t big = 4294967295; big > 1000; big >>= 1) {
@@ -865,7 +865,7 @@ WASM_EXEC_TEST(ElemDropTwice) {
   BUILD(r, WASM_ELEM_DROP(0), kExprI32Const, 0);
 
   r.CheckCallViaJS(0);
-  r.CheckCallViaJS(0xDEADBEEF);
+  r.CheckCallViaJS(0);
 }
 
 WASM_EXEC_TEST(ElemDropThenTableInit) {
