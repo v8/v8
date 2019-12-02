@@ -522,6 +522,8 @@ class SerializerForBackgroundCompilation {
   void ContributeToJumpTargetEnvironment(int target_offset);
   void IncorporateJumpTargetEnvironment(int target_offset);
 
+  Hints& return_value_hints() { return return_value_hints_; }
+
   Handle<FeedbackVector> feedback_vector() const;
   Handle<BytecodeArray> bytecode_array() const;
   BytecodeAnalysis const& GetBytecodeAnalysis(
@@ -542,6 +544,7 @@ class SerializerForBackgroundCompilation {
   SerializerForBackgroundCompilationFlags const flags_;
   BailoutId const osr_offset_;
   HintsVector const arguments_;
+  Hints return_value_hints_;
 };
 
 void RunSerializerForBackgroundCompilation(
@@ -799,8 +802,6 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
   Hints const& closure_hints() const { return closure_hints_; }
   Hints const& current_context_hints() const { return current_context_hints_; }
   Hints& current_context_hints() { return current_context_hints_; }
-  Hints const& return_value_hints() const { return return_value_hints_; }
-  Hints& return_value_hints() { return return_value_hints_; }
   Hints& accumulator_hints() {
     CHECK_LT(accumulator_index(), ephemeral_hints_.size());
     return ephemeral_hints_[accumulator_index()];
@@ -835,7 +836,6 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
 
   Hints closure_hints_;
   Hints current_context_hints_;
-  Hints return_value_hints_;
 
   // ephemeral_hints_ contains hints for the contents of the registers,
   // the accumulator and the parameters. The layout is as follows:
@@ -852,9 +852,6 @@ SerializerForBackgroundCompilation::Environment::Environment(
       parameter_count_(
           function_.shared()->GetBytecodeArray().parameter_count()),
       register_count_(function_.shared()->GetBytecodeArray().register_count()),
-      closure_hints_(),
-      current_context_hints_(),
-      return_value_hints_(),
       ephemeral_hints_(ephemeral_hints_size(), Hints(), zone) {
   Handle<JSFunction> closure;
   if (function.closure().ToHandle(&closure)) {
@@ -911,11 +908,8 @@ void SerializerForBackgroundCompilation::Environment::Merge(Environment* other,
   SLOW_DCHECK(closure_hints_ == other->closure_hints_);
 
   if (IsDead()) {
-    SLOW_DCHECK(return_value_hints_.Includes(other->return_value_hints_));
     // TODO(neis): Acquire existing hints rather than merge them into empty?
     ephemeral_hints_.resize(other->ephemeral_hints_.size());
-  } else {
-    return_value_hints_.Merge(other->return_value_hints_, zone);
   }
 
   CHECK_EQ(ephemeral_hints_.size(), other->ephemeral_hints_.size());
@@ -988,9 +982,6 @@ std::ostream& operator<<(
   }
   if (!env.current_context_hints().IsEmpty()) {
     output_stream << "Hints for <context>:\n" << env.current_context_hints();
-  }
-  if (!env.return_value_hints().IsEmpty()) {
-    output_stream << "Hints for {return value}:\n" << env.return_value_hints();
   }
 
   out << output_stream.str();
@@ -1104,9 +1095,14 @@ Hints SerializerForBackgroundCompilation::Run() {
   feedback_vector_ref.Serialize();
   TraverseBytecode();
 
+  if (return_value_hints().IsEmpty()) {
+    TRACE_BROKER(broker(), "Return value hints: none");
+  } else {
+    TRACE_BROKER(broker(), "Return value hints:\n  " << return_value_hints());
+  }
   TRACE_BROKER_MEMORY(broker(), "[serializer end] Broker zone usage: "
                                     << broker()->zone()->allocation_size());
-  return environment()->return_value_hints();
+  return return_value_hints();
 }
 
 class HandlerRangeMatcher {
@@ -2668,8 +2664,7 @@ void SerializerForBackgroundCompilation::ProcessJump(
 
 void SerializerForBackgroundCompilation::VisitReturn(
     BytecodeArrayIterator* iterator) {
-  environment()->return_value_hints().Add(environment()->accumulator_hints(),
-                                          zone());
+  return_value_hints().Add(environment()->accumulator_hints(), zone());
   environment()->ClearEphemeralHints();
 }
 
