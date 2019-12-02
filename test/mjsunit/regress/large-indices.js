@@ -104,3 +104,21 @@
   v7[4294967297] = 1;
   const v8 = Object.assign({}, v7);
 })();
+
+// crbug.com/1029369
+(function () {
+  let obj = {};
+  function AddProperty(o, k) {
+    Object.defineProperty(o, k, {});
+    if (!o.hasOwnProperty(k)) throw "Bug!";
+  }
+  AddProperty(obj, "1");  // Force dictionary-mode elements.
+  AddProperty(obj, 4294967295);
+})();
+
+// crbug.com/1029338
+(function() {
+  var __v_11 = {};
+  __v_11.__defineGetter__(4294967295, function () {});
+  __v_12 = Object.entries(__v_11);
+})();

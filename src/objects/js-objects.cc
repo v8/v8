@@ -1903,10 +1903,11 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
               JSObject::FastPropertyAt(object, representation, field_index);
         }
       } else {
+        LookupIterator it(isolate, object, next_key,
+                          LookupIterator::OWN_SKIP_INTERCEPTOR);
+        DCHECK_EQ(LookupIterator::ACCESSOR, it.state());
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, prop_value,
-            JSReceiver::GetProperty(isolate, object, next_key),
-            Nothing<bool>());
+            isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
         stable = object->map() == *map;
         *descriptors.location() = map->instance_descriptors().ptr();
       }

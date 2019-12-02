@@ -9213,8 +9213,14 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   }
   BIND(&if_isdictionary);
   {
-    // Negative keys must be converted to property names.
-    GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), if_bailout);
+    // Negative and too-large keys must be converted to property names.
+    if (Is64()) {
+      GotoIf(UintPtrLessThan(IntPtrConstant(JSArray::kMaxArrayIndex),
+                             intptr_index),
+             if_bailout);
+    } else {
+      GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), if_bailout);
+    }
 
     TVARIABLE(IntPtrT, var_entry);
     TNode<NumberDictionary> elements = CAST(LoadElements(object));
