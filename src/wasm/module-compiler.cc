@@ -1068,6 +1068,8 @@ bool ExecuteCompilationUnits(
       }
     }
 
+    native_module->engine()->LogCode(VectorOf(code_vector));
+
     compile_scope->compilation_state()->OnFinishedUnits(VectorOf(code_vector));
     results_to_publish.clear();
   };
@@ -2422,7 +2424,6 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
     } else {
       // Function.
       DCHECK_NE(code->tier(), ExecutionTier::kNone);
-      native_module_->engine()->LogCode(code);
 
       // Read function's compilation progress.
       // This view on the compilation progress may differ from the actually

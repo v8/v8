@@ -623,9 +623,10 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
   }
 }
 
-void WasmEngine::LogCode(WasmCode* code) {
+void WasmEngine::LogCode(Vector<WasmCode*> code_vec) {
+  if (code_vec.empty()) return;
   base::MutexGuard guard(&mutex_);
-  NativeModule* native_module = code->native_module();
+  NativeModule* native_module = code_vec[0]->native_module();
   DCHECK_EQ(1, native_modules_.count(native_module));
   for (Isolate* isolate : native_modules_[native_module]->isolates) {
     DCHECK_EQ(1, isolates_.count(isolate));
@@ -640,8 +641,12 @@ void WasmEngine::LogCode(WasmCode* code) {
     if (info->code_to_log.empty()) {
       isolate->stack_guard()->RequestLogWasmCode();
     }
-    info->code_to_log.push_back(code);
-    code->IncRef();
+    info->code_to_log.insert(info->code_to_log.end(), code_vec.begin(),
+                             code_vec.end());
+    for (WasmCode* code : code_vec) {
+      DCHECK_EQ(native_module, code->native_module());
+      code->IncRef();
+    }
   }
 }
 

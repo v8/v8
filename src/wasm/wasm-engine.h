@@ -158,10 +158,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
                                std::forward<Args>(args)...);
   }
 
-  // Trigger code logging for this WasmCode in all Isolates which have access to
-  // the NativeModule containing this code. This method can be called from
-  // background threads.
-  void LogCode(WasmCode*);
+  // Trigger code logging for the given code objects in all Isolates which have
+  // access to the NativeModule containing this code. This method can be called
+  // from background threads.
+  void LogCode(Vector<WasmCode*>);
 
   // Enable code logging for the given Isolate. Initially, code logging is
   // enabled if {WasmCode::ShouldBeLogged(Isolate*)} returns true during
