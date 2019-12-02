@@ -574,19 +574,9 @@ V8_EXPORT_PRIVATE int PRINTF_FORMAT(2, 0)
 
 void StrNCpy(Vector<char> dest, const char* src, size_t n);
 
-// Our version of fflush.
-void Flush(FILE* out);
-
-inline void Flush() { Flush(stdout); }
-
 // Read a line of characters after printing the prompt to stdout. The resulting
 // char* needs to be disposed off with DeleteArray by the caller.
 char* ReadLine(const char* prompt);
-
-// Append size chars from str to the file given by filename.
-// The file is overwritten. Returns the number of chars written.
-int AppendChars(const char* filename, const char* str, int size,
-                bool verbose = true);
 
 // Write size chars from str to the file given by filename.
 // The file is overwritten. Returns the number of chars written.
@@ -597,13 +587,6 @@ int WriteChars(const char* filename, const char* str, int size,
 // The file is overwritten. Returns the number of bytes written.
 int WriteBytes(const char* filename, const byte* bytes, int size,
                bool verbose = true);
-
-// Write the C code
-// const char* <varname> = "<str>";
-// const int <varname>_len = <len>;
-// to the file given by filename. Only the first len chars are written.
-int WriteAsCFile(const char* filename, const char* varname, const char* str,
-                 int size, bool verbose = true);
 
 // Simple support to read a file into std::string.
 // On return, *exits tells whether the file existed.
