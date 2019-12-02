@@ -178,7 +178,6 @@ void WasmCode::LogCode(Isolate* isolate) const {
   if (IsAnonymous()) return;
 
   ModuleWireBytes wire_bytes(native_module()->wire_bytes());
-  // TODO(herhut): Allow to log code without on-heap round-trip of the name.
   WireBytesRef name_ref =
       native_module()->module()->LookupFunctionName(wire_bytes, index());
   WasmName name_vec = wire_bytes.GetNameOrNull(name_ref);
