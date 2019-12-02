@@ -154,6 +154,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_LoadWord64:
     case kS390_LoadFloat32:
     case kS390_LoadDouble:
+    case kS390_LoadSimd128:
     case kS390_LoadReverse16:
     case kS390_LoadReverse32:
     case kS390_LoadReverse64:
@@ -170,6 +171,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_StoreReverse64:
     case kS390_StoreFloat32:
     case kS390_StoreDouble:
+    case kS390_StoreSimd128:
     case kS390_Push:
     case kS390_PushFrame:
     case kS390_StoreToStackSlot:

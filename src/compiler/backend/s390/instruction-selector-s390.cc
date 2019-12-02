@@ -293,6 +293,9 @@ ArchOpcode SelectLoadOpcode(Node* node) {
     case MachineRepresentation::kWord32:
       opcode = kS390_LoadWordU32;
       break;
+    case MachineRepresentation::kSimd128:
+      opcode = kS390_LoadSimd128;
+      break;
 #if V8_TARGET_ARCH_S390X
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
@@ -305,7 +308,6 @@ ArchOpcode SelectLoadOpcode(Node* node) {
 #endif
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
     default:
       UNREACHABLE();
@@ -766,6 +768,13 @@ static void VisitGeneralStore(
           value = value->InputAt(0);
         }
         break;
+      case MachineRepresentation::kSimd128:
+        opcode = kS390_StoreSimd128;
+        if (m.IsSimd128ReverseBytes()) {
+          opcode = kS390_StoreReverseSimd128;
+          value = value->InputAt(0);
+        }
+        break;
 #if V8_TARGET_ARCH_S390X
       case MachineRepresentation::kTaggedSigned:       // Fall through.
       case MachineRepresentation::kTaggedPointer:      // Fall through.
@@ -782,7 +791,6 @@ static void VisitGeneralStore(
 #else
       case MachineRepresentation::kWord64:  // Fall through.
 #endif
-      case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;

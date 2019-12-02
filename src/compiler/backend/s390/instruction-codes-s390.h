@@ -196,7 +196,9 @@ namespace compiler {
   V(S390_Word64AtomicXorUint8)              \
   V(S390_Word64AtomicXorUint16)             \
   V(S390_Word64AtomicXorUint32)             \
-  V(S390_Word64AtomicXorUint64)
+  V(S390_Word64AtomicXorUint64)             \
+  V(S390_StoreSimd128)                      \
+  V(S390_LoadSimd128)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes
