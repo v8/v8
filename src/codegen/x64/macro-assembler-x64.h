@@ -204,6 +204,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Divps, divps)
   AVX_OP(Pshuflw, pshuflw)
   AVX_OP(Punpcklqdq, punpcklqdq)
+  AVX_OP(Pshufd, pshufd)
   AVX_OP_SSE3(Movddup, movddup)
   AVX_OP_SSSE3(Pshufb, pshufb)
   AVX_OP_SSSE3(Psignd, psignd)
@@ -444,8 +445,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Psrlq(XMMRegister dst, byte imm8);
   void Pslld(XMMRegister dst, byte imm8);
   void Psrld(XMMRegister dst, byte imm8);
-
-  void Pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
 
   void CompareRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);

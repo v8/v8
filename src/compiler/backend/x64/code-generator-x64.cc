@@ -2915,7 +2915,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ Movd(dst, i.InputOperand(0));
       }
-      __ Pshufd(dst, dst, 0x0);
+      __ Pshufd(dst, dst, static_cast<uint8_t>(0x0));
       break;
     }
     case kX64I32x4ExtractLane: {
@@ -3604,7 +3604,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Out-of-range indices should return 0, add 112 so that any value > 15
       // saturates to 128 (top bit set), so pshufb will zero that lane.
       __ Move(mask, static_cast<uint32_t>(0x70707070));
-      __ Pshufd(mask, mask, 0x0);
+      __ Pshufd(mask, mask, static_cast<uint8_t>(0x0));
       __ Paddusb(mask, i.InputSimd128Register(1));
       __ Pshufb(dst, mask);
       break;

@@ -1854,16 +1854,6 @@ void TurboAssembler::Psrld(XMMRegister dst, byte imm8) {
   }
 }
 
-void TurboAssembler::Pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpshufd(dst, src, shuffle);
-  } else {
-    DCHECK(!IsEnabled(AVX));
-    pshufd(dst, src, shuffle);
-  }
-}
-
 void TurboAssembler::Lzcntl(Register dst, Register src) {
   if (CpuFeatures::IsSupported(LZCNT)) {
     CpuFeatureScope scope(this, LZCNT);
