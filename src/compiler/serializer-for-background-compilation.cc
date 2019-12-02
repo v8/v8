@@ -2518,9 +2518,9 @@ void SerializerForBackgroundCompilation::ProcessHintsForPromiseResolve(
   };
 
   for (auto hint : resolution_hints.constants()) {
-    if (!hint->IsJSReceiver()) continue;
-    Handle<JSReceiver> receiver(Handle<JSReceiver>::cast(hint));
-    processMap(handle(receiver->map(), broker()->isolate()));
+    if (!hint->IsHeapObject()) continue;
+    Handle<HeapObject> resolution(Handle<HeapObject>::cast(hint));
+    processMap(handle(resolution->map(), broker()->isolate()));
   }
   for (auto map_hint : resolution_hints.maps()) {
     processMap(map_hint);
