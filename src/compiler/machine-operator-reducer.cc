@@ -243,6 +243,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kInt64Mul:
+      return ReduceInt64Mul(node);
     case IrOpcode::kInt32Div:
       return ReduceInt32Div(node);
     case IrOpcode::kUint32Div:
@@ -816,6 +818,31 @@ Reduction MachineOperatorReducer::ReduceInt64Sub(Node* node) {
         1, Int64Constant(base::NegateWithWraparound(m.right().Value())));
     NodeProperties::ChangeOp(node, machine()->Int64Add());
     Reduction const reduction = ReduceInt64Add(node);
+    return reduction.Changed() ? reduction : Changed(node);
+  }
+  return NoChange();
+}
+
+Reduction MachineOperatorReducer::ReduceInt64Mul(Node* node) {
+  DCHECK_EQ(IrOpcode::kInt64Mul, node->opcode());
+  Int64BinopMatcher m(node);
+  if (m.right().Is(0)) return Replace(m.right().node());  // x * 0 => 0
+  if (m.right().Is(1)) return Replace(m.left().node());   // x * 1 => x
+  if (m.IsFoldable()) {                                   // K * K => K
+    return ReplaceInt64(
+        base::MulWithWraparound(m.left().Value(), m.right().Value()));
+  }
+  if (m.right().Is(-1)) {  // x * -1 => 0 - x
+    node->ReplaceInput(0, Int64Constant(0));
+    node->ReplaceInput(1, m.left().node());
+    NodeProperties::ChangeOp(node, machine()->Int64Sub());
+    return Changed(node);
+  }
+  if (m.right().IsPowerOf2()) {  // x * 2^n => x << n
+    node->ReplaceInput(
+        1, Int64Constant(base::bits::WhichPowerOfTwo(m.right().Value())));
+    NodeProperties::ChangeOp(node, machine()->Word64Shl());
+    Reduction reduction = ReduceWord64Shl(node);
     return reduction.Changed() ? reduction : Changed(node);
   }
   return NoChange();
