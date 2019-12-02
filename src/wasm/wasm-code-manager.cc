@@ -194,28 +194,27 @@ void WasmCode::LogCode(Isolate* isolate) const {
         std::make_unique<WasmModuleSourceMap>(v8_isolate, source_map_str));
   }
 
-  if (!name_vec.empty()) {
+  std::unique_ptr<char[]> name_buffer;
+  Vector<const char> name;
+  if (name_vec.empty()) {
+    name = CStrVector("<wasm-unnamed>");
+  } else {
     HandleScope scope(isolate);
     MaybeHandle<String> maybe_name = isolate->factory()->NewStringFromUtf8(
         Vector<const char>::cast(name_vec));
-    Handle<String> name;
-    if (!maybe_name.ToHandle(&name)) {
-      name = isolate->factory()->NewStringFromAsciiChecked("<name too long>");
+    Handle<String> name_string;
+    if (maybe_name.ToHandle(&name_string)) {
+      int name_len = 0;
+      name_buffer = name_string->ToCString(
+          AllowNullsFlag::DISALLOW_NULLS,
+          RobustnessFlag::ROBUST_STRING_TRAVERSAL, &name_len);
+      name = VectorOf(name_buffer.get(), name_len);
+    } else {
+      name = CStrVector("<name too long>");
     }
-    int name_length;
-    auto cname =
-        name->ToCString(AllowNullsFlag::DISALLOW_NULLS,
-                        RobustnessFlag::ROBUST_STRING_TRAVERSAL, &name_length);
-    PROFILE(isolate,
-            CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this,
-                            {cname.get(), static_cast<size_t>(name_length)}));
-  } else {
-    EmbeddedVector<char, 32> generated_name;
-    int length = SNPrintF(generated_name, "wasm-function[%d]", index());
-    generated_name.Truncate(length);
-    PROFILE(isolate, CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this,
-                                     generated_name));
   }
+  PROFILE(isolate,
+          CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this, name));
 
   if (!source_positions().empty()) {
     LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(instruction_start(),

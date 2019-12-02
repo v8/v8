@@ -245,6 +245,8 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
   } else {
     name_buffer_->AppendInt(code->index());
   }
+  name_buffer_->AppendByte('-');
+  name_buffer_->AppendBytes(ExecutionTierToString(code->tier()));
   LogRecordedBuffer(code, name_buffer_->get(), name_buffer_->size());
 }
 
