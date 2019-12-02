@@ -3250,10 +3250,10 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
       } else {
         opcode = kX64S32x4Shuffle;
         no_same_as_first = true;
-        src0_needs_reg = false;
-        // TODO(v8:9083): src1 is used by pshufd in codegen, which requires
-        // memory to be 16-byte aligned, since we cannot guarantee that yet,
-        // force using a register here.
+        // TODO(v8:9083): src0 and src1 is used by pshufd in codegen, which
+        // requires memory to be 16-byte aligned, since we cannot guarantee that
+        // yet, force using a register here.
+        src0_needs_reg = true;
         src1_needs_reg = true;
         imms[imm_count++] = shuffle_mask;
         uint8_t blend_mask = PackBlend4(shuffle32x4);
