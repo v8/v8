@@ -652,8 +652,33 @@ void Map::MapVerify(Isolate* isolate) {
   CHECK(instance_size() == kVariableSizeSentinel ||
         (kTaggedSize <= instance_size() &&
          static_cast<size_t>(instance_size()) < heap->Capacity()));
-  CHECK(GetBackPointer().IsUndefined(isolate) ||
-        !Map::cast(GetBackPointer()).is_stable());
+  if (GetBackPointer().IsUndefined(isolate)) {
+    // Root maps must not have descriptors in the descriptor array that do not
+    // belong to the map.
+    CHECK_EQ(NumberOfOwnDescriptors(),
+             instance_descriptors().number_of_descriptors());
+  } else {
+    // If there is a parent map it must be non-stable.
+    Map parent = Map::cast(GetBackPointer());
+    CHECK(!parent.is_stable());
+    DescriptorArray descriptors = instance_descriptors();
+    if (descriptors == parent.instance_descriptors()) {
+      if (NumberOfOwnDescriptors() == parent.NumberOfOwnDescriptors() + 1) {
+        // Descriptors sharing through property transitions takes over
+        // ownership from the parent map.
+        CHECK(!parent.owns_descriptors());
+      } else {
+        CHECK_EQ(NumberOfOwnDescriptors(), parent.NumberOfOwnDescriptors());
+        // Descriptors sharing through special transitions properly takes over
+        // ownership from the parent map unless it uses the canonical empty
+        // descriptor array.
+        if (descriptors != ReadOnlyRoots(isolate).empty_descriptor_array()) {
+          CHECK_IMPLIES(owns_descriptors(), !parent.owns_descriptors());
+          CHECK_IMPLIES(parent.owns_descriptors(), !owns_descriptors());
+        }
+      }
+    }
+  }
   SLOW_DCHECK(instance_descriptors().IsSortedNoDuplicates());
   DisallowHeapAllocation no_gc;
   SLOW_DCHECK(
