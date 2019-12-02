@@ -407,6 +407,8 @@
   # Tests that depend on optimization (beyond doing assertOptimized).
   'compiler/is-being-interpreted-*': [SKIP],
   'compiler/serializer-accessors': [SKIP],
+  'compiler/serializer-apply': [SKIP],
+  'compiler/serializer-call': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
 
   # These tests check that we can trace the compiler.
@@ -1094,6 +1096,8 @@
   'compiler/is-being-interpreted-*': [SKIP],
   'compiler/load-elimination-const-field': [SKIP],
   'compiler/serializer-accessors': [SKIP],
+  'compiler/serializer-apply': [SKIP],
+  'compiler/serializer-call': [SKIP],
   'compiler/serializer-feedback-propagation-*': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
 

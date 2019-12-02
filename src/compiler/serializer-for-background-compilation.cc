@@ -2374,6 +2374,11 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
               constant, base::nullopt, new_arguments, speculation_mode,
               kMissingArgumentsAreUnknown, result_hints);
         }
+        for (auto const& virtual_closure : arguments[0].virtual_closures()) {
+          ProcessCalleeForCallOrConstruct(
+              Callee(virtual_closure), base::nullopt, new_arguments,
+              speculation_mode, kMissingArgumentsAreUnknown, result_hints);
+        }
       }
       break;
     case Builtins::kPromiseConstructor:
@@ -2390,7 +2395,7 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
               SpeculationMode::kDisallowSpeculation,
               kMissingArgumentsAreUnknown, result_hints);
         }
-        for (auto virtual_closure : arguments[0].virtual_closures()) {
+        for (auto const& virtual_closure : arguments[0].virtual_closures()) {
           ProcessCalleeForCallOrConstruct(
               Callee(virtual_closure), base::nullopt, new_arguments,
               SpeculationMode::kDisallowSpeculation,
@@ -2406,6 +2411,11 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
           ProcessCalleeForCallOrConstruct(constant, base::nullopt,
                                           new_arguments, speculation_mode,
                                           padding, result_hints);
+        }
+        for (auto const& virtual_closure : arguments[0].virtual_closures()) {
+          ProcessCalleeForCallOrConstruct(
+              Callee(virtual_closure), base::nullopt, new_arguments,
+              speculation_mode, padding, result_hints);
         }
       }
       break;
