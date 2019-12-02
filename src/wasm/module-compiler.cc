@@ -1384,8 +1384,8 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
       ->FinalizeJSToWasmWrappers(isolate, native_module->module(),
                                  export_wrappers_out);
 
-  // Log the code within the generated module for profiling.
-  native_module->LogWasmCodes(isolate);
+  // Ensure that the code objects are logged before returning.
+  isolate->wasm_engine()->LogOutstandingCodesForIsolate(isolate);
 
   return native_module;
 }
