@@ -503,12 +503,22 @@ STATIC_ASSERT(NativeContext::kSize ==
 void NativeContext::SetDetachedWindowReason(
     v8::Context::DetachedWindowReason reason) {
   set_detached_window_reason(Smi::FromEnum(reason));
+
+  Isolate* isolate = GetIsolate();
+  set_detached_window_time_in_seconds(
+      Smi::FromInt(static_cast<int>(isolate->time_millis_since_init() / 1000)));
 }
 
 v8::Context::DetachedWindowReason NativeContext::GetDetachedWindowReason()
     const {
   return static_cast<v8::Context::DetachedWindowReason>(
       detached_window_reason().value());
+}
+
+int NativeContext::SecondsSinceDetachedWindow() const {
+  Isolate* isolate = GetIsolate();
+  return static_cast<int>(isolate->time_millis_since_init() / 1000 -
+                          detached_window_time_in_seconds().value());
 }
 
 }  // namespace internal

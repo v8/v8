@@ -8236,6 +8236,18 @@ class V8_EXPORT Isolate {
     kRegExpExecCalledOnSlowRegExp = 79,
     kRegExpReplaceCalledOnSlowRegExp = 80,
     kDisplayNames = 81,
+    // Temporary kCallInDetachedWindowBy* counters are for reporting function
+    // calls within contexts marked using |SetDetachedWindowReason|.
+    // TODO(bartekn,chromium:1018156): Remove once not needed.
+    kCallInDetachedWindowByNavigation = 82,
+    kCallInDetachedWindowByNavigationAfter10s = 83,
+    kCallInDetachedWindowByNavigationAfter1min = 84,
+    kCallInDetachedWindowByClosing = 85,
+    kCallInDetachedWindowByClosingAfter10s = 86,
+    kCallInDetachedWindowByClosingAfter1min = 87,
+    kCallInDetachedWindowByOtherReason = 88,
+    kCallInDetachedWindowByOtherReasonAfter10s = 89,
+    kCallInDetachedWindowByOtherReasonAfter1min = 90,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
