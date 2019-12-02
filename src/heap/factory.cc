@@ -3589,15 +3589,25 @@ Handle<String> Factory::SmiToString(Smi number, bool check_cache) {
   Vector<char> buffer(arr, arraysize(arr));
   const char* string = IntToCString(number.value(), buffer);
 
-  return NumberToStringCacheSet(handle(number, isolate()), hash, string,
-                                check_cache);
+  Handle<String> result = NumberToStringCacheSet(handle(number, isolate()),
+                                                 hash, string, check_cache);
+  // Compute the hash here (rather than letting the caller take care of it) so
+  // that the "cache hit" case above doesn't have to bother with it.
+  STATIC_ASSERT(Smi::kMaxValue <= std::numeric_limits<uint32_t>::max());
+  if (result->hash_field() == String::kEmptyHashField && number.value() >= 0) {
+    uint32_t field = StringHasher::MakeArrayIndexHash(
+        static_cast<uint32_t>(number.value()), result->length());
+    result->set_hash_field(field);
+  }
+  return result;
 }
 
 Handle<String> Factory::SizeToString(size_t value, bool check_cache) {
   Handle<String> result;
   if (value <= Smi::kMaxValue) {
     int32_t int32v = static_cast<int32_t>(static_cast<uint32_t>(value));
-    result = SmiToString(Smi::FromInt(int32v), check_cache);
+    // SmiToString sets the hash when needed, we can return immediately.
+    return SmiToString(Smi::FromInt(int32v), check_cache);
   } else if (value <= kMaxSafeInteger) {
     // TODO(jkummerow): Refactor the cache to not require Objects as keys.
     double double_value = static_cast<double>(value);
