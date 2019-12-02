@@ -49,6 +49,11 @@ void JSArrayBuffer::Setup(SharedFlag shared,
   } else {
     Attach(std::move(backing_store));
   }
+
+  if (shared == SharedFlag::kShared) {
+    GetIsolate()->CountUsage(
+        v8::Isolate::UseCounterFeature::kSharedArrayBufferConstructed);
+  }
 }
 
 void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
