@@ -817,6 +817,10 @@
   # trigger a GC, but only in the isolate allocating the new memory.
   'wasm/module-memory': [SKIP],
   'wasm/shared-memory-gc-stress': [SKIP],
+
+  # Redirection to the interpreter is non-deterministic with multiple isolates.
+  'wasm/interpreter-mixed': [SKIP],
+  'wasm/worker-interpreter': [SKIP],
 }],  # 'isolates'
 
 ##############################################################################
