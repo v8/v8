@@ -150,7 +150,7 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t offset, RegPairHalf) {
 void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
   DCHECK_LT(0, count);
   uint32_t last_stack_slot = index + count - 1;
-  RecordUsedSpillSlot(last_stack_slot);
+  RecordUsedSpillOffset(last_stack_slot);
 
   // We need a zero reg. Always use r0 for that, and push it before to restore
   // its value afterwards.

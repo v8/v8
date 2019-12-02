@@ -79,12 +79,7 @@ class StackTransferRecipe {
     DCHECK(load_dst_regs_.is_empty());
   }
 
-  void TransferStackSlot(const LiftoffAssembler::CacheState& dst_state,
-                         uint32_t dst_index,
-                         const LiftoffAssembler::CacheState& src_state,
-                         uint32_t src_index) {
-    const VarState& dst = dst_state.stack_state[dst_index];
-    const VarState& src = src_state.stack_state[src_index];
+  void TransferStackSlot(const VarState& dst, const VarState& src) {
     DCHECK_EQ(dst.type(), src.type());
     switch (dst.loc()) {
       case VarState::kStack:
@@ -524,7 +519,7 @@ void LiftoffAssembler::MergeFullStackWith(const CacheState& target,
   // allocations.
   StackTransferRecipe transfers(this);
   for (uint32_t i = 0, e = source.stack_height(); i < e; ++i) {
-    transfers.TransferStackSlot(target, i, source, i);
+    transfers.TransferStackSlot(target.stack_state[i], source.stack_state[i]);
   }
 }
 
@@ -543,33 +538,33 @@ void LiftoffAssembler::MergeStackWith(const CacheState& target,
   uint32_t target_stack_base = target_stack_height - arity;
   StackTransferRecipe transfers(this);
   for (uint32_t i = 0; i < target_stack_base; ++i) {
-    transfers.TransferStackSlot(target, i, cache_state_, i);
+    transfers.TransferStackSlot(target.stack_state[i],
+                                cache_state_.stack_state[i]);
   }
   for (uint32_t i = 0; i < arity; ++i) {
-    transfers.TransferStackSlot(target, target_stack_base + i, cache_state_,
-                                stack_base + i);
+    transfers.TransferStackSlot(target.stack_state[target_stack_base + i],
+                                cache_state_.stack_state[stack_base + i]);
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t index) {
-  auto& slot = cache_state_.stack_state[index];
-  switch (slot.loc()) {
+void LiftoffAssembler::Spill(VarState* slot) {
+  switch (slot->loc()) {
     case VarState::kStack:
       return;
     case VarState::kRegister:
-      Spill(slot.offset(), slot.reg(), slot.type());
-      cache_state_.dec_used(slot.reg());
+      Spill(slot->offset(), slot->reg(), slot->type());
+      cache_state_.dec_used(slot->reg());
       break;
     case VarState::kIntConst:
-      Spill(slot.offset(), slot.constant());
+      Spill(slot->offset(), slot->constant());
       break;
   }
-  slot.MakeStack();
+  slot->MakeStack();
 }
 
 void LiftoffAssembler::SpillLocals() {
   for (uint32_t i = 0; i < num_locals_; ++i) {
-    Spill(i);
+    Spill(&cache_state_.stack_state[i]);
   }
 }
 

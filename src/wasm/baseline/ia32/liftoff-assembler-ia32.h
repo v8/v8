@@ -436,7 +436,7 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
 
 void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
                              ValueType type) {
-  RecordUsedSpillSlot(offset);
+  RecordUsedSpillOffset(offset);
   Operand dst = liftoff::GetStackSlot(offset);
   switch (type) {
     case kWasmI32:
@@ -458,7 +458,7 @@ void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
 }
 
 void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
-  RecordUsedSpillSlot(offset);
+  RecordUsedSpillOffset(offset);
   Operand dst = liftoff::GetStackSlot(offset);
   switch (value.type()) {
     case kWasmI32:
@@ -507,7 +507,7 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t offset,
 void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
   DCHECK_LT(0, count);
   uint32_t last_stack_slot = index + count - 1;
-  RecordUsedSpillSlot(GetStackOffsetFromIndex(last_stack_slot));
+  RecordUsedSpillOffset(GetStackOffsetFromIndex(last_stack_slot));
 
   if (count <= 2) {
     // Special straight-line code for up to two slots (6-9 bytes per word:

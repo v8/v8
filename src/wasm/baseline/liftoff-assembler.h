@@ -353,16 +353,14 @@ class LiftoffAssembler : public TurboAssembler {
   void MergeFullStackWith(const CacheState& target, const CacheState& source);
   void MergeStackWith(const CacheState& target, uint32_t arity);
 
-  void Spill(uint32_t index);
+  void Spill(VarState* slot);
   void SpillLocals();
   void SpillAllRegisters();
 
   // Call this method whenever spilling something, such that the number of used
   // spill slot can be tracked and the stack frame will be allocated big enough.
-  void RecordUsedSpillSlot(uint32_t offset) {
-    // TODO(zhin): Temporary for migration from index to offset.
-    uint32_t index = offset / kStackSlotSize;
-    if (index >= num_used_spill_slots_) num_used_spill_slots_ = index + 1;
+  void RecordUsedSpillOffset(uint32_t offset) {
+    if (offset >= num_used_spill_bytes_) num_used_spill_bytes_ = offset;
   }
 
   // Load parameters into the right registers / stack slots for the call.
@@ -680,7 +678,9 @@ class LiftoffAssembler : public TurboAssembler {
   void set_num_locals(uint32_t num_locals);
 
   uint32_t GetTotalFrameSlotCount() const {
-    return num_locals_ + num_used_spill_slots_;
+    // TODO(zhin): Temporary for migration from index to offset.
+    return num_locals_ +
+           ((num_used_spill_bytes_ + kStackSlotSize - 1) / kStackSlotSize);
   }
 
   ValueType local_type(uint32_t index) {
@@ -721,7 +721,7 @@ class LiftoffAssembler : public TurboAssembler {
   static_assert(sizeof(ValueType) == 1,
                 "Reconsider this inlining if ValueType gets bigger");
   CacheState cache_state_;
-  uint32_t num_used_spill_slots_ = 0;
+  uint32_t num_used_spill_bytes_ = 0;
   LiftoffBailoutReason bailout_reason_ = kSuccess;
   const char* bailout_detail_ = nullptr;
 
