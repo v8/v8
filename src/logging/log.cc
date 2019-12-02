@@ -235,7 +235,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                                       wasm::WasmName name) {
   name_buffer_->Init(tag);
   if (name.empty()) {
-    name_buffer_->AppendBytes("<wasm-unknown>");
+    name_buffer_->AppendBytes("<wasm-unnamed>");
   } else {
     name_buffer_->AppendBytes(name.begin(), name.length());
   }

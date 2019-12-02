@@ -6362,22 +6362,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   wasm::WasmFeatures enabled_features_;
 };
 
-void AppendSignature(char* buffer, size_t max_name_len,
-                     wasm::FunctionSig* sig) {
-  size_t name_len = strlen(buffer);
-  auto append_name_char = [&](char c) {
-    if (name_len + 1 < max_name_len) buffer[name_len++] = c;
-  };
-  for (wasm::ValueType t : sig->parameters()) {
-    append_name_char(wasm::ValueTypes::ShortNameOf(t));
-  }
-  append_name_char(':');
-  for (wasm::ValueType t : sig->returns()) {
-    append_name_char(wasm::ValueTypes::ShortNameOf(t));
-  }
-  buffer[name_len] = '\0';
-}
-
 }  // namespace
 
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
@@ -6409,10 +6393,12 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
   //----------------------------------------------------------------------------
   // Create the compilation job.
   //----------------------------------------------------------------------------
-  static constexpr size_t kMaxNameLen = 128;
-  auto debug_name = std::unique_ptr<char[]>(new char[kMaxNameLen]);
-  memcpy(debug_name.get(), "js_to_wasm:", 12);
-  AppendSignature(debug_name.get(), kMaxNameLen, sig);
+  constexpr size_t kMaxNameLen = 128;
+  constexpr size_t kNamePrefixLen = 11;
+  auto name_buffer = std::unique_ptr<char[]>(new char[kMaxNameLen]);
+  memcpy(name_buffer.get(), "js-to-wasm:", kNamePrefixLen);
+  PrintSignature(VectorOf(name_buffer.get(), kMaxNameLen) + kNamePrefixLen,
+                 sig);
 
   int params = static_cast<int>(sig->parameter_count());
   CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
@@ -6420,7 +6406,8 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
 
   return Pipeline::NewWasmHeapStubCompilationJob(
       isolate, wasm_engine, incoming, std::move(zone), graph,
-      Code::JS_TO_WASM_FUNCTION, std::move(debug_name), WasmAssemblerOptions());
+      Code::JS_TO_WASM_FUNCTION, std::move(name_buffer),
+      WasmAssemblerOptions());
 }
 
 std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
@@ -6819,17 +6806,19 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
   CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
       zone.get(), false, wasm_count + 1, CallDescriptor::kNoFlags);
 
-  // Build a name in the form "js-to-js-wrapper:<params>:<returns>".
-  static constexpr size_t kMaxNameLen = 128;
-  auto debug_name = std::unique_ptr<char[]>(new char[kMaxNameLen]);
-  memcpy(debug_name.get(), "js-to-js-wrapper:", 18);
-  AppendSignature(debug_name.get(), kMaxNameLen, sig);
+  // Build a name in the form "js-to-js:<params>:<returns>".
+  constexpr size_t kMaxNameLen = 128;
+  constexpr size_t kNamePrefixLen = 9;
+  auto name_buffer = std::unique_ptr<char[]>(new char[kMaxNameLen]);
+  memcpy(name_buffer.get(), "js-to-js:", kNamePrefixLen);
+  PrintSignature(VectorOf(name_buffer.get(), kMaxNameLen) + kNamePrefixLen,
+                 sig);
 
   // Run the compilation job synchronously.
   std::unique_ptr<OptimizedCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
           isolate, isolate->wasm_engine(), incoming, std::move(zone), graph,
-          Code::JS_TO_JS_FUNCTION, std::move(debug_name),
+          Code::JS_TO_JS_FUNCTION, std::move(name_buffer),
           AssemblerOptions::Default(isolate)));
 
   if (job->ExecuteJob(isolate->counters()->runtime_call_stats()) ==
@@ -6877,16 +6866,18 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
       Linkage::GetSimplifiedCDescriptor(zone.get(), &incoming_sig, flags);
 
   // Build a name in the form "c-wasm-entry:<params>:<returns>".
-  static constexpr size_t kMaxNameLen = 128;
-  auto debug_name = std::unique_ptr<char[]>(new char[kMaxNameLen]);
-  memcpy(debug_name.get(), "c-wasm-entry:", 14);
-  AppendSignature(debug_name.get(), kMaxNameLen, sig);
+  constexpr size_t kMaxNameLen = 128;
+  constexpr size_t kNamePrefixLen = 13;
+  auto name_buffer = std::unique_ptr<char[]>(new char[kMaxNameLen]);
+  memcpy(name_buffer.get(), "c-wasm-entry:", kNamePrefixLen);
+  PrintSignature(VectorOf(name_buffer.get(), kMaxNameLen) + kNamePrefixLen,
+                 sig);
 
   // Run the compilation job synchronously.
   std::unique_ptr<OptimizedCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
           isolate, isolate->wasm_engine(), incoming, std::move(zone), graph,
-          Code::C_WASM_ENTRY, std::move(debug_name),
+          Code::C_WASM_ENTRY, std::move(name_buffer),
           AssemblerOptions::Default(isolate)));
 
   if (job->ExecuteJob(isolate->counters()->runtime_call_stats()) ==
