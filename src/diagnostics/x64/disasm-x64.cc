@@ -819,6 +819,10 @@ int DisassemblerX64::AVXInstruction(byte* data) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
     switch (opcode) {
+      case 0x18:
+        AppendToBuffer("vbroadcastss %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x99:
         AppendToBuffer("vfmadd132s%c %s,%s,", float_size_code(),
                        NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
@@ -1067,6 +1071,10 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         }
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
         break;
+      case 0x12:
+        AppendToBuffer("vmovddup %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x2A:
         AppendToBuffer("%s %s,%s,", vex_w() ? "vcvtqsi2sd" : "vcvtlsi2sd",
                        NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
@@ -1125,6 +1133,11 @@ int DisassemblerX64::AVXInstruction(byte* data) {
       case 0xF0:
         AppendToBuffer("vlddqu %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
+        break;
+      case 0x70:
+        AppendToBuffer("vpshuflw %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",0x%x", *current++);
         break;
       case 0x7C:
         AppendToBuffer("vhaddps %s,%s,", NameOfXMMRegister(regop),

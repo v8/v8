@@ -3517,6 +3517,23 @@ void Assembler::movmskps(Register dst, XMMRegister src) {
 }
 
 // AVX instructions
+
+void Assembler::vmovddup(XMMRegister dst, Operand src) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, xmm0, src, kL128, kF2, k0F, kWIG);
+  emit(0x12);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::vbroadcastss(XMMRegister dst, Operand src) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, xmm0, src, kL128, k66, k0F38, kW0);
+  emit(0x18);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::vfmasd(byte op, XMMRegister dst, XMMRegister src1,
                        XMMRegister src2) {
   DCHECK(IsEnabled(FMA3));

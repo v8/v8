@@ -763,7 +763,12 @@ TEST(DisasmX64) {
       __ vpinsrd(xmm1, xmm2, rax, 2);
       __ vpinsrd(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 2);
       __ vpshufd(xmm1, xmm2, 85);
+      __ vpshuflw(xmm1, xmm2, 85);
+      __ vpshuflw(xmm1, Operand(rbx, rcx, times_4, 10000), 85);
       __ vshufps(xmm3, xmm2, xmm3, 3);
+
+      __ vmovddup(xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vbroadcastss(xmm1, Operand(rbx, rcx, times_4, 10000));
     }
   }
 

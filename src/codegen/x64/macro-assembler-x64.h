@@ -116,6 +116,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
         .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
   }
 
+#define AVX_OP_SSE3(macro_name, name)                                        \
+  template <typename Dst, typename... Args>                                  \
+  void macro_name(Dst dst, Args... args) {                                   \
+    AvxHelper<Dst, Args...>{this, base::Optional<CpuFeature>(SSE3)}          \
+        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
+  }
+
 #define AVX_OP_SSSE3(macro_name, name)                                       \
   template <typename Dst, typename... Args>                                  \
   void macro_name(Dst dst, Args... args) {                                   \
@@ -195,6 +202,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Subps, subps)
   AVX_OP(Mulps, mulps)
   AVX_OP(Divps, divps)
+  AVX_OP(Pshuflw, pshuflw)
+  AVX_OP(Punpcklqdq, punpcklqdq)
+  AVX_OP_SSE3(Movddup, movddup)
   AVX_OP_SSSE3(Pshufb, pshufb)
   AVX_OP_SSSE3(Psignd, psignd)
   AVX_OP_SSE4_1(Pmulld, pmulld)
