@@ -7609,7 +7609,7 @@ Reduction JSCallReducer::ReduceBigIntAsUintN(Node* node) {
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
   }
-  if (node->op()->ValueInputCount() < 3) {
+  if (node->op()->ValueInputCount() < 4) {
     return NoChange();
   }
 
