@@ -4,6 +4,8 @@
 
 #include "src/profiler/profiler-listener.h"
 
+#include <algorithm>
+
 #include "src/codegen/reloc-info.h"
 #include "src/codegen/source-position-table.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -15,6 +17,7 @@
 #include "src/objects/string-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
+#include "src/utils/vector.h"
 #include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
@@ -205,7 +208,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->instruction_start();
   rec->entry = new CodeEntry(
-      tag, GetName(name.begin()), CodeEntry::kWasmResourceNamePrefix,
+      tag, GetName(name), CodeEntry::kWasmResourceNamePrefix,
       CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
       nullptr, code->instruction_start(), true);
   rec->instruction_size = code->instructions().length();
@@ -283,6 +286,14 @@ void ProfilerListener::NativeContextMoveEvent(Address from, Address to) {
   evt_rec.NativeContextMoveEventRecord_.from_address = from;
   evt_rec.NativeContextMoveEventRecord_.to_address = to;
   DispatchCodeEvent(evt_rec);
+}
+
+const char* ProfilerListener::GetName(Vector<const char> name) {
+  // TODO(all): Change {StringsStorage} to accept non-null-terminated strings.
+  OwnedVector<char> null_terminated = OwnedVector<char>::New(name.size() + 1);
+  std::copy(name.begin(), name.end(), null_terminated.begin());
+  null_terminated[name.size()] = '\0';
+  return GetName(null_terminated.begin());
 }
 
 Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo info) {

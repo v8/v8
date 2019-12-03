@@ -180,7 +180,7 @@ void WasmCode::LogCode(Isolate* isolate) const {
   ModuleWireBytes wire_bytes(native_module()->wire_bytes());
   WireBytesRef name_ref =
       native_module()->module()->LookupFunctionName(wire_bytes, index());
-  WasmName name_vec = wire_bytes.GetNameOrNull(name_ref);
+  WasmName name = wire_bytes.GetNameOrNull(name_ref);
 
   const std::string& source_map_url = native_module()->module()->source_map_url;
   auto load_wasm_source_map = isolate->wasm_load_source_map_callback();
@@ -195,9 +195,8 @@ void WasmCode::LogCode(Isolate* isolate) const {
   }
 
   std::unique_ptr<char[]> name_buffer;
-  Vector<const char> name;
   if (kind_ == kWasmToJsWrapper) {
-    DCHECK(name_vec.empty());
+    DCHECK(name.empty());
     constexpr size_t kNameBufferLen = 128;
     constexpr size_t kNamePrefixLen = 11;
     name_buffer = std::make_unique<char[]>(kNameBufferLen);
@@ -207,22 +206,8 @@ void WasmCode::LogCode(Isolate* isolate) const {
     FunctionSig* sig = native_module()->module()->functions[index_].sig;
     size_t name_len = kNamePrefixLen + PrintSignature(sig_buf, sig);
     name = VectorOf(name_buffer.get(), name_len);
-  } else if (name_vec.empty()) {
+  } else if (name.empty()) {
     name = CStrVector("<wasm-unnamed>");
-  } else {
-    HandleScope scope(isolate);
-    MaybeHandle<String> maybe_name = isolate->factory()->NewStringFromUtf8(
-        Vector<const char>::cast(name_vec));
-    Handle<String> name_string;
-    if (maybe_name.ToHandle(&name_string)) {
-      int name_len = 0;
-      name_buffer = name_string->ToCString(
-          AllowNullsFlag::DISALLOW_NULLS,
-          RobustnessFlag::ROBUST_STRING_TRAVERSAL, &name_len);
-      name = VectorOf(name_buffer.get(), name_len);
-    } else {
-      name = CStrVector("<name too long>");
-    }
   }
   PROFILE(isolate,
           CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this, name));
