@@ -119,8 +119,16 @@ namespace typed_array {
         const arrayLike: JSReceiver = ToObject_Inline(context, source);
 
         // 10. Let len be ? ToLength(? Get(arrayLike, "length")).
-        finalLength = Convert<uintptr>(GetLengthProperty(arrayLike));
-        finalSource = arrayLike;
+        const length = GetLengthProperty(arrayLike);
+
+        try {
+          finalLength = ChangeSafeIntegerNumberToUintPtr(length)
+              otherwise IfInvalidLength;
+          finalSource = arrayLike;
+        }
+        label IfInvalidLength deferred {
+          ThrowRangeError(kInvalidTypedArrayLength, length);
+        }
       }
       label IteratorNotCallable(_value: JSAny) deferred {
         ThrowTypeError(kIteratorSymbolNonCallable);
