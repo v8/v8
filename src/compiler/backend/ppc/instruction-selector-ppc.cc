@@ -2092,9 +2092,20 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   UNREACHABLE();
 }
 
-void InstructionSelector::VisitI32x4Splat(Node* node) { UNIMPLEMENTED(); }
+#define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                              \
+  void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) { \
+    UNIMPLEMENTED();                                                     \
+  }
+SIMD_VISIT_EXTRACT_LANE(F64x2, )
+SIMD_VISIT_EXTRACT_LANE(F32x4, )
+SIMD_VISIT_EXTRACT_LANE(I32x4, )
+SIMD_VISIT_EXTRACT_LANE(I16x8, U)
+SIMD_VISIT_EXTRACT_LANE(I16x8, S)
+SIMD_VISIT_EXTRACT_LANE(I8x16, U)
+SIMD_VISIT_EXTRACT_LANE(I8x16, S)
+#undef SIMD_VISIT_EXTRACT_LANE
 
-void InstructionSelector::VisitI32x4ExtractLane(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI32x4Splat(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
@@ -2133,8 +2144,6 @@ void InstructionSelector::VisitI32x4GtU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4GeU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8Splat(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8ExtractLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
@@ -2191,8 +2200,6 @@ void InstructionSelector::VisitI16x8GeU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI8x16Neg(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16Splat(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI8x16ExtractLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
@@ -2255,8 +2262,6 @@ void InstructionSelector::VisitF32x4Lt(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Le(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Splat(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4ExtractLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
@@ -2401,8 +2406,6 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitS8x16Swizzle(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF64x2Splat(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
