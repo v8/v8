@@ -679,8 +679,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   uint32_t GetTotalFrameSlotCount() const {
     // TODO(zhin): Temporary for migration from index to offset.
-    return num_locals_ +
-           ((num_used_spill_bytes_ + kStackSlotSize - 1) / kStackSlotSize);
+    return ((num_used_spill_bytes_ + kStackSlotSize - 1) / kStackSlotSize);
   }
 
   uint32_t GetTotalFrameSlotSize() const { return num_used_spill_bytes_; }
