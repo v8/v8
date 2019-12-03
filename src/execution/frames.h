@@ -210,6 +210,7 @@ class StackFrame {
     Type type = this->type();
     return type == WASM_COMPILED || type == WASM_INTERPRETER_ENTRY;
   }
+  bool is_wasm_to_js() const { return type() == WASM_TO_JS; }
 
   // Accessors.
   Address sp() const { return state_.sp; }
