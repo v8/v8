@@ -3097,40 +3097,40 @@ static const ShuffleEntry arch_shuffles[] = {
     {{0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23},
      kX64S64x2UnpackLow,
      true,
-     false},
+     true},
     {{8, 9, 10, 11, 12, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31},
      kX64S64x2UnpackHigh,
      true,
-     false},
+     true},
     {{0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23},
      kX64S32x4UnpackLow,
      true,
-     false},
+     true},
     {{8, 9, 10, 11, 24, 25, 26, 27, 12, 13, 14, 15, 28, 29, 30, 31},
      kX64S32x4UnpackHigh,
      true,
-     false},
+     true},
     {{0, 1, 16, 17, 2, 3, 18, 19, 4, 5, 20, 21, 6, 7, 22, 23},
      kX64S16x8UnpackLow,
      true,
-     false},
+     true},
     {{8, 9, 24, 25, 10, 11, 26, 27, 12, 13, 28, 29, 14, 15, 30, 31},
      kX64S16x8UnpackHigh,
      true,
-     false},
+     true},
     {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23},
      kX64S8x16UnpackLow,
      true,
-     false},
+     true},
     {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31},
      kX64S8x16UnpackHigh,
      true,
-     false},
+     true},
 
     {{0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29},
      kX64S16x8UnzipLow,
      true,
-     false},
+     true},
     {{2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31},
      kX64S16x8UnzipHigh,
      true,
@@ -3228,7 +3228,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
     src0_needs_reg = arch_shuffle->src0_needs_reg;
     // SSE can't take advantage of both operands in registers and needs
     // same-as-first.
-    src1_needs_reg = false;
+    src1_needs_reg = arch_shuffle->src1_needs_reg;
     no_same_as_first = false;
   } else if (TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
     uint8_t shuffle_mask = PackShuffle4(shuffle32x4);
