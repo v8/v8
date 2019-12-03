@@ -404,7 +404,7 @@ class LiftoffAssembler : public TurboAssembler {
   // which can later be patched (via {PatchPrepareStackFrame)} when the size of
   // the frame is known.
   inline int PrepareStackFrame();
-  inline void PatchPrepareStackFrame(int offset, uint32_t stack_slots);
+  inline void PatchPrepareStackFrame(int offset, uint32_t spill_size);
   inline void FinishCode();
   inline void AbortCompilation();
 
@@ -682,6 +682,8 @@ class LiftoffAssembler : public TurboAssembler {
     return num_locals_ +
            ((num_used_spill_bytes_ + kStackSlotSize - 1) / kStackSlotSize);
   }
+
+  uint32_t GetTotalFrameSlotSize() const { return num_used_spill_bytes_; }
 
   ValueType local_type(uint32_t index) {
     DCHECK_GT(num_locals_, index);

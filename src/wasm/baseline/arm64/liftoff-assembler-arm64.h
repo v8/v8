@@ -120,11 +120,10 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset,
-                                              uint32_t stack_slots) {
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, uint32_t spill_size) {
   static_assert(kStackSlotSize == kXRegSize,
                 "kStackSlotSize must equal kXRegSize");
-  uint32_t bytes = liftoff::kConstantStackSpace + kStackSlotSize * stack_slots;
+  uint32_t bytes = liftoff::kConstantStackSpace + spill_size;
   // The stack pointer is required to be quadword aligned.
   // Misalignment will cause a stack alignment fault.
   bytes = RoundUp(bytes, kQuadWordSizeInBytes);

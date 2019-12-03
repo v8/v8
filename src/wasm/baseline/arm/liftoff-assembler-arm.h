@@ -242,10 +242,9 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset,
-                                              uint32_t stack_slots) {
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, uint32_t spill_size) {
   // Allocate space for instance plus what is needed for the frame slots.
-  uint32_t bytes = liftoff::kConstantStackSpace + kStackSlotSize * stack_slots;
+  uint32_t bytes = liftoff::kConstantStackSpace + spill_size;
 #ifdef USE_SIMULATOR
   // When using the simulator, deal with Liftoff which allocates the stack
   // before checking it.

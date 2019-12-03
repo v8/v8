@@ -153,9 +153,8 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset,
-                                              uint32_t stack_slots) {
-  uint32_t bytes = liftoff::kConstantStackSpace + kStackSlotSize * stack_slots;
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, uint32_t spill_size) {
+  uint32_t bytes = liftoff::kConstantStackSpace + spill_size;
   DCHECK_LE(bytes, kMaxInt);
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.

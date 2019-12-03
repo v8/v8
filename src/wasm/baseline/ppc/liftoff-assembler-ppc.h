@@ -56,8 +56,7 @@ int LiftoffAssembler::PrepareStackFrame() {
   return 0;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset,
-                                              uint32_t stack_slots) {
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, uint32_t spill_size) {
   bailout(kUnsupportedArchitecture, "PatchPrepareStackFrame");
 }
 

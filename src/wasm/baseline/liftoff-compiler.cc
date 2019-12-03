@@ -349,7 +349,8 @@ class LiftoffCompiler {
     int num_locals = decoder->num_locals();
     __ set_num_locals(num_locals);
     for (int i = 0; i < num_locals; ++i) {
-      __ set_local_type(i, decoder->GetLocalType(i));
+      ValueType type = decoder->GetLocalType(i);
+      __ set_local_type(i, type);
     }
   }
 
@@ -549,7 +550,7 @@ class LiftoffCompiler {
       GenerateOutOfLineCode(&ool);
     }
     __ PatchPrepareStackFrame(pc_offset_stack_frame_construction_,
-                              __ GetTotalFrameSlotCount());
+                              __ GetTotalFrameSlotSize());
     __ FinishCode();
     safepoint_table_builder_.Emit(&asm_, __ GetTotalFrameSlotCount());
     __ MaybeEmitOutOfLineConstantPool();
