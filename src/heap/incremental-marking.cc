@@ -44,12 +44,12 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
   incremental_marking_->EnsureBlackAllocated(addr, size);
 }
 
-IncrementalMarking::IncrementalMarking(
-    Heap* heap, MarkCompactCollector::MarkingWorklist* marking_worklist,
-    WeakObjects* weak_objects)
+IncrementalMarking::IncrementalMarking(Heap* heap,
+                                       MarkingWorklists* marking_worklists,
+                                       WeakObjects* weak_objects)
     : heap_(heap),
       collector_(heap->mark_compact_collector()),
-      marking_worklist_(marking_worklist),
+      marking_worklists_(marking_worklists),
       weak_objects_(weak_objects),
       initial_old_generation_size_(0),
       bytes_marked_(0),
@@ -64,7 +64,7 @@ IncrementalMarking::IncrementalMarking(
       request_type_(NONE),
       new_generation_observer_(this, kYoungGenerationAllocatedThreshold),
       old_generation_observer_(this, kOldGenerationAllocatedThreshold) {
-  DCHECK_NOT_NULL(marking_worklist_);
+  DCHECK_NOT_NULL(marking_worklists_);
   SetState(STOPPED);
 }
 
@@ -520,64 +520,68 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
   void* minor_marking_state = nullptr;
 #endif  // ENABLE_MINOR_MC
 
-  marking_worklist()->Update([
+  collector_->marking_worklists_holder()->Update(
+      [
 #ifdef DEBUG
-                                 // this is referred inside DCHECK.
-                                 this,
+          // this is referred inside DCHECK.
+          this,
 #endif
-                                 filler_map, minor_marking_state](
-                                 HeapObject obj, HeapObject* out) -> bool {
-    DCHECK(obj.IsHeapObject());
-    // Only pointers to from space have to be updated.
-    if (Heap::InFromPage(obj)) {
-      MapWord map_word = obj.map_word();
-      if (!map_word.IsForwardingAddress()) {
-        // There may be objects on the marking deque that do not exist anymore,
-        // e.g. left trimmed objects or objects from the root set (frames).
-        // If these object are dead at scavenging time, their marking deque
-        // entries will not point to forwarding addresses. Hence, we can discard
-        // them.
-        return false;
-      }
-      HeapObject dest = map_word.ToForwardingAddress();
-      DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj.IsFreeSpaceOrFiller());
-      *out = dest;
-      return true;
-    } else if (Heap::InToPage(obj)) {
-      // The object may be on a large page or on a page that was moved in new
-      // space.
-      DCHECK(Heap::IsLargeObject(obj) ||
-             Page::FromHeapObject(obj)->IsFlagSet(Page::SWEEP_TO_ITERATE));
+          filler_map,
+          minor_marking_state](HeapObject obj, HeapObject* out) -> bool {
+        DCHECK(obj.IsHeapObject());
+        // Only pointers to from space have to be updated.
+        if (Heap::InFromPage(obj)) {
+          MapWord map_word = obj.map_word();
+          if (!map_word.IsForwardingAddress()) {
+            // There may be objects on the marking deque that do not exist
+            // anymore, e.g. left trimmed objects or objects from the root set
+            // (frames). If these object are dead at scavenging time, their
+            // marking deque entries will not point to forwarding addresses.
+            // Hence, we can discard them.
+            return false;
+          }
+          HeapObject dest = map_word.ToForwardingAddress();
+          DCHECK_IMPLIES(marking_state()->IsWhite(obj),
+                         obj.IsFreeSpaceOrFiller());
+          *out = dest;
+          return true;
+        } else if (Heap::InToPage(obj)) {
+          // The object may be on a large page or on a page that was moved in
+          // new space.
+          DCHECK(Heap::IsLargeObject(obj) ||
+                 Page::FromHeapObject(obj)->IsFlagSet(Page::SWEEP_TO_ITERATE));
 #ifdef ENABLE_MINOR_MC
-      if (minor_marking_state->IsWhite(obj)) {
-        return false;
-      }
+          if (minor_marking_state->IsWhite(obj)) {
+            return false;
+          }
 #endif  // ENABLE_MINOR_MC
-      // Either a large object or an object marked by the minor mark-compactor.
-      *out = obj;
-      return true;
-    } else {
-      // The object may be on a page that was moved from new to old space. Only
-      // applicable during minor MC garbage collections.
-      if (Page::FromHeapObject(obj)->IsFlagSet(Page::SWEEP_TO_ITERATE)) {
+        // Either a large object or an object marked by the minor
+        // mark-compactor.
+          *out = obj;
+          return true;
+        } else {
+          // The object may be on a page that was moved from new to old space.
+          // Only applicable during minor MC garbage collections.
+          if (Page::FromHeapObject(obj)->IsFlagSet(Page::SWEEP_TO_ITERATE)) {
 #ifdef ENABLE_MINOR_MC
-        if (minor_marking_state->IsWhite(obj)) {
+            if (minor_marking_state->IsWhite(obj)) {
+              return false;
+            }
+#endif  // ENABLE_MINOR_MC
+            *out = obj;
+            return true;
+          }
+          DCHECK_IMPLIES(marking_state()->IsWhite(obj),
+                         obj.IsFreeSpaceOrFiller());
+          // Skip one word filler objects that appear on the
+          // stack when we perform in place array shift.
+          if (obj.map() != filler_map) {
+            *out = obj;
+            return true;
+          }
           return false;
         }
-#endif  // ENABLE_MINOR_MC
-        *out = obj;
-        return true;
-      }
-      DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj.IsFreeSpaceOrFiller());
-      // Skip one word filler objects that appear on the
-      // stack when we perform in place array shift.
-      if (obj.map() != filler_map) {
-        *out = obj;
-        return true;
-      }
-      return false;
-    }
-  });
+      });
 
   UpdateWeakReferencesAfterScavenge();
 }
@@ -690,7 +694,7 @@ StepResult IncrementalMarking::EmbedderStep(double duration_ms) {
       HeapObject object;
       size_t cnt = 0;
       empty_worklist = true;
-      while (marking_worklist()->embedder()->Pop(0, &object)) {
+      while (marking_worklists()->PopEmbedder(&object)) {
         scope.TracePossibleWrapper(JSObject::cast(object));
         if (++cnt == kObjectsToProcessBeforeInterrupt) {
           cnt = 0;
@@ -713,7 +717,7 @@ void IncrementalMarking::Hurry() {
   // forced e.g. in tests. It should not happen when COMPLETE was set when
   // incremental marking finished and a regular GC was triggered after that
   // because should_hurry_ will force a full GC.
-  if (!marking_worklist()->IsEmpty()) {
+  if (!marking_worklists()->IsEmpty()) {
     double start = 0.0;
     if (FLAG_trace_incremental_marking) {
       start = heap_->MonotonicallyIncreasingTimeInMs();
@@ -1032,15 +1036,14 @@ StepResult IncrementalMarking::V8Step(double max_step_size_in_ms,
       // It is safe to merge back all objects that were on hold to the shared
       // work list at Step because we are at a safepoint where all objects
       // are properly initialized.
-      marking_worklist()->shared()->MergeGlobalPool(
-          marking_worklist()->on_hold());
+      marking_worklists()->MergeOnHold();
     }
 
 // Only print marking worklist in debug mode to save ~40KB of code size.
 #ifdef DEBUG
     if (FLAG_trace_incremental_marking && FLAG_trace_concurrent_marking &&
         FLAG_trace_gc_verbose) {
-      marking_worklist()->Print();
+      collector_->marking_worklists_holder()->Print();
     }
 #endif
     if (FLAG_trace_incremental_marking) {
@@ -1063,7 +1066,7 @@ StepResult IncrementalMarking::V8Step(double max_step_size_in_ms,
 
     bytes_marked_ += bytes_processed;
 
-    if (marking_worklist()->IsEmpty()) {
+    if (marking_worklists()->IsEmpty()) {
       result = StepResult::kNoImmediateWork;
       if (heap_->local_embedder_heap_tracer()
               ->ShouldFinalizeIncrementalMarking()) {
@@ -1082,7 +1085,7 @@ StepResult IncrementalMarking::V8Step(double max_step_size_in_ms,
     }
   }
   if (FLAG_concurrent_marking) {
-    marking_worklist()->ShareWorkIfGlobalPoolIsEmpty();
+    marking_worklists()->ShareWorkIfGlobalPoolIsEmpty();
     heap_->concurrent_marking()->RescheduleTasksIfNeeded();
   }
 

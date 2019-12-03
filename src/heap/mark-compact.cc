@@ -429,7 +429,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       compacting_(false),
       black_allocation_(false),
       have_code_to_deoptimize_(false),
-      marking_worklist_(heap),
+      marking_worklists_(kMainThreadTask, marking_worklists_holder()),
       sweeper_(new Sweeper(heap, non_atomic_marking_state())) {
   old_to_new_slots_ = -1;
 }
@@ -447,7 +447,7 @@ void MarkCompactCollector::TearDown() {
   AbortCompaction();
   AbortWeakObjects();
   if (heap()->incremental_marking()->IsMarking()) {
-    marking_worklist()->Clear();
+    marking_worklists_holder()->Clear();
   }
 }
 
@@ -500,8 +500,7 @@ bool MarkCompactCollector::StartCompaction() {
 
 void MarkCompactCollector::StartMarking() {
   marking_visitor_ = std::make_unique<MarkingVisitor>(
-      marking_state(), marking_worklist()->shared(),
-      marking_worklist()->embedder(), weak_objects(), heap_, epoch(),
+      marking_state(), marking_worklists(), weak_objects(), heap_, epoch(),
       Heap::GetBytecodeFlushMode(),
       heap_->local_embedder_heap_tracer()->InUse(),
       heap_->is_current_gc_forced());
@@ -857,7 +856,7 @@ void MarkCompactCollector::FinishConcurrentMarking(
 }
 
 void MarkCompactCollector::VerifyMarking() {
-  CHECK(marking_worklist()->IsEmpty());
+  CHECK(marking_worklists()->IsEmpty());
   DCHECK(heap_->incremental_marking()->IsStopped());
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -1614,14 +1613,14 @@ void MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
     CHECK(weak_objects_.current_ephemerons.IsEmpty());
     CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
 
-    work_to_do = work_to_do || !marking_worklist()->IsEmpty() ||
+    work_to_do = work_to_do || !marking_worklists()->IsEmpty() ||
                  heap()->concurrent_marking()->ephemeron_marked() ||
-                 !marking_worklist()->IsEmbedderEmpty() ||
+                 !marking_worklists()->IsEmbedderEmpty() ||
                  !heap()->local_embedder_heap_tracer()->IsRemoteTracingDone();
     ++iterations;
   }
 
-  CHECK(marking_worklist()->IsEmpty());
+  CHECK(marking_worklists()->IsEmpty());
   CHECK(weak_objects_.current_ephemerons.IsEmpty());
   CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
 }
@@ -1710,7 +1709,7 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
       weak_objects_.next_ephemerons.Iterate([&](Ephemeron ephemeron) {
         if (non_atomic_marking_state()->IsBlackOrGrey(ephemeron.key) &&
             non_atomic_marking_state()->WhiteToGrey(ephemeron.value)) {
-          marking_worklist()->Push(ephemeron.value);
+          marking_worklists()->Push(ephemeron.value);
         }
       });
 
@@ -1731,8 +1730,8 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
     // for work_to_do are not sufficient for determining if another iteration
     // is necessary.
 
-    work_to_do = !marking_worklist()->IsEmpty() ||
-                 !marking_worklist()->IsEmbedderEmpty() ||
+    work_to_do = !marking_worklists()->IsEmpty() ||
+                 !marking_worklists()->IsEmbedderEmpty() ||
                  !heap()->local_embedder_heap_tracer()->IsRemoteTracingDone();
     CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
   }
@@ -1740,7 +1739,7 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
   ResetNewlyDiscovered();
   ephemeron_marking_.newly_discovered.shrink_to_fit();
 
-  CHECK(marking_worklist()->IsEmpty());
+  CHECK(marking_worklists()->IsEmpty());
 }
 
 void MarkCompactCollector::PerformWrapperTracing() {
@@ -1750,7 +1749,7 @@ void MarkCompactCollector::PerformWrapperTracing() {
       LocalEmbedderHeapTracer::ProcessingScope scope(
           heap_->local_embedder_heap_tracer());
       HeapObject object;
-      while (marking_worklist()->embedder()->Pop(kMainThreadTask, &object)) {
+      while (marking_worklists()->PopEmbedder(&object)) {
         scope.TracePossibleWrapper(JSObject::cast(object));
       }
     }
@@ -1765,7 +1764,8 @@ template <MarkCompactCollector::MarkingWorklistProcessingMode mode>
 size_t MarkCompactCollector::ProcessMarkingWorklist(size_t bytes_to_process) {
   HeapObject object;
   size_t bytes_processed = 0;
-  while (!(object = marking_worklist()->Pop()).is_null()) {
+  while (marking_worklists()->Pop(&object) ||
+         marking_worklists()->PopOnHold(&object)) {
     // Left trimming may result in grey or black filler objects on the marking
     // worklist. Ignore these objects.
     if (object.IsFreeSpaceOrFiller()) {
@@ -1807,7 +1807,7 @@ template size_t MarkCompactCollector::ProcessMarkingWorklist<
 bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
   if (marking_state()->IsBlackOrGrey(key)) {
     if (marking_state()->WhiteToGrey(value)) {
-      marking_worklist()->Push(value);
+      marking_worklists()->Push(value);
       return true;
     }
 
@@ -1819,7 +1819,7 @@ bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
 }
 
 void MarkCompactCollector::ProcessEphemeronMarking() {
-  DCHECK(marking_worklist()->IsEmpty());
+  DCHECK(marking_worklists()->IsEmpty());
 
   // Incremental marking might leave ephemerons in main task's local
   // buffer, flush it into global pool.
@@ -1827,7 +1827,7 @@ void MarkCompactCollector::ProcessEphemeronMarking() {
 
   ProcessEphemeronsUntilFixpoint();
 
-  CHECK(marking_worklist()->IsEmpty());
+  CHECK(marking_worklists()->IsEmpty());
   CHECK(heap()->local_embedder_heap_tracer()->IsRemoteTracingDone());
 }
 
@@ -1919,7 +1919,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE);
 
-    DCHECK(marking_worklist()->IsEmpty());
+    DCHECK(marking_worklists()->IsEmpty());
 
     // Mark objects reachable through the embedder heap. This phase is
     // opportunistic as it may not discover graphs that are only reachable
@@ -1934,9 +1934,9 @@ void MarkCompactCollector::MarkLiveObjects() {
         PerformWrapperTracing();
         DrainMarkingWorklist();
       } while (!heap_->local_embedder_heap_tracer()->IsRemoteTracingDone() ||
-               !marking_worklist()->IsEmbedderEmpty());
-      DCHECK(marking_worklist()->IsEmbedderEmpty());
-      DCHECK(marking_worklist()->IsEmpty());
+               !marking_worklists()->IsEmbedderEmpty());
+      DCHECK(marking_worklists()->IsEmbedderEmpty());
+      DCHECK(marking_worklists()->IsEmpty());
     }
 
     // The objects reachable from the roots are marked, yet unreachable objects
@@ -1946,7 +1946,7 @@ void MarkCompactCollector::MarkLiveObjects() {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON);
       ProcessEphemeronMarking();
-      DCHECK(marking_worklist()->IsEmpty());
+      DCHECK(marking_worklists()->IsEmpty());
     }
 
     // The objects reachable from the roots, weak maps, and embedder heap
@@ -1978,8 +1978,8 @@ void MarkCompactCollector::MarkLiveObjects() {
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_HARMONY);
       ProcessEphemeronMarking();
-      DCHECK(marking_worklist()->IsEmbedderEmpty());
-      DCHECK(marking_worklist()->IsEmpty());
+      DCHECK(marking_worklists()->IsEmbedderEmpty());
+      DCHECK(marking_worklists()->IsEmpty());
     }
 
     {
@@ -4007,31 +4007,6 @@ void MarkCompactCollector::StartSweepSpaces() {
       StartSweepSpace(heap()->map_space());
     }
     sweeper()->StartSweeping();
-  }
-}
-
-void MarkCompactCollector::MarkingWorklist::PrintWorklist(
-    const char* worklist_name, ConcurrentMarkingWorklist* worklist) {
-  std::map<InstanceType, int> count;
-  int total_count = 0;
-  worklist->IterateGlobalPool([&count, &total_count](HeapObject obj) {
-    ++total_count;
-    count[obj.map().instance_type()]++;
-  });
-  std::vector<std::pair<int, InstanceType>> rank;
-  rank.reserve(count.size());
-  for (const auto& i : count) {
-    rank.emplace_back(i.second, i.first);
-  }
-  std::map<InstanceType, std::string> instance_type_name;
-#define INSTANCE_TYPE_NAME(name) instance_type_name[name] = #name;
-  INSTANCE_TYPE_LIST(INSTANCE_TYPE_NAME)
-#undef INSTANCE_TYPE_NAME
-  std::sort(rank.begin(), rank.end(),
-            std::greater<std::pair<int, InstanceType>>());
-  PrintF("Worklist %s: %d\n", worklist_name, total_count);
-  for (auto i : rank) {
-    PrintF("  [%s]: %d\n", instance_type_name[i.second].c_str(), i.first);
   }
 }
 

@@ -3327,11 +3327,11 @@ void Heap::FinalizeIncrementalMarkingIfComplete(
   if (incremental_marking()->IsMarking() &&
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
        (!incremental_marking()->finalize_marking_completed() &&
-        mark_compact_collector()->marking_worklist()->IsEmpty() &&
+        mark_compact_collector()->marking_worklists()->IsEmpty() &&
         local_embedder_heap_tracer()->ShouldFinalizeIncrementalMarking()))) {
     FinalizeIncrementalMarkingIncrementally(gc_reason);
   } else if (incremental_marking()->IsComplete() ||
-             (mark_compact_collector()->marking_worklist()->IsEmpty() &&
+             (mark_compact_collector()->marking_worklists()->IsEmpty() &&
               local_embedder_heap_tracer()
                   ->ShouldFinalizeIncrementalMarking())) {
     CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
@@ -5030,18 +5030,15 @@ void Heap::SetUp() {
   scavenger_collector_.reset(new ScavengerCollector(this));
 
   incremental_marking_.reset(
-      new IncrementalMarking(this, mark_compact_collector_->marking_worklist(),
+      new IncrementalMarking(this, mark_compact_collector_->marking_worklists(),
                              mark_compact_collector_->weak_objects()));
 
   if (FLAG_concurrent_marking || FLAG_parallel_marking) {
-    MarkCompactCollector::MarkingWorklist* marking_worklist =
-        mark_compact_collector_->marking_worklist();
     concurrent_marking_.reset(new ConcurrentMarking(
-        this, marking_worklist->shared(), marking_worklist->on_hold(),
-        marking_worklist->embedder(), mark_compact_collector_->weak_objects()));
+        this, mark_compact_collector_->marking_worklists_holder(),
+        mark_compact_collector_->weak_objects()));
   } else {
-    concurrent_marking_.reset(
-        new ConcurrentMarking(this, nullptr, nullptr, nullptr, nullptr));
+    concurrent_marking_.reset(new ConcurrentMarking(this, nullptr, nullptr));
   }
 
   for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {

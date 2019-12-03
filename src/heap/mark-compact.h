@@ -10,6 +10,7 @@
 
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/marking-visitor.h"
+#include "src/heap/marking-worklist.h"
 #include "src/heap/marking.h"
 #include "src/heap/spaces.h"
 #include "src/heap/sweeper.h"
@@ -355,9 +356,6 @@ class MajorNonAtomicMarkingState final
   }
 };
 
-// The index of the main thread task used by concurrent/parallel GC.
-const int kMainThreadTask = 0;
-
 // This visitor is used for marking on the main thread. It is cheaper than
 // the concurrent marking visitor because it does not snapshot JSObjects.
 template <typename MarkingState>
@@ -382,16 +380,15 @@ class MainMarkingVisitor final
   };
 
   MainMarkingVisitor(MarkingState* marking_state,
-                     MarkingWorklist* marking_worklist,
-                     EmbedderTracingWorklist* embedder_worklist,
+                     MarkingWorklists* marking_worklists,
                      WeakObjects* weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
                      BytecodeFlushMode bytecode_flush_mode,
                      bool embedder_tracing_enabled, bool is_forced_gc)
       : MarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
-            kMainThreadTask, marking_worklist, embedder_worklist, weak_objects,
-            heap, mark_compact_epoch, bytecode_flush_mode,
-            embedder_tracing_enabled, is_forced_gc),
+            kMainThreadTask, marking_worklists, weak_objects, heap,
+            mark_compact_epoch, bytecode_flush_mode, embedder_tracing_enabled,
+            is_forced_gc),
         marking_state_(marking_state),
         revisiting_object_(false) {}
 
@@ -450,101 +447,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   using NonAtomicMarkingState = MajorNonAtomicMarkingState;
 
   using MarkingVisitor = MainMarkingVisitor<MarkingState>;
-
-  // Wrapper for the shared worklist.
-  class MarkingWorklist {
-   public:
-    using ConcurrentMarkingWorklist = Worklist<HeapObject, 64>;
-    using EmbedderTracingWorklist = Worklist<HeapObject, 16>;
-
-    // The heap parameter is not used but needed to match the sequential case.
-    explicit MarkingWorklist(Heap* heap) {}
-
-    void Push(HeapObject object) {
-      bool success = shared_.Push(kMainThreadTask, object);
-      USE(success);
-      DCHECK(success);
-    }
-
-    HeapObject Pop() {
-      HeapObject result;
-      if (shared_.Pop(kMainThreadTask, &result)) return result;
-#ifdef V8_CONCURRENT_MARKING
-      // The expectation is that this work list is empty almost all the time
-      // and we can thus avoid the emptiness checks by putting it last.
-      if (on_hold_.Pop(kMainThreadTask, &result)) return result;
-#endif
-      return HeapObject();
-    }
-
-    void Clear() {
-      shared_.Clear();
-      on_hold_.Clear();
-      embedder_.Clear();
-    }
-
-    bool IsEmpty() {
-      return shared_.IsLocalEmpty(kMainThreadTask) &&
-             on_hold_.IsLocalEmpty(kMainThreadTask) &&
-             shared_.IsGlobalPoolEmpty() && on_hold_.IsGlobalPoolEmpty();
-    }
-
-    bool IsEmbedderEmpty() {
-      return embedder_.IsLocalEmpty(kMainThreadTask) &&
-             embedder_.IsGlobalPoolEmpty();
-    }
-
-    int Size() {
-      return static_cast<int>(shared_.LocalSize(kMainThreadTask) +
-                              on_hold_.LocalSize(kMainThreadTask));
-    }
-
-    // Calls the specified callback on each element of the deques and replaces
-    // the element with the result of the callback. If the callback returns
-    // nullptr then the element is removed from the deque.
-    // The callback must accept HeapObject and return HeapObject.
-    template <typename Callback>
-    void Update(Callback callback) {
-      shared_.Update(callback);
-      on_hold_.Update(callback);
-      embedder_.Update(callback);
-    }
-
-    void ShareWorkIfGlobalPoolIsEmpty() {
-      if (!shared_.IsLocalEmpty(kMainThreadTask) &&
-          shared_.IsGlobalPoolEmpty()) {
-        shared_.FlushToGlobal(kMainThreadTask);
-      }
-    }
-
-    ConcurrentMarkingWorklist* shared() { return &shared_; }
-    ConcurrentMarkingWorklist* on_hold() { return &on_hold_; }
-    EmbedderTracingWorklist* embedder() { return &embedder_; }
-
-    void Print() {
-      PrintWorklist("shared", &shared_);
-      PrintWorklist("on_hold", &on_hold_);
-    }
-
-   private:
-    // Prints the stats about the global pool of the worklist.
-    void PrintWorklist(const char* worklist_name,
-                       ConcurrentMarkingWorklist* worklist);
-
-    // Worklist used for most objects.
-    ConcurrentMarkingWorklist shared_;
-
-    // Concurrent marking uses this worklist to bail out of marking objects
-    // in new space's linear allocation area. Used to avoid black allocation
-    // for new space. This allow the compiler to remove write barriers
-    // for freshly allocatd objects.
-    ConcurrentMarkingWorklist on_hold_;
-
-    // Worklist for objects that potentially require embedder tracing, i.e.,
-    // these objects need to be handed over to the embedder to find the full
-    // transitive closure.
-    EmbedderTracingWorklist embedder_;
-  };
 
   class RootMarkingVisitor;
   class CustomRootBodyMarkingVisitor;
@@ -628,7 +530,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   bool evacuation() const { return evacuation_; }
 
-  MarkingWorklist* marking_worklist() { return &marking_worklist_; }
+  MarkingWorklistsHolder* marking_worklists_holder() {
+    return &marking_worklists_holder_;
+  }
+  MarkingWorklists* marking_worklists() { return &marking_worklists_; }
 
   WeakObjects* weak_objects() { return &weak_objects_; }
 
@@ -858,7 +763,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   bool have_code_to_deoptimize_;
 
-  MarkingWorklist marking_worklist_;
+  MarkingWorklistsHolder marking_worklists_holder_;
+  MarkingWorklists marking_worklists_;
+
   WeakObjects weak_objects_;
   EphemeronMarking ephemeron_marking_;
 

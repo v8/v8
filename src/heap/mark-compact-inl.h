@@ -23,7 +23,7 @@ namespace internal {
 
 void MarkCompactCollector::MarkObject(HeapObject host, HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
-    marking_worklist()->Push(obj);
+    marking_worklists()->Push(obj);
     if (V8_UNLIKELY(FLAG_track_retaining_path)) {
       heap_->AddRetainer(host, obj);
     }
@@ -32,7 +32,7 @@ void MarkCompactCollector::MarkObject(HeapObject host, HeapObject obj) {
 
 void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
-    marking_worklist()->Push(obj);
+    marking_worklists()->Push(obj);
     if (V8_UNLIKELY(FLAG_track_retaining_path)) {
       heap_->AddRetainingRoot(root, obj);
     }
@@ -52,7 +52,7 @@ void MinorMarkCompactCollector::MarkRootObject(HeapObject obj) {
 
 void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
-    marking_worklist()->Push(obj);
+    marking_worklists()->Push(obj);
     if (V8_UNLIKELY(FLAG_track_retaining_path)) {
       heap_->AddRetainingRoot(Root::kWrapperTracing, obj);
     }

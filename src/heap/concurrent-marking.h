@@ -12,6 +12,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/heap/marking-visitor.h"
+#include "src/heap/marking-worklist.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
 #include "src/heap/worklist.h"
@@ -67,9 +68,8 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   // task 0, reserved for the main thread).
   static constexpr int kMaxTasks = 7;
 
-  ConcurrentMarking(Heap* heap, MarkingWorklist* marking_worklist,
-                    MarkingWorklist* on_hold,
-                    EmbedderTracingWorklist* embedder_worklist,
+  ConcurrentMarking(Heap* heap,
+                    MarkingWorklistsHolder* marking_worklists_holder,
                     WeakObjects* weak_objects);
 
   // Schedules asynchronous tasks to perform concurrent marking. Objects in the
@@ -112,9 +112,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   class Task;
   void Run(int task_id, TaskState* task_state);
   Heap* const heap_;
-  MarkingWorklist* const marking_worklist_;
-  MarkingWorklist* const on_hold_;
-  EmbedderTracingWorklist* const embedder_worklist_;
+  MarkingWorklistsHolder* const marking_worklists_holder_;
   WeakObjects* const weak_objects_;
   TaskState task_state_[kMaxTasks + 1];
   std::atomic<size_t> total_marked_bytes_{0};

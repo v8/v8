@@ -2271,8 +2271,10 @@ TEST(IdleNotificationFinishMarking) {
   do {
     marking->V8Step(kStepSizeInMs, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                     StepOrigin::kV8);
-  } while (
-      !CcTest::heap()->mark_compact_collector()->marking_worklist()->IsEmpty());
+  } while (!CcTest::heap()
+                ->mark_compact_collector()
+                ->marking_worklists()
+                ->IsEmpty());
 
   marking->SetWeakClosureWasOverApproximatedForTesting(true);
 
