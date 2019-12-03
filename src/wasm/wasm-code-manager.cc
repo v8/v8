@@ -196,15 +196,23 @@ void WasmCode::LogCode(Isolate* isolate) const {
 
   std::unique_ptr<char[]> name_buffer;
   if (kind_ == kWasmToJsWrapper) {
-    DCHECK(name.empty());
     constexpr size_t kNameBufferLen = 128;
     constexpr size_t kNamePrefixLen = 11;
     name_buffer = std::make_unique<char[]>(kNameBufferLen);
     memcpy(name_buffer.get(), "wasm-to-js:", kNamePrefixLen);
-    Vector<char> sig_buf =
+    Vector<char> remaining_buf =
         VectorOf(name_buffer.get(), kNameBufferLen) + kNamePrefixLen;
     FunctionSig* sig = native_module()->module()->functions[index_].sig;
-    size_t name_len = kNamePrefixLen + PrintSignature(sig_buf, sig);
+    remaining_buf += PrintSignature(remaining_buf, sig);
+    // If the import has a name, also append that (separated by "-").
+    if (!name.empty() && remaining_buf.length() > 1) {
+      remaining_buf[0] = '-';
+      remaining_buf += 1;
+      size_t suffix_len = std::min(name.size(), remaining_buf.size());
+      memcpy(remaining_buf.begin(), name.begin(), suffix_len);
+      remaining_buf += suffix_len;
+    }
+    size_t name_len = remaining_buf.begin() - name_buffer.get();
     name = VectorOf(name_buffer.get(), name_len);
   } else if (name.empty()) {
     name = CStrVector("<wasm-unnamed>");
