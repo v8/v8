@@ -1034,6 +1034,10 @@ i::Address* V8::GlobalizeTracedReference(i::Isolate* isolate, i::Address* obj,
                                          internal::Address* slot,
                                          bool has_destructor) {
   LOG_API(isolate, TracedGlobal, New);
+#ifdef DEBUG
+  Utils::ApiCheck((slot != nullptr), "v8::GlobalizeTracedReference",
+                  "the address slot must be not null");
+#endif
   i::Handle<i::Object> result =
       isolate->global_handles()->CreateTraced(*obj, slot, has_destructor);
 #ifdef VERIFY_HEAP
