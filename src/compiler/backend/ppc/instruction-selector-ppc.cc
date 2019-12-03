@@ -2440,6 +2440,9 @@ void InstructionSelector::VisitI64x2ShrS(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI64x2ShrU(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitF64x2Min(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Max(Node* node) { UNIMPLEMENTED(); }
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
