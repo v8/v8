@@ -148,6 +148,7 @@ class Hints {
   void Add(Hints const& other, Zone* zone);
 
  private:
+  friend std::ostream& operator<<(std::ostream&, const Hints& hints);
   HintsImpl* impl_ = nullptr;
 
   void EnsureAllocated(Zone* zone, bool check_zone_equality = true);

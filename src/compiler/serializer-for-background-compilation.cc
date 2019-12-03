@@ -754,6 +754,7 @@ std::ostream& operator<<(std::ostream& out,
 }
 
 std::ostream& operator<<(std::ostream& out, const Hints& hints) {
+  out << "(impl_ = " << hints.impl_ << ")\n";
   for (Handle<Object> constant : hints.constants()) {
     out << "  constant " << Brief(*constant) << std::endl;
   }
@@ -960,15 +961,15 @@ std::ostream& operator<<(
       if (!hints.IsEmpty()) {
         if (i < env.parameter_count()) {
           if (i == 0) {
-            output_stream << "Hints for <this>:\n";
+            output_stream << "Hints for <this>: ";
           } else {
-            output_stream << "Hints for a" << i - 1 << ":\n";
+            output_stream << "Hints for a" << i - 1 << ": ";
           }
         } else if (i < env.parameter_count() + env.register_count()) {
           int local_register = i - env.parameter_count();
-          output_stream << "Hints for r" << local_register << ":\n";
+          output_stream << "Hints for r" << local_register << ": ";
         } else if (i == env.accumulator_index()) {
-          output_stream << "Hints for <accumulator>:\n";
+          output_stream << "Hints for <accumulator>: ";
         } else {
           UNREACHABLE();
         }
@@ -978,10 +979,10 @@ std::ostream& operator<<(
   }
 
   if (!env.closure_hints().IsEmpty()) {
-    output_stream << "Hints for <closure>:\n" << env.closure_hints();
+    output_stream << "Hints for <closure>: " << env.closure_hints();
   }
   if (!env.current_context_hints().IsEmpty()) {
-    output_stream << "Hints for <context>:\n" << env.current_context_hints();
+    output_stream << "Hints for <context>: " << env.current_context_hints();
   }
 
   out << output_stream.str();
@@ -1098,7 +1099,7 @@ Hints SerializerForBackgroundCompilation::Run() {
   if (return_value_hints().IsEmpty()) {
     TRACE_BROKER(broker(), "Return value hints: none");
   } else {
-    TRACE_BROKER(broker(), "Return value hints:\n  " << return_value_hints());
+    TRACE_BROKER(broker(), "Return value hints: " << return_value_hints());
   }
   TRACE_BROKER_MEMORY(broker(), "[serializer end] Broker zone usage: "
                                     << broker()->zone()->allocation_size());
