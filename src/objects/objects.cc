@@ -8085,52 +8085,5 @@ Maybe<bool> JSFinalizationGroup::Cleanup(
   return Just(true);
 }
 
-MaybeHandle<FixedArray> JSReceiver::GetPrivateEntries(
-    Isolate* isolate, Handle<JSReceiver> receiver) {
-  PropertyFilter key_filter = static_cast<PropertyFilter>(PRIVATE_NAMES_ONLY);
-
-  Handle<FixedArray> keys;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, keys,
-      KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly, key_filter,
-                              GetKeysConversion::kConvertToString),
-      MaybeHandle<FixedArray>());
-
-  // Calculate number of private entries to return in the FixedArray.
-  // TODO(v8:9839): take the number of private methods/accessors into account.
-  int private_brand_count = 0;
-  for (int i = 0; i < keys->length(); ++i) {
-    // Exclude the private brand symbols.
-    if (Symbol::cast(keys->get(i)).is_private_brand()) {
-      private_brand_count++;
-    }
-  }
-  int private_entries_count = keys->length() - private_brand_count;
-
-  Handle<FixedArray> entries =
-      isolate->factory()->NewFixedArray(private_entries_count * 2);
-  int length = 0;
-
-  for (int i = 0; i < keys->length(); ++i) {
-    Handle<Object> obj_key = handle(keys->get(i), isolate);
-    Handle<Symbol> key(Symbol::cast(*obj_key), isolate);
-    CHECK(key->is_private_name());
-    if (key->is_private_brand()) {
-      // TODO(v8:9839): get the private methods/accessors of the instance
-      // using the brand and add them to the entries.
-      continue;
-    }
-    Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, value, Object::GetProperty(isolate, receiver, key),
-        MaybeHandle<FixedArray>());
-
-    entries->set(length++, *key);
-    entries->set(length++, *value);
-  }
-  DCHECK_EQ(length, entries->length());
-  return FixedArray::ShrinkOrEmpty(isolate, entries, length);
-}
-
 }  // namespace internal
 }  // namespace v8

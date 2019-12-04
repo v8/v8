@@ -270,9 +270,6 @@ class JSReceiver : public HeapObject {
                                 TORQUE_GENERATED_JS_RECEIVER_FIELDS)
   bool HasProxyInPrototype(Isolate* isolate);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<FixedArray> GetPrivateEntries(
-      Isolate* isolate, Handle<JSReceiver> receiver);
-
   OBJECT_CONSTRUCTORS(JSReceiver, HeapObject);
 };
 

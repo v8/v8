@@ -3761,6 +3761,12 @@ void v8::WasmModuleObject::CheckCast(Value* that) {
                   "Could not convert to wasm module object");
 }
 
+void v8::debug::AccessorPair::CheckCast(Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsAccessorPair(), "v8::AccessorPair::Cast",
+                  "Could not convert to AccessorPair");
+}
+
 v8::BackingStore::~BackingStore() {
   auto i_this = reinterpret_cast<const i::BackingStore*>(this);
   i_this->~BackingStore();  // manually call internal destructor
@@ -9252,16 +9258,91 @@ MaybeLocal<Array> debug::GetInternalProperties(Isolate* v8_isolate,
   return Utils::ToLocal(result);
 }
 
-MaybeLocal<Array> debug::GetPrivateFields(Local<Context> context,
-                                          Local<Object> value) {
-  PREPARE_FOR_EXECUTION(context, debug, GetPrivateFields, Array);
-  i::Handle<i::JSReceiver> val = Utils::OpenHandle(*value);
-  i::Handle<i::JSArray> result;
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  has_pending_exception =
-      !(internal_isolate->debug()->GetPrivateFields(val).ToHandle(&result));
-  RETURN_ON_FAILED_EXECUTION(Array);
-  RETURN_ESCAPED(Utils::ToLocal(result));
+bool debug::GetPrivateMembers(Local<Context> context, Local<Object> value,
+                              std::vector<Local<Value>>* names_out,
+                              std::vector<Local<Value>>* values_out) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  LOG_API(isolate, debug, GetPrivateMembers);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  i::Handle<i::JSReceiver> receiver = Utils::OpenHandle(*value);
+  i::Handle<i::JSArray> names;
+  i::Handle<i::FixedArray> values;
+
+  i::PropertyFilter key_filter =
+      static_cast<i::PropertyFilter>(i::PropertyFilter::PRIVATE_NAMES_ONLY);
+  i::Handle<i::FixedArray> keys;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, keys,
+      i::KeyAccumulator::GetKeys(receiver, i::KeyCollectionMode::kOwnOnly,
+                                 key_filter,
+                                 i::GetKeysConversion::kConvertToString),
+      false);
+
+  // Estimate number of private entries to return in the FixedArray.
+  int private_entries_count = 0;
+  for (int i = 0; i < keys->length(); ++i) {
+    // Exclude the private brand symbols.
+    i::Handle<i::Symbol> key(i::Symbol::cast(keys->get(i)), isolate);
+    if (key->is_private_brand()) {
+      i::Handle<i::Object> value;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, value, i::Object::GetProperty(isolate, receiver, key),
+          false);
+
+      i::Handle<i::Context> context(i::Context::cast(*value), isolate);
+      i::Handle<i::ScopeInfo> scope_info(context->scope_info(), isolate);
+      // At least one slot contains the brand symbol so it does not count.
+      private_entries_count += (scope_info->ContextLocalCount() - 1);
+    } else {
+      private_entries_count++;
+    }
+  }
+
+  DCHECK(names_out->empty());
+  names_out->reserve(private_entries_count);
+  DCHECK(values_out->empty());
+  values_out->reserve(private_entries_count);
+  for (int i = 0; i < keys->length(); ++i) {
+    i::Handle<i::Object> obj_key(keys->get(i), isolate);
+    i::Handle<i::Symbol> key(i::Symbol::cast(*obj_key), isolate);
+    CHECK(key->is_private_name());
+    i::Handle<i::Object> value;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, value, i::Object::GetProperty(isolate, receiver, key), false);
+
+    if (key->is_private_brand()) {
+      DCHECK(value->IsContext());
+      i::Handle<i::Context> context(i::Context::cast(*value), isolate);
+      i::Handle<i::ScopeInfo> scope_info(context->scope_info(), isolate);
+      int local_count = scope_info->ContextLocalCount();
+
+      for (int j = 0; j < local_count; ++j) {
+        i::VariableMode mode = scope_info->ContextLocalMode(j);
+        if (!i::IsPrivateMethodOrAccessorVariableMode(mode)) {
+          continue;
+        }
+
+        i::Handle<i::String> name(scope_info->ContextLocalName(j), isolate);
+        int context_index = scope_info->ContextHeaderLength() + j;
+        i::Handle<i::Object> slot_value(context->get(context_index), isolate);
+        DCHECK_IMPLIES(mode == i::VariableMode::kPrivateMethod,
+                       slot_value->IsJSFunction());
+        DCHECK_IMPLIES(mode != i::VariableMode::kPrivateMethod,
+                       slot_value->IsAccessorPair());
+        names_out->push_back(Utils::ToLocal(name));
+        values_out->push_back(Utils::ToLocal(slot_value));
+      }
+    } else {  // Private fields
+      i::Handle<i::String> name(
+          i::String::cast(i::Symbol::cast(*key).description()), isolate);
+      names_out->push_back(Utils::ToLocal(name));
+      values_out->push_back(Utils::ToLocal(value));
+    }
+  }
+
+  DCHECK_EQ(names_out->size(), values_out->size());
+  DCHECK_LE(names_out->size(), private_entries_count);
+  return true;
 }
 
 Local<Context> debug::GetCreationContext(Local<Object> value) {
@@ -10138,6 +10219,25 @@ Local<debug::WeakMap> debug::WeakMap::New(v8::Isolate* isolate) {
 
 debug::WeakMap* debug::WeakMap::Cast(v8::Value* value) {
   return static_cast<debug::WeakMap*>(value);
+}
+
+Local<Value> debug::AccessorPair::getter() {
+  i::Handle<i::AccessorPair> accessors = Utils::OpenHandle(this);
+  i::Isolate* isolate = accessors->GetIsolate();
+  i::Handle<i::Object> getter(accessors->getter(), isolate);
+  return Utils::ToLocal(getter);
+}
+
+Local<Value> debug::AccessorPair::setter() {
+  i::Handle<i::AccessorPair> accessors = Utils::OpenHandle(this);
+  i::Isolate* isolate = accessors->GetIsolate();
+  i::Handle<i::Object> setter(accessors->setter(), isolate);
+  return Utils::ToLocal(setter);
+}
+
+bool debug::AccessorPair::IsAccessorPair(Local<Value> that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(*that);
+  return obj->IsAccessorPair();
 }
 
 const char* CpuProfileNode::GetFunctionNameStr() const {

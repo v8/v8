@@ -24,6 +24,8 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(Tuple2)
 TQ_OBJECT_CONSTRUCTORS_IMPL(Tuple3)
 TQ_OBJECT_CONSTRUCTORS_IMPL(AccessorPair)
 
+NEVER_READ_ONLY_SPACE_IMPL(AccessorPair)
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(ClassPositions)
 
 void Struct::InitializeBody(int object_size) {

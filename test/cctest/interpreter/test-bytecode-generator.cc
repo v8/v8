@@ -2821,6 +2821,14 @@ TEST(PrivateMethodAccess) {
       "}\n"
       "\n"
       "var test = C;\n"
+      "new test;\n",
+
+      "class D {\n"
+      "  #d() { return 1; }\n"
+      "  constructor() { (() => this)().#d(); }\n"
+      "}\n"
+      "\n"
+      "var test = D;\n"
       "new test;\n"};
 
   CHECK(CompareTexts(BuildActual(printer, snippets),

@@ -393,22 +393,53 @@ Response InjectedScript::getInternalAndPrivateProperties(
                            .setValue(std::move(remoteObject))
                            .build());
   }
+
   std::vector<PrivatePropertyMirror> privatePropertyWrappers =
-      ValueMirror::getPrivateProperties(m_context->context(), value_obj);
+      ValueMirror::getPrivateProperties(context, value_obj);
   for (const auto& privateProperty : privatePropertyWrappers) {
+    std::unique_ptr<PrivatePropertyDescriptor> descriptor =
+        PrivatePropertyDescriptor::create()
+            .setName(privateProperty.name)
+            .build();
+
     std::unique_ptr<RemoteObject> remoteObject;
-    Response response = privateProperty.value->buildRemoteObject(
-        m_context->context(), WrapMode::kNoPreview, &remoteObject);
-    if (!response.isSuccess()) return response;
-    response = bindRemoteObjectIfNeeded(sessionId, context,
-                                        privateProperty.value->v8Value(),
-                                        groupName, remoteObject.get());
-    if (!response.isSuccess()) return response;
-    (*privateProperties)
-        ->emplace_back(PrivatePropertyDescriptor::create()
-                           .setName(privateProperty.name)
-                           .setValue(std::move(remoteObject))
-                           .build());
+    Response response;
+    DCHECK((privateProperty.getter || privateProperty.setter) ^
+           (!!privateProperty.value));
+    if (privateProperty.value) {
+      response = privateProperty.value->buildRemoteObject(
+          context, WrapMode::kNoPreview, &remoteObject);
+      if (!response.isSuccess()) return response;
+      response = bindRemoteObjectIfNeeded(sessionId, context,
+                                          privateProperty.value->v8Value(),
+                                          groupName, remoteObject.get());
+      if (!response.isSuccess()) return response;
+      descriptor->setValue(std::move(remoteObject));
+    }
+
+    if (privateProperty.getter) {
+      response = privateProperty.getter->buildRemoteObject(
+          context, WrapMode::kNoPreview, &remoteObject);
+      if (!response.isSuccess()) return response;
+      response = bindRemoteObjectIfNeeded(sessionId, context,
+                                          privateProperty.getter->v8Value(),
+                                          groupName, remoteObject.get());
+      if (!response.isSuccess()) return response;
+      descriptor->setGet(std::move(remoteObject));
+    }
+
+    if (privateProperty.setter) {
+      response = privateProperty.setter->buildRemoteObject(
+          context, WrapMode::kNoPreview, &remoteObject);
+      if (!response.isSuccess()) return response;
+      response = bindRemoteObjectIfNeeded(sessionId, context,
+                                          privateProperty.setter->v8Value(),
+                                          groupName, remoteObject.get());
+      if (!response.isSuccess()) return response;
+      descriptor->setSet(std::move(remoteObject));
+    }
+
+    (*privateProperties)->emplace_back(std::move(descriptor));
   }
   return Response::OK();
 }

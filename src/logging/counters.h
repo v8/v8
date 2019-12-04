@@ -730,6 +730,7 @@ class RuntimeCallTimer final {
   TRACER_BACKGROUND_SCOPES(V)
 
 #define FOR_EACH_API_COUNTER(V)                            \
+  V(AccessorPair_New)                                      \
   V(ArrayBuffer_Cast)                                      \
   V(ArrayBuffer_Detach)                                    \
   V(ArrayBuffer_New)                                       \
@@ -749,7 +750,7 @@ class RuntimeCallTimer final {
   V(Date_New)                                              \
   V(Date_NumberValue)                                      \
   V(Debug_Call)                                            \
-  V(debug_GetPrivateFields)                                \
+  V(debug_GetPrivateMembers)                               \
   V(Error_New)                                             \
   V(External_New)                                          \
   V(Float32Array_New)                                      \

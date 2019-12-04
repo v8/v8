@@ -1073,7 +1073,13 @@ domain Runtime
       # Private property name.
       string name
       # The value associated with the private property.
-      RemoteObject value
+      optional RemoteObject value
+      # A function which serves as a getter for the private property,
+      # or `undefined` if there is no getter (accessor descriptors only).
+      optional RemoteObject get
+      # A function which serves as a setter for the private property,
+      # or `undefined` if there is no setter (accessor descriptors only).
+      optional RemoteObject set
 
   # Represents function call argument. Either remote object id `objectId`, primitive `value`,
   # unserializable primitive value or neither of (for undefined) them should be specified.

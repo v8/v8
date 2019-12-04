@@ -1409,22 +1409,6 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
   UNREACHABLE();
 }
 
-MaybeHandle<JSArray> Debug::GetPrivateFields(Handle<JSReceiver> receiver) {
-  Factory* factory = isolate_->factory();
-
-  Handle<FixedArray> internal_fields;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate_, internal_fields,
-                             JSReceiver::GetPrivateEntries(isolate_, receiver),
-                             JSArray);
-
-  int nof_internal_fields = internal_fields->length();
-  if (nof_internal_fields == 0) {
-    return factory->NewJSArray(0);
-  }
-
-  return factory->NewJSArrayWithElements(internal_fields);
-}
-
 class SharedFunctionInfoFinder {
  public:
   explicit SharedFunctionInfoFinder(int target_position)

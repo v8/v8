@@ -66,6 +66,7 @@ inline Local<To> Utils::Convert(v8::internal::Handle<From> obj) {
     return Convert<v8::internal::JSTypedArray, v8::Type##Array>(obj); \
   }
 
+MAKE_TO_LOCAL(ToLocal, AccessorPair, debug::AccessorPair)
 MAKE_TO_LOCAL(ToLocal, Context, Context)
 MAKE_TO_LOCAL(ToLocal, Object, Value)
 MAKE_TO_LOCAL(ToLocal, Module, Module)

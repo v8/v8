@@ -1241,9 +1241,10 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateAccessors) {
 
 RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
   HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 2);
+  DCHECK_EQ(args.length(), 3);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
   CONVERT_ARG_HANDLE_CHECKED(Symbol, brand, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Context, context, 2);
   DCHECK(brand->is_private_name());
 
   LookupIterator it = LookupIterator::PropertyOrElement(
@@ -1256,9 +1257,7 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
 
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-  // TODO(joyee): we could use this slot to store something useful. For now,
-  // store the brand itself.
-  CHECK(Object::AddDataProperty(&it, brand, attributes, Just(kDontThrow),
+  CHECK(Object::AddDataProperty(&it, context, attributes, Just(kDontThrow),
                                 StoreOrigin::kMaybeKeyed)
             .FromJust());
   return *receiver;
