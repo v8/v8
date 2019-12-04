@@ -418,13 +418,13 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
     switch (remainder) {
       case 12:
         str(xzr, liftoff::GetStackSlot(start + remainder));
-        strh(xzr, liftoff::GetStackSlot(start + remainder - 8));
+        str(wzr, liftoff::GetStackSlot(start + remainder - 8));
         break;
       case 8:
         str(xzr, liftoff::GetStackSlot(start + remainder));
         break;
       case 4:
-        strh(xzr, liftoff::GetStackSlot(start + remainder));
+        str(wzr, liftoff::GetStackSlot(start + remainder));
         break;
       case 0:
         break;
@@ -443,7 +443,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
     Label loop;
     bind(&loop);
     sub(count_reg, count_reg, 1);
-    strh(xzr, MemOperand(address_reg, kSystemPointerSize, PostIndex));
+    str(wzr, MemOperand(address_reg, kSystemPointerSize / 2, PostIndex));
     cbnz(count_reg, &loop);
   }
 }
