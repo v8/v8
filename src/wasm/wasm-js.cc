@@ -1906,14 +1906,12 @@ Handle<JSFunction> CreateFunc(Isolate* isolate, Handle<String> name,
   return function;
 }
 
-// TODO(mstarzinger): Pass {has_prototype} as an argument and audit all calls
-// for whether a "prototype" property is expected. Also add respective tests.
 Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
                                const char* str, FunctionCallback func,
-                               int length = 0,
+                               int length, bool has_prototype = false,
                                PropertyAttributes attributes = NONE) {
   Handle<String> name = v8_str(isolate, str);
-  Handle<JSFunction> function = CreateFunc(isolate, name, func, true);
+  Handle<JSFunction> function = CreateFunc(isolate, name, func, has_prototype);
   function->shared().set_length(length);
   JSObject::AddProperty(isolate, object, name, function, attributes);
   return function;
@@ -1923,7 +1921,7 @@ Handle<JSFunction> InstallConstructorFunc(Isolate* isolate,
                                          Handle<JSObject> object,
                                          const char* str,
                                          FunctionCallback func) {
-  return InstallFunc(isolate, object, str, func, 1, DONT_ENUM);
+  return InstallFunc(isolate, object, str, func, 1, true, DONT_ENUM);
 }
 
 Handle<String> GetterName(Isolate* isolate, Handle<String> name) {
@@ -1957,11 +1955,9 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
       CreateFunc(isolate, SetterName(isolate, name), setter, false);
   setter_func->shared().set_length(1);
 
-  v8::PropertyAttribute attributes = v8::None;
-
   Utils::ToLocal(object)->SetAccessorProperty(
       Utils::ToLocal(name), Utils::ToLocal(getter_func),
-      Utils::ToLocal(setter_func), attributes);
+      Utils::ToLocal(setter_func), v8::None);
 }
 
 // Assigns a dummy instance template to the given constructor function. Used to
