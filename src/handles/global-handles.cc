@@ -637,6 +637,10 @@ class GlobalHandles::TracedNode final
   bool has_destructor() const { return HasDestructor::decode(flags_); }
   void set_has_destructor(bool v) { flags_ = HasDestructor::update(flags_, v); }
 
+  bool markbit() const { return Markbit::decode(flags_); }
+  void clear_markbit() { flags_ = Markbit::update(flags_, false); }
+  void set_markbit() { flags_ = Markbit::update(flags_, true); }
+
   void SetFinalizationCallback(void* parameter,
                                WeakCallbackInfo<void>::Callback callback) {
     set_parameter(parameter);
@@ -678,14 +682,18 @@ class GlobalHandles::TracedNode final
   using IsInYoungList = NodeState::Next<bool, 1>;
   using IsRoot = IsInYoungList::Next<bool, 1>;
   using HasDestructor = IsRoot::Next<bool, 1>;
+  using Markbit = HasDestructor::Next<bool, 1>;
 
   void ClearImplFields() {
     set_root(true);
+    // Nodes are black allocated for simplicity.
+    set_markbit();
     callback_ = nullptr;
   }
 
   void CheckImplFieldsAreCleared() const {
     DCHECK(is_root());
+    DCHECK(markbit());
     DCHECK_NULL(callback_);
   }
 
@@ -793,6 +801,12 @@ void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
   }
 }
 
+void GlobalHandles::MarkTraced(Address* location) {
+  TracedNode* node = TracedNode::FromLocation(location);
+  node->set_markbit();
+  DCHECK(node->IsInUse());
+}
+
 void GlobalHandles::Destroy(Address* location) {
   if (location != nullptr) {
     NodeSpace<Node>::Release(Node::FromLocation(location));
@@ -867,8 +881,26 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
     }
   }
   for (TracedNode* node : *traced_nodes_) {
-    if (node->IsInUse() &&
-        should_reset_handle(isolate()->heap(), node->location())) {
+    if (!node->IsInUse()) continue;
+    // Detect unreachable nodes first.
+    if (!node->markbit() && node->IsPhantomResetHandle() &&
+        !node->has_destructor()) {
+      // The handle is unreachable and does not have a callback and a
+      // destructor associated with it. We can clear it even if the target V8
+      // object is alive. Note that the desctructor and the callback may
+      // access the handle, that is why we avoid clearing it.
+      node->ResetPhantomHandle(HandleHolder::kDead);
+      ++number_of_phantom_handle_resets_;
+      continue;
+    } else if (node->markbit()) {
+      // Clear the markbit for the next GC.
+      node->clear_markbit();
+    }
+    DCHECK(node->IsInUse());
+    // Detect nodes with unreachable target objects.
+    if (should_reset_handle(isolate()->heap(), node->location())) {
+      // If the node allows eager resetting, then reset it here. Otherwise,
+      // collect its callback that will reset it.
       if (node->IsPhantomResetHandle()) {
         node->ResetPhantomHandle(node->has_destructor() ? HandleHolder::kLive
                                                         : HandleHolder::kDead);
