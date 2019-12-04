@@ -505,6 +505,9 @@
   'wasm/atomics': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
 
+  # BUG(v8:10032).
+  'array-store-and-grow': [PASS, SLOW],
+
   # BUG(v8:7247).
   'regress/regress-779407': [PASS, SLOW, NO_VARIANTS],
 }],  # 'arch == arm64'
