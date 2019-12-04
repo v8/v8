@@ -171,7 +171,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
     // Use r3 for start address (inclusive), r4 for end address (exclusive).
     push(r3);
     push(r4);
-    SubP(r3, fp, Operand(liftoff::GetStackSlotOffset(start + remainder)));
+    SubP(r3, fp, Operand(liftoff::GetStackSlotOffset(start + size)));
     SubP(r4, fp, Operand(liftoff::GetStackSlotOffset(start)));
 
     Label loop;
