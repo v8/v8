@@ -1796,6 +1796,14 @@ size_t MarkCompactCollector::ProcessMarkingWorklist(size_t bytes_to_process) {
   return bytes_processed;
 }
 
+// Generate definitions for use in other files.
+template size_t MarkCompactCollector::ProcessMarkingWorklist<
+    MarkCompactCollector::MarkingWorklistProcessingMode::kDefault>(
+    size_t bytes_to_process);
+template size_t MarkCompactCollector::ProcessMarkingWorklist<
+    MarkCompactCollector::MarkingWorklistProcessingMode::
+        kTrackNewlyDiscoveredObjects>(size_t bytes_to_process);
+
 bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
   if (marking_state()->IsBlackOrGrey(key)) {
     if (marking_state()->WhiteToGrey(value)) {
