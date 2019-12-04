@@ -833,6 +833,8 @@
   'deopt-recursive-lazy-once': [SKIP],
   'deopt-recursive-soft-once': [SKIP],
   'code-coverage-block-opt': [SKIP],
+  'compiler/serializer-apply': [SKIP],
+  'compiler/serializer-call': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
 
   # Bounds check triggers forced deopt for array constructors.
@@ -878,6 +880,8 @@
   # Tests that fail some assertions due to checking internal state sensitive
   # to GC.
   'compiler/native-context-specialization-hole-check': [SKIP],
+  'compiler/serializer-apply': [SKIP],
+  'compiler/serializer-call': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
   'opt-elements-kind': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
