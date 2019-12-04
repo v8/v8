@@ -110,15 +110,10 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
 }
 
 DeclarationScope::DeclarationScope(Zone* zone,
-                                   AstValueFactory* ast_value_factory,
-                                   REPLMode repl_mode)
-    : Scope(zone),
-      function_kind_(repl_mode == REPLMode::kYes ? kAsyncFunction
-                                                 : kNormalFunction),
-      params_(4, zone) {
+                                   AstValueFactory* ast_value_factory)
+    : Scope(zone), function_kind_(kNormalFunction), params_(4, zone) {
   DCHECK_EQ(scope_type_, SCRIPT_SCOPE);
   SetDefaults();
-  is_repl_mode_scope_ = repl_mode == REPLMode::kYes;
   receiver_ = DeclareDynamicGlobal(ast_value_factory->this_string(),
                                    THIS_VARIABLE, this);
 }
@@ -673,7 +668,7 @@ Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name,
 
 Variable* DeclarationScope::DeclareGeneratorObjectVar(
     const AstRawString* name) {
-  DCHECK(is_function_scope() || is_module_scope() || is_repl_mode_scope());
+  DCHECK(is_function_scope() || is_module_scope());
   DCHECK_NULL(generator_object_var());
 
   Variable* result = EnsureRareData()->generator_object =
