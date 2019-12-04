@@ -112,6 +112,9 @@
   # https://crbug.com/v8/8919
   'test-platform/StackAlignment': [PASS, ['not is_clang', SKIP]],
 
+  # BUG(v8:10034).
+  'test-debug-helper/GetObjectProperties': [SKIP],
+
   ############################################################################
   # Slow tests.
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
