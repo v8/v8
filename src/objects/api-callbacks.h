@@ -109,7 +109,7 @@ class AccessCheckInfo
   // Dispatched behavior.
   DECL_PRINTER(AccessCheckInfo)
 
-  static AccessCheckInfo Get(const Isolate* isolate, Handle<JSObject> receiver);
+  static AccessCheckInfo Get(Isolate* isolate, Handle<JSObject> receiver);
 
   TQ_OBJECT_CONSTRUCTORS(AccessCheckInfo)
 };

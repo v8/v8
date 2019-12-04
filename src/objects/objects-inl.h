@@ -86,28 +86,28 @@ IS_TYPE_FUNCTION_DEF(HashTableBase)
 IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
 #undef IS_TYPE_FUNCTION_DEF
 
-#define IS_TYPE_FUNCTION_DEF(Type, Value)                               \
-  bool Object::Is##Type(const Isolate* isolate) const {                 \
-    return IsHeapObject() && HeapObject::cast(*this).Is##Type(isolate); \
-  }                                                                     \
-  bool Object::Is##Type(ReadOnlyRoots roots) const {                    \
-    return *this == roots.Value();                                      \
-  }                                                                     \
-  bool Object::Is##Type() const {                                       \
-    return IsHeapObject() && HeapObject::cast(*this).Is##Type();        \
-  }                                                                     \
-  bool HeapObject::Is##Type(const Isolate* isolate) const {             \
-    return Is##Type(GetReadOnlyRoots(isolate));                         \
-  }                                                                     \
-  bool HeapObject::Is##Type(ReadOnlyRoots roots) const {                \
-    return Object::Is##Type(roots);                                     \
-  }                                                                     \
+#define IS_TYPE_FUNCTION_DEF(Type, Value)                        \
+  bool Object::Is##Type(Isolate* isolate) const {                \
+    return Is##Type(ReadOnlyRoots(isolate));                     \
+  }                                                              \
+  bool Object::Is##Type(ReadOnlyRoots roots) const {             \
+    return *this == roots.Value();                               \
+  }                                                              \
+  bool Object::Is##Type() const {                                \
+    return IsHeapObject() && HeapObject::cast(*this).Is##Type(); \
+  }                                                              \
+  bool HeapObject::Is##Type(Isolate* isolate) const {            \
+    return Object::Is##Type(isolate);                            \
+  }                                                              \
+  bool HeapObject::Is##Type(ReadOnlyRoots roots) const {         \
+    return Object::Is##Type(roots);                              \
+  }                                                              \
   bool HeapObject::Is##Type() const { return Is##Type(GetReadOnlyRoots()); }
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
 
-bool Object::IsNullOrUndefined(const Isolate* isolate) const {
-  return IsHeapObject() && HeapObject::cast(*this).IsNullOrUndefined(isolate);
+bool Object::IsNullOrUndefined(Isolate* isolate) const {
+  return IsNullOrUndefined(ReadOnlyRoots(isolate));
 }
 
 bool Object::IsNullOrUndefined(ReadOnlyRoots roots) const {
@@ -131,8 +131,8 @@ bool Object::IsNoSharedNameSentinel() const {
   return *this == SharedFunctionInfo::kNoSharedNameSentinel;
 }
 
-bool HeapObject::IsNullOrUndefined(const Isolate* isolate) const {
-  return IsNullOrUndefined(GetReadOnlyRoots(isolate));
+bool HeapObject::IsNullOrUndefined(Isolate* isolate) const {
+  return IsNullOrUndefined(ReadOnlyRoots(isolate));
 }
 
 bool HeapObject::IsNullOrUndefined(ReadOnlyRoots roots) const {
