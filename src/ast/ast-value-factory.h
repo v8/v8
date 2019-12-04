@@ -213,7 +213,6 @@ class AstBigInt {
   F(dot_iterator, ".iterator")                  \
   F(dot_promise, ".promise")                    \
   F(dot_result, ".result")                      \
-  F(dot_repl_result, ".repl_result")            \
   F(dot_switch_tag, ".switch_tag")              \
   F(dot_catch, ".catch")                        \
   F(empty, "")                                  \

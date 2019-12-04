@@ -31,6 +31,7 @@ bool Variable::IsGlobalObjectProperty() const {
 }
 
 bool Variable::IsReplGlobalLet() const {
+  DCHECK_IMPLIES(scope()->is_repl_mode_scope(), scope()->is_script_scope());
   return scope()->is_repl_mode_scope() && mode() == VariableMode::kLet;
 }
 

@@ -360,6 +360,10 @@ DECLARATION_NODE_LIST(DEF_VISIT)
 // Assumes code has been parsed.  Mutates the AST, so the AST should not
 // continue to be used in the case of failure.
 bool Rewriter::Rewrite(ParseInfo* info) {
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+
   RuntimeCallTimerScope runtimeTimer(
       info->runtime_call_stats(),
       RuntimeCallCounterId::kCompileRewriteReturnResult,
@@ -371,22 +375,12 @@ bool Rewriter::Rewrite(ParseInfo* info) {
   DCHECK_NOT_NULL(scope);
   DCHECK_EQ(scope, scope->GetClosureScope());
 
-  if (scope->is_repl_mode_scope()) return true;
   if (!(scope->is_script_scope() || scope->is_eval_scope() ||
         scope->is_module_scope())) {
     return true;
   }
 
   ZonePtrList<Statement>* body = function->body();
-  return RewriteBody(info, scope, body).has_value();
-}
-
-base::Optional<VariableProxy*> Rewriter::RewriteBody(
-    ParseInfo* info, Scope* scope, ZonePtrList<Statement>* body) {
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
-
   DCHECK_IMPLIES(scope->is_module_scope(), !body->is_empty());
   if (!body->is_empty()) {
     Variable* result = scope->AsDeclarationScope()->NewTemporary(
@@ -398,19 +392,17 @@ base::Optional<VariableProxy*> Rewriter::RewriteBody(
     DCHECK_IMPLIES(scope->is_module_scope(), processor.result_assigned());
     if (processor.result_assigned()) {
       int pos = kNoSourcePosition;
-      VariableProxy* result_value =
+      Expression* result_value =
           processor.factory()->NewVariableProxy(result, pos);
-      if (!info->is_repl_mode()) {
-        Statement* result_statement =
-            processor.factory()->NewReturnStatement(result_value, pos);
-        body->Add(result_statement, info->zone());
-      }
-      return result_value;
+      Statement* result_statement =
+          processor.factory()->NewReturnStatement(result_value, pos);
+      body->Add(result_statement, info->zone());
     }
 
-    if (processor.HasStackOverflow()) return base::nullopt;
+    if (processor.HasStackOverflow()) return false;
   }
-  return nullptr;
+
+  return true;
 }
 
 }  // namespace internal

@@ -635,9 +635,7 @@ class DebugWrapper {
   }
 
   evaluateGlobalREPL(expr) {
-    return %RuntimeEvaluateREPL(expr).then(value => {
-      return value[".repl_result"];
-    });
+    return %RuntimeEvaluateREPL(expr);
   }
 
   eventDataException(params) {

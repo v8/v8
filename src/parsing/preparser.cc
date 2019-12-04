@@ -70,7 +70,7 @@ PreParserIdentifier PreParser::GetIdentifier() const {
 
 PreParser::PreParseResult PreParser::PreParseProgram() {
   DCHECK_NULL(scope_);
-  DeclarationScope* scope = NewScriptScope(REPLMode::kNo);
+  DeclarationScope* scope = NewScriptScope();
 #ifdef DEBUG
   scope->set_is_being_lazily_parsed(true);
 #endif
