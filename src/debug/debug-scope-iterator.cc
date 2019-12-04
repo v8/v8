@@ -50,7 +50,9 @@ namespace internal {
 
 DebugScopeIterator::DebugScopeIterator(Isolate* isolate,
                                        FrameInspector* frame_inspector)
-    : iterator_(isolate, frame_inspector) {
+    : iterator_(
+          isolate, frame_inspector,
+          ::v8::internal::ScopeIterator::ReparseStrategy::kFunctionLiteral) {
   if (!Done() && ShouldIgnore()) Advance();
 }
 
