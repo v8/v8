@@ -2265,9 +2265,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE3);
       XMMRegister dst = i.OutputSimd128Register();
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ movddup(dst, i.InputDoubleRegister(0));
+        __ Movddup(dst, i.InputDoubleRegister(0));
       } else {
-        __ movddup(dst, i.InputOperand(0));
+        __ Movddup(dst, i.InputOperand(0));
       }
       break;
     }
@@ -2275,9 +2275,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       if (instr->InputAt(2)->IsFPRegister()) {
         __ movq(kScratchRegister, i.InputDoubleRegister(2));
-        __ pinsrq(i.OutputSimd128Register(), kScratchRegister, i.InputInt8(1));
+        __ Pinsrq(i.OutputSimd128Register(), kScratchRegister, i.InputInt8(1));
       } else {
-        __ pinsrq(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
+        __ Pinsrq(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
       }
       break;
     }
@@ -2628,11 +2628,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE3);
       XMMRegister dst = i.OutputSimd128Register();
       if (HasRegisterInput(instr, 0)) {
-        __ movq(dst, i.InputRegister(0));
+        __ Movq(dst, i.InputRegister(0));
       } else {
-        __ movq(dst, i.InputOperand(0));
+        __ Movq(dst, i.InputOperand(0));
       }
-      __ movddup(dst, dst);
+      __ Movddup(dst, dst);
       break;
     }
     case kX64I64x2ExtractLane: {
@@ -2643,7 +2643,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I64x2ReplaceLane: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       if (HasRegisterInput(instr, 2)) {
-        __ pinsrq(i.OutputSimd128Register(), i.InputRegister(2),
+        __ Pinsrq(i.OutputSimd128Register(), i.InputRegister(2),
                   i.InputInt8(1));
       } else {
         __ pinsrq(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));

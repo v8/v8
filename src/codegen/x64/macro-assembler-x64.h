@@ -215,6 +215,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSE4_1(Pmaxud, pmaxud)
   AVX_OP_SSE4_1(Extractps, extractps)
   AVX_OP_SSE4_1(Insertps, insertps)
+  AVX_OP_SSE4_1(Pinsrq, pinsrq)
 
 #undef AVX_OP
 

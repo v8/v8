@@ -1118,6 +1118,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movlhps(XMMRegister dst, XMMRegister src);
 
   // AVX instruction
+  void vmovddup(XMMRegister dst, XMMRegister src);
   void vmovddup(XMMRegister dst, Operand src);
   void vbroadcastss(XMMRegister dst, Operand src);
   void vfmadd132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
@@ -1628,6 +1629,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x22, dst, src1, src2, k66, k0F3A, kW0);
     emit(imm8);
   }
+  void vpinsrq(XMMRegister dst, XMMRegister src1, Register src2, int8_t imm8) {
+    XMMRegister isrc = XMMRegister::from_code(src2.code());
+    vinstr(0x22, dst, src1, isrc, k66, k0F3A, kW1);
+    emit(imm8);
+  }
+  void vpinsrq(XMMRegister dst, XMMRegister src1, Operand src2, int8_t imm8) {
+    vinstr(0x22, dst, src1, src2, k66, k0F3A, kW1);
+    emit(imm8);
+  }
+
   void vpshufd(XMMRegister dst, XMMRegister src, uint8_t imm8) {
     vinstr(0x70, dst, xmm0, src, k66, k0F, kWIG);
     emit(imm8);
