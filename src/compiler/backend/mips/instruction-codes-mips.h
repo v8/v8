@@ -201,7 +201,8 @@ namespace compiler {
   V(MipsI32x4GtU)                  \
   V(MipsI32x4GeU)                  \
   V(MipsI16x8Splat)                \
-  V(MipsI16x8ExtractLane)          \
+  V(MipsI16x8ExtractLaneU)         \
+  V(MipsI16x8ExtractLaneS)         \
   V(MipsI16x8ReplaceLane)          \
   V(MipsI16x8Neg)                  \
   V(MipsI16x8Shl)                  \
@@ -226,7 +227,8 @@ namespace compiler {
   V(MipsI16x8GtU)                  \
   V(MipsI16x8GeU)                  \
   V(MipsI8x16Splat)                \
-  V(MipsI8x16ExtractLane)          \
+  V(MipsI8x16ExtractLaneU)         \
+  V(MipsI8x16ExtractLaneS)         \
   V(MipsI8x16ReplaceLane)          \
   V(MipsI8x16Neg)                  \
   V(MipsI8x16Shl)                  \

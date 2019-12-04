@@ -2415,7 +2415,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ fill_h(i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
-    case kMips64I16x8ExtractLane: {
+    case kMips64I16x8ExtractLaneU: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ copy_u_h(i.OutputRegister(), i.InputSimd128Register(0),
+                  i.InputInt8(1));
+      break;
+    }
+    case kMips64I16x8ExtractLaneS: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ copy_s_h(i.OutputRegister(), i.InputSimd128Register(0),
                   i.InputInt8(1));
@@ -2564,7 +2570,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ fill_b(i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
-    case kMips64I8x16ExtractLane: {
+    case kMips64I8x16ExtractLaneU: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ copy_u_b(i.OutputRegister(), i.InputSimd128Register(0),
+                  i.InputInt8(1));
+      break;
+    }
+    case kMips64I8x16ExtractLaneS: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ copy_s_b(i.OutputRegister(), i.InputSimd128Register(0),
                   i.InputInt8(1));

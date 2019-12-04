@@ -106,7 +106,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI16x8AddSaturateS:
     case kMipsI16x8AddSaturateU:
     case kMipsI16x8Eq:
-    case kMipsI16x8ExtractLane:
+    case kMipsI16x8ExtractLaneU:
+    case kMipsI16x8ExtractLaneS:
     case kMipsI16x8GeS:
     case kMipsI16x8GeU:
     case kMipsI16x8GtS:
@@ -163,7 +164,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI8x16AddSaturateS:
     case kMipsI8x16AddSaturateU:
     case kMipsI8x16Eq:
-    case kMipsI8x16ExtractLane:
+    case kMipsI8x16ExtractLaneU:
+    case kMipsI8x16ExtractLaneS:
     case kMipsI8x16GeS:
     case kMipsI8x16GeU:
     case kMipsI8x16GtS:
