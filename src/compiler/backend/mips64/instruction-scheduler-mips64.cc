@@ -76,6 +76,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64F64x2Sub:
     case kMips64F64x2Mul:
     case kMips64F64x2Div:
+    case kMips64F64x2Min:
+    case kMips64F64x2Max:
     case kMips64F64x2Eq:
     case kMips64F64x2Ne:
     case kMips64F64x2Lt:

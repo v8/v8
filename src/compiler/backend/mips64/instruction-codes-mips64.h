@@ -194,6 +194,8 @@ namespace compiler {
   V(Mips64F64x2Sub)                          \
   V(Mips64F64x2Mul)                          \
   V(Mips64F64x2Div)                          \
+  V(Mips64F64x2Min)                          \
+  V(Mips64F64x2Max)                          \
   V(Mips64F64x2Eq)                           \
   V(Mips64F64x2Ne)                           \
   V(Mips64F64x2Lt)                           \
