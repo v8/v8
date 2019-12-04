@@ -309,7 +309,7 @@ class VirtualClosure {
 class CompilationSubject {
  public:
   explicit CompilationSubject(VirtualClosure virtual_closure)
-      : virtual_closure_(virtual_closure) {}
+      : virtual_closure_(virtual_closure), closure_() {}
 
   // The zone parameter is to correctly initialize the virtual closure,
   // which contains zone-allocated context information.
