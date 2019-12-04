@@ -889,6 +889,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   SSE2_INSTRUCTION_LIST_SD(DECLARE_SSE2_INSTRUCTION)
 #undef DECLARE_SSE2_INSTRUCTION
 
+  void sse2_instr(XMMRegister reg, byte imm8, byte prefix, byte escape,
+                  byte opcode, int extension) {
+    XMMRegister ext_reg = XMMRegister::from_code(extension);
+    sse2_instr(ext_reg, reg, prefix, escape, opcode);
+    emit(imm8);
+  }
+
+#define DECLARE_SSE2_SHIFT_IMM(instruction, prefix, escape, opcode, extension) \
+  void instruction(XMMRegister reg, byte imm8) {                               \
+    sse2_instr(reg, imm8, 0x##prefix, 0x##escape, 0x##opcode, 0x##extension);  \
+  }
+  SSE2_INSTRUCTION_LIST_SHIFT_IMM(DECLARE_SSE2_SHIFT_IMM)
+#undef DECLARE_SSE2_SHIFT_IMM
+
 #define DECLARE_SSE2_AVX_INSTRUCTION(instruction, prefix, escape, opcode)    \
   void v##instruction(XMMRegister dst, XMMRegister src1, XMMRegister src2) { \
     vinstr(0x##opcode, dst, src1, src2, k##prefix, k##escape, kW0);          \
@@ -1016,15 +1030,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movapd(XMMRegister dst, XMMRegister src);
   void movupd(XMMRegister dst, Operand src);
   void movupd(Operand dst, XMMRegister src);
-
-  void psllq(XMMRegister reg, byte imm8);
-  void psrlq(XMMRegister reg, byte imm8);
-  void psllw(XMMRegister reg, byte imm8);
-  void pslld(XMMRegister reg, byte imm8);
-  void psrlw(XMMRegister reg, byte imm8);
-  void psrld(XMMRegister reg, byte imm8);
-  void psraw(XMMRegister reg, byte imm8);
-  void psrad(XMMRegister reg, byte imm8);
 
   void cvttsd2si(Register dst, Operand src);
   void cvttsd2si(Register dst, XMMRegister src);
@@ -1363,14 +1368,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
 #undef AVX_3
 
-  void vpsrlq(XMMRegister dst, XMMRegister src, byte imm8) {
-    vpd(0x73, xmm2, dst, src);
-    emit(imm8);
+#define AVX_SSE2_SHIFT_IMM(instr, prefix, escape, opcode, extension)   \
+  void v##instr(XMMRegister dst, XMMRegister src, byte imm8) {         \
+    XMMRegister ext_reg = XMMRegister::from_code(extension);           \
+    vinstr(0x##opcode, ext_reg, dst, src, k##prefix, k##escape, kWIG); \
+    emit(imm8);                                                        \
   }
-  void vpsllq(XMMRegister dst, XMMRegister src, byte imm8) {
-    vpd(0x73, xmm6, dst, src);
-    emit(imm8);
-  }
+  SSE2_INSTRUCTION_LIST_SHIFT_IMM(AVX_SSE2_SHIFT_IMM)
+#undef AVX_SSE2_SHIFT_IMM
+
   void vcvtss2sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vinstr(0x5a, dst, src1, src2, kF3, k0F, kWIG);
   }
@@ -1536,30 +1542,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void vlddqu(XMMRegister dst, Operand src) {
     vinstr(0xF0, dst, xmm0, src, kF2, k0F, kWIG);
-  }
-  void vpsllw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
-    vinstr(0x71, xmm6, dst, src, k66, k0F, kWIG);
-    emit(imm8);
-  }
-  void vpsrlw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
-    vinstr(0x71, xmm2, dst, src, k66, k0F, kWIG);
-    emit(imm8);
-  }
-  void vpsraw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
-    vinstr(0x71, xmm4, dst, src, k66, k0F, kWIG);
-    emit(imm8);
-  }
-  void vpslld(XMMRegister dst, XMMRegister src, uint8_t imm8) {
-    vinstr(0x72, xmm6, dst, src, k66, k0F, kWIG);
-    emit(imm8);
-  }
-  void vpsrld(XMMRegister dst, XMMRegister src, uint8_t imm8) {
-    vinstr(0x72, xmm2, dst, src, k66, k0F, kWIG);
-    emit(imm8);
-  }
-  void vpsrad(XMMRegister dst, XMMRegister src, uint8_t imm8) {
-    vinstr(0x72, xmm4, dst, src, k66, k0F, kWIG);
-    emit(imm8);
   }
   void vinsertps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                  byte imm8) {

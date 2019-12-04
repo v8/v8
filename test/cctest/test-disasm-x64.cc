@@ -434,11 +434,6 @@ TEST(DisasmX64) {
     __ xorpd(xmm0, xmm1);
     __ xorpd(xmm0, Operand(rbx, rcx, times_4, 10000));
 
-    __ pslld(xmm0, 6);
-    __ psrld(xmm0, 6);
-    __ psllq(xmm0, 6);
-    __ psrlq(xmm0, 6);
-
     __ pcmpeqd(xmm1, xmm0);
 
     __ punpckldq(xmm1, xmm11);
@@ -455,6 +450,12 @@ TEST(DisasmX64) {
     SSE2_INSTRUCTION_LIST(EMIT_SSE2_INSTR)
     SSE2_INSTRUCTION_LIST_SD(EMIT_SSE2_INSTR)
 #undef EMIT_SSE2_INSTR
+
+#define EMIT_SSE2_SHIFT_IMM(instruction, notUsed1, notUsed2, notUsed3, \
+                            notUsed4)                                  \
+  __ instruction(xmm3, 0xA3);
+    SSE2_INSTRUCTION_LIST_SHIFT_IMM(EMIT_SSE2_SHIFT_IMM)
+#undef EMIT_SSE2_SHIFT_IMM
   }
 
   // cmov.
@@ -680,8 +681,6 @@ TEST(DisasmX64) {
 
       __ vpcmpeqd(xmm0, xmm15, xmm5);
       __ vpcmpeqd(xmm15, xmm0, Operand(rbx, rcx, times_4, 10000));
-      __ vpsllq(xmm0, xmm15, 21);
-      __ vpsrlq(xmm15, xmm0, 21);
 
       __ vcmpps(xmm5, xmm4, xmm1, 1);
       __ vcmpps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000), 1);
@@ -741,15 +740,17 @@ TEST(DisasmX64) {
 #undef EMIT_SSE2_AVXINSTR
 #undef EMIT_SSE34_AVXINSTR
 
+#define EMIT_SSE2_SHIFT_IMM_AVX(instruction, notUsed1, notUsed2, notUsed3, \
+                                notUsed4)                                  \
+  __ v##instruction(xmm0, xmm15, 21);
+      SSE2_INSTRUCTION_LIST_SHIFT_IMM(EMIT_SSE2_SHIFT_IMM_AVX)
+#undef EMIT_SSE2_SHIFT_IMM_AVX
+
       __ vinsertps(xmm1, xmm2, xmm3, 1);
       __ vinsertps(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 1);
       __ vextractps(rax, xmm1, 1);
 
       __ vlddqu(xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vpsllw(xmm0, xmm15, 21);
-      __ vpsrlw(xmm0, xmm15, 21);
-      __ vpsraw(xmm0, xmm15, 21);
-      __ vpsrad(xmm0, xmm15, 21);
       __ vpextrb(rax, xmm2, 12);
       __ vpextrb(Operand(rbx, rcx, times_4, 10000), xmm2, 12);
       __ vpextrw(rax, xmm2, 5);

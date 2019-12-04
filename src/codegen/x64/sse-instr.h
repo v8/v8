@@ -96,6 +96,18 @@
   V(por, 66, 0F, EB)             \
   V(pxor, 66, 0F, EF)
 
+// SSE2 shift instructions with an immediate operand. The last element is the
+// extension to the opcode.
+#define SSE2_INSTRUCTION_LIST_SHIFT_IMM(V) \
+  V(psrlw, 66, 0F, 71, 2)                  \
+  V(psrld, 66, 0F, 72, 2)                  \
+  V(psrlq, 66, 0F, 73, 2)                  \
+  V(psraw, 66, 0F, 71, 4)                  \
+  V(psrad, 66, 0F, 72, 4)                  \
+  V(psllw, 66, 0F, 71, 6)                  \
+  V(pslld, 66, 0F, 72, 6)                  \
+  V(psllq, 66, 0F, 73, 6)
+
 // Instructions dealing with scalar double-precision values.
 #define SSE2_INSTRUCTION_LIST_SD(V) \
   V(sqrtsd, F2, 0F, 51)             \
