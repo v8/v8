@@ -40,7 +40,6 @@ class BasicBlock;
   V(ChangeInt32ToFloat64)                \
   V(ChangeInt32ToInt64)                  \
   V(ChangeInt64ToFloat64)                \
-  V(ChangeTaggedToCompressed)            \
   V(ChangeUint32ToFloat64)               \
   V(ChangeUint32ToUint64)                \
   V(Float64Abs)                          \
