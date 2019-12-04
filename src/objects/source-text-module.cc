@@ -906,7 +906,9 @@ MaybeHandle<Object> SourceTextModule::InnerExecuteAsyncModule(
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result,
-      Execution::Call(isolate, resume, async_function_object, 0, nullptr),
+      Execution::TryCall(isolate, resume, async_function_object, 0, nullptr,
+                         Execution::MessageHandling::kKeepPending, nullptr,
+                         false),
       Object);
   return result;
 }
@@ -919,9 +921,21 @@ MaybeHandle<Object> SourceTextModule::ExecuteModule(
   Handle<JSFunction> resume(
       isolate->native_context()->generator_next_internal(), isolate);
   Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result, Execution::Call(isolate, resume, generator, 0, nullptr),
-      Object);
+
+  // With top_level_await, we need to catch any exceptions and reject
+  // the top level capability.
+  if (FLAG_harmony_top_level_await) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result,
+        Execution::TryCall(isolate, resume, generator, 0, nullptr,
+                           Execution::MessageHandling::kKeepPending, nullptr,
+                           false),
+        Object);
+  } else {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result,
+        Execution::Call(isolate, resume, generator, 0, nullptr), Object);
+  }
   DCHECK(JSIteratorResult::cast(*result).done().BooleanValue(isolate));
   return handle(JSIteratorResult::cast(*result).value(), isolate);
 }
