@@ -1117,11 +1117,10 @@ void TurboAssembler::SmiUntag(Register dst, Operand src) {
     DCHECK(SmiValuesAre31Bits());
     if (COMPRESS_POINTERS_BOOL) {
       movsxlq(dst, src);
-      sarq(dst, Immediate(kSmiShift));
     } else {
       movq(dst, src);
-      sarq(dst, Immediate(kSmiShift));
     }
+    sarq(dst, Immediate(kSmiShift));
   }
 }
 
