@@ -1940,6 +1940,12 @@ void Assembler::emit_repmovs(int size) {
   emit(0xA5);
 }
 
+void Assembler::repstosl() {
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit(0xAB);
+}
+
 void Assembler::repstosq() {
   EnsureSpace ensure_space(this);
   emit(0xF3);

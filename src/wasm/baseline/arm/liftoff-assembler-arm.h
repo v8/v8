@@ -640,36 +640,29 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t offset,
   ldr(reg, liftoff::GetHalfStackSlot(offset, half));
 }
 
-void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
-  DCHECK_LT(0, count);
-  uint32_t last_stack_slot = index + count - 1;
-  RecordUsedSpillOffset(GetStackOffsetFromIndex(last_stack_slot));
+void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
+  DCHECK_LT(0, size);
+  DCHECK_EQ(0, size % 4);
+  RecordUsedSpillOffset(start + size);
 
   // We need a zero reg. Always use r0 for that, and push it before to restore
   // its value afterwards.
   push(r0);
   mov(r0, Operand(0));
 
-  if (count <= 5) {
-    // Special straight-line code for up to five slots. Generates two
-    // instructions per slot.
-    for (uint32_t offset = 0; offset < count; ++offset) {
-      str(r0, liftoff::GetHalfStackSlot(GetStackOffsetFromIndex(index + offset),
-                                        kLowWord));
-      str(r0, liftoff::GetHalfStackSlot(GetStackOffsetFromIndex(index + offset),
-                                        kHighWord));
+  if (size <= 36) {
+    // Special straight-line code for up to 9 words. Generates one
+    // instruction per word.
+    for (uint32_t offset = 4; offset <= size; offset += 4) {
+      str(r0, liftoff::GetHalfStackSlot(start + offset, kLowWord));
     }
   } else {
     // General case for bigger counts (9 instructions).
     // Use r1 for start address (inclusive), r2 for end address (exclusive).
     push(r1);
     push(r2);
-    sub(r1, fp,
-        Operand(liftoff::GetStackSlotOffset(
-            GetStackOffsetFromIndex(last_stack_slot))));
-    sub(r2, fp,
-        Operand(liftoff::GetStackSlotOffset(GetStackOffsetFromIndex(index)) -
-                kStackSlotSize));
+    sub(r1, fp, Operand(liftoff::GetStackSlotOffset(start + size)));
+    sub(r2, fp, Operand(liftoff::GetStackSlotOffset(start)));
 
     Label loop;
     bind(&loop);

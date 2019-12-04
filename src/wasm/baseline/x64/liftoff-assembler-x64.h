@@ -445,31 +445,34 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t offset, RegPairHalf) {
   UNREACHABLE();
 }
 
-void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
-  DCHECK_LT(0, count);
-  uint32_t last_stack_slot = index + count - 1;
-  RecordUsedSpillOffset(
-      LiftoffAssembler::GetStackOffsetFromIndex(last_stack_slot));
+void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
+  DCHECK_LT(0, size);
+  RecordUsedSpillOffset(start + size);
 
-  if (count <= 3) {
+  if (size <= 3 * kStackSlotSize) {
     // Special straight-line code for up to three slots
-    // (7-10 bytes per slot: REX C7 <1-4 bytes op> <4 bytes imm>).
-    for (uint32_t offset = 0; offset < count; ++offset) {
-      movq(liftoff::GetStackSlot(GetStackOffsetFromIndex(index + offset)),
-           Immediate(0));
+    // (7-10 bytes per slot: REX C7 <1-4 bytes op> <4 bytes imm>),
+    // And a movd (6-9 byte) when size % 8 != 0;
+    uint32_t remainder = size;
+    for (; remainder >= kStackSlotSize; remainder -= kStackSlotSize) {
+      movq(liftoff::GetStackSlot(start + remainder), Immediate(0));
+    }
+    DCHECK(remainder == 4 || remainder == 0);
+    if (remainder) {
+      movl(liftoff::GetStackSlot(start + remainder), Immediate(0));
     }
   } else {
     // General case for bigger counts.
-    // This sequence takes 20-23 bytes (3 for pushes, 4-7 for lea, 2 for xor, 5
-    // for mov, 3 for repstosq, 3 for pops).
-    // From intel manual: repstosq fills RCX quadwords at [RDI] with RAX.
+    // This sequence takes 19-22 bytes (3 for pushes, 4-7 for lea, 2 for xor, 5
+    // for mov, 2 for repstosl, 3 for pops).
     pushq(rax);
     pushq(rcx);
     pushq(rdi);
-    leaq(rdi, liftoff::GetStackSlot(GetStackOffsetFromIndex(last_stack_slot)));
+    leaq(rdi, liftoff::GetStackSlot(start + size));
     xorl(rax, rax);
-    movl(rcx, Immediate(count));
-    repstosq();
+    // Convert size (bytes) to doublewords (4-bytes).
+    movl(rcx, Immediate(size / 4));
+    repstosl();
     popq(rdi);
     popq(rcx);
     popq(rax);

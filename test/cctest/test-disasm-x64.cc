@@ -182,6 +182,7 @@ TEST(DisasmX64) {
   __ decq(rdx);
   __ cdq();
 
+  __ repstosl();
   __ repstosq();
 
   __ nop();

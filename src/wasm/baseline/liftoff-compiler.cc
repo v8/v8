@@ -478,16 +478,18 @@ class LiftoffCompiler {
     for (uint32_t param_idx = 0; param_idx < num_params; ++param_idx) {
       input_idx += ProcessParameter(__ local_type(param_idx), input_idx);
     }
+    uint32_t params_size = __ TopSpillOffset();
     DCHECK_EQ(input_idx, descriptor_->InputCount());
 
     // Initialize locals beyond parameters.
     if (SpillLocalsInitially(decoder, num_params)) {
-      __ FillStackSlotsWithZero(num_params, __ num_locals() - num_params);
       for (uint32_t param_idx = num_params; param_idx < __ num_locals();
            ++param_idx) {
         ValueType type = decoder->GetLocalType(param_idx);
         __ PushStack(type);
       }
+      uint32_t spill_size = __ TopSpillOffset();
+      __ FillStackSlotsWithZero(params_size, spill_size);
     } else {
       for (uint32_t param_idx = num_params; param_idx < __ num_locals();
            ++param_idx) {

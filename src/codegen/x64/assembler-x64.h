@@ -544,6 +544,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void repmovsl() { emit_repmovs(kInt32Size); }
   void repmovsq() { emit_repmovs(kInt64Size); }
 
+  // Repeated store of doublewords (fill (E)CX bytes at ES:[(E)DI] with EAX).
+  void repstosl();
   // Repeated store of quadwords (fill RCX quadwords at [RDI] with RAX).
   void repstosq();
 

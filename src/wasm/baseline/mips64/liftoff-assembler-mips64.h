@@ -524,28 +524,27 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t offset, RegPairHalf) {
   UNREACHABLE();
 }
 
-void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
-  DCHECK_LT(0, count);
-  uint32_t last_stack_slot = index + count - 1;
-  RecordUsedSpillOffset(GetStackOffsetFromIndex(last_stack_slot));
+void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
+  DCHECK_LT(0, size);
+  RecordUsedSpillOffset(start + size);
 
-  if (count <= 12) {
+  if (size <= 12 * kStackSlotSize) {
     // Special straight-line code for up to 12 slots. Generates one
     // instruction per slot (<= 12 instructions total).
-    for (uint32_t offset = 0; offset < count; ++offset) {
-      Sd(zero_reg,
-         liftoff::GetStackSlot(GetStackOffsetFromIndex(index + offset)));
+    uint32_t remainder = size;
+    for (; remainder >= kStackSlotSize; remainder -= kStackSlotSize) {
+      Sd(zero_reg, liftoff::GetStackSlot(start + remainder));
+    }
+    DCHECK(remainder == 4 || remainder == 0);
+    if (remainder) {
+      Sw(zero_reg, liftoff::GetStackSlot(start + remainder));
     }
   } else {
     // General case for bigger counts (12 instructions).
     // Use a0 for start address (inclusive), a1 for end address (exclusive).
     Push(a1, a0);
-    Daddu(a0, fp,
-          Operand(-liftoff::GetStackSlotOffset(
-              GetStackOffsetFromIndex(last_stack_slot))));
-    Daddu(a1, fp,
-          Operand(-liftoff::GetStackSlotOffset(GetStackOffsetFromIndex(index)) +
-                  kStackSlotSize));
+    Daddu(a0, fp, Operand(-liftoff::GetStackSlotOffset(start + end)));
+    Daddu(a1, fp, Operand(-liftoff::GetStackSlotOffset(start)));
 
     Label loop;
     bind(&loop);

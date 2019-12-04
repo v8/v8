@@ -398,39 +398,52 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t offset, RegPairHalf) {
   UNREACHABLE();
 }
 
-void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
-  DCHECK_LT(0, count);
-  uint32_t last_stack_slot = index + count - 1;
-  RecordUsedSpillOffset(GetStackOffsetFromIndex(last_stack_slot));
+void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
+  DCHECK_LT(0, size);
+  DCHECK_EQ(0, size % 4);
+  RecordUsedSpillOffset(start + size);
 
-  int max_stp_offset =
-      -liftoff::GetStackSlotOffset(GetStackOffsetFromIndex(index + count - 1));
-  if (count <= 12 && IsImmLSPair(max_stp_offset, kXRegSizeLog2)) {
+  int max_stp_offset = -liftoff::GetStackSlotOffset(start + size);
+  if (size <= 12 * kStackSlotSize &&
+      IsImmLSPair(max_stp_offset, kXRegSizeLog2)) {
     // Special straight-line code for up to 12 slots. Generates one
-    // instruction per two slots (<= 6 instructions total).
-    for (; count > 1; count -= 2) {
-      STATIC_ASSERT(kStackSlotSize == kSystemPointerSize);
-      stp(xzr, xzr,
-          liftoff::GetStackSlot(GetStackOffsetFromIndex(index + count - 1)));
+    // instruction per two slots (<= 7 instructions total).
+    STATIC_ASSERT(kStackSlotSize == kSystemPointerSize);
+    uint32_t remainder = size;
+    for (; remainder >= 2 * kStackSlotSize; remainder -= 2 * kStackSlotSize) {
+      stp(xzr, xzr, liftoff::GetStackSlot(start + remainder));
     }
-    DCHECK(count == 0 || count == 1);
-    if (count) {
-      str(xzr, liftoff::GetStackSlot(GetStackOffsetFromIndex(index)));
+
+    DCHECK_GE(12, remainder);
+    switch (remainder) {
+      case 12:
+        str(xzr, liftoff::GetStackSlot(start + remainder));
+        strh(xzr, liftoff::GetStackSlot(start + remainder - 8));
+        break;
+      case 8:
+        str(xzr, liftoff::GetStackSlot(start + remainder));
+        break;
+      case 4:
+        strh(xzr, liftoff::GetStackSlot(start + remainder));
+        break;
+      case 0:
+        break;
+      default:
+        UNREACHABLE();
     }
   } else {
     // General case for bigger counts (5-8 instructions).
     UseScratchRegisterScope temps(this);
     Register address_reg = temps.AcquireX();
     // This {Sub} might use another temp register if the offset is too large.
-    Sub(address_reg, fp,
-        liftoff::GetStackSlotOffset(GetStackOffsetFromIndex(last_stack_slot)));
+    Sub(address_reg, fp, liftoff::GetStackSlotOffset(start + size));
     Register count_reg = temps.AcquireX();
-    Mov(count_reg, count);
+    Mov(count_reg, size / 4);
 
     Label loop;
     bind(&loop);
     sub(count_reg, count_reg, 1);
-    str(xzr, MemOperand(address_reg, kSystemPointerSize, PostIndex));
+    strh(xzr, MemOperand(address_reg, kSystemPointerSize, PostIndex));
     cbnz(count_reg, &loop);
   }
 }

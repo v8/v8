@@ -286,12 +286,14 @@ class LiftoffAssembler : public TurboAssembler {
   LiftoffRegister PopToRegister(LiftoffRegList pinned = {});
 
   uint32_t NextSpillOffset(ValueType type) {
+    return TopSpillOffset() + SlotSizeForType(type);
+  }
+
+  uint32_t TopSpillOffset() {
     if (cache_state_.stack_state.empty()) {
-      return SlotSizeForType(type);
+      return 0;
     }
-    VarState last = cache_state_.stack_state.back();
-    uint32_t offset = last.offset() + SlotSizeForType(type);
-    return offset;
+    return cache_state_.stack_state.back().offset();
   }
 
   void PushRegister(ValueType type, LiftoffRegister reg) {

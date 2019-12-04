@@ -503,21 +503,16 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t offset,
   mov(reg, liftoff::GetHalfStackSlot(offset, half));
 }
 
-void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
-  DCHECK_LT(0, count);
-  uint32_t last_stack_slot = index + count - 1;
-  RecordUsedSpillOffset(GetStackOffsetFromIndex(last_stack_slot));
+void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
+  DCHECK_LT(0, size);
+  DCHECK_EQ(0, size % 4);
+  RecordUsedSpillOffset(start + size);
 
-  if (count <= 2) {
-    // Special straight-line code for up to two slots (6-9 bytes per word:
-    // C7 <1-4 bytes operand> <4 bytes imm>, makes 12-18 bytes per slot).
-    for (uint32_t offset = 0; offset < count; ++offset) {
-      mov(liftoff::GetHalfStackSlot(GetStackOffsetFromIndex(index + offset),
-                                    kLowWord),
-          Immediate(0));
-      mov(liftoff::GetHalfStackSlot(GetStackOffsetFromIndex(index + offset),
-                                    kHighWord),
-          Immediate(0));
+  if (size <= 12) {
+    // Special straight-line code for up to three words (6-9 bytes per word:
+    // C7 <1-4 bytes operand> <4 bytes imm>, makes 18-27 bytes total).
+    for (uint32_t offset = 4; offset <= size; offset += 4) {
+      mov(liftoff::GetHalfStackSlot(start + offset, kLowWord), Immediate(0));
     }
   } else {
     // General case for bigger counts.
@@ -527,10 +522,10 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
     push(eax);
     push(ecx);
     push(edi);
-    lea(edi, liftoff::GetStackSlot(GetStackOffsetFromIndex(last_stack_slot)));
+    lea(edi, liftoff::GetStackSlot(start + size));
     xor_(eax, eax);
-    // Number of words is number of slots times two.
-    mov(ecx, Immediate(count * 2));
+    // Size is in bytes, convert to doublewords (4-bytes).
+    mov(ecx, Immediate(size / 4));
     rep_stos();
     pop(edi);
     pop(ecx);

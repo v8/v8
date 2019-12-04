@@ -145,36 +145,34 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t offset, RegPairHalf) {
   bailout(kUnsupportedArchitecture, "FillI64Half");
 }
 
-void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
-  DCHECK_LT(0, count);
-  uint32_t last_stack_slot = index + count - 1;
-  RecordUsedSpillOffset(last_stack_slot);
+void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
+  DCHECK_LT(0, size);
+  RecordUsedSpillOffset(start + size);
 
   // We need a zero reg. Always use r0 for that, and push it before to restore
   // its value afterwards.
   push(r0);
   mov(r0, Operand(0));
 
-  if (count <= 5) {
+  if (size <= 5 * kStackSlotSize) {
     // Special straight-line code for up to five slots. Generates two
     // instructions per slot.
-    for (uint32_t offset = 0; offset < count; ++offset) {
-      StoreP(r0, liftoff::GetHalfStackSlot(
-                     GetStackOffsetFromIndex(index + offset), kLowWord));
-      StoreP(r0, liftoff::GetHalfStackSlot(
-                     GetStackOffsetFromIndex(index + offset), kHighWord));
+    uint32_t remainder = size;
+    for (; remainder >= kStackSlotSize; remainder -= kStackSlotSize) {
+      StoreP(r0, liftoff::GetHalfStackSlot(start + remainder, kLowWord));
+      StoreP(r0, liftoff::GetHalfStackSlot(start + remainder, kHighWord));
+    }
+    DCHECK(remainder == 4 || remainder == 0);
+    if (remainder) {
+      StoreP(r0, liftoff::GetHalfStackSlot(start + remainder, kLowWord));
     }
   } else {
     // General case for bigger counts (9 instructions).
     // Use r3 for start address (inclusive), r4 for end address (exclusive).
     push(r3);
     push(r4);
-    SubP(r3, fp,
-         Operand(liftoff::GetStackSlotOffset(
-             GetStackOffsetFromIndex(last_stack_slot))));
-    SubP(r4, fp,
-         Operand(liftoff::GetStackSlotOffset(GetStackOffsetFromIndex(index)) -
-                 kStackSlotSize));
+    SubP(r3, fp, Operand(liftoff::GetStackSlotOffset(start + remainder)));
+    SubP(r4, fp, Operand(liftoff::GetStackSlotOffset(start)));
 
     Label loop;
     bind(&loop);
