@@ -2347,16 +2347,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       // The minpd instruction doesn't propagate NaNs and +0's in its first
       // operand. Perform minpd in both orders, merge the resuls, and adjust.
-      __ movapd(kScratchDoubleReg, src1);
-      __ minpd(kScratchDoubleReg, dst);
-      __ minpd(dst, src1);
+      __ Movapd(kScratchDoubleReg, src1);
+      __ Minpd(kScratchDoubleReg, dst);
+      __ Minpd(dst, src1);
       // propagate -0's and NaNs, which may be non-canonical.
-      __ orpd(kScratchDoubleReg, dst);
+      __ Orpd(kScratchDoubleReg, dst);
       // Canonicalize NaNs by quieting and clearing the payload.
-      __ cmppd(dst, kScratchDoubleReg, 3);
-      __ orpd(kScratchDoubleReg, dst);
-      __ psrlq(dst, 13);
-      __ andnpd(dst, kScratchDoubleReg);
+      __ Cmppd(dst, kScratchDoubleReg, static_cast<int8_t>(3));
+      __ Orpd(kScratchDoubleReg, dst);
+      __ Psrlq(dst, 13);
+      __ Andnpd(dst, kScratchDoubleReg);
       break;
     }
     case kX64F64x2Max: {
@@ -2365,19 +2365,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       // The maxpd instruction doesn't propagate NaNs and +0's in its first
       // operand. Perform maxpd in both orders, merge the resuls, and adjust.
-      __ movapd(kScratchDoubleReg, src1);
-      __ maxpd(kScratchDoubleReg, dst);
-      __ maxpd(dst, src1);
+      __ Movapd(kScratchDoubleReg, src1);
+      __ Maxpd(kScratchDoubleReg, dst);
+      __ Maxpd(dst, src1);
       // Find discrepancies.
-      __ xorpd(dst, kScratchDoubleReg);
+      __ Xorpd(dst, kScratchDoubleReg);
       // Propagate NaNs, which may be non-canonical.
-      __ orpd(kScratchDoubleReg, dst);
+      __ Orpd(kScratchDoubleReg, dst);
       // Propagate sign discrepancy and (subtle) quiet NaNs.
-      __ subpd(kScratchDoubleReg, dst);
+      __ Subpd(kScratchDoubleReg, dst);
       // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-      __ cmppd(dst, kScratchDoubleReg, 3);
-      __ psrlq(dst, 13);
-      __ andnpd(dst, kScratchDoubleReg);
+      __ Cmppd(dst, kScratchDoubleReg, static_cast<int8_t>(3));
+      __ Psrlq(dst, 13);
+      __ Andnpd(dst, kScratchDoubleReg);
       break;
     }
     case kX64F64x2Eq: {
@@ -2407,9 +2407,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                        i.InputSimd128Register(2));
       } else {
         XMMRegister tmp = i.TempSimd128Register(0);
-        __ movapd(tmp, i.InputSimd128Register(2));
-        __ mulpd(tmp, i.InputSimd128Register(1));
-        __ addpd(i.OutputSimd128Register(), tmp);
+        __ Movapd(tmp, i.InputSimd128Register(2));
+        __ Mulpd(tmp, i.InputSimd128Register(1));
+        __ Addpd(i.OutputSimd128Register(), tmp);
       }
       break;
     }
@@ -2420,9 +2420,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                         i.InputSimd128Register(2));
       } else {
         XMMRegister tmp = i.TempSimd128Register(0);
-        __ movapd(tmp, i.InputSimd128Register(2));
-        __ mulpd(tmp, i.InputSimd128Register(1));
-        __ subpd(i.OutputSimd128Register(), tmp);
+        __ Movapd(tmp, i.InputSimd128Register(2));
+        __ Mulpd(tmp, i.InputSimd128Register(1));
+        __ Subpd(i.OutputSimd128Register(), tmp);
       }
       break;
     }
