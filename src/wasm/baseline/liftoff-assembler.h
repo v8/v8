@@ -43,15 +43,6 @@ class LiftoffAssembler : public TurboAssembler {
     return kStackSlotSize;
   }
 
-  // TODO(zhin): Temporary for migration from index to offset.
-  inline static uint32_t GetStackOffsetFromIndex(uint32_t index) {
-    // The idea of a stack offset changed from being relative to first stack
-    // offset (instance offset + kStackSlotSize), to being relative to instance
-    // offset. So the stack offset of a particular index needs to take into
-    // account the size of the first slot.
-    return (index + 1) * LiftoffAssembler::kStackSlotSize;
-  }
-
   class VarState {
    public:
     enum Location : uint8_t { kStack, kRegister, kIntConst };
@@ -441,7 +432,7 @@ class LiftoffAssembler : public TurboAssembler {
   // Only used on 32-bit systems: Fill a register from a "half stack slot", i.e.
   // 4 bytes on the stack holding half of a 64-bit value.
   inline void FillI64Half(Register, uint32_t offset, RegPairHalf);
-  inline void FillStackSlotsWithZero(uint32_t index, uint32_t count);
+  inline void FillStackSlotsWithZero(uint32_t start, uint32_t size);
 
   // i32 binops.
   inline void emit_i32_add(Register dst, Register lhs, Register rhs);
