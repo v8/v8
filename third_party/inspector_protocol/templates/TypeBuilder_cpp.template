@@ -226,11 +226,11 @@ public:
     }
     ~DispatcherImpl() override { }
     bool canDispatch(const String& method) override;
-    void dispatch(int callId, const String& method, const ProtocolMessage& message, std::unique_ptr<protocol::DictionaryValue> messageObject) override;
+    void dispatch(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message, std::unique_ptr<protocol::DictionaryValue> messageObject) override;
     std::unordered_map<String, String>& redirects() { return m_redirects; }
 
 protected:
-    using CallHandler = void (DispatcherImpl::*)(int callId, const String& method, const ProtocolMessage& message, std::unique_ptr<DictionaryValue> messageObject, ErrorSupport* errors);
+    using CallHandler = void (DispatcherImpl::*)(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message, std::unique_ptr<DictionaryValue> messageObject, ErrorSupport* errors);
     using DispatchMap = std::unordered_map<String, CallHandler>;
     DispatchMap m_dispatchMap;
     std::unordered_map<String, String> m_redirects;
@@ -238,7 +238,7 @@ protected:
   {% for command in domain.commands %}
     {% if "redirect" in command %}{% continue %}{% endif %}
     {% if not protocol.generate_command(domain.domain, command.name) %}{% continue %}{% endif %}
-    void {{command.name}}(int callId, const String& method, const ProtocolMessage& message, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport*);
+    void {{command.name}}(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport*);
   {% endfor %}
 
     Backend* m_backend;
@@ -248,7 +248,7 @@ bool DispatcherImpl::canDispatch(const String& method) {
     return m_dispatchMap.find(method) != m_dispatchMap.end();
 }
 
-void DispatcherImpl::dispatch(int callId, const String& method, const ProtocolMessage& message, std::unique_ptr<protocol::DictionaryValue> messageObject)
+void DispatcherImpl::dispatch(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message, std::unique_ptr<protocol::DictionaryValue> messageObject)
 {
     std::unordered_map<String, CallHandler>::iterator it = m_dispatchMap.find(method);
     DCHECK(it != m_dispatchMap.end());
@@ -264,7 +264,7 @@ void DispatcherImpl::dispatch(int callId, const String& method, const ProtocolMe
 
 class {{command_name_title}}CallbackImpl : public Backend::{{command_name_title}}Callback, public DispatcherBase::Callback {
 public:
-    {{command_name_title}}CallbackImpl(std::unique_ptr<DispatcherBase::WeakPtr> backendImpl, int callId, const String& method, const ProtocolMessage& message)
+    {{command_name_title}}CallbackImpl(std::unique_ptr<DispatcherBase::WeakPtr> backendImpl, int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message)
         : DispatcherBase::Callback(std::move(backendImpl), callId, method, message) { }
 
     void sendSuccess(
@@ -302,7 +302,7 @@ public:
 };
     {% endif %}
 
-void DispatcherImpl::{{command.name}}(int callId, const String& method, const ProtocolMessage& message, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport* errors)
+void DispatcherImpl::{{command.name}}(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport* errors)
 {
     {% if "parameters" in command %}
     // Prepare input parameters.

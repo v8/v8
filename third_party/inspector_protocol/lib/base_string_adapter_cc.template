@@ -140,17 +140,6 @@ std::unique_ptr<Value> StringUtil::parseMessage(
   return toProtocolValue(value.get(), 1000);
 }
 
-// static
-ProtocolMessage StringUtil::jsonToMessage(String message) {
-  return message;
-}
-
-// static
-ProtocolMessage StringUtil::binaryToMessage(std::vector<uint8_t> message) {
-  // TODO(pfeldman): figure out what to do with this copy.
-  return std::string(reinterpret_cast<const char*>(message.data()), message.size());
-}
-
 StringBuilder::StringBuilder() {}
 
 StringBuilder::~StringBuilder() {}

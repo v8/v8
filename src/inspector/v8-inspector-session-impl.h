@@ -103,7 +103,7 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   void sendProtocolNotification(
       std::unique_ptr<protocol::Serializable> message) override;
   void fallThrough(int callId, const String16& method,
-                   const protocol::ProtocolMessage& message) override;
+                   v8_crdtp::span<uint8_t> message) override;
   void flushProtocolNotifications() override;
 
   std::unique_ptr<StringBuffer> serializeForFrontend(

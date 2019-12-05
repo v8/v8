@@ -22,8 +22,8 @@ class span {
  public:
   using index_type = size_t;
 
-  span() : data_(nullptr), size_(0) {}
-  span(const T* data, index_type size) : data_(data), size_(size) {}
+  constexpr span() : data_(nullptr), size_(0) {}
+  constexpr span(const T* data, index_type size) : data_(data), size_(size) {}
 
   const T* data() const { return data_; }
 
@@ -51,7 +51,7 @@ class span {
 };
 
 template <typename T>
-span<T> SpanFrom(const std::vector<T>& v) {
+constexpr span<T> SpanFrom(const std::vector<T>& v) {
   return span<T>(v.data(), v.size());
 }
 

@@ -22,7 +22,6 @@ class Value;
 
 using String = v8_inspector::String16;
 using StringBuilder = v8_inspector::String16Builder;
-using ProtocolMessage = std::vector<uint8_t>;
 
 class StringUtil {
  public:

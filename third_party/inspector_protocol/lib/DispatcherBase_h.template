@@ -11,6 +11,8 @@
 //#include "ErrorSupport.h"
 //#include "Values.h"
 
+#include "{{config.crdtp.dir}}/span.h"
+
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
 {% endfor %}
@@ -71,7 +73,7 @@ public:
 
     class {{config.lib.export_macro}} Callback {
     public:
-        Callback(std::unique_ptr<WeakPtr> backendImpl, int callId, const String& method, const ProtocolMessage& message);
+        Callback(std::unique_ptr<WeakPtr> backendImpl, int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message);
         virtual ~Callback();
         void dispose();
 
@@ -83,14 +85,14 @@ public:
         std::unique_ptr<WeakPtr> m_backendImpl;
         int m_callId;
         String m_method;
-        ProtocolMessage m_message;
+        std::vector<uint8_t> m_message;
     };
 
     explicit DispatcherBase(FrontendChannel*);
     virtual ~DispatcherBase();
 
     virtual bool canDispatch(const String& method) = 0;
-    virtual void dispatch(int callId, const String& method, const ProtocolMessage& rawMessage, std::unique_ptr<protocol::DictionaryValue> messageObject) = 0;
+    virtual void dispatch(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> rawMessage, std::unique_ptr<protocol::DictionaryValue> messageObject) = 0;
     FrontendChannel* channel() { return m_frontendChannel; }
 
     void sendResponse(int callId, const DispatchResponse&, std::unique_ptr<protocol::DictionaryValue> result);
@@ -114,7 +116,7 @@ public:
     void setupRedirects(const std::unordered_map<String, String>&);
     bool parseCommand(Value* message, int* callId, String* method);
     bool canDispatch(const String& method);
-    void dispatch(int callId, const String& method, std::unique_ptr<Value> message, const ProtocolMessage& rawMessage);
+    void dispatch(int callId, const String& method, std::unique_ptr<Value> message, {{config.crdtp.namespace}}::span<uint8_t> rawMessage);
     FrontendChannel* channel() { return m_frontendChannel; }
     virtual ~UberDispatcher();
 

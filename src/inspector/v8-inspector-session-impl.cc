@@ -188,9 +188,8 @@ void V8InspectorSessionImpl::sendProtocolNotification(
   m_channel->sendNotification(serializeForFrontend(std::move(message)));
 }
 
-void V8InspectorSessionImpl::fallThrough(
-    int callId, const String16& method,
-    const protocol::ProtocolMessage& message) {
+void V8InspectorSessionImpl::fallThrough(int callId, const String16& method,
+                                         v8_crdtp::span<uint8_t> message) {
   // There's no other layer to handle the command.
   UNREACHABLE();
 }
@@ -364,7 +363,7 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(
     // Pass empty string instead of the actual message to save on a conversion.
     // We're allowed to do so because fall-through is not implemented.
     m_dispatcher.dispatch(callId, method, std::move(parsed_message),
-                          protocol::ProtocolMessage());
+                          v8_crdtp::span<uint8_t>());
   }
 }
 
