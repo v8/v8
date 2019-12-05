@@ -543,7 +543,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
     // General case for bigger counts (12 instructions).
     // Use a0 for start address (inclusive), a1 for end address (exclusive).
     Push(a1, a0);
-    Daddu(a0, fp, Operand(-liftoff::GetStackSlotOffset(start + end)));
+    Daddu(a0, fp, Operand(-liftoff::GetStackSlotOffset(start + size)));
     Daddu(a1, fp, Operand(-liftoff::GetStackSlotOffset(start)));
 
     Label loop;
