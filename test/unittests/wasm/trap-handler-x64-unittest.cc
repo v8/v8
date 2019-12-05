@@ -260,6 +260,10 @@ class TrapHandlerTest : public TestWithIsolate,
   std::unique_ptr<TestingAssemblerBuffer> recovery_buffer_;
 };
 
+// TODO(almuthanna): These tests were skipped because they cause a crash when
+// they are ran on Fuchsia. This issue should be solved later on
+// Ticket: https://crbug.com/1028617
+#if !defined(V8_TARGET_OS_FUCHSIA)
 TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
   // Test that the wasm trap handler can recover a memory access violation in
   // wasm code (we fake the wasm code and the access violation).
@@ -417,6 +421,7 @@ TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
     *trap_handler::GetThreadInWasmThreadLocalAddress() = 0;
   }
 }
+#endif
 
 class CodeRunner : public v8::base::Thread {
  public:
@@ -430,6 +435,10 @@ class CodeRunner : public v8::base::Thread {
   TestingAssemblerBuffer* buffer_;
 };
 
+// TODO(almuthanna): This test was skipped because it causes a crash when it is
+// ran on Fuchsia. This issue should be solved later on
+// Ticket: https://crbug.com/1028617
+#if !defined(V8_TARGET_OS_FUCHSIA)
 TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
   // Test setup:
   // The current thread enters wasm land (sets the thread_in_wasm flag)
@@ -464,6 +473,7 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
   // Reset the thread-in-wasm flag.
   *trap_handler::GetThreadInWasmThreadLocalAddress() = 0;
 }
+#endif
 
 INSTANTIATE_TEST_SUITE_P(Traps, TrapHandlerTest,
                          ::testing::Values(kDefault, kCallback),

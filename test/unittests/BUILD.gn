@@ -4,6 +4,22 @@
 
 import("../../gni/v8.gni")
 
+if (is_fuchsia) {
+  import("//build/config/fuchsia/rules.gni")
+
+  fuchsia_package("v8_unittests_pkg") {
+    testonly = true
+    binary = ":unittests"
+    package_name_override = "v8_unittests"
+  }
+
+  fuchsia_package_runner("v8_unittests_fuchsia") {
+    testonly = true
+    package = ":v8_unittests_pkg"
+    package_name_override = "v8_unittests"
+  }
+}
+
 v8_executable("unittests") {
   testonly = true
 
