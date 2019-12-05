@@ -909,14 +909,15 @@ void SerializerForBackgroundCompilation::Environment::Merge(Environment* other,
   SLOW_DCHECK(closure_hints_ == other->closure_hints_);
 
   if (IsDead()) {
-    // TODO(neis): Acquire existing hints rather than merge them into empty?
-    ephemeral_hints_.resize(other->ephemeral_hints_.size());
+    ephemeral_hints_ = other->ephemeral_hints_;
+  } else {
+    CHECK_EQ(ephemeral_hints_.size(), other->ephemeral_hints_.size());
+    for (size_t i = 0; i < ephemeral_hints_.size(); ++i) {
+      ephemeral_hints_[i].Merge(other->ephemeral_hints_[i], zone);
+    }
   }
 
-  CHECK_EQ(ephemeral_hints_.size(), other->ephemeral_hints_.size());
-  for (size_t i = 0; i < ephemeral_hints_.size(); ++i) {
-    ephemeral_hints_[i].Merge(other->ephemeral_hints_[i], zone);
-  }
+  // TODO(neis): Deal with context hints.
 
   CHECK(!IsDead());
 }
@@ -2666,7 +2667,7 @@ void SerializerForBackgroundCompilation::ProcessJump(
 void SerializerForBackgroundCompilation::VisitReturn(
     BytecodeArrayIterator* iterator) {
   return_value_hints().Add(environment()->accumulator_hints(), zone());
-  environment()->ClearEphemeralHints();
+  environment()->Kill();
 }
 
 void SerializerForBackgroundCompilation::VisitSwitchOnSmiNoFeedback(
@@ -3374,7 +3375,7 @@ CONDITIONAL_JUMPS_LIST(DEFINE_CONDITIONAL_JUMP)
   void SerializerForBackgroundCompilation::Visit##name( \
       BytecodeArrayIterator* iterator) {                \
     ProcessJump(iterator);                              \
-    environment()->ClearEphemeralHints();               \
+    environment()->Kill();                              \
   }
 UNCONDITIONAL_JUMPS_LIST(DEFINE_UNCONDITIONAL_JUMP)
 #undef DEFINE_UNCONDITIONAL_JUMP

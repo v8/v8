@@ -412,6 +412,8 @@
   'compiler/serializer-accessors': [SKIP],
   'compiler/serializer-apply': [SKIP],
   'compiler/serializer-call': [SKIP],
+  'compiler/serializer-dead-after-jump': [SKIP],
+  'compiler/serializer-dead-after-return': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
 
   # These tests check that we can trace the compiler.
@@ -841,6 +843,8 @@
   'code-coverage-block-opt': [SKIP],
   'compiler/serializer-apply': [SKIP],
   'compiler/serializer-call': [SKIP],
+  'compiler/serializer-dead-after-jump': [SKIP],
+  'compiler/serializer-dead-after-return': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
 
   # Bounds check triggers forced deopt for array constructors.
@@ -888,6 +892,8 @@
   'compiler/native-context-specialization-hole-check': [SKIP],
   'compiler/serializer-apply': [SKIP],
   'compiler/serializer-call': [SKIP],
+  'compiler/serializer-dead-after-jump': [SKIP],
+  'compiler/serializer-dead-after-return': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
   'opt-elements-kind': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
@@ -1108,6 +1114,8 @@
   'compiler/serializer-accessors': [SKIP],
   'compiler/serializer-apply': [SKIP],
   'compiler/serializer-call': [SKIP],
+  'compiler/serializer-dead-after-jump': [SKIP],
+  'compiler/serializer-dead-after-return': [SKIP],
   'compiler/serializer-feedback-propagation-*': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
 
