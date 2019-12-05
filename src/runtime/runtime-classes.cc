@@ -39,6 +39,11 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
   Handle<String> name(constructor->shared().Name(), isolate);
+  if (name->length() == 0) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kAnonymousConstructorNonCallable));
+  }
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kConstructorNonCallable, name));
 }

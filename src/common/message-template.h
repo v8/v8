@@ -65,6 +65,8 @@ namespace internal {
   T(ConstructorClassField, "Classes may not have a field named 'constructor'") \
   T(ConstructorNonCallable,                                                    \
     "Class constructor % cannot be invoked without 'new'")                     \
+  T(AnonymousConstructorNonCallable,                                           \
+    "Class constructors cannot be invoked without 'new'")                      \
   T(ConstructorNotFunction, "Constructor % requires 'new'")                    \
   T(ConstructorNotReceiver, "The .constructor property is not an object")      \
   T(CurrencyCode, "Currency code is required with currency style.")            \
@@ -269,7 +271,7 @@ namespace internal {
   T(RegExpNonObject, "% getter called on non-object %")                        \
   T(RegExpNonRegExp, "% getter called on non-RegExp object")                   \
   T(RegExpGlobalInvokedOnNonGlobal,                                            \
-    "% called with a non-global RegExp argument")                             \
+    "% called with a non-global RegExp argument")                              \
   T(RelativeDateTimeFormatterBadParameters,                                    \
     "Incorrect RelativeDateTimeFormatter provided")                            \
   T(ResolverNotAFunction, "Promise resolver % is not a function")              \
