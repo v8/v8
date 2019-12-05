@@ -223,6 +223,11 @@ class EffectControlLinearizer {
   Node* BuildReverseBytes(ExternalArrayType type, Node* value);
   Node* BuildFloat64RoundDown(Node* value);
   Node* BuildFloat64RoundTruncate(Node* input);
+  template <size_t VarCount, size_t VarCount2>
+  void SmiTagOrOverflow(Node* value, GraphAssemblerLabel<VarCount>* if_overflow,
+                        GraphAssemblerLabel<VarCount2>* done);
+  Node* SmiTagOrDeopt(Node* value, const CheckParameters& params,
+                      Node* frame_state);
   Node* BuildUint32Mod(Node* lhs, Node* rhs);
   Node* ComputeUnseededHash(Node* value);
   Node* LowerStringComparison(Callable const& callable, Node* node);
@@ -1350,13 +1355,7 @@ Node* EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node) {
       Node* value_smi = ChangeInt32ToSmi(value32);
       __ Goto(&done, value_smi);
     } else {
-      DCHECK(SmiValuesAre31Bits());
-      Node* add = __ Int32AddWithOverflow(value32, value32);
-      Node* ovf = __ Projection(1, add);
-      __ GotoIf(ovf, &if_heapnumber);
-      Node* value_smi = __ Projection(0, add);
-      value_smi = ChangeTaggedInt32ToSmi(value_smi);
-      __ Goto(&done, value_smi);
+      SmiTagOrOverflow(value32, &if_heapnumber, &done);
     }
   }
 
@@ -1407,12 +1406,7 @@ Node* EffectControlLinearizer::LowerChangeInt32ToTagged(Node* node) {
   auto if_overflow = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
 
-  Node* add = __ Int32AddWithOverflow(value, value);
-  Node* ovf = __ Projection(1, add);
-  __ GotoIf(ovf, &if_overflow);
-  Node* value_smi = __ Projection(0, add);
-  value_smi = ChangeTaggedInt32ToSmi(value_smi);
-  __ Goto(&done, value_smi);
+  SmiTagOrOverflow(value, &if_overflow, &done);
 
   __ Bind(&if_overflow);
   Node* number = AllocateHeapNumberWithValue(__ ChangeInt32ToFloat64(value));
@@ -1436,11 +1430,7 @@ Node* EffectControlLinearizer::LowerChangeInt64ToTagged(Node* node) {
     Node* value_smi = ChangeInt64ToSmi(value);
     __ Goto(&done, value_smi);
   } else {
-    Node* add = __ Int32AddWithOverflow(value32, value32);
-    Node* ovf = __ Projection(1, add);
-    __ GotoIf(ovf, &if_not_in_smi_range);
-    Node* value_smi = ChangeTaggedInt32ToSmi(__ Projection(0, add));
-    __ Goto(&done, value_smi);
+    SmiTagOrOverflow(value32, &if_not_in_smi_range, &done);
   }
 
   __ Bind(&if_not_in_smi_range);
@@ -2076,6 +2066,35 @@ Node* EffectControlLinearizer::LowerCheckedInt32Div(Node* node,
   }
 }
 
+template <size_t VarCount, size_t VarCount2>
+void EffectControlLinearizer::SmiTagOrOverflow(
+    Node* value, GraphAssemblerLabel<VarCount>* if_overflow,
+    GraphAssemblerLabel<VarCount2>* done) {
+  DCHECK(SmiValuesAre31Bits());
+  // Check for overflow at the same time that we are smi tagging.
+  // Since smi tagging shifts left by one, it's the same as adding value twice.
+  Node* add = __ Int32AddWithOverflow(value, value);
+  Node* ovf = __ Projection(1, add);
+  __ GotoIf(ovf, if_overflow);
+  Node* value_smi = __ Projection(0, add);
+  value_smi = ChangeTaggedInt32ToSmi(value_smi);
+  __ Goto(done, value_smi);
+}
+
+Node* EffectControlLinearizer::SmiTagOrDeopt(Node* value,
+                                             const CheckParameters& params,
+                                             Node* frame_state) {
+  DCHECK(SmiValuesAre31Bits());
+  // Check for the lost precision at the same time that we are smi tagging.
+  // Since smi tagging shifts left by one, it's the same as adding value twice.
+  Node* add = __ Int32AddWithOverflow(value, value);
+  Node* check = __ Projection(1, add);
+  __ DeoptimizeIf(DeoptimizeReason::kLostPrecision, params.feedback(), check,
+                  frame_state);
+  Node* result = __ Projection(0, add);
+  return ChangeTaggedInt32ToSmi(result);
+}
+
 Node* EffectControlLinearizer::BuildUint32Mod(Node* lhs, Node* rhs) {
   auto if_rhs_power_of_two = __ MakeLabel();
   auto done = __ MakeLabel(MachineRepresentation::kWord32);
@@ -2276,16 +2295,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32ToTaggedSigned(
   DCHECK(SmiValuesAre31Bits());
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
-
-  // Check for the lost precision at the same time that we are smi tagging.
-  Node* add = __ Int32AddWithOverflow(value, value);
-  Node* check = __ Projection(1, add);
-  __ DeoptimizeIf(DeoptimizeReason::kLostPrecision, params.feedback(), check,
-                  frame_state);
-  // Since smi tagging shifts left by one, it's the same as adding value twice.
-  Node* result = __ Projection(0, add);
-  result = ChangeTaggedInt32ToSmi(result);
-  return result;
+  return SmiTagOrDeopt(value, params, frame_state);
 }
 
 Node* EffectControlLinearizer::LowerCheckedInt64ToInt32(Node* node,
@@ -2313,13 +2323,7 @@ Node* EffectControlLinearizer::LowerCheckedInt64ToTaggedSigned(
   if (SmiValuesAre32Bits()) {
     return ChangeInt64ToSmi(value);
   } else {
-    Node* add = __ Int32AddWithOverflow(value32, value32);
-    Node* check = __ Projection(1, add);
-    __ DeoptimizeIf(DeoptimizeReason::kLostPrecision, params.feedback(), check,
-                    frame_state);
-    Node* result = __ Projection(0, add);
-    result = ChangeTaggedInt32ToSmi(result);
-    return result;
+    return SmiTagOrDeopt(value32, params, frame_state);
   }
 }
 
