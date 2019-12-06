@@ -474,7 +474,7 @@ namespace promise {
   PerformPromiseThen(implicit context: Context)(
       promise: JSPromise, onFulfilled: Callable|Undefined,
       onRejected: Callable|Undefined,
-      resultPromise: JSPromise|Undefined): HeapObject {
+      resultPromise: JSPromise|Undefined): JSAny {
     PerformPromiseThenImpl(promise, onFulfilled, onRejected, resultPromise);
     return resultPromise;
   }

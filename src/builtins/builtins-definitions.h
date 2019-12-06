@@ -723,8 +723,6 @@ namespace internal {
   /* ES #sec-promisereactionjob */                                             \
   TFS(PromiseRejectReactionJob, kReason, kHandler, kPromiseOrCapability)       \
   TFS(PromiseFulfillReactionJob, kValue, kHandler, kPromiseOrCapability)       \
-  /* ES #sec-promiseresolvethenablejob */                                      \
-  TFS(PromiseResolveThenableJob, kPromiseToResolve, kThenable, kThen)          \
   /* ES #sec-promise.resolve */                                                \
   TFJ(PromiseResolveTrampoline, 1, kReceiver, kValue)                          \
   /* ES #sec-promise-resolve */                                                \
