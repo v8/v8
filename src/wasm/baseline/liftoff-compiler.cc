@@ -245,11 +245,13 @@ class LiftoffCompiler {
 
   LiftoffCompiler(compiler::CallDescriptor* call_descriptor,
                   CompilationEnv* env, Zone* compilation_zone,
-                  std::unique_ptr<AssemblerBuffer> buffer)
+                  std::unique_ptr<AssemblerBuffer> buffer,
+                  DebugSideTableBuilder* debug_sidetable_builder)
       : asm_(std::move(buffer)),
         descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
         env_(env),
+        debug_sidetable_builder_(debug_sidetable_builder),
         compilation_zone_(compilation_zone),
         safepoint_table_builder_(compilation_zone_) {}
 
@@ -2172,8 +2174,7 @@ class LiftoffCompiler {
 
   compiler::CallDescriptor* const descriptor_;
   CompilationEnv* const env_;
-  // TODO(clemensb): Provide a DebugSideTableBuilder here.
-  DebugSideTableBuilder* const debug_sidetable_builder_ = nullptr;
+  DebugSideTableBuilder* const debug_sidetable_builder_;
   LiftoffBailoutReason bailout_reason_ = kSuccess;
   std::vector<OutOfLineCode> out_of_line_code_;
   SourcePositionTableBuilder source_position_table_builder_;
@@ -2225,7 +2226,6 @@ WasmCompilationResult ExecuteLiftoffCompilation(AccountingAllocator* allocator,
                "body_size", func_body_size);
 
   Zone zone(allocator, "LiftoffCompilationZone");
-  const WasmModule* module = env ? env->module : nullptr;
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
       base::in_place, counters->liftoff_compile_time());
@@ -2235,9 +2235,11 @@ WasmCompilationResult ExecuteLiftoffCompilation(AccountingAllocator* allocator,
   // generation.
   std::unique_ptr<wasm::WasmInstructionBuffer> instruction_buffer =
       wasm::WasmInstructionBuffer::New(128 + code_size_estimate * 4 / 3);
+  DebugSideTableBuilder* const kNoDebugSideTable = nullptr;
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
-      &zone, module, env->enabled_features, detected, func_body,
-      call_descriptor, env, &zone, instruction_buffer->CreateView());
+      &zone, env->module, env->enabled_features, detected, func_body,
+      call_descriptor, env, &zone, instruction_buffer->CreateView(),
+      kNoDebugSideTable);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();
@@ -2270,6 +2272,24 @@ WasmCompilationResult ExecuteLiftoffCompilation(AccountingAllocator* allocator,
 
   DCHECK(result.succeeded());
   return result;
+}
+
+DebugSideTable GenerateLiftoffDebugSideTable(AccountingAllocator* allocator,
+                                             CompilationEnv* env,
+                                             const FunctionBody& func_body) {
+  Zone zone(allocator, "LiftoffDebugSideTableZone");
+  auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
+  DebugSideTableBuilder debug_sidetable_builder;
+  WasmFeatures detected;
+  WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
+      &zone, env->module, env->enabled_features, &detected, func_body,
+      call_descriptor, env, &zone,
+      NewAssemblerBuffer(AssemblerBase::kDefaultBufferSize),
+      &debug_sidetable_builder);
+  decoder.Decode();
+  DCHECK(decoder.ok());
+  DCHECK(!decoder.interface().did_bailout());
+  return debug_sidetable_builder.GenerateDebugSideTable();
 }
 
 #undef __

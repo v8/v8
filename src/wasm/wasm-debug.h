@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "src/base/logging.h"
+#include "src/base/macros.h"
 
 namespace v8 {
 namespace internal {
@@ -67,6 +68,10 @@ class DebugSideTable {
     std::vector<Constant> constants_;
   };
 
+  // Technically it would be fine to copy this class, but there should not be a
+  // reason to do so, hence mark it move only.
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(DebugSideTable);
+
   explicit DebugSideTable(std::vector<Entry> entries)
       : entries_(std::move(entries)) {
     DCHECK(
@@ -79,6 +84,8 @@ class DebugSideTable {
     if (it == entries_.end() || it->pc_offset() != pc_offset) return nullptr;
     return &*it;
   }
+
+  size_t num_entries() const { return entries_.size(); }
 
  private:
   struct EntryPositionLess {
