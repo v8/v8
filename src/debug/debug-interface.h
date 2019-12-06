@@ -527,13 +527,13 @@ class WeakMap : public v8::Object {
  * In the case of private accessors, getters and setters are either null or
  * Functions.
  */
-class AccessorPair : public v8::Value {
+class V8_EXPORT_PRIVATE AccessorPair : public v8::Value {
  public:
-  V8_EXPORT_PRIVATE v8::Local<v8::Value> getter();
-  V8_EXPORT_PRIVATE v8::Local<v8::Value> setter();
+  v8::Local<v8::Value> getter();
+  v8::Local<v8::Value> setter();
 
-  V8_EXPORT_PRIVATE static bool IsAccessorPair(v8::Local<v8::Value> obj);
-  V8_INLINE V8_EXPORT_PRIVATE static AccessorPair* Cast(v8::Value* obj);
+  static bool IsAccessorPair(v8::Local<v8::Value> obj);
+  V8_INLINE static AccessorPair* Cast(v8::Value* obj);
 
  private:
   AccessorPair();
