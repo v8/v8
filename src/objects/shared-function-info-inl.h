@@ -188,7 +188,7 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_asm_wasm_broken,
                     SharedFunctionInfo::IsAsmWasmBrokenBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
                     requires_instance_members_initializer,
-                    SharedFunctionInfo::RequiresInstanceMembersInitializer)
+                    SharedFunctionInfo::RequiresInstanceMembersInitializerBit)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, name_should_print_as_anonymous,
                     SharedFunctionInfo::NameShouldPrintAsAnonymousBit)
@@ -199,7 +199,7 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_toplevel,
                     SharedFunctionInfo::IsTopLevelBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
                     is_oneshot_iife_or_properties_are_final,
-                    SharedFunctionInfo::IsOneshotIIFEOrPropertiesAreFinalBit)
+                    SharedFunctionInfo::IsOneshotIifeOrPropertiesAreFinalBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
                     is_safe_to_skip_arguments_adaptor,
                     SharedFunctionInfo::IsSafeToSkipArgumentsAdaptorBit)

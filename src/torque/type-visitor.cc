@@ -131,6 +131,70 @@ void DeclareMethods(AggregateType* container_type,
   }
 }
 
+const BitFieldStructType* TypeVisitor::ComputeType(
+    BitFieldStructDeclaration* decl, MaybeSpecializationKey specialized_from) {
+  CurrentSourcePosition::Scope position_scope(decl->pos);
+  if (specialized_from.has_value()) {
+    ReportError("Bitfield struct specialization is not supported");
+  }
+  const Type* parent = TypeVisitor::ComputeType(decl->parent);
+  if (!IsAnyUnsignedInteger(parent)) {
+    ReportError(
+        "Bitfield struct must extend from an unsigned integer type, not ",
+        parent->ToString());
+  }
+  auto opt_size = SizeOf(parent);
+  if (!opt_size.has_value()) {
+    ReportError("Cannot determine size of bitfield struct ", decl->name->value,
+                " because of unsized parent type ", parent->ToString());
+  }
+  const size_t size = 8 * std::get<0>(*opt_size);  // Convert bytes to bits.
+  BitFieldStructType* type = TypeOracle::GetBitFieldStructType(parent, decl);
+
+  // Iterate through all of the declared fields, checking their validity and
+  // registering them on the newly-constructed BitFieldStructType instance.
+  int offset = 0;
+  for (const auto& field : decl->fields) {
+    CurrentSourcePosition::Scope field_position_scope(
+        field.name_and_type.type->pos);
+    const Type* field_type = TypeVisitor::ComputeType(field.name_and_type.type);
+    if (!IsAllowedAsBitField(field_type)) {
+      ReportError("Type not allowed as bitfield: ",
+                  field.name_and_type.name->value);
+    }
+
+    // Compute the maximum number of bits that could be used for a field of this
+    // type. Booleans are a special case, not included in SizeOf, because their
+    // runtime size is 32 bits but they should only occupy 1 bit as a bitfield.
+    size_t field_type_size = 0;
+    if (field_type == TypeOracle::GetBoolType()) {
+      field_type_size = 1;
+    } else {
+      auto opt_field_type_size = SizeOf(field_type);
+      if (!opt_field_type_size.has_value()) {
+        ReportError("Size unknown for type ", field_type->ToString());
+      }
+      field_type_size = 8 * std::get<0>(*opt_field_type_size);
+    }
+
+    if (field.num_bits < 1 ||
+        static_cast<size_t>(field.num_bits) > field_type_size) {
+      ReportError("Invalid number of bits for ",
+                  field.name_and_type.name->value);
+    }
+    type->RegisterField({field.name_and_type.name->pos,
+                         {field.name_and_type.name->value, field_type},
+                         offset,
+                         field.num_bits});
+    offset += field.num_bits;
+    if (static_cast<size_t>(offset) > size) {
+      ReportError("Too many total bits in ", decl->name->value);
+    }
+  }
+
+  return type;
+}
+
 const StructType* TypeVisitor::ComputeType(
     StructDeclaration* decl, MaybeSpecializationKey specialized_from) {
   StructType* struct_type = TypeOracle::GetStructType(decl, specialized_from);

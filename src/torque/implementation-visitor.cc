@@ -3075,6 +3075,44 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
   WriteFile(output_header_path, header.str());
 }
 
+void ImplementationVisitor::GenerateBitFields(
+    const std::string& output_directory) {
+  std::stringstream header;
+  std::string file_name = "bit-fields-tq.h";
+  {
+    IncludeGuardScope include_guard(header, file_name);
+    header << "#include \"src/base/bit-field.h\"\n\n";
+    NamespaceScope namespaces(header, {"v8", "internal"});
+
+    // TODO(v8:7793): Once we can define enums in Torque, we should be able to
+    // do something nicer than hard-coding these predeclarations. Until then,
+    // any enum used as a bitfield must be included in this list.
+    header << R"(
+enum class FunctionSyntaxKind : uint8_t;
+enum class BailoutReason : uint8_t;
+enum FunctionKind : uint8_t;
+
+)";
+
+    for (const auto& type : TypeOracle::GetBitFieldStructTypes()) {
+      header << "struct TorqueGenerated" << type->name() << "Fields {\n";
+      std::string type_name = type->GetConstexprGeneratedTypeName();
+      for (const auto& field : type->fields()) {
+        const char* suffix = field.num_bits == 1 ? "Bit" : "Bits";
+        std::string field_type_name =
+            field.name_and_type.type->GetConstexprGeneratedTypeName();
+        header << "  using " << CamelifyString(field.name_and_type.name)
+               << suffix << " = base::BitField<" << field_type_name << ", "
+               << field.offset << ", " << field.num_bits << ", " << type_name
+               << ">;\n";
+      }
+      header << "};\n\n";
+    }
+  }
+  const std::string output_header_path = output_directory + "/" + file_name;
+  WriteFile(output_header_path, header.str());
+}
+
 namespace {
 
 class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
@@ -3779,7 +3817,7 @@ void ImplementationVisitor::GenerateCSATypes(
 
     // Generates headers for all structs in a topologically-sorted order, since
     // TypeOracle keeps them in the order of their resolution
-    for (auto& type : *TypeOracle::GetAggregateTypes()) {
+    for (const auto& type : TypeOracle::GetAggregateTypes()) {
       const StructType* struct_type = StructType::DynamicCast(type.get());
       if (!struct_type) continue;
       h_contents << "struct " << struct_type->GetGeneratedTypeNameImpl()

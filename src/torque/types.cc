@@ -76,6 +76,15 @@ bool Type::IsSubtypeOf(const Type* supertype) const {
   return false;
 }
 
+std::string Type::GetConstexprGeneratedTypeName() const {
+  const Type* constexpr_version = ConstexprVersion();
+  if (constexpr_version == nullptr) {
+    Error("Type '", ToString(), "' requires a constexpr representation");
+    return "";
+  }
+  return constexpr_version->GetGeneratedTypeName();
+}
+
 base::Optional<const ClassType*> Type::ClassSupertype() const {
   for (const Type* t = this; t != nullptr; t = t->parent()) {
     if (auto* class_type = ClassType::DynamicCast(t)) {
@@ -245,6 +254,10 @@ const Type* SubtractType(const Type* a, const Type* b) {
   return TypeOracle::GetUnionType(result);
 }
 
+std::string BitFieldStructType::ToExplicitString() const {
+  return "bitfield struct " + name();
+}
+
 void AggregateType::CheckForDuplicateFields() const {
   // Check the aggregate hierarchy and currently defined class for duplicate
   // field declarations.
@@ -401,11 +414,7 @@ std::vector<Method*> AggregateType::Methods(const std::string& name) const {
   return result;
 }
 
-std::string StructType::ToExplicitString() const {
-  std::stringstream result;
-  result << "struct " << name();
-  return result.str();
-}
+std::string StructType::ToExplicitString() const { return "struct " + name(); }
 
 void StructType::Finalize() const {
   if (is_finalized_) return;
@@ -447,11 +456,7 @@ std::string ClassType::GetGeneratedTypeNameImpl() const {
                        : "TNode<" + GetGeneratedTNodeTypeName() + ">";
 }
 
-std::string ClassType::ToExplicitString() const {
-  std::stringstream result;
-  result << "class " << name();
-  return result.str();
-}
+std::string ClassType::ToExplicitString() const { return "class " + name(); }
 
 bool ClassType::AllowInstantiation() const {
   return (!IsExtern() || nspace()->IsDefaultNamespace()) && !IsAbstract();
@@ -772,6 +777,28 @@ base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type) {
     return {};
   }
   return std::make_tuple(size, size_string);
+}
+
+bool IsAnyUnsignedInteger(const Type* type) {
+  return type == TypeOracle::GetUint32Type() ||
+         type == TypeOracle::GetUint16Type() ||
+         type == TypeOracle::GetUint8Type() ||
+         type == TypeOracle::GetUIntPtrType();
+}
+
+bool IsAllowedAsBitField(const Type* type) {
+  if (type->IsBitFieldStructType()) {
+    // No nested bitfield structs for now. We could reconsider if there's a
+    // compelling use case.
+    return false;
+  }
+  // Any integer-ish type, including bools and enums which inherit from integer
+  // types, are allowed.
+  return type->IsSubtypeOf(TypeOracle::GetUint32Type()) ||
+         type->IsSubtypeOf(TypeOracle::GetUIntPtrType()) ||
+         type->IsSubtypeOf(TypeOracle::GetInt32Type()) ||
+         type->IsSubtypeOf(TypeOracle::GetIntPtrType()) ||
+         type->IsSubtypeOf(TypeOracle::GetBoolType());
 }
 
 }  // namespace torque

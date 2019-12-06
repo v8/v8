@@ -64,6 +64,9 @@ template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<bool>::id =
     ParseResultTypeId::kBool;
 template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<int32_t>::id =
+    ParseResultTypeId::kInt32;
+template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<std::vector<std::string>>::id =
         ParseResultTypeId::kStdVectorOfString;
@@ -115,12 +118,24 @@ V8_EXPORT_PRIVATE const ParseResultTypeId
         ParseResultTypeId::kVectorOfAnnotation;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<AnnotationParameter>::id =
+        ParseResultTypeId::kAnnotationParameter;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<base::Optional<AnnotationParameter>>::id =
+        ParseResultTypeId::kOptionalAnnotationParameter;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<ClassFieldExpression>::id =
         ParseResultTypeId::kClassFieldExpression;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<StructFieldExpression>::id =
         ParseResultTypeId::kStructFieldExpression;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<BitFieldDeclaration>::id =
+        ParseResultTypeId::kBitFieldDeclaration;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<std::vector<NameAndTypeExpression>>::id =
@@ -145,6 +160,10 @@ template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<std::vector<StructFieldExpression>>::id =
         ParseResultTypeId::kStdVectorOfStructFieldExpression;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<std::vector<BitFieldDeclaration>>::id =
+        ParseResultTypeId::kStdVectorOfBitFieldDeclaration;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<IncrementDecrementOperator>::id =
@@ -723,45 +742,70 @@ class AnnotationSet {
   bool Contains(const std::string& s) const {
     return set_.find(s) != set_.end();
   }
-  base::Optional<std::pair<std::string, SourcePosition>> GetParam(
-      const std::string& s) const {
+  base::Optional<std::string> GetStringParam(const std::string& s) const {
     auto it = map_.find(s);
-    return it == map_.end()
-               ? base::Optional<std::pair<std::string, SourcePosition>>()
-               : it->second;
+    if (it == map_.end()) {
+      return {};
+    }
+    if (it->second.first.is_int) {
+      Error("Annotation ", s, " requires a string parameter but has an int")
+          .Position(it->second.second);
+    }
+    return it->second.first.string_value;
+  }
+  base::Optional<int32_t> GetIntParam(const std::string& s) const {
+    auto it = map_.find(s);
+    if (it == map_.end()) {
+      return {};
+    }
+    if (!it->second.first.is_int) {
+      Error("Annotation ", s, " requires an int parameter but has a string")
+          .Position(it->second.second);
+    }
+    return it->second.first.int_value;
   }
 
  private:
   std::set<std::string> set_;
-  std::map<std::string, std::pair<std::string, SourcePosition>> map_;
+  std::map<std::string, std::pair<AnnotationParameter, SourcePosition>> map_;
 };
 
-int GetAnnotationValue(const AnnotationSet& annotations, const char* name,
-                       int default_value) {
-  auto value_and_pos = annotations.GetParam(name);
-  if (!value_and_pos.has_value()) return default_value;
-  const std::string& value = value_and_pos->first;
-  SourcePosition pos = value_and_pos->second;
-  if (value.empty()) {
-    Error("Annotation ", name, " requires an integer parameter").Position(pos);
-  }
+base::Optional<ParseResult> MakeInt32(ParseResultIterator* child_results) {
+  std::string value = child_results->NextAs<std::string>();
   size_t num_chars_converted = 0;
-  int result = default_value;
+  int result = 0;
   try {
     result = std::stoi(value, &num_chars_converted, 0);
   } catch (const std::invalid_argument&) {
-    Error("Expected an integer for annotation ", name).Position(pos);
-    return result;
+    Error("Expected an integer");
+    return ParseResult{result};
   } catch (const std::out_of_range&) {
-    Error("Integer out of 32-bit range in annotation ", name).Position(pos);
-    return result;
+    Error("Integer out of 32-bit range");
+    return ParseResult{result};
   }
-  if (num_chars_converted != value.size()) {
-    Error("Parameter for annotation ", name,
-          " must be an integer with no trailing characters")
-        .Position(pos);
-  }
-  return result;
+  // Tokenizer shouldn't have included extra trailing characters.
+  DCHECK_EQ(num_chars_converted, value.size());
+  return ParseResult{result};
+}
+
+base::Optional<ParseResult> MakeStringAnnotationParameter(
+    ParseResultIterator* child_results) {
+  std::string value = child_results->NextAs<std::string>();
+  AnnotationParameter result{value, 0, false};
+  return ParseResult{result};
+}
+
+base::Optional<ParseResult> MakeIntAnnotationParameter(
+    ParseResultIterator* child_results) {
+  int32_t value = child_results->NextAs<int32_t>();
+  AnnotationParameter result{"", value, true};
+  return ParseResult{result};
+}
+
+int GetAnnotationValue(const AnnotationSet& annotations, const char* name,
+                       int default_value) {
+  auto opt_value = annotations.GetIntParam(name);
+  return opt_value.has_value() ? *opt_value : default_value;
 }
 
 InstanceTypeConstraints MakeInstanceTypeConstraints(
@@ -917,6 +961,19 @@ base::Optional<ParseResult> MakeStructDeclaration(
     result = MakeNode<GenericTypeDeclaration>(generic_parameters, struct_decl);
   }
   return ParseResult{result};
+}
+
+base::Optional<ParseResult> MakeBitFieldStructDeclaration(
+    ParseResultIterator* child_results) {
+  auto name = child_results->NextAs<Identifier*>();
+  if (!IsValidTypeName(name->value)) {
+    NamingConventionError("Bitfield struct", name, "UpperCamelCase");
+  }
+  auto extends = child_results->NextAs<TypeExpression*>();
+  auto fields = child_results->NextAs<std::vector<BitFieldDeclaration>>();
+  Declaration* decl =
+      MakeNode<BitFieldStructDeclaration>(name, extends, std::move(fields));
+  return ParseResult{decl};
 }
 
 base::Optional<ParseResult> MakeCppIncludeDeclaration(
@@ -1480,7 +1537,7 @@ base::Optional<ParseResult> MakeNameAndExpressionFromExpression(
 base::Optional<ParseResult> MakeAnnotation(ParseResultIterator* child_results) {
   return ParseResult{
       Annotation{child_results->NextAs<Identifier*>(),
-                 child_results->NextAs<base::Optional<std::string>>()}};
+                 child_results->NextAs<base::Optional<AnnotationParameter>>()}};
 }
 
 base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
@@ -1488,17 +1545,16 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
                             {ANNOTATION_IF, ANNOTATION_IFNOT});
   bool generate_verify = !annotations.Contains(ANNOTATION_NO_VERIFIER);
   std::vector<ConditionalAnnotation> conditions;
-  base::Optional<std::pair<std::string, SourcePosition>> if_condition =
-      annotations.GetParam(ANNOTATION_IF);
-  base::Optional<std::pair<std::string, SourcePosition>> ifnot_condition =
-      annotations.GetParam(ANNOTATION_IFNOT);
+  base::Optional<std::string> if_condition =
+      annotations.GetStringParam(ANNOTATION_IF);
+  base::Optional<std::string> ifnot_condition =
+      annotations.GetStringParam(ANNOTATION_IFNOT);
   if (if_condition.has_value()) {
-    conditions.push_back(
-        {if_condition->first, ConditionalAnnotationType::kPositive});
+    conditions.push_back({*if_condition, ConditionalAnnotationType::kPositive});
   }
   if (ifnot_condition.has_value()) {
     conditions.push_back(
-        {ifnot_condition->first, ConditionalAnnotationType::kNegative});
+        {*ifnot_condition, ConditionalAnnotationType::kNegative});
   }
   auto weak = child_results->NextAs<bool>();
   auto const_qualified = child_results->NextAs<bool>();
@@ -1519,6 +1575,14 @@ base::Optional<ParseResult> MakeStructField(
   auto name = child_results->NextAs<Identifier*>();
   auto type = child_results->NextAs<TypeExpression*>();
   return ParseResult{StructFieldExpression{{name, type}, const_qualified}};
+}
+
+base::Optional<ParseResult> MakeBitFieldDeclaration(
+    ParseResultIterator* child_results) {
+  auto name = child_results->NextAs<Identifier*>();
+  auto type = child_results->NextAs<TypeExpression*>();
+  auto num_bits = child_results->NextAs<int32_t>();
+  return ParseResult{BitFieldDeclaration{{name, type}, num_bits}};
 }
 
 base::Optional<ParseResult> ExtractAssignmentOperator(
@@ -1655,18 +1719,23 @@ struct TorqueGrammar : Grammar {
       Rule({Pattern(MatchDecimalLiteral)}, YieldMatchedInput),
       Rule({Pattern(MatchHexLiteral)}, YieldMatchedInput)};
 
-  // Result: std::string
-  Symbol annotationParameter = {Rule({&identifier}), Rule({&decimalLiteral}),
-                                Rule({&externalString})};
+  // Result: int32_t
+  Symbol int32Literal = {Rule({&decimalLiteral}, MakeInt32)};
 
-  // Result: std::string
+  // Result: AnnotationParameter
+  Symbol annotationParameter = {
+      Rule({&identifier}, MakeStringAnnotationParameter),
+      Rule({&int32Literal}, MakeIntAnnotationParameter),
+      Rule({&externalString}, MakeStringAnnotationParameter)};
+
+  // Result: AnnotationParameter
   Symbol annotationParameters = {
       Rule({Token("("), &annotationParameter, Token(")")})};
 
   // Result: Annotation
-  Symbol annotation = {
-      Rule({&annotationName, Optional<std::string>(&annotationParameters)},
-           MakeAnnotation)};
+  Symbol annotation = {Rule(
+      {&annotationName, Optional<AnnotationParameter>(&annotationParameters)},
+      MakeAnnotation)};
 
   // Result: std::vector<Annotation>
   Symbol* annotations = List<Annotation>(&annotation);
@@ -1760,6 +1829,11 @@ struct TorqueGrammar : Grammar {
   Symbol structField = {
       Rule({CheckIf(Token("const")), &name, Token(":"), &type, Token(";")},
            MakeStructField)};
+
+  // Result: BitFieldDeclaration
+  Symbol bitFieldDeclaration = {Rule({&name, Token(":"), &type, Token(":"),
+                                      &int32Literal, Token("bit"), Token(";")},
+                                     MakeBitFieldDeclaration)};
 
   // Result: ParameterList
   Symbol parameterListNoVararg = {
@@ -2058,6 +2132,10 @@ struct TorqueGrammar : Grammar {
             List<Declaration*>(&method),
             List<StructFieldExpression>(&structField), Token("}")},
            AsSingletonVector<Declaration*, MakeStructDeclaration>()),
+      Rule({Token("bitfield"), Token("struct"), &name, Token("extends"), &type,
+            Token("{"), List<BitFieldDeclaration>(&bitFieldDeclaration),
+            Token("}")},
+           AsSingletonVector<Declaration*, MakeBitFieldStructDeclaration>()),
       Rule({CheckIf(Token("transient")), Token("type"), &name,
             TryOrDefault<GenericParameters>(&genericParameters),
             Optional<Identifier*>(Sequence({Token("extends"), &name})),

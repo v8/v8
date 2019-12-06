@@ -66,6 +66,7 @@ namespace torque {
 #define AST_TYPE_DECLARATION_NODE_KIND_LIST(V) \
   V(AbstractTypeDeclaration)                   \
   V(TypeAliasDeclaration)                      \
+  V(BitFieldStructDeclaration)                 \
   V(ClassDeclaration)                          \
   V(StructDeclaration)
 
@@ -839,6 +840,11 @@ struct StructFieldExpression {
   bool const_qualified;
 };
 
+struct BitFieldDeclaration {
+  NameAndTypeExpression name_and_type;
+  int num_bits;
+};
+
 enum class ConditionalAnnotationType {
   kPositive,
   kNegative,
@@ -849,9 +855,15 @@ struct ConditionalAnnotation {
   ConditionalAnnotationType type;
 };
 
+struct AnnotationParameter {
+  std::string string_value;
+  int int_value;
+  bool is_int;
+};
+
 struct Annotation {
   Identifier* name;
-  base::Optional<std::string> param;
+  base::Optional<AnnotationParameter> param;
 };
 
 struct ClassFieldExpression {
@@ -1099,6 +1111,18 @@ struct StructDeclaration : TypeDeclaration {
   StructFlags flags;
   std::vector<Declaration*> methods;
   std::vector<StructFieldExpression> fields;
+};
+
+struct BitFieldStructDeclaration : TypeDeclaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(BitFieldStructDeclaration)
+  BitFieldStructDeclaration(SourcePosition pos, Identifier* name,
+                            TypeExpression* parent,
+                            std::vector<BitFieldDeclaration> fields)
+      : TypeDeclaration(kKind, pos, name),
+        parent(parent),
+        fields(std::move(fields)) {}
+  TypeExpression* parent;
+  std::vector<BitFieldDeclaration> fields;
 };
 
 struct ClassBody : AstNode {

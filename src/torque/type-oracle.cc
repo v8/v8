@@ -12,9 +12,15 @@ namespace torque {
 DEFINE_CONTEXTUAL_VARIABLE(TypeOracle)
 
 // static
-const std::vector<std::unique_ptr<AggregateType>>*
+const std::vector<std::unique_ptr<AggregateType>>&
 TypeOracle::GetAggregateTypes() {
-  return &Get().aggregate_types_;
+  return Get().aggregate_types_;
+}
+
+// static
+const std::vector<std::unique_ptr<BitFieldStructType>>&
+TypeOracle::GetBitFieldStructTypes() {
+  return Get().bit_field_struct_types_;
 }
 
 // static

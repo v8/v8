@@ -43,6 +43,15 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return result;
   }
 
+  static BitFieldStructType* GetBitFieldStructType(
+      const Type* parent, const BitFieldStructDeclaration* decl) {
+    auto ptr = std::unique_ptr<BitFieldStructType>(
+        new BitFieldStructType(CurrentNamespace(), parent, decl));
+    BitFieldStructType* result = ptr.get();
+    Get().bit_field_struct_types_.push_back(std::move(ptr));
+    return result;
+  }
+
   static ClassType* GetClassType(const Type* parent, const std::string& name,
                                  ClassFlags flags, const std::string& generates,
                                  ClassDeclaration* decl,
@@ -275,7 +284,9 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return false;
   }
 
-  static const std::vector<std::unique_ptr<AggregateType>>* GetAggregateTypes();
+  static const std::vector<std::unique_ptr<AggregateType>>& GetAggregateTypes();
+  static const std::vector<std::unique_ptr<BitFieldStructType>>&
+  GetBitFieldStructTypes();
 
   static void FinalizeAggregateTypes();
 
@@ -293,6 +304,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   Deduplicator<UnionType> union_types_;
   std::vector<std::unique_ptr<Type>> nominal_types_;
   std::vector<std::unique_ptr<AggregateType>> aggregate_types_;
+  std::vector<std::unique_ptr<BitFieldStructType>> bit_field_struct_types_;
   std::vector<std::unique_ptr<Type>> top_types_;
   std::vector<std::unique_ptr<Namespace>>
       generic_type_instantiation_namespaces_;

@@ -81,15 +81,7 @@ class DebugFieldType {
                   ? (*field_class_type)->GetGeneratedTNodeTypeName()
                   : "Object");
     }
-    const Type* constexpr_version =
-        field_.name_and_type.type->ConstexprVersion();
-    if (constexpr_version == nullptr) {
-      Error("Type '", field_.name_and_type.type->ToString(),
-            "' requires a constexpr representation")
-          .Position(field_.pos);
-      return "";
-    }
-    return constexpr_version->GetGeneratedTypeName();
+    return field_.name_and_type.type->GetConstexprGeneratedTypeName();
   }
 
   // Returns the field's size in bytes.
@@ -288,13 +280,7 @@ void GenerateGetPropsChunkForField(const Field& field,
       count_value =
           "i::PlatformSmiTagging::SmiToInt(indexed_field_count.value)";
     } else if (!index_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-      const Type* constexpr_index = index_type->ConstexprVersion();
-      if (constexpr_index == nullptr) {
-        Error("Type '", index_type->ToString(),
-              "' requires a constexpr representation");
-        return;
-      }
-      index_type_name = constexpr_index->GetGeneratedTypeName();
+      index_type_name = index_type->GetConstexprGeneratedTypeName();
       count_value = "indexed_field_count.value";
     } else {
       Error("Unsupported index type: ", index_type);

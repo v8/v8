@@ -47,6 +47,8 @@ class TypeVisitor {
       AbstractTypeDeclaration* decl, MaybeSpecializationKey specialized_from);
   static const Type* ComputeType(TypeAliasDeclaration* decl,
                                  MaybeSpecializationKey specialized_from);
+  static const BitFieldStructType* ComputeType(
+      BitFieldStructDeclaration* decl, MaybeSpecializationKey specialized_from);
   static const StructType* ComputeType(StructDeclaration* decl,
                                        MaybeSpecializationKey specialized_from);
   static const ClassType* ComputeType(ClassDeclaration* decl,

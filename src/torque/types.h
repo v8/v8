@@ -39,6 +39,7 @@ class TypeBase {
     kAbstractType,
     kBuiltinPointerType,
     kUnionType,
+    kBitFieldStructType,
     kStructType,
     kClassType
   };
@@ -49,6 +50,9 @@ class TypeBase {
     return kind() == Kind::kBuiltinPointerType;
   }
   bool IsUnionType() const { return kind() == Kind::kUnionType; }
+  bool IsBitFieldStructType() const {
+    return kind() == Kind::kBitFieldStructType;
+  }
   bool IsStructType() const { return kind() == Kind::kStructType; }
   bool IsClassType() const { return kind() == Kind::kClassType; }
   bool IsAggregateType() const { return IsStructType() || IsClassType(); }
@@ -125,6 +129,7 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   virtual bool IsTransient() const { return false; }
   virtual const Type* NonConstexprVersion() const { return this; }
   virtual const Type* ConstexprVersion() const { return nullptr; }
+  std::string GetConstexprGeneratedTypeName() const;
   base::Optional<const ClassType*> ClassSupertype() const;
   virtual std::vector<RuntimeType> GetRuntimeTypes() const { return {}; }
   static const Type* CommonSupertype(const Type* a, const Type* b);
@@ -445,6 +450,51 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
 
 const Type* SubtractType(const Type* a, const Type* b);
 
+struct BitField {
+  SourcePosition pos;
+  NameAndType name_and_type;
+  int offset;
+  int num_bits;
+};
+
+class V8_EXPORT_PRIVATE BitFieldStructType final : public Type {
+ public:
+  DECLARE_TYPE_BOILERPLATE(BitFieldStructType)
+  std::string ToExplicitString() const override;
+  std::string GetGeneratedTypeNameImpl() const override {
+    return parent()->GetGeneratedTypeName();
+  }
+  std::string GetGeneratedTNodeTypeNameImpl() const override {
+    return parent()->GetGeneratedTNodeTypeName();
+  }
+
+  std::vector<RuntimeType> GetRuntimeTypes() const override {
+    return {{parent()->GetGeneratedTNodeTypeName(), ""}};
+  }
+
+  const Type* ConstexprVersion() const override {
+    return parent()->ConstexprVersion();
+  }
+
+  void RegisterField(BitField field) { fields_.push_back(std::move(field)); }
+
+  const std::string& name() const { return decl_->name->value; }
+  const std::vector<BitField>& fields() const { return fields_; }
+
+ private:
+  friend class TypeOracle;
+  BitFieldStructType(Namespace* nspace, const Type* parent,
+                     const BitFieldStructDeclaration* decl)
+      : Type(Kind::kBitFieldStructType, parent),
+        namespace_(nspace),
+        decl_(decl) {}
+  std::string SimpleNameImpl() const override { return name(); }
+
+  Namespace* namespace_;
+  const BitFieldStructDeclaration* decl_;
+  std::vector<BitField> fields_;
+};
+
 class AggregateType : public Type {
  public:
   DECLARE_TYPE_BOILERPLATE(AggregateType)
@@ -729,6 +779,8 @@ TypeVector LowerParameterTypes(const ParameterTypes& parameter_types,
                                size_t vararg_count = 0);
 
 base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type);
+bool IsAnyUnsignedInteger(const Type* type);
+bool IsAllowedAsBitField(const Type* type);
 
 }  // namespace torque
 }  // namespace internal

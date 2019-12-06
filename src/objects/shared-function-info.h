@@ -18,6 +18,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/struct.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
+#include "torque-generated/bit-fields-tq.h"
 #include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -165,7 +166,8 @@ class InterpreterData : public Struct {
 
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
-class SharedFunctionInfo : public HeapObject {
+class SharedFunctionInfo : public HeapObject,
+                           public TorqueGeneratedSharedFunctionInfoFlagsFields {
  public:
   NEVER_READ_ONLY_SPACE
 
@@ -615,31 +617,6 @@ class SharedFunctionInfo : public HeapObject {
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
   class BodyDescriptor;
-
-// Bit positions in |flags|.
-#define FLAGS_BIT_FIELDS(V, _)                               \
-  /* Have FunctionKind first to make it cheaper to access */ \
-  V(FunctionKindBits, FunctionKind, 5, _)                    \
-  V(IsNativeBit, bool, 1, _)                                 \
-  V(IsStrictBit, bool, 1, _)                                 \
-  V(FunctionSyntaxKindBits, FunctionSyntaxKind, 3, _)        \
-  V(IsClassConstructorBit, bool, 1, _)                       \
-  V(HasDuplicateParametersBit, bool, 1, _)                   \
-  V(AllowLazyCompilationBit, bool, 1, _)                     \
-  V(NeedsHomeObjectBit, bool, 1, _)                          \
-  V(IsAsmWasmBrokenBit, bool, 1, _)                          \
-  V(FunctionMapIndexBits, int, 5, _)                         \
-  V(DisabledOptimizationReasonBits, BailoutReason, 4, _)     \
-  V(RequiresInstanceMembersInitializer, bool, 1, _)          \
-  V(ConstructAsBuiltinBit, bool, 1, _)                       \
-  V(NameShouldPrintAsAnonymousBit, bool, 1, _)               \
-  V(HasReportedBinaryCoverageBit, bool, 1, _)                \
-  V(IsTopLevelBit, bool, 1, _)                               \
-  V(IsOneshotIIFEOrPropertiesAreFinalBit, bool, 1, _)        \
-  V(IsSafeToSkipArgumentsAdaptorBit, bool, 1, _)             \
-  V(PrivateNameLookupSkipsOuterClassBit, bool, 1, _)
-  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
-#undef FLAGS_BIT_FIELDS
 
   // Bailout reasons must fit in the DisabledOptimizationReason bitfield.
   STATIC_ASSERT(BailoutReason::kLastErrorMessage <=
