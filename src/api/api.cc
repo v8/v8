@@ -8800,15 +8800,6 @@ void Isolate::LowMemoryNotification() {
     isolate->heap()->CollectAllAvailableGarbage(
         i::GarbageCollectionReason::kLowMemoryNotification);
   }
-  {
-    i::HeapObjectIterator iterator(isolate->heap());
-    for (i::HeapObject obj = iterator.Next(); !obj.is_null();
-         obj = iterator.Next()) {
-      if (obj.IsAbstractCode()) {
-        i::AbstractCode::cast(obj).DropStackFrameCache();
-      }
-    }
-  }
 }
 
 int Isolate::ContextDisposedNotification(bool dependant_context) {

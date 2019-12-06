@@ -444,10 +444,6 @@ class V8_EXPORT_PRIVATE Factory {
                                              int index);
   Handle<StackFrameInfo> NewStackFrameInfo(Handle<FrameArray> frame_array,
                                            int index);
-  Handle<SourcePositionTableWithFrameCache>
-  NewSourcePositionTableWithFrameCache(
-      Handle<ByteArray> source_position_table,
-      Handle<SimpleNumberDictionary> stack_frame_cache);
 
   // Allocate various microtasks.
   Handle<CallableTask> NewCallableTask(Handle<JSReceiver> callable,

@@ -3798,22 +3798,6 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   return info;
 }
 
-Handle<SourcePositionTableWithFrameCache>
-Factory::NewSourcePositionTableWithFrameCache(
-    Handle<ByteArray> source_position_table,
-    Handle<SimpleNumberDictionary> stack_frame_cache) {
-  Handle<SourcePositionTableWithFrameCache>
-      source_position_table_with_frame_cache =
-          Handle<SourcePositionTableWithFrameCache>::cast(
-              NewStruct(SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE,
-                        AllocationType::kOld));
-  source_position_table_with_frame_cache->set_source_position_table(
-      *source_position_table);
-  source_position_table_with_frame_cache->set_stack_frame_cache(
-      *stack_frame_cache);
-  return source_position_table_with_frame_cache;
-}
-
 Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
                                              int length) {
   bool strict_mode_callee = is_strict(callee->shared().language_mode()) ||

@@ -136,8 +136,6 @@ namespace internal {
   V(_, PROMISE_REACTION_TYPE, PromiseReaction, promise_reaction)               \
   V(_, PROTOTYPE_INFO_TYPE, PrototypeInfo, prototype_info)                     \
   V(_, SCRIPT_TYPE, Script, script)                                            \
-  V(_, SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE,                            \
-    SourcePositionTableWithFrameCache, source_position_table_with_frame_cache) \
   V(_, SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, SourceTextModuleInfoEntry,          \
     module_info_entry)                                                         \
   V(_, STACK_FRAME_INFO_TYPE, StackFrameInfo, stack_frame_info)                \

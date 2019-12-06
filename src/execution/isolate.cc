@@ -529,46 +529,6 @@ StackTraceFailureMessage::StackTraceFailureMessage(Isolate* isolate, void* ptr1,
   }
 }
 
-namespace {
-
-class StackFrameCacheHelper : public AllStatic {
- public:
-  static MaybeHandle<StackTraceFrame> LookupCachedFrame(
-      Isolate* isolate, Handle<AbstractCode> code, int code_offset) {
-    if (FLAG_optimize_for_size) return MaybeHandle<StackTraceFrame>();
-
-    const auto maybe_cache = handle(code->stack_frame_cache(), isolate);
-    if (!maybe_cache->IsSimpleNumberDictionary())
-      return MaybeHandle<StackTraceFrame>();
-
-    const auto cache = Handle<SimpleNumberDictionary>::cast(maybe_cache);
-    const InternalIndex entry = cache->FindEntry(isolate, code_offset);
-    if (entry.is_found()) {
-      return handle(StackTraceFrame::cast(cache->ValueAt(entry)), isolate);
-    }
-    return MaybeHandle<StackTraceFrame>();
-  }
-
-  static void CacheFrameAndUpdateCache(Isolate* isolate,
-                                       Handle<AbstractCode> code,
-                                       int code_offset,
-                                       Handle<StackTraceFrame> frame) {
-    if (FLAG_optimize_for_size) return;
-
-    const auto maybe_cache = handle(code->stack_frame_cache(), isolate);
-    const auto cache = maybe_cache->IsSimpleNumberDictionary()
-                           ? Handle<SimpleNumberDictionary>::cast(maybe_cache)
-                           : SimpleNumberDictionary::New(isolate, 1);
-    Handle<SimpleNumberDictionary> new_cache =
-        SimpleNumberDictionary::Set(isolate, cache, code_offset, frame);
-    if (*new_cache != *cache || !maybe_cache->IsSimpleNumberDictionary()) {
-      AbstractCode::SetStackFrameCache(code, new_cache);
-    }
-  }
-};
-
-}  // anonymous namespace
-
 class FrameArrayBuilder {
  public:
   enum FrameFilterMode { ALL, CURRENT_SECURITY_CONTEXT };
@@ -739,40 +699,16 @@ class FrameArrayBuilder {
   }
 
   // Creates a StackTraceFrame object for each frame in the FrameArray.
-  Handle<FixedArray> GetElementsAsStackTraceFrameArray(
-      bool enable_frame_caching) {
+  Handle<FixedArray> GetElementsAsStackTraceFrameArray() {
     elements_->ShrinkToFit(isolate_);
     const int frame_count = elements_->FrameCount();
     Handle<FixedArray> stack_trace =
         isolate_->factory()->NewFixedArray(frame_count);
 
     for (int i = 0; i < frame_count; ++i) {
-      // Caching stack frames only happens for user JS frames.
-      const bool cache_frame =
-          enable_frame_caching && !isolate_->serializer_enabled() &&
-          !elements_->IsAnyWasmFrame(i) &&
-          elements_->Function(i).shared().IsUserJavaScript();
-      if (cache_frame) {
-        MaybeHandle<StackTraceFrame> maybe_frame =
-            StackFrameCacheHelper::LookupCachedFrame(
-                isolate_, handle(elements_->Code(i), isolate_),
-                Smi::ToInt(elements_->Offset(i)));
-        if (!maybe_frame.is_null()) {
-          Handle<StackTraceFrame> frame = maybe_frame.ToHandleChecked();
-          stack_trace->set(i, *frame);
-          continue;
-        }
-      }
-
       Handle<StackTraceFrame> frame =
           isolate_->factory()->NewStackTraceFrame(elements_, i);
       stack_trace->set(i, *frame);
-
-      if (cache_frame) {
-        StackFrameCacheHelper::CacheFrameAndUpdateCache(
-            isolate_, handle(elements_->Code(i), isolate_),
-            Smi::ToInt(elements_->Offset(i)), frame);
-      }
     }
     return stack_trace;
   }
@@ -989,7 +925,6 @@ struct CaptureStackTraceOptions {
   bool capture_builtin_exit_frames;
   bool capture_only_frames_subject_to_debugging;
   bool async_stack_trace;
-  bool enable_frame_caching;
 };
 
 Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
@@ -1121,8 +1056,7 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
   }
 
   // TODO(yangguo): Queue this structured stack trace for preprocessing on GC.
-  return builder.GetElementsAsStackTraceFrameArray(
-      options.enable_frame_caching);
+  return builder.GetElementsAsStackTraceFrameArray();
 }
 
 }  // namespace
@@ -1140,7 +1074,6 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
   options.async_stack_trace = FLAG_async_stack_traces;
   options.filter_mode = FrameArrayBuilder::CURRENT_SECURITY_CONTEXT;
   options.capture_only_frames_subject_to_debugging = false;
-  options.enable_frame_caching = false;
 
   return CaptureStackTrace(this, caller, options);
 }
@@ -1236,7 +1169,6 @@ Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
           ? FrameArrayBuilder::ALL
           : FrameArrayBuilder::CURRENT_SECURITY_CONTEXT;
   options.capture_only_frames_subject_to_debugging = true;
-  options.enable_frame_caching = true;
 
   return Handle<FixedArray>::cast(
       CaptureStackTrace(this, factory()->undefined_value(), options));
@@ -2046,7 +1978,6 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
   options.async_stack_trace = FLAG_async_stack_traces;
   options.filter_mode = FrameArrayBuilder::CURRENT_SECURITY_CONTEXT;
   options.capture_only_frames_subject_to_debugging = false;
-  options.enable_frame_caching = false;
 
   Handle<FixedArray> frames = Handle<FixedArray>::cast(
       CaptureStackTrace(this, this->factory()->undefined_value(), options));

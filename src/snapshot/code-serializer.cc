@@ -197,11 +197,6 @@ void CodeSerializer::SerializeObject(HeapObject obj) {
   }
 #endif  // V8_TARGET_ARCH_ARM
 
-  if (obj.IsBytecodeArray()) {
-    // Clear the stack frame cache if present
-    BytecodeArray::cast(obj).ClearFrameCacheFromSourcePositionTable();
-  }
-
   // Past this point we should not see any (context-specific) maps anymore.
   CHECK(!obj.IsMap());
   // There should be no references to the global object embedded.

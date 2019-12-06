@@ -165,7 +165,6 @@
 //       - BreakPointInfo
 //       - StackFrameInfo
 //       - StackTraceFrame
-//       - SourcePositionTableWithFrameCache
 //       - CodeCache
 //       - PrototypeInfo
 //       - Microtask

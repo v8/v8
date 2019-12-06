@@ -88,8 +88,7 @@ class Code : public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
-  // [source_position_table]: ByteArray for the source positions table or
-  // SourcePositionTableWithFrameCache.
+  // [source_position_table]: ByteArray for the source positions table.
   DECL_ACCESSORS(source_position_table, Object)
   inline ByteArray SourcePositionTable() const;
   inline ByteArray SourcePositionTableIfCollected() const;
@@ -579,9 +578,6 @@ class AbstractCode : public HeapObject {
   // Return the source position table.
   inline ByteArray source_position_table();
 
-  inline Object stack_frame_cache();
-  static void SetStackFrameCache(Handle<AbstractCode> abstract_code,
-                                 Handle<SimpleNumberDictionary> cache);
   void DropStackFrameCache();
 
   // Returns the size of instructions and the metadata.
@@ -785,7 +781,6 @@ class BytecodeArray : public FixedArrayBase {
   // * empty_byte_array (for bytecode generated for functions that will never
   // have source positions, e.g. native functions).
   // * ByteArray (when source positions have been collected for the bytecode)
-  // * SourcePositionTableWithFrameCache (as above but with a frame cache)
   // * exception (when an error occurred while explicitly collecting source
   // positions for pre-existing bytecode).
   DECL_ACCESSORS(source_position_table, Object)
@@ -799,7 +794,6 @@ class BytecodeArray : public FixedArrayBase {
   inline ByteArray SourcePositionTableIfCollected() const;
   inline bool HasSourcePositionTable() const;
   inline bool DidSourcePositionGenerationFail() const;
-  inline void ClearFrameCacheFromSourcePositionTable();
 
   // Indicates that an attempt was made to collect source positions, but that it
   // failed most likely due to stack exhaustion. When in this state
@@ -939,13 +933,6 @@ class DeoptimizationData : public FixedArray {
   static int LengthFor(int entry_count) { return IndexForEntry(entry_count); }
 
   OBJECT_CONSTRUCTORS(DeoptimizationData, FixedArray);
-};
-
-class SourcePositionTableWithFrameCache
-    : public TorqueGeneratedSourcePositionTableWithFrameCache<
-          SourcePositionTableWithFrameCache, Struct> {
- public:
-  TQ_OBJECT_CONSTRUCTORS(SourcePositionTableWithFrameCache)
 };
 
 }  // namespace internal
