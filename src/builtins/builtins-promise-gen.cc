@@ -412,10 +412,8 @@ void PromiseBuiltinsAssembler::GotoIfNotPromiseResolveLookupChainIntact(
 }
 
 void PromiseBuiltinsAssembler::BranchIfPromiseSpeciesLookupChainIntact(
-    Node* native_context, Node* promise_map, Label* if_fast, Label* if_slow) {
-  CSA_ASSERT(this, IsNativeContext(native_context));
-  CSA_ASSERT(this, IsJSPromiseMap(promise_map));
-
+    TNode<NativeContext> native_context, TNode<Map> promise_map, Label* if_fast,
+    Label* if_slow) {
   TNode<Object> promise_prototype =
       LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
   GotoIfForceSlowPath(if_slow);
@@ -526,101 +524,6 @@ TF_BUILTIN(PromiseConstructorLazyDeoptContinuation, PromiseBuiltinsAssembler) {
 
   BIND(&finally);
   Return(promise);
-}
-
-// ES#sec-promise.prototype.then
-// Promise.prototype.then ( onFulfilled, onRejected )
-TF_BUILTIN(PromisePrototypeThen, PromiseBuiltinsAssembler) {
-  // 1. Let promise be the this value.
-  const TNode<Object> maybe_promise = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Object> on_fulfilled = CAST(Parameter(Descriptor::kOnFulfilled));
-  const TNode<Object> on_rejected = CAST(Parameter(Descriptor::kOnRejected));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  // 2. If IsPromise(promise) is false, throw a TypeError exception.
-  ThrowIfNotInstanceType(context, maybe_promise, JS_PROMISE_TYPE,
-                         "Promise.prototype.then");
-  TNode<JSPromise> js_promise = CAST(maybe_promise);
-
-  // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
-  Label fast_promise_capability(this), slow_constructor(this, Label::kDeferred),
-      slow_promise_capability(this, Label::kDeferred);
-  const TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<JSFunction> promise_fun =
-      CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
-  const TNode<Map> promise_map = LoadMap(js_promise);
-  BranchIfPromiseSpeciesLookupChainIntact(
-      native_context, promise_map, &fast_promise_capability, &slow_constructor);
-
-  BIND(&slow_constructor);
-  TNode<JSReceiver> constructor =
-      SpeciesConstructor(native_context, js_promise, promise_fun);
-  Branch(TaggedEqual(constructor, promise_fun), &fast_promise_capability,
-         &slow_promise_capability);
-
-  // 4. Let resultCapability be ? NewPromiseCapability(C).
-  Label perform_promise_then(this);
-  TVARIABLE(Object, var_result_promise);
-  TVARIABLE(HeapObject, var_result_promise_or_capability);
-
-  BIND(&fast_promise_capability);
-  {
-    const TNode<JSPromise> result_promise =
-        AllocateAndInitJSPromise(context, js_promise);
-    var_result_promise_or_capability = result_promise;
-    var_result_promise = result_promise;
-    Goto(&perform_promise_then);
-  }
-
-  BIND(&slow_promise_capability);
-  {
-    const TNode<Oddball> debug_event = TrueConstant();
-    const TNode<PromiseCapability> capability = CAST(CallBuiltin(
-        Builtins::kNewPromiseCapability, context, constructor, debug_event));
-    var_result_promise =
-        LoadObjectField(capability, PromiseCapability::kPromiseOffset);
-    var_result_promise_or_capability = capability;
-    Goto(&perform_promise_then);
-  }
-
-  // 5. Return PerformPromiseThen(promise, onFulfilled, onRejected,
-  //    resultCapability).
-  BIND(&perform_promise_then);
-  {
-    // We do some work of the PerformPromiseThen operation here, in that
-    // we check the handlers and turn non-callable handlers into undefined.
-    // This is because this is the one and only callsite of PerformPromiseThen
-    // that has to do this.
-
-    // 3. If IsCallable(onFulfilled) is false, then
-    //    a. Set onFulfilled to undefined.
-    TVARIABLE(Object, var_on_fulfilled, on_fulfilled);
-    Label if_fulfilled_done(this), if_fulfilled_notcallable(this);
-    GotoIf(TaggedIsSmi(on_fulfilled), &if_fulfilled_notcallable);
-    Branch(IsCallable(CAST(on_fulfilled)), &if_fulfilled_done,
-           &if_fulfilled_notcallable);
-    BIND(&if_fulfilled_notcallable);
-    var_on_fulfilled = UndefinedConstant();
-    Goto(&if_fulfilled_done);
-    BIND(&if_fulfilled_done);
-
-    // 4. If IsCallable(onRejected) is false, then
-    //    a. Set onRejected to undefined.
-    TVARIABLE(Object, var_on_rejected, on_rejected);
-    Label if_rejected_done(this), if_rejected_notcallable(this);
-    GotoIf(TaggedIsSmi(on_rejected), &if_rejected_notcallable);
-    Branch(IsCallable(CAST(on_rejected)), &if_rejected_done,
-           &if_rejected_notcallable);
-    BIND(&if_rejected_notcallable);
-    var_on_rejected = UndefinedConstant();
-    Goto(&if_rejected_done);
-    BIND(&if_rejected_done);
-
-    PerformPromiseThenImpl(context, js_promise, CAST(var_on_fulfilled.value()),
-                           CAST(var_on_rejected.value()),
-                           var_result_promise_or_capability.value());
-    Return(var_result_promise.value());
-  }
 }
 
 // ES#sec-promise.prototype.catch

@@ -718,8 +718,6 @@ namespace internal {
   TFJ(PromiseConstructorLazyDeoptContinuation, 4, kReceiver, kPromise,         \
       kReject, kException, kResult)                                            \
   CPP(IsPromise)                                                               \
-  /* ES #sec-promise.prototype.then */                                         \
-  TFJ(PromisePrototypeThen, 2, kReceiver, kOnFulfilled, kOnRejected)           \
   /* ES #sec-promise.prototype.catch */                                        \
   TFJ(PromisePrototypeCatch, 1, kReceiver, kOnRejected)                        \
   /* ES #sec-promisereactionjob */                                             \

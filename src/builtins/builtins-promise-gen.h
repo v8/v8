@@ -72,6 +72,14 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
                                  TNode<Object> executor, Label* if_noaccess);
   void PromiseInit(Node* promise);
 
+  // We can shortcut the SpeciesConstructor on {promise_map} if it's
+  // [[Prototype]] is the (initial)  Promise.prototype and the @@species
+  // protector is intact, as that guards the lookup path for the "constructor"
+  // property on JSPromise instances which have the %PromisePrototype%.
+  void BranchIfPromiseSpeciesLookupChainIntact(
+      TNode<NativeContext> native_context, TNode<Map> promise_map,
+      Label* if_fast, Label* if_slow);
+
  protected:
   void PromiseSetHasHandler(Node* promise);
   void PromiseSetHandledHint(Node* promise);
@@ -86,14 +94,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   void GotoIfNotPromiseResolveLookupChainIntact(Node* native_context,
                                                 SloppyTNode<Object> constructor,
                                                 Label* if_slow);
-
-  // We can shortcut the SpeciesConstructor on {promise_map} if it's
-  // [[Prototype]] is the (initial)  Promise.prototype and the @@species
-  // protector is intact, as that guards the lookup path for the "constructor"
-  // property on JSPromise instances which have the %PromisePrototype%.
-  void BranchIfPromiseSpeciesLookupChainIntact(Node* native_context,
-                                               Node* promise_map,
-                                               Label* if_fast, Label* if_slow);
 
   // We can skip the "then" lookup on {receiver_map} if it's [[Prototype]]
   // is the (initial) Promise.prototype and the Promise#then() protector
