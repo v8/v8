@@ -814,6 +814,14 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     table.HandlerTableRangePrint(os);
   }
 #endif
+
+  os << "Source Position Table (size = "
+     << SourcePositionTableIfCollected().length() << ")\n";
+#ifdef OBJECT_PRINT
+  if (SourcePositionTableIfCollected().length() > 0) {
+    os << Brief(SourcePositionTableIfCollected()) << std::endl;
+  }
+#endif
 }
 
 void BytecodeArray::CopyBytecodesTo(BytecodeArray to) {
