@@ -85,7 +85,7 @@ namespace typed_array {
           // Builtins::kTypedArrayPrototypeValues.
           const iteratorFn =
               Cast<JSFunction>(usingIterator) otherwise UseUserProvidedIterator;
-          if (TaggedEqual(
+          if (!TaggedEqual(
                   iteratorFn.shared_function_info.function_data,
                   SmiConstant(kTypedArrayPrototypeValues)))
             goto UseUserProvidedIterator;
