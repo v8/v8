@@ -422,19 +422,6 @@ bool WasmOpcodes::IsUnconditionalJump(WasmOpcode opcode) {
   }
 }
 
-bool WasmOpcodes::IsSignExtensionOpcode(WasmOpcode opcode) {
-  switch (opcode) {
-    case kExprI32SExtendI8:
-    case kExprI32SExtendI16:
-    case kExprI64SExtendI8:
-    case kExprI64SExtendI16:
-    case kExprI64SExtendI32:
-      return true;
-    default:
-      return false;
-  }
-}
-
 bool WasmOpcodes::IsAnyRefOpcode(WasmOpcode opcode) {
   switch (opcode) {
     case kExprRefNull:

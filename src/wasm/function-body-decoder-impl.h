@@ -3175,9 +3175,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   void BuildSimplePrototypeOperator(WasmOpcode opcode) {
-    if (WasmOpcodes::IsSignExtensionOpcode(opcode)) {
-      RET_ON_PROTOTYPE_OPCODE(se);
-    }
     if (WasmOpcodes::IsAnyRefOpcode(opcode)) {
       RET_ON_PROTOTYPE_OPCODE(anyref);
     }

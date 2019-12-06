@@ -18,10 +18,9 @@
   V(mv, "multi-value support", false)        \
   V(type_reflection, "wasm type reflection in JS", false)
 
-#define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V)                          \
-  V(bulk_memory, "bulk memory opcodes", true)                         \
-  V(sat_f2i_conversions, "saturating float conversion opcodes", true) \
-  V(se, "sign extension opcodes", true)
+#define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V)  \
+  V(bulk_memory, "bulk memory opcodes", true) \
+  V(sat_f2i_conversions, "saturating float conversion opcodes", true)
 
 #define FOREACH_WASM_FEATURE_FLAG(V)        \
   FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(V) \
