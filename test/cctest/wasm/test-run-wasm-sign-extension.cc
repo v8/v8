@@ -10,7 +10,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-// TODO(gdeepti): Enable tests to run in the interpreter.
 WASM_EXEC_TEST(I32SExtendI8) {
   EXPERIMENTAL_FLAG_SCOPE(se);
   WasmRunner<int32_t, int32_t> r(execution_tier);
