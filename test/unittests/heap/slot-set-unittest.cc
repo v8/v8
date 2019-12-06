@@ -14,6 +14,28 @@
 namespace v8 {
 namespace internal {
 
+TEST(PossiblyEmptyBucketsTest, WordsForBuckets) {
+  EXPECT_EQ(
+      PossiblyEmptyBuckets::WordsForBuckets(PossiblyEmptyBuckets::kBitsPerWord),
+      1U);
+  EXPECT_EQ(PossiblyEmptyBuckets::WordsForBuckets(
+                PossiblyEmptyBuckets::kBitsPerWord - 1),
+            1U);
+  EXPECT_EQ(PossiblyEmptyBuckets::WordsForBuckets(
+                PossiblyEmptyBuckets::kBitsPerWord + 1),
+            2U);
+
+  EXPECT_EQ(PossiblyEmptyBuckets::WordsForBuckets(
+                5 * PossiblyEmptyBuckets::kBitsPerWord - 1),
+            5U);
+  EXPECT_EQ(PossiblyEmptyBuckets::WordsForBuckets(
+                5 * PossiblyEmptyBuckets::kBitsPerWord),
+            5U);
+  EXPECT_EQ(PossiblyEmptyBuckets::WordsForBuckets(
+                5 * PossiblyEmptyBuckets::kBitsPerWord + 1),
+            6U);
+}
+
 TEST(SlotSet, BucketsForSize) {
   EXPECT_EQ(static_cast<size_t>(SlotSet::kBucketsRegularPage),
             SlotSet::BucketsForSize(Page::kPageSize));
@@ -108,6 +130,20 @@ TEST(SlotSet, Remove) {
   }
 
   SlotSet::Delete(set, SlotSet::kBucketsRegularPage);
+}
+
+TEST(PossiblyEmptyBuckets, ContainsAndInsert) {
+  static const int kBuckets = 100;
+  PossiblyEmptyBuckets possibly_empty_buckets;
+  possibly_empty_buckets.Insert(0, kBuckets);
+  int last = sizeof(uintptr_t) * kBitsPerByte - 2;
+  possibly_empty_buckets.Insert(last, kBuckets);
+  EXPECT_TRUE(possibly_empty_buckets.Contains(0));
+  EXPECT_TRUE(possibly_empty_buckets.Contains(last));
+  possibly_empty_buckets.Insert(last + 1, kBuckets);
+  EXPECT_TRUE(possibly_empty_buckets.Contains(0));
+  EXPECT_TRUE(possibly_empty_buckets.Contains(last));
+  EXPECT_TRUE(possibly_empty_buckets.Contains(last + 1));
 }
 
 void CheckRemoveRangeOn(uint32_t start, uint32_t end) {
