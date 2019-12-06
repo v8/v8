@@ -14,6 +14,7 @@ import pathlib
 import re
 import tabulate
 import shutil
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -38,6 +39,11 @@ def parse_args():
       dest="verbose",
       action="store_true",
       help="output benchmark runs to stdout")
+  parser.add_argument(
+      "--device",
+      dest="device",
+      action="store",
+      help="device to run the test on. Passed directly to run_benchmark")
   parser.add_argument(
       "-d",
       "--dir",
@@ -85,6 +91,17 @@ def parse_args():
       dest="browser_args",
       action="store",
       help="flags to pass to chrome")
+  parser.add_argument(
+      "--benchmark",
+      dest="benchmark",
+      action="store",
+      default="v8.browsing_desktop",
+      help="benchmark to run")
+  parser.add_argument(
+      "--stdev",
+      dest="stdev",
+      action="store_true",
+      help="adds columns for the standard deviation")
 
   return parser.parse_args()
 
@@ -112,7 +129,8 @@ def process_trace(trace_file):
 
 
 def run_benchmark(story, repeats=1, output_dir=".", verbose=False, js_flags=None,
-                  browser_args=None, chromium_dir=".", executable=None):
+                  browser_args=None, chromium_dir=".", executable=None,
+                  benchmark="v8.browsing_desktop", device=None):
 
   orig_chromium_dir = chromium_dir
   xvfb = os.path.join(chromium_dir, "testing", "xvfb.py")
@@ -128,11 +146,10 @@ def run_benchmark(story, repeats=1, output_dir=".", verbose=False, js_flags=None
       xvfb,
       os.path.join(chromium_dir, "tools", "perf", "run_benchmark"),
       "run",
-      "--story",
-      story,
-      "--pageset-repeat=%d" % repeats,
-      "v8.browsing_desktop",
-      "--intermediate-dir=" + output_dir,
+      "--story", story,
+      "--pageset-repeat", str(repeats),
+      "--intermediate-dir", output_dir,
+      benchmark,
   ]
 
   if executable:
@@ -140,10 +157,22 @@ def run_benchmark(story, repeats=1, output_dir=".", verbose=False, js_flags=None
   else:
     command += ["--browser", "release"]
 
+  if device:
+    command += ["--device", device]
   if browser_args:
     command += ["--extra-browser-args", browser_args]
   if js_flags:
     command += ["--js-flags", js_flags]
+
+  if not benchmark.startswith("v8."):
+    # Most benchmarks by default don't collect runtime call stats so enable them
+    # manually.
+    categories = [
+        "v8",
+        "disabled-by-default-v8.runtime_stats",
+    ]
+
+    command += ["--extra-chrome-categories", ",".join(categories)]
 
   print("Output directory: %s" % output_dir)
   stdout = ""
@@ -201,7 +230,9 @@ def main():
                   js_flags=args.js_flags,
                   browser_args=args.browser_args,
                   chromium_dir=args.chromium_dir,
-                  executable=args.executable)
+                  benchmark=args.benchmark,
+                  executable=args.executable,
+                  device=args.device)
 
   outputs = {}
   combined_output = {}
@@ -254,7 +285,15 @@ def main():
       total_duration += duration
       row += [count, duration]
 
-    row += [total_count / args.repeats, total_duration / args.repeats]
+    if args.repeats > 1:
+      totals = [total_count / args.repeats]
+      if args.stdev:
+        totals += [statistics.stdev(row[1:-1:2])]
+      totals += [total_duration / args.repeats]
+      if args.stdev:
+        totals += [statistics.stdev(row[2:-1:2])]
+      row += totals
+
     table += [row]
 
   def sort_duration(value):
@@ -263,7 +302,11 @@ def main():
   table.sort(key=sort_duration)
   headers = [""] + ["Count", "Duration (ms)"] * args.repeats
   if args.repeats > 1:
-    headers += ["Mean Count", "Mean Duration (ms)"]
+    if args.stdev:
+      headers += ["Count Mean", "Count Stdev",
+                  "Duration Mean (ms)", "Duration Stdev"]
+    else:
+      headers += ["Count Mean", "Duration Mean (ms)"]
 
   if args.out_file:
     with open(args.out_file, "w", newline="") as f:
