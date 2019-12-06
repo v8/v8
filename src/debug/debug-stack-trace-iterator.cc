@@ -87,7 +87,9 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
     // Arrow function defined in top level function without references to
     // variables may have NativeContext as context.
     if (!context->IsFunctionContext()) return v8::MaybeLocal<v8::Value>();
-    ScopeIterator scope_iterator(isolate_, frame_inspector_.get());
+    ScopeIterator scope_iterator(
+        isolate_, frame_inspector_.get(),
+        ScopeIterator::ReparseStrategy::kFunctionLiteral);
     // We lookup this variable in function context only when it is used in arrow
     // function otherwise V8 can optimize it out.
     if (!scope_iterator.ClosureScopeHasThisReference()) {

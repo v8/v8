@@ -23,7 +23,7 @@ namespace v8 {
 namespace internal {
 
 ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
-                             ScopeIterator::Option option)
+                             ReparseStrategy strategy)
     : isolate_(isolate),
       frame_inspector_(frame_inspector),
       function_(frame_inspector_->GetFunction()),
@@ -37,7 +37,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
   // We should not instantiate a ScopeIterator for wasm frames.
   DCHECK_NE(Script::TYPE_WASM, frame_inspector->GetScript()->type());
 
-  TryParseAndRetrieveScopes(option);
+  TryParseAndRetrieveScopes(strategy);
 }
 
 ScopeIterator::~ScopeIterator() { delete info_; }
@@ -72,7 +72,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate,
       context_(generator->context(), isolate),
       script_(Script::cast(function_->shared().script()), isolate) {
   CHECK(function_->shared().IsSubjectToDebugging());
-  TryParseAndRetrieveScopes(DEFAULT);
+  TryParseAndRetrieveScopes(ReparseStrategy::kFunctionLiteral);
 }
 
 void ScopeIterator::Restart() {
@@ -195,7 +195,7 @@ class ScopeChainRetriever {
 
 }  // namespace
 
-void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
+void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   // Catch the case when the debugger stops in an internal function.
   Handle<SharedFunctionInfo> shared_info(function_->shared(), isolate_);
   Handle<ScopeInfo> scope_info(shared_info->scope_info(), isolate_);
@@ -233,9 +233,17 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
   }
 
   // Reparse the code and analyze the scopes.
+  // Depending on the choosen strategy, the whole script or just
+  // the closure is re-parsed for function scopes.
   Handle<Script> script(Script::cast(shared_info->script()), isolate_);
-  info_ = new ParseInfo(isolate_, script);
-  info_->set_eager();
+  if (scope_info->scope_type() == FUNCTION_SCOPE &&
+      strategy == ReparseStrategy::kFunctionLiteral) {
+    info_ = new ParseInfo(isolate_, shared_info);
+  } else {
+    info_ = new ParseInfo(isolate_, script);
+    info_->set_eager();
+  }
+
   if (scope_info->scope_type() == EVAL_SCOPE || script->is_wrapped()) {
     info_->set_eval();
     if (!context_->IsNativeContext()) {
