@@ -6,6 +6,7 @@
 #define V8_BASE_TEMPLATE_UTILS_H_
 
 #include <array>
+#include <functional>
 #include <type_traits>
 #include <utility>
 
