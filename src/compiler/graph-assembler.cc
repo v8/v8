@@ -589,6 +589,22 @@ TNode<Boolean> GraphAssembler::NumberIsFloat64Hole(TNode<Number> value) {
       graph()->NewNode(simplified()->NumberIsFloat64Hole(), value));
 }
 
+TNode<Boolean> GraphAssembler::ToBoolean(TNode<Object> value) {
+  return AddNode<Boolean>(graph()->NewNode(simplified()->ToBoolean(), value));
+}
+
+TNode<FixedArrayBase> GraphAssembler::MaybeGrowFastElements(
+    ElementsKind kind, const FeedbackSource& feedback, TNode<JSArray> array,
+    TNode<FixedArrayBase> elements, TNode<Number> new_length,
+    TNode<Number> old_length) {
+  GrowFastElementsMode mode = IsDoubleElementsKind(kind)
+                                  ? GrowFastElementsMode::kDoubleElements
+                                  : GrowFastElementsMode::kSmiOrObjectElements;
+  return AddNode<FixedArrayBase>(graph()->NewNode(
+      simplified()->MaybeGrowFastElements(mode, feedback), array, elements,
+      new_length, old_length, effect(), control()));
+}
+
 Node* GraphAssembler::TypeGuard(Type type, Node* value) {
   return AddNode(
       graph()->NewNode(common()->TypeGuard(type), value, effect(), control()));

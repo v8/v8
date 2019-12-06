@@ -355,6 +355,13 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   TNode<Boolean> ObjectIsCallable(TNode<Object> value);
   Node* CheckIf(Node* cond, DeoptimizeReason reason);
   TNode<Boolean> NumberIsFloat64Hole(TNode<Number> value);
+  TNode<Boolean> ToBoolean(TNode<Object> value);
+  TNode<FixedArrayBase> MaybeGrowFastElements(ElementsKind kind,
+                                              const FeedbackSource& feedback,
+                                              TNode<JSArray> array,
+                                              TNode<FixedArrayBase> elements,
+                                              TNode<Number> new_length,
+                                              TNode<Number> old_length);
 
   Node* TypeGuard(Type type, Node* value);
   Node* Checkpoint(FrameState frame_state);

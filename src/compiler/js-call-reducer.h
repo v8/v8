@@ -209,12 +209,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                                    Node* context, Node* effect,
                                                    Node* control);
 
-  // Returns the updated {to} node, and updates control and effect along the
-  // way.
-  Node* DoFilterPostCallbackWork(ElementsKind kind, Node** control,
-                                 Node** effect, Node* a, Node* to,
-                                 Node* element, Node* callback_value);
-
   // If {fncallback} is not callable, throw a TypeError.
   // {control} is altered, and new nodes {check_fail} and {check_throw} are
   // returned. {check_fail} is the control branch where IsCallable failed,
