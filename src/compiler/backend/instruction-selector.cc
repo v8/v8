@@ -2095,6 +2095,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8GtU(node);
     case IrOpcode::kI16x8GeU:
       return MarkAsSimd128(node), VisitI16x8GeU(node);
+    case IrOpcode::kI16x8RoundingAverageU:
+      return MarkAsSimd128(node), VisitI16x8RoundingAverageU(node);
     case IrOpcode::kI8x16Splat:
       return MarkAsSimd128(node), VisitI8x16Splat(node);
     case IrOpcode::kI8x16ExtractLaneU:
@@ -2149,6 +2151,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16GtU(node);
     case IrOpcode::kI8x16GeU:
       return MarkAsSimd128(node), VisitI8x16GeU(node);
+    case IrOpcode::kI8x16RoundingAverageU:
+      return MarkAsSimd128(node), VisitI8x16RoundingAverageU(node);
     case IrOpcode::kS128Zero:
       return MarkAsSimd128(node), VisitS128Zero(node);
     case IrOpcode::kS128And:
@@ -2628,6 +2632,12 @@ void InstructionSelector::VisitF64x2SConvertI64x2(Node* node) {
   UNIMPLEMENTED();
 }
 void InstructionSelector::VisitF64x2UConvertI64x2(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI16x8RoundingAverageU(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI8x16RoundingAverageU(Node* node) {
   UNIMPLEMENTED();
 }
 #if !V8_TARGET_ARCH_ARM64

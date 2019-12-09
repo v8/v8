@@ -2675,6 +2675,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8MinU)             \
   V(I16x8MaxU)             \
   V(I16x8GeU)              \
+  V(I16x8RoundingAverageU) \
   V(I8x16SConvertI16x8)    \
   V(I8x16Add)              \
   V(I8x16AddSaturateS)     \
@@ -2690,6 +2691,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16MinU)             \
   V(I8x16MaxU)             \
   V(I8x16GeU)              \
+  V(I8x16RoundingAverageU) \
   V(S128And)               \
   V(S128Or)                \
   V(S128Xor)

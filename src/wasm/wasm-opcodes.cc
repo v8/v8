@@ -334,6 +334,9 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I64x2_OP(Load32x2S, "load32x2_s")
     CASE_I64x2_OP(Load32x2U, "load32x2_u")
 
+    CASE_I8x16_OP(RoundingAverageU, "avgr_u")
+    CASE_I16x8_OP(RoundingAverageU, "avgr_u")
+
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")
     CASE_INT_OP(AtomicWait, "atomic.wait")

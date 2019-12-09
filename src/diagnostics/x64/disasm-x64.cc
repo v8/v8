@@ -2006,10 +2006,14 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "paddusw";
         } else if (opcode == 0xDE) {
           mnemonic = "pmaxub";
+        } else if (opcode == 0xE0) {
+          mnemonic = "pavgb";
         } else if (opcode == 0xE1) {
           mnemonic = "psraw";
         } else if (opcode == 0xE2) {
           mnemonic = "psrad";
+        } else if (opcode == 0xE3) {
+          mnemonic = "pavgw";
         } else if (opcode == 0xE8) {
           mnemonic = "psubsb";
         } else if (opcode == 0xE9) {

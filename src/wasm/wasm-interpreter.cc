@@ -2325,6 +2325,8 @@ class ThreadImpl {
       BINOP_CASE(I16x8AddSaturateU, i16x8, int8, 8, SaturateAdd<uint16_t>(a, b))
       BINOP_CASE(I16x8SubSaturateS, i16x8, int8, 8, SaturateSub<int16_t>(a, b))
       BINOP_CASE(I16x8SubSaturateU, i16x8, int8, 8, SaturateSub<uint16_t>(a, b))
+      BINOP_CASE(I16x8RoundingAverageU, i16x8, int8, 8,
+                 base::RoundingAverageUnsigned<uint16_t>(a, b))
       BINOP_CASE(I8x16Add, i8x16, int16, 16, base::AddWithWraparound(a, b))
       BINOP_CASE(I8x16Sub, i8x16, int16, 16, base::SubWithWraparound(a, b))
       BINOP_CASE(I8x16Mul, i8x16, int16, 16, base::MulWithWraparound(a, b))
@@ -2340,6 +2342,8 @@ class ThreadImpl {
       BINOP_CASE(I8x16SubSaturateS, i8x16, int16, 16, SaturateSub<int8_t>(a, b))
       BINOP_CASE(I8x16SubSaturateU, i8x16, int16, 16,
                  SaturateSub<uint8_t>(a, b))
+      BINOP_CASE(I8x16RoundingAverageU, i8x16, int16, 16,
+                 base::RoundingAverageUnsigned<uint8_t>(a, b))
 #undef BINOP_CASE
 #define UNOP_CASE(op, name, stype, count, expr) \
   case kExpr##op: {                             \

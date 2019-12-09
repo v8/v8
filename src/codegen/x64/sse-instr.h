@@ -79,8 +79,10 @@
   V(psllw, 66, 0F, F1)           \
   V(pslld, 66, 0F, F2)           \
   V(psllq, 66, 0F, F3)           \
+  V(pavgb, 66, 0F, E0)           \
   V(psraw, 66, 0F, E1)           \
   V(psrad, 66, 0F, E2)           \
+  V(pavgw, 66, 0F, E3)           \
   V(psrlw, 66, 0F, D1)           \
   V(psrld, 66, 0F, D2)           \
   V(psrlq, 66, 0F, D3)           \

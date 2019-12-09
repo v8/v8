@@ -876,6 +876,7 @@
   V(I16x8LeU)                   \
   V(I16x8GtU)                   \
   V(I16x8GeU)                   \
+  V(I16x8RoundingAverageU)      \
   V(I8x16Splat)                 \
   V(I8x16ExtractLaneU)          \
   V(I8x16ExtractLaneS)          \
@@ -907,6 +908,7 @@
   V(I8x16LeU)                   \
   V(I8x16GtU)                   \
   V(I8x16GeU)                   \
+  V(I8x16RoundingAverageU)      \
   V(S128Load)                   \
   V(S128Store)                  \
   V(S128Zero)                   \

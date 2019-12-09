@@ -2059,11 +2059,12 @@ WASM_SIMD_TEST(I16x8Neg) {
                    base::NegateWithWraparound);
 }
 
+template <typename T = int16_t, typename OpType = T (*)(T, T)>
 void RunI16x8BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
-                       WasmOpcode opcode, Int16BinOp expected_op) {
-  WasmRunner<int32_t, int32_t, int32_t> r(execution_tier, lower_simd);
+                       WasmOpcode opcode, OpType expected_op) {
+  WasmRunner<int32_t, T, T> r(execution_tier, lower_simd);
   // Global to hold output.
-  int16_t* g = r.builder().AddGlobal<int16_t>(kWasmS128);
+  T* g = r.builder().template AddGlobal<T>(kWasmS128);
   // Build fn to splat test values, perform binop, and write the result.
   byte value1 = 0, value2 = 1;
   byte temp1 = r.AllocateLocal(kWasmS128);
@@ -2074,12 +2075,12 @@ void RunI16x8BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                                            WASM_GET_LOCAL(temp2))),
         WASM_ONE);
 
-  FOR_INT16_INPUTS(x) {
-    FOR_INT16_INPUTS(y) {
+  for (T x : compiler::ValueHelper::GetVector<T>()) {
+    for (T y : compiler::ValueHelper::GetVector<T>()) {
       r.Call(x, y);
-      int16_t expected = expected_op(x, y);
+      T expected = expected_op(x, y);
       for (int i = 0; i < 8; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<int16_t>(&g[i]));
+        CHECK_EQ(expected, ReadLittleEndianValue<T>(&g[i]));
       }
     }
   }
@@ -2180,6 +2181,14 @@ WASM_SIMD_TEST(I16x8LeU) {
                     UnsignedLessEqual);
 }
 
+#if V8_TARGET_ARCH_X64
+WASM_SIMD_TEST_NO_LOWERING(I16x8RoundingAverageU) {
+  RunI16x8BinOpTest<uint16_t>(execution_tier, lower_simd,
+                              kExprI16x8RoundingAverageU,
+                              base::RoundingAverageUnsigned);
+}
+#endif  // V8_TARGET_ARCH_X64
+
 void RunI16x8ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                          WasmOpcode opcode, Int16ShiftOp expected_op) {
   // Intentionally shift by 16, should be no-op.
@@ -2276,11 +2285,12 @@ WASM_SIMD_TEST(I8x16ConvertI16x8) {
   }
 }
 
+template <typename T = int8_t, typename OpType = T (*)(T, T)>
 void RunI8x16BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
-                       WasmOpcode opcode, Int8BinOp expected_op) {
-  WasmRunner<int32_t, int32_t, int32_t> r(execution_tier, lower_simd);
+                       WasmOpcode opcode, OpType expected_op) {
+  WasmRunner<int32_t, T, T> r(execution_tier, lower_simd);
   // Global to hold output.
-  int8_t* g = r.builder().AddGlobal<int8_t>(kWasmS128);
+  T* g = r.builder().template AddGlobal<T>(kWasmS128);
   // Build fn to splat test values, perform binop, and write the result.
   byte value1 = 0, value2 = 1;
   byte temp1 = r.AllocateLocal(kWasmS128);
@@ -2291,12 +2301,12 @@ void RunI8x16BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                                            WASM_GET_LOCAL(temp2))),
         WASM_ONE);
 
-  FOR_INT8_INPUTS(x) {
-    FOR_INT8_INPUTS(y) {
+  for (T x : compiler::ValueHelper::GetVector<T>()) {
+    for (T y : compiler::ValueHelper::GetVector<T>()) {
       r.Call(x, y);
-      int8_t expected = expected_op(x, y);
+      T expected = expected_op(x, y);
       for (int i = 0; i < 16; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<int8_t>(&g[i]));
+        CHECK_EQ(expected, ReadLittleEndianValue<T>(&g[i]));
       }
     }
   }
@@ -2396,6 +2406,14 @@ WASM_SIMD_TEST(I8x16Mul) {
   RunI8x16BinOpTest(execution_tier, lower_simd, kExprI8x16Mul,
                     base::MulWithWraparound);
 }
+
+#if V8_TARGET_ARCH_X64
+WASM_SIMD_TEST_NO_LOWERING(I8x16RoundingAverageU) {
+  RunI8x16BinOpTest<uint8_t>(execution_tier, lower_simd,
+                             kExprI8x16RoundingAverageU,
+                             base::RoundingAverageUnsigned);
+}
+#endif  // V8_TARGET_ARCH_X64
 
 void RunI8x16ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                          WasmOpcode opcode, Int8ShiftOp expected_op) {

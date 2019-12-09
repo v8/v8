@@ -274,6 +274,7 @@ namespace compiler {
   V(X64I16x8MaxU)                         \
   V(X64I16x8GtU)                          \
   V(X64I16x8GeU)                          \
+  V(X64I16x8RoundingAverageU)             \
   V(X64I8x16Splat)                        \
   V(X64I8x16ExtractLaneU)                 \
   V(X64I8x16ExtractLaneS)                 \
@@ -301,6 +302,7 @@ namespace compiler {
   V(X64I8x16MaxU)                         \
   V(X64I8x16GtU)                          \
   V(X64I8x16GeU)                          \
+  V(X64I8x16RoundingAverageU)             \
   V(X64S128Zero)                          \
   V(X64S128Not)                           \
   V(X64S128And)                           \

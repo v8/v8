@@ -3339,6 +3339,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ pcmpeqw(dst, src);
       break;
     }
+    case kX64I16x8RoundingAverageU: {
+      __ Pavgw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
     case kX64I8x16Splat: {
       CpuFeatureScope sse_scope(tasm(), SSSE3);
       XMMRegister dst = i.OutputSimd128Register();
@@ -3576,6 +3580,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src = i.InputSimd128Register(1);
       __ pminub(dst, src);
       __ pcmpeqb(dst, src);
+      break;
+    }
+    case kX64I8x16RoundingAverageU: {
+      __ Pavgb(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64S128And: {

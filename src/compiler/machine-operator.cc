@@ -421,6 +421,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(I16x8MaxU, Operator::kCommutative, 2, 0, 1)                            \
   V(I16x8GtU, Operator::kNoProperties, 2, 0, 1)                            \
   V(I16x8GeU, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I16x8RoundingAverageU, Operator::kCommutative, 2, 0, 1)                \
   V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I8x16Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(I8x16Shl, Operator::kNoProperties, 2, 0, 1)                            \
@@ -445,6 +446,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(I8x16MaxU, Operator::kCommutative, 2, 0, 1)                            \
   V(I8x16GtU, Operator::kNoProperties, 2, 0, 1)                            \
   V(I8x16GeU, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I8x16RoundingAverageU, Operator::kCommutative, 2, 0, 1)                \
   V(S128Load, Operator::kNoProperties, 2, 0, 1)                            \
   V(S128Store, Operator::kNoProperties, 3, 0, 1)                           \
   V(S128Zero, Operator::kNoProperties, 0, 0, 1)                            \
