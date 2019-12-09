@@ -503,12 +503,29 @@ STATIC_ASSERT(NativeContext::kSize ==
 void NativeContext::SetDetachedWindowReason(
     v8::Context::DetachedWindowReason reason) {
   set_detached_window_reason(Smi::FromEnum(reason));
+
+  Isolate* isolate = GetIsolate();
+  // kWindowNotDetached is used when initializing. Don't initialize to time
+  // based value due to build artifact inconsistency (see crbug/1029863).
+  // It's safe to use 0, because the value isn't used in the kWindowNotDetached
+  // case.
+  set_detached_window_time_in_seconds(Smi::FromInt(
+      reason == v8::Context::kWindowNotDetached
+          ? 0
+          : static_cast<int>(isolate->time_millis_since_init() / 1000)));
 }
 
 v8::Context::DetachedWindowReason NativeContext::GetDetachedWindowReason()
     const {
   return static_cast<v8::Context::DetachedWindowReason>(
       detached_window_reason().value());
+}
+
+int NativeContext::SecondsSinceDetachedWindow() const {
+  DCHECK(detached_window_reason().value() != v8::Context::kWindowNotDetached);
+  Isolate* isolate = GetIsolate();
+  return static_cast<int>(isolate->time_millis_since_init() / 1000 -
+                          detached_window_time_in_seconds().value());
 }
 
 }  // namespace internal
