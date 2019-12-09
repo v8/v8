@@ -107,10 +107,11 @@ class StringSetShape : public BaseShape<String> {
 
 class StringSet : public HashTable<StringSet, StringSetShape> {
  public:
-  static Handle<StringSet> New(Isolate* isolate);
-  static Handle<StringSet> Add(Isolate* isolate, Handle<StringSet> blacklist,
-                               Handle<String> name);
-  bool Has(Isolate* isolate, Handle<String> name);
+  V8_EXPORT_PRIVATE static Handle<StringSet> New(Isolate* isolate);
+  V8_EXPORT_PRIVATE static Handle<StringSet> Add(Isolate* isolate,
+                                                 Handle<StringSet> blacklist,
+                                                 Handle<String> name);
+  V8_EXPORT_PRIVATE bool Has(Isolate* isolate, Handle<String> name);
 
   DECL_CAST(StringSet)
   OBJECT_CONSTRUCTORS(StringSet, HashTable<StringSet, StringSetShape>);

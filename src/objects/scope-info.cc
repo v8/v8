@@ -209,7 +209,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
         PrivateNameLookupSkipsOuterClassField::encode(
             scope->private_name_lookup_skips_outer_class()) |
         HasContextExtensionSlotField::encode(scope->HasContextExtensionSlot()) |
-        IsReplModeScopeField::encode(scope->is_repl_mode_scope());
+        IsReplModeScopeField::encode(scope->is_repl_mode_scope()) |
+        HasLocalsBlackListField::encode(false);
     scope_info.SetFlags(flags);
 
     scope_info.SetParameterCount(parameter_count);
@@ -398,7 +399,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       ForceContextAllocationField::encode(false) |
       PrivateNameLookupSkipsOuterClassField::encode(false) |
       HasContextExtensionSlotField::encode(true) |
-      IsReplModeScopeField::encode(false);
+      IsReplModeScopeField::encode(false) |
+      HasLocalsBlackListField::encode(false);
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(0);
@@ -476,7 +478,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
               ForceContextAllocationField::encode(false) |
               PrivateNameLookupSkipsOuterClassField::encode(false) |
               HasContextExtensionSlotField::encode(is_native_context) |
-              IsReplModeScopeField::encode(false);
+              IsReplModeScopeField::encode(false) |
+              HasLocalsBlackListField::encode(false);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetContextLocalCount(context_local_count);
@@ -529,6 +532,39 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
               scope_info->ContextHeaderLength() + 1);
   }
 
+  return scope_info;
+}
+
+// static
+Handle<ScopeInfo> ScopeInfo::RecreateWithBlackList(
+    Isolate* isolate, Handle<ScopeInfo> original, Handle<StringSet> blacklist) {
+  DCHECK(!original.is_null());
+  if (original->HasLocalsBlackList()) return original;
+
+  Handle<ScopeInfo> scope_info =
+      isolate->factory()->NewScopeInfo(original->length() + 1);
+
+  // Copy the static part first and update the flags to include the
+  // blacklist field, so {LocalsBlackListIndex} returns the correct value.
+  scope_info->CopyElements(isolate, 0, *original, 0, kVariablePartIndex,
+                           WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  scope_info->SetFlags(
+      HasLocalsBlackListField::update(scope_info->Flags(), true));
+
+  // Copy the dynamic part including the provided blacklist:
+  //   1) copy all the fields up to the blacklist index
+  //   2) add the blacklist
+  //   3) copy the remaining fields
+  scope_info->CopyElements(
+      isolate, kVariablePartIndex, *original, kVariablePartIndex,
+      scope_info->LocalsBlackListIndex() - kVariablePartIndex,
+      WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  scope_info->set(scope_info->LocalsBlackListIndex(), *blacklist);
+  scope_info->CopyElements(
+      isolate, scope_info->LocalsBlackListIndex() + 1, *original,
+      scope_info->LocalsBlackListIndex(),
+      scope_info->length() - scope_info->LocalsBlackListIndex() - 1,
+      WriteBarrierMode::UPDATE_WRITE_BARRIER);
   return scope_info;
 }
 
@@ -676,6 +712,16 @@ bool ScopeInfo::PrivateNameLookupSkipsOuterClass() const {
 bool ScopeInfo::IsReplModeScope() const {
   if (length() == 0) return false;
   return IsReplModeScopeField::decode(Flags());
+}
+
+bool ScopeInfo::HasLocalsBlackList() const {
+  if (length() == 0) return false;
+  return HasLocalsBlackListField::decode(Flags());
+}
+
+StringSet ScopeInfo::LocalsBlackList() const {
+  DCHECK(HasLocalsBlackList());
+  return StringSet::cast(get(LocalsBlackListIndex()));
 }
 
 bool ScopeInfo::HasContext() const { return ContextLength() > 0; }
@@ -915,8 +961,12 @@ int ScopeInfo::OuterScopeInfoIndex() const {
   return PositionInfoIndex() + (HasPositionInfo() ? kPositionInfoEntries : 0);
 }
 
-int ScopeInfo::ModuleInfoIndex() const {
+int ScopeInfo::LocalsBlackListIndex() const {
   return OuterScopeInfoIndex() + (HasOuterScopeInfo() ? 1 : 0);
+}
+
+int ScopeInfo::ModuleInfoIndex() const {
+  return LocalsBlackListIndex() + (HasLocalsBlackList() ? 1 : 0);
 }
 
 int ScopeInfo::ModuleVariableCountIndex() const {

@@ -10,6 +10,7 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/objects.h"
 #include "src/utils/utils.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -24,6 +25,7 @@ template <typename T>
 class MaybeHandle;
 class SourceTextModuleInfo;
 class Scope;
+class StringSet;
 class Zone;
 
 // ScopeInfo represents information about different scopes of a source
@@ -193,6 +195,14 @@ class ScopeInfo : public FixedArray {
   // Return the outer ScopeInfo if present.
   ScopeInfo OuterScopeInfo() const;
 
+  // Returns true if this ScopeInfo has a black list attached containing
+  // stack allocated local variables.
+  V8_EXPORT_PRIVATE bool HasLocalsBlackList() const;
+  // Returns a list of stack-allocated locals of parent scopes.
+  // Used during local debug-evalute to decide whether a context lookup
+  // can continue upwards after checking this scope.
+  V8_EXPORT_PRIVATE StringSet LocalsBlackList() const;
+
   // Returns true if this ScopeInfo was created for a scope that skips the
   // closest outer class when resolving private names.
   bool PrivateNameLookupSkipsOuterClass() const;
@@ -213,6 +223,13 @@ class ScopeInfo : public FixedArray {
       Isolate* isolate);
   static Handle<ScopeInfo> CreateForNativeContext(Isolate* isolate);
   static Handle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
+
+  // Creates a copy of a {ScopeInfo} but with the provided locals blacklist
+  // attached. Does nothing if the original {ScopeInfo} already has a field
+  // for a blacklist reserved.
+  V8_EXPORT_PRIVATE static Handle<ScopeInfo> RecreateWithBlackList(
+      Isolate* isolate, Handle<ScopeInfo> original,
+      Handle<StringSet> blacklist);
 
   // Serializes empty scope info.
   V8_EXPORT_PRIVATE static ScopeInfo Empty(Isolate* isolate);
@@ -274,6 +291,7 @@ class ScopeInfo : public FixedArray {
   using HasContextExtensionSlotField =
       PrivateNameLookupSkipsOuterClassField::Next<bool, 1>;
   using IsReplModeScopeField = HasContextExtensionSlotField::Next<bool, 1>;
+  using HasLocalsBlackListField = IsReplModeScopeField::Next<bool, 1>;
 
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindField::kMax);
 
@@ -309,10 +327,13 @@ class ScopeInfo : public FixedArray {
   //    the scope belongs to a function or script.
   // 8. OuterScopeInfoIndex:
   //    The outer scope's ScopeInfo or the hole if there's none.
-  // 9. SourceTextModuleInfo, ModuleVariableCount, and ModuleVariables:
-  //    For a module scope, this part contains the SourceTextModuleInfo, the
-  //    number of MODULE-allocated variables, and the metadata of those
-  //    variables.  For non-module scopes it is empty.
+  // 9. LocalsBlackList: List of stack allocated local variables. Used by
+  //    debug evaluate to properly abort variable lookup when a name clashes
+  //    with a stack allocated local that can't be materialized.
+  // 10. SourceTextModuleInfo, ModuleVariableCount, and ModuleVariables:
+  //     For a module scope, this part contains the SourceTextModuleInfo, the
+  //     number of MODULE-allocated variables, and the metadata of those
+  //     variables.  For non-module scopes it is empty.
   int ContextLocalNamesIndex() const;
   int ContextLocalInfosIndex() const;
   int SavedClassVariableInfoIndex() const;
@@ -321,6 +342,7 @@ class ScopeInfo : public FixedArray {
   int InferredFunctionNameIndex() const;
   int PositionInfoIndex() const;
   int OuterScopeInfoIndex() const;
+  V8_EXPORT_PRIVATE int LocalsBlackListIndex() const;
   int ModuleInfoIndex() const;
   int ModuleVariableCountIndex() const;
   int ModuleVariablesIndex() const;
@@ -358,6 +380,7 @@ class ScopeInfo : public FixedArray {
                                   ScopeInfo::VariableAllocationInfo var);
 
   OBJECT_CONSTRUCTORS(ScopeInfo, FixedArray);
+  FRIEND_TEST(TestWithNativeContext, RecreateScopeInfoWithLocalsBlacklistWorks);
 };
 
 std::ostream& operator<<(std::ostream& os,

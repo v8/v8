@@ -2145,6 +2145,9 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   if (HasOuterScopeInfo()) {
     os << "\n - outer scope info: " << Brief(OuterScopeInfo());
   }
+  if (HasLocalsBlackList()) {
+    os << "\n - locals blacklist: " << Brief(LocalsBlackList());
+  }
   if (HasFunctionName()) {
     os << "\n - function name: " << Brief(FunctionName());
   }
