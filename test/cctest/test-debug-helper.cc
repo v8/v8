@@ -67,8 +67,12 @@ void CheckProp(const d::ObjectProperty& property, const char* expected_type,
   CHECK(*reinterpret_cast<TValue*>(property.address) == expected_value);
 }
 
-bool StartsWith(std::string full_string, std::string prefix) {
+bool StartsWith(const std::string& full_string, const std::string& prefix) {
   return full_string.substr(0, prefix.size()) == prefix;
+}
+
+bool Contains(const std::string& full_string, const std::string& substr) {
+  return full_string.find(substr) != std::string::npos;
 }
 
 void CheckStructProp(const d::StructProperty& property,
@@ -155,7 +159,7 @@ TEST(GetObjectProperties) {
     // deterministic locations within the heap reservation.
     CHECK(COMPRESS_POINTERS_BOOL
               ? StartsWith(props->brief, "EmptyFixedArray")
-              : StartsWith(props->brief, "maybe EmptyFixedArray"));
+              : Contains(props->brief, "maybe EmptyFixedArray"));
 
     // Provide a heap first page so the API can be more sure.
     heap_addresses.read_only_space_first_page =
@@ -265,7 +269,7 @@ TEST(GetObjectProperties) {
     alphabet.substr(3,20) + alphabet.toUpperCase().substr(5,15) + "7")");
   o = v8::Utils::OpenHandle(*v);
   props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
-  CHECK(StartsWith(props->brief, "\"defghijklmnopqrstuvwFGHIJKLMNOPQRST7\""));
+  CHECK(Contains(props->brief, "\"defghijklmnopqrstuvwFGHIJKLMNOPQRST7\""));
 
   // Cause a failure when reading the "second" pointer within the top-level
   // ConsString.
@@ -274,15 +278,14 @@ TEST(GetObjectProperties) {
     uintptr_t second_address = props->properties[4]->address;
     MemoryFailureRegion failure(second_address, second_address + 4);
     props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
-    CHECK(
-        StartsWith(props->brief, "\"defghijklmnopqrstuvwFGHIJKLMNOPQRST...\""));
+    CHECK(Contains(props->brief, "\"defghijklmnopqrstuvwFGHIJKLMNOPQRST...\""));
   }
 
   // Build a very long string.
   v = CompileRun("'a'.repeat(1000)");
   o = v8::Utils::OpenHandle(*v);
   props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
-  CHECK(std::string(props->brief).substr(79, 7) == std::string("aa...\" "));
+  CHECK(Contains(props->brief, "\"" + std::string(80, 'a') + "...\""));
 
   // Build a basic JS object and get its properties.
   v = CompileRun("({a: 1, b: 2})");
