@@ -726,8 +726,10 @@ void TurboAssembler::Cvtsd2ss(XMMRegister dst, Operand src) {
 void TurboAssembler::Cvtlsi2sd(XMMRegister dst, Register src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
+    vxorpd(dst, dst, dst);
     vcvtlsi2sd(dst, dst, src);
   } else {
+    xorpd(dst, dst);
     cvtlsi2sd(dst, src);
   }
 }
@@ -735,8 +737,10 @@ void TurboAssembler::Cvtlsi2sd(XMMRegister dst, Register src) {
 void TurboAssembler::Cvtlsi2sd(XMMRegister dst, Operand src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
+    vxorpd(dst, dst, dst);
     vcvtlsi2sd(dst, dst, src);
   } else {
+    xorpd(dst, dst);
     cvtlsi2sd(dst, src);
   }
 }
@@ -788,8 +792,10 @@ void TurboAssembler::Cvtqsi2ss(XMMRegister dst, Operand src) {
 void TurboAssembler::Cvtqsi2sd(XMMRegister dst, Register src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
+    vxorpd(dst, dst, dst);
     vcvtqsi2sd(dst, dst, src);
   } else {
+    xorpd(dst, dst);
     cvtqsi2sd(dst, src);
   }
 }
@@ -797,8 +803,10 @@ void TurboAssembler::Cvtqsi2sd(XMMRegister dst, Register src) {
 void TurboAssembler::Cvtqsi2sd(XMMRegister dst, Operand src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
+    vxorpd(dst, dst, dst);
     vcvtqsi2sd(dst, dst, src);
   } else {
+    xorpd(dst, dst);
     cvtqsi2sd(dst, src);
   }
 }
