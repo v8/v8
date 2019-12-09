@@ -1365,6 +1365,8 @@ class LinearScanAllocator final : public RegisterAllocator {
                                    RpoNumber predecessor);
   RpoNumber ChooseOneOfTwoPredecessorStates(InstructionBlock* current_block,
                                             LifetimePosition boundary);
+  bool CheckConflict(MachineRepresentation rep, int reg,
+                     RangeWithRegisterSet* to_be_live);
   void ComputeStateFromManyPredecessors(InstructionBlock* current_block,
                                         RangeWithRegisterSet* to_be_live);
 
