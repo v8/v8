@@ -139,6 +139,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Subsd, subsd)
   AVX_OP(Divss, divss)
   AVX_OP(Divsd, divsd)
+  AVX_OP(Orps, orps)
   AVX_OP(Xorps, xorps)
   AVX_OP(Xorpd, xorpd)
   AVX_OP(Movd, movd)
@@ -193,8 +194,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Addpd, addpd)
   AVX_OP(Subpd, subpd)
   AVX_OP(Mulpd, mulpd)
+  AVX_OP(Minps, minps)
   AVX_OP(Minpd, minpd)
   AVX_OP(Divpd, divpd)
+  AVX_OP(Maxps, maxps)
   AVX_OP(Maxpd, maxpd)
   AVX_OP(Shufps, shufps)
   AVX_OP(Cvtdq2ps, cvtdq2ps)
@@ -208,6 +211,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Pshuflw, pshuflw)
   AVX_OP(Punpcklqdq, punpcklqdq)
   AVX_OP(Pshufd, pshufd)
+  AVX_OP(Cmpps, cmpps)
   AVX_OP(Cmppd, cmppd)
   AVX_OP_SSE3(Movddup, movddup)
   AVX_OP_SSSE3(Pshufb, pshufb)
@@ -220,6 +224,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSE4_1(Extractps, extractps)
   AVX_OP_SSE4_1(Insertps, insertps)
   AVX_OP_SSE4_1(Pinsrq, pinsrq)
+  AVX_OP_SSE4_1(Pblendw, pblendw)
 
 #undef AVX_OP
 

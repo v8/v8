@@ -2463,14 +2463,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_NE(i.OutputSimd128Register(), kScratchDoubleReg);
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
-      __ pxor(kScratchDoubleReg, kScratchDoubleReg);      // zeros
-      __ pblendw(kScratchDoubleReg, dst, 0x55);           // get lo 16 bits
-      __ psubd(dst, kScratchDoubleReg);                   // get hi 16 bits
-      __ cvtdq2ps(kScratchDoubleReg, kScratchDoubleReg);  // convert lo exactly
-      __ psrld(dst, 1);                  // divide by 2 to get in unsigned range
-      __ cvtdq2ps(dst, dst);             // convert hi exactly
-      __ addps(dst, dst);                // double hi, exactly
-      __ addps(dst, kScratchDoubleReg);  // add hi and lo, may round.
+      __ Pxor(kScratchDoubleReg, kScratchDoubleReg);  // zeros
+      __ Pblendw(kScratchDoubleReg, dst,
+                 static_cast<uint8_t>(0x55));             // get lo 16 bits
+      __ Psubd(dst, kScratchDoubleReg);                   // get hi 16 bits
+      __ Cvtdq2ps(kScratchDoubleReg, kScratchDoubleReg);  // convert lo exactly
+      __ Psrld(dst,
+               static_cast<byte>(1));    // divide by 2 to get in unsigned range
+      __ Cvtdq2ps(dst, dst);             // convert hi exactly
+      __ Addps(dst, dst);                // double hi, exactly
+      __ Addps(dst, kScratchDoubleReg);  // add hi and lo, may round.
       break;
     }
     case kX64F32x4Abs: {
@@ -2545,16 +2547,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       // The minps instruction doesn't propagate NaNs and +0's in its first
       // operand. Perform minps in both orders, merge the resuls, and adjust.
-      __ movaps(kScratchDoubleReg, src1);
-      __ minps(kScratchDoubleReg, dst);
-      __ minps(dst, src1);
+      __ Movaps(kScratchDoubleReg, src1);
+      __ Minps(kScratchDoubleReg, dst);
+      __ Minps(dst, src1);
       // propagate -0's and NaNs, which may be non-canonical.
-      __ orps(kScratchDoubleReg, dst);
+      __ Orps(kScratchDoubleReg, dst);
       // Canonicalize NaNs by quieting and clearing the payload.
-      __ cmpps(dst, kScratchDoubleReg, 3);
-      __ orps(kScratchDoubleReg, dst);
-      __ psrld(dst, 10);
-      __ andnps(dst, kScratchDoubleReg);
+      __ Cmpps(dst, kScratchDoubleReg, static_cast<int8_t>(3));
+      __ Orps(kScratchDoubleReg, dst);
+      __ Psrld(dst, static_cast<byte>(10));
+      __ Andnps(dst, kScratchDoubleReg);
       break;
     }
     case kX64F32x4Max: {
@@ -2563,39 +2565,41 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       // The maxps instruction doesn't propagate NaNs and +0's in its first
       // operand. Perform maxps in both orders, merge the resuls, and adjust.
-      __ movaps(kScratchDoubleReg, src1);
-      __ maxps(kScratchDoubleReg, dst);
-      __ maxps(dst, src1);
+      __ Movaps(kScratchDoubleReg, src1);
+      __ Maxps(kScratchDoubleReg, dst);
+      __ Maxps(dst, src1);
       // Find discrepancies.
-      __ xorps(dst, kScratchDoubleReg);
+      __ Xorps(dst, kScratchDoubleReg);
       // Propagate NaNs, which may be non-canonical.
-      __ orps(kScratchDoubleReg, dst);
+      __ Orps(kScratchDoubleReg, dst);
       // Propagate sign discrepancy and (subtle) quiet NaNs.
-      __ subps(kScratchDoubleReg, dst);
+      __ Subps(kScratchDoubleReg, dst);
       // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-      __ cmpps(dst, kScratchDoubleReg, 3);
-      __ psrld(dst, 10);
-      __ andnps(dst, kScratchDoubleReg);
+      __ Cmpps(dst, kScratchDoubleReg, static_cast<int8_t>(3));
+      __ Psrld(dst, static_cast<byte>(10));
+      __ Andnps(dst, kScratchDoubleReg);
       break;
     }
     case kX64F32x4Eq: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ cmpps(i.OutputSimd128Register(), i.InputSimd128Register(1), 0x0);
+      __ Cmpps(i.OutputSimd128Register(), i.InputSimd128Register(1),
+               static_cast<int8_t>(0x0));
       break;
     }
     case kX64F32x4Ne: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ cmpps(i.OutputSimd128Register(), i.InputSimd128Register(1), 0x4);
+      __ Cmpps(i.OutputSimd128Register(), i.InputSimd128Register(1),
+               static_cast<int8_t>(0x4));
       break;
     }
     case kX64F32x4Lt: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ cmpltps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Cmpltps(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64F32x4Le: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ cmpleps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Cmpleps(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64F32x4Qfma: {
@@ -2605,9 +2609,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                        i.InputSimd128Register(2));
       } else {
         XMMRegister tmp = i.TempSimd128Register(0);
-        __ movaps(tmp, i.InputSimd128Register(2));
-        __ mulps(tmp, i.InputSimd128Register(1));
-        __ addps(i.OutputSimd128Register(), tmp);
+        __ Movaps(tmp, i.InputSimd128Register(2));
+        __ Mulps(tmp, i.InputSimd128Register(1));
+        __ Addps(i.OutputSimd128Register(), tmp);
       }
       break;
     }
@@ -2618,9 +2622,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                         i.InputSimd128Register(2));
       } else {
         XMMRegister tmp = i.TempSimd128Register(0);
-        __ movaps(tmp, i.InputSimd128Register(2));
-        __ mulps(tmp, i.InputSimd128Register(1));
-        __ subps(i.OutputSimd128Register(), tmp);
+        __ Movaps(tmp, i.InputSimd128Register(2));
+        __ Mulps(tmp, i.InputSimd128Register(1));
+        __ Subps(i.OutputSimd128Register(), tmp);
       }
       break;
     }
