@@ -433,7 +433,7 @@ void TypeVisitor::VisitClassFieldsAndMethods(
         }
       }
     }
-    base::Optional<NameAndType> index_field;
+    base::Optional<Expression*> array_length;
     if (field_expression.index) {
       if (seen_indexed_field ||
           (super_class && super_class->HasIndexedField())) {
@@ -441,8 +441,7 @@ void TypeVisitor::VisitClassFieldsAndMethods(
             "only one indexable field is currently supported per class");
       }
       seen_indexed_field = true;
-      index_field = class_type->LookupFieldInternal(*field_expression.index)
-                        .name_and_type;
+      array_length = *field_expression.index;
     } else {
       if (seen_indexed_field) {
         ReportError("cannot declare non-indexable field \"",
@@ -454,7 +453,7 @@ void TypeVisitor::VisitClassFieldsAndMethods(
     const Field& field = class_type->RegisterField(
         {field_expression.name_and_type.name->pos,
          class_type,
-         index_field,
+         array_length,
          {field_expression.name_and_type.name->value, field_type},
          class_offset,
          field_expression.weak,

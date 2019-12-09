@@ -1266,16 +1266,40 @@ void ImplementationVisitor::InitializeClass(
   }
 }
 
+VisitResult ImplementationVisitor::GenerateArrayLength(
+    Expression* array_length, Namespace* nspace,
+    const std::map<std::string, LocationReference>& bindings) {
+  StackScope stack_scope(this);
+  // Switch to the namespace where the class was declared.
+  CurrentScope::Scope current_scope_scope(nspace);
+  // Reset local bindings and install local binding for the preceding fields.
+  BindingsManagersScope bindings_managers_scope;
+  BlockBindings<LocalValue> field_bindings(&ValueBindingsManager::Get());
+  for (auto& p : bindings) {
+    field_bindings.Add(p.first, LocalValue{p.second}, true);
+  }
+  VisitResult length = Visit(array_length);
+  VisitResult converted_length =
+      GenerateCall("Convert", Arguments{{length}, {}},
+                   {TypeOracle::GetIntPtrType(), length.type()}, false);
+  return stack_scope.Yield(converted_length);
+}
+
 VisitResult ImplementationVisitor::GenerateArrayLength(VisitResult object,
                                                        const Field& field) {
   DCHECK(field.index);
 
   StackScope stack_scope(this);
-  VisitResult length = GenerateFetchFromLocation(GenerateFieldReference(
-      object, *field.index, *object.type()->ClassSupertype()));
-  length = GenerateCall("Convert", Arguments{{length}, {}},
-                        {TypeOracle::GetIntPtrType(), length.type()}, false);
-  return stack_scope.Yield(length);
+  const ClassType* class_type = *object.type()->ClassSupertype();
+  std::map<std::string, LocationReference> bindings;
+  for (Field f : class_type->ComputeAllFields()) {
+    if (f.index) break;
+    bindings.insert({f.name_and_type.name,
+                     GenerateFieldReference(object, f.name_and_type,
+                                            *object.type()->ClassSupertype())});
+  }
+  return stack_scope.Yield(
+      GenerateArrayLength(*field.index, class_type->nspace(), bindings));
 }
 
 VisitResult ImplementationVisitor::GenerateArrayLength(
@@ -1284,11 +1308,16 @@ VisitResult ImplementationVisitor::GenerateArrayLength(
   DCHECK(field.index);
 
   StackScope stack_scope(this);
-  VisitResult length =
-      initializer_results.field_value_map.at(field.index->name);
-  length = GenerateCall("Convert", Arguments{{length}, {}},
-                        {TypeOracle::GetIntPtrType(), length.type()}, false);
-  return stack_scope.Yield(length);
+  std::map<std::string, LocationReference> bindings;
+  for (Field f : class_type->ComputeAllFields()) {
+    if (f.index) break;
+    const std::string& fieldname = f.name_and_type.name;
+    VisitResult value = initializer_results.field_value_map.at(fieldname);
+    bindings.insert({fieldname, LocationReference::Temporary(
+                                    value, "initial field " + fieldname)});
+  }
+  return stack_scope.Yield(
+      GenerateArrayLength(*field.index, class_type->nspace(), bindings));
 }
 
 VisitResult ImplementationVisitor::GenerateObjectSize(
@@ -3653,24 +3682,32 @@ void GenerateClassFieldVerifier(const std::string& class_name,
   if (TypeOracle::GetUninitializedType()->IsSubtypeOf(field_type)) return;
 
   if (f.index) {
-    const Type* index_type = f.index->type;
-    std::string index_offset =
-        class_name + "::k" + CamelifyString(f.index->name) + "Offset";
+    base::Optional<NameAndType> array_length =
+        ExtractSimpleFieldArraySize(class_type, *f.index);
+    if (!array_length) {
+      Error("Cannot generate verifier for array field with complex length.")
+          .Position((*f.index)->pos)
+          .Throw();
+    }
+
+    std::string length_field_offset =
+        class_name + "::k" + CamelifyString(array_length->name) + "Offset";
     cc_contents << "  for (int i = 0; i < ";
-    if (index_type == TypeOracle::GetSmiType()) {
+    if (array_length->type == TypeOracle::GetSmiType()) {
       // We already verified the index field because it was listed earlier, so
       // we can assume it's safe to read here.
-      cc_contents << "TaggedField<Smi, " << index_offset
+      cc_contents << "TaggedField<Smi, " << length_field_offset
                   << ">::load(o).value()";
     } else {
-      const Type* constexpr_version = index_type->ConstexprVersion();
+      const Type* constexpr_version = array_length->type->ConstexprVersion();
       if (constexpr_version == nullptr) {
-        Error("constexpr representation for type ", index_type->ToString(),
+        Error("constexpr representation for type ",
+              array_length->type->ToString(),
               " is required due to usage as index")
             .Position(f.pos);
       }
       cc_contents << "o.ReadField<" << constexpr_version->GetGeneratedTypeName()
-                  << ">(" << index_offset << ")";
+                  << ">(" << length_field_offset << ")";
     }
     cc_contents << "; ++i) {\n";
   } else {

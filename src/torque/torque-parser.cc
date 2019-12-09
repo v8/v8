@@ -1559,7 +1559,7 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
   auto weak = child_results->NextAs<bool>();
   auto const_qualified = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
-  auto index = child_results->NextAs<base::Optional<std::string>>();
+  auto index = child_results->NextAs<base::Optional<Expression*>>();
   auto type = child_results->NextAs<TypeExpression*>();
   return ParseResult{ClassFieldExpression{{name, type},
                                           index,
@@ -1692,6 +1692,9 @@ struct TorqueGrammar : Grammar {
 
   TorqueGrammar() : Grammar(&file) { SetWhitespace(MatchWhitespace); }
 
+  // Result: Expression*
+  Symbol* expression = &assignmentExpression;
+
   // Result: std::string
   Symbol identifier = {Rule({Pattern(MatchIdentifier)}, YieldMatchedInput),
                        Rule({Token("runtime")}, YieldMatchedInput)};
@@ -1818,14 +1821,17 @@ struct TorqueGrammar : Grammar {
   // Result: NameAndTypeExpression
   Symbol nameAndType = {Rule({&name, Token(":"), &type}, MakeNameAndType)};
 
+  // Result: base::Optional<Expression*>
   Symbol* optionalArraySpecifier =
-      Optional<std::string>(Sequence({Token("["), &identifier, Token("]")}));
+      Optional<Expression*>(Sequence({Token("["), expression, Token("]")}));
 
+  // Result: ClassFieldExpression
   Symbol classField = {
       Rule({annotations, CheckIf(Token("weak")), CheckIf(Token("const")), &name,
             optionalArraySpecifier, Token(":"), &type, Token(";")},
            MakeClassField)};
 
+  // Result: StructFieldExpression
   Symbol structField = {
       Rule({CheckIf(Token("const")), &name, Token(":"), &type, Token(";")},
            MakeStructField)};
@@ -1865,9 +1871,6 @@ struct TorqueGrammar : Grammar {
                Rule({result, op, nextLevel}, MakeBinaryOperator)};
     return result;
   }
-
-  // Result: Expression*
-  Symbol* expression = &assignmentExpression;
 
   // Result: IncrementDecrementOperator
   Symbol incrementDecrementOperator = {

@@ -868,7 +868,7 @@ struct Annotation {
 
 struct ClassFieldExpression {
   NameAndTypeExpression name_and_type;
-  base::Optional<std::string> index;
+  base::Optional<Expression*> index;
   std::vector<ConditionalAnnotation> conditions;
   bool weak;
   bool const_qualified;
