@@ -327,9 +327,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     start_position_ = statement_pos;
   }
   int end_position() const { return end_position_; }
-  void set_end_position(int statement_pos) {
-    end_position_ = statement_pos;
-  }
+  void set_end_position(int statement_pos) { end_position_ = statement_pos; }
 
   // Scopes created for desugaring are hidden. I.e. not visible to the debugger.
   bool is_hidden() const { return is_hidden_; }
@@ -419,6 +417,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     kDescend
   };
 
+  // Check is this scope is an outer scope of the given scope.
+  bool IsOuterScopeOf(Scope* other) const;
+
   // ---------------------------------------------------------------------------
   // Accessors.
 
@@ -491,6 +492,14 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // the scope where var declarations will be hoisted to in the implementation.
   DeclarationScope* GetDeclarationScope();
 
+  // Find the first function, script, or (declaration) block scope.
+  // This is the scope where var declarations will be hoisted to in the
+  // implementation, including vars in direct sloppy eval calls.
+  //
+  // TODO(leszeks): Check how often we skip eval scopes in GetDeclarationScope,
+  // and possibly merge this with GetDeclarationScope.
+  DeclarationScope* GetNonEvalDeclarationScope();
+
   // Find the first non-block declaration scope. This should be either a script,
   // function, or eval scope. Same as DeclarationScope(), but skips declaration
   // "block" scopes. Used for differentiating associated function objects (i.e.,
@@ -541,6 +550,12 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     DCHECK_IMPLIES(is_repl_mode_scope_, is_script_scope());
     return is_repl_mode_scope_;
   }
+  void set_deserialized_scope_uses_external_cache() {
+    deserialized_scope_uses_external_cache_ = true;
+  }
+  bool deserialized_scope_uses_external_cache() const {
+    return deserialized_scope_uses_external_cache_;
+  }
 
   bool RemoveInnerScope(Scope* inner_scope) {
     DCHECK_NOT_NULL(inner_scope);
@@ -558,15 +573,15 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return false;
   }
 
-  Variable* LookupInScopeOrScopeInfo(const AstRawString* name) {
+  Variable* LookupInScopeOrScopeInfo(const AstRawString* name, Scope* cache) {
     Variable* var = variables_.Lookup(name);
     if (var != nullptr || scope_info_.is_null()) return var;
-    return LookupInScopeInfo(name, this);
+    return LookupInScopeInfo(name, cache);
   }
 
   Variable* LookupForTesting(const AstRawString* name) {
     for (Scope* scope = this; scope != nullptr; scope = scope->outer_scope()) {
-      Variable* var = scope->LookupInScopeOrScopeInfo(name);
+      Variable* var = scope->LookupInScopeOrScopeInfo(name, scope);
       if (var != nullptr) return var;
     }
     return nullptr;
@@ -620,13 +635,13 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // calling context of 'eval'.
   template <ScopeLookupMode mode>
   static Variable* Lookup(VariableProxy* proxy, Scope* scope,
-                          Scope* outer_scope_end, Scope* entry_point = nullptr,
+                          Scope* outer_scope_end, Scope* cache_scope = nullptr,
                           bool force_context_allocation = false);
   static Variable* LookupWith(VariableProxy* proxy, Scope* scope,
-                              Scope* outer_scope_end, Scope* entry_point,
+                              Scope* outer_scope_end, Scope* cache_scope,
                               bool force_context_allocation);
   static Variable* LookupSloppyEval(VariableProxy* proxy, Scope* scope,
-                                    Scope* outer_scope_end, Scope* entry_point,
+                                    Scope* outer_scope_end, Scope* cache_scope,
                                     bool force_context_allocation);
   static void ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
                                        Scope* end);
@@ -761,6 +776,25 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // True if this is a script scope that originated from
   // DebugEvaluate::GlobalREPL().
   bool is_repl_mode_scope_ : 1;
+
+  // True if this is a deserialized scope which caches its lookups on another
+  // Scope's variable map. This will be true for every scope above the first
+  // non-eval declaration scope above the compilation entry point, e.g. for
+  //
+  //     function f() {
+  //       let g; // prevent sloppy block function hoisting.
+  //       with({}) {
+  //         function g() {
+  //           try { throw 0; }
+  //           catch { eval("f"); }
+  //         }
+  //         g();
+  //       }
+  //     }
+  //
+  // the compilation of the eval will have the "with" scope as the first scope
+  // with this flag enabled.
+  bool deserialized_scope_uses_external_cache_ : 1;
 };
 
 class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
