@@ -79,13 +79,7 @@
   /* V8 side owner: binji */                                                   \
   /* Shipped in v7.5. */                                                       \
   /* ITS: https://groups.google.com/forum/#!topic/v8-users/zM05lYEBVog */      \
-  V(bulk_memory, "bulk memory opcodes", true)                                  \
-                                                                               \
-  /* Non-trapping (i.e. saturating) float-to-int conversions */                \
-  /* https://github.com/WebAssembly/nontrapping-float-to-int-conversions */    \
-  /* V8 side owner: binji */                                                   \
-  /* Shipped in v7.5. */                                                       \
-  V(sat_f2i_conversions, "saturating float conversion opcodes", true)
+  V(bulk_memory, "bulk memory opcodes", true)
 
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \

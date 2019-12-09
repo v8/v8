@@ -2311,12 +2311,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           byte numeric_index =
               this->template read_u8<validate>(this->pc_ + 1, "numeric index");
           opcode = static_cast<WasmOpcode>(opcode << 8 | numeric_index);
-          if (opcode < kExprMemoryInit) {
-            CHECK_PROTOTYPE_OPCODE(sat_f2i_conversions);
-          } else if (opcode == kExprTableGrow || opcode == kExprTableSize ||
-                     opcode == kExprTableFill) {
+          if (opcode == kExprTableGrow || opcode == kExprTableSize ||
+              opcode == kExprTableFill) {
             CHECK_PROTOTYPE_OPCODE(anyref);
-          } else {
+          } else if (opcode >= kExprMemoryInit) {
             CHECK_PROTOTYPE_OPCODE(bulk_memory);
           }
           TRACE_PART(TRACE_INST_FORMAT, startrel(this->pc_),
