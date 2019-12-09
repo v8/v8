@@ -509,9 +509,9 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
     // example, that does not prevent hoisting of the function in
     // `{ let e; try {} catch (e) { function e(){} } }`
     do {
-      var = query_scope->LookupInScopeOrScopeInfo(name, outer_scope_);
-      if (var != nullptr) {
-        should_hoist = !IsLexicalVariableMode(var->mode());
+      var = query_scope->LookupInScopeOrScopeInfo(name);
+      if (var != nullptr && IsLexicalVariableMode(var->mode())) {
+        should_hoist = false;
         break;
       }
       query_scope = query_scope->outer_scope();
@@ -1161,12 +1161,9 @@ Declaration* DeclarationScope::CheckConflictingVarDeclarations() {
     do {
       // There is a conflict if there exists a non-VAR binding up to the
       // declaration scope in which this sloppy-eval runs.
-      Variable* other_var = current->LookupInScopeOrScopeInfo(
-          decl->var()->raw_name(), outer_scope_);
-      if (other_var != nullptr) {
-        // If this is a VAR, then we know that it doesn't conflict with
-        // anything, so we can't conflict with anything either.
-        if (!IsLexicalVariableMode(other_var->mode())) return nullptr;
+      Variable* other_var =
+          current->LookupInScopeOrScopeInfo(decl->var()->raw_name());
+      if (other_var != nullptr && IsLexicalVariableMode(other_var->mode())) {
         DCHECK(!current->is_catch_scope());
         return decl;
       }

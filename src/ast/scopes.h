@@ -558,16 +558,15 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return false;
   }
 
-  Variable* LookupInScopeOrScopeInfo(const AstRawString* name, Scope* cache) {
+  Variable* LookupInScopeOrScopeInfo(const AstRawString* name) {
     Variable* var = variables_.Lookup(name);
     if (var != nullptr || scope_info_.is_null()) return var;
-    DCHECK_NOT_NULL(cache);
-    return LookupInScopeInfo(name, cache);
+    return LookupInScopeInfo(name, this);
   }
 
   Variable* LookupForTesting(const AstRawString* name) {
     for (Scope* scope = this; scope != nullptr; scope = scope->outer_scope()) {
-      Variable* var = scope->LookupInScopeOrScopeInfo(name, this);
+      Variable* var = scope->LookupInScopeOrScopeInfo(name);
       if (var != nullptr) return var;
     }
     return nullptr;
