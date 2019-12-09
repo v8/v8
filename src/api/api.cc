@@ -14,7 +14,6 @@
 #include "src/api/api-inl.h"
 
 #include "include/v8-profiler.h"
-#include "include/v8-testing.h"
 #include "include/v8-util.h"
 #include "src/api/api-natives.h"
 #include "src/base/functional.h"
@@ -10718,45 +10717,6 @@ void HeapProfiler::RemoveBuildEmbedderGraphCallback(
     BuildEmbedderGraphCallback callback, void* data) {
   reinterpret_cast<i::HeapProfiler*>(this)->RemoveBuildEmbedderGraphCallback(
       callback, data);
-}
-
-// Deprecated.
-void Testing::SetStressRunType(Testing::StressType type) {
-}
-
-// Deprecated.
-int Testing::GetStressRuns() {
-  if (internal::FLAG_stress_runs != 0) return internal::FLAG_stress_runs;
-#ifdef DEBUG
-  // In debug mode the code runs much slower so stressing will only make two
-  // runs.
-  return 2;
-#else
-  return 5;
-#endif
-}
-
-// Deprecated.
-void Testing::PrepareStressRun(int run) {
-  static const char* kLazyOptimizations =
-      "--prepare-always-opt "
-      "--max-inlined-bytecode-size=999999 "
-      "--max-inlined-bytecode-size-cumulative=999999 "
-      "--noalways-opt";
-  static const char* kForcedOptimizations = "--always-opt";
-
-  if (run == GetStressRuns() - 1) {
-    V8::SetFlagsFromString(kForcedOptimizations);
-  } else {
-    V8::SetFlagsFromString(kLazyOptimizations);
-  }
-}
-
-// Deprecated.
-void Testing::DeoptimizeAll(Isolate* isolate) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::HandleScope scope(i_isolate);
-  i::Deoptimizer::DeoptimizeAll(i_isolate);
 }
 
 void EmbedderHeapTracer::FinalizeTracing() {

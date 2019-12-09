@@ -7,7 +7,6 @@
 
 #include <memory>
 
-#include "include/v8-testing.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/bigint.h"
