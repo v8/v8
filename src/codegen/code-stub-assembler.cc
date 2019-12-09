@@ -3349,60 +3349,6 @@ TNode<BoolT> CodeStubAssembler::IsZeroOrContext(SloppyTNode<Object> object) {
       [=] { return IsContext(CAST(object)); });
 }
 
-TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
-    TNode<Uint32T> length, AllocationFlags flags) {
-  Comment("AllocateSeqOneByteString");
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-
-  // Compute the SeqOneByteString size and check if it fits into new space.
-  Label if_lengthiszero(this), if_sizeissmall(this),
-      if_notsizeissmall(this, Label::kDeferred), if_join(this);
-  GotoIf(Word32Equal(length, Uint32Constant(0)), &if_lengthiszero);
-
-  TNode<IntPtrT> raw_size = GetArrayAllocationSize(
-      Signed(ChangeUint32ToWord(length)), UINT8_ELEMENTS,
-      SeqOneByteString::kHeaderSize + kObjectAlignmentMask);
-  TNode<IntPtrT> size =
-      WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
-  Branch(IntPtrLessThanOrEqual(size, IntPtrConstant(kMaxRegularHeapObjectSize)),
-         &if_sizeissmall, &if_notsizeissmall);
-
-  BIND(&if_sizeissmall);
-  {
-    // Just allocate the SeqOneByteString in new space.
-    TNode<HeapObject> result =
-        AllocateInNewSpace(UncheckedCast<IntPtrT>(size), flags);
-    DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kOneByteStringMap));
-    StoreMapNoWriteBarrier(result, RootIndex::kOneByteStringMap);
-    StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
-                                   length, MachineRepresentation::kWord32);
-    StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldOffset,
-                                   Int32Constant(String::kEmptyHashField),
-                                   MachineRepresentation::kWord32);
-    var_result.Bind(result);
-    Goto(&if_join);
-  }
-
-  BIND(&if_notsizeissmall);
-  {
-    // We might need to allocate in large object space, go to the runtime.
-    TNode<Object> result =
-        CallRuntime(Runtime::kAllocateSeqOneByteString, NoContextConstant(),
-                    ChangeUint32ToTagged(length));
-    var_result.Bind(result);
-    Goto(&if_join);
-  }
-
-  BIND(&if_lengthiszero);
-  {
-    var_result.Bind(EmptyStringConstant());
-    Goto(&if_join);
-  }
-
-  BIND(&if_join);
-  return CAST(var_result.value());
-}
-
 TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
     uint32_t length, AllocationFlags flags) {
   Comment("AllocateSeqTwoByteString");
@@ -3419,60 +3365,6 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
                                  Int32Constant(String::kEmptyHashField),
                                  MachineRepresentation::kWord32);
   return CAST(result);
-}
-
-TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
-    TNode<Uint32T> length, AllocationFlags flags) {
-  Comment("AllocateSeqTwoByteString");
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-
-  // Compute the SeqTwoByteString size and check if it fits into new space.
-  Label if_lengthiszero(this), if_sizeissmall(this),
-      if_notsizeissmall(this, Label::kDeferred), if_join(this);
-  GotoIf(Word32Equal(length, Uint32Constant(0)), &if_lengthiszero);
-
-  TNode<IntPtrT> raw_size = GetArrayAllocationSize(
-      Signed(ChangeUint32ToWord(length)), UINT16_ELEMENTS,
-      SeqOneByteString::kHeaderSize + kObjectAlignmentMask);
-  TNode<IntPtrT> size =
-      WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
-  Branch(IntPtrLessThanOrEqual(size, IntPtrConstant(kMaxRegularHeapObjectSize)),
-         &if_sizeissmall, &if_notsizeissmall);
-
-  BIND(&if_sizeissmall);
-  {
-    // Just allocate the SeqTwoByteString in new space.
-    TNode<HeapObject> result =
-        AllocateInNewSpace(UncheckedCast<IntPtrT>(size), flags);
-    DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kStringMap));
-    StoreMapNoWriteBarrier(result, RootIndex::kStringMap);
-    StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
-                                   length, MachineRepresentation::kWord32);
-    StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldOffset,
-                                   Int32Constant(String::kEmptyHashField),
-                                   MachineRepresentation::kWord32);
-    var_result.Bind(result);
-    Goto(&if_join);
-  }
-
-  BIND(&if_notsizeissmall);
-  {
-    // We might need to allocate in large object space, go to the runtime.
-    TNode<Object> result =
-        CallRuntime(Runtime::kAllocateSeqTwoByteString, NoContextConstant(),
-                    ChangeUint32ToTagged(length));
-    var_result.Bind(result);
-    Goto(&if_join);
-  }
-
-  BIND(&if_lengthiszero);
-  {
-    var_result.Bind(EmptyStringConstant());
-    Goto(&if_join);
-  }
-
-  BIND(&if_join);
-  return CAST(var_result.value());
 }
 
 TNode<String> CodeStubAssembler::AllocateSlicedString(RootIndex map_root_index,

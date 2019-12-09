@@ -19,3 +19,6 @@ extern class Symbol extends Name {
 
 type PublicSymbol extends Symbol;
 type PrivateSymbol extends Symbol;
+
+const kNameEmptyHashField:
+    constexpr uint32 generates 'Name::kEmptyHashField';

@@ -198,13 +198,18 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
     if (parameter_types.size() != 1) {
       ReportError("%RawDownCast must take a single parameter");
     }
-    if (!return_type->IsSubtypeOf(parameter_types[0])) {
+    const Type* original_type = parameter_types[0];
+    bool is_subtype =
+        return_type->IsSubtypeOf(original_type) ||
+        (original_type == TypeOracle::GetUninitializedHeapObjectType() &&
+         return_type->IsSubtypeOf(TypeOracle::GetHeapObjectType()));
+    if (!is_subtype) {
       ReportError("%RawDownCast error: ", *return_type, " is not a subtype of ",
-                  *parameter_types[0]);
+                  *original_type);
     }
     if (return_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
       if (return_type->GetGeneratedTNodeTypeName() !=
-          parameter_types[0]->GetGeneratedTNodeTypeName()) {
+          original_type->GetGeneratedTNodeTypeName()) {
         out_ << "TORQUE_CAST";
       }
     }
@@ -238,29 +243,6 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       s << "%FromConstexpr does not support return type " << *return_type;
       ReportError(s.str());
     }
-  } else if (instruction.intrinsic->ExternalName() ==
-             "%GetAllocationBaseSize") {
-    if (instruction.specialization_types.size() != 1) {
-      ReportError(
-          "incorrect number of type parameters for "
-          "%GetAllocationBaseSize (should be one)");
-    }
-    const ClassType* class_type =
-        ClassType::cast(instruction.specialization_types[0]);
-    // Special case classes that may not always have a fixed size (e.g.
-    // JSObjects). Their size must be fetched from the map.
-    if (class_type != TypeOracle::GetJSObjectType()) {
-      out_ << "CodeStubAssembler(state_).IntPtrConstant((";
-      args[0] = std::to_string(class_type->size());
-    } else {
-      out_ << "CodeStubAssembler(state_).TimesTaggedSize(CodeStubAssembler("
-              "state_).LoadMapInstanceSizeInWords(";
-    }
-  } else if (instruction.intrinsic->ExternalName() == "%Allocate") {
-    out_ << "ca_.UncheckedCast<" << return_type->GetGeneratedTNodeTypeName()
-         << ">(CodeStubAssembler(state_).Allocate";
-  } else if (instruction.intrinsic->ExternalName() == "%GetStructMap") {
-    out_ << "CodeStubAssembler(state_).GetStructMap";
   } else {
     ReportError("no built in intrinsic with name " +
                 instruction.intrinsic->ExternalName());
@@ -268,21 +250,10 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
 
   out_ << "(";
   PrintCommaSeparatedList(out_, args);
-  if (instruction.intrinsic->ExternalName() == "%Allocate") out_ << ")";
-  if (instruction.intrinsic->ExternalName() == "%GetAllocationBaseSize")
-    out_ << "))";
   if (return_type->IsStructType()) {
     out_ << ").Flatten();\n";
   } else {
     out_ << ");\n";
-  }
-  if (instruction.intrinsic->ExternalName() == "%Allocate") {
-    out_ << "    CodeStubAssembler(state_).InitializeFieldsWithRoot("
-         << results[0] << ", ";
-    out_ << "CodeStubAssembler(state_).IntPtrConstant("
-         << std::to_string(ClassType::cast(return_type)->size()) << "), ";
-    PrintCommaSeparatedList(out_, args);
-    out_ << ", RootIndex::kUndefinedValue);\n";
   }
 }
 

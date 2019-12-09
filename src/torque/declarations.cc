@@ -46,9 +46,9 @@ void CheckAlreadyDeclared(const std::string& name, const char* new_type) {
 }  // namespace
 
 std::vector<Declarable*> Declarations::LookupGlobalScope(
-    const std::string& name) {
+    const QualifiedName& name) {
   std::vector<Declarable*> d =
-      GlobalContext::GetDefaultNamespace()->Lookup(QualifiedName(name));
+      GlobalContext::GetDefaultNamespace()->Lookup(name);
   if (d.empty()) {
     std::stringstream s;
     s << "cannot find \"" << name << "\" in global scope";
@@ -76,7 +76,7 @@ const Type* Declarations::LookupType(const Identifier* name) {
   return alias->type();
 }
 
-const Type* Declarations::LookupGlobalType(const std::string& name) {
+const Type* Declarations::LookupGlobalType(const QualifiedName& name) {
   TypeAlias* declaration = EnsureUnique(
       FilterDeclarables<TypeAlias>(LookupGlobalScope(name)), name, "type");
   return declaration->type();
@@ -139,8 +139,9 @@ GenericType* Declarations::LookupUniqueGenericType(const QualifiedName& name) {
 
 GenericType* Declarations::LookupGlobalUniqueGenericType(
     const std::string& name) {
-  return EnsureUnique(FilterDeclarables<GenericType>(LookupGlobalScope(name)),
-                      name, "generic type");
+  return EnsureUnique(
+      FilterDeclarables<GenericType>(LookupGlobalScope(QualifiedName(name))),
+      name, "generic type");
 }
 
 base::Optional<GenericType*> Declarations::TryLookupGenericType(

@@ -56,6 +56,9 @@ FromConstexpr<Smi, constexpr Smi>(s: constexpr Smi): Smi {
 FromConstexpr<uint32, constexpr int31>(i: constexpr int31): uint32 {
   return Unsigned(Int32Constant(i));
 }
+FromConstexpr<uint32, constexpr uint32>(i: constexpr uint32): uint32 {
+  return Unsigned(%FromConstexpr<int32>(i));
+}
 FromConstexpr<uintptr, constexpr int31>(i: constexpr int31): uintptr {
   return ChangeUint32ToWord(i);
 }
@@ -129,6 +132,9 @@ Convert<uintptr, uint32>(ui: uint32): uintptr {
   return ChangeUint32ToWord(ui);
 }
 Convert<intptr, uint16>(ui: uint16): intptr {
+  return Signed(ChangeUint32ToWord(ui));
+}
+Convert<intptr, uint8>(ui: uint8): intptr {
   return Signed(ChangeUint32ToWord(ui));
 }
 Convert<int32, uint8>(i: uint8): int32 {

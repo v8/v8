@@ -190,6 +190,12 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(UNINITIALIZED_TYPE_STRING);
   }
 
+  static const Type* GetUninitializedHeapObjectType() {
+    return Get().GetBuiltinType(
+        QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
+                      UNINITIALIZED_HEAP_OBJECT_TYPE_STRING));
+  }
+
   static const Type* GetSmiType() {
     return Get().GetBuiltinType(SMI_TYPE_STRING);
   }
@@ -270,6 +276,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(JS_FUNCTION_TYPE_STRING);
   }
 
+  static const Type* GetUninitializedIteratorType() {
+    return Get().GetBuiltinType(UNINITIALIZED_ITERATOR_TYPE_STRING);
+  }
+
   static bool IsImplicitlyConvertableFrom(const Type* to, const Type* from) {
     for (GenericCallable* from_constexpr :
          Declarations::LookupGeneric(kFromConstexprMacroName)) {
@@ -295,8 +305,11 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   static Namespace* CreateGenericTypeInstantiationNamespace();
 
  private:
-  const Type* GetBuiltinType(const std::string& name) {
+  const Type* GetBuiltinType(const QualifiedName& name) {
     return Declarations::LookupGlobalType(name);
+  }
+  const Type* GetBuiltinType(const std::string& name) {
+    return GetBuiltinType(QualifiedName(name));
   }
 
   Deduplicator<BuiltinPointerType> function_pointer_types_;

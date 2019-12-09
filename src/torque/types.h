@@ -608,12 +608,18 @@ class ClassType final : public AggregateType {
   bool IsShape() const { return flags_ & ClassFlag::kIsShape; }
   bool HasStaticSize() const;
   bool HasIndexedField() const override;
-  size_t size() const { return size_; }
+  size_t header_size() const {
+    if (!is_finalized_) Finalize();
+    return header_size_;
+  }
+  base::Optional<size_t> size() const {
+    if (!is_finalized_) Finalize();
+    return size_;
+  }
   const ClassType* GetSuperClass() const {
     if (parent() == nullptr) return nullptr;
     return parent()->IsClassType() ? ClassType::DynamicCast(parent()) : nullptr;
   }
-  void SetSize(size_t size) { size_ = size; }
   void GenerateAccessors();
   bool AllowInstantiation() const;
   const Field& RegisterField(Field field) override {
@@ -647,7 +653,8 @@ class ClassType final : public AggregateType {
             ClassFlags flags, const std::string& generates,
             const ClassDeclaration* decl, const TypeAlias* alias);
 
-  size_t size_;
+  size_t header_size_;
+  base::Optional<size_t> size_;
   mutable ClassFlags flags_;
   const std::string generates_;
   const ClassDeclaration* decl_;

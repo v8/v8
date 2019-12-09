@@ -25,6 +25,7 @@ namespace torque_internal {
     const object: HeapObject;
     const offset: intptr;
   }
+  type UninitializedHeapObject extends HeapObject;
 }
 
 type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';

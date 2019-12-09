@@ -35,6 +35,8 @@ static const char* const SMI_TYPE_STRING = "Smi";
 static const char* const TAGGED_TYPE_STRING = "Tagged";
 static const char* const STRONG_TAGGED_TYPE_STRING = "StrongTagged";
 static const char* const UNINITIALIZED_TYPE_STRING = "Uninitialized";
+static const char* const UNINITIALIZED_HEAP_OBJECT_TYPE_STRING =
+    "UninitializedHeapObject";
 static const char* const RAWPTR_TYPE_STRING = "RawPtr";
 static const char* const CONST_STRING_TYPE_STRING = "constexpr string";
 static const char* const STRING_TYPE_STRING = "String";
@@ -56,6 +58,8 @@ static const char* const TORQUE_INTERNAL_NAMESPACE_STRING = "torque_internal";
 static const char* const REFERENCE_TYPE_STRING = "Reference";
 static const char* const SLICE_TYPE_STRING = "Slice";
 static const char* const WEAK_TYPE_STRING = "Weak";
+static const char* const UNINITIALIZED_ITERATOR_TYPE_STRING =
+    "UninitializedIterator";
 static const char* const GENERIC_TYPE_INSTANTIATION_NAMESPACE_STRING =
     "_generic_type_instantiation_namespace";
 

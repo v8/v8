@@ -101,43 +101,62 @@ namespace torque_internal {
     unsafeMarker: Unsafe;
   }
 
-}  // namespace torque_internal
+  macro AddIndexedFieldSizeToObjectSize(
+      baseSize: intptr, arrayLength: intptr,
+      fieldSize: constexpr int32): intptr {
+    const arrayLength = Convert<int32>(arrayLength);
+    const byteLength = TryInt32Mul(arrayLength, fieldSize)
+        otherwise unreachable;
+    return TryIntPtrAdd(baseSize, Convert<intptr>(byteLength))
+        otherwise unreachable;
+  }
 
-// These intrinsics should never be called from Torque code. They're used
-// internally by the 'new' operator and only declared here because it's simpler
-// than building the definition from C++.
-intrinsic %GetAllocationBaseSize<Class : type extends HeapObject>(map: Map):
-    intptr;
-intrinsic %Allocate<Class : type extends HeapObject>(size: intptr): Class;
-intrinsic %GetStructMap(instanceKind: constexpr InstanceType): Map;
+  macro AlignTagged(x: intptr): intptr {
+    // Round up to a multiple of kTaggedSize.
+    return (x + kObjectAlignmentMask) & ~kObjectAlignmentMask;
+  }
 
-intrinsic %AddIndexedFieldSizeToObjectSize<T: type>(
-    baseSize: intptr, indexSize: T, fieldSize: int32): intptr {
-  const convertedIndexSize = Convert<int32>(indexSize);
-  const variableSize: int32 =
-      TryInt32Mul(convertedIndexSize, fieldSize) otherwise unreachable;
-  const convertedVariableSize = Convert<intptr>(variableSize);
-  return TryIntPtrAdd(baseSize, convertedVariableSize) otherwise unreachable;
-}
+  macro IsTaggedAligned(x: intptr): bool {
+    return (x & kObjectAlignmentMask) == 0;
+  }
 
-intrinsic
-%InitializeFieldsFromIterator<Container: type, Index: type, Iterator: type>(
-    c: Container, length: Index, i: Iterator) {
-  try {
-    let mutableIterator = i;
-    let current: Index = 0;
-    while (current < length) {
-      // TODO(danno): The indexed accessor on the container requires that the
-      // '[]=' operator be defined explicitly for the Container
-      // (e.g. FixedArray). We should change this to use slice references
-      // once they are implemented.
-      c[current++] = mutableIterator.Next() otherwise NoMore;
+  macro ValidAllocationSize(sizeInBytes: intptr, map: Map): bool {
+    if (sizeInBytes <= 0) return false;
+    if (!IsTaggedAligned(sizeInBytes)) return false;
+    const instanceSizeInWords = Convert<intptr>(map.instance_size_in_words);
+    return instanceSizeInWords == kVariableSizeSentinel ||
+        instanceSizeInWords * kTaggedSize == sizeInBytes;
+  }
+
+  type UninitializedHeapObject extends HeapObject;
+
+  extern macro AllocateAllowLOS(intptr): UninitializedHeapObject;
+  extern macro GetStructMap(constexpr InstanceType): Map;
+
+  macro Allocate(sizeInBytes: intptr, map: Map): UninitializedHeapObject {
+    assert(ValidAllocationSize(sizeInBytes, map));
+    return AllocateAllowLOS(sizeInBytes);
+  }
+
+  macro InitializeFieldsFromIterator<T: type, Iterator: type>(
+      target: Slice<T>, originIterator: Iterator) {
+    let targetIterator = target.Iterator();
+    let originIterator = originIterator;
+    while (true) {
+      const ref:&T = targetIterator.Next() otherwise break;
+      * ref = originIterator.Next() otherwise unreachable;
     }
   }
-  label NoMore deferred {
-    unreachable;
-  }
-}
+  // Dummy implementations: do not initialize for UninitializedIterator.
+  InitializeFieldsFromIterator<char8, UninitializedIterator>(
+      _target: Slice<char8>, _originIterator: UninitializedIterator) {}
+  InitializeFieldsFromIterator<char16, UninitializedIterator>(
+      _target: Slice<char16>, _originIterator: UninitializedIterator) {}
+}  // namespace torque_internal
+
+// Indicates that an array-field should not be initialized.
+// For safety reasons, this is only allowed for untagged types.
+struct UninitializedIterator {}
 
 // %RawDownCast should *never* be used anywhere in Torque code except for
 // in Torque-based UnsafeCast operators preceeded by an appropriate

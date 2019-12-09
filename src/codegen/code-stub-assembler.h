@@ -115,6 +115,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(number_to_string, number_to_string, NumberToString)                        \
   V(Object_string, Object_string, ObjectString)                                \
   V(object_to_string, object_to_string, ObjectToString)                        \
+  V(OneByteStringMap, one_byte_string_map, OneByteStringMap)                   \
   V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)                \
   V(OnePointerFillerMap, one_pointer_filler_map, OnePointerFillerMap)          \
   V(PreparseDataMap, preparse_data_map, PreparseDataMap)                       \
@@ -137,6 +138,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                    \
   V(string_string, string_string, StringString)                                \
   V(string_to_string, string_to_string, StringToString)                        \
+  V(StringMap, string_map, StringMap)                                          \
   V(SymbolMap, symbol_map, SymbolMap)                                          \
   V(TheHoleValue, the_hole_value, TheHole)                                     \
   V(then_string, then_string, ThenString)                                      \
@@ -803,6 +805,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapObject> AllocateInNewSpace(int size, AllocationFlags flags = kNone);
   TNode<HeapObject> Allocate(TNode<IntPtrT> size,
                              AllocationFlags flags = kNone);
+  TNode<HeapObject> AllocateAllowLOS(TNode<IntPtrT> size) {
+    return Allocate(size, AllocationFlag::kAllowLargeObjectAllocation);
+  }
+
   TNode<HeapObject> Allocate(int size, AllocationFlags flags = kNone);
   TNode<HeapObject> InnerAllocate(TNode<HeapObject> previous, int offset);
   TNode<HeapObject> InnerAllocate(TNode<HeapObject> previous,
@@ -1756,13 +1762,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Allocate a SeqOneByteString with the given length.
   TNode<String> AllocateSeqOneByteString(uint32_t length,
                                          AllocationFlags flags = kNone);
-  TNode<String> AllocateSeqOneByteString(TNode<Uint32T> length,
-                                         AllocationFlags flags = kNone);
+  using TorqueGeneratedExportedMacrosAssembler::AllocateSeqOneByteString;
+
   // Allocate a SeqTwoByteString with the given length.
   TNode<String> AllocateSeqTwoByteString(uint32_t length,
                                          AllocationFlags flags = kNone);
-  TNode<String> AllocateSeqTwoByteString(TNode<Uint32T> length,
-                                         AllocationFlags flags = kNone);
+  using TorqueGeneratedExportedMacrosAssembler::AllocateSeqTwoByteString;
 
   // Allocate a SlicedOneByteString with the given length, parent and offset.
   // |length| and |offset| are expected to be tagged.

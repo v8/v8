@@ -190,6 +190,8 @@ type FrameArray extends FixedArray;
 
 const kTaggedSize: constexpr int31 generates 'kTaggedSize';
 const kDoubleSize: constexpr int31 generates 'kDoubleSize';
+const kVariableSizeSentinel:
+    constexpr int31 generates 'kVariableSizeSentinel';
 
 const kSmiTagSize: constexpr int31 generates 'kSmiTagSize';
 const V8_INFINITY: constexpr float64 generates 'V8_INFINITY';
@@ -920,12 +922,18 @@ extern macro FixedCOWArrayMapConstant(): Map;
 extern macro EmptyByteArrayConstant(): ByteArray;
 extern macro EmptyFixedArrayConstant(): EmptyFixedArray;
 extern macro PromiseCapabilityMapConstant(): Map;
+extern macro OneByteStringMapConstant(): Map;
+extern macro StringMapConstant(): Map;
 
 const kFixedArrayMap: Map = FixedArrayMapConstant();
 const kCOWMap: Map = FixedCOWArrayMapConstant();
 const kEmptyByteArray: ByteArray = EmptyByteArrayConstant();
 const kEmptyFixedArray: EmptyFixedArray = EmptyFixedArrayConstant();
 const kPromiseCapabilityMap: Map = PromiseCapabilityMapConstant();
+// The map of a non-internalized internal SeqOneByteString.
+const kOneByteStringMap: Map = OneByteStringMapConstant();
+// The map of a non-internalized internal SeqTwoByteString.
+const kStringMap: Map = StringMapConstant();
 
 extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
     bool;
@@ -1281,8 +1289,6 @@ transitioning macro GetMethod(implicit context: Context)(
 
 extern macro NumberToString(Number): String;
 extern macro IsOneByteStringInstanceType(InstanceType): bool;
-extern macro AllocateSeqOneByteString(uint32): String;
-extern macro AllocateSeqTwoByteString(uint32): String;
 
 // After converting an index to an integer, calculate a relative index:
 // return index < 0 ? max(length + index, 0) : min(index, length)

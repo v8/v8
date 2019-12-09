@@ -307,7 +307,8 @@ const ClassType* TypeVisitor::ComputeType(
     }
     const Type* super_type = TypeVisitor::ComputeType(*decl->super);
     const ClassType* super_class = ClassType::DynamicCast(super_type);
-    const Type* struct_type = Declarations::LookupGlobalType("Struct");
+    const Type* struct_type =
+        Declarations::LookupGlobalType(QualifiedName("Struct"));
     if (!super_class || super_class != struct_type) {
       ReportError("Intern class ", decl->name->value,
                   " must extend class Struct.");
@@ -385,7 +386,10 @@ Signature TypeVisitor::MakeSignature(const CallableDeclaration* declaration) {
 void TypeVisitor::VisitClassFieldsAndMethods(
     ClassType* class_type, const ClassDeclaration* class_declaration) {
   const ClassType* super_class = class_type->GetSuperClass();
-  size_t class_offset = super_class ? super_class->size() : 0;
+  size_t class_offset = super_class ? super_class->header_size() : 0;
+  size_t header_size = class_offset;
+  DCHECK_IMPLIES(super_class && !super_class->size(),
+                 class_declaration->fields.empty());
   bool seen_indexed_field = false;
   for (const ClassFieldExpression& field_expression :
        class_declaration->fields) {
@@ -467,9 +471,18 @@ void TypeVisitor::VisitClassFieldsAndMethods(
     }
     if (!field_expression.index) {
       class_offset += field_size;
+      // In-object properties are not considered part of the header.
+      if (!class_type->IsShape()) {
+        header_size = class_offset;
+      }
     }
   }
-  class_type->SetSize(class_offset);
+  DCHECK_GT(header_size, 0);
+  class_type->header_size_ = header_size;
+  if ((!super_class || super_class->size()) && !seen_indexed_field) {
+    DCHECK_GE(class_offset, header_size);
+    class_type->size_ = class_offset;
+  }
   class_type->GenerateAccessors();
   DeclareMethods(class_type, class_declaration->methods);
 }

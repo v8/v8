@@ -1236,6 +1236,15 @@ InitializerResults ImplementationVisitor::VisitInitializerResults(
   return result;
 }
 
+LocationReference ImplementationVisitor::GenerateFieldReference(
+    VisitResult object, const NameAndType& field, const ClassType* class_type) {
+  GenerateCopy(object);
+  assembler().Emit(CreateFieldReferenceInstruction{class_type, field.name});
+  VisitResult heap_reference(TypeOracle::GetReferenceType(field.type),
+                             assembler().TopRange(2));
+  return LocationReference::HeapReference(heap_reference);
+}
+
 void ImplementationVisitor::InitializeClass(
     const ClassType* class_type, VisitResult allocate_result,
     const InitializerResults& initializer_results) {
@@ -1247,66 +1256,105 @@ void ImplementationVisitor::InitializeClass(
     VisitResult current_value =
         initializer_results.field_value_map.at(f.name_and_type.name);
     if (f.index) {
-      InitializeFieldFromSpread(allocate_result, f, initializer_results);
+      InitializeFieldFromSpread(allocate_result, f, initializer_results,
+                                class_type);
     } else {
-      allocate_result.SetType(class_type);
-      GenerateCopy(allocate_result);
-      assembler().Emit(CreateFieldReferenceInstruction{
-          ClassType::cast(class_type), f.name_and_type.name});
-      VisitResult heap_reference(
-          TypeOracle::GetReferenceType(f.name_and_type.type),
-          assembler().TopRange(2));
-      GenerateAssignToLocation(LocationReference::HeapReference(heap_reference),
-                               current_value);
+      GenerateAssignToLocation(
+          GenerateFieldReference(allocate_result, f.name_and_type, class_type),
+          current_value);
     }
   }
+}
+
+VisitResult ImplementationVisitor::GenerateArrayLength(VisitResult object,
+                                                       const Field& field) {
+  DCHECK(field.index);
+
+  StackScope stack_scope(this);
+  VisitResult length = GenerateFetchFromLocation(GenerateFieldReference(
+      object, *field.index, *object.type()->ClassSupertype()));
+  length = GenerateCall("Convert", Arguments{{length}, {}},
+                        {TypeOracle::GetIntPtrType(), length.type()}, false);
+  return stack_scope.Yield(length);
+}
+
+VisitResult ImplementationVisitor::GenerateArrayLength(
+    const ClassType* class_type, const InitializerResults& initializer_results,
+    const Field& field) {
+  DCHECK(field.index);
+
+  StackScope stack_scope(this);
+  VisitResult length =
+      initializer_results.field_value_map.at(field.index->name);
+  length = GenerateCall("Convert", Arguments{{length}, {}},
+                        {TypeOracle::GetIntPtrType(), length.type()}, false);
+  return stack_scope.Yield(length);
+}
+
+VisitResult ImplementationVisitor::GenerateObjectSize(
+    const ClassType* class_type,
+    const InitializerResults& initializer_results) {
+  StackScope stack_scope(this);
+  if (base::Optional<size_t> size = class_type->size()) {
+    return VisitResult(TypeOracle::GetConstInt31Type(), ToString(*size));
+  }
+  size_t header_size = class_type->header_size();
+  DCHECK_GT(header_size, 0);
+  VisitResult size =
+      VisitResult(TypeOracle::GetConstInt31Type(), ToString(header_size));
+  bool needs_dynamic_size_alignment = false;
+  for (Field f : class_type->ComputeAllFields()) {
+    if (f.index) {
+      size_t element_size;
+      std::string element_size_string;
+      std::tie(element_size, element_size_string) =
+          *SizeOf(f.name_and_type.type);
+      VisitResult array_element_size =
+          VisitResult(TypeOracle::GetConstInt31Type(), element_size_string);
+      Arguments arguments;
+      arguments.parameters = {
+          size, initializer_results.array_lengths.at(f.name_and_type.name),
+          array_element_size};
+      size = GenerateCall(QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
+                                        "AddIndexedFieldSizeToObjectSize"),
+                          arguments);
+      if (element_size % TargetArchitecture::TaggedSize() != 0) {
+        needs_dynamic_size_alignment = true;
+      }
+    }
+  }
+  if (needs_dynamic_size_alignment) {
+    Arguments arguments;
+    arguments.parameters = {size};
+    size = GenerateCall(
+        QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING}, "AlignTagged"),
+        arguments);
+  }
+  return stack_scope.Yield(size);
 }
 
 void ImplementationVisitor::InitializeFieldFromSpread(
     VisitResult object, const Field& field,
-    const InitializerResults& initializer_results) {
-  const NameAndType& index = *field.index;
+    const InitializerResults& initializer_results,
+    const ClassType* class_type) {
+  StackScope stack_scope(this);
+
   VisitResult iterator =
       initializer_results.field_value_map.at(field.name_and_type.name);
-  VisitResult length = initializer_results.field_value_map.at(index.name);
+  VisitResult length =
+      initializer_results.array_lengths.at(field.name_and_type.name);
 
-  Arguments assign_arguments;
-  assign_arguments.parameters.push_back(object);
-  assign_arguments.parameters.push_back(length);
-  assign_arguments.parameters.push_back(iterator);
-  GenerateCall("%InitializeFieldsFromIterator", assign_arguments,
-               {field.aggregate, index.type, iterator.type()});
-}
+  GenerateCopy(object);
+  assembler().Emit(
+      CreateFieldReferenceInstruction{class_type, field.name_and_type.name});
+  DCHECK_EQ(length.stack_range().Size(), 1);
+  GenerateCopy(length);
+  const Type* slice_type = TypeOracle::GetSliceType(field.name_and_type.type);
+  VisitResult slice = VisitResult(slice_type, assembler().TopRange(3));
 
-VisitResult ImplementationVisitor::AddVariableObjectSize(
-    VisitResult object_size, const ClassType* current_class,
-    const InitializerResults& initializer_results) {
-  while (current_class != nullptr) {
-    auto current_field = current_class->fields().begin();
-    while (current_field != current_class->fields().end()) {
-      if (current_field->index) {
-        if (!current_field->name_and_type.type->IsSubtypeOf(
-                TypeOracle::GetObjectType())) {
-          ReportError(
-              "allocating objects containing indexed fields of non-object "
-              "types is not yet supported");
-        }
-        VisitResult index_field_size =
-            VisitResult(TypeOracle::GetConstInt31Type(), "kTaggedSize");
-        VisitResult initializer_value =
-            initializer_results.field_value_map.at(current_field->index->name);
-        Arguments args;
-        args.parameters.push_back(object_size);
-        args.parameters.push_back(initializer_value);
-        args.parameters.push_back(index_field_size);
-        object_size = GenerateCall("%AddIndexedFieldSizeToObjectSize", args,
-                                   {current_field->index->type}, false);
-      }
-      ++current_field;
-    }
-    current_class = current_class->GetSuperClass();
-  }
-  return object_size;
+  GenerateCall(QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
+                             "InitializeFieldsFromIterator"),
+               Arguments{{slice, iterator}, {}});
 }
 
 VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
@@ -1327,7 +1375,6 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
   InitializerResults initializer_results =
       VisitInitializerResults(class_type, expr->initializers);
 
-  VisitResult object_map;
   const Field& map_field = class_type->LookupField("map");
   if (map_field.offset != 0) {
     ReportError("class initializers must have a map as first parameter");
@@ -1335,6 +1382,7 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
   const std::map<std::string, VisitResult>& initializer_fields =
       initializer_results.field_value_map;
   auto it_object_map = initializer_fields.find(map_field.name_and_type.name);
+  VisitResult object_map;
   if (class_type->IsExtern()) {
     if (it_object_map == initializer_fields.end()) {
       ReportError("Constructor for ", class_type->name(),
@@ -1351,8 +1399,9 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
     get_struct_map_arguments.parameters.push_back(
         VisitResult(TypeOracle::GetConstexprInstanceTypeType(),
                     CapifyStringWithUnderscores(class_type->name()) + "_TYPE"));
-    object_map =
-        GenerateCall("%GetStructMap", get_struct_map_arguments, {}, false);
+    object_map = GenerateCall(
+        QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING}, "GetStructMap"),
+        get_struct_map_arguments, {}, false);
     CurrentSourcePosition::Scope current_pos(expr->pos);
     initializer_results.names.insert(initializer_results.names.begin(),
                                      MakeNode<Identifier>("map"));
@@ -1364,23 +1413,27 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
                               class_type->ComputeAllFields(),
                               expr->initializers, !class_type->IsExtern());
 
-  Arguments size_arguments;
-  size_arguments.parameters.push_back(object_map);
-  VisitResult object_size = GenerateCall("%GetAllocationBaseSize",
-                                         size_arguments, {class_type}, false);
+  for (const Field& f : class_type->ComputeAllFields()) {
+    if (f.index) {
+      initializer_results.array_lengths[f.name_and_type.name] =
+          GenerateArrayLength(class_type, initializer_results, f);
+    }
+  }
 
-  object_size =
-      AddVariableObjectSize(object_size, class_type, initializer_results);
+  VisitResult object_size = GenerateObjectSize(class_type, initializer_results);
 
   Arguments allocate_arguments;
   allocate_arguments.parameters.push_back(object_size);
-  VisitResult allocate_result =
-      GenerateCall("%Allocate", allocate_arguments, {class_type}, false);
+  allocate_arguments.parameters.push_back(object_map);
+  VisitResult allocate_result = GenerateCall(
+      QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING}, "Allocate"),
+      allocate_arguments, {class_type}, false);
   DCHECK(allocate_result.IsOnStack());
 
   InitializeClass(class_type, allocate_result, initializer_results);
 
-  return stack_scope.Yield(allocate_result);
+  return stack_scope.Yield(GenerateCall(
+      "%RawDownCast", Arguments{{allocate_result}, {}}, {class_type}));
 }
 
 const Type* ImplementationVisitor::Visit(BreakStatement* stmt) {
@@ -1873,7 +1926,7 @@ LocationReference ImplementationVisitor::GetLocationReference(
             TypeOracle::GetIntPtrType()->ConstexprVersion(),
             std::to_string(field.offset)};
         VisitResult updated_offset =
-            GenerateCall("+", {{ref_offset, struct_offset}, {}});
+            GenerateCall("+", Arguments{{ref_offset, struct_offset}, {}});
         assembler().Poke(ref_offset.stack_range(), updated_offset.stack_range(),
                          ref_offset.type());
         ref = scope.Yield(ref);
@@ -1895,32 +1948,15 @@ LocationReference ImplementationVisitor::GetLocationReference(
       }
       if (field.index) {
         assembler().Emit(
-            CreateFieldReferenceInstruction{object_result.type(), fieldname});
+            CreateFieldReferenceInstruction{*class_type, fieldname});
+        StackRange slice_range = assembler().TopRange(2);
         // Fetch the length from the object
-        {
-          StackScope length_scope(this);
-          // Get a reference to the length
-          const NameAndType& index_field = field.index.value();
-          GenerateCopy(object_result);
-          assembler().Emit(CreateFieldReferenceInstruction{object_result.type(),
-                                                           index_field.name});
-          VisitResult length_reference(
-              TypeOracle::GetReferenceType(index_field.type),
-              assembler().TopRange(2));
-
-          // Load the length from the reference and convert it to intptr
-          VisitResult length = GenerateFetchFromLocation(
-              LocationReference::HeapReference(length_reference));
-          VisitResult converted_length =
-              GenerateCall("Convert", {{length}, {}},
-                           {TypeOracle::GetIntPtrType(), length.type()}, false);
-          DCHECK_EQ(converted_length.stack_range().Size(), 1);
-          length_scope.Yield(converted_length);
-        }
+        VisitResult length = GenerateArrayLength(object_result, field);
+        slice_range.Extend(length.stack_range());
         const Type* slice_type =
             TypeOracle::GetSliceType(field.name_and_type.type);
         return LocationReference::HeapSlice(
-            VisitResult(slice_type, assembler().TopRange(3)));
+            VisitResult(slice_type, slice_range));
       } else {
         assembler().Emit(
             CreateFieldReferenceInstruction{*class_type, fieldname});
@@ -2085,7 +2121,7 @@ void ImplementationVisitor::GenerateAssignToLocation(
         GenerateImplicitConvert(referenced_type, assignment_value);
     if (referenced_type == TypeOracle::GetFloat64Type()) {
       VisitResult silenced_float_value =
-          GenerateCall("Float64SilenceNaN", {{assignment_value}, {}});
+          GenerateCall("Float64SilenceNaN", Arguments{{assignment_value}, {}});
       assembler().Poke(converted_assignment_value.stack_range(),
                        silenced_float_value.stack_range(), referenced_type);
     }
@@ -2552,7 +2588,8 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
 
   if (TypeOracle::IsImplicitlyConvertableFrom(destination_type,
                                               source.type())) {
-    return scope.Yield(GenerateCall(kFromConstexprMacroName, {{source}, {}},
+    return scope.Yield(GenerateCall(kFromConstexprMacroName,
+                                    Arguments{{source}, {}},
                                     {destination_type, source.type()}, false));
   } else if (IsAssignableFrom(destination_type, source.type())) {
     source.SetType(destination_type);

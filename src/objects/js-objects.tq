@@ -38,11 +38,7 @@ macro NewJSObject(implicit context: Context)(): JSObject {
   const objectFunction: JSFunction = GetObjectFunction();
   const map: Map = Cast<Map>(objectFunction.prototype_or_initial_map)
       otherwise unreachable;
-  return new JSObject{
-    map,
-    properties_or_hash: kEmptyFixedArray,
-    elements: kEmptyFixedArray
-  };
+  return AllocateJSObjectFromMap(map);
 }
 
 @abstract

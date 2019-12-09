@@ -56,3 +56,27 @@ extern class ThinString extends String {
 // A direct string can be accessed directly through CSA without going into the
 // C++ runtime. See also: ToDirectStringAssembler.
 type DirectString extends String;
+
+@export
+macro AllocateSeqOneByteString(length: uint32): String {
+  assert(length <= kStringMaxLength);
+  if (length == 0) return kEmptyString;
+  return new SeqOneByteString{
+    map: kOneByteStringMap,
+    hash_field: kNameEmptyHashField,
+    length: Signed(length),
+    chars: ...UninitializedIterator {}
+  };
+}
+
+@export
+macro AllocateSeqTwoByteString(length: uint32): String {
+  assert(length <= kStringMaxLength);
+  if (length == 0) return kEmptyString;
+  return new SeqTwoByteString{
+    map: kStringMap,
+    hash_field: kNameEmptyHashField,
+    length: Signed(length),
+    chars: ...UninitializedIterator {}
+  };
+}

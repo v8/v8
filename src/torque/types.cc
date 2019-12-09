@@ -434,7 +434,6 @@ ClassType::ClassType(const Type* parent, Namespace* nspace,
                      const std::string& generates, const ClassDeclaration* decl,
                      const TypeAlias* alias)
     : AggregateType(Kind::kClassType, parent, nspace, name),
-      size_(0),
       flags_(flags & ~(kInternalFlags)),
       generates_(generates),
       decl_(decl),
