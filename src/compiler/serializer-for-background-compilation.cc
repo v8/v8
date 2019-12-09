@@ -28,12 +28,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define CLEAR_ENVIRONMENT_LIST(V) \
-  V(CallRuntimeForPair)           \
-  V(Debugger)                     \
-  V(ResumeGenerator)              \
-  V(SuspendGenerator)
-
 #define KILL_ENVIRONMENT_LIST(V) \
   V(Abort)                       \
   V(ReThrow)                     \
@@ -224,7 +218,6 @@ namespace compiler {
   BINARY_OP_LIST(V)                   \
   COMPARE_OP_LIST(V)                  \
   CLEAR_ACCUMULATOR_LIST(V)           \
-  CLEAR_ENVIRONMENT_LIST(V)           \
   CONDITIONAL_JUMPS_LIST(V)           \
   IGNORED_BYTECODE_LIST(V)            \
   KILL_ENVIRONMENT_LIST(V)            \
@@ -815,8 +808,7 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
     return ephemeral_hints_[local_index];
   }
 
-  // Clears all hints except those for the context, return value, and the
-  // closure.
+  // Clears all hints except those for the context and the closure.
   void ClearEphemeralHints() {
     for (auto& hints : ephemeral_hints_) hints = Hints();
   }
@@ -910,14 +902,14 @@ void SerializerForBackgroundCompilation::Environment::Merge(Environment* other,
 
   if (IsDead()) {
     ephemeral_hints_ = other->ephemeral_hints_;
+    current_context_hints_ = other->current_context_hints_;
   } else {
     CHECK_EQ(ephemeral_hints_.size(), other->ephemeral_hints_.size());
     for (size_t i = 0; i < ephemeral_hints_.size(); ++i) {
       ephemeral_hints_[i].Merge(other->ephemeral_hints_[i], zone);
     }
+    current_context_hints_.Merge(other->current_context_hints_, zone);
   }
-
-  // TODO(neis): Deal with context hints.
 
   CHECK(!IsDead());
 }
@@ -1250,10 +1242,9 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
     break;
       SUPPORTED_BYTECODE_LIST(DEFINE_BYTECODE_CASE)
 #undef DEFINE_BYTECODE_CASE
-      default: {
+      default:
         environment()->ClearEphemeralHints();
         break;
-      }
     }
   }
 
@@ -1371,7 +1362,6 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
       HintsVector args = PrepareArgumentsHints(first_reg, reg_count);
       Hints const& resolution_hints = args[1];  // The resolution object.
       ProcessHintsForPromiseResolve(resolution_hints);
-      environment()->accumulator_hints() = Hints();
       return;
     }
     case Runtime::kInlineAsyncGeneratorReject:
@@ -1437,7 +1427,7 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
       break;
     }
   }
-  environment()->ClearEphemeralHints();
+  environment()->accumulator_hints() = Hints();
 }
 
 void SerializerForBackgroundCompilation::VisitLdaConstant(
@@ -3347,14 +3337,6 @@ void SerializerForBackgroundCompilation::VisitStaDataPropertyInLiteral(
                              false);
 }
 
-#define DEFINE_CLEAR_ENVIRONMENT(name, ...)             \
-  void SerializerForBackgroundCompilation::Visit##name( \
-      BytecodeArrayIterator* iterator) {                \
-    environment()->ClearEphemeralHints();               \
-  }
-CLEAR_ENVIRONMENT_LIST(DEFINE_CLEAR_ENVIRONMENT)
-#undef DEFINE_CLEAR_ENVIRONMENT
-
 #define DEFINE_CLEAR_ACCUMULATOR(name, ...)             \
   void SerializerForBackgroundCompilation::Visit##name( \
       BytecodeArrayIterator* iterator) {                \
@@ -3431,7 +3413,6 @@ UNARY_OP_LIST(DEFINE_UNARY_OP)
 
 #undef BINARY_OP_LIST
 #undef CLEAR_ACCUMULATOR_LIST
-#undef CLEAR_ENVIRONMENT_LIST
 #undef COMPARE_OP_LIST
 #undef CONDITIONAL_JUMPS_LIST
 #undef IGNORED_BYTECODE_LIST
