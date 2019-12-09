@@ -4357,6 +4357,15 @@ THREADED_TEST(HandleEquality) {
   global2.Reset();
 }
 
+THREADED_TEST(HandleEqualityPrimitives) {
+  v8::HandleScope scope(CcTest::isolate());
+  // Local::operator== works like strict equality except for primitives.
+  CHECK_NE(v8_str("str"), v8_str("str"));
+  CHECK_NE(v8::Number::New(CcTest::isolate(), 0.5),
+           v8::Number::New(CcTest::isolate(), 0.5));
+  CHECK_EQ(v8::Number::New(CcTest::isolate(), 1),
+           v8::Number::New(CcTest::isolate(), 1));
+}
 
 THREADED_TEST(LocalHandle) {
   v8::HandleScope scope(CcTest::isolate());
