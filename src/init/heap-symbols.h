@@ -171,8 +171,6 @@
   V(_, dot_default_string, ".default")                               \
   V(_, dot_for_string, ".for")                                       \
   V(_, dot_generator_object_string, ".generator_object")             \
-  V(_, dot_iterator_string, ".iterator")                             \
-  V(_, dot_promise_string, ".promise")                               \
   V(_, dot_result_string, ".result")                                 \
   V(_, dot_repl_result_string, ".repl_result")                       \
   V(_, dot_string, ".")                                              \
