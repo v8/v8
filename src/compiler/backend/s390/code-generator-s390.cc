@@ -2884,6 +2884,126 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Word64AtomicCompareExchangeUint64:
       ASSEMBLE_ATOMIC64_COMP_EXCHANGE_WORD64();
       break;
+    // vector binops
+    case kS390_F32x4Add: {
+      __ vfa(i.OutputSimd128Register(), i.InputSimd128Register(0),
+             i.InputSimd128Register(1), Condition(0), Condition(0),
+             Condition(2));
+      break;
+    }
+    case kS390_F32x4AddHoriz: {
+      Simd128Register src0 = i.InputSimd128Register(0);
+      Simd128Register src1 = i.InputSimd128Register(1);
+      Simd128Register dst = i.OutputSimd128Register();
+      DoubleRegister tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      DoubleRegister tempFPReg2 = i.ToSimd128Register(instr->TempAt(1));
+      constexpr int shift_bits = 32;
+      // generate first operand
+      __ vpk(dst, src1, src0, Condition(0), Condition(0), Condition(3));
+      // generate second operand
+      __ vesrl(tempFPReg1, src0, MemOperand(r0, shift_bits), Condition(3));
+      __ vesrl(tempFPReg2, src1, MemOperand(r0, shift_bits), Condition(3));
+      __ vpk(kScratchDoubleReg, tempFPReg2, tempFPReg1, Condition(0),
+             Condition(0), Condition(3));
+      // add the operands
+      __ vfa(dst, kScratchDoubleReg, dst, Condition(0), Condition(0),
+             Condition(2));
+      break;
+    }
+    case kS390_F32x4Sub: {
+      __ vfs(i.OutputSimd128Register(), i.InputSimd128Register(0),
+             i.InputSimd128Register(1), Condition(0), Condition(0),
+             Condition(2));
+      break;
+    }
+    case kS390_F32x4Mul: {
+      __ vfm(i.OutputSimd128Register(), i.InputSimd128Register(0),
+             i.InputSimd128Register(1), Condition(0), Condition(0),
+             Condition(2));
+      break;
+    }
+    case kS390_I32x4Add: {
+      __ va(i.OutputSimd128Register(), i.InputSimd128Register(0),
+            i.InputSimd128Register(1), Condition(0), Condition(0),
+            Condition(2));
+      break;
+    }
+    case kS390_I32x4AddHoriz: {
+      Simd128Register src0 = i.InputSimd128Register(0);
+      Simd128Register src1 = i.InputSimd128Register(1);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vs(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
+            Condition(0), Condition(0), Condition(2));
+      __ vsumg(dst, src0, kScratchDoubleReg, Condition(0), Condition(0),
+               Condition(2));
+      __ vsumg(kScratchDoubleReg, src1, kScratchDoubleReg, Condition(0),
+               Condition(0), Condition(2));
+      __ vpk(dst, kScratchDoubleReg, dst, Condition(0), Condition(0),
+             Condition(3));
+      break;
+    }
+    case kS390_I32x4Sub: {
+      __ vs(i.OutputSimd128Register(), i.InputSimd128Register(0),
+            i.InputSimd128Register(1), Condition(0), Condition(0),
+            Condition(2));
+      break;
+    }
+    case kS390_I32x4Mul: {
+      __ vml(i.OutputSimd128Register(), i.InputSimd128Register(0),
+             i.InputSimd128Register(1), Condition(0), Condition(0),
+             Condition(2));
+      break;
+    }
+    case kS390_I16x8Add: {
+      __ va(i.OutputSimd128Register(), i.InputSimd128Register(0),
+            i.InputSimd128Register(1), Condition(0), Condition(0),
+            Condition(1));
+      break;
+    }
+    case kS390_I16x8AddHoriz: {
+      Simd128Register src0 = i.InputSimd128Register(0);
+      Simd128Register src1 = i.InputSimd128Register(1);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vs(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
+            Condition(0), Condition(0), Condition(1));
+      __ vsum(dst, src0, kScratchDoubleReg, Condition(0), Condition(0),
+              Condition(1));
+      __ vsum(kScratchDoubleReg, src1, kScratchDoubleReg, Condition(0),
+              Condition(0), Condition(1));
+      __ vpk(dst, kScratchDoubleReg, dst, Condition(0), Condition(0),
+             Condition(2));
+      break;
+    }
+    case kS390_I16x8Sub: {
+      __ vs(i.OutputSimd128Register(), i.InputSimd128Register(0),
+            i.InputSimd128Register(1), Condition(0), Condition(0),
+            Condition(1));
+      break;
+    }
+    case kS390_I16x8Mul: {
+      __ vml(i.OutputSimd128Register(), i.InputSimd128Register(0),
+             i.InputSimd128Register(1), Condition(0), Condition(0),
+             Condition(1));
+      break;
+    }
+    case kS390_I8x16Add: {
+      __ va(i.OutputSimd128Register(), i.InputSimd128Register(0),
+            i.InputSimd128Register(1), Condition(0), Condition(0),
+            Condition(0));
+      break;
+    }
+    case kS390_I8x16Sub: {
+      __ vs(i.OutputSimd128Register(), i.InputSimd128Register(0),
+            i.InputSimd128Register(1), Condition(0), Condition(0),
+            Condition(0));
+      break;
+    }
+    case kS390_I8x16Mul: {
+      __ vml(i.OutputSimd128Register(), i.InputSimd128Register(0),
+             i.InputSimd128Register(1), Condition(0), Condition(0),
+             Condition(0));
+      break;
+    }
     default:
       UNREACHABLE();
   }

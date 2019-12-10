@@ -197,6 +197,21 @@ namespace compiler {
   V(S390_Word64AtomicXorUint16)             \
   V(S390_Word64AtomicXorUint32)             \
   V(S390_Word64AtomicXorUint64)             \
+  V(S390_F32x4Add)                          \
+  V(S390_F32x4AddHoriz)                     \
+  V(S390_F32x4Sub)                          \
+  V(S390_F32x4Mul)                          \
+  V(S390_I32x4Add)                          \
+  V(S390_I32x4AddHoriz)                     \
+  V(S390_I32x4Sub)                          \
+  V(S390_I32x4Mul)                          \
+  V(S390_I16x8Add)                          \
+  V(S390_I16x8AddHoriz)                     \
+  V(S390_I16x8Sub)                          \
+  V(S390_I16x8Mul)                          \
+  V(S390_I8x16Add)                          \
+  V(S390_I8x16Sub)                          \
+  V(S390_I8x16Mul)                          \
   V(S390_StoreSimd128)                      \
   V(S390_LoadSimd128)
 

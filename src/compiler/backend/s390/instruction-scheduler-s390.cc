@@ -143,6 +143,21 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_CompressSigned:
     case kS390_CompressPointer:
     case kS390_CompressAny:
+    case kS390_F32x4Add:
+    case kS390_F32x4AddHoriz:
+    case kS390_F32x4Sub:
+    case kS390_F32x4Mul:
+    case kS390_I32x4Add:
+    case kS390_I32x4AddHoriz:
+    case kS390_I32x4Sub:
+    case kS390_I32x4Mul:
+    case kS390_I16x8Add:
+    case kS390_I16x8AddHoriz:
+    case kS390_I16x8Sub:
+    case kS390_I16x8Mul:
+    case kS390_I8x16Add:
+    case kS390_I8x16Sub:
+    case kS390_I8x16Mul:
       return kNoOpcodeFlags;
 
     case kS390_LoadWordS8:
