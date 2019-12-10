@@ -1278,7 +1278,9 @@ class ElementsAccessorBase : public InternalElementsAccessor {
            IsAnyNonextensibleElementsKind(kind()));
     size_t length = Subclass::GetMaxIndex(holder, backing_store);
     if (IsHoleyElementsKindForRead(kind())) {
-      DCHECK_IMPLIES(index < length, index <= std::numeric_limits<int>::max());
+      DCHECK_IMPLIES(
+          index < length,
+          index <= static_cast<size_t>(std::numeric_limits<int>::max()));
       return index < length &&
                      !BackingStore::cast(backing_store)
                           .is_the_hole(isolate, static_cast<int>(index))
