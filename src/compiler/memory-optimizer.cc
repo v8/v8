@@ -240,6 +240,22 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
 
 bool MemoryOptimizer::AllocationTypeNeedsUpdateToOld(Node* const node,
                                                      const Edge edge) {
+  if (COMPRESS_POINTERS_BOOL &&
+      node->opcode() == IrOpcode::kChangeTaggedToCompressed) {
+    // In Pointer Compression we might have a Compress node between an
+    // AllocateRaw and the value used as input. This case is trickier since we
+    // have to check all of the Compress node edges to test for a StoreField.
+    for (Edge const new_edge : node->use_edges()) {
+      if (AllocationTypeNeedsUpdateToOld(new_edge.from(), new_edge)) {
+        return true;
+      }
+    }
+
+    // If we arrived here, we tested all the edges of the Compress node and
+    // didn't find it necessary to update the AllocationType.
+    return false;
+  }
+
   // Test to see if we need to update the AllocationType.
   if (node->opcode() == IrOpcode::kStoreField && edge.index() == 1) {
     Node* parent = node->InputAt(0);
@@ -267,6 +283,14 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
       Node* const user = edge.from();
       if (user->opcode() == IrOpcode::kStoreField && edge.index() == 0) {
         Node* child = user->InputAt(1);
+        // In Pointer Compression we might have a Compress node between an
+        // AllocateRaw and the value used as input. If so, we need to update
+        // child to point to the StoreField.
+        if (COMPRESS_POINTERS_BOOL &&
+            child->opcode() == IrOpcode::kChangeTaggedToCompressed) {
+          child = child->InputAt(0);
+        }
+
         if (child->opcode() == IrOpcode::kAllocateRaw &&
             AllocationTypeOf(child->op()) == AllocationType::kYoung) {
           NodeProperties::ChangeOp(child, node->op());

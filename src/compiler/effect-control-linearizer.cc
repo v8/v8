@@ -4988,6 +4988,16 @@ Node* EffectControlLinearizer::BuildTypedArrayDataPointer(Node* base,
     return external;
   } else {
     if (COMPRESS_POINTERS_BOOL) {
+      // TurboFan does not support loading of compressed fields without
+      // decompression so we add the following operations to workaround that.
+      // We can't load the base value as word32 because in that case the
+      // value will not be marked as tagged in the pointer map and will not
+      // survive GC.
+      // Compress base value back to in order to be able to decompress by
+      // doing an unsafe add below. Both decompression and compression
+      // will be removed by the decompression elimination pass.
+      base = __ ChangeTaggedToCompressed(base);
+      base = __ BitcastTaggedToWord(base);
       // Zero-extend Tagged_t to UintPtr according to current compression
       // scheme so that the addition with |external_pointer| (which already
       // contains compensated offset value) will decompress the tagged value.
