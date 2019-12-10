@@ -1103,6 +1103,7 @@ action("run_torque") {
   sources = torque_files
 
   outputs = [
+    "$target_gen_dir/torque-generated/bit-fields-tq.h",
     "$target_gen_dir/torque-generated/builtin-definitions-tq.h",
     "$target_gen_dir/torque-generated/interface-descriptors-tq.inc",
     "$target_gen_dir/torque-generated/field-offsets-tq.h",
