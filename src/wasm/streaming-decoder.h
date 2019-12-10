@@ -90,6 +90,11 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   void NotifyNativeModuleCreated(
       const std::shared_ptr<NativeModule>& native_module);
 
+  Vector<const char> url() { return VectorOf(url_); }
+  void SetUrl(Vector<const char> url) {
+    url_.assign(url.begin(), url.length());
+  }
+
  private:
   // TODO(ahaas): Put the whole private state of the StreamingDecoder into the
   // cc file (PIMPL design pattern).
@@ -266,6 +271,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   bool code_section_processed_ = false;
   uint32_t module_offset_ = 0;
   size_t total_size_ = 0;
+  std::string url_;
 
   // Caching support.
   ModuleCompiledCallback module_compiled_callback_ = nullptr;

@@ -76,6 +76,10 @@ class WasmStreaming::WasmStreamingImpl {
         });
   }
 
+  void SetUrl(internal::Vector<const char> url) {
+    streaming_decoder_->SetUrl(url);
+  }
+
  private:
   Isolate* const isolate_;
   std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
@@ -105,6 +109,10 @@ bool WasmStreaming::SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
 
 void WasmStreaming::SetClient(std::shared_ptr<Client> client) {
   impl_->SetClient(client);
+}
+
+void WasmStreaming::SetUrl(const char* url, size_t length) {
+  impl_->SetUrl(internal::VectorOf(url, length));
 }
 
 // static

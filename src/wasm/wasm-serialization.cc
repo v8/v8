@@ -617,7 +617,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   std::shared_ptr<WasmModule> module = std::move(decode_result.value());
   CHECK_NOT_NULL(module);
   Handle<Script> script = CreateWasmScript(
-      isolate, wire_bytes, module->source_map_url, module->name);
+      isolate, wire_bytes, VectorOf(module->source_map_url), module->name);
 
   const bool kIncludeLiftoff = false;
   size_t code_size_estimate =

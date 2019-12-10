@@ -4767,6 +4767,12 @@ class V8_EXPORT WasmStreaming final {
    */
   void SetClient(std::shared_ptr<Client> client);
 
+  /*
+   * Sets the UTF-8 encoded source URL for the {Script} object. This must be
+   * called before {Finish}.
+   */
+  void SetUrl(const char* url, size_t length);
+
   /**
    * Unpacks a {WasmStreaming} object wrapped in a  {Managed} for the embedder.
    * Since the embedder is on the other side of the API, it cannot unpack the

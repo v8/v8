@@ -302,9 +302,9 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
                             std::move(result).value(), bytes, &export_wrappers);
   if (!native_module) return {};
 
-  Handle<Script> script =
-      CreateWasmScript(isolate, bytes, native_module->module()->source_map_url,
-                       native_module->module()->name);
+  Handle<Script> script = CreateWasmScript(
+      isolate, bytes, VectorOf(native_module->module()->source_map_url),
+      native_module->module()->name);
 
   // Create the module object.
   // TODO(clemensb): For the same module (same bytes / same hash), we should
@@ -443,7 +443,7 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
   NativeModule* native_module = shared_native_module.get();
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   Handle<Script> script = CreateWasmScript(
-      isolate, wire_bytes, native_module->module()->source_map_url,
+      isolate, wire_bytes, VectorOf(native_module->module()->source_map_url),
       native_module->module()->name);
   Handle<FixedArray> export_wrappers;
   CompileJsToWasmWrappers(isolate, native_module->module(), &export_wrappers);

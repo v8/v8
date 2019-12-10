@@ -1518,8 +1518,10 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
   // Create heap objects for script and module bytes to be stored in the
   // module object. Asm.js is not compiled asynchronously.
   const WasmModule* module = native_module_->module();
-  Handle<Script> script = CreateWasmScript(
-      isolate_, wire_bytes_, module->source_map_url, module->name);
+  auto source_url = stream_ ? stream_->url() : Vector<const char>();
+  Handle<Script> script =
+      CreateWasmScript(isolate_, wire_bytes_, VectorOf(module->source_map_url),
+                       module->name, source_url);
 
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, native_module_, script);
@@ -2700,8 +2702,9 @@ WasmCode* CompileImportWrapper(
 
 Handle<Script> CreateWasmScript(Isolate* isolate,
                                 const ModuleWireBytes& wire_bytes,
-                                const std::string& source_map_url,
-                                WireBytesRef name) {
+                                Vector<const char> source_map_url,
+                                WireBytesRef name,
+                                Vector<const char> source_url) {
   Handle<Script> script =
       isolate->factory()->NewScript(isolate->factory()->empty_string());
   script->set_context_data(isolate->native_context()->debug_context_id());
@@ -2713,9 +2716,6 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
 
   const int kBufferSize = 32;
   char buffer[kBufferSize];
-
-  Handle<String> url_prefix =
-      isolate->factory()->InternalizeString(StaticCharVector("wasm://wasm/"));
 
   // Script name is "<module_name>-hash" if name is available and "hash"
   // otherwise.
@@ -2746,13 +2746,20 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
                    .ToHandleChecked();
   }
   script->set_name(*name_str);
-  MaybeHandle<String> url_str =
-      isolate->factory()->NewConsString(url_prefix, name_str);
+  MaybeHandle<String> url_str;
+  if (!source_url.empty()) {
+    url_str =
+        isolate->factory()->NewStringFromUtf8(source_url, AllocationType::kOld);
+  } else {
+    Handle<String> url_prefix =
+        isolate->factory()->InternalizeString(StaticCharVector("wasm://wasm/"));
+    url_str = isolate->factory()->NewConsString(url_prefix, name_str);
+  }
   script->set_source_url(*url_str.ToHandleChecked());
 
-  if (source_map_url.size() != 0) {
+  if (!source_map_url.empty()) {
     MaybeHandle<String> src_map_str = isolate->factory()->NewStringFromUtf8(
-        CStrVector(source_map_url.c_str()), AllocationType::kOld);
+        source_map_url, AllocationType::kOld);
     script->set_source_mapping_url(*src_map_str.ToHandleChecked());
   }
   return script;
