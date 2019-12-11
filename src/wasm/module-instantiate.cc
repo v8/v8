@@ -1142,8 +1142,8 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
     // workaround to support legacy asm.js code with broken binding. Note
     // that using {NaN} (or Smi::zero()) here is what using the observable
     // conversion via {ToPrimitive} would produce as well.
-    // TODO(mstarzinger): Still observable if Function.prototype.valueOf
-    // or friends are patched, we might need to check for that as well.
+    // TODO(wasm): Still observable if Function.prototype.valueOf or friends
+    // are patched, we might need to check for that as well.
     if (value->IsJSFunction()) value = isolate_->factory()->nan_value();
     if (value->IsPrimitive() && !value->IsSymbol()) {
       if (global.type == kWasmI32) {

@@ -1342,9 +1342,9 @@ class ThreadImpl {
   // Safety wrapper for values on the operand stack represented as {WasmValue}.
   // Most values are stored directly on the stack, only reference values are
   // kept in a separate on-heap reference stack to make the GC trace them.
-  // TODO(mstarzinger): Optimize simple stack operations (like "get_local",
+  // TODO(wasm): Optimize simple stack operations (like "get_local",
   // "set_local", and "tee_local") so that they don't require a handle scope.
-  // TODO(mstarzinger): Consider optimizing activations that use no reference
+  // TODO(wasm): Consider optimizing activations that use no reference
   // values to avoid allocating the reference stack entirely.
   class StackValue {
    public:

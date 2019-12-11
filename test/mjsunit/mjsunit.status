@@ -312,7 +312,7 @@
   'code-coverage-ad-hoc': [SKIP],
   'code-coverage-precise': [SKIP],
 
-  # TODO(mstarzinger): Takes too long with TF.
+  # Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
   'regress/regress-91008': [PASS, NO_VARIANTS],
   'regress/regress-transcendental': [PASS, ['arch == arm64', NO_VARIANTS]],
@@ -784,7 +784,7 @@
 
 ##############################################################################
 ['system == windows', {
-  # TODO(mstarzinger): Too slow with turbo fan.
+  # Too slow with turbo fan.
   'math-floor-of-div': [PASS, ['mode == debug', SKIP]],
   'math-floor-of-div-nosudiv': [PASS, ['mode == debug', SKIP]],
   'unicodelctest': [PASS, ['mode == debug', SKIP]],

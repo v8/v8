@@ -36,7 +36,7 @@
 
 ##############################################################################
 ['variant == stress', {
-  # TODO(jarin/mstarzinger): Functions with eval or debugger now get optimized
+  # TODO(turbofan): Functions with eval or debugger now get optimized
   # with Turbofan, which has issues with the debugger issues.
   'debug/debug-evaluate-locals': [FAIL],
 

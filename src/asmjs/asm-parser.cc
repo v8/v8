@@ -240,7 +240,7 @@ void AsmJsParser::AddGlobalImport(Vector<const char> name, AsmType* type,
                                   ValueType vtype, bool mutable_variable,
                                   VarInfo* info) {
   // Allocate a separate variable for the import.
-  // TODO(mstarzinger): Consider using the imported global directly instead of
+  // TODO(asmjs): Consider using the imported global directly instead of
   // allocating a separate global variable for immutable (i.e. const) imports.
   DeclareGlobal(info, mutable_variable, type, vtype);
 
@@ -2432,7 +2432,7 @@ void AsmJsParser::ValidateHeapAccess() {
   uint32_t offset;
   if (CheckForUnsigned(&offset)) {
     // TODO(bradnelson): Check more things.
-    // TODO(mstarzinger): Clarify and explain where this limit is coming from,
+    // TODO(asmjs): Clarify and explain where this limit is coming from,
     // as it is not mandated by the spec directly.
     if (offset > 0x7FFFFFFF ||
         static_cast<uint64_t>(offset) * static_cast<uint64_t>(size) >

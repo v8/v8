@@ -248,7 +248,7 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
   static void Fill(Isolate* isolate, Handle<WasmTableObject> table,
                    uint32_t start, Handle<Object> entry, uint32_t count);
 
-  // TODO(mstarzinger): Unify these three methods into one.
+  // TODO(wasm): Unify these three methods into one.
   static void UpdateDispatchTables(Isolate* isolate,
                                    Handle<WasmTableObject> table,
                                    int entry_index, wasm::FunctionSig* sig,

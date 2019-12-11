@@ -754,9 +754,8 @@ class SpecialRPONumberer : public ZoneObject {
     return block->loop_number() >= 0;
   }
 
-  // TODO(mstarzinger): We only need this special sentinel because some tests
-  // use the schedule's end block in actual control flow (e.g. with end having
-  // successors). Once this has been cleaned up we can use the end block here.
+  // We only need this special sentinel because some tests use the schedule's
+  // end block in actual control flow (e.g. with end having successors).
   BasicBlock* BeyondEndSentinel() {
     if (beyond_end_ == nullptr) {
       BasicBlock::Id id = BasicBlock::Id::FromInt(-1);
@@ -1757,7 +1756,7 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
 
   // Iterate on phase 2: Compute special RPO and dominator tree.
   special_rpo_->UpdateSpecialRPO(block, schedule_->block(node));
-  // TODO(mstarzinger): Currently "iterate on" means "re-run". Fix that.
+  // TODO(turbofan): Currently "iterate on" means "re-run". Fix that.
   for (BasicBlock* b = block->rpo_next(); b != nullptr; b = b->rpo_next()) {
     b->set_dominator_depth(-1);
     b->set_dominator(nullptr);
@@ -1765,7 +1764,7 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   PropagateImmediateDominators(block->rpo_next());
 
   // Iterate on phase 4: Schedule nodes early.
-  // TODO(mstarzinger): The following loop gathering the propagation roots is a
+  // TODO(turbofan): The following loop gathering the propagation roots is a
   // temporary solution and should be merged into the rest of the scheduler as
   // soon as the approach settled for all floating loops.
   NodeVector propagation_roots(control_flow_builder_->control_);
@@ -1787,7 +1786,7 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   schedule_early_visitor.Run(&propagation_roots);
 
   // Move previously planned nodes.
-  // TODO(mstarzinger): Improve that by supporting bulk moves.
+  // TODO(turbofan): Improve that by supporting bulk moves.
   scheduled_nodes_.resize(schedule_->BasicBlockCount());
   MovePlannedNodes(block, schedule_->block(node));
 

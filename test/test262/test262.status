@@ -632,8 +632,8 @@
 
 ['arch == arm or arch == mipsel or arch == mips or arch == arm64 or arch == mips64 or arch == mips64el', {
 
-  # TODO(mstarzinger): Causes stack overflow on simulators due to eager
-  # compilation of parenthesized function literals. Needs investigation.
+  # Causes stack overflow on simulators due to eager compilation of
+  # parenthesized function literals. Needs investigation.
   'language/statements/function/S13.2.1_A1_T1': [SKIP],
 
   # BUG(3251225): Tests that timeout with --noopt.

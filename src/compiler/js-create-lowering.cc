@@ -161,7 +161,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     switch (type) {
       case CreateArgumentsType::kMappedArguments: {
-        // TODO(mstarzinger): Duplicate parameters are not handled yet.
+        // TODO(turbofan): Duplicate parameters are not handled yet.
         if (shared.has_duplicate_parameters()) return NoChange();
         Node* const callee = NodeProperties::GetValueInput(node, 0);
         Node* const context = NodeProperties::GetContextInput(node);
@@ -263,7 +263,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       Node* const callee = NodeProperties::GetValueInput(node, 0);
       Node* const context = NodeProperties::GetContextInput(node);
       Node* effect = NodeProperties::GetEffectInput(node);
-      // TODO(mstarzinger): Duplicate parameters are not handled yet.
+      // TODO(turbofan): Duplicate parameters are not handled yet.
       if (shared.has_duplicate_parameters()) return NoChange();
       // Choose the correct frame state and frame state info depending on
       // whether there conceptually is an arguments adaptor frame in the call

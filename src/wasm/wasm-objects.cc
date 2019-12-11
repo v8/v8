@@ -1345,7 +1345,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
 
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.
-  // TODO(mstarzinger): Allow to reuse holes in the {WeakArrayList} below.
+  // TODO(wasm): Allow to reuse holes in the {WeakArrayList} below.
   if (module_object->script().type() == Script::TYPE_WASM) {
     Handle<WeakArrayList> weak_instance_list(
         module_object->script().wasm_weak_instance_list(), isolate);
@@ -1556,7 +1556,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   if (sig_id >= 0) {
     wasm::NativeModule* native_module =
         instance->module_object().native_module();
-    // TODO(mstarzinger): Cache and reuse wrapper code.
+    // TODO(wasm): Cache and reuse wrapper code.
     const wasm::WasmFeatures enabled = native_module->enabled_features();
     auto resolved = compiler::ResolveWasmImportCall(callable, sig, enabled);
     compiler::WasmImportCallKind kind = resolved.first;
@@ -1938,8 +1938,8 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   if (sig_size > 0) {
     serialized_sig->copy_in(0, sig->all().begin(), sig_size);
   }
-  // TODO(mstarzinger): Think about caching and sharing the JS-to-JS wrappers
-  // per signature instead of compiling a new one for every instantiation.
+  // TODO(wasm): Think about caching and sharing the JS-to-JS wrappers per
+  // signature instead of compiling a new one for every instantiation.
   Handle<Code> wrapper_code =
       compiler::CompileJSToJSWrapper(isolate, sig).ToHandleChecked();
   Handle<WasmJSFunctionData> function_data =

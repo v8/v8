@@ -474,7 +474,6 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   GetPropertyAttributesWithFailedAccessCheck(LookupIterator* it);
 
   // Defines an AccessorPair property on the given object.
-  // TODO(mstarzinger): Rename to SetAccessor().
   V8_EXPORT_PRIVATE static MaybeHandle<Object> DefineAccessor(
       Handle<JSObject> object, Handle<Name> name, Handle<Object> getter,
       Handle<Object> setter, PropertyAttributes attributes);

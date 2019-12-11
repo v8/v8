@@ -15,7 +15,7 @@
   'elem': [FAIL],
   'data': [FAIL],
 
-  # TODO(mstarzinger): Roll newest tests into "js-types" repository.
+  # TODO(wasm): Roll newest tests into "js-types" repository.
   'proposals/js-types/exports': [FAIL],
   'proposals/js-types/globals': [FAIL],
   'proposals/js-types/linking': [FAIL],

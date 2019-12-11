@@ -600,8 +600,6 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
                                  Address begin, size_t size,
                                  Address current_pc) {
   Address end = begin + size;
-  // TODO(mstarzinger): Refactor CodeReference to avoid the
-  // unhandlified->handlified transition.
   AllowHandleAllocation allow_handles;
   DisallowHeapAllocation no_gc;
   HandleScope handle_scope(isolate);

@@ -361,7 +361,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   Handle<WasmModuleObject> module =
       wasm_engine->FinalizeTranslatedAsmJs(isolate, wasm_data, script);
 
-  // TODO(mstarzinger): The position currently points to the module definition
+  // TODO(asmjs): The position currently points to the module definition
   // but should instead point to the instantiation site (more intuitive).
   int position = shared->StartPosition();
 

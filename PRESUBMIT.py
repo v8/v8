@@ -285,8 +285,6 @@ def _CheckHeadersHaveIncludeGuards(input_api, output_api):
     return []
 
 
-# TODO(mstarzinger): Similar checking should be made available as part of
-# tools/presubmit.py (note that tools/check-inline-includes.sh exists).
 def _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api):
   """Attempts to prevent inclusion of inline headers into normal header
   files. This tries to establish a layering where inline headers can be

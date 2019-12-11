@@ -204,9 +204,6 @@ class V8_EXPORT_PRIVATE ValueTypes {
            (expected == kWasmAnyRef && actual == kWasmFuncRef) ||
            (expected == kWasmAnyRef && actual == kWasmExnRef) ||
            (expected == kWasmFuncRef && actual == kWasmNullRef) ||
-           // TODO(mstarzinger): For now we treat "nullref" as a sub-type of
-           // "exnref", which is correct but might change. See here:
-           // https://github.com/WebAssembly/exception-handling/issues/55
            (expected == kWasmExnRef && actual == kWasmNullRef);
   }
 

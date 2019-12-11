@@ -123,7 +123,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   CONVERT_ARG_CHECKED(WasmExceptionTag, tag_raw, 0);
   CONVERT_SMI_ARG_CHECKED(size, 1);
-  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  // TODO(wasm): Manually box because parameters are not visited yet.
   Handle<Object> tag(tag_raw, isolate);
   Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
       MessageTemplate::kWasmExceptionError);
@@ -148,7 +148,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetTag) {
   DCHECK(isolate->context().is_null());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
-  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  // TODO(wasm): Manually box because parameters are not visited yet.
   Handle<Object> except_obj(except_obj_raw, isolate);
   if (!except_obj->IsWasmExceptionPackage(isolate)) {
     return ReadOnlyRoots(isolate).undefined_value();
@@ -165,7 +165,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetValues) {
   DCHECK(isolate->context().is_null());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
-  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  // TODO(wasm): Manually box because parameters are not visited yet.
   Handle<Object> except_obj(except_obj_raw, isolate);
   if (!except_obj->IsWasmExceptionPackage(isolate)) {
     return ReadOnlyRoots(isolate).undefined_value();
@@ -477,7 +477,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
   CONVERT_UINT32_ARG_CHECKED(table_index, 1);
   CONVERT_UINT32_ARG_CHECKED(entry_index, 2);
   CONVERT_ARG_CHECKED(Object, element_raw, 3);
-  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  // TODO(wasm): Manually box because parameters are not visited yet.
   Handle<Object> element(element_raw, isolate);
   DCHECK_LT(table_index, instance->tables().length());
   auto table = handle(
@@ -536,7 +536,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
       Handle<WasmInstanceObject>(GetWasmInstanceOnStackTop(isolate), isolate);
   CONVERT_UINT32_ARG_CHECKED(table_index, 0);
   CONVERT_ARG_CHECKED(Object, value_raw, 1);
-  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  // TODO(wasm): Manually box because parameters are not visited yet.
   Handle<Object> value(value_raw, isolate);
   CONVERT_UINT32_ARG_CHECKED(delta, 2);
 
@@ -555,7 +555,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
   CONVERT_UINT32_ARG_CHECKED(table_index, 0);
   CONVERT_UINT32_ARG_CHECKED(start, 1);
   CONVERT_ARG_CHECKED(Object, value_raw, 2);
-  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  // TODO(wasm): Manually box because parameters are not visited yet.
   Handle<Object> value(value_raw, isolate);
   CONVERT_UINT32_ARG_CHECKED(count, 3);
 

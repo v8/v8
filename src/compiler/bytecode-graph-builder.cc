@@ -2103,8 +2103,6 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   // data to converge. So, we disable allocation site mementos in optimized
   // code. We can revisit this when we have data to the contrary.
   literal_flags |= ArrayLiteral::kDisableMementos;
-  // TODO(mstarzinger): Thread through number of elements. The below number is
-  // only an estimate and does not match {ArrayLiteral::values::length}.
   int number_of_elements =
       array_boilerplate_description.constants_elements_length();
   Node* literal = NewNode(javascript()->CreateLiteralArray(
@@ -2134,8 +2132,6 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
   int bytecode_flags = bytecode_iterator().GetFlagOperand(2);
   int literal_flags =
       interpreter::CreateObjectLiteralFlags::FlagsBits::decode(bytecode_flags);
-  // TODO(mstarzinger): Thread through number of properties. The below number is
-  // only an estimate and does not match {ObjectLiteral::properties_count}.
   int number_of_properties = constant_properties.size();
   Node* literal = NewNode(javascript()->CreateLiteralObject(
       constant_properties.object(), pair, literal_flags, number_of_properties));
@@ -3640,7 +3636,6 @@ void BytecodeGraphBuilder::MergeIntoSuccessorEnvironment(int target_offset) {
     // Append merge nodes to the environment. We may merge here with another
     // environment. So add a place holder for merge nodes. We may add redundant
     // but will be eliminated in a later pass.
-    // TODO(mstarzinger): Be smarter about this!
     NewMerge();
     merge_environment = environment();
   } else {

@@ -1807,8 +1807,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           auto exception = Pop(0, kWasmExnRef);
           const WasmExceptionSig* sig = imm.index.exception->sig;
           size_t value_count = sig->parameter_count();
-          // TODO(mstarzinger): This operand stack mutation is an ugly hack to
-          // make both type checking here as well as environment merging in the
+          // TODO(wasm): This operand stack mutation is an ugly hack to make
+          // both type checking here as well as environment merging in the
           // graph builder interface work out of the box. We should introduce
           // special handling for both and do minimal/no stack mutation here.
           for (size_t i = 0; i < value_count; ++i) Push(sig->GetParam(i));

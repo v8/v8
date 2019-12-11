@@ -374,8 +374,8 @@ StreamingDecoder::DecodeSectionID::Next(StreamingDecoder* streaming) {
     // Explicitly check for multiple code sections as module decoder never
     // sees the code section and hence cannot track this section.
     if (streaming->code_section_processed_) {
-      // TODO(mstarzinger): This error message (and others in this class) is
-      // different for non-streaming decoding. Bring them in sync and test.
+      // TODO(wasm): This error message (and others in this class) is different
+      // for non-streaming decoding. Bring them in sync and test.
       return streaming->Error("code section can only appear once");
     }
     streaming->code_section_processed_ = true;

@@ -907,7 +907,7 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_EXPR(UnaryOperator) {
-    // TODO(mstarzinger): We are treating all expressions that look like
+    // TODO(gcmole): We are treating all expressions that look like
     // {&raw_pointer_var} as definitions of {raw_pointer_var}. This should be
     // changed to recognize less generic pattern:
     //
@@ -1039,7 +1039,7 @@ class FunctionAnalyzer {
         llvm::dyn_cast_or_null<clang::CXXOperatorCallExpr>(call);
     if (opcall != NULL && opcall->isAssignmentOp() &&
         IsRawPointerVar(opcall->getArg(0), &var_name)) {
-      // TODO(mstarzinger): We are treating all assignment operator calls with
+      // TODO(gcmole): We are treating all assignment operator calls with
       // the left hand side looking like {raw_pointer_var} as safe independent
       // of the concrete assignment operator implementation. This should be
       // changed to be more narrow only if the assignment operator of the base
@@ -1416,7 +1416,7 @@ class FunctionAnalyzer {
 
       return out;
     }
-    // TODO(mstarzinger): handle other declarations?
+    // TODO(gcmole): handle other declarations?
     return env;
   }
 

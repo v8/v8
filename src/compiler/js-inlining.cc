@@ -268,7 +268,6 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
 
 namespace {
 
-// TODO(mstarzinger,verwaest): Move this predicate onto SharedFunctionInfo?
 bool NeedsImplicitReceiver(SharedFunctionInfoRef shared_info) {
   DisallowHeapAllocation no_gc;
   return !shared_info.construct_as_builtin() &&

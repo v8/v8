@@ -1644,7 +1644,7 @@ void BytecodeGenerator::BuildTryCatch(
 
   // Preserve the context in a dedicated register, so that it can be restored
   // when the handler is entered by the stack-unwinding machinery.
-  // TODO(mstarzinger): Be smarter about register allocation.
+  // TODO(ignition): Be smarter about register allocation.
   Register context = register_allocator()->NewRegister();
   builder()->MoveRegister(Register::current_context(), context);
 
@@ -1695,7 +1695,7 @@ void BytecodeGenerator::BuildTryFinally(
 
   // Preserve the context in a dedicated register, so that it can be restored
   // when the handler is entered by the stack-unwinding machinery.
-  // TODO(mstarzinger): Be smarter about register allocation.
+  // TODO(ignition): Be smarter about register allocation.
   Register context = register_allocator()->NewRegister();
   builder()->MoveRegister(Register::current_context(), context);
 

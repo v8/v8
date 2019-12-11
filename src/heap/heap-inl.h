@@ -18,7 +18,7 @@
 #include "src/base/platform/platform.h"
 #include "src/objects/feedback-vector.h"
 
-// TODO(mstarzinger): There is one more include to remove in order to no longer
+// TODO(gc): There is one more include to remove in order to no longer
 // leak heap internals to users of this interface!
 #include "src/execution/isolate-data.h"
 #include "src/execution/isolate.h"
