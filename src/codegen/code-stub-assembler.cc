@@ -9665,13 +9665,18 @@ TNode<IntPtrT> CodeStubAssembler::TryToIntptr(
     TNode<IntPtrT> int_value = ChangeFloat64ToIntPtr(value);
     GotoIfNot(Float64Equal(value, RoundIntPtrToFloat64(int_value)),
               if_not_intptr);
-    if (Is64()) {
-      // TODO(jkummerow): Investigate whether we can drop support for
-      // negative indices.
-      GotoIfNot(IsInRange(int_value, static_cast<intptr_t>(-kMaxSafeInteger),
-                          static_cast<intptr_t>(kMaxSafeIntegerUint64)),
-                if_not_intptr);
-    }
+#if V8_TARGET_ARCH_64_BIT
+    // We can't rely on Is64() alone because 32-bit compilers rightly complain
+    // about kMaxSafeIntegerUint64 not fitting into an intptr_t.
+    DCHECK(Is64());
+    // TODO(jkummerow): Investigate whether we can drop support for
+    // negative indices.
+    GotoIfNot(IsInRange(int_value, static_cast<intptr_t>(-kMaxSafeInteger),
+                        static_cast<intptr_t>(kMaxSafeIntegerUint64)),
+              if_not_intptr);
+#else
+    DCHECK(!Is64());
+#endif
     var_intptr_key = int_value;
     Goto(&done);
   }
