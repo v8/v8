@@ -86,10 +86,10 @@ bool DebugPropertyIterator::has_native_setter() {
 Handle<Name> DebugPropertyIterator::raw_name() const {
   DCHECK(!Done());
   if (stage_ == kExoticIndices) {
-    return isolate_->factory()->Uint32ToString(current_key_index_);
+    return isolate_->factory()->SizeToString(current_key_index_);
   } else {
-    return Handle<Name>::cast(
-        FixedArray::get(*keys_, current_key_index_, isolate_));
+    return Handle<Name>::cast(FixedArray::get(
+        *keys_, static_cast<int>(current_key_index_), isolate_));
   }
 }
 
@@ -149,12 +149,7 @@ void DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
   if (stage_ == kExoticIndices) {
     if (!has_exotic_indices) return;
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(receiver);
-    if (typed_array->WasDetached()) {
-      exotic_length_ = 0;
-    } else {
-      // TODO(bmeurer, v8:4153): Change this to size_t later.
-      exotic_length_ = static_cast<uint32_t>(typed_array->length());
-    }
+    exotic_length_ = typed_array->WasDetached() ? 0 : typed_array->length();
     return;
   }
   bool skip_indices = has_exotic_indices;
@@ -172,7 +167,7 @@ bool DebugPropertyIterator::should_move_to_next_stage() const {
   if (prototype_iterator_.IsAtEnd()) return false;
   if (stage_ == kExoticIndices) return current_key_index_ >= exotic_length_;
   return keys_.is_null() ||
-         current_key_index_ >= static_cast<uint32_t>(keys_->length());
+         current_key_index_ >= static_cast<size_t>(keys_->length());
 }
 
 namespace {

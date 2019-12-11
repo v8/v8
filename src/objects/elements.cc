@@ -544,22 +544,21 @@ class ElementsAccessorBase : public InternalElementsAccessor {
 
   static ElementsKind kind() { return ElementsTraits::Kind; }
 
-  static void ValidateContents(JSObject holder, int length) {}
+  static void ValidateContents(JSObject holder, size_t length) {}
 
   static void ValidateImpl(JSObject holder) {
     FixedArrayBase fixed_array_base = holder.elements();
     if (!fixed_array_base.IsHeapObject()) return;
     // Arrays that have been shifted in place can't be verified.
     if (fixed_array_base.IsFreeSpaceOrFiller()) return;
-    int length = 0;
+    size_t length = 0;
     if (holder.IsJSArray()) {
       Object length_obj = JSArray::cast(holder).length();
       if (length_obj.IsSmi()) {
         length = Smi::ToInt(length_obj);
       }
     } else if (holder.IsJSTypedArray()) {
-      // TODO(bmeurer, v8:4153): Change this to size_t later.
-      length = static_cast<int>(JSTypedArray::cast(holder).length());
+      length = JSTypedArray::cast(holder).length();
     } else {
       length = fixed_array_base.length();
     }
@@ -1789,7 +1788,7 @@ class DictionaryElementsAccessor
     return Just<int64_t>(-1);
   }
 
-  static void ValidateContents(JSObject holder, int length) {
+  static void ValidateContents(JSObject holder, size_t length) {
     DisallowHeapAllocation no_gc;
 #if DEBUG
     DCHECK_EQ(holder.map().elements_kind(), DICTIONARY_ELEMENTS);
@@ -2043,7 +2042,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     return ExceptionStatus::kSuccess;
   }
 
-  static void ValidateContents(JSObject holder, int length) {
+  static void ValidateContents(JSObject holder, size_t length) {
 #if DEBUG
     Isolate* isolate = holder.GetIsolate();
     Heap* heap = isolate->heap();
@@ -2053,24 +2052,26 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       DCHECK_NE(map, ReadOnlyRoots(heap).fixed_double_array_map());
     } else if (IsDoubleElementsKind(KindTraits::Kind)) {
       DCHECK_NE(map, ReadOnlyRoots(heap).fixed_cow_array_map());
-      if (map == ReadOnlyRoots(heap).fixed_array_map()) DCHECK_EQ(0, length);
+      if (map == ReadOnlyRoots(heap).fixed_array_map()) DCHECK_EQ(0u, length);
     } else {
       UNREACHABLE();
     }
-    if (length == 0) return;  // nothing to do!
+    if (length == 0u) return;  // nothing to do!
 #if ENABLE_SLOW_DCHECKS
     DisallowHeapAllocation no_gc;
     BackingStore backing_store = BackingStore::cast(elements);
+    DCHECK(length <= std::numeric_limits<int>::max());
+    int length_int = static_cast<int>(length);
     if (IsSmiElementsKind(KindTraits::Kind)) {
       HandleScope scope(isolate);
-      for (int i = 0; i < length; i++) {
+      for (int i = 0; i < length_int; i++) {
         DCHECK(BackingStore::get(backing_store, i, isolate)->IsSmi() ||
                (IsHoleyElementsKind(KindTraits::Kind) &&
                 backing_store.is_the_hole(isolate, i)));
       }
     } else if (KindTraits::Kind == PACKED_ELEMENTS ||
                KindTraits::Kind == PACKED_DOUBLE_ELEMENTS) {
-      for (int i = 0; i < length; i++) {
+      for (int i = 0; i < length_int; i++) {
         DCHECK(!backing_store.is_the_hole(isolate, i));
       }
     } else {
