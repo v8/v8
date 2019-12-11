@@ -87,13 +87,6 @@ class KeyAccumulator final {
   // indices.
   void set_is_for_in(bool value) { is_for_in_ = value; }
   void set_skip_indices(bool value) { skip_indices_ = value; }
-  void set_first_prototype_map(Handle<Map> value) {
-    first_prototype_map_ = value;
-  }
-  void set_try_prototype_info_cache(bool value) {
-    try_prototype_info_cache_ = value;
-  }
-  void set_receiver(Handle<JSReceiver> object) { receiver_ = object; }
   // The last_non_empty_prototype is used to limit the prototypes for which
   // we have to keep track of non-enumerable keys that can shadow keys
   // repeated on the prototype chain.
@@ -124,8 +117,6 @@ class KeyAccumulator final {
   // keys a Handle<FixedArray>. The OrderedHashSet is in-place converted to the
   // result list, a FixedArray containing all collected keys.
   Handle<FixedArray> keys_;
-  Handle<Map> first_prototype_map_;
-  Handle<JSReceiver> receiver_;
   Handle<JSReceiver> last_non_empty_prototype_;
   Handle<ObjectHashSet> shadowing_keys_;
   KeyCollectionMode mode_;
@@ -136,7 +127,6 @@ class KeyAccumulator final {
   // the shadow check.
   bool skip_shadow_check_ = true;
   bool may_have_elements_ = true;
-  bool try_prototype_info_cache_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(KeyAccumulator);
 };
@@ -170,18 +160,13 @@ class FastKeyAccumulator {
   void Prepare();
   MaybeHandle<FixedArray> GetKeysFast(GetKeysConversion convert);
   MaybeHandle<FixedArray> GetKeysSlow(GetKeysConversion convert);
-  MaybeHandle<FixedArray> GetKeysWithPrototypeInfoCache(
-      GetKeysConversion convert);
 
   MaybeHandle<FixedArray> GetOwnKeysWithUninitializedEnumCache();
 
   bool MayHaveElements(JSReceiver receiver);
-  bool TryPrototypeInfoCache(Handle<JSReceiver> receiver);
 
   Isolate* isolate_;
   Handle<JSReceiver> receiver_;
-  Handle<Map> first_prototype_map_;
-  Handle<JSReceiver> first_prototype_;
   Handle<JSReceiver> last_non_empty_prototype_;
   KeyCollectionMode mode_;
   PropertyFilter filter_;
@@ -190,8 +175,6 @@ class FastKeyAccumulator {
   bool is_receiver_simple_enum_ = false;
   bool has_empty_prototype_ = false;
   bool may_have_elements_ = true;
-  bool has_prototype_info_cache_ = false;
-  bool try_prototype_info_cache_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(FastKeyAccumulator);
 };
