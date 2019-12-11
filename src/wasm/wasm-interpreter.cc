@@ -1743,6 +1743,39 @@ class ThreadImpl {
     return true;
   }
 
+  template <typename type>
+  bool ExtractAtomicWaitNotifyParams(Decoder* decoder, InterpreterCode* code,
+                                     pc_t pc, int* const len,
+                                     uint32_t* buffer_offset, type* val,
+                                     double* timeout = nullptr) {
+    MemoryAccessImmediate<Decoder::kValidate> imm(decoder, code->at(pc + 1),
+                                                  sizeof(type));
+    if (timeout) {
+      double timeout_ns = Pop().to<int64_t>();
+      *timeout = (timeout_ns < 0)
+                     ? V8_INFINITY
+                     : timeout_ns / (base::Time::kNanosecondsPerMicrosecond *
+                                     base::Time::kMicrosecondsPerMillisecond);
+    }
+    *val = Pop().to<type>();
+    auto index = Pop().to<uint32_t>();
+    // Check bounds.
+    Address address = BoundsCheckMem<uint32_t>(imm.offset, index);
+    *buffer_offset = index + imm.offset;
+    if (!address) {
+      DoTrap(kTrapMemOutOfBounds, pc);
+      return false;
+    }
+    // Check alignment.
+    const uint32_t align_mask = sizeof(type) - 1;
+    if ((*buffer_offset & align_mask) != 0) {
+      DoTrap(kTrapUnalignedAccess, pc);
+      return false;
+    }
+    *len = 2 + imm.length;
+    return true;
+  }
+
   bool ExecuteNumericOp(WasmOpcode opcode, Decoder* decoder,
                         InterpreterCode* code, pc_t pc, int* const len) {
     switch (opcode) {
@@ -2129,6 +2162,52 @@ class ThreadImpl {
         std::atomic_thread_fence(std::memory_order_seq_cst);
         *len += 2;
         break;
+      case kExprI32AtomicWait: {
+        int32_t val;
+        double timeout;
+        uint32_t buffer_offset;
+        if (!ExtractAtomicWaitNotifyParams<int32_t>(
+                decoder, code, pc, len, &buffer_offset, &val, &timeout)) {
+          return false;
+        }
+        HandleScope handle_scope(isolate_);
+        Handle<JSArrayBuffer> array_buffer(
+            instance_object_->memory_object().array_buffer(), isolate_);
+        auto result = FutexEmulation::Wait32(isolate_, array_buffer,
+                                             buffer_offset, val, timeout);
+        Push(WasmValue(result.ToSmi().value()));
+        break;
+      }
+      case kExprI64AtomicWait: {
+        int64_t val;
+        double timeout;
+        uint32_t buffer_offset;
+        if (!ExtractAtomicWaitNotifyParams<int64_t>(
+                decoder, code, pc, len, &buffer_offset, &val, &timeout)) {
+          return false;
+        }
+        HandleScope handle_scope(isolate_);
+        Handle<JSArrayBuffer> array_buffer(
+            instance_object_->memory_object().array_buffer(), isolate_);
+        auto result = FutexEmulation::Wait64(isolate_, array_buffer,
+                                             buffer_offset, val, timeout);
+        Push(WasmValue(result.ToSmi().value()));
+        break;
+      }
+      case kExprAtomicNotify: {
+        int32_t val;
+        uint32_t buffer_offset;
+        if (!ExtractAtomicWaitNotifyParams<int32_t>(decoder, code, pc, len,
+                                                    &buffer_offset, &val)) {
+          return false;
+        }
+        HandleScope handle_scope(isolate_);
+        Handle<JSArrayBuffer> array_buffer(
+            instance_object_->memory_object().array_buffer(), isolate_);
+        auto result = FutexEmulation::Wake(array_buffer, buffer_offset, val);
+        Push(WasmValue(result.ToSmi().value()));
+        break;
+      }
       default:
         UNREACHABLE();
         return false;
