@@ -27,7 +27,6 @@ vars = {
   'checkout_fuchsia_boot_images': "qemu.x64,qemu.arm64",
 
   'checkout_instrumented_libraries': False,
-  'checkout_ittapi': False,
   'chromium_url': 'https://chromium.googlesource.com',
   'android_url': 'https://android.googlesource.com',
   'download_gcmole': False,
@@ -259,12 +258,6 @@ deps = {
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + 'b68a347f56137b4b1a746e8c7438495a6ac1bd91',
   'v8/third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'f262c1b3c4196a2fee98c113142faff525b8d884',
-  'v8/third_party/ittapi': {
-    # Force checkout ittapi libraries to pass v8 header includes check on
-    # bots that has check_v8_header_includes enabled.
-    'url': Var('chromium_url') + '/external/github.com/intel/ittapi' + '@' + 'b4ae0122ba749163096058b4f1bb065bf4a7de94',
-    'condition': "checkout_ittapi or check_v8_header_includes",
-  },
 }
 
 include_rules = [
@@ -272,7 +265,6 @@ include_rules = [
   '+include',
   '+unicode',
   '+third_party/fdlibm',
-  '+third_party/ittapi/include'
 ]
 
 # checkdeps.py shouldn't check for includes in these directories:
