@@ -661,7 +661,8 @@ TNode<WordT> CodeAssembler::WordShl(SloppyTNode<WordT> left,
   bool is_right_constant = ToIntPtrConstant(right, &right_constant);
   if (is_left_constant) {
     if (is_right_constant) {
-      return IntPtrConstant(left_constant << right_constant);
+      return IntPtrConstant(static_cast<uintptr_t>(left_constant)
+                            << right_constant);
     }
   } else if (is_right_constant) {
     if (right_constant == 0) {

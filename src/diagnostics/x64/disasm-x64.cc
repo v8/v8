@@ -11,6 +11,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/memory.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/codegen/x64/register-x64.h"
 #include "src/codegen/x64/sse-instr.h"
@@ -245,19 +246,24 @@ uint8_t Imm8_U(const uint8_t* data) {
   return *reinterpret_cast<const uint8_t*>(data);
 }
 int16_t Imm16(const uint8_t* data) {
-  return *reinterpret_cast<const int16_t*>(data);
+  return v8::base::ReadUnalignedValue<int16_t>(
+      reinterpret_cast<v8::internal::Address>(data));
 }
 uint16_t Imm16_U(const uint8_t* data) {
-  return *reinterpret_cast<const uint16_t*>(data);
+  return v8::base::ReadUnalignedValue<uint16_t>(
+      reinterpret_cast<v8::internal::Address>(data));
 }
 int32_t Imm32(const uint8_t* data) {
-  return *reinterpret_cast<const int32_t*>(data);
+  return v8::base::ReadUnalignedValue<int32_t>(
+      reinterpret_cast<v8::internal::Address>(data));
 }
 uint32_t Imm32_U(const uint8_t* data) {
-  return *reinterpret_cast<const uint32_t*>(data);
+  return v8::base::ReadUnalignedValue<uint32_t>(
+      reinterpret_cast<v8::internal::Address>(data));
 }
 int64_t Imm64(const uint8_t* data) {
-  return *reinterpret_cast<const int64_t*>(data);
+  return v8::base::ReadUnalignedValue<int64_t>(
+      reinterpret_cast<v8::internal::Address>(data));
 }
 }  // namespace
 
