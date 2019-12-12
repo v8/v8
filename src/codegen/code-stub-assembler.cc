@@ -7437,24 +7437,38 @@ TNode<Number> CodeStubAssembler::ToInteger(SloppyTNode<Context> context,
 
 TNode<Uint32T> CodeStubAssembler::DecodeWord32(SloppyTNode<Word32T> word32,
                                                uint32_t shift, uint32_t mask) {
-  return UncheckedCast<Uint32T>(Word32Shr(
-      Word32And(word32, Int32Constant(mask)), static_cast<int>(shift)));
+  DCHECK_EQ((mask >> shift) << shift, mask);
+  return Unsigned(Word32And(Word32Shr(word32, static_cast<int>(shift)),
+                            Int32Constant(mask >> shift)));
 }
 
 TNode<UintPtrT> CodeStubAssembler::DecodeWord(SloppyTNode<WordT> word,
                                               uint32_t shift, uint32_t mask) {
-  return Unsigned(
-      WordShr(WordAnd(word, IntPtrConstant(mask)), static_cast<int>(shift)));
+  DCHECK_EQ((mask >> shift) << shift, mask);
+  return Unsigned(WordAnd(WordShr(word, static_cast<int>(shift)),
+                          IntPtrConstant(mask >> shift)));
+}
+
+TNode<Word32T> CodeStubAssembler::UpdateWord32(TNode<Word32T> word,
+                                               TNode<Uint32T> value,
+                                               uint32_t shift, uint32_t mask) {
+  DCHECK_EQ((mask >> shift) << shift, mask);
+  // Ensure the {value} fits fully in the mask.
+  CSA_ASSERT(this, Uint32LessThanOrEqual(value, Uint32Constant(mask >> shift)));
+  TNode<Word32T> encoded_value = Word32Shl(value, Int32Constant(shift));
+  TNode<Word32T> inverted_mask = Int32Constant(~mask);
+  return Word32Or(Word32And(word, inverted_mask), encoded_value);
 }
 
 TNode<WordT> CodeStubAssembler::UpdateWord(TNode<WordT> word,
-                                           TNode<WordT> value, uint32_t shift,
-                                           uint32_t mask) {
+                                           TNode<UintPtrT> value,
+                                           uint32_t shift, uint32_t mask) {
+  DCHECK_EQ((mask >> shift) << shift, mask);
+  // Ensure the {value} fits fully in the mask.
+  CSA_ASSERT(this,
+             UintPtrLessThanOrEqual(value, UintPtrConstant(mask >> shift)));
   TNode<WordT> encoded_value = WordShl(value, static_cast<int>(shift));
   TNode<IntPtrT> inverted_mask = IntPtrConstant(~static_cast<intptr_t>(mask));
-  // Ensure the {value} fits fully in the mask.
-  CSA_ASSERT(this, WordEqual(WordAnd(encoded_value, inverted_mask),
-                             IntPtrConstant(0)));
   return WordOr(WordAnd(word, inverted_mask), encoded_value);
 }
 
@@ -10320,7 +10334,7 @@ TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
   StoreMapNoWriteBarrier(site, RootIndex::kAllocationSiteWithWeakNextMap);
   // Should match AllocationSite::Initialize.
   TNode<WordT> field = UpdateWord<AllocationSite::ElementsKindBits>(
-      IntPtrConstant(0), IntPtrConstant(GetInitialFastElementsKind()));
+      IntPtrConstant(0), UintPtrConstant(GetInitialFastElementsKind()));
   StoreObjectFieldNoWriteBarrier(
       site, AllocationSite::kTransitionInfoOrBoilerplateOffset,
       SmiTag(Signed(field)));

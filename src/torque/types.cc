@@ -258,6 +258,15 @@ std::string BitFieldStructType::ToExplicitString() const {
   return "bitfield struct " + name();
 }
 
+const BitField& BitFieldStructType::LookupField(const std::string& name) const {
+  for (const BitField& field : fields_) {
+    if (field.name_and_type.name == name) {
+      return field;
+    }
+  }
+  ReportError("Couldn't find bitfield ", name);
+}
+
 void AggregateType::CheckForDuplicateFields() const {
   // Check the aggregate hierarchy and currently defined class for duplicate
   // field declarations.
@@ -499,8 +508,7 @@ std::vector<Field> ClassType::ComputeAllFields() const {
 
 void ClassType::GenerateAccessors() {
   // For each field, construct AST snippets that implement a CSA accessor
-  // function and define a corresponding '.field' operator. The
-  // implementation iterator will turn the snippets into code.
+  // function. The implementation iterator will turn the snippets into code.
   for (auto& field : fields_) {
     if (field.index || field.name_and_type.type == TypeOracle::GetVoidType()) {
       continue;
@@ -791,12 +799,11 @@ bool IsAllowedAsBitField(const Type* type) {
     // compelling use case.
     return false;
   }
-  // Any integer-ish type, including bools and enums which inherit from integer
-  // types, are allowed.
+  // Any unsigned integer-ish type, including bools and enums which inherit from
+  // unsigned integer types, are allowed. Currently decoding signed integers is
+  // not supported.
   return type->IsSubtypeOf(TypeOracle::GetUint32Type()) ||
          type->IsSubtypeOf(TypeOracle::GetUIntPtrType()) ||
-         type->IsSubtypeOf(TypeOracle::GetInt32Type()) ||
-         type->IsSubtypeOf(TypeOracle::GetIntPtrType()) ||
          type->IsSubtypeOf(TypeOracle::GetBoolType());
 }
 

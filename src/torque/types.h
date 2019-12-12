@@ -481,6 +481,8 @@ class V8_EXPORT_PRIVATE BitFieldStructType final : public Type {
   const std::string& name() const { return decl_->name->value; }
   const std::vector<BitField>& fields() const { return fields_; }
 
+  const BitField& LookupField(const std::string& name) const;
+
  private:
   friend class TypeOracle;
   BitFieldStructType(Namespace* nspace, const Type* parent,

@@ -1931,6 +1931,12 @@ LocationReference ImplementationVisitor::GetLocationReference(
         ProjectStructField(reference.temporary(), fieldname),
         reference.temporary_description());
   }
+  if (reference.ReferencedType()->IsBitFieldStructType()) {
+    const BitFieldStructType* bitfield_struct =
+        BitFieldStructType::cast(reference.ReferencedType());
+    const BitField& field = bitfield_struct->LookupField(fieldname);
+    return LocationReference::BitFieldAccess(reference, field);
+  }
   if (reference.IsHeapReference()) {
     VisitResult ref = reference.heap_reference();
     auto generic_type = StructType::MatchUnaryGeneric(
@@ -2114,6 +2120,14 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
     assembler().Emit(LoadReferenceInstruction{reference.ReferencedType()});
     DCHECK_EQ(1, LoweredSlotCount(reference.ReferencedType()));
     return VisitResult(reference.ReferencedType(), assembler().TopRange(1));
+  } else if (reference.IsBitFieldAccess()) {
+    // First fetch the bitfield struct, then get the bits out of it.
+    VisitResult bit_field_struct =
+        GenerateFetchFromLocation(reference.bit_field_struct_location());
+    assembler().Emit(LoadBitFieldInstruction{
+        BitFieldStructType::cast(bit_field_struct.type()),
+        reference.bit_field()});
+    return VisitResult(reference.ReferencedType(), assembler().TopRange(1));
   } else {
     if (reference.IsHeapSlice()) {
       ReportError(
@@ -2157,6 +2171,21 @@ void ImplementationVisitor::GenerateAssignToLocation(
                        silenced_float_value.stack_range(), referenced_type);
     }
     assembler().Emit(StoreReferenceInstruction{referenced_type});
+  } else if (reference.IsBitFieldAccess()) {
+    // First fetch the bitfield struct, then set the updated bits, then store it
+    // back to where we found it.
+    VisitResult bit_field_struct =
+        GenerateFetchFromLocation(reference.bit_field_struct_location());
+    VisitResult converted_value =
+        GenerateImplicitConvert(reference.ReferencedType(), assignment_value);
+    GenerateCopy(bit_field_struct);
+    GenerateCopy(converted_value);
+    assembler().Emit(StoreBitFieldInstruction{
+        BitFieldStructType::cast(bit_field_struct.type()),
+        reference.bit_field()});
+    GenerateAssignToLocation(
+        reference.bit_field_struct_location(),
+        VisitResult(bit_field_struct.type(), assembler().TopRange(1)));
   } else {
     DCHECK(reference.IsTemporary());
     ReportError("cannot assign to temporary ",

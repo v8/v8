@@ -721,6 +721,67 @@ void CSAGenerator::EmitInstruction(const StoreReferenceInstruction& instruction,
        << object << ", " << offset << "}, " << value << ");\n";
 }
 
+namespace {
+std::string GetBitFieldSpecialization(const BitFieldStructType* container,
+                                      const BitField& field) {
+  std::string suffix = field.num_bits == 1 ? "Bit" : "Bits";
+  return "TorqueGenerated" + container->name() +
+         "Fields::" + CamelifyString(field.name_and_type.name) + suffix;
+}
+}  // namespace
+
+void CSAGenerator::EmitInstruction(const LoadBitFieldInstruction& instruction,
+                                   Stack<std::string>* stack) {
+  std::string result_name = FreshNodeName();
+
+  std::string bit_field_struct = stack->Pop();
+  stack->Push(result_name);
+
+  const BitFieldStructType* source_type = instruction.bit_field_struct_type;
+  const Type* result_type = instruction.bit_field.name_and_type.type;
+  bool source_uintptr = source_type->IsSubtypeOf(TypeOracle::GetUIntPtrType());
+  bool result_uintptr = result_type->IsSubtypeOf(TypeOracle::GetUIntPtrType());
+  std::string source_word_type = source_uintptr ? "WordT" : "Word32T";
+  std::string decoder =
+      source_uintptr
+          ? (result_uintptr ? "DecodeWord" : "DecodeWord32FromWord")
+          : (result_uintptr ? "DecodeWordFromWord32" : "DecodeWord32");
+
+  out_ << "    " << result_type->GetGeneratedTypeName() << result_name
+       << " = ca_.UncheckedCast<" << result_type->GetGeneratedTNodeTypeName()
+       << ">(CodeStubAssembler(state_)." << decoder << "<"
+       << GetBitFieldSpecialization(source_type, instruction.bit_field)
+       << ">(ca_.UncheckedCast<" << source_word_type << ">(" << bit_field_struct
+       << ")));\n";
+}
+
+void CSAGenerator::EmitInstruction(const StoreBitFieldInstruction& instruction,
+                                   Stack<std::string>* stack) {
+  std::string result_name = FreshNodeName();
+
+  std::string value = stack->Pop();
+  std::string bit_field_struct = stack->Pop();
+  stack->Push(result_name);
+
+  const BitFieldStructType* struct_type = instruction.bit_field_struct_type;
+  const Type* field_type = instruction.bit_field.name_and_type.type;
+  bool struct_uintptr = struct_type->IsSubtypeOf(TypeOracle::GetUIntPtrType());
+  bool field_uintptr = field_type->IsSubtypeOf(TypeOracle::GetUIntPtrType());
+  std::string struct_word_type = struct_uintptr ? "WordT" : "Word32T";
+  std::string field_word_type = field_uintptr ? "UintPtrT" : "Uint32T";
+  std::string encoder =
+      struct_uintptr ? (field_uintptr ? "UpdateWord" : "UpdateWord32InWord")
+                     : (field_uintptr ? "UpdateWordInWord32" : "UpdateWord32");
+
+  out_ << "    " << struct_type->GetGeneratedTypeName() << result_name
+       << " = ca_.UncheckedCast<" << struct_type->GetGeneratedTNodeTypeName()
+       << ">(CodeStubAssembler(state_)." << encoder << "<"
+       << GetBitFieldSpecialization(struct_type, instruction.bit_field)
+       << ">(ca_.UncheckedCast<" << struct_word_type << ">(" << bit_field_struct
+       << "), ca_.UncheckedCast<" << field_word_type << ">(" << value
+       << ")));\n";
+}
+
 // static
 void CSAGenerator::EmitCSAValue(VisitResult result,
                                 const Stack<std::string>& values,

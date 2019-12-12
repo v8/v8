@@ -2744,14 +2744,39 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Returns a node that contains the updated values of a |BitField|.
   template <typename BitField>
-  TNode<WordT> UpdateWord(TNode<WordT> word, TNode<WordT> value) {
+  TNode<Word32T> UpdateWord32(TNode<Word32T> word, TNode<Uint32T> value) {
+    return UpdateWord32(word, value, BitField::kShift, BitField::kMask);
+  }
+
+  // Returns a node that contains the updated values of a |BitField|.
+  template <typename BitField>
+  TNode<WordT> UpdateWord(TNode<WordT> word, TNode<UintPtrT> value) {
     return UpdateWord(word, value, BitField::kShift, BitField::kMask);
+  }
+
+  // Returns a node that contains the updated values of a |BitField|.
+  template <typename BitField>
+  TNode<Word32T> UpdateWordInWord32(TNode<Word32T> word,
+                                    TNode<UintPtrT> value) {
+    return UncheckedCast<Uint32T>(TruncateIntPtrToInt32(
+        Signed(UpdateWord<BitField>(ChangeUint32ToWord(word), value))));
+  }
+
+  // Returns a node that contains the updated values of a |BitField|.
+  template <typename BitField>
+  TNode<WordT> UpdateWord32InWord(TNode<WordT> word, TNode<Uint32T> value) {
+    return UpdateWord<BitField>(word, ChangeUint32ToWord(value));
   }
 
   // Returns a node that contains the updated {value} inside {word} starting
   // at {shift} and fitting in {mask}.
-  TNode<WordT> UpdateWord(TNode<WordT> word, TNode<WordT> value, uint32_t shift,
-                          uint32_t mask);
+  TNode<Word32T> UpdateWord32(TNode<Word32T> word, TNode<Uint32T> value,
+                              uint32_t shift, uint32_t mask);
+
+  // Returns a node that contains the updated {value} inside {word} starting
+  // at {shift} and fitting in {mask}.
+  TNode<WordT> UpdateWord(TNode<WordT> word, TNode<UintPtrT> value,
+                          uint32_t shift, uint32_t mask);
 
   // Returns true if any of the |T|'s bits in given |word32| are set.
   template <typename T>

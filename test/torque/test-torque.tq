@@ -1028,4 +1028,80 @@ namespace test {
     }
   }
 
+  bitfield struct TestBitFieldStruct extends uint8 {
+    a: bool: 1 bit;
+    b: uint16: 3 bit;
+    c: uint32: 3 bit;
+    d: bool: 1 bit;
+  }
+
+  @export
+  macro TestBitFieldLoad(
+      val: TestBitFieldStruct, expectedA: bool, expectedB: uint16,
+      expectedC: uint32, expectedD: bool) {
+    check(val.a == expectedA);
+    check(val.b == expectedB);
+    check(val.c == expectedC);
+    check(val.d == expectedD);
+  }
+
+  @export
+  macro TestBitFieldStore(val: TestBitFieldStruct) {
+    let val: TestBitFieldStruct = val;  // Get a mutable local copy.
+    const a: bool = val.a;
+    const b: uint16 = val.b;
+    let c: uint32 = val.c;
+    const d: bool = val.d;
+
+    val.a = !a;
+    TestBitFieldLoad(val, !a, b, c, d);
+
+    c = Unsigned(7 - Signed(val.c));
+    val.c = c;
+    TestBitFieldLoad(val, !a, b, c, d);
+
+    val.d = val.b == val.c;
+    TestBitFieldLoad(val, !a, b, c, b == c);
+  }
+
+  // Some other bitfield structs, to verify getting uintptr values out of word32
+  // structs and vice versa.
+  bitfield struct TestBitFieldStruct2 extends uint32 {
+    a: uintptr: 5 bit;
+    b: uintptr: 6 bit;
+  }
+  bitfield struct TestBitFieldStruct3 extends uintptr {
+    c: bool: 1 bit;
+    d: uint32: 9 bit;
+    e: uintptr: 17 bit;
+  }
+
+  @export
+  macro TestBitFieldUintptrOps(
+      val2: TestBitFieldStruct2, val3: TestBitFieldStruct3) {
+    let val2: TestBitFieldStruct2 = val2;  // Get a mutable local copy.
+    let val3: TestBitFieldStruct3 = val3;  // Get a mutable local copy.
+
+    // Caller is expected to provide these exact values, so we can verify
+    // reading values before starting to write anything.
+    check(val2.a == 3);
+    check(val2.b == 61);
+    check(val3.c);
+    check(val3.d == 500);
+    check(val3.e == 0x1cc);
+
+    val2.b = 16;
+    check(val2.a == 3);
+    check(val2.b == 16);
+
+    val2.b++;
+    check(val2.a == 3);
+    check(val2.b == 17);
+
+    val3.d = 99;
+    val3.e = 1234;
+    check(val3.c);
+    check(val3.d == 99);
+    check(val3.e == 1234);
+  }
 }

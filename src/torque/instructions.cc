@@ -313,6 +313,19 @@ void StoreReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
   ExpectSubtype(stack->Pop(), TypeOracle::GetHeapObjectType());
 }
 
+void LoadBitFieldInstruction::TypeInstruction(Stack<const Type*>* stack,
+                                              ControlFlowGraph* cfg) const {
+  ExpectType(bit_field_struct_type, stack->Pop());
+  stack->Push(bit_field.name_and_type.type);
+}
+
+void StoreBitFieldInstruction::TypeInstruction(Stack<const Type*>* stack,
+                                               ControlFlowGraph* cfg) const {
+  ExpectSubtype(bit_field.name_and_type.type, stack->Pop());
+  ExpectType(bit_field_struct_type, stack->Pop());
+  stack->Push(bit_field_struct_type);
+}
+
 bool CallRuntimeInstruction::IsBlockTerminator() const {
   return is_tailcall || runtime_function->signature().return_type ==
                             TypeOracle::GetNeverType();

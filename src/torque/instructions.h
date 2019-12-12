@@ -33,6 +33,8 @@ class RuntimeFunction;
   V(CreateFieldReferenceInstruction)  \
   V(LoadReferenceInstruction)         \
   V(StoreReferenceInstruction)        \
+  V(LoadBitFieldInstruction)          \
+  V(StoreBitFieldInstruction)         \
   V(CallCsaMacroInstruction)          \
   V(CallIntrinsicInstruction)         \
   V(NamespaceConstantInstruction)     \
@@ -225,6 +227,29 @@ struct StoreReferenceInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   explicit StoreReferenceInstruction(const Type* type) : type(type) {}
   const Type* type;
+};
+
+// Pops a bitfield struct; pushes a bitfield value extracted from it.
+struct LoadBitFieldInstruction : InstructionBase {
+  TORQUE_INSTRUCTION_BOILERPLATE()
+  LoadBitFieldInstruction(const BitFieldStructType* bit_field_struct_type,
+                          BitField bit_field)
+      : bit_field_struct_type(bit_field_struct_type),
+        bit_field(std::move(bit_field)) {}
+  const BitFieldStructType* bit_field_struct_type;
+  BitField bit_field;
+};
+
+// Pops a bitfield value and a bitfield struct; pushes a new bitfield struct
+// containing the updated value.
+struct StoreBitFieldInstruction : InstructionBase {
+  TORQUE_INSTRUCTION_BOILERPLATE()
+  StoreBitFieldInstruction(const BitFieldStructType* bit_field_struct_type,
+                           BitField bit_field)
+      : bit_field_struct_type(bit_field_struct_type),
+        bit_field(std::move(bit_field)) {}
+  const BitFieldStructType* bit_field_struct_type;
+  BitField bit_field;
 };
 
 struct CallIntrinsicInstruction : InstructionBase {

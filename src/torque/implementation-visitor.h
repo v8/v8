@@ -83,6 +83,13 @@ class LocationReference {
     result.call_arguments_ = {object};
     return result;
   }
+  static LocationReference BitFieldAccess(const LocationReference& object,
+                                          BitField field) {
+    LocationReference result;
+    result.bit_field_struct_ = std::make_shared<LocationReference>(object);
+    result.bit_field_ = std::move(field);
+    return result;
+  }
 
   bool IsConst() const { return temporary_.has_value(); }
 
@@ -106,14 +113,31 @@ class LocationReference {
     DCHECK(IsHeapSlice());
     return *heap_slice_;
   }
+  bool IsBitFieldAccess() const {
+    bool is_bitfield_access = bit_field_struct_ != nullptr;
+    DCHECK_EQ(is_bitfield_access, bit_field_.has_value());
+    return is_bitfield_access;
+  }
+  const LocationReference& bit_field_struct_location() const {
+    DCHECK(IsBitFieldAccess());
+    return *bit_field_struct_;
+  }
+  const BitField& bit_field() const {
+    DCHECK(IsBitFieldAccess());
+    return *bit_field_;
+  }
 
   const Type* ReferencedType() const {
     if (IsHeapReference()) {
       return *Type::MatchUnaryGeneric(heap_reference().type(),
                                       TypeOracle::GetReferenceGeneric());
-    } else if (IsHeapSlice()) {
+    }
+    if (IsHeapSlice()) {
       return *Type::MatchUnaryGeneric(heap_slice().type(),
                                       TypeOracle::GetSliceGeneric());
+    }
+    if (IsBitFieldAccess()) {
+      return bit_field_->name_and_type.type;
     }
     return GetVisitResult().type();
   }
@@ -163,6 +187,13 @@ class LocationReference {
   base::Optional<std::string> assign_function_;
   VisitResultVector call_arguments_;
   base::Optional<Binding<LocalValue>*> binding_;
+
+  // The location of the bitfield struct that contains this bitfield, if this
+  // reference is a bitfield access. Uses a shared_ptr so that LocationReference
+  // is copyable, allowing us to set this field equal to a copy of a
+  // stack-allocated LocationReference.
+  std::shared_ptr<const LocationReference> bit_field_struct_;
+  base::Optional<BitField> bit_field_;
 
   LocationReference() = default;
 };
