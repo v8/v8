@@ -325,7 +325,7 @@ const kMaxTypedArrayInHeap:
 // kMaxSafeIntegerUint64 is defined as uintptr and allowed to be used only
 // inside if constexpr (Is64()) i.e. on 64-bit architectures.
 const kMaxSafeIntegerUint64: constexpr uintptr
-    generates 'static_cast<uintptr_t>(kMaxSafeIntegerUint64)';
+    generates 'CodeStubAssembler::MaxSafeIntegerUintPtr()';
 const kMaxSafeInteger: constexpr float64 generates 'kMaxSafeInteger';
 const kMaxUInt32Double: constexpr float64 generates 'kMaxUInt32Double';
 const kSmiMaxValue: constexpr uintptr generates 'kSmiMaxValue';

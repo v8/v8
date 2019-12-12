@@ -3593,6 +3593,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   bool ConstexprUintPtrLessThan(uintptr_t a, uintptr_t b) { return a < b; }
 
+  // CSA does not support 64-bit types on 32-bit platforms so as a workaround
+  // the kMaxSafeIntegerUint64 is defined as uintptr and allowed to be used only
+  // inside if constexpr (Is64()) i.e. on 64-bit architectures.
+  static uintptr_t MaxSafeIntegerUintPtr() {
+#if defined(V8_HOST_ARCH_64_BIT)
+    // This ifdef is required to avoid build issues on 32-bit MSVC which
+    // complains about static_cast<uintptr_t>(kMaxSafeIntegerUint64).
+    return kMaxSafeIntegerUint64;
+#else
+    UNREACHABLE();
+#endif
+  }
+
   void PerformStackCheck(TNode<Context> context);
 
   void SetPropertyLength(TNode<Context> context, TNode<Object> array,
