@@ -5222,10 +5222,13 @@ EmbedderHeapTracer::TraceFlags Heap::flags_for_embedder_tracer() const {
 }
 
 void Heap::RegisterExternallyReferencedObject(Address* location) {
-  // The embedder is not aware of whether numbers are materialized as heap
-  // objects are just passed around as Smis.
+  GlobalHandles::MarkTraced(location);
   Object object(*location);
-  if (!object.IsHeapObject()) return;
+  if (!object.IsHeapObject()) {
+    // The embedder is not aware of whether numbers are materialized as heap
+    // objects are just passed around as Smis.
+    return;
+  }
   HeapObject heap_object = HeapObject::cast(object);
   DCHECK(IsValidHeapObject(this, heap_object));
   if (FLAG_incremental_marking_wrappers && incremental_marking()->IsMarking()) {
