@@ -4468,14 +4468,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
       // This will cause more frequent GCs when stressing.
       max_semi_space_size_ = MB;
     }
-    // The new space size must be a power of two to support single-bit testing
-    // for containment.
-    // TODO(ulan): Rounding to a power of 2 is not longer needed. Remove it.
-    max_semi_space_size_ =
-        static_cast<size_t>(base::bits::RoundUpToPowerOfTwo64(
-            static_cast<uint64_t>(max_semi_space_size_)));
     max_semi_space_size_ = Max(max_semi_space_size_, kMinSemiSpaceSize);
-    max_semi_space_size_ = Min(max_semi_space_size_, kMaxSemiSpaceSize);
     max_semi_space_size_ = RoundDown<Page::kPageSize>(max_semi_space_size_);
   }
 

@@ -2245,8 +2245,6 @@ NewSpace::NewSpace(Heap* heap, v8::PageAllocator* page_allocator,
       to_space_(heap, kToSpace),
       from_space_(heap, kFromSpace) {
   DCHECK(initial_semispace_capacity <= max_semispace_capacity);
-  DCHECK(
-      base::bits::IsPowerOfTwo(static_cast<uint32_t>(max_semispace_capacity)));
 
   to_space_.SetUp(initial_semispace_capacity, max_semispace_capacity);
   from_space_.SetUp(initial_semispace_capacity, max_semispace_capacity);
