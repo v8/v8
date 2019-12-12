@@ -175,6 +175,15 @@ Node* RepresentationChanger::GetRepresentationFor(
     }
   }
 
+  // Rematerialize any truncated BigInt if user is not expecting a BigInt.
+  if (output_type.Is(Type::BigInt()) &&
+      output_rep == MachineRepresentation::kWord64 &&
+      use_info.type_check() != TypeCheckKind::kBigInt) {
+    node =
+        InsertConversion(node, simplified()->ChangeUint64ToBigInt(), use_node);
+    output_rep = MachineRepresentation::kTaggedPointer;
+  }
+
   switch (use_info.representation()) {
     case MachineRepresentation::kTaggedSigned:
       DCHECK(use_info.type_check() == TypeCheckKind::kNone ||
