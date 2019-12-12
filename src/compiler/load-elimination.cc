@@ -661,15 +661,13 @@ LoadElimination::FieldInfo const* LoadElimination::AbstractState::LookupField(
     }
     if (!result.has_value()) {
       result = info;
-    } else {
-      // We detected a partially overlapping access here.
-      // We currently don't seem to have such accesses, so this code path is
-      // unreachable, but if we eventually have them, it is safe to return
-      // nullptr and continue the analysis. But store-store elimination is
-      // currently unsafe for such overlapping accesses, so when we remove
-      // this check, we should double-check that store-store elimination can
-      // handle it too.
-      DCHECK_EQ(**result, *info);
+    } else if (**result != *info) {
+      // We detected inconsistent information for a field here.
+      // This can happen when incomplete alias information makes an unrelated
+      // write invalidate part of a field and then we re-combine this partial
+      // information.
+      // This is probably OK, but since it's rare, we better bail out here.
+      return nullptr;
     }
   }
   return *result;
