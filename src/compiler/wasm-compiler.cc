@@ -5309,6 +5309,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return pos;
   }
 
+  // Calls the ECMAScript ToNumber operation on {node}. Returns a {Smi} or
+  // {HeapNumber}.
   Node* BuildJavaScriptToNumber(Node* node, Node* js_context) {
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         mcgraph()->zone(), TypeConversionDescriptor{}, 0,
@@ -5325,52 +5327,27 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return result;
   }
 
-  Node* BuildChangeTaggedToFloat64(Node* value) {
-    MachineOperatorBuilder* machine = mcgraph()->machine();
-    CommonOperatorBuilder* common = mcgraph()->common();
-
-    // Implement the following decision tree:
-    //  heap object?
-    //  ├─ true: undefined?
-    //  │        ├─ true: f64 const
-    //  │        └─ false: load heap number value
-    //  └─ false: smi to float64
-
+  // Converts a number (Smi or HeapNumber) to float64.
+  Node* BuildChangeNumberToFloat64(Node* value) {
+    // If the input is a HeapNumber, we load the value from it.
     Node* check_heap_object = BuildTestHeapObject(value);
-    Diamond is_heap_object(graph(), common, check_heap_object,
-                           BranchHint::kFalse);
-    is_heap_object.Chain(Control());
+    Diamond is_heapnumber(graph(), mcgraph()->common(), check_heap_object,
+                          BranchHint::kFalse);
+    is_heapnumber.Chain(Control());
 
-    SetControl(is_heap_object.if_true);
-    Node* orig_effect = Effect();
+    SetControl(is_heapnumber.if_true);
+    Node* effect_orig = Effect();
+    Node* v_heapnumber = BuildLoadHeapNumberValue(value);
+    Node* effect_heapnumber = Effect();
 
-    Node* undefined_node = BuildLoadUndefinedValueFromInstance();
-    Node* check_undefined =
-        graph()->NewNode(machine->WordEqual(), value, undefined_node);
-    Node* effect_tagged = Effect();
+    SetControl(is_heapnumber.merge);
+    // If the input is Smi, just convert to float64.
+    Node* v_smi = BuildChangeSmiToFloat64(value);
 
-    Diamond is_undefined(graph(), common, check_undefined, BranchHint::kFalse);
-    is_undefined.Nest(is_heap_object, true);
+    SetEffect(is_heapnumber.EffectPhi(effect_heapnumber, effect_orig));
 
-    SetControl(is_undefined.if_false);
-    Node* vheap_number = BuildLoadHeapNumberValue(value);
-    Node* effect_undefined = Effect();
-
-    SetControl(is_undefined.merge);
-    Node* vundefined =
-        mcgraph()->Float64Constant(std::numeric_limits<double>::quiet_NaN());
-    Node* vtagged = is_undefined.Phi(MachineRepresentation::kFloat64,
-                                     vundefined, vheap_number);
-
-    effect_tagged = is_undefined.EffectPhi(effect_tagged, effect_undefined);
-
-    // If input is Smi: just convert to float64.
-    Node* vfrom_smi = BuildChangeSmiToFloat64(value);
-
-    SetControl(is_heap_object.merge);
-    SetEffect(is_heap_object.EffectPhi(effect_tagged, orig_effect));
-    return is_heap_object.Phi(MachineRepresentation::kFloat64, vtagged,
-                              vfrom_smi);
+    return is_heapnumber.Phi(MachineRepresentation::kFloat64, v_heapnumber,
+                             v_smi);
   }
 
   Node* ToJS(Node* node, wasm::ValueType type) {
@@ -5475,7 +5452,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       num = BuildJavaScriptToNumber(node, js_context);
 
       // Change representation.
-      num = BuildChangeTaggedToFloat64(num);
+      num = BuildChangeNumberToFloat64(num);
     }
 
     switch (type) {
