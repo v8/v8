@@ -973,6 +973,7 @@ torque_files = [
   "src/builtins/object.tq",
   "src/builtins/promise-abstract-operations.tq",
   "src/builtins/promise-constructor.tq",
+  "src/builtins/promise-resolve.tq",
   "src/builtins/promise-then.tq",
   "src/builtins/promise-jobs.tq",
   "src/builtins/proxy-constructor.tq",
