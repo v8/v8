@@ -29,6 +29,7 @@ import subprocess
 import sys
 import tempfile
 import operator
+from callstats_groups import RUNTIME_CALL_STATS_GROUPS
 
 import numpy
 import scipy

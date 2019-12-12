@@ -20,10 +20,17 @@ import sys
 import tempfile
 import gzip
 
+from callstats_groups import RUNTIME_CALL_STATS_GROUPS
+
 def parse_args():
   parser = argparse.ArgumentParser(
       description="Run story and collect runtime call stats.")
   parser.add_argument("story", metavar="story", nargs=1, help="story to run")
+  parser.add_argument(
+      "--group",
+      dest="group",
+      action="store_true",
+      help="group common stats together into buckets")
   parser.add_argument(
       "-r",
       "--repeats",
@@ -57,14 +64,22 @@ def parse_args():
       dest="format",
       action="store",
       choices=["csv", "table"],
-      help=("output as CSV"))
+      help="output as CSV")
   parser.add_argument(
       "-o",
       "--output",
       metavar="FILE",
       dest="out_file",
       action="store",
-      help=("write table to FILE rather stdout"))
+      help="write table to FILE rather stdout")
+  parser.add_argument(
+      "--browser",
+      dest="browser",
+      metavar="BROWSER_TYPE",
+      action="store",
+      default="release",
+      help=("Passed directly to --browser option of run_benchmark. Ignored if "
+            "-executable is used"))
   parser.add_argument(
       "-e",
       "--executable",
@@ -102,6 +117,11 @@ def parse_args():
       dest="stdev",
       action="store_true",
       help="adds columns for the standard deviation")
+  parser.add_argument(
+      "--filter",
+      dest="filter",
+      action="append",
+      help="useable with --group to only show buckets specified by filter")
 
   return parser.parse_args()
 
@@ -130,7 +150,7 @@ def process_trace(trace_file):
 
 def run_benchmark(story, repeats=1, output_dir=".", verbose=False, js_flags=None,
                   browser_args=None, chromium_dir=".", executable=None,
-                  benchmark="v8.browsing_desktop", device=None):
+                  benchmark="v8.browsing_desktop", device=None, browser="release"):
 
   orig_chromium_dir = chromium_dir
   xvfb = os.path.join(chromium_dir, "testing", "xvfb.py")
@@ -155,7 +175,7 @@ def run_benchmark(story, repeats=1, output_dir=".", verbose=False, js_flags=None
   if executable:
     command += ["--browser-executable", executable]
   else:
-    command += ["--browser", "release"]
+    command += ["--browser", browser]
 
   if device:
     command += ["--device", device]
@@ -202,13 +222,18 @@ def run_benchmark(story, repeats=1, output_dir=".", verbose=False, js_flags=None
   print("\nrun_benchmark completed")
 
 
-def write_output(f, table, headers, format="table"):
+def write_output(f, table, headers, run_count, format="table"):
   if format == "csv":
+    # strip new lines from CSV output
+    headers = [h.replace('\n', ' ') for h in headers]
     writer = csv.writer(f)
     writer.writerow(headers)
     writer.writerows(table)
   else:
-    f.write(tabulate.tabulate(table, headers=headers, floatfmt=".2f"))
+    # First column is name, and then they alternate between counts and durations
+    summary_count = len(headers) - 2 * run_count - 1
+    floatfmt = ("",) + (".0f", ".2f") * run_count + (".2f",) * summary_count
+    f.write(tabulate.tabulate(table, headers=headers, floatfmt=floatfmt))
     f.write("\n")
 
 
@@ -232,10 +257,120 @@ def main():
                   chromium_dir=args.chromium_dir,
                   benchmark=args.benchmark,
                   executable=args.executable,
+                  browser=args.browser,
                   device=args.device)
 
   outputs = {}
   combined_output = {}
+  if args.group:
+    groups = RUNTIME_CALL_STATS_GROUPS
+  else:
+    groups = []
+
+
+
+  class Row:
+    def __init__(self, name, run_count):
+      self.name = name
+      self.durations = [0] * run_count
+      self.counts = [0] * run_count
+      self.mean_duration = None
+      self.mean_count = None
+      self.stdev_duration = None
+      self.stdev_count = None
+
+    def __repr__(self):
+      data_str = ", ".join(str((c, d)) for
+                           (c, d) in zip(self.counts, self.durations))
+      return (f"{self.name}: {data_str}, mean_count: {self.mean_count}, " +
+              f"mean_duration: {self.mean_duration}")
+
+
+    def add_data(self, counts, durations):
+      self.counts = counts
+      self.durations = durations
+
+    def add_data_point(self, run, count, duration):
+      self.counts[run] = count
+      self.durations[run] = duration
+
+    def prepare(self, stdev=False):
+      if len(self.durations) > 1:
+        self.mean_duration = statistics.mean(self.durations)
+        self.mean_count = statistics.mean(self.counts)
+        if stdev:
+          self.stdev_duration = statistics.stdev(self.durations)
+          self.stdev_count = statistics.stdev(self.counts)
+
+    def as_list(self):
+      l = [self.name]
+      for (c, d) in zip(self.counts, self.durations):
+        l += [c, d]
+      if self.mean_duration is not None:
+        l += [self.mean_count]
+        if self.stdev_count is not None:
+          l += [self.stdev_count]
+        l += [self.mean_duration]
+        if self.stdev_duration is not None:
+          l += [self.stdev_duration]
+      return l
+
+    def key(self):
+      if self.mean_duration is not None:
+        return self.mean_duration
+      else:
+        return self.durations[0]
+
+
+  class Bucket:
+    def __init__(self, name, run_count):
+      self.name = name
+      self.run_count = run_count
+      self.data = {}
+      self.table = None
+      self.total_row = None
+
+    def __repr__(self):
+      s = "Bucket: " + self.name + " {\n"
+      if self.table:
+        s += "\n  ".join(str(row) for row in self.table) + "\n"
+      elif self.data:
+        s += "\n  ".join(str(row) for row in self.data.values()) + "\n"
+      if self.total_row:
+        s += "  " + str(self.total_row) + "\n"
+      return s + "}"
+
+
+    def add_data_point(self, name, run, count, duration):
+      if name not in self.data:
+        self.data[name] = Row(name, self.run_count)
+
+      self.data[name].add_data_point(run, count, duration)
+
+
+    def prepare(self, stdev=False):
+      if self.data:
+        for row in self.data.values():
+          row.prepare(stdev)
+
+        self.table = sorted(self.data.values(), key=Row.key)
+        self.total_row = Row("Total", self.run_count)
+        self.total_row.add_data(
+            [sum(r.counts[i] for r in self.data.values()) for i in range(0, self.run_count)],
+            [sum(r.durations[i] for r in self.data.values()) for i in range(0, self.run_count)])
+        self.total_row.prepare(stdev)
+
+    def as_list(self, add_bucket_titles=True, filter=None):
+      t = []
+      if filter is None or self.name in filter:
+        if add_bucket_titles:
+          t += [["\n"], [self.name]]
+        t += [r.as_list() for r in self.table]
+        t += [self.total_row.as_list()]
+      return t
+
+  buckets = {}
+
   for i in range(0, args.repeats):
     story_dir = f"{story.replace(':', '_')}_{i + 1}"
     trace_dir = os.path.join(output_dir, story_dir, "trace", "traceEvents")
@@ -259,60 +394,46 @@ def main():
 
     output = process_trace(trace_file)
     outputs[i] = output
-
     for name in output:
+      bucket_name = "Other"
+      for group in groups:
+        if group[1].match(name):
+          bucket_name = group[0]
+          break
+
       value = output[name]
-      if name not in combined_output:
-        combined_output[name] = {
-            "duration": [0.0] * args.repeats,
-            "count": [0] * args.repeats
-        }
+      if bucket_name not in buckets:
+        bucket = Bucket(bucket_name, args.repeats)
+        buckets[bucket_name] = bucket
+      else:
+        bucket = buckets[bucket_name]
 
-      combined_output[name]["count"][i] = value["count"]
-      combined_output[name]["duration"][i] = value["duration"] / 1000.0
+      bucket.add_data_point(name, i, value["count"], value["duration"] / 1000.0)
 
-  table = []
-  for name in combined_output:
-    value = combined_output[name]
-    row = [name]
-    total_count = 0
-    total_duration = 0
-    for i in range(0, args.repeats):
+  for b in buckets.values():
+    b.prepare(args.stdev)
 
-      count = value["count"][i]
-      duration = value["duration"][i]
-      total_count += count
-      total_duration += duration
-      row += [count, duration]
+  def create_table(buckets, record_bucket_names=True, filter=None):
+    table = []
+    for bucket in buckets.values():
+      table += bucket.as_list(add_bucket_titles=record_bucket_names, filter=filter)
+    return table
 
-    if args.repeats > 1:
-      totals = [total_count / args.repeats]
-      if args.stdev:
-        totals += [statistics.stdev(row[1:-1:2])]
-      totals += [total_duration / args.repeats]
-      if args.stdev:
-        totals += [statistics.stdev(row[2:-1:2])]
-      row += totals
+  table = create_table(buckets, record_bucket_names=args.group, filter=args.filter)
 
-    table += [row]
-
-  def sort_duration(value):
-    return value[-1]
-
-  table.sort(key=sort_duration)
-  headers = [""] + ["Count", "Duration (ms)"] * args.repeats
+  headers = [""] + ["Count", "Duration\n(ms)"] * args.repeats
   if args.repeats > 1:
     if args.stdev:
-      headers += ["Count Mean", "Count Stdev",
-                  "Duration Mean (ms)", "Duration Stdev"]
+      headers += ["Count\nMean", "Count\nStdev",
+                  "Duration\nMean (ms)", "Duration\nStdev (ms)"]
     else:
-      headers += ["Count Mean", "Duration Mean (ms)"]
+      headers += ["Count\nMean", "Duration\nMean (ms)"]
 
   if args.out_file:
     with open(args.out_file, "w", newline="") as f:
-      write_output(f, table, headers, args.format)
+      write_output(f, table, headers, args.repeats, args.format)
   else:
-    write_output(sys.stdout, table, headers, args.format)
+    write_output(sys.stdout, table, headers, args.repeats, args.format)
 
 if __name__ == '__main__':
   sys.exit(main())
