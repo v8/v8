@@ -406,15 +406,13 @@ Handle<String> AsStringOrEmpty(Isolate* isolate, Handle<Object> object) {
 }
 
 Handle<String> NoSideEffectsErrorToString(Isolate* isolate,
-                                          Handle<Object> input) {
-  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(input);
-
+                                          Handle<JSReceiver> error) {
   Handle<Name> name_key = isolate->factory()->name_string();
-  Handle<Object> name = JSReceiver::GetDataProperty(receiver, name_key);
+  Handle<Object> name = JSReceiver::GetDataProperty(error, name_key);
   Handle<String> name_str = AsStringOrEmpty(isolate, name);
 
   Handle<Name> msg_key = isolate->factory()->message_string();
-  Handle<Object> msg = JSReceiver::GetDataProperty(receiver, msg_key);
+  Handle<Object> msg = JSReceiver::GetDataProperty(error, msg_key);
   Handle<String> msg_str = AsStringOrEmpty(isolate, msg);
 
   if (name_str->length() == 0) return msg_str;
@@ -423,7 +421,12 @@ Handle<String> NoSideEffectsErrorToString(Isolate* isolate,
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(name_str);
   builder.AppendCString(": ");
-  builder.AppendString(msg_str);
+
+  if (builder.Length() + msg_str->length() <= String::kMaxLength) {
+    builder.AppendString(msg_str);
+  } else {
+    builder.AppendCString("<a very large string>");
+  }
 
   return builder.Finish().ToHandleChecked();
 }
@@ -494,7 +497,8 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
       // When internally formatting error objects, use a side-effects-free
       // version of Error.prototype.toString independent of the actually
       // installed toString method.
-      return NoSideEffectsErrorToString(isolate, input);
+      return NoSideEffectsErrorToString(isolate,
+                                        Handle<JSReceiver>::cast(input));
     } else if (*to_string == *isolate->object_to_string()) {
       Handle<Object> ctor = JSReceiver::GetDataProperty(
           receiver, isolate->factory()->constructor_string());
