@@ -1075,6 +1075,7 @@ DEFINE_BOOL(disallow_code_generation_from_strings, false,
 DEFINE_BOOL(expose_async_hooks, false, "expose async_hooks object")
 DEFINE_STRING(expose_cputracemark_as, nullptr,
               "expose cputracemark extension under the specified name")
+DEFINE_BOOL(enable_vtune_domain_support, false, "enable vtune domain support")
 
 // builtins.cc
 DEFINE_BOOL(allow_unsafe_function_constructor, false,

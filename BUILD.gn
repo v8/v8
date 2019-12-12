@@ -75,6 +75,9 @@ declare_args() {
   # Sets -dENABLE_VTUNE_JIT_INTERFACE.
   v8_enable_vtunejit = false
 
+  # Sets -dENABLE_VTUNE_TRACEMARK.
+  v8_enable_vtunetracemark = false
+
   # Sets -dENABLE_HANDLE_ZAPPING.
   v8_enable_handle_zapping = true
 
@@ -404,6 +407,9 @@ config("features") {
   }
   if (v8_enable_vtunejit) {
     defines += [ "ENABLE_VTUNE_JIT_INTERFACE" ]
+  }
+  if (v8_enable_vtunetracemark) {
+    defines += [ "ENABLE_VTUNE_TRACEMARK" ]
   }
   if (v8_enable_minor_mc) {
     defines += [ "ENABLE_MINOR_MC" ]
@@ -3324,6 +3330,14 @@ v8_source_set("v8_base_without_compiler") {
       v8_current_cpu == "ppc" || v8_current_cpu == "ppc64" ||
       v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     libs += [ "atomic" ]
+  }
+
+  if (v8_enable_vtunetracemark && (is_linux || is_win)) {
+    sources += [
+      "src/extensions/vtunedomain-support-extension.cc",
+      "src/extensions/vtunedomain-support-extension.h",
+    ]
+    deps += [ "src/third_party/vtune:v8_vtune_trace_mark" ]
   }
 }
 
