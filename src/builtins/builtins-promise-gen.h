@@ -141,10 +141,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<Word32T> PromiseStatus(Node* promise);
 
-  void PromiseReactionJob(Node* context, Node* argument, Node* handler,
-                          Node* promise_or_capability,
-                          PromiseReaction::Type type);
-
   TNode<BoolT> IsPromiseStatus(TNode<Word32T> actual,
                                v8::Promise::PromiseState expected);
   TNode<JSPromise> AllocateJSPromise(TNode<Context> context);
