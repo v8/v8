@@ -1094,25 +1094,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64And32:
-      if (instr->InputAt(1)->IsRegister()) {
         __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
         __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
-      } else {
-        __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-        __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
-      }
       break;
     case kMips64Or:
       __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Or32:
-      if (instr->InputAt(1)->IsRegister()) {
         __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
         __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
-      } else {
-        __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-        __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
-      }
       break;
     case kMips64Nor:
       if (instr->InputAt(1)->IsRegister()) {
@@ -1136,13 +1126,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Xor32:
-      if (instr->InputAt(1)->IsRegister()) {
         __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
         __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
-      } else {
-        __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-        __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
-      }
       break;
     case kMips64Clz:
       __ Clz(i.OutputRegister(), i.InputRegister(0));
@@ -1181,8 +1166,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMips64Shr:
       if (instr->InputAt(1)->IsRegister()) {
-        __ sll(i.OutputRegister(), i.InputRegister(0), 0x0);
-        __ srlv(i.OutputRegister(), i.OutputRegister(), i.InputRegister(1));
+        __ sll(i.InputRegister(0), i.InputRegister(0), 0x0);
+        __ srlv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         int64_t imm = i.InputOperand(1).immediate();
         __ sll(i.OutputRegister(), i.InputRegister(0), 0x0);
@@ -1192,8 +1177,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMips64Sar:
       if (instr->InputAt(1)->IsRegister()) {
-        __ sll(i.OutputRegister(), i.InputRegister(0), 0x0);
-        __ srav(i.OutputRegister(), i.OutputRegister(), i.InputRegister(1));
+        __ sll(i.InputRegister(0), i.InputRegister(0), 0x0);
+        __ srav(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         int64_t imm = i.InputOperand(1).immediate();
         __ sll(i.OutputRegister(), i.InputRegister(0), 0x0);
