@@ -863,10 +863,11 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
       break;
     }
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
+
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-      // JSArrays never have typed elements.
-      UNREACHABLE();
+      // External arrays are always dense.
+      return length;
     case NO_ELEMENTS:
       return 0;
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
@@ -943,17 +944,15 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
       {
-        size_t length = Handle<JSTypedArray>::cast(object)->length();
-        // We are only interested in the first {range} elements, so any
-        // additional elements in the typed array can be safely ignored.
+        // TODO(bmeurer, v8:4153): Change this to size_t later.
+        uint32_t length =
+            static_cast<uint32_t>(Handle<JSTypedArray>::cast(object)->length());
         if (range <= length) {
           length = range;
           // We will add all indices, so we might as well clear it first
           // and avoid duplicates.
           indices->clear();
         }
-        // {range} puts a cap on {length}.
-        DCHECK_LE(length, std::numeric_limits<uint32_t>::max());
         for (uint32_t i = 0; i < length; i++) {
           indices->push_back(i);
         }
@@ -1233,11 +1232,6 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
         kind = GetMoreGeneralElementsKind(kind, array_kind);
       }
       element_estimate = EstimateElementCount(isolate, array);
-    } else if (obj->IsJSTypedArray()) {
-      size_t raw_length = Handle<JSTypedArray>::cast(obj)->length();
-      length_estimate = static_cast<uint32_t>(std::min(
-          raw_length, static_cast<size_t>(JSObject::kMaxElementCount)));
-      element_estimate = length_estimate;
     } else {
       if (obj->IsHeapObject()) {
         kind = GetMoreGeneralElementsKind(
