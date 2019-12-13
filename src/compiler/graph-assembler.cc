@@ -447,26 +447,26 @@ Node* GraphAssembler::IntPtrEqual(Node* left, Node* right) {
 
 Node* GraphAssembler::TaggedEqual(Node* left, Node* right) {
   if (COMPRESS_POINTERS_BOOL) {
-    return Word32Equal(ChangeTaggedToCompressed(left),
-                       ChangeTaggedToCompressed(right));
+    return Word32Equal(left, right);
+  } else {
+    return WordEqual(left, right);
   }
-  return WordEqual(left, right);
 }
 
 Node* GraphAssembler::SmiSub(Node* left, Node* right) {
   if (COMPRESS_POINTERS_BOOL) {
-    return Int32Sub(ChangeTaggedToCompressed(left),
-                    ChangeTaggedToCompressed(right));
+    return Int32Sub(left, right);
+  } else {
+    return IntSub(left, right);
   }
-  return IntSub(left, right);
 }
 
 Node* GraphAssembler::SmiLessThan(Node* left, Node* right) {
   if (COMPRESS_POINTERS_BOOL) {
-    return Int32LessThan(ChangeTaggedToCompressed(left),
-                         ChangeTaggedToCompressed(right));
+    return Int32LessThan(left, right);
+  } else {
+    return IntLessThan(left, right);
   }
-  return IntLessThan(left, right);
 }
 
 Node* GraphAssembler::Float64RoundDown(Node* value) {

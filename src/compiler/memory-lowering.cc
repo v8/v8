@@ -402,9 +402,6 @@ bool ValueNeedsWriteBarrier(Node* value, Isolate* isolate) {
     switch (value->opcode()) {
       case IrOpcode::kBitcastWordToTaggedSigned:
         return false;
-      case IrOpcode::kChangeTaggedToCompressed:
-        value = NodeProperties::GetValueInput(value, 0);
-        continue;
       case IrOpcode::kHeapConstant: {
         RootIndex root_index;
         if (isolate->roots_table().IsRootHandle(HeapConstantOf(value->op()),
