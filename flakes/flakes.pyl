@@ -19,6 +19,26 @@
 
 [
   {
+    "bisect_buildername": "V8 Linux - builder",
+    "bisect_mastername": "client.v8",
+    "bug_url": "https://crbug.com/v8/10034",
+    "build_config": "Release",
+    "extra_args": [],
+    "isolated_name": "bot_default",
+    "num_shards": 2,
+    "repetitions": 5000,
+    "swarming_dimensions": [
+      "cpu:x86-64-avx2",
+      "gpu:none",
+      "os:Ubuntu-16.04",
+      "pool:chromium.tests",
+    ],
+    "test_name": "cctest/test-debug-helper/GetObjectProperties",
+    "timeout_sec": 60,
+    "total_timeout_sec": 120,
+    "variant": "stress_js_bg_compile_wasm_code_gc",
+  },
+  {
     "bisect_buildername": "V8 Win32 - debug builder",
     "bisect_mastername": "client.v8",
     "bug_url": "https://crbug.com/v8/10011",
