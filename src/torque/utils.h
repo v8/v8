@@ -118,47 +118,56 @@ class Deduplicator {
   std::unordered_set<T, base::hash<T>> storage_;
 };
 
+template <class T>
+T& DereferenceIfPointer(T* x) {
+  return *x;
+}
+template <class T>
+T&& DereferenceIfPointer(T&& x) {
+  return std::forward<T>(x);
+}
+
+template <class T, class L>
+struct ListPrintAdaptor {
+  const T& list;
+  const std::string& separator;
+  L transformer;
+
+  friend std::ostream& operator<<(std::ostream& os, const ListPrintAdaptor& l) {
+    bool first = true;
+    for (auto& e : l.list) {
+      if (first) {
+        first = false;
+      } else {
+        os << l.separator;
+      }
+      os << DereferenceIfPointer(l.transformer(e));
+    }
+    return os;
+  }
+};
+
+template <class T>
+auto PrintList(const T& list, const std::string& separator = ", ") {
+  using ElementType = decltype(*list.begin());
+  auto id = [](ElementType el) { return el; };
+  return ListPrintAdaptor<T, decltype(id)>{list, separator, id};
+}
+
+template <class T, class L>
+auto PrintList(const T& list, const std::string& separator, L&& transformer) {
+  return ListPrintAdaptor<T, L&&>{list, separator,
+                                  std::forward<L>(transformer)};
+}
+
 template <class C, class T>
-void PrintCommaSeparatedList(std::ostream& os, const T& list, C transform) {
-  bool first = true;
-  for (auto& e : list) {
-    if (first) {
-      first = false;
-    } else {
-      os << ", ";
-    }
-    os << transform(e);
-  }
+void PrintCommaSeparatedList(std::ostream& os, const T& list, C&& transform) {
+  os << PrintList(list, ", ", std::forward<C>(transform));
 }
 
-template <class T,
-          typename std::enable_if<
-              std::is_pointer<typename T::value_type>::value, int>::type = 0>
+template <class T>
 void PrintCommaSeparatedList(std::ostream& os, const T& list) {
-  bool first = true;
-  for (auto& e : list) {
-    if (first) {
-      first = false;
-    } else {
-      os << ", ";
-    }
-    os << *e;
-  }
-}
-
-template <class T,
-          typename std::enable_if<
-              !std::is_pointer<typename T::value_type>::value, int>::type = 0>
-void PrintCommaSeparatedList(std::ostream& os, const T& list) {
-  bool first = true;
-  for (auto& e : list) {
-    if (first) {
-      first = false;
-    } else {
-      os << ", ";
-    }
-    os << e;
-  }
+  os << PrintList(list, ", ");
 }
 
 struct BottomOffset {

@@ -460,13 +460,14 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
       std::string generated_name = AddParameter(
           i, builtin, &parameters, &parameter_types, &parameter_bindings, true);
       const Type* actual_type = signature.parameter_types.types[i];
-      const Type* expected_type;
+      std::vector<const Type*> expected_types;
       if (param_name == "context") {
         source_out() << "  TNode<NativeContext> " << generated_name
                      << " = UncheckedCast<NativeContext>(Parameter("
                      << "Descriptor::kContext));\n";
         source_out() << "  USE(" << generated_name << ");\n";
-        expected_type = TypeOracle::GetNativeContextType();
+        expected_types = {TypeOracle::GetNativeContextType(),
+                          TypeOracle::GetContextType()};
       } else if (param_name == "receiver") {
         source_out()
             << "  TNode<Object> " << generated_name << " = "
@@ -475,31 +476,32 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
                     : "UncheckedCast<Object>(Parameter(Descriptor::kReceiver))")
             << ";\n";
         source_out() << "USE(" << generated_name << ");\n";
-        expected_type = TypeOracle::GetJSAnyType();
+        expected_types = {TypeOracle::GetJSAnyType()};
       } else if (param_name == "newTarget") {
         source_out() << "  TNode<Object> " << generated_name
                      << " = UncheckedCast<Object>(Parameter("
                      << "Descriptor::kJSNewTarget));\n";
         source_out() << "USE(" << generated_name << ");\n";
-        expected_type = TypeOracle::GetJSAnyType();
+        expected_types = {TypeOracle::GetJSAnyType()};
       } else if (param_name == "target") {
         source_out() << "  TNode<JSFunction> " << generated_name
                      << " = UncheckedCast<JSFunction>(Parameter("
                      << "Descriptor::kJSTarget));\n";
         source_out() << "USE(" << generated_name << ");\n";
-        expected_type = TypeOracle::GetJSFunctionType();
+        expected_types = {TypeOracle::GetJSFunctionType()};
       } else {
         Error(
             "Unexpected implicit parameter \"", param_name,
             "\" for JavaScript calling convention, "
             "expected \"context\", \"receiver\", \"target\", or \"newTarget\"")
             .Position(param_pos);
-        expected_type = actual_type;
+        expected_types = {actual_type};
       }
-      if (actual_type != expected_type) {
+      if (std::find(expected_types.begin(), expected_types.end(),
+                    actual_type) == expected_types.end()) {
         Error("According to JavaScript calling convention, expected parameter ",
-              param_name, " to have type ", *expected_type, " but found type ",
-              *actual_type)
+              param_name, " to have type ", PrintList(expected_types, " or "),
+              " but found type ", *actual_type)
             .Position(param_pos);
       }
     }
