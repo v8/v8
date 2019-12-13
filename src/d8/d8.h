@@ -274,6 +274,7 @@ class ShellOptions {
   bool expected_to_throw = false;
   bool mock_arraybuffer_allocator = false;
   size_t mock_arraybuffer_allocator_limit = 0;
+  bool multi_mapped_mock_allocator = false;
   bool enable_inspector = false;
   int num_isolates = 1;
   v8::ScriptCompiler::CompileOptions compile_options =
