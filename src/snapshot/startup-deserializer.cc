@@ -44,6 +44,8 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
     FlushICache();
   }
 
+  CheckNoArrayBufferBackingStores();
+
   isolate->heap()->set_native_contexts_list(
       ReadOnlyRoots(isolate).undefined_value());
   // The allocation site list is build during root iteration, but if no sites

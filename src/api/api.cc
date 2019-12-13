@@ -8067,6 +8067,10 @@ void Isolate::CheckMemoryPressure() {
   heap->CheckMemoryPressure();
 }
 
+void Isolate::CheckGarbageCollectionIsAllowed() {
+  DCHECK(i::AllowHeapAllocation::IsAllowed());
+}
+
 HeapProfiler* Isolate::GetHeapProfiler() {
   i::HeapProfiler* heap_profiler =
       reinterpret_cast<i::Isolate*>(this)->heap_profiler();

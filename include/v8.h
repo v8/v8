@@ -9257,6 +9257,7 @@ class V8_EXPORT Isolate {
   internal::Address* GetDataFromSnapshotOnce(size_t index);
   void ReportExternalAllocationLimitReached();
   void CheckMemoryPressure();
+  void CheckGarbageCollectionIsAllowed();
 };
 
 class V8_EXPORT StartupData {
@@ -11663,6 +11664,9 @@ MaybeLocal<T> Isolate::GetDataFromSnapshotOnce(size_t index) {
 
 int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
     int64_t change_in_bytes) {
+#ifdef V8_ENABLE_CHECKS
+  CheckGarbageCollectionIsAllowed();
+#endif
   typedef internal::Internals I;
   constexpr int64_t kMemoryReducerActivationLimit = 32 * 1024 * 1024;
   int64_t* external_memory = reinterpret_cast<int64_t*>(
