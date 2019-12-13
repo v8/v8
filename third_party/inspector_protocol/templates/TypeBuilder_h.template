@@ -100,9 +100,7 @@ public:
     {% endfor %}
 
     std::unique_ptr<protocol::DictionaryValue> toValue() const;
-    void AppendSerialized(std::vector<uint8_t>* out) const override {
-        toValue()->AppendSerialized(out);
-    }
+    void AppendSerialized(std::vector<uint8_t>* out) const override;
     String toJSON() const { return toValue()->toJSONString(); }
     std::unique_ptr<{{type.id}}> clone() const;
     {% if protocol.is_exported(domain.domain, type.id) %}

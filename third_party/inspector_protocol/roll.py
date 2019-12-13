@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2019 The Chromium Authors. All rights reserved.
+# Copcright 2019 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -31,6 +31,8 @@ FILES_TO_SYNC = [
     'crdtp/serializable.h',
     'crdtp/serializable.cc',
     'crdtp/serializable_test.cc',
+    'crdtp/serializer_traits.h',
+    'crdtp/serializer_traits_test.cc',
     'crdtp/span.h',
     'crdtp/span_test.cc',
     'crdtp/status.cc',

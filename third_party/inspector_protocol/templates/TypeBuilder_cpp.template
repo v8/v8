@@ -8,6 +8,9 @@
 
 #include {{format_include(config.protocol.package, "Protocol")}}
 
+#include "{{config.crdtp.dir}}/cbor.h"
+#include "{{config.crdtp.dir}}/serializer_traits.h"
+
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
 {% endfor %}
@@ -90,6 +93,18 @@ std::unique_ptr<protocol::DictionaryValue> {{type.id}}::toValue() const
       {% endif %}
     {% endfor %}
     return result;
+}
+
+void {{type.id}}::AppendSerialized(std::vector<uint8_t>* out) const {
+    {{config.crdtp.namespace}}::cbor::EnvelopeEncoder envelope_encoder;
+    envelope_encoder.EncodeStart(out);
+    out->push_back({{config.crdtp.namespace}}::cbor::EncodeIndefiniteLengthMapStart());
+    {% for property in type.properties %}
+      {% set property_field = "m_" + property.name %}
+      {{config.crdtp.namespace}}::SerializeField({{config.crdtp.namespace}}::SpanFrom("{{property.name}}"), {{property_field}}, out);
+    {% endfor %}
+    out->push_back({{config.crdtp.namespace}}::cbor::EncodeStop());
+    envelope_encoder.EncodeStop(out);
 }
 
 std::unique_ptr<{{type.id}}> {{type.id}}::clone() const
