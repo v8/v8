@@ -99,66 +99,6 @@ TNode<JSPromise> PromiseBuiltinsAssembler::AllocateAndSetJSPromise(
   return instance;
 }
 
-void PromiseBuiltinsAssembler::ExtractHandlerContext(Node* handler,
-                                                     Variable* var_context) {
-  VARIABLE(var_handler, MachineRepresentation::kTagged, handler);
-  Label loop(this, &var_handler), done(this, Label::kDeferred);
-  Goto(&loop);
-  BIND(&loop);
-  {
-    Label if_function(this), if_bound_function(this, Label::kDeferred),
-        if_proxy(this, Label::kDeferred);
-    GotoIf(TaggedIsSmi(var_handler.value()), &done);
-
-    int32_t case_values[] = {
-        JS_FUNCTION_TYPE,
-        JS_BOUND_FUNCTION_TYPE,
-        JS_PROXY_TYPE,
-    };
-    Label* case_labels[] = {
-        &if_function,
-        &if_bound_function,
-        &if_proxy,
-    };
-    static_assert(arraysize(case_values) == arraysize(case_labels), "");
-    TNode<Map> handler_map = LoadMap(var_handler.value());
-    TNode<Uint16T> handler_type = LoadMapInstanceType(handler_map);
-    Switch(handler_type, &done, case_values, case_labels,
-           arraysize(case_labels));
-
-    BIND(&if_bound_function);
-    {
-      // Use the target function's context for JSBoundFunction.
-      var_handler.Bind(LoadObjectField(
-          var_handler.value(), JSBoundFunction::kBoundTargetFunctionOffset));
-      Goto(&loop);
-    }
-
-    BIND(&if_proxy);
-    {
-      // Use the target function's context for JSProxy.
-      // If the proxy is revoked, |var_handler| will be undefined and this
-      // function will return with unchanged |var_context|.
-      var_handler.Bind(
-          LoadObjectField(var_handler.value(), JSProxy::kTargetOffset));
-      Goto(&loop);
-    }
-
-    BIND(&if_function);
-    {
-      // Use the function's context.
-      TNode<Object> handler_context =
-          LoadObjectField(var_handler.value(), JSFunction::kContextOffset);
-      var_context->Bind(LoadNativeContext(CAST(handler_context)));
-      Goto(&done);
-    }
-  }
-
-  // If no valid context is available, |var_context| is unchanged and the caller
-  // will use a fallback context.
-  BIND(&done);
-}
-
 Node* PromiseBuiltinsAssembler::CreatePromiseAllResolveElementContext(
     Node* promise_capability, Node* native_context) {
   CSA_ASSERT(this, IsNativeContext(native_context));
@@ -224,34 +164,6 @@ Node* PromiseBuiltinsAssembler::PromiseHasHandler(Node* promise) {
   const TNode<Smi> flags =
       CAST(LoadObjectField(promise, JSPromise::kFlagsOffset));
   return IsSetWord(SmiUntag(flags), 1 << JSPromise::kHasHandlerBit);
-}
-
-void PromiseBuiltinsAssembler::PromiseSetHasHandler(Node* promise) {
-  const TNode<Smi> flags =
-      CAST(LoadObjectField(promise, JSPromise::kFlagsOffset));
-  const TNode<Smi> new_flags =
-      SmiOr(flags, SmiConstant(1 << JSPromise::kHasHandlerBit));
-  StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset, new_flags);
-}
-
-TNode<BoolT> PromiseBuiltinsAssembler::IsPromiseStatus(
-    TNode<Word32T> actual, v8::Promise::PromiseState expected) {
-  return Word32Equal(actual, Int32Constant(expected));
-}
-
-TNode<Word32T> PromiseBuiltinsAssembler::PromiseStatus(Node* promise) {
-  STATIC_ASSERT(JSPromise::kStatusShift == 0);
-  const TNode<Smi> flags =
-      CAST(LoadObjectField(promise, JSPromise::kFlagsOffset));
-  return Word32And(SmiToInt32(flags), Int32Constant(JSPromise::kStatusMask));
-}
-
-void PromiseBuiltinsAssembler::PromiseSetHandledHint(Node* promise) {
-  const TNode<Smi> flags =
-      CAST(LoadObjectField(promise, JSPromise::kFlagsOffset));
-  const TNode<Smi> new_flags =
-      SmiOr(flags, SmiConstant(1 << JSPromise::kHandledHintBit));
-  StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset, new_flags);
 }
 
 TNode<PromiseReaction> PromiseBuiltinsAssembler::AllocatePromiseReaction(
@@ -564,53 +476,6 @@ TF_BUILTIN(PromiseGetCapabilitiesExecutor, PromiseBuiltinsAssembler) {
 
   BIND(&if_alreadyinvoked);
   ThrowTypeError(context, MessageTemplate::kPromiseExecutorAlreadyInvoked);
-}
-
-TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
-  // 1. Let C be the this value.
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> reason = CAST(Parameter(Descriptor::kReason));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  // 2. If Type(C) is not Object, throw a TypeError exception.
-  ThrowIfNotJSReceiver(context, receiver, MessageTemplate::kCalledOnNonObject,
-                       "PromiseReject");
-
-  Label if_nativepromise(this), if_custompromise(this, Label::kDeferred);
-  const TNode<NativeContext> native_context = LoadNativeContext(context);
-
-  TNode<Object> promise_fun =
-      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
-  Branch(TaggedEqual(promise_fun, receiver), &if_nativepromise,
-         &if_custompromise);
-
-  BIND(&if_nativepromise);
-  {
-    const TNode<JSPromise> promise =
-        AllocateAndSetJSPromise(context, v8::Promise::kRejected, reason);
-    CallRuntime(Runtime::kPromiseRejectEventFromStack, context, promise,
-                reason);
-    Return(promise);
-  }
-
-  BIND(&if_custompromise);
-  {
-    // 3. Let promiseCapability be ? NewPromiseCapability(C).
-    const TNode<Oddball> debug_event = TrueConstant();
-    const TNode<PromiseCapability> capability = CAST(CallBuiltin(
-        Builtins::kNewPromiseCapability, context, receiver, debug_event));
-
-    // 4. Perform ? Call(promiseCapability.[[Reject]], undefined, « r »).
-    const TNode<Object> reject =
-        LoadObjectField(capability, PromiseCapability::kRejectOffset);
-    CallJS(CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
-           context, reject, UndefinedConstant(), reason);
-
-    // 5. Return promiseCapability.[[Promise]].
-    const TNode<Object> promise =
-        LoadObjectField(capability, PromiseCapability::kPromiseOffset);
-    Return(promise);
-  }
 }
 
 std::pair<Node*, Node*> PromiseBuiltinsAssembler::CreatePromiseFinallyFunctions(

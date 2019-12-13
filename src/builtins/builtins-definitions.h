@@ -720,8 +720,6 @@ namespace internal {
   CPP(IsPromise)                                                               \
   /* ES #sec-promise.prototype.catch */                                        \
   TFJ(PromisePrototypeCatch, 1, kReceiver, kOnRejected)                        \
-  /* ES #sec-promise.reject */                                                 \
-  TFJ(PromiseReject, 1, kReceiver, kReason)                                    \
   TFJ(PromisePrototypeFinally, 1, kReceiver, kOnFinally)                       \
   TFJ(PromiseThenFinally, 1, kReceiver, kValue)                                \
   TFJ(PromiseCatchFinally, 1, kReceiver, kReason)                              \

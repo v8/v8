@@ -19,6 +19,10 @@ namespace runtime {
   extern transitioning runtime
   PromiseResolveAfterResolved(implicit context: Context)(JSPromise, JSAny):
       JSAny;
+
+  extern transitioning runtime
+  PromiseRejectEventFromStack(implicit context: Context)(JSPromise, JSAny):
+      JSAny;
 }
 
 // https://tc39.es/ecma262/#sec-promise-abstract-operations
@@ -478,4 +482,37 @@ namespace promise {
     PerformPromiseThenImpl(promise, onFulfilled, onRejected, resultPromise);
     return resultPromise;
   }
+
+  extern macro
+  PromiseBuiltinsAssembler::AllocateAndSetJSPromise(
+      Context, constexpr PromiseState, JSAny): JSPromise;
+
+  // https://tc39.es/ecma262/#sec-promise-reject-functions
+  transitioning javascript builtin
+  PromiseReject(js-implicit context: NativeContext, receiver: JSAny)(
+      reason: JSAny): JSAny {
+    // 1. Let C be the this value.
+    // 2. If Type(C) is not Object, throw a TypeError exception.
+    const receiver = Cast<JSReceiver>(receiver) otherwise
+    ThrowTypeError(kCalledOnNonObject, 'PromiseReject');
+
+    const promiseFun = context[PROMISE_FUNCTION_INDEX];
+    if (promiseFun == receiver) {
+      const promise =
+          AllocateAndSetJSPromise(context, kPromiseRejected, reason);
+      runtime::PromiseRejectEventFromStack(promise, reason);
+      return promise;
+    } else {
+      // 3. Let promiseCapability be ? NewPromiseCapability(C).
+      const capability = NewPromiseCapability(receiver, True);
+
+      // 4. Perform ? Call(promiseCapability.[[Reject]], undefined, « r »).
+      const reject = UnsafeCast<Callable>(capability.reject);
+      Call(context, reject, Undefined, reason);
+
+      // 5. Return promiseCapability.[[Promise]].
+      return capability.promise;
+    }
+  }
+
 }

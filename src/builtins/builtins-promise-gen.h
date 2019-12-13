@@ -45,7 +45,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   TNode<PromiseResolveThenableJobTask> AllocatePromiseResolveThenableJobTask(
       TNode<JSPromise> promise_to_resolve, TNode<JSReceiver> then,
       TNode<JSReceiver> thenable, TNode<Context> context);
-
   Node* PromiseHasHandler(Node* promise);
 
   // Creates the context used by all Promise.all resolve element closures,
@@ -81,9 +80,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
       Label* if_fast, Label* if_slow);
 
  protected:
-  void PromiseSetHasHandler(Node* promise);
-  void PromiseSetHandledHint(Node* promise);
-
   // We can skip the "resolve" lookup on {constructor} if it's the (initial)
   // Promise constructor and the Promise.resolve() protector is intact, as
   // that guards the lookup path for the "resolve" property on the %Promise%
@@ -139,13 +135,8 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   void SetPromiseHandledByIfTrue(Node* context, Node* condition, Node* promise,
                                  const NodeGenerator& handled_by);
 
-  TNode<Word32T> PromiseStatus(Node* promise);
-
-  TNode<BoolT> IsPromiseStatus(TNode<Word32T> actual,
-                               v8::Promise::PromiseState expected);
   TNode<JSPromise> AllocateJSPromise(TNode<Context> context);
 
-  void ExtractHandlerContext(Node* handler, Variable* var_context);
   void Generate_PromiseAll(
       TNode<Context> context, TNode<Object> receiver, TNode<Object> iterable,
       const PromiseAllResolvingElementFunction& create_resolve_element_function,
