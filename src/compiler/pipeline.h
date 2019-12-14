@@ -34,6 +34,7 @@ namespace compiler {
 class CallDescriptor;
 class Graph;
 class InstructionSequence;
+class JSGraph;
 class JSHeapBroker;
 class MachineGraph;
 class NodeOriginTable;
@@ -72,7 +73,7 @@ class Pipeline : public AllStatic {
   // Run the pipeline on a machine graph and generate code.
   static MaybeHandle<Code> GenerateCodeForCodeStub(
       Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
-      SourcePositionTable* source_positions, Code::Kind kind,
+      JSGraph* jsgraph, SourcePositionTable* source_positions, Code::Kind kind,
       const char* debug_name, int32_t builtin_index,
       PoisoningMitigationLevel poisoning_level,
       const AssemblerOptions& options);
