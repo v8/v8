@@ -187,6 +187,7 @@ class CodeAssemblerVariable;
 template <class T>
 class TypedCodeAssemblerVariable;
 class CodeAssemblerState;
+class JSGraph;
 class Node;
 class RawMachineAssembler;
 class RawMachineLabel;
@@ -1183,6 +1184,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Uint32T> Unsigned(TNode<Uint32T> x);
 
   RawMachineAssembler* raw_assembler() const;
+  JSGraph* jsgraph() const;
 
   // Calls respective callback registered in the state.
   void CallPrologue();
@@ -1437,6 +1439,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   std::vector<CodeAssemblerExceptionHandlerLabel*> exception_handler_labels_;
   using VariableId = uint32_t;
   VariableId next_variable_id_ = 0;
+  JSGraph* jsgraph_;
 
   VariableId NextVariableId() { return next_variable_id_++; }
 
