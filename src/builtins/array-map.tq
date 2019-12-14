@@ -91,11 +91,11 @@ namespace array {
   }
 
   struct Vector {
-    ReportSkippedElement() {
+    macro ReportSkippedElement() {
       this.skippedElements = true;
     }
 
-    CreateJSArray(implicit context: Context)(validLength: Smi): JSArray {
+    macro CreateJSArray(implicit context: Context)(validLength: Smi): JSArray {
       const length: Smi = this.fixedArray.length;
       assert(validLength <= length);
       let kind: ElementsKind = PACKED_SMI_ELEMENTS;
@@ -147,7 +147,7 @@ namespace array {
       return a;
     }
 
-    StoreResult(implicit context: Context)(index: Smi, result: JSAny) {
+    macro StoreResult(implicit context: Context)(index: Smi, result: JSAny) {
       typeswitch (result) {
         case (s: Smi): {
           this.fixedArray.objects[index] = s;

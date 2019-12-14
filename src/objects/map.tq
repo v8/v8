@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 extern class Map extends HeapObject {
-  PrototypeInfo(): PrototypeInfo labels HasNoPrototypeInfo {
+  macro PrototypeInfo(): PrototypeInfo labels HasNoPrototypeInfo {
     typeswitch (this.transitions_or_prototype_info) {
       case (Weak<Map>): {
         goto HasNoPrototypeInfo;

@@ -15,12 +15,12 @@
 
 namespace array {
   class SortState extends Struct {
-    Compare(implicit context: Context)(x: JSAny, y: JSAny): Number {
+    macro Compare(implicit context: Context)(x: JSAny, y: JSAny): Number {
       const sortCompare: CompareBuiltinFn = this.sortComparePtr;
       return sortCompare(context, this.userCmpFn, x, y);
     }
 
-    CheckAccessor(implicit context: Context)() labels Bailout {
+    macro CheckAccessor(implicit context: Context)() labels Bailout {
       const canUseSameAccessorFn: CanUseSameAccessorFn =
           this.canUseSameAccessorFn;
 
@@ -31,7 +31,7 @@ namespace array {
       }
     }
 
-    ResetToGenericAccessor() {
+    macro ResetToGenericAccessor() {
       this.loadFn = Load<GenericElementsAccessor>;
       this.storeFn = Store<GenericElementsAccessor>;
       this.deleteFn = Delete<GenericElementsAccessor>;

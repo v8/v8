@@ -5,11 +5,11 @@
 namespace growable_fixed_array {
   // TODO(pwong): Support FixedTypedArrays.
   struct GrowableFixedArray {
-    Push(obj: Object) {
+    macro Push(obj: Object) {
       this.EnsureCapacity();
       this.array.objects[this.length++] = obj;
     }
-    ResizeFixedArray(newCapacity: intptr): FixedArray {
+    macro ResizeFixedArray(newCapacity: intptr): FixedArray {
       assert(this.length >= 0);
       assert(newCapacity >= 0);
       assert(newCapacity >= this.length);
@@ -17,7 +17,7 @@ namespace growable_fixed_array {
       return ExtractFixedArray(
           this.array, first, this.length, newCapacity, kFixedArrays);
     }
-    EnsureCapacity() {
+    macro EnsureCapacity() {
       assert(this.length <= this.capacity);
       if (this.capacity == this.length) {
         // Growth rate is analog to JSObject::NewElementsCapacity:
@@ -26,7 +26,7 @@ namespace growable_fixed_array {
         this.array = this.ResizeFixedArray(this.capacity);
       }
     }
-    ToJSArray(implicit context: Context)(): JSArray {
+    macro ToJSArray(implicit context: Context)(): JSArray {
       const nativeContext: NativeContext = LoadNativeContext(context);
       const map: Map = LoadJSArrayElementsMap(PACKED_ELEMENTS, nativeContext);
       const fixedArray: FixedArray = this.ResizeFixedArray(this.length);

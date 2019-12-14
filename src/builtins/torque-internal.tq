@@ -27,7 +27,7 @@ namespace torque_internal {
   }
 
   struct Slice<T: type> {
-    TryAtIndex(index: intptr):&T labels OutOfBounds {
+    macro TryAtIndex(index: intptr):&T labels OutOfBounds {
       if (Convert<uintptr>(index) < Convert<uintptr>(this.length)) {
         return UnsafeNewReference<T>(
             this.object, this.offset + index * %SizeOf<T>());
@@ -36,25 +36,25 @@ namespace torque_internal {
       }
     }
 
-    AtIndex(index: intptr):&T {
+    macro AtIndex(index: intptr):&T {
       return this.TryAtIndex(index) otherwise unreachable;
     }
 
-    AtIndex(index: uintptr):&T {
+    macro AtIndex(index: uintptr):&T {
       return this.TryAtIndex(Convert<intptr>(index)) otherwise unreachable;
     }
 
-    AtIndex(index: constexpr int31):&T {
+    macro AtIndex(index: constexpr int31):&T {
       const i: intptr = Convert<intptr>(index);
       return this.TryAtIndex(i) otherwise unreachable;
     }
 
-    AtIndex(index: Smi):&T {
+    macro AtIndex(index: Smi):&T {
       const i: intptr = Convert<intptr>(index);
       return this.TryAtIndex(i) otherwise unreachable;
     }
 
-    Iterator(): SliceIterator<T> {
+    macro Iterator(): SliceIterator<T> {
       const end = this.offset + this.length * %SizeOf<T>();
       return SliceIterator<T>{
         object: this.object,
@@ -81,11 +81,11 @@ namespace torque_internal {
   }
 
   struct SliceIterator<T: type> {
-    Empty(): bool {
+    macro Empty(): bool {
       return this.start == this.end;
     }
 
-    Next():&T labels NoMore {
+    macro Next():&T labels NoMore {
       if (this.Empty()) {
         goto NoMore;
       } else {

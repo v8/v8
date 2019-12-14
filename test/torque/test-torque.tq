@@ -727,10 +727,10 @@ namespace test {
   }
 
   struct TestInner {
-    SetX(newValue: int32) {
+    macro SetX(newValue: int32) {
       this.x = newValue;
     }
-    GetX(): int32 {
+    macro GetX(): int32 {
       return this.x;
     }
     x: int32;
@@ -759,7 +759,7 @@ namespace test {
   }
 
   class InternalClass extends Struct {
-    Flip() labels NotASmi {
+    macro Flip() labels NotASmi {
       const tmp = Cast<Smi>(this.b) otherwise NotASmi;
       this.b = this.a;
       this.a = tmp;
@@ -781,10 +781,10 @@ namespace test {
   }
 
   struct StructWithConst {
-    TestMethod1(): int32 {
+    macro TestMethod1(): int32 {
       return this.b;
     }
-    TestMethod2(): Object {
+    macro TestMethod2(): Object {
       return this.a;
     }
     a: Object;
@@ -803,7 +803,7 @@ namespace test {
   }
 
   struct TestIterator {
-    Next(): Object labels NoMore {
+    macro Next(): Object labels NoMore {
       if (this.count-- == 0) goto NoMore;
       return TheHole;
     }
@@ -817,7 +817,7 @@ namespace test {
   }
 
   class SmiPair extends Struct {
-    GetA():&Smi {
+    macro GetA():&Smi {
       return & this.a;
     }
     a: Smi;

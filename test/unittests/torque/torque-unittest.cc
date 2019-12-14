@@ -501,7 +501,7 @@ TEST(Torque, SpecializationRequesters) {
       A<T>();
     }
     struct C<T: type> {
-      Method() {
+      macro Method() {
         B<T>();
       }
     }

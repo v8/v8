@@ -23,7 +23,7 @@ namespace typed_array {
   @export
   struct TypedArrayElementsInfo {
     // Calculates the number of bytes required for specified number of elements.
-    CalculateByteLength(length: uintptr): uintptr labels IfInvalid {
+    macro CalculateByteLength(length: uintptr): uintptr labels IfInvalid {
       if (length > kTypedArrayMaxLength) goto IfInvalid;
       const maxArrayLength = kArrayBufferMaxByteLength >>> this.sizeLog2;
       if (length > maxArrayLength) goto IfInvalid;
@@ -33,7 +33,7 @@ namespace typed_array {
 
     // Calculates the maximum number of elements supported by a specified number
     // of bytes.
-    CalculateLength(byteLength: uintptr): uintptr labels IfInvalid {
+    macro CalculateLength(byteLength: uintptr): uintptr labels IfInvalid {
       const length = byteLength >>> this.sizeLog2;
       if (length > kTypedArrayMaxLength) goto IfInvalid;
       return length;
@@ -41,7 +41,7 @@ namespace typed_array {
 
     // Determines if `bytes` (byte offset or length) cannot be evenly divided by
     // element size.
-    IsUnaligned(bytes: uintptr): bool {
+    macro IsUnaligned(bytes: uintptr): bool {
       // Exploits the fact the element size is a power of 2. Determining whether
       // there is remainder (not aligned) can be achieved efficiently with bit
       // masking. Shift is safe as sizeLog2 can be 3 at most (see
@@ -90,20 +90,20 @@ namespace typed_array {
   const kStoreFailureArrayDetached: Smi = 1;
 
   struct TypedArrayAccessor {
-    LoadNumeric(
+    macro LoadNumeric(
         context: Context, array: JSTypedArray, index: uintptr): Numeric {
       const loadfn: LoadNumericFn = this.loadNumericFn;
       return loadfn(context, array, index);
     }
 
-    StoreNumeric(
+    macro StoreNumeric(
         context: Context, array: JSTypedArray, index: uintptr, value: Numeric) {
       const storefn: StoreNumericFn = this.storeNumericFn;
       const result = storefn(context, array, index, value);
       assert(result == kStoreSucceded);
     }
 
-    StoreJSAny(
+    macro StoreJSAny(
         context: Context, array: JSTypedArray, index: uintptr, value: JSAny)
         labels IfDetached {
       const storefn: StoreJSAnyFn = this.storeJSAnyFn;
@@ -173,20 +173,20 @@ namespace typed_array {
   }
 
   struct AttachedJSTypedArrayWitness {
-    Get(): AttachedJSTypedArray {
+    macro Get(): AttachedJSTypedArray {
       return this.unstable;
     }
 
-    GetStable(): JSTypedArray {
+    macro GetStable(): JSTypedArray {
       return this.stable;
     }
 
-    Recheck() labels Detached {
+    macro Recheck() labels Detached {
       if (IsDetachedBuffer(this.stable.buffer)) goto Detached;
       this.unstable = %RawDownCast<AttachedJSTypedArray>(this.stable);
     }
 
-    Load(implicit context: Context)(k: uintptr): JSAny {
+    macro Load(implicit context: Context)(k: uintptr): JSAny {
       const lf: LoadNumericFn = this.loadfn;
       return lf(context, this.unstable, k);
     }

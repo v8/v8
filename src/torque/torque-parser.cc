@@ -2104,8 +2104,8 @@ struct TorqueGrammar : Grammar {
   Symbol method = {Rule(
       {CheckIf(Token("transitioning")),
        Optional<std::string>(Sequence({Token("operator"), &externalString})),
-       &name, &parameterListNoVararg, &optionalReturnType, optionalLabelList,
-       &block},
+       Token("macro"), &name, &parameterListNoVararg, &optionalReturnType,
+       optionalLabelList, &block},
       MakeMethodDeclaration)};
 
   // Result: base::Optional<ClassBody*>

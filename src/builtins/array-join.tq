@@ -147,7 +147,7 @@ namespace array {
   // The buffer is maintained and updated by Buffer.constructor, Buffer.Add(),
   // Buffer.AddSeparators().
   struct Buffer {
-    Add(implicit context: Context)(
+    macro Add(implicit context: Context)(
         str: String, nofSeparators: intptr, separatorLength: intptr) {
       // Add separators if necessary (at the beginning or more than one)
       const writeSeparators: bool = this.index == 0 | nofSeparators > 1;
@@ -161,7 +161,7 @@ namespace array {
           IsOneByteStringInstanceType(str.instanceType) & this.isOneByte;
     }
 
-    AddSeparators(implicit context: Context)(
+    macro AddSeparators(implicit context: Context)(
         nofSeparators: intptr, separatorLength: intptr, write: bool) {
       if (nofSeparators == 0 || separatorLength == 0) return;
 

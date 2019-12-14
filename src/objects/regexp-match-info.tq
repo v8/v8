@@ -4,17 +4,17 @@
 
 @hasSameInstanceTypeAsParent
 extern class RegExpMatchInfo extends FixedArray {
-  GetStartOfCapture(implicit context: Context)(captureIndex: constexpr int31):
-      Smi {
+  macro GetStartOfCapture(implicit context: Context)(captureIndex:
+                                                         constexpr int31): Smi {
     const index: constexpr int31 = GetStartOfCaptureIndex(captureIndex);
     return UnsafeCast<Smi>(this.objects[index]);
   }
-  GetEndOfCapture(implicit context: Context)(captureIndex: constexpr int31):
-      Smi {
+  macro GetEndOfCapture(implicit context: Context)(captureIndex:
+                                                       constexpr int31): Smi {
     const index: constexpr int31 = GetStartOfCaptureIndex(captureIndex) + 1;
     return UnsafeCast<Smi>(this.objects[index]);
   }
-  NumberOfCaptures(implicit context: Context)(): Smi {
+  macro NumberOfCaptures(implicit context: Context)(): Smi {
     return UnsafeCast<Smi>(this.objects[kRegExpMatchInfoNumberOfCapturesIndex]);
   }
 }
