@@ -782,7 +782,7 @@
     },
 
     'v8_enable_vtunejit': {
-      'gn_args': 'v8_enable_vtunejit=true',
+      'gn_args': 'v8_enable_vtunejit=true v8_enable_vtunetracemark=true',
     },
 
     'v8_full_debug': {

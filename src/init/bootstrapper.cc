@@ -19,6 +19,9 @@
 #include "src/extensions/ignition-statistics-extension.h"
 #include "src/extensions/statistics-extension.h"
 #include "src/extensions/trigger-failure-extension.h"
+#ifdef ENABLE_VTUNE_TRACEMARK
+#include "src/extensions/vtunedomain-support-extension.h"
+#endif  // ENABLE_VTUNE_TRACEMARK
 #include "src/heap/heap-inl.h"
 #include "src/logging/counters.h"
 #include "src/numbers/math-random.h"
@@ -130,6 +133,10 @@ void Bootstrapper::InitializeOncePerProcess() {
     v8::RegisterExtension(
         std::make_unique<CpuTraceMarkExtension>(FLAG_expose_cputracemark_as));
   }
+#ifdef ENABLE_VTUNE_TRACEMARK
+  v8::RegisterExtension(
+      std::make_unique<VTuneDomainSupportExtension>("vtunedomainmark"));
+#endif  // ENABLE_VTUNE_TRACEMARK
 }
 
 void Bootstrapper::TearDown() {
@@ -5032,6 +5039,10 @@ bool Genesis::InstallExtensions(Isolate* isolate,
                            &extension_states)) &&
          (!isValidCpuTraceMarkFunctionName() ||
           InstallExtension(isolate, "v8/cpumark", &extension_states)) &&
+#ifdef ENABLE_VTUNE_TRACEMARK
+         (!FLAG_enable_vtune_domain_support ||
+          InstallExtension(isolate, "v8/vtunedomain", &extension_states)) &&
+#endif  // ENABLE_VTUNE_TRACEMARK
          InstallRequestedExtensions(isolate, extensions, &extension_states);
 }
 
