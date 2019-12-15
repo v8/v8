@@ -1157,7 +1157,7 @@ void WeakCell::WeakCellPrint(std::ostream& os) {
   os << "\n - holdings: " << Brief(holdings());
   os << "\n - prev: " << Brief(prev());
   os << "\n - next: " << Brief(next());
-  os << "\n - key: " << Brief(key());
+  os << "\n - unregister_token: " << Brief(unregister_token());
   os << "\n - key_list_prev: " << Brief(key_list_prev());
   os << "\n - key_list_next: " << Brief(key_list_next());
 }

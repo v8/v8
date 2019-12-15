@@ -34,14 +34,15 @@ CAST_ACCESSOR(JSFinalizationGroup)
 
 void JSFinalizationGroup::Register(
     Handle<JSFinalizationGroup> finalization_group, Handle<JSReceiver> target,
-    Handle<Object> holdings, Handle<Object> key, Isolate* isolate) {
+    Handle<Object> holdings, Handle<Object> unregister_token,
+    Isolate* isolate) {
   Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell();
   weak_cell->set_finalization_group(*finalization_group);
   weak_cell->set_target(*target);
   weak_cell->set_holdings(*holdings);
   weak_cell->set_prev(ReadOnlyRoots(isolate).undefined_value());
   weak_cell->set_next(ReadOnlyRoots(isolate).undefined_value());
-  weak_cell->set_key(*key);
+  weak_cell->set_unregister_token(*unregister_token);
   weak_cell->set_key_list_prev(ReadOnlyRoots(isolate).undefined_value());
   weak_cell->set_key_list_next(ReadOnlyRoots(isolate).undefined_value());
 
@@ -52,7 +53,7 @@ void JSFinalizationGroup::Register(
   }
   finalization_group->set_active_cells(*weak_cell);
 
-  if (!key->IsUndefined(isolate)) {
+  if (!unregister_token->IsUndefined(isolate)) {
     Handle<ObjectHashTable> key_map;
     if (finalization_group->key_map().IsUndefined(isolate)) {
       key_map = ObjectHashTable::New(isolate, 1);
@@ -61,7 +62,7 @@ void JSFinalizationGroup::Register(
           handle(ObjectHashTable::cast(finalization_group->key_map()), isolate);
     }
 
-    Object value = key_map->Lookup(key);
+    Object value = key_map->Lookup(unregister_token);
     if (value.IsWeakCell()) {
       WeakCell existing_weak_cell = WeakCell::cast(value);
       existing_weak_cell.set_key_list_prev(*weak_cell);
@@ -69,7 +70,7 @@ void JSFinalizationGroup::Register(
     } else {
       DCHECK(value.IsTheHole(isolate));
     }
-    key_map = ObjectHashTable::Put(key_map, key, weak_cell);
+    key_map = ObjectHashTable::Put(key_map, unregister_token, weak_cell);
     finalization_group->set_key_map(*key_map);
   }
 }
@@ -133,31 +134,30 @@ Object JSFinalizationGroup::PopClearedCellHoldings(
   }
 
   // Also remove the WeakCell from the key_map (if it's there).
-  if (!weak_cell->key().IsUndefined(isolate)) {
-    if (weak_cell->key_list_prev().IsUndefined(isolate) &&
-        weak_cell->key_list_next().IsUndefined(isolate)) {
-      // weak_cell is the only one associated with its key; remove the key
-      // from the hash table.
+  if (!weak_cell->unregister_token().IsUndefined(isolate)) {
+    if (weak_cell->key_list_prev().IsUndefined(isolate)) {
       Handle<ObjectHashTable> key_map =
           handle(ObjectHashTable::cast(finalization_group->key_map()), isolate);
-      Handle<Object> key = handle(weak_cell->key(), isolate);
-      bool was_present;
-      key_map = ObjectHashTable::Remove(isolate, key_map, key, &was_present);
-      DCHECK(was_present);
-      finalization_group->set_key_map(*key_map);
-    } else if (weak_cell->key_list_prev().IsUndefined()) {
-      // weak_cell is the list head for its key; we need to change the value of
-      // the key in the hash table.
-      Handle<ObjectHashTable> key_map =
-          handle(ObjectHashTable::cast(finalization_group->key_map()), isolate);
-      Handle<Object> key = handle(weak_cell->key(), isolate);
-      Handle<WeakCell> next =
-          handle(WeakCell::cast(weak_cell->key_list_next()), isolate);
-      DCHECK_EQ(next->key_list_prev(), *weak_cell);
-      next->set_key_list_prev(ReadOnlyRoots(isolate).undefined_value());
-      weak_cell->set_key_list_next(ReadOnlyRoots(isolate).undefined_value());
-      key_map = ObjectHashTable::Put(key_map, key, next);
-      finalization_group->set_key_map(*key_map);
+      Handle<Object> key = handle(weak_cell->unregister_token(), isolate);
+
+      if (weak_cell->key_list_next().IsUndefined(isolate)) {
+        // weak_cell is the only one associated with its key; remove the key
+        // from the hash table.
+        bool was_present;
+        key_map = ObjectHashTable::Remove(isolate, key_map, key, &was_present);
+        DCHECK(was_present);
+        finalization_group->set_key_map(*key_map);
+      } else {
+        // weak_cell is the list head for its key; we need to change the value
+        // of the key in the hash table.
+        Handle<WeakCell> next =
+            handle(WeakCell::cast(weak_cell->key_list_next()), isolate);
+        DCHECK_EQ(next->key_list_prev(), *weak_cell);
+        next->set_key_list_prev(ReadOnlyRoots(isolate).undefined_value());
+        weak_cell->set_key_list_next(ReadOnlyRoots(isolate).undefined_value());
+        key_map = ObjectHashTable::Put(key_map, key, next);
+        finalization_group->set_key_map(*key_map);
+      }
     } else {
       // weak_cell is somewhere in the middle of its key list.
       WeakCell prev = WeakCell::cast(weak_cell->key_list_prev());

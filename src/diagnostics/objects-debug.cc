@@ -1057,9 +1057,9 @@ void WeakCell::WeakCellVerify(Isolate* isolate) {
     CHECK_EQ(WeakCell::cast(next()).prev(), *this);
   }
 
-  CHECK_IMPLIES(key().IsUndefined(isolate),
+  CHECK_IMPLIES(unregister_token().IsUndefined(isolate),
                 key_list_prev().IsUndefined(isolate));
-  CHECK_IMPLIES(key().IsUndefined(isolate),
+  CHECK_IMPLIES(unregister_token().IsUndefined(isolate),
                 key_list_next().IsUndefined(isolate));
 
   CHECK(key_list_prev().IsWeakCell() || key_list_prev().IsUndefined(isolate));

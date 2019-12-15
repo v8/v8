@@ -28,11 +28,11 @@ extern class WeakCell extends HeapObject {
   prev: Undefined|WeakCell;
   next: Undefined|WeakCell;
 
-  // For storing doubly linked lists of WeakCells per key in
-  // JSFinalizationGroup's key-based hashmap. WeakCell also needs to know its
-  // key, so that we can remove the key from the key_map when we remove the last
+  // For storing doubly linked lists of WeakCells per unregister token in
+  // JSFinalizationGroup's token-keyed hashmap. WeakCell also needs to know its
+  // token, so that we can remove it from the key_map when we remove the last
   // WeakCell associated with it.
-  key: Object;
+  unregister_token: Object;
   key_list_prev: Undefined|WeakCell;
   key_list_next: Undefined|WeakCell;
 }
