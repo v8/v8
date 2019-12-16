@@ -367,6 +367,7 @@
   'regress/wasm/*': [SKIP],
   'regress/regress-8947': [SKIP],
   'regress/regress-9165': [SKIP],
+  'regress/regress-1034394': [SKIP],
   'regress/regress-v8-9106': [SKIP],
   'wasm/*': [SKIP],
 
