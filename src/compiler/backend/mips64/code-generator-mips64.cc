@@ -1094,27 +1094,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64And32:
-      if (instr->InputAt(1)->IsRegister()) {
-        __ sll(i.InputRegister(0), i.InputRegister(0), 0x0);
-        __ sll(i.InputRegister(1), i.InputRegister(1), 0x0);
         __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      } else {
-        __ sll(i.InputRegister(0), i.InputRegister(0), 0x0);
-        __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      }
+        __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       break;
     case kMips64Or:
       __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Or32:
-      if (instr->InputAt(1)->IsRegister()) {
-        __ sll(i.InputRegister(0), i.InputRegister(0), 0x0);
-        __ sll(i.InputRegister(1), i.InputRegister(1), 0x0);
         __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      } else {
-        __ sll(i.InputRegister(0), i.InputRegister(0), 0x0);
-        __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      }
+        __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       break;
     case kMips64Nor:
       if (instr->InputAt(1)->IsRegister()) {
@@ -1126,27 +1114,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMips64Nor32:
       if (instr->InputAt(1)->IsRegister()) {
-        __ sll(i.InputRegister(0), i.InputRegister(0), 0x0);
-        __ sll(i.InputRegister(1), i.InputRegister(1), 0x0);
         __ Nor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+        __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       } else {
         DCHECK_EQ(0, i.InputOperand(1).immediate());
-        __ sll(i.InputRegister(0), i.InputRegister(0), 0x0);
         __ Nor(i.OutputRegister(), i.InputRegister(0), zero_reg);
+        __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       }
       break;
     case kMips64Xor:
       __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Xor32:
-      if (instr->InputAt(1)->IsRegister()) {
-        __ sll(i.InputRegister(0), i.InputRegister(0), 0x0);
-        __ sll(i.InputRegister(1), i.InputRegister(1), 0x0);
         __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      } else {
-        __ sll(i.InputRegister(0), i.InputRegister(0), 0x0);
-        __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      }
+        __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       break;
     case kMips64Clz:
       __ Clz(i.OutputRegister(), i.InputRegister(0));
@@ -1189,8 +1170,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ srlv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         int64_t imm = i.InputOperand(1).immediate();
-        __ sll(i.InputRegister(0), i.InputRegister(0), 0x0);
-        __ srl(i.OutputRegister(), i.InputRegister(0),
+        __ sll(i.OutputRegister(), i.InputRegister(0), 0x0);
+        __ srl(i.OutputRegister(), i.OutputRegister(),
                static_cast<uint16_t>(imm));
       }
       break;
@@ -1200,8 +1181,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ srav(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         int64_t imm = i.InputOperand(1).immediate();
-        __ sll(i.InputRegister(0), i.InputRegister(0), 0x0);
-        __ sra(i.OutputRegister(), i.InputRegister(0),
+        __ sll(i.OutputRegister(), i.InputRegister(0), 0x0);
+        __ sra(i.OutputRegister(), i.OutputRegister(),
                static_cast<uint16_t>(imm));
       }
       break;
@@ -2099,6 +2080,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_F64X2_ARITHMETIC_BINOP(fdiv_d);
       break;
     }
+    case kMips64F64x2Min: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      ASSEMBLE_F64X2_ARITHMETIC_BINOP(fmin_d);
+      break;
+    }
+    case kMips64F64x2Max: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      ASSEMBLE_F64X2_ARITHMETIC_BINOP(fmax_d);
+      break;
+    }
     case kMips64F64x2Eq: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ fceq_d(i.OutputSimd128Register(), i.InputSimd128Register(0),
@@ -2415,7 +2406,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ fill_h(i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
-    case kMips64I16x8ExtractLane: {
+    case kMips64I16x8ExtractLaneU: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ copy_u_h(i.OutputRegister(), i.InputSimd128Register(0),
+                  i.InputInt8(1));
+      break;
+    }
+    case kMips64I16x8ExtractLaneS: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ copy_s_h(i.OutputRegister(), i.InputSimd128Register(0),
                   i.InputInt8(1));
@@ -2564,7 +2561,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ fill_b(i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
-    case kMips64I8x16ExtractLane: {
+    case kMips64I8x16ExtractLaneU: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ copy_u_b(i.OutputRegister(), i.InputSimd128Register(0),
+                  i.InputInt8(1));
+      break;
+    }
+    case kMips64I8x16ExtractLaneS: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ copy_s_b(i.OutputRegister(), i.InputSimd128Register(0),
                   i.InputInt8(1));

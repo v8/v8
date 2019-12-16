@@ -2081,6 +2081,8 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2Sub, kMipsF64x2Sub)                     \
   V(F64x2Mul, kMipsF64x2Mul)                     \
   V(F64x2Div, kMipsF64x2Div)                     \
+  V(F64x2Min, kMipsF64x2Min)                     \
+  V(F64x2Max, kMipsF64x2Max)                     \
   V(F64x2Eq, kMipsF64x2Eq)                       \
   V(F64x2Ne, kMipsF64x2Ne)                       \
   V(F64x2Lt, kMipsF64x2Lt)                       \
@@ -2168,12 +2170,17 @@ SIMD_TYPE_LIST(SIMD_VISIT_SPLAT)
 SIMD_VISIT_SPLAT(F64x2)
 #undef SIMD_VISIT_SPLAT
 
-#define SIMD_VISIT_EXTRACT_LANE(Type)                              \
-  void InstructionSelector::Visit##Type##ExtractLane(Node* node) { \
-    VisitRRI(this, kMips##Type##ExtractLane, node);                \
+#define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                              \
+  void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) { \
+    VisitRRI(this, kMips##Type##ExtractLane##Sign, node);                \
   }
-SIMD_TYPE_LIST(SIMD_VISIT_EXTRACT_LANE)
-SIMD_VISIT_EXTRACT_LANE(F64x2)
+SIMD_VISIT_EXTRACT_LANE(F64x2, )
+SIMD_VISIT_EXTRACT_LANE(F32x4, )
+SIMD_VISIT_EXTRACT_LANE(I32x4, )
+SIMD_VISIT_EXTRACT_LANE(I16x8, U)
+SIMD_VISIT_EXTRACT_LANE(I16x8, S)
+SIMD_VISIT_EXTRACT_LANE(I8x16, U)
+SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 #undef SIMD_VISIT_EXTRACT_LANE
 
 #define SIMD_VISIT_REPLACE_LANE(Type)                              \

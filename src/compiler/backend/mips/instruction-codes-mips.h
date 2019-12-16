@@ -149,6 +149,8 @@ namespace compiler {
   V(MipsF64x2Sub)                  \
   V(MipsF64x2Mul)                  \
   V(MipsF64x2Div)                  \
+  V(MipsF64x2Min)                  \
+  V(MipsF64x2Max)                  \
   V(MipsF64x2Eq)                   \
   V(MipsF64x2Ne)                   \
   V(MipsF64x2Lt)                   \
@@ -201,7 +203,8 @@ namespace compiler {
   V(MipsI32x4GtU)                  \
   V(MipsI32x4GeU)                  \
   V(MipsI16x8Splat)                \
-  V(MipsI16x8ExtractLane)          \
+  V(MipsI16x8ExtractLaneU)         \
+  V(MipsI16x8ExtractLaneS)         \
   V(MipsI16x8ReplaceLane)          \
   V(MipsI16x8Neg)                  \
   V(MipsI16x8Shl)                  \
@@ -226,7 +229,8 @@ namespace compiler {
   V(MipsI16x8GtU)                  \
   V(MipsI16x8GeU)                  \
   V(MipsI8x16Splat)                \
-  V(MipsI8x16ExtractLane)          \
+  V(MipsI8x16ExtractLaneU)         \
+  V(MipsI8x16ExtractLaneS)         \
   V(MipsI8x16ReplaceLane)          \
   V(MipsI8x16Neg)                  \
   V(MipsI8x16Shl)                  \
