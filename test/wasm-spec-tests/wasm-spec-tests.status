@@ -63,11 +63,21 @@
   'f64': [SKIP],
   'proposals/js-types/f32': [SKIP],
   'proposals/js-types/f64': [SKIP],
+  'proposals/JS-BigInt-integration/f32': [SKIP],
+  'proposals/JS-BigInt-integration/f64': [SKIP],
+  'proposals/bulk-memory-operations/f32': [SKIP],
+  'proposals/bulk-memory-operations/f64': [SKIP],
+  'proposals/multi-value/f32': [SKIP],
+  'proposals/multi-value/f64': [SKIP],
+  'proposals/reference-types/f32': [SKIP],
+  'proposals/reference-types/f64': [SKIP],
   # This test fails because ppc float to double doesn't convert sNaN to qNaN.
   'conversions': [SKIP],
-  'proposals/reference-types/conversions':  [SKIP],
-  'proposals/bulk-memory-operations/conversions': [SKIP],
   'proposals/js-types/conversions': [SKIP],
+  'proposals/JS-BigInt-integration/conversions': [SKIP],
+  'proposals/bulk-memory-operations/conversions': [SKIP],
+  'proposals/multi-value/conversions': [SKIP],
+  'proposals/reference-types/conversions':  [SKIP],
 }],  # 'arch == ppc or arch == ppc64'
 
 ['arch == s390 or arch == s390x', {
@@ -76,6 +86,14 @@
   'f64': [SKIP],
   'proposals/js-types/f32': [SKIP],
   'proposals/js-types/f64': [SKIP],
+  'proposals/JS-BigInt-integration/f32': [SKIP],
+  'proposals/JS-BigInt-integration/f64': [SKIP],
+  'proposals/bulk-memory-operations/f32': [SKIP],
+  'proposals/bulk-memory-operations/f64': [SKIP],
+  'proposals/multi-value/f32': [SKIP],
+  'proposals/multi-value/f64': [SKIP],
+  'proposals/reference-types/f32': [SKIP],
+  'proposals/reference-types/f64': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
