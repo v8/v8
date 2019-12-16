@@ -2515,18 +2515,11 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   VisitGeneralStore(this, node, rep);
 }
 
-#define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                              \
-  void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) { \
-    UNIMPLEMENTED();                                                     \
-  }
-SIMD_VISIT_EXTRACT_LANE(F64x2, )
-SIMD_VISIT_EXTRACT_LANE(F32x4, )
-SIMD_VISIT_EXTRACT_LANE(I32x4, )
-SIMD_VISIT_EXTRACT_LANE(I16x8, U)
-SIMD_VISIT_EXTRACT_LANE(I16x8, S)
-SIMD_VISIT_EXTRACT_LANE(I8x16, U)
-SIMD_VISIT_EXTRACT_LANE(I8x16, S)
-#undef SIMD_VISIT_EXTRACT_LANE
+#define SIMD_TYPES(V) \
+  V(F32x4)            \
+  V(I32x4)            \
+  V(I16x8)            \
+  V(I8x16)
 
 #define SIMD_BINOP_LIST(V) \
   V(F32x4Add)              \
@@ -2545,22 +2538,54 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, S)
   V(I8x16Sub)              \
   V(I8x16Mul)
 
-#define VISIT_SIMD_BINOP(Opcode)                                          \
+#define SIMD_VISIT_SPLAT(Type)                               \
+  void InstructionSelector::Visit##Type##Splat(Node* node) { \
+    S390OperandGenerator g(this);                            \
+    Emit(kS390_##Type##Splat, g.DefineAsRegister(node),      \
+         g.UseRegister(node->InputAt(0)));                   \
+  }
+SIMD_TYPES(SIMD_VISIT_SPLAT)
+#undef SIMD_VISIT_SPLAT
+
+#define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                              \
+  void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) { \
+    S390OperandGenerator g(this);                                        \
+    int32_t lane = OpParameter<int32_t>(node->op());                     \
+    Emit(kS390_##Type##ExtractLane##Sign, g.DefineAsRegister(node),      \
+         g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));         \
+  }
+SIMD_VISIT_EXTRACT_LANE(F32x4, )
+SIMD_VISIT_EXTRACT_LANE(I32x4, )
+SIMD_VISIT_EXTRACT_LANE(I16x8, U)
+SIMD_VISIT_EXTRACT_LANE(I16x8, S)
+SIMD_VISIT_EXTRACT_LANE(I8x16, U)
+SIMD_VISIT_EXTRACT_LANE(I8x16, S)
+#undef SIMD_VISIT_EXTRACT_LANE
+
+#define SIMD_VISIT_REPLACE_LANE(Type)                              \
+  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) { \
+    S390OperandGenerator g(this);                                  \
+    int32_t lane = OpParameter<int32_t>(node->op());               \
+    Emit(kS390_##Type##ReplaceLane, g.DefineAsRegister(node),      \
+         g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),    \
+         g.UseRegister(node->InputAt(1)));                         \
+  }
+SIMD_TYPES(SIMD_VISIT_REPLACE_LANE)
+#undef SIMD_VISIT_REPLACE_LANE
+
+#define SIMD_VISIT_BINOP(Opcode)                                          \
   void InstructionSelector::Visit##Opcode(Node* node) {                   \
     S390OperandGenerator g(this);                                         \
     InstructionOperand temps[] = {g.TempSimd128Register(),                \
                                   g.TempSimd128Register()};               \
     Emit(kS390_##Opcode, g.DefineAsRegister(node),                        \
-         g.UseRegister(node->InputAt(0)),                                 \
+         g.UseUniqueRegister(node->InputAt(0)),                           \
          g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps); \
   }
-SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
-#undef VISIT_SIMD_BINOP
+SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
+#undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
-
-void InstructionSelector::VisitI32x4Splat(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI32x4ReplaceLane(Node* node) { UNIMPLEMENTED(); }
+#undef SIMD_TYPES
 
 void InstructionSelector::VisitI32x4Shl(Node* node) { UNIMPLEMENTED(); }
 
@@ -2589,10 +2614,6 @@ void InstructionSelector::VisitI32x4GeS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4GtU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4GeU(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8Splat(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8Shl(Node* node) { UNIMPLEMENTED(); }
 
@@ -2639,10 +2660,6 @@ void InstructionSelector::VisitI16x8GtU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI16x8GeU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16Neg(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI8x16Splat(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI8x16ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16AddSaturateS(Node* node) {
   UNIMPLEMENTED();
@@ -2697,10 +2714,6 @@ void InstructionSelector::VisitF32x4Ne(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Lt(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Le(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4Splat(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
@@ -2871,6 +2884,8 @@ void InstructionSelector::VisitI64x2ShrU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Min(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF64x2Max(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
 
 // static
 MachineOperatorBuilder::Flags
