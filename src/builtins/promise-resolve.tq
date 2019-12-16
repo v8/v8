@@ -4,6 +4,11 @@
 
 #include 'src/builtins/builtins-promise-gen.h'
 
+namespace runtime {
+  extern transitioning runtime
+  ResolvePromise(implicit context: Context)(JSPromise, JSAny): JSAny;
+}
+
 namespace promise {
   const kCalledOnNonObject: constexpr MessageTemplate
   generates 'MessageTemplate::kCalledOnNonObject';
@@ -74,6 +79,116 @@ namespace promise {
           Call(context, resolve, Undefined, value);
           return capability.promise;
         }
+    }
+  }
+
+  extern macro IsJSReceiverMap(Map): bool;
+
+  extern macro IsPromiseThenProtectorCellInvalid(): bool;
+
+  extern macro ThenStringConstant(): String;
+
+  const kThenString: String = ThenStringConstant();
+
+  extern macro PromiseBuiltinsAssembler::AllocatePromiseResolveThenableJobTask(
+      JSPromise, JSReceiver, JSReceiver,
+      Context): PromiseResolveThenableJobTask;
+
+  transitioning builtin
+  ResolvePromise(implicit context:
+                     Context)(promise: JSPromise, resolution: JSAny): JSAny {
+    // 6. If SameValue(resolution, promise) is true, then
+    // If promise hook is enabled or the debugger is active, let
+    // the runtime handle this operation, which greatly reduces
+    // the complexity here and also avoids a couple of back and
+    // forth between JavaScript and C++ land.
+    // We also let the runtime handle it if promise == resolution.
+    // We can use pointer comparison here, since the {promise} is guaranteed
+    // to be a JSPromise inside this function and thus is reference comparable.
+    if (IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
+        TaggedEqual(promise, resolution))
+      deferred {
+        return runtime::ResolvePromise(promise, resolution);
+      }
+
+    let then: Object = Undefined;
+    try {
+      // 7. If Type(resolution) is not Object, then
+      // 7.b Return FulfillPromise(promise, resolution).
+      if (TaggedIsSmi(resolution)) {
+        return FulfillPromise(promise, resolution);
+      }
+
+      const heapResolution = UnsafeCast<HeapObject>(resolution);
+      const resolutionMap = heapResolution.map;
+      if (!IsJSReceiverMap(resolutionMap)) {
+        return FulfillPromise(promise, resolution);
+      }
+
+      // We can skip the "then" lookup on {resolution} if its [[Prototype]]
+      // is the (initial) Promise.prototype and the Promise#then protector
+      // is intact, as that guards the lookup path for the "then" property
+      // on JSPromise instances which have the (initial) %PromisePrototype%.
+      if (IsForceSlowPath()) {
+        goto Slow;
+      }
+
+      if (IsPromiseThenProtectorCellInvalid()) {
+        goto Slow;
+      }
+
+      const nativeContext = LoadNativeContext(context);
+      if (!IsJSPromiseMap(resolutionMap)) {
+        // We can skip the lookup of "then" if the {resolution} is a (newly
+        // created) IterResultObject, as the Promise#then() protector also
+        // ensures that the intrinsic %ObjectPrototype% doesn't contain any
+        // "then" property. This helps to avoid negative lookups on iterator
+        // results from async generators.
+        assert(IsJSReceiverMap(resolutionMap));
+        assert(!IsPromiseThenProtectorCellInvalid());
+        if (resolutionMap == nativeContext[ITERATOR_RESULT_MAP_INDEX]) {
+          return FulfillPromise(promise, resolution);
+        } else {
+          goto Slow;
+        }
+      }
+
+      const promisePrototype = nativeContext[PROMISE_PROTOTYPE_INDEX];
+      if (resolutionMap.prototype == promisePrototype) {
+        // The {resolution} is a native Promise in this case.
+        then = nativeContext[PROMISE_THEN_INDEX];
+        goto Enqueue;
+      }
+      goto Slow;
+    }
+    label Slow deferred {
+      // 8. Let then be Get(resolution, "then").
+      // 9. If then is an abrupt completion, then
+      // 9.a Return RejectPromise(promise, then.[[Value]]).
+      try {
+        then = GetProperty(resolution, kThenString);
+      } catch (e) {
+        return RejectPromise(promise, e, False);
+      }
+
+      // 11. If IsCallable(thenAction) is false, then
+      if (TaggedIsSmi(then)) {
+        return FulfillPromise(promise, resolution);
+      }
+
+      if (!IsCallable(UnsafeCast<HeapObject>(then))) {
+        return FulfillPromise(promise, resolution);
+      }
+      goto Enqueue;
+    }
+    label Enqueue {
+      // 12. Perform EnqueueJob("PromiseJobs", PromiseResolveThenableJob,
+      //                        «promise, resolution, thenAction»).
+      const nativeContext = LoadNativeContext(context);
+      const task = AllocatePromiseResolveThenableJobTask(
+          promise, UnsafeCast<JSReceiver>(then),
+          UnsafeCast<JSReceiver>(resolution), nativeContext);
+      return EnqueueMicrotask(nativeContext, task);
     }
   }
 }

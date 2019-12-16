@@ -55,7 +55,7 @@ namespace promise {
   ResolvePromise(Context, JSPromise, JSAny): JSAny;
 
   extern transitioning builtin
-  EnqueueMicrotask(Context, PromiseReactionJobTask): Undefined;
+  EnqueueMicrotask(Context, Microtask): Undefined;
 
   macro
   ExtractHandlerContext(implicit context: Context)(handler: Callable|Undefined):

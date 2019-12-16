@@ -711,9 +711,6 @@ namespace internal {
   TFS(ForInFilter, kKey, kObject)                                              \
                                                                                \
   /* Promise */                                                                \
-  /* ES #sec-promise-resolve-functions */                                      \
-  /* Starting at step 6 of "Promise Resolve Functions" */                      \
-  TFS(ResolvePromise, kPromise, kResolution)                                   \
   TFJ(PromiseGetCapabilitiesExecutor, 2, kReceiver, kResolve, kReject)         \
   TFJ(PromiseConstructorLazyDeoptContinuation, 4, kReceiver, kPromise,         \
       kReject, kException, kResult)                                            \
