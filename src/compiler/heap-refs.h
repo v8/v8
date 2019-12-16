@@ -625,7 +625,8 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   FieldIndex GetFieldIndexFor(InternalIndex descriptor_index) const;
   ObjectRef GetFieldType(InternalIndex descriptor_index) const;
   bool IsUnboxedDoubleField(InternalIndex descriptor_index) const;
-  ObjectRef GetStrongValue(InternalIndex descriptor_number) const;
+  base::Optional<ObjectRef> GetStrongValue(
+      InternalIndex descriptor_number) const;
 
   void SerializeRootMap();
   base::Optional<MapRef> FindRootMap() const;

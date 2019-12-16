@@ -967,8 +967,7 @@ std::ostream& operator<<(
     for (size_t i = 0; i < env.locals_hints_.size(); ++i) {
       Hints const& hints = env.locals_hints_[i];
       if (!hints.IsEmpty()) {
-        size_t local_register = i - env.locals_hints_.size();
-        output_stream << "Hints for r" << local_register << ": " << hints;
+        output_stream << "Hints for r" << i << ": " << hints;
       }
     }
   }

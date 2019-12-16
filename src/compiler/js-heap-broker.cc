@@ -3446,7 +3446,8 @@ BIMODAL_ACCESSOR_C(String, int, length)
 
 BIMODAL_ACCESSOR(FeedbackCell, HeapObject, value)
 
-ObjectRef MapRef::GetStrongValue(InternalIndex descriptor_index) const {
+base::Optional<ObjectRef> MapRef::GetStrongValue(
+    InternalIndex descriptor_index) const {
   if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
     return ObjectRef(broker(),
@@ -3454,7 +3455,11 @@ ObjectRef MapRef::GetStrongValue(InternalIndex descriptor_index) const {
                                 descriptor_index),
                             broker()->isolate()));
   }
-  return ObjectRef(broker(), data()->AsMap()->GetStrongValue(descriptor_index));
+  ObjectData* value = data()->AsMap()->GetStrongValue(descriptor_index);
+  if (!value) {
+    return base::nullopt;
+  }
+  return ObjectRef(broker(), value);
 }
 
 void MapRef::SerializeRootMap() {
