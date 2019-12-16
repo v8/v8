@@ -25,7 +25,7 @@ class GeneratorBuiltinsAssembler : public CodeStubAssembler {
   // the body of resume is factored out below, and shared by JSGeneratorObject
   // prototype methods as well as AsyncModuleEvaluate. The only difference
   // between AsyncModuleEvaluate and JSGeneratorObject::PrototypeNext is
-  // the expected reciever.
+  // the expected receiver.
   void InnerResume(CodeStubArguments* args, TNode<JSGeneratorObject> receiver,
                    TNode<Object> value, TNode<Context> context,
                    JSGeneratorObject::ResumeMode resume_mode,

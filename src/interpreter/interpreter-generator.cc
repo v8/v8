@@ -1585,9 +1585,9 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
     const int kFirstArgumentOperandIndex = 1;
     const int kReceiverOperandCount =
         (receiver_mode == ConvertReceiverMode::kNullOrUndefined) ? 0 : 1;
-    const int kRecieverAndArgOperandCount = kReceiverOperandCount + arg_count;
+    const int kReceiverAndArgOperandCount = kReceiverOperandCount + arg_count;
     const int kSlotOperandIndex =
-        kFirstArgumentOperandIndex + kRecieverAndArgOperandCount;
+        kFirstArgumentOperandIndex + kReceiverAndArgOperandCount;
 
     TNode<Object> function = LoadRegisterAtOperandIndex(0);
     TNode<UintPtrT> slot_id = BytecodeOperandIdx(kSlotOperandIndex);
@@ -1597,7 +1597,7 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
     // Collect the {function} feedback.
     CollectCallFeedback(function, context, maybe_feedback_vector, slot_id);
 
-    switch (kRecieverAndArgOperandCount) {
+    switch (kReceiverAndArgOperandCount) {
       case 0:
         CallJSAndDispatch(function, context, Int32Constant(arg_count),
                           receiver_mode);

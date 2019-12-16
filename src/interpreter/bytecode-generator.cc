@@ -4795,8 +4795,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   // Evaluate all arguments to the function call and store in sequential args
   // registers.
   VisitArguments(expr->arguments(), &args);
-  int reciever_arg_count = implicit_undefined_receiver ? 0 : 1;
-  CHECK_EQ(reciever_arg_count + expr->arguments()->length(),
+  int receiver_arg_count = implicit_undefined_receiver ? 0 : 1;
+  CHECK_EQ(receiver_arg_count + expr->arguments()->length(),
            args.register_count());
 
   // Resolve callee for a potential direct eval call. This block will mutate the
@@ -4806,7 +4806,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     // Set up arguments for ResolvePossiblyDirectEval by copying callee, source
     // strings and function closure, and loading language and
     // position.
-    Register first_arg = args[reciever_arg_count];
+    Register first_arg = args[receiver_arg_count];
     RegisterList runtime_call_args = register_allocator()->NewRegisterList(6);
     builder()
         ->MoveRegister(callee, runtime_call_args[0])

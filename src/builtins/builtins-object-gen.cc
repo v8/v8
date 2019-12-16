@@ -745,9 +745,9 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   // This is arranged to check the likely cases first.
   GotoIf(TaggedIsSmi(receiver), &if_number);
 
-  TNode<HeapObject> reciever_heap_object = CAST(receiver);
-  TNode<Map> receiver_map = LoadMap(reciever_heap_object);
-  var_holder = reciever_heap_object;
+  TNode<HeapObject> receiver_heap_object = CAST(receiver);
+  TNode<Map> receiver_map = LoadMap(receiver_heap_object);
+  var_holder = receiver_heap_object;
   TNode<Uint16T> receiver_instance_type = LoadMapInstanceType(receiver_map);
   GotoIf(IsPrimitiveInstanceType(receiver_instance_type), &if_primitive);
   const struct {
@@ -968,10 +968,10 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         if_value_is_string(this, Label::kDeferred);
 
     TNode<Object> receiver_value =
-        LoadJSPrimitiveWrapperValue(CAST(reciever_heap_object));
+        LoadJSPrimitiveWrapperValue(CAST(receiver_heap_object));
     // We need to start with the object to see if the value was a subclass
     // which might have interesting properties.
-    var_holder = reciever_heap_object;
+    var_holder = receiver_heap_object;
     GotoIf(TaggedIsSmi(receiver_value), &if_value_is_number);
     TNode<Map> receiver_value_map = LoadMap(CAST(receiver_value));
     GotoIf(IsHeapNumberMap(receiver_value_map), &if_value_is_number);
