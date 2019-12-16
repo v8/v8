@@ -43,13 +43,13 @@ void JSArrayBuffer::Setup(SharedFlag shared,
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
     SetEmbedderField(i, Smi::zero());
   }
+  set_extension(nullptr);
   if (!backing_store) {
     set_backing_store(nullptr);
     set_byte_length(0);
   } else {
     Attach(std::move(backing_store));
   }
-
   if (shared == SharedFlag::kShared) {
     GetIsolate()->CountUsage(
         v8::Isolate::UseCounterFeature::kSharedArrayBufferConstructed);

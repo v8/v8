@@ -886,6 +886,11 @@ DEFINE_BOOL(write_protect_code_memory, true, "write protect code memory")
 #endif
 DEFINE_BOOL(concurrent_marking, V8_CONCURRENT_MARKING_BOOL,
             "use concurrent marking")
+#ifdef V8_ARRAY_BUFFER_EXTENSION
+#define V8_ARRAY_BUFFER_EXTENSION_BOOL true
+#else
+#define V8_ARRAY_BUFFER_EXTENSION_BOOL false
+#endif
 DEFINE_BOOL(parallel_marking, true, "use parallel marking in atomic pause")
 DEFINE_INT(ephemeron_fixpoint_iterations, 10,
            "number of fixpoint iterations it takes to switch to linear "

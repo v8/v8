@@ -124,6 +124,9 @@ declare_args() {
   # Sets -dV8_CONCURRENT_MARKING
   v8_enable_concurrent_marking = true
 
+  # Sets -dV8_ARRAY_BUFFER_EXTENSION
+  v8_enable_array_buffer_extension = true
+
   # Enables various testing features.
   v8_enable_test_features = ""
 
@@ -454,6 +457,9 @@ config("features") {
   }
   if (v8_enable_concurrent_marking) {
     defines += [ "V8_CONCURRENT_MARKING" ]
+  }
+  if (v8_enable_array_buffer_extension) {
+    defines += [ "V8_ARRAY_BUFFER_EXTENSION" ]
   }
   if (v8_enable_lazy_source_positions) {
     defines += [ "V8_ENABLE_LAZY_SOURCE_POSITIONS" ]
@@ -1665,6 +1671,8 @@ v8_compiler_sources = [
   "src/compiler/access-builder.h",
   "src/compiler/access-info.cc",
   "src/compiler/access-info.h",
+  "src/compiler/add-type-assertions-reducer.cc",
+  "src/compiler/add-type-assertions-reducer.h",
   "src/compiler/all-nodes.cc",
   "src/compiler/all-nodes.h",
   "src/compiler/allocation-builder-inl.h",
@@ -1873,8 +1881,6 @@ v8_compiler_sources = [
   "src/compiler/state-values-utils.h",
   "src/compiler/store-store-elimination.cc",
   "src/compiler/store-store-elimination.h",
-  "src/compiler/add-type-assertions-reducer.cc",
-  "src/compiler/add-type-assertions-reducer.h",
   "src/compiler/type-cache.cc",
   "src/compiler/type-cache.h",
   "src/compiler/type-narrowing-reducer.cc",
