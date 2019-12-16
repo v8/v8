@@ -4,6 +4,7 @@
 
 #include "src/heap/spaces.h"
 
+#include <algorithm>
 #include <cinttypes>
 #include <utility>
 
@@ -179,6 +180,7 @@ void MemoryAllocator::InitializeCodePageAllocator(
                                 "CodeRange setup: allocate virtual memory");
   }
   code_range_ = reservation.region();
+  isolate_->AddCodeRange(code_range_.begin(), code_range_.size());
 
   // We are sure that we have mapped a block of requested addresses.
   DCHECK_GE(reservation.size(), requested);
@@ -1723,6 +1725,8 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
     // Relinking requires the category to be unlinked.
     other->RemovePage(p);
     AddPage(p);
+    // These code pages were allocated by the CompactionSpace.
+    if (identity() == CODE_SPACE) heap()->isolate()->AddCodeMemoryChunk(p);
     DCHECK_IMPLIES(
         !p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE),
         p->AvailableInFreeList() == p->AvailableInFreeListFromAllocatedBytes());
@@ -1843,6 +1847,10 @@ bool PagedSpace::Expand() {
   // Pages created during bootstrapping may contain immortal immovable objects.
   if (!heap()->deserialization_complete()) page->MarkNeverEvacuate();
   AddPage(page);
+  // If this is a non-compaction code space, this is a previously unseen page.
+  if (identity() == CODE_SPACE && !is_compaction_space()) {
+    heap()->isolate()->AddCodeMemoryChunk(page);
+  }
   Free(page->area_start(), page->area_size(),
        SpaceAccountingMode::kSpaceAccounted);
   heap()->NotifyOldGenerationExpansion();
@@ -1986,6 +1994,8 @@ void PagedSpace::ReleasePage(Page* page) {
     DCHECK(!top_on_previous_step_);
     allocation_info_.Reset(kNullAddress, kNullAddress);
   }
+
+  heap()->isolate()->RemoveCodeMemoryChunk(page);
 
   AccountUncommitted(page->size());
   accounting_stats_.DecreaseCapacity(page->area_size());
@@ -4413,10 +4423,12 @@ AllocationResult CodeLargeObjectSpace::AllocateRaw(int object_size) {
 void CodeLargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
   OldLargeObjectSpace::AddPage(page, object_size);
   InsertChunkMapEntries(page);
+  heap()->isolate()->AddCodeMemoryChunk(page);
 }
 
 void CodeLargeObjectSpace::RemovePage(LargePage* page, size_t object_size) {
   RemoveChunkMapEntries(page);
+  heap()->isolate()->RemoveCodeMemoryChunk(page);
   OldLargeObjectSpace::RemovePage(page, object_size);
 }
 

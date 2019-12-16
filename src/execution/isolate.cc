@@ -2236,6 +2236,14 @@ void Isolate::ReportPendingMessagesImpl(bool report_externally) {
   }
 }
 
+std::vector<MemoryRange>* Isolate::GetCodePages() const {
+  return code_pages_.load(std::memory_order_acquire);
+}
+
+void Isolate::SetCodePages(std::vector<MemoryRange>* new_code_pages) {
+  code_pages_.store(new_code_pages, std::memory_order_release);
+}
+
 void Isolate::ReportPendingMessages() {
   DCHECK(AllowExceptions::IsAllowed(this));
 
@@ -2979,6 +2987,8 @@ void Isolate::Deinit() {
   compiler_zone_ = nullptr;
   compiler_cache_ = nullptr;
 
+  SetCodePages(nullptr);
+
   ClearSerializerData();
 
   {
@@ -3268,6 +3278,14 @@ void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
                           AddressToString(code_space_firstpage_address));
 }
 
+void Isolate::InitializeCodeRanges() {
+  DCHECK_NULL(GetCodePages());
+  MemoryRange embedded_range{reinterpret_cast<const void*>(embedded_blob()),
+                             embedded_blob_size()};
+  code_pages_buffer1_.push_back(embedded_range);
+  SetCodePages(&code_pages_buffer1_);
+}
+
 bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
                    StartupDeserializer* startup_deserializer) {
   TRACE_ISOLATE(init);
@@ -3293,6 +3311,10 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
       reinterpret_cast<Address>(hacker_name##_address());
   FOR_EACH_ISOLATE_ADDRESS_NAME(ASSIGN_ELEMENT)
 #undef ASSIGN_ELEMENT
+
+  // We need to initialize code_pages_ before any on-heap code is allocated to
+  // make sure we record all code allocations.
+  InitializeCodeRanges();
 
   compilation_cache_ = new CompilationCache(this);
   descriptor_lookup_cache_ = new DescriptorLookupCache();
@@ -4381,6 +4403,85 @@ SaveAndSwitchContext::SaveAndSwitchContext(Isolate* isolate,
 AssertNoContextChange::AssertNoContextChange(Isolate* isolate)
     : isolate_(isolate), context_(isolate->context(), isolate) {}
 #endif  // DEBUG
+
+void Isolate::AddCodeMemoryRange(MemoryRange range) {
+  std::vector<MemoryRange>* old_code_pages = GetCodePages();
+  DCHECK_NOT_NULL(old_code_pages);
+
+  std::vector<MemoryRange>* new_code_pages;
+  if (old_code_pages == &code_pages_buffer1_) {
+    new_code_pages = &code_pages_buffer2_;
+  } else {
+    new_code_pages = &code_pages_buffer1_;
+  }
+
+  // Copy all existing data from the old vector to the new vector and insert the
+  // new page.
+  new_code_pages->clear();
+  new_code_pages->reserve(old_code_pages->size() + 1);
+  std::merge(old_code_pages->begin(), old_code_pages->end(), &range, &range + 1,
+             std::back_inserter(*new_code_pages),
+             [](const MemoryRange& a, const MemoryRange& b) {
+               return a.start < b.start;
+             });
+
+  // Atomically switch out the pointer
+  SetCodePages(new_code_pages);
+}
+
+// |chunk| is either a Page or an executable LargePage.
+void Isolate::AddCodeMemoryChunk(MemoryChunk* chunk) {
+  // We only keep track of individual code pages/allocations if we are on arm32,
+  // because on x64 and arm64 we have a code range which makes this unnecessary.
+#if !defined(V8_TARGET_ARCH_ARM)
+  return;
+#else
+  void* new_page_start = reinterpret_cast<void*>(chunk->area_start());
+  size_t new_page_size = chunk->area_size();
+
+  MemoryRange new_range{new_page_start, new_page_size};
+
+  AddCodeMemoryRange(new_range);
+#endif  // !defined(V8_TARGET_ARCH_ARM)
+}
+
+void Isolate::AddCodeRange(Address begin, size_t length_in_bytes) {
+  AddCodeMemoryRange(
+      MemoryRange{reinterpret_cast<void*>(begin), length_in_bytes});
+}
+
+// |chunk| is either a Page or an executable LargePage.
+void Isolate::RemoveCodeMemoryChunk(MemoryChunk* chunk) {
+  // We only keep track of individual code pages/allocations if we are on arm32,
+  // because on x64 and arm64 we have a code range which makes this unnecessary.
+#if !defined(V8_TARGET_ARCH_ARM)
+  return;
+#else
+  void* removed_page_start = reinterpret_cast<void*>(chunk->area_start());
+  std::vector<MemoryRange>* old_code_pages = GetCodePages();
+  DCHECK_NOT_NULL(old_code_pages);
+
+  std::vector<MemoryRange>* new_code_pages;
+  if (old_code_pages == &code_pages_buffer1_) {
+    new_code_pages = &code_pages_buffer2_;
+  } else {
+    new_code_pages = &code_pages_buffer1_;
+  }
+
+  // Copy all existing data from the old vector to the new vector except the
+  // removed page.
+  new_code_pages->clear();
+  new_code_pages->reserve(old_code_pages->size() - 1);
+  std::remove_copy_if(old_code_pages->begin(), old_code_pages->end(),
+                      std::back_inserter(*new_code_pages),
+                      [removed_page_start](const MemoryRange& range) {
+                        return range.start == removed_page_start;
+                      });
+
+  // Atomically switch out the pointer
+  SetCodePages(new_code_pages);
+#endif  // !defined(V8_TARGET_ARCH_ARM)
+}
 
 #undef TRACE_ISOLATE
 

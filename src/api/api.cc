@@ -8914,6 +8914,30 @@ UnwindState Isolate::GetUnwindState() {
   return unwind_state;
 }
 
+size_t Isolate::CopyCodePages(size_t capacity, MemoryRange* code_pages_out) {
+#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM64) && \
+    !defined(V8_TARGET_ARCH_ARM)
+  // Not implemented on all platforms.
+  UNREACHABLE();
+#else
+
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  std::vector<MemoryRange>* code_pages = isolate->GetCodePages();
+
+  DCHECK_NOT_NULL(code_pages);
+
+  // Copy as many elements into the output vector as we can. If the
+  // caller-provided buffer is not big enough, we fill it, and the caller can
+  // provide a bigger one next time. We do it this way because allocation is not
+  // allowed in signal handlers.
+  size_t limit = std::min(capacity, code_pages->size());
+  for (size_t i = 0; i < limit; i++) {
+    code_pages_out[i] = code_pages->at(i);
+  }
+  return code_pages->size();
+#endif
+}
+
 #define CALLBACK_SETTER(ExternalName, Type, InternalName)      \
   void Isolate::Set##ExternalName(Type callback) {             \
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this); \

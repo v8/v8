@@ -486,6 +486,7 @@
   'test-branch-combine/*': [SKIP],
   'test-code-assembler/*': [SKIP],
   'test-code-generator/*': [SKIP],
+  'test-code-pages/*': [SKIP],
   'test-code-stub-assembler/*': [SKIP],
   'test-js-context-specialization/*': [SKIP],
   'test-multiple-return/*': [SKIP],

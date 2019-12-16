@@ -193,6 +193,7 @@ v8_source_set("cctest_sources") {
     "test-bit-vector.cc",
     "test-circular-queue.cc",
     "test-code-layout.cc",
+    "test-code-pages.cc",
     "test-code-stub-assembler.cc",
     "test-compiler.cc",
     "test-constantpool.cc",

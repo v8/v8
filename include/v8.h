@@ -9138,6 +9138,23 @@ class V8_EXPORT Isolate {
    */
   UnwindState GetUnwindState();
 
+  static constexpr size_t kMinCodePagesBufferSize = 32;
+
+  /**
+   * Copies the code heap pages currently in use by V8 into |code_pages_out|.
+   * |code_pages_out| must have at least kMinCodePagesBufferSize capacity and
+   * must be empty.
+   *
+   * Signal-safe, does not allocate, does not access the V8 heap.
+   * No code on the stack can rely on pages that might be missing.
+   *
+   * Returns the number of pages available to be copied, which might be greater
+   * than |capacity|. In this case, only |capacity| pages will be copied into
+   * |code_pages_out|. The caller should provide a bigger buffer on the next
+   * call in order to get all available code pages, but this is not required.
+   */
+  size_t CopyCodePages(size_t capacity, MemoryRange* code_pages_out);
+
   /** Set the callback to invoke in case of fatal errors. */
   void SetFatalErrorHandler(FatalErrorCallback that);
 
