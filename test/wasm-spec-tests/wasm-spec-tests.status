@@ -24,6 +24,12 @@
   'proposals/multi-value/call': [FAIL],
   'proposals/multi-value/if': [FAIL],
   'proposals/multi-value/func': [FAIL],
+
+  'proposals/reference-types/br_table' : [FAIL],
+  'proposals/reference-types/ref_is_null' : [FAIL],
+  'proposals/reference-types/linking' : [FAIL],
+  'proposals/reference-types/ref_null' : [FAIL],
+  'proposals/reference-types/select' : [FAIL],
 }],  # ALWAYS
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
