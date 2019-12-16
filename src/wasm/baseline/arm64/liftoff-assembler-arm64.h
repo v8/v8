@@ -176,6 +176,13 @@ void LiftoffAssembler::FinishCode() { ForceConstantPoolEmissionWithoutJump(); }
 
 void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 
+uint32_t LiftoffAssembler::SlotSizeForType(ValueType type) {
+  // TODO(zhin): Unaligned access typically take additional cycles, we should do
+  // some performance testing to see how big an effect it will take. When we add
+  // SIMD we will have to add logic for alignment too.
+  return kStackSlotSize;
+}
+
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   switch (value.type()) {

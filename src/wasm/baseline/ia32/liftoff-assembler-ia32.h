@@ -156,6 +156,7 @@ int LiftoffAssembler::PrepareStackFrame() {
 void LiftoffAssembler::PatchPrepareStackFrame(int offset, uint32_t spill_size) {
   uint32_t bytes = liftoff::kConstantStackSpace + spill_size;
   DCHECK_LE(bytes, kMaxInt);
+  DCHECK_EQ(bytes % kSystemPointerSize, 0);
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 64;
@@ -192,6 +193,10 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, uint32_t spill_size) {
 void LiftoffAssembler::FinishCode() {}
 
 void LiftoffAssembler::AbortCompilation() {}
+
+uint32_t LiftoffAssembler::SlotSizeForType(ValueType type) {
+  return ValueTypes::ElementSizeInBytes(type);
+}
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {

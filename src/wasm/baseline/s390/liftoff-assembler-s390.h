@@ -63,6 +63,10 @@ void LiftoffAssembler::FinishCode() {}
 
 void LiftoffAssembler::AbortCompilation() {}
 
+uint32_t LiftoffAssembler::SlotSizeForType(ValueType type) {
+  return kStackSlotSize;
+}
+
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   bailout(kUnsupportedArchitecture, "LoadConstant");

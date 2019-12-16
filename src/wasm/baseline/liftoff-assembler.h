@@ -38,11 +38,6 @@ class LiftoffAssembler : public TurboAssembler {
   static constexpr ValueType kWasmIntPtr =
       kSystemPointerSize == 8 ? kWasmI64 : kWasmI32;
 
-  // TODO(zhin): Temporary while migrating away from fixed slot sizes.
-  inline static constexpr uint32_t SlotSizeForType(ValueType type) {
-    return kStackSlotSize;
-  }
-
   class VarState {
    public:
     enum Location : uint8_t { kStack, kRegister, kIntConst };
@@ -400,6 +395,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void PatchPrepareStackFrame(int offset, uint32_t spill_size);
   inline void FinishCode();
   inline void AbortCompilation();
+  inline static uint32_t SlotSizeForType(ValueType type);
 
   inline void LoadConstant(LiftoffRegister, WasmValue,
                            RelocInfo::Mode rmode = RelocInfo::NONE);
