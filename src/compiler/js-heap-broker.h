@@ -18,6 +18,7 @@
 #include "src/objects/feedback-vector.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/objects.h"
+#include "src/utils/address-map.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
 
@@ -84,7 +85,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   void InitializeAndStartSerializing(Handle<NativeContext> native_context);
 
   Isolate* isolate() const { return isolate_; }
-  Zone* zone() const { return current_zone_; }
+  Zone* zone() const { return zone_; }
   bool tracing_enabled() const { return tracing_enabled_; }
 
   enum BrokerMode { kDisabled, kSerializing, kSerialized, kRetired };
@@ -97,8 +98,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   void PrintRefsAnalysis() const;
 #endif  // DEBUG
 
-  // Returns nullptr iff handle unknown.
-  ObjectData* GetData(Handle<Object>) const;
+  // Retruns the handle from root index table for read only heap objects.
+  Handle<Object> GetRootHandle(Object object);
+
   // Never returns nullptr.
   ObjectData* GetOrCreateData(Handle<Object>);
   // Like the previous but wraps argument in handle first (for convenience).
@@ -193,6 +195,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   void IncrementTracingIndentation();
   void DecrementTracingIndentation();
 
+  RootIndexMap const& root_index_map() { return root_index_map_; }
+
  private:
   friend class HeapObjectRef;
   friend class ObjectRef;
@@ -221,17 +225,16 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ProcessedFeedback const& ReadFeedbackForTemplateObject(
       FeedbackSource const& source);
 
-  void InitializeRefsMap();
   void CollectArrayAndObjectPrototypes();
   void SerializeTypedArrayStringTags();
 
   PerIsolateCompilerCache* compiler_cache() const { return compiler_cache_; }
 
   Isolate* const isolate_;
-  Zone* const broker_zone_;
-  Zone* current_zone_ = nullptr;
+  Zone* const zone_ = nullptr;
   base::Optional<NativeContextRef> target_native_context_;
   RefsMap* refs_;
+  RootIndexMap root_index_map_;
   ZoneUnorderedSet<Handle<JSObject>, Handle<JSObject>::hash,
                    Handle<JSObject>::equal_to>
       array_and_object_prototypes_;
