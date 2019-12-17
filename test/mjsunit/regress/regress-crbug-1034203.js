@@ -2,20 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --opt --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 function foo(optimized) {
   class C {
-    ['h']() { return 42; }
+    ['h']() {}
   }
   let h = C.prototype.h;
-  let val = h.bind()();
-  if (optimized) {
-    %TurbofanStaticAssert(val === 42);
-  }
+  h.bind();
 }
 
 %PrepareFunctionForOptimization(foo);
-foo(false);
+foo();
 %OptimizeFunctionOnNextCall(foo);
-foo(true);
+foo();

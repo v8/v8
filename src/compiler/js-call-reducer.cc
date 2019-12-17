@@ -1554,10 +1554,15 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
         receiver_map.GetStrongValue(kLengthIndex));
     base::Optional<ObjectRef> name_value(
         receiver_map.GetStrongValue(kNameIndex));
+    if (!length_value || !name_value) {
+      TRACE_BROKER_MISSING(
+          broker(), "name or length descriptors on map " << receiver_map);
+      return inference.NoChange();
+    }
     if (!receiver_map.GetPropertyKey(kLengthIndex).equals(length_string) ||
-        (length_value && !length_value->IsAccessorInfo()) ||
+        !length_value->IsAccessorInfo() ||
         !receiver_map.GetPropertyKey(kNameIndex).equals(name_string) ||
-        (name_value && !name_value->IsAccessorInfo())) {
+        !name_value->IsAccessorInfo()) {
       return inference.NoChange();
     }
   }
