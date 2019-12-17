@@ -378,7 +378,7 @@ class SerializerForBackgroundCompilation {
       CompilationDependencies* dependencies, CompilationSubject function,
       base::Optional<Hints> new_target, const HintsVector& arguments,
       MissingArgumentsPolicy padding,
-      SerializerForBackgroundCompilationFlags flags);
+      SerializerForBackgroundCompilationFlags flags, int nesting_level);
 
   bool BailoutOnUninitialized(ProcessedFeedback const& feedback);
 
@@ -546,6 +546,8 @@ class SerializerForBackgroundCompilation {
   HintsVector const arguments_;
   Hints return_value_hints_;
   Hints closure_hints_;
+
+  int nesting_level_ = 0;
 };
 
 void RunSerializerForBackgroundCompilation(
@@ -1009,7 +1011,7 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
     CompilationDependencies* dependencies, CompilationSubject function,
     base::Optional<Hints> new_target, const HintsVector& arguments,
     MissingArgumentsPolicy padding,
-    SerializerForBackgroundCompilationFlags flags)
+    SerializerForBackgroundCompilationFlags flags, int nesting_level)
     : broker_(broker),
       dependencies_(dependencies),
       zone_scope_(zone_stats, ZONE_NAME),
@@ -1020,7 +1022,8 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
       environment_(new (zone())
                        Environment(zone(), broker_->isolate(), function,
                                    new_target, arguments, padding)),
-      arguments_(arguments) {
+      arguments_(arguments),
+      nesting_level_(nesting_level) {
   Handle<JSFunction> closure;
   if (function.closure().ToHandle(&closure)) {
     closure_hints_.AddConstant(closure, zone());
@@ -1054,15 +1057,23 @@ bool SerializerForBackgroundCompilation::BailoutOnUninitialized(
 
 Hints SerializerForBackgroundCompilation::Run() {
   TraceScope tracer(broker(), this, "SerializerForBackgroundCompilation::Run");
+  if (nesting_level_ >= FLAG_max_serializer_nesting) {
+    TRACE_BROKER_MISSING(
+        broker(),
+        "opportunity - Reached max nesting level for "
+        "SerializerForBackgroundCompilation::Run, bailing out.\n");
+    return Hints();
+  }
+
   TRACE_BROKER_MEMORY(broker(), "[serializer start] Broker zone usage: "
                                     << broker()->zone()->allocation_size());
   SharedFunctionInfoRef shared(broker(), function().shared());
   FeedbackVectorRef feedback_vector_ref(broker(), feedback_vector());
   if (!broker()->ShouldBeSerializedForCompilation(shared, feedback_vector_ref,
                                                   arguments_)) {
-    TRACE_BROKER(broker(), "Already ran serializer for SharedFunctionInfo "
-                               << Brief(*shared.object())
-                               << ", bailing out.\n");
+    TRACE_BROKER_MISSING(
+        broker(), "opportunity - Already ran serializer for SharedFunctionInfo "
+                      << Brief(*shared.object()) << ", bailing out.\n");
     return Hints();
   }
 
@@ -1919,7 +1930,7 @@ Hints SerializerForBackgroundCompilation::RunChildSerializer(
     const HintsVector& arguments, MissingArgumentsPolicy padding) {
   SerializerForBackgroundCompilation child_serializer(
       zone_scope_.zone_stats(), broker(), dependencies(), function, new_target,
-      arguments, padding, flags());
+      arguments, padding, flags(), nesting_level_ + 1);
   Hints result = child_serializer.Run();
   // The Hints returned by the call to Run are allocated in the zone
   // created by the child serializer. Adding those hints to a hints
