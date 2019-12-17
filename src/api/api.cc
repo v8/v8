@@ -8917,9 +8917,8 @@ UnwindState Isolate::GetUnwindState() {
 }
 
 size_t Isolate::CopyCodePages(size_t capacity, MemoryRange* code_pages_out) {
-#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM64) && \
-    !defined(V8_TARGET_ARCH_ARM)
-  // Not implemented on all platforms.
+#if !defined(V8_TARGET_ARCH_64_BIT) && !defined(V8_TARGET_ARCH_ARM)
+  // Not implemented on other platforms.
   UNREACHABLE();
 #else
 
