@@ -30,8 +30,8 @@ declare_args() {
   # Support for backtrace_symbols on linux.
   v8_enable_backtrace = ""
 
-  # Enables raw heap snapshots containing internals. Used for debugging memory
-  # on platform and embedder level.
+  # This flag is deprecated and is now available through the inspector interface
+  # as an argument to profiler's method `takeHeapSnapshot`.
   v8_enable_raw_heap_snapshots = false
 
   # Enable several snapshots side-by-side (e.g. default and for trusted code).
@@ -69,8 +69,7 @@ if (v8_use_multi_snapshots) {
   # Silently disable multi snapshots if they're incompatible with the current
   # build configuration. This allows us to set v8_use_multi_snapshots=true on
   # all bots, and e.g. no-snapshot bots will automatically do the right thing.
-  v8_use_multi_snapshots =
-      v8_use_external_startup_data && !build_with_chromium
+  v8_use_multi_snapshots = v8_use_external_startup_data && !build_with_chromium
 }
 
 if (v8_enable_backtrace == "") {

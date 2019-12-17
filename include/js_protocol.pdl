@@ -653,11 +653,14 @@ experimental domain HeapProfiler
       # If true 'reportHeapSnapshotProgress' events will be generated while snapshot is being taken
       # when the tracking is stopped.
       optional boolean reportProgress
+      optional boolean treatGlobalObjectsAsRoots
 
   command takeHeapSnapshot
     parameters
       # If true 'reportHeapSnapshotProgress' events will be generated while snapshot is being taken.
       optional boolean reportProgress
+      # If true, a raw snapshot without artifical roots will be generated
+      optional boolean treatGlobalObjectsAsRoots
 
   event addHeapSnapshotChunk
     parameters

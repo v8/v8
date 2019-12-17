@@ -10692,10 +10692,11 @@ void HeapProfiler::ClearObjectIds() {
 }
 
 const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(
-    ActivityControl* control, ObjectNameResolver* resolver) {
+    ActivityControl* control, ObjectNameResolver* resolver,
+    bool treat_global_objects_as_roots) {
   return reinterpret_cast<const HeapSnapshot*>(
-      reinterpret_cast<i::HeapProfiler*>(this)->TakeSnapshot(control,
-                                                             resolver));
+      reinterpret_cast<i::HeapProfiler*>(this)->TakeSnapshot(
+          control, resolver, treat_global_objects_as_roots));
 }
 
 void HeapProfiler::StartTrackingHeapObjects(bool track_allocations) {
