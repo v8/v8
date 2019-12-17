@@ -1845,9 +1845,13 @@ void WasmCodeManager::FreeNativeModule(Vector<VirtualMemory> owned_code_space,
   }
 
   DCHECK(IsAligned(committed_size, CommitPageSize()));
-  size_t old_committed = total_committed_code_space_.fetch_sub(committed_size);
-  DCHECK_LE(committed_size, old_committed);
-  USE(old_committed);
+  // TODO(v8:8462): Remove this once perf supports remapping.
+  if (!FLAG_perf_prof) {
+    size_t old_committed =
+        total_committed_code_space_.fetch_sub(committed_size);
+    DCHECK_LE(committed_size, old_committed);
+    USE(old_committed);
+  }
 }
 
 NativeModule* WasmCodeManager::LookupNativeModule(Address pc) const {

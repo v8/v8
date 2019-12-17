@@ -1093,6 +1093,7 @@
 ['arch not in [x64, arm, arm64] or system != linux', {
   # Unwinding info writer is only supported on x64, arm, and arm64 Linux
   'regress/regress-913844': [SKIP],
+  'regress/wasm/regress-1032753': [SKIP],
 }],
 
 ##############################################################################
