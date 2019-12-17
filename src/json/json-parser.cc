@@ -840,6 +840,9 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
             // from the transition tree.
             if (!maybe_feedback.GetBackPointer().IsUndefined(isolate_)) {
               feedback = handle(maybe_feedback, isolate_);
+              if (feedback->is_deprecated()) {
+                feedback = Map::Update(isolate_, feedback);
+              }
             }
           }
           value = BuildJsonObject(cont, property_stack, feedback);
