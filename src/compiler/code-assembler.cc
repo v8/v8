@@ -13,7 +13,6 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/pipeline.h"
@@ -85,11 +84,7 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
       name_(name),
       builtin_index_(builtin_index),
       code_generated_(false),
-      variables_(zone),
-      jsgraph_(new (zone) JSGraph(
-          isolate, raw_assembler_->graph(), raw_assembler_->common(),
-          new (zone) JSOperatorBuilder(zone), raw_assembler_->simplified(),
-          raw_assembler_->machine())) {}
+      variables_(zone) {}
 
 CodeAssemblerState::~CodeAssemblerState() = default;
 
@@ -185,7 +180,7 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state,
   Graph* graph = rasm->ExportForOptimization();
 
   code = Pipeline::GenerateCodeForCodeStub(
-             rasm->isolate(), rasm->call_descriptor(), graph, state->jsgraph_,
+             rasm->isolate(), rasm->call_descriptor(), graph,
              rasm->source_positions(), state->kind_, state->name_,
              state->builtin_index_, rasm->poisoning_level(), options)
              .ToHandleChecked();
@@ -246,15 +241,15 @@ void CodeAssembler::GenerateCheckMaybeObjectIsObject(Node* node,
 #endif
 
 TNode<Int32T> CodeAssembler::Int32Constant(int32_t value) {
-  return UncheckedCast<Int32T>(jsgraph()->Int32Constant(value));
+  return UncheckedCast<Int32T>(raw_assembler()->Int32Constant(value));
 }
 
 TNode<Int64T> CodeAssembler::Int64Constant(int64_t value) {
-  return UncheckedCast<Int64T>(jsgraph()->Int64Constant(value));
+  return UncheckedCast<Int64T>(raw_assembler()->Int64Constant(value));
 }
 
 TNode<IntPtrT> CodeAssembler::IntPtrConstant(intptr_t value) {
-  return UncheckedCast<IntPtrT>(jsgraph()->IntPtrConstant(value));
+  return UncheckedCast<IntPtrT>(raw_assembler()->IntPtrConstant(value));
 }
 
 TNode<Number> CodeAssembler::NumberConstant(double value) {
@@ -282,7 +277,7 @@ TNode<Smi> CodeAssembler::SmiConstant(int value) {
 
 TNode<HeapObject> CodeAssembler::UntypedHeapConstant(
     Handle<HeapObject> object) {
-  return UncheckedCast<HeapObject>(jsgraph()->HeapConstant(object));
+  return UncheckedCast<HeapObject>(raw_assembler()->HeapConstant(object));
 }
 
 TNode<String> CodeAssembler::StringConstant(const char* str) {
@@ -294,7 +289,7 @@ TNode<String> CodeAssembler::StringConstant(const char* str) {
 TNode<Oddball> CodeAssembler::BooleanConstant(bool value) {
   Handle<Object> object = isolate()->factory()->ToBoolean(value);
   return UncheckedCast<Oddball>(
-      jsgraph()->HeapConstant(Handle<HeapObject>::cast(object)));
+      raw_assembler()->HeapConstant(Handle<HeapObject>::cast(object)));
 }
 
 TNode<ExternalReference> CodeAssembler::ExternalConstant(
@@ -304,7 +299,7 @@ TNode<ExternalReference> CodeAssembler::ExternalConstant(
 }
 
 TNode<Float64T> CodeAssembler::Float64Constant(double value) {
-  return UncheckedCast<Float64T>(jsgraph()->Float64Constant(value));
+  return UncheckedCast<Float64T>(raw_assembler()->Float64Constant(value));
 }
 
 bool CodeAssembler::ToInt32Constant(Node* node, int32_t* out_value) {
@@ -1612,8 +1607,6 @@ bool CodeAssembler::IsExceptionHandlerActive() const {
 RawMachineAssembler* CodeAssembler::raw_assembler() const {
   return state_->raw_assembler_.get();
 }
-
-JSGraph* CodeAssembler::jsgraph() const { return state_->jsgraph_; }
 
 // The core implementation of Variable is stored through an indirection so
 // that it can outlive the often block-scoped Variable declarations. This is

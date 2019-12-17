@@ -209,8 +209,7 @@ class PipelineData {
   // For CodeStubAssembler and machine graph testing entry point.
   PipelineData(ZoneStats* zone_stats, OptimizedCompilationInfo* info,
                Isolate* isolate, AccountingAllocator* allocator, Graph* graph,
-               JSGraph* jsgraph, Schedule* schedule,
-               SourcePositionTable* source_positions,
+               Schedule* schedule, SourcePositionTable* source_positions,
                NodeOriginTable* node_origins, JumpOptimizationInfo* jump_opt,
                const AssemblerOptions& assembler_options)
       : isolate_(isolate),
@@ -233,23 +232,15 @@ class PipelineData {
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
         jump_optimization_info_(jump_opt),
         assembler_options_(assembler_options) {
-    if (jsgraph) {
-      jsgraph_ = jsgraph;
-      simplified_ = jsgraph->simplified();
-      machine_ = jsgraph->machine();
-      common_ = jsgraph->common();
-      javascript_ = jsgraph->javascript();
-    } else {
-      simplified_ = new (graph_zone_) SimplifiedOperatorBuilder(graph_zone_);
-      machine_ = new (graph_zone_) MachineOperatorBuilder(
-          graph_zone_, MachineType::PointerRepresentation(),
-          InstructionSelector::SupportedMachineOperatorFlags(),
-          InstructionSelector::AlignmentRequirements());
-      common_ = new (graph_zone_) CommonOperatorBuilder(graph_zone_);
-      javascript_ = new (graph_zone_) JSOperatorBuilder(graph_zone_);
-      jsgraph_ = new (graph_zone_) JSGraph(isolate_, graph_, common_,
-                                           javascript_, simplified_, machine_);
-    }
+    simplified_ = new (graph_zone_) SimplifiedOperatorBuilder(graph_zone_);
+    machine_ = new (graph_zone_) MachineOperatorBuilder(
+        graph_zone_, MachineType::PointerRepresentation(),
+        InstructionSelector::SupportedMachineOperatorFlags(),
+        InstructionSelector::AlignmentRequirements());
+    common_ = new (graph_zone_) CommonOperatorBuilder(graph_zone_);
+    javascript_ = new (graph_zone_) JSOperatorBuilder(graph_zone_);
+    jsgraph_ = new (graph_zone_)
+        JSGraph(isolate_, graph_, common_, javascript_, simplified_, machine_);
   }
 
   // For register allocation testing entry point.
@@ -1195,7 +1186,7 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
         zone_(std::move(zone)),
         graph_(graph),
         data_(&zone_stats_, &info_, isolate, wasm_engine->allocator(), graph_,
-              nullptr, nullptr, source_positions,
+              nullptr, source_positions,
               new (zone_.get()) NodeOriginTable(graph_), nullptr, options),
         pipeline_(&data_),
         wasm_engine_(wasm_engine) {}
@@ -2575,7 +2566,7 @@ bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
 
 MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
-    JSGraph* jsgraph, SourcePositionTable* source_positions, Code::Kind kind,
+    SourcePositionTable* source_positions, Code::Kind kind,
     const char* debug_name, int32_t builtin_index,
     PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options) {
   OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
@@ -2592,7 +2583,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   bool should_optimize_jumps =
       isolate->serializer_enabled() && FLAG_turbo_rewrite_far_jumps;
   PipelineData data(&zone_stats, &info, isolate, isolate->allocator(), graph,
-                    jsgraph, nullptr, source_positions, &node_origins,
+                    nullptr, source_positions, &node_origins,
                     should_optimize_jumps ? &jump_opt : nullptr, options);
   data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
@@ -2642,7 +2633,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   // repeat it for jump optimization. The first run has to happen on a temporary
   // pipeline to avoid deletion of zones on the main pipeline.
   PipelineData second_data(&zone_stats, &info, isolate, isolate->allocator(),
-                           data.graph(), data.jsgraph(), data.schedule(),
+                           data.graph(), data.schedule(),
                            data.source_positions(), data.node_origins(),
                            data.jump_optimization_info(), options);
   second_data.set_verify_graph(FLAG_verify_csa);
@@ -2811,8 +2802,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   ZoneStats zone_stats(isolate->allocator());
   NodeOriginTable* node_positions = new (info->zone()) NodeOriginTable(graph);
   PipelineData data(&zone_stats, info, isolate, isolate->allocator(), graph,
-                    nullptr, schedule, nullptr, node_positions, nullptr,
-                    options);
+                    schedule, nullptr, node_positions, nullptr, options);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(
