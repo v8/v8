@@ -108,8 +108,10 @@ class LoadType {
   const LoadTypeValue val_;
 
   static constexpr uint8_t kLoadSizeLog2[] = {
+  // MSVC wants a static_cast here.
 #define LOAD_SIZE(_, __, memtype) \
-  ElementSizeLog2Of(MachineType::memtype().representation()),
+  static_cast<uint8_t>(           \
+      ElementSizeLog2Of(MachineType::memtype().representation())),
       FOREACH_LOAD_TYPE(LOAD_SIZE)
 #undef LOAD_SIZE
   };
@@ -176,8 +178,9 @@ class StoreType {
   const StoreTypeValue val_;
 
   static constexpr uint8_t kStoreSizeLog2[] = {
+  // MSVC wants a static_cast here.
 #define STORE_SIZE(_, __, memrep) \
-  ElementSizeLog2Of(MachineRepresentation::k##memrep),
+  static_cast<uint8_t>(ElementSizeLog2Of(MachineRepresentation::k##memrep)),
       FOREACH_STORE_TYPE(STORE_SIZE)
 #undef STORE_SIZE
   };
