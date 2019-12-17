@@ -274,9 +274,16 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
   } else if (obj.IsJSDataView()) {
     JSDataView data_view = JSDataView::cast(obj);
     JSArrayBuffer buffer = JSArrayBuffer::cast(data_view.buffer());
-    data_view.set_data_pointer(
-        reinterpret_cast<uint8_t*>(buffer.backing_store()) +
-        data_view.byte_offset());
+    void* backing_store = nullptr;
+    if (buffer.backing_store() != nullptr) {
+      // The backing store of the JSArrayBuffer has not been correctly restored
+      // yet, as that may trigger GC. The backing_store field currently contains
+      // a numbered reference to an already deserialized backing store.
+      size_t store_index = reinterpret_cast<size_t>(buffer.backing_store());
+      backing_store = backing_stores_[store_index]->buffer_start();
+    }
+    data_view.set_data_pointer(reinterpret_cast<uint8_t*>(backing_store) +
+                               data_view.byte_offset());
   } else if (obj.IsJSTypedArray()) {
     JSTypedArray typed_array = JSTypedArray::cast(obj);
     // Fixup typed array pointers.
@@ -294,15 +301,9 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
     }
   } else if (obj.IsJSArrayBuffer()) {
     JSArrayBuffer buffer = JSArrayBuffer::cast(obj);
-    // Only fixup for the off-heap case.
+    // Only fixup for the off-heap case. This may trigger GC.
     if (buffer.backing_store() != nullptr) {
-      // Serializer writes backing store ref in |backing_store| field.
-      size_t store_index = reinterpret_cast<size_t>(buffer.backing_store());
-      auto backing_store = backing_stores_[store_index];
-      SharedFlag shared = backing_store && backing_store->is_shared()
-                              ? SharedFlag::kShared
-                              : SharedFlag::kNotShared;
-      buffer.Setup(shared, backing_store);
+      new_off_heap_array_buffers_.push_back(handle(buffer, isolate_));
     }
   } else if (obj.IsBytecodeArray()) {
     // TODO(mythria): Remove these once we store the default values for these
