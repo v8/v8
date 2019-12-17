@@ -8058,12 +8058,14 @@ void BigInt::ToWordsArray(int* sign_bit, int* word_count,
 void Isolate::ReportExternalAllocationLimitReached() {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
   if (heap->gc_state() != i::Heap::NOT_IN_GC) return;
+  DCHECK(i::AllowHeapAllocation::IsAllowed());
   heap->ReportExternalMemoryPressure();
 }
 
 void Isolate::CheckMemoryPressure() {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
   if (heap->gc_state() != i::Heap::NOT_IN_GC) return;
+  DCHECK(i::AllowHeapAllocation::IsAllowed());
   heap->CheckMemoryPressure();
 }
 
