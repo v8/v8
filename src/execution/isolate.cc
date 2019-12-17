@@ -1011,7 +1011,11 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
           IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
                             Builtins::kAsyncGeneratorAwaitResolveClosure) ||
           IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
-                            Builtins::kAsyncGeneratorYieldResolveClosure)) {
+                            Builtins::kAsyncGeneratorYieldResolveClosure) ||
+          IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
+                            Builtins::kAsyncFunctionAwaitRejectClosure) ||
+          IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
+                            Builtins::kAsyncGeneratorAwaitRejectClosure)) {
         // Now peak into the handlers' AwaitContext to get to
         // the JSGeneratorObject for the async function.
         Handle<Context> context(
