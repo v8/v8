@@ -49,6 +49,18 @@
   'proposals/js-types/float_exprs': [SKIP],
   'proposals/js-types/float_misc': [SKIP],
   'proposals/js-types/conversions': [SKIP],
+  'proposals/JS-BigInt-integration/f32': [SKIP],
+  'proposals/JS-BigInt-integration/f64': [SKIP],
+  'proposals/bulk-memory-operations/f32': [SKIP],
+  'proposals/bulk-memory-operations/f64': [SKIP],
+  'proposals/multi-value/f32': [SKIP],
+  'proposals/multi-value/f64': [SKIP],
+  'proposals/reference-types/f32': [SKIP],
+  'proposals/reference-types/f64': [SKIP],
+  'proposals/JS-BigInt-integration/float_misc': [SKIP],
+  'proposals/bulk-memory-operations/float_misc': [SKIP],
+  'proposals/multi-value/float_misc': [SKIP],
+  'proposals/reference-types/float_misc': [SKIP],
 }],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
 
 ['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simulator_run', {
