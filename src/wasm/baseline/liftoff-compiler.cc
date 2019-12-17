@@ -172,30 +172,34 @@ class DebugSideTableBuilder {
     }
 
     int pc_offset() const { return pc_offset_; }
+    void set_pc_offset(int new_pc_offset) { pc_offset_ = new_pc_offset; }
 
    private:
-    const int pc_offset_;
+    int pc_offset_;
     const int stack_height_;
     std::vector<DebugSideTable::Entry::Constant> constants_;
   };
 
-  // Adds a new entry, and returns a reference for modifying that entry. The
-  // reference can only be used until the next call to {NewEntry}.
-  EntryBuilder& NewEntry(int pc_offset, int stack_height) {
-    DCHECK(entries_.empty() || entries_.back().pc_offset() < pc_offset);
+  // Adds a new entry, and returns a pointer to a builder for modifying that
+  // entry.
+  EntryBuilder* NewEntry(int pc_offset, int stack_height) {
     entries_.emplace_back(pc_offset, stack_height);
-    return entries_.back();
+    return &entries_.back();
   }
 
   DebugSideTable GenerateDebugSideTable() {
     std::vector<DebugSideTable::Entry> table_entries;
     table_entries.reserve(entries_.size());
     for (auto& entry : entries_) table_entries.push_back(entry.ToTableEntry());
+    std::sort(table_entries.begin(), table_entries.end(),
+              [](DebugSideTable::Entry& a, DebugSideTable::Entry& b) {
+                return a.pc_offset() < b.pc_offset();
+              });
     return DebugSideTable{std::move(table_entries)};
   }
 
  private:
-  std::vector<EntryBuilder> entries_;
+  std::list<EntryBuilder> entries_;
 };
 
 class LiftoffCompiler {
@@ -231,15 +235,20 @@ class LiftoffCompiler {
     WasmCodePosition position;
     LiftoffRegList regs_to_save;
     uint32_t pc;  // for trap handler.
+    DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder;
 
     // Named constructors:
-    static OutOfLineCode Trap(WasmCode::RuntimeStubId s, WasmCodePosition pos,
-                              uint32_t pc) {
+    static OutOfLineCode Trap(
+        WasmCode::RuntimeStubId s, WasmCodePosition pos, uint32_t pc,
+        DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
       DCHECK_LT(0, pos);
-      return {{}, {}, s, pos, {}, pc};
+      return {{}, {}, s, pos, {}, pc, debug_sidetable_entry_builder};
     }
-    static OutOfLineCode StackCheck(WasmCodePosition pos, LiftoffRegList regs) {
-      return {{}, {}, WasmCode::kWasmStackGuard, pos, regs, 0};
+    static OutOfLineCode StackCheck(
+        WasmCodePosition pos, LiftoffRegList regs,
+        DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
+      return {{},   {}, WasmCode::kWasmStackGuard,    pos,
+              regs, 0,  debug_sidetable_entry_builder};
     }
   };
 
@@ -415,7 +424,8 @@ class LiftoffCompiler {
   void StackCheck(WasmCodePosition position) {
     if (FLAG_wasm_no_stack_checks || !env_->runtime_exception_support) return;
     out_of_line_code_.push_back(
-        OutOfLineCode::StackCheck(position, __ cache_state()->used_registers));
+        OutOfLineCode::StackCheck(position, __ cache_state()->used_registers,
+                                  RegisterDebugSideTableEntry()));
     OutOfLineCode& ool = out_of_line_code_.back();
     Register limit_address = __ GetUnusedRegister(kGpReg).gp();
     LOAD_INSTANCE_FIELD(limit_address, StackLimitAddress, kSystemPointerSize);
@@ -537,7 +547,10 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(ool->position), false);
     __ CallRuntimeStub(ool->stub);
-    RegisterDebugSideTableEntry();
+    DCHECK_EQ(!debug_sidetable_builder_, !ool->debug_sidetable_entry_builder);
+    if (V8_UNLIKELY(ool->debug_sidetable_entry_builder)) {
+      ool->debug_sidetable_entry_builder->set_pc_offset(__ pc_offset());
+    }
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
     DCHECK_EQ(ool->continuation.get()->is_bound(), is_stack_check);
     if (!ool->regs_to_save.is_empty()) __ PopRegisters(ool->regs_to_save);
@@ -1625,7 +1638,8 @@ class LiftoffCompiler {
     DCHECK_EQ(pc != 0, stub == WasmCode::kThrowWasmTrapMemOutOfBounds &&
                            env_->use_trap_handler);
 
-    out_of_line_code_.push_back(OutOfLineCode::Trap(stub, position, pc));
+    out_of_line_code_.push_back(
+        OutOfLineCode::Trap(stub, position, pc, RegisterDebugSideTableEntry()));
     return out_of_line_code_.back().label.get();
   }
 
@@ -1871,16 +1885,17 @@ class LiftoffCompiler {
     __ PushRegister(kWasmI32, result);
   }
 
-  void RegisterDebugSideTableEntry() {
-    if (V8_LIKELY(!debug_sidetable_builder_)) return;
+  DebugSideTableBuilder::EntryBuilder* RegisterDebugSideTableEntry() {
+    if (V8_LIKELY(!debug_sidetable_builder_)) return nullptr;
     int stack_height = static_cast<int>(__ cache_state()->stack_height());
-    auto entry =
+    auto* entry_builder =
         debug_sidetable_builder_->NewEntry(__ pc_offset(), stack_height);
     // Record all constants on the stack.
     for (int idx = 0; idx < stack_height; ++idx) {
       auto& slot = __ cache_state()->stack_state[idx];
-      if (slot.is_const()) entry.SetConstant(idx, slot.i32_const());
+      if (slot.is_const()) entry_builder->SetConstant(idx, slot.i32_const());
     }
+    return entry_builder;
   }
 
   void CallDirect(FullDecoder* decoder,

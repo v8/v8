@@ -120,6 +120,47 @@ class LiftoffCompileEnvironment {
   Zone zone_;
   TestingModuleBuilder module_builder_;
 };
+
+struct DebugSideTableEntry {
+  int stack_height;
+  std::vector<std::pair<int, int>> constants;
+
+  bool operator==(const DebugSideTableEntry& other) const {
+    return stack_height == other.stack_height && constants == other.constants;
+  }
+};
+
+// Debug builds will print the vector of DebugSideTableEntry.
+#ifdef DEBUG
+std::ostream& operator<<(std::ostream& out, const DebugSideTableEntry& entry) {
+  out << "{stack height " << entry.stack_height << ", constants: {";
+  const char* comma = "";
+  for (auto& c : entry.constants) {
+    out << comma << "{" << c.first << ", " << c.second << "}";
+    comma = ", ";
+  }
+  return out << "}}";
+}
+
+std::ostream& operator<<(std::ostream& out,
+                         const std::vector<DebugSideTableEntry>& entries) {
+  return out << PrintCollection(entries);
+}
+#endif  // DEBUG
+
+void CheckEntries(std::vector<DebugSideTableEntry> expected,
+                  const wasm::DebugSideTable& debug_side_table) {
+  std::vector<DebugSideTableEntry> entries;
+  for (auto& entry : debug_side_table.entries()) {
+    std::vector<std::pair<int, int>> constants;
+    for (int i = 0; i < entry.stack_height(); ++i) {
+      if (entry.IsConstant(i)) constants.emplace_back(i, entry.GetConstant(i));
+    }
+    entries.push_back({entry.stack_height(), std::move(constants)});
+  }
+  CHECK_EQ(expected, entries);
+}
+
 }  // namespace
 
 TEST(Liftoff_deterministic_simple) {
@@ -164,8 +205,11 @@ TEST(Liftoff_debug_side_table_simple) {
   auto debug_side_table = env.GenerateDebugSideTable(
       {kWasmI32}, {kWasmI32, kWasmI32},
       {WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))});
-  // 1 entry for the stack check.
-  CHECK_EQ(1, debug_side_table.num_entries());
+  CheckEntries(
+      {
+          {2, {}}  // OOL stack check, stack: {param0, param1}
+      },
+      debug_side_table);
 }
 
 TEST(Liftoff_debug_side_table_call) {
@@ -174,10 +218,28 @@ TEST(Liftoff_debug_side_table_call) {
       {kWasmI32}, {kWasmI32},
       {WASM_I32_ADD(WASM_CALL_FUNCTION(0, WASM_GET_LOCAL(0)),
                     WASM_GET_LOCAL(0))});
-  // 2 entries:
-  // - stack check
-  // - call
-  CHECK_EQ(2, debug_side_table.num_entries());
+  CheckEntries(
+      {
+          {1, {}},  // call, stack: {param0}
+          {1, {}}   // OOL stack check, stack: {param0}
+      },
+      debug_side_table);
+}
+
+TEST(Liftoff_debug_side_table_call_const) {
+  LiftoffCompileEnvironment env;
+  constexpr int kConst = 13;
+  auto debug_side_table = env.GenerateDebugSideTable(
+      {kWasmI32}, {kWasmI32},
+      {WASM_SET_LOCAL(0, WASM_I32V_1(kConst)),
+       WASM_I32_ADD(WASM_CALL_FUNCTION(0, WASM_GET_LOCAL(0)),
+                    WASM_GET_LOCAL(0))});
+  CheckEntries(
+      {
+          {1, {{0, kConst}}},  // call, stack: {kConst}
+          {1, {}}              // OOL stack check, stack: {param0}
+      },
+      debug_side_table);
 }
 
 TEST(Liftoff_debug_side_table_indirect_call) {
@@ -186,23 +248,28 @@ TEST(Liftoff_debug_side_table_indirect_call) {
       {kWasmI32}, {kWasmI32},
       {WASM_I32_ADD(WASM_CALL_INDIRECT(0, WASM_I32V_1(47), WASM_GET_LOCAL(0)),
                     WASM_GET_LOCAL(0))});
-  // 4 entries:
-  // - stack check
-  // - trap for invalid function index
-  // - trap for signature mismatch
-  // - indirect call
-  CHECK_EQ(4, debug_side_table.num_entries());
+  CheckEntries(
+      {
+          {1, {}},         // indirect call, stack: {param0}
+          {1, {}},         // OOL stack check, stack: {param0}
+          {2, {{1, 47}}},  // OOL invalid index, stack: {param0, 47}
+          {2, {{1, 47}}},  // OOL sig mismatch, stack: {param0, 47}
+      },
+      debug_side_table);
 }
 
 TEST(Liftoff_debug_side_table_loop) {
   LiftoffCompileEnvironment env;
+  constexpr int kConst = 42;
   auto debug_side_table = env.GenerateDebugSideTable(
       {kWasmI32}, {kWasmI32},
-      {WASM_LOOP(WASM_BR_IF(0, WASM_GET_LOCAL(0))), WASM_GET_LOCAL(0)});
-  // 2 entries:
-  // - stack check at function entry
-  // - stack check in loop header
-  CHECK_EQ(2, debug_side_table.num_entries());
+      {WASM_I32V_1(kConst), WASM_LOOP(WASM_BR_IF(0, WASM_GET_LOCAL(0)))});
+  CheckEntries(
+      {
+          {1, {}},            // OOL stack check, stack: {param0}
+          {2, {{1, kConst}}}  // OOL loop stack check, stack: {param0, kConst}
+      },
+      debug_side_table);
 }
 
 TEST(Liftoff_debug_side_table_trap) {
@@ -210,11 +277,13 @@ TEST(Liftoff_debug_side_table_trap) {
   auto debug_side_table = env.GenerateDebugSideTable(
       {kWasmI32}, {kWasmI32, kWasmI32},
       {WASM_I32_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))});
-  // 3 entries:
-  // - stack check
-  // - trap for division by zero
-  // - trap for division result unrepresentable
-  CHECK_EQ(3, debug_side_table.num_entries());
+  CheckEntries(
+      {
+          {2, {}},  // OOL stack check, stack: {param0, param1}
+          {2, {}},  // OOL div by zero, stack: {param0, param1}
+          {2, {}}   // OOL unrepresentable div, stack: {param0, param1}
+      },
+      debug_side_table);
 }
 
 }  // namespace wasm

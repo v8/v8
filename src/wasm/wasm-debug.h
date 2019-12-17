@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 
@@ -83,6 +84,10 @@ class DebugSideTable {
                                Entry{pc_offset, 0, {}}, EntryPositionLess{});
     if (it == entries_.end() || it->pc_offset() != pc_offset) return nullptr;
     return &*it;
+  }
+
+  auto entries() const {
+    return base::make_iterator_range(entries_.begin(), entries_.end());
   }
 
   size_t num_entries() const { return entries_.size(); }
