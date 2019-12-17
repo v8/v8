@@ -15,14 +15,6 @@
   /* V8 side owner: clemensb */                                                \
   V(eh, "exception handling opcodes", false)                                   \
                                                                                \
-  /* Threads proposal. */                                                      \
-  /* https://github.com/webassembly/threads */                                 \
-  /* NOTE: This is enabled via chromium flag on desktop systems since v7.4  */ \
-  /* (see https://crrev.com/c/1487808). ITS: https://groups.google.com/a/   */ \
-  /* chromium.org/d/msg/blink-dev/tD6np-OG2PU/rcNGROOMFQAJ */                  \
-  /* V8 side owner: gdeepti */                                                 \
-  V(threads, "thread opcodes", false)                                          \
-                                                                               \
   /* Fixed-width SIMD operations. */                                           \
   /* https://github.com/webassembly/simd */                                    \
   /* V8 side owner: gdeepti */                                                 \
@@ -63,6 +55,14 @@
   /* V8 side owner: thibaudm */                                                \
   /* Staged in v8.0. */                                                        \
   V(mv, "multi-value support", false)                                          \
+                                                                               \
+  /* Threads proposal. */                                                      \
+  /* https://github.com/webassembly/threads */                                 \
+  /* NOTE: This is enabled via chromium flag on desktop systems since v7.4  */ \
+  /* (see https://crrev.com/c/1487808). ITS: https://groups.google.com/a/   */ \
+  /* chromium.org/d/msg/blink-dev/tD6np-OG2PU/rcNGROOMFQAJ */                  \
+  /* V8 side owner: gdeepti */                                                 \
+  V(threads, "thread opcodes", false)                                          \
                                                                                \
   /* Type reflection proposal. */                                              \
   /* https://github.com/webassembly/js-types */                                \
