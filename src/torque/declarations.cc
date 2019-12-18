@@ -76,6 +76,13 @@ const Type* Declarations::LookupType(const Identifier* name) {
   return alias->type();
 }
 
+base::Optional<const Type*> Declarations::TryLookupType(
+    const QualifiedName& name) {
+  auto decls = FilterDeclarables<TypeAlias>(TryLookup(name));
+  if (decls.empty()) return base::nullopt;
+  return EnsureUnique(std::move(decls), name, "type")->type();
+}
+
 const Type* Declarations::LookupGlobalType(const QualifiedName& name) {
   TypeAlias* declaration = EnsureUnique(
       FilterDeclarables<TypeAlias>(LookupGlobalScope(name)), name, "type");

@@ -13,7 +13,8 @@ namespace typed_array {
     // 3. If O does not have a [[TypedArrayName]] internal slot, throw a
     // TypeError exception.
     const source = Cast<JSTypedArray>(receiver)
-        otherwise ThrowTypeError(kIncompatibleMethodReceiver, methodName);
+        otherwise ThrowTypeError(
+        MessageTemplate::kIncompatibleMethodReceiver, methodName);
 
     // 5. Let buffer be O.[[ViewedArrayBuffer]].
     const buffer = typed_array::GetBuffer(source);
@@ -51,7 +52,7 @@ namespace typed_array {
     // 15. Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
     const beginByteOffset =
         srcByteOffset + elementsInfo.CalculateByteLength(begin)
-        otherwise ThrowRangeError(kInvalidArrayBufferLength);
+        otherwise ThrowRangeError(MessageTemplate::kInvalidArrayBufferLength);
 
     // 16. Let argumentsList be « buffer, beginByteOffset, newLength ».
     // 17. Return ? TypedArraySpeciesCreate(O, argumentsList).

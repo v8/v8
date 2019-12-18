@@ -41,8 +41,9 @@ namespace proxy {
 
       // 9. If booleanTrapResult is false, return false.
       if (!ToBoolean(trapResult)) {
-        if (languageMode == SmiConstant(kStrict)) {
-          ThrowTypeError(kProxyTrapReturnedFalsishFor, kTrapName, name);
+        if (languageMode == SmiConstant(LanguageMode::kStrict)) {
+          ThrowTypeError(
+              MessageTemplate::kProxyTrapReturnedFalsishFor, kTrapName, name);
         }
         return False;
       }
@@ -63,7 +64,7 @@ namespace proxy {
       return DeleteProperty(target, name, languageMode);
     }
     label ThrowProxyHandlerRevoked deferred {
-      ThrowTypeError(kProxyRevoked, kTrapName);
+      ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
     }
   }
 }

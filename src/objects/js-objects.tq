@@ -92,7 +92,8 @@ macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
     properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
   }
   return AllocateJSObjectFromMap(
-      map, properties, kEmptyFixedArray, kNone, kWithSlackTracking);
+      map, properties, kEmptyFixedArray, AllocationFlag::kNone,
+      SlackTrackingMode::kWithSlackTracking);
 }
 
 @generateCppClass
@@ -188,4 +189,4 @@ extern macro AllocateJSObjectFromMap(
     Map, NameDictionary | EmptyFixedArray | PropertyArray): JSObject;
 extern macro AllocateJSObjectFromMap(
     Map, NameDictionary | EmptyFixedArray | PropertyArray, FixedArray,
-    constexpr AllocationFlags, constexpr SlackTrackingMode): JSObject;
+    constexpr AllocationFlag, constexpr SlackTrackingMode): JSObject;

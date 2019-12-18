@@ -104,13 +104,14 @@ namespace object {
       typeswitch (prototype) {
         case (Null): {
           map = UnsafeCast<Map>(
-              nativeContext[SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP]);
+              nativeContext
+                  [NativeContextSlot::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP]);
           properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
         }
         case (prototype: JSReceiver): {
           properties = kEmptyFixedArray;
-          const objectFunction =
-              UnsafeCast<JSFunction>(nativeContext[OBJECT_FUNCTION_INDEX]);
+          const objectFunction = UnsafeCast<JSFunction>(
+              nativeContext[NativeContextSlot::OBJECT_FUNCTION_INDEX]);
           map = UnsafeCast<Map>(objectFunction.prototype_or_initial_map);
           if (prototype != map.prototype) {
             const prototypeInfo =
@@ -173,7 +174,7 @@ namespace object {
         return object::ObjectSetPrototypeOfThrow(object, proto);
       }
       case (JSAny): {
-        ThrowTypeError(kProtoObjectOrNull, proto);
+        ThrowTypeError(MessageTemplate::kProtoObjectOrNull, proto);
       }
     }
   }

@@ -1118,6 +1118,182 @@ base::Optional<ParseResult> MakeIfStatement(
   return ParseResult{result};
 }
 
+base::Optional<ParseResult> MakeEnumDeclaration(
+    ParseResultIterator* child_results) {
+  const bool is_extern = child_results->NextAs<bool>();
+  auto name_identifier = child_results->NextAs<Identifier*>();
+  auto name = name_identifier->value;
+  auto base_identifier = child_results->NextAs<base::Optional<Identifier*>>();
+  auto constexpr_generates_opt =
+      child_results->NextAs<base::Optional<std::string>>();
+  auto entries = child_results->NextAs<std::vector<Identifier*>>();
+  const bool is_open = child_results->NextAs<bool>();
+  CurrentSourcePosition::Scope current_source_position(
+      child_results->matched_input().pos);
+
+  if (!is_extern) {
+    ReportError("non-extern enums are not supported yet");
+  }
+
+  if (!IsValidTypeName(name)) {
+    NamingConventionError("Type", name, "UpperCamelCase");
+  }
+
+  auto constexpr_generates =
+      constexpr_generates_opt ? *constexpr_generates_opt : name;
+  const bool generate_nonconstexpr = base_identifier.has_value();
+
+  std::vector<Declaration*> result;
+  // Build non-constexpr types.
+  if (generate_nonconstexpr) {
+    DCHECK(base_identifier.has_value());
+
+    if (is_open) {
+      // For open enumerations, we define an abstract type and inherit all
+      // entries' types from that:
+      //   type Enum extends Base;
+      //   namespace Enum {
+      //     type kEntry0 extends Enum;
+      //     ...
+      //     type kEntryN extends Enum;
+      //   }
+      auto type_decl = MakeNode<AbstractTypeDeclaration>(
+          name_identifier, false, base_identifier, base::nullopt);
+
+      std::vector<Declaration*> entry_decls;
+      for (const auto& entry_name_identifier : entries) {
+        entry_decls.push_back(MakeNode<AbstractTypeDeclaration>(
+            entry_name_identifier, false, name_identifier, base::nullopt));
+      }
+
+      result.push_back(type_decl);
+      result.push_back(
+          MakeNode<NamespaceDeclaration>(name, std::move(entry_decls)));
+    } else {
+      // For closed enumerations, we define abstract types for all entries and
+      // define the enumeration as a union of those:
+      //   namespace Enum {
+      //     type kEntry0 extends Base;
+      //     ...
+      //     type kEntryN extends Base;
+      //   }
+      //   type Enum = Enum::kEntry0 | ... | Enum::kEntryN;
+      TypeExpression* union_type = nullptr;
+      std::vector<Declaration*> entry_decls;
+      for (const auto& entry_name_identifier : entries) {
+        entry_decls.push_back(MakeNode<AbstractTypeDeclaration>(
+            entry_name_identifier, false, base_identifier, base::nullopt));
+
+        auto entry_type = MakeNode<BasicTypeExpression>(
+            std::vector<std::string>{name}, entry_name_identifier->value,
+            std::vector<TypeExpression*>{});
+        if (union_type) {
+          union_type = MakeNode<UnionTypeExpression>(union_type, entry_type);
+        } else {
+          union_type = entry_type;
+        }
+      }
+
+      result.push_back(
+          MakeNode<NamespaceDeclaration>(name, std::move(entry_decls)));
+      result.push_back(
+          MakeNode<TypeAliasDeclaration>(name_identifier, union_type));
+    }
+  }
+
+  // Build constexpr types.
+  {
+    // The constexpr entries inherit from an abstract enumeration type:
+    //   type constexpr Enum extends constexpr Base;
+    //   namespace Enum {
+    //     type constexpr kEntry0 extends constexpr Enum;
+    //     ...
+    //     type constexpr kEntry1 extends constexpr Enum;
+    //   }
+    Identifier* constexpr_type_identifier =
+        MakeNode<Identifier>(std::string(CONSTEXPR_TYPE_PREFIX) + name);
+    base::Optional<Identifier*> base_constexpr_type_identifier = base::nullopt;
+    if (base_identifier) {
+      base_constexpr_type_identifier = MakeNode<Identifier>(
+          std::string(CONSTEXPR_TYPE_PREFIX) + (*base_identifier)->value);
+    }
+    result.push_back(MakeNode<AbstractTypeDeclaration>(
+        constexpr_type_identifier, false, base_constexpr_type_identifier,
+        constexpr_generates));
+
+    TypeExpression* type_expr = nullptr;
+    Identifier* fromconstexpr_identifier = nullptr;
+    Identifier* fromconstexpr_parameter_identifier = nullptr;
+    Statement* fromconstexpr_body = nullptr;
+    if (generate_nonconstexpr) {
+      DCHECK(base_identifier.has_value());
+      TypeExpression* base_type_expr = MakeNode<BasicTypeExpression>(
+          std::vector<std::string>{}, (*base_identifier)->value,
+          std::vector<TypeExpression*>{});
+      type_expr = MakeNode<BasicTypeExpression>(
+          std::vector<std::string>{}, name, std::vector<TypeExpression*>{});
+
+      // return %RawDownCast<Enum>(%FromConstexpr<Base>(o)))
+      fromconstexpr_identifier = MakeNode<Identifier>("FromConstexpr");
+      fromconstexpr_parameter_identifier = MakeNode<Identifier>("o");
+      fromconstexpr_body =
+          MakeNode<ReturnStatement>(MakeNode<IntrinsicCallExpression>(
+              MakeNode<Identifier>("%RawDownCast"),
+              std::vector<TypeExpression*>{type_expr},
+              std::vector<Expression*>{MakeNode<IntrinsicCallExpression>(
+                  MakeNode<Identifier>("%FromConstexpr"),
+                  std::vector<TypeExpression*>{base_type_expr},
+                  std::vector<Expression*>{MakeNode<IdentifierExpression>(
+                      std::vector<std::string>{},
+                      fromconstexpr_parameter_identifier)})}));
+    }
+
+    std::vector<Declaration*> entry_decls;
+    for (const auto& entry_name_identifier : entries) {
+      const std::string entry_name = entry_name_identifier->value;
+      const std::string entry_constexpr_type =
+          std::string(CONSTEXPR_TYPE_PREFIX) + entry_name;
+
+      entry_decls.push_back(MakeNode<AbstractTypeDeclaration>(
+          MakeNode<Identifier>(entry_constexpr_type), false,
+          constexpr_type_identifier, constexpr_generates));
+
+      // namespace Enum {
+      //   const kEntry0: constexpr kEntry0 constexpr 'Enum::kEntry0';
+      // }
+      entry_decls.push_back(MakeNode<ExternConstDeclaration>(
+          entry_name_identifier,
+          MakeNode<BasicTypeExpression>(std::vector<std::string>{},
+                                        entry_constexpr_type,
+                                        std::vector<TypeExpression*>{}),
+          constexpr_generates + "::" + entry_name));
+
+      // FromConstexpr<Enum, Enum::constexpr kEntry0>(
+      //   : Enum::constexpr kEntry0): Enum
+      if (generate_nonconstexpr) {
+        TypeExpression* entry_constexpr_type_expr =
+            MakeNode<BasicTypeExpression>(std::vector<std::string>{name},
+                                          entry_constexpr_type,
+                                          std::vector<TypeExpression*>{});
+
+        ParameterList parameters;
+        parameters.names.push_back(fromconstexpr_parameter_identifier);
+        parameters.types.push_back(entry_constexpr_type_expr);
+        result.push_back(MakeNode<SpecializationDeclaration>(
+            false, fromconstexpr_identifier,
+            std::vector<TypeExpression*>{type_expr, entry_constexpr_type_expr},
+            std::move(parameters), type_expr, LabelAndTypesVector{},
+            fromconstexpr_body));
+      }
+    }
+
+    result.push_back(
+        MakeNode<NamespaceDeclaration>(name, std::move(entry_decls)));
+  }
+
+  return ParseResult{std::move(result)};
+}
+
 base::Optional<ParseResult> MakeTypeswitchStatement(
     ParseResultIterator* child_results) {
   auto expression = child_results->NextAs<Expression*>();
@@ -2189,7 +2365,14 @@ struct TorqueGrammar : Grammar {
             &optionalReturnType, optionalLabelList, &block},
            AsSingletonVector<Declaration*, MakeSpecializationDeclaration>()),
       Rule({Token("#include"), &externalString},
-           AsSingletonVector<Declaration*, MakeCppIncludeDeclaration>())};
+           AsSingletonVector<Declaration*, MakeCppIncludeDeclaration>()),
+      Rule({CheckIf(Token("extern")), Token("enum"), &name,
+            Optional<Identifier*>(Sequence({Token("extends"), &name})),
+            Optional<std::string>(
+                Sequence({Token("constexpr"), &externalString})),
+            Token("{"), NonemptyList<Identifier*>(&name, Token(",")),
+            CheckIf(Sequence({Token(","), Token("...")})), Token("}")},
+           MakeEnumDeclaration)};
 
   // Result: std::vector<Declaration*>
   Symbol declarationList = {

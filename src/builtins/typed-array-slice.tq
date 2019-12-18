@@ -44,7 +44,7 @@ namespace typed_array {
     if (typed_array::IsBigInt64ElementsKind(src.elements_kind) !=
         typed_array::IsBigInt64ElementsKind(dest.elements_kind))
       deferred {
-        ThrowTypeError(kBigIntMixedTypes);
+        ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
       }
 
     CallCCopyTypedArrayElementsSlice(src, dest, k, final);
@@ -94,7 +94,7 @@ namespace typed_array {
         FastCopy(srcAttached, dest, k, count) otherwise IfSlow;
       }
       label IfDetached deferred {
-        ThrowTypeError(kDetachedOperation, kBuiltinNameSlice);
+        ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameSlice);
       }
       label IfSlow deferred {
         SlowCopy(src, dest, k, final);

@@ -126,8 +126,6 @@ type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 type Number = Smi|HeapNumber;
 type Numeric = Number|BigInt;
 
-type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
-
 extern class ObjectBoilerplateDescription extends FixedArray;
 extern class ClosureFeedbackCellArray extends FixedArray;
 extern class ScriptContextTable extends FixedArray;
@@ -156,35 +154,20 @@ type CallableJSProxy extends JSProxy;
 
 type Callable = JSFunction|JSBoundFunction|CallableJSProxy|CallableApiObject;
 
-type ElementsKind generates 'TNode<Int32T>' constexpr 'ElementsKind';
-type LanguageMode extends Smi constexpr 'LanguageMode';
-type ExtractFixedArrayFlags
-    generates 'TNode<Smi>'
-    constexpr 'CodeStubAssembler::ExtractFixedArrayFlags';
 type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
 
-type MessageTemplate constexpr 'MessageTemplate';
-type PrimitiveType constexpr 'PrimitiveType';
 type ToIntegerTruncationMode
 constexpr 'CodeStubAssembler::ToIntegerTruncationMode';
-type AllocationFlags constexpr 'AllocationFlags';
-type SlackTrackingMode constexpr 'SlackTrackingMode';
 
-type UnicodeEncoding constexpr 'UnicodeEncoding';
-const UTF16:
-    constexpr UnicodeEncoding generates 'UnicodeEncoding::UTF16';
-const UTF32:
-    constexpr UnicodeEncoding generates 'UnicodeEncoding::UTF32';
+extern enum UnicodeEncoding { UTF16, UTF32 }
 
 // Promise constants
-type PromiseState extends int31 constexpr 'Promise::PromiseState';
-const kPromisePending: constexpr PromiseState
-    generates 'Promise::kPending';
-const kPromiseFulfilled: constexpr PromiseState
-    generates 'Promise::kFulfilled';
-const kPromiseRejected: constexpr PromiseState
-    generates 'Promise::kRejected';
+extern enum PromiseState extends int31 constexpr 'Promise::PromiseState' {
+  kPending,
+  kFulfilled,
+  kRejected
+}
 
 type FrameArray extends FixedArray;
 
@@ -197,121 +180,106 @@ const kSmiTagSize: constexpr int31 generates 'kSmiTagSize';
 const V8_INFINITY: constexpr float64 generates 'V8_INFINITY';
 const MINUS_V8_INFINITY: constexpr float64 generates '-V8_INFINITY';
 
-const NO_ELEMENTS: constexpr ElementsKind generates 'NO_ELEMENTS';
+extern enum ElementsKind extends int32 {
+  NO_ELEMENTS,
 
-const PACKED_SMI_ELEMENTS:
-    constexpr ElementsKind generates 'PACKED_SMI_ELEMENTS';
-const HOLEY_SMI_ELEMENTS:
-    constexpr ElementsKind generates 'HOLEY_SMI_ELEMENTS';
-const PACKED_ELEMENTS:
-    constexpr ElementsKind generates 'PACKED_ELEMENTS';
-const HOLEY_ELEMENTS: constexpr ElementsKind generates 'HOLEY_ELEMENTS';
-const PACKED_DOUBLE_ELEMENTS:
-    constexpr ElementsKind generates 'PACKED_DOUBLE_ELEMENTS';
-const HOLEY_DOUBLE_ELEMENTS:
-    constexpr ElementsKind generates 'HOLEY_DOUBLE_ELEMENTS';
-const LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND: constexpr ElementsKind
-    generates 'LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND';
-const DICTIONARY_ELEMENTS:
-    constexpr ElementsKind generates 'DICTIONARY_ELEMENTS';
+  PACKED_SMI_ELEMENTS,
+  HOLEY_SMI_ELEMENTS,
+  PACKED_ELEMENTS,
+  HOLEY_ELEMENTS,
+  PACKED_DOUBLE_ELEMENTS,
+  HOLEY_DOUBLE_ELEMENTS,
+  LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND,
+  DICTIONARY_ELEMENTS,
 
-const UINT8_ELEMENTS: constexpr ElementsKind generates 'UINT8_ELEMENTS';
-const INT8_ELEMENTS: constexpr ElementsKind generates 'INT8_ELEMENTS';
-const UINT16_ELEMENTS:
-    constexpr ElementsKind generates 'UINT16_ELEMENTS';
-const INT16_ELEMENTS: constexpr ElementsKind generates 'INT16_ELEMENTS';
-const UINT32_ELEMENTS:
-    constexpr ElementsKind generates 'UINT32_ELEMENTS';
-const INT32_ELEMENTS: constexpr ElementsKind generates 'INT32_ELEMENTS';
-const FLOAT32_ELEMENTS:
-    constexpr ElementsKind generates 'FLOAT32_ELEMENTS';
-const FLOAT64_ELEMENTS:
-    constexpr ElementsKind generates 'FLOAT64_ELEMENTS';
-const UINT8_CLAMPED_ELEMENTS:
-    constexpr ElementsKind generates 'UINT8_CLAMPED_ELEMENTS';
-const BIGUINT64_ELEMENTS:
-    constexpr ElementsKind generates 'BIGUINT64_ELEMENTS';
-const BIGINT64_ELEMENTS:
-    constexpr ElementsKind generates 'BIGINT64_ELEMENTS';
+  UINT8_ELEMENTS,
+  INT8_ELEMENTS,
+  UINT16_ELEMENTS,
+  INT16_ELEMENTS,
+  UINT32_ELEMENTS,
+  INT32_ELEMENTS,
+  FLOAT32_ELEMENTS,
+  FLOAT64_ELEMENTS,
+  UINT8_CLAMPED_ELEMENTS,
+  BIGUINT64_ELEMENTS,
+  BIGINT64_ELEMENTS,
+  ...
+}
 
-const kNone:
-    constexpr AllocationFlags generates 'CodeStubAssembler::kNone';
-const kDoubleAlignment: constexpr AllocationFlags
-    generates 'CodeStubAssembler::kDoubleAlignment';
-const kPretenured:
-    constexpr AllocationFlags generates 'CodeStubAssembler::kPretenured';
-const kAllowLargeObjectAllocation: constexpr AllocationFlags
-    generates 'CodeStubAssembler::kAllowLargeObjectAllocation';
+extern enum AllocationFlag constexpr 'CodeStubAssembler::AllocationFlag' {
+  kNone,
+  kDoubleAlignment,
+  kPretenured,
+  kAllowLargeObjectAllocation
+}
 
-const kWithSlackTracking: constexpr SlackTrackingMode
-    generates 'CodeStubAssembler::SlackTrackingMode::kWithSlackTracking';
-const kNoSlackTracking: constexpr SlackTrackingMode
-    generates 'CodeStubAssembler::SlackTrackingMode::kNoSlackTracking';
+extern enum SlackTrackingMode
+constexpr 'CodeStubAssembler::SlackTrackingMode' {
+  kWithSlackTracking,
+  kNoSlackTracking
+}
 
-const kFixedDoubleArrays: constexpr ExtractFixedArrayFlags
-    generates 'CodeStubAssembler::ExtractFixedArrayFlag::kFixedDoubleArrays';
-const kAllFixedArrays: constexpr ExtractFixedArrayFlags
-    generates 'CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays';
-const kFixedArrays: constexpr ExtractFixedArrayFlags
-    generates 'CodeStubAssembler::ExtractFixedArrayFlag::kFixedArrays';
+extern enum ExtractFixedArrayFlag
+constexpr 'CodeStubAssembler::ExtractFixedArrayFlag' {
+  kFixedDoubleArrays,
+  kAllFixedArrays,
+  kFixedArrays,
+  ...
+}
 
-const kFixedArrayMapRootIndex:
-    constexpr RootIndex generates 'RootIndex::kFixedArrayMap';
-const kFixedCOWArrayMapRootIndex:
-    constexpr RootIndex generates 'RootIndex::kFixedCOWArrayMap';
-const kEmptyByteArrayRootIndex:
-    constexpr RootIndex generates 'RootIndex::kEmptyByteArray';
-const kEmptyFixedArrayRootIndex:
-    constexpr RootIndex generates 'RootIndex::kEmptyFixedArray';
-const kTheHoleValueRootIndex:
-    constexpr RootIndex generates 'RootIndex::kTheHoleValue';
-const kPromiseFulfillReactionJobTaskMapRootIndex: constexpr RootIndex
-    generates 'RootIndex::kPromiseFulfillReactionJobTaskMap';
-const kPromiseRejectReactionJobTaskMapRootIndex: constexpr RootIndex
-    generates 'RootIndex::kPromiseRejectReactionJobTaskMap';
+const kBigIntMaxLength: constexpr intptr generates 'BigInt::kMaxLength';
 
-const kInvalidArrayBufferLength: constexpr MessageTemplate
-    generates 'MessageTemplate::kInvalidArrayBufferLength';
-const kInvalidArrayLength: constexpr MessageTemplate
-    generates 'MessageTemplate::kInvalidArrayLength';
-const kNotConstructor: constexpr MessageTemplate
-    generates 'MessageTemplate::kNotConstructor';
-const kCalledNonCallable: constexpr MessageTemplate
-    generates 'MessageTemplate::kCalledNonCallable';
-const kCalledOnNullOrUndefined: constexpr MessageTemplate
-    generates 'MessageTemplate::kCalledOnNullOrUndefined';
-const kProtoObjectOrNull: constexpr MessageTemplate
-    generates 'MessageTemplate::kProtoObjectOrNull';
-const kInvalidOffset: constexpr MessageTemplate
-    generates 'MessageTemplate::kInvalidOffset';
-const kInvalidTypedArrayLength: constexpr MessageTemplate
-    generates 'MessageTemplate::kInvalidTypedArrayLength';
-const kIteratorSymbolNonCallable: constexpr MessageTemplate
-    generates 'MessageTemplate::kIteratorSymbolNonCallable';
-const kIteratorValueNotAnObject: constexpr MessageTemplate
-    generates 'MessageTemplate::kIteratorValueNotAnObject';
-const kNotIterable: constexpr MessageTemplate
-    generates 'MessageTemplate::kNotIterable';
-const kReduceNoInitial: constexpr MessageTemplate
-    generates 'MessageTemplate::kReduceNoInitial';
-const kFirstArgumentNotRegExp: constexpr MessageTemplate
-    generates 'MessageTemplate::kFirstArgumentNotRegExp';
-const kBigIntMixedTypes: constexpr MessageTemplate
-    generates 'MessageTemplate::kBigIntMixedTypes';
-const kTypedArrayTooShort: constexpr MessageTemplate
-    generates 'MessageTemplate::kTypedArrayTooShort';
-const kInvalidCountValue: constexpr MessageTemplate
-    generates 'MessageTemplate::kInvalidCountValue';
-const kConstructorNotFunction: constexpr MessageTemplate
-    generates 'MessageTemplate::kConstructorNotFunction';
-const kSymbolToString: constexpr MessageTemplate
-    generates 'MessageTemplate::kSymbolToString';
-const kPropertyNotFunction: constexpr MessageTemplate
-    generates 'MessageTemplate::kPropertyNotFunction';
-const kBigIntMaxLength: constexpr intptr
-    generates 'BigInt::kMaxLength';
-const kBigIntTooBig: constexpr MessageTemplate
-    generates 'MessageTemplate::kBigIntTooBig';
+extern enum MessageTemplate {
+  kInvalidArrayBufferLength,
+  kInvalidArrayLength,
+  kNotConstructor,
+  kCalledNonCallable,
+  kCalledOnNullOrUndefined,
+  kProtoObjectOrNull,
+  kInvalidOffset,
+  kInvalidTypedArrayLength,
+  kIteratorSymbolNonCallable,
+  kIteratorValueNotAnObject,
+  kNotIterable,
+  kReduceNoInitial,
+  kFirstArgumentNotRegExp,
+  kBigIntMixedTypes,
+  kTypedArrayTooShort,
+  kInvalidCountValue,
+  kConstructorNotFunction,
+  kSymbolToString,
+  kPropertyNotFunction,
+  kBigIntTooBig,
+  kNotTypedArray,
+  kDetachedOperation,
+  kBadSortComparisonFunction,
+  kIncompatibleMethodReceiver,
+  kInvalidDataViewAccessorOffset,
+  kTypedArraySetOffsetOutOfBounds,
+  kInvalidArgument,
+  kInvalidRegExpExecResult,
+  kRegExpNonRegExp,
+  kRegExpNonObject,
+  kPromiseNonCallable,
+  kNotAPromise,
+  kResolverNotAFunction,
+  kToRadixFormatRange,
+  kCalledOnNonObject,
+  kRegExpGlobalInvokedOnNonGlobal,
+  kProxyNonObject,
+  kProxyHandlerOrTargetRevoked,
+  kProxyRevoked,
+  kProxyTrapReturnedFalsishFor,
+  kProxyPrivate,
+  kProxyIsExtensibleInconsistent,
+  kProxyPreventExtensionsExtensible,
+  kProxyTrapReturnedFalsish,
+  kProxyGetPrototypeOfInvalid,
+  kProxyGetPrototypeOfNonExtensible,
+  kProxySetPrototypeOfNonExtensible,
+  kProxyDeletePropertyNonExtensible,
+  ...
+}
 
 const kMaxArrayIndex:
     constexpr uint32 generates 'JSArray::kMaxArrayIndex';
@@ -358,31 +326,7 @@ const kTruncateMinusZero: constexpr ToIntegerTruncationMode
     generates 'CodeStubAssembler::ToIntegerTruncationMode::kTruncateMinusZero'
     ;
 
-const kNotTypedArray: constexpr MessageTemplate
-    generates 'MessageTemplate::kNotTypedArray';
-const kDetachedOperation: constexpr MessageTemplate
-    generates 'MessageTemplate::kDetachedOperation';
-const kBadSortComparisonFunction: constexpr MessageTemplate
-    generates 'MessageTemplate::kBadSortComparisonFunction';
-const kIncompatibleMethodReceiver: constexpr MessageTemplate
-    generates 'MessageTemplate::kIncompatibleMethodReceiver';
-const kInvalidDataViewAccessorOffset: constexpr MessageTemplate
-    generates 'MessageTemplate::kInvalidDataViewAccessorOffset';
-const kStrictReadOnlyProperty: constexpr MessageTemplate
-    generates 'MessageTemplate::kStrictReadOnlyProperty';
-const kTypedArraySetOffsetOutOfBounds: constexpr MessageTemplate
-    generates 'MessageTemplate::kTypedArraySetOffsetOutOfBounds';
-const kInvalidArgument: constexpr MessageTemplate
-    generates 'MessageTemplate::kInvalidArgument';
-
-const kString: constexpr PrimitiveType
-    generates 'PrimitiveType::kString';
-const kBoolean: constexpr PrimitiveType
-    generates 'PrimitiveType::kBoolean';
-const kSymbol: constexpr PrimitiveType
-    generates 'PrimitiveType::kSymbol';
-const kNumber: constexpr PrimitiveType
-    generates 'PrimitiveType::kNumber';
+extern enum PrimitiveType { kString, kBoolean, kSymbol, kNumber }
 
 const kNameDictionaryInitialCapacity:
     constexpr int32 generates 'NameDictionary::kInitialCapacity';
@@ -423,8 +367,7 @@ const kZero: Zero = %RawDownCast<Zero>(SmiConstant(0));
 const true: constexpr bool generates 'true';
 const false: constexpr bool generates 'false';
 
-const kStrict: constexpr LanguageMode generates 'LanguageMode::kStrict';
-const kSloppy: constexpr LanguageMode generates 'LanguageMode::kSloppy';
+extern enum LanguageMode extends Smi { kStrict, kSloppy }
 
 const SKIP_WRITE_BARRIER:
     constexpr WriteBarrierMode generates 'SKIP_WRITE_BARRIER';
@@ -887,11 +830,8 @@ extern macro Float64Constant(constexpr float64): float64;
 extern macro SmiConstant(constexpr int31): Smi;
 extern macro SmiConstant(constexpr Smi): Smi;
 extern macro SmiConstant(constexpr MessageTemplate): Smi;
-extern macro SmiConstant(constexpr LanguageMode): Smi;
 extern macro BoolConstant(constexpr bool): bool;
 extern macro StringConstant(constexpr string): String;
-extern macro Int32Constant(constexpr ElementsKind): ElementsKind;
-extern macro IntPtrConstant(constexpr NativeContextSlot): NativeContextSlot;
 extern macro IntPtrConstant(constexpr ContextSlot): ContextSlot;
 extern macro IntPtrConstant(constexpr intptr): intptr;
 extern macro PointerConstant(constexpr RawPtr): RawPtr;
@@ -973,74 +913,76 @@ extern macro IsFastSmiElementsKind(ElementsKind): bool;
 extern macro IsHoleyFastElementsKind(ElementsKind): bool;
 
 macro FastHoleyElementsKind(kind: ElementsKind): ElementsKind {
-  if (kind == PACKED_SMI_ELEMENTS) {
-    return HOLEY_SMI_ELEMENTS;
-  } else if (kind == PACKED_DOUBLE_ELEMENTS) {
-    return HOLEY_DOUBLE_ELEMENTS;
+  if (kind == ElementsKind::PACKED_SMI_ELEMENTS) {
+    return ElementsKind::HOLEY_SMI_ELEMENTS;
+  } else if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+    return ElementsKind::HOLEY_DOUBLE_ELEMENTS;
   }
-  assert(kind == PACKED_ELEMENTS);
-  return HOLEY_ELEMENTS;
+  assert(kind == ElementsKind::PACKED_ELEMENTS);
+  return ElementsKind::HOLEY_ELEMENTS;
 }
 
 macro AllowDoubleElements(kind: ElementsKind): ElementsKind {
-  if (kind == PACKED_SMI_ELEMENTS) {
-    return PACKED_DOUBLE_ELEMENTS;
-  } else if (kind == HOLEY_SMI_ELEMENTS) {
-    return HOLEY_DOUBLE_ELEMENTS;
+  if (kind == ElementsKind::PACKED_SMI_ELEMENTS) {
+    return ElementsKind::PACKED_DOUBLE_ELEMENTS;
+  } else if (kind == ElementsKind::HOLEY_SMI_ELEMENTS) {
+    return ElementsKind::HOLEY_DOUBLE_ELEMENTS;
   }
   return kind;
 }
 
 macro AllowNonNumberElements(kind: ElementsKind): ElementsKind {
-  if (kind == PACKED_SMI_ELEMENTS) {
-    return PACKED_ELEMENTS;
-  } else if (kind == HOLEY_SMI_ELEMENTS) {
-    return HOLEY_ELEMENTS;
-  } else if (kind == PACKED_DOUBLE_ELEMENTS) {
-    return PACKED_ELEMENTS;
-  } else if (kind == HOLEY_DOUBLE_ELEMENTS) {
-    return HOLEY_ELEMENTS;
+  if (kind == ElementsKind::PACKED_SMI_ELEMENTS) {
+    return ElementsKind::PACKED_ELEMENTS;
+  } else if (kind == ElementsKind::HOLEY_SMI_ELEMENTS) {
+    return ElementsKind::HOLEY_ELEMENTS;
+  } else if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+    return ElementsKind::PACKED_ELEMENTS;
+  } else if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
+    return ElementsKind::HOLEY_ELEMENTS;
   }
   return kind;
 }
 
 macro GetObjectFunction(implicit context: Context)(): JSFunction {
   return UnsafeCast<JSFunction>(
-      LoadNativeContext(context)[OBJECT_FUNCTION_INDEX]);
+      LoadNativeContext(context)[NativeContextSlot::OBJECT_FUNCTION_INDEX]);
 }
 macro GetArrayBufferFunction(implicit context: Context)(): Constructor {
   return UnsafeCast<Constructor>(
-      LoadNativeContext(context)[ARRAY_BUFFER_FUN_INDEX]);
+      LoadNativeContext(context)[NativeContextSlot::ARRAY_BUFFER_FUN_INDEX]);
 }
 macro GetArrayBufferNoInitFunction(implicit context: Context)(): JSFunction {
-  return UnsafeCast<JSFunction>(
-      LoadNativeContext(context)[ARRAY_BUFFER_NOINIT_FUN_INDEX]);
+  return UnsafeCast<JSFunction>(LoadNativeContext(
+      context)[NativeContextSlot::ARRAY_BUFFER_NOINIT_FUN_INDEX]);
 }
 macro GetFastPackedElementsJSArrayMap(implicit context: Context)(): Map {
-  return UnsafeCast<Map>(
-      LoadNativeContext(context)[JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX]);
+  return UnsafeCast<Map>(LoadNativeContext(
+      context)[NativeContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX]);
 }
 macro GetFastPackedSmiElementsJSArrayMap(implicit context: Context)(): Map {
-  return UnsafeCast<Map>(
-      LoadNativeContext(context)[JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX]);
+  return UnsafeCast<Map>(LoadNativeContext(
+      context)[NativeContextSlot::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX]);
 }
 macro GetProxyRevocableResultMap(implicit context: Context)(): Map {
-  return UnsafeCast<Map>(
-      LoadNativeContext(context)[PROXY_REVOCABLE_RESULT_MAP_INDEX]);
+  return UnsafeCast<Map>(LoadNativeContext(
+      context)[NativeContextSlot::PROXY_REVOCABLE_RESULT_MAP_INDEX]);
 }
 macro GetIteratorResultMap(implicit context: Context)(): Map {
-  return UnsafeCast<Map>(LoadNativeContext(context)[ITERATOR_RESULT_MAP_INDEX]);
+  return UnsafeCast<Map>(
+      LoadNativeContext(context)[NativeContextSlot::ITERATOR_RESULT_MAP_INDEX]);
 }
 macro GetInitialStringIteratorMap(implicit context: Context)(): Map {
-  return UnsafeCast<Map>(
-      LoadNativeContext(context)[INITIAL_STRING_ITERATOR_MAP_INDEX]);
+  return UnsafeCast<Map>(LoadNativeContext(
+      context)[NativeContextSlot::INITIAL_STRING_ITERATOR_MAP_INDEX]);
 }
 macro GetReflectApply(implicit context: Context)(): Callable {
-  return UnsafeCast<Callable>(LoadNativeContext(context)[REFLECT_APPLY_INDEX]);
+  return UnsafeCast<Callable>(
+      LoadNativeContext(context)[NativeContextSlot::REFLECT_APPLY_INDEX]);
 }
 macro GetRegExpLastMatchInfo(implicit context: Context)(): RegExpMatchInfo {
-  return %RawDownCast<RegExpMatchInfo>(
-      LoadNativeContext(context)[REGEXP_LAST_MATCH_INFO_INDEX]);
+  return %RawDownCast<RegExpMatchInfo>(LoadNativeContext(
+      context)[NativeContextSlot::REGEXP_LAST_MATCH_INFO_INDEX]);
 }
 
 extern transitioning macro Call(Context, Callable, JSAny): JSAny;
@@ -1092,7 +1034,7 @@ macro ToBoolean(obj: JSAny): bool {
 macro RequireObjectCoercible(implicit context: Context)(
     value: JSAny, name: constexpr string): JSAny {
   if (IsNullOrUndefined(value)) {
-    ThrowTypeError(kCalledOnNullOrUndefined, name);
+    ThrowTypeError(MessageTemplate::kCalledOnNullOrUndefined, name);
   }
   return value;
 }
@@ -1270,7 +1212,7 @@ transitioning macro GetMethod(implicit context: Context)(
     return GetMethod(o, name) otherwise IfNullOrUndefined, IfMethodNotCallable;
   }
   label IfMethodNotCallable(value: JSAny) deferred {
-    ThrowTypeError(kPropertyNotFunction, value, name, o);
+    ThrowTypeError(MessageTemplate::kPropertyNotFunction, value, name, o);
   }
 }
 
@@ -1284,7 +1226,8 @@ transitioning macro GetMethod(implicit context: Context)(
   const value = GetProperty(o, symbol);
   if (value == Undefined || value == Null) goto IfNullOrUndefined;
   return Cast<Callable>(value)
-      otherwise ThrowTypeError(kPropertyNotFunction, value, symbol, o);
+      otherwise ThrowTypeError(
+      MessageTemplate::kPropertyNotFunction, value, symbol, o);
 }
 
 extern macro NumberToString(Number): String;
@@ -1449,7 +1392,8 @@ transitioning builtin FastCreateDataProperty(implicit context: Context)(
     if (IsFastSmiElementsKind(kind)) {
       const smiValue = Cast<Smi>(value) otherwise Slow;
       if (isAppend) {
-        BuildAppendJSArray(HOLEY_SMI_ELEMENTS, array, value) otherwise Slow;
+        BuildAppendJSArray(ElementsKind::HOLEY_SMI_ELEMENTS, array, value)
+            otherwise Slow;
       } else {
         const elements = Cast<FixedArray>(array.elements) otherwise unreachable;
         elements[index] = smiValue;
@@ -1457,7 +1401,7 @@ transitioning builtin FastCreateDataProperty(implicit context: Context)(
     } else if (IsDoubleElementsKind(kind)) {
       const numberValue = Cast<Number>(value) otherwise Slow;
       if (isAppend) {
-        BuildAppendJSArray(HOLEY_DOUBLE_ELEMENTS, array, value)
+        BuildAppendJSArray(ElementsKind::HOLEY_DOUBLE_ELEMENTS, array, value)
             otherwise Slow;
       } else {
         const doubleElements = Cast<FixedDoubleArray>(array.elements)
@@ -1467,7 +1411,8 @@ transitioning builtin FastCreateDataProperty(implicit context: Context)(
     } else {
       assert(IsFastSmiOrTaggedElementsKind(kind));
       if (isAppend) {
-        BuildAppendJSArray(HOLEY_ELEMENTS, array, value) otherwise Slow;
+        BuildAppendJSArray(ElementsKind::HOLEY_ELEMENTS, array, value)
+            otherwise Slow;
       } else {
         const elements = Cast<FixedArray>(array.elements) otherwise unreachable;
         elements[index] = value;
@@ -1499,7 +1444,7 @@ transitioning macro ToStringImpl(context: Context, o: JSAny): String {
         continue;
       }
       case (Symbol): {
-        ThrowTypeError(kSymbolToString);
+        ThrowTypeError(MessageTemplate::kSymbolToString);
       }
       case (JSAny): {
         return ToStringRT(context, o);

@@ -130,7 +130,7 @@ namespace typed_array {
           otherwise RangeError;
     }
     label RangeError deferred {
-      ThrowRangeError(kInvalidTypedArrayLength, lengthObj);
+      ThrowRangeError(MessageTemplate::kInvalidTypedArrayLength, lengthObj);
     }
   }
 
@@ -151,7 +151,7 @@ namespace typed_array {
             Cast<JSTypedArray>(arrayLike) otherwise IfSlow;
 
         if (IsDetachedBuffer(src.buffer)) {
-          ThrowTypeError(kDetachedOperation, 'Construct');
+          ThrowTypeError(MessageTemplate::kDetachedOperation, 'Construct');
 
         } else if (src.elements_kind != elementsInfo.kind) {
           goto IfSlow;
@@ -172,7 +172,8 @@ namespace typed_array {
       return typedArray;
     }
     label RangeError deferred {
-      ThrowRangeError(kInvalidTypedArrayLength, Convert<Number>(length));
+      ThrowRangeError(
+          MessageTemplate::kInvalidTypedArrayLength, Convert<Number>(length));
     }
   }
 
@@ -231,7 +232,7 @@ namespace typed_array {
 
       // 9. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
       if (IsDetachedBuffer(buffer)) {
-        ThrowTypeError(kDetachedOperation, 'Construct');
+        ThrowTypeError(MessageTemplate::kDetachedOperation, 'Construct');
       }
 
       // 10. Let bufferByteLength be buffer.[[ArrayBufferByteLength]].
@@ -276,10 +277,10 @@ namespace typed_array {
       ThrowInvalidTypedArrayAlignment(map, problemString);
     }
     label IfInvalidLength deferred {
-      ThrowRangeError(kInvalidTypedArrayLength, length);
+      ThrowRangeError(MessageTemplate::kInvalidTypedArrayLength, length);
     }
     label IfInvalidOffset deferred {
-      ThrowRangeError(kInvalidOffset, byteOffset);
+      ThrowRangeError(MessageTemplate::kInvalidOffset, byteOffset);
     }
   }
 
@@ -300,14 +301,14 @@ namespace typed_array {
         ValidateTypedArray(context, newTypedArrayObj, methodName);
 
     if (IsDetachedBuffer(newTypedArray.buffer)) deferred {
-        ThrowTypeError(kDetachedOperation, methodName);
+        ThrowTypeError(MessageTemplate::kDetachedOperation, methodName);
       }
 
     // 3. If argumentList is a List of a single Number, then
     //   a. If newTypedArray.[[ArrayLength]] < argumentList[0], throw a
     //      TypeError exception.
     if (newTypedArray.length < Convert<uintptr>(length)) deferred {
-        ThrowTypeError(kTypedArrayTooShort);
+        ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
       }
 
     // 4. Return newTypedArray.
@@ -336,10 +337,10 @@ namespace typed_array {
       goto IfConstructByArrayLike(obj, length, GetArrayBufferFunction());
     }
     label IfInvalidLength(length: Number) {
-      ThrowRangeError(kInvalidTypedArrayLength, length);
+      ThrowRangeError(MessageTemplate::kInvalidTypedArrayLength, length);
     }
     label IfIteratorNotCallable(_value: JSAny) deferred {
-      ThrowTypeError(kIteratorSymbolNonCallable);
+      ThrowTypeError(MessageTemplate::kIteratorSymbolNonCallable);
     }
   }
 
@@ -437,7 +438,7 @@ namespace typed_array {
         methodName, numArgs, exemplar, Convert<Number>(length), Undefined,
         Undefined);
     if (typedArray.length < length) deferred {
-        ThrowTypeError(kTypedArrayTooShort);
+        ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
       }
     return typedArray;
   }

@@ -77,7 +77,7 @@ namespace array {
       return ToString_Inline(result);
     }
     label TypeError {
-      ThrowTypeError(kCalledNonCallable, prop);
+      ThrowTypeError(MessageTemplate::kCalledNonCallable, prop);
     }
   }
 
@@ -135,8 +135,9 @@ namespace array {
       deferred {
         const newLength: intptr = CalculateNewElementsCapacity(length);
         assert(index < newLength);
-        const newfixedArray: FixedArray =
-            ExtractFixedArray(fixedArray, 0, length, newLength, kFixedArrays);
+        const newfixedArray: FixedArray = ExtractFixedArray(
+            fixedArray, 0, length, newLength,
+            ExtractFixedArrayFlag::kFixedArrays);
         newfixedArray.objects[index] = element;
         return newfixedArray;
       }
@@ -335,11 +336,12 @@ namespace array {
       if (!IsPrototypeInitialArrayPrototype(map)) goto IfSlowPath;
       if (IsNoElementsProtectorCellInvalid()) goto IfSlowPath;
 
-      if (IsElementsKindLessThanOrEqual(kind, HOLEY_ELEMENTS)) {
+      if (IsElementsKindLessThanOrEqual(kind, ElementsKind::HOLEY_ELEMENTS)) {
         loadFn = LoadJoinElement<array::FastSmiOrObjectElements>;
-      } else if (IsElementsKindLessThanOrEqual(kind, HOLEY_DOUBLE_ELEMENTS)) {
+      } else if (IsElementsKindLessThanOrEqual(
+                     kind, ElementsKind::HOLEY_DOUBLE_ELEMENTS)) {
         loadFn = LoadJoinElement<array::FastDoubleElements>;
-      } else if (kind == DICTIONARY_ELEMENTS)
+      } else if (kind == ElementsKind::DICTIONARY_ELEMENTS)
         deferred {
           const dict: NumberDictionary =
               UnsafeCast<NumberDictionary>(array.elements);
@@ -376,32 +378,32 @@ namespace array {
     const kind: ElementsKind = map.elements_kind;
     let loadFn: LoadJoinElementFn;
 
-    if (IsElementsKindGreaterThan(kind, UINT32_ELEMENTS)) {
-      if (kind == INT32_ELEMENTS) {
+    if (IsElementsKindGreaterThan(kind, ElementsKind::UINT32_ELEMENTS)) {
+      if (kind == ElementsKind::INT32_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Int32Elements>;
-      } else if (kind == FLOAT32_ELEMENTS) {
+      } else if (kind == ElementsKind::FLOAT32_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Float32Elements>;
-      } else if (kind == FLOAT64_ELEMENTS) {
+      } else if (kind == ElementsKind::FLOAT64_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Float64Elements>;
-      } else if (kind == UINT8_CLAMPED_ELEMENTS) {
+      } else if (kind == ElementsKind::UINT8_CLAMPED_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Uint8ClampedElements>;
-      } else if (kind == BIGUINT64_ELEMENTS) {
+      } else if (kind == ElementsKind::BIGUINT64_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::BigUint64Elements>;
-      } else if (kind == BIGINT64_ELEMENTS) {
+      } else if (kind == ElementsKind::BIGINT64_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::BigInt64Elements>;
       } else {
         unreachable;
       }
     } else {
-      if (kind == UINT8_ELEMENTS) {
+      if (kind == ElementsKind::UINT8_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Uint8Elements>;
-      } else if (kind == INT8_ELEMENTS) {
+      } else if (kind == ElementsKind::INT8_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Int8Elements>;
-      } else if (kind == UINT16_ELEMENTS) {
+      } else if (kind == ElementsKind::UINT16_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Uint16Elements>;
-      } else if (kind == INT16_ELEMENTS) {
+      } else if (kind == ElementsKind::INT16_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Int16Elements>;
-      } else if (kind == UINT32_ELEMENTS) {
+      } else if (kind == ElementsKind::UINT32_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Uint32Elements>;
       } else {
         unreachable;
@@ -421,8 +423,8 @@ namespace array {
   macro LoadJoinStack(implicit context: Context)(): FixedArray
       labels IfUninitialized {
     const nativeContext: NativeContext = LoadNativeContext(context);
-    const stack: HeapObject =
-        UnsafeCast<HeapObject>(nativeContext[ARRAY_JOIN_STACK_INDEX]);
+    const stack: HeapObject = UnsafeCast<HeapObject>(
+        nativeContext[NativeContextSlot::ARRAY_JOIN_STACK_INDEX]);
     if (stack == Undefined) goto IfUninitialized;
     assert(IsFixedArray(stack));
     return UnsafeCast<FixedArray>(stack);
@@ -430,7 +432,7 @@ namespace array {
 
   macro SetJoinStack(implicit context: Context)(stack: FixedArray): void {
     const nativeContext: NativeContext = LoadNativeContext(context);
-    nativeContext[ARRAY_JOIN_STACK_INDEX] = stack;
+    nativeContext[NativeContextSlot::ARRAY_JOIN_STACK_INDEX] = stack;
   }
 
   // Adds a receiver to the stack. The FixedArray will automatically grow to
@@ -475,7 +477,7 @@ namespace array {
     }
     label IfUninitialized {
       const stack: FixedArray =
-          AllocateFixedArrayWithHoles(kMinJoinStackSize, kNone);
+          AllocateFixedArrayWithHoles(kMinJoinStackSize, AllocationFlag::kNone);
       stack.objects[0] = receiver;
       SetJoinStack(stack);
     }
@@ -492,8 +494,8 @@ namespace array {
         // Shrink the Join Stack if the stack will be empty and is larger than
         // the minimum size.
         if (i == 0 && len > kMinJoinStackSize) deferred {
-            const newStack: FixedArray =
-                AllocateFixedArrayWithHoles(kMinJoinStackSize, kNone);
+            const newStack: FixedArray = AllocateFixedArrayWithHoles(
+                kMinJoinStackSize, AllocationFlag::kNone);
             SetJoinStack(newStack);
           }
         else {
@@ -561,7 +563,8 @@ namespace array {
 
     // Only handle valid array lengths. Although the spec allows larger
     // values, this matches historical V8 behavior.
-    if (len > kMaxArrayIndex + 1) ThrowTypeError(kInvalidArrayLength);
+    if (len > kMaxArrayIndex + 1)
+      ThrowTypeError(MessageTemplate::kInvalidArrayLength);
 
     return CycleProtectedArrayJoin<JSArray>(
         false, o, len, separator, Undefined, Undefined);
@@ -582,7 +585,8 @@ namespace array {
 
     // Only handle valid array lengths. Although the spec allows larger
     // values, this matches historical V8 behavior.
-    if (len > kMaxArrayIndex + 1) ThrowTypeError(kInvalidArrayLength);
+    if (len > kMaxArrayIndex + 1)
+      ThrowTypeError(MessageTemplate::kInvalidArrayLength);
 
     return CycleProtectedArrayJoin<JSArray>(
         true, o, len, ',', locales, options);

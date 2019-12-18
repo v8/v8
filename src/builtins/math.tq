@@ -451,17 +451,18 @@ namespace math {
 
   transitioning javascript builtin
   MathRandom(js-implicit context: NativeContext, receiver: JSAny)(): Number {
-    let smiIndex: Smi = Cast<Smi>(context[MATH_RANDOM_INDEX_INDEX])
+    let smiIndex: Smi =
+        Cast<Smi>(context[NativeContextSlot::MATH_RANDOM_INDEX_INDEX])
         otherwise unreachable;
     if (smiIndex == 0) {
       // refill math random.
       smiIndex = RefillMathRandom(context);
     }
     const newSmiIndex: Smi = smiIndex - 1;
-    context[MATH_RANDOM_INDEX_INDEX] = newSmiIndex;
+    context[NativeContextSlot::MATH_RANDOM_INDEX_INDEX] = newSmiIndex;
 
-    const array: FixedDoubleArray =
-        Cast<FixedDoubleArray>(context[MATH_RANDOM_CACHE_INDEX])
+    const array: FixedDoubleArray = Cast<FixedDoubleArray>(
+        context[NativeContextSlot::MATH_RANDOM_CACHE_INDEX])
         otherwise unreachable;
     const random: float64 = array.floats[Convert<intptr>(newSmiIndex)];
     return AllocateHeapNumberWithValue(random);

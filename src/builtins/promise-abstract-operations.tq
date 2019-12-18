@@ -27,24 +27,6 @@ namespace runtime {
 
 // https://tc39.es/ecma262/#sec-promise-abstract-operations
 namespace promise {
-  const PROMISE_FUNCTION_INDEX: constexpr NativeContextSlot
-  generates 'Context::PROMISE_FUNCTION_INDEX';
-  const STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX: constexpr NativeContextSlot
-  generates 'Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX';
-  const PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX:
-      constexpr NativeContextSlot
-  generates 'Context::PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX'
-      ;
-  const PROMISE_CAPABILITY_DEFAULT_REJECT_SHARED_FUN_INDEX:
-      constexpr NativeContextSlot
-  generates 'Context::PROMISE_CAPABILITY_DEFAULT_REJECT_SHARED_FUN_INDEX'
-      ;
-  const PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN:
-      constexpr NativeContextSlot
-  generates 'Context::PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN';
-  const kPromiseNonCallable: constexpr MessageTemplate
-  generates 'MessageTemplate::kPromiseNonCallable';
-
   extern macro AllocateFunctionWithMapAndContext(
       Map, SharedFunctionInfo, Context): JSFunction;
 
@@ -195,7 +177,7 @@ namespace promise {
   FulfillPromise(implicit context: Context)(promise: JSPromise, value: JSAny):
       Undefined {
     // Assert: The value of promise.[[PromiseState]] is "pending".
-    assert(promise.Status() == kPromisePending);
+    assert(promise.Status() == PromiseState::kPending);
 
     // 2. Let reactions be promise.[[PromiseFulfillReactions]].
     const reactions =
@@ -207,7 +189,7 @@ namespace promise {
     promise.reactions_or_result = value;
 
     // 6. Set promise.[[PromiseState]] to "fulfilled".
-    promise.SetStatus(kPromiseFulfilled);
+    promise.SetStatus(PromiseState::kFulfilled);
 
     // 7. Return TriggerPromiseReactions(reactions, value).
     TriggerPromiseReactions(reactions, value, kPromiseReactionFulfill);
@@ -244,7 +226,7 @@ namespace promise {
     promise.reactions_or_result = reason;
 
     // 6. Set promise.[[PromiseState]] to "rejected".
-    promise.SetStatus(kPromiseRejected);
+    promise.SetStatus(PromiseState::kRejected);
 
     // 8. Return TriggerPromiseReactions(reactions, reason).
     TriggerPromiseReactions(reactions, reason, kPromiseReactionReject);
@@ -305,13 +287,16 @@ namespace promise {
     const promiseContext = CreatePromiseResolvingFunctionsContext(
         promise, debugEvent, nativeContext);
     const map = UnsafeCast<Map>(
-        nativeContext[STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
+        nativeContext
+            [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
     const resolveInfo = UnsafeCast<SharedFunctionInfo>(
-        nativeContext[PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX]);
+        nativeContext[NativeContextSlot::
+                          PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX]);
     const resolve: JSFunction =
         AllocateFunctionWithMapAndContext(map, resolveInfo, promiseContext);
     const rejectInfo = UnsafeCast<SharedFunctionInfo>(
-        nativeContext[PROMISE_CAPABILITY_DEFAULT_REJECT_SHARED_FUN_INDEX]);
+        nativeContext[NativeContextSlot::
+                          PROMISE_CAPABILITY_DEFAULT_REJECT_SHARED_FUN_INDEX]);
     const reject: JSFunction =
         AllocateFunctionWithMapAndContext(map, rejectInfo, promiseContext);
     return PromiseResolvingFunctions{resolve: resolve, reject: reject};
@@ -321,7 +306,9 @@ namespace promise {
   InnerNewPromiseCapability(implicit context: Context)(
       constructor: HeapObject, debugEvent: Object): PromiseCapability {
     const nativeContext = LoadNativeContext(context);
-    if (TaggedEqual(constructor, nativeContext[PROMISE_FUNCTION_INDEX])) {
+    if (TaggedEqual(
+            constructor,
+            nativeContext[NativeContextSlot::PROMISE_FUNCTION_INDEX])) {
       const promise = AllocateAndInitJSPromise(nativeContext);
 
       const pair =
@@ -337,9 +324,11 @@ namespace promise {
           CreatePromiseCapabilitiesExecutorContext(nativeContext, capability);
 
       const executorInfo = UnsafeCast<SharedFunctionInfo>(
-          nativeContext[PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN]);
+          nativeContext[NativeContextSlot::
+                            PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN]);
       const functionMap = UnsafeCast<Map>(
-          nativeContext[STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
+          nativeContext
+              [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
       const executor = AllocateFunctionWithMapAndContext(
           functionMap, executorInfo, executorContext);
 
@@ -349,7 +338,7 @@ namespace promise {
 
       if (!TaggedIsCallable(capability.resolve) ||
           !TaggedIsCallable(capability.reject)) {
-        ThrowTypeError(kPromiseNonCallable);
+        ThrowTypeError(MessageTemplate::kPromiseNonCallable);
       }
       return capability;
     }
@@ -361,11 +350,11 @@ namespace promise {
       maybeConstructor: Object, debugEvent: Object): PromiseCapability {
     typeswitch (maybeConstructor) {
       case (Smi): {
-        ThrowTypeError(kNotConstructor, maybeConstructor);
+        ThrowTypeError(MessageTemplate::kNotConstructor, maybeConstructor);
       }
       case (constructor: HeapObject): {
         if (!IsConstructor(constructor)) {
-          ThrowTypeError(kNotConstructor, maybeConstructor);
+          ThrowTypeError(MessageTemplate::kNotConstructor, maybeConstructor);
         }
         return InnerNewPromiseCapability(constructor, debugEvent);
       }
@@ -436,7 +425,7 @@ namespace promise {
       promise: JSPromise, onFulfilled: Callable|Undefined,
       onRejected: Callable|Undefined,
       resultPromiseOrCapability: JSPromise|PromiseCapability|Undefined): void {
-    if (promise.Status() == kPromisePending) {
+    if (promise.Status() == PromiseState::kPending) {
       // The {promise} is still in "Pending" state, so we just record a new
       // PromiseReaction holding both the onFulfilled and onRejected callbacks.
       // Once the {promise} is resolved we decide on the concrete handler to
@@ -449,13 +438,13 @@ namespace promise {
       let map: Map;
       let handler: HeapObject;
       let handlerContext: Context;
-      if (promise.Status() == kPromiseFulfilled) {
+      if (promise.Status() == PromiseState::kFulfilled) {
         map = PromiseFulfillReactionJobTaskMapConstant();
         handler = onFulfilled;
         handlerContext = ExtractHandlerContext(onFulfilled, onRejected);
       } else
         deferred {
-          assert(promise.Status() == kPromiseRejected);
+          assert(promise.Status() == PromiseState::kRejected);
           map = PromiseRejectReactionJobTaskMapConstant();
           handler = onRejected;
           handlerContext = ExtractHandlerContext(onRejected, onFulfilled);
@@ -494,12 +483,12 @@ namespace promise {
     // 1. Let C be the this value.
     // 2. If Type(C) is not Object, throw a TypeError exception.
     const receiver = Cast<JSReceiver>(receiver) otherwise
-    ThrowTypeError(kCalledOnNonObject, 'PromiseReject');
+    ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'PromiseReject');
 
-    const promiseFun = context[PROMISE_FUNCTION_INDEX];
+    const promiseFun = context[NativeContextSlot::PROMISE_FUNCTION_INDEX];
     if (promiseFun == receiver) {
       const promise =
-          AllocateAndSetJSPromise(context, kPromiseRejected, reason);
+          AllocateAndSetJSPromise(context, PromiseState::kRejected, reason);
       runtime::PromiseRejectEventFromStack(promise, reason);
       return promise;
     } else {

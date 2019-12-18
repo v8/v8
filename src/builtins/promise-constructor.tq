@@ -22,10 +22,6 @@ namespace promise {
   extern runtime IncrementUseCounter(Context, Smi): void;
   type UseCounterFeature extends int31
   constexpr 'v8::Isolate::UseCounterFeature';
-  const kNotAPromise: constexpr MessageTemplate
-  generates 'MessageTemplate::kNotAPromise';
-  const kResolverNotAFunction: constexpr MessageTemplate
-  generates 'MessageTemplate::kResolverNotAFunction';
   const kPromiseConstructorReturnedUndefined: constexpr UseCounterFeature
   generates 'v8::Isolate::kPromiseConstructorReturnedUndefined';
 
@@ -60,15 +56,16 @@ namespace promise {
       newTarget: JSAny)(executor: JSAny): JSAny {
     // 1. If NewTarget is undefined, throw a TypeError exception.
     if (newTarget == Undefined) {
-      ThrowTypeError(kNotAPromise, newTarget);
+      ThrowTypeError(MessageTemplate::kNotAPromise, newTarget);
     }
 
     // 2. If IsCallable(executor) is false, throw a TypeError exception.
     if (!TaggedIsCallable(executor)) {
-      ThrowTypeError(kResolverNotAFunction, executor);
+      ThrowTypeError(MessageTemplate::kResolverNotAFunction, executor);
     }
 
-    const promiseFun = UnsafeCast<JSFunction>(context[PROMISE_FUNCTION_INDEX]);
+    const promiseFun = UnsafeCast<JSFunction>(
+        context[NativeContextSlot::PROMISE_FUNCTION_INDEX]);
 
     // Silently fail if the stack looks fishy.
     if (HasAccessCheckFailed(context, context, promiseFun, executor)) {

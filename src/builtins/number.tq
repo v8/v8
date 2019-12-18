@@ -8,9 +8,6 @@ namespace runtime {
 }  // namespace runtime
 
 namespace number {
-  const kToRadixFormatRange: constexpr MessageTemplate
-  generates 'MessageTemplate::kToRadixFormatRange';
-
   extern macro NaNStringConstant(): String;
   extern macro ZeroStringConstant(): String;
   extern macro InfinityStringConstant(): String;
@@ -21,7 +18,8 @@ namespace number {
 
   transitioning macro ThisNumberValue(implicit context: Context)(
       receiver: JSAny, method: constexpr string): Number {
-    return UnsafeCast<Number>(ToThisValue(receiver, kNumber, method));
+    return UnsafeCast<Number>(
+        ToThisValue(receiver, PrimitiveType::kNumber, method));
   }
 
   // https://tc39.github.io/ecma262/#sec-number.prototype.tostring
@@ -40,7 +38,7 @@ namespace number {
 
     // 5. If radixNumber < 2 or radixNumber > 36, throw a RangeError exception.
     if (radixNumber < 2 || radixNumber > 36) {
-      ThrowRangeError(kToRadixFormatRange);
+      ThrowRangeError(MessageTemplate::kToRadixFormatRange);
     }
 
     // 6. If radixNumber = 10, return ! ToString(x).

@@ -20,17 +20,18 @@ namespace torque {
 class TypeOracle : public ContextualClass<TypeOracle> {
  public:
   static const AbstractType* GetAbstractType(
-      const Type* parent, std::string name, bool transient,
-      std::string generated, const AbstractType* non_constexpr_version,
+      const Type* parent, std::string name, AbstractTypeFlags flags,
+      std::string generated, const Type* non_constexpr_version,
       MaybeSpecializationKey specialized_from) {
-    auto ptr = std::unique_ptr<AbstractType>(new AbstractType(
-        parent, transient, std::move(name), std::move(generated),
-        non_constexpr_version, specialized_from));
+    auto ptr = std::unique_ptr<AbstractType>(
+        new AbstractType(parent, flags, std::move(name), std::move(generated),
+                         non_constexpr_version, specialized_from));
     const AbstractType* result = ptr.get();
-    Get().nominal_types_.push_back(std::move(ptr));
     if (non_constexpr_version) {
+      DCHECK(ptr->IsConstexpr());
       non_constexpr_version->SetConstexprVersion(result);
     }
+    Get().nominal_types_.push_back(std::move(ptr));
     return result;
   }
 

@@ -40,11 +40,11 @@ namespace proxy {
         const extensibleTarget: JSAny = object::ObjectIsExtensibleImpl(target);
         assert(extensibleTarget == True || extensibleTarget == False);
         if (extensibleTarget == True) {
-          ThrowTypeError(kProxyPreventExtensionsExtensible);
+          ThrowTypeError(MessageTemplate::kProxyPreventExtensionsExtensible);
         }
       } else {
         if (doThrow == True) {
-          ThrowTypeError(kProxyTrapReturnedFalsish, kTrapName);
+          ThrowTypeError(MessageTemplate::kProxyTrapReturnedFalsish, kTrapName);
         }
         return False;
       }
@@ -60,7 +60,7 @@ namespace proxy {
       return object::ObjectPreventExtensionsDontThrow(target);
     }
     label ThrowProxyHandlerRevoked deferred {
-      ThrowTypeError(kProxyRevoked, kTrapName);
+      ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
     }
   }
 }  // namespace proxy

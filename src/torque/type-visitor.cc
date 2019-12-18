@@ -98,18 +98,21 @@ const AbstractType* TypeVisitor::ComputeType(
     ReportError("cannot declare a transient type that is also constexpr");
   }
 
-  const AbstractType* non_constexpr_version = nullptr;
+  const Type* non_constexpr_version = nullptr;
   if (decl->is_constexpr) {
     QualifiedName non_constexpr_name{GetNonConstexprName(decl->name->value)};
-    const Type* non_constexpr_type =
-        Declarations::LookupType(non_constexpr_name);
-    non_constexpr_version = AbstractType::DynamicCast(non_constexpr_type);
-    DCHECK_NOT_NULL(non_constexpr_version);
+    if (auto type = Declarations::TryLookupType(non_constexpr_name)) {
+      non_constexpr_version = *type;
+    }
   }
 
-  return TypeOracle::GetAbstractType(parent_type, decl->name->value,
-                                     decl->transient, generates,
-                                     non_constexpr_version, specialized_from);
+  AbstractTypeFlags flags = AbstractTypeFlag::kNone;
+  if (decl->transient) flags |= AbstractTypeFlag::kTransient;
+  if (decl->is_constexpr) flags |= AbstractTypeFlag::kConstexpr;
+
+  return TypeOracle::GetAbstractType(parent_type, decl->name->value, flags,
+                                     generates, non_constexpr_version,
+                                     specialized_from);
 }
 
 void DeclareMethods(AggregateType* container_type,

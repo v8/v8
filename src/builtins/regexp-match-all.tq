@@ -16,7 +16,8 @@ namespace regexp {
     // 1. Let R be the this value.
     // 2. If Type(R) is not Object, throw a TypeError exception.
     ThrowIfNotJSReceiver(
-        receiver, kIncompatibleMethodReceiver, 'RegExp.prototype.@@matchAll');
+        receiver, MessageTemplate::kIncompatibleMethodReceiver,
+        'RegExp.prototype.@@matchAll');
     const receiver = UnsafeCast<JSReceiver>(receiver);
 
     // 3. Let S be ? ToString(O).
@@ -49,11 +50,11 @@ namespace regexp {
 
         // 9. If flags contains "g", let global be true.
         // 10. Else, let global be false.
-        global = FastFlagGetter(matcherRegExp, kGlobal);
+        global = FastFlagGetter(matcherRegExp, Flag::kGlobal);
 
         // 11. If flags contains "u", let fullUnicode be true.
         // 12. Else, let fullUnicode be false.
-        unicode = FastFlagGetter(matcherRegExp, kUnicode);
+        unicode = FastFlagGetter(matcherRegExp, Flag::kUnicode);
       }
       case (Object): {
         // 4. Let C be ? SpeciesConstructor(R, %RegExp%).
@@ -140,7 +141,8 @@ namespace regexp {
     const methodName: constexpr string =
         '%RegExpStringIterator%.prototype.next';
     const receiver = Cast<JSRegExpStringIterator>(receiver) otherwise
-    ThrowTypeError(kIncompatibleMethodReceiver, methodName, receiver);
+    ThrowTypeError(
+        MessageTemplate::kIncompatibleMethodReceiver, methodName, receiver);
 
     try {
       // 4. If O.[[Done]] is true, then

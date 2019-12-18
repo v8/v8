@@ -128,7 +128,6 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   }
   virtual bool IsTransient() const { return false; }
   virtual const Type* NonConstexprVersion() const { return this; }
-  virtual const Type* ConstexprVersion() const { return nullptr; }
   std::string GetConstexprGeneratedTypeName() const;
   base::Optional<const ClassType*> ClassSupertype() const;
   virtual std::vector<RuntimeType> GetRuntimeTypes() const { return {}; }
@@ -143,6 +142,15 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
 
   static std::string ComputeName(const std::string& basename,
                                  MaybeSpecializationKey specialized_from);
+  virtual void SetConstexprVersion(const Type* type) const {
+    constexpr_version_ = type;
+  }
+
+  virtual const Type* ConstexprVersion() const {
+    if (constexpr_version_) return constexpr_version_;
+    if (IsConstexpr()) return this;
+    return nullptr;
+  }
 
  protected:
   Type(TypeBase::Kind kind, const Type* parent,
@@ -165,6 +173,7 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   mutable std::set<std::string> aliases_;
   size_t id_;
   MaybeSpecializationKey specialized_from_;
+  mutable const Type* constexpr_version_ = nullptr;
 };
 
 inline size_t hash_value(const TypeVector& types) {
@@ -246,9 +255,9 @@ class AbstractType final : public Type {
     return IsConstexpr() ? generated_type_ : "TNode<" + generated_type_ + ">";
   }
   std::string GetGeneratedTNodeTypeNameImpl() const override;
-  bool IsConstexpr() const override {
-    bool is_constexpr = non_constexpr_version_ != nullptr;
-    DCHECK_EQ(is_constexpr, IsConstexprName(name()));
+  bool IsConstexpr() const final {
+    const bool is_constexpr = flags_ & AbstractTypeFlag::kConstexpr;
+    DCHECK_IMPLIES(non_constexpr_version_ != nullptr, is_constexpr);
     return is_constexpr;
   }
 
@@ -258,29 +267,23 @@ class AbstractType final : public Type {
     return nullptr;
   }
 
-  const AbstractType* ConstexprVersion() const override {
-    if (constexpr_version_) return constexpr_version_;
-    if (IsConstexpr()) return this;
-    return nullptr;
-  }
-
   std::vector<RuntimeType> GetRuntimeTypes() const override;
 
  private:
   friend class TypeOracle;
-  AbstractType(const Type* parent, bool transient, const std::string& name,
-               const std::string& generated_type,
+  AbstractType(const Type* parent, AbstractTypeFlags flags,
+               const std::string& name, const std::string& generated_type,
                const Type* non_constexpr_version,
                MaybeSpecializationKey specialized_from)
       : Type(Kind::kAbstractType, parent, specialized_from),
-        transient_(transient),
+        flags_(flags),
         name_(name),
         generated_type_(generated_type),
         non_constexpr_version_(non_constexpr_version) {
-    if (parent) DCHECK(parent->IsConstexpr() == IsConstexpr());
-    DCHECK_EQ(!IsConstexprName(name), non_constexpr_version == nullptr);
-    DCHECK_IMPLIES(IsConstexprName(name),
-                   !non_constexpr_version->IsConstexpr());
+    if (parent) DCHECK_EQ(parent->IsConstexpr(), IsConstexpr());
+    DCHECK_EQ(IsConstexprName(name), IsConstexpr());
+    DCHECK_IMPLIES(non_constexpr_version_ != nullptr, IsConstexpr());
+    DCHECK(!(IsConstexpr() && (flags_ & AbstractTypeFlag::kTransient)));
   }
 
   std::string SimpleNameImpl() const override {
@@ -289,18 +292,14 @@ class AbstractType final : public Type {
     return name();
   }
 
-  void SetConstexprVersion(const AbstractType* type) const {
-    DCHECK_EQ(GetConstexprName(name()), type->name());
-    constexpr_version_ = type;
+  bool IsTransient() const override {
+    return flags_ & AbstractTypeFlag::kTransient;
   }
 
-  bool IsTransient() const override { return transient_; }
-
-  bool transient_;
+  AbstractTypeFlags flags_;
   const std::string name_;
   const std::string generated_type_;
   const Type* non_constexpr_version_;
-  mutable const AbstractType* constexpr_version_ = nullptr;
 };
 
 // For now, builtin pointers are restricted to Torque-defined builtins.
@@ -472,6 +471,7 @@ class V8_EXPORT_PRIVATE BitFieldStructType final : public Type {
     return {{parent()->GetGeneratedTNodeTypeName(), ""}};
   }
 
+  void SetConstexprVersion(const Type*) const override { UNREACHABLE(); }
   const Type* ConstexprVersion() const override {
     return parent()->ConstexprVersion();
   }

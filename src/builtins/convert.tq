@@ -71,31 +71,15 @@ FromConstexpr<float64, constexpr float64>(i: constexpr float64): float64 {
 FromConstexpr<bool, constexpr bool>(b: constexpr bool): bool {
   return BoolConstant(b);
 }
-FromConstexpr<LanguageMode, constexpr LanguageMode>(m: constexpr LanguageMode):
-    LanguageMode {
-  return %RawDownCast<LanguageMode>(%FromConstexpr<Smi>(m));
-}
-FromConstexpr<ElementsKind, constexpr ElementsKind>(e: constexpr ElementsKind):
-    ElementsKind {
-  return Int32Constant(e);
-}
 FromConstexpr<Object, constexpr string>(s: constexpr string): Object {
   return StringConstant(s);
 }
 FromConstexpr<JSAny, constexpr string>(s: constexpr string): JSAny {
   return StringConstant(s);
 }
-FromConstexpr<NativeContextSlot, constexpr NativeContextSlot>(
-    c: constexpr NativeContextSlot): NativeContextSlot {
-  return IntPtrConstant(c);
-}
 FromConstexpr<ContextSlot, constexpr ContextSlot>(c: constexpr ContextSlot):
     ContextSlot {
   return IntPtrConstant(c);
-}
-FromConstexpr<PromiseState, constexpr PromiseState>(s: constexpr PromiseState):
-    PromiseState {
-  return %FromConstexpr<PromiseState>(s);
 }
 
 macro Convert<To: type, From: type>(i: From): To {

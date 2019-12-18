@@ -15,7 +15,8 @@ namespace growable_fixed_array {
       assert(newCapacity >= this.length);
       const first: intptr = 0;
       return ExtractFixedArray(
-          this.array, first, this.length, newCapacity, kFixedArrays);
+          this.array, first, this.length, newCapacity,
+          ExtractFixedArrayFlag::kFixedArrays);
     }
     macro EnsureCapacity() {
       assert(this.length <= this.capacity);
@@ -28,7 +29,8 @@ namespace growable_fixed_array {
     }
     macro ToJSArray(implicit context: Context)(): JSArray {
       const nativeContext: NativeContext = LoadNativeContext(context);
-      const map: Map = LoadJSArrayElementsMap(PACKED_ELEMENTS, nativeContext);
+      const map: Map =
+          LoadJSArrayElementsMap(ElementsKind::PACKED_ELEMENTS, nativeContext);
       const fixedArray: FixedArray = this.ResizeFixedArray(this.length);
       const lengthSmi = Convert<Smi>(this.length);
       return AllocateJSArray(map, fixedArray, lengthSmi);

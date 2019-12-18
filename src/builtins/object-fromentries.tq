@@ -62,7 +62,7 @@ namespace object {
       }
     }
     label Throw deferred {
-      ThrowTypeError(kNotIterable);
+      ThrowTypeError(MessageTemplate::kNotIterable);
     }
   }
 }  // namespace object

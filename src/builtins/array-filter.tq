@@ -141,7 +141,7 @@ namespace array {
     const o = Cast<FastJSArray>(receiver) otherwise Slow;
     const newMap: Map =
         LoadJSArrayElementsMap(o.map.elements_kind, LoadNativeContext(context));
-    return AllocateJSArray(PACKED_SMI_ELEMENTS, newMap, len, len);
+    return AllocateJSArray(ElementsKind::PACKED_SMI_ELEMENTS, newMap, len, len);
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.filter
@@ -196,7 +196,7 @@ namespace array {
           o, callbackfn, thisArg, output, o, k, len, to);
     }
     label TypeError deferred {
-      ThrowTypeError(kCalledNonCallable, arguments[0]);
+      ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
   }
 }

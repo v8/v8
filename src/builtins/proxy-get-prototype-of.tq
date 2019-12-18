@@ -54,17 +54,17 @@ namespace proxy {
       if (SameValue(targetProto, handlerProto)) {
         return handlerProto;
       }
-      ThrowTypeError(kProxyGetPrototypeOfNonExtensible);
+      ThrowTypeError(MessageTemplate::kProxyGetPrototypeOfNonExtensible);
     }
     label TrapUndefined(target: JSAny) {
       // 6.a. Return ? target.[[GetPrototypeOf]]().
       return object::ObjectGetPrototypeOfImpl(target);
     }
     label ThrowProxyHandlerRevoked deferred {
-      ThrowTypeError(kProxyRevoked, kTrapName);
+      ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
     }
     label ThrowProxyGetPrototypeOfInvalid deferred {
-      ThrowTypeError(kProxyGetPrototypeOfInvalid);
+      ThrowTypeError(MessageTemplate::kProxyGetPrototypeOfInvalid);
     }
   }
 }

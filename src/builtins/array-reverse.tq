@@ -124,10 +124,10 @@ namespace array {
         SetProperty(object, lower, upperValue);
 
         // ii. Perform ? DeletePropertyOrThrow(O, upperP).
-        DeleteProperty(object, upper, kStrict);
+        DeleteProperty(object, upper, LanguageMode::kStrict);
       } else if (lowerExists == True && upperExists == False) {
         // i. Perform ? DeletePropertyOrThrow(O, lowerP).
-        DeleteProperty(object, lower, kStrict);
+        DeleteProperty(object, lower, LanguageMode::kStrict);
 
         // ii. Perform ? Set(O, upperP, lowerValue, true).
         SetProperty(object, upper, lowerValue);
@@ -147,15 +147,15 @@ namespace array {
     const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
     const kind: ElementsKind = array.map.elements_kind;
-    if (kind == PACKED_SMI_ELEMENTS) {
+    if (kind == ElementsKind::PACKED_SMI_ELEMENTS) {
       array::EnsureWriteableFastElements(array);
       FastPackedArrayReverse<array::FastPackedSmiElements, Smi>(
           array.elements, array.length);
-    } else if (kind == PACKED_ELEMENTS) {
+    } else if (kind == ElementsKind::PACKED_ELEMENTS) {
       array::EnsureWriteableFastElements(array);
       FastPackedArrayReverse<array::FastPackedObjectElements, JSAny>(
           array.elements, array.length);
-    } else if (kind == PACKED_DOUBLE_ELEMENTS) {
+    } else if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
       FastPackedArrayReverse<array::FastPackedDoubleElements, float64>(
           array.elements, array.length);
     } else {

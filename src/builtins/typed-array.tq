@@ -128,30 +128,31 @@ namespace typed_array {
   }
 
   macro GetTypedArrayAccessor(elementsKind: ElementsKind): TypedArrayAccessor {
-    if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
-      if (elementsKind == INT32_ELEMENTS) {
+    if (IsElementsKindGreaterThan(
+            elementsKind, ElementsKind::UINT32_ELEMENTS)) {
+      if (elementsKind == ElementsKind::INT32_ELEMENTS) {
         return GetTypedArrayAccessor<Int32Elements>();
-      } else if (elementsKind == FLOAT32_ELEMENTS) {
+      } else if (elementsKind == ElementsKind::FLOAT32_ELEMENTS) {
         return GetTypedArrayAccessor<Float32Elements>();
-      } else if (elementsKind == FLOAT64_ELEMENTS) {
+      } else if (elementsKind == ElementsKind::FLOAT64_ELEMENTS) {
         return GetTypedArrayAccessor<Float64Elements>();
-      } else if (elementsKind == UINT8_CLAMPED_ELEMENTS) {
+      } else if (elementsKind == ElementsKind::UINT8_CLAMPED_ELEMENTS) {
         return GetTypedArrayAccessor<Uint8ClampedElements>();
-      } else if (elementsKind == BIGUINT64_ELEMENTS) {
+      } else if (elementsKind == ElementsKind::BIGUINT64_ELEMENTS) {
         return GetTypedArrayAccessor<BigUint64Elements>();
-      } else if (elementsKind == BIGINT64_ELEMENTS) {
+      } else if (elementsKind == ElementsKind::BIGINT64_ELEMENTS) {
         return GetTypedArrayAccessor<BigInt64Elements>();
       }
     } else {
-      if (elementsKind == UINT8_ELEMENTS) {
+      if (elementsKind == ElementsKind::UINT8_ELEMENTS) {
         return GetTypedArrayAccessor<Uint8Elements>();
-      } else if (elementsKind == INT8_ELEMENTS) {
+      } else if (elementsKind == ElementsKind::INT8_ELEMENTS) {
         return GetTypedArrayAccessor<Int8Elements>();
-      } else if (elementsKind == UINT16_ELEMENTS) {
+      } else if (elementsKind == ElementsKind::UINT16_ELEMENTS) {
         return GetTypedArrayAccessor<Uint16Elements>();
-      } else if (elementsKind == INT16_ELEMENTS) {
+      } else if (elementsKind == ElementsKind::INT16_ELEMENTS) {
         return GetTypedArrayAccessor<Int16Elements>();
-      } else if (elementsKind == UINT32_ELEMENTS) {
+      } else if (elementsKind == ElementsKind::UINT32_ELEMENTS) {
         return GetTypedArrayAccessor<Uint32Elements>();
       }
     }
@@ -210,37 +211,37 @@ namespace typed_array {
   macro KindForArrayType<T : type extends ElementsKind>():
       constexpr ElementsKind;
   KindForArrayType<Uint8Elements>(): constexpr ElementsKind {
-    return UINT8_ELEMENTS;
+    return ElementsKind::UINT8_ELEMENTS;
   }
   KindForArrayType<Int8Elements>(): constexpr ElementsKind {
-    return INT8_ELEMENTS;
+    return ElementsKind::INT8_ELEMENTS;
   }
   KindForArrayType<Uint16Elements>(): constexpr ElementsKind {
-    return UINT16_ELEMENTS;
+    return ElementsKind::UINT16_ELEMENTS;
   }
   KindForArrayType<Int16Elements>(): constexpr ElementsKind {
-    return INT16_ELEMENTS;
+    return ElementsKind::INT16_ELEMENTS;
   }
   KindForArrayType<Uint32Elements>(): constexpr ElementsKind {
-    return UINT32_ELEMENTS;
+    return ElementsKind::UINT32_ELEMENTS;
   }
   KindForArrayType<Int32Elements>(): constexpr ElementsKind {
-    return INT32_ELEMENTS;
+    return ElementsKind::INT32_ELEMENTS;
   }
   KindForArrayType<Float32Elements>(): constexpr ElementsKind {
-    return FLOAT32_ELEMENTS;
+    return ElementsKind::FLOAT32_ELEMENTS;
   }
   KindForArrayType<Float64Elements>(): constexpr ElementsKind {
-    return FLOAT64_ELEMENTS;
+    return ElementsKind::FLOAT64_ELEMENTS;
   }
   KindForArrayType<Uint8ClampedElements>(): constexpr ElementsKind {
-    return UINT8_CLAMPED_ELEMENTS;
+    return ElementsKind::UINT8_CLAMPED_ELEMENTS;
   }
   KindForArrayType<BigUint64Elements>(): constexpr ElementsKind {
-    return BIGUINT64_ELEMENTS;
+    return ElementsKind::BIGUINT64_ELEMENTS;
   }
   KindForArrayType<BigInt64Elements>(): constexpr ElementsKind {
-    return BIGINT64_ELEMENTS;
+    return ElementsKind::BIGINT64_ELEMENTS;
   }
 
   builtin LoadTypedElement<T : type extends ElementsKind>(

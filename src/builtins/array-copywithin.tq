@@ -75,7 +75,7 @@ namespace array {
         SetProperty(object, to, fromVal);
       } else {
         // i. Perform ? DeletePropertyOrThrow(O, toKey).
-        DeleteProperty(object, to, kStrict);
+        DeleteProperty(object, to, LanguageMode::kStrict);
       }
 
       // f. Let from be from + direction.

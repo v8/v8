@@ -27,8 +27,8 @@ namespace array {
     assert(IsFastSmiOrTaggedElementsKind(array.map.elements_kind));
 
     const length: Smi = Cast<Smi>(array.length) otherwise unreachable;
-    array.elements =
-        ExtractFixedArray(elements, 0, length, length, kFixedArrays);
+    array.elements = ExtractFixedArray(
+        elements, 0, length, length, ExtractFixedArrayFlag::kFixedArrays);
     assert(array.elements.map != kCOWMap);
   }
 

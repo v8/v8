@@ -32,7 +32,7 @@ namespace typed_array {
     }
     typeswitch (accumulator) {
       case (TheHole): {
-        ThrowTypeError(kReduceNoInitial, kBuiltinNameReduce);
+        ThrowTypeError(MessageTemplate::kReduceNoInitial, kBuiltinNameReduce);
       }
       case (accumulator: JSAny): {
         return accumulator;
@@ -57,13 +57,13 @@ namespace typed_array {
       return ReduceAllElements(uarray, callbackfn, initialValue);
     }
     label NotCallable deferred {
-      ThrowTypeError(kCalledNonCallable, arguments[0]);
+      ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
     label NotTypedArray deferred {
-      ThrowTypeError(kNotTypedArray, kBuiltinNameReduce);
+      ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameReduce);
     }
     label IsDetached deferred {
-      ThrowTypeError(kDetachedOperation, kBuiltinNameReduce);
+      ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameReduce);
     }
   }
 }

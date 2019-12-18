@@ -541,7 +541,7 @@ Cast<FastJSArrayForRead>(implicit context: Context)(o: HeapObject):
   // Bailout if receiver has slow elements.
   const elementsKind: ElementsKind = LoadMapElementsKind(map);
   if (!IsElementsKindLessThanOrEqual(
-          elementsKind, LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND))
+          elementsKind, ElementsKind::LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND))
     goto CastError;
 
   // Verify that our prototype is the initial array prototype.

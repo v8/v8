@@ -22,7 +22,7 @@ namespace regexp {
       assert(Is<FastJSRegExp>(regexp));
     }
 
-    const isGlobal: bool = FlagGetter(regexp, kGlobal, isFastPath);
+    const isGlobal: bool = FlagGetter(regexp, Flag::kGlobal, isFastPath);
 
     if (!isGlobal) {
       return isFastPath ? RegExpPrototypeExecBodyFast(regexp, string) :
@@ -30,7 +30,7 @@ namespace regexp {
     }
 
     assert(isGlobal);
-    const isUnicode: bool = FlagGetter(regexp, kUnicode, isFastPath);
+    const isUnicode: bool = FlagGetter(regexp, Flag::kUnicode, isFastPath);
 
     StoreLastIndex(regexp, 0, isFastPath);
 
@@ -141,7 +141,8 @@ namespace regexp {
       js-implicit context: NativeContext,
       receiver: JSAny)(string: JSAny): JSAny {
     ThrowIfNotJSReceiver(
-        receiver, kIncompatibleMethodReceiver, 'RegExp.prototype.@@match');
+        receiver, MessageTemplate::kIncompatibleMethodReceiver,
+        'RegExp.prototype.@@match');
     const receiver = UnsafeCast<JSReceiver>(receiver);
     const string: String = ToString_Inline(string);
 

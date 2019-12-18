@@ -240,7 +240,7 @@ namespace array {
         // v. Else fromPresent is false,
       } else {
         // 1. Perform ? DeletePropertyOrThrow(O, to).
-        DeleteProperty(o, to, kStrict);
+        DeleteProperty(o, to, LanguageMode::kStrict);
       }
       // vi. Increase k by 1.
       k++;
@@ -252,7 +252,7 @@ namespace array {
     // d. Repeat, while k > (len - actualDeleteCount + itemCount)
     while (k > (len - actualDeleteCount + itemCount)) {
       // i. Perform ? DeletePropertyOrThrow(O, ! ToString(k - 1)).
-      DeleteProperty(o, k - 1, kStrict);
+      DeleteProperty(o, k - 1, LanguageMode::kStrict);
       // ii. Decrease k by 1.
       k--;
     }
@@ -289,7 +289,7 @@ namespace array {
         // v. Else fromPresent is false,
       } else {
         // 1. Perform ? DeletePropertyOrThrow(O, to).
-        DeleteProperty(o, to, kStrict);
+        DeleteProperty(o, to, LanguageMode::kStrict);
       }
 
       // vi. Decrease k by 1.
@@ -398,7 +398,7 @@ namespace array {
     //    Bailout exception.
     const newLength: Number = len + insertCount - actualDeleteCount;
     if (newLength > kMaxSafeInteger) {
-      ThrowTypeError(kInvalidArrayLength, start);
+      ThrowTypeError(MessageTemplate::kInvalidArrayLength, start);
     }
 
     try {

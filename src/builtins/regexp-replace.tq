@@ -89,7 +89,7 @@ namespace regexp {
     const result: Null|JSArray = RegExpExecMultiple(
         regexp, string, GetRegExpLastMatchInfo(),
         AllocateJSArray(
-            PACKED_ELEMENTS, GetFastPackedElementsJSArrayMap(),
+            ElementsKind::PACKED_ELEMENTS, GetFastPackedElementsJSArrayMap(),
             kInitialCapacity, kInitialLength));
 
     regexp.lastIndex = 0;
@@ -243,7 +243,8 @@ namespace regexp {
     // Let rx be the this value.
     // If Type(rx) is not Object, throw a TypeError exception.
     const rx = Cast<JSReceiver>(receiver)
-        otherwise ThrowTypeError(kIncompatibleMethodReceiver, methodName);
+        otherwise ThrowTypeError(
+        MessageTemplate::kIncompatibleMethodReceiver, methodName);
 
     // Let S be ? ToString(string).
     const s = ToString_Inline(string);

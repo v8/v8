@@ -28,8 +28,8 @@ namespace string {
   transitioning javascript builtin StringIteratorPrototypeNext(
       js-implicit context: NativeContext, receiver: JSAny)(): JSObject {
     const iterator = Cast<JSStringIterator>(receiver) otherwise ThrowTypeError(
-        kIncompatibleMethodReceiver, 'String Iterator.prototype.next',
-        receiver);
+        MessageTemplate::kIncompatibleMethodReceiver,
+        'String Iterator.prototype.next', receiver);
     const string = iterator.string;
     const position: intptr = SmiUntag(iterator.index);
     const length: intptr = string.length_intptr;
@@ -37,7 +37,7 @@ namespace string {
       return AllocateJSIteratorResult(Undefined, True);
     }
     // Move to next codepoint.
-    const encoding = UTF16;
+    const encoding = UnicodeEncoding::UTF16;
     const ch = string::LoadSurrogatePairAt(string, length, position, encoding);
     const value: String = string::StringFromSingleUTF16EncodedCodePoint(ch);
     iterator.index = SmiTag(position + value.length_intptr);

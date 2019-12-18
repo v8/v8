@@ -56,7 +56,7 @@ transient type FastJSArrayForReadWithNoCustomIteration extends
 
 extern macro AllocateJSArray(
     constexpr ElementsKind, Map, intptr, Smi,
-    constexpr AllocationFlags): JSArray;
+    constexpr AllocationFlag): JSArray;
 extern macro AllocateJSArray(constexpr ElementsKind, Map, intptr, Smi): JSArray;
 extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
 extern macro AllocateJSArray(Map, FixedArrayBase, Smi): JSArray;
@@ -108,17 +108,20 @@ extern macro MoveElements(
 macro TorqueMoveElementsSmi(
     elements: FixedArray, dstIndex: intptr, srcIndex: intptr,
     count: intptr): void {
-  MoveElements(HOLEY_SMI_ELEMENTS, elements, dstIndex, srcIndex, count);
+  MoveElements(
+      ElementsKind::HOLEY_SMI_ELEMENTS, elements, dstIndex, srcIndex, count);
 }
 macro TorqueMoveElements(
     elements: FixedArray, dstIndex: intptr, srcIndex: intptr,
     count: intptr): void {
-  MoveElements(HOLEY_ELEMENTS, elements, dstIndex, srcIndex, count);
+  MoveElements(
+      ElementsKind::HOLEY_ELEMENTS, elements, dstIndex, srcIndex, count);
 }
 macro TorqueMoveElements(
     elements: FixedDoubleArray, dstIndex: intptr, srcIndex: intptr,
     count: intptr): void {
-  MoveElements(HOLEY_DOUBLE_ELEMENTS, elements, dstIndex, srcIndex, count);
+  MoveElements(
+      ElementsKind::HOLEY_DOUBLE_ELEMENTS, elements, dstIndex, srcIndex, count);
 }
 
 extern macro CopyElements(
@@ -128,14 +131,15 @@ macro TorqueCopyElements(
     dstElements: FixedArray, dstIndex: intptr, srcElements: FixedArray,
     srcIndex: intptr, count: intptr): void {
   CopyElements(
-      HOLEY_ELEMENTS, dstElements, dstIndex, srcElements, srcIndex, count);
+      ElementsKind::HOLEY_ELEMENTS, dstElements, dstIndex, srcElements,
+      srcIndex, count);
 }
 macro TorqueCopyElements(
     dstElements: FixedDoubleArray, dstIndex: intptr,
     srcElements: FixedDoubleArray, srcIndex: intptr, count: intptr): void {
   CopyElements(
-      HOLEY_DOUBLE_ELEMENTS, dstElements, dstIndex, srcElements, srcIndex,
-      count);
+      ElementsKind::HOLEY_DOUBLE_ELEMENTS, dstElements, dstIndex, srcElements,
+      srcIndex, count);
 }
 
 extern builtin CloneFastJSArray(Context, FastJSArrayForCopy): JSArray;
@@ -203,16 +207,17 @@ struct FastJSArrayWitness {
   macro Push(value: JSAny) labels Failed {
     assert(this.arrayIsPushable);
     if (this.hasDoubles) {
-      BuildAppendJSArray(HOLEY_DOUBLE_ELEMENTS, this.unstable, value)
+      BuildAppendJSArray(
+          ElementsKind::HOLEY_DOUBLE_ELEMENTS, this.unstable, value)
           otherwise Failed;
     } else if (this.hasSmis) {
-      BuildAppendJSArray(HOLEY_SMI_ELEMENTS, this.unstable, value)
+      BuildAppendJSArray(ElementsKind::HOLEY_SMI_ELEMENTS, this.unstable, value)
           otherwise Failed;
     } else {
       assert(
-          this.map.elements_kind == HOLEY_ELEMENTS ||
-          this.map.elements_kind == PACKED_ELEMENTS);
-      BuildAppendJSArray(HOLEY_ELEMENTS, this.unstable, value)
+          this.map.elements_kind == ElementsKind::HOLEY_ELEMENTS ||
+          this.map.elements_kind == ElementsKind::PACKED_ELEMENTS);
+      BuildAppendJSArray(ElementsKind::HOLEY_ELEMENTS, this.unstable, value)
           otherwise Failed;
     }
   }
@@ -250,7 +255,8 @@ macro NewFastJSArrayWitness(array: FastJSArray): FastJSArrayWitness {
     unstable: array,
     map: array.map,
     hasDoubles: IsDoubleElementsKind(kind),
-    hasSmis: IsElementsKindLessThanOrEqual(kind, HOLEY_SMI_ELEMENTS),
+    hasSmis:
+        IsElementsKindLessThanOrEqual(kind, ElementsKind::HOLEY_SMI_ELEMENTS),
     arrayIsPushable: false
   };
 }

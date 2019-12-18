@@ -34,7 +34,8 @@ namespace regexp {
       receiver: JSAny)(string: JSAny): JSAny {
     // Ensure {receiver} is a JSRegExp.
     const receiver = Cast<JSRegExp>(receiver) otherwise ThrowTypeError(
-        kIncompatibleMethodReceiver, 'RegExp.prototype.exec', receiver);
+        MessageTemplate::kIncompatibleMethodReceiver, 'RegExp.prototype.exec',
+        receiver);
     const string = ToString_Inline(string);
 
     return IsFastRegExpNoPrototype(receiver) ?

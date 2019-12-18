@@ -76,7 +76,7 @@ namespace array {
         SetProperty(object, to, fromValue);
       } else {
         // i. Perform ? DeletePropertyOrThrow(O, to).
-        DeleteProperty(object, to, kStrict);
+        DeleteProperty(object, to, LanguageMode::kStrict);
       }
 
       // f. Increase k by 1.
@@ -84,7 +84,7 @@ namespace array {
     }
 
     // 7. Perform ? DeletePropertyOrThrow(O, ! ToString(len - 1)).
-    DeleteProperty(object, length - 1, kStrict);
+    DeleteProperty(object, length - 1, LanguageMode::kStrict);
 
     // 8. Perform ? Set(O, "length", len - 1, true).
     SetProperty(object, kLengthString, length - 1);

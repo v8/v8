@@ -44,13 +44,13 @@ namespace typed_array {
       return EveryAllElements(uarray, callbackfn, thisArg);
     }
     label NotCallable deferred {
-      ThrowTypeError(kCalledNonCallable, arguments[0]);
+      ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
     label NotTypedArray deferred {
-      ThrowTypeError(kNotTypedArray, kBuiltinNameEvery);
+      ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameEvery);
     }
     label IsDetached deferred {
-      ThrowTypeError(kDetachedOperation, kBuiltinNameEvery);
+      ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameEvery);
     }
   }
 }

@@ -74,7 +74,7 @@ namespace bigint {
       return AllocateEmptyBigIntNoThrow(sign, length) otherwise BigIntTooBig;
     }
     label BigIntTooBig {
-      ThrowRangeError(kBigIntTooBig);
+      ThrowRangeError(MessageTemplate::kBigIntTooBig);
     }
   }
 
@@ -176,10 +176,10 @@ namespace bigint {
       return BigIntAddImpl(x, y) otherwise BigIntTooBig;
     }
     label MixedTypes {
-      ThrowTypeError(kBigIntMixedTypes);
+      ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
     }
     label BigIntTooBig {
-      ThrowRangeError(kBigIntTooBig);
+      ThrowRangeError(MessageTemplate::kBigIntTooBig);
     }
   }
 
@@ -221,10 +221,10 @@ namespace bigint {
       return BigIntSubtractImpl(x, y) otherwise BigIntTooBig;
     }
     label MixedTypes {
-      ThrowTypeError(kBigIntMixedTypes);
+      ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
     }
     label BigIntTooBig {
-      ThrowRangeError(kBigIntTooBig);
+      ThrowRangeError(MessageTemplate::kBigIntTooBig);
     }
   }
 

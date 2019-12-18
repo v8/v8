@@ -150,7 +150,7 @@ namespace array {
       }
     }
     label NotCallableError deferred {
-      ThrowTypeError(kCalledNonCallable, arguments[0]);
+      ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
   }
 }

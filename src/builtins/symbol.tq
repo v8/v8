@@ -8,7 +8,8 @@ namespace symbol {
 
   transitioning macro ThisSymbolValue(implicit context: Context)(
       receiver: JSAny, method: constexpr string): Symbol {
-    return UnsafeCast<Symbol>(ToThisValue(receiver, kSymbol, method));
+    return UnsafeCast<Symbol>(
+        ToThisValue(receiver, PrimitiveType::kSymbol, method));
   }
 
   // ES #sec-symbol.prototype.description

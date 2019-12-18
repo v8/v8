@@ -15,14 +15,15 @@ namespace array {
         Cast<FixedArray>(args.elements) otherwise Bailout;
     if (SmiAbove(end, sourceElements.length)) goto Bailout;
 
-    const arrayMap: Map = LoadJSArrayElementsMap(HOLEY_ELEMENTS, context);
+    const arrayMap: Map =
+        LoadJSArrayElementsMap(ElementsKind::HOLEY_ELEMENTS, context);
     const result: JSArray =
-        AllocateJSArray(HOLEY_ELEMENTS, arrayMap, count, count);
+        AllocateJSArray(ElementsKind::HOLEY_ELEMENTS, arrayMap, count, count);
     const newElements: FixedArray =
         Cast<FixedArray>(result.elements) otherwise Bailout;
     CopyElements(
-        PACKED_ELEMENTS, newElements, 0, sourceElements, Convert<intptr>(start),
-        Convert<intptr>(count));
+        ElementsKind::PACKED_ELEMENTS, newElements, 0, sourceElements,
+        Convert<intptr>(start), Convert<intptr>(count));
     return result;
   }
 
@@ -51,9 +52,10 @@ namespace array {
     const argumentsContext: Context = UnsafeCast<Context>(
         sloppyElements.objects[kSloppyArgumentsContextIndex]);
 
-    const arrayMap: Map = LoadJSArrayElementsMap(HOLEY_ELEMENTS, context);
+    const arrayMap: Map =
+        LoadJSArrayElementsMap(ElementsKind::HOLEY_ELEMENTS, context);
     const result: JSArray =
-        AllocateJSArray(HOLEY_ELEMENTS, arrayMap, count, count);
+        AllocateJSArray(ElementsKind::HOLEY_ELEMENTS, arrayMap, count, count);
 
     let indexOut: Smi = 0;
     const resultElements: FixedArray = UnsafeCast<FixedArray>(result.elements);
@@ -79,9 +81,9 @@ namespace array {
     const unmappedFrom: Smi = SmiMin(SmiMax(parameterMapLength, start), end);
     const restCount: Smi = end - unmappedFrom;
     CopyElements(
-        PACKED_ELEMENTS, resultElements, Convert<intptr>(indexOut),
-        unmappedElements, Convert<intptr>(unmappedFrom),
-        Convert<intptr>(restCount));
+        ElementsKind::PACKED_ELEMENTS, resultElements,
+        Convert<intptr>(indexOut), unmappedElements,
+        Convert<intptr>(unmappedFrom), Convert<intptr>(restCount));
     return result;
   }
 

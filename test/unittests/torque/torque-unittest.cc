@@ -71,7 +71,32 @@ type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 type Context extends HeapObject generates 'TNode<Context>';
 type NativeContext extends Context;
 
+intrinsic %FromConstexpr<To: type, From: type>(b: From): To;
+intrinsic %RawDownCast<To: type, From: type>(x: From): To;
+intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;
+extern macro SmiConstant(constexpr Smi): Smi;
+extern macro TaggedToSmi(Object): Smi
+    labels CastError;
+extern macro TaggedToHeapObject(Object): HeapObject
+    labels CastError;
+
 macro FromConstexpr<To: type, From: type>(o: From): To;
+FromConstexpr<Smi, constexpr Smi>(s: constexpr Smi): Smi {
+  return SmiConstant(s);
+}
+FromConstexpr<Smi, constexpr int31>(s: constexpr int31): Smi {
+  return %FromConstexpr<Smi>(s);
+}
+
+macro Cast<A : type extends Object>(implicit context: Context)(o: Object): A
+    labels CastError {
+  return Cast<A>(TaggedToHeapObject(o) otherwise CastError)
+      otherwise CastError;
+}
+Cast<Smi>(o: Object): Smi
+    labels CastError {
+  return TaggedToSmi(o) otherwise CastError;
+}
 )";
 
 TorqueCompilerResult TestCompileTorque(std::string source) {
@@ -514,6 +539,69 @@ TEST(Torque, SpecializationRequesters) {
                        5)});
 }
 #endif
+
+TEST(Torque, Enums) {
+  ExpectSuccessfulCompilation(R"(
+    extern enum MyEnum {
+      kValue0,
+      kValue1,
+      kValue2,
+      kValue3
+    }
+  )");
+
+  ExpectFailingCompilation(R"(
+    extern enum MyEmptyEnum {
+    }
+  )",
+                           HasSubstr("unexpected token \"}\""));
+}
+
+TEST(Torque, EnumInTypeswitch) {
+  ExpectSuccessfulCompilation(R"(
+    extern enum MyEnum extends Smi {
+      kA,
+      kB,
+      kC
+    }
+
+    @export
+    macro Test(implicit context: Context)(v : MyEnum): Smi {
+      typeswitch(v) {
+        case (MyEnum::kA | MyEnum::kB): {
+          return 1;
+        }
+        case (MyEnum::kC): {
+          return 2;
+        }
+      }
+    }
+  )");
+
+  ExpectSuccessfulCompilation(R"(
+    extern enum MyEnum extends Smi {
+      kA,
+      kB,
+      kC,
+      ...
+    }
+
+    @export
+    macro Test(implicit context: Context)(v : MyEnum): Smi {
+      typeswitch(v) {
+         case (MyEnum::kC): {
+          return 2;
+        }
+        case (MyEnum::kA | MyEnum::kB): {
+          return 1;
+        }
+       case (MyEnum): {
+          return 0;
+        }
+      }
+    }
+  )");
+}
 
 }  // namespace torque
 }  // namespace internal

@@ -10,12 +10,6 @@ namespace runtime {
 }
 
 namespace promise {
-  const kCalledOnNonObject: constexpr MessageTemplate
-  generates 'MessageTemplate::kCalledOnNonObject';
-
-  const PROMISE_PROTOTYPE_INDEX: constexpr NativeContextSlot
-  generates 'Context::PROMISE_PROTOTYPE_INDEX';
-
   extern macro ConstructorStringConstant(): String;
   const kConstructorString: String = ConstructorStringConstant();
 
@@ -26,7 +20,7 @@ namespace promise {
     // 1. Let C be the this value.
     // 2. If Type(C) is not Object, throw a TypeError exception.
     const receiver = Cast<JSReceiver>(receiver) otherwise
-    ThrowTypeError(kCalledOnNonObject, 'PromiseResolve');
+    ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'PromiseResolve');
 
     // 3. Return ? PromiseResolve(C, x).
     return PromiseResolve(receiver, value);
@@ -36,7 +30,7 @@ namespace promise {
   PromiseResolve(implicit context:
                      Context)(constructor: JSReceiver, value: JSAny): JSAny {
     const nativeContext = LoadNativeContext(context);
-    const promiseFun = nativeContext[PROMISE_FUNCTION_INDEX];
+    const promiseFun = nativeContext[NativeContextSlot::PROMISE_FUNCTION_INDEX];
     try {
       // Check if {value} is a JSPromise.
       const value = Cast<JSPromise>(value) otherwise NeedToAllocate;
@@ -45,7 +39,8 @@ namespace promise {
       // is the (initial) Promise.prototype and the @@species protector is
       // intact, as that guards the lookup path for "constructor" on
       // JSPromise instances which have the (initial) Promise.prototype.
-      const promisePrototype = nativeContext[PROMISE_PROTOTYPE_INDEX];
+      const promisePrototype =
+          nativeContext[NativeContextSlot::PROMISE_PROTOTYPE_INDEX];
       if (value.map.prototype != promisePrototype) {
         goto SlowConstructor;
       }
@@ -146,17 +141,19 @@ namespace promise {
         // results from async generators.
         assert(IsJSReceiverMap(resolutionMap));
         assert(!IsPromiseThenProtectorCellInvalid());
-        if (resolutionMap == nativeContext[ITERATOR_RESULT_MAP_INDEX]) {
+        if (resolutionMap ==
+            nativeContext[NativeContextSlot::ITERATOR_RESULT_MAP_INDEX]) {
           return FulfillPromise(promise, resolution);
         } else {
           goto Slow;
         }
       }
 
-      const promisePrototype = nativeContext[PROMISE_PROTOTYPE_INDEX];
+      const promisePrototype =
+          nativeContext[NativeContextSlot::PROMISE_PROTOTYPE_INDEX];
       if (resolutionMap.prototype == promisePrototype) {
         // The {resolution} is a native Promise in this case.
-        then = nativeContext[PROMISE_THEN_INDEX];
+        then = nativeContext[NativeContextSlot::PROMISE_THEN_INDEX];
         goto Enqueue;
       }
       goto Slow;

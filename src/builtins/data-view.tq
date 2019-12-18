@@ -7,25 +7,25 @@
 namespace data_view {
 
   macro MakeDataViewGetterNameString(kind: constexpr ElementsKind): String {
-    if constexpr (kind == UINT8_ELEMENTS) {
+    if constexpr (kind == ElementsKind::UINT8_ELEMENTS) {
       return 'DataView.prototype.getUint8';
-    } else if constexpr (kind == INT8_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::INT8_ELEMENTS) {
       return 'DataView.prototype.getInt8';
-    } else if constexpr (kind == UINT16_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::UINT16_ELEMENTS) {
       return 'DataView.prototype.getUint16';
-    } else if constexpr (kind == INT16_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::INT16_ELEMENTS) {
       return 'DataView.prototype.getInt16';
-    } else if constexpr (kind == UINT32_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::UINT32_ELEMENTS) {
       return 'DataView.prototype.getUint32';
-    } else if constexpr (kind == INT32_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::INT32_ELEMENTS) {
       return 'DataView.prototype.getInt32';
-    } else if constexpr (kind == FLOAT32_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::FLOAT32_ELEMENTS) {
       return 'DataView.prototype.getFloat32';
-    } else if constexpr (kind == FLOAT64_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::FLOAT64_ELEMENTS) {
       return 'DataView.prototype.getFloat64';
-    } else if constexpr (kind == BIGINT64_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::BIGINT64_ELEMENTS) {
       return 'DataView.prototype.getBigInt64';
-    } else if constexpr (kind == BIGUINT64_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::BIGUINT64_ELEMENTS) {
       return 'DataView.prototype.getBigUint64';
     } else {
       unreachable;
@@ -33,25 +33,25 @@ namespace data_view {
   }
 
   macro MakeDataViewSetterNameString(kind: constexpr ElementsKind): String {
-    if constexpr (kind == UINT8_ELEMENTS) {
+    if constexpr (kind == ElementsKind::UINT8_ELEMENTS) {
       return 'DataView.prototype.setUint8';
-    } else if constexpr (kind == INT8_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::INT8_ELEMENTS) {
       return 'DataView.prototype.setInt8';
-    } else if constexpr (kind == UINT16_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::UINT16_ELEMENTS) {
       return 'DataView.prototype.setUint16';
-    } else if constexpr (kind == INT16_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::INT16_ELEMENTS) {
       return 'DataView.prototype.setInt16';
-    } else if constexpr (kind == UINT32_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::UINT32_ELEMENTS) {
       return 'DataView.prototype.setUint32';
-    } else if constexpr (kind == INT32_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::INT32_ELEMENTS) {
       return 'DataView.prototype.setInt32';
-    } else if constexpr (kind == FLOAT32_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::FLOAT32_ELEMENTS) {
       return 'DataView.prototype.setFloat32';
-    } else if constexpr (kind == FLOAT64_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::FLOAT64_ELEMENTS) {
       return 'DataView.prototype.setFloat64';
-    } else if constexpr (kind == BIGINT64_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::BIGINT64_ELEMENTS) {
       return 'DataView.prototype.setBigInt64';
-    } else if constexpr (kind == BIGUINT64_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::BIGUINT64_ELEMENTS) {
       return 'DataView.prototype.setBigUint64';
     } else {
       unreachable;
@@ -68,7 +68,7 @@ namespace data_view {
       return Cast<JSDataView>(o) otherwise CastError;
     }
     label CastError {
-      ThrowTypeError(kIncompatibleMethodReceiver, method);
+      ThrowTypeError(MessageTemplate::kIncompatibleMethodReceiver, method);
     }
   }
 
@@ -172,11 +172,11 @@ namespace data_view {
       result = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
     }
 
-    if constexpr (kind == INT32_ELEMENTS) {
+    if constexpr (kind == ElementsKind::INT32_ELEMENTS) {
       return Convert<Number>(Signed(result));
-    } else if constexpr (kind == UINT32_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::UINT32_ELEMENTS) {
       return Convert<Number>(result);
-    } else if constexpr (kind == FLOAT32_ELEMENTS) {
+    } else if constexpr (kind == ElementsKind::FLOAT32_ELEMENTS) {
       const floatRes: float64 = Convert<float64>(BitcastInt32ToFloat32(result));
       return Convert<Number>(floatRes);
     } else {
@@ -378,7 +378,9 @@ namespace data_view {
 
       // 6. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
       if (IsDetachedBuffer(buffer)) {
-        ThrowTypeError(kDetachedOperation, MakeDataViewGetterNameString(kind));
+        ThrowTypeError(
+            MessageTemplate::kDetachedOperation,
+            MakeDataViewGetterNameString(kind));
       }
 
       // 7. Let viewOffset be view.[[ByteOffset]].
@@ -398,32 +400,32 @@ namespace data_view {
       // 11. Let bufferIndex be getIndex + viewOffset.
       const bufferIndex: uintptr = getIndex + viewOffset;
 
-      if constexpr (kind == UINT8_ELEMENTS) {
+      if constexpr (kind == ElementsKind::UINT8_ELEMENTS) {
         return LoadDataView8(buffer, bufferIndex, false);
-      } else if constexpr (kind == INT8_ELEMENTS) {
+      } else if constexpr (kind == ElementsKind::INT8_ELEMENTS) {
         return LoadDataView8(buffer, bufferIndex, true);
-      } else if constexpr (kind == UINT16_ELEMENTS) {
+      } else if constexpr (kind == ElementsKind::UINT16_ELEMENTS) {
         return LoadDataView16(buffer, bufferIndex, littleEndian, false);
-      } else if constexpr (kind == INT16_ELEMENTS) {
+      } else if constexpr (kind == ElementsKind::INT16_ELEMENTS) {
         return LoadDataView16(buffer, bufferIndex, littleEndian, true);
-      } else if constexpr (kind == UINT32_ELEMENTS) {
+      } else if constexpr (kind == ElementsKind::UINT32_ELEMENTS) {
         return LoadDataView32(buffer, bufferIndex, littleEndian, kind);
-      } else if constexpr (kind == INT32_ELEMENTS) {
+      } else if constexpr (kind == ElementsKind::INT32_ELEMENTS) {
         return LoadDataView32(buffer, bufferIndex, littleEndian, kind);
-      } else if constexpr (kind == FLOAT32_ELEMENTS) {
+      } else if constexpr (kind == ElementsKind::FLOAT32_ELEMENTS) {
         return LoadDataView32(buffer, bufferIndex, littleEndian, kind);
-      } else if constexpr (kind == FLOAT64_ELEMENTS) {
+      } else if constexpr (kind == ElementsKind::FLOAT64_ELEMENTS) {
         return LoadDataViewFloat64(buffer, bufferIndex, littleEndian);
-      } else if constexpr (kind == BIGUINT64_ELEMENTS) {
+      } else if constexpr (kind == ElementsKind::BIGUINT64_ELEMENTS) {
         return LoadDataViewBigInt(buffer, bufferIndex, littleEndian, false);
-      } else if constexpr (kind == BIGINT64_ELEMENTS) {
+      } else if constexpr (kind == ElementsKind::BIGINT64_ELEMENTS) {
         return LoadDataViewBigInt(buffer, bufferIndex, littleEndian, true);
       } else {
         unreachable;
       }
     }
     label RangeError {
-      ThrowRangeError(kInvalidDataViewAccessorOffset);
+      ThrowRangeError(MessageTemplate::kInvalidDataViewAccessorOffset);
     }
   }
 
@@ -431,14 +433,16 @@ namespace data_view {
       js-implicit context: NativeContext,
       receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
-    return DataViewGet(context, receiver, offset, Undefined, UINT8_ELEMENTS);
+    return DataViewGet(
+        context, receiver, offset, Undefined, ElementsKind::UINT8_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeGetInt8(
       js-implicit context: NativeContext,
       receiver: JSAny)(...arguments): JSAny {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
-    return DataViewGet(context, receiver, offset, Undefined, INT8_ELEMENTS);
+    return DataViewGet(
+        context, receiver, offset, Undefined, ElementsKind::INT8_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeGetUint16(
@@ -448,7 +452,8 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
     return DataViewGet(
-        context, receiver, offset, isLittleEndian, UINT16_ELEMENTS);
+        context, receiver, offset, isLittleEndian,
+        ElementsKind::UINT16_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeGetInt16(
@@ -458,7 +463,8 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
     return DataViewGet(
-        context, receiver, offset, isLittleEndian, INT16_ELEMENTS);
+        context, receiver, offset, isLittleEndian,
+        ElementsKind::INT16_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeGetUint32(
@@ -468,7 +474,8 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
     return DataViewGet(
-        context, receiver, offset, isLittleEndian, UINT32_ELEMENTS);
+        context, receiver, offset, isLittleEndian,
+        ElementsKind::UINT32_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeGetInt32(
@@ -478,7 +485,8 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
     return DataViewGet(
-        context, receiver, offset, isLittleEndian, INT32_ELEMENTS);
+        context, receiver, offset, isLittleEndian,
+        ElementsKind::INT32_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeGetFloat32(
@@ -488,7 +496,8 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
     return DataViewGet(
-        context, receiver, offset, isLittleEndian, FLOAT32_ELEMENTS);
+        context, receiver, offset, isLittleEndian,
+        ElementsKind::FLOAT32_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeGetFloat64(
@@ -498,7 +507,8 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
     return DataViewGet(
-        context, receiver, offset, isLittleEndian, FLOAT64_ELEMENTS);
+        context, receiver, offset, isLittleEndian,
+        ElementsKind::FLOAT64_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeGetBigUint64(
@@ -508,7 +518,8 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
     return DataViewGet(
-        context, receiver, offset, isLittleEndian, BIGUINT64_ELEMENTS);
+        context, receiver, offset, isLittleEndian,
+        ElementsKind::BIGUINT64_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeGetBigInt64(
@@ -518,7 +529,8 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 1 ? arguments[1] : Undefined;
     return DataViewGet(
-        context, receiver, offset, isLittleEndian, BIGINT64_ELEMENTS);
+        context, receiver, offset, isLittleEndian,
+        ElementsKind::BIGINT64_ELEMENTS);
   }
 
   extern macro ToNumber(Context, JSAny): Number;
@@ -671,7 +683,9 @@ namespace data_view {
       const buffer: JSArrayBuffer = dataView.buffer;
 
       let numberValue: Numeric;
-      if constexpr (kind == BIGUINT64_ELEMENTS || kind == BIGINT64_ELEMENTS) {
+      if constexpr (
+          kind == ElementsKind::BIGUINT64_ELEMENTS ||
+          kind == ElementsKind::BIGINT64_ELEMENTS) {
         // 4. If ! IsBigIntElementType(type) is true, let numberValue be
         // ? ToBigInt(value).
         numberValue = ToBigInt(context, value);
@@ -682,7 +696,9 @@ namespace data_view {
 
       // 6. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
       if (IsDetachedBuffer(buffer)) {
-        ThrowTypeError(kDetachedOperation, MakeDataViewSetterNameString(kind));
+        ThrowTypeError(
+            MessageTemplate::kDetachedOperation,
+            MakeDataViewSetterNameString(kind));
       }
 
       // 9. Let viewOffset be view.[[ByteOffset]].
@@ -702,7 +718,9 @@ namespace data_view {
       // 13. Let bufferIndex be getIndex + viewOffset.
       const bufferIndex: uintptr = getIndex + viewOffset;
 
-      if constexpr (kind == BIGUINT64_ELEMENTS || kind == BIGINT64_ELEMENTS) {
+      if constexpr (
+          kind == ElementsKind::BIGUINT64_ELEMENTS ||
+          kind == ElementsKind::BIGINT64_ELEMENTS) {
         // For these elements kinds numberValue is BigInt.
         const bigIntValue: BigInt = %RawDownCast<BigInt>(numberValue);
         StoreDataViewBigInt(buffer, bufferIndex, bigIntValue, littleEndian);
@@ -711,23 +729,29 @@ namespace data_view {
         const numValue: Number = %RawDownCast<Number>(numberValue);
         const doubleValue: float64 = ChangeNumberToFloat64(numValue);
 
-        if constexpr (kind == UINT8_ELEMENTS || kind == INT8_ELEMENTS) {
+        if constexpr (
+            kind == ElementsKind::UINT8_ELEMENTS ||
+            kind == ElementsKind::INT8_ELEMENTS) {
           StoreDataView8(
               buffer, bufferIndex, TruncateFloat64ToWord32(doubleValue));
-        } else if constexpr (kind == UINT16_ELEMENTS || kind == INT16_ELEMENTS) {
+        } else if constexpr (
+            kind == ElementsKind::UINT16_ELEMENTS ||
+            kind == ElementsKind::INT16_ELEMENTS) {
           StoreDataView16(
               buffer, bufferIndex, TruncateFloat64ToWord32(doubleValue),
               littleEndian);
-        } else if constexpr (kind == UINT32_ELEMENTS || kind == INT32_ELEMENTS) {
+        } else if constexpr (
+            kind == ElementsKind::UINT32_ELEMENTS ||
+            kind == ElementsKind::INT32_ELEMENTS) {
           StoreDataView32(
               buffer, bufferIndex, TruncateFloat64ToWord32(doubleValue),
               littleEndian);
-        } else if constexpr (kind == FLOAT32_ELEMENTS) {
+        } else if constexpr (kind == ElementsKind::FLOAT32_ELEMENTS) {
           const floatValue: float32 = TruncateFloat64ToFloat32(doubleValue);
           StoreDataView32(
               buffer, bufferIndex, BitcastFloat32ToInt32(floatValue),
               littleEndian);
-        } else if constexpr (kind == FLOAT64_ELEMENTS) {
+        } else if constexpr (kind == ElementsKind::FLOAT64_ELEMENTS) {
           const lowWord: uint32 = Float64ExtractLowWord32(doubleValue);
           const highWord: uint32 = Float64ExtractHighWord32(doubleValue);
           StoreDataView64(buffer, bufferIndex, lowWord, highWord, littleEndian);
@@ -736,7 +760,7 @@ namespace data_view {
       return Undefined;
     }
     label RangeError {
-      ThrowRangeError(kInvalidDataViewAccessorOffset);
+      ThrowRangeError(MessageTemplate::kInvalidDataViewAccessorOffset);
     }
   }
 
@@ -746,7 +770,8 @@ namespace data_view {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const value: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
     return DataViewSet(
-        context, receiver, offset, value, Undefined, UINT8_ELEMENTS);
+        context, receiver, offset, value, Undefined,
+        ElementsKind::UINT8_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeSetInt8(
@@ -755,7 +780,8 @@ namespace data_view {
     const offset: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     const value: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
     return DataViewSet(
-        context, receiver, offset, value, Undefined, INT8_ELEMENTS);
+        context, receiver, offset, value, Undefined,
+        ElementsKind::INT8_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeSetUint16(
@@ -766,7 +792,8 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 2 ? arguments[2] : Undefined;
     return DataViewSet(
-        context, receiver, offset, value, isLittleEndian, UINT16_ELEMENTS);
+        context, receiver, offset, value, isLittleEndian,
+        ElementsKind::UINT16_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeSetInt16(
@@ -777,7 +804,8 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 2 ? arguments[2] : Undefined;
     return DataViewSet(
-        context, receiver, offset, value, isLittleEndian, INT16_ELEMENTS);
+        context, receiver, offset, value, isLittleEndian,
+        ElementsKind::INT16_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeSetUint32(
@@ -788,7 +816,8 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 2 ? arguments[2] : Undefined;
     return DataViewSet(
-        context, receiver, offset, value, isLittleEndian, UINT32_ELEMENTS);
+        context, receiver, offset, value, isLittleEndian,
+        ElementsKind::UINT32_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeSetInt32(
@@ -799,7 +828,8 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 2 ? arguments[2] : Undefined;
     return DataViewSet(
-        context, receiver, offset, value, isLittleEndian, INT32_ELEMENTS);
+        context, receiver, offset, value, isLittleEndian,
+        ElementsKind::INT32_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeSetFloat32(
@@ -810,7 +840,8 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 2 ? arguments[2] : Undefined;
     return DataViewSet(
-        context, receiver, offset, value, isLittleEndian, FLOAT32_ELEMENTS);
+        context, receiver, offset, value, isLittleEndian,
+        ElementsKind::FLOAT32_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeSetFloat64(
@@ -821,7 +852,8 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 2 ? arguments[2] : Undefined;
     return DataViewSet(
-        context, receiver, offset, value, isLittleEndian, FLOAT64_ELEMENTS);
+        context, receiver, offset, value, isLittleEndian,
+        ElementsKind::FLOAT64_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeSetBigUint64(
@@ -832,7 +864,8 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 2 ? arguments[2] : Undefined;
     return DataViewSet(
-        context, receiver, offset, value, isLittleEndian, BIGUINT64_ELEMENTS);
+        context, receiver, offset, value, isLittleEndian,
+        ElementsKind::BIGUINT64_ELEMENTS);
   }
 
   transitioning javascript builtin DataViewPrototypeSetBigInt64(
@@ -843,6 +876,7 @@ namespace data_view {
     const isLittleEndian: JSAny =
         arguments.length > 2 ? arguments[2] : Undefined;
     return DataViewSet(
-        context, receiver, offset, value, isLittleEndian, BIGINT64_ELEMENTS);
+        context, receiver, offset, value, isLittleEndian,
+        ElementsKind::BIGINT64_ELEMENTS);
   }
 }

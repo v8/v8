@@ -43,10 +43,11 @@ namespace proxy {
       return NewJSProxyRevocableResult(proxy, revoke);
     }
     label ThrowProxyNonObject deferred {
-      ThrowTypeError(kProxyNonObject, 'Proxy.revocable');
+      ThrowTypeError(MessageTemplate::kProxyNonObject, 'Proxy.revocable');
     }
     label ThrowProxyHandlerOrTargetRevoked deferred {
-      ThrowTypeError(kProxyHandlerOrTargetRevoked, 'Proxy.revocable');
+      ThrowTypeError(
+          MessageTemplate::kProxyHandlerOrTargetRevoked, 'Proxy.revocable');
     }
   }
 }

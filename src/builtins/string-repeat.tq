@@ -69,7 +69,7 @@ namespace string {
       return kEmptyString;
     }
     label InvalidCount deferred {
-      ThrowRangeError(kInvalidCountValue, count);
+      ThrowRangeError(MessageTemplate::kInvalidCountValue, count);
     }
     label InvalidStringLength deferred {
       ThrowInvalidStringLength(context);

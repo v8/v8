@@ -303,7 +303,7 @@ namespace array {
   transitioning builtin Delete<ElementsAccessor : type extends ElementsKind>(
       context: Context, sortState: SortState, index: Smi): Smi {
     const receiver = sortState.receiver;
-    DeleteProperty(receiver, index, kStrict);
+    DeleteProperty(receiver, index, LanguageMode::kStrict);
     return kSuccess;
   }
 
@@ -1394,7 +1394,7 @@ namespace array {
     //    throw a TypeError exception.
     const comparefnObj: JSAny = arguments[0];
     const comparefn = Cast<(Undefined | Callable)>(comparefnObj) otherwise
-    ThrowTypeError(kBadSortComparisonFunction, comparefnObj);
+    ThrowTypeError(MessageTemplate::kBadSortComparisonFunction, comparefnObj);
 
     // 2. Let obj be ? ToObject(this value).
     const obj: JSReceiver = ToObject(context, receiver);

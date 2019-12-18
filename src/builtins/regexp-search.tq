@@ -93,7 +93,8 @@ namespace regexp {
       js-implicit context: NativeContext,
       receiver: JSAny)(string: JSAny): JSAny {
     ThrowIfNotJSReceiver(
-        receiver, kIncompatibleMethodReceiver, 'RegExp.prototype.@@search');
+        receiver, MessageTemplate::kIncompatibleMethodReceiver,
+        'RegExp.prototype.@@search');
     const receiver = UnsafeCast<JSReceiver>(receiver);
     const string: String = ToString_Inline(string);
 

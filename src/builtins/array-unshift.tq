@@ -20,7 +20,7 @@ namespace array {
     if (argCount > 0) {
       // a. If len + argCount > 2**53 - 1, throw a TypeError exception.
       if (length + argCount > kMaxSafeInteger) {
-        ThrowTypeError(kInvalidArrayLength);
+        ThrowTypeError(MessageTemplate::kInvalidArrayLength);
       }
 
       // b. Let k be len.
@@ -46,7 +46,7 @@ namespace array {
           SetProperty(object, to, fromValue);
         } else {
           // 1. Perform ? DeletePropertyOrThrow(O, to).
-          DeleteProperty(object, to, kStrict);
+          DeleteProperty(object, to, LanguageMode::kStrict);
         }
 
         // vi. Decrease k by 1.

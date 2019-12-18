@@ -39,7 +39,7 @@ namespace string {
     // 3. Let isRegExp be ? IsRegExp(searchString).
     // 4. If isRegExp is true, throw a TypeError exception.
     if (regexp::IsRegExp(searchString)) {
-      ThrowTypeError(kFirstArgumentNotRegExp, kBuiltinName);
+      ThrowTypeError(MessageTemplate::kFirstArgumentNotRegExp, kBuiltinName);
     }
 
     // 5. Let searchStr be ? ToString(searchString).

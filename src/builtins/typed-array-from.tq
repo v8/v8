@@ -33,7 +33,7 @@ namespace typed_array {
       const mapping: bool = arguments.length > 1;
       const mapfnObj: JSAny = mapping ? arguments[1] : Undefined;
       if (mapping && !TaggedIsCallable(mapfnObj)) deferred {
-          ThrowTypeError(kCalledNonCallable, mapfnObj);
+          ThrowTypeError(MessageTemplate::kCalledNonCallable, mapfnObj);
         }
 
       // 5. If thisArg is present, let T be thisArg; else let T be undefined.
@@ -127,11 +127,11 @@ namespace typed_array {
           finalSource = arrayLike;
         }
         label IfInvalidLength deferred {
-          ThrowRangeError(kInvalidTypedArrayLength, length);
+          ThrowRangeError(MessageTemplate::kInvalidTypedArrayLength, length);
         }
       }
       label IteratorNotCallable(_value: JSAny) deferred {
-        ThrowTypeError(kIteratorSymbolNonCallable);
+        ThrowTypeError(MessageTemplate::kIteratorSymbolNonCallable);
       }
 
       const finalLengthNum = Convert<Number>(finalLength);
@@ -185,10 +185,10 @@ namespace typed_array {
       return targetObj;
     }
     label NotConstructor deferred {
-      ThrowTypeError(kNotConstructor, receiver);
+      ThrowTypeError(MessageTemplate::kNotConstructor, receiver);
     }
     label IfDetached deferred {
-      ThrowTypeError(kDetachedOperation, kBuiltinNameFrom);
+      ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameFrom);
     }
   }
 }

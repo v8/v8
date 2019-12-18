@@ -5,10 +5,6 @@
 #include 'src/builtins/builtins-string-gen.h'
 
 namespace string {
-
-  const kRegExpGlobalInvokedOnNonGlobal: constexpr MessageTemplate
-  generates 'MessageTemplate::kRegExpGlobalInvokedOnNonGlobal';
-
   extern macro ReplaceSymbolConstant(): Symbol;
 
   extern macro StringBuiltinsAssembler::GetSubstitution(
@@ -88,7 +84,8 @@ namespace string {
     }
     if (shouldThrow) {
       ThrowTypeError(
-          kRegExpGlobalInvokedOnNonGlobal, 'String.prototype.replaceAll');
+          MessageTemplate::kRegExpGlobalInvokedOnNonGlobal,
+          'String.prototype.replaceAll');
     }
   }
 

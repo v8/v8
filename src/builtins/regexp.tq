@@ -22,9 +22,6 @@ namespace regexp {
     BranchIfFastRegExp_Permissive(o) otherwise return true, return false;
   }
 
-  const kInvalidRegExpExecResult: constexpr MessageTemplate
-  generates 'MessageTemplate::kInvalidRegExpExecResult';
-
   // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
   @export
   transitioning macro RegExpExec(implicit context: Context)(
@@ -39,13 +36,15 @@ namespace regexp {
       case (execCallable: Callable): {
         const result = Call(context, execCallable, receiver, string);
         if (result != Null) {
-          ThrowIfNotJSReceiver(result, kInvalidRegExpExecResult, '');
+          ThrowIfNotJSReceiver(
+              result, MessageTemplate::kInvalidRegExpExecResult, '');
         }
         return result;
       }
       case (Object): {
         const regexp = Cast<JSRegExp>(receiver) otherwise ThrowTypeError(
-            kIncompatibleMethodReceiver, 'RegExp.prototype.exec', receiver);
+            MessageTemplate::kIncompatibleMethodReceiver,
+            'RegExp.prototype.exec', receiver);
         return RegExpPrototypeExecSlow(regexp, string);
       }
     }
@@ -147,7 +146,8 @@ namespace regexp {
       regexp = UnsafeCast<JSRegExp>(receiver);
     } else {
       regexp = Cast<JSRegExp>(receiver) otherwise ThrowTypeError(
-          kIncompatibleMethodReceiver, 'RegExp.prototype.exec', receiver);
+          MessageTemplate::kIncompatibleMethodReceiver, 'RegExp.prototype.exec',
+          receiver);
     }
     const lastIndex = LoadLastIndexAsLength(regexp, isFastPath);
     const matchIndices: RegExpMatchInfo = RegExpPrototypeExecBodyWithoutResult(
@@ -158,7 +158,8 @@ namespace regexp {
 
   macro LoadRegExpFunction(implicit context: Context)(
       nativeContext: NativeContext): JSFunction {
-    return UnsafeCast<JSFunction>(nativeContext[REGEXP_FUNCTION_INDEX]);
+    return UnsafeCast<JSFunction>(
+        nativeContext[NativeContextSlot::REGEXP_FUNCTION_INDEX]);
   }
 
   // Note this doesn't guarantee const-ness of object properties, just
@@ -179,19 +180,15 @@ namespace regexp {
     return TaggedEqual(receiver, initialPrototype);
   }
 
-  type Flag constexpr 'JSRegExp::Flag';
-  const kGlobal: constexpr Flag
-  generates 'JSRegExp::kGlobal';
-  const kIgnoreCase: constexpr Flag
-  generates 'JSRegExp::kIgnoreCase';
-  const kMultiline: constexpr Flag
-  generates 'JSRegExp::kMultiline';
-  const kDotAll: constexpr Flag
-  generates 'JSRegExp::kDotAll';
-  const kSticky: constexpr Flag
-  generates 'JSRegExp::kSticky';
-  const kUnicode: constexpr Flag
-  generates 'JSRegExp::kUnicode';
+  extern enum Flag constexpr 'JSRegExp::Flag' {
+    kGlobal,
+    kIgnoreCase,
+    kMultiline,
+    kSticky,
+    kUnicode,
+    kDotAll,
+    kInvalid
+  }
 
   const kRegExpPrototypeOldFlagGetter: constexpr int31
   generates 'v8::Isolate::kRegExpPrototypeOldFlagGetter';
@@ -202,8 +199,6 @@ namespace regexp {
 
   extern macro RegExpBuiltinsAssembler::FastFlagGetter(
       JSRegExp, constexpr Flag): bool;
-  const kRegExpNonRegExp: constexpr MessageTemplate
-  generates 'MessageTemplate::kRegExpNonRegExp';
   extern runtime IncrementUseCounter(Context, Smi): void;
 
   macro FlagGetter(implicit context: Context)(
@@ -217,7 +212,7 @@ namespace regexp {
       }
     }
     if (!IsReceiverInitialRegExpPrototype(receiver)) {
-      ThrowTypeError(kRegExpNonRegExp, methodName);
+      ThrowTypeError(MessageTemplate::kRegExpNonRegExp, methodName);
     }
     if constexpr (counter != -1) {
       IncrementUseCounter(context, SmiConstant(counter));
@@ -230,7 +225,7 @@ namespace regexp {
   transitioning javascript builtin RegExpPrototypeGlobalGetter(
       js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     return FlagGetter(
-        receiver, kGlobal, kRegExpPrototypeOldFlagGetter,
+        receiver, Flag::kGlobal, kRegExpPrototypeOldFlagGetter,
         'RegExp.prototype.global');
   }
 
@@ -239,7 +234,7 @@ namespace regexp {
   transitioning javascript builtin RegExpPrototypeIgnoreCaseGetter(
       js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     return FlagGetter(
-        receiver, kIgnoreCase, kRegExpPrototypeOldFlagGetter,
+        receiver, Flag::kIgnoreCase, kRegExpPrototypeOldFlagGetter,
         'RegExp.prototype.ignoreCase');
   }
 
@@ -248,7 +243,7 @@ namespace regexp {
   transitioning javascript builtin RegExpPrototypeMultilineGetter(
       js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     return FlagGetter(
-        receiver, kMultiline, kRegExpPrototypeOldFlagGetter,
+        receiver, Flag::kMultiline, kRegExpPrototypeOldFlagGetter,
         'RegExp.prototype.multiline');
   }
 
@@ -256,7 +251,8 @@ namespace regexp {
   transitioning javascript builtin RegExpPrototypeDotAllGetter(
       js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     const kNoCounter: constexpr int31 = -1;
-    return FlagGetter(receiver, kDotAll, kNoCounter, 'RegExp.prototype.dotAll');
+    return FlagGetter(
+        receiver, Flag::kDotAll, kNoCounter, 'RegExp.prototype.dotAll');
   }
 
   // ES6 21.2.5.12.
@@ -264,7 +260,7 @@ namespace regexp {
   transitioning javascript builtin RegExpPrototypeStickyGetter(
       js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     return FlagGetter(
-        receiver, kSticky, kRegExpPrototypeStickyGetter,
+        receiver, Flag::kSticky, kRegExpPrototypeStickyGetter,
         'RegExp.prototype.sticky');
   }
 
@@ -273,7 +269,7 @@ namespace regexp {
   transitioning javascript builtin RegExpPrototypeUnicodeGetter(
       js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     return FlagGetter(
-        receiver, kUnicode, kRegExpPrototypeUnicodeGetter,
+        receiver, Flag::kUnicode, kRegExpPrototypeUnicodeGetter,
         'RegExp.prototype.unicode');
   }
 
@@ -291,14 +287,12 @@ namespace regexp {
     return FlagsGetter(receiver, false);
   }
 
-  const kRegExpNonObject: constexpr MessageTemplate
-  generates 'MessageTemplate::kRegExpNonObject';
-
   // ES #sec-get-regexp.prototype.flags
   // TFJ(RegExpPrototypeFlagsGetter, 0, kReceiver) \
   transitioning javascript builtin RegExpPrototypeFlagsGetter(
       js-implicit context: NativeContext, receiver: JSAny)(): String {
-    ThrowIfNotJSReceiver(receiver, kRegExpNonObject, 'RegExp.prototype.flags');
+    ThrowIfNotJSReceiver(
+        receiver, MessageTemplate::kRegExpNonObject, 'RegExp.prototype.flags');
 
     // The check is strict because the following code relies on individual flag
     // getters on the regexp prototype (e.g.: global, sticky, ...). We don't

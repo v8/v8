@@ -4,7 +4,9 @@
 
 namespace test {
   macro ElementsKindTestHelper1(kind: constexpr ElementsKind): bool {
-    if constexpr ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS)) {
+    if constexpr (
+        (kind == ElementsKind::UINT8_ELEMENTS) ||
+        (kind == ElementsKind::UINT16_ELEMENTS)) {
       return true;
     } else {
       return false;
@@ -12,7 +14,9 @@ namespace test {
   }
 
   macro ElementsKindTestHelper2(kind: constexpr ElementsKind): constexpr bool {
-    return ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS));
+    return (
+        (kind == ElementsKind::UINT8_ELEMENTS) ||
+        (kind == ElementsKind::UINT16_ELEMENTS));
   }
 
   macro LabelTestHelper1(): never
@@ -32,22 +36,27 @@ namespace test {
 
   @export
   macro TestConstexpr1() {
-    check(FromConstexpr<bool>(IsFastElementsKind(PACKED_SMI_ELEMENTS)));
+    check(FromConstexpr<bool>(
+        IsFastElementsKind(ElementsKind::PACKED_SMI_ELEMENTS)));
   }
 
   @export
   macro TestConstexprIf() {
-    check(ElementsKindTestHelper1(UINT8_ELEMENTS));
-    check(ElementsKindTestHelper1(UINT16_ELEMENTS));
-    check(!ElementsKindTestHelper1(UINT32_ELEMENTS));
+    check(ElementsKindTestHelper1(ElementsKind::UINT8_ELEMENTS));
+    check(ElementsKindTestHelper1(ElementsKind::UINT16_ELEMENTS));
+    check(!ElementsKindTestHelper1(ElementsKind::UINT32_ELEMENTS));
   }
 
   @export
   macro TestConstexprReturn() {
-    check(FromConstexpr<bool>(ElementsKindTestHelper2(UINT8_ELEMENTS)));
-    check(FromConstexpr<bool>(ElementsKindTestHelper2(UINT16_ELEMENTS)));
-    check(!FromConstexpr<bool>(ElementsKindTestHelper2(UINT32_ELEMENTS)));
-    check(FromConstexpr<bool>(!ElementsKindTestHelper2(UINT32_ELEMENTS)));
+    check(FromConstexpr<bool>(
+        ElementsKindTestHelper2(ElementsKind::UINT8_ELEMENTS)));
+    check(FromConstexpr<bool>(
+        ElementsKindTestHelper2(ElementsKind::UINT16_ELEMENTS)));
+    check(!FromConstexpr<bool>(
+        ElementsKindTestHelper2(ElementsKind::UINT32_ELEMENTS)));
+    check(FromConstexpr<bool>(
+        !ElementsKindTestHelper2(ElementsKind::UINT32_ELEMENTS)));
   }
 
   @export
@@ -633,7 +642,7 @@ namespace test {
   macro TestCatch1(implicit context: Context)(): Smi {
     let r: Smi = 0;
     try {
-      ThrowTypeError(kInvalidArrayLength);
+      ThrowTypeError(MessageTemplate::kInvalidArrayLength);
     } catch (_e) {
       r = 1;
       return r;
@@ -642,7 +651,7 @@ namespace test {
 
   @export
   macro TestCatch2Wrapper(implicit context: Context)(): never {
-    ThrowTypeError(kInvalidArrayLength);
+    ThrowTypeError(MessageTemplate::kInvalidArrayLength);
   }
 
   @export
@@ -659,7 +668,7 @@ namespace test {
   @export
   macro TestCatch3WrapperWithLabel(implicit context: Context)():
       never labels _Abort {
-    ThrowTypeError(kInvalidArrayLength);
+    ThrowTypeError(MessageTemplate::kInvalidArrayLength);
   }
 
   @export

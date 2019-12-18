@@ -39,7 +39,8 @@ namespace proxy {
       // 9. If booleanTrapResult is false, return false.
       if (!ToBoolean(trapResult)) {
         if (doThrow == True) {
-          ThrowTypeError(kProxyTrapReturnedFalsishFor, kTrapName);
+          ThrowTypeError(
+              MessageTemplate::kProxyTrapReturnedFalsishFor, kTrapName);
         }
         return False;
       }
@@ -61,7 +62,7 @@ namespace proxy {
       if (SameValue(proto, targetProto)) {
         return True;
       }
-      ThrowTypeError(kProxySetPrototypeOfNonExtensible);
+      ThrowTypeError(MessageTemplate::kProxySetPrototypeOfNonExtensible);
     }
     label TrapUndefined(target: JSAny, proto: JSReceiver|Null) {
       // 7.a. Return ? target.[[SetPrototypeOf]]().
@@ -71,7 +72,7 @@ namespace proxy {
       return object::ObjectSetPrototypeOfDontThrow(target, proto);
     }
     label ThrowProxyHandlerRevoked deferred {
-      ThrowTypeError(kProxyRevoked, kTrapName);
+      ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
     }
   }
 }

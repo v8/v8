@@ -95,6 +95,13 @@ inline std::string GetConstexprName(const std::string& name) {
   return CONSTEXPR_TYPE_PREFIX + name;
 }
 
+enum class AbstractTypeFlag {
+  kNone = 0,
+  kTransient = 1 << 0,
+  kConstexpr = 1 << 1
+};
+using AbstractTypeFlags = base::Flags<AbstractTypeFlag>;
+
 enum class ClassFlag {
   kNone = 0,
   kExtern = 1 << 0,

@@ -17,16 +17,19 @@ namespace torque {
 
 // This custom copy constructor doesn't copy aliases_ and id_ because they
 // should be distinct for each type.
-Type::Type(const Type& other) V8_NOEXCEPT : TypeBase(other),
-                                            parent_(other.parent_),
-                                            aliases_(),
-                                            id_(TypeOracle::FreshTypeId()) {}
+Type::Type(const Type& other) V8_NOEXCEPT
+    : TypeBase(other),
+      parent_(other.parent_),
+      aliases_(),
+      id_(TypeOracle::FreshTypeId()),
+      constexpr_version_(other.constexpr_version_) {}
 Type::Type(TypeBase::Kind kind, const Type* parent,
            MaybeSpecializationKey specialized_from)
     : TypeBase(kind),
       parent_(parent),
       id_(TypeOracle::FreshTypeId()),
-      specialized_from_(specialized_from) {}
+      specialized_from_(specialized_from),
+      constexpr_version_(nullptr) {}
 
 std::string Type::ToString() const {
   if (aliases_.size() == 0)

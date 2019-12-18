@@ -18,7 +18,7 @@ namespace typed_array {
 
     // b. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
     if (IsDetachedBuffer(array.buffer)) {
-      ThrowTypeError(kDetachedOperation, kBuiltinNameSort);
+      ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameSort);
     }
 
     // c. If v is NaN, return +0.
@@ -93,7 +93,7 @@ namespace typed_array {
     //    throw a TypeError exception.
     const comparefnObj: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
     if (comparefnObj != Undefined && !TaggedIsCallable(comparefnObj)) {
-      ThrowTypeError(kBadSortComparisonFunction, comparefnObj);
+      ThrowTypeError(MessageTemplate::kBadSortComparisonFunction, comparefnObj);
     }
 
     // 2. Let obj be the this value.

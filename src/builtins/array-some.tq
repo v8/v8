@@ -141,7 +141,7 @@ namespace array {
       }
     }
     label TypeError deferred {
-      ThrowTypeError(kCalledNonCallable, arguments[0]);
+      ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
   }
 }

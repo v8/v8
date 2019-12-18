@@ -40,7 +40,7 @@ namespace proxy {
       // TypeError exception.
       if (trapResult != targetResult) {
         ThrowTypeError(
-            kProxyIsExtensibleInconsistent,
+            MessageTemplate::kProxyIsExtensibleInconsistent,
             SelectBooleanConstant(targetResult));
       }
       // 10. Return booleanTrapResult.
@@ -51,7 +51,7 @@ namespace proxy {
       return object::ObjectIsExtensibleImpl(target);
     }
     label ThrowProxyHandlerRevoked deferred {
-      ThrowTypeError(kProxyRevoked, kTrapName);
+      ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
     }
   }
 }

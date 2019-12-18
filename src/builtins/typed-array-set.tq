@@ -44,7 +44,7 @@ namespace typed_array {
       target = Cast<JSTypedArray>(receiver) otherwise NotTypedArray;
     }
     label NotTypedArray deferred {
-      ThrowTypeError(kNotTypedArray, kBuiltinNameSet);
+      ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameSet);
     }
 
     try {
@@ -104,10 +104,10 @@ namespace typed_array {
       }
     }
     label OffsetOutOfBounds deferred {
-      ThrowRangeError(kTypedArraySetOffsetOutOfBounds);
+      ThrowRangeError(MessageTemplate::kTypedArraySetOffsetOutOfBounds);
     }
     label IsDetached deferred {
-      ThrowTypeError(kDetachedOperation, kBuiltinNameSet);
+      ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameSet);
     }
   }
 
@@ -127,7 +127,7 @@ namespace typed_array {
       // For number as a first argument, throw TypeError instead of silently
       // ignoring the call, so that users know they did something wrong.
       // (Consistent with Firefox and Blink/WebKit)
-      ThrowTypeError(kInvalidArgument);
+      ThrowTypeError(MessageTemplate::kInvalidArgument);
     }
     label NotNumber {
       // Proceed to step 14.
@@ -174,9 +174,11 @@ namespace typed_array {
       // PACKED_SMI_ELEMENTS, HOLEY_SMI_ELEMENTS, PACKED_DOUBLE_ELEMENTS,
       // HOLEY_DOUBLE_ELEMENTS.
       if (IsElementsKindInRange(
-              srcKind, PACKED_SMI_ELEMENTS, HOLEY_SMI_ELEMENTS) ||
+              srcKind, ElementsKind::PACKED_SMI_ELEMENTS,
+              ElementsKind::HOLEY_SMI_ELEMENTS) ||
           IsElementsKindInRange(
-              srcKind, PACKED_DOUBLE_ELEMENTS, HOLEY_DOUBLE_ELEMENTS)) {
+              srcKind, ElementsKind::PACKED_DOUBLE_ELEMENTS,
+              ElementsKind::HOLEY_DOUBLE_ELEMENTS)) {
         const utarget =
             typed_array::EnsureAttached(target) otherwise IfDetached;
         CallCCopyFastNumberJSArrayElementsToTypedArray(
@@ -295,7 +297,7 @@ namespace typed_array {
       if (IsBigInt64ElementsKind(srcKind) !=
           IsBigInt64ElementsKind(targetElementsInfo.kind))
         deferred {
-          ThrowTypeError(kBigIntMixedTypes);
+          ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
         }
 
       // All the obvervable side effects are executed, so there's nothing else

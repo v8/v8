@@ -5,7 +5,8 @@
 namespace boolean {
   transitioning macro ThisBooleanValue(implicit context: Context)(
       receiver: JSAny, method: constexpr string): Boolean {
-    return UnsafeCast<Boolean>(ToThisValue(receiver, kBoolean, method));
+    return UnsafeCast<Boolean>(
+        ToThisValue(receiver, PrimitiveType::kBoolean, method));
   }
 
   javascript builtin

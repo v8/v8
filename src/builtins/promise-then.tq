@@ -29,10 +29,12 @@ namespace promise {
     // 1. Let promise be the this value.
     // 2. If IsPromise(promise) is false, throw a TypeError exception.
     const promise = Cast<JSPromise>(receiver) otherwise ThrowTypeError(
-        kIncompatibleMethodReceiver, 'Promise.prototype.then', receiver);
+        MessageTemplate::kIncompatibleMethodReceiver, 'Promise.prototype.then',
+        receiver);
 
     // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
-    const promiseFun = UnsafeCast<JSFunction>(context[PROMISE_FUNCTION_INDEX]);
+    const promiseFun = UnsafeCast<JSFunction>(
+        context[NativeContextSlot::PROMISE_FUNCTION_INDEX]);
 
     // 4. Let resultCapability be ? NewPromiseCapability(C).
     let resultPromiseOrCapability: JSPromise|PromiseCapability;
