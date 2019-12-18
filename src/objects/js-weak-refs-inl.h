@@ -172,10 +172,9 @@ Object JSFinalizationGroup::PopClearedCellHoldings(
   return weak_cell->holdings();
 }
 
-void WeakCell::Nullify(
-    Isolate* isolate,
-    std::function<void(HeapObject object, ObjectSlot slot, Object target)>
-        gc_notify_updated_slot) {
+template <typename GCNotifyUpdatedSlotCallback>
+void WeakCell::Nullify(Isolate* isolate,
+                       GCNotifyUpdatedSlotCallback gc_notify_updated_slot) {
   // Remove from the WeakCell from the "active_cells" list of its
   // JSFinalizationGroup and insert it into the "cleared_cells" list. This is
   // only called for WeakCells which haven't been unregistered yet, so they will
