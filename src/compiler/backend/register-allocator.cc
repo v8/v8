@@ -4263,7 +4263,7 @@ int LinearScanAllocator::PickRegisterThatIsAvailableLongest(
   // set before the call. Hence, the argument registers always get ignored,
   // as their available time is shorter.
   int reg = (hint_reg == kUnassignedRegister) ? codes[0] : hint_reg;
-  int current_free = -1;
+  int current_free = free_until_pos[reg].ToInstructionIndex();
   for (int i = 0; i < num_codes; ++i) {
     int code = codes[i];
     // Prefer registers that have no fixed uses to avoid blocking later hints.
