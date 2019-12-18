@@ -912,6 +912,12 @@ bool LookupIterator::IsConstFieldValueEqualTo(Object value) const {
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(kField, property_details_.location());
   DCHECK_EQ(PropertyConstness::kConst, property_details_.constness());
+  if (value.IsUninitialized(isolate())) {
+    // Storing uninitialized value means that we are preparing for a computed
+    // property value in an object literal. The initializing store will follow
+    // and it will properly update constness based on the actual value.
+    return true;
+  }
   Handle<JSObject> holder = GetHolder<JSObject>();
   FieldIndex field_index =
       FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
@@ -925,7 +931,7 @@ bool LookupIterator::IsConstFieldValueEqualTo(Object value) const {
       DCHECK(current_value.IsHeapNumber(isolate_));
       bits = HeapNumber::cast(current_value).value_as_bits();
     }
-    // Use bit representation of double to to check for hole double, since
+    // Use bit representation of double to check for hole double, since
     // manipulating the signaling NaN used for the hole in C++, e.g. with
     // bit_cast or value(), will change its value on ia32 (the x87 stack is
     // used to return values and stores to the stack silently clear the
