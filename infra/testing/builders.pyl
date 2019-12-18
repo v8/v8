@@ -442,13 +442,13 @@
     },
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},
-      {'name': 'mozilla', 'shards': 2},
-      {'name': 'test262', 'variant': 'default', 'shards': 2},
-      {'name': 'v8testing', 'shards': 10},
+      {'name': 'mozilla', 'shards': 4},
+      {'name': 'test262', 'variant': 'default', 'shards': 4},
+      {'name': 'v8testing', 'shards': 12},
       # TODO(v8:v7703): Temporarily disable this test while enabling pointer
       # compression on arm64.
-      # {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
-      {'name': 'v8testing', 'variant': 'trusted', 'shards': 3},
+      # {'name': 'v8testing', 'variant': 'extra', 'shards': 8},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 5},
     ],
   },
   'v8_linux_arm64_gc_stress_dbg': {
@@ -456,7 +456,7 @@
       'os': 'Ubuntu-16.04',
     },
     'tests': [
-      {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 10},
+      {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 12},
     ],
   },
   'v8_linux_arm64_rel_ng_triggered': {
@@ -464,14 +464,14 @@
       'os': 'Ubuntu-16.04',
     },
     'tests': [
-      {'name': 'mjsunit_sp_frame_access', 'shards': 2},
-      {'name': 'mozilla', 'shards': 2},
-      {'name': 'test262', 'variant': 'default', 'shards': 2},
+      {'name': 'mjsunit_sp_frame_access', 'shards': 4},
+      {'name': 'mozilla', 'shards': 4},
+      {'name': 'test262', 'variant': 'default', 'shards': 4},
       {'name': 'v8testing', 'shards': 12},
       # TODO(v8:v7703): Temporarily disable this test while enabling pointer
       # compression on arm64.
-      # {'name': 'v8testing', 'variant': 'extra', 'shards': 8},
-      {'name': 'v8testing', 'variant': 'trusted', 'shards': 3},
+      # {'name': 'v8testing', 'variant': 'extra', 'shards': 10},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 5},
     ],
   },
   'v8_linux64_arm64_pointer_compression_rel_ng_triggered': {
@@ -1294,8 +1294,8 @@
       {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'test262', 'variant': 'default'},
-      {'name': 'v8testing', 'shards': 4},
-      {'name': 'v8testing', 'variant': 'extra'},
+      {'name': 'v8testing', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'variant': 'trusted'},
       # Armv8-a.
       {
@@ -1331,7 +1331,7 @@
         'name': 'v8testing',
         'suffix': 'novfp3',
         'test_args': ['--novfp3'],
-        'shards': 4
+        'shards': 6
       },
     ],
   },
@@ -1340,25 +1340,25 @@
       'os': 'Ubuntu-16.04',
     },
     'tests': [
-      {'name': 'mjsunit_sp_frame_access', 'shards': 4},
-      {'name': 'mozilla', 'shards': 4},
+      {'name': 'mjsunit_sp_frame_access', 'shards': 6},
+      {'name': 'mozilla', 'shards': 6},
       {'name': 'test262', 'variant': 'default'},
-      {'name': 'v8testing', 'shards': 8},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
-      {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
+      {'name': 'v8testing', 'shards': 10},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 8},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 4},
       # Armv8-a.
       {
         'name': 'mozilla',
         'suffix': 'armv8-a',
         'test_args': ['--extra-flags', '--enable-armv8'],
-        'shards': 3,
+        'shards': 5,
       },
       {
         'name': 'test262',
         'suffix': 'armv8-a',
         'variant': 'default',
         'test_args': ['--extra-flags', '--enable-armv8'],
-        'shards': 3,
+        'shards': 5,
       },
       {
         'name': 'v8testing',
