@@ -348,6 +348,8 @@
   'regress/regress-148378': [SKIP],
   'regress/regress-crbug-762472': [SKIP],
 
+  # BUG(v8:10035)
+  'compiler/deopt-array-builtins': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
