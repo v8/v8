@@ -120,7 +120,7 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
                 test_module_->num_declared_functions);
   if (name) {
     Vector<const byte> name_vec = Vector<const byte>::cast(CStrVector(name));
-    test_module_->AddFunctionNameForTesting(
+    test_module_->function_names.AddForTesting(
         index, {AddBytes(name_vec), static_cast<uint32_t>(name_vec.length())});
   }
   if (interpreter_) {
@@ -218,6 +218,10 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
   OwnedVector<uint8_t> new_bytes = OwnedVector<uint8_t>::New(new_size);
   if (old_size > 0) {
     memcpy(new_bytes.start(), old_bytes.begin(), old_size);
+  } else {
+    // Set the unused byte. It is never decoded, but the bytes are used as the
+    // key in the native module cache.
+    new_bytes[0] = 0;
   }
   memcpy(new_bytes.start() + bytes_offset, bytes.begin(), bytes.length());
   native_module_->SetWireBytes(std::move(new_bytes));

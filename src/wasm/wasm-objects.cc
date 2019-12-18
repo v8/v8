@@ -355,7 +355,7 @@ MaybeHandle<String> WasmModuleObject::GetFunctionNameOrNull(
     Isolate* isolate, Handle<WasmModuleObject> module_object,
     uint32_t func_index) {
   DCHECK_LT(func_index, module_object->module()->functions.size());
-  wasm::WireBytesRef name = module_object->module()->LookupFunctionName(
+  wasm::WireBytesRef name = module_object->module()->function_names.Lookup(
       wasm::ModuleWireBytes(module_object->native_module()->wire_bytes()),
       func_index);
   if (!name.is_set()) return {};
@@ -380,7 +380,7 @@ Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
   DCHECK_GT(module()->functions.size(), func_index);
   wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
   wasm::WireBytesRef name_ref =
-      module()->LookupFunctionName(wire_bytes, func_index);
+      module()->function_names.Lookup(wire_bytes, func_index);
   wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
   return Vector<const uint8_t>::cast(name);
 }

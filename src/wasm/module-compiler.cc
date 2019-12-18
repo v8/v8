@@ -1356,6 +1356,15 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
     Handle<FixedArray>* export_wrappers_out) {
   const WasmModule* wasm_module = module.get();
+  std::shared_ptr<NativeModule> native_module =
+      isolate->wasm_engine()->MaybeGetNativeModule(wasm_module->origin,
+                                                   wire_bytes.module_bytes());
+  if (native_module) {
+    // TODO(thibaudm): Look into sharing export wrappers.
+    CompileJsToWasmWrappers(isolate, wasm_module, export_wrappers_out);
+    return native_module;
+  }
+
   TimedHistogramScope wasm_compile_module_time_scope(SELECT_WASM_COUNTER(
       isolate->counters(), wasm_module->origin, wasm_compile, module_time));
 
@@ -1363,8 +1372,6 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   if (wasm_module->has_shared_memory) {
     isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
   }
-  // TODO(wasm): only save the sections necessary to deserialize a
-  // {WasmModule}. E.g. function bodies could be omitted.
   OwnedVector<uint8_t> wire_bytes_copy =
       OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
 
@@ -1373,11 +1380,13 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get(),
                                                           uses_liftoff);
-  auto native_module = isolate->wasm_engine()->NewNativeModule(
+  native_module = isolate->wasm_engine()->NewNativeModule(
       isolate, enabled, std::move(module), code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes_copy));
 
   CompileNativeModule(isolate, thrower, wasm_module, native_module.get());
+  isolate->wasm_engine()->UpdateNativeModuleCache(native_module,
+                                                  thrower->error());
   if (thrower->error()) return {};
 
   Impl(native_module->compilation_state())
@@ -2220,9 +2229,7 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
   job_->module_object_ =
       job_->isolate_->global_handles()->Create(*result.ToHandleChecked());
   job_->native_module_ = job_->module_object_->shared_native_module();
-  auto owned_wire_bytes = OwnedVector<uint8_t>::Of(wire_bytes);
-  job_->wire_bytes_ = ModuleWireBytes(owned_wire_bytes.as_vector());
-  job_->native_module_->SetWireBytes(std::move(owned_wire_bytes));
+  job_->wire_bytes_ = ModuleWireBytes(job_->native_module_->wire_bytes());
   job_->FinishCompile();
   return true;
 }

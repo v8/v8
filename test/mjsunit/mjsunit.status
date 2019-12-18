@@ -828,6 +828,15 @@
   # trigger a GC, but only in the isolate allocating the new memory.
   'wasm/module-memory': [SKIP],
   'wasm/shared-memory-gc-stress': [SKIP],
+
+  # Redirection to the interpreter is non-deterministic with multiple isolates.
+  'wasm/interpreter-mixed': [SKIP],
+  'wasm/worker-interpreter': [SKIP],
+
+  # The {FreezeWasmLazyCompilation} runtime function sets a flag in the native
+  # module, which causes a data-race if the native module is shared between
+  # isolates.
+  'wasm/lazy-compilation': [SKIP],
 }],  # 'isolates'
 
 ##############################################################################

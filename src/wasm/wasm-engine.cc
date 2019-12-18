@@ -13,6 +13,7 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/objects-inl.h"
+#include "src/strings/string-hasher-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/module-compiler.h"
@@ -305,11 +306,6 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   Handle<Script> script = CreateWasmScript(
       isolate, bytes, VectorOf(native_module->module()->source_map_url),
       native_module->module()->name);
-
-  // Create the module object.
-  // TODO(clemensb): For the same module (same bytes / same hash), we should
-  // only have one WasmModuleObject. Otherwise, we might only set
-  // breakpoints on a (potentially empty) subset of the instances.
 
   // Create the compiled module object and populate with compiled functions
   // and information needed at instantiation time. This object needs to be
@@ -695,6 +691,49 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
   return native_module;
 }
 
+std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
+    ModuleOrigin origin, Vector<const uint8_t> wire_bytes) {
+  if (origin != kWasmOrigin) return nullptr;
+  base::MutexGuard lock(&mutex_);
+  while (true) {
+    auto it = native_module_cache_.find(wire_bytes);
+    if (it == native_module_cache_.end()) {
+      // Insert a {nullopt} entry to let other threads know that this
+      // {NativeModule} is already being created on another thread.
+      native_module_cache_.emplace(wire_bytes, base::nullopt);
+      return nullptr;
+    }
+    auto maybe_native_module = it->second;
+    if (maybe_native_module.has_value()) {
+      auto weak_ptr = maybe_native_module.value();
+      if (auto shared_native_module = weak_ptr.lock()) {
+        return shared_native_module;
+      }
+    }
+    cache_cv_.Wait(&mutex_);
+  }
+}
+
+void WasmEngine::UpdateNativeModuleCache(
+    std::shared_ptr<NativeModule> native_module, bool error) {
+  DCHECK_NOT_NULL(native_module);
+  if (native_module->module()->origin != kWasmOrigin) return;
+  Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  base::MutexGuard lock(&mutex_);
+  auto it = native_module_cache_.find(wire_bytes);
+  DCHECK_NE(it, native_module_cache_.end());
+  DCHECK(!it->second.has_value());
+  // The lifetime of the temporary entry's bytes is unknown. Use the new native
+  // module's owned copy of the bytes for the key instead.
+  native_module_cache_.erase(it);
+  if (!error) {
+    native_module_cache_.emplace(
+        wire_bytes,
+        base::Optional<std::weak_ptr<NativeModule>>(std::move(native_module)));
+  }
+  cache_cv_.NotifyAll();
+}
+
 void WasmEngine::FreeNativeModule(NativeModule* native_module) {
   base::MutexGuard guard(&mutex_);
   auto it = native_modules_.find(native_module);
@@ -734,6 +773,17 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
     }
     TRACE_CODE_GC("Native module %p died, reducing dead code objects to %zu.\n",
                   native_module, current_gc_info_->dead_code.size());
+  }
+  auto cache_it = native_module_cache_.find(native_module->wire_bytes());
+  // Not all native modules are stored in the cache currently. In particular
+  // asynchronous compilation and asmjs compilation results are not. So make
+  // sure that we only delete existing and expired entries.
+  // Do not erase {nullopt} values either, as they indicate that the
+  // {NativeModule} is currently being created in another thread.
+  if (cache_it != native_module_cache_.end() && cache_it->second.has_value() &&
+      cache_it->second.value().expired()) {
+    native_module_cache_.erase(cache_it);
+    cache_cv_.NotifyAll();
   }
   native_modules_.erase(it);
 }
@@ -970,6 +1020,13 @@ void WasmEngine::GlobalTearDown() {
 // static
 std::shared_ptr<WasmEngine> WasmEngine::GetWasmEngine() {
   return *GetSharedWasmEngine();
+}
+
+size_t WasmEngine::WireBytesHasher::operator()(
+    const Vector<const uint8_t>& bytes) const {
+  return StringHasher::HashSequentialString(
+      reinterpret_cast<const char*>(bytes.begin()), bytes.length(),
+      kZeroHashSeed);
 }
 
 // {max_mem_pages} is declared in wasm-limits.h.

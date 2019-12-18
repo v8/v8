@@ -31,15 +31,16 @@ namespace wasm {
 // static
 const uint32_t WasmElemSegment::kNullIndex;
 
-WireBytesRef WasmModule::LookupFunctionName(const ModuleWireBytes& wire_bytes,
-                                            uint32_t function_index) const {
-  if (!function_names) {
-    function_names.reset(new std::unordered_map<uint32_t, WireBytesRef>());
+WireBytesRef DecodedFunctionNames::Lookup(const ModuleWireBytes& wire_bytes,
+                                          uint32_t function_index) const {
+  base::MutexGuard lock(&mutex_);
+  if (!function_names_) {
+    function_names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
     DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(),
-                        function_names.get());
+                        function_names_.get());
   }
-  auto it = function_names->find(function_index);
-  if (it == function_names->end()) return WireBytesRef();
+  auto it = function_names_->find(function_index);
+  if (it == function_names_->end()) return WireBytesRef();
   return it->second;
 }
 
@@ -119,12 +120,13 @@ v8::debug::WasmDisassembly DisassembleWasmFunction(
   return {disassembly_os.str(), std::move(offset_table)};
 }
 
-void WasmModule::AddFunctionNameForTesting(int function_index,
-                                           WireBytesRef name) {
-  if (!function_names) {
-    function_names.reset(new std::unordered_map<uint32_t, WireBytesRef>());
+void DecodedFunctionNames::AddForTesting(int function_index,
+                                         WireBytesRef name) {
+  base::MutexGuard lock(&mutex_);
+  if (!function_names_) {
+    function_names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
   }
-  function_names->insert(std::make_pair(function_index, name));
+  function_names_->insert(std::make_pair(function_index, name));
 }
 
 // Get a string stored in the module bytes representing a name.
@@ -138,7 +140,8 @@ WasmName ModuleWireBytes::GetNameOrNull(WireBytesRef ref) const {
 // Get a string stored in the module bytes representing a function name.
 WasmName ModuleWireBytes::GetNameOrNull(const WasmFunction* function,
                                         const WasmModule* module) const {
-  return GetNameOrNull(module->LookupFunctionName(*this, function->func_index));
+  return GetNameOrNull(
+      module->function_names.Lookup(*this, function->func_index));
 }
 
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {

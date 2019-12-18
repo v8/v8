@@ -608,24 +608,40 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
 
   ModuleWireBytes wire_bytes(wire_bytes_vec);
   // TODO(titzer): module features should be part of the serialization format.
+  WasmEngine* wasm_engine = isolate->wasm_engine();
   WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
-  ModuleResult decode_result =
-      DecodeWasmModule(enabled_features, wire_bytes.start(), wire_bytes.end(),
-                       false, i::wasm::kWasmOrigin, isolate->counters(),
-                       isolate->wasm_engine()->allocator());
+  ModuleResult decode_result = DecodeWasmModule(
+      enabled_features, wire_bytes.start(), wire_bytes.end(), false,
+      i::wasm::kWasmOrigin, isolate->counters(), wasm_engine->allocator());
   if (decode_result.failed()) return {};
   std::shared_ptr<WasmModule> module = std::move(decode_result.value());
   CHECK_NOT_NULL(module);
   Handle<Script> script = CreateWasmScript(
       isolate, wire_bytes, VectorOf(module->source_map_url), module->name);
 
-  const bool kIncludeLiftoff = false;
-  size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get(),
-                                                          kIncludeLiftoff);
-  auto shared_native_module = isolate->wasm_engine()->NewNativeModule(
-      isolate, enabled_features, std::move(module), code_size_estimate);
-  shared_native_module->SetWireBytes(OwnedVector<uint8_t>::Of(wire_bytes_vec));
+  auto shared_native_module =
+      wasm_engine->MaybeGetNativeModule(module->origin, wire_bytes_vec);
+  if (shared_native_module == nullptr) {
+    const bool kIncludeLiftoff = false;
+    size_t code_size_estimate =
+        wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get(),
+                                                            kIncludeLiftoff);
+    shared_native_module = wasm_engine->NewNativeModule(
+        isolate, enabled_features, std::move(module), code_size_estimate);
+    shared_native_module->SetWireBytes(
+        OwnedVector<uint8_t>::Of(wire_bytes_vec));
+
+    NativeModuleDeserializer deserializer(shared_native_module.get());
+    WasmCodeRefScope wasm_code_ref_scope;
+
+    Reader reader(data + kVersionSize);
+    bool error = !deserializer.Read(&reader);
+    wasm_engine->UpdateNativeModuleCache(shared_native_module, error);
+    if (error) return {};
+  }
+
+  // Log the code within the generated module for profiling.
+  shared_native_module->LogWasmCodes(isolate);
 
   Handle<FixedArray> export_wrappers;
   CompileJsToWasmWrappers(isolate, shared_native_module->module(),
@@ -633,16 +649,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
 
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
       isolate, std::move(shared_native_module), script, export_wrappers);
-  NativeModule* native_module = module_object->native_module();
-
-  NativeModuleDeserializer deserializer(native_module);
-  WasmCodeRefScope wasm_code_ref_scope;
-
-  Reader reader(data + kVersionSize);
-  if (!deserializer.Read(&reader)) return {};
-
-  // Log the code within the generated module for profiling.
-  native_module->LogWasmCodes(isolate);
 
   // Finish the Wasm script now and make it public to the debugger.
   isolate->debug()->OnAfterCompile(script);
