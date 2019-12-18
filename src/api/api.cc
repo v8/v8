@@ -10259,6 +10259,19 @@ bool debug::AccessorPair::IsAccessorPair(Local<Value> that) {
   return obj->IsAccessorPair();
 }
 
+MaybeLocal<Message> debug::GetMessageFromPromise(Local<Promise> p) {
+  i::Handle<i::JSPromise> promise = Utils::OpenHandle(*p);
+  i::Isolate* isolate = promise->GetIsolate();
+
+  i::Handle<i::Symbol> key = isolate->factory()->promise_debug_message_symbol();
+  i::Handle<i::Object> maybeMessage =
+      i::JSReceiver::GetDataProperty(promise, key);
+
+  if (!maybeMessage->IsJSMessageObject(isolate)) return MaybeLocal<Message>();
+  return ToApiHandle<Message>(
+      i::Handle<i::JSMessageObject>::cast(maybeMessage));
+}
+
 const char* CpuProfileNode::GetFunctionNameStr() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   return node->entry()->name();

@@ -121,6 +121,11 @@ class InjectedScript final {
   Response createExceptionDetails(
       const v8::TryCatch&, const String16& groupName,
       Maybe<protocol::Runtime::ExceptionDetails>* result);
+  Response createExceptionDetails(
+      v8::Local<v8::Message> message, v8::Local<v8::Value> exception,
+      const String16& groupName,
+      Maybe<protocol::Runtime::ExceptionDetails>* result);
+
   Response wrapEvaluateResult(
       v8::MaybeLocal<v8::Value> maybeResultValue, const v8::TryCatch&,
       const String16& objectGroup, WrapMode wrapMode,

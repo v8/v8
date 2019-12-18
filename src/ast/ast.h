@@ -913,8 +913,17 @@ class TryCatchStatement final : public TryStatement {
   // (When the catch block doesn't rethrow but is guaranteed to perform an
   // ordinary throw, not clearing the old message is safe but not very
   // useful.)
+  //
+  // For scripts in repl mode there is exactly one catch block with
+  // UNCAUGHT_ASYNC_AWAIT prediction. This catch block needs to preserve
+  // the exception so it can be re-used later by the inspector.
   inline bool ShouldClearPendingException(
       HandlerTable::CatchPrediction outer_catch_prediction) const {
+    if (catch_prediction_ == HandlerTable::UNCAUGHT_ASYNC_AWAIT) {
+      DCHECK_EQ(outer_catch_prediction, HandlerTable::UNCAUGHT);
+      return false;
+    }
+
     return catch_prediction_ != HandlerTable::UNCAUGHT ||
            outer_catch_prediction != HandlerTable::UNCAUGHT;
   }
@@ -2936,6 +2945,14 @@ class AstNodeFactory final {
                                                        int pos) {
     return new (zone_) TryCatchStatement(try_block, scope, catch_block,
                                          HandlerTable::ASYNC_AWAIT, pos);
+  }
+
+  TryCatchStatement* NewTryCatchStatementForReplAsyncAwait(Block* try_block,
+                                                           Scope* scope,
+                                                           Block* catch_block,
+                                                           int pos) {
+    return new (zone_) TryCatchStatement(
+        try_block, scope, catch_block, HandlerTable::UNCAUGHT_ASYNC_AWAIT, pos);
   }
 
   TryFinallyStatement* NewTryFinallyStatement(Block* try_block,

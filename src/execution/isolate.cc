@@ -1846,6 +1846,7 @@ Isolate::CatchType ToCatchType(HandlerTable::CatchPrediction prediction) {
       return Isolate::CAUGHT_BY_PROMISE;
     case HandlerTable::DESUGARING:
       return Isolate::CAUGHT_BY_DESUGARING;
+    case HandlerTable::UNCAUGHT_ASYNC_AWAIT:
     case HandlerTable::ASYNC_AWAIT:
       return Isolate::CAUGHT_BY_ASYNC_AWAIT;
     default:
@@ -2512,6 +2513,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
         return promise_on_stack
                    ? Handle<Object>::cast(promise_on_stack->promise())
                    : undefined;
+      case HandlerTable::UNCAUGHT_ASYNC_AWAIT:
       case HandlerTable::ASYNC_AWAIT: {
         // If in the initial portion of async/await, continue the loop to pop up
         // successive async/await stack frames until an asynchronous one with

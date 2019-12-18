@@ -742,7 +742,8 @@ void Parser::ParseREPLProgram(ParseInfo* info, ScopedPtrList<Statement>* body,
           ? static_cast<Expression*>(*maybe_result)
           : factory()->NewUndefinedLiteral(kNoSourcePosition);
 
-  impl()->RewriteAsyncFunctionBody(body, block, WrapREPLResult(result_value));
+  impl()->RewriteAsyncFunctionBody(body, block, WrapREPLResult(result_value),
+                                   REPLMode::kYes);
 }
 
 Expression* Parser::WrapREPLResult(Expression* value) {
@@ -2699,7 +2700,8 @@ Scope* Parser::NewHiddenCatchScope() {
   return catch_scope;
 }
 
-Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
+Block* Parser::BuildRejectPromiseOnException(Block* inner_block,
+                                             REPLMode repl_mode) {
   // try {
   //   <inner_block>
   // } catch (.catch) {
@@ -2726,9 +2728,16 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
   Block* catch_block = IgnoreCompletion(
       factory()->NewReturnStatement(reject_promise, kNoSourcePosition));
 
+  // Treat the exception for REPL mode scripts as UNCAUGHT. This will
+  // keep the corresponding JSMessageObject alive on the Isolate. The
+  // message object is used by the inspector to provide better error
+  // messages for REPL inputs that throw.
   TryStatement* try_catch_statement =
-      factory()->NewTryCatchStatementForAsyncAwait(
-          inner_block, catch_scope, catch_block, kNoSourcePosition);
+      repl_mode == REPLMode::kYes
+          ? factory()->NewTryCatchStatementForReplAsyncAwait(
+                inner_block, catch_scope, catch_block, kNoSourcePosition)
+          : factory()->NewTryCatchStatementForAsyncAwait(
+                inner_block, catch_scope, catch_block, kNoSourcePosition);
   result->statements()->Add(try_catch_statement, zone());
   return result;
 }
@@ -3327,7 +3336,8 @@ Expression* Parser::ExpressionListToExpression(
 
 // This method completes the desugaring of the body of async_function.
 void Parser::RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body,
-                                      Block* block, Expression* return_value) {
+                                      Block* block, Expression* return_value,
+                                      REPLMode repl_mode) {
   // function async_function() {
   //   .generator_object = %_AsyncFunctionEnter();
   //   BuildRejectPromiseOnException({
@@ -3339,7 +3349,7 @@ void Parser::RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body,
   block->statements()->Add(factory()->NewSyntheticAsyncReturnStatement(
                                return_value, return_value->position()),
                            zone());
-  block = BuildRejectPromiseOnException(block);
+  block = BuildRejectPromiseOnException(block, repl_mode);
   body->Add(block);
 }
 

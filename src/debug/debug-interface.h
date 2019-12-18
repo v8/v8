@@ -580,6 +580,8 @@ AccessorPair* AccessorPair::Cast(v8::Value* value) {
   return static_cast<AccessorPair*>(value);
 }
 
+MaybeLocal<Message> GetMessageFromPromise(Local<Promise> promise);
+
 }  // namespace debug
 }  // namespace v8
 

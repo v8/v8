@@ -1049,6 +1049,9 @@ void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
     case HandlerTable::ASYNC_AWAIT:
       prediction = "ASYNC_AWAIT";
       break;
+    case HandlerTable::UNCAUGHT_ASYNC_AWAIT:
+      prediction = "UNCAUGHT_ASYNC_AWAIT";
+      break;
     case HandlerTable::PROMISE:
       // Catch prediction resulting in promise rejections aren't
       // parsed by the parser.

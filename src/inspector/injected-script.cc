@@ -80,10 +80,13 @@ class InjectedScript::ProtocolPromiseHandler {
       return false;
     }
 
-    v8::Local<v8::Promise> promise = resolver->GetPromise();
+    v8::MaybeLocal<v8::Promise> originalPromise =
+        value->IsPromise() ? v8::Local<v8::Promise>::Cast(value)
+                           : v8::MaybeLocal<v8::Promise>();
     V8InspectorImpl* inspector = session->inspector();
     ProtocolPromiseHandler* handler = new ProtocolPromiseHandler(
-        session, executionContextId, objectGroup, wrapMode, replMode, callback);
+        session, executionContextId, objectGroup, wrapMode, replMode, callback,
+        originalPromise);
     v8::Local<v8::Value> wrapper = handler->m_wrapper.Get(inspector->isolate());
     v8::Local<v8::Function> thenCallbackFunction =
         v8::Function::New(context, thenCallback, wrapper, 0,
@@ -93,6 +96,7 @@ class InjectedScript::ProtocolPromiseHandler {
         v8::Function::New(context, catchCallback, wrapper, 0,
                           v8::ConstructorBehavior::kThrow)
             .ToLocalChecked();
+    v8::Local<v8::Promise> promise = resolver->GetPromise();
     if (promise->Then(context, thenCallbackFunction, catchCallbackFunction)
             .IsEmpty()) {
       callback->sendFailure(Response::InternalError());
@@ -136,7 +140,8 @@ class InjectedScript::ProtocolPromiseHandler {
   ProtocolPromiseHandler(V8InspectorSessionImpl* session,
                          int executionContextId, const String16& objectGroup,
                          WrapMode wrapMode, bool replMode,
-                         EvaluateCallback* callback)
+                         EvaluateCallback* callback,
+                         v8::MaybeLocal<v8::Promise> maybeEvaluationResult)
       : m_inspector(session->inspector()),
         m_sessionId(session->sessionId()),
         m_contextGroupId(session->contextGroupId()),
@@ -148,12 +153,18 @@ class InjectedScript::ProtocolPromiseHandler {
         m_wrapper(m_inspector->isolate(),
                   v8::External::New(m_inspector->isolate(), this)) {
     m_wrapper.SetWeak(this, cleanup, v8::WeakCallbackType::kParameter);
+    v8::Local<v8::Promise> promise;
+    if (maybeEvaluationResult.ToLocal(&promise)) {
+      m_evaluationResult =
+          v8::Global<v8::Promise>(m_inspector->isolate(), promise);
+    }
   }
 
   static void cleanup(
       const v8::WeakCallbackInfo<ProtocolPromiseHandler>& data) {
     if (!data.GetParameter()->m_wrapper.IsEmpty()) {
       data.GetParameter()->m_wrapper.Reset();
+      data.GetParameter()->m_evaluationResult.Reset();
       data.SetSecondPassCallback(cleanup);
     } else {
       data.GetParameter()->sendPromiseCollected();
@@ -223,14 +234,40 @@ class InjectedScript::ProtocolPromiseHandler {
       callback->sendFailure(response);
       return;
     }
-    String16 message;
-    std::unique_ptr<V8StackTraceImpl> stack;
     v8::Isolate* isolate = session->inspector()->isolate();
+
+    v8::MaybeLocal<v8::Message> maybeMessage =
+        m_evaluationResult.IsEmpty()
+            ? v8::MaybeLocal<v8::Message>()
+            : v8::debug::GetMessageFromPromise(m_evaluationResult.Get(isolate));
+    v8::Local<v8::Message> message;
+    // In case a MessageObject was attached to the rejected promise, we
+    // construct the exception details from the message object. Otherwise
+    // we try to capture a fresh stack trace.
+    if (maybeMessage.ToLocal(&message)) {
+      v8::Local<v8::Value> exception = result;
+      protocol::detail::PtrMaybe<protocol::Runtime::ExceptionDetails>
+          exceptionDetails;
+      response = scope.injectedScript()->createExceptionDetails(
+          message, exception, m_objectGroup, &exceptionDetails);
+      if (!response.isSuccess()) {
+        callback->sendFailure(response);
+        return;
+      }
+
+      callback->sendSuccess(std::move(wrappedValue),
+                            std::move(exceptionDetails));
+      return;
+    }
+
+    String16 messageString;
+    std::unique_ptr<V8StackTraceImpl> stack;
     if (result->IsNativeError()) {
-      message = " " + toProtocolString(
-                          isolate,
-                          result->ToDetailString(isolate->GetCurrentContext())
-                              .ToLocalChecked());
+      messageString =
+          " " +
+          toProtocolString(isolate,
+                           result->ToDetailString(isolate->GetCurrentContext())
+                               .ToLocalChecked());
       v8::Local<v8::StackTrace> stackTrace = v8::debug::GetDetailedStackTrace(
           isolate, v8::Local<v8::Object>::Cast(result));
       if (!stackTrace.IsEmpty()) {
@@ -247,7 +284,7 @@ class InjectedScript::ProtocolPromiseHandler {
     // exception and does not need to be added in REPL mode, otherwise it would
     // be printed twice.
     String16 exceptionDetailsText =
-        m_replMode ? "Uncaught" : "Uncaught (in promise)" + message;
+        m_replMode ? "Uncaught" : "Uncaught (in promise)" + messageString;
     std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails =
         protocol::Runtime::ExceptionDetails::create()
             .setExceptionId(m_inspector->nextExceptionId())
@@ -293,6 +330,7 @@ class InjectedScript::ProtocolPromiseHandler {
   bool m_replMode;
   EvaluateCallback* m_callback;
   v8::Global<v8::External> m_wrapper;
+  v8::Global<v8::Promise> m_evaluationResult;
 };
 
 InjectedScript::InjectedScript(InspectedContext* context, int sessionId)
@@ -733,6 +771,13 @@ Response InjectedScript::createExceptionDetails(
   if (!tryCatch.HasCaught()) return Response::InternalError();
   v8::Local<v8::Message> message = tryCatch.Message();
   v8::Local<v8::Value> exception = tryCatch.Exception();
+  return createExceptionDetails(message, exception, objectGroup, result);
+}
+
+Response InjectedScript::createExceptionDetails(
+    v8::Local<v8::Message> message, v8::Local<v8::Value> exception,
+    const String16& objectGroup,
+    Maybe<protocol::Runtime::ExceptionDetails>* result) {
   String16 messageText =
       message.IsEmpty()
           ? String16()

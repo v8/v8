@@ -43,6 +43,10 @@ class V8_EXPORT_PRIVATE HandlerTable {
     ASYNC_AWAIT,  // The exception will be caught and cause a promise rejection
                   // in the desugaring of an async function, so special
                   // async/await handling in the debugger can take place.
+    UNCAUGHT_ASYNC_AWAIT,  // The exception will be caught and cause a promise
+                           // rejection in the desugaring of an async REPL
+                           // script. The corresponding message object needs to
+                           // be kept alive on the Isolate though.
   };
 
   enum EncodingMode { kRangeBasedEncoding, kReturnAddressBasedEncoding };
