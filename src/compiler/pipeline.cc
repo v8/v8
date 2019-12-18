@@ -214,6 +214,7 @@ class PipelineData {
                NodeOriginTable* node_origins, JumpOptimizationInfo* jump_opt,
                const AssemblerOptions& assembler_options)
       : isolate_(isolate),
+        wasm_engine_(isolate_->wasm_engine()),
         allocator_(allocator),
         info_(info),
         debug_name_(info_->GetDebugName()),
