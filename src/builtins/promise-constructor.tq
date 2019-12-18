@@ -102,4 +102,16 @@ namespace promise {
     if (isDebugActive) runtime::DebugPopPromise();
     return result;
   }
+
+  // Promise.prototype.catch ( onRejected )
+  // https://tc39.es/ecma262/#sec-promise.prototype.catch
+  transitioning javascript builtin
+  PromisePrototypeCatch(js-implicit context: Context, receiver: JSAny)(
+      onRejected: JSAny): JSAny {
+    // 1. Let promise be the this value.
+    // 2. Return ? Invoke(promise, "then", « undefined, onRejected »).
+    const nativeContext = LoadNativeContext(context);
+    return UnsafeCast<JSAny>(
+        InvokeThen(nativeContext, receiver, Undefined, onRejected));
+  }
 }

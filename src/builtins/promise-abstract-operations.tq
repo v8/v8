@@ -504,4 +504,23 @@ namespace promise {
     }
   }
 
+  const kPromiseExecutorAlreadyInvoked: constexpr MessageTemplate
+  generates 'MessageTemplate::kPromiseExecutorAlreadyInvoked';
+
+  // https://tc39.es/ecma262/#sec-getcapabilitiesexecutor-functions
+  transitioning javascript builtin
+  PromiseGetCapabilitiesExecutor(
+      js-implicit context: NativeContext,
+      receiver: JSAny)(resolve: JSAny, reject: JSAny): JSAny {
+    const capability =
+        UnsafeCast<PromiseCapability>(context[kPromiseBuiltinsCapabilitySlot]);
+    if (capability.resolve != Undefined || capability.reject != Undefined)
+      deferred {
+        ThrowTypeError(kPromiseExecutorAlreadyInvoked);
+      }
+
+    capability.resolve = resolve;
+    capability.reject = reject;
+    return Undefined;
+  }
 }

@@ -79,6 +79,47 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
       TNode<NativeContext> native_context, TNode<Map> promise_map,
       Label* if_fast, Label* if_slow);
 
+  template <typename... TArgs>
+  TNode<Object> InvokeThen(TNode<NativeContext> native_context,
+                           TNode<Object> receiver, TArgs... args) {
+    TVARIABLE(Object, var_result);
+    Label if_fast(this), if_slow(this, Label::kDeferred),
+        done(this, &var_result);
+    GotoIf(TaggedIsSmi(receiver), &if_slow);
+    const TNode<Map> receiver_map = LoadMap(CAST(receiver));
+    // We can skip the "then" lookup on {receiver} if it's [[Prototype]]
+    // is the (initial) Promise.prototype and the Promise#then protector
+    // is intact, as that guards the lookup path for the "then" property
+    // on JSPromise instances which have the (initial) %PromisePrototype%.
+    BranchIfPromiseThenLookupChainIntact(native_context, receiver_map, &if_fast,
+                                         &if_slow);
+
+    BIND(&if_fast);
+    {
+      const TNode<Object> then =
+          LoadContextElement(native_context, Context::PROMISE_THEN_INDEX);
+      var_result =
+          CallJS(CodeFactory::CallFunction(
+                     isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+                 native_context, then, receiver, args...);
+      Goto(&done);
+    }
+
+    BIND(&if_slow);
+    {
+      const TNode<Object> then = GetProperty(
+          native_context, receiver, isolate()->factory()->then_string());
+      var_result =
+          CallJS(CodeFactory::Call(isolate(),
+                                   ConvertReceiverMode::kNotNullOrUndefined),
+                 native_context, then, receiver, args...);
+      Goto(&done);
+    }
+
+    BIND(&done);
+    return var_result.value();
+  }
+
  protected:
   // We can skip the "resolve" lookup on {constructor} if it's the (initial)
   // Promise constructor and the Promise.resolve() protector is intact, as
@@ -103,15 +144,11 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   // intrinsic, otherwise we use the given resolve function.
   Node* CallResolve(Node* native_context, Node* constructor, Node* resolve,
                     Node* value, Label* if_exception, Variable* var_exception);
-  template <typename... TArgs>
-  TNode<Object> InvokeThen(Node* native_context, Node* receiver, TArgs... args);
 
   std::pair<Node*, Node*> CreatePromiseFinallyFunctions(Node* on_finally,
                                                         Node* constructor,
                                                         Node* native_context);
   Node* CreateValueThunkFunction(Node* value, Node* native_context);
-
-  Node* CreateThrowerFunction(Node* reason, Node* native_context);
 
   using PromiseAllResolvingElementFunction =
       std::function<TNode<Object>(TNode<Context> context, TNode<Smi> index,

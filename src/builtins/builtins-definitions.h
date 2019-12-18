@@ -711,17 +711,11 @@ namespace internal {
   TFS(ForInFilter, kKey, kObject)                                              \
                                                                                \
   /* Promise */                                                                \
-  TFJ(PromiseGetCapabilitiesExecutor, 2, kReceiver, kResolve, kReject)         \
   TFJ(PromiseConstructorLazyDeoptContinuation, 4, kReceiver, kPromise,         \
       kReject, kException, kResult)                                            \
   CPP(IsPromise)                                                               \
-  /* ES #sec-promise.prototype.catch */                                        \
-  TFJ(PromisePrototypeCatch, 1, kReceiver, kOnRejected)                        \
   TFJ(PromisePrototypeFinally, 1, kReceiver, kOnFinally)                       \
   TFJ(PromiseThenFinally, 1, kReceiver, kValue)                                \
-  TFJ(PromiseCatchFinally, 1, kReceiver, kReason)                              \
-  TFJ(PromiseValueThunkFinally, 0, kReceiver)                                  \
-  TFJ(PromiseThrowerFinally, 0, kReceiver)                                     \
   /* ES #sec-promise.all */                                                    \
   TFJ(PromiseAll, 1, kReceiver, kIterable)                                     \
   TFJ(PromiseAllResolveElementClosure, 1, kReceiver, kValue)                   \
