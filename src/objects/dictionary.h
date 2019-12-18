@@ -70,6 +70,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   inline void SetEntry(Isolate* isolate, InternalIndex entry, Object key,
                        Object value, PropertyDetails details);
 
+  // Garbage collection support.
+  inline ObjectSlot RawFieldOfValueAt(InternalIndex entry);
+
   V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
       Isolate* isolate, Handle<Derived> dictionary, Key key,
       Handle<Object> value, PropertyDetails details,

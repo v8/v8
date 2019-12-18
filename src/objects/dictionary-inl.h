@@ -149,6 +149,12 @@ void Dictionary<Derived, Shape>::SetEntry(Isolate* isolate, InternalIndex entry,
   if (Shape::kHasDetails) DetailsAtPut(isolate, entry, details);
 }
 
+template <typename Derived, typename Shape>
+ObjectSlot Dictionary<Derived, Shape>::RawFieldOfValueAt(InternalIndex entry) {
+  return this->RawFieldOfElementAt(DerivedHashTable::EntryToIndex(entry) +
+                                   Derived::kEntryValueIndex);
+}
+
 template <typename Key>
 template <typename Dictionary>
 PropertyDetails BaseDictionaryShape<Key>::DetailsAt(Dictionary dict,
