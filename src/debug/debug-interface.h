@@ -157,6 +157,7 @@ class V8_EXPORT_PRIVATE Script {
                        LiveEditResult* result) const;
   bool SetBreakpoint(v8::Local<v8::String> condition, debug::Location* location,
                      BreakpointId* id) const;
+  void RemoveWasmBreakpoint(BreakpointId id);
   bool SetBreakpointOnScriptEntry(BreakpointId* id) const;
 };
 

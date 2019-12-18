@@ -9656,6 +9656,12 @@ bool debug::Script::SetBreakpointOnScriptEntry(BreakpointId* id) const {
   return false;
 }
 
+void debug::Script::RemoveWasmBreakpoint(debug::BreakpointId id) {
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::Isolate* isolate = script->GetIsolate();
+  isolate->debug()->RemoveBreakpointForWasmScript(script, id);
+}
+
 void debug::RemoveBreakpoint(Isolate* v8_isolate, BreakpointId id) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::HandleScope handle_scope(isolate);

@@ -1,0 +1,23 @@
+Tests remove breakpoint from wasm scripts.
+Installing code and global variable.
+Calling instantiate function.
+Waiting for wasm scripts to be parsed.
+Ignoring script with url v8://test/callInstantiate
+Ignoring script with url wasm://wasm/fa045c1e
+Got wasm script: wasm://wasm/fa045c1e/fa045c1e-0
+Setting breakpoint on line 3 of wasm function
+{
+    columnNumber : 2
+    lineNumber : 3
+    scriptId : <scriptId>
+}
+BreakpointId: 4:3:0:6-0
+paused No 1
+  i32.const 1
+  #i32.sub
+end
+
+Remove breakpoint with breakpointId: 4:3:0:6-0
+Debugger.resume
+exports.main returned!
+Finished!

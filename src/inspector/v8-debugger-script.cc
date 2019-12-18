@@ -502,4 +502,9 @@ bool V8DebuggerScript::setBreakpoint(const String16& condition,
   return script()->SetBreakpoint(toV8String(m_isolate, condition), loc, id);
 }
 
+void V8DebuggerScript::removeWasmBreakpoint(int id) {
+  v8::HandleScope scope(m_isolate);
+  script()->RemoveWasmBreakpoint(id);
+}
+
 }  // namespace v8_inspector

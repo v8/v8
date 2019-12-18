@@ -760,6 +760,12 @@ void Debug::RemoveBreakpoint(int id) {
   ClearBreakPoint(breakpoint);
 }
 
+void Debug::RemoveBreakpointForWasmScript(Handle<Script> script, int id) {
+  if (script->type() == Script::TYPE_WASM) {
+    WasmScript::ClearBreakPointById(script, id);
+  }
+}
+
 // Clear out all the debug break code.
 void Debug::ClearAllBreakPoints() {
   ClearAllDebugInfos([=](Handle<DebugInfo> info) {

@@ -92,6 +92,7 @@ class V8DebuggerScript {
 
   virtual bool setBreakpoint(const String16& condition,
                              v8::debug::Location* location, int* id) const = 0;
+  void removeWasmBreakpoint(int id);
   virtual void MakeWeak() = 0;
   virtual bool setBreakpointOnRun(int* id) const = 0;
 

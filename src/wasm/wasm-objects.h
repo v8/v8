@@ -905,6 +905,11 @@ class WasmScript : public AllStatic {
   V8_EXPORT_PRIVATE static bool ClearBreakPoint(Handle<Script>, int position,
                                                 Handle<BreakPoint> break_point);
 
+  // Remove a previously set breakpoint by id. If this breakpoint is not found,
+  // returns false.
+  V8_EXPORT_PRIVATE static bool ClearBreakPointById(Handle<Script>,
+                                                    int breakpoint_id);
+
   static void SetBreakpointsOnNewInstance(Handle<Script>,
                                           Handle<WasmInstanceObject>);
 

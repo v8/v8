@@ -321,6 +321,32 @@ bool BreakPointInfo::HasBreakPoint(Isolate* isolate,
   return false;
 }
 
+MaybeHandle<BreakPoint> BreakPointInfo::GetBreakPointById(
+    Isolate* isolate, Handle<BreakPointInfo> break_point_info,
+    int breakpoint_id) {
+  // No break point.
+  if (break_point_info->break_points().IsUndefined(isolate)) {
+    return MaybeHandle<BreakPoint>();
+  }
+  // Single break point.
+  if (!break_point_info->break_points().IsFixedArray()) {
+    BreakPoint breakpoint = BreakPoint::cast(break_point_info->break_points());
+    if (breakpoint.id() == breakpoint_id) {
+      return handle(breakpoint, isolate);
+    }
+  } else {
+    // Multiple break points.
+    FixedArray array = FixedArray::cast(break_point_info->break_points());
+    for (int i = 0; i < array.length(); i++) {
+      BreakPoint breakpoint = BreakPoint::cast(array.get(i));
+      if (breakpoint.id() == breakpoint_id) {
+        return handle(breakpoint, isolate);
+      }
+    }
+  }
+  return MaybeHandle<BreakPoint>();
+}
+
 // Get the number of break points.
 int BreakPointInfo::GetBreakPointCount(Isolate* isolate) {
   // No break point.

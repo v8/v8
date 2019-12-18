@@ -460,8 +460,10 @@ static bool matches(V8InspectorImpl* inspector, const V8DebuggerScript& script,
       V8Regex regex(inspector, selector, true);
       return regex.match(script.sourceURL()) != -1;
     }
+    case BreakpointType::kByScriptId: {
+      return script.scriptId() == selector;
+    }
     default:
-      UNREACHABLE();
       return false;
   }
 }
@@ -646,11 +648,24 @@ Response V8DebuggerAgentImpl::removeBreakpoint(const String16& breakpointId) {
   protocol::DictionaryValue* breakpointHints =
       m_state->getObject(DebuggerAgentState::breakpointHints);
   if (breakpointHints) breakpointHints->remove(breakpointId);
-  removeBreakpointImpl(breakpointId);
+
+  // Get a list of scripts to remove breakpoints.
+  // TODO(duongn): we can do better here if from breakpoint id we can tell it is
+  // not Wasm breakpoint.
+  std::vector<V8DebuggerScript*> scripts;
+  for (const auto& scriptIter : m_scripts) {
+    if (!matches(m_inspector, *scriptIter.second, type, selector)) continue;
+    V8DebuggerScript* script = scriptIter.second.get();
+    scripts.push_back(script);
+  }
+  removeBreakpointImpl(breakpointId, scripts);
+
   return Response::OK();
 }
 
-void V8DebuggerAgentImpl::removeBreakpointImpl(const String16& breakpointId) {
+void V8DebuggerAgentImpl::removeBreakpointImpl(
+    const String16& breakpointId,
+    const std::vector<V8DebuggerScript*>& scripts) {
   DCHECK(enabled());
   BreakpointIdToDebuggerBreakpointIdsMap::iterator
       debuggerBreakpointIdsIterator =
@@ -660,6 +675,9 @@ void V8DebuggerAgentImpl::removeBreakpointImpl(const String16& breakpointId) {
     return;
   }
   for (const auto& id : debuggerBreakpointIdsIterator->second) {
+    for (auto& script : scripts) {
+      script->removeWasmBreakpoint(id);
+    }
     v8::debug::RemoveBreakpoint(m_isolate, id);
     m_debuggerBreakpointIdToBreakpointId.erase(id);
   }
@@ -1706,7 +1724,8 @@ void V8DebuggerAgentImpl::removeBreakpointFor(v8::Local<v8::Function> function,
       source == DebugCommandBreakpointSource ? BreakpointType::kDebugCommand
                                              : BreakpointType::kMonitorCommand,
       function);
-  removeBreakpointImpl(breakpointId);
+  std::vector<V8DebuggerScript*> scripts;
+  removeBreakpointImpl(breakpointId, scripts);
 }
 
 void V8DebuggerAgentImpl::reset() {
