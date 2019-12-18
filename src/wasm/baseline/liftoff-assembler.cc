@@ -152,7 +152,7 @@ class StackTransferRecipe {
     DCHECK_NE(dst, src);
     DCHECK_EQ(dst.reg_class(), src.reg_class());
     DCHECK_EQ(reg_class_for(type), src.reg_class());
-    if (src.is_pair()) {
+    if (src.is_gp_pair()) {
       DCHECK_EQ(kWasmI64, type);
       if (dst.low() != src.low()) MoveRegister(dst.low(), src.low(), kWasmI32);
       if (dst.high() != src.high())
@@ -177,7 +177,7 @@ class StackTransferRecipe {
   void LoadConstant(LiftoffRegister dst, WasmValue value) {
     DCHECK(!load_dst_regs_.has(dst));
     load_dst_regs_.set(dst);
-    if (dst.is_pair()) {
+    if (dst.is_gp_pair()) {
       DCHECK_EQ(kWasmI64, value.type());
       int64_t i64 = value.to_i64();
       *register_load(dst.low()) =
@@ -198,7 +198,7 @@ class StackTransferRecipe {
       return;
     }
     load_dst_regs_.set(dst);
-    if (dst.is_pair()) {
+    if (dst.is_gp_pair()) {
       DCHECK_EQ(kWasmI64, type);
       *register_load(dst.low()) =
           RegisterLoad::HalfStack(stack_offset, kLowWord);
@@ -341,7 +341,7 @@ class RegisterReuseMap {
 
   base::Optional<LiftoffRegister> Lookup(LiftoffRegister src) {
     for (auto it = map_.begin(), end = map_.end(); it != end; it += 2) {
-      if (it->is_pair() == src.is_pair() && *it == src) return *(it + 1);
+      if (it->is_gp_pair() == src.is_gp_pair() && *it == src) return *(it + 1);
     }
     return {};
   }
@@ -623,8 +623,8 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
   for (uint32_t i = num_params; i > 0; --i) {
     const uint32_t param = i - 1;
     ValueType type = sig->GetParam(param);
-    const bool is_pair = kNeedI64RegPair && type == kWasmI64;
-    const int num_lowered_params = is_pair ? 2 : 1;
+    const bool is_gp_pair = kNeedI64RegPair && type == kWasmI64;
+    const int num_lowered_params = is_gp_pair ? 2 : 1;
     const uint32_t stack_idx = param_base + param;
     const VarState& slot = cache_state_.stack_state[stack_idx];
     const uint32_t stack_offset = slot.offset();
@@ -632,13 +632,13 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
     // as separate parameters. One or both of them could end up on the stack.
     for (int lowered_idx = 0; lowered_idx < num_lowered_params; ++lowered_idx) {
       const RegPairHalf half =
-          is_pair && lowered_idx == 0 ? kHighWord : kLowWord;
+          is_gp_pair && lowered_idx == 0 ? kHighWord : kLowWord;
       --call_desc_input_idx;
       compiler::LinkageLocation loc =
           call_descriptor->GetInputLocation(call_desc_input_idx);
       if (loc.IsRegister()) {
         DCHECK(!loc.IsAnyRegister());
-        RegClass rc = is_pair ? kGpReg : reg_class_for(type);
+        RegClass rc = is_gp_pair ? kGpReg : reg_class_for(type);
         int reg_code = loc.AsRegister();
 #if V8_TARGET_ARCH_ARM
         // Liftoff assumes a one-to-one mapping between float registers and
@@ -652,7 +652,7 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
         LiftoffRegister reg = LiftoffRegister::from_code(rc, reg_code);
 #endif
         param_regs.set(reg);
-        if (is_pair) {
+        if (is_gp_pair) {
           stack_transfers.LoadI64HalfIntoRegister(reg, slot, stack_offset,
                                                   half);
         } else {
@@ -733,7 +733,7 @@ void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src,
                             ValueType type) {
   DCHECK_EQ(dst.reg_class(), src.reg_class());
   DCHECK_NE(dst, src);
-  if (kNeedI64RegPair && dst.is_pair()) {
+  if (kNeedI64RegPair && dst.is_gp_pair()) {
     // Use the {StackTransferRecipe} to move pairs, as the registers in the
     // pairs might overlap.
     StackTransferRecipe(this).MoveRegister(dst, src, type);
@@ -776,7 +776,7 @@ bool LiftoffAssembler::ValidateCacheState() const {
   for (const VarState& var : cache_state_.stack_state) {
     if (!var.is_reg()) continue;
     LiftoffRegister reg = var.reg();
-    if (kNeedI64RegPair && reg.is_pair()) {
+    if (kNeedI64RegPair && reg.is_gp_pair()) {
       ++register_use_count[reg.low().liftoff_code()];
       ++register_use_count[reg.high().liftoff_code()];
     } else {
@@ -814,7 +814,7 @@ void LiftoffAssembler::SpillRegister(LiftoffRegister reg) {
     DCHECK_GT(cache_state_.stack_height(), idx);
     auto* slot = &cache_state_.stack_state[idx];
     if (!slot->is_reg() || !slot->reg().overlaps(reg)) continue;
-    if (slot->reg().is_pair()) {
+    if (slot->reg().is_gp_pair()) {
       // Make sure to decrement *both* registers in a pair, because the
       // {clear_used} call below only clears one of them.
       cache_state_.dec_used(slot->reg().low());

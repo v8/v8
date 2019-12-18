@@ -807,7 +807,7 @@ void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
 namespace liftoff {
 
 inline bool IsRegInRegPair(LiftoffRegister pair, Register reg) {
-  DCHECK(pair.is_pair());
+  DCHECK(pair.is_gp_pair());
   return pair.low_gp() == reg || pair.high_gp() == reg;
 }
 

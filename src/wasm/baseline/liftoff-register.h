@@ -17,13 +17,25 @@ namespace internal {
 namespace wasm {
 
 static constexpr bool kNeedI64RegPair = kSystemPointerSize == 4;
+static constexpr bool kNeedS128RegPair = !kSimpleFPAliasing;
 
 enum RegClass : uint8_t {
   kGpReg,
   kFpReg,
-  // {kGpRegPair} equals {kNoReg} if {kNeedI64RegPair} is false.
   kGpRegPair,
-  kNoReg = kGpRegPair + kNeedI64RegPair
+  kFpRegPair = kGpRegPair + kNeedI64RegPair,
+  kNoReg = kFpRegPair + kNeedS128RegPair,
+  // +------------------+-------------------------------+
+  // |                  |        kNeedI64RegPair        |
+  // +------------------+---------------+---------------+
+  // | kNeedS128RegPair |     true      |    false      |
+  // +------------------+---------------+---------------+
+  // |             true | 0,1,2,3,4 (a) | 0,1,2,2,3     |
+  // |            false | 0,1,2,3,3 (b) | 0,1,2,2,2 (c) |
+  // +------------------+---------------+---------------+
+  // (a) arm
+  // (b) ia32
+  // (c) x64, arm64
 };
 
 enum RegPairHalf : uint8_t { kLowWord = 0, kHighWord = 1 };
@@ -41,10 +53,46 @@ static inline constexpr RegClass reg_class_for(ValueType type) {
       return kGpReg;
     case kWasmI64:
       return kNeedI64RegPair ? kGpRegPair : kGpReg;
+    case kWasmS128:
+      return kNeedS128RegPair ? kFpRegPair : kFpReg;
     default:
       return kNoReg;  // unsupported type
   }
 }
+
+// Description of LiftoffRegister code encoding.
+// This example uses the ARM architecture, which as of writing has:
+// - 9 GP registers, requiring 4 bits
+// - 13 FP regitsters, requiring 5 bits
+// - kNeedI64RegPair is true
+// - kNeedS128RegPair is true
+// - thus, kBitsPerRegPair is 2 + 2 * 4 = 10
+// - storage_t is uint16_t
+// The table below illustrates how each RegClass is encoded, with brackets
+// surrounding the bits which encode the register number.
+//
+// +----------------+------------------+
+// | RegClass       | Example          |
+// +----------------+------------------+
+// | kGpReg (1)     | [00 0000   0000] |
+// | kFpReg (2)     | [00 0000   1001] |
+// | kGpRegPair (3) | 01 [0000] [0001] |
+// | kFpRegPair (4) | 10  000[0  0010] |
+// +----------------+------------------+
+//
+// gp and fp registers are encoded in the same index space, which means that
+// code has to check for kGpRegPair and kFpRegPair before it can treat the code
+// as a register code.
+// (1) [0 .. kMaxGpRegCode] encodes gp registers
+// (2) [kMaxGpRegCode + 1 .. kMaxGpRegCode + kMaxFpRegCode] encodes fp
+// registers, so in this example, 1001 is really fp register 0.
+// (3) The second top bit is set for kGpRegPair, and the two gp registers are
+// stuffed side by side in code. Note that this is not the second top bit of
+// storage_t, since storage_t is larger than the number of meaningful bits we
+// need for the encoding.
+// (4) The top bit is set for kFpRegPair, and the fp register is stuffed into
+// the bottom part of the code. Unlike (2), this is the fp register code itself
+// (not sharing index space with gp), so in this example, it is fp register 2.
 
 // Maximum code of a gp cache register.
 static constexpr int kMaxGpRegCode =
@@ -54,11 +102,6 @@ static constexpr int kMaxGpRegCode =
 static constexpr int kMaxFpRegCode =
     8 * sizeof(kLiftoffAssemblerFpCacheRegs) -
     base::bits::CountLeadingZeros(kLiftoffAssemblerFpCacheRegs) - 1;
-// LiftoffRegister encodes both gp and fp in a unified index space.
-// [0 .. kMaxGpRegCode] encodes gp registers,
-// [kMaxGpRegCode+1 .. kMaxGpRegCode + kMaxFpRegCode] encodes fp registers.
-// I64 values on 32 bit platforms are stored in two registers, both encoded in
-// the same LiftoffRegister value.
 static constexpr int kAfterMaxLiftoffGpRegCode = kMaxGpRegCode + 1;
 static constexpr int kAfterMaxLiftoffFpRegCode =
     kAfterMaxLiftoffGpRegCode + kMaxFpRegCode + 1;
@@ -67,11 +110,19 @@ static constexpr int kBitsPerLiftoffRegCode =
     32 - base::bits::CountLeadingZeros<uint32_t>(kAfterMaxLiftoffRegCode - 1);
 static constexpr int kBitsPerGpRegCode =
     32 - base::bits::CountLeadingZeros<uint32_t>(kMaxGpRegCode);
-static constexpr int kBitsPerGpRegPair = 1 + 2 * kBitsPerGpRegCode;
+static constexpr int kBitsPerFpRegCode =
+    32 - base::bits::CountLeadingZeros<uint32_t>(kMaxFpRegCode);
+// GpRegPair requires 1 extra bit, S128RegPair also needs an extra bit.
+static constexpr int kBitsPerRegPair =
+    (kNeedS128RegPair ? 2 : 1) + 2 * kBitsPerGpRegCode;
+
+static_assert(2 * kBitsPerGpRegCode >= kBitsPerFpRegCode,
+              "encoding for gp pair and fp pair collides");
 
 class LiftoffRegister {
   static constexpr int needed_bits =
-      Max(kNeedI64RegPair ? kBitsPerGpRegPair : 0, kBitsPerLiftoffRegCode);
+      Max(kNeedI64RegPair || kNeedS128RegPair ? kBitsPerRegPair : 0,
+          kBitsPerLiftoffRegCode);
   using storage_t = std::conditional<
       needed_bits <= 8, uint8_t,
       std::conditional<needed_bits <= 16, uint16_t, uint32_t>::type>::type;
@@ -121,8 +172,23 @@ class LiftoffRegister {
     return LiftoffRegister(combined_code);
   }
 
+  static LiftoffRegister ForFpPair(DoubleRegister low) {
+    DCHECK(kNeedS128RegPair);
+    DCHECK_EQ(0, low.code() % 2);
+    storage_t combined_code = low.code() | 2 << (2 * kBitsPerGpRegCode);
+    return LiftoffRegister(combined_code);
+  }
+
   constexpr bool is_pair() const {
+    return (kNeedI64RegPair || kNeedS128RegPair) &&
+           (code_ & (3 << (2 * kBitsPerGpRegCode)));
+  }
+
+  constexpr bool is_gp_pair() const {
     return kNeedI64RegPair && (code_ & (1 << (2 * kBitsPerGpRegCode))) != 0;
+  }
+  constexpr bool is_fp_pair() const {
+    return kNeedS128RegPair && (code_ & (2 << (2 * kBitsPerGpRegCode))) != 0;
   }
   constexpr bool is_gp() const { return code_ < kAfterMaxLiftoffGpRegCode; }
   constexpr bool is_fp() const {
@@ -130,20 +196,41 @@ class LiftoffRegister {
            code_ < kAfterMaxLiftoffFpRegCode;
   }
 
-  LiftoffRegister low() const { return LiftoffRegister(low_gp()); }
+  LiftoffRegister low() const {
+    // Common case for most archs where only gp pair supported.
+    if (!kNeedS128RegPair) return LiftoffRegister(low_gp());
+    return is_gp_pair() ? LiftoffRegister(low_gp()) : LiftoffRegister(low_fp());
+  }
 
-  LiftoffRegister high() const { return LiftoffRegister(high_gp()); }
+  LiftoffRegister high() const {
+    // Common case for most archs where only gp pair supported.
+    if (!kNeedS128RegPair) return LiftoffRegister(high_gp());
+    return is_gp_pair() ? LiftoffRegister(high_gp())
+                        : LiftoffRegister(high_fp());
+  }
 
   Register low_gp() const {
-    DCHECK(is_pair());
+    DCHECK(is_gp_pair());
     static constexpr storage_t kCodeMask = (1 << kBitsPerGpRegCode) - 1;
     return Register::from_code(code_ & kCodeMask);
   }
 
   Register high_gp() const {
-    DCHECK(is_pair());
+    DCHECK(is_gp_pair());
     static constexpr storage_t kCodeMask = (1 << kBitsPerGpRegCode) - 1;
     return Register::from_code((code_ >> kBitsPerGpRegCode) & kCodeMask);
+  }
+
+  DoubleRegister low_fp() const {
+    DCHECK(is_fp_pair());
+    static constexpr storage_t kCodeMask = (1 << kBitsPerFpRegCode) - 1;
+    return DoubleRegister::from_code(code_ & kCodeMask);
+  }
+
+  DoubleRegister high_fp() const {
+    DCHECK(is_fp_pair());
+    static constexpr storage_t kCodeMask = (1 << kBitsPerFpRegCode) - 1;
+    return DoubleRegister::from_code((code_ & kCodeMask) + 1);
   }
 
   Register gp() const {
@@ -162,15 +249,18 @@ class LiftoffRegister {
   }
 
   RegClass reg_class() const {
-    return is_pair() ? kGpRegPair : is_gp() ? kGpReg : kFpReg;
+    return is_fp_pair() ? kFpRegPair
+                        : is_gp_pair() ? kGpRegPair : is_gp() ? kGpReg : kFpReg;
   }
 
   bool operator==(const LiftoffRegister other) const {
-    DCHECK_EQ(is_pair(), other.is_pair());
+    DCHECK_EQ(is_gp_pair(), other.is_gp_pair());
+    DCHECK_EQ(is_fp_pair(), other.is_fp_pair());
     return code_ == other.code_;
   }
   bool operator!=(const LiftoffRegister other) const {
-    DCHECK_EQ(is_pair(), other.is_pair());
+    DCHECK_EQ(is_gp_pair(), other.is_gp_pair());
+    DCHECK_EQ(is_fp_pair(), other.is_fp_pair());
     return code_ != other.code_;
   }
   bool overlaps(const LiftoffRegister other) const {
@@ -187,8 +277,10 @@ class LiftoffRegister {
 ASSERT_TRIVIALLY_COPYABLE(LiftoffRegister);
 
 inline std::ostream& operator<<(std::ostream& os, LiftoffRegister reg) {
-  if (reg.is_pair()) {
+  if (reg.is_gp_pair()) {
     return os << "<" << reg.low_gp() << "+" << reg.high_gp() << ">";
+  } else if (reg.is_fp_pair()) {
+    return os << "<" << reg.low_fp() << "+" << reg.high_fp() << ">";
   } else if (reg.is_gp()) {
     return os << reg.gp();
   } else {

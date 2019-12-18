@@ -353,7 +353,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc, bool is_load_mem) {
-  DCHECK_IMPLIES(type.value_type() == kWasmI64, dst.is_pair());
+  DCHECK_IMPLIES(type.value_type() == kWasmI64, dst.is_gp_pair());
   // If offset_imm cannot be converted to int32 safely, we abort as a separate
   // check should cause this code to never be executed.
   // TODO(7881): Support when >2GB is required.

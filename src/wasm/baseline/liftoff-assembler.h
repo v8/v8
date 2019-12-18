@@ -179,7 +179,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
 
     void inc_used(LiftoffRegister reg) {
-      if (reg.is_pair()) {
+      if (reg.is_gp_pair()) {
         inc_used(reg.low());
         inc_used(reg.high());
         return;
@@ -192,7 +192,7 @@ class LiftoffAssembler : public TurboAssembler {
     // Returns whether this was the last use.
     void dec_used(LiftoffRegister reg) {
       DCHECK(is_used(reg));
-      if (reg.is_pair()) {
+      if (reg.is_gp_pair()) {
         dec_used(reg.low());
         dec_used(reg.high());
         return;
@@ -203,14 +203,14 @@ class LiftoffAssembler : public TurboAssembler {
     }
 
     bool is_used(LiftoffRegister reg) const {
-      if (reg.is_pair()) return is_used(reg.low()) || is_used(reg.high());
+      if (reg.is_gp_pair()) return is_used(reg.low()) || is_used(reg.high());
       bool used = used_registers.has(reg);
       DCHECK_EQ(used, register_use_count[reg.liftoff_code()] != 0);
       return used;
     }
 
     uint32_t get_use_count(LiftoffRegister reg) const {
-      if (reg.is_pair()) {
+      if (reg.is_gp_pair()) {
         DCHECK_EQ(register_use_count[reg.low().liftoff_code()],
                   register_use_count[reg.high().liftoff_code()]);
         reg = reg.low();
