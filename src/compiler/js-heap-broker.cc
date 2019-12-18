@@ -3450,10 +3450,13 @@ base::Optional<ObjectRef> MapRef::GetStrongValue(
     InternalIndex descriptor_index) const {
   if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {
     AllowHandleDereference allow_handle_dereference;
-    return ObjectRef(broker(),
-                     handle(object()->instance_descriptors().GetStrongValue(
-                                descriptor_index),
-                            broker()->isolate()));
+    MaybeObject value =
+        object()->instance_descriptors().GetValue(descriptor_index);
+    HeapObject object;
+    if (value.GetHeapObjectIfStrong(&object)) {
+      return ObjectRef(broker(), handle(object, broker()->isolate()));
+    }
+    return base::nullopt;
   }
   ObjectData* value = data()->AsMap()->GetStrongValue(descriptor_index);
   if (!value) {
