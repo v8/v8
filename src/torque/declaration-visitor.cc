@@ -81,8 +81,10 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
     for (size_t i = signature.implicit_count;
          i < signature.parameter_types.types.size(); ++i) {
       const Type* parameter_type = signature.parameter_types.types[i];
-      if (parameter_type != TypeOracle::GetJSAnyType()) {
-        Error("Parameters of JavaScript-linkage builtins have to be JSAny.")
+      if (!TypeOracle::GetJSAnyType()->IsSubtypeOf(parameter_type)) {
+        Error(
+            "Parameters of JavaScript-linkage builtins have to be a supertype "
+            "of JSAny.")
             .Position(decl->parameters.types[i]->pos);
       }
     }
