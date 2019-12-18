@@ -528,6 +528,40 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9808
   'built-ins/AggregateError/*': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7532
+  'language/expressions/arrow-function/scope-param-elem-var-close': [FAIL],
+  'language/expressions/arrow-function/scope-param-elem-var-open': [FAIL],
+  'language/expressions/arrow-function/scope-param-rest-elem-var-close': [FAIL],
+  'language/expressions/arrow-function/scope-param-rest-elem-var-open': [FAIL],
+  'language/expressions/function/scope-param-elem-var-close': [FAIL],
+  'language/expressions/function/scope-param-elem-var-open': [FAIL],
+  'language/expressions/function/scope-param-rest-elem-var-close': [FAIL],
+  'language/expressions/function/scope-param-rest-elem-var-open': [FAIL],
+  'language/expressions/generators/scope-param-elem-var-close': [FAIL],
+  'language/expressions/generators/scope-param-elem-var-open': [FAIL],
+  'language/expressions/generators/scope-param-rest-elem-var-close': [FAIL],
+  'language/expressions/generators/scope-param-rest-elem-var-open': [FAIL],
+  'language/expressions/object/scope-gen-meth-param-elem-var-close': [FAIL],
+  'language/expressions/object/scope-gen-meth-param-elem-var-open': [FAIL],
+  'language/expressions/object/scope-gen-meth-param-rest-elem-var-close': [FAIL],
+  'language/expressions/object/scope-gen-meth-param-rest-elem-var-open': [FAIL],
+  'language/expressions/object/scope-meth-param-elem-var-close': [FAIL],
+  'language/expressions/object/scope-meth-param-elem-var-open': [FAIL],
+  'language/expressions/object/scope-meth-param-rest-elem-var-close': [FAIL],
+  'language/expressions/object/scope-meth-param-rest-elem-var-open': [FAIL],
+  'language/function-code/each-param-has-own-non-shared-eval-scope': [FAIL_SLOPPY],
+  'language/function-code/each-param-has-own-scope': [FAIL_SLOPPY],
+  'language/function-code/eval-param-env-with-computed-key': [FAIL_SLOPPY],
+  'language/function-code/eval-param-env-with-prop-initializer': [FAIL_SLOPPY],
+  'language/statements/function/scope-param-elem-var-close': [FAIL],
+  'language/statements/function/scope-param-elem-var-open': [FAIL],
+  'language/statements/function/scope-param-rest-elem-var-close': [FAIL],
+  'language/statements/function/scope-param-rest-elem-var-open': [FAIL],
+  'language/statements/generators/scope-param-elem-var-close': [FAIL],
+  'language/statements/generators/scope-param-elem-var-open': [FAIL],
+  'language/statements/generators/scope-param-rest-elem-var-close': [FAIL],
+  'language/statements/generators/scope-param-rest-elem-var-open': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833

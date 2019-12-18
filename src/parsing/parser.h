@@ -355,8 +355,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return scope()->GetDeclarationScope()->has_checked_syntax();
   }
 
-  // PatternRewriter and associated methods defined in pattern-rewriter.cc.
-  friend class PatternRewriter;
   void InitializeVariables(
       ScopedPtrList<Statement>* statements, VariableKind kind,
       const DeclarationParsingResult::Declaration* declaration);

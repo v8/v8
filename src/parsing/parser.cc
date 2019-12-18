@@ -21,7 +21,6 @@
 #include "src/logging/log.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/scope-info.h"
-#include "src/parsing/expression-scope-reparenter.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/rewriter.h"
 #include "src/runtime/runtime.h"
@@ -2653,38 +2652,11 @@ Block* Parser::BuildParameterInitializationBlock(
                                     initial_value, kNoSourcePosition);
     }
 
-    DeclarationScope* param_scope = scope()->AsDeclarationScope();
-    ScopedPtrList<Statement>* param_init_statements = &init_statements;
-
-    base::Optional<ScopedPtrList<Statement>> non_simple_param_init_statements;
-    if (!parameter->is_simple() && param_scope->sloppy_eval_can_extend_vars()) {
-      param_scope = NewVarblockScope();
-      param_scope->set_start_position(parameter->pattern->position());
-      param_scope->set_end_position(parameter->initializer_end_position);
-      param_scope->RecordEvalCall();
-      non_simple_param_init_statements.emplace(pointer_buffer());
-      param_init_statements = &non_simple_param_init_statements.value();
-      // Rewrite the outer initializer to point to param_scope
-      ReparentExpressionScope(stack_limit(), parameter->pattern, param_scope);
-      ReparentExpressionScope(stack_limit(), initial_value, param_scope);
-    }
-
-    BlockState block_state(&scope_, param_scope);
+    BlockState block_state(&scope_, scope()->AsDeclarationScope());
     DeclarationParsingResult::Declaration decl(parameter->pattern,
                                                initial_value);
+    InitializeVariables(&init_statements, PARAMETER_VARIABLE, &decl);
 
-    InitializeVariables(param_init_statements, PARAMETER_VARIABLE, &decl);
-
-    if (param_init_statements != &init_statements) {
-      DCHECK_EQ(param_init_statements,
-                &non_simple_param_init_statements.value());
-      Block* param_block =
-          factory()->NewBlock(true, *non_simple_param_init_statements);
-      non_simple_param_init_statements.reset();
-      param_block->set_scope(param_scope);
-      param_scope = param_scope->FinalizeBlockScope()->AsDeclarationScope();
-      init_statements.Add(param_block);
-    }
     ++index;
   }
   return factory()->NewBlock(true, init_statements);

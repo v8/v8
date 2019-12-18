@@ -2665,8 +2665,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/value-serializer.h",
     "src/objects/visitors.cc",
     "src/objects/visitors.h",
-    "src/parsing/expression-scope-reparenter.cc",
-    "src/parsing/expression-scope-reparenter.h",
     "src/parsing/expression-scope.h",
     "src/parsing/func-name-inferrer.cc",
     "src/parsing/func-name-inferrer.h",
