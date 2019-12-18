@@ -5,6 +5,7 @@
 #include "serializer_traits.h"
 
 #include <array>
+#include "serializable.h"
 #include "test_platform.h"
 
 // The purpose of this test is to ensure that the
@@ -134,7 +135,7 @@ TEST(SerializerTraits, UTF8String) {
 // https://cs.chromium.org/chromium/src/out/Debug/gen/v8/include/inspector/Debugger.h).
 struct Exported {
   std::string msg;
-  void writeBinary(std::vector<uint8_t>* out) {
+  void AppendSerialized(std::vector<uint8_t>* out) const {
     cbor::EncodeString8(SpanFrom(msg), out);
   }
 };
@@ -144,7 +145,7 @@ TEST(SerializerTraits, Exported) {
   exported.msg = "Hello, world.";
 
   std::vector<uint8_t> out;
-  SerializerTraits<std::string>::Serialize(exported.msg, &out);
+  SerializerTraits<Exported>::Serialize(exported, &out);
 
   std::vector<uint8_t> expected;
   cbor::EncodeString8(SpanFrom(exported.msg), &expected);

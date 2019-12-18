@@ -10,7 +10,6 @@
 #include <vector>
 #include "cbor.h"
 #include "glue.h"
-#include "serializable.h"
 #include "span.h"
 
 namespace v8_crdtp {
@@ -39,21 +38,17 @@ struct SerializerTraits {
   // |Serializable| (defined in serializable.h) already knows how to serialize
   // to CBOR, so we can just delegate. This covers domain specific types,
   // protocol::Binary, etc.
-  static void Serialize(const Serializable& value, std::vector<uint8_t>* out) {
+  // However, we use duck-typing here, because Exported, which is part of the V8
+  // headers also comes with AppendSerialized, and logically it's the same type,
+  // but it lives in a different namespace (v8_inspector::protocol::Exported).
+  template <
+      typename LikeSerializable,
+      typename std::enable_if_t<std::is_member_pointer<decltype(
+                                    &LikeSerializable::AppendSerialized)>{},
+                                int> = 0>
+  static void Serialize(const LikeSerializable& value,
+                        std::vector<uint8_t>* out) {
     value.AppendSerialized(out);
-  }
-
-  // This method covers the Exported types, e.g. from V8 into Chromium.
-  // TODO(johannes): Change Exported signature to AppendSerialized
-  // for consistency with Serializable; this is why we explicitly
-  // disable this template for Serializable here.
-  template <typename Exported,
-            typename std::enable_if_t<
-                std::is_member_pointer<decltype(&Exported::writeBinary)>{} &&
-                    !std::is_same<Serializable, T>{},
-                int> = 0>
-  static void Serialize(const Exported& value, std::vector<uint8_t>* out) {
-    value.writeBinary(out);
   }
 };
 

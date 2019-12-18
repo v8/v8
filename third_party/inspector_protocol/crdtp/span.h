@@ -50,11 +50,6 @@ class span {
   index_type size_;
 };
 
-template <typename T>
-constexpr span<T> SpanFrom(const std::vector<T>& v) {
-  return span<T>(v.data(), v.size());
-}
-
 template <size_t N>
 constexpr span<uint8_t> SpanFrom(const char (&str)[N]) {
   return span<uint8_t>(reinterpret_cast<const uint8_t*>(str), N - 1);
@@ -67,6 +62,16 @@ constexpr inline span<uint8_t> SpanFrom(const char* str) {
 
 inline span<uint8_t> SpanFrom(const std::string& v) {
   return span<uint8_t>(reinterpret_cast<const uint8_t*>(v.data()), v.size());
+}
+
+// This SpanFrom routine works for std::vector<uint8_t> and
+// std::vector<uint16_t>, but also for base::span<const uint8_t> in Chromium.
+template <typename C,
+          typename = std::enable_if_t<
+              std::is_unsigned<typename C::value_type>{} &&
+              std::is_member_function_pointer<decltype(&C::size)>{}>>
+inline span<typename C::value_type> SpanFrom(const C& v) {
+  return span<typename C::value_type>(v.data(), v.size());
 }
 
 // Less than / equality comparison functions for sorting / searching for byte

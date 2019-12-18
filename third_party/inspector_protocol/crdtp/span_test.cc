@@ -77,6 +77,16 @@ TEST(SpanFromTest, FromConstCharAndLiteral) {
   EXPECT_EQ(3u, SpanFrom("foo").size());
 }
 
+TEST(SpanFromTest, FromVectorUint8AndUint16) {
+  std::vector<uint8_t> foo = {'f', 'o', 'o'};
+  span<uint8_t> foo_span = SpanFrom(foo);
+  EXPECT_EQ(foo.size(), foo_span.size());
+
+  std::vector<uint16_t> bar = {0xff, 0xef, 0xeb};
+  span<uint16_t> bar_span = SpanFrom(bar);
+  EXPECT_EQ(bar.size(), bar_span.size());
+}
+
 TEST(SpanComparisons, ByteWiseLexicographicalOrder) {
   // Compare the empty span.
   EXPECT_FALSE(SpanLessThan(span<uint8_t>(), span<uint8_t>()));
