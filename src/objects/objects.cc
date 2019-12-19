@@ -8090,6 +8090,15 @@ Maybe<bool> JSFinalizationGroup::Cleanup(
     Isolate* isolate, Handle<JSFinalizationGroup> finalization_group,
     Handle<Object> cleanup) {
   DCHECK(cleanup->IsCallable());
+  // Attempt to shrink key_map now, as unregister tokens are held weakly and the
+  // map is not shrinkable when sweeping dead tokens during GC itself.
+  if (!finalization_group->key_map().IsUndefined(isolate)) {
+    Handle<SimpleNumberDictionary> key_map = handle(
+        SimpleNumberDictionary::cast(finalization_group->key_map()), isolate);
+    key_map = SimpleNumberDictionary::Shrink(isolate, key_map);
+    finalization_group->set_key_map(*key_map);
+  }
+
   // It's possible that the cleared_cells list is empty, since
   // FinalizationGroup.unregister() removed all its elements before this task
   // ran. In that case, don't call the cleanup function.

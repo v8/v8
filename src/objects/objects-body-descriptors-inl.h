@@ -219,7 +219,8 @@ class WeakCell::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
     IteratePointers(obj, HeapObject::kHeaderSize, kTargetOffset, v);
     IterateCustomWeakPointer(obj, kTargetOffset, v);
-    IteratePointers(obj, kTargetOffset + kTaggedSize, object_size, v);
+    IterateCustomWeakPointer(obj, kUnregisterTokenOffset, v);
+    IteratePointers(obj, kUnregisterTokenOffset + kTaggedSize, object_size, v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) {

@@ -290,8 +290,8 @@ class SimpleNumberDictionary
  public:
   DECL_CAST(SimpleNumberDictionary)
   // Type specific at put (default NONE attributes is used when adding).
-  V8_WARN_UNUSED_RESULT static Handle<SimpleNumberDictionary> Set(
-      Isolate* isolate, Handle<SimpleNumberDictionary> dictionary, uint32_t key,
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Handle<SimpleNumberDictionary>
+  Set(Isolate* isolate, Handle<SimpleNumberDictionary> dictionary, uint32_t key,
       Handle<Object> value);
 
   static const int kEntryValueIndex = 1;

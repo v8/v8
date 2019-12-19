@@ -2415,6 +2415,12 @@ void MarkCompactCollector::ClearJSWeakRefs() {
   }
   WeakCell weak_cell;
   while (weak_objects_.weak_cells.Pop(kMainThreadTask, &weak_cell)) {
+    auto gc_notify_updated_slot = [](HeapObject object, ObjectSlot slot,
+                                     Object target) {
+      if (target.IsHeapObject()) {
+        RecordSlot(object, slot, HeapObject::cast(target));
+      }
+    };
     HeapObject target = HeapObject::cast(weak_cell.target());
     if (!non_atomic_marking_state()->IsBlackOrGrey(target)) {
       DCHECK(!target.IsUndefined());
@@ -2422,28 +2428,41 @@ void MarkCompactCollector::ClearJSWeakRefs() {
       JSFinalizationGroup finalization_group =
           JSFinalizationGroup::cast(weak_cell.finalization_group());
       if (!finalization_group.scheduled_for_cleanup()) {
-        heap()->AddDirtyJSFinalizationGroup(
-            finalization_group,
-            [](HeapObject object, ObjectSlot slot, Object target) {
-              if (target.IsHeapObject()) {
-                RecordSlot(object, slot, HeapObject::cast(target));
-              }
-            });
+        heap()->AddDirtyJSFinalizationGroup(finalization_group,
+                                            gc_notify_updated_slot);
       }
       // We're modifying the pointers in WeakCell and JSFinalizationGroup during
       // GC; thus we need to record the slots it writes. The normal write
       // barrier is not enough, since it's disabled before GC.
-      weak_cell.Nullify(isolate(),
-                        [](HeapObject object, ObjectSlot slot, Object target) {
-                          if (target.IsHeapObject()) {
-                            RecordSlot(object, slot, HeapObject::cast(target));
-                          }
-                        });
+      weak_cell.Nullify(isolate(), gc_notify_updated_slot);
       DCHECK(finalization_group.NeedsCleanup());
       DCHECK(finalization_group.scheduled_for_cleanup());
     } else {
       // The value of the WeakCell is alive.
       ObjectSlot slot = weak_cell.RawField(WeakCell::kTargetOffset);
+      RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
+    }
+
+    HeapObject unregister_token =
+        HeapObject::cast(weak_cell.unregister_token());
+    if (!non_atomic_marking_state()->IsBlackOrGrey(unregister_token)) {
+      // The unregister token is dead. Remove any corresponding entries in the
+      // key map. Multiple WeakCell with the same token will have all their
+      // unregister_token field set to undefined when processing the first
+      // WeakCell. Like above, we're modifying pointers during GC, so record the
+      // slots.
+      HeapObject undefined = ReadOnlyRoots(isolate()).undefined_value();
+      JSFinalizationGroup finalization_group =
+          JSFinalizationGroup::cast(weak_cell.finalization_group());
+      finalization_group.RemoveUnregisterToken(
+          JSReceiver::cast(unregister_token), isolate(),
+          [undefined](WeakCell matched_cell) {
+            matched_cell.set_unregister_token(undefined);
+          },
+          gc_notify_updated_slot);
+    } else {
+      // The unregister_token is alive.
+      ObjectSlot slot = weak_cell.RawField(WeakCell::kUnregisterTokenOffset);
       RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
     }
   }

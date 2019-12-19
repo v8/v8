@@ -45,6 +45,16 @@ class JSFinalizationGroup : public JSObject {
                                 Handle<JSReceiver> unregister_token,
                                 Isolate* isolate);
 
+  // RemoveUnregisterToken is called from both Unregister and during GC. Since
+  // it modifies slots in key_map and WeakCells and the normal write barrier is
+  // disabled during GC, we need to tell the GC about the modified slots via the
+  // gc_notify_updated_slot function.
+  template <typename MatchCallback, typename GCNotifyUpdatedSlotCallback>
+  inline bool RemoveUnregisterToken(
+      JSReceiver unregister_token, Isolate* isolate,
+      MatchCallback match_callback,
+      GCNotifyUpdatedSlotCallback gc_notify_updated_slot);
+
   // Returns true if the cleared_cells list is non-empty.
   inline bool NeedsCleanup() const;
 
