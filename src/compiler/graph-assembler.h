@@ -232,7 +232,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
  public:
   // Constructs a GraphAssembler. If {schedule} is not null, the graph assembler
   // will maintain the schedule as it updates blocks.
-  GraphAssembler(JSGraph* jsgraph, Zone* zone, Schedule* schedule = nullptr);
+  GraphAssembler(MachineGraph* jsgraph, Zone* zone,
+                 Schedule* schedule = nullptr);
   virtual ~GraphAssembler();
 
   void Reset(BasicBlock* block);
@@ -271,25 +272,11 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
   Node* UniqueIntPtrConstant(intptr_t value);
-  Node* SmiConstant(int32_t value);
   Node* Float64Constant(double value);
   Node* Projection(int index, Node* value);
-  TNode<HeapObject> HeapConstant(Handle<HeapObject> object);
-  TNode<Object> Constant(const ObjectRef& ref);
-  TNode<Number> NumberConstant(double value);
-  Node* CEntryStubConstant(int result_size);
   Node* ExternalConstant(ExternalReference ref);
 
   Node* LoadFramePointer();
-
-#define SINGLETON_CONST_DECL(Name, Type) TNode<Type> Name##Constant();
-  JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DECL)
-#undef SINGLETON_CONST_DECL
-
-#define SINGLETON_CONST_TEST_DECL(Name, ...) \
-  TNode<Boolean> Is##Name(TNode<Object> value);
-  JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_TEST_DECL)
-#undef SINGLETON_CONST_TEST_DECL
 
 #define PURE_UNOP_DECL(Name) Node* Name(Node* input);
   PURE_ASSEMBLER_MACH_UNOP_LIST(PURE_UNOP_DECL)
@@ -314,54 +301,9 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* Float64RoundDown(Node* value);
   Node* Float64RoundTruncate(Node* value);
 
-  TNode<Number> ToNumber(TNode<Object> value);
   Node* BitcastWordToTagged(Node* value);
   Node* BitcastTaggedToWord(Node* value);
   Node* BitcastTaggedToWordForTagAndSmiBits(Node* value);
-  Node* Allocate(AllocationType allocation, Node* size);
-  Node* LoadField(FieldAccess const&, Node* object);
-  template <typename T>
-  TNode<T> LoadField(FieldAccess const& access, TNode<HeapObject> object) {
-    // TODO(jgruber): Investigate issues on ptr compression bots and enable.
-    // DCHECK(IsMachineRepresentationOf<T>(
-    //     access.machine_type.representation()));
-    return TNode<T>::UncheckedCast(LoadField(access, object));
-  }
-  Node* LoadElement(ElementAccess const&, Node* object, Node* index);
-  template <typename T>
-  TNode<T> LoadElement(ElementAccess const& access, TNode<HeapObject> object,
-                       TNode<Number> index) {
-    // TODO(jgruber): Investigate issues on ptr compression bots and enable.
-    // DCHECK(IsMachineRepresentationOf<T>(
-    //     access.machine_type.representation()));
-    return TNode<T>::UncheckedCast(LoadElement(access, object, index));
-  }
-  Node* StoreField(FieldAccess const&, Node* object, Node* value);
-  Node* StoreElement(ElementAccess const&, Node* object, Node* index,
-                     Node* value);
-  void TransitionAndStoreElement(MapRef double_map, MapRef fast_map,
-                                 TNode<HeapObject> object, TNode<Number> index,
-                                 TNode<Object> value);
-  TNode<Number> StringLength(TNode<String> string);
-  TNode<Boolean> ReferenceEqual(TNode<Object> lhs, TNode<Object> rhs);
-  TNode<Number> NumberMin(TNode<Number> lhs, TNode<Number> rhs);
-  TNode<Number> NumberMax(TNode<Number> lhs, TNode<Number> rhs);
-  TNode<Boolean> NumberLessThan(TNode<Number> lhs, TNode<Number> rhs);
-  TNode<Boolean> NumberLessThanOrEqual(TNode<Number> lhs, TNode<Number> rhs);
-  TNode<Number> NumberAdd(TNode<Number> lhs, TNode<Number> rhs);
-  TNode<Number> NumberSubtract(TNode<Number> lhs, TNode<Number> rhs);
-  TNode<String> StringSubstring(TNode<String> string, TNode<Number> from,
-                                TNode<Number> to);
-  TNode<Boolean> ObjectIsCallable(TNode<Object> value);
-  Node* CheckIf(Node* cond, DeoptimizeReason reason);
-  TNode<Boolean> NumberIsFloat64Hole(TNode<Number> value);
-  TNode<Boolean> ToBoolean(TNode<Object> value);
-  TNode<FixedArrayBase> MaybeGrowFastElements(ElementsKind kind,
-                                              const FeedbackSource& feedback,
-                                              TNode<JSArray> array,
-                                              TNode<FixedArrayBase> elements,
-                                              TNode<Number> new_length,
-                                              TNode<Number> old_length);
 
   Node* TypeGuard(Type type, Node* value);
   Node* Checkpoint(FrameState frame_state);
@@ -468,17 +410,11 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   V8_INLINE Node* AddClonedNode(Node* node);
 
-  Operator const* ToNumberOperator();
-
-  JSGraph* jsgraph() const { return jsgraph_; }
-  Isolate* isolate() const { return jsgraph_->isolate(); }
-  Graph* graph() const { return jsgraph_->graph(); }
+  MachineGraph* mcgraph() const { return mcgraph_; }
+  Graph* graph() const { return mcgraph_->graph(); }
   Zone* temp_zone() const { return temp_zone_; }
-  CommonOperatorBuilder* common() const { return jsgraph()->common(); }
-  MachineOperatorBuilder* machine() const { return jsgraph()->machine(); }
-  SimplifiedOperatorBuilder* simplified() const {
-    return jsgraph()->simplified();
-  }
+  CommonOperatorBuilder* common() const { return mcgraph()->common(); }
+  MachineOperatorBuilder* machine() const { return mcgraph()->machine(); }
 
  private:
   template <typename... Vars>
@@ -491,9 +427,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
                                   BasicBlock* if_true_block,
                                   BasicBlock* if_false_block);
 
-  SetOncePointer<Operator const> to_number_operator_;
   Zone* temp_zone_;
-  JSGraph* jsgraph_;
+  MachineGraph* mcgraph_;
   Node* effect_;
   Node* control_;
   std::unique_ptr<BasicBlockUpdater> block_updater_;
@@ -717,6 +652,88 @@ Node* GraphAssembler::Call(const Operator* op, Args... args) {
   effect_ = call;
   return AddNode(call);
 }
+
+class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
+ public:
+  // Constructs a JSGraphAssembler. If {schedule} is not null, the graph
+  // assembler will maintain the schedule as it updates blocks.
+  JSGraphAssembler(JSGraph* jsgraph, Zone* zone, Schedule* schedule = nullptr)
+      : GraphAssembler(jsgraph, zone, schedule), jsgraph_(jsgraph) {}
+
+  Node* SmiConstant(int32_t value);
+  TNode<HeapObject> HeapConstant(Handle<HeapObject> object);
+  TNode<Object> Constant(const ObjectRef& ref);
+  TNode<Number> NumberConstant(double value);
+  Node* CEntryStubConstant(int result_size);
+
+#define SINGLETON_CONST_DECL(Name, Type) TNode<Type> Name##Constant();
+  JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DECL)
+#undef SINGLETON_CONST_DECL
+
+#define SINGLETON_CONST_TEST_DECL(Name, ...) \
+  TNode<Boolean> Is##Name(TNode<Object> value);
+  JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_TEST_DECL)
+#undef SINGLETON_CONST_TEST_DECL
+
+  Node* Allocate(AllocationType allocation, Node* size);
+  Node* LoadField(FieldAccess const&, Node* object);
+  template <typename T>
+  TNode<T> LoadField(FieldAccess const& access, TNode<HeapObject> object) {
+    // TODO(jgruber): Investigate issues on ptr compression bots and enable.
+    // DCHECK(IsMachineRepresentationOf<T>(
+    //     access.machine_type.representation()));
+    return TNode<T>::UncheckedCast(LoadField(access, object));
+  }
+  Node* LoadElement(ElementAccess const&, Node* object, Node* index);
+  template <typename T>
+  TNode<T> LoadElement(ElementAccess const& access, TNode<HeapObject> object,
+                       TNode<Number> index) {
+    // TODO(jgruber): Investigate issues on ptr compression bots and enable.
+    // DCHECK(IsMachineRepresentationOf<T>(
+    //     access.machine_type.representation()));
+    return TNode<T>::UncheckedCast(LoadElement(access, object, index));
+  }
+  Node* StoreField(FieldAccess const&, Node* object, Node* value);
+  Node* StoreElement(ElementAccess const&, Node* object, Node* index,
+                     Node* value);
+  void TransitionAndStoreElement(MapRef double_map, MapRef fast_map,
+                                 TNode<HeapObject> object, TNode<Number> index,
+                                 TNode<Object> value);
+  TNode<Number> StringLength(TNode<String> string);
+  TNode<Boolean> ReferenceEqual(TNode<Object> lhs, TNode<Object> rhs);
+  TNode<Number> ToNumber(TNode<Object> value);
+  TNode<Number> NumberMin(TNode<Number> lhs, TNode<Number> rhs);
+  TNode<Number> NumberMax(TNode<Number> lhs, TNode<Number> rhs);
+  TNode<Boolean> NumberLessThan(TNode<Number> lhs, TNode<Number> rhs);
+  TNode<Boolean> NumberLessThanOrEqual(TNode<Number> lhs, TNode<Number> rhs);
+  TNode<Number> NumberAdd(TNode<Number> lhs, TNode<Number> rhs);
+  TNode<Number> NumberSubtract(TNode<Number> lhs, TNode<Number> rhs);
+  TNode<String> StringSubstring(TNode<String> string, TNode<Number> from,
+                                TNode<Number> to);
+  TNode<Boolean> ObjectIsCallable(TNode<Object> value);
+  Node* CheckIf(Node* cond, DeoptimizeReason reason);
+  TNode<Boolean> NumberIsFloat64Hole(TNode<Number> value);
+  TNode<Boolean> ToBoolean(TNode<Object> value);
+  TNode<FixedArrayBase> MaybeGrowFastElements(ElementsKind kind,
+                                              const FeedbackSource& feedback,
+                                              TNode<JSArray> array,
+                                              TNode<FixedArrayBase> elements,
+                                              TNode<Number> new_length,
+                                              TNode<Number> old_length);
+
+  JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const { return jsgraph()->isolate(); }
+  SimplifiedOperatorBuilder* simplified() const {
+    return jsgraph()->simplified();
+  }
+
+ protected:
+  Operator const* ToNumberOperator();
+
+ private:
+  JSGraph* jsgraph_;
+  SetOncePointer<Operator const> to_number_operator_;
+};
 
 }  // namespace compiler
 }  // namespace internal

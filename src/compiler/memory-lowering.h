@@ -71,7 +71,7 @@ class MemoryLowering final : public Reducer {
       Node* node, Node* object, const char* name, Zone* temp_zone)>;
 
   MemoryLowering(
-      JSGraph* jsgraph, Zone* zone, GraphAssembler* graph_assembler,
+      JSGraph* jsgraph, Zone* zone, JSGraphAssembler* graph_assembler,
       PoisoningMitigationLevel poisoning_level,
       AllocationFolding allocation_folding =
           AllocationFolding::kDontAllocationFolding,
@@ -116,7 +116,7 @@ class MemoryLowering final : public Reducer {
   Zone* graph_zone() const { return graph_zone_; }
   CommonOperatorBuilder* common() const { return common_; }
   MachineOperatorBuilder* machine() const { return machine_; }
-  GraphAssembler* gasm() const { return graph_assembler_; }
+  JSGraphAssembler* gasm() const { return graph_assembler_; }
 
   SetOncePointer<const Operator> allocate_operator_;
   Isolate* isolate_;
@@ -124,7 +124,7 @@ class MemoryLowering final : public Reducer {
   Zone* graph_zone_;
   CommonOperatorBuilder* common_;
   MachineOperatorBuilder* machine_;
-  GraphAssembler* graph_assembler_;
+  JSGraphAssembler* graph_assembler_;
   AllocationFolding allocation_folding_;
   PoisoningMitigationLevel poisoning_level_;
   WriteBarrierAssertFailedCallback write_barrier_assert_failed_;

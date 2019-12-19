@@ -32,11 +32,11 @@ class ScheduledMachineLowering final {
  private:
   bool LowerNode(Node* node);
 
-  GraphAssembler* gasm() { return &graph_assembler_; }
+  JSGraphAssembler* gasm() { return &graph_assembler_; }
   Schedule* schedule() { return schedule_; }
 
   Schedule* schedule_;
-  GraphAssembler graph_assembler_;
+  JSGraphAssembler graph_assembler_;
   SelectLowering select_lowering_;
   MemoryLowering memory_lowering_;
   ZoneVector<Reducer*> reducers_;

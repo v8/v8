@@ -44,7 +44,7 @@ class MemoryLowering::AllocationGroup final : public ZoneObject {
 };
 
 MemoryLowering::MemoryLowering(JSGraph* jsgraph, Zone* zone,
-                               GraphAssembler* graph_assembler,
+                               JSGraphAssembler* graph_assembler,
                                PoisoningMitigationLevel poisoning_level,
                                AllocationFolding allocation_folding,
                                WriteBarrierAssertFailedCallback callback,

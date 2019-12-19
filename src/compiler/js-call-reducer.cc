@@ -41,10 +41,12 @@ namespace compiler {
 // Shorter lambda declarations with less visual clutter.
 #define _ [&]()  // NOLINT(whitespace/braces)
 
-class JSCallReducerAssembler : public GraphAssembler {
+class JSCallReducerAssembler : public JSGraphAssembler {
  public:
   JSCallReducerAssembler(JSGraph* jsgraph, Zone* zone, Node* node)
-      : GraphAssembler(jsgraph, zone), node_(node), if_exception_nodes_(zone) {
+      : JSGraphAssembler(jsgraph, zone),
+        node_(node),
+        if_exception_nodes_(zone) {
     InitializeEffectControl(NodeProperties::GetEffectInput(node),
                             NodeProperties::GetControlInput(node));
 
@@ -84,7 +86,7 @@ class JSCallReducerAssembler : public GraphAssembler {
   // implementation.
   class IfBuilder0 {
    public:
-    IfBuilder0(GraphAssembler* gasm, TNode<Boolean> cond, bool negate_cond)
+    IfBuilder0(JSGraphAssembler* gasm, TNode<Boolean> cond, bool negate_cond)
         : gasm_(gasm), cond_(cond), negate_cond_(negate_cond) {}
 
     V8_WARN_UNUSED_RESULT IfBuilder0& ExpectTrue() {
@@ -134,7 +136,7 @@ class JSCallReducerAssembler : public GraphAssembler {
     }
 
    private:
-    GraphAssembler* const gasm_;
+    JSGraphAssembler* const gasm_;
     const TNode<Boolean> cond_;
     const bool negate_cond_;
     BranchHint hint_ = BranchHint::kNone;
@@ -150,7 +152,7 @@ class JSCallReducerAssembler : public GraphAssembler {
     using If1BodyFunction = std::function<TNode<T>()>;
 
    public:
-    IfBuilder1(GraphAssembler* gasm, TNode<Boolean> cond)
+    IfBuilder1(JSGraphAssembler* gasm, TNode<Boolean> cond)
         : gasm_(gasm), cond_(cond) {}
 
     V8_WARN_UNUSED_RESULT IfBuilder1& ExpectTrue() {
@@ -200,7 +202,7 @@ class JSCallReducerAssembler : public GraphAssembler {
     static constexpr MachineRepresentation kPhiRepresentation =
         MachineRepresentation::kTagged;
 
-    GraphAssembler* const gasm_;
+    JSGraphAssembler* const gasm_;
     const TNode<Boolean> cond_;
     BranchHint hint_ = BranchHint::kNone;
     If1BodyFunction then_body_;
@@ -288,7 +290,7 @@ class JSCallReducerAssembler : public GraphAssembler {
     using For0BodyFunction = std::function<void(TNode<Number>)>;
 
    public:
-    ForBuilder0(GraphAssembler* gasm, TNode<Number> initial_value,
+    ForBuilder0(JSGraphAssembler* gasm, TNode<Number> initial_value,
                 const ConditionFunction1& cond, const StepFunction1& step)
         : gasm_(gasm),
           initial_value_(initial_value),
@@ -324,7 +326,7 @@ class JSCallReducerAssembler : public GraphAssembler {
     static constexpr MachineRepresentation kPhiRepresentation =
         MachineRepresentation::kTagged;
 
-    GraphAssembler* const gasm_;
+    JSGraphAssembler* const gasm_;
     const TNode<Number> initial_value_;
     const ConditionFunction1 cond_;
     const StepFunction1 step_;
@@ -347,7 +349,7 @@ class JSCallReducerAssembler : public GraphAssembler {
   using For1BodyFunction = std::function<void(TNode<Number>, TNode<Object>*)>;
   class ForBuilder1 {
    public:
-    ForBuilder1(GraphAssembler* gasm, TNode<Number> initial_value,
+    ForBuilder1(JSGraphAssembler* gasm, TNode<Number> initial_value,
                 const ConditionFunction1& cond, const StepFunction1& step,
                 TNode<Object> initial_arg0)
         : gasm_(gasm),
@@ -399,7 +401,7 @@ class JSCallReducerAssembler : public GraphAssembler {
     static constexpr MachineRepresentation kPhiRepresentation =
         MachineRepresentation::kTagged;
 
-    GraphAssembler* const gasm_;
+    JSGraphAssembler* const gasm_;
     const TNode<Number> initial_value_;
     const ConditionFunction1 cond_;
     const StepFunction1 step_;
@@ -670,7 +672,7 @@ TNode<JSArray> JSCallReducerAssembler::CreateArrayNoThrow(TNode<Object> ctor,
 
 TNode<JSArray> JSCallReducerAssembler::AllocateEmptyJSArray(
     ElementsKind kind, const NativeContextRef& native_context) {
-  // TODO(jgruber): Port AllocationBuilder to GraphAssembler.
+  // TODO(jgruber): Port AllocationBuilder to JSGraphAssembler.
   MapRef map = native_context.GetInitialJSArrayMap(kind);
 
   AllocationBuilder ab(jsgraph(), effect(), control());

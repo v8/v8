@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-SelectLowering::SelectLowering(GraphAssembler* graph_assembler, Graph* graph)
+SelectLowering::SelectLowering(JSGraphAssembler* graph_assembler, Graph* graph)
     : graph_assembler_(graph_assembler), start_(graph->start()) {}
 
 SelectLowering::~SelectLowering() = default;

@@ -1801,7 +1801,7 @@ struct LateOptimizationPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
-    GraphAssembler graph_assembler(data->jsgraph(), temp_zone);
+    JSGraphAssembler graph_assembler(data->jsgraph(), temp_zone);
     SelectLowering select_lowering(&graph_assembler, data->graph());
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);

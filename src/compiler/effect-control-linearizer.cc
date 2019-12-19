@@ -274,7 +274,7 @@ class EffectControlLinearizer {
     return js_graph_->simplified();
   }
   MachineOperatorBuilder* machine() const { return js_graph_->machine(); }
-  GraphAssembler* gasm() { return &graph_assembler_; }
+  JSGraphAssembler* gasm() { return &graph_assembler_; }
 
   JSGraph* js_graph_;
   Schedule* schedule_;
@@ -284,7 +284,7 @@ class EffectControlLinearizer {
   RegionObservability region_observability_ = RegionObservability::kObservable;
   SourcePositionTable* source_positions_;
   NodeOriginTable* node_origins_;
-  GraphAssembler graph_assembler_;
+  JSGraphAssembler graph_assembler_;
   Node* frame_state_zapper_;  // For tracking down compiler::Node::New crashes.
 };
 

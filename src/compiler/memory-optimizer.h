@@ -79,7 +79,7 @@ class MemoryOptimizer final {
   JSGraph* jsgraph() const { return jsgraph_; }
   Zone* zone() const { return zone_; }
 
-  GraphAssembler graph_assembler_;
+  JSGraphAssembler graph_assembler_;
   MemoryLowering memory_lowering_;
   JSGraph* jsgraph_;
   AllocationState const* const empty_state_;
