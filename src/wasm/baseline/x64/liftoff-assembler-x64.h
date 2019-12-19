@@ -329,6 +329,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     case StoreType::kF64Store:
       Movsd(dst_op, src.fp());
       break;
+    case StoreType::kS128Store:
+      Movdqu(dst_op, src.fp());
+      break;
     default:
       UNREACHABLE();
   }

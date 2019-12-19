@@ -459,6 +459,13 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     // Armv6 is not supported so Neon can be used to avoid alignment issues.
     CpuFeatureScope scope(this, NEON);
     vst1(Neon64, NeonListOperand(src.fp()), NeonMemOperand(actual_dst_addr));
+  } else if (type.value() == StoreType::kS128Store) {
+    Register actual_dst_addr = liftoff::CalculateActualAddress(
+        this, &temps, dst_addr, offset_reg, offset_imm);
+    // Armv6 is not supported so Neon can be used to avoid alignment issues.
+    CpuFeatureScope scope(this, NEON);
+    vst1(Neon8, NeonListOperand(src.low_fp(), 2),
+         NeonMemOperand(actual_dst_addr));
   } else if (type.value() == StoreType::kF32Store) {
     // TODO(arm): Use vst1 for f32 when implemented in simulator as used for
     // f64. It supports unaligned access.

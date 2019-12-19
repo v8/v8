@@ -169,6 +169,8 @@ class StoreType {
         return kF32Store;
       case kWasmF64:
         return kF64Store;
+      case kWasmS128:
+        return kS128Store;
       default:
         UNREACHABLE();
     }
