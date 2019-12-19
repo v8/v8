@@ -776,7 +776,7 @@ bool LiftoffAssembler::ValidateCacheState() const {
   for (const VarState& var : cache_state_.stack_state) {
     if (!var.is_reg()) continue;
     LiftoffRegister reg = var.reg();
-    if (kNeedI64RegPair && reg.is_gp_pair()) {
+    if ((kNeedI64RegPair || kNeedS128RegPair) && reg.is_pair()) {
       ++register_use_count[reg.low().liftoff_code()];
       ++register_use_count[reg.high().liftoff_code()];
     } else {
