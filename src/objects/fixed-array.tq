@@ -115,3 +115,9 @@ extern macro ExtractFixedArray(
 extern macro ExtractFixedArray(
     FixedArray, intptr, intptr, intptr,
     constexpr ExtractFixedArrayFlag): FixedArray;
+
+macro NewFixedArray<I: type>(length: intptr, it: I): FixedArray {
+  if (length == 0) return kEmptyFixedArray;
+  return new
+  FixedArray{map: kFixedArrayMap, length: Convert<Smi>(length), objects: ...it};
+}

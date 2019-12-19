@@ -228,9 +228,17 @@ extern macro IntPtrToBInt(intptr): bint;
 Convert<bint, intptr>(v: intptr): bint {
   return IntPtrToBInt(v);
 }
+extern macro BIntToIntPtr(bint): intptr;
+Convert<intptr, bint>(v: bint): intptr {
+  return BIntToIntPtr(v);
+}
 extern macro SmiToBInt(Smi): bint;
 Convert<bint, Smi>(v: Smi): bint {
   return SmiToBInt(v);
+}
+extern macro BIntToSmi(bint): Smi;
+Convert<Smi, bint>(v: bint): Smi {
+  return BIntToSmi(v);
 }
 Convert<PromiseState, int32>(s: int32): PromiseState {
   return %RawDownCast<PromiseState>(s);

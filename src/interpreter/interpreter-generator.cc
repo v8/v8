@@ -7,7 +7,6 @@
 #include <array>
 #include <tuple>
 
-#include "src/builtins/builtins-arguments-gen.h"
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-iterator-gen.h"
 #include "src/codegen/code-factory.h"
@@ -26,6 +25,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/source-text-module.h"
 #include "src/utils/ostreams.h"
+#include "torque-generated/exported-macros-assembler-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -33,6 +33,7 @@ namespace interpreter {
 
 namespace {
 
+using compiler::CodeAssemblerState;
 using compiler::Node;
 using Label = CodeStubAssembler::Label;
 
@@ -2830,9 +2831,7 @@ IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
 
   BIND(&if_not_duplicate_parameters);
   {
-    ArgumentsBuiltinsAssembler constructor_assembler(state());
-    TNode<JSObject> result =
-        constructor_assembler.EmitFastNewSloppyArguments(context, closure);
+    TNode<JSObject> result = EmitFastNewSloppyArguments(context, closure);
     SetAccumulator(result);
     Dispatch();
   }
@@ -2852,7 +2851,7 @@ IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
 IGNITION_HANDLER(CreateUnmappedArguments, InterpreterAssembler) {
   TNode<Context> context = GetContext();
   TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
-  ArgumentsBuiltinsAssembler builtins_assembler(state());
+  TorqueGeneratedExportedMacrosAssembler builtins_assembler(state());
   TNode<JSObject> result =
       builtins_assembler.EmitFastNewStrictArguments(context, closure);
   SetAccumulator(result);
@@ -2865,9 +2864,9 @@ IGNITION_HANDLER(CreateUnmappedArguments, InterpreterAssembler) {
 IGNITION_HANDLER(CreateRestParameter, InterpreterAssembler) {
   TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
   TNode<Context> context = GetContext();
-  ArgumentsBuiltinsAssembler builtins_assembler(state());
+  TorqueGeneratedExportedMacrosAssembler builtins_assembler(state());
   TNode<JSObject> result =
-      builtins_assembler.EmitFastNewRestParameter(context, closure);
+      builtins_assembler.EmitFastNewRestArguments(context, closure);
   SetAccumulator(result);
   Dispatch();
 }

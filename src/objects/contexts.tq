@@ -20,6 +20,9 @@ extern class NativeContext extends Context;
 extern class ScriptContext extends Context generates 'TNode<Context>';
 extern class WithContext extends Context generates 'TNode<Context>';
 
+const MIN_CONTEXT_SLOTS: constexpr int31
+    generates 'Context::MIN_CONTEXT_SLOTS';
+
 extern enum NativeContextSlot extends intptr constexpr 'Context::Field' {
   ARRAY_BUFFER_FUN_INDEX,
   ARRAY_BUFFER_NOINIT_FUN_INDEX,
@@ -37,6 +40,9 @@ extern enum NativeContextSlot extends intptr constexpr 'Context::Field' {
   REGEXP_LAST_MATCH_INFO_INDEX,
   INITIAL_STRING_ITERATOR_MAP_INDEX,
   SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP,
+  STRICT_ARGUMENTS_MAP_INDEX,
+  SLOPPY_ARGUMENTS_MAP_INDEX,
+  FAST_ALIASED_ARGUMENTS_MAP_INDEX,
 
   PROMISE_FUNCTION_INDEX,
   PROMISE_THEN_INDEX,

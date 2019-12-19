@@ -811,6 +811,14 @@ namespace test {
     check(x.TestMethod2() == Null);
   }
 
+  @export
+  macro TestParentFrameArguments(implicit context: Context)() {
+    const parentFrame = LoadParentFramePointer();
+    const castFrame = Cast<StandardFrame>(parentFrame) otherwise unreachable;
+    const arguments = GetFrameArguments(castFrame, 1);
+    ArgumentsIterator{arguments, current: 0};
+  }
+
   struct TestIterator {
     macro Next(): Object labels NoMore {
       if (this.count-- == 0) goto NoMore;

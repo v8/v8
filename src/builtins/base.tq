@@ -140,6 +140,10 @@ type NoSharedNameSentinel extends Smi;
 
 extern class ScopeInfo extends FixedArray;
 
+operator '[]' macro LoadScopeInfoElement(s: ScopeInfo, i: intptr): Object {
+  return s.objects[i];
+}
+
 // Specialized types. The following three type definitions don't correspond to
 // actual C++ classes, but have Is... methods that check additional constraints.
 
@@ -330,6 +334,9 @@ extern enum PrimitiveType { kString, kBoolean, kSymbol, kNumber }
 
 const kNameDictionaryInitialCapacity:
     constexpr int32 generates 'NameDictionary::kInitialCapacity';
+
+const kScopeInfoFlagsIndex:
+    constexpr int32 generates 'ScopeInfo::Fields::kFlags';
 
 type TheHole extends Oddball;
 type Null extends Oddball;
@@ -865,6 +872,7 @@ extern macro EmptyFixedArrayConstant(): EmptyFixedArray;
 extern macro PromiseCapabilityMapConstant(): Map;
 extern macro OneByteStringMapConstant(): Map;
 extern macro StringMapConstant(): Map;
+extern macro SloppyArgumentsElementsMapConstant(): Map;
 
 const kFixedArrayMap: Map = FixedArrayMapConstant();
 const kCOWMap: Map = FixedCOWArrayMapConstant();
@@ -875,6 +883,7 @@ const kPromiseCapabilityMap: Map = PromiseCapabilityMapConstant();
 const kOneByteStringMap: Map = OneByteStringMapConstant();
 // The map of a non-internalized internal SeqTwoByteString.
 const kStringMap: Map = StringMapConstant();
+const kSloppyArgumentsElementsMap: Map = SloppyArgumentsElementsMapConstant();
 
 extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
     bool;
@@ -984,6 +993,18 @@ macro GetReflectApply(implicit context: Context)(): Callable {
 macro GetRegExpLastMatchInfo(implicit context: Context)(): RegExpMatchInfo {
   return %RawDownCast<RegExpMatchInfo>(LoadNativeContext(
       context)[NativeContextSlot::REGEXP_LAST_MATCH_INFO_INDEX]);
+}
+macro GetStrictArgumentsMap(implicit context: Context)(): Map {
+  return UnsafeCast<Map>(LoadNativeContext(
+      context)[NativeContextSlot::STRICT_ARGUMENTS_MAP_INDEX]);
+}
+macro GetSloppyArgumentsMap(implicit context: Context)(): Map {
+  return UnsafeCast<Map>(LoadNativeContext(
+      context)[NativeContextSlot::SLOPPY_ARGUMENTS_MAP_INDEX]);
+}
+macro GetFastAliasedArgumentsMap(implicit context: Context)(): Map {
+  return UnsafeCast<Map>(LoadNativeContext(
+      context)[NativeContextSlot::FAST_ALIASED_ARGUMENTS_MAP_INDEX]);
 }
 
 extern transitioning macro Call(Context, Callable, JSAny): JSAny;
@@ -1508,3 +1529,5 @@ macro ReplaceTheHoleWithUndefined(o: JSAny|TheHole): JSAny {
     }
   }
 }
+
+extern macro DecodeScopeInfoHasContextExtension(intptr): intptr;
