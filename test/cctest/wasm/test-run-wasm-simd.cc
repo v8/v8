@@ -2181,13 +2181,13 @@ WASM_SIMD_TEST(I16x8LeU) {
                     UnsignedLessEqual);
 }
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(I16x8RoundingAverageU) {
   RunI16x8BinOpTest<uint16_t>(execution_tier, lower_simd,
                               kExprI16x8RoundingAverageU,
                               base::RoundingAverageUnsigned);
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 void RunI16x8ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                          WasmOpcode opcode, Int16ShiftOp expected_op) {
@@ -2407,13 +2407,13 @@ WASM_SIMD_TEST(I8x16Mul) {
                     base::MulWithWraparound);
 }
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(I8x16RoundingAverageU) {
   RunI8x16BinOpTest<uint8_t>(execution_tier, lower_simd,
                              kExprI8x16RoundingAverageU,
                              base::RoundingAverageUnsigned);
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 void RunI8x16ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                          WasmOpcode opcode, Int8ShiftOp expected_op) {

@@ -2248,6 +2248,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I16x8MaxU, Umax, 8H);
       SIMD_BINOP_CASE(kArm64I16x8GtU, Cmhi, 8H);
       SIMD_BINOP_CASE(kArm64I16x8GeU, Cmhs, 8H);
+      SIMD_BINOP_CASE(kArm64I16x8RoundingAverageU, Urhadd, 8H);
     case kArm64I8x16Splat: {
       __ Dup(i.OutputSimd128Register().V16B(), i.InputRegister32(0));
       break;
@@ -2355,6 +2356,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I8x16MaxU, Umax, 16B);
       SIMD_BINOP_CASE(kArm64I8x16GtU, Cmhi, 16B);
       SIMD_BINOP_CASE(kArm64I8x16GeU, Cmhs, 16B);
+      SIMD_BINOP_CASE(kArm64I8x16RoundingAverageU, Urhadd, 16B);
     case kArm64S128Zero: {
       __ Movi(i.OutputSimd128Register().V16B(), 0);
       break;

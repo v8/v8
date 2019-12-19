@@ -2634,13 +2634,13 @@ void InstructionSelector::VisitF64x2SConvertI64x2(Node* node) {
 void InstructionSelector::VisitF64x2UConvertI64x2(Node* node) {
   UNIMPLEMENTED();
 }
+#if !V8_TARGET_ARCH_ARM64
 void InstructionSelector::VisitI16x8RoundingAverageU(Node* node) {
   UNIMPLEMENTED();
 }
 void InstructionSelector::VisitI8x16RoundingAverageU(Node* node) {
   UNIMPLEMENTED();
 }
-#if !V8_TARGET_ARCH_ARM64
 #if !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitLoadTransform(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM

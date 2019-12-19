@@ -254,6 +254,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I16x8MaxU:
     case kArm64I16x8GtU:
     case kArm64I16x8GeU:
+    case kArm64I16x8RoundingAverageU:
     case kArm64I8x16Splat:
     case kArm64I8x16ExtractLaneU:
     case kArm64I8x16ExtractLaneS:
@@ -281,6 +282,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I8x16MaxU:
     case kArm64I8x16GtU:
     case kArm64I8x16GeU:
+    case kArm64I8x16RoundingAverageU:
     case kArm64S128Zero:
     case kArm64S128Dup:
     case kArm64S128And:
