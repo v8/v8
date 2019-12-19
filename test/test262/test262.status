@@ -457,6 +457,10 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10069
+  'intl402/DisplayNames/options-type-valid': [FAIL],
+  'intl402/DisplayNames/prototype/resolvedOptions/option-type': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/generators/generator-created-after-decl-inst': [FAIL],

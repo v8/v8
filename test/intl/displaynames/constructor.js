@@ -84,21 +84,6 @@ assertDoesNotThrow(
 assertDoesNotThrow(
     () => new Intl.DisplayNames('sr', {type: 'currency'}));
 
-assertDoesNotThrow(
-    () => new Intl.DisplayNames('sr', {type: 'month'}));
-
-assertDoesNotThrow(
-    () => new Intl.DisplayNames('sr', {type: 'weekday'}));
-
-assertDoesNotThrow(
-    () => new Intl.DisplayNames('sr', {type: 'quarter'}));
-
-assertDoesNotThrow(
-    () => new Intl.DisplayNames('sr', {type: 'dayPeriod'}));
-
-assertDoesNotThrow(
-    () => new Intl.DisplayNames('sr', {type: 'dateTimeField'}));
-
 assertThrows(
     () => new Intl.DisplayNames('sr', {type: ''}),
     RangeError);

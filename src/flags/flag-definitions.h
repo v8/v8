@@ -211,9 +211,10 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
   V(harmony_top_level_await, "harmony top level await")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_INPROGRESS(V) \
-  HARMONY_INPROGRESS_BASE(V)  \
-  V(harmony_intl_displaynames, "Intl.DisplayNames")
+#define HARMONY_INPROGRESS(V)                       \
+  HARMONY_INPROGRESS_BASE(V)                        \
+  V(harmony_intl_displaynames, "Intl.DisplayNames") \
+  V(harmony_intl_displaynames_date_types, "Intl.DisplayNames date types")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #endif

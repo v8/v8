@@ -517,22 +517,25 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
   std::unique_ptr<char[]> calendar_str = nullptr;
-  const std::vector<const char*> empty_values = {};
-  // 10. Let calendar be ? GetOption(options, "calendar",
-  //    "string", undefined, undefined).
-  Maybe<bool> maybe_calendar = Intl::GetStringOption(
-      isolate, options, "calendar", empty_values, service, &calendar_str);
-  MAYBE_RETURN(maybe_calendar, MaybeHandle<JSDisplayNames>());
-  // 11. If calendar is not undefined, then
-  if (maybe_calendar.FromJust() && calendar_str != nullptr) {
-    // a. If calendar does not match the (3*8alphanum) *("-" (3*8alphanum))
-    //    sequence, throw a RangeError exception.
-    if (!Intl::IsWellFormedCalendar(calendar_str.get())) {
-      THROW_NEW_ERROR(
-          isolate,
-          NewRangeError(MessageTemplate::kInvalid, factory->calendar_string(),
-                        factory->NewStringFromAsciiChecked(calendar_str.get())),
-          JSDisplayNames);
+  if (FLAG_harmony_intl_displaynames_date_types) {
+    const std::vector<const char*> empty_values = {};
+    // 10. Let calendar be ? GetOption(options, "calendar",
+    //    "string", undefined, undefined).
+    Maybe<bool> maybe_calendar = Intl::GetStringOption(
+        isolate, options, "calendar", empty_values, service, &calendar_str);
+    MAYBE_RETURN(maybe_calendar, MaybeHandle<JSDisplayNames>());
+    // 11. If calendar is not undefined, then
+    if (maybe_calendar.FromJust() && calendar_str != nullptr) {
+      // a. If calendar does not match the (3*8alphanum) *("-" (3*8alphanum))
+      //    sequence, throw a RangeError exception.
+      if (!Intl::IsWellFormedCalendar(calendar_str.get())) {
+        THROW_NEW_ERROR(
+            isolate,
+            NewRangeError(
+                MessageTemplate::kInvalid, factory->calendar_string(),
+                factory->NewStringFromAsciiChecked(calendar_str.get())),
+            JSDisplayNames);
+      }
     }
   }
 
@@ -541,12 +544,15 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   // ecma402/#sec-Intl.DisplayNames-internal-slots
   // The value of the [[RelevantExtensionKeys]] internal slot is
   // « "ca" ».
-  std::set<std::string> relevant_extension_keys = {"ca"};
+  std::set<std::string> relevant_extension_keys_ca = {"ca"};
+  std::set<std::string> relevant_extension_keys = {};
   // 13. Let r be ResolveLocale(%DisplayNames%.[[AvailableLocales]],
   //     requestedLocales, opt, %DisplayNames%.[[RelevantExtensionKeys]]).
-  Intl::ResolvedLocale r =
-      Intl::ResolveLocale(isolate, JSDisplayNames::GetAvailableLocales(),
-                          requested_locales, matcher, relevant_extension_keys);
+  Intl::ResolvedLocale r = Intl::ResolveLocale(
+      isolate, JSDisplayNames::GetAvailableLocales(), requested_locales,
+      matcher,
+      FLAG_harmony_intl_displaynames_date_types ? relevant_extension_keys_ca
+                                                : relevant_extension_keys);
 
   icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;
@@ -570,22 +576,34 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   // 16. Let type be ? GetOption(options, "type", "string", « "language",
   //     "region", "script", "currency", "weekday", "month", "quarter",
   //     "dayPeriod", "dateTimeField" », "language").
-  Maybe<Type> maybe_type = Intl::GetStringOption<Type>(
-      isolate, options, "type", "Intl.DisplayNames",
-      {"language", "region", "script", "currency", "weekday", "month",
-       "quarter", "dayPeriod", "dateTimeField"},
-      {
-          Type::kLanguage,
-          Type::kRegion,
-          Type::kScript,
-          Type::kCurrency,
-          Type::kWeekday,
-          Type::kMonth,
-          Type::kQuarter,
-          Type::kDayPeriod,
-          Type::kDateTimeField,
-      },
-      Type::kLanguage);
+  Maybe<Type> maybe_type =
+      FLAG_harmony_intl_displaynames_date_types
+          ? Intl::GetStringOption<Type>(
+                isolate, options, "type", "Intl.DisplayNames",
+                {"language", "region", "script", "currency", "weekday", "month",
+                 "quarter", "dayPeriod", "dateTimeField"},
+                {
+                    Type::kLanguage,
+                    Type::kRegion,
+                    Type::kScript,
+                    Type::kCurrency,
+                    Type::kWeekday,
+                    Type::kMonth,
+                    Type::kQuarter,
+                    Type::kDayPeriod,
+                    Type::kDateTimeField,
+                },
+                Type::kLanguage)
+          : Intl::GetStringOption<Type>(
+                isolate, options, "type", "Intl.DisplayNames",
+                {"language", "region", "script", "currency"},
+                {
+                    Type::kLanguage,
+                    Type::kRegion,
+                    Type::kScript,
+                    Type::kCurrency,
+                },
+                Type::kLanguage);
   MAYBE_RETURN(maybe_type, MaybeHandle<JSDisplayNames>());
   Type type_enum = maybe_type.FromJust();
 
