@@ -436,9 +436,13 @@
 }],  # variant == no_wasm_traps
 
 ##############################################################################
-# The stack unwinder API is only supported on x64 and arm64.
+# The stack unwinder API is only supported on x64, arm64 and arm.
 ['arch != x64 and arch != arm64', {
   'test-unwinder/*': [SKIP]
+}],
+
+['arch != x64 and arch != arm64 and arch != arm', {
+  'test-unwinder-code-pages/*': [SKIP]
 }],
 
 ##############################################################################

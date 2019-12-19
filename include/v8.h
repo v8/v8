@@ -2233,6 +2233,12 @@ struct UnwindState {
   JSEntryStub js_run_microtasks_entry_stub;
 };
 
+struct JSEntryStubs {
+  JSEntryStub js_entry_stub;
+  JSEntryStub js_construct_entry_stub;
+  JSEntryStub js_run_microtasks_entry_stub;
+};
+
 /**
  * A JSON Parser and Stringifier.
  */
@@ -9136,7 +9142,14 @@ class V8_EXPORT Isolate {
   /**
    * Returns the UnwindState necessary for use with the Unwinder API.
    */
+  // TODO(petermarshall): Remove this API.
+  V8_DEPRECATE_SOON("Use entry_stubs + code_pages version.")
   UnwindState GetUnwindState();
+
+  /**
+   * Returns the JSEntryStubs necessary for use with the Unwinder API.
+   */
+  JSEntryStubs GetJSEntryStubs();
 
   static constexpr size_t kMinCodePagesBufferSize = 32;
 
@@ -10457,7 +10470,7 @@ class V8_EXPORT Locker {
 /**
  * Various helpers for skipping over V8 frames in a given stack.
  *
- * The unwinder API is only supported on the x64 architecture.
+ * The unwinder API is only supported on the x64, ARM64 and ARM32 architectures.
  */
 class V8_EXPORT Unwinder {
  public:
@@ -10489,7 +10502,23 @@ class V8_EXPORT Unwinder {
    *
    * \return True on success.
    */
+  // TODO(petermarshall): Remove this API
+  V8_DEPRECATE_SOON("Use entry_stubs + code_pages version.")
   static bool TryUnwindV8Frames(const UnwindState& unwind_state,
+                                RegisterState* register_state,
+                                const void* stack_base);
+
+  /**
+   * The same as above, but is available on x64, ARM64 and ARM32.
+   *
+   * \param code_pages A list of all of the ranges in which V8 has allocated
+   * executable code. The caller should obtain this list by calling
+   * Isolate::CopyCodePages() during the same interrupt/thread suspension that
+   * captures the stack.
+   */
+  static bool TryUnwindV8Frames(const JSEntryStubs& entry_stubs,
+                                size_t code_pages_length,
+                                const MemoryRange* code_pages,
                                 RegisterState* register_state,
                                 const void* stack_base);
 
@@ -10501,7 +10530,16 @@ class V8_EXPORT Unwinder {
    * and unwind_state will always fail. If it returns true, then unwinding may
    * (but not necessarily) be successful.
    */
+  // TODO(petermarshall): Remove this API
+  V8_DEPRECATE_SOON("Use code_pages version.")
   static bool PCIsInV8(const UnwindState& unwind_state, void* pc);
+
+  /**
+   * The same as above, but is available on x64, ARM64 and ARM32. See the
+   * comment on TryUnwindV8Frames.
+   */
+  static bool PCIsInV8(size_t code_pages_length, const MemoryRange* code_pages,
+                       void* pc);
 };
 
 // --- Implementation ---

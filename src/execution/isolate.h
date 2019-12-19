@@ -1490,7 +1490,7 @@ class Isolate final : private HiddenFactory {
 
   void AddCodeMemoryChunk(MemoryChunk* chunk);
   void RemoveCodeMemoryChunk(MemoryChunk* chunk);
-  void AddCodeRange(Address begin, size_t length_in_bytes);
+  V8_EXPORT_PRIVATE void AddCodeRange(Address begin, size_t length_in_bytes);
 
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);

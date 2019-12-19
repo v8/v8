@@ -8914,6 +8914,25 @@ UnwindState Isolate::GetUnwindState() {
   return unwind_state;
 }
 
+JSEntryStubs Isolate::GetJSEntryStubs() {
+  JSEntryStubs entry_stubs;
+
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  std::array<std::pair<i::Builtins::Name, JSEntryStub*>, 3> stubs = {
+      {{i::Builtins::kJSEntry, &entry_stubs.js_entry_stub},
+       {i::Builtins::kJSConstructEntry, &entry_stubs.js_construct_entry_stub},
+       {i::Builtins::kJSRunMicrotasksEntry,
+        &entry_stubs.js_run_microtasks_entry_stub}}};
+  for (auto& pair : stubs) {
+    i::Code js_entry = isolate->heap()->builtin(pair.first);
+    pair.second->code.start =
+        reinterpret_cast<const void*>(js_entry.InstructionStart());
+    pair.second->code.length_in_bytes = js_entry.InstructionSize();
+  }
+
+  return entry_stubs;
+}
+
 size_t Isolate::CopyCodePages(size_t capacity, MemoryRange* code_pages_out) {
 #if !defined(V8_TARGET_ARCH_64_BIT) && !defined(V8_TARGET_ARCH_ARM)
   // Not implemented on other platforms.

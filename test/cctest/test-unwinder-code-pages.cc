@@ -13,24 +13,18 @@
 
 namespace v8 {
 namespace internal {
-namespace test_unwinder {
+namespace test_unwinder_code_pages {
 
 static const void* fake_stack_base = nullptr;
 
-// Ignore deprecation warnings so that we can keep the tests for now.
-// TODO(petermarshall): Delete all the tests here when the old API is removed to
-// reduce the duplication.
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-
-TEST(Unwind_BadState_Fail) {
-  UnwindState unwind_state;  // Fields are intialized to nullptr.
+TEST(Unwind_BadState_Fail_CodePagesAPI) {
+  JSEntryStubs entry_stubs;  // Fields are intialized to nullptr.
   RegisterState register_state;
+  size_t pages_length = 0;
+  MemoryRange* code_pages = nullptr;
 
-  bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
-                                                 fake_stack_base);
+  bool unwound = v8::Unwinder::TryUnwindV8Frames(
+      entry_stubs, pages_length, code_pages, &register_state, fake_stack_base);
   CHECK(!unwound);
   // The register state should not change when unwinding fails.
   CHECK_NULL(register_state.fp);
@@ -38,12 +32,16 @@ TEST(Unwind_BadState_Fail) {
   CHECK_NULL(register_state.pc);
 }
 
-TEST(Unwind_BuiltinPCInMiddle_Success) {
+TEST(Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
-  UnwindState unwind_state = isolate->GetUnwindState();
+  JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
+  MemoryRange code_pages[v8::Isolate::kMinCodePagesBufferSize];
+  size_t pages_length =
+      isolate->CopyCodePages(arraysize(code_pages), code_pages);
+  CHECK_LE(pages_length, arraysize(code_pages));
   RegisterState register_state;
 
   uintptr_t stack[3];
@@ -62,8 +60,8 @@ TEST(Unwind_BuiltinPCInMiddle_Success) {
   register_state.pc =
       reinterpret_cast<void*>(builtin.InstructionStart() + offset);
 
-  bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
-                                                 stack_base);
+  bool unwound = v8::Unwinder::TryUnwindV8Frames(
+      entry_stubs, pages_length, code_pages, &register_state, stack_base);
   CHECK(unwound);
   CHECK_EQ(reinterpret_cast<void*>(stack + 2), register_state.fp);
   CHECK_EQ(reinterpret_cast<void*>(stack + 2), register_state.sp);
@@ -75,18 +73,24 @@ TEST(Unwind_BuiltinPCInMiddle_Success) {
 // long as the PC isn't in JSEntry). This test puts the PC at the start
 // of a JS builtin and creates a fake JSEntry frame before it on the stack. The
 // unwinder should be able to unwind to the C++ frame before the JSEntry frame.
-TEST(Unwind_BuiltinPCAtStart_Success) {
+TEST(Unwind_BuiltinPCAtStart_Success_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
-  UnwindState unwind_state = isolate->GetUnwindState();
+  JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
+  MemoryRange code_pages[v8::Isolate::kMinCodePagesBufferSize];
   RegisterState register_state;
 
   const size_t code_length = 40;
   uintptr_t code[code_length] = {0};
-  unwind_state.code_range.start = code;
-  unwind_state.code_range.length_in_bytes = code_length * sizeof(uintptr_t);
+
+  // We use AddCodeRange so that |code| is inserted in order.
+  i_isolate->AddCodeRange(reinterpret_cast<Address>(code),
+                          code_length * sizeof(uintptr_t));
+  size_t pages_length =
+      isolate->CopyCodePages(arraysize(code_pages), code_pages);
+  CHECK_LE(pages_length, arraysize(code_pages));
 
   uintptr_t stack[6];
   void* stack_base = stack + arraysize(stack);
@@ -107,8 +111,8 @@ TEST(Unwind_BuiltinPCAtStart_Success) {
   Code builtin = i_isolate->builtins()->builtin(Builtins::kStringEqual);
   register_state.pc = reinterpret_cast<void*>(builtin.InstructionStart());
 
-  bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
-                                                 stack_base);
+  bool unwound = v8::Unwinder::TryUnwindV8Frames(
+      entry_stubs, pages_length, code_pages, &register_state, stack_base);
 
   CHECK(unwound);
   CHECK_EQ(reinterpret_cast<void*>(stack + 5), register_state.fp);
@@ -130,16 +134,28 @@ const char* foo_source = R"(
   foo(1, 2);
 )";
 
+bool PagesContainsAddress(size_t length, MemoryRange* pages,
+                          Address search_address) {
+  byte* addr = reinterpret_cast<byte*>(search_address);
+  auto it = std::find_if(pages, pages + length, [addr](const MemoryRange& r) {
+    const byte* page_start = reinterpret_cast<const byte*>(r.start);
+    const byte* page_end = page_start + r.length_in_bytes;
+    return addr >= page_start && addr < page_end;
+  });
+  return it != pages + length;
+}
+
 // Check that we can unwind when the pc is within an optimized code object on
 // the V8 heap.
-TEST(Unwind_CodeObjectPCInMiddle_Success) {
+TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
   FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   HandleScope scope(i_isolate);
 
-  UnwindState unwind_state = isolate->GetUnwindState();
+  JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
+  MemoryRange code_pages[v8::Isolate::kMinCodePagesBufferSize];
   RegisterState register_state;
 
   uintptr_t stack[3];
@@ -174,13 +190,15 @@ TEST(Unwind_CodeObjectPCInMiddle_Success) {
   Address pc = code.InstructionStart() + offset;
   register_state.pc = reinterpret_cast<void*>(pc);
 
-  // Check that the created code is within the code range that we get from the
-  // API.
-  Address start = reinterpret_cast<Address>(unwind_state.code_range.start);
-  CHECK(pc >= start && pc < start + unwind_state.code_range.length_in_bytes);
+  // Get code pages from the API now that the code obejct exists and check that
+  // our code objects is on one of the pages.
+  size_t pages_length =
+      isolate->CopyCodePages(arraysize(code_pages), code_pages);
+  CHECK_LE(pages_length, arraysize(code_pages));
+  CHECK(PagesContainsAddress(pages_length, code_pages, pc));
 
-  bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
-                                                 stack_base);
+  bool unwound = v8::Unwinder::TryUnwindV8Frames(
+      entry_stubs, pages_length, code_pages, &register_state, stack_base);
   CHECK(unwound);
   CHECK_EQ(reinterpret_cast<void*>(stack + 2), register_state.fp);
   CHECK_EQ(reinterpret_cast<void*>(stack + 2), register_state.sp);
@@ -189,21 +207,23 @@ TEST(Unwind_CodeObjectPCInMiddle_Success) {
 
 // If the PC is within JSEntry but we haven't set up the frame yet, then we
 // cannot unwind.
-TEST(Unwind_JSEntryBeforeFrame_Fail) {
+TEST(Unwind_JSEntryBeforeFrame_Fail_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
 
-  UnwindState unwind_state = isolate->GetUnwindState();
+  JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
+  MemoryRange code_pages[1];
+  size_t pages_length = 1;
   RegisterState register_state;
 
   const size_t code_length = 40;
   uintptr_t code[code_length] = {0};
-  unwind_state.code_range.start = code;
-  unwind_state.code_range.length_in_bytes = code_length * sizeof(uintptr_t);
+  code_pages[0].start = code;
+  code_pages[0].length_in_bytes = code_length * sizeof(uintptr_t);
 
   // Pretend that it takes 5 instructions to set up the frame in JSEntry.
-  unwind_state.js_entry_stub.code.start = code + 10;
-  unwind_state.js_entry_stub.code.length_in_bytes = 10 * sizeof(uintptr_t);
+  entry_stubs.js_entry_stub.code.start = code + 10;
+  entry_stubs.js_entry_stub.code.length_in_bytes = 10 * sizeof(uintptr_t);
 
   uintptr_t stack[10];
   void* stack_base = stack + arraysize(stack);
@@ -223,8 +243,8 @@ TEST(Unwind_JSEntryBeforeFrame_Fail) {
 
   // Put the current PC inside of JSEntry, before the frame is set up.
   register_state.pc = code + 12;
-  bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
-                                                 stack_base);
+  bool unwound = v8::Unwinder::TryUnwindV8Frames(
+      entry_stubs, pages_length, code_pages, &register_state, stack_base);
   CHECK(!unwound);
   // The register state should not change when unwinding fails.
   CHECK_EQ(reinterpret_cast<void*>(stack + 9), register_state.fp);
@@ -233,8 +253,8 @@ TEST(Unwind_JSEntryBeforeFrame_Fail) {
 
   // Change the PC to a few instructions later, after the frame is set up.
   register_state.pc = code + 16;
-  unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
-                                            stack_base);
+  unwound = v8::Unwinder::TryUnwindV8Frames(
+      entry_stubs, pages_length, code_pages, &register_state, stack_base);
   // TODO(petermarshall): More precisely check position within JSEntry rather
   // than just assuming the frame is unreadable.
   CHECK(!unwound);
@@ -244,18 +264,20 @@ TEST(Unwind_JSEntryBeforeFrame_Fail) {
   CHECK_EQ(code + 16, register_state.pc);
 }
 
-TEST(Unwind_OneJSFrame_Success) {
+TEST(Unwind_OneJSFrame_Success_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
 
-  UnwindState unwind_state = isolate->GetUnwindState();
+  JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
+  MemoryRange code_pages[1];
+  size_t pages_length = 1;
   RegisterState register_state;
 
   // Use a fake code range so that we can initialize it to 0s.
   const size_t code_length = 40;
   uintptr_t code[code_length] = {0};
-  unwind_state.code_range.start = code;
-  unwind_state.code_range.length_in_bytes = code_length * sizeof(uintptr_t);
+  code_pages[0].start = code;
+  code_pages[0].length_in_bytes = code_length * sizeof(uintptr_t);
 
   // Our fake stack has two frames - one C++ frame and one JS frame (on top).
   // The stack grows from high addresses to low addresses.
@@ -278,8 +300,8 @@ TEST(Unwind_OneJSFrame_Success) {
   // Put the current PC inside of the code range so it looks valid.
   register_state.pc = code + 30;
 
-  bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
-                                                 stack_base);
+  bool unwound = v8::Unwinder::TryUnwindV8Frames(
+      entry_stubs, pages_length, code_pages, &register_state, stack_base);
 
   CHECK(unwound);
   CHECK_EQ(reinterpret_cast<void*>(stack + 9), register_state.fp);
@@ -290,18 +312,20 @@ TEST(Unwind_OneJSFrame_Success) {
 // Creates a fake stack with two JS frames on top of a C++ frame and checks that
 // the unwinder correctly unwinds past the JS frames and returns the C++ frame's
 // details.
-TEST(Unwind_TwoJSFrames_Success) {
+TEST(Unwind_TwoJSFrames_Success_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
 
-  UnwindState unwind_state = isolate->GetUnwindState();
+  JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
+  MemoryRange code_pages[1];
+  size_t pages_length = 1;
   RegisterState register_state;
 
   // Use a fake code range so that we can initialize it to 0s.
   const size_t code_length = 40;
   uintptr_t code[code_length] = {0};
-  unwind_state.code_range.start = code;
-  unwind_state.code_range.length_in_bytes = code_length * sizeof(uintptr_t);
+  code_pages[0].start = code;
+  code_pages[0].length_in_bytes = code_length * sizeof(uintptr_t);
 
   // Our fake stack has three frames - one C++ frame and two JS frames (on top).
   // The stack grows from high addresses to low addresses.
@@ -325,8 +349,8 @@ TEST(Unwind_TwoJSFrames_Success) {
   // Put the current PC inside of the code range so it looks valid.
   register_state.pc = code + 30;
 
-  bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
-                                                 stack_base);
+  bool unwound = v8::Unwinder::TryUnwindV8Frames(
+      entry_stubs, pages_length, code_pages, &register_state, stack_base);
 
   CHECK(unwound);
   CHECK_EQ(reinterpret_cast<void*>(stack + 9), register_state.fp);
@@ -336,20 +360,24 @@ TEST(Unwind_TwoJSFrames_Success) {
 
 // If the PC is in JSEntry then the frame might not be set up correctly, meaning
 // we can't unwind the stack properly.
-TEST(Unwind_JSEntry_Fail) {
+TEST(Unwind_JSEntry_Fail_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
-  UnwindState unwind_state = isolate->GetUnwindState();
+  JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
+  MemoryRange code_pages[v8::Isolate::kMinCodePagesBufferSize];
+  size_t pages_length =
+      isolate->CopyCodePages(arraysize(code_pages), code_pages);
+  CHECK_LE(pages_length, arraysize(code_pages));
   RegisterState register_state;
 
   Code js_entry = i_isolate->heap()->builtin(Builtins::kJSEntry);
   byte* start = reinterpret_cast<byte*>(js_entry.InstructionStart());
   register_state.pc = start + 10;
 
-  bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
-                                                 fake_stack_base);
+  bool unwound = v8::Unwinder::TryUnwindV8Frames(
+      entry_stubs, pages_length, code_pages, &register_state, fake_stack_base);
   CHECK(!unwound);
   // The register state should not change when unwinding fails.
   CHECK_NULL(register_state.fp);
@@ -357,17 +385,19 @@ TEST(Unwind_JSEntry_Fail) {
   CHECK_EQ(start + 10, register_state.pc);
 }
 
-TEST(Unwind_StackBounds_Basic) {
+TEST(Unwind_StackBounds_Basic_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
 
-  UnwindState unwind_state = isolate->GetUnwindState();
+  JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
+  MemoryRange code_pages[1];
+  size_t pages_length = 1;
   RegisterState register_state;
 
   const size_t code_length = 10;
   uintptr_t code[code_length] = {0};
-  unwind_state.code_range.start = code;
-  unwind_state.code_range.length_in_bytes = code_length * sizeof(uintptr_t);
+  code_pages[0].start = code;
+  code_pages[0].length_in_bytes = code_length * sizeof(uintptr_t);
 
   uintptr_t stack[3];
   stack[0] = reinterpret_cast<uintptr_t>(stack + 2);  // saved FP (rbp).
@@ -380,29 +410,32 @@ TEST(Unwind_StackBounds_Basic) {
 
   void* wrong_stack_base = reinterpret_cast<void*>(
       reinterpret_cast<uintptr_t>(stack) - sizeof(uintptr_t));
-  bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
-                                                 wrong_stack_base);
+  bool unwound = v8::Unwinder::TryUnwindV8Frames(
+      entry_stubs, pages_length, code_pages, &register_state, wrong_stack_base);
   CHECK(!unwound);
 
   // Correct the stack base and unwinding should succeed.
   void* correct_stack_base = stack + arraysize(stack);
-  unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
-                                            correct_stack_base);
+  unwound =
+      v8::Unwinder::TryUnwindV8Frames(entry_stubs, pages_length, code_pages,
+                                      &register_state, correct_stack_base);
   CHECK(unwound);
 }
 
-TEST(Unwind_StackBounds_WithUnwinding) {
+TEST(Unwind_StackBounds_WithUnwinding_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
 
-  UnwindState unwind_state = isolate->GetUnwindState();
+  JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
+  MemoryRange code_pages[1];
+  size_t pages_length = 1;
   RegisterState register_state;
 
   // Use a fake code range so that we can initialize it to 0s.
   const size_t code_length = 40;
   uintptr_t code[code_length] = {0};
-  unwind_state.code_range.start = code;
-  unwind_state.code_range.length_in_bytes = code_length * sizeof(uintptr_t);
+  code_pages[0].start = code;
+  code_pages[0].length_in_bytes = code_length * sizeof(uintptr_t);
 
   // Our fake stack has two frames - one C++ frame and one JS frame (on top).
   // The stack grows from high addresses to low addresses.
@@ -428,102 +461,106 @@ TEST(Unwind_StackBounds_WithUnwinding) {
   register_state.pc = code + 30;
 
   // Unwind will fail because stack[9] FP points outside of the stack.
-  bool unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
-                                                 stack_base);
+  bool unwound = v8::Unwinder::TryUnwindV8Frames(
+      entry_stubs, pages_length, code_pages, &register_state, stack_base);
   CHECK(!unwound);
 
   // Change the return address so that it is not in range. We will not range
   // check the stack[9] FP value because we have finished unwinding and the
   // contents of rbp does not necessarily have to be the FP in this case.
   stack[10] = 202;
-  unwound = v8::Unwinder::TryUnwindV8Frames(unwind_state, &register_state,
-                                            stack_base);
+  unwound = v8::Unwinder::TryUnwindV8Frames(
+      entry_stubs, pages_length, code_pages, &register_state, stack_base);
   CHECK(unwound);
 }
 
-TEST(PCIsInV8_BadState_Fail) {
-  UnwindState unwind_state;
+TEST(PCIsInV8_BadState_Fail_CodePagesAPI) {
   void* pc = nullptr;
+  size_t pages_length = 0;
+  MemoryRange* code_pages = nullptr;
 
-  CHECK(!v8::Unwinder::PCIsInV8(unwind_state, pc));
+  CHECK(!v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
 }
 
-TEST(PCIsInV8_ValidStateNullPC_Fail) {
+TEST(PCIsInV8_ValidStateNullPC_Fail_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
 
-  UnwindState unwind_state = isolate->GetUnwindState();
   void* pc = nullptr;
 
-  CHECK(!v8::Unwinder::PCIsInV8(unwind_state, pc));
+  MemoryRange code_pages[v8::Isolate::kMinCodePagesBufferSize];
+  size_t pages_length =
+      isolate->CopyCodePages(arraysize(code_pages), code_pages);
+  CHECK_LE(pages_length, arraysize(code_pages));
+
+  CHECK(!v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
 }
 
-void TestRangeBoundaries(const UnwindState& unwind_state, byte* range_start,
-                         size_t range_length) {
+void TestRangeBoundaries(size_t pages_length, MemoryRange* code_pages,
+                         byte* range_start, size_t range_length) {
   void* pc = range_start - 1;
-  CHECK(!v8::Unwinder::PCIsInV8(unwind_state, pc));
+  CHECK(!v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
   pc = range_start;
-  CHECK(v8::Unwinder::PCIsInV8(unwind_state, pc));
+  CHECK(v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
   pc = range_start + 1;
-  CHECK(v8::Unwinder::PCIsInV8(unwind_state, pc));
+  CHECK(v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
   pc = range_start + range_length - 1;
-  CHECK(v8::Unwinder::PCIsInV8(unwind_state, pc));
+  CHECK(v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
   pc = range_start + range_length;
-  CHECK(!v8::Unwinder::PCIsInV8(unwind_state, pc));
+  CHECK(!v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
   pc = range_start + range_length + 1;
-  CHECK(!v8::Unwinder::PCIsInV8(unwind_state, pc));
+  CHECK(!v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
 }
 
-TEST(PCIsInV8_InCodeOrEmbeddedRange) {
+TEST(PCIsInV8_InAllCodePages_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
 
-  UnwindState unwind_state = isolate->GetUnwindState();
+  MemoryRange code_pages[v8::Isolate::kMinCodePagesBufferSize];
+  size_t pages_length =
+      isolate->CopyCodePages(arraysize(code_pages), code_pages);
+  CHECK_LE(pages_length, arraysize(code_pages));
 
-  byte* code_range_start = const_cast<byte*>(
-      reinterpret_cast<const byte*>(unwind_state.code_range.start));
-  size_t code_range_length = unwind_state.code_range.length_in_bytes;
-  TestRangeBoundaries(unwind_state, code_range_start, code_range_length);
-
-  byte* embedded_range_start = const_cast<byte*>(
-      reinterpret_cast<const byte*>(unwind_state.embedded_code_range.start));
-  size_t embedded_range_length =
-      unwind_state.embedded_code_range.length_in_bytes;
-  TestRangeBoundaries(unwind_state, embedded_range_start,
-                      embedded_range_length);
+  for (size_t i = 0; i < pages_length; i++) {
+    byte* range_start =
+        const_cast<byte*>(reinterpret_cast<const byte*>(code_pages[i].start));
+    size_t range_length = code_pages[i].length_in_bytes;
+    TestRangeBoundaries(pages_length, code_pages, range_start, range_length);
+  }
 }
 
 // PCIsInV8 doesn't check if the PC is in JSEntry directly. It's assumed that
 // the CodeRange or EmbeddedCodeRange contain JSEntry.
-TEST(PCIsInV8_InJSEntryRange) {
+TEST(PCIsInV8_InJSEntryRange_CodePagesAPI) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
-  UnwindState unwind_state = isolate->GetUnwindState();
+  MemoryRange code_pages[v8::Isolate::kMinCodePagesBufferSize];
+  size_t pages_length =
+      isolate->CopyCodePages(arraysize(code_pages), code_pages);
+  CHECK_LE(pages_length, arraysize(code_pages));
 
   Code js_entry = i_isolate->heap()->builtin(Builtins::kJSEntry);
   byte* start = reinterpret_cast<byte*>(js_entry.InstructionStart());
   size_t length = js_entry.InstructionSize();
 
   void* pc = start;
-  CHECK(v8::Unwinder::PCIsInV8(unwind_state, pc));
+  CHECK(v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
   pc = start + 1;
-  CHECK(v8::Unwinder::PCIsInV8(unwind_state, pc));
+  CHECK(v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
   pc = start + length - 1;
-  CHECK(v8::Unwinder::PCIsInV8(unwind_state, pc));
+  CHECK(v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
 }
 
 // Large code objects can be allocated in large object space. Check that this is
 // inside the CodeRange.
-TEST(PCIsInV8_LargeCodeObject) {
+TEST(PCIsInV8_LargeCodeObject_CodePagesAPI) {
   FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   HandleScope scope(i_isolate);
-
-  UnwindState unwind_state = isolate->GetUnwindState();
 
   // Create a big function that ends up in CODE_LO_SPACE.
   const int instruction_size = Page::kPageSize + 1;
@@ -545,14 +582,15 @@ TEST(PCIsInV8_LargeCodeObject) {
   CHECK(i_isolate->heap()->InSpace(*foo_code, CODE_LO_SPACE));
   byte* start = reinterpret_cast<byte*>(foo_code->InstructionStart());
 
+  MemoryRange code_pages[v8::Isolate::kMinCodePagesBufferSize];
+  size_t pages_length =
+      isolate->CopyCodePages(arraysize(code_pages), code_pages);
+  CHECK_LE(pages_length, arraysize(code_pages));
+
   void* pc = start;
-  CHECK(v8::Unwinder::PCIsInV8(unwind_state, pc));
+  CHECK(v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
 }
 
-#if __clang__
-#pragma clang diagnostic pop
-#endif
-
-}  // namespace test_unwinder
+}  // namespace test_unwinder_code_pages
 }  // namespace internal
 }  // namespace v8

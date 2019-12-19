@@ -26354,7 +26354,16 @@ TEST(TestGetUnwindState) {
   v8::Isolate* isolate = env->GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
+// Ignore deprecation warnings so that we can keep the tests for now.
+// TODO(petermarshall): Remove this once the deprecated API is gone.
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
   v8::UnwindState unwind_state = isolate->GetUnwindState();
+#if __clang__
+#pragma clang diagnostic pop
+#endif
   v8::MemoryRange builtins_range = unwind_state.embedded_code_range;
 
   // Check that each off-heap builtin is within the builtins code range.
@@ -26374,6 +26383,30 @@ TEST(TestGetUnwindState) {
 
   CHECK_EQ(i_isolate->heap()->builtin(i::Builtins::kJSEntry).InstructionStart(),
            reinterpret_cast<i::Address>(js_entry_stub.code.start));
+}
+
+TEST(GetJSEntryStubs) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+  v8::JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
+
+  v8::JSEntryStub entry_stub = entry_stubs.js_entry_stub;
+  CHECK_EQ(i_isolate->heap()->builtin(i::Builtins::kJSEntry).InstructionStart(),
+           reinterpret_cast<i::Address>(entry_stub.code.start));
+
+  v8::JSEntryStub construct_stub = entry_stubs.js_construct_entry_stub;
+  CHECK_EQ(i_isolate->heap()
+               ->builtin(i::Builtins::kJSConstructEntry)
+               .InstructionStart(),
+           reinterpret_cast<i::Address>(construct_stub.code.start));
+
+  v8::JSEntryStub microtask_stub = entry_stubs.js_run_microtasks_entry_stub;
+  CHECK_EQ(i_isolate->heap()
+               ->builtin(i::Builtins::kJSRunMicrotasksEntry)
+               .InstructionStart(),
+           reinterpret_cast<i::Address>(microtask_stub.code.start));
 }
 
 TEST(MicrotaskContextShouldBeNativeContext) {

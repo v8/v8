@@ -259,6 +259,7 @@ v8_source_set("cctest_sources") {
     "test-types.cc",
     "test-unboxed-doubles.cc",
     "test-unscopables-hidden-prototype.cc",
+    "test-unwinder-code-pages.cc",
     "test-unwinder.cc",
     "test-usecounters.cc",
     "test-utils.cc",
