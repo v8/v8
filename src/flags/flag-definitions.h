@@ -213,7 +213,6 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V)                       \
   HARMONY_INPROGRESS_BASE(V)                        \
-  V(harmony_intl_displaynames, "Intl.DisplayNames") \
   V(harmony_intl_displaynames_date_types, "Intl.DisplayNames date types")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
@@ -224,12 +223,13 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
   V(harmony_private_methods, "harmony private methods in class literals")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_STAGED(V)                                           \
-  HARMONY_STAGED_BASE(V)                                            \
-  V(harmony_intl_dateformat_day_period,                             \
-    "Add dayPeriod option to DateTimeFormat")                       \
-  V(harmony_intl_dateformat_fractional_second_digits,               \
-    "Add fractionalSecondDigits option to DateTimeFormat")          \
+#define HARMONY_STAGED(V)                                  \
+  HARMONY_STAGED_BASE(V)                                   \
+  V(harmony_intl_displaynames, "Intl.DisplayNames")        \
+  V(harmony_intl_dateformat_day_period,                    \
+    "Add dayPeriod option to DateTimeFormat")              \
+  V(harmony_intl_dateformat_fractional_second_digits,      \
+    "Add fractionalSecondDigits option to DateTimeFormat") \
   V(harmony_intl_segmenter, "Intl.Segmenter")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
