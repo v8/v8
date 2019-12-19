@@ -145,11 +145,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* CallResolve(Node* native_context, Node* constructor, Node* resolve,
                     Node* value, Label* if_exception, Variable* var_exception);
 
-  std::pair<Node*, Node*> CreatePromiseFinallyFunctions(Node* on_finally,
-                                                        Node* constructor,
-                                                        Node* native_context);
-  Node* CreateValueThunkFunction(Node* value, Node* native_context);
-
   using PromiseAllResolvingElementFunction =
       std::function<TNode<Object>(TNode<Context> context, TNode<Smi> index,
                                   TNode<NativeContext> native_context,

@@ -714,8 +714,6 @@ namespace internal {
   TFJ(PromiseConstructorLazyDeoptContinuation, 4, kReceiver, kPromise,         \
       kReject, kException, kResult)                                            \
   CPP(IsPromise)                                                               \
-  TFJ(PromisePrototypeFinally, 1, kReceiver, kOnFinally)                       \
-  TFJ(PromiseThenFinally, 1, kReceiver, kValue)                                \
   /* ES #sec-promise.all */                                                    \
   TFJ(PromiseAll, 1, kReceiver, kIterable)                                     \
   TFJ(PromiseAllResolveElementClosure, 1, kReceiver, kValue)                   \
