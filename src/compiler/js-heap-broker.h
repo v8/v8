@@ -265,6 +265,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
     }
   };
   ZoneMultimap<SerializedFunction, HintsVector> serialized_functions_;
+  static const size_t kMaxSerializedFunctionsCacheSize = 200;
 
   static const size_t kMinimalRefsBucketCount = 8;     // must be power of 2
   static const size_t kInitialRefsBucketCount = 1024;  // must be power of 2

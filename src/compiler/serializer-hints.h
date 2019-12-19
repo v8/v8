@@ -60,6 +60,8 @@ class FunctionalSet {
     return !(*this == other);
   }
 
+  size_t Size() const { return data_.Size(); }
+
   using iterator = typename FunctionalList<T>::iterator;
 
   iterator begin() const { return data_.begin(); }
@@ -99,12 +101,14 @@ using VirtualBoundFunctionsSet =
     FunctionalSet<VirtualBoundFunction, std::equal_to<VirtualBoundFunction>>;
 
 struct HintsImpl;
+class JSHeapBroker;
 
 class Hints {
  public:
   Hints() = default;  // Empty.
-  static Hints SingleConstant(Handle<Object> constant, Zone* zone);
-  static Hints SingleMap(Handle<Map> map, Zone* zone);
+  static Hints SingleConstant(Handle<Object> constant, Zone* zone,
+                              JSHeapBroker* broker);
+  static Hints SingleMap(Handle<Map> map, Zone* zone, JSHeapBroker* broker);
 
   // For inspection only.
   ConstantsSet constants() const;
@@ -122,7 +126,7 @@ class Hints {
 #endif
 
   Hints Copy(Zone* zone) const;              // Shallow.
-  Hints CopyToParentZone(Zone* zone) const;  // Deep.
+  Hints CopyToParentZone(Zone* zone, JSHeapBroker* broker) const;  // Deep.
 
   // As an optimization, empty hints can be represented as {impl_} being
   // {nullptr}, i.e., as not having allocated a {HintsImpl} object. As a
@@ -135,17 +139,20 @@ class Hints {
   // Make {this} an alias of {other}.
   void Reset(Hints* other, Zone* zone);
 
-  void Merge(Hints const& other, Zone* zone);
+  void Merge(Hints const& other, Zone* zone, JSHeapBroker* broker);
 
   // Destructive updates: if the hints are shared by several registers,
   // then the following updates will be seen by all of them:
-  void AddConstant(Handle<Object> constant, Zone* zone);
-  void AddMap(Handle<Map> map, Zone* zone, bool check_zone_equality = true);
-  void AddVirtualClosure(VirtualClosure const& virtual_closure, Zone* zone);
-  void AddVirtualContext(VirtualContext const& virtual_context, Zone* zone);
+  void AddConstant(Handle<Object> constant, Zone* zone, JSHeapBroker* broker);
+  void AddMap(Handle<Map> map, Zone* zone, JSHeapBroker* broker,
+              bool check_zone_equality = true);
+  void AddVirtualClosure(VirtualClosure const& virtual_closure, Zone* zone,
+                         JSHeapBroker* broker);
+  void AddVirtualContext(VirtualContext const& virtual_context, Zone* zone,
+                         JSHeapBroker* broker);
   void AddVirtualBoundFunction(VirtualBoundFunction const& bound_function,
-                               Zone* zone);
-  void Add(Hints const& other, Zone* zone);
+                               Zone* zone, JSHeapBroker* broker);
+  void Add(Hints const& other, Zone* zone, JSHeapBroker* broker);
 
  private:
   friend std::ostream& operator<<(std::ostream&, const Hints& hints);
@@ -154,7 +161,9 @@ class Hints {
   void EnsureAllocated(Zone* zone, bool check_zone_equality = true);
 
   // Helper for Add and Merge.
-  void Union(Hints const& other);
+  bool Union(Hints const& other);
+
+  static const size_t kMaxHintsSize = 50;
 };
 
 using HintsVector = ZoneVector<Hints>;
