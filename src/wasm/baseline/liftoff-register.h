@@ -22,21 +22,26 @@ static constexpr bool kNeedS128RegPair = !kSimpleFPAliasing;
 enum RegClass : uint8_t {
   kGpReg,
   kFpReg,
-  kGpRegPair,
-  kFpRegPair = kGpRegPair + kNeedI64RegPair,
+  kGpRegPair = kFpReg + 1 + (kNeedS128RegPair && !kNeedI64RegPair),
+  kFpRegPair = kFpReg + 1 + kNeedI64RegPair,
   kNoReg = kFpRegPair + kNeedS128RegPair,
   // +------------------+-------------------------------+
   // |                  |        kNeedI64RegPair        |
   // +------------------+---------------+---------------+
   // | kNeedS128RegPair |     true      |    false      |
   // +------------------+---------------+---------------+
-  // |             true | 0,1,2,3,4 (a) | 0,1,2,2,3     |
+  // |             true | 0,1,2,3,4 (a) | 0,1,3,2,3     |
   // |            false | 0,1,2,3,3 (b) | 0,1,2,2,2 (c) |
   // +------------------+---------------+---------------+
   // (a) arm
   // (b) ia32
   // (c) x64, arm64
 };
+
+static_assert(kNeedI64RegPair == (kGpRegPair != kNoReg),
+              "kGpRegPair equals kNoReg if unused");
+static_assert(kNeedS128RegPair == (kFpRegPair != kNoReg),
+              "kFpRegPair equals kNoReg if unused");
 
 enum RegPairHalf : uint8_t { kLowWord = 0, kHighWord = 1 };
 
