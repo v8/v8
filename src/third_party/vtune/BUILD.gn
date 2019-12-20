@@ -6,8 +6,8 @@ import("//build/toolchain/toolchain.gni")
 
 config("vtune_ittapi") {
   include_dirs = [
-    "../../../third_party/ittapi/include",
-    "../../../third_party/ittapi/src/ittnotify",
+    "//third_party/ittapi/include",
+    "//third_party/ittapi/src/ittnotify",
   ]
 }
 
@@ -28,7 +28,7 @@ static_library("v8_vtune") {
 
 static_library("v8_vtune_trace_mark") {
   sources = [
-    "../../../third_party/ittapi/include/ittnotify.h",
+    "//third_party/ittapi/include/ittnotify.h",
     "vtuneapi.cc",
     "vtuneapi.h",
   ]
@@ -39,13 +39,13 @@ static_library("v8_vtune_trace_mark") {
 
 static_library("ittnotify") {
   sources = [
-    "../../../third_party/ittapi/include/ittnotify.h",
-    "../../../third_party/ittapi/include/legacy/ittnotify.h",
-    "../../../third_party/ittapi/src/ittnotify/disable-warnings.h",
-    "../../../third_party/ittapi/src/ittnotify/ittnotify_config.h",
-    "../../../third_party/ittapi/src/ittnotify/ittnotify_static.c",
-    "../../../third_party/ittapi/src/ittnotify/ittnotify_static.h",
+    "//third_party/ittapi/include/ittnotify.h",
+    "//third_party/ittapi/include/legacy/ittnotify.h",
+    "//third_party/ittapi/src/ittnotify/disable-warnings.h",
+    "//third_party/ittapi/src/ittnotify/ittnotify_config.h",
+    "//third_party/ittapi/src/ittnotify/ittnotify_static.c",
+    "//third_party/ittapi/src/ittnotify/ittnotify_static.h",
   ]
-  include_dirs = [ "../../../third_party/ittapi/include" ]
+  include_dirs = [ "//third_party/ittapi/include" ]
   deps = []
 }
