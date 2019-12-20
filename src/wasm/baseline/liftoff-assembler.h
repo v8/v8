@@ -146,6 +146,10 @@ class LiftoffAssembler : public TurboAssembler {
         LiftoffRegList available_regs =
             kGpCacheRegList.MaskOut(used_registers).MaskOut(pinned);
         return available_regs.GetNumRegsSet() >= 2;
+      } else if (kNeedS128RegPair && rc == kFpRegPair) {
+        LiftoffRegList available_regs =
+            kFpCacheRegList.MaskOut(used_registers).MaskOut(pinned);
+        return available_regs.HasAdjacentFpRegsSet();
       }
       DCHECK(rc == kGpReg || rc == kFpReg);
       LiftoffRegList candidates = GetCacheRegList(rc);
@@ -165,6 +169,13 @@ class LiftoffAssembler : public TurboAssembler {
         Register low = pinned.set(unused_register(kGpReg, pinned)).gp();
         Register high = unused_register(kGpReg, pinned).gp();
         return LiftoffRegister::ForPair(low, high);
+      } else if (kNeedS128RegPair && rc == kFpRegPair) {
+        LiftoffRegList available_regs =
+            kFpCacheRegList.MaskOut(used_registers).MaskOut(pinned);
+        DoubleRegister low =
+            available_regs.GetAdjacentFpRegsSet().GetFirstRegSet().fp();
+        DCHECK(is_free(LiftoffRegister::ForFpPair(low)));
+        return LiftoffRegister::ForFpPair(low);
       }
       DCHECK(rc == kGpReg || rc == kFpReg);
       LiftoffRegList candidates = GetCacheRegList(rc);
@@ -323,6 +334,14 @@ class LiftoffAssembler : public TurboAssembler {
       Register low = pinned.set(GetUnusedRegister(candidates, pinned)).gp();
       Register high = GetUnusedRegister(candidates, pinned).gp();
       return LiftoffRegister::ForPair(low, high);
+    } else if (kNeedS128RegPair && rc == kFpRegPair) {
+      // kFpRegPair specific logic here because we need adjacent registers, not
+      // just any two registers (like kGpRegPair).
+      if (cache_state_.has_unused_register(rc, pinned)) {
+        return cache_state_.unused_register(rc, pinned);
+      }
+      DoubleRegister low_fp = SpillAdjacentFpRegisters(pinned).fp();
+      return LiftoffRegister::ForFpPair(low_fp);
     }
     DCHECK(rc == kGpReg || rc == kFpReg);
     LiftoffRegList candidates = GetCacheRegList(rc);
@@ -717,6 +736,8 @@ class LiftoffAssembler : public TurboAssembler {
 
   LiftoffRegister SpillOneRegister(LiftoffRegList candidates,
                                    LiftoffRegList pinned);
+  // Spill one or two fp registers to get a pair of adjacent fp registers.
+  LiftoffRegister SpillAdjacentFpRegisters(LiftoffRegList pinned);
 };
 
 std::ostream& operator<<(std::ostream& os, LiftoffAssembler::VarState);

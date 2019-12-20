@@ -306,6 +306,9 @@ class LiftoffRegList {
   static constexpr storage_t kGpMask = storage_t{kLiftoffAssemblerGpCacheRegs};
   static constexpr storage_t kFpMask = storage_t{kLiftoffAssemblerFpCacheRegs}
                                        << kAfterMaxLiftoffGpRegCode;
+  // Sets all even numbered fp registers.
+  static constexpr uint64_t kEvenFpSetMask = uint64_t{0x5555555555555555}
+                                             << kAfterMaxLiftoffGpRegCode;
 
   constexpr LiftoffRegList() = default;
 
@@ -356,6 +359,17 @@ class LiftoffRegList {
 
   constexpr LiftoffRegList operator|(const LiftoffRegList other) const {
     return LiftoffRegList(regs_ | other.regs_);
+  }
+
+  constexpr LiftoffRegList GetAdjacentFpRegsSet() const {
+    // And regs_ with a right shifted version of itself, so reg[i] is set only
+    // if reg[i+1] is set. We only care about the even fp registers.
+    storage_t available = (regs_ >> 1) & regs_ & kEvenFpSetMask;
+    return LiftoffRegList(available);
+  }
+
+  constexpr bool HasAdjacentFpRegsSet() const {
+    return !GetAdjacentFpRegsSet().is_empty();
   }
 
   constexpr bool operator==(const LiftoffRegList other) const {

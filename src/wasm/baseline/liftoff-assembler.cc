@@ -807,6 +807,52 @@ LiftoffRegister LiftoffAssembler::SpillOneRegister(LiftoffRegList candidates,
   return spill_reg;
 }
 
+LiftoffRegister LiftoffAssembler::SpillAdjacentFpRegisters(
+    LiftoffRegList pinned) {
+  // We end up in this call only when:
+  // [1] kNeedS128RegPair, and
+  // [2] there are no pair of adjacent FP registers that are free
+  CHECK(kNeedS128RegPair);
+  DCHECK(!kFpCacheRegList.MaskOut(pinned)
+              .MaskOut(cache_state_.used_registers)
+              .HasAdjacentFpRegsSet());
+
+  // Special logic, if the top fp register is even, we might hit a case of an
+  // invalid register in case 2.
+  LiftoffRegister last_fp = kFpCacheRegList.GetLastRegSet();
+  if (last_fp.fp().code() % 2 == 0) {
+    pinned.set(last_fp);
+  }
+
+  // We can try to optimize the spilling here:
+  // 1. Try to get a free fp register, either:
+  //  a. This register is already free, or
+  //  b. it had to be spilled.
+  // 2. If 1a, the adjacent register is used (invariant [2]), spill it.
+  // 3. If 1b, check the adjacent register:
+  //  a. If free, done!
+  //  b. If used, spill it.
+  // We spill one register in 2 and 3a, and two registers in 3b.
+
+  LiftoffRegister first_reg = GetUnusedRegister(kFpCacheRegList, pinned);
+  LiftoffRegister second_reg = first_reg, low_reg = first_reg;
+
+  if (first_reg.fp().code() % 2 == 0) {
+    second_reg =
+        LiftoffRegister::from_liftoff_code(first_reg.liftoff_code() + 1);
+  } else {
+    second_reg =
+        LiftoffRegister::from_liftoff_code(first_reg.liftoff_code() - 1);
+    low_reg = second_reg;
+  }
+
+  if (cache_state_.is_used(second_reg)) {
+    SpillRegister(second_reg);
+  }
+
+  return low_reg;
+}
+
 void LiftoffAssembler::SpillRegister(LiftoffRegister reg) {
   int remaining_uses = cache_state_.get_use_count(reg);
   DCHECK_LT(0, remaining_uses);
@@ -814,7 +860,7 @@ void LiftoffAssembler::SpillRegister(LiftoffRegister reg) {
     DCHECK_GT(cache_state_.stack_height(), idx);
     auto* slot = &cache_state_.stack_state[idx];
     if (!slot->is_reg() || !slot->reg().overlaps(reg)) continue;
-    if (slot->reg().is_gp_pair()) {
+    if (slot->reg().is_pair()) {
       // Make sure to decrement *both* registers in a pair, because the
       // {clear_used} call below only clears one of them.
       cache_state_.dec_used(slot->reg().low());
