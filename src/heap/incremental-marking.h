@@ -86,8 +86,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   static const AccessMode kAtomicity = AccessMode::NON_ATOMIC;
 #endif
 
-  IncrementalMarking(Heap* heap, MarkingWorklists* marking_worklists,
-                     WeakObjects* weak_objects);
+  IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
 
   MarkingState* marking_state() { return &marking_state_; }
 
@@ -227,7 +226,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     }
   }
 
-  MarkingWorklists* marking_worklists() const { return marking_worklists_; }
+  MarkingWorklists* marking_worklists() const {
+    return collector_->marking_worklists();
+  }
 
   void Deactivate();
 
@@ -302,7 +303,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   Heap* const heap_;
   MarkCompactCollector* const collector_;
-  MarkingWorklists* const marking_worklists_;
   WeakObjects* weak_objects_;
 
   double start_time_ms_;

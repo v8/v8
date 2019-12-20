@@ -429,7 +429,6 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       compacting_(false),
       black_allocation_(false),
       have_code_to_deoptimize_(false),
-      marking_worklists_(kMainThreadTask, marking_worklists_holder()),
       sweeper_(new Sweeper(heap, non_atomic_marking_state())) {
   old_to_new_slots_ = -1;
 }
@@ -499,6 +498,9 @@ bool MarkCompactCollector::StartCompaction() {
 }
 
 void MarkCompactCollector::StartMarking() {
+  marking_worklists_holder()->CreateContextWorklists(std::vector<Address>());
+  marking_worklists_ = std::make_unique<MarkingWorklists>(
+      kMainThreadTask, marking_worklists_holder());
   marking_visitor_ = std::make_unique<MarkingVisitor>(
       marking_state(), marking_worklists(), weak_objects(), heap_, epoch(),
       Heap::GetBytecodeFlushMode(),
@@ -879,6 +881,10 @@ void MarkCompactCollector::Finish() {
 #ifdef DEBUG
   heap()->VerifyCountersBeforeConcurrentSweeping();
 #endif
+
+  marking_visitor_.reset();
+  marking_worklists_.reset();
+  marking_worklists_holder_.ReleaseContextWorklists();
 
   CHECK(weak_objects_.current_ephemerons.IsEmpty());
   CHECK(weak_objects_.discovered_ephemerons.IsEmpty());

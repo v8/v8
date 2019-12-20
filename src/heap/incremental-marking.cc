@@ -45,11 +45,9 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
 }
 
 IncrementalMarking::IncrementalMarking(Heap* heap,
-                                       MarkingWorklists* marking_worklists,
                                        WeakObjects* weak_objects)
     : heap_(heap),
       collector_(heap->mark_compact_collector()),
-      marking_worklists_(marking_worklists),
       weak_objects_(weak_objects),
       initial_old_generation_size_(0),
       bytes_marked_(0),
@@ -64,7 +62,6 @@ IncrementalMarking::IncrementalMarking(Heap* heap,
       request_type_(NONE),
       new_generation_observer_(this, kYoungGenerationAllocatedThreshold),
       old_generation_observer_(this, kOldGenerationAllocatedThreshold) {
-  DCHECK_NOT_NULL(marking_worklists_);
   SetState(STOPPED);
 }
 
@@ -1083,18 +1080,20 @@ StepResult IncrementalMarking::V8Step(double max_step_size_in_ms,
         heap_->local_embedder_heap_tracer()->NotifyV8MarkingWorklistWasEmpty();
       }
     }
-  }
-  if (FLAG_concurrent_marking) {
-    marking_worklists()->ShareWorkIfGlobalPoolIsEmpty();
-    heap_->concurrent_marking()->RescheduleTasksIfNeeded();
+    if (FLAG_concurrent_marking) {
+      marking_worklists()->ShareWorkIfGlobalPoolIsEmpty();
+      heap_->concurrent_marking()->RescheduleTasksIfNeeded();
+    }
   }
 
   double end = heap_->MonotonicallyIncreasingTimeInMs();
   double duration = (end - start);
-  // Note that we report zero bytes here when sweeping was in progress or
-  // when we just started incremental marking. In these cases we did not
-  // process the marking deque.
-  heap_->tracer()->AddIncrementalMarkingStep(duration, bytes_processed);
+  if (state_ == MARKING) {
+    // Note that we report zero bytes here when sweeping was in progress or
+    // when we just started incremental marking. In these cases we did not
+    // process the marking deque.
+    heap_->tracer()->AddIncrementalMarkingStep(duration, bytes_processed);
+  }
   if (FLAG_trace_incremental_marking) {
     heap_->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Step %s %zuKB (%zuKB) in %.1f\n",

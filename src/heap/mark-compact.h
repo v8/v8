@@ -533,7 +533,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   MarkingWorklistsHolder* marking_worklists_holder() {
     return &marking_worklists_holder_;
   }
-  MarkingWorklists* marking_worklists() { return &marking_worklists_; }
+  MarkingWorklists* marking_worklists() { return marking_worklists_.get(); }
 
   WeakObjects* weak_objects() { return &weak_objects_; }
 
@@ -764,12 +764,12 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   bool have_code_to_deoptimize_;
 
   MarkingWorklistsHolder marking_worklists_holder_;
-  MarkingWorklists marking_worklists_;
 
   WeakObjects weak_objects_;
   EphemeronMarking ephemeron_marking_;
 
   std::unique_ptr<MarkingVisitor> marking_visitor_;
+  std::unique_ptr<MarkingWorklists> marking_worklists_;
 
   // Candidates for pages that should be evacuated.
   std::vector<Page*> evacuation_candidates_;

@@ -3339,7 +3339,8 @@ void Heap::FinalizeIncrementalMarkingIfComplete(
         local_embedder_heap_tracer()->ShouldFinalizeIncrementalMarking()))) {
     FinalizeIncrementalMarkingIncrementally(gc_reason);
   } else if (incremental_marking()->IsComplete() ||
-             (mark_compact_collector()->marking_worklists()->IsEmpty() &&
+             (incremental_marking()->IsMarking() &&
+              mark_compact_collector()->marking_worklists()->IsEmpty() &&
               local_embedder_heap_tracer()
                   ->ShouldFinalizeIncrementalMarking())) {
     CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
@@ -5022,8 +5023,7 @@ void Heap::SetUp() {
   scavenger_collector_.reset(new ScavengerCollector(this));
 
   incremental_marking_.reset(
-      new IncrementalMarking(this, mark_compact_collector_->marking_worklists(),
-                             mark_compact_collector_->weak_objects()));
+      new IncrementalMarking(this, mark_compact_collector_->weak_objects()));
 
   if (FLAG_concurrent_marking || FLAG_parallel_marking) {
     concurrent_marking_.reset(new ConcurrentMarking(
