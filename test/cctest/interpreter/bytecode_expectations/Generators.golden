@@ -100,7 +100,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 246
+bytecode array length: 253
 bytecodes: [
   /*   11 E> */ B(StackCheck),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
@@ -120,6 +120,8 @@ bytecodes: [
   /*   30 S> */ B(CreateArrayLiteral), U8(4), U8(0), U8(37),
                 B(Star), R(6),
                 B(GetIterator), R(6), U8(1), U8(3),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(5),
                 B(LdaNamedProperty), R(5), U8(5), U8(5),
                 B(Star), R(4),
@@ -207,7 +209,7 @@ bytecodes: [
 ]
 constant pool: [
   Smi [21],
-  Smi [118],
+  Smi [125],
   Smi [10],
   Smi [7],
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
@@ -222,8 +224,8 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [66, 150, 158],
-  [182, 215, 217],
+  [73, 157, 165],
+  [189, 222, 224],
 ]
 
 ---
@@ -234,7 +236,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 198
+bytecode array length: 205
 bytecodes: [
   /*   38 E> */ B(StackCheck),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
@@ -256,6 +258,8 @@ bytecodes: [
   /*   50 E> */ B(CallUndefinedReceiver0), R(5), U8(2),
                 B(Star), R(6),
                 B(GetIterator), R(6), U8(4), U8(6),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(3),
                 B(LdaNamedProperty), R(3), U8(5), U8(8),
                 B(Star), R(5),
@@ -312,7 +316,7 @@ bytecodes: [
 ]
 constant pool: [
   Smi [21],
-  Smi [165],
+  Smi [172],
   Smi [10],
   Smi [7],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["g"],
