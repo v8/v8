@@ -99,12 +99,13 @@ class TargetArchitecture : public ContextualClass<TargetArchitecture> {
  public:
   explicit TargetArchitecture(bool force_32bit);
 
-  static int TaggedSize() { return Get().tagged_size_; }
-  static int RawPtrSize() { return Get().raw_ptr_size_; }
+  static size_t TaggedSize() { return Get().tagged_size_; }
+  static size_t RawPtrSize() { return Get().raw_ptr_size_; }
+  static size_t MaxHeapAlignment() { return TaggedSize(); }
 
  private:
-  const int tagged_size_;
-  const int raw_ptr_size_;
+  const size_t tagged_size_;
+  const size_t raw_ptr_size_;
 };
 
 }  // namespace torque

@@ -207,10 +207,13 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       ReportError("%RawDownCast error: ", *return_type, " is not a subtype of ",
                   *original_type);
     }
-    if (return_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-      if (return_type->GetGeneratedTNodeTypeName() !=
-          original_type->GetGeneratedTNodeTypeName()) {
+    if (return_type->GetGeneratedTNodeTypeName() !=
+        original_type->GetGeneratedTNodeTypeName()) {
+      if (return_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
         out_ << "TORQUE_CAST";
+      } else {
+        out_ << "ca_.UncheckedCast<" << return_type->GetGeneratedTNodeTypeName()
+             << ">";
       }
     }
   } else if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
@@ -675,26 +678,6 @@ void CSAGenerator::EmitInstruction(const UnsafeCastInstruction& instruction,
                   ">(" + stack->Top() + ")");
 }
 
-void CSAGenerator::EmitInstruction(
-    const CreateFieldReferenceInstruction& instruction,
-    Stack<std::string>* stack) {
-  base::Optional<const ClassType*> class_type =
-      instruction.type->ClassSupertype();
-  if (!class_type.has_value()) {
-    ReportError("Cannot create field reference of type ", instruction.type,
-                " which does not inherit from a class type");
-  }
-  const Field& field = class_type.value()->LookupField(instruction.field_name);
-  std::string offset_name = FreshNodeName();
-  stack->Push(offset_name);
-
-  out_ << "    TNode<IntPtrT> " << offset_name << " = ca_.IntPtrConstant(";
-  out_ << field.aggregate->name() << "::k"
-       << CamelifyString(field.name_and_type.name) << "Offset";
-  out_ << ");\n"
-       << "    USE(" << stack->Top() << ");\n";
-}
-
 void CSAGenerator::EmitInstruction(const LoadReferenceInstruction& instruction,
                                    Stack<std::string>* stack) {
   std::string result_name = FreshNodeName();
@@ -716,7 +699,9 @@ void CSAGenerator::EmitInstruction(const StoreReferenceInstruction& instruction,
   std::string offset = stack->Pop();
   std::string object = stack->Pop();
 
-  out_ << "    CodeStubAssembler(state_).StoreReference(CodeStubAssembler::"
+  out_ << "    CodeStubAssembler(state_).StoreReference<"
+       << instruction.type->GetGeneratedTNodeTypeName()
+       << ">(CodeStubAssembler::"
           "Reference{"
        << object << ", " << offset << "}, " << value << ");\n";
 }

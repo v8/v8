@@ -47,6 +47,11 @@ FromConstexpr<Number, constexpr float64>(f: constexpr float64): Number {
 FromConstexpr<Number, constexpr int31>(i: constexpr int31): Number {
   return %FromConstexpr<Number>(i);
 }
+FromConstexpr<uint8, constexpr int31>(i: constexpr int31): uint8 {
+  const i: uint32 = i;
+  StaticAssert(i <= 255);
+  return %RawDownCast<uint8>(i);
+}
 FromConstexpr<Number, constexpr Smi>(s: constexpr Smi): Number {
   return SmiConstant(s);
 }
@@ -120,6 +125,9 @@ Convert<intptr, uint16>(ui: uint16): intptr {
 }
 Convert<intptr, uint8>(ui: uint8): intptr {
   return Signed(ChangeUint32ToWord(ui));
+}
+Convert<uint8, intptr>(i: intptr): uint8 {
+  return %RawDownCast<uint8>(Unsigned(TruncateIntPtrToInt32(i)) & 0xFF);
 }
 Convert<int32, uint8>(i: uint8): int32 {
   return Signed(Convert<uint32>(i));

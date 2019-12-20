@@ -230,16 +230,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       break;
     case FILLER_TYPE:
       break;
-    case SMALL_ORDERED_HASH_SET_TYPE:
-      SmallOrderedHashSet::cast(*this).SmallOrderedHashSetVerify(isolate);
-      break;
-    case SMALL_ORDERED_HASH_MAP_TYPE:
-      SmallOrderedHashMap::cast(*this).SmallOrderedHashMapVerify(isolate);
-      break;
-    case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
-      SmallOrderedNameDictionary::cast(*this).SmallOrderedNameDictionaryVerify(
-          isolate);
-      break;
     case CODE_DATA_CONTAINER_TYPE:
       CodeDataContainer::cast(*this).CodeDataContainerVerify(isolate);
       break;

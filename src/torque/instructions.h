@@ -30,7 +30,6 @@ class RuntimeFunction;
   V(DeleteRangeInstruction)           \
   V(PushUninitializedInstruction)     \
   V(PushBuiltinPointerInstruction)    \
-  V(CreateFieldReferenceInstruction)  \
   V(LoadReferenceInstruction)         \
   V(StoreReferenceInstruction)        \
   V(LoadBitFieldInstruction)          \
@@ -204,17 +203,6 @@ struct NamespaceConstantInstruction : InstructionBase {
       : constant(constant) {}
 
   NamespaceConstant* constant;
-};
-
-struct CreateFieldReferenceInstruction : InstructionBase {
-  TORQUE_INSTRUCTION_BOILERPLATE()
-  CreateFieldReferenceInstruction(const ClassType* type, std::string field_name)
-      : type(type), field_name(std::move(field_name)) {
-    // Trigger errors early.
-    this->type->LookupField(this->field_name);
-  }
-  const ClassType* type;
-  std::string field_name;
 };
 
 struct LoadReferenceInstruction : InstructionBase {

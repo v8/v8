@@ -80,12 +80,17 @@ extern macro TaggedToSmi(Object): Smi
 extern macro TaggedToHeapObject(Object): HeapObject
     labels CastError;
 
+extern macro IntPtrConstant(constexpr int31): intptr;
+
 macro FromConstexpr<To: type, From: type>(o: From): To;
 FromConstexpr<Smi, constexpr Smi>(s: constexpr Smi): Smi {
   return SmiConstant(s);
 }
 FromConstexpr<Smi, constexpr int31>(s: constexpr int31): Smi {
   return %FromConstexpr<Smi>(s);
+}
+FromConstexpr<intptr, constexpr int31>(i: constexpr int31): intptr {
+  return IntPtrConstant(i);
 }
 
 macro Cast<A : type extends Object>(implicit context: Context)(o: Object): A

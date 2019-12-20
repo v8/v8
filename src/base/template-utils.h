@@ -88,6 +88,15 @@ constexpr bool all(Args... rest) {
   return fold(std::logical_and<>{}, true, rest...);
 }
 
+template <class... Ts>
+struct make_void {
+  using type = void;
+};
+// Corresponds to C++17's std::void_t.
+// Used for SFINAE based on type errors.
+template <class... Ts>
+using void_t = typename make_void<Ts...>::type;
+
 }  // namespace base
 }  // namespace v8
 

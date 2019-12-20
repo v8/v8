@@ -3507,8 +3507,7 @@ TEST(SmallOrderedHashMapAllocate) {
   {
     CodeStubAssembler m(asm_tester.state());
     TNode<Smi> capacity = m.CAST(m.Parameter(0));
-    m.Return(m.AllocateSmallOrderedHashTable<SmallOrderedHashMap>(
-        m.SmiToIntPtr(capacity)));
+    m.Return(m.AllocateSmallOrderedHashMap(m.SmiToIntPtr(capacity)));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -3546,8 +3545,7 @@ TEST(SmallOrderedHashSetAllocate) {
   {
     CodeStubAssembler m(asm_tester.state());
     TNode<Smi> capacity = m.CAST(m.Parameter(0));
-    m.Return(m.AllocateSmallOrderedHashTable<SmallOrderedHashSet>(
-        m.SmiToIntPtr(capacity)));
+    m.Return(m.AllocateSmallOrderedHashSet(m.SmiToIntPtr(capacity)));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 

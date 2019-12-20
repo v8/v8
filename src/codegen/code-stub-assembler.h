@@ -133,6 +133,12 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap)    \
   V(SloppyArgumentsElementsMap, sloppy_arguments_elements_map,                 \
     SloppyArgumentsElementsMap)                                                \
+  V(SmallOrderedHashSetMap, small_ordered_hash_set_map,                        \
+    SmallOrderedHashSetMap)                                                    \
+  V(SmallOrderedHashMapMap, small_ordered_hash_map_map,                        \
+    SmallOrderedHashMapMap)                                                    \
+  V(SmallOrderedNameDictionaryMap, small_ordered_name_dictionary_map,          \
+    SmallOrderedNameDictionaryMap)                                             \
   V(species_symbol, species_symbol, SpeciesSymbol)                             \
   V(StaleRegister, stale_register, StaleRegister)                              \
   V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                    \
@@ -1791,9 +1797,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   template <typename CollectionType>
   TNode<CollectionType> AllocateOrderedHashTable();
-
-  template <typename CollectionType>
-  TNode<CollectionType> AllocateSmallOrderedHashTable(TNode<IntPtrT> capacity);
 
   TNode<JSObject> AllocateJSObjectFromMap(
       TNode<Map> map,

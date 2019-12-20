@@ -137,6 +137,7 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   const MaybeSpecializationKey& GetSpecializedFrom() const {
     return specialized_from_;
   }
+
   static base::Optional<const Type*> MatchUnaryGeneric(const Type* type,
                                                        GenericType* generic);
 
@@ -151,6 +152,8 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
     if (IsConstexpr()) return this;
     return nullptr;
   }
+
+  virtual size_t AlignmentLog2() const;
 
  protected:
   Type(TypeBase::Kind kind, const Type* parent,
@@ -197,6 +200,8 @@ struct Field {
   // reliance of string types is quite clunky.
   std::tuple<size_t, std::string> GetFieldSizeInformation() const;
 
+  void ValidateAlignment(ResidueClass at_offset) const;
+
   SourcePosition pos;
   const AggregateType* aggregate;
   base::Optional<Expression*> index;
@@ -205,15 +210,14 @@ struct Field {
   // The byte offset of this field from the beginning of the containing class or
   // struct. Most structs are never packed together in memory, and are only used
   // to hold a batch of related CSA TNode values, in which case |offset| is
-  // irrelevant. In structs, this value can be set to kInvalidOffset to indicate
-  // that the struct should never be used in packed form.
-  size_t offset;
+  // irrelevant.
+  // The offset may be unknown because the field is after an indexed field or
+  // because we don't support the struct field for on-heap layouts.
+  base::Optional<size_t> offset;
 
   bool is_weak;
   bool const_qualified;
   bool generate_verify;
-
-  static constexpr size_t kInvalidOffset = SIZE_MAX;
 };
 
 std::ostream& operator<<(std::ostream& os, const Field& name_and_type);
@@ -268,6 +272,8 @@ class AbstractType final : public Type {
   }
 
   std::vector<RuntimeType> GetRuntimeTypes() const override;
+
+  size_t AlignmentLog2() const override;
 
  private:
   friend class TypeOracle;
@@ -564,8 +570,10 @@ class StructType final : public AggregateType {
 
   std::string GetGeneratedTypeNameImpl() const override;
 
-  // Returns the sum of the size of all members. Does not validate alignment.
+  // Returns the sum of the size of all members.
   size_t PackedSize() const;
+
+  size_t AlignmentLog2() const override;
 
  private:
   friend class TypeOracle;
@@ -614,7 +622,7 @@ class ClassType final : public AggregateType {
     if (!is_finalized_) Finalize();
     return header_size_;
   }
-  base::Optional<size_t> size() const {
+  ResidueClass size() const {
     if (!is_finalized_) Finalize();
     return size_;
   }
@@ -656,7 +664,7 @@ class ClassType final : public AggregateType {
             const ClassDeclaration* decl, const TypeAlias* alias);
 
   size_t header_size_;
-  base::Optional<size_t> size_;
+  ResidueClass size_;
   mutable ClassFlags flags_;
   const std::string generates_;
   const ClassDeclaration* decl_;

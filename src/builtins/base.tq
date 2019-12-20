@@ -1531,3 +1531,17 @@ macro ReplaceTheHoleWithUndefined(o: JSAny|TheHole): JSAny {
 }
 
 extern macro DecodeScopeInfoHasContextExtension(intptr): intptr;
+
+struct ConstantIterator<T: type> {
+  macro Empty(): bool {
+    return false;
+  }
+  macro Next(): T labels _NoMore {
+    return this.value;
+  }
+
+  value: T;
+}
+macro ConstantIterator<T: type>(value: T): ConstantIterator<T> {
+  return ConstantIterator{value};
+}

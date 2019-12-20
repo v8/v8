@@ -118,7 +118,7 @@ void GenerateFieldAddressAccessor(const Field& field,
   h_contents << "  uintptr_t " << address_getter << "() const;\n";
   cc_contents << "\nuintptr_t Tq" << class_name << "::" << address_getter
               << "() const {\n";
-  cc_contents << "  return address_ - i::kHeapObjectTag + " << field.offset
+  cc_contents << "  return address_ - i::kHeapObjectTag + " << *field.offset
               << ";\n";
   cc_contents << "}\n";
 }
@@ -262,7 +262,7 @@ void GenerateGetPropsChunkForField(const Field& field,
                      << struct_field_type.GetOriginalType(kAsStoredInHeap)
                      << "\", \""
                      << struct_field_type.GetOriginalType(kUncompressed)
-                     << "\", " << struct_field.offset << "));\n";
+                     << "\", " << *struct_field.offset << "));\n";
     }
     struct_field_list = "std::move(" + struct_field_list + ")";
   }
@@ -396,6 +396,10 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
 
   for (const Field& field : type.fields()) {
     if (field.name_and_type.type == TypeOracle::GetVoidType()) continue;
+    if (!field.offset.has_value()) {
+      // Fields with dynamic offset are currently unsupported.
+      continue;
+    }
     GenerateFieldAddressAccessor(field, name, h_contents, cc_contents);
     GenerateFieldValueAccessor(field, name, h_contents, cc_contents);
     base::Optional<NameAndType> array_length;

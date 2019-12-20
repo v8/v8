@@ -290,14 +290,6 @@ void UnsafeCastInstruction::TypeInstruction(Stack<const Type*>* stack,
   stack->Poke(stack->AboveTop() - 1, destination_type);
 }
 
-void CreateFieldReferenceInstruction::TypeInstruction(
-    Stack<const Type*>* stack, ControlFlowGraph* cfg) const {
-  if (stack->Top() != TypeOracle::GetUninitializedHeapObjectType()) {
-    ExpectSubtype(stack->Top(), type);
-  }
-  stack->Push(TypeOracle::GetIntPtrType());
-}
-
 void LoadReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
                                                ControlFlowGraph* cfg) const {
   ExpectType(TypeOracle::GetIntPtrType(), stack->Pop());

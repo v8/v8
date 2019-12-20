@@ -426,14 +426,14 @@ struct StringLiteralExpression : Expression {
 
 struct NumberLiteralExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(NumberLiteralExpression)
-  NumberLiteralExpression(SourcePosition pos, std::string name)
-      : Expression(kKind, pos), number(std::move(name)) {}
+  NumberLiteralExpression(SourcePosition pos, double number)
+      : Expression(kKind, pos), number(number) {}
 
   void VisitAllSubExpressions(VisitCallback callback) override {
     callback(this);
   }
 
-  std::string number;
+  double number;
 };
 
 struct ElementAccessExpression : LocationExpression {

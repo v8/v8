@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string>
 
+#include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/torque/ast.h"
 #include "src/torque/declarable.h"
@@ -355,6 +356,18 @@ IncludeObjectMacrosScope::IncludeObjectMacrosScope(std::ostream& os) : os_(os) {
 }
 IncludeObjectMacrosScope::~IncludeObjectMacrosScope() {
   os_ << "\n#include \"src/objects/object-macros-undef.h\"\n";
+}
+
+size_t ResidueClass::AlignmentLog2() const {
+  if (value_ == 0) return modulus_log_2_;
+  return base::bits::CountTrailingZeros(value_);
+}
+
+const size_t ResidueClass::kMaxModulusLog2;
+
+std::ostream& operator<<(std::ostream& os, const ResidueClass& a) {
+  if (a.SingleValue().has_value()) return os << *a.SingleValue();
+  return os << "[" << a.value_ << " mod 2^" << a.modulus_log_2_ << "]";
 }
 
 }  // namespace torque

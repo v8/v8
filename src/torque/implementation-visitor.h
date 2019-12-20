@@ -24,6 +24,7 @@ namespace torque {
 template <typename T>
 class Binding;
 struct LocalValue;
+class ImplementationVisitor;
 
 // LocationReference is the representation of an l-value, so a value that might
 // allow for assignment. For uniformity, this class can also represent
@@ -201,7 +202,12 @@ class LocationReference {
 struct InitializerResults {
   std::vector<Identifier*> names;
   std::map<std::string, VisitResult> field_value_map;
+};
+
+struct LayoutForInitialization {
   std::map<std::string, VisitResult> array_lengths;
+  std::map<std::string, VisitResult> offsets;
+  VisitResult size;
 };
 
 template <class T>
@@ -402,8 +408,11 @@ class ImplementationVisitor {
       const ClassType* class_type,
       const std::vector<NameAndExpression>& expressions);
   LocationReference GenerateFieldReference(VisitResult object,
-                                           const NameAndType& field,
+                                           const Field& field,
                                            const ClassType* class_type);
+  LocationReference GenerateFieldReference(
+      VisitResult object, const Field& field,
+      const LayoutForInitialization& layout);
   VisitResult GenerateArrayLength(
       Expression* array_length, Namespace* nspace,
       const std::map<std::string, LocationReference>& bindings);
@@ -411,15 +420,13 @@ class ImplementationVisitor {
   VisitResult GenerateArrayLength(const ClassType* class_type,
                                   const InitializerResults& initializer_results,
                                   const Field& field);
-  VisitResult GenerateObjectSize(const ClassType* class_type,
-                                 const InitializerResults& initializer_results);
-
-  void InitializeFieldFromSpread(VisitResult object, const Field& field,
-                                 const InitializerResults& initializer_results,
-                                 const ClassType* class_type);
+  LayoutForInitialization GenerateLayoutForInitialization(
+      const ClassType* class_type,
+      const InitializerResults& initializer_results);
 
   void InitializeClass(const ClassType* class_type, VisitResult allocate_result,
-                       const InitializerResults& initializer_results);
+                       const InitializerResults& initializer_results,
+                       const LayoutForInitialization& layout);
 
   VisitResult Visit(StructExpression* decl);
 
@@ -427,6 +434,9 @@ class ImplementationVisitor {
   LocationReference GetLocationReference(IdentifierExpression* expr);
   LocationReference GetLocationReference(DereferenceExpression* expr);
   LocationReference GetLocationReference(FieldAccessExpression* expr);
+  LocationReference GenerateFieldAccess(
+      LocationReference reference, const std::string& fieldname,
+      base::Optional<SourcePosition> pos = {});
   LocationReference GetLocationReference(ElementAccessExpression* expr);
 
   VisitResult GenerateFetchFromLocation(const LocationReference& reference);
