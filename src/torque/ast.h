@@ -184,6 +184,23 @@ struct NamespaceDeclaration : Declaration {
   std::string name;
 };
 
+struct EnumDescription {
+  SourcePosition pos;
+  std::string name;
+  std::string constexpr_generates;
+  bool is_open;
+  std::vector<std::string> entries;
+
+  EnumDescription(SourcePosition pos, std::string name,
+                  std::string constexpr_generates, bool is_open,
+                  std::vector<std::string> entries = {})
+      : pos(std::move(pos)),
+        name(std::move(name)),
+        constexpr_generates(std::move(constexpr_generates)),
+        is_open(is_open),
+        entries(std::move(entries)) {}
+};
+
 class Ast {
  public:
   Ast() {}
@@ -203,10 +220,26 @@ class Ast {
     declared_imports_[CurrentSourcePosition::Get().source].insert(import_id);
   }
 
+  void AddEnumDescription(EnumDescription description) {
+    std::string name = description.name;
+    DCHECK(!name.empty());
+    auto f = [&](const auto& d) { return d.name == name; };
+    USE(f);  // Suppress unused in release.
+    DCHECK_EQ(
+        std::find_if(enum_descriptions_.begin(), enum_descriptions_.end(), f),
+        enum_descriptions_.end());
+    enum_descriptions_.push_back(std::move(description));
+  }
+
+  std::vector<EnumDescription>& EnumDescriptions() {
+    return enum_descriptions_;
+  }
+
  private:
   std::vector<Declaration*> declarations_;
   std::vector<std::unique_ptr<AstNode>> nodes_;
   std::map<SourceId, std::set<SourceId>> declared_imports_;
+  std::vector<EnumDescription> enum_descriptions_;
 };
 
 static const char* const kThisParameterName = "this";

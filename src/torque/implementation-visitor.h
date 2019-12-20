@@ -390,6 +390,7 @@ class ImplementationVisitor {
   void GenerateClassDefinitions(const std::string& output_directory);
   void GenerateInstanceTypes(const std::string& output_directory);
   void GenerateClassVerifiers(const std::string& output_directory);
+  void GenerateEnumVerifiers(const std::string& output_directory);
   void GenerateClassDebugReaders(const std::string& output_directory);
   void GenerateExportedMacrosAssembler(const std::string& output_directory);
   void GenerateCSATypes(const std::string& output_directory);

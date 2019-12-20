@@ -181,6 +181,7 @@ namespace regexp {
   }
 
   extern enum Flag constexpr 'JSRegExp::Flag' {
+    kNone,
     kGlobal,
     kIgnoreCase,
     kMultiline,

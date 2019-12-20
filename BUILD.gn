@@ -1126,6 +1126,7 @@ action("run_torque") {
     "$target_gen_dir/torque-generated/field-offsets-tq.h",
     "$target_gen_dir/torque-generated/class-verifiers-tq.cc",
     "$target_gen_dir/torque-generated/class-verifiers-tq.h",
+    "$target_gen_dir/torque-generated/enum-verifiers-tq.cc",
     "$target_gen_dir/torque-generated/objects-printer-tq.cc",
     "$target_gen_dir/torque-generated/class-definitions-tq.cc",
     "$target_gen_dir/torque-generated/class-definitions-tq-inl.h",
@@ -1181,6 +1182,7 @@ v8_source_set("torque_generated_initializers") {
 
   sources = [
     "$target_gen_dir/torque-generated/csa-types-tq.h",
+    "$target_gen_dir/torque-generated/enum-verifiers-tq.cc",
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.cc",
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.h",
   ]

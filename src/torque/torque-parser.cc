@@ -1249,11 +1249,15 @@ base::Optional<ParseResult> MakeEnumDeclaration(
                       fromconstexpr_parameter_identifier)})}));
     }
 
+    EnumDescription enum_description{CurrentSourcePosition::Get(), name,
+                                     constexpr_generates, is_open};
     std::vector<Declaration*> entry_decls;
     for (const auto& entry_name_identifier : entries) {
       const std::string entry_name = entry_name_identifier->value;
       const std::string entry_constexpr_type =
           std::string(CONSTEXPR_TYPE_PREFIX) + entry_name;
+      enum_description.entries.push_back(constexpr_generates +
+                                         "::" + entry_name);
 
       entry_decls.push_back(MakeNode<AbstractTypeDeclaration>(
           MakeNode<Identifier>(entry_constexpr_type), false,
@@ -1290,6 +1294,7 @@ base::Optional<ParseResult> MakeEnumDeclaration(
 
     result.push_back(
         MakeNode<NamespaceDeclaration>(name, std::move(entry_decls)));
+    CurrentAst::Get().AddEnumDescription(std::move(enum_description));
   }
 
   return ParseResult{std::move(result)};

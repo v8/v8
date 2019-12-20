@@ -87,6 +87,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   implementation_visitor.GenerateClassDefinitions(output_directory);
   implementation_visitor.GenerateClassVerifiers(output_directory);
   implementation_visitor.GenerateClassDebugReaders(output_directory);
+  implementation_visitor.GenerateEnumVerifiers(output_directory);
   implementation_visitor.GenerateExportedMacrosAssembler(output_directory);
   implementation_visitor.GenerateCSATypes(output_directory);
   implementation_visitor.GenerateInstanceTypes(output_directory);

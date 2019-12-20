@@ -3893,6 +3893,38 @@ void ImplementationVisitor::GenerateClassVerifiers(
   WriteFile(output_directory + "/" + file_name + ".cc", cc_contents.str());
 }
 
+void ImplementationVisitor::GenerateEnumVerifiers(
+    const std::string& output_directory) {
+  std::string file_name = "enum-verifiers-tq";
+  std::stringstream cc_contents;
+  {
+    cc_contents << "#include \"src/compiler/code-assembler.h\"\n";
+    for (const std::string& include_path : GlobalContext::CppIncludes()) {
+      cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
+    }
+    cc_contents << "\n";
+
+    NamespaceScope cc_namespaces(cc_contents, {"v8", "internal", ""});
+
+    cc_contents << "class EnumVerifier {\n";
+    for (const auto& desc : GlobalContext::Get().ast()->EnumDescriptions()) {
+      cc_contents << "  // " << desc.name << " (" << desc.pos << ")\n";
+      cc_contents << "  void VerifyEnum_" << desc.name << "("
+                  << desc.constexpr_generates
+                  << " x) {\n"
+                     "    switch(x) {\n";
+      for (const auto& entry : desc.entries) {
+        cc_contents << "      case " << entry << ": break;\n";
+      }
+      if (desc.is_open) cc_contents << "      default: break;\n";
+      cc_contents << "    }\n  }\n\n";
+    }
+    cc_contents << "};\n";
+  }
+
+  WriteFile(output_directory + "/" + file_name + ".cc", cc_contents.str());
+}
+
 void ImplementationVisitor::GenerateExportedMacrosAssembler(
     const std::string& output_directory) {
   std::string file_name = "exported-macros-assembler-tq";
