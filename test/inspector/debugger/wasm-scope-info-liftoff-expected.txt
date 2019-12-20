@@ -1,0 +1,132 @@
+Test retrieving scope information from compiled Liftoff frames
+Installing instantiate code.
+Waiting for three wasm scripts to be parsed.
+Calling instantiate function.
+Got wasm script!
+Got wasm script!
+Got wasm script!
+Setting breakpoint on line 2 (first instruction) of third function
+{
+    columnNumber : 2
+    lineNumber : 2
+    scriptId : <scriptId>
+}
+Paused:
+(local i32)
+  #local.get 0
+  global.set 0
+
+Scope:
+at C (interpreted) (2:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
+ - scope (local):
+   locals: "i32_arg": 42 (number), "i32_local": 0 (number)
+   stack: 
+at B (liftoff) (7:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
+at A (liftoff) (2:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  local.get 0
+  #global.set 0
+  i32.const 47
+
+Scope:
+at C (interpreted) (3:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
+ - scope (local):
+   locals: "i32_arg": 42 (number), "i32_local": 0 (number)
+   stack: "0": 42 (number)
+at B (liftoff) (7:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
+at A (liftoff) (2:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  global.set 0
+  #i32.const 47
+  local.set 1
+
+Scope:
+at C (interpreted) (4:2):
+ - scope (global):
+   globals: "global#0": 42 (number)
+ - scope (local):
+   locals: "i32_arg": 42 (number), "i32_local": 0 (number)
+   stack: 
+at B (liftoff) (7:2):
+ - scope (global):
+   globals: "global#0": 42 (number)
+at A (liftoff) (2:2):
+ - scope (global):
+   globals: "global#0": 42 (number)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  i32.const 47
+  #local.set 1
+end
+
+Scope:
+at C (interpreted) (5:2):
+ - scope (global):
+   globals: "global#0": 42 (number)
+ - scope (local):
+   locals: "i32_arg": 42 (number), "i32_local": 0 (number)
+   stack: "0": 47 (number)
+at B (liftoff) (7:2):
+ - scope (global):
+   globals: "global#0": 42 (number)
+at A (liftoff) (2:2):
+ - scope (global):
+   globals: "global#0": 42 (number)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  local.set 1
+#end
+
+
+Scope:
+at C (interpreted) (6:0):
+ - scope (global):
+   globals: "global#0": 42 (number)
+ - scope (local):
+   locals: "i32_arg": 42 (number), "i32_local": 47 (number)
+   stack: 
+at B (liftoff) (7:2):
+ - scope (global):
+   globals: "global#0": 42 (number)
+at A (liftoff) (2:2):
+ - scope (global):
+   globals: "global#0": 42 (number)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+instance.exports.main(42)#
+
+Scope:
+at (anonymous) (0:25):
+ - scope (global):
+   -- skipped globals
+
+exports.main returned. Test finished.
