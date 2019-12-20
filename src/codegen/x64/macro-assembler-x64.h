@@ -291,12 +291,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Cvttss2si(Register dst, Operand src);
   void Cvttss2siq(Register dst, XMMRegister src);
   void Cvttss2siq(Register dst, Operand src);
-  void Cvtqsi2ss(XMMRegister dst, Register src);
-  void Cvtqsi2ss(XMMRegister dst, Operand src);
-  void Cvtqsi2sd(XMMRegister dst, Register src);
-  void Cvtqsi2sd(XMMRegister dst, Operand src);
-  void Cvtlsi2ss(XMMRegister dst, Register src);
-  void Cvtlsi2ss(XMMRegister dst, Operand src);
   void Cvtlui2ss(XMMRegister dst, Register src);
   void Cvtlui2ss(XMMRegister dst, Operand src);
   void Cvtlui2sd(XMMRegister dst, Register src);
@@ -310,9 +304,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Cvttss2uiq(Register dst, Operand src, Label* fail = nullptr);
   void Cvttss2uiq(Register dst, XMMRegister src, Label* fail = nullptr);
 
-  // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
-  // hinders register renaming and makes dependence chains longer. So we use
-  // xorpd to clear the dst register before cvtsi2sd to solve this issue.
+  // cvtsi2sd and cvtsi2ss instructions only write to the low 64/32-bit of dst
+  // register, which hinders register renaming and makes dependence chains
+  // longer. So we use xorpd to clear the dst register before cvtsi2sd for
+  // non-AVX and a scratch XMM register as first src for AVX to solve this
+  // issue.
+  void Cvtqsi2ss(XMMRegister dst, Register src);
+  void Cvtqsi2ss(XMMRegister dst, Operand src);
+  void Cvtqsi2sd(XMMRegister dst, Register src);
+  void Cvtqsi2sd(XMMRegister dst, Operand src);
+  void Cvtlsi2ss(XMMRegister dst, Register src);
+  void Cvtlsi2ss(XMMRegister dst, Operand src);
   void Cvtlsi2sd(XMMRegister dst, Register src);
   void Cvtlsi2sd(XMMRegister dst, Operand src);
 
