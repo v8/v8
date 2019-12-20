@@ -251,7 +251,7 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
     int column_num = script->GetColumnNumber(info->StartPosition()) + 1;
     PROFILE(isolate,
             CodeCreateEvent(CodeEventListener::INTERPRETED_FUNCTION_TAG,
-                            *abstract_code, *info, *name_handle, line_num,
+                            abstract_code, info, name_handle, line_num,
                             column_num));
   }
 }
@@ -339,9 +339,10 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
               script->GetLineNumber(shared_info->StartPosition()) + 1;
           int column_num =
               script->GetColumnNumber(shared_info->StartPosition()) + 1;
-          PROFILE(isolate, CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
-                                           info.abstract_code(), *shared_info,
-                                           *name, line_num, column_num));
+          PROFILE(isolate,
+                  CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
+                                  handle(info.abstract_code(), isolate),
+                                  shared_info, name, line_num, column_num));
         }
       }
     }

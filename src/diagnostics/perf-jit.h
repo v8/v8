@@ -42,8 +42,8 @@ class PerfJitLogger : public CodeEventLogger {
   ~PerfJitLogger() override;
 
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
-  void CodeDisableOptEvent(AbstractCode code,
-                           SharedFunctionInfo shared) override {}
+  void CodeDisableOptEvent(Handle<AbstractCode> code,
+                           Handle<SharedFunctionInfo> shared) override {}
 
  private:
   void OpenJitDumpFile();
@@ -131,8 +131,8 @@ class PerfJitLogger : public CodeEventLogger {
     UNIMPLEMENTED();
   }
 
-  void CodeDisableOptEvent(AbstractCode code,
-                           SharedFunctionInfo shared) override {
+  void CodeDisableOptEvent(Handle<AbstractCode> code,
+                           Handle<SharedFunctionInfo> shared) override {
     UNIMPLEMENTED();
   }
 

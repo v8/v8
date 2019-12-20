@@ -282,15 +282,16 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
 
   Address* builtins = isolate->builtins_table();
   int i = 0;
+  HandleScope scope(isolate);
   for (; i < kFirstBytecodeHandler; i++) {
-    auto code = AbstractCode::cast(Object(builtins[i]));
+    Handle<AbstractCode> code(AbstractCode::cast(Object(builtins[i])), isolate);
     PROFILE(isolate, CodeCreateEvent(CodeEventListener::BUILTIN_TAG, code,
                                      Builtins::name(i)));
   }
 
   STATIC_ASSERT(kLastBytecodeHandlerPlusOne == builtin_count);
   for (; i < builtin_count; i++) {
-    auto code = AbstractCode::cast(Object(builtins[i]));
+    Handle<AbstractCode> code(AbstractCode::cast(Object(builtins[i])), isolate);
     interpreter::Bytecode bytecode =
         builtin_metadata[i].data.bytecode_and_scale.bytecode;
     interpreter::OperandScale scale =

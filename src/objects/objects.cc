@@ -5246,7 +5246,9 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   // Code should be the lazy compilation stub or else interpreted.
   DCHECK(abstract_code().kind() == AbstractCode::INTERPRETED_FUNCTION ||
          abstract_code().kind() == AbstractCode::BUILTIN);
-  PROFILE(GetIsolate(), CodeDisableOptEvent(abstract_code(), *this));
+  PROFILE(GetIsolate(),
+          CodeDisableOptEvent(handle(abstract_code(), GetIsolate()),
+                              handle(*this, GetIsolate())));
   if (FLAG_trace_opt) {
     PrintF("[disabled optimization for ");
     ShortPrint();

@@ -233,7 +233,7 @@ void RecordWasmHeapStubCompilation(Isolate* isolate, Handle<Code> code,
   Handle<String> name_str =
       isolate->factory()->NewStringFromAsciiChecked(buffer.begin());
   PROFILE(isolate, CodeCreateEvent(CodeEventListener::STUB_TAG,
-                                   AbstractCode::cast(*code), *name_str));
+                                   Handle<AbstractCode>::cast(code), name_str));
 }
 }  // namespace
 

@@ -166,10 +166,10 @@ TEST(CodeEvents) {
 
   i::HandleScope scope(isolate);
 
-  i::AbstractCode aaa_code = CreateCode(&env);
-  i::AbstractCode comment_code = CreateCode(&env);
-  i::AbstractCode comment2_code = CreateCode(&env);
-  i::AbstractCode moved_code = CreateCode(&env);
+  i::Handle<i::AbstractCode> aaa_code(CreateCode(&env), isolate);
+  i::Handle<i::AbstractCode> comment_code(CreateCode(&env), isolate);
+  i::Handle<i::AbstractCode> comment2_code(CreateCode(&env), isolate);
+  i::Handle<i::AbstractCode> moved_code(CreateCode(&env), isolate);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfilerCodeObserver code_observer(isolate);
@@ -186,34 +186,34 @@ TEST(CodeEvents) {
   const char* aaa_str = "aaa";
   i::Handle<i::String> aaa_name = factory->NewStringFromAsciiChecked(aaa_str);
   profiler_listener.CodeCreateEvent(i::Logger::FUNCTION_TAG, aaa_code,
-                                    *aaa_name);
+                                    aaa_name);
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment_code,
                                     "comment");
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment2_code,
                                     "comment2");
-  profiler_listener.CodeMoveEvent(comment2_code, moved_code);
+  profiler_listener.CodeMoveEvent(*comment2_code, *moved_code);
 
   // Enqueue a tick event to enable code events processing.
-  EnqueueTickSampleEvent(processor, aaa_code.InstructionStart());
+  EnqueueTickSampleEvent(processor, aaa_code->InstructionStart());
 
   isolate->logger()->RemoveCodeEventListener(&profiler_listener);
   processor->StopSynchronously();
 
   // Check the state of profile generator.
   CodeEntry* aaa =
-      generator->code_map()->FindEntry(aaa_code.InstructionStart());
+      generator->code_map()->FindEntry(aaa_code->InstructionStart());
   CHECK(aaa);
   CHECK_EQ(0, strcmp(aaa_str, aaa->name()));
 
   CodeEntry* comment =
-      generator->code_map()->FindEntry(comment_code.InstructionStart());
+      generator->code_map()->FindEntry(comment_code->InstructionStart());
   CHECK(comment);
   CHECK_EQ(0, strcmp("comment", comment->name()));
 
-  CHECK(!generator->code_map()->FindEntry(comment2_code.InstructionStart()));
+  CHECK(!generator->code_map()->FindEntry(comment2_code->InstructionStart()));
 
   CodeEntry* comment2 =
-      generator->code_map()->FindEntry(moved_code.InstructionStart());
+      generator->code_map()->FindEntry(moved_code->InstructionStart());
   CHECK(comment2);
   CHECK_EQ(0, strcmp("comment2", comment2->name()));
 }
@@ -229,9 +229,9 @@ TEST(TickEvents) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::AbstractCode frame1_code = CreateCode(&env);
-  i::AbstractCode frame2_code = CreateCode(&env);
-  i::AbstractCode frame3_code = CreateCode(&env);
+  i::Handle<i::AbstractCode> frame1_code(CreateCode(&env), isolate);
+  i::Handle<i::AbstractCode> frame2_code(CreateCode(&env), isolate);
+  i::Handle<i::AbstractCode> frame3_code(CreateCode(&env), isolate);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfilerCodeObserver code_observer(isolate);
@@ -251,14 +251,14 @@ TEST(TickEvents) {
   profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, frame2_code, "ccc");
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame3_code, "ddd");
 
-  EnqueueTickSampleEvent(processor, frame1_code.raw_instruction_start());
+  EnqueueTickSampleEvent(processor, frame1_code->raw_instruction_start());
   EnqueueTickSampleEvent(
       processor,
-      frame2_code.raw_instruction_start() + frame2_code.ExecutableSize() / 2,
-      frame1_code.raw_instruction_start() + frame1_code.ExecutableSize() / 2);
-  EnqueueTickSampleEvent(processor, frame3_code.raw_instruction_end() - 1,
-                         frame2_code.raw_instruction_end() - 1,
-                         frame1_code.raw_instruction_end() - 1);
+      frame2_code->raw_instruction_start() + frame2_code->ExecutableSize() / 2,
+      frame1_code->raw_instruction_start() + frame1_code->ExecutableSize() / 2);
+  EnqueueTickSampleEvent(processor, frame3_code->raw_instruction_end() - 1,
+                         frame2_code->raw_instruction_end() - 1,
+                         frame1_code->raw_instruction_end() - 1);
 
   isolate->logger()->RemoveCodeEventListener(&profiler_listener);
   processor->StopSynchronously();
@@ -303,7 +303,7 @@ TEST(Issue1398) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::AbstractCode code = CreateCode(&env);
+  i::Handle<i::AbstractCode> code(CreateCode(&env), isolate);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfilerCodeObserver code_observer(isolate);
@@ -321,11 +321,11 @@ TEST(Issue1398) {
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
 
   v8::internal::TickSample sample;
-  sample.pc = reinterpret_cast<void*>(code.InstructionStart());
+  sample.pc = reinterpret_cast<void*>(code->InstructionStart());
   sample.tos = nullptr;
   sample.frames_count = TickSample::kMaxFramesCount;
   for (unsigned i = 0; i < sample.frames_count; ++i) {
-    sample.stack[i] = reinterpret_cast<void*>(code.InstructionStart());
+    sample.stack[i] = reinterpret_cast<void*>(code->InstructionStart());
   }
   sample.timestamp = base::TimeTicks::HighResolutionNow();
   processor->AddSample(sample);
@@ -1169,9 +1169,9 @@ static void TickLines(bool optimize) {
   CHECK(!func->shared().abstract_code().is_null());
   CHECK(!optimize || func->IsOptimized() ||
         !CcTest::i_isolate()->use_optimizer());
-  i::AbstractCode code = func->abstract_code();
-  CHECK(!code.is_null());
-  i::Address code_address = code.raw_instruction_start();
+  i::Handle<i::AbstractCode> code(func->abstract_code(), isolate);
+  CHECK(!code->is_null());
+  i::Address code_address = code->raw_instruction_start();
   CHECK_NE(code_address, kNullAddress);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
@@ -1197,7 +1197,8 @@ static void TickLines(bool optimize) {
   int line = 1;
   int column = 1;
   profiler_listener.CodeCreateEvent(i::Logger::FUNCTION_TAG, code,
-                                    func->shared(), *str, line, column);
+                                    handle(func->shared(), isolate), str, line,
+                                    column);
 
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, code_address);

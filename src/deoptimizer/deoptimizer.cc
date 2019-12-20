@@ -519,8 +519,9 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   }
   if (compiled_code_.kind() == Code::OPTIMIZED_FUNCTION) {
     compiled_code_.set_deopt_already_counted(true);
-    PROFILE(isolate_,
-            CodeDeoptEvent(compiled_code_, kind, from_, fp_to_sp_delta_));
+    HandleScope scope(isolate_);
+    PROFILE(isolate_, CodeDeoptEvent(handle(compiled_code_, isolate_), kind,
+                                     from_, fp_to_sp_delta_));
   }
   unsigned size = ComputeInputFrameSize();
   const int parameter_count =

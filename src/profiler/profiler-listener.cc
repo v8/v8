@@ -30,60 +30,49 @@ ProfilerListener::ProfilerListener(Isolate* isolate,
 
 ProfilerListener::~ProfilerListener() = default;
 
-void ProfilerListener::CallbackEvent(Name name, Address entry_point) {
-  DisallowHeapAllocation no_gc;
+void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
+                                       Handle<AbstractCode> code,
+                                       const char* name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->instruction_start = entry_point;
-  rec->entry = new CodeEntry(CodeEventListener::CALLBACK_TAG, GetName(name));
-  rec->instruction_size = 1;
-  DispatchCodeEvent(evt_rec);
-}
-
-void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       AbstractCode code, const char* name) {
-  DisallowHeapAllocation no_gc;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->instruction_start = code.InstructionStart();
+  rec->instruction_start = code->InstructionStart();
   rec->entry = new CodeEntry(tag, GetName(name), CodeEntry::kEmptyResourceName,
                              CpuProfileNode::kNoLineNumberInfo,
                              CpuProfileNode::kNoColumnNumberInfo, nullptr,
-                             code.InstructionStart());
-  rec->instruction_size = code.InstructionSize();
+                             code->InstructionStart());
+  rec->instruction_size = code->InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       AbstractCode code, Name name) {
-  DisallowHeapAllocation no_gc;
+void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
+                                       Handle<AbstractCode> code,
+                                       Handle<Name> name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->instruction_start = code.InstructionStart();
-  rec->entry = new CodeEntry(tag, GetName(name), CodeEntry::kEmptyResourceName,
+  rec->instruction_start = code->InstructionStart();
+  rec->entry = new CodeEntry(tag, GetName(*name), CodeEntry::kEmptyResourceName,
                              CpuProfileNode::kNoLineNumberInfo,
                              CpuProfileNode::kNoColumnNumberInfo, nullptr,
-                             code.InstructionStart());
-  rec->instruction_size = code.InstructionSize();
+                             code->InstructionStart());
+  rec->instruction_size = code->InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       AbstractCode code,
-                                       SharedFunctionInfo shared,
-                                       Name script_name) {
-  DisallowHeapAllocation no_gc;
+void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
+                                       Handle<AbstractCode> code,
+                                       Handle<SharedFunctionInfo> shared,
+                                       Handle<Name> script_name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->instruction_start = code.InstructionStart();
-  rec->entry = new CodeEntry(tag, GetName(shared.DebugName()),
-                             GetName(InferScriptName(script_name, shared)),
+  rec->instruction_start = code->InstructionStart();
+  rec->entry = new CodeEntry(tag, GetName(shared->DebugName()),
+                             GetName(InferScriptName(*script_name, *shared)),
                              CpuProfileNode::kNoLineNumberInfo,
                              CpuProfileNode::kNoColumnNumberInfo, nullptr,
-                             code.InstructionStart());
-  DCHECK(!code.IsCode());
-  rec->entry->FillFunctionInfo(shared);
-  rec->instruction_size = code.InstructionSize();
+                             code->InstructionStart());
+  DCHECK(!code->IsCode());
+  rec->entry->FillFunctionInfo(*shared);
+  rec->instruction_size = code->InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
 
@@ -102,29 +91,22 @@ CodeEntry* GetOrInsertCachedEntry(
 
 }  // namespace
 
-void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       AbstractCode abstract_code_unsafe,
-                                       SharedFunctionInfo shared_unsafe,
-                                       Name script_name_unsafe, int line,
+void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
+                                       Handle<AbstractCode> abstract_code,
+                                       Handle<SharedFunctionInfo> shared,
+                                       Handle<Name> script_name, int line,
                                        int column) {
-  HandleScope scope(isolate_);
-  Handle<AbstractCode> abstract_code_handle =
-      handle(abstract_code_unsafe, isolate_);
-  Handle<SharedFunctionInfo> shared_handle = handle(shared_unsafe, isolate_);
-  Handle<Name> script_name_handle = handle(script_name_unsafe, isolate_);
-
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->instruction_start = abstract_code_handle->InstructionStart();
+  rec->instruction_start = abstract_code->InstructionStart();
   std::unique_ptr<SourcePositionTable> line_table;
   std::unordered_map<int, std::vector<CodeEntryAndLineNumber>> inline_stacks;
   std::unordered_set<std::unique_ptr<CodeEntry>, CodeEntry::Hasher,
                      CodeEntry::Equals>
       cached_inline_entries;
   bool is_shared_cross_origin = false;
-  if (shared_handle->script().IsScript()) {
-    Handle<Script> script =
-        handle(Script::cast(shared_handle->script()), isolate_);
+  if (shared->script().IsScript()) {
+    Handle<Script> script = handle(Script::cast(shared->script()), isolate_);
     line_table.reset(new SourcePositionTable());
 
     is_shared_cross_origin = script->origin_options().IsSharedCrossOrigin();
@@ -134,8 +116,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
     // profiler as is stored on the code object, except that we transform source
     // positions to line numbers here, because we only care about attributing
     // ticks to a given line.
-    for (SourcePositionTableIterator it(
-             abstract_code_handle->source_position_table());
+    for (SourcePositionTableIterator it(abstract_code->source_position_table());
          !it.done(); it.Advance()) {
       int position = it.source_position().ScriptOffset();
       int inlining_id = it.source_position().InliningId();
@@ -144,8 +125,8 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
         int line_number = script->GetLineNumber(position) + 1;
         line_table->SetPosition(it.code_offset(), line_number, inlining_id);
       } else {
-        DCHECK(abstract_code_handle->IsCode());
-        Handle<Code> code = handle(abstract_code_handle->GetCode(), isolate_);
+        DCHECK(abstract_code->IsCode());
+        Handle<Code> code = handle(abstract_code->GetCode(), isolate_);
         std::vector<SourcePositionInfo> stack =
             it.source_position().InliningStack(code);
         DCHECK(!stack.empty());
@@ -198,25 +179,24 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
       }
     }
   }
-  rec->entry = new CodeEntry(
-      tag, GetFunctionName(*shared_handle),
-      GetName(InferScriptName(*script_name_handle, *shared_handle)), line,
-      column, std::move(line_table), abstract_code_handle->InstructionStart(),
-      is_shared_cross_origin);
+  rec->entry =
+      new CodeEntry(tag, GetFunctionName(*shared),
+                    GetName(InferScriptName(*script_name, *shared)), line,
+                    column, std::move(line_table),
+                    abstract_code->InstructionStart(), is_shared_cross_origin);
   if (!inline_stacks.empty()) {
     rec->entry->SetInlineStacks(std::move(cached_inline_entries),
                                 std::move(inline_stacks));
   }
 
-  rec->entry->FillFunctionInfo(*shared_handle);
-  rec->instruction_size = abstract_code_handle->InstructionSize();
+  rec->entry->FillFunctionInfo(*shared);
+  rec->instruction_size = abstract_code->InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
+void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
                                        const wasm::WasmCode* code,
                                        wasm::WasmName name) {
-  DisallowHeapAllocation no_gc;
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->instruction_start();
@@ -225,6 +205,50 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
       CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
       nullptr, code->instruction_start(), true);
   rec->instruction_size = code->instructions().length();
+  DispatchCodeEvent(evt_rec);
+}
+
+void ProfilerListener::CallbackEvent(Handle<Name> name, Address entry_point) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->instruction_start = entry_point;
+  rec->entry = new CodeEntry(CodeEventListener::CALLBACK_TAG, GetName(*name));
+  rec->instruction_size = 1;
+  DispatchCodeEvent(evt_rec);
+}
+
+void ProfilerListener::GetterCallbackEvent(Handle<Name> name,
+                                           Address entry_point) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->instruction_start = entry_point;
+  rec->entry = new CodeEntry(CodeEventListener::CALLBACK_TAG,
+                             GetConsName("get ", *name));
+  rec->instruction_size = 1;
+  DispatchCodeEvent(evt_rec);
+}
+
+void ProfilerListener::SetterCallbackEvent(Handle<Name> name,
+                                           Address entry_point) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->instruction_start = entry_point;
+  rec->entry = new CodeEntry(CodeEventListener::CALLBACK_TAG,
+                             GetConsName("set ", *name));
+  rec->instruction_size = 1;
+  DispatchCodeEvent(evt_rec);
+}
+
+void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
+                                             Handle<String> source) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->instruction_start = code->InstructionStart();
+  rec->entry = new CodeEntry(
+      CodeEventListener::REG_EXP_TAG, GetConsName("RegExp: ", *source),
+      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
+      CpuProfileNode::kNoColumnNumberInfo, nullptr, code->InstructionStart());
+  rec->instruction_size = code->InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
 
@@ -237,23 +261,28 @@ void ProfilerListener::CodeMoveEvent(AbstractCode from, AbstractCode to) {
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeDisableOptEvent(AbstractCode code,
-                                           SharedFunctionInfo shared) {
-  DisallowHeapAllocation no_gc;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_DISABLE_OPT);
-  CodeDisableOptEventRecord* rec = &evt_rec.CodeDisableOptEventRecord_;
-  rec->instruction_start = code.InstructionStart();
-  rec->bailout_reason = GetBailoutReason(shared.disable_optimization_reason());
+void ProfilerListener::NativeContextMoveEvent(Address from, Address to) {
+  CodeEventsContainer evt_rec(CodeEventRecord::NATIVE_CONTEXT_MOVE);
+  evt_rec.NativeContextMoveEventRecord_.from_address = from;
+  evt_rec.NativeContextMoveEventRecord_.to_address = to;
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeDeoptEvent(Code code, DeoptimizeKind kind,
+void ProfilerListener::CodeDisableOptEvent(Handle<AbstractCode> code,
+                                           Handle<SharedFunctionInfo> shared) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_DISABLE_OPT);
+  CodeDisableOptEventRecord* rec = &evt_rec.CodeDisableOptEventRecord_;
+  rec->instruction_start = code->InstructionStart();
+  rec->bailout_reason = GetBailoutReason(shared->disable_optimization_reason());
+  DispatchCodeEvent(evt_rec);
+}
+
+void ProfilerListener::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
                                       Address pc, int fp_to_sp_delta) {
-  DisallowHeapAllocation no_gc;
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_DEOPT);
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
-  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(code, pc);
-  rec->instruction_start = code.InstructionStart();
+  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
+  rec->instruction_start = code->InstructionStart();
   rec->deopt_reason = DeoptimizeReasonToString(info.deopt_reason);
   rec->deopt_id = info.deopt_id;
   rec->pc = pc;
@@ -262,49 +291,6 @@ void ProfilerListener::CodeDeoptEvent(Code code, DeoptimizeKind kind,
   // When a function is deoptimized, we store the deoptimized frame information
   // for the use of GetDeoptInfos().
   AttachDeoptInlinedFrames(code, rec);
-  DispatchCodeEvent(evt_rec);
-}
-
-void ProfilerListener::GetterCallbackEvent(Name name, Address entry_point) {
-  DisallowHeapAllocation no_gc;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->instruction_start = entry_point;
-  rec->entry =
-      new CodeEntry(CodeEventListener::CALLBACK_TAG, GetConsName("get ", name));
-  rec->instruction_size = 1;
-  DispatchCodeEvent(evt_rec);
-}
-
-void ProfilerListener::RegExpCodeCreateEvent(AbstractCode code, String source) {
-  DisallowHeapAllocation no_gc;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->instruction_start = code.InstructionStart();
-  rec->entry = new CodeEntry(
-      CodeEventListener::REG_EXP_TAG, GetConsName("RegExp: ", source),
-      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
-      CpuProfileNode::kNoColumnNumberInfo, nullptr, code.InstructionStart());
-  rec->instruction_size = code.InstructionSize();
-  DispatchCodeEvent(evt_rec);
-}
-
-void ProfilerListener::SetterCallbackEvent(Name name, Address entry_point) {
-  DisallowHeapAllocation no_gc;
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->instruction_start = entry_point;
-  rec->entry =
-      new CodeEntry(CodeEventListener::CALLBACK_TAG, GetConsName("set ", name));
-  rec->instruction_size = 1;
-  DispatchCodeEvent(evt_rec);
-}
-
-void ProfilerListener::NativeContextMoveEvent(Address from, Address to) {
-  DisallowHeapAllocation no_gc;
-  CodeEventsContainer evt_rec(CodeEventRecord::NATIVE_CONTEXT_MOVE);
-  evt_rec.NativeContextMoveEventRecord_.from_address = from;
-  evt_rec.NativeContextMoveEventRecord_.to_address = to;
   DispatchCodeEvent(evt_rec);
 }
 
@@ -317,7 +303,6 @@ const char* ProfilerListener::GetName(Vector<const char> name) {
 }
 
 Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo info) {
-  DisallowHeapAllocation no_gc;
   if (name.IsString() && String::cast(name).length()) return name;
   if (!info.script().IsScript()) return name;
   Object source_url = Script::cast(info.script()).source_url();
@@ -325,7 +310,6 @@ Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo info) {
 }
 
 const char* ProfilerListener::GetFunctionName(SharedFunctionInfo shared) {
-  DisallowHeapAllocation no_gc;
   switch (naming_mode_) {
     case kDebugNaming:
       return GetName(shared.DebugName());
@@ -336,10 +320,8 @@ const char* ProfilerListener::GetFunctionName(SharedFunctionInfo shared) {
   }
 }
 
-void ProfilerListener::AttachDeoptInlinedFrames(Code code_unsafe,
+void ProfilerListener::AttachDeoptInlinedFrames(Handle<Code> code,
                                                 CodeDeoptEventRecord* rec) {
-  HandleScope scope(isolate_);
-  Handle<Code> code_handle = handle(code_unsafe, isolate_);
   int deopt_id = rec->deopt_id;
   SourcePosition last_position = SourcePosition::Unknown();
   int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_ID) |
@@ -349,7 +331,7 @@ void ProfilerListener::AttachDeoptInlinedFrames(Code code_unsafe,
   rec->deopt_frames = nullptr;
   rec->deopt_frame_count = 0;
 
-  for (RelocIterator it(*code_handle, mask); !it.done(); it.next()) {
+  for (RelocIterator it(*code, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     if (info->rmode() == RelocInfo::DEOPT_SCRIPT_OFFSET) {
       int script_offset = static_cast<int>(info->data());
@@ -367,8 +349,7 @@ void ProfilerListener::AttachDeoptInlinedFrames(Code code_unsafe,
       // frame. These don't escape this function, but quickly add up. This
       // scope limits their lifetime.
       HandleScope scope(isolate_);
-      std::vector<SourcePositionInfo> stack =
-          last_position.InliningStack(code_handle);
+      std::vector<SourcePositionInfo> stack = last_position.InliningStack(code);
       CpuProfileDeoptFrame* deopt_frames =
           new CpuProfileDeoptFrame[stack.size()];
 

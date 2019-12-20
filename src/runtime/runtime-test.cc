@@ -1449,28 +1449,32 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
   // {true} on {is_listening_to_code_events()}. Feel free to add assertions to
   // any method to further test the code logging callbacks.
   class NoopListener final : public CodeEventListener {
-    void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                         const char* comment) final {}
-    void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                         Name name) final {}
-    void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                         SharedFunctionInfo shared, Name source) final {}
-    void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                         SharedFunctionInfo shared, Name source, int line,
-                         int column) final {}
+    void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                         const char* name) final {}
+    void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                         Handle<Name> name) final {}
+    void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                         Handle<SharedFunctionInfo> shared,
+                         Handle<Name> script_name) final {}
+    void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                         Handle<SharedFunctionInfo> shared,
+                         Handle<Name> script_name, int line, int column) final {
+    }
     void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                          wasm::WasmName name) final {}
-    void CallbackEvent(Name name, Address entry_point) final {}
-    void GetterCallbackEvent(Name name, Address entry_point) final {}
-    void SetterCallbackEvent(Name name, Address entry_point) final {}
-    void RegExpCodeCreateEvent(AbstractCode code, String source) final {}
+
+    void CallbackEvent(Handle<Name> name, Address entry_point) final {}
+    void GetterCallbackEvent(Handle<Name> name, Address entry_point) final {}
+    void SetterCallbackEvent(Handle<Name> name, Address entry_point) final {}
+    void RegExpCodeCreateEvent(Handle<AbstractCode> code,
+                               Handle<String> source) final {}
     void CodeMoveEvent(AbstractCode from, AbstractCode to) final {}
     void SharedFunctionInfoMoveEvent(Address from, Address to) final {}
     void NativeContextMoveEvent(Address from, Address to) final {}
     void CodeMovingGCEvent() final {}
-    void CodeDisableOptEvent(AbstractCode code,
-                             SharedFunctionInfo shared) final {}
-    void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
+    void CodeDisableOptEvent(Handle<AbstractCode> code,
+                             Handle<SharedFunctionInfo> shared) final {}
+    void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
                         int fp_to_sp_delta) final {}
 
     bool is_listening_to_code_events() final { return true; }

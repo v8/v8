@@ -460,8 +460,9 @@ UNINITIALIZED_TEST(Issue539892) {
         : CodeEventLogger(isolate) {}
 
     void CodeMoveEvent(i::AbstractCode from, i::AbstractCode to) override {}
-    void CodeDisableOptEvent(i::AbstractCode code,
-                             i::SharedFunctionInfo shared) override {}
+    void CodeDisableOptEvent(i::Handle<i::AbstractCode> code,
+                             i::Handle<i::SharedFunctionInfo> shared) override {
+    }
 
    private:
     void LogRecordedBuffer(i::AbstractCode code, i::SharedFunctionInfo shared,
