@@ -13,14 +13,15 @@ config("vtune_ittapi") {
 
 static_library("v8_vtune") {
   sources = [
-    "ittnotify_config.h",
-    "ittnotify_types.h",
-    "jitprofiling.cc",
-    "jitprofiling.h",
+    "//third_party/ittapi/include/jitprofiling.h",
+    "//third_party/ittapi/src/ittnotify/ittnotify_config.h",
+    "//third_party/ittapi/src/ittnotify/ittnotify_types.h",
+    "//third_party/ittapi/src/ittnotify/jitprofiling.c",
     "v8-vtune.h",
     "vtune-jit.cc",
     "vtune-jit.h",
   ]
+  configs += [ ":vtune_ittapi" ]
   deps = [
     "../../..:v8",
   ]
