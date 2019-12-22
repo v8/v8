@@ -80,7 +80,7 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '60770dc78030305c208d466a8861eb84154201f2',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2e9f6992bb03d1defaa498d46d71bf90befccbf8',
   'v8/third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '44134341fa8b46e83bad3bef48a8bc6badaa3083',
   'v8/third_party/icu':
@@ -224,7 +224,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '13263d53d54bc13a1ff2781363f669044ba9cacf',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '5df4d00d65cd01f20c4ada9655ee81440881312b',
   'v8/tools/luci-go': {
       'packages': [
         {
@@ -258,7 +258,7 @@ deps = {
   'v8/third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + 'b68a347f56137b4b1a746e8c7438495a6ac1bd91',
   'v8/third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'd7f3ca98b2b0d5f72656502961a59353791c4f8a',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '814da1f383b625955149c3845db62af3f29a4ffe',
   'v8/third_party/ittapi': {
     # Force checkout ittapi libraries to pass v8 header includes check on
     # bots that has check_v8_header_includes enabled.
