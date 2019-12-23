@@ -169,12 +169,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)
 
 #ifdef DEBUG
-#define CSA_CHECK(csa, x)                              \
-  (csa)->Check(                                        \
-      [&]() -> compiler::Node* {                       \
-        return implicit_cast<SloppyTNode<Word32T>>(x); \
-      },                                               \
-      #x, __FILE__, __LINE__)
+#define CSA_CHECK(csa, x) \
+  (csa)->Check([&]() -> TNode<BoolT> { return x; }, #x, __FILE__, __LINE__)
 #else
 #define CSA_CHECK(csa, x) (csa)->FastCheck(x)
 #endif
@@ -210,7 +206,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
 #define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)                         \
   (csa)->Assert(                                                             \
-      [&]() -> compiler::Node* {                                             \
+      [&]() -> TNode<BoolT> {                                                \
         const TNode<Word32T> argc = UncheckedCast<Word32T>(                  \
             (csa)->Parameter(Descriptor::kJSActualArgumentsCount));          \
         return (csa)->Op(argc, (csa)->Int32Constant(expected));              \
@@ -823,13 +819,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsRegularHeapObjectSize(TNode<IntPtrT> size);
 
   using BranchGenerator = std::function<void(Label*, Label*)>;
-  using NodeGenerator = std::function<Node*()>;
+  template <typename T>
+  using NodeGenerator = std::function<TNode<T>()>;
   using ExtraNode = std::pair<TNode<Object>, const char*>;
 
   void Assert(const BranchGenerator& branch, const char* message,
               const char* file, int line,
               std::initializer_list<ExtraNode> extra_nodes = {});
-  void Assert(const NodeGenerator& condition_body, const char* message,
+  void Assert(const NodeGenerator<BoolT>& condition_body, const char* message,
               const char* file, int line,
               std::initializer_list<ExtraNode> extra_nodes = {});
   void Assert(SloppyTNode<Word32T> condition_node, const char* message,
@@ -838,7 +835,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void Check(const BranchGenerator& branch, const char* message,
              const char* file, int line,
              std::initializer_list<ExtraNode> extra_nodes = {});
-  void Check(const NodeGenerator& condition_body, const char* message,
+  void Check(const NodeGenerator<BoolT>& condition_body, const char* message,
              const char* file, int line,
              std::initializer_list<ExtraNode> extra_nodes = {});
   void Check(SloppyTNode<Word32T> condition_node, const char* message,
@@ -886,14 +883,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return ConstructWithTarget(context, new_target, new_target, args...);
   }
 
-  template <class A, class F, class G>
-  TNode<A> Select(SloppyTNode<BoolT> condition, const F& true_body,
-                  const G& false_body) {
-    return UncheckedCast<A>(SelectImpl(
-        condition,
-        [&]() -> Node* { return implicit_cast<TNode<A>>(true_body()); },
-        [&]() -> Node* { return implicit_cast<TNode<A>>(false_body()); },
-        MachineRepresentationOf<A>::value));
+  template <typename T>
+  TNode<T> Select(TNode<BoolT> condition, const NodeGenerator<T>& true_body,
+                  const NodeGenerator<T>& false_body) {
+    TVARIABLE(T, value);
+    Label vtrue(this), vfalse(this), end(this);
+    Branch(condition, &vtrue, &vfalse);
+
+    BIND(&vtrue);
+    {
+      value = true_body();
+      Goto(&end);
+    }
+    BIND(&vfalse);
+    {
+      value = false_body();
+      Goto(&end);
+    }
+
+    BIND(&end);
+    return value.value();
   }
 
   template <class A>
@@ -3795,9 +3804,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<String> AllocateSlicedString(RootIndex map_root_index,
                                      TNode<Uint32T> length,
                                      TNode<String> parent, TNode<Smi> offset);
-
-  Node* SelectImpl(TNode<BoolT> condition, const NodeGenerator& true_body,
-                   const NodeGenerator& false_body, MachineRepresentation rep);
 
   // Implements [Descriptor/Transition]Array::number_of_entries.
   template <typename Array>

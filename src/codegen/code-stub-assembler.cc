@@ -73,7 +73,7 @@ void CodeStubAssembler::Assert(const BranchGenerator& branch,
 #endif
 }
 
-void CodeStubAssembler::Assert(const NodeGenerator& condition_body,
+void CodeStubAssembler::Assert(const NodeGenerator<BoolT>& condition_body,
                                const char* message, const char* file, int line,
                                std::initializer_list<ExtraNode> extra_nodes) {
 #if defined(DEBUG)
@@ -112,7 +112,7 @@ void CodeStubAssembler::Check(const BranchGenerator& branch,
   Comment("] Assert");
 }
 
-void CodeStubAssembler::Check(const NodeGenerator& condition_body,
+void CodeStubAssembler::Check(const NodeGenerator<BoolT>& condition_body,
                               const char* message, const char* file, int line,
                               std::initializer_list<ExtraNode> extra_nodes) {
   BranchGenerator branch = [=](Label* ok, Label* not_ok) {
@@ -308,29 +308,6 @@ void CodeStubAssembler::FailAssert(
 
   AbortCSAAssert(message_node);
   Unreachable();
-}
-
-Node* CodeStubAssembler::SelectImpl(TNode<BoolT> condition,
-                                    const NodeGenerator& true_body,
-                                    const NodeGenerator& false_body,
-                                    MachineRepresentation rep) {
-  VARIABLE(value, rep);
-  Label vtrue(this), vfalse(this), end(this);
-  Branch(condition, &vtrue, &vfalse);
-
-  BIND(&vtrue);
-  {
-    value.Bind(true_body());
-    Goto(&end);
-  }
-  BIND(&vfalse);
-  {
-    value.Bind(false_body());
-    Goto(&end);
-  }
-
-  BIND(&end);
-  return value.value();
 }
 
 TNode<Int32T> CodeStubAssembler::SelectInt32Constant(
@@ -9979,11 +9956,15 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
          IsSealedElementsKind(elements_kind) ||
          IsNonextensibleElementsKind(elements_kind));
 
-  Node* length = SelectImpl(
-      IsJSArray(object), [=]() { return LoadJSArrayLength(CAST(object)); },
-      [=]() { return LoadFixedArrayBaseLength(elements); },
-      MachineRepresentation::kTagged);
-  length = TaggedToParameter(length, parameter_mode);
+  TNode<Smi> smi_length = Select<Smi>(
+      IsJSArray(object),
+      [=]() {
+        // This is casting Number -> Smi which may not actually be safe.
+        return CAST(LoadJSArrayLength(CAST(object)));
+      },
+      [=]() { return LoadFixedArrayBaseLength(elements); });
+
+  Node* length = TaggedToParameter(smi_length, parameter_mode);
 
   // In case value is stored into a fast smi array, assure that the value is
   // a smi before manipulating the backing store. Otherwise the backing store
@@ -10140,14 +10121,13 @@ void CodeStubAssembler::TransitionElementsKind(TNode<JSObject> object,
     ParameterMode mode = INTPTR_PARAMETERS;
     TNode<IntPtrT> elements_length =
         SmiUntag(LoadFixedArrayBaseLength(elements));
-    Node* array_length = SelectImpl(
+    TNode<IntPtrT> array_length = Select<IntPtrT>(
         IsJSArray(object),
         [=]() {
           CSA_ASSERT(this, IsFastElementsKind(LoadElementsKind(object)));
           return SmiUntag(LoadFastJSArrayLength(CAST(object)));
         },
-        [=]() { return elements_length; },
-        MachineType::PointerRepresentation());
+        [=]() { return elements_length; });
 
     CSA_ASSERT(this, WordNotEqual(elements_length, IntPtrConstant(0)));
 

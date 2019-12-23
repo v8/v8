@@ -157,15 +157,9 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
       const PromiseAllResolvingElementFunction& create_reject_element_function,
       Label* if_exception, TVariable<Object>* var_exception);
 
-  void SetForwardingHandlerIfTrue(Node* context, Node* condition,
-                                  const NodeGenerator& object);
-  inline void SetForwardingHandlerIfTrue(Node* context, Node* condition,
-                                         Node* object) {
-    return SetForwardingHandlerIfTrue(context, condition,
-                                      [object]() -> Node* { return object; });
-  }
+  void SetForwardingHandlerIfTrue(Node* context, Node* condition, Node* object);
   void SetPromiseHandledByIfTrue(Node* context, Node* condition, Node* promise,
-                                 const NodeGenerator& handled_by);
+                                 const NodeGenerator<Object>& handled_by);
 
   TNode<JSPromise> AllocateJSPromise(TNode<Context> context);
 

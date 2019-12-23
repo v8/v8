@@ -353,12 +353,13 @@ void PromiseBuiltinsAssembler::BranchIfAccessCheckFailed(
   BIND(&has_access);
 }
 
-void PromiseBuiltinsAssembler::SetForwardingHandlerIfTrue(
-    Node* context, Node* condition, const NodeGenerator& object) {
+void PromiseBuiltinsAssembler::SetForwardingHandlerIfTrue(Node* context,
+                                                          Node* condition,
+                                                          Node* object) {
   Label done(this);
   GotoIfNot(condition, &done);
   SetPropertyStrict(
-      CAST(context), CAST(object()),
+      CAST(context), CAST(object),
       HeapConstant(factory()->promise_forwarding_handler_symbol()),
       TrueConstant());
   Goto(&done);
@@ -367,14 +368,14 @@ void PromiseBuiltinsAssembler::SetForwardingHandlerIfTrue(
 
 void PromiseBuiltinsAssembler::SetPromiseHandledByIfTrue(
     Node* context, Node* condition, Node* promise,
-    const NodeGenerator& handled_by) {
+    const NodeGenerator<Object>& handled_by) {
   Label done(this);
   GotoIfNot(condition, &done);
   GotoIf(TaggedIsSmi(promise), &done);
   GotoIfNot(HasInstanceType(promise, JS_PROMISE_TYPE), &done);
   SetPropertyStrict(CAST(context), CAST(promise),
                     HeapConstant(factory()->promise_handled_by_symbol()),
-                    CAST(handled_by()));
+                    handled_by());
   Goto(&done);
   BIND(&done);
 }
