@@ -22,6 +22,7 @@ import gzip
 
 from callstats_groups import RUNTIME_CALL_STATS_GROUPS
 
+
 def parse_args():
   parser = argparse.ArgumentParser(
       description="Run story and collect runtime call stats.")
@@ -97,10 +98,7 @@ def parse_args():
       help=("path to chromium directory. If not given, the script must be run "
             "inside the chromium/src directory"))
   parser.add_argument(
-      "--js-flags",
-      dest="js_flags",
-      action="store",
-      help="flags to pass to v8")
+      "--js-flags", dest="js_flags", action="store", help="flags to pass to v8")
   parser.add_argument(
       "--extra-browser-args",
       dest="browser_args",
@@ -122,6 +120,15 @@ def parse_args():
       dest="filter",
       action="append",
       help="useable with --group to only show buckets specified by filter")
+  parser.add_argument(
+      "--retain",
+      dest="retain",
+      action="store",
+      default="json",
+      choices=["none", "json", "all"],
+      help=("controls artifacts to be retained after run. With none, all files "
+            "are deleted; only the json.gz file is retained for each run; and "
+            "all keep all files"))
 
   return parser.parse_args()
 
@@ -148,9 +155,17 @@ def process_trace(trace_file):
   return output
 
 
-def run_benchmark(story, repeats=1, output_dir=".", verbose=False, js_flags=None,
-                  browser_args=None, chromium_dir=".", executable=None,
-                  benchmark="v8.browsing_desktop", device=None, browser="release"):
+def run_benchmark(story,
+                  repeats=1,
+                  output_dir=".",
+                  verbose=False,
+                  js_flags=None,
+                  browser_args=None,
+                  chromium_dir=".",
+                  executable=None,
+                  benchmark="v8.browsing_desktop",
+                  device=None,
+                  browser="release"):
 
   orig_chromium_dir = chromium_dir
   xvfb = os.path.join(chromium_dir, "testing", "xvfb.py")
@@ -166,9 +181,14 @@ def run_benchmark(story, repeats=1, output_dir=".", verbose=False, js_flags=None
       xvfb,
       os.path.join(chromium_dir, "tools", "perf", "run_benchmark"),
       "run",
-      "--story", story,
-      "--pageset-repeat", str(repeats),
-      "--intermediate-dir", output_dir,
+      "--story",
+      story,
+      "--pageset-repeat",
+      str(repeats),
+      "--output-dir",
+      output_dir,
+      "--intermediate-dir",
+      os.path.join(output_dir, "artifacts"),
       benchmark,
   ]
 
@@ -203,7 +223,7 @@ def run_benchmark(story, repeats=1, output_dir=".", verbose=False, js_flags=None
       stderr=subprocess.PIPE,
       universal_newlines=True)
   proc.stderr.close()
-  status_matcher = re.compile("\[ +(\w+) +\]")
+  status_matcher = re.compile(r"\[ +(\w+) +\]")
   for line in iter(proc.stdout.readline, ""):
     stdout += line
     match = status_matcher.match(line)
@@ -225,7 +245,7 @@ def run_benchmark(story, repeats=1, output_dir=".", verbose=False, js_flags=None
 def write_output(f, table, headers, run_count, format="table"):
   if format == "csv":
     # strip new lines from CSV output
-    headers = [h.replace('\n', ' ') for h in headers]
+    headers = [h.replace("\n", " ") for h in headers]
     writer = csv.writer(f)
     writer.writerow(headers)
     writer.writerows(table)
@@ -237,143 +257,124 @@ def write_output(f, table, headers, run_count, format="table"):
     f.write("\n")
 
 
-def main():
-  args = parse_args()
-  story = args.story[0]
+class Row:
 
-  if args.dir is not None:
-    output_dir = args.dir
-    if not os.path.isdir(output_dir):
-      print("Specified output directory does not exist: " % output_dir)
-      sys.exit(1)
-  else:
-    output_dir = tempfile.mkdtemp(prefix="runtime_call_stats_")
-    run_benchmark(story,
-                  repeats=args.repeats,
-                  output_dir=output_dir,
-                  verbose=args.verbose,
-                  js_flags=args.js_flags,
-                  browser_args=args.browser_args,
-                  chromium_dir=args.chromium_dir,
-                  benchmark=args.benchmark,
-                  executable=args.executable,
-                  browser=args.browser,
-                  device=args.device)
+  def __init__(self, name, run_count):
+    self.name = name
+    self.durations = [0] * run_count
+    self.counts = [0] * run_count
+    self.mean_duration = None
+    self.mean_count = None
+    self.stdev_duration = None
+    self.stdev_count = None
 
-  outputs = {}
-  combined_output = {}
-  if args.group:
+  def __repr__(self):
+    data_str = ", ".join(
+        str((c, d)) for (c, d) in zip(self.counts, self.durations))
+    return (f"{self.name}: {data_str}, mean_count: {self.mean_count}, " +
+            f"mean_duration: {self.mean_duration}")
+
+  def add_data(self, counts, durations):
+    self.counts = counts
+    self.durations = durations
+
+  def add_data_point(self, run, count, duration):
+    self.counts[run] = count
+    self.durations[run] = duration
+
+  def prepare(self, stdev=False):
+    if len(self.durations) > 1:
+      self.mean_duration = statistics.mean(self.durations)
+      self.mean_count = statistics.mean(self.counts)
+      if stdev:
+        self.stdev_duration = statistics.stdev(self.durations)
+        self.stdev_count = statistics.stdev(self.counts)
+
+  def as_list(self):
+    l = [self.name]
+    for (c, d) in zip(self.counts, self.durations):
+      l += [c, d]
+    if self.mean_duration is not None:
+      l += [self.mean_count]
+      if self.stdev_count is not None:
+        l += [self.stdev_count]
+      l += [self.mean_duration]
+      if self.stdev_duration is not None:
+        l += [self.stdev_duration]
+    return l
+
+  def key(self):
+    if self.mean_duration is not None:
+      return self.mean_duration
+    else:
+      return self.durations[0]
+
+
+class Bucket:
+
+  def __init__(self, name, run_count):
+    self.name = name
+    self.run_count = run_count
+    self.data = {}
+    self.table = None
+    self.total_row = None
+
+  def __repr__(self):
+    s = "Bucket: " + self.name + " {\n"
+    if self.table:
+      s += "\n  ".join(str(row) for row in self.table) + "\n"
+    elif self.data:
+      s += "\n  ".join(str(row) for row in self.data.values()) + "\n"
+    if self.total_row:
+      s += "  " + str(self.total_row) + "\n"
+    return s + "}"
+
+  def add_data_point(self, name, run, count, duration):
+    if name not in self.data:
+      self.data[name] = Row(name, self.run_count)
+
+    self.data[name].add_data_point(run, count, duration)
+
+  def prepare(self, stdev=False):
+    if self.data:
+      for row in self.data.values():
+        row.prepare(stdev)
+
+      self.table = sorted(self.data.values(), key=Row.key)
+      self.total_row = Row("Total", self.run_count)
+      self.total_row.add_data([
+          sum(r.counts[i]
+              for r in self.data.values())
+          for i in range(0, self.run_count)
+      ], [
+          sum(r.durations[i]
+              for r in self.data.values())
+          for i in range(0, self.run_count)
+      ])
+      self.total_row.prepare(stdev)
+
+  def as_list(self, add_bucket_titles=True, filter=None):
+    t = []
+    if filter is None or self.name in filter:
+      if add_bucket_titles:
+        t += [["\n"], [self.name]]
+      t += [r.as_list() for r in self.table]
+      t += [self.total_row.as_list()]
+    return t
+
+
+def collect_buckets(story, group=True, repeats=1, output_dir="."):
+  if group:
     groups = RUNTIME_CALL_STATS_GROUPS
   else:
     groups = []
 
-
-
-  class Row:
-    def __init__(self, name, run_count):
-      self.name = name
-      self.durations = [0] * run_count
-      self.counts = [0] * run_count
-      self.mean_duration = None
-      self.mean_count = None
-      self.stdev_duration = None
-      self.stdev_count = None
-
-    def __repr__(self):
-      data_str = ", ".join(str((c, d)) for
-                           (c, d) in zip(self.counts, self.durations))
-      return (f"{self.name}: {data_str}, mean_count: {self.mean_count}, " +
-              f"mean_duration: {self.mean_duration}")
-
-
-    def add_data(self, counts, durations):
-      self.counts = counts
-      self.durations = durations
-
-    def add_data_point(self, run, count, duration):
-      self.counts[run] = count
-      self.durations[run] = duration
-
-    def prepare(self, stdev=False):
-      if len(self.durations) > 1:
-        self.mean_duration = statistics.mean(self.durations)
-        self.mean_count = statistics.mean(self.counts)
-        if stdev:
-          self.stdev_duration = statistics.stdev(self.durations)
-          self.stdev_count = statistics.stdev(self.counts)
-
-    def as_list(self):
-      l = [self.name]
-      for (c, d) in zip(self.counts, self.durations):
-        l += [c, d]
-      if self.mean_duration is not None:
-        l += [self.mean_count]
-        if self.stdev_count is not None:
-          l += [self.stdev_count]
-        l += [self.mean_duration]
-        if self.stdev_duration is not None:
-          l += [self.stdev_duration]
-      return l
-
-    def key(self):
-      if self.mean_duration is not None:
-        return self.mean_duration
-      else:
-        return self.durations[0]
-
-
-  class Bucket:
-    def __init__(self, name, run_count):
-      self.name = name
-      self.run_count = run_count
-      self.data = {}
-      self.table = None
-      self.total_row = None
-
-    def __repr__(self):
-      s = "Bucket: " + self.name + " {\n"
-      if self.table:
-        s += "\n  ".join(str(row) for row in self.table) + "\n"
-      elif self.data:
-        s += "\n  ".join(str(row) for row in self.data.values()) + "\n"
-      if self.total_row:
-        s += "  " + str(self.total_row) + "\n"
-      return s + "}"
-
-
-    def add_data_point(self, name, run, count, duration):
-      if name not in self.data:
-        self.data[name] = Row(name, self.run_count)
-
-      self.data[name].add_data_point(run, count, duration)
-
-
-    def prepare(self, stdev=False):
-      if self.data:
-        for row in self.data.values():
-          row.prepare(stdev)
-
-        self.table = sorted(self.data.values(), key=Row.key)
-        self.total_row = Row("Total", self.run_count)
-        self.total_row.add_data(
-            [sum(r.counts[i] for r in self.data.values()) for i in range(0, self.run_count)],
-            [sum(r.durations[i] for r in self.data.values()) for i in range(0, self.run_count)])
-        self.total_row.prepare(stdev)
-
-    def as_list(self, add_bucket_titles=True, filter=None):
-      t = []
-      if filter is None or self.name in filter:
-        if add_bucket_titles:
-          t += [["\n"], [self.name]]
-        t += [r.as_list() for r in self.table]
-        t += [self.total_row.as_list()]
-      return t
-
   buckets = {}
 
-  for i in range(0, args.repeats):
+  for i in range(0, repeats):
     story_dir = f"{story.replace(':', '_')}_{i + 1}"
-    trace_dir = os.path.join(output_dir, story_dir, "trace", "traceEvents")
+    trace_dir = os.path.join(output_dir, "artifacts", story_dir, "trace",
+                             "traceEvents")
     trace_file = os.path.join(trace_dir, "results.json")
 
     # this script always unzips the json file and stores the output in
@@ -393,7 +394,6 @@ def main():
           shutil.copyfileobj(f_in, f_out)
 
     output = process_trace(trace_file)
-    outputs[i] = output
     for name in output:
       bucket_name = "Other"
       for group in groups:
@@ -403,37 +403,90 @@ def main():
 
       value = output[name]
       if bucket_name not in buckets:
-        bucket = Bucket(bucket_name, args.repeats)
+        bucket = Bucket(bucket_name, repeats)
         buckets[bucket_name] = bucket
       else:
         bucket = buckets[bucket_name]
 
       bucket.add_data_point(name, i, value["count"], value["duration"] / 1000.0)
+  return buckets
 
-  for b in buckets.values():
-    b.prepare(args.stdev)
 
-  def create_table(buckets, record_bucket_names=True, filter=None):
-    table = []
-    for bucket in buckets.values():
-      table += bucket.as_list(add_bucket_titles=record_bucket_names, filter=filter)
-    return table
+def create_table(buckets, record_bucket_names=True, filter=None):
+  table = []
+  for bucket in buckets.values():
+    table += bucket.as_list(
+        add_bucket_titles=record_bucket_names, filter=filter)
+  return table
 
-  table = create_table(buckets, record_bucket_names=args.group, filter=args.filter)
 
-  headers = [""] + ["Count", "Duration\n(ms)"] * args.repeats
-  if args.repeats > 1:
-    if args.stdev:
-      headers += ["Count\nMean", "Count\nStdev",
-                  "Duration\nMean (ms)", "Duration\nStdev (ms)"]
-    else:
-      headers += ["Count\nMean", "Duration\nMean (ms)"]
+def main():
+  args = parse_args()
+  story = args.story[0]
 
-  if args.out_file:
-    with open(args.out_file, "w", newline="") as f:
-      write_output(f, table, headers, args.repeats, args.format)
+  retain = args.retain
+  if args.dir is not None:
+    output_dir = args.dir
+    if not os.path.isdir(output_dir):
+      print("Specified output directory does not exist: " % output_dir)
+      sys.exit(1)
   else:
-    write_output(sys.stdout, table, headers, args.repeats, args.format)
+    output_dir = tempfile.mkdtemp(prefix="runtime_call_stats_")
+    run_benchmark(
+        story,
+        repeats=args.repeats,
+        output_dir=output_dir,
+        verbose=args.verbose,
+        js_flags=args.js_flags,
+        browser_args=args.browser_args,
+        chromium_dir=args.chromium_dir,
+        benchmark=args.benchmark,
+        executable=args.executable,
+        browser=args.browser,
+        device=args.device)
 
-if __name__ == '__main__':
+  try:
+    buckets = collect_buckets(
+        story, group=args.group, repeats=args.repeats, output_dir=output_dir)
+
+    for b in buckets.values():
+      b.prepare(args.stdev)
+
+    table = create_table(
+        buckets, record_bucket_names=args.group, filter=args.filter)
+
+    headers = [""] + ["Count", "Duration\n(ms)"] * args.repeats
+    if args.repeats > 1:
+      if args.stdev:
+        headers += [
+            "Count\nMean", "Count\nStdev", "Duration\nMean (ms)",
+            "Duration\nStdev (ms)"
+        ]
+      else:
+        headers += ["Count\nMean", "Duration\nMean (ms)"]
+
+    if args.out_file:
+      with open(args.out_file, "w", newline="") as f:
+        write_output(f, table, headers, args.repeats, args.format)
+    else:
+      write_output(sys.stdout, table, headers, args.repeats, args.format)
+  finally:
+    if retain == "none":
+      shutil.rmtree(output_dir)
+    elif retain == "json":
+      # Delete all files bottom up except .json.gz files and attempt to delete
+      # subdirectories (ignoring errors).
+      for dir_name, subdir_list, file_list in os.walk(
+          output_dir, topdown=False):
+        for file_name in file_list:
+          if not file_name.endswith(".json.gz"):
+            os.remove(os.path.join(dir_name, file_name))
+        for subdir in subdir_list:
+          try:
+            os.rmdir(os.path.join(dir_name, subdir))
+          except OSError:
+            pass
+
+
+if __name__ == "__main__":
   sys.exit(main())
