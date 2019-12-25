@@ -62,7 +62,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   void Finalize() final;
 
  private:
-  Reduction ReduceArrayConstructor(Node* node);
   Reduction ReduceBooleanConstructor(Node* node);
   Reduction ReduceCallApiFunction(Node* node,
                                   const SharedFunctionInfoRef& shared);
@@ -83,25 +82,27 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceReflectGet(Node* node);
   Reduction ReduceReflectGetPrototypeOf(Node* node);
   Reduction ReduceReflectHas(Node* node);
+
+  Reduction ReduceArrayConstructor(Node* node);
+  Reduction ReduceArrayEvery(Node* node, const SharedFunctionInfoRef& shared);
+  Reduction ReduceArrayFilter(Node* node, const SharedFunctionInfoRef& shared);
+  Reduction ReduceArrayFindIndex(Node* node,
+                                 const SharedFunctionInfoRef& shared);
+  Reduction ReduceArrayFind(Node* node, const SharedFunctionInfoRef& shared);
   Reduction ReduceArrayForEach(Node* node, const SharedFunctionInfoRef& shared);
+  Reduction ReduceArrayIncludes(Node* node);
+  Reduction ReduceArrayIndexOf(Node* node);
+  Reduction ReduceArrayIsArray(Node* node);
+  Reduction ReduceArrayMap(Node* node, const SharedFunctionInfoRef& shared);
+  Reduction ReduceArrayPrototypePop(Node* node);
+  Reduction ReduceArrayPrototypePush(Node* node);
+  Reduction ReduceArrayPrototypeShift(Node* node);
+  Reduction ReduceArrayPrototypeSlice(Node* node);
   Reduction ReduceArrayReduce(Node* node, const SharedFunctionInfoRef& shared);
   Reduction ReduceArrayReduceRight(Node* node,
                                    const SharedFunctionInfoRef& shared);
-  Reduction ReduceArrayMap(Node* node, const SharedFunctionInfoRef& shared);
-  Reduction ReduceArrayFilter(Node* node, const SharedFunctionInfoRef& shared);
-  Reduction ReduceArrayFind(Node* node, const SharedFunctionInfoRef& shared);
-  Reduction ReduceArrayFindIndex(Node* node,
-                                 const SharedFunctionInfoRef& shared);
-  Reduction ReduceArrayEvery(Node* node, const SharedFunctionInfoRef& shared);
-  enum class SearchVariant { kIncludes, kIndexOf };
-  Reduction ReduceArrayIndexOfIncludes(SearchVariant search_variant,
-                                       Node* node);
   Reduction ReduceArraySome(Node* node, const SharedFunctionInfoRef& shared);
-  Reduction ReduceArrayPrototypePush(Node* node);
-  Reduction ReduceArrayPrototypePop(Node* node);
-  Reduction ReduceArrayPrototypeShift(Node* node);
-  Reduction ReduceArrayPrototypeSlice(Node* node);
-  Reduction ReduceArrayIsArray(Node* node);
+
   enum class ArrayIteratorKind { kArray, kTypedArray };
   Reduction ReduceArrayIterator(Node* node, IterationKind kind);
   Reduction ReduceArrayIteratorPrototypeNext(Node* node);
@@ -221,21 +222,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   void RewirePostCallbackExceptionEdges(Node* check_throw, Node* on_exception,
                                         Node* effect, Node** check_fail,
                                         Node** control);
-
-  // Begin the central loop of a higher-order array builtin. A Loop is wired
-  // into {control}, an EffectPhi into {effect}, and the array index {k} is
-  // threaded into a Phi, which is returned. It's helpful to save the
-  // value of {control} as the loop node, and of {effect} as the corresponding
-  // EffectPhi after function return.
-  Node* WireInLoopStart(Node* k, Node** control, Node** effect);
-  void WireInLoopEnd(Node* loop, Node* eloop, Node* vloop, Node* k,
-                     Node* control, Node* effect);
-
-  // Load receiver[k], first bounding k by receiver array length.
-  // k is thusly changed, and the effect is changed as well.
-  Node* SafeLoadElement(ElementsKind kind, Node* receiver, Node* control,
-                        Node** effect, Node** k,
-                        const FeedbackSource& feedback);
 
   Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                                    int parameter_count, BailoutId bailout_id,

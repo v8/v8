@@ -226,6 +226,9 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   TNode<Smi> TypeGuardUnsignedSmall(TNode<Object> value);
   TNode<Object> TypeGuardNonInternal(TNode<Object> value);
   TNode<Number> TypeGuardFixedArrayLength(TNode<Object> value);
+  TNode<Object> Call4(const Callable& callable, TNode<Context> context,
+                      TNode<Object> arg0, TNode<Object> arg1,
+                      TNode<Object> arg2, TNode<Object> arg3);
 
   // Javascript operators.
   TNode<Object> JSCall3(TNode<Object> function, TNode<Object> this_arg,
@@ -427,6 +430,8 @@ class JSCallReducerAssembler : public JSGraphAssembler {
     return p.feedback();
   }
 
+  int ValueInputCount() const { return node_ptr()->op()->ValueInputCount(); }
+
   TNode<Object> ValueInput(int index) const {
     return TNode<Object>::UncheckedCast(
         NodeProperties::GetValueInput(node_, index));
@@ -439,16 +444,20 @@ class JSCallReducerAssembler : public JSGraphAssembler {
 
   TNode<Object> ValueInputOrNaN(int index) {
     return TNode<Object>::UncheckedCast(
-        node_ptr()->op()->ValueInputCount() > index
-            ? NodeProperties::GetValueInput(node_, index)
-            : NaNConstant());
+        ValueInputCount() > index ? NodeProperties::GetValueInput(node_, index)
+                                  : NaNConstant());
   }
 
   TNode<Object> ValueInputOrUndefined(int index) {
     return TNode<Object>::UncheckedCast(
-        node_ptr()->op()->ValueInputCount() > index
-            ? NodeProperties::GetValueInput(node_, index)
-            : UndefinedConstant());
+        ValueInputCount() > index ? NodeProperties::GetValueInput(node_, index)
+                                  : UndefinedConstant());
+  }
+
+  TNode<Number> ValueInputOrZero(int index) {
+    return TNode<Number>::UncheckedCast(
+        ValueInputCount() > index ? NodeProperties::GetValueInput(node_, index)
+                                  : ZeroConstant());
   }
 
   TNode<Context> ContextInput() const {
@@ -473,6 +482,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
 enum class ArrayReduceDirection { kLeft, kRight };
 enum class ArrayFindVariant { kFind, kFindIndex };
 enum class ArrayEverySomeVariant { kEvery, kSome };
+enum class ArrayIndexOfIncludesVariant { kIncludes, kIndexOf };
 
 // This subclass bundles functionality specific to reducing iterating array
 // builtins.
@@ -510,6 +520,8 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
       MapInference* inference, const bool has_stability_dependency,
       ElementsKind kind, const SharedFunctionInfoRef& shared,
       const NativeContextRef& native_context, ArrayEverySomeVariant variant);
+  TNode<Object> ReduceArrayPrototypeIndexOfIncludes(
+      ElementsKind kind, ArrayIndexOfIncludesVariant variant);
 
   void ThrowIfNotCallable(TNode<Object> maybe_callable,
                           FrameState frame_state) {
@@ -652,6 +664,20 @@ TNode<Number> JSCallReducerAssembler::TypeGuardFixedArrayLength(
       TypeCache::Get()->kFixedArrayLengthType));
   return TNode<Number>::UncheckedCast(
       TypeGuard(TypeCache::Get()->kFixedArrayLengthType, value));
+}
+
+TNode<Object> JSCallReducerAssembler::Call4(
+    const Callable& callable, TNode<Context> context, TNode<Object> arg0,
+    TNode<Object> arg1, TNode<Object> arg2, TNode<Object> arg3) {
+  // TODO(jgruber): Make this more generic. Currently it's fitted to its single
+  // callsite.
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kEliminatable);
+
+  return TNode<Object>::UncheckedCast(Call(desc, HeapConstant(callable.code()),
+                                           arg0, arg1, arg2, arg3, context));
 }
 
 TNode<Object> JSCallReducerAssembler::JSCall3(
@@ -1562,6 +1588,88 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeEverySome(
 
   Bind(&out);
   return out.PhiAt<Boolean>(0);
+}
+
+namespace {
+
+Callable GetCallableForArrayIndexOfIncludes(ArrayIndexOfIncludesVariant variant,
+                                            ElementsKind elements_kind,
+                                            Isolate* isolate) {
+  if (variant == ArrayIndexOfIncludesVariant::kIndexOf) {
+    switch (elements_kind) {
+      case PACKED_SMI_ELEMENTS:
+      case HOLEY_SMI_ELEMENTS:
+      case PACKED_ELEMENTS:
+      case HOLEY_ELEMENTS:
+        return Builtins::CallableFor(isolate,
+                                     Builtins::kArrayIndexOfSmiOrObject);
+      case PACKED_DOUBLE_ELEMENTS:
+        return Builtins::CallableFor(isolate,
+                                     Builtins::kArrayIndexOfPackedDoubles);
+      default:
+        DCHECK_EQ(HOLEY_DOUBLE_ELEMENTS, elements_kind);
+        return Builtins::CallableFor(isolate,
+                                     Builtins::kArrayIndexOfHoleyDoubles);
+    }
+  } else {
+    DCHECK_EQ(variant, ArrayIndexOfIncludesVariant::kIncludes);
+    switch (elements_kind) {
+      case PACKED_SMI_ELEMENTS:
+      case HOLEY_SMI_ELEMENTS:
+      case PACKED_ELEMENTS:
+      case HOLEY_ELEMENTS:
+        return Builtins::CallableFor(isolate,
+                                     Builtins::kArrayIncludesSmiOrObject);
+      case PACKED_DOUBLE_ELEMENTS:
+        return Builtins::CallableFor(isolate,
+                                     Builtins::kArrayIncludesPackedDoubles);
+      default:
+        DCHECK_EQ(HOLEY_DOUBLE_ELEMENTS, elements_kind);
+        return Builtins::CallableFor(isolate,
+                                     Builtins::kArrayIncludesHoleyDoubles);
+    }
+  }
+  UNREACHABLE();
+}
+
+}  // namespace
+
+TNode<Object>
+IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeIndexOfIncludes(
+    ElementsKind kind, ArrayIndexOfIncludesVariant variant) {
+  TNode<Context> context = ContextInput();
+  TNode<JSArray> receiver = ValueInputAs<JSArray>(1);
+  TNode<Object> search_element = ValueInputOrUndefined(2);
+  TNode<Object> from_index = ValueInputOrZero(3);
+
+  // TODO(jgruber): This currently only reduces to a stub call. Create a full
+  // reduction (similar to other higher-order array builtins) instead of
+  // lowering to a builtin call. E.g. Array.p.every and Array.p.some have almost
+  // identical functionality.
+
+  TNode<Number> length = LoadJSArrayLength(receiver, kind);
+  TNode<FixedArrayBase> elements = LoadElements(receiver);
+
+  const bool have_from_index = ValueInputCount() > 3;
+  if (have_from_index) {
+    TNode<Smi> from_index_smi = CheckSmi(from_index);
+
+    // If the index is negative, it means the offset from the end and
+    // therefore needs to be added to the length. If the result is still
+    // negative, it needs to be clamped to 0.
+    TNode<Boolean> cond = NumberLessThan(from_index_smi, ZeroConstant());
+    from_index = SelectIf<Number>(cond)
+                     .Then(_ {
+                       return NumberMax(NumberAdd(length, from_index_smi),
+                                        ZeroConstant());
+                     })
+                     .Else(_ { return from_index_smi; })
+                     .ExpectFalse()
+                     .Value();
+  }
+
+  return Call4(GetCallableForArrayIndexOfIncludes(variant, kind, isolate()),
+               context, elements, search_element, length, from_index);
 }
 
 #undef _
@@ -2556,24 +2664,6 @@ Reduction JSCallReducer::ReduceReflectHas(Node* node) {
   return Changed(vtrue);
 }
 
-Node* JSCallReducer::WireInLoopStart(Node* k, Node** control, Node** effect) {
-  Node* loop = *control =
-      graph()->NewNode(common()->Loop(2), *control, *control);
-  Node* eloop = *effect =
-      graph()->NewNode(common()->EffectPhi(2), *effect, *effect, loop);
-  Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
-  NodeProperties::MergeControlToEnd(graph(), common(), terminate);
-  return graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2), k,
-                          k, loop);
-}
-
-void JSCallReducer::WireInLoopEnd(Node* loop, Node* eloop, Node* vloop, Node* k,
-                                  Node* control, Node* effect) {
-  loop->ReplaceInput(1, control);
-  vloop->ReplaceInput(1, k);
-  eloop->ReplaceInput(1, effect);
-}
-
 namespace {
 bool CanInlineArrayIteratingBuiltin(JSHeapBroker* broker,
                                     MapHandles const& receiver_maps,
@@ -2818,31 +2908,6 @@ void JSCallReducer::RewirePostCallbackExceptionEdges(Node* check_throw,
   ReplaceWithValue(on_exception, phi, ephi, merge);
 }
 
-Node* JSCallReducer::SafeLoadElement(ElementsKind kind, Node* receiver,
-                                     Node* control, Node** effect, Node** k,
-                                     const FeedbackSource& feedback) {
-  // Make sure that the access is still in bounds, since the callback could
-  // have changed the array's size.
-  Node* length = *effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
-      *effect, control);
-  *k = *effect = graph()->NewNode(simplified()->CheckBounds(feedback), *k,
-                                  length, *effect, control);
-
-  // Reload the elements pointer before calling the callback, since the
-  // previous callback might have resized the array causing the elements
-  // buffer to be re-allocated.
-  Node* elements = *effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
-      *effect, control);
-
-  Node* element = *effect = graph()->NewNode(
-      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement(
-          kind, LoadSensitivity::kCritical)),
-      elements, *k, *effect, control);
-  return element;
-}
-
 Reduction JSCallReducer::ReduceArrayEvery(Node* node,
                                           const SharedFunctionInfoRef& shared) {
   DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
@@ -2858,128 +2923,34 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
-namespace {
-
-// Returns the correct Callable for Array's indexOf based on the receiver's
-// |elements_kind| and |isolate|. Assumes that |elements_kind| is a fast one.
-Callable GetCallableForArrayIndexOf(ElementsKind elements_kind,
-                                    Isolate* isolate) {
-  switch (elements_kind) {
-    case PACKED_SMI_ELEMENTS:
-    case HOLEY_SMI_ELEMENTS:
-    case PACKED_ELEMENTS:
-    case HOLEY_ELEMENTS:
-      return Builtins::CallableFor(isolate, Builtins::kArrayIndexOfSmiOrObject);
-    case PACKED_DOUBLE_ELEMENTS:
-      return Builtins::CallableFor(isolate,
-                                   Builtins::kArrayIndexOfPackedDoubles);
-    default:
-      DCHECK_EQ(HOLEY_DOUBLE_ELEMENTS, elements_kind);
-      return Builtins::CallableFor(isolate,
-                                   Builtins::kArrayIndexOfHoleyDoubles);
-  }
-}
-
-// Returns the correct Callable for Array's includes based on the receiver's
-// |elements_kind| and |isolate|. Assumes that |elements_kind| is a fast one.
-Callable GetCallableForArrayIncludes(ElementsKind elements_kind,
-                                     Isolate* isolate) {
-  switch (elements_kind) {
-    case PACKED_SMI_ELEMENTS:
-    case HOLEY_SMI_ELEMENTS:
-    case PACKED_ELEMENTS:
-    case HOLEY_ELEMENTS:
-      return Builtins::CallableFor(isolate,
-                                   Builtins::kArrayIncludesSmiOrObject);
-    case PACKED_DOUBLE_ELEMENTS:
-      return Builtins::CallableFor(isolate,
-                                   Builtins::kArrayIncludesPackedDoubles);
-    default:
-      DCHECK_EQ(HOLEY_DOUBLE_ELEMENTS, elements_kind);
-      return Builtins::CallableFor(isolate,
-                                   Builtins::kArrayIncludesHoleyDoubles);
-  }
-}
-
-}  // namespace
-
-// For search_variant == kIndexOf:
-// ES6 Array.prototype.indexOf(searchElement[, fromIndex])
-// #sec-array.prototype.indexof
-// For search_variant == kIncludes:
 // ES7 Array.prototype.inludes(searchElement[, fromIndex])
 // #sec-array.prototype.includes
-Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
-    SearchVariant search_variant, Node* node) {
+Reduction JSCallReducer::ReduceArrayIncludes(Node* node) {
   DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
+  if (!h.can_reduce()) return h.inference()->NoChange();
 
-  CallParameters const& p = CallParametersOf(node->op());
-  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
-    return NoChange();
-  }
+  IteratingArrayBuiltinReducerAssembler a(jsgraph(), temp_zone(), node);
+  a.InitializeEffectControl(h.effect(), h.control());
 
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  TNode<Object> subgraph = a.ReduceArrayPrototypeIndexOfIncludes(
+      h.elements_kind(), ArrayIndexOfIncludesVariant::kIncludes);
+  return ReplaceWithSubgraph(&a, subgraph);
+}
 
-  MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return NoChange();
-  MapHandles const& receiver_maps = inference.GetMaps();
+// ES6 Array.prototype.indexOf(searchElement[, fromIndex])
+// #sec-array.prototype.indexof
+Reduction JSCallReducer::ReduceArrayIndexOf(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
+  if (!h.can_reduce()) return h.inference()->NoChange();
 
-  ElementsKind kind;
-  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
-    return inference.NoChange();
-  }
-  if (IsHoleyElementsKind(kind)) {
-    if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
-  }
-  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
-                                      control, p.feedback());
+  IteratingArrayBuiltinReducerAssembler a(jsgraph(), temp_zone(), node);
+  a.InitializeEffectControl(h.effect(), h.control());
 
-  Callable const callable = search_variant == SearchVariant::kIndexOf
-                                ? GetCallableForArrayIndexOf(kind, isolate())
-                                : GetCallableForArrayIncludes(kind, isolate());
-  CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kEliminatable);
-  // The stub expects the following arguments: the receiver array, its
-  // elements, the search_element, the array length, and the index to start
-  // searching from.
-  Node* elements = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
-      effect, control);
-  Node* search_element = (node->op()->ValueInputCount() >= 3)
-                             ? NodeProperties::GetValueInput(node, 2)
-                             : jsgraph()->UndefinedConstant();
-  Node* length = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
-      effect, control);
-  Node* new_from_index = jsgraph()->ZeroConstant();
-  if (node->op()->ValueInputCount() >= 4) {
-    Node* from_index = NodeProperties::GetValueInput(node, 3);
-    from_index = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
-                                           from_index, effect, control);
-    // If the index is negative, it means the offset from the end and
-    // therefore needs to be added to the length. If the result is still
-    // negative, it needs to be clamped to 0.
-    new_from_index = graph()->NewNode(
-        common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
-        graph()->NewNode(simplified()->NumberLessThan(), from_index,
-                         jsgraph()->ZeroConstant()),
-        graph()->NewNode(
-            simplified()->NumberMax(),
-            graph()->NewNode(simplified()->NumberAdd(), length, from_index),
-            jsgraph()->ZeroConstant()),
-        from_index);
-  }
-
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* replacement_node = effect = graph()->NewNode(
-      common()->Call(desc), jsgraph()->HeapConstant(callable.code()), elements,
-      search_element, length, new_from_index, context, effect);
-  ReplaceWithValue(node, replacement_node, effect);
-  return Replace(replacement_node);
+  TNode<Object> subgraph = a.ReduceArrayPrototypeIndexOfIncludes(
+      h.elements_kind(), ArrayIndexOfIncludesVariant::kIndexOf);
+  return ReplaceWithSubgraph(&a, subgraph);
 }
 
 Reduction JSCallReducer::ReduceArraySome(Node* node,
@@ -3668,9 +3639,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtins::kArrayEvery:
       return ReduceArrayEvery(node, shared);
     case Builtins::kArrayIndexOf:
-      return ReduceArrayIndexOfIncludes(SearchVariant::kIndexOf, node);
+      return ReduceArrayIndexOf(node);
     case Builtins::kArrayIncludes:
-      return ReduceArrayIndexOfIncludes(SearchVariant::kIncludes, node);
+      return ReduceArrayIncludes(node);
     case Builtins::kArraySome:
       return ReduceArraySome(node, shared);
     case Builtins::kArrayPrototypePush:
