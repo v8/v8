@@ -113,6 +113,7 @@ class BasicBlock;
   V(FixedArrayMap, Map)                         \
   V(FixedDoubleArrayMap, Map)                   \
   V(HeapNumberMap, Map)                         \
+  V(MinusOne, Number)                           \
   V(NaN, Number)                                \
   V(NoContext, Object)                          \
   V(Null, Oddball)                              \
@@ -714,6 +715,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   Node* CheckIf(Node* cond, DeoptimizeReason reason);
   TNode<Boolean> NumberIsFloat64Hole(TNode<Number> value);
   TNode<Boolean> ToBoolean(TNode<Object> value);
+  TNode<Object> ConvertTaggedHoleToUndefined(TNode<Object> value);
   TNode<FixedArrayBase> MaybeGrowFastElements(ElementsKind kind,
                                               const FeedbackSource& feedback,
                                               TNode<JSArray> array,

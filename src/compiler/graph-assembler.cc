@@ -597,6 +597,12 @@ TNode<Boolean> JSGraphAssembler::ToBoolean(TNode<Object> value) {
   return AddNode<Boolean>(graph()->NewNode(simplified()->ToBoolean(), value));
 }
 
+TNode<Object> JSGraphAssembler::ConvertTaggedHoleToUndefined(
+    TNode<Object> value) {
+  return AddNode<Object>(
+      graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(), value));
+}
+
 TNode<FixedArrayBase> JSGraphAssembler::MaybeGrowFastElements(
     ElementsKind kind, const FeedbackSource& feedback, TNode<JSArray> array,
     TNode<FixedArrayBase> elements, TNode<Number> new_length,
