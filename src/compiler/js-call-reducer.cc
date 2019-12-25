@@ -316,8 +316,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
       gasm_->Goto(&loop_header, step_(i));
 
       gasm_->Bind(&loop_exit);
-      // Introduce proper LoopExit and LoopExitEffect nodes to mark
-      // {loop_header} as a candidate for loop peeling (crbug.com/v8/8273).
+      // Mark {loop_header} as a candidate for loop peeling (crbug.com/v8/8273).
       gasm_->LoopExit(loop_header_control);
       gasm_->LoopExitEffect();
     }
@@ -387,12 +386,11 @@ class JSCallReducerAssembler : public JSGraphAssembler {
       gasm_->Goto(&loop_header, step_(i), arg0);
 
       gasm_->Bind(&loop_exit);
-      // Introduce proper LoopExit and LoopExitEffect nodes to mark
-      // {loop_header} as a candidate for loop peeling (crbug.com/v8/8273).
+      // Mark {loop_header} as a candidate for loop peeling (crbug.com/v8/8273).
       gasm_->LoopExit(loop_header_control);
       gasm_->LoopExitEffect();
-
-      return loop_exit.PhiAt<Object>(0);
+      return TNode<Object>::UncheckedCast(
+          gasm_->LoopExitValue(loop_exit.PhiAt<Object>(0)));
     }
 
     void ValueIsUnused() { USE(Value()); }
@@ -474,6 +472,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
 
 enum class ArrayReduceDirection { kLeft, kRight };
 enum class ArrayFindVariant { kFind, kFindIndex };
+enum class ArrayEverySomeVariant { kEvery, kSome };
 
 // This subclass bundles functionality specific to reducing iterating array
 // builtins.
@@ -507,6 +506,10 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
                                          const SharedFunctionInfoRef& shared,
                                          const NativeContextRef& native_context,
                                          ArrayFindVariant variant);
+  TNode<Boolean> ReduceArrayPrototypeEverySome(
+      MapInference* inference, const bool has_stability_dependency,
+      ElementsKind kind, const SharedFunctionInfoRef& shared,
+      const NativeContextRef& native_context, ArrayEverySomeVariant variant);
 
   void ThrowIfNotCallable(TNode<Object> maybe_callable,
                           FrameState frame_state) {
@@ -1460,6 +1463,105 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeFind(
 
   Bind(&out);
   return out.PhiAt<Object>(0);
+}
+
+namespace {
+
+struct EverySomeFrameStateParams {
+  JSGraph* jsgraph;
+  SharedFunctionInfoRef shared;
+  TNode<Context> context;
+  TNode<Object> target;
+  FrameState outer_frame_state;
+  TNode<Object> receiver;
+  TNode<Object> callback;
+  TNode<Object> this_arg;
+  TNode<Object> original_length;
+};
+
+FrameState EverySomeLoopLazyFrameState(const EverySomeFrameStateParams& params,
+                                       TNode<Number> k,
+                                       ArrayEverySomeVariant variant) {
+  Builtins::Name builtin = (variant == ArrayEverySomeVariant::kEvery)
+                               ? Builtins::kArrayEveryLoopLazyDeoptContinuation
+                               : Builtins::kArraySomeLoopLazyDeoptContinuation;
+  Node* checkpoint_params[] = {params.receiver, params.callback,
+                               params.this_arg, k, params.original_length};
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared, builtin, params.target, params.context,
+      checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
+      ContinuationFrameStateMode::LAZY));
+}
+
+FrameState EverySomeLoopEagerFrameState(const EverySomeFrameStateParams& params,
+                                        TNode<Number> k,
+                                        ArrayEverySomeVariant variant) {
+  Builtins::Name builtin = (variant == ArrayEverySomeVariant::kEvery)
+                               ? Builtins::kArrayEveryLoopEagerDeoptContinuation
+                               : Builtins::kArraySomeLoopEagerDeoptContinuation;
+  Node* checkpoint_params[] = {params.receiver, params.callback,
+                               params.this_arg, k, params.original_length};
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared, builtin, params.target, params.context,
+      checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
+      ContinuationFrameStateMode::EAGER));
+}
+
+}  // namespace
+
+TNode<Boolean>
+IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeEverySome(
+    MapInference* inference, const bool has_stability_dependency,
+    ElementsKind kind, const SharedFunctionInfoRef& shared,
+    const NativeContextRef& native_context, ArrayEverySomeVariant variant) {
+  FrameState outer_frame_state = FrameStateInput();
+  TNode<Context> context = ContextInput();
+  TNode<Object> target = ValueInput(0);
+  TNode<JSArray> receiver = ValueInputAs<JSArray>(1);
+  TNode<Object> fncallback = ValueInputOrUndefined(2);
+  TNode<Object> this_arg = ValueInputOrUndefined(3);
+
+  TNode<Number> original_length = LoadJSArrayLength(receiver, kind);
+
+  EverySomeFrameStateParams frame_state_params{
+      jsgraph(), shared,     context,  target,         outer_frame_state,
+      receiver,  fncallback, this_arg, original_length};
+
+  ThrowIfNotCallable(
+      fncallback,
+      EverySomeLoopLazyFrameState(frame_state_params, ZeroConstant(), variant));
+
+  auto out = MakeLabel(MachineRepresentation::kTagged);
+
+  ForSmiZeroUntil(original_length).Do([&](TNode<Number> k) {
+    Checkpoint(EverySomeLoopEagerFrameState(frame_state_params, k, variant));
+    MaybeInsertMapChecks(inference, has_stability_dependency);
+
+    TNode<Object> element;
+    std::tie(k, element) = SafeLoadElement(kind, receiver, k);
+
+    auto continue_label = MakeLabel();
+    element = MaybeSkipHole(element, kind, &continue_label);
+
+    TNode<Object> v =
+        JSCall3(fncallback, this_arg, element, k, receiver,
+                EverySomeLoopLazyFrameState(frame_state_params, k, variant));
+
+    if (variant == ArrayEverySomeVariant::kEvery) {
+      GotoIfNot(ToBoolean(v), &out, FalseConstant());
+    } else {
+      DCHECK_EQ(variant, ArrayEverySomeVariant::kSome);
+      GotoIf(ToBoolean(v), &out, TrueConstant());
+    }
+    Goto(&continue_label);
+    Bind(&continue_label);
+  });
+
+  Goto(&out, (variant == ArrayEverySomeVariant::kEvery) ? TrueConstant()
+                                                        : FalseConstant());
+
+  Bind(&out);
+  return out.PhiAt<Boolean>(0);
 }
 
 #undef _
@@ -2744,209 +2846,16 @@ Node* JSCallReducer::SafeLoadElement(ElementsKind kind, Node* receiver,
 Reduction JSCallReducer::ReduceArrayEvery(Node* node,
                                           const SharedFunctionInfoRef& shared) {
   DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
+  if (!h.can_reduce()) return h.inference()->NoChange();
 
-  if (!FLAG_turbo_inline_array_builtins) return NoChange();
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  CallParameters const& p = CallParametersOf(node->op());
-  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
-    return NoChange();
-  }
+  IteratingArrayBuiltinReducerAssembler a(jsgraph(), temp_zone(), node);
+  a.InitializeEffectControl(h.effect(), h.control());
 
-  Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* fncallback = node->op()->ValueInputCount() > 2
-                         ? NodeProperties::GetValueInput(node, 2)
-                         : jsgraph()->UndefinedConstant();
-  Node* this_arg = node->op()->ValueInputCount() > 3
-                       ? NodeProperties::GetValueInput(node, 3)
-                       : jsgraph()->UndefinedConstant();
-
-  // Try to determine the {receiver} map.
-  MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return NoChange();
-  MapHandles const& receiver_maps = inference.GetMaps();
-
-  ElementsKind kind;
-  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
-    return inference.NoChange();
-  }
-  if (!dependencies()->DependOnArraySpeciesProtector())
-    return inference.NoChange();
-  if (IsHoleyElementsKind(kind)) {
-    if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
-  }
-  bool const stability_dependency = inference.RelyOnMapsPreferStability(
-      dependencies(), jsgraph(), &effect, control, p.feedback());
-
-  Node* k = jsgraph()->ZeroConstant();
-  Node* original_length = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
-      effect, control);
-
-  // Check whether the given callback function is callable. Note that this has
-  // to happen outside the loop to make sure we also throw on empty arrays.
-  Node* check_fail = nullptr;
-  Node* check_throw = nullptr;
-  {
-    // This frame state doesn't ever call the deopt continuation, it's only
-    // necessary to specifiy a continuation in order to handle the exceptional
-    // case.
-    Node* checkpoint_params[] = {receiver, fncallback, this_arg, k,
-                                 original_length};
-    const int stack_parameters = arraysize(checkpoint_params);
-
-    Node* check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), shared, Builtins::kArrayEveryLoopLazyDeoptContinuation,
-        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-        outer_frame_state, ContinuationFrameStateMode::LAZY);
-    WireInCallbackIsCallableCheck(fncallback, context, check_frame_state,
-                                  effect, &control, &check_fail, &check_throw);
-  }
-
-  // Start the loop.
-  Node* vloop = k = WireInLoopStart(k, &control, &effect);
-  Node *loop = control, *eloop = effect;
-
-  Node* continue_test =
-      graph()->NewNode(simplified()->NumberLessThan(), k, original_length);
-  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kNone),
-                                           continue_test, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), continue_branch);
-  Node* if_false = graph()->NewNode(common()->IfFalse(), continue_branch);
-  control = if_true;
-
-  {
-    Node* checkpoint_params[] = {receiver, fncallback, this_arg, k,
-                                 original_length};
-    const int stack_parameters = arraysize(checkpoint_params);
-    Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), shared, Builtins::kArrayEveryLoopEagerDeoptContinuation,
-        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-        outer_frame_state, ContinuationFrameStateMode::EAGER);
-    effect =
-        graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
-  }
-
-  // Deopt if the map has changed during the iteration.
-  if (!stability_dependency) {
-    inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
-  }
-
-  Node* element =
-      SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
-  Node* next_k =
-      graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
-
-  Node* hole_true = nullptr;
-  Node* hole_false = nullptr;
-  Node* effect_true = effect;
-
-  if (IsHoleyElementsKind(kind)) {
-    // Holey elements kind require a hole check and skipping of the element in
-    // the case of a hole.
-    Node* check;
-    if (IsDoubleElementsKind(kind)) {
-      check = graph()->NewNode(simplified()->NumberIsFloat64Hole(), element);
-    } else {
-      check = graph()->NewNode(simplified()->ReferenceEqual(), element,
-                               jsgraph()->TheHoleConstant());
-    }
-    Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
-    hole_true = graph()->NewNode(common()->IfTrue(), branch);
-    hole_false = graph()->NewNode(common()->IfFalse(), branch);
-    control = hole_false;
-
-    // The contract is that we don't leak "the hole" into "user JavaScript",
-    // so we must rename the {element} here to explicitly exclude "the hole"
-    // from the type of {element}.
-    element = effect = graph()->NewNode(
-        common()->TypeGuard(Type::NonInternal()), element, effect, control);
-  }
-
-  Node* callback_value = nullptr;
-  {
-    // This frame state is dealt with by hand in
-    // Builtins::kArrayEveryLoopLazyDeoptContinuation.
-    Node* checkpoint_params[] = {receiver, fncallback, this_arg, k,
-                                 original_length};
-    const int stack_parameters = arraysize(checkpoint_params);
-
-    Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), shared, Builtins::kArrayEveryLoopLazyDeoptContinuation,
-        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-        outer_frame_state, ContinuationFrameStateMode::LAZY);
-
-    callback_value = control = effect = graph()->NewNode(
-        javascript()->Call(5, p.frequency(), p.feedback(),
-                           ConvertReceiverMode::kAny, p.speculation_mode(),
-                           CallFeedbackRelation::kUnrelated),
-        fncallback, this_arg, element, k, receiver, context, frame_state,
-        effect, control);
-  }
-
-  // Rewire potential exception edges.
-  Node* on_exception = nullptr;
-  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-    RewirePostCallbackExceptionEdges(check_throw, on_exception, effect,
-                                     &check_fail, &control);
-  }
-
-  // We have to coerce callback_value to boolean.
-  Node* if_false_callback;
-  Node* efalse_callback;
-  {
-    Node* boolean_result =
-        graph()->NewNode(simplified()->ToBoolean(), callback_value);
-    Node* boolean_branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                            boolean_result, control);
-    if_false_callback = graph()->NewNode(common()->IfFalse(), boolean_branch);
-    efalse_callback = effect;
-
-    // Nothing to do in the true case.
-    control = graph()->NewNode(common()->IfTrue(), boolean_branch);
-  }
-
-  if (IsHoleyElementsKind(kind)) {
-    Node* after_call_control = control;
-    Node* after_call_effect = effect;
-    control = hole_true;
-    effect = effect_true;
-
-    control = graph()->NewNode(common()->Merge(2), control, after_call_control);
-    effect = graph()->NewNode(common()->EffectPhi(2), effect, after_call_effect,
-                              control);
-  }
-
-  WireInLoopEnd(loop, eloop, vloop, next_k, control, effect);
-
-  control = graph()->NewNode(common()->Merge(2), if_false, if_false_callback);
-  effect =
-      graph()->NewNode(common()->EffectPhi(2), eloop, efalse_callback, control);
-  Node* value = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2),
-      jsgraph()->TrueConstant(), jsgraph()->FalseConstant(), control);
-
-  // Introduce proper LoopExit/LoopExitEffect/LoopExitValue to mark
-  // {loop} as a candidate for loop peeling (crbug.com/v8/8273).
-  control = graph()->NewNode(common()->LoopExit(), control, loop);
-  effect = graph()->NewNode(common()->LoopExitEffect(), effect, control);
-  value = graph()->NewNode(common()->LoopExitValue(), value, control);
-
-  // Wire up the branch for the case when IsCallable fails for the callback.
-  // Since {check_throw} is an unconditional throw, it's impossible to
-  // return a successful completion. Therefore, we simply connect the
-  // successful completion to the graph end.
-  Node* throw_node =
-      graph()->NewNode(common()->Throw(), check_throw, check_fail);
-  NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
-
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
+  TNode<Object> subgraph = a.ReduceArrayPrototypeEverySome(
+      h.inference(), h.has_stability_dependency(), h.elements_kind(), shared,
+      native_context(), ArrayEverySomeVariant::kEvery);
+  return ReplaceWithSubgraph(&a, subgraph);
 }
 
 namespace {
@@ -3076,216 +2985,16 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
 Reduction JSCallReducer::ReduceArraySome(Node* node,
                                          const SharedFunctionInfoRef& shared) {
   DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
+  if (!h.can_reduce()) return h.inference()->NoChange();
 
-  if (!FLAG_turbo_inline_array_builtins) return NoChange();
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  CallParameters const& p = CallParametersOf(node->op());
-  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
-    return NoChange();
-  }
+  IteratingArrayBuiltinReducerAssembler a(jsgraph(), temp_zone(), node);
+  a.InitializeEffectControl(h.effect(), h.control());
 
-  Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* fncallback = node->op()->ValueInputCount() > 2
-                         ? NodeProperties::GetValueInput(node, 2)
-                         : jsgraph()->UndefinedConstant();
-  Node* this_arg = node->op()->ValueInputCount() > 3
-                       ? NodeProperties::GetValueInput(node, 3)
-                       : jsgraph()->UndefinedConstant();
-
-  // Try to determine the {receiver} map.
-  MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return NoChange();
-  MapHandles const& receiver_maps = inference.GetMaps();
-
-  ElementsKind kind;
-  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
-    return inference.NoChange();
-  }
-  if (!dependencies()->DependOnArraySpeciesProtector())
-    return inference.NoChange();
-  if (IsHoleyElementsKind(kind)) {
-    if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
-  }
-  bool const stability_dependency = inference.RelyOnMapsPreferStability(
-      dependencies(), jsgraph(), &effect, control, p.feedback());
-
-  Node* k = jsgraph()->ZeroConstant();
-  Node* original_length = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
-      effect, control);
-
-  // Check whether the given callback function is callable. Note that this has
-  // to happen outside the loop to make sure we also throw on empty arrays.
-  Node* check_fail = nullptr;
-  Node* check_throw = nullptr;
-  {
-    // This frame state doesn't ever call the deopt continuation, it's only
-    // necessary to specifiy a continuation in order to handle the exceptional
-    // case.
-    Node* checkpoint_params[] = {receiver, fncallback, this_arg, k,
-                                 original_length};
-    const int stack_parameters = arraysize(checkpoint_params);
-
-    Node* check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), shared, Builtins::kArraySomeLoopLazyDeoptContinuation,
-        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-        outer_frame_state, ContinuationFrameStateMode::LAZY);
-    WireInCallbackIsCallableCheck(fncallback, context, check_frame_state,
-                                  effect, &control, &check_fail, &check_throw);
-  }
-
-  // Start the loop.
-  Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
-  Node* eloop = effect =
-      graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
-  Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
-  NodeProperties::MergeControlToEnd(graph(), common(), terminate);
-  Node* vloop = k = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2), k, k, loop);
-
-  Node* continue_test =
-      graph()->NewNode(simplified()->NumberLessThan(), k, original_length);
-  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kNone),
-                                           continue_test, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), continue_branch);
-  Node* if_false = graph()->NewNode(common()->IfFalse(), continue_branch);
-  control = if_true;
-
-  {
-    Node* checkpoint_params[] = {receiver, fncallback, this_arg, k,
-                                 original_length};
-    const int stack_parameters = arraysize(checkpoint_params);
-    Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), shared, Builtins::kArraySomeLoopEagerDeoptContinuation,
-        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-        outer_frame_state, ContinuationFrameStateMode::EAGER);
-    effect =
-        graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
-  }
-
-  // Deopt if the map has changed during the iteration.
-  if (!stability_dependency) {
-    inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
-  }
-
-  Node* element =
-      SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
-  Node* next_k =
-      graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
-
-  Node* hole_true = nullptr;
-  Node* hole_false = nullptr;
-  Node* effect_true = effect;
-
-  if (IsHoleyElementsKind(kind)) {
-    // Holey elements kind require a hole check and skipping of the element in
-    // the case of a hole.
-    Node* check;
-    if (IsDoubleElementsKind(kind)) {
-      check = graph()->NewNode(simplified()->NumberIsFloat64Hole(), element);
-    } else {
-      check = graph()->NewNode(simplified()->ReferenceEqual(), element,
-                               jsgraph()->TheHoleConstant());
-    }
-    Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
-    hole_true = graph()->NewNode(common()->IfTrue(), branch);
-    hole_false = graph()->NewNode(common()->IfFalse(), branch);
-    control = hole_false;
-
-    // The contract is that we don't leak "the hole" into "user JavaScript",
-    // so we must rename the {element} here to explicitly exclude "the hole"
-    // from the type of {element}.
-    element = effect = graph()->NewNode(
-        common()->TypeGuard(Type::NonInternal()), element, effect, control);
-  }
-
-  Node* callback_value = nullptr;
-  {
-    // This frame state is dealt with by hand in
-    // Builtins::kArrayEveryLoopLazyDeoptContinuation.
-    Node* checkpoint_params[] = {receiver, fncallback, this_arg, k,
-                                 original_length};
-    const int stack_parameters = arraysize(checkpoint_params);
-
-    Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), shared, Builtins::kArraySomeLoopLazyDeoptContinuation,
-        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-        outer_frame_state, ContinuationFrameStateMode::LAZY);
-
-    callback_value = control = effect = graph()->NewNode(
-        javascript()->Call(5, p.frequency(), p.feedback(),
-                           ConvertReceiverMode::kAny, p.speculation_mode(),
-                           CallFeedbackRelation::kUnrelated),
-        fncallback, this_arg, element, k, receiver, context, frame_state,
-        effect, control);
-  }
-
-  // Rewire potential exception edges.
-  Node* on_exception = nullptr;
-  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-    RewirePostCallbackExceptionEdges(check_throw, on_exception, effect,
-                                     &check_fail, &control);
-  }
-
-  // We have to coerce callback_value to boolean.
-  Node* if_true_callback;
-  Node* etrue_callback;
-  {
-    Node* boolean_result =
-        graph()->NewNode(simplified()->ToBoolean(), callback_value);
-    Node* boolean_branch = graph()->NewNode(
-        common()->Branch(BranchHint::kFalse), boolean_result, control);
-    if_true_callback = graph()->NewNode(common()->IfTrue(), boolean_branch);
-    etrue_callback = effect;
-
-    // Nothing to do in the false case.
-    control = graph()->NewNode(common()->IfFalse(), boolean_branch);
-  }
-
-  if (IsHoleyElementsKind(kind)) {
-    Node* after_call_control = control;
-    Node* after_call_effect = effect;
-    control = hole_true;
-    effect = effect_true;
-
-    control = graph()->NewNode(common()->Merge(2), control, after_call_control);
-    effect = graph()->NewNode(common()->EffectPhi(2), effect, after_call_effect,
-                              control);
-  }
-
-  loop->ReplaceInput(1, control);
-  vloop->ReplaceInput(1, next_k);
-  eloop->ReplaceInput(1, effect);
-
-  control = graph()->NewNode(common()->Merge(2), if_false, if_true_callback);
-  effect =
-      graph()->NewNode(common()->EffectPhi(2), eloop, etrue_callback, control);
-  Node* value = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2),
-      jsgraph()->FalseConstant(), jsgraph()->TrueConstant(), control);
-
-  // Introduce proper LoopExit/LoopExitEffect/LoopExitValue to mark
-  // {loop} as a candidate for loop peeling (crbug.com/v8/8273).
-  control = graph()->NewNode(common()->LoopExit(), control, loop);
-  effect = graph()->NewNode(common()->LoopExitEffect(), effect, control);
-  value = graph()->NewNode(common()->LoopExitValue(), value, control);
-
-  // Wire up the branch for the case when IsCallable fails for the callback.
-  // Since {check_throw} is an unconditional throw, it's impossible to
-  // return a successful completion. Therefore, we simply connect the
-  // successful completion to the graph end.
-  Node* throw_node =
-      graph()->NewNode(common()->Throw(), check_throw, check_fail);
-  NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
-
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
+  TNode<Object> subgraph = a.ReduceArrayPrototypeEverySome(
+      h.inference(), h.has_stability_dependency(), h.elements_kind(), shared,
+      native_context(), ArrayEverySomeVariant::kSome);
+  return ReplaceWithSubgraph(&a, subgraph);
 }
 
 Reduction JSCallReducer::ReduceCallApiFunction(

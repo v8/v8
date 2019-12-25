@@ -635,6 +635,10 @@ Node* GraphAssembler::LoopExitEffect() {
       graph()->NewNode(common()->LoopExitEffect(), effect(), control()));
 }
 
+Node* GraphAssembler::LoopExitValue(Node* value) {
+  return AddNode(graph()->NewNode(common()->LoopExitValue(), value, control()));
+}
+
 Node* GraphAssembler::DebugBreak() {
   return AddNode(
       graph()->NewNode(machine()->DebugBreak(), effect(), control()));

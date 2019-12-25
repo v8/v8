@@ -310,6 +310,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* Checkpoint(FrameState frame_state);
   Node* LoopExit(Control loop_header);
   Node* LoopExitEffect();
+  Node* LoopExitValue(Node* value);
 
   Node* Store(StoreRepresentation rep, Node* object, Node* offset, Node* value);
   Node* Load(MachineType type, Node* object, Node* offset);
