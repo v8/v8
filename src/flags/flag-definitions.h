@@ -225,7 +225,6 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                                  \
   HARMONY_STAGED_BASE(V)                                   \
-  V(harmony_intl_displaynames, "Intl.DisplayNames")        \
   V(harmony_intl_dateformat_day_period,                    \
     "Add dayPeriod option to DateTimeFormat")              \
   V(harmony_intl_dateformat_fractional_second_digits,      \
@@ -251,6 +250,7 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
   HARMONY_SHIPPING_BASE(V)                                \
   V(harmony_intl_add_calendar_numbering_system,           \
     "Add calendar and numberingSystem to DateTimeFormat") \
+  V(harmony_intl_displaynames, "Intl.DisplayNames")       \
   V(harmony_intl_other_calendars, "DateTimeFormat other calendars")
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
