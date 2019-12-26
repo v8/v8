@@ -40,15 +40,16 @@ namespace string {
   macro AbstractStringIndexOf(implicit context: Context)(
       string: String, searchString: String, fromIndex: Smi): Smi {
     // Special case the empty string.
-    if (searchString.length_intptr == 0 &&
-        SmiUntag(fromIndex) <= string.length_intptr) {
+    const searchStringLength = searchString.length_intptr;
+    const stringLength = string.length_intptr;
+    if (searchStringLength == 0 && SmiUntag(fromIndex) <= stringLength) {
       return fromIndex;
     }
 
     // Don't bother to search if the searchString would go past the end
     // of the string. This is actually necessary because of runtime
     // checks.
-    if (fromIndex + searchString.length_smi > string.length_smi) {
+    if (SmiUntag(fromIndex) + searchStringLength > stringLength) {
       return -1;
     }
 
@@ -57,7 +58,8 @@ namespace string {
           otherwise Slow;
     }
     label Slow {
-      for (let i: intptr = SmiUntag(fromIndex); i < string.length_intptr; i++) {
+      for (let i: intptr = SmiUntag(fromIndex);
+           i + searchStringLength <= stringLength; i++) {
         if (StringCompareSequence(
                 context, string, searchString, Convert<Number>(SmiTag(i))) ==
             True) {

@@ -104,3 +104,6 @@ assertEquals('a', 'a'.replaceAll(%ConstructConsString('abcdefghijklmn',
                                                       'def'), 'b'));
 assertEquals('b', 'abcdefghijklmndef'.replaceAll(
     %ConstructConsString('abcdefghijklmn', 'def'), 'b'));
+
+assertEquals('aaaaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaaaa'.replaceAll(
+    %ConstructConsString('abcdefghijklmn', 'def'), 'b'));
