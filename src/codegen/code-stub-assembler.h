@@ -120,8 +120,12 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(OnePointerFillerMap, one_pointer_filler_map, OnePointerFillerMap)          \
   V(PreparseDataMap, preparse_data_map, PreparseDataMap)                       \
   V(PromiseCapabilityMap, promise_capability_map, PromiseCapabilityMap)        \
+  V(promise_forwarding_handler_symbol, promise_forwarding_handler_symbol,      \
+    PromiseForwardingHandlerSymbol)                                            \
   V(PromiseFulfillReactionJobTaskMap, promise_fulfill_reaction_job_task_map,   \
     PromiseFulfillReactionJobTaskMap)                                          \
+  V(promise_handled_by_symbol, promise_handled_by_symbol,                      \
+    PromiseHandledBySymbol)                                                    \
   V(PromiseReactionMap, promise_reaction_map, PromiseReactionMap)              \
   V(PromiseRejectReactionJobTaskMap, promise_reject_reaction_job_task_map,     \
     PromiseRejectReactionJobTaskMap)                                           \
@@ -130,6 +134,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(replace_symbol, replace_symbol, ReplaceSymbol)                             \
   V(regexp_to_string, regexp_to_string, RegexpToString)                        \
   V(resolve_string, resolve_string, ResolveString)                             \
+  V(return_string, return_string, ReturnString)                                \
   V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap)    \
   V(SloppyArgumentsElementsMap, sloppy_arguments_elements_map,                 \
     SloppyArgumentsElementsMap)                                                \

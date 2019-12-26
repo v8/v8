@@ -352,6 +352,7 @@ extern macro LengthStringConstant(): String;
 extern macro NanConstant(): NaN;
 extern macro IteratorSymbolConstant(): PublicSymbol;
 extern macro MatchSymbolConstant(): Symbol;
+extern macro ReturnStringConstant(): String;
 
 const TheHole: TheHole = TheHoleConstant();
 const Null: Null = NullConstant();
@@ -360,6 +361,8 @@ const True: True = TrueConstant();
 const False: False = FalseConstant();
 const kEmptyString: EmptyString = EmptyStringConstant();
 const kLengthString: String = LengthStringConstant();
+const kReturnString: String = ReturnStringConstant();
+
 const kNaN: NaN = NanConstant();
 const kZero: Zero = %RawDownCast<Zero>(SmiConstant(0));
 

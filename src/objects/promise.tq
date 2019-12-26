@@ -5,6 +5,7 @@
 @generateCppClass
 extern class PromiseCapability extends Struct {
   promise: JSReceiver|Undefined;
+  // TODO(joshualitt): Can these be typed more specifically.
   resolve: Object;
   reject: Object;
 }

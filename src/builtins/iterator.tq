@@ -72,4 +72,31 @@ namespace iterator {
         otherwise ThrowCalledNonCallable(iteratorMethod);
     return Call(context, iteratorCallable, receiver);
   }
+
+  transitioning
+  macro IteratorCloseOnException(implicit context: Context)(
+      iterator: IteratorRecord, exception: Object): never labels
+  IfException(Object) {
+    // Let return be ? GetMethod(iterator, "return").
+    let method: JSAny;
+    try {
+      method = GetProperty(iterator.object, kReturnString);
+    } catch (e) {
+      goto IfException(e);
+    }
+
+    // If return is undefined, return Completion(completion).
+    if (method == Undefined || method == Null) goto IfException(exception);
+
+    // Let innerResult be Call(return, iterator, « »).
+    // If an exception occurs, the original exception remains bound
+    try {
+      Call(context, UnsafeCast<Callable>(method), iterator.object);
+    } catch (_e) {
+      goto IfException(exception);
+    }
+
+    // (If completion.[[Type]] is throw) return Completion(completion).
+    goto IfException(exception);
+  }
 }
