@@ -86,6 +86,14 @@ struct PropertyBase {
 struct StructProperty : public PropertyBase {
   // The offset from the beginning of the struct to this field.
   size_t offset;
+
+  // The number of bits that are present, if this value is a bitfield. Zero
+  // indicates that this value is not a bitfield (the full value is stored).
+  uint8_t num_bits;
+
+  // The number of bits by which this value has been left-shifted for storage as
+  // a bitfield.
+  uint8_t shift_bits;
 };
 
 struct ObjectProperty : public PropertyBase {
@@ -104,10 +112,9 @@ struct ObjectProperty : public PropertyBase {
   // tightly packed like in C.
   size_t size;
 
-  // If |type| is nullptr, then this property does not correspond directly to
-  // any C++ type. Instead, the property is a struct made up of several pieces
-  // of data packed together. In that case, the |struct_fields| array contains
-  // the struct fields.
+  // If the property is a struct made up of several pieces of data packed
+  // together, then the |struct_fields| array contains descriptions of those
+  // fields.
   size_t num_struct_fields;
   StructProperty** struct_fields;
 

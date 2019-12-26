@@ -31,14 +31,79 @@ enum TypeStorage {
   kUncompressed,
 };
 
+// An iterator for use in ValueTypeFieldsRange.
+class ValueTypeFieldIterator {
+ public:
+  ValueTypeFieldIterator(const Type* type, size_t index)
+      : type_(type), index_(index) {}
+  struct Result {
+    NameAndType name_and_type;
+    SourcePosition pos;
+    size_t offset_bytes;
+    int num_bits;
+    int shift_bits;
+  };
+  const Result operator*() const {
+    if (const StructType* struct_type = StructType::DynamicCast(type_)) {
+      const auto& field = struct_type->fields()[index_];
+      return {field.name_and_type, field.pos, *field.offset, 0, 0};
+    }
+    if (const BitFieldStructType* bit_field_struct_type =
+            BitFieldStructType::DynamicCast(type_)) {
+      const auto& field = bit_field_struct_type->fields()[index_];
+      return {field.name_and_type, field.pos, 0, field.num_bits, field.offset};
+    }
+    UNREACHABLE();
+  }
+  ValueTypeFieldIterator& operator++() {
+    ++index_;
+    return *this;
+  }
+  bool operator==(const ValueTypeFieldIterator& other) const {
+    return type_ == other.type_ && index_ == other.index_;
+  }
+  bool operator!=(const ValueTypeFieldIterator& other) const {
+    return !(*this == other);
+  }
+
+ private:
+  const Type* type_;
+  size_t index_;
+};
+
+// A way to iterate over the fields of structs or bitfield structs. For other
+// types, the iterators returned from begin() and end() are immediately equal.
+class ValueTypeFieldsRange {
+ public:
+  explicit ValueTypeFieldsRange(const Type* type) : type_(type) {}
+  ValueTypeFieldIterator begin() { return {type_, 0}; }
+  ValueTypeFieldIterator end() {
+    size_t index = 0;
+    if (const StructType* struct_type = StructType::DynamicCast(type_)) {
+      index = struct_type->fields().size();
+    }
+    if (const BitFieldStructType* bit_field_struct_type =
+            BitFieldStructType::DynamicCast(type_)) {
+      index = bit_field_struct_type->fields().size();
+    }
+    return {type_, index};
+  }
+
+ private:
+  const Type* type_;
+};
+
 // A convenient way to keep track of several different ways that we might need
 // to represent a field's type in the generated C++.
 class DebugFieldType {
  public:
-  explicit DebugFieldType(const Field& field) : field_(field) {}
+  explicit DebugFieldType(const Field& field)
+      : name_and_type_(field.name_and_type), pos_(field.pos) {}
+  DebugFieldType(const NameAndType& name_and_type, const SourcePosition& pos)
+      : name_and_type_(name_and_type), pos_(pos) {}
 
   bool IsTagged() const {
-    return field_.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType());
+    return name_and_type_.type->IsSubtypeOf(TypeOracle::GetTaggedType());
   }
 
   // Returns the type that should be used for this field's value within code
@@ -65,7 +130,7 @@ class DebugFieldType {
   // method are fully qualified and may refer to object types that are not
   // included in the compilation of the debug helper library.
   std::string GetOriginalType(TypeStorage storage) const {
-    if (field_.name_and_type.type->IsStructType()) {
+    if (name_and_type_.type->IsStructType()) {
       // There's no meaningful type we could use here, because the V8 symbols
       // don't have any definition of a C++ struct matching this struct type.
       return "";
@@ -75,29 +140,34 @@ class DebugFieldType {
         return "v8::internal::TaggedValue";
       }
       base::Optional<const ClassType*> field_class_type =
-          field_.name_and_type.type->ClassSupertype();
+          name_and_type_.type->ClassSupertype();
       return "v8::internal::" +
              (field_class_type.has_value()
                   ? (*field_class_type)->GetGeneratedTNodeTypeName()
                   : "Object");
     }
-    return field_.name_and_type.type->GetConstexprGeneratedTypeName();
+    return name_and_type_.type->GetConstexprGeneratedTypeName();
   }
 
   // Returns the field's size in bytes.
   size_t GetSize() const {
-    size_t size = 0;
-    std::tie(size, std::ignore) = field_.GetFieldSizeInformation();
-    return size;
+    auto opt_size = SizeOf(name_and_type_.type);
+    if (!opt_size.has_value()) {
+      Error("Size required for type ", name_and_type_.type->ToString())
+          .Position(pos_);
+      return 0;
+    }
+    return std::get<0>(*opt_size);
   }
 
   // Returns the name of the function for getting this field's address.
   std::string GetAddressGetter() {
-    return "Get" + CamelifyString(field_.name_and_type.name) + "Address";
+    return "Get" + CamelifyString(name_and_type_.name) + "Address";
   }
 
  private:
-  const Field& field_;
+  NameAndType name_and_type_;
+  SourcePosition pos_;
 };
 
 // Emits a function to get the address of a field within a class, based on the
@@ -196,6 +266,7 @@ void GenerateFieldValueAccessor(const Field& field,
 // adding data about the current field to a result vector called "result".
 // Example output:
 //
+// std::vector<std::unique_ptr<StructProperty>> prototype_struct_field_list;
 // result.push_back(std::make_unique<ObjectProperty>(
 //     "prototype",                                     // Field name
 //     "v8::internal::HeapObject",                      // Field type
@@ -203,7 +274,7 @@ void GenerateFieldValueAccessor(const Field& field,
 //     GetPrototypeAddress(),                           // Field address
 //     1,                                               // Number of values
 //     8,                                               // Size of value
-//     std::vector<std::unique_ptr<StructProperty>>(),  // Struct fields
+//     std::move(prototype_struct_field_list),          // Struct fields
 //     d::PropertyKind::kSingle));                      // Field kind
 //
 // In builds with pointer compression enabled, the field type for tagged values
@@ -228,7 +299,9 @@ void GenerateFieldValueAccessor(const Field& field,
 //     "key",                                // Struct field name
 //     "v8::internal::PrimitiveHeapObject",  // Struct field type
 //     "v8::internal::PrimitiveHeapObject",  // Struct field decompressed type
-//     0));                                  // Offset within struct data
+//     0,                                    // Byte offset within struct data
+//     0,                                    // Bitfield size (0=not a bitfield)
+//     0));                                  // Bitfield shift
 // // The line above is repeated for other struct fields. Omitted here.
 // Value<uint16_t> indexed_field_count =
 //     GetNumberOfAllDescriptorsValue(accessor);  // Fetch the array length.
@@ -246,26 +319,26 @@ void GenerateGetPropsChunkForField(const Field& field,
                                    std::ostream& get_props_impl) {
   DebugFieldType debug_field_type(field);
 
-  // If the current field is a struct, create a vector describing its fields.
+  // If the current field is a struct or bitfield struct, create a vector
+  // describing its fields. Otherwise this vector will be empty.
   std::string struct_field_list =
-      "std::vector<std::unique_ptr<StructProperty>>()";
-  if (const StructType* field_struct_type =
-          StructType::DynamicCast(field.name_and_type.type)) {
-    struct_field_list = field.name_and_type.name + "_struct_field_list";
-    get_props_impl << "  std::vector<std::unique_ptr<StructProperty>> "
-                   << struct_field_list << ";\n";
-    for (const Field& struct_field : field_struct_type->fields()) {
-      DebugFieldType struct_field_type(struct_field);
-      get_props_impl << "  " << struct_field_list
-                     << ".push_back(std::make_unique<StructProperty>(\""
-                     << struct_field.name_and_type.name << "\", \""
-                     << struct_field_type.GetOriginalType(kAsStoredInHeap)
-                     << "\", \""
-                     << struct_field_type.GetOriginalType(kUncompressed)
-                     << "\", " << *struct_field.offset << "));\n";
-    }
-    struct_field_list = "std::move(" + struct_field_list + ")";
+      field.name_and_type.name + "_struct_field_list";
+  get_props_impl << "  std::vector<std::unique_ptr<StructProperty>> "
+                 << struct_field_list << ";\n";
+  for (const auto& struct_field :
+       ValueTypeFieldsRange(field.name_and_type.type)) {
+    DebugFieldType struct_field_type(struct_field.name_and_type,
+                                     struct_field.pos);
+    get_props_impl << "  " << struct_field_list
+                   << ".push_back(std::make_unique<StructProperty>(\""
+                   << struct_field.name_and_type.name << "\", \""
+                   << struct_field_type.GetOriginalType(kAsStoredInHeap)
+                   << "\", \""
+                   << struct_field_type.GetOriginalType(kUncompressed) << "\", "
+                   << struct_field.offset_bytes << ", " << struct_field.num_bits
+                   << ", " << struct_field.shift_bits << "));\n";
   }
+  struct_field_list = "std::move(" + struct_field_list + ")";
 
   // The number of values and property kind for non-indexed properties:
   std::string count_value = "1";

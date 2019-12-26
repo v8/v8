@@ -50,19 +50,26 @@ class PropertyBase {
 class StructProperty : public PropertyBase {
  public:
   StructProperty(std::string name, std::string type,
-                 std::string decompressed_type, size_t offset)
+                 std::string decompressed_type, size_t offset, uint8_t num_bits,
+                 uint8_t shift_bits)
       : PropertyBase(std::move(name), std::move(type),
                      std::move(decompressed_type)),
-        offset_(offset) {}
+        offset_(offset),
+        num_bits_(num_bits),
+        shift_bits_(shift_bits) {}
 
   d::StructProperty* GetPublicView() {
     PropertyBase::SetFieldsOnPublicView(&public_view_);
     public_view_.offset = offset_;
+    public_view_.num_bits = num_bits_;
+    public_view_.shift_bits = shift_bits_;
     return &public_view_;
   }
 
  private:
   size_t offset_;
+  uint8_t num_bits_;
+  uint8_t shift_bits_;
 
   d::StructProperty public_view_;
 };

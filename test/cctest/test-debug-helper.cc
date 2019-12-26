@@ -77,9 +77,12 @@ bool Contains(const std::string& full_string, const std::string& substr) {
 
 void CheckStructProp(const d::StructProperty& property,
                      const char* expected_type, const char* expected_name,
-                     size_t expected_offset) {
+                     size_t expected_offset, uint8_t expected_num_bits = 0,
+                     uint8_t expected_shift_bits = 0) {
   CheckPropBase(property, expected_type, expected_name);
   CHECK_EQ(property.offset, expected_offset);
+  CHECK_EQ(property.num_bits, expected_num_bits);
+  CHECK_EQ(property.shift_bits, expected_shift_bits);
 }
 
 const d::ObjectProperty& FindProp(const d::ObjectPropertiesResult& props,
@@ -332,6 +335,20 @@ TEST(GetObjectProperties) {
                   "details", 1 * i::kTaggedSize);
   CheckStructProp(*descriptors.struct_fields[2], "v8::internal::Object",
                   "value", 2 * i::kTaggedSize);
+
+  // Build a basic JS function and get its properties. This will allow us to
+  // exercise bitfield functionality.
+  v = CompileRun("(function () {})");
+  o = v8::Utils::OpenHandle(*v);
+  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties(
+      ReadProp<i::Tagged_t>(*props, "shared_function_info"), &ReadMemory,
+      heap_addresses);
+  const d::ObjectProperty& flags = FindProp(*props, "flags");
+  CheckStructProp(*flags.struct_fields[0], "v8::internal::FunctionKind",
+                  "function_kind", 0, 5, 0);
+  CheckStructProp(*flags.struct_fields[1], "bool", "is_native", 0, 1, 5);
+  CheckStructProp(*flags.struct_fields[2], "bool", "is_strict", 0, 1, 6);
 }
 
 TEST(ListObjectClasses) {
