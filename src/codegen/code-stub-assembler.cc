@@ -2656,7 +2656,7 @@ TNode<BoolT> CodeStubAssembler::LoadScopeInfoHasExtensionField(
     TNode<ScopeInfo> scope_info) {
   TNode<IntPtrT> value =
       LoadAndUntagObjectField(scope_info, ScopeInfo::kFlagsOffset);
-  return IsSetWord<ScopeInfo::HasContextExtensionSlotField>(value);
+  return IsSetWord<ScopeInfo::HasContextExtensionSlotBit>(value);
 }
 
 TNode<Object> CodeStubAssembler::LoadContextElement(
@@ -13339,11 +13339,6 @@ void PrototypeCheckAssembler::CheckAndBranch(TNode<HeapObject> prototype,
 
     Goto(if_unmodified);
   }
-}
-
-TNode<IntPtrT> CodeStubAssembler::DecodeScopeInfoHasContextExtension(
-    TNode<IntPtrT> flags) {
-  return Signed(DecodeWord<ScopeInfo::HasContextExtensionSlotField>(flags));
 }
 
 }  // namespace internal

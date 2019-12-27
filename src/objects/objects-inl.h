@@ -1097,12 +1097,10 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Object> key,
                                                     PACKED_ELEMENTS, 2);
 }
 
-bool ScopeInfo::IsAsmModule() const {
-  return IsAsmModuleField::decode(Flags());
-}
+bool ScopeInfo::IsAsmModule() const { return IsAsmModuleBit::decode(Flags()); }
 
 bool ScopeInfo::HasSimpleParameters() const {
-  return HasSimpleParametersField::decode(Flags());
+  return HasSimpleParametersBit::decode(Flags());
 }
 
 #define FIELD_ACCESSORS(name)                                                 \

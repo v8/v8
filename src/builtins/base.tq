@@ -20,6 +20,7 @@
 #include 'src/objects/stack-frame-info.h'
 #include 'src/objects/synthetic-module.h'
 #include 'src/objects/template-objects.h'
+#include 'src/torque/runtime-support.h'
 
 type void;
 type never;
@@ -137,12 +138,6 @@ extern class TransitionArray extends WeakFixedArray;
 type InstanceType extends uint16 constexpr 'v8::internal::InstanceType';
 
 type NoSharedNameSentinel extends Smi;
-
-extern class ScopeInfo extends FixedArray;
-
-operator '[]' macro LoadScopeInfoElement(s: ScopeInfo, i: intptr): Object {
-  return s.objects[i];
-}
 
 // Specialized types. The following three type definitions don't correspond to
 // actual C++ classes, but have Is... methods that check additional constraints.
@@ -335,9 +330,6 @@ extern enum PrimitiveType { kString, kBoolean, kSymbol, kNumber }
 const kNameDictionaryInitialCapacity:
     constexpr int32 generates 'NameDictionary::kInitialCapacity';
 
-const kScopeInfoFlagsIndex:
-    constexpr int32 generates 'ScopeInfo::Fields::kFlags';
-
 type TheHole extends Oddball;
 type Null extends Oddball;
 type Undefined extends Oddball;
@@ -374,7 +366,8 @@ const kZero: Zero = %RawDownCast<Zero>(SmiConstant(0));
 const true: constexpr bool generates 'true';
 const false: constexpr bool generates 'false';
 
-extern enum LanguageMode extends Smi { kStrict, kSloppy }
+extern enum LanguageMode extends bool { kStrict, kSloppy }
+type LanguageModeSmi extends Smi;
 
 const SKIP_WRITE_BARRIER:
     constexpr WriteBarrierMode generates 'SKIP_WRITE_BARRIER';
@@ -433,7 +426,7 @@ extern transitioning builtin SetProperty(implicit context: Context)(
 extern transitioning builtin SetPropertyInLiteral(implicit context: Context)(
     JSAny, JSAny, JSAny);
 extern transitioning builtin DeleteProperty(implicit context: Context)(
-    JSAny, JSAny | PrivateSymbol, LanguageMode): Boolean;
+    JSAny, JSAny | PrivateSymbol, LanguageModeSmi): Boolean;
 extern transitioning builtin HasProperty(implicit context: Context)(
     JSAny, JSAny): Boolean;
 extern transitioning macro HasProperty_Inline(implicit context: Context)(
@@ -836,6 +829,8 @@ extern macro Float64Constant(constexpr float64): float64;
 extern macro SmiConstant(constexpr int31): Smi;
 extern macro SmiConstant(constexpr Smi): Smi;
 extern macro SmiConstant(constexpr MessageTemplate): Smi;
+extern macro SmiConstant(constexpr bool): Smi;
+extern macro SmiConstant(constexpr uint32): Smi;
 extern macro BoolConstant(constexpr bool): bool;
 extern macro StringConstant(constexpr string): String;
 extern macro IntPtrConstant(constexpr ContextSlot): ContextSlot;

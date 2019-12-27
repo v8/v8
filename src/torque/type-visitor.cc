@@ -170,7 +170,7 @@ const BitFieldStructType* TypeVisitor::ComputeType(
     // type. Booleans are a special case, not included in SizeOf, because their
     // runtime size is 32 bits but they should only occupy 1 bit as a bitfield.
     size_t field_type_size = 0;
-    if (field_type == TypeOracle::GetBoolType()) {
+    if (field_type->IsSubtypeOf(TypeOracle::GetBoolType())) {
       field_type_size = 1;
     } else {
       auto opt_field_type_size = SizeOf(field_type);

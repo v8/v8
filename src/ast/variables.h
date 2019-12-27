@@ -33,7 +33,7 @@ class Variable final : public ZoneObject {
                    InitializationFlagField::encode(initialization_flag) |
                    VariableModeField::encode(mode) |
                    IsUsedField::encode(false) |
-                   ForceContextAllocationField::encode(false) |
+                   ForceContextAllocationBit::encode(false) |
                    ForceHoleInitializationField::encode(false) |
                    LocationField::encode(VariableLocation::UNALLOCATED) |
                    VariableKindField::encode(kind) |
@@ -72,12 +72,12 @@ class Variable final : public ZoneObject {
   bool is_static() const { return is_static_flag() == IsStaticFlag::kStatic; }
 
   bool has_forced_context_allocation() const {
-    return ForceContextAllocationField::decode(bit_field_);
+    return ForceContextAllocationBit::decode(bit_field_);
   }
   void ForceContextAllocation() {
     DCHECK(IsUnallocated() || IsContextSlot() || IsLookupSlot() ||
            location() == VariableLocation::MODULE);
-    bit_field_ = ForceContextAllocationField::update(bit_field_, true);
+    bit_field_ = ForceContextAllocationBit::update(bit_field_, true);
   }
   bool is_used() { return IsUsedField::decode(bit_field_); }
   void set_is_used() { bit_field_ = IsUsedField::update(bit_field_, true); }
@@ -264,8 +264,8 @@ class Variable final : public ZoneObject {
   using VariableModeField = base::BitField16<VariableMode, 0, 4>;
   using VariableKindField = VariableModeField::Next<VariableKind, 3>;
   using LocationField = VariableKindField::Next<VariableLocation, 3>;
-  using ForceContextAllocationField = LocationField::Next<bool, 1>;
-  using IsUsedField = ForceContextAllocationField::Next<bool, 1>;
+  using ForceContextAllocationBit = LocationField::Next<bool, 1>;
+  using IsUsedField = ForceContextAllocationBit::Next<bool, 1>;
   using InitializationFlagField = IsUsedField::Next<InitializationFlag, 1>;
   using ForceHoleInitializationField = InitializationFlagField::Next<bool, 1>;
   using MaybeAssignedFlagField =

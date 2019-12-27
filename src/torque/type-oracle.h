@@ -281,18 +281,22 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(UNINITIALIZED_ITERATOR_TYPE_STRING);
   }
 
-  static bool IsImplicitlyConvertableFrom(const Type* to, const Type* from) {
-    for (GenericCallable* from_constexpr :
-         Declarations::LookupGeneric(kFromConstexprMacroName)) {
-      if (base::Optional<const Callable*> specialization =
-              from_constexpr->GetSpecialization({to, from})) {
-        if ((*specialization)->signature().GetExplicitTypes() ==
-            TypeVector{from}) {
-          return true;
+  static base::Optional<const Type*> ImplicitlyConvertableFrom(
+      const Type* to, const Type* from) {
+    while (from != nullptr) {
+      for (GenericCallable* from_constexpr :
+           Declarations::LookupGeneric(kFromConstexprMacroName)) {
+        if (base::Optional<const Callable*> specialization =
+                from_constexpr->GetSpecialization({to, from})) {
+          if ((*specialization)->signature().GetExplicitTypes() ==
+              TypeVector{from}) {
+            return from;
+          }
         }
       }
+      from = from->parent();
     }
-    return false;
+    return base::nullopt;
   }
 
   static const std::vector<std::unique_ptr<AggregateType>>& GetAggregateTypes();

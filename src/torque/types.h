@@ -113,6 +113,7 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   // Used for naming generated code.
   virtual std::string SimpleName() const;
 
+  const Type* parent() const { return parent_; }
   bool IsVoid() const { return IsAbstractName(VOID_TYPE_STRING); }
   bool IsNever() const { return IsAbstractName(NEVER_TYPE_STRING); }
   bool IsBool() const { return IsAbstractName(BOOL_TYPE_STRING); }
@@ -160,7 +161,6 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
        MaybeSpecializationKey specialized_from = base::nullopt);
   Type(const Type& other) V8_NOEXCEPT;
   Type& operator=(const Type& other) = delete;
-  const Type* parent() const { return parent_; }
   void set_parent(const Type* t) { parent_ = t; }
   int Depth() const;
   virtual std::string ToExplicitString() const = 0;

@@ -1085,6 +1085,7 @@ torque_files = [
   "src/objects/property-cell.tq",
   "src/objects/prototype-info.tq",
   "src/objects/regexp-match-info.tq",
+  "src/objects/scope-info.tq",
   "src/objects/script.tq",
   "src/objects/shared-function-info.tq",
   "src/objects/source-text-module.tq",
@@ -1185,6 +1186,7 @@ v8_source_set("torque_generated_initializers") {
     "$target_gen_dir/torque-generated/enum-verifiers-tq.cc",
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.cc",
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.h",
+    "src/torque/runtime-support.h",
   ]
   foreach(file, torque_files) {
     filetq = string_replace(file, ".tq", "-tq-csa")

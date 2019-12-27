@@ -86,6 +86,10 @@ FromConstexpr<ContextSlot, constexpr ContextSlot>(c: constexpr ContextSlot):
     ContextSlot {
   return IntPtrConstant(c);
 }
+FromConstexpr<LanguageModeSmi, constexpr LanguageMode>(
+    c: constexpr LanguageMode): LanguageModeSmi {
+  return %RawDownCast<LanguageModeSmi>(SmiConstant(c));
+}
 
 macro Convert<To: type, From: type>(i: From): To {
   return i;
@@ -250,4 +254,7 @@ Convert<Smi, bint>(v: bint): Smi {
 }
 Convert<PromiseState, int32>(s: int32): PromiseState {
   return %RawDownCast<PromiseState>(s);
+}
+Convert<ScopeFlags, Smi>(s: Smi): ScopeFlags {
+  return %RawDownCast<ScopeFlags>(Unsigned(SmiToInt32(s)));
 }

@@ -21,9 +21,8 @@ namespace internal {
 
 namespace {
 
-using ScopeSloppyEvalCanExtendVarsField = base::BitField8<bool, 0, 1>;
-using InnerScopeCallsEvalField =
-    ScopeSloppyEvalCanExtendVarsField::Next<bool, 1>;
+using ScopeSloppyEvalCanExtendVarsBit = base::BitField8<bool, 0, 1>;
+using InnerScopeCallsEvalField = ScopeSloppyEvalCanExtendVarsBit::Next<bool, 1>;
 using NeedsPrivateNameContextChainRecalcField =
     InnerScopeCallsEvalField::Next<bool, 1>;
 using ShouldSaveClassVariableIndexField =
@@ -357,7 +356,7 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
 #endif
 
   uint8_t eval_and_private_recalc =
-      ScopeSloppyEvalCanExtendVarsField::encode(
+      ScopeSloppyEvalCanExtendVarsBit::encode(
           scope->is_declaration_scope() &&
           scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) |
       InnerScopeCallsEvalField::encode(scope->inner_scope_calls_eval()) |
@@ -612,7 +611,7 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(
 
   CHECK(scope_data_->HasRemainingBytes(ByteData::kUint8Size));
   uint32_t scope_data_flags = scope_data_->ReadUint8();
-  if (ScopeSloppyEvalCanExtendVarsField::decode(scope_data_flags)) {
+  if (ScopeSloppyEvalCanExtendVarsBit::decode(scope_data_flags)) {
     scope->RecordEvalCall();
   }
   if (InnerScopeCallsEvalField::decode(scope_data_flags)) {

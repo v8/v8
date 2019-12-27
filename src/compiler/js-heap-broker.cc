@@ -3547,7 +3547,7 @@ int ScopeInfoRef::Flags() const {
 }
 
 bool ScopeInfoRef::HasContextExtension() const {
-  return ScopeInfo::HasContextExtensionSlotField::decode(Flags());
+  return ScopeInfo::HasContextExtensionSlotBit::decode(Flags());
 }
 
 bool ScopeInfoRef::HasOuterScopeInfo() const {

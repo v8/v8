@@ -11,6 +11,7 @@
 #include "src/objects/objects.h"
 #include "src/utils/utils.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
+#include "torque-generated/bit-fields-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -35,7 +36,7 @@ class Zone;
 
 // This object provides quick access to scope info details for runtime
 // routines.
-class ScopeInfo : public FixedArray {
+class ScopeInfo : public FixedArray, public TorqueGeneratedScopeFlagsFields {
  public:
   DECL_CAST(ScopeInfo)
   DECL_PRINTER(ScopeInfo)
@@ -260,40 +261,8 @@ class ScopeInfo : public FixedArray {
 
   static const int kFlagsOffset = OffsetOfElementAt(Fields::kFlags);
 
-  // Used for the function name variable for named function expressions, and for
-  // the receiver.
-  enum VariableAllocationInfo { NONE, STACK, CONTEXT, UNUSED };
-
-  // Properties of scopes.
-  using ScopeTypeField = base::BitField<ScopeType, 0, 4>;
-  using SloppyEvalCanExtendVarsField = ScopeTypeField::Next<bool, 1>;
-  STATIC_ASSERT(LanguageModeSize == 2);
-  using LanguageModeField = SloppyEvalCanExtendVarsField::Next<LanguageMode, 1>;
-  using DeclarationScopeField = LanguageModeField::Next<bool, 1>;
-  using ReceiverVariableField =
-      DeclarationScopeField::Next<VariableAllocationInfo, 2>;
-  using HasClassBrandField = ReceiverVariableField::Next<bool, 1>;
-  using HasSavedClassVariableIndexField = HasClassBrandField::Next<bool, 1>;
-  using HasNewTargetField = HasSavedClassVariableIndexField::Next<bool, 1>;
-  using FunctionVariableField =
-      HasNewTargetField::Next<VariableAllocationInfo, 2>;
-  // TODO(cbruni): Combine with function variable field when only storing the
-  // function name.
-  using HasInferredFunctionNameField = FunctionVariableField::Next<bool, 1>;
-  using IsAsmModuleField = HasInferredFunctionNameField::Next<bool, 1>;
-  using HasSimpleParametersField = IsAsmModuleField::Next<bool, 1>;
-  using FunctionKindField = HasSimpleParametersField::Next<FunctionKind, 5>;
-  using HasOuterScopeInfoField = FunctionKindField::Next<bool, 1>;
-  using IsDebugEvaluateScopeField = HasOuterScopeInfoField::Next<bool, 1>;
-  using ForceContextAllocationField = IsDebugEvaluateScopeField::Next<bool, 1>;
-  using PrivateNameLookupSkipsOuterClassField =
-      ForceContextAllocationField::Next<bool, 1>;
-  using HasContextExtensionSlotField =
-      PrivateNameLookupSkipsOuterClassField::Next<bool, 1>;
-  using IsReplModeScopeField = HasContextExtensionSlotField::Next<bool, 1>;
-  using HasLocalsBlackListField = IsReplModeScopeField::Next<bool, 1>;
-
-  STATIC_ASSERT(kLastFunctionKind <= FunctionKindField::kMax);
+  STATIC_ASSERT(LanguageModeSize == 1 << LanguageModeBit::kSize);
+  STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
 
  private:
   // The layout of the variable part of a ScopeInfo is as follows:
@@ -376,15 +345,13 @@ class ScopeInfo : public FixedArray {
   using IsStaticFlagField = ParameterNumberField::Next<IsStaticFlag, 1>;
 
   friend class ScopeIterator;
-  friend std::ostream& operator<<(std::ostream& os,
-                                  ScopeInfo::VariableAllocationInfo var);
+  friend std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var);
 
   OBJECT_CONSTRUCTORS(ScopeInfo, FixedArray);
   FRIEND_TEST(TestWithNativeContext, RecreateScopeInfoWithLocalsBlacklistWorks);
 };
 
-std::ostream& operator<<(std::ostream& os,
-                         ScopeInfo::VariableAllocationInfo var);
+std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var);
 
 }  // namespace internal
 }  // namespace v8

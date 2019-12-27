@@ -1334,7 +1334,7 @@ Reduction JSTypedLowering::ReduceJSHasContextExtension(Node* node) {
       effect, control);
   Node* flags_masked = graph()->NewNode(
       simplified()->NumberBitwiseAnd(), scope_info_flags,
-      jsgraph()->SmiConstant(ScopeInfo::HasContextExtensionSlotField::kMask));
+      jsgraph()->SmiConstant(ScopeInfo::HasContextExtensionSlotBit::kMask));
   Node* no_extension = graph()->NewNode(
       simplified()->NumberEqual(), flags_masked, jsgraph()->SmiConstant(0));
   Node* has_extension =

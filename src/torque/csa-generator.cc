@@ -241,11 +241,16 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       out_ << "ca_.UintPtrConstant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetInt32Type())) {
       out_ << "ca_.Int32Constant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetBoolType())) {
+      out_ << "ca_.BoolConstant";
     } else {
       std::stringstream s;
       s << "%FromConstexpr does not support return type " << *return_type;
       ReportError(s.str());
     }
+    // Wrap the raw constexpr value in a static_cast to ensure that
+    // enums get properly casted to their backing integral value.
+    out_ << "(CastToUnderlyingTypeIfEnum";
   } else {
     ReportError("no built in intrinsic with name " +
                 instruction.intrinsic->ExternalName());
@@ -253,6 +258,9 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
 
   out_ << "(";
   PrintCommaSeparatedList(out_, args);
+  if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
+    out_ << ")";
+  }
   if (return_type->IsStructType()) {
     out_ << ").Flatten();\n";
   } else {

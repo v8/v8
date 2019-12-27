@@ -2142,14 +2142,13 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - language mode: " << language_mode();
   if (is_declaration_scope()) os << "\n - declaration scope";
   if (HasReceiver()) {
-    os << "\n - receiver: " << ReceiverVariableField::decode(flags);
+    os << "\n - receiver: " << ReceiverVariableBits::decode(flags);
   }
   if (HasClassBrand()) os << "\n - has class brand";
   if (HasSavedClassVariableIndex()) os << "\n - has saved class variable index";
   if (HasNewTarget()) os << "\n - needs new target";
   if (HasFunctionName()) {
-    os << "\n - function name(" << FunctionVariableField::decode(flags)
-       << "): ";
+    os << "\n - function name(" << FunctionVariableBits::decode(flags) << "): ";
     FunctionName().ShortPrint(os);
   }
   if (IsAsmModule()) os << "\n - asm module";

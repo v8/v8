@@ -2692,11 +2692,11 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
     return scope.Yield(GenerateCopy(source));
   }
 
-  if (TypeOracle::IsImplicitlyConvertableFrom(destination_type,
-                                              source.type())) {
+  if (auto from = TypeOracle::ImplicitlyConvertableFrom(destination_type,
+                                                        source.type())) {
     return scope.Yield(GenerateCall(kFromConstexprMacroName,
                                     Arguments{{source}, {}},
-                                    {destination_type, source.type()}, false));
+                                    {destination_type, *from}, false));
   } else if (IsAssignableFrom(destination_type, source.type())) {
     source.SetType(destination_type);
     return scope.Yield(GenerateCopy(source));

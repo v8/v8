@@ -648,7 +648,7 @@ bool Signature::HasSameTypesAs(const Signature& other,
 bool IsAssignableFrom(const Type* to, const Type* from) {
   if (to == from) return true;
   if (from->IsSubtypeOf(to)) return true;
-  return TypeOracle::IsImplicitlyConvertableFrom(to, from);
+  return TypeOracle::ImplicitlyConvertableFrom(to, from).has_value();
 }
 
 bool operator<(const Type& a, const Type& b) { return a.id() < b.id(); }
