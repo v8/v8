@@ -801,6 +801,8 @@ class WasmJSFunctionData : public Struct {
   OBJECT_CONSTRUCTORS(WasmJSFunctionData, Struct);
 };
 
+// Debug info used for wasm debugging in the interpreter. For Liftoff debugging,
+// all information is held off-heap in {wasm::DebugInfo}.
 class WasmDebugInfo : public Struct {
  public:
   NEVER_READ_ONLY_SPACE

@@ -1903,6 +1903,10 @@ WasmInstanceObject WasmCompiledFrame::wasm_instance() const {
   return WasmInstanceObject::cast(instance);
 }
 
+wasm::NativeModule* WasmCompiledFrame::native_module() const {
+  return module_object().native_module();
+}
+
 WasmModuleObject WasmCompiledFrame::module_object() const {
   return wasm_instance().module_object();
 }

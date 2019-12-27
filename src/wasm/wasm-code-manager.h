@@ -35,6 +35,7 @@ class Isolate;
 
 namespace wasm {
 
+class DebugInfo;
 class NativeModule;
 class WasmCodeManager;
 struct WasmCompilationResult;
@@ -566,6 +567,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Retrieve the number of separately reserved code spaces for this module.
   size_t GetNumberOfCodeSpacesForTesting() const;
 
+  // Get or create the debug info for this NativeModule.
+  DebugInfo* GetDebugInfo();
+
  private:
   friend class WasmCode;
   friend class WasmCodeAllocator;
@@ -691,7 +695,15 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Data (especially jump table) per code space.
   std::vector<CodeSpaceData> code_space_data_;
 
+  // Whether we want all code to be Liftoff for debugging.
   bool tier_down_ = false;
+
+  // Debug information for this module. You only need to hold the allocation
+  // mutex while getting the {DebugInfo} pointer, or initializing this field.
+  // Further accesses to the {DebugInfo} do not need to be protected by the
+  // mutex.
+  std::unique_ptr<DebugInfo> debug_info_;
+
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 

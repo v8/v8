@@ -494,6 +494,38 @@ Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject> instance) {
   return global_scope_object;
 }
 
+class DebugInfoImpl {
+ public:
+  explicit DebugInfoImpl(NativeModule* native_module)
+      : native_module_(native_module) {}
+
+  Handle<JSObject> GetLocalScopeObject(Isolate* isolate, Address pc,
+                                       Address fp) {
+    Handle<JSObject> local_scope_object =
+        isolate->factory()->NewJSObjectWithNullProto();
+
+    // TODO(clemensb): Fill this with actual values.
+    USE(native_module_);
+
+    return local_scope_object;
+  }
+
+ private:
+  NativeModule* const native_module_;
+
+  DISALLOW_COPY_AND_ASSIGN(DebugInfoImpl);
+};
+
+DebugInfo::DebugInfo(NativeModule* native_module)
+    : impl_(std::make_unique<DebugInfoImpl>(native_module)) {}
+
+DebugInfo::~DebugInfo() = default;
+
+Handle<JSObject> DebugInfo::GetLocalScopeObject(Isolate* isolate, Address pc,
+                                                Address fp) {
+  return impl_->GetLocalScopeObject(isolate, pc, fp);
+}
+
 }  // namespace wasm
 
 namespace {

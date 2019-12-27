@@ -24,6 +24,7 @@
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/jump-table-assembler.h"
+#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-module-sourcemap.h"
 #include "src/wasm/wasm-module.h"
@@ -1852,6 +1853,12 @@ void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
 
 size_t NativeModule::GetNumberOfCodeSpacesForTesting() const {
   return code_allocator_.GetNumCodeSpaces();
+}
+
+DebugInfo* NativeModule::GetDebugInfo() {
+  base::MutexGuard guard(&allocation_mutex_);
+  if (!debug_info_) debug_info_ = std::make_unique<DebugInfo>(this);
+  return debug_info_.get();
 }
 
 void WasmCodeManager::FreeNativeModule(Vector<VirtualMemory> owned_code_space,

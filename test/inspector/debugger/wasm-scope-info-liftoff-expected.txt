@@ -26,9 +26,11 @@ at C (interpreted) (2:2):
 at B (liftoff) (7:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at A (liftoff) (2:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -48,9 +50,11 @@ at C (interpreted) (3:2):
 at B (liftoff) (7:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at A (liftoff) (2:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -70,9 +74,11 @@ at C (interpreted) (4:2):
 at B (liftoff) (7:2):
  - scope (global):
    globals: "global#0": 42 (number)
+ - scope (local):
 at A (liftoff) (2:2):
  - scope (global):
    globals: "global#0": 42 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -92,9 +98,11 @@ at C (interpreted) (5:2):
 at B (liftoff) (7:2):
  - scope (global):
    globals: "global#0": 42 (number)
+ - scope (local):
 at A (liftoff) (2:2):
  - scope (global):
    globals: "global#0": 42 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -114,9 +122,11 @@ at C (interpreted) (6:0):
 at B (liftoff) (7:2):
  - scope (global):
    globals: "global#0": 42 (number)
+ - scope (local):
 at A (liftoff) (2:2):
  - scope (global):
    globals: "global#0": 42 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals

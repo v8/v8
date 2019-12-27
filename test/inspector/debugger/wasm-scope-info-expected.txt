@@ -25,6 +25,7 @@ at func (2:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -44,6 +45,7 @@ at func (3:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -63,6 +65,7 @@ at func (4:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -82,6 +85,7 @@ at func (5:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -101,6 +105,7 @@ at func (6:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -120,6 +125,7 @@ at func (7:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -139,6 +145,7 @@ at func (8:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -158,6 +165,7 @@ at func (9:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -177,6 +185,7 @@ at func (10:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -196,6 +205,7 @@ at func (11:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -215,6 +225,7 @@ at func (12:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -234,6 +245,7 @@ at func (13:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -253,6 +265,7 @@ at func (14:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -272,6 +285,7 @@ at func (15:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -291,6 +305,7 @@ at func (16:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -310,6 +325,7 @@ at func (17:2):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 0 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -329,6 +345,7 @@ at func (18:0):
 at call_func (5:2):
  - scope (global):
    globals: "global#0": 15 (number)
+ - scope (local):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals

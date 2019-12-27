@@ -6,8 +6,10 @@
 #define V8_WASM_WASM_DEBUG_H_
 
 #include <algorithm>
+#include <memory>
 #include <vector>
 
+#include "include/v8-internal.h"
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -21,6 +23,9 @@ class JSObject;
 class WasmInstanceObject;
 
 namespace wasm {
+
+class DebugInfoImpl;
+class NativeModule;
 
 // Side table storing information used to inspect Liftoff frames at runtime.
 // This table is only created on demand for debugging, so it is not optimized
@@ -105,6 +110,19 @@ class DebugSideTable {
 // Get the global scope for a given instance. This will contain the wasm memory
 // (if the instance has a memory) and the values of all globals.
 Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject>);
+
+// Debug info per NativeModule, created lazily on demand.
+// Implementation in {wasm-debug.cc} using PIMPL.
+class DebugInfo {
+ public:
+  explicit DebugInfo(NativeModule*);
+  ~DebugInfo();
+
+  Handle<JSObject> GetLocalScopeObject(Isolate*, Address pc, Address fp);
+
+ private:
+  std::unique_ptr<DebugInfoImpl> impl_;
+};
 
 }  // namespace wasm
 }  // namespace internal

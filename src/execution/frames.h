@@ -950,6 +950,7 @@ class WasmCompiledFrame : public StandardFrame {
 
   // Accessors.
   WasmInstanceObject wasm_instance() const;
+  wasm::NativeModule* native_module() const;
   wasm::WasmCode* wasm_code() const;
   uint32_t function_index() const;
   Script script() const override;
