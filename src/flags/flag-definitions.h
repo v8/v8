@@ -501,7 +501,7 @@ DEFINE_BOOL(block_concurrent_recompilation, false,
             "block queued jobs until released")
 DEFINE_BOOL(concurrent_inlining, false,
             "run optimizing compiler's inlining phase on a separate thread")
-DEFINE_INT(max_serializer_nesting, 25,
+DEFINE_INT(max_serializer_nesting, 15,
            "maximum levels for nesting child serializers")
 DEFINE_IMPLICATION(future, concurrent_inlining)
 DEFINE_BOOL(trace_heap_broker_verbose, false,
