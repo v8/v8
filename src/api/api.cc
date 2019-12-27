@@ -9806,11 +9806,13 @@ void debug::GetLoadedScripts(v8::Isolate* v8_isolate,
     i::Script::Iterator iterator(isolate);
     for (i::Script script = iterator.Next(); !script.is_null();
          script = iterator.Next()) {
-      if (!script.IsUserJavaScript()) continue;
-      if (script.HasValidSource()) {
-        i::HandleScope handle_scope(isolate);
-        i::Handle<i::Script> script_handle(script, isolate);
-        scripts.Append(ToApiHandle<Script>(script_handle));
+      if (script.type() == i::Script::TYPE_NORMAL ||
+          script.type() == i::Script::TYPE_WASM) {
+        if (script.HasValidSource()) {
+          i::HandleScope handle_scope(isolate);
+          i::Handle<i::Script> script_handle(script, isolate);
+          scripts.Append(ToApiHandle<Script>(script_handle));
+        }
       }
     }
   }

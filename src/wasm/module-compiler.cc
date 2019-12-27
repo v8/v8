@@ -2714,6 +2714,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
                                 Vector<const char> source_url) {
   Handle<Script> script =
       isolate->factory()->NewScript(isolate->factory()->empty_string());
+  script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
   script->set_context_data(isolate->native_context()->debug_context_id());
   script->set_type(Script::TYPE_WASM);
 
