@@ -2525,11 +2525,6 @@ bool JSHeapBroker::ShouldBeSerializedForCompilation(
 void JSHeapBroker::SetSerializedForCompilation(
     const SharedFunctionInfoRef& shared, const FeedbackVectorRef& feedback,
     const HintsVector& arguments) {
-  if (serialized_functions_.size() >= kMaxSerializedFunctionsCacheSize) {
-    TRACE_BROKER_MISSING(this,
-                         "opportunity - serialized functions cache is full.");
-    return;
-  }
   SerializedFunction function{shared, feedback};
   serialized_functions_.insert({function, arguments});
   TRACE(this, "Set function " << shared << " with " << feedback
