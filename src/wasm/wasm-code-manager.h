@@ -552,11 +552,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // by publishing an entry stub with the {Kind::kInterpreterEntry} code kind.
   bool IsRedirectedToInterpreter(uint32_t func_index);
 
-  // Sets the flag, triggers recompilation of all methods to tier down or up,
-  // waits for that to complete.
-  void TierDown(Isolate* isolate);
-  void TierUp(Isolate* isolate);
-
   // Free a set of functions of this module. Uncommits whole pages if possible.
   // The given vector must be ordered by the instruction start address, and all
   // {WasmCode} objects must not be used any more.
@@ -694,9 +689,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // Data (especially jump table) per code space.
   std::vector<CodeSpaceData> code_space_data_;
-
-  // Whether we want all code to be Liftoff for debugging.
-  bool tier_down_ = false;
 
   // Debug information for this module. You only need to hold the allocation
   // mutex while getting the {DebugInfo} pointer, or initializing this field.

@@ -1096,7 +1096,6 @@
 ['arch != x64 and arch != ia32 and arch != arm64 and arch != arm', {
   'wasm/liftoff': [SKIP],
   'wasm/tier-up-testing-flag': [SKIP],
-  'wasm/tier-down-to-liftoff': [SKIP],
 }], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm
 
 ##############################################################################

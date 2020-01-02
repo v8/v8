@@ -1047,14 +1047,11 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
                       ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                   "Assume an order on execution tiers");
 
-    // Unless tier down to Liftoff: update code table but avoid to fall back to
-    // less optimized code. We use the new code if it was compiled with a higher
-    // tier.
+    // Update code table but avoid to fall back to less optimized code. We use
+    // the new code if it was compiled with a higher tier.
     uint32_t slot_idx = code->index() - module_->num_imported_functions;
     WasmCode* prior_code = code_table_[slot_idx];
-    bool update_code_table =
-        tier_down_ ? !prior_code || code->tier() == ExecutionTier::kLiftoff
-                   : !prior_code || prior_code->tier() < code->tier();
+    bool update_code_table = !prior_code || prior_code->tier() < code->tier();
     if (update_code_table) {
       code_table_[slot_idx] = code.get();
       if (prior_code) {
@@ -1809,34 +1806,6 @@ std::vector<WasmCode*> NativeModule::AddCompiledCode(
 bool NativeModule::IsRedirectedToInterpreter(uint32_t func_index) {
   base::MutexGuard lock(&allocation_mutex_);
   return has_interpreter_redirection(func_index);
-}
-
-void NativeModule::TierDown(Isolate* isolate) {
-  // Set the flag.
-  tier_down_ = true;
-
-  // Tier down all functions.
-  // TODO(duongn): parallelize this eventually.
-  for (uint32_t index = module_->num_imported_functions;
-       index < num_functions(); index++) {
-    isolate->wasm_engine()->CompileFunction(isolate, this, index,
-                                            ExecutionTier::kLiftoff);
-    DCHECK(!compilation_state()->failed());
-  }
-}
-
-void NativeModule::TierUp(Isolate* isolate) {
-  // Set the flag.
-  tier_down_ = false;
-
-  // Tier up all functions.
-  // TODO(duongn): parallelize this eventually.
-  for (uint32_t index = module_->num_imported_functions;
-       index < num_functions(); index++) {
-    isolate->wasm_engine()->CompileFunction(isolate, this, index,
-                                            ExecutionTier::kTurbofan);
-    DCHECK(!compilation_state()->failed());
-  }
 }
 
 void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
