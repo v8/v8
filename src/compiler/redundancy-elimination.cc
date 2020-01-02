@@ -385,7 +385,9 @@ Reduction RedundancyElimination::ReduceSpeculativeNumberOperation(Node* node) {
     // than the type of the {first} node, otherwise we
     // would end up replacing NumberConstant inputs with
     // CheckBounds operations, which is kind of pointless.
-    if (!NodeProperties::GetType(first).Is(NodeProperties::GetType(check))) {
+    // In addition, as always, we need to make sure not to widen types.
+    if (!NodeProperties::GetType(first).Is(NodeProperties::GetType(check)) &&
+        NodeProperties::GetType(check).Is(NodeProperties::GetType(first))) {
       NodeProperties::ReplaceValueInput(node, check, 0);
     }
   }
