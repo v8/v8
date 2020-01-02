@@ -114,6 +114,7 @@
 
   ############################################################################
   # Slow tests.
+  'test-cpu-profiler/Inlining2': [PASS, SLOW],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
   'test-jump-table-assembler/JumpTablePatchingStress': [PASS, SLOW],
@@ -230,9 +231,6 @@
 
   # BUG(5920): Flaky crash.
   'test-serialize/PartialSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
-
-  # Test is just big and quite slow.
-  'test-cpu-profiler/Inlining2': [PASS, SLOW],
 }],  # 'system == windows'
 
 ##############################################################################

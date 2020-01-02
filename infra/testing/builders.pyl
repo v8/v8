@@ -135,7 +135,7 @@
       {'name': 'test262', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'suffix': 'isolates', 'test_args': ['--isolates'], 'shards': 2},
-      {'name': 'v8testing', 'variant': 'extra'},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
     ],
   },
   'v8_linux_optional_rel_ng_triggered': {
@@ -279,7 +279,7 @@
       {'name': 'test262', 'variant': 'default'},
       {'name': 'test262', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'shards': 3},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
     ],
@@ -371,7 +371,7 @@
       {'name': 'test262', 'variant': 'extra', 'shards': 3},
       {'name': 'v8initializers'},
       {'name': 'v8testing', 'shards': 2},
-      {'name': 'v8testing', 'variant': 'extra'},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
       {'name': 'v8testing', 'variant': 'minor_mc'},
       {'name': 'v8testing', 'variant': 'slow_path'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
@@ -706,7 +706,7 @@
         'test_args': ['--isolates'],
         'shards': 4
       },
-      {'name': 'v8testing', 'variant': 'extra'},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
       # Nosse3.
       {
         'name': 'mozilla',
@@ -901,7 +901,7 @@
       {'name': 'test262', 'shards': 5},
       {'name': 'test262', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'shards': 2},
-      {'name': 'v8testing', 'variant': 'extra'},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
       {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
       {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
