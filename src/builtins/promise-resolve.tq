@@ -60,7 +60,7 @@ namespace promise {
       if (valueConstructor != constructor) goto NeedToAllocate;
       return value;
     }
-    label NeedToAllocate deferred {
+    label NeedToAllocate {
       if (promiseFun == constructor) {
         // This adds a fast path for native promises that don't need to
         // create NewPromiseCapability.
