@@ -1819,31 +1819,24 @@ const double load_factor = 1.0;
 TEST(Inlining2) {
   FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
+  LocalContext env;
   v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
   v8::HandleScope scope(isolate);
-  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
-  v8::Context::Scope context_scope(env);
+  ProfilerHelper helper(env.local());
 
   CompileRun(inlining_test_source2);
-  v8::Local<v8::Function> function = GetFunction(env, "start");
+  v8::Local<v8::Function> function = GetFunction(env.local(), "start");
 
-  v8::CpuProfiler* profiler = v8::CpuProfiler::New(CcTest::isolate());
-  v8::Local<v8::String> profile_name = v8_str("inlining");
-  profiler->StartProfiling(
-      profile_name,
-      v8::CpuProfilingOptions{v8::CpuProfilingMode::kCallerLineNumbers});
-
-  v8::Local<v8::Value> args[] = {
-      v8::Integer::New(env->GetIsolate(), 50000 * load_factor)};
-  function->Call(env, env->Global(), arraysize(args), args).ToLocalChecked();
-  v8::CpuProfile* profile = profiler->StopProfiling(profile_name);
+  v8::Local<v8::Value> args[] = {v8::Integer::New(env->GetIsolate(), 20)};
+  static const unsigned min_samples = 4000;
+  static const unsigned min_ext_samples = 0;
+  v8::CpuProfile* profile =
+      helper.Run(function, args, arraysize(args), min_samples, min_ext_samples,
+                 v8::CpuProfilingMode::kCallerLineNumbers);
   CHECK(profile);
 
-  // Dump collected profile to have a better diagnostic in case of failure.
-  reinterpret_cast<i::CpuProfile*>(profile)->Print();
-
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
-  const v8::CpuProfileNode* start_node = GetChild(env, root, "start");
+  const v8::CpuProfileNode* start_node = GetChild(env.local(), root, "start");
 
   NameLinePair l421_a17[] = {{"level1", 27},
                              {"level2", 23},
@@ -1875,7 +1868,6 @@ TEST(Inlining2) {
   CheckBranch(start_node, action_direct, arraysize(action_direct));
 
   profile->Delete();
-  profiler->Dispose();
 }
 
 static const char* cross_script_source_a = R"(
