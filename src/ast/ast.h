@@ -1724,15 +1724,7 @@ class Call final : public Expression {
     PRIVATE_CALL,
     SUPER_CALL,
     OTHER_CALL,
-
-    FIRST_NON_SUPER_PROPERTY_CALL = NAMED_PROPERTY_CALL,
-    LAST_NON_SUPER_PROPERTY_CALL = KEYED_OPTIONAL_CHAIN_PROPERTY_CALL
   };
-
-  static bool IsNonSuperPropertyCall(CallType call_type) {
-    return base::IsInRange(call_type, FIRST_NON_SUPER_PROPERTY_CALL,
-                           LAST_NON_SUPER_PROPERTY_CALL);
-  }
 
   enum PossiblyEval {
     IS_POSSIBLY_EVAL,

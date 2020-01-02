@@ -4830,7 +4830,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   } else if (optimize_as_one_shot) {
     DCHECK(!implicit_undefined_receiver);
     builder()->CallNoFeedback(callee, args);
-  } else if (Call::IsNonSuperPropertyCall(call_type)) {
+  } else if (call_type == Call::NAMED_PROPERTY_CALL ||
+             call_type == Call::KEYED_PROPERTY_CALL) {
     DCHECK(!implicit_undefined_receiver);
     builder()->CallProperty(callee, args,
                             feedback_index(feedback_spec()->AddCallICSlot()));
