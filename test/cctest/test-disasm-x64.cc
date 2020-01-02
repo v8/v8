@@ -791,77 +791,12 @@ TEST(DisasmX64) {
   {
     if (CpuFeatures::IsSupported(FMA3)) {
       CpuFeatureScope scope(&assm, FMA3);
-      __ vfmadd132sd(xmm0, xmm1, xmm2);
-      __ vfmadd132sd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfmadd213sd(xmm0, xmm1, xmm2);
-      __ vfmadd213sd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfmadd231sd(xmm0, xmm1, xmm2);
-      __ vfmadd231sd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-
-      __ vfmadd132sd(xmm9, xmm10, xmm11);
-      __ vfmadd132sd(xmm9, xmm10, Operand(r9, r11, times_4, 10000));
-      __ vfmadd213sd(xmm9, xmm10, xmm11);
-      __ vfmadd213sd(xmm9, xmm10, Operand(r9, r11, times_4, 10000));
-      __ vfmadd231sd(xmm9, xmm10, xmm11);
-      __ vfmadd231sd(xmm9, xmm10, Operand(r9, r11, times_4, 10000));
-
-      __ vfmsub132sd(xmm0, xmm1, xmm2);
-      __ vfmsub132sd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfmsub213sd(xmm0, xmm1, xmm2);
-      __ vfmsub213sd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfmsub231sd(xmm0, xmm1, xmm2);
-      __ vfmsub231sd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-
-      __ vfnmadd132sd(xmm0, xmm1, xmm2);
-      __ vfnmadd132sd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfnmadd213sd(xmm0, xmm1, xmm2);
-      __ vfnmadd213sd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfnmadd231sd(xmm0, xmm1, xmm2);
-      __ vfnmadd231sd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-
-      __ vfnmsub132sd(xmm0, xmm1, xmm2);
-      __ vfnmsub132sd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfnmsub213sd(xmm0, xmm1, xmm2);
-      __ vfnmsub213sd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfnmsub231sd(xmm0, xmm1, xmm2);
-      __ vfnmsub231sd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-
-      __ vfmadd132ss(xmm0, xmm1, xmm2);
-      __ vfmadd132ss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfmadd213ss(xmm0, xmm1, xmm2);
-      __ vfmadd213ss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfmadd231ss(xmm0, xmm1, xmm2);
-      __ vfmadd231ss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-
-      __ vfmsub132ss(xmm0, xmm1, xmm2);
-      __ vfmsub132ss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfmsub213ss(xmm0, xmm1, xmm2);
-      __ vfmsub213ss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfmsub231ss(xmm0, xmm1, xmm2);
-      __ vfmsub231ss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-
-      __ vfnmadd132ss(xmm0, xmm1, xmm2);
-      __ vfnmadd132ss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfnmadd213ss(xmm0, xmm1, xmm2);
-      __ vfnmadd213ss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfnmadd231ss(xmm0, xmm1, xmm2);
-      __ vfnmadd231ss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-
-      __ vfnmsub132ss(xmm0, xmm1, xmm2);
-      __ vfnmsub132ss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfnmsub213ss(xmm0, xmm1, xmm2);
-      __ vfnmsub213ss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfnmsub231ss(xmm0, xmm1, xmm2);
-      __ vfnmsub231ss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-
-      __ vfmadd231ps(xmm0, xmm1, xmm2);
-      __ vfmadd231ps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfnmadd231ps(xmm0, xmm1, xmm2);
-      __ vfnmadd231ps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfmadd231pd(xmm0, xmm1, xmm2);
-      __ vfmadd231pd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vfnmadd231pd(xmm0, xmm1, xmm2);
-      __ vfnmadd231pd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
+#define EMIT_FMA(instr, notUsed1, notUsed2, notUsed3, notUsed4, notUsed5, \
+                 notUsed6)                                                \
+  __ instr(xmm9, xmm10, xmm11);                                           \
+  __ instr(xmm9, xmm10, Operand(rbx, rcx, times_4, 10000));
+      FMA_INSTRUCTION_LIST(EMIT_FMA)
+#undef EMIT_FMA
     }
   }
 
