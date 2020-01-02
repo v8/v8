@@ -1233,6 +1233,12 @@ TEST(Neon) {
               "f3142360       vcgt.u16 q1, q2, q8");
       COMPARE(vcgt(NeonS32, q15, q0, q8),
               "f260e360       vcgt.s32 q15, q0, q8");
+      COMPARE(vrhadd(NeonU8, q0, q1, q2),
+              "f3020144       vrhadd.u8 q0, q1, q2");
+      COMPARE(vrhadd(NeonU16, q1, q2, q8),
+              "f3142160       vrhadd.u16 q1, q2, q8");
+      COMPARE(vrhadd(NeonU32, q15, q0, q8),
+              "f360e160       vrhadd.u32 q15, q0, q8");
       COMPARE(vbsl(q0, q1, q2),
               "f3120154       vbsl q0, q1, q2");
       COMPARE(vbsl(q15, q0, q8),

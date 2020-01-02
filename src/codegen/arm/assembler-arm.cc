@@ -4143,7 +4143,8 @@ enum IntegerBinOp {
   VTST,
   VCEQ,
   VCGE,
-  VCGT
+  VCGT,
+  VRHADD
 };
 
 static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
@@ -4183,6 +4184,9 @@ static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
       break;
     case VCGT:
       op_encoding = 0x3 * B8;
+      break;
+    case VRHADD:
+      op_encoding = B8;
       break;
     default:
       UNREACHABLE();
@@ -4581,6 +4585,14 @@ void Assembler::vcgt(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   // Qd = vcgt(Qn, Qm) SIMD integer compare greater than.
   // Instruction details available in ARM DDI 0406C.b, A8-852.
   emit(EncodeNeonBinOp(VCGT, dt, dst, src1, src2));
+}
+
+void Assembler::vrhadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+                       QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vrhadd(Qn, Qm) SIMD integer rounding halving add.
+  // Instruction details available in ARM DDI 0406C.b, A8-1030.
+  emit(EncodeNeonBinOp(VRHADD, dt, dst, src1, src2));
 }
 
 void Assembler::vext(QwNeonRegister dst, QwNeonRegister src1,

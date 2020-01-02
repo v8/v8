@@ -2089,6 +2089,16 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
               out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                           "veor q%d, q%d, q%d", Vd, Vn, Vm);
             }
+          } else if (instr->Bit(4) == 0) {
+            if (instr->Bit(6) == 1) {
+              // vrhadd.u<size> Qd, Qm, Qn.
+              out_buffer_pos_ +=
+                  SNPrintF(out_buffer_ + out_buffer_pos_,
+                           "vrhadd.u%d q%d, q%d, q%d", size, Vd, Vn, Vm);
+            } else {
+              // vrhadd.u<size> Dd, Dm, Dn.
+              Unknown(instr);
+            }
           } else {
             Unknown(instr);
           }

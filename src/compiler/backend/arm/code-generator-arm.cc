@@ -2465,6 +2465,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
+    case kArmI16x8RoundingAverageU: {
+      __ vrhadd(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputSimd128Register(1));
+      break;
+    }
     case kArmI8x16Splat: {
       __ vdup(Neon8, i.OutputSimd128Register(), i.InputRegister(0));
       break;
@@ -2610,6 +2615,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmI8x16GeU: {
       __ vcge(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmI8x16RoundingAverageU: {
+      __ vrhadd(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputSimd128Register(1));
       break;
     }
     case kArmS128Zero: {

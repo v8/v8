@@ -4225,6 +4225,20 @@ void PairwiseAdd(Simulator* simulator, int Vd, int Vm, int Vn) {
   simulator->set_neon_register<T, kDoubleSize>(Vd, dst);
 }
 
+template <typename T, int SIZE = kSimd128Size>
+void RoundingAverageUnsigned(Simulator* simulator, int Vd, int Vm, int Vn) {
+  static_assert(std::is_unsigned<T>::value,
+                "Implemented only for unsigned types.");
+  static const int kElems = SIZE / sizeof(T);
+  T src1[kElems], src2[kElems];
+  simulator->get_neon_register<T, SIZE>(Vn, src1);
+  simulator->get_neon_register<T, SIZE>(Vm, src2);
+  for (int i = 0; i < kElems; i++) {
+    src1[i] = base::RoundingAverageUnsigned(src1[i], src2[i]);
+  }
+  simulator->set_neon_register<T, SIZE>(Vd, src1);
+}
+
 void Simulator::DecodeSpecialCondition(Instruction* instr) {
   switch (instr->SpecialValue()) {
     case 4: {
@@ -4720,6 +4734,27 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               get_neon_register(Vm, src2);
               for (int i = 0; i < 4; i++) src1[i] ^= src2[i];
               set_neon_register(Vd, src1);
+            }
+          } else if (instr->Bit(4) == 0) {
+            if (instr->Bit(6) == 0) {
+              // vrhadd.u<size> Dd, Dm, Dn.
+              UNIMPLEMENTED();
+            }
+            // vrhadd.u<size> Qd, Qm, Qn.
+            NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+            switch (size) {
+              case Neon8:
+                RoundingAverageUnsigned<uint8_t>(this, Vd, Vm, Vn);
+                break;
+              case Neon16:
+                RoundingAverageUnsigned<uint16_t>(this, Vd, Vm, Vn);
+                break;
+              case Neon32:
+                RoundingAverageUnsigned<uint32_t>(this, Vd, Vm, Vn);
+                break;
+              default:
+                UNREACHABLE();
+                break;
             }
           } else {
             UNIMPLEMENTED();
