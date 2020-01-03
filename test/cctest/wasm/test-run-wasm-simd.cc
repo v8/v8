@@ -1611,6 +1611,16 @@ WASM_SIMD_TEST(I16x8Splat) {
       CHECK_EQ(actual, expected);
     }
   }
+
+  // Test values that do not fit in a int16.
+  FOR_INT32_INPUTS(x) {
+    r.Call(x);
+    int16_t expected = truncate_to_int16(x);
+    for (int i = 0; i < 8; i++) {
+      int16_t actual = ReadLittleEndianValue<int16_t>(&g[i]);
+      CHECK_EQ(actual, expected);
+    }
+  }
 }
 
 WASM_SIMD_TEST(I16x8ReplaceLane) {
@@ -1655,6 +1665,16 @@ WASM_SIMD_TEST(I8x16Splat) {
   FOR_INT8_INPUTS(x) {
     r.Call(x);
     int8_t expected = x;
+    for (int i = 0; i < 16; i++) {
+      int8_t actual = ReadLittleEndianValue<int8_t>(&g[i]);
+      CHECK_EQ(actual, expected);
+    }
+  }
+
+  // Test values that do not fit in a int16.
+  FOR_INT16_INPUTS(x) {
+    r.Call(x);
+    int8_t expected = truncate_to_int8(x);
     for (int i = 0; i < 16; i++) {
       int8_t actual = ReadLittleEndianValue<int8_t>(&g[i]);
       CHECK_EQ(actual, expected);
