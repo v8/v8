@@ -1161,7 +1161,7 @@ class TracedReference : public TracedReferenceBase<T> {
    * involving V8 needs to be done, a second callback can be scheduled using
    * WeakCallbackInfo<void>::SetSecondPassCallback.
    */
-  V8_DEPRECATE_SOON("Use TracedGlobal<> if callbacks are required.")
+  V8_DEPRECATED("Use TracedGlobal<> if callbacks are required.")
   V8_INLINE void SetFinalizationCallback(
       void* parameter, WeakCallbackInfo<void>::Callback callback);
 };
