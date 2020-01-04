@@ -9967,6 +9967,8 @@ TEST(AsyncAwait) {
     "(async(a = await => 1), async(a) => 1)",
     "async(a = await => 1, b = async() => 1);",
 
+    "async (x = class { p = await }) => {};",
+
     nullptr
   };
   // clang-format on
