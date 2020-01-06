@@ -567,6 +567,7 @@ TEST(DisasmX64) {
       __ cvtdq2ps(xmm5, Operand(rdx, 4));
 
       SSE4_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
+      SSE4_PMOV_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
       SSE4_EXTRACT_INSTRUCTION_LIST(EMIT_SSE34_IMM_INSTR)
     }
   }
@@ -739,6 +740,13 @@ TEST(DisasmX64) {
       SSE4_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
 #undef EMIT_SSE2_AVXINSTR
 #undef EMIT_SSE34_AVXINSTR
+
+#define EMIT_SSE4_PMOV_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
+                                notUsed4)                                  \
+  __ v##instruction(xmm10, xmm1);                                          \
+  __ v##instruction(xmm10, Operand(rdx, 4));
+      SSE4_PMOV_INSTRUCTION_LIST(EMIT_SSE4_PMOV_AVXINSTR)
+#undef EMIT_SSE4_PMOV_AVXINSTR
 
 #define EMIT_SSE2_SHIFT_IMM_AVX(instruction, notUsed1, notUsed2, notUsed3, \
                                 notUsed4)                                  \

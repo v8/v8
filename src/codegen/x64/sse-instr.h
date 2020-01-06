@@ -135,13 +135,7 @@
   V(blendvpd, 66, 0F, 38, 15)    \
   V(pcmpeqq, 66, 0F, 38, 29)     \
   V(ptest, 66, 0F, 38, 17)       \
-  V(pmovsxbw, 66, 0F, 38, 20)    \
-  V(pmovsxwd, 66, 0F, 38, 23)    \
-  V(pmovsxdq, 66, 0F, 38, 25)    \
   V(packusdw, 66, 0F, 38, 2B)    \
-  V(pmovzxbw, 66, 0F, 38, 30)    \
-  V(pmovzxwd, 66, 0F, 38, 33)    \
-  V(pmovzxdq, 66, 0F, 38, 35)    \
   V(pminsb, 66, 0F, 38, 38)      \
   V(pminsd, 66, 0F, 38, 39)      \
   V(pminuw, 66, 0F, 38, 3A)      \
@@ -151,6 +145,15 @@
   V(pmaxuw, 66, 0F, 38, 3E)      \
   V(pmaxud, 66, 0F, 38, 3F)      \
   V(pmulld, 66, 0F, 38, 40)
+
+// SSE instructions whose AVX version has two operands.
+#define SSE4_PMOV_INSTRUCTION_LIST(V) \
+  V(pmovsxbw, 66, 0F, 38, 20)         \
+  V(pmovsxwd, 66, 0F, 38, 23)         \
+  V(pmovsxdq, 66, 0F, 38, 25)         \
+  V(pmovzxbw, 66, 0F, 38, 30)         \
+  V(pmovzxwd, 66, 0F, 38, 33)         \
+  V(pmovzxdq, 66, 0F, 38, 35)
 
 #define SSE4_EXTRACT_INSTRUCTION_LIST(V) \
   V(extractps, 66, 0F, 3A, 17)           \
