@@ -3655,119 +3655,115 @@ void i::Internals::CheckInitializedImpl(v8::Isolate* external_isolate) {
 
 void External::CheckCast(v8::Value* that) {
   Utils::ApiCheck(that->IsExternal(), "v8::External::Cast",
-                  "Could not convert to external");
+                  "Value is not an External");
 }
 
 void v8::Object::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsJSReceiver(), "v8::Object::Cast",
-                  "Could not convert to object");
+                  "Value is not an Object");
 }
 
 void v8::Function::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsCallable(), "v8::Function::Cast",
-                  "Could not convert to function");
+                  "Value is not a Function");
 }
 
 void v8::Boolean::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsBoolean(), "v8::Boolean::Cast",
-                  "Could not convert to boolean");
+                  "Value is not a Boolean");
 }
 
 void v8::Name::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->IsName(), "v8::Name::Cast", "Could not convert to name");
+  Utils::ApiCheck(obj->IsName(), "v8::Name::Cast", "Value is not a Name");
 }
 
 void v8::String::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->IsString(), "v8::String::Cast",
-                  "Could not convert to string");
+  Utils::ApiCheck(obj->IsString(), "v8::String::Cast", "Value is not a String");
 }
 
 void v8::Symbol::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->IsSymbol(), "v8::Symbol::Cast",
-                  "Could not convert to symbol");
+  Utils::ApiCheck(obj->IsSymbol(), "v8::Symbol::Cast", "Value is not a Symbol");
 }
 
 void v8::Private::CheckCast(v8::Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(
       obj->IsSymbol() && i::Handle<i::Symbol>::cast(obj)->is_private(),
-      "v8::Private::Cast", "Could not convert to private");
+      "v8::Private::Cast", "Value is not a Private");
 }
 
 void v8::Number::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsNumber(), "v8::Number::Cast()",
-                  "Could not convert to number");
+                  "Value is not a Number");
 }
 
 void v8::Integer::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsNumber(), "v8::Integer::Cast",
-                  "Could not convert to number");
+                  "Value is not an Integer");
 }
 
 void v8::Int32::CheckCast(v8::Value* that) {
   Utils::ApiCheck(that->IsInt32(), "v8::Int32::Cast",
-                  "Could not convert to 32-bit signed integer");
+                  "Value is not a 32-bit signed integer");
 }
 
 void v8::Uint32::CheckCast(v8::Value* that) {
   Utils::ApiCheck(that->IsUint32(), "v8::Uint32::Cast",
-                  "Could not convert to 32-bit unsigned integer");
+                  "Value is not a 32-bit unsigned integer");
 }
 
 void v8::BigInt::CheckCast(v8::Value* that) {
   Utils::ApiCheck(that->IsBigInt(), "v8::BigInt::Cast",
-                  "Could not convert to BigInt");
+                  "Value is not a BigInt");
 }
 
 void v8::Array::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->IsJSArray(), "v8::Array::Cast",
-                  "Could not convert to array");
+  Utils::ApiCheck(obj->IsJSArray(), "v8::Array::Cast", "Value is not an Array");
 }
 
 void v8::Map::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->IsJSMap(), "v8::Map::Cast", "Could not convert to Map");
+  Utils::ApiCheck(obj->IsJSMap(), "v8::Map::Cast", "Value is not a Map");
 }
 
 void v8::Set::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->IsJSSet(), "v8_Set_Cast", "Could not convert to Set");
+  Utils::ApiCheck(obj->IsJSSet(), "v8_Set_Cast", "Value is not a Set");
 }
 
 void v8::Promise::CheckCast(Value* that) {
   Utils::ApiCheck(that->IsPromise(), "v8::Promise::Cast",
-                  "Could not convert to promise");
+                  "Value is not a Promise");
 }
 
 void v8::Promise::Resolver::CheckCast(Value* that) {
   Utils::ApiCheck(that->IsPromise(), "v8::Promise::Resolver::Cast",
-                  "Could not convert to promise resolver");
+                  "Value is not a Promise::Resolver");
 }
 
 void v8::Proxy::CheckCast(Value* that) {
-  Utils::ApiCheck(that->IsProxy(), "v8::Proxy::Cast",
-                  "Could not convert to proxy");
+  Utils::ApiCheck(that->IsProxy(), "v8::Proxy::Cast", "Value is not a Proxy");
 }
 
 void v8::WasmModuleObject::CheckCast(Value* that) {
   Utils::ApiCheck(that->IsWebAssemblyCompiledModule(),
                   "v8::WasmModuleObject::Cast",
-                  "Could not convert to wasm module object");
+                  "Value is not a WasmModuleObject");
 }
 
 void v8::debug::AccessorPair::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsAccessorPair(), "v8::AccessorPair::Cast",
-                  "Could not convert to AccessorPair");
+                  "Value is not a debug::AccessorPair");
 }
 
 v8::BackingStore::~BackingStore() {
@@ -3814,13 +3810,13 @@ void v8::ArrayBuffer::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(
       obj->IsJSArrayBuffer() && !i::JSArrayBuffer::cast(*obj).is_shared(),
-      "v8::ArrayBuffer::Cast()", "Could not convert to ArrayBuffer");
+      "v8::ArrayBuffer::Cast()", "Value is not an ArrayBuffer");
 }
 
 void v8::ArrayBufferView::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsJSArrayBufferView(), "v8::ArrayBufferView::Cast()",
-                  "Could not convert to ArrayBufferView");
+                  "Value is not an ArrayBufferView");
 }
 
 constexpr size_t v8::TypedArray::kMaxLength;
@@ -3828,16 +3824,16 @@ constexpr size_t v8::TypedArray::kMaxLength;
 void v8::TypedArray::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsJSTypedArray(), "v8::TypedArray::Cast()",
-                  "Could not convert to TypedArray");
+                  "Value is not a TypedArray");
 }
 
-#define CHECK_TYPED_ARRAY_CAST(Type, typeName, TYPE, ctype)                   \
-  void v8::Type##Array::CheckCast(Value* that) {                              \
-    i::Handle<i::Object> obj = Utils::OpenHandle(that);                       \
-    Utils::ApiCheck(                                                          \
-        obj->IsJSTypedArray() &&                                              \
-            i::JSTypedArray::cast(*obj).type() == i::kExternal##Type##Array,  \
-        "v8::" #Type "Array::Cast()", "Could not convert to " #Type "Array"); \
+#define CHECK_TYPED_ARRAY_CAST(Type, typeName, TYPE, ctype)                  \
+  void v8::Type##Array::CheckCast(Value* that) {                             \
+    i::Handle<i::Object> obj = Utils::OpenHandle(that);                      \
+    Utils::ApiCheck(                                                         \
+        obj->IsJSTypedArray() &&                                             \
+            i::JSTypedArray::cast(*obj).type() == i::kExternal##Type##Array, \
+        "v8::" #Type "Array::Cast()", "Value is not a " #Type "Array");      \
   }
 
 TYPED_ARRAYS(CHECK_TYPED_ARRAY_CAST)
@@ -3847,57 +3843,55 @@ TYPED_ARRAYS(CHECK_TYPED_ARRAY_CAST)
 void v8::DataView::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsJSDataView(), "v8::DataView::Cast()",
-                  "Could not convert to DataView");
+                  "Value is not a DataView");
 }
 
 void v8::SharedArrayBuffer::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(
       obj->IsJSArrayBuffer() && i::JSArrayBuffer::cast(*obj).is_shared(),
-      "v8::SharedArrayBuffer::Cast()",
-      "Could not convert to SharedArrayBuffer");
+      "v8::SharedArrayBuffer::Cast()", "Value is not a SharedArrayBuffer");
 }
 
 void v8::Date::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->IsJSDate(), "v8::Date::Cast()",
-                  "Could not convert to date");
+  Utils::ApiCheck(obj->IsJSDate(), "v8::Date::Cast()", "Value is not a Date");
 }
 
 void v8::StringObject::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsStringWrapper(), "v8::StringObject::Cast()",
-                  "Could not convert to StringObject");
+                  "Value is not a StringObject");
 }
 
 void v8::SymbolObject::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsSymbolWrapper(), "v8::SymbolObject::Cast()",
-                  "Could not convert to SymbolObject");
+                  "Value is not a SymbolObject");
 }
 
 void v8::NumberObject::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsNumberWrapper(), "v8::NumberObject::Cast()",
-                  "Could not convert to NumberObject");
+                  "Value is not a NumberObject");
 }
 
 void v8::BigIntObject::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsBigIntWrapper(), "v8::BigIntObject::Cast()",
-                  "Could not convert to BigIntObject");
+                  "Value is not a BigIntObject");
 }
 
 void v8::BooleanObject::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsBooleanWrapper(), "v8::BooleanObject::Cast()",
-                  "Could not convert to BooleanObject");
+                  "Value is not a BooleanObject");
 }
 
 void v8::RegExp::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsJSRegExp(), "v8::RegExp::Cast()",
-                  "Could not convert to regular expression");
+                  "Value is not a RegExp");
 }
 
 Maybe<double> Value::NumberValue(Local<Context> context) const {
@@ -6145,25 +6139,25 @@ MaybeLocal<v8::Object> ObjectTemplate::NewInstance(Local<Context> context) {
 void v8::ObjectTemplate::CheckCast(Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsObjectTemplateInfo(), "v8::ObjectTemplate::Cast",
-                  "Could not convert to object template");
+                  "Value is not an ObjectTemplate");
 }
 
 void v8::FunctionTemplate::CheckCast(Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsFunctionTemplateInfo(), "v8::FunctionTemplate::Cast",
-                  "Could not convert to function template");
+                  "Value is not a FunctionTemplate");
 }
 
 void v8::Signature::CheckCast(Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsFunctionTemplateInfo(), "v8::Signature::Cast",
-                  "Could not convert to signature");
+                  "Value is not a Signature");
 }
 
 void v8::AccessorSignature::CheckCast(Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsFunctionTemplateInfo(), "v8::AccessorSignature::Cast",
-                  "Could not convert to accessor signature");
+                  "Value is not an AccessorSignature");
 }
 
 MaybeLocal<v8::Function> FunctionTemplate::GetFunction(Local<Context> context) {
