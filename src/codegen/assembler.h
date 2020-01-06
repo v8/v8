@@ -175,8 +175,7 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // on a function prologue/epilogue.
   bool collect_win64_unwind_info = false;
 
-  static AssemblerOptions Default(
-      Isolate* isolate, bool explicitly_support_serialization = false);
+  static AssemblerOptions Default(Isolate* isolate);
 };
 
 class AssemblerBuffer {

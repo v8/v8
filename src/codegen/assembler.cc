@@ -49,11 +49,9 @@
 namespace v8 {
 namespace internal {
 
-AssemblerOptions AssemblerOptions::Default(
-    Isolate* isolate, bool explicitly_support_serialization) {
+AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
   AssemblerOptions options;
-  const bool serializer =
-      isolate->serializer_enabled() || explicitly_support_serialization;
+  const bool serializer = isolate->serializer_enabled();
   const bool generating_embedded_builtin =
       isolate->IsGeneratingEmbeddedBuiltins();
   options.record_reloc_info_for_serialization = serializer;
