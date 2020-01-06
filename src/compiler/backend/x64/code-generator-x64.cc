@@ -2958,14 +2958,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I32x4SConvertI16x8Low: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pmovsxwd(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ Pmovsxwd(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kX64I32x4SConvertI16x8High: {
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
-      __ palignr(dst, i.InputSimd128Register(0), 8);
-      __ pmovsxwd(dst, dst);
+      __ Palignr(dst, i.InputSimd128Register(0), static_cast<uint8_t>(8));
+      __ Pmovsxwd(dst, dst);
       break;
     }
     case kX64I32x4Neg: {
@@ -3080,15 +3079,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I32x4UConvertI16x8Low: {
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pmovzxwd(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ Pmovzxwd(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kX64I32x4UConvertI16x8High: {
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
-      __ palignr(dst, i.InputSimd128Register(0), 8);
-      __ pmovzxwd(dst, dst);
+      __ Palignr(dst, i.InputSimd128Register(0), static_cast<uint8_t>(8));
+      __ Pmovzxwd(dst, dst);
       break;
     }
     case kX64I32x4ShrU: {
@@ -3169,15 +3166,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8SConvertI8x16Low: {
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pmovsxbw(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ Pmovsxbw(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kX64I16x8SConvertI8x16High: {
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
-      __ palignr(dst, i.InputSimd128Register(0), 8);
-      __ pmovsxbw(dst, dst);
+      __ Palignr(dst, i.InputSimd128Register(0), static_cast<uint8_t>(8));
+      __ Pmovsxbw(dst, dst);
       break;
     }
     case kX64I16x8Neg: {
@@ -3281,10 +3276,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8UConvertI8x16High: {
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
-      __ palignr(dst, i.InputSimd128Register(0), 8);
-      __ pmovzxbw(dst, dst);
+      __ Palignr(dst, i.InputSimd128Register(0), static_cast<uint8_t>(8));
+      __ Pmovzxbw(dst, dst);
       break;
     }
     case kX64I16x8ShrU: {

@@ -218,6 +218,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSE3(Movddup, movddup)
   AVX_OP_SSSE3(Pshufb, pshufb)
   AVX_OP_SSSE3(Psignd, psignd)
+  AVX_OP_SSSE3(Palignr, palignr)
   AVX_OP_SSE4_1(Pmulld, pmulld)
   AVX_OP_SSE4_1(Pminsd, pminsd)
   AVX_OP_SSE4_1(Pminud, pminud)
