@@ -227,6 +227,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSE4_1(Insertps, insertps)
   AVX_OP_SSE4_1(Pinsrq, pinsrq)
   AVX_OP_SSE4_1(Pblendw, pblendw)
+  AVX_OP_SSE4_1(Pmovsxbw, pmovsxbw)
+  AVX_OP_SSE4_1(Pmovsxwd, pmovsxwd)
+  AVX_OP_SSE4_1(Pmovsxdq, pmovsxdq)
+  AVX_OP_SSE4_1(Pmovzxbw, pmovzxbw)
+  AVX_OP_SSE4_1(Pmovzxwd, pmovzxwd)
+  AVX_OP_SSE4_1(Pmovzxdq, pmovzxdq)
 
 #undef AVX_OP
 
