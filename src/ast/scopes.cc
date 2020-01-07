@@ -1187,7 +1187,7 @@ Declaration* DeclarationScope::CheckConflictingVarDeclarations() {
         // anything, so we can't conflict with anything either. The one
         // exception is the binding variable in catch scopes, which is handled
         // by the if above.
-        if (!IsLexicalVariableMode(other_var->mode())) return nullptr;
+        if (!IsLexicalVariableMode(other_var->mode())) break;
         return decl;
       }
       current = current->outer_scope();
