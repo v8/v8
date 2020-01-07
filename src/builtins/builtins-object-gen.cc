@@ -1235,11 +1235,11 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   TNode<BytecodeArray> bytecode_array =
       LoadSharedFunctionInfoBytecodeArray(shared);
 
-  TNode<IntPtrT> formal_parameter_count = ChangeInt32ToIntPtr(
-      LoadObjectField(shared, SharedFunctionInfo::kFormalParameterCountOffset,
-                      MachineType::Uint16()));
-  TNode<IntPtrT> frame_size = ChangeInt32ToIntPtr(LoadObjectField(
-      bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Int32()));
+  TNode<IntPtrT> formal_parameter_count =
+      ChangeInt32ToIntPtr(LoadObjectField<Uint16T>(
+          shared, SharedFunctionInfo::kFormalParameterCountOffset));
+  TNode<IntPtrT> frame_size = ChangeInt32ToIntPtr(
+      LoadObjectField<Int32T>(bytecode_array, BytecodeArray::kFrameSizeOffset));
   TNode<IntPtrT> size =
       IntPtrAdd(WordSar(frame_size, IntPtrConstant(kTaggedSizeLog2)),
                 formal_parameter_count);

@@ -1500,14 +1500,10 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(SloppyTNode<Object> value,
   }
 }
 
-Node* CodeStubAssembler::LoadFromParentFrame(int offset, MachineType type) {
+TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
   TNode<RawPtrT> frame_pointer = LoadParentFramePointer();
-  return Load(type, frame_pointer, IntPtrConstant(offset));
-}
-
-Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset,
-                                          MachineType type) {
-  return Load(type, buffer, IntPtrConstant(offset));
+  return CAST(
+      Load(MachineType::AnyTagged(), frame_pointer, IntPtrConstant(offset)));
 }
 
 Node* CodeStubAssembler::LoadObjectField(SloppyTNode<HeapObject> object,

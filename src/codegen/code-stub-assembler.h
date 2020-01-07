@@ -1023,24 +1023,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void GotoIfForceSlowPath(Label* if_true);
 
   // Load value from current parent frame by given offset in bytes.
-  Node* LoadFromParentFrame(int offset,
-                            MachineType type = MachineType::AnyTagged());
+  TNode<Object> LoadFromParentFrame(int offset);
 
   // Load an object pointer from a buffer that isn't in the heap.
-  Node* LoadBufferObject(Node* buffer, int offset, MachineType type);
-  TNode<Object> LoadBufferObject(TNode<RawPtrT> buffer, int offset) {
-    return CAST(LoadBufferObject(buffer, offset, MachineType::AnyTagged()));
+  template <typename T = Object>
+  TNode<T> LoadBufferObject(TNode<RawPtrT> buffer, int offset) {
+    return CAST(Load(MachineTypeOf<T>::value, buffer, IntPtrConstant(offset)));
+  }
+  template <typename T>
+  TNode<T> LoadBufferData(TNode<RawPtrT> buffer, int offset) {
+    return UncheckedCast<T>(
+        Load(MachineTypeOf<T>::value, buffer, IntPtrConstant(offset)));
   }
   TNode<RawPtrT> LoadBufferPointer(TNode<RawPtrT> buffer, int offset) {
-    return UncheckedCast<RawPtrT>(
-        LoadBufferObject(buffer, offset, MachineType::Pointer()));
+    return LoadBufferData<RawPtrT>(buffer, offset);
   }
   TNode<Smi> LoadBufferSmi(TNode<RawPtrT> buffer, int offset) {
-    return CAST(LoadBufferObject(buffer, offset, MachineType::TaggedSigned()));
+    return LoadBufferObject<Smi>(buffer, offset);
   }
   // Load a field from an object on the heap.
-  Node* LoadObjectField(SloppyTNode<HeapObject> object, int offset,
-                        MachineType type);
   template <class T, typename std::enable_if<
                          std::is_convertible<TNode<T>, TNode<Object>>::value,
                          int>::type = 0>
@@ -1058,8 +1059,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return UncheckedCast<Object>(
         LoadObjectField(object, offset, MachineType::AnyTagged()));
   }
-  Node* LoadObjectField(SloppyTNode<HeapObject> object,
-                        SloppyTNode<IntPtrT> offset, MachineType type);
   TNode<Object> LoadObjectField(SloppyTNode<HeapObject> object,
                                 SloppyTNode<IntPtrT> offset) {
     return UncheckedCast<Object>(
@@ -3837,7 +3836,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   TVariable<Object>* var_maybe_bigint = nullptr,
                                   TVariable<Smi>* var_feedback = nullptr);
 
- private:
+  Node* LoadObjectField(SloppyTNode<HeapObject> object, int offset,
+                        MachineType type);
+  Node* LoadObjectField(SloppyTNode<HeapObject> object,
+                        SloppyTNode<IntPtrT> offset, MachineType type);
+
   // Low-level accessors for Descriptor arrays.
   template <typename T>
   TNode<T> LoadDescriptorArrayElement(TNode<DescriptorArray> object,

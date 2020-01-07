@@ -2854,12 +2854,11 @@ TEST(DirectMemoryTest8BitWord32Immediate) {
   const int element_count = 8;
   Label bad(&m);
 
-  TNode<IntPtrT> buffer_node =
-      m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  TNode<RawPtrT> buffer_node = m.PointerConstant(buffer);
   for (size_t i = 0; i < element_count; ++i) {
     for (size_t j = 0; j < element_count; ++j) {
-      Node* loaded = m.LoadBufferObject(buffer_node, static_cast<int>(i),
-                                        MachineType::Uint8());
+      TNode<Uint8T> loaded =
+          m.LoadBufferData<Uint8T>(buffer_node, static_cast<int>(i));
       TNode<Word32T> masked = m.Word32And(loaded, m.Int32Constant(buffer[j]));
       if ((buffer[j] & buffer[i]) != 0) {
         m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
@@ -2887,13 +2886,11 @@ TEST(DirectMemoryTest16BitWord32Immediate) {
   const int element_count = 8;
   Label bad(&m);
 
-  TNode<IntPtrT> buffer_node =
-      m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  TNode<RawPtrT> buffer_node = m.PointerConstant(buffer);
   for (size_t i = 0; i < element_count; ++i) {
     for (size_t j = 0; j < element_count; ++j) {
-      Node* loaded =
-          m.LoadBufferObject(buffer_node, static_cast<int>(i * sizeof(int16_t)),
-                             MachineType::Uint16());
+      TNode<Uint16T> loaded = m.LoadBufferData<Uint16T>(
+          buffer_node, static_cast<int>(i * sizeof(int16_t)));
       TNode<Word32T> masked = m.Word32And(loaded, m.Int32Constant(buffer[j]));
       if ((buffer[j] & buffer[i]) != 0) {
         m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
@@ -2920,19 +2917,17 @@ TEST(DirectMemoryTest8BitWord32) {
   int8_t buffer[] = {1, 2, 4, 8, 17, 33, 65, 127, 67, 38};
   const int element_count = 10;
   Label bad(&m);
-  Node* constants[element_count];
+  TNode<Uint32T> constants[element_count];
 
-  TNode<IntPtrT> buffer_node =
-      m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  TNode<RawPtrT> buffer_node = m.PointerConstant(buffer);
   for (size_t i = 0; i < element_count; ++i) {
-    constants[i] = m.LoadBufferObject(buffer_node, static_cast<int>(i),
-                                      MachineType::Uint8());
+    constants[i] = m.LoadBufferData<Uint8T>(buffer_node, static_cast<int>(i));
   }
 
   for (size_t i = 0; i < element_count; ++i) {
     for (size_t j = 0; j < element_count; ++j) {
-      Node* loaded = m.LoadBufferObject(buffer_node, static_cast<int>(i),
-                                        MachineType::Uint8());
+      TNode<Uint8T> loaded =
+          m.LoadBufferData<Uint8T>(buffer_node, static_cast<int>(i));
       TNode<Word32T> masked = m.Word32And(loaded, constants[j]);
       if ((buffer[j] & buffer[i]) != 0) {
         m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
@@ -2966,23 +2961,19 @@ TEST(DirectMemoryTest16BitWord32) {
   int16_t buffer[] = {1, 2, 4, 8, 12345, 33, 65, 255, 67, 3823};
   const int element_count = 10;
   Label bad(&m);
-  Node* constants[element_count];
+  TNode<Uint32T> constants[element_count];
 
-  TNode<IntPtrT> buffer_node1 =
-      m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  TNode<RawPtrT> buffer_node1 = m.PointerConstant(buffer);
   for (size_t i = 0; i < element_count; ++i) {
-    constants[i] =
-        m.LoadBufferObject(buffer_node1, static_cast<int>(i * sizeof(int16_t)),
-                           MachineType::Uint16());
+    constants[i] = m.LoadBufferData<Uint16T>(
+        buffer_node1, static_cast<int>(i * sizeof(int16_t)));
   }
-  TNode<IntPtrT> buffer_node2 =
-      m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  TNode<RawPtrT> buffer_node2 = m.PointerConstant(buffer);
 
   for (size_t i = 0; i < element_count; ++i) {
     for (size_t j = 0; j < element_count; ++j) {
-      Node* loaded = m.LoadBufferObject(buffer_node1,
-                                        static_cast<int>(i * sizeof(int16_t)),
-                                        MachineType::Uint16());
+      Node* loaded = m.LoadBufferData<Uint16T>(
+          buffer_node1, static_cast<int>(i * sizeof(int16_t)));
       TNode<Word32T> masked = m.Word32And(loaded, constants[j]);
       if ((buffer[j] & buffer[i]) != 0) {
         m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
@@ -2991,9 +2982,8 @@ TEST(DirectMemoryTest16BitWord32) {
       }
 
       // Force a memory access relative to a high-number register.
-      loaded = m.LoadBufferObject(buffer_node2,
-                                  static_cast<int>(i * sizeof(int16_t)),
-                                  MachineType::Uint16());
+      loaded = m.LoadBufferData<Uint16T>(buffer_node2,
+                                         static_cast<int>(i * sizeof(int16_t)));
       masked = m.Word32And(loaded, constants[j]);
       if ((buffer[j] & buffer[i]) != 0) {
         m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);

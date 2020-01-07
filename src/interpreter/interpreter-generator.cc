@@ -3275,9 +3275,8 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
 
   TNode<SharedFunctionInfo> shared =
       CAST(LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset));
-  TNode<Int32T> formal_parameter_count = UncheckedCast<Int32T>(
-      LoadObjectField(shared, SharedFunctionInfo::kFormalParameterCountOffset,
-                      MachineType::Uint16()));
+  TNode<Int32T> formal_parameter_count = LoadObjectField<Uint16T>(
+      shared, SharedFunctionInfo::kFormalParameterCountOffset);
 
   ExportParametersAndRegisterFile(array, registers, formal_parameter_count);
   StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
@@ -3352,9 +3351,8 @@ IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
 
   TNode<SharedFunctionInfo> shared =
       CAST(LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset));
-  TNode<Int32T> formal_parameter_count = UncheckedCast<Int32T>(
-      LoadObjectField(shared, SharedFunctionInfo::kFormalParameterCountOffset,
-                      MachineType::Uint16()));
+  TNode<Int32T> formal_parameter_count = LoadObjectField<Uint16T>(
+      shared, SharedFunctionInfo::kFormalParameterCountOffset);
 
   ImportRegisterFile(
       CAST(LoadObjectField(generator,

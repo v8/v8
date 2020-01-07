@@ -204,10 +204,10 @@ void AccessorAssembler::HandleLoadAccessor(
   CSA_CHECK(this, IsNotCleared(maybe_context));
   TNode<HeapObject> context = GetHeapObjectAssumeWeak(maybe_context);
 
-  TNode<Foreign> foreign = CAST(
-      LoadObjectField(call_handler_info, CallHandlerInfo::kJsCallbackOffset));
-  TNode<WordT> callback = TNode<WordT>::UncheckedCast(LoadObjectField(
-      foreign, Foreign::kForeignAddressOffset, MachineType::Pointer()));
+  TNode<Foreign> foreign = LoadObjectField<Foreign>(
+      call_handler_info, CallHandlerInfo::kJsCallbackOffset);
+  TNode<RawPtrT> callback =
+      LoadObjectField<RawPtrT>(foreign, Foreign::kForeignAddressOffset);
   TNode<Object> data =
       LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
 
@@ -660,8 +660,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     Comment("module export");
     TNode<UintPtrT> index =
         DecodeWord<LoadHandler::ExportsIndexBits>(handler_word);
-    TNode<Module> module = CAST(
-        LoadObjectField(CAST(p->receiver()), JSModuleNamespace::kModuleOffset));
+    TNode<Module> module = LoadObjectField<Module>(
+        CAST(p->receiver()), JSModuleNamespace::kModuleOffset);
     TNode<ObjectHashTable> exports =
         LoadObjectField<ObjectHashTable>(module, Module::kExportsOffset);
     TNode<Cell> cell = CAST(LoadFixedArrayElement(exports, index));

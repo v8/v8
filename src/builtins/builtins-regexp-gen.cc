@@ -44,8 +44,8 @@ TNode<RawPtrT> RegExpBuiltinsAssembler::LoadCodeObjectEntry(TNode<Code> code) {
   TVARIABLE(RawPtrT, var_result);
 
   Label if_code_is_off_heap(this), out(this);
-  TNode<Int32T> builtin_index = UncheckedCast<Int32T>(
-      LoadObjectField(code, Code::kBuiltinIndexOffset, MachineType::Int32()));
+  TNode<Int32T> builtin_index =
+      LoadObjectField<Int32T>(code, Code::kBuiltinIndexOffset);
   {
     GotoIfNot(Word32Equal(builtin_index, Int32Constant(Builtins::kNoBuiltinId)),
               &if_code_is_off_heap);
