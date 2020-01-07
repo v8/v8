@@ -2822,16 +2822,16 @@ void CodeStubAssembler::StoreHeapNumberValue(SloppyTNode<HeapNumber> object,
                                  MachineRepresentation::kFloat64);
 }
 
-void CodeStubAssembler::StoreObjectField(Node* object, int offset,
-                                         Node* value) {
+void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object, int offset,
+                                         TNode<Object> value) {
   DCHECK_NE(HeapObject::kMapOffset, offset);  // Use StoreMap instead.
 
   OptimizedStoreField(MachineRepresentation::kTagged,
                       UncheckedCast<HeapObject>(object), offset, value);
 }
 
-void CodeStubAssembler::StoreObjectField(Node* object, Node* offset,
-                                         Node* value) {
+void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object, Node* offset,
+                                         TNode<Object> value) {
   int const_offset;
   if (ToInt32Constant(offset, &const_offset)) {
     StoreObjectField(object, const_offset, value);
@@ -2872,24 +2872,23 @@ void CodeStubAssembler::StoreMap(TNode<HeapObject> object, TNode<Map> map) {
   OptimizedStoreMap(object, map);
 }
 
-void CodeStubAssembler::StoreMapNoWriteBarrier(Node* object,
+void CodeStubAssembler::StoreMapNoWriteBarrier(TNode<HeapObject> object,
                                                RootIndex map_root_index) {
-  StoreMapNoWriteBarrier(object, LoadRoot(map_root_index));
+  StoreMapNoWriteBarrier(object, CAST(LoadRoot(map_root_index)));
 }
 
-void CodeStubAssembler::StoreMapNoWriteBarrier(Node* object, Node* map) {
-  CSA_SLOW_ASSERT(this, IsMap(map));
+void CodeStubAssembler::StoreMapNoWriteBarrier(TNode<HeapObject> object,
+                                               TNode<Map> map) {
   OptimizedStoreFieldAssertNoWriteBarrier(MachineRepresentation::kTaggedPointer,
-                                          UncheckedCast<HeapObject>(object),
-                                          HeapObject::kMapOffset, map);
+                                          object, HeapObject::kMapOffset, map);
 }
 
-void CodeStubAssembler::StoreObjectFieldRoot(Node* object, int offset,
-                                             RootIndex root_index) {
+void CodeStubAssembler::StoreObjectFieldRoot(TNode<HeapObject> object,
+                                             int offset, RootIndex root_index) {
   if (RootsTable::IsImmortalImmovable(root_index)) {
-    return StoreObjectFieldNoWriteBarrier(object, offset, LoadRoot(root_index));
+    StoreObjectFieldNoWriteBarrier(object, offset, LoadRoot(root_index));
   } else {
-    return StoreObjectField(object, offset, LoadRoot(root_index));
+    StoreObjectField(object, offset, LoadRoot(root_index));
   }
 }
 
@@ -5028,7 +5027,7 @@ TNode<FixedArrayBase> CodeStubAssembler::GrowElementsCapacity(
   CopyFixedArrayElements(from_kind, elements, to_kind, new_elements, capacity,
                          new_capacity, SKIP_WRITE_BARRIER, mode);
 
-  StoreObjectField(object, JSObject::kElementsOffset, new_elements);
+  StoreObjectField(CAST(object), JSObject::kElementsOffset, new_elements);
   Comment("] GrowElementsCapacity");
   return new_elements;
 }
@@ -12441,8 +12440,8 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResult(
     SloppyTNode<Oddball> done) {
   CSA_ASSERT(this, IsBoolean(done));
   TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<Object> map =
-      LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
+  TNode<Map> map = CAST(
+      LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));
   TNode<HeapObject> result = Allocate(JSIteratorResult::kSize);
   StoreMapNoWriteBarrier(result, map);
   StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOrHashOffset,
@@ -12466,16 +12465,16 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
   StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
   StoreFixedArrayElement(elements, 0, key);
   StoreFixedArrayElement(elements, 1, value);
-  TNode<Object> array_map = LoadContextElement(
-      native_context, Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
+  TNode<Map> array_map = CAST(LoadContextElement(
+      native_context, Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX));
   TNode<HeapObject> array = InnerAllocate(elements, elements_size);
   StoreMapNoWriteBarrier(array, array_map);
   StoreObjectFieldRoot(array, JSArray::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);
   StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset, elements);
   StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
-  TNode<Object> iterator_map =
-      LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
+  TNode<Map> iterator_map = CAST(
+      LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));
   TNode<HeapObject> result = InnerAllocate(array, JSArray::kHeaderSize);
   StoreMapNoWriteBarrier(result, iterator_map);
   StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOrHashOffset,

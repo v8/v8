@@ -733,8 +733,8 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
       // from the current frame here in order to reduce register pressure on the
       // fast path.
       TNode<JSFunction> target = LoadTargetFromFrame();
-      TNode<Object> result =
-          CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
+      TNode<HeapObject> result = CAST(
+          CallBuiltin(Builtins::kFastNewObject, context, target, new_target));
       StoreObjectField(result, JSPrimitiveWrapper::kValueOffset, n_value);
       args.PopAndReturn(result);
     }

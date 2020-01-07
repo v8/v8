@@ -1536,8 +1536,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreHeapNumberValue(SloppyTNode<HeapNumber> object,
                             SloppyTNode<Float64T> value);
   // Store a field to an object on the heap.
-  void StoreObjectField(Node* object, int offset, Node* value);
-  void StoreObjectField(Node* object, Node* offset, Node* value);
+  void StoreObjectField(TNode<HeapObject> object, int offset,
+                        TNode<Object> value);
+  void StoreObjectField(TNode<HeapObject> object, Node* offset,
+                        TNode<Object> value);
   void StoreObjectFieldNoWriteBarrier(
       Node* object, int offset, Node* value,
       MachineRepresentation rep = MachineRepresentation::kTagged);
@@ -1562,9 +1564,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Store the Map of an HeapObject.
   void StoreMap(TNode<HeapObject> object, TNode<Map> map);
-  void StoreMapNoWriteBarrier(Node* object, RootIndex map_root_index);
-  void StoreMapNoWriteBarrier(Node* object, Node* map);
-  void StoreObjectFieldRoot(Node* object, int offset, RootIndex root);
+  void StoreMapNoWriteBarrier(TNode<HeapObject> object,
+                              RootIndex map_root_index);
+  void StoreMapNoWriteBarrier(TNode<HeapObject> object, TNode<Map> map);
+  void StoreObjectFieldRoot(TNode<HeapObject> object, int offset,
+                            RootIndex root);
   // Store an array element to a FixedArray.
   void StoreFixedArrayElement(
       TNode<FixedArray> object, int index, SloppyTNode<Object> value,

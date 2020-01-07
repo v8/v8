@@ -498,8 +498,8 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
   // Let iteratorResult be CreateIterResultObject(value, done).
   const TNode<HeapObject> iter_result = Allocate(JSIteratorResult::kSize);
   {
-    TNode<Object> map = LoadContextElement(LoadNativeContext(context),
-                                           Context::ITERATOR_RESULT_MAP_INDEX);
+    TNode<Map> map = CAST(LoadContextElement(
+        LoadNativeContext(context), Context::ITERATOR_RESULT_MAP_INDEX));
     StoreMapNoWriteBarrier(iter_result, map);
     StoreObjectFieldRoot(iter_result, JSIteratorResult::kPropertiesOrHashOffset,
                          RootIndex::kEmptyFixedArray);

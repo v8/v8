@@ -30,8 +30,8 @@ TNode<JSPromise> PromiseBuiltinsAssembler::AllocateJSPromise(
   const TNode<JSFunction> promise_fun =
       CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
   CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
-  const TNode<Object> promise_map =
-      LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
+  const TNode<Map> promise_map = LoadObjectField<Map>(
+      promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
   const TNode<HeapObject> promise =
       Allocate(JSPromise::kSizeWithEmbedderFields);
   StoreMapNoWriteBarrier(promise, promise_map);

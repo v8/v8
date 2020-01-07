@@ -795,7 +795,8 @@ IGNITION_HANDLER(StaModuleVariable, InterpreterAssembler) {
         module, SourceTextModule::kRegularExportsOffset);
     // The actual array index is (cell_index - 1).
     TNode<IntPtrT> export_index = IntPtrSub(cell_index, IntPtrConstant(1));
-    TNode<Object> cell = LoadFixedArrayElement(regular_exports, export_index);
+    TNode<HeapObject> cell =
+        CAST(LoadFixedArrayElement(regular_exports, export_index));
     StoreObjectField(cell, Cell::kValueOffset, value);
     Goto(&end);
   }

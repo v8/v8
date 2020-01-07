@@ -45,7 +45,7 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
   // possible.
   void AddConstructorEntries(Variant variant, TNode<Context> context,
                              TNode<Context> native_context,
-                             TNode<Object> collection,
+                             TNode<HeapObject> collection,
                              TNode<Object> initial_entries);
 
   // Fast path for adding constructor entries.  Assumes the entries are a fast
@@ -172,7 +172,7 @@ void BaseCollectionsAssembler::AddConstructorEntry(
 
 void BaseCollectionsAssembler::AddConstructorEntries(
     Variant variant, TNode<Context> context, TNode<Context> native_context,
-    TNode<Object> collection, TNode<Object> initial_entries) {
+    TNode<HeapObject> collection, TNode<Object> initial_entries) {
   TVARIABLE(BoolT, use_fast_loop,
             IsFastJSArrayWithNoCustomIteration(context, initial_entries));
   TNode<IntPtrT> at_least_space_for =
@@ -185,8 +185,8 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     TNode<HeapObject> table = AllocateTable(variant, at_least_space_for);
     StoreObjectField(collection, GetTableOffset(variant), table);
     GotoIf(IsNullOrUndefined(initial_entries), &exit);
-    GotoIfInitialAddFunctionModified(variant, CAST(native_context),
-                                     CAST(collection), &slow_loop);
+    GotoIfInitialAddFunctionModified(variant, CAST(native_context), collection,
+                                     &slow_loop);
     Branch(use_fast_loop.value(), &fast_loop, &slow_loop);
   }
   BIND(&fast_loop);
@@ -212,7 +212,7 @@ void BaseCollectionsAssembler::AddConstructorEntries(
         // Check that add/set function has not been modified.
         Label if_not_modified(this), if_modified(this);
         GotoIfInitialAddFunctionModified(variant, CAST(native_context),
-                                         CAST(collection), &if_modified);
+                                         collection, &if_modified);
         Goto(&if_not_modified);
         BIND(&if_modified);
         Unreachable();
@@ -728,7 +728,7 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   // |iterable| is an iterator, it will update the state of the iterator to
   // 'exhausted'.
   TNode<JSArray> SetOrSetIteratorToList(TNode<Context> context,
-                                        TNode<Object> iterable);
+                                        TNode<HeapObject> iterable);
 
   void BranchIfMapIteratorProtectorValid(Label* if_true, Label* if_false);
   void BranchIfSetIteratorProtectorValid(Label* if_true, Label* if_false);
@@ -826,8 +826,8 @@ TNode<HeapObject> CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
   const TNode<Object> table =
       LoadObjectField(collection, JSCollection::kTableOffset);
   const TNode<NativeContext> native_context = LoadNativeContext(context);
-  const TNode<Object> iterator_map =
-      LoadContextElement(native_context, map_index);
+  const TNode<Map> iterator_map =
+      CAST(LoadContextElement(native_context, map_index));
   const TNode<HeapObject> iterator =
       AllocateInNewSpace(IteratorType::kHeaderSize);
   StoreMapNoWriteBarrier(iterator, iterator_map);
@@ -1167,17 +1167,17 @@ TF_BUILTIN(MapIteratorToList, CollectionsBuiltinsAssembler) {
 }
 
 TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
-    TNode<Context> context, TNode<Object> iterable) {
+    TNode<Context> context, TNode<HeapObject> iterable) {
   TVARIABLE(OrderedHashSet, var_table);
   Label if_set(this), if_iterator(this), copy(this);
 
-  const TNode<Uint16T> instance_type = LoadInstanceType(CAST(iterable));
+  const TNode<Uint16T> instance_type = LoadInstanceType(iterable);
   Branch(InstanceTypeEqual(instance_type, JS_SET_TYPE), &if_set, &if_iterator);
 
   BIND(&if_set);
   {
     // {iterable} is a JSSet.
-    var_table = CAST(LoadObjectField(CAST(iterable), JSSet::kTableOffset));
+    var_table = CAST(LoadObjectField(iterable, JSSet::kTableOffset));
     Goto(&copy);
   }
 
@@ -1249,7 +1249,7 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
 
 TF_BUILTIN(SetOrSetIteratorToList, CollectionsBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> object = CAST(Parameter(Descriptor::kSource));
+  TNode<HeapObject> object = CAST(Parameter(Descriptor::kSource));
   Return(SetOrSetIteratorToList(context, object));
 }
 
@@ -2057,14 +2057,14 @@ TF_BUILTIN(MapPrototypeValues, CollectionsBuiltinsAssembler) {
 
 TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   const char* const kMethodName = "Map Iterator.prototype.next";
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  const TNode<Object> maybe_receiver = CAST(Parameter(Descriptor::kReceiver));
   const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  // Ensure that the {receiver} is actually a JSMapIterator.
+  // Ensure that {maybe_receiver} is actually a JSMapIterator.
   Label if_receiver_valid(this), if_receiver_invalid(this, Label::kDeferred);
-  GotoIf(TaggedIsSmi(receiver), &if_receiver_invalid);
+  GotoIf(TaggedIsSmi(maybe_receiver), &if_receiver_invalid);
   const TNode<Uint16T> receiver_instance_type =
-      LoadInstanceType(CAST(receiver));
+      LoadInstanceType(CAST(maybe_receiver));
   GotoIf(
       InstanceTypeEqual(receiver_instance_type, JS_MAP_KEY_VALUE_ITERATOR_TYPE),
       &if_receiver_valid);
@@ -2074,8 +2074,9 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
          &if_receiver_valid, &if_receiver_invalid);
   BIND(&if_receiver_invalid);
   ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
-                 StringConstant(kMethodName), receiver);
+                 StringConstant(kMethodName), maybe_receiver);
   BIND(&if_receiver_valid);
+  TNode<JSMapIterator> receiver = CAST(maybe_receiver);
 
   // Check if the {receiver} is exhausted.
   TVARIABLE(Oddball, var_done, TrueConstant());
@@ -2087,7 +2088,7 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   TNode<OrderedHashMap> table;
   TNode<IntPtrT> index;
   std::tie(table, index) =
-      TransitionAndUpdate<JSMapIterator, OrderedHashMap>(CAST(receiver));
+      TransitionAndUpdate<JSMapIterator, OrderedHashMap>(receiver);
 
   // Read the next entry from the {table}, skipping holes.
   TNode<Object> entry_key;
@@ -2279,14 +2280,14 @@ TF_BUILTIN(SetPrototypeValues, CollectionsBuiltinsAssembler) {
 
 TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   const char* const kMethodName = "Set Iterator.prototype.next";
-  const TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  const TNode<Object> maybe_receiver = CAST(Parameter(Descriptor::kReceiver));
   const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  // Ensure that the {receiver} is actually a JSSetIterator.
+  // Ensure that {maybe_receiver} is actually a JSSetIterator.
   Label if_receiver_valid(this), if_receiver_invalid(this, Label::kDeferred);
-  GotoIf(TaggedIsSmi(receiver), &if_receiver_invalid);
+  GotoIf(TaggedIsSmi(maybe_receiver), &if_receiver_invalid);
   const TNode<Uint16T> receiver_instance_type =
-      LoadInstanceType(CAST(receiver));
+      LoadInstanceType(CAST(maybe_receiver));
   GotoIf(InstanceTypeEqual(receiver_instance_type, JS_SET_VALUE_ITERATOR_TYPE),
          &if_receiver_valid);
   Branch(
@@ -2294,8 +2295,10 @@ TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
       &if_receiver_valid, &if_receiver_invalid);
   BIND(&if_receiver_invalid);
   ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
-                 StringConstant(kMethodName), receiver);
+                 StringConstant(kMethodName), maybe_receiver);
   BIND(&if_receiver_valid);
+
+  TNode<JSSetIterator> receiver = CAST(maybe_receiver);
 
   // Check if the {receiver} is exhausted.
   TVARIABLE(Oddball, var_done, TrueConstant());
@@ -2307,7 +2310,7 @@ TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   TNode<OrderedHashSet> table;
   TNode<IntPtrT> index;
   std::tie(table, index) =
-      TransitionAndUpdate<JSSetIterator, OrderedHashSet>(CAST(receiver));
+      TransitionAndUpdate<JSSetIterator, OrderedHashSet>(receiver);
 
   // Read the next entry from the {table}, skipping holes.
   TNode<Object> entry_key;
