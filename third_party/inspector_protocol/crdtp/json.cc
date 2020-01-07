@@ -994,20 +994,12 @@ Status ConvertCBORToJSON(span<uint8_t> cbor, std::string* json) {
   return ConvertCBORToJSONTmpl(cbor, json);
 }
 
-template <typename T, typename C>
-Status ConvertJSONToCBORTmpl(span<T> json, C* cbor) {
+template <typename T>
+Status ConvertJSONToCBORTmpl(span<T> json, std::vector<uint8_t>* cbor) {
   Status status;
   std::unique_ptr<ParserHandler> encoder = cbor::NewCBOREncoder(cbor, &status);
   ParseJSON(json, encoder.get());
   return status;
-}
-
-Status ConvertJSONToCBOR(span<uint8_t> json, std::string* cbor) {
-  return ConvertJSONToCBORTmpl(json, cbor);
-}
-
-Status ConvertJSONToCBOR(span<uint16_t> json, std::string* cbor) {
-  return ConvertJSONToCBORTmpl(json, cbor);
 }
 
 Status ConvertJSONToCBOR(span<uint8_t> json, std::vector<uint8_t>* cbor) {

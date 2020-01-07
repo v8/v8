@@ -563,7 +563,7 @@ TYPED_TEST_SUITE(ConvertJSONToCBORTest, ContainerTestTypes);
 TYPED_TEST(ConvertJSONToCBORTest, RoundTripValidJson) {
   std::string json_in = "{\"msg\":\"Hello, world.\",\"lst\":[1,2,3]}";
   TypeParam json(json_in.begin(), json_in.end());
-  TypeParam cbor;
+  std::vector<uint8_t> cbor;
   {
     Status status = ConvertJSONToCBOR(SpanFrom(json), &cbor);
     EXPECT_EQ(Error::OK, status.error);
@@ -583,7 +583,7 @@ TYPED_TEST(ConvertJSONToCBORTest, RoundTripValidJson16) {
       '{', '"', 'm', 's',    'g',    '"', ':', '"', 'H', 'e', 'l', 'l',
       'o', ',', ' ', 0xd83c, 0xdf0e, '.', '"', ',', '"', 'l', 's', 't',
       '"', ':', '[', '1',    ',',    '2', ',', '3', ']', '}'};
-  TypeParam cbor;
+  std::vector<uint8_t> cbor;
   {
     Status status =
         ConvertJSONToCBOR(span<uint16_t>(json16.data(), json16.size()), &cbor);

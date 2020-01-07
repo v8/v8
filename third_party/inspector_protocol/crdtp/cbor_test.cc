@@ -1239,7 +1239,7 @@ class AppendString8EntryToMapTest : public ::testing::Test {};
 using ContainerTestTypes = ::testing::Types<std::vector<uint8_t>, std::string>;
 TYPED_TEST_SUITE(AppendString8EntryToMapTest, ContainerTestTypes);
 
-TYPED_TEST(AppendString8EntryToMapTest, AppendsEntrySuccessfully) {
+TEST(AppendString8EntryToMapTest, AppendsEntrySuccessfully) {
   constexpr uint8_t kPayloadLen = 12;
   std::vector<uint8_t> bytes = {0xd8, 0x5a, 0, 0, 0, kPayloadLen,  // envelope
                                 0xbf};                             // map start
@@ -1249,7 +1249,7 @@ TYPED_TEST(AppendString8EntryToMapTest, AppendsEntrySuccessfully) {
   bytes.push_back(0xff);  // A perfectly fine cbor message.
   EXPECT_EQ(kPayloadLen, bytes.size() - pos_before_payload);
 
-  TypeParam msg(bytes.begin(), bytes.end());
+  std::vector<uint8_t> msg(bytes.begin(), bytes.end());
 
   Status status =
       AppendString8EntryToCBORMap(SpanFrom("foo"), SpanFrom("bar"), &msg);
@@ -1287,60 +1287,54 @@ TYPED_TEST(AppendString8EntryToMapTest, AppendThreeEntries) {
   EXPECT_EQ(Status::npos(), status.pos);
 }
 
-TYPED_TEST(AppendString8EntryToMapTest, MapStartExpected_Error) {
-  std::vector<uint8_t> bytes = {
+TEST(AppendString8EntryToMapTest, MapStartExpected_Error) {
+  std::vector<uint8_t> msg = {
       0xd8, 0x5a, 0, 0, 0, 1, EncodeIndefiniteLengthArrayStart()};
-  TypeParam msg(bytes.begin(), bytes.end());
   Status status =
       AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &msg);
   EXPECT_EQ(Error::CBOR_MAP_START_EXPECTED, status.error);
   EXPECT_EQ(6u, status.pos);
 }
 
-TYPED_TEST(AppendString8EntryToMapTest, MapStopExpected_Error) {
-  std::vector<uint8_t> bytes = {
+TEST(AppendString8EntryToMapTest, MapStopExpected_Error) {
+  std::vector<uint8_t> msg = {
       0xd8, 0x5a, 0, 0, 0, 2, EncodeIndefiniteLengthMapStart(), 42};
-  TypeParam msg(bytes.begin(), bytes.end());
   Status status =
       AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &msg);
   EXPECT_EQ(Error::CBOR_MAP_STOP_EXPECTED, status.error);
   EXPECT_EQ(7u, status.pos);
 }
 
-TYPED_TEST(AppendString8EntryToMapTest, InvalidEnvelope_Error) {
+TEST(AppendString8EntryToMapTest, InvalidEnvelope_Error) {
   {  // Second byte is wrong.
-    std::vector<uint8_t> bytes = {
+    std::vector<uint8_t> msg = {
         0x5a, 0, 0, 0, 2, EncodeIndefiniteLengthMapStart(), EncodeStop(), 0};
-    TypeParam msg(bytes.begin(), bytes.end());
     Status status =
         AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &msg);
     EXPECT_EQ(Error::CBOR_INVALID_ENVELOPE, status.error);
     EXPECT_EQ(0u, status.pos);
   }
   {  // Second byte is wrong.
-    std::vector<uint8_t> bytes = {
+    std::vector<uint8_t> msg = {
         0xd8, 0x7a, 0, 0, 0, 2, EncodeIndefiniteLengthMapStart(), EncodeStop()};
-    TypeParam msg(bytes.begin(), bytes.end());
     Status status =
         AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &msg);
     EXPECT_EQ(Error::CBOR_INVALID_ENVELOPE, status.error);
     EXPECT_EQ(0u, status.pos);
   }
   {  // Invalid envelope size example.
-    std::vector<uint8_t> bytes = {
+    std::vector<uint8_t> msg = {
         0xd8, 0x5a, 0, 0, 0, 3, EncodeIndefiniteLengthMapStart(), EncodeStop(),
     };
-    TypeParam msg(bytes.begin(), bytes.end());
     Status status =
         AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &msg);
     EXPECT_EQ(Error::CBOR_INVALID_ENVELOPE, status.error);
     EXPECT_EQ(0u, status.pos);
   }
   {  // Invalid envelope size example.
-    std::vector<uint8_t> bytes = {
+    std::vector<uint8_t> msg = {
         0xd8, 0x5a, 0, 0, 0, 1, EncodeIndefiniteLengthMapStart(), EncodeStop(),
     };
-    TypeParam msg(bytes.begin(), bytes.end());
     Status status =
         AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &msg);
     EXPECT_EQ(Error::CBOR_INVALID_ENVELOPE, status.error);
