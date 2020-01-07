@@ -15,14 +15,6 @@ extern class Tuple2 extends Struct {
   value2: Object;
 }
 
-@generatePrint
-@generateCppClass
-extern class Tuple3 extends Struct {
-  value1: Object;
-  value2: Object;
-  value3: Object;
-}
-
 @generateCppClass
 extern class ClassPositions extends Struct {
   start: Smi;

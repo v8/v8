@@ -85,11 +85,8 @@ class ZoneForwardList;
   V(ObjectBoilerplateDescription)              \
   V(Boolean)                                   \
   V(BooleanWrapper)                            \
-  V(BreakPoint)                                \
-  V(BreakPointInfo)                            \
   V(ByteArray)                                 \
   V(BytecodeArray)                             \
-  V(CachedTemplateObject)                      \
   V(CallHandlerInfo)                           \
   V(Callable)                                  \
   V(Cell)                                      \

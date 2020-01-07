@@ -214,9 +214,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(V)         \
   TORQUE_INSTANCE_CHECKERS_SINGLE_ONLY_DECLARED(V)         \
   V(BigInt, BIGINT_TYPE)                                   \
-  V(BreakPoint, TUPLE2_TYPE)                               \
-  V(BreakPointInfo, TUPLE2_TYPE)                           \
-  V(CachedTemplateObject, TUPLE3_TYPE)                     \
   V(CoverageInfo, FIXED_ARRAY_TYPE)                        \
   V(FixedArrayExact, FIXED_ARRAY_TYPE)                     \
   V(PropertyDescriptorObject, FIXED_ARRAY_TYPE)

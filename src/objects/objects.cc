@@ -2142,11 +2142,6 @@ void Tuple2::BriefPrintDetails(std::ostream& os) {
   os << " " << Brief(value1()) << ", " << Brief(value2());
 }
 
-void Tuple3::BriefPrintDetails(std::ostream& os) {
-  os << " " << Brief(value1()) << ", " << Brief(value2()) << ", "
-     << Brief(value3());
-}
-
 void ClassPositions::BriefPrintDetails(std::ostream& os) {
   os << " " << start() << ", " << end();
 }

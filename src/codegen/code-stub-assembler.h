@@ -152,7 +152,10 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(TransitionArrayMap, transition_array_map, TransitionArrayMap)              \
   V(TrueValue, true_value, True)                                               \
   V(Tuple2Map, tuple2_map, Tuple2Map)                                          \
-  V(Tuple3Map, tuple3_map, Tuple3Map)                                          \
+  V(BreakPointMap, break_point_map, BreakPointMap)                             \
+  V(BreakPointInfoMap, break_point_info_map, BreakPointInfoMap)                \
+  V(CachedTemplateObjectMap, cached_template_object_map,                       \
+    CachedTemplateObjectMap)                                                   \
   V(UncompiledDataWithoutPreparseDataMap,                                      \
     uncompiled_data_without_preparse_data_map,                                 \
     UncompiledDataWithoutPreparseDataMap)                                      \

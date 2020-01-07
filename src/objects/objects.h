@@ -163,6 +163,7 @@
 //       - DebugInfo
 //       - BreakPoint
 //       - BreakPointInfo
+//       - CachedTemplateObject
 //       - StackFrameInfo
 //       - StackTraceFrame
 //       - CodeCache

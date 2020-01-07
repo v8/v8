@@ -2,12 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@hasSameInstanceTypeAsParent
-extern class BreakPoint extends Tuple2 {
+@generateCppClass
+@generatePrint
+extern class BreakPoint extends Struct {
+  id: Smi;
+  condition: String;
 }
-@hasSameInstanceTypeAsParent
-extern class BreakPointInfo extends Tuple2 {
+
+@generateCppClass
+@generatePrint
+extern class BreakPointInfo extends Struct {
+  // The position in the source for the break position.
+  source_position: Smi;
+  // List of related JavaScript break points.
+  break_points: FixedArray|BreakPoint|Undefined;
 }
+
 type CoverageInfo extends FixedArray;
 
 @generateCppClass
