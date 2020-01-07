@@ -141,6 +141,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F64x2Splat:
     case kArm64F64x2ExtractLane:
     case kArm64F64x2ReplaceLane:
+    case kArm64F64x2SConvertI64x2:
+    case kArm64F64x2UConvertI64x2:
     case kArm64F64x2Abs:
     case kArm64F64x2Neg:
     case kArm64F64x2Sqrt:

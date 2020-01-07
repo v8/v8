@@ -1526,7 +1526,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Qfms) {
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(F64x2ConvertI64x2) {
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
   // Create two output vectors to hold signed and unsigned results.
@@ -1552,7 +1552,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2ConvertI64x2) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 WASM_SIMD_TEST(I32x4Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
