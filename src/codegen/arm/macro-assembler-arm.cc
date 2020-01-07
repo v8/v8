@@ -132,16 +132,15 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
 
   Register reg = destination;
   if (could_clobber_ip) {
-    Push(r7);
-    reg = r7;
+    reg = destination != r7 ? r7 : r8;
+    Push(reg);
   }
 
   LoadRoot(reg, RootIndex::kBuiltinsConstantsTable);
   ldr(destination, MemOperand(reg, offset));
 
   if (could_clobber_ip) {
-    DCHECK_EQ(reg, r7);
-    Pop(r7);
+    Pop(reg);
   }
 }
 
