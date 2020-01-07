@@ -1073,6 +1073,7 @@ void V8Debugger::collectOldAsyncStacksIfNeeded() {
 
 std::shared_ptr<StackFrame> V8Debugger::symbolize(
     v8::Local<v8::StackFrame> v8Frame) {
+  CHECK(!v8Frame.IsEmpty());
   auto it = m_framesCache.end();
   int frameId = 0;
   if (m_maxAsyncCallStackDepth) {
