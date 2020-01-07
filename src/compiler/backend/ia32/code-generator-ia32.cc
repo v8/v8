@@ -3164,6 +3164,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpcmpeqw(i.OutputSimd128Register(), kScratchDoubleReg, src2);
       break;
     }
+    case kIA32I16x8RoundingAverageU: {
+      __ Pavgw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputOperand(1));
+      break;
+    }
     case kIA32I8x16Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Movd(dst, i.InputOperand(0));
@@ -3590,6 +3595,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Operand src2 = i.InputOperand(1);
       __ vpminub(kScratchDoubleReg, src1, src2);
       __ vpcmpeqb(i.OutputSimd128Register(), kScratchDoubleReg, src2);
+      break;
+    }
+    case kIA32I8x16RoundingAverageU: {
+      __ Pavgb(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputOperand(1));
       break;
     }
     case kIA32S128Zero: {

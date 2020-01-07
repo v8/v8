@@ -284,6 +284,7 @@ namespace compiler {
   V(AVXI16x8GtU)                   \
   V(SSEI16x8GeU)                   \
   V(AVXI16x8GeU)                   \
+  V(IA32I16x8RoundingAverageU)     \
   V(IA32I8x16Splat)                \
   V(IA32I8x16ExtractLaneU)         \
   V(IA32I8x16ExtractLaneS)         \
@@ -332,6 +333,7 @@ namespace compiler {
   V(AVXI8x16GtU)                   \
   V(SSEI8x16GeU)                   \
   V(AVXI8x16GeU)                   \
+  V(IA32I8x16RoundingAverageU)     \
   V(IA32S128Zero)                  \
   V(SSES128Not)                    \
   V(AVXS128Not)                    \

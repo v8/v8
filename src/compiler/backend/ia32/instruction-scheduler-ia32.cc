@@ -265,6 +265,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXI16x8GtU:
     case kSSEI16x8GeU:
     case kAVXI16x8GeU:
+    case kIA32I16x8RoundingAverageU:
     case kIA32I8x16Splat:
     case kIA32I8x16ExtractLaneU:
     case kIA32I8x16ExtractLaneS:
@@ -313,6 +314,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXI8x16GtU:
     case kSSEI8x16GeU:
     case kAVXI8x16GeU:
+    case kIA32I8x16RoundingAverageU:
     case kIA32S128Zero:
     case kSSES128Not:
     case kAVXS128Not:
