@@ -837,6 +837,10 @@
   # module, which causes a data-race if the native module is shared between
   # isolates.
   'wasm/lazy-compilation': [SKIP],
+
+  # Tier down/up Wasm NativeModule in debugging is non-deterministic with
+  # multiple isolates (https://crbug.com/v8/10099).
+  'wasm/tier-down-to-liftoff': [SKIP],
 }],  # 'isolates'
 
 ##############################################################################
@@ -1096,6 +1100,7 @@
 ['arch != x64 and arch != ia32 and arch != arm64 and arch != arm', {
   'wasm/liftoff': [SKIP],
   'wasm/tier-up-testing-flag': [SKIP],
+  'wasm/tier-down-to-liftoff': [SKIP],
 }], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm
 
 ##############################################################################

@@ -552,6 +552,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // by publishing an entry stub with the {Kind::kInterpreterEntry} code kind.
   bool IsRedirectedToInterpreter(uint32_t func_index);
 
+  // Sets the flag, triggers recompilation of all methods to tier down or up,
+  // waits for that to complete.
+  void TierDown(Isolate* isolate);
+  void TierUp(Isolate* isolate);
+
   // Free a set of functions of this module. Uncommits whole pages if possible.
   // The given vector must be ordered by the instruction start address, and all
   // {WasmCode} objects must not be used any more.
@@ -696,6 +701,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // mutex.
   std::unique_ptr<DebugInfo> debug_info_;
 
+  bool tier_down_ = false;
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
