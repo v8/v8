@@ -2366,10 +2366,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Uint32T> ChangeNumberToUint32(TNode<Number> value);
   TNode<Float64T> ChangeNumberToFloat64(TNode<Number> value);
 
-  void TaggedToNumeric(Node* context, Node* value, Label* done,
+  void TaggedToNumeric(TNode<Context> context, TNode<Object> value, Label* done,
                        Variable* var_numeric);
-  void TaggedToNumericWithFeedback(Node* context, Node* value, Label* done,
-                                   Variable* var_numeric,
+  void TaggedToNumericWithFeedback(TNode<Context> context, TNode<Object> value,
+                                   Label* done, Variable* var_numeric,
                                    Variable* var_feedback);
 
   TNode<WordT> TimesSystemPointerSize(SloppyTNode<WordT> value);
@@ -2414,10 +2414,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                             char const* method_name);
 
   // Throws a TypeError for {method_name} if {value} is not of the given
-  // instance type. Returns {value}'s map.
-  Node* ThrowIfNotInstanceType(Node* context, Node* value,
-                               InstanceType instance_type,
-                               char const* method_name);
+  // instance type.
+  void ThrowIfNotInstanceType(TNode<Context> context, TNode<Object> value,
+                              InstanceType instance_type,
+                              char const* method_name);
   // Throws a TypeError for {method_name} if {value} is not a JSReceiver.
   void ThrowIfNotJSReceiver(TNode<Context> context, TNode<Object> value,
                             MessageTemplate msg_template,
@@ -2565,7 +2565,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsNotWeakFixedArraySubclass(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsZeroOrContext(SloppyTNode<Object> object);
 
-  inline TNode<BoolT> IsSharedFunctionInfo(Node* object) {
+  inline TNode<BoolT> IsSharedFunctionInfo(TNode<HeapObject> object) {
     return IsSharedFunctionInfoMap(LoadMap(object));
   }
 
@@ -3043,8 +3043,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                             Label* if_not_found,
                             LookupMode mode = kFindExisting);
 
-  Node* ComputeUnseededHash(Node* key);
-  Node* ComputeSeededHash(Node* key);
+  TNode<Word32T> ComputeSeededHash(TNode<IntPtrT> key);
 
   void NumberDictionaryLookup(TNode<NumberDictionary> dictionary,
                               TNode<IntPtrT> intptr_index, Label* if_found,
@@ -3329,7 +3328,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               ElementsKind from_kind, ElementsKind to_kind,
                               Label* bailout);
 
-  void TrapAllocationMemento(Node* object, Label* memento_found);
+  void TrapAllocationMemento(TNode<JSObject> object, Label* memento_found);
 
   TNode<IntPtrT> PageFromAddress(TNode<IntPtrT> address);
 
@@ -3466,13 +3465,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                        right, if_true, if_false);
   }
 
-  void BranchIfAccessorPair(Node* value, Label* if_accessor_pair,
+  void BranchIfAccessorPair(TNode<Object> value, Label* if_accessor_pair,
                             Label* if_not_accessor_pair) {
     GotoIf(TaggedIsSmi(value), if_not_accessor_pair);
-    Branch(IsAccessorPair(value), if_accessor_pair, if_not_accessor_pair);
+    Branch(IsAccessorPair(CAST(value)), if_accessor_pair, if_not_accessor_pair);
   }
 
-  void GotoIfNumberGreaterThanOrEqual(Node* left, Node* right, Label* if_false);
+  void GotoIfNumberGreaterThanOrEqual(SloppyTNode<Number> left,
+                                      SloppyTNode<Number> right,
+                                      Label* if_false);
 
   TNode<Oddball> Equal(SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
                        SloppyTNode<Context> context,
@@ -3829,7 +3830,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       Node* context, Node* input, Object::Conversion mode,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
 
-  void TaggedToNumeric(Node* context, Node* value, Label* done,
+  void TaggedToNumeric(TNode<Context> context, TNode<Object> value, Label* done,
                        Variable* var_numeric, Variable* var_feedback);
 
   template <Object::Conversion conversion>
@@ -3972,11 +3973,9 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
     return ForEach(vars, body, first_intptr, last_intptr);
   }
 
-  void PopAndReturn(Node* value);
+  void PopAndReturn(TNode<Object> value);
 
  private:
-  Node* GetArguments();
-
   CodeStubAssembler* assembler_;
   ReceiverMode receiver_mode_;
   TNode<IntPtrT> argc_;

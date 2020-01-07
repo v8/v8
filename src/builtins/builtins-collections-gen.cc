@@ -748,6 +748,8 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
       const std::function<void(TNode<Object>, Label*, Label*)>& key_compare,
       TVariable<IntPtrT>* entry_start_position, Label* entry_found,
       Label* not_found);
+
+  TNode<Word32T> ComputeUnseededHash(TNode<IntPtrT> key);
 };
 
 template <typename CollectionType>
@@ -1251,6 +1253,20 @@ TF_BUILTIN(SetOrSetIteratorToList, CollectionsBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<HeapObject> object = CAST(Parameter(Descriptor::kSource));
   Return(SetOrSetIteratorToList(context, object));
+}
+
+TNode<Word32T> CollectionsBuiltinsAssembler::ComputeUnseededHash(
+    TNode<IntPtrT> key) {
+  // See v8::internal::ComputeUnseededHash()
+  TNode<Word32T> hash = TruncateIntPtrToInt32(key);
+  hash = Int32Add(Word32Xor(hash, Int32Constant(0xFFFFFFFF)),
+                  Word32Shl(hash, Int32Constant(15)));
+  hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(12)));
+  hash = Int32Add(hash, Word32Shl(hash, Int32Constant(2)));
+  hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(4)));
+  hash = Int32Mul(hash, Int32Constant(2057));
+  hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(16)));
+  return Word32And(hash, Int32Constant(0x3FFFFFFF));
 }
 
 template <typename CollectionType>

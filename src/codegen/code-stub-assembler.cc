@@ -5507,18 +5507,17 @@ TNode<Object> CodeStubAssembler::ToThisValue(TNode<Context> context,
   return var_value.value();
 }
 
-Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
-                                                InstanceType instance_type,
-                                                char const* method_name) {
+void CodeStubAssembler::ThrowIfNotInstanceType(TNode<Context> context,
+                                               TNode<Object> value,
+                                               InstanceType instance_type,
+                                               char const* method_name) {
   Label out(this), throw_exception(this, Label::kDeferred);
-  VARIABLE(var_value_map, MachineRepresentation::kTagged);
 
   GotoIf(TaggedIsSmi(value), &throw_exception);
 
   // Load the instance type of the {value}.
-  var_value_map.Bind(LoadMap(value));
-  const TNode<Uint16T> value_instance_type =
-      LoadMapInstanceType(var_value_map.value());
+  TNode<Map> map = LoadMap(CAST(value));
+  const TNode<Uint16T> value_instance_type = LoadMapInstanceType(map);
 
   Branch(Word32Equal(value_instance_type, Int32Constant(instance_type)), &out,
          &throw_exception);
@@ -5529,7 +5528,6 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
                  StringConstant(method_name), value);
 
   BIND(&out);
-  return var_value_map.value();
 }
 
 void CodeStubAssembler::ThrowIfNotJSReceiver(TNode<Context> context,
@@ -7012,12 +7010,14 @@ TNode<BigInt> CodeStubAssembler::ToBigInt(TNode<Context> context,
   return var_result.value();
 }
 
-void CodeStubAssembler::TaggedToNumeric(Node* context, Node* value, Label* done,
+void CodeStubAssembler::TaggedToNumeric(TNode<Context> context,
+                                        TNode<Object> value, Label* done,
                                         Variable* var_numeric) {
   TaggedToNumeric(context, value, done, var_numeric, nullptr);
 }
 
-void CodeStubAssembler::TaggedToNumericWithFeedback(Node* context, Node* value,
+void CodeStubAssembler::TaggedToNumericWithFeedback(TNode<Context> context,
+                                                    TNode<Object> value,
                                                     Label* done,
                                                     Variable* var_numeric,
                                                     Variable* var_feedback) {
@@ -7025,20 +7025,23 @@ void CodeStubAssembler::TaggedToNumericWithFeedback(Node* context, Node* value,
   TaggedToNumeric(context, value, done, var_numeric, var_feedback);
 }
 
-void CodeStubAssembler::TaggedToNumeric(Node* context, Node* value, Label* done,
+void CodeStubAssembler::TaggedToNumeric(TNode<Context> context,
+                                        TNode<Object> value, Label* done,
                                         Variable* var_numeric,
                                         Variable* var_feedback) {
   var_numeric->Bind(value);
   Label if_smi(this), if_heapnumber(this), if_bigint(this), if_oddball(this);
   GotoIf(TaggedIsSmi(value), &if_smi);
-  TNode<Map> map = LoadMap(value);
+  TNode<HeapObject> heap_object_value = CAST(value);
+  TNode<Map> map = LoadMap(heap_object_value);
   GotoIf(IsHeapNumberMap(map), &if_heapnumber);
   TNode<Uint16T> instance_type = LoadMapInstanceType(map);
   GotoIf(IsBigIntInstanceType(instance_type), &if_bigint);
 
-  // {value} is not a Numeric yet.
+  // {heap_object_value} is not a Numeric yet.
   GotoIf(Word32Equal(instance_type, Int32Constant(ODDBALL_TYPE)), &if_oddball);
-  var_numeric->Bind(CallBuiltin(Builtins::kNonNumberToNumeric, context, value));
+  var_numeric->Bind(
+      CallBuiltin(Builtins::kNonNumberToNumeric, context, heap_object_value));
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kAny);
   Goto(done);
 
@@ -7056,7 +7059,8 @@ void CodeStubAssembler::TaggedToNumeric(Node* context, Node* value, Label* done,
 
   BIND(&if_oddball);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kNumberOrOddball);
-  var_numeric->Bind(LoadObjectField(value, Oddball::kToNumberOffset));
+  var_numeric->Bind(
+      LoadObjectField(heap_object_value, Oddball::kToNumberOffset));
   Goto(done);
 }
 
@@ -7725,20 +7729,7 @@ template V8_EXPORT_PRIVATE void CodeStubAssembler::NameDictionaryLookup<
     GlobalDictionary>(TNode<GlobalDictionary>, TNode<Name>, Label*,
                       TVariable<IntPtrT>*, Label*, LookupMode);
 
-Node* CodeStubAssembler::ComputeUnseededHash(Node* key) {
-  // See v8::internal::ComputeUnseededHash()
-  TNode<Word32T> hash = TruncateIntPtrToInt32(key);
-  hash = Int32Add(Word32Xor(hash, Int32Constant(0xFFFFFFFF)),
-                  Word32Shl(hash, Int32Constant(15)));
-  hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(12)));
-  hash = Int32Add(hash, Word32Shl(hash, Int32Constant(2)));
-  hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(4)));
-  hash = Int32Mul(hash, Int32Constant(2057));
-  hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(16)));
-  return Word32And(hash, Int32Constant(0x3FFFFFFF));
-}
-
-Node* CodeStubAssembler::ComputeSeededHash(Node* key) {
+TNode<Word32T> CodeStubAssembler::ComputeSeededHash(TNode<IntPtrT> key) {
   const TNode<ExternalReference> function_addr =
       ExternalConstant(ExternalReference::compute_integer_hash());
   const TNode<ExternalReference> isolate_ptr =
@@ -7748,10 +7739,9 @@ Node* CodeStubAssembler::ComputeSeededHash(Node* key) {
   MachineType type_uint32 = MachineType::Uint32();
   MachineType type_int32 = MachineType::Int32();
 
-  Node* const result = CallCFunction(
+  return UncheckedCast<Word32T>(CallCFunction(
       function_addr, type_uint32, std::make_pair(type_ptr, isolate_ptr),
-      std::make_pair(type_int32, TruncateIntPtrToInt32(key)));
-  return result;
+      std::make_pair(type_int32, TruncateIntPtrToInt32(key))));
 }
 
 void CodeStubAssembler::NumberDictionaryLookup(
@@ -10115,7 +10105,7 @@ void CodeStubAssembler::TransitionElementsKind(TNode<JSObject> object,
   StoreMap(object, map);
 }
 
-void CodeStubAssembler::TrapAllocationMemento(Node* object,
+void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
                                               Label* memento_found) {
   Comment("[ TrapAllocationMemento");
   Label no_memento_found(this);
@@ -10499,8 +10489,8 @@ void CodeStubAssembler::BranchIfNumberRelationalComparison(
   }
 }
 
-void CodeStubAssembler::GotoIfNumberGreaterThanOrEqual(Node* left, Node* right,
-                                                       Label* if_true) {
+void CodeStubAssembler::GotoIfNumberGreaterThanOrEqual(
+    SloppyTNode<Number> left, SloppyTNode<Number> right, Label* if_true) {
   Label if_false(this);
   BranchIfNumberRelationalComparison(Operation::kGreaterThanOrEqual, left,
                                      right, if_true, &if_false);
@@ -12638,7 +12628,7 @@ void CodeStubArguments::ForEach(
       -kSystemPointerSize, CodeStubAssembler::IndexAdvanceMode::kPost);
 }
 
-void CodeStubArguments::PopAndReturn(Node* value) {
+void CodeStubArguments::PopAndReturn(TNode<Object> value) {
   TNode<IntPtrT> pop_count;
   if (receiver_mode_ == ReceiverMode::kHasReceiver) {
     pop_count = assembler_->IntPtrAdd(argc_, assembler_->IntPtrConstant(1));
