@@ -292,22 +292,27 @@ local ARCHITECTURES = {
 
 local gc, gc_caused, funcs
 
+-- Note that the gcsuspects file lists functions in the form:
+--  mangled_name,unmangled_function_name
+--
+-- This means that we can match just the function name by matching only
+-- after a comma.
 local WHITELIST = {
    -- The following functions call CEntryStub which is always present.
-   "MacroAssembler.*CallRuntime",
+   "MacroAssembler.*,CallRuntime",
    "CompileCallLoadPropertyWithInterceptor",
-   "CallIC.*GenerateMiss",
+   "CallIC.*,GenerateMiss",
 
    -- DirectCEntryStub is a special stub used on ARM.
    -- It is pinned and always present.
-   "DirectCEntryStub.*GenerateCall",
+   "DirectCEntryStub.*,GenerateCall",
 
    -- TODO GCMole currently is sensitive enough to understand that certain
    --      functions only cause GC and return Failure simulataneously.
    --      Callsites of such functions are safe as long as they are properly
    --      check return value and propagate the Failure to the caller.
    --      It should be possible to extend GCMole to understand this.
-   "Heap.*AllocateFunctionPrototype",
+   "Heap.*,TryEvacuateObject",
 
    -- Ignore all StateTag methods.
    "StateTag",
@@ -335,7 +340,7 @@ local function resolve(name)
       f = {}
       funcs[name] = f
 
-      if name:match "Collect.*Garbage" then
+      if name:match ",.*Collect.*Garbage" then
          gc[name] = true
          AddCause(name, "<GC>")
       end
