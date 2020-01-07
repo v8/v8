@@ -283,7 +283,11 @@ class LiftoffAssembler : public TurboAssembler {
   LiftoffRegister PopToRegister(LiftoffRegList pinned = {});
 
   uint32_t NextSpillOffset(ValueType type) {
-    return TopSpillOffset() + SlotSizeForType(type);
+    uint32_t offset = TopSpillOffset() + SlotSizeForType(type);
+    if (NeedsAlignment(type)) {
+      offset = RoundUp(offset, SlotSizeForType(type));
+    }
+    return offset;
   }
 
   uint32_t TopSpillOffset() {
@@ -415,6 +419,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void FinishCode();
   inline void AbortCompilation();
   inline static uint32_t SlotSizeForType(ValueType type);
+  inline static bool NeedsAlignment(ValueType type);
 
   inline void LoadConstant(LiftoffRegister, WasmValue,
                            RelocInfo::Mode rmode = RelocInfo::NONE);

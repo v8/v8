@@ -178,9 +178,23 @@ void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 
 uint32_t LiftoffAssembler::SlotSizeForType(ValueType type) {
   // TODO(zhin): Unaligned access typically take additional cycles, we should do
-  // some performance testing to see how big an effect it will take. When we add
-  // SIMD we will have to add logic for alignment too.
-  return kStackSlotSize;
+  // some performance testing to see how big an effect it will take.
+  switch (type) {
+    case kWasmS128:
+      return ValueTypes::ElementSizeInBytes(type);
+    default:
+      return kStackSlotSize;
+  }
+}
+
+bool LiftoffAssembler::NeedsAlignment(ValueType type) {
+  switch (type) {
+    case kWasmS128:
+      return true;
+    default:
+      // No alignment because all other types are kStackSlotSize.
+      return false;
+  }
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,

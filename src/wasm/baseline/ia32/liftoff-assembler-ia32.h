@@ -198,6 +198,8 @@ uint32_t LiftoffAssembler::SlotSizeForType(ValueType type) {
   return ValueTypes::ElementSizeInBytes(type);
 }
 
+bool LiftoffAssembler::NeedsAlignment(ValueType type) { return false; }
+
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   switch (value.type()) {
