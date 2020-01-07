@@ -404,7 +404,8 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
  private:
   class NameBuffer;
 
-  virtual void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo shared,
+  virtual void LogRecordedBuffer(Handle<AbstractCode> code,
+                                 MaybeHandle<SharedFunctionInfo> maybe_shared,
                                  const char* name, int length) = 0;
   virtual void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                                  int length) = 0;

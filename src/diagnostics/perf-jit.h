@@ -52,7 +52,8 @@ class PerfJitLogger : public CodeEventLogger {
   void CloseMarkerFile(void* marker_address);
 
   uint64_t GetTimestamp();
-  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo shared,
+  void LogRecordedBuffer(Handle<AbstractCode> code,
+                         MaybeHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override;
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
@@ -70,7 +71,7 @@ class PerfJitLogger : public CodeEventLogger {
 
   void LogWriteBytes(const char* bytes, int size);
   void LogWriteHeader();
-  void LogWriteDebugInfo(Code code, SharedFunctionInfo shared);
+  void LogWriteDebugInfo(Handle<Code> code, Handle<SharedFunctionInfo> shared);
   void LogWriteDebugInfo(const wasm::WasmCode* code);
   void LogWriteUnwindingInfo(Code code);
 
@@ -136,7 +137,8 @@ class PerfJitLogger : public CodeEventLogger {
     UNIMPLEMENTED();
   }
 
-  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo shared,
+  void LogRecordedBuffer(Handle<AbstractCode> code,
+                         MaybeHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override {
     UNIMPLEMENTED();
   }

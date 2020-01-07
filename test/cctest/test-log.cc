@@ -465,7 +465,8 @@ UNINITIALIZED_TEST(Issue539892) {
     }
 
    private:
-    void LogRecordedBuffer(i::AbstractCode code, i::SharedFunctionInfo shared,
+    void LogRecordedBuffer(i::Handle<i::AbstractCode> code,
+                           i::MaybeHandle<i::SharedFunctionInfo> maybe_shared,
                            const char* name, int length) override {}
     void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
                            int length) override {}

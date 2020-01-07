@@ -189,8 +189,8 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                                       const char* comment) {
   name_buffer_->Init(tag);
   name_buffer_->AppendBytes(comment);
-  LogRecordedBuffer(*code, SharedFunctionInfo(), name_buffer_->get(),
-                    name_buffer_->size());
+  LogRecordedBuffer(code, MaybeHandle<SharedFunctionInfo>(),
+                    name_buffer_->get(), name_buffer_->size());
 }
 
 void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
@@ -198,8 +198,8 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                                       Handle<Name> name) {
   name_buffer_->Init(tag);
   name_buffer_->AppendName(*name);
-  LogRecordedBuffer(*code, SharedFunctionInfo(), name_buffer_->get(),
-                    name_buffer_->size());
+  LogRecordedBuffer(code, MaybeHandle<SharedFunctionInfo>(),
+                    name_buffer_->get(), name_buffer_->size());
 }
 
 void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
@@ -210,7 +210,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
   name_buffer_->AppendBytes(ComputeMarker(*shared, *code));
   name_buffer_->AppendByte(' ');
   name_buffer_->AppendName(*script_name);
-  LogRecordedBuffer(*code, *shared, name_buffer_->get(), name_buffer_->size());
+  LogRecordedBuffer(code, shared, name_buffer_->get(), name_buffer_->size());
 }
 
 void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
@@ -231,7 +231,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
   }
   name_buffer_->AppendByte(':');
   name_buffer_->AppendInt(line);
-  LogRecordedBuffer(*code, *shared, name_buffer_->get(), name_buffer_->size());
+  LogRecordedBuffer(code, shared, name_buffer_->get(), name_buffer_->size());
 }
 
 void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
@@ -258,8 +258,8 @@ void CodeEventLogger::RegExpCodeCreateEvent(Handle<AbstractCode> code,
                                             Handle<String> source) {
   name_buffer_->Init(CodeEventListener::REG_EXP_TAG);
   name_buffer_->AppendString(*source);
-  LogRecordedBuffer(*code, SharedFunctionInfo(), name_buffer_->get(),
-                    name_buffer_->size());
+  LogRecordedBuffer(code, MaybeHandle<SharedFunctionInfo>(),
+                    name_buffer_->get(), name_buffer_->size());
 }
 
 // Linux perf tool logging support
@@ -273,7 +273,8 @@ class PerfBasicLogger : public CodeEventLogger {
                            Handle<SharedFunctionInfo> shared) override {}
 
  private:
-  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo shared,
+  void LogRecordedBuffer(Handle<AbstractCode> code,
+                         MaybeHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override;
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
@@ -323,17 +324,18 @@ void PerfBasicLogger::WriteLogRecordedBuffer(uintptr_t address, int size,
                    size, name_length, name);
 }
 
-void PerfBasicLogger::LogRecordedBuffer(AbstractCode code, SharedFunctionInfo,
+void PerfBasicLogger::LogRecordedBuffer(Handle<AbstractCode> code,
+                                        MaybeHandle<SharedFunctionInfo>,
                                         const char* name, int length) {
   if (FLAG_perf_basic_prof_only_functions &&
-      (code.kind() != AbstractCode::INTERPRETED_FUNCTION &&
-       code.kind() != AbstractCode::BUILTIN &&
-       code.kind() != AbstractCode::OPTIMIZED_FUNCTION)) {
+      (code->kind() != AbstractCode::INTERPRETED_FUNCTION &&
+       code->kind() != AbstractCode::BUILTIN &&
+       code->kind() != AbstractCode::OPTIMIZED_FUNCTION)) {
     return;
   }
 
-  WriteLogRecordedBuffer(static_cast<uintptr_t>(code.InstructionStart()),
-                         code.InstructionSize(), name, length);
+  WriteLogRecordedBuffer(static_cast<uintptr_t>(code->InstructionStart()),
+                         code->InstructionSize(), name, length);
 }
 
 void PerfBasicLogger::LogRecordedBuffer(const wasm::WasmCode* code,
@@ -513,7 +515,8 @@ class LowLevelLogger : public CodeEventLogger {
   void CodeMovingGCEvent() override;
 
  private:
-  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo shared,
+  void LogRecordedBuffer(Handle<AbstractCode> code,
+                         MaybeHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override;
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
@@ -594,16 +597,17 @@ void LowLevelLogger::LogCodeInfo() {
   LogWriteBytes(arch, sizeof(arch));
 }
 
-void LowLevelLogger::LogRecordedBuffer(AbstractCode code, SharedFunctionInfo,
+void LowLevelLogger::LogRecordedBuffer(Handle<AbstractCode> code,
+                                       MaybeHandle<SharedFunctionInfo>,
                                        const char* name, int length) {
   CodeCreateStruct event;
   event.name_size = length;
-  event.code_address = code.InstructionStart();
-  event.code_size = code.InstructionSize();
+  event.code_address = code->InstructionStart();
+  event.code_size = code->InstructionSize();
   LogWriteStruct(event);
   LogWriteBytes(name, length);
-  LogWriteBytes(reinterpret_cast<const char*>(code.InstructionStart()),
-                code.InstructionSize());
+  LogWriteBytes(reinterpret_cast<const char*>(code->InstructionStart()),
+                code->InstructionSize());
 }
 
 void LowLevelLogger::LogRecordedBuffer(const wasm::WasmCode* code,
@@ -652,7 +656,8 @@ class JitLogger : public CodeEventLogger {
   void EndCodePosInfoEvent(Address start_address, void* jit_handler_data);
 
  private:
-  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo shared,
+  void LogRecordedBuffer(Handle<AbstractCode> code,
+                         MaybeHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override;
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
@@ -664,21 +669,22 @@ class JitLogger : public CodeEventLogger {
 JitLogger::JitLogger(Isolate* isolate, JitCodeEventHandler code_event_handler)
     : CodeEventLogger(isolate), code_event_handler_(code_event_handler) {}
 
-void JitLogger::LogRecordedBuffer(AbstractCode code, SharedFunctionInfo shared,
+void JitLogger::LogRecordedBuffer(Handle<AbstractCode> code,
+                                  MaybeHandle<SharedFunctionInfo> maybe_shared,
                                   const char* name, int length) {
   JitCodeEvent event;
   memset(static_cast<void*>(&event), 0, sizeof(event));
   event.type = JitCodeEvent::CODE_ADDED;
-  event.code_start = reinterpret_cast<void*>(code.InstructionStart());
+  event.code_start = reinterpret_cast<void*>(code->InstructionStart());
   event.code_type =
-      code.IsCode() ? JitCodeEvent::JIT_CODE : JitCodeEvent::BYTE_CODE;
-  event.code_len = code.InstructionSize();
-  Handle<SharedFunctionInfo> shared_function_handle;
-  if (!shared.is_null() && shared.script().IsScript()) {
-    shared_function_handle =
-        Handle<SharedFunctionInfo>(shared, shared.GetIsolate());
+      code->IsCode() ? JitCodeEvent::JIT_CODE : JitCodeEvent::BYTE_CODE;
+  event.code_len = code->InstructionSize();
+  Handle<SharedFunctionInfo> shared;
+  if (maybe_shared.ToHandle(&shared) && shared->script().IsScript()) {
+    event.script = ToApiHandle<v8::UnboundScript>(shared);
+  } else {
+    event.script = Local<v8::UnboundScript>();
   }
-  event.script = ToApiHandle<v8::UnboundScript>(shared_function_handle);
   event.name.str = name;
   event.name.len = length;
   event.isolate = reinterpret_cast<v8::Isolate*>(isolate_);
@@ -855,9 +861,9 @@ class Profiler : public base::Thread {
   // Cyclic buffer for communicating profiling samples
   // between the signal handler and the worker thread.
   static const int kBufferSize = 128;
-  TickSample buffer_[kBufferSize];      // Buffer storage.
-  int head_;                            // Index to the buffer head.
-  base::Atomic32 tail_;                 // Index to the buffer tail.
+  TickSample buffer_[kBufferSize];  // Buffer storage.
+  int head_;                        // Index to the buffer head.
+  base::Atomic32 tail_;             // Index to the buffer tail.
   bool overflow_;  // Tell whether a buffer overflow has occurred.
   // Semaphore used for buffer synchronization.
   base::Semaphore buffer_semaphore_;
