@@ -2514,6 +2514,11 @@ StringRef JSHeapBroker::GetTypedArrayStringTag(ElementsKind kind) {
 bool JSHeapBroker::ShouldBeSerializedForCompilation(
     const SharedFunctionInfoRef& shared, const FeedbackVectorRef& feedback,
     const HintsVector& arguments) const {
+  if (serialized_functions_.size() >= kMaxSerializedFunctionsCacheSize) {
+    TRACE_BROKER_MISSING(this,
+                         "opportunity - serialized functions cache is full.");
+    return false;
+  }
   SerializedFunction function{shared, feedback};
   auto matching_functions = serialized_functions_.equal_range(function);
   return std::find_if(matching_functions.first, matching_functions.second,
