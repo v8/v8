@@ -159,6 +159,15 @@ Node* RepresentationChanger::GetRepresentationFor(
     return TypeError(node, output_rep, output_type, use_info.representation());
   }
 
+  // Rematerialize any truncated BigInt if user is not expecting a BigInt.
+  if (output_type.Is(Type::BigInt()) &&
+      output_rep == MachineRepresentation::kWord64 &&
+      use_info.type_check() != TypeCheckKind::kBigInt) {
+    node =
+        InsertConversion(node, simplified()->ChangeUint64ToBigInt(), use_node);
+    output_rep = MachineRepresentation::kTaggedPointer;
+  }
+
   // Handle the no-op shortcuts when no checking is necessary.
   if (use_info.type_check() == TypeCheckKind::kNone ||
       output_rep != MachineRepresentation::kWord32) {
@@ -173,15 +182,6 @@ Node* RepresentationChanger::GetRepresentationFor(
       // no representation change is necessary.
       return node;
     }
-  }
-
-  // Rematerialize any truncated BigInt if user is not expecting a BigInt.
-  if (output_type.Is(Type::BigInt()) &&
-      output_rep == MachineRepresentation::kWord64 &&
-      use_info.type_check() != TypeCheckKind::kBigInt) {
-    node =
-        InsertConversion(node, simplified()->ChangeUint64ToBigInt(), use_node);
-    output_rep = MachineRepresentation::kTaggedPointer;
   }
 
   switch (use_info.representation()) {
