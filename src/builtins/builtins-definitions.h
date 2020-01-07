@@ -717,8 +717,6 @@ namespace internal {
   /* ES #sec-promise.all */                                                    \
   TFJ(PromiseAll, 1, kReceiver, kIterable)                                     \
   TFJ(PromiseAllResolveElementClosure, 1, kReceiver, kValue)                   \
-  /* ES #sec-promise.race */                                                   \
-  TFJ(PromiseRace, 1, kReceiver, kIterable)                                    \
   /* ES #sec-promise.allsettled */                                             \
   TFJ(PromiseAllSettled, 1, kReceiver, kIterable)                              \
   TFJ(PromiseAllSettledResolveElementClosure, 1, kReceiver, kValue)            \

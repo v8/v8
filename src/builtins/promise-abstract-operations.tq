@@ -523,4 +523,16 @@ namespace promise {
     capability.reject = reject;
     return Undefined;
   }
+
+  transitioning macro CallResolve(implicit context: Context)(
+      constructor: Constructor, resolve: JSAny, value: JSAny): JSAny {
+    // Undefined can never be a valid value for the resolve function,
+    // instead it is used as a special marker for the fast path.
+    if (resolve == Undefined) {
+      return PromiseResolve(constructor, value);
+    } else
+      deferred {
+        return Call(context, UnsafeCast<Callable>(resolve), constructor, value);
+      }
+  }
 }
