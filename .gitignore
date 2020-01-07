@@ -94,6 +94,7 @@ compile_commands.json
 gccauses
 gcsuspects
 gtags.files
+jit-*.dump
 node_modules
 tags
 turbo*.cfg
