@@ -514,11 +514,18 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<FixedArray> CopyFixedArrayAndGrow(Handle<FixedArray> array,
                                            int grow_by);
 
+  Handle<WeakArrayList> NewWeakArrayList(
+      int capacity, AllocationType allocation = AllocationType::kYoung);
+
   Handle<WeakFixedArray> CopyWeakFixedArrayAndGrow(Handle<WeakFixedArray> array,
                                                    int grow_by);
 
   Handle<WeakArrayList> CopyWeakArrayListAndGrow(
       Handle<WeakArrayList> array, int grow_by,
+      AllocationType allocation = AllocationType::kYoung);
+
+  Handle<WeakArrayList> CompactWeakArrayList(
+      Handle<WeakArrayList> array, int new_capacity,
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<PropertyArray> CopyPropertyArrayAndGrow(Handle<PropertyArray> array,
@@ -1093,6 +1100,10 @@ class V8_EXPORT_PRIVATE Factory {
   // Initializes JSObject body starting at given offset.
   void InitializeJSObjectBody(Handle<JSObject> obj, Handle<Map> map,
                               int start_offset);
+
+ private:
+  Handle<WeakArrayList> NewUninitializedWeakArrayList(
+      int capacity, AllocationType allocation = AllocationType::kYoung);
 };
 
 // Utility class to simplify argument handling around JSFunction creation.
