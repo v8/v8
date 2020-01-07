@@ -2317,8 +2317,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64F64x2ExtractLane: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pextrq(kScratchRegister, i.InputSimd128Register(0), i.InputInt8(1));
-      __ movq(i.OutputDoubleRegister(), kScratchRegister);
+      __ Pextrq(kScratchRegister, i.InputSimd128Register(0), i.InputInt8(1));
+      __ Movq(i.OutputDoubleRegister(), kScratchRegister);
       break;
     }
     case kX64F64x2Sqrt: {
@@ -2641,7 +2641,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I64x2ExtractLane: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pextrq(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
+      __ Pextrq(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
       break;
     }
     case kX64I64x2ReplaceLane: {

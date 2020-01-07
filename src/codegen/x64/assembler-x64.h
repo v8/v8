@@ -1435,6 +1435,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x16, src, xmm0, dst, k66, k0F3A, kW0);
     emit(imm8);
   }
+  void vpextrq(Register dst, XMMRegister src, int8_t imm8) {
+    XMMRegister idst = XMMRegister::from_code(dst.code());
+    vinstr(0x16, src, xmm0, idst, k66, k0F3A, kW1);
+    emit(imm8);
+  }
   void vpinsrb(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8) {
     XMMRegister isrc = XMMRegister::from_code(src2.code());
     vinstr(0x20, dst, src1, isrc, k66, k0F3A, kW0);

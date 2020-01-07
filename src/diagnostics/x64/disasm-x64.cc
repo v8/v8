@@ -970,7 +970,7 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer(",%s,0x%x,", NameOfXMMRegister(regop), *current++);
         break;
       case 0x16:
-        AppendToBuffer("vpextrd ");
+        AppendToBuffer("vpextr%c ", rex_w() ? 'q' : 'd');
         current += PrintRightOperand(current);
         AppendToBuffer(",%s,0x%x,", NameOfXMMRegister(regop), *current++);
         break;

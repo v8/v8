@@ -765,6 +765,7 @@ TEST(DisasmX64) {
       __ vpextrw(Operand(rbx, rcx, times_4, 10000), xmm2, 5);
       __ vpextrd(rax, xmm2, 2);
       __ vpextrd(Operand(rbx, rcx, times_4, 10000), xmm2, 2);
+      __ vpextrq(rax, xmm2, 2);
 
       __ vpinsrb(xmm1, xmm2, rax, 12);
       __ vpinsrb(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 12);
