@@ -1137,7 +1137,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
   __ sub(start_address, Immediate(kSystemPointerSize));
   __ bind(&loop_check);
   __ cmp(start_address, array_limit);
-  __ j(greater, &loop_header, Label::kNear);
+  __ j(above, &loop_header, Label::kNear);
 }
 
 // static

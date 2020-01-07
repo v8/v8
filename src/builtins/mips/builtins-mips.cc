@@ -1170,7 +1170,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
   __ Addu(index, index, Operand(-kPointerSize));
   __ push(scratch);
   __ bind(&loop_check);
-  __ Branch(&loop_header, gt, index, Operand(scratch2));
+  __ Branch(&loop_header, hi, index, Operand(scratch2));
 }
 
 // static

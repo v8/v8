@@ -1190,7 +1190,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
   __ push(scratch);
   __ bind(&loop_check);
   __ cmp(index, limit);
-  __ b(gt, &loop_header);
+  __ b(hi, &loop_header);
 }
 
 // static
