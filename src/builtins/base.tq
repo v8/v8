@@ -1000,15 +1000,19 @@ macro GetFastAliasedArgumentsMap(implicit context: Context)(): Map {
       context)[NativeContextSlot::FAST_ALIASED_ARGUMENTS_MAP_INDEX]);
 }
 
-extern transitioning macro Call(Context, Callable, JSAny): JSAny;
-extern transitioning macro Call(Context, Callable, JSAny, JSAny): JSAny;
-extern transitioning macro Call(Context, Callable, JSAny, JSAny, JSAny): JSAny;
+// Call(Context, Target, Receiver, ...Args)
+// TODO(joshualitt): Assuming the context parameter is for throwing when Target
+//                   is non-callable, then we should make it an implicit
+//                   parameter.
+extern transitioning macro Call(Context, JSAny, JSAny): JSAny;
+extern transitioning macro Call(Context, JSAny, JSAny, JSAny): JSAny;
+extern transitioning macro Call(Context, JSAny, JSAny, JSAny, JSAny): JSAny;
 extern transitioning macro Call(
-    Context, Callable, JSAny, JSAny, JSAny, JSAny): JSAny;
+    Context, JSAny, JSAny, JSAny, JSAny, JSAny): JSAny;
 extern transitioning macro Call(
-    Context, Callable, JSAny, JSAny, JSAny, JSAny, JSAny): JSAny;
+    Context, JSAny, JSAny, JSAny, JSAny, JSAny, JSAny): JSAny;
 extern transitioning macro Call(
-    Context, Callable, JSAny, JSAny, JSAny, JSAny, JSAny, JSAny): JSAny;
+    Context, JSAny, JSAny, JSAny, JSAny, JSAny, JSAny, JSAny): JSAny;
 
 extern macro TransitionElementsKind(
     JSObject, Map, constexpr ElementsKind,
