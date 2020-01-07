@@ -167,7 +167,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   friend class i::ParameterDeclarationParsingScope<ParserTypes<Parser>>;
   friend class i::ArrowHeadParsingScope<ParserTypes<Parser>>;
   friend bool v8::internal::parsing::ParseProgram(
-      ParseInfo*, Isolate*, parsing::ReportErrorsAndStatisticsMode stats_mode);
+      ParseInfo*, Handle<Script>, Isolate*,
+      parsing::ReportErrorsAndStatisticsMode stats_mode);
   friend bool v8::internal::parsing::ParseFunction(
       ParseInfo*, Handle<SharedFunctionInfo> shared_info, Isolate*,
       parsing::ReportErrorsAndStatisticsMode stats_mode);
@@ -208,7 +209,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void PrepareGeneratorVariables();
 
   // Returns nullptr if parsing failed.
-  FunctionLiteral* ParseProgram(Isolate* isolate, ParseInfo* info);
+  FunctionLiteral* ParseProgram(Isolate* isolate, Handle<Script> script,
+                                ParseInfo* info);
 
   FunctionLiteral* ParseFunction(Isolate* isolate, ParseInfo* info,
                                  Handle<SharedFunctionInfo> shared_info);

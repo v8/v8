@@ -238,9 +238,9 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   Handle<Script> script(Script::cast(shared_info->script()), isolate_);
   if (scope_info->scope_type() == FUNCTION_SCOPE &&
       strategy == ReparseStrategy::kFunctionLiteral) {
-    info_ = new ParseInfo(isolate_, shared_info);
+    info_ = new ParseInfo(isolate_, *shared_info);
   } else {
-    info_ = new ParseInfo(isolate_, script);
+    info_ = new ParseInfo(isolate_, *script);
     info_->set_eager();
   }
 
@@ -442,7 +442,6 @@ void ScopeIterator::Next() {
 
   UnwrapEvaluationContext();
 }
-
 
 // Return the type of the current scope.
 ScopeIterator::ScopeType ScopeIterator::Type() const {

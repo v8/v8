@@ -295,7 +295,7 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(
   compilation_info()->SetAsmWasmData(result);
 
   RecordHistograms(isolate);
-  ReportCompilationSuccess(parse_info()->script(),
+  ReportCompilationSuccess(handle(Script::cast(shared_info->script()), isolate),
                            compilation_info()->literal()->position(),
                            translate_time_, compile_time_, module_->size());
   return SUCCEEDED;

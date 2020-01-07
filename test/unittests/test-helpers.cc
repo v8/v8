@@ -55,14 +55,13 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
 
 std::unique_ptr<ParseInfo> OuterParseInfoForShared(
     Isolate* isolate, Handle<SharedFunctionInfo> shared) {
-  Handle<Script> script =
-      Handle<Script>::cast(handle(shared->script(), isolate));
+  Script script = Script::cast(shared->script());
   std::unique_ptr<ParseInfo> result =
       std::make_unique<ParseInfo>(isolate, script);
 
   // Create a character stream to simulate the parser having done so for the
   // to-level ParseProgram.
-  Handle<String> source(String::cast(script->source()), isolate);
+  Handle<String> source(String::cast(script.source()), isolate);
   std::unique_ptr<Utf16CharacterStream> stream(
       ScannerStream::For(isolate, source));
   result->set_character_stream(std::move(stream));

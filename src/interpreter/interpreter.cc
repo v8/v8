@@ -43,7 +43,7 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
 
  private:
   BytecodeGenerator* generator() { return &generator_; }
-  void CheckAndPrintBytecodeMismatch(Isolate* isolate,
+  void CheckAndPrintBytecodeMismatch(Isolate* isolate, Handle<Script> script,
                                      Handle<BytecodeArray> bytecode);
 
   Zone zone_;
@@ -172,14 +172,14 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
 
 #ifdef DEBUG
 void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
-    Isolate* isolate, Handle<BytecodeArray> bytecode) {
+    Isolate* isolate, Handle<Script> script, Handle<BytecodeArray> bytecode) {
   int first_mismatch = generator()->CheckBytecodeMatches(bytecode);
   if (first_mismatch >= 0) {
     parse_info()->ast_value_factory()->Internalize(isolate);
     DeclarationScope::AllocateScopeInfos(parse_info(), isolate);
 
     Handle<BytecodeArray> new_bytecode =
-        generator()->FinalizeBytecode(isolate, parse_info()->script());
+        generator()->FinalizeBytecode(isolate, script);
 
     std::cerr << "Bytecode mismatch";
 #ifdef OBJECT_PRINT
@@ -190,7 +190,7 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
     } else {
       name->StringPrint(std::cerr);
     }
-    Object script_name = parse_info()->script()->GetNameOrSourceURL();
+    Object script_name = script->GetNameOrSourceURL();
     if (script_name.IsString()) {
       std::cerr << " ";
       String::cast(script_name).StringPrint(std::cerr);
@@ -216,7 +216,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
 
   Handle<BytecodeArray> bytecodes = compilation_info_.bytecode_array();
   if (bytecodes.is_null()) {
-    bytecodes = generator()->FinalizeBytecode(isolate, parse_info()->script());
+    bytecodes = generator()->FinalizeBytecode(
+        isolate, handle(Script::cast(shared_info->script()), isolate));
     if (generator()->HasStackOverflow()) {
       return FAILED;
     }
@@ -241,7 +242,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
   }
 
 #ifdef DEBUG
-  CheckAndPrintBytecodeMismatch(isolate, bytecodes);
+  CheckAndPrintBytecodeMismatch(
+      isolate, handle(Script::cast(shared_info->script()), isolate), bytecodes);
 #endif
 
   return SUCCEEDED;

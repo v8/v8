@@ -43,8 +43,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   explicit ParseInfo(AccountingAllocator* zone_allocator);
   explicit ParseInfo(Isolate*);
   ParseInfo(Isolate*, AccountingAllocator* zone_allocator);
-  ParseInfo(Isolate* isolate, Handle<Script> script);
-  ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared);
+  ParseInfo(Isolate* isolate, Script script);
+  ParseInfo(Isolate* isolate, SharedFunctionInfo shared);
 
   // Creates a new parse info based on parent top-level |outer_parse_info| for
   // function |literal|.
@@ -256,11 +256,15 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ParallelTasks* parallel_tasks() { return parallel_tasks_.get(); }
 
+  void SetFlagsFromScript(Isolate* isolate, Script script);
+
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.
   //--------------------------------------------------------------------------
-  Handle<Script> script() const { return script_; }
-  void set_script(Handle<Script> script);
+  Handle<FixedArray> wrapped_arguments() const { return wrapped_arguments_; }
+  void set_wrapped_arguments(Handle<FixedArray> wrapped_arguments) {
+    wrapped_arguments_ = wrapped_arguments;
+  }
 
   MaybeHandle<ScopeInfo> maybe_outer_scope_info() const {
     return maybe_outer_scope_info_;
@@ -281,7 +285,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   }
 
  private:
-  void SetScriptForToplevelCompile(Isolate* isolate, Handle<Script> script);
+  void SetFlagsForToplevelCompileFromScript(Isolate* isolate, Script script);
 
   // Set function info flags based on those in either FunctionLiteral or
   // SharedFunctionInfo |function|
@@ -341,7 +345,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int max_function_literal_id_;
 
   // TODO(titzer): Move handles out of ParseInfo.
-  Handle<Script> script_;
+  Handle<FixedArray> wrapped_arguments_;
   MaybeHandle<ScopeInfo> maybe_outer_scope_info_;
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------

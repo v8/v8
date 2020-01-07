@@ -512,10 +512,10 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     parse_info.set_allow_lazy_parsing();
     parse_info.set_language_mode(
         i::construct_language_mode(i::FLAG_use_strict));
-    parse_info.set_script(
-        parse_info.CreateScript(i_isolate, str, options.compile_options));
 
-    if (!i::parsing::ParseProgram(&parse_info, i_isolate)) {
+    i::Handle<i::Script> script =
+        parse_info.CreateScript(i_isolate, str, options.compile_options);
+    if (!i::parsing::ParseProgram(&parse_info, script, i_isolate)) {
       fprintf(stderr, "Failed parsing\n");
       return false;
     }

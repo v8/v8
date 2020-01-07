@@ -387,8 +387,7 @@ Parser::Parser(ParseInfo* info)
                          info->extension(), info->GetOrCreateAstValueFactory(),
                          info->pending_error_handler(),
                          info->runtime_call_stats(), info->logger(),
-                         info->script().is_null() ? -1 : info->script()->id(),
-                         info->is_module(), true),
+                         info->script_id(), info->is_module(), true),
       info_(info),
       scanner_(info->character_stream(), info->is_module()),
       preparser_zone_(info->zone()->allocator(), ZONE_NAME),
@@ -484,9 +483,11 @@ void MaybeProcessSourceRanges(ParseInfo* parse_info, Expression* root,
 
 }  // namespace
 
-FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
+FunctionLiteral* Parser::ParseProgram(Isolate* isolate, Handle<Script> script,
+                                      ParseInfo* info) {
   // TODO(bmeurer): We temporarily need to pass allow_nesting = true here,
   // see comment for HistogramTimerScope class.
+  DCHECK_EQ(script->id(), script_id());
 
   // It's OK to use the Isolate & counters here, since this function is only
   // called in the main thread.
@@ -509,20 +510,19 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   MaybeResetCharacterStream(info, result);
   MaybeProcessSourceRanges(info, result, stack_limit_);
 
-  HandleSourceURLComments(isolate, info->script());
+  HandleSourceURLComments(isolate, script);
 
   if (V8_UNLIKELY(FLAG_log_function_events) && result != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
     const char* event_name = "parse-eval";
-    Script script = *info->script();
     int start = -1;
     int end = -1;
     if (!info->is_eval()) {
       event_name = "parse-script";
       start = 0;
-      end = String::cast(script.source()).length();
+      end = String::cast(script->source()).length();
     }
-    LOG(isolate, FunctionEvent(event_name, script.id(), ms, start, end, "", 0));
+    LOG(isolate, FunctionEvent(event_name, script_id(), ms, start, end, "", 0));
   }
   return result;
 }
@@ -610,6 +610,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
         scanner()->set_parser_error();
       }
     } else if (info->is_wrapped_as_function()) {
+      DCHECK(parsing_on_main_thread_);
       ParseWrapped(isolate, info, &body, scope, zone());
     } else if (info->is_repl_mode()) {
       ParseREPLProgram(info, &body, scope);
@@ -674,7 +675,7 @@ ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
     Isolate* isolate, ParseInfo* info, Zone* zone) {
   DCHECK(parsing_on_main_thread_);
   DCHECK_NOT_NULL(isolate);
-  Handle<FixedArray> arguments(info->script()->wrapped_arguments(), isolate);
+  Handle<FixedArray> arguments = info->wrapped_arguments();
   int arguments_length = arguments->length();
   ZonePtrList<const AstRawString>* arguments_for_wrapped_function =
       new (zone) ZonePtrList<const AstRawString>(arguments_length, zone);
@@ -689,7 +690,7 @@ ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
 void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
                           ScopedPtrList<Statement>* body,
                           DeclarationScope* outer_scope, Zone* zone) {
-  DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
+  DCHECK(parsing_on_main_thread_);
   DCHECK(info->is_wrapped_as_function());
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
@@ -812,7 +813,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     DeclarationScope* function_scope = result->scope();
     std::unique_ptr<char[]> function_name = result->GetDebugName();
     LOG(isolate,
-        FunctionEvent("parse-function", info->script()->id(), ms,
+        FunctionEvent("parse-function", script_id(), ms,
                       function_scope->start_position(),
                       function_scope->end_position(), function_name.get(),
                       strlen(function_name.get())));

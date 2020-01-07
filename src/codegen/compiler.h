@@ -73,7 +73,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                                      Handle<SharedFunctionInfo> shared);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
-  CompileForLiveEdit(ParseInfo* parse_info, Isolate* isolate);
+  CompileForLiveEdit(ParseInfo* parse_info, Handle<Script> script,
+                     Isolate* isolate);
 
   // Finalize and install code from previously run background compile task.
   static bool FinalizeBackgroundCompileTask(
