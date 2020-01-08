@@ -6,6 +6,7 @@
 #define V8_COMPILER_FUNCTIONAL_LIST_H_
 
 #include <iterator>
+#include "src/base/functional.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -17,7 +18,7 @@ namespace compiler {
 // in ML-like languages, with the only difference that it also caches the length
 // of the list in each node.
 // TODO(tebbi): Use this implementation also for RedundancyElimination.
-template <class A>
+template <typename A>
 class FunctionalList {
  private:
   struct Cons : ZoneObject {

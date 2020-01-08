@@ -4,6 +4,7 @@
 
 #include "src/compiler/serializer-for-background-compilation.h"
 
+#include <functional>
 #include <sstream>
 
 #include "src/base/optional.h"
@@ -296,6 +297,34 @@ class VirtualClosure {
   Handle<SharedFunctionInfo> const shared_;
   Handle<FeedbackVector> const feedback_vector_;
   Hints const context_hints_;
+};
+
+struct HintsHash {
+  size_t operator()(Hints const& hints) const {
+    return base::hash_combine(hints.constants().Hash(), hints.maps().Hash(),
+                              hints.virtual_closures().Hash(),
+                              hints.virtual_contexts().Hash(),
+                              hints.virtual_bound_functions().Hash());
+  }
+};
+
+size_t hash_value(Hints const& hints) { return HintsHash()(hints); }
+
+struct VirtualBoundFunctionHash {
+  size_t operator()(VirtualBoundFunction const& vbf) const {
+    return base::hash_combine(HintsHash()(vbf.bound_target),
+                              base::hash_range(vbf.bound_arguments.begin(),
+                                               vbf.bound_arguments.end()));
+  }
+};
+
+struct VirtualClosureHash {
+  size_t operator()(VirtualClosure const& c) const {
+    return base::hash_combine(
+        Handle<SharedFunctionInfo>::hash()(c.shared()),
+        Handle<FeedbackVector>::hash()(c.feedback_vector()),
+        HintsHash()(c.context_hints()));
+  }
 };
 
 // A CompilationSubject is a VirtualClosure, optionally with a matching

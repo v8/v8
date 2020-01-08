@@ -10,6 +10,7 @@
 #ifndef V8_COMPILER_SERIALIZER_HINTS_H_
 #define V8_COMPILER_SERIALIZER_HINTS_H_
 
+#include "src/base/functional.h"
 #include "src/compiler/functional-list.h"
 #include "src/handles/handles.h"
 #include "src/zone/zone-containers.h"
@@ -23,7 +24,7 @@ class Map;
 
 namespace compiler {
 
-template <typename T, typename EqualTo>
+template <typename T, typename EqualTo, typename Hasher>
 class FunctionalSet {
  public:
   void Add(T const& elem, Zone* zone) {
@@ -31,9 +32,12 @@ class FunctionalSet {
       if (equal_to(l, elem)) return;
     }
     data_.PushFront(elem, zone);
+    // We rely on commutative property of the computed hash, otherwise
+    // we would use base::hash_combine here.
+    hash_ = hash_ ^ hasher(elem);
   }
 
-  void Union(FunctionalSet<T, EqualTo> other, Zone* zone) {
+  void Union(FunctionalSet<T, EqualTo, Hasher> other, Zone* zone) {
     if (!data_.TriviallyEquals(other.data_)) {
       // Choose the larger side as tail.
       if (data_.Size() < other.data_.Size()) std::swap(data_, other.data_);
@@ -44,23 +48,25 @@ class FunctionalSet {
   bool IsEmpty() const { return data_.begin() == data_.end(); }
 
   // Warning: quadratic time complexity.
-  bool Includes(FunctionalSet<T, EqualTo> const& other) const {
+  bool Includes(FunctionalSet<T, EqualTo, Hasher> const& other) const {
     return std::all_of(other.begin(), other.end(), [&](T const& other_elem) {
       return std::any_of(this->begin(), this->end(), [&](T const& this_elem) {
         return equal_to(this_elem, other_elem);
       });
     });
   }
-  bool operator==(const FunctionalSet<T, EqualTo>& other) const {
+  bool operator==(const FunctionalSet<T, EqualTo, Hasher>& other) const {
     return this->data_.TriviallyEquals(other.data_) ||
-           (this->data_.Size() == other.data_.Size() && this->Includes(other) &&
+           (this->data_.Size() == other.data_.Size() &&
+            this->Hash() == other.Hash() && this->Includes(other) &&
             other.Includes(*this));
   }
-  bool operator!=(const FunctionalSet<T, EqualTo>& other) const {
+  bool operator!=(const FunctionalSet<T, EqualTo, Hasher>& other) const {
     return !(*this == other);
   }
 
   size_t Size() const { return data_.Size(); }
+  size_t Hash() const { return hash_; }
 
   using iterator = typename FunctionalList<T>::iterator;
 
@@ -69,11 +75,16 @@ class FunctionalSet {
 
  private:
   static EqualTo equal_to;
+  static Hasher hasher;
   FunctionalList<T> data_;
+  size_t hash_ = 0;
 };
 
-template <typename T, typename EqualTo>
-EqualTo FunctionalSet<T, EqualTo>::equal_to;
+template <typename T, typename EqualTo, typename Hasher>
+EqualTo FunctionalSet<T, EqualTo, Hasher>::equal_to;
+
+template <typename T, typename EqualTo, typename Hasher>
+Hasher FunctionalSet<T, EqualTo, Hasher>::hasher;
 
 struct VirtualContext {
   unsigned int distance;
@@ -86,19 +97,32 @@ struct VirtualContext {
   bool operator==(const VirtualContext& other) const {
     return context.equals(other.context) && distance == other.distance;
   }
+  struct Hash {
+    size_t operator()(VirtualContext const& c) const {
+      return base::hash_combine(static_cast<size_t>(c.distance),
+                                Handle<Context>::hash()(c.context));
+    }
+  };
 };
 
 class VirtualClosure;
+struct VirtualClosureHash;
 struct VirtualBoundFunction;
+struct VirtualBoundFunctionHash;
 
-using ConstantsSet = FunctionalSet<Handle<Object>, Handle<Object>::equal_to>;
+using ConstantsSet = FunctionalSet<Handle<Object>, Handle<Object>::equal_to,
+                                   Handle<Object>::hash>;
 using VirtualContextsSet =
-    FunctionalSet<VirtualContext, std::equal_to<VirtualContext>>;
-using MapsSet = FunctionalSet<Handle<Map>, Handle<Map>::equal_to>;
+    FunctionalSet<VirtualContext, std::equal_to<VirtualContext>,
+                  VirtualContext::Hash>;
+using MapsSet =
+    FunctionalSet<Handle<Map>, Handle<Map>::equal_to, Handle<Map>::hash>;
 using VirtualClosuresSet =
-    FunctionalSet<VirtualClosure, std::equal_to<VirtualClosure>>;
+    FunctionalSet<VirtualClosure, std::equal_to<VirtualClosure>,
+                  VirtualClosureHash>;
 using VirtualBoundFunctionsSet =
-    FunctionalSet<VirtualBoundFunction, std::equal_to<VirtualBoundFunction>>;
+    FunctionalSet<VirtualBoundFunction, std::equal_to<VirtualBoundFunction>,
+                  VirtualBoundFunctionHash>;
 
 struct HintsImpl;
 class JSHeapBroker;
