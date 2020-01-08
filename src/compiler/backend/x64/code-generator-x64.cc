@@ -2274,7 +2274,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64F64x2ReplaceLane: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       if (instr->InputAt(2)->IsFPRegister()) {
-        __ movq(kScratchRegister, i.InputDoubleRegister(2));
+        __ Movq(kScratchRegister, i.InputDoubleRegister(2));
         __ Pinsrq(i.OutputSimd128Register(), kScratchRegister, i.InputInt8(1));
       } else {
         __ Pinsrq(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
@@ -2304,15 +2304,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(dst, i.InputSimd128Register(0));
 
       // Extract high quardword.
-      __ pextrq(tmp, dst, 1);
+      __ Pextrq(tmp, dst, static_cast<int8_t>(1));
       // We cannot convert directly into dst, as the next call to Cvtqui2sd will
       // zero it out, so be careful to make sure dst is unique to tmp_xmm.
       __ Cvtqui2sd(tmp_xmm, tmp);
       // Extract low quadword and convert.
-      __ movq(tmp, dst);
+      __ Movq(tmp, dst);
       __ Cvtqui2sd(dst, tmp);
       // Move converted high quadword to top of dst.
-      __ movlhps(dst, tmp_xmm);
+      __ Movlhps(dst, tmp_xmm);
       break;
     }
     case kX64F64x2ExtractLane: {
@@ -2650,7 +2650,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Pinsrq(i.OutputSimd128Register(), i.InputRegister(2),
                   i.InputInt8(1));
       } else {
-        __ pinsrq(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
+        __ Pinsrq(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
       }
       break;
     }
@@ -2658,11 +2658,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
       if (dst == src) {
-        __ movapd(kScratchDoubleReg, src);
+        __ Movapd(kScratchDoubleReg, src);
         src = kScratchDoubleReg;
       }
-      __ pxor(dst, dst);
-      __ psubq(dst, src);
+      __ Pxor(dst, dst);
+      __ Psubq(dst, src);
       break;
     }
     case kX64I64x2Shl: {
