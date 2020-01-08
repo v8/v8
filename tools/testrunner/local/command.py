@@ -184,6 +184,22 @@ class PosixCommand(BaseCommand):
     process.kill()
 
 
+def taskkill_windows(process, verbose=False, force=True):
+  force_flag = ' /F' if force else ''
+  tk = subprocess.Popen(
+      'taskkill /T%s /PID %d' % (force_flag, process.pid),
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
+  )
+  stdout, stderr = tk.communicate()
+  if verbose:
+    print('Taskkill results for %d' % process.pid)
+    print(stdout)
+    print(stderr)
+    print('Return code: %d' % tk.returncode)
+    sys.stdout.flush()
+
+
 class WindowsCommand(BaseCommand):
   def _start_process(self, **kwargs):
     # Try to change the error mode to avoid dialogs on fatal errors. Don't
@@ -213,18 +229,7 @@ class WindowsCommand(BaseCommand):
     return subprocess.list2cmdline(self._to_args_list())
 
   def _kill_process(self, process):
-    tk = subprocess.Popen(
-        'taskkill /T /F /PID %d' % process.pid,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    stdout, stderr = tk.communicate()
-    if self.verbose:
-      print('Taskkill results for %d' % process.pid)
-      print(stdout)
-      print(stderr)
-      print('Return code: %d' % tk.returncode)
-      sys.stdout.flush()
+    taskkill_windows(process, self.verbose)
 
 
 class AndroidCommand(BaseCommand):
