@@ -35,7 +35,7 @@ namespace internal {
 
 #if V8_OS_LINUX
 
-// Linux perf tool logging support
+// Linux perf tool logging support.
 class PerfJitLogger : public CodeEventLogger {
  public:
   explicit PerfJitLogger(Isolate* isolate);
@@ -123,33 +123,34 @@ class PerfJitLogger : public CodeEventLogger {
 
 #else
 
-// PerfJitLogger is only implemented on Linux
+// PerfJitLogger is only implemented on Linux.
 class PerfJitLogger : public CodeEventLogger {
  public:
   explicit PerfJitLogger(Isolate* isolate) : CodeEventLogger(isolate) {}
 
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override {
-    UNIMPLEMENTED();
+    FATAL("--perf-prof is only available on Linux");
   }
 
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override {
-    UNIMPLEMENTED();
+    FATAL("--perf-prof is only available on Linux");
   }
 
   void LogRecordedBuffer(Handle<AbstractCode> code,
                          MaybeHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, int length) override {
-    UNIMPLEMENTED();
+    FATAL("--perf-prof is only available on Linux");
   }
 
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override {
-    UNIMPLEMENTED();
+    FATAL("--perf-prof is only available on Linux");
   }
 };
 
 #endif  // V8_OS_LINUX
+
 }  // namespace internal
 }  // namespace v8
 
