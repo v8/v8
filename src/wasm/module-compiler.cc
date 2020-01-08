@@ -1272,10 +1272,6 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
     if (thrower->error()) return;
   }
 
-  // Turn on the {CanonicalHandleScope} so that the background threads can
-  // use the node cache.
-  CanonicalHandleScope canonical(isolate);
-
   DCHECK_GE(kMaxInt, native_module->module()->num_declared_functions);
 
   // Install a callback to notify us once background compilation finished, or
