@@ -229,6 +229,10 @@
 
   # BUG(5920): Flaky crash.
   'test-serialize/PartialSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
+
+  # BUG(10107): Failing flakily
+  'test-cpu-profiler/Inlining2': ['arch == ia32 and mode == debug', SKIP],
+  'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': ['arch == ia32 and mode == debug', SKIP],
 }],  # 'system == windows'
 
 ##############################################################################
