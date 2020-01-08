@@ -66,7 +66,6 @@ namespace {{param.name | to_title_case}}Enum {
 
 class {{config.exported.export_macro}} {{type.id}} : public Exported {
 public:
-    static std::unique_ptr<protocol::{{domain.domain}}::API::{{type.id}}> fromJSONString(const {{config.exported.string_in}}& json);
     static std::unique_ptr<protocol::{{domain.domain}}::API::{{type.id}}> fromBinary(const uint8_t* data, size_t length);
 };
   {% endfor %}

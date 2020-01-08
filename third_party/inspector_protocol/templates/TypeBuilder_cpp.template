@@ -126,16 +126,6 @@ void {{type.id}}::writeBinary(std::vector<uint8_t>* out) const
 }
 
 // static
-std::unique_ptr<API::{{type.id}}> API::{{type.id}}::fromJSONString(const {{config.exported.string_in}}& json)
-{
-    ErrorSupport errors;
-    std::unique_ptr<Value> value = StringUtil::parseJSON(json);
-    if (!value)
-        return nullptr;
-    return protocol::{{domain.domain}}::{{type.id}}::fromValue(value.get(), &errors);
-}
-
-// static
 std::unique_ptr<API::{{type.id}}> API::{{type.id}}::fromBinary(const uint8_t* data, size_t length)
 {
     ErrorSupport errors;
