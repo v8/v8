@@ -91,7 +91,6 @@
           "Android Builder",
           "Linux Debug Builder",
           "Linux ASAN Builder",
-          "Linux Snapshot Builder",
           "Linux V8 FYI Release - pointer compression (NVIDIA)",
           "V8 Android GN (dbg)",
           "V8 Linux GN"
