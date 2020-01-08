@@ -932,22 +932,26 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
 
   WriteTag(SerializationTag::kError);
 
-  Handle<HeapObject> prototype;
-  if (!JSObject::GetPrototype(isolate_, error).ToHandle(&prototype)) {
+  Handle<Object> name_object;
+  if (!JSObject::GetProperty(isolate_, error, "name").ToHandle(&name_object)) {
+    return Nothing<bool>();
+  }
+  Handle<String> name;
+  if (!Object::ToString(isolate_, name_object).ToHandle(&name)) {
     return Nothing<bool>();
   }
 
-  if (*prototype == isolate_->eval_error_function()->prototype()) {
+  if (name->IsOneByteEqualTo(CStrVector("EvalError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kEvalErrorPrototype));
-  } else if (*prototype == isolate_->range_error_function()->prototype()) {
+  } else if (name->IsOneByteEqualTo(CStrVector("RangeError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kRangeErrorPrototype));
-  } else if (*prototype == isolate_->reference_error_function()->prototype()) {
+  } else if (name->IsOneByteEqualTo(CStrVector("ReferenceError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kReferenceErrorPrototype));
-  } else if (*prototype == isolate_->syntax_error_function()->prototype()) {
+  } else if (name->IsOneByteEqualTo(CStrVector("SyntaxError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kSyntaxErrorPrototype));
-  } else if (*prototype == isolate_->type_error_function()->prototype()) {
+  } else if (name->IsOneByteEqualTo(CStrVector("TypeError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kTypeErrorPrototype));
-  } else if (*prototype == isolate_->uri_error_function()->prototype()) {
+  } else if (name->IsOneByteEqualTo(CStrVector("URIError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kUriErrorPrototype));
   } else {
     // The default prototype in the deserialization side is Error.prototype, so
