@@ -530,10 +530,10 @@ namespace promise {
       promise: JSAny, reject: JSAny, exception: JSAny|TheHole,
       _result: JSAny): JSAny {
     typeswitch (exception) {
+      case (TheHole): {
+      }
       case (e: JSAny): {
         Call(context, reject, Undefined, e);
-      }
-      case (TheHole): {
       }
     }
     return promise;
