@@ -17,6 +17,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/struct.h"
+#include "src/roots/roots.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 #include "torque-generated/bit-fields-tq.h"
 #include "torque-generated/field-offsets-tq.h"
@@ -201,9 +202,10 @@ class SharedFunctionInfo : public HeapObject,
 
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
-  V8_EXPORT_PRIVATE static void SetScript(
-      Handle<SharedFunctionInfo> shared, Handle<HeapObject> script_object,
-      int function_literal_id, bool reset_preparsed_scope_data = true);
+  V8_EXPORT_PRIVATE void SetScript(ReadOnlyRoots roots,
+                                   HeapObject script_object,
+                                   int function_literal_id,
+                                   bool reset_preparsed_scope_data = true);
 
   // Layout description of the optimized code map.
   static const int kEntriesStart = 0;
@@ -548,7 +550,8 @@ class SharedFunctionInfo : public HeapObject,
   inline bool has_simple_parameters();
 
   // Initialize a SharedFunctionInfo from a parsed function literal.
-  static void InitFromFunctionLiteral(Handle<SharedFunctionInfo> shared_info,
+  static void InitFromFunctionLiteral(Isolate* isolate,
+                                      Handle<SharedFunctionInfo> shared_info,
                                       FunctionLiteral* lit, bool is_toplevel);
 
   // Updates the expected number of properties based on estimate from parser.

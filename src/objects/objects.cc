@@ -4977,59 +4977,58 @@ void SharedFunctionInfo::ScriptIterator::Reset(Isolate* isolate,
   index_ = 0;
 }
 
-void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
-                                   Handle<HeapObject> script_object,
+void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
+                                   HeapObject script_object,
                                    int function_literal_id,
                                    bool reset_preparsed_scope_data) {
-  if (shared->script() == *script_object) return;
-  Isolate* isolate = shared->GetIsolate();
+  DisallowHeapAllocation no_gc;
 
-  if (reset_preparsed_scope_data &&
-      shared->HasUncompiledDataWithPreparseData()) {
-    shared->ClearPreparseData();
+  if (script() == script_object) return;
+
+  if (reset_preparsed_scope_data && HasUncompiledDataWithPreparseData()) {
+    ClearPreparseData();
   }
 
   // Add shared function info to new script's list. If a collection occurs,
   // the shared function info may be temporarily in two lists.
   // This is okay because the gc-time processing of these lists can tolerate
   // duplicates.
-  if (script_object->IsScript()) {
-    DCHECK(!shared->script().IsScript());
-    Handle<Script> script = Handle<Script>::cast(script_object);
-    Handle<WeakFixedArray> list =
-        handle(script->shared_function_infos(), isolate);
+  if (script_object.IsScript()) {
+    DCHECK(!script().IsScript());
+    Script script = Script::cast(script_object);
+    WeakFixedArray list = script.shared_function_infos();
 #ifdef DEBUG
-    DCHECK_LT(function_literal_id, list->length());
-    MaybeObject maybe_object = list->Get(function_literal_id);
+    DCHECK_LT(function_literal_id, list.length());
+    MaybeObject maybe_object = list.Get(function_literal_id);
     HeapObject heap_object;
     if (maybe_object->GetHeapObjectIfWeak(&heap_object)) {
-      DCHECK_EQ(heap_object, *shared);
+      DCHECK_EQ(heap_object, *this);
     }
 #endif
-    list->Set(function_literal_id, HeapObjectReference::Weak(*shared));
+    list.Set(function_literal_id, HeapObjectReference::Weak(*this));
   } else {
-    DCHECK(shared->script().IsScript());
+    DCHECK(script().IsScript());
 
     // Remove shared function info from old script's list.
-    Script old_script = Script::cast(shared->script());
+    Script old_script = Script::cast(script());
 
     // Due to liveedit, it might happen that the old_script doesn't know
     // about the SharedFunctionInfo, so we have to guard against that.
-    Handle<WeakFixedArray> infos(old_script.shared_function_infos(), isolate);
-    if (function_literal_id < infos->length()) {
+    WeakFixedArray infos = old_script.shared_function_infos();
+    if (function_literal_id < infos.length()) {
       MaybeObject raw =
           old_script.shared_function_infos().Get(function_literal_id);
       HeapObject heap_object;
-      if (raw->GetHeapObjectIfWeak(&heap_object) && heap_object == *shared) {
+      if (raw->GetHeapObjectIfWeak(&heap_object) && heap_object == *this) {
         old_script.shared_function_infos().Set(
-            function_literal_id, HeapObjectReference::Strong(
-                                     ReadOnlyRoots(isolate).undefined_value()));
+            function_literal_id,
+            HeapObjectReference::Strong(roots.undefined_value()));
       }
     }
   }
 
   // Finally set new script.
-  shared->set_script(*script_object);
+  set_script(script_object);
 }
 
 bool SharedFunctionInfo::HasBreakInfo() const {
@@ -5256,27 +5255,21 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   }
 }
 
+// static
 void SharedFunctionInfo::InitFromFunctionLiteral(
-    Handle<SharedFunctionInfo> shared_info, FunctionLiteral* lit,
-    bool is_toplevel) {
-  Isolate* isolate = shared_info->GetIsolate();
-  bool needs_position_info = true;
+    Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    FunctionLiteral* lit, bool is_toplevel) {
+  DCHECK(!shared_info->name_or_scope_info().IsScopeInfo());
 
   // When adding fields here, make sure DeclarationScope::AnalyzePartially is
   // updated accordingly.
   shared_info->set_internal_formal_parameter_count(lit->parameter_count());
   shared_info->SetFunctionTokenPosition(lit->function_token_position(),
                                         lit->start_position());
-  if (shared_info->scope_info().HasPositionInfo()) {
-    shared_info->scope_info().SetPositionInfo(lit->start_position(),
-                                              lit->end_position());
-    needs_position_info = false;
-  }
   shared_info->set_syntax_kind(lit->syntax_kind());
   shared_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
   shared_info->set_language_mode(lit->language_mode());
   shared_info->set_function_literal_id(lit->function_literal_id());
-  //  shared_info->set_kind(lit->kind());
   // FunctionKind must have already been set.
   DCHECK(lit->kind() == shared_info->kind());
   shared_info->set_needs_home_object(lit->scope()->NeedsHomeObject());
@@ -5308,32 +5301,31 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     shared_info->set_is_safe_to_skip_arguments_adaptor(
         lit->SafeToSkipArgumentsAdaptor());
     DCHECK_NULL(lit->produced_preparse_data());
+
     // If we're about to eager compile, we'll have the function literal
     // available, so there's no need to wastefully allocate an uncompiled data.
-    // TODO(leszeks): This should be explicitly passed as a parameter, rather
-    // than relying on a property of the literal.
-    needs_position_info = false;
+    return;
+  }
+
+  shared_info->set_is_safe_to_skip_arguments_adaptor(false);
+  shared_info->UpdateExpectedNofPropertiesFromEstimate(lit);
+
+  Handle<UncompiledData> data;
+
+  ProducedPreparseData* scope_data = lit->produced_preparse_data();
+  if (scope_data != nullptr) {
+    Handle<PreparseData> preparse_data =
+        scope_data->Serialize(shared_info->GetIsolate());
+
+    data = isolate->factory()->NewUncompiledDataWithPreparseData(
+        lit->inferred_name(), lit->start_position(), lit->end_position(),
+        preparse_data);
   } else {
-    shared_info->set_is_safe_to_skip_arguments_adaptor(false);
-    ProducedPreparseData* scope_data = lit->produced_preparse_data();
-    if (scope_data != nullptr) {
-      Handle<PreparseData> preparse_data =
-          scope_data->Serialize(shared_info->GetIsolate());
-      Handle<UncompiledData> data =
-          isolate->factory()->NewUncompiledDataWithPreparseData(
-              lit->inferred_name(), lit->start_position(), lit->end_position(),
-              preparse_data);
-      shared_info->set_uncompiled_data(*data);
-      needs_position_info = false;
-    }
-    shared_info->UpdateExpectedNofPropertiesFromEstimate(lit);
+    data = isolate->factory()->NewUncompiledDataWithoutPreparseData(
+        lit->inferred_name(), lit->start_position(), lit->end_position());
   }
-  if (needs_position_info) {
-    Handle<UncompiledData> data =
-        isolate->factory()->NewUncompiledDataWithoutPreparseData(
-            lit->inferred_name(), lit->start_position(), lit->end_position());
-    shared_info->set_uncompiled_data(*data);
-  }
+
+  shared_info->set_uncompiled_data(*data);
 }
 
 uint16_t SharedFunctionInfo::get_property_estimate_from_literal(

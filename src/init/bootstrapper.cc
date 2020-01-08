@@ -612,8 +612,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   empty_function->shared().set_raw_scope_info(
       ReadOnlyRoots(isolate()).empty_function_scope_info());
   empty_function->shared().DontAdaptArguments();
-  SharedFunctionInfo::SetScript(handle(empty_function->shared(), isolate()),
-                                script, 1);
+  empty_function->shared().SetScript(ReadOnlyRoots(isolate()), *script, 1);
 
   return empty_function;
 }
