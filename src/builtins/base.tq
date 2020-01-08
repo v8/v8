@@ -231,6 +231,7 @@ const kBigIntMaxLength: constexpr intptr generates 'BigInt::kMaxLength';
 extern enum MessageTemplate {
   kInvalidArrayBufferLength,
   kInvalidArrayLength,
+  kInvalidIndex,
   kNotConstructor,
   kCalledNonCallable,
   kCalledOnNullOrUndefined,
@@ -465,6 +466,7 @@ extern macro BuildAppendJSArray(
 extern macro EnsureArrayPushable(implicit context: Context)(Map): ElementsKind
     labels Bailout;
 // TODO: Reduce duplication once varargs are supported in macros.
+extern macro Construct(implicit context: Context)(Constructor): JSReceiver;
 extern macro Construct(implicit context: Context)(
     Constructor, JSAny): JSReceiver;
 extern macro Construct(implicit context: Context)(
@@ -950,6 +952,10 @@ macro AllowNonNumberElements(kind: ElementsKind): ElementsKind {
 macro GetObjectFunction(implicit context: Context)(): JSFunction {
   return UnsafeCast<JSFunction>(
       LoadNativeContext(context)[NativeContextSlot::OBJECT_FUNCTION_INDEX]);
+}
+macro GetArrayFunction(implicit context: Context)(): JSFunction {
+  return UnsafeCast<JSFunction>(
+      LoadNativeContext(context)[NativeContextSlot::ARRAY_FUNCTION_INDEX]);
 }
 macro GetArrayBufferFunction(implicit context: Context)(): Constructor {
   return UnsafeCast<Constructor>(

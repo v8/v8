@@ -15,10 +15,15 @@ namespace iterator {
     next: JSAny;
   }
 
+  extern macro IteratorBuiltinsAssembler::FastIterableToList(
+      implicit context: Context)(JSAny): JSArray labels Slow;
+
   extern macro IteratorBuiltinsAssembler::GetIteratorMethod(
       implicit context: Context)(JSAny): JSAny;
   extern macro IteratorBuiltinsAssembler::GetIterator(
       implicit context: Context)(JSAny): IteratorRecord;
+  extern macro IteratorBuiltinsAssembler::GetIterator(
+      implicit context: Context)(JSAny, JSAny): IteratorRecord;
 
   extern macro IteratorBuiltinsAssembler::IteratorStep(
       implicit context: Context)(IteratorRecord): JSReceiver

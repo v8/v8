@@ -368,7 +368,7 @@ TF_BUILTIN(IterableToListMayPreserveHoles, IteratorBuiltinsAssembler) {
 
 void IteratorBuiltinsAssembler::FastIterableToList(
     TNode<Context> context, TNode<Object> iterable,
-    TVariable<Object>* var_result, Label* slow) {
+    TVariable<JSArray>* var_result, Label* slow) {
   Label done(this), check_string(this), check_map(this), check_set(this);
 
   GotoIfNot(
@@ -377,8 +377,8 @@ void IteratorBuiltinsAssembler::FastIterableToList(
       &check_string);
 
   // Fast path for fast JSArray.
-  *var_result =
-      CallBuiltin(Builtins::kCloneFastJSArrayFillingHoles, context, iterable);
+  *var_result = CAST(
+      CallBuiltin(Builtins::kCloneFastJSArrayFillingHoles, context, iterable));
   Goto(&done);
 
   BIND(&check_string);
@@ -394,7 +394,7 @@ void IteratorBuiltinsAssembler::FastIterableToList(
     GotoIf(
         IntPtrGreaterThan(length, IntPtrConstant(JSArray::kMaxFastArrayLength)),
         slow);
-    *var_result = CallBuiltin(Builtins::kStringToList, context, iterable);
+    *var_result = CAST(CallBuiltin(Builtins::kStringToList, context, iterable));
     Goto(&done);
   }
 
@@ -405,7 +405,8 @@ void IteratorBuiltinsAssembler::FastIterableToList(
         state(), iterable, context, &map_fast_call, &check_set);
 
     BIND(&map_fast_call);
-    *var_result = CallBuiltin(Builtins::kMapIteratorToList, context, iterable);
+    *var_result =
+        CAST(CallBuiltin(Builtins::kMapIteratorToList, context, iterable));
     Goto(&done);
   }
 
@@ -417,11 +418,18 @@ void IteratorBuiltinsAssembler::FastIterableToList(
 
     BIND(&set_fast_call);
     *var_result =
-        CallBuiltin(Builtins::kSetOrSetIteratorToList, context, iterable);
+        CAST(CallBuiltin(Builtins::kSetOrSetIteratorToList, context, iterable));
     Goto(&done);
   }
 
   BIND(&done);
+}
+
+TNode<JSArray> IteratorBuiltinsAssembler::FastIterableToList(
+    TNode<Context> context, TNode<Object> iterable, Label* slow) {
+  TVARIABLE(JSArray, var_fast_result);
+  FastIterableToList(context, iterable, &var_fast_result, slow);
+  return var_fast_result.value();
 }
 
 // This builtin loads the property Symbol.iterator as the iterator, and has fast
@@ -443,7 +451,7 @@ TF_BUILTIN(IterableToListWithSymbolLookup, IteratorBuiltinsAssembler) {
 
   GotoIfForceSlowPath(&slow_path);
 
-  TVARIABLE(Object, var_result);
+  TVARIABLE(JSArray, var_result);
   FastIterableToList(context, iterable, &var_result, &slow_path);
   Return(var_result.value());
 

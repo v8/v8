@@ -304,8 +304,6 @@ namespace internal {
   CPP(ArrayConcat)                                                             \
   /* ES6 #sec-array.prototype.fill */                                          \
   CPP(ArrayPrototypeFill)                                                      \
-  /* ES6 #sec-array.from */                                                    \
-  TFJ(ArrayFrom, SharedFunctionInfo::kDontAdaptArgumentsSentinel)              \
   /* ES7 #sec-array.prototype.includes */                                      \
   TFS(ArrayIncludesSmiOrObject, kElements, kSearchElement, kLength,            \
       kFromIndex)                                                              \
