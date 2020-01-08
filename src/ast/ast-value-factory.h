@@ -312,7 +312,6 @@ class AstValueFactory {
   V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str);
   V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str1,
                                                  const AstRawString* str2);
-  V8_EXPORT_PRIVATE const AstRawString* Flatten(const AstConsString* str);
 
   V8_EXPORT_PRIVATE void Internalize(Isolate* isolate);
 
