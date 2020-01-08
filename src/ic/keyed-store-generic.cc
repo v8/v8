@@ -769,7 +769,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       readonly(this);
   TNode<Uint32T> bitfield3 = LoadMapBitField3(receiver_map);
   TNode<Name> name = CAST(p->name());
-  Branch(IsSetWord32<Map::IsDictionaryMapBit>(bitfield3),
+  Branch(IsSetWord32<Map::Bits3::IsDictionaryMapBit>(bitfield3),
          &dictionary_properties, &fast_properties);
 
   BIND(&fast_properties);
@@ -876,7 +876,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       Label extensible(this), is_private_symbol(this);
       TNode<Uint32T> bitfield3 = LoadMapBitField3(receiver_map);
       GotoIf(IsPrivateSymbol(name), &is_private_symbol);
-      Branch(IsSetWord32<Map::IsExtensibleBit>(bitfield3), &extensible, slow);
+      Branch(IsSetWord32<Map::Bits3::IsExtensibleBit>(bitfield3), &extensible,
+             slow);
 
       BIND(&is_private_symbol);
       {

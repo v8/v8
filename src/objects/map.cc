@@ -1427,14 +1427,14 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> map, int instance_size,
   result->set_bit_field(map->bit_field());
   result->set_bit_field2(map->bit_field2());
   int new_bit_field3 = map->bit_field3();
-  new_bit_field3 = OwnsDescriptorsBit::update(new_bit_field3, true);
-  new_bit_field3 = NumberOfOwnDescriptorsBits::update(new_bit_field3, 0);
+  new_bit_field3 = Bits3::OwnsDescriptorsBit::update(new_bit_field3, true);
+  new_bit_field3 = Bits3::NumberOfOwnDescriptorsBits::update(new_bit_field3, 0);
   new_bit_field3 =
-      EnumLengthBits::update(new_bit_field3, kInvalidEnumCacheSentinel);
-  new_bit_field3 = IsDeprecatedBit::update(new_bit_field3, false);
-  new_bit_field3 = IsInRetainedMapListBit::update(new_bit_field3, false);
+      Bits3::EnumLengthBits::update(new_bit_field3, kInvalidEnumCacheSentinel);
+  new_bit_field3 = Bits3::IsDeprecatedBit::update(new_bit_field3, false);
+  new_bit_field3 = Bits3::IsInRetainedMapListBit::update(new_bit_field3, false);
   if (!map->is_dictionary_map()) {
-    new_bit_field3 = IsUnstableBit::update(new_bit_field3, false);
+    new_bit_field3 = Bits3::IsUnstableBit::update(new_bit_field3, false);
   }
   result->set_bit_field3(new_bit_field3);
   result->clear_padding();
@@ -1478,7 +1478,8 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
       // The IsMigrationTargetBit might be different if the {new_map} from
       // {cache} has already been marked as a migration target.
       constexpr int ignored_bit_field3_bits =
-          IsInRetainedMapListBit::kMask | IsMigrationTargetBit::kMask;
+          Bits3::IsInRetainedMapListBit::kMask |
+          Bits3::IsMigrationTargetBit::kMask;
       DCHECK_EQ(fresh->bit_field3() & ~ignored_bit_field3_bits,
                 new_map->bit_field3() & ~ignored_bit_field3_bits);
       int offset = Map::kBitField3Offset + kInt32Size;
@@ -2483,9 +2484,10 @@ bool Map::EquivalentToForNormalization(const Map other,
   int properties =
       mode == CLEAR_INOBJECT_PROPERTIES ? 0 : other.GetInObjectProperties();
   // Make sure the elements_kind bits are in bit_field2.
-  DCHECK_EQ(this->elements_kind(), Map::ElementsKindBits::decode(bit_field2()));
+  DCHECK_EQ(this->elements_kind(),
+            Map::Bits2::ElementsKindBits::decode(bit_field2()));
   int adjusted_other_bit_field2 =
-      Map::ElementsKindBits::update(other.bit_field2(), elements_kind);
+      Map::Bits2::ElementsKindBits::update(other.bit_field2(), elements_kind);
   return CheckEquivalent(*this, other) &&
          bit_field2() == adjusted_other_bit_field2 &&
          GetInObjectProperties() == properties &&

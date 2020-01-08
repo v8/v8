@@ -511,9 +511,9 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
     TNode<Map> receiver_map = LoadMap(receiver);
     Label receiver_needs_access_check(this, Label::kDeferred),
         receiver_done(this);
-    GotoIfNot(
-        IsSetWord32<Map::IsAccessCheckNeededBit>(LoadMapBitField(receiver_map)),
-        &receiver_done);
+    GotoIfNot(IsSetWord32<Map::Bits1::IsAccessCheckNeededBit>(
+                  LoadMapBitField(receiver_map)),
+              &receiver_done);
     TNode<IntPtrT> function_template_info_flags = LoadAndUntagObjectField(
         function_template_info, FunctionTemplateInfo::kFlagOffset);
     Branch(IsSetWord(function_template_info_flags,

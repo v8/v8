@@ -241,6 +241,8 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       out_ << "ca_.UintPtrConstant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetInt32Type())) {
       out_ << "ca_.Int32Constant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetUint32Type())) {
+      out_ << "ca_.Uint32Constant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetBoolType())) {
       out_ << "ca_.BoolConstant";
     } else {

@@ -8,6 +8,7 @@
 #include "src/base/bit-field.h"
 #include "src/objects/objects.h"
 #include "src/objects/primitive-heap-object.h"
+#include "torque-generated/bit-fields-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -138,7 +139,8 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
 };
 
 // ES6 symbols.
-class Symbol : public TorqueGeneratedSymbol<Symbol, Name> {
+class Symbol : public TorqueGeneratedSymbol<Symbol, Name>,
+               public TorqueGeneratedSymbolFlagsFields {
  public:
   // [is_private]: Whether this is a private symbol.  Private symbols can only
   // be used to designate own properties of objects.
@@ -179,18 +181,6 @@ class Symbol : public TorqueGeneratedSymbol<Symbol, Name> {
   // Dispatched behavior.
   DECL_PRINTER(Symbol)
   DECL_VERIFIER(Symbol)
-
-// Flags layout.
-#define FLAGS_BIT_FIELDS(V, _)            \
-  V(IsPrivateBit, bool, 1, _)             \
-  V(IsWellKnownSymbolBit, bool, 1, _)     \
-  V(IsInPublicSymbolTableBit, bool, 1, _) \
-  V(IsInterestingSymbolBit, bool, 1, _)   \
-  V(IsPrivateNameBit, bool, 1, _)         \
-  V(IsPrivateBrandBit, bool, 1, _)
-
-  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
-#undef FLAGS_BIT_FIELDS
 
   using BodyDescriptor = FixedBodyDescriptor<kDescriptionOffset, kSize, kSize>;
 

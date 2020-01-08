@@ -1538,7 +1538,7 @@ void MacroAssembler::AssertConstructor(Register object) {
 
     LoadMap(temp, object);
     Ldrb(temp, FieldMemOperand(temp, Map::kBitFieldOffset));
-    Tst(temp, Operand(Map::IsConstructorBit::kMask));
+    Tst(temp, Operand(Map::Bits1::IsConstructorBit::kMask));
 
     Check(ne, AbortReason::kOperandIsNotAConstructor);
   }
@@ -2570,7 +2570,7 @@ void MacroAssembler::LoadElementsKindFromMap(Register result, Register map) {
   // Load the map's "bit field 2".
   Ldrb(result, FieldMemOperand(map, Map::kBitField2Offset));
   // Retrieve elements_kind from bit field 2.
-  DecodeField<Map::ElementsKindBits>(result);
+  DecodeField<Map::Bits2::ElementsKindBits>(result);
 }
 
 void MacroAssembler::CompareRoot(const Register& obj, RootIndex index) {

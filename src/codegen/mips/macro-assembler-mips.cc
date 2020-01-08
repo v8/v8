@@ -4986,7 +4986,7 @@ void MacroAssembler::AssertConstructor(Register object) {
 
     LoadMap(t8, object);
     lbu(t8, FieldMemOperand(t8, Map::kBitFieldOffset));
-    And(t8, t8, Operand(Map::IsConstructorBit::kMask));
+    And(t8, t8, Operand(Map::Bits1::IsConstructorBit::kMask));
     Check(ne, AbortReason::kOperandIsNotAConstructor, t8, Operand(zero_reg));
   }
 }

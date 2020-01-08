@@ -2065,11 +2065,11 @@ IGNITION_HANDLER(TestTypeOf, InterpreterAssembler) {
     GotoIf(TaggedIsSmi(object), &if_false);
     // Check if callable bit is set and not undetectable.
     TNode<Int32T> map_bitfield = LoadMapBitField(LoadMap(CAST(object)));
-    TNode<Int32T> callable_undetectable =
-        Word32And(map_bitfield, Int32Constant(Map::IsUndetectableBit::kMask |
-                                              Map::IsCallableBit::kMask));
+    TNode<Int32T> callable_undetectable = Word32And(
+        map_bitfield, Int32Constant(Map::Bits1::IsUndetectableBit::kMask |
+                                    Map::Bits1::IsCallableBit::kMask));
     Branch(Word32Equal(callable_undetectable,
-                       Int32Constant(Map::IsCallableBit::kMask)),
+                       Int32Constant(Map::Bits1::IsCallableBit::kMask)),
            &if_true, &if_false);
   }
   BIND(&if_object);
@@ -2084,9 +2084,9 @@ IGNITION_HANDLER(TestTypeOf, InterpreterAssembler) {
     TNode<Map> map = LoadMap(CAST(object));
     GotoIfNot(IsJSReceiverMap(map), &if_false);
     TNode<Int32T> map_bitfield = LoadMapBitField(map);
-    TNode<Int32T> callable_undetectable =
-        Word32And(map_bitfield, Int32Constant(Map::IsUndetectableBit::kMask |
-                                              Map::IsCallableBit::kMask));
+    TNode<Int32T> callable_undetectable = Word32And(
+        map_bitfield, Int32Constant(Map::Bits1::IsUndetectableBit::kMask |
+                                    Map::Bits1::IsCallableBit::kMask));
     Branch(Word32Equal(callable_undetectable, Int32Constant(0)), &if_true,
            &if_false);
   }

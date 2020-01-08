@@ -1521,7 +1521,7 @@ void EffectControlLinearizer::TruncateTaggedPointerToBit(
   __ GotoIfNot(
       __ Word32Equal(
           __ Word32And(value_map_bitfield,
-                       __ Int32Constant(Map::IsUndetectableBit::kMask)),
+                       __ Int32Constant(Map::Bits1::IsUndetectableBit::kMask)),
           zero),
       done, zero);
 
@@ -1737,7 +1737,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
           __ LoadField(AccessBuilder::ForMapBitField3(), value_map);
       Node* if_not_deprecated = __ Word32Equal(
           __ Word32And(bitfield3,
-                       __ Int32Constant(Map::IsDeprecatedBit::kMask)),
+                       __ Int32Constant(Map::Bits3::IsDeprecatedBit::kMask)),
           __ Int32Constant(0));
       __ DeoptimizeIf(DeoptimizeReason::kWrongMap, p.feedback(),
                       if_not_deprecated, frame_state,
@@ -2961,10 +2961,10 @@ Node* EffectControlLinearizer::LowerObjectIsCallable(Node* node) {
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_bit_field =
       __ LoadField(AccessBuilder::ForMapBitField(), value_map);
-  Node* vfalse =
-      __ Word32Equal(__ Int32Constant(Map::IsCallableBit::kMask),
-                     __ Word32And(value_bit_field,
-                                  __ Int32Constant(Map::IsCallableBit::kMask)));
+  Node* vfalse = __ Word32Equal(
+      __ Int32Constant(Map::Bits1::IsCallableBit::kMask),
+      __ Word32And(value_bit_field,
+                   __ Int32Constant(Map::Bits1::IsCallableBit::kMask)));
   __ Goto(&done, vfalse);
 
   __ Bind(&if_smi);
@@ -2987,9 +2987,9 @@ Node* EffectControlLinearizer::LowerObjectIsConstructor(Node* node) {
   Node* value_bit_field =
       __ LoadField(AccessBuilder::ForMapBitField(), value_map);
   Node* vfalse = __ Word32Equal(
-      __ Int32Constant(Map::IsConstructorBit::kMask),
+      __ Int32Constant(Map::Bits1::IsConstructorBit::kMask),
       __ Word32And(value_bit_field,
-                   __ Int32Constant(Map::IsConstructorBit::kMask)));
+                   __ Int32Constant(Map::Bits1::IsConstructorBit::kMask)));
   __ Goto(&done, vfalse);
 
   __ Bind(&if_smi);
@@ -3012,10 +3012,10 @@ Node* EffectControlLinearizer::LowerObjectIsDetectableCallable(Node* node) {
   Node* value_bit_field =
       __ LoadField(AccessBuilder::ForMapBitField(), value_map);
   Node* vfalse = __ Word32Equal(
-      __ Int32Constant(Map::IsCallableBit::kMask),
+      __ Int32Constant(Map::Bits1::IsCallableBit::kMask),
       __ Word32And(value_bit_field,
-                   __ Int32Constant((Map::IsCallableBit::kMask) |
-                                    (Map::IsUndetectableBit::kMask))));
+                   __ Int32Constant((Map::Bits1::IsCallableBit::kMask) |
+                                    (Map::Bits1::IsUndetectableBit::kMask))));
   __ Goto(&done, vfalse);
 
   __ Bind(&if_smi);
@@ -3259,10 +3259,10 @@ Node* EffectControlLinearizer::LowerObjectIsNonCallable(Node* node) {
 
   Node* value_bit_field =
       __ LoadField(AccessBuilder::ForMapBitField(), value_map);
-  Node* check2 =
-      __ Word32Equal(__ Int32Constant(0),
-                     __ Word32And(value_bit_field,
-                                  __ Int32Constant(Map::IsCallableBit::kMask)));
+  Node* check2 = __ Word32Equal(
+      __ Int32Constant(0),
+      __ Word32And(value_bit_field,
+                   __ Int32Constant(Map::Bits1::IsCallableBit::kMask)));
   __ Goto(&done, check2);
 
   __ Bind(&if_primitive);
@@ -3377,7 +3377,7 @@ Node* EffectControlLinearizer::LowerObjectIsUndetectable(Node* node) {
       __ Word32Equal(
           __ Int32Constant(0),
           __ Word32And(value_bit_field,
-                       __ Int32Constant(Map::IsUndetectableBit::kMask))),
+                       __ Int32Constant(Map::Bits1::IsUndetectableBit::kMask))),
       __ Int32Constant(0));
   __ Goto(&done, vfalse);
 
@@ -5124,9 +5124,9 @@ void EffectControlLinearizer::LowerTransitionAndStoreElement(Node* node) {
   Node* kind;
   {
     Node* bit_field2 = __ LoadField(AccessBuilder::ForMapBitField2(), map);
-    Node* mask = __ Int32Constant(Map::ElementsKindBits::kMask);
+    Node* mask = __ Int32Constant(Map::Bits2::ElementsKindBits::kMask);
     Node* andit = __ Word32And(bit_field2, mask);
-    Node* shift = __ Int32Constant(Map::ElementsKindBits::kShift);
+    Node* shift = __ Int32Constant(Map::Bits2::ElementsKindBits::kShift);
     kind = __ Word32Shr(andit, shift);
   }
 
@@ -5242,9 +5242,9 @@ void EffectControlLinearizer::LowerTransitionAndStoreNumberElement(Node* node) {
   Node* kind;
   {
     Node* bit_field2 = __ LoadField(AccessBuilder::ForMapBitField2(), map);
-    Node* mask = __ Int32Constant(Map::ElementsKindBits::kMask);
+    Node* mask = __ Int32Constant(Map::Bits2::ElementsKindBits::kMask);
     Node* andit = __ Word32And(bit_field2, mask);
-    Node* shift = __ Int32Constant(Map::ElementsKindBits::kShift);
+    Node* shift = __ Int32Constant(Map::Bits2::ElementsKindBits::kShift);
     kind = __ Word32Shr(andit, shift);
   }
 
@@ -5305,9 +5305,9 @@ void EffectControlLinearizer::LowerTransitionAndStoreNonNumberElement(
   Node* kind;
   {
     Node* bit_field2 = __ LoadField(AccessBuilder::ForMapBitField2(), map);
-    Node* mask = __ Int32Constant(Map::ElementsKindBits::kMask);
+    Node* mask = __ Int32Constant(Map::Bits2::ElementsKindBits::kMask);
     Node* andit = __ Word32And(bit_field2, mask);
-    Node* shift = __ Int32Constant(Map::ElementsKindBits::kShift);
+    Node* shift = __ Int32Constant(Map::Bits2::ElementsKindBits::kShift);
     kind = __ Word32Shr(andit, shift);
   }
 
@@ -5372,9 +5372,9 @@ void EffectControlLinearizer::LowerStoreSignedSmallElement(Node* node) {
   Node* kind;
   {
     Node* bit_field2 = __ LoadField(AccessBuilder::ForMapBitField2(), map);
-    Node* mask = __ Int32Constant(Map::ElementsKindBits::kMask);
+    Node* mask = __ Int32Constant(Map::Bits2::ElementsKindBits::kMask);
     Node* andit = __ Word32And(bit_field2, mask);
-    Node* shift = __ Int32Constant(Map::ElementsKindBits::kShift);
+    Node* shift = __ Int32Constant(Map::Bits2::ElementsKindBits::kShift);
     kind = __ Word32Shr(andit, shift);
   }
 

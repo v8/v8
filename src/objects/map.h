@@ -11,6 +11,7 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/objects.h"
+#include "torque-generated/bit-fields-tq.h"
 #include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -250,34 +251,16 @@ class Map : public HeapObject {
   // Atomic accessors, used for whitelisting legitimate concurrent accesses.
   DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field, byte)
 
-// Bit positions for |bit_field|.
-#define MAP_BIT_FIELD_FIELDS(V, _)          \
-  V(HasNonInstancePrototypeBit, bool, 1, _) \
-  V(IsCallableBit, bool, 1, _)              \
-  V(HasNamedInterceptorBit, bool, 1, _)     \
-  V(HasIndexedInterceptorBit, bool, 1, _)   \
-  V(IsUndetectableBit, bool, 1, _)          \
-  V(IsAccessCheckNeededBit, bool, 1, _)     \
-  V(IsConstructorBit, bool, 1, _)           \
-  V(HasPrototypeSlotBit, bool, 1, _)
-
-  DEFINE_BIT_FIELDS(MAP_BIT_FIELD_FIELDS)
-#undef MAP_BIT_FIELD_FIELDS
+  // Bit positions for |bit_field|.
+  using Bits1 = TorqueGeneratedMapBitFields1Fields;
 
   //
   // Bit field 2.
   //
   DECL_PRIMITIVE_ACCESSORS(bit_field2, byte)
 
-// Bit positions for |bit_field2|.
-#define MAP_BIT_FIELD2_FIELDS(V, _)      \
-  V(NewTargetIsBaseBit, bool, 1, _)      \
-  V(IsImmutablePrototypeBit, bool, 1, _) \
-  V(UnusedBit, bool, 1, _)               \
-  V(ElementsKindBits, ElementsKind, 5, _)
-
-  DEFINE_BIT_FIELDS(MAP_BIT_FIELD2_FIELDS)
-#undef MAP_BIT_FIELD2_FIELDS
+  // Bit positions for |bit_field2|.
+  using Bits2 = TorqueGeneratedMapBitFields2Fields;
 
   //
   // Bit field 3.
@@ -288,30 +271,22 @@ class Map : public HeapObject {
   // is deterministic. Depending on the V8 build mode there could be no padding.
   V8_INLINE void clear_padding();
 
-// Bit positions for |bit_field3|.
-#define MAP_BIT_FIELD3_FIELDS(V, _)                               \
-  V(EnumLengthBits, int, kDescriptorIndexBitCount, _)             \
-  V(NumberOfOwnDescriptorsBits, int, kDescriptorIndexBitCount, _) \
-  V(IsPrototypeMapBit, bool, 1, _)                                \
-  V(IsDictionaryMapBit, bool, 1, _)                               \
-  V(OwnsDescriptorsBit, bool, 1, _)                               \
-  V(IsInRetainedMapListBit, bool, 1, _)                           \
-  V(IsDeprecatedBit, bool, 1, _)                                  \
-  V(IsUnstableBit, bool, 1, _)                                    \
-  V(IsMigrationTargetBit, bool, 1, _)                             \
-  V(IsExtensibleBit, bool, 1, _)                                  \
-  V(MayHaveInterestingSymbolsBit, bool, 1, _)                     \
-  V(ConstructionCounterBits, int, 3, _)
+  // Bit positions for |bit_field3|.
+  using Bits3 = TorqueGeneratedMapBitFields3Fields;
 
-  DEFINE_BIT_FIELDS(MAP_BIT_FIELD3_FIELDS)
-#undef MAP_BIT_FIELD3_FIELDS
+  // Ensure that Torque-defined bit widths for |bit_field3| are as expected.
+  STATIC_ASSERT(Bits3::EnumLengthBits::kSize == kDescriptorIndexBitCount);
+  STATIC_ASSERT(Bits3::NumberOfOwnDescriptorsBits::kSize ==
+                kDescriptorIndexBitCount);
 
-  STATIC_ASSERT(NumberOfOwnDescriptorsBits::kMax >= kMaxNumberOfDescriptors);
+  STATIC_ASSERT(Bits3::NumberOfOwnDescriptorsBits::kMax >=
+                kMaxNumberOfDescriptors);
 
   static const int kSlackTrackingCounterStart = 7;
   static const int kSlackTrackingCounterEnd = 1;
   static const int kNoSlackTracking = 0;
-  STATIC_ASSERT(kSlackTrackingCounterStart <= ConstructionCounterBits::kMax);
+  STATIC_ASSERT(kSlackTrackingCounterStart <=
+                Bits3::ConstructionCounterBits::kMax);
 
   // Inobject slack tracking is the way to reclaim unused inobject space.
   //

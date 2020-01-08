@@ -230,7 +230,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
   Label if_has_enum_cache(this), if_not_has_enum_cache(this),
       collect_entries(this);
   TNode<IntPtrT> object_enum_length =
-      Signed(DecodeWordFromWord32<Map::EnumLengthBits>(bit_field3));
+      Signed(DecodeWordFromWord32<Map::Bits3::EnumLengthBits>(bit_field3));
   TNode<BoolT> has_enum_cache = WordNotEqual(
       object_enum_length, IntPtrConstant(kInvalidEnumCacheSentinel));
 
@@ -480,7 +480,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   TNode<Map> object_map = LoadMap(CAST(object));
   TNode<Uint32T> object_bit_field3 = LoadMapBitField3(object_map);
   TNode<UintPtrT> object_enum_length =
-      DecodeWordFromWord32<Map::EnumLengthBits>(object_bit_field3);
+      DecodeWordFromWord32<Map::Bits3::EnumLengthBits>(object_bit_field3);
   GotoIf(
       WordEqual(object_enum_length, IntPtrConstant(kInvalidEnumCacheSentinel)),
       &if_slow);
@@ -577,14 +577,15 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   BIND(&if_empty_elements);
   TNode<Uint32T> object_bit_field3 = LoadMapBitField3(object_map);
   TNode<UintPtrT> object_enum_length =
-      DecodeWordFromWord32<Map::EnumLengthBits>(object_bit_field3);
+      DecodeWordFromWord32<Map::Bits3::EnumLengthBits>(object_bit_field3);
   GotoIf(
       WordEqual(object_enum_length, IntPtrConstant(kInvalidEnumCacheSentinel)),
       &try_fast);
 
   // Check whether all own properties are enumerable.
   TNode<UintPtrT> number_descriptors =
-      DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(object_bit_field3);
+      DecodeWordFromWord32<Map::Bits3::NumberOfOwnDescriptorsBits>(
+          object_bit_field3);
   GotoIfNot(WordEqual(object_enum_length, number_descriptors), &if_slow);
 
   // Check whether there are enumerable properties.
@@ -1029,7 +1030,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
       GotoIf(IsNull(holder), &return_default);
       TNode<Map> holder_map = LoadMap(holder);
       TNode<Uint32T> holder_bit_field3 = LoadMapBitField3(holder_map);
-      GotoIf(IsSetWord32<Map::MayHaveInterestingSymbolsBit>(holder_bit_field3),
+      GotoIf(IsSetWord32<Map::Bits3::MayHaveInterestingSymbolsBit>(
+                 holder_bit_field3),
              &return_generic);
       var_holder = LoadMapPrototype(holder_map);
       Goto(&loop);
@@ -1093,8 +1095,9 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
         &call_runtime);
     // Handle dictionary objects or fast objects with properties in runtime.
     TNode<Uint32T> bit_field3 = LoadMapBitField3(properties_map);
-    GotoIf(IsSetWord32<Map::IsDictionaryMapBit>(bit_field3), &call_runtime);
-    Branch(IsSetWord32<Map::NumberOfOwnDescriptorsBits>(bit_field3),
+    GotoIf(IsSetWord32<Map::Bits3::IsDictionaryMapBit>(bit_field3),
+           &call_runtime);
+    Branch(IsSetWord32<Map::Bits3::NumberOfOwnDescriptorsBits>(bit_field3),
            &call_runtime, &no_properties);
   }
 

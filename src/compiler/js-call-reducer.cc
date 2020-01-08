@@ -4397,9 +4397,10 @@ Node* JSCallReducer::LoadReceiverElementsKind(Node* receiver, Node** effect,
       *effect, *control);
   Node* receiver_elements_kind = graph()->NewNode(
       simplified()->NumberShiftRightLogical(),
-      graph()->NewNode(simplified()->NumberBitwiseAnd(), receiver_bit_field2,
-                       jsgraph()->Constant(Map::ElementsKindBits::kMask)),
-      jsgraph()->Constant(Map::ElementsKindBits::kShift));
+      graph()->NewNode(
+          simplified()->NumberBitwiseAnd(), receiver_bit_field2,
+          jsgraph()->Constant(Map::Bits2::ElementsKindBits::kMask)),
+      jsgraph()->Constant(Map::Bits2::ElementsKindBits::kShift));
   return receiver_elements_kind;
 }
 
@@ -6218,9 +6219,10 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
       effect, control);
   Node* receiver_elements_kind = graph()->NewNode(
       simplified()->NumberShiftRightLogical(),
-      graph()->NewNode(simplified()->NumberBitwiseAnd(), receiver_bit_field2,
-                       jsgraph()->Constant(Map::ElementsKindBits::kMask)),
-      jsgraph()->Constant(Map::ElementsKindBits::kShift));
+      graph()->NewNode(
+          simplified()->NumberBitwiseAnd(), receiver_bit_field2,
+          jsgraph()->Constant(Map::Bits2::ElementsKindBits::kMask)),
+      jsgraph()->Constant(Map::Bits2::ElementsKindBits::kShift));
 
   // Offset the elements kind by FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
   // so that the branch cascade below is turned into a simple table

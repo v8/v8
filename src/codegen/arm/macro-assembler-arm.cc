@@ -2022,7 +2022,7 @@ void MacroAssembler::AssertConstructor(Register object) {
     push(object);
     LoadMap(object, object);
     ldrb(object, FieldMemOperand(object, Map::kBitFieldOffset));
-    tst(object, Operand(Map::IsConstructorBit::kMask));
+    tst(object, Operand(Map::Bits1::IsConstructorBit::kMask));
     pop(object);
     Check(ne, AbortReason::kOperandIsNotAConstructor);
   }

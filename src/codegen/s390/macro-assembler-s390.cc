@@ -1684,7 +1684,7 @@ void MacroAssembler::AssertConstructor(Register object, Register scratch) {
     Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor);
     LoadMap(scratch, object);
     tm(FieldMemOperand(scratch, Map::kBitFieldOffset),
-       Operand(Map::IsConstructorBit::kMask));
+       Operand(Map::Bits1::IsConstructorBit::kMask));
     Check(ne, AbortReason::kOperandIsNotAConstructor);
   }
 }

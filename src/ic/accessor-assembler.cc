@@ -1173,12 +1173,12 @@ void AccessorAssembler::HandleStoreICTransitionMapHandlerCase(
   }
 
   TNode<Uint32T> bitfield3 = LoadMapBitField3(transition_map);
-  CSA_ASSERT(this, IsClearWord32<Map::IsDictionaryMapBit>(bitfield3));
-  GotoIf(IsSetWord32<Map::IsDeprecatedBit>(bitfield3), miss);
+  CSA_ASSERT(this, IsClearWord32<Map::Bits3::IsDictionaryMapBit>(bitfield3));
+  GotoIf(IsSetWord32<Map::Bits3::IsDeprecatedBit>(bitfield3), miss);
 
   // Load last descriptor details.
   TNode<UintPtrT> nof =
-      DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(bitfield3);
+      DecodeWordFromWord32<Map::Bits3::NumberOfOwnDescriptorsBits>(bitfield3);
   CSA_ASSERT(this, WordNotEqual(nof, IntPtrConstant(0)));
   TNode<DescriptorArray> descriptors = LoadMapDescriptors(transition_map);
 
@@ -2277,8 +2277,8 @@ void AccessorAssembler::InvalidateValidityCellIfPrototype(
     bitfield3 = LoadMapBitField3(map);
   }
 
-  Branch(IsSetWord32(bitfield3, Map::IsPrototypeMapBit::kMask), &is_prototype,
-         &cont);
+  Branch(IsSetWord32(bitfield3, Map::Bits3::IsPrototypeMapBit::kMask),
+         &is_prototype, &cont);
 
   BIND(&is_prototype);
   {
@@ -2384,7 +2384,7 @@ void AccessorAssembler::GenericPropertyLoad(TNode<HeapObject> receiver,
 
   // Check if the receiver has fast or slow properties.
   TNode<Uint32T> bitfield3 = LoadMapBitField3(receiver_map);
-  GotoIf(IsSetWord32<Map::IsDictionaryMapBit>(bitfield3),
+  GotoIf(IsSetWord32<Map::Bits3::IsDictionaryMapBit>(bitfield3),
          &if_property_dictionary);
 
   // Try looking up the property on the receiver; if unsuccessful, look

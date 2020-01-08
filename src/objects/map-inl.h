@@ -59,38 +59,42 @@ ACCESSORS_CHECKED(Map, prototype_info, Object,
 // is setup but it's being read by concurrent marker when pointer compression
 // is enabled. The latter bit can be modified on a live objects.
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_non_instance_prototype,
-                    Map::HasNonInstancePrototypeBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, is_callable, Map::IsCallableBit)
+                    Map::Bits1::HasNonInstancePrototypeBit)
+BIT_FIELD_ACCESSORS(Map, bit_field, is_callable, Map::Bits1::IsCallableBit)
 BIT_FIELD_ACCESSORS(Map, bit_field, has_named_interceptor,
-                    Map::HasNamedInterceptorBit)
+                    Map::Bits1::HasNamedInterceptorBit)
 BIT_FIELD_ACCESSORS(Map, bit_field, has_indexed_interceptor,
-                    Map::HasIndexedInterceptorBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, is_undetectable, Map::IsUndetectableBit)
+                    Map::Bits1::HasIndexedInterceptorBit)
+BIT_FIELD_ACCESSORS(Map, bit_field, is_undetectable,
+                    Map::Bits1::IsUndetectableBit)
 BIT_FIELD_ACCESSORS(Map, bit_field, is_access_check_needed,
-                    Map::IsAccessCheckNeededBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, is_constructor, Map::IsConstructorBit)
+                    Map::Bits1::IsAccessCheckNeededBit)
+BIT_FIELD_ACCESSORS(Map, bit_field, is_constructor,
+                    Map::Bits1::IsConstructorBit)
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_prototype_slot,
-                    Map::HasPrototypeSlotBit)
+                    Map::Bits1::HasPrototypeSlotBit)
 
 // |bit_field2| fields.
 BIT_FIELD_ACCESSORS(Map, bit_field2, new_target_is_base,
-                    Map::NewTargetIsBaseBit)
+                    Map::Bits2::NewTargetIsBaseBit)
 BIT_FIELD_ACCESSORS(Map, bit_field2, is_immutable_proto,
-                    Map::IsImmutablePrototypeBit)
+                    Map::Bits2::IsImmutablePrototypeBit)
 
 // |bit_field3| fields.
-BIT_FIELD_ACCESSORS(Map, bit_field3, owns_descriptors, Map::OwnsDescriptorsBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_deprecated, Map::IsDeprecatedBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, owns_descriptors,
+                    Map::Bits3::OwnsDescriptorsBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, is_deprecated, Map::Bits3::IsDeprecatedBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, is_in_retained_map_list,
-                    Map::IsInRetainedMapListBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_prototype_map, Map::IsPrototypeMapBit)
+                    Map::Bits3::IsInRetainedMapListBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, is_prototype_map,
+                    Map::Bits3::IsPrototypeMapBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, is_migration_target,
-                    Map::IsMigrationTargetBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_extensible, Map::IsExtensibleBit)
+                    Map::Bits3::IsMigrationTargetBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, is_extensible, Map::Bits3::IsExtensibleBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_symbols,
-                    Map::MayHaveInterestingSymbolsBit)
+                    Map::Bits3::MayHaveInterestingSymbolsBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, construction_counter,
-                    Map::ConstructionCounterBits)
+                    Map::Bits3::ConstructionCounterBits)
 
 DEF_GETTER(Map, GetNamedInterceptor, InterceptorInfo) {
   DCHECK(has_named_interceptor());
@@ -184,21 +188,24 @@ InternalIndex Map::LastAdded() const {
 }
 
 int Map::NumberOfOwnDescriptors() const {
-  return NumberOfOwnDescriptorsBits::decode(bit_field3());
+  return Bits3::NumberOfOwnDescriptorsBits::decode(bit_field3());
 }
 
 void Map::SetNumberOfOwnDescriptors(int number) {
   DCHECK_LE(number, instance_descriptors().number_of_descriptors());
   CHECK_LE(static_cast<unsigned>(number),
            static_cast<unsigned>(kMaxNumberOfDescriptors));
-  set_bit_field3(NumberOfOwnDescriptorsBits::update(bit_field3(), number));
+  set_bit_field3(
+      Bits3::NumberOfOwnDescriptorsBits::update(bit_field3(), number));
 }
 
 InternalIndex::Range Map::IterateOwnDescriptors() const {
   return InternalIndex::Range(NumberOfOwnDescriptors());
 }
 
-int Map::EnumLength() const { return EnumLengthBits::decode(bit_field3()); }
+int Map::EnumLength() const {
+  return Bits3::EnumLengthBits::decode(bit_field3());
+}
 
 void Map::SetEnumLength(int length) {
   if (length != kInvalidEnumCacheSentinel) {
@@ -206,7 +213,7 @@ void Map::SetEnumLength(int length) {
     CHECK_LE(static_cast<unsigned>(length),
              static_cast<unsigned>(kMaxNumberOfDescriptors));
   }
-  set_bit_field3(EnumLengthBits::update(bit_field3(), length));
+  set_bit_field3(Bits3::EnumLengthBits::update(bit_field3(), length));
 }
 
 FixedArrayBase Map::GetInitialElements() const {
@@ -465,11 +472,12 @@ bool Map::should_be_fast_prototype_map() const {
 
 void Map::set_elements_kind(ElementsKind elements_kind) {
   CHECK_LT(static_cast<int>(elements_kind), kElementsKindCount);
-  set_bit_field2(Map::ElementsKindBits::update(bit_field2(), elements_kind));
+  set_bit_field2(
+      Map::Bits2::ElementsKindBits::update(bit_field2(), elements_kind));
 }
 
 ElementsKind Map::elements_kind() const {
-  return Map::ElementsKindBits::decode(bit_field2());
+  return Map::Bits2::ElementsKindBits::decode(bit_field2());
 }
 
 bool Map::has_fast_smi_elements() const {
@@ -529,20 +537,23 @@ bool Map::has_frozen_elements() const {
 }
 
 void Map::set_is_dictionary_map(bool value) {
-  uint32_t new_bit_field3 = IsDictionaryMapBit::update(bit_field3(), value);
-  new_bit_field3 = IsUnstableBit::update(new_bit_field3, value);
+  uint32_t new_bit_field3 =
+      Bits3::IsDictionaryMapBit::update(bit_field3(), value);
+  new_bit_field3 = Bits3::IsUnstableBit::update(new_bit_field3, value);
   set_bit_field3(new_bit_field3);
 }
 
 bool Map::is_dictionary_map() const {
-  return IsDictionaryMapBit::decode(bit_field3());
+  return Bits3::IsDictionaryMapBit::decode(bit_field3());
 }
 
 void Map::mark_unstable() {
-  set_bit_field3(IsUnstableBit::update(bit_field3(), true));
+  set_bit_field3(Bits3::IsUnstableBit::update(bit_field3(), true));
 }
 
-bool Map::is_stable() const { return !IsUnstableBit::decode(bit_field3()); }
+bool Map::is_stable() const {
+  return !Bits3::IsUnstableBit::decode(bit_field3());
+}
 
 bool Map::CanBeDeprecated() const {
   for (InternalIndex i : IterateOwnDescriptors()) {

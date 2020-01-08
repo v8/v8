@@ -443,11 +443,11 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
   TVARIABLE(FixedArray, var_properties);
   {
     TNode<Uint32T> bit_field_3 = LoadMapBitField3(boilerplate_map);
-    GotoIf(IsSetWord32<Map::IsDeprecatedBit>(bit_field_3), call_runtime);
+    GotoIf(IsSetWord32<Map::Bits3::IsDeprecatedBit>(bit_field_3), call_runtime);
     // Directly copy over the property store for dict-mode boilerplates.
     Label if_dictionary(this), if_fast(this), done(this);
-    Branch(IsSetWord32<Map::IsDictionaryMapBit>(bit_field_3), &if_dictionary,
-           &if_fast);
+    Branch(IsSetWord32<Map::Bits3::IsDictionaryMapBit>(bit_field_3),
+           &if_dictionary, &if_fast);
     BIND(&if_dictionary);
     {
       Comment("Copy dictionary properties");
@@ -633,8 +633,8 @@ TNode<JSObject> ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
       object_function, JSFunction::kPrototypeOrInitialMapOffset);
   // Ensure that slack tracking is disabled for the map.
   STATIC_ASSERT(Map::kNoSlackTracking == 0);
-  CSA_ASSERT(
-      this, IsClearWord32<Map::ConstructionCounterBits>(LoadMapBitField3(map)));
+  CSA_ASSERT(this, IsClearWord32<Map::Bits3::ConstructionCounterBits>(
+                       LoadMapBitField3(map)));
   TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();
   TNode<JSObject> result =
       AllocateJSObjectFromMap(map, empty_fixed_array, empty_fixed_array);

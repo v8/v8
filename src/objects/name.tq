@@ -11,9 +11,18 @@ extern class Name extends PrimitiveHeapObject {
 // kinds of names.
 type AnyName = PrivateSymbol|PublicSymbol|String;
 
+bitfield struct SymbolFlags extends uint32 {
+  is_private: bool: 1 bit;
+  is_well_known_symbol: bool: 1 bit;
+  is_in_public_symbol_table: bool: 1 bit;
+  is_interesting_symbol: bool: 1 bit;
+  is_private_name: bool: 1 bit;
+  is_private_brand: bool: 1 bit;
+}
+
 @generateCppClass
 extern class Symbol extends Name {
-  flags: int32;
+  flags: SymbolFlags;
   description: String|Undefined;
 }
 

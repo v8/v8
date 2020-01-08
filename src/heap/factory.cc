@@ -1918,11 +1918,12 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   // |layout_descriptor| are set.
   map.set_visitor_id(Map::GetVisitorId(map));
   map.set_bit_field(0);
-  map.set_bit_field2(Map::NewTargetIsBaseBit::encode(true));
-  int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
-                   Map::OwnsDescriptorsBit::encode(true) |
-                   Map::ConstructionCounterBits::encode(Map::kNoSlackTracking) |
-                   Map::IsExtensibleBit::encode(true);
+  map.set_bit_field2(Map::Bits2::NewTargetIsBaseBit::encode(true));
+  int bit_field3 =
+      Map::Bits3::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
+      Map::Bits3::OwnsDescriptorsBit::encode(true) |
+      Map::Bits3::ConstructionCounterBits::encode(Map::kNoSlackTracking) |
+      Map::Bits3::IsExtensibleBit::encode(true);
   map.set_bit_field3(bit_field3);
   DCHECK(!map.is_in_retained_map_list());
   map.clear_padding();

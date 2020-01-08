@@ -3380,22 +3380,25 @@ BIMODAL_ACCESSOR_C(JSTypedArray, bool, is_on_heap)
 BIMODAL_ACCESSOR_C(JSTypedArray, size_t, length)
 BIMODAL_ACCESSOR(JSTypedArray, HeapObject, buffer)
 
-BIMODAL_ACCESSOR_B(Map, bit_field2, elements_kind, Map::ElementsKindBits)
-BIMODAL_ACCESSOR_B(Map, bit_field3, is_dictionary_map, Map::IsDictionaryMapBit)
-BIMODAL_ACCESSOR_B(Map, bit_field3, is_deprecated, Map::IsDeprecatedBit)
+BIMODAL_ACCESSOR_B(Map, bit_field2, elements_kind, Map::Bits2::ElementsKindBits)
+BIMODAL_ACCESSOR_B(Map, bit_field3, is_dictionary_map,
+                   Map::Bits3::IsDictionaryMapBit)
+BIMODAL_ACCESSOR_B(Map, bit_field3, is_deprecated, Map::Bits3::IsDeprecatedBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, NumberOfOwnDescriptors,
-                   Map::NumberOfOwnDescriptorsBits)
+                   Map::Bits3::NumberOfOwnDescriptorsBits)
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_migration_target,
-                   Map::IsMigrationTargetBit)
-BIMODAL_ACCESSOR_B(Map, bit_field3, is_extensible, Map::IsExtensibleBit)
-BIMODAL_ACCESSOR_B(Map, bit_field, has_prototype_slot, Map::HasPrototypeSlotBit)
+                   Map::Bits3::IsMigrationTargetBit)
+BIMODAL_ACCESSOR_B(Map, bit_field3, is_extensible, Map::Bits3::IsExtensibleBit)
+BIMODAL_ACCESSOR_B(Map, bit_field, has_prototype_slot,
+                   Map::Bits1::HasPrototypeSlotBit)
 BIMODAL_ACCESSOR_B(Map, bit_field, is_access_check_needed,
-                   Map::IsAccessCheckNeededBit)
-BIMODAL_ACCESSOR_B(Map, bit_field, is_callable, Map::IsCallableBit)
+                   Map::Bits1::IsAccessCheckNeededBit)
+BIMODAL_ACCESSOR_B(Map, bit_field, is_callable, Map::Bits1::IsCallableBit)
 BIMODAL_ACCESSOR_B(Map, bit_field, has_indexed_interceptor,
-                   Map::HasIndexedInterceptorBit)
-BIMODAL_ACCESSOR_B(Map, bit_field, is_constructor, Map::IsConstructorBit)
-BIMODAL_ACCESSOR_B(Map, bit_field, is_undetectable, Map::IsUndetectableBit)
+                   Map::Bits1::HasIndexedInterceptorBit)
+BIMODAL_ACCESSOR_B(Map, bit_field, is_constructor, Map::Bits1::IsConstructorBit)
+BIMODAL_ACCESSOR_B(Map, bit_field, is_undetectable,
+                   Map::Bits1::IsUndetectableBit)
 BIMODAL_ACCESSOR_C(Map, int, instance_size)
 BIMODAL_ACCESSOR_C(Map, int, NextFreePropertyIndex)
 BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
@@ -3597,8 +3600,8 @@ void* JSTypedArrayRef::data_ptr() const {
 
 bool MapRef::IsInobjectSlackTrackingInProgress() const {
   IF_ACCESS_FROM_HEAP_C(Map, IsInobjectSlackTrackingInProgress);
-  return Map::ConstructionCounterBits::decode(data()->AsMap()->bit_field3()) !=
-         Map::kNoSlackTracking;
+  return Map::Bits3::ConstructionCounterBits::decode(
+             data()->AsMap()->bit_field3()) != Map::kNoSlackTracking;
 }
 
 int MapRef::constructor_function_index() const {
@@ -3609,7 +3612,7 @@ int MapRef::constructor_function_index() const {
 
 bool MapRef::is_stable() const {
   IF_ACCESS_FROM_HEAP_C(Map, is_stable);
-  return !Map::IsUnstableBit::decode(data()->AsMap()->bit_field3());
+  return !Map::Bits3::IsUnstableBit::decode(data()->AsMap()->bit_field3());
 }
 
 bool MapRef::CanBeDeprecated() const {

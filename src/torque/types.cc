@@ -855,11 +855,13 @@ bool IsAllowedAsBitField(const Type* type) {
     // compelling use case.
     return false;
   }
-  // Any unsigned integer-ish type, including bools and enums which inherit from
-  // unsigned integer types, are allowed. Currently decoding signed integers is
-  // not supported.
+  // Any integer-ish type, including bools and enums which inherit from integer
+  // types, are allowed. Note, however, that we always zero-extend during
+  // decoding regardless of signedness.
   return type->IsSubtypeOf(TypeOracle::GetUint32Type()) ||
          type->IsSubtypeOf(TypeOracle::GetUIntPtrType()) ||
+         type->IsSubtypeOf(TypeOracle::GetInt32Type()) ||
+         type->IsSubtypeOf(TypeOracle::GetIntPtrType()) ||
          type->IsSubtypeOf(TypeOracle::GetBoolType());
 }
 
