@@ -2655,6 +2655,14 @@ void InstructionSelector::VisitI16x8GtU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8GeU(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitI16x8RoundingAverageU(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitI8x16RoundingAverageU(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitI8x16Neg(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16AddSaturateS(Node* node) {
