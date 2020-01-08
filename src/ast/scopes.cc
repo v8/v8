@@ -2481,7 +2481,9 @@ void DeclarationScope::RecordNeedsPrivateNameContextChainRecalc() {
 // static
 void DeclarationScope::AllocateScopeInfos(ParseInfo* info, Isolate* isolate) {
   DeclarationScope* scope = info->literal()->scope();
-  if (!scope->scope_info_.is_null()) return;  // Allocated by outer function.
+
+  // No one else should have allocated a scope info for this scope yet.
+  DCHECK(scope->scope_info_.is_null());
 
   MaybeHandle<ScopeInfo> outer_scope;
   if (scope->outer_scope_ != nullptr) {
