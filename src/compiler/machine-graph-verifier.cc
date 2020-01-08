@@ -393,6 +393,12 @@ class MachineRepresentationChecker {
             break;
           case IrOpcode::kBitcastTaggedToWord:
           case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
+            if (COMPRESS_POINTERS_BOOL) {
+              CheckValueInputIsCompressedOrTagged(node, 0);
+            } else {
+              CheckValueInputIsTagged(node, 0);
+            }
+            break;
           case IrOpcode::kTaggedPoisonOnSpeculation:
             CheckValueInputIsTagged(node, 0);
             break;
@@ -617,9 +623,17 @@ class MachineRepresentationChecker {
             switch (inferrer_->GetRepresentation(node)) {
               case MachineRepresentation::kTagged:
               case MachineRepresentation::kTaggedPointer:
-              case MachineRepresentation::kTaggedSigned:
                 for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
                   CheckValueInputIsTagged(node, i);
+                }
+                break;
+              case MachineRepresentation::kTaggedSigned:
+                for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
+                  if (COMPRESS_POINTERS_BOOL) {
+                    CheckValueInputIsCompressedOrTagged(node, i);
+                  } else {
+                    CheckValueInputIsTagged(node, i);
+                  }
                 }
                 break;
               case MachineRepresentation::kCompressed:

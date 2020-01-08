@@ -424,6 +424,71 @@ TEST_F(DecompressionOptimizerTest, Int32LessThanOrEqualFromSpeculative) {
   EXPECT_EQ(LoadMachRep(load), CompressedMachRep(MachineType::AnyTagged()));
 }
 
+// -----------------------------------------------------------------------------
+// Bitcast cases.
+
+TEST_F(DecompressionOptimizerTest, BitcastTaggedToWord) {
+  // Define variables.
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+
+  // Test for both AnyTagged and TaggedPointer, for both loads.
+  for (size_t i = 0; i < arraysize(types); ++i) {
+    for (size_t j = 0; j < arraysize(types); ++j) {
+      // Create the graph.
+      Node* load_1 = graph()->NewNode(machine()->Load(types[i]), object, index,
+                                      effect, control);
+      Node* bitcast_1 = graph()->NewNode(machine()->BitcastTaggedToWord(),
+                                         load_1, effect, control);
+      Node* load_2 = graph()->NewNode(machine()->Load(types[j]), object, index,
+                                      effect, control);
+      Node* bitcast_2 = graph()->NewNode(machine()->BitcastTaggedToWord(),
+                                         load_2, effect, control);
+      Node* equal =
+          graph()->NewNode(machine()->Word32Equal(), bitcast_1, bitcast_2);
+      graph()->SetEnd(equal);
+
+      // Change the nodes, and test the change.
+      Reduce();
+      EXPECT_EQ(LoadMachRep(load_1), CompressedMachRep(types[i]));
+      EXPECT_EQ(LoadMachRep(load_2), CompressedMachRep(types[j]));
+    }
+  }
+}
+
+TEST_F(DecompressionOptimizerTest, BitcastTaggedToWordForTagAndSmiBits) {
+  // Define variables.
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+
+  // Test for both AnyTagged and TaggedPointer, for both loads.
+  for (size_t i = 0; i < arraysize(types); ++i) {
+    for (size_t j = 0; j < arraysize(types); ++j) {
+      // Create the graph.
+      Node* load_1 = graph()->NewNode(machine()->Load(types[i]), object, index,
+                                      effect, control);
+      Node* bitcast_1 = graph()->NewNode(
+          machine()->BitcastTaggedToWordForTagAndSmiBits(), load_1);
+      Node* load_2 = graph()->NewNode(machine()->Load(types[j]), object, index,
+                                      effect, control);
+      Node* bitcast_2 = graph()->NewNode(
+          machine()->BitcastTaggedToWordForTagAndSmiBits(), load_2);
+      Node* equal =
+          graph()->NewNode(machine()->Word32Equal(), bitcast_1, bitcast_2);
+      graph()->SetEnd(equal);
+
+      // Change the nodes, and test the change.
+      Reduce();
+      EXPECT_EQ(LoadMachRep(load_1), CompressedMachRep(types[i]));
+      EXPECT_EQ(LoadMachRep(load_2), CompressedMachRep(types[j]));
+    }
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

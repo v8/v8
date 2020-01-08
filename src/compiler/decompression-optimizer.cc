@@ -65,6 +65,13 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
   // Mark the value inputs.
   switch (node->opcode()) {
     // UNOPS.
+    case IrOpcode::kBitcastTaggedToWord:
+    case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
+      // Replicate the bitcast's state for its input.
+      DCHECK_EQ(node->op()->ValueInputCount(), 1);
+      MaybeMarkAndQueueForRevisit(node->InputAt(0),
+                                  states_.Get(node));  // value
+      break;
     case IrOpcode::kTruncateInt64ToInt32:
       DCHECK_EQ(node->op()->ValueInputCount(), 1);
       MaybeMarkAndQueueForRevisit(node->InputAt(0),
