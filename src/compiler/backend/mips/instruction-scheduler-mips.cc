@@ -112,6 +112,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI16x8ExtractLaneS:
     case kMipsI16x8GeS:
     case kMipsI16x8GeU:
+    case kMipsI16x8RoundingAverageU:
     case kMipsI16x8GtS:
     case kMipsI16x8GtU:
     case kMipsI16x8MaxS:
@@ -170,6 +171,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI8x16ExtractLaneS:
     case kMipsI8x16GeS:
     case kMipsI8x16GeU:
+    case kMipsI8x16RoundingAverageU:
     case kMipsI8x16GtS:
     case kMipsI8x16GtU:
     case kMipsI8x16MaxS:

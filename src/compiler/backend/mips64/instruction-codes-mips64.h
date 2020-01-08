@@ -258,6 +258,7 @@ namespace compiler {
   V(Mips64I16x8MinU)                         \
   V(Mips64I16x8GtU)                          \
   V(Mips64I16x8GeU)                          \
+  V(Mips64I16x8RoundingAverageU)             \
   V(Mips64I8x16Splat)                        \
   V(Mips64I8x16ExtractLaneU)                 \
   V(Mips64I8x16ExtractLaneS)                 \
@@ -283,6 +284,7 @@ namespace compiler {
   V(Mips64I8x16MinU)                         \
   V(Mips64I8x16GtU)                          \
   V(Mips64I8x16GeU)                          \
+  V(Mips64I8x16RoundingAverageU)             \
   V(Mips64S128And)                           \
   V(Mips64S128Or)                            \
   V(Mips64S128Xor)                           \
