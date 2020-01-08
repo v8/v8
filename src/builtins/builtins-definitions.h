@@ -711,8 +711,6 @@ namespace internal {
   TFS(ForInFilter, kKey, kObject)                                              \
                                                                                \
   /* Promise */                                                                \
-  TFJ(PromiseConstructorLazyDeoptContinuation, 4, kReceiver, kPromise,         \
-      kReject, kException, kResult)                                            \
   CPP(IsPromise)                                                               \
   /* ES #sec-promise.all */                                                    \
   TFJ(PromiseAll, 1, kReceiver, kIterable)                                     \

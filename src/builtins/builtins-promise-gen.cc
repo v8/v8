@@ -380,22 +380,6 @@ void PromiseBuiltinsAssembler::SetPromiseHandledByIfTrue(
   BIND(&done);
 }
 
-TF_BUILTIN(PromiseConstructorLazyDeoptContinuation, PromiseBuiltinsAssembler) {
-  TNode<Object> promise = CAST(Parameter(Descriptor::kPromise));
-  Node* reject = Parameter(Descriptor::kReject);
-  Node* exception = Parameter(Descriptor::kException);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  Label finally(this);
-
-  GotoIf(IsTheHole(exception), &finally);
-  CallJS(CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-         context, reject, UndefinedConstant(), exception);
-  Goto(&finally);
-
-  BIND(&finally);
-  Return(promise);
-}
 
 TNode<Object> PromiseBuiltinsAssembler::PerformPromiseAll(
     Node* context, Node* constructor, Node* capability,
