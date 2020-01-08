@@ -1361,10 +1361,6 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
        g.TempImmediate(0), g.TempImmediate(32));
 }
 
-void InstructionSelector::VisitChangeTaggedToCompressed(Node* node) {
-  UNIMPLEMENTED();
-}
-
 void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   Mips64OperandGenerator g(this);
   Node* value = node->InputAt(0);

@@ -208,10 +208,6 @@ class MachineRepresentationInferrer {
           case IrOpcode::kTaggedPoisonOnSpeculation:
             representation_vector_[node->id()] = MachineRepresentation::kTagged;
             break;
-          case IrOpcode::kChangeTaggedToCompressed:
-            representation_vector_[node->id()] =
-                MachineRepresentation::kCompressed;
-            break;
           case IrOpcode::kWord32PoisonOnSpeculation:
             representation_vector_[node->id()] = MachineRepresentation::kWord32;
             break;
@@ -375,9 +371,6 @@ class MachineRepresentationChecker {
             CHECK_EQ(MachineRepresentation::kTagged,
                      inferrer_->GetRepresentation(node->InputAt(0)));
             break;
-          case IrOpcode::kChangeTaggedToCompressed:
-              CheckValueInputIsCompressedOrTagged(node, 0);
-            break;
           case IrOpcode::kRoundInt64ToFloat64:
           case IrOpcode::kRoundUint64ToFloat64:
           case IrOpcode::kRoundInt64ToFloat32:
@@ -473,8 +466,13 @@ class MachineRepresentationChecker {
                     node, 1, inferrer_->GetRepresentation(node->InputAt(0)));
               }
             } else {
-              CheckValueIsCompressedOrInt32(node, 0);
-              CheckValueIsCompressedOrInt32(node, 1);
+              if (COMPRESS_POINTERS_BOOL) {
+                CheckValueInputIsCompressedOrTaggedOrInt32(node, 0);
+                CheckValueInputIsCompressedOrTaggedOrInt32(node, 1);
+              } else {
+                CheckValueIsTaggedOrInt32(node, 0);
+                CheckValueIsTaggedOrInt32(node, 1);
+              }
             }
             break;
 
@@ -778,6 +776,32 @@ class MachineRepresentationChecker {
     FATAL("%s", str.str().c_str());
   }
 
+  void CheckValueInputIsCompressedOrTaggedOrInt32(Node const* node, int index) {
+    Node const* input = node->InputAt(index);
+    switch (inferrer_->GetRepresentation(input)) {
+      case MachineRepresentation::kCompressed:
+      case MachineRepresentation::kCompressedPointer:
+        return;
+      case MachineRepresentation::kTagged:
+      case MachineRepresentation::kTaggedPointer:
+      case MachineRepresentation::kTaggedSigned:
+        return;
+      case MachineRepresentation::kBit:
+      case MachineRepresentation::kWord8:
+      case MachineRepresentation::kWord16:
+      case MachineRepresentation::kWord32:
+        return;
+      default:
+        break;
+    }
+    std::ostringstream str;
+    str << "TypeError: node #" << node->id() << ":" << *node->op()
+        << " uses node #" << input->id() << ":" << *input->op()
+        << " which doesn't have a compressed, tagged, or int32 representation.";
+    PrintDebugHelp(str, node);
+    FATAL("%s", str.str().c_str());
+  }
+
   void CheckValueInputIsTaggedOrPointer(Node const* node, int index) {
     Node const* input = node->InputAt(index);
     switch (inferrer_->GetRepresentation(input)) {
@@ -839,7 +863,7 @@ class MachineRepresentationChecker {
     FATAL("%s", str.str().c_str());
   }
 
-  void CheckValueIsCompressedOrInt32(Node const* node, int index) {
+  void CheckValueIsTaggedOrInt32(Node const* node, int index) {
     Node const* input = node->InputAt(index);
     switch (inferrer_->GetRepresentation(input)) {
       case MachineRepresentation::kBit:
@@ -847,8 +871,8 @@ class MachineRepresentationChecker {
       case MachineRepresentation::kWord16:
       case MachineRepresentation::kWord32:
         return;
-      case MachineRepresentation::kCompressed:
-      case MachineRepresentation::kCompressedPointer:
+      case MachineRepresentation::kTagged:
+      case MachineRepresentation::kTaggedPointer:
         return;
       default:
         break;
@@ -856,7 +880,7 @@ class MachineRepresentationChecker {
     std::ostringstream str;
     str << "TypeError: node #" << node->id() << ":" << *node->op()
         << " uses node #" << input->id() << ":" << *input->op()
-        << " which doesn't have a compressed or int32-compatible "
+        << " which doesn't have a tagged or int32-compatible "
            "representation.";
     PrintDebugHelp(str, node);
     FATAL("%s", str.str().c_str());

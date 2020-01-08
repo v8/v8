@@ -67,10 +67,6 @@ class V8_EXPORT_PRIVATE DecompressionOptimizer final {
   // Change node's load into a compressed one.
   void ChangeLoad(Node* const node);
 
-  // Remove a ChangeTaggedToCompressed if its input is going to become a
-  // compressed node.
-  void TryRemoveChangeTaggedToCompressed(Node* const node);
-
   // Go through the already marked nodes and changed the operation for the nodes
   // that can use compressed outputs.
   void ChangeNodes();

@@ -698,7 +698,6 @@
   V(ChangeInt64ToFloat64)                \
   V(ChangeUint32ToFloat64)               \
   V(ChangeUint32ToUint64)                \
-  V(ChangeTaggedToCompressed)            \
   V(TruncateFloat64ToFloat32)            \
   V(TruncateInt64ToInt32)                \
   V(RoundFloat64ToInt32)                 \

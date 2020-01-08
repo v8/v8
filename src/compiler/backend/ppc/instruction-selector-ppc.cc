@@ -1168,10 +1168,6 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   VisitRR(this, kPPC_Uint32ToUint64, node);
 }
 
-void InstructionSelector::VisitChangeTaggedToCompressed(Node* node) {
-  UNIMPLEMENTED();
-}
-
 void InstructionSelector::VisitChangeFloat64ToUint64(Node* node) {
   VisitRR(this, kPPC_DoubleToUint64, node);
 }

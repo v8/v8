@@ -545,12 +545,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   uintptr_t ConstexprWordNot(uintptr_t a) { return ~a; }
 
   TNode<BoolT> TaggedEqual(TNode<AnyTaggedT> a, TNode<AnyTaggedT> b) {
-#ifdef V8_COMPRESS_POINTERS
-    return Word32Equal(ChangeTaggedToCompressed(a),
-                       ChangeTaggedToCompressed(b));
-#else
-    return WordEqual(ReinterpretCast<WordT>(a), ReinterpretCast<WordT>(b));
-#endif
+    if (COMPRESS_POINTERS_BOOL) {
+      return Word32Equal(ReinterpretCast<Word32T>(a),
+                         ReinterpretCast<Word32T>(b));
+    } else {
+      return WordEqual(ReinterpretCast<WordT>(a), ReinterpretCast<WordT>(b));
+    }
   }
 
   TNode<BoolT> TaggedNotEqual(TNode<AnyTaggedT> a, TNode<AnyTaggedT> b) {

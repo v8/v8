@@ -1338,12 +1338,6 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   Emit(kX64Movl, g.DefineAsRegister(node), g.Use(value));
 }
 
-void InstructionSelector::VisitChangeTaggedToCompressed(Node* node) {
-  // The top 32 bits in the 64-bit register will be undefined, and
-  // must not be used by a dependent node.
-  return EmitIdentity(node);
-}
-
 namespace {
 
 void VisitRO(InstructionSelector* selector, Node* node,

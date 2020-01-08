@@ -1576,8 +1576,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitChangeInt32ToInt64(node);
     case IrOpcode::kChangeUint32ToUint64:
       return MarkAsWord64(node), VisitChangeUint32ToUint64(node);
-    case IrOpcode::kChangeTaggedToCompressed:
-      return MarkAsCompressed(node), VisitChangeTaggedToCompressed(node);
     case IrOpcode::kTruncateFloat64ToFloat32:
       return MarkAsFloat32(node), VisitTruncateFloat64ToFloat32(node);
     case IrOpcode::kTruncateFloat64ToWord32:
@@ -2460,10 +2458,6 @@ void InstructionSelector::VisitChangeInt64ToFloat64(Node* node) {
 }
 
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitChangeTaggedToCompressed(Node* node) {
   UNIMPLEMENTED();
 }
 

@@ -238,7 +238,6 @@ MachineType AtomicOpType(Operator const* op) {
   V(ChangeInt32ToInt64, Operator::kNoProperties, 1, 0, 1)                  \
   V(ChangeUint32ToFloat64, Operator::kNoProperties, 1, 0, 1)               \
   V(ChangeUint32ToUint64, Operator::kNoProperties, 1, 0, 1)                \
-  V(ChangeTaggedToCompressed, Operator::kNoProperties, 1, 0, 1)            \
   V(TruncateFloat64ToFloat32, Operator::kNoProperties, 1, 0, 1)            \
   V(TruncateInt64ToInt32, Operator::kNoProperties, 1, 0, 1)                \
   V(BitcastFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)               \

@@ -739,9 +739,6 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* ChangeUint32ToUint64(Node* a) {
     return AddNode(machine()->ChangeUint32ToUint64(), a);
   }
-  Node* ChangeTaggedToCompressed(Node* a) {
-    return AddNode(machine()->ChangeTaggedToCompressed(), a);
-  }
   Node* TruncateFloat64ToFloat32(Node* a) {
     return AddNode(machine()->TruncateFloat64ToFloat32(), a);
   }

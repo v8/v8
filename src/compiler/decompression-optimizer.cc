@@ -13,12 +13,6 @@ namespace compiler {
 
 namespace {
 
-// TODO(v8:7703): ChangeTaggedToCompressed case to be removed when the
-// TaggedEqual implementation stops using ChangeTaggedToCompressed.
-bool IsChangeTaggedToCompressed(Node* const node) {
-  return node->opcode() == IrOpcode::kChangeTaggedToCompressed;
-}
-
 bool IsMachineLoad(Node* const node) {
   const IrOpcode::Value opcode = node->opcode();
   return opcode == IrOpcode::kLoad || opcode == IrOpcode::kPoisonedLoad ||
@@ -31,25 +25,8 @@ bool IsTaggedMachineLoad(Node* const node) {
          CanBeTaggedPointer(LoadRepresentationOf(node->op()).representation());
 }
 
-bool IsCompressedMachineLoad(Node* const node) {
-  return IsMachineLoad(node) &&
-         CanBeCompressedPointer(
-             LoadRepresentationOf(node->op()).representation());
-}
-
-bool IsCompressedHeapConstant(Node* const node) {
-  return node->opcode() == IrOpcode::kCompressedHeapConstant;
-}
-
 bool IsHeapConstant(Node* const node) {
   return node->opcode() == IrOpcode::kHeapConstant;
-}
-
-bool IsCompressedPhi(Node* const node) {
-  if (node->opcode() == IrOpcode::kPhi) {
-    return CanBeCompressedPointer(PhiRepresentationOf(node->op()));
-  }
-  return false;
 }
 
 bool IsTaggedPhi(Node* const node) {
@@ -60,13 +37,7 @@ bool IsTaggedPhi(Node* const node) {
 }
 
 bool CanBeCompressed(Node* const node) {
-  return IsHeapConstant(node) || IsTaggedMachineLoad(node) ||
-         IsTaggedPhi(node) || IsChangeTaggedToCompressed(node);
-}
-
-bool IsCompressed(Node* const node) {
-  return IsCompressedHeapConstant(node) || IsCompressedMachineLoad(node) ||
-         IsCompressedPhi(node);
+  return IsHeapConstant(node) || IsTaggedMachineLoad(node) || IsTaggedPhi(node);
 }
 
 }  // anonymous namespace
@@ -94,9 +65,6 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
   // Mark the value inputs.
   switch (node->opcode()) {
     // UNOPS.
-    // TODO(v8:7703): ChangeTaggedToCompressed case to be removed when the
-    // TaggedEqual implementation stops using ChangeTaggedToCompressed.
-    case IrOpcode::kChangeTaggedToCompressed:
     case IrOpcode::kTruncateInt64ToInt32:
       DCHECK_EQ(node->op()->ValueInputCount(), 1);
       MaybeMarkAndQueueForRevisit(node->InputAt(0),
@@ -246,21 +214,6 @@ void DecompressionOptimizer::ChangeLoad(Node* const node) {
   }
 }
 
-void DecompressionOptimizer::TryRemoveChangeTaggedToCompressed(
-    Node* const node) {
-  DCHECK(IsChangeTaggedToCompressed(node));
-  Node* input = node->InputAt(0);
-  // We can safely eliminate a ChangeTaggedToCompressed node if its input is
-  // going to be changing to compressed in this same Reducer.
-  // Due to the ordering of the nodes to be changed, we might change the
-  // ChangeTaggedToCompressed's input before the ChangeTaggedToCompressed node
-  // itself changes. Then, we need to check for this possibility too.
-  if (IsOnly32BitsObserved(input) &&
-      (IsCompressed(input) || CanBeCompressed(input))) {
-    NodeProperties::ReplaceUses(node, input);
-  }
-}
-
 void DecompressionOptimizer::ChangeNodes() {
   for (Node* const node : compressed_candidate_nodes_) {
     // compressed_candidate_nodes_ contains all the nodes that once had the
@@ -271,9 +224,6 @@ void DecompressionOptimizer::ChangeNodes() {
     if (IsEverythingObserved(node)) continue;
 
     switch (node->opcode()) {
-      case IrOpcode::kChangeTaggedToCompressed:
-        TryRemoveChangeTaggedToCompressed(node);
-        break;
       case IrOpcode::kHeapConstant:
         ChangeHeapConstant(node);
         break;

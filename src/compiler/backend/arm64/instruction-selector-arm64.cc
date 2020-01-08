@@ -1756,12 +1756,6 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(value));
 }
 
-void InstructionSelector::VisitChangeTaggedToCompressed(Node* node) {
-  // The top 32 bits in the 64-bit register will be undefined, and
-  // must not be used by a dependent node.
-  EmitIdentity(node);
-}
-
 void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   Arm64OperandGenerator g(this);
   // The top 32 bits in the 64-bit register will be undefined, and
