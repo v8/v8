@@ -138,9 +138,12 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
 template <typename T>
 typename std::enable_if<
     !std::is_function<typename std::remove_pointer<T>::type>::value &&
-    has_output_operator<T>::value>::type
-PrintCheckOperand(std::ostream& os, T val) {
-  os << std::forward<T>(val);
+        has_output_operator<T>::value,
+    std::string>::type
+PrintCheckOperand(T val) {
+  std::ostringstream oss;
+  oss << std::forward<T>(val);
+  return oss.str();
 }
 
 // Provide an overload for functions and function pointers. Function pointers
@@ -150,43 +153,43 @@ PrintCheckOperand(std::ostream& os, T val) {
 // pointers, so this is a no-op for MSVC.)
 template <typename T>
 typename std::enable_if<
-    std::is_function<typename std::remove_pointer<T>::type>::value>::type
-PrintCheckOperand(std::ostream& os, T val) {
-  os << reinterpret_cast<const void*>(val);
+    std::is_function<typename std::remove_pointer<T>::type>::value,
+    std::string>::type
+PrintCheckOperand(T val) {
+  return PrintCheckOperand(reinterpret_cast<const void*>(val));
 }
 
 // Define PrintCheckOperand<T> for enums which have no operator<<.
 template <typename T>
-typename std::enable_if<std::is_enum<T>::value &&
-                        !has_output_operator<T>::value>::type
-PrintCheckOperand(std::ostream& os, T val) {
+typename std::enable_if<
+    std::is_enum<T>::value && !has_output_operator<T>::value, std::string>::type
+PrintCheckOperand(T val) {
   using underlying_t = typename std::underlying_type<T>::type;
   // 8-bit types are not printed as number, so extend them to 16 bit.
   using int_t = typename std::conditional<
       std::is_same<underlying_t, uint8_t>::value, uint16_t,
       typename std::conditional<std::is_same<underlying_t, int8_t>::value,
                                 int16_t, underlying_t>::type>::type;
-  PrintCheckOperand(os, static_cast<int_t>(static_cast<underlying_t>(val)));
+  return PrintCheckOperand(static_cast<int_t>(static_cast<underlying_t>(val)));
 }
 
 // Define default PrintCheckOperand<T> for non-printable types.
 template <typename T>
 typename std::enable_if<!has_output_operator<T>::value &&
-                        !std::is_enum<T>::value>::type
-PrintCheckOperand(std::ostream& os, T val) {
-  os << "<unprintable>";
+                            !std::is_enum<T>::value,
+                        std::string>::type
+PrintCheckOperand(T val) {
+  return "<unprintable>";
 }
 
 // Define specializations for character types, defined in logging.cc.
-#define DEFINE_PRINT_CHECK_OPERAND_CHAR(type)                              \
-  template <>                                                              \
-  V8_BASE_EXPORT void PrintCheckOperand<type>(std::ostream & os, type ch); \
-  template <>                                                              \
-  V8_BASE_EXPORT void PrintCheckOperand<type*>(std::ostream & os,          \
-                                               type * cstr);               \
-  template <>                                                              \
-  V8_BASE_EXPORT void PrintCheckOperand<const type*>(std::ostream & os,    \
-                                                     const type* cstr);
+#define DEFINE_PRINT_CHECK_OPERAND_CHAR(type)                       \
+  template <>                                                       \
+  V8_BASE_EXPORT std::string PrintCheckOperand<type>(type ch);      \
+  template <>                                                       \
+  V8_BASE_EXPORT std::string PrintCheckOperand<type*>(type * cstr); \
+  template <>                                                       \
+  V8_BASE_EXPORT std::string PrintCheckOperand<const type*>(const type* cstr);
 
 DEFINE_PRINT_CHECK_OPERAND_CHAR(char)
 DEFINE_PRINT_CHECK_OPERAND_CHAR(signed char)
@@ -199,12 +202,17 @@ DEFINE_PRINT_CHECK_OPERAND_CHAR(unsigned char)
 // takes ownership of the returned string.
 template <typename Lhs, typename Rhs>
 V8_NOINLINE std::string* MakeCheckOpString(Lhs lhs, Rhs rhs, char const* msg) {
+  std::string lhs_str = PrintCheckOperand<Lhs>(lhs);
+  std::string rhs_str = PrintCheckOperand<Rhs>(rhs);
   std::ostringstream ss;
-  ss << msg << " (";
-  PrintCheckOperand<Lhs>(ss, lhs);
-  ss << " vs. ";
-  PrintCheckOperand<Rhs>(ss, rhs);
-  ss << ")";
+  ss << msg;
+  constexpr size_t kMaxInlineLength = 50;
+  if (lhs_str.size() <= kMaxInlineLength &&
+      rhs_str.size() <= kMaxInlineLength) {
+    ss << " (" << lhs_str << " vs. " << rhs_str << ")";
+  } else {
+    ss << "\n   " << lhs_str << "\n vs.\n   " << rhs_str << "\n";
+  }
   return new std::string(ss.str());
 }
 
@@ -213,8 +221,7 @@ V8_NOINLINE std::string* MakeCheckOpString(Lhs lhs, Rhs rhs, char const* msg) {
 #define EXPLICIT_CHECK_OP_INSTANTIATION(type)                                \
   extern template V8_BASE_EXPORT std::string* MakeCheckOpString<type, type>( \
       type, type, char const*);                                              \
-  extern template V8_BASE_EXPORT void PrintCheckOperand<type>(std::ostream&, \
-                                                              type);
+  extern template V8_BASE_EXPORT std::string PrintCheckOperand<type>(type);
 
 EXPLICIT_CHECK_OP_INSTANTIATION(int)
 EXPLICIT_CHECK_OP_INSTANTIATION(long)       // NOLINT(runtime/int)
