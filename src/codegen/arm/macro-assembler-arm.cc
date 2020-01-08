@@ -121,27 +121,11 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
 
-  // The ldr call below could end up clobbering ip when the offset does not fit
-  // into 12 bits (and thus needs to be loaded from the constant pool). In that
-  // case, we need to be extra-careful and temporarily use another register as
-  // the target.
-
   const uint32_t offset =
       FixedArray::kHeaderSize + constant_index * kPointerSize - kHeapObjectTag;
-  const bool could_clobber_ip = !is_uint12(offset);
 
-  Register reg = destination;
-  if (could_clobber_ip) {
-    reg = destination != r7 ? r7 : r8;
-    Push(reg);
-  }
-
-  LoadRoot(reg, RootIndex::kBuiltinsConstantsTable);
-  ldr(destination, MemOperand(reg, offset));
-
-  if (could_clobber_ip) {
-    Pop(reg);
-  }
+  LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
+  ldr(destination, MemOperand(destination, offset));
 }
 
 void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
