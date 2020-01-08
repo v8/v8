@@ -1222,10 +1222,8 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
     GotoIfNot(IsValidPositiveSmi(size_in_bytes), &if_out_of_memory);
   }
 
-  TNode<RawPtrT> top =
-      UncheckedCast<RawPtrT>(Load(MachineType::Pointer(), top_address));
-  TNode<RawPtrT> limit =
-      UncheckedCast<RawPtrT>(Load(MachineType::Pointer(), limit_address));
+  TNode<RawPtrT> top = Load<RawPtrT>(top_address);
+  TNode<RawPtrT> limit = Load<RawPtrT>(limit_address);
 
   // If there's not enough space, call the runtime.
   TVARIABLE(Object, result);
@@ -2172,25 +2170,18 @@ TNode<RawPtrT> CodeStubAssembler::LoadJSTypedArrayDataPtr(
 TNode<BigInt> CodeStubAssembler::LoadFixedBigInt64ArrayElementAsTagged(
     SloppyTNode<RawPtrT> data_pointer, SloppyTNode<IntPtrT> offset) {
   if (Is64()) {
-    TNode<IntPtrT> value = UncheckedCast<IntPtrT>(
-        Load(MachineType::IntPtr(), data_pointer, offset));
+    TNode<IntPtrT> value = Load<IntPtrT>(data_pointer, offset);
     return BigIntFromInt64(value);
   } else {
     DCHECK(!Is64());
 #if defined(V8_TARGET_BIG_ENDIAN)
-    TNode<IntPtrT> high = UncheckedCast<IntPtrT>(
-        Load(MachineType::UintPtr(), data_pointer, offset));
-    TNode<IntPtrT> low = UncheckedCast<IntPtrT>(
-        Load(MachineType::UintPtr(), data_pointer,
-             Int32Add(TruncateIntPtrToInt32(offset),
-                      Int32Constant(kSystemPointerSize))));
+    TNode<IntPtrT> high = Load<IntPtrT>(data_pointer, offset);
+    TNode<IntPtrT> low = Load<IntPtrT>(
+        data_pointer, IntPtrAdd(offset, IntPtrConstant(kSystemPointerSize)));
 #else
-    TNode<IntPtrT> low = UncheckedCast<IntPtrT>(
-        Load(MachineType::UintPtr(), data_pointer, offset));
-    TNode<IntPtrT> high = UncheckedCast<IntPtrT>(
-        Load(MachineType::UintPtr(), data_pointer,
-             Int32Add(TruncateIntPtrToInt32(offset),
-                      Int32Constant(kSystemPointerSize))));
+    TNode<IntPtrT> low = Load<IntPtrT>(data_pointer, offset);
+    TNode<IntPtrT> high = Load<IntPtrT>(
+        data_pointer, IntPtrAdd(offset, IntPtrConstant(kSystemPointerSize)));
 #endif
     return BigIntFromInt32Pair(low, high);
   }
@@ -2305,21 +2296,17 @@ TNode<BigInt> CodeStubAssembler::LoadFixedBigUint64ArrayElementAsTagged(
     SloppyTNode<RawPtrT> data_pointer, SloppyTNode<IntPtrT> offset) {
   Label if_zero(this), done(this);
   if (Is64()) {
-    TNode<UintPtrT> value = UncheckedCast<UintPtrT>(
-        Load(MachineType::UintPtr(), data_pointer, offset));
+    TNode<UintPtrT> value = Load<UintPtrT>(data_pointer, offset);
     return BigIntFromUint64(value);
   } else {
     DCHECK(!Is64());
 #if defined(V8_TARGET_BIG_ENDIAN)
-    TNode<UintPtrT> high = UncheckedCast<UintPtrT>(
-        Load(MachineType::UintPtr(), data_pointer, offset));
-    TNode<UintPtrT> low = UncheckedCast<UintPtrT>(
-        Load(MachineType::UintPtr(), data_pointer,
-             Int32Add(TruncateIntPtrToInt32(offset),
-                      Int32Constant(kSystemPointerSize))));
+    TNode<UintPtrT> high = Load<UintPtrT>(data_pointer, offset);
+    TNode<UintPtrT> low = Load<UintPtrT>(
+        data_pointer, Int32Add(TruncateIntPtrToInt32(offset),
+                               Int32Constant(kSystemPointerSize)));
 #else
-    TNode<UintPtrT> low = UncheckedCast<UintPtrT>(
-        Load(MachineType::UintPtr(), data_pointer, offset));
+    TNode<UintPtrT> low = Load<UintPtrT>(data_pointer, offset);
     TNode<UintPtrT> high = UncheckedCast<UintPtrT>(
         Load(MachineType::UintPtr(), data_pointer,
              Int32Add(TruncateIntPtrToInt32(offset),
@@ -2379,25 +2366,22 @@ TNode<Numeric> CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
   switch (elements_kind) {
     case UINT8_ELEMENTS: /* fall through */
     case UINT8_CLAMPED_ELEMENTS:
-      return SmiFromInt32(Load(MachineType::Uint8(), data_pointer, offset));
+      return SmiFromInt32(Load<Uint8T>(data_pointer, offset));
     case INT8_ELEMENTS:
-      return SmiFromInt32(Load(MachineType::Int8(), data_pointer, offset));
+      return SmiFromInt32(Load<Int8T>(data_pointer, offset));
     case UINT16_ELEMENTS:
-      return SmiFromInt32(Load(MachineType::Uint16(), data_pointer, offset));
+      return SmiFromInt32(Load<Uint16T>(data_pointer, offset));
     case INT16_ELEMENTS:
-      return SmiFromInt32(Load(MachineType::Int16(), data_pointer, offset));
+      return SmiFromInt32(Load<Int16T>(data_pointer, offset));
     case UINT32_ELEMENTS:
-      return ChangeUint32ToTagged(
-          Load(MachineType::Uint32(), data_pointer, offset));
+      return ChangeUint32ToTagged(Load<Uint32T>(data_pointer, offset));
     case INT32_ELEMENTS:
-      return ChangeInt32ToTagged(
-          Load(MachineType::Int32(), data_pointer, offset));
+      return ChangeInt32ToTagged(Load<Int32T>(data_pointer, offset));
     case FLOAT32_ELEMENTS:
-      return AllocateHeapNumberWithValue(ChangeFloat32ToFloat64(
-          Load(MachineType::Float32(), data_pointer, offset)));
-    case FLOAT64_ELEMENTS:
       return AllocateHeapNumberWithValue(
-          Load(MachineType::Float64(), data_pointer, offset));
+          ChangeFloat32ToFloat64(Load<Float32T>(data_pointer, offset)));
+    case FLOAT64_ELEMENTS:
+      return AllocateHeapNumberWithValue(Load<Float64T>(data_pointer, offset));
     case BIGINT64_ELEMENTS:
       return LoadFixedBigInt64ArrayElementAsTagged(data_pointer, offset);
     case BIGUINT64_ELEMENTS:
@@ -2490,7 +2474,7 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ArrayElement(
   CSA_ASSERT(this, IsOffsetInBounds(offset, LoadArrayLength(object),
                                     array_header_size + endian_correction));
   if (SmiValuesAre32Bits()) {
-    return UncheckedCast<Int32T>(Load(MachineType::Int32(), object, offset));
+    return Load<Int32T>(object, offset);
   } else {
     return SmiToInt32(Load(MachineType::TaggedSigned(), object, offset));
   }
@@ -2635,22 +2619,21 @@ TNode<BoolT> CodeStubAssembler::LoadScopeInfoHasExtensionField(
 TNode<Object> CodeStubAssembler::LoadContextElement(
     SloppyTNode<Context> context, int slot_index) {
   int offset = Context::SlotOffset(slot_index);
-  return UncheckedCast<Object>(
-      Load(MachineType::AnyTagged(), context, IntPtrConstant(offset)));
+  return Load<Object>(context, IntPtrConstant(offset));
 }
 
 TNode<Object> CodeStubAssembler::LoadContextElement(
     SloppyTNode<Context> context, SloppyTNode<IntPtrT> slot_index) {
   TNode<IntPtrT> offset = ElementOffsetFromIndex(slot_index, PACKED_ELEMENTS,
                                                  Context::SlotOffset(0));
-  return UncheckedCast<Object>(Load(MachineType::AnyTagged(), context, offset));
+  return Load<Object>(context, offset);
 }
 
 TNode<Object> CodeStubAssembler::LoadContextElement(TNode<Context> context,
                                                     TNode<Smi> slot_index) {
   TNode<IntPtrT> offset = ElementOffsetFromIndex(slot_index, PACKED_ELEMENTS,
                                                  Context::SlotOffset(0));
-  return UncheckedCast<Object>(Load(MachineType::AnyTagged(), context, offset));
+  return Load<Object>(context, offset);
 }
 
 void CodeStubAssembler::StoreContextElement(SloppyTNode<Context> context,
@@ -4084,8 +4067,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
     TNode<IntPtrT> object_word = BitcastTaggedToWord(to_elements);
     TNode<IntPtrT> object_page = PageFromAddress(object_word);
     TNode<IntPtrT> page_flags =
-        UncheckedCast<IntPtrT>(Load(MachineType::IntPtr(), object_page,
-                                    IntPtrConstant(Page::kFlagsOffset)));
+        Load<IntPtrT>(object_page, IntPtrConstant(Page::kFlagsOffset));
     CSA_ASSERT(
         this,
         WordNotEqual(
@@ -4578,7 +4560,7 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
           IntPtrMul(IntPtrSub(dst_index, begin),
                     IntPtrConstant(ElementsKindToByteSize(kind)));
       auto loop_body = [&](Node* array, Node* offset) {
-        Node* const element = Load(MachineType::AnyTagged(), array, offset);
+        const TNode<AnyTaggedT> element = Load<AnyTaggedT>(array, offset);
         const TNode<WordT> delta_offset = IntPtrAdd(offset, delta);
         Store(array, delta_offset, element);
       };
@@ -4671,7 +4653,7 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
       BuildFastFixedArrayForEach(
           src_elements, kind, begin, end,
           [&](Node* array, Node* offset) {
-            Node* const element = Load(MachineType::AnyTagged(), array, offset);
+            const TNode<AnyTaggedT> element = Load<AnyTaggedT>(array, offset);
             const TNode<WordT> delta_offset = IntPtrAdd(offset, delta);
             if (write_barrier == SKIP_WRITE_BARRIER) {
               StoreNoWriteBarrier(MachineRepresentation::kTagged, dst_elements,
@@ -4898,7 +4880,7 @@ void CodeStubAssembler::CopyPropertyArrayValues(Node* from_array,
       from_array, kind, start, property_count,
       [this, to_array, needs_write_barrier, destroy_source](Node* array,
                                                             Node* offset) {
-        Node* value = Load(MachineType::AnyTagged(), array, offset);
+        TNode<AnyTaggedT> value = Load<AnyTaggedT>(array, offset);
 
         if (destroy_source == DestroySource::kNo) {
           value = CloneIfMutablePrimitive(CAST(value));
@@ -4942,7 +4924,7 @@ Node* CodeStubAssembler::LoadElementAndPrepareForStore(Node* array,
     return value;
 
   } else {
-    TNode<Object> value = CAST(Load(MachineType::AnyTagged(), array, offset));
+    TNode<Object> value = Load<Object>(array, offset);
     if (if_hole) {
       GotoIf(TaggedEqual(value, TheHoleConstant()), if_hole);
     }
@@ -6481,16 +6463,14 @@ TNode<Int32T> CodeStubAssembler::StringCharCodeAt(TNode<String> string,
 
   BIND(&if_stringisonebyte);
   {
-    var_result =
-        UncheckedCast<Int32T>(Load(MachineType::Uint8(), string_data, offset));
+    var_result = UncheckedCast<Int32T>(Load<Uint8T>(string_data, offset));
     Goto(&return_result);
   }
 
   BIND(&if_stringistwobyte);
   {
-    var_result =
-        UncheckedCast<Int32T>(Load(MachineType::Uint16(), string_data,
-                                   WordShl(offset, IntPtrConstant(1))));
+    var_result = UncheckedCast<Int32T>(
+        Load<Uint16T>(string_data, WordShl(offset, IntPtrConstant(1))));
     Goto(&return_result);
   }
 
@@ -7367,7 +7347,7 @@ void CodeStubAssembler::IncrementCounter(StatsCounter* counter, int delta) {
     // This operation has to be exactly 32-bit wide in case the external
     // reference table redirects the counter to a uint32_t dummy_stats_counter_
     // field.
-    Node* value = Load(MachineType::Int32(), counter_address);
+    TNode<Int32T> value = Load<Int32T>(counter_address);
     value = Int32Add(value, Int32Constant(delta));
     StoreNoWriteBarrier(MachineRepresentation::kWord32, counter_address, value);
   }
@@ -7381,7 +7361,7 @@ void CodeStubAssembler::DecrementCounter(StatsCounter* counter, int delta) {
     // This operation has to be exactly 32-bit wide in case the external
     // reference table redirects the counter to a uint32_t dummy_stats_counter_
     // field.
-    Node* value = Load(MachineType::Int32(), counter_address);
+    TNode<Int32T> value = Load<Int32T>(counter_address);
     value = Int32Sub(value, Int32Constant(delta));
     StoreNoWriteBarrier(MachineRepresentation::kWord32, counter_address, value);
   }
@@ -10152,8 +10132,7 @@ void CodeStubAssembler::TrapAllocationMemento(Node* object,
   TNode<IntPtrT> object_page = PageFromAddress(object_word);
   {
     TNode<IntPtrT> page_flags =
-        UncheckedCast<IntPtrT>(Load(MachineType::IntPtr(), object_page,
-                                    IntPtrConstant(Page::kFlagsOffset)));
+        Load<IntPtrT>(object_page, IntPtrConstant(Page::kFlagsOffset));
     GotoIf(WordEqual(
                WordAnd(page_flags,
                        IntPtrConstant(MemoryChunk::kIsInYoungGenerationMask)),
@@ -10171,8 +10150,7 @@ void CodeStubAssembler::TrapAllocationMemento(Node* object,
       object_word, IntPtrConstant(kMementoLastWordOffset - kHeapObjectTag));
   TNode<IntPtrT> memento_last_word_page = PageFromAddress(memento_last_word);
 
-  TNode<IntPtrT> new_space_top = UncheckedCast<IntPtrT>(
-      Load(MachineType::Pointer(), new_space_top_address));
+  TNode<IntPtrT> new_space_top = Load<IntPtrT>(new_space_top_address);
   TNode<IntPtrT> new_space_top_page = PageFromAddress(new_space_top);
 
   // If the object is in new space, we need to check whether respective
