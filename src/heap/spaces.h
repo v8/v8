@@ -54,6 +54,7 @@ class LocalSpace;
 class MemoryAllocator;
 class MemoryChunk;
 class MemoryChunkLayout;
+class OffThreadSpace;
 class Page;
 class PagedSpace;
 class SemiSpace;
@@ -1619,6 +1620,9 @@ class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
   PagedSpaceObjectIterator(Heap* heap, PagedSpace* space);
   PagedSpaceObjectIterator(Heap* heap, PagedSpace* space, Page* page);
 
+  // Creates a new object iterator in a given off-thread space.
+  explicit PagedSpaceObjectIterator(OffThreadSpace* space);
+
   // Advance to the next object, skipping free spaces and other fillers and
   // skipping the special garbage section of which there is one per space.
   // Returns nullptr when the iteration has ended.
@@ -1634,7 +1638,6 @@ class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
 
   Address cur_addr_;  // Current iteration point.
   Address cur_end_;   // End iteration point.
-  Heap* heap_;
   PagedSpace* space_;
   PageRange page_range_;
   PageRange::iterator current_page_;

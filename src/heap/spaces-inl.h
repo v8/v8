@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_SPACES_INL_H_
 #define V8_HEAP_SPACES_INL_H_
 
+#include "src/common/globals.h"
 #include "src/heap/spaces.h"
 
 #include "src/base/atomic-utils.h"
@@ -86,8 +87,8 @@ HeapObject PagedSpaceObjectIterator::FromCurrentPage() {
     if (!obj.IsFreeSpaceOrFiller()) {
       if (obj.IsCode()) {
         DCHECK_IMPLIES(
-            space_ != heap_->code_space(),
-            space_ == heap_->read_only_space() && Code::cast(obj).is_builtin());
+            space_->identity() != CODE_SPACE,
+            space_->identity() == RO_SPACE && Code::cast(obj).is_builtin());
         DCHECK_CODEOBJECT_SIZE(obj_size, space_);
       } else {
         DCHECK_OBJECT_SIZE(obj_size);

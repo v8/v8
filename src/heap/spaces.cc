@@ -53,11 +53,10 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
                                                    PagedSpace* space)
     : cur_addr_(kNullAddress),
       cur_end_(kNullAddress),
-      heap_(heap),
       space_(space),
       page_range_(space->first_page(), nullptr),
       current_page_(page_range_.begin()) {
-  heap_->mark_compact_collector()->EnsureSweepingCompleted();
+  heap->mark_compact_collector()->EnsureSweepingCompleted();
 }
 
 PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
@@ -65,17 +64,23 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
                                                    Page* page)
     : cur_addr_(kNullAddress),
       cur_end_(kNullAddress),
-      heap_(heap),
       space_(space),
       page_range_(page),
       current_page_(page_range_.begin()) {
-  heap_->mark_compact_collector()->EnsureSweepingCompleted();
+  heap->mark_compact_collector()->EnsureSweepingCompleted();
 #ifdef DEBUG
   AllocationSpace owner = page->owner_identity();
   DCHECK(owner == RO_SPACE || owner == OLD_SPACE || owner == MAP_SPACE ||
          owner == CODE_SPACE);
 #endif  // DEBUG
 }
+
+PagedSpaceObjectIterator::PagedSpaceObjectIterator(OffThreadSpace* space)
+    : cur_addr_(kNullAddress),
+      cur_end_(kNullAddress),
+      space_(space),
+      page_range_(space->first_page(), nullptr),
+      current_page_(page_range_.begin()) {}
 
 // We have hit the end of the page and should advance to the next block of
 // objects.  This happens at the end of the page.
