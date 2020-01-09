@@ -76,5 +76,35 @@ Handle<JSPromise> MemoryMeasurement::EnqueueRequest(
   return promise;
 }
 
+bool NativeContextInferrer::InferForJSFunction(Map map, JSFunction function,
+                                               Address* native_context) {
+  if (function.has_context()) {
+    *native_context = function.context().native_context().ptr();
+    return true;
+  }
+  return false;
+}
+
+bool NativeContextInferrer::InferForJSObject(Map map, JSObject object,
+                                             Address* native_context) {
+  if (map.instance_type() == JS_GLOBAL_OBJECT_TYPE) {
+    Object maybe_context =
+        JSGlobalObject::cast(object).native_context_unchecked();
+    if (maybe_context.IsNativeContext()) {
+      *native_context = maybe_context.ptr();
+      return true;
+    }
+  }
+  return false;
+}
+
+void NativeContextStats::Clear() { size_by_context_.clear(); }
+
+void NativeContextStats::Merge(const NativeContextStats& other) {
+  for (const auto& it : other.size_by_context_) {
+    size_by_context_[it.first] += it.second;
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

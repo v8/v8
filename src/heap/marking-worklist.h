@@ -134,7 +134,7 @@ class V8_EXPORT_PRIVATE MarkingWorklists {
 
   bool Pop(HeapObject* object) {
     if (active_->Pop(task_id_, object)) return true;
-    if (!per_context_mode_) return false;
+    if (!is_per_context_mode_) return false;
     // The active worklist is empty. Find any other non-empty worklist and
     // switch the active worklist to it.
     return PopContext(object);
@@ -176,6 +176,7 @@ class V8_EXPORT_PRIVATE MarkingWorklists {
     active_context_ = kSharedContext;
     active_ = shared_;
   }
+  bool IsPerContextMode() { return is_per_context_mode_; }
 
  private:
   const Address kSharedContext = 0;
@@ -187,7 +188,7 @@ class V8_EXPORT_PRIVATE MarkingWorklists {
   MarkingWorklist* active_;
   Address active_context_;
   int task_id_;
-  bool per_context_mode_;
+  bool is_per_context_mode_;
   // Per-context worklists. For simplicity we treat the shared worklist as
   // the worklist of dummy kSharedContext.
   std::vector<ContextWorklistPair> context_worklists_;

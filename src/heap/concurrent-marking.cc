@@ -17,6 +17,8 @@
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking.h"
+#include "src/heap/memory-measurement-inl.h"
+#include "src/heap/memory-measurement.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/worklist.h"
@@ -392,6 +394,9 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
       task_state->mark_compact_epoch, Heap::GetBytecodeFlushMode(),
       heap_->local_embedder_heap_tracer()->InUse(), task_state->is_forced_gc,
       &task_state->memory_chunk_data);
+  NativeContextInferrer& native_context_inferrer =
+      task_state->native_context_inferrer;
+  NativeContextStats& native_context_stats = task_state->native_context_stats;
   double time_ms;
   size_t marked_bytes = 0;
   if (FLAG_trace_concurrent_marking) {
@@ -412,7 +417,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
         }
       }
     }
-
+    bool is_per_context_mode = marking_worklists.IsPerContextMode();
     bool done = false;
     while (!done) {
       size_t current_marked_bytes = 0;
@@ -435,7 +440,18 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
           marking_worklists.PushOnHold(object);
         } else {
           Map map = object.synchronized_map();
-          current_marked_bytes += visitor.Visit(map, object);
+          if (is_per_context_mode) {
+            Address context;
+            if (native_context_inferrer.Infer(map, object, &context)) {
+              marking_worklists.SwitchToContext(context);
+            }
+          }
+          size_t visited_size = visitor.Visit(map, object);
+          if (is_per_context_mode) {
+            native_context_stats.IncrementSize(marking_worklists.Context(),
+                                               visited_size);
+          }
+          current_marked_bytes += visited_size;
         }
       }
       marked_bytes += current_marked_bytes;
@@ -588,6 +604,13 @@ bool ConcurrentMarking::IsStopped() {
 
   base::MutexGuard guard(&pending_lock_);
   return pending_task_count_ == 0;
+}
+
+void ConcurrentMarking::FlushNativeContexts(NativeContextStats* main_stats) {
+  for (int i = 1; i <= total_task_count_; i++) {
+    main_stats->Merge(task_state_[i].native_context_stats);
+    task_state_[i].native_context_stats.Clear();
+  }
 }
 
 void ConcurrentMarking::FlushMemoryChunkData(

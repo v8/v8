@@ -456,6 +456,10 @@ ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
 ACCESSORS(JSGlobalObject, native_context, NativeContext, kNativeContextOffset)
 ACCESSORS(JSGlobalObject, global_proxy, JSGlobalProxy, kGlobalProxyOffset)
 
+DEF_GETTER(JSGlobalObject, native_context_unchecked, Object) {
+  return TaggedField<Object, kNativeContextOffset>::load(isolate, *this);
+}
+
 FeedbackVector JSFunction::feedback_vector() const {
   DCHECK(has_feedback_vector());
   return FeedbackVector::cast(raw_feedback_cell().value());

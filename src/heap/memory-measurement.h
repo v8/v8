@@ -5,7 +5,11 @@
 #ifndef V8_HEAP_MEMORY_MEASUREMENT_H_
 #define V8_HEAP_MEMORY_MEASUREMENT_H_
 
+#include <unordered_map>
+
 #include "src/common/globals.h"
+#include "src/objects/contexts.h"
+#include "src/objects/map.h"
 #include "src/objects/objects.h"
 
 namespace v8 {
@@ -18,9 +22,39 @@ class V8_EXPORT_PRIVATE MemoryMeasurement {
   explicit MemoryMeasurement(Isolate* isolate);
   Handle<JSPromise> EnqueueRequest(Handle<NativeContext> context,
                                    v8::MeasureMemoryMode mode);
-
  private:
   Isolate* isolate_;
+};
+
+// Infers the native context for some of the heap objects.
+class V8_EXPORT_PRIVATE NativeContextInferrer {
+ public:
+  V8_INLINE bool Infer(Map map, HeapObject object, Address* native_context);
+
+ private:
+  bool InferForJSFunction(Map map, JSFunction function,
+                          Address* native_context);
+  bool InferForJSObject(Map map, JSObject object, Address* native_context);
+};
+
+// Maintains mapping from native contexts to their sizes.
+class V8_EXPORT_PRIVATE NativeContextStats {
+ public:
+  void IncrementSize(Address context, size_t size) {
+    size_by_context_[context] += size;
+  }
+
+  size_t Get(Address context) const {
+    const auto it = size_by_context_.find(context);
+    if (it == size_by_context_.end()) return 0;
+    return it->second;
+  }
+
+  void Clear();
+  void Merge(const NativeContextStats& other);
+
+ private:
+  std::unordered_map<Address, size_t> size_by_context_;
 };
 
 }  // namespace internal

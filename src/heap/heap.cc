@@ -6006,6 +6006,17 @@ size_t Heap::NumberOfNativeContexts() {
   return result;
 }
 
+std::vector<Address> Heap::FindNativeContexts() {
+  std::vector<Address> result;
+  Object context = native_contexts_list();
+  while (!context.IsUndefined(isolate())) {
+    Context native_context = Context::cast(context);
+    result.push_back(native_context.ptr());
+    context = native_context.next_context_link();
+  }
+  return result;
+}
+
 size_t Heap::NumberOfDetachedContexts() {
   // The detached_contexts() array has two entries per detached context.
   return detached_contexts().length() / 2;

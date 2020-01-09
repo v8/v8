@@ -13,6 +13,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist.h"
+#include "src/heap/memory-measurement.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
 #include "src/heap/worklist.h"
@@ -82,6 +83,8 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   bool Stop(StopRequest stop_request);
 
   void RescheduleTasksIfNeeded();
+  // Flushes native context sizes to the given table of the main thread.
+  void FlushNativeContexts(NativeContextStats* main_stats);
   // Flushes memory chunk data using the given marking state.
   void FlushMemoryChunkData(MajorNonAtomicMarkingState* marking_state);
   // This function is called for a new space page that was cleared after
@@ -103,10 +106,12 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
     // The main thread sets this flag to true when it wants the concurrent
     // marker to give up the worker thread.
     std::atomic<bool> preemption_request;
-    MemoryChunkDataMap memory_chunk_data;
     size_t marked_bytes = 0;
     unsigned mark_compact_epoch;
     bool is_forced_gc;
+    MemoryChunkDataMap memory_chunk_data;
+    NativeContextInferrer native_context_inferrer;
+    NativeContextStats native_context_stats;
     char cache_line_padding[64];
   };
   class Task;

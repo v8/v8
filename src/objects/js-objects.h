@@ -1225,6 +1225,10 @@ class JSGlobalObject : public JSSpecialObject {
 
   inline bool IsDetached();
 
+  // May be called by the concurrent GC when the global object is not
+  // fully initialized.
+  DECL_GETTER(native_context_unchecked, Object)
+
   // Dispatched behavior.
   DECL_PRINTER(JSGlobalObject)
   DECL_VERIFIER(JSGlobalObject)

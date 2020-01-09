@@ -23,6 +23,8 @@
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-visitor.h"
+#include "src/heap/memory-measurement-inl.h"
+#include "src/heap/memory-measurement.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/read-only-heap.h"
@@ -498,7 +500,11 @@ bool MarkCompactCollector::StartCompaction() {
 }
 
 void MarkCompactCollector::StartMarking() {
-  marking_worklists_holder()->CreateContextWorklists(std::vector<Address>());
+  std::vector<Address> contexts;
+  if (FLAG_stress_per_context_marking_worklist) {
+    contexts = heap()->FindNativeContexts();
+  }
+  marking_worklists_holder()->CreateContextWorklists(contexts);
   marking_worklists_ = std::make_unique<MarkingWorklists>(
       kMainThreadTask, marking_worklists_holder());
   marking_visitor_ = std::make_unique<MarkingVisitor>(
@@ -854,6 +860,7 @@ void MarkCompactCollector::FinishConcurrentMarking(
     heap()->concurrent_marking()->Stop(stop_request);
     heap()->concurrent_marking()->FlushMemoryChunkData(
         non_atomic_marking_state());
+    heap()->concurrent_marking()->FlushNativeContexts(&native_context_stats_);
   }
 }
 
@@ -885,6 +892,7 @@ void MarkCompactCollector::Finish() {
   marking_visitor_.reset();
   marking_worklists_.reset();
   marking_worklists_holder_.ReleaseContextWorklists();
+  native_context_stats_.Clear();
 
   CHECK(weak_objects_.current_ephemerons.IsEmpty());
   CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
@@ -1770,6 +1778,7 @@ template <MarkCompactCollector::MarkingWorklistProcessingMode mode>
 size_t MarkCompactCollector::ProcessMarkingWorklist(size_t bytes_to_process) {
   HeapObject object;
   size_t bytes_processed = 0;
+  bool is_per_context_mode = marking_worklists()->IsPerContextMode();
   while (marking_worklists()->Pop(&object) ||
          marking_worklists()->PopOnHold(&object)) {
     // Left trimming may result in grey or black filler objects on the marking
@@ -1794,7 +1803,19 @@ size_t MarkCompactCollector::ProcessMarkingWorklist(size_t bytes_to_process) {
                     kTrackNewlyDiscoveredObjects) {
       AddNewlyDiscovered(object);
     }
-    bytes_processed += marking_visitor_->Visit(object.map(), object);
+    Map map = object.map();
+    if (is_per_context_mode) {
+      Address context;
+      if (native_context_inferrer_.Infer(map, object, &context)) {
+        marking_worklists()->SwitchToContext(context);
+      }
+    }
+    size_t visited_size = marking_visitor_->Visit(map, object);
+    if (is_per_context_mode) {
+      native_context_stats_.IncrementSize(marking_worklists()->Context(),
+                                          visited_size);
+    }
+    bytes_processed += visited_size;
     if (bytes_to_process && bytes_processed >= bytes_to_process) {
       break;
     }

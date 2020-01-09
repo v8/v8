@@ -89,10 +89,10 @@ MarkingWorklists::MarkingWorklists(int task_id, MarkingWorklistsHolder* holder)
       active_(shared_),
       active_context_(kSharedContext),
       task_id_(task_id),
-      per_context_mode_(false),
+      is_per_context_mode_(false),
       context_worklists_(holder->context_worklists()) {
   if (!context_worklists_.empty()) {
-    per_context_mode_ = true;
+    is_per_context_mode_ = true;
     context_worklists_.push_back({kSharedContext, shared_});
     worklist_by_context_.reserve(context_worklists_.size());
     for (auto& cw : context_worklists_) {
@@ -105,7 +105,7 @@ void MarkingWorklists::FlushToGlobal() {
   shared_->FlushToGlobal(task_id_);
   on_hold_->FlushToGlobal(task_id_);
   embedder_->FlushToGlobal(task_id_);
-  if (per_context_mode_) {
+  if (is_per_context_mode_) {
     for (auto& cw : context_worklists_) {
       cw.worklist->FlushToGlobal(task_id_);
     }
@@ -120,7 +120,7 @@ bool MarkingWorklists::IsEmpty() {
       !active_->IsGlobalPoolEmpty() || !on_hold_->IsGlobalPoolEmpty()) {
     return false;
   }
-  if (!per_context_mode_) {
+  if (!is_per_context_mode_) {
     DCHECK_EQ(active_, shared_);
     return true;
   }
@@ -143,7 +143,7 @@ void MarkingWorklists::ShareWorkIfGlobalPoolIsEmpty() {
   if (!shared_->IsLocalEmpty(task_id_) && shared_->IsGlobalPoolEmpty()) {
     shared_->FlushToGlobal(task_id_);
   }
-  if (per_context_mode_ && shared_ != active_) {
+  if (is_per_context_mode_ && shared_ != active_) {
     if (!active_->IsLocalEmpty(task_id_) && active_->IsGlobalPoolEmpty()) {
       active_->FlushToGlobal(task_id_);
     }
@@ -156,7 +156,7 @@ void MarkingWorklists::MergeOnHold() {
 }
 
 bool MarkingWorklists::PopContext(HeapObject* object) {
-  DCHECK(per_context_mode_);
+  DCHECK(is_per_context_mode_);
   // As an optimization we first check only the local segments to avoid locks.
   for (auto& cw : context_worklists_) {
     if (!cw.worklist->IsLocalEmpty(task_id_)) {
@@ -173,6 +173,8 @@ bool MarkingWorklists::PopContext(HeapObject* object) {
       return true;
     }
   }
+  // All worklists are empty. Switch to the default shared worklist.
+  SwitchToShared();
   return false;
 }
 

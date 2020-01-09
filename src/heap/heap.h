@@ -581,6 +581,7 @@ class Heap {
 
   Handle<JSPromise> MeasureMemory(Handle<NativeContext> context,
                                   v8::MeasureMemoryMode mode);
+  std::vector<Address> FindNativeContexts();
 
   // Check new space expansion criteria and expand semispaces if it was hit.
   void CheckNewSpaceExpansionCriteria();

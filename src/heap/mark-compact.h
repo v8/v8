@@ -12,6 +12,7 @@
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/marking.h"
+#include "src/heap/memory-measurement.h"
 #include "src/heap/spaces.h"
 #include "src/heap/sweeper.h"
 
@@ -770,6 +771,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   std::unique_ptr<MarkingVisitor> marking_visitor_;
   std::unique_ptr<MarkingWorklists> marking_worklists_;
+  NativeContextInferrer native_context_inferrer_;
+  NativeContextStats native_context_stats_;
 
   // Candidates for pages that should be evacuated.
   std::vector<Page*> evacuation_candidates_;
