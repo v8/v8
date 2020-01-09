@@ -5057,6 +5057,10 @@ std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {
   if (ref.data_->kind() == ObjectDataKind::kUnserializedHeapObject ||
       !FLAG_concurrent_recompilation) {
     // We cannot be in a background thread so it's safe to read the heap.
+    AllowHandleDereference allow_handle_dereference;
+    return os << ref.data() << " {" << ref.object() << "}";
+  } else if (ref.data_->kind() ==
+             ObjectDataKind::kUnserializedReadOnlyHeapObject) {
     AllowHandleDereferenceIf allow_handle_dereference(ref.data()->kind(),
                                                       ref.broker()->mode());
     return os << ref.data() << " {" << ref.object() << "}";
