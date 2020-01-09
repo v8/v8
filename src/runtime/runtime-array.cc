@@ -301,11 +301,8 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
     // Let elementK be the result of ? Get(O, ! ToString(k)).
     Handle<Object> element_k;
     {
-      Handle<Object> index_obj = isolate->factory()->NewNumberFromInt64(index);
-      bool success;
-      LookupIterator it = LookupIterator::PropertyOrElement(
-          isolate, object, index_obj, &success);
-      DCHECK(success);
+      LookupIterator::Key key(isolate, static_cast<double>(index));
+      LookupIterator it(isolate, object, key);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element_k,
                                          Object::GetProperty(&it));
     }
@@ -395,24 +392,21 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
     return *isolate->factory()->NewNumberFromInt64(result.FromJust());
   }
 
-  // Otherwise, perform slow lookups for special receiver types
+  // Otherwise, perform slow lookups for special receiver types.
   for (; index < len; ++index) {
     HandleScope iteration_hs(isolate);
     // Let elementK be the result of ? Get(O, ! ToString(k)).
     Handle<Object> element_k;
     {
-      Handle<Object> index_obj = isolate->factory()->NewNumberFromInt64(index);
-      bool success;
-      LookupIterator it = LookupIterator::PropertyOrElement(
-          isolate, object, index_obj, &success);
-      DCHECK(success);
+      LookupIterator::Key key(isolate, static_cast<double>(index));
+      LookupIterator it(isolate, object, key);
       Maybe<bool> present = JSReceiver::HasProperty(&it);
       MAYBE_RETURN(present, ReadOnlyRoots(isolate).exception());
       if (!present.FromJust()) continue;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element_k,
                                          Object::GetProperty(&it));
       if (search_element->StrictEquals(*element_k)) {
-        return *index_obj;
+        return *isolate->factory()->NewNumberFromInt64(index);
       }
     }
   }

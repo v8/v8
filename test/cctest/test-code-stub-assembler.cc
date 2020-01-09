@@ -1680,15 +1680,13 @@ TEST(TryLookupElement) {
   CHECK(!JSReceiver::HasElement(object, index).FromJust()); \
   ft.CheckTrue(object, smi##index, expect_not_found);
 
-#define CHECK_ABSENT(object, index)                                        \
-  {                                                                        \
-    bool success;                                                          \
-    Handle<Smi> smi(Smi::FromInt(index), isolate);                         \
-    LookupIterator it =                                                    \
-        LookupIterator::PropertyOrElement(isolate, object, smi, &success); \
-    CHECK(success);                                                        \
-    CHECK(!JSReceiver::HasProperty(&it).FromJust());                       \
-    ft.CheckTrue(object, smi, expect_absent);                              \
+#define CHECK_ABSENT(object, index)                  \
+  {                                                  \
+    Handle<Smi> smi(Smi::FromInt(index), isolate);   \
+    LookupIterator::Key key(isolate, smi);           \
+    LookupIterator it(isolate, object, key);         \
+    CHECK(!JSReceiver::HasProperty(&it).FromJust()); \
+    ft.CheckTrue(object, smi, expect_absent);        \
   }
 
   {
@@ -1816,6 +1814,7 @@ TEST(TryLookupElement) {
 
 #undef CHECK_FOUND
 #undef CHECK_NOT_FOUND
+#undef CHECK_ABSENT
 
   {
     Handle<JSArray> handler = factory->NewJSArray(0);
@@ -1911,7 +1910,6 @@ TEST(AllocateJSObjectFromMap) {
     isolate->heap()->Verify();
 #endif
   }
-#undef VERIFY
 }
 
 TEST(AllocateNameDictionary) {

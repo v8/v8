@@ -1005,7 +1005,7 @@ bool ScopeIterator::SetContextExtensionValue(Handle<String> variable_name,
   DCHECK(context_->extension_object().IsJSContextExtensionObject());
   Handle<JSObject> ext(context_->extension_object(), isolate_);
   LookupIterator it(isolate_, ext, variable_name, LookupIterator::OWN);
-  Maybe<bool> maybe = JSReceiver::HasOwnProperty(ext, variable_name);
+  Maybe<bool> maybe = JSReceiver::HasProperty(&it);
   DCHECK(maybe.IsJust());
   if (!maybe.FromJust()) return false;
 

@@ -336,11 +336,8 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPush(Isolate* isolate,
           isolate, Object::SetElement(isolate, receiver, length, element,
                                       ShouldThrow::kThrowOnError));
     } else {
-      bool success;
-      LookupIterator it = LookupIterator::PropertyOrElement(
-          isolate, receiver, isolate->factory()->NewNumber(length), &success);
-      // Must succeed since we always pass a valid key.
-      DCHECK(success);
+      LookupIterator::Key key(isolate, length);
+      LookupIterator it(isolate, receiver, key);
       MAYBE_RETURN(Object::SetProperty(&it, element, StoreOrigin::kMaybeKeyed,
                                        Just(ShouldThrow::kThrowOnError)),
                    ReadOnlyRoots(isolate).exception());

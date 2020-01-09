@@ -45,43 +45,45 @@ class V8_EXPORT_PRIVATE LookupIterator final {
     BEFORE_PROPERTY = INTERCEPTOR
   };
 
+  class Key {
+   public:
+    inline Key(Isolate* isolate, double index);
+    // {name} might be a string representation of an element index.
+    inline Key(Isolate* isolate, Handle<Name> name);
+    // {valid_key} is a Name or Number.
+    inline Key(Isolate* isolate, Handle<Object> valid_key);
+    // {key} could be anything.
+    Key(Isolate* isolate, Handle<Object> key, bool* success);
+
+    bool is_element() { return index_ != LookupIterator::kInvalidIndex; }
+    Handle<Name> name() const { return name_; }
+    size_t index() const { return index_; }
+    inline Handle<Name> GetName(Isolate* isolate);
+
+   private:
+    Handle<Name> name_;
+    size_t index_;
+  };
+
+  // {name} is guaranteed to be a property name (and not e.g. "123").
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
                         Handle<Name> name,
                         Configuration configuration = DEFAULT);
-
-  inline LookupIterator(Handle<Object> receiver, Handle<Name> name,
-                        Handle<JSReceiver> holder,
-                        Configuration configuration = DEFAULT);
-
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
                         Handle<Name> name, Handle<JSReceiver> holder,
                         Configuration configuration = DEFAULT);
 
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver, size_t index,
-                        Configuration configuration = DEFAULT,
-                        Handle<Name> key_as_string = Handle<Name>());
-
+                        Configuration configuration = DEFAULT);
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver, size_t index,
                         Handle<JSReceiver> holder,
-                        Configuration configuration = DEFAULT,
-                        Handle<Name> key_as_string = Handle<Name>());
+                        Configuration configuration = DEFAULT);
 
-  static inline LookupIterator PropertyOrElement(
-      Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
-      Configuration configuration = DEFAULT);
-
-  static inline LookupIterator PropertyOrElement(
-      Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
-      Handle<JSReceiver> holder, Configuration configuration = DEFAULT);
-
-  static LookupIterator PropertyOrElement(
-      Isolate* isolate, Handle<Object> receiver, Handle<Object> key,
-      bool* success, Handle<JSReceiver> holder,
-      Configuration configuration = DEFAULT);
-
-  static LookupIterator PropertyOrElement(
-      Isolate* isolate, Handle<Object> receiver, Handle<Object> key,
-      bool* success, Configuration configuration = DEFAULT);
+  inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                        const Key& key, Configuration configuration = DEFAULT);
+  inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                        const Key& key, Handle<JSReceiver> holder,
+                        Configuration configuration = DEFAULT);
 
   void Restart() {
     InterceptorState state = InterceptorState::kUninitialized;
@@ -191,6 +193,10 @@ class V8_EXPORT_PRIVATE LookupIterator final {
  private:
   static const size_t kInvalidIndex = std::numeric_limits<size_t>::max();
 
+  inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                        Handle<Name> name, size_t index,
+                        Handle<JSReceiver> holder, Configuration configuration);
+
   // For |ForTransitionHandler|.
   LookupIterator(Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
                  Handle<Map> transition_map, PropertyDetails details,
@@ -263,10 +269,10 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   // If configuration_ becomes mutable, update
   // HolderIsReceiverOrHiddenPrototype.
   const Configuration configuration_;
-  State state_;
-  bool has_property_;
-  InterceptorState interceptor_state_;
-  PropertyDetails property_details_;
+  State state_ = NOT_FOUND;
+  bool has_property_ = false;
+  InterceptorState interceptor_state_ = InterceptorState::kUninitialized;
+  PropertyDetails property_details_ = PropertyDetails::Empty();
   Isolate* const isolate_;
   Handle<Name> name_;
   Handle<Object> transition_;

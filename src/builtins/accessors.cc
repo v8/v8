@@ -85,7 +85,7 @@ Accessors::ReplaceAccessorWithDataProperty(Handle<Object> receiver,
                                            Handle<JSObject> holder,
                                            Handle<Name> name,
                                            Handle<Object> value) {
-  LookupIterator it(receiver, name, holder,
+  LookupIterator it(holder->GetIsolate(), receiver, name, holder,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   // Skip any access checks we might hit. This accessor should never hit in a
   // situation where the caller does not have access.

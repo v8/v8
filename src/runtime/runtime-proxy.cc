@@ -33,12 +33,12 @@ RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
 #endif
 
   bool success = false;
-  LookupIterator it = LookupIterator::PropertyOrElement(isolate, receiver, key,
-                                                        &success, holder);
+  LookupIterator::Key lookup_key(isolate, key, &success);
   if (!success) {
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
   }
+  LookupIterator it(isolate, receiver, lookup_key, holder);
 
   RETURN_RESULT_OR_FAILURE(isolate, Object::GetProperty(&it));
 }
@@ -53,12 +53,12 @@ RUNTIME_FUNCTION(Runtime_SetPropertyWithReceiver) {
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 3);
 
   bool success = false;
-  LookupIterator it = LookupIterator::PropertyOrElement(isolate, receiver, key,
-                                                        &success, holder);
+  LookupIterator::Key lookup_key(isolate, key, &success);
   if (!success) {
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
   }
+  LookupIterator it(isolate, receiver, lookup_key, holder);
   Maybe<bool> result =
       Object::SetSuperProperty(&it, value, StoreOrigin::kMaybeKeyed);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());

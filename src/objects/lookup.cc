@@ -19,60 +19,21 @@
 namespace v8 {
 namespace internal {
 
-// static
-LookupIterator LookupIterator::PropertyOrElement(
-    Isolate* isolate, Handle<Object> receiver, Handle<Object> key,
-    bool* success, Handle<JSReceiver> holder, Configuration configuration) {
-  size_t index = 0;
-  if (key->ToIntegerIndex(&index)) {
+LookupIterator::Key::Key(Isolate* isolate, Handle<Object> key, bool* success) {
+  if (key->ToIntegerIndex(&index_)) {
     *success = true;
-    return LookupIterator(isolate, receiver, index, holder, configuration);
+    return;
   }
-
-  Handle<Name> name;
-  *success = Object::ToName(isolate, key).ToHandle(&name);
+  *success = Object::ToName(isolate, key).ToHandle(&name_);
   if (!*success) {
     DCHECK(isolate->has_pending_exception());
-    // Return an unusable dummy.
-    return LookupIterator(isolate, receiver,
-                          isolate->factory()->empty_string());
+    index_ = kInvalidIndex;
+    return;
   }
-
-  if (name->AsIntegerIndex(&index)) {
-    return LookupIterator(isolate, receiver, index, holder, configuration,
-                          name);
+  if (!name_->AsIntegerIndex(&index_)) {
+    // {AsIntegerIndex} may modify {index_} before deciding to fail.
+    index_ = LookupIterator::kInvalidIndex;
   }
-
-  return LookupIterator(receiver, name, holder, configuration);
-}
-
-// static
-LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
-                                                 Handle<Object> receiver,
-                                                 Handle<Object> key,
-                                                 bool* success,
-                                                 Configuration configuration) {
-  // TODO(mslekova): come up with better way to avoid duplication
-  size_t index = 0;
-  if (key->ToIntegerIndex(&index)) {
-    *success = true;
-    return LookupIterator(isolate, receiver, index, configuration);
-  }
-
-  Handle<Name> name;
-  *success = Object::ToName(isolate, key).ToHandle(&name);
-  if (!*success) {
-    DCHECK(isolate->has_pending_exception());
-    // Return an unusable dummy.
-    return LookupIterator(isolate, receiver,
-                          isolate->factory()->empty_string());
-  }
-
-  if (name->AsIntegerIndex(&index)) {
-    return LookupIterator(isolate, receiver, index, configuration, name);
-  }
-
-  return LookupIterator(isolate, receiver, name, configuration);
 }
 
 LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,

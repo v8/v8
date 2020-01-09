@@ -20,98 +20,132 @@ namespace internal {
 
 LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
                                Handle<Name> name, Configuration configuration)
-    : LookupIterator(isolate, receiver, name, GetRoot(isolate, receiver),
-                     configuration) {}
-
-LookupIterator::LookupIterator(Handle<Object> receiver, Handle<Name> name,
-                               Handle<JSReceiver> holder,
-                               Configuration configuration)
-    : LookupIterator(holder->GetIsolate(), receiver, name, holder,
-                     configuration) {}
+    : LookupIterator(isolate, receiver, name, kInvalidIndex,
+                     GetRoot(isolate, receiver, kInvalidIndex), configuration) {
+}
 
 LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
                                Handle<Name> name, Handle<JSReceiver> holder,
                                Configuration configuration)
-    : configuration_(ComputeConfiguration(isolate, configuration, name)),
-      interceptor_state_(InterceptorState::kUninitialized),
-      property_details_(PropertyDetails::Empty()),
-      isolate_(isolate),
-      name_(isolate_->factory()->InternalizeName(name)),
-      receiver_(receiver),
-      initial_holder_(holder),
-      index_(kInvalidIndex) {
-#ifdef DEBUG
-  // Assert that the name is not an index.
-  // If we're not looking at the prototype chain and the initial holder is
-  // not a typed array, then this means "array index", otherwise we need to
-  // ensure the full generality so that typed arrays are handled correctly.
-  if (!check_prototype_chain() && !holder->IsJSTypedArray()) {
-    uint32_t index;
-    DCHECK(!name->AsArrayIndex(&index));
-  } else {
-    size_t index;
-    DCHECK(!name->AsIntegerIndex(&index));
-  }
-#endif  // DEBUG
-  Start<false>();
-}
+    : LookupIterator(isolate, receiver, name, kInvalidIndex, holder,
+                     configuration) {}
 
 LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
-                               size_t index, Configuration configuration,
-                               Handle<Name> key_as_string)
-    : LookupIterator(isolate, receiver, index,
-                     GetRoot(isolate, receiver, index), configuration,
-                     key_as_string) {}
+                               size_t index, Configuration configuration)
+    : LookupIterator(isolate, receiver, Handle<Name>(), index,
+                     GetRoot(isolate, receiver, index), configuration) {
+  DCHECK_NE(index, kInvalidIndex);
+}
 
 LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
                                size_t index, Handle<JSReceiver> holder,
-                               Configuration configuration,
-                               Handle<Name> key_as_string)
-    : configuration_(configuration),
-      interceptor_state_(InterceptorState::kUninitialized),
-      property_details_(PropertyDetails::Empty()),
+                               Configuration configuration)
+    : LookupIterator(isolate, receiver, Handle<Name>(), index, holder,
+                     configuration) {
+  DCHECK_NE(index, kInvalidIndex);
+}
+
+LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                               const Key& key, Configuration configuration)
+    : LookupIterator(isolate, receiver, key.name(), key.index(),
+                     GetRoot(isolate, receiver, key.index()), configuration) {}
+
+LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                               const Key& key, Handle<JSReceiver> holder,
+                               Configuration configuration)
+    : LookupIterator(isolate, receiver, key.name(), key.index(), holder,
+                     configuration) {}
+
+// This private constructor is the central bottleneck that all the other
+// constructors use.
+LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                               Handle<Name> name, size_t index,
+                               Handle<JSReceiver> holder,
+                               Configuration configuration)
+    : configuration_(ComputeConfiguration(isolate, configuration, name)),
       isolate_(isolate),
+      name_(name),
       receiver_(receiver),
       initial_holder_(holder),
       index_(index) {
-  DCHECK_NE(index, kInvalidIndex);
-  // If we're not looking at a TypedArray, we will need the key represented
-  // as an internalized string.
-  if (index_ > JSArray::kMaxArrayIndex && !holder->IsJSTypedArray()) {
-    if (key_as_string.is_null()) {
-      key_as_string = isolate->factory()->SizeToString(index_);
+  if (IsElement()) {
+    // If we're not looking at a TypedArray, we will need the key represented
+    // as an internalized string.
+    if (index_ > JSArray::kMaxArrayIndex && !holder->IsJSTypedArray()) {
+      if (name_.is_null()) {
+        name_ = isolate->factory()->SizeToString(index_);
+      }
+      name_ = isolate->factory()->InternalizeName(name_);
+    } else if (!name_.is_null() && !name_->IsInternalizedString()) {
+      // Maintain the invariant that if name_ is present, it is internalized.
+      name_ = Handle<Name>();
     }
-    name_ = isolate->factory()->InternalizeName(key_as_string);
-  } else if (!key_as_string.is_null() &&
-             key_as_string->IsInternalizedString()) {
-    // Even for TypedArrays: if we have a name, keep it. ICs will need it.
-    name_ = key_as_string;
+    Start<true>();
+  } else {
+    name_ = isolate->factory()->InternalizeName(name_);
+#ifdef DEBUG
+    // Assert that the name is not an index.
+    // If we're not looking at the prototype chain and the initial holder is
+    // not a typed array, then this means "array index", otherwise we need to
+    // ensure the full generality so that typed arrays are handled correctly.
+    if (!check_prototype_chain() && !holder->IsJSTypedArray()) {
+      uint32_t index;
+      DCHECK(!name_->AsArrayIndex(&index));
+    } else {
+      size_t index;
+      DCHECK(!name_->AsIntegerIndex(&index));
+    }
+#endif  // DEBUG
+    Start<false>();
   }
-  Start<true>();
 }
 
-LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
-                                                 Handle<Object> receiver,
-                                                 Handle<Name> name,
-                                                 Handle<JSReceiver> holder,
-                                                 Configuration configuration) {
-  size_t index;
-  if (name->AsIntegerIndex(&index)) {
-    return LookupIterator(isolate, receiver, index, holder, configuration,
-                          name);
+LookupIterator::Key::Key(Isolate* isolate, double index) {
+  DCHECK_EQ(index, static_cast<uint64_t>(index));
+#if V8_TARGET_ARCH_32_BIT
+  if (index <= JSArray::kMaxArrayIndex) {
+    index_ = static_cast<size_t>(index);
+  } else {
+    index_ = LookupIterator::kInvalidIndex;
+    name_ = isolate->factory()->InternalizeString(
+        isolate->factory()->HeapNumberToString(
+            isolate->factory()->NewHeapNumber(index), index));
   }
-  return LookupIterator(isolate, receiver, name, holder, configuration);
+#else
+  index_ = static_cast<size_t>(index);
+#endif
 }
 
-LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
-                                                 Handle<Object> receiver,
-                                                 Handle<Name> name,
-                                                 Configuration configuration) {
-  size_t index;
-  if (name->AsIntegerIndex(&index)) {
-    return LookupIterator(isolate, receiver, index, configuration, name);
+LookupIterator::Key::Key(Isolate* isolate, Handle<Name> name) {
+  if (name->AsIntegerIndex(&index_)) {
+    name_ = name;
+  } else {
+    index_ = LookupIterator::kInvalidIndex;
+    name_ = isolate->factory()->InternalizeName(name);
   }
-  return LookupIterator(isolate, receiver, name, configuration);
+}
+
+LookupIterator::Key::Key(Isolate* isolate, Handle<Object> valid_key) {
+  DCHECK(valid_key->IsName() || valid_key->IsNumber());
+  if (valid_key->ToIntegerIndex(&index_)) return;
+  if (valid_key->IsNumber()) {
+    // Negative or out of range -> treat as named property.
+    valid_key = isolate->factory()->NumberToString(valid_key);
+  }
+  DCHECK(valid_key->IsName());
+  name_ = Handle<Name>::cast(valid_key);
+  if (!name_->AsIntegerIndex(&index_)) {
+    index_ = LookupIterator::kInvalidIndex;
+    name_ = isolate->factory()->InternalizeName(name_);
+  }
+}
+
+Handle<Name> LookupIterator::Key::GetName(Isolate* isolate) {
+  if (name_.is_null()) {
+    DCHECK(is_element());
+    name_ = isolate->factory()->SizeToString(index_);
+  }
+  return name_;
 }
 
 Handle<Name> LookupIterator::name() const {
@@ -202,7 +236,8 @@ InternalIndex LookupIterator::dictionary_entry() const {
 // static
 LookupIterator::Configuration LookupIterator::ComputeConfiguration(
     Isolate* isolate, Configuration configuration, Handle<Name> name) {
-  return name->IsPrivate(isolate) ? OWN_SKIP_INTERCEPTOR : configuration;
+  return (!name.is_null() && name->IsPrivate(isolate)) ? OWN_SKIP_INTERCEPTOR
+                                                       : configuration;
 }
 
 // static

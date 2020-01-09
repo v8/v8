@@ -978,7 +978,8 @@ Maybe<bool> Object::LessThanOrEqual(Isolate* isolate, Handle<Object> x,
 MaybeHandle<Object> Object::GetPropertyOrElement(Isolate* isolate,
                                                  Handle<Object> object,
                                                  Handle<Name> name) {
-  LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name);
+  LookupIterator::Key key(isolate, name);
+  LookupIterator it(isolate, object, key);
   return GetProperty(&it);
 }
 
@@ -986,7 +987,8 @@ MaybeHandle<Object> Object::SetPropertyOrElement(
     Isolate* isolate, Handle<Object> object, Handle<Name> name,
     Handle<Object> value, Maybe<ShouldThrow> should_throw,
     StoreOrigin store_origin) {
-  LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name);
+  LookupIterator::Key key(isolate, name);
+  LookupIterator it(isolate, object, key);
   MAYBE_RETURN_NULL(SetProperty(&it, value, store_origin, should_throw));
   return value;
 }
@@ -994,8 +996,9 @@ MaybeHandle<Object> Object::SetPropertyOrElement(
 MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
                                                  Handle<Name> name,
                                                  Handle<JSReceiver> holder) {
-  LookupIterator it = LookupIterator::PropertyOrElement(holder->GetIsolate(),
-                                                        receiver, name, holder);
+  Isolate* isolate = holder->GetIsolate();
+  LookupIterator::Key key(isolate, name);
+  LookupIterator it(isolate, receiver, key, holder);
   return GetProperty(&it);
 }
 

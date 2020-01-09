@@ -1056,10 +1056,8 @@ Maybe<uint32_t> ValueSerializer::WriteJSObjectPropertiesSlow(
   for (int i = 0; i < length; i++) {
     Handle<Object> key(keys->get(i), isolate_);
 
-    bool success;
-    LookupIterator it = LookupIterator::PropertyOrElement(
-        isolate_, object, key, &success, LookupIterator::OWN);
-    DCHECK(success);
+    LookupIterator::Key lookup_key(isolate_, key);
+    LookupIterator it(isolate_, object, lookup_key, LookupIterator::OWN);
     Handle<Object> value;
     if (!Object::GetProperty(&it).ToHandle(&value)) return Nothing<uint32_t>();
 
@@ -2173,10 +2171,10 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
       CommitProperties(object, map, properties);
       num_properties = static_cast<uint32_t>(properties.size());
 
-      bool success;
-      LookupIterator it = LookupIterator::PropertyOrElement(
-          isolate_, object, key, &success, LookupIterator::OWN);
-      if (!success || it.state() != LookupIterator::NOT_FOUND ||
+      // We checked earlier that IsValidObjectKey(key).
+      LookupIterator::Key lookup_key(isolate_, key);
+      LookupIterator it(isolate_, object, lookup_key, LookupIterator::OWN);
+      if (it.state() != LookupIterator::NOT_FOUND ||
           JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE)
               .is_null()) {
         return Nothing<uint32_t>();
@@ -2207,10 +2205,10 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
     Handle<Object> value;
     if (!ReadObject().ToHandle(&value)) return Nothing<uint32_t>();
 
-    bool success;
-    LookupIterator it = LookupIterator::PropertyOrElement(
-        isolate_, object, key, &success, LookupIterator::OWN);
-    if (!success || it.state() != LookupIterator::NOT_FOUND ||
+    // We checked earlier that IsValidObjectKey(key).
+    LookupIterator::Key lookup_key(isolate_, key);
+    LookupIterator it(isolate_, object, lookup_key, LookupIterator::OWN);
+    if (it.state() != LookupIterator::NOT_FOUND ||
         JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE)
             .is_null()) {
       return Nothing<uint32_t>();
@@ -2254,10 +2252,9 @@ static Maybe<bool> SetPropertiesFromKeyValuePairs(Isolate* isolate,
     Handle<Object> key = data[i];
     if (!IsValidObjectKey(key)) return Nothing<bool>();
     Handle<Object> value = data[i + 1];
-    bool success;
-    LookupIterator it = LookupIterator::PropertyOrElement(
-        isolate, object, key, &success, LookupIterator::OWN);
-    if (!success || it.state() != LookupIterator::NOT_FOUND ||
+    LookupIterator::Key lookup_key(isolate, key);
+    LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
+    if (it.state() != LookupIterator::NOT_FOUND ||
         JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE)
             .is_null()) {
       return Nothing<bool>();

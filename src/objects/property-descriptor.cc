@@ -22,7 +22,7 @@ namespace {
 // Returns false if an exception was thrown.
 bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
                           Handle<Object>* value) {
-  LookupIterator it(receiver, name, receiver);
+  LookupIterator it(receiver->GetIsolate(), receiver, name, receiver);
   // 4. Let hasEnumerable be HasProperty(Obj, "enumerable").
   Maybe<bool> has_property = JSReceiver::HasProperty(&it);
   // 5. ReturnIfAbrupt(hasEnumerable).
@@ -112,7 +112,8 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
 
 void CreateDataProperty(Handle<JSObject> object, Handle<String> name,
                         Handle<Object> value) {
-  LookupIterator it(object, name, object, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  LookupIterator it(object->GetIsolate(), object, name, object,
+                    LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<bool> result = JSObject::CreateDataProperty(&it, value);
   CHECK(result.IsJust() && result.FromJust());
 }

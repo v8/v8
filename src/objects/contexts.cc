@@ -246,7 +246,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
           DCHECK(context->IsWithContext());
           maybe = Just(ABSENT);
         } else {
-          LookupIterator it(object, name, object);
+          LookupIterator it(isolate, object, name, object);
           Maybe<bool> found = UnscopableLookup(&it, context->IsWithContext());
           if (found.IsNothing()) {
             maybe = Nothing<PropertyAttributes>();
@@ -359,7 +359,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       Object ext = context->get(EXTENSION_INDEX);
       if (ext.IsJSReceiver()) {
         Handle<JSReceiver> extension(JSReceiver::cast(ext), isolate);
-        LookupIterator it(extension, name, extension);
+        LookupIterator it(isolate, extension, name, extension);
         Maybe<bool> found = JSReceiver::HasProperty(&it);
         if (found.FromMaybe(false)) {
           *attributes = NONE;

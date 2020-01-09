@@ -200,8 +200,9 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
       isolate, function,
       isolate->factory()->NewJSBoundFunction(target, this_arg, argv));
 
-  LookupIterator length_lookup(target, isolate->factory()->length_string(),
-                               target, LookupIterator::OWN);
+  LookupIterator length_lookup(isolate, target,
+                               isolate->factory()->length_string(), target,
+                               LookupIterator::OWN);
   // Setup the "length" property based on the "length" of the {target}.
   // If the targets length is the default JSFunction accessor, we can keep the
   // accessor that's installed by default on the JSBoundFunction. It lazily
@@ -222,7 +223,8 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
             0.0, DoubleToInteger(target_length->Number()) - argv.length()));
       }
     }
-    LookupIterator it(function, isolate->factory()->length_string(), function);
+    LookupIterator it(isolate, function, isolate->factory()->length_string(),
+                      function);
     DCHECK_EQ(LookupIterator::ACCESSOR, it.state());
     RETURN_FAILURE_ON_EXCEPTION(isolate,
                                 JSObject::DefineOwnPropertyIgnoreAttributes(
@@ -233,7 +235,8 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
   // If the target's name is the default JSFunction accessor, we can keep the
   // accessor that's installed by default on the JSBoundFunction. It lazily
   // computes the value from the underlying internal name.
-  LookupIterator name_lookup(target, isolate->factory()->name_string(), target);
+  LookupIterator name_lookup(isolate, target, isolate->factory()->name_string(),
+                             target);
   if (!target->IsJSFunction() ||
       name_lookup.state() != LookupIterator::ACCESSOR ||
       !name_lookup.GetAccessors()->IsAccessorInfo() ||

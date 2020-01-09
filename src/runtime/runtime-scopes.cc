@@ -71,7 +71,7 @@ Object DeclareGlobal(
     // non-functions, use it only on initialization.
     lookup_config = LookupIterator::Configuration::OWN;
   }
-  LookupIterator it(global, name, global, lookup_config);
+  LookupIterator it(isolate, global, name, global, lookup_config);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
 
@@ -649,7 +649,7 @@ static Object FindNameClash(Isolate* isolate, Handle<ScopeInfo> scope_info,
     }
 
     if (IsLexicalVariableMode(mode)) {
-      LookupIterator it(global_object, name, global_object,
+      LookupIterator it(isolate, global_object, name, global_object,
                         LookupIterator::OWN_SKIP_INTERCEPTOR);
       Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
       if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();

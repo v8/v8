@@ -391,8 +391,8 @@ namespace {
 bool CheckMethodName(Isolate* isolate, Handle<JSReceiver> receiver,
                      Handle<Name> name, Handle<JSFunction> fun,
                      LookupIterator::Configuration config) {
-  LookupIterator iter =
-      LookupIterator::PropertyOrElement(isolate, receiver, name, config);
+  LookupIterator::Key key(isolate, name);
+  LookupIterator iter(isolate, receiver, key, config);
   if (iter.state() == LookupIterator::DATA) {
     return iter.GetDataValue().is_identical_to(fun);
   } else if (iter.state() == LookupIterator::ACCESSOR) {

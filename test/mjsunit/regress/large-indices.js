@@ -122,3 +122,18 @@
   __v_11.__defineGetter__(4294967295, function () {});
   __v_12 = Object.entries(__v_11);
 })();
+
+// crbug.com/1031175
+(function() {
+  var key = 4294967295;
+  var obj = {
+    boom() {
+      super[key]++;
+    },
+    bang() {
+      super["4294967295"]++;
+    }
+  }
+  obj.boom();
+  obj.bang();
+})();

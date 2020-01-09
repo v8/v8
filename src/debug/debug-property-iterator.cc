@@ -178,23 +178,22 @@ bool DebugPropertyIterator::should_move_to_next_stage() const {
 namespace {
 base::Flags<debug::NativeAccessorType, int> GetNativeAccessorDescriptorInternal(
     Handle<JSReceiver> object, Handle<Name> name) {
-  size_t index;
-  if (name->AsIntegerIndex(&index)) return debug::NativeAccessorType::None;
-  LookupIterator it =
-      LookupIterator(object->GetIsolate(), object, name, LookupIterator::OWN);
+  Isolate* isolate = object->GetIsolate();
+  LookupIterator::Key key(isolate, name);
+  if (key.is_element()) return debug::NativeAccessorType::None;
+  LookupIterator it(isolate, object, key, LookupIterator::OWN);
   if (!it.IsFound()) return debug::NativeAccessorType::None;
   if (it.state() != LookupIterator::ACCESSOR) {
     return debug::NativeAccessorType::None;
   }
   Handle<Object> structure = it.GetAccessors();
   if (!structure->IsAccessorInfo()) return debug::NativeAccessorType::None;
-  auto isolate = object->GetIsolate();
   base::Flags<debug::NativeAccessorType, int> result;
-#define IS_BUILTIN_ACESSOR(_, name, ...)                    \
+#define IS_BUILTIN_ACCESSOR(_, name, ...)                   \
   if (*structure == *isolate->factory()->name##_accessor()) \
     return debug::NativeAccessorType::None;
-  ACCESSOR_INFO_LIST_GENERATOR(IS_BUILTIN_ACESSOR, /* not used */)
-#undef IS_BUILTIN_ACESSOR
+  ACCESSOR_INFO_LIST_GENERATOR(IS_BUILTIN_ACCESSOR, /* not used */)
+#undef IS_BUILTIN_ACCESSOR
   Handle<AccessorInfo> accessor_info = Handle<AccessorInfo>::cast(structure);
   if (accessor_info->getter() != Object()) {
     result |= debug::NativeAccessorType::HasGetter;

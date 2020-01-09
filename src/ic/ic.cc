@@ -328,20 +328,6 @@ bool MigrateDeprecated(Isolate* isolate, Handle<Object> object) {
   return true;
 }
 
-// For string keys that are outside JSArray index range but inside TypedArray
-// index range, we generate named loads/stores, because for most JSObjects
-// that makes sense. We have to be careful to create an indexed LookupIterator
-// for such keys though.
-LookupIterator CreateLookupIterator(Isolate* isolate, Handle<Object> receiver,
-                                    Handle<Name> name) {
-  size_t index = 0;
-  if (name->AsIntegerIndex(&index)) {
-    return LookupIterator(isolate, receiver, index, LookupIterator::DEFAULT,
-                          name);
-  }
-  return LookupIterator(isolate, receiver, name);
-}
-
 }  // namespace
 
 bool IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
@@ -419,7 +405,8 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
   JSObject::MakePrototypesFast(object, kStartAtReceiver, isolate());
   update_receiver_map(object);
 
-  LookupIterator it = CreateLookupIterator(isolate(), object, name);
+  LookupIterator::Key key(isolate(), name);
+  LookupIterator it(isolate(), object, key);
 
   // Named lookup in the object.
   LookupForRead(&it, IsAnyHas());
@@ -1494,7 +1481,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   }
 
   JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
-  LookupIterator it = CreateLookupIterator(isolate(), object, name);
+  LookupIterator::Key key(isolate(), name);
+  LookupIterator it(isolate(), object, key);
 
   if (name->IsPrivate()) {
     if (name->IsPrivateName() && !it.IsFound()) {
@@ -2150,10 +2138,8 @@ namespace {
 void StoreOwnElement(Isolate* isolate, Handle<JSArray> array,
                      Handle<Object> index, Handle<Object> value) {
   DCHECK(index->IsNumber());
-  bool success = false;
-  LookupIterator it = LookupIterator::PropertyOrElement(
-      isolate, array, index, &success, LookupIterator::OWN);
-  DCHECK(success);
+  LookupIterator::Key key(isolate, index);
+  LookupIterator it(isolate, array, key, LookupIterator::OWN);
 
   CHECK(JSObject::DefineOwnPropertyIgnoreAttributes(
             &it, value, NONE, Just(ShouldThrow::kThrowOnError))
@@ -2726,7 +2712,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 
   if (!result.is_null()) return *result;
 
-  LookupIterator it(receiver, name, holder);
+  LookupIterator it(isolate, receiver, name, holder);
   // Skip any lookup work until we hit the (possibly non-masking) interceptor.
   while (it.state() != LookupIterator::INTERCEPTOR ||
          !it.GetHolder<JSObject>().is_identical_to(holder)) {
@@ -2783,7 +2769,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   if (!result.is_null()) return *value;
 
-  LookupIterator it(receiver, name, receiver);
+  LookupIterator it(isolate, receiver, name, receiver);
   // Skip past any access check on the receiver.
   if (it.state() == LookupIterator::ACCESS_CHECK) {
     DCHECK(it.HasAccess());

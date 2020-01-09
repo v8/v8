@@ -1141,8 +1141,8 @@ MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
   // 7. If trap is undefined, then
   if (trap->IsUndefined(isolate)) {
     // 7.a Return target.[[Get]](P, Receiver).
-    LookupIterator it =
-        LookupIterator::PropertyOrElement(isolate, receiver, name, target);
+    LookupIterator::Key key(isolate, name);
+    LookupIterator it(isolate, receiver, key, target);
     MaybeHandle<Object> result = Object::GetProperty(&it);
     *was_found = it.IsFound();
     return result;
@@ -2976,8 +2976,8 @@ Maybe<bool> JSProxy::SetProperty(Handle<JSProxy> proxy, Handle<Name> name,
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap, Object::GetMethod(handler, trap_name), Nothing<bool>());
   if (trap->IsUndefined(isolate)) {
-    LookupIterator it =
-        LookupIterator::PropertyOrElement(isolate, receiver, name, target);
+    LookupIterator::Key key(isolate, name);
+    LookupIterator it(isolate, receiver, key, target);
 
     return Object::SetSuperProperty(&it, value, StoreOrigin::kMaybeKeyed,
                                     should_throw);
@@ -3469,7 +3469,7 @@ Maybe<bool> JSProxy::SetPrivateSymbol(Isolate* isolate, Handle<JSProxy> proxy,
           ? desc->value()
           : Handle<Object>::cast(isolate->factory()->undefined_value());
 
-  LookupIterator it(proxy, private_name, proxy);
+  LookupIterator it(isolate, proxy, private_name, proxy);
 
   if (it.IsFound()) {
     DCHECK_EQ(LookupIterator::DATA, it.state());
@@ -5669,7 +5669,7 @@ bool JSArray::HasReadOnlyLength(Handle<JSArray> array) {
   }
 
   Isolate* isolate = array->GetIsolate();
-  LookupIterator it(array, isolate->factory()->length_string(), array,
+  LookupIterator it(isolate, array, isolate->factory()->length_string(), array,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   CHECK_EQ(LookupIterator::ACCESSOR, it.state());
   return it.IsReadOnly();

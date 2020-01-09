@@ -111,8 +111,8 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                              Instantiate(isolate, prop_data, name), Object);
 
-  LookupIterator it = LookupIterator::PropertyOrElement(
-      isolate, object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  LookupIterator::Key key(isolate, name);
+  LookupIterator it(isolate, object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
 
 #ifdef DEBUG
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);

@@ -341,10 +341,12 @@ class ArgumentParser(object):
     targets = []
     actions = []
     tests = []
-    # Specifying a single unit test looks like "unittests/Foo.Bar".
-    if argstring.startswith("unittests/"):
+    # Specifying a single unit test looks like "unittests/Foo.Bar", test262
+    # tests have names like "S15.4.4.7_A4_T1", don't split these.
+    if argstring.startswith("unittests/") or argstring.startswith("test262/"):
       words = [argstring]
     else:
+      # Assume it's a word like "x64.release" -> split at the dot.
       words = argstring.split('.')
     if len(words) == 1:
       word = words[0]
