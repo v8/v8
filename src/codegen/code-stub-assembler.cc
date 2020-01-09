@@ -496,11 +496,11 @@ TNode<Float64T> CodeStubAssembler::Float64Round(SloppyTNode<Float64T> x) {
   Label return_x(this);
 
   // Round up {x} towards Infinity.
-  VARIABLE(var_x, MachineRepresentation::kFloat64, Float64Ceil(x));
+  TVARIABLE(Float64T, var_x, Float64Ceil(x));
 
   GotoIf(Float64LessThanOrEqual(Float64Sub(var_x.value(), one_half), x),
          &return_x);
-  var_x.Bind(Float64Sub(var_x.value(), one));
+  var_x = Float64Sub(var_x.value(), one);
   Goto(&return_x);
 
   BIND(&return_x);
@@ -517,7 +517,7 @@ TNode<Float64T> CodeStubAssembler::Float64Ceil(SloppyTNode<Float64T> x) {
   TNode<Float64T> two_52 = Float64Constant(4503599627370496.0E0);
   TNode<Float64T> minus_two_52 = Float64Constant(-4503599627370496.0E0);
 
-  VARIABLE(var_x, MachineRepresentation::kFloat64, x);
+  TVARIABLE(Float64T, var_x, x);
   Label return_x(this), return_minus_x(this);
 
   // Check if {x} is greater than zero.
@@ -531,9 +531,9 @@ TNode<Float64T> CodeStubAssembler::Float64Ceil(SloppyTNode<Float64T> x) {
     GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
 
     // Round positive {x} towards Infinity.
-    var_x.Bind(Float64Sub(Float64Add(two_52, x), two_52));
+    var_x = Float64Sub(Float64Add(two_52, x), two_52);
     GotoIfNot(Float64LessThan(var_x.value(), x), &return_x);
-    var_x.Bind(Float64Add(var_x.value(), one));
+    var_x = Float64Add(var_x.value(), one);
     Goto(&return_x);
   }
 
@@ -545,14 +545,14 @@ TNode<Float64T> CodeStubAssembler::Float64Ceil(SloppyTNode<Float64T> x) {
 
     // Round negated {x} towards Infinity and return the result negated.
     TNode<Float64T> minus_x = Float64Neg(x);
-    var_x.Bind(Float64Sub(Float64Add(two_52, minus_x), two_52));
+    var_x = Float64Sub(Float64Add(two_52, minus_x), two_52);
     GotoIfNot(Float64GreaterThan(var_x.value(), minus_x), &return_minus_x);
-    var_x.Bind(Float64Sub(var_x.value(), one));
+    var_x = Float64Sub(var_x.value(), one);
     Goto(&return_minus_x);
   }
 
   BIND(&return_minus_x);
-  var_x.Bind(Float64Neg(var_x.value()));
+  var_x = Float64Neg(var_x.value());
   Goto(&return_x);
 
   BIND(&return_x);
@@ -569,7 +569,7 @@ TNode<Float64T> CodeStubAssembler::Float64Floor(SloppyTNode<Float64T> x) {
   TNode<Float64T> two_52 = Float64Constant(4503599627370496.0E0);
   TNode<Float64T> minus_two_52 = Float64Constant(-4503599627370496.0E0);
 
-  VARIABLE(var_x, MachineRepresentation::kFloat64, x);
+  TVARIABLE(Float64T, var_x, x);
   Label return_x(this), return_minus_x(this);
 
   // Check if {x} is greater than zero.
@@ -583,9 +583,9 @@ TNode<Float64T> CodeStubAssembler::Float64Floor(SloppyTNode<Float64T> x) {
     GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
 
     // Round positive {x} towards -Infinity.
-    var_x.Bind(Float64Sub(Float64Add(two_52, x), two_52));
+    var_x = Float64Sub(Float64Add(two_52, x), two_52);
     GotoIfNot(Float64GreaterThan(var_x.value(), x), &return_x);
-    var_x.Bind(Float64Sub(var_x.value(), one));
+    var_x = Float64Sub(var_x.value(), one);
     Goto(&return_x);
   }
 
@@ -597,14 +597,14 @@ TNode<Float64T> CodeStubAssembler::Float64Floor(SloppyTNode<Float64T> x) {
 
     // Round negated {x} towards -Infinity and return the result negated.
     TNode<Float64T> minus_x = Float64Neg(x);
-    var_x.Bind(Float64Sub(Float64Add(two_52, minus_x), two_52));
+    var_x = Float64Sub(Float64Add(two_52, minus_x), two_52);
     GotoIfNot(Float64LessThan(var_x.value(), minus_x), &return_minus_x);
-    var_x.Bind(Float64Add(var_x.value(), one));
+    var_x = Float64Add(var_x.value(), one);
     Goto(&return_minus_x);
   }
 
   BIND(&return_minus_x);
-  var_x.Bind(Float64Neg(var_x.value()));
+  var_x = Float64Neg(var_x.value());
   Goto(&return_x);
 
   BIND(&return_x);
@@ -619,7 +619,7 @@ TNode<Float64T> CodeStubAssembler::Float64RoundToEven(SloppyTNode<Float64T> x) {
   TNode<Float64T> f = Float64Floor(x);
   TNode<Float64T> f_and_half = Float64Add(f, Float64Constant(0.5));
 
-  VARIABLE(var_result, MachineRepresentation::kFloat64);
+  TVARIABLE(Float64T, var_result);
   Label return_f(this), return_f_plus_one(this), done(this);
 
   GotoIf(Float64LessThan(f_and_half, x), &return_f_plus_one);
@@ -631,11 +631,11 @@ TNode<Float64T> CodeStubAssembler::Float64RoundToEven(SloppyTNode<Float64T> x) {
   }
 
   BIND(&return_f);
-  var_result.Bind(f);
+  var_result = f;
   Goto(&done);
 
   BIND(&return_f_plus_one);
-  var_result.Bind(Float64Add(f, Float64Constant(1.0)));
+  var_result = Float64Add(f, Float64Constant(1.0));
   Goto(&done);
 
   BIND(&done);
@@ -652,7 +652,7 @@ TNode<Float64T> CodeStubAssembler::Float64Trunc(SloppyTNode<Float64T> x) {
   TNode<Float64T> two_52 = Float64Constant(4503599627370496.0E0);
   TNode<Float64T> minus_two_52 = Float64Constant(-4503599627370496.0E0);
 
-  VARIABLE(var_x, MachineRepresentation::kFloat64, x);
+  TVARIABLE(Float64T, var_x, x);
   Label return_x(this), return_minus_x(this);
 
   // Check if {x} is greater than 0.
@@ -663,15 +663,15 @@ TNode<Float64T> CodeStubAssembler::Float64Trunc(SloppyTNode<Float64T> x) {
   BIND(&if_xgreaterthanzero);
   {
     if (IsFloat64RoundDownSupported()) {
-      var_x.Bind(Float64RoundDown(x));
+      var_x = Float64RoundDown(x);
     } else {
       // Just return {x} unless it's in the range ]0,2^52[.
       GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
 
       // Round positive {x} towards -Infinity.
-      var_x.Bind(Float64Sub(Float64Add(two_52, x), two_52));
+      var_x = Float64Sub(Float64Add(two_52, x), two_52);
       GotoIfNot(Float64GreaterThan(var_x.value(), x), &return_x);
-      var_x.Bind(Float64Sub(var_x.value(), one));
+      var_x = Float64Sub(var_x.value(), one);
     }
     Goto(&return_x);
   }
@@ -679,7 +679,7 @@ TNode<Float64T> CodeStubAssembler::Float64Trunc(SloppyTNode<Float64T> x) {
   BIND(&if_xnotgreaterthanzero);
   {
     if (IsFloat64RoundUpSupported()) {
-      var_x.Bind(Float64RoundUp(x));
+      var_x = Float64RoundUp(x);
       Goto(&return_x);
     } else {
       // Just return {x} unless its in the range ]-2^52,0[.
@@ -688,15 +688,15 @@ TNode<Float64T> CodeStubAssembler::Float64Trunc(SloppyTNode<Float64T> x) {
 
       // Round negated {x} towards -Infinity and return result negated.
       TNode<Float64T> minus_x = Float64Neg(x);
-      var_x.Bind(Float64Sub(Float64Add(two_52, minus_x), two_52));
+      var_x = Float64Sub(Float64Add(two_52, minus_x), two_52);
       GotoIfNot(Float64GreaterThan(var_x.value(), minus_x), &return_minus_x);
-      var_x.Bind(Float64Sub(var_x.value(), one));
+      var_x = Float64Sub(var_x.value(), one);
       Goto(&return_minus_x);
     }
   }
 
   BIND(&return_minus_x);
-  var_x.Bind(Float64Neg(var_x.value()));
+  var_x = Float64Neg(var_x.value());
   Goto(&return_x);
 
   BIND(&return_x);
@@ -994,8 +994,8 @@ TNode<Number> CodeStubAssembler::SmiMod(TNode<Smi> a, TNode<Smi> b) {
 
 TNode<Number> CodeStubAssembler::SmiMul(TNode<Smi> a, TNode<Smi> b) {
   TVARIABLE(Number, var_result);
-  VARIABLE(var_lhs_float64, MachineRepresentation::kFloat64);
-  VARIABLE(var_rhs_float64, MachineRepresentation::kFloat64);
+  TVARIABLE(Float64T, var_lhs_float64);
+  TVARIABLE(Float64T, var_rhs_float64);
   Label return_result(this, &var_result);
 
   // Both {a} and {b} are Smis. Convert them to integers and multiply.
@@ -1041,8 +1041,8 @@ TNode<Number> CodeStubAssembler::SmiMul(TNode<Smi> a, TNode<Smi> b) {
   }
   BIND(&if_overflow);
   {
-    var_lhs_float64.Bind(SmiToFloat64(a));
-    var_rhs_float64.Bind(SmiToFloat64(b));
+    var_lhs_float64 = SmiToFloat64(a);
+    var_rhs_float64 = SmiToFloat64(b);
     TNode<Float64T> value =
         Float64Mul(var_lhs_float64.value(), var_rhs_float64.value());
     var_result = AllocateHeapNumberWithValue(value);
@@ -4157,11 +4157,11 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
   DCHECK_NE(var_holes_converted, nullptr);
   CSA_ASSERT(this, IsFixedDoubleArrayMap(fixed_array_map));
 
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  TVARIABLE(FixedArrayBase, var_result);
   const ElementsKind kind = PACKED_DOUBLE_ELEMENTS;
   TNode<FixedArrayBase> to_elements = AllocateFixedArray(
       kind, capacity, mode, allocation_flags, fixed_array_map);
-  var_result.Bind(to_elements);
+  var_result = to_elements;
   // We first try to copy the FixedDoubleArray to a new FixedDoubleArray.
   // |var_holes_converted| is set to False preliminarily.
   *var_holes_converted = Int32FalseConstant();
@@ -4223,13 +4223,13 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
         ExtractToFixedArray(from_array, first, count, capacity, fixed_array_map,
                             kind, allocation_flags, extract_flags, mode,
                             HoleConversionMode::kConvertToUndefined);
-    var_result.Bind(to_elements);
+    var_result = to_elements;
     Goto(&done);
   }
 
   BIND(&done);
   Comment("] ExtractFixedDoubleArrayFillingHoles");
-  return UncheckedCast<FixedArrayBase>(var_result.value());
+  return var_result.value();
 }
 
 TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
@@ -4245,7 +4245,7 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
   HoleConversionMode convert_holes =
       var_holes_converted != nullptr ? HoleConversionMode::kConvertToUndefined
                                      : HoleConversionMode::kDontConvert;
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  TVARIABLE(FixedArrayBase, var_result);
   const AllocationFlags allocation_flags =
       (extract_flags & ExtractFixedArrayFlag::kNewSpaceAllocationOnly)
           ? CodeStubAssembler::kNone
@@ -4270,7 +4270,7 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
                          parameter_mode)));
   }
 
-  Label if_fixed_double_array(this), empty(this), done(this, {&var_result});
+  Label if_fixed_double_array(this), empty(this), done(this, &var_result);
   TNode<Map> source_map = LoadMap(source);
   GotoIf(IntPtrOrSmiEqual(IntPtrOrSmiConstant(0, parameter_mode), capacity,
                           parameter_mode),
@@ -4291,7 +4291,7 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
         source, first, count, capacity, source_map, PACKED_ELEMENTS,
         allocation_flags, extract_flags, parameter_mode, convert_holes,
         var_holes_converted, source_runtime_kind);
-    var_result.Bind(to_elements);
+    var_result = to_elements;
     Goto(&done);
   }
 
@@ -4303,7 +4303,7 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
       TNode<FixedArrayBase> to_elements = ExtractFixedDoubleArrayFillingHoles(
           source, first, count, capacity, source_map, var_holes_converted,
           allocation_flags, extract_flags, parameter_mode);
-      var_result.Bind(to_elements);
+      var_result = to_elements;
     } else {
       // We use PACKED_DOUBLE_ELEMENTS to signify that both the source and
       // the target are FixedDoubleArray. That it is PACKED or HOLEY does not
@@ -4316,7 +4316,7 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
       CopyElements(kind, to_elements, IntPtrConstant(0), CAST(source),
                    ParameterToIntPtr(first, parameter_mode),
                    ParameterToIntPtr(count, parameter_mode));
-      var_result.Bind(to_elements);
+      var_result = to_elements;
     }
 
     Goto(&done);
@@ -4326,12 +4326,12 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
   {
     Comment("Copy empty array");
 
-    var_result.Bind(EmptyFixedArrayConstant());
+    var_result = EmptyFixedArrayConstant();
     Goto(&done);
   }
 
   BIND(&done);
-  return UncheckedCast<FixedArray>(var_result.value());
+  return var_result.value();
 }
 
 void CodeStubAssembler::InitializePropertyArrayLength(
@@ -4732,12 +4732,12 @@ void CodeStubAssembler::CopyFixedArrayElements(
                              from_kind, mode, first_element_offset));
   // This second variable is used only when the element sizes of source and
   // destination arrays do not match.
-  VARIABLE(var_to_offset, MachineType::PointerRepresentation());
+  TVARIABLE(IntPtrT, var_to_offset);
   if (element_offset_matches) {
-    var_to_offset.Bind(var_from_offset.value());
+    var_to_offset = var_from_offset.value();
   } else {
-    var_to_offset.Bind(ElementOffsetFromIndex(element_count, to_kind, mode,
-                                              first_element_offset));
+    var_to_offset = ElementOffsetFromIndex(element_count, to_kind, mode,
+                                           first_element_offset);
   }
 
   Variable* vars[] = {&var_from_offset, &var_to_offset, var_holes_converted};
@@ -4759,14 +4759,14 @@ void CodeStubAssembler::CopyFixedArrayElements(
         IntPtrConstant(from_double_elements ? kDoubleSize : kTaggedSize)));
     var_from_offset = from_offset;
 
-    Node* to_offset;
+    TNode<IntPtrT> to_offset;
     if (element_offset_matches) {
       to_offset = from_offset;
     } else {
       to_offset = IntPtrSub(
           var_to_offset.value(),
           IntPtrConstant(to_double_elements ? kDoubleSize : kTaggedSize));
-      var_to_offset.Bind(to_offset);
+      var_to_offset = to_offset;
     }
 
     Label next_iter(this), store_double_hole(this), signal_hole(this);
@@ -5329,7 +5329,7 @@ TNode<Number> CodeStubAssembler::ChangeUintPtrToTagged(TNode<UintPtrT> value) {
 TNode<String> CodeStubAssembler::ToThisString(TNode<Context> context,
                                               TNode<Object> value,
                                               TNode<String> method_name) {
-  VARIABLE(var_value, MachineRepresentation::kTagged, value);
+  TVARIABLE(Object, var_value, value);
 
   // Check if the {value} is a Smi or a HeapObject.
   Label if_valueissmi(this, Label::kDeferred), if_valueisnotsmi(this),
@@ -5350,7 +5350,7 @@ TNode<String> CodeStubAssembler::ToThisString(TNode<Context> context,
       Label if_valueisnullorundefined(this, Label::kDeferred);
       GotoIf(IsNullOrUndefined(value), &if_valueisnullorundefined);
       // Convert the {value} to a String.
-      var_value.Bind(CallBuiltin(Builtins::kToString, context, value));
+      var_value = CallBuiltin(Builtins::kToString, context, value);
       Goto(&if_valueisstring);
 
       BIND(&if_valueisnullorundefined);
@@ -5364,7 +5364,7 @@ TNode<String> CodeStubAssembler::ToThisString(TNode<Context> context,
   BIND(&if_valueissmi);
   {
     // The {value} is a Smi, convert it to a String.
-    var_value.Bind(CallBuiltin(Builtins::kNumberToString, context, value));
+    var_value = CallBuiltin(Builtins::kNumberToString, context, value);
     Goto(&if_valueisstring);
   }
   BIND(&if_valueisstring);
@@ -6483,7 +6483,7 @@ TNode<Int32T> CodeStubAssembler::StringCharCodeAt(TNode<String> string,
 }
 
 TNode<String> CodeStubAssembler::StringFromSingleCharCode(TNode<Int32T> code) {
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  TVARIABLE(String, var_result);
 
   // Check if the {code} is a one-byte char code.
   Label if_codeisonebyte(this), if_codeistwobyte(this, Label::kDeferred),
@@ -6511,14 +6511,14 @@ TNode<String> CodeStubAssembler::StringFromSingleCharCode(TNode<Int32T> code) {
           MachineRepresentation::kWord8, result,
           IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag), code);
       StoreFixedArrayElement(cache, code_index, result);
-      var_result.Bind(result);
+      var_result = result;
       Goto(&if_done);
     }
 
     BIND(&if_entryisnotundefined);
     {
       // Return the entry from the {cache}.
-      var_result.Bind(entry);
+      var_result = CAST(entry);
       Goto(&if_done);
     }
   }
@@ -6530,13 +6530,12 @@ TNode<String> CodeStubAssembler::StringFromSingleCharCode(TNode<Int32T> code) {
     StoreNoWriteBarrier(
         MachineRepresentation::kWord16, result,
         IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag), code);
-    var_result.Bind(result);
+    var_result = result;
     Goto(&if_done);
   }
 
   BIND(&if_done);
-  CSA_ASSERT(this, IsString(var_result.value()));
-  return CAST(var_result.value());
+  return var_result.value();
 }
 
 ToDirectStringAssembler::ToDirectStringAssembler(
@@ -8559,7 +8558,7 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
     TNode<IntPtrT> instance_size_in_words = LoadMapInstanceSizeInWords(map);
 
     Label if_inobject(this), if_backing_store(this);
-    VARIABLE(var_double_value, MachineRepresentation::kFloat64);
+    TVARIABLE(Float64T, var_double_value);
     Label rebox_double(this, &var_double_value);
     Branch(UintPtrLessThan(field_index, instance_size_in_words), &if_inobject,
            &if_backing_store);
@@ -8580,12 +8579,12 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
       BIND(&if_double);
       {
         if (FLAG_unbox_double_fields) {
-          var_double_value.Bind(
-              LoadObjectField(object, field_offset, MachineType::Float64()));
+          var_double_value =
+              LoadObjectField<Float64T>(CAST(object), field_offset);
         } else {
           TNode<HeapNumber> heap_number =
               CAST(LoadObjectField(object, field_offset));
-          var_double_value.Bind(LoadHeapNumberValue(heap_number));
+          var_double_value = LoadHeapNumberValue(heap_number);
         }
         Goto(&rebox_double);
       }
@@ -8609,7 +8608,7 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
       }
       BIND(&if_double);
       {
-        var_double_value.Bind(LoadHeapNumberValue(CAST(value)));
+        var_double_value = LoadHeapNumberValue(CAST(value));
         Goto(&rebox_double);
       }
     }
@@ -11770,8 +11769,8 @@ void CodeStubAssembler::BranchIfSameValue(SloppyTNode<Object> lhs,
                                           SloppyTNode<Object> rhs,
                                           Label* if_true, Label* if_false,
                                           SameValueMode mode) {
-  VARIABLE(var_lhs_value, MachineRepresentation::kFloat64);
-  VARIABLE(var_rhs_value, MachineRepresentation::kFloat64);
+  TVARIABLE(Float64T, var_lhs_value);
+  TVARIABLE(Float64T, var_rhs_value);
   Label do_fcmp(this);
 
   // Immediately jump to {if_true} if {lhs} == {rhs}, because - unlike
@@ -11788,8 +11787,8 @@ void CodeStubAssembler::BranchIfSameValue(SloppyTNode<Object> lhs,
     // iff the {rhs} is a HeapNumber with the same float64 value.
     Branch(TaggedIsSmi(rhs), if_false, [&] {
       GotoIfNot(IsHeapNumber(CAST(rhs)), if_false);
-      var_lhs_value.Bind(SmiToFloat64(CAST(lhs)));
-      var_rhs_value.Bind(LoadHeapNumberValue(CAST(rhs)));
+      var_lhs_value = SmiToFloat64(CAST(lhs));
+      var_rhs_value = LoadHeapNumberValue(CAST(rhs));
       Goto(&do_fcmp);
     });
   }
@@ -11803,8 +11802,8 @@ void CodeStubAssembler::BranchIfSameValue(SloppyTNode<Object> lhs,
           // Since {rhs} is a Smi, the comparison can only yield true
           // iff the {lhs} is a HeapNumber with the same float64 value.
           GotoIfNot(IsHeapNumber(CAST(lhs)), if_false);
-          var_lhs_value.Bind(LoadHeapNumberValue(CAST(lhs)));
-          var_rhs_value.Bind(SmiToFloat64(CAST(rhs)));
+          var_lhs_value = LoadHeapNumberValue(CAST(lhs));
+          var_rhs_value = SmiToFloat64(CAST(rhs));
           Goto(&do_fcmp);
         },
         [&] {
@@ -11827,8 +11826,8 @@ void CodeStubAssembler::BranchIfSameValue(SloppyTNode<Object> lhs,
           BIND(&if_lhsisheapnumber);
           {
             GotoIfNot(IsHeapNumber(CAST(rhs)), if_false);
-            var_lhs_value.Bind(LoadHeapNumberValue(CAST(lhs)));
-            var_rhs_value.Bind(LoadHeapNumberValue(CAST(rhs)));
+            var_lhs_value = LoadHeapNumberValue(CAST(lhs));
+            var_rhs_value = LoadHeapNumberValue(CAST(rhs));
             Goto(&do_fcmp);
           }
 
