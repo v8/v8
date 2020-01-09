@@ -60,7 +60,6 @@ CONFIGS = dict(
   ignition_turbo_opt=[
     '--always-opt',
     '--no-liftoff',
-    '--no-wasm-tier-up',
     '--no-lazy-feedback-allocation'
   ],
   ignition_turbo_opt_eager=[
