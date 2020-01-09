@@ -447,26 +447,6 @@ std::unique_ptr<Value> BinaryValue::clone() const
     return BinaryValue::create(m_binaryValue);
 }
 
-void SerializedValue::writeJSON(StringBuilder* output) const
-{
-    DCHECK(type() == TypeSerialized);
-    StringUtil::builderAppend(*output, m_serializedJSON);
-}
-
-std::vector<uint8_t> SerializedValue::TakeSerialized() && {
-    return std::move(m_serializedBinary);
-}
-
-void SerializedValue::AppendSerialized(std::vector<uint8_t>* output) const
-{
-    DCHECK(type() == TypeSerialized);
-    output->insert(output->end(), m_serializedBinary.begin(), m_serializedBinary.end());
-}
-
-std::unique_ptr<Value> SerializedValue::clone() const
-{
-    return std::unique_ptr<SerializedValue>(new SerializedValue(m_serializedJSON, m_serializedBinary));
-}
 
 DictionaryValue::~DictionaryValue()
 {
