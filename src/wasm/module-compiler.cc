@@ -668,17 +668,15 @@ ExecutionTierPair GetRequestedExecutionTiers(
     const WasmFeatures& enabled_features, uint32_t func_index) {
   ExecutionTierPair result;
 
+  result.baseline_tier = WasmCompilationUnit::GetBaselineExecutionTier(module);
   switch (compile_mode) {
     case CompileMode::kRegular:
-      result.baseline_tier =
-          WasmCompilationUnit::GetDefaultExecutionTier(module);
       result.top_tier = result.baseline_tier;
       return result;
 
     case CompileMode::kTiering:
 
       // Default tiering behaviour.
-      result.baseline_tier = ExecutionTier::kLiftoff;
       result.top_tier = ExecutionTier::kTurbofan;
 
       // Check if compilation hints override default tiering behaviour.
@@ -711,9 +709,7 @@ ExecutionTierPair GetRequestedExecutionTiers(
 class CompilationUnitBuilder {
  public:
   explicit CompilationUnitBuilder(NativeModule* native_module)
-      : native_module_(native_module),
-        default_tier_(WasmCompilationUnit::GetDefaultExecutionTier(
-            native_module->module())) {}
+      : native_module_(native_module) {}
 
   void AddUnits(uint32_t func_index) {
     if (func_index < native_module_->module()->num_imported_functions) {
@@ -775,7 +771,6 @@ class CompilationUnitBuilder {
   }
 
   NativeModule* const native_module_;
-  const ExecutionTier default_tier_;
   std::vector<WasmCompilationUnit> baseline_units_;
   std::vector<WasmCompilationUnit> tiering_units_;
   std::vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>

@@ -110,7 +110,7 @@ std::unique_ptr<WasmInstructionBuffer> WasmInstructionBuffer::New(size_t size) {
 // End of PIMPL interface WasmInstructionBuffer for WasmInstBufferImpl
 
 // static
-ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier(
+ExecutionTier WasmCompilationUnit::GetBaselineExecutionTier(
     const WasmModule* module) {
   // Liftoff does not support the special asm.js opcodes, thus always compile
   // asm.js modules with TurboFan.
