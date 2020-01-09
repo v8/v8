@@ -419,7 +419,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // always hold true.
   CHECK(shared_info->is_compiled());
 
-  if (!FLAG_concurrent_inlining && info_->is_source_positions_enabled()) {
+  if (!info_->is_concurrent_inlining() &&
+      info_->is_source_positions_enabled()) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(),
                                                        shared_info->object());
   }
@@ -456,6 +457,9 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     }
     if (info_->is_bailout_on_uninitialized()) {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
+    }
+    if (info_->is_concurrent_inlining()) {
+      flags |= BytecodeGraphBuilderFlag::kConcurrentInlining;
     }
     {
       CallFrequency frequency = call.frequency();

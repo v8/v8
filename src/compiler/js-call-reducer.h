@@ -40,7 +40,11 @@ class SimplifiedOperatorBuilder;
 class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
  public:
   // Flags that control the mode of operation.
-  enum Flag { kNoFlags = 0u, kBailoutOnUninitialized = 1u << 0 };
+  enum Flag {
+    kNoFlags = 0u,
+    kBailoutOnUninitialized = 1u << 0,
+    kConcurrentInlining = 1u << 1
+  };
   using Flags = base::Flags<Flag>;
 
   JSCallReducer(Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker,
@@ -245,6 +249,10 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   SimplifiedOperatorBuilder* simplified() const;
   Flags flags() const { return flags_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
+
+  bool should_disallow_heap_access() const {
+    return flags() & kConcurrentInlining;
+  }
 
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;

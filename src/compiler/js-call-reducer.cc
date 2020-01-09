@@ -1822,7 +1822,7 @@ Reduction JSCallReducer::ReduceMathMinMax(Node* node, const Operator* op,
 }
 
 Reduction JSCallReducer::Reduce(Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
 
   switch (node->opcode()) {
     case IrOpcode::kJSConstruct:
@@ -1863,7 +1863,7 @@ void JSCallReducer::Finalize() {
 
 // ES6 section 22.1.1 The Array Constructor
 Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   Node* target = NodeProperties::GetValueInput(node, 0);
@@ -1920,7 +1920,7 @@ Reduction JSCallReducer::ReduceObjectConstructor(Node* node) {
 
 // ES6 section 19.2.3.1 Function.prototype.apply ( thisArg, argArray )
 Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
-  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_acess(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -2045,7 +2045,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
 
 // ES section #sec-function.prototype.bind
 Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
-  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_acess(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -2078,7 +2078,8 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   MapRef first_receiver_map(broker(), receiver_maps[0]);
   bool const is_constructor = first_receiver_map.is_constructor();
 
-  if (FLAG_concurrent_inlining && !first_receiver_map.serialized_prototype()) {
+  if (should_disallow_heap_access() &&
+      !first_receiver_map.serialized_prototype()) {
     TRACE_BROKER_MISSING(broker(),
                          "serialized prototype on map " << first_receiver_map);
     return inference.NoChange();
@@ -2087,7 +2088,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   for (Handle<Map> const map : receiver_maps) {
     MapRef receiver_map(broker(), map);
 
-    if (FLAG_concurrent_inlining && !receiver_map.serialized_prototype()) {
+    if (should_disallow_heap_access() && !receiver_map.serialized_prototype()) {
       TRACE_BROKER_MISSING(broker(),
                            "serialized prototype on map " << receiver_map);
       return inference.NoChange();
@@ -2176,7 +2177,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
 
 // ES6 section 19.2.3.3 Function.prototype.call (thisArg, ...args)
 Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
-  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_acess(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -2190,7 +2191,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   HeapObjectMatcher m(target);
   if (m.HasValue()) {
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
-    if (FLAG_concurrent_inlining && !function.serialized()) {
+    if (should_disallow_heap_access() && !function.serialized()) {
       TRACE_BROKER_MISSING(broker(), "Serialize call on function " << function);
       return NoChange();
     }
@@ -2267,7 +2268,7 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   MapHandles const& object_maps = inference.GetMaps();
 
   MapRef candidate_map(broker(), object_maps[0]);
-  if (FLAG_concurrent_inlining && !candidate_map.serialized_prototype()) {
+  if (should_disallow_heap_access() && !candidate_map.serialized_prototype()) {
     TRACE_BROKER_MISSING(broker(), "prototype for map " << candidate_map);
     return inference.NoChange();
   }
@@ -2276,7 +2277,7 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   // Check if we can constant-fold the {candidate_prototype}.
   for (size_t i = 0; i < object_maps.size(); ++i) {
     MapRef object_map(broker(), object_maps[i]);
-    if (FLAG_concurrent_inlining && !object_map.serialized_prototype()) {
+    if (should_disallow_heap_access() && !object_map.serialized_prototype()) {
       TRACE_BROKER_MISSING(broker(), "prototype for map " << object_map);
       return inference.NoChange();
     }
@@ -2410,7 +2411,7 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
 
 // ES #sec-object.prototype.isprototypeof
 Reduction JSCallReducer::ReduceObjectPrototypeIsPrototypeOf(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -2712,8 +2713,7 @@ class IteratingArrayBuiltinHelper {
   IteratingArrayBuiltinHelper(Node* node, JSHeapBroker* broker,
                               JSGraph* jsgraph,
                               CompilationDependencies* dependencies)
-      : disallow_heap_access_(FLAG_concurrent_inlining),
-        receiver_(NodeProperties::GetValueInput(node, 1)),
+      : receiver_(NodeProperties::GetValueInput(node, 1)),
         effect_(NodeProperties::GetEffectInput(node)),
         control_(NodeProperties::GetControlInput(node)),
         inference_(broker, receiver_, effect_) {
@@ -2750,7 +2750,6 @@ class IteratingArrayBuiltinHelper {
   ElementsKind elements_kind() const { return elements_kind_; }
 
  private:
-  DisallowHeapAccessIf disallow_heap_access_;
   bool can_reduce_ = false;
   bool has_stability_dependency_ = false;
   Node* receiver_;
@@ -2764,6 +2763,7 @@ class IteratingArrayBuiltinHelper {
 
 Reduction JSCallReducer::ReduceArrayForEach(
     Node* node, const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -2776,6 +2776,7 @@ Reduction JSCallReducer::ReduceArrayForEach(
 
 Reduction JSCallReducer::ReduceArrayReduce(
     Node* node, const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -2789,6 +2790,7 @@ Reduction JSCallReducer::ReduceArrayReduce(
 
 Reduction JSCallReducer::ReduceArrayReduceRight(
     Node* node, const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -2802,7 +2804,7 @@ Reduction JSCallReducer::ReduceArrayReduceRight(
 
 Reduction JSCallReducer::ReduceArrayMap(Node* node,
                                         const SharedFunctionInfoRef& shared) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -2822,7 +2824,7 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
 
 Reduction JSCallReducer::ReduceArrayFilter(
     Node* node, const SharedFunctionInfoRef& shared) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -2842,7 +2844,7 @@ Reduction JSCallReducer::ReduceArrayFilter(
 
 Reduction JSCallReducer::ReduceArrayFind(Node* node,
                                          const SharedFunctionInfoRef& shared) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -2857,7 +2859,7 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node,
 
 Reduction JSCallReducer::ReduceArrayFindIndex(
     Node* node, const SharedFunctionInfoRef& shared) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -2910,7 +2912,7 @@ void JSCallReducer::RewirePostCallbackExceptionEdges(Node* check_throw,
 
 Reduction JSCallReducer::ReduceArrayEvery(Node* node,
                                           const SharedFunctionInfoRef& shared) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -2926,7 +2928,7 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
 // ES7 Array.prototype.inludes(searchElement[, fromIndex])
 // #sec-array.prototype.includes
 Reduction JSCallReducer::ReduceArrayIncludes(Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -2941,7 +2943,7 @@ Reduction JSCallReducer::ReduceArrayIncludes(Node* node) {
 // ES6 Array.prototype.indexOf(searchElement[, fromIndex])
 // #sec-array.prototype.indexof
 Reduction JSCallReducer::ReduceArrayIndexOf(Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -2955,7 +2957,7 @@ Reduction JSCallReducer::ReduceArrayIndexOf(Node* node) {
 
 Reduction JSCallReducer::ReduceArraySome(Node* node,
                                          const SharedFunctionInfoRef& shared) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -2970,7 +2972,7 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
 
 Reduction JSCallReducer::ReduceCallApiFunction(
     Node* node, const SharedFunctionInfoRef& shared) {
-  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_acess(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -3431,7 +3433,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     ObjectRef target_ref = m.Ref(broker());
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
-      if (FLAG_concurrent_inlining && !function.serialized()) {
+      if (should_disallow_heap_access() && !function.serialized()) {
         TRACE_BROKER_MISSING(broker(), "data for function " << function);
         return NoChange();
       }
@@ -3444,7 +3446,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       return ReduceJSCall(node, function.shared());
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
-      if (FLAG_concurrent_inlining && !function.serialized()) {
+      if (should_disallow_heap_access() && !function.serialized()) {
         TRACE_BROKER_MISSING(broker(), "data for function " << function);
         return NoChange();
       }
@@ -4025,7 +4027,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
-      if (FLAG_concurrent_inlining && !function.serialized()) {
+      if (should_disallow_heap_access() && !function.serialized()) {
         TRACE_BROKER_MISSING(broker(),
                              "function, not serialized: " << function);
         return NoChange();
@@ -4086,7 +4088,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       }
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
-      if (FLAG_concurrent_inlining && !function.serialized()) {
+      if (should_disallow_heap_access() && !function.serialized()) {
         TRACE_BROKER_MISSING(broker(),
                              "function, not serialized: " << function);
         return NoChange();
@@ -4433,7 +4435,7 @@ void JSCallReducer::CheckIfElementsKind(Node* receiver_elements_kind,
 
 // ES6 section 22.1.3.18 Array.prototype.push ( )
 Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -4569,7 +4571,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
 
 // ES6 section 22.1.3.17 Array.prototype.pop ( )
 Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -4704,7 +4706,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
 
 // ES6 section 22.1.3.22 Array.prototype.shift ( )
 Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -4922,7 +4924,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
 
 // ES6 section 22.1.3.23 Array.prototype.slice ( )
 Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
 
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
@@ -5000,7 +5002,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
 
 // ES6 section 22.1.2.2 Array.isArray ( arg )
 Reduction JSCallReducer::ReduceArrayIsArray(Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
 
   // We certainly know that undefined is not an array.
   if (node->op()->ValueInputCount() < 3) {
@@ -5025,7 +5027,7 @@ Reduction JSCallReducer::ReduceArrayIsArray(Node* node) {
 }
 
 Reduction JSCallReducer::ReduceArrayIterator(Node* node, IterationKind kind) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -5052,7 +5054,7 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node, IterationKind kind) {
 
 // ES #sec-%arrayiteratorprototype%.next
 Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -5707,7 +5709,7 @@ Node* JSCallReducer::CreateArtificialFrameState(
 }
 
 Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
   ConstructParameters const& p = ConstructParametersOf(node->op());
@@ -5869,7 +5871,7 @@ bool JSCallReducer::DoPromiseChecks(MapInference* inference) {
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
     if (!receiver_map.IsJSPromiseMap()) return false;
-    if (FLAG_concurrent_inlining && !receiver_map.serialized_prototype()) {
+    if (should_disallow_heap_access() && !receiver_map.serialized_prototype()) {
       TRACE_BROKER_MISSING(broker(), "prototype for map " << receiver_map);
       return false;
     }
@@ -5934,7 +5936,7 @@ Node* JSCallReducer::CreateClosureFromBuiltinSharedFunctionInfo(
 
 // ES section #sec-promise.prototype.finally
 Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -6050,7 +6052,7 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
 }
 
 Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -6118,7 +6120,7 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
 
 // ES section #sec-promise.resolve
 Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -6234,7 +6236,7 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
         jsgraph()->Constant(TYPE##_ELEMENTS -                          \
                             FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));   \
     control = graph()->NewNode(common()->Branch(), check, control);    \
-    if (FLAG_concurrent_inlining) {                                    \
+    if (should_disallow_heap_access()) {                               \
       values.push_back(jsgraph()->Constant(                            \
           broker()->GetTypedArrayStringTag(TYPE##_ELEMENTS)));         \
     } else {                                                           \
@@ -6746,7 +6748,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
 }
 
 Reduction JSCallReducer::ReduceArrayBufferIsView(Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
 
   Node* value = node->op()->ValueInputCount() >= 3
                     ? NodeProperties::GetValueInput(node, 2)
@@ -6760,7 +6762,7 @@ Reduction JSCallReducer::ReduceArrayBufferIsView(Node* node) {
 
 Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
     Node* node, InstanceType instance_type, FieldAccess const& access) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
 
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -7069,7 +7071,7 @@ Reduction JSCallReducer::ReduceNumberParseInt(Node* node) {
 }
 
 Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
 
   if (FLAG_force_slow_path) return NoChange();
   if (node->op()->ValueInputCount() < 3) return NoChange();
@@ -7096,7 +7098,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
-  if (FLAG_concurrent_inlining) {
+  if (should_disallow_heap_access()) {
     // Obtain precomputed access infos from the broker.
     for (auto map : regexp_maps) {
       MapRef map_ref(broker(), map);

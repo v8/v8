@@ -22,11 +22,14 @@ namespace internal {
 namespace compiler {
 
 JSIntrinsicLowering::JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph,
-                                         JSHeapBroker* broker)
-    : AdvancedReducer(editor), jsgraph_(jsgraph), broker_(broker) {}
+                                         JSHeapBroker* broker, Flags flags)
+    : AdvancedReducer(editor),
+      jsgraph_(jsgraph),
+      broker_(broker),
+      flags_(flags) {}
 
 Reduction JSIntrinsicLowering::Reduce(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_access(flags_ & kConcurrentInlining);
 
   if (node->opcode() != IrOpcode::kJSCallRuntime) return NoChange();
   const Runtime::Function* const f =

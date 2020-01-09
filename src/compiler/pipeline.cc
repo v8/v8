@@ -132,7 +132,8 @@ class PipelineData {
   // For main entry point.
   PipelineData(ZoneStats* zone_stats, Isolate* isolate,
                OptimizedCompilationInfo* info,
-               PipelineStatistics* pipeline_statistics)
+               PipelineStatistics* pipeline_statistics,
+               bool is_concurrent_inlining)
       : isolate_(isolate),
         allocator_(isolate->allocator()),
         info_(info),
@@ -150,7 +151,8 @@ class PipelineData {
         codegen_zone_scope_(zone_stats_, kCodegenZoneName),
         codegen_zone_(codegen_zone_scope_.zone()),
         broker_(new JSHeapBroker(isolate_, info_->zone(),
-                                 info_->trace_heap_broker_enabled())),
+                                 info_->trace_heap_broker_enabled(),
+                                 is_concurrent_inlining)),
         register_allocation_zone_scope_(zone_stats_,
                                         kRegisterAllocationZoneName),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
@@ -968,7 +970,8 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
  public:
   PipelineCompilationJob(Isolate* isolate,
                          Handle<SharedFunctionInfo> shared_info,
-                         Handle<JSFunction> function);
+                         Handle<JSFunction> function,
+                         bool is_concurrent_inlining);
   ~PipelineCompilationJob() final;
 
  protected:
@@ -993,7 +996,7 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
 
 PipelineCompilationJob::PipelineCompilationJob(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
-    Handle<JSFunction> function)
+    Handle<JSFunction> function, bool is_concurrent_inlining)
     // Note that the OptimizedCompilationInfo is not initialized at the time
     // we pass it to the CompilationJob constructor, but it is not
     // dereferenced there.
@@ -1006,10 +1009,9 @@ PipelineCompilationJob::PipelineCompilationJob(
           handle(Script::cast(shared_info->script()), isolate),
           compilation_info(), function->GetIsolate(), &zone_stats_)),
       data_(&zone_stats_, function->GetIsolate(), compilation_info(),
-            pipeline_statistics_.get()),
+            pipeline_statistics_.get(), is_concurrent_inlining),
       pipeline_(&data_),
-      linkage_(nullptr) {
-}
+      linkage_(nullptr) {}
 
 PipelineCompilationJob::~PipelineCompilationJob() {
 }
@@ -1029,6 +1031,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   }
   if (FLAG_turbo_inlining) {
     compilation_info()->MarkAsInliningEnabled();
+  }
+  if (FLAG_concurrent_inlining && !compilation_info()->is_osr()) {
+    compilation_info()->MarkAsConcurrentInlining();
   }
 
   // This is the bottleneck for computing and setting poisoning level in the
@@ -1078,7 +1083,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
 
   pipeline_.Serialize();
 
-  if (!FLAG_concurrent_inlining) {
+  if (!compilation_info()->is_concurrent_inlining()) {
     if (!pipeline_.CreateGraph()) {
       CHECK(!isolate->has_pending_exception());
       return AbortOptimization(BailoutReason::kGraphBuildingFailed);
@@ -1110,7 +1115,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
   // Ensure that the RuntimeCallStats table is only available during execution
   // and not during finalization as that might be on a different thread.
   PipelineExecuteJobScope scope(&data_, stats);
-  if (FLAG_concurrent_inlining) {
+  if (compilation_info()->is_concurrent_inlining()) {
     if (!pipeline_.CreateGraph()) {
       return AbortOptimization(BailoutReason::kGraphBuildingFailed);
     }
@@ -1323,6 +1328,9 @@ struct GraphBuilderPhase {
     if (data->info()->is_bailout_on_uninitialized()) {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
+    if (data->info()->is_concurrent_inlining()) {
+      flags |= BytecodeGraphBuilderFlag::kConcurrentInlining;
+    }
 
     JSFunctionRef closure(data->broker(), data->info()->closure());
     CallFrequency frequency(1.0f);
@@ -1347,11 +1355,15 @@ struct InliningPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
+    JSCallReducer::Flags call_reducer_flags = JSCallReducer::kNoFlags;
+    if (data->info()->is_bailout_on_uninitialized()) {
+      call_reducer_flags |= JSCallReducer::kBailoutOnUninitialized;
+    }
+    if (data->info()->is_concurrent_inlining()) {
+      call_reducer_flags |= JSCallReducer::kConcurrentInlining;
+    }
     JSCallReducer call_reducer(&graph_reducer, data->jsgraph(), data->broker(),
-                               temp_zone,
-                               data->info()->is_bailout_on_uninitialized()
-                                   ? JSCallReducer::kBailoutOnUninitialized
-                                   : JSCallReducer::kNoFlags,
+                               temp_zone, call_reducer_flags,
                                data->dependencies());
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(), data->broker(),
@@ -1364,6 +1376,9 @@ struct InliningPhase {
     if (data->info()->is_bailout_on_uninitialized()) {
       flags |= JSNativeContextSpecialization::kBailoutOnUninitialized;
     }
+    if (data->info()->is_concurrent_inlining()) {
+      flags |= JSNativeContextSpecialization::kConcurrentInlining;
+    }
     // Passing the OptimizedCompilationInfo's shared zone here as
     // JSNativeContextSpecialization allocates out-of-heap objects
     // that need to live until code generation.
@@ -1373,8 +1388,15 @@ struct InliningPhase {
     JSInliningHeuristic inlining(&graph_reducer,
                                  temp_zone, data->info(), data->jsgraph(),
                                  data->broker(), data->source_positions());
+
+    JSIntrinsicLowering::Flags intrinsic_lowering_flags =
+        JSIntrinsicLowering::kNoFlags;
+    if (data->info()->is_concurrent_inlining()) {
+      intrinsic_lowering_flags |= JSIntrinsicLowering::kConcurrentInlining;
+    }
     JSIntrinsicLowering intrinsic_lowering(&graph_reducer, data->jsgraph(),
-                                           data->broker());
+                                           data->broker(),
+                                           intrinsic_lowering_flags);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
@@ -2349,7 +2371,7 @@ void PipelineImpl::Serialize() {
   }
 
   data->broker()->SetTargetNativeContextRef(data->native_context());
-  if (FLAG_concurrent_inlining) {
+  if (data->info()->is_concurrent_inlining()) {
     Run<HeapBrokerInitializationPhase>();
     Run<SerializationPhase>();
     data->broker()->StopSerializing();
@@ -2389,7 +2411,7 @@ bool PipelineImpl::CreateGraph() {
 
   // Run the type-sensitive lowerings and optimizations on the graph.
   {
-    if (!FLAG_concurrent_inlining) {
+    if (!data->info()->is_concurrent_inlining()) {
       Run<HeapBrokerInitializationPhase>();
       Run<CopyMetadataForConcurrentCompilePhase>();
       data->broker()->StopSerializing();
@@ -2786,7 +2808,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   std::unique_ptr<PipelineStatistics> pipeline_statistics(
       CreatePipelineStatistics(Handle<Script>::null(), info, isolate,
                                &zone_stats));
-  PipelineData data(&zone_stats, isolate, info, pipeline_statistics.get());
+  if (i::FLAG_concurrent_inlining) {
+    info->MarkAsConcurrentInlining();
+  }
+
+  PipelineData data(&zone_stats, isolate, info, pipeline_statistics.get(),
+                    info->is_concurrent_inlining());
   PipelineImpl pipeline(&data);
 
   Linkage linkage(Linkage::ComputeIncoming(data.instruction_zone(), info));
@@ -2848,10 +2875,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 
 // static
 std::unique_ptr<OptimizedCompilationJob> Pipeline::NewCompilationJob(
-    Isolate* isolate, Handle<JSFunction> function, bool has_script) {
+    Isolate* isolate, Handle<JSFunction> function, bool has_script,
+    bool is_concurrent_inlining) {
   Handle<SharedFunctionInfo> shared =
       handle(function->shared(), function->GetIsolate());
-  return std::make_unique<PipelineCompilationJob>(isolate, shared, function);
+  return std::make_unique<PipelineCompilationJob>(isolate, shared, function,
+                                                  is_concurrent_inlining);
 }
 
 // static

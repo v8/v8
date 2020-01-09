@@ -64,7 +64,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     kTraceHeapBroker = 1 << 17,
     kWasmRuntimeExceptionSupport = 1 << 18,
     kTurboControlFlowAwareAllocation = 1 << 19,
-    kTurboPreprocessRanges = 1 << 20
+    kTurboPreprocessRanges = 1 << 20,
+    kConcurrentInlining = 1 << 21,
   };
 
   // Construct a compilation info for optimized compilation.
@@ -92,6 +93,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   JavaScriptFrame* osr_frame() const { return osr_frame_; }
 
   // Flags used by optimized compilation.
+
+  void MarkAsConcurrentInlining() { SetFlag(kConcurrentInlining); }
+  bool is_concurrent_inlining() const { return GetFlag(kConcurrentInlining); }
 
   void MarkAsTurboControlFlowAwareAllocation() {
     SetFlag(kTurboControlFlowAwareAllocation);

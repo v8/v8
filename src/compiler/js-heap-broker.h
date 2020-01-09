@@ -73,7 +73,8 @@ struct PropertyAccessTarget {
 
 class V8_EXPORT_PRIVATE JSHeapBroker {
  public:
-  JSHeapBroker(Isolate* isolate, Zone* broker_zone, bool tracing_enabled);
+  JSHeapBroker(Isolate* isolate, Zone* broker_zone, bool tracing_enabled,
+               bool is_concurrent_inlining);
 
   // The compilation target's native context. We need the setter because at
   // broker construction time we don't yet have the canonical handle.
@@ -242,6 +243,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       array_and_object_prototypes_;
   BrokerMode mode_ = kDisabled;
   bool const tracing_enabled_;
+  bool const is_concurrent_inlining_;
   mutable StdoutStream trace_out_;
   unsigned trace_indentation_ = 0;
   PerIsolateCompilerCache* compiler_cache_ = nullptr;

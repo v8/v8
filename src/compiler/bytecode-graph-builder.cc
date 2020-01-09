@@ -40,6 +40,7 @@ class BytecodeGraphBuilder {
                        CallFrequency const& invocation_frequency,
                        SourcePositionTable* source_positions, int inlining_id,
                        BytecodeGraphBuilderFlags flags,
+                       JSTypeHintLowering::Flags type_hint_lowering_flags,
                        TickCounter* tick_counter);
 
   // Creates a graph by visiting bytecodes.
@@ -369,6 +370,10 @@ class BytecodeGraphBuilder {
   NativeContextRef native_context() const { return native_context_; }
   SharedFunctionInfoRef shared_info() const { return shared_info_; }
 
+  bool should_disallow_heap_access() const {
+    return flags_ & BytecodeGraphBuilderFlag::kConcurrentInlining;
+  }
+
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
@@ -432,6 +437,8 @@ class BytecodeGraphBuilder {
   SourcePositionTable* const source_positions_;
 
   SourcePosition const start_position_;
+
+  BytecodeGraphBuilderFlags const flags_;
 
   TickCounter* const tick_counter_;
 
@@ -940,7 +947,9 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
     FeedbackVectorRef const& feedback_vector, BailoutId osr_offset,
     JSGraph* jsgraph, CallFrequency const& invocation_frequency,
     SourcePositionTable* source_positions, int inlining_id,
-    BytecodeGraphBuilderFlags flags, TickCounter* tick_counter)
+    BytecodeGraphBuilderFlags flags,
+    JSTypeHintLowering::Flags type_hint_lowering_flags,
+    TickCounter* tick_counter)
     : broker_(broker),
       local_zone_(local_zone),
       jsgraph_(jsgraph),
@@ -948,11 +957,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       shared_info_(shared_info),
       feedback_vector_(feedback_vector),
       invocation_frequency_(invocation_frequency),
-      type_hint_lowering_(
-          broker, jsgraph, feedback_vector,
-          (flags & BytecodeGraphBuilderFlag::kBailoutOnUninitialized)
-              ? JSTypeHintLowering::kBailoutOnUninitialized
-              : JSTypeHintLowering::kNoFlags),
+      type_hint_lowering_(broker, jsgraph, feedback_vector,
+                          type_hint_lowering_flags),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kInterpretedFunction,
           bytecode_array().parameter_count(), bytecode_array().register_count(),
@@ -962,8 +968,9 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       bytecode_analysis_(broker_->GetBytecodeAnalysis(
           bytecode_array().object(), osr_offset,
           flags & BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness,
-          FLAG_concurrent_inlining ? SerializationPolicy::kAssumeSerialized
-                                   : SerializationPolicy::kSerializeIfNeeded)),
+          (flags & BytecodeGraphBuilderFlag::kConcurrentInlining)
+              ? SerializationPolicy::kAssumeSerialized
+              : SerializationPolicy::kSerializeIfNeeded)),
       environment_(nullptr),
       osr_(!osr_offset.IsNone()),
       currently_peeled_loop_offset_(-1),
@@ -980,8 +987,9 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       state_values_cache_(jsgraph),
       source_positions_(source_positions),
       start_position_(shared_info.StartPosition(), inlining_id),
+      flags_(flags),
       tick_counter_(tick_counter) {
-  if (FLAG_concurrent_inlining) {
+  if (flags & BytecodeGraphBuilderFlag::kConcurrentInlining) {
     // With concurrent inlining on, the source position address doesn't change
     // because it's been copied from the heap.
     source_position_iterator_ = std::make_unique<SourcePositionTableIterator>(
@@ -1018,7 +1026,7 @@ FeedbackSource BytecodeGraphBuilder::CreateFeedbackSource(int slot_id) {
 }
 
 void BytecodeGraphBuilder::CreateGraph() {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
 
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
@@ -1313,7 +1321,7 @@ void BytecodeGraphBuilder::VisitBytecodes() {
     VisitSingleBytecode();
   }
 
-  if (!FLAG_concurrent_inlining && has_one_shot_bytecode) {
+  if (!should_disallow_heap_access() && has_one_shot_bytecode) {
     // (For concurrent inlining this is done in the serializer instead.)
     isolate()->CountUsage(
         v8::Isolate::UseCounterFeature::kOptimizedFunctionWithOneShotBytecode);
@@ -2007,7 +2015,7 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
 }
 
 void BytecodeGraphBuilder::VisitCreateBlockContext() {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   ScopeInfoRef scope_info(
       broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
   const Operator* op = javascript()->CreateBlockContext(scope_info.object());
@@ -2016,7 +2024,7 @@ void BytecodeGraphBuilder::VisitCreateBlockContext() {
 }
 
 void BytecodeGraphBuilder::VisitCreateFunctionContext() {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   ScopeInfoRef scope_info(
       broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
   uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(1);
@@ -2027,7 +2035,7 @@ void BytecodeGraphBuilder::VisitCreateFunctionContext() {
 }
 
 void BytecodeGraphBuilder::VisitCreateEvalContext() {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   ScopeInfoRef scope_info(
       broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
   uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(1);
@@ -2038,7 +2046,7 @@ void BytecodeGraphBuilder::VisitCreateEvalContext() {
 }
 
 void BytecodeGraphBuilder::VisitCreateCatchContext() {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   interpreter::Register reg = bytecode_iterator().GetRegisterOperand(0);
   Node* exception = environment()->LookupRegister(reg);
   ScopeInfoRef scope_info(
@@ -2050,7 +2058,7 @@ void BytecodeGraphBuilder::VisitCreateCatchContext() {
 }
 
 void BytecodeGraphBuilder::VisitCreateWithContext() {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   ScopeInfoRef scope_info(
@@ -2157,7 +2165,7 @@ void BytecodeGraphBuilder::VisitCloneObject() {
 }
 
 void BytecodeGraphBuilder::VisitGetTemplateObject() {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   FeedbackSource source =
       CreateFeedbackSource(bytecode_iterator().GetIndexOperand(1));
   TemplateObjectDescriptionRef description(
@@ -4160,10 +4168,17 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             int inlining_id, BytecodeGraphBuilderFlags flags,
                             TickCounter* tick_counter) {
   DCHECK(broker->IsSerializedForCompilation(shared_info, feedback_vector));
+  JSTypeHintLowering::Flags type_hint_lowering_flags =
+      JSTypeHintLowering::kNoFlags;
+  if (flags & BytecodeGraphBuilderFlag::kBailoutOnUninitialized) {
+    type_hint_lowering_flags |= JSTypeHintLowering::kBailoutOnUninitialized;
+  }
+
   BytecodeGraphBuilder builder(
       broker, local_zone, broker->target_native_context(), shared_info,
       feedback_vector, osr_offset, jsgraph, invocation_frequency,
-      source_positions, inlining_id, flags, tick_counter);
+      source_positions, inlining_id, flags, type_hint_lowering_flags,
+      tick_counter);
   builder.CreateGraph();
 }
 

@@ -31,7 +31,12 @@ class SimplifiedOperatorBuilder;
 class V8_EXPORT_PRIVATE JSIntrinsicLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker);
+  // Flags that control the mode of operation.
+  enum Flag { kNoFlags = 0u, kConcurrentInlining = 1u << 0 };
+  using Flags = base::Flags<Flag>;
+
+  JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker,
+                      Flags flags);
   ~JSIntrinsicLowering() final = default;
 
   const char* reducer_name() const override { return "JSIntrinsicLowering"; }
@@ -90,6 +95,7 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
 
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;
+  Flags const flags_;
 };
 
 }  // namespace compiler

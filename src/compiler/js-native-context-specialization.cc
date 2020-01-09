@@ -69,7 +69,7 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
       type_cache_(TypeCache::Get()) {}
 
 Reduction JSNativeContextSpecialization::Reduce(Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
 
   switch (node->opcode()) {
     case IrOpcode::kJSAdd:
@@ -351,7 +351,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   if (!m.HasValue()) return NoChange();
   JSFunctionRef function = m.Ref(broker()).AsJSFunction();
   MapRef function_map = function.map();
-  if (FLAG_concurrent_inlining && !function_map.serialized_prototype()) {
+  if (should_disallow_heap_access() && !function_map.serialized_prototype()) {
     TRACE_BROKER_MISSING(broker(), "data for map " << function_map);
     return NoChange();
   }
@@ -403,7 +403,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   MapRef receiver_map = receiver_ref.map();
 
   PropertyAccessInfo access_info = PropertyAccessInfo::Invalid(graph()->zone());
-  if (FLAG_concurrent_inlining) {
+  if (should_disallow_heap_access()) {
     access_info = broker()->GetPropertyAccessInfo(
         receiver_map,
         NameRef(broker(), isolate()->factory()->has_instance_symbol()),
@@ -529,7 +529,7 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
         all = false;
         break;
       }
-      if (FLAG_concurrent_inlining && !map.serialized_prototype()) {
+      if (should_disallow_heap_access() && !map.serialized_prototype()) {
         TRACE_BROKER_MISSING(broker(), "prototype data for map " << map);
         return kMayBeInPrototypeChain;
       }
@@ -608,7 +608,7 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     // OrdinaryHasInstance on bound functions turns into a recursive invocation
     // of the instanceof operator again.
     JSBoundFunctionRef function = m.Ref(broker()).AsJSBoundFunction();
-    if (FLAG_concurrent_inlining && !function.serialized()) {
+    if (should_disallow_heap_access() && !function.serialized()) {
       TRACE_BROKER_MISSING(broker(), "data for JSBoundFunction " << function);
       return NoChange();
     }
@@ -627,7 +627,7 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     // Optimize if we currently know the "prototype" property.
 
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
-    if (FLAG_concurrent_inlining && !function.serialized()) {
+    if (should_disallow_heap_access() && !function.serialized()) {
       TRACE_BROKER_MISSING(broker(), "data for JSFunction " << function);
       return NoChange();
     }
@@ -706,7 +706,7 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
-  if (!FLAG_concurrent_inlining) {
+  if (!should_disallow_heap_access()) {
     access_info_factory.ComputePropertyAccessInfos(
         resolution_maps, factory()->then_string(), AccessMode::kLoad,
         &access_infos);
@@ -1078,8 +1078,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       if (map.is_deprecated()) continue;
       PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
           map, feedback.name(), access_mode, dependencies(),
-          FLAG_concurrent_inlining ? SerializationPolicy::kAssumeSerialized
-                                   : SerializationPolicy::kSerializeIfNeeded);
+          should_disallow_heap_access()
+              ? SerializationPolicy::kAssumeSerialized
+              : SerializationPolicy::kSerializeIfNeeded);
       access_infos_for_feedback.push_back(access_info);
     }
 
@@ -1326,7 +1327,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
         name.equals(ObjectRef(broker(), factory()->prototype_string()))) {
       // Optimize "prototype" property of functions.
       JSFunctionRef function = object.AsJSFunction();
-      if (FLAG_concurrent_inlining && !function.serialized()) {
+      if (should_disallow_heap_access() && !function.serialized()) {
         TRACE_BROKER_MISSING(broker(), "data for function " << function);
         return NoChange();
       }
@@ -1622,7 +1623,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     base::Optional<JSTypedArrayRef> typed_array =
         GetTypedArrayConstant(broker(), receiver);
     if (typed_array.has_value()) {
-      if (FLAG_concurrent_inlining && !typed_array->serialized()) {
+      if (should_disallow_heap_access() && !typed_array->serialized()) {
         TRACE_BROKER_MISSING(broker(), "data for typed array " << *typed_array);
         return NoChange();
       }
@@ -1839,7 +1840,7 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
 Reduction JSNativeContextSpecialization::ReducePropertyAccess(
     Node* node, Node* key, base::Optional<NameRef> static_name, Node* value,
     FeedbackSource const& source, AccessMode access_mode) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
 
   DCHECK_EQ(key == nullptr, static_name.has_value());
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||

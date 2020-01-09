@@ -44,7 +44,11 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
     : public AdvancedReducer {
  public:
   // Flags that control the mode of operation.
-  enum Flag { kNoFlags = 0u, kBailoutOnUninitialized = 1u << 0 };
+  enum Flag {
+    kNoFlags = 0u,
+    kBailoutOnUninitialized = 1u << 0,
+    kConcurrentInlining = 1u << 1
+  };
   using Flags = base::Flags<Flag>;
 
   JSNativeContextSpecialization(Editor* editor, JSGraph* jsgraph,
@@ -247,6 +251,10 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
   Zone* shared_zone() const { return shared_zone_; }
+
+  bool should_disallow_heap_access() const {
+    return flags() & kConcurrentInlining;
+  }
 
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;

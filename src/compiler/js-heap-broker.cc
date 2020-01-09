@@ -2343,7 +2343,7 @@ base::Optional<ObjectRef> ContextRef::get(int index,
 }
 
 JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
-                           bool tracing_enabled)
+                           bool tracing_enabled, bool is_concurrent_inlining)
     : isolate_(isolate),
       zone_(broker_zone),
       refs_(new (zone())
@@ -2351,6 +2351,7 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       root_index_map_(isolate),
       array_and_object_prototypes_(zone()),
       tracing_enabled_(tracing_enabled),
+      is_concurrent_inlining_(is_concurrent_inlining),
       feedback_(zone()),
       bytecode_analyses_(zone()),
       property_access_infos_(zone()),
@@ -4598,7 +4599,7 @@ ProcessedFeedback const& JSHeapBroker::GetFeedback(
 
 FeedbackSlotKind JSHeapBroker::GetFeedbackSlotKind(
     FeedbackSource const& source) const {
-  if (FLAG_concurrent_inlining) {
+  if (is_concurrent_inlining_) {
     ProcessedFeedback const& processed = GetFeedback(source);
     return processed.slot_kind();
   }
@@ -4607,7 +4608,7 @@ FeedbackSlotKind JSHeapBroker::GetFeedbackSlotKind(
 }
 
 bool JSHeapBroker::FeedbackIsInsufficient(FeedbackSource const& source) const {
-  return FLAG_concurrent_inlining
+  return (is_concurrent_inlining_)
              ? GetFeedback(source).IsInsufficient()
              : FeedbackNexus(source.vector, source.slot).IsUninitialized();
 }
@@ -4806,8 +4807,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
 BinaryOperationHint JSHeapBroker::GetFeedbackForBinaryOperation(
     FeedbackSource const& source) {
   ProcessedFeedback const& feedback =
-      FLAG_concurrent_inlining ? GetFeedback(source)
-                               : ProcessFeedbackForBinaryOperation(source);
+      (is_concurrent_inlining_) ? GetFeedback(source)
+                                : ProcessFeedbackForBinaryOperation(source);
   return feedback.IsInsufficient() ? BinaryOperationHint::kNone
                                    : feedback.AsBinaryOperation().value();
 }
@@ -4815,14 +4816,14 @@ BinaryOperationHint JSHeapBroker::GetFeedbackForBinaryOperation(
 CompareOperationHint JSHeapBroker::GetFeedbackForCompareOperation(
     FeedbackSource const& source) {
   ProcessedFeedback const& feedback =
-      FLAG_concurrent_inlining ? GetFeedback(source)
-                               : ProcessFeedbackForCompareOperation(source);
+      (is_concurrent_inlining_) ? GetFeedback(source)
+                                : ProcessFeedbackForCompareOperation(source);
   return feedback.IsInsufficient() ? CompareOperationHint::kNone
                                    : feedback.AsCompareOperation().value();
 }
 
 ForInHint JSHeapBroker::GetFeedbackForForIn(FeedbackSource const& source) {
-  ProcessedFeedback const& feedback = FLAG_concurrent_inlining
+  ProcessedFeedback const& feedback = (is_concurrent_inlining_)
                                           ? GetFeedback(source)
                                           : ProcessFeedbackForForIn(source);
   return feedback.IsInsufficient() ? ForInHint::kNone
@@ -4832,46 +4833,46 @@ ForInHint JSHeapBroker::GetFeedbackForForIn(FeedbackSource const& source) {
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForPropertyAccess(
     FeedbackSource const& source, AccessMode mode,
     base::Optional<NameRef> static_name) {
-  return FLAG_concurrent_inlining
+  return (is_concurrent_inlining_)
              ? GetFeedback(source)
              : ProcessFeedbackForPropertyAccess(source, mode, static_name);
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForInstanceOf(
     FeedbackSource const& source) {
-  return FLAG_concurrent_inlining ? GetFeedback(source)
-                                  : ProcessFeedbackForInstanceOf(source);
+  return (is_concurrent_inlining_) ? GetFeedback(source)
+                                   : ProcessFeedbackForInstanceOf(source);
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForCall(
     FeedbackSource const& source) {
-  return FLAG_concurrent_inlining ? GetFeedback(source)
-                                  : ProcessFeedbackForCall(source);
+  return (is_concurrent_inlining_) ? GetFeedback(source)
+                                   : ProcessFeedbackForCall(source);
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForGlobalAccess(
     FeedbackSource const& source) {
-  return FLAG_concurrent_inlining ? GetFeedback(source)
-                                  : ProcessFeedbackForGlobalAccess(source);
+  return (is_concurrent_inlining_) ? GetFeedback(source)
+                                   : ProcessFeedbackForGlobalAccess(source);
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForArrayOrObjectLiteral(
     FeedbackSource const& source) {
-  return FLAG_concurrent_inlining
+  return (is_concurrent_inlining_)
              ? GetFeedback(source)
              : ProcessFeedbackForArrayOrObjectLiteral(source);
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForRegExpLiteral(
     FeedbackSource const& source) {
-  return FLAG_concurrent_inlining ? GetFeedback(source)
-                                  : ProcessFeedbackForRegExpLiteral(source);
+  return (is_concurrent_inlining_) ? GetFeedback(source)
+                                   : ProcessFeedbackForRegExpLiteral(source);
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForTemplateObject(
     FeedbackSource const& source) {
-  return FLAG_concurrent_inlining ? GetFeedback(source)
-                                  : ProcessFeedbackForTemplateObject(source);
+  return (is_concurrent_inlining_) ? GetFeedback(source)
+                                   : ProcessFeedbackForTemplateObject(source);
 }
 
 ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForArrayOrObjectLiteral(
@@ -5094,7 +5095,7 @@ PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
   AccessInfoFactory factory(this, dependencies, zone());
   PropertyAccessInfo access_info = factory.ComputePropertyAccessInfo(
       map.object(), name.object(), access_mode);
-  if (FLAG_concurrent_inlining) {
+  if (is_concurrent_inlining_) {
     CHECK(SerializingAllowed());
     TRACE(this, "Storing PropertyAccessInfo for "
                     << access_mode << " of property " << name << " on map "
