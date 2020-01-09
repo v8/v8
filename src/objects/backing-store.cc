@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/objects/backing-store.h"
+
+#include <cstring>
+
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
@@ -103,10 +106,19 @@ void RecordStatus(Isolate* isolate, AllocationStatus status) {
 
 inline void DebugCheckZero(void* start, size_t byte_length) {
 #if DEBUG
-  // Double check memory is zero-initialized.
+  // Double check memory is zero-initialized. Despite being DEBUG-only,
+  // this function is somewhat optimized for the benefit of test suite
+  // execution times (some tests allocate several gigabytes).
   const byte* bytes = reinterpret_cast<const byte*>(start);
-  for (size_t i = 0; i < byte_length; i++) {
+  const size_t kBaseCase = 32;
+  for (size_t i = 0; i < kBaseCase && i < byte_length; i++) {
     DCHECK_EQ(0, bytes[i]);
+  }
+  // Having checked the first kBaseCase bytes to be zero, we can now use
+  // {memcmp} to compare the range against itself shifted by that amount,
+  // thereby inductively checking the remaining bytes.
+  if (byte_length > kBaseCase) {
+    DCHECK_EQ(0, memcmp(bytes, bytes + kBaseCase, byte_length - kBaseCase));
   }
 #endif
 }

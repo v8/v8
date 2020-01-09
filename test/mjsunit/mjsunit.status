@@ -231,9 +231,6 @@
   # Runs out of stack space in debug builds.
   'big-array-literal': [PASS, ['mode == debug', SKIP]],
 
-  # BUG(v8:6306).
-  'wasm/huge-memory': [SKIP],
-
   # Allocates a huge string and then flattens it, very slow in debug mode.
   'regress/regress-752764': [PASS, ['mode == debug', SLOW]],
 
@@ -254,6 +251,8 @@
 
   # Test doesn't work on 32-bit architectures (it would require a
   # regexp pattern with too many captures).
+  # TODO(jkummerow/jgruber): Silently fails with pointer compression too.
+  # Fix it or delete it.
   'regress/regress-976627': [FAIL, ['arch == x64 or arch == arm64 or arch == mips64el or arch == ppc64 or arch == s390x', PASS]],
 
   # OOM with too many isolates/memory objects (https://crbug.com/1010272)
@@ -445,6 +444,13 @@
   # TODO(mips-team): Fix Wasm for big-endian.
   'wasm/*': [SKIP],
 }],  # 'byteorder == big'
+
+##############################################################################
+# 32-bit platforms
+['arch in (ia32, arm, mips, mipsel)', {
+  # Needs >2GB of available contiguous memory.
+  'wasm/huge-memory': [SKIP],
+}],  # 'arch in (ia32, arm, mips, mipsel)'
 
 ##############################################################################
 ['arch == arm64', {

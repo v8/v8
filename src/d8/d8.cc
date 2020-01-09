@@ -219,11 +219,17 @@ class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
 class MultiMappedAllocator : public ArrayBufferAllocatorBase {
  protected:
   void* Allocate(size_t length) override {
+    if (length < kChunkSize) {
+      return ArrayBufferAllocatorBase::Allocate(length);
+    }
     // We use mmap, which initializes pages to zero anyway.
     return AllocateUninitialized(length);
   }
 
   void* AllocateUninitialized(size_t length) override {
+    if (length < kChunkSize) {
+      return ArrayBufferAllocatorBase::AllocateUninitialized(length);
+    }
     size_t rounded_length = RoundUp(length, kChunkSize);
     int prot = PROT_READ | PROT_WRITE;
     // We have to specify MAP_SHARED to make {mremap} below do what we want.
@@ -250,6 +256,9 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
   }
 
   void Free(void* data, size_t length) override {
+    if (length < kChunkSize) {
+      return ArrayBufferAllocatorBase::Free(data, length);
+    }
     void* real_alloc = regions_[data];
     munmap(real_alloc, kChunkSize);
     size_t rounded_length = RoundUp(length, kChunkSize);
