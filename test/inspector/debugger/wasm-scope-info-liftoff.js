@@ -14,6 +14,8 @@ Protocol.Debugger.onPaused(printPauseLocationsAndContinue);
 
 let evaluate = code => Protocol.Runtime.evaluate({expression: code});
 
+let breakpointLocation = -1;
+
 (async function test() {
   // Instantiate wasm and wait for three wasm scripts for the three functions.
   instantiateWasm();
@@ -23,7 +25,7 @@ let evaluate = code => Protocol.Runtime.evaluate({expression: code});
   InspectorTest.log(
       'Setting breakpoint on line 2 (first instruction) of third function');
   let breakpoint = await Protocol.Debugger.setBreakpoint(
-      {'location': {'scriptId': scriptIds[2], 'lineNumber': 2}});
+      {'location': {'scriptId': scriptIds[0], 'lineNumber': 0, 'columnNumber': breakpointLocation}});
   printIfFailure(breakpoint);
   InspectorTest.logMessage(breakpoint.result.actualLocation);
 
@@ -95,7 +97,7 @@ async function instantiateWasm() {
       ]);
 
   // A third function which will be stepped through.
-  builder.addFunction('C (interpreted)', kSig_v_i)
+  let func = builder.addFunction('C (interpreted)', kSig_v_i)
       .addLocals({i32_count: 1}, ['i32_arg', 'i32_local'])
       .addBody([
         // Set global 0 to param 0.
@@ -105,6 +107,7 @@ async function instantiateWasm() {
       ]);
 
   var module_bytes = builder.toArray();
+  breakpointLocation = func.body_offset;
 
   function instantiate(bytes) {
     var buffer = new ArrayBuffer(bytes.length);
@@ -131,12 +134,12 @@ function printIfFailure(message) {
 }
 
 async function waitForWasmScripts() {
-  InspectorTest.log('Waiting for three wasm scripts to be parsed.');
+  InspectorTest.log('Waiting for wasm script to be parsed.');
   let wasm_script_ids = [];
-  while (wasm_script_ids.length < 3) {
+  while (wasm_script_ids.length < 1) {
     let script_msg = await Protocol.Debugger.onceScriptParsed();
     let url = script_msg.params.url;
-    if (url.startsWith('wasm://') && url.split('/').length == 5) {
+    if (url.startsWith('wasm://')) {
       InspectorTest.log('Got wasm script!');
       wasm_script_ids.push(script_msg.params.scriptId);
     }

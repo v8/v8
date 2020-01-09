@@ -64,19 +64,6 @@ static const intptr_t kBreakpointHintMaxSearchOffset = 80 * 10;
 
 namespace {
 
-void TranslateLocation(protocol::Debugger::Location* location,
-                       WasmTranslation* wasmTranslation) {
-  String16 scriptId = location->getScriptId();
-  int lineNumber = location->getLineNumber();
-  int columnNumber = location->getColumnNumber(-1);
-  if (wasmTranslation->TranslateWasmScriptLocationToProtocolLocation(
-          &scriptId, &lineNumber, &columnNumber)) {
-    location->setScriptId(std::move(scriptId));
-    location->setLineNumber(lineNumber);
-    location->setColumnNumber(columnNumber);
-  }
-}
-
 enum class BreakpointType {
   kByUrl = 1,
   kByUrlRegex,
@@ -1348,7 +1335,6 @@ Response V8DebuggerAgentImpl::currentCallFrames(
             .setLineNumber(loc.GetLineNumber())
             .setColumnNumber(loc.GetColumnNumber())
             .build();
-    TranslateLocation(location.get(), m_debugger->wasmTranslation());
     String16 scriptId = String16::fromInteger(script->Id());
     ScriptsMap::iterator scriptIterator =
         m_scripts.find(location->getScriptId());

@@ -9,6 +9,8 @@ Protocol.Debugger.enable();
 
 let evaluate = code => Protocol.Runtime.evaluate({expression: code});
 
+let breakpointLocation = -1;
+
 (async function test() {
   let scriptIds = await instantiateWasm();
   await setBreakpoint(scriptIds);
@@ -45,7 +47,7 @@ async function instantiateWasm() {
   ]).exportAs('main');
 
   // A second function which will be stepped through.
-  builder.addFunction('func', kSig_v_i)
+  let func = builder.addFunction('func', kSig_v_i)
       .addLocals(
           {i32_count: 1, i64_count: 1, f64_count: 1},
           ['i32Arg', undefined, 'i64_local', 'unicode☼f64'])
@@ -69,6 +71,7 @@ async function instantiateWasm() {
       ]);
 
   var module_bytes = builder.toArray();
+  breakpointLocation = func.body_offset;
 
   function instantiate(bytes) {
     var buffer = new ArrayBuffer(bytes.length);
@@ -91,9 +94,9 @@ async function instantiateWasm() {
 
 async function setBreakpoint(scriptIds) {
   InspectorTest.log(
-      'Setting breakpoint on line 2 (first instruction) of second function');
+      'Setting breakpoint on first instruction of second function');
   let breakpoint = await Protocol.Debugger.setBreakpoint(
-      {'location': {'scriptId': scriptIds[1], 'lineNumber': 2}});
+      {'location': {'scriptId': scriptIds[0], 'lineNumber': 0, 'columnNumber': breakpointLocation}});
   printFailure(breakpoint);
   InspectorTest.logMessage(breakpoint.result.actualLocation);
 }
@@ -106,12 +109,12 @@ function printFailure(message) {
 }
 
 async function waitForWasmScripts() {
-  InspectorTest.log('Waiting for two wasm scripts to be parsed.');
+  InspectorTest.log('Waiting for wasm script to be parsed.');
   let wasm_script_ids = [];
-  while (wasm_script_ids.length < 2) {
+  while (wasm_script_ids.length < 1) {
     let script_msg = await Protocol.Debugger.onceScriptParsed();
     let url = script_msg.params.url;
-    if (url.startsWith('wasm://') && url.split('/').length == 5) {
+    if (url.startsWith('wasm://')) {
       InspectorTest.log('Got wasm script!');
       wasm_script_ids.push(script_msg.params.scriptId);
     }

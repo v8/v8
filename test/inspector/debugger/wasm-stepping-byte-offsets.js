@@ -57,14 +57,9 @@ function instantiate(bytes) {
     expression: `var instance;` +
         `(${instantiate.toString()})(${JSON.stringify(module_bytes)})`
   });
-  const [, {params: wasmScript}, ,] = await Protocol.Debugger.onceScriptParsed(4);
+  const [, {params: wasmScript}] = await Protocol.Debugger.onceScriptParsed(2);
 
   InspectorTest.log('Got wasm script: ' + wasmScript.url);
-  InspectorTest.log('Requesting source for ' + wasmScript.url + '...');
-  const msg =
-      await Protocol.Debugger.getScriptSource({scriptId: wasmScript.scriptId});
-  InspectorTest.log(`Source retrieved without error: ${!msg.error}`);
-  // TODO(leese): Add check that source text is empty but bytecode is present.
 
   // Set the breakpoint on a non-breakable position. This should resolve to the
   // next instruction.

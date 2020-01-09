@@ -108,8 +108,7 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
       m_continueToLocationBreakpointId(kNoBreakpointId),
       m_maxAsyncCallStacks(kMaxAsyncTaskStacks),
       m_maxAsyncCallStackDepth(0),
-      m_pauseOnExceptionsState(v8::debug::NoBreakOnException),
-      m_wasmTranslation(isolate) {}
+      m_pauseOnExceptionsState(v8::debug::NoBreakOnException) {}
 
 V8Debugger::~V8Debugger() {
   m_isolate->RemoveCallCompletedCallback(
@@ -147,7 +146,6 @@ void V8Debugger::disable() {
   m_taskWithScheduledBreakPauseRequested = false;
   m_pauseOnNextCallRequested = false;
   m_pauseOnAsyncCall = false;
-  m_wasmTranslation.Clear();
   v8::debug::SetDebugDelegate(m_isolate, nullptr);
   m_isolate->RemoveNearHeapLimitCallback(&V8Debugger::nearHeapLimitCallback,
                                          m_originalHeapLimit);
@@ -514,24 +512,17 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
 
   v8::Isolate* isolate = m_isolate;
   V8InspectorClient* client = m_inspector->client();
-  WasmTranslation& wasmTranslation = m_wasmTranslation;
 
   m_inspector->forEachSession(
       m_inspector->contextGroupId(contextId),
-      [isolate, &script, has_compile_error, is_live_edited, client,
-       &wasmTranslation](V8InspectorSessionImpl* session) {
+      [isolate, &script, has_compile_error, is_live_edited,
+       client](V8InspectorSessionImpl* session) {
         auto agent = session->debuggerAgent();
         if (!agent->enabled()) return;
         agent->didParseSource(
             V8DebuggerScript::Create(isolate, script, is_live_edited, agent,
                                      client),
             !has_compile_error);
-        if (script->IsWasm() && script->SourceMappingURL().IsEmpty()) {
-          // In this case we also create fake scripts corresponding to each
-          // function.
-          // TODO(leese): Get rid of this once frontend no longer uses these.
-          wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(), agent);
-        }
       });
 }
 
@@ -1084,9 +1075,6 @@ std::shared_ptr<StackFrame> V8Debugger::symbolize(
     return std::shared_ptr<StackFrame>(it->second);
   }
   std::shared_ptr<StackFrame> frame(new StackFrame(isolate(), v8Frame));
-  // TODO(clemensb): Figure out a way to do this translation only right before
-  // sending the stack trace over wire.
-  if (v8Frame->IsWasm()) frame->translate(&m_wasmTranslation);
   if (m_maxAsyncCallStackDepth) {
     m_framesCache[frameId] = frame;
   }

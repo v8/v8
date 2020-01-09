@@ -1,33 +1,28 @@
 Test retrieving scope information from compiled Liftoff frames
 Installing instantiate code.
-Waiting for three wasm scripts to be parsed.
+Waiting for wasm script to be parsed.
 Calling instantiate function.
-Got wasm script!
-Got wasm script!
 Got wasm script!
 Setting breakpoint on line 2 (first instruction) of third function
 {
-    columnNumber : 2
-    lineNumber : 2
+    columnNumber : 85
+    lineNumber : 0
     scriptId : <scriptId>
 }
 Paused:
-(local i32)
-  #local.get 0
-  global.set 0
-
+Script wasm://wasm/71172dd6 byte offset 85: Wasm opcode 0x20
 Scope:
-at C (interpreted) (2:2):
+at C (interpreted) (0:85):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 0 (number)
-   stack: 
-at B (liftoff) (7:2):
+   stack:
+at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
-at A (liftoff) (2:2):
+at A (liftoff) (0:54):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
@@ -36,22 +31,19 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-  local.get 0
-  #global.set 0
-  i32.const 47
-
+Script wasm://wasm/71172dd6 byte offset 87: Wasm opcode 0x24
 Scope:
-at C (interpreted) (3:2):
+at C (interpreted) (0:87):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 0 (number)
    stack: "0": 42 (number)
-at B (liftoff) (7:2):
+at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
-at A (liftoff) (2:2):
+at A (liftoff) (0:54):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
@@ -60,22 +52,19 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-  global.set 0
-  #i32.const 47
-  local.set 1
-
+Script wasm://wasm/71172dd6 byte offset 89: Wasm opcode 0x41
 Scope:
-at C (interpreted) (4:2):
+at C (interpreted) (0:89):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 0 (number)
-   stack: 
-at B (liftoff) (7:2):
+   stack:
+at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
-at A (liftoff) (2:2):
+at A (liftoff) (0:54):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
@@ -84,22 +73,19 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-  i32.const 47
-  #local.set 1
-end
-
+Script wasm://wasm/71172dd6 byte offset 91: Wasm opcode 0x21
 Scope:
-at C (interpreted) (5:2):
+at C (interpreted) (0:91):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 0 (number)
    stack: "0": 47 (number)
-at B (liftoff) (7:2):
+at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
-at A (liftoff) (2:2):
+at A (liftoff) (0:54):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
@@ -108,22 +94,19 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-  local.set 1
-#end
-
-
+Script wasm://wasm/71172dd6 byte offset 93: Wasm opcode 0xb
 Scope:
-at C (interpreted) (6:0):
+at C (interpreted) (0:93):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 47 (number)
-   stack: 
-at B (liftoff) (7:2):
+   stack:
+at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
-at A (liftoff) (2:2):
+at A (liftoff) (0:54):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):

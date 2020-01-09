@@ -159,8 +159,6 @@ v8_source_set("inspector") {
     "v8-value-utils.h",
     "value-mirror.cc",
     "value-mirror.h",
-    "wasm-translation.cc",
-    "wasm-translation.h",
   ]
 }
 

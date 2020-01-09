@@ -10,7 +10,7 @@ utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 let builder = new WasmModuleBuilder();
 
 // wasm_A
-builder.addFunction('wasm_A', kSig_v_v)
+let func = builder.addFunction('wasm_A', kSig_v_v)
     .addBody([
       // clang-format off
       kExprNop,   // Line 1
@@ -85,9 +85,9 @@ function test() {
       'instantiate(' + JSON.stringify(module_bytes) + ')', 'callInstantiate');
   const scriptId = await waitForWasmScript();
   InspectorTest.log(
-      'Setting breakpoint on line 2 of wasm function');
+      'Setting breakpoint at start of wasm function');
   let msg = await Protocol.Debugger.setBreakpoint(
-      {'location': {'scriptId': scriptId, 'lineNumber': 2}});
+      {'location': {'scriptId': scriptId, 'lineNumber': 0, 'columnNumber': func.body_offset}});
   printFailure(msg);
   InspectorTest.logMessage(msg.result.actualLocation);
 
@@ -112,7 +112,7 @@ async function waitForWasmScript() {
   while (true) {
     let msg = await Protocol.Debugger.onceScriptParsed();
     let url = msg.params.url;
-    if (!url.startsWith('wasm://') || url.split('/').length != 5) {
+    if (!url.startsWith('wasm://')) {
       InspectorTest.log('Ignoring script with url ' + url);
       continue;
     }

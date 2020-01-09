@@ -631,6 +631,7 @@ class WasmFunctionBuilder {
     this.body = [];
     this.locals = [];
     this.local_names = [];
+    this.body_offset = undefined;  // Not valid until module is serialized.
   }
 
   numLocalNames() {
@@ -1243,6 +1244,7 @@ class WasmModuleBuilder {
     if (wasm.functions.length > 0) {
       // emit function bodies
       if (debug) print("emitting code @ " + binary.length);
+      let section_length = 0;
       binary.emit_section(kCodeSectionCode, section => {
         section.emit_u32v(wasm.functions.length);
         let header = new Binary;
@@ -1285,9 +1287,15 @@ class WasmModuleBuilder {
 
           section.emit_u32v(header.length + func.body.length);
           section.emit_bytes(header.trunc_buffer());
+          // Set to section offset for now, will update.
+          func.body_offset = section.length;
           section.emit_bytes(func.body);
         }
+        section_length = section.length;
       });
+      for (let func of wasm.functions) {
+        func.body_offset += binary.length - section_length;
+      }
     }
 
     // Add data segments.

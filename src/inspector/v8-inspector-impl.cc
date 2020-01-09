@@ -246,7 +246,6 @@ void V8InspectorImpl::resetContextGroup(int contextGroupId) {
                  [&contextIdsToClear](InspectedContext* context) {
                    contextIdsToClear.push_back(context->contextId());
                  });
-  m_debugger->wasmTranslation()->Clear(m_isolate, contextIdsToClear);
   forEachSession(contextGroupId,
                  [](V8InspectorSessionImpl* session) { session->reset(); });
   m_contexts.erase(contextGroupId);

@@ -221,6 +221,12 @@ async function setAllBreakableLocations() {
 function recordPausedLocation(msg) {
   var topLocation = msg.params.callFrames[0].location;
   InspectorTest.log('Stopped at ' + locationStr(topLocation));
+  for (var i = 0; i < allBreakableLocations.length; ++i) {
+    if (locationMatches(topLocation, allBreakableLocations[i])) {
+      allBreakableLocations.splice(i, 1);
+      break;
+    }
+  }
 }
 
 async function waitForAllPauses() {
@@ -231,5 +237,9 @@ async function waitForAllPauses() {
     await Protocol.Debugger.resume();
     remaining--;
     InspectorTest.log('Missing breakpoints: ' + remaining);
+  }
+  if (allBreakableLocations.length != 0) {
+    InspectorTest.log('Did not hit all breakable locations: '
+                      + JSON.stringify(allBreakableLocations));
   }
 }
