@@ -399,18 +399,16 @@ Handle<JSArray> GetImports(Isolate* isolate,
         UNREACHABLE();
     }
 
-    MaybeHandle<String> import_module =
+    Handle<String> import_module =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
             isolate, module_object, import.module_name);
 
-    MaybeHandle<String> import_name =
+    Handle<String> import_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
             isolate, module_object, import.field_name);
 
-    JSObject::AddProperty(isolate, entry, module_string,
-                          import_module.ToHandleChecked(), NONE);
-    JSObject::AddProperty(isolate, entry, name_string,
-                          import_name.ToHandleChecked(), NONE);
+    JSObject::AddProperty(isolate, entry, module_string, import_module, NONE);
+    JSObject::AddProperty(isolate, entry, name_string, import_name, NONE);
     JSObject::AddProperty(isolate, entry, kind_string, import_kind, NONE);
     if (!type_value.is_null()) {
       JSObject::AddProperty(isolate, entry, type_string, type_value, NONE);
@@ -501,12 +499,11 @@ Handle<JSArray> GetExports(Isolate* isolate,
 
     Handle<JSObject> entry = factory->NewJSObject(object_function);
 
-    MaybeHandle<String> export_name =
+    Handle<String> export_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
             isolate, module_object, exp.name);
 
-    JSObject::AddProperty(isolate, entry, name_string,
-                          export_name.ToHandleChecked(), NONE);
+    JSObject::AddProperty(isolate, entry, name_string, export_name, NONE);
     JSObject::AddProperty(isolate, entry, kind_string, export_kind, NONE);
     if (!type_value.is_null()) {
       JSObject::AddProperty(isolate, entry, type_string, type_value, NONE);
@@ -532,11 +529,11 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
 
   // Gather matching sections.
   for (auto& section : custom_sections) {
-    MaybeHandle<String> section_name =
+    Handle<String> section_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
             isolate, module_object, section.name);
 
-    if (!name->Equals(*section_name.ToHandleChecked())) continue;
+    if (!name->Equals(*section_name)) continue;
 
     // Make a copy of the payload data in the section.
     size_t size = section.payload.length();
@@ -583,8 +580,7 @@ Handle<FixedArray> DecodeLocalNames(Isolate* isolate,
     for (LocalName& name : func.names) {
       Handle<String> name_str =
           WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-              isolate, module_object, name.name)
-              .ToHandleChecked();
+              isolate, module_object, name.name);
       func_locals_names->set(name.local_index, *name_str);
     }
   }

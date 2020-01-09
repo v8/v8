@@ -187,13 +187,10 @@ class WasmModuleObject : public JSObject {
                                bool is_at_number_conversion);
 
   // Extract a portion of the wire bytes as UTF-8 string.
-  // Returns a null handle if the respective bytes do not form a valid UTF-8
-  // string.
-  static MaybeHandle<String> ExtractUtf8StringFromModuleBytes(
-      Isolate* isolate, Handle<WasmModuleObject>, wasm::WireBytesRef ref);
-  static MaybeHandle<String> ExtractUtf8StringFromModuleBytes(
-      Isolate* isolate, Vector<const uint8_t> wire_byte,
-      wasm::WireBytesRef ref);
+  static Handle<String> ExtractUtf8StringFromModuleBytes(
+      Isolate*, Handle<WasmModuleObject>, wasm::WireBytesRef);
+  static Handle<String> ExtractUtf8StringFromModuleBytes(
+      Isolate*, Vector<const uint8_t> wire_byte, wasm::WireBytesRef);
 
   OBJECT_CONSTRUCTORS(WasmModuleObject, JSObject);
 };

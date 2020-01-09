@@ -324,7 +324,7 @@ int WasmModuleObject::GetSourcePosition(Handle<WasmModuleObject> module_object,
   return offset_table->get_int(kOTESize * left + idx);
 }
 
-MaybeHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+Handle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
     Isolate* isolate, Handle<WasmModuleObject> module_object,
     wasm::WireBytesRef ref) {
   // TODO(wasm): cache strings from modules if it's a performance win.
@@ -333,15 +333,16 @@ MaybeHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
   return ExtractUtf8StringFromModuleBytes(isolate, wire_bytes, ref);
 }
 
-MaybeHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+Handle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
     Isolate* isolate, Vector<const uint8_t> wire_bytes,
     wasm::WireBytesRef ref) {
-  Vector<const uint8_t> name_vec = wire_bytes + ref.offset();
-  name_vec.Truncate(ref.length());
+  Vector<const uint8_t> name_vec =
+      wire_bytes.SubVector(ref.offset(), ref.end_offset());
   // UTF8 validation happens at decode time.
   DCHECK(unibrow::Utf8::ValidateEncoding(name_vec.begin(), name_vec.length()));
-  return isolate->factory()->NewStringFromUtf8(
-      Vector<const char>::cast(name_vec));
+  return isolate->factory()
+      ->NewStringFromUtf8(Vector<const char>::cast(name_vec))
+      .ToHandleChecked();
 }
 
 MaybeHandle<String> WasmModuleObject::GetModuleNameOrNull(

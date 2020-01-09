@@ -2730,8 +2730,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
             .ToHandleChecked();
     Handle<String> module_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate, wire_bytes.module_bytes(), name)
-            .ToHandleChecked();
+            isolate, wire_bytes.module_bytes(), name);
     name_str = isolate->factory()
                    ->NewConsString(module_name, name_hash)
                    .ToHandleChecked();

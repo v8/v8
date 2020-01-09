@@ -776,25 +776,13 @@ void InstanceBuilder::SanitizeImports() {
   for (size_t index = 0; index < module_->import_table.size(); ++index) {
     const WasmImport& import = module_->import_table[index];
 
-    Handle<String> module_name;
-    MaybeHandle<String> maybe_module_name =
+    Handle<String> module_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(isolate_, wire_bytes,
                                                            import.module_name);
-    if (!maybe_module_name.ToHandle(&module_name)) {
-      thrower_->LinkError("Could not resolve module name for import %zu",
-                          index);
-      return;
-    }
 
-    Handle<String> import_name;
-    MaybeHandle<String> maybe_import_name =
+    Handle<String> import_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(isolate_, wire_bytes,
                                                            import.field_name);
-    if (!maybe_import_name.ToHandle(&import_name)) {
-      thrower_->LinkError("Could not resolve import name for import %zu",
-                          index);
-      return;
-    }
 
     int int_index = static_cast<int>(index);
     MaybeHandle<Object> result =
@@ -1493,8 +1481,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
   // Process each export in the export table.
   for (const WasmExport& exp : module_->export_table) {
     Handle<String> name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-                              isolate_, module_object_, exp.name)
-                              .ToHandleChecked();
+        isolate_, module_object_, exp.name);
     Handle<JSObject> export_to = exports_object;
     switch (exp.kind) {
       case kExternalFunction: {
