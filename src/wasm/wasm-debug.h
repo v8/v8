@@ -13,6 +13,7 @@
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/wasm/value-type.h"
 
 namespace v8 {
 namespace internal {
@@ -39,16 +40,21 @@ class DebugSideTable {
       int32_t i32_const;
     };
 
-    Entry(int pc_offset, int stack_height, std::vector<Constant> constants)
+    Entry(int pc_offset, std::vector<ValueType> stack_types,
+          std::vector<Constant> constants)
         : pc_offset_(pc_offset),
-          stack_height_(stack_height),
+          stack_types_(std::move(stack_types)),
           constants_(std::move(constants)) {
       DCHECK(std::is_sorted(constants_.begin(), constants_.end(),
                             ConstantIndexLess{}));
     }
 
     int pc_offset() const { return pc_offset_; }
-    int stack_height() const { return stack_height_; }
+    int stack_height() const { return static_cast<int>(stack_types_.size()); }
+    ValueType stack_type(int stack_index) const {
+      return stack_types_[stack_index];
+    }
+    // {index} can point to a local or operand stack value.
     bool IsConstant(int index) const {
       return std::binary_search(constants_.begin(), constants_.end(),
                                 Constant{index, 0}, ConstantIndexLess{});
@@ -70,7 +76,7 @@ class DebugSideTable {
     };
 
     int pc_offset_;
-    int stack_height_;
+    std::vector<ValueType> stack_types_;
     std::vector<Constant> constants_;
   };
 
@@ -78,15 +84,16 @@ class DebugSideTable {
   // reason to do so, hence mark it move only.
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(DebugSideTable);
 
-  explicit DebugSideTable(std::vector<Entry> entries)
-      : entries_(std::move(entries)) {
+  explicit DebugSideTable(std::vector<ValueType> local_types,
+                          std::vector<Entry> entries)
+      : local_types_(std::move(local_types)), entries_(std::move(entries)) {
     DCHECK(
         std::is_sorted(entries_.begin(), entries_.end(), EntryPositionLess{}));
   }
 
   const Entry* GetEntry(int pc_offset) const {
     auto it = std::lower_bound(entries_.begin(), entries_.end(),
-                               Entry{pc_offset, 0, {}}, EntryPositionLess{});
+                               Entry{pc_offset, {}, {}}, EntryPositionLess{});
     if (it == entries_.end() || it->pc_offset() != pc_offset) return nullptr;
     return &*it;
   }
@@ -96,6 +103,8 @@ class DebugSideTable {
   }
 
   size_t num_entries() const { return entries_.size(); }
+  int num_locals() const { return static_cast<int>(local_types_.size()); }
+  ValueType local_type(int index) const { return local_types_[index]; }
 
  private:
   struct EntryPositionLess {
@@ -104,6 +113,7 @@ class DebugSideTable {
     }
   };
 
+  std::vector<ValueType> local_types_;
   std::vector<Entry> entries_;
 };
 

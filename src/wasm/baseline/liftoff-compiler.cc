@@ -157,18 +157,16 @@ class DebugSideTableBuilder {
  public:
   class EntryBuilder {
    public:
-    explicit EntryBuilder(int pc_offset, int stack_height)
-        : pc_offset_(pc_offset), stack_height_(stack_height) {}
-
-    void SetConstant(int index, int32_t i32_const) {
-      // Add constants in order.
-      DCHECK(constants_.empty() || constants_.back().index < index);
-      constants_.push_back({index, i32_const});
-    }
+    explicit EntryBuilder(
+        int pc_offset, std::vector<ValueType> stack_types,
+        std::vector<DebugSideTable::Entry::Constant> constants)
+        : pc_offset_(pc_offset),
+          stack_types_(std::move(stack_types)),
+          constants_(std::move(constants)) {}
 
     DebugSideTable::Entry ToTableEntry() const {
-      DCHECK_LE(0, stack_height_);
-      return DebugSideTable::Entry{pc_offset_, stack_height_, constants_};
+      return DebugSideTable::Entry{pc_offset_, std::move(stack_types_),
+                                   std::move(constants_)};
     }
 
     int pc_offset() const { return pc_offset_; }
@@ -176,16 +174,33 @@ class DebugSideTableBuilder {
 
    private:
     int pc_offset_;
-    const int stack_height_;
+    std::vector<ValueType> stack_types_;
     std::vector<DebugSideTable::Entry::Constant> constants_;
   };
 
   // Adds a new entry, and returns a pointer to a builder for modifying that
-  // entry.
-  EntryBuilder* NewEntry(int pc_offset, int stack_height) {
-    entries_.emplace_back(pc_offset, stack_height);
+  // entry ({stack_height} includes {num_locals}).
+  EntryBuilder* NewEntry(int pc_offset, int num_locals, int stack_height,
+                         LiftoffAssembler::VarState* stack_state) {
+    DCHECK_LE(num_locals, stack_height);
+    // Record stack types.
+    int stack_height_without_locals = stack_height - num_locals;
+    std::vector<ValueType> stack_types(stack_height_without_locals);
+    for (int i = 0; i < stack_height_without_locals; ++i) {
+      stack_types[i] = stack_state[num_locals + i].type();
+    }
+    // Record all constants on the locals and stack.
+    std::vector<DebugSideTable::Entry::Constant> constants;
+    for (int idx = 0; idx < stack_height; ++idx) {
+      auto& slot = stack_state[idx];
+      if (slot.is_const()) constants.push_back({idx, slot.i32_const()});
+    }
+    entries_.emplace_back(pc_offset, std::move(stack_types),
+                          std::move(constants));
     return &entries_.back();
   }
+
+  void AddLocalType(ValueType type) { local_types_.push_back(type); }
 
   DebugSideTable GenerateDebugSideTable() {
     std::vector<DebugSideTable::Entry> table_entries;
@@ -195,10 +210,11 @@ class DebugSideTableBuilder {
               [](DebugSideTable::Entry& a, DebugSideTable::Entry& b) {
                 return a.pc_offset() < b.pc_offset();
               });
-    return DebugSideTable{std::move(table_entries)};
+    return DebugSideTable{std::move(local_types_), std::move(table_entries)};
   }
 
  private:
+  std::vector<ValueType> local_types_;
   std::list<EntryBuilder> entries_;
 };
 
@@ -362,6 +378,11 @@ class LiftoffCompiler {
     for (int i = 0; i < num_locals; ++i) {
       ValueType type = decoder->GetLocalType(i);
       __ set_local_type(i, type);
+    }
+    if (V8_UNLIKELY(debug_sidetable_builder_)) {
+      for (int i = 0; i < num_locals; ++i) {
+        debug_sidetable_builder_->AddLocalType(__ local_type(i));
+      }
     }
   }
 
@@ -1888,14 +1909,9 @@ class LiftoffCompiler {
   DebugSideTableBuilder::EntryBuilder* RegisterDebugSideTableEntry() {
     if (V8_LIKELY(!debug_sidetable_builder_)) return nullptr;
     int stack_height = static_cast<int>(__ cache_state()->stack_height());
-    auto* entry_builder =
-        debug_sidetable_builder_->NewEntry(__ pc_offset(), stack_height);
-    // Record all constants on the stack.
-    for (int idx = 0; idx < stack_height; ++idx) {
-      auto& slot = __ cache_state()->stack_state[idx];
-      if (slot.is_const()) entry_builder->SetConstant(idx, slot.i32_const());
-    }
-    return entry_builder;
+    return debug_sidetable_builder_->NewEntry(
+        __ pc_offset(), __ num_locals(), stack_height,
+        __ cache_state()->stack_state.begin());
   }
 
   void CallDirect(FullDecoder* decoder,
