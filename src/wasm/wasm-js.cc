@@ -1167,7 +1167,11 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     if (maybe_value.ToLocal(&value)) {
       shared = value->BooleanValue(isolate) ? i::SharedFlag::kShared
                                             : i::SharedFlag::kNotShared;
+    } else {
+      DCHECK(i_isolate->has_scheduled_exception());
+      return;
     }
+
     // Throw TypeError if shared is true, and the descriptor has no "maximum"
     if (shared == i::SharedFlag::kShared && maximum == -1) {
       thrower.TypeError(
@@ -1259,6 +1263,9 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::Local<v8::Value> value;
     if (maybe.ToLocal(&value)) {
       is_mutable = value->BooleanValue(isolate);
+    } else {
+      DCHECK(i_isolate->has_scheduled_exception());
+      return;
     }
   }
 
