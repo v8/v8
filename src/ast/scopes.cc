@@ -2327,8 +2327,23 @@ void Scope::AllocateNonParameterLocal(Variable* var) {
 }
 
 void Scope::AllocateNonParameterLocalsAndDeclaredGlobals() {
-  for (Variable* local : locals_) {
-    AllocateNonParameterLocal(local);
+  if (is_declaration_scope() && AsDeclarationScope()->is_arrow_scope()) {
+    // In arrow functions, allocate non-temporaries first and then all the
+    // temporaries to make the local variable ordering stable when reparsing to
+    // collect source positions.
+    for (Variable* local : locals_) {
+      if (local->mode() != VariableMode::kTemporary)
+        AllocateNonParameterLocal(local);
+    }
+
+    for (Variable* local : locals_) {
+      if (local->mode() == VariableMode::kTemporary)
+        AllocateNonParameterLocal(local);
+    }
+  } else {
+    for (Variable* local : locals_) {
+      AllocateNonParameterLocal(local);
+    }
   }
 
   if (is_declaration_scope()) {
