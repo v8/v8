@@ -2303,14 +2303,11 @@ TNode<BigInt> CodeStubAssembler::LoadFixedBigUint64ArrayElementAsTagged(
 #if defined(V8_TARGET_BIG_ENDIAN)
     TNode<UintPtrT> high = Load<UintPtrT>(data_pointer, offset);
     TNode<UintPtrT> low = Load<UintPtrT>(
-        data_pointer, Int32Add(TruncateIntPtrToInt32(offset),
-                               Int32Constant(kSystemPointerSize)));
+        data_pointer, IntPtrAdd(offset, IntPtrConstant(kSystemPointerSize)));
 #else
     TNode<UintPtrT> low = Load<UintPtrT>(data_pointer, offset);
-    TNode<UintPtrT> high = UncheckedCast<UintPtrT>(
-        Load(MachineType::UintPtr(), data_pointer,
-             Int32Add(TruncateIntPtrToInt32(offset),
-                      Int32Constant(kSystemPointerSize))));
+    TNode<UintPtrT> high = Load<UintPtrT>(
+        data_pointer, IntPtrAdd(offset, IntPtrConstant(kSystemPointerSize)));
 #endif
     return BigIntFromUint32Pair(low, high);
   }
