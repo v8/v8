@@ -5228,15 +5228,23 @@ void Heap::RegisterExternallyReferencedObject(Address* location) {
   }
 }
 
-void Heap::StartTearDown() { SetGCState(TEAR_DOWN); }
-
-void Heap::TearDown() {
-  DCHECK_EQ(gc_state_, TEAR_DOWN);
+void Heap::StartTearDown() {
+  SetGCState(TEAR_DOWN);
 #ifdef VERIFY_HEAP
+  // {StartTearDown} is called fairly early during Isolate teardown, so it's
+  // a good time to run heap verification (if requested), before starting to
+  // tear down parts of the Isolate.
   if (FLAG_verify_heap) {
     Verify();
   }
 #endif
+}
+
+void Heap::TearDown() {
+  DCHECK_EQ(gc_state_, TEAR_DOWN);
+
+  // It's too late for Heap::Verify() here, as parts of the Isolate are
+  // already gone by the time this is called.
 
   UpdateMaximumCommitted();
 
