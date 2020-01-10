@@ -7787,13 +7787,12 @@ TNode<Object> CodeStubAssembler::BasicLoadNumberDictionaryElement(
 
   // Check that the value is a data property.
   TNode<IntPtrT> index = EntryToIndex<NumberDictionary>(var_entry.value());
-  TNode<Uint32T> details =
-      LoadDetailsByKeyIndex<NumberDictionary>(dictionary, index);
+  TNode<Uint32T> details = LoadDetailsByKeyIndex(dictionary, index);
   TNode<Uint32T> kind = DecodeWord32<PropertyDetails::KindField>(details);
   // TODO(jkummerow): Support accessors without missing?
   GotoIfNot(Word32Equal(kind, Int32Constant(kData)), not_data);
   // Finally, load the value.
-  return LoadValueByKeyIndex<NumberDictionary>(dictionary, index);
+  return LoadValueByKeyIndex(dictionary, index);
 }
 
 template <class Dictionary>
@@ -8210,8 +8209,7 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
             TNode<NameDictionary> dictionary = CAST(var_meta_storage.value());
             TNode<IntPtrT> entry = var_entry.value();
 
-            TNode<Uint32T> details =
-                LoadDetailsByKeyIndex<NameDictionary>(dictionary, entry);
+            TNode<Uint32T> details = LoadDetailsByKeyIndex(dictionary, entry);
             // Skip non-enumerable properties.
             GotoIf(
                 IsSetWord32(details, PropertyDetails::kAttributesDontEnumMask),
@@ -8607,16 +8605,12 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
   Comment("] LoadPropertyFromFastObject");
 }
 
-void CodeStubAssembler::LoadPropertyFromNameDictionary(Node* dictionary,
-                                                       Node* name_index,
-                                                       Variable* var_details,
-                                                       Variable* var_value) {
+void CodeStubAssembler::LoadPropertyFromNameDictionary(
+    TNode<NameDictionary> dictionary, TNode<IntPtrT> name_index,
+    TVariable<Uint32T>* var_details, TVariable<Object>* var_value) {
   Comment("LoadPropertyFromNameDictionary");
-  CSA_ASSERT(this, IsNameDictionary(dictionary));
-
-  var_details->Bind(
-      LoadDetailsByKeyIndex<NameDictionary>(dictionary, name_index));
-  var_value->Bind(LoadValueByKeyIndex<NameDictionary>(dictionary, name_index));
+  *var_details = LoadDetailsByKeyIndex(dictionary, name_index);
+  *var_value = LoadValueByKeyIndex(dictionary, name_index);
 
   Comment("] LoadPropertyFromNameDictionary");
 }
@@ -8806,7 +8800,7 @@ void CodeStubAssembler::TryGetOwnProperty(
   }
   BIND(&if_found_dict);
   {
-    TNode<HeapObject> dictionary = var_meta_storage.value();
+    TNode<NameDictionary> dictionary = CAST(var_meta_storage.value());
     TNode<IntPtrT> entry = var_entry.value();
     LoadPropertyFromNameDictionary(dictionary, entry, var_details, var_value);
     Goto(&if_found);

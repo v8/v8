@@ -2942,26 +2942,28 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Loads the details for the entry with the given key_index.
   // Returns an untagged int32.
   template <class ContainerType>
-  TNode<Uint32T> LoadDetailsByKeyIndex(Node* container, Node* key_index) {
+  TNode<Uint32T> LoadDetailsByKeyIndex(TNode<ContainerType> container,
+                                       TNode<IntPtrT> key_index) {
     static_assert(!std::is_same<ContainerType, DescriptorArray>::value,
                   "Use the non-templatized version for DescriptorArray");
     const int kKeyToDetailsOffset =
         (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
         kTaggedSize;
-    return Unsigned(LoadAndUntagToWord32FixedArrayElement(
-        CAST(container), key_index, kKeyToDetailsOffset));
+    return Unsigned(LoadAndUntagToWord32FixedArrayElement(container, key_index,
+                                                          kKeyToDetailsOffset));
   }
 
   // Loads the value for the entry with the given key_index.
   // Returns a tagged value.
   template <class ContainerType>
-  TNode<Object> LoadValueByKeyIndex(Node* container, Node* key_index) {
+  TNode<Object> LoadValueByKeyIndex(TNode<ContainerType> container,
+                                    TNode<IntPtrT> key_index) {
     static_assert(!std::is_same<ContainerType, DescriptorArray>::value,
                   "Use the non-templatized version for DescriptorArray");
     const int kKeyToValueOffset =
         (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
         kTaggedSize;
-    return LoadFixedArrayElement(CAST(container), key_index, kKeyToValueOffset);
+    return LoadFixedArrayElement(container, key_index, kKeyToValueOffset);
   }
 
   // Stores the details for the entry with the given key_index.
@@ -3163,9 +3165,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   TNode<IntPtrT> name_index, TNode<Uint32T>,
                                   TVariable<Object>* var_value);
 
-  void LoadPropertyFromNameDictionary(Node* dictionary, Node* entry,
-                                      Variable* var_details,
-                                      Variable* var_value);
+  void LoadPropertyFromNameDictionary(TNode<NameDictionary> dictionary,
+                                      TNode<IntPtrT> name_index,
+                                      TVariable<Uint32T>* var_details,
+                                      TVariable<Object>* var_value);
   void LoadPropertyFromGlobalDictionary(TNode<GlobalDictionary> dictionary,
                                         TNode<IntPtrT> name_index,
                                         TVariable<Uint32T>* var_details,

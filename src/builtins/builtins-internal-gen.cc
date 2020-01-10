@@ -540,8 +540,7 @@ class DeletePropertyBaseAssembler : public AccessorAssembler {
 
     BIND(&dictionary_found);
     TNode<IntPtrT> key_index = var_name_index.value();
-    TNode<Uint32T> details =
-        LoadDetailsByKeyIndex<NameDictionary>(properties, key_index);
+    TNode<Uint32T> details = LoadDetailsByKeyIndex(properties, key_index);
     GotoIf(IsSetWord32(details, PropertyDetails::kAttributesDontDeleteMask),
            dont_delete);
     // Overwrite the entry itself (see NameDictionary::SetEntry).

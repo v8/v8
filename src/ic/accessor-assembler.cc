@@ -1051,8 +1051,8 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         properties, CAST(p->name()), &dictionary_found, &var_name_index, miss);
     BIND(&dictionary_found);
     {
-      TNode<Uint32T> details = LoadDetailsByKeyIndex<NameDictionary>(
-          properties, var_name_index.value());
+      TNode<Uint32T> details =
+          LoadDetailsByKeyIndex(properties, var_name_index.value());
       // Check that the property is a writable data property (no accessor).
       const int kTypeAndReadOnlyMask = PropertyDetails::KindField::kMask |
                                        PropertyDetails::kAttributesReadOnlyMask;
@@ -1454,8 +1454,8 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
   BIND(&if_descriptor);
   {
     // Check that constant matches value.
-    TNode<Object> constant = LoadValueByKeyIndex(
-        descriptors, UncheckedCast<IntPtrT>(descriptor_name_index));
+    TNode<Object> constant =
+        LoadValueByKeyIndex(descriptors, descriptor_name_index);
     GotoIf(TaggedNotEqual(value, constant), slow);
 
     if (do_transitioning_store) {
@@ -1539,8 +1539,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       p, handler, on_code_handler,
       // on_found_on_receiver
       [=](TNode<NameDictionary> properties, TNode<IntPtrT> name_index) {
-        TNode<Uint32T> details =
-            LoadDetailsByKeyIndex<NameDictionary>(properties, name_index);
+        TNode<Uint32T> details = LoadDetailsByKeyIndex(properties, name_index);
         // Check that the property is a writable data property (no accessor).
         const int kTypeAndReadOnlyMask =
             PropertyDetails::KindField::kMask |

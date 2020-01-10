@@ -638,16 +638,14 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
 
       BIND(&found_dict);
       {
-        TNode<HeapObject> dictionary = var_meta_storage.value();
+        TNode<NameDictionary> dictionary = CAST(var_meta_storage.value());
         TNode<IntPtrT> entry = var_entry.value();
-        TNode<Uint32T> details =
-            LoadDetailsByKeyIndex<NameDictionary>(dictionary, entry);
+        TNode<Uint32T> details = LoadDetailsByKeyIndex(dictionary, entry);
         JumpIfDataProperty(details, &ok_to_write, readonly);
 
         if (accessor != nullptr) {
           // Accessor case.
-          *var_accessor_pair =
-              LoadValueByKeyIndex<NameDictionary>(dictionary, entry);
+          *var_accessor_pair = LoadValueByKeyIndex(dictionary, entry);
           *var_accessor_holder = holder;
           Goto(accessor);
         } else {
@@ -657,10 +655,10 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
 
       BIND(&found_global);
       {
-        TNode<HeapObject> dictionary = var_meta_storage.value();
+        TNode<GlobalDictionary> dictionary = CAST(var_meta_storage.value());
         TNode<IntPtrT> entry = var_entry.value();
         TNode<PropertyCell> property_cell =
-            CAST(LoadValueByKeyIndex<GlobalDictionary>(dictionary, entry));
+            CAST(LoadValueByKeyIndex(dictionary, entry));
         TNode<Object> value =
             LoadObjectField(property_cell, PropertyCell::kValueOffset);
         GotoIf(TaggedEqual(value, TheHoleConstant()), &next_proto);
@@ -841,15 +839,15 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     BIND(&dictionary_found);
     {
       Label overwrite(this);
-      TNode<Uint32T> details = LoadDetailsByKeyIndex<NameDictionary>(
-          properties, var_name_index.value());
+      TNode<Uint32T> details =
+          LoadDetailsByKeyIndex(properties, var_name_index.value());
       JumpIfDataProperty(details, &overwrite,
                          ShouldReconfigureExisting() ? nullptr : &readonly);
 
       if (ShouldCallSetter()) {
         // Accessor case.
-        var_accessor_pair = LoadValueByKeyIndex<NameDictionary>(
-            properties, var_name_index.value());
+        var_accessor_pair =
+            LoadValueByKeyIndex(properties, var_name_index.value());
         var_accessor_holder = receiver;
         Goto(&accessor);
       } else {
