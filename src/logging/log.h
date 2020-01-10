@@ -316,8 +316,8 @@ class Logger : public CodeEventListener {
 
   bool is_logging_;
   std::unique_ptr<Log> log_;
-  std::unique_ptr<PerfBasicLogger> perf_basic_logger_;
 #if V8_OS_LINUX
+  std::unique_ptr<PerfBasicLogger> perf_basic_logger_;
   std::unique_ptr<PerfJitLogger> perf_jit_logger_;
 #endif
   std::unique_ptr<LowLevelLogger> ll_logger_;

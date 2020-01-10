@@ -262,7 +262,8 @@ void CodeEventLogger::RegExpCodeCreateEvent(Handle<AbstractCode> code,
                     name_buffer_->get(), name_buffer_->size());
 }
 
-// Linux perf tool logging support
+// Linux perf tool logging support.
+#if V8_OS_LINUX
 class PerfBasicLogger : public CodeEventLogger {
  public:
   explicit PerfBasicLogger(Isolate* isolate);
@@ -343,6 +344,7 @@ void PerfBasicLogger::LogRecordedBuffer(const wasm::WasmCode* code,
   WriteLogRecordedBuffer(static_cast<uintptr_t>(code->instruction_start()),
                          code->instructions().length(), name, length);
 }
+#endif  // V8_OS_LINUX
 
 // External CodeEventListener
 ExternalCodeEventListener::ExternalCodeEventListener(Isolate* isolate)
@@ -1911,12 +1913,12 @@ bool Logger::SetUp(Isolate* isolate) {
   PrepareLogFileName(log_file_name, isolate, FLAG_logfile);
   log_ = std::make_unique<Log>(this, log_file_name.str().c_str());
 
+#if V8_OS_LINUX
   if (FLAG_perf_basic_prof) {
     perf_basic_logger_ = std::make_unique<PerfBasicLogger>(isolate);
     AddCodeEventListener(perf_basic_logger_.get());
   }
 
-#if V8_OS_LINUX
   if (FLAG_perf_prof) {
     perf_jit_logger_ = std::make_unique<PerfJitLogger>(isolate);
     AddCodeEventListener(perf_jit_logger_.get());
@@ -1925,6 +1927,9 @@ bool Logger::SetUp(Isolate* isolate) {
   static_assert(
       !FLAG_perf_prof,
       "--perf-prof should be statically disabled on non-Linux platforms");
+  static_assert(
+      !FLAG_perf_basic_prof,
+      "--perf-basic-prof should be statically disabled on non-Linux platforms");
 #endif
 
   if (FLAG_ll_prof) {
@@ -1993,12 +1998,12 @@ FILE* Logger::TearDown() {
 
   ticker_.reset();
 
+#if V8_OS_LINUX
   if (perf_basic_logger_) {
     RemoveCodeEventListener(perf_basic_logger_.get());
     perf_basic_logger_.reset();
   }
 
-#if V8_OS_LINUX
   if (perf_jit_logger_) {
     RemoveCodeEventListener(perf_jit_logger_.get());
     perf_jit_logger_.reset();
