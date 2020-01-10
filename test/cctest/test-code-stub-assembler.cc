@@ -1617,7 +1617,7 @@ TEST(TryLookupElement) {
 
   enum Result { kFound, kAbsent, kNotFound, kBailout };
   {
-    Node* object = m.Parameter(0);
+    TNode<HeapObject> object = m.CAST(m.Parameter(0));
     TNode<IntPtrT> index = m.SmiUntag(m.Parameter(1));
     TNode<MaybeObject> expected_result =
         m.UncheckedCast<MaybeObject>(m.Parameter(2));

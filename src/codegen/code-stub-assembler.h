@@ -3193,7 +3193,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // This method jumps to if_found if the element is known to exist. To
   // if_absent if it's known to not exist. To if_not_found if the prototype
   // chain needs to be checked. And if_bailout if the lookup is unsupported.
-  void TryLookupElement(Node* object, Node* map,
+  void TryLookupElement(TNode<HeapObject> object, TNode<Map> map,
                         SloppyTNode<Int32T> instance_type,
                         SloppyTNode<IntPtrT> intptr_index, Label* if_found,
                         Label* if_absent, Label* if_not_found,

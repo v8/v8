@@ -8863,12 +8863,10 @@ void CodeStubAssembler::TryGetOwnProperty(
   }
 }
 
-void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
-                                         SloppyTNode<Int32T> instance_type,
-                                         SloppyTNode<IntPtrT> intptr_index,
-                                         Label* if_found, Label* if_absent,
-                                         Label* if_not_found,
-                                         Label* if_bailout) {
+void CodeStubAssembler::TryLookupElement(
+    TNode<HeapObject> object, TNode<Map> map, SloppyTNode<Int32T> instance_type,
+    SloppyTNode<IntPtrT> intptr_index, Label* if_found, Label* if_absent,
+    Label* if_not_found, Label* if_bailout) {
   // Handle special objects in runtime.
   GotoIf(IsSpecialReceiverInstanceType(instance_type), if_bailout);
 
@@ -8936,7 +8934,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
 
   BIND(&if_isobjectorsmi);
   {
-    TNode<FixedArray> elements = CAST(LoadElements(object));
+    TNode<FixedArray> elements = CAST(LoadElements(CAST(object)));
     TNode<IntPtrT> length = LoadAndUntagFixedArrayBaseLength(elements);
 
     GotoIfNot(UintPtrLessThan(intptr_index, length), &if_oob);
@@ -8947,7 +8945,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   }
   BIND(&if_isdouble);
   {
-    TNode<FixedArrayBase> elements = LoadElements(object);
+    TNode<FixedArrayBase> elements = LoadElements(CAST(object));
     TNode<IntPtrT> length = LoadAndUntagFixedArrayBaseLength(elements);
 
     GotoIfNot(UintPtrLessThan(intptr_index, length), &if_oob);
@@ -8970,7 +8968,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
     }
 
     TVARIABLE(IntPtrT, var_entry);
-    TNode<NumberDictionary> elements = CAST(LoadElements(object));
+    TNode<NumberDictionary> elements = CAST(LoadElements(CAST(object)));
     NumberDictionaryLookup(elements, intptr_index, if_found, &var_entry,
                            if_not_found);
   }
