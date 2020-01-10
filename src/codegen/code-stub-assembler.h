@@ -2433,13 +2433,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void ThrowIfNotCallable(TNode<Context> context, TNode<Object> value,
                           const char* method_name);
 
-  void ThrowRangeError(Node* context, MessageTemplate message,
-                       Node* arg0 = nullptr, Node* arg1 = nullptr,
-                       Node* arg2 = nullptr);
-  void ThrowTypeError(Node* context, MessageTemplate message,
+  void ThrowRangeError(TNode<Context> context, MessageTemplate message,
+                       base::Optional<TNode<Object>> arg0 = base::nullopt,
+                       base::Optional<TNode<Object>> arg1 = base::nullopt,
+                       base::Optional<TNode<Object>> arg2 = base::nullopt);
+  void ThrowTypeError(TNode<Context> context, MessageTemplate message,
                       char const* arg0 = nullptr, char const* arg1 = nullptr);
-  void ThrowTypeError(Node* context, MessageTemplate message, Node* arg0,
-                      Node* arg1 = nullptr, Node* arg2 = nullptr);
+  void ThrowTypeError(TNode<Context> context, MessageTemplate message,
+                      base::Optional<TNode<Object>> arg0,
+                      base::Optional<TNode<Object>> arg1 = base::nullopt,
+                      base::Optional<TNode<Object>> arg2 = base::nullopt);
 
   // Type checks.
   // Check whether the map is for an object with special properties, such as a

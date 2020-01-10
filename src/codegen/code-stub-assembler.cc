@@ -5568,43 +5568,52 @@ void CodeStubAssembler::ThrowIfNotCallable(TNode<Context> context,
   BIND(&out);
 }
 
-void CodeStubAssembler::ThrowRangeError(Node* context, MessageTemplate message,
-                                        Node* arg0, Node* arg1, Node* arg2) {
+void CodeStubAssembler::ThrowRangeError(TNode<Context> context,
+                                        MessageTemplate message,
+                                        base::Optional<TNode<Object>> arg0,
+                                        base::Optional<TNode<Object>> arg1,
+                                        base::Optional<TNode<Object>> arg2) {
   TNode<Smi> template_index = SmiConstant(static_cast<int>(message));
-  if (arg0 == nullptr) {
+  if (!arg0) {
     CallRuntime(Runtime::kThrowRangeError, context, template_index);
-  } else if (arg1 == nullptr) {
-    CallRuntime(Runtime::kThrowRangeError, context, template_index, arg0);
-  } else if (arg2 == nullptr) {
-    CallRuntime(Runtime::kThrowRangeError, context, template_index, arg0, arg1);
+  } else if (!arg1) {
+    CallRuntime(Runtime::kThrowRangeError, context, template_index, *arg0);
+  } else if (!arg2) {
+    CallRuntime(Runtime::kThrowRangeError, context, template_index, *arg0,
+                *arg1);
   } else {
-    CallRuntime(Runtime::kThrowRangeError, context, template_index, arg0, arg1,
-                arg2);
+    CallRuntime(Runtime::kThrowRangeError, context, template_index, *arg0,
+                *arg1, *arg2);
   }
   Unreachable();
 }
 
-void CodeStubAssembler::ThrowTypeError(Node* context, MessageTemplate message,
+void CodeStubAssembler::ThrowTypeError(TNode<Context> context,
+                                       MessageTemplate message,
                                        char const* arg0, char const* arg1) {
-  Node* arg0_node = nullptr;
+  base::Optional<TNode<Object>> arg0_node;
   if (arg0) arg0_node = StringConstant(arg0);
-  Node* arg1_node = nullptr;
+  base::Optional<TNode<Object>> arg1_node;
   if (arg1) arg1_node = StringConstant(arg1);
   ThrowTypeError(context, message, arg0_node, arg1_node);
 }
 
-void CodeStubAssembler::ThrowTypeError(Node* context, MessageTemplate message,
-                                       Node* arg0, Node* arg1, Node* arg2) {
+void CodeStubAssembler::ThrowTypeError(TNode<Context> context,
+                                       MessageTemplate message,
+                                       base::Optional<TNode<Object>> arg0,
+                                       base::Optional<TNode<Object>> arg1,
+                                       base::Optional<TNode<Object>> arg2) {
   TNode<Smi> template_index = SmiConstant(static_cast<int>(message));
-  if (arg0 == nullptr) {
+  if (!arg0) {
     CallRuntime(Runtime::kThrowTypeError, context, template_index);
-  } else if (arg1 == nullptr) {
-    CallRuntime(Runtime::kThrowTypeError, context, template_index, arg0);
-  } else if (arg2 == nullptr) {
-    CallRuntime(Runtime::kThrowTypeError, context, template_index, arg0, arg1);
+  } else if (!arg1) {
+    CallRuntime(Runtime::kThrowTypeError, context, template_index, *arg0);
+  } else if (!arg2) {
+    CallRuntime(Runtime::kThrowTypeError, context, template_index, *arg0,
+                *arg1);
   } else {
-    CallRuntime(Runtime::kThrowTypeError, context, template_index, arg0, arg1,
-                arg2);
+    CallRuntime(Runtime::kThrowTypeError, context, template_index, *arg0, *arg1,
+                *arg2);
   }
   Unreachable();
 }
