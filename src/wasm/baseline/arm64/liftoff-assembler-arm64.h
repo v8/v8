@@ -76,7 +76,7 @@ inline CPURegList PadRegList(RegList list) {
 
 inline CPURegList PadVRegList(RegList list) {
   if ((base::bits::CountPopulation(list) & 1) != 0) list |= fp_scratch.bit();
-  return CPURegList(CPURegister::kVRegister, kDRegSizeInBits, list);
+  return CPURegList(CPURegister::kVRegister, kQRegSizeInBits, list);
 }
 
 inline CPURegister AcquireByType(UseScratchRegisterScope* temps,

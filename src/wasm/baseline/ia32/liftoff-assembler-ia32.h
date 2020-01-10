@@ -1814,15 +1814,15 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   LiftoffRegList fp_regs = regs & kFpCacheRegList;
   unsigned num_fp_regs = fp_regs.GetNumRegsSet();
   if (num_fp_regs) {
-    AllocateStackSpace(num_fp_regs * kStackSlotSize);
+    AllocateStackSpace(num_fp_regs * kSimd128Size);
     unsigned offset = 0;
     while (!fp_regs.is_empty()) {
       LiftoffRegister reg = fp_regs.GetFirstRegSet();
-      movsd(Operand(esp, offset), reg.fp());
+      Movdqu(Operand(esp, offset), reg.fp());
       fp_regs.clear(reg);
-      offset += sizeof(double);
+      offset += kSimd128Size;
     }
-    DCHECK_EQ(offset, num_fp_regs * sizeof(double));
+    DCHECK_EQ(offset, num_fp_regs * kSimd128Size);
   }
 }
 
@@ -1831,9 +1831,9 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   unsigned fp_offset = 0;
   while (!fp_regs.is_empty()) {
     LiftoffRegister reg = fp_regs.GetFirstRegSet();
-    movsd(reg.fp(), Operand(esp, fp_offset));
+    Movdqu(reg.fp(), Operand(esp, fp_offset));
     fp_regs.clear(reg);
-    fp_offset += sizeof(double);
+    fp_offset += kSimd128Size;
   }
   if (fp_offset) add(esp, Immediate(fp_offset));
   LiftoffRegList gp_regs = regs & kGpCacheRegList;
