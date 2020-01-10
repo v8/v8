@@ -30,6 +30,7 @@ namespace heap {
 // moving the objects through various spaces during GC phases.
 
 TEST(ArrayBuffer_OnlyMC) {
+  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
@@ -58,6 +59,7 @@ TEST(ArrayBuffer_OnlyMC) {
 }
 
 TEST(ArrayBuffer_OnlyScavenge) {
+  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
@@ -88,6 +90,7 @@ TEST(ArrayBuffer_OnlyScavenge) {
 }
 
 TEST(ArrayBuffer_ScavengeAndMC) {
+  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
@@ -120,7 +123,7 @@ TEST(ArrayBuffer_ScavengeAndMC) {
 }
 
 TEST(ArrayBuffer_Compaction) {
-  if (FLAG_never_compact) return;
+  if (FLAG_never_compact || V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
   ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();
@@ -149,6 +152,7 @@ TEST(ArrayBuffer_Compaction) {
 }
 
 TEST(ArrayBuffer_UnregisterDuringSweep) {
+  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
 // Regular pages in old space (without compaction) are processed concurrently
 // in the sweeper. If we happen to unregister a buffer (either explicitly, or
 // implicitly through e.g. |Detach|) we need to sync with the sweeper
@@ -197,7 +201,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
 }
 
 TEST(ArrayBuffer_NonLivePromotion) {
-  if (!FLAG_incremental_marking) return;
+  if (!FLAG_incremental_marking || V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
   ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved when promoting
   // a buffer to old space.
@@ -234,7 +238,7 @@ TEST(ArrayBuffer_NonLivePromotion) {
 }
 
 TEST(ArrayBuffer_LivePromotion) {
-  if (!FLAG_incremental_marking) return;
+  if (!FLAG_incremental_marking || V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
   ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved when promoting
   // a buffer to old space.
@@ -270,7 +274,7 @@ TEST(ArrayBuffer_LivePromotion) {
 }
 
 TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
-  if (!i::FLAG_incremental_marking) return;
+  if (!i::FLAG_incremental_marking || V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
   ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved across semispace
   // copy.
@@ -337,6 +341,7 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
 }
 
 TEST(ArrayBuffer_ExternalBackingStoreSizeIncreases) {
+  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -378,7 +383,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
 }
 
 TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
-  if (FLAG_never_compact) return;
+  if (FLAG_never_compact || V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
   ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();

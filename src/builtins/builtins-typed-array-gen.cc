@@ -51,6 +51,7 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
   //  - Set IsExternal and IsDetachable bits of BitFieldSlot.
   //  - Set the byte_length field to byte_length.
   //  - Set backing_store to null/Smi(0).
+  //  - Set extension to null.
   //  - Set all embedder fields to Smi(0).
   if (FIELD_SIZE(JSArrayBuffer::kOptionalPaddingOffset) != 0) {
     DCHECK_EQ(4, FIELD_SIZE(JSArrayBuffer::kOptionalPaddingOffset));
@@ -70,6 +71,11 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
                                  IntPtrConstant(0),
                                  MachineType::PointerRepresentation());
+  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
+    StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,
+                                   IntPtrConstant(0),
+                                   MachineType::PointerRepresentation());
+  }
   for (int offset = JSArrayBuffer::kHeaderSize;
        offset < JSArrayBuffer::kSizeWithEmbedderFields; offset += kTaggedSize) {
     StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(0));

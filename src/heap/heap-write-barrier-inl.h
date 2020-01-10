@@ -29,6 +29,10 @@ V8_EXPORT_PRIVATE void Heap_GenerationalBarrierSlow(HeapObject object,
 V8_EXPORT_PRIVATE void Heap_MarkingBarrierSlow(HeapObject object, Address slot,
                                                HeapObject value);
 V8_EXPORT_PRIVATE void Heap_WriteBarrierForCodeSlow(Code host);
+
+V8_EXPORT_PRIVATE void Heap_MarkingBarrierForArrayBufferExtensionSlow(
+    HeapObject object, ArrayBufferExtension* extension);
+
 V8_EXPORT_PRIVATE void Heap_GenerationalBarrierForCodeSlow(Code host,
                                                            RelocInfo* rinfo,
                                                            HeapObject object);
@@ -142,6 +146,14 @@ inline void WriteBarrierForCode(Code host, RelocInfo* rinfo, HeapObject value) {
 
 inline void WriteBarrierForCode(Code host) {
   Heap_WriteBarrierForCodeSlow(host);
+}
+
+inline void MarkingBarrierForArrayBufferExtension(
+    HeapObject object, ArrayBufferExtension* extension) {
+  heap_internals::MemoryChunk* object_chunk =
+      heap_internals::MemoryChunk::FromHeapObject(object);
+  if (!extension || !object_chunk->IsMarking()) return;
+  Heap_MarkingBarrierForArrayBufferExtensionSlow(object, extension);
 }
 
 inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,

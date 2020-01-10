@@ -108,6 +108,11 @@ void Heap_WriteBarrierForCodeSlow(Code host) {
   Heap::WriteBarrierForCodeSlow(host);
 }
 
+void Heap_MarkingBarrierForArrayBufferExtensionSlow(
+    HeapObject object, ArrayBufferExtension* extension) {
+  Heap::MarkingBarrierForArrayBufferExtensionSlow(object, extension);
+}
+
 void Heap_GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
                                          HeapObject object) {
   Heap::GenerationalBarrierForCodeSlow(host, rinfo, object);
@@ -3779,6 +3784,18 @@ void Heap::RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
   UNREACHABLE();
 }
 
+void Heap::ReleaseAllArrayBufferExtensions() {
+  ArrayBufferExtension* current = array_buffer_extensions_;
+
+  while (current) {
+    ArrayBufferExtension* next = current->next();
+    delete current;
+    current = next;
+  }
+
+  array_buffer_extensions_ = nullptr;
+}
+
 void Heap::AutomaticallyRestoreInitialHeapLimit(double threshold_percent) {
   initial_max_old_generation_size_threshold_ =
       initial_max_old_generation_size_ * threshold_percent;
@@ -5246,6 +5263,8 @@ void Heap::TearDown() {
   // It's too late for Heap::Verify() here, as parts of the Isolate are
   // already gone by the time this is called.
 
+  ReleaseAllArrayBufferExtensions();
+
   UpdateMaximumCommitted();
 
   if (FLAG_verify_predictable || FLAG_fuzzer_gc_analysis) {
@@ -6232,6 +6251,16 @@ void Heap::WriteBarrierForCodeSlow(Code code) {
     GenerationalBarrierForCode(code, it.rinfo(), it.rinfo()->target_object());
     MarkingBarrierForCode(code, it.rinfo(), it.rinfo()->target_object());
   }
+}
+
+void Heap::MarkingBarrierForArrayBufferExtensionSlow(
+    HeapObject object, ArrayBufferExtension* extension) {
+  if (V8_CONCURRENT_MARKING_BOOL || GetIsolateFromWritableObject(object)
+                                        ->heap()
+                                        ->incremental_marking()
+                                        ->marking_state()
+                                        ->IsBlack(object))
+    extension->Mark();
 }
 
 void Heap::GenerationalBarrierSlow(HeapObject object, Address slot,

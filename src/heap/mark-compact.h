@@ -608,6 +608,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Finishes GC, performs heap verification if enabled.
   void Finish();
 
+  // Free unmarked ArrayBufferExtensions.
+  void SweepArrayBufferExtensions();
+
   void MarkLiveObjects() override;
 
   // Marks the object black and adds it to the marking work list.

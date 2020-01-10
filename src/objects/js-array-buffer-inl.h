@@ -44,17 +44,23 @@ void JSArrayBuffer::set_backing_store(void* value) {
   WriteField<Address>(kBackingStoreOffset, reinterpret_cast<Address>(value));
 }
 
-void* JSArrayBuffer::extension() const {
+ArrayBufferExtension* JSArrayBuffer::extension() const {
   if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
-    return reinterpret_cast<void*>(ReadField<Address>(kExtensionOffset));
+    return base::AsAtomicPointer::Acquire_Load(extension_location());
   } else {
     return nullptr;
   }
 }
 
-void JSArrayBuffer::set_extension(void* value) {
+ArrayBufferExtension** JSArrayBuffer::extension_location() const {
+  Address location = field_address(kExtensionOffset);
+  return reinterpret_cast<ArrayBufferExtension**>(location);
+}
+
+void JSArrayBuffer::set_extension(ArrayBufferExtension* value) {
   if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
-    WriteField<Address>(kExtensionOffset, reinterpret_cast<Address>(value));
+    base::AsAtomicPointer::Release_Store(extension_location(), value);
+    MarkingBarrierForArrayBufferExtension(*this, value);
   } else {
     CHECK_EQ(value, nullptr);
   }

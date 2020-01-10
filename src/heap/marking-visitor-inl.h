@@ -234,6 +234,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSApiObject(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSArrayBuffer(
     Map map, JSArrayBuffer object) {
+  object.MarkExtension();
   return VisitEmbedderTracingSubclass(map, object);
 }
 

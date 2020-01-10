@@ -167,7 +167,8 @@ UNINITIALIZED_TEST(PagePromotion_NewToNewJSArrayBuffer) {
     CHECK(heap->new_space()->ToSpaceContainsSlow(buffer->address()));
     CHECK(to_be_promoted_page->Contains(first_object->address()));
     CHECK(to_be_promoted_page->Contains(buffer->address()));
-    CHECK(ArrayBufferTracker::IsTracked(*buffer));
+    if (!V8_ARRAY_BUFFER_EXTENSION_BOOL)
+      CHECK(ArrayBufferTracker::IsTracked(*buffer));
   }
   isolate->Dispose();
 }
@@ -212,7 +213,8 @@ UNINITIALIZED_TEST(PagePromotion_NewToOldJSArrayBuffer) {
     CHECK(heap->old_space()->ContainsSlow(buffer->address()));
     CHECK(to_be_promoted_page->Contains(first_object->address()));
     CHECK(to_be_promoted_page->Contains(buffer->address()));
-    CHECK(ArrayBufferTracker::IsTracked(*buffer));
+    if (!V8_ARRAY_BUFFER_EXTENSION_BOOL)
+      CHECK(ArrayBufferTracker::IsTracked(*buffer));
   }
   isolate->Dispose();
 }

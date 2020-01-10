@@ -15,6 +15,8 @@
 namespace v8 {
 namespace internal {
 
+class ArrayBufferExtension;
+
 class JSArrayBuffer : public JSObject {
  public:
 // The maximum length for JSArrayBuffer's supported by V8.
@@ -34,7 +36,7 @@ class JSArrayBuffer : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(backing_store, void*)
 
   // [extension]: extension object used for GC
-  DECL_PRIMITIVE_ACCESSORS(extension, void*)
+  DECL_PRIMITIVE_ACCESSORS(extension, ArrayBufferExtension*)
 
   // For non-wasm, allocation_length and allocation_base are byte_length and
   // backing_store, respectively.
@@ -103,6 +105,16 @@ class JSArrayBuffer : public JSObject {
   // or a zero-length array buffer).
   std::shared_ptr<BackingStore> GetBackingStore();
 
+  // Allocates an ArrayBufferExtension for this array buffer, unless it is
+  // already associated with an extension.
+  ArrayBufferExtension* EnsureExtension(Heap* heap);
+
+  // Frees the associated ArrayBufferExtension and returns its backing store.
+  std::shared_ptr<BackingStore> RemoveExtension();
+
+  // Marks ArrayBufferExtension
+  void MarkExtension();
+
   // Dispatched behavior.
   DECL_PRINTER(JSArrayBuffer)
   DECL_VERIFIER(JSArrayBuffer)
@@ -131,6 +143,49 @@ class JSArrayBuffer : public JSObject {
   class BodyDescriptor;
 
   OBJECT_CONSTRUCTORS(JSArrayBuffer, JSObject);
+
+ private:
+  inline ArrayBufferExtension** extension_location() const;
+};
+
+// Each JSArrayBuffer (with a backing store) has a corresponding native-heap
+// allocated ArrayBufferExtension for GC purposes and storing the backing store.
+// When marking a JSArrayBuffer, the GC also marks the native
+// extension-object. The GC periodically iterates all extensions concurrently
+// and frees unmarked ones.
+// https://docs.google.com/document/d/1-ZrLdlFX1nXT3z-FAgLbKal1gI8Auiaya_My-a0UJ28/edit
+class ArrayBufferExtension : public Malloced {
+  std::atomic<bool> marked_;
+  std::shared_ptr<BackingStore> backing_store_;
+  ArrayBufferExtension* next_;
+
+ public:
+  ArrayBufferExtension()
+      : marked_(false),
+        backing_store_(std::shared_ptr<BackingStore>()),
+        next_(nullptr) {}
+  explicit ArrayBufferExtension(std::shared_ptr<BackingStore> backing_store)
+      : marked_(false), backing_store_(backing_store), next_(nullptr) {}
+
+  void Mark() { marked_.store(true, std::memory_order_relaxed); }
+  void Unmark() { marked_.store(false, std::memory_order_relaxed); }
+  bool IsMarked() { return marked_.load(std::memory_order_relaxed); }
+
+  std::shared_ptr<BackingStore> backing_store() { return backing_store_; }
+  BackingStore* backing_store_raw() { return backing_store_.get(); }
+
+  std::shared_ptr<BackingStore> RemoveBackingStore() {
+    return std::move(backing_store_);
+  }
+
+  void set_backing_store(std::shared_ptr<BackingStore> backing_store) {
+    backing_store_ = std::move(backing_store);
+  }
+
+  void reset_backing_store() { backing_store_.reset(); }
+
+  ArrayBufferExtension* next() { return next_; }
+  void set_next(ArrayBufferExtension* extension) { next_ = extension; }
 };
 
 class JSArrayBufferView : public JSObject {

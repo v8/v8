@@ -24,6 +24,7 @@
 #include "src/objects/allocation-site.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/js-array-buffer.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
 #include "src/objects/string-table.h"
@@ -385,6 +386,10 @@ class Heap {
                                               TSlot end);
 
   V8_EXPORT_PRIVATE static void WriteBarrierForCodeSlow(Code host);
+
+  V8_EXPORT_PRIVATE static void MarkingBarrierForArrayBufferExtensionSlow(
+      HeapObject object, ArrayBufferExtension* extension);
+
   V8_EXPORT_PRIVATE static void GenerationalBarrierSlow(HeapObject object,
                                                         Address slot,
                                                         HeapObject value);
@@ -400,6 +405,10 @@ class Heap {
   V8_EXPORT_PRIVATE static void MarkingBarrierForCodeSlow(Code host,
                                                           RelocInfo* rinfo,
                                                           HeapObject value);
+
+  static void MarkingBarrierForArrayBufferExtension(
+      JSArrayBuffer object, ArrayBufferExtension* extension);
+
   V8_EXPORT_PRIVATE static void MarkingBarrierForDescriptorArraySlow(
       Heap* heap, HeapObject host, HeapObject descriptor_array,
       int number_of_own_descriptors);
@@ -574,6 +583,21 @@ class Heap {
       v8::NearHeapLimitCallback callback, size_t heap_limit);
   V8_EXPORT_PRIVATE void AutomaticallyRestoreInitialHeapLimit(
       double threshold_percent);
+
+  ArrayBufferExtension* array_buffer_extensions() {
+    return array_buffer_extensions_;
+  }
+
+  void set_array_buffer_extensions(ArrayBufferExtension* head) {
+    array_buffer_extensions_ = head;
+  }
+
+  void AppendArrayBufferExtension(ArrayBufferExtension* extension) {
+    extension->set_next(array_buffer_extensions_);
+    array_buffer_extensions_ = extension;
+  }
+
+  void ReleaseAllArrayBufferExtensions();
 
   V8_EXPORT_PRIVATE double MonotonicallyIncreasingTimeInMs();
 
@@ -1895,6 +1919,9 @@ class Heap {
   ReadOnlySpace* read_only_space_ = nullptr;
   // Map from the space id to the space.
   Space* space_[LAST_SPACE + 1];
+
+  // List for tracking ArrayBufferExtensions
+  ArrayBufferExtension* array_buffer_extensions_ = nullptr;
 
   // Determines whether code space is write-protected. This is essentially a
   // race-free copy of the {FLAG_write_protect_code_memory} flag.

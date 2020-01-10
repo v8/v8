@@ -11,6 +11,7 @@
 namespace v8 {
 namespace internal {
 
+class ArrayBufferExtension;
 class Code;
 class FixedArray;
 class Heap;
@@ -39,6 +40,9 @@ void MarkingBarrier(HeapObject object, ObjectSlot slot, Object value);
 void MarkingBarrier(HeapObject object, ObjectSlot slot, HeapObject value);
 void MarkingBarrier(HeapObject object, MaybeObjectSlot slot, MaybeObject value);
 void MarkingBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
+
+void MarkingBarrierForArrayBufferExtension(HeapObject object,
+                                           ArrayBufferExtension* extension);
 
 void MarkingBarrierForDescriptorArray(Heap* heap, HeapObject host,
                                       HeapObject descriptor_array,

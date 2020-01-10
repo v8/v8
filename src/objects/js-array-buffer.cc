@@ -63,7 +63,13 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   set_byte_length(backing_store->byte_length());
   if (backing_store->is_wasm_memory()) set_is_detachable(false);
   if (!backing_store->free_on_destruct()) set_is_external(true);
-  GetIsolate()->heap()->RegisterBackingStore(*this, std::move(backing_store));
+  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
+    Heap* heap = GetIsolate()->heap();
+    EnsureExtension(heap);
+    extension()->set_backing_store(std::move(backing_store));
+  } else {
+    GetIsolate()->heap()->RegisterBackingStore(*this, std::move(backing_store));
+  }
 }
 
 void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
@@ -78,7 +84,12 @@ void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
 
   Isolate* const isolate = GetIsolate();
   if (backing_store()) {
-    auto backing_store = isolate->heap()->UnregisterBackingStore(*this);
+    std::shared_ptr<BackingStore> backing_store;
+    if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
+      backing_store = RemoveExtension();
+    } else {
+      backing_store = isolate->heap()->UnregisterBackingStore(*this);
+    }
     CHECK_IMPLIES(force_for_wasm_memory, backing_store->is_wasm_memory());
   }
 
@@ -94,7 +105,40 @@ void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
 }
 
 std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() {
-  return GetIsolate()->heap()->LookupBackingStore(*this);
+  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
+    if (!extension()) return nullptr;
+    return extension()->backing_store();
+  } else {
+    return GetIsolate()->heap()->LookupBackingStore(*this);
+  }
+}
+
+ArrayBufferExtension* JSArrayBuffer::EnsureExtension(Heap* heap) {
+  DCHECK(V8_ARRAY_BUFFER_EXTENSION_BOOL);
+  if (extension() != nullptr) return extension();
+
+  ArrayBufferExtension* extension =
+      new ArrayBufferExtension(std::shared_ptr<BackingStore>());
+  set_extension(extension);
+  heap->AppendArrayBufferExtension(extension);
+  return extension;
+}
+
+std::shared_ptr<BackingStore> JSArrayBuffer::RemoveExtension() {
+  ArrayBufferExtension* extension = this->extension();
+  DCHECK_NOT_NULL(extension);
+  auto result = extension->RemoveBackingStore();
+  // Remove pointer to extension such that the next GC will free it
+  // automatically.
+  set_extension(nullptr);
+  return result;
+}
+
+void JSArrayBuffer::MarkExtension() {
+  ArrayBufferExtension* extension = this->extension();
+  if (extension) {
+    extension->Mark();
+  }
 }
 
 Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {

@@ -885,6 +885,8 @@ void MarkCompactCollector::VerifyMarking() {
 void MarkCompactCollector::Finish() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_FINISH);
 
+  SweepArrayBufferExtensions();
+
 #ifdef DEBUG
   heap()->VerifyCountersBeforeConcurrentSweeping();
 #endif
@@ -923,6 +925,28 @@ void MarkCompactCollector::Finish() {
     Deoptimizer::DeoptimizeMarkedCode(isolate());
     have_code_to_deoptimize_ = false;
   }
+}
+
+void MarkCompactCollector::SweepArrayBufferExtensions() {
+  if (!V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
+  ArrayBufferExtension* current = heap_->array_buffer_extensions();
+  ArrayBufferExtension* last = nullptr;
+
+  while (current) {
+    ArrayBufferExtension* next = current->next();
+
+    if (!current->IsMarked()) {
+      delete current;
+    } else {
+      current->Unmark();
+      current->set_next(last);
+      last = current;
+    }
+
+    current = next;
+  }
+
+  heap_->set_array_buffer_extensions(last);
 }
 
 class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
