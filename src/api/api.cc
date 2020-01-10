@@ -7261,38 +7261,6 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(Isolate* isolate,
       Utils::ToLocal(maybe_compiled.ToHandleChecked()));
 }
 
-// Resolves the result of streaming compilation.
-// TODO(ahaas): Refactor the streaming compilation API so that this class can
-// move to wasm-js.cc.
-class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
- public:
-  AsyncCompilationResolver(Isolate* isolate, Local<Promise> promise)
-      : promise_(
-            reinterpret_cast<i::Isolate*>(isolate)->global_handles()->Create(
-                *Utils::OpenHandle(*promise))) {}
-
-  ~AsyncCompilationResolver() override {
-    i::GlobalHandles::Destroy(promise_.location());
-  }
-
-  void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> result) override {
-    i::MaybeHandle<i::Object> promise_result =
-        i::JSPromise::Resolve(promise_, result);
-    CHECK_EQ(promise_result.is_null(),
-             promise_->GetIsolate()->has_pending_exception());
-  }
-
-  void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
-    i::MaybeHandle<i::Object> promise_result =
-        i::JSPromise::Reject(promise_, error_reason);
-    CHECK_EQ(promise_result.is_null(),
-             promise_->GetIsolate()->has_pending_exception());
-  }
-
- private:
-  i::Handle<i::JSPromise> promise_;
-};
-
 WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
     Isolate* isolate) {
   USE(isolate_);
