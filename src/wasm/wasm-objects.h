@@ -120,6 +120,8 @@ class ImportedFunctionEntry {
   int const index_;
 };
 
+enum InternalizeString : bool { kInternalize = true, kNoInternalize = false };
+
 // Representation of a WebAssembly.Module JavaScript-level object.
 class WasmModuleObject : public JSObject {
  public:
@@ -186,11 +188,15 @@ class WasmModuleObject : public JSObject {
                                uint32_t byte_offset,
                                bool is_at_number_conversion);
 
-  // Extract a portion of the wire bytes as UTF-8 string.
+  // Extract a portion of the wire bytes as UTF-8 string, optionally
+  // internalized. (Prefer to internalize early if the string will be used for a
+  // property lookup anyway.)
   static Handle<String> ExtractUtf8StringFromModuleBytes(
-      Isolate*, Handle<WasmModuleObject>, wasm::WireBytesRef);
+      Isolate*, Handle<WasmModuleObject>, wasm::WireBytesRef,
+      InternalizeString);
   static Handle<String> ExtractUtf8StringFromModuleBytes(
-      Isolate*, Vector<const uint8_t> wire_byte, wasm::WireBytesRef);
+      Isolate*, Vector<const uint8_t> wire_byte, wasm::WireBytesRef,
+      InternalizeString);
 
   OBJECT_CONSTRUCTORS(WasmModuleObject, JSObject);
 };

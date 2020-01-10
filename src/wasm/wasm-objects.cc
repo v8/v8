@@ -326,30 +326,34 @@ int WasmModuleObject::GetSourcePosition(Handle<WasmModuleObject> module_object,
 
 Handle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
     Isolate* isolate, Handle<WasmModuleObject> module_object,
-    wasm::WireBytesRef ref) {
-  // TODO(wasm): cache strings from modules if it's a performance win.
+    wasm::WireBytesRef ref, InternalizeString internalize) {
   Vector<const uint8_t> wire_bytes =
       module_object->native_module()->wire_bytes();
-  return ExtractUtf8StringFromModuleBytes(isolate, wire_bytes, ref);
+  return ExtractUtf8StringFromModuleBytes(isolate, wire_bytes, ref,
+                                          internalize);
 }
 
 Handle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-    Isolate* isolate, Vector<const uint8_t> wire_bytes,
-    wasm::WireBytesRef ref) {
+    Isolate* isolate, Vector<const uint8_t> wire_bytes, wasm::WireBytesRef ref,
+    InternalizeString internalize) {
   Vector<const uint8_t> name_vec =
       wire_bytes.SubVector(ref.offset(), ref.end_offset());
   // UTF8 validation happens at decode time.
   DCHECK(unibrow::Utf8::ValidateEncoding(name_vec.begin(), name_vec.length()));
-  return isolate->factory()
-      ->NewStringFromUtf8(Vector<const char>::cast(name_vec))
-      .ToHandleChecked();
+  auto* factory = isolate->factory();
+  return internalize
+             ? factory->InternalizeUtf8String(
+                   Vector<const char>::cast(name_vec))
+             : factory->NewStringFromUtf8(Vector<const char>::cast(name_vec))
+                   .ToHandleChecked();
 }
 
 MaybeHandle<String> WasmModuleObject::GetModuleNameOrNull(
     Isolate* isolate, Handle<WasmModuleObject> module_object) {
   const WasmModule* module = module_object->module();
   if (!module->name.is_set()) return {};
-  return ExtractUtf8StringFromModuleBytes(isolate, module_object, module->name);
+  return ExtractUtf8StringFromModuleBytes(isolate, module_object, module->name,
+                                          kNoInternalize);
 }
 
 MaybeHandle<String> WasmModuleObject::GetFunctionNameOrNull(
@@ -360,7 +364,8 @@ MaybeHandle<String> WasmModuleObject::GetFunctionNameOrNull(
       wasm::ModuleWireBytes(module_object->native_module()->wire_bytes()),
       func_index);
   if (!name.is_set()) return {};
-  return ExtractUtf8StringFromModuleBytes(isolate, module_object, name);
+  return ExtractUtf8StringFromModuleBytes(isolate, module_object, name,
+                                          kNoInternalize);
 }
 
 Handle<String> WasmModuleObject::GetFunctionName(

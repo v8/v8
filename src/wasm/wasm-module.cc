@@ -401,11 +401,11 @@ Handle<JSArray> GetImports(Isolate* isolate,
 
     Handle<String> import_module =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate, module_object, import.module_name);
+            isolate, module_object, import.module_name, kInternalize);
 
     Handle<String> import_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate, module_object, import.field_name);
+            isolate, module_object, import.field_name, kInternalize);
 
     JSObject::AddProperty(isolate, entry, module_string, import_module, NONE);
     JSObject::AddProperty(isolate, entry, name_string, import_name, NONE);
@@ -501,7 +501,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
 
     Handle<String> export_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate, module_object, exp.name);
+            isolate, module_object, exp.name, kNoInternalize);
 
     JSObject::AddProperty(isolate, entry, name_string, export_name, NONE);
     JSObject::AddProperty(isolate, entry, kind_string, export_kind, NONE);
@@ -531,7 +531,7 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
   for (auto& section : custom_sections) {
     Handle<String> section_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate, module_object, section.name);
+            isolate, module_object, section.name, kNoInternalize);
 
     if (!name->Equals(*section_name)) continue;
 
@@ -580,7 +580,7 @@ Handle<FixedArray> DecodeLocalNames(Isolate* isolate,
     for (LocalName& name : func.names) {
       Handle<String> name_str =
           WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-              isolate, module_object, name.name);
+              isolate, module_object, name.name, kNoInternalize);
       func_locals_names->set(name.local_index, *name_str);
     }
   }

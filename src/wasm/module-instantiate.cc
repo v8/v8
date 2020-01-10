@@ -583,7 +583,6 @@ bool InstanceBuilder::ExecuteStartFunction() {
 // Look up an import value in the {ffi_} object.
 MaybeHandle<Object> InstanceBuilder::LookupImport(uint32_t index,
                                                   Handle<String> module_name,
-
                                                   Handle<String> import_name) {
   // We pre-validated in the js-api layer that the ffi object is present, and
   // a JSObject, if the module has imports.
@@ -777,12 +776,12 @@ void InstanceBuilder::SanitizeImports() {
     const WasmImport& import = module_->import_table[index];
 
     Handle<String> module_name =
-        WasmModuleObject::ExtractUtf8StringFromModuleBytes(isolate_, wire_bytes,
-                                                           import.module_name);
+        WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+            isolate_, wire_bytes, import.module_name, kInternalize);
 
     Handle<String> import_name =
-        WasmModuleObject::ExtractUtf8StringFromModuleBytes(isolate_, wire_bytes,
-                                                           import.field_name);
+        WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+            isolate_, wire_bytes, import.field_name, kInternalize);
 
     int int_index = static_cast<int>(index);
     MaybeHandle<Object> result =
@@ -1481,7 +1480,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
   // Process each export in the export table.
   for (const WasmExport& exp : module_->export_table) {
     Handle<String> name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-        isolate_, module_object_, exp.name);
+        isolate_, module_object_, exp.name, kInternalize);
     Handle<JSObject> export_to = exports_object;
     switch (exp.kind) {
       case kExternalFunction: {
