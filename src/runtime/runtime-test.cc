@@ -1013,18 +1013,25 @@ RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
 }
 
 namespace {
-bool DisallowCodegenFromStringsCallback(v8::Local<v8::Context> context,
-                                        v8::Local<v8::String> source) {
+
+v8::ModifyCodeGenerationFromStringsResult DisallowCodegenFromStringsCallback(
+    v8::Local<v8::Context> context, v8::Local<v8::Value> source) {
+  return {false, {}};
+}
+
+bool DisallowWasmCodegenFromStringsCallback(v8::Local<v8::Context> context,
+                                            v8::Local<v8::String> source) {
   return false;
 }
-}
+
+}  // namespace
 
 RUNTIME_FUNCTION(Runtime_DisallowCodegenFromStrings) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_BOOLEAN_ARG_CHECKED(flag, 0);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8_isolate->SetAllowCodeGenerationFromStringsCallback(
+  v8_isolate->SetModifyCodeGenerationFromStringsCallback(
       flag ? DisallowCodegenFromStringsCallback : nullptr);
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1035,7 +1042,7 @@ RUNTIME_FUNCTION(Runtime_DisallowWasmCodegen) {
   CONVERT_BOOLEAN_ARG_CHECKED(flag, 0);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8_isolate->SetAllowWasmCodeGenerationCallback(
-      flag ? DisallowCodegenFromStringsCallback : nullptr);
+      flag ? DisallowWasmCodegenFromStringsCallback : nullptr);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

@@ -9203,6 +9203,9 @@ class V8_EXPORT Isolate {
    * Set the callback to invoke to check if code generation from
    * strings should be allowed.
    */
+  V8_DEPRECATED(
+      "Use Isolate::SetModifyCodeGenerationFromStringsCallback instead. "
+      "See http://crbug.com/v8/10096.")
   void SetAllowCodeGenerationFromStringsCallback(
       AllowCodeGenerationFromStringsCallback callback);
   void SetModifyCodeGenerationFromStringsCallback(

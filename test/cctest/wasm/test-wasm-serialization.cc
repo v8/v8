@@ -263,7 +263,7 @@ TEST(BlockWasmCodeGenAtDeserialization) {
   WasmSerializationTest test;
   {
     HandleScope scope(test.current_isolate());
-    test.current_isolate_v8()->SetAllowCodeGenerationFromStringsCallback(False);
+    test.current_isolate_v8()->SetAllowWasmCodeGenerationCallback(False);
     v8::MaybeLocal<v8::WasmModuleObject> nothing = test.Deserialize();
     CHECK(nothing.IsEmpty());
   }

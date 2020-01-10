@@ -19309,19 +19309,21 @@ void CheckCodeGenerationDisallowed() {
 
 char first_fourty_bytes[41];
 
-bool CodeGenerationAllowed(Local<Context> context, Local<String> source) {
+v8::ModifyCodeGenerationFromStringsResult CodeGenerationAllowed(
+    Local<Context> context, Local<Value> source) {
   String::Utf8Value str(CcTest::isolate(), source);
   size_t len = std::min(sizeof(first_fourty_bytes) - 1,
                         static_cast<size_t>(str.length()));
   strncpy(first_fourty_bytes, *str, len);
   first_fourty_bytes[len] = 0;
   ApiTestFuzzer::Fuzz();
-  return true;
+  return {true, {}};
 }
 
-bool CodeGenerationDisallowed(Local<Context> context, Local<String> source) {
+v8::ModifyCodeGenerationFromStringsResult CodeGenerationDisallowed(
+    Local<Context> context, Local<Value> source) {
   ApiTestFuzzer::Fuzz();
-  return false;
+  return {false, {}};
 }
 
 v8::ModifyCodeGenerationFromStringsResult ModifyCodeGeneration(
@@ -19373,13 +19375,13 @@ THREADED_TEST(AllowCodeGenFromStrings) {
 
   // Disallow but setting a global callback that will allow the calls.
   context->AllowCodeGenerationFromStrings(false);
-  context->GetIsolate()->SetAllowCodeGenerationFromStringsCallback(
+  context->GetIsolate()->SetModifyCodeGenerationFromStringsCallback(
       &CodeGenerationAllowed);
   CHECK(!context->IsCodeGenerationFromStringsAllowed());
   CheckCodeGenerationAllowed();
 
   // Set a callback that disallows the code generation.
-  context->GetIsolate()->SetAllowCodeGenerationFromStringsCallback(
+  context->GetIsolate()->SetModifyCodeGenerationFromStringsCallback(
       &CodeGenerationDisallowed);
   CHECK(!context->IsCodeGenerationFromStringsAllowed());
   CheckCodeGenerationDisallowed();
@@ -19429,7 +19431,7 @@ TEST(SetErrorMessageForCodeGenFromStrings) {
 
   Local<String> message = v8_str("Message");
   Local<String> expected_message = v8_str("Uncaught EvalError: Message");
-  context->GetIsolate()->SetAllowCodeGenerationFromStringsCallback(
+  context->GetIsolate()->SetModifyCodeGenerationFromStringsCallback(
       &CodeGenerationDisallowed);
   context->AllowCodeGenerationFromStrings(false);
   context->SetErrorMessageForCodeGenerationFromStrings(message);
@@ -19445,7 +19447,7 @@ TEST(CaptureSourceForCodeGenFromStrings) {
   v8::HandleScope scope(context->GetIsolate());
   TryCatch try_catch(context->GetIsolate());
 
-  context->GetIsolate()->SetAllowCodeGenerationFromStringsCallback(
+  context->GetIsolate()->SetModifyCodeGenerationFromStringsCallback(
       &CodeGenerationAllowed);
   context->AllowCodeGenerationFromStrings(false);
   CompileRun("eval('42')");
