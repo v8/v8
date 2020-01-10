@@ -3161,9 +3161,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void LoadPropertyFromNameDictionary(Node* dictionary, Node* entry,
                                       Variable* var_details,
                                       Variable* var_value);
-  void LoadPropertyFromGlobalDictionary(Node* dictionary, Node* entry,
-                                        Variable* var_details,
-                                        Variable* var_value, Label* if_deleted);
+  void LoadPropertyFromGlobalDictionary(TNode<GlobalDictionary> dictionary,
+                                        TNode<IntPtrT> name_index,
+                                        TVariable<Uint32T>* var_details,
+                                        TVariable<Object>* var_value,
+                                        Label* if_deleted);
 
   // Generic property lookup generator. If the {object} is fast and
   // {unique_name} property is found then the control goes to {if_found_fast}

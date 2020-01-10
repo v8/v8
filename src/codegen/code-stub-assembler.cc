@@ -8505,12 +8505,12 @@ void CodeStubAssembler::TryHasOwnProperty(Node* object, Node* map,
 
   BIND(&if_found_global);
   {
-    VARIABLE(var_value, MachineRepresentation::kTagged);
-    VARIABLE(var_details, MachineRepresentation::kWord32);
+    TVARIABLE(Object, var_value);
+    TVARIABLE(Uint32T, var_details);
     // Check if the property cell is not deleted.
-    LoadPropertyFromGlobalDictionary(var_meta_storage.value(),
-                                     var_name_index.value(), &var_value,
-                                     &var_details, if_not_found);
+    LoadPropertyFromGlobalDictionary(CAST(var_meta_storage.value()),
+                                     var_name_index.value(), &var_details,
+                                     &var_value, if_not_found);
     Goto(if_found);
   }
 }
@@ -8655,26 +8655,23 @@ void CodeStubAssembler::LoadPropertyFromNameDictionary(Node* dictionary,
   Comment("] LoadPropertyFromNameDictionary");
 }
 
-void CodeStubAssembler::LoadPropertyFromGlobalDictionary(Node* dictionary,
-                                                         Node* name_index,
-                                                         Variable* var_details,
-                                                         Variable* var_value,
-                                                         Label* if_deleted) {
+void CodeStubAssembler::LoadPropertyFromGlobalDictionary(
+    TNode<GlobalDictionary> dictionary, TNode<IntPtrT> name_index,
+    TVariable<Uint32T>* var_details, TVariable<Object>* var_value,
+    Label* if_deleted) {
   Comment("[ LoadPropertyFromGlobalDictionary");
-  CSA_ASSERT(this, IsGlobalDictionary(dictionary));
-
   TNode<PropertyCell> property_cell =
-      CAST(LoadFixedArrayElement(CAST(dictionary), name_index));
+      CAST(LoadFixedArrayElement(dictionary, name_index));
 
   TNode<Object> value =
       LoadObjectField(property_cell, PropertyCell::kValueOffset);
   GotoIf(TaggedEqual(value, TheHoleConstant()), if_deleted);
 
-  var_value->Bind(value);
+  *var_value = value;
 
-  TNode<Int32T> details = LoadAndUntagToWord32ObjectField(
-      property_cell, PropertyCell::kPropertyDetailsRawOffset);
-  var_details->Bind(details);
+  TNode<Uint32T> details = Unsigned(LoadAndUntagToWord32ObjectField(
+      property_cell, PropertyCell::kPropertyDetailsRawOffset));
+  *var_details = details;
 
   Comment("] LoadPropertyFromGlobalDictionary");
 }
@@ -8850,7 +8847,7 @@ void CodeStubAssembler::TryGetOwnProperty(
   }
   BIND(&if_found_global);
   {
-    TNode<HeapObject> dictionary = var_meta_storage.value();
+    TNode<GlobalDictionary> dictionary = CAST(var_meta_storage.value());
     TNode<IntPtrT> entry = var_entry.value();
 
     LoadPropertyFromGlobalDictionary(dictionary, entry, var_details, var_value,
