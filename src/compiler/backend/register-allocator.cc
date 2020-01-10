@@ -3877,10 +3877,6 @@ void LinearScanAllocator::AllocateRegisters() {
             SpillNotLiveRanges(&to_be_live, next_block_boundary, spill_mode);
             ReloadLiveRanges(to_be_live, next_block_boundary);
           }
-
-          // TODO(herhut) Check removal.
-          // Now forward to current position
-          ForwardStateTo(next_block_boundary);
         }
         // Update block information
         last_block = current_block->rpo_number();
