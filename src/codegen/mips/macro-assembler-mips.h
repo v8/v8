@@ -198,6 +198,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Jump(Register target, const Operand& offset, COND_ARGS);
   void Jump(intptr_t target, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(Address target, RelocInfo::Mode rmode, COND_ARGS);
+  // Deffer from li, this method save target to the memory, and then load
+  // it to register use lw, it can be used in wasm jump table for concurrent
+  // patching.
+  void PatchAndJump(Address target);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(const ExternalReference& reference) override;
   void Call(Register target, int16_t offset = 0, COND_ARGS);
