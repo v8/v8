@@ -249,12 +249,6 @@
   # BUG(v8:9260)
   'tools/profviz': [SKIP],
 
-  # Test doesn't work on 32-bit architectures (it would require a
-  # regexp pattern with too many captures).
-  # TODO(jkummerow/jgruber): Silently fails with pointer compression too.
-  # Fix it or delete it.
-  'regress/regress-976627': [FAIL, ['arch == x64 or arch == arm64 or arch == mips64el or arch == ppc64 or arch == s390x', PASS]],
-
   # OOM with too many isolates/memory objects (https://crbug.com/1010272)
   # Predictable tests fail due to race between postMessage and GrowMemory
   # Agressively skipping test for variants, and simulator runs.
