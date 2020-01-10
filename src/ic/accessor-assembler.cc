@@ -627,8 +627,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     // Ensure the property cell doesn't contain the hole.
     TNode<Object> value =
         LoadObjectField(CAST(holder), PropertyCell::kValueOffset);
-    TNode<Int32T> details = LoadAndUntagToWord32ObjectField(
-        CAST(holder), PropertyCell::kPropertyDetailsRawOffset);
+    TNode<Uint32T> details = Unsigned(LoadAndUntagToWord32ObjectField(
+        CAST(holder), PropertyCell::kPropertyDetailsRawOffset));
     GotoIf(IsTheHole(value), miss);
 
     exit_point->Return(CallGetterIfAccessor(value, details, p->context(),
@@ -2490,7 +2490,7 @@ void AccessorAssembler::GenericPropertyLoad(TNode<HeapObject> receiver,
       var_holder_map = proto_map;
       var_holder_instance_type = proto_instance_type;
       Label next_proto(this), return_value(this, &var_value), goto_slow(this);
-      TryGetOwnProperty(p->context(), receiver, proto, proto_map,
+      TryGetOwnProperty(p->context(), receiver, CAST(proto), proto_map,
                         proto_instance_type, name, &return_value, &var_value,
                         &next_proto, &goto_slow);
 

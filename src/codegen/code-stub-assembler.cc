@@ -8528,22 +8528,20 @@ TNode<Object> CodeStubAssembler::GetIteratorMethod(
 }
 
 void CodeStubAssembler::LoadPropertyFromFastObject(
-    Node* object, Node* map, TNode<DescriptorArray> descriptors,
-    Node* name_index, Variable* var_details, Variable* var_value) {
-  DCHECK_EQ(MachineRepresentation::kWord32, var_details->rep());
-  DCHECK_EQ(MachineRepresentation::kTagged, var_value->rep());
-
-  TNode<Uint32T> details =
-      LoadDetailsByKeyIndex(descriptors, UncheckedCast<IntPtrT>(name_index));
-  var_details->Bind(details);
+    TNode<HeapObject> object, TNode<Map> map,
+    TNode<DescriptorArray> descriptors, TNode<IntPtrT> name_index,
+    TVariable<Uint32T>* var_details, TVariable<Object>* var_value) {
+  TNode<Uint32T> details = LoadDetailsByKeyIndex(descriptors, name_index);
+  *var_details = details;
 
   LoadPropertyFromFastObject(object, map, descriptors, name_index, details,
                              var_value);
 }
 
 void CodeStubAssembler::LoadPropertyFromFastObject(
-    Node* object, Node* map, TNode<DescriptorArray> descriptors,
-    Node* name_index, Node* details, Variable* var_value) {
+    TNode<HeapObject> object, TNode<Map> map,
+    TNode<DescriptorArray> descriptors, TNode<IntPtrT> name_index,
+    TNode<Uint32T> details, TVariable<Object>* var_value) {
   Comment("[ LoadPropertyFromFastObject");
 
   TNode<Uint32T> location =
@@ -8579,14 +8577,13 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
              &if_tagged, &if_double);
       BIND(&if_tagged);
       {
-        var_value->Bind(LoadObjectField(object, field_offset));
+        *var_value = LoadObjectField(object, field_offset);
         Goto(&done);
       }
       BIND(&if_double);
       {
         if (FLAG_unbox_double_fields) {
-          var_double_value =
-              LoadObjectField<Float64T>(CAST(object), field_offset);
+          var_double_value = LoadObjectField<Float64T>(object, field_offset);
         } else {
           TNode<HeapNumber> heap_number =
               CAST(LoadObjectField(object, field_offset));
@@ -8598,7 +8595,7 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
     BIND(&if_backing_store);
     {
       Comment("if_backing_store");
-      TNode<HeapObject> properties = LoadFastProperties(object);
+      TNode<HeapObject> properties = LoadFastProperties(CAST(object));
       field_index = Signed(IntPtrSub(field_index, instance_size_in_words));
       TNode<Object> value =
           LoadPropertyArrayElement(CAST(properties), field_index);
@@ -8609,7 +8606,7 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
              &if_tagged, &if_double);
       BIND(&if_tagged);
       {
-        var_value->Bind(value);
+        *var_value = value;
         Goto(&done);
       }
       BIND(&if_double);
@@ -8623,14 +8620,13 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
       Comment("rebox_double");
       TNode<HeapNumber> heap_number =
           AllocateHeapNumberWithValue(var_double_value.value());
-      var_value->Bind(heap_number);
+      *var_value = heap_number;
       Goto(&done);
     }
   }
   BIND(&if_in_descriptor);
   {
-    var_value->Bind(
-        LoadValueByKeyIndex(descriptors, UncheckedCast<IntPtrT>(name_index)));
+    *var_value = LoadValueByKeyIndex(descriptors, name_index);
     Goto(&done);
   }
   BIND(&done);
@@ -8680,16 +8676,16 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(Node* dictionary,
 // or an accessor pair, as specified by |details|.
 // Returns either the original value, or the result of the getter call.
 TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
-    Node* value, Node* details, Node* context, Node* receiver,
-    Label* if_bailout, GetOwnPropertyMode mode) {
-  VARIABLE(var_value, MachineRepresentation::kTagged, value);
+    TNode<Object> value, TNode<Uint32T> details, TNode<Context> context,
+    TNode<Object> receiver, Label* if_bailout, GetOwnPropertyMode mode) {
+  TVARIABLE(Object, var_value, value);
   Label done(this), if_accessor_info(this, Label::kDeferred);
 
   TNode<Uint32T> kind = DecodeWord32<PropertyDetails::KindField>(details);
   GotoIf(Word32Equal(kind, Int32Constant(kData)), &done);
 
   // Accessor case.
-  GotoIfNot(IsAccessorPair(value), &if_accessor_info);
+  GotoIfNot(IsAccessorPair(CAST(value)), &if_accessor_info);
 
   // AccessorPair case.
   {
@@ -8704,15 +8700,14 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
       GotoIf(IsFunctionTemplateInfoMap(getter_map), &if_function_template_info);
 
       // Return undefined if the {getter} is not callable.
-      var_value.Bind(UndefinedConstant());
+      var_value = UndefinedConstant();
       Goto(&done);
 
       BIND(&if_callable);
       {
         // Call the accessor.
         Callable callable = CodeFactory::Call(isolate());
-        Node* result = CallJS(callable, context, getter, receiver);
-        var_value.Bind(result);
+        var_value = CallJS(callable, context, getter, receiver);
         Goto(&done);
       }
 
@@ -8724,9 +8719,9 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
 
         TNode<NativeContext> creation_context =
             GetCreationContext(CAST(receiver), if_bailout);
-        var_value.Bind(CallBuiltin(
+        var_value = CallBuiltin(
             Builtins::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver,
-            creation_context, getter, IntPtrConstant(0), receiver));
+            creation_context, getter, IntPtrConstant(0), receiver);
         Goto(&done);
       }
     } else {
@@ -8737,13 +8732,12 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
   // AccessorInfo case.
   BIND(&if_accessor_info);
   {
-    Node* accessor_info = value;
-    CSA_ASSERT(this, IsAccessorInfo(value));
     CSA_ASSERT(this, TaggedIsNotSmi(receiver));
+    TNode<AccessorInfo> accessor_info = CAST(value);
     Label if_array(this), if_function(this), if_wrapper(this);
 
     // Dispatch based on {receiver} instance type.
-    TNode<Map> receiver_map = LoadMap(receiver);
+    TNode<Map> receiver_map = LoadMap(CAST(receiver));
     TNode<Uint16T> receiver_instance_type = LoadMapInstanceType(receiver_map);
     GotoIf(IsJSArrayInstanceType(receiver_instance_type), &if_array);
     GotoIf(IsJSFunctionInstanceType(receiver_instance_type), &if_function);
@@ -8758,7 +8752,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
                     LoadObjectField(accessor_info, AccessorInfo::kNameOffset)),
                 if_bailout);
       TNode<JSArray> array = CAST(receiver);
-      var_value.Bind(LoadJSArrayLength(array));
+      var_value = LoadJSArrayLength(array);
       Goto(&done);
     }
 
@@ -8772,7 +8766,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
 
       GotoIfPrototypeRequiresRuntimeLookup(CAST(receiver), receiver_map,
                                            if_bailout);
-      var_value.Bind(LoadJSFunctionPrototype(CAST(receiver), if_bailout));
+      var_value = LoadJSFunctionPrototype(CAST(receiver), if_bailout);
       Goto(&done);
     }
 
@@ -8788,39 +8782,41 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
           LoadJSPrimitiveWrapperValue(CAST(receiver));
       GotoIfNot(TaggedIsNotSmi(receiver_value), if_bailout);
       GotoIfNot(IsString(CAST(receiver_value)), if_bailout);
-      var_value.Bind(LoadStringLengthAsSmi(CAST(receiver_value)));
+      var_value = LoadStringLengthAsSmi(CAST(receiver_value));
       Goto(&done);
     }
   }
 
   BIND(&done);
-  return UncheckedCast<Object>(var_value.value());
+  return var_value.value();
 }
 
 void CodeStubAssembler::TryGetOwnProperty(
-    Node* context, Node* receiver, Node* object, Node* map, Node* instance_type,
-    Node* unique_name, Label* if_found_value, Variable* var_value,
-    Label* if_not_found, Label* if_bailout) {
+    TNode<Context> context, TNode<HeapObject> receiver,
+    TNode<JSReceiver> object, TNode<Map> map, TNode<Int32T> instance_type,
+    TNode<Name> unique_name, Label* if_found_value,
+    TVariable<Object>* var_value, Label* if_not_found, Label* if_bailout) {
   TryGetOwnProperty(context, receiver, object, map, instance_type, unique_name,
                     if_found_value, var_value, nullptr, nullptr, if_not_found,
                     if_bailout, kCallJSGetter);
 }
 
 void CodeStubAssembler::TryGetOwnProperty(
-    Node* context, Node* receiver, Node* object, Node* map, Node* instance_type,
-    Node* unique_name, Label* if_found_value, Variable* var_value,
-    Variable* var_details, Variable* var_raw_value, Label* if_not_found,
-    Label* if_bailout, GetOwnPropertyMode mode) {
+    TNode<Context> context, TNode<HeapObject> receiver,
+    TNode<JSReceiver> object, TNode<Map> map, TNode<Int32T> instance_type,
+    TNode<Name> unique_name, Label* if_found_value,
+    TVariable<Object>* var_value, TVariable<Uint32T>* var_details,
+    TVariable<Object>* var_raw_value, Label* if_not_found, Label* if_bailout,
+    GetOwnPropertyMode mode) {
   DCHECK_EQ(MachineRepresentation::kTagged, var_value->rep());
   Comment("TryGetOwnProperty");
-  CSA_ASSERT(this, IsUniqueNameNoIndex(CAST(unique_name)));
-
+  CSA_ASSERT(this, IsUniqueNameNoIndex(unique_name));
   TVARIABLE(HeapObject, var_meta_storage);
   TVARIABLE(IntPtrT, var_entry);
 
   Label if_found_fast(this), if_found_dict(this), if_found_global(this);
 
-  VARIABLE(local_var_details, MachineRepresentation::kWord32);
+  TVARIABLE(Uint32T, local_var_details);
   if (!var_details) {
     var_details = &local_var_details;
   }
@@ -8859,12 +8855,12 @@ void CodeStubAssembler::TryGetOwnProperty(
   {
     // TODO(ishell): Execute C++ accessor in case of accessor info
     if (var_raw_value) {
-      var_raw_value->Bind(var_value->value());
+      *var_raw_value = *var_value;
     }
     TNode<Object> value =
         CallGetterIfAccessor(var_value->value(), var_details->value(), context,
                              receiver, if_bailout, mode);
-    var_value->Bind(value);
+    *var_value = value;
     Goto(if_found_value);
   }
 }

@@ -1336,7 +1336,7 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
       Label if_found_value(this), return_empty(this), if_not_found(this);
 
       TVARIABLE(Object, var_value);
-      TVARIABLE(Word32T, var_details);
+      TVARIABLE(Uint32T, var_details);
       TVARIABLE(Object, var_raw_value);
 
       TryGetOwnProperty(context, object, object, map, instance_type,

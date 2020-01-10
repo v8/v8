@@ -1397,11 +1397,11 @@ TEST(TryGetOwnProperty) {
   Handle<Symbol> not_found_symbol = factory->NewSymbol();
   Handle<Symbol> bailout_symbol = factory->NewSymbol();
   {
-    Node* object = m.Parameter(0);
-    Node* unique_name = m.Parameter(1);
-    Node* context = m.Parameter(kNumParams + 2);
+    TNode<JSReceiver> object = m.CAST(m.Parameter(0));
+    TNode<Name> unique_name = m.CAST(m.Parameter(1));
+    TNode<Context> context = m.CAST(m.Parameter(kNumParams + 2));
 
-    Variable var_value(&m, MachineRepresentation::kTagged);
+    TVariable<Object> var_value(&m);
     Label if_found(&m), if_not_found(&m), if_bailout(&m);
 
     TNode<Map> map = m.LoadMap(object);

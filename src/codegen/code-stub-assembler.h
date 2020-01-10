@@ -3087,16 +3087,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // is an accessor then it also calls a getter. If the property is a double
   // field it re-wraps value in an immutable heap number. {unique_name} must be
   // a unique name (Symbol or InternalizedString) that is not an array index.
-  void TryGetOwnProperty(Node* context, Node* receiver, Node* object, Node* map,
-                         Node* instance_type, Node* unique_name,
-                         Label* if_found, Variable* var_value,
+  void TryGetOwnProperty(TNode<Context> context, TNode<HeapObject> receiver,
+                         TNode<JSReceiver> object, TNode<Map> map,
+                         TNode<Int32T> instance_type, TNode<Name> unique_name,
+                         Label* if_found_value, TVariable<Object>* var_value,
                          Label* if_not_found, Label* if_bailout);
-  void TryGetOwnProperty(Node* context, Node* receiver, Node* object, Node* map,
-                         Node* instance_type, Node* unique_name,
-                         Label* if_found, Variable* var_value,
-                         Variable* var_details, Variable* var_raw_value,
-                         Label* if_not_found, Label* if_bailout,
-                         GetOwnPropertyMode mode);
+  void TryGetOwnProperty(TNode<Context> context, TNode<HeapObject> receiver,
+                         TNode<JSReceiver> object, TNode<Map> map,
+                         TNode<Int32T> instance_type, TNode<Name> unique_name,
+                         Label* if_found_value, TVariable<Object>* var_value,
+                         TVariable<Uint32T>* var_details,
+                         TVariable<Object>* var_raw_value, Label* if_not_found,
+                         Label* if_bailout, GetOwnPropertyMode mode);
 
   TNode<Object> GetProperty(SloppyTNode<Context> context,
                             SloppyTNode<Object> receiver, Handle<Name> name) {
@@ -3142,20 +3144,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return TailCallStub(Builtins::CallableFor(isolate(), id), context, args...);
   }
 
-  void LoadPropertyFromFastObject(Node* object, Node* map,
+  void LoadPropertyFromFastObject(TNode<HeapObject> object, TNode<Map> map,
                                   TNode<DescriptorArray> descriptors,
-                                  Node* name_index, Variable* var_details,
-                                  Variable* var_value);
+                                  TNode<IntPtrT> name_index,
+                                  TVariable<Uint32T>* var_details,
+                                  TVariable<Object>* var_value);
 
-  void LoadPropertyFromFastObject(Node* object, Node* map,
+  void LoadPropertyFromFastObject(TNode<HeapObject> object, TNode<Map> map,
                                   TNode<DescriptorArray> descriptors,
-                                  Node* name_index, Node* details,
-                                  Variable* var_value);
+                                  TNode<IntPtrT> name_index, TNode<Uint32T>,
+                                  TVariable<Object>* var_value);
 
   void LoadPropertyFromNameDictionary(Node* dictionary, Node* entry,
                                       Variable* var_details,
                                       Variable* var_value);
-
   void LoadPropertyFromGlobalDictionary(Node* dictionary, Node* entry,
                                         Variable* var_details,
                                         Variable* var_value, Label* if_deleted);
@@ -3759,8 +3761,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     const ForEachKeyValueFunction& body,
                                     Label* bailout);
 
-  TNode<Object> CallGetterIfAccessor(Node* value, Node* details, Node* context,
-                                     Node* receiver, Label* if_bailout,
+  TNode<Object> CallGetterIfAccessor(TNode<Object> value,
+                                     TNode<Uint32T> details,
+                                     TNode<Context> context,
+                                     TNode<Object> receiver, Label* if_bailout,
                                      GetOwnPropertyMode mode = kCallJSGetter);
 
   TNode<IntPtrT> TryToIntptr(SloppyTNode<Object> key, Label* if_not_intptr,
