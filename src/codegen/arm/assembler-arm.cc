@@ -4338,9 +4338,8 @@ static Instr EncodeNeonShiftRegisterOp(NeonShiftOp op, NeonDataType dt,
 static Instr EncodeNeonShiftOp(NeonShiftOp op, NeonSize size, bool is_unsigned,
                                NeonRegType reg_type, int dst_code, int src_code,
                                int shift) {
-  int imm6 = 0;
   int size_in_bits = kBitsPerByte << static_cast<int>(size);
-  int op_encoding = 0;
+  int op_encoding = 0, imm6 = 0, L = 0;
   switch (op) {
     case VSHL: {
       DCHECK(shift >= 0 && size_in_bits > shift);
@@ -4357,30 +4356,29 @@ static Instr EncodeNeonShiftOp(NeonShiftOp op, NeonSize size, bool is_unsigned,
     case VSLI: {
       DCHECK(shift >= 0 && size_in_bits > shift);
       imm6 = size_in_bits + shift;
-      int L = imm6 >> 6;
-      imm6 &= 0x3F;
-      op_encoding = B24 | 0x5 * B8 | L * B7;
+      op_encoding = B24 | 0x5 * B8;
       break;
     }
     case VSRI: {
       DCHECK(shift > 0 && size_in_bits >= shift);
       imm6 = 2 * size_in_bits - shift;
-      int L = imm6 >> 6;
-      imm6 &= 0x3F;
-      op_encoding = B24 | 0x4 * B8 | L * B7;
+      op_encoding = B24 | 0x4 * B8;
       break;
     }
     default:
       UNREACHABLE();
   }
 
+  L = imm6 >> 6;
+  imm6 &= 0x3F;
+
   int vd, d;
   NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
   int vm, m;
   NeonSplitCode(reg_type, src_code, &vm, &m, &op_encoding);
 
-  return 0x1E5U * B23 | d * B22 | imm6 * B16 | vd * B12 | m * B5 | B4 | vm |
-         op_encoding;
+  return 0x1E5U * B23 | d * B22 | imm6 * B16 | vd * B12 | L * B7 | m * B5 | B4 |
+         vm | op_encoding;
 }
 
 void Assembler::vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,

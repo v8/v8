@@ -4636,13 +4636,16 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           dst[i] = src2[i - boundary];
         }
         set_neon_register(Vd, dst);
-      } else if (instr->Bits(11, 7) == 0xA && instr->Bit(4) == 1) {
+      } else if (instr->Bits(11, 8) == 5 && instr->Bit(4) == 1) {
         // vshl.i<size> Qd, Qm, shift
-        int size = base::bits::RoundDownToPowerOfTwo32(instr->Bits(21, 16));
-        int shift = instr->Bits(21, 16) - size;
+        int imm7 = instr->Bits(21, 16);
+        if (instr->Bit(7) != 0) imm7 += 64;
+        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+        int shift = imm7 - size;
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
-        NeonSize ns = static_cast<NeonSize>(size / 16);
+        NeonSize ns =
+            static_cast<NeonSize>(base::bits::WhichPowerOfTwo(size >> 3));
         switch (ns) {
           case Neon8:
             ShiftLeft<uint8_t, kSimd128Size>(this, Vd, Vm, shift);
@@ -4653,17 +4656,20 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           case Neon32:
             ShiftLeft<uint32_t, kSimd128Size>(this, Vd, Vm, shift);
             break;
-          default:
-            UNREACHABLE();
+          case Neon64:
+            ShiftLeft<uint64_t, kSimd128Size>(this, Vd, Vm, shift);
             break;
         }
-      } else if (instr->Bits(11, 7) == 0 && instr->Bit(4) == 1) {
+      } else if (instr->Bits(11, 8) == 0 && instr->Bit(4) == 1) {
         // vshr.s<size> Qd, Qm, shift
-        int size = base::bits::RoundDownToPowerOfTwo32(instr->Bits(21, 16));
-        int shift = 2 * size - instr->Bits(21, 16);
+        int imm7 = instr->Bits(21, 16);
+        if (instr->Bit(7) != 0) imm7 += 64;
+        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+        int shift = 2 * size - imm7;
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
-        NeonSize ns = static_cast<NeonSize>(size / 16);
+        NeonSize ns =
+            static_cast<NeonSize>(base::bits::WhichPowerOfTwo(size >> 3));
         switch (ns) {
           case Neon8:
             ArithmeticShiftRight<int8_t, kSimd128Size>(this, Vd, Vm, shift);
@@ -4674,8 +4680,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           case Neon32:
             ArithmeticShiftRight<int32_t, kSimd128Size>(this, Vd, Vm, shift);
             break;
-          default:
-            UNREACHABLE();
+          case Neon64:
+            ArithmeticShiftRight<int64_t, kSimd128Size>(this, Vd, Vm, shift);
             break;
         }
       } else {
@@ -5437,13 +5443,16 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         } else {
           UNIMPLEMENTED();
         }
-      } else if (instr->Bits(11, 7) == 0 && instr->Bit(4) == 1) {
+      } else if (instr->Bits(11, 8) == 0 && instr->Bit(4) == 1) {
         // vshr.u<size> Qd, Qm, shift
-        int size = base::bits::RoundDownToPowerOfTwo32(instr->Bits(21, 16));
-        int shift = 2 * size - instr->Bits(21, 16);
+        int imm7 = instr->Bits(21, 16);
+        if (instr->Bit(7) != 0) imm7 += 64;
+        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+        int shift = 2 * size - imm7;
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
-        NeonSize ns = static_cast<NeonSize>(size / 16);
+        NeonSize ns =
+            static_cast<NeonSize>(base::bits::WhichPowerOfTwo(size >> 3));
         switch (ns) {
           case Neon8:
             ShiftRight<uint8_t, kSimd128Size>(this, Vd, Vm, shift);
@@ -5454,8 +5463,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           case Neon32:
             ShiftRight<uint32_t, kSimd128Size>(this, Vd, Vm, shift);
             break;
-          default:
-            UNREACHABLE();
+          case Neon64:
+            ShiftRight<uint64_t, kSimd128Size>(this, Vd, Vm, shift);
             break;
         }
       } else if (instr->Bits(11, 8) == 0x5 && instr->Bit(6) == 0 &&
