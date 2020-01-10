@@ -9927,8 +9927,16 @@ class V8_EXPORT TryCatch {
   Local<Value> Exception() const;
 
   /**
-   * Returns the .stack property of the thrown object.  If no .stack
+   * Returns the .stack property of an object.  If no .stack
    * property is present an empty handle is returned.
+   */
+  V8_WARN_UNUSED_RESULT static MaybeLocal<Value> StackTrace(
+      Local<Context> context, Local<Value> exception);
+
+  /**
+   * Returns the .stack property of the thrown object.  If no .stack property is
+   * present or if this try/catch block has not caught an exception, an empty
+   * handle is returned.
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> StackTrace(
       Local<Context> context) const;

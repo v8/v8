@@ -2791,12 +2791,12 @@ v8::Local<Value> v8::TryCatch::Exception() const {
   }
 }
 
-MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context) const {
-  if (!HasCaught()) return v8::Local<Value>();
-  i::Object raw_obj(reinterpret_cast<i::Address>(exception_));
-  if (!raw_obj.IsJSObject()) return v8::Local<Value>();
+MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context,
+                                           Local<Value> exception) {
+  i::Handle<i::Object> i_exception = Utils::OpenHandle(*exception);
+  if (!i_exception->IsJSObject()) return v8::Local<Value>();
   PREPARE_FOR_EXECUTION(context, TryCatch, StackTrace, Value);
-  i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
+  auto obj = i::Handle<i::JSObject>::cast(i_exception);
   i::Handle<i::String> name = isolate->factory()->stack_string();
   Maybe<bool> maybe = i::JSReceiver::HasProperty(obj, name);
   has_pending_exception = maybe.IsNothing();
@@ -2807,6 +2807,11 @@ MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context) const {
       !ToLocal<Value>(i::JSReceiver::GetProperty(isolate, obj, name), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
+}
+
+MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context) const {
+  if (!HasCaught()) return v8::Local<Value>();
+  return StackTrace(context, Exception());
 }
 
 v8::Local<v8::Message> v8::TryCatch::Message() const {

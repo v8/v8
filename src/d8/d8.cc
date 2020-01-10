@@ -533,7 +533,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
 
   HandleScope handle_scope(isolate);
   TryCatch try_catch(isolate);
-  try_catch.SetVerbose(true);
+  try_catch.SetVerbose(report_exceptions == kReportExceptions);
 
   MaybeLocal<Value> maybe_result;
   bool success = true;
@@ -584,8 +584,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
 
     Local<Script> script;
     if (!maybe_script.ToLocal(&script)) {
-      // Print errors that happened during compilation.
-      if (report_exceptions) ReportException(isolate, &try_catch);
       return false;
     }
 
@@ -612,11 +610,10 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   Local<Value> result;
   if (!maybe_result.ToLocal(&result)) {
     DCHECK(try_catch.HasCaught());
-    // Print errors that happened during execution.
-    if (report_exceptions) ReportException(isolate, &try_catch);
     return false;
   }
-  DCHECK(!try_catch.HasCaught());
+  // It's possible that a FinalizationGroup cleanup task threw an error.
+  if (try_catch.HasCaught()) success = false;
   if (print_result) {
     if (options.test_shell) {
       if (!result->IsUndefined()) {
@@ -1008,8 +1005,11 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
 
   std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
 
+  // Use a non-verbose TryCatch and report exceptions manually using
+  // Shell::ReportException, because some errors (such as file errors) are
+  // thrown without entering JS and thus do not trigger
+  // isolate->ReportPendingMessages().
   TryCatch try_catch(isolate);
-  try_catch.SetVerbose(true);
 
   Local<Module> root_module;
 
@@ -1029,7 +1029,6 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   Local<Value> result;
   if (!maybe_result.ToLocal(&result)) {
     DCHECK(try_catch.HasCaught());
-    // Print errors that happened during execution.
     ReportException(isolate, &try_catch);
     return false;
   }
@@ -1725,7 +1724,8 @@ void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
                                 .ToLocalChecked());
 }
 
-void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
+void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
+                            Local<v8::Value> exception_obj) {
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
   bool enter_context = context.IsEmpty();
@@ -1738,9 +1738,8 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
     return *value ? *value : "<string conversion failed>";
   };
 
-  v8::String::Utf8Value exception(isolate, try_catch->Exception());
+  v8::String::Utf8Value exception(isolate, exception_obj);
   const char* exception_string = ToCString(exception);
-  Local<Message> message = try_catch->Message();
   if (message.IsEmpty()) {
     // V8 didn't provide any extra information about this error; just
     // print the exception.
@@ -1777,7 +1776,8 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
     }
   }
   Local<Value> stack_trace_string;
-  if (try_catch->StackTrace(context).ToLocal(&stack_trace_string) &&
+  if (v8::TryCatch::StackTrace(context, exception_obj)
+          .ToLocal(&stack_trace_string) &&
       stack_trace_string->IsString()) {
     v8::String::Utf8Value stack_trace(isolate,
                                       Local<String>::Cast(stack_trace_string));
@@ -1785,6 +1785,10 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
   }
   printf("\n");
   if (enter_context) context->Exit();
+}
+
+void Shell::ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
+  ReportException(isolate, try_catch->Message(), try_catch->Exception());
 }
 
 int32_t* Counter::Bind(const char* name, bool is_histogram) {
@@ -2088,12 +2092,7 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   return global_template;
 }
 
-static void PrintNonErrorsMessageCallback(Local<Message> message,
-                                          Local<Value> error) {
-  // Nothing to do here for errors, exceptions thrown up to the shell will be
-  // reported
-  // separately by {Shell::ReportException} after they are caught.
-  // Do print other kinds of messages.
+static void PrintMessageCallback(Local<Message> message, Local<Value> error) {
   switch (message->ErrorLevel()) {
     case v8::Isolate::kMessageWarning:
     case v8::Isolate::kMessageLog:
@@ -2103,7 +2102,7 @@ static void PrintNonErrorsMessageCallback(Local<Message> message,
     }
 
     case v8::Isolate::kMessageError: {
-      // Ignore errors, printed elsewhere.
+      Shell::ReportException(message->GetIsolate(), message, error);
       return;
     }
 
@@ -2134,7 +2133,7 @@ void Shell::Initialize(Isolate* isolate) {
   }
   // Disable default message reporting.
   isolate->AddMessageListenerWithErrorLevel(
-      PrintNonErrorsMessageCallback,
+      PrintMessageCallback,
       v8::Isolate::kMessageError | v8::Isolate::kMessageWarning |
           v8::Isolate::kMessageInfo | v8::Isolate::kMessageDebug |
           v8::Isolate::kMessageLog);
@@ -2565,13 +2564,13 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
     if (!callback->IsFunction()) return;
 
     v8::TryCatch try_catch(isolate_);
+    try_catch.SetVerbose(true);
     is_paused = true;
 
     while (is_paused) {
       USE(Local<Function>::Cast(callback)->Call(context, Undefined(isolate_), 0,
                                                 {}));
       if (try_catch.HasCaught()) {
-        Shell::ReportException(isolate_, &try_catch);
         is_paused = false;
       }
     }
@@ -2922,6 +2921,7 @@ void Worker::ExecuteInThread() {
                 break;
               }
               v8::TryCatch try_catch(isolate);
+              try_catch.SetVerbose(true);
               HandleScope scope(isolate);
               Local<Value> value;
               if (Shell::DeserializeValue(isolate, std::move(data))
@@ -2930,9 +2930,6 @@ void Worker::ExecuteInThread() {
                 MaybeLocal<Value> result =
                     onmessage_fun->Call(context, global, 1, argv);
                 USE(result);
-              }
-              if (try_catch.HasCaught()) {
-                Shell::ReportException(isolate, &try_catch);
               }
             }
           }
@@ -3230,7 +3227,6 @@ bool RunSetTimeoutCallback(Isolate* isolate, bool* did_run) {
   try_catch.SetVerbose(true);
   Context::Scope context_scope(context);
   if (callback->Call(context, Undefined(isolate), 0, nullptr).IsEmpty()) {
-    Shell::ReportException(isolate, &try_catch);
     return false;
   }
   *did_run = true;
@@ -3247,7 +3243,6 @@ bool RunCleanupFinalizationGroupCallback(Isolate* isolate, bool* did_run) {
     TryCatch try_catch(isolate);
     try_catch.SetVerbose(true);
     if (FinalizationGroup::Cleanup(fg).IsNothing()) {
-      Shell::ReportException(isolate, &try_catch);
       return false;
     }
   }

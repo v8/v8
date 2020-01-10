@@ -316,6 +316,8 @@ class Shell : public i::AllStatic {
                             ReportExceptions report_exceptions,
                             ProcessMessageQueue process_message_queue);
   static bool ExecuteModule(Isolate* isolate, const char* file_name);
+  static void ReportException(Isolate* isolate, Local<Message> message,
+                              Local<Value> exception);
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
   static Local<String> ReadFile(Isolate* isolate, const char* name);
   static Local<Context> CreateEvaluationContext(Isolate* isolate);
