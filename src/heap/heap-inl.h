@@ -203,7 +203,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
     }
   } else if (AllocationType::kCode == type) {
     if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-      allocation = tp_heap_->AllocateCode(size_in_bytes);
+      allocation = tp_heap_->AllocateCode(size_in_bytes, alignment);
     } else if (size_in_bytes <= code_space()->AreaSize() && !large_object) {
       allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
     } else {
@@ -220,7 +220,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
     allocation =
         read_only_space_->AllocateRaw(size_in_bytes, alignment, origin);
   } else if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    allocation = tp_heap_->Allocate(size_in_bytes);
+    allocation = tp_heap_->Allocate(size_in_bytes, alignment);
   } else {
     UNREACHABLE();
   }

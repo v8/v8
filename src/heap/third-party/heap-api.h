@@ -18,9 +18,10 @@ class Heap {
 
   static v8::Isolate* GetIsolate(Address address);
 
-  AllocationResult Allocate(size_t size_in_bytes);
+  AllocationResult Allocate(size_t size_in_bytes, AllocationAlignment align);
 
-  AllocationResult AllocateCode(size_t size_in_bytes);
+  AllocationResult AllocateCode(size_t size_in_bytes,
+                                AllocationAlignment align);
 
   Address GetObjectFromInnerPointer(Address inner_pointer);
 
