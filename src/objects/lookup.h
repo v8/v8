@@ -179,7 +179,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   Handle<Object> GetAccessors() const;
   inline Handle<InterceptorInfo> GetInterceptor() const;
   Handle<InterceptorInfo> GetInterceptorForFailedAccessCheck() const;
-  Handle<Object> GetDataValue() const;
+  Handle<Object> GetDataValue(AllocationPolicy allocation_policy =
+                                  AllocationPolicy::kAllocationAllowed) const;
   void WriteDataValue(Handle<Object> value, bool initializing_store);
   inline void UpdateProtector();
   static inline void UpdateProtector(Isolate* isolate, Handle<Object> receiver,
@@ -238,7 +239,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   }
   template <bool is_element>
   void RestartInternal(InterceptorState interceptor_state);
-  Handle<Object> FetchValue() const;
+  Handle<Object> FetchValue(AllocationPolicy allocation_policy =
+                                AllocationPolicy::kAllocationAllowed) const;
   bool IsConstFieldValueEqualTo(Object value) const;
   template <bool is_element>
   void ReloadPropertyInformation();

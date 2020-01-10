@@ -840,7 +840,8 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
              isolate_) == *holder_;
 }
 
-Handle<Object> LookupIterator::FetchValue() const {
+Handle<Object> LookupIterator::FetchValue(
+    AllocationPolicy allocation_policy) const {
   Object result;
   if (IsElement(*holder_)) {
     Handle<JSObject> holder = GetHolder<JSObject>();
@@ -858,6 +859,10 @@ Handle<Object> LookupIterator::FetchValue() const {
     Handle<JSObject> holder = GetHolder<JSObject>();
     FieldIndex field_index =
         FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+    if (allocation_policy == AllocationPolicy::kAllocationDisallowed &&
+        field_index.is_inobject() && field_index.is_double()) {
+      return isolate_->factory()->undefined_value();
+    }
     return JSObject::FastPropertyAt(holder, property_details_.representation(),
                                     field_index);
   } else {
@@ -975,9 +980,10 @@ Handle<Object> LookupIterator::GetAccessors() const {
   return FetchValue();
 }
 
-Handle<Object> LookupIterator::GetDataValue() const {
+Handle<Object> LookupIterator::GetDataValue(
+    AllocationPolicy allocation_policy) const {
   DCHECK_EQ(DATA, state_);
-  Handle<Object> value = FetchValue();
+  Handle<Object> value = FetchValue(allocation_policy);
   return value;
 }
 

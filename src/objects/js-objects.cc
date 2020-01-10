@@ -130,7 +130,8 @@ Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
   return Just(attributes.FromJust() != ABSENT);
 }
 
-Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it) {
+Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
+                                           AllocationPolicy allocation_policy) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::INTERCEPTOR:
@@ -153,7 +154,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it) {
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
         return it->isolate()->factory()->undefined_value();
       case LookupIterator::DATA:
-        return it->GetDataValue();
+        return it->GetDataValue(allocation_policy);
     }
   }
   return it->isolate()->factory()->undefined_value();
@@ -446,11 +447,15 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
     }
   }
 
+  LookupIterator it_tag(isolate, receiver,
+                        isolate->factory()->to_string_tag_symbol(), receiver,
+                        LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Handle<Object> maybe_tag = JSReceiver::GetDataProperty(
-      receiver, isolate->factory()->to_string_tag_symbol());
-  if (maybe_tag->IsString())
+      &it_tag, AllocationPolicy::kAllocationDisallowed);
+  if (maybe_tag->IsString()) {
     return std::make_pair(MaybeHandle<JSFunction>(),
                           Handle<String>::cast(maybe_tag));
+  }
 
   PrototypeIterator iter(isolate, receiver);
   if (iter.IsAtEnd()) {
@@ -461,7 +466,8 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
   Handle<JSReceiver> start = PrototypeIterator::GetCurrent<JSReceiver>(iter);
   LookupIterator it(isolate, receiver, isolate->factory()->constructor_string(),
                     start, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  Handle<Object> maybe_constructor = JSReceiver::GetDataProperty(&it);
+  Handle<Object> maybe_constructor =
+      JSReceiver::GetDataProperty(&it, AllocationPolicy::kAllocationDisallowed);
   if (maybe_constructor->IsJSFunction()) {
     JSFunction constructor = JSFunction::cast(*maybe_constructor);
     String name = constructor.shared().DebugName();
