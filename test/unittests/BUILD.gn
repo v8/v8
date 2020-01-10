@@ -108,8 +108,6 @@ v8_source_set("unittests_sources") {
     "compiler/branch-elimination-unittest.cc",
     "compiler/bytecode-analysis-unittest.cc",
     "compiler/checkpoint-elimination-unittest.cc",
-    "compiler/code-assembler-unittest.cc",
-    "compiler/code-assembler-unittest.h",
     "compiler/common-operator-reducer-unittest.cc",
     "compiler/common-operator-unittest.cc",
     "compiler/compiler-test-utils.h",
