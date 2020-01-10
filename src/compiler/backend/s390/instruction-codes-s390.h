@@ -204,6 +204,10 @@ namespace compiler {
   V(S390_F32x4AddHoriz)                     \
   V(S390_F32x4Sub)                          \
   V(S390_F32x4Mul)                          \
+  V(S390_F32x4Eq)                           \
+  V(S390_F32x4Ne)                           \
+  V(S390_F32x4Lt)                           \
+  V(S390_F32x4Le)                           \
   V(S390_I32x4Splat)                        \
   V(S390_I32x4ExtractLane)                  \
   V(S390_I32x4ReplaceLane)                  \
@@ -211,6 +215,16 @@ namespace compiler {
   V(S390_I32x4AddHoriz)                     \
   V(S390_I32x4Sub)                          \
   V(S390_I32x4Mul)                          \
+  V(S390_I32x4MinS)                         \
+  V(S390_I32x4MinU)                         \
+  V(S390_I32x4MaxS)                         \
+  V(S390_I32x4MaxU)                         \
+  V(S390_I32x4Eq)                           \
+  V(S390_I32x4Ne)                           \
+  V(S390_I32x4GtS)                          \
+  V(S390_I32x4GeS)                          \
+  V(S390_I32x4GtU)                          \
+  V(S390_I32x4GeU)                          \
   V(S390_I16x8Splat)                        \
   V(S390_I16x8ExtractLaneU)                 \
   V(S390_I16x8ExtractLaneS)                 \
@@ -219,6 +233,16 @@ namespace compiler {
   V(S390_I16x8AddHoriz)                     \
   V(S390_I16x8Sub)                          \
   V(S390_I16x8Mul)                          \
+  V(S390_I16x8MinS)                         \
+  V(S390_I16x8MinU)                         \
+  V(S390_I16x8MaxS)                         \
+  V(S390_I16x8MaxU)                         \
+  V(S390_I16x8Eq)                           \
+  V(S390_I16x8Ne)                           \
+  V(S390_I16x8GtS)                          \
+  V(S390_I16x8GeS)                          \
+  V(S390_I16x8GtU)                          \
+  V(S390_I16x8GeU)                          \
   V(S390_I8x16Splat)                        \
   V(S390_I8x16ExtractLaneU)                 \
   V(S390_I8x16ExtractLaneS)                 \
@@ -226,6 +250,16 @@ namespace compiler {
   V(S390_I8x16Add)                          \
   V(S390_I8x16Sub)                          \
   V(S390_I8x16Mul)                          \
+  V(S390_I8x16MinS)                         \
+  V(S390_I8x16MinU)                         \
+  V(S390_I8x16MaxS)                         \
+  V(S390_I8x16MaxU)                         \
+  V(S390_I8x16Eq)                           \
+  V(S390_I8x16Ne)                           \
+  V(S390_I8x16GtS)                          \
+  V(S390_I8x16GeS)                          \
+  V(S390_I8x16GtU)                          \
+  V(S390_I8x16GeU)                          \
   V(S390_StoreSimd128)                      \
   V(S390_LoadSimd128)
 
