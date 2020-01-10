@@ -2338,9 +2338,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     Label* bailout);
 
   // Allocation site manipulation
-  void InitializeAllocationMemento(Node* base_allocation,
-                                   Node* base_allocation_size,
-                                   Node* allocation_site);
+  void InitializeAllocationMemento(TNode<HeapObject> base,
+                                   TNode<IntPtrT> base_allocation_size,
+                                   TNode<AllocationSite> allocation_site);
 
   TNode<Float64T> TryTaggedToFloat64(TNode<Object> value,
                                      Label* if_valueisnotnumber);

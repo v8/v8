@@ -5015,19 +5015,17 @@ TNode<FixedArrayBase> CodeStubAssembler::GrowElementsCapacity(
   return new_elements;
 }
 
-void CodeStubAssembler::InitializeAllocationMemento(Node* base,
-                                                    Node* base_allocation_size,
-                                                    Node* allocation_site) {
+void CodeStubAssembler::InitializeAllocationMemento(
+    TNode<HeapObject> base, TNode<IntPtrT> base_allocation_size,
+    TNode<AllocationSite> allocation_site) {
   Comment("[Initialize AllocationMemento");
-  TNode<HeapObject> memento =
-      InnerAllocate(CAST(base), UncheckedCast<IntPtrT>(base_allocation_size));
+  TNode<HeapObject> memento = InnerAllocate(base, base_allocation_size);
   StoreMapNoWriteBarrier(memento, RootIndex::kAllocationMementoMap);
   StoreObjectFieldNoWriteBarrier(
       memento, AllocationMemento::kAllocationSiteOffset, allocation_site);
   if (FLAG_allocation_site_pretenuring) {
-    TNode<Int32T> count = UncheckedCast<Int32T>(LoadObjectField(
-        allocation_site, AllocationSite::kPretenureCreateCountOffset,
-        MachineType::Int32()));
+    TNode<Int32T> count = LoadObjectField<Int32T>(
+        allocation_site, AllocationSite::kPretenureCreateCountOffset);
 
     TNode<Int32T> incremented_count = Int32Add(count, Int32Constant(1));
     StoreObjectFieldNoWriteBarrier(
