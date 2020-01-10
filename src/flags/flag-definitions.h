@@ -1493,24 +1493,40 @@ DEFINE_BOOL(prof_browser_mode, true,
 DEFINE_STRING(logfile, "v8.log", "Specify the name of the log file.")
 DEFINE_BOOL(logfile_per_isolate, true, "Separate log files for each isolate.")
 DEFINE_BOOL(ll_prof, false, "Enable low-level linux profiler.")
-DEFINE_BOOL(perf_basic_prof, false,
-            "Enable perf linux profiler (basic support).")
+
+#if V8_OS_LINUX
+#define DEFINE_PERF_PROF_BOOL(nam, cmt) DEFINE_BOOL(nam, false, cmt)
+#define DEFINE_PERF_PROF_IMPLICATION DEFINE_IMPLICATION
+#else
+#define DEFINE_PERF_PROF_BOOL(nam, cmt) DEFINE_BOOL_READONLY(nam, false, cmt)
+#define DEFINE_PERF_PROF_IMPLICATION(...)
+#endif
+
+DEFINE_PERF_PROF_BOOL(perf_basic_prof,
+                      "Enable perf linux profiler (basic support).")
 DEFINE_NEG_IMPLICATION(perf_basic_prof, compact_code_space)
-DEFINE_BOOL(perf_basic_prof_only_functions, false,
-            "Only report function code ranges to perf (i.e. no stubs).")
-DEFINE_IMPLICATION(perf_basic_prof_only_functions, perf_basic_prof)
-DEFINE_BOOL(perf_prof, false,
-            "Enable perf linux profiler (experimental annotate support).")
-DEFINE_BOOL(perf_prof_annotate_wasm, false,
-            "Used with --perf-prof, load wasm source map and provide annotate "
-            "support (experimental).")
+DEFINE_PERF_PROF_BOOL(
+    perf_basic_prof_only_functions,
+    "Only report function code ranges to perf (i.e. no stubs).")
+DEFINE_PERF_PROF_IMPLICATION(perf_basic_prof_only_functions, perf_basic_prof)
+DEFINE_PERF_PROF_BOOL(
+    perf_prof, "Enable perf linux profiler (experimental annotate support).")
+DEFINE_PERF_PROF_BOOL(
+    perf_prof_annotate_wasm,
+    "Used with --perf-prof, load wasm source map and provide annotate "
+    "support (experimental).")
 DEFINE_NEG_IMPLICATION(perf_prof, compact_code_space)
 // TODO(v8:8462) Remove implication once perf supports remapping.
 DEFINE_NEG_IMPLICATION(perf_prof, write_protect_code_memory)
 DEFINE_NEG_IMPLICATION(perf_prof, wasm_write_protect_code_memory)
-DEFINE_BOOL(perf_prof_unwinding_info, false,
-            "Enable unwinding info for perf linux profiler (experimental).")
-DEFINE_IMPLICATION(perf_prof, perf_prof_unwinding_info)
+DEFINE_PERF_PROF_BOOL(
+    perf_prof_unwinding_info,
+    "Enable unwinding info for perf linux profiler (experimental).")
+DEFINE_PERF_PROF_IMPLICATION(perf_prof, perf_prof_unwinding_info)
+
+#undef DEFINE_PERF_PROF_BOOL
+#undef DEFINE_PERF_PROF_IMPLICATION
+
 DEFINE_STRING(gc_fake_mmap, "/tmp/__v8_gc__",
               "Specify the name of the file for fake gc mmap used in ll_prof")
 DEFINE_BOOL(log_internal_timer_events, false, "Time internal events.")

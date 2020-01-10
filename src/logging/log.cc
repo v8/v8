@@ -1916,10 +1916,16 @@ bool Logger::SetUp(Isolate* isolate) {
     AddCodeEventListener(perf_basic_logger_.get());
   }
 
+#if V8_OS_LINUX
   if (FLAG_perf_prof) {
     perf_jit_logger_ = std::make_unique<PerfJitLogger>(isolate);
     AddCodeEventListener(perf_jit_logger_.get());
   }
+#else
+  static_assert(
+      !FLAG_perf_prof,
+      "--perf-prof should be statically disabled on non-Linux platforms");
+#endif
 
   if (FLAG_ll_prof) {
     ll_logger_ =
@@ -1992,10 +1998,12 @@ FILE* Logger::TearDown() {
     perf_basic_logger_.reset();
   }
 
+#if V8_OS_LINUX
   if (perf_jit_logger_) {
     RemoveCodeEventListener(perf_jit_logger_.get());
     perf_jit_logger_.reset();
   }
+#endif
 
   if (ll_logger_) {
     RemoveCodeEventListener(ll_logger_.get());

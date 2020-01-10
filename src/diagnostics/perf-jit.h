@@ -28,12 +28,15 @@
 #ifndef V8_DIAGNOSTICS_PERF_JIT_H_
 #define V8_DIAGNOSTICS_PERF_JIT_H_
 
+#include "include/v8config.h"
+
+// {PerfJitLogger} is only implemented on Linux.
+#if V8_OS_LINUX
+
 #include "src/logging/log.h"
 
 namespace v8 {
 namespace internal {
-
-#if V8_OS_LINUX
 
 // Linux perf tool logging support.
 class PerfJitLogger : public CodeEventLogger {
@@ -121,37 +124,9 @@ class PerfJitLogger : public CodeEventLogger {
   static uint64_t code_index_;
 };
 
-#else
-
-// PerfJitLogger is only implemented on Linux.
-class PerfJitLogger : public CodeEventLogger {
- public:
-  explicit PerfJitLogger(Isolate* isolate) : CodeEventLogger(isolate) {}
-
-  void CodeMoveEvent(AbstractCode from, AbstractCode to) override {
-    FATAL("--perf-prof is only available on Linux");
-  }
-
-  void CodeDisableOptEvent(Handle<AbstractCode> code,
-                           Handle<SharedFunctionInfo> shared) override {
-    FATAL("--perf-prof is only available on Linux");
-  }
-
-  void LogRecordedBuffer(Handle<AbstractCode> code,
-                         MaybeHandle<SharedFunctionInfo> maybe_shared,
-                         const char* name, int length) override {
-    FATAL("--perf-prof is only available on Linux");
-  }
-
-  void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
-                         int length) override {
-    FATAL("--perf-prof is only available on Linux");
-  }
-};
-
-#endif  // V8_OS_LINUX
-
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_OS_LINUX
 
 #endif  // V8_DIAGNOSTICS_PERF_JIT_H_

@@ -27,6 +27,12 @@
 
 #include "src/diagnostics/perf-jit.h"
 
+// Only compile the {PerfJitLogger} on Linux.
+#if V8_OS_LINUX
+
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #include <memory>
 
 #include "src/codegen/assembler.h"
@@ -38,18 +44,8 @@
 #include "src/utils/ostreams.h"
 #include "src/wasm/wasm-code-manager.h"
 
-#if V8_OS_LINUX
-#include <fcntl.h>
-#include <sys/mman.h>
-// jumbo: conflicts with v8::internal::InstanceType::MAP_TYPE
-#undef MAP_TYPE  // NOLINT
-#include <unistd.h>
-#endif  // V8_OS_LINUX
-
 namespace v8 {
 namespace internal {
-
-#if V8_OS_LINUX
 
 struct PerfJitHeader {
   uint32_t magic_;
@@ -524,6 +520,7 @@ void PerfJitLogger::LogWriteHeader() {
   LogWriteBytes(reinterpret_cast<const char*>(&header), sizeof(header));
 }
 
-#endif  // V8_OS_LINUX
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_OS_LINUX
