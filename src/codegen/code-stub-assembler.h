@@ -3829,8 +3829,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   static const int kElementLoopUnrollThreshold = 8;
 
   // {convert_bigint} is only meaningful when {mode} == kToNumber.
-  Node* NonNumberToNumberOrNumeric(
-      Node* context, Node* input, Object::Conversion mode,
+  TNode<Numeric> NonNumberToNumberOrNumeric(
+      TNode<Context> context, TNode<HeapObject> input, Object::Conversion mode,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
 
   void TaggedToNumeric(TNode<Context> context, TNode<Object> value, Label* done,

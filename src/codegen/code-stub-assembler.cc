@@ -6799,22 +6799,21 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
   return result.value();
 }
 
-Node* CodeStubAssembler::NonNumberToNumberOrNumeric(
-    Node* context, Node* input, Object::Conversion mode,
+TNode<Numeric> CodeStubAssembler::NonNumberToNumberOrNumeric(
+    TNode<Context> context, TNode<HeapObject> input, Object::Conversion mode,
     BigIntHandling bigint_handling) {
-  CSA_ASSERT(this, Word32BinaryNot(TaggedIsSmi(input)));
   CSA_ASSERT(this, Word32BinaryNot(IsHeapNumber(input)));
 
   // We might need to loop once here due to ToPrimitive conversions.
-  VARIABLE(var_input, MachineRepresentation::kTagged, input);
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  TVARIABLE(HeapObject, var_input, input);
+  TVARIABLE(Numeric, var_result);
   Label loop(this, &var_input);
   Label end(this);
   Goto(&loop);
   BIND(&loop);
   {
     // Load the current {input} value (known to be a HeapObject).
-    Node* input = var_input.value();
+    TNode<HeapObject> input = var_input.value();
 
     // Dispatch on the {input} instance type.
     TNode<Uint16T> input_instance_type = LoadInstanceType(input);
@@ -6832,13 +6831,13 @@ Node* CodeStubAssembler::NonNumberToNumberOrNumeric(
     {
       // The {input} is a String, use the fast stub to convert it to a Number.
       TNode<String> string_input = CAST(input);
-      var_result.Bind(StringToNumber(string_input));
+      var_result = StringToNumber(string_input);
       Goto(&end);
     }
 
     BIND(&if_inputisbigint);
     if (mode == Object::Conversion::kToNumeric) {
-      var_result.Bind(input);
+      var_result = CAST(input);
       Goto(&end);
     } else {
       DCHECK_EQ(mode, Object::Conversion::kToNumber);
@@ -6846,7 +6845,8 @@ Node* CodeStubAssembler::NonNumberToNumberOrNumeric(
         Goto(&if_inputisother);
       } else {
         DCHECK_EQ(bigint_handling, BigIntHandling::kConvertToNumber);
-        var_result.Bind(CallRuntime(Runtime::kBigIntToNumber, context, input));
+        var_result =
+            CAST(CallRuntime(Runtime::kBigIntToNumber, context, input));
         Goto(&end);
       }
     }
@@ -6854,7 +6854,7 @@ Node* CodeStubAssembler::NonNumberToNumberOrNumeric(
     BIND(&if_inputisoddball);
     {
       // The {input} is an Oddball, we just need to load the Number value of it.
-      var_result.Bind(LoadObjectField(input, Oddball::kToNumberOffset));
+      var_result = LoadObjectField<Number>(input, Oddball::kToNumberOffset);
       Goto(&end);
     }
 
@@ -6876,14 +6876,14 @@ Node* CodeStubAssembler::NonNumberToNumberOrNumeric(
       {
         // The ToPrimitive conversion already gave us a Number/Numeric, so we're
         // done.
-        var_result.Bind(result);
+        var_result = CAST(result);
         Goto(&end);
       }
 
       BIND(&if_notdone);
       {
         // We now have a Primitive {result}, but it's not yet a Number/Numeric.
-        var_input.Bind(result);
+        var_input = CAST(result);
         Goto(&loop);
       }
     }
@@ -6899,17 +6899,16 @@ Node* CodeStubAssembler::NonNumberToNumberOrNumeric(
       auto function_id = mode == Object::Conversion::kToNumber
                              ? Runtime::kToNumber
                              : Runtime::kToNumeric;
-      var_result.Bind(CallRuntime(function_id, context, input));
+      var_result = CAST(CallRuntime(function_id, context, input));
       Goto(&end);
     }
   }
 
   BIND(&end);
-  if (mode == Object::Conversion::kToNumeric) {
-    CSA_ASSERT(this, IsNumeric(var_result.value()));
-  } else {
-    DCHECK_EQ(mode, Object::Conversion::kToNumber);
+  if (mode == Object::Conversion::kToNumber) {
     CSA_ASSERT(this, IsNumber(var_result.value()));
+  } else {
+    DCHECK_EQ(mode, Object::Conversion::kToNumeric);
   }
   return var_result.value();
 }
@@ -6923,10 +6922,8 @@ TNode<Number> CodeStubAssembler::NonNumberToNumber(
 
 TNode<Numeric> CodeStubAssembler::NonNumberToNumeric(
     SloppyTNode<Context> context, SloppyTNode<HeapObject> input) {
-  Node* result = NonNumberToNumberOrNumeric(context, input,
-                                            Object::Conversion::kToNumeric);
-  CSA_SLOW_ASSERT(this, IsNumeric(result));
-  return UncheckedCast<Numeric>(result);
+  return NonNumberToNumberOrNumeric(context, input,
+                                    Object::Conversion::kToNumeric);
 }
 
 TNode<Number> CodeStubAssembler::ToNumber_Inline(SloppyTNode<Context> context,
