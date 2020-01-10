@@ -12994,7 +12994,8 @@ void CodeStubAssembler::Print(const char* s) {
               StringConstant(formatted.c_str()));
 }
 
-void CodeStubAssembler::Print(const char* prefix, Node* tagged_value) {
+void CodeStubAssembler::Print(const char* prefix,
+                              SloppyTNode<MaybeObject> tagged_value) {
   if (prefix != nullptr) {
     std::string formatted(prefix);
     formatted += ": ";
@@ -13003,7 +13004,10 @@ void CodeStubAssembler::Print(const char* prefix, Node* tagged_value) {
     CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
                 HeapConstant(string));
   }
-  CallRuntime(Runtime::kDebugPrint, NoContextConstant(), tagged_value);
+  // CallRuntime only accepts Objects, so do an UncheckedCast to object.
+  // DebugPrint explicitly checks whether the tagged value is a MaybeObject.
+  TNode<Object> arg = UncheckedCast<Object>(tagged_value);
+  CallRuntime(Runtime::kDebugPrint, NoContextConstant(), arg);
 }
 
 void CodeStubAssembler::PerformStackCheck(TNode<Context> context) {

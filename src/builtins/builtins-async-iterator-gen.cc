@@ -86,8 +86,8 @@ void AsyncFromSyncBuiltinsAssembler::ThrowIfNotAsyncFromSyncIterator(
 
     // Let badIteratorError be a new TypeError exception.
     TNode<HeapObject> error =
-        CAST(MakeTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                           context, StringConstant(method_name), object));
+        MakeTypeError(MessageTemplate::kIncompatibleMethodReceiver, context,
+                      StringConstant(method_name), object);
 
     // Perform ! Call(promiseCapability.[[Reject]], undefined,
     //                « badIteratorError »).
@@ -221,8 +221,8 @@ AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
   {
     // Sync iterator result is not an object --- Produce a TypeError and jump
     // to the `if_exception` path.
-    const TNode<Object> error = CAST(MakeTypeError(
-        MessageTemplate::kIteratorResultNotAnObject, context, iter_result));
+    const TNode<Object> error = MakeTypeError(
+        MessageTemplate::kIteratorResultNotAnObject, context, iter_result);
     *var_exception = error;
     Goto(if_exception);
   }

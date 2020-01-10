@@ -3608,18 +3608,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Support for printf-style debugging
   void Print(const char* s);
-  void Print(const char* prefix, Node* tagged_value);
+  void Print(const char* prefix, SloppyTNode<MaybeObject> tagged_value);
   void Print(SloppyTNode<MaybeObject> tagged_value) {
     return Print(nullptr, tagged_value);
   }
 
   template <class... TArgs>
-  Node* MakeTypeError(MessageTemplate message, Node* context, TArgs... args) {
+  TNode<HeapObject> MakeTypeError(MessageTemplate message,
+                                  TNode<Context> context, TArgs... args) {
     STATIC_ASSERT(sizeof...(TArgs) <= 3);
     const TNode<Object> make_type_error = LoadContextElement(
         LoadNativeContext(context), Context::MAKE_TYPE_ERROR_INDEX);
-    return CallJS(CodeFactory::Call(isolate()), context, make_type_error,
-                  UndefinedConstant(), SmiConstant(message), args...);
+    return CAST(CallJS(CodeFactory::Call(isolate()), context, make_type_error,
+                       UndefinedConstant(), SmiConstant(message), args...));
   }
 
   void Abort(AbortReason reason) {
