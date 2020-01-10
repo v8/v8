@@ -998,6 +998,13 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         current += PrintRightOperand(current);
         AppendToBuffer(",0x%x", *current++);
         break;
+      case 0x4B: {
+        AppendToBuffer("vblendvpd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister((*current++) >> 4));
+        break;
+      }
       default:
         UnimplementedInstruction();
     }
@@ -1784,6 +1791,12 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       current = data + 3;
       get_modrm(*current, &mod, &regop, &rm);
       switch (third_byte) {
+        case 0x15: {
+          AppendToBuffer("blendvpd %s,", NameOfXMMRegister(regop));
+          current += PrintRightXMMOperand(current);
+          AppendToBuffer(",<xmm0>");
+          break;
+        }
 #define SSE34_DIS_CASE(instruction, notUsed1, notUsed2, notUsed3, opcode) \
   case 0x##opcode: {                                                      \
     AppendToBuffer(#instruction " %s,", NameOfXMMRegister(regop));        \

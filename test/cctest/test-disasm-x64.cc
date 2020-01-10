@@ -565,6 +565,8 @@ TEST(DisasmX64) {
       __ cvtps2dq(xmm5, Operand(rdx, 4));
       __ cvtdq2ps(xmm5, xmm1);
       __ cvtdq2ps(xmm5, Operand(rdx, 4));
+      __ blendvpd(xmm5, xmm1);
+      __ blendvpd(xmm5, Operand(rdx, 4));
 
       SSE4_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
       SSE4_PMOV_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
@@ -784,6 +786,8 @@ TEST(DisasmX64) {
       __ vpblendw(xmm1, xmm2, xmm3, 23);
       __ vpblendw(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 23);
       __ vpalignr(xmm1, xmm2, xmm3, 4);
+
+      __ vblendvpd(xmm1, xmm2, xmm3, xmm4);
 
       __ vmovddup(xmm1, xmm2);
       __ vmovddup(xmm1, Operand(rbx, rcx, times_4, 10000));

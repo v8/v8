@@ -960,6 +960,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   SSE4_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
   SSE4_PMOV_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
+  DECLARE_SSE4_INSTRUCTION(blendvpd, 66, 0F, 38, 15)
 #undef DECLARE_SSE4_INSTRUCTION
 
 #define DECLARE_SSE4_EXTRACT_INSTRUCTION(instruction, prefix, escape1,     \
@@ -1006,6 +1007,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   SSE4_INSTRUCTION_LIST(DECLARE_SSE34_AVX_INSTRUCTION)
   SSE4_2_INSTRUCTION_LIST(DECLARE_SSE34_AVX_INSTRUCTION)
 #undef DECLARE_SSE34_AVX_INSTRUCTION
+
+  void vblendvpd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister mask) {
+    vinstr(0x4B, dst, src1, src2, k66, k0F3A, kW0);
+    // The mask operand is encoded in bits[7:4] of the immediate byte.
+    emit(mask.code() << 4);
+  }
 
 #define DECLARE_SSE4_PMOV_AVX_INSTRUCTION(instruction, prefix, escape1,      \
                                           escape2, opcode)                   \
