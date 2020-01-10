@@ -160,6 +160,8 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
                                    AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
+  DCHECK_IMPLIES(type == AllocationType::kCode,
+                 alignment == AllocationAlignment::kCodeAligned);
   DCHECK_EQ(gc_state_, NOT_IN_GC);
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
