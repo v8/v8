@@ -637,6 +637,7 @@ TEST(DisasmX64) {
       __ vminsd(xmm9, xmm1, Operand(rbx, rcx, times_8, 10000));
       __ vmaxsd(xmm8, xmm1, xmm2);
       __ vmaxsd(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
+      __ vroundss(xmm9, xmm1, xmm2, kRoundDown);
       __ vroundsd(xmm8, xmm3, xmm0, kRoundDown);
       __ vsqrtsd(xmm8, xmm1, xmm2);
       __ vsqrtsd(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
