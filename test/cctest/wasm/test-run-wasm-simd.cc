@@ -279,6 +279,11 @@ T Sqrt(T a) {
   return std::sqrt(a);
 }
 
+template <typename T>
+T AndNot(T a, T b) {
+  return a & ~b;
+}
+
 // only used for F64x2 tests below
 int64_t Equal(double a, double b) { return a == b ? -1 : 0; }
 
@@ -1906,6 +1911,13 @@ WASM_SIMD_TEST(S128Or) {
 WASM_SIMD_TEST(S128Xor) {
   RunI32x4BinOpTest(execution_tier, lower_simd, kExprS128Xor, Xor);
 }
+
+#if V8_TARGET_ARCH_X64
+// Bitwise operation, doesn't really matter what simd type we test it with.
+WASM_SIMD_TEST_NO_LOWERING(S128AndNot) {
+  RunI32x4BinOpTest(execution_tier, lower_simd, kExprS128AndNot, AndNot);
+}
+#endif  // V8_TARGET_ARCH_X64
 
 WASM_SIMD_TEST(I32x4Eq) {
   RunI32x4BinOpTest(execution_tier, lower_simd, kExprI32x4Eq, Equal);

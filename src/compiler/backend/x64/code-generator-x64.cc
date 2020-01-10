@@ -3615,6 +3615,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Xorps(dst, i.InputSimd128Register(2));
       break;
     }
+    case kX64S128AndNot: {
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      // The inputs have been inverted by instruction selector, so we can call
+      // andnps here without any modifications.
+      __ Andnps(dst, i.InputSimd128Register(1));
+      break;
+    }
     case kX64S8x16Swizzle: {
       CpuFeatureScope sse_scope(tasm(), SSSE3);
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));

@@ -2879,6 +2879,13 @@ void InstructionSelector::VisitS128Select(Node* node) {
        g.UseRegister(node->InputAt(2)));
 }
 
+void InstructionSelector::VisitS128AndNot(Node* node) {
+  X64OperandGenerator g(this);
+  // andnps a b does ~a & b, but we want a & !b, so flip the input.
+  Emit(kX64S128AndNot, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
+}
+
 void InstructionSelector::VisitF64x2Abs(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempDoubleRegister()};

@@ -309,6 +309,7 @@ namespace compiler {
   V(X64S128Or)                            \
   V(X64S128Xor)                           \
   V(X64S128Select)                        \
+  V(X64S128AndNot)                        \
   V(X64S8x16Swizzle)                      \
   V(X64S8x16Shuffle)                      \
   V(X64S8x16LoadSplat)                    \
