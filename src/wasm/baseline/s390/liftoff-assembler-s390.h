@@ -64,7 +64,22 @@ void LiftoffAssembler::FinishCode() {}
 void LiftoffAssembler::AbortCompilation() {}
 
 uint32_t LiftoffAssembler::SlotSizeForType(ValueType type) {
-  return kStackSlotSize;
+  switch (type) {
+    case kWasmS128:
+      return ValueTypes::ElementSizeInBytes(type);
+    default:
+      return kStackSlotSize;
+  }
+}
+
+bool LiftoffAssembler::NeedsAlignment(ValueType type) {
+  switch (type) {
+    case kWasmS128:
+      return true;
+    default:
+      // No alignment because all other types are kStackSlotSize.
+      return false;
+  }
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
