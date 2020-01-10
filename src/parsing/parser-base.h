@@ -2089,6 +2089,14 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
       is_array_index = impl()->IsArrayIndex(prop_info->name, &index);
       break;
     }
+
+    case Token::BIGINT: {
+      Consume(Token::BIGINT);
+      prop_info->name = impl()->GetNumberAsSymbol();
+      is_array_index = impl()->IsArrayIndex(prop_info->name, &index);
+      break;
+    }
+
     case Token::LBRACK: {
       prop_info->name = impl()->NullIdentifier();
       prop_info->is_computed_name = true;
