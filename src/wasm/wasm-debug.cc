@@ -16,6 +16,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/utils/identity-map.h"
+#include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-interpreter.h"
@@ -404,9 +405,8 @@ class InterpreterHandle {
           isolate_->factory()->NewJSObjectWithNullProto();
       Handle<String> locals_name =
           isolate_->factory()->InternalizeString(StaticCharVector("locals"));
-      JSObject::SetOwnPropertyIgnoreAttributes(local_scope_object, locals_name,
-                                               locals_obj, NONE)
-          .Assert();
+      JSObject::AddProperty(isolate, local_scope_object, locals_name,
+                            locals_obj, NONE);
       for (int i = 0; i < num_locals; ++i) {
         MaybeHandle<String> name =
             GetLocalName(isolate, debug_info, frame->function()->func_index, i);
@@ -433,15 +433,13 @@ class InterpreterHandle {
         isolate_->factory()->NewJSObjectWithNullProto();
     Handle<String> stack_name =
         isolate_->factory()->InternalizeString(StaticCharVector("stack"));
-    JSObject::SetOwnPropertyIgnoreAttributes(local_scope_object, stack_name,
-                                             stack_obj, NONE)
-        .Assert();
+    JSObject::AddProperty(isolate, local_scope_object, stack_name, stack_obj,
+                          NONE);
     for (int i = 0; i < stack_count; ++i) {
       WasmValue value = frame->GetStackValue(i);
       Handle<Object> value_obj = WasmValueToValueObject(isolate_, value);
-      JSObject::SetOwnElementIgnoreAttributes(
-          stack_obj, static_cast<uint32_t>(i), value_obj, NONE)
-          .Assert();
+      JSObject::AddDataElement(stack_obj, static_cast<uint32_t>(i), value_obj,
+                               NONE);
     }
     return local_scope_object;
   }
@@ -464,9 +462,8 @@ Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject> instance) {
         instance->memory_object().array_buffer(), isolate);
     Handle<JSTypedArray> uint8_array = isolate->factory()->NewJSTypedArray(
         kExternalUint8Array, memory_buffer, 0, memory_buffer->byte_length());
-    JSObject::SetOwnPropertyIgnoreAttributes(global_scope_object, name,
-                                             uint8_array, NONE)
-        .Assert();
+    JSObject::AddProperty(isolate, global_scope_object, name, uint8_array,
+                          NONE);
   }
 
   auto& globals = instance->module()->globals;
@@ -475,9 +472,8 @@ Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject> instance) {
         isolate->factory()->NewJSObjectWithNullProto();
     Handle<String> globals_name =
         isolate->factory()->InternalizeString(StaticCharVector("globals"));
-    JSObject::SetOwnPropertyIgnoreAttributes(global_scope_object, globals_name,
-                                             globals_obj, NONE)
-        .Assert();
+    JSObject::AddProperty(isolate, global_scope_object, globals_name,
+                          globals_obj, NONE);
 
     for (size_t i = 0; i < globals.size(); ++i) {
       const char* label = "global#%d";
@@ -485,9 +481,7 @@ Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject> instance) {
       WasmValue value =
           WasmInstanceObject::GetGlobalValue(instance, globals[i]);
       Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
-      JSObject::SetOwnPropertyIgnoreAttributes(globals_obj, name, value_obj,
-                                               NONE)
-          .Assert();
+      JSObject::AddProperty(isolate, globals_obj, name, value_obj, NONE);
     }
   }
 
@@ -504,14 +498,130 @@ class DebugInfoImpl {
     Handle<JSObject> local_scope_object =
         isolate->factory()->NewJSObjectWithNullProto();
 
-    // TODO(clemensb): Fill this with actual values.
-    USE(native_module_);
+    wasm::WasmCodeRefScope wasm_code_ref_scope;
+    wasm::WasmCode* code =
+        isolate->wasm_engine()->code_manager()->LookupCode(pc);
+    // Only Liftoff code can be inspected.
+    if (!code->is_liftoff()) return local_scope_object;
 
+    const WasmModule* module = native_module_->module();
+    const WasmFunction* function = &module->functions[code->index()];
+    DebugSideTable* debug_side_table =
+        GetDebugSideTable(isolate->allocator(), function->func_index);
+    int pc_offset = static_cast<int>(pc - code->instruction_start());
+    auto* debug_side_table_entry = debug_side_table->GetEntry(pc_offset);
+    DCHECK_NOT_NULL(debug_side_table_entry);
+
+    // Fill parameters and locals.
+    int num_params = static_cast<int>(function->sig->parameter_count());
+    int num_locals = static_cast<int>(debug_side_table->num_locals());
+    DCHECK_LE(num_params, num_locals);
+    if (num_locals > 0) {
+      Handle<JSObject> locals_obj =
+          isolate->factory()->NewJSObjectWithNullProto();
+      Handle<String> locals_name =
+          isolate->factory()->InternalizeString(StaticCharVector("locals"));
+      JSObject::AddProperty(isolate, local_scope_object, locals_name,
+                            locals_obj, NONE);
+      for (int i = 0; i < num_locals; ++i) {
+        // TODO(clemensb): Get the proper name of the local.
+        // Parameters should come before locals in alphabetical ordering, so
+        // we name them "args" here.
+        const char* label = i < num_params ? "arg#%d" : "local#%d";
+        Handle<String> name = PrintFToOneByteString<true>(isolate, label, i);
+        WasmValue value = GetValue(debug_side_table_entry,
+                                   debug_side_table->local_type(i), i, fp);
+        Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
+        JSObject::SetOwnPropertyIgnoreAttributes(locals_obj, name, value_obj,
+                                                 NONE)
+            .Assert();
+      }
+    }
+
+    // Fill stack values.
+    int stack_count = debug_side_table_entry->stack_height();
+    // Use an object without prototype instead of an Array, for nicer displaying
+    // in DevTools. For Arrays, the length field and prototype is displayed,
+    // which does not make too much sense here.
+    Handle<JSObject> stack_obj = isolate->factory()->NewJSObjectWithNullProto();
+    Handle<String> stack_name =
+        isolate->factory()->InternalizeString(StaticCharVector("stack"));
+    JSObject::AddProperty(isolate, local_scope_object, stack_name, stack_obj,
+                          NONE);
+    for (int i = 0; i < stack_count; ++i) {
+      ValueType type = debug_side_table_entry->stack_type(i);
+      WasmValue value =
+          GetValue(debug_side_table_entry, type, num_locals + i, fp);
+      Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
+      JSObject::AddDataElement(stack_obj, static_cast<uint32_t>(i), value_obj,
+                               NONE);
+    }
     return local_scope_object;
   }
 
  private:
+  DebugSideTable* GetDebugSideTable(AccountingAllocator* allocator,
+                                    int func_index) {
+    base::MutexGuard guard(&mutex_);
+    if (debug_side_tables_.empty()) {
+      debug_side_tables_.resize(native_module_->module()->functions.size());
+    }
+    if (auto& existing_table = debug_side_tables_[func_index]) {
+      return existing_table.get();
+    }
+
+    // Otherwise create the debug side table now.
+    const WasmModule* module = native_module_->module();
+    const WasmFunction* function = &module->functions[func_index];
+    ModuleWireBytes wire_bytes{native_module_->wire_bytes()};
+    Vector<const byte> function_bytes = wire_bytes.GetFunctionBytes(function);
+    CompilationEnv env = native_module_->CreateCompilationEnv();
+    FunctionBody func_body{function->sig, 0, function_bytes.begin(),
+                           function_bytes.end()};
+    DebugSideTable debug_side_table =
+        GenerateLiftoffDebugSideTable(allocator, &env, func_body);
+
+    // Install into cache and return.
+    debug_side_tables_[func_index] =
+        std::make_unique<DebugSideTable>(std::move(debug_side_table));
+    return debug_side_tables_[func_index].get();
+  }
+
+  // Get the value of a local (including parameters) or stack value. Stack
+  // values follow the locals in the same index space.
+  WasmValue GetValue(const DebugSideTable::Entry* debug_side_table_entry,
+                     ValueType type, int index, Address fp) {
+    if (debug_side_table_entry->IsConstant(index)) {
+      DCHECK(type == kWasmI32 || type == kWasmI64);
+      return type == kWasmI32
+                 ? WasmValue(debug_side_table_entry->GetConstant(index))
+                 : WasmValue(
+                       int64_t{debug_side_table_entry->GetConstant(index)});
+    }
+    // Otherwise load the value from the stack.
+    // TODO(clemensb): Implement this.
+    USE(fp);
+    switch (type) {
+      case kWasmI32:
+        return WasmValue(int32_t{0});
+      case kWasmI64:
+        return WasmValue(int64_t{0});
+      case kWasmF32:
+        return WasmValue(float{0});
+      case kWasmF64:
+        return WasmValue(double{0});
+      default:
+        UNIMPLEMENTED();
+    }
+  }
+
   NativeModule* const native_module_;
+
+  // {mutex_} protects {debug_side_tables_}.
+  base::Mutex mutex_;
+
+  // DebugSideTable per function, lazily initialized.
+  std::vector<std::unique_ptr<DebugSideTable>> debug_side_tables_;
 
   DISALLOW_COPY_AND_ASSIGN(DebugInfoImpl);
 };
