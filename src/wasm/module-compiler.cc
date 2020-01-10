@@ -1123,8 +1123,6 @@ int AddExportWrapperUnits(Isolate* isolate, WasmEngine* wasm_engine,
                           NativeModule* native_module,
                           CompilationUnitBuilder* builder,
                           const WasmFeatures& enabled_features) {
-// Disable asynchronous wrapper compilation when builtins are not embedded,
-// otherwise the isolate might be used after tear down to access builtins.
   std::unordered_set<JSToWasmWrapperKey, base::hash<JSToWasmWrapperKey>> keys;
   for (auto exp : native_module->module()->export_table) {
     if (exp.kind != kExternalFunction) continue;
