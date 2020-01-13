@@ -300,7 +300,7 @@ Response V8ProfilerAgentImpl::startPreciseCoverage(Maybe<bool> callCount,
   if (!m_enabled) return Response::Error("Profiler is not enabled");
   *out_timestamp =
       (v8::base::TimeTicks::HighResolutionNow() - v8::base::TimeTicks())
-          .InMilliseconds();
+          .InSecondsF();
   bool callCountValue = callCount.fromMaybe(false);
   bool detailedValue = detailed.fromMaybe(false);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageStarted, true);
@@ -412,7 +412,7 @@ Response V8ProfilerAgentImpl::takePreciseCoverage(
   v8::debug::Coverage coverage = v8::debug::Coverage::CollectPrecise(m_isolate);
   *out_timestamp =
       (v8::base::TimeTicks::HighResolutionNow() - v8::base::TimeTicks())
-          .InMilliseconds();
+          .InSecondsF();
   return coverageToProtocol(m_session->inspector(), coverage, out_result);
 }
 

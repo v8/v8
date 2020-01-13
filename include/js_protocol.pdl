@@ -825,7 +825,7 @@ domain Profiler
       # Collect block-based coverage.
       optional boolean detailed
     returns
-      # The timestamp (in milliseconds) the coverage update was taken in the backend.
+      # Monotonically increasing time (in seconds) when the coverage update was taken in the backend.
       number timestamp
 
   # Enable type profile.
@@ -849,7 +849,7 @@ domain Profiler
     returns
       # Coverage data for the current isolate.
       array of ScriptCoverage result
-      # The timestamp (in milliseconds) the coverage update was taken in the backend.
+      # Monotonically increasing time (in seconds) when the coverage update was taken in the backend.
       number timestamp
 
   # Collect type profile.
