@@ -798,12 +798,6 @@ class EmbedderHeapTracerDestructorNonTracingClearing final
     return handle.WrapperClassId() != class_id_to_optimize_;
   }
 
-  void ResetHandleInNonTracingGC(
-      const v8::TracedGlobal<v8::Value>& handle) final {
-    // Not called when used with handles that have destructors.
-    CHECK(false);
-  }
-
  private:
   uint16_t class_id_to_optimize_;
 };

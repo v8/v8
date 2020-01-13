@@ -7879,8 +7879,6 @@ class V8_EXPORT EmbedderHeapTracer {
   virtual void RegisterV8References(
       const std::vector<std::pair<void*, void*> >& embedder_fields) = 0;
 
-  V8_DEPRECATED("Use version taking TracedReferenceBase<v8::Data> argument")
-  void RegisterEmbedderReference(const TracedReferenceBase<v8::Value>& ref);
   void RegisterEmbedderReference(const TracedReferenceBase<v8::Data>& ref);
 
   /**
@@ -7964,9 +7962,6 @@ class V8_EXPORT EmbedderHeapTracer {
    */
   virtual void ResetHandleInNonTracingGC(
       const v8::TracedReference<v8::Value>& handle);
-  V8_DEPRECATED("Use TracedReference version when not requiring destructors.")
-  virtual void ResetHandleInNonTracingGC(
-      const v8::TracedGlobal<v8::Value>& handle);
 
   /*
    * Called by the embedder to immediately perform a full garbage collection.

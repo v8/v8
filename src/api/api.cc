@@ -10802,15 +10802,6 @@ void EmbedderHeapTracer::RegisterEmbedderReference(
       reinterpret_cast<i::Address*>(ref.val_));
 }
 
-void EmbedderHeapTracer::RegisterEmbedderReference(
-    const TracedReferenceBase<v8::Value>& ref) {
-  if (ref.IsEmpty()) return;
-
-  i::Heap* const heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
-  heap->RegisterExternallyReferencedObject(
-      reinterpret_cast<i::Address*>(ref.val_));
-}
-
 void EmbedderHeapTracer::IterateTracedGlobalHandles(
     TracedGlobalHandleVisitor* visitor) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(isolate_);
@@ -10830,11 +10821,6 @@ bool EmbedderHeapTracer::IsRootForNonTracingGC(
 
 void EmbedderHeapTracer::ResetHandleInNonTracingGC(
     const v8::TracedReference<v8::Value>& handle) {
-  UNREACHABLE();
-}
-
-void EmbedderHeapTracer::ResetHandleInNonTracingGC(
-    const v8::TracedGlobal<v8::Value>& handle) {
   UNREACHABLE();
 }
 
