@@ -1001,7 +1001,6 @@ void V8Debugger::allAsyncTasksCanceled() {
   m_currentExternalParent.clear();
   m_currentTasks.clear();
 
-  m_framesCache.clear();
   m_allAsyncStacks.clear();
   m_asyncStacksCount = 0;
 }
@@ -1059,26 +1058,12 @@ void V8Debugger::collectOldAsyncStacksIfNeeded() {
       ++it;
     }
   }
-  cleanupExpiredWeakPointers(m_framesCache);
 }
 
 std::shared_ptr<StackFrame> V8Debugger::symbolize(
     v8::Local<v8::StackFrame> v8Frame) {
   CHECK(!v8Frame.IsEmpty());
-  auto it = m_framesCache.end();
-  int frameId = 0;
-  if (m_maxAsyncCallStackDepth) {
-    frameId = v8::debug::GetStackFrameId(v8Frame);
-    it = m_framesCache.find(frameId);
-  }
-  if (it != m_framesCache.end() && !it->second.expired()) {
-    return std::shared_ptr<StackFrame>(it->second);
-  }
-  std::shared_ptr<StackFrame> frame(new StackFrame(isolate(), v8Frame));
-  if (m_maxAsyncCallStackDepth) {
-    m_framesCache[frameId] = frame;
-  }
-  return frame;
+  return std::make_shared<StackFrame>(isolate(), v8Frame);
 }
 
 void V8Debugger::setMaxAsyncTaskStacksForTest(int limit) {
