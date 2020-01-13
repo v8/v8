@@ -7,6 +7,7 @@
 #include <set>
 
 #include "src/ast/ast.h"
+#include "src/base/logging.h"
 #include "src/base/optional.h"
 #include "src/builtins/accessors.h"
 #include "src/common/message-template.h"
@@ -1899,8 +1900,9 @@ template <Scope::ScopeLookupMode mode>
 Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
                         Scope* outer_scope_end, Scope* cache_scope,
                         bool force_context_allocation) {
-  // If we have already passed it in earlier recursions though, so we should
-  // first quickly check if it is an outer scope before continuing.
+  // If we have already passed the cache scope in earlier recursions, we should
+  // first quickly check if the current scope uses the cache scope before
+  // continuing.
   if (mode == kDeserializedScope &&
       scope->deserialized_scope_uses_external_cache()) {
     Variable* var = cache_scope->variables_.Lookup(proxy->raw_name());
@@ -1918,13 +1920,17 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
     // the scopes in which it's evaluating.
     if (mode == kDeserializedScope &&
         V8_UNLIKELY(scope->is_debug_evaluate_scope_)) {
+      DCHECK(scope->deserialized_scope_uses_external_cache() ||
+             scope == cache_scope);
       return cache_scope->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
     }
 
     // Try to find the variable in this scope.
     Variable* var;
+    Scope* current_cache_scope = nullptr;
     if (mode == kParsedScope) {
       var = scope->LookupLocal(proxy->raw_name());
+      DCHECK_NULL(cache_scope);
     } else {
       DCHECK_EQ(mode, kDeserializedScope);
       bool external_cache = scope->deserialized_scope_uses_external_cache();
@@ -1936,8 +1942,8 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
         Variable* var = scope->variables_.Lookup(proxy->raw_name());
         if (var != nullptr) return var;
       }
-      var = scope->LookupInScopeInfo(proxy->raw_name(),
-                                     external_cache ? cache_scope : scope);
+      current_cache_scope = external_cache ? cache_scope : scope;
+      var = scope->LookupInScopeInfo(proxy->raw_name(), current_cache_scope);
     }
 
     // We found a variable and we are done. (Even if there is an 'eval' in this
@@ -1966,14 +1972,14 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
 
     DCHECK(!scope->is_script_scope());
     if (V8_UNLIKELY(scope->is_with_scope())) {
-      return LookupWith(proxy, scope, outer_scope_end, cache_scope,
+      return LookupWith(proxy, scope, outer_scope_end, current_cache_scope,
                         force_context_allocation);
     }
     if (V8_UNLIKELY(
             scope->is_declaration_scope() &&
             scope->AsDeclarationScope()->sloppy_eval_can_extend_vars())) {
-      return LookupSloppyEval(proxy, scope, outer_scope_end, cache_scope,
-                              force_context_allocation);
+      return LookupSloppyEval(proxy, scope, outer_scope_end,
+                              current_cache_scope, force_context_allocation);
     }
 
     force_context_allocation |= scope->is_function_scope();
