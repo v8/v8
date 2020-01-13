@@ -10,35 +10,68 @@ let {session, contextGroup, Protocol} = InspectorTest.start(
     'Test retrieving scope information when pausing in wasm functions');
 session.setupScriptMap();
 Protocol.Debugger.enable();
+Protocol.Debugger.onPaused(printPauseLocationsAndContinue);
 
 let evaluate = code => Protocol.Runtime.evaluate({expression: code});
 
-let breakpointLocation = -1;
+let breakpointLocation = undefined;  // Will be set by {instantiateWasm}.
 
 (async function test() {
-  let scriptIds = await instantiateWasm();
-  await setBreakpoint(scriptIds);
-  printPauseLocationsAndContinue();
+  // Instantiate wasm and wait for three wasm scripts for the three functions.
+  instantiateWasm();
+  let scriptIds = await waitForWasmScripts();
+
+  // Set a breakpoint.
+  InspectorTest.log(
+      'Setting breakpoint on first instruction of second function');
+  let breakpoint = await Protocol.Debugger.setBreakpoint({
+    'location' : {
+      'scriptId' : scriptIds[0],
+      'lineNumber' : 0,
+      'columnNumber' : breakpointLocation
+    }
+  });
+  printIfFailure(breakpoint);
+  InspectorTest.logMessage(breakpoint.result.actualLocation);
+
+  // Now run the wasm code.
   await evaluate('instance.exports.main(4)');
   InspectorTest.log('exports.main returned. Test finished.');
   InspectorTest.completeTest();
 })();
 
-async function printPauseLocationsAndContinue() {
-  while (true) {
-    let msg = await Protocol.Debugger.oncePaused();
-    let loc = msg.params.callFrames[0].location;
-    InspectorTest.log('Paused:');
-    await session.logSourceLocation(loc);
-    await dumpScopeChainsOnPause(msg);
-    Protocol.Debugger.stepOver();
+async function printPauseLocationsAndContinue(msg) {
+  let loc = msg.params.callFrames[0].location;
+  InspectorTest.log('Paused:');
+  await session.logSourceLocation(loc);
+  InspectorTest.log('Scope:');
+  for (var frame of msg.params.callFrames) {
+    var isWasmFrame = /^wasm/.test(frame.url);
+    var functionName = frame.functionName || '(anonymous)';
+    var lineNumber = frame.location.lineNumber;
+    var columnNumber = frame.location.columnNumber;
+    InspectorTest.log(`at ${functionName} (${lineNumber}:${columnNumber}):`);
+    for (var scope of frame.scopeChain) {
+      InspectorTest.logObject(' - scope (' + scope.type + '):');
+      if (!isWasmFrame && scope.type == 'global') {
+        // Skip global scope for non wasm-functions.
+        InspectorTest.logObject('   -- skipped globals');
+        continue;
+      }
+      var properties = await Protocol.Runtime.getProperties(
+          {'objectId': scope.object.objectId});
+      await dumpScopeProperties(properties);
+    }
   }
+  InspectorTest.log();
+  Protocol.Debugger.stepOver();
 }
 
 async function instantiateWasm() {
   utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
   var builder = new WasmModuleBuilder();
+  // Also add a global, so we have some global scope.
   builder.addGlobal(kWasmI32, true);
 
   // Add a function without breakpoint, to check that locals are shown
@@ -74,7 +107,7 @@ async function instantiateWasm() {
         kExprI32Const, 15, kExprGlobalSet, 0,
       ]);
 
-  var module_bytes = builder.toArray();
+  let moduleBytes = builder.toArray();
   breakpointLocation = func.body_offset;
 
   function instantiate(bytes) {
@@ -85,27 +118,14 @@ async function instantiateWasm() {
     }
 
     var module = new WebAssembly.Module(buffer);
-    // Set global variable.
-    instance = new WebAssembly.Instance(module);
+    return new WebAssembly.Instance(module);
   }
 
-  InspectorTest.log('Installing code and global variable.');
-  await evaluate('var instance;\n' + instantiate.toString());
   InspectorTest.log('Calling instantiate function.');
-  evaluate('instantiate(' + JSON.stringify(module_bytes) + ')');
-  return waitForWasmScripts();
+  evaluate(`var instance = (${instantiate})(${JSON.stringify(moduleBytes)})`);
 }
 
-async function setBreakpoint(scriptIds) {
-  InspectorTest.log(
-      'Setting breakpoint on first instruction of second function');
-  let breakpoint = await Protocol.Debugger.setBreakpoint(
-      {'location': {'scriptId': scriptIds[0], 'lineNumber': 0, 'columnNumber': breakpointLocation}});
-  printFailure(breakpoint);
-  InspectorTest.logMessage(breakpoint.result.actualLocation);
-}
-
-function printFailure(message) {
+function printIfFailure(message) {
   if (!message.result) {
     InspectorTest.logMessage(message);
   }
@@ -134,39 +154,16 @@ async function getScopeValues(value) {
   }
 
   let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
-  printFailure(msg);
+  printIfFailure(msg);
   let printProperty = elem => '"' + elem.name + '"' +
       ': ' + elem.value.value + ' (' + elem.value.type + ')';
   return msg.result.result.map(printProperty).join(', ');
 }
 
 async function dumpScopeProperties(message) {
-  printFailure(message);
+  printIfFailure(message);
   for (var value of message.result.result) {
     var value_str = await getScopeValues(value.value);
     InspectorTest.log('   ' + value.name + ': ' + value_str);
   }
-}
-
-async function dumpScopeChainsOnPause(message) {
-  InspectorTest.log(`Scope:`);
-  for (var frame of message.params.callFrames) {
-    var isWasmFrame = /^wasm/.test(frame.url);
-    var functionName = frame.functionName || '(anonymous)';
-    var lineNumber = frame.location ? frame.location.lineNumber : frame.lineNumber;
-    var columnNumber = frame.location ? frame.location.columnNumber : frame.columnNumber;
-    InspectorTest.log(`at ${functionName} (${lineNumber}:${columnNumber}):`);
-    for (var scope of frame.scopeChain) {
-      InspectorTest.logObject(' - scope (' + scope.type + '):');
-      if (!isWasmFrame && scope.type == 'global') {
-        // Skip global scope for non wasm-functions.
-        InspectorTest.logObject('   -- skipped globals');
-        continue;
-      }
-      var properties = await Protocol.Runtime.getProperties(
-          {'objectId': scope.object.objectId});
-      await dumpScopeProperties(properties);
-    }
-  }
-  InspectorTest.log();
 }
