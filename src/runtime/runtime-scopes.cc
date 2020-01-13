@@ -119,7 +119,7 @@ Object DeclareGlobal(
 }
 
 Object DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
-                      int flags, Handle<JSFunction> closure) {
+                      Handle<JSFunction> closure) {
   HandleScope scope(isolate);
   Handle<JSGlobalObject> global(isolate->global_object());
   Handle<Context> context(isolate->context(), isolate);
@@ -160,15 +160,17 @@ Object DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
 
     // Compute the property attributes. According to ECMA-262,
     // the property must be non-configurable except in eval.
-    bool is_eval = DeclareGlobalsEvalFlag::decode(flags);
-    int attr = NONE;
-    if (!is_eval) attr |= DONT_DELETE;
+    Script script = Script::cast(closure->shared().script());
+    PropertyAttributes attr =
+        script.compilation_type() == Script::COMPILATION_TYPE_EVAL
+            ? NONE
+            : DONT_DELETE;
 
     // ES#sec-globaldeclarationinstantiation 5.d:
     // If hasRestrictedGlobal is true, throw a SyntaxError exception.
-    Object result = DeclareGlobal(
-        isolate, global, name, value, static_cast<PropertyAttributes>(attr),
-        is_var, RedeclarationType::kSyntaxError, feedback_vector);
+    Object result =
+        DeclareGlobal(isolate, global, name, value, attr, is_var,
+                      RedeclarationType::kSyntaxError, feedback_vector);
     if (isolate->has_pending_exception()) return result;
   });
 
@@ -179,13 +181,12 @@ Object DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
 
 RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, declarations, 0);
-  CONVERT_SMI_ARG_CHECKED(flags, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 1);
 
-  return DeclareGlobals(isolate, declarations, flags, closure);
+  return DeclareGlobals(isolate, declarations, closure);
 }
 
 namespace {

@@ -1442,16 +1442,13 @@ void BytecodeGenerator::VisitGlobalDeclarations(Declaration::List* decls) {
 
   globals_builder()->set_constant_pool_entry(
       builder()->AllocateDeferredConstantPoolEntry());
-  int encoded_flags = DeclareGlobalsEvalFlag::encode(info()->is_eval());
 
   // Emit code to declare globals.
-  RegisterList args = register_allocator()->NewRegisterList(3);
+  RegisterList args = register_allocator()->NewRegisterList(2);
   builder()
       ->LoadConstantPoolEntry(globals_builder()->constant_pool_entry())
       .StoreAccumulatorInRegister(args[0])
-      .LoadLiteral(Smi::FromInt(encoded_flags))
-      .StoreAccumulatorInRegister(args[1])
-      .MoveRegister(Register::function_closure(), args[2])
+      .MoveRegister(Register::function_closure(), args[1])
       .CallRuntime(Runtime::kDeclareGlobals, args);
 
   globals_builder()->mark_processed();

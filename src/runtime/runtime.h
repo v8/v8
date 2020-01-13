@@ -387,7 +387,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_SCOPES(F, I)     \
   F(DeclareEvalFunction, 2, 1)              \
   F(DeclareEvalVar, 1, 1)                   \
-  F(DeclareGlobals, 3, 1)                   \
+  F(DeclareGlobals, 2, 1)                   \
   F(DeleteLookupSlot, 1, 1)                 \
   F(LoadLookupSlot, 1, 1)                   \
   F(LoadLookupSlotInsideTypeof, 1, 1)       \
@@ -793,8 +793,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, Runtime::FunctionId);
 using AllocateDoubleAlignFlag = base::BitField<bool, 0, 1>;
 
 using AllowLargeObjectAllocationFlag = base::BitField<bool, 1, 1>;
-
-using DeclareGlobalsEvalFlag = base::BitField<bool, 0, 1>;
 
 // A set of bits returned by Runtime_GetOptimizationStatus.
 // These bits must be in sync with bits defined in test/mjsunit/mjsunit.js
