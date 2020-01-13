@@ -564,6 +564,10 @@ class Map : public HeapObject {
   DECL_GETTER(GetFunctionTemplateInfo, FunctionTemplateInfo)
   inline void SetConstructor(Object constructor,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  // Constructor getter that performs at most the given number of steps
+  // in the transition tree. Returns either the constructor or the map at
+  // which the walk has stopped.
+  inline Object TryGetConstructor(Isolate* isolate, int max_steps);
   // [back pointer]: points back to the parent map from which a transition
   // leads to this map. The field overlaps with the constructor (see above).
   DECL_GETTER(GetBackPointer, HeapObject)

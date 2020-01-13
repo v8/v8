@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-bool NativeContextInferrer::Infer(Map map, HeapObject object,
+bool NativeContextInferrer::Infer(Isolate* isolate, Map map, HeapObject object,
                                   Address* native_context) {
   switch (map.visitor_id()) {
     case kVisitContext:
@@ -24,14 +24,15 @@ bool NativeContextInferrer::Infer(Map map, HeapObject object,
       *native_context = object.ptr();
       return true;
     case kVisitJSFunction:
-      return InferForJSFunction(map, JSFunction::cast(object), native_context);
+      return InferForJSFunction(JSFunction::cast(object), native_context);
     case kVisitJSApiObject:
     case kVisitJSArrayBuffer:
     case kVisitJSObject:
     case kVisitJSObjectFast:
     case kVisitJSTypedArray:
     case kVisitJSWeakCollection:
-      return InferForJSObject(map, JSObject::cast(object), native_context);
+      return InferForJSObject(isolate, map, JSObject::cast(object),
+                              native_context);
     default:
       return false;
   }

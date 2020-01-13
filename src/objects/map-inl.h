@@ -765,6 +765,17 @@ DEF_GETTER(Map, GetConstructor, Object) {
   return maybe_constructor;
 }
 
+Object Map::TryGetConstructor(Isolate* isolate, int max_steps) {
+  Object maybe_constructor = constructor_or_backpointer(isolate);
+  // Follow any back pointers.
+  while (maybe_constructor.IsMap(isolate)) {
+    if (max_steps-- == 0) return Smi::FromInt(0);
+    maybe_constructor =
+        Map::cast(maybe_constructor).constructor_or_backpointer(isolate);
+  }
+  return maybe_constructor;
+}
+
 DEF_GETTER(Map, GetFunctionTemplateInfo, FunctionTemplateInfo) {
   Object constructor = GetConstructor(isolate);
   if (constructor.IsJSFunction(isolate)) {

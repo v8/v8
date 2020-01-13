@@ -1803,6 +1803,7 @@ size_t MarkCompactCollector::ProcessMarkingWorklist(size_t bytes_to_process) {
   HeapObject object;
   size_t bytes_processed = 0;
   bool is_per_context_mode = marking_worklists()->IsPerContextMode();
+  Isolate* isolate = heap()->isolate();
   while (marking_worklists()->Pop(&object) ||
          marking_worklists()->PopOnHold(&object)) {
     // Left trimming may result in grey or black filler objects on the marking
@@ -1827,10 +1828,10 @@ size_t MarkCompactCollector::ProcessMarkingWorklist(size_t bytes_to_process) {
                     kTrackNewlyDiscoveredObjects) {
       AddNewlyDiscovered(object);
     }
-    Map map = object.map();
+    Map map = object.map(isolate);
     if (is_per_context_mode) {
       Address context;
-      if (native_context_inferrer_.Infer(map, object, &context)) {
+      if (native_context_inferrer_.Infer(isolate, map, object, &context)) {
         marking_worklists()->SwitchToContext(context);
       }
     }

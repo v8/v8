@@ -399,9 +399,10 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
   NativeContextStats& native_context_stats = task_state->native_context_stats;
   double time_ms;
   size_t marked_bytes = 0;
+  Isolate* isolate = heap_->isolate();
   if (FLAG_trace_concurrent_marking) {
-    heap_->isolate()->PrintWithTimestamp(
-        "Starting concurrent marking task %d\n", task_id);
+    isolate->PrintWithTimestamp("Starting concurrent marking task %d\n",
+                                task_id);
   }
   bool ephemeron_marked = false;
 
@@ -439,10 +440,10 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
             addr == new_large_object) {
           marking_worklists.PushOnHold(object);
         } else {
-          Map map = object.synchronized_map();
+          Map map = object.synchronized_map(isolate);
           if (is_per_context_mode) {
             Address context;
-            if (native_context_inferrer.Infer(map, object, &context)) {
+            if (native_context_inferrer.Infer(isolate, map, object, &context)) {
               marking_worklists.SwitchToContext(context);
             }
           }

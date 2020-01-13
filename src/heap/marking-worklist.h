@@ -124,6 +124,8 @@ class V8_EXPORT_PRIVATE MarkingWorklistsHolder {
 // A thread-local view of the marking worklists.
 class V8_EXPORT_PRIVATE MarkingWorklists {
  public:
+  static const Address kSharedContext = 0;
+
   MarkingWorklists(int task_id, MarkingWorklistsHolder* holder);
 
   void Push(HeapObject object) {
@@ -179,7 +181,6 @@ class V8_EXPORT_PRIVATE MarkingWorklists {
   bool IsPerContextMode() { return is_per_context_mode_; }
 
  private:
-  const Address kSharedContext = 0;
   bool PopContext(HeapObject* object);
   Address SwitchToContextSlow(Address context);
   MarkingWorklist* shared_;

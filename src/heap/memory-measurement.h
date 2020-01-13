@@ -29,12 +29,17 @@ class V8_EXPORT_PRIVATE MemoryMeasurement {
 // Infers the native context for some of the heap objects.
 class V8_EXPORT_PRIVATE NativeContextInferrer {
  public:
-  V8_INLINE bool Infer(Map map, HeapObject object, Address* native_context);
+  // The native_context parameter is both the input and output parameter.
+  // It should be initialized to the context that will be used for the object
+  // if the inference is not successful. The function performs more work if the
+  // context is the shared context.
+  V8_INLINE bool Infer(Isolate* isolate, Map map, HeapObject object,
+                       Address* native_context);
 
  private:
-  bool InferForJSFunction(Map map, JSFunction function,
-                          Address* native_context);
-  bool InferForJSObject(Map map, JSObject object, Address* native_context);
+  bool InferForJSFunction(JSFunction function, Address* native_context);
+  bool InferForJSObject(Isolate* isolate, Map map, JSObject object,
+                        Address* native_context);
 };
 
 // Maintains mapping from native contexts to their sizes.

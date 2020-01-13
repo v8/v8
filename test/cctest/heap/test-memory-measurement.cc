@@ -28,8 +28,8 @@ TEST(NativeContextInferrerGlobalObject) {
   Handle<JSGlobalObject> global =
       handle(native_context->global_object(), isolate);
   NativeContextInferrer inferrer;
-  Address inferred_context;
-  CHECK(inferrer.Infer(global->map(), *global, &inferred_context));
+  Address inferred_context = 0;
+  CHECK(inferrer.Infer(isolate, global->map(), *global, &inferred_context));
   CHECK_EQ(native_context->ptr(), inferred_context);
 }
 
@@ -42,8 +42,22 @@ TEST(NativeContextInferrerJSFunction) {
   Handle<Object> object = Utils::OpenHandle(*result);
   Handle<HeapObject> function = Handle<HeapObject>::cast(object);
   NativeContextInferrer inferrer;
-  Address inferred_context;
-  CHECK(inferrer.Infer(function->map(), *function, &inferred_context));
+  Address inferred_context = 0;
+  CHECK(inferrer.Infer(isolate, function->map(), *function, &inferred_context));
+  CHECK_EQ(native_context->ptr(), inferred_context);
+}
+
+TEST(NativeContextInferrerJSObject) {
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Handle<NativeContext> native_context = GetNativeContext(isolate, env.local());
+  v8::Local<v8::Value> result = CompileRun("({a : 10})");
+  Handle<Object> object = Utils::OpenHandle(*result);
+  Handle<HeapObject> function = Handle<HeapObject>::cast(object);
+  NativeContextInferrer inferrer;
+  Address inferred_context = 0;
+  CHECK(inferrer.Infer(isolate, function->map(), *function, &inferred_context));
   CHECK_EQ(native_context->ptr(), inferred_context);
 }
 
