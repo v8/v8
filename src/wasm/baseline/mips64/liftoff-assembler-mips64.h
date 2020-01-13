@@ -41,13 +41,13 @@ namespace liftoff {
 
 // fp-8 holds the stack marker, fp-16 is the instance parameter, first stack
 // slot is located at fp-16-offset.
-constexpr int32_t kConstantStackSpace = 16;
+constexpr int kConstantStackSpace = 16;
 
-inline int GetStackSlotOffset(uint32_t offset) {
+inline int GetStackSlotOffset(int offset) {
   return kConstantStackSpace + offset;
 }
 
-inline MemOperand GetStackSlot(uint32_t offset) {
+inline MemOperand GetStackSlot(int offset) {
   return MemOperand(fp, -GetStackSlotOffset(offset));
 }
 
@@ -240,9 +240,8 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset, uint32_t spill_size) {
-  uint64_t bytes = liftoff::kConstantStackSpace + spill_size;
-  DCHECK_LE(bytes, kMaxInt);
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
+  int bytes = liftoff::kConstantStackSpace + spill_size;
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 256;
@@ -259,7 +258,7 @@ void LiftoffAssembler::FinishCode() {}
 
 void LiftoffAssembler::AbortCompilation() {}
 
-uint32_t LiftoffAssembler::SlotSizeForType(ValueType type) {
+int LiftoffAssembler::SlotSizeForType(ValueType type) {
   switch (type) {
     case kWasmS128:
       return ValueTypes::ElementSizeInBytes(type);
@@ -473,8 +472,7 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   TurboAssembler::Move(dst, src);
 }
 
-void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
-                             ValueType type) {
+void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
   switch (type) {
@@ -495,7 +493,7 @@ void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
+void LiftoffAssembler::Spill(int offset, WasmValue value) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
   switch (value.type()) {
@@ -518,8 +516,7 @@ void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
   }
 }
 
-void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t offset,
-                            ValueType type) {
+void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
   MemOperand src = liftoff::GetStackSlot(offset);
   switch (type) {
     case kWasmI32:
@@ -539,11 +536,11 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t offset,
   }
 }
 
-void LiftoffAssembler::FillI64Half(Register, uint32_t offset, RegPairHalf) {
+void LiftoffAssembler::FillI64Half(Register, int offset, RegPairHalf) {
   UNREACHABLE();
 }
 
-void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
+void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   DCHECK_LT(0, size);
   RecordUsedSpillOffset(start + size);
 

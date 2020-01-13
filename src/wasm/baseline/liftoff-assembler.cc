@@ -124,7 +124,7 @@ class StackTransferRecipe {
 
   void LoadI64HalfIntoRegister(LiftoffRegister dst,
                                const LiftoffAssembler::VarState& src,
-                               uint32_t offset, RegPairHalf half) {
+                               int offset, RegPairHalf half) {
     // Use CHECK such that the remaining code is statically dead if
     // {kNeedI64RegPair} is false.
     CHECK(kNeedI64RegPair);
@@ -209,8 +209,7 @@ class StackTransferRecipe {
     }
   }
 
-  void LoadI64HalfStackSlot(LiftoffRegister dst, uint32_t offset,
-                            RegPairHalf half) {
+  void LoadI64HalfStackSlot(LiftoffRegister dst, int offset, RegPairHalf half) {
     if (load_dst_regs_.has(dst)) {
       // It can happen that we spilled the same register to different stack
       // slots, and then we reload them later into the same dst register.

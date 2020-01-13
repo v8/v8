@@ -33,7 +33,7 @@ namespace wasm {
 class LiftoffAssembler : public TurboAssembler {
  public:
   // Each slot in our stack frame currently has exactly 8 bytes.
-  static constexpr uint32_t kStackSlotSize = 8;
+  static constexpr int kStackSlotSize = 8;
 
   static constexpr ValueType kWasmIntPtr =
       kSystemPointerSize == 8 ? kWasmI64 : kWasmI32;
@@ -42,13 +42,13 @@ class LiftoffAssembler : public TurboAssembler {
    public:
     enum Location : uint8_t { kStack, kRegister, kIntConst };
 
-    explicit VarState(ValueType type, uint32_t offset)
+    explicit VarState(ValueType type, int offset)
         : loc_(kStack), type_(type), spill_offset_(offset) {}
-    explicit VarState(ValueType type, LiftoffRegister r, uint32_t offset)
+    explicit VarState(ValueType type, LiftoffRegister r, int offset)
         : loc_(kRegister), type_(type), reg_(r), spill_offset_(offset) {
       DCHECK_EQ(r.reg_class(), reg_class_for(type));
     }
-    explicit VarState(ValueType type, int32_t i32_const, uint32_t offset)
+    explicit VarState(ValueType type, int32_t i32_const, int offset)
         : loc_(kIntConst),
           type_(type),
           i32_const_(i32_const),
@@ -91,7 +91,7 @@ class LiftoffAssembler : public TurboAssembler {
                                : WasmValue(int64_t{i32_const_});
     }
 
-    uint32_t offset() const { return spill_offset_; }
+    int offset() const { return spill_offset_; }
 
     Register gp_reg() const { return reg().gp(); }
     DoubleRegister fp_reg() const { return reg().fp(); }
@@ -125,7 +125,7 @@ class LiftoffAssembler : public TurboAssembler {
       LiftoffRegister reg_;  // used if loc_ == kRegister
       int32_t i32_const_;    // used if loc_ == kIntConst
     };
-    uint32_t spill_offset_;
+    int spill_offset_;
   };
 
   ASSERT_TRIVIALLY_COPYABLE(VarState);
@@ -282,15 +282,15 @@ class LiftoffAssembler : public TurboAssembler {
 
   LiftoffRegister PopToRegister(LiftoffRegList pinned = {});
 
-  uint32_t NextSpillOffset(ValueType type) {
-    uint32_t offset = TopSpillOffset() + SlotSizeForType(type);
+  int NextSpillOffset(ValueType type) {
+    int offset = TopSpillOffset() + SlotSizeForType(type);
     if (NeedsAlignment(type)) {
       offset = RoundUp(offset, SlotSizeForType(type));
     }
     return offset;
   }
 
-  uint32_t TopSpillOffset() {
+  int TopSpillOffset() {
     if (cache_state_.stack_state.empty()) {
       return 0;
     }
@@ -370,7 +370,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   // Call this method whenever spilling something, such that the number of used
   // spill slot can be tracked and the stack frame will be allocated big enough.
-  void RecordUsedSpillOffset(uint32_t offset) {
+  void RecordUsedSpillOffset(int offset) {
     if (offset >= num_used_spill_bytes_) num_used_spill_bytes_ = offset;
   }
 
@@ -415,10 +415,10 @@ class LiftoffAssembler : public TurboAssembler {
   // which can later be patched (via {PatchPrepareStackFrame)} when the size of
   // the frame is known.
   inline int PrepareStackFrame();
-  inline void PatchPrepareStackFrame(int offset, uint32_t spill_size);
+  inline void PatchPrepareStackFrame(int offset, int spill_size);
   inline void FinishCode();
   inline void AbortCompilation();
-  inline static uint32_t SlotSizeForType(ValueType type);
+  inline static int SlotSizeForType(ValueType type);
   inline static bool NeedsAlignment(ValueType type);
 
   inline void LoadConstant(LiftoffRegister, WasmValue,
@@ -446,13 +446,13 @@ class LiftoffAssembler : public TurboAssembler {
   inline void Move(Register dst, Register src, ValueType);
   inline void Move(DoubleRegister dst, DoubleRegister src, ValueType);
 
-  inline void Spill(uint32_t offset, LiftoffRegister, ValueType);
-  inline void Spill(uint32_t offset, WasmValue);
-  inline void Fill(LiftoffRegister, uint32_t offset, ValueType);
+  inline void Spill(int offset, LiftoffRegister, ValueType);
+  inline void Spill(int offset, WasmValue);
+  inline void Fill(LiftoffRegister, int offset, ValueType);
   // Only used on 32-bit systems: Fill a register from a "half stack slot", i.e.
   // 4 bytes on the stack holding half of a 64-bit value.
-  inline void FillI64Half(Register, uint32_t offset, RegPairHalf);
-  inline void FillStackSlotsWithZero(uint32_t start, uint32_t size);
+  inline void FillI64Half(Register, int offset, RegPairHalf);
+  inline void FillStackSlotsWithZero(int start, int size);
 
   // i32 binops.
   inline void emit_i32_add(Register dst, Register lhs, Register rhs);
@@ -690,12 +690,12 @@ class LiftoffAssembler : public TurboAssembler {
   uint32_t num_locals() const { return num_locals_; }
   void set_num_locals(uint32_t num_locals);
 
-  uint32_t GetTotalFrameSlotCount() const {
+  int GetTotalFrameSlotCount() const {
     // TODO(zhin): Temporary for migration from index to offset.
     return ((num_used_spill_bytes_ + kStackSlotSize - 1) / kStackSlotSize);
   }
 
-  uint32_t GetTotalFrameSlotSize() const { return num_used_spill_bytes_; }
+  int GetTotalFrameSlotSize() const { return num_used_spill_bytes_; }
 
   ValueType local_type(uint32_t index) {
     DCHECK_GT(num_locals_, index);
@@ -735,7 +735,7 @@ class LiftoffAssembler : public TurboAssembler {
   static_assert(sizeof(ValueType) == 1,
                 "Reconsider this inlining if ValueType gets bigger");
   CacheState cache_state_;
-  uint32_t num_used_spill_bytes_ = 0;
+  int num_used_spill_bytes_ = 0;
   LiftoffBailoutReason bailout_reason_ = kSuccess;
   const char* bailout_detail_ = nullptr;
 

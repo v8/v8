@@ -39,14 +39,12 @@ namespace liftoff {
 //  -----+--------------------+  <-- stack ptr (sp)
 //
 
-constexpr int32_t kInstanceOffset = 2 * kSystemPointerSize;
-constexpr int32_t kConstantStackSpace = 0;
+constexpr int kInstanceOffset = 2 * kSystemPointerSize;
+constexpr int kConstantStackSpace = 0;
 
-inline int GetStackSlotOffset(uint32_t offset) {
-  return kInstanceOffset + offset;
-}
+inline int GetStackSlotOffset(int offset) { return kInstanceOffset + offset; }
 
-inline MemOperand GetStackSlot(uint32_t offset) {
+inline MemOperand GetStackSlot(int offset) {
   return MemOperand(fp, -GetStackSlotOffset(offset));
 }
 
@@ -120,10 +118,10 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset, uint32_t spill_size) {
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
   static_assert(kStackSlotSize == kXRegSize,
                 "kStackSlotSize must equal kXRegSize");
-  uint32_t bytes = liftoff::kConstantStackSpace + spill_size;
+  int bytes = liftoff::kConstantStackSpace + spill_size;
   // The stack pointer is required to be quadword aligned.
   // Misalignment will cause a stack alignment fault.
   bytes = RoundUp(bytes, kQuadWordSizeInBytes);
@@ -176,7 +174,7 @@ void LiftoffAssembler::FinishCode() { ForceConstantPoolEmissionWithoutJump(); }
 
 void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 
-uint32_t LiftoffAssembler::SlotSizeForType(ValueType type) {
+int LiftoffAssembler::SlotSizeForType(ValueType type) {
   // TODO(zhin): Unaligned access typically take additional cycles, we should do
   // some performance testing to see how big an effect it will take.
   switch (type) {
@@ -376,14 +374,13 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
-                             ValueType type) {
+void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
   Str(liftoff::GetRegFromType(reg, type), dst);
 }
 
-void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
+void LiftoffAssembler::Spill(int offset, WasmValue value) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
   UseScratchRegisterScope temps(this);
@@ -412,17 +409,16 @@ void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
   Str(src, dst);
 }
 
-void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t offset,
-                            ValueType type) {
+void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
   MemOperand src = liftoff::GetStackSlot(offset);
   Ldr(liftoff::GetRegFromType(reg, type), src);
 }
 
-void LiftoffAssembler::FillI64Half(Register, uint32_t offset, RegPairHalf) {
+void LiftoffAssembler::FillI64Half(Register, int offset, RegPairHalf) {
   UNREACHABLE();
 }
 
-void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
+void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   DCHECK_LT(0, size);
   DCHECK_EQ(0, size % 4);
   RecordUsedSpillOffset(start + size);

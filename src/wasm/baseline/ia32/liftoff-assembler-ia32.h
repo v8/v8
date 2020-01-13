@@ -22,13 +22,13 @@ namespace liftoff {
 
 // ebp-4 holds the stack marker, ebp-8 is the instance parameter, first stack
 // slot is located at ebp-8-offset.
-constexpr int32_t kConstantStackSpace = 8;
+constexpr int kConstantStackSpace = 8;
 
-inline Operand GetStackSlot(uint32_t offset) {
+inline Operand GetStackSlot(int offset) {
   return Operand(ebp, -kConstantStackSpace - offset);
 }
 
-inline MemOperand GetHalfStackSlot(uint32_t offset, RegPairHalf half) {
+inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
       half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
   return Operand(ebp, -kConstantStackSpace - offset + half_offset);
@@ -153,9 +153,8 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset, uint32_t spill_size) {
-  uint32_t bytes = liftoff::kConstantStackSpace + spill_size;
-  DCHECK_LE(bytes, kMaxInt);
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
+  int bytes = liftoff::kConstantStackSpace + spill_size;
   DCHECK_EQ(bytes % kSystemPointerSize, 0);
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
@@ -194,7 +193,7 @@ void LiftoffAssembler::FinishCode() {}
 
 void LiftoffAssembler::AbortCompilation() {}
 
-uint32_t LiftoffAssembler::SlotSizeForType(ValueType type) {
+int LiftoffAssembler::SlotSizeForType(ValueType type) {
   return ValueTypes::ElementSizeInBytes(type);
 }
 
@@ -443,8 +442,7 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
-                             ValueType type) {
+void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
   RecordUsedSpillOffset(offset);
   Operand dst = liftoff::GetStackSlot(offset);
   switch (type) {
@@ -466,7 +464,7 @@ void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
+void LiftoffAssembler::Spill(int offset, WasmValue value) {
   RecordUsedSpillOffset(offset);
   Operand dst = liftoff::GetStackSlot(offset);
   switch (value.type()) {
@@ -486,8 +484,7 @@ void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
   }
 }
 
-void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t offset,
-                            ValueType type) {
+void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
   Operand src = liftoff::GetStackSlot(offset);
   switch (type) {
     case kWasmI32:
@@ -508,12 +505,11 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t offset,
   }
 }
 
-void LiftoffAssembler::FillI64Half(Register reg, uint32_t offset,
-                                   RegPairHalf half) {
+void LiftoffAssembler::FillI64Half(Register reg, int offset, RegPairHalf half) {
   mov(reg, liftoff::GetHalfStackSlot(offset, half));
 }
 
-void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
+void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   DCHECK_LT(0, size);
   DCHECK_EQ(0, size % 4);
   RecordUsedSpillOffset(start + size);
@@ -521,7 +517,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
   if (size <= 12) {
     // Special straight-line code for up to three words (6-9 bytes per word:
     // C7 <1-4 bytes operand> <4 bytes imm>, makes 18-27 bytes total).
-    for (uint32_t offset = 4; offset <= size; offset += 4) {
+    for (int offset = 4; offset <= size; offset += 4) {
       mov(liftoff::GetHalfStackSlot(start + offset, kLowWord), Immediate(0));
     }
   } else {

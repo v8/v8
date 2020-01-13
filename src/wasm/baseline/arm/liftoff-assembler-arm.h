@@ -37,22 +37,20 @@ namespace liftoff {
 //
 static_assert(2 * kSystemPointerSize == LiftoffAssembler::kStackSlotSize,
               "Slot size should be twice the size of the 32 bit pointer.");
-constexpr int32_t kInstanceOffset = 2 * kSystemPointerSize;
-constexpr int32_t kConstantStackSpace = kSystemPointerSize;
+constexpr int kInstanceOffset = 2 * kSystemPointerSize;
+constexpr int kConstantStackSpace = kSystemPointerSize;
 // kPatchInstructionsRequired sets a maximum limit of how many instructions that
 // PatchPrepareStackFrame will use in order to increase the stack appropriately.
 // Three instructions are required to sub a large constant, movw + movt + sub.
 constexpr int32_t kPatchInstructionsRequired = 3;
 
-inline int GetStackSlotOffset(uint32_t offset) {
-  return kInstanceOffset + offset;
-}
+inline int GetStackSlotOffset(int offset) { return kInstanceOffset + offset; }
 
-inline MemOperand GetStackSlot(uint32_t offset) {
+inline MemOperand GetStackSlot(int offset) {
   return MemOperand(fp, -GetStackSlotOffset(offset));
 }
 
-inline MemOperand GetHalfStackSlot(uint32_t offset, RegPairHalf half) {
+inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
       half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
   return MemOperand(fp, -kInstanceOffset - offset + half_offset);
@@ -242,9 +240,9 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset, uint32_t spill_size) {
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
   // Allocate space for instance plus what is needed for the frame slots.
-  uint32_t bytes = liftoff::kConstantStackSpace + spill_size;
+  int bytes = liftoff::kConstantStackSpace + spill_size;
 #ifdef USE_SIMULATOR
   // When using the simulator, deal with Liftoff which allocates the stack
   // before checking it.
@@ -288,7 +286,7 @@ void LiftoffAssembler::FinishCode() { CheckConstPool(true, false); }
 
 void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 
-uint32_t LiftoffAssembler::SlotSizeForType(ValueType type) {
+int LiftoffAssembler::SlotSizeForType(ValueType type) {
   switch (type) {
     case kWasmS128:
       return ValueTypes::ElementSizeInBytes(type);
@@ -585,8 +583,7 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
-                             ValueType type) {
+void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
   switch (type) {
@@ -608,7 +605,7 @@ void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
+void LiftoffAssembler::Spill(int offset, WasmValue value) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
   UseScratchRegisterScope temps(this);
@@ -640,8 +637,7 @@ void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
   }
 }
 
-void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t offset,
-                            ValueType type) {
+void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
   switch (type) {
     case kWasmI32:
       ldr(reg.gp(), liftoff::GetStackSlot(offset));
@@ -661,12 +657,11 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t offset,
   }
 }
 
-void LiftoffAssembler::FillI64Half(Register reg, uint32_t offset,
-                                   RegPairHalf half) {
+void LiftoffAssembler::FillI64Half(Register reg, int offset, RegPairHalf half) {
   ldr(reg, liftoff::GetHalfStackSlot(offset, half));
 }
 
-void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
+void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   DCHECK_LT(0, size);
   DCHECK_EQ(0, size % 4);
   RecordUsedSpillOffset(start + size);
@@ -679,7 +674,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
   if (size <= 36) {
     // Special straight-line code for up to 9 words. Generates one
     // instruction per word.
-    for (uint32_t offset = 4; offset <= size; offset += 4) {
+    for (int offset = 4; offset <= size; offset += 4) {
       str(r0, liftoff::GetHalfStackSlot(start + offset, kLowWord));
     }
   } else {

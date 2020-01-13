@@ -38,11 +38,9 @@ namespace liftoff {
 //
 constexpr int32_t kInstanceOffset = 2 * kSystemPointerSize;
 
-inline int GetStackSlotOffset(uint32_t offset) {
-  return kInstanceOffset + offset;
-}
+inline int GetStackSlotOffset(int offset) { return kInstanceOffset + offset; }
 
-inline MemOperand GetHalfStackSlot(uint32_t offset, RegPairHalf half) {
+inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
       half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
   return MemOperand(fp, -kInstanceOffset - offset + half_offset);
@@ -55,7 +53,7 @@ int LiftoffAssembler::PrepareStackFrame() {
   return 0;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset, uint32_t spill_size) {
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
   bailout(kUnsupportedArchitecture, "PatchPrepareStackFrame");
 }
 
@@ -63,7 +61,7 @@ void LiftoffAssembler::FinishCode() {}
 
 void LiftoffAssembler::AbortCompilation() {}
 
-uint32_t LiftoffAssembler::SlotSizeForType(ValueType type) {
+int LiftoffAssembler::SlotSizeForType(ValueType type) {
   switch (type) {
     case kWasmS128:
       return ValueTypes::ElementSizeInBytes(type);
@@ -146,25 +144,23 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   bailout(kUnsupportedArchitecture, "Move DoubleRegister");
 }
 
-void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
-                             ValueType type) {
+void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
   bailout(kUnsupportedArchitecture, "Spill register");
 }
 
-void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
+void LiftoffAssembler::Spill(int offset, WasmValue value) {
   bailout(kUnsupportedArchitecture, "Spill value");
 }
 
-void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t offset,
-                            ValueType type) {
+void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
   bailout(kUnsupportedArchitecture, "Fill");
 }
 
-void LiftoffAssembler::FillI64Half(Register, uint32_t offset, RegPairHalf) {
+void LiftoffAssembler::FillI64Half(Register, int offset, RegPairHalf) {
   bailout(kUnsupportedArchitecture, "FillI64Half");
 }
 
-void LiftoffAssembler::FillStackSlotsWithZero(uint32_t start, uint32_t size) {
+void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   DCHECK_LT(0, size);
   RecordUsedSpillOffset(start + size);
 
