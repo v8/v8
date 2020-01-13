@@ -1016,8 +1016,30 @@ PipelineCompilationJob::PipelineCompilationJob(
 PipelineCompilationJob::~PipelineCompilationJob() {
 }
 
+namespace {
+// Ensure that the RuntimeStats table is set on the PipelineData for duration of
+// the job phase and unset immediately afterwards. Each job needs to set the
+// correct RuntimeCallStats table depending on whether it is running on a
+// background or foreground thread.
+class PipelineJobScope {
+ public:
+  PipelineJobScope(PipelineData* data, RuntimeCallStats* stats) : data_(data) {
+    data_->set_runtime_call_stats(stats);
+  }
+
+  ~PipelineJobScope() { data_->set_runtime_call_stats(nullptr); }
+
+ private:
+  PipelineData* data_;
+};
+}  // namespace
+
 PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     Isolate* isolate) {
+  // Ensure that the RuntimeCallStats table of main thread is available for
+  // phases happening during PrepareJob.
+  PipelineJobScope scope(&data_, isolate->counters()->runtime_call_stats());
+
   if (compilation_info()->bytecode_array()->length() >
       FLAG_max_optimized_bytecode_size) {
     return AbortOptimization(BailoutReason::kFunctionTooBig);
@@ -1093,28 +1115,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   return SUCCEEDED;
 }
 
-namespace {
-// Ensure that the RuntimeStats table is set on the PipelineData for duration of
-// the Execute phase and unset immediately afterwards.
-class PipelineExecuteJobScope {
- public:
-  PipelineExecuteJobScope(PipelineData* data, RuntimeCallStats* stats)
-      : data_(data) {
-    data_->set_runtime_call_stats(stats);
-  }
-
-  ~PipelineExecuteJobScope() { data_->set_runtime_call_stats(nullptr); }
-
- private:
-  PipelineData* data_;
-};
-}  // namespace
-
 PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
     RuntimeCallStats* stats) {
   // Ensure that the RuntimeCallStats table is only available during execution
   // and not during finalization as that might be on a different thread.
-  PipelineExecuteJobScope scope(&data_, stats);
+  PipelineJobScope scope(&data_, stats);
   if (compilation_info()->is_concurrent_inlining()) {
     if (!pipeline_.CreateGraph()) {
       return AbortOptimization(BailoutReason::kGraphBuildingFailed);
@@ -1136,6 +1141,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
 
 PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
     Isolate* isolate) {
+  // Ensure that the RuntimeCallStats table of main thread is available for
+  // phases happening during PrepareJob.
+  PipelineJobScope scope(&data_, isolate->counters()->runtime_call_stats());
   RuntimeCallTimerScope runtimeTimer(
       isolate, RuntimeCallCounterId::kOptimizeFinalizePipelineJob);
   MaybeHandle<Code> maybe_code = pipeline_.FinalizeCode();
