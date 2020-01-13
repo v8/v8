@@ -215,11 +215,11 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
         param =
             tester.raw_assembler_for_testing()->ChangeFloat32ToFloat64(param);
         V8_FALLTHROUGH;
-      case MachineRepresentation::kFloat64:
+      case MachineRepresentation::kFloat64: {
         __ StoreObjectFieldNoWriteBarrier(
-            __ LoadFixedArrayElement(result_array, i), HeapNumber::kValueOffset,
-            param, MachineRepresentation::kFloat64);
-        break;
+            __ Cast(__ LoadFixedArrayElement(result_array, i)),
+            HeapNumber::kValueOffset, __ UncheckedCast<Float64T>(param));
+      } break;
       case MachineRepresentation::kSimd128: {
         TNode<FixedArray> vector =
             __ Cast(__ LoadFixedArrayElement(result_array, i));

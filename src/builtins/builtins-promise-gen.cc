@@ -42,7 +42,7 @@ TNode<JSPromise> PromiseBuiltinsAssembler::AllocateJSPromise(
   return CAST(promise);
 }
 
-void PromiseBuiltinsAssembler::PromiseInit(Node* promise) {
+void PromiseBuiltinsAssembler::PromiseInit(TNode<JSPromise> promise) {
   STATIC_ASSERT(v8::Promise::kPending == 0);
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kReactionsOrResultOffset,
                                  SmiConstant(Smi::zero()));

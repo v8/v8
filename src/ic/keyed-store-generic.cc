@@ -304,8 +304,8 @@ void KeyedStoreGenericAssembler::MaybeUpdateLengthAndReturn(
     UpdateLength update_length) {
   if (update_length != kDontChangeLength) {
     TNode<Smi> new_length = SmiTag(Signed(IntPtrAdd(index, IntPtrConstant(1))));
-    StoreObjectFieldNoWriteBarrier(receiver, JSArray::kLengthOffset, new_length,
-                                   MachineRepresentation::kTagged);
+    StoreObjectFieldNoWriteBarrier(receiver, JSArray::kLengthOffset,
+                                   new_length);
   }
   Return(value);
 }

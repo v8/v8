@@ -73,15 +73,18 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
              IntPtrEqual(LoadMapInstanceSizeInWords(promise_map),
                          IntPtrConstant(JSPromise::kSizeWithEmbedderFields /
                                         kTaggedSize)));
-  TNode<HeapObject> wrapped_value = InnerAllocate(base, kWrappedPromiseOffset);
+  TNode<JSPromise> promise;
   {
     // Initialize Promise
+    TNode<HeapObject> wrapped_value =
+        InnerAllocate(base, kWrappedPromiseOffset);
     StoreMapNoWriteBarrier(wrapped_value, promise_map);
     StoreObjectFieldRoot(wrapped_value, JSPromise::kPropertiesOrHashOffset,
                          RootIndex::kEmptyFixedArray);
     StoreObjectFieldRoot(wrapped_value, JSPromise::kElementsOffset,
                          RootIndex::kEmptyFixedArray);
-    PromiseInit(wrapped_value);
+    promise = CAST(wrapped_value);
+    PromiseInit(promise);
   }
 
   // Initialize resolve handler
@@ -103,16 +106,16 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
   Branch(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
          &if_debugging, &do_resolve_promise);
   BIND(&if_debugging);
-  var_throwaway = CAST(CallRuntime(Runtime::kAwaitPromisesInitOld, context,
-                                   value, wrapped_value, outer_promise,
-                                   on_reject, is_predicted_as_caught));
+  var_throwaway =
+      CAST(CallRuntime(Runtime::kAwaitPromisesInitOld, context, value, promise,
+                       outer_promise, on_reject, is_predicted_as_caught));
   Goto(&do_resolve_promise);
   BIND(&do_resolve_promise);
 
   // Perform ! Call(promiseCapability.[[Resolve]], undefined, « promise »).
-  CallBuiltin(Builtins::kResolvePromise, context, wrapped_value, value);
+  CallBuiltin(Builtins::kResolvePromise, context, promise, value);
 
-  return CallBuiltin(Builtins::kPerformPromiseThen, context, wrapped_value,
+  return CallBuiltin(Builtins::kPerformPromiseThen, context, promise,
                      on_resolve, on_reject, var_throwaway.value());
 }
 

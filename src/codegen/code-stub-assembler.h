@@ -1546,29 +1546,34 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Store a field to an object on the heap.
   void StoreObjectField(TNode<HeapObject> object, int offset,
                         TNode<Object> value);
-  void StoreObjectField(TNode<HeapObject> object, Node* offset,
+  void StoreObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset,
                         TNode<Object> value);
-  void StoreObjectFieldNoWriteBarrier(
-      Node* object, int offset, Node* value,
-      MachineRepresentation rep = MachineRepresentation::kTagged);
+  template <class T>
+  void StoreObjectFieldNoWriteBarrier(TNode<HeapObject> object,
+                                      SloppyTNode<IntPtrT> offset,
+                                      TNode<T> value) {
+    int const_offset;
+    if (ToInt32Constant(offset, &const_offset)) {
+      return StoreObjectFieldNoWriteBarrier<T>(object, const_offset, value);
+    }
+    StoreNoWriteBarrier(MachineRepresentationOf<T>::value, object,
+                        IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)),
+                        value);
+  }
+  template <class T>
+  void StoreObjectFieldNoWriteBarrier(TNode<HeapObject> object, int offset,
+                                      TNode<T> value) {
+    if (CanBeTaggedPointer(MachineRepresentationOf<T>::value)) {
+      OptimizedStoreFieldAssertNoWriteBarrier(MachineRepresentationOf<T>::value,
+                                              object, offset, value);
+    } else {
+      OptimizedStoreFieldUnsafeNoWriteBarrier(MachineRepresentationOf<T>::value,
+                                              object, offset, value);
+    }
+  }
+
   void UnsafeStoreObjectFieldNoWriteBarrier(TNode<HeapObject> object,
                                             int offset, TNode<Object> value);
-  void StoreObjectFieldNoWriteBarrier(
-      Node* object, SloppyTNode<IntPtrT> offset, Node* value,
-      MachineRepresentation rep = MachineRepresentation::kTagged);
-
-  template <class T = Object>
-  void StoreObjectFieldNoWriteBarrier(Node* object, SloppyTNode<IntPtrT> offset,
-                                      TNode<T> value) {
-    StoreObjectFieldNoWriteBarrier(object, offset, value,
-                                   MachineRepresentationOf<T>::value);
-  }
-  template <class T = Object>
-  void StoreObjectFieldNoWriteBarrier(Node* object, int offset,
-                                      TNode<T> value) {
-    StoreObjectFieldNoWriteBarrier(object, offset, value,
-                                   MachineRepresentationOf<T>::value);
-  }
 
   // Store the Map of an HeapObject.
   void StoreMap(TNode<HeapObject> object, TNode<Map> map);

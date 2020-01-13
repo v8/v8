@@ -2801,8 +2801,7 @@ void CodeStubAssembler::StoreObjectByteNoWriteBarrier(TNode<HeapObject> object,
 
 void CodeStubAssembler::StoreHeapNumberValue(SloppyTNode<HeapNumber> object,
                                              SloppyTNode<Float64T> value) {
-  StoreObjectFieldNoWriteBarrier(object, HeapNumber::kValueOffset, value,
-                                 MachineRepresentation::kFloat64);
+  StoreObjectFieldNoWriteBarrier(object, HeapNumber::kValueOffset, value);
 }
 
 void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object, int offset,
@@ -2813,7 +2812,8 @@ void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object, int offset,
                       UncheckedCast<HeapObject>(object), offset, value);
 }
 
-void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object, Node* offset,
+void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object,
+                                         TNode<IntPtrT> offset,
                                          TNode<Object> value) {
   int const_offset;
   if (ToInt32Constant(offset, &const_offset)) {
@@ -2823,32 +2823,10 @@ void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object, Node* offset,
   }
 }
 
-void CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
-    Node* object, int offset, Node* value, MachineRepresentation rep) {
-  if (CanBeTaggedPointer(rep)) {
-    OptimizedStoreFieldAssertNoWriteBarrier(
-        rep, UncheckedCast<HeapObject>(object), offset, value);
-  } else {
-    OptimizedStoreFieldUnsafeNoWriteBarrier(
-        rep, UncheckedCast<HeapObject>(object), offset, value);
-  }
-}
-
 void CodeStubAssembler::UnsafeStoreObjectFieldNoWriteBarrier(
     TNode<HeapObject> object, int offset, TNode<Object> value) {
   OptimizedStoreFieldUnsafeNoWriteBarrier(MachineRepresentation::kTagged,
                                           object, offset, value);
-}
-
-void CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
-    Node* object, SloppyTNode<IntPtrT> offset, Node* value,
-    MachineRepresentation rep) {
-  int const_offset;
-  if (ToInt32Constant(offset, &const_offset)) {
-    return StoreObjectFieldNoWriteBarrier(object, const_offset, value, rep);
-  }
-  StoreNoWriteBarrier(rep, object,
-                      IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
 }
 
 void CodeStubAssembler::StoreMap(TNode<HeapObject> object, TNode<Map> map) {
@@ -3170,16 +3148,14 @@ TNode<BigInt> CodeStubAssembler::AllocateRawBigInt(TNode<IntPtrT> length) {
   if (FIELD_SIZE(BigInt::kOptionalPaddingOffset) != 0) {
     DCHECK_EQ(4, FIELD_SIZE(BigInt::kOptionalPaddingOffset));
     StoreObjectFieldNoWriteBarrier(raw_result, BigInt::kOptionalPaddingOffset,
-                                   Int32Constant(0),
-                                   MachineRepresentation::kWord32);
+                                   Int32Constant(0));
   }
   return UncheckedCast<BigInt>(raw_result);
 }
 
 void CodeStubAssembler::StoreBigIntBitfield(TNode<BigInt> bigint,
                                             TNode<Word32T> bitfield) {
-  StoreObjectFieldNoWriteBarrier(bigint, BigInt::kBitfieldOffset, bitfield,
-                                 MachineRepresentation::kWord32);
+  StoreObjectFieldNoWriteBarrier(bigint, BigInt::kBitfieldOffset, bitfield);
 }
 
 void CodeStubAssembler::StoreBigIntDigit(TNode<BigInt> bigint,
@@ -3191,7 +3167,7 @@ void CodeStubAssembler::StoreBigIntDigit(TNode<BigInt> bigint,
       bigint,
       BigInt::kDigitsOffset +
           static_cast<int>(digit_index) * kSystemPointerSize,
-      digit, UintPtrT::kMachineRepresentation);
+      digit);
 }
 
 void CodeStubAssembler::StoreBigIntDigit(TNode<BigInt> bigint,
@@ -3200,8 +3176,7 @@ void CodeStubAssembler::StoreBigIntDigit(TNode<BigInt> bigint,
   TNode<IntPtrT> offset =
       IntPtrAdd(IntPtrConstant(BigInt::kDigitsOffset),
                 IntPtrMul(digit_index, IntPtrConstant(kSystemPointerSize)));
-  StoreObjectFieldNoWriteBarrier(bigint, offset, digit,
-                                 UintPtrT::kMachineRepresentation);
+  StoreObjectFieldNoWriteBarrier(bigint, offset, digit);
 }
 
 TNode<Word32T> CodeStubAssembler::LoadBigIntBitfield(TNode<BigInt> bigint) {
@@ -3290,11 +3265,9 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kOneByteStringMap));
   StoreMapNoWriteBarrier(result, RootIndex::kOneByteStringMap);
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
-                                 Uint32Constant(length),
-                                 MachineRepresentation::kWord32);
+                                 Uint32Constant(length));
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldOffset,
-                                 Int32Constant(String::kEmptyHashField),
-                                 MachineRepresentation::kWord32);
+                                 Int32Constant(String::kEmptyHashField));
   return CAST(result);
 }
 
@@ -3314,11 +3287,9 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kStringMap));
   StoreMapNoWriteBarrier(result, RootIndex::kStringMap);
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
-                                 Uint32Constant(length),
-                                 MachineRepresentation::kWord32);
+                                 Uint32Constant(length));
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldOffset,
-                                 Int32Constant(String::kEmptyHashField),
-                                 MachineRepresentation::kWord32);
+                                 Int32Constant(String::kEmptyHashField));
   return CAST(result);
 }
 
@@ -3332,14 +3303,10 @@ TNode<String> CodeStubAssembler::AllocateSlicedString(RootIndex map_root_index,
   DCHECK(RootsTable::IsImmortalImmovable(map_root_index));
   StoreMapNoWriteBarrier(result, map_root_index);
   StoreObjectFieldNoWriteBarrier(result, SlicedString::kHashFieldOffset,
-                                 Int32Constant(String::kEmptyHashField),
-                                 MachineRepresentation::kWord32);
-  StoreObjectFieldNoWriteBarrier(result, SlicedString::kLengthOffset, length,
-                                 MachineRepresentation::kWord32);
-  StoreObjectFieldNoWriteBarrier(result, SlicedString::kParentOffset, parent,
-                                 MachineRepresentation::kTagged);
-  StoreObjectFieldNoWriteBarrier(result, SlicedString::kOffsetOffset, offset,
-                                 MachineRepresentation::kTagged);
+                                 Int32Constant(String::kEmptyHashField));
+  StoreObjectFieldNoWriteBarrier(result, SlicedString::kLengthOffset, length);
+  StoreObjectFieldNoWriteBarrier(result, SlicedString::kParentOffset, parent);
+  StoreObjectFieldNoWriteBarrier(result, SlicedString::kOffsetOffset, offset);
   return CAST(result);
 }
 
@@ -3586,8 +3553,7 @@ void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
     TNode<Word32T> new_bit_field3 = Int32Sub(
         bit_field3,
         Int32Constant(1 << Map::Bits3::ConstructionCounterBits::kShift));
-    StoreObjectFieldNoWriteBarrier(map, Map::kBitField3Offset, new_bit_field3,
-                                   MachineRepresentation::kWord32);
+    StoreObjectFieldNoWriteBarrier(map, Map::kBitField3Offset, new_bit_field3);
     STATIC_ASSERT(Map::kSlackTrackingCounterEnd == 1);
 
     // The object still has in-object slack therefore the |unsed_or_unused|
@@ -4347,9 +4313,9 @@ void CodeStubAssembler::InitializePropertyArrayLength(
       IntPtrOrSmiLessThanOrEqual(
           length, IntPtrOrSmiConstant(PropertyArray::LengthField::kMax, mode),
           mode));
-  StoreObjectFieldNoWriteBarrier(
-      property_array, PropertyArray::kLengthAndHashOffset,
-      ParameterToTagged(length, mode), MachineRepresentation::kTaggedSigned);
+  StoreObjectFieldNoWriteBarrier(property_array,
+                                 PropertyArray::kLengthAndHashOffset,
+                                 ParameterToTagged(length, mode));
 }
 
 Node* CodeStubAssembler::AllocatePropertyArray(Node* capacity_node,
@@ -5028,9 +4994,9 @@ void CodeStubAssembler::InitializeAllocationMemento(
         allocation_site, AllocationSite::kPretenureCreateCountOffset);
 
     TNode<Int32T> incremented_count = Int32Add(count, Int32Constant(1));
-    StoreObjectFieldNoWriteBarrier(
-        allocation_site, AllocationSite::kPretenureCreateCountOffset,
-        incremented_count, MachineRepresentation::kWord32);
+    StoreObjectFieldNoWriteBarrier(allocation_site,
+                                   AllocationSite::kPretenureCreateCountOffset,
+                                   incremented_count);
   }
   Comment("]");
 }
@@ -9446,8 +9412,7 @@ void CodeStubAssembler::ReportFeedbackUpdate(
     const char* reason) {
   // Reset profiler ticks.
   StoreObjectFieldNoWriteBarrier(
-      feedback_vector, FeedbackVector::kProfilerTicksOffset, Int32Constant(0),
-      MachineRepresentation::kWord32);
+      feedback_vector, FeedbackVector::kProfilerTicksOffset, Int32Constant(0));
 
 #ifdef V8_TRACE_FEEDBACK_UPDATES
   // Trace the update.
@@ -10025,7 +9990,7 @@ Node* CodeStubAssembler::CheckForCapacityGrow(Node* object, Node* elements,
     GotoIfNot(IsJSArray(object), &done);
 
     TNode<WordT> new_length = IntPtrAdd(key, IntPtrOrSmiConstant(1, mode));
-    StoreObjectFieldNoWriteBarrier(object, JSArray::kLengthOffset,
+    StoreObjectFieldNoWriteBarrier(CAST(object), JSArray::kLengthOffset,
                                    ParameterToTagged(new_length, mode));
     Goto(&done);
   }
@@ -10191,13 +10156,11 @@ TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
 
   // Pretenuring calculation field.
   StoreObjectFieldNoWriteBarrier(site, AllocationSite::kPretenureDataOffset,
-                                 Int32Constant(0),
-                                 MachineRepresentation::kWord32);
+                                 Int32Constant(0));
 
   // Pretenuring memento creation count field.
   StoreObjectFieldNoWriteBarrier(
-      site, AllocationSite::kPretenureCreateCountOffset, Int32Constant(0),
-      MachineRepresentation::kWord32);
+      site, AllocationSite::kPretenureCreateCountOffset, Int32Constant(0));
 
   // Store an empty fixed array for the code dependency.
   StoreObjectFieldRoot(site, AllocationSite::kDependentCodeOffset,

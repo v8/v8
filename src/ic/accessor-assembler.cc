@@ -1342,8 +1342,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
             BranchIfSameNumberValue(current_value, double_value, &done, slow);
             BIND(&if_mutable);
           }
-          StoreObjectFieldNoWriteBarrier(object, field_offset, double_value,
-                                         MachineRepresentation::kFloat64);
+          StoreObjectFieldNoWriteBarrier(object, field_offset, double_value);
         } else {
           if (do_transitioning_store) {
             TNode<HeapNumber> heap_number =
@@ -1911,8 +1910,7 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
   BIND(&do_store);
   // Do the store.
   if (store_value_as_double) {
-    StoreObjectFieldNoWriteBarrier(property_storage, offset, *double_value,
-                                   MachineRepresentation::kFloat64);
+    StoreObjectFieldNoWriteBarrier(property_storage, offset, *double_value);
   } else if (representation.IsSmi()) {
     TNode<Smi> value_smi = CAST(value);
     StoreObjectFieldNoWriteBarrier(property_storage, offset, value_smi);

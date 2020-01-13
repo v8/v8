@@ -69,7 +69,7 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
                                  SloppyTNode<Context> native_context,
                                  TNode<Object> promise_constructor,
                                  TNode<Object> executor, Label* if_noaccess);
-  void PromiseInit(Node* promise);
+  void PromiseInit(TNode<JSPromise> promise);
 
   // We can shortcut the SpeciesConstructor on {promise_map} if it's
   // [[Prototype]] is the (initial)  Promise.prototype and the @@species
