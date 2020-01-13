@@ -1085,6 +1085,7 @@ torque_files = [
   "src/objects/promise.tq",
   "src/objects/property-array.tq",
   "src/objects/property-cell.tq",
+  "src/objects/property-descriptor-object.tq",
   "src/objects/prototype-info.tq",
   "src/objects/regexp-match-info.tq",
   "src/objects/scope-info.tq",

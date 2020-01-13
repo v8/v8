@@ -34,7 +34,7 @@ class ObjectBuiltinsAssembler : public CodeStubAssembler {
                          Handle<Name> name, TNode<Object> value,
                          Label* bailout);
   TNode<JSObject> FromPropertyDescriptor(TNode<Context> context,
-                                         TNode<FixedArray> desc);
+                                         TNode<PropertyDescriptorObject> desc);
   TNode<JSObject> FromPropertyDetails(TNode<Context> context,
                                       TNode<Object> raw_value,
                                       TNode<Word32T> details,
@@ -1369,10 +1369,10 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
 
     GotoIf(IsUndefined(desc), &return_undefined);
 
-    TNode<FixedArray> desc_array = CAST(desc);
+    TNode<PropertyDescriptorObject> desc_object = CAST(desc);
 
     // 4. Return FromPropertyDescriptor(desc).
-    TNode<JSObject> js_desc = FromPropertyDescriptor(context, desc_array);
+    TNode<JSObject> js_desc = FromPropertyDescriptor(context, desc_object);
     args.PopAndReturn(js_desc);
   }
   BIND(&return_undefined);
@@ -1392,7 +1392,7 @@ void ObjectBuiltinsAssembler::AddToDictionaryIf(
 }
 
 TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
-    TNode<Context> context, TNode<FixedArray> desc) {
+    TNode<Context> context, TNode<PropertyDescriptorObject> desc) {
   TVARIABLE(JSObject, js_descriptor);
 
   TNode<Int32T> flags = LoadAndUntagToWord32ObjectField(

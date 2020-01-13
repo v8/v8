@@ -190,7 +190,6 @@ class ZoneForwardList;
   V(PromiseReactionJobTask)                    \
   V(PropertyArray)                             \
   V(PropertyCell)                              \
-  V(PropertyDescriptorObject)                  \
   V(RegExpMatchInfo)                           \
   V(ScopeInfo)                                 \
   V(ScriptContextTable)                        \

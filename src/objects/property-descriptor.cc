@@ -341,8 +341,8 @@ void PropertyDescriptor::CompletePropertyDescriptor(Isolate* isolate,
 
 Handle<PropertyDescriptorObject> PropertyDescriptor::ToPropertyDescriptorObject(
     Isolate* isolate) {
-  Handle<PropertyDescriptorObject> obj = Handle<PropertyDescriptorObject>::cast(
-      isolate->factory()->NewFixedArray(PropertyDescriptorObject::kLength));
+  Handle<PropertyDescriptorObject> obj =
+      isolate->factory()->NewPropertyDescriptorObject();
 
   int flags =
       PropertyDescriptorObject::IsEnumerableBit::encode(enumerable_) |
@@ -355,14 +355,11 @@ Handle<PropertyDescriptorObject> PropertyDescriptor::ToPropertyDescriptorObject(
       PropertyDescriptorObject::HasGetBit::encode(has_get()) |
       PropertyDescriptorObject::HasSetBit::encode(has_set());
 
-  obj->set(PropertyDescriptorObject::kFlagsIndex, Smi::FromInt(flags));
+  obj->set_flags(Smi::FromInt(flags));
 
-  obj->set(PropertyDescriptorObject::kValueIndex,
-           has_value() ? *value_ : ReadOnlyRoots(isolate).the_hole_value());
-  obj->set(PropertyDescriptorObject::kGetIndex,
-           has_get() ? *get_ : ReadOnlyRoots(isolate).the_hole_value());
-  obj->set(PropertyDescriptorObject::kSetIndex,
-           has_set() ? *set_ : ReadOnlyRoots(isolate).the_hole_value());
+  if (has_value()) obj->set_value(*value_);
+  if (has_get()) obj->set_get(*get_);
+  if (has_set()) obj->set_set(*set_);
 
   return obj;
 }

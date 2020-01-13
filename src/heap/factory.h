@@ -225,6 +225,9 @@ class V8_EXPORT_PRIVATE Factory {
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
 
+  // Create a new PropertyDescriptorObject struct.
+  Handle<PropertyDescriptorObject> NewPropertyDescriptorObject();
+
   // Finds the internalized copy for string in the string table.
   // If not found, a new string is added to the table and returned.
   Handle<String> InternalizeUtf8String(const Vector<const char>& str);

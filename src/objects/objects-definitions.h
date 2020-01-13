@@ -138,6 +138,8 @@ namespace internal {
   V(_, INTERPRETER_DATA_TYPE, InterpreterData, interpreter_data)              \
   V(_, PROMISE_CAPABILITY_TYPE, PromiseCapability, promise_capability)        \
   V(_, PROMISE_REACTION_TYPE, PromiseReaction, promise_reaction)              \
+  V(_, PROPERTY_DESCRIPTOR_OBJECT_TYPE, PropertyDescriptorObject,             \
+    property_descriptor_object)                                               \
   V(_, PROTOTYPE_INFO_TYPE, PrototypeInfo, prototype_info)                    \
   V(_, SCRIPT_TYPE, Script, script)                                           \
   V(_, SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, SourceTextModuleInfoEntry,         \

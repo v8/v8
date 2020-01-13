@@ -51,6 +51,7 @@
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
+#include "src/objects/property-descriptor-object-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/struct-inl.h"
@@ -704,6 +705,17 @@ Handle<AccessorPair> Factory::NewAccessorPair() {
   accessors->set_getter(*null_value(), SKIP_WRITE_BARRIER);
   accessors->set_setter(*null_value(), SKIP_WRITE_BARRIER);
   return accessors;
+}
+
+Handle<PropertyDescriptorObject> Factory::NewPropertyDescriptorObject() {
+  Handle<PropertyDescriptorObject> object =
+      Handle<PropertyDescriptorObject>::cast(
+          NewStruct(PROPERTY_DESCRIPTOR_OBJECT_TYPE, AllocationType::kYoung));
+  object->set_flags(Smi::zero());
+  object->set_value(*the_hole_value(), SKIP_WRITE_BARRIER);
+  object->set_get(*the_hole_value(), SKIP_WRITE_BARRIER);
+  object->set_set(*the_hole_value(), SKIP_WRITE_BARRIER);
+  return object;
 }
 
 // Internalized strings are created in the old generation (data space).

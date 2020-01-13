@@ -167,6 +167,7 @@
 //       - StackFrameInfo
 //       - StackTraceFrame
 //       - CodeCache
+//       - PropertyDescriptorObject
 //       - PrototypeInfo
 //       - Microtask
 //         - CallbackTask

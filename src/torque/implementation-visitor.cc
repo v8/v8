@@ -3584,6 +3584,8 @@ void ImplementationVisitor::GenerateClassDefinitions(
     implementation << "#include \"src/objects/microtask-inl.h\"\n";
     implementation << "#include \"src/objects/module-inl.h\"\n";
     implementation << "#include \"src/objects/promise-inl.h\"\n";
+    implementation
+        << "#include \"src/objects/property-descriptor-object-inl.h\"\n";
     implementation << "#include \"src/objects/stack-frame-info-inl.h\"\n";
     implementation << "#include \"src/objects/struct-inl.h\"\n";
     implementation << "#include \"src/objects/template-objects-inl.h\"\n\n";
