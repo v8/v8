@@ -3258,7 +3258,8 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16RoundingAverageU, kArm64I8x16RoundingAverageU) \
   V(S128And, kArm64S128And)                             \
   V(S128Or, kArm64S128Or)                               \
-  V(S128Xor, kArm64S128Xor)
+  V(S128Xor, kArm64S128Xor)                             \
+  V(S128AndNot, kArm64S128AndNot)
 
 void InstructionSelector::VisitS128Zero(Node* node) {
   Arm64OperandGenerator g(this);

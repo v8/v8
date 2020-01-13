@@ -2395,6 +2395,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              i.InputSimd128Register(2).V16B());
       break;
     }
+      SIMD_BINOP_CASE(kArm64S128AndNot, Bic, 16B);
     case kArm64S32x4Shuffle: {
       Simd128Register dst = i.OutputSimd128Register().V4S(),
                       src0 = i.InputSimd128Register(0).V4S(),
