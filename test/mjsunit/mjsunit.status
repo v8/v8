@@ -1077,13 +1077,6 @@
 }], # arch not in (x64, ia32, arm64, arm)
 
 ##############################################################################
-['arch not in [x64, arm, arm64] or system != linux', {
-  # Unwinding info writer is only supported on x64, arm, and arm64 Linux
-  'regress/regress-913844': [SKIP],
-  'regress/wasm/regress-1032753': [SKIP],
-}],
-
-##############################################################################
 ['system != linux', {
   # Multi-mapped mock allocator is only available on Linux.
   'regress/regress-crbug-1041232': [SKIP],

@@ -1526,6 +1526,16 @@ DEFINE_NEG_IMPLICATION(perf_prof, compact_code_space)
 // TODO(v8:8462) Remove implication once perf supports remapping.
 DEFINE_NEG_IMPLICATION(perf_prof, write_protect_code_memory)
 DEFINE_NEG_IMPLICATION(perf_prof, wasm_write_protect_code_memory)
+
+// --perf-prof-unwinding-info is available only on selected architectures.
+#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
+    !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
+#undef DEFINE_PERF_PROF_BOOL
+#define DEFINE_PERF_PROF_BOOL(nam, cmt) DEFINE_BOOL_READONLY(nam, false, cmt)
+#undef DEFINE_PERF_PROF_IMPLICATION
+#define DEFINE_PERF_PROF_IMPLICATION(...)
+#endif
+
 DEFINE_PERF_PROF_BOOL(
     perf_prof_unwinding_info,
     "Enable unwinding info for perf linux profiler (experimental).")

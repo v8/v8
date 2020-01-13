@@ -33,20 +33,19 @@ namespace compiler {
 
 class InstructionBlock;
 
+static_assert(!FLAG_perf_prof_unwinding_info,
+              "--perf-prof-unwinding-info should be statically disabled if not "
+              "supported");
+
 class UnwindingInfoWriter {
  public:
-  explicit UnwindingInfoWriter(Zone* zone) {}
+  explicit UnwindingInfoWriter(Zone*) {}
 
-  void SetNumberOfInstructionBlocks(int number) {
-    if (FLAG_perf_prof_unwinding_info) UNIMPLEMENTED();
-  }
+  void SetNumberOfInstructionBlocks(int number) {}
 
-  void BeginInstructionBlock(int pc_offset, const InstructionBlock* block) {
-    if (FLAG_perf_prof_unwinding_info) UNIMPLEMENTED();
-  }
-  void EndInstructionBlock(const InstructionBlock* block) {
-    if (FLAG_perf_prof_unwinding_info) UNIMPLEMENTED();
-  }
+  void BeginInstructionBlock(int pc_offset, const InstructionBlock*) {}
+
+  void EndInstructionBlock(const InstructionBlock*) {}
 
   void Finish(int code_size) {}
 
