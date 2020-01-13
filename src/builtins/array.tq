@@ -26,9 +26,10 @@ namespace array {
     // extract FixedArrays and don't have to worry about FixedDoubleArrays.
     assert(IsFastSmiOrTaggedElementsKind(array.map.elements_kind));
 
-    const length: Smi = Cast<Smi>(array.length) otherwise unreachable;
-    array.elements = ExtractFixedArray(
-        elements, 0, length, length, ExtractFixedArrayFlag::kFixedArrays);
+    const length =
+        Convert<intptr>(Cast<Smi>(array.length) otherwise unreachable);
+    array.elements =
+        ExtractFixedArray(UnsafeCast<FixedArray>(elements), 0, length, length);
     assert(array.elements.map != kCOWMap);
   }
 

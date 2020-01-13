@@ -135,9 +135,8 @@ namespace array {
       deferred {
         const newLength: intptr = CalculateNewElementsCapacity(length);
         assert(index < newLength);
-        const newfixedArray: FixedArray = ExtractFixedArray(
-            fixedArray, 0, length, newLength,
-            ExtractFixedArrayFlag::kFixedArrays);
+        const newfixedArray: FixedArray =
+            ExtractFixedArray(fixedArray, 0, length, newLength);
         newfixedArray.objects[index] = element;
         return newfixedArray;
       }

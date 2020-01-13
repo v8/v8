@@ -905,8 +905,7 @@ namespace test {
     let it = slice.Iterator();
     let count: Smi = 0;
     while (true) {
-      let ref = it.Next() otherwise break;
-      const value = UnsafeCast<Smi>(* ref);
+      const value = UnsafeCast<Smi>(it.Next() otherwise break);
       check(value == count + 7);
       count++;
     }

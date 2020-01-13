@@ -7,25 +7,26 @@ namespace array {
   // FixedArrayType. Most of this behavior is outsourced to ExtractFixedArray(),
   // but the special case of wanting to have a FixedDoubleArray when given a
   // zero-length input FixedArray is handled here.
-  macro Extract<FixedArrayType : type extends FixedArrayBase>(
-      elements: FixedArrayBase, first: Smi, count: Smi,
-      capacity: Smi): FixedArrayType;
-
-  Extract<FixedArray>(implicit context: Context)(
-      elements: FixedArrayBase, first: Smi, count: Smi,
-      capacity: Smi): FixedArray {
-    return UnsafeCast<FixedArray>(
-        ExtractFixedArray(elements, first, count, capacity));
+  macro Extract(implicit context: Context)(
+      elements: FixedArray, first: Smi, count: Smi, capacity: Smi): FixedArray {
+    return ExtractFixedArray(
+        elements, Convert<intptr>(first), Convert<intptr>(count),
+        Convert<intptr>(capacity));
   }
 
-  Extract<FixedDoubleArray>(implicit context: Context)(
-      elements: FixedArrayBase, first: Smi, count: Smi,
-      capacity: Smi): FixedDoubleArray {
-    if (elements == kEmptyFixedArray) {
-      return AllocateZeroedFixedDoubleArray(Convert<intptr>(capacity));
+  macro Extract(implicit context: Context)(
+      elements: FixedDoubleArray|EmptyFixedArray, first: Smi, count: Smi,
+      capacity: Smi): FixedDoubleArray|EmptyFixedArray {
+    typeswitch (elements) {
+      case (EmptyFixedArray): {
+        return AllocateZeroedFixedDoubleArray(Convert<intptr>(capacity));
+      }
+      case (elements: FixedDoubleArray): {
+        return ExtractFixedDoubleArray(
+            elements, Convert<intptr>(first), Convert<intptr>(count),
+            Convert<intptr>(capacity));
+      }
     }
-    return UnsafeCast<FixedDoubleArray>(
-        ExtractFixedArray(elements, first, count, capacity));
   }
 
   macro DoMoveElements<FixedArrayType : type extends FixedArrayBase>(
@@ -60,29 +61,29 @@ namespace array {
     array::EnsureWriteableFastElements(a);
 
     if (insertCount != actualDeleteCount) {
-      const elements: FixedArrayBase = a.elements;
+      const elements =
+          UnsafeCast<(FixedArrayType | EmptyFixedArray)>(a.elements);
       const dstIndex: Smi = actualStart + insertCount;
       const srcIndex: Smi = actualStart + actualDeleteCount;
       const count: Smi = length - actualDeleteCount - actualStart;
       if (insertCount < actualDeleteCount) {
         // Shrink.
-        DoMoveElements<FixedArrayType>(
+        DoMoveElements(
             UnsafeCast<FixedArrayType>(elements), dstIndex, srcIndex, count);
-        StoreHoles<FixedArrayType>(
-            UnsafeCast<FixedArrayType>(elements), newLength, length);
+        StoreHoles(UnsafeCast<FixedArrayType>(elements), newLength, length);
       } else if (insertCount > actualDeleteCount) {
         // If the backing store is big enough, then moving elements is enough.
         if (newLength <= elements.length) {
-          DoMoveElements<FixedArrayType>(
+          DoMoveElements(
               UnsafeCast<FixedArrayType>(elements), dstIndex, srcIndex, count);
         } else {
           // Grow.
           const capacity: Smi = CalculateNewElementsCapacity(newLength);
-          const newElements: FixedArrayType =
-              Extract<FixedArrayType>(elements, 0, actualStart, capacity);
+          const newElements: FixedArrayType = UnsafeCast<FixedArrayType>(
+              Extract(elements, 0, actualStart, capacity));
           a.elements = newElements;
           if (elements.length > 0) {
-            DoCopyElements<FixedArrayType>(
+            DoCopyElements(
                 newElements, dstIndex, UnsafeCast<FixedArrayType>(elements),
                 srcIndex, count);
           }

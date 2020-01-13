@@ -288,6 +288,32 @@ Cast<FixedDoubleArray>(o: HeapObject): FixedDoubleArray
   return HeapObjectToFixedDoubleArray(o) otherwise CastError;
 }
 
+Cast<EmptyFixedArray>(o: Object): EmptyFixedArray
+    labels CastError {
+  if (o != kEmptyFixedArray) goto CastError;
+  return %RawDownCast<EmptyFixedArray>(o);
+}
+Cast<EmptyFixedArray>(o: HeapObject): EmptyFixedArray
+    labels CastError {
+  const o: Object = o;
+  return Cast<EmptyFixedArray>(o) otherwise CastError;
+}
+
+Cast<(FixedDoubleArray | EmptyFixedArray)>(o: HeapObject): FixedDoubleArray|
+    EmptyFixedArray labels CastError {
+  typeswitch (o) {
+    case (o: EmptyFixedArray): {
+      return o;
+    }
+    case (o: FixedDoubleArray): {
+      return o;
+    }
+    case (HeapObject): {
+      goto CastError;
+    }
+  }
+}
+
 Cast<SloppyArgumentsElements>(o: HeapObject): SloppyArgumentsElements
     labels CastError {
   return HeapObjectToSloppyArgumentsElements(o) otherwise CastError;

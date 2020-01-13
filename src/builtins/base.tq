@@ -886,6 +886,7 @@ macro UnsafeCast<A : type extends Object>(implicit context: Context)(o: Object):
 }
 
 extern macro FixedArrayMapConstant(): Map;
+extern macro FixedDoubleArrayMapConstant(): Map;
 extern macro FixedCOWArrayMapConstant(): Map;
 extern macro EmptyByteArrayConstant(): ByteArray;
 extern macro EmptyFixedArrayConstant(): EmptyFixedArray;
@@ -895,6 +896,7 @@ extern macro StringMapConstant(): Map;
 extern macro SloppyArgumentsElementsMapConstant(): Map;
 
 const kFixedArrayMap: Map = FixedArrayMapConstant();
+const kFixedDoubleArrayMap: Map = FixedDoubleArrayMapConstant();
 const kCOWMap: Map = FixedCOWArrayMapConstant();
 const kEmptyByteArray: ByteArray = EmptyByteArrayConstant();
 const kEmptyFixedArray: EmptyFixedArray = EmptyFixedArrayConstant();

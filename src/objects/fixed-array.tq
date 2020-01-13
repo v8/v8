@@ -99,17 +99,39 @@ extern macro CopyFixedArrayElements(
     constexpr ElementsKind, FixedArray, constexpr ElementsKind, FixedArray, Smi,
     Smi, Smi): void;
 
-extern macro ExtractFixedArray(FixedArrayBase, Smi, Smi, Smi): FixedArrayBase;
-extern macro ExtractFixedArray(
-    FixedArrayBase, Smi, Smi, Smi,
-    constexpr ExtractFixedArrayFlag): FixedArrayBase;
+macro ExtractFixedArray(
+    source: FixedArray, first: intptr, count: intptr,
+    capacity: intptr): FixedArray {
+  // TODO(tebbi): This should be optimized to use memcpy for initialization.
+  return NewFixedArray(
+      capacity,
+      IteratorSequence<Object>(
+          (& source.objects).Iterator(first, first + count),
+          ConstantIterator(TheHole)));
+}
+macro ExtractFixedDoubleArray(
+    source: FixedDoubleArray, first: intptr, count: intptr,
+    capacity: intptr): FixedDoubleArray|EmptyFixedArray {
+  // TODO(tebbi): This should be optimized to use memcpy for initialization.
+  return NewFixedDoubleArray(
+      capacity,
+      IteratorSequence<float64_or_hole>(
+          (& source.floats).Iterator(first, first + count),
+          ConstantIterator(kDoubleHole)));
+}
 
-extern macro ExtractFixedArray(
-    FixedArray, intptr, intptr, intptr,
-    constexpr ExtractFixedArrayFlag): FixedArray;
-
-macro NewFixedArray<I: type>(length: intptr, it: I): FixedArray {
+macro NewFixedArray<Iterator: type>(length: intptr, it: Iterator): FixedArray {
   if (length == 0) return kEmptyFixedArray;
   return new
   FixedArray{map: kFixedArrayMap, length: Convert<Smi>(length), objects: ...it};
+}
+
+macro NewFixedDoubleArray<Iterator: type>(
+    length: intptr, it: Iterator): FixedDoubleArray|EmptyFixedArray {
+  if (length == 0) return kEmptyFixedArray;
+  return new FixedDoubleArray{
+    map: kFixedDoubleArrayMap,
+    length: Convert<Smi>(length),
+    floats: ...it
+  };
 }

@@ -63,6 +63,19 @@ namespace torque_internal {
         unsafeMarker: Unsafe {}
       };
     }
+    macro Iterator(startIndex: intptr, endIndex: intptr): SliceIterator<T> {
+      check(
+          Convert<uintptr>(endIndex) <= Convert<uintptr>(this.length) &&
+          Convert<uintptr>(startIndex) <= Convert<uintptr>(endIndex));
+      const start = this.offset + startIndex * %SizeOf<T>();
+      const end = this.offset + endIndex * %SizeOf<T>();
+      return SliceIterator<T>{
+        object: this.object,
+        start,
+        end,
+        unsafeMarker: Unsafe {}
+      };
+    }
 
     const object: HeapObject;
     const offset: intptr;
@@ -85,7 +98,11 @@ namespace torque_internal {
       return this.start == this.end;
     }
 
-    macro Next():&T labels NoMore {
+    macro Next(): T labels NoMore {
+      return * this.NextReference() otherwise NoMore;
+    }
+
+    macro NextReference():&T labels NoMore {
       if (this.Empty()) {
         goto NoMore;
       } else {
@@ -143,7 +160,7 @@ namespace torque_internal {
     let targetIterator = target.Iterator();
     let originIterator = originIterator;
     while (true) {
-      const ref:&T = targetIterator.Next() otherwise break;
+      const ref:&T = targetIterator.NextReference() otherwise break;
       * ref = originIterator.Next() otherwise unreachable;
     }
   }
@@ -180,3 +197,23 @@ struct UninitializedIterator {}
 // type assert()
 intrinsic %RawDownCast<To: type, From: type>(x: From): To;
 intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;
+
+struct IteratorSequence<T: type, FirstIterator: type, SecondIterator: type> {
+  macro Empty(): bool {
+    return this.first.Empty() && this.second.Empty();
+  }
+
+  macro Next(): T labels NoMore {
+    return this.first.Next()
+        otherwise return (this.second.Next() otherwise NoMore);
+  }
+
+  first: FirstIterator;
+  second: SecondIterator;
+}
+
+macro IteratorSequence<T: type, FirstIterator: type, SecondIterator: type>(
+    first: FirstIterator, second: SecondIterator):
+    IteratorSequence<T, FirstIterator, SecondIterator> {
+  return IteratorSequence<T>{first, second};
+}

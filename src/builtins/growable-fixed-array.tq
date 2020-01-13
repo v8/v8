@@ -14,9 +14,7 @@ namespace growable_fixed_array {
       assert(newCapacity >= 0);
       assert(newCapacity >= this.length);
       const first: intptr = 0;
-      return ExtractFixedArray(
-          this.array, first, this.length, newCapacity,
-          ExtractFixedArrayFlag::kFixedArrays);
+      return ExtractFixedArray(this.array, first, this.length, newCapacity);
     }
     macro EnsureCapacity() {
       assert(this.length <= this.capacity);
