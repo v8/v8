@@ -40,13 +40,8 @@ namespace liftoff {
 //
 
 constexpr int kInstanceOffset = 2 * kSystemPointerSize;
-constexpr int kConstantStackSpace = 0;
 
-inline int GetStackSlotOffset(int offset) { return kInstanceOffset + offset; }
-
-inline MemOperand GetStackSlot(int offset) {
-  return MemOperand(fp, -GetStackSlotOffset(offset));
-}
+inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 
 inline MemOperand GetInstanceOperand() {
   return MemOperand(fp, -kInstanceOffset);
@@ -118,19 +113,18 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
   static_assert(kStackSlotSize == kXRegSize,
                 "kStackSlotSize must equal kXRegSize");
-  int bytes = liftoff::kConstantStackSpace + spill_size;
   // The stack pointer is required to be quadword aligned.
   // Misalignment will cause a stack alignment fault.
-  bytes = RoundUp(bytes, kQuadWordSizeInBytes);
-  if (!IsImmAddSub(bytes)) {
+  frame_size = RoundUp(frame_size, kQuadWordSizeInBytes);
+  if (!IsImmAddSub(frame_size)) {
     // Round the stack to a page to try to fit a add/sub immediate.
-    bytes = RoundUp(bytes, 0x1000);
-    if (!IsImmAddSub(bytes)) {
+    frame_size = RoundUp(frame_size, 0x1000);
+    if (!IsImmAddSub(frame_size)) {
       // Stack greater than 4M! Because this is a quite improbable case, we
-      // just fallback to Turbofan.
+      // just fallback to TurboFan.
       bailout(kOtherReason, "Stack too big");
       return;
     }
@@ -139,7 +133,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
   // When using the simulator, deal with Liftoff which allocates the stack
   // before checking it.
   // TODO(arm): Remove this when the stack check mechanism will be updated.
-  if (bytes > KB / 2) {
+  if (frame_size > KB / 2) {
     bailout(kOtherReason,
             "Stack limited to 512 bytes to avoid a bug in StackCheck");
     return;
@@ -148,7 +142,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
   PatchingAssembler patching_assembler(AssemblerOptions{},
                                        buffer_start_ + offset, 1);
 #if V8_OS_WIN
-  if (bytes > kStackPageSize) {
+  if (frame_size > kStackPageSize) {
     // Generate OOL code (at the end of the function, where the current
     // assembler is pointing) to do the explicit stack limit check (see
     // https://docs.microsoft.com/en-us/previous-versions/visualstudio/
@@ -159,7 +153,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
     patching_assembler.b(ool_offset >> kInstrSizeLog2);
 
     // Now generate the OOL code.
-    Claim(bytes, 1);
+    Claim(frame_size, 1);
     // Jump back to the start of the function (from {pc_offset()} to {offset +
     // kInstrSize}).
     int func_start_offset = offset + kInstrSize - pc_offset();
@@ -167,12 +161,17 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
     return;
   }
 #endif
-  patching_assembler.PatchSubSp(bytes);
+  patching_assembler.PatchSubSp(frame_size);
 }
 
 void LiftoffAssembler::FinishCode() { ForceConstantPoolEmissionWithoutJump(); }
 
 void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
+
+// static
+constexpr int LiftoffAssembler::StaticStackFrameSize() {
+  return liftoff::kInstanceOffset;
+}
 
 int LiftoffAssembler::SlotSizeForType(ValueType type) {
   // TODO(zhin): Unaligned access typically take additional cycles, we should do
@@ -423,7 +422,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   DCHECK_EQ(0, size % 4);
   RecordUsedSpillOffset(start + size);
 
-  int max_stp_offset = -liftoff::GetStackSlotOffset(start + size);
+  int max_stp_offset = -start - size;
   if (size <= 12 * kStackSlotSize &&
       IsImmLSPair(max_stp_offset, kXRegSizeLog2)) {
     // Special straight-line code for up to 12 slots. Generates one
@@ -456,7 +455,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     UseScratchRegisterScope temps(this);
     Register address_reg = temps.AcquireX();
     // This {Sub} might use another temp register if the offset is too large.
-    Sub(address_reg, fp, liftoff::GetStackSlotOffset(start + size));
+    Sub(address_reg, fp, start + size);
     Register count_reg = temps.AcquireX();
     Mov(count_reg, size / 4);
 

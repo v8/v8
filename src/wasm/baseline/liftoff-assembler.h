@@ -290,11 +290,10 @@ class LiftoffAssembler : public TurboAssembler {
     return offset;
   }
 
-  int TopSpillOffset() {
-    if (cache_state_.stack_state.empty()) {
-      return 0;
-    }
-    return cache_state_.stack_state.back().offset();
+  int TopSpillOffset() const {
+    return cache_state_.stack_state.empty()
+               ? StaticStackFrameSize()
+               : cache_state_.stack_state.back().offset();
   }
 
   void PushRegister(ValueType type, LiftoffRegister reg) {
@@ -371,7 +370,7 @@ class LiftoffAssembler : public TurboAssembler {
   // Call this method whenever spilling something, such that the number of used
   // spill slot can be tracked and the stack frame will be allocated big enough.
   void RecordUsedSpillOffset(int offset) {
-    if (offset >= num_used_spill_bytes_) num_used_spill_bytes_ = offset;
+    if (offset >= max_used_spill_offset_) max_used_spill_offset_ = offset;
   }
 
   // Load parameters into the right registers / stack slots for the call.
@@ -415,9 +414,10 @@ class LiftoffAssembler : public TurboAssembler {
   // which can later be patched (via {PatchPrepareStackFrame)} when the size of
   // the frame is known.
   inline int PrepareStackFrame();
-  inline void PatchPrepareStackFrame(int offset, int spill_size);
+  inline void PatchPrepareStackFrame(int offset, int frame_size);
   inline void FinishCode();
   inline void AbortCompilation();
+  inline static constexpr int StaticStackFrameSize();
   inline static int SlotSizeForType(ValueType type);
   inline static bool NeedsAlignment(ValueType type);
 
@@ -692,10 +692,10 @@ class LiftoffAssembler : public TurboAssembler {
 
   int GetTotalFrameSlotCount() const {
     // TODO(zhin): Temporary for migration from index to offset.
-    return ((num_used_spill_bytes_ + kStackSlotSize - 1) / kStackSlotSize);
+    return ((max_used_spill_offset_ + kStackSlotSize - 1) / kStackSlotSize);
   }
 
-  int GetTotalFrameSlotSize() const { return num_used_spill_bytes_; }
+  int GetTotalFrameSize() const { return max_used_spill_offset_; }
 
   ValueType local_type(uint32_t index) {
     DCHECK_GT(num_locals_, index);
@@ -735,7 +735,7 @@ class LiftoffAssembler : public TurboAssembler {
   static_assert(sizeof(ValueType) == 1,
                 "Reconsider this inlining if ValueType gets bigger");
   CacheState cache_state_;
-  int num_used_spill_bytes_ = 0;
+  int max_used_spill_offset_ = StaticStackFrameSize();
   LiftoffBailoutReason bailout_reason_ = kSuccess;
   const char* bailout_detail_ = nullptr;
 

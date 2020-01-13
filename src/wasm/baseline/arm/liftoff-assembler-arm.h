@@ -38,22 +38,17 @@ namespace liftoff {
 static_assert(2 * kSystemPointerSize == LiftoffAssembler::kStackSlotSize,
               "Slot size should be twice the size of the 32 bit pointer.");
 constexpr int kInstanceOffset = 2 * kSystemPointerSize;
-constexpr int kConstantStackSpace = kSystemPointerSize;
 // kPatchInstructionsRequired sets a maximum limit of how many instructions that
 // PatchPrepareStackFrame will use in order to increase the stack appropriately.
 // Three instructions are required to sub a large constant, movw + movt + sub.
 constexpr int32_t kPatchInstructionsRequired = 3;
 
-inline int GetStackSlotOffset(int offset) { return kInstanceOffset + offset; }
-
-inline MemOperand GetStackSlot(int offset) {
-  return MemOperand(fp, -GetStackSlotOffset(offset));
-}
+inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 
 inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
       half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
-  return MemOperand(fp, -kInstanceOffset - offset + half_offset);
+  return MemOperand(fp, -offset + half_offset);
 }
 
 inline MemOperand GetInstanceOperand() {
@@ -240,14 +235,12 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
-  // Allocate space for instance plus what is needed for the frame slots.
-  int bytes = liftoff::kConstantStackSpace + spill_size;
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
 #ifdef USE_SIMULATOR
   // When using the simulator, deal with Liftoff which allocates the stack
   // before checking it.
   // TODO(arm): Remove this when the stack check mechanism will be updated.
-  if (bytes > KB / 2) {
+  if (frame_size > KB / 2) {
     bailout(kOtherReason,
             "Stack limited to 512 bytes to avoid a bug in StackCheck");
     return;
@@ -257,7 +250,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
                                        buffer_start_ + offset,
                                        liftoff::kPatchInstructionsRequired);
 #if V8_OS_WIN
-  if (bytes > kStackPageSize) {
+  if (frame_size > kStackPageSize) {
     // Generate OOL code (at the end of the function, where the current
     // assembler is pointing) to do the explicit stack limit check (see
     // https://docs.microsoft.com/en-us/previous-versions/visualstudio/
@@ -278,13 +271,18 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
     return;
   }
 #endif
-  patching_assembler.sub(sp, sp, Operand(bytes));
+  patching_assembler.sub(sp, sp, Operand(frame_size));
   patching_assembler.PadWithNops();
 }
 
 void LiftoffAssembler::FinishCode() { CheckConstPool(true, false); }
 
 void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
+
+// static
+constexpr int LiftoffAssembler::StaticStackFrameSize() {
+  return liftoff::kInstanceOffset;
+}
 
 int LiftoffAssembler::SlotSizeForType(ValueType type) {
   switch (type) {
@@ -682,8 +680,8 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     // Use r1 for start address (inclusive), r2 for end address (exclusive).
     push(r1);
     push(r2);
-    sub(r1, fp, Operand(liftoff::GetStackSlotOffset(start + size)));
-    sub(r2, fp, Operand(liftoff::GetStackSlotOffset(start)));
+    sub(r1, fp, Operand(start + size));
+    sub(r2, fp, Operand(start));
 
     Label loop;
     bind(&loop);

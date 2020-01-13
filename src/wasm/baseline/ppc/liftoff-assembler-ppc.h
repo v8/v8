@@ -39,8 +39,6 @@ namespace liftoff {
 
 constexpr int32_t kInstanceOffset = 2 * kSystemPointerSize;
 
-inline int GetStackSlotOffset(int offset) { return kInstanceOffset + offset; }
-
 inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
       half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
@@ -54,13 +52,18 @@ int LiftoffAssembler::PrepareStackFrame() {
   return 0;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
   bailout(kUnsupportedArchitecture, "PatchPrepareStackFrame");
 }
 
 void LiftoffAssembler::FinishCode() { EmitConstantPool(); }
 
 void LiftoffAssembler::AbortCompilation() { FinishCode(); }
+
+// static
+constexpr int LiftoffAssembler::StaticStackFrameSize() {
+  return liftoff::kInstanceOffset;
+}
 
 int LiftoffAssembler::SlotSizeForType(ValueType type) {
   switch (type) {
@@ -182,8 +185,8 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     // Use r4 for start address (inclusive), r5 for end address (exclusive).
     push(r4);
     push(r5);
-    subi(r4, fp, Operand(liftoff::GetStackSlotOffset(start + size)));
-    subi(r5, fp, Operand(liftoff::GetStackSlotOffset(start)));
+    subi(r4, fp, Operand(start + size));
+    subi(r5, fp, Operand(start));
 
     Label loop;
     bind(&loop);

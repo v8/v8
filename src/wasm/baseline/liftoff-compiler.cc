@@ -521,7 +521,7 @@ class LiftoffCompiler {
         ValueType type = decoder->GetLocalType(param_idx);
         __ PushStack(type);
       }
-      int spill_size = __ TopSpillOffset();
+      int spill_size = __ TopSpillOffset() - params_size;
       __ FillStackSlotsWithZero(params_size, spill_size);
     } else {
       for (uint32_t param_idx = num_params; param_idx < __ num_locals();
@@ -588,7 +588,7 @@ class LiftoffCompiler {
       GenerateOutOfLineCode(&ool);
     }
     __ PatchPrepareStackFrame(pc_offset_stack_frame_construction_,
-                              __ GetTotalFrameSlotSize());
+                              __ GetTotalFrameSize());
     __ FinishCode();
     safepoint_table_builder_.Emit(&asm_, __ GetTotalFrameSlotCount());
     __ MaybeEmitOutOfLineConstantPool();

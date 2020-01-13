@@ -43,13 +43,7 @@ namespace liftoff {
 // slot is located at fp-16-offset.
 constexpr int kConstantStackSpace = 16;
 
-inline int GetStackSlotOffset(int offset) {
-  return kConstantStackSpace + offset;
-}
-
-inline MemOperand GetStackSlot(int offset) {
-  return MemOperand(fp, -GetStackSlotOffset(offset));
-}
+inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 
 inline MemOperand GetInstanceOperand() { return MemOperand(fp, -16); }
 
@@ -240,8 +234,7 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
-  int bytes = liftoff::kConstantStackSpace + spill_size;
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 256;
@@ -251,12 +244,17 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
   // If bytes can be represented as 16bit, daddiu will be generated and two
   // nops will stay untouched. Otherwise, lui-ori sequence will load it to
   // register and, as third instruction, daddu will be generated.
-  patching_assembler.Daddu(sp, sp, Operand(-bytes));
+  patching_assembler.Daddu(sp, sp, Operand(-frame_size));
 }
 
 void LiftoffAssembler::FinishCode() {}
 
 void LiftoffAssembler::AbortCompilation() {}
+
+// static
+constexpr int LiftoffAssembler::StaticStackFrameSize() {
+  return liftoff::kConstantStackSpace;
+}
 
 int LiftoffAssembler::SlotSizeForType(ValueType type) {
   switch (type) {
@@ -559,8 +557,8 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     // General case for bigger counts (12 instructions).
     // Use a0 for start address (inclusive), a1 for end address (exclusive).
     Push(a1, a0);
-    Daddu(a0, fp, Operand(-liftoff::GetStackSlotOffset(start + size)));
-    Daddu(a1, fp, Operand(-liftoff::GetStackSlotOffset(start)));
+    Daddu(a0, fp, Operand(-start - size));
+    Daddu(a1, fp, Operand(-start));
 
     Label loop;
     bind(&loop);

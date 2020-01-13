@@ -282,10 +282,7 @@ class StackTransferRecipe {
 
     // All remaining moves are parts of a cycle. Just spill the first one, then
     // process all remaining moves in that cycle. Repeat for all cycles.
-    uint32_t last_spill_offset =
-        (asm_->cache_state()->stack_state.empty()
-             ? 0
-             : asm_->cache_state()->stack_state.back().offset());
+    int last_spill_offset = asm_->TopSpillOffset();
     while (!move_dst_regs_.is_empty()) {
       // TODO(clemensb): Use an unused register if available.
       LiftoffRegister dst = move_dst_regs_.GetFirstRegSet();

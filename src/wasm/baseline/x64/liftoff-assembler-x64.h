@@ -37,9 +37,7 @@ static_assert((kLiftoffAssemblerFpCacheRegs &
 // slot is located at rbp-16-offset.
 constexpr int kConstantStackSpace = 16;
 
-inline Operand GetStackSlot(int offset) {
-  return Operand(rbp, -kConstantStackSpace - offset);
-}
+inline Operand GetStackSlot(int offset) { return Operand(rbp, -offset); }
 
 // TODO(clemensb): Make this a constexpr variable once Operand is constexpr.
 inline Operand GetInstanceOperand() { return Operand(rbp, -16); }
@@ -136,10 +134,9 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
-  int bytes = liftoff::kConstantStackSpace + spill_size;
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
   // Need to align sp to system pointer size.
-  bytes = RoundUp(bytes, kSystemPointerSize);
+  frame_size = RoundUp(frame_size, kSystemPointerSize);
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 64;
@@ -147,7 +144,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
       AssemblerOptions{},
       ExternalAssemblerBuffer(buffer_start_ + offset, kAvailableSpace));
 #if V8_OS_WIN
-  if (bytes > kStackPageSize) {
+  if (frame_size > kStackPageSize) {
     // Generate OOL code (at the end of the function, where the current
     // assembler is pointing) to do the explicit stack limit check (see
     // https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-studio-6.0/aa227153(v=vs.60)).
@@ -160,7 +157,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
                            patching_assembler.pc_offset());
 
     // Now generate the OOL code.
-    AllocateStackSpace(bytes);
+    AllocateStackSpace(frame_size);
     // Jump back to the start of the function (from {pc_offset()} to {offset +
     // kSubSpSize}).
     int func_start_offset = offset + liftoff::kSubSpSize - pc_offset();
@@ -168,13 +165,18 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
     return;
   }
 #endif
-  patching_assembler.sub_sp_32(bytes);
+  patching_assembler.sub_sp_32(frame_size);
   DCHECK_EQ(liftoff::kSubSpSize, patching_assembler.pc_offset());
 }
 
 void LiftoffAssembler::FinishCode() {}
 
 void LiftoffAssembler::AbortCompilation() {}
+
+// static
+constexpr int LiftoffAssembler::StaticStackFrameSize() {
+  return liftoff::kConstantStackSpace;
+}
 
 int LiftoffAssembler::SlotSizeForType(ValueType type) {
   return ValueTypes::ElementSizeInBytes(type);

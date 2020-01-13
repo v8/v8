@@ -47,18 +47,12 @@ constexpr int32_t kHighWordOffset = 4;
 // slot is located at fp-8-offset.
 constexpr int kConstantStackSpace = 8;
 
-inline int GetStackSlotOffset(int offset) {
-  return kConstantStackSpace + offset;
-}
-
-inline MemOperand GetStackSlot(int offset) {
-  return MemOperand(fp, -GetStackSlotOffset(offset));
-}
+inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 
 inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
       half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
-  return MemOperand(fp, -kConstantStackSpace - offset + half_offset);
+  return MemOperand(fp, -offset + half_offset);
 }
 
 inline MemOperand GetInstanceOperand() { return MemOperand(fp, -8); }
@@ -282,8 +276,7 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
-  int bytes = liftoff::kConstantStackSpace + spill_size;
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 256;
@@ -293,12 +286,17 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, int spill_size) {
   // If bytes can be represented as 16bit, addiu will be generated and two
   // nops will stay untouched. Otherwise, lui-ori sequence will load it to
   // register and, as third instruction, addu will be generated.
-  patching_assembler.Addu(sp, sp, Operand(-bytes));
+  patching_assembler.Addu(sp, sp, Operand(-frame_size));
 }
 
 void LiftoffAssembler::FinishCode() {}
 
 void LiftoffAssembler::AbortCompilation() {}
+
+// static
+constexpr int LiftoffAssembler::StaticStackFrameSize() {
+  return liftoff::kInstanceOffset;
+}
 
 int LiftoffAssembler::SlotSizeForType(ValueType type) {
   switch (type) {
@@ -646,8 +644,8 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     // General case for bigger counts (12 instructions).
     // Use a0 for start address (inclusive), a1 for end address (exclusive).
     Push(a1, a0);
-    Addu(a0, fp, Operand(-liftoff::GetStackSlotOffset(start + size)));
-    Addu(a1, fp, Operand(-liftoff::GetStackSlotOffset(start)));
+    Addu(a0, fp, Operand(-start - size));
+    Addu(a1, fp, Operand(-start));
 
     Label loop;
     bind(&loop);
