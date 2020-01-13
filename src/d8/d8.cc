@@ -233,11 +233,16 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
     size_t rounded_length = RoundUp(length, kChunkSize);
     int prot = PROT_READ | PROT_WRITE;
     // We have to specify MAP_SHARED to make {mremap} below do what we want.
-    // We specify MAP_HUGETLB to reduce TLB load (fewer, bigger mappings).
-    int flags = MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB;
+    int flags = MAP_SHARED | MAP_ANONYMOUS;
     void* real_alloc = mmap(nullptr, kChunkSize, prot, flags, -1, 0);
+    if (reinterpret_cast<intptr_t>(real_alloc) == -1) {
+      FATAL("mmap (real) failed with error %d: %s", errno, strerror(errno));
+    }
     void* virtual_alloc =
         mmap(nullptr, rounded_length, prot, flags | MAP_NORESERVE, -1, 0);
+    if (reinterpret_cast<intptr_t>(virtual_alloc) == -1) {
+      FATAL("mmap (virtual) failed with error %d: %s", errno, strerror(errno));
+    }
     i::Address virtual_base = reinterpret_cast<i::Address>(virtual_alloc);
     i::Address virtual_end = virtual_base + rounded_length;
     for (i::Address to_map = virtual_base; to_map < virtual_end;
@@ -248,8 +253,9 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
       void* result =
           mremap(real_alloc, 0, kChunkSize, MREMAP_MAYMOVE | MREMAP_FIXED,
                  reinterpret_cast<void*>(to_map));
-      DCHECK_NE(-1, reinterpret_cast<intptr_t>(result));
-      USE(result);
+      if (reinterpret_cast<intptr_t>(result) == -1) {
+        FATAL("mremap failed with error %d: %s", errno, strerror(errno));
+      }
     }
     regions_[virtual_alloc] = real_alloc;
     return virtual_alloc;

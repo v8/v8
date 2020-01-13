@@ -1084,6 +1084,12 @@
 }],
 
 ##############################################################################
+['system != linux', {
+  # Multi-mapped mock allocator is only available on Linux.
+  'regress/regress-crbug-1041232': [SKIP],
+}],
+
+##############################################################################
 ['variant == turboprop', {
   # Deopts differently than TurboFan.
   'parallel-optimize-disabled': [SKIP],
