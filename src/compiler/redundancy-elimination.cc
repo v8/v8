@@ -237,7 +237,7 @@ Node* RedundancyElimination::EffectPathChecks::LookupBoundsCheckFor(
     Node* node) const {
   for (Check const* check = head_; check != nullptr; check = check->next) {
     if (check->node->opcode() == IrOpcode::kCheckBounds &&
-        check->node->InputAt(0) == node) {
+        check->node->InputAt(0) == node && TypeSubsumes(node, check->node)) {
       return check->node;
     }
   }
@@ -385,9 +385,7 @@ Reduction RedundancyElimination::ReduceSpeculativeNumberOperation(Node* node) {
     // than the type of the {first} node, otherwise we
     // would end up replacing NumberConstant inputs with
     // CheckBounds operations, which is kind of pointless.
-    // In addition, as always, we need to make sure not to widen types.
-    if (!NodeProperties::GetType(first).Is(NodeProperties::GetType(check)) &&
-        NodeProperties::GetType(check).Is(NodeProperties::GetType(first))) {
+    if (!NodeProperties::GetType(first).Is(NodeProperties::GetType(check))) {
       NodeProperties::ReplaceValueInput(node, check, 0);
     }
   }
