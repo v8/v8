@@ -67,6 +67,16 @@ std::ostream& operator<<(std::ostream& os, const GenericCallable& g) {
   return os;
 }
 
+SpecializationRequester::SpecializationRequester(SourcePosition position,
+                                                 Scope* scope, std::string name)
+    : position(position), name(std::move(name)) {
+  // Skip scopes that are not related to template specializations, they might be
+  // stack-allocated and not live for long enough.
+  while (scope && scope->GetSpecializationRequester().IsNone())
+    scope = scope->ParentScope();
+  this->scope = scope;
+}
+
 base::Optional<std::string> TypeConstraint::IsViolated(const Type* type) const {
   if (upper_bound && !type->IsSubtypeOf(*upper_bound)) {
     return {ToString("expected ", *type, " to be a subtype of ", *upper_bound)};

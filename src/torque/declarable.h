@@ -153,6 +153,8 @@ struct SpecializationRequester {
     return position == SourcePosition::Invalid() && scope == nullptr &&
            name == "";
   }
+  SpecializationRequester(SourcePosition position, Scope* scope,
+                          std::string name);
 };
 
 class Scope : public Declarable {
