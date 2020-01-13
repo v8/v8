@@ -20,7 +20,7 @@ import("gni/v8.gni")
 # Specifies if the target build is a simulator build. Comparing target cpu
 # with v8 target cpu to not affect simulator builds for making cross-compile
 # snapshots.
-is_target_simulator = (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
+target_is_simulator = (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
                       (current_cpu != v8_current_cpu && v8_multi_arch_build)
 
 # For faster Windows builds. See https://crbug.com/v8/8475.
@@ -170,7 +170,7 @@ declare_args() {
   # site-isolation in Chrome and on simulator builds which test code generation
   # on these platforms.
   v8_untrusted_code_mitigations =
-      v8_current_cpu != "x86" && (is_android || is_target_simulator)
+      v8_current_cpu != "x86" && (is_android || target_is_simulator)
 
   # Enable minor mark compact.
   v8_enable_minor_mc = true
@@ -542,7 +542,7 @@ config("toolchain") {
   }
 
   # Mips64el/mipsel simulators.
-  if (is_target_simulator &&
+  if (target_is_simulator &&
       (v8_current_cpu == "mipsel" || v8_current_cpu == "mips64el")) {
     defines += [ "_MIPS_TARGET_SIMULATOR" ]
   }
@@ -1290,6 +1290,13 @@ template("run_mksnapshot") {
       "--embedded_src",
       rebase_path("$target_gen_dir/embedded${suffix}.S", root_build_dir),
     ]
+
+    # This is needed to distinguish between generating code for the simulator
+    # and cross-compiling. The latter may need to run code on the host with the
+    # simulator but cannot use simulator-specific instructions.
+    if (target_is_simulator) {
+      args += [ "--target_is_simulator" ]
+    }
 
     args += invoker.args
 

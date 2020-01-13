@@ -1332,6 +1332,10 @@ DEFINE_STRING(startup_blob, nullptr,
 DEFINE_STRING(target_arch, nullptr,
               "The mksnapshot target arch. (mksnapshot only)")
 DEFINE_STRING(target_os, nullptr, "The mksnapshot target os. (mksnapshot only)")
+DEFINE_BOOL(target_is_simulator, false,
+            "Instruct mksnapshot that the target is meant to run in the "
+            "simulator and it can generate simulator-specific instructions. "
+            "(mksnapshot only)")
 
 //
 // Minor mark compact collector flags.

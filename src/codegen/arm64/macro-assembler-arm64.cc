@@ -3138,11 +3138,10 @@ void TurboAssembler::PrintfNoPreserve(const char* format,
 }
 
 void TurboAssembler::CallPrintf(int arg_count, const CPURegister* args) {
-// A call to printf needs special handling for the simulator, since the system
-// printf function will use a different instruction set and the procedure-call
-// standard will not be compatible.
-#ifdef USE_SIMULATOR
-  {
+  // A call to printf needs special handling for the simulator, since the system
+  // printf function will use a different instruction set and the procedure-call
+  // standard will not be compatible.
+  if (options().enable_simulator_code) {
     InstructionAccurateScope scope(this, kPrintfLength / kInstrSize);
     hlt(kImmExceptionIsPrintf);
     dc32(arg_count);  // kPrintfArgCountOffset
@@ -3161,10 +3160,10 @@ void TurboAssembler::CallPrintf(int arg_count, const CPURegister* args) {
       arg_pattern_list |= (arg_pattern << (kPrintfArgPatternBits * i));
     }
     dc32(arg_pattern_list);  // kPrintfArgPatternListOffset
+    return;
   }
-#else
+
   Call(ExternalReference::printf_function());
-#endif
 }
 
 void TurboAssembler::Printf(const char* format, CPURegister arg0,

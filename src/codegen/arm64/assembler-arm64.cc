@@ -3654,7 +3654,6 @@ void Assembler::EmitStringData(const char* string) {
 }
 
 void Assembler::debug(const char* message, uint32_t code, Instr params) {
-#ifdef USE_SIMULATOR
   if (options().enable_simulator_code) {
     // The arguments to the debug marker need to be contiguous in memory, so
     // make sure we don't try to emit pools.
@@ -3676,12 +3675,6 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
 
     return;
   }
-  // Fall through if Serializer is enabled.
-#else
-  // Make sure we haven't dynamically enabled simulator code when there is no
-  // simulator built in.
-  DCHECK(!options().enable_simulator_code);
-#endif
 
   if (params & BREAK) {
     brk(0);

@@ -476,14 +476,7 @@ Operand MemOperand::OffsetAsOperand() const {
   }
 }
 
-void Assembler::Unreachable() {
-#ifdef USE_SIMULATOR
-  debug("UNREACHABLE", __LINE__, BREAK);
-#else
-  // Crash by branching to 0. lr now points near the fault.
-  Emit(BLR | Rn(xzr));
-#endif
-}
+void Assembler::Unreachable() { debug("UNREACHABLE", __LINE__, BREAK); }
 
 Address Assembler::target_pointer_address_at(Address pc) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
