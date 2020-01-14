@@ -787,9 +787,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       Int64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt32(static_cast<int32_t>(m.Value()));
       if (m.IsChangeInt32ToInt64()) return Replace(m.node()->InputAt(0));
-      if (m.IsBitcastTaggedToWordForTagAndSmiBits()) {
-        Int64Matcher n(m.node()->InputAt(0));
-      }
       break;
     }
     case IrOpcode::kTruncateFloat64ToFloat32: {
@@ -878,6 +875,7 @@ Reduction MachineOperatorReducer::ReduceInt32Add(Node* node) {
       return Changed(node);
     }
   }
+
   return NoChange();
 }
 
