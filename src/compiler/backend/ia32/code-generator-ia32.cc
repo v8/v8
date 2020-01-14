@@ -3734,6 +3734,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mov(esp, tmp);
       break;
     }
+    case kIA32I16x8Load8x8S: {
+      __ Pmovsxbw(i.OutputSimd128Register(), i.MemoryOperand());
+      break;
+    }
+    case kIA32I16x8Load8x8U: {
+      __ Pmovzxbw(i.OutputSimd128Register(), i.MemoryOperand());
+      break;
+    }
+    case kIA32I32x4Load16x4S: {
+      __ Pmovsxwd(i.OutputSimd128Register(), i.MemoryOperand());
+      break;
+    }
+    case kIA32I32x4Load16x4U: {
+      __ Pmovzxwd(i.OutputSimd128Register(), i.MemoryOperand());
+      break;
+    }
     case kIA32S32x4Swizzle: {
       DCHECK_EQ(2, instr->InputCount());
       __ Pshufd(i.OutputSimd128Register(), i.InputOperand(0), i.InputInt8(1));
