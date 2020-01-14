@@ -972,46 +972,14 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
 
-    TVARIABLE(Smi, var_left_feedback);
-    TVARIABLE(Smi, var_right_feedback);
-    TVARIABLE(Word32T, var_left_word32);
-    TVARIABLE(Word32T, var_right_word32);
-    TVARIABLE(Object, var_left_bigint, left);
-    TVARIABLE(Object, var_right_bigint);
-    Label if_left_number(this), do_number_op(this);
-    Label if_left_bigint(this), do_bigint_op(this);
+    TVARIABLE(Smi, feedback);
 
-    TaggedToWord32OrBigIntWithFeedback(context, left, &if_left_number,
-                                       &var_left_word32, &if_left_bigint,
-                                       &var_left_bigint, &var_left_feedback);
-    BIND(&if_left_number);
-    TaggedToWord32OrBigIntWithFeedback(context, right, &do_number_op,
-                                       &var_right_word32, &do_bigint_op,
-                                       &var_right_bigint, &var_right_feedback);
-    BIND(&do_number_op);
-    TNode<Number> result = BitwiseOp(var_left_word32.value(),
-                                     var_right_word32.value(), bitwise_op);
-    TNode<Smi> result_type = SelectSmiConstant(
-        TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
-        BinaryOperationFeedback::kNumber);
-    TNode<Smi> input_feedback =
-        SmiOr(var_left_feedback.value(), var_right_feedback.value());
-    UpdateFeedback(SmiOr(result_type, input_feedback), maybe_feedback_vector,
-                   slot_index);
+    BinaryOpAssembler binop_asm(state());
+    TNode<Object> result = binop_asm.Generate_BitwiseBinaryOpWithFeedback(
+        bitwise_op, left, right, context, &feedback);
+
+    UpdateFeedback(feedback.value(), maybe_feedback_vector, slot_index);
     SetAccumulator(result);
-    Dispatch();
-
-    // BigInt cases.
-    BIND(&if_left_bigint);
-    TaggedToNumericWithFeedback(context, right, &do_bigint_op,
-                                &var_right_bigint, &var_right_feedback);
-
-    BIND(&do_bigint_op);
-    SetAccumulator(
-        CallRuntime(Runtime::kBigIntBinaryOp, context, var_left_bigint.value(),
-                    var_right_bigint.value(), SmiConstant(bitwise_op)));
-    UpdateFeedback(SmiOr(var_left_feedback.value(), var_right_feedback.value()),
-                   maybe_feedback_vector, slot_index);
     Dispatch();
   }
 
@@ -1024,9 +992,7 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
 
     TVARIABLE(Smi, var_left_feedback);
     TVARIABLE(Word32T, var_left_word32);
-    // TODO(v8:6949): var_left_bigint should be BigInt, but before that we need
-    // to clean up TaggedToWord32OrBigIntWithFeedback and related methods.
-    TVARIABLE(Object, var_left_bigint);
+    TVARIABLE(BigInt, var_left_bigint);
     Label do_smi_op(this), if_bigint_mix(this);
 
     TaggedToWord32OrBigIntWithFeedback(context, left, &do_smi_op,
@@ -1133,9 +1099,7 @@ IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
 
   TVARIABLE(Word32T, var_word32);
   TVARIABLE(Smi, var_feedback);
-  // TODO(v8:6949): var_bigint should be BigInt, but before that we need to
-  // clean up TaggedToWord32OrBigIntWithFeedback and related methods.
-  TVARIABLE(Object, var_bigint);
+  TVARIABLE(BigInt, var_bigint);
   Label if_number(this), if_bigint(this);
   TaggedToWord32OrBigIntWithFeedback(context, operand, &if_number, &var_word32,
                                      &if_bigint, &var_bigint, &var_feedback);

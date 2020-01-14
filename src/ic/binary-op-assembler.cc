@@ -563,5 +563,85 @@ TNode<Object> BinaryOpAssembler::Generate_ExponentiateWithFeedback(
   return CallBuiltin(Builtins::kExponentiate, context, base, exponent);
 }
 
+TNode<Object> BinaryOpAssembler::Generate_BitwiseBinaryOpWithOptionalFeedback(
+    Operation bitwise_op, TNode<Object> left, TNode<Object> right,
+    TNode<Context> context, TVariable<Smi>* feedback) {
+  TVARIABLE(Object, result);
+  TVARIABLE(Smi, var_left_feedback);
+  TVARIABLE(Smi, var_right_feedback);
+  TVARIABLE(Word32T, var_left_word32);
+  TVARIABLE(Word32T, var_right_word32);
+  TVARIABLE(BigInt, var_left_bigint);
+  TVARIABLE(BigInt, var_right_bigint);
+  // These are the variables that are passed to BigIntBinaryOp. They are not
+  // guaranteed to be BigInts because the Runtime call handles throwing
+  // exceptions when only one side is a BigInt.
+  TVARIABLE(Object, var_left_maybe_bigint, left);
+  TVARIABLE(Numeric, var_right_maybe_bigint);
+  Label done(this);
+  Label if_left_number(this), do_number_op(this);
+  Label if_left_bigint(this), do_bigint_op(this);
+
+  TaggedToWord32OrBigIntWithFeedback(
+      context, left, &if_left_number, &var_left_word32, &if_left_bigint,
+      &var_left_bigint, feedback ? &var_left_feedback : nullptr);
+
+  Label right_is_bigint(this);
+  BIND(&if_left_number);
+  {
+    TaggedToWord32OrBigIntWithFeedback(
+        context, right, &do_number_op, &var_right_word32, &right_is_bigint,
+        &var_right_bigint, feedback ? &var_right_feedback : nullptr);
+  }
+
+  BIND(&right_is_bigint);
+  {
+    // At this point it's guaranteed that the op will fail because the RHS is a
+    // BigInt while the LHS is not, but that's ok because the Runtime call will
+    // throw the exception.
+    var_right_maybe_bigint = var_right_bigint.value();
+    Goto(&do_bigint_op);
+  }
+
+  BIND(&do_number_op);
+  {
+    result = BitwiseOp(var_left_word32.value(), var_right_word32.value(),
+                       bitwise_op);
+
+    if (feedback) {
+      TNode<Smi> result_type = SelectSmiConstant(
+          TaggedIsSmi(result.value()), BinaryOperationFeedback::kSignedSmall,
+          BinaryOperationFeedback::kNumber);
+      TNode<Smi> input_feedback =
+          SmiOr(var_left_feedback.value(), var_right_feedback.value());
+      *feedback = SmiOr(result_type, input_feedback);
+    }
+    Goto(&done);
+  }
+
+  // BigInt cases.
+  BIND(&if_left_bigint);
+  {
+    TaggedToNumericWithFeedback(context, right, &var_right_maybe_bigint,
+                                &var_right_feedback);
+    var_left_maybe_bigint = var_left_bigint.value();
+    Goto(&do_bigint_op);
+  }
+
+  BIND(&do_bigint_op);
+  {
+    if (feedback) {
+      *feedback = SmiOr(var_left_feedback.value(), var_right_feedback.value());
+    }
+    result = CallRuntime(
+        Runtime::kBigIntBinaryOp, context, var_left_maybe_bigint.value(),
+        var_right_maybe_bigint.value(), SmiConstant(bitwise_op));
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return result.value();
+}
+
 }  // namespace internal
 }  // namespace v8

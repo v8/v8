@@ -5056,7 +5056,7 @@ TNode<Word32T> CodeStubAssembler::TruncateTaggedToWord32(
 void CodeStubAssembler::TaggedToWord32OrBigInt(
     TNode<Context> context, TNode<Object> value, Label* if_number,
     TVariable<Word32T>* var_word32, Label* if_bigint,
-    TVariable<Object>* var_maybe_bigint) {
+    TVariable<BigInt>* var_maybe_bigint) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
       context, value, if_number, var_word32, if_bigint, var_maybe_bigint);
 }
@@ -5067,7 +5067,7 @@ void CodeStubAssembler::TaggedToWord32OrBigInt(
 void CodeStubAssembler::TaggedToWord32OrBigIntWithFeedback(
     TNode<Context> context, TNode<Object> value, Label* if_number,
     TVariable<Word32T>* var_word32, Label* if_bigint,
-    TVariable<Object>* var_maybe_bigint, TVariable<Smi>* var_feedback) {
+    TVariable<BigInt>* var_maybe_bigint, TVariable<Smi>* var_feedback) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
       context, value, if_number, var_word32, if_bigint, var_maybe_bigint,
       var_feedback);
@@ -5077,7 +5077,7 @@ template <Object::Conversion conversion>
 void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
     TNode<Context> context, TNode<Object> value, Label* if_number,
     TVariable<Word32T>* var_word32, Label* if_bigint,
-    TVariable<Object>* var_maybe_bigint, TVariable<Smi>* var_feedback) {
+    TVariable<BigInt>* var_maybe_bigint, TVariable<Smi>* var_feedback) {
   // We might need to loop after conversion.
   TVARIABLE(Object, var_value, value);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kNone);
@@ -5139,7 +5139,7 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
 
     if (conversion == Object::Conversion::kToNumeric) {
       BIND(&is_bigint);
-      *var_maybe_bigint = value;
+      *var_maybe_bigint = CAST(value);
       CombineFeedback(var_feedback, BinaryOperationFeedback::kBigInt);
       Goto(if_bigint);
     }
@@ -6982,26 +6982,24 @@ TNode<BigInt> CodeStubAssembler::ToBigInt(TNode<Context> context,
 }
 
 void CodeStubAssembler::TaggedToNumeric(TNode<Context> context,
-                                        TNode<Object> value, Label* done,
-                                        Variable* var_numeric) {
-  TaggedToNumeric(context, value, done, var_numeric, nullptr);
+                                        TNode<Object> value,
+                                        TVariable<Numeric>* var_numeric) {
+  TaggedToNumeric(context, value, var_numeric, nullptr);
 }
 
-void CodeStubAssembler::TaggedToNumericWithFeedback(TNode<Context> context,
-                                                    TNode<Object> value,
-                                                    Label* done,
-                                                    Variable* var_numeric,
-                                                    Variable* var_feedback) {
+void CodeStubAssembler::TaggedToNumericWithFeedback(
+    TNode<Context> context, TNode<Object> value,
+    TVariable<Numeric>* var_numeric, TVariable<Smi>* var_feedback) {
   DCHECK_NOT_NULL(var_feedback);
-  TaggedToNumeric(context, value, done, var_numeric, var_feedback);
+  TaggedToNumeric(context, value, var_numeric, var_feedback);
 }
 
 void CodeStubAssembler::TaggedToNumeric(TNode<Context> context,
-                                        TNode<Object> value, Label* done,
-                                        Variable* var_numeric,
-                                        Variable* var_feedback) {
-  var_numeric->Bind(value);
-  Label if_smi(this), if_heapnumber(this), if_bigint(this), if_oddball(this);
+                                        TNode<Object> value,
+                                        TVariable<Numeric>* var_numeric,
+                                        TVariable<Smi>* var_feedback) {
+  Label done(this), if_smi(this), if_heapnumber(this), if_bigint(this),
+      if_oddball(this);
   GotoIf(TaggedIsSmi(value), &if_smi);
   TNode<HeapObject> heap_object_value = CAST(value);
   TNode<Map> map = LoadMap(heap_object_value);
@@ -7011,28 +7009,33 @@ void CodeStubAssembler::TaggedToNumeric(TNode<Context> context,
 
   // {heap_object_value} is not a Numeric yet.
   GotoIf(Word32Equal(instance_type, Int32Constant(ODDBALL_TYPE)), &if_oddball);
-  var_numeric->Bind(
+  *var_numeric = CAST(
       CallBuiltin(Builtins::kNonNumberToNumeric, context, heap_object_value));
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kAny);
-  Goto(done);
+  Goto(&done);
 
   BIND(&if_smi);
+  *var_numeric = CAST(value);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kSignedSmall);
-  Goto(done);
+  Goto(&done);
 
   BIND(&if_heapnumber);
+  *var_numeric = CAST(value);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kNumber);
-  Goto(done);
+  Goto(&done);
 
   BIND(&if_bigint);
+  *var_numeric = CAST(value);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kBigInt);
-  Goto(done);
+  Goto(&done);
 
   BIND(&if_oddball);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kNumberOrOddball);
-  var_numeric->Bind(
-      LoadObjectField(heap_object_value, Oddball::kToNumberOffset));
-  Goto(done);
+  *var_numeric =
+      CAST(LoadObjectField(heap_object_value, Oddball::kToNumberOffset));
+  Goto(&done);
+
+  Bind(&done);
 }
 
 // ES#sec-touint32
@@ -9416,24 +9419,22 @@ void CodeStubAssembler::ReportFeedbackUpdate(
 #endif  // V8_TRACE_FEEDBACK_UPDATES
 }
 
-void CodeStubAssembler::OverwriteFeedback(Variable* existing_feedback,
+void CodeStubAssembler::OverwriteFeedback(TVariable<Smi>* existing_feedback,
                                           int new_feedback) {
   if (existing_feedback == nullptr) return;
-  existing_feedback->Bind(SmiConstant(new_feedback));
+  *existing_feedback = SmiConstant(new_feedback);
 }
 
-void CodeStubAssembler::CombineFeedback(Variable* existing_feedback,
+void CodeStubAssembler::CombineFeedback(TVariable<Smi>* existing_feedback,
                                         int feedback) {
   if (existing_feedback == nullptr) return;
-  existing_feedback->Bind(
-      SmiOr(CAST(existing_feedback->value()), SmiConstant(feedback)));
+  *existing_feedback = SmiOr(existing_feedback->value(), SmiConstant(feedback));
 }
 
-void CodeStubAssembler::CombineFeedback(Variable* existing_feedback,
-                                        Node* feedback) {
+void CodeStubAssembler::CombineFeedback(TVariable<Smi>* existing_feedback,
+                                        TNode<Smi> feedback) {
   if (existing_feedback == nullptr) return;
-  existing_feedback->Bind(
-      SmiOr(CAST(existing_feedback->value()), CAST(feedback)));
+  *existing_feedback = SmiOr(existing_feedback->value(), feedback);
 }
 
 void CodeStubAssembler::CheckForAssociatedProtector(SloppyTNode<Name> name,
@@ -10906,7 +10907,7 @@ TNode<Smi> CodeStubAssembler::CollectFeedbackForString(
 
 void CodeStubAssembler::GenerateEqual_Same(SloppyTNode<Object> value,
                                            Label* if_equal, Label* if_notequal,
-                                           Variable* var_type_feedback) {
+                                           TVariable<Smi>* var_type_feedback) {
   // In case of abstract or strict equality checks, we need additional checks
   // for NaN values because they are not considered equal, even if both the
   // left and the right hand side reference exactly the same value.

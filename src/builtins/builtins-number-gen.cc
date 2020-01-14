@@ -25,29 +25,8 @@ class NumberBuiltinsAssembler : public CodeStubAssembler {
     TNode<Object> right = CAST(Parameter(Descriptor::kRight));
     TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-    TVARIABLE(Word32T, var_left_word32);
-    TVARIABLE(Word32T, var_right_word32);
-    TVARIABLE(Object, var_left_maybe_bigint, left);
-    TVARIABLE(Object, var_right_maybe_bigint);
-    Label if_left_number(this), do_number_op(this);
-    Label if_left_bigint(this), do_bigint_op(this);
-
-    TaggedToWord32OrBigInt(context, left, &if_left_number, &var_left_word32,
-                           &if_left_bigint, &var_left_maybe_bigint);
-    BIND(&if_left_number);
-    TaggedToWord32OrBigInt(context, right, &do_number_op, &var_right_word32,
-                           &do_bigint_op, &var_right_maybe_bigint);
-    BIND(&do_number_op);
-    Return(BitwiseOp(var_left_word32.value(), var_right_word32.value(), op));
-
-    // BigInt cases.
-    BIND(&if_left_bigint);
-    TaggedToNumeric(context, right, &do_bigint_op, &var_right_maybe_bigint);
-
-    BIND(&do_bigint_op);
-    Return(CallRuntime(Runtime::kBigIntBinaryOp, context,
-                       var_left_maybe_bigint.value(),
-                       var_right_maybe_bigint.value(), SmiConstant(op)));
+    BinaryOpAssembler binop_asm(state());
+    Return(binop_asm.Generate_BitwiseBinaryOp(op, left, right, context));
   }
 
   template <typename Descriptor>

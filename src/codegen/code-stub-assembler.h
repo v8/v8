@@ -2356,12 +2356,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void TaggedToWord32OrBigInt(TNode<Context> context, TNode<Object> value,
                               Label* if_number, TVariable<Word32T>* var_word32,
                               Label* if_bigint,
-                              TVariable<Object>* var_maybe_bigint);
+                              TVariable<BigInt>* var_maybe_bigint);
   void TaggedToWord32OrBigIntWithFeedback(TNode<Context> context,
                                           TNode<Object> value, Label* if_number,
                                           TVariable<Word32T>* var_word32,
                                           Label* if_bigint,
-                                          TVariable<Object>* var_maybe_bigint,
+                                          TVariable<BigInt>* var_maybe_bigint,
                                           TVariable<Smi>* var_feedback);
 
   // Truncate the floating point value of a HeapNumber to an Int32.
@@ -2379,11 +2379,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Uint32T> ChangeNumberToUint32(TNode<Number> value);
   TNode<Float64T> ChangeNumberToFloat64(TNode<Number> value);
 
-  void TaggedToNumeric(TNode<Context> context, TNode<Object> value, Label* done,
-                       Variable* var_numeric);
+  void TaggedToNumeric(TNode<Context> context, TNode<Object> value,
+                       TVariable<Numeric>* var_numeric);
   void TaggedToNumericWithFeedback(TNode<Context> context, TNode<Object> value,
-                                   Label* done, Variable* var_numeric,
-                                   Variable* var_feedback);
+                                   TVariable<Numeric>* var_numeric,
+                                   TVariable<Smi>* var_feedback);
 
   TNode<WordT> TimesSystemPointerSize(SloppyTNode<WordT> value);
   TNode<IntPtrT> TimesSystemPointerSize(TNode<IntPtrT> value) {
@@ -3292,12 +3292,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Combine the new feedback with the existing_feedback. Do nothing if
   // existing_feedback is nullptr.
-  void CombineFeedback(Variable* existing_feedback, int feedback);
-  void CombineFeedback(Variable* existing_feedback, Node* feedback);
+  void CombineFeedback(TVariable<Smi>* existing_feedback, int feedback);
+  void CombineFeedback(TVariable<Smi>* existing_feedback, TNode<Smi> feedback);
 
   // Overwrite the existing feedback with new_feedback. Do nothing if
   // existing_feedback is nullptr.
-  void OverwriteFeedback(Variable* existing_feedback, int new_feedback);
+  void OverwriteFeedback(TVariable<Smi>* existing_feedback, int new_feedback);
 
   // Check if a property name might require protector invalidation when it is
   // used for a property store or deletion.
@@ -3847,7 +3847,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> CollectFeedbackForString(SloppyTNode<Int32T> instance_type);
   void GenerateEqual_Same(SloppyTNode<Object> value, Label* if_equal,
                           Label* if_notequal,
-                          Variable* var_type_feedback = nullptr);
+                          TVariable<Smi>* var_type_feedback = nullptr);
 
   static const int kElementLoopUnrollThreshold = 8;
 
@@ -3856,15 +3856,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Context> context, TNode<HeapObject> input, Object::Conversion mode,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
 
-  void TaggedToNumeric(TNode<Context> context, TNode<Object> value, Label* done,
-                       Variable* var_numeric, Variable* var_feedback);
+  void TaggedToNumeric(TNode<Context> context, TNode<Object> value,
+                       TVariable<Numeric>* var_numeric,
+                       TVariable<Smi>* var_feedback);
 
   template <Object::Conversion conversion>
   void TaggedToWord32OrBigIntImpl(TNode<Context> context, TNode<Object> value,
                                   Label* if_number,
                                   TVariable<Word32T>* var_word32,
                                   Label* if_bigint = nullptr,
-                                  TVariable<Object>* var_maybe_bigint = nullptr,
+                                  TVariable<BigInt>* var_maybe_bigint = nullptr,
                                   TVariable<Smi>* var_feedback = nullptr);
 
   Node* LoadObjectField(SloppyTNode<HeapObject> object, int offset,
