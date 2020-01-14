@@ -486,8 +486,10 @@ Handle<FixedArray> Factory::NewFixedArrayWithHoles(int length,
 }
 
 Handle<FixedArray> Factory::NewUninitializedFixedArray(int length) {
-  DCHECK_LE(0, length);
   if (length == 0) return empty_fixed_array();
+  if (length < 0 || length > FixedArray::kMaxLength) {
+    isolate()->heap()->FatalProcessOutOfMemory("invalid array length");
+  }
 
   // TODO(ulan): As an experiment this temporarily returns an initialized fixed
   // array. After getting canary/performance coverage, either remove the
