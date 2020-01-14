@@ -7,6 +7,7 @@
 #include <set>
 
 #include "src/ast/ast.h"
+#include "src/base/logging.h"
 #include "src/base/optional.h"
 #include "src/builtins/accessors.h"
 #include "src/common/message-template.h"
@@ -1899,8 +1900,9 @@ template <Scope::ScopeLookupMode mode>
 Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
                         Scope* outer_scope_end, Scope* cache_scope,
                         bool force_context_allocation) {
-  // If we have already passed it in earlier recursions though, so we should
-  // first quickly check if it is an outer scope before continuing.
+  // If we have already passed the cache scope in earlier recursions, we should
+  // first quickly check if the current scope uses the cache scope before
+  // continuing.
   if (mode == kDeserializedScope &&
       scope->deserialized_scope_uses_external_cache()) {
     Variable* var = cache_scope->variables_.Lookup(proxy->raw_name());
@@ -1918,6 +1920,8 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
     // the scopes in which it's evaluating.
     if (mode == kDeserializedScope &&
         V8_UNLIKELY(scope->is_debug_evaluate_scope_)) {
+      DCHECK(scope->deserialized_scope_uses_external_cache() ||
+             scope == cache_scope);
       return cache_scope->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
     }
 
@@ -2034,10 +2038,16 @@ Variable* Scope::LookupWith(VariableProxy* proxy, Scope* scope,
     var->ForceContextAllocation();
     if (proxy->is_assigned()) var->SetMaybeAssigned();
   }
-  if (cache_scope != nullptr) cache_scope->variables_.Remove(var);
-  Scope* target = cache_scope == nullptr ? scope : cache_scope;
+  Scope* target_scope;
+  if (scope->deserialized_scope_uses_external_cache()) {
+    DCHECK_NOT_NULL(cache_scope);
+    cache_scope->variables_.Remove(var);
+    target_scope = cache_scope;
+  } else {
+    target_scope = scope;
+  }
   Variable* dynamic =
-      target->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
+      target_scope->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
   dynamic->set_local_if_not_shadowed(var);
   return dynamic;
 }
@@ -2062,6 +2072,14 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
           : Lookup<kDeserializedScope>(proxy, scope->outer_scope_,
                                        outer_scope_end, entry_cache);
   if (var == nullptr) return var;
+
+  // We may not want to use the cache scope, change it back to the given scope
+  // if necessary.
+  if (!scope->deserialized_scope_uses_external_cache()) {
+    // For a deserialized scope, we'll be replacing the cache_scope.
+    DCHECK_IMPLIES(!scope->scope_info_.is_null(), cache_scope != nullptr);
+    cache_scope = scope;
+  }
 
   // A variable binding may have been found in an outer scope, but the current
   // scope makes a sloppy 'eval' call, so the found variable may not be the
