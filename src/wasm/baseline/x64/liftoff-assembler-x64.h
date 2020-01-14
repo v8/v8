@@ -250,6 +250,12 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   LoadTaggedPointerField(dst, src_op);
 }
 
+void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
+                                  Register offset_reg, uint32_t offset_imm,
+                                  LoadType type, LiftoffRegList pinned) {
+  Load(dst, src_addr, offset_reg, offset_imm, type, pinned, nullptr, true);
+}
+
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
@@ -334,6 +340,39 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kS128Store:
       Movdqu(dst_op, src.fp());
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
+                                   uint32_t offset_imm, LiftoffRegister src,
+                                   StoreType type, LiftoffRegList pinned) {
+  if (emit_debug_code() && offset_reg != no_reg) {
+    AssertZeroExtended(offset_reg);
+  }
+  Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+  Register src_reg = src.gp();
+  if (cache_state()->is_used(src)) {
+    movq(kScratchRegister, src_reg);
+    src_reg = kScratchRegister;
+  }
+  switch (type.value()) {
+    case StoreType::kI32Store8:
+    case StoreType::kI64Store8:
+      xchgb(src_reg, dst_op);
+      break;
+    case StoreType::kI32Store16:
+    case StoreType::kI64Store16:
+      xchgw(src_reg, dst_op);
+      break;
+    case StoreType::kI32Store:
+    case StoreType::kI64Store32:
+      xchgl(src_reg, dst_op);
+      break;
+    case StoreType::kI64Store:
+      xchgq(src_reg, dst_op);
       break;
     default:
       UNREACHABLE();

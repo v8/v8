@@ -1664,14 +1664,17 @@ class LiftoffCompiler {
     return out_of_line_code_.back().label.get();
   }
 
+  enum ForceCheck : bool { kDoForceCheck = true, kDontForceCheck = false };
+
   // Returns true if the memory access is statically known to be out of bounds
   // (a jump to the trap was generated then); return false otherwise.
   bool BoundsCheckMem(FullDecoder* decoder, uint32_t access_size,
-                      uint32_t offset, Register index, LiftoffRegList pinned) {
+                      uint32_t offset, Register index, LiftoffRegList pinned,
+                      ForceCheck force_check) {
     const bool statically_oob =
         !base::IsInBounds(offset, access_size, env_->max_memory_size);
 
-    if (!statically_oob &&
+    if (!force_check && !statically_oob &&
         (FLAG_wasm_no_bounds_checks || env_->use_trap_handler)) {
       return false;
     }
@@ -1691,9 +1694,6 @@ class LiftoffCompiler {
       }
       return true;
     }
-
-    DCHECK(!env_->use_trap_handler);
-    DCHECK(!FLAG_wasm_no_bounds_checks);
 
     uint64_t end_offset = uint64_t{offset} + access_size - 1u;
 
@@ -1728,6 +1728,31 @@ class LiftoffCompiler {
                       LiftoffAssembler::kWasmIntPtr, index,
                       effective_size_reg.gp());
     return false;
+  }
+
+  void AlignmentCheckMem(FullDecoder* decoder, uint32_t access_size,
+                         uint32_t offset, Register index,
+                         LiftoffRegList pinned) {
+    Label* trap_label = AddOutOfLineTrap(
+        decoder->position(), WasmCode::kThrowWasmTrapUnalignedAccess, 0);
+    Register address = __ GetUnusedRegister(kGpReg, pinned).gp();
+
+    const uint32_t align_mask = access_size - 1;
+    if ((offset & align_mask) == 0) {
+      // If {offset} is aligned, we can produce faster code.
+
+      // TODO(ahaas): On Intel, the "test" instruction implicitly computes the
+      // AND of two operands. We could introduce a new variant of
+      // {emit_cond_jump} to use the "test" instruction without the "and" here.
+      // Then we can also avoid using the temp register here.
+      __ emit_i32_and(address, index, align_mask);
+      __ emit_cond_jump(kUnequal, trap_label, kWasmI32, address);
+      return;
+    }
+    __ emit_i32_add(address, index, offset);
+    __ emit_i32_and(address, address, align_mask);
+
+    __ emit_cond_jump(kUnequal, trap_label, kWasmI32, address);
   }
 
   void TraceMemoryOperation(bool is_store, MachineRepresentation rep,
@@ -1803,7 +1828,8 @@ class LiftoffCompiler {
       return;
     LiftoffRegList pinned;
     Register index = pinned.set(__ PopToRegister()).gp();
-    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned)) {
+    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
+                       kDontForceCheck)) {
       return;
     }
     uint32_t offset = imm.offset;
@@ -1843,7 +1869,8 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
     Register index = pinned.set(__ PopToRegister(pinned)).gp();
-    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned)) {
+    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
+                       kDontForceCheck)) {
       return;
     }
     uint32_t offset = imm.offset;
@@ -2145,10 +2172,101 @@ class LiftoffCompiler {
                      uint32_t depth, Vector<Value> values) {
     unsupported(decoder, kExceptionHandling, "br_on_exn");
   }
+
+  void AtomicStoreMem(FullDecoder* decoder, StoreType type,
+                      const MemoryAccessImmediate<validate>& imm) {
+    LiftoffRegList pinned;
+    LiftoffRegister value = pinned.set(__ PopToRegister());
+    Register index = pinned.set(__ PopToRegister(pinned)).gp();
+    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
+                       kDoForceCheck)) {
+      return;
+    }
+    AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
+    uint32_t offset = imm.offset;
+    index = AddMemoryMasking(index, &offset, &pinned);
+    DEBUG_CODE_COMMENT("Atomic store to memory");
+    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
+    LiftoffRegList outer_pinned;
+    if (FLAG_trace_wasm_memory) outer_pinned.set(index);
+    __ AtomicStore(addr, index, offset, value, type, outer_pinned);
+    if (FLAG_trace_wasm_memory) {
+      TraceMemoryOperation(true, type.mem_rep(), index, offset,
+                           decoder->position());
+    }
+  }
+
+  void AtomicLoadMem(FullDecoder* decoder, LoadType type,
+                     const MemoryAccessImmediate<validate>& imm) {
+    ValueType value_type = type.value_type();
+    LiftoffRegList pinned;
+    Register index = pinned.set(__ PopToRegister()).gp();
+    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
+                       kDoForceCheck)) {
+      return;
+    }
+    AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
+    uint32_t offset = imm.offset;
+    index = AddMemoryMasking(index, &offset, &pinned);
+    DEBUG_CODE_COMMENT("Atomic load from memory");
+    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
+    RegClass rc = reg_class_for(value_type);
+    LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
+    __ AtomicLoad(value, addr, index, offset, type, pinned);
+    __ PushRegister(value_type, value);
+
+    if (FLAG_trace_wasm_memory) {
+      TraceMemoryOperation(false, type.mem_type().representation(), index,
+                           offset, decoder->position());
+    }
+  }
+
+#define ATOMIC_STORE_LIST(V)        \
+  V(I32AtomicStore, kI32Store)      \
+  V(I64AtomicStore, kI64Store)      \
+  V(I32AtomicStore8U, kI32Store8)   \
+  V(I32AtomicStore16U, kI32Store16) \
+  V(I64AtomicStore8U, kI64Store8)   \
+  V(I64AtomicStore16U, kI64Store16) \
+  V(I64AtomicStore32U, kI64Store32)
+
+#define ATOMIC_LOAD_LIST(V)        \
+  V(I32AtomicLoad, kI32Load)       \
+  V(I64AtomicLoad, kI64Load)       \
+  V(I32AtomicLoad8U, kI32Load8U)   \
+  V(I32AtomicLoad16U, kI32Load16U) \
+  V(I64AtomicLoad8U, kI64Load8U)   \
+  V(I64AtomicLoad16U, kI64Load16U) \
+  V(I64AtomicLoad32U, kI64Load32U)
+
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
                 const MemoryAccessImmediate<validate>& imm, Value* result) {
-    unsupported(decoder, kAtomics, "atomicop");
+    switch (opcode) {
+#define ATOMIC_STORE_OP(name, type)                \
+  case wasm::kExpr##name:                          \
+    AtomicStoreMem(decoder, StoreType::type, imm); \
+    break;
+
+      ATOMIC_STORE_LIST(ATOMIC_STORE_OP)
+#undef ATOMIC_STORE_OP
+
+#define ATOMIC_LOAD_OP(name, type)               \
+  case wasm::kExpr##name:                        \
+    AtomicLoadMem(decoder, LoadType::type, imm); \
+    break;
+
+      ATOMIC_LOAD_LIST(ATOMIC_LOAD_OP)
+#undef ATOMIC_LOAD_OP
+      default:
+        unsupported(decoder, kAtomics, "atomicop");
+    }
   }
+
+#undef ATOMIC_STORE_LIST
+#undef ATOMIC_LOAD_LIST
+
   void AtomicFence(FullDecoder* decoder) {
     unsupported(decoder, kAtomics, "atomic.fence");
   }
