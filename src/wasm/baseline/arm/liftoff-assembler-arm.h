@@ -51,9 +51,7 @@ inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   return MemOperand(fp, -offset + half_offset);
 }
 
-inline MemOperand GetInstanceOperand() {
-  return MemOperand(fp, -kInstanceOffset);
-}
+inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 
 inline MemOperand GetMemOp(LiftoffAssembler* assm,
                            UseScratchRegisterScope* temps, Register addr,

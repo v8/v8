@@ -43,9 +43,7 @@ constexpr int kInstanceOffset = 2 * kSystemPointerSize;
 
 inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 
-inline MemOperand GetInstanceOperand() {
-  return MemOperand(fp, -kInstanceOffset);
-}
+inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 
 inline CPURegister GetRegFromType(const LiftoffRegister& reg, ValueType type) {
   switch (type) {

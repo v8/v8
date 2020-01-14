@@ -39,13 +39,12 @@ namespace liftoff {
 //  -----+--------------------+  <-- stack ptr (sp)
 //
 
-// fp-8 holds the stack marker, fp-16 is the instance parameter, first stack
-// slot is located at fp-16-offset.
-constexpr int kConstantStackSpace = 16;
+// fp-8 holds the stack marker, fp-16 is the instance parameter.
+constexpr int kInstanceOffset = 16;
 
 inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 
-inline MemOperand GetInstanceOperand() { return MemOperand(fp, -16); }
+inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
                  ValueType type) {
@@ -253,7 +252,7 @@ void LiftoffAssembler::AbortCompilation() {}
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
-  return liftoff::kConstantStackSpace;
+  return liftoff::kInstanceOffset;
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueType type) {

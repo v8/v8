@@ -20,9 +20,8 @@ namespace wasm {
 
 namespace liftoff {
 
-// ebp-4 holds the stack marker, ebp-8 is the instance parameter, first stack
-// slot is located at ebp-8-offset.
-constexpr int kConstantStackSpace = 8;
+// ebp-4 holds the stack marker, ebp-8 is the instance parameter.
+constexpr int kInstanceOffset = 8;
 
 inline Operand GetStackSlot(int offset) { return Operand(ebp, -offset); }
 
@@ -33,7 +32,7 @@ inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
 }
 
 // TODO(clemensb): Make this a constexpr variable once Operand is constexpr.
-inline Operand GetInstanceOperand() { return Operand(ebp, -8); }
+inline Operand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 
 static constexpr LiftoffRegList kByteRegs =
     LiftoffRegList::FromBits<Register::ListOf(eax, ecx, edx)>();
@@ -192,7 +191,7 @@ void LiftoffAssembler::AbortCompilation() {}
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
-  return liftoff::kConstantStackSpace;
+  return liftoff::kInstanceOffset;
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueType type) {
