@@ -1519,6 +1519,9 @@ DEFINE_PERF_PROF_BOOL(
     perf_prof_annotate_wasm,
     "Used with --perf-prof, load wasm source map and provide annotate "
     "support (experimental).")
+DEFINE_PERF_PROF_BOOL(
+    perf_prof_delete_file,
+    "Remove the perf file right after creating it (for testing only).")
 DEFINE_NEG_IMPLICATION(perf_prof, compact_code_space)
 // TODO(v8:8462) Remove implication once perf supports remapping.
 DEFINE_NEG_IMPLICATION(perf_prof, write_protect_code_memory)

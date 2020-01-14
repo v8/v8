@@ -129,6 +129,11 @@ void PerfJitLogger::OpenJitDumpFile() {
   int fd = open(perf_dump_name.begin(), O_CREAT | O_TRUNC | O_RDWR, 0666);
   if (fd == -1) return;
 
+  // If --perf-prof-delete-file is given, unlink the file right after opening
+  // it. This keeps the file handle to the file valid. This only works on Linux,
+  // which is the only platform supported for --perf-prof anyway.
+  if (FLAG_perf_prof_delete_file) CHECK_EQ(0, unlink(perf_dump_name.begin()));
+
   marker_address_ = OpenMarkerFile(fd);
   if (marker_address_ == nullptr) return;
 
