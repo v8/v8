@@ -99,6 +99,8 @@ class LoadType {
         return kF32Load;
       case kWasmF64:
         return kF64Load;
+      case kWasmS128:
+        return kS128Load;
       default:
         UNREACHABLE();
     }

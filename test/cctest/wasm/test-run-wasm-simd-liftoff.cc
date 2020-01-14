@@ -34,6 +34,24 @@ WASM_SIMD_LIFTOFF_TEST(S128Local) {
   r.CheckUsedExecutionTier(ExecutionTier::kLiftoff);
 }
 
+WASM_SIMD_LIFTOFF_TEST(S128Global) {
+  WasmRunner<int32_t> r(ExecutionTier::kLiftoff, kNoLowerSimd);
+
+  int32_t* g0 = r.builder().AddGlobal<int32_t>(kWasmS128);
+  int32_t* g1 = r.builder().AddGlobal<int32_t>(kWasmS128);
+  BUILD(r, WASM_SET_GLOBAL(1, WASM_GET_GLOBAL(0)), WASM_ONE);
+
+  int32_t expected = 0x1234;
+  for (int i = 0; i < 4; i++) {
+    WriteLittleEndianValue<int32_t>(&g0[i], expected);
+  }
+  r.Call();
+  for (int i = 0; i < 4; i++) {
+    int32_t actual = ReadLittleEndianValue<int32_t>(&g1[i]);
+    CHECK_EQ(actual, expected);
+  }
+}
+
 #undef WASM_SIMD_LIFTOFF_TEST
 
 }  // namespace test_run_wasm_simd_liftoff

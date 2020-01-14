@@ -296,6 +296,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kF64Load:
       Ldr(dst.fp().D(), src_op);
       break;
+    case LoadType::kS128Load:
+      Ldr(dst.fp().Q(), src_op);
+      break;
     default:
       UNREACHABLE();
   }

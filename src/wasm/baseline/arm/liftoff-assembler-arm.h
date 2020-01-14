@@ -372,20 +372,26 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
   }
   UseScratchRegisterScope temps(this);
   if (type.value() == LoadType::kF64Load ||
-      type.value() == LoadType::kF32Load) {
+      type.value() == LoadType::kF32Load ||
+      type.value() == LoadType::kS128Load) {
     Register actual_src_addr = liftoff::CalculateActualAddress(
         this, &temps, src_addr, offset_reg, offset_imm);
     if (type.value() == LoadType::kF64Load) {
       // Armv6 is not supported so Neon can be used to avoid alignment issues.
       CpuFeatureScope scope(this, NEON);
       vld1(Neon64, NeonListOperand(dst.fp()), NeonMemOperand(actual_src_addr));
-    } else {
+    } else if (type.value() == LoadType::kF32Load) {
       // TODO(arm): Use vld1 for f32 when implemented in simulator as used for
       // f64. It supports unaligned access.
       Register scratch =
           (actual_src_addr == src_addr) ? temps.Acquire() : actual_src_addr;
       ldr(scratch, MemOperand(actual_src_addr));
       vmov(liftoff::GetFloatRegister(dst.fp()), scratch);
+    } else {
+      // Armv6 is not supported so Neon can be used to avoid alignment issues.
+      CpuFeatureScope scope(this, NEON);
+      vld1(Neon8, NeonListOperand(dst.low_fp(), 2),
+           NeonMemOperand(actual_src_addr));
     }
   } else {
     MemOperand src_op =
