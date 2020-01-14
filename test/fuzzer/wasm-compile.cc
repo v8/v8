@@ -179,6 +179,8 @@ class WasmGenerator {
       case kExprF64LoadMem:
       case kExprI64StoreMem:
       case kExprF64StoreMem:
+      case kExprI64AtomicStore:
+      case kExprI64AtomicLoad:
         return 3;
       case kExprI32LoadMem:
       case kExprI64LoadMem32S:
@@ -187,6 +189,10 @@ class WasmGenerator {
       case kExprI32StoreMem:
       case kExprI64StoreMem32:
       case kExprF32StoreMem:
+      case kExprI32AtomicStore:
+      case kExprI64AtomicStore32U:
+      case kExprI32AtomicLoad:
+      case kExprI64AtomicLoad32U:
         return 2;
       case kExprI32LoadMem16S:
       case kExprI32LoadMem16U:
@@ -194,6 +200,10 @@ class WasmGenerator {
       case kExprI64LoadMem16U:
       case kExprI32StoreMem16:
       case kExprI64StoreMem16:
+      case kExprI32AtomicStore16U:
+      case kExprI64AtomicStore16U:
+      case kExprI32AtomicLoad16U:
+      case kExprI64AtomicLoad16U:
         return 1;
       case kExprI32LoadMem8S:
       case kExprI32LoadMem8U:
@@ -201,6 +211,10 @@ class WasmGenerator {
       case kExprI64LoadMem8U:
       case kExprI32StoreMem8:
       case kExprI64StoreMem8:
+      case kExprI32AtomicStore8U:
+      case kExprI64AtomicStore8U:
+      case kExprI32AtomicLoad8U:
+      case kExprI64AtomicLoad8U:
         return 0;
       default:
         return 0;
@@ -215,7 +229,12 @@ class WasmGenerator {
     // Generate the index and the arguments, if any.
     Generate<kWasmI32, arg_types...>(data);
 
-    builder_->Emit(memory_op);
+    if ((memory_op & 0xfe00) == 0xfe00) {
+      // This is an atomic-load or atomic-store.
+      builder_->EmitWithPrefix(memory_op);
+    } else {
+      builder_->Emit(memory_op);
+    }
     builder_->EmitU32V(align);
     builder_->EmitU32V(offset);
   }
@@ -513,6 +532,13 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange* data) {
       &WasmGenerator::memop<kExprI64StoreMem32, kWasmI64>,
       &WasmGenerator::memop<kExprF32StoreMem, kWasmF32>,
       &WasmGenerator::memop<kExprF64StoreMem, kWasmF64>,
+      &WasmGenerator::memop<kExprI32AtomicStore, kWasmI32>,
+      &WasmGenerator::memop<kExprI32AtomicStore8U, kWasmI32>,
+      &WasmGenerator::memop<kExprI32AtomicStore16U, kWasmI32>,
+      &WasmGenerator::memop<kExprI64AtomicStore, kWasmI64>,
+      &WasmGenerator::memop<kExprI64AtomicStore8U, kWasmI64>,
+      &WasmGenerator::memop<kExprI64AtomicStore16U, kWasmI64>,
+      &WasmGenerator::memop<kExprI64AtomicStore32U, kWasmI64>,
 
       &WasmGenerator::drop,
 
@@ -607,6 +633,9 @@ void WasmGenerator::Generate<kWasmI32>(DataRange* data) {
       &WasmGenerator::memop<kExprI32LoadMem8U>,
       &WasmGenerator::memop<kExprI32LoadMem16S>,
       &WasmGenerator::memop<kExprI32LoadMem16U>,
+      &WasmGenerator::memop<kExprI32AtomicLoad>,
+      &WasmGenerator::memop<kExprI32AtomicLoad8U>,
+      &WasmGenerator::memop<kExprI32AtomicLoad16U>,
 
       &WasmGenerator::current_memory,
       &WasmGenerator::grow_memory,
@@ -678,6 +707,10 @@ void WasmGenerator::Generate<kWasmI64>(DataRange* data) {
       &WasmGenerator::memop<kExprI64LoadMem16U>,
       &WasmGenerator::memop<kExprI64LoadMem32S>,
       &WasmGenerator::memop<kExprI64LoadMem32U>,
+      &WasmGenerator::memop<kExprI64AtomicLoad>,
+      &WasmGenerator::memop<kExprI64AtomicLoad8U>,
+      &WasmGenerator::memop<kExprI64AtomicLoad16U>,
+      &WasmGenerator::memop<kExprI64AtomicLoad32U>,
 
       &WasmGenerator::get_local<kWasmI64>,
       &WasmGenerator::tee_local<kWasmI64>,
@@ -886,6 +919,8 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     }
 
     builder.SetMaxMemorySize(32);
+    // We enable shared memory to be able to test atomics.
+    builder.SetHasSharedMemory();
     builder.WriteTo(buffer);
 
     *num_args = 3;

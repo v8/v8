@@ -1735,8 +1735,12 @@ class ThreadImpl {
     if (val) *val = static_cast<type>(Pop().to<op_type>());
     uint32_t index = Pop().to<uint32_t>();
     *address = BoundsCheckMem<type>(imm.offset, index);
-    if (!address) {
+    if (!*address) {
       DoTrap(kTrapMemOutOfBounds, pc);
+      return false;
+    }
+    if (!IsAligned(*address, sizeof(type))) {
+      DoTrap(kTrapUnalignedAccess, pc);
       return false;
     }
     *len = 2 + imm.length;
