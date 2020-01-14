@@ -2857,6 +2857,8 @@ void InstructionSelector::VisitF64x2Max(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitLoadTransform(Node* node) { UNIMPLEMENTED(); }
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
