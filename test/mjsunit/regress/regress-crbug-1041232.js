@@ -6,7 +6,7 @@
 
 // Chosen for stress runs on 32-bit systems. Physical memory is not an issue
 // thanks to the mock allocator, but virtual address space is still limited.
-let kSize = 512 * 1024 * 1024;
+let kSize = 128 * 1024 * 1024;
 // Must be >= MultiMappedMockAllocator::kChunkSize in d8.cc.
 let kChunkSize = 2 * 1024 * 1024;
 let a = new Uint8Array(kSize);

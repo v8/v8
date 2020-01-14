@@ -257,6 +257,7 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
         FATAL("mremap failed with error %d: %s", errno, strerror(errno));
       }
     }
+    base::MutexGuard lock_guard(&regions_mutex_);
     regions_[virtual_alloc] = real_alloc;
     return virtual_alloc;
   }
@@ -265,6 +266,7 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
     if (length < kChunkSize) {
       return ArrayBufferAllocatorBase::Free(data, length);
     }
+    base::MutexGuard lock_guard(&regions_mutex_);
     void* real_alloc = regions_[data];
     munmap(real_alloc, kChunkSize);
     size_t rounded_length = RoundUp(length, kChunkSize);
@@ -277,6 +279,7 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
   static constexpr size_t kChunkSize = 2 * 1024 * 1024;
 
   std::unordered_map<void*, void*> regions_;
+  base::Mutex regions_mutex_;
 };
 
 #endif  // V8_OS_LINUX
