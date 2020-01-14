@@ -116,7 +116,7 @@ compiler::CallDescriptor* GetLoweredCallDescriptor(
 }
 
 constexpr ValueType kSupportedTypesArr[] = {kWasmI32, kWasmI64, kWasmF32,
-                                            kWasmF64};
+                                            kWasmF64, kWasmS128};
 constexpr Vector<const ValueType> kSupportedTypes =
     ArrayVector(kSupportedTypesArr);
 

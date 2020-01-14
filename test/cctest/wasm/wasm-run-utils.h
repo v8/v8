@@ -559,6 +559,13 @@ class WasmRunner : public WasmRunnerBase {
     CheckCallApplyViaJS(expected, function()->func_index, buffer, sizeof...(p));
   }
 
+  void CheckUsedExecutionTier(ExecutionTier expected_tier) {
+    // Liftoff can fail and fallback to Turbofan, so check that the function
+    // gets compiled by the tier requested, to guard against accidental success.
+    CHECK(compiled_);
+    CHECK_EQ(expected_tier, builder_.GetFunctionCode(0)->tier());
+  }
+
   Handle<Code> GetWrapperCode() { return wrapper_.GetWrapperCode(); }
 
  private:

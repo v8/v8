@@ -662,6 +662,15 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
     case kWasmF64:
       vldr(reg.fp(), liftoff::GetStackSlot(offset));
       break;
+    case kWasmS128: {
+      // Get memory address of slot to fill from.
+      MemOperand slot = liftoff::GetStackSlot(offset);
+      UseScratchRegisterScope temps(this);
+      Register addr = liftoff::CalculateActualAddress(this, &temps, slot.rn(),
+                                                      no_reg, slot.offset());
+      vld1(Neon64, NeonListOperand(reg.low_fp(), 2), NeonMemOperand(addr));
+      break;
+    }
     default:
       UNREACHABLE();
   }

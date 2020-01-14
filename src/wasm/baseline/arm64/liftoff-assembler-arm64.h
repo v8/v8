@@ -57,6 +57,8 @@ inline CPURegister GetRegFromType(const LiftoffRegister& reg, ValueType type) {
       return reg.fp().S();
     case kWasmF64:
       return reg.fp().D();
+    case kWasmS128:
+      return reg.fp().Q();
     default:
       UNREACHABLE();
   }

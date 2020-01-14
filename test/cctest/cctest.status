@@ -321,6 +321,7 @@
   'test-run-wasm-simd/RunWasm_ReductionTest4_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_ReductionTest8_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_ReductionTest16_compiled': [SKIP],
+  'test-run-wasm-simd-liftoff/*': [SKIP],
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
 
 ##############################################################################
@@ -464,6 +465,7 @@
   'test-run-wasm-js/*': [SKIP],
   'test-run-wasm-module/*': [SKIP],
   'test-run-wasm-sign-extension/*': [SKIP],
+  'test-run-wasm-simd-liftoff/*': [SKIP],
   'test-run-wasm-simd/*': [SKIP],
   'test-streaming-compilation/*': [SKIP],
   'test-wasm-breakpoints/*': [SKIP],

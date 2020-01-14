@@ -329,6 +329,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kF64Load:
       movsd(dst.fp(), src_op);
       break;
+    case LoadType::kS128Load:
+      movdqu(dst.fp(), src_op);
+      break;
     default:
       UNREACHABLE();
   }
@@ -473,6 +476,9 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
     case kWasmF64:
       movsd(dst, reg.fp());
       break;
+    case kWasmS128:
+      movdqu(dst, reg.fp());
+      break;
     default:
       UNREACHABLE();
   }
@@ -513,6 +519,9 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
       break;
     case kWasmF64:
       movsd(reg.fp(), src);
+      break;
+    case kWasmS128:
+      movdqu(reg.fp(), src);
       break;
     default:
       UNREACHABLE();
