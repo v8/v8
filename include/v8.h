@@ -1048,6 +1048,11 @@ class TracedGlobal : public TracedReferenceBase<T> {
  * to ensure that the handle is not accessed once the V8 object has been
  * reclaimed. This can happen when the handle is not passed through the
  * EmbedderHeapTracer. For more details see TracedReferenceBase.
+ *
+ * The reference assumes the embedder has precise knowledge about references at
+ * all times. In case V8 needs to separately handle on-stack references, the
+ * embedder is required to set the stack start through
+ * |EmbedderHeapTracer::SetStackStart|.
  */
 template <typename T>
 class TracedReference : public TracedReferenceBase<T> {
@@ -7869,6 +7874,17 @@ class V8_EXPORT EmbedderHeapTracer {
    * attached to.
    */
   void IterateTracedGlobalHandles(TracedGlobalHandleVisitor* visitor);
+
+  /**
+   * Called by the embedder to set the start of the stack which is e.g. used by
+   * V8 to determine whether handles are used from stack or heap.
+   */
+  void SetStackStart(void* stack_start);
+
+  /**
+   * Called by the embedder to notify V8 of an empty execution stack.
+   */
+  void NotifyEmptyEmbedderStack();
 
   /**
    * Called by v8 to register internal fields of found wrappers.

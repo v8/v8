@@ -182,6 +182,11 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
     return old;
   }
 
+  void SetStackStart(void* stack_start);
+  void NotifyEmptyEmbedderStack();
+  void CleanupOnStackReferencesBelowCurrentStackPosition();
+  size_t NumberOfOnStackHandlesForTesting();
+
 #ifdef DEBUG
   void PrintStats();
   void Print();
@@ -196,6 +201,7 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   class NodeSpace;
   class PendingPhantomCallback;
   class TracedNode;
+  class OnStackTracedNodeSpace;
 
   bool InRecursiveGC(unsigned gc_processing_counter);
 
@@ -224,6 +230,7 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
 
   std::unique_ptr<NodeSpace<TracedNode>> traced_nodes_;
   std::vector<TracedNode*> traced_young_nodes_;
+  std::unique_ptr<OnStackTracedNodeSpace> on_stack_nodes_;
 
   // Field always containing the number of handles to global objects.
   size_t handles_count_ = 0;

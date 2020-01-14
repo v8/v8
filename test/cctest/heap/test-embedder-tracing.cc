@@ -907,6 +907,171 @@ TEST(TracedGlobalNoDestructorReclaimedOnScavenge) {
   CHECK_EQ(initial_count, global_handles->handles_count());
 }
 
+namespace {
+
+V8_NOINLINE void TracedReferenceOnStack(TestEmbedderHeapTracer* tracer) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Global<v8::Object> observer;
+  v8::TracedReference<v8::Value> stack_ref;
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), nullptr, nullptr));
+    stack_ref.Reset(isolate, object);
+    observer.Reset(isolate, object);
+    observer.SetWeak();
+  }
+  CHECK(!observer.IsEmpty());
+  heap::InvokeMarkSweep();
+  CHECK(!observer.IsEmpty());
+}
+
+V8_NOINLINE void CreateTracedReferenceInDeepStack(
+    v8::Isolate* isolate, v8::Global<v8::Object>* observer) {
+  v8::TracedReference<v8::Value> stack_ref;
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+      isolate->GetCurrentContext(), nullptr, nullptr));
+  stack_ref.Reset(isolate, object);
+  observer->Reset(isolate, object);
+  observer->SetWeak();
+}
+
+V8_NOINLINE void TracedReferenceNotifyEmptyStack(
+    TestEmbedderHeapTracer* tracer) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Global<v8::Object> observer;
+  CreateTracedReferenceInDeepStack(isolate, &observer);
+  CHECK(!observer.IsEmpty());
+  tracer->NotifyEmptyEmbedderStack();
+  heap::InvokeMarkSweep();
+  CHECK(observer.IsEmpty());
+}
+
+V8_NOINLINE void TracedReferenceCopyStackToHeapTest(
+    TestEmbedderHeapTracer* tracer) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Global<v8::Object> observer;
+  v8::TracedReference<v8::Value> stack_handle;
+  v8::TracedReference<v8::Value>* heap_handle =
+      new v8::TracedReference<v8::Value>();
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), nullptr, nullptr));
+    stack_handle.Reset(isolate, object);
+    observer.Reset(isolate, object);
+    observer.SetWeak();
+  }
+  CHECK(!observer.IsEmpty());
+  heap::InvokeMarkSweep();
+  CHECK(!observer.IsEmpty());
+  tracer->AddReferenceForTracing(heap_handle);
+  *heap_handle = stack_handle;
+  stack_handle.Reset();
+  heap::InvokeMarkSweep();
+  CHECK(!observer.IsEmpty());
+  heap::InvokeMarkSweep();
+  CHECK(observer.IsEmpty());
+  delete heap_handle;
+}
+
+V8_NOINLINE void TracedReferenceCopyHeapToStackTest(
+    TestEmbedderHeapTracer* tracer) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Global<v8::Object> observer;
+  v8::TracedReference<v8::Value> stack_handle;
+  v8::TracedReference<v8::Value>* heap_handle =
+      new v8::TracedReference<v8::Value>();
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), nullptr, nullptr));
+    heap_handle->Reset(isolate, object);
+    observer.Reset(isolate, object);
+    observer.SetWeak();
+  }
+  CHECK(!observer.IsEmpty());
+  tracer->AddReferenceForTracing(heap_handle);
+  heap::InvokeMarkSweep();
+  CHECK(!observer.IsEmpty());
+  stack_handle = *heap_handle;
+  delete heap_handle;
+  heap::InvokeMarkSweep();
+  CHECK(!observer.IsEmpty());
+  stack_handle.Reset();
+  heap::InvokeMarkSweep();
+  CHECK(observer.IsEmpty());
+}
+
+V8_NOINLINE void TracedReferenceCleanedTest(TestEmbedderHeapTracer* tracer) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+      isolate->GetCurrentContext(), nullptr, nullptr));
+  const size_t before =
+      CcTest::i_isolate()->global_handles()->NumberOfOnStackHandlesForTesting();
+  for (int i = 0; i < 100; i++) {
+    v8::TracedReference<v8::Value> stack_handle;
+    stack_handle.Reset(isolate, object);
+  }
+  CHECK_EQ(before + 1, CcTest::i_isolate()
+                           ->global_handles()
+                           ->NumberOfOnStackHandlesForTesting());
+}
+
+}  // namespace
+
+TEST(TracedReferenceOnStack) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  TracedReferenceOnStack(&tracer);
+}
+
+TEST(TracedReferenceNotifyEmptyStack) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  TracedReferenceNotifyEmptyStack(&tracer);
+}
+
+TEST(TracedReferenceCopyStackToHeap) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  TracedReferenceCopyStackToHeapTest(&tracer);
+}
+
+TEST(TracedReferenceCopyHeapToStack) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  TracedReferenceCopyHeapToStackTest(&tracer);
+}
+
+TEST(TracedReferenceCleaned) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  TracedReferenceCleanedTest(&tracer);
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

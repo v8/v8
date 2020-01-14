@@ -69,6 +69,9 @@ void LocalEmbedderHeapTracer::SetEmbedderStackStateForNextFinalization(
   if (!InUse()) return;
 
   embedder_stack_state_ = stack_state;
+  if (EmbedderHeapTracer::EmbedderStackState::kEmpty == stack_state) {
+    remote_tracer()->NotifyEmptyEmbedderStack();
+  }
 }
 
 LocalEmbedderHeapTracer::ProcessingScope::ProcessingScope(

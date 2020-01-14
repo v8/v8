@@ -1520,6 +1520,11 @@ bool Heap::CollectGarbage(AllocationSpace space,
     InvokeNearHeapLimitCallback();
   }
 
+  // Filter on-stack reference below this method.
+  isolate()
+      ->global_handles()
+      ->CleanupOnStackReferencesBelowCurrentStackPosition();
+
   // Ensure that all pending phantom callbacks are invoked.
   isolate()->global_handles()->InvokeSecondPassPhantomCallbacks();
 

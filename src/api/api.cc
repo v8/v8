@@ -10750,6 +10750,19 @@ void HeapProfiler::RemoveBuildEmbedderGraphCallback(
       callback, data);
 }
 
+void EmbedderHeapTracer::SetStackStart(void* stack_start) {
+  CHECK(isolate_);
+  reinterpret_cast<i::Isolate*>(isolate_)->global_handles()->SetStackStart(
+      stack_start);
+}
+
+void EmbedderHeapTracer::NotifyEmptyEmbedderStack() {
+  CHECK(isolate_);
+  reinterpret_cast<i::Isolate*>(isolate_)
+      ->global_handles()
+      ->NotifyEmptyEmbedderStack();
+}
+
 void EmbedderHeapTracer::FinalizeTracing() {
   if (isolate_) {
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(isolate_);

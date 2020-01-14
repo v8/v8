@@ -378,12 +378,11 @@
 
 
 // A macro used to tell the compiler to never inline a particular function.
-// Don't bother for debug builds.
 // Use like:
 //   V8_NOINLINE int GetMinusOne() { return -1; }
-#if !defined(DEBUG) && V8_HAS_ATTRIBUTE_NOINLINE
+#if V8_HAS_ATTRIBUTE_NOINLINE
 # define V8_NOINLINE __attribute__((noinline))
-#elif !defined(DEBUG) && V8_HAS_DECLSPEC_NOINLINE
+#elif V8_HAS_DECLSPEC_NOINLINE
 # define V8_NOINLINE __declspec(noinline)
 #else
 # define V8_NOINLINE /* NOT SUPPORTED */
