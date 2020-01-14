@@ -194,7 +194,7 @@ class V8_EXPORT_PRIVATE NameDictionary
                       BaseNameDictionary<NameDictionary, NameDictionaryShape>);
 };
 
-class GlobalDictionaryShape : public NameDictionaryShape {
+class V8_EXPORT_PRIVATE GlobalDictionaryShape : public NameDictionaryShape {
  public:
   static inline bool IsMatch(Handle<Name> key, Object other);
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
