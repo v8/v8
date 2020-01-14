@@ -17,6 +17,8 @@ namespace compiler {
 // Forward declarations.
 class CommonOperatorBuilder;
 class MachineGraph;
+class Word32Adapter;
+class Word64Adapter;
 
 // Performs constant folding and strength reduction on nodes that have
 // machine operators.
@@ -32,6 +34,9 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Reduction Reduce(Node* node) override;
 
  private:
+  friend class Word32Adapter;
+  friend class Word64Adapter;
+
   Node* Float32Constant(volatile float value);
   Node* Float64Constant(volatile double value);
   Node* Int32Constant(int32_t value);
@@ -51,6 +56,7 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Node* Word32Sar(Node* lhs, uint32_t rhs);
   Node* Word32Shr(Node* lhs, uint32_t rhs);
   Node* Word32Equal(Node* lhs, Node* rhs);
+  Node* Word64And(Node* lhs, Node* rhs);
   Node* Int32Add(Node* lhs, Node* rhs);
   Node* Int32Sub(Node* lhs, Node* rhs);
   Node* Int32Mul(Node* lhs, Node* rhs);
@@ -93,9 +99,12 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Reduction ReduceWord32Sar(Node* node);
   Reduction ReduceWord64Sar(Node* node);
   Reduction ReduceWord32And(Node* node);
+  Reduction ReduceWord64And(Node* node);
   Reduction TryMatchWord32Ror(Node* node);
   Reduction ReduceWord32Or(Node* node);
+  Reduction ReduceWord64Or(Node* node);
   Reduction ReduceWord32Xor(Node* node);
+  Reduction ReduceWord64Xor(Node* node);
   Reduction ReduceFloat64InsertLowWord32(Node* node);
   Reduction ReduceFloat64InsertHighWord32(Node* node);
   Reduction ReduceFloat64Compare(Node* node);
@@ -105,6 +114,15 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   MachineGraph* mcgraph() const { return mcgraph_; }
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;
+
+  // These reductions can be applied to operations of different word sizes.
+  // Use Word32Adapter or Word64Adapter to specialize for a particular one.
+  template <typename WordNAdapter>
+  Reduction ReduceWordNAnd(Node* node);
+  template <typename WordNAdapter>
+  Reduction ReduceWordNOr(Node* node);
+  template <typename WordNAdapter>
+  Reduction ReduceWordNXor(Node* node);
 
   MachineGraph* mcgraph_;
   bool allow_signalling_nan_;
