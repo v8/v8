@@ -24015,6 +24015,34 @@ TEST(CreateSyntheticModuleGC) {
   }
 }
 
+TEST(CreateSyntheticModuleGCName) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate::Scope iscope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope cscope(context);
+
+  Local<Module> module;
+
+  {
+    v8::EscapableHandleScope inner_scope(isolate);
+    std::vector<v8::Local<v8::String>> export_names{v8_str("default")};
+    v8::Local<v8::String> module_name =
+        v8_str("CreateSyntheticModuleGCName-TestSyntheticModule");
+    module = inner_scope.Escape(v8::Module::CreateSyntheticModule(
+        isolate, module_name, export_names,
+        UnexpectedSyntheticModuleEvaluationStepsCallback));
+  }
+
+  CcTest::CollectAllGarbage();
+#ifdef VERIFY_HEAP
+  i::Handle<i::HeapObject> i_module =
+      i::Handle<i::HeapObject>::cast(v8::Utils::OpenHandle(*module));
+  i_module->HeapObjectVerify(reinterpret_cast<i::Isolate*>(isolate));
+#endif
+}
+
 TEST(SyntheticModuleSetExports) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
