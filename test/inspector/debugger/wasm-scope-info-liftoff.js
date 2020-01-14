@@ -84,7 +84,8 @@ async function instantiateWasm() {
 
   builder.addFunction('B (liftoff)', kSig_v_i)
       .addLocals(
-          {i32_count: 1, f32_count: 1}, ['i32_arg', 'i32_local', 'f32_local'])
+          {i32_count: 1, f32_count: 3},
+          ['i32_arg', 'i32_local', 'f32_local', '0', '0'])
       .addBody([
         // Load a parameter and a constant onto the operand stack.
         kExprLocalGet, 0, kExprI32Const, 3,

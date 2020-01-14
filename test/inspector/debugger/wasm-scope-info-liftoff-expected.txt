@@ -10,7 +10,7 @@ Setting breakpoint on line 2 (first instruction) of third function
     scriptId : <scriptId>
 }
 Paused:
-Script wasm://wasm/71172dd6 byte offset 85: Wasm opcode 0x20
+Script wasm://wasm/a094dcfe byte offset 85: Wasm opcode 0x20
 Scope:
 at C (interpreted) (0:85):
  - scope (global):
@@ -22,7 +22,7 @@ at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
-   locals: "arg#0": 0 (number), "local#1": 0 (number), "local#2": 0 (number)
+   locals: "arg#0": 0 (number), "local#1": 0 (number), "local#2": 0 (number), "local#3": 0 (number), "local#4": 0 (number)
    stack: "0": 0 (number), "1": 3 (number)
 at A (liftoff) (0:54):
  - scope (global):
@@ -35,7 +35,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/71172dd6 byte offset 87: Wasm opcode 0x24
+Script wasm://wasm/a094dcfe byte offset 87: Wasm opcode 0x24
 Scope:
 at C (interpreted) (0:87):
  - scope (global):
@@ -47,7 +47,7 @@ at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
-   locals: "arg#0": 0 (number), "local#1": 0 (number), "local#2": 0 (number)
+   locals: "arg#0": 0 (number), "local#1": 0 (number), "local#2": 0 (number), "local#3": 0 (number), "local#4": 0 (number)
    stack: "0": 0 (number), "1": 3 (number)
 at A (liftoff) (0:54):
  - scope (global):
@@ -60,7 +60,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/71172dd6 byte offset 89: Wasm opcode 0x41
+Script wasm://wasm/a094dcfe byte offset 89: Wasm opcode 0x41
 Scope:
 at C (interpreted) (0:89):
  - scope (global):
@@ -72,7 +72,7 @@ at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
-   locals: "arg#0": 0 (number), "local#1": 0 (number), "local#2": 0 (number)
+   locals: "arg#0": 0 (number), "local#1": 0 (number), "local#2": 0 (number), "local#3": 0 (number), "local#4": 0 (number)
    stack: "0": 0 (number), "1": 3 (number)
 at A (liftoff) (0:54):
  - scope (global):
@@ -85,7 +85,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/71172dd6 byte offset 91: Wasm opcode 0x21
+Script wasm://wasm/a094dcfe byte offset 91: Wasm opcode 0x21
 Scope:
 at C (interpreted) (0:91):
  - scope (global):
@@ -97,7 +97,7 @@ at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
-   locals: "arg#0": 0 (number), "local#1": 0 (number), "local#2": 0 (number)
+   locals: "arg#0": 0 (number), "local#1": 0 (number), "local#2": 0 (number), "local#3": 0 (number), "local#4": 0 (number)
    stack: "0": 0 (number), "1": 3 (number)
 at A (liftoff) (0:54):
  - scope (global):
@@ -110,7 +110,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/71172dd6 byte offset 93: Wasm opcode 0xb
+Script wasm://wasm/a094dcfe byte offset 93: Wasm opcode 0xb
 Scope:
 at C (interpreted) (0:93):
  - scope (global):
@@ -122,7 +122,7 @@ at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
-   locals: "arg#0": 0 (number), "local#1": 0 (number), "local#2": 0 (number)
+   locals: "arg#0": 0 (number), "local#1": 0 (number), "local#2": 0 (number), "local#3": 0 (number), "local#4": 0 (number)
    stack: "0": 0 (number), "1": 3 (number)
 at A (liftoff) (0:54):
  - scope (global):

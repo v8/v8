@@ -86,8 +86,8 @@ async function instantiateWasm() {
   // A second function which will be stepped through.
   let func = builder.addFunction('func', kSig_v_i)
       .addLocals(
-          {i32_count: 1, i64_count: 1, f64_count: 1},
-          ['i32Arg', undefined, 'i64_local', 'unicode☼f64'])
+          {i32_count: 1, i64_count: 1, f64_count: 3},
+          ['i32Arg', undefined, 'i64_local', 'unicode☼f64', '0', '0'])
       .addBody([
         // Set param 0 to 11.
         kExprI32Const, 11, kExprLocalSet, 0,

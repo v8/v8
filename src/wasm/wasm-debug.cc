@@ -408,7 +408,7 @@ class InterpreterHandle {
       JSObject::AddProperty(isolate, local_scope_object, locals_name,
                             locals_obj, NONE);
       for (int i = 0; i < num_locals; ++i) {
-        MaybeHandle<String> name =
+        MaybeHandle<Name> name =
             GetLocalName(isolate, debug_info, frame->function()->func_index, i);
         if (name.is_null()) {
           // Parameters should come before locals in alphabetical ordering, so
@@ -418,9 +418,15 @@ class InterpreterHandle {
         }
         WasmValue value = frame->GetLocalValue(i);
         Handle<Object> value_obj = WasmValueToValueObject(isolate_, value);
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            locals_obj, name.ToHandleChecked(), value_obj, NONE)
-            .Assert();
+        // {name} can be a string representation of an element index.
+        LookupIterator::Key lookup_key{isolate, name.ToHandleChecked()};
+        LookupIterator it(isolate, locals_obj, lookup_key, locals_obj,
+                          LookupIterator::OWN_SKIP_INTERCEPTOR);
+        if (it.IsFound()) continue;
+        Object::AddDataProperty(&it, value_obj, NONE,
+                                Just(ShouldThrow::kThrowOnError),
+                                StoreOrigin::kNamed)
+            .Check();
       }
     }
 
