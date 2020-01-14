@@ -1107,6 +1107,8 @@ TEST(Neon) {
               "f340e170       veor q15, q0, q8");
       COMPARE(vand(q15, q0, q8),
               "f240e170       vand q15, q0, q8");
+      COMPARE(vbic(q15, q0, q8),
+              "f250e170       vbic q15, q0, q8");
       COMPARE(vorr(q15, q0, q8),
               "f260e170       vorr q15, q0, q8");
       COMPARE(vmin(q15, q0, q8),

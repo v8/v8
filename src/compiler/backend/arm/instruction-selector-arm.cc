@@ -2571,7 +2571,8 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I8x16RoundingAverageU, kArmI8x16RoundingAverageU) \
   V(S128And, kArmS128And)                             \
   V(S128Or, kArmS128Or)                               \
-  V(S128Xor, kArmS128Xor)
+  V(S128Xor, kArmS128Xor)                             \
+  V(S128AndNot, kArmS128AndNot)
 
 void InstructionSelector::VisitS128Zero(Node* node) {
   ArmOperandGenerator g(this);

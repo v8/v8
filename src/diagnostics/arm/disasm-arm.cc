@@ -1861,6 +1861,11 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
               out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                           "vorr q%d, q%d, q%d", Vd, Vn, Vm);
             }
+          } else if (instr->Bits(21, 20) == 1 && instr->Bit(6) == 1 &&
+                     instr->Bit(4) == 1) {
+            // vbic Qd, Qn, Qm
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vbic q%d, q%d, q%d", Vd, Vn, Vm);
           } else if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 1 &&
                      instr->Bit(4) == 1) {
             // vand Qd, Qm, Qn.

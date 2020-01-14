@@ -1912,12 +1912,12 @@ WASM_SIMD_TEST(S128Xor) {
   RunI32x4BinOpTest(execution_tier, lower_simd, kExprS128Xor, Xor);
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
 // Bitwise operation, doesn't really matter what simd type we test it with.
 WASM_SIMD_TEST_NO_LOWERING(S128AndNot) {
   RunI32x4BinOpTest(execution_tier, lower_simd, kExprS128AndNot, AndNot);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
 
 WASM_SIMD_TEST(I32x4Eq) {
   RunI32x4BinOpTest(execution_tier, lower_simd, kExprI32x4Eq, Equal);

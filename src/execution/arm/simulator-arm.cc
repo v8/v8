@@ -4301,6 +4301,16 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               src1[i] = src1[i] & src2[i];
             }
             set_neon_register(Vd, src1);
+          } else if (instr->Bits(21, 20) == 1 && instr->Bit(6) == 1 &&
+                     instr->Bit(4) == 1) {
+            // vbic Qd, Qm, Qn.
+            uint32_t src1[4], src2[4];
+            get_neon_register(Vn, src1);
+            get_neon_register(Vm, src2);
+            for (int i = 0; i < 4; i++) {
+              src1[i] = src1[i] & ~src2[i];
+            }
+            set_neon_register(Vd, src1);
           } else {
             UNIMPLEMENTED();
           }

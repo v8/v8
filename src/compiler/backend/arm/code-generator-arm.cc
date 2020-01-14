@@ -2666,6 +2666,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vbsl(dst, i.InputSimd128Register(1), i.InputSimd128Register(2));
       break;
     }
+    case kArmS128AndNot: {
+      __ vbic(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
     case kArmS32x4ZipLeft: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);

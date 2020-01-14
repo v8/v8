@@ -268,6 +268,7 @@ namespace compiler {
   V(ArmS128Xor)                    \
   V(ArmS128Not)                    \
   V(ArmS128Select)                 \
+  V(ArmS128AndNot)                 \
   V(ArmS32x4ZipLeft)               \
   V(ArmS32x4ZipRight)              \
   V(ArmS32x4UnzipLeft)             \

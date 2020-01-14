@@ -4036,6 +4036,15 @@ void Assembler::vand(QwNeonRegister dst, QwNeonRegister src1,
                                  src2.code()));
 }
 
+void Assembler::vbic(QwNeonRegister dst, QwNeonRegister src1,
+                     QwNeonRegister src2) {
+  // Qd = vbic(Qn, Qm) SIMD AND.
+  // Instruction details available in ARM DDI 0406C.b, A8-840.
+  DCHECK(IsEnabled(NEON));
+  emit(EncodeNeonBinaryBitwiseOp(VBIC, NEON_Q, dst.code(), src1.code(),
+                                 src2.code()));
+}
+
 void Assembler::vbsl(QwNeonRegister dst, QwNeonRegister src1,
                      QwNeonRegister src2) {
   // Qd = vbsl(Qn, Qm) SIMD bitwise select.
