@@ -1321,26 +1321,39 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         break;
       case 0x51:
       case 0x52:
-      case 0x53:
+      case 0x53: {
+        const char* const pseudo_op[] = {"vsqrtps", "vrsqrtps", "vrcpps"};
+
+        AppendToBuffer("%s %s,", pseudo_op[opcode - 0x51],
+                       NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
+      }
+      case 0x5A:
+      case 0x5B: {
+        const char* const pseudo_op[] = {"vcvtps2pd", "vcvtdq2ps"};
+
+        AppendToBuffer("%s %s,", pseudo_op[opcode - 0x5A],
+                       NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
+      }
       case 0x54:
       case 0x55:
       case 0x56:
       case 0x57:
       case 0x58:
       case 0x59:
-      case 0x5A:
-      case 0x5B:
       case 0x5C:
       case 0x5D:
       case 0x5E:
       case 0x5F: {
         const char* const pseudo_op[] = {
-            "vsqrtps",   "vrsqrtps", "vrcpps", "vandps", "vandnps",
-            "vorps",     "vxorps",   "vaddps", "vmulps", "vcvtps2pd",
-            "vcvtdq2ps", "vsubps",   "vminps", "vdivps", "vmaxps",
+            "vandps", "vandnps", "vorps",  "vxorps", "vaddps", "vmulps",
+            "",       "",        "vsubps", "vminps", "vdivps", "vmaxps",
         };
 
-        AppendToBuffer("%s %s,%s,", pseudo_op[opcode - 0x51],
+        AppendToBuffer("%s %s,%s,", pseudo_op[opcode - 0x54],
                        NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
@@ -2444,6 +2457,8 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
       return (group_1_prefix_ == 0xF2) ? "mulsd" : "mulss";
     case 0x5A:  // F2/F3 prefix.
       return (group_1_prefix_ == 0xF2) ? "cvtsd2ss" : "cvtss2sd";
+    case 0x5B:  // F2/F3 prefix.
+      return "cvttps2dq";
     case 0x5D:  // F2/F3 prefix.
       return (group_1_prefix_ == 0xF2) ? "minsd" : "minss";
     case 0x5C:  // F2/F3 prefix.
