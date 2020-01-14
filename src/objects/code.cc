@@ -834,8 +834,7 @@ void BytecodeArray::MakeOlder() {
   // BytecodeArray is aged in concurrent marker.
   // The word must be completely within the byte code array.
   Address age_addr = address() + kBytecodeAgeOffset;
-  DCHECK_LE(RoundDown(age_addr, kSystemPointerSize) + kSystemPointerSize,
-            address() + Size());
+  DCHECK_LE(RoundDown(age_addr, kTaggedSize) + kTaggedSize, address() + Size());
   Age age = bytecode_age();
   if (age < kLastBytecodeAge) {
     base::AsAtomic8::Release_CompareAndSwap(reinterpret_cast<byte*>(age_addr),
