@@ -35,7 +35,7 @@ vars = {
   'check_v8_header_includes': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:a5bcbd726ac7bd342ca6ee3e3a006478fd1f00b5',
+  'gn_version': 'git_revision:0c5557d173ce217cea095086a9c9610068123503',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:37a855b64d59b7f079c9a0e5368f2757099d14d3',
@@ -82,7 +82,7 @@ deps = {
   'v8/build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + '6e49eefa473f1335c0e23579d70c2ab108a29e82',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '7a8bf94894ef3c5da4e09b1850e3b8a268153147',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a1266b63b566ad7632c542526018b73cba0eb8ff',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'dbd3825b31041d782c5b504c59dcfb5ac7dda08c',
   'v8/third_party/instrumented_libraries':
