@@ -789,12 +789,6 @@ uintptr_t GlobalHandles::OnStackTracedNodeSpace::GetStackAddressForSlot(
 }
 
 void GlobalHandles::OnStackTracedNodeSpace::NotifyEmptyEmbedderStack() {
-#ifdef DEBUG
-  uintptr_t current = GetCurrentStackPosition();
-  for (const auto it : on_stack_nodes_) {
-    DCHECK_LT(current, it.first);
-  }
-#endif  // DEBUG
   on_stack_nodes_.clear();
 }
 
