@@ -241,7 +241,10 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
     void* virtual_alloc =
         mmap(nullptr, rounded_length, prot, flags | MAP_NORESERVE, -1, 0);
     if (reinterpret_cast<intptr_t>(virtual_alloc) == -1) {
-      FATAL("mmap (virtual) failed with error %d: %s", errno, strerror(errno));
+      // Virtual memory allocation failed, probably because the requested
+      // size was too big. Callers can handle this.
+      munmap(real_alloc, kChunkSize);
+      return nullptr;
     }
     i::Address virtual_base = reinterpret_cast<i::Address>(virtual_alloc);
     i::Address virtual_end = virtual_base + rounded_length;

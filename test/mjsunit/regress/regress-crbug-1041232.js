@@ -33,3 +33,6 @@ assertEquals(undefined, a[kSize]);
 assertEquals(undefined, a[kSize + 1]);
 assertEquals(undefined, a[kSize + kChunkSize]);
 assertEquals(undefined, a[kSize + kSize]);
+
+// Check that excessive requests throw (crbug.com/1042173, crbug.com/1042151).
+assertThrows(() => new ArrayBuffer(Number.MAX_SAFE_INTEGER));
