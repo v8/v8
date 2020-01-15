@@ -1616,6 +1616,9 @@ class ModuleDecoderImpl : public Decoder {
             case kLocalAnyRef:
               if (enabled_features_.has_anyref()) return kWasmAnyRef;
               break;
+            case kLocalNullRef:
+              if (enabled_features_.has_anyref()) return kWasmNullRef;
+              break;
             case kLocalExnRef:
               if (enabled_features_.has_eh()) return kWasmExnRef;
               break;
@@ -1641,6 +1644,13 @@ class ModuleDecoderImpl : public Decoder {
                 "Invalid type. Set --experimental-wasm-anyref to use 'AnyRef'");
         }
         return kWasmAnyRef;
+      case kLocalNullRef:
+        if (!enabled_features_.has_anyref()) {
+          error(
+              pc_ - 1,
+              "Invalid type. Set --experimental-wasm-anyref to use 'NullRef'");
+        }
+        return kWasmNullRef;
       case kLocalExnRef:
         if (!enabled_features_.has_eh()) {
           error(pc_ - 1,

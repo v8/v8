@@ -236,6 +236,9 @@ inline bool decode_local_type(uint8_t val, ValueType* result) {
     case kLocalAnyRef:
       *result = kWasmAnyRef;
       return true;
+    case kLocalNullRef:
+      *result = kWasmNullRef;
+      return true;
     case kLocalExnRef:
       *result = kWasmExnRef;
       return true;
@@ -856,6 +859,15 @@ class WasmDecoder : public Decoder {
           }
           decoder->error(decoder->pc() - 1,
                          "invalid local type 'funcref', enable with "
+                         "--experimental-wasm-anyref");
+          return false;
+        case kLocalNullRef:
+          if (enabled.has_anyref()) {
+            type = kWasmNullRef;
+            break;
+          }
+          decoder->error(decoder->pc() - 1,
+                         "invalid local type 'nullref', enable with "
                          "--experimental-wasm-anyref");
           return false;
         case kLocalExnRef:

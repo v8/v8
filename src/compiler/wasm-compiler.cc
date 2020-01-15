@@ -2098,6 +2098,7 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
         break;
       case wasm::kWasmAnyRef:
       case wasm::kWasmFuncRef:
+      case wasm::kWasmNullRef:
       case wasm::kWasmExnRef:
         STORE_FIXED_ARRAY_SLOT_ANY(values_array, index, value);
         ++index;
@@ -2238,6 +2239,7 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
         break;
       case wasm::kWasmAnyRef:
       case wasm::kWasmFuncRef:
+      case wasm::kWasmNullRef:
       case wasm::kWasmExnRef:
         value = LOAD_FIXED_ARRAY_SLOT_ANY(values_array, index);
         ++index;
@@ -3427,6 +3429,7 @@ void WasmGraphBuilder::GetTableBaseAndOffset(uint32_t table_index,
 Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,
                                  wasm::WasmCodePosition position) {
   if (env_->module->tables[table_index].type == wasm::kWasmAnyRef ||
+      env_->module->tables[table_index].type == wasm::kWasmNullRef ||
       env_->module->tables[table_index].type == wasm::kWasmExnRef) {
     Node* base = nullptr;
     Node* offset = nullptr;
@@ -3456,6 +3459,7 @@ Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,
 Node* WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
                                  wasm::WasmCodePosition position) {
   if (env_->module->tables[table_index].type == wasm::kWasmAnyRef ||
+      env_->module->tables[table_index].type == wasm::kWasmNullRef ||
       env_->module->tables[table_index].type == wasm::kWasmExnRef) {
     Node* base = nullptr;
     Node* offset = nullptr;
@@ -5365,6 +5369,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         return BuildChangeFloat64ToTagged(node);
       case wasm::kWasmAnyRef:
       case wasm::kWasmFuncRef:
+      case wasm::kWasmNullRef:
       case wasm::kWasmExnRef:
         return node;
       default:
@@ -5455,8 +5460,26 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     switch (type) {
       case wasm::kWasmAnyRef:
       case wasm::kWasmExnRef:
-        // The parameter is of type anyref or exnref, we take it as is.
         return input;
+
+      case wasm::kWasmNullRef: {
+        Node* check = graph()->NewNode(mcgraph()->machine()->WordEqual(), input,
+                                       RefNull());
+
+        Diamond null_check(graph(), mcgraph()->common(), check,
+                           BranchHint::kTrue);
+        null_check.Chain(Control());
+
+        Node* effect = Effect();
+        BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, js_context,
+                                      nullptr, 0, &effect, null_check.if_false);
+
+        SetEffect(null_check.EffectPhi(Effect(), effect));
+
+        SetControl(null_check.merge);
+
+        return input;
+      }
 
       case wasm::kWasmFuncRef: {
         Node* check =

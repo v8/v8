@@ -1098,6 +1098,9 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     } else if (enabled_features.has_anyref() &&
                string->StringEquals(v8_str(isolate, "anyref"))) {
       type = i::wasm::kWasmAnyRef;
+    } else if (enabled_features.has_anyref() &&
+               string->StringEquals(v8_str(isolate, "nullref"))) {
+      type = i::wasm::kWasmNullRef;
     } else {
       thrower.TypeError("Descriptor property 'element' must be 'anyfunc'");
       return;
@@ -1227,6 +1230,9 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
   } else if (enabled_features.has_anyref() &&
              string->StringEquals(v8_str(isolate, "anyfunc"))) {
     *type = i::wasm::kWasmFuncRef;
+  } else if (enabled_features.has_anyref() &&
+             string->StringEquals(v8_str(isolate, "nullref"))) {
+    *type = i::wasm::kWasmNullRef;
   } else if (enabled_features.has_eh() &&
              string->StringEquals(v8_str(isolate, "exnref"))) {
     *type = i::wasm::kWasmExnRef;
@@ -1350,7 +1356,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     case i::wasm::kWasmAnyRef:
     case i::wasm::kWasmExnRef: {
       if (args.Length() < 2) {
-        // When no inital value is provided, we have to use the WebAssembly
+        // When no initial value is provided, we have to use the WebAssembly
         // default value 'null', and not the JS default value 'undefined'.
         global_obj->SetAnyRef(i_isolate->factory()->null_value());
         break;
@@ -1358,9 +1364,20 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetAnyRef(Utils::OpenHandle(*value));
       break;
     }
+    case i::wasm::kWasmNullRef:
+      if (args.Length() < 2) {
+        // When no initial value is provided, we have to use the WebAssembly
+        // default value 'null', and not the JS default value 'undefined'.
+        global_obj->SetNullRef(i_isolate->factory()->null_value());
+        break;
+      }
+      if (!global_obj->SetNullRef(Utils::OpenHandle(*value))) {
+        thrower.TypeError("The value of nullref globals must be null");
+      }
+      break;
     case i::wasm::kWasmFuncRef: {
       if (args.Length() < 2) {
-        // When no inital value is provided, we have to use the WebAssembly
+        // When no initial value is provided, we have to use the WebAssembly
         // default value 'null', and not the JS default value 'undefined'.
         global_obj->SetFuncRef(i_isolate, i_isolate->factory()->null_value());
         break;
@@ -1789,7 +1806,10 @@ void WebAssemblyGlobalGetValueCommon(
       break;
     case i::wasm::kWasmAnyRef:
     case i::wasm::kWasmFuncRef:
+    case i::wasm::kWasmNullRef:
     case i::wasm::kWasmExnRef:
+      DCHECK_IMPLIES(receiver->type() == i::wasm::kWasmNullRef,
+                     receiver->GetRef()->IsNull());
       return_value.Set(Utils::ToLocal(receiver->GetRef()));
       break;
     default:
@@ -1862,6 +1882,11 @@ void WebAssemblyGlobalSetValue(
       receiver->SetAnyRef(Utils::OpenHandle(*args[0]));
       break;
     }
+    case i::wasm::kWasmNullRef:
+      if (!receiver->SetNullRef(Utils::OpenHandle(*args[0]))) {
+        thrower.TypeError("The value of nullref must be null");
+      }
+      break;
     case i::wasm::kWasmFuncRef: {
       if (!receiver->SetFuncRef(i_isolate, Utils::OpenHandle(*args[0]))) {
         thrower.TypeError(

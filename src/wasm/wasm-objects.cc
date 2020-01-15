@@ -523,6 +523,10 @@ bool WasmTableObject::IsValidElement(Isolate* isolate,
       table->type() == wasm::kWasmExnRef) {
     return true;
   }
+  // Nullref only takes {null}.
+  if (table->type() == wasm::kWasmNullRef) {
+    return entry->IsNull(isolate);
+  }
   // FuncRef tables can store {null}, {WasmExportedFunction}, {WasmJSFunction},
   // or {WasmCapiFunction} objects.
   if (entry->IsNull(isolate)) return true;
@@ -1794,6 +1798,7 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
         break;
       case wasm::kWasmAnyRef:
       case wasm::kWasmFuncRef:
+      case wasm::kWasmNullRef:
       case wasm::kWasmExnRef:
         encoded_size += 1;
         break;

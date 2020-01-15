@@ -1464,6 +1464,7 @@ class ThreadImpl {
 #undef CASE_TYPE
         case kWasmAnyRef:
         case kWasmFuncRef:
+        case kWasmNullRef:
         case kWasmExnRef: {
           val = WasmValue(isolate_->factory()->null_value());
           break;
@@ -2861,8 +2862,10 @@ class ThreadImpl {
         }
         case kWasmAnyRef:
         case kWasmFuncRef:
+        case kWasmNullRef:
         case kWasmExnRef: {
           Handle<Object> anyref = value.to_anyref();
+          DCHECK_IMPLIES(sig->GetParam(i) == kWasmNullRef, anyref->IsNull());
           encoded_values->set(encoded_index++, *anyref);
           break;
         }
@@ -2963,8 +2966,10 @@ class ThreadImpl {
         }
         case kWasmAnyRef:
         case kWasmFuncRef:
+        case kWasmNullRef:
         case kWasmExnRef: {
           Handle<Object> anyref(encoded_values->get(encoded_index++), isolate_);
+          DCHECK_IMPLIES(sig->GetParam(i) == kWasmNullRef, anyref->IsNull());
           value = WasmValue(anyref);
           break;
         }
@@ -3122,6 +3127,7 @@ class ThreadImpl {
           V8_FALLTHROUGH;
         }
         case kExprSelect: {
+          HandleScope scope(isolate_);  // Avoid leaking handles.
           WasmValue cond = Pop();
           WasmValue fval = Pop();
           WasmValue tval = Pop();
@@ -3419,6 +3425,7 @@ class ThreadImpl {
 #undef CASE_TYPE
             case kWasmAnyRef:
             case kWasmFuncRef:
+            case kWasmNullRef:
             case kWasmExnRef: {
               HandleScope handle_scope(isolate_);  // Avoid leaking handles.
               Handle<FixedArray> global_buffer;    // The buffer of the global.
@@ -3426,7 +3433,9 @@ class ThreadImpl {
               std::tie(global_buffer, global_index) =
                   WasmInstanceObject::GetGlobalBufferAndIndex(instance_object_,
                                                               global);
-              global_buffer->set(global_index, *Pop().to_anyref());
+              Handle<Object> ref = Pop().to_anyref();
+              DCHECK_IMPLIES(global.type == kWasmNullRef, ref->IsNull());
+              global_buffer->set(global_index, *ref);
               break;
             }
             default:
@@ -3882,7 +3891,10 @@ class ThreadImpl {
           break;
         case kWasmAnyRef:
         case kWasmFuncRef:
+        case kWasmNullRef:
         case kWasmExnRef:
+          DCHECK_IMPLIES(sig->GetParam(i) == kWasmNullRef,
+                         arg.to_anyref()->IsNull());
           packer.Push(arg.to_anyref()->ptr());
           break;
         default:
@@ -3921,8 +3933,10 @@ class ThreadImpl {
           break;
         case kWasmAnyRef:
         case kWasmFuncRef:
+        case kWasmNullRef:
         case kWasmExnRef: {
           Handle<Object> ref(Object(packer.Pop<Address>()), isolate);
+          DCHECK_IMPLIES(sig->GetReturn(i) == kWasmNullRef, ref->IsNull());
           Push(WasmValue(ref));
           break;
         }

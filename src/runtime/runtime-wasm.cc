@@ -236,11 +236,13 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 #undef CASE_ARG_TYPE
       case wasm::kWasmAnyRef:
       case wasm::kWasmFuncRef:
+      case wasm::kWasmNullRef:
       case wasm::kWasmExnRef: {
         DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),
                   kSystemPointerSize);
         Handle<Object> ref(base::ReadUnalignedValue<Object>(arg_buf_ptr),
                            isolate);
+        DCHECK_IMPLIES(sig->GetParam(i) == wasm::kWasmNullRef, ref->IsNull());
         wasm_args[i] = wasm::WasmValue(ref);
         arg_buf_ptr += kSystemPointerSize;
         break;
@@ -287,9 +289,12 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 #undef CASE_RET_TYPE
       case wasm::kWasmAnyRef:
       case wasm::kWasmFuncRef:
+      case wasm::kWasmNullRef:
       case wasm::kWasmExnRef: {
         DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)),
                   kSystemPointerSize);
+        DCHECK_IMPLIES(sig->GetReturn(i) == wasm::kWasmNullRef,
+                       wasm_rets[i].to_anyref()->IsNull());
         base::WriteUnalignedValue<Object>(arg_buf_ptr,
                                           *wasm_rets[i].to_anyref());
         arg_buf_ptr += kSystemPointerSize;

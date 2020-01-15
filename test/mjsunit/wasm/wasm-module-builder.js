@@ -99,6 +99,7 @@ let kWasmF64 = 0x7c;
 let kWasmS128 = 0x7b;
 let kWasmAnyRef = 0x6f;
 let kWasmAnyFunc = 0x70;
+let kWasmNullRef = 0x6e;
 let kWasmExnRef = 0x68;
 
 let kExternalFunction = 0;
@@ -800,9 +801,9 @@ class WasmModuleBuilder {
   }
 
   addTable(type, initial_size, max_size = undefined) {
-    if (type != kWasmAnyRef && type != kWasmAnyFunc && type != kWasmExnRef) {
+    if (type != kWasmAnyRef && type != kWasmAnyFunc && type != kWasmNullRef && type != kWasmExnRef) {
       throw new Error(
-          'Tables must be of type kWasmAnyRef, kWasmAnyFunc, or kWasmExnRef');
+          'Tables must be of type kWasmAnyRef, kWasmAnyFunc, kWasmNullRef or kWasmExnRef');
     }
     let table = new WasmTableBuilder(this, type, initial_size, max_size);
     table.index = this.tables.length + this.num_imported_tables;
@@ -1086,6 +1087,7 @@ class WasmModuleBuilder {
               break;
             case kWasmAnyFunc:
             case kWasmAnyRef:
+            case kWasmNullRef:
               if (global.function_index !== undefined) {
                 section.emit_u8(kExprRefFunc);
                 section.emit_u32v(global.function_index);
@@ -1271,6 +1273,9 @@ class WasmModuleBuilder {
             }
             if (l.anyfunc_count > 0) {
               local_decls.push({count: l.anyfunc_count, type: kWasmAnyFunc});
+            }
+            if (l.nullref_count > 0) {
+              local_decls.push({count: l.nullref_count, type: kWasmNullRef});
             }
             if (l.except_count > 0) {
               local_decls.push({count: l.except_count, type: kWasmExnRef});

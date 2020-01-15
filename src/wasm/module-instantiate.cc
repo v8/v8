@@ -753,7 +753,9 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
     }
     case kWasmAnyRef:
     case kWasmFuncRef:
+    case kWasmNullRef:
     case kWasmExnRef: {
+      DCHECK_IMPLIES(global.type == kWasmNullRef, value->GetRef()->IsNull());
       tagged_globals_->set(global.offset, *value->GetRef());
       break;
     }
@@ -1155,14 +1157,21 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
   }
 
   if (ValueTypes::IsReferenceType(global.type)) {
-    // There shouldn't be any null-ref globals.
-    DCHECK_NE(ValueType::kWasmNullRef, global.type);
     if (global.type == ValueType::kWasmFuncRef) {
       if (!value->IsNull(isolate_) &&
           !WasmExportedFunction::IsWasmExportedFunction(*value)) {
         ReportLinkError(
             "imported funcref global must be null or an exported function",
             import_index, module_name, import_name);
+        return false;
+      }
+    } else if (global.type == ValueType::kWasmNullRef) {
+      if (value->IsNullOrUndefined(isolate_)) {
+        WriteGlobalAnyRef(global, isolate_->factory()->null_value());
+        return true;
+      } else {
+        ReportLinkError("imported nullref global must be null", import_index,
+                        module_name, import_name);
         return false;
       }
     }

@@ -213,7 +213,8 @@ class V8_EXPORT_PRIVATE ValueTypes {
   }
 
   static inline bool IsReferenceType(ValueType type) {
-    return type == kWasmAnyRef || type == kWasmFuncRef || type == kWasmExnRef;
+    return type == kWasmAnyRef || type == kWasmFuncRef ||
+           type == kWasmNullRef || type == kWasmExnRef;
   }
 
   static inline ValueType CommonSubType(ValueType a, ValueType b) {
@@ -243,9 +244,11 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return 16;
       case kWasmAnyRef:
       case kWasmFuncRef:
+      case kWasmNullRef:
       case kWasmExnRef:
         return kSystemPointerSize;
-      default:
+      case kWasmStmt:
+      case kWasmBottom:
         UNREACHABLE();
     }
   }
@@ -262,9 +265,11 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return 4;
       case kWasmAnyRef:
       case kWasmFuncRef:
+      case kWasmNullRef:
       case kWasmExnRef:
         return kSystemPointerSizeLog2;
-      default:
+      case kWasmStmt:
+      case kWasmBottom:
         UNREACHABLE();
     }
   }
@@ -287,11 +292,13 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return kLocalAnyRef;
       case kWasmFuncRef:
         return kLocalFuncRef;
+      case kWasmNullRef:
+        return kLocalNullRef;
       case kWasmExnRef:
         return kLocalExnRef;
       case kWasmStmt:
         return kLocalVoid;
-      default:
+      case kWasmBottom:
         UNREACHABLE();
     }
   }
@@ -308,13 +315,14 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return MachineType::Float64();
       case kWasmAnyRef:
       case kWasmFuncRef:
+      case kWasmNullRef:
       case kWasmExnRef:
         return MachineType::TaggedPointer();
       case kWasmS128:
         return MachineType::Simd128();
       case kWasmStmt:
         return MachineType::None();
-      default:
+      case kWasmBottom:
         UNREACHABLE();
     }
   }
@@ -338,7 +346,7 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return MachineRepresentation::kSimd128;
       case kWasmStmt:
         return MachineRepresentation::kNone;
-      default:
+      case kWasmBottom:
         UNREACHABLE();
     }
   }
@@ -382,10 +390,11 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return 's';
       case kWasmStmt:
         return 'v';
+      case kWasmNullRef:
+        return 'n';
+      case kWasmExnRef:
       case kWasmBottom:
         return '*';
-      default:
-        return '?';
     }
   }
 
@@ -413,8 +422,6 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return "<stmt>";
       case kWasmBottom:
         return "<bot>";
-      default:
-        return "<unknown>";
     }
   }
 
