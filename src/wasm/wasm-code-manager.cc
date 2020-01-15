@@ -1818,8 +1818,13 @@ void NativeModule::TierDown(Isolate* isolate) {
     tier_down_ = true;
   }
   // Tier down all functions.
-  isolate->wasm_engine()->RecompileAllFunctions(isolate, this,
-                                                ExecutionTier::kLiftoff);
+  // TODO(duongn): parallelize this eventually.
+  for (uint32_t index = module_->num_imported_functions;
+       index < num_functions(); index++) {
+    isolate->wasm_engine()->CompileFunction(isolate, this, index,
+                                            ExecutionTier::kLiftoff);
+    DCHECK(!compilation_state()->failed());
+  }
 }
 
 void NativeModule::TierUp(Isolate* isolate) {

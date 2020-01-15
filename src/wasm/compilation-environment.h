@@ -92,8 +92,7 @@ class WireBytesStorage {
 enum class CompilationEvent : uint8_t {
   kFinishedBaselineCompilation,
   kFinishedTopTierCompilation,
-  kFailedCompilation,
-  kFinishedRecompilation
+  kFailedCompilation
 };
 
 // The implementation of {CompilationState} lives in module-compiler.cc.

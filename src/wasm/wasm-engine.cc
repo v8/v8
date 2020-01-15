@@ -429,12 +429,6 @@ void WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
       &native_module->module()->functions[function_index], tier);
 }
 
-void WasmEngine::RecompileAllFunctions(Isolate* isolate,
-                                       NativeModule* native_module,
-                                       ExecutionTier tier) {
-  RecompileNativeModule(isolate, native_module, tier);
-}
-
 std::shared_ptr<NativeModule> WasmEngine::ExportNativeModule(
     Handle<WasmModuleObject> module_object) {
   return module_object->shared_native_module();
