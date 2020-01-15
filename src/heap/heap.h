@@ -318,7 +318,7 @@ class Heap {
   // writable and reserved to contain unwind information.
   static size_t GetCodeRangeReservedAreaSize();
 
-  void FatalProcessOutOfMemory(const char* location);
+  [[noreturn]] void FatalProcessOutOfMemory(const char* location);
 
   // Checks whether the space is valid.
   static bool IsValidAllocationSpace(AllocationSpace space);
@@ -421,6 +421,9 @@ class Heap {
   void NotifyBootstrapComplete();
 
   void NotifyOldGenerationExpansion();
+
+  // Notifies the heap that an off-thread space has been merged into it.
+  void NotifyOffThreadSpaceMerged();
 
   inline Address* NewSpaceAllocationTopAddress();
   inline Address* NewSpaceAllocationLimitAddress();
@@ -925,7 +928,8 @@ class Heap {
 
   void FinalizeIncrementalMarkingIfComplete(GarbageCollectionReason gc_reason);
   // Synchronously finalizes incremental marking.
-  void FinalizeIncrementalMarkingAtomically(GarbageCollectionReason gc_reason);
+  V8_EXPORT_PRIVATE void FinalizeIncrementalMarkingAtomically(
+      GarbageCollectionReason gc_reason);
 
   void RegisterDeserializedObjectsForBlackAllocation(
       Reservation* reservations, const std::vector<HeapObject>& large_objects,

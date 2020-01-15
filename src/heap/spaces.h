@@ -17,6 +17,7 @@
 #include "src/base/export-template.h"
 #include "src/base/iterator.h"
 #include "src/base/list.h"
+#include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
@@ -429,6 +430,11 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
   virtual void StartNextInlineAllocationStep() {}
 
   void AllocationStep(int bytes_since_last, Address soon_object, int size);
+
+  // An AllocationStep equivalent to be called after merging a contiguous
+  // chunk of an off-thread space into this space. The chunk is treated as a
+  // single allocation-folding group.
+  void AllocationStepAfterMerge(Address first_object_in_chunk, int size);
 
   // Return the total amount committed memory for this space, i.e., allocatable
   // memory and page headers.
@@ -2463,6 +2469,10 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   bool is_local_space() { return local_space_kind_ != LocalSpaceKind::kNone; }
 
+  bool is_off_thread_space() {
+    return local_space_kind_ == LocalSpaceKind::kOffThreadSpace;
+  }
+
   bool is_compaction_space() {
     return base::IsInRange(local_space_kind_,
                            LocalSpaceKind::kFirstCompactionSpace,
@@ -3235,7 +3245,7 @@ class ReadOnlySpace : public PagedSpace {
 // managed by the large object space.
 // Large objects do not move during garbage collections.
 
-class LargeObjectSpace : public Space {
+class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
  public:
   using iterator = LargePageIterator;
 
@@ -3259,7 +3269,7 @@ class LargeObjectSpace : public Space {
   virtual void FreeUnmarkedObjects();
 
   // Checks whether a heap object is in this space; O(1).
-  V8_EXPORT_PRIVATE bool Contains(HeapObject obj);
+  bool Contains(HeapObject obj);
   // Checks whether an address is in the object area in this space. Iterates
   // all objects in the space. May be slow.
   bool ContainsSlow(Address addr);

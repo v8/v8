@@ -17,6 +17,7 @@ namespace internal {
 
 // Forward declarations.
 enum ElementsKind : uint8_t;
+class OffThreadFactory;
 template <typename T>
 class Handle;
 class Heap;
@@ -479,6 +480,7 @@ class ReadOnlyRoots {
 
   V8_INLINE explicit ReadOnlyRoots(Heap* heap);
   V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
+  V8_INLINE explicit ReadOnlyRoots(OffThreadFactory* factory);
 
 #define ROOT_ACCESSOR(Type, name, CamelName) \
   V8_INLINE class Type name() const;         \

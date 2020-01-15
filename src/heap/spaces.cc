@@ -1616,6 +1616,19 @@ void Space::AllocationStep(int bytes_since_last, Address soon_object,
   heap()->set_allocation_step_in_progress(false);
 }
 
+void Space::AllocationStepAfterMerge(Address first_object_in_chunk, int size) {
+  if (!AllocationObserversActive()) {
+    return;
+  }
+
+  DCHECK(!heap()->allocation_step_in_progress());
+  heap()->set_allocation_step_in_progress(true);
+  for (AllocationObserver* observer : allocation_observers_) {
+    observer->AllocationStep(size, first_object_in_chunk, size);
+  }
+  heap()->set_allocation_step_in_progress(false);
+}
+
 intptr_t Space::GetNextInlineAllocationStepSize() {
   intptr_t next_step = 0;
   for (AllocationObserver* observer : allocation_observers_) {
@@ -1708,6 +1721,7 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
   base::MutexGuard guard(mutex());
 
   DCHECK(identity() == other->identity());
+
   // Unmerged fields:
   //   area_size_
   other->FreeLinearAllocationArea();
@@ -1721,11 +1735,20 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
   DCHECK_EQ(kNullAddress, other->top());
   DCHECK_EQ(kNullAddress, other->limit());
 
+  bool merging_from_off_thread = other->is_off_thread_space();
+
   // Move over pages.
   for (auto it = other->begin(); it != other->end();) {
     Page* p = *(it++);
 
-    p->MergeOldToNewRememberedSets();
+    if (merging_from_off_thread) {
+      DCHECK_NULL(p->sweeping_slot_set());
+      if (heap()->incremental_marking()->black_allocation()) {
+        p->CreateBlackArea(p->area_start(), p->HighWaterMark());
+      }
+    } else {
+      p->MergeOldToNewRememberedSets();
+    }
 
     // Relinking requires the category to be unlinked.
     other->RemovePage(p);
@@ -1735,7 +1758,21 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
     DCHECK_IMPLIES(
         !p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE),
         p->AvailableInFreeList() == p->AvailableInFreeListFromAllocatedBytes());
+
+    if (merging_from_off_thread) {
+      // TODO(leszeks): Allocation groups are currently not handled properly by
+      // the sampling allocation profiler. We'll have to come up with a better
+      // solution for allocation stepping before shipping.
+      AllocationStepAfterMerge(
+          p->area_start(),
+          static_cast<int>(p->HighWaterMark() - p->area_start()));
+    }
   }
+
+  if (merging_from_off_thread) {
+    heap()->NotifyOffThreadSpaceMerged();
+  }
+
   DCHECK_EQ(0u, other->Size());
   DCHECK_EQ(0u, other->Capacity());
 }
@@ -4325,10 +4362,21 @@ void OldLargeObjectSpace::MergeOffThreadSpace(
 
   while (!other->memory_chunk_list().Empty()) {
     LargePage* page = other->first_page();
-    int size = page->GetObject().Size();
+    HeapObject object = page->GetObject();
+    int size = object.Size();
     other->RemovePage(page, size);
     AddPage(page, size);
+
+    AllocationStepAfterMerge(object.address(), size);
+    if (heap()->incremental_marking()->black_allocation()) {
+      heap()->incremental_marking()->marking_state()->WhiteToBlack(object);
+    }
+    DCHECK_IMPLIES(
+        heap()->incremental_marking()->black_allocation(),
+        heap()->incremental_marking()->marking_state()->IsBlack(object));
   }
+
+  heap()->NotifyOffThreadSpaceMerged();
 }
 
 NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap, size_t capacity)

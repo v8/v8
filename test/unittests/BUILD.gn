@@ -38,9 +38,7 @@ v8_executable("unittests") {
     "//testing/gtest",
   ]
 
-  data_deps = [
-    "../../tools:v8_testrunner",
-  ]
+  data_deps = [ "../../tools:v8_testrunner" ]
 
   data = [
     "testcfg.py",
@@ -176,6 +174,7 @@ v8_source_set("unittests_sources") {
     "heap/marking-worklist-unittest.cc",
     "heap/memory-reducer-unittest.cc",
     "heap/object-stats-unittest.cc",
+    "heap/off-thread-factory-unittest.cc",
     "heap/scavenge-job-unittest.cc",
     "heap/slot-set-unittest.cc",
     "heap/spaces-unittest.cc",

@@ -218,14 +218,14 @@ Handle<Code> Factory::CodeBuilder::Build() {
   return BuildInternal(true).ToHandleChecked();
 }
 
-HeapObject Factory::AllocateRawWithImmortalMap(int size,
-                                               AllocationType allocation,
-                                               Map map,
-                                               AllocationAlignment alignment) {
-  HeapObject result = isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(
+void Factory::FatalProcessOutOfHeapMemory(const char* location) {
+  isolate()->heap()->FatalProcessOutOfMemory(location);
+}
+
+HeapObject Factory::AllocateRaw(int size, AllocationType allocation,
+                                AllocationAlignment alignment) {
+  return isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(
       size, allocation, AllocationOrigin::kRuntime, alignment);
-  result.set_map_after_allocation(map, SKIP_WRITE_BARRIER);
-  return result;
 }
 
 HeapObject Factory::AllocateRawWithAllocationSite(
@@ -923,57 +923,6 @@ inline void WriteTwoByteData(Handle<String> s, uint16_t* chars, int len) {
 
 }  // namespace
 
-Handle<SeqOneByteString> Factory::AllocateRawOneByteInternalizedString(
-    int length, uint32_t hash_field) {
-  CHECK_GE(String::kMaxLength, length);
-  // The canonical empty_string is the only zero-length string we allow.
-  DCHECK_IMPLIES(
-      length == 0,
-      isolate()->roots_table()[RootIndex::kempty_string] == kNullAddress);
-
-  Map map = *one_byte_internalized_string_map();
-  int size = SeqOneByteString::SizeFor(length);
-  HeapObject result =
-      AllocateRawWithImmortalMap(size,
-                                 isolate()->heap()->CanAllocateInReadOnlySpace()
-                                     ? AllocationType::kReadOnly
-                                     : AllocationType::kOld,
-                                 map);
-  Handle<SeqOneByteString> answer(SeqOneByteString::cast(result), isolate());
-  answer->set_length(length);
-  answer->set_hash_field(hash_field);
-  DCHECK_EQ(size, answer->Size());
-  return answer;
-}
-
-Handle<String> Factory::AllocateTwoByteInternalizedString(
-    const Vector<const uc16>& str, uint32_t hash_field) {
-  Handle<SeqTwoByteString> result =
-      AllocateRawTwoByteInternalizedString(str.length(), hash_field);
-  DisallowHeapAllocation no_gc;
-
-  // Fill in the characters.
-  MemCopy(result->GetChars(no_gc), str.begin(), str.length() * kUC16Size);
-
-  return result;
-}
-
-Handle<SeqTwoByteString> Factory::AllocateRawTwoByteInternalizedString(
-    int length, uint32_t hash_field) {
-  CHECK_GE(String::kMaxLength, length);
-  DCHECK_NE(0, length);  // Use Heap::empty_string() instead.
-
-  Map map = *internalized_string_map();
-  int size = SeqTwoByteString::SizeFor(length);
-  HeapObject result =
-      AllocateRawWithImmortalMap(size, AllocationType::kOld, map);
-  Handle<SeqTwoByteString> answer(SeqTwoByteString::cast(result), isolate());
-  answer->set_length(length);
-  answer->set_hash_field(hash_field);
-  DCHECK_EQ(size, result.Size());
-  return answer;
-}
-
 template <bool is_one_byte, typename T>
 Handle<String> Factory::AllocateInternalizedStringImpl(T t, int chars,
                                                        uint32_t hash_field) {
@@ -1009,20 +958,6 @@ Handle<String> Factory::AllocateInternalizedStringImpl(T t, int chars,
     WriteTwoByteData(t, SeqTwoByteString::cast(*answer).GetChars(no_gc), chars);
   }
   return answer;
-}
-
-Handle<String> Factory::NewOneByteInternalizedString(
-    const Vector<const uint8_t>& str, uint32_t hash_field) {
-  Handle<SeqOneByteString> result =
-      AllocateRawOneByteInternalizedString(str.length(), hash_field);
-  DisallowHeapAllocation no_allocation;
-  MemCopy(result->GetChars(no_allocation), str.begin(), str.length());
-  return result;
-}
-
-Handle<String> Factory::NewTwoByteInternalizedString(
-    const Vector<const uc16>& str, uint32_t hash_field) {
-  return AllocateTwoByteInternalizedString(str, hash_field);
 }
 
 Handle<String> Factory::NewInternalizedStringImpl(Handle<String> string,
@@ -1083,42 +1018,6 @@ template Handle<ExternalOneByteString>
     Factory::InternalizeExternalString<ExternalOneByteString>(Handle<String>);
 template Handle<ExternalTwoByteString>
     Factory::InternalizeExternalString<ExternalTwoByteString>(Handle<String>);
-
-MaybeHandle<SeqOneByteString> Factory::NewRawOneByteString(
-    int length, AllocationType allocation) {
-  if (length > String::kMaxLength || length < 0) {
-    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqOneByteString);
-  }
-  DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
-  int size = SeqOneByteString::SizeFor(length);
-  DCHECK_GE(SeqOneByteString::kMaxSize, size);
-
-  HeapObject result =
-      AllocateRawWithImmortalMap(size, allocation, *one_byte_string_map());
-  Handle<SeqOneByteString> string(SeqOneByteString::cast(result), isolate());
-  string->set_length(length);
-  string->set_hash_field(String::kEmptyHashField);
-  DCHECK_EQ(size, string->Size());
-  return string;
-}
-
-MaybeHandle<SeqTwoByteString> Factory::NewRawTwoByteString(
-    int length, AllocationType allocation) {
-  if (length > String::kMaxLength || length < 0) {
-    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqTwoByteString);
-  }
-  DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
-  int size = SeqTwoByteString::SizeFor(length);
-  DCHECK_GE(SeqTwoByteString::kMaxSize, size);
-
-  HeapObject result =
-      AllocateRawWithImmortalMap(size, allocation, *string_map());
-  Handle<SeqTwoByteString> string(SeqTwoByteString::cast(result), isolate());
-  string->set_length(length);
-  string->set_hash_field(String::kEmptyHashField);
-  DCHECK_EQ(size, string->Size());
-  return string;
-}
 
 Handle<String> Factory::LookupSingleCharacterStringFromCode(uint16_t code) {
   if (code <= unibrow::Latin1::kMaxChar) {
@@ -4265,6 +4164,14 @@ Handle<CallHandlerInfo> Factory::NewCallHandlerInfo(bool has_no_side_effect) {
   info->set_js_callback(undefined_value);
   info->set_data(undefined_value);
   return info;
+}
+
+bool Factory::CanAllocateInReadOnlySpace() {
+  return isolate()->heap()->CanAllocateInReadOnlySpace();
+}
+
+bool Factory::EmptyStringRootIsInitialized() {
+  return isolate()->roots_table()[RootIndex::kempty_string] != kNullAddress;
 }
 
 // static

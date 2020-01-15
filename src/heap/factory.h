@@ -12,6 +12,7 @@
 #include "src/execution/messages.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
+#include "src/heap/factory-base.h"
 #include "src/heap/heap.h"
 #include "src/objects/code.h"
 #include "src/objects/dictionary.h"
@@ -105,9 +106,25 @@ enum FunctionMode {
       kWithReadonlyPrototypeBit | kWithNameBit,
 };
 
+class Factory;
+
+template <>
+struct FactoryTraits<Factory> {
+  template <typename T>
+  using HandleType = Handle<T>;
+  template <typename T>
+  using MaybeHandleType = v8::internal::MaybeHandle<T>;
+};
+
 // Interface for handle based allocation.
-class V8_EXPORT_PRIVATE Factory {
+class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
+  inline ReadOnlyRoots read_only_roots();
+  template <typename T>
+  Handle<T> MakeHandle(T obj) {
+    return handle(obj, isolate());
+  }
+
   Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
                              Handle<Object> to_number, const char* type_of,
                              byte kind);
@@ -311,18 +328,6 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<JSStringIterator> NewJSStringIterator(Handle<String> string);
 
-  Handle<String> NewOneByteInternalizedString(const Vector<const uint8_t>& str,
-                                              uint32_t hash_field);
-
-  Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
-      int length, uint32_t hash_field);
-
-  Handle<String> NewTwoByteInternalizedString(const Vector<const uc16>& str,
-                                              uint32_t hash_field);
-
-  Handle<SeqTwoByteString> AllocateRawTwoByteInternalizedString(
-      int length, uint32_t hash_field);
-
   Handle<String> NewInternalizedStringImpl(Handle<String> string, int chars,
                                            uint32_t hash_field);
 
@@ -335,14 +340,6 @@ class V8_EXPORT_PRIVATE Factory {
   // of type StringClass.
   template <class StringClass>
   Handle<StringClass> InternalizeExternalString(Handle<String> string);
-
-  // Allocates and partially initializes an one-byte or two-byte String. The
-  // characters of the string are uninitialized. Currently used in regexp code
-  // only, where they are pretenured.
-  V8_WARN_UNUSED_RESULT MaybeHandle<SeqOneByteString> NewRawOneByteString(
-      int length, AllocationType allocation = AllocationType::kYoung);
-  V8_WARN_UNUSED_RESULT MaybeHandle<SeqTwoByteString> NewRawTwoByteString(
-      int length, AllocationType allocation = AllocationType::kYoung);
 
   // Creates a single character string where the character has given code.
   // A cache is used for Latin1 codes.
@@ -1009,6 +1006,19 @@ class V8_EXPORT_PRIVATE Factory {
   };
 
  private:
+  friend class FactoryBase<Factory>;
+
+  // ------
+  // Customization points for FactoryBase
+  HeapObject AllocateRaw(int size, AllocationType allocation,
+                         AllocationAlignment alignment = kWordAligned);
+  template <typename T>
+  inline MaybeHandle<T> Throw(Handle<Object> exception);
+  [[noreturn]] void FatalProcessOutOfHeapMemory(const char* location);
+  bool CanAllocateInReadOnlySpace();
+  bool EmptyStringRootIsInitialized();
+  // ------
+
   Isolate* isolate() {
     // Downcast to the privately inherited sub-class using c-style casts to
     // avoid undefined behavior (as static_cast cannot cast across private
@@ -1017,9 +1027,6 @@ class V8_EXPORT_PRIVATE Factory {
     return (Isolate*)this;  // NOLINT(readability/casting)
   }
 
-  HeapObject AllocateRawWithImmortalMap(
-      int size, AllocationType allocation, Map map,
-      AllocationAlignment alignment = kWordAligned);
   HeapObject AllocateRawWithAllocationSite(
       Handle<Map> map, AllocationType allocation,
       Handle<AllocationSite> allocation_site);

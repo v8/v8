@@ -5221,6 +5221,20 @@ void Heap::NotifyOldGenerationExpansion() {
   }
 }
 
+void Heap::NotifyOffThreadSpaceMerged() {
+  // TODO(leszeks): Ideally we would do this check during off-thread page
+  // allocation too, to proactively do GC. We should also probably do this check
+  // before merging rather than after.
+  if (!CanExpandOldGeneration(0)) {
+    // TODO(leszeks): We should try to invoke the near-heap limit callback and
+    // do a last-resort GC first.
+    FatalProcessOutOfMemory("Failed to merge off-thread pages into heap.");
+  }
+  StartIncrementalMarkingIfAllocationLimitIsReached(
+      GCFlagsForIncrementalMarking(), kGCCallbackScheduleIdleGarbageCollection);
+  NotifyOldGenerationExpansion();
+}
+
 void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
   DCHECK_EQ(gc_state_, HeapState::NOT_IN_GC);
   local_embedder_heap_tracer()->SetRemoteTracer(tracer);

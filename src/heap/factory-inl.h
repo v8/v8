@@ -101,6 +101,13 @@ Handle<Object> Factory::NewURIError() {
                   MessageTemplate::kURIMalformed);
 }
 
+template <typename T>
+inline MaybeHandle<T> Factory::Throw(Handle<Object> exception) {
+  return isolate()->Throw<T>(exception);
+}
+
+ReadOnlyRoots Factory::read_only_roots() { return ReadOnlyRoots(isolate()); }
+
 }  // namespace internal
 }  // namespace v8
 
