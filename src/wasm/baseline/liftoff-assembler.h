@@ -689,6 +689,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void AllocateStackSlot(Register addr, uint32_t size);
   inline void DeallocateStackSlot(uint32_t size);
 
+  inline void DebugBreak();
   ////////////////////////////////////
   // End of platform-specific part. //
   ////////////////////////////////////

@@ -1143,6 +1143,8 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   Drop(size, 1);
 }
 
+void LiftoffAssembler::DebugBreak() { debug("DebugBreak", 0, BREAK); }
+
 void LiftoffStackSlots::Construct() {
   size_t slot_count = slots_.size();
   // The stack pointer is required to be quadword aligned.
