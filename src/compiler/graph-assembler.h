@@ -225,8 +225,8 @@ class GraphAssemblerLabel {
   size_t merged_count_ = 0;
   Node* effect_;
   Node* control_;
-  Node* bindings_[VarCount + 1];
-  MachineRepresentation representations_[VarCount + 1];
+  std::array<Node*, VarCount> bindings_;
+  std::array<MachineRepresentation, VarCount> representations_;
 };
 
 class V8_EXPORT_PRIVATE GraphAssembler {
@@ -447,7 +447,8 @@ template <typename... Vars>
 void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
                                 Vars... vars) {
   int merged_count = static_cast<int>(label->merged_count_);
-  Node* var_array[] = {nullptr, vars...};
+  static constexpr int kVarCount = sizeof...(vars);
+  std::array<Node*, kVarCount> var_array = {vars...};
   if (label->IsLoop()) {
     if (merged_count == 0) {
       DCHECK(!label->IsBound());
@@ -458,18 +459,18 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
       Node* terminate = graph()->NewNode(common()->Terminate(), label->effect_,
                                          label->control_);
       NodeProperties::MergeControlToEnd(graph(), common(), terminate);
-      for (size_t i = 0; i < sizeof...(vars); i++) {
-        label->bindings_[i] = graph()->NewNode(
-            common()->Phi(label->representations_[i], 2), var_array[i + 1],
-            var_array[i + 1], label->control_);
+      for (size_t i = 0; i < kVarCount; i++) {
+        label->bindings_[i] =
+            graph()->NewNode(common()->Phi(label->representations_[i], 2),
+                             var_array[i], var_array[i], label->control_);
       }
     } else {
       DCHECK(label->IsBound());
       DCHECK_EQ(1, merged_count);
       label->control_->ReplaceInput(1, control());
       label->effect_->ReplaceInput(1, effect());
-      for (size_t i = 0; i < sizeof...(vars); i++) {
-        label->bindings_[i]->ReplaceInput(1, var_array[i + 1]);
+      for (size_t i = 0; i < kVarCount; i++) {
+        label->bindings_[i]->ReplaceInput(1, var_array[i]);
       }
     }
   } else {
@@ -479,8 +480,8 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
       DCHECK(!label->IsBound());
       label->control_ = control();
       label->effect_ = effect();
-      for (size_t i = 0; i < sizeof...(vars); i++) {
-        label->bindings_[i] = var_array[i + 1];
+      for (size_t i = 0; i < kVarCount; i++) {
+        label->bindings_[i] = var_array[i];
       }
     } else if (merged_count == 1) {
       // Create merge, effect phi and a phi for each variable.
@@ -488,10 +489,10 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
           graph()->NewNode(common()->Merge(2), label->control_, control());
       label->effect_ = graph()->NewNode(common()->EffectPhi(2), label->effect_,
                                         effect(), label->control_);
-      for (size_t i = 0; i < sizeof...(vars); i++) {
+      for (size_t i = 0; i < kVarCount; i++) {
         label->bindings_[i] = graph()->NewNode(
             common()->Phi(label->representations_[i], 2), label->bindings_[i],
-            var_array[i + 1], label->control_);
+            var_array[i], label->control_);
       }
     } else {
       // Append to the merge, effect phi and phis.
@@ -506,9 +507,9 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
       NodeProperties::ChangeOp(label->effect_,
                                common()->EffectPhi(merged_count + 1));
 
-      for (size_t i = 0; i < sizeof...(vars); i++) {
+      for (size_t i = 0; i < kVarCount; i++) {
         DCHECK_EQ(IrOpcode::kPhi, label->bindings_[i]->opcode());
-        label->bindings_[i]->ReplaceInput(merged_count, var_array[i + 1]);
+        label->bindings_[i]->ReplaceInput(merged_count, var_array[i]);
         label->bindings_[i]->AppendInput(graph()->zone(), label->control_);
         NodeProperties::ChangeOp(
             label->bindings_[i],
