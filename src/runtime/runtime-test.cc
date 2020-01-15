@@ -1122,8 +1122,13 @@ RUNTIME_FUNCTION(Runtime_RegexpHasBytecode) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(is_latin1, 1);
-  bool is_irregexp_bytecode = regexp.Bytecode(is_latin1).IsByteArray();
-  return isolate->heap()->ToBoolean(is_irregexp_bytecode);
+  bool result;
+  if (regexp.TypeTag() == JSRegExp::IRREGEXP) {
+    result = regexp.Bytecode(is_latin1).IsByteArray();
+  } else {
+    result = false;
+  }
+  return isolate->heap()->ToBoolean(result);
 }
 
 RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {

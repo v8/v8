@@ -6160,10 +6160,12 @@ Handle<JSRegExp> JSRegExp::Copy(Handle<JSRegExp> regexp) {
 }
 
 Object JSRegExp::Code(bool is_latin1) const {
+  DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
   return DataAt(code_index(is_latin1));
 }
 
 Object JSRegExp::Bytecode(bool is_latin1) const {
+  DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
   return DataAt(bytecode_index(is_latin1));
 }
 
