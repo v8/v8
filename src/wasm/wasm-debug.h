@@ -41,18 +41,26 @@ class DebugSideTable {
     };
 
     Entry(int pc_offset, std::vector<ValueType> stack_types,
-          std::vector<Constant> constants)
+          std::vector<int> stack_offsets, std::vector<Constant> constants)
         : pc_offset_(pc_offset),
           stack_types_(std::move(stack_types)),
+          stack_offsets_(std::move(stack_offsets)),
           constants_(std::move(constants)) {
       DCHECK(std::is_sorted(constants_.begin(), constants_.end(),
                             ConstantIndexLess{}));
+      DCHECK_EQ(stack_types_.size(), stack_offsets_.size());
     }
+
+    // Constructor for map lookups (only initializes the {pc_offset_}).
+    explicit Entry(int pc_offset) : pc_offset_(pc_offset) {}
 
     int pc_offset() const { return pc_offset_; }
     int stack_height() const { return static_cast<int>(stack_types_.size()); }
     ValueType stack_type(int stack_index) const {
       return stack_types_[stack_index];
+    }
+    int stack_offset(int stack_index) const {
+      return stack_offsets_[stack_index];
     }
     // {index} can point to a local or operand stack value.
     bool IsConstant(int index) const {
@@ -76,7 +84,9 @@ class DebugSideTable {
     };
 
     int pc_offset_;
+    // TODO(clemensb): Merge these vectors into one.
     std::vector<ValueType> stack_types_;
+    std::vector<int> stack_offsets_;
     std::vector<Constant> constants_;
   };
 
@@ -85,15 +95,18 @@ class DebugSideTable {
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(DebugSideTable);
 
   explicit DebugSideTable(std::vector<ValueType> local_types,
+                          std::vector<int> local_stack_offsets,
                           std::vector<Entry> entries)
-      : local_types_(std::move(local_types)), entries_(std::move(entries)) {
+      : local_types_(std::move(local_types)),
+        local_stack_offsets_(std::move(local_stack_offsets)),
+        entries_(std::move(entries)) {
     DCHECK(
         std::is_sorted(entries_.begin(), entries_.end(), EntryPositionLess{}));
   }
 
   const Entry* GetEntry(int pc_offset) const {
     auto it = std::lower_bound(entries_.begin(), entries_.end(),
-                               Entry{pc_offset, {}, {}}, EntryPositionLess{});
+                               Entry{pc_offset}, EntryPositionLess{});
     if (it == entries_.end() || it->pc_offset() != pc_offset) return nullptr;
     return &*it;
   }
@@ -105,6 +118,9 @@ class DebugSideTable {
   size_t num_entries() const { return entries_.size(); }
   int num_locals() const { return static_cast<int>(local_types_.size()); }
   ValueType local_type(int index) const { return local_types_[index]; }
+  int local_stack_offset(int index) const {
+    return local_stack_offsets_[index];
+  }
 
  private:
   struct EntryPositionLess {
@@ -114,6 +130,7 @@ class DebugSideTable {
   };
 
   std::vector<ValueType> local_types_;
+  std::vector<int32_t> local_stack_offsets_;
   std::vector<Entry> entries_;
 };
 

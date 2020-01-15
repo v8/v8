@@ -22,13 +22,13 @@ at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
-   locals: "arg#0": 0 (number), "local#1": 0 (number), "local#2": 0 (number), "local#3": 0 (number), "local#4": 0 (number)
-   stack: "0": 0 (number), "1": 3 (number)
+   locals: "arg#0": 42 (number), "local#1": 0 (number), "local#2": 7.199999809265137 (number), "local#3": 0 (number), "local#4": 0 (number)
+   stack: "0": 42 (number), "1": 3 (number)
 at A (liftoff) (0:54):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
-   locals: "arg#0": 0 (number)
+   locals: "arg#0": 42 (number)
    stack: 
 at (anonymous) (0:17):
  - scope (global):
@@ -47,13 +47,13 @@ at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
-   locals: "arg#0": 0 (number), "local#1": 0 (number), "local#2": 0 (number), "local#3": 0 (number), "local#4": 0 (number)
-   stack: "0": 0 (number), "1": 3 (number)
+   locals: "arg#0": 42 (number), "local#1": 0 (number), "local#2": 7.199999809265137 (number), "local#3": 0 (number), "local#4": 0 (number)
+   stack: "0": 42 (number), "1": 3 (number)
 at A (liftoff) (0:54):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
-   locals: "arg#0": 0 (number)
+   locals: "arg#0": 42 (number)
    stack: 
 at (anonymous) (0:17):
  - scope (global):
@@ -72,13 +72,13 @@ at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
-   locals: "arg#0": 0 (number), "local#1": 0 (number), "local#2": 0 (number), "local#3": 0 (number), "local#4": 0 (number)
-   stack: "0": 0 (number), "1": 3 (number)
+   locals: "arg#0": 42 (number), "local#1": 0 (number), "local#2": 7.199999809265137 (number), "local#3": 0 (number), "local#4": 0 (number)
+   stack: "0": 42 (number), "1": 3 (number)
 at A (liftoff) (0:54):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
-   locals: "arg#0": 0 (number)
+   locals: "arg#0": 42 (number)
    stack: 
 at (anonymous) (0:17):
  - scope (global):
@@ -97,13 +97,13 @@ at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
-   locals: "arg#0": 0 (number), "local#1": 0 (number), "local#2": 0 (number), "local#3": 0 (number), "local#4": 0 (number)
-   stack: "0": 0 (number), "1": 3 (number)
+   locals: "arg#0": 42 (number), "local#1": 0 (number), "local#2": 7.199999809265137 (number), "local#3": 0 (number), "local#4": 0 (number)
+   stack: "0": 42 (number), "1": 3 (number)
 at A (liftoff) (0:54):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
-   locals: "arg#0": 0 (number)
+   locals: "arg#0": 42 (number)
    stack: 
 at (anonymous) (0:17):
  - scope (global):
@@ -122,13 +122,13 @@ at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
-   locals: "arg#0": 0 (number), "local#1": 0 (number), "local#2": 0 (number), "local#3": 0 (number), "local#4": 0 (number)
-   stack: "0": 0 (number), "1": 3 (number)
+   locals: "arg#0": 42 (number), "local#1": 0 (number), "local#2": 7.199999809265137 (number), "local#3": 0 (number), "local#4": 0 (number)
+   stack: "0": 42 (number), "1": 3 (number)
 at A (liftoff) (0:54):
  - scope (global):
    globals: "global#0": 42 (number)
  - scope (local):
-   locals: "arg#0": 0 (number)
+   locals: "arg#0": 42 (number)
    stack: 
 at (anonymous) (0:17):
  - scope (global):

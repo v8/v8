@@ -159,13 +159,16 @@ class DebugSideTableBuilder {
    public:
     explicit EntryBuilder(
         int pc_offset, std::vector<ValueType> stack_types,
+        std::vector<int> stack_offsets,
         std::vector<DebugSideTable::Entry::Constant> constants)
         : pc_offset_(pc_offset),
           stack_types_(std::move(stack_types)),
+          stack_offsets_(std::move(stack_offsets)),
           constants_(std::move(constants)) {}
 
     DebugSideTable::Entry ToTableEntry() const {
       return DebugSideTable::Entry{pc_offset_, std::move(stack_types_),
+                                   std::move(stack_offsets_),
                                    std::move(constants_)};
     }
 
@@ -175,6 +178,7 @@ class DebugSideTableBuilder {
    private:
     int pc_offset_;
     std::vector<ValueType> stack_types_;
+    std::vector<int> stack_offsets_;
     std::vector<DebugSideTable::Entry::Constant> constants_;
   };
 
@@ -189,6 +193,11 @@ class DebugSideTableBuilder {
     for (int i = 0; i < stack_height_without_locals; ++i) {
       stack_types[i] = stack_state[num_locals + i].type();
     }
+    // Record stack offsets.
+    std::vector<int> stack_offsets(stack_height_without_locals);
+    for (int i = 0; i < stack_height_without_locals; ++i) {
+      stack_offsets[i] = stack_state[num_locals + i].offset();
+    }
     // Record all constants on the locals and stack.
     std::vector<DebugSideTable::Entry::Constant> constants;
     for (int idx = 0; idx < stack_height; ++idx) {
@@ -196,11 +205,14 @@ class DebugSideTableBuilder {
       if (slot.is_const()) constants.push_back({idx, slot.i32_const()});
     }
     entries_.emplace_back(pc_offset, std::move(stack_types),
-                          std::move(constants));
+                          std::move(stack_offsets), std::move(constants));
     return &entries_.back();
   }
 
-  void AddLocalType(ValueType type) { local_types_.push_back(type); }
+  void AddLocalType(ValueType type, int stack_offset) {
+    local_types_.push_back(type);
+    local_stack_offsets_.push_back(stack_offset);
+  }
 
   DebugSideTable GenerateDebugSideTable() {
     std::vector<DebugSideTable::Entry> table_entries;
@@ -210,11 +222,14 @@ class DebugSideTableBuilder {
               [](DebugSideTable::Entry& a, DebugSideTable::Entry& b) {
                 return a.pc_offset() < b.pc_offset();
               });
-    return DebugSideTable{std::move(local_types_), std::move(table_entries)};
+    return DebugSideTable{std::move(local_types_),
+                          std::move(local_stack_offsets_),
+                          std::move(table_entries)};
   }
 
  private:
   std::vector<ValueType> local_types_;
+  std::vector<int> local_stack_offsets_;
   std::list<EntryBuilder> entries_;
 };
 
@@ -379,11 +394,6 @@ class LiftoffCompiler {
       ValueType type = decoder->GetLocalType(i);
       __ set_local_type(i, type);
     }
-    if (V8_UNLIKELY(debug_sidetable_builder_)) {
-      for (int i = 0; i < num_locals; ++i) {
-        debug_sidetable_builder_->AddLocalType(__ local_type(i));
-      }
-    }
   }
 
   // Returns the number of inputs processed (1 or 2).
@@ -531,11 +541,18 @@ class LiftoffCompiler {
       }
     }
 
+    DCHECK_EQ(__ num_locals(), __ cache_state()->stack_height());
+
+    // Register local types and stack offsets for the debug side table.
+    if (V8_UNLIKELY(debug_sidetable_builder_)) {
+      for (uint32_t i = 0; i < __ num_locals(); ++i) {
+        debug_sidetable_builder_->AddLocalType(
+            __ local_type(i), __ cache_state()->stack_state[i].offset());
+      }
+    }
     // The function-prologue stack check is associated with position 0, which
     // is never a position of any instruction in the function.
     StackCheck(0);
-
-    DCHECK_EQ(__ num_locals(), __ cache_state()->stack_height());
   }
 
   void GenerateOutOfLineCode(OutOfLineCode* ool) {

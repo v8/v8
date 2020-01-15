@@ -535,8 +535,9 @@ class DebugInfoImpl {
         // we name them "args" here.
         const char* label = i < num_params ? "arg#%d" : "local#%d";
         Handle<String> name = PrintFToOneByteString<true>(isolate, label, i);
-        WasmValue value = GetValue(debug_side_table_entry,
-                                   debug_side_table->local_type(i), i, fp);
+        WasmValue value =
+            GetValue(debug_side_table_entry, debug_side_table->local_type(i), i,
+                     fp - debug_side_table->local_stack_offset(i));
         Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
         JSObject::SetOwnPropertyIgnoreAttributes(locals_obj, name, value_obj,
                                                  NONE)
@@ -556,8 +557,8 @@ class DebugInfoImpl {
                           NONE);
     for (int i = 0; i < stack_count; ++i) {
       ValueType type = debug_side_table_entry->stack_type(i);
-      WasmValue value =
-          GetValue(debug_side_table_entry, type, num_locals + i, fp);
+      WasmValue value = GetValue(debug_side_table_entry, type, num_locals + i,
+                                 fp - debug_side_table_entry->stack_offset(i));
       Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
       JSObject::AddDataElement(stack_obj, static_cast<uint32_t>(i), value_obj,
                                NONE);
@@ -596,7 +597,7 @@ class DebugInfoImpl {
   // Get the value of a local (including parameters) or stack value. Stack
   // values follow the locals in the same index space.
   WasmValue GetValue(const DebugSideTable::Entry* debug_side_table_entry,
-                     ValueType type, int index, Address fp) {
+                     ValueType type, int index, Address stack_address) {
     if (debug_side_table_entry->IsConstant(index)) {
       DCHECK(type == kWasmI32 || type == kWasmI64);
       return type == kWasmI32
@@ -604,18 +605,17 @@ class DebugInfoImpl {
                  : WasmValue(
                        int64_t{debug_side_table_entry->GetConstant(index)});
     }
+
     // Otherwise load the value from the stack.
-    // TODO(clemensb): Implement this.
-    USE(fp);
     switch (type) {
       case kWasmI32:
-        return WasmValue(int32_t{0});
+        return WasmValue(ReadUnalignedValue<int32_t>(stack_address));
       case kWasmI64:
-        return WasmValue(int64_t{0});
+        return WasmValue(ReadUnalignedValue<int64_t>(stack_address));
       case kWasmF32:
-        return WasmValue(float{0});
+        return WasmValue(ReadUnalignedValue<float>(stack_address));
       case kWasmF64:
-        return WasmValue(double{0});
+        return WasmValue(ReadUnalignedValue<double>(stack_address));
       default:
         UNIMPLEMENTED();
     }
