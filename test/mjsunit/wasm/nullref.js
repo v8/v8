@@ -19,6 +19,10 @@ let kSig_v_in = makeSig([kWasmI32, kWasmNullRef], []);
 let kSig_n_i = makeSig([kWasmI32], [kWasmNullRef]);
 let kSig_r_i = makeSig([kWasmI32], [kWasmAnyRef]);
 let kSig_e_i = makeSig([kWasmI32], [kWasmExnRef]);
+let kSig_n_nni = makeSig([kWasmNullRef, kWasmNullRef, kWasmI32], [kWasmNullRef]);
+let kSig_r_nni = makeSig([kWasmNullRef, kWasmNullRef, kWasmI32], [kWasmAnyRef]);
+let kSig_a_nni = makeSig([kWasmNullRef, kWasmNullRef, kWasmI32], [kWasmAnyFunc]);
+let kSig_e_nni = makeSig([kWasmNullRef, kWasmNullRef, kWasmI32], [kWasmExnRef]);
 
 (function testNullRefIdentityFunction() {
   print(arguments.callee.name);
@@ -209,24 +213,24 @@ let kSig_e_i = makeSig([kWasmI32], [kWasmExnRef]);
 (function testGetNullRefImportedGlobal() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
-  const initialized_index = builder.addImportedGlobal("foo", "initialized", kWasmNullRef);
-  const uninitialized_index = builder.addImportedGlobal("foo", "uninitialized", kWasmNullRef);
+  const global_index = builder.addImportedGlobal("foo", "bar",
+      kWasmNullRef);
   const sig_n_v = builder.addType(kSig_n_v);
   const sig_v_n = builder.addType(kSig_v_n);
   const sig_v_v = builder.addType(kSig_v_v);
-  builder.addFunction('get_initialized', sig_n_v)
-      .addBody([kExprGlobalGet, initialized_index])
-      .exportFunc();
-  builder.addFunction('get_uninitialized', sig_n_v)
-      .addBody([kExprGlobalGet, uninitialized_index])
+  builder.addFunction('get', sig_n_v)
+      .addBody([kExprGlobalGet, global_index])
       .exportFunc();
 
-  assertThrows(() => builder.instantiate({foo: {initialized: {}}}), WebAssembly.LinkError);
-  assertThrows(() => builder.instantiate({foo: {initialized: a => a}}), WebAssembly.LinkError);
+  assertThrows(() => builder.instantiate(), TypeError);
+  assertThrows(() => builder.instantiate({foo: {}}), WebAssembly.LinkError);
+  assertThrows(() => builder.instantiate({foo: {bar: {}}}),
+      WebAssembly.LinkError);
+  assertThrows(() => builder.instantiate({foo: {bar: a => a}}),
+      WebAssembly.LinkError);
 
-  const instance = builder.instantiate({foo: {initialized: null}});
-  assertEquals(null, instance.exports.get_initialized());
-  assertEquals(null, instance.exports.get_uninitialized());
+  const instance = builder.instantiate({foo: {bar: null}});
+  assertEquals(null, instance.exports.get());
 })();
 
 (function testNullRefTable() {
@@ -293,7 +297,8 @@ let kSig_e_i = makeSig([kWasmI32], [kWasmExnRef]);
 (function testImportNullRefTable() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
-  const table_index = builder.addImportedTable("imp", "table", 2, 10, kWasmNullRef);
+  const table_index = builder.addImportedTable("imp", "table", 2, 10,
+      kWasmNullRef);
   builder.addFunction('get_null', kSig_n_i)
       .addBody([kExprLocalGet, 0, kExprTableGet, table_index])
       .exportFunc();
@@ -307,15 +312,18 @@ let kSig_e_i = makeSig([kWasmI32], [kWasmExnRef]);
       .addBody([kExprLocalGet, 0, kExprTableGet, table_index])
       .exportFunc();
 
-  let table_func = new WebAssembly.Table({element: "anyfunc", initial: 2, maximum: 10});
+  let table_func = new WebAssembly.Table({element: "anyfunc", initial: 2,
+      maximum: 10});
   assertThrows(() => builder.instantiate({imp: {table: table_func}}),
       WebAssembly.LinkError, /imported table does not match the expected type/);
 
-  let table_any = new WebAssembly.Table({element: "anyref", initial: 2, maximum: 10});
+  let table_any = new WebAssembly.Table({element: "anyref", initial: 2,
+      maximum: 10});
   assertThrows(() => builder.instantiate({imp: {table: table_any}}),
       WebAssembly.LinkError, /imported table does not match the expected type/);
 
-  let table_null = new WebAssembly.Table({element: "nullref", initial: 2, maximum: 10});
+  let table_null = new WebAssembly.Table({element: "nullref", initial: 2,
+      maximum: 10});
   table_null.set(1, null);
   const instance = builder.instantiate({imp: {table: table_null}});
 
@@ -336,12 +344,57 @@ let kSig_e_i = makeSig([kWasmI32], [kWasmExnRef]);
 (function testImportNullRefTableIntoAnyRefTable() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
-  const table_index = builder.addImportedTable("imp", "table", 2, 10, kWasmAnyRef);
+  const table_index = builder.addImportedTable("imp", "table", 2, 10,
+      kWasmAnyRef);
   builder.addFunction('get', kSig_r_v)
       .addBody([kExprI32Const, 0, kExprTableGet, table_index])
       .exportFunc();
 
-  let table_null = new WebAssembly.Table({element: "nullref", initial: 2, maximum: 10});
+  let table_null = new WebAssembly.Table({element: "nullref", initial: 2,
+      maximum: 10});
   assertThrows(() => builder.instantiate({imp: {table: table_null}}),
       WebAssembly.LinkError, /imported table does not match the expected type/);
+})();
+
+(function testSelectNullRef() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('select_null', kSig_n_nni)
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprLocalGet, 2,
+          kExprSelectWithType, 1, kWasmNullRef])
+      .exportFunc();
+  builder.addFunction('select_any', kSig_r_nni)
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprLocalGet, 2,
+          kExprSelectWithType, 1, kWasmAnyRef])
+      .exportFunc();
+  builder.addFunction('select_func', kSig_a_nni)
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprLocalGet, 2,
+          kExprSelectWithType, 1, kWasmAnyFunc])
+      .exportFunc();
+  builder.addFunction('select_exn', kSig_e_nni)
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprLocalGet, 2,
+          kExprSelectWithType, 1, kWasmExnRef])
+      .exportFunc();
+  builder.addFunction('select_null_as_any', kSig_r_nni)
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprLocalGet, 2,
+          kExprSelectWithType, 1, kWasmNullRef])
+      .exportFunc();
+  builder.addFunction('select_null_as_func', kSig_a_nni)
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprLocalGet, 2,
+          kExprSelectWithType, 1, kWasmNullRef])
+      .exportFunc();
+  builder.addFunction('select_null_as_exn', kSig_e_nni)
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprLocalGet, 2,
+          kExprSelectWithType, 1, kWasmNullRef])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+
+  assertEquals(null, instance.exports.select_null(null, null, 0));
+  assertEquals(null, instance.exports.select_any(null, null, 0));
+  assertEquals(null, instance.exports.select_func(null, null, 0));
+  assertEquals(null, instance.exports.select_exn(null, null, 0));
+  assertEquals(null, instance.exports.select_null_as_any(null, null, 0));
+  assertEquals(null, instance.exports.select_null_as_func(null, null, 0));
+  assertEquals(null, instance.exports.select_null_as_exn(null, null, 0));
 })();

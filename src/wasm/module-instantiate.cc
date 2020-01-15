@@ -1166,10 +1166,7 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
         return false;
       }
     } else if (global.type == ValueType::kWasmNullRef) {
-      if (value->IsNullOrUndefined(isolate_)) {
-        WriteGlobalAnyRef(global, isolate_->factory()->null_value());
-        return true;
-      } else {
+      if (!value->IsNull(isolate_)) {
         ReportLinkError("imported nullref global must be null", import_index,
                         module_name, import_name);
         return false;

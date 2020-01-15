@@ -209,6 +209,7 @@ let kExprReturnCall = 0x12;
 let kExprReturnCallIndirect = 0x13;
 let kExprDrop = 0x1a;
 let kExprSelect = 0x1b;
+let kExprSelectWithType = 0x1c;
 let kExprLocalGet = 0x20;
 let kExprLocalSet = 0x21;
 let kExprLocalTee = 0x22;
