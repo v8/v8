@@ -695,8 +695,8 @@ Node* GraphAssembler::UnsafePointerAdd(Node* base, Node* external) {
                                   effect(), control()));
 }
 
-TNode<Number> JSGraphAssembler::ToNumber(TNode<Object> value) {
-  return AddNode<Number>(graph()->NewNode(ToNumberOperator(),
+TNode<Number> JSGraphAssembler::PlainPrimitiveToNumber(TNode<Object> value) {
+  return AddNode<Number>(graph()->NewNode(PlainPrimitiveToNumberOperator(),
                                           ToNumberBuiltinConstant(), value,
                                           NoContextConstant(), effect()));
 }
@@ -874,7 +874,7 @@ void GraphAssembler::InitializeEffectControl(Node* effect, Node* control) {
   control_ = control;
 }
 
-Operator const* JSGraphAssembler::ToNumberOperator() {
+Operator const* JSGraphAssembler::PlainPrimitiveToNumberOperator() {
   if (!to_number_operator_.is_set()) {
     Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNoFlags;

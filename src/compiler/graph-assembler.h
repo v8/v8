@@ -703,7 +703,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
                                  TNode<Object> value);
   TNode<Number> StringLength(TNode<String> string);
   TNode<Boolean> ReferenceEqual(TNode<Object> lhs, TNode<Object> rhs);
-  TNode<Number> ToNumber(TNode<Object> value);
+  TNode<Number> PlainPrimitiveToNumber(TNode<Object> value);
   TNode<Number> NumberMin(TNode<Number> lhs, TNode<Number> rhs);
   TNode<Number> NumberMax(TNode<Number> lhs, TNode<Number> rhs);
   TNode<Boolean> NumberLessThan(TNode<Number> lhs, TNode<Number> rhs);
@@ -731,7 +731,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   }
 
  protected:
-  Operator const* ToNumberOperator();
+  Operator const* PlainPrimitiveToNumberOperator();
 
  private:
   JSGraph* jsgraph_;
