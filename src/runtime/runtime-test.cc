@@ -1131,8 +1131,13 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(is_latin1, 1);
-  bool is_irregexp_native_code = regexp.Code(is_latin1).IsCode();
-  return isolate->heap()->ToBoolean(is_irregexp_native_code);
+  bool result;
+  if (regexp.TypeTag() == JSRegExp::IRREGEXP) {
+    result = regexp.Code(is_latin1).IsCode();
+  } else {
+    result = false;
+  }
+  return isolate->heap()->ToBoolean(result);
 }
 
 #define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)      \
