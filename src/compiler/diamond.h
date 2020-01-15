@@ -13,42 +13,30 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-struct Diamond;
-
-// A helper to make it easier to build branches that are not fully
-// diamond-shaped.
-struct HalfDiamond {
+// A helper to make it easier to build diamond-shaped control patterns.
+struct Diamond {
   Graph* graph;
   CommonOperatorBuilder* common;
   Node* branch;
   Node* if_true;
   Node* if_false;
+  Node* merge;
 
-  HalfDiamond(Graph* g, CommonOperatorBuilder* b, Node* cond,
-              BranchHint hint = BranchHint::kNone) {
+  Diamond(Graph* g, CommonOperatorBuilder* b, Node* cond,
+          BranchHint hint = BranchHint::kNone) {
     graph = g;
     common = b;
     branch = graph->NewNode(common->Branch(hint), cond, graph->start());
     if_true = graph->NewNode(common->IfTrue(), branch);
     if_false = graph->NewNode(common->IfFalse(), branch);
+    merge = graph->NewNode(common->Merge(2), if_true, if_false);
   }
+
+  // Place {this} after {that} in control flow order.
+  void Chain(Diamond const& that) { branch->ReplaceInput(1, that.merge); }
 
   // Place {this} after {that} in control flow order.
   void Chain(Node* that) { branch->ReplaceInput(1, that); }
-
-  // Place {this} after {that} in control flow order.
-  inline void Chain(Diamond const& that);
-};
-
-// A helper to make it easier to build diamond-shaped control patterns.
-struct Diamond : public HalfDiamond {
-  Node* merge;
-
-  Diamond(Graph* g, CommonOperatorBuilder* b, Node* cond,
-          BranchHint hint = BranchHint::kNone)
-      : HalfDiamond(g, b, cond, hint) {
-    merge = graph->NewNode(common->Merge(2), if_true, if_false);
-  }
 
   // Nest {this} into either the if_true or if_false branch of {that}.
   void Nest(Diamond const& that, bool if_true) {
@@ -69,10 +57,6 @@ struct Diamond : public HalfDiamond {
     return graph->NewNode(common->EffectPhi(2), tv, fv, merge);
   }
 };
-
-void HalfDiamond::Chain(Diamond const& that) {
-  branch->ReplaceInput(1, that.merge);
-}
 
 }  // namespace compiler
 }  // namespace internal

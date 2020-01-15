@@ -279,6 +279,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   Node* LoadFramePointer();
 
+  Node* LoadHeapNumberValue(Node* heap_number);
+
 #define PURE_UNOP_DECL(Name) Node* Name(Node* input);
   PURE_ASSEMBLER_MACH_UNOP_LIST(PURE_UNOP_DECL)
 #undef PURE_UNOP_DECL
@@ -650,10 +652,7 @@ Node* GraphAssembler::Call(const Operator* op, Args... args) {
   Node* args_array[] = {args..., effect(), control()};
   int size = static_cast<int>(sizeof...(args)) + op->EffectInputCount() +
              op->ControlInputCount();
-  Node* call = graph()->NewNode(op, size, args_array);
-  DCHECK_EQ(0, op->ControlOutputCount());
-  effect_ = call;
-  return AddNode(call);
+  return AddNode(graph()->NewNode(op, size, args_array));
 }
 
 class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {

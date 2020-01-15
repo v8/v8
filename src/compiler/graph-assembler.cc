@@ -404,6 +404,11 @@ Node* GraphAssembler::LoadFramePointer() {
   return AddNode(graph()->NewNode(machine()->LoadFramePointer()));
 }
 
+Node* GraphAssembler::LoadHeapNumberValue(Node* heap_number) {
+  return Load(MachineType::Float64(), heap_number,
+              IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag));
+}
+
 #define SINGLETON_CONST_DEF(Name, Type)              \
   TNode<Type> JSGraphAssembler::Name##Constant() {   \
     return TNode<Type>::UncheckedCast(               \
@@ -656,9 +661,8 @@ Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, Node* offset,
 }
 
 Node* GraphAssembler::Load(MachineType type, Node* object, Node* offset) {
-  Node* value = AddNode(graph()->NewNode(machine()->Load(type), object, offset,
-                                         effect(), control()));
-  return value;
+  return AddNode(graph()->NewNode(machine()->Load(type), object, offset,
+                                  effect(), control()));
 }
 
 Node* GraphAssembler::StoreUnaligned(MachineRepresentation rep, Node* object,

@@ -23,6 +23,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/diamond.h"
+#include "src/compiler/graph-assembler.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/int64-lowering.h"
@@ -5323,24 +5324,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return pos;
   }
 
-  // Calls the ECMAScript ToNumber operation on {node}. Returns a {Smi} or
-  // {HeapNumber}.
-  Node* BuildJavaScriptToNumber(Node* node, Node* js_context) {
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        mcgraph()->zone(), TypeConversionDescriptor{}, 0,
-        CallDescriptor::kNoFlags, Operator::kNoProperties, stub_mode_);
-    Node* target =
-        GetTargetForBuiltinCall(wasm::WasmCode::kToNumber, Builtins::kToNumber);
-
-    Node* result = SetEffect(
-        graph()->NewNode(mcgraph()->common()->Call(call_descriptor), target,
-                         node, js_context, Effect(), Control()));
-
-    SetSourcePosition(result, 1);
-
-    return result;
-  }
-
   // Converts a number (Smi or HeapNumber) to float64.
   Node* BuildChangeNumberToFloat64(Node* value) {
     // If the input is a HeapNumber, we load the value from it.
@@ -5505,10 +5488,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         break;
     }
 
+    // TODO(wasm): Use GraphAssembler more widely.
+    GraphAssembler gasm(mcgraph(), mcgraph()->zone());
+    gasm.InitializeEffectControl(Effect(), Control());
+
     // Handle Smis first. The rest goes through the ToNumber stub.
     // TODO(clemensb): Also handle HeapNumbers specially.
     STATIC_ASSERT(kSmiTagMask < kMaxUInt32);
-    CommonOperatorBuilder* common = mcgraph()->common();
 
     // Build a graph implementing this diagram:
     //   input smi?
@@ -5517,48 +5503,44 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     //                          ├─ true: ─┘                     │
     //                          └─ false: load -> f64-to-int32 ─┘
 
-    HalfDiamond input_is_smi(graph(), common, BuildTestSmi(input),
-                             BranchHint::kTrue);
-    input_is_smi.Chain(Control());
-    Node* effect_orig = Effect();
+    auto smi_to_int32 = gasm.MakeLabel(MachineRepresentation::kTaggedSigned);
+    auto done =
+        gasm.MakeLabel(wasm::ValueTypes::MachineRepresentationFor(type));
 
-    // If not smi, call ToNumber and check if the result is Smi.
-    SetControl(input_is_smi.if_false);
-    Node* num = BuildJavaScriptToNumber(input, js_context);
-    Node* effect_after_tonumber = Effect();
-    HalfDiamond num_is_smi(graph(), common, BuildTestSmi(num),
-                           BranchHint::kTrue);
-    num_is_smi.Chain(Control());
+    // If the input is Smi, directly convert to int32.
+    gasm.GotoIf(BuildTestSmi(input), &smi_to_int32, input);
 
-    // If ToNumber returns HeapNumber, load its value and convert to {type}.
-    SetControl(num_is_smi.if_false);
-    Node* heap_number_value = BuildLoadHeapNumberValue(num);
+    // Otherwise, call ToNumber which returns a Smi or HeapNumber.
+    auto to_number_descriptor = Linkage::GetStubCallDescriptor(
+        mcgraph()->zone(), TypeConversionDescriptor{}, 0,
+        CallDescriptor::kNoFlags, Operator::kNoProperties, stub_mode_);
+    Node* to_number_target =
+        GetTargetForBuiltinCall(wasm::WasmCode::kToNumber, Builtins::kToNumber);
+
+    Node* number =
+        gasm.Call(to_number_descriptor, to_number_target, input, js_context);
+    SetSourcePosition(number, 1);
+
+    // If the ToNumber result is Smi, convert to int32.
+    gasm.GotoIf(BuildTestSmi(number), &smi_to_int32, number);
+
+    // Otherwise the ToNumber result is a HeapNumber. Load its value and convert
+    // to {type}.
+    Node* heap_number_value = gasm.LoadHeapNumberValue(number);
     Node* converted_heap_number_value =
         BuildFloat64ToWasm(heap_number_value, type);
-    Node* effect_after_heapnumber = Effect();
+    gasm.Goto(&done, converted_heap_number_value);
 
-    // Now merge the two Smi cases together, and convert the Smi to {type}.
-    Node* smi_merge = graph()->NewNode(common->Merge(2), input_is_smi.if_true,
-                                       num_is_smi.if_true);
-    Node* smi_effect = graph()->NewNode(common->EffectPhi(2), effect_orig,
-                                        effect_after_tonumber, smi_merge);
-    Node* smi_value =
-        graph()->NewNode(common->Phi(MachineRepresentation::kTaggedSigned, 2),
-                         input, num, smi_merge);
-    Node* converted_smi = BuildSmiToWasm(smi_value, type);
+    // Now implement the smi to int32 conversion.
+    gasm.Bind(&smi_to_int32);
+    Node* smi_int32 = BuildSmiToWasm(smi_to_int32.PhiAt(0), type);
+    gasm.Goto(&done, smi_int32);
 
-    // Merge the final result, control and effect.
-    Node* final_merge =
-        graph()->NewNode(common->Merge(2), smi_merge, num_is_smi.if_false);
-    Node* final_value = graph()->NewNode(
-        common->Phi(wasm::ValueTypes::MachineRepresentationFor(type), 2),
-        converted_smi, converted_heap_number_value, final_merge);
-    Node* final_effect = graph()->NewNode(common->EffectPhi(2), smi_effect,
-                                          effect_after_heapnumber, final_merge);
-
-    SetEffect(final_effect);
-    SetControl(final_merge);
-    return final_value;
+    // Done. Update effect and control and return the final Phi.
+    gasm.Bind(&done);
+    SetEffect(gasm.effect());
+    SetControl(gasm.control());
+    return done.PhiAt(0);
   }
 
   void BuildModifyThreadInWasmFlag(bool new_value) {
