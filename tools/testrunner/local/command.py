@@ -41,7 +41,7 @@ class AbortException(Exception):
 
 class BaseCommand(object):
   def __init__(self, shell, args=None, cmd_prefix=None, timeout=60, env=None,
-               verbose=False, resources_func=None):
+               verbose=False, resources_func=None, handle_sigterm=False):
     """Initialize the command.
 
     Args:
@@ -52,6 +52,9 @@ class BaseCommand(object):
       env: Environment dict for execution.
       verbose: Print additional output.
       resources_func: Callable, returning all test files needed by this command.
+      handle_sigterm: Flag indicating if SIGTERM will be used to terminate the
+          underlying process. Should not be used from the main thread, e.g. when
+          using a command to list tests.
     """
     assert(timeout > 0)
 
@@ -61,6 +64,7 @@ class BaseCommand(object):
     self.timeout = timeout
     self.env = env or {}
     self.verbose = verbose
+    self.handle_sigterm = handle_sigterm
 
   def execute(self):
     if self.verbose:
@@ -72,7 +76,9 @@ class BaseCommand(object):
     abort_occured = [False]
     def handler(signum, frame):
       self._abort(process, abort_occured)
-    signal.signal(signal.SIGTERM, handler)
+
+    if self.handle_sigterm:
+      signal.signal(signal.SIGTERM, handler)
 
     # Variable to communicate with the timer.
     timeout_occured = [False]
