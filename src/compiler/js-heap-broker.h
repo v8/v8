@@ -231,8 +231,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   PerIsolateCompilerCache* compiler_cache() const { return compiler_cache_; }
 
-  bool is_builtin_code(Object object);
-
   Isolate* const isolate_;
   Zone* const zone_ = nullptr;
   base::Optional<NativeContextRef> target_native_context_;

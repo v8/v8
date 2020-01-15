@@ -118,6 +118,15 @@ class AllowHeapAllocationIf {
   base::Optional<AllowHeapAllocation> maybe_allow_handle_;
 };
 
+namespace {
+bool IsReadOnlyHeapObject(Object object) {
+  DisallowHeapAllocation no_gc;
+  return (object.IsCode() && Code::cast(object).is_builtin()) ||
+         (object.IsHeapObject() &&
+          ReadOnlyHeap::Contains(HeapObject::cast(object)));
+}
+}  // namespace
+
 class ObjectData : public ZoneObject {
  public:
   ObjectData(JSHeapBroker* broker, ObjectData** storage, Handle<Object> object,
@@ -142,8 +151,7 @@ class ObjectData : public ZoneObject {
             broker->mode() == JSHeapBroker::kSerializing,
         broker->isolate()->handle_scope_data()->canonical_scope != nullptr);
     CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
-                  (broker->is_builtin_code(*object) ||
-                   ReadOnlyHeap::Contains(HeapObject::cast(*object))));
+                  IsReadOnlyHeapObject(*object));
   }
 
 #define DECLARE_IS_AND_AS(Name) \
@@ -2483,16 +2491,6 @@ void JSHeapBroker::SetTargetNativeContextRef(
   target_native_context_ = NativeContextRef(this, native_context);
 }
 
-bool IsShareable(Handle<Object> object, Isolate* isolate) {
-  int index;
-  RootIndex root_index;
-  bool is_builtin_handle =
-      object->IsHeapObject() && isolate->builtins()->IsBuiltinHandle(
-                                    Handle<HeapObject>::cast(object), &index);
-  return is_builtin_handle ||
-         isolate->roots_table().IsRootHandle(object, &root_index);
-}
-
 void JSHeapBroker::CollectArrayAndObjectPrototypes() {
   DisallowHeapAllocation no_gc;
   CHECK_EQ(mode(), kSerializing);
@@ -2634,10 +2632,6 @@ void JSHeapBroker::InitializeAndStartSerializing(
   TRACE(this, "Finished serializing standard objects");
 }
 
-bool JSHeapBroker::is_builtin_code(Object object) {
-  return (object.IsCode() && Code::cast(object).is_builtin());
-}
-
 // clang-format off
 ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
   RefsMap::Entry* entry = refs_->LookupOrInsert(object.address(), zone());
@@ -2647,10 +2641,7 @@ ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
     AllowHandleDereference handle_dereference;
     if (object->IsSmi()) {
       new (zone()) ObjectData(this, data_storage, object, kSmi);
-    } else if (is_builtin_code(*object)) {
-      new (zone()) ObjectData(this, data_storage, object,
-                              kUnserializedReadOnlyHeapObject);
-    } else if (ReadOnlyHeap::Contains(HeapObject::cast(*object))) {
+    } else if (IsReadOnlyHeapObject(*object)) {
       new (zone()) ObjectData(this, data_storage, object,
                               kUnserializedReadOnlyHeapObject);
 #define CREATE_DATA_IF_MATCH(name)                                             \
