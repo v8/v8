@@ -564,7 +564,7 @@ MaybeHandle<SharedFunctionInfo> GenerateUnoptimizedCodeForToplevel(
     Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
     AccountingAllocator* allocator, IsCompiledScope* is_compiled_scope) {
   EnsureSharedFunctionInfosArrayOnScript(script, parse_info, isolate);
-  parse_info->ast_value_factory()->Internalize(isolate);
+  parse_info->ast_value_factory()->Internalize(isolate->factory());
 
   if (!Compiler::Analyze(parse_info)) return MaybeHandle<SharedFunctionInfo>();
   DeclarationScope::AllocateScopeInfos(parse_info, isolate);
@@ -962,7 +962,7 @@ MaybeHandle<SharedFunctionInfo> FinalizeTopLevel(
     UnoptimizedCompilationJob* outer_function_job,
     UnoptimizedCompilationJobList* inner_function_jobs) {
   // Internalize ast values onto the heap.
-  parse_info->ast_value_factory()->Internalize(isolate);
+  parse_info->ast_value_factory()->Internalize(isolate->factory());
 
   // Create shared function infos for top level and shared function infos array
   // for inner functions.
@@ -1360,7 +1360,7 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
   }
 
   // Internalize ast values onto the heap.
-  parse_info.ast_value_factory()->Internalize(isolate);
+  parse_info.ast_value_factory()->Internalize(isolate->factory());
 
   // Finalize compilation of the unoptimized bytecode or asm-js data.
   if (!FinalizeUnoptimizedCode(&parse_info, isolate, shared_info,
@@ -1472,7 +1472,7 @@ bool Compiler::FinalizeBackgroundCompileTask(
   }
 
   // Parsing has succeeded - finalize compilation.
-  parse_info->ast_value_factory()->Internalize(isolate);
+  parse_info->ast_value_factory()->Internalize(isolate->factory());
   if (!FinalizeUnoptimizedCode(parse_info, isolate, shared_info,
                                task->outer_function_job(),
                                task->inner_function_jobs())) {

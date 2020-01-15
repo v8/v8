@@ -180,6 +180,24 @@ OffThreadHandle<FixedArray> OffThreadFactory::StringWrapperForTest(
   return OffThreadHandle<FixedArray>(array);
 }
 
+OffThreadHandle<String> OffThreadFactory::MakeOrFindTwoCharacterString(
+    uint16_t c1, uint16_t c2) {
+  // TODO(leszeks): Do some real caching here. Also, these strings should be
+  // internalized.
+  if ((c1 | c2) <= unibrow::Latin1::kMaxChar) {
+    OffThreadHandle<SeqOneByteString> ret =
+        NewRawOneByteString(2, AllocationType::kOld);
+    ret->SeqOneByteStringSet(0, c1);
+    ret->SeqOneByteStringSet(1, c2);
+    return ret;
+  }
+  OffThreadHandle<SeqTwoByteString> ret =
+      NewRawTwoByteString(2, AllocationType::kOld);
+  ret->SeqTwoByteStringSet(0, c1);
+  ret->SeqTwoByteStringSet(1, c2);
+  return ret;
+}
+
 HeapObject OffThreadFactory::AllocateRaw(int size, AllocationType allocation,
                                          AllocationAlignment alignment) {
   DCHECK(!is_finished);

@@ -203,8 +203,12 @@ class OffThreadHandle {
     return OffThreadHandle<T>(T::cast(*other));
   }
 
-  // Allow OffThreadHandle to act as a MaybeHandle.
-  bool is_null() const { return obj_.is_null(); }
+  bool is_null() const {
+    // TODO(leszeks): This will only work for HeapObjects, figure out a way to
+    // make is_null work for Object and Smi too.
+    return obj_.is_null();
+  }
+
   bool ToHandle(OffThreadHandle<T>* out) {
     if (is_null()) return false;
 
@@ -218,6 +222,70 @@ class OffThreadHandle {
 
  private:
   T obj_;
+};
+
+// A helper class which wraps an normal or off-thread handle, and returns one
+// or the other depending on the factory type.
+template <typename T>
+class HandleOrOffThreadHandle {
+ public:
+  HandleOrOffThreadHandle() = default;
+
+  template <typename U>
+  HandleOrOffThreadHandle(Handle<U> handle)  // NOLINT
+      : value_(bit_cast<Address>(static_cast<Handle<T>>(handle).location())) {
+#ifdef DEBUG
+    which_ = kHandle;
+#endif
+  }
+
+  template <typename U>
+  HandleOrOffThreadHandle(OffThreadHandle<U> handle)  // NOLINT
+      : value_(static_cast<OffThreadHandle<T>>(handle)->ptr()) {
+#ifdef DEBUG
+    which_ = kOffThreadHandle;
+#endif
+  }
+
+  // To minimize the impact of these handles on main-thread callers, we allow
+  // them to implicitly convert to Handles.
+  template <typename U>
+  operator Handle<U>() {
+    return get<class Factory>();
+  }
+
+  template <typename FactoryType>
+  inline FactoryHandle<FactoryType, T> get() {
+    return get_for(Tag<FactoryType>());
+  }
+
+  inline bool is_null() const { return value_ == 0; }
+
+#ifdef DEBUG
+  inline bool is_initialized() { return which_ != kUninitialized; }
+#endif
+
+ private:
+  // Tagged overloads because we can't specialize the above getter
+  // without also specializing the class.
+  template <typename FactoryType>
+  struct Tag {};
+
+  V8_INLINE Handle<T> get_for(Tag<class Factory>) {
+    DCHECK_NE(which_, kOffThreadHandle);
+    return Handle<T>(reinterpret_cast<Address*>(value_));
+  }
+  V8_INLINE OffThreadHandle<T> get_for(Tag<class OffThreadFactory>) {
+    DCHECK_NE(which_, kHandle);
+    return OffThreadHandle<T>(T::unchecked_cast(Object(value_)));
+  }
+
+  // Either handle.location() or off_thread_handle->ptr().
+  Address value_;
+
+#ifdef DEBUG
+  enum { kUninitialized, kHandle, kOffThreadHandle } which_;
+#endif
 };
 
 // ----------------------------------------------------------------------------

@@ -7,8 +7,11 @@
 #include <limits>
 #include <memory>
 
+#include "src/ast/ast-value-factory.h"
 #include "src/handles/handles-inl.h"
+#include "src/handles/handles.h"
 #include "src/heap/off-thread-factory.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/string.h"
 #include "test/unittests/test-utils.h"
 
@@ -22,9 +25,32 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
 
   OffThreadFactory* off_thread_factory() { return &off_thread_factory_; }
 
+  // We only internalize strings which are referred to in other slots, so create
+  // a wrapper pointing at the off_thread_string.
+  OffThreadHandle<FixedArray> WrapString(OffThreadHandle<String> string) {
+    // TODO(leszeks): Replace with a different factory method (e.g. FixedArray)
+    // once OffThreadFactory supports it.
+    return off_thread_factory()->StringWrapperForTest(string);
+  }
+
  private:
   OffThreadFactory off_thread_factory_;
 };
+
+TEST_F(OffThreadFactoryTest, HandleOrOffThreadHandle_IsNullWhenConstructed) {
+  // Default constructed HandleOrOffThreadHandles should be considered both null
+  // and uninitialized.
+  EXPECT_TRUE(HandleOrOffThreadHandle<HeapObject>().is_null());
+#ifdef DEBUG
+  EXPECT_TRUE(!HandleOrOffThreadHandle<HeapObject>().is_initialized());
+#endif
+
+  // Default constructed HandleOrOffThreadHandles should work as both null
+  // handles and null off-thread handles.
+  EXPECT_TRUE(HandleOrOffThreadHandle<HeapObject>().get<Factory>().is_null());
+  EXPECT_TRUE(
+      HandleOrOffThreadHandle<HeapObject>().get<OffThreadFactory>().is_null());
+}
 
 TEST_F(OffThreadFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
   Vector<const uint8_t> string_vector = StaticCharVector("foo");
@@ -35,10 +61,6 @@ TEST_F(OffThreadFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
       off_thread_factory()->NewOneByteInternalizedString(string_vector,
                                                          hash_field);
 
-  // We only internalize strings which are referred to in other slots, so create
-  // a wrapper pointing at the off_thread_string.
-  // TODO(leszeks): Replace with a different holder (e.g. FixedArray) once
-  // OffThreadFactory supports it.
   OffThreadHandle<FixedArray> off_thread_wrapper =
       off_thread_factory()->StringWrapperForTest(off_thread_string);
 
@@ -77,14 +99,10 @@ TEST_F(OffThreadFactoryTest,
       off_thread_factory()->NewOneByteInternalizedString(string_vector,
                                                          hash_field);
 
-  // We only internalize strings which are referred to in other slots, so create
-  // a wrapper pointing at the off_thread_string.
-  // TODO(leszeks): Replace with a different holder (e.g. FixedArray) once
-  // OffThreadFactory supports it.
   OffThreadHandle<FixedArray> off_thread_wrapper_1 =
-      off_thread_factory()->StringWrapperForTest(off_thread_string_1);
+      WrapString(off_thread_string_1);
   OffThreadHandle<FixedArray> off_thread_wrapper_2 =
-      off_thread_factory()->StringWrapperForTest(off_thread_string_2);
+      WrapString(off_thread_string_2);
 
   off_thread_factory()->FinishOffThread();
 
@@ -98,6 +116,55 @@ TEST_F(OffThreadFactoryTest,
   EXPECT_TRUE(string_1->IsOneByteEqualTo(CStrVector("foo")));
   EXPECT_TRUE(string_1->IsInternalizedString());
   EXPECT_EQ(*string_1, *string_2);
+}
+
+TEST_F(OffThreadFactoryTest, AstRawString_IsInternalized) {
+  AstValueFactory ast_value_factory(zone(), isolate()->ast_string_constants(),
+                                    HashSeed(isolate()));
+
+  const AstRawString* raw_string = ast_value_factory.GetOneByteString("foo");
+
+  ast_value_factory.Internalize(off_thread_factory());
+
+  OffThreadHandle<FixedArray> off_thread_wrapper =
+      WrapString(raw_string->string().get<OffThreadFactory>());
+
+  off_thread_factory()->FinishOffThread();
+
+  Handle<FixedArray> wrapper = handle(*off_thread_wrapper, isolate());
+  off_thread_factory()->Publish(isolate());
+
+  Handle<String> string = handle(String::cast(wrapper->get(0)), isolate());
+
+  EXPECT_TRUE(string->IsOneByteEqualTo(CStrVector("foo")));
+  EXPECT_TRUE(string->IsInternalizedString());
+}
+
+TEST_F(OffThreadFactoryTest, AstConsString_CreatesConsString) {
+  AstValueFactory ast_value_factory(zone(), isolate()->ast_string_constants(),
+                                    HashSeed(isolate()));
+
+  const AstRawString* foo_string = ast_value_factory.GetOneByteString("foo");
+  const AstRawString* bar_string =
+      ast_value_factory.GetOneByteString("bar-plus-padding-for-length");
+  const AstConsString* foobar_string =
+      ast_value_factory.NewConsString(foo_string, bar_string);
+
+  ast_value_factory.Internalize(off_thread_factory());
+
+  OffThreadHandle<FixedArray> off_thread_wrapper =
+      WrapString(foobar_string->string().get<OffThreadFactory>());
+
+  off_thread_factory()->FinishOffThread();
+
+  Handle<FixedArray> wrapper = handle(*off_thread_wrapper, isolate());
+  off_thread_factory()->Publish(isolate());
+
+  Handle<String> string = handle(String::cast(wrapper->get(0)), isolate());
+
+  EXPECT_TRUE(string->IsConsString());
+  EXPECT_TRUE(string->Equals(*isolate()->factory()->NewStringFromStaticChars(
+      "foobar-plus-padding-for-length")));
 }
 
 }  // namespace internal

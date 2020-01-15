@@ -769,6 +769,10 @@ template <class StringTableKey>
 Handle<String> Factory::InternalizeStringWithKey(StringTableKey* key) {
   return StringTable::LookupKey(isolate(), key);
 }
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<String> Factory::InternalizeStringWithKey(OneByteStringKey* key);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<String> Factory::InternalizeStringWithKey(TwoByteStringKey* key);
 
 MaybeHandle<String> Factory::NewStringFromOneByte(
     const Vector<const uint8_t>& string, AllocationType allocation) {
@@ -1037,116 +1041,13 @@ Handle<String> Factory::LookupSingleCharacterStringFromCode(uint16_t code) {
   return InternalizeString(Vector<const uint16_t>(buffer, 1));
 }
 
-static inline Handle<String> MakeOrFindTwoCharacterString(Isolate* isolate,
-                                                          uint16_t c1,
-                                                          uint16_t c2) {
+Handle<String> Factory::MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2) {
   if ((c1 | c2) <= unibrow::Latin1::kMaxChar) {
     uint8_t buffer[] = {static_cast<uint8_t>(c1), static_cast<uint8_t>(c2)};
-    return isolate->factory()->InternalizeString(
-        Vector<const uint8_t>(buffer, 2));
+    return InternalizeString(Vector<const uint8_t>(buffer, 2));
   }
   uint16_t buffer[] = {c1, c2};
-  return isolate->factory()->InternalizeString(
-      Vector<const uint16_t>(buffer, 2));
-}
-
-template <typename SinkChar, typename StringType>
-Handle<String> ConcatStringContent(Handle<StringType> result,
-                                   Handle<String> first,
-                                   Handle<String> second) {
-  DisallowHeapAllocation pointer_stays_valid;
-  SinkChar* sink = result->GetChars(pointer_stays_valid);
-  String::WriteToFlat(*first, sink, 0, first->length());
-  String::WriteToFlat(*second, sink + first->length(), 0, second->length());
-  return result;
-}
-
-MaybeHandle<String> Factory::NewConsString(Handle<String> left,
-                                           Handle<String> right) {
-  if (left->IsThinString()) {
-    left = handle(Handle<ThinString>::cast(left)->actual(), isolate());
-  }
-  if (right->IsThinString()) {
-    right = handle(Handle<ThinString>::cast(right)->actual(), isolate());
-  }
-  int left_length = left->length();
-  if (left_length == 0) return right;
-  int right_length = right->length();
-  if (right_length == 0) return left;
-
-  int length = left_length + right_length;
-
-  if (length == 2) {
-    uint16_t c1 = left->Get(0);
-    uint16_t c2 = right->Get(0);
-    return MakeOrFindTwoCharacterString(isolate(), c1, c2);
-  }
-
-  // Make sure that an out of memory exception is thrown if the length
-  // of the new cons string is too large.
-  if (length > String::kMaxLength || length < 0) {
-    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
-  }
-
-  bool left_is_one_byte = left->IsOneByteRepresentation();
-  bool right_is_one_byte = right->IsOneByteRepresentation();
-  bool is_one_byte = left_is_one_byte && right_is_one_byte;
-
-  // If the resulting string is small make a flat string.
-  if (length < ConsString::kMinLength) {
-    // Note that neither of the two inputs can be a slice because:
-    STATIC_ASSERT(ConsString::kMinLength <= SlicedString::kMinLength);
-    DCHECK(left->IsFlat());
-    DCHECK(right->IsFlat());
-
-    STATIC_ASSERT(ConsString::kMinLength <= String::kMaxLength);
-    if (is_one_byte) {
-      Handle<SeqOneByteString> result =
-          NewRawOneByteString(length).ToHandleChecked();
-      DisallowHeapAllocation no_gc;
-      uint8_t* dest = result->GetChars(no_gc);
-      // Copy left part.
-      const uint8_t* src =
-          left->IsExternalString()
-              ? Handle<ExternalOneByteString>::cast(left)->GetChars()
-              : Handle<SeqOneByteString>::cast(left)->GetChars(no_gc);
-      for (int i = 0; i < left_length; i++) *dest++ = src[i];
-      // Copy right part.
-      src = right->IsExternalString()
-                ? Handle<ExternalOneByteString>::cast(right)->GetChars()
-                : Handle<SeqOneByteString>::cast(right)->GetChars(no_gc);
-      for (int i = 0; i < right_length; i++) *dest++ = src[i];
-      return result;
-    }
-
-    return ConcatStringContent<uc16>(
-        NewRawTwoByteString(length).ToHandleChecked(), left, right);
-  }
-
-  return NewConsString(left, right, length, is_one_byte);
-}
-
-Handle<String> Factory::NewConsString(Handle<String> left, Handle<String> right,
-                                      int length, bool one_byte) {
-  DCHECK(!left->IsThinString());
-  DCHECK(!right->IsThinString());
-  DCHECK_GE(length, ConsString::kMinLength);
-  DCHECK_LE(length, String::kMaxLength);
-
-  Handle<ConsString> result(
-      ConsString::cast(
-          one_byte ? New(cons_one_byte_string_map(), AllocationType::kYoung)
-                   : New(cons_string_map(), AllocationType::kYoung)),
-      isolate());
-
-  DisallowHeapAllocation no_gc;
-  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-
-  result->set_hash_field(String::kEmptyHashField);
-  result->set_length(length);
-  result->set_first(*left, mode);
-  result->set_second(*right, mode);
-  return result;
+  return InternalizeString(Vector<const uint16_t>(buffer, 2));
 }
 
 Handle<String> Factory::NewSurrogatePairString(uint16_t lead, uint16_t trail) {
@@ -1184,7 +1085,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
     // table to prevent creation of many unnecessary strings.
     uint16_t c1 = str->Get(begin);
     uint16_t c2 = str->Get(begin + 1);
-    return MakeOrFindTwoCharacterString(isolate(), c1, c2);
+    return MakeOrFindTwoCharacterString(c1, c2);
   }
 
   if (!FLAG_string_slices || length < SlicedString::kMinLength) {

@@ -38,11 +38,21 @@ class V8_EXPORT_PRIVATE FactoryBase {
   V8_WARN_UNUSED_RESULT FactoryMaybeHandle<Impl, SeqTwoByteString>
   NewRawTwoByteString(int length,
                       AllocationType allocation = AllocationType::kYoung);
+  // Create a new cons string object which consists of a pair of strings.
+  V8_WARN_UNUSED_RESULT FactoryMaybeHandle<Impl, String> NewConsString(
+      FactoryHandle<Impl, String> left, FactoryHandle<Impl, String> right,
+      AllocationType allocation = AllocationType::kYoung);
+
+  V8_WARN_UNUSED_RESULT FactoryHandle<Impl, String> NewConsString(
+      FactoryHandle<Impl, String> left, FactoryHandle<Impl, String> right,
+      int length, bool one_byte,
+      AllocationType allocation = AllocationType::kYoung);
 
  protected:
   HeapObject AllocateRawWithImmortalMap(
       int size, AllocationType allocation, Map map,
       AllocationAlignment alignment = kWordAligned);
+  HeapObject NewWithImmortalMap(Map map, AllocationType allocation);
 
  private:
   Impl* impl() { return static_cast<Impl*>(this); }

@@ -752,7 +752,7 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
       if (!var->is_used()) continue;
       if (var->location() != VariableLocation::UNALLOCATED) continue;
       if (decl->node_type() == AstNode::kVariableDeclaration) {
-        data->set(array_index++, *var->raw_name()->string());
+        data->set(array_index++, *var->raw_name()->string().get<Factory>());
       } else {
         FunctionLiteral* f = static_cast<FunctionDeclaration*>(decl)->fun();
         Handle<Object> sfi(Compiler::GetSharedFunctionInfo(f, script, isolate));

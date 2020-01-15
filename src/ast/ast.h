@@ -1176,7 +1176,7 @@ class MaterializedLiteral : public Expression {
 // Node for capturing a regexp literal.
 class RegExpLiteral final : public MaterializedLiteral {
  public:
-  Handle<String> pattern() const { return pattern_->string(); }
+  Handle<String> pattern() const { return pattern_->string().get<Factory>(); }
   const AstRawString* raw_pattern() const { return pattern_; }
   int flags() const { return flags_; }
 
@@ -1493,7 +1493,7 @@ class VariableProxy final : public Expression {
  public:
   bool IsValidReferenceExpression() const { return !is_new_target(); }
 
-  Handle<String> name() const { return raw_name()->string(); }
+  Handle<String> name() const { return raw_name()->string().get<Factory>(); }
   const AstRawString* raw_name() const {
     return is_resolved() ? var_->raw_name() : raw_name_;
   }
@@ -2205,9 +2205,9 @@ class FunctionLiteral final : public Expression {
   // Empty handle means that the function does not have a shared name (i.e.
   // the name will be set dynamically after creation of the function closure).
   MaybeHandle<String> name() const {
-    return raw_name_ ? raw_name_->string() : MaybeHandle<String>();
+    return raw_name_ ? raw_name_->string().get<Factory>()
+                     : MaybeHandle<String>();
   }
-  Handle<String> name(Isolate* isolate) const;
   bool has_shared_name() const { return raw_name_ != nullptr; }
   const AstConsString* raw_name() const { return raw_name_; }
   void set_raw_name(const AstConsString* name) { raw_name_ = name; }
@@ -2270,7 +2270,7 @@ class FunctionLiteral final : public Expression {
       return inferred_name_;
     }
     if (raw_inferred_name_ != nullptr) {
-      return raw_inferred_name_->string();
+      return raw_inferred_name_->string().get<Factory>();
     }
     UNREACHABLE();
   }
@@ -2555,7 +2555,7 @@ class ClassLiteral final : public Expression {
 
 class NativeFunctionLiteral final : public Expression {
  public:
-  Handle<String> name() const { return name_->string(); }
+  Handle<String> name() const { return name_->string().get<Factory>(); }
   const AstRawString* raw_name() const { return name_; }
   v8::Extension* extension() const { return extension_; }
 

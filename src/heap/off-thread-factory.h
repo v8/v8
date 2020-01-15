@@ -50,6 +50,11 @@ class V8_EXPORT_PRIVATE OffThreadFactory
 
   ReadOnlyRoots read_only_roots() const { return roots_; }
 
+#define ROOT_ACCESSOR(Type, name, CamelName) \
+  inline OffThreadHandle<Type> name();
+  READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
+
   void FinishOffThread();
   void Publish(Isolate* isolate);
 
@@ -74,6 +79,9 @@ class V8_EXPORT_PRIVATE OffThreadFactory
   inline bool CanAllocateInReadOnlySpace() { return false; }
   inline bool EmptyStringRootIsInitialized() { return true; }
   // ------
+
+  OffThreadHandle<String> MakeOrFindTwoCharacterString(uint16_t c1,
+                                                       uint16_t c2);
 
   ReadOnlyRoots roots_;
   OffThreadSpace space_;

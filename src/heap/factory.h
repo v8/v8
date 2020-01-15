@@ -124,7 +124,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<T> MakeHandle(T obj) {
     return handle(obj, isolate());
   }
-
   Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
                              Handle<Object> to_number, const char* type_of,
                              byte kind);
@@ -344,14 +343,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Creates a single character string where the character has given code.
   // A cache is used for Latin1 codes.
   Handle<String> LookupSingleCharacterStringFromCode(uint16_t code);
-
-  // Create a new cons string object which consists of a pair of strings.
-  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewConsString(Handle<String> left,
-                                                          Handle<String> right);
-
-  V8_WARN_UNUSED_RESULT Handle<String> NewConsString(Handle<String> left,
-                                                     Handle<String> right,
-                                                     int length, bool one_byte);
 
   // Create or lookup a single characters tring made up of a utf16 surrogate
   // pair.
@@ -1073,6 +1064,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   MaybeHandle<String> NewStringFromTwoByte(const uc16* string, int length,
                                            AllocationType allocation);
+
+  Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
 
   // Attempt to find the number in a small cache.  If we finds it, return
   // the string representation of the number.  Otherwise return undefined.

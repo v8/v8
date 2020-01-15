@@ -639,7 +639,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     // conflicting var declarations with outer scope-info-backed scopes.
     if (info->is_eval()) {
       DCHECK(parsing_on_main_thread_);
-      info->ast_value_factory()->Internalize(isolate);
+      info->ast_value_factory()->Internalize(isolate->factory());
     }
     CheckConflictingVarDeclarations(scope);
 
@@ -809,7 +809,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   if (V8_UNLIKELY(FLAG_log_function_events) && result != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
     // We need to make sure that the debug-name is available.
-    ast_value_factory()->Internalize(isolate);
+    ast_value_factory()->Internalize(isolate->factory());
     DeclarationScope* function_scope = result->scope();
     std::unique_ptr<char[]> function_name = result->GetDebugName();
     LOG(isolate,

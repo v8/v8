@@ -175,7 +175,7 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
     Isolate* isolate, Handle<Script> script, Handle<BytecodeArray> bytecode) {
   int first_mismatch = generator()->CheckBytecodeMatches(bytecode);
   if (first_mismatch >= 0) {
-    parse_info()->ast_value_factory()->Internalize(isolate);
+    parse_info()->ast_value_factory()->Internalize(isolate->factory());
     DeclarationScope::AllocateScopeInfos(parse_info(), isolate);
 
     Handle<BytecodeArray> new_bytecode =
@@ -184,7 +184,8 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
     std::cerr << "Bytecode mismatch";
 #ifdef OBJECT_PRINT
     std::cerr << " found for function: ";
-    Handle<String> name = parse_info()->function_name()->string();
+    Handle<String> name =
+        parse_info()->function_name()->string().get<Factory>();
     if (name->length() == 0) {
       std::cerr << "anonymous";
     } else {

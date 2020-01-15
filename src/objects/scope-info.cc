@@ -1057,7 +1057,8 @@ Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
   Handle<FixedArray> module_request_positions =
       isolate->factory()->NewFixedArray(size);
   for (const auto& elem : descr->module_requests()) {
-    module_requests->set(elem.second.index, *elem.first->string());
+    module_requests->set(elem.second.index,
+                         *elem.first->string().get<Factory>());
     module_request_positions->set(elem.second.index,
                                   Smi::FromInt(elem.second.position));
   }

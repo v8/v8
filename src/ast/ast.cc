@@ -226,10 +226,6 @@ bool FunctionLiteral::SafeToSkipArgumentsAdaptor() const {
          scope()->rest_parameter() == nullptr;
 }
 
-Handle<String> FunctionLiteral::name(Isolate* isolate) const {
-  return raw_name_ ? raw_name_->string() : isolate->factory()->empty_string();
-}
-
 int FunctionLiteral::start_position() const {
   return scope()->start_position();
 }
@@ -520,7 +516,8 @@ void ObjectLiteral::BuildBoilerplateDescription(Isolate* isolate) {
     Handle<Object> key =
         key_literal->AsArrayIndex(&element_index)
             ? isolate->factory()->NewNumberFromUint(element_index)
-            : Handle<Object>::cast(key_literal->AsRawPropertyName()->string());
+            : Handle<Object>::cast(
+                  key_literal->AsRawPropertyName()->string().get<Factory>());
 
     Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
 
@@ -703,11 +700,11 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
   bool raw_and_cooked_match = true;
   for (int i = 0; i < raw_strings->length(); ++i) {
     if (this->cooked_strings()->at(i) == nullptr ||
-        *this->raw_strings()->at(i)->string() !=
-            *this->cooked_strings()->at(i)->string()) {
+        *this->raw_strings()->at(i)->string().get<Factory>() !=
+            *this->cooked_strings()->at(i)->string().get<Factory>()) {
       raw_and_cooked_match = false;
     }
-    raw_strings->set(i, *this->raw_strings()->at(i)->string());
+    raw_strings->set(i, *this->raw_strings()->at(i)->string().get<Factory>());
   }
   Handle<FixedArray> cooked_strings = raw_strings;
   if (!raw_and_cooked_match) {
@@ -715,7 +712,8 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
         this->cooked_strings()->length(), AllocationType::kOld);
     for (int i = 0; i < cooked_strings->length(); ++i) {
       if (this->cooked_strings()->at(i) != nullptr) {
-        cooked_strings->set(i, *this->cooked_strings()->at(i)->string());
+        cooked_strings->set(
+            i, *this->cooked_strings()->at(i)->string().get<Factory>());
       } else {
         cooked_strings->set(i, ReadOnlyRoots(isolate).undefined_value());
       }
@@ -900,7 +898,7 @@ Handle<Object> Literal::BuildValue(Isolate* isolate) const {
     case kHeapNumber:
       return isolate->factory()->NewNumber<AllocationType::kOld>(number_);
     case kString:
-      return string_->string();
+      return string_->string().get<Factory>();
     case kSymbol:
       return isolate->factory()->home_object_symbol();
     case kBoolean:

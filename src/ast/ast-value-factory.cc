@@ -27,6 +27,9 @@
 
 #include "src/ast/ast-value-factory.h"
 
+#include "src/common/globals.h"
+#include "src/heap/factory-inl.h"
+#include "src/heap/off-thread-factory-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/strings/char-predicates-inl.h"
@@ -54,18 +57,40 @@ class OneByteStringStream {
 
 }  // namespace
 
-void AstRawString::Internalize(Isolate* isolate) {
+void AstRawString::Internalize(Factory* factory) {
   DCHECK(!has_string_);
   if (literal_bytes_.length() == 0) {
-    set_string(isolate->factory()->empty_string());
+    set_string(factory->empty_string());
   } else if (is_one_byte()) {
     OneByteStringKey key(hash_field_, literal_bytes_);
-    set_string(StringTable::LookupKey(isolate, &key));
+    set_string(factory->InternalizeStringWithKey(&key));
   } else {
     TwoByteStringKey key(hash_field_,
                          Vector<const uint16_t>::cast(literal_bytes_));
-    set_string(StringTable::LookupKey(isolate, &key));
+    set_string(factory->InternalizeStringWithKey(&key));
   }
+}
+
+void AstRawString::Internalize(OffThreadFactory* factory) {
+  DCHECK(!has_string_);
+  if (literal_bytes_.length() == 0) {
+    set_string(factory->empty_string());
+    return;
+  }
+
+  // For the off-thread case, we already de-duplicated the AstRawStrings during
+  // construction and don't have access to the main thread string table yet, so
+  // we just unconditionally create strings and will internalize them properly
+  // during merging.
+  OffThreadHandle<SeqString> string;
+  if (is_one_byte()) {
+    string = factory->NewOneByteInternalizedString(
+        Vector<const uint8_t>::cast(literal_bytes_), hash_field());
+  } else {
+    string = factory->NewTwoByteInternalizedString(
+        Vector<const uc16>::cast(literal_bytes_), hash_field());
+  }
+  set_string(string);
 }
 
 bool AstRawString::AsArrayIndex(uint32_t* index) const {
@@ -134,22 +159,28 @@ bool AstRawString::Compare(void* a, void* b) {
   }
 }
 
-void AstConsString::Internalize(Isolate* isolate) {
+template <typename Factory>
+void AstConsString::Internalize(Factory* factory) {
   if (IsEmpty()) {
-    set_string(isolate->factory()->empty_string());
+    set_string(factory->empty_string());
     return;
   }
   // AstRawStrings are internalized before AstConsStrings, so
   // AstRawString::string() will just work.
-  Handle<String> tmp(segment_.string->string());
+  FactoryHandle<Factory, String> tmp(segment_.string->string().get<Factory>());
   for (AstConsString::Segment* current = segment_.next; current != nullptr;
        current = current->next) {
-    tmp = isolate->factory()
-              ->NewConsString(current->string->string(), tmp)
+    tmp = factory
+              ->NewConsString(current->string->string().get<Factory>(), tmp,
+                              AllocationType::kOld)
               .ToHandleChecked();
   }
   set_string(tmp);
 }
+template EXPORT_TEMPLATE_DEFINE(
+    V8_BASE_EXPORT) void AstConsString::Internalize<Factory>(Factory* factory);
+template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT) void AstConsString::Internalize<
+    OffThreadFactory>(OffThreadFactory* factory);
 
 std::forward_list<const AstRawString*> AstConsString::ToRawStrings() const {
   std::forward_list<const AstRawString*> result;
@@ -250,24 +281,30 @@ AstConsString* AstValueFactory::NewConsString(const AstRawString* str1,
   return NewConsString()->AddString(zone_, str1)->AddString(zone_, str2);
 }
 
-void AstValueFactory::Internalize(Isolate* isolate) {
+template <typename Factory>
+void AstValueFactory::Internalize(Factory* factory) {
   // Strings need to be internalized before values, because values refer to
   // strings.
   for (AstRawString* current = strings_; current != nullptr;) {
     AstRawString* next = current->next();
-    current->Internalize(isolate);
+    current->Internalize(factory);
     current = next;
   }
 
   // AstConsStrings refer to AstRawStrings.
   for (AstConsString* current = cons_strings_; current != nullptr;) {
     AstConsString* next = current->next();
-    current->Internalize(isolate);
+    current->Internalize(factory);
     current = next;
   }
 
   ResetStrings();
 }
+template EXPORT_TEMPLATE_DEFINE(
+    V8_BASE_EXPORT) void AstValueFactory::Internalize<Factory>(Factory*
+                                                                   factory);
+template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT) void AstValueFactory::
+    Internalize<OffThreadFactory>(OffThreadFactory* factory);
 
 AstRawString* AstValueFactory::GetString(uint32_t hash_field, bool is_one_byte,
                                          Vector<const byte> literal_bytes) {
