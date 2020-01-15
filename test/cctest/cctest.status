@@ -386,6 +386,9 @@
   # Liftoff is not currently supported on ppc and s390
   'test-liftoff-*': [SKIP],
 
+  # SIMD not fully implemented yet
+  'test-run-wasm-simd-liftoff/*': [SKIP],
+
 }],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
 
 ['arch == ppc64', {
