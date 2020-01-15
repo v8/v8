@@ -395,9 +395,11 @@ void MicrotaskQueueBuiltinsAssembler::RewindEnteredContext(
                      ContextStack::kSizeOffset);
 
 #ifdef ENABLE_VERIFY_CSA
-  TNode<IntPtrT> size = Load<IntPtrT>(hsi, size_offset);
-  CSA_ASSERT(this, IntPtrLessThan(IntPtrConstant(0), size));
-  CSA_ASSERT(this, IntPtrLessThanOrEqual(saved_entered_context_count, size));
+  {
+    TNode<IntPtrT> size = Load<IntPtrT>(hsi, size_offset);
+    CSA_CHECK(this, IntPtrLessThan(IntPtrConstant(0), size));
+    CSA_CHECK(this, IntPtrLessThanOrEqual(saved_entered_context_count, size));
+  }
 #endif
 
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), hsi, size_offset,
