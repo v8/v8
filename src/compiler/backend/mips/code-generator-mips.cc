@@ -812,9 +812,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       if (isWasmCapiFunction) {
         CHECK_EQ(offset, __ SizeOfCodeGeneratedSince(&start_call));
+        RecordSafepoint(instr->reference_map(), Safepoint::kNoLazyDeopt);
       }
 
-      RecordSafepoint(instr->reference_map(), Safepoint::kNoLazyDeopt);
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
       // pointer in CallCFunction. However, for certain architectures (e.g.
