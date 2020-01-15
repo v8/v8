@@ -237,7 +237,7 @@ Node* RedundancyElimination::EffectPathChecks::LookupBoundsCheckFor(
     Node* node) const {
   for (Check const* check = head_; check != nullptr; check = check->next) {
     if (check->node->opcode() == IrOpcode::kCheckBounds &&
-        check->node->InputAt(0) == node) {
+        check->node->InputAt(0) == node && TypeSubsumes(node, check->node)) {
       return check->node;
     }
   }
