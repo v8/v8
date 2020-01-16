@@ -1548,11 +1548,6 @@ DEFINE_STRING(gc_fake_mmap, "/tmp/__v8_gc__",
               "Specify the name of the file for fake gc mmap used in ll_prof")
 DEFINE_BOOL(log_internal_timer_events, false, "Time internal events.")
 DEFINE_IMPLICATION(log_internal_timer_events, prof)
-DEFINE_BOOL(log_instruction_stats, false, "Log AArch64 instruction statistics.")
-DEFINE_STRING(log_instruction_file, "arm64_inst.csv",
-              "AArch64 instruction statistics log file.")
-DEFINE_INT(log_instruction_period, 1 << 22,
-           "AArch64 instruction statistics logging period.")
 
 DEFINE_BOOL(redirect_code_traces, false,
             "output deopt information and disassembly into file "

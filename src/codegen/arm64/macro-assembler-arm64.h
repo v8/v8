@@ -1672,18 +1672,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // side effects.
   inline void InlineData(uint64_t data);
 
-  // Insert an instrumentation enable marker into the instruction stream.
-  inline void EnableInstrumentation();
-
-  // Insert an instrumentation disable marker into the instruction stream.
-  inline void DisableInstrumentation();
-
-  // Insert an instrumentation event marker into the instruction stream. These
-  // will be picked up by the instrumentation system to annotate an instruction
-  // profile. The argument marker_name must be a printable two character string;
-  // it will be encoded in the event marker.
-  inline void AnnotateInstrumentation(const char* marker_name);
-
   // Preserve the callee-saved registers (as defined by AAPCS64).
   //
   // Higher-numbered registers are pushed before lower-numbered registers, and

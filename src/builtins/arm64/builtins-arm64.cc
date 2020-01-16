@@ -609,10 +609,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   {
     NoRootArrayScope no_root_array(masm);
 
-    // Enable instruction instrumentation. This only works on the simulator, and
-    // will have no effect on the model or real hardware.
-    __ EnableInstrumentation();
-
 #if defined(V8_OS_WIN)
     // Windows ARM64 relies on a frame pointer (fp/x29 which are aliases to each
     // other) chain to do stack unwinding, but JSEntry breaks that by setting fp

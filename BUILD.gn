@@ -3123,8 +3123,6 @@ v8_source_set("v8_base_without_compiler") {
       "src/codegen/arm64/instructions-arm64-constants.cc",
       "src/codegen/arm64/instructions-arm64.cc",
       "src/codegen/arm64/instructions-arm64.h",
-      "src/codegen/arm64/instrument-arm64.cc",
-      "src/codegen/arm64/instrument-arm64.h",
       "src/codegen/arm64/interface-descriptors-arm64.cc",
       "src/codegen/arm64/macro-assembler-arm64-inl.h",
       "src/codegen/arm64/macro-assembler-arm64.cc",

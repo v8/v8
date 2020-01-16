@@ -16,7 +16,6 @@
 #include "src/base/compiler-specific.h"
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/arm64/decoder-arm64.h"
-#include "src/codegen/arm64/instrument-arm64.h"
 #include "src/codegen/assembler.h"
 #include "src/diagnostics/arm64/disasm-arm64.h"
 #include "src/execution/simulator-base.h"
@@ -2140,9 +2139,6 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   FILE* stream_;
   PrintDisassembler* print_disasm_;
   void PRINTF_FORMAT(2, 3) TraceSim(const char* format, ...);
-
-  // Instrumentation.
-  Instrument* instrument_;
 
   // General purpose registers. Register 31 is the stack pointer.
   SimRegister registers_[kNumberOfRegisters];

@@ -12,7 +12,6 @@
 #include "src/base/bits.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/arm64/assembler-arm64.h"
-#include "src/codegen/arm64/instrument-arm64.h"
 #include "src/codegen/macro-assembler.h"
 
 namespace v8 {
@@ -1250,27 +1249,6 @@ void MacroAssembler::InlineData(uint64_t data) {
   DCHECK(is_uint16(data));
   InstructionAccurateScope scope(this, 1);
   movz(xzr, data);
-}
-
-void MacroAssembler::EnableInstrumentation() {
-  InstructionAccurateScope scope(this, 1);
-  movn(xzr, InstrumentStateEnable);
-}
-
-void MacroAssembler::DisableInstrumentation() {
-  InstructionAccurateScope scope(this, 1);
-  movn(xzr, InstrumentStateDisable);
-}
-
-void MacroAssembler::AnnotateInstrumentation(const char* marker_name) {
-  DCHECK_EQ(strlen(marker_name), 2);
-
-  // We allow only printable characters in the marker names. Unprintable
-  // characters are reserved for controlling features of the instrumentation.
-  DCHECK(isprint(marker_name[0]) && isprint(marker_name[1]));
-
-  InstructionAccurateScope scope(this, 1);
-  movn(xzr, (marker_name[1] << 8) | marker_name[0]);
 }
 
 }  // namespace internal
