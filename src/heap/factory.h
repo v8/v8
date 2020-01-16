@@ -779,24 +779,24 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<BytecodeArray> CopyBytecodeArray(Handle<BytecodeArray>);
 
   // Interface for creating error objects.
-  Handle<Object> NewError(Handle<JSFunction> constructor,
-                          Handle<String> message);
+  Handle<JSObject> NewError(Handle<JSFunction> constructor,
+                            Handle<String> message);
 
   Handle<Object> NewInvalidStringLengthError();
 
   inline Handle<Object> NewURIError();
 
-  Handle<Object> NewError(Handle<JSFunction> constructor,
-                          MessageTemplate template_index,
-                          Handle<Object> arg0 = Handle<Object>(),
-                          Handle<Object> arg1 = Handle<Object>(),
-                          Handle<Object> arg2 = Handle<Object>());
+  Handle<JSObject> NewError(Handle<JSFunction> constructor,
+                            MessageTemplate template_index,
+                            Handle<Object> arg0 = Handle<Object>(),
+                            Handle<Object> arg1 = Handle<Object>(),
+                            Handle<Object> arg2 = Handle<Object>());
 
-#define DECLARE_ERROR(NAME)                                        \
-  Handle<Object> New##NAME(MessageTemplate template_index,         \
-                           Handle<Object> arg0 = Handle<Object>(), \
-                           Handle<Object> arg1 = Handle<Object>(), \
-                           Handle<Object> arg2 = Handle<Object>());
+#define DECLARE_ERROR(NAME)                                          \
+  Handle<JSObject> New##NAME(MessageTemplate template_index,         \
+                             Handle<Object> arg0 = Handle<Object>(), \
+                             Handle<Object> arg1 = Handle<Object>(), \
+                             Handle<Object> arg2 = Handle<Object>());
   DECLARE_ERROR(Error)
   DECLARE_ERROR(EvalError)
   DECLARE_ERROR(RangeError)

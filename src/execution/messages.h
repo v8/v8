@@ -269,14 +269,14 @@ class ErrorUtils : public AllStatic {
   // |kNone| is useful when you don't need the stack information at all, for
   // example when creating a deserialized error.
   enum class StackTraceCollection { kDetailed, kSimple, kNone };
-  static MaybeHandle<Object> Construct(
+  static MaybeHandle<JSObject> Construct(
       Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
       Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,
       StackTraceCollection stack_trace_collection);
 
   static MaybeHandle<String> ToString(Isolate* isolate, Handle<Object> recv);
 
-  static MaybeHandle<Object> MakeGenericError(
+  static Handle<JSObject> MakeGenericError(
       Isolate* isolate, Handle<JSFunction> constructor, MessageTemplate index,
       Handle<Object> arg0, Handle<Object> arg1, Handle<Object> arg2,
       FrameSkipMode mode);

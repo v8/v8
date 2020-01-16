@@ -1342,6 +1342,30 @@ Object Isolate::StackOverflow() {
   return ReadOnlyRoots(heap()).exception();
 }
 
+void Isolate::ThrowAt(Handle<JSObject> exception, MessageLocation* location) {
+  Handle<Name> key_start_pos = factory()->error_start_pos_symbol();
+  Object::SetProperty(this, exception, key_start_pos,
+                      handle(Smi::FromInt(location->start_pos()), this),
+                      StoreOrigin::kMaybeKeyed,
+                      Just(ShouldThrow::kThrowOnError))
+      .Check();
+
+  Handle<Name> key_end_pos = factory()->error_end_pos_symbol();
+  Object::SetProperty(this, exception, key_end_pos,
+                      handle(Smi::FromInt(location->end_pos()), this),
+                      StoreOrigin::kMaybeKeyed,
+                      Just(ShouldThrow::kThrowOnError))
+      .Check();
+
+  Handle<Name> key_script = factory()->error_script_symbol();
+  Object::SetProperty(this, exception, key_script, location->script(),
+                      StoreOrigin::kMaybeKeyed,
+                      Just(ShouldThrow::kThrowOnError))
+      .Check();
+
+  Throw(*exception, location);
+}
+
 Object Isolate::TerminateExecution() {
   return Throw(ReadOnlyRoots(this).termination_exception(), nullptr);
 }

@@ -1166,7 +1166,7 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
     BuildGeneratorPrologue();
   }
 
-  if (closure_scope()->NeedsContext()) {
+  if (closure_scope()->NeedsContext() && !closure_scope()->is_script_scope()) {
     // Push a new inner context scope for the function.
     BuildNewLocalActivationContext();
     ContextScope local_function_context(this, closure_scope());
@@ -5982,13 +5982,7 @@ void BytecodeGenerator::BuildNewLocalActivationContext() {
   DCHECK_EQ(current_scope(), closure_scope());
 
   // Create the appropriate context.
-  if (scope->is_script_scope()) {
-    Register scope_reg = register_allocator()->NewRegister();
-    builder()
-        ->LoadLiteral(scope)
-        .StoreAccumulatorInRegister(scope_reg)
-        .CallRuntime(Runtime::kNewScriptContext, scope_reg);
-  } else if (scope->is_module_scope()) {
+  if (scope->is_module_scope()) {
     // We don't need to do anything for the outer script scope.
     DCHECK(scope->outer_scope()->is_script_scope());
 
