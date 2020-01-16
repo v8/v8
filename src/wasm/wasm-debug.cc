@@ -519,18 +519,28 @@ class DebugInfoImpl {
       JSObject::AddProperty(isolate, local_scope_object, locals_name,
                             locals_obj, NONE);
       for (int i = 0; i < num_locals; ++i) {
-        // TODO(clemensb): Get the proper name of the local.
-        // Parameters should come before locals in alphabetical ordering, so
-        // we name them "args" here.
-        const char* label = i < num_params ? "arg#%d" : "local#%d";
-        Handle<String> name = PrintFToOneByteString<true>(isolate, label, i);
+        Handle<Name> name;
+        if (!GetLocalNameString(isolate, native_module_, function->func_index,
+                                i)
+                 .ToHandle(&name)) {
+          // Parameters should come before locals in alphabetical ordering, so
+          // we name them "args" here.
+          const char* label = i < num_params ? "arg#%d" : "local#%d";
+          name = PrintFToOneByteString<true>(isolate, label, i);
+        }
         WasmValue value =
             GetValue(debug_side_table_entry, debug_side_table->local_type(i), i,
                      fp - debug_side_table->local_stack_offset(i));
         Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
-        JSObject::SetOwnPropertyIgnoreAttributes(locals_obj, name, value_obj,
-                                                 NONE)
-            .Assert();
+        // {name} can be a string representation of an element index.
+        LookupIterator::Key lookup_key{isolate, name};
+        LookupIterator it(isolate, locals_obj, lookup_key, locals_obj,
+                          LookupIterator::OWN_SKIP_INTERCEPTOR);
+        if (it.IsFound()) continue;
+        Object::AddDataProperty(&it, value_obj, NONE,
+                                Just(ShouldThrow::kThrowOnError),
+                                StoreOrigin::kNamed)
+            .Check();
       }
     }
 
