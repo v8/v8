@@ -271,7 +271,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
       EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
-      size_t* max_unoptimized_frame_height,
+      size_t* max_unoptimized_frame_height, size_t* max_pushed_argument_count,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
@@ -578,6 +578,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   bool IsTailCallAddressImmediate();
   int GetTempsCountForTailCallFromJSFunction();
 
+  void UpdateMaxPushedArgumentCount(size_t count);
+
   FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
   size_t AddInputsToFrameStateDescriptor(FrameStateDescriptor* descriptor,
                                          Node* state, OperandGenerator* g,
@@ -788,9 +790,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   EnableTraceTurboJson trace_turbo_;
   TickCounter* const tick_counter_;
 
-  // Store the maximal unoptimized frame height. Later used to apply an offset
-  // to stack checks.
+  // Store the maximal unoptimized frame height and an maximal number of pushed
+  // arguments (for calls). Later used to apply an offset to stack checks.
   size_t* max_unoptimized_frame_height_;
+  size_t* max_pushed_argument_count_;
 };
 
 }  // namespace compiler

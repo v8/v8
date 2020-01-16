@@ -49,7 +49,7 @@ CodeGenerator::CodeGenerator(
     int start_source_position, JumpOptimizationInfo* jump_opt,
     PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
     int32_t builtin_index, size_t max_unoptimized_frame_height,
-    std::unique_ptr<AssemblerBuffer> buffer)
+    size_t max_pushed_argument_count, std::unique_ptr<AssemblerBuffer> buffer)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -69,6 +69,7 @@ CodeGenerator::CodeGenerator(
       deoptimization_literals_(zone()),
       translations_(zone()),
       max_unoptimized_frame_height_(max_unoptimized_frame_height),
+      max_pushed_argument_count_(max_pushed_argument_count),
       caller_registers_saved_(false),
       jump_tables_(nullptr),
       ools_(nullptr),
@@ -127,7 +128,11 @@ bool CodeGenerator::ShouldApplyOffsetToStackCheck(Instruction* instr,
 }
 
 uint32_t CodeGenerator::GetStackCheckOffset() {
-  if (!frame_access_state()->has_frame()) return 0;
+  if (!frame_access_state()->has_frame()) {
+    DCHECK_EQ(max_unoptimized_frame_height_, 0);
+    DCHECK_EQ(max_pushed_argument_count_, 0);
+    return 0;
+  }
 
   int32_t optimized_frame_height =
       frame()->GetTotalFrameSlotCount() * kSystemPointerSize;
@@ -135,9 +140,14 @@ uint32_t CodeGenerator::GetStackCheckOffset() {
   int32_t signed_max_unoptimized_frame_height =
       static_cast<int32_t>(max_unoptimized_frame_height_);
 
-  int32_t signed_offset =
-      std::max(signed_max_unoptimized_frame_height - optimized_frame_height, 0);
-  return (signed_offset <= 0) ? 0 : static_cast<uint32_t>(signed_offset);
+  // The offset is either the delta between the optimized frames and the
+  // interpreted frame, or the maximal number of bytes pushed to the stack
+  // while preparing for function calls, whichever is bigger.
+  uint32_t frame_height_delta = static_cast<uint32_t>(std::max(
+      signed_max_unoptimized_frame_height - optimized_frame_height, 0));
+  uint32_t max_pushed_argument_bytes =
+      static_cast<uint32_t>(max_pushed_argument_count_ * kSystemPointerSize);
+  return std::max(frame_height_delta, max_pushed_argument_bytes);
 }
 
 CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(

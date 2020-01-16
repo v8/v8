@@ -389,6 +389,12 @@ class PipelineData {
   size_t max_unoptimized_frame_height() const {
     return max_unoptimized_frame_height_;
   }
+  size_t* address_of_max_pushed_argument_count() {
+    return &max_pushed_argument_count_;
+  }
+  size_t max_pushed_argument_count() const {
+    return max_pushed_argument_count_;
+  }
 
   CodeTracer* GetCodeTracer() const {
     return wasm_engine_ == nullptr ? isolate_->GetCodeTracer()
@@ -505,7 +511,7 @@ class PipelineData {
         osr_helper_, start_source_position_, jump_optimization_info_,
         info()->GetPoisoningMitigationLevel(), assembler_options_,
         info_->builtin_index(), max_unoptimized_frame_height(),
-        std::move(buffer));
+        max_pushed_argument_count(), std::move(buffer));
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -604,9 +610,11 @@ class PipelineData {
   Maybe<OuterContext> specialization_context_ = Nothing<OuterContext>();
 
   // The maximal combined height of all inlined frames in their unoptimized
-  // state. Calculated during instruction selection, applied during code
-  // generation.
+  // state, and the maximal number of arguments pushed during function calls.
+  // Calculated during instruction selection, applied during code generation.
   size_t max_unoptimized_frame_height_ = 0;
+  size_t max_pushed_argument_count_ = 0;
+
   RuntimeCallStats* runtime_call_stats_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(PipelineData);
@@ -2049,6 +2057,7 @@ struct InstructionSelectionPhase {
             : InstructionSelector::kDisableSwitchJumpTable,
         &data->info()->tick_counter(),
         data->address_of_max_unoptimized_frame_height(),
+        data->address_of_max_pushed_argument_count(),
         data->info()->is_source_positions_enabled()
             ? InstructionSelector::kAllSourcePositions
             : InstructionSelector::kCallSourcePositions,

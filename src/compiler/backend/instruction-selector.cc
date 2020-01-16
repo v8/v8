@@ -26,7 +26,7 @@ InstructionSelector::InstructionSelector(
     InstructionSequence* sequence, Schedule* schedule,
     SourcePositionTable* source_positions, Frame* frame,
     EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
-    size_t* max_unoptimized_frame_height,
+    size_t* max_unoptimized_frame_height, size_t* max_pushed_argument_count,
     SourcePositionMode source_position_mode, Features features,
     EnableScheduling enable_scheduling,
     EnableRootsRelativeAddressing enable_roots_relative_addressing,
@@ -59,7 +59,8 @@ InstructionSelector::InstructionSelector(
       instr_origins_(sequence->zone()),
       trace_turbo_(trace_turbo),
       tick_counter_(tick_counter),
-      max_unoptimized_frame_height_(max_unoptimized_frame_height) {
+      max_unoptimized_frame_height_(max_unoptimized_frame_height),
+      max_pushed_argument_count_(max_pushed_argument_count) {
   DCHECK_EQ(*max_unoptimized_frame_height, 0);  // Caller-initialized.
 
   instructions_.reserve(node_count);
@@ -2748,6 +2749,10 @@ void InstructionSelector::VisitConstant(Node* node) {
   Emit(kArchNop, g.DefineAsConstant(node));
 }
 
+void InstructionSelector::UpdateMaxPushedArgumentCount(size_t count) {
+  *max_pushed_argument_count_ = std::max(count, *max_pushed_argument_count_);
+}
+
 void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   OperandGenerator g(this);
   auto call_descriptor = CallDescriptorOf(node->op());
@@ -2777,7 +2782,8 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   CallBufferFlags call_buffer_flags(kCallCodeImmediate | kCallAddressImmediate);
   InitializeCallBuffer(node, &buffer, call_buffer_flags, false);
 
-  EmitPrepareArguments(&(buffer.pushed_nodes), call_descriptor, node);
+  EmitPrepareArguments(&buffer.pushed_nodes, call_descriptor, node);
+  UpdateMaxPushedArgumentCount(buffer.pushed_nodes.size());
 
   // Pass label of exception handler block.
   if (handler) {
@@ -2857,6 +2863,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
     flags |= kCallFixedTargetRegister;
   }
   InitializeCallBuffer(node, &buffer, flags, true, stack_param_delta);
+  UpdateMaxPushedArgumentCount(stack_param_delta);
 
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;
