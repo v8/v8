@@ -10,6 +10,7 @@
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/torque/ast.h"
+#include "src/torque/constants.h"
 #include "src/torque/declarable.h"
 #include "src/torque/utils.h"
 
@@ -192,9 +193,17 @@ bool IsKeywordLikeName(const std::string& s) {
 // naming convention and are those exempt from the normal type convention.
 bool IsMachineType(const std::string& s) {
   static const char* const machine_types[]{
-      "void",    "never", "int8",   "uint8", "int16",  "uint16",  "int31",
-      "uint31",  "int32", "uint32", "int64", "intptr", "uintptr", "float32",
-      "float64", "bool",  "string", "bint",  "char8",  "char16"};
+      VOID_TYPE_STRING,    NEVER_TYPE_STRING,
+      INT8_TYPE_STRING,    UINT8_TYPE_STRING,
+      INT16_TYPE_STRING,   UINT16_TYPE_STRING,
+      INT31_TYPE_STRING,   UINT31_TYPE_STRING,
+      INT32_TYPE_STRING,   UINT32_TYPE_STRING,
+      INT64_TYPE_STRING,   INTPTR_TYPE_STRING,
+      UINTPTR_TYPE_STRING, FLOAT32_TYPE_STRING,
+      FLOAT64_TYPE_STRING, FLOAT64_OR_HOLE_TYPE_STRING,
+      BOOL_TYPE_STRING,    "string",
+      BINT_TYPE_STRING,    CHAR8_TYPE_STRING,
+      CHAR16_TYPE_STRING};
 
   return std::find(std::begin(machine_types), std::end(machine_types), s) !=
          std::end(machine_types);

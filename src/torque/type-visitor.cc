@@ -417,7 +417,8 @@ void TypeVisitor::VisitClassFieldsAndMethods(
         ReportError("non-extern classes do not support weak fields");
       }
     }
-    if (const StructType* struct_type = StructType::DynamicCast(field_type)) {
+    const StructType* struct_type = StructType::DynamicCast(field_type);
+    if (struct_type && struct_type != TypeOracle::GetFloat64OrHoleType()) {
       for (const Field& struct_field : struct_type->fields()) {
         if (!struct_field.name_and_type.type->IsSubtypeOf(
                 TypeOracle::GetTaggedType())) {

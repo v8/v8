@@ -104,6 +104,27 @@ type bool generates 'TNode<BoolT>' constexpr 'bool';
 type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
 
+// WARNING: The memory representation (i.e., in class fields and arrays) of
+// float64_or_hole is just a float64 that may be the hole-representing
+// signalling NaN bit-pattern. So it's memory size is that of float64 and
+// loading and storing float64_or_hole emits special code.
+struct float64_or_hole {
+  macro Value(): float64 labels IfHole {
+    if (this.is_hole) {
+      goto IfHole;
+    }
+    return this.value;
+  }
+  macro ValueUnsafeAssumeNotHole(): float64 {
+    assert(!this.is_hole);
+    return this.value;
+  }
+
+  is_hole: bool;
+  value: float64;
+}
+const kDoubleHole: float64_or_hole = float64_or_hole{is_hole: true, value: 0};
+
 // The HashTable inheritance hierarchy doesn't actually look like this in C++
 // because it uses some class templates that we can't yet (and may never)
 // express in Torque, but this is the expected organization of instance types.
@@ -176,6 +197,7 @@ const kVariableSizeSentinel:
     constexpr int31 generates 'kVariableSizeSentinel';
 
 const kSmiTagSize: constexpr int31 generates 'kSmiTagSize';
+const kHeapObjectTag: constexpr int31 generates 'kHeapObjectTag';
 const V8_INFINITY: constexpr float64 generates 'V8_INFINITY';
 const MINUS_V8_INFINITY: constexpr float64 generates '-V8_INFINITY';
 

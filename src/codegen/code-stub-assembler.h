@@ -1464,6 +1464,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return LoadDoubleWithHoleCheck(array, Signed(index), if_hole);
   }
 
+  TNode<BoolT> IsDoubleHole(TNode<Object> base, TNode<IntPtrT> offset);
   // Load Float64 value by |base| + |offset| address. If the value is a double
   // hole then jump to |if_hole|. If |machine_type| is None then only the hole
   // check is generated.
@@ -1715,6 +1716,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     StoreFixedDoubleArrayElement(object, index, value, SMI_PARAMETERS);
   }
 
+  void StoreDoubleHole(TNode<HeapObject> object, TNode<IntPtrT> offset);
   void StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array, Node* index,
                                  ParameterMode mode = INTPTR_PARAMETERS);
   void StoreFixedDoubleArrayHoleSmi(TNode<FixedDoubleArray> array,

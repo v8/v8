@@ -130,7 +130,7 @@ namespace array {
           typeswitch (
               UnsafeCast<(Number | TheHole)>(this.fixedArray.objects[i])) {
             case (n: Number): {
-              elements.floats[i] = Convert<float64>(n);
+              elements.floats[i] = Convert<float64_or_hole>(n);
             }
             case (TheHole): {
             }

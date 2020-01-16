@@ -24,8 +24,7 @@ namespace array {
     const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
     // This macro is only used for PACKED_DOUBLE, loading the hole should
     // be impossible.
-    return LoadDoubleWithHoleCheck(elements, index)
-        otherwise unreachable;
+    return elements.floats[index].Value() otherwise unreachable;
   }
 
   macro StoreElement<ElementsAccessor : type extends ElementsKind, T: type>(

@@ -71,6 +71,11 @@ type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 type Context extends HeapObject generates 'TNode<Context>';
 type NativeContext extends Context;
 
+struct float64_or_hole {
+  is_hole: bool;
+  value: float64;
+}
+
 intrinsic %FromConstexpr<To: type, From: type>(b: From): To;
 intrinsic %RawDownCast<To: type, From: type>(x: From): To;
 intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;

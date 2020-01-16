@@ -12,7 +12,7 @@ extern class FixedArray extends FixedArrayBase { objects[length]: Object; }
 type EmptyFixedArray extends FixedArray;
 
 extern class FixedDoubleArray extends FixedArrayBase {
-  floats[length]: float64;
+  floats[length]: float64_or_hole;
 }
 
 extern class WeakFixedArray extends HeapObject { length: Smi; }
@@ -77,19 +77,11 @@ extern operator '.floats[]' macro LoadFixedDoubleArrayElement(
     FixedDoubleArray, intptr): float64;
 operator '[]=' macro StoreFixedDoubleArrayDirect(
     a: FixedDoubleArray, i: Smi, v: Number) {
-  a.floats[i] = Convert<float64>(v);
+  a.floats[i] = Convert<float64_or_hole>(Convert<float64>(v));
 }
 operator '[]=' macro StoreFixedArrayDirect(a: FixedArray, i: Smi, v: Object) {
   a.objects[i] = v;
 }
-
-extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, Smi): float64
-    labels IfHole;
-extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, intptr): float64
-    labels IfHole;
-extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, uintptr): float64
-    labels IfHole;
-extern macro StoreFixedDoubleArrayHoleSmi(FixedDoubleArray, Smi): void;
 
 extern macro AllocateZeroedFixedArray(intptr): FixedArray;
 extern macro AllocateZeroedFixedDoubleArray(intptr): FixedDoubleArray;

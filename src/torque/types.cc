@@ -768,6 +768,9 @@ size_t AbstractType::AlignmentLog2() const {
 }
 
 size_t StructType::AlignmentLog2() const {
+  if (this == TypeOracle::GetFloat64OrHoleType()) {
+    return TypeOracle::GetFloat64Type()->AlignmentLog2();
+  }
   size_t alignment_log_2 = 0;
   for (const Field& field : fields()) {
     alignment_log_2 =
@@ -778,7 +781,8 @@ size_t StructType::AlignmentLog2() const {
 
 void Field::ValidateAlignment(ResidueClass at_offset) const {
   const Type* type = name_and_type.type;
-  if (const StructType* struct_type = StructType::DynamicCast(type)) {
+  const StructType* struct_type = StructType::DynamicCast(type);
+  if (struct_type && struct_type != TypeOracle::GetFloat64OrHoleType()) {
     for (const Field& field : struct_type->fields()) {
       field.ValidateAlignment(at_offset);
       size_t field_size = std::get<0>(field.GetFieldSizeInformation());
@@ -834,8 +838,13 @@ base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type) {
     size = TargetArchitecture::RawPtrSize();
     size_string = "kIntptrSize";
   } else if (const StructType* struct_type = StructType::DynamicCast(type)) {
-    size = struct_type->PackedSize();
-    size_string = std::to_string(size);
+    if (type == TypeOracle::GetFloat64OrHoleType()) {
+      size = kDoubleSize;
+      size_string = "kDoubleSize";
+    } else {
+      size = struct_type->PackedSize();
+      size_string = std::to_string(size);
+    }
   } else {
     return {};
   }

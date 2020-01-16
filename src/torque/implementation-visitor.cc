@@ -2149,10 +2149,27 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
   } else if (reference.IsVariableAccess()) {
     return GenerateCopy(reference.variable());
   } else if (reference.IsHeapReference()) {
-    GenerateCopy(reference.heap_reference());
-    assembler().Emit(LoadReferenceInstruction{reference.ReferencedType()});
-    DCHECK_EQ(1, LoweredSlotCount(reference.ReferencedType()));
-    return VisitResult(reference.ReferencedType(), assembler().TopRange(1));
+    const Type* referenced_type = reference.ReferencedType();
+    if (referenced_type == TypeOracle::GetFloat64OrHoleType()) {
+      return GenerateCall(QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
+                                        "LoadFloat64OrHole"),
+                          Arguments{{reference.heap_reference()}, {}});
+    } else if (auto* struct_type = StructType::DynamicCast(referenced_type)) {
+      StackRange result_range = assembler().TopRange(0);
+      for (const Field& field : struct_type->fields()) {
+        StackScope scope(this);
+        const std::string& fieldname = field.name_and_type.name;
+        VisitResult field_value = scope.Yield(GenerateFetchFromLocation(
+            GenerateFieldAccess(reference, fieldname)));
+        result_range.Extend(field_value.stack_range());
+      }
+      return VisitResult(referenced_type, result_range);
+    } else {
+      GenerateCopy(reference.heap_reference());
+      assembler().Emit(LoadReferenceInstruction{reference.ReferencedType()});
+      DCHECK_EQ(1, LoweredSlotCount(reference.ReferencedType()));
+      return VisitResult(reference.ReferencedType(), assembler().TopRange(1));
+    }
   } else if (reference.IsBitFieldAccess()) {
     // First fetch the bitfield struct, then get the bits out of it.
     VisitResult bit_field_struct =
@@ -2194,7 +2211,12 @@ void ImplementationVisitor::GenerateAssignToLocation(
     ReportError("assigning a value directly to an indexed field isn't allowed");
   } else if (reference.IsHeapReference()) {
     const Type* referenced_type = reference.ReferencedType();
-    if (auto* struct_type = StructType::DynamicCast(referenced_type)) {
+    if (referenced_type == TypeOracle::GetFloat64OrHoleType()) {
+      GenerateCall(
+          QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
+                        "StoreFloat64OrHole"),
+          Arguments{{reference.heap_reference(), assignment_value}, {}});
+    } else if (auto* struct_type = StructType::DynamicCast(referenced_type)) {
       if (assignment_value.type() != referenced_type) {
         ReportError("Cannot assign to ", *referenced_type,
                     " with value of type ", *assignment_value.type());
@@ -3757,6 +3779,7 @@ void GenerateClassFieldVerifier(const std::string& class_name,
   if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType()) &&
       !field_type->IsStructType())
     return;
+  if (field_type == TypeOracle::GetFloat64OrHoleType()) return;
   // Do not verify if the field may be uninitialized.
   if (TypeOracle::GetUninitializedType()->IsSubtypeOf(field_type)) return;
 

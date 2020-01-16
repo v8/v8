@@ -259,7 +259,7 @@ namespace array {
     try {
       const object = UnsafeCast<JSObject>(sortState.receiver);
       const elements = UnsafeCast<FixedDoubleArray>(object.elements);
-      const value = LoadDoubleWithHoleCheck(elements, index) otherwise IfHole;
+      const value = elements.floats[index].Value() otherwise IfHole;
       return AllocateHeapNumberWithValue(value);
     }
     label IfHole {
@@ -333,7 +333,7 @@ namespace array {
 
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedDoubleArray>(object.elements);
-    StoreFixedDoubleArrayHoleSmi(elements, index);
+    elements.floats[index] = kDoubleHole;
     return kSuccess;
   }
 

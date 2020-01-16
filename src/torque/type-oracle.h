@@ -249,6 +249,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(FLOAT64_TYPE_STRING);
   }
 
+  static const Type* GetFloat64OrHoleType() {
+    return Get().GetBuiltinType(FLOAT64_OR_HOLE_TYPE_STRING);
+  }
+
   static const Type* GetConstFloat64Type() {
     return Get().GetBuiltinType(CONST_FLOAT64_TYPE_STRING);
   }

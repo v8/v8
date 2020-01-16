@@ -417,7 +417,7 @@ namespace math {
         oneArgIsNaN = true;
       } else {
         const absValue = Float64Abs(value);
-        absValues.floats[i] = absValue;
+        absValues.floats[i] = Convert<float64_or_hole>(absValue);
         if (absValue > max) {
           max = absValue;
         }
@@ -437,7 +437,7 @@ namespace math {
     let sum: float64 = 0;
     let compensation: float64 = 0;
     for (let i: intptr = 0; i < length; ++i) {
-      const n = absValues.floats[i] / max;
+      const n = absValues.floats[i].ValueUnsafeAssumeNotHole() / max;
       const summand = n * n - compensation;
       const preliminary = sum + summand;
       compensation = (preliminary - sum) - summand;
@@ -464,7 +464,8 @@ namespace math {
     const array: FixedDoubleArray = Cast<FixedDoubleArray>(
         context[NativeContextSlot::MATH_RANDOM_CACHE_INDEX])
         otherwise unreachable;
-    const random: float64 = array.floats[Convert<intptr>(newSmiIndex)];
+    const random: float64 =
+        array.floats[Convert<intptr>(newSmiIndex)].ValueUnsafeAssumeNotHole();
     return AllocateHeapNumberWithValue(random);
   }
 }

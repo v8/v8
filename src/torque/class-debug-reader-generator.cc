@@ -79,7 +79,8 @@ class ValueTypeFieldsRange {
   ValueTypeFieldIterator begin() { return {type_, 0}; }
   ValueTypeFieldIterator end() {
     size_t index = 0;
-    if (const StructType* struct_type = StructType::DynamicCast(type_)) {
+    const StructType* struct_type = StructType::DynamicCast(type_);
+    if (struct_type && struct_type != TypeOracle::GetFloat64OrHoleType()) {
       index = struct_type->fields().size();
     }
     if (const BitFieldStructType* bit_field_struct_type =

@@ -39,12 +39,12 @@ namespace array {
   }
 
   macro LoadElementOrUndefined(a: FixedDoubleArray, i: Smi): NumberOrUndefined {
-    const f: float64 = LoadDoubleWithHoleCheck(a, i) otherwise return Undefined;
+    const f: float64 = a.floats[i].Value() otherwise return Undefined;
     return AllocateHeapNumberWithValue(f);
   }
 
   macro StoreArrayHole(elements: FixedDoubleArray, k: Smi): void {
-    StoreFixedDoubleArrayHoleSmi(elements, k);
+    elements.floats[k] = kDoubleHole;
   }
 
   macro StoreArrayHole(elements: FixedArray, k: Smi): void {

@@ -68,37 +68,26 @@ macro LoadElementNoHole<T : type extends FixedArrayBase>(
 LoadElementNoHole<FixedArray>(implicit context: Context)(
     a: JSArray, index: Smi): JSAny
     labels IfHole {
-  try {
-    const elements: FixedArray =
-        Cast<FixedArray>(a.elements) otherwise Unexpected;
-    const e = UnsafeCast<(JSAny | TheHole)>(elements.objects[index]);
-    typeswitch (e) {
-      case (TheHole): {
-        goto IfHole;
-      }
-      case (e: JSAny): {
-        return e;
-      }
+  const elements: FixedArray =
+      Cast<FixedArray>(a.elements) otherwise unreachable;
+  const e = UnsafeCast<(JSAny | TheHole)>(elements.objects[index]);
+  typeswitch (e) {
+    case (TheHole): {
+      goto IfHole;
     }
-  }
-  label Unexpected {
-    unreachable;
+    case (e: JSAny): {
+      return e;
+    }
   }
 }
 
 LoadElementNoHole<FixedDoubleArray>(implicit context: Context)(
     a: JSArray, index: Smi): JSAny
     labels IfHole {
-  try {
-    const elements: FixedDoubleArray =
-        Cast<FixedDoubleArray>(a.elements) otherwise Unexpected;
-    const e: float64 =
-        LoadDoubleWithHoleCheck(elements, index) otherwise IfHole;
-    return AllocateHeapNumberWithValue(e);
-  }
-  label Unexpected {
-    unreachable;
-  }
+  const elements: FixedDoubleArray =
+      Cast<FixedDoubleArray>(a.elements) otherwise unreachable;
+  const e: float64 = elements.floats[index].Value() otherwise IfHole;
+  return AllocateHeapNumberWithValue(e);
 }
 
 extern builtin ExtractFastJSArray(Context, JSArray, Smi, Smi): JSArray;
@@ -176,11 +165,11 @@ struct FastJSArrayWitness {
     if (this.hasDoubles) {
       const elements = Cast<FixedDoubleArray>(this.unstable.elements)
           otherwise unreachable;
-      StoreFixedDoubleArrayHoleSmi(elements, k);
+      elements.floats[k] = kDoubleHole;
     } else {
       const elements = Cast<FixedArray>(this.unstable.elements)
           otherwise unreachable;
-      StoreFixedArrayElement(elements, k, TheHole);
+      elements.objects[k] = TheHole;
     }
   }
 

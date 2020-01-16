@@ -2575,23 +2575,26 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
   return var_result.value();
 }
 
+TNode<BoolT> CodeStubAssembler::IsDoubleHole(TNode<Object> base,
+                                             TNode<IntPtrT> offset) {
+  // TODO(ishell): Compare only the upper part for the hole once the
+  // compiler is able to fold addition of already complex |offset| with
+  // |kIeeeDoubleExponentWordOffset| into one addressing mode.
+  if (Is64()) {
+    TNode<Uint64T> element = Load<Uint64T>(base, offset);
+    return Word64Equal(element, Int64Constant(kHoleNanInt64));
+  } else {
+    TNode<Uint32T> element_upper = Load<Uint32T>(
+        base, IntPtrAdd(offset, IntPtrConstant(kIeeeDoubleExponentWordOffset)));
+    return Word32Equal(element_upper, Int32Constant(kHoleNanUpper32));
+  }
+}
+
 TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
     SloppyTNode<Object> base, SloppyTNode<IntPtrT> offset, Label* if_hole,
     MachineType machine_type) {
   if (if_hole) {
-    // TODO(ishell): Compare only the upper part for the hole once the
-    // compiler is able to fold addition of already complex |offset| with
-    // |kIeeeDoubleExponentWordOffset| into one addressing mode.
-    if (Is64()) {
-      TNode<Uint64T> element = Load<Uint64T>(base, offset);
-      GotoIf(Word64Equal(element, Int64Constant(kHoleNanInt64)), if_hole);
-    } else {
-      TNode<Uint32T> element_upper = Load<Uint32T>(
-          base,
-          IntPtrAdd(offset, IntPtrConstant(kIeeeDoubleExponentWordOffset)));
-      GotoIf(Word32Equal(element_upper, Int32Constant(kHoleNanUpper32)),
-             if_hole);
-    }
+    GotoIf(IsDoubleHole(base, offset), if_hole);
   }
   if (machine_type.IsNone()) {
     // This means the actual value is not needed.
@@ -4382,6 +4385,26 @@ void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind, Node* array,
       mode);
 }
 
+void CodeStubAssembler::StoreDoubleHole(TNode<HeapObject> object,
+                                        TNode<IntPtrT> offset) {
+  TNode<UintPtrT> double_hole =
+      Is64() ? ReinterpretCast<UintPtrT>(Int64Constant(kHoleNanInt64))
+             : ReinterpretCast<UintPtrT>(Int32Constant(kHoleNanLower32));
+  // TODO(danno): When we have a Float32/Float64 wrapper class that
+  // preserves double bits during manipulation, remove this code/change
+  // this to an indexed Float64 store.
+  if (Is64()) {
+    StoreNoWriteBarrier(MachineRepresentation::kWord64, object, offset,
+                        double_hole);
+  } else {
+    StoreNoWriteBarrier(MachineRepresentation::kWord32, object, offset,
+                        double_hole);
+    StoreNoWriteBarrier(MachineRepresentation::kWord32, object,
+                        IntPtrAdd(offset, IntPtrConstant(kInt32Size)),
+                        double_hole);
+  }
+}
+
 void CodeStubAssembler::StoreFixedDoubleArrayHole(
     TNode<FixedDoubleArray> array, Node* index, ParameterMode parameter_mode) {
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index, parameter_mode));
@@ -4391,22 +4414,7 @@ void CodeStubAssembler::StoreFixedDoubleArrayHole(
   CSA_ASSERT(this, IsOffsetInBounds(
                        offset, LoadAndUntagFixedArrayBaseLength(array),
                        FixedDoubleArray::kHeaderSize, PACKED_DOUBLE_ELEMENTS));
-  TNode<UintPtrT> double_hole =
-      Is64() ? ReinterpretCast<UintPtrT>(Int64Constant(kHoleNanInt64))
-             : ReinterpretCast<UintPtrT>(Int32Constant(kHoleNanLower32));
-  // TODO(danno): When we have a Float32/Float64 wrapper class that
-  // preserves double bits during manipulation, remove this code/change
-  // this to an indexed Float64 store.
-  if (Is64()) {
-    StoreNoWriteBarrier(MachineRepresentation::kWord64, array, offset,
-                        double_hole);
-  } else {
-    StoreNoWriteBarrier(MachineRepresentation::kWord32, array, offset,
-                        double_hole);
-    StoreNoWriteBarrier(MachineRepresentation::kWord32, array,
-                        IntPtrAdd(offset, IntPtrConstant(kInt32Size)),
-                        double_hole);
-  }
+  StoreDoubleHole(array, offset);
 }
 
 void CodeStubAssembler::FillFixedArrayWithSmiZero(TNode<FixedArray> array,

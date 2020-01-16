@@ -45,8 +45,8 @@ namespace array {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const fixedDoubleArray: FixedDoubleArray =
         UnsafeCast<FixedDoubleArray>(array.elements);
-    const element: float64 = LoadDoubleWithHoleCheck(fixedDoubleArray, k)
-        otherwise return kEmptyString;
+    const element: float64 =
+        fixedDoubleArray.floats[k].Value() otherwise return kEmptyString;
     return AllocateHeapNumberWithValue(element);
   }
 
