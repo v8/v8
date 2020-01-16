@@ -625,6 +625,7 @@ class GlobalHandles::TracedNode final
   // instead of move ctor.)
   TracedNode(TracedNode&& other) V8_NOEXCEPT = default;
   TracedNode(const TracedNode& other) V8_NOEXCEPT = default;
+  TracedNode& operator=(const TracedNode& other) V8_NOEXCEPT = default;
 
   enum State { FREE = 0, NORMAL, NEAR_DEATH };
 
@@ -703,6 +704,7 @@ class GlobalHandles::TracedNode final
     set_markbit();
     callback_ = nullptr;
     set_is_on_stack(false);
+    set_has_destructor(false);
   }
 
   void CheckImplFieldsAreCleared() const {
@@ -714,8 +716,6 @@ class GlobalHandles::TracedNode final
   WeakCallbackInfo<void>::Callback callback_;
 
   friend class NodeBase<GlobalHandles::TracedNode>;
-
-  DISALLOW_ASSIGN(TracedNode);
 };
 
 // Space to keep track of on-stack handles (e.g. TracedReference). Such
@@ -726,6 +726,11 @@ class GlobalHandles::TracedNode final
 // Design doc: http://bit.ly/on-stack-traced-reference
 class GlobalHandles::OnStackTracedNodeSpace final {
  public:
+  static GlobalHandles* GetGlobalHandles(const TracedNode* on_stack_node) {
+    DCHECK(on_stack_node->is_on_stack());
+    return reinterpret_cast<const NodeEntry*>(on_stack_node)->global_handles;
+  }
+
   explicit OnStackTracedNodeSpace(GlobalHandles* global_handles)
       : global_handles_(global_handles) {}
 
@@ -771,6 +776,7 @@ class GlobalHandles::OnStackTracedNodeSpace final {
   std::map<uintptr_t, NodeEntry> on_stack_nodes_;
   uintptr_t stack_start_ = 0;
   GlobalHandles* global_handles_ = nullptr;
+  size_t acquire_count_ = 0;
 };
 
 uintptr_t GlobalHandles::OnStackTracedNodeSpace::GetStackAddressForSlot(
@@ -778,10 +784,12 @@ uintptr_t GlobalHandles::OnStackTracedNodeSpace::GetStackAddressForSlot(
 #ifdef V8_USE_ADDRESS_SANITIZER
   void* fake_stack = __asan_get_current_fake_stack();
   if (fake_stack) {
-    void* real_slot = __asan_addr_is_in_fake_stack(
-        fake_stack, reinterpret_cast<void*>(slot), nullptr, nullptr);
-    if (real_slot) {
-      return reinterpret_cast<uintptr_t>(real_slot);
+    void* fake_frame_start;
+    void* real_frame = __asan_addr_is_in_fake_stack(
+        fake_stack, reinterpret_cast<void*>(slot), &fake_frame_start, nullptr);
+    if (real_frame) {
+      return reinterpret_cast<uintptr_t>(real_frame) +
+             (slot - reinterpret_cast<uintptr_t>(fake_frame_start));
     }
   }
 #endif  // V8_USE_ADDRESS_SANITIZER
@@ -806,8 +814,13 @@ void GlobalHandles::OnStackTracedNodeSpace::Iterate(RootVisitor* v) {
 
 GlobalHandles::TracedNode* GlobalHandles::OnStackTracedNodeSpace::Acquire(
     Object value, uintptr_t slot) {
+  constexpr size_t kAcquireCleanupThresholdLog2 = 8;
+  constexpr size_t kAcquireCleanupThresholdMask =
+      (size_t{1} << kAcquireCleanupThresholdLog2) - 1;
   DCHECK(IsOnStack(slot));
-  CleanupBelowCurrentStackPosition();
+  if (((acquire_count_++) & kAcquireCleanupThresholdMask) == 0) {
+    CleanupBelowCurrentStackPosition();
+  }
   NodeEntry entry;
   entry.node.Free(nullptr);
   entry.global_handles = global_handles_;
@@ -871,21 +884,28 @@ Handle<Object> GlobalHandles::Create(Address value) {
 
 Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
                                            bool has_destructor) {
+  return CreateTraced(
+      value, slot, has_destructor,
+      on_stack_nodes_->IsOnStack(reinterpret_cast<uintptr_t>(slot)));
+}
+
+Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
+                                           bool has_destructor,
+                                           bool is_on_stack) {
   GlobalHandles::TracedNode* result;
-  const uintptr_t slot_address = reinterpret_cast<uintptr_t>(slot);
-  if (on_stack_nodes_->IsOnStack(slot_address)) {
+  if (is_on_stack) {
     CHECK_WITH_MSG(!has_destructor,
                    "TracedGlobal is prohibited from on-stack usage.");
-    result = on_stack_nodes_->Acquire(value, slot_address);
+    result = on_stack_nodes_->Acquire(value, reinterpret_cast<uintptr_t>(slot));
   } else {
     result = traced_nodes_->Acquire(value);
     if (ObjectInYoungGeneration(value) && !result->is_in_young_list()) {
       traced_young_nodes_.push_back(result);
       result->set_in_young_list(true);
     }
+    result->set_parameter(slot);
+    result->set_has_destructor(has_destructor);
   }
-  result->set_parameter(slot);
-  result->set_has_destructor(has_destructor);
   return result->handle();
 }
 
@@ -917,10 +937,7 @@ void GlobalHandles::CopyTracedGlobal(const Address* const* from, Address** to) {
   CHECK(!node->HasFinalizationCallback());
 
   GlobalHandles* global_handles =
-      (node->is_on_stack())
-          ? *reinterpret_cast<GlobalHandles**>(const_cast<TracedNode*>(node) +
-                                               1)
-          : NodeBlock<TracedNode>::From(node)->global_handles();
+      GlobalHandles::From(const_cast<TracedNode*>(node));
   Handle<Object> o = global_handles->CreateTraced(
       node->object(), reinterpret_cast<Address*>(to), node->has_destructor());
   *to = o.location();
@@ -946,16 +963,63 @@ void GlobalHandles::MoveGlobal(Address** from, Address** to) {
 }
 
 void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
-  DCHECK_NOT_NULL(*from);
-  DCHECK_NOT_NULL(*to);
-  DCHECK_EQ(*from, *to);
-  TracedNode* node = TracedNode::FromLocation(*from);
-  // Only set the backpointer for clearing a phantom handle when there is no
-  // finalization callback attached. As soon as a callback is attached to a node
-  // the embedder is on its own when resetting a handle.
-  if (!node->HasFinalizationCallback()) {
-    node->set_parameter(to);
+  // Fast path for moving from an empty reference.
+  if (!*from) {
+    DestroyTraced(*to);
+    *to = nullptr;
+    return;
   }
+
+  // Determining whether from or to are on stack.
+  TracedNode* from_node = TracedNode::FromLocation(*from);
+  TracedNode* to_node = TracedNode::FromLocation(*to);
+  GlobalHandles* global_handles = nullptr;
+  bool from_on_stack = from_node->is_on_stack();
+  bool to_on_stack = false;
+  if (!to_node) {
+    // Figure out whether stack or heap to allow fast path for heap->heap move.
+    global_handles = GlobalHandles::From(from_node);
+    to_on_stack = global_handles->on_stack_nodes_->IsOnStack(
+        reinterpret_cast<uintptr_t>(to));
+  }
+
+  // Moving.
+  if (from_on_stack || to_on_stack) {
+    // Move involving a stack slot.
+    DCHECK(!from_node->has_destructor());
+    DCHECK(!from_node->HasFinalizationCallback());
+    if (!to_node) {
+      DCHECK(global_handles);
+      Handle<Object> o = global_handles->CreateTraced(
+          from_node->object(), reinterpret_cast<Address*>(to), false,
+          to_on_stack);
+      *to = o.location();
+      DCHECK(TracedNode::FromLocation(*to)->markbit());
+    } else {
+      // To node already exists, just copy fields.
+      *TracedNode::FromLocation(*to) = *from_node;
+    }
+    DestroyTraced(*from);
+    *from = nullptr;
+  } else {
+    // Pure heap move.
+    DestroyTraced(*to);
+    *to = *from;
+    DCHECK_NOT_NULL(*from);
+    DCHECK_NOT_NULL(*to);
+    DCHECK_EQ(*from, *to);
+    if (!from_node->HasFinalizationCallback()) {
+      from_node->set_parameter(to);
+    }
+    *from = nullptr;
+  }
+}
+
+// static
+GlobalHandles* GlobalHandles::From(const TracedNode* node) {
+  return node->is_on_stack()
+             ? OnStackTracedNodeSpace::GetGlobalHandles(node)
+             : NodeBlock<TracedNode>::From(node)->global_handles();
 }
 
 void GlobalHandles::MarkTraced(Address* location) {

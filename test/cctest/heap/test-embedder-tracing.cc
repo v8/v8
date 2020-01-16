@@ -948,8 +948,13 @@ V8_NOINLINE void TracedReferenceNotifyEmptyStack(
   CHECK(observer.IsEmpty());
 }
 
-V8_NOINLINE void TracedReferenceCopyStackToHeapTest(
-    TestEmbedderHeapTracer* tracer) {
+enum class Operation {
+  kCopy,
+  kMove,
+};
+
+V8_NOINLINE void TracedReferenceStackToHeapTest(TestEmbedderHeapTracer* tracer,
+                                                Operation op) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::Global<v8::Object> observer;
   v8::TracedReference<v8::Value> stack_handle;
@@ -967,8 +972,15 @@ V8_NOINLINE void TracedReferenceCopyStackToHeapTest(
   heap::InvokeMarkSweep();
   CHECK(!observer.IsEmpty());
   tracer->AddReferenceForTracing(heap_handle);
-  *heap_handle = stack_handle;
-  stack_handle.Reset();
+  switch (op) {
+    case Operation::kMove:
+      *heap_handle = std::move(stack_handle);
+      break;
+    case Operation::kCopy:
+      *heap_handle = stack_handle;
+      stack_handle.Reset();
+      break;
+  }
   heap::InvokeMarkSweep();
   CHECK(!observer.IsEmpty());
   heap::InvokeMarkSweep();
@@ -976,8 +988,8 @@ V8_NOINLINE void TracedReferenceCopyStackToHeapTest(
   delete heap_handle;
 }
 
-V8_NOINLINE void TracedReferenceCopyHeapToStackTest(
-    TestEmbedderHeapTracer* tracer) {
+V8_NOINLINE void TracedReferenceHeapToStackTest(TestEmbedderHeapTracer* tracer,
+                                                Operation op) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::Global<v8::Object> observer;
   v8::TracedReference<v8::Value> stack_handle;
@@ -995,11 +1007,51 @@ V8_NOINLINE void TracedReferenceCopyHeapToStackTest(
   tracer->AddReferenceForTracing(heap_handle);
   heap::InvokeMarkSweep();
   CHECK(!observer.IsEmpty());
-  stack_handle = *heap_handle;
+  switch (op) {
+    case Operation::kMove:
+      stack_handle = std::move(*heap_handle);
+      break;
+    case Operation::kCopy:
+      stack_handle = *heap_handle;
+      break;
+  }
   delete heap_handle;
   heap::InvokeMarkSweep();
   CHECK(!observer.IsEmpty());
   stack_handle.Reset();
+  heap::InvokeMarkSweep();
+  CHECK(observer.IsEmpty());
+}
+
+V8_NOINLINE void TracedReferenceStackToStackTest(TestEmbedderHeapTracer* tracer,
+                                                 Operation op) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Global<v8::Object> observer;
+  v8::TracedReference<v8::Value> stack_handle1;
+  v8::TracedReference<v8::Value> stack_handle2;
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), nullptr, nullptr));
+    stack_handle1.Reset(isolate, object);
+    observer.Reset(isolate, object);
+    observer.SetWeak();
+  }
+  CHECK(!observer.IsEmpty());
+  heap::InvokeMarkSweep();
+  CHECK(!observer.IsEmpty());
+  switch (op) {
+    case Operation::kMove:
+      stack_handle2 = std::move(stack_handle1);
+      break;
+    case Operation::kCopy:
+      stack_handle2 = stack_handle1;
+      stack_handle1.Reset();
+      break;
+  }
+  heap::InvokeMarkSweep();
+  CHECK(!observer.IsEmpty());
+  stack_handle2.Reset();
   heap::InvokeMarkSweep();
   CHECK(observer.IsEmpty());
 }
@@ -1049,7 +1101,7 @@ TEST(TracedReferenceCopyStackToHeap) {
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
                                                       &tracer);
   tracer.SetStackStart(&manual_gc);
-  TracedReferenceCopyStackToHeapTest(&tracer);
+  TracedReferenceStackToHeapTest(&tracer, Operation::kCopy);
 }
 
 TEST(TracedReferenceCopyHeapToStack) {
@@ -1059,7 +1111,47 @@ TEST(TracedReferenceCopyHeapToStack) {
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
                                                       &tracer);
   tracer.SetStackStart(&manual_gc);
-  TracedReferenceCopyHeapToStackTest(&tracer);
+  TracedReferenceHeapToStackTest(&tracer, Operation::kCopy);
+}
+
+TEST(TracedReferenceCopyStackToStack) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  TracedReferenceStackToStackTest(&tracer, Operation::kCopy);
+}
+
+TEST(TracedReferenceMoveStackToHeap) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  TracedReferenceStackToHeapTest(&tracer, Operation::kMove);
+}
+
+TEST(TracedReferenceMoveHeapToStack) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  TracedReferenceHeapToStackTest(&tracer, Operation::kMove);
+}
+
+TEST(TracedReferenceMoveStackToStack) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  TracedReferenceStackToStackTest(&tracer, Operation::kMove);
 }
 
 TEST(TracedReferenceCleaned) {

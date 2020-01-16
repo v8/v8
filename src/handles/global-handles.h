@@ -104,6 +104,8 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
     return Handle<T>::cast(Create(Object(value)));
   }
 
+  Handle<Object> CreateTraced(Object value, Address* slot, bool has_destructor,
+                              bool is_on_stack);
   Handle<Object> CreateTraced(Object value, Address* slot, bool has_destructor);
   Handle<Object> CreateTraced(Address value, Address* slot,
                               bool has_destructor);
@@ -202,6 +204,8 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   class PendingPhantomCallback;
   class TracedNode;
   class OnStackTracedNodeSpace;
+
+  static GlobalHandles* From(const TracedNode*);
 
   bool InRecursiveGC(unsigned gc_processing_counter);
 
