@@ -89,9 +89,15 @@ int32_t Load32Aligned(const byte* pc) {
   return *reinterpret_cast<const int32_t*>(pc);
 }
 
-int32_t Load16Aligned(const byte* pc) {
+// TODO(jgruber): Rename to Load16AlignedUnsigned.
+uint32_t Load16Aligned(const byte* pc) {
   DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 1);
   return *reinterpret_cast<const uint16_t*>(pc);
+}
+
+int32_t Load16AlignedSigned(const byte* pc) {
+  DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 1);
+  return *reinterpret_cast<const int16_t*>(pc);
 }
 
 // A simple abstraction over the backtracking stack used by the interpreter.
@@ -835,7 +841,7 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
     }
     BYTECODE(SKIP_UNTIL_CHAR) {
       int load_offset = (insn >> BYTECODE_SHIFT);
-      uint32_t advance = Load16Aligned(pc + 4);
+      int32_t advance = Load16AlignedSigned(pc + 4);
       uint32_t c = Load16Aligned(pc + 6);
       while (static_cast<uintptr_t>(current + load_offset) <
              static_cast<uintptr_t>(subject.length())) {
@@ -851,7 +857,7 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
     }
     BYTECODE(SKIP_UNTIL_CHAR_AND) {
       int load_offset = (insn >> BYTECODE_SHIFT);
-      uint16_t advance = Load16Aligned(pc + 4);
+      int32_t advance = Load16AlignedSigned(pc + 4);
       uint16_t c = Load16Aligned(pc + 6);
       uint32_t mask = Load32Aligned(pc + 8);
       int32_t maximum_offset = Load32Aligned(pc + 12);
@@ -869,7 +875,7 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
     }
     BYTECODE(SKIP_UNTIL_CHAR_POS_CHECKED) {
       int load_offset = (insn >> BYTECODE_SHIFT);
-      uint16_t advance = Load16Aligned(pc + 4);
+      int32_t advance = Load16AlignedSigned(pc + 4);
       uint16_t c = Load16Aligned(pc + 6);
       int32_t maximum_offset = Load32Aligned(pc + 8);
       while (static_cast<uintptr_t>(current + maximum_offset) <=
@@ -886,7 +892,7 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
     }
     BYTECODE(SKIP_UNTIL_BIT_IN_TABLE) {
       int load_offset = (insn >> BYTECODE_SHIFT);
-      uint32_t advance = Load16Aligned(pc + 4);
+      int32_t advance = Load16AlignedSigned(pc + 4);
       const byte* table = pc + 8;
       while (static_cast<uintptr_t>(current + load_offset) <
              static_cast<uintptr_t>(subject.length())) {
@@ -902,7 +908,7 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
     }
     BYTECODE(SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE) {
       int load_offset = (insn >> BYTECODE_SHIFT);
-      uint16_t advance = Load16Aligned(pc + 4);
+      int32_t advance = Load16AlignedSigned(pc + 4);
       uint16_t limit = Load16Aligned(pc + 6);
       const byte* table = pc + 8;
       while (static_cast<uintptr_t>(current + load_offset) <
@@ -923,7 +929,7 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
     }
     BYTECODE(SKIP_UNTIL_CHAR_OR_CHAR) {
       int load_offset = (insn >> BYTECODE_SHIFT);
-      uint32_t advance = Load32Aligned(pc + 4);
+      int32_t advance = Load32Aligned(pc + 4);
       uint16_t c = Load16Aligned(pc + 8);
       uint16_t c2 = Load16Aligned(pc + 10);
       while (static_cast<uintptr_t>(current + load_offset) <
