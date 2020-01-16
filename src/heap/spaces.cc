@@ -4175,10 +4175,9 @@ void OldLargeObjectSpace::PromoteNewLargeObject(LargePage* page) {
   DCHECK(!page->IsFlagSet(MemoryChunk::TO_PAGE));
   size_t object_size = static_cast<size_t>(page->GetObject().Size());
   static_cast<LargeObjectSpace*>(page->owner())->RemovePage(page, object_size);
-  AddPage(page, object_size);
   page->ClearFlag(MemoryChunk::FROM_PAGE);
   page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
-  page->set_owner(this);
+  AddPage(page, object_size);
 }
 
 void LargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
@@ -4187,6 +4186,7 @@ void LargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
   objects_size_ += object_size;
   page_count_++;
   memory_chunk_list_.PushBack(page);
+  page->set_owner(this);
 }
 
 void LargeObjectSpace::RemovePage(LargePage* page, size_t object_size) {
@@ -4195,6 +4195,7 @@ void LargeObjectSpace::RemovePage(LargePage* page, size_t object_size) {
   objects_size_ -= object_size;
   page_count_--;
   memory_chunk_list_.Remove(page);
+  page->set_owner(nullptr);
 }
 
 void LargeObjectSpace::FreeUnmarkedObjects() {

@@ -39,11 +39,6 @@
   # https://crbug.com/v8/9380
   # The test is broken and needs to be fixed to use separate isolates.
   'BackingStoreTest.RacyGrowWasmMemoryInPlace': [SKIP],
-
-  # https://crbug.com/v8/10129
-  # This functionality is only used in tests so far, so unblocking TSAN while
-  # its bugs are ironed out.
-  'SpacesTest.OffThreadLargeObjectSpaceMerge': [SKIP],
 }],  # tsan == True
 
 ##############################################################################
