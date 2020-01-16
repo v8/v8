@@ -636,17 +636,22 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
         DCHECK(!loc.IsAnyRegister());
         RegClass rc = is_gp_pair ? kGpReg : reg_class_for(type);
         int reg_code = loc.AsRegister();
-#if V8_TARGET_ARCH_ARM
-        // Liftoff assumes a one-to-one mapping between float registers and
-        // double registers, and so does not distinguish between f32 and f64
-        // registers. The f32 register code must therefore be halved in order to
-        // pass the f64 code to Liftoff.
-        DCHECK_IMPLIES(type == kWasmF32, (reg_code % 2) == 0);
-        LiftoffRegister reg = LiftoffRegister::from_code(
-            rc, (type == kWasmF32) ? (reg_code / 2) : reg_code);
-#else
-        LiftoffRegister reg = LiftoffRegister::from_code(rc, reg_code);
-#endif
+
+        // Initialize to anything, will be set in all branches below.
+        LiftoffRegister reg = kGpCacheRegList.GetFirstRegSet();
+        if (!kSimpleFPAliasing && type == kWasmF32) {
+          // Liftoff assumes a one-to-one mapping between float registers and
+          // double registers, and so does not distinguish between f32 and f64
+          // registers. The f32 register code must therefore be halved in order
+          // to pass the f64 code to Liftoff.
+          DCHECK_EQ(0, reg_code % 2);
+          reg = LiftoffRegister::from_code(rc, (reg_code / 2));
+        } else if (kNeedS128RegPair && type == kWasmS128) {
+          reg = LiftoffRegister::ForFpPair(DoubleRegister::from_code(reg_code));
+        } else {
+          reg = LiftoffRegister::from_code(rc, reg_code);
+        }
+
         param_regs.set(reg);
         if (is_gp_pair) {
           stack_transfers.LoadI64HalfIntoRegister(reg, slot, stack_offset,

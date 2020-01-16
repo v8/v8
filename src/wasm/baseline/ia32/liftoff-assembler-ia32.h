@@ -452,9 +452,11 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   DCHECK_NE(dst, src);
   if (type == kWasmF32) {
     movss(dst, src);
-  } else {
-    DCHECK_EQ(kWasmF64, type);
+  } else if (type == kWasmF64) {
     movsd(dst, src);
+  } else {
+    DCHECK_EQ(kWasmS128, type);
+    movapd(dst, src);
   }
 }
 

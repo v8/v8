@@ -426,7 +426,12 @@ class LiftoffCompiler {
                                           : kLiftoffAssemblerFpCacheRegs;
         if (cache_regs & (1ULL << reg_code)) {
           // This is a cache register, just use it.
-          in_reg = LiftoffRegister::from_code(rc, reg_code);
+          if (kNeedS128RegPair && rc == kFpRegPair) {
+            in_reg =
+                LiftoffRegister::ForFpPair(DoubleRegister::from_code(reg_code));
+          } else {
+            in_reg = LiftoffRegister::from_code(rc, reg_code);
+          }
         } else {
           // Move to a cache register (spill one if necessary).
           // Note that we cannot create a {LiftoffRegister} for reg_code, since
@@ -434,7 +439,11 @@ class LiftoffCompiler {
           in_reg = __ GetUnusedRegister(rc, pinned);
           if (rc == kGpReg) {
             __ Move(in_reg.gp(), Register::from_code(reg_code), lowered_type);
+          } else if (kNeedS128RegPair && rc == kFpRegPair) {
+            __ Move(in_reg.low_fp(), DoubleRegister::from_code(reg_code),
+                    lowered_type);
           } else {
+            DCHECK_EQ(kFpReg, rc);
             __ Move(in_reg.fp(), DoubleRegister::from_code(reg_code),
                     lowered_type);
           }

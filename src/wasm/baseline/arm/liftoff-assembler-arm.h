@@ -181,6 +181,10 @@ inline FloatRegister GetFloatRegister(DoubleRegister reg) {
   return LowDwVfpRegister::from_code(reg.code()).low();
 }
 
+inline Simd128Register GetSimd128Register(DoubleRegister reg) {
+  return QwNeonRegister::from_code(reg.code() / 2);
+}
+
 enum class MinOrMax : uint8_t { kMin, kMax };
 template <typename RegisterType>
 inline void EmitFloatMinOrMax(LiftoffAssembler* assm, RegisterType dst,
@@ -591,9 +595,11 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   DCHECK_NE(dst, src);
   if (type == kWasmF32) {
     vmov(liftoff::GetFloatRegister(dst), liftoff::GetFloatRegister(src));
-  } else {
-    DCHECK_EQ(kWasmF64, type);
+  } else if (type == kWasmF64) {
     vmov(dst, src);
+  } else {
+    DCHECK_EQ(kWasmS128, type);
+    vmov(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(src));
   }
 }
 

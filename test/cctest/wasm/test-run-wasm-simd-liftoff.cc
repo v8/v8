@@ -11,6 +11,7 @@
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
@@ -50,6 +51,24 @@ WASM_SIMD_LIFTOFF_TEST(S128Global) {
     int32_t actual = ReadLittleEndianValue<int32_t>(&g1[i]);
     CHECK_EQ(actual, expected);
   }
+}
+
+WASM_SIMD_LIFTOFF_TEST(S128Param) {
+  // Test how SIMD parameters in functions are processed. There is no easy way
+  // to specify a SIMD value when initializing a WasmRunner, so we manually
+  // add a new function with the right signature, and call it from main.
+  WasmRunner<int32_t> r(ExecutionTier::kLiftoff, kNoLowerSimd);
+  TestSignatures sigs;
+  // We use a temp local to materialize a SIMD value, since at this point
+  // Liftoff does not support any SIMD operations.
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  WasmFunctionCompiler& simd_func = r.NewFunction(sigs.i_s());
+  BUILD(simd_func, WASM_ONE);
+
+  BUILD(r,
+        WASM_CALL_FUNCTION(simd_func.function_index(), WASM_GET_LOCAL(temp1)));
+
+  CHECK_EQ(1, r.Call());
 }
 
 #undef WASM_SIMD_LIFTOFF_TEST
