@@ -222,6 +222,13 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
   Handle<Context> result =
       isolate->factory()->NewScriptContext(native_context, scope_info);
 
+  int header = scope_info->ContextHeaderLength();
+  for (int var = 0; var < scope_info->ContextLocalCount(); var++) {
+    if (scope_info->ContextLocalInitFlag(var) == kNeedsInitialization) {
+      result->set(header + var, ReadOnlyRoots(isolate).the_hole_value());
+    }
+  }
+
   Handle<ScriptContextTable> new_script_context_table =
       ScriptContextTable::Extend(script_context, result);
   native_context->set_script_context_table(*new_script_context_table);
