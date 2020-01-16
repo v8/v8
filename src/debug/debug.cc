@@ -751,6 +751,16 @@ bool Debug::SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
   Handle<BreakPoint> breakpoint =
       isolate_->factory()->NewBreakPoint(*id, condition);
   int source_position = 0;
+  // Handle wasm function.
+  if (shared->HasWasmExportedFunctionData()) {
+    int func_index = shared->wasm_exported_function_data().function_index();
+    Handle<WasmInstanceObject> wasm_instance(
+        shared->wasm_exported_function_data().instance(), isolate_);
+    Handle<Script> script(Script::cast(wasm_instance->module_object().script()),
+                          isolate_);
+    return WasmScript::SetBreakPointOnFirstBreakableForFunction(
+        script, func_index, breakpoint);
+  }
   return SetBreakpoint(shared, breakpoint, &source_position);
 }
 

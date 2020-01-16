@@ -894,8 +894,6 @@ int FindNextBreakablePosition(wasm::NativeModule* native_module, int func_index,
 // static
 bool WasmScript::SetBreakPoint(Handle<Script> script, int* position,
                                Handle<BreakPoint> break_point) {
-  Isolate* isolate = script->GetIsolate();
-
   // Find the function for this breakpoint.
   const wasm::WasmModule* module = script->wasm_native_module()->module();
   int func_index = GetContainingWasmFunction(module, *position);
@@ -908,8 +906,39 @@ bool WasmScript::SetBreakPoint(Handle<Script> script, int* position,
   if (breakable_offset == 0) return false;
   *position = func.code.offset() + breakable_offset;
 
+  return WasmScript::SetBreakPointForFunction(script, func_index,
+                                              breakable_offset, break_point);
+}
+
+// static
+bool WasmScript::SetBreakPointOnFirstBreakableForFunction(
+    Handle<Script> script, int func_index, Handle<BreakPoint> break_point) {
+  if (func_index < 0) return false;
+  int offset_in_func = 0;
+
+  int breakable_offset = FindNextBreakablePosition(script->wasm_native_module(),
+                                                   func_index, offset_in_func);
+  if (breakable_offset == 0) return false;
+  return WasmScript::SetBreakPointForFunction(script, func_index,
+                                              breakable_offset, break_point);
+}
+
+// static
+bool WasmScript::SetBreakPointForFunction(Handle<Script> script, int func_index,
+                                          int breakable_offset,
+                                          Handle<BreakPoint> break_point) {
+  Isolate* isolate = script->GetIsolate();
+
+  DCHECK_LE(0, func_index);
+  DCHECK_NE(0, breakable_offset);
+
+  // Find the function for this breakpoint.
+  const wasm::WasmModule* module = script->wasm_native_module()->module();
+  const wasm::WasmFunction& func = module->functions[func_index];
+
   // Insert new break point into break_positions of module object.
-  WasmScript::AddBreakpointToInfo(script, *position, break_point);
+  WasmScript::AddBreakpointToInfo(script, func.code.offset() + breakable_offset,
+                                  break_point);
 
   // Iterate over all instances and tell them to set this new breakpoint.
   // We do this using the weak list of all instances from the script.
