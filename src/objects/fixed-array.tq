@@ -94,10 +94,10 @@ extern macro AllocateFixedDoubleArrayWithHoles(
     intptr, constexpr AllocationFlag): FixedDoubleArray;
 extern macro CopyFixedArrayElements(
     constexpr ElementsKind, FixedArray, constexpr ElementsKind, FixedArray,
-    intptr, intptr, intptr): void;
+    intptr, intptr): void;
 extern macro CopyFixedArrayElements(
-    constexpr ElementsKind, FixedArray, constexpr ElementsKind, FixedArray, Smi,
-    Smi, Smi): void;
+    constexpr ElementsKind, FixedArray, constexpr ElementsKind, FixedArray,
+    intptr, intptr, intptr): void;
 
 macro ExtractFixedArray(
     source: FixedArray, first: intptr, count: intptr,

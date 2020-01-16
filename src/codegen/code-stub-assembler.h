@@ -2064,8 +2064,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // zero to |to_array| of |capacity| size respecting both array's elements
   // kinds.
   void CopyFixedArrayElements(
-      ElementsKind from_kind, Node* from_array, ElementsKind to_kind,
-      Node* to_array, Node* element_count, Node* capacity,
+      ElementsKind from_kind, TNode<Object> from_array, ElementsKind to_kind,
+      TNode<Object> to_array, TNode<IntPtrT> element_count,
+      TNode<IntPtrT> capacity,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       ParameterMode mode = INTPTR_PARAMETERS) {
     CopyFixedArrayElements(from_kind, from_array, to_kind, to_array,

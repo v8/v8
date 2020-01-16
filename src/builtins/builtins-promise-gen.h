@@ -167,15 +167,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
       TNode<Context> context, TNode<Object> receiver, TNode<Object> iterable,
       const PromiseAllResolvingElementFunction& create_resolve_element_function,
       const PromiseAllResolvingElementFunction& create_reject_element_function);
-
-  using CreatePromiseAllResolveElementFunctionValue =
-      std::function<TNode<Object>(TNode<Context> context,
-                                  TNode<NativeContext> native_context,
-                                  TNode<Object> value)>;
-
-  void Generate_PromiseAllResolveElementClosure(
-      TNode<Context> context, TNode<Object> value, TNode<JSFunction> function,
-      const CreatePromiseAllResolveElementFunctionValue& callback);
 };
 
 }  // namespace internal

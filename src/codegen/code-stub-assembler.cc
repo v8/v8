@@ -4978,8 +4978,10 @@ TNode<FixedArrayBase> CodeStubAssembler::GrowElementsCapacity(
   // Copy the elements from the old elements store to the new.
   // The size-check above guarantees that the |new_elements| is allocated
   // in new space so we can skip the write barrier.
-  CopyFixedArrayElements(from_kind, elements, to_kind, new_elements, capacity,
-                         new_capacity, SKIP_WRITE_BARRIER, mode);
+  CopyFixedArrayElements(from_kind, CAST(elements), to_kind, new_elements,
+                         UncheckedCast<IntPtrT>(capacity),
+                         UncheckedCast<IntPtrT>(new_capacity),
+                         SKIP_WRITE_BARRIER, mode);
 
   StoreObjectField(CAST(object), JSObject::kElementsOffset, new_elements);
   Comment("] GrowElementsCapacity");

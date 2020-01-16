@@ -712,11 +712,8 @@ namespace internal {
   CPP(IsPromise)                                                               \
   /* ES #sec-promise.all */                                                    \
   TFJ(PromiseAll, 1, kReceiver, kIterable)                                     \
-  TFJ(PromiseAllResolveElementClosure, 1, kReceiver, kValue)                   \
   /* ES #sec-promise.allsettled */                                             \
   TFJ(PromiseAllSettled, 1, kReceiver, kIterable)                              \
-  TFJ(PromiseAllSettledResolveElementClosure, 1, kReceiver, kValue)            \
-  TFJ(PromiseAllSettledRejectElementClosure, 1, kReceiver, kValue)             \
                                                                                \
   /* Reflect */                                                                \
   ASM(ReflectApply, JSTrampoline)                                              \

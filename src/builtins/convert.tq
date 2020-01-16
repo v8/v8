@@ -227,6 +227,9 @@ Convert<float64, uintptr>(ui: uintptr): float64 {
 Convert<Number, uintptr>(ui: uintptr): Number {
   return ChangeUintPtrToTagged(ui);
 }
+Convert<Number, intptr>(i: intptr): Number {
+  return ChangeUintPtrToTagged(Unsigned(i));
+}
 Convert<uintptr, float64>(d: float64): uintptr {
   return ChangeFloat64ToUintPtr(d);
 }
@@ -238,6 +241,9 @@ Convert<uintptr, RawPtr>(r: RawPtr): uintptr {
 }
 Convert<intptr, RawPtr>(r: RawPtr): intptr {
   return Signed(r);
+}
+Convert<intptr, Number>(n: Number): intptr {
+  return ChangeFloat64ToIntPtr(ChangeNumberToFloat64(n));
 }
 Convert<bint, int32>(v: int32): bint {
   return IntPtrToBInt(Convert<intptr>(v));
