@@ -55,7 +55,6 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
-#include "src/wasm/wasm-text.h"
 
 namespace v8 {
 namespace internal {

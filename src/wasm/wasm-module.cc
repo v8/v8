@@ -22,7 +22,6 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
-#include "src/wasm/wasm-text.h"
 
 namespace v8 {
 namespace internal {
@@ -101,23 +100,6 @@ int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset) {
     }
   }
   return func_index;
-}
-
-// static
-v8::debug::WasmDisassembly DisassembleWasmFunction(
-    const WasmModule* module, const ModuleWireBytes& wire_bytes,
-    int func_index) {
-  if (func_index < 0 ||
-      static_cast<uint32_t>(func_index) >= module->functions.size())
-    return {};
-
-  std::ostringstream disassembly_os;
-  v8::debug::WasmDisassembly::OffsetTable offset_table;
-
-  PrintWasmText(module, wire_bytes, static_cast<uint32_t>(func_index),
-                disassembly_os, &offset_table);
-
-  return {disassembly_os.str(), std::move(offset_table)};
 }
 
 void DecodedFunctionNames::AddForTesting(int function_index,

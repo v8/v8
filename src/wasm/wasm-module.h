@@ -17,10 +17,6 @@
 
 namespace v8 {
 
-namespace debug {
-struct WasmDisassembly;
-}
-
 namespace internal {
 
 class WasmModuleObject;
@@ -267,15 +263,6 @@ int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset);
 // Will return preceding function if the byte offset is not
 // contained within a function.
 int GetNearestWasmFunction(const WasmModule* module, uint32_t byte_offset);
-
-// Compute the disassembly of a wasm function.
-// Returns the disassembly string and a list of <byte_offset, line, column>
-// entries, mapping wasm byte offsets to line and column in the disassembly.
-// The list is guaranteed to be ordered by the byte_offset.
-// Returns an empty string and empty vector if the function index is invalid.
-V8_EXPORT_PRIVATE debug::WasmDisassembly DisassembleWasmFunction(
-    const WasmModule* module, const ModuleWireBytes& wire_bytes,
-    int func_index);
 
 // Interface to the storage (wire bytes) of a wasm module.
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based
