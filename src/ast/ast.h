@@ -16,6 +16,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/function-syntax-kind.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/smi.h"
@@ -1226,22 +1227,35 @@ class AggregateLiteral : public MaterializedLiteral {
   // constants and simple object and array literals.
   bool is_simple() const { return IsSimpleField::decode(bit_field_); }
 
+  ElementsKind boilerplate_descriptor_kind() const {
+    return BoilerplateDescriptorKindField::decode(bit_field_);
+  }
+
  private:
   int depth_ : 31;
   using NeedsInitialAllocationSiteField =
       MaterializedLiteral::NextBitField<bool, 1>;
   using IsSimpleField = NeedsInitialAllocationSiteField::Next<bool, 1>;
+  using BoilerplateDescriptorKindField =
+      IsSimpleField::Next<ElementsKind, kFastElementsKindBits>;
 
  protected:
   friend class AstNodeFactory;
   AggregateLiteral(int pos, NodeType type)
       : MaterializedLiteral(pos, type), depth_(0) {
-    bit_field_ |= NeedsInitialAllocationSiteField::encode(false) |
-                  IsSimpleField::encode(false);
+    bit_field_ |=
+        NeedsInitialAllocationSiteField::encode(false) |
+        IsSimpleField::encode(false) |
+        BoilerplateDescriptorKindField::encode(FIRST_FAST_ELEMENTS_KIND);
   }
 
   void set_is_simple(bool is_simple) {
     bit_field_ = IsSimpleField::update(bit_field_, is_simple);
+  }
+
+  void set_boilerplate_descriptor_kind(ElementsKind kind) {
+    DCHECK(IsFastElementsKind(kind));
+    bit_field_ = BoilerplateDescriptorKindField::update(bit_field_, kind);
   }
 
   void set_depth(int depth) {
@@ -1254,7 +1268,7 @@ class AggregateLiteral : public MaterializedLiteral {
   }
 
   template <class T, int size>
-  using NextBitField = IsSimpleField::Next<T, size>;
+  using NextBitField = BoilerplateDescriptorKindField::Next<T, size>;
 };
 
 // Common supertype for ObjectLiteralProperty and ClassLiteralProperty
