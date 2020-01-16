@@ -10364,18 +10364,17 @@ const CpuProfileNode* CpuProfile::GetSample(int index) const {
 
 int64_t CpuProfile::GetSampleTimestamp(int index) const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return (profile->sample(index).timestamp - base::TimeTicks())
-      .InMicroseconds();
+  return profile->sample(index).timestamp.since_origin().InMicroseconds();
 }
 
 int64_t CpuProfile::GetStartTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return (profile->start_time() - base::TimeTicks()).InMicroseconds();
+  return profile->start_time().since_origin().InMicroseconds();
 }
 
 int64_t CpuProfile::GetEndTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return (profile->end_time() - base::TimeTicks()).InMicroseconds();
+  return profile->end_time().since_origin().InMicroseconds();
 }
 
 int CpuProfile::GetSamplesCount() const {

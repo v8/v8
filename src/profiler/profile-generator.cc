@@ -497,8 +497,7 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
       streaming_next_sample_(0),
       id_(++last_id_) {
   auto value = TracedValue::Create();
-  value->SetDouble("startTime",
-                   (start_time_ - base::TimeTicks()).InMicroseconds());
+  value->SetDouble("startTime", start_time_.since_origin().InMicroseconds());
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
                               "Profile", id_, "data", std::move(value));
 
@@ -639,7 +638,7 @@ void CpuProfile::FinishProfile() {
   context_filter_ = nullptr;
   StreamPendingTraceEvents();
   auto value = TracedValue::Create();
-  value->SetDouble("endTime", (end_time_ - base::TimeTicks()).InMicroseconds());
+  value->SetDouble("endTime", end_time_.since_origin().InMicroseconds());
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
                               "ProfileChunk", id_, "data", std::move(value));
 }
