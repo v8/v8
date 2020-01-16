@@ -26,7 +26,9 @@ class WasmInstanceObject;
 namespace wasm {
 
 class DebugInfoImpl;
+class LocalNames;
 class NativeModule;
+class WireBytesRef;
 
 // Side table storing information used to inspect Liftoff frames at runtime.
 // This table is only created on demand for debugging, so it is not optimized
@@ -146,6 +148,8 @@ class DebugInfo {
   ~DebugInfo();
 
   Handle<JSObject> GetLocalScopeObject(Isolate*, Address pc, Address fp);
+
+  WireBytesRef GetLocalName(int func_index, int local_index);
 
  private:
   std::unique_ptr<DebugInfoImpl> impl_;

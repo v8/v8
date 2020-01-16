@@ -72,31 +72,17 @@ Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
   }
 }
 
-MaybeHandle<String> GetLocalName(Isolate* isolate,
-                                 Handle<WasmDebugInfo> debug_info,
-                                 int func_index, int local_index) {
-  DCHECK_LE(0, func_index);
-  DCHECK_LE(0, local_index);
-  if (!debug_info->has_locals_names()) {
-    Handle<WasmModuleObject> module_object(
-        debug_info->wasm_instance().module_object(), isolate);
-    Handle<FixedArray> locals_names = DecodeLocalNames(isolate, module_object);
-    debug_info->set_locals_names(*locals_names);
-  }
-
-  Handle<FixedArray> locals_names(debug_info->locals_names(), isolate);
-  if (func_index >= locals_names->length() ||
-      locals_names->get(func_index).IsUndefined(isolate)) {
-    return {};
-  }
-
-  Handle<FixedArray> func_locals_names(
-      FixedArray::cast(locals_names->get(func_index)), isolate);
-  if (local_index >= func_locals_names->length() ||
-      func_locals_names->get(local_index).IsUndefined(isolate)) {
-    return {};
-  }
-  return handle(String::cast(func_locals_names->get(local_index)), isolate);
+MaybeHandle<String> GetLocalNameString(Isolate* isolate,
+                                       NativeModule* native_module,
+                                       int func_index, int local_index) {
+  WireBytesRef name_ref =
+      native_module->GetDebugInfo()->GetLocalName(func_index, local_index);
+  ModuleWireBytes wire_bytes{native_module->wire_bytes()};
+  // Bounds were checked during decoding.
+  DCHECK(wire_bytes.BoundsCheck(name_ref));
+  Vector<const char> name = wire_bytes.GetNameOrNull(name_ref);
+  if (name.begin() == nullptr) return {};
+  return isolate->factory()->NewStringFromUtf8(name);
 }
 
 class InterpreterHandle {
@@ -407,10 +393,13 @@ class InterpreterHandle {
           isolate_->factory()->InternalizeString(StaticCharVector("locals"));
       JSObject::AddProperty(isolate, local_scope_object, locals_name,
                             locals_obj, NONE);
+      NativeModule* native_module =
+          debug_info->wasm_instance().module_object().native_module();
       for (int i = 0; i < num_locals; ++i) {
-        MaybeHandle<Name> name =
-            GetLocalName(isolate, debug_info, frame->function()->func_index, i);
-        if (name.is_null()) {
+        Handle<Name> name;
+        if (!GetLocalNameString(isolate, native_module,
+                                frame->function()->func_index, i)
+                 .ToHandle(&name)) {
           // Parameters should come before locals in alphabetical ordering, so
           // we name them "args" here.
           const char* label = i < num_params ? "arg#%d" : "local#%d";
@@ -419,7 +408,7 @@ class InterpreterHandle {
         WasmValue value = frame->GetLocalValue(i);
         Handle<Object> value_obj = WasmValueToValueObject(isolate_, value);
         // {name} can be a string representation of an element index.
-        LookupIterator::Key lookup_key{isolate, name.ToHandleChecked()};
+        LookupIterator::Key lookup_key{isolate, name};
         LookupIterator it(isolate, locals_obj, lookup_key, locals_obj,
                           LookupIterator::OWN_SKIP_INTERCEPTOR);
         if (it.IsFound()) continue;
@@ -566,6 +555,15 @@ class DebugInfoImpl {
     return local_scope_object;
   }
 
+  WireBytesRef GetLocalName(int func_index, int local_index) {
+    base::MutexGuard guard(&mutex_);
+    if (!local_names_) {
+      local_names_ = std::make_unique<LocalNames>(
+          DecodeLocalNames(native_module_->wire_bytes()));
+    }
+    return local_names_->GetName(func_index, local_index);
+  }
+
  private:
   DebugSideTable* GetDebugSideTable(AccountingAllocator* allocator,
                                     int func_index) {
@@ -623,11 +621,14 @@ class DebugInfoImpl {
 
   NativeModule* const native_module_;
 
-  // {mutex_} protects {debug_side_tables_}.
+  // {mutex_} protects {debug_side_tables_} and {local_names_}.
   base::Mutex mutex_;
 
   // DebugSideTable per function, lazily initialized.
   std::vector<std::unique_ptr<DebugSideTable>> debug_side_tables_;
+
+  // Names of locals, lazily decoded from the wire bytes.
+  std::unique_ptr<LocalNames> local_names_;
 
   DISALLOW_COPY_AND_ASSIGN(DebugInfoImpl);
 };
@@ -640,6 +641,10 @@ DebugInfo::~DebugInfo() = default;
 Handle<JSObject> DebugInfo::GetLocalScopeObject(Isolate* isolate, Address pc,
                                                 Address fp) {
   return impl_->GetLocalScopeObject(isolate, pc, fp);
+}
+
+WireBytesRef DebugInfo::GetLocalName(int func_index, int local_index) {
+  return impl_->GetLocalName(func_index, local_index);
 }
 
 }  // namespace wasm

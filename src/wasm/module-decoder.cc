@@ -2171,14 +2171,11 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
   }
 }
 
-void DecodeLocalNames(const byte* module_start, const byte* module_end,
-                      LocalNames* result) {
-  DCHECK_NOT_NULL(result);
-  DCHECK(result->names.empty());
+LocalNames DecodeLocalNames(Vector<const uint8_t> module_bytes) {
+  Decoder decoder(module_bytes);
+  if (!FindNameSection(&decoder)) return LocalNames{{}};
 
-  Decoder decoder(module_start, module_end);
-  if (!FindNameSection(&decoder)) return;
-
+  std::vector<LocalNamesPerFunction> functions;
   while (decoder.ok() && decoder.more()) {
     uint8_t name_type = decoder.consume_u8("name type");
     if (name_type & 0x80) break;  // no varuint7
@@ -2195,22 +2192,26 @@ void DecodeLocalNames(const byte* module_start, const byte* module_end,
     for (uint32_t i = 0; i < local_names_count; ++i) {
       uint32_t func_index = decoder.consume_u32v("function index");
       if (func_index > kMaxInt) continue;
-      result->names.emplace_back(static_cast<int>(func_index));
-      LocalNamesPerFunction& func_names = result->names.back();
-      result->max_function_index =
-          std::max(result->max_function_index, func_names.function_index);
+      std::vector<LocalName> names;
       uint32_t num_names = decoder.consume_u32v("namings count");
       for (uint32_t k = 0; k < num_names; ++k) {
         uint32_t local_index = decoder.consume_u32v("local index");
-        WireBytesRef name = consume_string(&decoder, true, "local name");
+        WireBytesRef name = consume_string(&decoder, false, "local name");
         if (!decoder.ok()) break;
         if (local_index > kMaxInt) continue;
-        func_names.max_local_index =
-            std::max(func_names.max_local_index, static_cast<int>(local_index));
-        func_names.names.emplace_back(static_cast<int>(local_index), name);
+        // Ignore non-utf8 names.
+        if (!validate_utf8(&decoder, name)) continue;
+        names.emplace_back(static_cast<int>(local_index), name);
       }
+      // Use stable sort to get deterministic names (the first one declared)
+      // even in the presence of duplicates.
+      std::stable_sort(names.begin(), names.end(), LocalName::IndexLess{});
+      functions.emplace_back(static_cast<int>(func_index), std::move(names));
     }
   }
+  std::stable_sort(functions.begin(), functions.end(),
+                   LocalNamesPerFunction::FunctionIndexLess{});
+  return LocalNames{std::move(functions)};
 }
 
 #undef TRACE

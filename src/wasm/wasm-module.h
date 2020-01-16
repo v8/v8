@@ -296,10 +296,10 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
   WasmName GetNameOrNull(const WasmFunction* function,
                          const WasmModule* module) const;
 
-  // Checks the given offset range is contained within the module bytes.
-  bool BoundsCheck(uint32_t offset, uint32_t length) const {
+  // Checks the given reference is contained within the module bytes.
+  bool BoundsCheck(WireBytesRef ref) const {
     uint32_t size = static_cast<uint32_t>(module_bytes_.length());
-    return offset <= size && length <= size - offset;
+    return ref.offset() <= size && ref.length() <= size - ref.offset();
   }
 
   Vector<const byte> GetFunctionBytes(const WasmFunction* function) const {
@@ -343,11 +343,6 @@ Handle<JSArray> GetExports(Isolate* isolate, Handle<WasmModuleObject> module);
 Handle<JSArray> GetCustomSections(Isolate* isolate,
                                   Handle<WasmModuleObject> module,
                                   Handle<String> name, ErrorThrower* thrower);
-
-// Decode local variable names from the names section. Return FixedArray of
-// FixedArray of <undefined|String>. The outer fixed array is indexed by the
-// function index, the inner one by the local index.
-Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmModuleObject>);
 
 // TruncatedUserString makes it easy to output names up to a certain length, and
 // output a truncation followed by '...' if they exceed a limit.

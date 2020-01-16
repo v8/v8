@@ -132,7 +132,7 @@ void DecodedFunctionNames::AddForTesting(int function_index,
 // Get a string stored in the module bytes representing a name.
 WasmName ModuleWireBytes::GetNameOrNull(WireBytesRef ref) const {
   if (!ref.is_set()) return {nullptr, 0};  // no name.
-  CHECK(BoundsCheck(ref.offset(), ref.length()));
+  DCHECK(BoundsCheck(ref));
   return WasmName::cast(
       module_bytes_.SubVector(ref.offset(), ref.end_offset()));
 }
@@ -567,28 +567,6 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
   }
 
   return array_object;
-}
-
-Handle<FixedArray> DecodeLocalNames(Isolate* isolate,
-                                    Handle<WasmModuleObject> module_object) {
-  Vector<const uint8_t> wire_bytes =
-      module_object->native_module()->wire_bytes();
-  LocalNames decoded_locals;
-  DecodeLocalNames(wire_bytes.begin(), wire_bytes.end(), &decoded_locals);
-  Handle<FixedArray> locals_names =
-      isolate->factory()->NewFixedArray(decoded_locals.max_function_index + 1);
-  for (LocalNamesPerFunction& func : decoded_locals.names) {
-    Handle<FixedArray> func_locals_names =
-        isolate->factory()->NewFixedArray(func.max_local_index + 1);
-    locals_names->set(func.function_index, *func_locals_names);
-    for (LocalName& name : func.names) {
-      Handle<String> name_str =
-          WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-              isolate, module_object, name.name, kNoInternalize);
-      func_locals_names->set(name.local_index, *name_str);
-    }
-  }
-  return locals_names;
 }
 
 namespace {
