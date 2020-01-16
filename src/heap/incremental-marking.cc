@@ -336,9 +336,7 @@ void IncrementalMarking::StartMarking() {
 
   StartBlackAllocation();
 
-  // Mark strong roots grey.
-  IncrementalMarkingRootMarkingVisitor visitor(this);
-  heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
+  MarkRoots();
 
   if (FLAG_concurrent_marking && !heap_->IsTearingDown()) {
     heap_->concurrent_marking()->ScheduleTasks();
@@ -413,7 +411,7 @@ void IncrementalMarking::MarkRoots() {
   DCHECK(IsMarking());
 
   IncrementalMarkingRootMarkingVisitor visitor(this);
-  heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
+  heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG_IGNORE_STACK);
 }
 
 bool IncrementalMarking::ShouldRetainMap(Map map, int age) {

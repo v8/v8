@@ -17,6 +17,7 @@
 #include "src/builtins/accessors.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
+#include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/microtask-queue.h"
@@ -4361,8 +4362,10 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
 
   isolate_->bootstrapper()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kBootstrapper);
-  isolate_->Iterate(v);
-  v->Synchronize(VisitorSynchronization::kTop);
+  if (mode != VISIT_ONLY_STRONG_IGNORE_STACK) {
+    isolate_->Iterate(v);
+    v->Synchronize(VisitorSynchronization::kTop);
+  }
   Relocatable::Iterate(isolate_, v);
   v->Synchronize(VisitorSynchronization::kRelocatable);
   isolate_->debug()->Iterate(v);
@@ -4393,6 +4396,7 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
       // global handles need to be added manually.
       break;
     case VISIT_ONLY_STRONG:
+    case VISIT_ONLY_STRONG_IGNORE_STACK:
       isolate_->global_handles()->IterateStrongRoots(v);
       break;
     case VISIT_ALL_IN_SCAVENGE:
