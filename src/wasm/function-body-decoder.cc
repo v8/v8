@@ -86,6 +86,17 @@ const char* RawOpcodeName(WasmOpcode opcode) {
   }
   return "Unknown";
 }
+const char* PrefixName(WasmOpcode prefix_opcode) {
+  switch (prefix_opcode) {
+#define DECLARE_PREFIX_CASE(name, opcode) \
+  case k##name##Prefix:                   \
+    return "k" #name "Prefix";
+    FOREACH_PREFIX(DECLARE_PREFIX_CASE)
+#undef DECLARE_PREFIX_CASE
+    default:
+      return "Unknown prefix";
+  }
+}
 }  // namespace
 
 bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
@@ -154,6 +165,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     unsigned offset = 1;
     WasmOpcode opcode = i.current();
     if (WasmOpcodes::IsPrefixOpcode(opcode)) {
+      os << PrefixName(opcode) << ", ";
       opcode = i.prefixed_opcode();
       offset = 2;
     }
