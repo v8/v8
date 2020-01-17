@@ -3377,7 +3377,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
     verifier_zone.reset(
         new Zone(data->allocator(), kRegisterAllocatorVerifierZoneName));
     verifier = new (verifier_zone.get()) RegisterAllocatorVerifier(
-        verifier_zone.get(), config, data->sequence());
+        verifier_zone.get(), config, data->sequence(), data->frame());
   }
 
 #ifdef DEBUG
