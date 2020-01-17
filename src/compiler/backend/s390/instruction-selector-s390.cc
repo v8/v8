@@ -2683,6 +2683,8 @@ void InstructionSelector::VisitS128Xor(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS128Not(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitS128AndNot(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitS128Zero(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::EmitPrepareResults(
