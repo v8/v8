@@ -178,9 +178,10 @@ void AstConsString::Internalize(Factory* factory) {
   set_string(tmp);
 }
 template EXPORT_TEMPLATE_DEFINE(
-    V8_BASE_EXPORT) void AstConsString::Internalize<Factory>(Factory* factory);
-template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT) void AstConsString::Internalize<
-    OffThreadFactory>(OffThreadFactory* factory);
+    V8_EXPORT_PRIVATE) void AstConsString::Internalize<Factory>(Factory*
+                                                                    factory);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void AstConsString::
+    Internalize<OffThreadFactory>(OffThreadFactory* factory);
 
 std::forward_list<const AstRawString*> AstConsString::ToRawStrings() const {
   std::forward_list<const AstRawString*> result;
@@ -301,9 +302,9 @@ void AstValueFactory::Internalize(Factory* factory) {
   ResetStrings();
 }
 template EXPORT_TEMPLATE_DEFINE(
-    V8_BASE_EXPORT) void AstValueFactory::Internalize<Factory>(Factory*
-                                                                   factory);
-template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT) void AstValueFactory::
+    V8_EXPORT_PRIVATE) void AstValueFactory::Internalize<Factory>(Factory*
+                                                                      factory);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void AstValueFactory::
     Internalize<OffThreadFactory>(OffThreadFactory* factory);
 
 AstRawString* AstValueFactory::GetString(uint32_t hash_field, bool is_one_byte,

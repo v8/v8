@@ -330,7 +330,7 @@ class AstValueFactory {
                                                  const AstRawString* str2);
 
   template <typename Factory>
-  V8_EXPORT_PRIVATE void Internalize(Factory* factory);
+  void Internalize(Factory* factory);
 
 #define F(name, str)                           \
   const AstRawString* name##_string() const {  \
@@ -385,6 +385,15 @@ class AstValueFactory {
 
   uint64_t hash_seed_;
 };
+
+extern template EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) void AstValueFactory::Internalize<Factory>(Factory*
+                                                                      factory);
+
+extern template EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) void AstValueFactory::
+    Internalize<OffThreadFactory>(OffThreadFactory* factory);
+
 }  // namespace internal
 }  // namespace v8
 

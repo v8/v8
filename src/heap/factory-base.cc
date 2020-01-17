@@ -239,8 +239,8 @@ HeapObject FactoryBase<Impl>::AllocateRaw(int size, AllocationType allocation,
 }
 
 // Instantiate FactoryBase for the two variants we want.
-template class EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT) FactoryBase<Factory>;
-template class EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT)
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) FactoryBase<Factory>;
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     FactoryBase<OffThreadFactory>;
 
 }  // namespace internal
