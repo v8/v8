@@ -19,6 +19,7 @@
 #include "src/sanitizer/asan.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/task-utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -690,6 +691,12 @@ class GlobalHandles::TracedNode final
     DCHECK(!IsInUse());
   }
 
+  void Verify() {
+    DCHECK(IsInUse());
+    DCHECK_IMPLIES(!has_destructor(), nullptr == parameter());
+    DCHECK_IMPLIES(has_destructor() && !HasFinalizationCallback(), parameter());
+  }
+
  protected:
   using NodeState = base::BitField8<State, 0, 2>;
   using IsInYoungList = NodeState::Next<bool, 1>;
@@ -761,14 +768,6 @@ class GlobalHandles::OnStackTracedNodeSpace final {
   };
 
   uintptr_t GetStackAddressForSlot(uintptr_t slot) const;
-
-  V8_NOINLINE uintptr_t GetCurrentStackPosition() const {
-#if V8_CC_MSVC
-    return reinterpret_cast<uintptr_t>(_AddressOfReturnAddress());
-#else
-    return reinterpret_cast<uintptr_t>(__builtin_frame_address(0));
-#endif  // V8_CC_MSVC
-  }
 
   // Keeps track of registered handles and their stack address. The data
   // structure is cleaned on iteration and when adding new references using the
@@ -894,8 +893,6 @@ Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
                                            bool is_on_stack) {
   GlobalHandles::TracedNode* result;
   if (is_on_stack) {
-    CHECK_WITH_MSG(!has_destructor,
-                   "TracedGlobal is prohibited from on-stack usage.");
     result = on_stack_nodes_->Acquire(value, reinterpret_cast<uintptr_t>(slot));
   } else {
     result = traced_nodes_->Acquire(value);
@@ -903,9 +900,9 @@ Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
       traced_young_nodes_.push_back(result);
       result->set_in_young_list(true);
     }
-    result->set_parameter(slot);
-    result->set_has_destructor(has_destructor);
   }
+  result->set_has_destructor(has_destructor);
+  result->set_parameter(has_destructor ? slot : nullptr);
   return result->handle();
 }
 
@@ -934,7 +931,9 @@ void GlobalHandles::CopyTracedGlobal(const Address* const* from, Address** to) {
   // Copying a traced handle with finalization callback is prohibited because
   // the callback may require knowing about multiple copies of the traced
   // handle.
-  CHECK(!node->HasFinalizationCallback());
+  CHECK_WITH_MSG(!node->HasFinalizationCallback(),
+                 "Copying of references is not supported when "
+                 "SetFinalizationCallback is set.");
 
   GlobalHandles* global_handles =
       GlobalHandles::From(const_cast<TracedNode*>(node));
@@ -983,35 +982,53 @@ void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
         reinterpret_cast<uintptr_t>(to));
   }
 
+  // Moving a traced handle with finalization callback is prohibited because
+  // the callback may require knowing about multiple copies of the traced
+  // handle.
+  CHECK_WITH_MSG(!from_node->HasFinalizationCallback(),
+                 "Moving of references is not supported when "
+                 "SetFinalizationCallback is set.");
+  // Types in v8.h ensure that we only copy/move handles that have the same
+  // destructor behavior.
+  DCHECK_IMPLIES(to_node,
+                 to_node->has_destructor() == from_node->has_destructor());
+
   // Moving.
   if (from_on_stack || to_on_stack) {
     // Move involving a stack slot.
-    DCHECK(!from_node->has_destructor());
-    DCHECK(!from_node->HasFinalizationCallback());
     if (!to_node) {
       DCHECK(global_handles);
       Handle<Object> o = global_handles->CreateTraced(
-          from_node->object(), reinterpret_cast<Address*>(to), false,
-          to_on_stack);
+          from_node->object(), reinterpret_cast<Address*>(to),
+          from_node->has_destructor(), to_on_stack);
       *to = o.location();
-      DCHECK(TracedNode::FromLocation(*to)->markbit());
+      to_node = TracedNode::FromLocation(*to);
+      DCHECK(to_node->markbit());
     } else {
       // To node already exists, just copy fields.
       *TracedNode::FromLocation(*to) = *from_node;
+      // Fixup back reference for destructor.
+      if (to_node->has_destructor()) {
+        to_node->set_parameter(to);
+      }
     }
     DestroyTraced(*from);
     *from = nullptr;
+    to_node->Verify();
   } else {
     // Pure heap move.
     DestroyTraced(*to);
     *to = *from;
+    to_node = from_node;
     DCHECK_NOT_NULL(*from);
     DCHECK_NOT_NULL(*to);
     DCHECK_EQ(*from, *to);
-    if (!from_node->HasFinalizationCallback()) {
-      from_node->set_parameter(to);
+    // Fixup back reference for destructor.
+    if (to_node->has_destructor()) {
+      to_node->set_parameter(to);
     }
     *from = nullptr;
+    to_node->Verify();
   }
 }
 
