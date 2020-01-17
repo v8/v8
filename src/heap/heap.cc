@@ -3790,8 +3790,24 @@ void Heap::RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
   UNREACHABLE();
 }
 
+void Heap::AppendArrayBufferExtension(JSArrayBuffer object,
+                                      ArrayBufferExtension* extension) {
+  if (Heap::InYoungGeneration(object)) {
+    extension->set_next(young_array_buffer_extensions_);
+    young_array_buffer_extensions_ = extension;
+  } else {
+    extension->set_next(old_array_buffer_extensions_);
+    old_array_buffer_extensions_ = extension;
+  }
+}
+
 void Heap::ReleaseAllArrayBufferExtensions() {
-  ArrayBufferExtension* current = array_buffer_extensions_;
+  ReleaseAllArrayBufferExtensions(&old_array_buffer_extensions_);
+  ReleaseAllArrayBufferExtensions(&young_array_buffer_extensions_);
+}
+
+void Heap::ReleaseAllArrayBufferExtensions(ArrayBufferExtension** head) {
+  ArrayBufferExtension* current = *head;
 
   while (current) {
     ArrayBufferExtension* next = current->next();
@@ -3799,7 +3815,7 @@ void Heap::ReleaseAllArrayBufferExtensions() {
     current = next;
   }
 
-  array_buffer_extensions_ = nullptr;
+  *head = nullptr;
 }
 
 void Heap::AutomaticallyRestoreInitialHeapLimit(double threshold_percent) {

@@ -225,7 +225,7 @@ class MarkCompactCollectorBase {
                                        const intptr_t live_bytes);
 
   // Returns whether this page should be moved according to heuristics.
-  bool ShouldMovePage(Page* p, intptr_t live_bytes);
+  bool ShouldMovePage(Page* p, intptr_t live_bytes, bool promote_young);
 
   int CollectToSpaceUpdatingItems(ItemParallelJob* job);
   template <typename IterateableSpace>
@@ -610,6 +610,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   // Free unmarked ArrayBufferExtensions.
   void SweepArrayBufferExtensions();
+  void SweepOldArrayBufferExtensions(ArrayBufferExtension* promoted_list);
+  ArrayBufferExtension* SweepYoungArrayBufferExtensions();
 
   void MarkLiveObjects() override;
 
@@ -871,6 +873,8 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   int CollectNewSpaceArrayBufferTrackerItems(ItemParallelJob* job);
 
   int NumberOfParallelMarkingTasks(int pages);
+
+  void SweepArrayBufferExtensions();
 
   MarkingWorklist* worklist_;
 

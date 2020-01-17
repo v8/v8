@@ -587,18 +587,24 @@ class Heap {
   V8_EXPORT_PRIVATE void AutomaticallyRestoreInitialHeapLimit(
       double threshold_percent);
 
-  ArrayBufferExtension* array_buffer_extensions() {
-    return array_buffer_extensions_;
+  ArrayBufferExtension* old_array_buffer_extensions() {
+    return old_array_buffer_extensions_;
   }
 
-  void set_array_buffer_extensions(ArrayBufferExtension* head) {
-    array_buffer_extensions_ = head;
+  ArrayBufferExtension* young_array_buffer_extensions() {
+    return young_array_buffer_extensions_;
   }
 
-  void AppendArrayBufferExtension(ArrayBufferExtension* extension) {
-    extension->set_next(array_buffer_extensions_);
-    array_buffer_extensions_ = extension;
+  void set_old_array_buffer_extensions(ArrayBufferExtension* head) {
+    old_array_buffer_extensions_ = head;
   }
+
+  void set_young_array_buffer_extensions(ArrayBufferExtension* head) {
+    young_array_buffer_extensions_ = head;
+  }
+
+  void AppendArrayBufferExtension(JSArrayBuffer object,
+                                  ArrayBufferExtension* extension);
 
   void ReleaseAllArrayBufferExtensions();
 
@@ -1413,6 +1419,8 @@ class Heap {
   static Isolate* GetIsolateFromWritableObject(HeapObject object);
 
  private:
+  void ReleaseAllArrayBufferExtensions(ArrayBufferExtension** head);
+
   using ExternalStringTableUpdaterCallback = String (*)(Heap* heap,
                                                         FullObjectSlot pointer);
 
@@ -1925,7 +1933,8 @@ class Heap {
   Space* space_[LAST_SPACE + 1];
 
   // List for tracking ArrayBufferExtensions
-  ArrayBufferExtension* array_buffer_extensions_ = nullptr;
+  ArrayBufferExtension* old_array_buffer_extensions_ = nullptr;
+  ArrayBufferExtension* young_array_buffer_extensions_ = nullptr;
 
   // Determines whether code space is write-protected. This is essentially a
   // race-free copy of the {FLAG_write_protect_code_memory} flag.

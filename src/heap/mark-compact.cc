@@ -932,9 +932,14 @@ void MarkCompactCollector::Finish() {
 }
 
 void MarkCompactCollector::SweepArrayBufferExtensions() {
-  if (!V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
-  ArrayBufferExtension* current = heap_->array_buffer_extensions();
-  ArrayBufferExtension* last = nullptr;
+  ArrayBufferExtension* promoted_list = SweepYoungArrayBufferExtensions();
+  SweepOldArrayBufferExtensions(promoted_list);
+}
+
+void MarkCompactCollector::SweepOldArrayBufferExtensions(
+    ArrayBufferExtension* promoted_list) {
+  ArrayBufferExtension* current = heap_->old_array_buffer_extensions();
+  ArrayBufferExtension* last = promoted_list;
 
   while (current) {
     ArrayBufferExtension* next = current->next();
@@ -950,7 +955,29 @@ void MarkCompactCollector::SweepArrayBufferExtensions() {
     current = next;
   }
 
-  heap_->set_array_buffer_extensions(last);
+  heap_->set_old_array_buffer_extensions(last);
+}
+
+ArrayBufferExtension* MarkCompactCollector::SweepYoungArrayBufferExtensions() {
+  ArrayBufferExtension* current = heap_->young_array_buffer_extensions();
+  ArrayBufferExtension* promoted_list = nullptr;
+
+  while (current) {
+    ArrayBufferExtension* next = current->next();
+
+    if (!current->IsMarked()) {
+      delete current;
+    } else {
+      current->Unmark();
+      current->set_next(promoted_list);
+      promoted_list = current;
+    }
+
+    current = next;
+  }
+
+  heap_->set_young_array_buffer_extensions(nullptr);
+  return promoted_list;
 }
 
 class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
@@ -1219,6 +1246,8 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
   inline void VisitRuntimeEntry(Code host, RelocInfo* rinfo) final {}
   inline void VisitInternalReference(Code host, RelocInfo* rinfo) final {}
 
+  virtual void MarkArrayBufferExtensionPromoted(HeapObject object) {}
+
  protected:
   inline virtual void RecordMigratedSlot(HeapObject host, MaybeObject value,
                                          Address slot) {
@@ -1305,6 +1334,9 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
       dst.IterateBodyFast(dst.map(), size, base->record_visitor_);
+      if (V8_UNLIKELY(FLAG_minor_mc)) {
+        base->record_visitor_->MarkArrayBufferExtensionPromoted(dst);
+      }
     } else if (dest == CODE_SPACE) {
       DCHECK_CODEOBJECT_SIZE(size, base->heap_->code_space());
       base->heap_->CopyBlock(dst_addr, src_addr, size);
@@ -1525,6 +1557,9 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
                                   local_pretenuring_feedback_);
     } else if (mode == NEW_TO_OLD) {
       object.IterateBodyFast(record_visitor_);
+      if (V8_UNLIKELY(FLAG_minor_mc)) {
+        record_visitor_->MarkArrayBufferExtensionPromoted(object);
+      }
     }
     return true;
   }
@@ -3134,12 +3169,14 @@ void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
   }
 }
 
-bool MarkCompactCollectorBase::ShouldMovePage(Page* p, intptr_t live_bytes) {
+bool MarkCompactCollectorBase::ShouldMovePage(Page* p, intptr_t live_bytes,
+                                              bool always_promote_young) {
   const bool reduce_memory = heap()->ShouldReduceMemory();
   const Address age_mark = heap()->new_space()->age_mark();
   return !reduce_memory && !p->NeverEvacuate() &&
          (live_bytes > Evacuator::NewSpacePageEvacuationThreshold()) &&
-         !p->Contains(age_mark) && heap()->CanExpandOldGeneration(live_bytes);
+         (always_promote_young || !p->Contains(age_mark)) &&
+         heap()->CanExpandOldGeneration(live_bytes);
 }
 
 void MarkCompactCollector::EvacuatePagesInParallel() {
@@ -3156,7 +3193,8 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     intptr_t live_bytes_on_page = non_atomic_marking_state()->live_bytes(page);
     if (live_bytes_on_page == 0 && !page->contains_array_buffers()) continue;
     live_bytes += live_bytes_on_page;
-    if (ShouldMovePage(page, live_bytes_on_page)) {
+    if (ShouldMovePage(page, live_bytes_on_page,
+                       FLAG_always_promote_young_mc)) {
       if (page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) ||
           FLAG_always_promote_young_mc) {
         EvacuateNewSpacePageVisitor<NEW_TO_OLD>::Move(page);
@@ -4251,6 +4289,13 @@ class YoungGenerationMarkingVisitor final
     UNREACHABLE();
   }
 
+  V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object) {
+    object.YoungMarkExtension();
+    int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
+    JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
+    return size;
+  }
+
  private:
   template <typename TSlot>
   V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end) {
@@ -4323,6 +4368,33 @@ void MinorMarkCompactCollector::CleanupSweepToIteratePages() {
   sweep_to_iterate_pages_.clear();
 }
 
+void MinorMarkCompactCollector::SweepArrayBufferExtensions() {
+  ArrayBufferExtension* current = heap_->young_array_buffer_extensions();
+  ArrayBufferExtension* last_young = nullptr;
+  ArrayBufferExtension* last_old = heap_->old_array_buffer_extensions();
+
+  while (current) {
+    ArrayBufferExtension* next = current->next();
+
+    if (!current->IsYoungMarked()) {
+      delete current;
+    } else if (current->IsYoungPromoted()) {
+      current->YoungUnmark();
+      current->set_next(last_old);
+      last_old = current;
+    } else {
+      current->YoungUnmark();
+      current->set_next(last_young);
+      last_young = current;
+    }
+
+    current = next;
+  }
+
+  heap_->set_old_array_buffer_extensions(last_old);
+  heap_->set_young_array_buffer_extensions(last_young);
+}
+
 class YoungGenerationMigrationObserver final : public MigrationObserver {
  public:
   YoungGenerationMigrationObserver(Heap* heap,
@@ -4356,6 +4428,11 @@ class YoungGenerationRecordMigratedSlotVisitor final
   void VisitCodeTarget(Code host, RelocInfo* rinfo) final { UNREACHABLE(); }
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
     UNREACHABLE();
+  }
+
+  void MarkArrayBufferExtensionPromoted(HeapObject object) final {
+    if (!object.IsJSArrayBuffer()) return;
+    JSArrayBuffer::cast(object).YoungMarkExtensionPromoted();
   }
 
  private:
@@ -4521,6 +4598,8 @@ void MinorMarkCompactCollector::CollectGarbage() {
   }
 
   heap()->account_external_memory_concurrently_freed();
+
+  SweepArrayBufferExtensions();
 }
 
 void MinorMarkCompactCollector::MakeIterable(
@@ -5088,7 +5167,7 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
     intptr_t live_bytes_on_page = non_atomic_marking_state()->live_bytes(page);
     if (live_bytes_on_page == 0 && !page->contains_array_buffers()) continue;
     live_bytes += live_bytes_on_page;
-    if (ShouldMovePage(page, live_bytes_on_page)) {
+    if (ShouldMovePage(page, live_bytes_on_page, false)) {
       if (page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
         EvacuateNewSpacePageVisitor<NEW_TO_OLD>::Move(page);
       } else {

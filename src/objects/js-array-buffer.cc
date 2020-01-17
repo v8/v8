@@ -120,7 +120,7 @@ ArrayBufferExtension* JSArrayBuffer::EnsureExtension(Heap* heap) {
   ArrayBufferExtension* extension =
       new ArrayBufferExtension(std::shared_ptr<BackingStore>());
   set_extension(extension);
-  heap->AppendArrayBufferExtension(extension);
+  heap->AppendArrayBufferExtension(*this, extension);
   return extension;
 }
 
@@ -138,6 +138,20 @@ void JSArrayBuffer::MarkExtension() {
   ArrayBufferExtension* extension = this->extension();
   if (extension) {
     extension->Mark();
+  }
+}
+
+void JSArrayBuffer::YoungMarkExtension() {
+  ArrayBufferExtension* extension = this->extension();
+  if (extension) {
+    extension->YoungMark();
+  }
+}
+
+void JSArrayBuffer::YoungMarkExtensionPromoted() {
+  ArrayBufferExtension* extension = this->extension();
+  if (extension) {
+    extension->YoungMarkPromoted();
   }
 }
 

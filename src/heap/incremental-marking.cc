@@ -511,8 +511,6 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 #ifdef ENABLE_MINOR_MC
   MinorMarkCompactCollector::MarkingState* minor_marking_state =
       heap()->minor_mark_compact_collector()->marking_state();
-#else
-  void* minor_marking_state = nullptr;
 #endif  // ENABLE_MINOR_MC
 
   collector_->marking_worklists_holder()->Update(
@@ -521,8 +519,10 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
           // this is referred inside DCHECK.
           this,
 #endif
-          filler_map,
-          minor_marking_state](HeapObject obj, HeapObject* out) -> bool {
+#ifdef ENABLE_MINOR_MC
+          minor_marking_state,
+#endif
+          filler_map](HeapObject obj, HeapObject* out) -> bool {
         DCHECK(obj.IsHeapObject());
         // Only pointers to from space have to be updated.
         if (Heap::InFromPage(obj)) {

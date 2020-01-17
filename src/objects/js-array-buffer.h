@@ -114,6 +114,8 @@ class JSArrayBuffer : public JSObject {
 
   // Marks ArrayBufferExtension
   void MarkExtension();
+  void YoungMarkExtension();
+  void YoungMarkExtensionPromoted();
 
   // Dispatched behavior.
   DECL_PRINTER(JSArrayBuffer)
@@ -155,21 +157,43 @@ class JSArrayBuffer : public JSObject {
 // and frees unmarked ones.
 // https://docs.google.com/document/d/1-ZrLdlFX1nXT3z-FAgLbKal1gI8Auiaya_My-a0UJ28/edit
 class ArrayBufferExtension : public Malloced {
+  enum class GcState : uint8_t { Dead = 0, Copied, Promoted };
+
   std::atomic<bool> marked_;
+  std::atomic<GcState> young_gc_state_;
   std::shared_ptr<BackingStore> backing_store_;
   ArrayBufferExtension* next_;
+
+  GcState young_gc_state() {
+    return young_gc_state_.load(std::memory_order_relaxed);
+  }
+
+  void set_young_gc_state(GcState value) {
+    young_gc_state_.store(value, std::memory_order_relaxed);
+  }
 
  public:
   ArrayBufferExtension()
       : marked_(false),
+        young_gc_state_(GcState::Dead),
         backing_store_(std::shared_ptr<BackingStore>()),
         next_(nullptr) {}
   explicit ArrayBufferExtension(std::shared_ptr<BackingStore> backing_store)
-      : marked_(false), backing_store_(backing_store), next_(nullptr) {}
+      : marked_(false),
+        young_gc_state_(GcState::Dead),
+        backing_store_(backing_store),
+        next_(nullptr) {}
 
   void Mark() { marked_.store(true, std::memory_order_relaxed); }
   void Unmark() { marked_.store(false, std::memory_order_relaxed); }
   bool IsMarked() { return marked_.load(std::memory_order_relaxed); }
+
+  void YoungMark() { set_young_gc_state(GcState::Copied); }
+  void YoungMarkPromoted() { set_young_gc_state(GcState::Promoted); }
+  void YoungUnmark() { set_young_gc_state(GcState::Dead); }
+  bool IsYoungMarked() { return young_gc_state() != GcState::Dead; }
+
+  bool IsYoungPromoted() { return young_gc_state() == GcState::Promoted; }
 
   std::shared_ptr<BackingStore> backing_store() { return backing_store_; }
   BackingStore* backing_store_raw() { return backing_store_.get(); }

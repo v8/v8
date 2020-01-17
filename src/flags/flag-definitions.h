@@ -887,6 +887,9 @@ DEFINE_BOOL(concurrent_marking, V8_CONCURRENT_MARKING_BOOL,
 #else
 #define V8_ARRAY_BUFFER_EXTENSION_BOOL false
 #endif
+DEFINE_BOOL_READONLY(array_buffer_extension, V8_ARRAY_BUFFER_EXTENSION_BOOL,
+                     "enable array buffer tracking using extension objects")
+DEFINE_IMPLICATION(array_buffer_extension, always_promote_young_mc)
 DEFINE_BOOL(parallel_marking, true, "use parallel marking in atomic pause")
 DEFINE_INT(ephemeron_fixpoint_iterations, 10,
            "number of fixpoint iterations it takes to switch to linear "
@@ -1346,6 +1349,9 @@ DEFINE_BOOL(minor_mc_parallel_marking, true,
 DEFINE_BOOL(trace_minor_mc_parallel_marking, false,
             "trace parallel marking for the young generation")
 DEFINE_BOOL(minor_mc, false, "perform young generation mark compact GCs")
+#else
+DEFINE_BOOL_READONLY(minor_mc, false,
+                     "perform young generation mark compact GCs")
 #endif  // ENABLE_MINOR_MC
 
 //

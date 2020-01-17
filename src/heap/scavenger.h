@@ -51,6 +51,8 @@ class ScavengerCollector {
   void ClearOldEphemerons();
   void HandleSurvivingNewLargeObjects();
 
+  void SweepArrayBufferExtensions();
+
   Isolate* const isolate_;
   Heap* const heap_;
   base::Semaphore parallel_scavenge_semaphore_;
@@ -257,6 +259,7 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
   V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final;
   V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final;
   V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable object);
+  V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
 
  private:
   template <typename TSlot>

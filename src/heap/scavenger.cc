@@ -378,8 +378,37 @@ void ScavengerCollector::CollectGarbage() {
 #endif
   }
 
+  SweepArrayBufferExtensions();
+
   // Update how much has survived scavenge.
   heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedYoungObjectSize());
+}
+
+void ScavengerCollector::SweepArrayBufferExtensions() {
+  ArrayBufferExtension* current = heap_->young_array_buffer_extensions();
+  ArrayBufferExtension* last_young = nullptr;
+  ArrayBufferExtension* last_old = heap_->old_array_buffer_extensions();
+
+  while (current) {
+    ArrayBufferExtension* next = current->next();
+
+    if (!current->IsYoungMarked()) {
+      delete current;
+    } else if (current->IsYoungPromoted()) {
+      current->YoungUnmark();
+      current->set_next(last_old);
+      last_old = current;
+    } else {
+      current->YoungUnmark();
+      current->set_next(last_young);
+      last_young = current;
+    }
+
+    current = next;
+  }
+
+  heap_->set_old_array_buffer_extensions(last_old);
+  heap_->set_young_array_buffer_extensions(last_young);
 }
 
 void ScavengerCollector::HandleSurvivingNewLargeObjects() {
@@ -449,8 +478,14 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
   const bool record_slots =
       is_compacting_ &&
       heap()->incremental_marking()->atomic_marking_state()->IsBlack(target);
+
   IterateAndScavengePromotedObjectsVisitor visitor(this, record_slots);
   target.IterateBodyFast(map, size, &visitor);
+
+  if (map.IsJSArrayBufferMap()) {
+    DCHECK(!MemoryChunk::FromHeapObject(target)->IsLargePage());
+    JSArrayBuffer::cast(target).YoungMarkExtensionPromoted();
+  }
 }
 
 void Scavenger::RememberPromotedEphemeron(EphemeronHashTable table, int entry) {

@@ -20,6 +20,39 @@ bool IsTracked(i::JSArrayBuffer buf) {
   return i::ArrayBufferTracker::IsTracked(buf);
 }
 
+bool LookupExtension(i::ArrayBufferExtension* head,
+                     i::ArrayBufferExtension* extension) {
+  i::ArrayBufferExtension* current = head;
+
+  while (current) {
+    if (current == extension) return true;
+    current = current->next();
+  }
+
+  return false;
+}
+
+bool IsTrackedYoung(i::Heap* heap, i::ArrayBufferExtension* extension) {
+  bool in_young =
+      LookupExtension(heap->young_array_buffer_extensions(), extension);
+  bool in_old = LookupExtension(heap->old_array_buffer_extensions(), extension);
+  return in_young && !in_old;
+}
+
+bool IsTrackedOld(i::Heap* heap, i::ArrayBufferExtension* extension) {
+  bool in_young =
+      LookupExtension(heap->young_array_buffer_extensions(), extension);
+  bool in_old = LookupExtension(heap->old_array_buffer_extensions(), extension);
+  return in_old && !in_young;
+}
+
+bool IsTracked(i::Heap* heap, i::ArrayBufferExtension* extension) {
+  bool in_young =
+      LookupExtension(heap->young_array_buffer_extensions(), extension);
+  bool in_old = LookupExtension(heap->old_array_buffer_extensions(), extension);
+  return in_young != in_old;
+}
+
 }  // namespace
 
 namespace v8 {
@@ -58,6 +91,31 @@ TEST(ArrayBuffer_OnlyMC) {
   CHECK(!IsTracked(raw_ab));
 }
 
+TEST(ArrayBuffer_OnlyMC_Extension) {
+  if (!V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
+
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+
+  ArrayBufferExtension* extension;
+  {
+    v8::HandleScope handle_scope(isolate);
+    Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
+    Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
+    extension = buf->extension();
+    CHECK(IsTrackedYoung(heap, extension));
+    heap::GcAndSweep(heap, OLD_SPACE);
+    CHECK(IsTrackedOld(heap, extension));
+    heap::GcAndSweep(heap, OLD_SPACE);
+    CHECK(IsTrackedOld(heap, extension));
+  }
+  heap::GcAndSweep(heap, OLD_SPACE);
+  CHECK(!IsTracked(heap, extension));
+}
+
 TEST(ArrayBuffer_OnlyScavenge) {
   if (V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
   ManualGCScope manual_gc_scope;
@@ -87,6 +145,33 @@ TEST(ArrayBuffer_OnlyScavenge) {
   heap::GcAndSweep(heap, OLD_SPACE);
   heap::GcAndSweep(heap, OLD_SPACE);
   CHECK(!IsTracked(raw_ab));
+}
+
+TEST(ArrayBuffer_OnlyScavenge_Extension) {
+  if (!V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
+
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+
+  ArrayBufferExtension* extension;
+  {
+    v8::HandleScope handle_scope(isolate);
+    Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
+    Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
+    extension = buf->extension();
+    CHECK(IsTrackedYoung(heap, extension));
+    heap::GcAndSweep(heap, NEW_SPACE);
+    CHECK(IsTrackedYoung(heap, extension));
+    heap::GcAndSweep(heap, NEW_SPACE);
+    CHECK(IsTrackedOld(heap, extension));
+    heap::GcAndSweep(heap, NEW_SPACE);
+    CHECK(IsTrackedOld(heap, extension));
+  }
+  heap::GcAndSweep(heap, OLD_SPACE);
+  CHECK(!IsTracked(heap, extension));
 }
 
 TEST(ArrayBuffer_ScavengeAndMC) {
@@ -120,6 +205,34 @@ TEST(ArrayBuffer_ScavengeAndMC) {
   heap::GcAndSweep(heap, OLD_SPACE);
   heap::GcAndSweep(heap, OLD_SPACE);
   CHECK(!IsTracked(raw_ab));
+}
+
+TEST(ArrayBuffer_ScavengeAndMC_Extension) {
+  if (!V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+
+  ArrayBufferExtension* extension;
+  {
+    v8::HandleScope handle_scope(isolate);
+    Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
+    Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
+    extension = buf->extension();
+    CHECK(IsTrackedYoung(heap, extension));
+    heap::GcAndSweep(heap, NEW_SPACE);
+    CHECK(IsTrackedYoung(heap, extension));
+    heap::GcAndSweep(heap, NEW_SPACE);
+    CHECK(IsTrackedOld(heap, extension));
+    heap::GcAndSweep(heap, OLD_SPACE);
+    CHECK(IsTrackedOld(heap, extension));
+    heap::GcAndSweep(heap, NEW_SPACE);
+    CHECK(IsTrackedOld(heap, extension));
+  }
+  heap::GcAndSweep(heap, OLD_SPACE);
+  CHECK(!IsTracked(heap, extension));
 }
 
 TEST(ArrayBuffer_Compaction) {
@@ -305,6 +418,40 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
     heap::SimulateIncrementalMarking(heap, true);
     heap::GcAndSweep(heap, OLD_SPACE);
     CHECK(IsTracked(JSArrayBuffer::cast(root->get(0))));
+  }
+}
+
+TEST(ArrayBuffer_PagePromotion_Extension) {
+  if (!i::FLAG_incremental_marking || !V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
+  i::FLAG_always_promote_young_mc = true;
+  ManualGCScope manual_gc_scope;
+  // The test verifies that the marking state is preserved across semispace
+  // copy.
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+
+  heap::SealCurrentObjects(heap);
+  {
+    v8::HandleScope handle_scope(isolate);
+    Handle<FixedArray> root =
+        heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
+    ArrayBufferExtension* extension;
+    {
+      v8::HandleScope handle_scope(isolate);
+      Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
+      Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
+      extension = buf->extension();
+      root->set(0, *buf);  // Buffer that should be promoted as live.
+    }
+    std::vector<Handle<FixedArray>> handles;
+    // Create live objects on page such that the whole page gets promoted
+    heap::FillCurrentPage(heap->new_space(), &handles);
+    CHECK(IsTrackedYoung(heap, extension));
+    heap::SimulateIncrementalMarking(heap, true);
+    heap::GcAndSweep(heap, OLD_SPACE);
+    CHECK(IsTrackedOld(heap, extension));
   }
 }
 
