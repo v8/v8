@@ -428,7 +428,7 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueType type) {
-  if (needs_reg_pair(type)) {
+  if (needs_gp_reg_pair(type)) {
     liftoff::MoveStackValue(this,
                             liftoff::GetHalfStackSlot(src_offset, kLowWord),
                             liftoff::GetHalfStackSlot(dst_offset, kLowWord));

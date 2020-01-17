@@ -45,8 +45,12 @@ static_assert(kNeedS128RegPair == (kFpRegPair != kNoReg),
 
 enum RegPairHalf : uint8_t { kLowWord = 0, kHighWord = 1 };
 
-static inline constexpr bool needs_reg_pair(ValueType type) {
+static inline constexpr bool needs_gp_reg_pair(ValueType type) {
   return kNeedI64RegPair && type == kWasmI64;
+}
+
+static inline constexpr bool needs_fp_reg_pair(ValueType type) {
+  return kNeedS128RegPair && type == kWasmS128;
 }
 
 static inline constexpr RegClass reg_class_for(ValueType type) {

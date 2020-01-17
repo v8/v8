@@ -398,8 +398,8 @@ class LiftoffCompiler {
 
   // Returns the number of inputs processed (1 or 2).
   uint32_t ProcessParameter(ValueType type, uint32_t input_idx) {
-    const int num_lowered_params = 1 + needs_reg_pair(type);
-    ValueType lowered_type = needs_reg_pair(type) ? kWasmI32 : type;
+    const int num_lowered_params = 1 + needs_gp_reg_pair(type);
+    ValueType lowered_type = needs_gp_reg_pair(type) ? kWasmI32 : type;
     RegClass rc = reg_class_for(lowered_type);
     // Initialize to anything, will be set in the loop and used afterwards.
     LiftoffRegister reg = kGpCacheRegList.GetFirstRegSet();

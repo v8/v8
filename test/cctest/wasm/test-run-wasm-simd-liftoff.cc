@@ -47,6 +47,7 @@ WASM_SIMD_LIFTOFF_TEST(S128Global) {
     WriteLittleEndianValue<int32_t>(&g0[i], expected);
   }
   r.Call();
+  r.CheckUsedExecutionTier(ExecutionTier::kLiftoff);
   for (int i = 0; i < 4; i++) {
     int32_t actual = ReadLittleEndianValue<int32_t>(&g1[i]);
     CHECK_EQ(actual, expected);
@@ -69,6 +70,22 @@ WASM_SIMD_LIFTOFF_TEST(S128Param) {
         WASM_CALL_FUNCTION(simd_func.function_index(), WASM_GET_LOCAL(temp1)));
 
   CHECK_EQ(1, r.Call());
+  r.CheckUsedExecutionTier(ExecutionTier::kLiftoff);
+}
+
+WASM_SIMD_LIFTOFF_TEST(S128Return) {
+  // Test how functions returning SIMD values are processed.
+  WasmRunner<int32_t> r(ExecutionTier::kLiftoff, kNoLowerSimd);
+  TestSignatures sigs;
+  WasmFunctionCompiler& simd_func = r.NewFunction(sigs.s_i());
+  byte temp1 = simd_func.AllocateLocal(kWasmS128);
+  BUILD(simd_func, WASM_GET_LOCAL(temp1));
+
+  BUILD(r, WASM_CALL_FUNCTION(simd_func.function_index(), WASM_ONE), kExprDrop,
+        WASM_ONE);
+
+  CHECK_EQ(1, r.Call());
+  r.CheckUsedExecutionTier(ExecutionTier::kLiftoff);
 }
 
 #undef WASM_SIMD_LIFTOFF_TEST

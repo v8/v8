@@ -708,9 +708,12 @@ void LiftoffAssembler::FinishCall(FunctionSig* sig,
   if (return_count != 0) {
     DCHECK_EQ(1, return_count);
     ValueType return_type = sig->GetReturn(0);
-    const bool need_pair = kNeedI64RegPair && return_type == kWasmI64;
-    DCHECK_EQ(need_pair ? 2 : 1, call_descriptor->ReturnCount());
-    RegClass rc = need_pair ? kGpReg : reg_class_for(return_type);
+    const bool needs_gp_pair = needs_gp_reg_pair(return_type);
+    const bool needs_fp_pair = needs_fp_reg_pair(return_type);
+    DCHECK_EQ(needs_gp_pair ? 2 : 1, call_descriptor->ReturnCount());
+    RegClass rc = needs_gp_pair
+                      ? kGpReg
+                      : needs_fp_pair ? kFpReg : reg_class_for(return_type);
 #if V8_TARGET_ARCH_ARM
     // If the return register was not d0 for f32, the code value would have to
     // be halved as is done for the parameter registers.
@@ -719,11 +722,14 @@ void LiftoffAssembler::FinishCall(FunctionSig* sig,
     LiftoffRegister return_reg = LiftoffRegister::from_code(
         rc, call_descriptor->GetReturnLocation(0).AsRegister());
     DCHECK(GetCacheRegList(rc).has(return_reg));
-    if (need_pair) {
+    if (needs_gp_pair) {
       LiftoffRegister high_reg = LiftoffRegister::from_code(
           rc, call_descriptor->GetReturnLocation(1).AsRegister());
       DCHECK(GetCacheRegList(rc).has(high_reg));
       return_reg = LiftoffRegister::ForPair(return_reg.gp(), high_reg.gp());
+    } else if (needs_fp_pair) {
+      DCHECK_EQ(0, return_reg.fp().code() % 2);
+      return_reg = LiftoffRegister::ForFpPair(return_reg.fp());
     }
     DCHECK(!cache_state_.is_used(return_reg));
     PushRegister(return_type, return_reg);
@@ -759,13 +765,19 @@ void LiftoffAssembler::MoveToReturnRegisters(FunctionSig* sig) {
   DCHECK_EQ(1, sig->return_count());
   ValueType return_type = sig->GetReturn(0);
   StackTransferRecipe stack_transfers(this);
-  LiftoffRegister return_reg =
-      needs_reg_pair(return_type)
-          ? LiftoffRegister::ForPair(kGpReturnRegisters[0],
-                                     kGpReturnRegisters[1])
-          : reg_class_for(return_type) == kGpReg
-                ? LiftoffRegister(kGpReturnRegisters[0])
-                : LiftoffRegister(kFpReturnRegisters[0]);
+  // Defaults to a gp reg, will be set below if return type is not gp.
+  LiftoffRegister return_reg = LiftoffRegister(kGpReturnRegisters[0]);
+
+  if (needs_gp_reg_pair(return_type)) {
+    return_reg =
+        LiftoffRegister::ForPair(kGpReturnRegisters[0], kGpReturnRegisters[1]);
+  } else if (needs_fp_reg_pair(return_type)) {
+    return_reg = LiftoffRegister::ForFpPair(kFpReturnRegisters[0]);
+  } else if (reg_class_for(return_type) == kFpReg) {
+    return_reg = LiftoffRegister(kFpReturnRegisters[0]);
+  } else {
+    DCHECK_EQ(kGpReg, reg_class_for(return_type));
+  }
   stack_transfers.LoadIntoRegister(return_reg, cache_state_.stack_state.back(),
                                    cache_state_.stack_state.back().offset());
 }
