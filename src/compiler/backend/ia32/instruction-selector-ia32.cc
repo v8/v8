@@ -2282,6 +2282,13 @@ void InstructionSelector::VisitS128Select(Node* node) {
   }
 }
 
+void InstructionSelector::VisitS128AndNot(Node* node) {
+  IA32OperandGenerator g(this);
+  // andnps a b does ~a & b, but we want a & !b, so flip the input.
+  Emit(kIA32S128AndNot, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
+}
+
 #define VISIT_SIMD_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
     VisitRO(this, node, kIA32##Type##Splat);                 \

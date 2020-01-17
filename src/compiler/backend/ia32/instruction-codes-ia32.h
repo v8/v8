@@ -345,6 +345,7 @@ namespace compiler {
   V(AVXS128Xor)                    \
   V(SSES128Select)                 \
   V(AVXS128Select)                 \
+  V(IA32S128AndNot)                \
   V(IA32S8x16Swizzle)              \
   V(IA32S8x16Shuffle)              \
   V(IA32I16x8Load8x8S)             \
