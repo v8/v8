@@ -2635,9 +2635,6 @@ void InstructionSelector::VisitF64x2UConvertI64x2(Node* node) {
 #if !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitS128AndNot(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM
-#if !V8_TARGET_ARCH_IA32
-void InstructionSelector::VisitI64x2Mul(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_IA32
 void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }

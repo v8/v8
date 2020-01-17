@@ -2395,6 +2395,26 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         out_buffer_pos_ +=
             SNPrintF(out_buffer_ + out_buffer_pos_, "vs%ci.%d d%d, d%d, #%d",
                      direction, size, Vd, Vm, shift);
+      } else if (instr->Bits(11, 8) == 0x8 && instr->Bit(6) == 0 &&
+                 instr->Bit(4) == 0) {
+        // vmlal.u<size> <Qd>, <Dn>, <Dm>
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kDoublePrecision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        int size = 8 << instr->Bits(21, 20);
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vmlal.u%d q%d, d%d, d%d",
+                     size, Vd, Vn, Vm);
+      } else if (instr->Bits(11, 8) == 0xC && instr->Bit(6) == 0 &&
+                 instr->Bit(4) == 0) {
+        // vmull.u<size> <Qd>, <Dn>, <Dm>
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kDoublePrecision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        int size = 8 << instr->Bits(21, 20);
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vmull.u%d q%d, d%d, d%d",
+                     size, Vd, Vn, Vm);
       } else {
         Unknown(instr);
       }

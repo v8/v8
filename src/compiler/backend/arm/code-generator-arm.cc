@@ -1975,6 +1975,51 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
+    case kArmI64x2Mul: {
+      QwNeonRegister dst = i.OutputSimd128Register();
+      QwNeonRegister left = i.InputSimd128Register(0);
+      QwNeonRegister right = i.InputSimd128Register(1);
+      QwNeonRegister tmp1 = i.TempSimd128Register(0);
+      QwNeonRegister tmp2 = i.TempSimd128Register(1);
+
+      // This algorithm uses vector operations to perform 64-bit integer
+      // multiplication by splitting it into a high and low 32-bit integers.
+      // The tricky part is getting the low and high integers in the correct
+      // place inside a NEON register, so that we can use as little vmull and
+      // vmlal as possible.
+
+      // Move left and right into temporaries, they will be modified by vtrn.
+      __ vmov(tmp1, left);
+      __ vmov(tmp2, right);
+
+      // This diagram shows how the 64-bit integers fit into NEON registers.
+      //
+      //             [q.high()| q.low()]
+      // left/tmp1:  [ a3, a2 | a1, a0 ]
+      // right/tmp2: [ b3, b2 | b1, b0 ]
+      //
+      // We want to multiply the low 32 bits of left with high 32 bits of right,
+      // for each lane, i.e. a2 * b3, a0 * b1. However, vmull takes two input d
+      // registers, and multiply the corresponding low/high 32 bits, to get a
+      // 64-bit integer: a1 * b1, a0 * b0. In order to make it work we transpose
+      // the vectors, so that we get the low 32 bits of each 64-bit integer into
+      // the same lane, similarly for high 32 bits.
+      __ vtrn(Neon32, tmp1.low(), tmp1.high());
+      // tmp1: [ a3, a1 | a2, a0 ]
+      __ vtrn(Neon32, tmp2.low(), tmp2.high());
+      // tmp2: [ b3, b1 | b2, b0 ]
+
+      __ vmull(NeonU32, dst, tmp1.low(), tmp2.high());
+      // dst: [ a2*b3 | a0*b1 ]
+      __ vmlal(NeonU32, dst, tmp1.high(), tmp2.low());
+      // dst: [ a2*b3 + a3*b2 | a0*b1 + a1*b0 ]
+      __ vshl(NeonU64, dst, dst, 32);
+      // dst: [ (a2*b3 + a3*b2) << 32 | (a0*b1 + a1*b0) << 32 ]
+
+      __ vmlal(NeonU32, dst, tmp1.low(), tmp2.low());
+      // dst: [ (a2*b3 + a3*b2)<<32 + (a2*b2) | (a0*b1 + a1*b0)<<32 + (a0*b0) ]
+      break;
+    }
     case kArmI64x2Neg: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vmov(dst, static_cast<uint64_t>(0));

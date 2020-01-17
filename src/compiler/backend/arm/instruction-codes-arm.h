@@ -172,6 +172,7 @@ namespace compiler {
   V(ArmI64x2ShrS)                  \
   V(ArmI64x2Add)                   \
   V(ArmI64x2Sub)                   \
+  V(ArmI64x2Mul)                   \
   V(ArmI64x2ShrU)                  \
   V(ArmI32x4Splat)                 \
   V(ArmI32x4ExtractLane)           \

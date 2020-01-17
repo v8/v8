@@ -5519,6 +5519,39 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             UNREACHABLE();
             break;
         }
+      } else if (instr->Bits(11, 8) == 0x8 && instr->Bit(6) == 0 &&
+                 instr->Bit(4) == 0) {
+        // vmlal.u<size> Qd, Dn, Dm
+        NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+        if (size != Neon32) UNIMPLEMENTED();
+
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kDoublePrecision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        uint64_t src1, src2, dst[2];
+
+        get_neon_register<uint64_t>(Vd, dst);
+        get_d_register(Vn, &src1);
+        get_d_register(Vm, &src2);
+        dst[0] += (src1 & 0xFFFFFFFFULL) * (src2 & 0xFFFFFFFFULL);
+        dst[1] += (src1 >> 32) * (src2 >> 32);
+        set_neon_register<uint64_t>(Vd, dst);
+      } else if (instr->Bits(11, 8) == 0xC && instr->Bit(6) == 0 &&
+                 instr->Bit(4) == 0) {
+        // vmull.u<size> Qd, Dn, Dm
+        NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+        if (size != Neon32) UNIMPLEMENTED();
+
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kDoublePrecision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        uint64_t src1, src2, dst[2];
+
+        get_d_register(Vn, &src1);
+        get_d_register(Vm, &src2);
+        dst[0] = (src1 & 0xFFFFFFFFULL) * (src2 & 0xFFFFFFFFULL);
+        dst[1] = (src1 >> 32) * (src2 >> 32);
+        set_neon_register<uint64_t>(Vd, dst);
       } else {
         UNIMPLEMENTED();
       }

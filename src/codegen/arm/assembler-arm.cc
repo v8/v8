@@ -4267,6 +4267,25 @@ void Assembler::vqsub(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   emit(EncodeNeonBinOp(VQSUB, dt, dst, src1, src2));
 }
 
+void Assembler::vmlal(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src1,
+                      DwVfpRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vmlal(Dn, Dm) Vector Multiply Accumulate Long (integer)
+  // Instruction details available in ARM DDI 0406C.b, A8-931.
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  int size = NeonSz(dt);
+  int u = NeonU(dt);
+  if (!u) UNIMPLEMENTED();
+  DCHECK_NE(size, 3);  // SEE "Related encodings"
+  emit(0xFU * B28 | B25 | u * B24 | B23 | d * B22 | size * B20 | vn * B16 |
+       vd * B12 | 0x8 * B8 | n * B7 | m * B5 | vm);
+}
+
 void Assembler::vmul(QwNeonRegister dst, QwNeonRegister src1,
                      QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
@@ -4281,6 +4300,24 @@ void Assembler::vmul(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   // Qd = vadd(Qn, Qm) SIMD integer multiply.
   // Instruction details available in ARM DDI 0406C.b, A8-960.
   emit(EncodeNeonBinOp(VMUL, size, dst, src1, src2));
+}
+
+void Assembler::vmull(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src1,
+                      DwVfpRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vmull(Dn, Dm) Vector Multiply Long (integer).
+  // Instruction details available in ARM DDI 0406C.b, A8-960.
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  int size = NeonSz(dt);
+  int u = NeonU(dt);
+  if (!u) UNIMPLEMENTED();
+  emit(0xFU * B28 | B25 | u * B24 | B23 | d * B22 | size * B20 | vn * B16 |
+       vd * B12 | 0xC * B8 | n * B7 | m * B5 | vm);
 }
 
 void Assembler::vmin(QwNeonRegister dst, QwNeonRegister src1,

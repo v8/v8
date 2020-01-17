@@ -2656,6 +2656,15 @@ void InstructionSelector::VisitI64x2Neg(Node* node) {
        g.UseUniqueRegister(node->InputAt(0)));
 }
 
+void InstructionSelector::VisitI64x2Mul(Node* node) {
+  ArmOperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register(),
+                                g.TempSimd128Register()};
+  Emit(kArmI64x2Mul, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+}
+
 void InstructionSelector::VisitF32x4Sqrt(Node* node) {
   ArmOperandGenerator g(this);
   // Use fixed registers in the lower 8 Q-registers so we can directly access

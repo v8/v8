@@ -888,9 +888,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
             QwNeonRegister src2);
   void vqsub(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
              QwNeonRegister src2);
+  void vmlal(NeonDataType size, QwNeonRegister dst, DwVfpRegister src1,
+             DwVfpRegister src2);
   void vmul(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vmul(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
+  void vmull(NeonDataType size, QwNeonRegister dst, DwVfpRegister src1,
+             DwVfpRegister src2);
   void vmin(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vmin(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
