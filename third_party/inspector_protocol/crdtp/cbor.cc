@@ -203,6 +203,20 @@ bool IsCBORMessage(span<uint8_t> msg) {
          msg[1] == InitialByteFor32BitLengthByteString();
 }
 
+Status CheckCBORMessage(span<uint8_t> msg) {
+  if (msg.empty())
+    return Status(Error::CBOR_NO_INPUT, 0);
+  if (msg[0] != InitialByteForEnvelope())
+    return Status(Error::CBOR_INVALID_START_BYTE, 0);
+  if (msg.size() < 6 || msg[1] != InitialByteFor32BitLengthByteString())
+    return Status(Error::CBOR_INVALID_ENVELOPE, 1);
+  if (msg[2] == 0 && msg[3] == 0 && msg[4] == 0 && msg[5] == 0)
+    return Status(Error::CBOR_INVALID_ENVELOPE, 1);
+  if (msg.size() < 7 || msg[6] != EncodeIndefiniteLengthMapStart())
+    return Status(Error::CBOR_MAP_START_EXPECTED, 6);
+  return Status();
+}
+
 // =============================================================================
 // Encoding invidiual CBOR items
 // =============================================================================
@@ -820,19 +834,12 @@ bool ParseEnvelope(int32_t stack_depth,
         return false;
       break;  // Continue to check pos_past_envelope below.
     case CBORTokenTag::ARRAY_START:
-      if (stack_depth == 0) {  // Not allowed at the top level.
-        out->HandleError(
-            Status{Error::CBOR_MAP_START_EXPECTED, tokenizer->Status().pos});
-        return false;
-      }
       if (!ParseArray(stack_depth + 1, tokenizer, out))
         return false;
       break;  // Continue to check pos_past_envelope below.
     default:
-      out->HandleError(Status{
-          stack_depth == 0 ? Error::CBOR_MAP_START_EXPECTED
-                           : Error::CBOR_MAP_OR_ARRAY_EXPECTED_IN_ENVELOPE,
-          tokenizer->Status().pos});
+      out->HandleError(Status{Error::CBOR_MAP_OR_ARRAY_EXPECTED_IN_ENVELOPE,
+                              tokenizer->Status().pos});
       return false;
   }
   // The contents of the envelope parsed OK, now check that we're at
@@ -977,19 +984,12 @@ void ParseCBOR(span<uint8_t> bytes, ParserHandler* out) {
     out->HandleError(Status{Error::CBOR_NO_INPUT, 0});
     return;
   }
-  if (bytes[0] != kInitialByteForEnvelope) {
-    out->HandleError(Status{Error::CBOR_INVALID_START_BYTE, 0});
-    return;
-  }
   CBORTokenizer tokenizer(bytes);
   if (tokenizer.TokenTag() == CBORTokenTag::ERROR_VALUE) {
     out->HandleError(tokenizer.Status());
     return;
   }
-  // We checked for the envelope start byte above, so the tokenizer
-  // must agree here, since it's not an error.
-  assert(tokenizer.TokenTag() == CBORTokenTag::ENVELOPE);
-  if (!ParseEnvelope(/*stack_depth=*/0, &tokenizer, out))
+  if (!ParseValue(/*stack_depth=*/0, &tokenizer, out))
     return;
   if (tokenizer.TokenTag() == CBORTokenTag::DONE)
     return;

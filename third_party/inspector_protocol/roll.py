@@ -38,6 +38,8 @@ FILES_TO_SYNC = [
     'crdtp/status.cc',
     'crdtp/status.h',
     'crdtp/status_test.cc',
+    'crdtp/status_test_support.cc',
+    'crdtp/status_test_support.h',
     'inspector_protocol.gni',
     'inspector_protocol.gypi',
     'lib/*',

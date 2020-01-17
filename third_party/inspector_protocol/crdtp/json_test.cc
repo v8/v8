@@ -18,6 +18,7 @@
 #include "parser_handler.h"
 #include "span.h"
 #include "status.h"
+#include "status_test_support.h"
 #include "test_platform.h"
 
 namespace v8_crdtp {
@@ -180,8 +181,7 @@ TEST(JsonStdStringWriterTest, HandlesErrors) {
   writer->HandleMapBegin();
   WriteUTF8AsUTF16(writer.get(), "msg1");
   writer->HandleError(Status{Error::JSON_PARSER_VALUE_EXPECTED, 42});
-  EXPECT_EQ(Error::JSON_PARSER_VALUE_EXPECTED, status.error);
-  EXPECT_EQ(42u, status.pos);
+  EXPECT_THAT(status, StatusIs(Error::JSON_PARSER_VALUE_EXPECTED, 42u));
   EXPECT_EQ("", out);
 }
 
@@ -401,8 +401,8 @@ TEST_F(JsonParserTest, UnprocessedInputRemainsError) {
   size_t junk_idx = json.find("junk");
   EXPECT_NE(junk_idx, std::string::npos);
   ParseJSON(SpanFrom(json), &log_);
-  EXPECT_EQ(Error::JSON_PARSER_UNPROCESSED_INPUT_REMAINS, log_.status().error);
-  EXPECT_EQ(junk_idx, log_.status().pos);
+  EXPECT_THAT(log_.status(),
+              StatusIs(Error::JSON_PARSER_UNPROCESSED_INPUT_REMAINS, junk_idx));
   EXPECT_EQ("", log_.str());
 }
 
@@ -442,38 +442,36 @@ TEST_F(JsonParserTest, StackLimitExceededError_AtLimit) {
   ParseJSON(span<uint8_t>(reinterpret_cast<const uint8_t*>(json_limit.data()),
                           json_limit.size()),
             &log_);
-  EXPECT_TRUE(log_.status().ok());
+  EXPECT_THAT(log_.status(), StatusIsOk());
 }
 
 TEST_F(JsonParserTest, StackLimitExceededError_AboveLimit) {
   // Now with kStackLimit + 1 (301) - it exceeds in the innermost instance.
   std::string exceeded = MakeNestedJson(301);
   ParseJSON(SpanFrom(exceeded), &log_);
-  EXPECT_EQ(Error::JSON_PARSER_STACK_LIMIT_EXCEEDED, log_.status().error);
-  EXPECT_EQ(strlen("{\"foo\":") * 301, log_.status().pos);
+  EXPECT_THAT(log_.status(), StatusIs(Error::JSON_PARSER_STACK_LIMIT_EXCEEDED,
+                                      strlen("{\"foo\":") * 301));
 }
 
 TEST_F(JsonParserTest, StackLimitExceededError_WayAboveLimit) {
   // Now way past the limit. Still, the point of exceeding is 301.
   std::string far_out = MakeNestedJson(320);
   ParseJSON(SpanFrom(far_out), &log_);
-  EXPECT_EQ(Error::JSON_PARSER_STACK_LIMIT_EXCEEDED, log_.status().error);
-  EXPECT_EQ(strlen("{\"foo\":") * 301, log_.status().pos);
+  EXPECT_THAT(log_.status(), StatusIs(Error::JSON_PARSER_STACK_LIMIT_EXCEEDED,
+                                      strlen("{\"foo\":") * 301));
 }
 
 TEST_F(JsonParserTest, NoInputError) {
   std::string json = "";
   ParseJSON(SpanFrom(json), &log_);
-  EXPECT_EQ(Error::JSON_PARSER_NO_INPUT, log_.status().error);
-  EXPECT_EQ(0u, log_.status().pos);
+  EXPECT_THAT(log_.status(), StatusIs(Error::JSON_PARSER_NO_INPUT, 0u));
   EXPECT_EQ("", log_.str());
 }
 
 TEST_F(JsonParserTest, InvalidTokenError) {
   std::string json = "|";
   ParseJSON(SpanFrom(json), &log_);
-  EXPECT_EQ(Error::JSON_PARSER_INVALID_TOKEN, log_.status().error);
-  EXPECT_EQ(0u, log_.status().pos);
+  EXPECT_THAT(log_.status(), StatusIs(Error::JSON_PARSER_INVALID_TOKEN, 0u));
   EXPECT_EQ("", log_.str());
 }
 
@@ -481,8 +479,7 @@ TEST_F(JsonParserTest, InvalidNumberError) {
   // Mantissa exceeds max (the constant used here is int64_t max).
   std::string json = "1E9223372036854775807";
   ParseJSON(SpanFrom(json), &log_);
-  EXPECT_EQ(Error::JSON_PARSER_INVALID_NUMBER, log_.status().error);
-  EXPECT_EQ(0u, log_.status().pos);
+  EXPECT_THAT(log_.status(), StatusIs(Error::JSON_PARSER_INVALID_NUMBER, 0u));
   EXPECT_EQ("", log_.str());
 }
 
@@ -490,25 +487,23 @@ TEST_F(JsonParserTest, InvalidStringError) {
   // \x22 is an unsupported escape sequence
   std::string json = "\"foo\\x22\"";
   ParseJSON(SpanFrom(json), &log_);
-  EXPECT_EQ(Error::JSON_PARSER_INVALID_STRING, log_.status().error);
-  EXPECT_EQ(0u, log_.status().pos);
+  EXPECT_THAT(log_.status(), StatusIs(Error::JSON_PARSER_INVALID_STRING, 0u));
   EXPECT_EQ("", log_.str());
 }
 
 TEST_F(JsonParserTest, UnexpectedArrayEndError) {
   std::string json = "[1,2,]";
   ParseJSON(SpanFrom(json), &log_);
-  EXPECT_EQ(Error::JSON_PARSER_UNEXPECTED_ARRAY_END, log_.status().error);
-  EXPECT_EQ(5u, log_.status().pos);
+  EXPECT_THAT(log_.status(),
+              StatusIs(Error::JSON_PARSER_UNEXPECTED_ARRAY_END, 5u));
   EXPECT_EQ("", log_.str());
 }
 
 TEST_F(JsonParserTest, CommaOrArrayEndExpectedError) {
   std::string json = "[1,2 2";
   ParseJSON(SpanFrom(json), &log_);
-  EXPECT_EQ(Error::JSON_PARSER_COMMA_OR_ARRAY_END_EXPECTED,
-            log_.status().error);
-  EXPECT_EQ(5u, log_.status().pos);
+  EXPECT_THAT(log_.status(),
+              StatusIs(Error::JSON_PARSER_COMMA_OR_ARRAY_END_EXPECTED, 5u));
   EXPECT_EQ("", log_.str());
 }
 
@@ -516,24 +511,23 @@ TEST_F(JsonParserTest, StringLiteralExpectedError) {
   // There's an error because the key bar, a string, is not terminated.
   std::string json = "{\"foo\": 3.1415, \"bar: 31415e-4}";
   ParseJSON(SpanFrom(json), &log_);
-  EXPECT_EQ(Error::JSON_PARSER_STRING_LITERAL_EXPECTED, log_.status().error);
-  EXPECT_EQ(16u, log_.status().pos);
+  EXPECT_THAT(log_.status(),
+              StatusIs(Error::JSON_PARSER_STRING_LITERAL_EXPECTED, 16u));
   EXPECT_EQ("", log_.str());
 }
 
 TEST_F(JsonParserTest, ColonExpectedError) {
   std::string json = "{\"foo\", 42}";
   ParseJSON(SpanFrom(json), &log_);
-  EXPECT_EQ(Error::JSON_PARSER_COLON_EXPECTED, log_.status().error);
-  EXPECT_EQ(6u, log_.status().pos);
+  EXPECT_THAT(log_.status(), StatusIs(Error::JSON_PARSER_COLON_EXPECTED, 6u));
   EXPECT_EQ("", log_.str());
 }
 
 TEST_F(JsonParserTest, UnexpectedMapEndError) {
   std::string json = "{\"foo\": 42, }";
   ParseJSON(SpanFrom(json), &log_);
-  EXPECT_EQ(Error::JSON_PARSER_UNEXPECTED_MAP_END, log_.status().error);
-  EXPECT_EQ(12u, log_.status().pos);
+  EXPECT_THAT(log_.status(),
+              StatusIs(Error::JSON_PARSER_UNEXPECTED_MAP_END, 12u));
   EXPECT_EQ("", log_.str());
 }
 
@@ -541,16 +535,15 @@ TEST_F(JsonParserTest, CommaOrMapEndExpectedError) {
   // The second separator should be a comma.
   std::string json = "{\"foo\": 3.1415: \"bar\": 0}";
   ParseJSON(SpanFrom(json), &log_);
-  EXPECT_EQ(Error::JSON_PARSER_COMMA_OR_MAP_END_EXPECTED, log_.status().error);
-  EXPECT_EQ(14u, log_.status().pos);
+  EXPECT_THAT(log_.status(),
+              StatusIs(Error::JSON_PARSER_COMMA_OR_MAP_END_EXPECTED, 14u));
   EXPECT_EQ("", log_.str());
 }
 
 TEST_F(JsonParserTest, ValueExpectedError) {
   std::string json = "}";
   ParseJSON(SpanFrom(json), &log_);
-  EXPECT_EQ(Error::JSON_PARSER_VALUE_EXPECTED, log_.status().error);
-  EXPECT_EQ(0u, log_.status().pos);
+  EXPECT_THAT(log_.status(), StatusIs(Error::JSON_PARSER_VALUE_EXPECTED, 0u));
   EXPECT_EQ("", log_.str());
 }
 
@@ -561,21 +554,29 @@ using ContainerTestTypes = ::testing::Types<std::vector<uint8_t>, std::string>;
 TYPED_TEST_SUITE(ConvertJSONToCBORTest, ContainerTestTypes);
 
 TYPED_TEST(ConvertJSONToCBORTest, RoundTripValidJson) {
-  std::string json_in = "{\"msg\":\"Hello, world.\",\"lst\":[1,2,3]}";
-  TypeParam json(json_in.begin(), json_in.end());
-  std::vector<uint8_t> cbor;
-  {
-    Status status = ConvertJSONToCBOR(SpanFrom(json), &cbor);
-    EXPECT_EQ(Error::OK, status.error);
-    EXPECT_EQ(Status::npos(), status.pos);
+  for (const std::string& json_in : {
+           "{\"msg\":\"Hello, world.\",\"lst\":[1,2,3]}",
+           "3.1415",
+           "false",
+           "true",
+           "\"Hello, world.\"",
+           "[1,2,3]",
+           "[]",
+       }) {
+    SCOPED_TRACE(json_in);
+    TypeParam json(json_in.begin(), json_in.end());
+    std::vector<uint8_t> cbor;
+    {
+      Status status = ConvertJSONToCBOR(SpanFrom(json), &cbor);
+      EXPECT_THAT(status, StatusIsOk());
+    }
+    TypeParam roundtrip_json;
+    {
+      Status status = ConvertCBORToJSON(SpanFrom(cbor), &roundtrip_json);
+      EXPECT_THAT(status, StatusIsOk());
+    }
+    EXPECT_EQ(json, roundtrip_json);
   }
-  TypeParam roundtrip_json;
-  {
-    Status status = ConvertCBORToJSON(SpanFrom(cbor), &roundtrip_json);
-    EXPECT_EQ(Error::OK, status.error);
-    EXPECT_EQ(Status::npos(), status.pos);
-  }
-  EXPECT_EQ(json, roundtrip_json);
 }
 
 TYPED_TEST(ConvertJSONToCBORTest, RoundTripValidJson16) {
@@ -587,14 +588,12 @@ TYPED_TEST(ConvertJSONToCBORTest, RoundTripValidJson16) {
   {
     Status status =
         ConvertJSONToCBOR(span<uint16_t>(json16.data(), json16.size()), &cbor);
-    EXPECT_EQ(Error::OK, status.error);
-    EXPECT_EQ(Status::npos(), status.pos);
+    EXPECT_THAT(status, StatusIsOk());
   }
   TypeParam roundtrip_json;
   {
     Status status = ConvertCBORToJSON(SpanFrom(cbor), &roundtrip_json);
-    EXPECT_EQ(Error::OK, status.error);
-    EXPECT_EQ(Status::npos(), status.pos);
+    EXPECT_THAT(status, StatusIsOk());
   }
   std::string json = "{\"msg\":\"Hello, \\ud83c\\udf0e.\",\"lst\":[1,2,3]}";
   TypeParam expected_json(json.begin(), json.end());

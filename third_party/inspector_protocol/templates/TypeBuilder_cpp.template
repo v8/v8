@@ -120,11 +120,6 @@ std::unique_ptr<{{type.id}}> {{type.id}}::clone() const
     return {{config.exported.to_string_out % "json"}};
 }
 
-void {{type.id}}::writeBinary(std::vector<uint8_t>* out) const
-{
-    AppendSerialized(out);
-}
-
 // static
 std::unique_ptr<API::{{type.id}}> API::{{type.id}}::fromBinary(const uint8_t* data, size_t length)
 {

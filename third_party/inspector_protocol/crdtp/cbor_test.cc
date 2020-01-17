@@ -17,6 +17,7 @@
 #include "parser_handler.h"
 #include "span.h"
 #include "status.h"
+#include "status_test_support.h"
 #include "test_platform.h"
 
 using testing::ElementsAreArray;
@@ -37,6 +38,73 @@ TEST(IsCBORMessage, SomeSmokeTests) {
   EXPECT_TRUE(IsCBORMessage(SpanFrom(example)));
   std::vector<uint8_t> one = {0xd8, 0x5a, 0, 0, 0, 1, 1};
   EXPECT_TRUE(IsCBORMessage(SpanFrom(one)));
+}
+
+TEST(CheckCBORMessage, SmallestValidExample) {
+  // The smallest example that we consider valid for this lightweight check is
+  // an empty dictionary inside of an envelope.
+  std::vector<uint8_t> empty_dict = {
+      0xd8, 0x5a, 0, 0, 0, 2, EncodeIndefiniteLengthMapStart(), EncodeStop()};
+  Status status = CheckCBORMessage(SpanFrom(empty_dict));
+  EXPECT_THAT(status, StatusIsOk());
+}
+
+TEST(CheckCBORMessage, ValidCBORButNotValidMessage) {
+  // The CBOR parser supports parsing values that aren't messages. E.g., this is
+  // the encoded unsigned int 7 (CBOR really encodes it as a single byte with
+  // value 7).
+  std::vector<uint8_t> not_a_message = {7};
+
+  // Show that the parser (happily) decodes it into JSON
+  std::string json;
+  Status status;
+  std::unique_ptr<ParserHandler> json_writer =
+      json::NewJSONEncoder(&json, &status);
+  ParseCBOR(SpanFrom(not_a_message), json_writer.get());
+  EXPECT_THAT(status, StatusIsOk());
+  EXPECT_EQ("7", json);
+
+  // ... but it's not a message.
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(not_a_message)),
+              StatusIs(Error::CBOR_INVALID_START_BYTE, 0));
+}
+
+TEST(CheckCBORMessage, EmptyMessage) {
+  std::vector<uint8_t> empty;
+  Status status = CheckCBORMessage(SpanFrom(empty));
+  EXPECT_THAT(status, StatusIs(Error::CBOR_NO_INPUT, 0));
+}
+
+TEST(CheckCBORMessage, InvalidStartByte) {
+  // Here we test that some actual json, which usually starts with {, is not
+  // considered CBOR. CBOR messages must start with 0xd8, 0x5a, the envelope
+  // start bytes.
+  Status status = CheckCBORMessage(SpanFrom("{\"msg\": \"Hello, world.\"}"));
+  EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_START_BYTE, 0));
+}
+
+TEST(CheckCBORMessage, InvalidEnvelopes) {
+  std::vector<uint8_t> bytes = {0xd8, 0x5a};
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+              StatusIs(Error::CBOR_INVALID_ENVELOPE, 1));
+  bytes = {0xd8, 0x5a, 0};
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+              StatusIs(Error::CBOR_INVALID_ENVELOPE, 1));
+  bytes = {0xd8, 0x5a, 0, 0};
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+              StatusIs(Error::CBOR_INVALID_ENVELOPE, 1));
+  bytes = {0xd8, 0x5a, 0, 0, 0};
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+              StatusIs(Error::CBOR_INVALID_ENVELOPE, 1));
+  bytes = {0xd8, 0x5a, 0, 0, 0, 0};
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+              StatusIs(Error::CBOR_INVALID_ENVELOPE, 1));
+}
+
+TEST(CheckCBORMessage, MapStartExpected) {
+  std::vector<uint8_t> bytes = {0xd8, 0x5a, 0, 0, 0, 1};
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+              StatusIs(Error::CBOR_MAP_START_EXPECTED, 6));
 }
 
 // =============================================================================
@@ -164,7 +232,7 @@ TEST(EncodeDecodeInt32Test, CantRoundtripUint32) {
   CBORTokenizer tokenizer(SpanFrom(encoded));
   // 0xdeadbeef is > std::numerical_limits<int32_t>::max().
   EXPECT_EQ(CBORTokenTag::ERROR_VALUE, tokenizer.TokenTag());
-  EXPECT_EQ(Error::CBOR_INVALID_INT32, tokenizer.Status().error);
+  EXPECT_THAT(tokenizer.Status(), StatusIs(Error::CBOR_INVALID_INT32, 0u));
 }
 
 TEST(EncodeDecodeInt32Test, DecodeErrorCases) {
@@ -191,7 +259,7 @@ TEST(EncodeDecodeInt32Test, DecodeErrorCases) {
     SCOPED_TRACE(test.msg);
     CBORTokenizer tokenizer(SpanFrom(test.data));
     EXPECT_EQ(CBORTokenTag::ERROR_VALUE, tokenizer.TokenTag());
-    EXPECT_EQ(Error::CBOR_INVALID_INT32, tokenizer.Status().error);
+    EXPECT_THAT(tokenizer.Status(), StatusIs(Error::CBOR_INVALID_INT32, 0u));
   }
 }
 
@@ -353,7 +421,7 @@ TEST(EncodeDecodeString16Test, ErrorCases) {
     SCOPED_TRACE(test.msg);
     CBORTokenizer tokenizer(SpanFrom(test.data));
     EXPECT_EQ(CBORTokenTag::ERROR_VALUE, tokenizer.TokenTag());
-    EXPECT_EQ(Error::CBOR_INVALID_STRING16, tokenizer.Status().error);
+    EXPECT_THAT(tokenizer.Status(), StatusIs(Error::CBOR_INVALID_STRING16, 0u));
   }
 }
 
@@ -402,7 +470,7 @@ TEST(EncodeDecodeString8Test, ErrorCases) {
     SCOPED_TRACE(test.msg);
     CBORTokenizer tokenizer(SpanFrom(test.data));
     EXPECT_EQ(CBORTokenTag::ERROR_VALUE, tokenizer.TokenTag());
-    EXPECT_EQ(Error::CBOR_INVALID_STRING8, tokenizer.Status().error);
+    EXPECT_THAT(tokenizer.Status(), StatusIs(Error::CBOR_INVALID_STRING8, 0u));
   }
 }
 
@@ -477,7 +545,7 @@ TEST(EncodeDecodeBinaryTest, RoundtripsHelloWorld) {
   std::vector<uint8_t> decoded;
   CBORTokenizer tokenizer(SpanFrom(encoded));
   EXPECT_EQ(CBORTokenTag::BINARY, tokenizer.TokenTag());
-  EXPECT_EQ(0, static_cast<int>(tokenizer.Status().error));
+  EXPECT_THAT(tokenizer.Status(), StatusIsOk());
   decoded = std::vector<uint8_t>(tokenizer.GetBinary().begin(),
                                  tokenizer.GetBinary().end());
   EXPECT_THAT(decoded, ElementsAreArray(binary));
@@ -499,7 +567,7 @@ TEST(EncodeDecodeBinaryTest, ErrorCases) {
     SCOPED_TRACE(test.msg);
     CBORTokenizer tokenizer(SpanFrom(test.data));
     EXPECT_EQ(CBORTokenTag::ERROR_VALUE, tokenizer.TokenTag());
-    EXPECT_EQ(Error::CBOR_INVALID_BINARY, tokenizer.Status().error);
+    EXPECT_THAT(tokenizer.Status(), StatusIs(Error::CBOR_INVALID_BINARY, 0u));
   }
 }
 
@@ -631,7 +699,7 @@ TEST(JSONToCBOREncoderTest, SevenBitStrings) {
   std::unique_ptr<ParserHandler> encoder = NewCBOREncoder(&encoded, &status);
   std::vector<uint16_t> utf16 = {'f', 'o', 'o'};
   encoder->HandleString16(span<uint16_t>(utf16.data(), utf16.size()));
-  EXPECT_EQ(Error::OK, status.error);
+  EXPECT_THAT(status, StatusIsOk());
   // Here we assert that indeed, seven bit strings are represented as
   // bytes on the wire, "foo" is just "foo".
   EXPECT_THAT(encoded,
@@ -702,7 +770,7 @@ TEST(JsonCborRoundtrip, EncodingDecoding) {
   std::unique_ptr<ParserHandler> json_encoder =
       json::NewJSONEncoder(&decoded, &status);
   ParseCBOR(span<uint8_t>(encoded.data(), encoded.size()), json_encoder.get());
-  EXPECT_EQ(Error::OK, status.error);
+  EXPECT_THAT(status, StatusIsOk());
   EXPECT_EQ(json, decoded);
 }
 
@@ -722,7 +790,7 @@ TEST(JsonCborRoundtrip, MoreRoundtripExamples) {
     std::unique_ptr<ParserHandler> json_writer =
         json::NewJSONEncoder(&decoded, &status);
     ParseCBOR(span<uint8_t>(encoded.data(), encoded.size()), json_writer.get());
-    EXPECT_EQ(Error::OK, status.error);
+    EXPECT_THAT(status, StatusIsOk());
     EXPECT_EQ(json, decoded);
   }
 }
@@ -747,15 +815,14 @@ TEST(JSONToCBOREncoderTest, HelloWorldBinary_WithTripToJson) {
   encoder->HandleBinary(SpanFrom(std::vector<uint8_t>{
       'H', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '.'}));
   encoder->HandleMapEnd();
-  EXPECT_EQ(Error::OK, status.error);
+  EXPECT_THAT(status, StatusIsOk());
 
   // Now drive the json writer via the CBOR decoder.
   std::string decoded;
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&decoded, &status);
   ParseCBOR(SpanFrom(encoded), json_writer.get());
-  EXPECT_EQ(Error::OK, status.error);
-  EXPECT_EQ(Status::npos(), status.pos);
+  EXPECT_THAT(status, StatusIsOk());
   // "Hello, world." in base64 is "SGVsbG8sIHdvcmxkLg==".
   EXPECT_EQ("{\"foo\":\"SGVsbG8sIHdvcmxkLg==\"}", decoded);
 }
@@ -774,7 +841,7 @@ TEST(ParseCBORTest, ParseEmptyCBORMessage) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(in.data(), in.size()), json_writer.get());
-  EXPECT_EQ(Error::OK, status.error);
+  EXPECT_THAT(status, StatusIsOk());
   EXPECT_EQ("{}", out);
 }
 
@@ -798,7 +865,7 @@ TEST(ParseCBORTest, ParseCBORHelloWorld) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::OK, status.error);
+  EXPECT_THAT(status, StatusIsOk());
   EXPECT_EQ("{\"msg\":\"Hello, \\ud83c\\udf0e.\"}", out);
 }
 
@@ -823,7 +890,7 @@ TEST(ParseCBORTest, UTF8IsSupportedInKeys) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::OK, status.error);
+  EXPECT_THAT(status, StatusIsOk());
   EXPECT_EQ("{\"\\ud83c\\udf0e\":\"\\u263e\"}", out);
 }
 
@@ -834,21 +901,7 @@ TEST(ParseCBORTest, NoInputError) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(in.data(), in.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_NO_INPUT, status.error);
-  EXPECT_EQ("", out);
-}
-
-TEST(ParseCBORTest, InvalidStartByteError) {
-  // Here we test that some actual json, which usually starts with {,
-  // is not considered CBOR. CBOR messages must start with 0x5a, the
-  // envelope start byte.
-  std::string json = "{\"msg\": \"Hello, world.\"}";
-  std::string out;
-  Status status;
-  std::unique_ptr<ParserHandler> json_writer =
-      json::NewJSONEncoder(&out, &status);
-  ParseCBOR(SpanFrom(json), json_writer.get());
-  EXPECT_EQ(Error::CBOR_INVALID_START_BYTE, status.error);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_NO_INPUT, 0u));
   EXPECT_EQ("", out);
 }
 
@@ -864,8 +917,8 @@ TEST(ParseCBORTest, UnexpectedEofExpectedValueError) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_UNEXPECTED_EOF_EXPECTED_VALUE, status.error);
-  EXPECT_EQ(bytes.size(), status.pos);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_UNEXPECTED_EOF_EXPECTED_VALUE,
+                               bytes.size()));
   EXPECT_EQ("", out);
 }
 
@@ -882,8 +935,8 @@ TEST(ParseCBORTest, UnexpectedEofInArrayError) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_UNEXPECTED_EOF_IN_ARRAY, status.error);
-  EXPECT_EQ(bytes.size(), status.pos);
+  EXPECT_THAT(status,
+              StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ARRAY, bytes.size()));
   EXPECT_EQ("", out);
 }
 
@@ -897,44 +950,19 @@ TEST(ParseCBORTest, UnexpectedEofInMapError) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_UNEXPECTED_EOF_IN_MAP, status.error);
-  EXPECT_EQ(7u, status.pos);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_MAP, 7u));
   EXPECT_EQ("", out);
 }
 
-TEST(ParseCBORTest, TopLevelCantBeEmptyEnvelope) {
-  // Normally, an array would be allowed inside an envelope, but
-  // the top-level envelope is required to contain a map.
+TEST(ParseCBORTest, NoEmptyEnvelopesAllowed) {
   std::vector<uint8_t> bytes = {0xd8, 0x5a, 0, 0, 0, 0};  // envelope
   std::string out;
   Status status;
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_MAP_START_EXPECTED, status.error);
-  EXPECT_EQ(bytes.size(), status.pos);
-  EXPECT_EQ("", out);
-}
-
-TEST(ParseCBORTest, MapStartExpectedAtTopLevel) {
-  // Normally, an array would be allowed inside an envelope, but
-  // the top-level envelope is required to contain a map.
-  constexpr uint8_t kPayloadLen = 1;
-  std::vector<uint8_t> bytes = {0xd8,
-                                0x5a,
-                                0,
-                                0,
-                                0,
-                                kPayloadLen,  // envelope
-                                EncodeIndefiniteLengthArrayStart()};
-  EXPECT_EQ(kPayloadLen, bytes.size() - 6);
-  std::string out;
-  Status status;
-  std::unique_ptr<ParserHandler> json_writer =
-      json::NewJSONEncoder(&out, &status);
-  ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_MAP_START_EXPECTED, status.error);
-  EXPECT_EQ(6u, status.pos);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_MAP_OR_ARRAY_EXPECTED_IN_ENVELOPE,
+                               bytes.size()));
   EXPECT_EQ("", out);
 }
 
@@ -963,8 +991,8 @@ TEST(ParseCBORTest, OnlyMapsAndArraysSupportedInsideEnvelopes) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_MAP_OR_ARRAY_EXPECTED_IN_ENVELOPE, status.error);
-  EXPECT_EQ(error_pos, status.pos);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_MAP_OR_ARRAY_EXPECTED_IN_ENVELOPE,
+                               error_pos));
   EXPECT_EQ("", out);
 }
 
@@ -980,8 +1008,7 @@ TEST(ParseCBORTest, InvalidMapKeyError) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_INVALID_MAP_KEY, status.error);
-  EXPECT_EQ(7u, status.pos);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_MAP_KEY, 7u));
   EXPECT_EQ("", out);
 }
 
@@ -1011,8 +1038,7 @@ TEST(ParseCBORTest, StackLimitExceededError) {
     std::unique_ptr<ParserHandler> json_writer =
         json::NewJSONEncoder(&out, &status);
     ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-    EXPECT_EQ(Error::OK, status.error);
-    EXPECT_EQ(Status::npos(), status.pos);
+    EXPECT_THAT(status, StatusIsOk());
     EXPECT_EQ("{\"key\":{\"key\":{\"key\":\"innermost_value\"}}}", out);
   }
   {  // Depth 300: no stack limit exceeded.
@@ -1022,8 +1048,7 @@ TEST(ParseCBORTest, StackLimitExceededError) {
     std::unique_ptr<ParserHandler> json_writer =
         json::NewJSONEncoder(&out, &status);
     ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-    EXPECT_EQ(Error::OK, status.error);
-    EXPECT_EQ(Status::npos(), status.pos);
+    EXPECT_THAT(status, StatusIsOk());
   }
 
   // We just want to know the length of one opening map so we can compute
@@ -1042,8 +1067,8 @@ TEST(ParseCBORTest, StackLimitExceededError) {
     std::unique_ptr<ParserHandler> json_writer =
         json::NewJSONEncoder(&out, &status);
     ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-    EXPECT_EQ(Error::CBOR_STACK_LIMIT_EXCEEDED, status.error);
-    EXPECT_EQ(opening_segment_size * 301, status.pos);
+    EXPECT_THAT(status, StatusIs(Error::CBOR_STACK_LIMIT_EXCEEDED,
+                                 opening_segment_size * 301));
   }
   {  // Depth 320: still limit exceeded, and at the same pos as for 1001
     std::vector<uint8_t> bytes = MakeNestedCBOR(320);
@@ -1052,8 +1077,8 @@ TEST(ParseCBORTest, StackLimitExceededError) {
     std::unique_ptr<ParserHandler> json_writer =
         json::NewJSONEncoder(&out, &status);
     ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-    EXPECT_EQ(Error::CBOR_STACK_LIMIT_EXCEEDED, status.error);
-    EXPECT_EQ(opening_segment_size * 301, status.pos);
+    EXPECT_THAT(status, StatusIs(Error::CBOR_STACK_LIMIT_EXCEEDED,
+                                 opening_segment_size * 301));
   }
 }
 
@@ -1071,8 +1096,7 @@ TEST(ParseCBORTest, UnsupportedValueError) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_UNSUPPORTED_VALUE, status.error);
-  EXPECT_EQ(error_pos, status.pos);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_UNSUPPORTED_VALUE, error_pos));
   EXPECT_EQ("", out);
 }
 
@@ -1094,8 +1118,7 @@ TEST(ParseCBORTest, InvalidString16Error) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_INVALID_STRING16, status.error);
-  EXPECT_EQ(error_pos, status.pos);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_STRING16, error_pos));
   EXPECT_EQ("", out);
 }
 
@@ -1114,8 +1137,7 @@ TEST(ParseCBORTest, InvalidString8Error) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_INVALID_STRING8, status.error);
-  EXPECT_EQ(error_pos, status.pos);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_STRING8, error_pos));
   EXPECT_EQ("", out);
 }
 
@@ -1136,8 +1158,7 @@ TEST(ParseCBORTest, InvalidBinaryError) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_INVALID_BINARY, status.error);
-  EXPECT_EQ(error_pos, status.pos);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_BINARY, error_pos));
   EXPECT_EQ("", out);
 }
 
@@ -1157,8 +1178,7 @@ TEST(ParseCBORTest, InvalidDoubleError) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_INVALID_DOUBLE, status.error);
-  EXPECT_EQ(error_pos, status.pos);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_DOUBLE, error_pos));
   EXPECT_EQ("", out);
 }
 
@@ -1178,8 +1198,7 @@ TEST(ParseCBORTest, InvalidSignedError) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_INVALID_INT32, status.error);
-  EXPECT_EQ(error_pos, status.pos);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_INT32, error_pos));
   EXPECT_EQ("", out);
 }
 
@@ -1201,8 +1220,7 @@ TEST(ParseCBORTest, TrailingJunk) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_TRAILING_JUNK, status.error);
-  EXPECT_EQ(error_pos, status.pos);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_TRAILING_JUNK, error_pos));
   EXPECT_EQ("", out);
 }
 
@@ -1224,8 +1242,8 @@ TEST(ParseCBORTest, EnvelopeContentsLengthMismatch) {
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(span<uint8_t>(bytes.data(), bytes.size()), json_writer.get());
-  EXPECT_EQ(Error::CBOR_ENVELOPE_CONTENTS_LENGTH_MISMATCH, status.error);
-  EXPECT_EQ(bytes.size(), status.pos);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_ENVELOPE_CONTENTS_LENGTH_MISMATCH,
+                               bytes.size()));
   EXPECT_EQ("", out);
 }
 
@@ -1253,29 +1271,27 @@ TEST(AppendString8EntryToMapTest, AppendsEntrySuccessfully) {
 
   Status status =
       AppendString8EntryToCBORMap(SpanFrom("foo"), SpanFrom("bar"), &msg);
-  EXPECT_EQ(Error::OK, status.error);
-  EXPECT_EQ(Status::npos(), status.pos);
+  EXPECT_THAT(status, StatusIsOk());
   std::string out;
   std::unique_ptr<ParserHandler> json_writer =
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(SpanFrom(msg), json_writer.get());
   EXPECT_EQ("{\"key\":\"value\",\"foo\":\"bar\"}", out);
-  EXPECT_EQ(Error::OK, status.error);
-  EXPECT_EQ(Status::npos(), status.pos);
+  EXPECT_THAT(status, StatusIsOk());
 }
 
 TYPED_TEST(AppendString8EntryToMapTest, AppendThreeEntries) {
   std::vector<uint8_t> encoded = {
       0xd8, 0x5a, 0, 0, 0, 2, EncodeIndefiniteLengthMapStart(), EncodeStop()};
-  EXPECT_EQ(Error::OK, AppendString8EntryToCBORMap(SpanFrom("key"),
-                                                   SpanFrom("value"), &encoded)
-                           .error);
-  EXPECT_EQ(Error::OK, AppendString8EntryToCBORMap(SpanFrom("key1"),
-                                                   SpanFrom("value1"), &encoded)
-                           .error);
-  EXPECT_EQ(Error::OK, AppendString8EntryToCBORMap(SpanFrom("key2"),
-                                                   SpanFrom("value2"), &encoded)
-                           .error);
+  EXPECT_THAT(
+      AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &encoded),
+      StatusIsOk());
+  EXPECT_THAT(AppendString8EntryToCBORMap(SpanFrom("key1"), SpanFrom("value1"),
+                                          &encoded),
+              StatusIsOk());
+  EXPECT_THAT(AppendString8EntryToCBORMap(SpanFrom("key2"), SpanFrom("value2"),
+                                          &encoded),
+              StatusIsOk());
   TypeParam msg(encoded.begin(), encoded.end());
   std::string out;
   Status status;
@@ -1283,8 +1299,7 @@ TYPED_TEST(AppendString8EntryToMapTest, AppendThreeEntries) {
       json::NewJSONEncoder(&out, &status);
   ParseCBOR(SpanFrom(msg), json_writer.get());
   EXPECT_EQ("{\"key\":\"value\",\"key1\":\"value1\",\"key2\":\"value2\"}", out);
-  EXPECT_EQ(Error::OK, status.error);
-  EXPECT_EQ(Status::npos(), status.pos);
+  EXPECT_THAT(status, StatusIsOk());
 }
 
 TEST(AppendString8EntryToMapTest, MapStartExpected_Error) {
@@ -1292,8 +1307,7 @@ TEST(AppendString8EntryToMapTest, MapStartExpected_Error) {
       0xd8, 0x5a, 0, 0, 0, 1, EncodeIndefiniteLengthArrayStart()};
   Status status =
       AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &msg);
-  EXPECT_EQ(Error::CBOR_MAP_START_EXPECTED, status.error);
-  EXPECT_EQ(6u, status.pos);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_MAP_START_EXPECTED, 6u));
 }
 
 TEST(AppendString8EntryToMapTest, MapStopExpected_Error) {
@@ -1301,8 +1315,7 @@ TEST(AppendString8EntryToMapTest, MapStopExpected_Error) {
       0xd8, 0x5a, 0, 0, 0, 2, EncodeIndefiniteLengthMapStart(), 42};
   Status status =
       AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &msg);
-  EXPECT_EQ(Error::CBOR_MAP_STOP_EXPECTED, status.error);
-  EXPECT_EQ(7u, status.pos);
+  EXPECT_THAT(status, StatusIs(Error::CBOR_MAP_STOP_EXPECTED, 7u));
 }
 
 TEST(AppendString8EntryToMapTest, InvalidEnvelope_Error) {
@@ -1311,16 +1324,14 @@ TEST(AppendString8EntryToMapTest, InvalidEnvelope_Error) {
         0x5a, 0, 0, 0, 2, EncodeIndefiniteLengthMapStart(), EncodeStop(), 0};
     Status status =
         AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &msg);
-    EXPECT_EQ(Error::CBOR_INVALID_ENVELOPE, status.error);
-    EXPECT_EQ(0u, status.pos);
+    EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_ENVELOPE, 0u));
   }
   {  // Second byte is wrong.
     std::vector<uint8_t> msg = {
         0xd8, 0x7a, 0, 0, 0, 2, EncodeIndefiniteLengthMapStart(), EncodeStop()};
     Status status =
         AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &msg);
-    EXPECT_EQ(Error::CBOR_INVALID_ENVELOPE, status.error);
-    EXPECT_EQ(0u, status.pos);
+    EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_ENVELOPE, 0u));
   }
   {  // Invalid envelope size example.
     std::vector<uint8_t> msg = {
@@ -1328,8 +1339,7 @@ TEST(AppendString8EntryToMapTest, InvalidEnvelope_Error) {
     };
     Status status =
         AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &msg);
-    EXPECT_EQ(Error::CBOR_INVALID_ENVELOPE, status.error);
-    EXPECT_EQ(0u, status.pos);
+    EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_ENVELOPE, 0u));
   }
   {  // Invalid envelope size example.
     std::vector<uint8_t> msg = {
@@ -1337,8 +1347,7 @@ TEST(AppendString8EntryToMapTest, InvalidEnvelope_Error) {
     };
     Status status =
         AppendString8EntryToCBORMap(SpanFrom("key"), SpanFrom("value"), &msg);
-    EXPECT_EQ(Error::CBOR_INVALID_ENVELOPE, status.error);
-    EXPECT_EQ(0u, status.pos);
+    EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_ENVELOPE, 0u));
   }
 }
 }  // namespace cbor

@@ -28,6 +28,7 @@ namespace {
 using v8_crdtp::span;
 using v8_crdtp::SpanFrom;
 using v8_crdtp::Status;
+using v8_crdtp::cbor::CheckCBORMessage;
 using v8_crdtp::json::ConvertCBORToJSON;
 using v8_crdtp::json::ConvertJSONToCBOR;
 
@@ -167,6 +168,7 @@ protocol::DictionaryValue* V8InspectorSessionImpl::agentState(
 std::unique_ptr<StringBuffer> V8InspectorSessionImpl::serializeForFrontend(
     std::unique_ptr<protocol::Serializable> message) {
   std::vector<uint8_t> cbor = std::move(*message).TakeSerialized();
+  DCHECK(CheckCBORMessage(SpanFrom(cbor)).ok());
   if (use_binary_protocol_)
     return std::unique_ptr<StringBuffer>(
         new BinaryStringBuffer(std::move(cbor)));

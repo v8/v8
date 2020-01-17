@@ -53,6 +53,15 @@ uint8_t InitialByteFor32BitLengthByteString();
 // Checks whether |msg| is a cbor message.
 bool IsCBORMessage(span<uint8_t> msg);
 
+// Performs a leightweight check of |msg|.
+// Disallows:
+// - Empty message
+// - Not starting with the two bytes 0xd8, 0x5a
+// - Empty envelope (all length bytes are 0)
+// - Not starting with a map after the envelope stanza
+// DevTools messages should pass this check.
+Status CheckCBORMessage(span<uint8_t> msg);
+
 // =============================================================================
 // Encoding individual CBOR items
 // =============================================================================

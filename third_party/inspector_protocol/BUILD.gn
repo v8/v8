@@ -55,6 +55,8 @@ v8_source_set("crdtp_test") {
     "crdtp/serializer_traits_test.cc",
     "crdtp/span_test.cc",
     "crdtp/status_test.cc",
+    "crdtp/status_test_support.cc",
+    "crdtp/status_test_support.h",
   ]
   configs = [ ":crdtp_config" ]
   deps = [
