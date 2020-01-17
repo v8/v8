@@ -979,8 +979,8 @@ bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
   return true;
 }
 
-void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
-  movsxlq(dst, src);
+void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
+  movl(dst, src);
 }
 
 void LiftoffAssembler::emit_f32_add(DoubleRegister dst, DoubleRegister lhs,

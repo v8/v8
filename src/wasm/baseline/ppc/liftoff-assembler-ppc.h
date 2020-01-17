@@ -404,9 +404,9 @@ void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
   bailout(kUnsupportedArchitecture, "i64_ctz");
 }
 
-void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
+void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
 #ifdef V8_TARGET_ARCH_PPC64
-  bailout(kUnsupportedArchitecture, "emit_i32_to_intptr");
+  bailout(kUnsupportedArchitecture, "emit_u32_to_intptr");
 #else
 // This is a nop on ppc32.
 #endif

@@ -1748,7 +1748,7 @@ class LiftoffCompiler {
     LiftoffRegister effective_size_reg = end_offset_reg;
     __ emit_ptrsize_sub(effective_size_reg.gp(), mem_size, end_offset_reg.gp());
 
-    __ emit_i32_to_intptr(index, index);
+    __ emit_u32_to_intptr(index, index);
 
     __ emit_cond_jump(kUnsignedGreaterEqual, trap_label,
                       LiftoffAssembler::kWasmIntPtr, index,

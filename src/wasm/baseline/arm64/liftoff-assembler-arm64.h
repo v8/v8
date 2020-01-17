@@ -91,10 +91,8 @@ inline CPURegister AcquireByType(UseScratchRegisterScope* temps,
 inline MemOperand GetMemOp(LiftoffAssembler* assm,
                            UseScratchRegisterScope* temps, Register addr,
                            Register offset, uint32_t offset_imm) {
-  // Wasm memory is limited to a size <2GB, so all offsets can be encoded as
-  // immediate value (in 31 bits, interpreted as signed value).
-  // If the offset is bigger, we always trap and this code is not reached.
-  DCHECK(is_uint31(offset_imm));
+  // Wasm memory is limited to a size <4GB.
+  DCHECK(is_uint32(offset_imm));
   if (offset.is_valid()) {
     if (offset_imm == 0) return MemOperand(addr.X(), offset.W(), UXTW);
     Register tmp = temps->AcquireW();
@@ -781,8 +779,8 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
   return true;
 }
 
-void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
-  Sxtw(dst, src);
+void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
+  Uxtw(dst, src);
 }
 
 void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
