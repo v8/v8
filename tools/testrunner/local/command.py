@@ -134,16 +134,16 @@ class BaseCommand(object):
 
   def _abort(self, process, abort_called):
     abort_called[0] = True
+    started_as = self.to_string(relative=True)
+    process_text = 'process %d started as:\n  %s\n' % (process.pid, started_as)
     try:
-      print('Attempting to kill process %s' % process.pid)
+      print('Attempting to kill ' + process_text)
       sys.stdout.flush()
       self._kill_process(process)
     except OSError as e:
       print(e)
-      started_as = self.to_string(relative=True)
-      print("Unruly process started as:\n  %s\n" % started_as)
+      print('Unruly ' + process_text)
       sys.stdout.flush()
-      pass
 
   def __str__(self):
     return self.to_string()
