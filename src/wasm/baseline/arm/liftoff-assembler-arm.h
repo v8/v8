@@ -620,6 +620,13 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
     case kWasmF64:
       vstr(reg.fp(), dst);
       break;
+    case kWasmS128: {
+      UseScratchRegisterScope temps(this);
+      Register addr = liftoff::CalculateActualAddress(this, &temps, dst.rn(),
+                                                      no_reg, dst.offset());
+      vst1(Neon8, NeonListOperand(reg.low_fp(), 2), NeonMemOperand(addr));
+      break;
+    }
     default:
       UNREACHABLE();
   }
@@ -678,7 +685,7 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
       UseScratchRegisterScope temps(this);
       Register addr = liftoff::CalculateActualAddress(this, &temps, slot.rn(),
                                                       no_reg, slot.offset());
-      vld1(Neon64, NeonListOperand(reg.low_fp(), 2), NeonMemOperand(addr));
+      vld1(Neon8, NeonListOperand(reg.low_fp(), 2), NeonMemOperand(addr));
       break;
     }
     default:
