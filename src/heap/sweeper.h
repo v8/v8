@@ -93,7 +93,8 @@ class Sweeper {
   int RawSweep(
       Page* p, FreeListRebuildingMode free_list_mode,
       FreeSpaceTreatmentMode free_space_mode,
-      FreeSpaceMayContainInvalidatedSlots invalidated_slots_in_free_space);
+      FreeSpaceMayContainInvalidatedSlots invalidated_slots_in_free_space,
+      const base::MutexGuard& page_guard);
 
   // After calling this function sweeping is considered to be in progress
   // and the main thread can sweep lazily, but the background sweeper tasks
