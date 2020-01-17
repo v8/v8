@@ -236,15 +236,23 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
     int flags = MAP_SHARED | MAP_ANONYMOUS;
     void* real_alloc = mmap(nullptr, kChunkSize, prot, flags, -1, 0);
     if (reinterpret_cast<intptr_t>(real_alloc) == -1) {
+      // If we ran into some limit (physical or virtual memory, or number
+      // of mappings, etc), return {nullptr}, which callers can handle.
+      if (errno == ENOMEM) {
+        return nullptr;
+      }
+      // Other errors may be bugs which we want to learn about.
       FATAL("mmap (real) failed with error %d: %s", errno, strerror(errno));
     }
     void* virtual_alloc =
         mmap(nullptr, rounded_length, prot, flags | MAP_NORESERVE, -1, 0);
     if (reinterpret_cast<intptr_t>(virtual_alloc) == -1) {
-      // Virtual memory allocation failed, probably because the requested
-      // size was too big. Callers can handle this.
-      munmap(real_alloc, kChunkSize);
-      return nullptr;
+      if (errno == ENOMEM) {
+        // Undo earlier, successful mappings.
+        munmap(real_alloc, kChunkSize);
+        return nullptr;
+      }
+      FATAL("mmap (virtual) failed with error %d: %s", errno, strerror(errno));
     }
     i::Address virtual_base = reinterpret_cast<i::Address>(virtual_alloc);
     i::Address virtual_end = virtual_base + rounded_length;
@@ -257,6 +265,12 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
           mremap(real_alloc, 0, kChunkSize, MREMAP_MAYMOVE | MREMAP_FIXED,
                  reinterpret_cast<void*>(to_map));
       if (reinterpret_cast<intptr_t>(result) == -1) {
+        if (errno == ENOMEM) {
+          // Undo earlier, successful mappings.
+          munmap(real_alloc, kChunkSize);
+          munmap(virtual_alloc, (to_map - virtual_base));
+          return nullptr;
+        }
         FATAL("mremap failed with error %d: %s", errno, strerror(errno));
       }
     }
