@@ -602,7 +602,7 @@ bool IsSupportedVersion(Vector<const byte> version) {
 
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, Vector<const byte> data,
-    Vector<const byte> wire_bytes_vec) {
+    Vector<const byte> wire_bytes_vec, Vector<const char> source_url) {
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};
   if (!IsSupportedVersion(data)) return {};
 
@@ -616,8 +616,9 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   if (decode_result.failed()) return {};
   std::shared_ptr<WasmModule> module = std::move(decode_result.value());
   CHECK_NOT_NULL(module);
-  Handle<Script> script = CreateWasmScript(
-      isolate, wire_bytes, VectorOf(module->source_map_url), module->name);
+  Handle<Script> script =
+      CreateWasmScript(isolate, wire_bytes, VectorOf(module->source_map_url),
+                       module->name, source_url);
 
   auto shared_native_module =
       wasm_engine->MaybeGetNativeModule(module->origin, wire_bytes_vec);

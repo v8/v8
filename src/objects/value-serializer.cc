@@ -2000,7 +2000,7 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
 
   // Try to deserialize the compiled module first.
   MaybeHandle<WasmModuleObject> result =
-      wasm::DeserializeNativeModule(isolate_, compiled_bytes, wire_bytes);
+      wasm::DeserializeNativeModule(isolate_, compiled_bytes, wire_bytes, {});
   if (result.is_null()) {
     wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");
     // TODO(titzer): are the current features appropriate for deserializing?

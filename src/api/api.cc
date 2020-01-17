@@ -7208,7 +7208,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Deserialize(
   i::MaybeHandle<i::WasmModuleObject> maybe_module_object =
       i::wasm::DeserializeNativeModule(
           i_isolate, {serialized_module.data(), serialized_module.size()},
-          {wire_bytes.data(), wire_bytes.size()});
+          {wire_bytes.data(), wire_bytes.size()}, {});
   i::Handle<i::WasmModuleObject> module_object;
   if (!maybe_module_object.ToHandle(&module_object)) {
     return MaybeLocal<WasmModuleObject>();

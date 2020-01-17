@@ -1067,7 +1067,7 @@ auto Module::deserialize(Store* store_abs, const vec<byte_t>& serialized)
   if (!i::wasm::DeserializeNativeModule(
            isolate,
            {reinterpret_cast<const uint8_t*>(ptr + data_size), serial_size},
-           {reinterpret_cast<const uint8_t*>(ptr), data_size})
+           {reinterpret_cast<const uint8_t*>(ptr), data_size}, {})
            .ToHandle(&module_obj)) {
     return nullptr;
   }
