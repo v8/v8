@@ -3336,15 +3336,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void BigIntToRawBytes(TNode<BigInt> bigint, TVariable<UintPtrT>* var_low,
                         TVariable<UintPtrT>* var_high);
 
-  void EmitElementStore(Node* object, Node* key, Node* value,
-                        ElementsKind elements_kind,
+  void EmitElementStore(TNode<JSObject> object, TNode<Object> key,
+                        TNode<Object> value, ElementsKind elements_kind,
                         KeyedAccessStoreMode store_mode, Label* bailout,
-                        Node* context,
-                        Variable* maybe_converted_value = nullptr);
+                        TNode<Context> context,
+                        TVariable<Object>* maybe_converted_value = nullptr);
 
-  Node* CheckForCapacityGrow(Node* object, Node* elements, ElementsKind kind,
-                             SloppyTNode<UintPtrT> length, TNode<IntPtrT> key,
-                             ParameterMode mode, Label* bailout);
+  Node* CheckForCapacityGrow(TNode<JSObject> object,
+                             TNode<FixedArrayBase> elements, ElementsKind kind,
+                             TNode<UintPtrT> length, TNode<IntPtrT> key,
+                             Label* bailout);
 
   Node* CopyElementsOnWrite(Node* object, Node* elements, ElementsKind kind,
                             Node* length, ParameterMode mode, Label* bailout);

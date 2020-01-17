@@ -1653,13 +1653,13 @@ TNode<Smi> CodeStubAssembler::LoadFastJSArrayLength(
                                 LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND)));
   // JSArray length is always a positive Smi for fast arrays.
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
-  return UncheckedCast<Smi>(length);
+  return CAST(length);
 }
 
 TNode<Smi> CodeStubAssembler::LoadFixedArrayBaseLength(
     SloppyTNode<FixedArrayBase> array) {
   CSA_SLOW_ASSERT(this, IsNotWeakFixedArraySubclass(array));
-  return CAST(LoadObjectField(array, FixedArrayBase::kLengthOffset));
+  return LoadObjectField<Smi>(array, FixedArrayBase::kLengthOffset);
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagFixedArrayBaseLength(
@@ -2908,7 +2908,6 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
 void CodeStubAssembler::StoreFixedDoubleArrayElement(
     TNode<FixedDoubleArray> object, Node* index_node, TNode<Float64T> value,
     ParameterMode parameter_mode, CheckBounds check_bounds) {
-  CSA_ASSERT(this, IsFixedDoubleArray(object));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   if (NeedsBoundsCheck(check_bounds)) {
     FixedArrayBoundsCheck(object, index_node, 0, parameter_mode);
@@ -9753,11 +9752,10 @@ void CodeStubAssembler::BigIntToRawBytes(TNode<BigInt> bigint,
   BIND(&done);
 }
 
-void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
-                                         ElementsKind elements_kind,
-                                         KeyedAccessStoreMode store_mode,
-                                         Label* bailout, Node* context,
-                                         Variable* maybe_converted_value) {
+void CodeStubAssembler::EmitElementStore(
+    TNode<JSObject> object, TNode<Object> key, TNode<Object> value,
+    ElementsKind elements_kind, KeyedAccessStoreMode store_mode, Label* bailout,
+    TNode<Context> context, TVariable<Object>* maybe_converted_value) {
   CSA_ASSERT(this, Word32BinaryNot(IsJSProxy(object)));
 
   TNode<FixedArrayBase> elements = LoadElements(object);
@@ -9773,13 +9771,17 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   ParameterMode parameter_mode = INTPTR_PARAMETERS;
   TNode<IntPtrT> intptr_key = TryToIntptr(key, bailout);
 
+  // TODO(rmcilroy): TNodify the converted value once this funciton and
+  // StoreElement are templated based on the type elements_kind type.
+  Node* converted_value = value;
   if (IsTypedArrayElementsKind(elements_kind)) {
     Label done(this), update_value_and_bailout(this, Label::kDeferred);
 
     // IntegerIndexedElementSet converts value to a Number/BigInt prior to the
     // bounds check.
-    Node* converted_value = PrepareValueForWriteToTypedArray(
-        CAST(value), elements_kind, CAST(context));
+    converted_value =
+        PrepareValueForWriteToTypedArray(value, elements_kind, context);
+    TNode<JSTypedArray> typed_array = CAST(object);
 
     // There must be no allocations between the buffer load and
     // and the actual store to backing store, because GC may decide that
@@ -9787,7 +9789,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
     // TODO(ishell): introduce DisallowHeapAllocationCode scope here.
 
     // Check if buffer has been detached.
-    TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(CAST(object));
+    TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(typed_array);
     if (maybe_converted_value) {
       GotoIf(IsDetachedBuffer(buffer), &update_value_and_bailout);
     } else {
@@ -9795,7 +9797,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
     }
 
     // Bounds check.
-    TNode<UintPtrT> length = LoadJSTypedArrayLength(CAST(object));
+    TNode<UintPtrT> length = LoadJSTypedArrayLength(typed_array);
 
     if (store_mode == STORE_IGNORE_OUT_OF_BOUNDS) {
       // Skip the store if we write beyond the length or
@@ -9806,7 +9808,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
       GotoIfNot(UintPtrLessThan(intptr_key, length), &update_value_and_bailout);
     }
 
-    TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(CAST(object));
+    TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
     StoreElement(data_ptr, elements_kind, intptr_key, converted_value,
                  parameter_mode);
     Goto(&done);
@@ -9826,26 +9828,26 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
         case UINT16_ELEMENTS:
         case INT16_ELEMENTS:
         case UINT8_CLAMPED_ELEMENTS:
-          maybe_converted_value->Bind(SmiFromInt32(converted_value));
+          *maybe_converted_value = SmiFromInt32(converted_value);
           break;
         case UINT32_ELEMENTS:
-          maybe_converted_value->Bind(ChangeUint32ToTagged(converted_value));
+          *maybe_converted_value = ChangeUint32ToTagged(converted_value);
           break;
         case INT32_ELEMENTS:
-          maybe_converted_value->Bind(ChangeInt32ToTagged(converted_value));
+          *maybe_converted_value = ChangeInt32ToTagged(converted_value);
           break;
         case FLOAT32_ELEMENTS: {
           Label dont_allocate_heap_number(this), end(this);
           GotoIf(TaggedIsSmi(value), &dont_allocate_heap_number);
-          GotoIf(IsHeapNumber(value), &dont_allocate_heap_number);
+          GotoIf(IsHeapNumber(CAST(value)), &dont_allocate_heap_number);
           {
-            maybe_converted_value->Bind(AllocateHeapNumberWithValue(
-                ChangeFloat32ToFloat64(converted_value)));
+            *maybe_converted_value = AllocateHeapNumberWithValue(
+                ChangeFloat32ToFloat64(converted_value));
             Goto(&end);
           }
           BIND(&dont_allocate_heap_number);
           {
-            maybe_converted_value->Bind(value);
+            *maybe_converted_value = value;
             Goto(&end);
           }
           BIND(&end);
@@ -9854,15 +9856,15 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
         case FLOAT64_ELEMENTS: {
           Label dont_allocate_heap_number(this), end(this);
           GotoIf(TaggedIsSmi(value), &dont_allocate_heap_number);
-          GotoIf(IsHeapNumber(value), &dont_allocate_heap_number);
+          GotoIf(IsHeapNumber(CAST(value)), &dont_allocate_heap_number);
           {
-            maybe_converted_value->Bind(
-                AllocateHeapNumberWithValue(converted_value));
+            *maybe_converted_value =
+                AllocateHeapNumberWithValue(converted_value);
             Goto(&end);
           }
           BIND(&dont_allocate_heap_number);
           {
-            maybe_converted_value->Bind(value);
+            *maybe_converted_value = value;
             Goto(&end);
           }
           BIND(&end);
@@ -9870,7 +9872,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
         }
         case BIGINT64_ELEMENTS:
         case BIGUINT64_ELEMENTS:
-          maybe_converted_value->Bind(converted_value);
+          *maybe_converted_value = CAST(converted_value);
           break;
         default:
           UNREACHABLE();
@@ -9885,6 +9887,15 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
          IsSealedElementsKind(elements_kind) ||
          IsNonextensibleElementsKind(elements_kind));
 
+  // In case value is stored into a fast smi array, assure that the value is
+  // a smi before manipulating the backing store. Otherwise the backing store
+  // may be left in an invalid state.
+  if (IsSmiElementsKind(elements_kind)) {
+    GotoIfNot(TaggedIsSmi(value), bailout);
+  } else if (IsDoubleElementsKind(elements_kind)) {
+    converted_value = TryTaggedToFloat64(value, bailout);
+  }
+
   TNode<Smi> smi_length = Select<Smi>(
       IsJSArray(object),
       [=]() {
@@ -9893,25 +9904,14 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
       },
       [=]() { return LoadFixedArrayBaseLength(elements); });
 
-  Node* length = TaggedToParameter(smi_length, parameter_mode);
-
-  // In case value is stored into a fast smi array, assure that the value is
-  // a smi before manipulating the backing store. Otherwise the backing store
-  // may be left in an invalid state.
-  if (IsSmiElementsKind(elements_kind)) {
-    GotoIfNot(TaggedIsSmi(value), bailout);
-  } else if (IsDoubleElementsKind(elements_kind)) {
-    value = TryTaggedToFloat64(CAST(value), bailout);
-  }
-
+  TNode<UintPtrT> length = Unsigned(SmiUntag(smi_length));
   if (IsGrowStoreMode(store_mode) &&
       !(IsSealedElementsKind(elements_kind) ||
         IsNonextensibleElementsKind(elements_kind))) {
-    elements =
-        CAST(CheckForCapacityGrow(object, elements, elements_kind, length,
-                                  intptr_key, parameter_mode, bailout));
+    elements = CAST(CheckForCapacityGrow(object, elements, elements_kind,
+                                         length, intptr_key, bailout));
   } else {
-    GotoIfNot(UintPtrLessThan(intptr_key, length), bailout);
+    GotoIfNot(UintPtrLessThan(Unsigned(intptr_key), length), bailout);
   }
 
   // Cannot store to a hole in holey sealed elements so bailout.
@@ -9934,15 +9934,13 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   }
 
   CSA_ASSERT(this, Word32BinaryNot(IsFixedCOWArrayMap(LoadMap(elements))));
-  StoreElement(elements, elements_kind, intptr_key, value, parameter_mode);
+  StoreElement(elements, elements_kind, intptr_key, converted_value,
+               parameter_mode);
 }
 
-Node* CodeStubAssembler::CheckForCapacityGrow(Node* object, Node* elements,
-                                              ElementsKind kind,
-                                              SloppyTNode<UintPtrT> length,
-                                              TNode<IntPtrT> key,
-                                              ParameterMode mode,
-                                              Label* bailout) {
+Node* CodeStubAssembler::CheckForCapacityGrow(
+    TNode<JSObject> object, TNode<FixedArrayBase> elements, ElementsKind kind,
+    TNode<UintPtrT> length, TNode<IntPtrT> key, Label* bailout) {
   DCHECK(IsFastElementsKind(kind));
   VARIABLE(checked_elements, MachineRepresentation::kTagged);
   Label grow_case(this), no_grow_case(this), done(this),
@@ -9959,27 +9957,25 @@ Node* CodeStubAssembler::CheckForCapacityGrow(Node* object, Node* elements,
 
   BIND(&grow_case);
   {
-    Node* current_capacity =
-        TaggedToParameter(LoadFixedArrayBaseLength(elements), mode);
+    TNode<IntPtrT> current_capacity =
+        SmiUntag(LoadFixedArrayBaseLength(elements));
     checked_elements.Bind(elements);
     Label fits_capacity(this);
     // If key is negative, we will notice in Runtime::kGrowArrayElements.
     GotoIf(UintPtrLessThan(key, current_capacity), &fits_capacity);
 
     {
-      Node* new_elements = TryGrowElementsCapacity(
-          object, elements, kind, key, current_capacity, mode, &grow_bailout);
+      Node* new_elements =
+          TryGrowElementsCapacity(object, elements, kind, key, current_capacity,
+                                  INTPTR_PARAMETERS, &grow_bailout);
       checked_elements.Bind(new_elements);
       Goto(&fits_capacity);
     }
 
     BIND(&grow_bailout);
     {
-      GotoIf(IntPtrOrSmiLessThan(key, IntPtrOrSmiConstant(0, mode), mode),
-             bailout);
-      Node* tagged_key = mode == SMI_PARAMETERS
-                             ? static_cast<Node*>(key)
-                             : ChangeUintPtrToTagged(Unsigned(key));
+      GotoIf(IntPtrLessThan(key, IntPtrConstant(0)), bailout);
+      TNode<Number> tagged_key = ChangeUintPtrToTagged(Unsigned(key));
       TNode<Object> maybe_elements = CallRuntime(
           Runtime::kGrowArrayElements, NoContextConstant(), object, tagged_key);
       GotoIf(TaggedIsSmi(maybe_elements), bailout);
@@ -9991,9 +9987,9 @@ Node* CodeStubAssembler::CheckForCapacityGrow(Node* object, Node* elements,
     BIND(&fits_capacity);
     GotoIfNot(IsJSArray(object), &done);
 
-    TNode<WordT> new_length = IntPtrAdd(key, IntPtrOrSmiConstant(1, mode));
-    StoreObjectFieldNoWriteBarrier(CAST(object), JSArray::kLengthOffset,
-                                   ParameterToTagged(new_length, mode));
+    TNode<IntPtrT> new_length = IntPtrAdd(key, IntPtrConstant(1));
+    StoreObjectFieldNoWriteBarrier(object, JSArray::kLengthOffset,
+                                   SmiTag(new_length));
     Goto(&done);
   }
 

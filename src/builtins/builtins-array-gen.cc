@@ -77,7 +77,7 @@ TNode<Object> ArrayBuiltinsAssembler::TypedArrayMapProcessor(
   // TODO(v8:4153): Consider checking IsDetachedBuffer() and calling
   // TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromNumeric() here
   // instead to avoid converting k_number back to UintPtrT.
-  EmitElementStore(a(), k_number, num_value, source_elements_kind_,
+  EmitElementStore(CAST(a()), k_number, num_value, source_elements_kind_,
                    KeyedAccessStoreMode::STANDARD_STORE, &detached, context());
   Goto(&done);
 
