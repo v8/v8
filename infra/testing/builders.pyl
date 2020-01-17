@@ -262,7 +262,7 @@
       {'name': 'mozilla'},
       {'name': 'optimize_for_size'},
       {'name': 'test262', 'variant': 'default'},
-      {'name': 'v8testing', 'shards': 2},
+      {'name': 'v8testing', 'shards': 3},
     ],
   },
   'v8_linux64_dbg_ng_triggered': {
@@ -875,7 +875,7 @@
       {'name': 'mozilla'},
       {'name': 'optimize_for_size'},
       {'name': 'test262', 'variant': 'default'},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   'V8 Linux64 - custom snapshot - debug': {
