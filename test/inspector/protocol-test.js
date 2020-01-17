@@ -389,6 +389,12 @@ InspectorTest.Session = class {
     var messageObject = JSON.parse(messageString);
     if (InspectorTest._dumpInspectorProtocolMessages)
       utils.print("backend: " + JSON.stringify(messageObject));
+    const kMethodNotFound = -32601;
+    if (messageObject.error && messageObject.error.code === kMethodNotFound) {
+      InspectorTest.log(`Error: Called non-existent method. ${
+          messageObject.error.message} code: ${messageObject.error.code}`);
+      InspectorTest.completeTest();
+    }
     try {
       var messageId = messageObject["id"];
       if (typeof messageId === "number") {

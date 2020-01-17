@@ -59,7 +59,7 @@ function compareCounterMaps(counterMap, counterMap2) {
 }
 
 (async function test() {
-  await Protocol.Runtime.ensable();
+  await Protocol.Runtime.enable();
   await Protocol.Profiler.enableRuntimeCallStats();
 
   let counterMap = buildCounterMap(await Protocol.Profiler.getRuntimeCallStats());

@@ -19,7 +19,7 @@ function logErrorMessage(result) {
 }
 
 (async function test() {
-  await Protocol.Runtime.ensable();
+  await Protocol.Runtime.enable();
 
   // This should fail with "not enabled" error.
   logErrorMessage(await Protocol.Profiler.getRuntimeCallStats());
