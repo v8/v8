@@ -243,7 +243,7 @@ class AndroidCommand(BaseCommand):
   driver = None
 
   def __init__(self, shell, args=None, cmd_prefix=None, timeout=60, env=None,
-               verbose=False, resources_func=None):
+               verbose=False, resources_func=None, handle_sigterm=False):
     """Initialize the command and all files that need to be pushed to the
     Android device.
     """
@@ -264,7 +264,7 @@ class AndroidCommand(BaseCommand):
 
     super(AndroidCommand, self).__init__(
         shell, args=rel_args, cmd_prefix=cmd_prefix, timeout=timeout, env=env,
-        verbose=verbose)
+        verbose=verbose, handle_sigterm=handle_sigterm)
 
   def execute(self, **additional_popen_kwargs):
     """Execute the command on the device.
