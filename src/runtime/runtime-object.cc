@@ -941,6 +941,11 @@ RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Smi, position, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 2);
+
+  if (maybe_vector->IsUndefined()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
   CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 2);
 
   Handle<String> type = Object::TypeOf(isolate, value);
