@@ -25,7 +25,9 @@ TypeOracle::GetBitFieldStructTypes() {
 
 // static
 void TypeOracle::FinalizeAggregateTypes() {
-  for (const std::unique_ptr<AggregateType>& p : Get().aggregate_types_) {
+  size_t current = 0;
+  while (current != Get().aggregate_types_.size()) {
+    auto& p = Get().aggregate_types_[current++];
     p->Finalize();
   }
 }
