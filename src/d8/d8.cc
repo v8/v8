@@ -1204,9 +1204,13 @@ void Shell::PerformanceMeasureMemory(
       mode = v8::MeasureMemoryMode::kDetailed;
     }
   }
-  v8::MaybeLocal<v8::Promise> result =
-      args.GetIsolate()->MeasureMemory(context, mode);
-  args.GetReturnValue().Set(result.FromMaybe(v8::Local<v8::Promise>()));
+  Local<v8::Promise::Resolver> promise_resolver =
+      v8::Promise::Resolver::New(context).ToLocalChecked();
+  args.GetIsolate()->MeasureMemory(
+      v8::MeasureMemoryDelegate::Default(isolate, context, promise_resolver,
+                                         mode),
+      v8::MeasureMemoryExecution::kEager);
+  args.GetReturnValue().Set(promise_resolver->GetPromise());
 }
 
 // Realm.current() returns the index of the currently active realm.

@@ -8561,11 +8561,25 @@ bool Isolate::GetHeapCodeAndMetadataStatistics(
 
 v8::MaybeLocal<v8::Promise> Isolate::MeasureMemory(
     v8::Local<v8::Context> context, MeasureMemoryMode mode) {
+  return v8::MaybeLocal<v8::Promise>();
+}
+
+bool Isolate::MeasureMemory(std::unique_ptr<MeasureMemoryDelegate> delegate,
+                            MeasureMemoryExecution execution) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  return isolate->heap()->MeasureMemory(std::move(delegate), execution);
+}
+
+std::unique_ptr<MeasureMemoryDelegate> MeasureMemoryDelegate::Default(
+    Isolate* isolate, Local<Context> context,
+    Local<Promise::Resolver> promise_resolver, MeasureMemoryMode mode) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::NativeContext> native_context =
-      handle(Utils::OpenHandle(*context)->native_context(), isolate);
-  return v8::Utils::PromiseToLocal(
-      isolate->heap()->MeasureMemory(native_context, mode));
+      handle(Utils::OpenHandle(*context)->native_context(), i_isolate);
+  i::Handle<i::JSPromise> js_promise =
+      i::Handle<i::JSPromise>::cast(Utils::OpenHandle(*promise_resolver));
+  return i_isolate->heap()->MeasureMemoryDelegate(native_context, js_promise,
+                                                  mode);
 }
 
 void Isolate::GetStackSample(const RegisterState& state, void** frames,

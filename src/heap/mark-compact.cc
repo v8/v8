@@ -504,9 +504,14 @@ void MarkCompactCollector::StartMarking() {
     heap_->new_space()->ResetOriginalTop();
     heap_->new_lo_space()->ResetPendingObject();
   }
-  std::vector<Address> contexts;
+  std::vector<Address> contexts =
+      heap()->memory_measurement()->StartProcessing();
   if (FLAG_stress_per_context_marking_worklist) {
-    contexts = heap()->FindNativeContexts();
+    contexts.clear();
+    HandleScope handle_scope(heap()->isolate());
+    for (auto context : heap()->FindAllNativeContexts()) {
+      contexts.push_back(context->ptr());
+    }
   }
   marking_worklists_holder()->CreateContextWorklists(contexts);
   marking_worklists_ = std::make_unique<MarkingWorklists>(
@@ -536,7 +541,7 @@ void MarkCompactCollector::CollectGarbage() {
   MarkLiveObjects();
   ClearNonLiveReferences();
   VerifyMarking();
-
+  heap()->memory_measurement()->FinishProcessing(native_context_stats_);
   RecordObjectStats();
 
   StartSweepSpaces();

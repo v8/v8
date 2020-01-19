@@ -51,14 +51,15 @@ TEST(NativeContextInferrerJSObject) {
   LocalContext env;
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Handle<NativeContext> native_context = GetNativeContext(isolate, env.local());
   v8::Local<v8::Value> result = CompileRun("({a : 10})");
   Handle<Object> object = Utils::OpenHandle(*result);
   Handle<HeapObject> function = Handle<HeapObject>::cast(object);
   NativeContextInferrer inferrer;
   Address inferred_context = 0;
-  CHECK(inferrer.Infer(isolate, function->map(), *function, &inferred_context));
-  CHECK_EQ(native_context->ptr(), inferred_context);
+  // TODO(ulan): Enable this test once we have more precise native
+  // context inference.
+  CHECK(
+      !inferrer.Infer(isolate, function->map(), *function, &inferred_context));
 }
 
 TEST(NativeContextStatsMerge) {

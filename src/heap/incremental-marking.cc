@@ -324,7 +324,6 @@ void IncrementalMarking::StartMarking() {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Start marking\n");
   }
-
   is_compacting_ = !FLAG_never_compact && collector_->StartCompaction();
   collector_->StartMarking();
 

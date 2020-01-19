@@ -15,7 +15,6 @@
   V(_, cardinal_string, "cardinal")                                 \
   V(_, caseFirst_string, "caseFirst")                               \
   V(_, compare_string, "compare")                                   \
-  V(_, current_string, "current")                                   \
   V(_, collation_string, "collation")                               \
   V(_, compact_string, "compact")                                   \
   V(_, compactDisplay_string, "compactDisplay")                     \
@@ -158,6 +157,7 @@
   V(_, conjunction_string, "conjunction")                            \
   V(_, construct_string, "construct")                                \
   V(_, constructor_string, "constructor")                            \
+  V(_, current_string, "current")                                    \
   V(_, Date_string, "Date")                                          \
   V(_, date_to_string, "[object Date]")                              \
   V(_, default_string, "default")                                    \
@@ -252,6 +252,7 @@
   V(_, of_string, "of")                                              \
   V(_, ok, "ok")                                                     \
   V(_, one_string, "1")                                              \
+  V(_, other_string, "other")                                        \
   V(_, ownKeys_string, "ownKeys")                                    \
   V(_, percent_string, "percent")                                    \
   V(_, position_string, "position")                                  \

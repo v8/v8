@@ -3839,9 +3839,26 @@ bool Heap::InvokeNearHeapLimitCallback() {
   return false;
 }
 
-Handle<JSPromise> Heap::MeasureMemory(Handle<NativeContext> context,
-                                      v8::MeasureMemoryMode mode) {
-  return memory_measurement_->EnqueueRequest(context, mode);
+bool Heap::MeasureMemory(std::unique_ptr<v8::MeasureMemoryDelegate> delegate,
+                         v8::MeasureMemoryExecution execution) {
+  HandleScope handle_scope(isolate());
+  std::vector<Handle<NativeContext>> contexts = FindAllNativeContexts();
+  std::vector<Handle<NativeContext>> to_measure;
+  for (auto& current : contexts) {
+    if (delegate->ShouldMeasure(
+            v8::Utils::ToLocal(Handle<Context>::cast(current)))) {
+      to_measure.push_back(current);
+    }
+  }
+  return memory_measurement_->EnqueueRequest(std::move(delegate), execution,
+                                             to_measure);
+}
+
+std::unique_ptr<v8::MeasureMemoryDelegate> Heap::MeasureMemoryDelegate(
+    Handle<NativeContext> context, Handle<JSPromise> promise,
+    v8::MeasureMemoryMode mode) {
+  return i::MemoryMeasurement::DefaultDelegate(isolate_, context, promise,
+                                               mode);
 }
 
 void Heap::CollectCodeStatistics() {
@@ -3923,6 +3940,8 @@ const char* Heap::GarbageCollectionReasonToString(
       return "external finalize";
     case GarbageCollectionReason::kGlobalAllocationLimit:
       return "global allocation limit";
+    case GarbageCollectionReason::kMeasureMemory:
+      return "measure memory";
     case GarbageCollectionReason::kUnknown:
       return "unknown";
   }
@@ -6076,12 +6095,12 @@ size_t Heap::NumberOfNativeContexts() {
   return result;
 }
 
-std::vector<Address> Heap::FindNativeContexts() {
-  std::vector<Address> result;
+std::vector<Handle<NativeContext>> Heap::FindAllNativeContexts() {
+  std::vector<Handle<NativeContext>> result;
   Object context = native_contexts_list();
   while (!context.IsUndefined(isolate())) {
-    Context native_context = Context::cast(context);
-    result.push_back(native_context.ptr());
+    NativeContext native_context = NativeContext::cast(context);
+    result.push_back(handle(native_context, isolate()));
     context = native_context.next_context_link();
   }
   return result;

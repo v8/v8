@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_MEMORY_MEASUREMENT_H_
 #define V8_HEAP_MEMORY_MEASUREMENT_H_
 
+#include <list>
 #include <unordered_map>
 
 #include "src/common/globals.h"
@@ -16,14 +17,44 @@ namespace v8 {
 namespace internal {
 
 class Heap;
+class NativeContextStats;
 
 class V8_EXPORT_PRIVATE MemoryMeasurement {
  public:
   explicit MemoryMeasurement(Isolate* isolate);
-  Handle<JSPromise> EnqueueRequest(Handle<NativeContext> context,
-                                   v8::MeasureMemoryMode mode);
+
+  bool EnqueueRequest(std::unique_ptr<v8::MeasureMemoryDelegate> delegate,
+                      v8::MeasureMemoryExecution execution,
+                      const std::vector<Handle<NativeContext>> contexts);
+  std::vector<Address> StartProcessing();
+  void FinishProcessing(const NativeContextStats& stats);
+
+  static std::unique_ptr<v8::MeasureMemoryDelegate> DefaultDelegate(
+      Isolate* isolate, Handle<NativeContext> context,
+      Handle<JSPromise> promise, v8::MeasureMemoryMode mode);
+
  private:
+  static const int kGCTaskDelayInSeconds = 60;
+  struct Request {
+    std::unique_ptr<v8::MeasureMemoryDelegate> delegate;
+    Handle<WeakFixedArray> contexts;
+    std::vector<size_t> sizes;
+    size_t shared;
+  };
+  void ScheduleReportingTask();
+  void ReportResults();
+  void ScheduleGCTask(v8::MeasureMemoryExecution execution);
+  bool IsGCTaskPending(v8::MeasureMemoryExecution execution);
+  void SetGCTaskPending(v8::MeasureMemoryExecution execution);
+  void SetGCTaskDone(v8::MeasureMemoryExecution execution);
+
+  std::list<Request> received_;
+  std::list<Request> processing_;
+  std::list<Request> done_;
   Isolate* isolate_;
+  bool reporting_task_pending_ = false;
+  bool delayed_gc_task_pending_ = false;
+  bool eager_gc_task_pending_ = false;
 };
 
 // Infers the native context for some of the heap objects.
@@ -54,7 +85,6 @@ class V8_EXPORT_PRIVATE NativeContextStats {
     if (it == size_by_context_.end()) return 0;
     return it->second;
   }
-
   void Clear();
   void Merge(const NativeContextStats& other);
 
