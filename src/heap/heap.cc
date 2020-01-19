@@ -5380,6 +5380,8 @@ void Heap::TearDown() {
 
   gc_idle_time_handler_.reset();
 
+  memory_measurement_.reset();
+
   if (memory_reducer_ != nullptr) {
     memory_reducer_->TearDown();
     memory_reducer_.reset();
