@@ -967,12 +967,31 @@ void PerformOperation(Operation op, T* lhs, T* rhs) {
   }
 }
 
+enum class TargetHandling {
+  kNonInitialized,
+  kInitializedYoungGen,
+  kInitializedOldGen
+};
+
 template <typename T>
-V8_NOINLINE void StackToHeapTest(TestEmbedderHeapTracer* tracer, Operation op) {
+V8_NOINLINE void StackToHeapTest(TestEmbedderHeapTracer* tracer, Operation op,
+                                 TargetHandling target_handling) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::Global<v8::Object> observer;
   T stack_handle;
   T* heap_handle = new T();
+  if (target_handling != TargetHandling::kNonInitialized) {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> to_object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), nullptr, nullptr));
+    CHECK(i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+    if (target_handling == TargetHandling::kInitializedOldGen) {
+      heap::InvokeScavenge();
+      heap::InvokeScavenge();
+      CHECK(!i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+    }
+    heap_handle->Reset(isolate, to_object);
+  }
   {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
@@ -982,6 +1001,7 @@ V8_NOINLINE void StackToHeapTest(TestEmbedderHeapTracer* tracer, Operation op) {
     observer.SetWeak();
   }
   CHECK(!observer.IsEmpty());
+  tracer->AddReferenceForTracing(heap_handle);
   heap::InvokeMarkSweep();
   CHECK(!observer.IsEmpty());
   tracer->AddReferenceForTracing(heap_handle);
@@ -994,11 +1014,24 @@ V8_NOINLINE void StackToHeapTest(TestEmbedderHeapTracer* tracer, Operation op) {
 }
 
 template <typename T>
-V8_NOINLINE void HeapToStackTest(TestEmbedderHeapTracer* tracer, Operation op) {
+V8_NOINLINE void HeapToStackTest(TestEmbedderHeapTracer* tracer, Operation op,
+                                 TargetHandling target_handling) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::Global<v8::Object> observer;
   T stack_handle;
   T* heap_handle = new T();
+  if (target_handling != TargetHandling::kNonInitialized) {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> to_object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), nullptr, nullptr));
+    CHECK(i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+    if (target_handling == TargetHandling::kInitializedOldGen) {
+      heap::InvokeScavenge();
+      heap::InvokeScavenge();
+      CHECK(!i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+    }
+    stack_handle.Reset(isolate, to_object);
+  }
   {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
@@ -1021,12 +1054,24 @@ V8_NOINLINE void HeapToStackTest(TestEmbedderHeapTracer* tracer, Operation op) {
 }
 
 template <typename T>
-V8_NOINLINE void StackToStackTest(TestEmbedderHeapTracer* tracer,
-                                  Operation op) {
+V8_NOINLINE void StackToStackTest(TestEmbedderHeapTracer* tracer, Operation op,
+                                  TargetHandling target_handling) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::Global<v8::Object> observer;
   T stack_handle1;
   T stack_handle2;
+  if (target_handling != TargetHandling::kNonInitialized) {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> to_object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), nullptr, nullptr));
+    CHECK(i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+    if (target_handling == TargetHandling::kInitializedOldGen) {
+      heap::InvokeScavenge();
+      heap::InvokeScavenge();
+      CHECK(!i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+    }
+    stack_handle2.Reset(isolate, to_object);
+  }
   {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
@@ -1134,9 +1179,24 @@ TEST(TracedReferenceMove) {
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
                                                       &tracer);
   tracer.SetStackStart(&manual_gc);
-  StackToHeapTest<ReferenceType>(&tracer, Operation::kMove);
-  HeapToStackTest<ReferenceType>(&tracer, Operation::kMove);
-  StackToStackTest<ReferenceType>(&tracer, Operation::kMove);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kNonInitialized);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedYoungGen);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedOldGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kNonInitialized);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedYoungGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedOldGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                  TargetHandling::kNonInitialized);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                  TargetHandling::kInitializedYoungGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                  TargetHandling::kInitializedOldGen);
 }
 
 TEST(TracedReferenceCopy) {
@@ -1147,12 +1207,27 @@ TEST(TracedReferenceCopy) {
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
                                                       &tracer);
   tracer.SetStackStart(&manual_gc);
-  StackToHeapTest<ReferenceType>(&tracer, Operation::kCopy);
-  HeapToStackTest<ReferenceType>(&tracer, Operation::kCopy);
-  StackToStackTest<ReferenceType>(&tracer, Operation::kCopy);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kNonInitialized);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedYoungGen);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedOldGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kNonInitialized);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedYoungGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedOldGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                  TargetHandling::kNonInitialized);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                  TargetHandling::kInitializedYoungGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                  TargetHandling::kInitializedOldGen);
 }
 
-TEST(TraceGlobalMove) {
+TEST(TracedGlobalMove) {
   using ReferenceType = v8::TracedGlobal<v8::Value>;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
@@ -1160,9 +1235,24 @@ TEST(TraceGlobalMove) {
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
                                                       &tracer);
   tracer.SetStackStart(&manual_gc);
-  StackToHeapTest<ReferenceType>(&tracer, Operation::kMove);
-  HeapToStackTest<ReferenceType>(&tracer, Operation::kMove);
-  StackToStackTest<ReferenceType>(&tracer, Operation::kMove);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kNonInitialized);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedYoungGen);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedOldGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kNonInitialized);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedYoungGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedOldGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                  TargetHandling::kNonInitialized);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                  TargetHandling::kInitializedYoungGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                  TargetHandling::kInitializedOldGen);
 }
 
 TEST(TracedGlobalCopy) {
@@ -1173,9 +1263,24 @@ TEST(TracedGlobalCopy) {
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
                                                       &tracer);
   tracer.SetStackStart(&manual_gc);
-  StackToHeapTest<ReferenceType>(&tracer, Operation::kCopy);
-  HeapToStackTest<ReferenceType>(&tracer, Operation::kCopy);
-  StackToStackTest<ReferenceType>(&tracer, Operation::kCopy);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kNonInitialized);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedYoungGen);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedOldGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kNonInitialized);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedYoungGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedOldGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                  TargetHandling::kNonInitialized);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                  TargetHandling::kInitializedYoungGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                  TargetHandling::kInitializedOldGen);
 }
 
 TEST(TracedGlobalDestructor) {
