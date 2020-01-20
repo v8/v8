@@ -9,7 +9,7 @@
  * This set of documents provides reference material generated from the
  * V8 header file, include/v8.h.
  *
- * For other documentation see http://code.google.com/apis/v8/
+ * For other documentation see https://v8.dev/.
  */
 
 #ifndef INCLUDE_V8_H_
