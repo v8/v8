@@ -336,16 +336,18 @@ BasicBlock* GraphAssembler::BasicBlockUpdater::Finalize(BasicBlock* original) {
 }
 
 GraphAssembler::GraphAssembler(MachineGraph* mcgraph, Zone* zone,
-                               Schedule* schedule)
+                               Schedule* schedule, bool mark_loop_exits)
     : temp_zone_(zone),
       mcgraph_(mcgraph),
       effect_(nullptr),
       control_(nullptr),
       block_updater_(schedule != nullptr ? new BasicBlockUpdater(
                                                schedule, mcgraph->graph(), zone)
-                                         : nullptr) {}
+                                         : nullptr),
+      loop_headers_(zone),
+      mark_loop_exits_(mark_loop_exits) {}
 
-GraphAssembler::~GraphAssembler() = default;
+GraphAssembler::~GraphAssembler() { DCHECK_EQ(loop_nesting_level_, 0); }
 
 Node* GraphAssembler::IntPtrConstant(intptr_t value) {
   return AddClonedNode(mcgraph()->IntPtrConstant(value));

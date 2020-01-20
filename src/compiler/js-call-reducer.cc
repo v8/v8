@@ -42,9 +42,12 @@ namespace compiler {
 #define _ [&]()  // NOLINT(whitespace/braces)
 
 class JSCallReducerAssembler : public JSGraphAssembler {
+ private:
+  static constexpr bool kMarkLoopExits = true;
+
  public:
   JSCallReducerAssembler(JSGraph* jsgraph, Zone* zone, Node* node)
-      : JSGraphAssembler(jsgraph, zone),
+      : JSGraphAssembler(jsgraph, zone, nullptr, kMarkLoopExits),
         node_(node),
         if_exception_nodes_(zone) {
     InitializeEffectControl(NodeProperties::GetEffectInput(node),
@@ -301,27 +304,28 @@ class JSCallReducerAssembler : public JSGraphAssembler {
           step_(step) {}
 
     void Do(const For0BodyFunction& body) {
-      auto loop_header = gasm_->MakeLoopLabel(kPhiRepresentation);
-      auto loop_body = gasm_->MakeLabel();
       auto loop_exit = gasm_->MakeLabel();
 
-      gasm_->Goto(&loop_header, initial_value_);
+      {
+        GraphAssembler::LoopScope<kPhiRepresentation> loop_scope(gasm_);
 
-      gasm_->Bind(&loop_header);
-      Control loop_header_control = gasm_->control();  // For LoopExit below.
-      TNode<Number> i = loop_header.PhiAt<Number>(0);
+        auto loop_header = loop_scope.loop_header_label();
+        auto loop_body = gasm_->MakeLabel();
 
-      gasm_->BranchWithHint(cond_(i), &loop_body, &loop_exit,
-                            BranchHint::kTrue);
+        gasm_->Goto(loop_header, initial_value_);
 
-      gasm_->Bind(&loop_body);
-      body(i);
-      gasm_->Goto(&loop_header, step_(i));
+        gasm_->Bind(loop_header);
+        TNode<Number> i = loop_header->PhiAt<Number>(0);
+
+        gasm_->BranchWithHint(cond_(i), &loop_body, &loop_exit,
+                              BranchHint::kTrue);
+
+        gasm_->Bind(&loop_body);
+        body(i);
+        gasm_->Goto(loop_header, step_(i));
+      }
 
       gasm_->Bind(&loop_exit);
-      // Mark {loop_header} as a candidate for loop peeling (crbug.com/v8/8273).
-      gasm_->LoopExit(loop_header_control);
-      gasm_->LoopExitEffect();
     }
 
    private:
@@ -369,29 +373,30 @@ class JSCallReducerAssembler : public JSGraphAssembler {
       DCHECK(body_);
       TNode<Object> arg0 = initial_arg0_;
 
-      auto loop_header =
-          gasm_->MakeLoopLabel(kPhiRepresentation, kPhiRepresentation);
-      auto loop_body = gasm_->MakeDeferredLabel(kPhiRepresentation);
       auto loop_exit = gasm_->MakeDeferredLabel(kPhiRepresentation);
 
-      gasm_->Goto(&loop_header, initial_value_, initial_arg0_);
+      {
+        GraphAssembler::LoopScope<kPhiRepresentation, kPhiRepresentation>
+            loop_scope(gasm_);
 
-      gasm_->Bind(&loop_header);
-      Control loop_header_control = gasm_->control();  // For LoopExit below.
-      TNode<Number> i = loop_header.PhiAt<Number>(0);
-      arg0 = loop_header.PhiAt<Object>(1);
+        auto loop_header = loop_scope.loop_header_label();
+        auto loop_body = gasm_->MakeDeferredLabel(kPhiRepresentation);
 
-      gasm_->BranchWithHint(cond_(i), &loop_body, &loop_exit, BranchHint::kTrue,
-                            arg0);
+        gasm_->Goto(loop_header, initial_value_, initial_arg0_);
 
-      gasm_->Bind(&loop_body);
-      body_(i, &arg0);
-      gasm_->Goto(&loop_header, step_(i), arg0);
+        gasm_->Bind(loop_header);
+        TNode<Number> i = loop_header->PhiAt<Number>(0);
+        arg0 = loop_header->PhiAt<Object>(1);
+
+        gasm_->BranchWithHint(cond_(i), &loop_body, &loop_exit,
+                              BranchHint::kTrue, arg0);
+
+        gasm_->Bind(&loop_body);
+        body_(i, &arg0);
+        gasm_->Goto(loop_header, step_(i), arg0);
+      }
 
       gasm_->Bind(&loop_exit);
-      // Mark {loop_header} as a candidate for loop peeling (crbug.com/v8/8273).
-      gasm_->LoopExit(loop_header_control);
-      gasm_->LoopExitEffect();
       return TNode<Object>::UncheckedCast(
           gasm_->LoopExitValue(loop_exit.PhiAt<Object>(0)));
     }
@@ -562,14 +567,14 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
   template <typename... Vars>
   TNode<Object> MaybeSkipHole(
       TNode<Object> o, ElementsKind kind,
-      GraphAssemblerLabel<sizeof...(Vars)>* continue_label, Vars... vars) {
+      GraphAssemblerLabel<sizeof...(Vars)>* continue_label,
+      TNode<Vars>... vars) {
     if (!IsHoleyElementsKind(kind)) return o;
 
-    // TODO(jgruber): Currently we just assume all merge variables to have a
-    // tagged representation.
-    auto if_not_hole = GraphAssemblerLabel<sizeof...(Vars)>(
-        GraphAssemblerLabelType::kNonDeferred, NewBasicBlock(false),
-        MachineRepresentation::kTagged);
+    std::array<MachineRepresentation, sizeof...(Vars)> reps = {
+        MachineRepresentationOf<Vars>::value...};
+    auto if_not_hole =
+        MakeLabel<sizeof...(Vars)>(reps, GraphAssemblerLabelType::kNonDeferred);
     BranchWithHint(HoleCheck(kind, o), continue_label, &if_not_hole,
                    BranchHint::kFalse, vars...);
 
@@ -1074,7 +1079,11 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeReduce(
       TNode<Object> element;
       std::tie(k, element) = SafeLoadElement(kind, receiver, k);
 
-      GotoIfNot(HoleCheck(kind, element), &found_initial_element, k, element);
+      auto continue_label = MakeLabel();
+      GotoIf(HoleCheck(kind, element), &continue_label);
+      Goto(&found_initial_element, k, TypeGuardNonInternal(element));
+
+      Bind(&continue_label);
     });
     Unreachable();  // The loop is exited either by deopt or a jump to below.
     InitializeEffectControl(nullptr, nullptr);
@@ -1084,7 +1093,6 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeReduce(
     Bind(&found_initial_element);
     k = step(found_initial_element.PhiAt<Number>(0));
     accumulator = found_initial_element.PhiAt<Object>(1);
-    accumulator = TypeGuardNonInternal(accumulator);
   }
 
   TNode<Object> result =
