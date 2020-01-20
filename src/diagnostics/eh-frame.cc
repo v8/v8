@@ -338,10 +338,14 @@ void EhFrameWriter::RecordRegisterFollowsInitialRule(Register name) {
 
 void EhFrameWriter::RecordRegisterFollowsInitialRule(int dwarf_register_code) {
   DCHECK_EQ(writer_state_, InternalState::kInitialized);
-  DCHECK_LE(dwarf_register_code, EhFrameConstants::kFollowInitialRuleMask);
-  WriteByte((EhFrameConstants::kFollowInitialRuleTag
-             << EhFrameConstants::kFollowInitialRuleMaskSize) |
-            (dwarf_register_code & EhFrameConstants::kFollowInitialRuleMask));
+  if (dwarf_register_code <= EhFrameConstants::kFollowInitialRuleMask) {
+    WriteByte((EhFrameConstants::kFollowInitialRuleTag
+               << EhFrameConstants::kFollowInitialRuleMaskSize) |
+              (dwarf_register_code & EhFrameConstants::kFollowInitialRuleMask));
+  } else {
+    WriteOpcode(EhFrameConstants::DwarfOpcodes::kRestoreExtended);
+    WriteULeb128(dwarf_register_code);
+  }
 }
 
 void EhFrameWriter::Finish(int code_size) {

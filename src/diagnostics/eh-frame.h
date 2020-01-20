@@ -24,6 +24,7 @@ class V8_EXPORT_PRIVATE EhFrameConstants final
     kAdvanceLoc1 = 0x02,
     kAdvanceLoc2 = 0x03,
     kAdvanceLoc4 = 0x04,
+    kRestoreExtended = 0x06,
     kSameValue = 0x08,
     kDefCfa = 0x0c,
     kDefCfaRegister = 0x0d,
