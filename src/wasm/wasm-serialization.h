@@ -35,8 +35,8 @@ class V8_EXPORT_PRIVATE WasmSerializer {
 bool IsSupportedVersion(Vector<const byte> data);
 
 // Deserializes the given data to create a Wasm module object.
-MaybeHandle<WasmModuleObject> DeserializeNativeModule(
-    Isolate* isolate, Vector<const byte> data, Vector<const byte> wire_bytes,
+V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> DeserializeNativeModule(
+    Isolate*, Vector<const byte> data, Vector<const byte> wire_bytes,
     Vector<const char> source_url);
 
 }  // namespace wasm
