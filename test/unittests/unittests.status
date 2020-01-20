@@ -5,7 +5,7 @@
 [
 [ALWAYS, {
   # BUG(1043117)
-  'RegionAllocatorTest': [SKIP],
+  'RegionAllocatorTest.*': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
