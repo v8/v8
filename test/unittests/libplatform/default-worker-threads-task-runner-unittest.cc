@@ -4,6 +4,7 @@
 
 #include "src/libplatform/default-worker-threads-task-runner.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "include/v8-platform.h"
