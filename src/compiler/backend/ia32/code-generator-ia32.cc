@@ -4102,13 +4102,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32Word32AtomicPairLoad: {
       XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
       __ movq(tmp, i.MemoryOperand());
-      if (instr->OutputCount() == 2) {
-        __ Pextrd(i.OutputRegister(0), tmp, 0);
-        __ Pextrd(i.OutputRegister(1), tmp, 1);
-      } else if (instr->OutputCount() == 1) {
-        __ Pextrd(i.OutputRegister(0), tmp, 0);
-        __ Pextrd(i.TempRegister(1), tmp, 1);
-      }
+      __ Pextrd(i.OutputRegister(0), tmp, 0);
+      __ Pextrd(i.OutputRegister(1), tmp, 1);
       break;
     }
     case kIA32Word32AtomicPairStore: {

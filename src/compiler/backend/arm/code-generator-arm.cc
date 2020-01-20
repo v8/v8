@@ -3222,10 +3222,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Xor, eor)
 #undef ATOMIC_BINOP_CASE
     case kArmWord32AtomicPairLoad: {
-      DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr, r0, r1));
-      __ add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-      __ ldrexd(r0, r1, i.TempRegister(0));
-      __ dmb(ISH);
+      if (instr->OutputCount() == 2) {
+        DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr, r0, r1));
+        __ add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+        __ ldrexd(r0, r1, i.TempRegister(0));
+        __ dmb(ISH);
+      } else {
+        // A special case of this instruction: even though this is a pair load,
+        // we only need one of the two words. We emit a normal atomic load.
+        DCHECK_EQ(instr->OutputCount(), 1);
+        Register base = i.InputRegister(0);
+        Register offset = i.InputRegister(1);
+        DCHECK(instr->InputAt(2)->IsImmediate());
+        int32_t offset_imm = i.InputInt32(2);
+        if (offset_imm != 0) {
+          Register temp = i.TempRegister(0);
+          __ add(temp, offset, Operand(offset_imm));
+          offset = temp;
+        }
+        __ ldr(i.OutputRegister(), MemOperand(base, offset));
+        __ dmb(ISH);
+      }
       break;
     }
     case kArmWord32AtomicPairStore: {

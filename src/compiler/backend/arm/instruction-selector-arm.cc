@@ -2312,29 +2312,34 @@ void InstructionSelector::VisitWord32AtomicPairLoad(Node* node) {
   ArmOperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
-  AddressingMode addressing_mode = kMode_Offset_RR;
-  InstructionCode code =
-      kArmWord32AtomicPairLoad | AddressingModeField::encode(addressing_mode);
-  InstructionOperand inputs[] = {g.UseUniqueRegister(base),
-                                 g.UseUniqueRegister(index)};
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  inputs[input_count++] = g.UseUniqueRegister(index);
+  InstructionOperand temps[1];
+  size_t temp_count = 0;
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+
   Node* projection0 = NodeProperties::FindProjection(node, 0);
   Node* projection1 = NodeProperties::FindProjection(node, 1);
-  if (projection1) {
-    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, r0),
-                                    g.DefineAsFixed(projection1, r1)};
-    InstructionOperand temps[] = {g.TempRegister()};
-    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-         arraysize(temps), temps);
+  if (projection0 && projection1) {
+    outputs[output_count++] = g.DefineAsFixed(projection0, r0);
+    outputs[output_count++] = g.DefineAsFixed(projection1, r1);
+    temps[temp_count++] = g.TempRegister();
   } else if (projection0) {
-    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, r0)};
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(r1)};
-    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-         arraysize(temps), temps);
+    inputs[input_count++] = g.UseImmediate(0);
+    outputs[output_count++] = g.DefineAsRegister(projection0);
+  } else if (projection1) {
+    inputs[input_count++] = g.UseImmediate(4);
+    temps[temp_count++] = g.TempRegister();
+    outputs[output_count++] = g.DefineAsRegister(projection1);
   } else {
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(r0),
-                                  g.TempRegister(r1)};
-    Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps), temps);
+    // There is no use of the loaded value, we don't need to generate code.
+    return;
   }
+  Emit(kArmWord32AtomicPairLoad, output_count, outputs, input_count, inputs,
+       temp_count, temps);
 }
 
 void InstructionSelector::VisitWord32AtomicPairStore(Node* node) {

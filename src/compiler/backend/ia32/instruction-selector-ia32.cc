@@ -87,13 +87,10 @@ class IA32OperandGenerator final : public OperandGenerator {
   }
 
   AddressingMode GenerateMemoryOperandInputs(
-      Node* index, int scale, Node* base, Node* displacement_node,
+      Node* index, int scale, Node* base, int32_t displacement,
       DisplacementMode displacement_mode, InstructionOperand inputs[],
       size_t* input_count, RegisterMode register_mode = kRegister) {
     AddressingMode mode = kMode_MRI;
-    int32_t displacement = (displacement_node == nullptr)
-                               ? 0
-                               : OpParameter<int32_t>(displacement_node->op());
     if (displacement_mode == kNegativeDisplacement) {
       displacement = -displacement;
     }
@@ -146,6 +143,18 @@ class IA32OperandGenerator final : public OperandGenerator {
       }
     }
     return mode;
+  }
+
+  AddressingMode GenerateMemoryOperandInputs(
+      Node* index, int scale, Node* base, Node* displacement_node,
+      DisplacementMode displacement_mode, InstructionOperand inputs[],
+      size_t* input_count, RegisterMode register_mode = kRegister) {
+    int32_t displacement = (displacement_node == nullptr)
+                               ? 0
+                               : OpParameter<int32_t>(displacement_node->op());
+    return GenerateMemoryOperandInputs(index, scale, base, displacement,
+                                       displacement_mode, inputs, input_count,
+                                       register_mode);
   }
 
   AddressingMode GetEffectiveAddressMemoryOperand(
@@ -1903,28 +1912,33 @@ void InstructionSelector::VisitWord32AtomicPairLoad(Node* node) {
   AddressingMode mode;
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
-  InstructionOperand inputs[] = {g.UseUniqueRegister(base),
-                                 g.GetEffectiveIndexOperand(index, &mode)};
   Node* projection0 = NodeProperties::FindProjection(node, 0);
   Node* projection1 = NodeProperties::FindProjection(node, 1);
-  InstructionCode code =
-      kIA32Word32AtomicPairLoad | AddressingModeField::encode(mode);
-
-  if (projection1) {
+  if (projection0 && projection1) {
+    InstructionOperand inputs[] = {g.UseUniqueRegister(base),
+                                   g.GetEffectiveIndexOperand(index, &mode)};
+    InstructionCode code =
+        kIA32Word32AtomicPairLoad | AddressingModeField::encode(mode);
     InstructionOperand temps[] = {g.TempDoubleRegister()};
     InstructionOperand outputs[] = {g.DefineAsRegister(projection0),
                                     g.DefineAsRegister(projection1)};
-    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-         arraysize(temps), temps);
-  } else if (projection0) {
-    InstructionOperand temps[] = {g.TempDoubleRegister(), g.TempRegister()};
-    InstructionOperand outputs[] = {g.DefineAsRegister(projection0)};
-    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-         arraysize(temps), temps);
-  } else {
-    InstructionOperand temps[] = {g.TempDoubleRegister(), g.TempRegister(),
-                                  g.TempRegister()};
-    Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps), temps);
+    Emit(code, 2, outputs, 2, inputs, 1, temps);
+  } else if (projection0 || projection1) {
+    // Only one word is needed, so it's enough to load just that.
+    ArchOpcode opcode = kIA32Movl;
+
+    InstructionOperand outputs[] = {
+        g.DefineAsRegister(projection0 ? projection0 : projection1)};
+    InstructionOperand inputs[3];
+    size_t input_count = 0;
+    // TODO(ahaas): Introduce an enum for {scale} instead of an integer.
+    // {scale = 0} means *1 in the generated code.
+    int scale = 0;
+    AddressingMode mode = g.GenerateMemoryOperandInputs(
+        index, scale, base, projection0 ? 0 : 4, kPositiveDisplacement, inputs,
+        &input_count);
+    InstructionCode code = opcode | AddressingModeField::encode(mode);
+    Emit(code, 1, outputs, input_count, inputs);
   }
 }
 
