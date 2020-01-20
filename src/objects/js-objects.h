@@ -1081,7 +1081,10 @@ class JSFunction : public JSFunctionOrBoundFunction {
 
   // Resets function to clear compiled data after bytecode has been flushed.
   inline bool NeedsResetDueToFlushedBytecode();
-  inline void ResetIfBytecodeFlushed();
+  inline void ResetIfBytecodeFlushed(
+      base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
+                                        HeapObject target)>>
+          gc_notify_updated_slot = base::nullopt);
 
   DECL_GETTER(has_prototype_slot, bool)
 

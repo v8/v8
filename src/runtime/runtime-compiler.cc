@@ -188,18 +188,11 @@ static bool IsSuitableForOnStackReplacement(Isolate* isolate,
                                             Handle<JSFunction> function) {
   // Keep track of whether we've succeeded in optimizing.
   if (function->shared().optimization_disabled()) return false;
-  // TODO(chromium:1031479): When we flush the bytecode we also reset the
-  // feedback_cell that holds feedback vector / closure feedback cell array.
-  // Closure feedback cell array holds the feedback cells that should be used
-  // when creating closures from the given function. If we happen to execute the
-  // function again, we re-compile and re-intialize this array. So, the closures
-  // created by this function after the flush would have different feedback
-  // cells when compared to the corresponding closures created before the flush.
-  // Currently, OSR triggering mechanism is tied to the bytecode array. So, it
-  // is possible to mark one closure for OSR but optimize a different one.
-  // These two factors could cause us to OSR functions that don't have feedback
-  // vector. This is a temporary fix and we should fix one (or both) of the two
-  // causes.
+  // TODO(chromium:1031479): Currently, OSR triggering mechanism is tied to the
+  // bytecode array. So, it might be possible to mark closure in one native
+  // context and optimize a closure from a different native context. So check if
+  // there is a feedback vector before OSRing. We don't expect this to happen
+  // often.
   if (!function->has_feedback_vector()) return false;
   // If we are trying to do OSR when there are already optimized
   // activations of the function, it means (a) the function is directly or

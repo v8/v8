@@ -2292,7 +2292,11 @@ void MarkCompactCollector::ClearFlushedJsFunctions() {
   JSFunction flushed_js_function;
   while (weak_objects_.flushed_js_functions.Pop(kMainThreadTask,
                                                 &flushed_js_function)) {
-    flushed_js_function.ResetIfBytecodeFlushed();
+    auto gc_notify_updated_slot = [](HeapObject object, ObjectSlot slot,
+                                     Object target) {
+      RecordSlot(object, slot, HeapObject::cast(target));
+    };
+    flushed_js_function.ResetIfBytecodeFlushed(gc_notify_updated_slot);
   }
 }
 

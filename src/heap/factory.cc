@@ -509,7 +509,7 @@ Handle<ClosureFeedbackCellArray> Factory::NewClosureFeedbackCellArray(
   Handle<ClosureFeedbackCellArray> feedback_cell_array =
       NewFixedArrayWithMap<ClosureFeedbackCellArray>(
           RootIndex::kClosureFeedbackCellArrayMap, length,
-          AllocationType::kYoung);
+          AllocationType::kOld);
 
   return feedback_cell_array;
 }
