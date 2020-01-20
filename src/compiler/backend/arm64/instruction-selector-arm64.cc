@@ -823,6 +823,24 @@ void InstructionSelector::VisitStore(Node* node) {
         UNREACHABLE();
     }
 
+    ExternalReferenceMatcher m(base);
+    if (m.HasValue() && g.IsIntegerConstant(index) &&
+        CanAddressRelativeToRootsRegister(m.Value())) {
+      ptrdiff_t const delta =
+          g.GetIntegerConstantValue(index) +
+          TurboAssemblerBase::RootRegisterOffsetForExternalReference(isolate(),
+                                                                     m.Value());
+      if (is_int32(delta)) {
+        input_count = 2;
+        InstructionOperand inputs[2];
+        inputs[0] = g.UseRegister(value);
+        inputs[1] = g.UseImmediate(static_cast<int32_t>(delta));
+        opcode |= AddressingModeField::encode(kMode_Root);
+        Emit(opcode, 0, nullptr, input_count, inputs);
+        return;
+      }
+    }
+
     inputs[0] = g.UseRegisterOrImmediateZero(value);
     inputs[1] = g.UseRegister(base);
 

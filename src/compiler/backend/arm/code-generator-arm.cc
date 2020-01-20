@@ -9,6 +9,7 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/gap-resolver.h"
+#include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
@@ -54,6 +55,7 @@ class ArmOperandConverter final : public InstructionOperandConverter {
       case kMode_None:
       case kMode_Offset_RI:
       case kMode_Offset_RR:
+      case kMode_Root:
         break;
       case kMode_Operand2_I:
         return InputImmediate(index + 0);
@@ -103,6 +105,9 @@ class ArmOperandConverter final : public InstructionOperandConverter {
       case kMode_Offset_RR:
         *first_index += 2;
         return MemOperand(InputRegister(index + 0), InputRegister(index + 1));
+      case kMode_Root:
+        *first_index += 1;
+        return MemOperand(kRootRegister, InputInt32(index));
     }
     UNREACHABLE();
   }

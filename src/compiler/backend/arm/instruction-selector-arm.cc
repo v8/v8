@@ -377,6 +377,22 @@ void EmitLoad(InstructionSelector* selector, InstructionCode opcode,
   InstructionOperand inputs[3];
   size_t input_count = 2;
 
+  ExternalReferenceMatcher m(base);
+  if (m.HasValue() && selector->CanAddressRelativeToRootsRegister(m.Value())) {
+    Int32Matcher int_matcher(index);
+    if (int_matcher.HasValue()) {
+      ptrdiff_t const delta =
+          int_matcher.Value() +
+          TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+              selector->isolate(), m.Value());
+      input_count = 1;
+      inputs[0] = g.UseImmediate(static_cast<int32_t>(delta));
+      opcode |= AddressingModeField::encode(kMode_Root);
+      selector->Emit(opcode, 1, output, input_count, inputs);
+      return;
+    }
+  }
+
   inputs[0] = g.UseRegister(base);
   if (g.CanBeImmediate(index, opcode)) {
     inputs[1] = g.UseImmediate(index);
@@ -635,6 +651,24 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
+    }
+
+    ExternalReferenceMatcher m(base);
+    if (m.HasValue() && CanAddressRelativeToRootsRegister(m.Value())) {
+      Int32Matcher int_matcher(index);
+      if (int_matcher.HasValue()) {
+        ptrdiff_t const delta =
+            int_matcher.Value() +
+            TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+                isolate(), m.Value());
+        int input_count = 2;
+        InstructionOperand inputs[2];
+        inputs[0] = g.UseRegister(value);
+        inputs[1] = g.UseImmediate(static_cast<int32_t>(delta));
+        opcode |= AddressingModeField::encode(kMode_Root);
+        Emit(opcode, 0, nullptr, input_count, inputs);
+        return;
+      }
     }
 
     InstructionOperand inputs[4];

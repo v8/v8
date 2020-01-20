@@ -340,7 +340,8 @@ namespace compiler {
   V(Operand2_R_ASR_R) /* %r0 ASR %r1 */ \
   V(Operand2_R_LSL_R) /* %r0 LSL %r1 */ \
   V(Operand2_R_LSR_R) /* %r0 LSR %r1 */ \
-  V(Operand2_R_ROR_R) /* %r0 ROR %r1 */
+  V(Operand2_R_ROR_R) /* %r0 ROR %r1 */ \
+  V(Root)             /* [%rr + K] */
 
 }  // namespace compiler
 }  // namespace internal
