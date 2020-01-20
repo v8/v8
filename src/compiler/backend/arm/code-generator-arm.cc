@@ -509,8 +509,7 @@ void CodeGenerator::AssembleDeconstructFrame() {
 
 void CodeGenerator::AssemblePrepareTailCall() {
   if (frame_access_state()->has_frame()) {
-    __ ldr(lr, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-    __ ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+    __ ldm(ia, fp, lr.bit() | fp.bit());
   }
   frame_access_state()->SetFrameAccessToSP();
 }
