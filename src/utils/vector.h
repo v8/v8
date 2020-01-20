@@ -195,7 +195,7 @@ class OwnedVector {
   // Allocates a new vector of the specified size via the default allocator.
   static OwnedVector<T> New(size_t size) {
     if (size == 0) return {};
-    return OwnedVector<T>(std::unique_ptr<T[]>(new T[size]), size);
+    return OwnedVector<T>(std::make_unique<T[]>(size), size);
   }
 
   // Allocates a new vector containing the specified collection of values.
@@ -207,7 +207,8 @@ class OwnedVector {
   static OwnedVector<T> Of(const U& collection) {
     Iterator begin = std::begin(collection);
     Iterator end = std::end(collection);
-    OwnedVector<T> vec = New(std::distance(begin, end));
+    using non_const_t = typename std::remove_const<T>::type;
+    auto vec = OwnedVector<non_const_t>::New(std::distance(begin, end));
     std::copy(begin, end, vec.start());
     return vec;
   }

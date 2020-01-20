@@ -57,5 +57,21 @@ TEST(VectorTest, Equals) {
   CHECK(vec3_char != vec1_const_char);
 }
 
+TEST(OwnedVectorConstruction, Equals) {
+  auto int_vec = OwnedVector<int>::New(4);
+  CHECK_EQ(4, int_vec.size());
+  auto find_non_zero = [](int i) { return i != 0; };
+  CHECK_EQ(int_vec.end(),
+           std::find_if(int_vec.begin(), int_vec.end(), find_non_zero));
+
+  constexpr int kInit[] = {4, 11, 3};
+  auto init_vec1 = OwnedVector<int>::Of(kInit);
+  // Note: {const int} should also work: We initialize the owned vector, but
+  // afterwards it's non-modifyable.
+  auto init_vec2 = OwnedVector<const int>::Of(ArrayVector(kInit));
+  CHECK_EQ(init_vec1.as_vector(), ArrayVector(kInit));
+  CHECK_EQ(init_vec1.as_vector(), init_vec2.as_vector());
+}
+
 }  // namespace internal
 }  // namespace v8
