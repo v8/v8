@@ -214,25 +214,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                                    Node* context, Node* effect,
                                                    Node* control);
 
-  // If {fncallback} is not callable, throw a TypeError.
-  // {control} is altered, and new nodes {check_fail} and {check_throw} are
-  // returned. {check_fail} is the control branch where IsCallable failed,
-  // and {check_throw} is the call to throw a TypeError in that
-  // branch.
-  void WireInCallbackIsCallableCheck(Node* fncallback, Node* context,
-                                     Node* check_frame_state, Node* effect,
-                                     Node** control, Node** check_fail,
-                                     Node** check_throw);
-  void RewirePostCallbackExceptionEdges(Node* check_throw, Node* on_exception,
-                                        Node* effect, Node** check_fail,
-                                        Node** control);
-
-  Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
-                                   int parameter_count, BailoutId bailout_id,
-                                   FrameStateType frame_state_type,
-                                   const SharedFunctionInfoRef& shared,
-                                   Node* context = nullptr);
-
   void CheckIfElementsKind(Node* receiver_elements_kind, ElementsKind kind,
                            Node* control, Node** if_true, Node** if_false);
   Node* LoadReceiverElementsKind(Node* receiver, Node** effect, Node** control);
