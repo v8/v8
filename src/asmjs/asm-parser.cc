@@ -1581,14 +1581,17 @@ AsmType* AsmJsParser::UnaryExpression() {
   if (Check('-')) {
     uint32_t uvalue;
     if (CheckForUnsigned(&uvalue)) {
-      // TODO(bradnelson): was supposed to be 0x7FFFFFFF, check errata.
-      if (uvalue <= 0x80000000) {
+      if (uvalue == 0) {
+        current_function_builder_->EmitF64Const(-0.0);
+        ret = AsmType::Double();
+      } else if (uvalue <= 0x80000000) {
+        // TODO(bradnelson): was supposed to be 0x7FFFFFFF, check errata.
         current_function_builder_->EmitI32Const(
             base::NegateWithWraparound(static_cast<int32_t>(uvalue)));
+        ret = AsmType::Signed();
       } else {
         FAILn("Integer numeric literal out of range.");
       }
-      ret = AsmType::Signed();
     } else {
       RECURSEn(ret = UnaryExpression());
       if (ret->IsA(AsmType::Int())) {
@@ -1680,7 +1683,7 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
       RECURSEn(a = UnaryExpression());
     }
   } else if (Check('-')) {
-    if (CheckForUnsignedBelow(0x100000, &uvalue)) {
+    if (!PeekForZero() && CheckForUnsignedBelow(0x100000, &uvalue)) {
       int32_t value = -static_cast<int32_t>(uvalue);
       current_function_builder_->EmitI32Const(value);
       if (Check('*')) {
@@ -1704,7 +1707,7 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
     if (Check('*')) {
       uint32_t uvalue;
       if (Check('-')) {
-        if (CheckForUnsigned(&uvalue)) {
+        if (!PeekForZero() && CheckForUnsigned(&uvalue)) {
           if (uvalue >= 0x100000) {
             FAILn("Constant multiple out of range");
           }
