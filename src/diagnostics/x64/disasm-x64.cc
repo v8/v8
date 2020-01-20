@@ -1890,6 +1890,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       } else {
         UnimplementedInstruction();
       }
+    } else if (opcode == 0xC1) {
+      current += PrintOperands("xadd", OPER_REG_OP_ORDER, current);
     } else {
       get_modrm(*current, &mod, &regop, &rm);
       if (opcode == 0x1F) {
@@ -2030,6 +2032,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "pcmpeqw";
         } else if (opcode == 0x76) {
           mnemonic = "pcmpeqd";
+        } else if (opcode == 0xC2) {
+          mnemonic = "cmppd";
         } else if (opcode == 0xD1) {
           mnemonic = "psrlw";
         } else if (opcode == 0xD2) {
@@ -2102,8 +2106,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "paddw";
         } else if (opcode == 0xFE) {
           mnemonic = "paddd";
-        } else if (opcode == 0xC2) {
-          mnemonic = "cmppd";
         } else {
           UnimplementedInstruction();
         }
@@ -2366,6 +2368,11 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
                    NameOfXMMRegister(regop));
     current += PrintRightXMMOperand(current);
 
+  } else if (opcode == 0xC0) {
+    byte_size_operand_ = true;
+    current += PrintOperands("xadd", OPER_REG_OP_ORDER, current);
+  } else if (opcode == 0xC1) {
+    current += PrintOperands("xadd", OPER_REG_OP_ORDER, current);
   } else if (opcode == 0xC2) {
     // cmpps xmm, xmm/m128, imm8
     int mod, regop, rm;

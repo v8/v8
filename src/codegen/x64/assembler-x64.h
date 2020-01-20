@@ -607,6 +607,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void xchgb(Register reg, Operand op);
   void xchgw(Register reg, Operand op);
 
+  void xaddb(Operand dst, Register src);
+  void xaddw(Operand dst, Register src);
+  void xaddl(Operand dst, Register src);
+  void xaddq(Operand dst, Register src);
+
   void cmpxchgb(Operand dst, Register src);
   void cmpxchgw(Operand dst, Register src);
 

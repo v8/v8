@@ -919,6 +919,18 @@ TEST(DisasmX64) {
     __ cmpxchgq(Operand(rbx, rcx, times_4, 10000), rax);
   }
 
+  // xadd.
+  {
+    __ xaddb(Operand(rsp, 12), rax);
+    __ xaddw(Operand(rsp, 12), rax);
+    __ xaddl(Operand(rsp, 12), rax);
+    __ xaddq(Operand(rsp, 12), rax);
+    __ xaddb(Operand(rbx, rcx, times_4, 10000), rax);
+    __ xaddw(Operand(rbx, rcx, times_4, 10000), rax);
+    __ xaddl(Operand(rbx, rcx, times_4, 10000), rax);
+    __ xaddq(Operand(rbx, rcx, times_4, 10000), rax);
+  }
+
   // lock prefix.
   {
     __ lock();

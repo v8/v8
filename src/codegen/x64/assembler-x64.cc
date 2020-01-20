@@ -1202,6 +1202,39 @@ void Assembler::lock() {
   emit(0xF0);
 }
 
+void Assembler::xaddb(Operand dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(src, dst);
+  emit(0x0F);
+  emit(0xC0);
+  emit_operand(src, dst);
+}
+
+void Assembler::xaddw(Operand dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(src, dst);
+  emit(0x0F);
+  emit(0xC1);
+  emit_operand(src, dst);
+}
+
+void Assembler::xaddl(Operand dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(src, dst);
+  emit(0x0F);
+  emit(0xC1);
+  emit_operand(src, dst);
+}
+
+void Assembler::xaddq(Operand dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_rex(src, dst, kInt64Size);
+  emit(0x0F);
+  emit(0xC1);
+  emit_operand(src, dst);
+}
+
 void Assembler::cmpxchgb(Operand dst, Register src) {
   EnsureSpace ensure_space(this);
   if (!src.is_byte_register()) {
