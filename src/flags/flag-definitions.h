@@ -664,8 +664,8 @@ DEFINE_DEBUG_BOOL(trace_wasm_native_heap, false,
                   "trace wasm native heap events")
 DEFINE_BOOL(wasm_write_protect_code_memory, false,
             "write protect code memory on the wasm native heap")
-DEFINE_BOOL(trace_wasm_serialization, false,
-            "trace serialization/deserialization")
+DEFINE_DEBUG_BOOL(trace_wasm_serialization, false,
+                  "trace serialization/deserialization")
 DEFINE_BOOL(wasm_async_compilation, true,
             "enable actual asynchronous compilation for WebAssembly.compile")
 DEFINE_BOOL(wasm_test_streaming, false,

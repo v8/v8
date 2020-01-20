@@ -127,24 +127,6 @@ TEST(WasmStreamingAbortWithoutReject) {
                     v8::Promise::kPending);
 }
 
-TEST(WasmModuleObjectCompileFailure) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-
-  {
-    v8::TryCatch try_catch(isolate);
-    uint8_t buffer[] = {0xDE, 0xAD, 0xBE, 0xEF};
-    v8::MemorySpan<const uint8_t> serialized_module;
-    v8::MemorySpan<const uint8_t> wire_bytes = {buffer, arraysize(buffer)};
-    v8::MaybeLocal<v8::WasmModuleObject> maybe_module =
-        v8::WasmModuleObject::DeserializeOrCompile(isolate, serialized_module,
-                                                   wire_bytes);
-    CHECK(maybe_module.IsEmpty());
-    CHECK(try_catch.HasCaught());
-  }
-}
-
 namespace {
 
 bool wasm_threads_enabled_value = false;

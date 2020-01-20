@@ -13,6 +13,7 @@
 #include "src/objects/backing-store.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-result.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -2453,7 +2454,7 @@ TEST_F(ValueSerializerTestWithHostArrayBufferView, RoundTripUint8ArrayInput) {
 
 // A simple module which exports an "increment" function.
 // Copied from test/mjsunit/wasm/incrementer.wasm.
-const unsigned char kIncrementerWasm[] = {
+constexpr uint8_t kIncrementerWasm[] = {
     0,   97, 115, 109, 1, 0,  0, 0, 1,   6,   1,  96,  1,   127, 1,   127,
     3,   2,  1,   0,   7, 13, 1, 9, 105, 110, 99, 114, 101, 109, 101, 110,
     116, 0,  0,   10,  9, 1,  7, 0, 32,  0,   65, 1,   106, 11,
@@ -2558,10 +2559,15 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
 
   Local<WasmModuleObject> MakeWasm() {
     Context::Scope scope(serialization_context());
-    return WasmModuleObject::DeserializeOrCompile(
-               isolate(), {nullptr, 0},
-               {kIncrementerWasm, sizeof(kIncrementerWasm)})
-        .ToLocalChecked();
+    i::wasm::ErrorThrower thrower(i_isolate(), "MakeWasm");
+    auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
+    i::MaybeHandle<i::JSObject> compiled =
+        i_isolate()->wasm_engine()->SyncCompile(
+            i_isolate(), enabled_features, &thrower,
+            i::wasm::ModuleWireBytes(i::ArrayVector(kIncrementerWasm)));
+    CHECK(!thrower.error());
+    return Local<WasmModuleObject>::Cast(
+        Utils::ToLocal(compiled.ToHandleChecked()));
   }
 
   void ExpectPass() {

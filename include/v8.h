@@ -4780,9 +4780,13 @@ class V8_EXPORT WasmModuleObject : public Object {
    * If possible, deserialize the module, otherwise compile it from the provided
    * uncompiled bytes.
    */
+  V8_DEPRECATED(
+      "Use WasmStreaming for deserialization from cache or the "
+      "CompiledWasmModule to transfer between isolates")
   static MaybeLocal<WasmModuleObject> DeserializeOrCompile(
       Isolate* isolate, MemorySpan<const uint8_t> serialized_module,
       MemorySpan<const uint8_t> wire_bytes);
+
   V8_INLINE static WasmModuleObject* Cast(Value* obj);
 
  private:
