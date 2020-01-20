@@ -3,11 +3,6 @@
 # found in the LICENSE file.
 
 [
-[ALWAYS, {
-  # BUG(1043117)
-  'RegionAllocatorTest.*': [SKIP],
-}],  # ALWAYS
-
 ##############################################################################
 ['system == macos and asan', {
   # BUG(820416).
