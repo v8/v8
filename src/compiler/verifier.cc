@@ -764,10 +764,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kJSCreateCatchContext:
     case IrOpcode::kJSCreateWithContext:
     case IrOpcode::kJSCreateBlockContext: {
-      Node* context = NodeProperties::GetContextInput(node);
-      // TODO(bmeurer): This should say CheckTypeIs, but we don't have type
-      // OtherInternal on certain contexts, i.e. those from OsrValue inputs.
-      CheckTypeMaybe(context, Type::OtherInternal());
       CheckTypeIs(node, Type::OtherInternal());
       break;
     }
