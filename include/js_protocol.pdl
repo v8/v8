@@ -888,6 +888,19 @@ domain Profiler
       # Profile title passed as an argument to console.profile().
       optional string title
 
+  # Reports coverage delta since the last poll (either from an event like this, or from
+  # `takePreciseCoverage` for the current isolate. May only be sent if precise code
+  # coverage has been started. This event can be trigged by the embedder to, for example,
+  # trigger collection of coverage data immediatelly at a certain point in time.
+  experimental event preciseCoverageDeltaUpdate
+    parameters
+      # Monotonically increasing time (in seconds) when the coverage update was taken in the backend.
+      number timestamp
+      # Identifier for distinguishing coverage events.
+      string occassion
+      # Coverage data for the current isolate.
+      array of ScriptCoverage result
+
 # Runtime domain exposes JavaScript runtime by means of remote evaluation and mirror objects.
 # Evaluation results are returned as mirror object that expose object type, string representation
 # and unique identifier that can be used for further object reference. Original objects are
