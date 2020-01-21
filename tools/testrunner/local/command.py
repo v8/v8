@@ -5,6 +5,7 @@
 # for py2/py3 compatibility
 from __future__ import print_function
 
+from contextlib import contextmanager
 import os
 import re
 import signal
@@ -37,6 +38,28 @@ def setup_testing():
 class AbortException(Exception):
   """Indicates early abort on SIGINT, SIGTERM or internal hard timeout."""
   pass
+
+
+@contextmanager
+def handle_sigterm(process, handle_sigterm):
+  """Handle sigterm for `process` and restore previous handler to prevent
+  erroneous termination of an already terminated process.
+  """
+  # Variable to communicate with the signal handler.
+  abort_occured = [False]
+  def handler(signum, frame):
+    self._abort(process, abort_occured)
+
+  if handle_sigterm:
+    previous = signal.signal(signal.SIGTERM, handler)
+  try:
+    yield
+  finally:
+    if handle_sigterm:
+      signal.signal(signal.SIGTERM, previous)
+
+  if abort_occured[0]:
+    raise AbortException()
 
 
 class BaseCommand(object):
@@ -72,28 +95,18 @@ class BaseCommand(object):
 
     process = self._start_process()
 
-    # Variable to communicate with the signal handler.
-    abort_occured = [False]
-    def handler(signum, frame):
-      self._abort(process, abort_occured)
+    with handle_sigterm(process, self.handle_sigterm):
+      # Variable to communicate with the timer.
+      timeout_occured = [False]
+      timer = threading.Timer(
+          self.timeout, self._abort, [process, timeout_occured])
+      timer.start()
 
-    if self.handle_sigterm:
-      signal.signal(signal.SIGTERM, handler)
+      start_time = time.time()
+      stdout, stderr = process.communicate()
+      duration = time.time() - start_time
 
-    # Variable to communicate with the timer.
-    timeout_occured = [False]
-    timer = threading.Timer(
-        self.timeout, self._abort, [process, timeout_occured])
-    timer.start()
-
-    start_time = time.time()
-    stdout, stderr = process.communicate()
-    duration = time.time() - start_time
-
-    timer.cancel()
-
-    if abort_occured[0]:
-      raise AbortException()
+      timer.cancel()
 
     return output.Output(
       process.returncode,
