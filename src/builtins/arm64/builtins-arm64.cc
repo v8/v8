@@ -1477,8 +1477,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
                        INTERPRETER_DATA_TYPE);
   __ B(ne, &builtin_trampoline);
 
-  __ Ldr(x1,
-         FieldMemOperand(x1, InterpreterData::kInterpreterTrampolineOffset));
+  __ LoadTaggedPointerField(
+      x1, FieldMemOperand(x1, InterpreterData::kInterpreterTrampolineOffset));
   __ Add(x1, x1, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ B(&trampoline_loaded);
 

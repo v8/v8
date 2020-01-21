@@ -1382,8 +1382,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ CmpObjectType(rbx, INTERPRETER_DATA_TYPE, kScratchRegister);
   __ j(not_equal, &builtin_trampoline, Label::kNear);
 
-  __ movq(rbx,
-          FieldOperand(rbx, InterpreterData::kInterpreterTrampolineOffset));
+  __ LoadTaggedPointerField(
+      rbx, FieldOperand(rbx, InterpreterData::kInterpreterTrampolineOffset));
   __ addq(rbx, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ jmp(&trampoline_loaded, Label::kNear);
 

@@ -370,6 +370,9 @@
 
   # Slow with pointer compression.
   'regress/regress-crbug-319860': [PASS, ['pointer_compression', SLOW]],
+
+  # Flag --interpreted-frames-native-stack incompatible with jitless
+  'regress/regress-10138': [SKIP],
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################
