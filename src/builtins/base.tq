@@ -285,6 +285,7 @@ extern enum MessageTemplate {
   kPromiseNonCallable,
   kNotAPromise,
   kResolverNotAFunction,
+  kTooManyElementsInPromiseAll,
   kToRadixFormatRange,
   kCalledOnNonObject,
   kRegExpGlobalInvokedOnNonGlobal,

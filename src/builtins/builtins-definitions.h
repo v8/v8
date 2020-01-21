@@ -710,10 +710,6 @@ namespace internal {
                                                                                \
   /* Promise */                                                                \
   CPP(IsPromise)                                                               \
-  /* ES #sec-promise.all */                                                    \
-  TFJ(PromiseAll, 1, kReceiver, kIterable)                                     \
-  /* ES #sec-promise.allsettled */                                             \
-  TFJ(PromiseAllSettled, 1, kReceiver, kIterable)                              \
                                                                                \
   /* Reflect */                                                                \
   ASM(ReflectApply, JSTrampoline)                                              \

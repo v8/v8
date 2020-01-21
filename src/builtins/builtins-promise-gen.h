@@ -47,24 +47,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
       TNode<JSReceiver> thenable, TNode<Context> context);
   Node* PromiseHasHandler(Node* promise);
 
-  // Creates the context used by all Promise.all resolve element closures,
-  // together with the values array. Since all closures for a single Promise.all
-  // call use the same context, we need to store the indices for the individual
-  // closures somewhere else (we put them into the identity hash field of the
-  // closures), and we also need to have a separate marker for when the closure
-  // was called already (we slap the native context onto the closure in that
-  // case to mark it's done).
-  Node* CreatePromiseAllResolveElementContext(Node* promise_capability,
-                                              Node* native_context);
-  TNode<JSFunction> CreatePromiseAllResolveElementFunction(Node* context,
-                                                           TNode<Smi> index,
-                                                           Node* native_context,
-                                                           int slot_index);
-
-  TNode<Context> CreatePromiseResolvingFunctionsContext(
-      TNode<JSPromise> promise, TNode<Object> debug_event,
-      TNode<NativeContext> native_context);
-
   void BranchIfAccessCheckFailed(SloppyTNode<Context> context,
                                  SloppyTNode<Context> native_context,
                                  TNode<Object> promise_constructor,
@@ -140,33 +122,7 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
                                             Node* receiver_map, Label* if_fast,
                                             Label* if_slow);
 
-  // If resolve is Undefined, we use the builtin %PromiseResolve%
-  // intrinsic, otherwise we use the given resolve function.
-  Node* CallResolve(Node* native_context, Node* constructor, Node* resolve,
-                    Node* value, Label* if_exception, Variable* var_exception);
-
-  using PromiseAllResolvingElementFunction =
-      std::function<TNode<Object>(TNode<Context> context, TNode<Smi> index,
-                                  TNode<NativeContext> native_context,
-                                  TNode<PromiseCapability> capability)>;
-
-  TNode<Object> PerformPromiseAll(
-      Node* context, Node* constructor, Node* capability,
-      const TorqueStructIteratorRecord& record,
-      const PromiseAllResolvingElementFunction& create_resolve_element_function,
-      const PromiseAllResolvingElementFunction& create_reject_element_function,
-      Label* if_exception, TVariable<Object>* var_exception);
-
-  void SetForwardingHandlerIfTrue(Node* context, Node* condition, Node* object);
-  void SetPromiseHandledByIfTrue(Node* context, Node* condition, Node* promise,
-                                 const NodeGenerator<Object>& handled_by);
-
   TNode<JSPromise> AllocateJSPromise(TNode<Context> context);
-
-  void Generate_PromiseAll(
-      TNode<Context> context, TNode<Object> receiver, TNode<Object> iterable,
-      const PromiseAllResolvingElementFunction& create_resolve_element_function,
-      const PromiseAllResolvingElementFunction& create_reject_element_function);
 };
 
 }  // namespace internal

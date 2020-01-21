@@ -2554,13 +2554,13 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   PromiseBuiltinsAssembler m(asm_tester.state());
 
-  Node* const context = m.Parameter(kNumParams + 2);
+  const TNode<Context> context = m.CAST(m.Parameter(kNumParams + 2));
   const TNode<NativeContext> native_context = m.LoadNativeContext(context);
   const TNode<JSPromise> promise =
-      m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
+      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   const TNode<Context> promise_context =
       m.CreatePromiseResolvingFunctionsContext(
-          promise, m.BooleanConstant(false), native_context);
+          context, promise, m.BooleanConstant(false), native_context);
   m.Return(promise_context);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2672,12 +2672,12 @@ TEST(AllocateFunctionWithMapAndContext) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   PromiseBuiltinsAssembler m(asm_tester.state());
 
-  Node* const context = m.Parameter(kNumParams + 2);
+  const TNode<Context> context = m.CAST(m.Parameter(kNumParams + 2));
   const TNode<NativeContext> native_context = m.LoadNativeContext(context);
   const TNode<JSPromise> promise =
-      m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
+      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   TNode<Context> promise_context = m.CreatePromiseResolvingFunctionsContext(
-      promise, m.BooleanConstant(false), native_context);
+      context, promise, m.BooleanConstant(false), native_context);
   TNode<Object> resolve_info = m.LoadContextElement(
       native_context,
       Context::PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX);
