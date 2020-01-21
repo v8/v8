@@ -14,6 +14,7 @@ namespace wasm {
 
 #if V8_TARGET_ARCH_IA32
 
+// Omit ebx, which is the root register.
 constexpr RegList kLiftoffAssemblerGpCacheRegs =
     Register::ListOf(eax, ecx, edx, esi, edi);
 

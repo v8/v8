@@ -260,13 +260,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc, bool is_load_mem) {
   DCHECK_EQ(type.value_type() == kWasmI64, dst.is_gp_pair());
-  // Wasm memory is limited to a size <2GB, so all offsets can be encoded as
-  // immediate value (in 31 bits, interpreted as signed value).
-  // If the offset is bigger, we always trap and this code is not reached.
-  // Note: We shouldn't have memories larger than 2GiB on 32-bit, but if we
-  // did, we encode {offset_im} as signed, and it will simply wrap around.
+  DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   Operand src_op = offset_reg == no_reg
-                       ? Operand(src_addr, bit_cast<int32_t>(offset_imm))
+                       ? Operand(src_addr, offset_imm)
                        : Operand(src_addr, offset_reg, times_1, offset_imm);
   if (protected_load_pc) *protected_load_pc = pc_offset();
 
@@ -341,11 +337,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem) {
   DCHECK_EQ(type.value_type() == kWasmI64, src.is_gp_pair());
-  // Wasm memory is limited to a size <2GB, so all offsets can be encoded as
-  // immediate value (in 31 bits, interpreted as signed value).
-  // If the offset is bigger, we always trap and this code is not reached.
+  DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   Operand dst_op = offset_reg == no_reg
-                       ? Operand(dst_addr, bit_cast<int32_t>(offset_imm))
+                       ? Operand(dst_addr, offset_imm)
                        : Operand(dst_addr, offset_reg, times_1, offset_imm);
   if (protected_store_pc) *protected_store_pc = pc_offset();
 
@@ -410,13 +404,91 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uint32_t offset_imm,
                                   LoadType type, LiftoffRegList pinned) {
-  bailout(kAtomics, "AtomicLoad");
+  if (type.value() != LoadType::kI64Load) {
+    Load(dst, src_addr, offset_reg, offset_imm, type, pinned, nullptr, true);
+    return;
+  }
+
+  DCHECK_EQ(type.value_type() == kWasmI64, dst.is_gp_pair());
+  DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
+  Operand src_op = offset_reg == no_reg
+                       ? Operand(src_addr, offset_imm)
+                       : Operand(src_addr, offset_reg, times_1, offset_imm);
+
+  movsd(liftoff::kScratchDoubleReg, src_op);
+  Pextrd(dst.low().gp(), liftoff::kScratchDoubleReg, 0);
+  Pextrd(dst.high().gp(), liftoff::kScratchDoubleReg, 1);
 }
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uint32_t offset_imm, LiftoffRegister src,
                                    StoreType type, LiftoffRegList pinned) {
-  bailout(kAtomics, "AtomicStore");
+  DCHECK_NE(offset_reg, no_reg);
+  DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
+  Operand dst_op = Operand(dst_addr, offset_reg, times_1, offset_imm);
+
+  pinned = pinned | LiftoffRegList::ForRegs(dst_addr, src, offset_reg);
+  Register src_reg = src.is_gp_pair() ? src.low().gp() : src.gp();
+  // If {src} is used after this operation, we are not allowed to overwrite it.
+  // {kI64Store} and {kI(32|64)Store8} need special treatment below, so we don't
+  // handle them here.
+  if (type.value() != StoreType::kI64Store &&
+      type.value() != StoreType::kI64Store8 &&
+      type.value() != StoreType::kI32Store8 && cache_state()->is_used(src)) {
+    Register old_src = src_reg;
+    src_reg = GetUnusedRegister(kGpReg, pinned).gp();
+    mov(src_reg, old_src);
+  }
+
+  switch (type.value()) {
+    case StoreType::kI64Store8:
+    case StoreType::kI32Store8:
+      if (cache_state()->is_used(src)) {
+        // Only the lower 4 registers can be addressed as 8-bit registers.
+        if (cache_state()->has_unused_register(liftoff::kByteRegs, pinned)) {
+          Register byte_src =
+              GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
+          mov(byte_src, src_reg);
+          xchg_b(byte_src, dst_op);
+        } else {  // (if !cache_state()->has_unused_register(...))
+          // No byte register is available, we have to spill {src}.
+          push(src_reg);
+          xchg_b(src_reg, dst_op);
+          pop(src_reg);
+        }
+      } else {  // if (!cache_state()->is_used(src)) {
+        if (src_reg.is_byte_register()) {
+          xchg_b(src_reg, dst_op);
+        } else {  // if (!src.gp().is_byte_register())
+          Register byte_src =
+              GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
+          mov(byte_src, src_reg);
+          xchg_b(byte_src, dst_op);
+        }
+      }
+      return;
+    case StoreType::kI64Store16:
+    case StoreType::kI32Store16:
+      xchg_w(src_reg, dst_op);
+      return;
+    case StoreType::kI64Store32:
+    case StoreType::kI32Store:
+      xchg(src_reg, dst_op);
+      return;
+    case StoreType::kI64Store: {
+      auto scratch2 = GetUnusedRegister(kFpReg, pinned).fp();
+      movd(liftoff::kScratchDoubleReg, src.low().gp());
+      movd(scratch2, src.high().gp());
+      Punpckldq(liftoff::kScratchDoubleReg, scratch2);
+      movsd(dst_op, liftoff::kScratchDoubleReg);
+      // This lock+or is needed to achieve sequential consistency.
+      lock();
+      or_(Operand(esp, 0), Immediate(0));
+      return;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
