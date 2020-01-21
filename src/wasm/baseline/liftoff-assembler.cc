@@ -159,6 +159,14 @@ class StackTransferRecipe {
         MoveRegister(dst.high(), src.high(), kWasmI32);
       return;
     }
+    if (src.is_fp_pair()) {
+      DCHECK_EQ(kWasmS128, type);
+      if (dst.low() != src.low()) {
+        MoveRegister(dst.low(), src.low(), kWasmF64);
+        MoveRegister(dst.high(), src.high(), kWasmF64);
+      }
+      return;
+    }
     if (move_dst_regs_.has(dst)) {
       DCHECK_EQ(register_move(dst)->src, src);
       // Non-fp registers can only occur with the exact same type.
