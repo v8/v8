@@ -85,33 +85,41 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   // separate classes. If, in the future, we encounter additional use cases that
   // return more than 1 value, we should merge these back into a single variadic
   // implementation.
-  class IfBuilder0 {
+  class IfBuilder0 final {
    public:
     IfBuilder0(JSGraphAssembler* gasm, TNode<Boolean> cond, bool negate_cond)
-        : gasm_(gasm), cond_(cond), negate_cond_(negate_cond) {}
+        : gasm_(gasm),
+          cond_(cond),
+          negate_cond_(negate_cond),
+          initial_effect_(gasm->effect()),
+          initial_control_(gasm->control()) {}
 
-    V8_WARN_UNUSED_RESULT IfBuilder0& ExpectTrue() {
+    IfBuilder0& ExpectTrue() {
       DCHECK_EQ(hint_, BranchHint::kNone);
       hint_ = BranchHint::kTrue;
       return *this;
     }
-
-    V8_WARN_UNUSED_RESULT IfBuilder0& ExpectFalse() {
+    IfBuilder0& ExpectFalse() {
       DCHECK_EQ(hint_, BranchHint::kNone);
       hint_ = BranchHint::kFalse;
       return *this;
     }
 
-    V8_WARN_UNUSED_RESULT IfBuilder0& Then(const VoidGenerator0& body) {
+    IfBuilder0& Then(const VoidGenerator0& body) {
       then_body_ = body;
       return *this;
     }
-    V8_WARN_UNUSED_RESULT IfBuilder0& Else(const VoidGenerator0& body) {
+    IfBuilder0& Else(const VoidGenerator0& body) {
       else_body_ = body;
       return *this;
     }
 
-    void Build() {
+    ~IfBuilder0() {
+      // Ensure correct usage: effect/control must not have been modified while
+      // the IfBuilder0 instance is alive.
+      DCHECK_EQ(gasm_->effect(), initial_effect_);
+      DCHECK_EQ(gasm_->control(), initial_control_);
+
       // Unlike IfBuilder1, this supports an empty then or else body. This is
       // possible since the merge does not take any value inputs.
       DCHECK(then_body_ || else_body_);
@@ -140,9 +148,13 @@ class JSCallReducerAssembler : public JSGraphAssembler {
     JSGraphAssembler* const gasm_;
     const TNode<Boolean> cond_;
     const bool negate_cond_;
+    const Effect initial_effect_;
+    const Control initial_control_;
     BranchHint hint_ = BranchHint::kNone;
     VoidGenerator0 then_body_;
     VoidGenerator0 else_body_;
+
+    DISALLOW_COPY_AND_ASSIGN(IfBuilder0);
   };
 
   IfBuilder0 If(TNode<Boolean> cond) { return {this, cond, false}; }
@@ -473,7 +485,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
     const StepFunction1 step_;
   };
 
-  ForBuilder0 ForSmiZeroUntil(TNode<Number> excluded_limit) {
+  ForBuilder0 ForZeroUntil(TNode<Number> excluded_limit) {
     TNode<Number> initial_value = ZeroConstant();
     auto cond = [=](TNode<Number> i) {
       return NumberLessThan(i, excluded_limit);
@@ -555,8 +567,8 @@ class JSCallReducerAssembler : public JSGraphAssembler {
     return {this, initial_value, cond, step, initial_arg0};
   }
 
-  ForBuilder1 For1SmiZeroUntil(TNode<Number> excluded_limit,
-                               TNode<Object> initial_arg0) {
+  ForBuilder1 For1ZeroUntil(TNode<Number> excluded_limit,
+                            TNode<Object> initial_arg0) {
     TNode<Number> initial_value = ZeroConstant();
     auto cond = [=](TNode<Number> i) {
       return NumberLessThan(i, excluded_limit);
@@ -573,11 +585,9 @@ class JSCallReducerAssembler : public JSGraphAssembler {
                          NumberConstant(static_cast<double>(
                              MessageTemplate::kCalledNonCallable)),
                          maybe_callable, frame_state);
-
           Unreachable();  // The runtime call throws unconditionally.
         })
-        .ExpectTrue()
-        .Build();
+        .ExpectTrue();
   }
 
   const FeedbackSource& feedback() const {
@@ -1119,7 +1129,7 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeForEach(
   ThrowIfNotCallable(fncallback, ForEachLoopLazyFrameState(frame_state_params,
                                                            ZeroConstant()));
 
-  ForSmiZeroUntil(original_length).Do([&](TNode<Number> k) {
+  ForZeroUntil(original_length).Do([&](TNode<Number> k) {
     Checkpoint(ForEachLoopEagerFrameState(frame_state_params, k));
 
     // Deopt if the map has changed during the iteration.
@@ -1394,7 +1404,7 @@ TNode<JSArray> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeMap(
   ThrowIfNotCallable(fncallback,
                      MapLoopLazyFrameState(frame_state_params, ZeroConstant()));
 
-  ForSmiZeroUntil(original_length).Do([&](TNode<Number> k) {
+  ForZeroUntil(original_length).Do([&](TNode<Number> k) {
     Checkpoint(MapLoopEagerFrameState(frame_state_params, k));
     MaybeInsertMapChecks(inference, has_stability_dependency);
 
@@ -1528,7 +1538,7 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeFilter(
                                                           zero, zero, zero));
 
   TNode<Number> initial_a_length = zero;
-  For1SmiZeroUntil(original_length, initial_a_length)
+  For1ZeroUntil(original_length, initial_a_length)
       .Do([&](TNode<Number> k, TNode<Object>* a_length_object) {
         TNode<Number> a_length = TNode<Number>::UncheckedCast(*a_length_object);
         Checkpoint(FilterLoopEagerFrameState(frame_state_params, k, a_length));
@@ -1659,7 +1669,7 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeFind(
   const bool is_find_variant = (variant == ArrayFindVariant::kFind);
   auto out = MakeLabel(MachineRepresentation::kTagged);
 
-  ForSmiZeroUntil(original_length).Do([&](TNode<Number> k) {
+  ForZeroUntil(original_length).Do([&](TNode<Number> k) {
     Checkpoint(FindLoopEagerFrameState(frame_state_params, k, variant));
     MaybeInsertMapChecks(inference, has_stability_dependency);
 
@@ -1760,7 +1770,7 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeEverySome(
 
   auto out = MakeLabel(MachineRepresentation::kTagged);
 
-  ForSmiZeroUntil(original_length).Do([&](TNode<Number> k) {
+  ForZeroUntil(original_length).Do([&](TNode<Number> k) {
     Checkpoint(EverySomeLoopEagerFrameState(frame_state_params, k, variant));
     MaybeInsertMapChecks(inference, has_stability_dependency);
 
