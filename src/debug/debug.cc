@@ -2051,6 +2051,7 @@ void Debug::PrintBreakLocation() {
   if (iterator.done()) return;
   StandardFrame* frame = iterator.frame();
   FrameSummary summary = FrameSummary::GetTop(frame);
+  summary.EnsureSourcePositionsAvailable();
   int source_position = summary.SourcePosition();
   Handle<Object> script_obj = summary.script();
   PrintF("[debug] break in function '");
