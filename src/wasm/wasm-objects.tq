@@ -58,7 +58,6 @@ extern class WasmModuleObject extends JSObject {
   native_module: Foreign;
   export_wrappers: FixedArray;
   script: Script;
-  asm_js_offset_table: ByteArray|Undefined;
 }
 
 extern class WasmTableObject extends JSObject {
@@ -92,6 +91,5 @@ type WasmExportedFunction extends JSFunction;
 extern class AsmWasmData extends Struct {
   managed_native_module: Foreign;  // Managed<wasm::NativeModule>
   export_wrappers: FixedArray;
-  asm_js_offset_table: ByteArray;
   uses_bitset: HeapNumber;
 }

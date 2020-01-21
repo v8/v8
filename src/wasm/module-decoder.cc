@@ -2030,21 +2030,20 @@ FunctionResult DecodeWasmFunctionForTesting(
                                       std::make_unique<WasmFunction>());
 }
 
-AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,
-                                      const byte* tables_end) {
-  AsmJsOffsets table;
+AsmJsOffsetsResult DecodeAsmJsOffsets(Vector<const uint8_t> encoded_offsets) {
+  std::vector<AsmJsOffsetFunctionEntries> functions;
 
-  Decoder decoder(tables_start, tables_end);
+  Decoder decoder(encoded_offsets);
   uint32_t functions_count = decoder.consume_u32v("functions count");
   // Reserve space for the entries, taking care of invalid input.
-  if (functions_count < static_cast<uint32_t>(tables_end - tables_start)) {
-    table.reserve(functions_count);
+  if (functions_count < encoded_offsets.size()) {
+    functions.reserve(functions_count);
   }
 
   for (uint32_t i = 0; i < functions_count && decoder.ok(); ++i) {
     uint32_t size = decoder.consume_u32v("table size");
     if (size == 0) {
-      table.emplace_back();
+      functions.emplace_back();
       continue;
     }
     if (!decoder.checkAvailable(size)) {
@@ -2073,11 +2072,12 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,
     if (decoder.pc() != table_end) {
       decoder.error("broken asm offset table");
     }
-    table.push_back(std::move(func_asm_offsets));
+    functions.emplace_back(
+        AsmJsOffsetFunctionEntries{std::move(func_asm_offsets)});
   }
   if (decoder.more()) decoder.error("unexpected additional bytes");
 
-  return decoder.toResult(std::move(table));
+  return decoder.toResult(AsmJsOffsets{std::move(functions)});
 }
 
 std::vector<CustomSectionOffset> DecodeCustomSections(const byte* start,

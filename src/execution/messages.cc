@@ -654,12 +654,9 @@ int AsmJsWasmStackFrame::GetPosition() const {
   int byte_offset =
       FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(code_,
                                                                     offset_);
-  Handle<WasmModuleObject> module_object(wasm_instance_->module_object(),
-                                         isolate_);
-  DCHECK_LE(0, byte_offset);
-  return WasmModuleObject::GetSourcePosition(module_object, wasm_func_index_,
-                                             static_cast<uint32_t>(byte_offset),
-                                             is_at_number_conversion_);
+  const wasm::WasmModule* module = wasm_instance_->module();
+  return GetSourcePosition(module, wasm_func_index_, byte_offset,
+                           is_at_number_conversion_);
 }
 
 int AsmJsWasmStackFrame::GetLineNumber() {

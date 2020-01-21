@@ -39,7 +39,12 @@ struct AsmJsOffsetEntry {
   int source_position_call;
   int source_position_number_conversion;
 };
-using AsmJsOffsets = std::vector<std::vector<AsmJsOffsetEntry>>;
+struct AsmJsOffsetFunctionEntries {
+  std::vector<AsmJsOffsetEntry> entries;
+};
+struct AsmJsOffsets {
+  std::vector<AsmJsOffsetFunctionEntries> functions;
+};
 using AsmJsOffsetsResult = Result<AsmJsOffsets>;
 
 class LocalName {
@@ -151,11 +156,7 @@ V8_EXPORT_PRIVATE std::vector<CustomSectionOffset> DecodeCustomSections(
 
 // Extracts the mapping from wasm byte offset to asm.js source position per
 // function.
-// Returns a vector of vectors with <byte_offset, source_position> entries, or
-// failure if the wasm bytes are detected as invalid. Note that this validation
-// is not complete.
-AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* module_start,
-                                      const byte* module_end);
+AsmJsOffsetsResult DecodeAsmJsOffsets(Vector<const uint8_t> encoded_offsets);
 
 // Decode the function names from the name section.
 // Returns the result as an unordered map. Only names with valid utf8 encoding

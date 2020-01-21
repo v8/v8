@@ -1674,7 +1674,6 @@ void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "AsmWasmData");
   os << "\n - native module: " << Brief(managed_native_module());
   os << "\n - export_wrappers: " << Brief(export_wrappers());
-  os << "\n - offset table: " << Brief(asm_js_offset_table());
   os << "\n - uses bitset: " << uses_bitset().value();
   os << "\n";
 }
@@ -1763,9 +1762,6 @@ void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {  // NOLINT
   os << "\n - native module: " << native_module();
   os << "\n - export wrappers: " << Brief(export_wrappers());
   os << "\n - script: " << Brief(script());
-  if (has_asm_js_offset_table()) {
-    os << "\n - asm_js_offset_table: " << Brief(asm_js_offset_table());
-  }
   os << "\n";
 }
 

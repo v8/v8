@@ -711,8 +711,6 @@ void WasmModuleBuilder::WriteAsmJsOffsetTable(ZoneBuffer* buffer) const {
   for (auto* function : functions_) {
     function->WriteAsmWasmOffsetTable(buffer);
   }
-  // Append a 0 to indicate that this is an encoded table.
-  buffer->write_u8(0);
 }
 }  // namespace wasm
 }  // namespace internal

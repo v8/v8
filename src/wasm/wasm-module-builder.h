@@ -122,6 +122,7 @@ class ZoneBuffer : public ZoneObject {
 
   size_t offset() const { return static_cast<size_t>(pos_ - buffer_); }
   size_t size() const { return static_cast<size_t>(pos_ - buffer_); }
+  const byte* data() const { return buffer_; }
   const byte* begin() const { return buffer_; }
   const byte* end() const { return pos_; }
 

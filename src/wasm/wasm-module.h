@@ -25,6 +25,7 @@ namespace wasm {
 
 using WasmName = Vector<const char>;
 
+struct AsmJsOffsets;
 class ErrorThrower;
 
 // Reference to a string in the wire bytes.
@@ -191,6 +192,30 @@ class V8_EXPORT_PRIVATE DecodedFunctionNames {
       function_names_;
 };
 
+class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
+ public:
+  explicit AsmJsOffsetInformation(Vector<const byte> encoded_offsets);
+
+  // Destructor defined in wasm-module.cc, where the definition of
+  // {AsmJsOffsets} is available.
+  ~AsmJsOffsetInformation();
+
+  int GetSourcePosition(int func_index, int byte_offset,
+                        bool is_at_number_conversion);
+
+ private:
+  // The offset information table is decoded lazily, hence needs to be
+  // protected against concurrent accesses.
+  // Exactly one of the two fields below will be set at a time.
+  mutable base::Mutex mutex_;
+
+  // Holds the encoded offset table bytes.
+  OwnedVector<const uint8_t> encoded_offsets_;
+
+  // Holds the decoded offset table.
+  std::unique_ptr<AsmJsOffsets> decoded_offsets_;
+};
+
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
   std::unique_ptr<Zone> signature_zone;
@@ -229,6 +254,10 @@ struct V8_EXPORT_PRIVATE WasmModule {
   ModuleOrigin origin = kWasmOrigin;  // origin of the module
   DecodedFunctionNames function_names;
   std::string source_map_url;
+
+  // Asm.js source position information. Only available for modules compiled
+  // from asm.js.
+  std::unique_ptr<AsmJsOffsetInformation> asm_js_offset_information;
 
   explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
 
@@ -330,6 +359,11 @@ Handle<JSArray> GetExports(Isolate* isolate, Handle<WasmModuleObject> module);
 Handle<JSArray> GetCustomSections(Isolate* isolate,
                                   Handle<WasmModuleObject> module,
                                   Handle<String> name, ErrorThrower* thrower);
+
+// Get the source position from a given function index and byte offset,
+// for either asm.js or pure Wasm modules.
+int GetSourcePosition(const WasmModule*, uint32_t func_index,
+                      uint32_t byte_offset, bool is_at_number_conversion);
 
 // TruncatedUserString makes it easy to output names up to a certain length, and
 // output a truncation followed by '...' if they exceed a limit.

@@ -111,6 +111,45 @@ void DecodedFunctionNames::AddForTesting(int function_index,
   function_names_->insert(std::make_pair(function_index, name));
 }
 
+AsmJsOffsetInformation::AsmJsOffsetInformation(
+    Vector<const byte> encoded_offsets)
+    : encoded_offsets_(OwnedVector<const uint8_t>::Of(encoded_offsets)) {}
+
+AsmJsOffsetInformation::~AsmJsOffsetInformation() = default;
+
+int AsmJsOffsetInformation::GetSourcePosition(int func_index, int byte_offset,
+                                              bool is_at_number_conversion) {
+  base::MutexGuard lock(&mutex_);
+  DCHECK_EQ(encoded_offsets_ == nullptr, decoded_offsets_ != nullptr);
+
+  if (!decoded_offsets_) {
+    AsmJsOffsetsResult result =
+        wasm::DecodeAsmJsOffsets(encoded_offsets_.as_vector());
+    decoded_offsets_ =
+        std::make_unique<AsmJsOffsets>(std::move(result).value());
+    encoded_offsets_.ReleaseData();
+  }
+
+  DCHECK_LE(0, func_index);
+  DCHECK_GT(decoded_offsets_->functions.size(), func_index);
+  std::vector<AsmJsOffsetEntry>& function_offsets =
+      decoded_offsets_->functions[func_index].entries;
+
+  auto byte_offset_less = [](const AsmJsOffsetEntry& a,
+                             const AsmJsOffsetEntry& b) {
+    return a.byte_offset < b.byte_offset;
+  };
+  SLOW_DCHECK(std::is_sorted(function_offsets.begin(), function_offsets.end(),
+                             byte_offset_less));
+  auto it =
+      std::lower_bound(function_offsets.begin(), function_offsets.end(),
+                       AsmJsOffsetEntry{byte_offset, 0, 0}, byte_offset_less);
+  DCHECK_NE(function_offsets.end(), it);
+  DCHECK_EQ(byte_offset, it->byte_offset);
+  return is_at_number_conversion ? it->source_position_number_conversion
+                                 : it->source_position_call;
+}
+
 // Get a string stored in the module bytes representing a name.
 WasmName ModuleWireBytes::GetNameOrNull(WireBytesRef ref) const {
   if (!ref.is_set()) return {nullptr, 0};  // no name.
@@ -549,6 +588,27 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
   }
 
   return array_object;
+}
+
+// Get the source position from a given function index and byte offset,
+// for either asm.js or pure Wasm modules.
+int GetSourcePosition(const WasmModule* module, uint32_t func_index,
+                      uint32_t byte_offset, bool is_at_number_conversion) {
+  DCHECK_EQ(is_asmjs_module(module),
+            module->asm_js_offset_information != nullptr);
+  if (!is_asmjs_module(module)) {
+    // For non-asm.js modules, we just add the function's start offset
+    // to make a module-relative position.
+    return byte_offset + GetWasmFunctionOffset(module, func_index);
+  }
+
+  // asm.js modules have an additional offset table that must be searched.
+  // Note: {AsmJsOffsetInformation::GetSourcePosition} expects the function
+  // index relative to the first non-imported function.
+  DCHECK_LE(module->num_imported_functions, func_index);
+  return module->asm_js_offset_information->GetSourcePosition(
+      func_index - module->num_imported_functions, byte_offset,
+      is_at_number_conversion);
 }
 
 namespace {

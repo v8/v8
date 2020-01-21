@@ -316,6 +316,9 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
     UNREACHABLE();
   }
 
+  result.value()->asm_js_offset_information =
+      std::make_unique<AsmJsOffsetInformation>(asm_js_offset_table_bytes);
+
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
   Handle<FixedArray> export_wrappers;
@@ -324,15 +327,8 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
                             std::move(result).value(), bytes, &export_wrappers);
   if (!native_module) return {};
 
-  // Create heap objects for asm.js offset table to be stored in the module
-  // object.
-  Handle<ByteArray> asm_js_offset_table =
-      isolate->factory()->NewByteArray(asm_js_offset_table_bytes.length());
-  asm_js_offset_table->copy_in(0, asm_js_offset_table_bytes.begin(),
-                               asm_js_offset_table_bytes.length());
-
   return AsmWasmData::New(isolate, std::move(native_module), export_wrappers,
-                          asm_js_offset_table, uses_bitset);
+                          uses_bitset);
 }
 
 Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
@@ -344,7 +340,6 @@ Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
       handle(asm_wasm_data->export_wrappers(), isolate);
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
       isolate, std::move(native_module), script, export_wrappers);
-  module_object->set_asm_js_offset_table(asm_wasm_data->asm_js_offset_table());
   return module_object;
 }
 

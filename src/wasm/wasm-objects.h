@@ -130,7 +130,6 @@ class WasmModuleObject : public JSObject {
   DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
   DECL_ACCESSORS(export_wrappers, FixedArray)
   DECL_ACCESSORS(script, Script)
-  DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
   inline wasm::NativeModule* native_module() const;
   inline const std::shared_ptr<wasm::NativeModule>& shared_native_module()
       const;
@@ -181,12 +180,6 @@ class WasmModuleObject : public JSObject {
   // Meant to be used for debugging or frame printing.
   // Does not allocate, hence gc-safe.
   Vector<const uint8_t> GetRawFunctionName(uint32_t func_index);
-
-  // Get the source position from a given function index and byte offset,
-  // for either asm.js or pure Wasm modules.
-  static int GetSourcePosition(Handle<WasmModuleObject>, uint32_t func_index,
-                               uint32_t byte_offset,
-                               bool is_at_number_conversion);
 
   // Extract a portion of the wire bytes as UTF-8 string, optionally
   // internalized. (Prefer to internalize early if the string will be used for a
@@ -970,16 +963,16 @@ class WasmExceptionTag
   TQ_OBJECT_CONSTRUCTORS(WasmExceptionTag)
 };
 
+// Data annotated to the asm.js Module function. Used for later instantiation of
+// that function.
 class AsmWasmData : public Struct {
  public:
   static Handle<AsmWasmData> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-      Handle<FixedArray> export_wrappers, Handle<ByteArray> asm_js_offset_table,
-      Handle<HeapNumber> uses_bitset);
+      Handle<FixedArray> export_wrappers, Handle<HeapNumber> uses_bitset);
 
   DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
   DECL_ACCESSORS(export_wrappers, FixedArray)
-  DECL_ACCESSORS(asm_js_offset_table, ByteArray)
   DECL_ACCESSORS(uses_bitset, HeapNumber)
 
   DECL_CAST(AsmWasmData)

@@ -2094,9 +2094,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   const int frame_count = elements->FrameCount();
   for (int i = 0; i < frame_count; i++) {
     if (elements->IsWasmFrame(i) || elements->IsAsmJsWasmFrame(i)) {
-      Handle<WasmInstanceObject> instance(elements->WasmInstance(i), this);
-      uint32_t func_index =
-          static_cast<uint32_t>(elements->WasmFunctionIndex(i).value());
+      int func_index = elements->WasmFunctionIndex(i).value();
       int offset = elements->Offset(i).value();
       bool is_at_number_conversion =
           elements->IsAsmJsWasmFrame(i) &&
@@ -2110,9 +2108,10 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
         offset = FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
             code, offset);
       }
-      int pos = WasmModuleObject::GetSourcePosition(
-          handle(instance->module_object(), this), func_index, offset,
-          is_at_number_conversion);
+      Handle<WasmInstanceObject> instance(elements->WasmInstance(i), this);
+      const wasm::WasmModule* module = elements->WasmInstance(i).module();
+      int pos = GetSourcePosition(module, func_index, offset,
+                                  is_at_number_conversion);
       Handle<Script> script(instance->module_object().script(), this);
 
       *target = MessageLocation(script, pos, pos + 1);
