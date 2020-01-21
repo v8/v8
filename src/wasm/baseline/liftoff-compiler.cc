@@ -388,6 +388,10 @@ class LiftoffCompiler {
   }
 
   void StartFunction(FullDecoder* decoder) {
+    if (FLAG_trace_liftoff && !FLAG_trace_wasm_decoder) {
+      StdoutStream{} << "hint: add --trace-wasm-decoder to also see the wasm "
+                        "instructions being decoded\n";
+    }
     int num_locals = decoder->num_locals();
     __ set_num_locals(num_locals);
     for (int i = 0; i < num_locals; ++i) {
@@ -2368,8 +2372,7 @@ class LiftoffCompiler {
   }
 
   void TraceCacheState(FullDecoder* decoder) const {
-#ifdef DEBUG
-    if (!FLAG_trace_liftoff || !FLAG_trace_wasm_decoder) return;
+    if (!FLAG_trace_liftoff) return;
     StdoutStream os;
     for (int control_depth = decoder->control_depth() - 1; control_depth >= -1;
          --control_depth) {
@@ -2381,7 +2384,6 @@ class LiftoffCompiler {
       if (control_depth != -1) PrintF("; ");
     }
     os << "\n";
-#endif
   }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(LiftoffCompiler);
