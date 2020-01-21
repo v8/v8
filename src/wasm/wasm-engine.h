@@ -48,6 +48,43 @@ class V8_EXPORT_PRIVATE InstantiationResultResolver {
   virtual ~InstantiationResultResolver() = default;
 };
 
+// Native modules cached by their wire bytes.
+class NativeModuleCache {
+ public:
+  struct WireBytesHasher {
+    size_t operator()(const Vector<const uint8_t>& bytes) const;
+  };
+
+  std::shared_ptr<NativeModule> MaybeGetNativeModule(
+      ModuleOrigin origin, Vector<const uint8_t> wire_bytes);
+  void Update(std::shared_ptr<NativeModule> native_module, bool error);
+  void Erase(NativeModule* native_module);
+
+ private:
+  // Each key points to the corresponding native module's wire bytes, so they
+  // should always be valid as long as the native module is alive.  When
+  // the native module dies, {FreeNativeModule} deletes the entry from the
+  // map, so that we do not leave any dangling key pointing to an expired
+  // weak_ptr. This also serves as a way to regularly clean up the map, which
+  // would otherwise accumulate expired entries.
+  // A {nullopt} value is inserted to indicate that this native module is
+  // currently being created in some thread, and that other threads should wait
+  // before trying to get it from the cache.
+  // By contrast, an expired {weak_ptr} indicates that the native module died
+  // and will soon be cleaned up from the cache.
+  std::unordered_map<Vector<const uint8_t>,
+                     base::Optional<std::weak_ptr<NativeModule>>,
+                     WireBytesHasher>
+      map_;
+
+  base::Mutex mutex_;
+
+  // This condition variable is used to synchronize threads compiling the same
+  // module. Only one thread will create the {NativeModule}. Other threads
+  // will wait on this variable until the first thread wakes them up.
+  base::ConditionVariable cache_cv_;
+};
+
 // The central data structure that represents an engine instance capable of
 // loading, instantiating, and executing WASM code.
 class V8_EXPORT_PRIVATE WasmEngine {
@@ -294,35 +331,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // about that.
   std::unique_ptr<CurrentGCInfo> current_gc_info_;
 
-  struct WireBytesHasher {
-    size_t operator()(const Vector<const uint8_t>& bytes) const;
-  };
-
-  // Native modules cached by their wire bytes.
-  //
-  // Each key points to the corresponding native module's wire bytes, so they
-  // should always be valid as long as the native module is alive.  When
-  // the native module dies, {FreeNativeModule} deletes the entry from the
-  // map, so that we do not leave any dangling key pointing to an expired
-  // weak_ptr. This also serves as a way to regularly clean up the map, which
-  // would otherwise accumulate expired entries.
-  //
-  // A {nullopt} is used to indicate that a native module is currently being
-  // created and will soon be inserted in the cache, provided that no errors
-  // occurred.
-  // By contrast, an expired {weak_ptr} indicates that the native module died
-  // and will soon be cleaned up from the cache.
-  // TODO(thibaudm): This distinction should not be necessary when all native
-  // modules are cached.
-  std::unordered_map<Vector<const uint8_t>,
-                     base::Optional<std::weak_ptr<NativeModule>>,
-                     WireBytesHasher>
-      native_module_cache_;
-
-  // This condition variable is used to synchronize threads compiling the same
-  // module. Only one thread will create the {NativeModule}. The other threads
-  // will wait on this variable until the first thread wakes them up.
-  base::ConditionVariable cache_cv_;
+  NativeModuleCache native_module_cache_;
 
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
