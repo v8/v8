@@ -381,9 +381,6 @@ class CompilationStateImpl {
   // is invoked which triggers background compilation.
   void InitializeCompilationProgress(bool lazy_module, int num_wrappers);
 
-  // Initialize compilation progress for recompilation of the whole module.
-  void InitializeRecompilationProgress(ExecutionTier tier);
-
   // Add the callback function to be called on compilation events. Needs to be
   // set before {AddCompilationUnits} is run to ensure that it receives all
   // events. The callback object must support being deleted from any thread.
@@ -407,8 +404,7 @@ class CompilationStateImpl {
   void OnFinishedUnits(Vector<WasmCode*>);
   void OnFinishedJSToWasmWrapperUnits(int num);
   void TriggerCallbacks(bool completes_baseline_compilation,
-                        bool completes_top_tier_compilation,
-                        bool completes_recompilation = false);
+                        bool completes_top_tier_compilation);
 
   void OnBackgroundTaskStopped(int task_id, const WasmFeatures& detected);
   void UpdateDetectedFeatures(const WasmFeatures& detected);
@@ -429,11 +425,6 @@ class CompilationStateImpl {
   bool top_tier_compilation_finished() const {
     base::MutexGuard guard(&callbacks_mutex_);
     return outstanding_top_tier_functions_ == 0;
-  }
-
-  bool recompilation_finished() const {
-    base::MutexGuard guard(&callbacks_mutex_);
-    return outstanding_recompilation_functions_ == 0;
   }
 
   CompileMode compile_mode() const { return compile_mode_; }
@@ -545,7 +536,6 @@ class CompilationStateImpl {
   int outstanding_top_tier_functions_ = 0;
   std::vector<uint8_t> compilation_progress_;
 
-  int outstanding_recompilation_functions_ = 0;
   // End of fields protected by {callbacks_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
@@ -605,10 +595,6 @@ bool CompilationState::baseline_compilation_finished() const {
 
 bool CompilationState::top_tier_compilation_finished() const {
   return Impl(this)->top_tier_compilation_finished();
-}
-
-bool CompilationState::recompilation_finished() const {
-  return Impl(this)->recompilation_finished();
 }
 
 // static
@@ -759,10 +745,6 @@ class CompilationUnitBuilder {
                                  func_index, lazy_module));
 #endif
     tiering_units_.emplace_back(func_index, tiers.top_tier);
-  }
-
-  void AddBaselineUnit(int func_index) {
-    baseline_units_.emplace_back(func_index, ExecutionTier::kLiftoff);
   }
 
   bool Commit() {
@@ -1213,19 +1195,6 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
   builder.Commit();
 }
 
-void AddBaselineCompilationUnits(NativeModule* native_module) {
-  CompilationUnitBuilder builder(native_module);
-  auto* module = native_module->module();
-
-  uint32_t start = module->num_imported_functions;
-  uint32_t end = start + module->num_declared_functions;
-  for (uint32_t func_index = start; func_index < end; func_index++) {
-    builder.AddBaselineUnit(func_index);
-  }
-
-  builder.Commit();
-}
-
 bool MayCompriseLazyFunctions(const WasmModule* module,
                               const WasmFeatures& enabled_features,
                               bool lazy_module) {
@@ -1417,40 +1386,6 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   isolate->wasm_engine()->LogOutstandingCodesForIsolate(isolate);
 
   return native_module;
-}
-
-void RecompileNativeModule(Isolate* isolate, NativeModule* native_module,
-                           ExecutionTier tier) {
-  // Install a callback to notify us once background recompilation finished.
-  auto recompilation_finished_semaphore = std::make_shared<base::Semaphore>(0);
-  auto* compilation_state = Impl(native_module->compilation_state());
-  DCHECK_EQ(tier, ExecutionTier::kLiftoff);
-  // The callback captures a shared ptr to the semaphore.
-  compilation_state->AddCallback(
-      [recompilation_finished_semaphore](CompilationEvent event) {
-        if (event == CompilationEvent::kFinishedRecompilation) {
-          recompilation_finished_semaphore->Signal();
-        }
-      });
-
-  // Initialize the compilation units and kick off background compile tasks.
-  compilation_state->InitializeRecompilationProgress(tier);
-  AddBaselineCompilationUnits(native_module);
-
-  // The main thread contributes to the compilation, except if we need
-  // deterministic compilation; in that case, the single background task will
-  // execute all compilation.
-  if (!NeedsDeterministicCompile()) {
-    while (ExecuteCompilationUnits(
-        compilation_state->background_compile_token(), isolate->counters(),
-        kMainThreadTaskId, kBaselineOnly)) {
-      // Continue executing compilation units.
-    }
-  }
-
-  // Now wait until baseline recompilation finished.
-  recompilation_finished_semaphore->Wait();
-  DCHECK(!compilation_state->failed());
 }
 
 AsyncCompileJob::AsyncCompileJob(
@@ -1695,7 +1630,7 @@ class AsyncCompileJob::CompilationStateCallback {
         // At this point, the job will already be gone, thus do not access it
         // here.
         break;
-      case CompilationEvent::kFailedCompilation:
+      case CompilationEvent::kFailedCompilation: {
         DCHECK(!last_event_.has_value());
         if (job_->DecrementAndCheckFinisherCount()) {
           // TODO(v8:6847): Also share streaming compilation result.
@@ -1706,8 +1641,7 @@ class AsyncCompileJob::CompilationStateCallback {
           job_->DoSync<CompileFailed>();
         }
         break;
-      case CompilationEvent::kFinishedRecompilation:
-        break;
+      }
       default:
         UNREACHABLE();
     }
@@ -2026,7 +1960,6 @@ class SampleTopTierCodeSizeCallback {
   void operator()(CompilationEvent event) {
     // This callback is registered after baseline compilation finished, so the
     // only possible event to follow is {kFinishedTopTierCompilation}.
-    if (event == CompilationEvent::kFinishedRecompilation) return;
     DCHECK_EQ(CompilationEvent::kFinishedTopTierCompilation, event);
     if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
       native_module->engine()->SampleTopTierCodeSizeInAllIsolates(
@@ -2416,37 +2349,6 @@ void CompilationStateImpl::InitializeCompilationProgress(bool lazy_module,
   }
 }
 
-void CompilationStateImpl::InitializeRecompilationProgress(ExecutionTier tier) {
-  DCHECK(!failed());
-  auto* module = native_module_->module();
-
-  base::MutexGuard guard(&callbacks_mutex_);
-  // Ensure that we don't trigger recompilation if another recompilation is
-  // already happening.
-  DCHECK_EQ(0, outstanding_recompilation_functions_);
-  int start = module->num_imported_functions;
-  int end = start + module->num_declared_functions;
-  for (int function_index = start; function_index < end; function_index++) {
-    int slot_index = function_index - start;
-    DCHECK_LT(slot_index, compilation_progress_.size());
-    ExecutionTier reached_tier =
-        ReachedTierField::decode(compilation_progress_[slot_index]);
-    if (reached_tier != tier) {
-      outstanding_recompilation_functions_++;
-    }
-  }
-  DCHECK_LE(0, outstanding_recompilation_functions_);
-  DCHECK_LE(outstanding_recompilation_functions_,
-            module->num_declared_functions);
-
-  // Trigger callbacks if module needs no recompilation.
-  if (outstanding_recompilation_functions_ == 0) {
-    for (auto& callback : callbacks_) {
-      callback(CompilationEvent::kFinishedRecompilation);
-    }
-  }
-}
-
 void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
   base::MutexGuard callbacks_guard(&callbacks_mutex_);
   callbacks_.emplace_back(std::move(callback));
@@ -2518,8 +2420,7 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
   // This is especially important for lazy modules that were deserialized.
   // Compilation progress was not set up in these cases.
   if (outstanding_baseline_units_ == 0 &&
-      outstanding_top_tier_functions_ == 0 &&
-      outstanding_recompilation_functions_ == 0) {
+      outstanding_top_tier_functions_ == 0) {
     return;
   }
 
@@ -2535,7 +2436,6 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
 
   bool completes_baseline_compilation = false;
   bool completes_top_tier_compilation = false;
-  bool completes_recompilation = false;
 
   for (WasmCode* code : code_vector) {
     DCHECK_NOT_NULL(code);
@@ -2583,34 +2483,17 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
         }
       }
 
-      // If there is recompilation in progress, we would only count the
-      // functions which are not Liftoff already, and would only decrement the
-      // counter once a function reaches Liftoff.
-      if (outstanding_recompilation_functions_ > 0) {
-        // TODO(duongn): extend this logic for tier up.
-        if (code->tier() == ExecutionTier::kLiftoff &&
-            reached_tier != ExecutionTier::kLiftoff) {
-          outstanding_recompilation_functions_--;
-          // Update function's compilation progress.
-          compilation_progress_[slot_index] = ReachedTierField::update(
-              compilation_progress_[slot_index], code->tier());
-          if (outstanding_recompilation_functions_ == 0) {
-            completes_recompilation = true;
-          }
-        }
-      } else {
-        // Update function's compilation progress.
-        if (code->tier() > reached_tier) {
-          compilation_progress_[slot_index] = ReachedTierField::update(
-              compilation_progress_[slot_index], code->tier());
-        }
+      // Update function's compilation progress.
+      if (code->tier() > reached_tier) {
+        compilation_progress_[slot_index] = ReachedTierField::update(
+            compilation_progress_[slot_index], code->tier());
       }
       DCHECK_LE(0, outstanding_baseline_units_);
     }
   }
 
   TriggerCallbacks(completes_baseline_compilation,
-                   completes_top_tier_compilation, completes_recompilation);
+                   completes_top_tier_compilation);
 }
 
 void CompilationStateImpl::OnFinishedJSToWasmWrapperUnits(int num) {
@@ -2621,14 +2504,8 @@ void CompilationStateImpl::OnFinishedJSToWasmWrapperUnits(int num) {
   TriggerCallbacks(completes_baseline_compilation, false);
 }
 
-void CompilationStateImpl::TriggerCallbacks(bool completes_baseline_compilation,
-                                            bool completes_top_tier_compilation,
-                                            bool completes_recompilation) {
-  if (completes_recompilation) {
-    for (auto& callback : callbacks_) {
-      callback(CompilationEvent::kFinishedRecompilation);
-    }
-  }
+void CompilationStateImpl::TriggerCallbacks(
+    bool completes_baseline_compilation, bool completes_top_tier_compilation) {
   if (completes_baseline_compilation) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "BaselineFinished");
     for (auto& callback : callbacks_) {
@@ -2643,10 +2520,6 @@ void CompilationStateImpl::TriggerCallbacks(bool completes_baseline_compilation,
     for (auto& callback : callbacks_) {
       callback(CompilationEvent::kFinishedTopTierCompilation);
     }
-  }
-  if (outstanding_baseline_units_ == 0 &&
-      outstanding_top_tier_functions_ == 0 &&
-      outstanding_recompilation_functions_ == 0) {
     // Clear the callbacks because no more events will be delivered.
     callbacks_.clear();
   }
@@ -2713,7 +2586,7 @@ void CompilationStateImpl::RestartBackgroundTasks() {
     }
   }
 
-  if (baseline_compilation_finished() && recompilation_finished()) {
+  if (baseline_compilation_finished()) {
     for (auto& task : new_tasks) {
       V8::GetCurrentPlatform()->CallLowPriorityTaskOnWorkerThread(
           std::move(task));
