@@ -212,6 +212,9 @@ class StackTransferRecipe {
           RegisterLoad::HalfStack(stack_offset, kLowWord);
       *register_load(dst.high()) =
           RegisterLoad::HalfStack(stack_offset, kHighWord);
+    } else if (dst.is_fp_pair()) {
+      DCHECK_EQ(kWasmS128, type);
+      *register_load(dst.low()) = RegisterLoad::Stack(stack_offset, type);
     } else {
       *register_load(dst) = RegisterLoad::Stack(stack_offset, type);
     }
@@ -314,7 +317,12 @@ class StackTransferRecipe {
                                       : WasmValue(int32_t{load->value}));
           break;
         case RegisterLoad::kStack:
-          asm_->Fill(dst, load->value, load->type);
+          if (kNeedS128RegPair && load->type == kWasmS128) {
+            asm_->Fill(LiftoffRegister::ForFpPair(dst.fp()), load->value,
+                       load->type);
+          } else {
+            asm_->Fill(dst, load->value, load->type);
+          }
           break;
         case RegisterLoad::kLowHalfStack:
           // Half of a register pair, {dst} must be a gp register.
