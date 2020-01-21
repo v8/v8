@@ -130,9 +130,8 @@ class JSHeapBroker;
 class Hints {
  public:
   Hints() = default;  // Empty.
-  static Hints SingleConstant(Handle<Object> constant, Zone* zone,
-                              JSHeapBroker* broker);
-  static Hints SingleMap(Handle<Map> map, Zone* zone, JSHeapBroker* broker);
+  static Hints SingleConstant(Handle<Object> constant, Zone* zone);
+  static Hints SingleMap(Handle<Map> map, Zone* zone);
 
   // For inspection only.
   ConstantsSet constants() const;
@@ -188,6 +187,7 @@ class Hints {
   bool Union(Hints const& other);
 
   static const size_t kMaxHintsSize = 50;
+  static_assert(kMaxHintsSize >= 1, "must allow for at least one hint");
 };
 
 using HintsVector = ZoneVector<Hints>;
