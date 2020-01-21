@@ -1243,6 +1243,12 @@ void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
 }
 
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
+  DCHECK_EQ(node->InputCount(), 1);
+  Node* input = node->InputAt(0);
+  if (input->opcode() == IrOpcode::kTruncateInt64ToInt32) {
+    node->ReplaceInput(0, input->InputAt(0));
+  }
+
   X64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
   if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
