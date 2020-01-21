@@ -2035,20 +2035,17 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(Vector<const uint8_t> encoded_offsets) {
 
   Decoder decoder(encoded_offsets);
   uint32_t functions_count = decoder.consume_u32v("functions count");
-  // Reserve space for the entries, taking care of invalid input.
-  if (functions_count < encoded_offsets.size()) {
-    functions.reserve(functions_count);
-  }
+  // Sanity check.
+  DCHECK_GE(encoded_offsets.size(), functions_count);
+  functions.reserve(functions_count);
 
-  for (uint32_t i = 0; i < functions_count && decoder.ok(); ++i) {
+  for (uint32_t i = 0; i < functions_count; ++i) {
     uint32_t size = decoder.consume_u32v("table size");
     if (size == 0) {
       functions.emplace_back();
       continue;
     }
-    if (!decoder.checkAvailable(size)) {
-      decoder.error("illegal asm function offset table size");
-    }
+    DCHECK(decoder.checkAvailable(size));
     const byte* table_end = decoder.pc() + size;
     uint32_t locals_size = decoder.consume_u32v("locals size");
     int function_start_position = decoder.consume_u32v("function start pos");
@@ -2059,7 +2056,8 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(Vector<const uint8_t> encoded_offsets) {
     // Add an entry for the stack check, associated with position 0.
     func_asm_offsets.push_back(
         {0, function_start_position, function_start_position});
-    while (decoder.ok() && decoder.pc() < table_end) {
+    while (decoder.pc() < table_end) {
+      DCHECK(decoder.ok());
       last_byte_offset += decoder.consume_u32v("byte offset delta");
       int call_position =
           last_asm_position + decoder.consume_i32v("call position delta");
@@ -2069,13 +2067,12 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(Vector<const uint8_t> encoded_offsets) {
       func_asm_offsets.push_back(
           {last_byte_offset, call_position, to_number_position});
     }
-    if (decoder.pc() != table_end) {
-      decoder.error("broken asm offset table");
-    }
+    DCHECK_EQ(decoder.pc(), table_end);
     functions.emplace_back(
         AsmJsOffsetFunctionEntries{std::move(func_asm_offsets)});
   }
-  if (decoder.more()) decoder.error("unexpected additional bytes");
+  DCHECK(decoder.ok());
+  DCHECK(!decoder.more());
 
   return decoder.toResult(AsmJsOffsets{std::move(functions)});
 }
