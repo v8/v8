@@ -5,6 +5,7 @@
 extern class PrototypeInfo extends Struct {
   js_module_namespace: JSModuleNamespace|Undefined;
   prototype_users: WeakArrayList|Zero;
+  prototype_chain_enum_cache: FixedArray|Object|Undefined;
   registry_slot: Smi;
   validity_cell: Object;
   object_create_map: Weak<Map>|Undefined;
