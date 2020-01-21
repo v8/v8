@@ -1716,6 +1716,117 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ByteSwapSigned(i.OutputRegister(0), i.InputRegister(0), 4);
       break;
     }
+    case kMipsS8x16LoadSplat: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ lb(kScratchReg, i.MemoryOperand());
+      __ fill_b(i.OutputSimd128Register(), kScratchReg);
+      break;
+    }
+    case kMipsS16x8LoadSplat: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ lh(kScratchReg, i.MemoryOperand());
+      __ fill_h(i.OutputSimd128Register(), kScratchReg);
+      break;
+    }
+    case kMipsS32x4LoadSplat: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ Lw(kScratchReg, i.MemoryOperand());
+      __ fill_w(i.OutputSimd128Register(), kScratchReg);
+      break;
+    }
+    case kMipsS64x2LoadSplat: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      MemOperand memLow = i.MemoryOperand();
+      MemOperand memHigh = MemOperand(memLow.rm(), memLow.offset() + 4);
+      __ Lw(kScratchReg, memLow);
+      __ fill_w(dst, kScratchReg);
+      __ Lw(kScratchReg, memHigh);
+      __ fill_w(kSimd128ScratchReg, kScratchReg);
+      __ ilvr_w(dst, kSimd128ScratchReg, dst);
+      break;
+    }
+    case kMipsI16x8Load8x8S: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      MemOperand memLow = i.MemoryOperand();
+      MemOperand memHigh = MemOperand(memLow.rm(), memLow.offset() + 4);
+      __ Lw(kScratchReg, memLow);
+      __ fill_w(dst, kScratchReg);
+      __ Lw(kScratchReg, memHigh);
+      __ fill_w(kSimd128ScratchReg, kScratchReg);
+      __ ilvr_w(dst, kSimd128ScratchReg, dst);
+      __ clti_s_b(kSimd128ScratchReg, dst, 0);
+      __ ilvr_b(dst, kSimd128ScratchReg, dst);
+      break;
+    }
+    case kMipsI16x8Load8x8U: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      MemOperand memLow = i.MemoryOperand();
+      MemOperand memHigh = MemOperand(memLow.rm(), memLow.offset() + 4);
+      __ Lw(kScratchReg, memLow);
+      __ fill_w(dst, kScratchReg);
+      __ Lw(kScratchReg, memHigh);
+      __ fill_w(kSimd128ScratchReg, kScratchReg);
+      __ ilvr_w(dst, kSimd128ScratchReg, dst);
+      __ ilvr_b(dst, kSimd128RegZero, dst);
+      break;
+    }
+    case kMipsI32x4Load16x4S: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      MemOperand memLow = i.MemoryOperand();
+      MemOperand memHigh = MemOperand(memLow.rm(), memLow.offset() + 4);
+      __ Lw(kScratchReg, memLow);
+      __ fill_w(dst, kScratchReg);
+      __ Lw(kScratchReg, memHigh);
+      __ fill_w(kSimd128ScratchReg, kScratchReg);
+      __ ilvr_w(dst, kSimd128ScratchReg, dst);
+      __ clti_s_h(kSimd128ScratchReg, dst, 0);
+      __ ilvr_h(dst, kSimd128ScratchReg, dst);
+      break;
+    }
+    case kMipsI32x4Load16x4U: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      MemOperand memLow = i.MemoryOperand();
+      MemOperand memHigh = MemOperand(memLow.rm(), memLow.offset() + 4);
+      __ Lw(kScratchReg, memLow);
+      __ fill_w(dst, kScratchReg);
+      __ Lw(kScratchReg, memHigh);
+      __ fill_w(kSimd128ScratchReg, kScratchReg);
+      __ ilvr_w(dst, kSimd128ScratchReg, dst);
+      __ ilvr_h(dst, kSimd128RegZero, dst);
+      break;
+    }
+    case kMipsI64x2Load32x2S: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      MemOperand memLow = i.MemoryOperand();
+      MemOperand memHigh = MemOperand(memLow.rm(), memLow.offset() + 4);
+      __ Lw(kScratchReg, memLow);
+      __ fill_w(dst, kScratchReg);
+      __ Lw(kScratchReg, memHigh);
+      __ fill_w(kSimd128ScratchReg, kScratchReg);
+      __ ilvr_w(dst, kSimd128ScratchReg, dst);
+      __ clti_s_w(kSimd128ScratchReg, dst, 0);
+      __ ilvr_w(dst, kSimd128ScratchReg, dst);
+      break;
+    }
+    case kMipsI64x2Load32x2U: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      MemOperand memLow = i.MemoryOperand();
+      MemOperand memHigh = MemOperand(memLow.rm(), memLow.offset() + 4);
+      __ Lw(kScratchReg, memLow);
+      __ fill_w(dst, kScratchReg);
+      __ Lw(kScratchReg, memHigh);
+      __ fill_w(kSimd128ScratchReg, kScratchReg);
+      __ ilvr_w(dst, kSimd128ScratchReg, dst);
+      __ ilvr_w(dst, kSimd128RegZero, dst);
+      break;
+    }
     case kWord32AtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lb);
       break;

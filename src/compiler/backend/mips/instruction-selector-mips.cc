@@ -278,6 +278,61 @@ void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), a0));
 }
 
+void InstructionSelector::VisitLoadTransform(Node* node) {
+  LoadTransformParameters params = LoadTransformParametersOf(node->op());
+  MipsOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+
+  InstructionCode opcode = kArchNop;
+  switch (params.transformation) {
+    case LoadTransformation::kS8x16LoadSplat:
+      opcode = kMipsS8x16LoadSplat;
+      break;
+    case LoadTransformation::kS16x8LoadSplat:
+      opcode = kMipsS16x8LoadSplat;
+      break;
+    case LoadTransformation::kS32x4LoadSplat:
+      opcode = kMipsS32x4LoadSplat;
+      break;
+    case LoadTransformation::kS64x2LoadSplat:
+      opcode = kMipsS64x2LoadSplat;
+      break;
+    case LoadTransformation::kI16x8Load8x8S:
+      opcode = kMipsI16x8Load8x8S;
+      break;
+    case LoadTransformation::kI16x8Load8x8U:
+      opcode = kMipsI16x8Load8x8U;
+      break;
+    case LoadTransformation::kI32x4Load16x4S:
+      opcode = kMipsI32x4Load16x4S;
+      break;
+    case LoadTransformation::kI32x4Load16x4U:
+      opcode = kMipsI32x4Load16x4U;
+      break;
+    case LoadTransformation::kI64x2Load32x2S:
+      opcode = kMipsI64x2Load32x2S;
+      break;
+    case LoadTransformation::kI64x2Load32x2U:
+      opcode = kMipsI64x2Load32x2U;
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+
+  if (g.CanBeImmediate(index, opcode)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
+  } else {
+    InstructionOperand addr_reg = g.TempRegister();
+    Emit(kMipsAdd | AddressingModeField::encode(kMode_None), addr_reg,
+         g.UseRegister(index), g.UseRegister(base));
+    // Emit desired load opcode, using temp addr_reg.
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), addr_reg, g.TempImmediate(0));
+  }
+}
+
 void InstructionSelector::VisitLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   MipsOperandGenerator g(this);

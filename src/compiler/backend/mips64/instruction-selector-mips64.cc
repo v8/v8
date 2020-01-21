@@ -359,6 +359,48 @@ void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
   }
 }
 
+void InstructionSelector::VisitLoadTransform(Node* node) {
+  LoadTransformParameters params = LoadTransformParametersOf(node->op());
+
+  InstructionCode opcode = kArchNop;
+  switch (params.transformation) {
+    case LoadTransformation::kS8x16LoadSplat:
+      opcode = kMips64S8x16LoadSplat;
+      break;
+    case LoadTransformation::kS16x8LoadSplat:
+      opcode = kMips64S16x8LoadSplat;
+      break;
+    case LoadTransformation::kS32x4LoadSplat:
+      opcode = kMips64S32x4LoadSplat;
+      break;
+    case LoadTransformation::kS64x2LoadSplat:
+      opcode = kMips64S64x2LoadSplat;
+      break;
+    case LoadTransformation::kI16x8Load8x8S:
+      opcode = kMips64I16x8Load8x8S;
+      break;
+    case LoadTransformation::kI16x8Load8x8U:
+      opcode = kMips64I16x8Load8x8U;
+      break;
+    case LoadTransformation::kI32x4Load16x4S:
+      opcode = kMips64I32x4Load16x4S;
+      break;
+    case LoadTransformation::kI32x4Load16x4U:
+      opcode = kMips64I32x4Load16x4U;
+      break;
+    case LoadTransformation::kI64x2Load32x2S:
+      opcode = kMips64I64x2Load32x2S;
+      break;
+    case LoadTransformation::kI64x2Load32x2U:
+      opcode = kMips64I64x2Load32x2U;
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+
+  EmitLoad(this, node, opcode);
+}
+
 void InstructionSelector::VisitLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
 
