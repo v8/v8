@@ -207,6 +207,10 @@ declare_args() {
   # Use token threaded dispatch for the regular expression interpreter.
   # Use switch-based dispatch if this is false
   v8_enable_regexp_interpreter_threaded_dispatch = true
+
+  # Enable additional targets necessary for verification of torque
+  # file generation
+  v8_verify_torque_generation_invariance = false
 }
 
 # Derived defaults.
@@ -1100,59 +1104,114 @@ if (!v8_enable_i18n_support) {
   torque_files -= [ "src/objects/intl-objects.tq" ]
 }
 
-action("run_torque") {
-  visibility = [
-    ":*",
-    "tools/debug_helper/:*",
-    "tools/gcmole/:*",
-    "test/cctest/:*",
-  ]
-
-  deps = [ ":torque($v8_generator_toolchain)" ]
-
-  script = "tools/run.py"
-
-  sources = torque_files
-
-  outputs = [
-    "$target_gen_dir/torque-generated/bit-fields-tq.h",
-    "$target_gen_dir/torque-generated/builtin-definitions-tq.h",
-    "$target_gen_dir/torque-generated/interface-descriptors-tq.inc",
-    "$target_gen_dir/torque-generated/field-offsets-tq.h",
-    "$target_gen_dir/torque-generated/class-verifiers-tq.cc",
-    "$target_gen_dir/torque-generated/class-verifiers-tq.h",
-    "$target_gen_dir/torque-generated/enum-verifiers-tq.cc",
-    "$target_gen_dir/torque-generated/objects-printer-tq.cc",
-    "$target_gen_dir/torque-generated/class-definitions-tq.cc",
-    "$target_gen_dir/torque-generated/class-definitions-tq-inl.h",
-    "$target_gen_dir/torque-generated/class-definitions-tq.h",
-    "$target_gen_dir/torque-generated/class-debug-readers-tq.cc",
-    "$target_gen_dir/torque-generated/class-debug-readers-tq.h",
-    "$target_gen_dir/torque-generated/exported-macros-assembler-tq.cc",
-    "$target_gen_dir/torque-generated/exported-macros-assembler-tq.h",
-    "$target_gen_dir/torque-generated/csa-types-tq.h",
-    "$target_gen_dir/torque-generated/instance-types-tq.h",
-    "$target_gen_dir/torque-generated/internal-class-definitions-tq.h",
-    "$target_gen_dir/torque-generated/internal-class-definitions-tq-inl.h",
-  ]
-  foreach(file, torque_files) {
-    filetq = string_replace(file, ".tq", "-tq-csa")
-    outputs += [
-      "$target_gen_dir/torque-generated/$filetq.cc",
-      "$target_gen_dir/torque-generated/$filetq.h",
-    ]
+# Template for running torque
+# When building with v8_verify_torque_generation_invariance=true we need
+# to be able to run torque for both 32 and 64 bits in the same build
+template("run_torque") {
+  if (target_name == "") {
+    suffix = ""
+  } else {
+    suffix = "_$target_name"
   }
 
-  args = [
-    "./" + rebase_path(get_label_info(":torque($v8_generator_toolchain)",
-                                      "root_out_dir") + "/torque",
-                       root_build_dir),
-    "-o",
-    rebase_path("$target_gen_dir/torque-generated", root_build_dir),
-    "-v8-root",
-    rebase_path(".", root_build_dir),
-  ]
-  args += torque_files
+  toolchain = invoker.toolchain
+
+  action("run_torque" + suffix) {
+    visibility = [
+      ":*",
+      "tools/debug_helper/:*",
+      "tools/gcmole/:*",
+      "test/cctest/:*",
+    ]
+
+    deps = [ ":torque($toolchain)" ]
+
+    script = "tools/run.py"
+
+    sources = torque_files
+
+    destination_folder = "$target_gen_dir/torque-generated$suffix"
+
+    files = [
+      "bit-fields-tq.h",
+      "builtin-definitions-tq.h",
+      "interface-descriptors-tq.inc",
+      "field-offsets-tq.h",
+      "class-verifiers-tq.cc",
+      "class-verifiers-tq.h",
+      "enum-verifiers-tq.cc",
+      "objects-printer-tq.cc",
+      "class-definitions-tq.cc",
+      "class-definitions-tq-inl.h",
+      "class-definitions-tq.h",
+      "class-debug-readers-tq.cc",
+      "class-debug-readers-tq.h",
+      "exported-macros-assembler-tq.cc",
+      "exported-macros-assembler-tq.h",
+      "csa-types-tq.h",
+      "instance-types-tq.h",
+      "internal-class-definitions-tq.h",
+      "internal-class-definitions-tq-inl.h",
+    ]
+
+    outputs = []
+    foreach(file, files) {
+      outputs += [ "$destination_folder/$file" ]
+    }
+
+    foreach(file, torque_files) {
+      filetq = string_replace(file, ".tq", "-tq-csa")
+      outputs += [
+        "$destination_folder/$filetq.cc",
+        "$destination_folder/$filetq.h",
+      ]
+    }
+
+    args = [
+      "./" + rebase_path(
+              get_label_info(":torque($toolchain)", "root_out_dir") + "/torque",
+              root_build_dir),
+      "-o",
+      rebase_path("$destination_folder", root_build_dir),
+      "-v8-root",
+      rebase_path(".", root_build_dir),
+    ]
+    if (defined(invoker.args)) {
+      args += invoker.args
+    }
+    args += torque_files
+  }
+}
+
+# Default run_torque action
+run_torque("") {
+  toolchain = v8_generator_toolchain
+}
+
+if (v8_verify_torque_generation_invariance) {
+  run_torque("x86") {
+    toolchain = "//build/toolchain/linux:clang_x86"
+  }
+
+  run_torque("x64") {
+    args = [ "-m32" ]
+    toolchain = "//build/toolchain/linux:clang_x64"
+  }
+
+  action("compare_torque_runs") {
+    deps = [
+      ":run_torque_x64",
+      ":run_torque_x86",
+    ]
+    report_file = "$target_gen_dir/torque_comparison_results.txt"
+    script = "tools/compare_torque_output.py"
+    args = [
+      rebase_path("$target_gen_dir/torque-generated_x64", root_build_dir),
+      rebase_path("$target_gen_dir/torque-generated_x86", root_build_dir),
+      rebase_path(report_file, root_build_dir),
+    ]
+    outputs = [ report_file ]
+  }
 }
 
 group("v8_maybe_icu") {
