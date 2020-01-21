@@ -89,7 +89,7 @@ void UnwindingInfoWriter::MarkLinkRegisterOnTopOfStack(int pc_offset) {
 
   eh_frame_writer_.AdvanceLocation(pc_offset);
   eh_frame_writer_.SetBaseAddressRegisterAndOffset(sp, 0);
-  eh_frame_writer_.RecordRegisterSavedToStack(r30, 0);
+  eh_frame_writer_.RecordRegisterSavedToStack(kLrDwarfCode, 0);
 }
 
 void UnwindingInfoWriter::MarkPopLinkRegisterFromTopOfStack(int pc_offset) {
