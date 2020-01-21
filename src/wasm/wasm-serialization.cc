@@ -119,13 +119,12 @@ class Reader {
   const byte* pos_;
 };
 
-constexpr size_t kVersionSize = 4 * sizeof(uint32_t);
-
-void WriteVersion(Writer* writer) {
+void WriteHeader(Writer* writer) {
   writer->Write(SerializedData::kMagicNumber);
   writer->Write(Version::Hash());
   writer->Write(static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   writer->Write(FlagList::Hash());
+  DCHECK_EQ(WasmSerializer::kHeaderSize, writer->bytes_written());
 }
 
 // On Intel, call sites are encoded as a displacement. For linking and for
@@ -438,16 +437,16 @@ WasmSerializer::WasmSerializer(NativeModule* native_module)
 
 size_t WasmSerializer::GetSerializedNativeModuleSize() const {
   NativeModuleSerializer serializer(native_module_, VectorOf(code_table_));
-  return kVersionSize + serializer.Measure();
+  return kHeaderSize + serializer.Measure();
 }
 
 bool WasmSerializer::SerializeNativeModule(Vector<byte> buffer) const {
   NativeModuleSerializer serializer(native_module_, VectorOf(code_table_));
-  size_t measured_size = kVersionSize + serializer.Measure();
+  size_t measured_size = kHeaderSize + serializer.Measure();
   if (buffer.size() < measured_size) return false;
 
   Writer writer(buffer);
-  WriteVersion(&writer);
+  WriteHeader(&writer);
 
   if (!serializer.Write(&writer)) return false;
   DCHECK_EQ(measured_size, writer.bytes_written());
@@ -592,12 +591,13 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   return true;
 }
 
-bool IsSupportedVersion(Vector<const byte> version) {
-  if (version.size() < kVersionSize) return false;
-  byte current_version[kVersionSize];
-  Writer writer({current_version, kVersionSize});
-  WriteVersion(&writer);
-  return memcmp(version.begin(), current_version, kVersionSize) == 0;
+bool IsSupportedVersion(Vector<const byte> header) {
+  if (header.size() < WasmSerializer::kHeaderSize) return false;
+  byte current_version[WasmSerializer::kHeaderSize];
+  Writer writer({current_version, WasmSerializer::kHeaderSize});
+  WriteHeader(&writer);
+  return memcmp(header.begin(), current_version, WasmSerializer::kHeaderSize) ==
+         0;
 }
 
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(
@@ -635,7 +635,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     NativeModuleDeserializer deserializer(shared_native_module.get());
     WasmCodeRefScope wasm_code_ref_scope;
 
-    Reader reader(data + kVersionSize);
+    Reader reader(data + WasmSerializer::kHeaderSize);
     bool error = !deserializer.Read(&reader);
     wasm_engine->UpdateNativeModuleCache(shared_native_module, error);
     if (error) return {};

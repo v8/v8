@@ -53,7 +53,7 @@ class WasmSerializationTest {
   void InvalidateVersion() {
     uint32_t* slot = reinterpret_cast<uint32_t*>(
         const_cast<uint8_t*>(serialized_bytes_.data()) +
-        SerializedCodeData::kVersionHashOffset);
+        WasmSerializer::kVersionHashOffset);
     *slot = Version::Hash() + 1;
   }
 
@@ -61,11 +61,12 @@ class WasmSerializationTest {
     memset(const_cast<uint8_t*>(wire_bytes_.data()), 0, wire_bytes_.size() / 2);
   }
 
-  void InvalidateLength() {
-    uint32_t* slot = reinterpret_cast<uint32_t*>(
-        const_cast<uint8_t*>(serialized_bytes_.data()) +
-        SerializedCodeData::kPayloadLengthOffset);
-    *slot = 0u;
+  void InvalidateNumFunctions() {
+    Address num_functions_slot =
+        reinterpret_cast<Address>(serialized_bytes_.data()) +
+        WasmSerializer::kHeaderSize;
+    CHECK_EQ(1, base::ReadUnalignedValue<uint32_t>(num_functions_slot));
+    base::WriteUnalignedValue<uint32_t>(num_functions_slot, 0);
   }
 
   MaybeHandle<WasmModuleObject> Deserialize() {
@@ -207,13 +208,12 @@ TEST(DeserializeNoSerializedData) {
   test.CollectGarbage();
 }
 
-TEST(DeserializeInvalidLength) {
+TEST(DeserializeInvalidNumFunctions) {
   WasmSerializationTest test;
   {
     HandleScope scope(CcTest::i_isolate());
-    test.InvalidateLength();
-    // TODO(clemensb): Check why this still deserialized correctly.
-    // CHECK(test.Deserialize().is_null());
+    test.InvalidateNumFunctions();
+    CHECK(test.Deserialize().is_null());
   }
   test.CollectGarbage();
 }
