@@ -655,7 +655,10 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
           DCHECK_EQ(0, reg_code % 2);
           reg = LiftoffRegister::from_code(rc, (reg_code / 2));
         } else if (kNeedS128RegPair && type == kWasmS128) {
-          reg = LiftoffRegister::ForFpPair(DoubleRegister::from_code(reg_code));
+          // Similarly for double registers and SIMD registers, the SIMD code
+          // needs to be doubled to pass the f64 code to Liftoff.
+          reg = LiftoffRegister::ForFpPair(
+              DoubleRegister::from_code(reg_code * 2));
         } else {
           reg = LiftoffRegister::from_code(rc, reg_code);
         }

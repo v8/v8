@@ -416,16 +416,18 @@ class LiftoffCompiler {
       if (param_loc.IsRegister()) {
         DCHECK(!param_loc.IsAnyRegister());
         int reg_code = param_loc.AsRegister();
-#if V8_TARGET_ARCH_ARM
-        // Liftoff assumes a one-to-one mapping between float registers and
-        // double registers, and so does not distinguish between f32 and f64
-        // registers. The f32 register code must therefore be halved in order to
-        // pass the f64 code to Liftoff.
-        DCHECK_IMPLIES(type == kWasmF32, (reg_code % 2) == 0);
-        if (type == kWasmF32) {
+        if (!kSimpleFPAliasing && type == kWasmF32) {
+          // Liftoff assumes a one-to-one mapping between float registers and
+          // double registers, and so does not distinguish between f32 and f64
+          // registers. The f32 register code must therefore be halved in order
+          // to pass the f64 code to Liftoff.
+          DCHECK_EQ(0, reg_code % 2);
           reg_code /= 2;
+        } else if (kNeedS128RegPair && type == kWasmS128) {
+          // Similarly for double registers and SIMD registers, the SIMD code
+          // needs to be doubled to pass the f64 code to Liftoff.
+          reg_code *= 2;
         }
-#endif
         RegList cache_regs = rc == kGpReg ? kLiftoffAssemblerGpCacheRegs
                                           : kLiftoffAssemblerFpCacheRegs;
         if (cache_regs & (1ULL << reg_code)) {
