@@ -205,6 +205,7 @@ namespace compiler {
   V(Mips64F64x2ReplaceLane)                  \
   V(Mips64I64x2Add)                          \
   V(Mips64I64x2Sub)                          \
+  V(Mips64I64x2Mul)                          \
   V(Mips64I64x2Neg)                          \
   V(Mips64I64x2Shl)                          \
   V(Mips64I64x2ShrS)                         \

@@ -157,6 +157,7 @@ namespace compiler {
   V(MipsF64x2Le)                   \
   V(MipsI64x2Add)                  \
   V(MipsI64x2Sub)                  \
+  V(MipsI64x2Mul)                  \
   V(MipsI64x2Neg)                  \
   V(MipsI64x2Shl)                  \
   V(MipsI64x2ShrS)                 \
