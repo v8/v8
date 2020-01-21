@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --wasm-tier-up
+// Flags: --allow-natives-syntax --liftoff --wasm-tier-up --no-stress-opt
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -40,7 +40,6 @@ function check(instance) {
   const instance = create_builder().instantiate();
   check(instance);
 })();
-
 
 async function testTierDownToLiftoffAsync() {
   print(arguments.callee.name);
