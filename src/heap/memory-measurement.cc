@@ -333,8 +333,13 @@ bool NativeContextInferrer::InferForJSObject(Isolate* isolate, Map map,
       return true;
     }
   }
-  // TODO(ulan): Add a more precise inference for the case when
-  // the current context is the shared context.
+  // The maximum number of steps to perform when looking for the context.
+  const int kMaxSteps = 3;
+  Object maybe_constructor = map.TryGetConstructor(isolate, kMaxSteps);
+  if (maybe_constructor.IsJSFunction()) {
+    return InferForJSFunction(JSFunction::cast(maybe_constructor),
+                              native_context);
+  }
   return false;
 }
 
