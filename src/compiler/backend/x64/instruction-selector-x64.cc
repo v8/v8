@@ -433,8 +433,7 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode | AddressingModeField::encode(addressing_mode);
     if ((ElementSizeLog2Of(store_rep.representation()) <
          kSystemPointerSizeLog2) &&
-        (value->opcode() == IrOpcode::kTruncateInt64ToInt32) &&
-        CanCover(node, value)) {
+        value->opcode() == IrOpcode::kTruncateInt64ToInt32) {
       value = value->InputAt(0);
     }
     InstructionOperand value_operand =
@@ -669,8 +668,7 @@ void VisitWord32Shift(InstructionSelector* selector, Node* node,
   Node* left = m.left().node();
   Node* right = m.right().node();
 
-  if (left->opcode() == IrOpcode::kTruncateInt64ToInt32 &&
-      selector->CanCover(node, left)) {
+  if (left->opcode() == IrOpcode::kTruncateInt64ToInt32) {
     left = left->InputAt(0);
   }
 
@@ -1818,13 +1816,11 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   // The 32-bit comparisons automatically truncate Word64
   // values to Word32 range, no need to do that explicitly.
   if (opcode == kX64Cmp32 || opcode == kX64Test32) {
-    if (left->opcode() == IrOpcode::kTruncateInt64ToInt32 &&
-        selector->CanCover(node, left)) {
+    if (left->opcode() == IrOpcode::kTruncateInt64ToInt32) {
       left = left->InputAt(0);
     }
 
-    if (right->opcode() == IrOpcode::kTruncateInt64ToInt32 &&
-        selector->CanCover(node, right)) {
+    if (right->opcode() == IrOpcode::kTruncateInt64ToInt32) {
       right = right->InputAt(0);
     }
   }
