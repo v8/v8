@@ -1402,6 +1402,7 @@ AsyncCompileJob::AsyncCompileJob(
       wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length),
       resolver_(std::move(resolver)) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "new AsyncCompileJob");
+  CHECK(!FLAG_jitless);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Platform* platform = V8::GetCurrentPlatform();
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
@@ -1515,6 +1516,7 @@ void AsyncCompileJob::CreateNativeModule(
 void AsyncCompileJob::PrepareRuntimeObjects() {
   // Create heap objects for script and module bytes to be stored in the
   // module object. Asm.js is not compiled asynchronously.
+  DCHECK(module_object_.is_null());
   const WasmModule* module = native_module_->module();
   auto source_url = stream_ ? stream_->url() : Vector<const char>();
   Handle<Script> script =
@@ -1615,6 +1617,11 @@ class AsyncCompileJob::CompilationStateCallback {
       case CompilationEvent::kFinishedBaselineCompilation:
         DCHECK(!last_event_.has_value());
         if (job_->DecrementAndCheckFinisherCount()) {
+          // TODO(v8:6847): Also share streaming compilation result.
+          if (job_->stream_ == nullptr) {
+            job_->isolate_->wasm_engine()->UpdateNativeModuleCache(
+                job_->native_module_, false);
+          }
           job_->DoSync<CompileFinished>();
         }
         break;
@@ -1626,6 +1633,11 @@ class AsyncCompileJob::CompilationStateCallback {
       case CompilationEvent::kFailedCompilation: {
         DCHECK(!last_event_.has_value());
         if (job_->DecrementAndCheckFinisherCount()) {
+          // TODO(v8:6847): Also share streaming compilation result.
+          if (job_->stream_ == nullptr) {
+            job_->isolate_->wasm_engine()->UpdateNativeModuleCache(
+                job_->native_module_, true);
+          }
           job_->DoSync<CompileFailed>();
         }
         break;
@@ -1877,6 +1889,23 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
+
+    // TODO(v8:6847): Also share streaming compilation result.
+    if (job->stream_ == nullptr) {
+      auto cached_native_module =
+          job->isolate_->wasm_engine()->MaybeGetNativeModule(
+              module_->origin, job->wire_bytes_.module_bytes());
+      if (cached_native_module != nullptr) {
+        job->native_module_ = std::move(cached_native_module);
+        job->PrepareRuntimeObjects();
+        Handle<FixedArray> export_wrappers;
+        CompileJsToWasmWrappers(job->isolate_, job->native_module_->module(),
+                                &export_wrappers);
+        job->module_object_->set_export_wrappers(*export_wrappers);
+        job->FinishCompile();
+        return;
+      }
+    }
 
     // Make sure all compilation tasks stopped running. Decoding (async step)
     // is done.

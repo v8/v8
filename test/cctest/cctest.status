@@ -561,6 +561,7 @@
   'serializer-tester/SerializeInlinedClosure': [SKIP],
   'serializer-tester/SerializeInlinedFunction': [SKIP],
   'test-api/TurboAsmDisablesDetach': [SKIP],
+  'test-compilation-cache/TestAsyncCache': [SKIP],
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
   'test-heap/TestOptimizeAfterBytecodeFlushingCandidate': [SKIP],
   'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallDirect': [SKIP],

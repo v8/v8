@@ -776,7 +776,7 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
   }
   auto cache_it = native_module_cache_.find(native_module->wire_bytes());
   // Not all native modules are stored in the cache currently. In particular
-  // asynchronous compilation and asmjs compilation results are not. So make
+  // streaming compilation and asmjs compilation results are not. So make
   // sure that we only delete existing and expired entries.
   // Do not erase {nullopt} values either, as they indicate that the
   // {NativeModule} is currently being created in another thread.
