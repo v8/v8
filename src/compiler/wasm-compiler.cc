@@ -163,11 +163,18 @@ bool ContainsInt64(wasm::FunctionSig* sig) {
 }
 }  // namespace
 
+class WasmGraphAssembler : public GraphAssembler {
+ public:
+  WasmGraphAssembler(MachineGraph* mcgraph, Zone* zone)
+      : GraphAssembler(mcgraph, zone) {}
+};
+
 WasmGraphBuilder::WasmGraphBuilder(
     wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
     wasm::FunctionSig* sig,
     compiler::SourcePositionTable* source_position_table)
-    : zone_(zone),
+    : gasm_(std::make_unique<WasmGraphAssembler>(mcgraph, zone)),
+      zone_(zone),
       mcgraph_(mcgraph),
       env_(env),
       has_simd_(ContainsSimd(sig)),
@@ -177,6 +184,10 @@ WasmGraphBuilder::WasmGraphBuilder(
   DCHECK_IMPLIES(use_trap_handler(), trap_handler::IsTrapHandlerEnabled());
   DCHECK_NOT_NULL(mcgraph_);
 }
+
+// Destructor define here where the definition of {WasmGraphAssembler} is
+// available.
+WasmGraphBuilder::~WasmGraphBuilder() = default;
 
 Node* WasmGraphBuilder::Error() { return mcgraph()->Dead(); }
 
@@ -5510,9 +5521,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         break;
     }
 
-    // TODO(wasm): Use GraphAssembler more widely.
-    GraphAssembler gasm(mcgraph(), mcgraph()->zone());
-    gasm.InitializeEffectControl(Effect(), Control());
+    gasm_->InitializeEffectControl(Effect(), Control());
 
     // Handle Smis first. The rest goes through the ToNumber stub.
     // TODO(clemensb): Also handle HeapNumbers specially.
@@ -5525,12 +5534,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     //                          ├─ true: ─┘                     │
     //                          └─ false: load -> f64-to-int32 ─┘
 
-    auto smi_to_int32 = gasm.MakeLabel(MachineRepresentation::kTaggedSigned);
+    auto smi_to_int32 = gasm_->MakeLabel(MachineRepresentation::kTaggedSigned);
     auto done =
-        gasm.MakeLabel(wasm::ValueTypes::MachineRepresentationFor(type));
+        gasm_->MakeLabel(wasm::ValueTypes::MachineRepresentationFor(type));
 
     // If the input is Smi, directly convert to int32.
-    gasm.GotoIf(BuildTestSmi(input), &smi_to_int32, input);
+    gasm_->GotoIf(BuildTestSmi(input), &smi_to_int32, input);
 
     // Otherwise, call ToNumber which returns a Smi or HeapNumber.
     auto to_number_descriptor = Linkage::GetStubCallDescriptor(
@@ -5540,28 +5549,28 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         GetTargetForBuiltinCall(wasm::WasmCode::kToNumber, Builtins::kToNumber);
 
     Node* number =
-        gasm.Call(to_number_descriptor, to_number_target, input, js_context);
+        gasm_->Call(to_number_descriptor, to_number_target, input, js_context);
     SetSourcePosition(number, 1);
 
     // If the ToNumber result is Smi, convert to int32.
-    gasm.GotoIf(BuildTestSmi(number), &smi_to_int32, number);
+    gasm_->GotoIf(BuildTestSmi(number), &smi_to_int32, number);
 
     // Otherwise the ToNumber result is a HeapNumber. Load its value and convert
     // to {type}.
-    Node* heap_number_value = gasm.LoadHeapNumberValue(number);
+    Node* heap_number_value = gasm_->LoadHeapNumberValue(number);
     Node* converted_heap_number_value =
         BuildFloat64ToWasm(heap_number_value, type);
-    gasm.Goto(&done, converted_heap_number_value);
+    gasm_->Goto(&done, converted_heap_number_value);
 
     // Now implement the smi to int32 conversion.
-    gasm.Bind(&smi_to_int32);
+    gasm_->Bind(&smi_to_int32);
     Node* smi_int32 = BuildSmiToWasm(smi_to_int32.PhiAt(0), type);
-    gasm.Goto(&done, smi_int32);
+    gasm_->Goto(&done, smi_int32);
 
     // Done. Update effect and control and return the final Phi.
-    gasm.Bind(&done);
-    SetEffect(gasm.effect());
-    SetControl(gasm.control());
+    gasm_->Bind(&done);
+    SetEffect(gasm_->effect());
+    SetControl(gasm_->control());
     return done.PhiAt(0);
   }
 
