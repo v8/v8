@@ -137,7 +137,8 @@ class DebugFieldType {
       return "";
     }
     if (IsTagged()) {
-      if (storage == kAsStoredInHeap && COMPRESS_POINTERS_BOOL) {
+      if (storage == kAsStoredInHeap &&
+          TargetArchitecture::ArePointersCompressed()) {
         return "v8::internal::TaggedValue";
       }
       base::Optional<const ClassType*> field_class_type =
