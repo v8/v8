@@ -144,11 +144,6 @@ enum class SerializationTag : uint8_t {
   kArrayBufferView = 'V',
   // Shared array buffer. transferID:uint32_t
   kSharedArrayBuffer = 'u',
-  // Compiled WebAssembly module. encodingType:(one-byte tag).
-  // If encodingType == 'y' (raw bytes):
-  //  wasmWireByteLength:uint32_t, then raw data
-  //  compiledDataLength:uint32_t, then raw data
-  kWasmModule = 'W',
   // A wasm module object transfer. next value is its index.
   kWasmModuleTransfer = 'w',
   // The delegate is responsible for processing all following data.
@@ -208,10 +203,6 @@ enum class ArrayBufferViewTag : uint8_t {
   kBigInt64Array = 'q',
   kBigUint64Array = 'Q',
   kDataView = '?',
-};
-
-enum class WasmEncodingTag : uint8_t {
-  kRawBytes = 'y',
 };
 
 // Sub-tags only meaningful for error serialization.
@@ -982,42 +973,22 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
 }
 
 Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
-  if (delegate_ != nullptr) {
-    // TODO(titzer): introduce a Utils::ToLocal for WasmModuleObject.
-    Maybe<uint32_t> transfer_id = delegate_->GetWasmModuleTransferId(
-        reinterpret_cast<v8::Isolate*>(isolate_),
-        v8::Local<v8::WasmModuleObject>::Cast(
-            Utils::ToLocal(Handle<JSObject>::cast(object))));
-    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
-    uint32_t id = 0;
-    if (transfer_id.To(&id)) {
-      WriteTag(SerializationTag::kWasmModuleTransfer);
-      WriteVarint<uint32_t>(id);
-      return Just(true);
-    }
+  if (delegate_ == nullptr) {
+    ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
+    return Nothing<bool>();
   }
 
-  WasmEncodingTag encoding_tag = WasmEncodingTag::kRawBytes;
-  WriteTag(SerializationTag::kWasmModule);
-  WriteRawBytes(&encoding_tag, sizeof(encoding_tag));
-
-  wasm::NativeModule* native_module = object->native_module();
-  Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
-  WriteVarint<uint32_t>(static_cast<uint32_t>(wire_bytes.size()));
-  uint8_t* destination;
-  if (ReserveRawBytes(wire_bytes.size()).To(&destination)) {
-    memcpy(destination, wire_bytes.begin(), wire_bytes.size());
-  }
-
-  wasm::WasmSerializer wasm_serializer(native_module);
-  size_t module_size = wasm_serializer.GetSerializedNativeModuleSize();
-  CHECK_GE(std::numeric_limits<uint32_t>::max(), module_size);
-  WriteVarint<uint32_t>(static_cast<uint32_t>(module_size));
-  uint8_t* module_buffer;
-  if (ReserveRawBytes(module_size).To(&module_buffer)) {
-    if (!wasm_serializer.SerializeNativeModule({module_buffer, module_size})) {
-      return Nothing<bool>();
-    }
+  // TODO(titzer): introduce a Utils::ToLocal for WasmModuleObject.
+  Maybe<uint32_t> transfer_id = delegate_->GetWasmModuleTransferId(
+      reinterpret_cast<v8::Isolate*>(isolate_),
+      v8::Local<v8::WasmModuleObject>::Cast(
+          Utils::ToLocal(Handle<JSObject>::cast(object))));
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+  uint32_t id = 0;
+  if (transfer_id.To(&id)) {
+    WriteTag(SerializationTag::kWasmModuleTransfer);
+    WriteVarint<uint32_t>(id);
+    return Just(true);
   }
   return ThrowIfOutOfMemory();
 }
@@ -1359,8 +1330,6 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
     }
     case SerializationTag::kError:
       return ReadJSError();
-    case SerializationTag::kWasmModule:
-      return ReadWasmModule();
     case SerializationTag::kWasmModuleTransfer:
       return ReadWasmModuleTransfer();
     case SerializationTag::kWasmMemoryTransfer:
@@ -1964,56 +1933,6 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
       Handle<JSObject>::cast(Utils::OpenHandle(*module_value));
   AddObjectWithID(id, module);
   return module;
-}
-
-MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
-  auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
-  if ((FLAG_wasm_disable_structured_cloning &&
-       !enabled_features.has_threads()) ||
-      !expect_inline_wasm()) {
-    return MaybeHandle<JSObject>();
-  }
-
-  Vector<const uint8_t> encoding_tag;
-  if (!ReadRawBytes(sizeof(WasmEncodingTag)).To(&encoding_tag) ||
-      encoding_tag[0] != static_cast<uint8_t>(WasmEncodingTag::kRawBytes)) {
-    return MaybeHandle<JSObject>();
-  }
-
-  // Extract the data from the buffer: wasm wire bytes, followed by V8 compiled
-  // script data.
-  static_assert(sizeof(int) <= sizeof(uint32_t),
-                "max int must fit in uint32_t");
-  const uint32_t max_valid_size = std::numeric_limits<int>::max();
-  uint32_t wire_bytes_length = 0;
-  Vector<const uint8_t> wire_bytes;
-  uint32_t compiled_bytes_length = 0;
-  Vector<const uint8_t> compiled_bytes;
-  if (!ReadVarint<uint32_t>().To(&wire_bytes_length) ||
-      wire_bytes_length > max_valid_size ||
-      !ReadRawBytes(wire_bytes_length).To(&wire_bytes) ||
-      !ReadVarint<uint32_t>().To(&compiled_bytes_length) ||
-      compiled_bytes_length > max_valid_size ||
-      !ReadRawBytes(compiled_bytes_length).To(&compiled_bytes)) {
-    return MaybeHandle<JSObject>();
-  }
-
-  // Try to deserialize the compiled module first.
-  MaybeHandle<WasmModuleObject> result =
-      wasm::DeserializeNativeModule(isolate_, compiled_bytes, wire_bytes, {});
-  if (result.is_null()) {
-    wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");
-    // TODO(titzer): are the current features appropriate for deserializing?
-    auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
-    result = isolate_->wasm_engine()->SyncCompile(
-        isolate_, enabled_features, &thrower,
-        wasm::ModuleWireBytes(wire_bytes));
-  }
-  uint32_t id = next_id_++;
-  if (!result.is_null()) {
-    AddObjectWithID(id, result.ToHandleChecked());
-  }
-  return result;
 }
 
 MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {

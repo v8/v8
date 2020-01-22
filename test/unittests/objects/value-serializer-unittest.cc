@@ -2682,15 +2682,6 @@ TEST_F(ValueSerializerTestWithWasm, RoundtripWasmTransfer) {
   ExpectPass();
 }
 
-TEST_F(ValueSerializerTestWithWasm, RountripWasmInline) {
-  SetExpectInlineWasm(true);
-  ExpectPass();
-}
-
-TEST_F(ValueSerializerTestWithWasm, CannotDeserializeWasmInlineData) {
-  ExpectFail();
-}
-
 TEST_F(ValueSerializerTestWithWasm, CannotTransferWasmWhenExpectingInline) {
   EnableTransferSerialization();
   SetExpectInlineWasm(true);
@@ -2705,23 +2696,9 @@ TEST_F(ValueSerializerTestWithWasm, ComplexObjectDuplicateTransfer) {
   ExpectScriptTrue("result.mod1 === result.mod2");
 }
 
-TEST_F(ValueSerializerTestWithWasm, ComplexObjectDuplicateInline) {
-  SetExpectInlineWasm(true);
-  Local<Value> value = RoundTripTest(GetComplexObjectWithDuplicate());
-  VerifyComplexObject(value);
-  ExpectScriptTrue("result.mod1 === result.mod2");
-}
-
 TEST_F(ValueSerializerTestWithWasm, ComplexObjectWithManyTransfer) {
   EnableTransferSerialization();
   EnableTransferDeserialization();
-  Local<Value> value = RoundTripTest(GetComplexObjectWithMany());
-  VerifyComplexObject(value);
-  ExpectScriptTrue("result.mod1 != result.mod2");
-}
-
-TEST_F(ValueSerializerTestWithWasm, ComplexObjectWithManyInline) {
-  SetExpectInlineWasm(true);
   Local<Value> value = RoundTripTest(GetComplexObjectWithMany());
   VerifyComplexObject(value);
   ExpectScriptTrue("result.mod1 != result.mod2");
