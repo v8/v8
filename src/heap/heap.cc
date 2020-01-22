@@ -1948,6 +1948,10 @@ bool Heap::PerformGarbageCollection(
     GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags) {
   DisallowJavascriptExecution no_js(isolate());
 
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    return tp_heap_->CollectGarbage();
+  }
+
   size_t freed_global_handles = 0;
 
   if (!IsYoungGenerationCollector(collector)) {

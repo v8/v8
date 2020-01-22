@@ -25,7 +25,7 @@ class Heap {
 
   Address GetObjectFromInnerPointer(Address inner_pointer);
 
-  void CollectGarbage();
+  bool CollectGarbage();
 };
 
 }  // namespace third_party_heap
