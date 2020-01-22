@@ -2566,7 +2566,23 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I8x16GtS)              \
   V(I8x16GeS)              \
   V(I8x16GtU)              \
-  V(I8x16GeU)
+  V(I8x16GeU)              \
+  V(S128And)               \
+  V(S128Or)                \
+  V(S128Xor)
+
+#define SIMD_UNOP_LIST(V) V(S128Not)
+
+#define SIMD_SHIFT_OPCODES(V) \
+  V(I32x4Shl)                 \
+  V(I32x4ShrS)                \
+  V(I32x4ShrU)                \
+  V(I16x8Shl)                 \
+  V(I16x8ShrS)                \
+  V(I16x8ShrU)                \
+  V(I8x16Shl)                 \
+  V(I8x16ShrS)                \
+  V(I8x16ShrU)
 
 #define SIMD_VISIT_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
@@ -2615,21 +2631,42 @@ SIMD_TYPES(SIMD_VISIT_REPLACE_LANE)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
+
+#define SIMD_VISIT_UNOP(Opcode)                         \
+  void InstructionSelector::Visit##Opcode(Node* node) { \
+    S390OperandGenerator g(this);                       \
+    Emit(kS390_##Opcode, g.DefineAsRegister(node),      \
+         g.UseRegister(node->InputAt(0)));              \
+  }
+SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
+#undef SIMD_VISIT_UNOP
+#undef SIMD_UNOP_LIST
+
+#define SIMD_VISIT_SHIFT(Opcode)                        \
+  void InstructionSelector::Visit##Opcode(Node* node) { \
+    S390OperandGenerator g(this);                       \
+    Emit(kS390_##Opcode, g.DefineAsRegister(node),      \
+         g.UseUniqueRegister(node->InputAt(0)),         \
+         g.UseUniqueRegister(node->InputAt(1)));        \
+  }
+SIMD_SHIFT_OPCODES(SIMD_VISIT_SHIFT)
+#undef SIMD_VISIT_SHIFT
+#undef SIMD_SHIFT_OPCODES
 #undef SIMD_TYPES
 
-void InstructionSelector::VisitI32x4Shl(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitS128Zero(Node* node) {
+  S390OperandGenerator g(this);
+  Emit(kS390_S128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node));
+}
 
-void InstructionSelector::VisitI32x4ShrS(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI32x4ShrU(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitS128Select(Node* node) {
+  S390OperandGenerator g(this);
+  Emit(kS390_S128Select, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+       g.UseRegister(node->InputAt(2)));
+}
 
 void InstructionSelector::VisitI32x4Neg(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8Shl(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8ShrS(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8ShrU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8AddSaturateS(Node* node) {
   UNIMPLEMENTED();
@@ -2675,17 +2712,7 @@ void InstructionSelector::VisitI8x16SubSaturateU(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitS128And(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS128Or(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS128Xor(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS128Not(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitS128AndNot(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS128Zero(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
@@ -2717,8 +2744,6 @@ void InstructionSelector::VisitF32x4Div(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Min(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Max(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS128Select(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Neg(Node* node) { UNIMPLEMENTED(); }
 
@@ -2804,12 +2829,6 @@ void InstructionSelector::VisitS1x8AllTrue(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitS1x16AnyTrue(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS1x16AllTrue(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI8x16Shl(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI8x16ShrS(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI8x16ShrU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
 

@@ -3332,6 +3332,94 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             kScratchDoubleReg, Condition(0), Condition(0), Condition(0));
       break;
     }
+    // vector shifts
+#define VECTOR_SHIFT(op, mode)                                             \
+  {                                                                        \
+    __ vlvg(kScratchDoubleReg, i.InputRegister(1), MemOperand(r0, 0),      \
+            Condition(mode));                                              \
+    __ vrep(kScratchDoubleReg, kScratchDoubleReg, Operand(0),              \
+            Condition(mode));                                              \
+    __ op(i.OutputSimd128Register(), i.InputSimd128Register(0),            \
+          kScratchDoubleReg, Condition(0), Condition(0), Condition(mode)); \
+  }
+    case kS390_I32x4Shl: {
+      VECTOR_SHIFT(veslv, 2);
+      break;
+    }
+    case kS390_I32x4ShrS: {
+      VECTOR_SHIFT(vesrav, 2);
+      break;
+    }
+    case kS390_I32x4ShrU: {
+      VECTOR_SHIFT(vesrlv, 2);
+      break;
+    }
+    case kS390_I16x8Shl: {
+      VECTOR_SHIFT(veslv, 1);
+      break;
+    }
+    case kS390_I16x8ShrS: {
+      VECTOR_SHIFT(vesrav, 1);
+      break;
+    }
+    case kS390_I16x8ShrU: {
+      VECTOR_SHIFT(vesrlv, 1);
+      break;
+    }
+    case kS390_I8x16Shl: {
+      VECTOR_SHIFT(veslv, 0);
+      break;
+    }
+    case kS390_I8x16ShrS: {
+      VECTOR_SHIFT(vesrav, 0);
+      break;
+    }
+    case kS390_I8x16ShrU: {
+      VECTOR_SHIFT(vesrlv, 0);
+      break;
+    }
+    // vector bitwise ops
+    case kS390_S128And: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(1);
+      __ vn(dst, i.InputSimd128Register(0), src, Condition(0), Condition(0),
+            Condition(0));
+      break;
+    }
+    case kS390_S128Or: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(1);
+      __ vo(dst, i.InputSimd128Register(0), src, Condition(0), Condition(0),
+            Condition(0));
+      break;
+    }
+    case kS390_S128Xor: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(1);
+      __ vx(dst, i.InputSimd128Register(0), src, Condition(0), Condition(0),
+            Condition(0));
+      break;
+    }
+    case kS390_S128Zero: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(1);
+      __ vx(dst, dst, src, Condition(0), Condition(0), Condition(0));
+      break;
+    }
+    case kS390_S128Not: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vno(dst, src, src, Condition(0), Condition(0), Condition(0));
+      break;
+    }
+    case kS390_S128Select: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register mask = i.InputSimd128Register(0);
+      Simd128Register src1 = i.InputSimd128Register(1);
+      Simd128Register src2 = i.InputSimd128Register(2);
+      __ vsel(dst, src1, src2, mask, Condition(0), Condition(0));
+      break;
+    }
     default:
       UNREACHABLE();
   }

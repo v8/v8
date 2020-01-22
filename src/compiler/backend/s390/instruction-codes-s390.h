@@ -226,6 +226,9 @@ namespace compiler {
   V(S390_I32x4GtU)                          \
   V(S390_I32x4GeU)                          \
   V(S390_I16x8Splat)                        \
+  V(S390_I32x4Shl)                          \
+  V(S390_I32x4ShrS)                         \
+  V(S390_I32x4ShrU)                         \
   V(S390_I16x8ExtractLaneU)                 \
   V(S390_I16x8ExtractLaneS)                 \
   V(S390_I16x8ReplaceLane)                  \
@@ -243,6 +246,9 @@ namespace compiler {
   V(S390_I16x8GeS)                          \
   V(S390_I16x8GtU)                          \
   V(S390_I16x8GeU)                          \
+  V(S390_I16x8Shl)                          \
+  V(S390_I16x8ShrS)                         \
+  V(S390_I16x8ShrU)                         \
   V(S390_I8x16Splat)                        \
   V(S390_I8x16ExtractLaneU)                 \
   V(S390_I8x16ExtractLaneS)                 \
@@ -260,6 +266,15 @@ namespace compiler {
   V(S390_I8x16GeS)                          \
   V(S390_I8x16GtU)                          \
   V(S390_I8x16GeU)                          \
+  V(S390_I8x16Shl)                          \
+  V(S390_I8x16ShrS)                         \
+  V(S390_I8x16ShrU)                         \
+  V(S390_S128And)                           \
+  V(S390_S128Or)                            \
+  V(S390_S128Xor)                           \
+  V(S390_S128Zero)                          \
+  V(S390_S128Not)                           \
+  V(S390_S128Select)                        \
   V(S390_StoreSimd128)                      \
   V(S390_LoadSimd128)
 

@@ -171,6 +171,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I32x4GeS:
     case kS390_I32x4GtU:
     case kS390_I32x4GeU:
+    case kS390_I32x4Shl:
+    case kS390_I32x4ShrS:
+    case kS390_I32x4ShrU:
     case kS390_I16x8Splat:
     case kS390_I16x8ExtractLaneU:
     case kS390_I16x8ExtractLaneS:
@@ -189,6 +192,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I16x8GeS:
     case kS390_I16x8GtU:
     case kS390_I16x8GeU:
+    case kS390_I16x8Shl:
+    case kS390_I16x8ShrS:
+    case kS390_I16x8ShrU:
     case kS390_I8x16Splat:
     case kS390_I8x16ExtractLaneU:
     case kS390_I8x16ExtractLaneS:
@@ -206,6 +212,15 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I8x16GeS:
     case kS390_I8x16GtU:
     case kS390_I8x16GeU:
+    case kS390_I8x16Shl:
+    case kS390_I8x16ShrS:
+    case kS390_I8x16ShrU:
+    case kS390_S128And:
+    case kS390_S128Or:
+    case kS390_S128Xor:
+    case kS390_S128Zero:
+    case kS390_S128Not:
+    case kS390_S128Select:
       return kNoOpcodeFlags;
 
     case kS390_LoadWordS8:
