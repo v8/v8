@@ -53,6 +53,10 @@ bool HasOnlyJSArrayMaps(JSHeapBroker* broker,
 
 }  // namespace
 
+bool JSNativeContextSpecialization::should_disallow_heap_access() const {
+  return broker()->is_concurrent_inlining();
+}
+
 JSNativeContextSpecialization::JSNativeContextSpecialization(
     Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker, Flags flags,
     CompilationDependencies* dependencies, Zone* zone, Zone* shared_zone)

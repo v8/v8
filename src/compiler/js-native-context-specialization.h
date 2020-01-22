@@ -47,7 +47,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   enum Flag {
     kNoFlags = 0u,
     kBailoutOnUninitialized = 1u << 0,
-    kConcurrentInlining = 1u << 1
   };
   using Flags = base::Flags<Flag>;
 
@@ -251,10 +250,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
   Zone* shared_zone() const { return shared_zone_; }
-
-  bool should_disallow_heap_access() const {
-    return flags() & kConcurrentInlining;
-  }
+  bool should_disallow_heap_access() const;
 
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;

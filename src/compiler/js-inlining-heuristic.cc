@@ -127,7 +127,7 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
 }
 
 Reduction JSInliningHeuristic::Reduce(Node* node) {
-  DisallowHeapAccessIf no_heap_acess(info_->is_concurrent_inlining());
+  DisallowHeapAccessIf no_heap_acess(broker()->is_concurrent_inlining());
 
   if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
 
@@ -222,7 +222,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 }
 
 void JSInliningHeuristic::Finalize() {
-  DisallowHeapAccessIf no_heap_acess(info_->is_concurrent_inlining());
+  DisallowHeapAccessIf no_heap_acess(broker()->is_concurrent_inlining());
 
   if (candidates_.empty()) return;  // Nothing to do without candidates.
   if (FLAG_trace_turbo_inlining) PrintCandidates();

@@ -40,7 +40,6 @@ class BytecodeGraphBuilder {
                        CallFrequency const& invocation_frequency,
                        SourcePositionTable* source_positions, int inlining_id,
                        BytecodeGraphBuilderFlags flags,
-                       JSTypeHintLowering::Flags type_hint_lowering_flags,
                        TickCounter* tick_counter);
 
   // Creates a graph by visiting bytecodes.
@@ -371,7 +370,7 @@ class BytecodeGraphBuilder {
   SharedFunctionInfoRef shared_info() const { return shared_info_; }
 
   bool should_disallow_heap_access() const {
-    return flags_ & BytecodeGraphBuilderFlag::kConcurrentInlining;
+    return broker_->is_concurrent_inlining();
   }
 
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
@@ -437,8 +436,6 @@ class BytecodeGraphBuilder {
   SourcePositionTable* const source_positions_;
 
   SourcePosition const start_position_;
-
-  BytecodeGraphBuilderFlags const flags_;
 
   TickCounter* const tick_counter_;
 
@@ -947,9 +944,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
     FeedbackVectorRef const& feedback_vector, BailoutId osr_offset,
     JSGraph* jsgraph, CallFrequency const& invocation_frequency,
     SourcePositionTable* source_positions, int inlining_id,
-    BytecodeGraphBuilderFlags flags,
-    JSTypeHintLowering::Flags type_hint_lowering_flags,
-    TickCounter* tick_counter)
+    BytecodeGraphBuilderFlags flags, TickCounter* tick_counter)
     : broker_(broker),
       local_zone_(local_zone),
       jsgraph_(jsgraph),
@@ -957,8 +952,11 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       shared_info_(shared_info),
       feedback_vector_(feedback_vector),
       invocation_frequency_(invocation_frequency),
-      type_hint_lowering_(broker, jsgraph, feedback_vector,
-                          type_hint_lowering_flags),
+      type_hint_lowering_(
+          broker, jsgraph, feedback_vector,
+          (flags & BytecodeGraphBuilderFlag::kBailoutOnUninitialized)
+              ? JSTypeHintLowering::kBailoutOnUninitialized
+              : JSTypeHintLowering::kNoFlags),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kInterpretedFunction,
           bytecode_array().parameter_count(), bytecode_array().register_count(),
@@ -968,7 +966,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       bytecode_analysis_(broker_->GetBytecodeAnalysis(
           bytecode_array().object(), osr_offset,
           flags & BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness,
-          (flags & BytecodeGraphBuilderFlag::kConcurrentInlining)
+          should_disallow_heap_access()
               ? SerializationPolicy::kAssumeSerialized
               : SerializationPolicy::kSerializeIfNeeded)),
       environment_(nullptr),
@@ -987,9 +985,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       state_values_cache_(jsgraph),
       source_positions_(source_positions),
       start_position_(shared_info.StartPosition(), inlining_id),
-      flags_(flags),
       tick_counter_(tick_counter) {
-  if (flags & BytecodeGraphBuilderFlag::kConcurrentInlining) {
+  if (should_disallow_heap_access()) {
     // With concurrent inlining on, the source position address doesn't change
     // because it's been copied from the heap.
     source_position_iterator_ = std::make_unique<SourcePositionTableIterator>(
@@ -4168,17 +4165,10 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             int inlining_id, BytecodeGraphBuilderFlags flags,
                             TickCounter* tick_counter) {
   DCHECK(broker->IsSerializedForCompilation(shared_info, feedback_vector));
-  JSTypeHintLowering::Flags type_hint_lowering_flags =
-      JSTypeHintLowering::kNoFlags;
-  if (flags & BytecodeGraphBuilderFlag::kBailoutOnUninitialized) {
-    type_hint_lowering_flags |= JSTypeHintLowering::kBailoutOnUninitialized;
-  }
-
   BytecodeGraphBuilder builder(
       broker, local_zone, broker->target_native_context(), shared_info,
       feedback_vector, osr_offset, jsgraph, invocation_frequency,
-      source_positions, inlining_id, flags, type_hint_lowering_flags,
-      tick_counter);
+      source_positions, inlining_id, flags, tick_counter);
   builder.CreateGraph();
 }
 

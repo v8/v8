@@ -4602,7 +4602,7 @@ FeedbackSlotKind JSHeapBroker::GetFeedbackSlotKind(
 }
 
 bool JSHeapBroker::FeedbackIsInsufficient(FeedbackSource const& source) const {
-  return (is_concurrent_inlining_)
+  return is_concurrent_inlining_
              ? GetFeedback(source).IsInsufficient()
              : FeedbackNexus(source.vector, source.slot).IsUninitialized();
 }
@@ -4801,8 +4801,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
 BinaryOperationHint JSHeapBroker::GetFeedbackForBinaryOperation(
     FeedbackSource const& source) {
   ProcessedFeedback const& feedback =
-      (is_concurrent_inlining_) ? GetFeedback(source)
-                                : ProcessFeedbackForBinaryOperation(source);
+      is_concurrent_inlining_ ? GetFeedback(source)
+                              : ProcessFeedbackForBinaryOperation(source);
   return feedback.IsInsufficient() ? BinaryOperationHint::kNone
                                    : feedback.AsBinaryOperation().value();
 }
@@ -4810,14 +4810,14 @@ BinaryOperationHint JSHeapBroker::GetFeedbackForBinaryOperation(
 CompareOperationHint JSHeapBroker::GetFeedbackForCompareOperation(
     FeedbackSource const& source) {
   ProcessedFeedback const& feedback =
-      (is_concurrent_inlining_) ? GetFeedback(source)
-                                : ProcessFeedbackForCompareOperation(source);
+      is_concurrent_inlining_ ? GetFeedback(source)
+                              : ProcessFeedbackForCompareOperation(source);
   return feedback.IsInsufficient() ? CompareOperationHint::kNone
                                    : feedback.AsCompareOperation().value();
 }
 
 ForInHint JSHeapBroker::GetFeedbackForForIn(FeedbackSource const& source) {
-  ProcessedFeedback const& feedback = (is_concurrent_inlining_)
+  ProcessedFeedback const& feedback = is_concurrent_inlining_
                                           ? GetFeedback(source)
                                           : ProcessFeedbackForForIn(source);
   return feedback.IsInsufficient() ? ForInHint::kNone
@@ -4827,46 +4827,46 @@ ForInHint JSHeapBroker::GetFeedbackForForIn(FeedbackSource const& source) {
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForPropertyAccess(
     FeedbackSource const& source, AccessMode mode,
     base::Optional<NameRef> static_name) {
-  return (is_concurrent_inlining_)
+  return is_concurrent_inlining_
              ? GetFeedback(source)
              : ProcessFeedbackForPropertyAccess(source, mode, static_name);
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForInstanceOf(
     FeedbackSource const& source) {
-  return (is_concurrent_inlining_) ? GetFeedback(source)
-                                   : ProcessFeedbackForInstanceOf(source);
+  return is_concurrent_inlining_ ? GetFeedback(source)
+                                 : ProcessFeedbackForInstanceOf(source);
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForCall(
     FeedbackSource const& source) {
-  return (is_concurrent_inlining_) ? GetFeedback(source)
-                                   : ProcessFeedbackForCall(source);
+  return is_concurrent_inlining_ ? GetFeedback(source)
+                                 : ProcessFeedbackForCall(source);
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForGlobalAccess(
     FeedbackSource const& source) {
-  return (is_concurrent_inlining_) ? GetFeedback(source)
-                                   : ProcessFeedbackForGlobalAccess(source);
+  return is_concurrent_inlining_ ? GetFeedback(source)
+                                 : ProcessFeedbackForGlobalAccess(source);
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForArrayOrObjectLiteral(
     FeedbackSource const& source) {
-  return (is_concurrent_inlining_)
+  return is_concurrent_inlining_
              ? GetFeedback(source)
              : ProcessFeedbackForArrayOrObjectLiteral(source);
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForRegExpLiteral(
     FeedbackSource const& source) {
-  return (is_concurrent_inlining_) ? GetFeedback(source)
-                                   : ProcessFeedbackForRegExpLiteral(source);
+  return is_concurrent_inlining_ ? GetFeedback(source)
+                                 : ProcessFeedbackForRegExpLiteral(source);
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForTemplateObject(
     FeedbackSource const& source) {
-  return (is_concurrent_inlining_) ? GetFeedback(source)
-                                   : ProcessFeedbackForTemplateObject(source);
+  return is_concurrent_inlining_ ? GetFeedback(source)
+                                 : ProcessFeedbackForTemplateObject(source);
 }
 
 ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForArrayOrObjectLiteral(

@@ -9,6 +9,7 @@
 #include "src/codegen/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -22,14 +23,11 @@ namespace internal {
 namespace compiler {
 
 JSIntrinsicLowering::JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph,
-                                         JSHeapBroker* broker, Flags flags)
-    : AdvancedReducer(editor),
-      jsgraph_(jsgraph),
-      broker_(broker),
-      flags_(flags) {}
+                                         JSHeapBroker* broker)
+    : AdvancedReducer(editor), jsgraph_(jsgraph), broker_(broker) {}
 
 Reduction JSIntrinsicLowering::Reduce(Node* node) {
-  DisallowHeapAccessIf no_heap_access(flags_ & kConcurrentInlining);
+  DisallowHeapAccessIf no_heap_access(broker()->is_concurrent_inlining());
 
   if (node->opcode() != IrOpcode::kJSCallRuntime) return NoChange();
   const Runtime::Function* const f =

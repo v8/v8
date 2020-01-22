@@ -88,6 +88,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
   bool tracing_enabled() const { return tracing_enabled_; }
+  bool is_concurrent_inlining() const { return is_concurrent_inlining_; }
 
   enum BrokerMode { kDisabled, kSerializing, kSerialized, kRetired };
   BrokerMode mode() const { return mode_; }

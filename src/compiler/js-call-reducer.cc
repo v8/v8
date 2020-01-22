@@ -2040,6 +2040,10 @@ TNode<Object> PromiseBuiltinReducerAssembler::ReducePromiseConstructor(
 
 #undef _
 
+bool JSCallReducer::should_disallow_heap_access() const {
+  return broker_->is_concurrent_inlining();
+}
+
 Reduction JSCallReducer::ReplaceWithSubgraph(JSCallReducerAssembler* gasm,
                                              Node* subgraph) {
   // TODO(jgruber): Consider a less fiddly way of integrating the new subgraph

@@ -22,7 +22,6 @@ class JSInliningHeuristic final : public AdvancedReducer {
         candidates_(local_zone),
         seen_(local_zone),
         source_positions_(source_positions),
-        info_(info),
         jsgraph_(jsgraph),
         broker_(broker) {}
 
@@ -93,7 +92,6 @@ class JSInliningHeuristic final : public AdvancedReducer {
   Candidates candidates_;
   ZoneSet<NodeId> seen_;
   SourcePositionTable* source_positions_;
-  OptimizedCompilationInfo* info_;
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;
   int total_inlined_bytecode_size_ = 0;
