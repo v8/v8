@@ -171,8 +171,6 @@ namespace compiler {
   V(Arm64F64x2Splat)                        \
   V(Arm64F64x2ExtractLane)                  \
   V(Arm64F64x2ReplaceLane)                  \
-  V(Arm64F64x2SConvertI64x2)                \
-  V(Arm64F64x2UConvertI64x2)                \
   V(Arm64F64x2Abs)                          \
   V(Arm64F64x2Neg)                          \
   V(Arm64F64x2Sqrt)                         \
