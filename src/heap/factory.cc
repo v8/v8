@@ -1267,9 +1267,10 @@ Handle<Context> Factory::NewScriptContext(Handle<NativeContext> outer,
                                           Handle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), SCRIPT_SCOPE);
   int variadic_part_length = scope_info->ContextLength();
-  Handle<Context> context = NewContext(
-      isolate()->script_context_map(), Context::SizeFor(variadic_part_length),
-      variadic_part_length, AllocationType::kOld);
+  Handle<Context> context =
+      NewContext(handle(outer->script_context_map(), isolate()),
+                 Context::SizeFor(variadic_part_length), variadic_part_length,
+                 AllocationType::kOld);
   context->set_scope_info(*scope_info);
   context->set_previous(*outer);
   DCHECK(context->IsScriptContext());
@@ -2084,51 +2085,30 @@ Handle<FreshlyAllocatedBigInt> Factory::NewBigInt(int length,
   return handle(bigint, isolate());
 }
 
-Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
-                                 MessageTemplate template_index,
-                                 Handle<Object> arg0, Handle<Object> arg1,
-                                 Handle<Object> arg2) {
+Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
+                                   MessageTemplate template_index,
+                                   Handle<Object> arg0, Handle<Object> arg1,
+                                   Handle<Object> arg2) {
   HandleScope scope(isolate());
-  if (isolate()->bootstrapper()->IsActive()) {
-    // During bootstrapping we cannot construct error objects.
-    return scope.CloseAndEscape(NewStringFromAsciiChecked(
-        MessageFormatter::TemplateString(template_index)));
-  }
 
   if (arg0.is_null()) arg0 = undefined_value();
   if (arg1.is_null()) arg1 = undefined_value();
   if (arg2.is_null()) arg2 = undefined_value();
 
-  Handle<Object> result;
-  if (!ErrorUtils::MakeGenericError(isolate(), constructor, template_index,
-                                    arg0, arg1, arg2, SKIP_NONE)
-           .ToHandle(&result)) {
-    // If an exception is thrown while
-    // running the factory method, use the exception as the result.
-    DCHECK(isolate()->has_pending_exception());
-    result = handle(isolate()->pending_exception(), isolate());
-    isolate()->clear_pending_exception();
-  }
-
-  return scope.CloseAndEscape(result);
+  return scope.CloseAndEscape(ErrorUtils::MakeGenericError(
+      isolate(), constructor, template_index, arg0, arg1, arg2, SKIP_NONE));
 }
 
-Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
-                                 Handle<String> message) {
+Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
+                                   Handle<String> message) {
   // Construct a new error object. If an exception is thrown, use the exception
   // as the result.
 
   Handle<Object> no_caller;
-  MaybeHandle<Object> maybe_error = ErrorUtils::Construct(
-      isolate(), constructor, constructor, message, SKIP_NONE, no_caller,
-      ErrorUtils::StackTraceCollection::kDetailed);
-  if (maybe_error.is_null()) {
-    DCHECK(isolate()->has_pending_exception());
-    maybe_error = handle(isolate()->pending_exception(), isolate());
-    isolate()->clear_pending_exception();
-  }
-
-  return maybe_error.ToHandleChecked();
+  return ErrorUtils::Construct(isolate(), constructor, constructor, message,
+                               SKIP_NONE, no_caller,
+                               ErrorUtils::StackTraceCollection::kDetailed)
+      .ToHandleChecked();
 }
 
 Handle<Object> Factory::NewInvalidStringLengthError() {
@@ -2143,9 +2123,9 @@ Handle<Object> Factory::NewInvalidStringLengthError() {
 }
 
 #define DEFINE_ERROR(NAME, name)                                              \
-  Handle<Object> Factory::New##NAME(MessageTemplate template_index,           \
-                                    Handle<Object> arg0, Handle<Object> arg1, \
-                                    Handle<Object> arg2) {                    \
+  Handle<JSObject> Factory::New##NAME(                                        \
+      MessageTemplate template_index, Handle<Object> arg0,                    \
+      Handle<Object> arg1, Handle<Object> arg2) {                             \
     return NewError(isolate()->name##_function(), template_index, arg0, arg1, \
                     arg2);                                                    \
   }

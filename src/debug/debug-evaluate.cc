@@ -864,6 +864,8 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
            info->DebugName().ToCString().get());
   }
 
+  if (info->needs_script_context()) return DebugInfo::kHasSideEffects;
+
   DCHECK(info->is_compiled());
   if (info->HasBytecodeArray()) {
     // Check bytecodes against whitelist.
