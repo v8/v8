@@ -5306,7 +5306,7 @@ class V8_EXPORT TypedArray : public ArrayBufferView {
    */
   static constexpr size_t kMaxLength = internal::kApiSystemPointerSize == 4
                                            ? internal::kSmiMaxValue
-                                           : 0x7FFFFFFF;  // kMaxInt32
+                                           : 0xFFFFFFFF;
 
   /**
    * Number of elements in this typed array

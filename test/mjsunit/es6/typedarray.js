@@ -992,8 +992,9 @@ for(i = 0; i < typedArrayConstructors.length; i++) {
 })();
 
 (function TestBufferLengthTooLong() {
+  const kLength = %TypedArrayMaxLength() + 1;
   try {
-    var buf = new ArrayBuffer(2147483648);
+    var buf = new ArrayBuffer(kLength);
   } catch (e) {
     // The ArrayBuffer allocation fails on 32-bit archs, so no need to try to
     // construct the typed array.
