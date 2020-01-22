@@ -225,14 +225,17 @@ class JSONEncoder : public ParserHandler {
         // belonging to this Unicode character into |codepoint|.
         if (ii + num_bytes_left >= chars.size())
           continue;
+        bool invalid_byte_seen = false;
         while (num_bytes_left > 0) {
           c = chars[++ii];
           --num_bytes_left;
           // Check the next byte is a continuation byte, that is 10xx xxxx.
           if ((c & 0xc0) != 0x80)
-            continue;
+            invalid_byte_seen = true;
           codepoint = (codepoint << 6) | (c & 0x3f);
         }
+        if (invalid_byte_seen)
+          continue;
 
         // Disallow overlong encodings for ascii characters, as these
         // would include " and other characters significant to JSON

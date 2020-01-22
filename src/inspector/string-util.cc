@@ -124,19 +124,6 @@ std::unique_ptr<protocol::Value> StringUtil::parseJSON(const String16& string) {
   return parseJSONCharacters(string.characters16(),
                              static_cast<int>(string.length()));
 }
-
-// static
-void StringUtil::builderAppendQuotedString(StringBuilder& builder,
-                                           const String& str) {
-  builder.append('"');
-  if (!str.isEmpty()) {
-    escapeWideStringForJSON(
-        reinterpret_cast<const uint16_t*>(str.characters16()),
-        static_cast<int>(str.length()), &builder);
-  }
-  builder.append('"');
-}
-
 }  // namespace protocol
 
 // static

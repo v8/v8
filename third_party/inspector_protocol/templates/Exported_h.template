@@ -20,8 +20,6 @@ namespace {{namespace}} {
 #define {{"_".join(config.protocol.namespace)}}_exported_api_h
 class {{config.exported.export_macro}} Exported {
 public:
-    virtual {{config.exported.string_out}} toJSONString() const = 0;
-
     virtual void AppendSerialized(std::vector<uint8_t>* out) const = 0;
 
     virtual ~Exported() { }

@@ -29,12 +29,6 @@ public:
         return std::unique_ptr<ImportedValue>(new ImportedValue(value));
     }
 
-    void writeJSON(StringBuilder* output) const override {
-        auto json = m_exported->toJSONString();
-        String local_json = ({{config.imported.from_imported_string % "std::move(json)"}});
-        StringUtil::builderAppend(*output, local_json);
-    }
-
     void AppendSerialized(std::vector<uint8_t>* output) const override {
         m_exported->AppendSerialized(output);
     }

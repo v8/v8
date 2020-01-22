@@ -114,12 +114,6 @@ std::unique_ptr<{{type.id}}> {{type.id}}::clone() const
 }
     {% if protocol.is_exported(domain.domain, type.id) %}
 
-{{config.exported.string_out}} {{type.id}}::toJSONString() const
-{
-    String json = toValue()->toJSONString();
-    return {{config.exported.to_string_out % "json"}};
-}
-
 // static
 std::unique_ptr<API::{{type.id}}> API::{{type.id}}::fromBinary(const uint8_t* data, size_t length)
 {

@@ -49,6 +49,38 @@ TEST(JsonEncoder, OverlongEncodings) {
   EXPECT_EQ("\"\"", out);  // Empty string means that 0x7f was rejected (good).
 }
 
+TEST(JsonEncoder, NotAContinuationByte) {
+  std::string out;
+  Status status;
+  std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
+
+  // |world| encodes the globe as a 4 byte UTF8 sequence. So, naturally, it'll
+  // have a start byte, followed by three continuation bytes.
+  std::string world = "🌎";
+  ASSERT_EQ(4u, world.size());
+  ASSERT_EQ(world[1] & 0xc0, 0x80);  // checks for continuation byte
+  ASSERT_EQ(world[2] & 0xc0, 0x80);
+  ASSERT_EQ(world[3] & 0xc0, 0x80);
+
+  // Now create a corrupted UTF8 string, starting with the first two bytes from
+  // |world|, followed by an ASCII message. Upon encountering '!', our decoder
+  // will realize that it's not a continuation byte; it'll skip to the end of
+  // this UTF8 sequence and continue with the next character. In this case, the
+  // 'H', of "Hello".
+  std::vector<uint8_t> chars;
+  chars.push_back(world[0]);
+  chars.push_back(world[1]);
+  chars.push_back('!');
+  chars.push_back('?');
+  chars.push_back('H');
+  chars.push_back('e');
+  chars.push_back('l');
+  chars.push_back('l');
+  chars.push_back('o');
+  writer->HandleString8(SpanFrom(chars));
+  EXPECT_EQ("\"Hello\"", out);  // "Hello" shows we restarted at 'H'.
+}
+
 TEST(JsonEncoder, IncompleteUtf8Sequence) {
   std::string out;
   Status status;
