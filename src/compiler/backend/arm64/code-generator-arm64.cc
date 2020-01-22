@@ -503,8 +503,11 @@ void CodeGenerator::AssembleDeconstructFrame() {
 
 void CodeGenerator::AssemblePrepareTailCall() {
   if (frame_access_state()->has_frame()) {
-    __ Ldr(lr, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-    __ Ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+    static_assert(
+        StandardFrameConstants::kCallerFPOffset + kSystemPointerSize ==
+            StandardFrameConstants::kCallerPCOffset,
+        "Offsets must be consecutive for ldp!");
+    __ Ldp(fp, lr, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   }
   frame_access_state()->SetFrameAccessToSP();
 }
