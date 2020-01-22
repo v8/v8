@@ -151,6 +151,8 @@ class DebugInfo {
 
   WireBytesRef GetLocalName(int func_index, int local_index);
 
+  void SetBreakpoint(int func_index, int offset);
+
  private:
   std::unique_ptr<DebugInfoImpl> impl_;
 };

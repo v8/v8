@@ -574,6 +574,42 @@ class DebugInfoImpl {
     return local_names_->GetName(func_index, local_index);
   }
 
+  void SetBreakpoint(int func_index, int offset) {
+    // Hold the mutex while setting the breakpoint. This guards against multiple
+    // isolates setting breakpoints at the same time. We don't really support
+    // that scenario yet, but concurrently compiling and installing different
+    // Liftoff variants of a function would be problematic.
+    base::MutexGuard guard(&mutex_);
+
+    std::vector<int>& breakpoints = breakpoints_per_function_[func_index];
+    auto insertion_point =
+        std::lower_bound(breakpoints.begin(), breakpoints.end(), offset);
+    if (insertion_point != breakpoints.end() && *insertion_point == offset) {
+      // The breakpoint is already set.
+      return;
+    }
+    breakpoints.insert(insertion_point, offset);
+
+    // Recompile the function with Liftoff, setting the new breakpoints.
+    CompilationEnv env = native_module_->CreateCompilationEnv();
+    auto* function = &native_module_->module()->functions[func_index];
+    Vector<const uint8_t> wire_bytes = native_module_->wire_bytes();
+    FunctionBody body{function->sig, function->code.offset(),
+                      wire_bytes.begin() + function->code.offset(),
+                      wire_bytes.begin() + function->code.end_offset()};
+    // TODO(clemensb): Pass breakpoints to Liftoff.
+    WasmCompilationResult result =
+        ExecuteLiftoffCompilation(native_module_->engine()->allocator(), &env,
+                                  body, func_index, nullptr, nullptr);
+    DCHECK(result.succeeded());
+
+    WasmCodeRefScope wasm_code_ref_scope;
+    WasmCode* new_code = native_module_->AddCompiledCode(std::move(result));
+
+    // TODO(clemensb): OSR active frames on the stack (on all threads).
+    USE(new_code);
+  }
+
  private:
   DebugSideTable* GetDebugSideTable(AccountingAllocator* allocator,
                                     int func_index) {
@@ -631,7 +667,7 @@ class DebugInfoImpl {
 
   NativeModule* const native_module_;
 
-  // {mutex_} protects {debug_side_tables_} and {local_names_}.
+  // {mutex_} protects all fields below.
   base::Mutex mutex_;
 
   // DebugSideTable per function, lazily initialized.
@@ -639,6 +675,10 @@ class DebugInfoImpl {
 
   // Names of locals, lazily decoded from the wire bytes.
   std::unique_ptr<LocalNames> local_names_;
+
+  // Keeps track of the currently set breakpoints (by offset within that
+  // function).
+  std::unordered_map<int, std::vector<int>> breakpoints_per_function_;
 
   DISALLOW_COPY_AND_ASSIGN(DebugInfoImpl);
 };
@@ -655,6 +695,10 @@ Handle<JSObject> DebugInfo::GetLocalScopeObject(Isolate* isolate, Address pc,
 
 WireBytesRef DebugInfo::GetLocalName(int func_index, int local_index) {
   return impl_->GetLocalName(func_index, local_index);
+}
+
+void DebugInfo::SetBreakpoint(int func_index, int offset) {
+  impl_->SetBreakpoint(func_index, offset);
 }
 
 }  // namespace wasm
@@ -925,34 +969,39 @@ bool WasmScript::SetBreakPointOnFirstBreakableForFunction(
 
 // static
 bool WasmScript::SetBreakPointForFunction(Handle<Script> script, int func_index,
-                                          int breakable_offset,
+                                          int offset,
                                           Handle<BreakPoint> break_point) {
   Isolate* isolate = script->GetIsolate();
 
   DCHECK_LE(0, func_index);
-  DCHECK_NE(0, breakable_offset);
+  DCHECK_NE(0, offset);
 
   // Find the function for this breakpoint.
-  const wasm::WasmModule* module = script->wasm_native_module()->module();
+  wasm::NativeModule* native_module = script->wasm_native_module();
+  const wasm::WasmModule* module = native_module->module();
   const wasm::WasmFunction& func = module->functions[func_index];
 
-  // Insert new break point into break_positions of module object.
-  WasmScript::AddBreakpointToInfo(script, func.code.offset() + breakable_offset,
+  // Insert new break point into {wasm_breakpoint_infos} of the script.
+  WasmScript::AddBreakpointToInfo(script, func.code.offset() + offset,
                                   break_point);
 
-  // Iterate over all instances and tell them to set this new breakpoint.
-  // We do this using the weak list of all instances from the script.
-  Handle<WeakArrayList> weak_instance_list(script->wasm_weak_instance_list(),
-                                           isolate);
-  for (int i = 0; i < weak_instance_list->length(); ++i) {
-    MaybeObject maybe_instance = weak_instance_list->Get(i);
-    if (maybe_instance->IsWeak()) {
-      Handle<WasmInstanceObject> instance(
-          WasmInstanceObject::cast(maybe_instance->GetHeapObjectAssumeWeak()),
-          isolate);
-      Handle<WasmDebugInfo> debug_info =
-          WasmInstanceObject::GetOrCreateDebugInfo(instance);
-      WasmDebugInfo::SetBreakpoint(debug_info, func_index, breakable_offset);
+  if (FLAG_debug_in_liftoff) {
+    native_module->GetDebugInfo()->SetBreakpoint(func_index, offset);
+  } else {
+    // Iterate over all instances and tell them to set this new breakpoint.
+    // We do this using the weak list of all instances from the script.
+    Handle<WeakArrayList> weak_instance_list(script->wasm_weak_instance_list(),
+                                             isolate);
+    for (int i = 0; i < weak_instance_list->length(); ++i) {
+      MaybeObject maybe_instance = weak_instance_list->Get(i);
+      if (maybe_instance->IsWeak()) {
+        Handle<WasmInstanceObject> instance(
+            WasmInstanceObject::cast(maybe_instance->GetHeapObjectAssumeWeak()),
+            isolate);
+        Handle<WasmDebugInfo> debug_info =
+            WasmInstanceObject::GetOrCreateDebugInfo(instance);
+        WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset);
+      }
     }
   }
 

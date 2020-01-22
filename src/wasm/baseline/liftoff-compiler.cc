@@ -2404,8 +2404,10 @@ WasmCompilationResult ExecuteLiftoffCompilation(AccountingAllocator* allocator,
 
   Zone zone(allocator, "LiftoffCompilationZone");
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
-  base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
-      base::in_place, counters->liftoff_compile_time());
+  base::Optional<TimedHistogramScope> liftoff_compile_time_scope;
+  if (counters) {
+    liftoff_compile_time_scope.emplace(counters->liftoff_compile_time());
+  }
   size_t code_size_estimate =
       WasmCodeManager::EstimateLiftoffCodeSize(func_body_size);
   // Allocate the initial buffer a bit bigger to avoid reallocation during code
@@ -2422,21 +2424,24 @@ WasmCompilationResult ExecuteLiftoffCompilation(AccountingAllocator* allocator,
   LiftoffCompiler* compiler = &decoder.interface();
   if (decoder.failed()) compiler->OnFirstError(&decoder);
 
-  // Check that the histogram for the bailout reasons has the correct size.
-  DCHECK_EQ(0, counters->liftoff_bailout_reasons()->min());
-  DCHECK_EQ(kNumBailoutReasons - 1, counters->liftoff_bailout_reasons()->max());
-  DCHECK_EQ(kNumBailoutReasons,
-            counters->liftoff_bailout_reasons()->num_buckets());
-  // Register the bailout reason (can also be {kSuccess}).
-  counters->liftoff_bailout_reasons()->AddSample(
-      static_cast<int>(compiler->bailout_reason()));
-  if (compiler->did_bailout()) {
-    // Liftoff compilation failed.
-    counters->liftoff_unsupported_functions()->Increment();
-    return WasmCompilationResult{};
-  }
+  if (counters) {
+    // Check that the histogram for the bailout reasons has the correct size.
+    DCHECK_EQ(0, counters->liftoff_bailout_reasons()->min());
+    DCHECK_EQ(kNumBailoutReasons - 1,
+              counters->liftoff_bailout_reasons()->max());
+    DCHECK_EQ(kNumBailoutReasons,
+              counters->liftoff_bailout_reasons()->num_buckets());
+    // Register the bailout reason (can also be {kSuccess}).
+    counters->liftoff_bailout_reasons()->AddSample(
+        static_cast<int>(compiler->bailout_reason()));
+    if (compiler->did_bailout()) {
+      // Liftoff compilation failed.
+      counters->liftoff_unsupported_functions()->Increment();
+      return WasmCompilationResult{};
+    }
 
-  counters->liftoff_compiled_functions()->Increment();
+    counters->liftoff_compiled_functions()->Increment();
+  }
 
   WasmCompilationResult result;
   compiler->GetCode(&result.code_desc);
