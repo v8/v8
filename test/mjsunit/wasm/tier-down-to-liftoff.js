@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --wasm-tier-up
+// Flags: --allow-natives-syntax --liftoff --wasm-tier-up --no-stress-opt
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 const num_functions = 2;
 
-function create_builder() {
+function create_builder(delta = 0) {
   const builder = new WasmModuleBuilder();
   for (let i = 0; i < num_functions; ++i) {
     builder.addFunction('f' + i, kSig_i_v)
-        .addBody(wasmI32Const(i))
+        .addBody(wasmI32Const(i + delta))
         .exportFunc();
   }
   return builder;
@@ -41,10 +41,10 @@ function check(instance) {
   check(instance);
 })();
 
-
+// Use slightly different module for this test to avoid sharing native module.
 async function testTierDownToLiftoffAsync() {
   print(arguments.callee.name);
-  const instance = await create_builder().asyncInstantiate();
+  const instance = await create_builder(num_functions).asyncInstantiate();
   check(instance);
 }
 
