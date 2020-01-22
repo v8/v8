@@ -33,6 +33,7 @@
 #include <cmath>
 #include <unordered_set>
 
+#include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "src/inspector/custom-preview.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
@@ -728,7 +729,14 @@ Response InjectedScript::resolveCallArgument(
   if (callArgument->hasValue() || callArgument->hasUnserializableValue()) {
     String16 value;
     if (callArgument->hasValue()) {
-      value = "(" + callArgument->getValue(nullptr)->toJSONString() + ")";
+      std::vector<uint8_t> cbor =
+          std::move(*callArgument->getValue(nullptr)).TakeSerialized();
+      std::vector<uint8_t> json;
+      v8_crdtp::json::ConvertCBORToJSON(v8_crdtp::SpanFrom(cbor), &json);
+      value =
+          "(" +
+          String16(reinterpret_cast<const char*>(json.data()), json.size()) +
+          ")";
     } else {
       String16 unserializableValue = callArgument->getUnserializableValue("");
       // Protect against potential identifier resolution for NaN and Infinity.

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
 
@@ -149,8 +150,12 @@ std::unique_ptr<StringBuffer> V8StackTraceId::ToString() {
   dict->setString(kId, String16::fromInteger64(id));
   dict->setString(kDebuggerId, V8DebuggerId(debugger_id).toString());
   dict->setBoolean(kShouldPause, should_pause);
-  String16 json = dict->toJSONString();
-  return StringBufferImpl::adopt(json);
+  std::vector<uint8_t> json;
+  std::vector<uint8_t> cbor = std::move(*dict).TakeSerialized();
+  v8_crdtp::json::ConvertCBORToJSON(v8_crdtp::SpanFrom(cbor), &json);
+  // |json| is 7 bit ASCII (with \uXXXX JSON escapes).
+  // BinaryStringBuffer keeps the JSON and exposes an 8 bit StringView.
+  return std::make_unique<BinaryStringBuffer>(std::move(json));
 }
 
 StackFrame::StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> v8Frame)
