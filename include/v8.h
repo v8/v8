@@ -2798,7 +2798,6 @@ class V8_EXPORT Value : public Data {
 
   /**
    * Returns true if this value is a SharedArrayBuffer.
-   * This is an experimental feature.
    */
   bool IsSharedArrayBuffer() const;
 
@@ -5534,7 +5533,6 @@ class V8_EXPORT DataView : public ArrayBufferView {
 
 /**
  * An instance of the built-in SharedArrayBuffer constructor.
- * This API is experimental and may change significantly.
  */
 class V8_EXPORT SharedArrayBuffer : public Object {
  public:
@@ -5546,8 +5544,6 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * The Data pointer of ArrayBuffer::Contents must be freed using the provided
    * deleter, which will call ArrayBuffer::Allocator::Free if the buffer
    * was allocated with ArraryBuffer::Allocator::Allocate.
-   *
-   * This API is experimental and may change significantly.
    */
   class V8_EXPORT Contents {  // NOLINT
    public:
