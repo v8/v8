@@ -10,6 +10,9 @@ Protocol.Runtime.enable();
   InspectorTest.log('Test "let" declaration is side-effecting');
   await evaluateRepl('let x = 21;');
 
+  InspectorTest.log('Test "const" declaration is side-effecting');
+  await evaluateRepl('const y = 42;');
+
   InspectorTest.log('Test side-effect free expressions can be eagerly evaluated');
   await evaluateRepl('1 + 2');
   await evaluateRepl('"hello " + "REPL"');
