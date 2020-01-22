@@ -656,8 +656,6 @@ DEFINE_BOOL(untrusted_code_mitigations, V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS,
 DEFINE_BOOL(expose_wasm, true, "expose wasm interface to JavaScript")
 DEFINE_BOOL(assume_asmjs_origin, false,
             "force wasm decoder to assume input is internal asm-wasm format")
-DEFINE_BOOL(wasm_disable_structured_cloning, false,
-            "disable wasm structured cloning")
 DEFINE_INT(wasm_num_compilation_tasks, 128,
            "maximum number of parallel compilation tasks for wasm")
 DEFINE_DEBUG_BOOL(trace_wasm_native_heap, false,

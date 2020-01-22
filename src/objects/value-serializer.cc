@@ -557,15 +557,8 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return WriteJSArrayBufferView(JSArrayBufferView::cast(*receiver));
     case JS_ERROR_TYPE:
       return WriteJSError(Handle<JSObject>::cast(receiver));
-    case WASM_MODULE_OBJECT_TYPE: {
-      auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
-      if (!FLAG_wasm_disable_structured_cloning ||
-          enabled_features.has_threads()) {
-        // Only write WebAssembly modules if not disabled by a flag.
-        return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
-      }
-      break;
-    }
+    case WASM_MODULE_OBJECT_TYPE:
+      return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
     case WASM_MEMORY_OBJECT_TYPE: {
       auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
       if (enabled_features.has_threads()) {
@@ -1911,11 +1904,6 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
 }
 
 MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
-  auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
-  if (FLAG_wasm_disable_structured_cloning && !enabled_features.has_threads()) {
-    return MaybeHandle<JSObject>();
-  }
-
   uint32_t transfer_id = 0;
   Local<Value> module_value;
   if (!ReadVarint<uint32_t>().To(&transfer_id) || delegate_ == nullptr ||
