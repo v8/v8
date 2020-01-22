@@ -301,7 +301,7 @@ class V8_EXPORT_PRIVATE ProfileNode {
   }
   Isolate* isolate() const;
 
-  void Print(int indent);
+  void Print(int indent) const;
 
  private:
   struct Equals {

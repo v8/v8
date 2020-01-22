@@ -297,6 +297,8 @@ class ShellOptions {
   bool stress_delay_tasks = false;
   std::vector<const char*> arguments;
   bool include_arguments = true;
+  bool cpu_profiler = false;
+  bool cpu_profiler_print = false;
 };
 
 class Shell : public i::AllStatic {

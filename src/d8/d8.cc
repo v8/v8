@@ -21,6 +21,7 @@
 #include "include/libplatform/libplatform.h"
 #include "include/libplatform/v8-tracing.h"
 #include "include/v8-inspector.h"
+#include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/cpu.h"
 #include "src/base/logging.h"
@@ -43,6 +44,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/scanner-character-streams.h"
+#include "src/profiler/profile-generator.h"
 #include "src/sanitizer/msan.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/ostreams.h"
@@ -3138,6 +3140,13 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       // Delay execution of tasks by 0-100ms randomly (based on --random-seed).
       options.stress_delay_tasks = true;
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--cpu-profiler") == 0) {
+      options.cpu_profiler = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--cpu-profiler-print") == 0) {
+      options.cpu_profiler = true;
+      options.cpu_profiler_print = true;
+      argv[i] = nullptr;
     }
   }
 
@@ -3788,6 +3797,13 @@ int Shell::Main(int argc, char* argv[]) {
       tracing_controller->StartTracing(trace_config);
     }
 
+    CpuProfiler* cpu_profiler;
+    if (options.cpu_profiler) {
+      cpu_profiler = CpuProfiler::New(isolate);
+      CpuProfilingOptions profile_options;
+      cpu_profiler->StartProfiling(String::Empty(isolate), profile_options);
+    }
+
     if (options.stress_opt) {
       options.stress_runs = D8Testing::GetStressRuns();
       for (int i = 0; i < options.stress_runs && result == 0; i++) {
@@ -3858,6 +3874,18 @@ int Shell::Main(int argc, char* argv[]) {
     if (i::FLAG_trace_ignition_dispatches &&
         i::FLAG_trace_ignition_dispatches_output_file != nullptr) {
       WriteIgnitionDispatchCountersFile(isolate);
+    }
+
+    if (options.cpu_profiler) {
+      CpuProfile* profile = cpu_profiler->StopProfiling(String::Empty(isolate));
+      if (options.cpu_profiler_print) {
+        const internal::ProfileNode* root =
+            reinterpret_cast<const internal::ProfileNode*>(
+                profile->GetTopDownRoot());
+        root->Print(0);
+      }
+      profile->Delete();
+      cpu_profiler->Dispose();
     }
 
     // Shut down contexts and collect garbage.

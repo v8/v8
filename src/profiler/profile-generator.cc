@@ -324,8 +324,7 @@ bool ProfileNode::GetLineTicks(v8::CpuProfileNode::LineTick* entries,
   return true;
 }
 
-
-void ProfileNode::Print(int indent) {
+void ProfileNode::Print(int indent) const {
   int line_number = line_number_ != 0 ? line_number_ : entry_->line_number();
   base::OS::Print("%5u %*s %s:%d %d %d #%d", self_ticks_, indent, "",
                   entry_->name(), line_number, source_type(),
@@ -334,7 +333,7 @@ void ProfileNode::Print(int indent) {
     base::OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
   base::OS::Print("\n");
   for (size_t i = 0; i < deopt_infos_.size(); ++i) {
-    CpuProfileDeoptInfo& info = deopt_infos_[i];
+    const CpuProfileDeoptInfo& info = deopt_infos_[i];
     base::OS::Print(
         "%*s;;; deopted at script_id: %d position: %zu with reason '%s'.\n",
         indent + 10, "", info.stack[0].script_id, info.stack[0].position,
@@ -355,7 +354,6 @@ void ProfileNode::Print(int indent) {
     child.second->Print(indent + 2);
   }
 }
-
 
 class DeleteNodesCallback {
  public:
