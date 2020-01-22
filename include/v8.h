@@ -2467,7 +2467,10 @@ class V8_EXPORT ValueDeserializer {
   /**
    * Expect inline wasm in the data stream (rather than in-memory transfer)
    */
-  void SetExpectInlineWasm(bool allow_inline_wasm);
+  V8_DEPRECATED(
+      "Wasm module serialization is only supported via explicit methods, e.g. "
+      "CompiledWasmModule::Serialize()")
+  void SetExpectInlineWasm(bool allow_inline_wasm) {}
 
   /**
    * Reads the underlying wire format version. Likely mostly to be useful to

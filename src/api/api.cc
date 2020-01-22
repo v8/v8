@@ -3310,10 +3310,6 @@ void ValueDeserializer::SetSupportsLegacyWireFormat(
   private_->supports_legacy_wire_format = supports_legacy_wire_format;
 }
 
-void ValueDeserializer::SetExpectInlineWasm(bool expect_inline_wasm) {
-  private_->deserializer.set_expect_inline_wasm(expect_inline_wasm);
-}
-
 uint32_t ValueDeserializer::GetWireFormatVersion() const {
   CHECK(!private_->has_aborted);
   return private_->deserializer.GetWireFormatVersion();

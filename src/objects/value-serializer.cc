@@ -1912,9 +1912,7 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
 
 MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
   auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
-  if ((FLAG_wasm_disable_structured_cloning &&
-       !enabled_features.has_threads()) ||
-      expect_inline_wasm()) {
+  if (FLAG_wasm_disable_structured_cloning && !enabled_features.has_threads()) {
     return MaybeHandle<JSObject>();
   }
 
