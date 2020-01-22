@@ -2255,6 +2255,38 @@ class LiftoffCompiler {
     }
   }
 
+  void AtomicAdd(FullDecoder* decoder, StoreType type,
+                 const MemoryAccessImmediate<validate>& imm) {
+    ValueType result_type = type.value_type();
+    LiftoffRegList pinned;
+    LiftoffRegister value = pinned.set(__ PopToRegister());
+    // We have to reuse the value register as the result register so that we
+    // don't run out of registers on ia32. For this we use the value register as
+    // the result register if it has no other uses, or we allocate a new
+    // register and let go of the value register to get spilled.
+    LiftoffRegister result = value;
+    if (__ cache_state()->is_used(value)) {
+      result = pinned.set(__ GetUnusedRegister(value.reg_class(), pinned));
+      __ Move(result, value, result_type);
+      pinned.clear(value);
+    }
+    Register index = pinned.set(__ PopToRegister(pinned)).gp();
+    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
+                       kDoForceCheck)) {
+      return;
+    }
+    AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
+
+    uint32_t offset = imm.offset;
+    index = AddMemoryMasking(index, &offset, &pinned);
+    DEBUG_CODE_COMMENT("Atomic add");
+    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
+
+    __ AtomicAdd(addr, index, offset, result, type);
+    __ PushRegister(result_type, result);
+  }
+
 #define ATOMIC_STORE_LIST(V)        \
   V(I32AtomicStore, kI32Store)      \
   V(I64AtomicStore, kI64Store)      \
@@ -2272,6 +2304,15 @@ class LiftoffCompiler {
   V(I64AtomicLoad8U, kI64Load8U)   \
   V(I64AtomicLoad16U, kI64Load16U) \
   V(I64AtomicLoad32U, kI64Load32U)
+
+#define ATOMIC_ADD_LIST(V)        \
+  V(I32AtomicAdd, kI32Store)      \
+  V(I64AtomicAdd, kI64Store)      \
+  V(I32AtomicAdd8U, kI32Store8)   \
+  V(I32AtomicAdd16U, kI32Store16) \
+  V(I64AtomicAdd8U, kI64Store8)   \
+  V(I64AtomicAdd16U, kI64Store16) \
+  V(I64AtomicAdd32U, kI64Store32)
 
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
                 const MemoryAccessImmediate<validate>& imm, Value* result) {
@@ -2291,6 +2332,14 @@ class LiftoffCompiler {
 
       ATOMIC_LOAD_LIST(ATOMIC_LOAD_OP)
 #undef ATOMIC_LOAD_OP
+
+#define ATOMIC_ADD_OP(name, type)             \
+  case wasm::kExpr##name:                     \
+    AtomicAdd(decoder, StoreType::type, imm); \
+    break;
+
+      ATOMIC_ADD_LIST(ATOMIC_ADD_OP)
+#undef ATOMIC_ADD_OP
       default:
         unsupported(decoder, kAtomics, "atomicop");
     }
@@ -2298,6 +2347,7 @@ class LiftoffCompiler {
 
 #undef ATOMIC_STORE_LIST
 #undef ATOMIC_LOAD_LIST
+#undef ATOMIC_ADD_LIST
 
   void AtomicFence(FullDecoder* decoder) {
     unsupported(decoder, kAtomics, "atomic.fence");
