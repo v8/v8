@@ -1379,9 +1379,8 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - data: " << Brief(function_data());
   os << "\n - code (from data): " << Brief(GetCode());
   PrintSourceCode(os);
-  // Script files are often large, hard to read.
-  // os << "\n - script =";
-  // script()->Print(os);
+  // Script files are often large, thus only print their {Brief} representation.
+  os << "\n - script: " << Brief(script());
   os << "\n - function token position: " << function_token_position();
   os << "\n - start position: " << StartPosition();
   os << "\n - end position: " << EndPosition();
