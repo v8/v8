@@ -9430,10 +9430,8 @@ int debug::Script::ColumnOffset() const {
 
 std::vector<int> debug::Script::LineEnds() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
-  if (script->type() == i::Script::TYPE_WASM &&
-      this->SourceMappingURL().IsEmpty()) {
-    return std::vector<int>();
-  }
+  if (script->type() == i::Script::TYPE_WASM) return std::vector<int>();
+
   i::Isolate* isolate = script->GetIsolate();
   i::HandleScope scope(isolate);
   i::Script::InitLineEnds(script);
@@ -9522,8 +9520,7 @@ bool debug::Script::GetPossibleBreakpoints(
     std::vector<debug::BreakLocation>* locations) const {
   CHECK(!start.IsEmpty());
   i::Handle<i::Script> script = Utils::OpenHandle(this);
-  if (script->type() == i::Script::TYPE_WASM &&
-      this->SourceMappingURL().IsEmpty()) {
+  if (script->type() == i::Script::TYPE_WASM) {
     i::wasm::NativeModule* native_module = script->wasm_native_module();
     return i::WasmScript::GetPossibleBreakpoints(native_module, start, end,
                                                  locations);
