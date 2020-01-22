@@ -143,7 +143,7 @@ class WasmSerializationTest {
 
       v8::Local<v8::Object> v8_module_obj =
           v8::Utils::ToLocal(Handle<JSObject>::cast(module_object));
-      CHECK(v8_module_obj->IsWebAssemblyCompiledModule());
+      CHECK(v8_module_obj->IsWasmModuleObject());
 
       v8::Local<v8::WasmModuleObject> v8_module_object =
           v8_module_obj.As<v8::WasmModuleObject>();

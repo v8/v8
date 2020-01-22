@@ -2804,6 +2804,12 @@ class V8_EXPORT Value : public Data {
    */
   bool IsProxy() const;
 
+  /**
+   * Returns true if this value is a WasmModuleObject.
+   */
+  bool IsWasmModuleObject() const;
+
+  V8_DEPRECATE_SOON("Use IsWasmModuleObject")
   bool IsWebAssemblyCompiledModule() const;
 
   /**

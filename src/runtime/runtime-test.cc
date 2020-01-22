@@ -77,7 +77,7 @@ bool IsWasmInstantiateAllowed(v8::Isolate* isolate,
   DCHECK_GT(GetPerIsolateWasmControls()->count(isolate), 0);
   const WasmCompileControls& ctrls = GetPerIsolateWasmControls()->at(isolate);
   if (is_async && ctrls.AllowAnySizeForAsync) return true;
-  if (!module_or_bytes->IsWebAssemblyCompiledModule()) {
+  if (!module_or_bytes->IsWasmModuleObject()) {
     return IsWasmCompileAllowed(isolate, module_or_bytes, is_async);
   }
   v8::Local<v8::WasmModuleObject> module =

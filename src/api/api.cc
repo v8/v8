@@ -3463,6 +3463,7 @@ VALUE_IS_SPECIFIC_TYPE(SymbolObject, SymbolWrapper)
 VALUE_IS_SPECIFIC_TYPE(Date, JSDate)
 VALUE_IS_SPECIFIC_TYPE(Map, JSMap)
 VALUE_IS_SPECIFIC_TYPE(Set, JSSet)
+VALUE_IS_SPECIFIC_TYPE(WasmModuleObject, WasmModuleObject)
 VALUE_IS_SPECIFIC_TYPE(WeakMap, JSWeakMap)
 VALUE_IS_SPECIFIC_TYPE(WeakSet, JSWeakSet)
 VALUE_IS_SPECIFIC_TYPE(WebAssemblyCompiledModule, WasmModuleObject)
@@ -3760,8 +3761,7 @@ void v8::Proxy::CheckCast(Value* that) {
 }
 
 void v8::WasmModuleObject::CheckCast(Value* that) {
-  Utils::ApiCheck(that->IsWebAssemblyCompiledModule(),
-                  "v8::WasmModuleObject::Cast",
+  Utils::ApiCheck(that->IsWasmModuleObject(), "v8::WasmModuleObject::Cast",
                   "Value is not a WasmModuleObject");
 }
 

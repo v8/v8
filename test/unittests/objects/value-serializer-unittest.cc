@@ -2573,7 +2573,7 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
   void ExpectPass() {
     Local<Value> value = RoundTripTest(MakeWasm());
     Context::Scope scope(deserialization_context());
-    ASSERT_TRUE(value->IsWebAssemblyCompiledModule());
+    ASSERT_TRUE(value->IsWasmModuleObject());
     ExpectScriptTrue(
         "new WebAssembly.Instance(result).exports.increment(8) === 9");
   }
@@ -2771,7 +2771,7 @@ TEST_F(ValueSerializerTestWithWasm, DecodeWasmModule) {
       kSerializedIncrementerWasm,
       kSerializedIncrementerWasm + sizeof(kSerializedIncrementerWasm));
   Local<Value> value = DecodeTest(raw);
-  ASSERT_TRUE(value->IsWebAssemblyCompiledModule());
+  ASSERT_TRUE(value->IsWasmModuleObject());
   ExpectScriptTrue(
       "new WebAssembly.Instance(result).exports.increment(8) === 9");
 }
@@ -2792,7 +2792,7 @@ TEST_F(ValueSerializerTestWithWasm, DecodeWasmModuleWithInvalidCompiledData) {
       kSerializedIncrementerWasmWithInvalidCompiledData +
           sizeof(kSerializedIncrementerWasmWithInvalidCompiledData));
   Local<Value> value = DecodeTest(raw);
-  ASSERT_TRUE(value->IsWebAssemblyCompiledModule());
+  ASSERT_TRUE(value->IsWasmModuleObject());
   ExpectScriptTrue(
       "new WebAssembly.Instance(result).exports.increment(8) === 9");
 }
