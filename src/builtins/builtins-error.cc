@@ -96,9 +96,11 @@ Object MakeGenericError(Isolate* isolate, BuiltinArguments args,
 
   DCHECK(template_index->IsSmi());
 
-  return *ErrorUtils::MakeGenericError(
-      isolate, constructor, MessageTemplateFromInt(Smi::ToInt(*template_index)),
-      arg0, arg1, arg2, SKIP_NONE);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, ErrorUtils::MakeGenericError(
+                   isolate, constructor,
+                   MessageTemplateFromInt(Smi::ToInt(*template_index)), arg0,
+                   arg1, arg2, SKIP_NONE));
 }
 
 }  // namespace
@@ -128,9 +130,10 @@ BUILTIN(MakeURIError) {
   Handle<JSFunction> constructor = isolate->uri_error_function();
   Handle<Object> undefined = isolate->factory()->undefined_value();
   MessageTemplate template_index = MessageTemplate::kURIMalformed;
-  return *ErrorUtils::MakeGenericError(isolate, constructor, template_index,
-                                       undefined, undefined, undefined,
-                                       SKIP_NONE);
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      ErrorUtils::MakeGenericError(isolate, constructor, template_index,
+                                   undefined, undefined, undefined, SKIP_NONE));
 }
 
 }  // namespace internal

@@ -1166,7 +1166,7 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
     BuildGeneratorPrologue();
   }
 
-  if (closure_scope()->NeedsContext() && !closure_scope()->is_script_scope()) {
+  if (closure_scope()->NeedsContext()) {
     // Push a new inner context scope for the function.
     BuildNewLocalActivationContext();
     ContextScope local_function_context(this, closure_scope());
@@ -1320,7 +1320,8 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
 
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED:
-      UNREACHABLE();
+      globals_builder()->record_global_declaration();
+      break;
     case VariableLocation::LOCAL:
       if (variable->binding_needs_init()) {
         Register destination(builder()->Local(variable->index()));
@@ -1375,7 +1376,9 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
 
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED:
-      UNREACHABLE();
+      AddToEagerLiteralsIfEager(decl->fun());
+      globals_builder()->record_global_declaration();
+      break;
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL: {
       VisitFunctionLiteral(decl->fun());
@@ -1432,26 +1435,9 @@ void BytecodeGenerator::VisitModuleNamespaceImports() {
 
 void BytecodeGenerator::VisitGlobalDeclarations(Declaration::List* decls) {
   RegisterAllocationScope register_scope(this);
-  bool has_global_declaration = false;
-  for (Declaration* decl : *decls) {
-    Variable* var = decl->var();
-    DCHECK(var->is_used());
-    if (var->location() == VariableLocation::UNALLOCATED) {
-      // var or function.
-      has_global_declaration = true;
-      if (decl->IsFunctionDeclaration()) {
-        FunctionDeclaration* f = static_cast<FunctionDeclaration*>(decl);
-        AddToEagerLiteralsIfEager(f->fun());
-      }
-    } else {
-      // let or const. Handled in NewScriptContext.
-      DCHECK(decl->IsVariableDeclaration());
-      DCHECK(IsLexicalVariableMode(var->mode()));
-    }
-  }
+  VisitDeclarations(decls);
 
-  if (!has_global_declaration) return;
-  globals_builder()->record_global_declaration();
+  if (!globals_builder()->has_global_declaration()) return;
   DCHECK(!globals_builder()->processed());
 
   globals_builder()->set_constant_pool_entry(
@@ -5996,7 +5982,13 @@ void BytecodeGenerator::BuildNewLocalActivationContext() {
   DCHECK_EQ(current_scope(), closure_scope());
 
   // Create the appropriate context.
-  if (scope->is_module_scope()) {
+  if (scope->is_script_scope()) {
+    Register scope_reg = register_allocator()->NewRegister();
+    builder()
+        ->LoadLiteral(scope)
+        .StoreAccumulatorInRegister(scope_reg)
+        .CallRuntime(Runtime::kNewScriptContext, scope_reg);
+  } else if (scope->is_module_scope()) {
     // We don't need to do anything for the outer script scope.
     DCHECK(scope->outer_scope()->is_script_scope());
 

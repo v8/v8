@@ -196,8 +196,6 @@ class ScopeInfo : public FixedArray, public TorqueGeneratedScopeFlagsFields {
   // Return the outer ScopeInfo if present.
   ScopeInfo OuterScopeInfo() const;
 
-  bool is_script_scope() const;
-
   // Returns true if this ScopeInfo has a black list attached containing
   // stack allocated local variables.
   V8_EXPORT_PRIVATE bool HasLocalsBlackList() const;

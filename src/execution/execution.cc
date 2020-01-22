@@ -157,84 +157,6 @@ Handle<Code> JSEntry(Isolate* isolate, Execution::Target execution_target,
   UNREACHABLE();
 }
 
-MaybeHandle<Context> NewScriptContext(Isolate* isolate,
-                                      Handle<JSFunction> function) {
-  SaveAndSwitchContext save(isolate, function->context());
-  SharedFunctionInfo sfi = function->shared();
-  Handle<Script> script(Script::cast(sfi.script()), isolate);
-  Handle<ScopeInfo> scope_info(sfi.scope_info(), isolate);
-  Handle<NativeContext> native_context(NativeContext::cast(function->context()),
-                                       isolate);
-  Handle<JSGlobalObject> global_object(native_context->global_object(),
-                                       isolate);
-  Handle<ScriptContextTable> script_context(
-      native_context->script_context_table(), isolate);
-
-  // Find name clashes.
-  for (int var = 0; var < scope_info->ContextLocalCount(); var++) {
-    Handle<String> name(scope_info->ContextLocalName(var), isolate);
-    VariableMode mode = scope_info->ContextLocalMode(var);
-    ScriptContextTable::LookupResult lookup;
-    if (ScriptContextTable::Lookup(isolate, *script_context, *name, &lookup)) {
-      if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {
-        Handle<Context> context = ScriptContextTable::GetContext(
-            isolate, script_context, lookup.context_index);
-        // If we are trying to re-declare a REPL-mode let as a let, allow it.
-        if (!(mode == VariableMode::kLet && lookup.mode == VariableMode::kLet &&
-              scope_info->IsReplModeScope() &&
-              context->scope_info().IsReplModeScope())) {
-          // ES#sec-globaldeclarationinstantiation 5.b:
-          // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
-          // exception.
-          MessageLocation location(script, 0, 1);
-          isolate->ThrowAt(isolate->factory()->NewSyntaxError(
-                               MessageTemplate::kVarRedeclaration, name),
-                           &location);
-          return MaybeHandle<Context>();
-        }
-      }
-    }
-
-    if (IsLexicalVariableMode(mode)) {
-      LookupIterator it(isolate, global_object, name, global_object,
-                        LookupIterator::OWN_SKIP_INTERCEPTOR);
-      Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-      // Can't fail since the we looking up own properties on the global object
-      // skipping interceptors.
-      CHECK(!maybe.IsNothing());
-      if ((maybe.FromJust() & DONT_DELETE) != 0) {
-        // ES#sec-globaldeclarationinstantiation 5.a:
-        // If envRec.HasVarDeclaration(name) is true, throw a SyntaxError
-        // exception.
-        // ES#sec-globaldeclarationinstantiation 5.d:
-        // If hasRestrictedGlobal is true, throw a SyntaxError exception.
-        MessageLocation location(script, 0, 1);
-        isolate->ThrowAt(isolate->factory()->NewSyntaxError(
-                             MessageTemplate::kVarRedeclaration, name),
-                         &location);
-        return MaybeHandle<Context>();
-      }
-
-      JSGlobalObject::InvalidatePropertyCell(global_object, name);
-    }
-  }
-
-  Handle<Context> result =
-      isolate->factory()->NewScriptContext(native_context, scope_info);
-
-  int header = scope_info->ContextHeaderLength();
-  for (int var = 0; var < scope_info->ContextLocalCount(); var++) {
-    if (scope_info->ContextLocalInitFlag(var) == kNeedsInitialization) {
-      result->set(header + var, ReadOnlyRoots(isolate).the_hole_value());
-    }
-  }
-
-  Handle<ScriptContextTable> new_script_context_table =
-      ScriptContextTable::Extend(script_context, result);
-  native_context->set_script_context_table(*new_script_context_table);
-  return result;
-}
-
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
                                                  const InvokeParams& params) {
   RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kInvoke);
@@ -283,22 +205,6 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
         isolate->clear_pending_message();
       }
       return value;
-    }
-
-    // Set up a ScriptContext when running scripts that need it.
-    if (function->shared().needs_script_context()) {
-      Handle<Context> context;
-      if (!NewScriptContext(isolate, function).ToHandle(&context)) {
-        if (params.message_handling == Execution::MessageHandling::kReport) {
-          isolate->ReportPendingMessages();
-        }
-        return MaybeHandle<Object>();
-      }
-
-      // We mutate the context if we allocate a script context. This is
-      // guaranteed to only happen once in a native context since scripts will
-      // always produce name clashes with themselves.
-      function->set_context(*context);
     }
   }
 

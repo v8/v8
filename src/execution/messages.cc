@@ -990,7 +990,7 @@ MaybeHandle<String> MessageFormatter::Format(Isolate* isolate,
   return builder.Finish();
 }
 
-MaybeHandle<JSObject> ErrorUtils::Construct(
+MaybeHandle<Object> ErrorUtils::Construct(
     Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
     Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,
     StackTraceCollection stack_trace_collection) {
@@ -1007,7 +1007,7 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, err,
       JSObject::New(target, new_target_recv, Handle<AllocationSite>::null()),
-      JSObject);
+      Object);
 
   // 3. If message is not undefined, then
   //  a. Let msg be ? ToString(message).
@@ -1019,23 +1019,23 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
   if (!message->IsUndefined(isolate)) {
     Handle<String> msg_string;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, msg_string,
-                               Object::ToString(isolate, message), JSObject);
+                               Object::ToString(isolate, message), Object);
     RETURN_ON_EXCEPTION(
         isolate,
         JSObject::SetOwnPropertyIgnoreAttributes(
             err, isolate->factory()->message_string(), msg_string, DONT_ENUM),
-        JSObject);
+        Object);
   }
 
   switch (stack_trace_collection) {
     case StackTraceCollection::kDetailed:
       RETURN_ON_EXCEPTION(
-          isolate, isolate->CaptureAndSetDetailedStackTrace(err), JSObject);
+          isolate, isolate->CaptureAndSetDetailedStackTrace(err), Object);
       V8_FALLTHROUGH;
     case StackTraceCollection::kSimple:
       RETURN_ON_EXCEPTION(
           isolate, isolate->CaptureAndSetSimpleStackTrace(err, mode, caller),
-          JSObject);
+          Object);
       break;
     case StackTraceCollection::kNone:
       break;
@@ -1144,7 +1144,7 @@ Handle<String> DoFormatMessage(Isolate* isolate, MessageTemplate index,
 }  // namespace
 
 // static
-Handle<JSObject> ErrorUtils::MakeGenericError(
+MaybeHandle<Object> ErrorUtils::MakeGenericError(
     Isolate* isolate, Handle<JSFunction> constructor, MessageTemplate index,
     Handle<Object> arg0, Handle<Object> arg1, Handle<Object> arg2,
     FrameSkipMode mode) {
@@ -1167,11 +1167,8 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
   DCHECK(mode != SKIP_UNTIL_SEEN);
 
   Handle<Object> no_caller;
-  // The call below can't fail because constructor is a builtin.
-  DCHECK(constructor->shared().HasBuiltinId());
   return ErrorUtils::Construct(isolate, constructor, constructor, msg, mode,
-                               no_caller, StackTraceCollection::kDetailed)
-      .ToHandleChecked();
+                               no_caller, StackTraceCollection::kDetailed);
 }
 
 namespace {

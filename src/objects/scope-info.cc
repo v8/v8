@@ -581,10 +581,6 @@ ScopeType ScopeInfo::scope_type() const {
   return ScopeTypeBits::decode(Flags());
 }
 
-bool ScopeInfo::is_script_scope() const {
-  return length() > 0 && scope_type() == SCRIPT_SCOPE;
-}
-
 bool ScopeInfo::SloppyEvalCanExtendVars() const {
   bool sloppy_eval_can_extend_vars =
       length() > 0 && SloppyEvalCanExtendVarsBit::decode(Flags());

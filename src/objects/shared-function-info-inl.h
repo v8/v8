@@ -148,16 +148,6 @@ void SharedFunctionInfo::SetName(String name) {
   UpdateFunctionMapIndex();
 }
 
-bool SharedFunctionInfo::is_script() const {
-  return scope_info().is_script_scope() &&
-         Script::cast(script()).compilation_type() ==
-             Script::COMPILATION_TYPE_HOST;
-}
-
-bool SharedFunctionInfo::needs_script_context() const {
-  return is_script() && scope_info().ContextLocalCount() > 0;
-}
-
 AbstractCode SharedFunctionInfo::abstract_code() {
   if (HasBytecodeArray()) {
     return AbstractCode::cast(GetBytecodeArray());

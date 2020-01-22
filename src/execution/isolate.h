@@ -772,8 +772,6 @@ class Isolate final : private HiddenFactory {
     return MaybeHandle<T>();
   }
 
-  void ThrowAt(Handle<JSObject> exception, MessageLocation* location);
-
   void set_console_delegate(debug::ConsoleDelegate* delegate) {
     console_delegate_ = delegate;
   }

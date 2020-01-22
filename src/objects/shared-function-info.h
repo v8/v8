@@ -223,9 +223,6 @@ class SharedFunctionInfo : public HeapObject,
   inline void set_raw_scope_info(ScopeInfo scope_info,
                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline bool is_script() const;
-  inline bool needs_script_context() const;
-
   // End position of this function in the script source.
   V8_EXPORT_PRIVATE int EndPosition() const;
 
