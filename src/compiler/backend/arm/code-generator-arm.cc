@@ -589,12 +589,20 @@ void AdjustStackPointerForTailCall(
 bool VerifyOutputOfAtomicPairInstr(ArmOperandConverter* converter,
                                    const Instruction* instr, Register low,
                                    Register high) {
-  if (instr->OutputCount() > 0) {
-    if (converter->OutputRegister(0) != low) return false;
-    if (instr->OutputCount() == 2 && converter->OutputRegister(1) != high)
-      return false;
+  DCHECK_GE(instr->OutputCount() + instr->TempCount(), 2);
+  if (instr->OutputCount() == 2) {
+    return (converter->OutputRegister(0) == low &&
+            converter->OutputRegister(1) == high);
   }
-  return true;
+  if (instr->OutputCount() == 1) {
+    return (converter->OutputRegister(0) == low &&
+            converter->TempRegister(instr->TempCount() - 1) == high) ||
+           (converter->OutputRegister(0) == high &&
+            converter->TempRegister(instr->TempCount() - 1) == low);
+  }
+  DCHECK_EQ(instr->OutputCount(), 0);
+  return (converter->TempRegister(instr->TempCount() - 2) == low &&
+          converter->TempRegister(instr->TempCount() - 1) == high);
 }
 #endif
 

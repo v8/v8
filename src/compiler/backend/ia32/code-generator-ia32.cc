@@ -563,12 +563,19 @@ void AdjustStackPointerForTailCall(TurboAssembler* tasm,
 #ifdef DEBUG
 bool VerifyOutputOfAtomicPairInstr(IA32OperandConverter* converter,
                                    const Instruction* instr) {
-  if (instr->OutputCount() > 0) {
-    if (converter->OutputRegister(0) != eax) return false;
-    if (instr->OutputCount() == 2 && converter->OutputRegister(1) != edx)
-      return false;
+  if (instr->OutputCount() == 2) {
+    return (converter->OutputRegister(0) == eax &&
+            converter->OutputRegister(1) == edx);
   }
-  return true;
+  if (instr->OutputCount() == 1) {
+    return (converter->OutputRegister(0) == eax &&
+            converter->TempRegister(0) == edx) ||
+           (converter->OutputRegister(0) == edx &&
+            converter->TempRegister(0) == eax);
+  }
+  DCHECK_EQ(instr->OutputCount(), 0);
+  return (converter->TempRegister(0) == eax &&
+          converter->TempRegister(1) == edx);
 }
 #endif
 

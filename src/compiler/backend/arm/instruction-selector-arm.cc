@@ -427,33 +427,32 @@ void VisitPairAtomicBinOp(InstructionSelector* selector, Node* node,
   Node* value = node->InputAt(2);
   Node* value_high = node->InputAt(3);
   AddressingMode addressing_mode = kMode_Offset_RR;
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
   InstructionOperand inputs[] = {
       g.UseUniqueRegister(value), g.UseUniqueRegister(value_high),
       g.UseUniqueRegister(base), g.UseUniqueRegister(index)};
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  InstructionOperand temps[6];
+  size_t temp_count = 0;
+  temps[temp_count++] = g.TempRegister();
+  temps[temp_count++] = g.TempRegister(r6);
+  temps[temp_count++] = g.TempRegister(r7);
+  temps[temp_count++] = g.TempRegister();
   Node* projection0 = NodeProperties::FindProjection(node, 0);
   Node* projection1 = NodeProperties::FindProjection(node, 1);
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  if (projection1) {
-    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, r2),
-                                    g.DefineAsFixed(projection1, r3)};
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(r6),
-                                  g.TempRegister(r7), g.TempRegister()};
-    selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-                   arraysize(temps), temps);
-  } else if (projection0) {
-    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, r2)};
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(r6),
-                                  g.TempRegister(r7), g.TempRegister(),
-                                  g.TempRegister(r3)};
-    selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-                   arraysize(temps), temps);
+  if (projection0) {
+    outputs[output_count++] = g.DefineAsFixed(projection0, r2);
   } else {
-    InstructionOperand temps[] = {g.TempRegister(),   g.TempRegister(r6),
-                                  g.TempRegister(r7), g.TempRegister(),
-                                  g.TempRegister(r2), g.TempRegister(r3)};
-    selector->Emit(code, 0, nullptr, arraysize(inputs), inputs,
-                   arraysize(temps), temps);
+    temps[temp_count++] = g.TempRegister(r2);
   }
+  if (projection1) {
+    outputs[output_count++] = g.DefineAsFixed(projection1, r3);
+  } else {
+    temps[temp_count++] = g.TempRegister(r3);
+  }
+  selector->Emit(code, output_count, outputs, arraysize(inputs), inputs,
+                 temp_count, temps);
 }
 
 }  // namespace
