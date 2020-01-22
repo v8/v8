@@ -511,7 +511,7 @@ struct MemoryInitImmediate {
   inline MemoryInitImmediate(Decoder* decoder, const byte* pc) {
     uint32_t len = 0;
     data_segment_index =
-        decoder->read_i32v<validate>(pc + 2, &len, "data segment index");
+        decoder->read_u32v<validate>(pc + 2, &len, "data segment index");
     memory = MemoryIndexImmediate<validate>(decoder, pc + 1 + len);
     length = len + memory.length;
   }
@@ -523,7 +523,7 @@ struct DataDropImmediate {
   unsigned length;
 
   inline DataDropImmediate(Decoder* decoder, const byte* pc) {
-    index = decoder->read_i32v<validate>(pc + 2, &length, "data segment index");
+    index = decoder->read_u32v<validate>(pc + 2, &length, "data segment index");
   }
 };
 
@@ -550,7 +550,7 @@ struct TableInitImmediate {
   inline TableInitImmediate(Decoder* decoder, const byte* pc) {
     uint32_t len = 0;
     elem_segment_index =
-        decoder->read_i32v<validate>(pc + 2, &len, "elem segment index");
+        decoder->read_u32v<validate>(pc + 2, &len, "elem segment index");
     table = TableIndexImmediate<validate>(decoder, pc + 1 + len);
     length = len + table.length;
   }
@@ -562,7 +562,7 @@ struct ElemDropImmediate {
   unsigned length;
 
   inline ElemDropImmediate(Decoder* decoder, const byte* pc) {
-    index = decoder->read_i32v<validate>(pc + 2, &length, "elem segment index");
+    index = decoder->read_u32v<validate>(pc + 2, &length, "elem segment index");
   }
 };
 

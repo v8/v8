@@ -3153,6 +3153,20 @@ TEST_F(FunctionBodyDecoderTest, DataDrop) {
   ExpectFailure(sigs.v_v(), {WASM_DATA_DROP(1)});
 }
 
+TEST_F(FunctionBodyDecoderTest, DataSegmentIndexUnsigned) {
+  TestModuleBuilder builder;
+  builder.InitializeMemory();
+  builder.SetDataSegmentCount(65);
+  module = builder.module();
+
+  WASM_FEATURE_SCOPE(bulk_memory);
+  // Make sure that the index is interpreted as an unsigned number; 64 is
+  // interpreted as -64 when decoded as a signed LEB.
+  ExpectValidates(sigs.v_v(),
+                  {WASM_MEMORY_INIT(64, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+  ExpectValidates(sigs.v_v(), {WASM_DATA_DROP(64)});
+}
+
 TEST_F(FunctionBodyDecoderTest, MemoryCopy) {
   TestModuleBuilder builder;
   builder.InitializeMemory();
@@ -3226,6 +3240,22 @@ TEST_F(FunctionBodyDecoderTest, ElemDrop) {
   WASM_FEATURE_SCOPE(bulk_memory);
   ExpectValidates(sigs.v_v(), {WASM_ELEM_DROP(0)});
   ExpectFailure(sigs.v_v(), {WASM_ELEM_DROP(1)});
+}
+
+TEST_F(FunctionBodyDecoderTest, ElemSegmentIndexUnsigned) {
+  TestModuleBuilder builder;
+  builder.InitializeTable();
+  for (int i = 0; i < 65; ++i) {
+    builder.AddPassiveElementSegment();
+  }
+  module = builder.module();
+
+  WASM_FEATURE_SCOPE(bulk_memory);
+  // Make sure that the index is interpreted as an unsigned number; 64 is
+  // interpreted as -64 when decoded as a signed LEB.
+  ExpectValidates(sigs.v_v(),
+                  {WASM_TABLE_INIT(0, 64, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+  ExpectValidates(sigs.v_v(), {WASM_ELEM_DROP(64)});
 }
 
 TEST_F(FunctionBodyDecoderTest, TableCopy) {
