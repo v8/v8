@@ -350,18 +350,16 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   InstructionCode opcode = kArchNop;
   switch (params.transformation) {
     case LoadTransformation::kS8x16LoadSplat:
-      // TODO(zhiguo.zhou@intel.com): Implement the rest of load splat and load
-      // extend operations.
-      UNIMPLEMENTED();
+      opcode = kIA32S8x16LoadSplat;
       break;
     case LoadTransformation::kS16x8LoadSplat:
-      UNIMPLEMENTED();
+      opcode = kIA32S16x8LoadSplat;
       break;
     case LoadTransformation::kS32x4LoadSplat:
-      UNIMPLEMENTED();
+      opcode = kIA32S32x4LoadSplat;
       break;
     case LoadTransformation::kS64x2LoadSplat:
-      UNIMPLEMENTED();
+      opcode = kIA32S64x2LoadSplat;
       break;
     case LoadTransformation::kI16x8Load8x8S:
       opcode = kIA32I16x8Load8x8S;
@@ -376,10 +374,10 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
       opcode = kIA32I32x4Load16x4U;
       break;
     case LoadTransformation::kI64x2Load32x2S:
-      UNIMPLEMENTED();
+      opcode = kIA32I64x2Load32x2S;
       break;
     case LoadTransformation::kI64x2Load32x2U:
-      UNIMPLEMENTED();
+      opcode = kIA32I64x2Load32x2U;
       break;
     default:
       UNREACHABLE();

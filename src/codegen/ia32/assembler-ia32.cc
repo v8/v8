@@ -2312,6 +2312,15 @@ void Assembler::movups(Operand dst, XMMRegister src) {
   emit_sse_operand(src, dst);
 }
 
+void Assembler::movddup(XMMRegister dst, Operand src) {
+  DCHECK(IsEnabled(SSE3));
+  EnsureSpace ensure_space(this);
+  EMIT(0xF2);
+  EMIT(0x0F);
+  EMIT(0x12);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::shufps(XMMRegister dst, XMMRegister src, byte imm8) {
   DCHECK(is_uint8(imm8));
   EnsureSpace ensure_space(this);

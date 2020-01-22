@@ -579,6 +579,8 @@ TEST(DisasmIa320) {
       CpuFeatureScope scope(&assm, SSE3);
       __ haddps(xmm1, xmm0);
       __ haddps(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ movddup(xmm1, Operand(eax, 5));
+      __ movddup(xmm1, xmm2);
     }
   }
 
@@ -770,6 +772,9 @@ TEST(DisasmIa320) {
       __ vcvttps2dq(xmm1, xmm0);
       __ vcvttps2dq(xmm1, Operand(ebx, ecx, times_4, 10000));
 
+      __ vmovddup(xmm1, xmm2);
+      __ vmovddup(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vbroadcastss(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmovdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
       __ vmovdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
       __ vmovd(xmm0, edi);

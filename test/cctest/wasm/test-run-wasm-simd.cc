@@ -3304,9 +3304,6 @@ WASM_SIMD_TEST(SimdLoadStoreLoadMemargOffset) {
   }
 }
 
-#if !V8_TARGET_ARCH_IA32
-// TODO(zhiguo.zhou@intel.com): Add the tests on IA32 once these operations are
-// implemented.
 template <typename T>
 void RunLoadSplatTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode op) {
@@ -3343,7 +3340,6 @@ WASM_SIMD_TEST_NO_LOWERING(S32x4LoadSplat) {
 WASM_SIMD_TEST_NO_LOWERING(S64x2LoadSplat) {
   RunLoadSplatTest<int64_t>(execution_tier, lower_simd, kExprS64x2LoadSplat);
 }
-#endif  // !V8_TARGET_ARCH_IA32
 
 template <typename S, typename T>
 void RunLoadExtendTest(ExecutionTier execution_tier, LowerSimd lower_simd,
@@ -3388,7 +3384,6 @@ WASM_SIMD_TEST_NO_LOWERING(I32x4Load16x4S) {
                                       kExprI32x4Load16x4S);
 }
 
-#if !V8_TARGET_ARCH_IA32
 WASM_SIMD_TEST_NO_LOWERING(I64x2Load32x2U) {
   RunLoadExtendTest<uint32_t, uint64_t>(execution_tier, lower_simd,
                                         kExprI64x2Load32x2U);
@@ -3398,7 +3393,6 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2Load32x2S) {
   RunLoadExtendTest<int32_t, int64_t>(execution_tier, lower_simd,
                                       kExprI64x2Load32x2S);
 }
-#endif  // !V8_TARGET_ARCH_IA32
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
     V8_TARGET_ARCH_ARM

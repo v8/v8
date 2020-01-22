@@ -348,10 +348,16 @@ namespace compiler {
   V(IA32S128AndNot)                \
   V(IA32S8x16Swizzle)              \
   V(IA32S8x16Shuffle)              \
+  V(IA32S8x16LoadSplat)            \
+  V(IA32S16x8LoadSplat)            \
+  V(IA32S32x4LoadSplat)            \
+  V(IA32S64x2LoadSplat)            \
   V(IA32I16x8Load8x8S)             \
   V(IA32I16x8Load8x8U)             \
   V(IA32I32x4Load16x4S)            \
   V(IA32I32x4Load16x4U)            \
+  V(IA32I64x2Load32x2S)            \
+  V(IA32I64x2Load32x2U)            \
   V(IA32S32x4Swizzle)              \
   V(IA32S32x4Shuffle)              \
   V(IA32S16x8Blend)                \

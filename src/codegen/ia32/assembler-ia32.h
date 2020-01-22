@@ -1026,6 +1026,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     pextrb(Operand(dst), src, offset);
   }
   void pextrb(Operand dst, XMMRegister src, uint8_t offset);
+  // SSE3 instructions
+  void movddup(XMMRegister dst, Operand src);
+  void movddup(XMMRegister dst, XMMRegister src) { movddup(dst, Operand(src)); }
+
   // Use SSE4_1 encoding for pextrw reg, xmm, imm8 for consistency
   void pextrw(Register dst, XMMRegister src, uint8_t offset) {
     pextrw(Operand(dst), src, offset);
@@ -1411,6 +1415,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x5B, dst, xmm0, src, kF3, k0F, kWIG);
   }
 
+  void vmovddup(XMMRegister dst, Operand src) {
+    vinstr(0x12, dst, xmm0, src, kF2, k0F, kWIG);
+  }
+  void vmovddup(XMMRegister dst, XMMRegister src) {
+    vmovddup(dst, Operand(src));
+  }
+  void vbroadcastss(XMMRegister dst, Operand src) {
+    vinstr(0x18, dst, xmm0, src, k66, k0F38, kW0);
+  }
   void vmovdqu(XMMRegister dst, Operand src) {
     vinstr(0x6F, dst, xmm0, src, kF3, k0F, kWIG);
   }

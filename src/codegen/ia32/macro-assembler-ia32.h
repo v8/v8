@@ -294,6 +294,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP3_XO(Punpcklbw, punpcklbw)
   AVX_OP3_XO(Punpckhbw, punpckhbw)
   AVX_OP3_XO(Punpckldq, punpckldq)
+  AVX_OP3_XO(Punpcklqdq, punpcklqdq)
   AVX_OP3_XO(Pxor, pxor)
   AVX_OP3_XO(Andps, andps)
   AVX_OP3_XO(Andnps, andnps)
@@ -362,6 +363,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     }                                                                 \
     UNREACHABLE();                                                    \
   }
+#define AVX_OP2_XO_SSE3(macro_name, name)                                   \
+  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, XMMRegister, SSE3) \
+  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSE3)
+  AVX_OP2_XO_SSE3(Movddup, movddup)
+
+#undef AVX_OP2_XO_SSE3
 #define AVX_OP2_XO_SSE4(macro_name, name)                                     \
   AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, XMMRegister, SSE4_1) \
   AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSE4_1)
@@ -369,8 +376,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP2_XO_SSE4(Ptest, ptest)
   AVX_OP2_XO_SSE4(Pmovsxbw, pmovsxbw)
   AVX_OP2_XO_SSE4(Pmovsxwd, pmovsxwd)
+  AVX_OP2_XO_SSE4(Pmovsxdq, pmovsxdq)
   AVX_OP2_XO_SSE4(Pmovzxbw, pmovzxbw)
   AVX_OP2_XO_SSE4(Pmovzxwd, pmovzxwd)
+  AVX_OP2_XO_SSE4(Pmovzxdq, pmovzxdq)
 
 #undef AVX_OP2_WITH_TYPE_SCOPE
 #undef AVX_OP2_XO_SSE4
@@ -397,10 +406,19 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Pextrb(Register dst, XMMRegister src, uint8_t imm8);
   void Pextrw(Register dst, XMMRegister src, uint8_t imm8);
   void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
+  void Pinsrb(XMMRegister dst, Register src, int8_t imm8) {
+    Pinsrb(dst, Operand(src), imm8);
+  }
+  void Pinsrb(XMMRegister dst, Operand src, int8_t imm8);
   void Pinsrd(XMMRegister dst, Register src, uint8_t imm8) {
     Pinsrd(dst, Operand(src), imm8);
   }
   void Pinsrd(XMMRegister dst, Operand src, uint8_t imm8);
+  void Pinsrw(XMMRegister dst, Register src, int8_t imm8) {
+    Pinsrw(dst, Operand(src), imm8);
+  }
+  void Pinsrw(XMMRegister dst, Operand src, int8_t imm8);
+  void Vbroadcastss(XMMRegister dst, Operand src);
 
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
