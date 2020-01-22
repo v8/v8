@@ -88,7 +88,6 @@
     "https://build.chromium.org/p/client.v8.fyi": [
       {
         "excluded_builders" : [
-          "Android Builder",
           "Linux Debug Builder",
           "Linux ASAN Builder",
           "Linux V8 FYI Release - pointer compression (NVIDIA)",
