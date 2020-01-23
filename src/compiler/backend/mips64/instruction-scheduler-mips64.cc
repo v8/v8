@@ -248,6 +248,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64S128Or:
     case kMips64S128Not:
     case kMips64S128Select:
+    case kMips64S128AndNot:
     case kMips64S128Xor:
     case kMips64S128Zero:
     case kMips64S16x8InterleaveEven:

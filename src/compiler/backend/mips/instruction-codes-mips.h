@@ -261,6 +261,7 @@ namespace compiler {
   V(MipsS128Xor)                   \
   V(MipsS128Not)                   \
   V(MipsS128Select)                \
+  V(MipsS128AndNot)                \
   V(MipsS1x4AnyTrue)               \
   V(MipsS1x4AllTrue)               \
   V(MipsS1x8AnyTrue)               \

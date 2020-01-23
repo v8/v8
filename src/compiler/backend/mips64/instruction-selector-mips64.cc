@@ -2867,7 +2867,8 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16UConvertI16x8, kMips64I8x16UConvertI16x8)       \
   V(S128And, kMips64S128And)                             \
   V(S128Or, kMips64S128Or)                               \
-  V(S128Xor, kMips64S128Xor)
+  V(S128Xor, kMips64S128Xor)                             \
+  V(S128AndNot, kMips64S128AndNot)
 
 void InstructionSelector::VisitS128Zero(Node* node) {
   Mips64OperandGenerator g(this);
