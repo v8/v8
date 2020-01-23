@@ -127,6 +127,9 @@ class WasmSerializationTest {
     Isolate* serialization_isolate =
         reinterpret_cast<Isolate*>(serialization_v8_isolate);
     ErrorThrower thrower(serialization_isolate, "");
+    // Keep a weak pointer so we can check that the native module dies after
+    // serialization (when the isolate is disposed).
+    std::weak_ptr<NativeModule> weak_native_module;
     {
       HandleScope scope(serialization_isolate);
       v8::Local<v8::Context> serialization_context =
@@ -140,6 +143,9 @@ class WasmSerializationTest {
               ModuleWireBytes(buffer.begin(), buffer.end()));
       Handle<WasmModuleObject> module_object =
           maybe_module_object.ToHandleChecked();
+      weak_native_module = module_object->shared_native_module();
+      // Check that the native module exists at this point.
+      CHECK(weak_native_module.lock());
 
       v8::Local<v8::Object> v8_module_obj =
           v8::Utils::ToLocal(Handle<JSObject>::cast(module_object));
@@ -161,6 +167,12 @@ class WasmSerializationTest {
     // NativeModule, which removes it from the module cache in the wasm engine
     // and forces de-serialization in the new isolate.
     serialization_v8_isolate->Dispose();
+
+    // Busy-wait for the NativeModule to really die. Background threads might
+    // temporarily keep it alive (happens very rarely, see
+    // https://crbug.com/v8/10148).
+    while (weak_native_module.lock()) {
+    }
 
     serialized_bytes_ = {data_.buffer.get(), data_.size};
 
