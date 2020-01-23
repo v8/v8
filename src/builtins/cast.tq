@@ -36,6 +36,7 @@ extern macro IsExtensibleMap(Map): bool;
 extern macro IsJSPrimitiveWrapper(HeapObject): bool;
 extern macro IsPromiseCapability(HeapObject): bool;
 extern macro IsPromiseReaction(HeapObject): bool;
+extern macro IsPromiseReactionJobTask(HeapObject): bool;
 extern macro IsPromiseRejectReactionJobTask(HeapObject): bool;
 extern macro IsPromiseFulfillReactionJobTask(HeapObject): bool;
 extern macro IsSharedFunctionInfo(HeapObject): bool;
@@ -641,6 +642,14 @@ Cast<JSReceiver|Null>(o: HeapObject): JSReceiver|Null
       goto CastError;
     }
   }
+}
+
+Cast<PromiseReactionJobTask>(o: HeapObject):
+    PromiseReactionJobTask labels CastError {
+  if (IsPromiseReactionJobTask(o)) {
+    return %RawDownCast<PromiseReactionJobTask>(o);
+  }
+  goto CastError;
 }
 
 Cast<PromiseFulfillReactionJobTask>(o: HeapObject):

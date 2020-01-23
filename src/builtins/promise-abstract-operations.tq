@@ -246,9 +246,6 @@ namespace promise {
   const kPromiseBuiltinsDebugEventSlot: constexpr ContextSlot
   generates 'PromiseBuiltins::kDebugEventSlot';
 
-  extern macro
-  PromiseBuiltinsAssembler::AllocateAndInitJSPromise(Context): JSPromise;
-
   @export
   macro CreatePromiseCapabilitiesExecutorContext(
       nativeContext: NativeContext, capability: PromiseCapability): Context {
@@ -306,7 +303,7 @@ namespace promise {
     if (TaggedEqual(
             constructor,
             nativeContext[NativeContextSlot::PROMISE_FUNCTION_INDEX])) {
-      const promise = AllocateAndInitJSPromise(nativeContext);
+      const promise = NewJSPromise();
 
       const pair =
           CreatePromiseResolvingFunctions(promise, debugEvent, nativeContext);
@@ -409,14 +406,6 @@ namespace promise {
     return ResolvePromise(context, promise, resolution);
   }
 
-  extern macro
-  PromiseBuiltinsAssembler::AllocatePromiseReaction(
-      Object, HeapObject, HeapObject, HeapObject): PromiseReaction;
-
-  extern macro
-  PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
-      Map, Context, Object, HeapObject, HeapObject): PromiseReactionJobTask;
-
   @export
   transitioning macro PerformPromiseThenImpl(implicit context: Context)(
       promise: JSPromise, onFulfilled: Callable|Undefined,
@@ -427,13 +416,14 @@ namespace promise {
       // PromiseReaction holding both the onFulfilled and onRejected callbacks.
       // Once the {promise} is resolved we decide on the concrete handler to
       // push onto the microtask queue.
-      const promiseReactions = promise.reactions_or_result;
-      const reaction = AllocatePromiseReaction(
+      const promiseReactions =
+          UnsafeCast<(Zero | PromiseReaction)>(promise.reactions_or_result);
+      const reaction = NewPromiseReaction(
           promiseReactions, resultPromiseOrCapability, onFulfilled, onRejected);
       promise.reactions_or_result = reaction;
     } else {
       let map: Map;
-      let handler: HeapObject;
+      let handler: Callable|Undefined = Undefined;
       let handlerContext: Context;
       if (promise.Status() == PromiseState::kFulfilled) {
         map = PromiseFulfillReactionJobTaskMapConstant();
@@ -451,7 +441,7 @@ namespace promise {
         }
 
       const reactionsOrResult = promise.reactions_or_result;
-      const microtask = AllocatePromiseReactionJobTask(
+      const microtask = NewPromiseReactionJobTask(
           map, handlerContext, reactionsOrResult, handler,
           resultPromiseOrCapability);
       EnqueueMicrotask(handlerContext, microtask);
@@ -469,10 +459,6 @@ namespace promise {
     return resultPromise;
   }
 
-  extern macro
-  PromiseBuiltinsAssembler::AllocateAndSetJSPromise(
-      Context, constexpr PromiseState, JSAny): JSPromise;
-
   // https://tc39.es/ecma262/#sec-promise-reject-functions
   transitioning javascript builtin
   PromiseReject(js-implicit context: NativeContext, receiver: JSAny)(
@@ -484,8 +470,7 @@ namespace promise {
 
     const promiseFun = context[NativeContextSlot::PROMISE_FUNCTION_INDEX];
     if (promiseFun == receiver) {
-      const promise =
-          AllocateAndSetJSPromise(context, PromiseState::kRejected, reason);
+      const promise = NewJSPromise(PromiseState::kRejected, reason);
       runtime::PromiseRejectEventFromStack(promise, reason);
       return promise;
     } else {

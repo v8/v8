@@ -6,21 +6,15 @@
 
 namespace promise {
 
-  extern macro
-  PromiseBuiltinsAssembler::BranchIfPromiseSpeciesLookupChainIntact(
-      NativeContext, Map): never labels IsIntact,
-      IsNotIntact;
-
   macro
   IsPromiseSpeciesLookupChainIntact(
       nativeContext: NativeContext, promiseMap: Map): bool {
-    BranchIfPromiseSpeciesLookupChainIntact(nativeContext, promiseMap)
-        otherwise return true, return false;
+    const promisePrototype =
+        nativeContext[NativeContextSlot::PROMISE_PROTOTYPE_INDEX];
+    if (IsForceSlowPath()) return false;
+    if (promiseMap.prototype != promisePrototype) return false;
+    return !IsPromiseSpeciesProtectorCellInvalid();
   }
-
-  extern macro
-  PromiseBuiltinsAssembler::AllocateAndInitJSPromise(Context, Object):
-      JSPromise;
 
   // https://tc39.es/ecma262/#sec-promise.prototype.then
   transitioning javascript builtin
@@ -54,7 +48,7 @@ namespace promise {
       }
     }
     label AllocateAndInit {
-      const resultJSPromise = AllocateAndInitJSPromise(context, promise);
+      const resultJSPromise = NewJSPromise(promise);
       resultPromiseOrCapability = resultJSPromise;
       resultPromise = resultJSPromise;
     }

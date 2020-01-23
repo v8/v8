@@ -26,25 +26,18 @@ namespace promise {
   generates 'v8::Isolate::kPromiseConstructorReturnedUndefined';
 
   extern macro
-  PromiseBuiltinsAssembler::BranchIfAccessCheckFailed(
-      Context, Context, Object, Object): void labels NoAccess;
-
-  extern macro
   IsDebugActive(): bool;
 
   transitioning macro
-  HasAccessCheckFailed(
-      context: Context, nativeContext: Context, promiseFun: Object,
-      executor: Object): bool {
-    BranchIfAccessCheckFailed(context, nativeContext, promiseFun, executor)
+  HasAccessCheckFailed(implicit context: Context)(
+      nativeContext: NativeContext, promiseFun: JSAny, executor: JSAny): bool {
+    BranchIfAccessCheckFailed(nativeContext, promiseFun, executor)
         otherwise return true;
     return false;
   }
 
   extern macro ConstructorBuiltinsAssembler::EmitFastNewObject(
       Context, JSFunction, JSReceiver): JSObject;
-
-  extern macro PromiseBuiltinsAssembler::PromiseInit(JSPromise): void;
 
   extern macro
   PromiseBuiltinsAssembler::IsPromiseHookEnabledOrHasAsyncEventDelegate(): bool;
@@ -68,7 +61,7 @@ namespace promise {
         context[NativeContextSlot::PROMISE_FUNCTION_INDEX]);
 
     // Silently fail if the stack looks fishy.
-    if (HasAccessCheckFailed(context, context, promiseFun, executor)) {
+    if (HasAccessCheckFailed(context, promiseFun, executor)) {
       IncrementUseCounter(
           context, SmiConstant(kPromiseConstructorReturnedUndefined));
       return Undefined;
@@ -76,7 +69,7 @@ namespace promise {
 
     let result: JSPromise;
     if (promiseFun == newTarget) {
-      result = AllocateAndInitJSPromise(context);
+      result = NewJSPromise();
     } else {
       result = UnsafeCast<JSPromise>(EmitFastNewObject(
           context, promiseFun, UnsafeCast<JSReceiver>(newTarget)));

@@ -129,6 +129,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(PromiseReactionMap, promise_reaction_map, PromiseReactionMap)              \
   V(PromiseRejectReactionJobTaskMap, promise_reject_reaction_job_task_map,     \
     PromiseRejectReactionJobTaskMap)                                           \
+  V(PromiseResolveThenableJobTaskMap, promise_resolve_thenable_job_task_map,   \
+    PromiseResolveThenableJobTaskMap)                                          \
   V(prototype_string, prototype_string, PrototypeString)                       \
   V(PrototypeInfoMap, prototype_info_map, PrototypeInfoMap)                    \
   V(replace_symbol, replace_symbol, ReplaceSymbol)                             \
@@ -2548,6 +2550,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsPropertyArray(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsPropertyCell(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsPromiseReaction(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsPromiseReactionJobTask(TNode<HeapObject> object);
   TNode<BoolT> IsPromiseRejectReactionJobTask(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsPromiseFulfillReactionJobTask(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsPrototypeInitialArrayPrototype(SloppyTNode<Context> context,

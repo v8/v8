@@ -105,7 +105,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
     const char* operation_name, Label::Type reject_label_type,
     base::Optional<TNode<Object>> initial_exception_value) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
-  const TNode<JSPromise> promise = AllocateAndInitJSPromise(context);
+  const TNode<JSPromise> promise = NewJSPromise(context);
 
   TVARIABLE(
       Object, var_exception,

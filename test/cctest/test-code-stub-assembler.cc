@@ -2449,7 +2449,7 @@ TEST(IsPromiseHookEnabled) {
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 }
 
-TEST(AllocateAndInitJSPromise) {
+TEST(NewJSPromise) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 1;
@@ -2457,7 +2457,7 @@ TEST(AllocateAndInitJSPromise) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  const TNode<JSPromise> promise = m.AllocateAndInitJSPromise(m.CAST(context));
+  const TNode<JSPromise> promise = m.NewJSPromise(m.CAST(context));
   m.Return(promise);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2466,7 +2466,7 @@ TEST(AllocateAndInitJSPromise) {
   CHECK(result->IsJSPromise());
 }
 
-TEST(AllocateAndSetJSPromise) {
+TEST(NewJSPromise2) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 1;
@@ -2474,8 +2474,8 @@ TEST(AllocateAndSetJSPromise) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  const TNode<JSPromise> promise = m.AllocateAndSetJSPromise(
-      m.CAST(context), v8::Promise::kRejected, m.SmiConstant(1));
+  const TNode<JSPromise> promise =
+      m.NewJSPromise(m.CAST(context), v8::Promise::kRejected, m.SmiConstant(1));
   m.Return(promise);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2538,7 +2538,7 @@ TEST(PromiseHasHandler) {
 
   Node* const context = m.Parameter(kNumParams + 2);
   const TNode<JSPromise> promise =
-      m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
+      m.NewJSPromise(m.CAST(context), m.UndefinedConstant());
   m.Return(m.SelectBooleanConstant(m.PromiseHasHandler(promise)));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2557,7 +2557,7 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   const TNode<Context> context = m.CAST(m.Parameter(kNumParams + 2));
   const TNode<NativeContext> native_context = m.LoadNativeContext(context);
   const TNode<JSPromise> promise =
-      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
+      m.NewJSPromise(context, m.UndefinedConstant());
   const TNode<Context> promise_context =
       m.CreatePromiseResolvingFunctionsContext(
           context, promise, m.BooleanConstant(false), native_context);
@@ -2585,7 +2585,7 @@ TEST(CreatePromiseResolvingFunctions) {
   Node* const context = m.Parameter(kNumParams + 2);
   const TNode<NativeContext> native_context = m.LoadNativeContext(context);
   const TNode<JSPromise> promise =
-      m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
+      m.NewJSPromise(m.CAST(context), m.UndefinedConstant());
   PromiseResolvingFunctions funcs = m.CreatePromiseResolvingFunctions(
       m.CAST(context), promise, m.BooleanConstant(false), native_context);
   Node *resolve = funcs.resolve, *reject = funcs.reject;
@@ -2675,7 +2675,7 @@ TEST(AllocateFunctionWithMapAndContext) {
   const TNode<Context> context = m.CAST(m.Parameter(kNumParams + 2));
   const TNode<NativeContext> native_context = m.LoadNativeContext(context);
   const TNode<JSPromise> promise =
-      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
+      m.NewJSPromise(context, m.UndefinedConstant());
   TNode<Context> promise_context = m.CreatePromiseResolvingFunctionsContext(
       context, promise, m.BooleanConstant(false), native_context);
   TNode<Object> resolve_info = m.LoadContextElement(

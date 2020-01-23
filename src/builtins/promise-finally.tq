@@ -48,11 +48,6 @@ namespace promise {
     return AllocateFunctionWithMapAndContext(map, throwerInfo, throwerContext);
   }
 
-  extern transitioning macro
-  PromiseBuiltinsAssembler::InvokeThen(NativeContext, JSAny, JSAny): JSAny;
-  extern transitioning macro PromiseBuiltinsAssembler::InvokeThen(
-      NativeContext, JSAny, JSAny, JSAny): JSAny;
-
   transitioning javascript builtin
   PromiseCatchFinally(js-implicit context: Context, receiver: JSAny)(
       reason: JSAny): JSAny {

@@ -987,6 +987,7 @@ torque_files = [
   "src/builtins/promise-all-element-closure.tq",
   "src/builtins/promise-constructor.tq",
   "src/builtins/promise-finally.tq",
+  "src/builtins/promise-misc.tq",
   "src/builtins/promise-race.tq",
   "src/builtins/promise-reaction-job.tq",
   "src/builtins/promise-resolve.tq",

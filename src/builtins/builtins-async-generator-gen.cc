@@ -148,7 +148,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorEnqueue(
   // presently executing, then this method will loop through, processing each
   // request from front to back.
   // This loop resides in AsyncGeneratorResumeNext.
-  TNode<JSPromise> promise = AllocateAndInitJSPromise(context);
+  TNode<JSPromise> promise = NewJSPromise(context);
 
   Label if_receiverisincompatible(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(receiver), &if_receiverisincompatible);

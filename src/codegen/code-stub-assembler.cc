@@ -6010,6 +6010,13 @@ TNode<BoolT> CodeStubAssembler::IsPromiseReaction(
   return HasInstanceType(object, PROMISE_REACTION_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsPromiseReactionJobTask(
+    TNode<HeapObject> object) {
+  TNode<Uint16T> instance_type = LoadInstanceType(object);
+  return IsInRange(instance_type, FIRST_PROMISE_REACTION_JOB_TASK_TYPE,
+                   LAST_PROMISE_REACTION_JOB_TASK_TYPE);
+}
+
 TNode<BoolT> CodeStubAssembler::IsPromiseRejectReactionJobTask(
     SloppyTNode<HeapObject> object) {
   return HasInstanceType(object, PROMISE_REJECT_REACTION_JOB_TASK_TYPE);

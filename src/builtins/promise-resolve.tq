@@ -64,7 +64,7 @@ namespace promise {
       if (promiseFun == constructor) {
         // This adds a fast path for native promises that don't need to
         // create NewPromiseCapability.
-        const result = AllocateAndInitJSPromise(context);
+        const result = NewJSPromise();
         ResolvePromise(context, result, value);
         return result;
       } else
@@ -84,10 +84,6 @@ namespace promise {
   extern macro ThenStringConstant(): String;
 
   const kThenString: String = ThenStringConstant();
-
-  extern macro PromiseBuiltinsAssembler::AllocatePromiseResolveThenableJobTask(
-      JSPromise, JSReceiver, JSReceiver,
-      Context): PromiseResolveThenableJobTask;
 
   transitioning builtin
   ResolvePromise(implicit context:
@@ -182,7 +178,7 @@ namespace promise {
       // 12. Perform EnqueueJob("PromiseJobs", PromiseResolveThenableJob,
       //                        «promise, resolution, thenAction»).
       const nativeContext = LoadNativeContext(context);
-      const task = AllocatePromiseResolveThenableJobTask(
+      const task = NewPromiseResolveThenableJobTask(
           promise, UnsafeCast<JSReceiver>(then),
           UnsafeCast<JSReceiver>(resolution), nativeContext);
       return EnqueueMicrotask(nativeContext, task);
