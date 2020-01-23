@@ -1140,6 +1140,22 @@ void SimdScalarLowering::LowerNode(Node* node) {
       ReplaceNode(node, rep_node, kNumLanes32);
       break;
     }
+    case IrOpcode::kS128AndNot: {
+      DCHECK_EQ(2, node->InputCount());
+      Node** rep_left = GetReplacementsWithType(node->InputAt(0), rep_type);
+      Node** rep_right = GetReplacementsWithType(node->InputAt(1), rep_type);
+      int num_lanes = NumLanes(rep_type);
+      Node** rep_node = zone()->NewArray<Node*>(num_lanes);
+      Node* mask = graph()->NewNode(common()->Int32Constant(0xFFFFFFFF));
+      for (int i = 0; i < num_lanes; ++i) {
+        Node* not_rep_right =
+            graph()->NewNode(machine()->Word32Xor(), rep_right[i], mask);
+        rep_node[i] = graph()->NewNode(machine()->Word32And(), rep_left[i],
+                                       not_rep_right);
+      }
+      ReplaceNode(node, rep_node, num_lanes);
+      break;
+    }
     case IrOpcode::kI32x4SConvertF32x4: {
       LowerConvertFromFloat(node, true);
       break;

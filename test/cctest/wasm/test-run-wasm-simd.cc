@@ -1909,7 +1909,7 @@ WASM_SIMD_TEST(S128Xor) {
 }
 
 // Bitwise operation, doesn't really matter what simd type we test it with.
-WASM_SIMD_TEST_NO_LOWERING(S128AndNot) {
+WASM_SIMD_TEST(S128AndNot) {
   RunI32x4BinOpTest(execution_tier, lower_simd, kExprS128AndNot, AndNot);
 }
 
