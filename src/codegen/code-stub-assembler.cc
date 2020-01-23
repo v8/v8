@@ -11251,7 +11251,6 @@ TNode<Oddball> CodeStubAssembler::Equal(SloppyTNode<Object> left,
               *var_type_feedback = SmiConstant(
                   CompareOperationFeedback::kReceiverOrNullOrUndefined);
               GotoIf(IsJSReceiverInstanceType(right_type), &if_notequal);
-              GotoIfNot(IsBooleanMap(right_map), &if_notequal);
               *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
             }
             Goto(&if_notequal);
