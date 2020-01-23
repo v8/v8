@@ -2811,7 +2811,7 @@ class V8_EXPORT Value : public Data {
    */
   bool IsWasmModuleObject() const;
 
-  V8_DEPRECATE_SOON("Use IsWasmModuleObject")
+  V8_DEPRECATED("Use IsWasmModuleObject")
   bool IsWebAssemblyCompiledModule() const;
 
   /**
