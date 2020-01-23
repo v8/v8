@@ -610,8 +610,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   // Free unmarked ArrayBufferExtensions.
   void SweepArrayBufferExtensions();
-  void SweepOldArrayBufferExtensions(ArrayBufferExtension* promoted_list);
-  ArrayBufferExtension* SweepYoungArrayBufferExtensions();
 
   void MarkLiveObjects() override;
 

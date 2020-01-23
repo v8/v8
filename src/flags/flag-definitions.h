@@ -892,6 +892,8 @@ DEFINE_BOOL(concurrent_marking, V8_CONCURRENT_MARKING_BOOL,
 DEFINE_BOOL_READONLY(array_buffer_extension, V8_ARRAY_BUFFER_EXTENSION_BOOL,
                      "enable array buffer tracking using extension objects")
 DEFINE_IMPLICATION(array_buffer_extension, always_promote_young_mc)
+DEFINE_BOOL(concurrent_array_buffer_sweeping, true,
+            "concurrently sweep array buffers")
 DEFINE_BOOL(parallel_marking, true, "use parallel marking in atomic pause")
 DEFINE_INT(ephemeron_fixpoint_iterations, 10,
            "number of fixpoint iterations it takes to switch to linear "

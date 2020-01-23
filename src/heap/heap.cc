@@ -26,6 +26,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-collector.h"
+#include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/barrier.h"
 #include "src/heap/code-stats.h"
@@ -3796,30 +3797,7 @@ void Heap::RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
 
 void Heap::AppendArrayBufferExtension(JSArrayBuffer object,
                                       ArrayBufferExtension* extension) {
-  if (Heap::InYoungGeneration(object)) {
-    extension->set_next(young_array_buffer_extensions_);
-    young_array_buffer_extensions_ = extension;
-  } else {
-    extension->set_next(old_array_buffer_extensions_);
-    old_array_buffer_extensions_ = extension;
-  }
-}
-
-void Heap::ReleaseAllArrayBufferExtensions() {
-  ReleaseAllArrayBufferExtensions(&old_array_buffer_extensions_);
-  ReleaseAllArrayBufferExtensions(&young_array_buffer_extensions_);
-}
-
-void Heap::ReleaseAllArrayBufferExtensions(ArrayBufferExtension** head) {
-  ArrayBufferExtension* current = *head;
-
-  while (current) {
-    ArrayBufferExtension* next = current->next();
-    delete current;
-    current = next;
-  }
-
-  *head = nullptr;
+  array_buffer_sweeper_->Append(object, extension);
 }
 
 void Heap::AutomaticallyRestoreInitialHeapLimit(double threshold_percent) {
@@ -5140,6 +5118,7 @@ void Heap::SetUpSpaces() {
   minor_mark_compact_collector_ = nullptr;
 #endif  // ENABLE_MINOR_MC
   array_buffer_collector_.reset(new ArrayBufferCollector(this));
+  array_buffer_sweeper_.reset(new ArrayBufferSweeper(this));
   gc_idle_time_handler_.reset(new GCIdleTimeHandler());
   memory_measurement_.reset(new MemoryMeasurement(isolate()));
   memory_reducer_.reset(new MemoryReducer(this));
@@ -5329,8 +5308,6 @@ void Heap::TearDown() {
   // It's too late for Heap::Verify() here, as parts of the Isolate are
   // already gone by the time this is called.
 
-  ReleaseAllArrayBufferExtensions();
-
   UpdateMaximumCommitted();
 
   if (FLAG_verify_predictable || FLAG_fuzzer_gc_analysis) {
@@ -5379,6 +5356,7 @@ void Heap::TearDown() {
 
   scavenger_collector_.reset();
   array_buffer_collector_.reset();
+  array_buffer_sweeper_.reset();
   incremental_marking_.reset();
   concurrent_marking_.reset();
 

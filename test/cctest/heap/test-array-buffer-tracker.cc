@@ -4,6 +4,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/execution/isolate.h"
+#include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/array-buffer-tracker.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces.h"
@@ -20,37 +21,25 @@ bool IsTracked(i::JSArrayBuffer buf) {
   return i::ArrayBufferTracker::IsTracked(buf);
 }
 
-bool LookupExtension(i::ArrayBufferExtension* head,
-                     i::ArrayBufferExtension* extension) {
-  i::ArrayBufferExtension* current = head;
-
-  while (current) {
-    if (current == extension) return true;
-    current = current->next();
-  }
-
-  return false;
-}
-
 bool IsTrackedYoung(i::Heap* heap, i::ArrayBufferExtension* extension) {
-  bool in_young =
-      LookupExtension(heap->young_array_buffer_extensions(), extension);
-  bool in_old = LookupExtension(heap->old_array_buffer_extensions(), extension);
-  return in_young && !in_old;
+  bool in_young = heap->array_buffer_sweeper()->young().Contains(extension);
+  bool in_old = heap->array_buffer_sweeper()->old().Contains(extension);
+  CHECK(!(in_young && in_old));
+  return in_young;
 }
 
 bool IsTrackedOld(i::Heap* heap, i::ArrayBufferExtension* extension) {
-  bool in_young =
-      LookupExtension(heap->young_array_buffer_extensions(), extension);
-  bool in_old = LookupExtension(heap->old_array_buffer_extensions(), extension);
-  return in_old && !in_young;
+  bool in_young = heap->array_buffer_sweeper()->young().Contains(extension);
+  bool in_old = heap->array_buffer_sweeper()->old().Contains(extension);
+  CHECK(!(in_young && in_old));
+  return in_old;
 }
 
 bool IsTracked(i::Heap* heap, i::ArrayBufferExtension* extension) {
-  bool in_young =
-      LookupExtension(heap->young_array_buffer_extensions(), extension);
-  bool in_old = LookupExtension(heap->old_array_buffer_extensions(), extension);
-  return in_young != in_old;
+  bool in_young = heap->array_buffer_sweeper()->young().Contains(extension);
+  bool in_old = heap->array_buffer_sweeper()->old().Contains(extension);
+  CHECK(!(in_young && in_old));
+  return in_young || in_old;
 }
 
 }  // namespace
@@ -93,6 +82,7 @@ TEST(ArrayBuffer_OnlyMC) {
 
 TEST(ArrayBuffer_OnlyMC_Extension) {
   if (!V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
+  FLAG_concurrent_array_buffer_sweeping = false;
 
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
@@ -149,6 +139,7 @@ TEST(ArrayBuffer_OnlyScavenge) {
 
 TEST(ArrayBuffer_OnlyScavenge_Extension) {
   if (!V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
+  FLAG_concurrent_array_buffer_sweeping = false;
 
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
@@ -209,6 +200,8 @@ TEST(ArrayBuffer_ScavengeAndMC) {
 
 TEST(ArrayBuffer_ScavengeAndMC_Extension) {
   if (!V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
+  FLAG_concurrent_array_buffer_sweeping = false;
+
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
@@ -424,6 +417,8 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
 TEST(ArrayBuffer_PagePromotion_Extension) {
   if (!i::FLAG_incremental_marking || !V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
   i::FLAG_always_promote_young_mc = true;
+  i::FLAG_concurrent_array_buffer_sweeping = false;
+
   ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved across semispace
   // copy.

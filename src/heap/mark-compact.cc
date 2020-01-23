@@ -14,6 +14,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-collector.h"
+#include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking-inl.h"
@@ -837,6 +838,12 @@ void MarkCompactCollector::Prepare() {
   // Instead of waiting we could also abort the sweeper threads here.
   EnsureSweepingCompleted();
 
+  {
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS);
+    heap_->array_buffer_sweeper()->EnsureFinished();
+  }
+
   if (heap()->incremental_marking()->IsSweeping()) {
     heap()->incremental_marking()->Stop();
   }
@@ -937,52 +944,8 @@ void MarkCompactCollector::Finish() {
 }
 
 void MarkCompactCollector::SweepArrayBufferExtensions() {
-  ArrayBufferExtension* promoted_list = SweepYoungArrayBufferExtensions();
-  SweepOldArrayBufferExtensions(promoted_list);
-}
-
-void MarkCompactCollector::SweepOldArrayBufferExtensions(
-    ArrayBufferExtension* promoted_list) {
-  ArrayBufferExtension* current = heap_->old_array_buffer_extensions();
-  ArrayBufferExtension* last = promoted_list;
-
-  while (current) {
-    ArrayBufferExtension* next = current->next();
-
-    if (!current->IsMarked()) {
-      delete current;
-    } else {
-      current->Unmark();
-      current->set_next(last);
-      last = current;
-    }
-
-    current = next;
-  }
-
-  heap_->set_old_array_buffer_extensions(last);
-}
-
-ArrayBufferExtension* MarkCompactCollector::SweepYoungArrayBufferExtensions() {
-  ArrayBufferExtension* current = heap_->young_array_buffer_extensions();
-  ArrayBufferExtension* promoted_list = nullptr;
-
-  while (current) {
-    ArrayBufferExtension* next = current->next();
-
-    if (!current->IsMarked()) {
-      delete current;
-    } else {
-      current->Unmark();
-      current->set_next(promoted_list);
-      promoted_list = current;
-    }
-
-    current = next;
-  }
-
-  heap_->set_young_array_buffer_extensions(nullptr);
-  return promoted_list;
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_FINISH_SWEEP_ARRAY_BUFFERS);
+  heap_->array_buffer_sweeper()->RequestSweepFull();
 }
 
 class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
@@ -4378,30 +4341,7 @@ void MinorMarkCompactCollector::CleanupSweepToIteratePages() {
 }
 
 void MinorMarkCompactCollector::SweepArrayBufferExtensions() {
-  ArrayBufferExtension* current = heap_->young_array_buffer_extensions();
-  ArrayBufferExtension* last_young = nullptr;
-  ArrayBufferExtension* last_old = heap_->old_array_buffer_extensions();
-
-  while (current) {
-    ArrayBufferExtension* next = current->next();
-
-    if (!current->IsYoungMarked()) {
-      delete current;
-    } else if (current->IsYoungPromoted()) {
-      current->YoungUnmark();
-      current->set_next(last_old);
-      last_old = current;
-    } else {
-      current->YoungUnmark();
-      current->set_next(last_young);
-      last_young = current;
-    }
-
-    current = next;
-  }
-
-  heap_->set_old_array_buffer_extensions(last_old);
-  heap_->set_young_array_buffer_extensions(last_young);
+  heap_->array_buffer_sweeper()->RequestSweepYoung();
 }
 
 class YoungGenerationMigrationObserver final : public MigrationObserver {
@@ -4565,6 +4505,8 @@ void MinorMarkCompactCollector::CollectGarbage() {
     heap()->mark_compact_collector()->sweeper()->EnsureIterabilityCompleted();
     CleanupSweepToIteratePages();
   }
+
+  heap()->array_buffer_sweeper()->EnsureFinished();
 
   MarkLiveObjects();
   ClearNonLiveReferences();

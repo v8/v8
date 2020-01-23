@@ -5,6 +5,7 @@
 #include "src/heap/scavenger.h"
 
 #include "src/heap/array-buffer-collector.h"
+#include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/barrier.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
@@ -236,6 +237,13 @@ class ScopedFullHeapCrashKey {
 
 void ScavengerCollector::CollectGarbage() {
   ScopedFullHeapCrashKey collect_full_heap_dump_if_crash(isolate_);
+
+  {
+    TRACE_GC(heap_->tracer(),
+             GCTracer::Scope::SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS);
+    heap_->array_buffer_sweeper()->EnsureFinished();
+  }
+
   DCHECK(surviving_new_large_objects_.empty());
   ItemParallelJob job(isolate_->cancelable_task_manager(),
                       &parallel_scavenge_semaphore_);
@@ -378,37 +386,17 @@ void ScavengerCollector::CollectGarbage() {
 #endif
   }
 
-  SweepArrayBufferExtensions();
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS);
+    SweepArrayBufferExtensions();
+  }
 
   // Update how much has survived scavenge.
   heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedYoungObjectSize());
 }
 
 void ScavengerCollector::SweepArrayBufferExtensions() {
-  ArrayBufferExtension* current = heap_->young_array_buffer_extensions();
-  ArrayBufferExtension* last_young = nullptr;
-  ArrayBufferExtension* last_old = heap_->old_array_buffer_extensions();
-
-  while (current) {
-    ArrayBufferExtension* next = current->next();
-
-    if (!current->IsYoungMarked()) {
-      delete current;
-    } else if (current->IsYoungPromoted()) {
-      current->YoungUnmark();
-      current->set_next(last_old);
-      last_old = current;
-    } else {
-      current->YoungUnmark();
-      current->set_next(last_young);
-      last_young = current;
-    }
-
-    current = next;
-  }
-
-  heap_->set_old_array_buffer_extensions(last_old);
-  heap_->set_young_array_buffer_extensions(last_young);
+  heap_->array_buffer_sweeper()->RequestSweepYoung();
 }
 
 void ScavengerCollector::HandleSurvivingNewLargeObjects() {

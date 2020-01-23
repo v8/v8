@@ -394,6 +394,7 @@
   F(MC_INCREMENTAL_FINALIZE_BODY)                                  \
   F(MC_INCREMENTAL_LAYOUT_CHANGE)                                  \
   F(MC_INCREMENTAL_START)                                          \
+  F(MC_INCREMENTAL_SWEEP_ARRAY_BUFFERS)                            \
   F(MC_INCREMENTAL_SWEEPING)
 
 #define TOP_MC_SCOPES(F) \
@@ -425,6 +426,7 @@
   F(MC_CLEAR_WEAK_COLLECTIONS)                       \
   F(MC_CLEAR_WEAK_LISTS)                             \
   F(MC_CLEAR_WEAK_REFERENCES)                        \
+  F(MC_COMPLETE_SWEEP_ARRAY_BUFFERS)                 \
   F(MC_EVACUATE_CANDIDATES)                          \
   F(MC_EVACUATE_CLEAN_UP)                            \
   F(MC_EVACUATE_COPY)                                \
@@ -438,6 +440,7 @@
   F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE)     \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
   F(MC_EVACUATE_UPDATE_POINTERS_WEAK)                \
+  F(MC_FINISH_SWEEP_ARRAY_BUFFERS)                   \
   F(MC_MARK_EMBEDDER_PROLOGUE)                       \
   F(MC_MARK_EMBEDDER_TRACING)                        \
   F(MC_MARK_EMBEDDER_TRACING_CLOSURE)                \
@@ -479,6 +482,7 @@
   F(MINOR_MC_MARKING_DEQUE)                          \
   F(MINOR_MC_RESET_LIVENESS)                         \
   F(MINOR_MC_SWEEPING)                               \
+  F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \
   F(SCAVENGER_FAST_PROMOTE)                          \
   F(SCAVENGER_FREE_REMEMBERED_SET)                   \
   F(SCAVENGER_SCAVENGE)                              \
@@ -489,10 +493,12 @@
   F(SCAVENGER_SCAVENGE_ROOTS)                        \
   F(SCAVENGER_SCAVENGE_UPDATE_REFS)                  \
   F(SCAVENGER_SCAVENGE_WEAK)                         \
-  F(SCAVENGER_SCAVENGE_FINALIZE)
+  F(SCAVENGER_SCAVENGE_FINALIZE)                     \
+  F(SCAVENGER_SWEEP_ARRAY_BUFFERS)
 
 #define TRACER_BACKGROUND_SCOPES(F)               \
   F(BACKGROUND_ARRAY_BUFFER_FREE)                 \
+  F(BACKGROUND_ARRAY_BUFFER_SWEEP)                \
   F(BACKGROUND_STORE_BUFFER)                      \
   F(BACKGROUND_UNMAPPER)                          \
   F(MC_BACKGROUND_EVACUATE_COPY)                  \

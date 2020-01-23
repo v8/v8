@@ -6,6 +6,7 @@
 
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-idle-time-handler.h"
@@ -292,6 +293,12 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   bytes_marked_concurrently_ = 0;
   should_hurry_ = false;
   was_activated_ = true;
+
+  {
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MC_INCREMENTAL_SWEEP_ARRAY_BUFFERS);
+    heap_->array_buffer_sweeper()->EnsureFinished();
+  }
 
   if (!collector_->sweeping_in_progress()) {
     StartMarking();
