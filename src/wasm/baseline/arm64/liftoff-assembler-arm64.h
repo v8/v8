@@ -1157,12 +1157,15 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 void LiftoffAssembler::DebugBreak() { debug("DebugBreak", 0, BREAK); }
 
 void LiftoffStackSlots::Construct() {
-  size_t slot_count = slots_.size();
-  // The stack pointer is required to be quadword aligned.
-  asm_->Claim(RoundUp(slot_count, 2));
-  size_t slot_index = 0;
+  size_t num_slots = 0;
   for (auto& slot : slots_) {
-    size_t poke_offset = (slot_count - slot_index - 1) * kXRegSize;
+    num_slots += slot.src_.type() == kWasmS128 ? 2 : 1;
+  }
+  // The stack pointer is required to be quadword aligned.
+  asm_->Claim(RoundUp(num_slots, 2));
+  size_t poke_offset = num_slots * kXRegSize;
+  for (auto& slot : slots_) {
+    poke_offset -= slot.src_.type() == kWasmS128 ? kXRegSize * 2 : kXRegSize;
     switch (slot.src_.loc()) {
       case LiftoffAssembler::VarState::kStack: {
         UseScratchRegisterScope temps(asm_);
@@ -1189,7 +1192,6 @@ void LiftoffStackSlots::Construct() {
         }
         break;
     }
-    slot_index++;
   }
 }
 

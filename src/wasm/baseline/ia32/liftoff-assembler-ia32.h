@@ -54,6 +54,9 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
     case kWasmF64:
       assm->movsd(dst.fp(), src);
       break;
+    case kWasmS128:
+      assm->movdqu(dst.fp(), src);
+      break;
     default:
       UNREACHABLE();
   }
@@ -97,6 +100,10 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
     case kWasmF64:
       assm->AllocateStackSpace(sizeof(double));
       assm->movsd(Operand(esp, 0), reg.fp());
+      break;
+    case kWasmS128:
+      assm->AllocateStackSpace(sizeof(double) * 2);
+      assm->movdqu(Operand(esp, 0), reg.fp());
       break;
     default:
       UNREACHABLE();
@@ -2043,6 +2050,15 @@ void LiftoffStackSlots::Construct() {
     const LiftoffAssembler::VarState& src = slot.src_;
     switch (src.loc()) {
       case LiftoffAssembler::VarState::kStack:
+        // The combination of AllocateStackSpace and 2 movdqu is usually smaller
+        // in code size than doing 4 pushes.
+        if (src.type() == kWasmS128) {
+          asm_->AllocateStackSpace(sizeof(double) * 2);
+          asm_->movdqu(liftoff::kScratchDoubleReg,
+                       liftoff::GetStackSlot(slot.src_offset_));
+          asm_->movdqu(Operand(esp, 0), liftoff::kScratchDoubleReg);
+          break;
+        }
         if (src.type() == kWasmF64) {
           DCHECK_EQ(kLowWord, slot.half_);
           asm_->push(liftoff::GetHalfStackSlot(slot.src_offset_, kHighWord));

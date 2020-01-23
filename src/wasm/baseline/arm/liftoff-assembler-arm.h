@@ -577,6 +577,13 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
     case kWasmF64:
       vldr(dst.fp(), src);
       break;
+    case kWasmS128: {
+      UseScratchRegisterScope temps(this);
+      Register addr = liftoff::CalculateActualAddress(this, &temps, src.rn(),
+                                                      no_reg, src.offset());
+      vld1(Neon8, NeonListOperand(dst.low_fp(), 2), NeonMemOperand(addr));
+      break;
+    }
     default:
       UNREACHABLE();
   }
@@ -1707,6 +1714,16 @@ void LiftoffStackSlots::Construct() {
             asm_->vldr(scratch, liftoff::GetStackSlot(slot.src_offset_));
             asm_->vpush(scratch);
           } break;
+          case kWasmS128: {
+            MemOperand mem_op = liftoff::GetStackSlot(slot.src_offset_);
+            UseScratchRegisterScope temps(asm_);
+            Register addr = liftoff::CalculateActualAddress(
+                asm_, &temps, mem_op.rn(), no_reg, mem_op.offset());
+            QwNeonRegister scratch = temps.AcquireQ();
+            asm_->vld1(Neon8, NeonListOperand(scratch), NeonMemOperand(addr));
+            asm_->vpush(scratch);
+            break;
+          }
           default:
             UNREACHABLE();
         }
@@ -1727,6 +1744,9 @@ void LiftoffStackSlots::Construct() {
             break;
           case kWasmF64:
             asm_->vpush(src.reg().fp());
+            break;
+          case kWasmS128:
+            asm_->vpush(liftoff::GetSimd128Register(src.reg().low_fp()));
             break;
           default:
             UNREACHABLE();

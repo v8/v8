@@ -71,6 +71,9 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Operand src,
     case kWasmF64:
       assm->Movsd(dst.fp(), src);
       break;
+    case kWasmS128:
+      assm->Movdqu(dst.fp(), src);
+      break;
     default:
       UNREACHABLE();
   }
@@ -109,6 +112,10 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
     case kWasmF64:
       assm->AllocateStackSpace(kSystemPointerSize);
       assm->Movsd(Operand(rsp, 0), reg.fp());
+      break;
+    case kWasmS128:
+      assm->AllocateStackSpace(kSystemPointerSize * 2);
+      assm->Movdqu(Operand(rsp, 0), reg.fp());
       break;
     default:
       UNREACHABLE();
@@ -1764,6 +1771,11 @@ void LiftoffStackSlots::Construct() {
           // extended.
           asm_->movl(kScratchRegister, liftoff::GetStackSlot(slot.src_offset_));
           asm_->pushq(kScratchRegister);
+        } else if (src.type() == kWasmS128) {
+          // Since offsets are subtracted from sp, we need a smaller offset to
+          // push the top of a s128 value.
+          asm_->pushq(liftoff::GetStackSlot(slot.src_offset_ - 8));
+          asm_->pushq(liftoff::GetStackSlot(slot.src_offset_));
         } else {
           // For all other types, just push the whole (8-byte) stack slot.
           // This is also ok for f32 values (even though we copy 4 uninitialized
