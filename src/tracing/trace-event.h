@@ -38,14 +38,6 @@ enum CategoryGroupEnabledFlags {
 // and will not be copied. Use this macro to force a const char* to be copied.
 #define TRACE_STR_COPY(str) v8::internal::tracing::TraceStringWithCopy(str)
 
-// By default, uint64 ID argument values are not mangled with the Process ID in
-// TRACE_EVENT_ASYNC macros. Use this macro to force Process ID mangling.
-#define TRACE_ID_MANGLE(id) v8::internal::tracing::TraceID::ForceMangle(id)
-
-// By default, pointers are mangled with the Process ID in TRACE_EVENT_ASYNC
-// macros. Use this macro to prevent Process ID mangling.
-#define TRACE_ID_DONT_MANGLE(id) v8::internal::tracing::TraceID::DontMangle(id)
-
 // By default, trace IDs are eventually converted to a single 64-bit number. Use
 // this macro to add a scope string.
 #define TRACE_ID_WITH_SCOPE(scope, id) \
@@ -303,9 +295,7 @@ class TraceEventHelper {
   V8_EXPORT_PRIVATE static v8::TracingController* GetTracingController();
 };
 
-// TraceID encapsulates an ID that can either be an integer or pointer. Pointers
-// are by default mangled with the Process ID so that they are unlikely to
-// collide when the same pointer is used on different processes.
+// TraceID encapsulates an ID that can either be an integer or pointer.
 class TraceID {
  public:
   class WithScope {
@@ -320,59 +310,8 @@ class TraceID {
     uint64_t raw_id_;
   };
 
-  class DontMangle {
-   public:
-    explicit DontMangle(const void* raw_id)
-        : raw_id_(static_cast<uint64_t>(reinterpret_cast<uintptr_t>(raw_id))) {}
-    explicit DontMangle(uint64_t raw_id) : raw_id_(raw_id) {}
-    explicit DontMangle(unsigned int raw_id) : raw_id_(raw_id) {}
-    explicit DontMangle(uint16_t raw_id) : raw_id_(raw_id) {}
-    explicit DontMangle(unsigned char raw_id) : raw_id_(raw_id) {}
-    explicit DontMangle(int64_t raw_id)
-        : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    explicit DontMangle(int raw_id) : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    explicit DontMangle(int16_t raw_id)
-        : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    explicit DontMangle(signed char raw_id)
-        : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    explicit DontMangle(WithScope scoped_id)
-        : scope_(scoped_id.scope()), raw_id_(scoped_id.raw_id()) {}
-    const char* scope() const { return scope_; }
-    uint64_t raw_id() const { return raw_id_; }
-
-   private:
-    const char* scope_ = nullptr;
-    uint64_t raw_id_;
-  };
-
-  class ForceMangle {
-   public:
-    explicit ForceMangle(uint64_t raw_id) : raw_id_(raw_id) {}
-    explicit ForceMangle(unsigned int raw_id) : raw_id_(raw_id) {}
-    explicit ForceMangle(uint16_t raw_id) : raw_id_(raw_id) {}
-    explicit ForceMangle(unsigned char raw_id) : raw_id_(raw_id) {}
-    explicit ForceMangle(int64_t raw_id)
-        : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    explicit ForceMangle(int raw_id) : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    explicit ForceMangle(int16_t raw_id)
-        : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    explicit ForceMangle(signed char raw_id)
-        : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    uint64_t raw_id() const { return raw_id_; }
-
-   private:
-    uint64_t raw_id_;
-  };
-
   TraceID(const void* raw_id, unsigned int* flags)
-      : raw_id_(static_cast<uint64_t>(reinterpret_cast<uintptr_t>(raw_id))) {
-    *flags |= TRACE_EVENT_FLAG_MANGLE_ID;
-  }
-  TraceID(ForceMangle raw_id, unsigned int* flags) : raw_id_(raw_id.raw_id()) {
-    *flags |= TRACE_EVENT_FLAG_MANGLE_ID;
-  }
-  TraceID(DontMangle maybe_scoped_id, unsigned int* flags)
-      : scope_(maybe_scoped_id.scope()), raw_id_(maybe_scoped_id.raw_id()) {}
+      : raw_id_(static_cast<uint64_t>(reinterpret_cast<uintptr_t>(raw_id))) {}
   TraceID(uint64_t raw_id, unsigned int* flags) : raw_id_(raw_id) {
     (void)flags;
   }
