@@ -153,9 +153,7 @@ std::unique_ptr<StringBuffer> V8StackTraceId::ToString() {
   std::vector<uint8_t> json;
   std::vector<uint8_t> cbor = std::move(*dict).TakeSerialized();
   v8_crdtp::json::ConvertCBORToJSON(v8_crdtp::SpanFrom(cbor), &json);
-  // |json| is 7 bit ASCII (with \uXXXX JSON escapes).
-  // BinaryStringBuffer keeps the JSON and exposes an 8 bit StringView.
-  return std::make_unique<BinaryStringBuffer>(std::move(json));
+  return StringBufferFrom(std::move(json));
 }
 
 StackFrame::StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> v8Frame)
@@ -341,8 +339,7 @@ std::unique_ptr<StringBuffer> V8StackTraceImpl::toString() const {
     stackTrace.append(String16::fromInteger(frame.columnNumber() + 1));
     stackTrace.append(')');
   }
-  String16 string = stackTrace.toString();
-  return StringBufferImpl::adopt(string);
+  return StringBufferFrom(stackTrace.toString());
 }
 
 bool V8StackTraceImpl::isEqualIgnoringTopFrame(

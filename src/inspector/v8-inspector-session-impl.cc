@@ -169,15 +169,19 @@ std::unique_ptr<StringBuffer> V8InspectorSessionImpl::serializeForFrontend(
     std::unique_ptr<protocol::Serializable> message) {
   std::vector<uint8_t> cbor = std::move(*message).TakeSerialized();
   DCHECK(CheckCBORMessage(SpanFrom(cbor)).ok());
-  if (use_binary_protocol_)
-    return std::unique_ptr<StringBuffer>(
-        new BinaryStringBuffer(std::move(cbor)));
+  if (use_binary_protocol_) return StringBufferFrom(std::move(cbor));
   std::vector<uint8_t> json;
   Status status = ConvertCBORToJSON(SpanFrom(cbor), &json);
   DCHECK(status.ok());
   USE(status);
+  // TODO(johannes): It should be OK to make a StringBuffer from |json|
+  // directly, since it's 7 Bit US-ASCII with anything else escaped.
+  // However it appears that the Node.js tests (or perhaps even production)
+  // assume that the StringBuffer is 16 Bit. It probably accesses
+  // characters16() somehwere without checking is8Bit. Until it's fixed
+  // we take a detour via String16 which makes the StringBuffer 16 bit.
   String16 string16(reinterpret_cast<const char*>(json.data()), json.size());
-  return StringBufferImpl::adopt(string16);
+  return StringBufferFrom(std::move(string16));
 }
 
 void V8InspectorSessionImpl::sendProtocolResponse(
@@ -256,13 +260,11 @@ bool V8InspectorSessionImpl::unwrapObject(
   Response response = unwrapObject(toString16(objectId), object, context,
                                    objectGroup ? &objectGroupString : nullptr);
   if (!response.isSuccess()) {
-    if (error) {
-      String16 errorMessage = response.errorMessage();
-      *error = StringBufferImpl::adopt(errorMessage);
-    }
+    if (error) *error = StringBufferFrom(response.errorMessage());
     return false;
   }
-  if (objectGroup) *objectGroup = StringBufferImpl::adopt(objectGroupString);
+  if (objectGroup)
+    *objectGroup = StringBufferFrom(std::move(objectGroupString));
   return true;
 }
 
