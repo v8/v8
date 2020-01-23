@@ -45,10 +45,10 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   TNode<PromiseResolveThenableJobTask> AllocatePromiseResolveThenableJobTask(
       TNode<JSPromise> promise_to_resolve, TNode<JSReceiver> then,
       TNode<JSReceiver> thenable, TNode<Context> context);
-  Node* PromiseHasHandler(Node* promise);
+  TNode<BoolT> PromiseHasHandler(TNode<JSPromise> promise);
 
-  void BranchIfAccessCheckFailed(SloppyTNode<Context> context,
-                                 SloppyTNode<Context> native_context,
+  void BranchIfAccessCheckFailed(TNode<Context> context,
+                                 TNode<Context> native_context,
                                  TNode<Object> promise_constructor,
                                  TNode<Object> executor, Label* if_noaccess);
   void PromiseInit(TNode<JSPromise> promise);
@@ -107,20 +107,20 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   // Promise constructor and the Promise.resolve() protector is intact, as
   // that guards the lookup path for the "resolve" property on the %Promise%
   // intrinsic object.
-  void BranchIfPromiseResolveLookupChainIntact(Node* native_context,
-                                               SloppyTNode<Object> constructor,
-                                               Label* if_fast, Label* if_slow);
-  void GotoIfNotPromiseResolveLookupChainIntact(Node* native_context,
-                                                SloppyTNode<Object> constructor,
-                                                Label* if_slow);
+  void BranchIfPromiseResolveLookupChainIntact(
+      TNode<NativeContext> native_context, TNode<Object> constructor,
+      Label* if_fast, Label* if_slow);
+  void GotoIfNotPromiseResolveLookupChainIntact(
+      TNode<NativeContext> native_context, TNode<Object> constructor,
+      Label* if_slow);
 
   // We can skip the "then" lookup on {receiver_map} if it's [[Prototype]]
   // is the (initial) Promise.prototype and the Promise#then() protector
   // is intact, as that guards the lookup path for the "then" property
   // on JSPromise instances which have the (initial) %PromisePrototype%.
-  void BranchIfPromiseThenLookupChainIntact(Node* native_context,
-                                            Node* receiver_map, Label* if_fast,
-                                            Label* if_slow);
+  void BranchIfPromiseThenLookupChainIntact(TNode<NativeContext> native_context,
+                                            TNode<Map> receiver_map,
+                                            Label* if_fast, Label* if_slow);
 
   TNode<JSPromise> AllocateJSPromise(TNode<Context> context);
 };

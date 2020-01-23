@@ -99,9 +99,10 @@ TNode<JSPromise> PromiseBuiltinsAssembler::AllocateAndSetJSPromise(
   return instance;
 }
 
-Node* PromiseBuiltinsAssembler::PromiseHasHandler(Node* promise) {
+TNode<BoolT> PromiseBuiltinsAssembler::PromiseHasHandler(
+    TNode<JSPromise> promise) {
   const TNode<Smi> flags =
-      CAST(LoadObjectField(promise, JSPromise::kFlagsOffset));
+      LoadObjectField<Smi>(promise, JSPromise::kFlagsOffset);
   return IsSetWord(SmiUntag(flags), 1 << JSPromise::kHasHandlerBit);
 }
 
@@ -161,10 +162,8 @@ PromiseBuiltinsAssembler::AllocatePromiseResolveThenableJobTask(
 }
 
 void PromiseBuiltinsAssembler::BranchIfPromiseResolveLookupChainIntact(
-    Node* native_context, SloppyTNode<Object> constructor, Label* if_fast,
-    Label* if_slow) {
-  CSA_ASSERT(this, IsNativeContext(native_context));
-
+    TNode<NativeContext> native_context, TNode<Object> constructor,
+    Label* if_fast, Label* if_slow) {
   GotoIfForceSlowPath(if_slow);
   TNode<Object> promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
@@ -173,7 +172,8 @@ void PromiseBuiltinsAssembler::BranchIfPromiseResolveLookupChainIntact(
 }
 
 void PromiseBuiltinsAssembler::GotoIfNotPromiseResolveLookupChainIntact(
-    Node* native_context, SloppyTNode<Object> constructor, Label* if_slow) {
+    TNode<NativeContext> native_context, TNode<Object> constructor,
+    Label* if_slow) {
   Label if_fast(this);
   BranchIfPromiseResolveLookupChainIntact(native_context, constructor, &if_fast,
                                           if_slow);
@@ -192,10 +192,8 @@ void PromiseBuiltinsAssembler::BranchIfPromiseSpeciesLookupChainIntact(
 }
 
 void PromiseBuiltinsAssembler::BranchIfPromiseThenLookupChainIntact(
-    Node* native_context, Node* receiver_map, Label* if_fast, Label* if_slow) {
-  CSA_ASSERT(this, IsMap(receiver_map));
-  CSA_ASSERT(this, IsNativeContext(native_context));
-
+    TNode<NativeContext> native_context, TNode<Map> receiver_map,
+    Label* if_fast, Label* if_slow) {
   GotoIfForceSlowPath(if_slow);
   GotoIfNot(IsJSPromiseMap(receiver_map), if_slow);
   const TNode<Object> promise_prototype =
@@ -206,11 +204,11 @@ void PromiseBuiltinsAssembler::BranchIfPromiseThenLookupChainIntact(
 }
 
 void PromiseBuiltinsAssembler::BranchIfAccessCheckFailed(
-    SloppyTNode<Context> context, SloppyTNode<Context> native_context,
+    TNode<Context> context, TNode<Context> native_context,
     TNode<Object> promise_constructor, TNode<Object> executor,
     Label* if_noaccess) {
-  VARIABLE(var_executor, MachineRepresentation::kTagged);
-  var_executor.Bind(executor);
+  TVARIABLE(HeapObject, var_executor);
+  var_executor = CAST(executor);
   Label has_access(this), call_runtime(this, Label::kDeferred);
 
   // If executor is a bound function, load the bound function until we've
@@ -223,8 +221,8 @@ void PromiseBuiltinsAssembler::BranchIfAccessCheckFailed(
     GotoIf(InstanceTypeEqual(executor_type, JS_FUNCTION_TYPE), &found_function);
     GotoIfNot(InstanceTypeEqual(executor_type, JS_BOUND_FUNCTION_TYPE),
               &call_runtime);
-    var_executor.Bind(LoadObjectField(
-        var_executor.value(), JSBoundFunction::kBoundTargetFunctionOffset));
+    var_executor = LoadObjectField<HeapObject>(
+        var_executor.value(), JSBoundFunction::kBoundTargetFunctionOffset);
     Goto(&loop_over_bound_function);
   }
 
@@ -233,8 +231,8 @@ void PromiseBuiltinsAssembler::BranchIfAccessCheckFailed(
   // out to the runtime.
   BIND(&found_function);
   {
-    TNode<Context> function_context =
-        CAST(LoadObjectField(var_executor.value(), JSFunction::kContextOffset));
+    TNode<Context> function_context = LoadObjectField<Context>(
+        var_executor.value(), JSFunction::kContextOffset);
     TNode<NativeContext> native_function_context =
         LoadNativeContext(function_context);
     Branch(TaggedEqual(native_context, native_function_context), &has_access,
