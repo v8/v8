@@ -902,12 +902,11 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
     }
   }
 
-  if (FLAG_correctness_fuzzer_suppressions &&
-      strncmp(result.error_message, "Stack overflow", 15) == 0) {
-    FATAL("Aborting on stack overflow");
-  }
-
   if (result.error_message != nullptr) {
+    if (FLAG_correctness_fuzzer_suppressions &&
+        strncmp(result.error_message, "Stack overflow", 15) == 0) {
+      FATAL("Aborting on stack overflow");
+    }
     data->error =
         isolate->factory()->NewStringFromAsciiChecked(result.error_message);
   }
