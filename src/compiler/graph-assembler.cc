@@ -632,20 +632,6 @@ Node* GraphAssembler::Checkpoint(FrameState frame_state) {
                                   control()));
 }
 
-Node* GraphAssembler::LoopExit(Control loop_header) {
-  return AddNode(
-      graph()->NewNode(common()->LoopExit(), control(), loop_header));
-}
-
-Node* GraphAssembler::LoopExitEffect() {
-  return AddNode(
-      graph()->NewNode(common()->LoopExitEffect(), effect(), control()));
-}
-
-Node* GraphAssembler::LoopExitValue(Node* value) {
-  return AddNode(graph()->NewNode(common()->LoopExitValue(), value, control()));
-}
-
 Node* GraphAssembler::DebugBreak() {
   return AddNode(
       graph()->NewNode(machine()->DebugBreak(), effect(), control()));

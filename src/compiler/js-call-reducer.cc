@@ -544,8 +544,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
       }
 
       gasm_->Bind(&loop_exit);
-      return TNode<Object>::UncheckedCast(
-          gasm_->LoopExitValue(loop_exit.PhiAt<Object>(0)));
+      return TNode<Object>::UncheckedCast(loop_exit.PhiAt<Object>(0));
     }
 
     void ValueIsUnused() { USE(Value()); }

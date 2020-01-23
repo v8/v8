@@ -307,9 +307,6 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   Node* TypeGuard(Type type, Node* value);
   Node* Checkpoint(FrameState frame_state);
-  Node* LoopExit(Control loop_header);
-  Node* LoopExitEffect();
-  Node* LoopExitValue(Node* value);
 
   Node* Store(StoreRepresentation rep, Node* object, Node* offset, Node* value);
   Node* Load(MachineType type, Node* object, Node* offset);
@@ -547,10 +544,12 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
     DCHECK_NOT_NULL(*loop_headers_.back());
 
     // Mark this exit to enable loop peeling.
-    LoopExit(Control{*loop_headers_.back()});
-    LoopExitEffect();
+    AddNode(graph()->NewNode(common()->LoopExit(), control(),
+                             *loop_headers_.back()));
+    AddNode(graph()->NewNode(common()->LoopExitEffect(), effect(), control()));
     for (size_t i = 0; i < kVarCount; i++) {
-      var_array[i] = LoopExitValue(var_array[i]);
+      var_array[i] = AddNode(
+          graph()->NewNode(common()->LoopExitValue(), var_array[i], control()));
     }
   }
 
