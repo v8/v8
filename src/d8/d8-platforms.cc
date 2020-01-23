@@ -175,6 +175,11 @@ class DelayedTasksPlatform : public Platform {
       task_runner_->PostTask(platform_->MakeDelayedTask(std::move(task)));
     }
 
+    void PostNonNestableTask(std::unique_ptr<Task> task) final {
+      task_runner_->PostNonNestableTask(
+          platform_->MakeDelayedTask(std::move(task)));
+    }
+
     void PostDelayedTask(std::unique_ptr<Task> task,
                          double delay_in_seconds) final {
       task_runner_->PostDelayedTask(platform_->MakeDelayedTask(std::move(task)),
@@ -187,6 +192,10 @@ class DelayedTasksPlatform : public Platform {
     }
 
     bool IdleTasksEnabled() final { return task_runner_->IdleTasksEnabled(); }
+
+    bool NonNestableTasksEnabled() const final {
+      return task_runner_->NonNestableTasksEnabled();
+    }
 
    private:
     friend class DelayedTaskRunnerDeleter;

@@ -326,7 +326,8 @@ class Platform {
 
   /**
    * Returns a TaskRunner which can be used to post a task on the foreground.
-   * This function should only be called from a foreground thread.
+   * The TaskRunner's NonNestableTasksEnabled() must be true. This function
+   * should only be called from a foreground thread.
    */
   virtual std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       Isolate* isolate) = 0;

@@ -8269,6 +8269,14 @@ void Isolate::Initialize(Isolate* isolate,
   }
   i_isolate->set_only_terminate_in_safe_scope(
       params.only_terminate_in_safe_scope);
+
+  if (!i::V8::GetCurrentPlatform()
+           ->GetForegroundTaskRunner(isolate)
+           ->NonNestableTasksEnabled()) {
+    FATAL(
+        "The current platform's foreground task runner does not have "
+        "non-nestable tasks enabled. The embedder must provide one.");
+  }
 }
 
 Isolate* Isolate::New(const Isolate::CreateParams& params) {
