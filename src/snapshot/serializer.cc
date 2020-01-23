@@ -554,25 +554,42 @@ void Serializer::ObjectSerializer::Serialize() {
   SerializeObject();
 }
 
-void Serializer::ObjectSerializer::SerializeObject() {
-  int size = object_.Size();
-  Map map = object_.map();
-  SnapshotSpace space;
-  if (ReadOnlyHeap::Contains(object_)) {
-    space = SnapshotSpace::kReadOnlyHeap;
+namespace {
+SnapshotSpace GetSnapshotSpace(HeapObject object) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    if (third_party_heap::Heap::InCodeSpace(object.address())) {
+      return SnapshotSpace::kCode;
+    } else if (ReadOnlyHeap::Contains(object)) {
+      return SnapshotSpace::kReadOnlyHeap;
+    } else if (object.Size() > kMaxRegularHeapObjectSize) {
+      return SnapshotSpace::kLargeObject;
+    } else if (object.IsMap()) {
+      return SnapshotSpace::kMap;
+    } else {
+      return SnapshotSpace::kNew;  // avoid new/young distinction in TPH
+    }
+  } else if (ReadOnlyHeap::Contains(object)) {
+    return SnapshotSpace::kReadOnlyHeap;
   } else {
     AllocationSpace heap_space =
-        MemoryChunk::FromHeapObject(object_)->owner_identity();
+        MemoryChunk::FromHeapObject(object)->owner_identity();
     // Large code objects are not supported and cannot be expressed by
     // SnapshotSpace.
     DCHECK_NE(heap_space, CODE_LO_SPACE);
     // Young generation large objects are tenured.
     if (heap_space == NEW_LO_SPACE) {
-      space = SnapshotSpace::kLargeObject;
+      return SnapshotSpace::kLargeObject;
     } else {
-      space = static_cast<SnapshotSpace>(heap_space);
+      return static_cast<SnapshotSpace>(heap_space);
     }
   }
+}
+}  // namespace
+
+void Serializer::ObjectSerializer::SerializeObject() {
+  int size = object_.Size();
+  Map map = object_.map();
+  SnapshotSpace space = GetSnapshotSpace(object_);
   SerializePrologue(space, size, map);
 
   // Serialize the rest of the object.

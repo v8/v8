@@ -143,6 +143,7 @@ bool ReadOnlyHeap::Contains(Address address) {
 
 // static
 bool ReadOnlyHeap::Contains(HeapObject object) {
+  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
   return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
 }
 

@@ -18,12 +18,14 @@ class Heap {
 
   static v8::Isolate* GetIsolate(Address address);
 
-  AllocationResult Allocate(size_t size_in_bytes, AllocationAlignment align);
-
-  AllocationResult AllocateCode(size_t size_in_bytes,
-                                AllocationAlignment align);
+  AllocationResult Allocate(size_t size_in_bytes, AllocationType type,
+                            AllocationAlignment align);
 
   Address GetObjectFromInnerPointer(Address inner_pointer);
+
+  static bool InCodeSpace(Address address);
+
+  static bool IsValidHeapObject(HeapObject object);
 
   bool CollectGarbage();
 };

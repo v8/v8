@@ -183,48 +183,47 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
     type = AllocationType::kOld;
   }
 
-  if (AllocationType::kYoung == type) {
-    if (large_object) {
-      if (FLAG_young_generation_large_objects) {
-        allocation = new_lo_space_->AllocateRaw(size_in_bytes);
-      } else {
-        // If young generation large objects are disalbed we have to tenure the
-        // allocation and violate the given allocation type. This could be
-        // dangerous. We may want to remove FLAG_young_generation_large_objects
-        // and avoid patching.
-        allocation = lo_space_->AllocateRaw(size_in_bytes);
-      }
-    } else {
-      allocation = new_space_->AllocateRaw(size_in_bytes, alignment, origin);
-    }
-  } else if (AllocationType::kOld == type && !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    if (large_object) {
-      allocation = lo_space_->AllocateRaw(size_in_bytes);
-    } else {
-      allocation = old_space_->AllocateRaw(size_in_bytes, alignment, origin);
-    }
-  } else if (AllocationType::kCode == type) {
-    if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-      allocation = tp_heap_->AllocateCode(size_in_bytes, alignment);
-    } else if (size_in_bytes <= code_space()->AreaSize() && !large_object) {
-      allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
-    } else {
-      allocation = code_lo_space_->AllocateRaw(size_in_bytes);
-    }
-  } else if (AllocationType::kMap == type && !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
-  } else if (AllocationType::kReadOnly == type &&
-             !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    DCHECK(isolate_->serializer_enabled());
-    DCHECK(!large_object);
-    DCHECK(CanAllocateInReadOnlySpace());
-    DCHECK_EQ(AllocationOrigin::kRuntime, origin);
-    allocation =
-        read_only_space_->AllocateRaw(size_in_bytes, alignment, origin);
-  } else if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    allocation = tp_heap_->Allocate(size_in_bytes, alignment);
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    allocation = tp_heap_->Allocate(size_in_bytes, type, alignment);
   } else {
-    UNREACHABLE();
+    if (AllocationType::kYoung == type) {
+      if (large_object) {
+        if (FLAG_young_generation_large_objects) {
+          allocation = new_lo_space_->AllocateRaw(size_in_bytes);
+        } else {
+          // If young generation large objects are disalbed we have to tenure
+          // the allocation and violate the given allocation type. This could be
+          // dangerous. We may want to remove
+          // FLAG_young_generation_large_objects and avoid patching.
+          allocation = lo_space_->AllocateRaw(size_in_bytes);
+        }
+      } else {
+        allocation = new_space_->AllocateRaw(size_in_bytes, alignment, origin);
+      }
+    } else if (AllocationType::kOld == type) {
+      if (large_object) {
+        allocation = lo_space_->AllocateRaw(size_in_bytes);
+      } else {
+        allocation = old_space_->AllocateRaw(size_in_bytes, alignment, origin);
+      }
+    } else if (AllocationType::kCode == type) {
+      if (size_in_bytes <= code_space()->AreaSize() && !large_object) {
+        allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
+      } else {
+        allocation = code_lo_space_->AllocateRaw(size_in_bytes);
+      }
+    } else if (AllocationType::kMap == type) {
+      allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
+    } else if (AllocationType::kReadOnly == type) {
+      DCHECK(isolate_->serializer_enabled());
+      DCHECK(!large_object);
+      DCHECK(CanAllocateInReadOnlySpace());
+      DCHECK_EQ(AllocationOrigin::kRuntime, origin);
+      allocation =
+          read_only_space_->AllocateRaw(size_in_bytes, alignment, origin);
+    } else {
+      UNREACHABLE();
+    }
   }
 
   if (allocation.To(&object)) {
@@ -249,6 +248,11 @@ template <Heap::AllocationRetryMode mode>
 HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
                                  AllocationOrigin origin,
                                  AllocationAlignment alignment) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    AllocationResult result = AllocateRaw(size, allocation, origin, alignment);
+    DCHECK(!result.IsRetry());
+    return result.ToObjectChecked();
+  }
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK_EQ(gc_state_, NOT_IN_GC);
