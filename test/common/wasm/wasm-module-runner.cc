@@ -103,11 +103,14 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
         break;
       case kWasmAnyRef:
       case kWasmFuncRef:
+      case kWasmNullRef:
       case kWasmExnRef:
         arguments[i] =
             WasmValue(Handle<Object>::cast(isolate->factory()->null_value()));
         break;
-      default:
+      case kWasmStmt:
+      case kWasmBottom:
+      case kWasmS128:
         UNREACHABLE();
     }
   }
