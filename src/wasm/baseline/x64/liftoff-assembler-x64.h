@@ -1616,14 +1616,6 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
                                                       rhs);
 }
 
-void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
-                                        LiftoffRegister src) {
-  if (dst.fp() != src.fp()) {
-    Movss(dst.fp(), src.fp());
-  }
-  Shufps(dst.fp(), src.fp(), static_cast<byte>(0));
-}
-
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   cmpq(rsp, Operand(limit_address, 0));
   j(below_equal, ool_code);
