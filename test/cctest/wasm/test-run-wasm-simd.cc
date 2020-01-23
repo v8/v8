@@ -58,6 +58,27 @@ using Int8ShiftOp = int8_t (*)(int8_t, int);
   }                                                                   \
   void RunWasm_##name##_Impl(LowerSimd lower_simd, ExecutionTier execution_tier)
 
+#define WASM_SIMD_TEST_WITH_LIFTOFF(name)                             \
+  void RunWasm_##name##_Impl(LowerSimd lower_simd,                    \
+                             ExecutionTier execution_tier);           \
+  TEST(RunWasm_##name##_turbofan) {                                   \
+    EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
+    RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kTurbofan);    \
+  }                                                                   \
+  TEST(RunWasm_##name##_liftoff) {                                    \
+    EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
+    RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kLiftoff);     \
+  }                                                                   \
+  TEST(RunWasm_##name##_interpreter) {                                \
+    EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
+    RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kInterpreter); \
+  }                                                                   \
+  TEST(RunWasm_##name##_simd_lowered) {                               \
+    EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
+    RunWasm_##name##_Impl(kLowerSimd, ExecutionTier::kTurbofan);      \
+  }                                                                   \
+  void RunWasm_##name##_Impl(LowerSimd lower_simd, ExecutionTier execution_tier)
+
 // Generic expected value functions.
 template <typename T, typename = typename std::enable_if<
                           std::is_floating_point<T>::value>::type>
@@ -544,13 +565,14 @@ WASM_SIMD_TEST(S128Globals) {
   }
 }
 
-WASM_SIMD_TEST(F32x4Splat) {
+WASM_SIMD_TEST_WITH_LIFTOFF(F32x4Splat) {
   WasmRunner<int32_t, float> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.
   float* g = r.builder().AddGlobal<float>(kWasmS128);
   byte param1 = 0;
-  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(param1))),
-        WASM_ONE);
+  BUILD_AND_CHECK_TIER(
+      r, WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(param1))),
+      WASM_ONE);
 
   FOR_FLOAT32_INPUTS(x) {
     r.Call(x);
@@ -3569,6 +3591,7 @@ WASM_EXTRACT_I16x8_TEST(S, UINT16) WASM_EXTRACT_I16x8_TEST(I, INT16)
 #undef WASM_EXTRACT_I8x16_TEST
 
 #undef WASM_SIMD_TEST
+#undef WASM_SIMD_TEST_WITH_LIFTOFF
 #undef WASM_SIMD_CHECK_LANE_S
 #undef WASM_SIMD_CHECK_LANE_U
 #undef TO_BYTE

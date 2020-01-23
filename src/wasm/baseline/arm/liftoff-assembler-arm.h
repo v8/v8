@@ -1507,6 +1507,11 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   }
 }
 
+void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  vdup(Neon32, liftoff::GetSimd128Register(dst.low_fp()), src.fp(), 0);
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   ldr(limit_address, MemOperand(limit_address));
   cmp(sp, limit_address);

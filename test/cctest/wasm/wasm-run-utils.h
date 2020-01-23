@@ -75,6 +75,13 @@ using compiler::Node;
     r.Build(code, code + arraysize(code)); \
   } while (false)
 
+#define BUILD_AND_CHECK_TIER(r, ...)          \
+  do {                                        \
+    byte code[] = {__VA_ARGS__};              \
+    r.Build(code, code + arraysize(code));    \
+    r.CheckUsedExecutionTier(execution_tier); \
+  } while (false)
+
 // For tests that must manually import a JSFunction with source code.
 struct ManuallyImportedJSFunction {
   FunctionSig* sig;

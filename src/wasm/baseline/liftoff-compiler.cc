@@ -2177,10 +2177,21 @@ class LiftoffCompiler {
                           const Value args[]) {
     unsupported(decoder, kTailCall, "return_call_indirect");
   }
+
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
               Value* result) {
-    unsupported(decoder, kSimd, "simd");
+    switch (opcode) {
+      case wasm::kExprF32x4Splat:
+        EmitUnOp<kWasmF32, kWasmS128>(
+            [=](LiftoffRegister dst, LiftoffRegister src) {
+              __ emit_f32x4_splat(dst, src);
+            });
+        break;
+      default:
+        unsupported(decoder, kSimd, "simd");
+    }
   }
+
   void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,
                   const SimdLaneImmediate<validate>& imm,
                   const Vector<Value> inputs, Value* result) {
