@@ -1355,8 +1355,8 @@ void Logger::RegExpCodeCreateEvent(Handle<AbstractCode> code,
 
 void Logger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
   if (!is_listening_to_code_events()) return;
-  MoveEventInternal(CodeEventListener::CODE_MOVE_EVENT, from.address(),
-                    to.address());
+  MoveEventInternal(CodeEventListener::CODE_MOVE_EVENT, from.InstructionStart(),
+                    to.InstructionStart());
 }
 
 void Logger::SharedFunctionInfoMoveEvent(Address from, Address to) {
