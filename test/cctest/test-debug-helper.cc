@@ -102,6 +102,21 @@ TValue ReadProp(const d::ObjectPropertiesResult& props, std::string name) {
   return *reinterpret_cast<TValue*>(prop.address);
 }
 
+// A simple implementation of ExternalStringResource that lets us control the
+// result of IsCacheable().
+class StringResource : public v8::String::ExternalStringResource {
+ public:
+  explicit StringResource(bool cacheable) : cacheable_(cacheable) {}
+  const uint16_t* data() const override {
+    return reinterpret_cast<const uint16_t*>(u"abcde");
+  }
+  size_t length() const override { return 5; }
+  bool IsCacheable() const override { return cacheable_; }
+
+ private:
+  bool cacheable_;
+};
+
 }  // namespace
 
 TEST(GetObjectProperties) {
@@ -289,6 +304,19 @@ TEST(GetObjectProperties) {
   o = v8::Utils::OpenHandle(*v);
   props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
   CHECK(Contains(props->brief, "\"" + std::string(80, 'a') + "...\""));
+
+  // GetObjectProperties can read cacheable external strings.
+  auto external_string =
+      v8::String::NewExternalTwoByte(isolate, new StringResource(true));
+  o = v8::Utils::OpenHandle(*external_string.ToLocalChecked());
+  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  CHECK(Contains(props->brief, "\"abcde\""));
+  // GetObjectProperties cannot read uncacheable external strings.
+  external_string =
+      v8::String::NewExternalTwoByte(isolate, new StringResource(false));
+  o = v8::Utils::OpenHandle(*external_string.ToLocalChecked());
+  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  CHECK_EQ(std::string(props->brief).find("\""), std::string::npos);
 
   // Build a basic JS object and get its properties.
   v = CompileRun("({a: 1, b: 2})");

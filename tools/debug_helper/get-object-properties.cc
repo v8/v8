@@ -153,7 +153,7 @@ TypedObject GetTypedHeapObject(uintptr_t address, d::MemoryAccessor accessor,
   // We can't read the Map, so check whether it is in the list of known Maps,
   // as another way to get its instance type.
   KnownInstanceType known_map_type =
-      FindKnownMapInstanceType(map_ptr.value, heap_addresses);
+      FindKnownMapInstanceTypes(map_ptr.value, heap_addresses);
   if (known_map_type.confidence == KnownInstanceType::Confidence::kHigh) {
     DCHECK_EQ(known_map_type.types.size(), 1);
     return GetTypedObjectByInstanceType(address, known_map_type.types[0],
@@ -195,16 +195,17 @@ TypedObject GetTypedHeapObject(uintptr_t address, d::MemoryAccessor accessor,
 // An object visitor that accumulates the first few characters of a string.
 class ReadStringVisitor : public TqObjectVisitor {
  public:
-  ReadStringVisitor(d::MemoryAccessor accessor,
-                    const d::HeapAddresses& heap_addresses)
-      : accessor_(accessor),
-        heap_addresses_(heap_addresses),
-        index_(0),
-        limit_(INT32_MAX),
-        done_(false) {}
+  static v8::base::Optional<std::string> Visit(
+      d::MemoryAccessor accessor, const d::HeapAddresses& heap_addresses,
+      const TqString* object) {
+    ReadStringVisitor visitor(accessor, heap_addresses);
+    object->Visit(&visitor);
+    return visitor.GetString();
+  }
 
   // Returns the result as UTF-8 once visiting is complete.
-  std::string GetString() {
+  v8::base::Optional<std::string> GetString() {
+    if (failed_) return {};
     std::vector<char> result(
         string_.size() * unibrow::Utf16::kMaxExtraUtf8BytesForOneUtf16CodeUnit);
     unsigned write_index = 0;
@@ -216,25 +217,40 @@ class ReadStringVisitor : public TqObjectVisitor {
                                 prev_char, /*replace_invalid=*/true);
       prev_char = character;
     }
-    return {result.data(), write_index};
+    return std::string(result.data(), write_index);
   }
 
-  template <typename T>
-  void ReadSeqString(const T* object) {
+  template <typename TChar>
+  Value<TChar> ReadCharacter(uintptr_t data_address, int32_t index) {
+    TChar value{};
+    d::MemoryAccessResult validity =
+        accessor_(data_address + index * sizeof(TChar),
+                  reinterpret_cast<uint8_t*>(&value), sizeof(value));
+    return {validity, value};
+  }
+
+  template <typename TChar>
+  void ReadStringCharacters(const TqString* object, uintptr_t data_address) {
     int32_t length = GetOrFinish(object->GetLengthValue(accessor_));
     for (; index_ < length && index_ < limit_ && !done_; ++index_) {
+      STATIC_ASSERT(sizeof(TChar) <= sizeof(char16_t));
       char16_t c = static_cast<char16_t>(
-          GetOrFinish(object->GetCharsValue(accessor_, index_)));
+          GetOrFinish(ReadCharacter<TChar>(data_address, index_)));
       if (!done_) AddCharacter(c);
     }
   }
 
+  template <typename TChar, typename TString>
+  void ReadSeqString(const TString* object) {
+    ReadStringCharacters<TChar>(object, object->GetCharsAddress());
+  }
+
   void VisitSeqOneByteString(const TqSeqOneByteString* object) override {
-    ReadSeqString(object);
+    ReadSeqString<char>(object);
   }
 
   void VisitSeqTwoByteString(const TqSeqTwoByteString* object) override {
-    ReadSeqString(object);
+    ReadSeqString<char16_t>(object);
   }
 
   void VisitConsString(const TqConsString* object) override {
@@ -273,13 +289,57 @@ class ReadStringVisitor : public TqObjectVisitor {
         .object->Visit(this);
   }
 
-  void VisitExternalString(const TqExternalString* object) override {
-    // TODO(v8:9376): External strings are very common and important when
-    // attempting to print the source of a function in the browser. For now
-    // we're just ignoring them, but eventually we'll want some kind of
-    // mechanism where the user of this library can provide a callback function
-    // that fetches data from external strings.
-    AddEllipsisAndFinish();
+  bool IsExternalStringCached(const TqExternalString* object) {
+    // The safest way to get the instance type is to use known map pointers, in
+    // case the map data is not available.
+    uintptr_t map = GetOrFinish(object->GetMapValue(accessor_));
+    if (done_) return false;
+    auto instance_types = FindKnownMapInstanceTypes(map, heap_addresses_);
+    // Exactly one of the matched instance types should be a string type,
+    // because all maps for string types are in the same space (read-only
+    // space). The "uncached" flag on that instance type tells us whether it's
+    // safe to read the cached data.
+    for (const auto& type : instance_types.types) {
+      if ((type & i::kIsNotStringMask) == i::kStringTag &&
+          (type & i::kStringRepresentationMask) == i::kExternalStringTag) {
+        return (type & i::kUncachedExternalStringMask) !=
+               i::kUncachedExternalStringTag;
+      }
+    }
+
+    // If for some reason we can't find an external string type here (maybe the
+    // caller provided an external string type as the type hint, but it doesn't
+    // actually match the in-memory map pointer), then we can't safely use the
+    // cached data.
+    return false;
+  }
+
+  template <typename TChar>
+  void ReadExternalString(const TqExternalString* object) {
+    // Cached external strings are easy to read; uncached external strings
+    // require knowledge of the embedder. For now, we only read cached external
+    // strings.
+    if (IsExternalStringCached(object)) {
+      uintptr_t data_address = reinterpret_cast<uintptr_t>(
+          GetOrFinish(object->GetResourceDataValue(accessor_)));
+      if (done_) return;
+      ReadStringCharacters<TChar>(object, data_address);
+    } else {
+      // TODO(v8:9376): Come up with some way that a caller with full knowledge
+      // of a particular embedder could provide a callback function for getting
+      // uncached string data.
+      AddEllipsisAndFinish();
+    }
+  }
+
+  void VisitExternalOneByteString(
+      const TqExternalOneByteString* object) override {
+    ReadExternalString<char>(object);
+  }
+
+  void VisitExternalTwoByteString(
+      const TqExternalTwoByteString* object) override {
+    ReadExternalString<char16_t>(object);
   }
 
   void VisitObject(const TqObject* object) override {
@@ -289,6 +349,15 @@ class ReadStringVisitor : public TqObjectVisitor {
   }
 
  private:
+  ReadStringVisitor(d::MemoryAccessor accessor,
+                    const d::HeapAddresses& heap_addresses)
+      : accessor_(accessor),
+        heap_addresses_(heap_addresses),
+        index_(0),
+        limit_(INT32_MAX),
+        done_(false),
+        failed_(false) {}
+
   // Unpacks a value that was fetched from the debuggee. If the value indicates
   // that it couldn't successfully fetch memory, then prevents further work.
   template <typename T>
@@ -301,8 +370,12 @@ class ReadStringVisitor : public TqObjectVisitor {
 
   void AddEllipsisAndFinish() {
     if (!done_) {
-      string_ += u"...";
       done_ = true;
+      if (string_.empty()) {
+        failed_ = true;
+      } else {
+        string_ += u"...";
+      }
     }
   }
 
@@ -346,6 +419,7 @@ class ReadStringVisitor : public TqObjectVisitor {
   int32_t index_;  // Index of next char to read.
   int32_t limit_;  // Don't read past this index (set by SlicedString).
   bool done_;      // Whether to stop further work.
+  bool failed_;    // Whether an error was encountered before any valid data.
 };
 
 // An object visitor that supplies extra information for some types.
@@ -363,9 +437,10 @@ class AddInfoVisitor : public TqObjectVisitor {
   }
 
   void VisitString(const TqString* object) override {
-    ReadStringVisitor visitor(accessor_, heap_addresses_);
-    object->Visit(&visitor);
-    brief_ = "\"" + visitor.GetString() + "\"";
+    auto str = ReadStringVisitor::Visit(accessor_, heap_addresses_, object);
+    if (str.has_value()) {
+      brief_ = "\"" + *str + "\"";
+    }
   }
 
   void VisitJSObject(const TqJSObject* object) override {
