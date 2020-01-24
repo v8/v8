@@ -159,6 +159,13 @@ Handle<Code> JSEntry(Isolate* isolate, Execution::Target execution_target,
 
 MaybeHandle<Context> NewScriptContext(Isolate* isolate,
                                       Handle<JSFunction> function) {
+  // Creating a script context is a side effect, so abort if that's not
+  // allowed.
+  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
+    isolate->Throw(*isolate->factory()->NewEvalError(
+        MessageTemplate::kNoSideEffectDebugEvaluate));
+    return MaybeHandle<Context>();
+  }
   SaveAndSwitchContext save(isolate, function->context());
   SharedFunctionInfo sfi = function->shared();
   Handle<Script> script(Script::cast(sfi.script()), isolate);
