@@ -296,9 +296,8 @@ class WasmGraphBuilder {
     this->instance_node_ = instance_node;
   }
 
-  // TODO(clemensb): This should be {effect()} and {control()}.
-  Node* Effect();
-  Node* Control();
+  Node* effect();
+  Node* control();
   Node* SetEffect(Node* node);
   Node* SetControl(Node* node);
   void SetEffectControl(Node* effect, Node* control);

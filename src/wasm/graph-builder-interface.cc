@@ -603,9 +603,9 @@ class WasmGraphBuildingInterface {
   compiler::WasmGraphBuilder* builder_;
   uint32_t current_catch_ = kNullCatch;
 
-  TFNode* control() { return builder_->Control(); }
+  TFNode* effect() { return builder_->effect(); }
 
-  TFNode* effect() { return builder_->Effect(); }
+  TFNode* control() { return builder_->control(); }
 
   TryInfo* current_try_info(FullDecoder* decoder) {
     return decoder->control_at(decoder->control_depth() - 1 - current_catch_)
