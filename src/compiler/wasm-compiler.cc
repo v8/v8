@@ -5529,17 +5529,17 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     // Build a graph implementing this diagram:
     //   input smi?
-    //    ├─ true: ───────────────────────┬─ smi-to-int32 ──────┬─ result
-    //    └─ false: ToNumber -> smi?      │                     │
-    //                          ├─ true: ─┘                     │
-    //                          └─ false: load -> f64-to-int32 ─┘
+    //    ├─ true: ───────────────────────┬─ smi-to-wasm ──────┬─ result
+    //    └─ false: ToNumber -> smi?      │                    │
+    //                          ├─ true: ─┘                    │
+    //                          └─ false: load -> f64-to-wasm ─┘
 
-    auto smi_to_int32 = gasm_->MakeLabel(MachineRepresentation::kTaggedSigned);
+    auto smi_to_wasm = gasm_->MakeLabel(MachineRepresentation::kTaggedSigned);
     auto done =
         gasm_->MakeLabel(wasm::ValueTypes::MachineRepresentationFor(type));
 
-    // If the input is Smi, directly convert to int32.
-    gasm_->GotoIf(BuildTestSmi(input), &smi_to_int32, input);
+    // If the input is Smi, directly convert to the wasm type.
+    gasm_->GotoIf(BuildTestSmi(input), &smi_to_wasm, input);
 
     // Otherwise, call ToNumber which returns a Smi or HeapNumber.
     auto to_number_descriptor = Linkage::GetStubCallDescriptor(
@@ -5552,20 +5552,20 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         gasm_->Call(to_number_descriptor, to_number_target, input, js_context);
     SetSourcePosition(number, 1);
 
-    // If the ToNumber result is Smi, convert to int32.
-    gasm_->GotoIf(BuildTestSmi(number), &smi_to_int32, number);
+    // If the ToNumber result is Smi, convert to wasm.
+    gasm_->GotoIf(BuildTestSmi(number), &smi_to_wasm, number);
 
     // Otherwise the ToNumber result is a HeapNumber. Load its value and convert
-    // to {type}.
+    // to wasm.
     Node* heap_number_value = gasm_->LoadHeapNumberValue(number);
     Node* converted_heap_number_value =
         BuildFloat64ToWasm(heap_number_value, type);
     gasm_->Goto(&done, converted_heap_number_value);
 
-    // Now implement the smi to int32 conversion.
-    gasm_->Bind(&smi_to_int32);
-    Node* smi_int32 = BuildSmiToWasm(smi_to_int32.PhiAt(0), type);
-    gasm_->Goto(&done, smi_int32);
+    // Now implement the smi to wasm conversion.
+    gasm_->Bind(&smi_to_wasm);
+    Node* smi_to_wasm_result = BuildSmiToWasm(smi_to_wasm.PhiAt(0), type);
+    gasm_->Goto(&done, smi_to_wasm_result);
 
     // Done. Update effect and control and return the final Phi.
     gasm_->Bind(&done);
