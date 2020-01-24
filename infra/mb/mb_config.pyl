@@ -90,8 +90,6 @@
           'release_x64_pointer_compression_without_dchecks',
       'V8 Linux64 - arm64 - sim - pointer compression - builder':
           'release_simulate_arm64_pointer_compression',
-      'V8 Fuchsia': 'release_x64_fuchsia',
-      'V8 Fuchsia - debug': 'debug_x64_fuchsia',
       'V8 Fuchsia - builder': 'release_x64_fuchsia',
       'V8 Fuchsia - debug builder': 'debug_x64_fuchsia',
       'V8 Linux64 - cfi': 'release_x64_cfi',

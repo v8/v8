@@ -56,6 +56,14 @@
       {'name': 'fuchsia-unittests'},
     ],
   },
+  'V8 Fuchsia': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-16.04',
+    },
+    'tests': [
+      {'name': 'fuchsia-unittests'},
+    ],
+  },
   ##############################################################################
   # Linux32
   'v8_linux_dbg_ng_triggered': {
