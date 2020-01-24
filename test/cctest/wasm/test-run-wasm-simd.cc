@@ -570,9 +570,8 @@ WASM_SIMD_TEST_WITH_LIFTOFF(F32x4Splat) {
   // Set up a global to hold output vector.
   float* g = r.builder().AddGlobal<float>(kWasmS128);
   byte param1 = 0;
-  BUILD_AND_CHECK_TIER(
-      r, WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(param1))),
-      WASM_ONE);
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(param1))),
+        WASM_ONE);
 
   FOR_FLOAT32_INPUTS(x) {
     r.Call(x);
