@@ -203,7 +203,11 @@ class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
   int GetSourcePosition(int func_index, int byte_offset,
                         bool is_at_number_conversion);
 
+  std::pair<int, int> GetFunctionOffsets(int func_index);
+
  private:
+  void EnsureDecodedOffsets();
+
   // The offset information table is decoded lazily, hence needs to be
   // protected against concurrent accesses.
   // Exactly one of the two fields below will be set at a time.

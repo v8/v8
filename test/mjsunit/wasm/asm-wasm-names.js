@@ -13,3 +13,4 @@ function Module(stdlib, foreign, buffer) {
 var func = Module({}, {}, new ArrayBuffer(65536)).bar;
 assertEquals("Module", Module.name);
 assertEquals("foo", func.name);
+assertEquals("function foo() {}", func.toString());

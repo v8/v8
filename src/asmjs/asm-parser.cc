@@ -728,6 +728,9 @@ void AsmJsParser::ValidateFunctionTable() {
 
 // 6.4 ValidateFunction
 void AsmJsParser::ValidateFunction() {
+  // Remember position of the 'function' token as start position.
+  size_t function_start_position = scanner_.Position();
+
   EXPECT_TOKEN(TOK(function));
   if (!scanner_.IsGlobal()) {
     FAIL("Expected function name");
@@ -753,7 +756,8 @@ void AsmJsParser::ValidateFunction() {
   return_type_ = nullptr;
 
   // Record start of the function, used as position for the stack check.
-  current_function_builder_->SetAsmFunctionStartPosition(scanner_.Position());
+  current_function_builder_->SetAsmFunctionStartPosition(
+      function_start_position);
 
   CachedVector<AsmType*> params(&cached_asm_type_p_vectors_);
   ValidateFunctionParams(&params);
@@ -778,6 +782,9 @@ void AsmJsParser::ValidateFunction() {
     // clang-format on
     RECURSE(ValidateStatement());
   }
+
+  size_t function_end_position = scanner_.Position() + 1;
+
   EXPECT_TOKEN('}');
 
   if (!last_statement_is_return) {
@@ -808,6 +815,10 @@ void AsmJsParser::ValidateFunction() {
 
   // End function
   current_function_builder_->Emit(kExprEnd);
+
+  // Emit function end position as the last position for this function.
+  current_function_builder_->AddAsmWasmOffset(function_end_position,
+                                              function_end_position);
 
   if (current_function_builder_->GetPosition() > kV8MaxWasmFunctionSize) {
     FAIL("Size of function body exceeds internal limit");

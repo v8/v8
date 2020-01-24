@@ -2059,6 +2059,7 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(Vector<const uint8_t> encoded_offsets) {
     const byte* table_end = decoder.pc() + size;
     uint32_t locals_size = decoder.consume_u32v("locals size");
     int function_start_position = decoder.consume_u32v("function start pos");
+    int function_end_position = function_start_position;
     int last_byte_offset = locals_size;
     int last_asm_position = function_start_position;
     std::vector<AsmJsOffsetEntry> func_asm_offsets;
@@ -2074,12 +2075,19 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(Vector<const uint8_t> encoded_offsets) {
       int to_number_position =
           call_position + decoder.consume_i32v("to_number position delta");
       last_asm_position = to_number_position;
-      func_asm_offsets.push_back(
-          {last_byte_offset, call_position, to_number_position});
+      if (decoder.pc() == table_end) {
+        // The last entry is the function end marker.
+        DCHECK_EQ(call_position, to_number_position);
+        function_end_position = call_position;
+      } else {
+        func_asm_offsets.push_back(
+            {last_byte_offset, call_position, to_number_position});
+      }
     }
     DCHECK_EQ(decoder.pc(), table_end);
-    functions.emplace_back(
-        AsmJsOffsetFunctionEntries{std::move(func_asm_offsets)});
+    functions.emplace_back(AsmJsOffsetFunctionEntries{
+        function_start_position, function_end_position,
+        std::move(func_asm_offsets)});
   }
   DCHECK(decoder.ok());
   DCHECK(!decoder.more());

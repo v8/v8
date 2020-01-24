@@ -119,16 +119,7 @@ AsmJsOffsetInformation::~AsmJsOffsetInformation() = default;
 
 int AsmJsOffsetInformation::GetSourcePosition(int func_index, int byte_offset,
                                               bool is_at_number_conversion) {
-  base::MutexGuard lock(&mutex_);
-  DCHECK_EQ(encoded_offsets_ == nullptr, decoded_offsets_ != nullptr);
-
-  if (!decoded_offsets_) {
-    AsmJsOffsetsResult result =
-        wasm::DecodeAsmJsOffsets(encoded_offsets_.as_vector());
-    decoded_offsets_ =
-        std::make_unique<AsmJsOffsets>(std::move(result).value());
-    encoded_offsets_.ReleaseData();
-  }
+  EnsureDecodedOffsets();
 
   DCHECK_LE(0, func_index);
   DCHECK_GT(decoded_offsets_->functions.size(), func_index);
@@ -148,6 +139,28 @@ int AsmJsOffsetInformation::GetSourcePosition(int func_index, int byte_offset,
   DCHECK_EQ(byte_offset, it->byte_offset);
   return is_at_number_conversion ? it->source_position_number_conversion
                                  : it->source_position_call;
+}
+
+std::pair<int, int> AsmJsOffsetInformation::GetFunctionOffsets(int func_index) {
+  EnsureDecodedOffsets();
+
+  DCHECK_LE(0, func_index);
+  DCHECK_GT(decoded_offsets_->functions.size(), func_index);
+  AsmJsOffsetFunctionEntries& function_info =
+      decoded_offsets_->functions[func_index];
+
+  return {function_info.start_offset, function_info.end_offset};
+}
+
+void AsmJsOffsetInformation::EnsureDecodedOffsets() {
+  base::MutexGuard mutex_guard(&mutex_);
+  DCHECK_EQ(encoded_offsets_ == nullptr, decoded_offsets_ != nullptr);
+
+  if (decoded_offsets_) return;
+  AsmJsOffsetsResult result =
+      wasm::DecodeAsmJsOffsets(encoded_offsets_.as_vector());
+  decoded_offsets_ = std::make_unique<AsmJsOffsets>(std::move(result).value());
+  encoded_offsets_.ReleaseData();
 }
 
 // Get a string stored in the module bytes representing a name.

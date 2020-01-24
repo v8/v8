@@ -40,6 +40,8 @@ struct AsmJsOffsetEntry {
   int source_position_number_conversion;
 };
 struct AsmJsOffsetFunctionEntries {
+  int start_offset;
+  int end_offset;
   std::vector<AsmJsOffsetEntry> entries;
 };
 struct AsmJsOffsets {

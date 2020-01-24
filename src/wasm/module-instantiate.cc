@@ -1456,25 +1456,15 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
 
   Handle<JSObject> exports_object;
   MaybeHandle<String> single_function_name;
-  bool is_asm_js = false;
-  switch (module_->origin) {
-    case kWasmOrigin: {
-      // Create the "exports" object.
-      exports_object = isolate_->factory()->NewJSObjectWithNullProto();
-      break;
-    }
-    case kAsmJsSloppyOrigin:
-    case kAsmJsStrictOrigin: {
-      Handle<JSFunction> object_function = Handle<JSFunction>(
-          isolate_->native_context()->object_function(), isolate_);
-      exports_object = isolate_->factory()->NewJSObject(object_function);
-      single_function_name = isolate_->factory()->InternalizeUtf8String(
-          AsmJs::kSingleFunctionName);
-      is_asm_js = true;
-      break;
-    }
-    default:
-      UNREACHABLE();
+  bool is_asm_js = is_asmjs_module(module_);
+  if (is_asm_js) {
+    Handle<JSFunction> object_function = Handle<JSFunction>(
+        isolate_->native_context()->object_function(), isolate_);
+    exports_object = isolate_->factory()->NewJSObject(object_function);
+    single_function_name =
+        isolate_->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName);
+  } else {
+    exports_object = isolate_->factory()->NewJSObjectWithNullProto();
   }
   instance->set_exports_object(*exports_object);
 

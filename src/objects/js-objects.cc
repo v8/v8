@@ -5540,6 +5540,23 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
     return NativeCodeFunctionSourceString(shared_info);
   }
 
+  // If this function was compiled from asm.js, use the recorded offset
+  // information.
+  if (shared_info->HasWasmExportedFunctionData()) {
+    Handle<WasmExportedFunctionData> function_data(
+        shared_info->wasm_exported_function_data(), isolate);
+    const wasm::WasmModule* module = function_data->instance().module();
+    if (is_asmjs_module(module)) {
+      std::pair<int, int> offsets =
+          module->asm_js_offset_information->GetFunctionOffsets(
+              function_data->function_index());
+      Handle<String> source(
+          String::cast(Script::cast(shared_info->script()).source()), isolate);
+      return isolate->factory()->NewSubString(source, offsets.first,
+                                              offsets.second);
+    }
+  }
+
   if (shared_info->function_token_position() == kNoSourcePosition) {
     // If the function token position isn't valid, return [native code] to
     // ensure calling eval on the returned source code throws rather than
