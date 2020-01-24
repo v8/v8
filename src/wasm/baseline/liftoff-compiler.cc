@@ -471,7 +471,7 @@ class LiftoffCompiler {
   }
 
   void StackCheck(WasmCodePosition position) {
-    if (FLAG_wasm_no_stack_checks || !env_->runtime_exception_support) return;
+    if (!FLAG_wasm_stack_checks || !env_->runtime_exception_support) return;
     out_of_line_code_.push_back(
         OutOfLineCode::StackCheck(position, __ cache_state()->used_registers,
                                   RegisterDebugSideTableEntry()));
@@ -1703,7 +1703,7 @@ class LiftoffCompiler {
 
   Label* AddOutOfLineTrap(WasmCodePosition position,
                           WasmCode::RuntimeStubId stub, uint32_t pc = 0) {
-    DCHECK(!FLAG_wasm_no_bounds_checks);
+    DCHECK(FLAG_wasm_bounds_checks);
     // The pc is needed for memory OOB trap with trap handler enabled. Other
     // callers should not even compute it.
     DCHECK_EQ(pc != 0, stub == WasmCode::kThrowWasmTrapMemOutOfBounds &&
@@ -1725,7 +1725,7 @@ class LiftoffCompiler {
         !base::IsInBounds(offset, access_size, env_->max_memory_size);
 
     if (!force_check && !statically_oob &&
-        (FLAG_wasm_no_bounds_checks || env_->use_trap_handler)) {
+        (!FLAG_wasm_bounds_checks || env_->use_trap_handler)) {
       return false;
     }
 

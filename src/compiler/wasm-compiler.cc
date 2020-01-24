@@ -317,7 +317,7 @@ Node* WasmGraphBuilder::IntPtrConstant(intptr_t value) {
 
 void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position) {
   DCHECK_NOT_NULL(env_);  // Wrappers don't get stack checks.
-  if (FLAG_wasm_no_stack_checks || !env_->runtime_exception_support) {
+  if (!FLAG_wasm_stack_checks || !env_->runtime_exception_support) {
     return;
   }
 
@@ -3557,7 +3557,7 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
                                        EnforceBoundsCheck enforce_check) {
   DCHECK_LE(1, access_size);
   index = Uint32ToUintptr(index);
-  if (FLAG_wasm_no_bounds_checks) return index;
+  if (!FLAG_wasm_bounds_checks) return index;
 
   if (use_trap_handler() && enforce_check == kCanOmitBoundsCheck) {
     return index;
