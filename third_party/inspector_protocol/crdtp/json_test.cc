@@ -81,6 +81,43 @@ TEST(JsonEncoder, NotAContinuationByte) {
   EXPECT_EQ("\"Hello\"", out);  // "Hello" shows we restarted at 'H'.
 }
 
+TEST(JsonEncoder, EscapesLoneHighSurrogates) {
+  // This tests that the JSON encoder escapes lone high surrogates, i.e.
+  // invalid code points in the range from 0xD800 to 0xDBFF. In
+  // unescaped form, these cannot be represented in well-formed UTF-8 or
+  // UTF-16.
+  std::vector<uint16_t> chars = {'a', 0xd800, 'b', 0xdada, 'c', 0xdbff, 'd'};
+  std::string out;
+  Status status;
+  std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
+  writer->HandleString16(span<uint16_t>(chars.data(), chars.size()));
+  EXPECT_EQ("\"a\\ud800b\\udadac\\udbffd\"", out);
+}
+
+TEST(JsonEncoder, EscapesLoneLowSurrogates) {
+  // This tests that the JSON encoder escapes lone low surrogates, i.e.
+  // invalid code points in the range from 0xDC00 to 0xDFFF. In
+  // unescaped form, these cannot be represented in well-formed UTF-8 or
+  // UTF-16.
+  std::vector<uint16_t> chars = {'a', 0xdc00, 'b', 0xdede, 'c', 0xdfff, 'd'};
+  std::string out;
+  Status status;
+  std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
+  writer->HandleString16(span<uint16_t>(chars.data(), chars.size()));
+  EXPECT_EQ("\"a\\udc00b\\udedec\\udfffd\"", out);
+}
+
+TEST(JsonEncoder, EscapesFFFF) {
+  // This tests that the JSON encoder will escape the UTF16 input 0xffff as
+  // \uffff; useful to check this since it's an edge case.
+  std::vector<uint16_t> chars = {'a', 'b', 'c', 0xffff, 'd'};
+  std::string out;
+  Status status;
+  std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
+  writer->HandleString16(span<uint16_t>(chars.data(), chars.size()));
+  EXPECT_EQ("\"abc\\uffffd\"", out);
+}
+
 TEST(JsonEncoder, IncompleteUtf8Sequence) {
   std::string out;
   Status status;
@@ -248,6 +285,7 @@ class Log : public ParserHandler {
   }
 
   void HandleString16(span<uint16_t> chars) override {
+    raw_log_string16_.emplace_back(chars.begin(), chars.end());
     log_ << "string16: " << UTF16ToUTF8(chars) << "\n";
   }
 
@@ -271,10 +309,15 @@ class Log : public ParserHandler {
 
   std::string str() const { return status_.ok() ? log_.str() : ""; }
 
+  std::vector<std::vector<uint16_t>> raw_log_string16() const {
+    return raw_log_string16_;
+  }
+
   Status status() const { return status_; }
 
  private:
   std::ostringstream log_;
+  std::vector<std::vector<uint16_t>> raw_log_string16_;
   Status status_;
 };
 
@@ -393,6 +436,31 @@ TEST_F(JsonParserTest, Unicode_ParseUtf16) {
       "string16: 🌎 🌙.\n"
       "map end\n",
       log_.str());
+}
+
+TEST_F(JsonParserTest, Unicode_ParseUtf16_SingleEscapeUpToFFFF) {
+  // 0xFFFF is the max codepoint that can be represented as a single \u escape.
+  // One way to write this is \uffff, another way is to encode it as a 3 byte
+  // UTF-8 sequence (0xef 0xbf 0xbf). Both are equivalent.
+
+  // Example with both ways of encoding code point 0xFFFF in a JSON string.
+  std::string json = "{\"escape\": \"\xef\xbf\xbf or \\uffff\"}";
+  ParseJSON(SpanFrom(json), &log_);
+  EXPECT_TRUE(log_.status().ok());
+
+  // Shows both inputs result in equivalent output once converted to UTF-8.
+  EXPECT_EQ(
+      "map begin\n"
+      "string16: escape\n"
+      "string16: \xEF\xBF\xBF or \xEF\xBF\xBF\n"
+      "map end\n",
+      log_.str());
+
+  // Make an even stronger assertion: The parser represents \xffff as a single
+  // UTF-16 char.
+  ASSERT_EQ(2u, log_.raw_log_string16().size());
+  std::vector<uint16_t> expected = {0xffff, ' ', 'o', 'r', ' ', 0xffff};
+  EXPECT_EQ(expected, log_.raw_log_string16()[1]);
 }
 
 TEST_F(JsonParserTest, Unicode_ParseUtf8) {

@@ -249,7 +249,7 @@ class JSONEncoder : public ParserHandler {
         // So, now we transcode to UTF16,
         // using the math described at https://en.wikipedia.org/wiki/UTF-16,
         // for either one or two 16 bit characters.
-        if (codepoint < 0xffff) {
+        if (codepoint <= 0xffff) {
           Emit("\\u");
           PrintHex(static_cast<uint16_t>(codepoint), out_);
           continue;
@@ -755,7 +755,7 @@ class JsonParser {
         // So, now we transcode to UTF16,
         // using the math described at https://en.wikipedia.org/wiki/UTF-16,
         // for either one or two 16 bit characters.
-        if (codepoint < 0xffff) {
+        if (codepoint <= 0xffff) {
           output->push_back(codepoint);
           continue;
         }
