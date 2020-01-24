@@ -473,6 +473,8 @@ void OS::DebugBreak() {
 #elif V8_HOST_ARCH_S390
   // Software breakpoint instruction is 0x0001
   asm volatile(".word 0x0001");
+#elif V8_HOST_ARCH_RISCV
+  asm("ebreak");
 #else
 #error Unsupported host architecture.
 #endif
@@ -802,7 +804,8 @@ static void* ThreadEntry(void* arg) {
 
 
 void Thread::set_name(const char* name) {
-  strncpy(name_, name, sizeof(name_));
+  //RISCV-PORT: -1 to overcome gcc9 -Werror=stringop-truncation
+  strncpy(name_, name, sizeof(name_) - 1);
   name_[sizeof(name_) - 1] = '\0';
 }
 
