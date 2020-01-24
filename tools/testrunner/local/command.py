@@ -41,21 +41,27 @@ class AbortException(Exception):
 
 
 @contextmanager
-def handle_sigterm(process, handle_sigterm):
-  """Handle sigterm for `process` and restore previous handler to prevent
+def handle_sigterm(process, abort_fun, enabled):
+  """Call`abort_fun` on sigterm and restore previous handler to prevent
   erroneous termination of an already terminated process.
+
+  Args:
+    process: The process to terminate.
+    abort_fun: Function taking two parameters: the process to terminate and
+        an array with a boolean for storing if an abort occured.
+    enabled: If False, this wrapper will be a no-op.
   """
   # Variable to communicate with the signal handler.
   abort_occured = [False]
   def handler(signum, frame):
-    self._abort(process, abort_occured)
+    abort_fun(process, abort_occured)
 
-  if handle_sigterm:
+  if enabled:
     previous = signal.signal(signal.SIGTERM, handler)
   try:
     yield
   finally:
-    if handle_sigterm:
+    if enabled:
       signal.signal(signal.SIGTERM, previous)
 
   if abort_occured[0]:
@@ -95,7 +101,7 @@ class BaseCommand(object):
 
     process = self._start_process()
 
-    with handle_sigterm(process, self.handle_sigterm):
+    with handle_sigterm(process, self._abort, self.handle_sigterm):
       # Variable to communicate with the timer.
       timeout_occured = [False]
       timer = threading.Timer(
