@@ -65,6 +65,9 @@ class PlatformTest : public ::testing::Test {
   void CallOnForegroundThread(Task* task) {
     task_runner()->PostTask(std::unique_ptr<Task>(task));
   }
+  void CallNonNestableOnForegroundThread(Task* task) {
+    task_runner()->PostNonNestableTask(std::unique_ptr<Task>(task));
+  }
   void CallDelayedOnForegroundThread(Task* task, double delay_in_seconds) {
     task_runner()->PostDelayedTask(std::unique_ptr<Task>(task),
                                    delay_in_seconds);
@@ -110,6 +113,37 @@ TEST_F(DefaultPlatformTest, PumpMessageLoopWithTaskRunner) {
   EXPECT_CALL(*task, Run());
   EXPECT_CALL(*task, Die());
   EXPECT_TRUE(PumpMessageLoop());
+  EXPECT_FALSE(PumpMessageLoop());
+}
+
+TEST_F(DefaultPlatformTest, PumpMessageLoopNested) {
+  EXPECT_FALSE(PumpMessageLoop());
+
+  StrictMock<MockTask>* nestable_task1 = new StrictMock<MockTask>;
+  StrictMock<MockTask>* non_nestable_task2 = new StrictMock<MockTask>;
+  StrictMock<MockTask>* nestable_task3 = new StrictMock<MockTask>;
+  StrictMock<MockTask>* non_nestable_task4 = new StrictMock<MockTask>;
+  CallOnForegroundThread(nestable_task1);
+  CallNonNestableOnForegroundThread(non_nestable_task2);
+  CallOnForegroundThread(nestable_task3);
+  CallNonNestableOnForegroundThread(non_nestable_task4);
+
+  // Nestable tasks are FIFO; non-nestable tasks are FIFO. A task being
+  // non-nestable may cause it to be executed later, but not earlier.
+  EXPECT_CALL(*nestable_task1, Run).WillOnce([this]() {
+    EXPECT_TRUE(PumpMessageLoop());
+  });
+  EXPECT_CALL(*nestable_task3, Run());
+  EXPECT_CALL(*nestable_task3, Die());
+  EXPECT_CALL(*nestable_task1, Die());
+  EXPECT_TRUE(PumpMessageLoop());
+  EXPECT_CALL(*non_nestable_task2, Run());
+  EXPECT_CALL(*non_nestable_task2, Die());
+  EXPECT_TRUE(PumpMessageLoop());
+  EXPECT_CALL(*non_nestable_task4, Run());
+  EXPECT_CALL(*non_nestable_task4, Die());
+  EXPECT_TRUE(PumpMessageLoop());
+
   EXPECT_FALSE(PumpMessageLoop());
 }
 

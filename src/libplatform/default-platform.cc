@@ -141,6 +141,7 @@ bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate,
   std::unique_ptr<Task> task = task_runner->PopTaskFromQueue(wait_for_work);
   if (!task) return failed_result;
 
+  DefaultForegroundTaskRunner::RunTaskScope scope(task_runner);
   task->Run();
   return true;
 }
@@ -163,6 +164,7 @@ void DefaultPlatform::RunIdleTasks(v8::Isolate* isolate,
   while (deadline_in_seconds > MonotonicallyIncreasingTime()) {
     std::unique_ptr<IdleTask> task = task_runner->PopTaskFromIdleQueue();
     if (!task) return;
+    DefaultForegroundTaskRunner::RunTaskScope scope(task_runner);
     task->Run(deadline_in_seconds);
   }
 }
