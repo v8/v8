@@ -92,6 +92,8 @@
           'release_simulate_arm64_pointer_compression',
       'V8 Fuchsia': 'release_x64_fuchsia',
       'V8 Fuchsia - debug': 'debug_x64_fuchsia',
+      'V8 Fuchsia - builder': 'release_x64_fuchsia',
+      'V8 Fuchsia - debug builder': 'debug_x64_fuchsia',
       'V8 Linux64 - cfi': 'release_x64_cfi',
       'V8 Linux64 UBSan': 'release_x64_ubsan',
       'V8 Linux - vtunejit': 'debug_x86_vtunejit',
