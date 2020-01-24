@@ -597,13 +597,14 @@ int GetSourcePosition(const WasmModule* module, uint32_t func_index,
   DCHECK_EQ(is_asmjs_module(module),
             module->asm_js_offset_information != nullptr);
   if (!is_asmjs_module(module)) {
-    // for non-asm.js modules, we just add the function's start offset
+    // For non-asm.js modules, we just add the function's start offset
     // to make a module-relative position.
     return byte_offset + GetWasmFunctionOffset(module, func_index);
   }
 
   // asm.js modules have an additional offset table that must be searched.
-  // The passed func_index excludes imported functions.
+  // Note: {AsmJsOffsetInformation::GetSourcePosition} expects the function
+  // index relative to the first non-imported function.
   DCHECK_LE(module->num_imported_functions, func_index);
   return module->asm_js_offset_information->GetSourcePosition(
       func_index - module->num_imported_functions, byte_offset,

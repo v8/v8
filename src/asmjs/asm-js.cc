@@ -410,9 +410,9 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   }
 
   wasm::ErrorThrower thrower(isolate, "AsmJs::Instantiate");
-  MaybeHandle<Object> maybe_module_object =
+  MaybeHandle<WasmInstanceObject> maybe_instance =
       wasm_engine->SyncInstantiate(isolate, &thrower, module, foreign, memory);
-  if (maybe_module_object.is_null()) {
+  if (maybe_instance.is_null()) {
     // An exception caused by the module start function will be set as pending
     // and bypass the {ErrorThrower}, this happens in case of a stack overflow.
     if (isolate->has_pending_exception()) isolate->clear_pending_exception();
@@ -427,7 +427,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
     return MaybeHandle<Object>();
   }
   DCHECK(!thrower.error());
-  Handle<Object> module_object = maybe_module_object.ToHandleChecked();
+  Handle<WasmInstanceObject> instance = maybe_instance.ToHandleChecked();
 
   ReportInstantiationSuccess(script, position,
                              instantiate_timer.Elapsed().InMillisecondsF());
@@ -435,7 +435,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   Handle<Name> single_function_name(
       isolate->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName));
   MaybeHandle<Object> single_function =
-      Object::GetProperty(isolate, module_object, single_function_name);
+      Object::GetProperty(isolate, instance, single_function_name);
   if (!single_function.is_null() &&
       !single_function.ToHandleChecked()->IsUndefined(isolate)) {
     return single_function;
@@ -443,7 +443,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
 
   Handle<String> exports_name =
       isolate->factory()->InternalizeUtf8String("exports");
-  return Object::GetProperty(isolate, module_object, exports_name);
+  return Object::GetProperty(isolate, instance, exports_name);
 }
 
 }  // namespace internal
