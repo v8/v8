@@ -9,8 +9,7 @@ from testrunner.objects import testcase
 
 proposal_flags = [{
                     'name': 'reference-types',
-                    'flags': ['--experimental-wasm-anyref',
-                              '--no-experimental-wasm-bulk-memory']
+                    'flags': ['--experimental-wasm-anyref']
                   },
                   {
                     'name': 'bulk-memory-operations',
