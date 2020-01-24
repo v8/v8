@@ -189,7 +189,17 @@ TEST(DisasmX64) {
   __ idivq(rdx);
   __ mull(rdx);
   __ mulq(rdx);
+
+  __ negb(rdx);
+  __ negb(r10);
+  __ negw(rdx);
+  __ negl(rdx);
   __ negq(rdx);
+  __ negb(Operand(rsp, 12));
+  __ negw(Operand(rsp, 12));
+  __ negl(Operand(rsp, 12));
+  __ negb(Operand(rsp, 12));
+
   __ notq(rdx);
   __ testq(Operand(rbx, rcx, times_4, 10000), rdx);
 

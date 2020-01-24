@@ -1204,12 +1204,7 @@ void Assembler::lock() {
 
 void Assembler::xaddb(Operand dst, Register src) {
   EnsureSpace ensure_space(this);
-  if (!src.is_byte_register()) {
-    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
-    emit_rex_32(src, dst);
-  } else {
-    emit_optional_rex_32(src, dst);
-  }
+  emit_optional_rex_8(src, dst);
   emit(0x0F);
   emit(0xC0);
   emit_operand(src, dst);
@@ -2012,18 +2007,62 @@ void Assembler::mulq(Register src) {
   emit_modrm(0x4, src);
 }
 
-void Assembler::emit_neg(Register dst, int size) {
+void Assembler::negb(Register reg) {
   EnsureSpace ensure_space(this);
-  emit_rex(dst, size);
-  emit(0xF7);
-  emit_modrm(0x3, dst);
+  emit_optional_rex_8(reg);
+  emit(0xF6);
+  emit_modrm(0x3, reg);
 }
 
-void Assembler::emit_neg(Operand dst, int size) {
+void Assembler::negw(Register reg) {
   EnsureSpace ensure_space(this);
-  emit_rex_64(dst);
+  emit(0x66);
+  emit_optional_rex_32(reg);
   emit(0xF7);
-  emit_operand(3, dst);
+  emit_modrm(0x3, reg);
+}
+
+void Assembler::negl(Register reg) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(reg);
+  emit(0xF7);
+  emit_modrm(0x3, reg);
+}
+
+void Assembler::negq(Register reg) {
+  EnsureSpace ensure_space(this);
+  emit_rex_64(reg);
+  emit(0xF7);
+  emit_modrm(0x3, reg);
+}
+
+void Assembler::negb(Operand op) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(op);
+  emit(0xF6);
+  emit_operand(0x3, op);
+}
+
+void Assembler::negw(Operand op) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(op);
+  emit(0xF7);
+  emit_operand(0x3, op);
+}
+
+void Assembler::negl(Operand op) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(op);
+  emit(0xF7);
+  emit_operand(0x3, op);
+}
+
+void Assembler::negq(Operand op) {
+  EnsureSpace ensure_space(this);
+  emit_rex_64(op);
+  emit(0xF7);
+  emit_operand(0x3, op);
 }
 
 void Assembler::nop() {

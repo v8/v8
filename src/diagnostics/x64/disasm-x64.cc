@@ -679,7 +679,7 @@ int DisassemblerX64::F6F7Instruction(byte* data) {
   byte modrm = *(data + 1);
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
-  if (mod == 3 && regop != 0) {
+  if (regop != 0) {
     const char* mnem = nullptr;
     switch (regop) {
       case 2:
@@ -703,8 +703,18 @@ int DisassemblerX64::F6F7Instruction(byte* data) {
       default:
         UnimplementedInstruction();
     }
-    AppendToBuffer("%s%c %s", mnem, operand_size_code(), NameOfCPURegister(rm));
-    return 2;
+    if (mod == 3) {
+      AppendToBuffer("%s%c %s", mnem, operand_size_code(),
+                     NameOfCPURegister(rm));
+      return 2;
+    } else if (mod == 1) {
+      AppendToBuffer("%s%c ", mnem, operand_size_code());
+      int count = PrintRightOperand(data + 1);  // Use name of 64-bit register.
+      return 1 + count;
+    } else {
+      UnimplementedInstruction();
+      return 2;
+    }
   } else if (regop == 0) {
     AppendToBuffer("test%c ", operand_size_code());
     int count = PrintRightOperand(data + 1);  // Use name of 64-bit register.

@@ -225,7 +225,6 @@ static_assert(sizeof(Operand) <= 2 * kSystemPointerSize,
   V(mov)                              \
   V(movzxb)                           \
   V(movzxw)                           \
-  V(neg)                              \
   V(not)                              \
   V(or)                               \
   V(repmovs)                          \
@@ -611,6 +610,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void xaddw(Operand dst, Register src);
   void xaddl(Operand dst, Register src);
   void xaddq(Operand dst, Register src);
+
+  void negb(Register reg);
+  void negw(Register reg);
+  void negl(Register reg);
+  void negq(Register reg);
+  void negb(Operand op);
+  void negw(Operand op);
+  void negl(Operand op);
+  void negq(Operand op);
 
   void cmpxchgb(Operand dst, Register src);
   void cmpxchgw(Operand dst, Register src);
@@ -1835,6 +1843,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Optionally do as emit_rex_32(Operand) if the operand register
   // numbers have a high bit set.
   inline void emit_optional_rex_32(Operand op);
+
+  // Calls emit_rex_32(Register) for all non-byte registers.
+  inline void emit_optional_rex_8(Register reg);
+
+  // Calls emit_rex_32(Register, Operand) for all non-byte registers, and
+  // emit_optional_rex_32(Register, Operand) for byte registers.
+  inline void emit_optional_rex_8(Register reg, Operand op);
 
   void emit_rex(int size) {
     if (size == kInt64Size) {
