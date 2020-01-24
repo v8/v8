@@ -359,6 +359,7 @@ type Null extends Oddball;
 type Undefined extends Oddball;
 type True extends Oddball;
 type False extends Oddball;
+type Exception extends Oddball;
 type EmptyString extends String;
 type Boolean = True|False;
 
