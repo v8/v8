@@ -2621,8 +2621,9 @@ Node* WasmGraphBuilder::BuildCallNode(wasm::FunctionSig* sig,
   inputs[params + 2] = Effect();
   inputs[params + 3] = Control();
 
-  Node* call =
-      SetEffect(graph()->NewNode(op, static_cast<int>(count), inputs.begin()));
+  Node* call = graph()->NewNode(op, static_cast<int>(count), inputs.begin());
+  // Return calls have no effect output. Other calls are the new effect node.
+  if (op->EffectOutputCount() > 0) SetEffect(call);
   DCHECK(position == wasm::kNoCodePosition || position > 0);
   if (position > 0) SetSourcePosition(call, position);
 
