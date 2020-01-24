@@ -261,6 +261,10 @@ void CpuFeatures::PrintFeatures() {
   PrintF("GENERAL_INSTR=%d\n", CpuFeatures::IsSupported(GENERAL_INSTR_EXT));
   PrintF("DISTINCT_OPS=%d\n", CpuFeatures::IsSupported(DISTINCT_OPS));
   PrintF("VECTOR_FACILITY=%d\n", CpuFeatures::IsSupported(VECTOR_FACILITY));
+  PrintF("VECTOR_ENHANCE_FACILITY_1=%d\n",
+         CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
+  PrintF("VECTOR_ENHANCE_FACILITY_2=%d\n",
+         CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2));
   PrintF("MISC_INSTR_EXT2=%d\n", CpuFeatures::IsSupported(MISC_INSTR_EXT2));
 }
 
