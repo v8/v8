@@ -440,6 +440,12 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->sp = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[15]);
   state->fp = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[11]);
   state->lr = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[14]);
+#elif V8_HOST_ARCH_RISCV
+  // Spec CH.25 RISC-V Assembly Programmer’s Handbook
+  state->pc = reinterpret_cast<void*>(mcontext.__gregs[REG_PC]);
+  state->sp = reinterpret_cast<void*>(mcontext.__gregs[REG_SP]);
+  state->fp = reinterpret_cast<void*>(mcontext.__gregs[REG_S0]);
+  state->lr = reinterpret_cast<void*>(mcontext.__gregs[REG_RA]);
 #endif  // V8_HOST_ARCH_*
 #elif V8_OS_IOS
 
