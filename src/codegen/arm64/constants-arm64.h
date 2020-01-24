@@ -389,7 +389,36 @@ enum SystemHint {
   WFI = 3,
   SEV = 4,
   SEVL = 5,
-  CSDB = 20
+  CSDB = 20,
+  BTI = 32,
+  BTI_c = 34,
+  BTI_j = 36,
+  BTI_jc = 38
+};
+
+// In a guarded page, only BTI and PACI[AB]SP instructions are allowed to be
+// the target of indirect branches. Details on which kinds of branches each
+// instruction allows follow in the comments below:
+enum class BranchTargetIdentifier {
+  // Do not emit a BTI instruction.
+  kNone,
+
+  // Emit a BTI instruction. Cannot be the target of indirect jumps/calls.
+  kBti,
+
+  // Emit a "BTI c" instruction. Can be the target of indirect jumps (BR) with
+  // x16/x17 as the target register, or indirect calls (BLR).
+  kBtiCall,
+
+  // Emit a "BTI j" instruction. Can be the target of indirect jumps (BR).
+  kBtiJump,
+
+  // Emit a "BTI jc" instruction, which is a combination of "BTI j" and "BTI c".
+  kBtiJumpCall,
+
+  // Emit a PACIASP instruction, which acts like a "BTI c" or a "BTI jc", based
+  // on the value of SCTLR_EL1.BT0.
+  kPaciasp
 };
 
 enum BarrierDomain {

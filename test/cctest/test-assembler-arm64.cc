@@ -1873,6 +1873,76 @@ TEST(branch_to_reg) {
   CHECK_EQUAL_64(84, x2);
 }
 
+static void BtiHelper(Register ipreg) {
+  SETUP();
+
+  Label jump_target, jump_call_target, call_target, done;
+  START();
+  UseScratchRegisterScope temps(&masm);
+  temps.Exclude(ipreg);
+  __ Adr(x0, &jump_target);
+  __ Br(x0);
+  __ Nop();
+  __ Bind(&jump_target, BranchTargetIdentifier::kBtiJump);
+  __ Adr(x0, &call_target);
+  __ Blr(x0);
+  __ Adr(ipreg, &jump_call_target);
+  __ Blr(ipreg);
+  __ Adr(lr, &done);  // Make Ret return to done label.
+  __ Br(ipreg);
+  __ Bind(&call_target, BranchTargetIdentifier::kBtiCall);
+  __ Ret();
+  __ Bind(&jump_call_target, BranchTargetIdentifier::kBtiJumpCall);
+  __ Ret();
+  __ Bind(&done);
+  END();
+
+#ifdef USE_SIMULATOR
+  simulator.SetGuardedPages(true);
+  RUN();
+#endif  // USE_SIMULATOR
+}
+
+TEST(bti) {
+  BtiHelper(x16);
+  BtiHelper(x17);
+}
+
+TEST(unguarded_bti_is_nop) {
+  SETUP();
+
+  Label start, none, c, j, jc;
+  START();
+  __ B(&start);
+  __ Bind(&none, BranchTargetIdentifier::kBti);
+  __ Bind(&c, BranchTargetIdentifier::kBtiCall);
+  __ Bind(&j, BranchTargetIdentifier::kBtiJump);
+  __ Bind(&jc, BranchTargetIdentifier::kBtiJumpCall);
+  CHECK(__ SizeOfCodeGeneratedSince(&none) == 4 * kInstrSize);
+  __ Ret();
+
+  Label jump_to_c, call_to_j;
+  __ Bind(&start);
+  __ Adr(x0, &none);
+  __ Adr(lr, &jump_to_c);
+  __ Br(x0);
+
+  __ Bind(&jump_to_c);
+  __ Adr(x0, &c);
+  __ Adr(lr, &call_to_j);
+  __ Br(x0);
+
+  __ Bind(&call_to_j);
+  __ Adr(x0, &j);
+  __ Blr(x0);
+  END();
+
+#ifdef USE_SIMULATOR
+  simulator.SetGuardedPages(false);
+  RUN();
+#endif  // USE_SIMULATOR
+}
+
 TEST(compare_branch) {
   INIT_V8();
   SETUP();

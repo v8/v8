@@ -630,7 +630,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Returns false, otherwise.
   bool TryOneInstrMoveImmediate(const Register& dst, int64_t imm);
 
-  inline void Bind(Label* label);
+  inline void Bind(Label* label,
+                   BranchTargetIdentifier id = BranchTargetIdentifier::kNone);
 
   static unsigned CountClearHalfWords(uint64_t imm, unsigned reg_size);
 
@@ -2043,7 +2044,7 @@ class UseScratchRegisterScope {
     CPURegList list(reg1, reg2);
     Include(list);
   }
-  void Exclude(const Register& reg1, const Register& reg2) {
+  void Exclude(const Register& reg1, const Register& reg2 = NoReg) {
     CPURegList list(reg1, reg2);
     Exclude(list);
   }

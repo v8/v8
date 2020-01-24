@@ -309,9 +309,21 @@ void MacroAssembler::Bfxil(const Register& rd, const Register& rn, unsigned lsb,
   bfxil(rd, rn, lsb, width);
 }
 
-void TurboAssembler::Bind(Label* label) {
+void TurboAssembler::Bind(Label* label, BranchTargetIdentifier id) {
   DCHECK(allow_macro_instructions());
-  bind(label);
+  if (id == BranchTargetIdentifier::kNone) {
+    bind(label);
+  } else {
+    // Emit this inside an InstructionAccurateScope to ensure there are no extra
+    // instructions between the bind and the target identifier instruction.
+    InstructionAccurateScope scope(this, 1);
+    bind(label);
+    if (id == BranchTargetIdentifier::kPaciasp) {
+      paciasp();
+    } else {
+      bti(id);
+    }
+  }
 }
 
 void TurboAssembler::Bl(Label* label) {

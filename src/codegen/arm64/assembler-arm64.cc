@@ -1184,6 +1184,30 @@ void Assembler::autia1716() { Emit(AUTIA1716); }
 void Assembler::paciasp() { Emit(PACIASP); }
 void Assembler::autiasp() { Emit(AUTIASP); }
 
+void Assembler::bti(BranchTargetIdentifier id) {
+  SystemHint op;
+  switch (id) {
+    case BranchTargetIdentifier::kBti:
+      op = BTI;
+      break;
+    case BranchTargetIdentifier::kBtiCall:
+      op = BTI_c;
+      break;
+    case BranchTargetIdentifier::kBtiJump:
+      op = BTI_j;
+      break;
+    case BranchTargetIdentifier::kBtiJumpCall:
+      op = BTI_jc;
+      break;
+    case BranchTargetIdentifier::kNone:
+    case BranchTargetIdentifier::kPaciasp:
+      // We always want to generate a BTI instruction here, so disallow
+      // skipping its generation or generating a PACIASP instead.
+      UNREACHABLE();
+  }
+  hint(op);
+}
+
 void Assembler::ldp(const CPURegister& rt, const CPURegister& rt2,
                     const MemOperand& src) {
   LoadStorePair(rt, rt2, src, LoadPairOpFor(rt, rt2));

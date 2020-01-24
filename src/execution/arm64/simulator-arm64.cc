@@ -298,6 +298,7 @@ void Simulator::SetRedirectInstruction(Instruction* instruction) {
 Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
                      Isolate* isolate, FILE* stream)
     : decoder_(decoder),
+      guard_pages_(false),
       last_debugger_input_(nullptr),
       log_parameters_(NO_PARAM),
       isolate_(isolate) {
@@ -314,6 +315,7 @@ Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
 
 Simulator::Simulator()
     : decoder_(nullptr),
+      guard_pages_(false),
       last_debugger_input_(nullptr),
       log_parameters_(NO_PARAM),
       isolate_(nullptr) {
@@ -361,6 +363,8 @@ void Simulator::ResetState() {
   // Reset debug helpers.
   breakpoints_.clear();
   break_on_next_ = false;
+
+  btype_ = DefaultBType;
 }
 
 Simulator::~Simulator() {
@@ -1494,6 +1498,20 @@ void Simulator::VisitConditionalBranch(Instruction* instr) {
   }
 }
 
+Simulator::BType Simulator::GetBTypeFromInstruction(
+    const Instruction* instr) const {
+  switch (instr->Mask(UnconditionalBranchToRegisterMask)) {
+    case BLR:
+      return BranchAndLink;
+    case BR:
+      if (!PcIsInGuardedPage() || (instr->Rn() == 16) || (instr->Rn() == 17)) {
+        return BranchFromUnguardedOrToIP;
+      }
+      return BranchFromGuardedNotToIP;
+  }
+  return DefaultBType;
+}
+
 void Simulator::VisitUnconditionalBranchToRegister(Instruction* instr) {
   Instruction* target = reg<Instruction*>(instr->Rn());
   switch (instr->Mask(UnconditionalBranchToRegisterMask)) {
@@ -1513,6 +1531,7 @@ void Simulator::VisitUnconditionalBranchToRegister(Instruction* instr) {
     default:
       UNIMPLEMENTED();
   }
+  set_btype(GetBTypeFromInstruction(instr));
 }
 
 void Simulator::VisitTestBranch(Instruction* instr) {
@@ -3096,6 +3115,7 @@ void Simulator::VisitSystem(Instruction* instr) {
   // range of immediates instead of indicating a different instruction. This
   // makes the decoding tricky.
   if (instr->Mask(SystemPAuthFMask) == SystemPAuthFixed) {
+    // The BType check for PACIASP happens in CheckBType().
     switch (instr->Mask(SystemPAuthMask)) {
 #define DEFINE_PAUTH_FUNCS(SUFFIX, DST, MOD, KEY)                     \
   case PACI##SUFFIX:                                                  \
@@ -3145,6 +3165,11 @@ void Simulator::VisitSystem(Instruction* instr) {
     switch (instr->ImmHint()) {
       case NOP:
       case CSDB:
+      case BTI_jc:
+      case BTI:
+      case BTI_c:
+      case BTI_j:
+        // The BType checks happen in CheckBType().
         break;
       default:
         UNIMPLEMENTED();
