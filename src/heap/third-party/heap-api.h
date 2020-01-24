@@ -25,6 +25,8 @@ class Heap {
 
   static bool InCodeSpace(Address address);
 
+  static bool InReadOnlySpace(Address address);
+
   static bool IsValidHeapObject(HeapObject object);
 
   bool CollectGarbage();
