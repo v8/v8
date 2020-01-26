@@ -465,7 +465,7 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* isolate, const char* location,
 }
 
 void Utils::ReportApiFailure(const char* location, const char* message) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = i::Isolate::TryGetCurrent();
   FatalErrorCallback callback = nullptr;
   if (isolate != nullptr) {
     callback = isolate->exception_behavior();
