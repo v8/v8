@@ -370,6 +370,15 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
 int GetSourcePosition(const WasmModule*, uint32_t func_index,
                       uint32_t byte_offset, bool is_at_number_conversion);
 
+// Translate function index to the index relative to the first declared (i.e.
+// non-imported) function.
+inline int declared_function_index(const WasmModule* module, int func_index) {
+  DCHECK_LE(module->num_imported_functions, func_index);
+  int declared_idx = func_index - module->num_imported_functions;
+  DCHECK_GT(module->num_declared_functions, declared_idx);
+  return declared_idx;
+}
+
 // TruncatedUserString makes it easy to output names up to a certain length, and
 // output a truncation followed by '...' if they exceed a limit.
 // Use like this:

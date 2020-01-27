@@ -5549,7 +5549,7 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
     if (is_asmjs_module(module)) {
       std::pair<int, int> offsets =
           module->asm_js_offset_information->GetFunctionOffsets(
-              function_data->function_index() - module->num_imported_functions);
+              declared_function_index(module, function_data->function_index()));
       Handle<String> source(
           String::cast(Script::cast(shared_info->script()).source()), isolate);
       return isolate->factory()->NewSubString(source, offsets.first,

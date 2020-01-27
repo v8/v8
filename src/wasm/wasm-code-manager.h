@@ -618,7 +618,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     DCHECK_LT(func_index, num_functions());
     DCHECK_LE(module_->num_imported_functions, func_index);
     if (!interpreter_redirections_) return false;
-    uint32_t bitset_idx = func_index - module_->num_imported_functions;
+    uint32_t bitset_idx = declared_function_index(module(), func_index);
     uint8_t byte = interpreter_redirections_[bitset_idx / kBitsPerByte];
     return byte & (1 << (bitset_idx % kBitsPerByte));
   }
@@ -632,7 +632,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
           new uint8_t[RoundUp<kBitsPerByte>(module_->num_declared_functions) /
                       kBitsPerByte]{});
     }
-    uint32_t bitset_idx = func_index - module_->num_imported_functions;
+    uint32_t bitset_idx = declared_function_index(module(), func_index);
     uint8_t& byte = interpreter_redirections_[bitset_idx / kBitsPerByte];
     byte |= 1 << (bitset_idx % kBitsPerByte);
   }

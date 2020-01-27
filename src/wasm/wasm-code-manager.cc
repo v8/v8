@@ -917,7 +917,7 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
   }
 
   // Add jump table entry for jump to the lazy compile stub.
-  uint32_t slot_index = func_index - module_->num_imported_functions;
+  uint32_t slot_index = declared_function_index(module(), func_index);
   DCHECK_NULL(code_table_[slot_index]);
   Address lazy_compile_target =
       lazy_compile_table_->instruction_start() +
@@ -1050,7 +1050,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
     // Unless tier down to Liftoff: update code table but avoid to fall back to
     // less optimized code. We use the new code if it was compiled with a higher
     // tier.
-    uint32_t slot_idx = code->index() - module_->num_imported_functions;
+    uint32_t slot_idx = declared_function_index(module(), code->index());
     WasmCode* prior_code = code_table_[slot_idx];
     bool update_code_table =
         tier_down_ ? !prior_code || code->tier() == ExecutionTier::kLiftoff
@@ -1122,18 +1122,14 @@ std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
 
 WasmCode* NativeModule::GetCode(uint32_t index) const {
   base::MutexGuard guard(&allocation_mutex_);
-  DCHECK_LT(index, num_functions());
-  DCHECK_LE(module_->num_imported_functions, index);
-  WasmCode* code = code_table_[index - module_->num_imported_functions];
+  WasmCode* code = code_table_[declared_function_index(module(), index)];
   if (code) WasmCodeRefScope::AddRef(code);
   return code;
 }
 
 bool NativeModule::HasCode(uint32_t index) const {
   base::MutexGuard guard(&allocation_mutex_);
-  DCHECK_LT(index, num_functions());
-  DCHECK_LE(module_->num_imported_functions, index);
-  return code_table_[index - module_->num_imported_functions] != nullptr;
+  return code_table_[declared_function_index(module(), index)] != nullptr;
 }
 
 void NativeModule::SetWasmSourceMap(
@@ -1346,8 +1342,7 @@ WasmCode* NativeModule::Lookup(Address pc) const {
 }
 
 uint32_t NativeModule::GetJumpTableOffset(uint32_t func_index) const {
-  uint32_t slot_idx = func_index - module_->num_imported_functions;
-  DCHECK_GT(module_->num_declared_functions, slot_idx);
+  uint32_t slot_idx = declared_function_index(module(), func_index);
   return JumpTableAssembler::JumpSlotIndexToOffset(slot_idx);
 }
 

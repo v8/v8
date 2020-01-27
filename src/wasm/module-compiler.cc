@@ -642,7 +642,7 @@ ExecutionTier ApplyHintToExecutionTier(WasmCompilationHintTier hint,
 const WasmCompilationHint* GetCompilationHint(const WasmModule* module,
                                               uint32_t func_index) {
   DCHECK_LE(module->num_imported_functions, func_index);
-  uint32_t hint_index = func_index - module->num_imported_functions;
+  uint32_t hint_index = declared_function_index(module, func_index);
   const std::vector<WasmCompilationHint>& compilation_hints =
       module->compilation_hints;
   if (hint_index < compilation_hints.size()) {
@@ -2560,7 +2560,7 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
       // compiled code. Any lazily compiled function does not contribute to the
       // compilation progress but may publish code to the code manager.
       int slot_index =
-          code->index() - native_module_->module()->num_imported_functions;
+          declared_function_index(native_module_->module(), code->index());
       uint8_t function_progress = compilation_progress_[slot_index];
       ExecutionTier required_baseline_tier =
           RequiredBaselineTierField::decode(function_progress);

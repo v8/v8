@@ -117,14 +117,15 @@ AsmJsOffsetInformation::AsmJsOffsetInformation(
 
 AsmJsOffsetInformation::~AsmJsOffsetInformation() = default;
 
-int AsmJsOffsetInformation::GetSourcePosition(int func_index, int byte_offset,
+int AsmJsOffsetInformation::GetSourcePosition(int declared_func_index,
+                                              int byte_offset,
                                               bool is_at_number_conversion) {
   EnsureDecodedOffsets();
 
-  DCHECK_LE(0, func_index);
-  DCHECK_GT(decoded_offsets_->functions.size(), func_index);
+  DCHECK_LE(0, declared_func_index);
+  DCHECK_GT(decoded_offsets_->functions.size(), declared_func_index);
   std::vector<AsmJsOffsetEntry>& function_offsets =
-      decoded_offsets_->functions[func_index].entries;
+      decoded_offsets_->functions[declared_func_index].entries;
 
   auto byte_offset_less = [](const AsmJsOffsetEntry& a,
                              const AsmJsOffsetEntry& b) {
@@ -141,13 +142,14 @@ int AsmJsOffsetInformation::GetSourcePosition(int func_index, int byte_offset,
                                  : it->source_position_call;
 }
 
-std::pair<int, int> AsmJsOffsetInformation::GetFunctionOffsets(int func_index) {
+std::pair<int, int> AsmJsOffsetInformation::GetFunctionOffsets(
+    int declared_func_index) {
   EnsureDecodedOffsets();
 
-  DCHECK_LE(0, func_index);
-  DCHECK_GT(decoded_offsets_->functions.size(), func_index);
+  DCHECK_LE(0, declared_func_index);
+  DCHECK_GT(decoded_offsets_->functions.size(), declared_func_index);
   AsmJsOffsetFunctionEntries& function_info =
-      decoded_offsets_->functions[func_index];
+      decoded_offsets_->functions[declared_func_index];
 
   return {function_info.start_offset, function_info.end_offset};
 }
@@ -616,11 +618,8 @@ int GetSourcePosition(const WasmModule* module, uint32_t func_index,
   }
 
   // asm.js modules have an additional offset table that must be searched.
-  // Note: {AsmJsOffsetInformation::GetSourcePosition} expects the function
-  // index relative to the first non-imported function.
-  DCHECK_LE(module->num_imported_functions, func_index);
   return module->asm_js_offset_information->GetSourcePosition(
-      func_index - module->num_imported_functions, byte_offset,
+      declared_function_index(module, func_index), byte_offset,
       is_at_number_conversion);
 }
 
