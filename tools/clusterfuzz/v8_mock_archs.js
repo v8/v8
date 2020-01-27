@@ -30,6 +30,7 @@
   }
 
   ArrayBuffer = mock(ArrayBuffer);
+  SharedArrayBuffer = mock(SharedArrayBuffer);
   Int8Array = mock(Int8Array);
   Uint8Array = mock(Uint8Array);
   Uint8ClampedArray = mock(Uint8ClampedArray);
