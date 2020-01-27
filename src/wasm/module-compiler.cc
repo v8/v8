@@ -1405,8 +1405,8 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   native_module->SetWireBytes(std::move(wire_bytes_copy));
 
   CompileNativeModule(isolate, thrower, wasm_module, native_module.get());
-  isolate->wasm_engine()->UpdateNativeModuleCache(thrower->error(),
-                                                  &native_module);
+  isolate->wasm_engine()->UpdateNativeModuleCache(native_module,
+                                                  thrower->error());
   if (thrower->error()) return {};
 
   Impl(native_module->compilation_state())
@@ -1525,12 +1525,6 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   WasmEngine* wasm_engine_;
   std::unique_ptr<CompilationUnitBuilder> compilation_unit_builder_;
   int num_functions_ = 0;
-  bool prefix_cache_hit_ = false;
-
-  // Running hash of the wire bytes up to code section size, but excluding the
-  // code section itself. Used by the {NativeModuleCache} to detect potential
-  // duplicate modules.
-  size_t prefix_hash_;
 };
 
 std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
@@ -1584,17 +1578,6 @@ void AsyncCompileJob::CreateNativeModule(
   if (stream_) stream_->NotifyNativeModuleCreated(native_module_);
 }
 
-bool AsyncCompileJob::GetOrCreateNativeModule(
-    std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
-  native_module_ = isolate_->wasm_engine()->MaybeGetNativeModule(
-      module->origin, wire_bytes_.module_bytes());
-  if (native_module_ == nullptr) {
-    CreateNativeModule(std::move(module), code_size_estimate);
-    return false;
-  }
-  return true;
-}
-
 void AsyncCompileJob::PrepareRuntimeObjects() {
   // Create heap objects for script and module bytes to be stored in the
   // module object. Asm.js is not compiled asynchronously.
@@ -1613,7 +1596,7 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
 
 // This function assumes that it is executed in a HandleScope, and that a
 // context is set on the isolate.
-void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
+void AsyncCompileJob::FinishCompile() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "AsyncCompileJob::FinishCompile");
   bool is_after_deserialization = !module_object_.is_null();
@@ -1650,14 +1633,8 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   // just compile wrappers here.
   if (!is_after_deserialization) {
     Handle<FixedArray> export_wrappers;
-    if (is_after_cache_hit) {
-      // TODO(thibaudm): Look into sharing wrappers.
-      CompileJsToWasmWrappers(isolate_, module_object_->module(),
-                              &export_wrappers);
-    } else {
-      compilation_state->FinalizeJSToWasmWrappers(
-          isolate_, module_object_->module(), &export_wrappers);
-    }
+    compilation_state->FinalizeJSToWasmWrappers(
+        isolate_, module_object_->module(), &export_wrappers);
     module_object_->set_export_wrappers(*export_wrappers);
   }
   // We can only update the feature counts once the entire compile is done.
@@ -1705,15 +1682,12 @@ class AsyncCompileJob::CompilationStateCallback {
       case CompilationEvent::kFinishedBaselineCompilation:
         DCHECK(!last_event_.has_value());
         if (job_->DecrementAndCheckFinisherCount()) {
-          auto prev = job_->native_module_.get();
-          job_->isolate_->wasm_engine()->UpdateNativeModuleCache(
-              false, &job_->native_module_);
-          const bool cache_hit = prev != job_->native_module_.get();
-          if (cache_hit) {
-            job_->wire_bytes_ =
-                ModuleWireBytes(job_->native_module_->wire_bytes());
+          // TODO(v8:6847): Also share streaming compilation result.
+          if (job_->stream_ == nullptr) {
+            job_->isolate_->wasm_engine()->UpdateNativeModuleCache(
+                job_->native_module_, false);
           }
-          job_->DoSync<CompileFinished>(cache_hit);
+          job_->DoSync<CompileFinished>();
         }
         break;
       case CompilationEvent::kFinishedTopTierCompilation:
@@ -1724,8 +1698,11 @@ class AsyncCompileJob::CompilationStateCallback {
       case CompilationEvent::kFailedCompilation:
         DCHECK(!last_event_.has_value());
         if (job_->DecrementAndCheckFinisherCount()) {
-          job_->isolate_->wasm_engine()->UpdateNativeModuleCache(
-              true, &job_->native_module_);
+          // TODO(v8:6847): Also share streaming compilation result.
+          if (job_->stream_ == nullptr) {
+            job_->isolate_->wasm_engine()->UpdateNativeModuleCache(
+                job_->native_module_, true);
+          }
           job_->DoSync<CompileFailed>();
         }
         break;
@@ -1982,18 +1959,28 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
 
-    if (job->stream_ != nullptr) {
-      // Streaming compilation already checked for cache hits.
-      job->CreateNativeModule(module_, code_size_estimate_);
-    } else if (job->GetOrCreateNativeModule(std::move(module_),
-                                            code_size_estimate_)) {
-      job->FinishCompile(true);
-      return;
+    // TODO(v8:6847): Also share streaming compilation result.
+    if (job->stream_ == nullptr) {
+      auto cached_native_module =
+          job->isolate_->wasm_engine()->MaybeGetNativeModule(
+              module_->origin, job->wire_bytes_.module_bytes());
+      if (cached_native_module != nullptr) {
+        job->native_module_ = std::move(cached_native_module);
+        job->PrepareRuntimeObjects();
+        Handle<FixedArray> export_wrappers;
+        CompileJsToWasmWrappers(job->isolate_, job->native_module_->module(),
+                                &export_wrappers);
+        job->module_object_->set_export_wrappers(*export_wrappers);
+        job->FinishCompile();
+        return;
+      }
     }
 
     // Make sure all compilation tasks stopped running. Decoding (async step)
     // is done.
     job->background_task_manager_.CancelAndWait();
+
+    job->CreateNativeModule(module_, code_size_estimate_);
 
     CompilationStateImpl* compilation_state =
         Impl(job->native_module_->compilation_state());
@@ -2059,10 +2046,6 @@ class SampleTopTierCodeSizeCallback {
 // Step 3b (sync): Compilation finished.
 //==========================================================================
 class AsyncCompileJob::CompileFinished : public CompileStep {
- public:
-  explicit CompileFinished(bool is_after_cache_hit)
-      : is_after_cache_hit_(is_after_cache_hit) {}
-
  private:
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(3b) Compilation finished\n");
@@ -2075,10 +2058,8 @@ class AsyncCompileJob::CompileFinished : public CompileStep {
     job->native_module_->compilation_state()->AddCallback(
         SampleTopTierCodeSizeCallback{job->native_module_});
     // Then finalize and publish the generated module.
-    job->FinishCompile(is_after_cache_hit_);
+    job->FinishCompile();
   }
-
-  bool is_after_cache_hit_;
 };
 
 void AsyncCompileJob::FinishModule() {
@@ -2099,9 +2080,6 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
   // Make sure all background tasks stopped executing before we change the state
   // of the AsyncCompileJob to DecodeFail.
   job_->background_task_manager_.CancelAndWait();
-  if (!prefix_cache_hit_ && job_->native_module_) {
-    job_->isolate_->wasm_engine()->StreamingCompilationFailed(prefix_hash_);
-  }
 
   // Check if there is already a CompiledModule, in which case we have to clean
   // up the CompilationStateImpl as well.
@@ -2131,7 +2109,6 @@ bool AsyncStreamingProcessor::ProcessModuleHeader(Vector<const uint8_t> bytes,
     FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false).error());
     return false;
   }
-  prefix_hash_ = NativeModuleCache::WireBytesHash(bytes);
   return true;
 }
 
@@ -2145,10 +2122,6 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
     // compilation_unit_builder_ anymore.
     CommitCompilationUnits();
     compilation_unit_builder_.reset();
-  } else {
-    // Combine section hashes until code section.
-    prefix_hash_ = base::hash_combine(prefix_hash_,
-                                      NativeModuleCache::WireBytesHash(bytes));
   }
   if (section_code == SectionCode::kUnknownSectionCode) {
     Decoder decoder(bytes, offset);
@@ -2184,15 +2157,6 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
     FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false).error());
     return false;
   }
-
-  prefix_hash_ = base::hash_combine(prefix_hash_,
-                                    static_cast<uint32_t>(code_section_length));
-  if (!wasm_engine_->GetStreamingCompilationOwnership(prefix_hash_)) {
-    // Known prefix, wait until the end of the stream and check the cache.
-    prefix_cache_hit_ = true;
-    return true;
-  }
-
   // Execute the PrepareAndStartCompile step immediately and not in a separate
   // task.
   int num_imported_functions =
@@ -2237,12 +2201,6 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
 
   decoder_.DecodeFunctionBody(
       num_functions_, static_cast<uint32_t>(bytes.length()), offset, false);
-
-  // Don't compile yet if we might have a cache hit.
-  if (prefix_cache_hit_) {
-    num_functions_++;
-    return true;
-  }
 
   NativeModule* native_module = job_->native_module_.get();
   const WasmModule* module = native_module->module();
@@ -2306,22 +2264,6 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
     FinishAsyncCompileJobWithError(result.error());
     return;
   }
-
-  job_->wire_bytes_ = ModuleWireBytes(bytes.as_vector());
-  job_->bytes_copy_ = bytes.ReleaseData();
-
-  if (prefix_cache_hit_) {
-    // Restart as an asynchronous, non-streaming compilation. Most likely
-    // {PrepareAndStartCompile} will get the native module from the cache.
-    job_->stream_ = nullptr;
-    size_t code_size_estimate =
-        wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-            result.value().get(), FLAG_liftoff);
-    job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(
-        std::move(result).value(), true, code_size_estimate);
-    return;
-  }
-
   // We have to open a HandleScope and prepare the Context for
   // CreateNativeModule, PrepareRuntimeObjects and FinishCompile as this is a
   // callback from the embedder.
@@ -2331,33 +2273,23 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   // Record the size of the wire bytes. In synchronous and asynchronous
   // (non-streaming) compilation, this happens in {DecodeWasmModule}.
   auto* histogram = job_->isolate_->counters()->wasm_wasm_module_size_bytes();
-  histogram->AddSample(job_->wire_bytes_.module_bytes().length());
+  histogram->AddSample(static_cast<int>(bytes.size()));
 
-  const bool has_code_section = job_->native_module_ != nullptr;
-  bool cache_hit = false;
-  if (!has_code_section) {
+  bool needs_finish = job_->DecrementAndCheckFinisherCount();
+  if (job_->native_module_ == nullptr) {
     // We are processing a WebAssembly module without code section. Create the
-    // native module now (would otherwise happen in {PrepareAndStartCompile} or
-    // {ProcessCodeSectionHeader}).
+    // runtime objects now (would otherwise happen in {PrepareAndStartCompile}).
     constexpr size_t kCodeSizeEstimate = 0;
-    cache_hit = job_->GetOrCreateNativeModule(std::move(result).value(),
-                                              kCodeSizeEstimate);
-  } else {
-    job_->native_module_->SetWireBytes(
-        {std::move(job_->bytes_copy_), job_->wire_bytes_.length()});
+    job_->CreateNativeModule(std::move(result).value(), kCodeSizeEstimate);
+    DCHECK(needs_finish);
   }
-  const bool needs_finish = job_->DecrementAndCheckFinisherCount();
-  DCHECK_IMPLIES(!has_code_section, needs_finish);
+  job_->wire_bytes_ = ModuleWireBytes(bytes.as_vector());
+  job_->native_module_->SetWireBytes(std::move(bytes));
   if (needs_finish) {
-    const bool failed = job_->native_module_->compilation_state()->failed();
-    auto prev = job_->native_module_;
-    job_->isolate_->wasm_engine()->UpdateNativeModuleCache(
-        failed, &job_->native_module_);
-    cache_hit = prev != job_->native_module_;
-    if (failed) {
+    if (job_->native_module_->compilation_state()->failed()) {
       job_->AsyncCompileFailed();
     } else {
-      job_->FinishCompile(cache_hit);
+      job_->FinishCompile();
     }
   }
 }
@@ -2389,7 +2321,7 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
       job_->isolate_->global_handles()->Create(*result.ToHandleChecked());
   job_->native_module_ = job_->module_object_->shared_native_module();
   job_->wire_bytes_ = ModuleWireBytes(job_->native_module_->wire_bytes());
-  job_->FinishCompile(false);
+  job_->FinishCompile();
   return true;
 }
 
