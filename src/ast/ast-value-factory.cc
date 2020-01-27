@@ -170,10 +170,18 @@ void AstConsString::Internalize(Factory* factory) {
   FactoryHandle<Factory, String> tmp(segment_.string->string().get<Factory>());
   for (AstConsString::Segment* current = segment_.next; current != nullptr;
        current = current->next) {
-    tmp = factory
-              ->NewConsString(current->string->string().get<Factory>(), tmp,
-                              AllocationType::kOld)
-              .ToHandleChecked();
+    tmp =
+        factory
+            ->NewConsString(
+                current->string->string().get<Factory>(), tmp,
+                // TODO(leszeks): This is to avoid memory regressions while this
+                // path is under development -- the off-thread factory doesn't
+                // support young allocations. Figure out a way to avoid memory
+                // regressions related to ConsStrings in the off-thread path.
+                std::is_same<Factory, OffThreadFactory>::value
+                    ? AllocationType::kOld
+                    : AllocationType::kYoung)
+            .ToHandleChecked();
   }
   set_string(tmp);
 }
