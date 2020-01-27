@@ -384,6 +384,7 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  StoreType type) {
+  DCHECK(!cache_state()->is_used(value));
   if (emit_debug_code() && offset_reg != no_reg) {
     AssertZeroExtended(offset_reg);
   }
@@ -415,7 +416,40 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  StoreType type) {
-  bailout(kAtomics, "AtomicSub");
+  DCHECK(!cache_state()->is_used(value));
+  if (emit_debug_code() && offset_reg != no_reg) {
+    AssertZeroExtended(offset_reg);
+  }
+  Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+  switch (type.value()) {
+    case StoreType::kI32Store8:
+    case StoreType::kI64Store8:
+      negb(value.gp());
+      lock();
+      xaddb(dst_op, value.gp());
+      movzxbq(value.gp(), value.gp());
+      break;
+    case StoreType::kI32Store16:
+    case StoreType::kI64Store16:
+      negw(value.gp());
+      lock();
+      xaddw(dst_op, value.gp());
+      movzxwq(value.gp(), value.gp());
+      break;
+    case StoreType::kI32Store:
+    case StoreType::kI64Store32:
+      negl(value.gp());
+      lock();
+      xaddl(dst_op, value.gp());
+      break;
+    case StoreType::kI64Store:
+      negq(value.gp());
+      lock();
+      xaddq(dst_op, value.gp());
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 namespace liftoff {
