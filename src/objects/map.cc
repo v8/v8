@@ -180,6 +180,9 @@ VisitorId Map::GetVisitorId(Map map) {
     case FEEDBACK_CELL_TYPE:
       return kVisitFeedbackCell;
 
+    case FEEDBACK_METADATA_TYPE:
+      return kVisitFeedbackMetadata;
+
     case FEEDBACK_VECTOR_TYPE:
       return kVisitFeedbackVector;
 
@@ -322,7 +325,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case FILLER_TYPE:
     case FOREIGN_TYPE:
     case HEAP_NUMBER_TYPE:
-    case FEEDBACK_METADATA_TYPE:
       return kVisitDataObject;
 
     case BIGINT_TYPE:

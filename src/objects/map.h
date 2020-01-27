@@ -26,6 +26,7 @@ enum InstanceType : uint16_t;
   V(BigInt)                          \
   V(ByteArray)                       \
   V(DataObject)                      \
+  V(FeedbackMetadata)                \
   V(FixedDoubleArray)                \
   V(SeqOneByteString)                \
   V(SeqTwoByteString)

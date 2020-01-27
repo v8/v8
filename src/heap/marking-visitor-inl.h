@@ -352,14 +352,18 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
 // ===========================================================================
 
 template <typename ConcreteVisitor, typename MarkingState>
-void MarkingVisitorBase<ConcreteVisitor, MarkingState>::
-    MarkDescriptorArrayBlack(HeapObject host, DescriptorArray descriptors) {
+size_t
+MarkingVisitorBase<ConcreteVisitor, MarkingState>::MarkDescriptorArrayBlack(
+    HeapObject host, DescriptorArray descriptors) {
   concrete_visitor()->marking_state()->WhiteToGrey(descriptors);
   if (concrete_visitor()->marking_state()->GreyToBlack(descriptors)) {
     VisitPointer(descriptors, descriptors.map_slot());
     VisitPointers(descriptors, descriptors.GetFirstPointerSlot(),
                   descriptors.GetDescriptorSlot(0));
+    return DescriptorArray::BodyDescriptor::SizeOf(descriptors.map(),
+                                                   descriptors);
   }
+  return 0;
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
@@ -401,7 +405,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitMap(Map meta_map,
     // slot holding the descriptor array will be implicitly recorded when the
     // pointer fields of this map are visited.
     DescriptorArray descriptors = map.synchronized_instance_descriptors();
-    MarkDescriptorArrayBlack(map, descriptors);
+    size += MarkDescriptorArrayBlack(map, descriptors);
     int number_of_own_descriptors = map.NumberOfOwnDescriptors();
     if (number_of_own_descriptors) {
       // It is possible that the concurrent marker observes the

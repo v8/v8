@@ -1589,6 +1589,10 @@ void MarkCompactCollector::MarkStringTable(
   if (marking_state()->WhiteToBlack(string_table)) {
     // Explicitly mark the prefix.
     string_table.IteratePrefix(custom_root_body_visitor);
+    if (marking_worklists()->IsPerContextMode()) {
+      native_context_stats_.IncrementSize(MarkingWorklists::kSharedContext,
+                                          string_table.Size());
+    }
   }
 }
 
