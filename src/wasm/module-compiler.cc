@@ -1707,7 +1707,10 @@ class AsyncCompileJob::CompilationStateCallback {
         }
         break;
       case CompilationEvent::kFinishedRecompilation:
-        break;
+        // This event can happen either before or after
+        // {kFinishedTopTierCompilation}, hence don't remember this in
+        // {last_event_}.
+        return;
       default:
         UNREACHABLE();
     }
