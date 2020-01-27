@@ -835,3 +835,7 @@ assertEquals("[/]]", /[/]]/.source);
 assertEquals("[[/]]", /[[/]]/.source);
 assertEquals("[[\\/]", /[[\/]/.source);
 assertEquals("[[\\/]]", /[[\/]]/.source);
+assertEquals("\\n", new RegExp("\\\n").source);
+assertEquals("\\r", new RegExp("\\\r").source);
+assertEquals("\\u2028", new RegExp("\\\u2028").source);
+assertEquals("\\u2029", new RegExp("\\\u2029").source);
