@@ -57,6 +57,12 @@ Address DeserializerAllocator::Allocate(SnapshotSpace space, int size) {
   Address address;
   HeapObject obj;
 
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    AllocationType type = (space == SnapshotSpace::kCode)
+                              ? AllocationType::kCode
+                              : AllocationType::kYoung;
+    return heap_->DeserializerAllocate(type, size);
+  }
   if (next_alignment_ != kWordAligned) {
     const int reserved = size + Heap::GetMaximumFillToAlign(next_alignment_);
     address = AllocateRaw(space, reserved);
