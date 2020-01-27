@@ -637,7 +637,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
 
     Reader reader(data + WasmSerializer::kHeaderSize);
     bool error = !deserializer.Read(&reader);
-    wasm_engine->UpdateNativeModuleCache(shared_native_module, error);
+    wasm_engine->UpdateNativeModuleCache(error, &shared_native_module);
     if (error) return {};
   }
 

@@ -5,6 +5,8 @@
 #ifndef V8_WASM_WASM_ENGINE_H_
 #define V8_WASM_WASM_ENGINE_H_
 
+#include <algorithm>
+#include <map>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -51,14 +53,42 @@ class V8_EXPORT_PRIVATE InstantiationResultResolver {
 // Native modules cached by their wire bytes.
 class NativeModuleCache {
  public:
-  struct WireBytesHasher {
-    size_t operator()(const Vector<const uint8_t>& bytes) const;
+  struct Key {
+    // Store the prefix hash as part of the key for faster lookup, and to
+    // quickly check existing prefixes for streaming compilation.
+    size_t prefix_hash;
+    Vector<const uint8_t> bytes;
+
+    bool operator==(const Key& other) const {
+      bool eq = bytes == other.bytes;
+      DCHECK_IMPLIES(eq, prefix_hash == other.prefix_hash);
+      return eq;
+    }
+
+    bool operator<(const Key& other) const {
+      if (prefix_hash != other.prefix_hash) {
+        return prefix_hash < other.prefix_hash;
+      }
+      return std::lexicographical_compare(
+          bytes.begin(), bytes.end(), other.bytes.begin(), other.bytes.end());
+    }
   };
 
   std::shared_ptr<NativeModule> MaybeGetNativeModule(
       ModuleOrigin origin, Vector<const uint8_t> wire_bytes);
-  void Update(std::shared_ptr<NativeModule> native_module, bool error);
+  bool GetStreamingCompilationOwnership(size_t prefix_hash);
+  void StreamingCompilationFailed(size_t prefix_hash);
+  std::shared_ptr<NativeModule> Update(
+      std::shared_ptr<NativeModule> native_module, bool error);
   void Erase(NativeModule* native_module);
+
+  static size_t WireBytesHash(Vector<const uint8_t> bytes);
+
+  // Hash the wire bytes up to the code section header. Used as a heuristic to
+  // avoid streaming compilation of modules that are likely already in the
+  // cache. See {GetStreamingCompilationOwnership}. Assumes that the bytes have
+  // already been validated.
+  static size_t PrefixHash(Vector<const uint8_t> wire_bytes);
 
  private:
   // Each key points to the corresponding native module's wire bytes, so they
@@ -72,10 +102,7 @@ class NativeModuleCache {
   // before trying to get it from the cache.
   // By contrast, an expired {weak_ptr} indicates that the native module died
   // and will soon be cleaned up from the cache.
-  std::unordered_map<Vector<const uint8_t>,
-                     base::Optional<std::weak_ptr<NativeModule>>,
-                     WireBytesHasher>
-      map_;
+  std::map<Key, base::Optional<std::weak_ptr<NativeModule>>> map_;
 
   base::Mutex mutex_;
 
@@ -226,21 +253,39 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Isolate* isolate, const WasmFeatures& enabled_features,
       std::shared_ptr<const WasmModule> module, size_t code_size_estimate);
 
-  // Try getting a cached {NativeModule}. The {wire_bytes}' underlying array
-  // should be valid at least until the next call to {UpdateNativeModuleCache}.
-  // Return nullptr if no {NativeModule} exists for these bytes. In this case,
-  // an empty entry is added to let other threads know that a {NativeModule} for
-  // these bytes is currently being created. The caller should eventually call
-  // {UpdateNativeModuleCache} to update the entry and wake up other threads.
+  // Try getting a cached {NativeModule}, or get ownership for its creation.
+  // Return {nullptr} if no {NativeModule} exists for these bytes. In this case,
+  // a {nullopt} entry is added to let other threads know that a {NativeModule}
+  // for these bytes is currently being created. The caller should eventually
+  // call {UpdateNativeModuleCache} to update the entry and wake up other
+  // threads. The {wire_bytes}' underlying array should be valid at least until
+  // the call to {UpdateNativeModuleCache}.
   std::shared_ptr<NativeModule> MaybeGetNativeModule(
       ModuleOrigin origin, Vector<const uint8_t> wire_bytes);
 
-  // Update the temporary entry inserted by {MaybeGetNativeModule}.
-  // If {error} is true, the entry is erased. Otherwise the entry is updated to
-  // match the {native_module} argument. Wake up threads waiting for this native
+  // Replace the temporary {nullopt} with the new native module, or
+  // erase it if any error occurred. Wake up blocked threads waiting for this
   // module.
-  void UpdateNativeModuleCache(std::shared_ptr<NativeModule> native_module,
-                               bool error);
+  // To avoid a deadlock on the main thread between synchronous and streaming
+  // compilation, two compilation jobs might compile the same native module at
+  // the same time. In this case the first call to {UpdateNativeModuleCache}
+  // will insert the native module in the cache, and the last call will discard
+  // its {native_module} argument and replace it with the existing entry.
+  void UpdateNativeModuleCache(bool error,
+                               std::shared_ptr<NativeModule>* native_module);
+
+  // Register this prefix hash for a streaming compilation job.
+  // If the hash is not in the cache yet, the function returns true and the
+  // caller owns the compilation of this module.
+  // Otherwise another compilation job is currently preparing or has already
+  // prepared a module with the same prefix hash. The caller should wait until
+  // the stream is finished and call {MaybeGetNativeModule} to either get the
+  // module from the cache or get ownership for the compilation of these bytes.
+  bool GetStreamingCompilationOwnership(size_t prefix_hash);
+
+  // Remove the prefix hash from the cache when compilation failed. If
+  // compilation succeeded, {UpdateNativeModuleCache} should be called instead.
+  void StreamingCompilationFailed(size_t prefix_hash);
 
   void FreeNativeModule(NativeModule*);
 

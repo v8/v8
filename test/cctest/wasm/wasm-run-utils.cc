@@ -69,6 +69,12 @@ TestingModuleBuilder::TestingModuleBuilder(
   }
 }
 
+TestingModuleBuilder::~TestingModuleBuilder() {
+  // When the native module dies and is erased from the cache, it is expected to
+  // have either valid bytes or no bytes at all.
+  native_module_->SetWireBytes({});
+}
+
 byte* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {
   CHECK(!test_module_->has_memory);
   CHECK_NULL(mem_start_);

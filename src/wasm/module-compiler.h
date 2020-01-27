@@ -149,9 +149,12 @@ class AsyncCompileJob {
 
   void CreateNativeModule(std::shared_ptr<const WasmModule> module,
                           size_t code_size_estimate);
+  // Return true for cache hit, false for cache miss.
+  bool GetOrCreateNativeModule(std::shared_ptr<const WasmModule> module,
+                               size_t code_size_estimate);
   void PrepareRuntimeObjects();
 
-  void FinishCompile();
+  void FinishCompile(bool is_after_cache_hit);
 
   void DecodeFailed(const WasmError&);
   void AsyncCompileFailed();
