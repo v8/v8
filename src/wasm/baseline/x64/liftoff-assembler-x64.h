@@ -393,10 +393,12 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
     case StoreType::kI32Store8:
     case StoreType::kI64Store8:
       xaddb(dst_op, value.gp());
+      movzxbq(value.gp(), value.gp());
       break;
     case StoreType::kI32Store16:
     case StoreType::kI64Store16:
       xaddw(dst_op, value.gp());
+      movzxwq(value.gp(), value.gp());
       break;
     case StoreType::kI32Store:
     case StoreType::kI64Store32:
