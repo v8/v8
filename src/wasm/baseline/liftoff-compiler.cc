@@ -286,14 +286,17 @@ class LiftoffCompiler {
   LiftoffCompiler(compiler::CallDescriptor* call_descriptor,
                   CompilationEnv* env, Zone* compilation_zone,
                   std::unique_ptr<AssemblerBuffer> buffer,
-                  DebugSideTableBuilder* debug_sidetable_builder)
+                  DebugSideTableBuilder* debug_sidetable_builder,
+                  Vector<int> breakpoints = {})
       : asm_(std::move(buffer)),
         descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
         env_(env),
         debug_sidetable_builder_(debug_sidetable_builder),
         compilation_zone_(compilation_zone),
-        safepoint_table_builder_(compilation_zone_) {}
+        safepoint_table_builder_(compilation_zone_),
+        next_breakpoint_ptr_(breakpoints.begin()),
+        next_breakpoint_end_(breakpoints.end()) {}
 
   bool did_bailout() const { return bailout_reason_ != kSuccess; }
   LiftoffBailoutReason bailout_reason() const { return bailout_reason_; }
@@ -615,6 +618,8 @@ class LiftoffCompiler {
   }
 
   void FinishFunction(FullDecoder* decoder) {
+    // All breakpoints (if any) must be emitted by now.
+    DCHECK_NULL(next_breakpoint_ptr_);
     if (DidAssemblerBailout(decoder)) return;
     for (OutOfLineCode& ool : out_of_line_code_) {
       GenerateOutOfLineCode(&ool);
@@ -635,9 +640,22 @@ class LiftoffCompiler {
   }
 
   void NextInstruction(FullDecoder* decoder, WasmOpcode opcode) {
+    if (V8_UNLIKELY(next_breakpoint_ptr_) &&
+        *next_breakpoint_ptr_ == decoder->position()) {
+      ++next_breakpoint_ptr_;
+      if (next_breakpoint_ptr_ == next_breakpoint_end_) {
+        next_breakpoint_ptr_ = next_breakpoint_end_ = nullptr;
+      }
+      EmitBreakpoint();
+    }
     TraceCacheState(decoder);
     SLOW_DCHECK(__ ValidateCacheState());
     DEBUG_CODE_COMMENT(WasmOpcodes::OpcodeName(opcode));
+  }
+
+  void EmitBreakpoint() {
+    DEBUG_CODE_COMMENT("breakpoint");
+    // TODO(clemensb): Actually emit a breakpoint.
   }
 
   void Block(FullDecoder* decoder, Control* block) {}
@@ -2429,6 +2447,10 @@ class LiftoffCompiler {
   // The pc offset of the instructions to reserve the stack frame. Needed to
   // patch the actually needed stack size in the end.
   uint32_t pc_offset_stack_frame_construction_ = 0;
+  // For emitting breakpoint, we store a pointer to the position of the next
+  // breakpoint, and a pointer after the list of breakpoints as end marker.
+  int* next_breakpoint_ptr_ = nullptr;
+  int* next_breakpoint_end_ = nullptr;
 
   bool has_outstanding_op() const {
     return outstanding_op_ != kNoOutstandingOp;
@@ -2454,12 +2476,10 @@ class LiftoffCompiler {
 
 }  // namespace
 
-WasmCompilationResult ExecuteLiftoffCompilation(AccountingAllocator* allocator,
-                                                CompilationEnv* env,
-                                                const FunctionBody& func_body,
-                                                int func_index,
-                                                Counters* counters,
-                                                WasmFeatures* detected) {
+WasmCompilationResult ExecuteLiftoffCompilation(
+    AccountingAllocator* allocator, CompilationEnv* env,
+    const FunctionBody& func_body, int func_index, Counters* counters,
+    WasmFeatures* detected, Vector<int> breakpoints) {
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteLiftoffCompilation", "func_index", func_index,
@@ -2481,7 +2501,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(AccountingAllocator* allocator,
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
       &zone, env->module, env->enabled_features, detected, func_body,
       call_descriptor, env, &zone, instruction_buffer->CreateView(),
-      kNoDebugSideTable);
+      kNoDebugSideTable, breakpoints);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();

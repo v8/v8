@@ -597,10 +597,9 @@ class DebugInfoImpl {
     FunctionBody body{function->sig, function->code.offset(),
                       wire_bytes.begin() + function->code.offset(),
                       wire_bytes.begin() + function->code.end_offset()};
-    // TODO(clemensb): Pass breakpoints to Liftoff.
-    WasmCompilationResult result =
-        ExecuteLiftoffCompilation(native_module_->engine()->allocator(), &env,
-                                  body, func_index, nullptr, nullptr);
+    WasmCompilationResult result = ExecuteLiftoffCompilation(
+        native_module_->engine()->allocator(), &env, body, func_index, nullptr,
+        nullptr, VectorOf(breakpoints));
     DCHECK(result.succeeded());
 
     WasmCodeRefScope wasm_code_ref_scope;

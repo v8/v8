@@ -54,7 +54,7 @@ enum LiftoffBailoutReason : int8_t {
 
 V8_EXPORT_PRIVATE WasmCompilationResult ExecuteLiftoffCompilation(
     AccountingAllocator*, CompilationEnv*, const FunctionBody&, int func_index,
-    Counters*, WasmFeatures* detected_features);
+    Counters*, WasmFeatures* detected_features, Vector<int> breakpoints = {});
 
 V8_EXPORT_PRIVATE DebugSideTable GenerateLiftoffDebugSideTable(
     AccountingAllocator*, CompilationEnv*, const FunctionBody&);
