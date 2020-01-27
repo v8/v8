@@ -13,6 +13,9 @@ Protocol.Runtime.enable();
   InspectorTest.log('Test "const" declaration is side-effecting');
   await evaluateRepl('const y = 42;');
 
+  InspectorTest.log('Test "const" with side-effects works afterwards');
+  await evaluateReplWithSideEffects('const y = 42;');
+
   InspectorTest.log('Test side-effect free expressions can be eagerly evaluated');
   await evaluateRepl('1 + 2');
   await evaluateRepl('"hello " + "REPL"');
@@ -27,5 +30,13 @@ async function evaluateRepl(expression) {
     expression: expression,
     replMode: true,
     throwOnSideEffect: true
+  }));
+}
+
+async function evaluateReplWithSideEffects(expression) {
+  InspectorTest.logMessage(await Protocol.Runtime.evaluate({
+    expression: expression,
+    replMode: true,
+    throwOnSideEffect: false
   }));
 }

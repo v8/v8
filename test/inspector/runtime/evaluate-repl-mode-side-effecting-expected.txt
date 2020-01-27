@@ -53,6 +53,15 @@ Test "const" declaration is side-effecting
         }
     }
 }
+Test "const" with side-effects works afterwards
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
 Test side-effect free expressions can be eagerly evaluated
 {
     id : <messageId>
