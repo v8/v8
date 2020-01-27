@@ -56,13 +56,16 @@ Address DeserializerAllocator::AllocateRaw(SnapshotSpace space, int size) {
 Address DeserializerAllocator::Allocate(SnapshotSpace space, int size) {
   Address address;
   HeapObject obj;
-
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     AllocationType type = (space == SnapshotSpace::kCode)
                               ? AllocationType::kCode
                               : AllocationType::kYoung;
     return heap_->DeserializerAllocate(type, size);
   }
+  // TODO(steveblackburn) The following logic and AllocateRaw() above should
+  // be lifted into Heap, pushing the logic to heap_->DeserializerAllocate().
+  // The implementation below and AllocateRaw() above leak heap abstractions
+  // such as particular structure of heap spaces.
   if (next_alignment_ != kWordAligned) {
     const int reserved = size + Heap::GetMaximumFillToAlign(next_alignment_);
     address = AllocateRaw(space, reserved);
