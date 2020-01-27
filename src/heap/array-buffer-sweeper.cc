@@ -100,6 +100,9 @@ void ArrayBufferSweeper::RequestSweepFull() {
 void ArrayBufferSweeper::RequestSweep(SweepingScope scope) {
   DCHECK(!sweeping_in_progress_);
 
+  if (young_.IsEmpty() && (old_.IsEmpty() || scope == SweepingScope::Young))
+    return;
+
   if (!heap_->IsTearingDown() && !heap_->ShouldReduceMemory() &&
       FLAG_concurrent_array_buffer_sweeping) {
     Prepare(scope);
