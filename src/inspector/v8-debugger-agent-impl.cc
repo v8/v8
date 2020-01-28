@@ -1665,6 +1665,7 @@ void V8DebuggerAgentImpl::didPause(
 void V8DebuggerAgentImpl::didContinue() {
   clearBreakDetails();
   m_frontend.resumed();
+  m_frontend.flush();
 }
 
 void V8DebuggerAgentImpl::breakProgram(
