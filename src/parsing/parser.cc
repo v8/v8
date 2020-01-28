@@ -735,6 +735,8 @@ void Parser::ParseREPLProgram(ParseInfo* info, ScopedPtrList<Statement>* body,
     block = factory()->NewBlock(true, statements);
   }
 
+  if (has_error()) return;
+
   base::Optional<VariableProxy*> maybe_result =
       Rewriter::RewriteBody(info, scope, block->statements());
   Expression* result_value =

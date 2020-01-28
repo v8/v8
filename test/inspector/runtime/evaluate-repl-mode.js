@@ -13,6 +13,10 @@ Protocol.Runtime.enable();
   evaluateRepl('let x = 42;');
   evaluateRepl('x;');
 
+  // Regression test for crbug.com/1040034.
+  InspectorTest.log("SyntaxError in REPL mode does not crash the parser");
+  evaluateRepl('if (true) const x');
+
   InspectorTest.completeTest();
 })();
 

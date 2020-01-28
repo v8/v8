@@ -1,5 +1,6 @@
 Tests that Runtime.evaluate works with REPL mode.
 Test 'let' re-declaration
+SyntaxError in REPL mode does not crash the parser
 {
     id : <messageId>
     result : {
@@ -33,6 +34,32 @@ Test 'let' re-declaration
             description : 42
             type : number
             value : 42
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 10
+            exception : {
+                className : SyntaxError
+                description : SyntaxError: Unexpected token 'const'
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : SyntaxError
+            description : SyntaxError: Unexpected token 'const'
+            objectId : <objectId>
+            subtype : error
+            type : object
         }
     }
 }
