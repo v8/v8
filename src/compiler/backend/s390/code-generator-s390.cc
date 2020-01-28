@@ -3378,6 +3378,85 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VECTOR_SHIFT(vesrlv, 0);
       break;
     }
+    // vector unary ops
+    case kS390_F32x4Abs: {
+      __ vfpso(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               Condition(2), Condition(0), Condition(2));
+      break;
+    }
+    case kS390_F32x4Neg: {
+      __ vfpso(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               Condition(0), Condition(0), Condition(2));
+      break;
+    }
+    case kS390_I32x4Neg: {
+      __ vlc(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0),
+             Condition(0), Condition(2));
+      break;
+    }
+    case kS390_I16x8Neg: {
+      __ vlc(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0),
+             Condition(0), Condition(1));
+      break;
+    }
+    case kS390_I8x16Neg: {
+      __ vlc(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0),
+             Condition(0), Condition(0));
+      break;
+    }
+    case kS390_F32x4RecipApprox: {
+      __ lgfi(kScratchReg, Operand(1));
+      __ ConvertIntToFloat(kScratchDoubleReg, kScratchReg);
+      __ vrep(kScratchDoubleReg, kScratchDoubleReg, Operand(0), Condition(2));
+      __ vfd(i.OutputSimd128Register(), kScratchDoubleReg,
+             i.InputSimd128Register(0), Condition(0), Condition(0),
+             Condition(2));
+      break;
+    }
+    case kS390_F32x4RecipSqrtApprox: {
+      DoubleRegister tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      __ vfsq(tempFPReg1, i.InputSimd128Register(0), Condition(0), Condition(0),
+              Condition(2));
+      __ lgfi(kScratchReg, Operand(1));
+      __ ConvertIntToFloat(kScratchDoubleReg, kScratchReg);
+      __ vrep(kScratchDoubleReg, kScratchDoubleReg, Operand(0), Condition(2));
+      __ vfd(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
+             Condition(0), Condition(0), Condition(2));
+      break;
+    }
+    case kS390_S128Not: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vno(dst, src, src, Condition(0), Condition(0), Condition(0));
+      break;
+    }
+    // vector boolean unops
+    case kS390_S1x4AnyTrue:
+    case kS390_S1x8AnyTrue:
+    case kS390_S1x16AnyTrue: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Register dst = i.OutputRegister();
+      Register temp = i.TempRegister(0);
+      __ lgfi(dst, Operand(1));
+      __ xgr(temp, temp);
+      __ vtm(src, src, Condition(0), Condition(0), Condition(0));
+      __ locgr(Condition(8), dst, temp);
+      break;
+    }
+    case kS390_S1x4AllTrue:
+    case kS390_S1x8AllTrue:
+    case kS390_S1x16AllTrue: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Register dst = i.OutputRegister();
+      Register temp = i.TempRegister(0);
+      __ lgfi(temp, Operand(1));
+      __ xgr(dst, dst);
+      __ vceq(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
+              Condition(0), Condition(2));
+      __ vtm(src, kScratchDoubleReg, Condition(0), Condition(0), Condition(0));
+      __ locgr(Condition(1), dst, temp);
+      break;
+    }
     // vector bitwise ops
     case kS390_S128And: {
       Simd128Register dst = i.OutputSimd128Register();
@@ -3404,12 +3483,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       Simd128Register src = i.InputSimd128Register(1);
       __ vx(dst, dst, src, Condition(0), Condition(0), Condition(0));
-      break;
-    }
-    case kS390_S128Not: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vno(dst, src, src, Condition(0), Condition(0), Condition(0));
       break;
     }
     case kS390_S128Select: {

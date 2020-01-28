@@ -2571,7 +2571,15 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(S128Or)                \
   V(S128Xor)
 
-#define SIMD_UNOP_LIST(V) V(S128Not)
+#define SIMD_UNOP_LIST(V) \
+  V(F32x4Abs)             \
+  V(F32x4Neg)             \
+  V(F32x4RecipApprox)     \
+  V(F32x4RecipSqrtApprox) \
+  V(I32x4Neg)             \
+  V(I16x8Neg)             \
+  V(I8x16Neg)             \
+  V(S128Not)
 
 #define SIMD_SHIFT_OPCODES(V) \
   V(I32x4Shl)                 \
@@ -2583,6 +2591,14 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I8x16Shl)                 \
   V(I8x16ShrS)                \
   V(I8x16ShrU)
+
+#define SIMD_BOOL_LIST(V) \
+  V(S1x4AnyTrue)          \
+  V(S1x8AnyTrue)          \
+  V(S1x16AnyTrue)         \
+  V(S1x4AllTrue)          \
+  V(S1x8AllTrue)          \
+  V(S1x16AllTrue)
 
 #define SIMD_VISIT_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
@@ -2632,11 +2648,12 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
 
-#define SIMD_VISIT_UNOP(Opcode)                         \
-  void InstructionSelector::Visit##Opcode(Node* node) { \
-    S390OperandGenerator g(this);                       \
-    Emit(kS390_##Opcode, g.DefineAsRegister(node),      \
-         g.UseRegister(node->InputAt(0)));              \
+#define SIMD_VISIT_UNOP(Opcode)                                     \
+  void InstructionSelector::Visit##Opcode(Node* node) {             \
+    S390OperandGenerator g(this);                                   \
+    InstructionOperand temps[] = {g.TempSimd128Register()};         \
+    Emit(kS390_##Opcode, g.DefineAsRegister(node),                  \
+         g.UseRegister(node->InputAt(0)), arraysize(temps), temps); \
   }
 SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
@@ -2652,6 +2669,16 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 SIMD_SHIFT_OPCODES(SIMD_VISIT_SHIFT)
 #undef SIMD_VISIT_SHIFT
 #undef SIMD_SHIFT_OPCODES
+
+#define SIMD_VISIT_BOOL(Opcode)                                           \
+  void InstructionSelector::Visit##Opcode(Node* node) {                   \
+    S390OperandGenerator g(this);                                         \
+    InstructionOperand temps[] = {g.TempRegister()};                      \
+    Emit(kS390_##Opcode, g.DefineAsRegister(node),                        \
+         g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps); \
+  }
+SIMD_BOOL_LIST(SIMD_VISIT_BOOL)
+#undef SIMD_VISIT_BOOL
 #undef SIMD_TYPES
 
 void InstructionSelector::VisitS128Zero(Node* node) {
@@ -2665,8 +2692,6 @@ void InstructionSelector::VisitS128Select(Node* node) {
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
        g.UseRegister(node->InputAt(2)));
 }
-
-void InstructionSelector::VisitI32x4Neg(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8AddSaturateS(Node* node) {
   UNIMPLEMENTED();
@@ -2684,8 +2709,6 @@ void InstructionSelector::VisitI16x8SubSaturateU(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitI16x8Neg(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitI16x8RoundingAverageU(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2693,8 +2716,6 @@ void InstructionSelector::VisitI16x8RoundingAverageU(Node* node) {
 void InstructionSelector::VisitI8x16RoundingAverageU(Node* node) {
   UNIMPLEMENTED();
 }
-
-void InstructionSelector::VisitI8x16Neg(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16AddSaturateS(Node* node) {
   UNIMPLEMENTED();
@@ -2744,16 +2765,6 @@ void InstructionSelector::VisitF32x4Div(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Min(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Max(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4Neg(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4Abs(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4RecipSqrtApprox(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitF32x4RecipApprox(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4SConvertI32x4(Node* node) {
   UNIMPLEMENTED();
@@ -2817,18 +2828,6 @@ void InstructionSelector::VisitI8x16SConvertI16x8(Node* node) {
 void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {
   UNIMPLEMENTED();
 }
-
-void InstructionSelector::VisitS1x4AnyTrue(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS1x4AllTrue(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS1x8AnyTrue(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS1x8AllTrue(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS1x16AnyTrue(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS1x16AllTrue(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
 
