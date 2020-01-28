@@ -1439,36 +1439,44 @@ transitioning builtin FastCreateDataProperty(implicit context: Context)(
     const array = Cast<FastJSArray>(receiver) otherwise Slow;
     const index: Smi = Cast<Smi>(key) otherwise goto Slow;
     if (index < 0 || index > array.length) goto Slow;
-    array::EnsureWriteableFastElements(array);
     const isAppend = index == array.length;
-    const kind = array.map.elements_kind;
-    // We may have to transition a.
-    // For now, if transition is required, jump away to slow.
-    if (IsFastSmiElementsKind(kind)) {
-      const smiValue = Cast<Smi>(value) otherwise Slow;
-      if (isAppend) {
+
+    if (isAppend) {
+      // Fast append only works on fast elements kind and with writable length.
+      const kind = EnsureArrayPushable(array.map) otherwise Slow;
+      array::EnsureWriteableFastElements(array);
+
+      // We may have to transition a.
+      // For now, if transition is required, jump away to slow.
+      if (IsFastSmiElementsKind(kind)) {
         BuildAppendJSArray(ElementsKind::HOLEY_SMI_ELEMENTS, array, value)
             otherwise Slow;
-      } else {
-        const elements = Cast<FixedArray>(array.elements) otherwise unreachable;
-        elements[index] = smiValue;
-      }
-    } else if (IsDoubleElementsKind(kind)) {
-      const numberValue = Cast<Number>(value) otherwise Slow;
-      if (isAppend) {
+      } else if (IsDoubleElementsKind(kind)) {
         BuildAppendJSArray(ElementsKind::HOLEY_DOUBLE_ELEMENTS, array, value)
             otherwise Slow;
       } else {
+        assert(IsFastSmiOrTaggedElementsKind(kind));
+        BuildAppendJSArray(ElementsKind::HOLEY_ELEMENTS, array, value)
+            otherwise Slow;
+      }
+    } else {
+      // Non-appending element store.
+      const kind = array.map.elements_kind;
+      array::EnsureWriteableFastElements(array);
+
+      // We may have to transition a.
+      // For now, if transition is required, jump away to slow.
+      if (IsFastSmiElementsKind(kind)) {
+        const smiValue = Cast<Smi>(value) otherwise Slow;
+        const elements = Cast<FixedArray>(array.elements) otherwise unreachable;
+        elements[index] = smiValue;
+      } else if (IsDoubleElementsKind(kind)) {
+        const numberValue = Cast<Number>(value) otherwise Slow;
         const doubleElements = Cast<FixedDoubleArray>(array.elements)
             otherwise unreachable;
         doubleElements[index] = numberValue;
-      }
-    } else {
-      assert(IsFastSmiOrTaggedElementsKind(kind));
-      if (isAppend) {
-        BuildAppendJSArray(ElementsKind::HOLEY_ELEMENTS, array, value)
-            otherwise Slow;
       } else {
+        assert(IsFastSmiOrTaggedElementsKind(kind));
         const elements = Cast<FixedArray>(array.elements) otherwise unreachable;
         elements[index] = value;
       }
