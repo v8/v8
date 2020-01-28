@@ -133,6 +133,10 @@ deps = {
     'url': Var('chromium_url') + '/android_ndk.git' + '@' + '27c0a8d090c666a50e40fceb4ee5b40b1a2d3f87',
     'condition': 'checkout_android',
   },
+  'v8/third_party/android_platform': {
+    'url': Var('chromium_url') + '/chromium/src/third_party/android_platform.git' + '@' + '2244b5ea295f8fda3179bef160c84ef8fa0ec9fc',
+    'condition': 'checkout_android',
+  },
   'v8/third_party/android_sdk/public': {
       'packages': [
           {
