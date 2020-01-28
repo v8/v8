@@ -62,6 +62,13 @@ struct ContextWorklistPair {
 // A helper class that owns all marking worklists.
 class V8_EXPORT_PRIVATE MarkingWorklistsHolder {
  public:
+  // Fake addresses of special contexts used for per-context accounting.
+  // - kSharedContext is for objects that are not attributed to any context.
+  // - kOtherContext is for objects that are attributed to contexts that are
+  //   not being measured.
+  static const Address kSharedContext = 0;
+  static const Address kOtherContext = 8;
+
   ~MarkingWorklistsHolder();
 
   // Calls the specified callback on each element of the deques and replaces
@@ -119,12 +126,17 @@ class V8_EXPORT_PRIVATE MarkingWorklistsHolder {
   std::vector<ContextWorklistPair> context_worklists_;
   // This is used only for lifetime management of the per-context worklists.
   std::vector<std::unique_ptr<MarkingWorklist>> worklists_;
+
+  // Worklist used for objects that are attributed to contexts that are
+  // not being measured.
+  MarkingWorklist other_;
 };
 
 // A thread-local view of the marking worklists.
 class V8_EXPORT_PRIVATE MarkingWorklists {
  public:
-  static const Address kSharedContext = 0;
+  static const Address kSharedContext = MarkingWorklistsHolder::kSharedContext;
+  static const Address kOtherContext = MarkingWorklistsHolder::kOtherContext;
 
   MarkingWorklists(int task_id, MarkingWorklistsHolder* holder);
 

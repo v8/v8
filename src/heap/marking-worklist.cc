@@ -41,8 +41,11 @@ void MarkingWorklistsHolder::CreateContextWorklists(
     const std::vector<Address>& contexts) {
   DCHECK(worklists_.empty());
   DCHECK(context_worklists_.empty());
+  if (contexts.empty()) return;
   worklists_.reserve(contexts.size());
-  context_worklists_.reserve(contexts.size());
+  context_worklists_.reserve(contexts.size() + 2);
+  context_worklists_.push_back({kSharedContext, &shared_});
+  context_worklists_.push_back({kOtherContext, &other_});
   for (Address context : contexts) {
     MarkingWorklist* worklist = new MarkingWorklist();
     worklists_.push_back(std::unique_ptr<MarkingWorklist>(worklist));
@@ -93,7 +96,6 @@ MarkingWorklists::MarkingWorklists(int task_id, MarkingWorklistsHolder* holder)
       context_worklists_(holder->context_worklists()) {
   if (!context_worklists_.empty()) {
     is_per_context_mode_ = true;
-    context_worklists_.push_back({kSharedContext, shared_});
     worklist_by_context_.reserve(context_worklists_.size());
     for (auto& cw : context_worklists_) {
       worklist_by_context_[cw.context] = cw.worklist;
@@ -181,10 +183,10 @@ bool MarkingWorklists::PopContext(HeapObject* object) {
 Address MarkingWorklists::SwitchToContextSlow(Address context) {
   const auto& it = worklist_by_context_.find(context);
   if (V8_UNLIKELY(it == worklist_by_context_.end())) {
-    // This context was created during marking, so we don't have a worklist
-    // for it. Use the shared worklist.
-    active_ = shared_;
-    active_context_ = kSharedContext;
+    // This context was created during marking or is not being measured,
+    // so we don't have a specific worklist for it.
+    active_context_ = kOtherContext;
+    active_ = worklist_by_context_[active_context_];
   } else {
     active_ = it->second;
     active_context_ = context;
