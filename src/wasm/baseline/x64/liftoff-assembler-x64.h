@@ -1773,6 +1773,12 @@ void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
   Shufps(dst.fp(), src.fp(), static_cast<byte>(0));
 }
 
+void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  Movd(dst.fp(), src.gp());
+  Pshufd(dst.fp(), dst.fp(), static_cast<uint8_t>(0));
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   cmpq(rsp, Operand(limit_address, 0));
   j(below_equal, ool_code);

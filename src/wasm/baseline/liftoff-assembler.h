@@ -680,6 +680,7 @@ class LiftoffAssembler : public TurboAssembler {
                                 DoubleRegister lhs, DoubleRegister rhs);
 
   inline void emit_f32x4_splat(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_i32x4_splat(LiftoffRegister dst, LiftoffRegister src);
 
   inline void StackCheck(Label* ool_code, Register limit_address);
 

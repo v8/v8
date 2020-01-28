@@ -2205,6 +2205,12 @@ class LiftoffCompiler {
               __ emit_f32x4_splat(dst, src);
             });
         break;
+      case wasm::kExprI32x4Splat:
+        EmitUnOp<kWasmI32, kWasmS128>(
+            [=](LiftoffRegister dst, LiftoffRegister src) {
+              __ emit_i32x4_splat(dst, src);
+            });
+        break;
       default:
         unsupported(decoder, kSimd, "simd");
     }

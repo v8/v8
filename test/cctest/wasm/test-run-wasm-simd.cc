@@ -1550,7 +1550,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Qfms) {
 }
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
-WASM_SIMD_TEST(I32x4Splat) {
+WASM_SIMD_TEST_WITH_LIFTOFF(I32x4Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.
   int32_t* g = r.builder().AddGlobal<int32_t>(kWasmS128);
