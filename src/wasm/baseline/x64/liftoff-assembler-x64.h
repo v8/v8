@@ -412,6 +412,126 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
   }
 }
 
+void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
+                                 uint32_t offset_imm, LiftoffRegister value,
+                                 StoreType type) {
+  bailout(kAtomics, "AtomicSub");
+}
+
+namespace liftoff {
+inline void AtomicBinop(LiftoffAssembler* lasm,
+                        void (Assembler::*opl)(Register, Register),
+                        void (Assembler::*opq)(Register, Register),
+                        Register dst_addr, Register offset_reg,
+                        uint32_t offset_imm, LiftoffRegister value,
+                        StoreType type) {
+#define __ lasm->
+  DCHECK(!__ cache_state()->is_used(value));
+  // The cmpxchg instruction uses rax to store the old value of the
+  // compare-exchange primitive. Therefore we have to spill the register and
+  // move any use to another register.
+  liftoff::SpillRegisters(lasm, rax);
+  Register value_reg = value.gp();
+  LiftoffRegList pinned =
+      LiftoffRegList::ForRegs(dst_addr, offset_reg, value_reg);
+  if (pinned.has(rax)) {
+    Register replacement =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    for (Register* reg : {&dst_addr, &offset_reg, &value_reg}) {
+      if (*reg == rax) {
+        *reg = replacement;
+      }
+    }
+    __ movq(replacement, rax);
+  }
+
+  if (__ emit_debug_code() && offset_reg != no_reg) {
+    __ AssertZeroExtended(offset_reg);
+  }
+  Operand dst_op = liftoff::GetMemOp(lasm, dst_addr, offset_reg, offset_imm);
+
+  switch (type.value()) {
+    case StoreType::kI32Store8:
+    case StoreType::kI64Store8: {
+      Label binop;
+      __ xorq(rax, rax);
+      __ movb(rax, dst_op);
+      __ bind(&binop);
+      __ movl(kScratchRegister, rax);
+      (lasm->*opl)(kScratchRegister, value_reg);
+      __ lock();
+      __ cmpxchgb(dst_op, kScratchRegister);
+      __ j(not_equal, &binop);
+      break;
+    }
+    case StoreType::kI32Store16:
+    case StoreType::kI64Store16: {
+      Label binop;
+      __ xorq(rax, rax);
+      __ movw(rax, dst_op);
+      __ bind(&binop);
+      __ movl(kScratchRegister, rax);
+      (lasm->*opl)(kScratchRegister, value_reg);
+      __ lock();
+      __ cmpxchgw(dst_op, kScratchRegister);
+      __ j(not_equal, &binop);
+      break;
+    }
+    case StoreType::kI32Store:
+    case StoreType::kI64Store32: {
+      Label binop;
+      __ movl(rax, dst_op);
+      __ bind(&binop);
+      __ movl(kScratchRegister, rax);
+      (lasm->*opl)(kScratchRegister, value_reg);
+      __ lock();
+      __ cmpxchgl(dst_op, kScratchRegister);
+      __ j(not_equal, &binop);
+      break;
+    }
+    case StoreType::kI64Store: {
+      Label binop;
+      __ movq(rax, dst_op);
+      __ bind(&binop);
+      __ movq(kScratchRegister, rax);
+      (lasm->*opq)(kScratchRegister, value_reg);
+      __ lock();
+      __ cmpxchgq(dst_op, kScratchRegister);
+      __ j(not_equal, &binop);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+
+  if (value.gp() != rax) {
+    __ movq(value.gp(), rax);
+  }
+}
+#undef __
+}  // namespace liftoff
+
+void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
+                                 uint32_t offset_imm, LiftoffRegister value,
+                                 StoreType type) {
+  liftoff::AtomicBinop(this, &Assembler::andl, &Assembler::andq, dst_addr,
+                       offset_reg, offset_imm, value, type);
+}
+
+void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
+                                uint32_t offset_imm, LiftoffRegister value,
+                                StoreType type) {
+  liftoff::AtomicBinop(this, &Assembler::orl, &Assembler::orq, dst_addr,
+                       offset_reg, offset_imm, value, type);
+}
+
+void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
+                                 uint32_t offset_imm, LiftoffRegister value,
+                                 StoreType type) {
+  liftoff::AtomicBinop(this, &Assembler::xorl, &Assembler::xorq, dst_addr,
+                       offset_reg, offset_imm, value, type);
+}
+
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
