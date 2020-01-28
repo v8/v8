@@ -180,13 +180,14 @@ void Accessors::ArrayLengthSetter(
     return;
   }
 
-  if (!was_readonly && V8_UNLIKELY(JSArray::HasReadOnlyLength(array)) &&
-      length != array->length().Number()) {
+  if (!was_readonly && V8_UNLIKELY(JSArray::HasReadOnlyLength(array))) {
     // AnythingToArrayLength() may have called setter re-entrantly and modified
     // its property descriptor. Don't perform this check if "length" was
     // previously readonly, as this may have been called during
     // DefineOwnPropertyIgnoreAttributes().
-    if (info.ShouldThrowOnError()) {
+    if (length == array->length().Number()) {
+      info.GetReturnValue().Set(true);
+    } else if (info.ShouldThrowOnError()) {
       Factory* factory = isolate->factory();
       isolate->Throw(*factory->NewTypeError(
           MessageTemplate::kStrictReadOnlyProperty, Utils::OpenHandle(*name),
