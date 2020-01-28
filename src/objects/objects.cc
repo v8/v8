@@ -7859,6 +7859,7 @@ Handle<PropertyCell> PropertyCell::InvalidateEntry(
   bool is_the_hole = cell->value().IsTheHole(isolate);
   // Cell is officially mutable henceforth.
   PropertyDetails details = cell->property_details();
+  DCHECK(details.IsConfigurable());
   details = details.set_cell_type(is_the_hole ? PropertyCellType::kUninitialized
                                               : PropertyCellType::kMutable);
   new_cell->set_property_details(details);
@@ -7936,8 +7937,7 @@ Handle<PropertyCell> PropertyCell::PrepareForValue(
   const PropertyDetails original_details = cell->property_details();
   // Data accesses could be cached in ics or optimized code.
   bool invalidate =
-      (original_details.kind() == kData && details.kind() == kAccessor) ||
-      (!original_details.IsReadOnly() && details.IsReadOnly());
+      original_details.kind() == kData && details.kind() == kAccessor;
   int index;
   PropertyCellType old_type = original_details.cell_type();
   // Preserve the enumeration index unless the property was deleted or never
