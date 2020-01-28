@@ -11,9 +11,10 @@
 #include "src/codegen/source-position.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
-#include "src/compiler/state-values-utils.h"
 #include "src/execution/frames.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
