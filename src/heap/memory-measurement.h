@@ -76,9 +76,8 @@ class V8_EXPORT_PRIVATE NativeContextInferrer {
 // Maintains mapping from native contexts to their sizes.
 class V8_EXPORT_PRIVATE NativeContextStats {
  public:
-  void IncrementSize(Address context, size_t size) {
-    size_by_context_[context] += size;
-  }
+  V8_INLINE void IncrementSize(Address context, Map map, HeapObject object,
+                               size_t size);
 
   size_t Get(Address context) const {
     const auto it = size_by_context_.find(context);
@@ -89,6 +88,8 @@ class V8_EXPORT_PRIVATE NativeContextStats {
   void Merge(const NativeContextStats& other);
 
  private:
+  V8_INLINE bool HasExternalBytes(Map map);
+  void IncrementExternalSize(Address context, Map map, HeapObject object);
   std::unordered_map<Address, size_t> size_by_context_;
 };
 

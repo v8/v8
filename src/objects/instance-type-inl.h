@@ -64,6 +64,11 @@ V8_INLINE bool IsInternalizedString(InstanceType instance_type) {
          (kStringTag | kInternalizedTag);
 }
 
+V8_INLINE bool IsExternalString(InstanceType instance_type) {
+  return (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
+         kExternalStringTag;
+}
+
 }  // namespace InstanceTypeChecker
 
 // TODO(v8:7786): For instance types that have a single map instance on the

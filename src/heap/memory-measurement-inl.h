@@ -8,6 +8,8 @@
 #include "src/heap/memory-measurement.h"
 #include "src/objects/contexts-inl.h"
 #include "src/objects/contexts.h"
+#include "src/objects/instance-type-inl.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/map.h"
 
@@ -35,6 +37,21 @@ bool NativeContextInferrer::Infer(Isolate* isolate, Map map, HeapObject object,
                               native_context);
     default:
       return false;
+  }
+}
+
+V8_INLINE bool NativeContextStats::HasExternalBytes(Map map) {
+  InstanceType instance_type = map.instance_type();
+  return (instance_type == JS_ARRAY_BUFFER_TYPE ||
+          InstanceTypeChecker::IsExternalString(instance_type));
+}
+
+V8_INLINE void NativeContextStats::IncrementSize(Address context, Map map,
+                                                 HeapObject object,
+                                                 size_t size) {
+  size_by_context_[context] += size;
+  if (HasExternalBytes(map)) {
+    IncrementExternalSize(context, map, object);
   }
 }
 

@@ -351,5 +351,18 @@ void NativeContextStats::Merge(const NativeContextStats& other) {
   }
 }
 
+void NativeContextStats::IncrementExternalSize(Address context, Map map,
+                                               HeapObject object) {
+  InstanceType instance_type = map.instance_type();
+  size_t external_size = 0;
+  if (instance_type == JS_ARRAY_BUFFER_TYPE) {
+    external_size = JSArrayBuffer::cast(object).allocation_length();
+  } else {
+    DCHECK(InstanceTypeChecker::IsExternalString(instance_type));
+    external_size = ExternalString::cast(object).ExternalPayloadSize();
+  }
+  size_by_context_[context] += external_size;
+}
+
 }  // namespace internal
 }  // namespace v8

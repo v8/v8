@@ -449,8 +449,8 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
           }
           size_t visited_size = visitor.Visit(map, object);
           if (is_per_context_mode) {
-            native_context_stats.IncrementSize(marking_worklists.Context(),
-                                               visited_size);
+            native_context_stats.IncrementSize(marking_worklists.Context(), map,
+                                               object, visited_size);
           }
           current_marked_bytes += visited_size;
         }

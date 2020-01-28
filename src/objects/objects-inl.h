@@ -211,11 +211,6 @@ DEF_GETTER(HeapObject, IsSeqTwoByteString, bool) {
          String::cast(*this).IsTwoByteRepresentation(isolate);
 }
 
-DEF_GETTER(HeapObject, IsExternalString, bool) {
-  if (!IsString(isolate)) return false;
-  return StringShape(String::cast(*this).map(isolate)).IsExternal();
-}
-
 DEF_GETTER(HeapObject, IsExternalOneByteString, bool) {
   if (!IsString(isolate)) return false;
   return StringShape(String::cast(*this).map(isolate)).IsExternal() &&

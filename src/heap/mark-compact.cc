@@ -1591,6 +1591,7 @@ void MarkCompactCollector::MarkStringTable(
     string_table.IteratePrefix(custom_root_body_visitor);
     if (marking_worklists()->IsPerContextMode()) {
       native_context_stats_.IncrementSize(MarkingWorklists::kSharedContext,
+                                          string_table.map(), string_table,
                                           string_table.Size());
     }
   }
@@ -1848,8 +1849,8 @@ size_t MarkCompactCollector::ProcessMarkingWorklist(size_t bytes_to_process) {
     }
     size_t visited_size = marking_visitor_->Visit(map, object);
     if (is_per_context_mode) {
-      native_context_stats_.IncrementSize(marking_worklists()->Context(),
-                                          visited_size);
+      native_context_stats_.IncrementSize(marking_worklists()->Context(), map,
+                                          object, visited_size);
     }
     bytes_processed += visited_size;
     if (bytes_to_process && bytes_processed >= bytes_to_process) {
