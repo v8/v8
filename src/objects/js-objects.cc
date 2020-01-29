@@ -244,9 +244,10 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
           prop_value = JSObject::FastPropertyAt(from, representation, index);
         }
       } else {
+        LookupIterator it(isolate, from, next_key,
+                          LookupIterator::OWN_SKIP_INTERCEPTOR);
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, prop_value,
-            JSReceiver::GetProperty(isolate, from, next_key), Nothing<bool>());
+            isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
         stable = from->map() == *map;
         *descriptors.location() = map->instance_descriptors().ptr();
       }
