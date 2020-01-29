@@ -48,23 +48,6 @@ using Int8ShiftOp = int8_t (*)(int8_t, int);
     EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
     RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kTurbofan);    \
   }                                                                   \
-  TEST(RunWasm_##name##_interpreter) {                                \
-    EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
-    RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kInterpreter); \
-  }                                                                   \
-  TEST(RunWasm_##name##_simd_lowered) {                               \
-    EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
-    RunWasm_##name##_Impl(kLowerSimd, ExecutionTier::kTurbofan);      \
-  }                                                                   \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd, ExecutionTier execution_tier)
-
-#define WASM_SIMD_TEST_WITH_LIFTOFF(name)                             \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd,                    \
-                             ExecutionTier execution_tier);           \
-  TEST(RunWasm_##name##_turbofan) {                                   \
-    EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
-    RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kTurbofan);    \
-  }                                                                   \
   TEST(RunWasm_##name##_liftoff) {                                    \
     EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
     RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kLiftoff);     \
@@ -565,7 +548,7 @@ WASM_SIMD_TEST(S128Globals) {
   }
 }
 
-WASM_SIMD_TEST_WITH_LIFTOFF(F32x4Splat) {
+WASM_SIMD_TEST(F32x4Splat) {
   WasmRunner<int32_t, float> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.
   float* g = r.builder().AddGlobal<float>(kWasmS128);
@@ -1550,7 +1533,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Qfms) {
 }
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
-WASM_SIMD_TEST_WITH_LIFTOFF(I32x4Splat) {
+WASM_SIMD_TEST(I32x4Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.
   int32_t* g = r.builder().AddGlobal<int32_t>(kWasmS128);
@@ -3564,7 +3547,6 @@ WASM_EXTRACT_I16x8_TEST(S, UINT16) WASM_EXTRACT_I16x8_TEST(I, INT16)
 #undef WASM_EXTRACT_I8x16_TEST
 
 #undef WASM_SIMD_TEST
-#undef WASM_SIMD_TEST_WITH_LIFTOFF
 #undef WASM_SIMD_CHECK_LANE_S
 #undef WASM_SIMD_CHECK_LANE_U
 #undef TO_BYTE
