@@ -179,6 +179,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I32x4ShrS:
     case kS390_I32x4ShrU:
     case kS390_I32x4Neg:
+    case kS390_I32x4SConvertF32x4:
+    case kS390_I32x4UConvertF32x4:
+    case kS390_F32x4SConvertI32x4:
+    case kS390_F32x4UConvertI32x4:
     case kS390_I16x8Splat:
     case kS390_I16x8ExtractLaneU:
     case kS390_I16x8ExtractLaneS:

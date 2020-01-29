@@ -2581,15 +2581,15 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I8x16Neg)             \
   V(S128Not)
 
-#define SIMD_SHIFT_OPCODES(V) \
-  V(I32x4Shl)                 \
-  V(I32x4ShrS)                \
-  V(I32x4ShrU)                \
-  V(I16x8Shl)                 \
-  V(I16x8ShrS)                \
-  V(I16x8ShrU)                \
-  V(I8x16Shl)                 \
-  V(I8x16ShrS)                \
+#define SIMD_SHIFT_LIST(V) \
+  V(I32x4Shl)              \
+  V(I32x4ShrS)             \
+  V(I32x4ShrU)             \
+  V(I16x8Shl)              \
+  V(I16x8ShrS)             \
+  V(I16x8ShrU)             \
+  V(I8x16Shl)              \
+  V(I8x16ShrS)             \
   V(I8x16ShrU)
 
 #define SIMD_BOOL_LIST(V) \
@@ -2599,6 +2599,12 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(S1x4AllTrue)          \
   V(S1x8AllTrue)          \
   V(S1x16AllTrue)
+
+#define SIMD_CONVERSION_LIST(V) \
+  V(I32x4SConvertF32x4)         \
+  V(I32x4UConvertF32x4)         \
+  V(F32x4SConvertI32x4)         \
+  V(F32x4UConvertI32x4)
 
 #define SIMD_VISIT_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
@@ -2666,9 +2672,9 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
          g.UseUniqueRegister(node->InputAt(0)),         \
          g.UseUniqueRegister(node->InputAt(1)));        \
   }
-SIMD_SHIFT_OPCODES(SIMD_VISIT_SHIFT)
+SIMD_SHIFT_LIST(SIMD_VISIT_SHIFT)
 #undef SIMD_VISIT_SHIFT
-#undef SIMD_SHIFT_OPCODES
+#undef SIMD_SHIFT_LIST
 
 #define SIMD_VISIT_BOOL(Opcode)                                           \
   void InstructionSelector::Visit##Opcode(Node* node) {                   \
@@ -2679,6 +2685,17 @@ SIMD_SHIFT_OPCODES(SIMD_VISIT_SHIFT)
   }
 SIMD_BOOL_LIST(SIMD_VISIT_BOOL)
 #undef SIMD_VISIT_BOOL
+#undef SIMD_BOOL_LIST
+
+#define SIMD_VISIT_CONVERSION(Opcode)                   \
+  void InstructionSelector::Visit##Opcode(Node* node) { \
+    S390OperandGenerator g(this);                       \
+    Emit(kS390_##Opcode, g.DefineAsRegister(node),      \
+         g.UseRegister(node->InputAt(0)));              \
+  }
+SIMD_CONVERSION_LIST(SIMD_VISIT_CONVERSION)
+#undef SIMD_VISIT_CONVERSION
+#undef SIMD_CONVERSION_LIST
 #undef SIMD_TYPES
 
 void InstructionSelector::VisitS128Zero(Node* node) {
@@ -2765,22 +2782,6 @@ void InstructionSelector::VisitF32x4Div(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Min(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Max(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4SConvertI32x4(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitI32x4UConvertF32x4(Node* node) {
-  UNIMPLEMENTED();
-}
 
 void InstructionSelector::VisitI32x4SConvertI16x8Low(Node* node) {
   UNIMPLEMENTED();

@@ -3493,6 +3493,57 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vsel(dst, src1, src2, mask, Condition(0), Condition(0));
       break;
     }
+    // vector conversions
+#define CONVERT_FLOAT_TO_INT32(convert)                                       \
+  for (int index = 0; index < 4; index++) {                                   \
+    __ vlgv(kScratchReg, kScratchDoubleReg, MemOperand(r0, index),            \
+            Condition(2));                                                    \
+    __ vlvg(kScratchDoubleReg, kScratchReg, MemOperand(r0, 0), Condition(2)); \
+    __ convert(kScratchReg, kScratchDoubleReg, kRoundToZero);                 \
+    __ vlvg(dst, kScratchReg, MemOperand(r0, index), Condition(2));           \
+  }
+    case kS390_I32x4SConvertF32x4: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      // NaN to 0
+      __ vlr(kScratchDoubleReg, src, Condition(0), Condition(0), Condition(0));
+      __ vfce(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
+              Condition(0), Condition(0), Condition(2));
+      __ vn(kScratchDoubleReg, src, kScratchDoubleReg, Condition(0),
+            Condition(0), Condition(0));
+      CONVERT_FLOAT_TO_INT32(ConvertFloat32ToInt32)
+      break;
+    }
+    case kS390_I32x4UConvertF32x4: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      // NaN to 0, negative to 0
+      __ vx(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
+            Condition(0), Condition(0), Condition(0));
+      __ vfmax(kScratchDoubleReg, src, kScratchDoubleReg, Condition(1),
+               Condition(0), Condition(2));
+      CONVERT_FLOAT_TO_INT32(ConvertFloat32ToUnsignedInt32)
+      break;
+    }
+#undef CONVERT_FLOAT_TO_INT32
+#define CONVERT_INT32_TO_FLOAT(convert)                                       \
+  Simd128Register src = i.InputSimd128Register(0);                            \
+  Simd128Register dst = i.OutputSimd128Register();                            \
+  for (int index = 0; index < 4; index++) {                                   \
+    __ vlgv(kScratchReg, src, MemOperand(r0, index), Condition(2));           \
+    __ convert(kScratchDoubleReg, kScratchReg);                               \
+    __ vlgv(kScratchReg, kScratchDoubleReg, MemOperand(r0, 0), Condition(2)); \
+    __ vlvg(dst, kScratchReg, MemOperand(r0, index), Condition(2));           \
+  }
+    case kS390_F32x4SConvertI32x4: {
+      CONVERT_INT32_TO_FLOAT(ConvertIntToFloat)
+      break;
+    }
+    case kS390_F32x4UConvertI32x4: {
+      CONVERT_INT32_TO_FLOAT(ConvertUnsignedIntToFloat)
+      break;
+    }
+#undef CONVERT_INT32_TO_FLOAT
     default:
       UNREACHABLE();
   }

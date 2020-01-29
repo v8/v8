@@ -234,6 +234,10 @@ namespace compiler {
   V(S390_I32x4Shl)                          \
   V(S390_I32x4ShrS)                         \
   V(S390_I32x4ShrU)                         \
+  V(S390_I32x4SConvertF32x4)                \
+  V(S390_I32x4UConvertF32x4)                \
+  V(S390_F32x4SConvertI32x4)                \
+  V(S390_F32x4UConvertI32x4)                \
   V(S390_I16x8ExtractLaneU)                 \
   V(S390_I16x8ExtractLaneS)                 \
   V(S390_I16x8ReplaceLane)                  \
