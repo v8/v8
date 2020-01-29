@@ -6,6 +6,7 @@
       {
         "excluded_builders" : [
           "V8 iOS - sim",
+          "V8 Fuchsia",
           "V8 Fuzzer",
           "V8 Linux64 - debug - fyi",
           "V8 Linux64 - debug - perfetto - builder",
