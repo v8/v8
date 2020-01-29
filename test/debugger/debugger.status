@@ -138,4 +138,12 @@
   'debug/debug-optimize': [SKIP],
 }],  # variant == turboprop
 
+##############################################################################
+# Liftoff needs to be enabled before running these tests.
+['arch in (s390, s390x, ppc, ppc64)', {
+  'regress/regress-crbug-1032042': [SKIP],
+  'debug/wasm/debug-step-into-wasm': [SKIP],
+  'debug/wasm/debug-enabled-tier-down-wasm': [SKIP],
+}],
+
 ]
