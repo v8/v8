@@ -382,7 +382,9 @@ class CompilationStateImpl {
   void InitializeCompilationProgress(bool lazy_module, int num_wrappers);
 
   // Initialize compilation progress for recompilation of the whole module.
-  void InitializeRecompilationProgress(ExecutionTier tier);
+  // Return false if initial compilation hasn't started yet, otherwise return
+  // true.
+  bool InitializeRecompilationProgress(ExecutionTier tier);
 
   // Add the callback function to be called on compilation events. Needs to be
   // set before {AddCompilationUnits} is run to ensure that it receives all
@@ -1434,8 +1436,9 @@ void RecompileNativeModule(Isolate* isolate, NativeModule* native_module,
       });
 
   // Initialize the compilation units and kick off background compile tasks.
-  compilation_state->InitializeRecompilationProgress(tier);
-  AddBaselineCompilationUnits(native_module);
+  if (compilation_state->InitializeRecompilationProgress(tier)) {
+    AddBaselineCompilationUnits(native_module);
+  }
 
   // The main thread contributes to the compilation, except if we need
   // deterministic compilation; in that case, the single background task will
@@ -2422,7 +2425,7 @@ void CompilationStateImpl::InitializeCompilationProgress(bool lazy_module,
   }
 }
 
-void CompilationStateImpl::InitializeRecompilationProgress(ExecutionTier tier) {
+bool CompilationStateImpl::InitializeRecompilationProgress(ExecutionTier tier) {
   DCHECK(!failed());
   auto* module = native_module_->module();
 
@@ -2432,25 +2435,32 @@ void CompilationStateImpl::InitializeRecompilationProgress(ExecutionTier tier) {
   DCHECK_EQ(0, outstanding_recompilation_functions_);
   int start = module->num_imported_functions;
   int end = start + module->num_declared_functions;
-  for (int function_index = start; function_index < end; function_index++) {
-    int slot_index = function_index - start;
-    DCHECK_LT(slot_index, compilation_progress_.size());
-    ExecutionTier reached_tier =
-        ReachedTierField::decode(compilation_progress_[slot_index]);
-    if (reached_tier != tier) {
-      outstanding_recompilation_functions_++;
+  // If compilation hasn't started yet then code would be keep as tiered-down
+  // and don't need to recompile.
+  if (compilation_progress_.size() > 0) {
+    for (int function_index = start; function_index < end; function_index++) {
+      int slot_index = function_index - start;
+      DCHECK_LT(slot_index, compilation_progress_.size());
+      ExecutionTier reached_tier =
+          ReachedTierField::decode(compilation_progress_[slot_index]);
+      if (reached_tier != tier) {
+        outstanding_recompilation_functions_++;
+      }
     }
+    DCHECK_LE(0, outstanding_recompilation_functions_);
+    DCHECK_LE(outstanding_recompilation_functions_,
+              module->num_declared_functions);
   }
-  DCHECK_LE(0, outstanding_recompilation_functions_);
-  DCHECK_LE(outstanding_recompilation_functions_,
-            module->num_declared_functions);
 
   // Trigger callbacks if module needs no recompilation.
   if (outstanding_recompilation_functions_ == 0) {
     for (auto& callback : callbacks_) {
       callback(CompilationEvent::kFinishedRecompilation);
     }
+    return false;
   }
+
+  return true;
 }
 
 void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {

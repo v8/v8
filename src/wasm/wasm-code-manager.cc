@@ -1810,6 +1810,7 @@ void NativeModule::TierDown(Isolate* isolate) {
   // Set the flag.
   {
     base::MutexGuard lock(&allocation_mutex_);
+    if (tier_down_) return;
     tier_down_ = true;
   }
   // Tier down all functions.

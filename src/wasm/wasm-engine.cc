@@ -494,6 +494,19 @@ void WasmEngine::RecompileAllFunctions(Isolate* isolate,
   RecompileNativeModule(isolate, native_module, tier);
 }
 
+void WasmEngine::TierDownAllModulesPerIsolate(Isolate* isolate) {
+  std::vector<NativeModule*> native_modules;
+  {
+    base::MutexGuard lock(&mutex_);
+    for (auto* native_module : isolates_[isolate]->native_modules) {
+      native_modules.push_back(native_module);
+    }
+  }
+  for (auto* native_module : native_modules) {
+    native_module->TierDown(isolate);
+  }
+}
+
 std::shared_ptr<NativeModule> WasmEngine::ExportNativeModule(
     Handle<WasmModuleObject> module_object) {
   return module_object->shared_native_module();

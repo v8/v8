@@ -152,6 +152,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   void RecompileAllFunctions(Isolate* isolate, NativeModule* native_module,
                              ExecutionTier tier);
 
+  void TierDownAllModulesPerIsolate(Isolate* isolate);
+
   // Exports the sharable parts of the given module object so that they can be
   // transferred to a different Context/Isolate using the same engine.
   std::shared_ptr<NativeModule> ExportNativeModule(
