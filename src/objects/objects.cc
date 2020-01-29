@@ -6213,60 +6213,37 @@ void JSRegExp::MarkTierUpForNextExec() {
 
 namespace {
 
-bool IsLineTerminator(int c) {
-  // Expected to return true for '\n', '\r', 0x2028, and 0x2029.
-  return unibrow::IsLineTerminator(static_cast<unibrow::uchar>(c));
-}
-
-// TODO(jgruber): Consider merging CountAdditionalEscapeChars and
-// WriteEscapedRegExpSource into a single function to deduplicate dispatch logic
-// and move related code closer to each other.
 template <typename Char>
-int CountAdditionalEscapeChars(Handle<String> source, bool* needs_escapes_out) {
+int CountRequiredEscapes(Handle<String> source) {
   DisallowHeapAllocation no_gc;
   int escapes = 0;
-  bool needs_escapes = false;
   bool in_char_class = false;
   Vector<const Char> src = source->GetCharVector<Char>(no_gc);
   for (int i = 0; i < src.length(); i++) {
     const Char c = src[i];
     if (c == '\\') {
-      if (i + 1 < src.length() && IsLineTerminator(src[i + 1])) {
-        // This '\' is ignored since the next character itself will be escaped.
-        escapes--;
-      } else {
-        // Escape. Skip next character, which will be copied verbatim;
-        needs_escapes = true;
-        i++;
-      }
+      // Escape. Skip next character;
+      i++;
     } else if (c == '/' && !in_char_class) {
       // Not escaped forward-slash needs escape.
-      needs_escapes = true;
       escapes++;
     } else if (c == '[') {
       in_char_class = true;
     } else if (c == ']') {
       in_char_class = false;
     } else if (c == '\n') {
-      needs_escapes = true;
       escapes++;
     } else if (c == '\r') {
-      needs_escapes = true;
       escapes++;
     } else if (static_cast<int>(c) == 0x2028) {
-      needs_escapes = true;
       escapes += std::strlen("\\u2028") - 1;
     } else if (static_cast<int>(c) == 0x2029) {
-      needs_escapes = true;
       escapes += std::strlen("\\u2029") - 1;
     } else {
-      DCHECK(!IsLineTerminator(c));
+      DCHECK(!unibrow::IsLineTerminator(static_cast<unibrow::uchar>(c)));
     }
   }
   DCHECK(!in_char_class);
-  DCHECK_GE(escapes, 0);
-  DCHECK_IMPLIES(escapes != 0, needs_escapes);
-  *needs_escapes_out = needs_escapes;
   return escapes;
 }
 
@@ -6286,42 +6263,33 @@ Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
   int d = 0;
   bool in_char_class = false;
   while (s < src.length()) {
-    const Char c = src[s];
-    if (c == '\\') {
-      if (s + 1 < src.length() && IsLineTerminator(src[s + 1])) {
-        // This '\' is ignored since the next character itself will be escaped.
-        s++;
-        continue;
-      } else {
-        // Escape. Copy this and next character.
-        dst[d++] = src[s++];
-      }
+    if (src[s] == '\\') {
+      // Escape. Copy this and next character.
+      dst[d++] = src[s++];
       if (s == src.length()) break;
-    } else if (c == '/' && !in_char_class) {
+    } else if (src[s] == '/' && !in_char_class) {
       // Not escaped forward-slash needs escape.
       dst[d++] = '\\';
-    } else if (c == '[') {
+    } else if (src[s] == '[') {
       in_char_class = true;
-    } else if (c == ']') {
+    } else if (src[s] == ']') {
       in_char_class = false;
-    } else if (c == '\n') {
+    } else if (src[s] == '\n') {
       WriteStringToCharVector(dst, &d, "\\n");
       s++;
       continue;
-    } else if (c == '\r') {
+    } else if (src[s] == '\r') {
       WriteStringToCharVector(dst, &d, "\\r");
       s++;
       continue;
-    } else if (static_cast<int>(c) == 0x2028) {
+    } else if (static_cast<int>(src[s]) == 0x2028) {
       WriteStringToCharVector(dst, &d, "\\u2028");
       s++;
       continue;
-    } else if (static_cast<int>(c) == 0x2029) {
+    } else if (static_cast<int>(src[s]) == 0x2029) {
       WriteStringToCharVector(dst, &d, "\\u2029");
       s++;
       continue;
-    } else {
-      DCHECK(!IsLineTerminator(c));
     }
     dst[d++] = src[s++];
   }
@@ -6335,12 +6303,10 @@ MaybeHandle<String> EscapeRegExpSource(Isolate* isolate,
   DCHECK(source->IsFlat());
   if (source->length() == 0) return isolate->factory()->query_colon_string();
   bool one_byte = String::IsOneByteRepresentationUnderneath(*source);
-  bool needs_escapes = false;
-  int additional_escape_chars =
-      one_byte ? CountAdditionalEscapeChars<uint8_t>(source, &needs_escapes)
-               : CountAdditionalEscapeChars<uc16>(source, &needs_escapes);
-  if (!needs_escapes) return source;
-  int length = source->length() + additional_escape_chars;
+  int escapes = one_byte ? CountRequiredEscapes<uint8_t>(source)
+                         : CountRequiredEscapes<uc16>(source);
+  if (escapes == 0) return source;
+  int length = source->length() + escapes;
   if (one_byte) {
     Handle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
