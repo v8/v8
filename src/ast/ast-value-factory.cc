@@ -160,36 +160,87 @@ bool AstRawString::Compare(void* a, void* b) {
 }
 
 template <typename Factory>
-void AstConsString::Internalize(Factory* factory) {
+FactoryHandle<Factory, String> AstConsString::Allocate(Factory* factory) const {
   if (IsEmpty()) {
-    set_string(factory->empty_string());
-    return;
+    return factory->empty_string();
   }
-  // AstRawStrings are internalized before AstConsStrings, so
+  // AstRawStrings are internalized before AstConsStrings are allocated, so
   // AstRawString::string() will just work.
   FactoryHandle<Factory, String> tmp(segment_.string->string().get<Factory>());
   for (AstConsString::Segment* current = segment_.next; current != nullptr;
        current = current->next) {
-    tmp =
-        factory
-            ->NewConsString(
-                current->string->string().get<Factory>(), tmp,
-                // TODO(leszeks): This is to avoid memory regressions while this
-                // path is under development -- the off-thread factory doesn't
-                // support young allocations. Figure out a way to avoid memory
-                // regressions related to ConsStrings in the off-thread path.
-                std::is_same<Factory, OffThreadFactory>::value
-                    ? AllocationType::kOld
-                    : AllocationType::kYoung)
-            .ToHandleChecked();
+    tmp = factory
+              ->NewConsString(current->string->string().get<Factory>(), tmp,
+                              AllocationType::kOld)
+              .ToHandleChecked();
   }
-  set_string(tmp);
+  return tmp;
 }
-template EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) void AstConsString::Internalize<Factory>(Factory*
-                                                                    factory);
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void AstConsString::
-    Internalize<OffThreadFactory>(OffThreadFactory* factory);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<String> AstConsString::Allocate<Factory>(Factory* factory) const;
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    OffThreadHandle<String> AstConsString::Allocate<OffThreadFactory>(
+        OffThreadFactory* factory) const;
+
+template <typename Factory>
+FactoryHandle<Factory, String> AstConsString::AllocateFlat(
+    Factory* factory) const {
+  if (IsEmpty()) {
+    return factory->empty_string();
+  }
+  if (!segment_.next) {
+    return segment_.string->string().get<Factory>();
+  }
+
+  int result_length = 0;
+  bool is_one_byte = true;
+  for (const AstConsString::Segment* current = &segment_; current != nullptr;
+       current = current->next) {
+    result_length += current->string->length();
+    is_one_byte = is_one_byte && current->string->is_one_byte();
+  }
+
+  if (is_one_byte) {
+    FactoryHandle<Factory, SeqOneByteString> result =
+        factory->NewRawOneByteString(result_length, AllocationType::kOld)
+            .ToHandleChecked();
+    DisallowHeapAllocation no_gc;
+    uint8_t* dest = result->GetChars(no_gc) + result_length;
+    for (const AstConsString::Segment* current = &segment_; current != nullptr;
+         current = current->next) {
+      int length = current->string->length();
+      dest -= length;
+      CopyChars(dest, current->string->raw_data(), length);
+    }
+    DCHECK_EQ(dest, result->GetChars(no_gc));
+    return result;
+  }
+
+  FactoryHandle<Factory, SeqTwoByteString> result =
+      factory->NewRawTwoByteString(result_length, AllocationType::kOld)
+          .ToHandleChecked();
+  DisallowHeapAllocation no_gc;
+  uint16_t* dest = result->GetChars(no_gc) + result_length;
+  for (const AstConsString::Segment* current = &segment_; current != nullptr;
+       current = current->next) {
+    int length = current->string->length();
+    dest -= length;
+    if (current->string->is_one_byte()) {
+      CopyChars(dest, current->string->raw_data(), length);
+    } else {
+      CopyChars(dest,
+                reinterpret_cast<const uint16_t*>(current->string->raw_data()),
+                length);
+    }
+  }
+  DCHECK_EQ(dest, result->GetChars(no_gc));
+  return result;
+}
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<String> AstConsString::AllocateFlat<Factory>(Factory* factory) const;
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    OffThreadHandle<String> AstConsString::AllocateFlat<OffThreadFactory>(
+        OffThreadFactory* factory) const;
 
 std::forward_list<const AstRawString*> AstConsString::ToRawStrings() const {
   std::forward_list<const AstRawString*> result;
@@ -275,10 +326,7 @@ const AstRawString* AstValueFactory::CloneFromOtherFactory(
 }
 
 AstConsString* AstValueFactory::NewConsString() {
-  AstConsString* new_string = new (zone_) AstConsString;
-  DCHECK_NOT_NULL(new_string);
-  AddConsString(new_string);
-  return new_string;
+  return new (zone_) AstConsString;
 }
 
 AstConsString* AstValueFactory::NewConsString(const AstRawString* str) {
@@ -296,13 +344,6 @@ void AstValueFactory::Internalize(Factory* factory) {
   // strings.
   for (AstRawString* current = strings_; current != nullptr;) {
     AstRawString* next = current->next();
-    current->Internalize(factory);
-    current = next;
-  }
-
-  // AstConsStrings refer to AstRawStrings.
-  for (AstConsString* current = cons_strings_; current != nullptr;) {
-    AstConsString* next = current->next();
     current->Internalize(factory);
     current = next;
   }

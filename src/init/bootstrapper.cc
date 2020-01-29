@@ -9,6 +9,7 @@
 #include "src/base/ieee754.h"
 #include "src/builtins/accessors.h"
 #include "src/codegen/compiler.h"
+#include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/microtask-queue.h"
@@ -443,6 +444,7 @@ V8_NOINLINE Handle<JSFunction> SimpleCreateFunction(Isolate* isolate,
                                                     Builtins::Name call,
                                                     int len, bool adapt) {
   DCHECK(Builtins::HasJSLinkage(call));
+  name = String::Flatten(isolate, name, AllocationType::kOld);
   NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithoutPrototype(
       name, call, LanguageMode::kStrict);
   Handle<JSFunction> fun = isolate->factory()->NewFunction(args);

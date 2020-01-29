@@ -2218,9 +2218,8 @@ class FunctionLiteral final : public Expression {
 
   // Empty handle means that the function does not have a shared name (i.e.
   // the name will be set dynamically after creation of the function closure).
-  MaybeHandle<String> name() const {
-    return raw_name_ ? raw_name_->string().get<Factory>()
-                     : MaybeHandle<String>();
+  MaybeHandle<String> GetName(Factory* factory) const {
+    return raw_name_ ? raw_name_->AllocateFlat(factory) : MaybeHandle<String>();
   }
   bool has_shared_name() const { return raw_name_ != nullptr; }
   const AstConsString* raw_name() const { return raw_name_; }
@@ -2278,13 +2277,13 @@ class FunctionLiteral final : public Expression {
   // Returns either name or inferred name as a cstring.
   std::unique_ptr<char[]> GetDebugName() const;
 
-  Handle<String> inferred_name() const {
+  Handle<String> GetInferredName(Factory* factory) const {
     if (!inferred_name_.is_null()) {
       DCHECK_NULL(raw_inferred_name_);
       return inferred_name_;
     }
     if (raw_inferred_name_ != nullptr) {
-      return raw_inferred_name_->string().get<Factory>();
+      return raw_inferred_name_->Allocate(factory);
     }
     UNREACHABLE();
   }

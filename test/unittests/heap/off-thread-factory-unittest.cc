@@ -153,7 +153,7 @@ TEST_F(OffThreadFactoryTest, AstConsString_CreatesConsString) {
   ast_value_factory.Internalize(off_thread_factory());
 
   OffThreadHandle<FixedArray> off_thread_wrapper =
-      WrapString(foobar_string->string().get<OffThreadFactory>());
+      WrapString(foobar_string->Allocate(off_thread_factory()));
 
   off_thread_factory()->FinishOffThread();
 

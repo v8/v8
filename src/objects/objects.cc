@@ -5385,11 +5385,12 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
         scope_data->Serialize(shared_info->GetIsolate());
 
     data = isolate->factory()->NewUncompiledDataWithPreparseData(
-        lit->inferred_name(), lit->start_position(), lit->end_position(),
-        preparse_data);
+        lit->GetInferredName(isolate->factory()), lit->start_position(),
+        lit->end_position(), preparse_data);
   } else {
     data = isolate->factory()->NewUncompiledDataWithoutPreparseData(
-        lit->inferred_name(), lit->start_position(), lit->end_position());
+        lit->GetInferredName(isolate->factory()), lit->start_position(),
+        lit->end_position());
   }
 
   shared_info->set_uncompiled_data(*data);

@@ -3214,7 +3214,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
     FunctionLiteral* literal, Handle<Script> script, bool is_toplevel) {
   FunctionKind kind = literal->kind();
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfoForBuiltin(
-      literal->name(), Builtins::kCompileLazy, kind);
+      literal->GetName(this), Builtins::kCompileLazy, kind);
   SharedFunctionInfo::InitFromFunctionLiteral(isolate(), shared, literal,
                                               is_toplevel);
   shared->SetScript(ReadOnlyRoots(isolate()), *script,
@@ -3291,7 +3291,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   Handle<String> shared_name;
   bool has_shared_name = maybe_name.ToHandle(&shared_name);
   if (has_shared_name) {
-    shared_name = String::Flatten(isolate(), shared_name, AllocationType::kOld);
+    DCHECK(shared_name->IsFlat());
     shared->set_name_or_scope_info(*shared_name);
   } else {
     DCHECK_EQ(shared->name_or_scope_info(),
@@ -4061,6 +4061,8 @@ bool Factory::EmptyStringRootIsInitialized() {
 NewFunctionArgs NewFunctionArgs::ForWasm(
     Handle<String> name,
     Handle<WasmExportedFunctionData> exported_function_data, Handle<Map> map) {
+  DCHECK(name->IsFlat());
+
   NewFunctionArgs args;
   args.name_ = name;
   args.maybe_map_ = map;
@@ -4075,6 +4077,8 @@ NewFunctionArgs NewFunctionArgs::ForWasm(
 NewFunctionArgs NewFunctionArgs::ForWasm(
     Handle<String> name, Handle<WasmJSFunctionData> js_function_data,
     Handle<Map> map) {
+  DCHECK(name->IsFlat());
+
   NewFunctionArgs args;
   args.name_ = name;
   args.maybe_map_ = map;
@@ -4089,6 +4093,7 @@ NewFunctionArgs NewFunctionArgs::ForWasm(
 NewFunctionArgs NewFunctionArgs::ForBuiltin(Handle<String> name,
                                             Handle<Map> map, int builtin_id) {
   DCHECK(Builtins::IsBuiltinId(builtin_id));
+  DCHECK(name->IsFlat());
 
   NewFunctionArgs args;
   args.name_ = name;
@@ -4105,6 +4110,8 @@ NewFunctionArgs NewFunctionArgs::ForBuiltin(Handle<String> name,
 // static
 NewFunctionArgs NewFunctionArgs::ForFunctionWithoutCode(
     Handle<String> name, Handle<Map> map, LanguageMode language_mode) {
+  DCHECK(name->IsFlat());
+
   NewFunctionArgs args;
   args.name_ = name;
   args.maybe_map_ = map;
@@ -4123,6 +4130,7 @@ NewFunctionArgs NewFunctionArgs::ForBuiltinWithPrototype(
     int instance_size, int inobject_properties, int builtin_id,
     MutableMode prototype_mutability) {
   DCHECK(Builtins::IsBuiltinId(builtin_id));
+  DCHECK(name->IsFlat());
 
   NewFunctionArgs args;
   args.name_ = name;
@@ -4145,6 +4153,7 @@ NewFunctionArgs NewFunctionArgs::ForBuiltinWithPrototype(
 NewFunctionArgs NewFunctionArgs::ForBuiltinWithoutPrototype(
     Handle<String> name, int builtin_id, LanguageMode language_mode) {
   DCHECK(Builtins::IsBuiltinId(builtin_id));
+  DCHECK(name->IsFlat());
 
   NewFunctionArgs args;
   args.name_ = name;
