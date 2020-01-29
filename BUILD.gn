@@ -2689,6 +2689,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/tagged-impl-inl.h",
     "src/objects/tagged-impl.cc",
     "src/objects/tagged-impl.h",
+    "src/objects/tagged-index.h",
     "src/objects/tagged-value-inl.h",
     "src/objects/tagged-value.h",
     "src/objects/template-objects-inl.h",

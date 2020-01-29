@@ -86,6 +86,7 @@ class Signature;
 enum class ObjectType {
   ENUM_ELEMENT(Object)                 //
   ENUM_ELEMENT(Smi)                    //
+  ENUM_ELEMENT(TaggedIndex)            //
   ENUM_ELEMENT(HeapObject)             //
   OBJECT_TYPE_LIST(ENUM_ELEMENT)       //
   HEAP_OBJECT_TYPE_LIST(ENUM_ELEMENT)  //

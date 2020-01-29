@@ -138,6 +138,10 @@ void Smi::SmiVerify(Isolate* isolate) {
   CHECK(!IsConstructor());
 }
 
+void TaggedIndex::TaggedIndexVerify(Isolate* isolate) {
+  CHECK(IsTaggedIndex());
+}
+
 void HeapObject::HeapObjectVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::HeapObjectVerify(*this, isolate);
 

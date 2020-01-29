@@ -38,6 +38,7 @@
 // Inheritance hierarchy:
 // - Object
 //   - Smi          (immediate small integer)
+//   - TaggedIndex  (properly sign-extended immediate small integer)
 //   - HeapObject   (superclass for everything allocated in the heap)
 //     - JSReceiver  (suitable for property access)
 //       - JSObject
@@ -274,6 +275,8 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
  public:
   constexpr Object() : TaggedImpl(kNullAddress) {}
   explicit constexpr Object(Address ptr) : TaggedImpl(ptr) {}
+
+  V8_INLINE bool IsTaggedIndex() const;
 
 #define IS_TYPE_FUNCTION_DECL(Type) \
   V8_INLINE bool Is##Type() const;  \
