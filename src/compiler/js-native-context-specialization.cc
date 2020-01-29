@@ -2592,6 +2592,8 @@ JSNativeContextSpecialization::BuildElementAccess(
       buffer_or_receiver = buffer;
     }
 
+    enum Situation { kBoundsCheckDone, kHandleOOB_SmiCheckDone };
+    Situation situation;
     if ((keyed_mode.IsLoad() &&
          keyed_mode.load_mode() == LOAD_IGNORE_OUT_OF_BOUNDS) ||
         (keyed_mode.IsStore() &&
@@ -2606,11 +2608,13 @@ JSNativeContextSpecialization::BuildElementAccess(
       // below are performed on unsigned values, which means that all the
       // Negative32 values are treated as out-of-bounds.
       index = graph()->NewNode(simplified()->NumberToUint32(), index);
+      situation = kHandleOOB_SmiCheckDone;
     } else {
       // Check that the {index} is in the valid range for the {receiver}.
       index = effect =
           graph()->NewNode(simplified()->CheckBounds(FeedbackSource()), index,
                            length, effect, control);
+      situation = kBoundsCheckDone;
     }
 
     // Access the actual element.
@@ -2619,7 +2623,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     switch (keyed_mode.access_mode()) {
       case AccessMode::kLoad: {
         // Check if we can return undefined for out-of-bounds loads.
-        if (keyed_mode.load_mode() == LOAD_IGNORE_OUT_OF_BOUNDS) {
+        if (situation == kHandleOOB_SmiCheckDone) {
           Node* check =
               graph()->NewNode(simplified()->NumberLessThan(), index, length);
           Node* branch = graph()->NewNode(
@@ -2654,6 +2658,7 @@ JSNativeContextSpecialization::BuildElementAccess(
                                vtrue, vfalse, control);
         } else {
           // Perform the actual load.
+          DCHECK_EQ(kBoundsCheckDone, situation);
           value = effect = graph()->NewNode(
               simplified()->LoadTypedElement(external_array_type),
               buffer_or_receiver, base_pointer, external_pointer, index, effect,
@@ -2680,8 +2685,9 @@ JSNativeContextSpecialization::BuildElementAccess(
           value = graph()->NewNode(simplified()->NumberToUint8Clamped(), value);
         }
 
-        // Check if we can skip the out-of-bounds store.
-        if (keyed_mode.store_mode() == STORE_IGNORE_OUT_OF_BOUNDS) {
+        if (situation == kHandleOOB_SmiCheckDone) {
+          // We have to detect OOB stores and handle them without deopt (by
+          // simply not performing them).
           Node* check =
               graph()->NewNode(simplified()->NumberLessThan(), index, length);
           Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
@@ -2708,6 +2714,7 @@ JSNativeContextSpecialization::BuildElementAccess(
               graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
         } else {
           // Perform the actual store
+          DCHECK_EQ(kBoundsCheckDone, situation);
           effect = graph()->NewNode(
               simplified()->StoreTypedElement(external_array_type),
               buffer_or_receiver, base_pointer, external_pointer, index, value,
@@ -2716,11 +2723,16 @@ JSNativeContextSpecialization::BuildElementAccess(
         break;
       }
       case AccessMode::kHas:
-        // For has property on a typed array, all we need is a bounds check.
-        value = effect =
-            graph()->NewNode(simplified()->SpeculativeNumberLessThan(
-                                 NumberOperationHint::kSignedSmall),
-                             index, length, effect, control);
+        if (situation == kHandleOOB_SmiCheckDone) {
+          value = effect =
+              graph()->NewNode(simplified()->SpeculativeNumberLessThan(
+                                   NumberOperationHint::kSignedSmall),
+                               index, length, effect, control);
+        } else {
+          DCHECK_EQ(kBoundsCheckDone, situation);
+          // For has-property on a typed array, all we need is a bounds check.
+          value = jsgraph()->TrueConstant();
+        }
         break;
     }
   } else {
