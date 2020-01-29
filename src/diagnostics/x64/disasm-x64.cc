@@ -2049,7 +2049,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         } else if (opcode == 0xD2) {
           mnemonic = "psrld";
         } else if (opcode == 0xD3) {
-          mnemonic = "psrld";
+          mnemonic = "psrlq";
         } else if (opcode == 0xD4) {
           mnemonic = "paddq";
         } else if (opcode == 0xD5) {
