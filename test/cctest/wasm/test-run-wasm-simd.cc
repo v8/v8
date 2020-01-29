@@ -997,22 +997,28 @@ void RunI64x2ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   // Intentionally shift by 64, should be no-op.
   for (int shift = 1; shift <= 64; shift++) {
     WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
-    int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
+    int32_t* memory = r.builder().AddMemoryElems<int32_t>(1);
+    int64_t* g_imm = r.builder().AddGlobal<int64_t>(kWasmS128);
+    int64_t* g_mem = r.builder().AddGlobal<int64_t>(kWasmS128);
     byte value = 0;
-    byte shift_index = r.AllocateLocal(kWasmI32);
-    byte simd1 = r.AllocateLocal(kWasmS128);
-    BUILD(r,
-          WASM_SET_LOCAL(simd1, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(value))),
-          WASM_SET_LOCAL(shift_index, WASM_I32V(shift)),
-          WASM_SET_GLOBAL(0, WASM_SIMD_SHIFT_OP(opcode, WASM_GET_LOCAL(simd1),
-                                                WASM_GET_LOCAL(shift_index))),
-          WASM_ONE);
+    byte simd = r.AllocateLocal(kWasmS128);
+    // Shift using an immediate, and shift using a value loaded from memory.
+    BUILD(
+        r, WASM_SET_LOCAL(simd, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_SHIFT_OP(opcode, WASM_GET_LOCAL(simd),
+                                              WASM_I32V(shift))),
+        WASM_SET_GLOBAL(1, WASM_SIMD_SHIFT_OP(
+                               opcode, WASM_GET_LOCAL(simd),
+                               WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO))),
+        WASM_ONE);
 
+    r.builder().WriteMemory(&memory[0], shift);
     FOR_INT64_INPUTS(x) {
       r.Call(x);
       int64_t expected = expected_op(x, shift);
       for (int i = 0; i < 2; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(&g[i]));
+        CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(&g_imm[i]));
+        CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(&g_mem[i]));
       }
     }
   }
@@ -1938,21 +1944,28 @@ void RunI32x4ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   // Intentionally shift by 32, should be no-op.
   for (int shift = 1; shift <= 32; shift++) {
     WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
-    int32_t* g = r.builder().AddGlobal<int32_t>(kWasmS128);
+    int32_t* memory = r.builder().AddMemoryElems<int32_t>(1);
+    int32_t* g_imm = r.builder().AddGlobal<int32_t>(kWasmS128);
+    int32_t* g_mem = r.builder().AddGlobal<int32_t>(kWasmS128);
     byte value = 0;
-    byte shift_index = r.AllocateLocal(kWasmI32);
-    byte simd1 = r.AllocateLocal(kWasmS128);
-    BUILD(r, WASM_SET_LOCAL(shift_index, WASM_I32V(shift)),
-          WASM_SET_LOCAL(simd1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(value))),
-          WASM_SET_GLOBAL(0, WASM_SIMD_SHIFT_OP(opcode, WASM_GET_LOCAL(simd1),
-                                                WASM_GET_LOCAL(shift_index))),
-          WASM_ONE);
+    byte simd = r.AllocateLocal(kWasmS128);
+    // Shift using an immediate, and shift using a value loaded from memory.
+    BUILD(
+        r, WASM_SET_LOCAL(simd, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_SHIFT_OP(opcode, WASM_GET_LOCAL(simd),
+                                              WASM_I32V(shift))),
+        WASM_SET_GLOBAL(1, WASM_SIMD_SHIFT_OP(
+                               opcode, WASM_GET_LOCAL(simd),
+                               WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO))),
+        WASM_ONE);
 
+    r.builder().WriteMemory(&memory[0], shift);
     FOR_INT32_INPUTS(x) {
       r.Call(x);
       int32_t expected = expected_op(x, shift);
       for (int i = 0; i < 4; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(&g[i]));
+        CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(&g_imm[i]));
+        CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(&g_mem[i]));
       }
     }
   }
@@ -2196,22 +2209,28 @@ void RunI16x8ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   // Intentionally shift by 16, should be no-op.
   for (int shift = 1; shift <= 16; shift++) {
     WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
-    int16_t* g = r.builder().AddGlobal<int16_t>(kWasmS128);
+    int32_t* memory = r.builder().AddMemoryElems<int32_t>(1);
+    int16_t* g_imm = r.builder().AddGlobal<int16_t>(kWasmS128);
+    int16_t* g_mem = r.builder().AddGlobal<int16_t>(kWasmS128);
     byte value = 0;
-    byte simd1 = r.AllocateLocal(kWasmS128);
-    byte shift_index = r.AllocateLocal(kWasmI32);
-    BUILD(r,
-          WASM_SET_LOCAL(simd1, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value))),
-          WASM_SET_LOCAL(shift_index, WASM_I32V(shift)),
-          WASM_SET_GLOBAL(0, WASM_SIMD_SHIFT_OP(opcode, WASM_GET_LOCAL(simd1),
-                                                WASM_GET_LOCAL(shift_index))),
-          WASM_ONE);
+    byte simd = r.AllocateLocal(kWasmS128);
+    // Shift using an immediate, and shift using a value loaded from memory.
+    BUILD(
+        r, WASM_SET_LOCAL(simd, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_SHIFT_OP(opcode, WASM_GET_LOCAL(simd),
+                                              WASM_I32V(shift))),
+        WASM_SET_GLOBAL(1, WASM_SIMD_SHIFT_OP(
+                               opcode, WASM_GET_LOCAL(simd),
+                               WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO))),
+        WASM_ONE);
 
+    r.builder().WriteMemory(&memory[0], shift);
     FOR_INT16_INPUTS(x) {
       r.Call(x);
       int16_t expected = expected_op(x, shift);
       for (int i = 0; i < 8; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<int16_t>(&g[i]));
+        CHECK_EQ(expected, ReadLittleEndianValue<int16_t>(&g_imm[i]));
+        CHECK_EQ(expected, ReadLittleEndianValue<int16_t>(&g_mem[i]));
       }
     }
   }

@@ -601,6 +601,25 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ cmovq(zero, dst, tmp1);                   \
   } while (false)
 
+// This macro will directly emit the opcode if the shift is an immediate - the
+// shift value will be taken modulo 2^width. Otherwise, it will emit code to
+// perform the modulus operation.
+#define ASSEMBLE_SIMD_SHIFT(opcode, width)                     \
+  do {                                                         \
+    XMMRegister dst = i.OutputSimd128Register();               \
+    DCHECK_EQ(dst, i.InputSimd128Register(0));                 \
+    if (HasImmediateInput(instr, 1)) {                         \
+      __ opcode(dst, static_cast<byte>(i.InputInt##width(1))); \
+    } else {                                                   \
+      XMMRegister tmp = i.TempSimd128Register(0);              \
+      Register shift = i.InputRegister(1);                     \
+      constexpr int mask = (1 << width) - 1;                   \
+      __ andq(shift, Immediate(mask));                         \
+      __ Movq(tmp, shift);                                     \
+      __ opcode(dst, tmp);                                     \
+    }                                                          \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
   __ movq(rsp, rbp);
@@ -2634,12 +2653,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I64x2Shl: {
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 8.
-      __ andq(shift, Immediate(63));
-      __ movq(tmp, shift);
-      __ psllq(i.OutputSimd128Register(), tmp);
+      // Take shift value modulo 2^6.
+      ASSEMBLE_SIMD_SHIFT(psllq, 6);
       break;
     }
     case kX64I64x2ShrS: {
@@ -2788,12 +2803,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I64x2ShrU: {
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 64.
-      __ andq(shift, Immediate(63));
-      __ movq(tmp, shift);
-      __ psrlq(i.OutputSimd128Register(), tmp);
+      // Take shift value modulo 2^6.
+      ASSEMBLE_SIMD_SHIFT(psrlq, 6);
       break;
     }
     case kX64I64x2MinU: {
@@ -2943,21 +2954,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I32x4Shl: {
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 32.
-      __ andq(shift, Immediate(31));
-      __ Movq(tmp, shift);
-      __ Pslld(i.OutputSimd128Register(), tmp);
+      // Take shift value modulo 2^5.
+      ASSEMBLE_SIMD_SHIFT(Pslld, 5);
       break;
     }
     case kX64I32x4ShrS: {
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 32.
-      __ andq(shift, Immediate(31));
-      __ Movq(tmp, shift);
-      __ Psrad(i.OutputSimd128Register(), tmp);
+      // Take shift value modulo 2^5.
+      ASSEMBLE_SIMD_SHIFT(Psrad, 5);
       break;
     }
     case kX64I32x4Add: {
@@ -3051,12 +3054,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I32x4ShrU: {
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 32.
-      __ andq(shift, Immediate(31));
-      __ Movq(tmp, shift);
-      __ Psrld(i.OutputSimd128Register(), tmp);
+      // Take shift value modulo 2^5.
+      ASSEMBLE_SIMD_SHIFT(Psrld, 5);
       break;
     }
     case kX64I32x4MinU: {
@@ -3151,21 +3150,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8Shl: {
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 16.
-      __ andq(shift, Immediate(15));
-      __ movq(tmp, shift);
-      __ psllw(i.OutputSimd128Register(), tmp);
+      // Take shift value modulo 2^4.
+      ASSEMBLE_SIMD_SHIFT(psllw, 4);
       break;
     }
     case kX64I16x8ShrS: {
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 16.
-      __ andq(shift, Immediate(15));
-      __ movq(tmp, shift);
-      __ psraw(i.OutputSimd128Register(), tmp);
+      // Take shift value modulo 2^4.
+      ASSEMBLE_SIMD_SHIFT(psraw, 4);
       break;
     }
     case kX64I16x8SConvertI32x4: {
@@ -3244,12 +3235,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8ShrU: {
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 16.
-      __ andq(shift, Immediate(15));
-      __ movq(tmp, shift);
-      __ psrlw(i.OutputSimd128Register(), tmp);
+      // Take shift value modulo 2^4.
+      ASSEMBLE_SIMD_SHIFT(psrlw, 4);
       break;
     }
     case kX64I16x8UConvertI32x4: {

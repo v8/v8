@@ -2806,13 +2806,18 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 SIMD_TYPES(VISIT_SIMD_REPLACE_LANE)
 #undef VISIT_SIMD_REPLACE_LANE
 
-#define VISIT_SIMD_SHIFT(Opcode)                                          \
-  void InstructionSelector::Visit##Opcode(Node* node) {                   \
-    X64OperandGenerator g(this);                                          \
-    InstructionOperand temps[] = {g.TempSimd128Register()};               \
-    Emit(kX64##Opcode, g.DefineSameAsFirst(node),                         \
-         g.UseUniqueRegister(node->InputAt(0)),                           \
-         g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps); \
+#define VISIT_SIMD_SHIFT(Opcode)                                               \
+  void InstructionSelector::Visit##Opcode(Node* node) {                        \
+    X64OperandGenerator g(this);                                               \
+    if (g.CanBeImmediate(node->InputAt(1))) {                                  \
+      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                            \
+           g.UseRegister(node->InputAt(0)), g.UseImmediate(node->InputAt(1))); \
+    } else {                                                                   \
+      InstructionOperand temps[] = {g.TempSimd128Register()};                  \
+      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                            \
+           g.UseUniqueRegister(node->InputAt(0)),                              \
+           g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);    \
+    }                                                                          \
   }
 SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
 #undef VISIT_SIMD_SHIFT
