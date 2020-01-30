@@ -169,11 +169,11 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   void FinalizeSweeping();
 
-  StepResult V8Step(double max_step_size_in_ms, CompletionAction action,
-                    StepOrigin step_origin);
+  StepResult Step(double max_step_size_in_ms, CompletionAction action,
+                  StepOrigin step_origin);
 
   bool ShouldDoEmbedderStep();
-  StepResult EmbedderStep(double duration);
+  StepResult EmbedderStep(double expected_duration_ms, double* duration_ms);
 
   V8_INLINE void RestartIfNotMarking();
 

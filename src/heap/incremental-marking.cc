@@ -29,6 +29,7 @@
 #include "src/objects/transitions-inl.h"
 #include "src/objects/visitors.h"
 #include "src/tracing/trace-event.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -678,13 +679,19 @@ void IncrementalMarking::ProcessBlackAllocatedObject(HeapObject obj) {
   }
 }
 
-StepResult IncrementalMarking::EmbedderStep(double duration_ms) {
-  if (!ShouldDoEmbedderStep()) return StepResult::kNoImmediateWork;
+StepResult IncrementalMarking::EmbedderStep(double expected_duration_ms,
+                                            double* duration_ms) {
+  if (!ShouldDoEmbedderStep()) {
+    *duration_ms = 0.0;
+    return StepResult::kNoImmediateWork;
+  }
 
   constexpr size_t kObjectsToProcessBeforeInterrupt = 500;
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_TRACING);
-  double deadline = heap_->MonotonicallyIncreasingTimeInMs() + duration_ms;
+  const double start = heap_->MonotonicallyIncreasingTimeInMs();
+  double deadline = start + expected_duration_ms;
+  double current;
   bool empty_worklist;
   do {
     {
@@ -703,9 +710,10 @@ StepResult IncrementalMarking::EmbedderStep(double duration_ms) {
       }
     }
     heap_->local_embedder_heap_tracer()->Trace(deadline);
-  } while (!empty_worklist &&
-           (heap_->MonotonicallyIncreasingTimeInMs() < deadline));
+    current = heap_->MonotonicallyIncreasingTimeInMs();
+  } while (!empty_worklist && (current < deadline));
   heap_->local_embedder_heap_tracer()->SetEmbedderWorklistEmpty(empty_worklist);
+  *duration_ms = current - start;
   return empty_worklist ? StepResult::kNoImmediateWork
                         : StepResult::kMoreWorkRemaining;
 }
@@ -853,12 +861,11 @@ void IncrementalMarking::ScheduleBytesToMarkBasedOnTime(double time_ms) {
 
 namespace {
 StepResult CombineStepResults(StepResult a, StepResult b) {
+  DCHECK_NE(StepResult::kWaitingForFinalization, a);
+  DCHECK_NE(StepResult::kWaitingForFinalization, b);
   if (a == StepResult::kMoreWorkRemaining ||
       b == StepResult::kMoreWorkRemaining)
     return StepResult::kMoreWorkRemaining;
-  if (a == StepResult::kWaitingForFinalization ||
-      b == StepResult::kWaitingForFinalization)
-    return StepResult::kWaitingForFinalization;
   return StepResult::kNoImmediateWork;
 }
 }  // anonymous namespace
@@ -874,22 +881,7 @@ StepResult IncrementalMarking::AdvanceWithDeadline(
 
   ScheduleBytesToMarkBasedOnTime(heap()->MonotonicallyIncreasingTimeInMs());
   FastForwardScheduleIfCloseToFinalization();
-
-  double remaining_time_in_ms = 0.0;
-  StepResult result;
-  do {
-    StepResult v8_result =
-        V8Step(kStepSizeInMs / 2, completion_action, step_origin);
-    remaining_time_in_ms =
-        deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
-    StepResult embedder_result =
-        EmbedderStep(Min(kStepSizeInMs, remaining_time_in_ms));
-    result = CombineStepResults(v8_result, embedder_result);
-    remaining_time_in_ms =
-        deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
-  } while (remaining_time_in_ms >= kStepSizeInMs &&
-           result == StepResult::kMoreWorkRemaining);
-  return result;
+  return Step(kStepSizeInMs, completion_action, step_origin);
 }
 
 void IncrementalMarking::FinalizeSweeping() {
@@ -1005,13 +997,12 @@ void IncrementalMarking::AdvanceOnAllocation() {
   TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
   ScheduleBytesToMarkBasedOnAllocation();
-  V8Step(kMaxStepSizeInMs, GC_VIA_STACK_GUARD, StepOrigin::kV8);
+  Step(kMaxStepSizeInMs, GC_VIA_STACK_GUARD, StepOrigin::kV8);
 }
 
-StepResult IncrementalMarking::V8Step(double max_step_size_in_ms,
-                                      CompletionAction action,
-                                      StepOrigin step_origin) {
-  StepResult result = StepResult::kMoreWorkRemaining;
+StepResult IncrementalMarking::Step(double max_step_size_in_ms,
+                                    CompletionAction action,
+                                    StepOrigin step_origin) {
   double start = heap_->MonotonicallyIncreasingTimeInMs();
 
   if (state_ == SWEEPING) {
@@ -1019,7 +1010,11 @@ StepResult IncrementalMarking::V8Step(double max_step_size_in_ms,
     FinalizeSweeping();
   }
 
-  size_t bytes_processed = 0, bytes_to_process = 0;
+  StepResult combined_result = StepResult::kMoreWorkRemaining;
+  size_t bytes_to_process = 0;
+  size_t v8_bytes_processed = 0;
+  double embedder_duration = 0.0;
+  double embedder_deadline = 0.0;
   if (state_ == MARKING) {
     if (FLAG_concurrent_marking) {
       heap_->new_space()->ResetOriginalTop();
@@ -1048,30 +1043,58 @@ StepResult IncrementalMarking::V8Step(double max_step_size_in_ms,
         max_step_size_in_ms,
         heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
     bytes_to_process = Min(ComputeStepSizeInBytes(step_origin), max_step_size);
-    if (bytes_to_process == 0) {
-      result = StepResult::kNoImmediateWork;
-    }
+    bytes_to_process = Max(bytes_to_process, kMinStepSizeInBytes);
 
-    bytes_processed = collector_->ProcessMarkingWorklist(
-        Max(bytes_to_process, kMinStepSizeInBytes));
+    size_t remaining_bytes = bytes_to_process;
+    StepResult embedder_result, v8_result;
+    do {
+      v8_result = embedder_result = StepResult::kMoreWorkRemaining;
+      size_t v8_bytes_processed_step =
+          collector_->ProcessMarkingWorklist(remaining_bytes / 2);
+      v8_bytes_processed += v8_bytes_processed_step;
+      remaining_bytes = remaining_bytes > v8_bytes_processed_step
+                            ? remaining_bytes - v8_bytes_processed_step
+                            : 0;
+      v8_result = marking_worklists()->IsEmpty()
+                      ? StepResult::kNoImmediateWork
+                      : StepResult::kMoreWorkRemaining;
+      // Allow the embedder to make marking progress, assuming it gets a share
+      // of the time for handling |bytes_to_process|.
+      if (remaining_bytes > 0) {
+        const double marking_speed =
+            heap_->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond();
+        double step_duration;
+        double step_expected_duration = remaining_bytes / marking_speed;
+        embedder_result = EmbedderStep(step_expected_duration, &step_duration);
+        embedder_duration += step_duration;
+        embedder_deadline += step_expected_duration;
+        size_t embedder_bytes_processed_step =
+            Max(static_cast<size_t>(step_duration * marking_speed), size_t{1});
+        remaining_bytes = remaining_bytes > embedder_bytes_processed_step
+                              ? remaining_bytes - embedder_bytes_processed_step
+                              : 0;
+      } else {
+        break;
+      }
+    } while ((v8_result == StepResult::kMoreWorkRemaining ||
+              embedder_result == StepResult::kMoreWorkRemaining) &&
+             remaining_bytes > 0);
 
-    bytes_marked_ += bytes_processed;
+    bytes_marked_ += v8_bytes_processed;
+    combined_result = CombineStepResults(v8_result, embedder_result);
 
     if (marking_worklists()->IsEmpty()) {
-      result = StepResult::kNoImmediateWork;
       if (heap_->local_embedder_heap_tracer()
               ->ShouldFinalizeIncrementalMarking()) {
         if (!finalize_marking_completed_) {
           FinalizeMarking(action);
           FastForwardSchedule();
-          result = StepResult::kWaitingForFinalization;
+          combined_result = StepResult::kWaitingForFinalization;
           incremental_marking_job()->Start(heap_);
         } else {
           MarkingComplete(action);
-          result = StepResult::kWaitingForFinalization;
+          combined_result = StepResult::kWaitingForFinalization;
         }
-      } else {
-        heap_->local_embedder_heap_tracer()->NotifyV8MarkingWorklistWasEmpty();
       }
     }
     if (FLAG_concurrent_marking) {
@@ -1080,21 +1103,22 @@ StepResult IncrementalMarking::V8Step(double max_step_size_in_ms,
     }
   }
 
-  double end = heap_->MonotonicallyIncreasingTimeInMs();
-  double duration = (end - start);
+  double duration = (heap_->MonotonicallyIncreasingTimeInMs() - start);
   if (state_ == MARKING) {
     // Note that we report zero bytes here when sweeping was in progress or
     // when we just started incremental marking. In these cases we did not
     // process the marking deque.
-    heap_->tracer()->AddIncrementalMarkingStep(duration, bytes_processed);
+    heap_->tracer()->AddIncrementalMarkingStep(duration, v8_bytes_processed);
   }
   if (FLAG_trace_incremental_marking) {
     heap_->isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Step %s %zuKB (%zuKB) in %.1f\n",
+        "[IncrementalMarking] Step %s V8: %zuKB (%zuKB), embedder: %fms (%fms) "
+        "in %.1f\n",
         step_origin == StepOrigin::kV8 ? "in v8" : "in task",
-        bytes_processed / KB, bytes_to_process / KB, duration);
+        v8_bytes_processed / KB, bytes_to_process / KB, embedder_duration,
+        embedder_deadline, duration);
   }
-  return result;
+  return combined_result;
 }
 
 }  // namespace internal
