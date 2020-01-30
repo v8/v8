@@ -361,6 +361,12 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
     DCHECK_EQ(Context::kNotFound,
               Context::IntrinsicIndexForName(name->raw_data(), name->length()));
 
+    // When fuzzing, only allow whitelisted runtime functions.
+    if (FLAG_allow_natives_for_fuzzing &&
+        !Runtime::IsWhitelistedForFuzzing(function->function_id)) {
+      return factory()->NewUndefinedLiteral(kNoSourcePosition);
+    }
+
     // Check that the expected number of arguments are being passed.
     if (function->nargs != -1 && function->nargs != args.length()) {
       ReportMessage(MessageTemplate::kRuntimeWrongNumArgs);
@@ -368,6 +374,11 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
     }
 
     return factory()->NewCallRuntime(function, args, pos);
+  }
+
+  // Intrinsics are not supported for fuzzing.
+  if (FLAG_allow_natives_for_fuzzing) {
+    return factory()->NewUndefinedLiteral(kNoSourcePosition);
   }
 
   int context_index =

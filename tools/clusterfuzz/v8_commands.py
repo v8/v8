@@ -16,7 +16,7 @@ import v8_fuzz_config
 DEFAULT_FLAGS = [
   '--correctness-fuzzer-suppressions',
   '--expose-gc',
-  '--allow-natives-syntax',
+  '--allow-natives-for-differential-fuzzing',
   '--invoke-weak-callbacks',
   '--omit-quit',
   '--es-staging',
