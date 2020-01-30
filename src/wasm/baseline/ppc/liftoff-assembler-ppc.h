@@ -522,6 +522,11 @@ void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
   bailout(kUnsupportedArchitecture, "emit_f32x4_splat");
 }
 
+void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  bailout(kUnsupportedArchitecture, "emit_i32x4_splat");
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   bailout(kUnsupportedArchitecture, "StackCheck");
 }
