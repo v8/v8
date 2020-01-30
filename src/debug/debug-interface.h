@@ -212,8 +212,6 @@ class DebugDelegate {
 V8_EXPORT_PRIVATE void SetDebugDelegate(Isolate* isolate,
                                         DebugDelegate* listener);
 
-V8_EXPORT_PRIVATE void TierDownAllModulesPerIsolate(Isolate* isolate);
-
 class AsyncEventDelegate {
  public:
   virtual ~AsyncEventDelegate() = default;
