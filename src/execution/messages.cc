@@ -994,9 +994,20 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
     Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
     Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,
     StackTraceCollection stack_trace_collection) {
+  if (FLAG_correctness_fuzzer_suppressions) {
+    // Abort range errors in correctness fuzzing, as their causes differ
+    // accross correctness-fuzzing scenarios.
+    if (target.is_identical_to(isolate->range_error_function())) {
+      FATAL("Aborting on range error");
+    }
+    // Ignore error messages in correctness fuzzing, because the spec leaves
+    // room for undefined behavior.
+    message = isolate->factory()->InternalizeUtf8String(
+        "Message suppressed for fuzzers (--correctness-fuzzer-suppressions)");
+  }
+
   // 1. If NewTarget is undefined, let newTarget be the active function object,
   // else let newTarget be NewTarget.
-
   Handle<JSReceiver> new_target_recv =
       new_target->IsJSReceiver() ? Handle<JSReceiver>::cast(new_target)
                                  : Handle<JSReceiver>::cast(target);
@@ -1154,15 +1165,7 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
     // pending exceptions would be cleared. Preserve this behavior.
     isolate->clear_pending_exception();
   }
-  Handle<String> msg;
-  if (FLAG_correctness_fuzzer_suppressions) {
-    // Ignore error messages in correctness fuzzing, because the spec leaves
-    // room for undefined behavior.
-    msg = isolate->factory()->InternalizeUtf8String(
-        "Message suppressed for fuzzers (--correctness-fuzzer-suppressions)");
-  } else {
-    msg = DoFormatMessage(isolate, index, arg0, arg1, arg2);
-  }
+  Handle<String> msg = DoFormatMessage(isolate, index, arg0, arg1, arg2);
 
   DCHECK(mode != SKIP_UNTIL_SEEN);
 
