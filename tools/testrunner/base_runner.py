@@ -345,6 +345,8 @@ class BaseTestRunner(object):
                            "color, mono)")
     parser.add_option("--json-test-results",
                       help="Path to a file for storing json results.")
+    parser.add_option('--json-test-times',
+                      help='Path to a file for storing json test times.')
     parser.add_option("--exit-after-n-failures", type="int", default=100,
                       help="Exit after the first N failures instead of "
                            "running all tests. Pass 0 to disable this feature.")
@@ -792,7 +794,6 @@ class BaseTestRunner(object):
     if options.json_test_results:
       procs.append(progress.JsonTestProgressIndicator(
         self.framework_name,
-        options.json_test_results,
         self.build_config.arch,
         self.mode_options.execution_mode))
 

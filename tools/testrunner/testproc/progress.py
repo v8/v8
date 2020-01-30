@@ -317,7 +317,7 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
 
 
 class JsonTestProgressIndicator(ProgressIndicator):
-  def __init__(self, framework_name, json_test_results, arch, mode):
+  def __init__(self, framework_name, arch, mode):
     super(JsonTestProgressIndicator, self).__init__()
     # We want to drop stdout/err for all passed tests on the first try, but we
     # need to get outputs for all runs after the first one. To accommodate that,
@@ -326,7 +326,6 @@ class JsonTestProgressIndicator(ProgressIndicator):
     self._requirement = base.DROP_PASS_STDOUT
 
     self.framework_name = framework_name
-    self.json_test_results = json_test_results
     self.arch = arch
     self.mode = mode
     self.results = []
@@ -372,8 +371,8 @@ class JsonTestProgressIndicator(ProgressIndicator):
 
   def finished(self):
     complete_results = []
-    if os.path.exists(self.json_test_results):
-      with open(self.json_test_results, "r") as f:
+    if os.path.exists(self.options.json_test_results):
+      with open(self.options.json_test_results, "r") as f:
         # On bots we might start out with an empty file.
         complete_results = json.loads(f.read() or "[]")
 
@@ -386,15 +385,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
 
     # Sort tests by duration.
     self.tests.sort(key=lambda __duration_cmd: __duration_cmd[1], reverse=True)
-    slowest_tests = [
-      {
-        "name": str(test),
-        "flags": cmd.args,
-        "command": cmd.to_string(relative=True),
-        "duration": duration,
-        "marked_slow": test.is_slow,
-      } for (test, duration, cmd) in self.tests[:20]
-    ]
+    slowest_tests = self._test_records(self.tests[:20])
 
     complete_results.append({
       "arch": self.arch,
@@ -405,5 +396,24 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "test_total": len(self.tests),
     })
 
-    with open(self.json_test_results, "w") as f:
+    with open(self.options.json_test_results, "w") as f:
       f.write(json.dumps(complete_results))
+
+    self._save_test_times()
+
+  def _test_records(self, tests):
+    return [
+      {
+        "name": str(test),
+        "flags": cmd.args,
+        "command": cmd.to_string(relative=True),
+        "duration": duration,
+        "marked_slow": test.is_slow,
+      } for (test, duration, cmd) in tests
+    ]
+
+  def _save_test_times(self):
+    if self.options.json_test_times:
+      test_times = self._test_records(self.tests)
+      with open(self.options.json_test_times, "w") as f:
+        f.write(json.dumps(test_times))
