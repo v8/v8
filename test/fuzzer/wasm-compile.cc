@@ -186,6 +186,8 @@ class WasmGenerator {
       case kExprI64AtomicAnd:
       case kExprI64AtomicOr:
       case kExprI64AtomicXor:
+      case kExprI64AtomicExchange:
+      case kExprI64AtomicCompareExchange:
         return 3;
       case kExprI32LoadMem:
       case kExprI64LoadMem32S:
@@ -203,11 +205,15 @@ class WasmGenerator {
       case kExprI32AtomicAnd:
       case kExprI32AtomicOr:
       case kExprI32AtomicXor:
+      case kExprI32AtomicExchange:
+      case kExprI32AtomicCompareExchange:
       case kExprI64AtomicAdd32U:
       case kExprI64AtomicSub32U:
       case kExprI64AtomicAnd32U:
       case kExprI64AtomicOr32U:
       case kExprI64AtomicXor32U:
+      case kExprI64AtomicExchange32U:
+      case kExprI64AtomicCompareExchange32U:
         return 2;
       case kExprI32LoadMem16S:
       case kExprI32LoadMem16U:
@@ -224,11 +230,15 @@ class WasmGenerator {
       case kExprI32AtomicAnd16U:
       case kExprI32AtomicOr16U:
       case kExprI32AtomicXor16U:
+      case kExprI32AtomicExchange16U:
+      case kExprI32AtomicCompareExchange16U:
       case kExprI64AtomicAdd16U:
       case kExprI64AtomicSub16U:
       case kExprI64AtomicAnd16U:
       case kExprI64AtomicOr16U:
       case kExprI64AtomicXor16U:
+      case kExprI64AtomicExchange16U:
+      case kExprI64AtomicCompareExchange16U:
         return 1;
       case kExprI32LoadMem8S:
       case kExprI32LoadMem8U:
@@ -245,11 +255,15 @@ class WasmGenerator {
       case kExprI32AtomicAnd8U:
       case kExprI32AtomicOr8U:
       case kExprI32AtomicXor8U:
+      case kExprI32AtomicExchange8U:
+      case kExprI32AtomicCompareExchange8U:
       case kExprI64AtomicAdd8U:
       case kExprI64AtomicSub8U:
       case kExprI64AtomicAnd8U:
       case kExprI64AtomicOr8U:
       case kExprI64AtomicXor8U:
+      case kExprI64AtomicExchange8U:
+      case kExprI64AtomicCompareExchange8U:
         return 0;
       default:
         return 0;
@@ -689,16 +703,25 @@ void WasmGenerator::Generate<kWasmI32>(DataRange* data) {
       &WasmGenerator::atomic_op<kExprI32AtomicAnd, kWasmI32, kWasmI32>,
       &WasmGenerator::atomic_op<kExprI32AtomicOr, kWasmI32, kWasmI32>,
       &WasmGenerator::atomic_op<kExprI32AtomicXor, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicExchange, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicCompareExchange, kWasmI32,
+                                kWasmI32, kWasmI32>,
       &WasmGenerator::atomic_op<kExprI32AtomicAdd8U, kWasmI32, kWasmI32>,
       &WasmGenerator::atomic_op<kExprI32AtomicSub8U, kWasmI32, kWasmI32>,
       &WasmGenerator::atomic_op<kExprI32AtomicAnd8U, kWasmI32, kWasmI32>,
       &WasmGenerator::atomic_op<kExprI32AtomicOr8U, kWasmI32, kWasmI32>,
       &WasmGenerator::atomic_op<kExprI32AtomicXor8U, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicExchange8U, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicCompareExchange8U, kWasmI32,
+                                kWasmI32, kWasmI32>,
       &WasmGenerator::atomic_op<kExprI32AtomicAdd16U, kWasmI32, kWasmI32>,
       &WasmGenerator::atomic_op<kExprI32AtomicSub16U, kWasmI32, kWasmI32>,
       &WasmGenerator::atomic_op<kExprI32AtomicAnd16U, kWasmI32, kWasmI32>,
       &WasmGenerator::atomic_op<kExprI32AtomicOr16U, kWasmI32, kWasmI32>,
       &WasmGenerator::atomic_op<kExprI32AtomicXor16U, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicExchange16U, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicCompareExchange16U, kWasmI32,
+                                kWasmI32, kWasmI32>,
 
       &WasmGenerator::current_memory,
       &WasmGenerator::grow_memory,
@@ -780,21 +803,33 @@ void WasmGenerator::Generate<kWasmI64>(DataRange* data) {
       &WasmGenerator::atomic_op<kExprI64AtomicAnd, kWasmI32, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicOr, kWasmI32, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicXor, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicExchange, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicCompareExchange, kWasmI32,
+                                kWasmI64, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicAdd8U, kWasmI32, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicSub8U, kWasmI32, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicAnd8U, kWasmI32, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicOr8U, kWasmI32, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicXor8U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicExchange8U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicCompareExchange8U, kWasmI32,
+                                kWasmI64, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicAdd16U, kWasmI32, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicSub16U, kWasmI32, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicAnd16U, kWasmI32, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicOr16U, kWasmI32, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicXor16U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicExchange16U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicCompareExchange16U, kWasmI32,
+                                kWasmI64, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicAdd32U, kWasmI32, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicSub32U, kWasmI32, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicAnd32U, kWasmI32, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicOr32U, kWasmI32, kWasmI64>,
       &WasmGenerator::atomic_op<kExprI64AtomicXor32U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicExchange32U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicCompareExchange32U, kWasmI32,
+                                kWasmI64, kWasmI64>,
 
       &WasmGenerator::get_local<kWasmI64>,
       &WasmGenerator::tee_local<kWasmI64>,
