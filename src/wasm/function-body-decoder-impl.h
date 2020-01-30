@@ -2601,7 +2601,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   bool TypeCheckBrTable(const std::vector<ValueType>& result_types) {
     int br_arity = static_cast<int>(result_types.size());
-    if (V8_LIKELY(control_.back().reachable())) {
+    if (V8_LIKELY(!control_.back().unreachable())) {
       int available =
           static_cast<int>(stack_.size()) - control_.back().stack_depth;
       // There have to be enough values on the stack.
