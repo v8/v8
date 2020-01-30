@@ -61,7 +61,7 @@ WasmCode* CompileImportWrapper(
     WasmImportWrapperCache::ModificationScope* cache_scope);
 
 V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
-    Isolate* isolate, Vector<const uint8_t> wire_bytes,
+    Isolate* isolate, const ModuleWireBytes& wire_bytes,
     Vector<const char> source_map_url, WireBytesRef name,
     Vector<const char> source_url = {});
 
@@ -149,12 +149,9 @@ class AsyncCompileJob {
 
   void CreateNativeModule(std::shared_ptr<const WasmModule> module,
                           size_t code_size_estimate);
-  // Return true for cache hit, false for cache miss.
-  bool GetOrCreateNativeModule(std::shared_ptr<const WasmModule> module,
-                               size_t code_size_estimate);
   void PrepareRuntimeObjects();
 
-  void FinishCompile(bool is_after_cache_hit);
+  void FinishCompile();
 
   void DecodeFailed(const WasmError&);
   void AsyncCompileFailed();
