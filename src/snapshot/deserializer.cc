@@ -301,8 +301,7 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
     }
   } else if (obj.IsJSArrayBuffer()) {
     JSArrayBuffer buffer = JSArrayBuffer::cast(obj);
-    buffer.set_extension(nullptr);
-    // Only fixup for the off-heap case. This may trigger GC.
+    // Postpone allocation of backing store to avoid triggering the GC.
     if (buffer.backing_store() != nullptr) {
       new_off_heap_array_buffers_.push_back(handle(buffer, isolate_));
     }
