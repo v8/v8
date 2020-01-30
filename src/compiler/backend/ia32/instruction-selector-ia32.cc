@@ -1999,21 +1999,22 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   InstructionCode code = kIA32Word32AtomicPairCompareExchange |
                          AddressingModeField::encode(addressing_mode);
 
-  if (projection1) {
-    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, eax),
-                                    g.DefineAsFixed(projection1, edx)};
-    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs, 0, {});
-  } else if (projection0) {
-    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, eax)};
-    InstructionOperand temps[] = {g.TempRegister(edx)};
-    const int num_temps = arraysize(temps);
-    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-         num_temps, temps);
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  InstructionOperand temps[2];
+  size_t temp_count = 0;
+  if (projection0) {
+    outputs[output_count++] = g.DefineAsFixed(projection0, eax);
   } else {
-    InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister(edx)};
-    const int num_temps = arraysize(temps);
-    Emit(code, 0, nullptr, arraysize(inputs), inputs, num_temps, temps);
+    temps[temp_count++] = g.TempRegister(eax);
   }
+  if (projection1) {
+    outputs[output_count++] = g.DefineAsFixed(projection1, edx);
+  } else {
+    temps[temp_count++] = g.TempRegister(edx);
+  }
+  Emit(code, output_count, outputs, arraysize(inputs), inputs, temp_count,
+       temps);
 }
 
 #define SIMD_INT_TYPES(V) \

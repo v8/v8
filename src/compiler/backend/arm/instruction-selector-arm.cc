@@ -2458,24 +2458,24 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
                          AddressingModeField::encode(addressing_mode);
   Node* projection0 = NodeProperties::FindProjection(node, 0);
   Node* projection1 = NodeProperties::FindProjection(node, 1);
-  if (projection1) {
-    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, r2),
-                                    g.DefineAsFixed(projection1, r3)};
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
-    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-         arraysize(temps), temps);
-  } else if (projection0) {
-    InstructionOperand outputs[] = {
-        g.DefineAsFixed(NodeProperties::FindProjection(node, 0), r2)};
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
-                                  g.TempRegister(r3)};
-    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-         arraysize(temps), temps);
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  InstructionOperand temps[4];
+  size_t temp_count = 0;
+  temps[temp_count++] = g.TempRegister();
+  temps[temp_count++] = g.TempRegister();
+  if (projection0) {
+    outputs[output_count++] = g.DefineAsFixed(projection0, r2);
   } else {
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
-                                  g.TempRegister(r2), g.TempRegister(r3)};
-    Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps), temps);
+    temps[temp_count++] = g.TempRegister(r2);
   }
+  if (projection1) {
+    outputs[output_count++] = g.DefineAsFixed(projection1, r3);
+  } else {
+    temps[temp_count++] = g.TempRegister(r3);
+  }
+  Emit(code, output_count, outputs, arraysize(inputs), inputs, temp_count,
+       temps);
 }
 
 #define SIMD_TYPE_LIST(V) \
