@@ -89,6 +89,7 @@ class TestingModuleBuilder {
  public:
   TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, ExecutionTier,
                        RuntimeExceptionSupport, LowerSimd);
+  ~TestingModuleBuilder();
 
   void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsSloppyOrigin; }
 
