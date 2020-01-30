@@ -327,7 +327,6 @@ class WasmCodeAllocator {
   };
 
   WasmCodeAllocator(WasmCodeManager*, VirtualMemory code_space,
-                    bool can_request_more,
                     std::shared_ptr<Counters> async_counters);
   ~WasmCodeAllocator();
 
@@ -390,10 +389,6 @@ class WasmCodeAllocator {
   std::atomic<size_t> freed_code_size_{0};
 
   bool is_executable_ = false;
-
-  // TODO(clemensb): Remove this field once multiple code spaces are supported
-  // everywhere.
-  const bool can_request_more_memory_;
 
   std::shared_ptr<Counters> async_counters_;
 };
@@ -584,7 +579,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // Private constructor, called via {WasmCodeManager::NewNativeModule()}.
   NativeModule(WasmEngine* engine, const WasmFeatures& enabled_features,
-               bool can_request_more, VirtualMemory code_space,
+               VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
                std::shared_ptr<Counters> async_counters,
                std::shared_ptr<NativeModule>* shared_this);
@@ -757,7 +752,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   std::shared_ptr<NativeModule> NewNativeModule(
       WasmEngine* engine, Isolate* isolate,
       const WasmFeatures& enabled_features, size_t code_size_estimate,
-      bool can_request_more, std::shared_ptr<const WasmModule> module);
+      std::shared_ptr<const WasmModule> module);
 
   V8_WARN_UNUSED_RESULT VirtualMemory TryAllocate(size_t size,
                                                   void* hint = nullptr);

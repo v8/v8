@@ -440,13 +440,11 @@ void WasmCodeAllocator::OptionalLock::Lock(WasmCodeAllocator* allocator) {
 
 WasmCodeAllocator::WasmCodeAllocator(WasmCodeManager* code_manager,
                                      VirtualMemory code_space,
-                                     bool can_request_more,
                                      std::shared_ptr<Counters> async_counters)
     : code_manager_(code_manager),
       free_code_space_(code_space.region()),
-      can_request_more_memory_(can_request_more),
       async_counters_(std::move(async_counters)) {
-  owned_code_space_.reserve(can_request_more ? 4 : 1);
+  owned_code_space_.reserve(4);
   owned_code_space_.emplace_back(std::move(code_space));
   async_counters_->wasm_module_num_code_spaces()->AddSample(1);
 }
@@ -502,8 +500,7 @@ base::SmallVector<base::AddressRegion, 1> SplitRangeByReservationsIfNeeded(
 }
 
 int NumWasmFunctionsInFarJumpTable(uint32_t num_declared_functions) {
-  return NativeModule::kNeedsFarJumpsBetweenCodeSpaces &&
-                 FLAG_wasm_far_jump_table
+  return NativeModule::kNeedsFarJumpsBetweenCodeSpaces
              ? static_cast<int>(num_declared_functions)
              : 0;
 }
@@ -571,12 +568,8 @@ Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
   base::AddressRegion code_space =
       free_code_space_.AllocateInRegion(size, region);
   if (code_space.is_empty()) {
-    const bool in_specific_region =
-        region.size() < std::numeric_limits<size_t>::max();
-    if (!can_request_more_memory_ || in_specific_region) {
-      auto error = in_specific_region ? "wasm code reservation in region"
-                                      : "wasm code reservation";
-      V8::FatalProcessOutOfMemory(nullptr, error);
+    if (region.size() < std::numeric_limits<size_t>::max()) {
+      V8::FatalProcessOutOfMemory(nullptr, "wasm code reservation in region");
       UNREACHABLE();
     }
 
@@ -649,26 +642,20 @@ bool WasmCodeAllocator::SetExecutable(bool executable) {
         executable ? PageAllocator::kReadExecute : PageAllocator::kReadWrite;
 #if V8_OS_WIN
     // On windows, we need to switch permissions per separate virtual memory
-    // reservation. This is really just a problem when the NativeModule is
-    // growable (meaning can_request_more_memory_). That's 32-bit in production,
-    // or unittests.
+    // reservation.
     // For now, in that case, we commit at reserved memory granularity.
     // Technically, that may be a waste, because we may reserve more than we
     // use. On 32-bit though, the scarce resource is the address space -
     // committed or not.
-    if (can_request_more_memory_) {
-      for (auto& vmem : owned_code_space_) {
-        if (!SetPermissions(page_allocator, vmem.address(), vmem.size(),
-                            permission)) {
-          return false;
-        }
-        TRACE_HEAP("Set %p:%p to executable:%d\n", vmem.address(), vmem.end(),
-                   executable);
+    for (auto& vmem : owned_code_space_) {
+      if (!SetPermissions(page_allocator, vmem.address(), vmem.size(),
+                          permission)) {
+        return false;
       }
-      is_executable_ = executable;
-      return true;
+      TRACE_HEAP("Set %p:%p to executable:%d\n", vmem.address(), vmem.end(),
+                 executable);
     }
-#endif
+#else   // V8_OS_WIN
     size_t commit_page_size = page_allocator->CommitPageSize();
     for (auto& region : allocated_code_space_.regions()) {
       // allocated_code_space_ is fine-grained, so we need to
@@ -681,6 +668,7 @@ bool WasmCodeAllocator::SetExecutable(bool executable) {
       TRACE_HEAP("Set 0x%" PRIxPTR ":0x%" PRIxPTR " to executable:%d\n",
                  region.begin(), region.end(), executable);
     }
+#endif  // V8_OS_WIN
   }
   is_executable_ = executable;
   return true;
@@ -730,12 +718,12 @@ size_t WasmCodeAllocator::GetNumCodeSpaces() const {
 }
 
 NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
-                           bool can_request_more, VirtualMemory code_space,
+                           VirtualMemory code_space,
                            std::shared_ptr<const WasmModule> module,
                            std::shared_ptr<Counters> async_counters,
                            std::shared_ptr<NativeModule>* shared_this)
     : code_allocator_(engine->code_manager(), std::move(code_space),
-                      can_request_more, async_counters),
+                      async_counters),
       enabled_features_(enabled),
       module_(std::move(module)),
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
@@ -844,8 +832,8 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
                    code->InstructionStart();
-  int mode_mask = RelocInfo::kApplyMask |
-                  RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
+  int mode_mask =
+      RelocInfo::kApplyMask | RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
   auto jump_tables_ref =
       FindJumpTablesForCode(reinterpret_cast<Address>(dst_code_bytes.begin()));
   Address dst_code_addr = reinterpret_cast<Address>(dst_code_bytes.begin());
@@ -1657,8 +1645,7 @@ size_t WasmCodeManager::EstimateNativeModuleMetaDataSize(
 
 std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     WasmEngine* engine, Isolate* isolate, const WasmFeatures& enabled,
-    size_t code_size_estimate, bool can_request_more,
-    std::shared_ptr<const WasmModule> module) {
+    size_t code_size_estimate, std::shared_ptr<const WasmModule> module) {
   DCHECK_EQ(this, isolate->wasm_engine()->code_manager());
   if (total_committed_code_space_.load() >
       critical_committed_code_space_.load()) {
@@ -1672,9 +1659,7 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
 
   // If we cannot add code space later, reserve enough address space up front.
   size_t code_vmem_size =
-      can_request_more ? ReservationSize(code_size_estimate,
-                                         module->num_declared_functions, 0)
-                       : kMaxWasmCodeSpaceSize;
+      ReservationSize(code_size_estimate, module->num_declared_functions, 0);
 
   // The '--wasm-max-code-space-reservation' testing flag can be used to reduce
   // the maximum size of the initial code space reservation (in MB).
@@ -1705,8 +1690,8 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   size_t size = code_space.size();
   Address end = code_space.end();
   std::shared_ptr<NativeModule> ret;
-  new NativeModule(engine, enabled, can_request_more, std::move(code_space),
-                   std::move(module), isolate->async_counters(), &ret);
+  new NativeModule(engine, enabled, std::move(code_space), std::move(module),
+                   isolate->async_counters(), &ret);
   // The constructor initialized the shared_ptr.
   DCHECK_NOT_NULL(ret);
   TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", ret.get(), start,
