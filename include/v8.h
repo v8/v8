@@ -2199,6 +2199,7 @@ enum StateTag {
   COMPILER,
   OTHER,
   EXTERNAL,
+  ATOMICS_WAIT,
   IDLE
 };
 
