@@ -56,7 +56,6 @@ IncrementalMarking::IncrementalMarking(Heap* heap,
       schedule_update_time_ms_(0),
       bytes_marked_concurrently_(0),
       is_compacting_(false),
-      should_hurry_(false),
       was_activated_(false),
       black_allocation_(false),
       finalize_marking_completed_(false),
@@ -291,7 +290,6 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   scheduled_bytes_to_mark_ = 0;
   schedule_update_time_ms_ = start_time_ms_;
   bytes_marked_concurrently_ = 0;
-  should_hurry_ = false;
   was_activated_ = true;
 
   {
@@ -713,11 +711,6 @@ StepResult IncrementalMarking::EmbedderStep(double duration_ms) {
 }
 
 void IncrementalMarking::Hurry() {
-  // A scavenge may have pushed new objects on the marking deque (due to black
-  // allocation) even in COMPLETE state. This may happen if scavenges are
-  // forced e.g. in tests. It should not happen when COMPLETE was set when
-  // incremental marking finished and a regular GC was triggered after that
-  // because should_hurry_ will force a full GC.
   if (!marking_worklists()->IsEmpty()) {
     double start = 0.0;
     if (FLAG_trace_incremental_marking) {
@@ -765,7 +758,6 @@ void IncrementalMarking::Stop() {
     }
   }
 
-  IncrementalMarking::set_should_hurry(false);
   heap_->isolate()->stack_guard()->ClearGC();
   SetState(STOPPED);
   is_compacting_ = false;
@@ -798,9 +790,7 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
   // We will set the stack guard to request a GC now.  This will mean the rest
   // of the GC gets performed as soon as possible (we can't do a GC here in a
   // record-write context).  If a few things get allocated between now and then
-  // that shouldn't make us do a scavenge and keep being incremental, so we set
-  // the should-hurry flag to indicate that there can't be much work left to do.
-  set_should_hurry(true);
+  // that shouldn't make us do a scavenge and keep being incremental.
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Complete (normal).\n");

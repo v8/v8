@@ -105,9 +105,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     return state_;
   }
 
-  bool should_hurry() const { return should_hurry_; }
-  void set_should_hurry(bool val) { should_hurry_ = val; }
-
   bool finalize_marking_completed() const {
     return finalize_marking_completed_;
   }
@@ -320,7 +317,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   State state_;
 
   bool is_compacting_;
-  bool should_hurry_;
   bool was_activated_;
   bool black_allocation_;
   bool finalize_marking_completed_;
