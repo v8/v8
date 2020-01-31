@@ -3440,13 +3440,12 @@ void Simulator::Debug() {
         // trace / t
         // -------------------------------------------------------------
       } else if (strcmp(cmd, "trace") == 0 || strcmp(cmd, "t") == 0) {
-        if ((log_parameters() & (LOG_DISASM | LOG_REGS)) !=
-            (LOG_DISASM | LOG_REGS)) {
-          PrintF("Enabling disassembly and registers tracing\n");
-          set_log_parameters(log_parameters() | LOG_DISASM | LOG_REGS);
+        if ((log_parameters() & LOG_ALL) != LOG_ALL) {
+          PrintF("Enabling disassembly, registers and memory write tracing\n");
+          set_log_parameters(log_parameters() | LOG_ALL);
         } else {
-          PrintF("Disabling disassembly and registers tracing\n");
-          set_log_parameters(log_parameters() & ~(LOG_DISASM | LOG_REGS));
+          PrintF("Disabling disassembly, registers and memory write tracing\n");
+          set_log_parameters(log_parameters() & ~LOG_ALL);
         }
 
         // break / b
