@@ -10,7 +10,9 @@
 #include <fstream>  // NOLINT(readability/streams)
 #include <memory>
 #include <sstream>
+#include <string>
 #include <unordered_map>
+#include <utility>
 
 #include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
@@ -3755,18 +3757,21 @@ void Isolate::set_date_cache(DateCache* date_cache) {
   date_cache_ = date_cache;
 }
 
-bool Isolate::IsArrayOrObjectOrStringPrototype(Object object) {
+Isolate::KnownPrototype Isolate::IsArrayOrObjectOrStringPrototype(
+    Object object) {
   Object context = heap()->native_contexts_list();
   while (!context.IsUndefined(this)) {
     Context current_context = Context::cast(context);
-    if (current_context.initial_object_prototype() == object ||
-        current_context.initial_array_prototype() == object ||
-        current_context.initial_string_prototype() == object) {
-      return true;
+    if (current_context.initial_object_prototype() == object) {
+      return KnownPrototype::kObject;
+    } else if (current_context.initial_array_prototype() == object) {
+      return KnownPrototype::kArray;
+    } else if (current_context.initial_string_prototype() == object) {
+      return KnownPrototype::kString;
     }
     context = current_context.next_context_link();
   }
-  return false;
+  return KnownPrototype::kNone;
 }
 
 bool Isolate::IsInAnyContext(Object object, uint32_t index) {
@@ -3786,7 +3791,13 @@ void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
   DisallowHeapAllocation no_gc;
   if (!object->map().is_prototype_map()) return;
   if (!Protectors::IsNoElementsIntact(this)) return;
-  if (!IsArrayOrObjectOrStringPrototype(*object)) return;
+  KnownPrototype obj_type = IsArrayOrObjectOrStringPrototype(*object);
+  if (obj_type == KnownPrototype::kNone) return;
+  if (obj_type == KnownPrototype::kObject) {
+    this->CountUsage(v8::Isolate::kObjectPrototypeHasElements);
+  } else if (obj_type == KnownPrototype::kArray) {
+    this->CountUsage(v8::Isolate::kArrayPrototypeHasElements);
+  }
   Protectors::InvalidateNoElements(this);
 }
 

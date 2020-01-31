@@ -1169,7 +1169,9 @@ class Isolate final : private HiddenFactory {
 
 #endif  // V8_INTL_SUPPORT
 
-  bool IsArrayOrObjectOrStringPrototype(Object object);
+  enum class KnownPrototype { kNone, kObject, kArray, kString };
+
+  KnownPrototype IsArrayOrObjectOrStringPrototype(Object object);
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
