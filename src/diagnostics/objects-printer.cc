@@ -1986,15 +1986,18 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
   os << "\n - context data: " << Brief(context_data());
   os << "\n - compilation type: " << compilation_type();
   os << "\n - line ends: " << Brief(line_ends());
-  if (has_eval_from_shared()) {
-    os << "\n - eval from shared: " << Brief(eval_from_shared());
-  }
-  if (is_wrapped()) {
-    os << "\n - wrapped arguments: " << Brief(wrapped_arguments());
-  }
-  os << "\n - eval from position: " << eval_from_position();
-  if (has_wasm_breakpoint_infos()) {
-    os << "\n - wasm_breakpoint_infos: " << Brief(wasm_breakpoint_infos());
+  if (type() == TYPE_WASM) {
+    if (has_wasm_breakpoint_infos()) {
+      os << "\n - wasm_breakpoint_infos: " << Brief(wasm_breakpoint_infos());
+    }
+  } else {
+    if (has_eval_from_shared()) {
+      os << "\n - eval from shared: " << Brief(eval_from_shared());
+    }
+    if (is_wrapped()) {
+      os << "\n - wrapped arguments: " << Brief(wrapped_arguments());
+    }
+    os << "\n - eval from position: " << eval_from_position();
   }
   os << "\n - shared function infos: " << Brief(shared_function_infos());
   os << "\n";
