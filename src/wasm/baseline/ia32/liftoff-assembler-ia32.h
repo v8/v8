@@ -427,65 +427,54 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   Operand dst_op = Operand(dst_addr, offset_reg, times_1, offset_imm);
 
+  // i64 store uses a totally different approach, hence implement it separately.
+  if (type.value() == StoreType::kI64Store) {
+    auto scratch2 = GetUnusedRegister(kFpReg, pinned).fp();
+    movd(liftoff::kScratchDoubleReg, src.low().gp());
+    movd(scratch2, src.high().gp());
+    Punpckldq(liftoff::kScratchDoubleReg, scratch2);
+    movsd(dst_op, liftoff::kScratchDoubleReg);
+    // This lock+or is needed to achieve sequential consistency.
+    lock();
+    or_(Operand(esp, 0), Immediate(0));
+    return;
+  }
+
+  // Other i64 stores actually only use the low word.
+  if (src.is_pair()) src = src.low();
+  Register src_gp = src.gp();
+
+  bool is_byte_store = type.size() == 1;
+  LiftoffRegList src_candidates =
+      is_byte_store ? liftoff::kByteRegs : kGpCacheRegList;
   pinned = pinned | LiftoffRegList::ForRegs(dst_addr, src, offset_reg);
-  Register src_reg = src.is_gp_pair() ? src.low().gp() : src.gp();
-  // If {src} is used after this operation, we are not allowed to overwrite it.
-  // {kI64Store} and {kI(32|64)Store8} need special treatment below, so we don't
-  // handle them here.
-  if (type.value() != StoreType::kI64Store &&
-      type.value() != StoreType::kI64Store8 &&
-      type.value() != StoreType::kI32Store8 && cache_state()->is_used(src)) {
-    Register old_src = src_reg;
-    src_reg = GetUnusedRegister(kGpReg, pinned).gp();
-    mov(src_reg, old_src);
+
+  // Ensure that {src} is a valid and otherwise unused register.
+  if (!src_candidates.has(src) || cache_state()->is_used(src)) {
+    // If there is an unused candidate register, use that. Otherwise, spill
+    // other uses of {src}.
+    if (cache_state()->has_unused_register(src_candidates, pinned)) {
+      Register safe_src = GetUnusedRegister(src_candidates, pinned).gp();
+      mov(safe_src, src_gp);
+      src_gp = safe_src;
+    } else {
+      SpillRegister(src);
+    }
   }
 
   switch (type.value()) {
     case StoreType::kI64Store8:
     case StoreType::kI32Store8:
-      if (cache_state()->is_used(src)) {
-        // Only the lower 4 registers can be addressed as 8-bit registers.
-        if (cache_state()->has_unused_register(liftoff::kByteRegs, pinned)) {
-          Register byte_src =
-              GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
-          mov(byte_src, src_reg);
-          xchg_b(byte_src, dst_op);
-        } else {  // (if !cache_state()->has_unused_register(...))
-          // No byte register is available, we have to spill {src}.
-          push(src_reg);
-          xchg_b(src_reg, dst_op);
-          pop(src_reg);
-        }
-      } else {  // if (!cache_state()->is_used(src)) {
-        if (src_reg.is_byte_register()) {
-          xchg_b(src_reg, dst_op);
-        } else {  // if (!src.gp().is_byte_register())
-          Register byte_src =
-              GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
-          mov(byte_src, src_reg);
-          xchg_b(byte_src, dst_op);
-        }
-      }
+      xchg_b(src_gp, dst_op);
       return;
     case StoreType::kI64Store16:
     case StoreType::kI32Store16:
-      xchg_w(src_reg, dst_op);
+      xchg_w(src_gp, dst_op);
       return;
     case StoreType::kI64Store32:
     case StoreType::kI32Store:
-      xchg(src_reg, dst_op);
+      xchg(src_gp, dst_op);
       return;
-    case StoreType::kI64Store: {
-      auto scratch2 = GetUnusedRegister(kFpReg, pinned).fp();
-      movd(liftoff::kScratchDoubleReg, src.low().gp());
-      movd(scratch2, src.high().gp());
-      Punpckldq(liftoff::kScratchDoubleReg, scratch2);
-      movsd(dst_op, liftoff::kScratchDoubleReg);
-      // This lock+or is needed to achieve sequential consistency.
-      lock();
-      or_(Operand(esp, 0), Immediate(0));
-      return;
-    }
     default:
       UNREACHABLE();
   }
