@@ -257,7 +257,8 @@ size_t hash_value(RelocatablePtrConstantInfo const& p) {
 
 std::ostream& operator<<(std::ostream& os,
                          RelocatablePtrConstantInfo const& p) {
-  return os << p.value() << ", " << p.rmode() << ", " << p.type();
+  return os << p.value() << ", " << static_cast<int>(p.rmode()) << ", "
+            << p.type();
 }
 
 SparseInputMask::InputIterator::InputIterator(
