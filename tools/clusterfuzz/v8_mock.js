@@ -93,13 +93,18 @@ Object.defineProperty(
     Error, 'prepareStackTrace', { configurable: false, writable: false });
 
 // Mock buffer access in float typed arrays because of varying NaN patterns.
-// Note, for now we just use noop forwarding proxies, because they already
-// turn off optimizations.
 (function () {
-  var mock = function(arrayType) {
-    var handler = {
+  const origIsNaN = isNaN;
+  const mock = function(arrayType) {
+    const handler = {
       construct: function(target, args) {
-        var obj = new (Function.prototype.bind.apply(arrayType, [null].concat(args)));
+        for (let i = 0; i < args.length; i++) {
+          if (origIsNaN(args[i])) {
+            args[i] = 1;
+          }
+        }
+        const obj = new (
+            Function.prototype.bind.call(arrayType, null, ...args));
         return new Proxy(obj, {
           get: function(x, prop) {
             if (typeof x[prop] == "function")
