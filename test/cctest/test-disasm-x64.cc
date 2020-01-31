@@ -458,6 +458,7 @@ TEST(DisasmX64) {
   __ instruction(xmm5, Operand(rdx, 4));
 
     SSE2_INSTRUCTION_LIST(EMIT_SSE2_INSTR)
+    SSE2_UNOP_INSTRUCTION_LIST(EMIT_SSE2_INSTR)
     SSE2_INSTRUCTION_LIST_SD(EMIT_SSE2_INSTR)
 #undef EMIT_SSE2_INSTR
 
@@ -744,16 +745,24 @@ TEST(DisasmX64) {
   __ v##instruction(xmm10, xmm5, xmm1);                               \
   __ v##instruction(xmm10, xmm5, Operand(rdx, 4));
 
+      SSE2_INSTRUCTION_LIST(EMIT_SSE2_AVXINSTR)
+#undef EMIT_SSE2_AVXINSTR
+
+#define EMIT_SSE2_UNOP_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3) \
+  __ v##instruction(xmm10, xmm1);                                          \
+  __ v##instruction(xmm10, Operand(rdx, 4));
+
+      SSE2_UNOP_INSTRUCTION_LIST(EMIT_SSE2_UNOP_AVXINSTR)
+#undef EMIT_SSE2_AVXINSTR
+
 #define EMIT_SSE34_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
                             notUsed4)                                  \
   __ v##instruction(xmm10, xmm5, xmm1);                                \
   __ v##instruction(xmm10, xmm5, Operand(rdx, 4));
 
-      SSE2_INSTRUCTION_LIST(EMIT_SSE2_AVXINSTR)
       SSSE3_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
       SSE4_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
       SSE4_2_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
-#undef EMIT_SSE2_AVXINSTR
 #undef EMIT_SSE34_AVXINSTR
 
 #define EMIT_SSE4_PMOV_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \

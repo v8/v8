@@ -1505,6 +1505,15 @@ int DisassemblerX64::AVXInstruction(byte* data) {
 
         SSE2_INSTRUCTION_LIST(DECLARE_SSE_AVX_DIS_CASE)
 #undef DECLARE_SSE_AVX_DIS_CASE
+#define DECLARE_SSE_UNOP_AVX_DIS_CASE(instruction, notUsed1, notUsed2, opcode) \
+  case 0x##opcode: {                                                           \
+    AppendToBuffer("v" #instruction " %s,", NameOfXMMRegister(regop));         \
+    current += PrintRightXMMOperand(current);                                  \
+    break;                                                                     \
+  }
+
+        SSE2_UNOP_INSTRUCTION_LIST(DECLARE_SSE_UNOP_AVX_DIS_CASE)
+#undef DECLARE_SSE_UNOP_AVX_DIS_CASE
       default:
         UnimplementedInstruction();
     }

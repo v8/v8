@@ -901,6 +901,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   SSE_INSTRUCTION_LIST_SS(DECLARE_SSE2_INSTRUCTION)
   SSE2_INSTRUCTION_LIST(DECLARE_SSE2_INSTRUCTION)
   SSE2_INSTRUCTION_LIST_SD(DECLARE_SSE2_INSTRUCTION)
+  SSE2_UNOP_INSTRUCTION_LIST(DECLARE_SSE2_INSTRUCTION)
 #undef DECLARE_SSE2_INSTRUCTION
 
   void sse2_instr(XMMRegister reg, byte imm8, byte prefix, byte escape,
@@ -927,6 +928,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   SSE2_INSTRUCTION_LIST(DECLARE_SSE2_AVX_INSTRUCTION)
 #undef DECLARE_SSE2_AVX_INSTRUCTION
+
+#define DECLARE_SSE2_UNOP_AVX_INSTRUCTION(instruction, prefix, escape, opcode) \
+  void v##instruction(XMMRegister dst, XMMRegister src) {                      \
+    vpd(0x##opcode, dst, xmm0, src);                                           \
+  }                                                                            \
+  void v##instruction(XMMRegister dst, Operand src) {                          \
+    vpd(0x##opcode, dst, xmm0, src);                                           \
+  }
+
+  SSE2_UNOP_INSTRUCTION_LIST(DECLARE_SSE2_UNOP_AVX_INSTRUCTION)
+#undef DECLARE_SSE2_UNOP_AVX_INSTRUCTION
 
   // SSE3
   void lddqu(XMMRegister dst, Operand src);

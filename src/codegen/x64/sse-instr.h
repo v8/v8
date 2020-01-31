@@ -36,11 +36,9 @@
   V(maxss, F3, 0F, 5F)
 
 #define SSE2_INSTRUCTION_LIST(V) \
-  V(sqrtpd, 66, 0F, 51)          \
   V(andnpd, 66, 0F, 55)          \
   V(addpd, 66, 0F, 58)           \
   V(mulpd, 66, 0F, 59)           \
-  V(cvtps2dq, 66, 0F, 5B)        \
   V(subpd, 66, 0F, 5C)           \
   V(minpd, 66, 0F, 5D)           \
   V(maxpd, 66, 0F, 5F)           \
@@ -97,6 +95,11 @@
   V(pand, 66, 0F, DB)            \
   V(por, 66, 0F, EB)             \
   V(pxor, 66, 0F, EF)
+
+// SSE2 instructions whose AVX version has two operands.
+#define SSE2_UNOP_INSTRUCTION_LIST(V) \
+  V(sqrtpd, 66, 0F, 51)               \
+  V(cvtps2dq, 66, 0F, 5B)
 
 // SSE2 shift instructions with an immediate operand. The last element is the
 // extension to the opcode.
