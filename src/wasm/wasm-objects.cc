@@ -1846,6 +1846,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   Handle<String> name = isolate->factory()->Function_string();
   if (callable->IsJSFunction()) {
     name = JSFunction::GetName(Handle<JSFunction>::cast(callable));
+    name = String::Flatten(isolate, name);
   }
   Handle<Map> function_map = isolate->wasm_exported_function_map();
   NewFunctionArgs args =
