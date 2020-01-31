@@ -679,8 +679,6 @@ class Context : public HeapObject {
 #endif
 
   OBJECT_CONSTRUCTORS(Context, HeapObject);
-  DECL_INT_ACCESSORS(length_and_extension_flag)
-  DECL_SYNCHRONIZED_INT_ACCESSORS(length_and_extension_flag)
 };
 
 class NativeContext : public Context {
