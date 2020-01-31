@@ -2487,44 +2487,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kSSEI32x4Shl: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+    case kIA32I32x4Shl: {
       XMMRegister tmp = i.TempSimd128Register(0);
       Register shift = i.InputRegister(1);
       // Take shift value modulo 32.
       __ and_(shift, 31);
-      __ movd(tmp, shift);
-      __ pslld(i.OutputSimd128Register(), tmp);
+      __ Movd(tmp, shift);
+      __ Pslld(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
       break;
     }
-    case kAVXI32x4Shl: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
+    case kIA32I32x4ShrS: {
       XMMRegister tmp = i.TempSimd128Register(0);
       Register shift = i.InputRegister(1);
       // Take shift value modulo 32.
       __ and_(shift, 31);
-      __ movd(tmp, shift);
-      __ vpslld(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
-      break;
-    }
-    case kSSEI32x4ShrS: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 32.
-      __ and_(shift, 31);
-      __ movd(tmp, shift);
-      __ psrad(i.OutputSimd128Register(), tmp);
-      break;
-    }
-    case kAVXI32x4ShrS: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 32.
-      __ and_(shift, 31);
-      __ movd(tmp, shift);
-      __ vpsrad(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
+      __ Movd(tmp, shift);
+      __ Psrad(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
       break;
     }
     case kSSEI32x4Add: {
@@ -2717,24 +2695,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pmovzxwd(dst, dst);
       break;
     }
-    case kSSEI32x4ShrU: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+    case kIA32I32x4ShrU: {
       XMMRegister tmp = i.TempSimd128Register(0);
       Register shift = i.InputRegister(1);
       // Take shift value modulo 32.
       __ and_(shift, 31);
       __ movd(tmp, shift);
-      __ psrld(i.OutputSimd128Register(), tmp);
-      break;
-    }
-    case kAVXI32x4ShrU: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 32.
-      __ and_(shift, 31);
-      __ movd(tmp, shift);
-      __ vpsrld(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
+      __ Psrld(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
       break;
     }
     case kSSEI32x4MinU: {

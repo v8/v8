@@ -190,10 +190,8 @@ namespace compiler {
   V(IA32I32x4SConvertI16x8Low)     \
   V(IA32I32x4SConvertI16x8High)    \
   V(IA32I32x4Neg)                  \
-  V(SSEI32x4Shl)                   \
-  V(AVXI32x4Shl)                   \
-  V(SSEI32x4ShrS)                  \
-  V(AVXI32x4ShrS)                  \
+  V(IA32I32x4Shl)                  \
+  V(IA32I32x4ShrS)                 \
   V(SSEI32x4Add)                   \
   V(AVXI32x4Add)                   \
   V(SSEI32x4AddHoriz)              \
@@ -218,8 +216,7 @@ namespace compiler {
   V(AVXI32x4UConvertF32x4)         \
   V(IA32I32x4UConvertI16x8Low)     \
   V(IA32I32x4UConvertI16x8High)    \
-  V(SSEI32x4ShrU)                  \
-  V(AVXI32x4ShrU)                  \
+  V(IA32I32x4ShrU)                 \
   V(SSEI32x4MinU)                  \
   V(AVXI32x4MinU)                  \
   V(SSEI32x4MaxU)                  \

@@ -171,10 +171,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I32x4SConvertI16x8Low:
     case kIA32I32x4SConvertI16x8High:
     case kIA32I32x4Neg:
-    case kSSEI32x4Shl:
-    case kAVXI32x4Shl:
-    case kSSEI32x4ShrS:
-    case kAVXI32x4ShrS:
+    case kIA32I32x4Shl:
+    case kIA32I32x4ShrS:
     case kSSEI32x4Add:
     case kAVXI32x4Add:
     case kSSEI32x4AddHoriz:
@@ -199,8 +197,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXI32x4UConvertF32x4:
     case kIA32I32x4UConvertI16x8Low:
     case kIA32I32x4UConvertI16x8High:
-    case kSSEI32x4ShrU:
-    case kAVXI32x4ShrU:
+    case kIA32I32x4ShrU:
     case kSSEI32x4MinU:
     case kAVXI32x4MinU:
     case kSSEI32x4MaxU:
