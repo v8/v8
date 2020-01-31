@@ -4380,13 +4380,14 @@ EVALUATE(LPR) {
   // Load Positive (32)
   DECODE_RR_INSTRUCTION(r1, r2);
   int32_t r2_val = get_low_register<int32_t>(r2);
-  // If negative, then negate it.
-  r2_val = (r2_val < 0) ? -r2_val : r2_val;
-  set_low_register(r1, r2_val);
   SetS390ConditionCode<int32_t>(r2_val, 0);
   if (r2_val == (static_cast<int32_t>(1) << 31)) {
     SetS390OverflowCode(true);
+  } else {
+    // If negative and not overflowing, then negate it.
+    r2_val = (r2_val < 0) ? -r2_val : r2_val;
   }
+  set_low_register(r1, r2_val);
   return length;
 }
 
