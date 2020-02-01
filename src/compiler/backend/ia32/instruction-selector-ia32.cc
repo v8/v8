@@ -2700,7 +2700,10 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
         // pshufd takes a single imm8 shuffle mask.
         opcode = kIA32S32x4Swizzle;
         no_same_as_first = true;
-        src0_needs_reg = false;
+        // TODO(v8:9198): This doesn't strictly require a register, forcing the
+        // swizzles to always use registers until generation of incorrect memory
+        // operands can be fixed.
+        src0_needs_reg = true;
         imms[imm_count++] = shuffle_mask;
       }
     } else {
@@ -2713,7 +2716,11 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
       } else {
         opcode = kIA32S32x4Shuffle;
         no_same_as_first = true;
-        src0_needs_reg = false;
+        // TODO(v8:9198): src0 and src1 is used by pshufd in codegen, which
+        // requires memory to be 16-byte aligned, since we cannot guarantee that
+        // yet, force using a register here.
+        src0_needs_reg = true;
+        src1_needs_reg = true;
         imms[imm_count++] = shuffle_mask;
         int8_t blend_mask = PackBlend4(shuffle32x4);
         imms[imm_count++] = blend_mask;
