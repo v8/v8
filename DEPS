@@ -4,13 +4,9 @@
 
 gclient_gn_args_file = 'v8/build/config/gclient_args.gni'
 gclient_gn_args = [
-  'checkout_aemu'
 ]
 
 vars = {
-  # By Default, do not checkout AEMU, as it is too big, as is done in Chromium.
-  'checkout_aemu': False,
-
   # Fetches only the SDK boot images which match at least one of the whitelist
   # entries in a comma-separated list.
   #
@@ -222,6 +218,26 @@ deps = {
           {
               'package': 'fuchsia/qemu/mac-amd64',
               'version': '2d3358ae9a569b2d4a474f498b32b202a152134f'
+          },
+      ],
+      'condition': 'host_os == "mac" and checkout_fuchsia',
+      'dep_type': 'cipd',
+  },
+  'v8/third_party/aemu-linux-x64': {
+      'packages': [
+          {
+              'package': 'fuchsia/third_party/aemu/linux-amd64',
+              'version': 'hvClQbzFhJApEEpHpfc8UqpDdzLK0eabIbmpPlfODp8C'
+          },
+      ],
+      'condition': 'host_os == "linux" and checkout_fuchsia',
+      'dep_type': 'cipd',
+  },
+  'v8/third_party/aemu-mac-x64': {
+      'packages': [
+          {
+              'package': 'fuchsia/third_party/aemu/mac-amd64',
+              'version': 'T9bWxf8aUC5TwCFgPxpuW29Mfy-7Z9xCfXB9QO8MfU0C'
           },
       ],
       'condition': 'host_os == "mac" and checkout_fuchsia',
