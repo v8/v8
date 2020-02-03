@@ -4381,6 +4381,7 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   v->Synchronize(VisitorSynchronization::kBootstrapper);
   if (mode != VISIT_ONLY_STRONG_IGNORE_STACK) {
     isolate_->Iterate(v);
+    isolate_->global_handles()->IterateStrongStackRoots(v);
     v->Synchronize(VisitorSynchronization::kTop);
   }
   Relocatable::Iterate(isolate_, v);

@@ -1232,7 +1232,6 @@ void GlobalHandles::IterateYoungStrongAndDependentRoots(RootVisitor* v) {
       v->VisitRootPointer(Root::kGlobalHandles, nullptr, node->location());
     }
   }
-  on_stack_nodes_->Iterate(v);
 }
 
 void GlobalHandles::MarkYoungWeakUnmodifiedObjectsPending(
@@ -1517,6 +1516,9 @@ void GlobalHandles::IterateStrongRoots(RootVisitor* v) {
                           node->location());
     }
   }
+}
+
+void GlobalHandles::IterateStrongStackRoots(RootVisitor* v) {
   on_stack_nodes_->Iterate(v);
 }
 

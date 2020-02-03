@@ -18,8 +18,7 @@ namespace internal {
 
 class IncrementalMarkingJob::Task : public CancelableTask {
  public:
-  static StepResult Step(Heap* heap,
-                         EmbedderHeapTracer::EmbedderStackState stack_state);
+  static StepResult Step(Heap* heap);
 
   Task(Isolate* isolate, IncrementalMarkingJob* job,
        EmbedderHeapTracer::EmbedderStackState stack_state, TaskType task_type)
@@ -80,20 +79,15 @@ void IncrementalMarkingJob::ScheduleTask(Heap* heap, TaskType task_type) {
   }
 }
 
-StepResult IncrementalMarkingJob::Task::Step(
-    Heap* heap, EmbedderHeapTracer::EmbedderStackState stack_state) {
+StepResult IncrementalMarkingJob::Task::Step(Heap* heap) {
   const int kIncrementalMarkingDelayMs = 1;
   double deadline =
       heap->MonotonicallyIncreasingTimeInMs() + kIncrementalMarkingDelayMs;
   StepResult result = heap->incremental_marking()->AdvanceWithDeadline(
       deadline, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
       i::StepOrigin::kTask);
-  {
-    EmbedderStackStateScope scope(heap->local_embedder_heap_tracer(),
-                                  stack_state);
-    heap->FinalizeIncrementalMarkingIfComplete(
-        GarbageCollectionReason::kFinalizeMarkingViaTask);
-  }
+  heap->FinalizeIncrementalMarkingIfComplete(
+      GarbageCollectionReason::kFinalizeMarkingViaTask);
   return result;
 }
 
@@ -102,6 +96,8 @@ void IncrementalMarkingJob::Task::RunInternal() {
   TRACE_EVENT_CALL_STATS_SCOPED(isolate(), "v8", "V8.Task");
 
   Heap* heap = isolate()->heap();
+  EmbedderStackStateScope scope(heap->local_embedder_heap_tracer(),
+                                stack_state_);
   IncrementalMarking* incremental_marking = heap->incremental_marking();
   if (incremental_marking->IsStopped()) {
     if (heap->IncrementalMarkingLimitReached() !=
@@ -117,7 +113,7 @@ void IncrementalMarkingJob::Task::RunInternal() {
   job_->SetTaskPending(task_type_, false);
 
   if (!incremental_marking->IsStopped()) {
-    StepResult step_result = Step(heap, stack_state_);
+    StepResult step_result = Step(heap);
     if (!incremental_marking->IsStopped()) {
       job_->ScheduleTask(heap, step_result == StepResult::kNoImmediateWork
                                    ? TaskType::kDelayed
