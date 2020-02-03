@@ -9,6 +9,7 @@ import subprocess
 import sys
 import unittest
 
+import v8_commands
 import v8_foozzie
 import v8_fuzz_config
 import v8_suppressions
@@ -54,15 +55,18 @@ class UnitTest(unittest.TestCase):
     # TODO(machenbach): Mock out suppression configuration.
     suppress = v8_suppressions.get_suppression(
         'x64', 'ignition', 'x64', 'ignition_turbo')
+    def diff_fun(one, two):
+      return suppress.diff_lines(one.splitlines(), two.splitlines())
+
     one = ''
     two = ''
     diff = None, None
-    self.assertEquals(diff, suppress.diff(one, two))
+    self.assertEquals(diff, diff_fun(one, two))
 
     one = 'a \n  b\nc();'
     two = 'a \n  b\nc();'
     diff = None, None
-    self.assertEquals(diff, suppress.diff(one, two))
+    self.assertEquals(diff, diff_fun(one, two))
 
     # Ignore line before caret, caret position and error message.
     one = """
@@ -80,7 +84,7 @@ somefile.js: TypeError: baz is not a function
   undefined
 """
     diff = None, None
-    self.assertEquals(diff, suppress.diff(one, two))
+    self.assertEquals(diff, diff_fun(one, two))
 
     one = """
 Still equal
@@ -90,7 +94,7 @@ Extra line
 Still equal
 """
     diff = '- Extra line', None
-    self.assertEquals(diff, suppress.diff(one, two))
+    self.assertEquals(diff, diff_fun(one, two))
 
     one = """
 Still equal
@@ -100,7 +104,7 @@ Still equal
 Extra line
 """
     diff = '+ Extra line', None
-    self.assertEquals(diff, suppress.diff(one, two))
+    self.assertEquals(diff, diff_fun(one, two))
 
     one = """
 undefined
@@ -112,7 +116,39 @@ otherfile.js: TypeError: undefined is not a constructor
 """
     diff = """- somefile.js: TypeError: undefined is not a constructor
 + otherfile.js: TypeError: undefined is not a constructor""", None
-    self.assertEquals(diff, suppress.diff(one, two))
+    self.assertEquals(diff, diff_fun(one, two))
+
+  def testOutputCapping(self):
+    def output(stdout, is_crash):
+      exit_code = -1 if is_crash else 0
+      return v8_commands.Output(
+          exit_code=exit_code, timed_out=False, stdout=stdout, pid=0)
+
+    def check(stdout1, stdout2, is_crash1, is_crash2, capped_lines1,
+              capped_lines2):
+      output1 = output(stdout1, is_crash1)
+      output2 = output(stdout2, is_crash2)
+      self.assertEquals(
+          (capped_lines1.splitlines(), capped_lines2.splitlines()),
+          v8_suppressions.get_lines_capped(output1, output2))
+
+    # No capping, already equal.
+    check('1\n2', '1\n2', True, True, '1\n2', '1\n2')
+    # No crash, no capping.
+    check('1\n2', '1\n2\n3', False, False, '1\n2', '1\n2\n3')
+    check('1\n2\n3', '1\n2', False, False, '1\n2\n3', '1\n2')
+    # Cap smallest if all runs crash.
+    check('1\n2', '1\n2\n3', True, True, '1\n2', '1\n2')
+    check('1\n2\n3', '1\n2', True, True, '1\n2', '1\n2')
+    # Cap the non-crashy run.
+    check('1\n2\n3', '1\n2', False, True, '1\n2', '1\n2')
+    check('1\n2', '1\n2\n3', True, False, '1\n2', '1\n2')
+    # The crashy run has more output.
+    check('1\n2\n3', '1\n2', True, False, '1\n2\n3', '1\n2')
+    check('1\n2', '1\n2\n3', False, True, '1\n2', '1\n2\n3')
+    # Keep output difference when capping.
+    check('1\n2', '3\n4\n5', True, True, '1\n2', '3\n4')
+    check('1\n2\n3', '4\n5', True, True, '1\n2', '4\n5')
 
 
 def cut_verbose_output(stdout):

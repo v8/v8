@@ -105,8 +105,8 @@ def Execute(args, cwd, timeout=None):
     process = subprocess.Popen(
       args=popen_args,
       stdout=subprocess.PIPE,
-      stderr=subprocess.STDOUT,
-      cwd=cwd
+      stderr=subprocess.PIPE,
+      cwd=cwd,
     )
   except Exception as e:
     sys.stderr.write("Error executing: %s\n" % popen_args)

@@ -256,15 +256,12 @@ def content_bailout(content, ignore_fun):
   return False
 
 
-def pass_bailout(output, step_number):
-  """Print info and return if in timeout or crash pass states."""
+def timeout_bailout(output, step_number):
+  """Print info and return if in timeout pass state."""
   if output.HasTimedOut():
     # Dashed output, so that no other clusterfuzz tools can match the
     # words timeout or crash.
     print('# V8 correctness - T-I-M-E-O-U-T %d' % step_number)
-    return True
-  if output.HasCrashed():
-    print('# V8 correctness - C-R-A-S-H %d' % step_number)
     return True
   return False
 
@@ -332,8 +329,7 @@ def main():
   if not options.skip_sanity_checks:
     first_config_output = first_cmd.run(SANITY_CHECKS)
     second_config_output = second_cmd.run(SANITY_CHECKS)
-    difference, _ = suppress.diff(
-        first_config_output.stdout, second_config_output.stdout)
+    difference, _ = suppress.diff(first_config_output, second_config_output)
     if difference:
       # Special source key for sanity checks so that clusterfuzz dedupes all
       # cases on this in case it's hit.
@@ -345,18 +341,17 @@ def main():
 
   first_config_output = first_cmd.run(options.testcase, verbose=True)
 
-  # Early bailout based on first run's output.
-  if pass_bailout(first_config_output, 1):
+  # Early bailout if first run was a timeout.
+  if timeout_bailout(first_config_output, 1):
     return RETURN_PASS
 
   second_config_output = second_cmd.run(options.testcase, verbose=True)
 
-  # Bailout based on second run's output.
-  if pass_bailout(second_config_output, 2):
+  # Bailout if second run was a timeout.
+  if timeout_bailout(second_config_output, 2):
     return RETURN_PASS
 
-  difference, source = suppress.diff(
-      first_config_output.stdout, second_config_output.stdout)
+  difference, source = suppress.diff(first_config_output, second_config_output)
 
   if source:
     source_key = hashlib.sha1(source).hexdigest()[:ORIGINAL_SOURCE_HASH_LENGTH]
@@ -377,11 +372,18 @@ def main():
         first_config_output, second_config_output, difference, source)
     return RETURN_FAIL
 
-  # TODO(machenbach): Figure out if we could also return a bug in case there's
-  # no difference, but one of the line suppressions has matched - and without
-  # the match there would be a difference.
+  # Show if a crash has happened in one of the runs and no difference was
+  # detected.
+  if first_config_output.HasCrashed():
+    print('# V8 correctness - C-R-A-S-H 1')
+  elif second_config_output.HasCrashed():
+    print('# V8 correctness - C-R-A-S-H 2')
+  else:
+    # TODO(machenbach): Figure out if we could also return a bug in case
+    # there's no difference, but one of the line suppressions has matched -
+    # and without the match there would be a difference.
+    print('# V8 correctness - pass')
 
-  print('# V8 correctness - pass')
   return RETURN_PASS
 
 
