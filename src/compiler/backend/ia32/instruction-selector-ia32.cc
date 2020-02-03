@@ -305,18 +305,13 @@ void VisitRRISimd(InstructionSelector* selector, Node* node,
 }
 
 void VisitRROSimdShift(InstructionSelector* selector, Node* node,
-                       ArchOpcode avx_opcode, ArchOpcode sse_opcode) {
+                       ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
   InstructionOperand operand0 = g.UseUniqueRegister(node->InputAt(0));
   InstructionOperand operand1 = g.UseUniqueRegister(node->InputAt(1));
   InstructionOperand temps[] = {g.TempSimd128Register()};
-  if (selector->IsSupported(AVX)) {
-    selector->Emit(avx_opcode, g.DefineAsRegister(node), operand0, operand1,
-                   arraysize(temps), temps);
-  } else {
-    selector->Emit(sse_opcode, g.DefineSameAsFirst(node), operand0, operand1,
-                   arraysize(temps), temps);
-  }
+  selector->Emit(opcode, g.DefineSameAsFirst(node), operand0, operand1,
+                 arraysize(temps), temps);
 }
 
 void VisitRROI8x16SimdRightShift(InstructionSelector* selector, Node* node,
@@ -2130,17 +2125,15 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(S1x8AllTrue)             \
   V(S1x16AllTrue)
 
-#define SIMD_SHIFT_OPCODES(V) \
-  V(I16x8Shl)                 \
-  V(I16x8ShrS)                \
-  V(I16x8ShrU)
-
 #define SIMD_SHIFT_OPCODES_UNIFED_SSE_AVX(V) \
   V(I64x2Shl)                                \
   V(I64x2ShrU)                               \
   V(I32x4Shl)                                \
   V(I32x4ShrS)                               \
-  V(I32x4ShrU)
+  V(I32x4ShrU)                               \
+  V(I16x8Shl)                                \
+  V(I16x8ShrS)                               \
+  V(I16x8ShrU)
 
 #define SIMD_I8X16_RIGHT_SHIFT_OPCODES(V) \
   V(I8x16ShrS)                            \
@@ -2360,17 +2353,9 @@ VISIT_SIMD_REPLACE_LANE(F32x4)
 VISIT_SIMD_REPLACE_LANE_USE_REG(F64x2)
 #undef VISIT_SIMD_REPLACE_LANE_USE_REG
 
-#define VISIT_SIMD_SHIFT(Opcode)                               \
-  void InstructionSelector::Visit##Opcode(Node* node) {        \
-    VisitRROSimdShift(this, node, kAVX##Opcode, kSSE##Opcode); \
-  }
-SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
-#undef VISIT_SIMD_SHIFT
-#undef SIMD_SHIFT_OPCODES
-
-#define VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX(Opcode)                 \
-  void InstructionSelector::Visit##Opcode(Node* node) {          \
-    VisitRROSimdShift(this, node, kIA32##Opcode, kIA32##Opcode); \
+#define VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX(Opcode)        \
+  void InstructionSelector::Visit##Opcode(Node* node) { \
+    VisitRROSimdShift(this, node, kIA32##Opcode);       \
   }
 SIMD_SHIFT_OPCODES_UNIFED_SSE_AVX(VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX)
 #undef VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX
