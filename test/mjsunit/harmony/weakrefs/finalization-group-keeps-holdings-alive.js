@@ -19,13 +19,18 @@ let cleanup = function(iter) {
 let fg = new FinalizationGroup(cleanup);
 let o1 = {};
 let holdings = {'a': 'this is the holdings object'};
-fg.register(o1, holdings);
+
+// Ignition holds references to objects in temporary registers. These will be
+// released when the function exits. So only access o inside a function to
+// prevent any references to objects in temporary registers when a gc is
+// triggered.
+(() => {fg.register(o1, holdings);})()
 
 gc();
 assertFalse(cleanup_called);
 
 // Drop the last references to o1.
-o1 = null;
+(() => {o1 = null;})()
 
 // Drop the last reference to the holdings. The FinalizationGroup keeps it
 // alive, so the cleanup function will be called as normal.

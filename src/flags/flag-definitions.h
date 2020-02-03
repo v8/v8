@@ -399,7 +399,7 @@ DEFINE_BOOL_READONLY(internalize_on_the_fly, true,
                      "internalize string keys for generic keyed ICs on the fly")
 
 // Flag for one shot optimiztions.
-DEFINE_BOOL(enable_one_shot_optimization, true,
+DEFINE_BOOL(enable_one_shot_optimization, false,
             "Enable size optimizations for the code that will "
             "only be executed once")
 
