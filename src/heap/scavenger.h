@@ -89,10 +89,6 @@ class Scavenger {
       int task_id_;
     };
 
-    explicit PromotionList(int num_tasks)
-        : regular_object_promotion_list_(num_tasks),
-          large_object_promotion_list_(num_tasks) {}
-
     inline void PushRegularObject(int task_id, HeapObject object, int size);
     inline void PushLargeObject(int task_id, HeapObject object, Map map,
                                 int size);

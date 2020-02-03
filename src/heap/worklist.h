@@ -24,7 +24,7 @@ namespace internal {
 //
 // Work stealing is best effort, i.e., there is no way to inform other tasks
 // of the need of items.
-template <typename EntryType, int SEGMENT_SIZE>
+template <typename EntryType, int SEGMENT_SIZE, int MAX_NUM_TASKS = 8>
 class Worklist {
  public:
   class View {
@@ -58,14 +58,11 @@ class Worklist {
     int task_id_;
   };
 
-  static const int kMaxNumTasks = 8;
+  static const int kMaxNumTasks = MAX_NUM_TASKS;
   static const size_t kSegmentCapacity = SEGMENT_SIZE;
 
-  Worklist() : Worklist(kMaxNumTasks) {}
-
-  explicit Worklist(int num_tasks) : num_tasks_(num_tasks) {
-    DCHECK_LE(num_tasks, kMaxNumTasks);
-    for (int i = 0; i < num_tasks_; i++) {
+  Worklist() {
+    for (int i = 0; i < kMaxNumTasks; i++) {
       private_push_segment(i) = NewSegment();
       private_pop_segment(i) = NewSegment();
     }
@@ -73,7 +70,7 @@ class Worklist {
 
   ~Worklist() {
     CHECK(IsEmpty());
-    for (int i = 0; i < num_tasks_; i++) {
+    for (int i = 0; i < kMaxNumTasks; i++) {
       DCHECK_NOT_NULL(private_push_segment(i));
       DCHECK_NOT_NULL(private_pop_segment(i));
       delete private_push_segment(i);
@@ -91,7 +88,7 @@ class Worklist {
   }
 
   bool Push(int task_id, EntryType entry) {
-    DCHECK_LT(task_id, num_tasks_);
+    DCHECK_LT(task_id, kMaxNumTasks);
     DCHECK_NOT_NULL(private_push_segment(task_id));
     if (!private_push_segment(task_id)->Push(entry)) {
       PublishPushSegmentToGlobal(task_id);
@@ -103,7 +100,7 @@ class Worklist {
   }
 
   bool Pop(int task_id, EntryType* entry) {
-    DCHECK_LT(task_id, num_tasks_);
+    DCHECK_LT(task_id, kMaxNumTasks);
     DCHECK_NOT_NULL(private_pop_segment(task_id));
     if (!private_pop_segment(task_id)->Pop(entry)) {
       if (!private_push_segment(task_id)->IsEmpty()) {
@@ -137,7 +134,7 @@ class Worklist {
   }
 
   bool AreLocalsEmpty() {
-    for (int i = 0; i < num_tasks_; i++) {
+    for (int i = 0; i < kMaxNumTasks; i++) {
       if (!IsLocalEmpty(i)) return false;
     }
     return true;
@@ -152,7 +149,7 @@ class Worklist {
   //
   // Assumes that no other tasks are running.
   void Clear() {
-    for (int i = 0; i < num_tasks_; i++) {
+    for (int i = 0; i < kMaxNumTasks; i++) {
       private_pop_segment(i)->Clear();
       private_push_segment(i)->Clear();
     }
@@ -169,7 +166,7 @@ class Worklist {
   // Assumes that no other tasks are running.
   template <typename Callback>
   void Update(Callback callback) {
-    for (int i = 0; i < num_tasks_; i++) {
+    for (int i = 0; i < kMaxNumTasks; i++) {
       private_pop_segment(i)->Update(callback);
       private_push_segment(i)->Update(callback);
     }
@@ -183,7 +180,7 @@ class Worklist {
   // Assumes that no other tasks are running.
   template <typename Callback>
   void Iterate(Callback callback) {
-    for (int i = 0; i < num_tasks_; i++) {
+    for (int i = 0; i < kMaxNumTasks; i++) {
       private_pop_segment(i)->Iterate(callback);
       private_push_segment(i)->Iterate(callback);
     }
@@ -420,7 +417,6 @@ class Worklist {
 
   PrivateSegmentHolder private_segments_[kMaxNumTasks];
   GlobalPool global_pool_;
-  int num_tasks_;
 };
 
 }  // namespace internal

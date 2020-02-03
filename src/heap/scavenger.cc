@@ -253,9 +253,9 @@ void ScavengerCollector::CollectGarbage() {
   const int num_scavenge_tasks = NumberOfScavengeTasks();
   OneshotBarrier barrier(base::TimeDelta::FromMilliseconds(kMaxWaitTimeMs));
   Worklist<MemoryChunk*, 64> empty_chunks;
-  Scavenger::CopiedList copied_list(num_scavenge_tasks);
-  Scavenger::PromotionList promotion_list(num_scavenge_tasks);
-  EphemeronTableList ephemeron_table_list(num_scavenge_tasks);
+  Scavenger::CopiedList copied_list;
+  Scavenger::PromotionList promotion_list;
+  EphemeronTableList ephemeron_table_list;
   for (int i = 0; i < num_scavenge_tasks; i++) {
     scavengers[i] =
         new Scavenger(this, heap_, is_logging, &empty_chunks, &copied_list,
