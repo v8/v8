@@ -1523,7 +1523,10 @@ Object Isolate::Throw(Object raw_exception, MessageLocation* location) {
 
   // Notify debugger of exception.
   if (is_catchable_by_javascript(raw_exception)) {
-    debug()->OnThrow(exception);
+    base::Optional<Object> maybe_exception = debug()->OnThrow(exception);
+    if (maybe_exception.has_value()) {
+      return *maybe_exception;
+    }
   }
 
   // Generate the message if required.

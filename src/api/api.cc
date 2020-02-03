@@ -9443,6 +9443,12 @@ void debug::BreakRightNow(Isolate* v8_isolate) {
   isolate->debug()->HandleDebugBreak(i::kIgnoreIfAllFramesBlackboxed);
 }
 
+void debug::SetTerminateOnResume(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  isolate->debug()->SetTerminateOnResume();
+}
+
 bool debug::AllFramesOnStackAreBlackboxed(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_DO_NOT_USE(isolate);

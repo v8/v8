@@ -1034,10 +1034,11 @@ Response V8DebuggerAgentImpl::pause() {
   return Response::OK();
 }
 
-Response V8DebuggerAgentImpl::resume() {
+Response V8DebuggerAgentImpl::resume(Maybe<bool> terminateOnResume) {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
-  m_debugger->continueProgram(m_session->contextGroupId());
+  m_debugger->continueProgram(m_session->contextGroupId(),
+                              terminateOnResume.fromMaybe(false));
   return Response::OK();
 }
 

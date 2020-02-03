@@ -245,9 +245,15 @@ void V8Debugger::interruptAndBreak(int targetContextGroupId) {
       nullptr);
 }
 
-void V8Debugger::continueProgram(int targetContextGroupId) {
+void V8Debugger::continueProgram(int targetContextGroupId,
+                                 bool terminateOnResume) {
   if (m_pausedContextGroupId != targetContextGroupId) return;
-  if (isPaused()) m_inspector->client()->quitMessageLoopOnPause();
+  if (isPaused()) {
+    if (terminateOnResume) {
+      v8::debug::SetTerminateOnResume(m_isolate);
+    }
+    m_inspector->client()->quitMessageLoopOnPause();
+  }
 }
 
 void V8Debugger::breakProgramOnAssert(int targetContextGroupId) {
