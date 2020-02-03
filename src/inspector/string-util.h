@@ -65,8 +65,6 @@ class StringUtil {
       StringBuilder& builder) {  // NOLINT(runtime/references)
     return builder.toString();
   }
-  static std::unique_ptr<protocol::Value> parseJSON(const String16& json);
-  static std::unique_ptr<protocol::Value> parseJSON(const StringView& json);
 
   static String fromUTF8(const uint8_t* data, size_t length) {
     return String16::fromUTF8(reinterpret_cast<const char*>(data), length);

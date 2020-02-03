@@ -10,6 +10,10 @@
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
 
+using v8_crdtp::SpanFrom;
+using v8_crdtp::json::ConvertCBORToJSON;
+using v8_crdtp::json::ConvertJSONToCBOR;
+
 namespace v8_inspector {
 
 int V8StackTraceImpl::maxCallStackSizeToCapture = 200;
@@ -126,8 +130,17 @@ V8StackTraceId::V8StackTraceId(uintptr_t id,
 
 V8StackTraceId::V8StackTraceId(const StringView& json)
     : id(0), debugger_id(V8DebuggerId().pair()) {
-  auto dict =
-      protocol::DictionaryValue::cast(protocol::StringUtil::parseJSON(json));
+  if (json.length() == 0) return;
+  std::vector<uint8_t> cbor;
+  if (json.is8Bit()) {
+    ConvertJSONToCBOR(
+        v8_crdtp::span<uint8_t>(json.characters8(), json.length()), &cbor);
+  } else {
+    ConvertJSONToCBOR(
+        v8_crdtp::span<uint16_t>(json.characters16(), json.length()), &cbor);
+  }
+  auto dict = protocol::DictionaryValue::cast(
+      protocol::Value::parseBinary(cbor.data(), cbor.size()));
   if (!dict) return;
   String16 s;
   if (!dict->getString(kId, &s)) return;
@@ -152,7 +165,7 @@ std::unique_ptr<StringBuffer> V8StackTraceId::ToString() {
   dict->setBoolean(kShouldPause, should_pause);
   std::vector<uint8_t> json;
   std::vector<uint8_t> cbor = std::move(*dict).TakeSerialized();
-  v8_crdtp::json::ConvertCBORToJSON(v8_crdtp::SpanFrom(cbor), &json);
+  ConvertCBORToJSON(SpanFrom(cbor), &json);
   return StringBufferFrom(std::move(json));
 }
 

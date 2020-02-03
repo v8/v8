@@ -347,16 +347,9 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(
     m_state->setBoolean("use_binary_protocol", true);
     cbor = span<uint8_t>(message.characters8(), message.length());
   } else {
-    if (message.is8Bit()) {
-      // We're ignoring the return value of these conversion functions
-      // intentionally. It means the |parsed_message| below will be nullptr.
-      ConvertJSONToCBOR(span<uint8_t>(message.characters8(), message.length()),
-                        &converted_cbor);
-    } else {
-      ConvertJSONToCBOR(
-          span<uint16_t>(message.characters16(), message.length()),
-          &converted_cbor);
-    }
+    // We're ignoring the return value of the conversion function
+    // intentionally. It means the |parsed_message| below will be nullptr.
+    ConvertToCBOR(message, &converted_cbor);
     cbor = SpanFrom(converted_cbor);
   }
   int callId;
@@ -426,10 +419,12 @@ V8InspectorSession::Inspectable* V8InspectorSessionImpl::inspectedObject(
 
 void V8InspectorSessionImpl::schedulePauseOnNextStatement(
     const StringView& breakReason, const StringView& breakDetails) {
+  std::vector<uint8_t> cbor;
+  ConvertToCBOR(breakDetails, &cbor);
   m_debuggerAgent->schedulePauseOnNextStatement(
       toString16(breakReason),
       protocol::DictionaryValue::cast(
-          protocol::StringUtil::parseJSON(breakDetails)));
+          protocol::Value::parseBinary(cbor.data(), cbor.size())));
 }
 
 void V8InspectorSessionImpl::cancelPauseOnNextStatement() {
@@ -438,10 +433,12 @@ void V8InspectorSessionImpl::cancelPauseOnNextStatement() {
 
 void V8InspectorSessionImpl::breakProgram(const StringView& breakReason,
                                           const StringView& breakDetails) {
+  std::vector<uint8_t> cbor;
+  ConvertToCBOR(breakDetails, &cbor);
   m_debuggerAgent->breakProgram(
       toString16(breakReason),
       protocol::DictionaryValue::cast(
-          protocol::StringUtil::parseJSON(breakDetails)));
+          protocol::Value::parseBinary(cbor.data(), cbor.size())));
 }
 
 void V8InspectorSessionImpl::setSkipAllPauses(bool skip) {
