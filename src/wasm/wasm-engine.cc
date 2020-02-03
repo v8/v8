@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-engine.h"
 
+#include "src/base/functional.h"
 #include "src/base/platform/time.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/diagnostics/compilation-statistics.h"
@@ -130,18 +131,27 @@ std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
     ModuleOrigin origin, Vector<const uint8_t> wire_bytes) {
   if (origin != kWasmOrigin) return nullptr;
   base::MutexGuard lock(&mutex_);
+  size_t prefix_hash = PrefixHash(wire_bytes);
+  NativeModuleCache::Key key{prefix_hash, wire_bytes};
   while (true) {
-    auto it = map_.find(wire_bytes);
+    auto it = map_.find(key);
     if (it == map_.end()) {
+      // Even though this exact key is not in the cache, there might be a
+      // matching prefix hash indicating that a streaming compilation is
+      // currently compiling a module with the same prefix. {OnFinishedStream}
+      // happens on the main thread too, so waiting for streaming compilation to
+      // finish would create a deadlock. Instead, compile the module twice and
+      // handle the conflict in {UpdateNativeModuleCache}.
+
       // Insert a {nullopt} entry to let other threads know that this
       // {NativeModule} is already being created on another thread.
-      map_.emplace(wire_bytes, base::nullopt);
+      auto p = map_.emplace(key, base::nullopt);
+      USE(p);
+      DCHECK(p.second);
       return nullptr;
     }
-    auto maybe_native_module = it->second;
-    if (maybe_native_module.has_value()) {
-      auto weak_ptr = maybe_native_module.value();
-      if (auto shared_native_module = weak_ptr.lock()) {
+    if (it->second.has_value()) {
+      if (auto shared_native_module = it->second.value().lock()) {
         return shared_native_module;
       }
     }
@@ -149,28 +159,62 @@ std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
   }
 }
 
-void NativeModuleCache::Update(std::shared_ptr<NativeModule> native_module,
-                               bool error) {
-  DCHECK_NOT_NULL(native_module);
-  if (native_module->module()->origin != kWasmOrigin) return;
-  Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+bool NativeModuleCache::GetStreamingCompilationOwnership(size_t prefix_hash) {
   base::MutexGuard lock(&mutex_);
-  auto it = map_.find(wire_bytes);
-  DCHECK_NE(it, map_.end());
-  DCHECK(!it->second.has_value());
-  // The lifetime of the temporary entry's bytes is unknown. Use the new native
-  // module's owned copy of the bytes for the key instead.
-  map_.erase(it);
-  if (!error) {
-    map_.emplace(wire_bytes, base::Optional<std::weak_ptr<NativeModule>>(
-                                 std::move(native_module)));
+  auto it = map_.lower_bound(Key{prefix_hash, {}});
+  if (it != map_.end() && it->first.prefix_hash == prefix_hash) {
+    return false;
   }
+  Key key{prefix_hash, {}};
+  return map_.emplace(key, base::nullopt).second;
+}
+
+void NativeModuleCache::StreamingCompilationFailed(size_t prefix_hash) {
+  base::MutexGuard lock(&mutex_);
+  map_.erase({prefix_hash, {}});
   cache_cv_.NotifyAll();
 }
 
-void NativeModuleCache::Erase(NativeModule* native_module) {
+std::shared_ptr<NativeModule> NativeModuleCache::Update(
+    std::shared_ptr<NativeModule> native_module, bool error) {
+  DCHECK_NOT_NULL(native_module);
+  if (native_module->module()->origin != kWasmOrigin) return native_module;
+  Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  size_t prefix_hash = PrefixHash(native_module->wire_bytes());
   base::MutexGuard lock(&mutex_);
-  auto cache_it = map_.find(native_module->wire_bytes());
+  map_.erase(Key{prefix_hash, {}});
+  const Key key{prefix_hash, wire_bytes};
+  auto it = map_.find(key);
+  if (it != map_.end()) {
+    if (it->second.has_value()) {
+      auto conflicting_module = it->second.value().lock();
+      if (conflicting_module != nullptr) {
+        return conflicting_module;
+      }
+    }
+    map_.erase(it);
+  }
+  if (!error) {
+    DCHECK_LT(0, native_module->wire_bytes().length());
+    // The key now points to the new native module's owned copy of the bytes,
+    // so that it stays valid until the native module is freed and erased from
+    // the map.
+    auto p = map_.emplace(
+        key, base::Optional<std::weak_ptr<NativeModule>>(native_module));
+    USE(p);
+    DCHECK(p.second);
+  }
+  cache_cv_.NotifyAll();
+  return native_module;
+}
+
+void NativeModuleCache::Erase(NativeModule* native_module) {
+  if (native_module->module()->origin != kWasmOrigin) return;
+  // Happens in some tests where bytes are set directly.
+  if (native_module->wire_bytes().length() == 0) return;
+  base::MutexGuard lock(&mutex_);
+  size_t prefix_hash = PrefixHash(native_module->wire_bytes());
+  auto cache_it = map_.find(Key{prefix_hash, native_module->wire_bytes()});
   // Not all native modules are stored in the cache currently. In particular
   // streaming compilation and asmjs compilation results are not. So make
   // sure that we only delete existing and expired entries.
@@ -183,11 +227,39 @@ void NativeModuleCache::Erase(NativeModule* native_module) {
   }
 }
 
-size_t NativeModuleCache::WireBytesHasher::operator()(
-    const Vector<const uint8_t>& bytes) const {
+// static
+size_t NativeModuleCache::WireBytesHash(Vector<const uint8_t> bytes) {
   return StringHasher::HashSequentialString(
       reinterpret_cast<const char*>(bytes.begin()), bytes.length(),
       kZeroHashSeed);
+}
+
+// static
+size_t NativeModuleCache::PrefixHash(Vector<const uint8_t> wire_bytes) {
+  // Compute the hash as a combined hash of the sections up to the code section
+  // header, to mirror the way streaming compilation does it.
+  Decoder decoder(wire_bytes.begin(), wire_bytes.end());
+  decoder.consume_bytes(8, "module header");
+  size_t hash = NativeModuleCache::WireBytesHash(wire_bytes.SubVector(0, 8));
+  SectionCode section_id = SectionCode::kUnknownSectionCode;
+  while (decoder.ok() && decoder.more()) {
+    section_id = static_cast<SectionCode>(decoder.consume_u8());
+    uint32_t section_size = decoder.consume_u32v("section size");
+    if (section_id == SectionCode::kCodeSectionCode) {
+      hash = base::hash_combine(hash, section_size);
+      break;
+    }
+    const uint8_t* payload_start = decoder.pc();
+    // TODO(v8:10126): Remove this check, bytes have been validated already.
+    if (decoder.position() + section_size >= wire_bytes.size()) {
+      return hash;
+    }
+    decoder.consume_bytes(section_size, "section payload");
+    size_t section_hash = NativeModuleCache::WireBytesHash(
+        Vector<const uint8_t>(payload_start, section_size));
+    hash = base::hash_combine(hash, section_hash);
+  }
+  return hash;
 }
 
 struct WasmEngine::CurrentGCInfo {
@@ -362,9 +434,10 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
                             std::move(result).value(), bytes, &export_wrappers);
   if (!native_module) return {};
 
-  Handle<Script> script = CreateWasmScript(
-      isolate, bytes, VectorOf(native_module->module()->source_map_url),
-      native_module->module()->name);
+  Handle<Script> script =
+      CreateWasmScript(isolate, bytes.module_bytes(),
+                       VectorOf(native_module->module()->source_map_url),
+                       native_module->module()->name);
 
   // Create the compiled module object and populate with compiled functions
   // and information needed at instantiation time. This object needs to be
@@ -503,9 +576,10 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
     Isolate* isolate, std::shared_ptr<NativeModule> shared_native_module) {
   NativeModule* native_module = shared_native_module.get();
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
-  Handle<Script> script = CreateWasmScript(
-      isolate, wire_bytes, VectorOf(native_module->module()->source_map_url),
-      native_module->module()->name);
+  Handle<Script> script =
+      CreateWasmScript(isolate, wire_bytes.module_bytes(),
+                       VectorOf(native_module->module()->source_map_url),
+                       native_module->module()->name);
   Handle<FixedArray> export_wrappers;
   CompileJsToWasmWrappers(isolate, native_module->module(), &export_wrappers);
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
@@ -756,9 +830,22 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
   return native_module_cache_.MaybeGetNativeModule(origin, wire_bytes);
 }
 
-void WasmEngine::UpdateNativeModuleCache(
-    std::shared_ptr<NativeModule> native_module, bool error) {
-  native_module_cache_.Update(native_module, error);
+bool WasmEngine::UpdateNativeModuleCache(
+    bool error, std::shared_ptr<NativeModule>* native_module) {
+  // Pass {native_module} by value here to keep it alive until at least after
+  // we returned from {Update}. Otherwise, we might {Erase} it inside {Update}
+  // which would lock the mutex twice.
+  auto prev = native_module->get();
+  *native_module = native_module_cache_.Update(*native_module, error);
+  return prev == native_module->get();
+}
+
+bool WasmEngine::GetStreamingCompilationOwnership(size_t prefix_hash) {
+  return native_module_cache_.GetStreamingCompilationOwnership(prefix_hash);
+}
+
+void WasmEngine::StreamingCompilationFailed(size_t prefix_hash) {
+  native_module_cache_.StreamingCompilationFailed(prefix_hash);
 }
 
 void WasmEngine::FreeNativeModule(NativeModule* native_module) {
