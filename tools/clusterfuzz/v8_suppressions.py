@@ -81,10 +81,6 @@ IGNORE_TEST_CASES = {
 # Regular expressions are assumed to be compiled. We use regexp.search.
 IGNORE_OUTPUT = {
   '': {
-    'crbug.com/664068':
-        re.compile(r'RangeError(?!: byte length)', re.S),
-    'crbug.com/667678':
-        re.compile(r'\[native code\]', re.S),
     'crbug.com/689877':
         re.compile(r'^.*SyntaxError: .*Stack overflow$', re.M),
   },
@@ -116,9 +112,6 @@ ALLOWED_LINE_DIFFS = [
 
   # crbug.com/680064. This subsumes one of the above expressions.
   r'^(.*)TypeError: .* function$',
-
-  # crbug.com/664068
-  r'^(.*)(?:Array buffer allocation failed|Invalid array buffer length)(.*)$',
 ]
 
 # Lines matching any of the following regular expressions will be ignored.
