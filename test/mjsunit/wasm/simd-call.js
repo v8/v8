@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-simd
-// Flags: --nowasm-tier-up
-// TODO(v8/10169)
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
