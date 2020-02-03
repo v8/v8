@@ -1098,18 +1098,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void cvtss2sd(XMMRegister dst, XMMRegister src);
   void cvtss2sd(XMMRegister dst, Operand src);
-  void cvtsd2ss(XMMRegister dst, XMMRegister src);
-  void cvtsd2ss(XMMRegister dst, Operand src);
 
   void cvtsd2si(Register dst, XMMRegister src);
   void cvtsd2siq(Register dst, XMMRegister src);
-
-  void andpd(XMMRegister dst, XMMRegister src);
-  void andpd(XMMRegister dst, Operand src);
-  void orpd(XMMRegister dst, XMMRegister src);
-  void orpd(XMMRegister dst, Operand src);
-  void xorpd(XMMRegister dst, XMMRegister src);
-  void xorpd(XMMRegister dst, Operand src);
 
   void haddps(XMMRegister dst, XMMRegister src);
   void haddps(XMMRegister dst, Operand src);
@@ -1236,10 +1227,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     impl(opcode, dst, src1, src2);                                  \
   }
 
-  AVX_3(vandpd, 0x54, vpd)
-  AVX_3(vorpd, 0x56, vpd)
-  AVX_3(vxorpd, 0x57, vpd)
-  AVX_3(vcvtsd2ss, 0x5a, vsd)
   AVX_3(vhaddps, 0x7c, vsd)
 
 #define AVX_SCALAR(instr, prefix, escape, opcode)                      \

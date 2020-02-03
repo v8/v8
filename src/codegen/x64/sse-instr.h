@@ -36,7 +36,10 @@
   V(maxss, F3, 0F, 5F)
 
 #define SSE2_INSTRUCTION_LIST(V) \
+  V(andpd, 66, 0F, 54)           \
   V(andnpd, 66, 0F, 55)          \
+  V(orpd, 66, 0F, 56)            \
+  V(xorpd, 66, 0F, 57)           \
   V(addpd, 66, 0F, 58)           \
   V(mulpd, 66, 0F, 59)           \
   V(subpd, 66, 0F, 5C)           \
@@ -118,6 +121,7 @@
   V(sqrtsd, F2, 0F, 51)             \
   V(addsd, F2, 0F, 58)              \
   V(mulsd, F2, 0F, 59)              \
+  V(cvtsd2ss, F2, 0F, 5A)           \
   V(subsd, F2, 0F, 5C)              \
   V(minsd, F2, 0F, 5D)              \
   V(divsd, F2, 0F, 5E)              \
