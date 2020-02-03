@@ -499,10 +499,9 @@ class DebugInfoImpl {
     // Only Liftoff code can be inspected.
     if (!code->is_liftoff()) return local_scope_object;
 
-    const WasmModule* module = native_module_->module();
-    const WasmFunction* function = &module->functions[code->index()];
-    DebugSideTable* debug_side_table =
-        GetDebugSideTable(isolate->allocator(), function->func_index);
+    auto* module = native_module_->module();
+    auto* function = &module->functions[code->index()];
+    auto* debug_side_table = GetDebugSideTable(code, isolate->allocator());
     int pc_offset = static_cast<int>(pc - code->instruction_start());
     auto* debug_side_table_entry = debug_side_table->GetEntry(pc_offset);
     DCHECK_NOT_NULL(debug_side_table_entry);
@@ -597,50 +596,61 @@ class DebugInfoImpl {
     FunctionBody body{function->sig, function->code.offset(),
                       wire_bytes.begin() + function->code.offset(),
                       wire_bytes.begin() + function->code.end_offset()};
+    std::unique_ptr<DebugSideTable> debug_sidetable;
     WasmCompilationResult result = ExecuteLiftoffCompilation(
         native_module_->engine()->allocator(), &env, body, func_index, nullptr,
-        nullptr, VectorOf(breakpoints));
+        nullptr, VectorOf(breakpoints), &debug_sidetable);
     DCHECK(result.succeeded());
+    DCHECK_NOT_NULL(debug_sidetable);
 
     WasmCodeRefScope wasm_code_ref_scope;
     WasmCode* new_code = native_module_->AddCompiledCode(std::move(result));
+
+    bool added =
+        debug_side_tables_.emplace(new_code, std::move(debug_sidetable)).second;
+    DCHECK(added);
+    USE(added);
 
     // TODO(clemensb): OSR active frames on the stack (on all threads).
     USE(new_code);
   }
 
- private:
-  DebugSideTable* GetDebugSideTable(AccountingAllocator* allocator,
-                                    int func_index) {
+  void RemoveDebugSideTables(Vector<WasmCode* const> codes) {
     base::MutexGuard guard(&mutex_);
-    if (debug_side_tables_.empty()) {
-      debug_side_tables_.resize(native_module_->module()->functions.size());
+    for (auto* code : codes) {
+      debug_side_tables_.erase(code);
     }
-    if (auto& existing_table = debug_side_tables_[func_index]) {
+  }
+
+ private:
+  const DebugSideTable* GetDebugSideTable(WasmCode* code,
+                                          AccountingAllocator* allocator) {
+    base::MutexGuard guard(&mutex_);
+    if (auto& existing_table = debug_side_tables_[code]) {
       return existing_table.get();
     }
 
     // Otherwise create the debug side table now.
-    const WasmModule* module = native_module_->module();
-    const WasmFunction* function = &module->functions[func_index];
+    auto* module = native_module_->module();
+    auto* function = &module->functions[code->index()];
     ModuleWireBytes wire_bytes{native_module_->wire_bytes()};
     Vector<const byte> function_bytes = wire_bytes.GetFunctionBytes(function);
     CompilationEnv env = native_module_->CreateCompilationEnv();
     FunctionBody func_body{function->sig, 0, function_bytes.begin(),
                            function_bytes.end()};
-    DebugSideTable debug_side_table =
+    std::unique_ptr<DebugSideTable> debug_side_table =
         GenerateLiftoffDebugSideTable(allocator, &env, func_body);
+    DebugSideTable* ret = debug_side_table.get();
 
     // Install into cache and return.
-    debug_side_tables_[func_index] =
-        std::make_unique<DebugSideTable>(std::move(debug_side_table));
-    return debug_side_tables_[func_index].get();
+    debug_side_tables_[code] = std::move(debug_side_table);
+    return ret;
   }
 
   // Get the value of a local (including parameters) or stack value. Stack
   // values follow the locals in the same index space.
   WasmValue GetValue(const DebugSideTable::Entry* debug_side_table_entry,
-                     ValueType type, int index, Address stack_address) {
+                     ValueType type, int index, Address stack_address) const {
     if (debug_side_table_entry->IsConstant(index)) {
       DCHECK(type == kWasmI32 || type == kWasmI64);
       return type == kWasmI32
@@ -667,10 +677,11 @@ class DebugInfoImpl {
   NativeModule* const native_module_;
 
   // {mutex_} protects all fields below.
-  base::Mutex mutex_;
+  mutable base::Mutex mutex_;
 
-  // DebugSideTable per function, lazily initialized.
-  std::vector<std::unique_ptr<DebugSideTable>> debug_side_tables_;
+  // DebugSideTable per code object, lazily initialized.
+  std::unordered_map<WasmCode*, std::unique_ptr<DebugSideTable>>
+      debug_side_tables_;
 
   // Names of locals, lazily decoded from the wire bytes.
   std::unique_ptr<LocalNames> local_names_;
@@ -698,6 +709,10 @@ WireBytesRef DebugInfo::GetLocalName(int func_index, int local_index) {
 
 void DebugInfo::SetBreakpoint(int func_index, int offset) {
   impl_->SetBreakpoint(func_index, offset);
+}
+
+void DebugInfo::RemoveDebugSideTables(Vector<WasmCode* const> code) {
+  impl_->RemoveDebugSideTables(code);
 }
 
 }  // namespace wasm

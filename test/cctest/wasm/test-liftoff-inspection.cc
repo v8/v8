@@ -61,7 +61,7 @@ class LiftoffCompileEnvironment {
     CHECK_EQ(detected1, detected2);
   }
 
-  DebugSideTable GenerateDebugSideTable(
+  std::unique_ptr<DebugSideTable> GenerateDebugSideTable(
       std::initializer_list<ValueType> return_types,
       std::initializer_list<ValueType> param_types,
       std::initializer_list<uint8_t> raw_function_bytes) {
@@ -156,20 +156,20 @@ std::ostream& operator<<(std::ostream& out,
 
 void CheckDebugSideTable(std::vector<ValueType> expected_local_types,
                          std::vector<DebugSideTableEntry> expected_entries,
-                         const wasm::DebugSideTable& debug_side_table) {
+                         const wasm::DebugSideTable* debug_side_table) {
   std::vector<ValueType> local_types;
-  for (int i = 0; i < debug_side_table.num_locals(); ++i) {
-    local_types.push_back(debug_side_table.local_type(i));
+  for (int i = 0; i < debug_side_table->num_locals(); ++i) {
+    local_types.push_back(debug_side_table->local_type(i));
   }
   std::vector<DebugSideTableEntry> entries;
-  for (auto& entry : debug_side_table.entries()) {
+  for (auto& entry : debug_side_table->entries()) {
     std::vector<ValueType> stack_types;
     for (int i = 0; i < entry.stack_height(); ++i) {
       stack_types.push_back(entry.stack_type(i));
     }
     std::vector<std::pair<int, int>> constants;
     int locals_plus_stack =
-        debug_side_table.num_locals() + entry.stack_height();
+        debug_side_table->num_locals() + entry.stack_height();
     for (int i = 0; i < locals_plus_stack; ++i) {
       if (entry.IsConstant(i)) constants.emplace_back(i, entry.GetConstant(i));
     }
@@ -228,7 +228,7 @@ TEST(Liftoff_debug_side_table_simple) {
                           // OOL stack check, stack: {}
                           {{}, {}},
                       },
-                      debug_side_table);
+                      debug_side_table.get());
 }
 
 TEST(Liftoff_debug_side_table_call) {
@@ -244,7 +244,7 @@ TEST(Liftoff_debug_side_table_call) {
                           // OOL stack check, stack: {}
                           {{}, {}},
                       },
-                      debug_side_table);
+                      debug_side_table.get());
 }
 
 TEST(Liftoff_debug_side_table_call_const) {
@@ -262,7 +262,7 @@ TEST(Liftoff_debug_side_table_call_const) {
                           // OOL stack check, stack: {}
                           {{}, {}},
                       },
-                      debug_side_table);
+                      debug_side_table.get());
 }
 
 TEST(Liftoff_debug_side_table_indirect_call) {
@@ -283,7 +283,7 @@ TEST(Liftoff_debug_side_table_indirect_call) {
                           // OOL trap (sig mismatch), stack: {kConst}
                           {{kWasmI32}, {{1, kConst}}},
                       },
-                      debug_side_table);
+                      debug_side_table.get());
 }
 
 TEST(Liftoff_debug_side_table_loop) {
@@ -299,7 +299,7 @@ TEST(Liftoff_debug_side_table_loop) {
                           // OOL loop stack check, stack: {kConst}
                           {{kWasmI32}, {{1, kConst}}},
                       },
-                      debug_side_table);
+                      debug_side_table.get());
 }
 
 TEST(Liftoff_debug_side_table_trap) {
@@ -316,7 +316,7 @@ TEST(Liftoff_debug_side_table_trap) {
                           // OOL trap (result unrepresentable), stack: {}
                           {{}, {}},
                       },
-                      debug_side_table);
+                      debug_side_table.get());
 }
 
 }  // namespace wasm

@@ -21,6 +21,8 @@ namespace internal {
 template <typename T>
 class Handle;
 class JSObject;
+template <typename T>
+class Vector;
 class WasmInstanceObject;
 
 namespace wasm {
@@ -28,6 +30,7 @@ namespace wasm {
 class DebugInfoImpl;
 class LocalNames;
 class NativeModule;
+class WasmCode;
 class WireBytesRef;
 
 // Side table storing information used to inspect Liftoff frames at runtime.
@@ -152,6 +155,8 @@ class DebugInfo {
   WireBytesRef GetLocalName(int func_index, int local_index);
 
   void SetBreakpoint(int func_index, int offset);
+
+  void RemoveDebugSideTables(Vector<WasmCode* const>);
 
  private:
   std::unique_ptr<DebugInfoImpl> impl_;

@@ -214,7 +214,7 @@ class DebugSideTableBuilder {
     local_stack_offsets_.push_back(stack_offset);
   }
 
-  DebugSideTable GenerateDebugSideTable() {
+  std::unique_ptr<DebugSideTable> GenerateDebugSideTable() {
     std::vector<DebugSideTable::Entry> table_entries;
     table_entries.reserve(entries_.size());
     for (auto& entry : entries_) table_entries.push_back(entry.ToTableEntry());
@@ -222,9 +222,9 @@ class DebugSideTableBuilder {
               [](DebugSideTable::Entry& a, DebugSideTable::Entry& b) {
                 return a.pc_offset() < b.pc_offset();
               });
-    return DebugSideTable{std::move(local_types_),
-                          std::move(local_stack_offsets_),
-                          std::move(table_entries)};
+    return std::make_unique<DebugSideTable>(std::move(local_types_),
+                                            std::move(local_stack_offsets_),
+                                            std::move(table_entries));
   }
 
  private:
@@ -2523,7 +2523,8 @@ class LiftoffCompiler {
 WasmCompilationResult ExecuteLiftoffCompilation(
     AccountingAllocator* allocator, CompilationEnv* env,
     const FunctionBody& func_body, int func_index, Counters* counters,
-    WasmFeatures* detected, Vector<int> breakpoints) {
+    WasmFeatures* detected, Vector<int> breakpoints,
+    std::unique_ptr<DebugSideTable>* debug_sidetable) {
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteLiftoffCompilation", "func_index", func_index,
@@ -2541,11 +2542,16 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   // generation.
   std::unique_ptr<wasm::WasmInstructionBuffer> instruction_buffer =
       wasm::WasmInstructionBuffer::New(128 + code_size_estimate * 4 / 3);
-  DebugSideTableBuilder* const kNoDebugSideTable = nullptr;
+  std::unique_ptr<DebugSideTableBuilder> debug_sidetable_builder;
+  // If we are emitting breakpoints, we should also emit the debug side table.
+  DCHECK_IMPLIES(!breakpoints.empty(), debug_sidetable != nullptr);
+  if (debug_sidetable) {
+    debug_sidetable_builder = std::make_unique<DebugSideTableBuilder>();
+  }
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
       &zone, env->module, env->enabled_features, detected, func_body,
       call_descriptor, env, &zone, instruction_buffer->CreateView(),
-      kNoDebugSideTable, breakpoints);
+      debug_sidetable_builder.get(), breakpoints);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();
@@ -2578,14 +2584,17 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   result.frame_slot_count = compiler->GetTotalFrameSlotCount();
   result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result.result_tier = ExecutionTier::kLiftoff;
+  if (debug_sidetable) {
+    *debug_sidetable = debug_sidetable_builder->GenerateDebugSideTable();
+  }
 
   DCHECK(result.succeeded());
   return result;
 }
 
-DebugSideTable GenerateLiftoffDebugSideTable(AccountingAllocator* allocator,
-                                             CompilationEnv* env,
-                                             const FunctionBody& func_body) {
+std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
+    AccountingAllocator* allocator, CompilationEnv* env,
+    const FunctionBody& func_body) {
   Zone zone(allocator, "LiftoffDebugSideTableZone");
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
   DebugSideTableBuilder debug_sidetable_builder;

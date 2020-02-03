@@ -1823,8 +1823,10 @@ void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
   // Free the code space.
   code_allocator_.FreeCode(codes);
 
-  // Free the {WasmCode} objects. This will also unregister trap handler data.
   base::MutexGuard guard(&allocation_mutex_);
+  // Remove debug side tables for all removed code objects.
+  if (debug_info_) debug_info_->RemoveDebugSideTables(codes);
+  // Free the {WasmCode} objects. This will also unregister trap handler data.
   for (WasmCode* code : codes) {
     DCHECK_EQ(1, owned_code_.count(code->instruction_start()));
     owned_code_.erase(code->instruction_start());
