@@ -24,7 +24,7 @@ enum class SourceRangeKind;
 
 namespace interpreter {
 
-class GlobalDeclarationsBuilder;
+class TopLevelDeclarationsBuilder;
 class LoopBuilder;
 class BlockCoverageBuilder;
 class BytecodeJumpTable;
@@ -50,6 +50,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 #undef DECLARE_VISIT
 
   // Visiting function for declarations list and statements are overridden.
+  void VisitModuleDeclarations(Declaration::List* declarations);
   void VisitGlobalDeclarations(Declaration::List* declarations);
   void VisitDeclarations(Declaration::List* declarations);
   void VisitStatements(const ZonePtrList<Statement>* statments);
@@ -66,7 +67,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class ExpressionResultScope;
   class EffectResultScope;
   class FeedbackSlotCache;
-  class GlobalDeclarationsBuilder;
+  class TopLevelDeclarationsBuilder;
   class IteratorRecord;
   class NaryCodeCoverageSlots;
   class RegisterAllocationScope;
@@ -220,6 +221,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                        LookupHoistingMode lookup_hoisting_mode);
 
   void BuildThisVariableLoad();
+
+  void BuildDeclareCall(Runtime::FunctionId id);
 
   Expression* GetDestructuringDefaultValue(Expression** target);
   void BuildDestructuringArrayAssignment(
@@ -462,9 +465,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     return builder()->register_allocator();
   }
 
-  GlobalDeclarationsBuilder* globals_builder() {
-    DCHECK_NOT_NULL(globals_builder_);
-    return globals_builder_;
+  TopLevelDeclarationsBuilder* top_level_builder() {
+    DCHECK_NOT_NULL(top_level_builder_);
+    return top_level_builder_;
   }
   inline LanguageMode language_mode() const;
   inline FunctionKind function_kind() const;
@@ -494,7 +497,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   FeedbackSlotCache* feedback_slot_cache_;
 
-  GlobalDeclarationsBuilder* globals_builder_;
+  TopLevelDeclarationsBuilder* top_level_builder_;
   BlockCoverageBuilder* block_coverage_builder_;
   ZoneVector<std::pair<FunctionLiteral*, size_t>> function_literals_;
   ZoneVector<std::pair<NativeFunctionLiteral*, size_t>>

@@ -570,18 +570,6 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     int beg_pos = scanner()->location().beg_pos;
     if (parsing_module_) {
       DCHECK(info->is_module());
-      // Declare the special module parameter.
-      auto name = ast_value_factory()->empty_string();
-      bool is_rest = false;
-      bool is_optional = false;
-      VariableMode mode = VariableMode::kVar;
-      bool was_added;
-      scope->DeclareLocal(name, mode, PARAMETER_VARIABLE, &was_added,
-                          Variable::DefaultInitializationFlag(mode));
-      DCHECK(was_added);
-      auto var = scope->DeclareParameter(name, VariableMode::kVar, is_optional,
-                                         is_rest, ast_value_factory(), beg_pos);
-      var->AllocateTo(VariableLocation::PARAMETER, 0);
 
       PrepareGeneratorVariables();
       Expression* initial_yield =
@@ -663,7 +651,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
       }
     }
 
-    int parameter_count = parsing_module_ ? 1 : 0;
+    int parameter_count = 0;
     result = factory()->NewScriptOrEvalFunctionLiteral(
         scope, body, function_state.expected_property_count(), parameter_count);
     result->set_suspend_count(function_state.suspend_count());

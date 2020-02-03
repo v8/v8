@@ -507,6 +507,10 @@ class Context : public HeapObject {
     return SizeFor(index) - kHeapObjectTag;
   }
 
+  // Initializes the variable slots of the context. Lexical variables that need
+  // initialization are filled with the hole.
+  void Initialize(Isolate* isolate);
+
   // TODO(ishell): eventually migrate to the offset based access instead of
   // index-based.
   // The default context slot layout; indices are FixedArray slot indices.

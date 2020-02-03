@@ -387,6 +387,7 @@ namespace internal {
   F(DeclareEvalFunction, 2, 1)              \
   F(DeclareEvalVar, 1, 1)                   \
   F(DeclareGlobals, 2, 1)                   \
+  F(DeclareModuleExports, 2, 1)             \
   F(DeleteLookupSlot, 1, 1)                 \
   F(LoadLookupSlot, 1, 1)                   \
   F(LoadLookupSlotInsideTypeof, 1, 1)       \
@@ -401,7 +402,6 @@ namespace internal {
   F(NewStrictArguments, 1, 1)               \
   F(PushBlockContext, 1, 1)                 \
   F(PushCatchContext, 2, 1)                 \
-  F(PushModuleContext, 2, 1)                \
   F(PushWithContext, 2, 1)                  \
   F(StoreGlobalNoHoleCheckForReplLet, 2, 1) \
   F(StoreLookupSlot_Sloppy, 2, 1)           \

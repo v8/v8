@@ -724,47 +724,71 @@ class BytecodeGenerator::TestResultScope final : public ExpressionResultScope {
   DISALLOW_COPY_AND_ASSIGN(TestResultScope);
 };
 
-// Used to build a list of global declaration initial value pairs.
-class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
+// Used to build a list of toplevel declaration data.
+class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
  public:
   Handle<FixedArray> AllocateDeclarations(UnoptimizedCompilationInfo* info,
                                           BytecodeGenerator* generator,
                                           Handle<Script> script,
                                           Isolate* isolate) {
-    int size = 0;
-    for (Declaration* decl : *info->scope()->declarations()) {
-      Variable* var = decl->var();
-      if (!var->is_used()) continue;
-      if (var->location() != VariableLocation::UNALLOCATED) continue;
-      DCHECK_IMPLIES(decl->node_type() != AstNode::kVariableDeclaration,
-                     decl->node_type() == AstNode::kFunctionDeclaration);
-      size += decl->node_type() == AstNode::kVariableDeclaration ? 1 : 2;
-    }
-
     DCHECK(has_constant_pool_entry_);
 
     Handle<FixedArray> data =
-        isolate->factory()->NewFixedArray(size, AllocationType::kOld);
+        isolate->factory()->NewFixedArray(entry_slots_, AllocationType::kOld);
 
     int array_index = 0;
-    for (Declaration* decl : *info->scope()->declarations()) {
-      Variable* var = decl->var();
-      if (!var->is_used()) continue;
-      if (var->location() != VariableLocation::UNALLOCATED) continue;
-      if (decl->node_type() == AstNode::kVariableDeclaration) {
-        data->set(array_index++, *var->raw_name()->string().get<Factory>());
-      } else {
-        FunctionLiteral* f = static_cast<FunctionDeclaration*>(decl)->fun();
-        Handle<Object> sfi(Compiler::GetSharedFunctionInfo(f, script, isolate));
-        // Return a null handle if any initial values can't be created. Caller
-        // will set stack overflow.
-        if (sfi.is_null()) return Handle<FixedArray>();
-        data->set(array_index++, *sfi);
-        int literal_index = generator->GetCachedCreateClosureSlot(f);
-        data->set(array_index++, Smi::FromInt(literal_index));
+    if (info->scope()->is_module_scope()) {
+      for (Declaration* decl : *info->scope()->declarations()) {
+        Variable* var = decl->var();
+        if (!var->is_used()) continue;
+        if (var->location() != VariableLocation::MODULE) continue;
+#ifdef DEBUG
+        int start = array_index;
+#endif
+        if (decl->IsFunctionDeclaration()) {
+          FunctionLiteral* f = static_cast<FunctionDeclaration*>(decl)->fun();
+          Handle<Object> sfi(
+              Compiler::GetSharedFunctionInfo(f, script, isolate));
+          // Return a null handle if any initial values can't be created. Caller
+          // will set stack overflow.
+          if (sfi.is_null()) return Handle<FixedArray>();
+          data->set(array_index++, *sfi);
+          int literal_index = generator->GetCachedCreateClosureSlot(f);
+          data->set(array_index++, Smi::FromInt(literal_index));
+          DCHECK(var->IsExport());
+          data->set(array_index++, Smi::FromInt(var->index()));
+          DCHECK_EQ(start + kModuleFunctionDeclarationSize, array_index);
+        } else if (var->IsExport() && var->binding_needs_init()) {
+          data->set(array_index++, Smi::FromInt(var->index()));
+          DCHECK_EQ(start + kModuleVariableDeclarationSize, array_index);
+        }
+      }
+    } else {
+      for (Declaration* decl : *info->scope()->declarations()) {
+        Variable* var = decl->var();
+        if (!var->is_used()) continue;
+        if (var->location() != VariableLocation::UNALLOCATED) continue;
+#ifdef DEBUG
+        int start = array_index;
+#endif
+        if (decl->IsVariableDeclaration()) {
+          data->set(array_index++, *var->raw_name()->string().get<Factory>());
+          DCHECK_EQ(start + kGlobalVariableDeclarationSize, array_index);
+        } else {
+          FunctionLiteral* f = static_cast<FunctionDeclaration*>(decl)->fun();
+          Handle<Object> sfi(
+              Compiler::GetSharedFunctionInfo(f, script, isolate));
+          // Return a null handle if any initial values can't be created. Caller
+          // will set stack overflow.
+          if (sfi.is_null()) return Handle<FixedArray>();
+          data->set(array_index++, *sfi);
+          int literal_index = generator->GetCachedCreateClosureSlot(f);
+          data->set(array_index++, Smi::FromInt(literal_index));
+          DCHECK_EQ(start + kGlobalFunctionDeclarationSize, array_index);
+        }
       }
     }
-
+    DCHECK_EQ(array_index, data->length());
     return data;
   }
 
@@ -774,21 +798,37 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
   }
 
   void set_constant_pool_entry(size_t constant_pool_entry) {
-    DCHECK(has_global_declaration());
+    DCHECK(has_top_level_declaration());
     DCHECK(!has_constant_pool_entry_);
     constant_pool_entry_ = constant_pool_entry;
     has_constant_pool_entry_ = true;
   }
 
-  void record_global_declaration() { has_seen_global_declaration_ = true; }
-  bool has_global_declaration() { return has_seen_global_declaration_; }
+  void record_global_variable_declaration() {
+    entry_slots_ += kGlobalVariableDeclarationSize;
+  }
+  void record_global_function_declaration() {
+    entry_slots_ += kGlobalFunctionDeclarationSize;
+  }
+  void record_module_variable_declaration() {
+    entry_slots_ += kModuleVariableDeclarationSize;
+  }
+  void record_module_function_declaration() {
+    entry_slots_ += kModuleFunctionDeclarationSize;
+  }
+  bool has_top_level_declaration() { return entry_slots_ > 0; }
   bool processed() { return processed_; }
   void mark_processed() { processed_ = true; }
 
  private:
+  const int kGlobalVariableDeclarationSize = 1;
+  const int kGlobalFunctionDeclarationSize = 2;
+  const int kModuleVariableDeclarationSize = 1;
+  const int kModuleFunctionDeclarationSize = 3;
+
   size_t constant_pool_entry_ = 0;
+  int entry_slots_ = 0;
   bool has_constant_pool_entry_ = false;
-  bool has_seen_global_declaration_ = false;
   bool processed_ = false;
 };
 
@@ -983,7 +1023,7 @@ BytecodeGenerator::BytecodeGenerator(
       current_scope_(info->scope()),
       eager_inner_literals_(eager_inner_literals),
       feedback_slot_cache_(new (zone()) FeedbackSlotCache(zone())),
-      globals_builder_(new (zone()) GlobalDeclarationsBuilder()),
+      top_level_builder_(new (zone()) TopLevelDeclarationsBuilder()),
       block_coverage_builder_(nullptr),
       function_literals_(0, zone()),
       native_function_literals_(0, zone()),
@@ -1066,13 +1106,13 @@ int BytecodeGenerator::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
 
 void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
                                                   Handle<Script> script) {
-  if (globals_builder()->has_global_declaration()) {
+  if (top_level_builder()->has_top_level_declaration()) {
     // Build global declaration pair array.
-    Handle<FixedArray> declarations =
-        globals_builder()->AllocateDeclarations(info(), this, script, isolate);
+    Handle<FixedArray> declarations = top_level_builder()->AllocateDeclarations(
+        info(), this, script, isolate);
     if (declarations.is_null()) return SetStackOverflow();
     builder()->SetDeferredConstantPoolEntry(
-        globals_builder()->constant_pool_entry(), declarations);
+        top_level_builder()->constant_pool_entry(), declarations);
   }
 
   // Find or build shared function infos.
@@ -1142,6 +1182,13 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
   }
 }
 
+namespace {
+bool NeedsContextInitialization(DeclarationScope* scope) {
+  return scope->NeedsContext() && !scope->is_script_scope() &&
+         !scope->is_module_scope();
+}
+}  // namespace
+
 void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
@@ -1166,7 +1213,7 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
     BuildGeneratorPrologue();
   }
 
-  if (closure_scope()->NeedsContext() && !closure_scope()->is_script_scope()) {
+  if (NeedsContextInitialization(closure_scope())) {
     // Push a new inner context scope for the function.
     BuildNewLocalActivationContext();
     ContextScope local_function_context(this, closure_scope());
@@ -1223,6 +1270,8 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   // Visit declarations within the function scope.
   if (closure_scope()->is_script_scope()) {
     VisitGlobalDeclarations(closure_scope()->declarations());
+  } else if (closure_scope()->is_module_scope()) {
+    VisitModuleDeclarations(closure_scope()->declarations());
   } else {
     VisitDeclarations(closure_scope()->declarations());
   }
@@ -1320,6 +1369,7 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
 
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED:
+    case VariableLocation::MODULE:
       UNREACHABLE();
     case VariableLocation::LOCAL:
       if (variable->binding_needs_init()) {
@@ -1355,13 +1405,6 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
           .CallRuntime(Runtime::kDeclareEvalVar, name);
       break;
     }
-    case VariableLocation::MODULE:
-      if (variable->IsExport() && variable->binding_needs_init()) {
-        builder()->LoadTheHole();
-        BuildVariableAssignment(variable, Token::INIT, HoleCheckMode::kElided);
-      }
-      // Nothing to do for imports.
-      break;
   }
 }
 
@@ -1375,6 +1418,7 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
 
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED:
+    case VariableLocation::MODULE:
       UNREACHABLE();
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL: {
@@ -1400,12 +1444,6 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
           Runtime::kDeclareEvalFunction, args);
       break;
     }
-    case VariableLocation::MODULE:
-      DCHECK_EQ(variable->mode(), VariableMode::kLet);
-      DCHECK(variable->IsExport());
-      VisitForAccumulatorValue(decl->fun());
-      BuildVariableAssignment(variable, Token::INIT, HoleCheckMode::kElided);
-      break;
   }
   DCHECK_IMPLIES(
       eager_inner_literals_ != nullptr && decl->fun()->ShouldEagerCompile(),
@@ -1430,18 +1468,60 @@ void BytecodeGenerator::VisitModuleNamespaceImports() {
   }
 }
 
+void BytecodeGenerator::BuildDeclareCall(Runtime::FunctionId id) {
+  if (!top_level_builder()->has_top_level_declaration()) return;
+  DCHECK(!top_level_builder()->processed());
+
+  top_level_builder()->set_constant_pool_entry(
+      builder()->AllocateDeferredConstantPoolEntry());
+
+  // Emit code to declare globals.
+  RegisterList args = register_allocator()->NewRegisterList(2);
+  builder()
+      ->LoadConstantPoolEntry(top_level_builder()->constant_pool_entry())
+      .StoreAccumulatorInRegister(args[0])
+      .MoveRegister(Register::function_closure(), args[1])
+      .CallRuntime(id, args);
+
+  top_level_builder()->mark_processed();
+}
+
+void BytecodeGenerator::VisitModuleDeclarations(Declaration::List* decls) {
+  RegisterAllocationScope register_scope(this);
+  for (Declaration* decl : *decls) {
+    Variable* var = decl->var();
+    if (!var->is_used()) continue;
+    if (var->location() == VariableLocation::MODULE) {
+      if (decl->IsFunctionDeclaration()) {
+        DCHECK(var->IsExport());
+        FunctionDeclaration* f = static_cast<FunctionDeclaration*>(decl);
+        AddToEagerLiteralsIfEager(f->fun());
+        top_level_builder()->record_module_function_declaration();
+      } else if (var->IsExport() && var->binding_needs_init()) {
+        DCHECK(decl->IsVariableDeclaration());
+        top_level_builder()->record_module_variable_declaration();
+      }
+    } else {
+      RegisterAllocationScope register_scope(this);
+      Visit(decl);
+    }
+  }
+  BuildDeclareCall(Runtime::kDeclareModuleExports);
+}
+
 void BytecodeGenerator::VisitGlobalDeclarations(Declaration::List* decls) {
   RegisterAllocationScope register_scope(this);
-  bool has_global_declaration = false;
   for (Declaration* decl : *decls) {
     Variable* var = decl->var();
     DCHECK(var->is_used());
     if (var->location() == VariableLocation::UNALLOCATED) {
       // var or function.
-      has_global_declaration = true;
       if (decl->IsFunctionDeclaration()) {
+        top_level_builder()->record_global_function_declaration();
         FunctionDeclaration* f = static_cast<FunctionDeclaration*>(decl);
         AddToEagerLiteralsIfEager(f->fun());
+      } else {
+        top_level_builder()->record_global_variable_declaration();
       }
     } else {
       // let or const. Handled in NewScriptContext.
@@ -1450,22 +1530,7 @@ void BytecodeGenerator::VisitGlobalDeclarations(Declaration::List* decls) {
     }
   }
 
-  if (!has_global_declaration) return;
-  globals_builder()->record_global_declaration();
-  DCHECK(!globals_builder()->processed());
-
-  globals_builder()->set_constant_pool_entry(
-      builder()->AllocateDeferredConstantPoolEntry());
-
-  // Emit code to declare globals.
-  RegisterList args = register_allocator()->NewRegisterList(2);
-  builder()
-      ->LoadConstantPoolEntry(globals_builder()->constant_pool_entry())
-      .StoreAccumulatorInRegister(args[0])
-      .MoveRegister(Register::function_closure(), args[1])
-      .CallRuntime(Runtime::kDeclareGlobals, args);
-
-  globals_builder()->mark_processed();
+  BuildDeclareCall(Runtime::kDeclareGlobals);
 }
 
 void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
@@ -5996,37 +6061,23 @@ void BytecodeGenerator::BuildNewLocalActivationContext() {
   DCHECK_EQ(current_scope(), closure_scope());
 
   // Create the appropriate context.
-  if (scope->is_module_scope()) {
-    // We don't need to do anything for the outer script scope.
-    DCHECK(scope->outer_scope()->is_script_scope());
-
-    // A JSFunction representing a module is called with the module object as
-    // its sole argument.
-    RegisterList args = register_allocator()->NewRegisterList(2);
-    builder()
-        ->MoveRegister(builder()->Parameter(0), args[0])
-        .LoadLiteral(scope)
-        .StoreAccumulatorInRegister(args[1])
-        .CallRuntime(Runtime::kPushModuleContext, args);
-  } else {
-    DCHECK(scope->is_function_scope() || scope->is_eval_scope());
-    int slot_count = scope->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-    if (slot_count <= ConstructorBuiltins::MaximumFunctionContextSlots()) {
-      switch (scope->scope_type()) {
-        case EVAL_SCOPE:
-          builder()->CreateEvalContext(scope, slot_count);
-          break;
-        case FUNCTION_SCOPE:
-          builder()->CreateFunctionContext(scope, slot_count);
-          break;
-        default:
-          UNREACHABLE();
-      }
-    } else {
-      Register arg = register_allocator()->NewRegister();
-      builder()->LoadLiteral(scope).StoreAccumulatorInRegister(arg).CallRuntime(
-          Runtime::kNewFunctionContext, arg);
+  DCHECK(scope->is_function_scope() || scope->is_eval_scope());
+  int slot_count = scope->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+  if (slot_count <= ConstructorBuiltins::MaximumFunctionContextSlots()) {
+    switch (scope->scope_type()) {
+      case EVAL_SCOPE:
+        builder()->CreateEvalContext(scope, slot_count);
+        break;
+      case FUNCTION_SCOPE:
+        builder()->CreateFunctionContext(scope, slot_count);
+        break;
+      default:
+        UNREACHABLE();
     }
+  } else {
+    Register arg = register_allocator()->NewRegister();
+    builder()->LoadLiteral(scope).StoreAccumulatorInRegister(arg).CallRuntime(
+        Runtime::kNewFunctionContext, arg);
   }
 }
 
