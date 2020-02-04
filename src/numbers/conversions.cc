@@ -9,6 +9,7 @@
 #include <cmath>
 
 #include "src/common/assert-scope.h"
+#include "src/execution/off-thread-isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/numbers/dtoa.h"
@@ -167,18 +168,29 @@ double InternalStringToIntDouble(Iterator current, EndMark end, bool negative,
   return std::ldexp(static_cast<double>(negative ? -number : number), exponent);
 }
 
+namespace {
+
+// Subclasses of StringToIntHelper get access to internal state:
+enum class State { kRunning, kError, kJunk, kEmpty, kZero, kDone };
+
+enum class Sign { kNegative, kPositive, kNone };
+
+}  // namespace
+
 // ES6 18.2.5 parseInt(string, radix) (with NumberParseIntHelper subclass);
 // and BigInt parsing cases from https://tc39.github.io/proposal-bigint/
 // (with StringToBigIntHelper subclass).
+template <typename Isolate>
 class StringToIntHelper {
  public:
-  StringToIntHelper(Isolate* isolate, Handle<String> subject, int radix)
+  StringToIntHelper(Isolate* isolate, HandleFor<Isolate, String> subject,
+                    int radix)
       : isolate_(isolate), subject_(subject), radix_(radix) {
     DCHECK(subject->IsFlat());
   }
 
   // Used for the StringToBigInt operation.
-  StringToIntHelper(Isolate* isolate, Handle<String> subject)
+  StringToIntHelper(Isolate* isolate, HandleFor<Isolate, String> subject)
       : isolate_(isolate), subject_(subject) {
     DCHECK(subject->IsFlat());
   }
@@ -225,11 +237,6 @@ class StringToIntHelper {
     return subject_->GetFlatContent(no_gc).ToUC16Vector();
   }
 
-  // Subclasses get access to internal state:
-  enum State { kRunning, kError, kJunk, kEmpty, kZero, kDone };
-
-  enum class Sign { kNegative, kPositive, kNone };
-
   Isolate* isolate() { return isolate_; }
   int radix() { return radix_; }
   int cursor() { return cursor_; }
@@ -246,7 +253,7 @@ class StringToIntHelper {
   void ParseInternal(Char start);
 
   Isolate* isolate_;
-  Handle<String> subject_;
+  HandleFor<Isolate, String> subject_;
   const uint8_t* raw_one_byte_subject_ = nullptr;
   int radix_ = 0;
   int cursor_ = 0;
@@ -255,10 +262,11 @@ class StringToIntHelper {
   bool leading_zero_ = false;
   bool allow_binary_and_octal_prefixes_ = false;
   bool allow_trailing_junk_ = true;
-  State state_ = kRunning;
+  State state_ = State::kRunning;
 };
 
-void StringToIntHelper::ParseInt() {
+template <typename Isolate>
+void StringToIntHelper<Isolate>::ParseInt() {
   {
     DisallowHeapAllocation no_gc;
     if (IsOneByte()) {
@@ -269,10 +277,10 @@ void StringToIntHelper::ParseInt() {
       DetectRadixInternal(vector.begin(), vector.length());
     }
   }
-  if (state_ != kRunning) return;
+  if (state_ != State::kRunning) return;
   AllocateResult();
   HandleSpecialCases();
-  if (state_ != kRunning) return;
+  if (state_ != State::kRunning) return;
   {
     DisallowHeapAllocation no_gc;
     if (IsOneByte()) {
@@ -285,30 +293,31 @@ void StringToIntHelper::ParseInt() {
       ParseInternal(vector.begin());
     }
   }
-  DCHECK_NE(state_, kRunning);
+  DCHECK_NE(state_, State::kRunning);
 }
 
+template <typename Isolate>
 template <class Char>
-void StringToIntHelper::DetectRadixInternal(Char current, int length) {
+void StringToIntHelper<Isolate>::DetectRadixInternal(Char current, int length) {
   Char start = current;
   length_ = length;
   Char end = start + length;
 
   if (!AdvanceToNonspace(&current, end)) {
-    return set_state(kEmpty);
+    return set_state(State::kEmpty);
   }
 
   if (*current == '+') {
     // Ignore leading sign; skip following spaces.
     ++current;
     if (current == end) {
-      return set_state(kJunk);
+      return set_state(State::kJunk);
     }
     sign_ = Sign::kPositive;
   } else if (*current == '-') {
     ++current;
     if (current == end) {
-      return set_state(kJunk);
+      return set_state(State::kJunk);
     }
     sign_ = Sign::kNegative;
   }
@@ -318,21 +327,21 @@ void StringToIntHelper::DetectRadixInternal(Char current, int length) {
     radix_ = 10;
     if (*current == '0') {
       ++current;
-      if (current == end) return set_state(kZero);
+      if (current == end) return set_state(State::kZero);
       if (*current == 'x' || *current == 'X') {
         radix_ = 16;
         ++current;
-        if (current == end) return set_state(kJunk);
+        if (current == end) return set_state(State::kJunk);
       } else if (allow_binary_and_octal_prefixes_ &&
                  (*current == 'o' || *current == 'O')) {
         radix_ = 8;
         ++current;
-        if (current == end) return set_state(kJunk);
+        if (current == end) return set_state(State::kJunk);
       } else if (allow_binary_and_octal_prefixes_ &&
                  (*current == 'b' || *current == 'B')) {
         radix_ = 2;
         ++current;
-        if (current == end) return set_state(kJunk);
+        if (current == end) return set_state(State::kJunk);
       } else {
         leading_zero_ = true;
       }
@@ -341,10 +350,10 @@ void StringToIntHelper::DetectRadixInternal(Char current, int length) {
     if (*current == '0') {
       // Allow "0x" prefix.
       ++current;
-      if (current == end) return set_state(kZero);
+      if (current == end) return set_state(State::kZero);
       if (*current == 'x' || *current == 'X') {
         ++current;
-        if (current == end) return set_state(kJunk);
+        if (current == end) return set_state(State::kJunk);
       } else {
         leading_zero_ = true;
       }
@@ -354,11 +363,11 @@ void StringToIntHelper::DetectRadixInternal(Char current, int length) {
   while (*current == '0') {
     leading_zero_ = true;
     ++current;
-    if (current == end) return set_state(kZero);
+    if (current == end) return set_state(State::kZero);
   }
 
   if (!leading_zero_ && !isDigit(*current, radix_)) {
-    return set_state(kJunk);
+    return set_state(State::kJunk);
   }
 
   DCHECK(radix_ >= 2 && radix_ <= 36);
@@ -366,8 +375,9 @@ void StringToIntHelper::DetectRadixInternal(Char current, int length) {
   cursor_ = static_cast<int>(current - start);
 }
 
+template <typename Isolate>
 template <class Char>
-void StringToIntHelper::ParseInternal(Char start) {
+void StringToIntHelper<Isolate>::ParseInternal(Char start) {
   Char current = start + cursor_;
   Char end = start + length_;
 
@@ -426,13 +436,13 @@ void StringToIntHelper::ParseInternal(Char start) {
   } while (!done);
 
   if (!allow_trailing_junk_ && AdvanceToNonspace(&current, end)) {
-    return set_state(kJunk);
+    return set_state(State::kJunk);
   }
 
-  return set_state(kDone);
+  return set_state(State::kDone);
 }
 
-class NumberParseIntHelper : public StringToIntHelper {
+class NumberParseIntHelper : public StringToIntHelper<Isolate> {
  public:
   NumberParseIntHelper(Isolate* isolate, Handle<String> string, int radix)
       : StringToIntHelper(isolate, string, radix) {}
@@ -440,15 +450,15 @@ class NumberParseIntHelper : public StringToIntHelper {
   double GetResult() {
     ParseInt();
     switch (state()) {
-      case kJunk:
-      case kEmpty:
+      case State::kJunk:
+      case State::kEmpty:
         return JunkStringValue();
-      case kZero:
+      case State::kZero:
         return SignedZero(negative());
-      case kDone:
+      case State::kDone:
         return negative() ? -result_ : result_;
-      case kError:
-      case kRunning:
+      case State::kError:
+      case State::kRunning:
         break;
     }
     UNREACHABLE();
@@ -476,7 +486,7 @@ class NumberParseIntHelper : public StringToIntHelper {
       result_ = is_power_of_two ? HandlePowerOfTwoCase(vector.begin())
                                 : HandleBaseTenCase(vector.begin());
     }
-    set_state(kDone);
+    set_state(State::kDone);
   }
 
   template <class Char>
@@ -825,59 +835,50 @@ double StringToInt(Isolate* isolate, Handle<String> string, int radix) {
   return helper.GetResult();
 }
 
-class StringToBigIntHelper : public StringToIntHelper {
+template <typename Isolate>
+class StringToBigIntHelper : public StringToIntHelper<Isolate> {
  public:
   enum class Behavior { kStringToBigInt, kLiteral };
 
   // Used for StringToBigInt operation (BigInt constructor and == operator).
-  StringToBigIntHelper(Isolate* isolate, Handle<String> string)
-      : StringToIntHelper(isolate, string),
+  StringToBigIntHelper(Isolate* isolate, HandleFor<Isolate, String> string)
+      : StringToIntHelper<Isolate>(isolate, string),
         behavior_(Behavior::kStringToBigInt) {
-    set_allow_binary_and_octal_prefixes();
-    set_disallow_trailing_junk();
+    this->set_allow_binary_and_octal_prefixes();
+    this->set_disallow_trailing_junk();
   }
 
   // Used for parsing BigInt literals, where the input is a buffer of
   // one-byte ASCII digits, along with an optional radix prefix.
   StringToBigIntHelper(Isolate* isolate, const uint8_t* string, int length)
-      : StringToIntHelper(isolate, string, length),
+      : StringToIntHelper<Isolate>(isolate, string, length),
         behavior_(Behavior::kLiteral) {
-    set_allow_binary_and_octal_prefixes();
+    this->set_allow_binary_and_octal_prefixes();
   }
 
-  MaybeHandle<BigInt> GetResult() {
-    ParseInt();
-    if (behavior_ == Behavior::kStringToBigInt && sign() != Sign::kNone &&
-        radix() != 10) {
-      return MaybeHandle<BigInt>();
+  MaybeHandleFor<Isolate, BigInt> GetResult() {
+    this->ParseInt();
+    if (behavior_ == Behavior::kStringToBigInt && this->sign() != Sign::kNone &&
+        this->radix() != 10) {
+      return MaybeHandleFor<Isolate, BigInt>();
     }
-    if (state() == kEmpty) {
+    if (this->state() == State::kEmpty) {
       if (behavior_ == Behavior::kStringToBigInt) {
-        set_state(kZero);
+        this->set_state(State::kZero);
       } else {
         UNREACHABLE();
       }
     }
-    switch (state()) {
-      case kJunk:
-        if (should_throw() == kThrowOnError) {
-          THROW_NEW_ERROR(isolate(),
-                          NewSyntaxError(MessageTemplate::kBigIntInvalidString),
-                          BigInt);
-        } else {
-          DCHECK_EQ(should_throw(), kDontThrow);
-          return MaybeHandle<BigInt>();
-        }
-      case kZero:
-        return BigInt::Zero(isolate());
-      case kError:
-        DCHECK_EQ(should_throw() == kThrowOnError,
-                  isolate()->has_pending_exception());
-        return MaybeHandle<BigInt>();
-      case kDone:
-        return BigInt::Finalize(result_, negative());
-      case kEmpty:
-      case kRunning:
+    switch (this->state()) {
+      case State::kJunk:
+      case State::kError:
+        return MaybeHandleFor<Isolate, BigInt>();
+      case State::kZero:
+        return BigInt::Zero(this->isolate());
+      case State::kDone:
+        return BigInt::Finalize<Isolate>(result_, this->negative());
+      case State::kEmpty:
+      case State::kRunning:
         break;
     }
     UNREACHABLE();
@@ -889,42 +890,48 @@ class StringToBigIntHelper : public StringToIntHelper {
     // Conseratively assume that all remaining digits are significant.
     // Optimization opportunity: Would it makes sense to scan for trailing
     // junk before allocating the result?
-    int charcount = length() - cursor();
+    int charcount = this->length() - this->cursor();
     // For literals, we pretenure the allocated BigInt, since it's about
     // to be stored in the interpreter's constants array.
     AllocationType allocation = behavior_ == Behavior::kLiteral
                                     ? AllocationType::kOld
                                     : AllocationType::kYoung;
-    MaybeHandle<FreshlyAllocatedBigInt> maybe = BigInt::AllocateFor(
-        isolate(), radix(), charcount, should_throw(), allocation);
+    MaybeHandleFor<Isolate, FreshlyAllocatedBigInt> maybe = BigInt::AllocateFor(
+        this->isolate(), this->radix(), charcount, kDontThrow, allocation);
     if (!maybe.ToHandle(&result_)) {
-      set_state(kError);
+      this->set_state(State::kError);
     }
   }
 
   void ResultMultiplyAdd(uint32_t multiplier, uint32_t part) override {
-    BigInt::InplaceMultiplyAdd(result_, static_cast<uintptr_t>(multiplier),
+    BigInt::InplaceMultiplyAdd(*result_, static_cast<uintptr_t>(multiplier),
                                static_cast<uintptr_t>(part));
   }
 
  private:
-  ShouldThrow should_throw() const { return kDontThrow; }
-
-  Handle<FreshlyAllocatedBigInt> result_;
+  HandleFor<Isolate, FreshlyAllocatedBigInt> result_;
   Behavior behavior_;
 };
 
 MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string) {
   string = String::Flatten(isolate, string);
-  StringToBigIntHelper helper(isolate, string);
+  StringToBigIntHelper<Isolate> helper(isolate, string);
   return helper.GetResult();
 }
 
-MaybeHandle<BigInt> BigIntLiteral(Isolate* isolate, const char* string) {
-  StringToBigIntHelper helper(isolate, reinterpret_cast<const uint8_t*>(string),
-                              static_cast<int>(strlen(string)));
+template <typename Isolate>
+MaybeHandleFor<Isolate, BigInt> BigIntLiteral(Isolate* isolate,
+                                              const char* string) {
+  StringToBigIntHelper<Isolate> helper(isolate,
+                                       reinterpret_cast<const uint8_t*>(string),
+                                       static_cast<int>(strlen(string)));
   return helper.GetResult();
 }
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    MaybeHandle<BigInt> BigIntLiteral(Isolate* isolate, const char* string);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    OffThreadHandle<BigInt> BigIntLiteral(OffThreadIsolate* isolate,
+                                          const char* string);
 
 const char* DoubleToCString(double v, Vector<char> buffer) {
   switch (FPCLASSIFY_NAMESPACE::fpclassify(v)) {

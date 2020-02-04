@@ -174,6 +174,19 @@ HandleFor<Impl, String> FactoryBase<Impl>::NewConsString(
 }
 
 template <typename Impl>
+HandleFor<Impl, FreshlyAllocatedBigInt> FactoryBase<Impl>::NewBigInt(
+    int length, AllocationType allocation) {
+  if (length < 0 || length > BigInt::kMaxLength) {
+    isolate()->FatalProcessOutOfHeapMemory("invalid BigInt length");
+  }
+  HeapObject result = AllocateRawWithImmortalMap(
+      BigInt::SizeFor(length), allocation, read_only_roots().bigint_map());
+  FreshlyAllocatedBigInt bigint = FreshlyAllocatedBigInt::cast(result);
+  bigint.clear_padding();
+  return handle(bigint, isolate());
+}
+
+template <typename Impl>
 HandleFor<Impl, SeqOneByteString>
 FactoryBase<Impl>::AllocateRawOneByteInternalizedString(int length,
                                                         uint32_t hash_field) {

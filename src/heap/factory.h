@@ -113,7 +113,7 @@ struct HandleTraits<Factory> {
   template <typename T>
   using HandleType = Handle<T>;
   template <typename T>
-  using MaybeHandleType = v8::internal::MaybeHandle<T>;
+  using MaybeHandleType = MaybeHandle<T>;
 };
 
 // Interface for handle based allocation.
@@ -555,11 +555,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<HeapNumber> NewHeapNumberForCodeAssembler(double value);
 
   inline Handle<HeapNumber> NewHeapNumberWithHoleNaN();
-
-  // Allocates a new BigInt with {length} digits. Only to be used by
-  // MutableBigInt::New*.
-  Handle<FreshlyAllocatedBigInt> NewBigInt(
-      int length, AllocationType allocation = AllocationType::kYoung);
 
   Handle<JSObject> NewArgumentsObject(Handle<JSFunction> callee, int length);
 

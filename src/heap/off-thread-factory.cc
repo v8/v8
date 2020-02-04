@@ -162,11 +162,6 @@ void OffThreadFactory::Publish(Isolate* isolate) {
   }
 }
 
-OffThreadHandle<Object> OffThreadFactory::NewInvalidStringLengthError() {
-  // TODO(leszeks): Implement.
-  UNREACHABLE();
-}
-
 // Hacky method for creating a simple object with a slot pointing to a string.
 // TODO(leszeks): Remove once we have full FixedArray support.
 OffThreadHandle<FixedArray> OffThreadFactory::StringWrapperForTest(

@@ -5,8 +5,10 @@
 #ifndef V8_NUMBERS_CONVERSIONS_H_
 #define V8_NUMBERS_CONVERSIONS_H_
 
+#include "src/base/export-template.h"
 #include "src/base/logging.h"
 #include "src/common/globals.h"
+#include "src/handles/handle-for.h"
 #include "src/utils/vector.h"
 
 namespace v8 {
@@ -99,8 +101,10 @@ MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string);
 //   0x -> hex
 //   0o -> octal
 //   0b -> binary
-V8_EXPORT_PRIVATE MaybeHandle<BigInt> BigIntLiteral(Isolate* isolate,
-                                                    const char* string);
+template <typename Isolate>
+EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+MaybeHandleFor<Isolate, BigInt> BigIntLiteral(Isolate* isolate,
+                                              const char* string);
 
 const int kDoubleToCStringMinBufferSize = 100;
 

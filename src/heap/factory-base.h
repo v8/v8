@@ -15,6 +15,7 @@ namespace internal {
 class HeapObject;
 class SeqOneByteString;
 class SeqTwoByteString;
+class FreshlyAllocatedBigInt;
 
 template <typename Impl>
 class V8_EXPORT_PRIVATE FactoryBase {
@@ -46,6 +47,11 @@ class V8_EXPORT_PRIVATE FactoryBase {
   V8_WARN_UNUSED_RESULT HandleFor<Impl, String> NewConsString(
       HandleFor<Impl, String> left, HandleFor<Impl, String> right, int length,
       bool one_byte, AllocationType allocation = AllocationType::kYoung);
+
+  // Allocates a new BigInt with {length} digits. Only to be used by
+  // MutableBigInt::New*.
+  HandleFor<Impl, FreshlyAllocatedBigInt> NewBigInt(
+      int length, AllocationType allocation = AllocationType::kYoung);
 
  protected:
   HeapObject AllocateRawWithImmortalMap(

@@ -2071,18 +2071,6 @@ Handle<HeapNumber> Factory::NewHeapNumberForCodeAssembler(double value) {
              : NewHeapNumber<AllocationType::kOld>(value);
 }
 
-Handle<FreshlyAllocatedBigInt> Factory::NewBigInt(int length,
-                                                  AllocationType allocation) {
-  if (length < 0 || length > BigInt::kMaxLength) {
-    isolate()->heap()->FatalProcessOutOfMemory("invalid BigInt length");
-  }
-  HeapObject result = AllocateRawWithImmortalMap(BigInt::SizeFor(length),
-                                                 allocation, *bigint_map());
-  FreshlyAllocatedBigInt bigint = FreshlyAllocatedBigInt::cast(result);
-  bigint.clear_padding();
-  return handle(bigint, isolate());
-}
-
 Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
                                    MessageTemplate template_index,
                                    Handle<Object> arg0, Handle<Object> arg1,

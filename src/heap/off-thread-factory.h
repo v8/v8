@@ -7,6 +7,7 @@
 
 #include <map>
 #include <vector>
+#include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory-base.h"
@@ -59,7 +60,12 @@ class V8_EXPORT_PRIVATE OffThreadFactory
   void FinishOffThread();
   void Publish(Isolate* isolate);
 
-  OffThreadHandle<Object> NewInvalidStringLengthError();
+  // The parser shouldn't allow the OffThreadFactory to get into a state where
+  // it generates errors.
+  OffThreadHandle<Object> NewInvalidStringLengthError() { UNREACHABLE(); }
+  OffThreadHandle<Object> NewRangeError(MessageTemplate template_index) {
+    UNREACHABLE();
+  }
 
   OffThreadHandle<FixedArray> StringWrapperForTest(
       OffThreadHandle<String> string);
