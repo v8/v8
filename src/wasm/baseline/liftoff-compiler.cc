@@ -2587,6 +2587,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   result.protected_instructions = compiler->GetProtectedInstructions();
   result.frame_slot_count = compiler->GetTotalFrameSlotCount();
   result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
+  result.func_index = func_index;
   result.result_tier = ExecutionTier::kLiftoff;
   if (debug_sidetable) {
     *debug_sidetable = debug_sidetable_builder->GenerateDebugSideTable();

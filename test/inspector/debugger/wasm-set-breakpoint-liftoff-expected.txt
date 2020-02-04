@@ -8,5 +8,31 @@ Setting breakpoint at offset 49 on script wasm://wasm/18214bfe
 Setting breakpoint at offset 45 on script wasm://wasm/18214bfe
 Setting breakpoint at offset 47 on script wasm://wasm/18214bfe
 Calling main(4)
+Breaking on byte offset 45
+Breaking on byte offset 47
+Breaking on byte offset 49
+Breaking on byte offset 51
+Breaking on byte offset 53
+Breaking on byte offset 54
+Breaking on byte offset 45
+Breaking on byte offset 47
+Breaking on byte offset 49
+Breaking on byte offset 51
+Breaking on byte offset 53
+Breaking on byte offset 54
+Breaking on byte offset 45
+Breaking on byte offset 47
+Breaking on byte offset 49
+Breaking on byte offset 51
+Breaking on byte offset 53
+Breaking on byte offset 54
+Breaking on byte offset 45
+Breaking on byte offset 47
+Breaking on byte offset 49
+Breaking on byte offset 51
+Breaking on byte offset 53
+Breaking on byte offset 54
+Breaking on byte offset 45
+Breaking on byte offset 47
 exports.main returned!
 Finished!
