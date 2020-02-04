@@ -39,6 +39,9 @@
 
   # http://crbug/v8/9930
   'date-format/format_range_hour_cycle': [FAIL],
+
+  # Slow tests.
+  'regress-1044570': [PASS, SLOW, NO_VARIANTS],
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {
