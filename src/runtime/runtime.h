@@ -570,7 +570,8 @@ namespace internal {
   F(WasmIsValidFuncRefValue, 1, 1)      \
   F(WasmCompileLazy, 2, 1)              \
   F(WasmNewMultiReturnFixedArray, 1, 1) \
-  F(WasmNewMultiReturnJSArray, 1, 1)
+  F(WasmNewMultiReturnJSArray, 1, 1)    \
+  F(WasmDebugBreak, 0, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR_IMPL(F, I) \
   F(DebugBreakOnBytecode, 1, 2)                   \

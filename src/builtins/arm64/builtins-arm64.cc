@@ -6,15 +6,15 @@
 
 #include "src/api/api-arguments.h"
 #include "src/codegen/code-factory.h"
+// For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
+#include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/register-configuration.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames.h"
-#include "src/logging/counters.h"
-// For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
-#include "src/codegen/macro-assembler-inl.h"
-#include "src/codegen/register-configuration.h"
 #include "src/heap/heap-inl.h"
+#include "src/logging/counters.h"
 #include "src/objects/cell.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
@@ -22,6 +22,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/runtime/runtime.h"
+#include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 
 #if defined(V8_OS_WIN)
@@ -2948,6 +2949,40 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   }
   // Finally, jump to the entrypoint.
   __ Jump(x8);
+}
+
+void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
+  HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
+  {
+    // TODO(clemensb): Use a separate frame type and make it inspectable.
+    FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Save all parameter registers. They might hold live values, we restore
+    // them after the runtime call.
+    RegList gp_regs = 0;
+    for (Register reg : wasm::kGpParamRegisters) gp_regs |= reg.bit();
+    // The size of {gp_regs} must be a multiple of 2, so that the total pushed
+    // size is a multiple of 16 bytes.
+    if (NumRegs(gp_regs) % 2) {
+      // Just add any unset register.
+      gp_regs |= 1 << base::bits::CountTrailingZeros(~gp_regs);
+    }
+    RegList fp_regs = 0;
+    for (DoubleRegister reg : wasm::kFpParamRegisters) fp_regs |= reg.bit();
+
+    __ PushXRegList(gp_regs);
+    __ PushDRegList(fp_regs);
+
+    // Initialize the JavaScript context with 0. CEntry will use it to
+    // set the current context on the isolate.
+    __ Move(cp, Smi::zero());
+    __ CallRuntime(Runtime::kWasmDebugBreak, 0);
+
+    // Restore registers.
+    __ PopDRegList(fp_regs);
+    __ PopXRegList(gp_regs);
+  }
+  __ Ret();
 }
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,

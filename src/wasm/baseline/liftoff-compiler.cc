@@ -651,16 +651,20 @@ class LiftoffCompiler {
       if (next_breakpoint_ptr_ == next_breakpoint_end_) {
         next_breakpoint_ptr_ = next_breakpoint_end_ = nullptr;
       }
-      EmitBreakpoint();
+      EmitBreakpoint(decoder);
     }
     TraceCacheState(decoder);
     SLOW_DCHECK(__ ValidateCacheState());
     DEBUG_CODE_COMMENT(WasmOpcodes::OpcodeName(opcode));
   }
 
-  void EmitBreakpoint() {
+  void EmitBreakpoint(FullDecoder* decoder) {
     DEBUG_CODE_COMMENT("breakpoint");
-    // TODO(clemensb): Actually emit a breakpoint.
+    source_position_table_builder_.AddPosition(
+        __ pc_offset(), SourcePosition(decoder->position()), false);
+    __ CallRuntimeStub(WasmCode::kWasmDebugBreak);
+    RegisterDebugSideTableEntry();
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
   }
 
   void Block(FullDecoder* decoder, Control* block) {}

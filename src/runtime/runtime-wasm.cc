@@ -602,5 +602,15 @@ RUNTIME_FUNCTION(Runtime_WasmNewMultiReturnJSArray) {
       fixed_array_handle, PACKED_ELEMENTS);
   return *array;
 }
+
+RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+
+  // TODO(clemensb): Implement.
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8
