@@ -52,10 +52,9 @@ class ConfigTest(unittest.TestCase):
 
 class UnitTest(unittest.TestCase):
   def testDiff(self):
-    # TODO(machenbach): Mock out suppression configuration.
-    suppress = v8_suppressions.get_suppression(
-        'x64', 'ignition', 'x64', 'ignition_turbo')
-    def diff_fun(one, two):
+    def diff_fun(one, two, skip=False):
+      suppress = v8_suppressions.get_suppression(
+          'x64', 'ignition', 'x64', 'ignition_turbo', skip)
       return suppress.diff_lines(one.splitlines(), two.splitlines())
 
     one = ''
@@ -117,6 +116,20 @@ otherfile.js: TypeError: undefined is not a constructor
     diff = """- somefile.js: TypeError: undefined is not a constructor
 + otherfile.js: TypeError: undefined is not a constructor""", None
     self.assertEquals(diff, diff_fun(one, two))
+
+    # Test that skipping suppressions works.
+    one = """
+v8-foozzie source: foo
+23:TypeError: bar is not a function
+"""
+    two = """
+v8-foozzie source: foo
+42:TypeError: baz is not a function
+"""
+    self.assertEquals((None, 'foo'), diff_fun(one, two))
+    diff = """- 23:TypeError: bar is not a function
++ 42:TypeError: baz is not a function""", 'foo'
+    self.assertEquals(diff, diff_fun(one, two, skip=True))
 
   def testOutputCapping(self):
     def output(stdout, is_crash):
@@ -186,6 +199,8 @@ class SystemTest(unittest.TestCase):
   def testSyntaxErrorDiffPass(self):
     stdout = run_foozzie('build1', '--skip-sanity-checks')
     self.assertEquals('# V8 correctness - pass\n', cut_verbose_output(stdout))
+    # Default comparison includes suppressions.
+    self.assertIn('v8_suppressions.js', stdout)
     # Default comparison doesn't include any specific mock files.
     self.assertNotIn('v8_mock_archs.js', stdout)
     self.assertNotIn('v8_mock_webassembly.js', stdout)
@@ -232,6 +247,24 @@ class SystemTest(unittest.TestCase):
     # particular lines.
     self.assertIn('v8_mock_webassembly.js', lines[1])
     self.assertIn('v8_mock_webassembly.js', lines[3])
+
+  def testSkipSuppressions(self):
+    """Test that the suppressions file is not passed when skipping
+    suppressions.
+    """
+    # Compare baseline with baseline. This passes as there is no difference.
+    stdout = run_foozzie(
+        'baseline', '--skip-sanity-checks', '--skip-suppressions')
+    self.assertNotIn('v8_suppressions.js', stdout)
+
+    # Compare with a build that usually suppresses a difference. Now we fail
+    # since we skip suppressions.
+    with self.assertRaises(subprocess.CalledProcessError) as ctx:
+      run_foozzie(
+          'build1', '--skip-sanity-checks', '--skip-suppressions')
+    e = ctx.exception
+    self.assertEquals(v8_foozzie.RETURN_FAIL, e.returncode)
+    self.assertNotIn('v8_suppressions.js', e.output)
 
 
 if __name__ == '__main__':

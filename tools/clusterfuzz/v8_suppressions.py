@@ -259,8 +259,8 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
   return None, source
 
 
-def get_suppression(arch1, config1, arch2, config2):
-  return V8Suppression(arch1, config1, arch2, config2)
+def get_suppression(arch1, config1, arch2, config2, skip=False):
+  return V8Suppression(arch1, config1, arch2, config2, skip)
 
 
 class Suppression(object):
@@ -281,11 +281,19 @@ class Suppression(object):
 
 
 class V8Suppression(Suppression):
-  def __init__(self, arch1, config1, arch2, config2):
+  def __init__(self, arch1, config1, arch2, config2, skip):
     self.arch1 = arch1
     self.config1 = config1
     self.arch2 = arch2
     self.config2 = config2
+    if skip:
+      self.allowed_line_diffs = []
+      self.ignore_output = {}
+      self.ignore_sources = {}
+    else:
+      self.allowed_line_diffs = ALLOWED_LINE_DIFFS
+      self.ignore_output = IGNORE_OUTPUT
+      self.ignore_sources = IGNORE_SOURCES
 
   def diff(self, output1, output2):
     # Diff capped lines in the presence of crashes.
@@ -295,7 +303,7 @@ class V8Suppression(Suppression):
     return diff_output(
         output1_lines,
         output2_lines,
-        ALLOWED_LINE_DIFFS,
+        self.allowed_line_diffs,
         IGNORE_LINES,
         IGNORE_LINES,
     )
@@ -318,7 +326,7 @@ class V8Suppression(Suppression):
     return None
 
   def ignore_by_metadata(self, metadata):
-    for bug, sources in IGNORE_SOURCES.iteritems():
+    for bug, sources in self.ignore_sources.iteritems():
       for source in sources:
         if source in metadata['sources']:
           return bug
@@ -337,7 +345,7 @@ class V8Suppression(Suppression):
           return bug
       return None
     for key in ['', arch, config]:
-      bug = check(IGNORE_OUTPUT.get(key, {}))
+      bug = check(self.ignore_output.get(key, {}))
       if bug:
         return bug
     return None

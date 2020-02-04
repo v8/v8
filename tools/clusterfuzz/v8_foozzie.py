@@ -212,6 +212,9 @@ def parse_args():
   parser.add_argument(
       '--skip-sanity-checks', default=False, action='store_true',
       help='skip sanity checks for testing purposes')
+  parser.add_argument(
+      '--skip-suppressions', default=False, action='store_true',
+      help='skip suppressions to reproduce known issues')
 
   # Add arguments for each run configuration.
   first_config_arguments.add_arguments(parser, 'ignition')
@@ -309,6 +312,7 @@ def main():
   suppress = v8_suppressions.get_suppression(
       options.first.arch, options.first.config,
       options.second.arch, options.second.config,
+      options.skip_suppressions,
   )
 
   # Static bailout based on test case content or metadata.
