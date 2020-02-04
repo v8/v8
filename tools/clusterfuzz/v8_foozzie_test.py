@@ -156,14 +156,17 @@ def cut_verbose_output(stdout):
   return '\n'.join(stdout.split('\n')[4:])
 
 
-def run_foozzie(second_d8_dir, *extra_flags):
+def run_foozzie(second_d8_dir, *extra_flags, **kwargs):
+  second_config = 'ignition_turbo'
+  if 'second_config' in kwargs:
+    second_config = 'jitless'
   return subprocess.check_output([
     sys.executable, FOOZZIE,
     '--random-seed', '12345',
     '--first-d8', os.path.join(TEST_DATA, 'baseline', 'd8.py'),
     '--second-d8', os.path.join(TEST_DATA, second_d8_dir, 'd8.py'),
     '--first-config', 'ignition',
-    '--second-config', 'ignition_turbo',
+    '--second-config', second_config,
     os.path.join(TEST_DATA, 'fuzz-123.js'),
   ] + list(extra_flags))
 
@@ -183,6 +186,9 @@ class SystemTest(unittest.TestCase):
   def testSyntaxErrorDiffPass(self):
     stdout = run_foozzie('build1', '--skip-sanity-checks')
     self.assertEquals('# V8 correctness - pass\n', cut_verbose_output(stdout))
+    # Default comparison doesn't include any specific mock files.
+    self.assertNotIn('v8_mock_archs.js', stdout)
+    self.assertNotIn('v8_mock_webassembly.js', stdout)
 
   def testDifferentOutputFail(self):
     with open(os.path.join(TEST_DATA, 'failure_output.txt')) as f:
@@ -216,6 +222,16 @@ class SystemTest(unittest.TestCase):
     # particular lines.
     self.assertIn('v8_mock_archs.js', lines[1])
     self.assertIn('v8_mock_archs.js', lines[3])
+
+  def testJitless(self):
+    """Test that webassembly is mocked out when comparing with jitless."""
+    stdout = run_foozzie(
+        'build1', '--skip-sanity-checks', second_config='jitless')
+    lines = stdout.split('\n')
+    # TODO(machenbach): Don't depend on the command-lines being printed in
+    # particular lines.
+    self.assertIn('v8_mock_webassembly.js', lines[1])
+    self.assertIn('v8_mock_webassembly.js', lines[3])
 
 
 if __name__ == '__main__':

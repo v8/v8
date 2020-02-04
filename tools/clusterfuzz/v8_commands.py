@@ -33,18 +33,22 @@ DEFAULT_FILES = [
   os.path.join(BASE_PATH, 'v8_suppressions.js'),
 ]
 
-# Architecture-specific mock file
+# Config-specific mock files.
 ARCH_MOCKS = os.path.join(BASE_PATH, 'v8_mock_archs.js')
+WEBASSEMBLY_MOCKS = os.path.join(BASE_PATH, 'v8_mock_webassembly.js')
 
 # Timeout in seconds for one d8 run.
 TIMEOUT = 3
 
 
 def _startup_files(options):
-  """Default files and optional architecture-specific mock file."""
+  """Default files and optional config-specific mock files."""
   files = DEFAULT_FILES[:]
   if options.first.arch != options.second.arch:
     files.append(ARCH_MOCKS)
+  # Mock out WebAssembly when comparing with jitless mode.
+  if '--jitless' in options.first.flags + options.second.flags:
+    files.append(WEBASSEMBLY_MOCKS)
   return files
 
 
