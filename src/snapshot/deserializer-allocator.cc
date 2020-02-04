@@ -140,6 +140,7 @@ void DeserializerAllocator::DecodeReservation(
 }
 
 bool DeserializerAllocator::ReserveSpace() {
+  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
 #ifdef DEBUG
   for (int i = 0; i < kNumberOfSpaces; ++i) {
     DCHECK_GT(reservations_[i].size(), 0);
