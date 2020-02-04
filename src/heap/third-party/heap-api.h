@@ -14,9 +14,9 @@ namespace third_party_heap {
 
 class Heap {
  public:
-  static std::unique_ptr<Heap> New(v8::Isolate* isolate);
+  static std::unique_ptr<Heap> New(v8::internal::Isolate* isolate);
 
-  static v8::Isolate* GetIsolate(Address address);
+  static v8::internal::Isolate* GetIsolate(Address address);
 
   AllocationResult Allocate(size_t size_in_bytes, AllocationType type,
                             AllocationAlignment align);

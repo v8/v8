@@ -5046,8 +5046,7 @@ void Heap::SetUp() {
 #endif
 
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
-  tp_heap_ =
-      third_party_heap::Heap::New(reinterpret_cast<v8::Isolate*>(isolate()));
+  tp_heap_ = third_party_heap::Heap::New(isolate());
 #endif
 
   // Initialize heap spaces and initial maps and objects.
