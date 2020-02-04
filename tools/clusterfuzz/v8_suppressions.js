@@ -7,18 +7,6 @@
 // Please refer to a bug in a comment and remove the suppression once the
 // problem is fixed.
 
-// Suppress http://crbug.com/662429
-(function () {
-  var oldMathPow = Math.pow
-  Math.pow = function(a, b){
-    if (b < 0) {
-      return 0.000017;
-    } else {
-      return oldMathPow(a, b);
-    }
-  }
-})();
-
 // Suppress http://crbug.com/693426
 (function () {
   var oldMathPow = Math.pow
