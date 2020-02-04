@@ -89,7 +89,7 @@ Handle<PrimitiveHeapObject> ToStringOrUndefined(Isolate* isolate,
   return (s == nullptr)
              ? Handle<PrimitiveHeapObject>::cast(
                    isolate->factory()->undefined_value())
-             : Handle<PrimitiveHeapObject>::cast(s->string().get<Factory>());
+             : Handle<PrimitiveHeapObject>::cast(s->string().get<Isolate>());
 }
 }  // namespace
 
@@ -127,7 +127,7 @@ Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
 
     Handle<FixedArray> export_names = isolate->factory()->NewFixedArray(count);
     data[index + SourceTextModuleInfo::kRegularExportLocalNameOffset] =
-        it->second->local_name->string().get<Factory>();
+        it->second->local_name->string();
     data[index + SourceTextModuleInfo::kRegularExportCellIndexOffset] =
         handle(Smi::FromInt(it->second->cell_index), isolate);
     data[index + SourceTextModuleInfo::kRegularExportExportNamesOffset] =
@@ -137,7 +137,7 @@ Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
     // Collect the export names.
     int i = 0;
     for (; it != next; ++it) {
-      export_names->set(i++, *it->second->export_name->string().get<Factory>());
+      export_names->set(i++, *it->second->export_name->string().get<Isolate>());
     }
     DCHECK_EQ(i, count);
 

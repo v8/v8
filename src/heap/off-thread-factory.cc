@@ -212,10 +212,5 @@ HeapObject OffThreadFactory::AllocateRaw(int size, AllocationType allocation,
   return result.ToObjectChecked();
 }
 
-void OffThreadFactory::FatalProcessOutOfHeapMemory(const char* location) {
-  // TODO(leszeks): Do something reasonable.
-  UNREACHABLE();
-}
-
 }  // namespace internal
 }  // namespace v8

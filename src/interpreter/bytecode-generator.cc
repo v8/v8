@@ -772,7 +772,7 @@ class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
         int start = array_index;
 #endif
         if (decl->IsVariableDeclaration()) {
-          data->set(array_index++, *var->raw_name()->string().get<Factory>());
+          data->set(array_index++, *var->raw_name()->string().get<Isolate>());
           DCHECK_EQ(start + kGlobalVariableDeclarationSize, array_index);
         } else {
           FunctionLiteral* f = static_cast<FunctionDeclaration*>(decl)->fun();

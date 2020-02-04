@@ -12,7 +12,7 @@
 #include "src/base/macros.h"
 #include "src/common/checks.h"
 #include "src/common/globals.h"
-#include "src/handles/factory-handles.h"
+#include "src/handles/handle-for.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -248,15 +248,19 @@ class HandleOrOffThreadHandle {
   }
 
   // To minimize the impact of these handles on main-thread callers, we allow
-  // them to implicitly convert to Handles.
+  // them to implicitly convert to Handles and MaybeHandles.
   template <typename U>
-  operator Handle<U>() {
-    return get<class Factory>();
+  operator Handle<U>() {  // NOLINT
+    return get<class Isolate>();
+  }
+  template <typename U>
+  operator MaybeHandle<U>() {  // NOLINT
+    return get<class Isolate>();
   }
 
-  template <typename FactoryType>
-  inline FactoryHandle<FactoryType, T> get() {
-    return get_for(Tag<FactoryType>());
+  template <typename IsolateType>
+  inline HandleFor<IsolateType, T> get() {
+    return get_for(Tag<IsolateType>());
   }
 
   inline bool is_null() const { return value_ == 0; }
@@ -268,14 +272,14 @@ class HandleOrOffThreadHandle {
  private:
   // Tagged overloads because we can't specialize the above getter
   // without also specializing the class.
-  template <typename FactoryType>
+  template <typename IsolateType>
   struct Tag {};
 
-  V8_INLINE Handle<T> get_for(Tag<class Factory>) {
+  V8_INLINE Handle<T> get_for(Tag<class Isolate>) {
     DCHECK_NE(which_, kOffThreadHandle);
     return Handle<T>(reinterpret_cast<Address*>(value_));
   }
-  V8_INLINE OffThreadHandle<T> get_for(Tag<class OffThreadFactory>) {
+  V8_INLINE OffThreadHandle<T> get_for(Tag<class OffThreadIsolate>) {
     DCHECK_NE(which_, kHandle);
     return OffThreadHandle<T>(T::unchecked_cast(Object(value_)));
   }

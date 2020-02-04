@@ -23,11 +23,12 @@ namespace internal {
 class AstValueFactory;
 class AstRawString;
 class AstConsString;
+class OffThreadIsolate;
 
 class OffThreadFactory;
 
 template <>
-struct FactoryTraits<OffThreadFactory> {
+struct HandleTraits<OffThreadFactory> {
   template <typename T>
   using HandleType = OffThreadHandle<T>;
   template <typename T>
@@ -70,18 +71,21 @@ class V8_EXPORT_PRIVATE OffThreadFactory
   // Customization points for FactoryBase.
   HeapObject AllocateRaw(int size, AllocationType allocation,
                          AllocationAlignment alignment = kWordAligned);
-  template <typename T>
-  OffThreadHandle<T> Throw(OffThreadHandle<Object> exception) {
-    // TODO(leszeks): Figure out what to do here.
-    return OffThreadHandle<T>();
+
+  OffThreadIsolate* isolate() {
+    // Downcast to the privately inherited sub-class using c-style casts to
+    // avoid undefined behavior (as static_cast cannot cast across private
+    // bases).
+    // NOLINTNEXTLINE (google-readability-casting)
+    return (OffThreadIsolate*)this;  // NOLINT(readability/casting)
   }
-  [[noreturn]] void FatalProcessOutOfHeapMemory(const char* location);
   inline bool CanAllocateInReadOnlySpace() { return false; }
   inline bool EmptyStringRootIsInitialized() { return true; }
   // ------
 
   OffThreadHandle<String> MakeOrFindTwoCharacterString(uint16_t c1,
                                                        uint16_t c2);
+  // ------
 
   ReadOnlyRoots roots_;
   OffThreadSpace space_;

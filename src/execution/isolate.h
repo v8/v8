@@ -204,7 +204,7 @@ class BuiltinUnwindInfo;
 
 #define ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call)                \
   do {                                                                        \
-    Isolate* __isolate__ = (isolate);                                         \
+    auto* __isolate__ = (isolate);                                            \
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(__isolate__, dst, call,                  \
                                      ReadOnlyRoots(__isolate__).exception()); \
   } while (false)
@@ -212,21 +212,21 @@ class BuiltinUnwindInfo;
 #define ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call, T) \
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, MaybeHandle<T>())
 
-#define THROW_NEW_ERROR(isolate, call, T)                       \
-  do {                                                          \
-    Isolate* __isolate__ = (isolate);                           \
-    return __isolate__->Throw<T>(__isolate__->factory()->call); \
+#define THROW_NEW_ERROR(isolate, call, T)                                \
+  do {                                                                   \
+    auto* __isolate__ = (isolate);                                       \
+    return __isolate__->template Throw<T>(__isolate__->factory()->call); \
   } while (false)
 
 #define THROW_NEW_ERROR_RETURN_FAILURE(isolate, call)         \
   do {                                                        \
-    Isolate* __isolate__ = (isolate);                         \
+    auto* __isolate__ = (isolate);                            \
     return __isolate__->Throw(*__isolate__->factory()->call); \
   } while (false)
 
 #define THROW_NEW_ERROR_RETURN_VALUE(isolate, call, value) \
   do {                                                     \
-    Isolate* __isolate__ = (isolate);                      \
+    auto* __isolate__ = (isolate);                         \
     __isolate__->Throw(*__isolate__->factory()->call);     \
     return value;                                          \
   } while (false)
@@ -445,6 +445,16 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
 
 #define THREAD_LOCAL_TOP_ADDRESS(type, name) \
   type* name##_address() { return &thread_local_top()->name##_; }
+
+class Isolate;
+
+template <>
+struct HandleTraits<Isolate> {
+  template <typename T>
+  using HandleType = Handle<T>;
+  template <typename T>
+  using MaybeHandleType = v8::internal::MaybeHandle<T>;
+};
 
 // HiddenFactory exists so Isolate can privately inherit from it without making
 // Factory's members available to Isolate directly.
@@ -773,6 +783,10 @@ class Isolate final : private HiddenFactory {
   }
 
   void ThrowAt(Handle<JSObject> exception, MessageLocation* location);
+
+  void FatalProcessOutOfHeapMemory(const char* location) {
+    heap()->FatalProcessOutOfMemory(location);
+  }
 
   void set_console_delegate(debug::ConsoleDelegate* delegate) {
     console_delegate_ = delegate;

@@ -907,7 +907,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
       HashSeed(CcTest::i_isolate()));
   const i::AstRawString* current_symbol =
       scanner.CurrentSymbol(&ast_value_factory);
-  ast_value_factory.Internalize(CcTest::i_isolate()->factory());
+  ast_value_factory.Internalize(CcTest::i_isolate());
   i::Handle<i::String> val = current_symbol->string();
   i::DisallowHeapAllocation no_alloc;
   i::String::FlatContent content = val->GetFlatContent(no_alloc);
@@ -1061,7 +1061,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       info.set_allow_lazy_parsing(false);
       CHECK(i::parsing::ParseProgram(&info, script, isolate));
       CHECK(i::Rewriter::Rewrite(&info));
-      info.ast_value_factory()->Internalize(isolate->factory());
+      info.ast_value_factory()->Internalize(isolate);
       CHECK(i::DeclarationScope::Analyze(&info));
       i::DeclarationScope::AllocateScopeInfos(&info, isolate);
       CHECK_NOT_NULL(info.literal());
@@ -3312,7 +3312,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
                          HashSeed(isolate));
   const i::AstRawString* name = avf.GetOneByteString("result");
-  avf.Internalize(isolate->factory());
+  avf.Internalize(isolate);
   i::Handle<i::String> str = name->string();
   CHECK(str->IsInternalizedString());
   i::DeclarationScope* script_scope =
@@ -3362,7 +3362,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
                          HashSeed(isolate));
   const i::AstRawString* name_x = avf.GetOneByteString("x");
-  avf.Internalize(isolate->factory());
+  avf.Internalize(isolate);
 
   i::DeclarationScope* script_scope =
       new (&zone) i::DeclarationScope(&zone, &avf);

@@ -587,7 +587,7 @@ void CallPrinter::PrintLiteral(Handle<Object> value, bool quote) {
 
 
 void CallPrinter::PrintLiteral(const AstRawString* value, bool quote) {
-  PrintLiteral(value->string().get<Factory>(), quote);
+  PrintLiteral(value->string(), quote);
 }
 
 //-----------------------------------------------------------------------------

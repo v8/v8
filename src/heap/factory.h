@@ -109,7 +109,7 @@ enum FunctionMode {
 class Factory;
 
 template <>
-struct FactoryTraits<Factory> {
+struct HandleTraits<Factory> {
   template <typename T>
   using HandleType = Handle<T>;
   template <typename T>
@@ -120,10 +120,7 @@ struct FactoryTraits<Factory> {
 class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
   inline ReadOnlyRoots read_only_roots();
-  template <typename T>
-  Handle<T> MakeHandle(T obj) {
-    return handle(obj, isolate());
-  }
+
   Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
                              Handle<Object> to_number, const char* type_of,
                              byte kind);
@@ -1003,12 +1000,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Customization points for FactoryBase
   HeapObject AllocateRaw(int size, AllocationType allocation,
                          AllocationAlignment alignment = kWordAligned);
-  template <typename T>
-  inline MaybeHandle<T> Throw(Handle<Object> exception);
-  [[noreturn]] void FatalProcessOutOfHeapMemory(const char* location);
-  bool CanAllocateInReadOnlySpace();
-  bool EmptyStringRootIsInitialized();
-  // ------
 
   Isolate* isolate() {
     // Downcast to the privately inherited sub-class using c-style casts to
@@ -1017,6 +1008,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     // NOLINTNEXTLINE (google-readability-casting)
     return (Isolate*)this;  // NOLINT(readability/casting)
   }
+  bool CanAllocateInReadOnlySpace();
+  bool EmptyStringRootIsInitialized();
+
+  Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
+
+  // ------
 
   HeapObject AllocateRawWithAllocationSite(
       Handle<Map> map, AllocationType allocation,
@@ -1064,8 +1061,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   MaybeHandle<String> NewStringFromTwoByte(const uc16* string, int length,
                                            AllocationType allocation);
-
-  Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
 
   // Attempt to find the number in a small cache.  If we finds it, return
   // the string representation of the number.  Otherwise return undefined.

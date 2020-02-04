@@ -516,8 +516,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
       desc.AddIndexedProperty(isolate, index, value_kind, value_index);
 
     } else {
-      Handle<String> name =
-          key_literal->AsRawPropertyName()->string().get<Factory>();
+      Handle<String> name = key_literal->AsRawPropertyName()->string();
       DCHECK(name->IsInternalizedString());
       desc.AddNamedProperty(isolate, name, value_kind, value_index);
     }

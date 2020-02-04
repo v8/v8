@@ -32,9 +32,7 @@
 
 #include "src/base/hashmap.h"
 #include "src/common/globals.h"
-#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/heap/off-thread-factory.h"
 #include "src/numbers/conversions.h"
 
 // Ast(Raw|Cons)String and AstValueFactory are for storing strings and
@@ -44,6 +42,9 @@
 // heap).
 namespace v8 {
 namespace internal {
+
+class Isolate;
+class OffThreadIsolate;
 
 class AstRawString final : public ZoneObject {
  public:
@@ -57,8 +58,8 @@ class AstRawString final : public ZoneObject {
   V8_EXPORT_PRIVATE bool IsOneByteEqualTo(const char* data) const;
   uint16_t FirstCharacter() const;
 
-  void Internalize(Factory* factory);
-  void Internalize(OffThreadFactory* factory);
+  void Internalize(Isolate* isolate);
+  void Internalize(OffThreadIsolate* isolate);
 
   // Access the physical representation:
   bool is_one_byte() const { return is_one_byte_; }
@@ -143,13 +144,13 @@ class AstConsString final : public ZoneObject {
     return segment_.string == nullptr;
   }
 
-  template <typename Factory>
+  template <typename Isolate>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  FactoryHandle<Factory, String> Allocate(Factory* factory) const;
+  HandleFor<Isolate, String> Allocate(Isolate* isolate) const;
 
-  template <typename Factory>
+  template <typename Isolate>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  FactoryHandle<Factory, String> AllocateFlat(Factory* factory) const;
+  HandleFor<Isolate, String> AllocateFlat(Isolate* isolate) const;
 
   std::forward_list<const AstRawString*> ToRawStrings() const;
 
@@ -311,8 +312,8 @@ class AstValueFactory {
   V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str1,
                                                  const AstRawString* str2);
 
-  template <typename Factory>
-  void Internalize(Factory* factory);
+  template <typename Isolate>
+  void Internalize(Isolate* isolate);
 
 #define F(name, str)                           \
   const AstRawString* name##_string() const {  \
@@ -358,12 +359,12 @@ class AstValueFactory {
 };
 
 extern template EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) void AstValueFactory::Internalize<Factory>(Factory*
-                                                                      factory);
+    V8_EXPORT_PRIVATE) void AstValueFactory::Internalize<Isolate>(Isolate*
+                                                                      isolate);
 
 extern template EXPORT_TEMPLATE_DECLARE(
     V8_EXPORT_PRIVATE) void AstValueFactory::
-    Internalize<OffThreadFactory>(OffThreadFactory* factory);
+    Internalize<OffThreadIsolate>(OffThreadIsolate* isolate);
 
 }  // namespace internal
 }  // namespace v8

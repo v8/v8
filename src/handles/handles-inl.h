@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+class OffThreadIsolate;
+
 HandleBase::HandleBase(Address object, Isolate* isolate)
     : location_(HandleScope::GetHandle(isolate, object)) {}
 
@@ -38,28 +40,21 @@ V8_INLINE Handle<T> handle(T object, Isolate* isolate) {
   return Handle<T>(object, isolate);
 }
 
-// Convenience overloads for cases where we want to either create a Handle or an
-// OffThreadHandle, depending on whether we have a Factory or an
-// OffThreadFactory.
 template <typename T>
-V8_INLINE Handle<T> handle(T object, Factory* factory) {
-  return factory->MakeHandle<T>(object);
-}
-template <typename T>
-V8_INLINE OffThreadHandle<T> handle(T object, OffThreadFactory* factory) {
-  // Convienently, we don't actually need the factory to create this handle.
+V8_INLINE OffThreadHandle<T> handle(T object, OffThreadIsolate* isolate) {
+  // Convienently, we don't actually need the isolate to create this handle.
   return OffThreadHandle<T>(object);
 }
 
-// Similar convenience overloads for when we already have a Handle, but want
+// Convenience overloads for when we already have a Handle, but want
 // either a Handle or an OffThreadHandle.
 template <typename T>
-V8_INLINE Handle<T> handle(Handle<T> handle, Factory* factory) {
+V8_INLINE Handle<T> handle(Handle<T> handle, Isolate* isolate) {
   return handle;
 }
 template <typename T>
 V8_INLINE OffThreadHandle<T> handle(Handle<T> handle,
-                                    OffThreadFactory* factory) {
+                                    OffThreadIsolate* factory) {
   return OffThreadHandle<T>(*handle);
 }
 

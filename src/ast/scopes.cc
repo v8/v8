@@ -835,7 +835,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK_NULL(cache->variables_.Lookup(name));
   DisallowHeapAllocation no_gc;
 
-  String name_handle = *name->string().get<Factory>();
+  String name_handle = *name->string().get<Isolate>();
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
   // it's ok to get the Handle<String> here.
@@ -2655,7 +2655,7 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   DCHECK_NULL(LookupLocalPrivateName(name));
   DisallowHeapAllocation no_gc;
 
-  String name_handle = *name->string().get<Factory>();
+  String name_handle = *name->string().get<Isolate>();
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;

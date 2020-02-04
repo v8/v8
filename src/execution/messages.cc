@@ -1233,7 +1233,7 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
   if (ComputeLocation(isolate, location)) {
     ParseInfo info(isolate, *location->shared());
     if (parsing::ParseAny(&info, location->shared(), isolate)) {
-      info.ast_value_factory()->Internalize(isolate->factory());
+      info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location->shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info.literal(), location->start_pos());
       *hint = printer.GetErrorHint();
@@ -1334,7 +1334,7 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
 
     ParseInfo info(isolate, *location.shared());
     if (parsing::ParseAny(&info, location.shared(), isolate)) {
-      info.ast_value_factory()->Internalize(isolate->factory());
+      info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info.literal(), location.start_pos());
 
@@ -1351,8 +1351,7 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
           maybe_property_name = destructuring_prop->key()
                                     ->AsLiteral()
                                     ->AsRawPropertyName()
-                                    ->string()
-                                    .get<Factory>();
+                                    ->string();
           // Change the message location to point at the property name.
           pos = destructuring_prop->key()->position();
         }

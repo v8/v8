@@ -221,10 +221,6 @@ Handle<Code> Factory::CodeBuilder::Build() {
   return BuildInternal(true).ToHandleChecked();
 }
 
-void Factory::FatalProcessOutOfHeapMemory(const char* location) {
-  isolate()->heap()->FatalProcessOutOfMemory(location);
-}
-
 HeapObject Factory::AllocateRaw(int size, AllocationType allocation,
                                 AllocationAlignment alignment) {
   return isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(
@@ -323,8 +319,8 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
 
 Handle<EnumCache> Factory::NewEnumCache(Handle<FixedArray> keys,
                                         Handle<FixedArray> indices) {
-  Handle<EnumCache> result = Handle<EnumCache>::cast(
-      NewStruct(ENUM_CACHE_TYPE, AllocationType::kOld));
+  Handle<EnumCache> result =
+      Handle<EnumCache>::cast(NewStruct(ENUM_CACHE_TYPE, AllocationType::kOld));
   result->set_keys(*keys);
   result->set_indices(*indices);
   return result;
@@ -1594,8 +1590,9 @@ Handle<Cell> Factory::NewCell(Handle<Object> value) {
 }
 
 Handle<FeedbackCell> Factory::NewNoClosuresCell(Handle<HeapObject> value) {
-  HeapObject result = AllocateRawWithImmortalMap(FeedbackCell::kAlignedSize,
-      AllocationType::kOld, *no_closures_cell_map());
+  HeapObject result =
+      AllocateRawWithImmortalMap(FeedbackCell::kAlignedSize,
+                                 AllocationType::kOld, *no_closures_cell_map());
   Handle<FeedbackCell> cell(FeedbackCell::cast(result), isolate());
   cell->set_value(*value);
   cell->set_interrupt_budget(FeedbackCell::GetInitialInterruptBudget());
@@ -1604,8 +1601,9 @@ Handle<FeedbackCell> Factory::NewNoClosuresCell(Handle<HeapObject> value) {
 }
 
 Handle<FeedbackCell> Factory::NewOneClosureCell(Handle<HeapObject> value) {
-  HeapObject result = AllocateRawWithImmortalMap(FeedbackCell::kAlignedSize,
-      AllocationType::kOld, *one_closure_cell_map());
+  HeapObject result =
+      AllocateRawWithImmortalMap(FeedbackCell::kAlignedSize,
+                                 AllocationType::kOld, *one_closure_cell_map());
   Handle<FeedbackCell> cell(FeedbackCell::cast(result), isolate());
   cell->set_value(*value);
   cell->set_interrupt_budget(FeedbackCell::GetInitialInterruptBudget());
@@ -1615,7 +1613,8 @@ Handle<FeedbackCell> Factory::NewOneClosureCell(Handle<HeapObject> value) {
 
 Handle<FeedbackCell> Factory::NewManyClosuresCell(Handle<HeapObject> value) {
   HeapObject result = AllocateRawWithImmortalMap(FeedbackCell::kAlignedSize,
-      AllocationType::kOld, *many_closures_cell_map());
+                                                 AllocationType::kOld,
+                                                 *many_closures_cell_map());
   Handle<FeedbackCell> cell(FeedbackCell::cast(result), isolate());
   cell->set_value(*value);
   cell->set_interrupt_budget(FeedbackCell::GetInitialInterruptBudget());
@@ -3214,7 +3213,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
     FunctionLiteral* literal, Handle<Script> script, bool is_toplevel) {
   FunctionKind kind = literal->kind();
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfoForBuiltin(
-      literal->GetName(this), Builtins::kCompileLazy, kind);
+      literal->GetName(isolate()), Builtins::kCompileLazy, kind);
   SharedFunctionInfo::InitFromFunctionLiteral(isolate(), shared, literal,
                                               is_toplevel);
   shared->SetScript(ReadOnlyRoots(isolate()), *script,

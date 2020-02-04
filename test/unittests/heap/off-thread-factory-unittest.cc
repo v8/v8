@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/ast/ast-value-factory.h"
+#include "src/execution/off-thread-isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/handles.h"
 #include "src/heap/off-thread-factory.h"
@@ -18,12 +19,17 @@
 namespace v8 {
 namespace internal {
 
+class OffThreadIsolate;
+
 class OffThreadFactoryTest : public TestWithIsolateAndZone {
  public:
   OffThreadFactoryTest()
-      : TestWithIsolateAndZone(), off_thread_factory_(isolate()) {}
+      : TestWithIsolateAndZone(), off_thread_isolate_(isolate()) {}
 
-  OffThreadFactory* off_thread_factory() { return &off_thread_factory_; }
+  OffThreadIsolate* off_thread_isolate() { return &off_thread_isolate_; }
+  OffThreadFactory* off_thread_factory() {
+    return off_thread_isolate()->factory();
+  }
 
   // We only internalize strings which are referred to in other slots, so create
   // a wrapper pointing at the off_thread_string.
@@ -34,7 +40,7 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
   }
 
  private:
-  OffThreadFactory off_thread_factory_;
+  OffThreadIsolate off_thread_isolate_;
 };
 
 TEST_F(OffThreadFactoryTest, HandleOrOffThreadHandle_IsNullWhenConstructed) {
@@ -47,9 +53,9 @@ TEST_F(OffThreadFactoryTest, HandleOrOffThreadHandle_IsNullWhenConstructed) {
 
   // Default constructed HandleOrOffThreadHandles should work as both null
   // handles and null off-thread handles.
-  EXPECT_TRUE(HandleOrOffThreadHandle<HeapObject>().get<Factory>().is_null());
+  EXPECT_TRUE(HandleOrOffThreadHandle<HeapObject>().get<Isolate>().is_null());
   EXPECT_TRUE(
-      HandleOrOffThreadHandle<HeapObject>().get<OffThreadFactory>().is_null());
+      HandleOrOffThreadHandle<HeapObject>().get<OffThreadIsolate>().is_null());
 }
 
 TEST_F(OffThreadFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
@@ -124,10 +130,10 @@ TEST_F(OffThreadFactoryTest, AstRawString_IsInternalized) {
 
   const AstRawString* raw_string = ast_value_factory.GetOneByteString("foo");
 
-  ast_value_factory.Internalize(off_thread_factory());
+  ast_value_factory.Internalize(off_thread_isolate());
 
   OffThreadHandle<FixedArray> off_thread_wrapper =
-      WrapString(raw_string->string().get<OffThreadFactory>());
+      WrapString(raw_string->string().get<OffThreadIsolate>());
 
   off_thread_factory()->FinishOffThread();
 
@@ -150,10 +156,10 @@ TEST_F(OffThreadFactoryTest, AstConsString_CreatesConsString) {
   const AstConsString* foobar_string =
       ast_value_factory.NewConsString(foo_string, bar_string);
 
-  ast_value_factory.Internalize(off_thread_factory());
+  ast_value_factory.Internalize(off_thread_isolate());
 
   OffThreadHandle<FixedArray> off_thread_wrapper =
-      WrapString(foobar_string->Allocate(off_thread_factory()));
+      WrapString(foobar_string->Allocate(off_thread_isolate()));
 
   off_thread_factory()->FinishOffThread();
 

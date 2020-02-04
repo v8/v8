@@ -1177,7 +1177,7 @@ class MaterializedLiteral : public Expression {
 // Node for capturing a regexp literal.
 class RegExpLiteral final : public MaterializedLiteral {
  public:
-  Handle<String> pattern() const { return pattern_->string().get<Factory>(); }
+  Handle<String> pattern() const { return pattern_->string(); }
   const AstRawString* raw_pattern() const { return pattern_; }
   int flags() const { return flags_; }
 
@@ -1507,7 +1507,7 @@ class VariableProxy final : public Expression {
  public:
   bool IsValidReferenceExpression() const { return !is_new_target(); }
 
-  Handle<String> name() const { return raw_name()->string().get<Factory>(); }
+  Handle<String> name() const { return raw_name()->string(); }
   const AstRawString* raw_name() const {
     return is_resolved() ? var_->raw_name() : raw_name_;
   }
@@ -2218,8 +2218,8 @@ class FunctionLiteral final : public Expression {
 
   // Empty handle means that the function does not have a shared name (i.e.
   // the name will be set dynamically after creation of the function closure).
-  MaybeHandle<String> GetName(Factory* factory) const {
-    return raw_name_ ? raw_name_->AllocateFlat(factory) : MaybeHandle<String>();
+  MaybeHandle<String> GetName(Isolate* isolate) const {
+    return raw_name_ ? raw_name_->AllocateFlat(isolate) : MaybeHandle<String>();
   }
   bool has_shared_name() const { return raw_name_ != nullptr; }
   const AstConsString* raw_name() const { return raw_name_; }
@@ -2277,13 +2277,13 @@ class FunctionLiteral final : public Expression {
   // Returns either name or inferred name as a cstring.
   std::unique_ptr<char[]> GetDebugName() const;
 
-  Handle<String> GetInferredName(Factory* factory) const {
+  Handle<String> GetInferredName(Isolate* isolate) const {
     if (!inferred_name_.is_null()) {
       DCHECK_NULL(raw_inferred_name_);
       return inferred_name_;
     }
     if (raw_inferred_name_ != nullptr) {
-      return raw_inferred_name_->Allocate(factory);
+      return raw_inferred_name_->Allocate(isolate);
     }
     UNREACHABLE();
   }
@@ -2568,7 +2568,7 @@ class ClassLiteral final : public Expression {
 
 class NativeFunctionLiteral final : public Expression {
  public:
-  Handle<String> name() const { return name_->string().get<Factory>(); }
+  Handle<String> name() const { return name_->string(); }
   const AstRawString* raw_name() const { return name_; }
   v8::Extension* extension() const { return extension_; }
 

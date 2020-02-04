@@ -2235,6 +2235,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/execution/messages.h",
     "src/execution/microtask-queue.cc",
     "src/execution/microtask-queue.h",
+    "src/execution/off-thread-isolate.h",
     "src/execution/protectors-inl.h",
     "src/execution/protectors.cc",
     "src/execution/protectors.h",

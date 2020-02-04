@@ -5,6 +5,7 @@
 #include "src/heap/factory-base.h"
 
 #include "src/ast/ast.h"
+#include "src/execution/off-thread-isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/off-thread-factory.h"
@@ -15,10 +16,10 @@ namespace v8 {
 namespace internal {
 
 template <typename Impl>
-FactoryHandle<Impl, SeqOneByteString>
+HandleFor<Impl, SeqOneByteString>
 FactoryBase<Impl>::NewOneByteInternalizedString(
     const Vector<const uint8_t>& str, uint32_t hash_field) {
-  FactoryHandle<Impl, SeqOneByteString> result =
+  HandleFor<Impl, SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(str.length(), hash_field);
   DisallowHeapAllocation no_gc;
   MemCopy(result->GetChars(no_gc), str.begin(), str.length());
@@ -26,10 +27,10 @@ FactoryBase<Impl>::NewOneByteInternalizedString(
 }
 
 template <typename Impl>
-FactoryHandle<Impl, SeqTwoByteString>
+HandleFor<Impl, SeqTwoByteString>
 FactoryBase<Impl>::NewTwoByteInternalizedString(const Vector<const uc16>& str,
                                                 uint32_t hash_field) {
-  FactoryHandle<Impl, SeqTwoByteString> result =
+  HandleFor<Impl, SeqTwoByteString> result =
       AllocateRawTwoByteInternalizedString(str.length(), hash_field);
   DisallowHeapAllocation no_gc;
   MemCopy(result->GetChars(no_gc), str.begin(), str.length() * kUC16Size);
@@ -37,11 +38,10 @@ FactoryBase<Impl>::NewTwoByteInternalizedString(const Vector<const uc16>& str,
 }
 
 template <typename Impl>
-FactoryMaybeHandle<Impl, SeqOneByteString>
-FactoryBase<Impl>::NewRawOneByteString(int length, AllocationType allocation) {
+MaybeHandleFor<Impl, SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
+    int length, AllocationType allocation) {
   if (length > String::kMaxLength || length < 0) {
-    return impl()->template Throw<SeqOneByteString>(
-        impl()->NewInvalidStringLengthError());
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqOneByteString);
   }
   DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
   int size = SeqOneByteString::SizeFor(length);
@@ -49,8 +49,8 @@ FactoryBase<Impl>::NewRawOneByteString(int length, AllocationType allocation) {
 
   HeapObject result = AllocateRawWithImmortalMap(
       size, allocation, read_only_roots().one_byte_string_map());
-  FactoryHandle<Impl, SeqOneByteString> string =
-      handle(SeqOneByteString::cast(result), impl());
+  HandleFor<Impl, SeqOneByteString> string =
+      handle(SeqOneByteString::cast(result), isolate());
   string->set_length(length);
   string->set_hash_field(String::kEmptyHashField);
   DCHECK_EQ(size, string->Size());
@@ -58,11 +58,10 @@ FactoryBase<Impl>::NewRawOneByteString(int length, AllocationType allocation) {
 }
 
 template <typename Impl>
-FactoryMaybeHandle<Impl, SeqTwoByteString>
-FactoryBase<Impl>::NewRawTwoByteString(int length, AllocationType allocation) {
+MaybeHandleFor<Impl, SeqTwoByteString> FactoryBase<Impl>::NewRawTwoByteString(
+    int length, AllocationType allocation) {
   if (length > String::kMaxLength || length < 0) {
-    return impl()->template Throw<SeqTwoByteString>(
-        impl()->NewInvalidStringLengthError());
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqTwoByteString);
   }
   DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
   int size = SeqTwoByteString::SizeFor(length);
@@ -70,8 +69,8 @@ FactoryBase<Impl>::NewRawTwoByteString(int length, AllocationType allocation) {
 
   HeapObject result = AllocateRawWithImmortalMap(
       size, allocation, read_only_roots().string_map());
-  FactoryHandle<Impl, SeqTwoByteString> string =
-      handle(SeqTwoByteString::cast(result), impl());
+  HandleFor<Impl, SeqTwoByteString> string =
+      handle(SeqTwoByteString::cast(result), isolate());
   string->set_length(length);
   string->set_hash_field(String::kEmptyHashField);
   DCHECK_EQ(size, string->Size());
@@ -79,14 +78,14 @@ FactoryBase<Impl>::NewRawTwoByteString(int length, AllocationType allocation) {
 }
 
 template <typename Impl>
-FactoryMaybeHandle<Impl, String> FactoryBase<Impl>::NewConsString(
-    FactoryHandle<Impl, String> left, FactoryHandle<Impl, String> right,
+MaybeHandleFor<Impl, String> FactoryBase<Impl>::NewConsString(
+    HandleFor<Impl, String> left, HandleFor<Impl, String> right,
     AllocationType allocation) {
   if (left->IsThinString()) {
-    left = handle(ThinString::cast(*left).actual(), impl());
+    left = handle(ThinString::cast(*left).actual(), isolate());
   }
   if (right->IsThinString()) {
-    right = handle(ThinString::cast(*right).actual(), impl());
+    right = handle(ThinString::cast(*right).actual(), isolate());
   }
   int left_length = left->length();
   if (left_length == 0) return right;
@@ -104,8 +103,7 @@ FactoryMaybeHandle<Impl, String> FactoryBase<Impl>::NewConsString(
   // Make sure that an out of memory exception is thrown if the length
   // of the new cons string is too large.
   if (length > String::kMaxLength || length < 0) {
-    return impl()->template Throw<String>(
-        impl()->NewInvalidStringLengthError());
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
   }
 
   bool left_is_one_byte = left->IsOneByteRepresentation();
@@ -121,7 +119,7 @@ FactoryMaybeHandle<Impl, String> FactoryBase<Impl>::NewConsString(
 
     STATIC_ASSERT(ConsString::kMinLength <= String::kMaxLength);
     if (is_one_byte) {
-      FactoryHandle<Impl, SeqOneByteString> result =
+      HandleFor<Impl, SeqOneByteString> result =
           NewRawOneByteString(length, allocation).ToHandleChecked();
       DisallowHeapAllocation no_gc;
       uint8_t* dest = result->GetChars(no_gc);
@@ -134,7 +132,7 @@ FactoryMaybeHandle<Impl, String> FactoryBase<Impl>::NewConsString(
       return result;
     }
 
-    FactoryHandle<Impl, SeqTwoByteString> result =
+    HandleFor<Impl, SeqTwoByteString> result =
         NewRawTwoByteString(length, allocation).ToHandleChecked();
 
     DisallowHeapAllocation pointer_stays_valid;
@@ -148,22 +146,22 @@ FactoryMaybeHandle<Impl, String> FactoryBase<Impl>::NewConsString(
 }
 
 template <typename Impl>
-FactoryHandle<Impl, String> FactoryBase<Impl>::NewConsString(
-    FactoryHandle<Impl, String> left, FactoryHandle<Impl, String> right,
-    int length, bool one_byte, AllocationType allocation) {
+HandleFor<Impl, String> FactoryBase<Impl>::NewConsString(
+    HandleFor<Impl, String> left, HandleFor<Impl, String> right, int length,
+    bool one_byte, AllocationType allocation) {
   DCHECK(!left->IsThinString());
   DCHECK(!right->IsThinString());
   DCHECK_GE(length, ConsString::kMinLength);
   DCHECK_LE(length, String::kMaxLength);
 
-  FactoryHandle<Impl, ConsString> result = handle(
+  HandleFor<Impl, ConsString> result = handle(
       ConsString::cast(
           one_byte
               ? NewWithImmortalMap(read_only_roots().cons_one_byte_string_map(),
                                    allocation)
               : NewWithImmortalMap(read_only_roots().cons_string_map(),
                                    allocation)),
-      impl());
+      isolate());
 
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
@@ -176,7 +174,7 @@ FactoryHandle<Impl, String> FactoryBase<Impl>::NewConsString(
 }
 
 template <typename Impl>
-FactoryHandle<Impl, SeqOneByteString>
+HandleFor<Impl, SeqOneByteString>
 FactoryBase<Impl>::AllocateRawOneByteInternalizedString(int length,
                                                         uint32_t hash_field) {
   CHECK_GE(String::kMaxLength, length);
@@ -190,8 +188,8 @@ FactoryBase<Impl>::AllocateRawOneByteInternalizedString(int length,
       impl()->CanAllocateInReadOnlySpace() ? AllocationType::kReadOnly
                                            : AllocationType::kOld,
       map);
-  FactoryHandle<Impl, SeqOneByteString> answer =
-      handle(SeqOneByteString::cast(result), impl());
+  HandleFor<Impl, SeqOneByteString> answer =
+      handle(SeqOneByteString::cast(result), isolate());
   answer->set_length(length);
   answer->set_hash_field(hash_field);
   DCHECK_EQ(size, answer->Size());
@@ -199,7 +197,7 @@ FactoryBase<Impl>::AllocateRawOneByteInternalizedString(int length,
 }
 
 template <typename Impl>
-FactoryHandle<Impl, SeqTwoByteString>
+HandleFor<Impl, SeqTwoByteString>
 FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(int length,
                                                         uint32_t hash_field) {
   CHECK_GE(String::kMaxLength, length);
@@ -209,8 +207,8 @@ FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(int length,
   int size = SeqTwoByteString::SizeFor(length);
   HeapObject result =
       AllocateRawWithImmortalMap(size, AllocationType::kOld, map);
-  FactoryHandle<Impl, SeqTwoByteString> answer =
-      handle(SeqTwoByteString::cast(result), impl());
+  HandleFor<Impl, SeqTwoByteString> answer =
+      handle(SeqTwoByteString::cast(result), isolate());
   answer->set_length(length);
   answer->set_hash_field(hash_field);
   DCHECK_EQ(size, result.Size());

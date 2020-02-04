@@ -6,7 +6,7 @@
 #define V8_HEAP_FACTORY_BASE_H_
 
 #include "src/common/globals.h"
-#include "src/handles/factory-handles.h"
+#include "src/handles/handle-for.h"
 #include "src/roots/roots.h"
 
 namespace v8 {
@@ -19,34 +19,33 @@ class SeqTwoByteString;
 template <typename Impl>
 class V8_EXPORT_PRIVATE FactoryBase {
  public:
-  FactoryHandle<Impl, SeqOneByteString> NewOneByteInternalizedString(
+  HandleFor<Impl, SeqOneByteString> NewOneByteInternalizedString(
       const Vector<const uint8_t>& str, uint32_t hash_field);
-  FactoryHandle<Impl, SeqTwoByteString> NewTwoByteInternalizedString(
+  HandleFor<Impl, SeqTwoByteString> NewTwoByteInternalizedString(
       const Vector<const uc16>& str, uint32_t hash_field);
 
-  FactoryHandle<Impl, SeqOneByteString> AllocateRawOneByteInternalizedString(
+  HandleFor<Impl, SeqOneByteString> AllocateRawOneByteInternalizedString(
       int length, uint32_t hash_field);
-  FactoryHandle<Impl, SeqTwoByteString> AllocateRawTwoByteInternalizedString(
+  HandleFor<Impl, SeqTwoByteString> AllocateRawTwoByteInternalizedString(
       int length, uint32_t hash_field);
 
   // Allocates and partially initializes an one-byte or two-byte String. The
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
-  V8_WARN_UNUSED_RESULT FactoryMaybeHandle<Impl, SeqOneByteString>
+  V8_WARN_UNUSED_RESULT MaybeHandleFor<Impl, SeqOneByteString>
   NewRawOneByteString(int length,
                       AllocationType allocation = AllocationType::kYoung);
-  V8_WARN_UNUSED_RESULT FactoryMaybeHandle<Impl, SeqTwoByteString>
+  V8_WARN_UNUSED_RESULT MaybeHandleFor<Impl, SeqTwoByteString>
   NewRawTwoByteString(int length,
                       AllocationType allocation = AllocationType::kYoung);
   // Create a new cons string object which consists of a pair of strings.
-  V8_WARN_UNUSED_RESULT FactoryMaybeHandle<Impl, String> NewConsString(
-      FactoryHandle<Impl, String> left, FactoryHandle<Impl, String> right,
+  V8_WARN_UNUSED_RESULT MaybeHandleFor<Impl, String> NewConsString(
+      HandleFor<Impl, String> left, HandleFor<Impl, String> right,
       AllocationType allocation = AllocationType::kYoung);
 
-  V8_WARN_UNUSED_RESULT FactoryHandle<Impl, String> NewConsString(
-      FactoryHandle<Impl, String> left, FactoryHandle<Impl, String> right,
-      int length, bool one_byte,
-      AllocationType allocation = AllocationType::kYoung);
+  V8_WARN_UNUSED_RESULT HandleFor<Impl, String> NewConsString(
+      HandleFor<Impl, String> left, HandleFor<Impl, String> right, int length,
+      bool one_byte, AllocationType allocation = AllocationType::kYoung);
 
  protected:
   HeapObject AllocateRawWithImmortalMap(
@@ -56,6 +55,7 @@ class V8_EXPORT_PRIVATE FactoryBase {
 
  private:
   Impl* impl() { return static_cast<Impl*>(this); }
+  auto isolate() { return impl()->isolate(); }
   ReadOnlyRoots read_only_roots() { return impl()->read_only_roots(); }
 
   HeapObject AllocateRaw(int size, AllocationType allocation,
