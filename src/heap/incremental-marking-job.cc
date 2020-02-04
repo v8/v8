@@ -8,6 +8,7 @@
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/embedder-tracing.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
@@ -51,29 +52,25 @@ void IncrementalMarkingJob::ScheduleTask(Heap* heap, TaskType task_type) {
     SetTaskPending(task_type, true);
     auto taskrunner =
         V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate);
+    const EmbedderHeapTracer::EmbedderStackState stack_state =
+        taskrunner->NonNestableTasksEnabled()
+            ? EmbedderHeapTracer::EmbedderStackState::kEmpty
+            : EmbedderHeapTracer::EmbedderStackState::kUnknown;
+    auto task =
+        std::make_unique<Task>(heap->isolate(), this, stack_state, task_type);
     if (task_type == TaskType::kNormal) {
+      scheduled_time_ = heap->MonotonicallyIncreasingTimeInMs();
       if (taskrunner->NonNestableTasksEnabled()) {
-        taskrunner->PostNonNestableTask(std::make_unique<Task>(
-            heap->isolate(), this,
-            EmbedderHeapTracer::EmbedderStackState::kEmpty, task_type));
+        taskrunner->PostNonNestableTask(std::move(task));
       } else {
-        taskrunner->PostTask(std::make_unique<Task>(
-            heap->isolate(), this,
-            EmbedderHeapTracer::EmbedderStackState::kUnknown, task_type));
+        taskrunner->PostTask(std::move(task));
       }
     } else {
       if (taskrunner->NonNestableDelayedTasksEnabled()) {
-        taskrunner->PostNonNestableDelayedTask(
-            std::make_unique<Task>(
-                heap->isolate(), this,
-                EmbedderHeapTracer::EmbedderStackState::kEmpty, task_type),
-            kDelayInSeconds);
+        taskrunner->PostNonNestableDelayedTask(std::move(task),
+                                               kDelayInSeconds);
       } else {
-        taskrunner->PostDelayedTask(
-            std::make_unique<Task>(
-                heap->isolate(), this,
-                EmbedderHeapTracer::EmbedderStackState::kUnknown, task_type),
-            kDelayInSeconds);
+        taskrunner->PostDelayedTask(std::move(task), kDelayInSeconds);
       }
     }
   }
@@ -98,6 +95,11 @@ void IncrementalMarkingJob::Task::RunInternal() {
   Heap* heap = isolate()->heap();
   EmbedderStackStateScope scope(heap->local_embedder_heap_tracer(),
                                 stack_state_);
+  if (task_type_ == TaskType::kNormal) {
+    heap->tracer()->RecordTimeToIncrementalMarkingTask(
+        heap->MonotonicallyIncreasingTimeInMs() - job_->scheduled_time_);
+    job_->scheduled_time_ = 0.0;
+  }
   IncrementalMarking* incremental_marking = heap->incremental_marking();
   if (incremental_marking->IsStopped()) {
     if (heap->IncrementalMarkingLimitReached() !=
@@ -120,6 +122,12 @@ void IncrementalMarkingJob::Task::RunInternal() {
                                    : TaskType::kNormal);
     }
   }
+}
+
+double IncrementalMarkingJob::CurrentTimeToTask(Heap* heap) const {
+  if (scheduled_time_ == 0.0) return 0.0;
+
+  return heap->MonotonicallyIncreasingTimeInMs() - scheduled_time_;
 }
 
 }  // namespace internal
