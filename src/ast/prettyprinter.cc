@@ -17,7 +17,8 @@
 namespace v8 {
 namespace internal {
 
-CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js)
+CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js,
+                         SpreadErrorInArgsHint error_in_spread_args)
     : builder_(new IncrementalStringBuilder(isolate)) {
   isolate_ = isolate;
   position_ = 0;
@@ -30,6 +31,8 @@ CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js)
   destructuring_prop_ = nullptr;
   destructuring_assignment_ = nullptr;
   is_user_js_ = is_user_js;
+  error_in_spread_args_ = error_in_spread_args;
+  spread_arg_ = nullptr;
   function_kind_ = kNormalFunction;
   InitializeAstVisitor(isolate);
 }
@@ -404,9 +407,20 @@ void CallPrinter::VisitProperty(Property* node) {
 void CallPrinter::VisitCall(Call* node) {
   bool was_found = false;
   if (node->position() == position_) {
+    if (error_in_spread_args_ == SpreadErrorInArgsHint::kErrorInArgs) {
+      found_ = true;
+      spread_arg_ = node->arguments()->last()->AsSpread()->expression();
+      Find(spread_arg_, true);
+
+      done_ = true;
+      found_ = false;
+      return;
+    }
+
     is_call_error_ = true;
     was_found = !found_;
   }
+
   if (was_found) {
     // Bail out if the error is caused by a direct call to a variable in
     // non-user JS code. The variable name is meaningless due to minification.
@@ -429,6 +443,16 @@ void CallPrinter::VisitCall(Call* node) {
 void CallPrinter::VisitCallNew(CallNew* node) {
   bool was_found = false;
   if (node->position() == position_) {
+    if (error_in_spread_args_ == SpreadErrorInArgsHint::kErrorInArgs) {
+      found_ = true;
+      spread_arg_ = node->arguments()->last()->AsSpread()->expression();
+      Find(spread_arg_, true);
+
+      done_ = true;
+      found_ = false;
+      return;
+    }
+
     is_call_error_ = true;
     was_found = !found_;
   }

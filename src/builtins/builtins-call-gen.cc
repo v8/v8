@@ -316,7 +316,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   BIND(&if_generic);
   {
-    Label if_iterator_fn_not_callable(this, Label::kDeferred);
+    Label if_iterator_fn_not_callable(this, Label::kDeferred),
+        if_iterator_is_null_or_undefined(this, Label::kDeferred);
+
+    GotoIf(IsNullOrUndefined(spread), &if_iterator_is_null_or_undefined);
+
     TNode<Object> iterator_fn =
         GetProperty(context, spread, IteratorSymbolConstant());
     GotoIfNot(TaggedIsCallable(iterator_fn), &if_iterator_fn_not_callable);
@@ -333,6 +337,10 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
     BIND(&if_iterator_fn_not_callable);
     ThrowTypeError(context, MessageTemplate::kIteratorSymbolNonCallable);
+
+    BIND(&if_iterator_is_null_or_undefined);
+    CallRuntime(Runtime::kThrowSpreadArgIsNullOrUndefined, context, spread);
+    Unreachable();
   }
 
   BIND(&if_smiorobject);

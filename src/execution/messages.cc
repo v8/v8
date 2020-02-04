@@ -1284,6 +1284,38 @@ Handle<Object> ErrorUtils::NewIteratorError(Isolate* isolate,
   return isolate->factory()->NewTypeError(id, callsite);
 }
 
+Object ErrorUtils::ThrowSpreadArgIsNullOrUndefinedError(Isolate* isolate,
+                                                        Handle<Object> object) {
+  MessageLocation location;
+  Handle<String> callsite;
+  if (ComputeLocation(isolate, &location)) {
+    ParseInfo info(isolate, *location.shared());
+    if (parsing::ParseAny(&info, location.shared(), isolate)) {
+      info.ast_value_factory()->Internalize(isolate);
+      CallPrinter printer(isolate, location.shared()->IsUserJavaScript(),
+                          CallPrinter::SpreadErrorInArgsHint::kErrorInArgs);
+      Handle<String> str = printer.Print(info.literal(), location.start_pos());
+      callsite =
+          str->length() > 0 ? str : BuildDefaultCallSite(isolate, object);
+
+      if (printer.spread_arg() != nullptr) {
+        // Change the message location to point at the property name.
+        int pos = printer.spread_arg()->position();
+        location =
+            MessageLocation(location.script(), pos, pos + 1, location.shared());
+      }
+    } else {
+      isolate->clear_pending_exception();
+      callsite = BuildDefaultCallSite(isolate, object);
+    }
+  }
+
+  MessageTemplate id = MessageTemplate::kNotIterableNoSymbolLoad;
+  Handle<Object> exception =
+      isolate->factory()->NewTypeError(id, callsite, object);
+  return isolate->Throw(*exception, &location);
+}
+
 Handle<Object> ErrorUtils::NewCalledNonCallableError(Isolate* isolate,
                                                      Handle<Object> source) {
   MessageLocation location;
