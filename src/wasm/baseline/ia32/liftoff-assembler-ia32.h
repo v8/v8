@@ -450,15 +450,17 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
   pinned = pinned | LiftoffRegList::ForRegs(dst_addr, src, offset_reg);
 
   // Ensure that {src} is a valid and otherwise unused register.
-  if (!src_candidates.has(src) || cache_state()->is_used(src)) {
-    // If there is an unused candidate register, use that. Otherwise, spill
-    // other uses of {src}.
-    if (cache_state()->has_unused_register(src_candidates, pinned)) {
+  if (!src_candidates.has(src) || cache_state_.is_used(src)) {
+    // If there are no unused candidate registers, but {src} is a candidate,
+    // then spill other uses of {src}. Otherwise spill any candidate register
+    // and use that.
+    if (!cache_state_.has_unused_register(src_candidates, pinned) &&
+        src_candidates.has(src)) {
+      SpillRegister(src);
+    } else {
       Register safe_src = GetUnusedRegister(src_candidates, pinned).gp();
       mov(safe_src, src_gp);
       src_gp = safe_src;
-    } else {
-      SpillRegister(src);
     }
   }
 
