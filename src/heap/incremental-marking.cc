@@ -34,6 +34,10 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+constexpr double kMinSharableStepSizeInBytes = 4 * KB;
+}
+
 void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
                                         size_t size) {
   Heap* heap = incremental_marking_->heap();
@@ -1086,14 +1090,22 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
         max_step_size_in_ms,
         heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
     bytes_to_process = Min(ComputeStepSizeInBytes(step_origin), max_step_size);
+    const bool only_single_step = bytes_to_process == 0;
     bytes_to_process = Max(bytes_to_process, kMinStepSizeInBytes);
-
     size_t remaining_bytes = bytes_to_process;
+    const bool using_embedder_tracer =
+        heap_->local_embedder_heap_tracer()->InUse();
     StepResult embedder_result, v8_result;
     do {
-      v8_result = embedder_result = StepResult::kMoreWorkRemaining;
+      v8_result = StepResult::kMoreWorkRemaining;
+      embedder_result = using_embedder_tracer ? StepResult::kMoreWorkRemaining
+                                              : StepResult::kNoImmediateWork;
+      const size_t v8_bytes_to_process =
+          using_embedder_tracer && remaining_bytes > kMinSharableStepSizeInBytes
+              ? remaining_bytes / 2
+              : remaining_bytes;
       size_t v8_bytes_processed_step =
-          collector_->ProcessMarkingWorklist(remaining_bytes / 2);
+          collector_->ProcessMarkingWorklist(v8_bytes_to_process);
       v8_bytes_processed += v8_bytes_processed_step;
       remaining_bytes = remaining_bytes > v8_bytes_processed_step
                             ? remaining_bytes - v8_bytes_processed_step
@@ -1103,7 +1115,7 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
                       : StepResult::kMoreWorkRemaining;
       // Allow the embedder to make marking progress, assuming it gets a share
       // of the time for handling |bytes_to_process|.
-      if (remaining_bytes > 0) {
+      if (using_embedder_tracer && remaining_bytes > 0) {
         const double marking_speed =
             heap_->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond();
         double step_duration;
@@ -1119,10 +1131,10 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
       } else {
         break;
       }
-    } while ((v8_result == StepResult::kMoreWorkRemaining ||
+    } while (!only_single_step &&
+             (v8_result == StepResult::kMoreWorkRemaining ||
               embedder_result == StepResult::kMoreWorkRemaining) &&
-             remaining_bytes > 0);
-
+             (remaining_bytes > 0));
     bytes_marked_ += v8_bytes_processed;
     combined_result = CombineStepResults(v8_result, embedder_result);
 
