@@ -1417,7 +1417,7 @@
       {'name': 'mozilla'},
       {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 3},
-      {'name': 'v8testing', 'variant': 'extra'},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
       {'name': 'v8testing', 'variant': 'trusted'},
     ],
   },
