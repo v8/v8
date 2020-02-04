@@ -69,8 +69,17 @@ class NativeModuleCache {
       if (prefix_hash != other.prefix_hash) {
         return prefix_hash < other.prefix_hash;
       }
-      return std::lexicographical_compare(
-          bytes.begin(), bytes.end(), other.bytes.begin(), other.bytes.end());
+      if (bytes.size() != other.bytes.size()) {
+        return bytes.size() < other.bytes.size();
+      }
+      // Fast path when the base pointers are the same.
+      // Also handles the {nullptr} case which would be UB for memcmp.
+      if (bytes.begin() == other.bytes.begin()) {
+        return false;
+      }
+      DCHECK_NOT_NULL(bytes.begin());
+      DCHECK_NOT_NULL(other.bytes.begin());
+      return memcmp(bytes.begin(), other.bytes.begin(), bytes.size()) < 0;
     }
   };
 
