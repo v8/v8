@@ -26,7 +26,7 @@ enum class StepResult {
   kWaitingForFinalization
 };
 
-class V8_EXPORT_PRIVATE IncrementalMarking final {
+class V8_EXPORT_PRIVATE IncrementalMarking {
  public:
   enum State { STOPPED, SWEEPING, MARKING, COMPLETE };
 
@@ -298,34 +298,31 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     heap_->SetIsMarkingFlag(s >= MARKING);
   }
 
-  double CurrentTimeToMarkingTask() const;
-
   Heap* const heap_;
   MarkCompactCollector* const collector_;
   WeakObjects* weak_objects_;
 
-  double start_time_ms_ = 0.0;
-  double time_to_force_completion_ = 0.0;
-  size_t initial_old_generation_size_ = 0;
-  size_t old_generation_allocation_counter_ = 0;
-  size_t bytes_marked_ = 0;
-  size_t scheduled_bytes_to_mark_ = 0;
-  double schedule_update_time_ms_ = 0.0;
+  double start_time_ms_;
+  size_t initial_old_generation_size_;
+  size_t old_generation_allocation_counter_;
+  size_t bytes_marked_;
+  size_t scheduled_bytes_to_mark_;
+  double schedule_update_time_ms_;
   // A sample of concurrent_marking()->TotalMarkedBytes() at the last
   // incremental marking step. It is used for updating
   // bytes_marked_ahead_of_schedule_ with contribution of concurrent marking.
-  size_t bytes_marked_concurrently_ = 0;
+  size_t bytes_marked_concurrently_;
 
   // Must use SetState() above to update state_
   State state_;
 
-  bool is_compacting_ = false;
-  bool was_activated_ = false;
-  bool black_allocation_ = false;
-  bool finalize_marking_completed_ = false;
+  bool is_compacting_;
+  bool was_activated_;
+  bool black_allocation_;
+  bool finalize_marking_completed_;
   IncrementalMarkingJob incremental_marking_job_;
 
-  GCRequestType request_type_ = NONE;
+  GCRequestType request_type_;
 
   Observer new_generation_observer_;
   Observer old_generation_observer_;

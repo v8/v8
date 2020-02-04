@@ -931,19 +931,6 @@ void GCTracer::RecordIncrementalMarkingSpeed(size_t bytes, double duration) {
   }
 }
 
-void GCTracer::RecordTimeToIncrementalMarkingTask(double time_to_task) {
-  if (average_time_to_incremental_marking_task_ == 0.0) {
-    average_time_to_incremental_marking_task_ = time_to_task;
-  } else {
-    average_time_to_incremental_marking_task_ =
-        (average_time_to_incremental_marking_task_ + time_to_task) / 2;
-  }
-}
-
-double GCTracer::AverageTimeToIncrementalMarkingTask() const {
-  return average_time_to_incremental_marking_task_;
-}
-
 void GCTracer::RecordEmbedderSpeed(size_t bytes, double duration) {
   if (duration == 0 || bytes == 0) return;
   double current_speed = bytes / duration;
