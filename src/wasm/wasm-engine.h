@@ -69,8 +69,10 @@ class NativeModuleCache {
       if (prefix_hash != other.prefix_hash) {
         return prefix_hash < other.prefix_hash;
       }
-      return std::lexicographical_compare(
-          bytes.begin(), bytes.end(), other.bytes.begin(), other.bytes.end());
+      if (bytes.size() != other.bytes.size()) {
+        return bytes.size() < other.bytes.size();
+      }
+      return memcmp(bytes.begin(), other.bytes.begin(), bytes.size()) < 0;
     }
   };
 
