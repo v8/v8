@@ -307,11 +307,17 @@ void VisitRRISimd(InstructionSelector* selector, Node* node,
 void VisitRROSimdShift(InstructionSelector* selector, Node* node,
                        ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
-  InstructionOperand operand0 = g.UseUniqueRegister(node->InputAt(0));
-  InstructionOperand operand1 = g.UseUniqueRegister(node->InputAt(1));
-  InstructionOperand temps[] = {g.TempSimd128Register()};
-  selector->Emit(opcode, g.DefineSameAsFirst(node), operand0, operand1,
-                 arraysize(temps), temps);
+  if (g.CanBeImmediate(node->InputAt(1))) {
+    selector->Emit(opcode, g.DefineSameAsFirst(node),
+                   g.UseRegister(node->InputAt(0)),
+                   g.UseImmediate(node->InputAt(1)));
+  } else {
+    InstructionOperand operand0 = g.UseUniqueRegister(node->InputAt(0));
+    InstructionOperand operand1 = g.UseUniqueRegister(node->InputAt(1));
+    InstructionOperand temps[] = {g.TempSimd128Register()};
+    selector->Emit(opcode, g.DefineSameAsFirst(node), operand0, operand1,
+                   arraysize(temps), temps);
+  }
 }
 
 void VisitRROI8x16SimdRightShift(InstructionSelector* selector, Node* node,
