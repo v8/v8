@@ -389,6 +389,10 @@ class CompilationStateImpl {
   // events. The callback object must support being deleted from any thread.
   void AddCallback(CompilationState::callback_t);
 
+  // If the module is already tiered up, trigger the callback immediately with a
+  // {kFinishedTopTierCompilation} event. Otherwise, behave as {AddCallback}.
+  void NotifyTopTierReady(CompilationState::callback_t);
+
   // Inserts new functions to compile and kicks off compilation.
   void AddCompilationUnits(
       Vector<WasmCompilationUnit> baseline_units,
@@ -595,6 +599,11 @@ std::shared_ptr<WireBytesStorage> CompilationState::GetWireBytesStorage()
 
 void CompilationState::AddCallback(CompilationState::callback_t callback) {
   return Impl(this)->AddCallback(std::move(callback));
+}
+
+void CompilationState::NotifyTopTierReady(
+    CompilationState::callback_t callback) {
+  return Impl(this)->NotifyTopTierReady(std::move(callback));
 }
 
 bool CompilationState::failed() const { return Impl(this)->failed(); }
@@ -1584,8 +1593,6 @@ void AsyncCompileJob::CreateNativeModule(
   native_module_ = isolate_->wasm_engine()->NewNativeModule(
       isolate_, enabled_features_, std::move(module), code_size_estimate);
   native_module_->SetWireBytes({std::move(bytes_copy_), wire_bytes_.length()});
-
-  if (stream_) stream_->NotifyNativeModuleCreated(native_module_);
 }
 
 bool AsyncCompileJob::GetOrCreateNativeModule(
@@ -1620,10 +1627,12 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
 void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "AsyncCompileJob::FinishCompile");
-  // TODO(v8:10165): Ensure that the stream's top tier callback is eventually
-  // triggered even if the native module comes from the cache.
   bool is_after_deserialization = !module_object_.is_null();
+  auto compilation_state = Impl(native_module_->compilation_state());
   if (!is_after_deserialization) {
+    if (stream_) {
+      stream_->NotifyNativeModuleCreated(native_module_);
+    }
     PrepareRuntimeObjects();
   }
 
@@ -1650,8 +1659,6 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
     isolate_->debug()->OnAfterCompile(script);
   }
 
-  auto compilation_state =
-      Impl(module_object_->native_module()->compilation_state());
   // TODO(bbudge) Allow deserialization without wrapper compilation, so we can
   // just compile wrappers here.
   if (!is_after_deserialization) {
@@ -1989,7 +1996,8 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
 
-    if (job->stream_ != nullptr) {
+    const bool streaming = job->wire_bytes_.length() == 0;
+    if (streaming) {
       // Streaming compilation already checked for cache hits.
       job->CreateNativeModule(module_, code_size_estimate_);
     } else if (job->GetOrCreateNativeModule(std::move(module_),
@@ -2325,7 +2333,6 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   if (prefix_cache_hit_) {
     // Restart as an asynchronous, non-streaming compilation. Most likely
     // {PrepareAndStartCompile} will get the native module from the cache.
-    job_->stream_ = nullptr;
     size_t code_size_estimate =
         wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
             result.value().get(), FLAG_liftoff);
@@ -2535,6 +2542,16 @@ void CompilationStateImpl::InitializeRecompilationProgress(ExecutionTier tier) {
 
 void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
   base::MutexGuard callbacks_guard(&callbacks_mutex_);
+  callbacks_.emplace_back(std::move(callback));
+}
+
+void CompilationStateImpl::NotifyTopTierReady(
+    CompilationState::callback_t callback) {
+  base::MutexGuard callbacks_guard(&callbacks_mutex_);
+  if (!compilation_progress_.empty() && outstanding_top_tier_functions_ == 0) {
+    callback(CompilationEvent::kFinishedTopTierCompilation);
+    return;
+  }
   callbacks_.emplace_back(std::move(callback));
 }
 
