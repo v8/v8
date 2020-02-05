@@ -590,6 +590,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Debug(const char* message, uint32_t code, Instr params = BREAK);
 
   void Trap() override;
+  void DebugBreak() override;
 
   // Print a message to stderr and abort execution.
   void Abort(AbortReason reason);

@@ -108,6 +108,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void RetpolineJump(Register reg);
 
   void Trap() override;
+  void DebugBreak() override;
 
   void CallForDeoptimization(Address target, int deopt_id);
 

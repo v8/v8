@@ -2961,6 +2961,7 @@ void TurboAssembler::Check(Condition cond, AbortReason reason) {
 }
 
 void TurboAssembler::Trap() { Brk(0); }
+void TurboAssembler::DebugBreak() { Debug("DebugBreak", 0, BREAK); }
 
 void TurboAssembler::Abort(AbortReason reason) {
 #ifdef DEBUG

@@ -3036,6 +3036,7 @@ void TurboAssembler::ZeroExtWord32(Register dst, Register src) {
 }
 
 void TurboAssembler::Trap() { stop(); }
+void TurboAssembler::DebugBreak() { stop(); }
 
 }  // namespace internal
 }  // namespace v8

@@ -1183,8 +1183,6 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   Drop(size, 1);
 }
 
-void LiftoffAssembler::DebugBreak() { debug("DebugBreak", 0, BREAK); }
-
 void LiftoffStackSlots::Construct() {
   size_t num_slots = 0;
   for (auto& slot : slots_) {

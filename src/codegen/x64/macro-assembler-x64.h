@@ -463,6 +463,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallForDeoptimization(Address target, int deopt_id);
 
   void Trap() override;
+  void DebugBreak() override;
 
   // Non-SSE2 instructions.
   void Pextrd(Register dst, XMMRegister src, int8_t imm8);
