@@ -341,7 +341,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
               script->GetColumnNumber(shared_info->StartPosition()) + 1;
           PROFILE(isolate,
                   CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
-                                  handle(info.abstract_code(), isolate),
+                                  handle(shared_info->abstract_code(), isolate),
                                   shared_info, name, line_num, column_num));
         }
       }
