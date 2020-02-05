@@ -42,8 +42,7 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
     return options;
   }
 
-  const base::AddressRegion& code_range =
-      isolate->heap()->memory_allocator()->code_range();
+  const base::AddressRegion& code_range = isolate->heap()->code_range();
   bool pc_relative_calls_fit_in_code_range =
       !code_range.is_empty() &&
       std::ceil(static_cast<float>(code_range.size() / MB)) <=

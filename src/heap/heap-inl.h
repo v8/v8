@@ -155,6 +155,14 @@ size_t Heap::NewSpaceAllocationCounter() {
   return new_space_allocation_counter_ + new_space()->AllocatedSinceLastGC();
 }
 
+inline const base::AddressRegion& Heap::code_range() {
+#ifdef V8_ENABLE_THIRD_PARTY_HEAP
+  return tp_heap_->GetCodeRange();
+#else
+  return memory_allocator_->code_range();
+#endif
+}
+
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
                                    AllocationOrigin origin,
                                    AllocationAlignment alignment) {
