@@ -55,16 +55,6 @@ IncrementalMarking::IncrementalMarking(Heap* heap,
     : heap_(heap),
       collector_(heap->mark_compact_collector()),
       weak_objects_(weak_objects),
-      initial_old_generation_size_(0),
-      bytes_marked_(0),
-      scheduled_bytes_to_mark_(0),
-      schedule_update_time_ms_(0),
-      bytes_marked_concurrently_(0),
-      is_compacting_(false),
-      was_activated_(false),
-      black_allocation_(false),
-      finalize_marking_completed_(false),
-      request_type_(NONE),
       new_generation_observer_(this, kYoungGenerationAllocatedThreshold),
       old_generation_observer_(this, kOldGenerationAllocatedThreshold) {
   SetState(STOPPED);
@@ -289,6 +279,7 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   heap_->tracer()->NotifyIncrementalMarkingStart();
 
   start_time_ms_ = heap()->MonotonicallyIncreasingTimeInMs();
+  time_to_force_completion_ = 0.0;
   initial_old_generation_size_ = heap_->OldGenerationSizeOfObjects();
   old_generation_allocation_counter_ = heap_->OldGenerationAllocationCounter();
   bytes_marked_ = 0;
@@ -796,8 +787,61 @@ void IncrementalMarking::FinalizeMarking(CompletionAction action) {
   }
 }
 
+double IncrementalMarking::CurrentTimeToMarkingTask() const {
+  const double recorded_time_to_marking_task =
+      heap_->tracer()->AverageTimeToIncrementalMarkingTask();
+  const double current_time_to_marking_task =
+      incremental_marking_job_.CurrentTimeToTask(heap_);
+  return Max(recorded_time_to_marking_task, current_time_to_marking_task);
+}
 
 void IncrementalMarking::MarkingComplete(CompletionAction action) {
+  // Allowed overshoot percantage of incremental marking walltime.
+  constexpr double kAllowedOvershoot = 0.1;
+  // Minimum overshoot in ms. This is used to allow moving away from stack when
+  // marking was fast.
+  constexpr double kMinOvershootMs = 50;
+
+  if (action == GC_VIA_STACK_GUARD) {
+    if (time_to_force_completion_ == 0.0) {
+      const double now = heap_->MonotonicallyIncreasingTimeInMs();
+      const double overshoot_ms =
+          Max(kMinOvershootMs, (now - start_time_ms_) * kAllowedOvershoot);
+      const double time_to_marking_task = CurrentTimeToMarkingTask();
+      if (time_to_marking_task == 0.0 || time_to_marking_task > overshoot_ms) {
+        if (FLAG_trace_incremental_marking) {
+          heap()->isolate()->PrintWithTimestamp(
+              "[IncrementalMarking] Not delaying marking completion. time to "
+              "task: %fms allowed overshoot: %fms\n",
+              time_to_marking_task, overshoot_ms);
+        }
+      } else {
+        time_to_force_completion_ = now + overshoot_ms;
+        if (FLAG_trace_incremental_marking) {
+          heap()->isolate()->PrintWithTimestamp(
+              "[IncrementalMarking] Delaying GC via stack guard. time to task: "
+              "%fms "
+              "allowed overshoot: %fms\n",
+              time_to_marking_task, overshoot_ms);
+        }
+        // Assuming kAllowedOvershoot > 0.
+        DCHECK(incremental_marking_job_.IsTaskPending(
+            IncrementalMarkingJob::TaskType::kNormal));
+        return;
+      }
+    }
+    if (heap()->MonotonicallyIncreasingTimeInMs() < time_to_force_completion_) {
+      if (FLAG_trace_incremental_marking) {
+        heap()->isolate()->PrintWithTimestamp(
+            "[IncrementalMarking] Delaying GC via stack guard. time left: "
+            "%fms\n",
+            time_to_force_completion_ -
+                heap_->MonotonicallyIncreasingTimeInMs());
+      }
+      return;
+    }
+  }
+
   SetState(COMPLETE);
   // We will set the stack guard to request a GC now.  This will mean the rest
   // of the GC gets performed as soon as possible (we can't do a GC here in a
@@ -812,7 +856,6 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
     heap_->isolate()->stack_guard()->RequestGC();
   }
 }
-
 
 void IncrementalMarking::Epilogue() {
   was_activated_ = false;
