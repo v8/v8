@@ -5148,7 +5148,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                : GetBuiltinPointerTarget(builtin_id);
   }
 
-  Node* BuildAllocateHeapNumberWithValue(Node* value, Node* control) {
+  Node* BuildAllocateHeapNumberWithValue(Node* value) {
     MachineOperatorBuilder* machine = mcgraph()->machine();
     CommonOperatorBuilder* common = mcgraph()->common();
     Node* target = GetTargetForBuiltinCall(wasm::WasmCode::kAllocateHeapNumber,
@@ -5160,12 +5160,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       allocate_heap_number_operator_.set(common->Call(call_descriptor));
     }
     Node* heap_number = graph()->NewNode(allocate_heap_number_operator_.get(),
-                                         target, effect(), control);
+                                         target, effect(), control());
     SetEffect(
         graph()->NewNode(machine->Store(StoreRepresentation(
                              MachineRepresentation::kFloat64, kNoWriteBarrier)),
                          heap_number, BuildHeapNumberValueIndexConstant(),
-                         value, heap_number, control));
+                         value, heap_number, control()));
     return heap_number;
   }
 
@@ -5212,37 +5212,31 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   Node* BuildChangeInt32ToTagged(Node* value) {
-    MachineOperatorBuilder* machine = mcgraph()->machine();
-    CommonOperatorBuilder* common = mcgraph()->common();
-
     if (SmiValuesAre32Bits()) {
       return BuildChangeInt32ToSmi(value);
     }
     DCHECK(SmiValuesAre31Bits());
 
-    Node* old_effect = effect();
-    Node* old_control = control();
-    Node* add = graph()->NewNode(machine->Int32AddWithOverflow(), value, value,
-                                 graph()->start());
+    auto allocate_heap_number = gasm_->MakeDeferredLabel();
+    auto done = gasm_->MakeLabel(MachineRepresentation::kTagged);
 
-    Node* ovf = graph()->NewNode(common->Projection(1), add, graph()->start());
-    Node* branch =
-        graph()->NewNode(common->Branch(BranchHint::kFalse), ovf, old_control);
+    // The smi value is {2 * value}. If that overflows, we need to allocate a
+    // heap number.
+    Node* add = gasm_->Int32AddWithOverflow(value, value);
+    Node* ovf = gasm_->Projection(1, add);
+    gasm_->GotoIf(ovf, &allocate_heap_number);
 
-    Node* if_true = graph()->NewNode(common->IfTrue(), branch);
-    Node* vtrue = BuildAllocateHeapNumberWithValue(
-        graph()->NewNode(machine->ChangeInt32ToFloat64(), value), if_true);
-    Node* etrue = effect();
+    // If it didn't overflow, the result is {2 * value} as pointer-sized value.
+    Node* smi_tagged = BuildChangeInt32ToIntPtr(gasm_->Projection(0, add));
+    gasm_->Goto(&done, smi_tagged);
 
-    Node* if_false = graph()->NewNode(common->IfFalse(), branch);
-    Node* vfalse = graph()->NewNode(common->Projection(0), add, if_false);
-    vfalse = BuildChangeInt32ToIntPtr(vfalse);
+    gasm_->Bind(&allocate_heap_number);
+    Node* heap_number =
+        BuildAllocateHeapNumberWithValue(gasm_->ChangeInt32ToFloat64(value));
+    gasm_->Goto(&done, heap_number);
 
-    Node* merge =
-        SetControl(graph()->NewNode(common->Merge(2), if_true, if_false));
-    SetEffect(graph()->NewNode(common->EffectPhi(2), etrue, old_effect, merge));
-    return graph()->NewNode(common->Phi(MachineRepresentation::kTagged, 2),
-                            vtrue, vfalse, merge);
+    gasm_->Bind(&done);
+    return done.PhiAt(0);
   }
 
   Node* BuildChangeFloat64ToTagged(Node* value) {
@@ -5323,7 +5317,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     }
 
     // Allocate the box for the {value}.
-    Node* vbox = BuildAllocateHeapNumberWithValue(value, if_box);
+    SetControl(if_box);
+    Node* vbox = BuildAllocateHeapNumberWithValue(value);
     Node* ebox = effect();
 
     Node* merge =
