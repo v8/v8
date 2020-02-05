@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --liftoff --wasm-tier-up --no-stress-opt
+// Flags: --allow-natives-syntax
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
-const num_functions = 2;
+const num_functions = 200;
 
 function create_builder(delta = 0) {
   const builder = new WasmModuleBuilder();

@@ -124,6 +124,7 @@ void V8Debugger::enable() {
   m_isolate->AddNearHeapLimitCallback(&V8Debugger::nearHeapLimitCallback, this);
   v8::debug::ChangeBreakOnException(m_isolate, v8::debug::NoBreakOnException);
   m_pauseOnExceptionsState = v8::debug::NoBreakOnException;
+  v8::debug::TierDownAllModulesPerIsolate(m_isolate);
 }
 
 void V8Debugger::disable() {

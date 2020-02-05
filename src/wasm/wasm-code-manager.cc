@@ -1122,6 +1122,12 @@ bool NativeModule::HasCode(uint32_t index) const {
   return code_table_[declared_function_index(module(), index)] != nullptr;
 }
 
+bool NativeModule::HasCodeWithTier(uint32_t index, ExecutionTier tier) const {
+  base::MutexGuard guard(&allocation_mutex_);
+  return code_table_[declared_function_index(module(), index)] != nullptr &&
+         code_table_[declared_function_index(module(), index)]->tier() == tier;
+}
+
 void NativeModule::SetWasmSourceMap(
     std::unique_ptr<WasmModuleSourceMap> source_map) {
   source_map_ = std::move(source_map);
@@ -1794,9 +1800,12 @@ bool NativeModule::IsRedirectedToInterpreter(uint32_t func_index) {
 }
 
 void NativeModule::TierDown(Isolate* isolate) {
+  // Do not tier down asm.js.
+  if (module()->origin != kWasmOrigin) return;
   // Set the flag.
   {
     base::MutexGuard lock(&allocation_mutex_);
+    if (tier_down_) return;
     tier_down_ = true;
   }
   // Tier down all functions.

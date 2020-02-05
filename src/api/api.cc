@@ -9818,6 +9818,11 @@ MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
 }
 
+void debug::TierDownAllModulesPerIsolate(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  isolate->wasm_engine()->TierDownAllModulesPerIsolate(isolate);
+}
+
 void debug::SetDebugDelegate(Isolate* v8_isolate,
                              debug::DebugDelegate* delegate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);

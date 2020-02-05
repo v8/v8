@@ -445,6 +445,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCode* GetCode(uint32_t index) const;
   bool HasCode(uint32_t index) const;
+  bool HasCodeWithTier(uint32_t index, ExecutionTier tier) const;
 
   void SetWasmSourceMap(std::unique_ptr<WasmModuleSourceMap> source_map);
   WasmModuleSourceMap* GetWasmSourceMap() const;

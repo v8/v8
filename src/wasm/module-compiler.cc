@@ -382,7 +382,8 @@ class CompilationStateImpl {
   void InitializeCompilationProgress(bool lazy_module, int num_wrappers);
 
   // Initialize compilation progress for recompilation of the whole module.
-  void InitializeRecompilationProgress(ExecutionTier tier);
+  // Return a vector of functions to recompile.
+  std::vector<int> InitializeRecompilationProgress(ExecutionTier tier);
 
   // Add the callback function to be called on compilation events. Needs to be
   // set before {AddCompilationUnits} is run to ensure that it receives all
@@ -408,7 +409,7 @@ class CompilationStateImpl {
   void FinalizeJSToWasmWrappers(Isolate* isolate, const WasmModule* module,
                                 Handle<FixedArray>* export_wrappers_out);
 
-  void OnFinishedUnits(Vector<WasmCode*>);
+  void OnFinishedUnits(Vector<WasmCode*>, Vector<WasmCompilationResult>);
   void OnFinishedJSToWasmWrapperUnits(int num);
   void TriggerCallbacks(bool completes_baseline_compilation,
                         bool completes_top_tier_compilation,
@@ -557,6 +558,7 @@ class CompilationStateImpl {
   using RequiredBaselineTierField = base::BitField8<ExecutionTier, 0, 2>;
   using RequiredTopTierField = base::BitField8<ExecutionTier, 2, 2>;
   using ReachedTierField = base::BitField8<ExecutionTier, 4, 2>;
+  using ReachedRecompilationTierField = base::BitField8<ExecutionTier, 6, 2>;
 };
 
 CompilationStateImpl* Impl(CompilationState* compilation_state) {
@@ -1092,7 +1094,8 @@ bool ExecuteCompilationUnits(
 
     native_module->engine()->LogCode(VectorOf(code_vector));
 
-    compile_scope->compilation_state()->OnFinishedUnits(VectorOf(code_vector));
+    compile_scope->compilation_state()->OnFinishedUnits(
+        VectorOf(code_vector), VectorOf(results_to_publish));
     results_to_publish.clear();
   };
 
@@ -1222,13 +1225,13 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
   builder.Commit();
 }
 
-void AddBaselineCompilationUnits(NativeModule* native_module) {
+void AddBaselineCompilationUnits(NativeModule* native_module,
+                                 Vector<int> recompilation_functions) {
   CompilationUnitBuilder builder(native_module);
-  auto* module = native_module->module();
 
-  uint32_t start = module->num_imported_functions;
-  uint32_t end = start + module->num_declared_functions;
-  for (uint32_t func_index = start; func_index < end; func_index++) {
+  for (int func_index : recompilation_functions) {
+    DCHECK_LE(native_module->num_imported_functions(), func_index);
+    DCHECK_LT(func_index, native_module->num_functions());
     builder.AddBaselineUnit(func_index);
   }
 
@@ -1447,8 +1450,9 @@ void RecompileNativeModule(Isolate* isolate, NativeModule* native_module,
       });
 
   // Initialize the compilation units and kick off background compile tasks.
-  compilation_state->InitializeRecompilationProgress(tier);
-  AddBaselineCompilationUnits(native_module);
+  std::vector<int> recompilation_functions =
+      compilation_state->InitializeRecompilationProgress(tier);
+  AddBaselineCompilationUnits(native_module, VectorOf(recompilation_functions));
 
   // The main thread contributes to the compilation, except if we need
   // deterministic compilation; in that case, the single background task will
@@ -2516,28 +2520,41 @@ void CompilationStateImpl::InitializeCompilationProgress(bool lazy_module,
   }
 }
 
-void CompilationStateImpl::InitializeRecompilationProgress(ExecutionTier tier) {
+std::vector<int> CompilationStateImpl::InitializeRecompilationProgress(
+    ExecutionTier tier) {
   DCHECK(!failed());
-  auto* module = native_module_->module();
 
+  std::vector<int> recompilation_functions;
   base::MutexGuard guard(&callbacks_mutex_);
+
   // Ensure that we don't trigger recompilation if another recompilation is
   // already happening.
   DCHECK_EQ(0, outstanding_recompilation_functions_);
-  int start = module->num_imported_functions;
-  int end = start + module->num_declared_functions;
-  for (int function_index = start; function_index < end; function_index++) {
-    int slot_index = function_index - start;
-    DCHECK_LT(slot_index, compilation_progress_.size());
-    ExecutionTier reached_tier =
-        ReachedTierField::decode(compilation_progress_[slot_index]);
-    if (reached_tier != tier) {
-      outstanding_recompilation_functions_++;
+  // If compilation hasn't started yet then code would be keep as tiered-down
+  // and don't need to recompile.
+  if (compilation_progress_.size() > 0) {
+    int start = native_module_->module()->num_imported_functions;
+    int end = start + native_module_->module()->num_declared_functions;
+    for (int function_index = start; function_index < end; function_index++) {
+      int slot_index = function_index - start;
+      DCHECK_LT(slot_index, compilation_progress_.size());
+      ExecutionTier reached_tier =
+          ReachedTierField::decode(compilation_progress_[slot_index]);
+      compilation_progress_[slot_index] = ReachedRecompilationTierField::update(
+          compilation_progress_[slot_index], ExecutionTier::kLiftoff);
+      if (reached_tier != tier ||
+          !native_module_->HasCodeWithTier(function_index, tier)) {
+        outstanding_recompilation_functions_++;
+        recompilation_functions.push_back(function_index);
+        compilation_progress_[slot_index] =
+            ReachedRecompilationTierField::update(
+                compilation_progress_[slot_index], ExecutionTier::kNone);
+      }
     }
+    DCHECK_LE(0, outstanding_recompilation_functions_);
+    DCHECK_LE(outstanding_recompilation_functions_,
+              native_module_->module()->num_declared_functions);
   }
-  DCHECK_LE(0, outstanding_recompilation_functions_);
-  DCHECK_LE(outstanding_recompilation_functions_,
-            module->num_declared_functions);
 
   // Trigger callbacks if module needs no recompilation.
   if (outstanding_recompilation_functions_ == 0) {
@@ -2545,6 +2562,8 @@ void CompilationStateImpl::InitializeRecompilationProgress(ExecutionTier tier) {
       callback(CompilationEvent::kFinishedRecompilation);
     }
   }
+
+  return recompilation_functions;
 }
 
 void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
@@ -2618,7 +2637,8 @@ CompilationStateImpl::GetNextCompilationUnit(
   return compilation_unit_queues_.GetNextUnit(task_id, baseline_only);
 }
 
-void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
+void CompilationStateImpl::OnFinishedUnits(
+    Vector<WasmCode*> code_vector, Vector<WasmCompilationResult> results) {
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "OnFinishedUnits",
                "num_units", code_vector.size());
 
@@ -2647,7 +2667,8 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
   bool completes_top_tier_compilation = false;
   bool completes_recompilation = false;
 
-  for (WasmCode* code : code_vector) {
+  for (size_t i = 0; i < code_vector.size(); i++) {
+    WasmCode* code = code_vector[i];
     DCHECK_NOT_NULL(code);
     DCHECK_LT(code->index(), native_module_->num_functions());
 
@@ -2698,22 +2719,26 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
       // counter once a function reaches Liftoff.
       if (outstanding_recompilation_functions_ > 0) {
         // TODO(duongn): extend this logic for tier up.
-        if (code->tier() == ExecutionTier::kLiftoff &&
-            reached_tier != ExecutionTier::kLiftoff) {
+        ExecutionTier recompilation_tier =
+            ReachedRecompilationTierField::decode(function_progress);
+        if (results[i].requested_tier == ExecutionTier::kLiftoff &&
+            recompilation_tier == ExecutionTier::kNone) {
+          DCHECK(code->tier() >= ExecutionTier::kLiftoff);
           outstanding_recompilation_functions_--;
-          // Update function's compilation progress.
-          compilation_progress_[slot_index] = ReachedTierField::update(
-              compilation_progress_[slot_index], code->tier());
+          // Update function's recompilation progress.
+          compilation_progress_[slot_index] =
+              ReachedRecompilationTierField::update(
+                  compilation_progress_[slot_index], code->tier());
           if (outstanding_recompilation_functions_ == 0) {
             completes_recompilation = true;
           }
         }
-      } else {
-        // Update function's compilation progress.
-        if (code->tier() > reached_tier) {
-          compilation_progress_[slot_index] = ReachedTierField::update(
-              compilation_progress_[slot_index], code->tier());
-        }
+      }
+
+      // Update function's compilation progress.
+      if (code->tier() > reached_tier) {
+        compilation_progress_[slot_index] = ReachedTierField::update(
+            compilation_progress_[slot_index], code->tier());
       }
       DCHECK_LE(0, outstanding_baseline_units_);
     }
