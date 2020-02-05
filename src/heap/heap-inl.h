@@ -287,7 +287,7 @@ Address Heap::DeserializerAllocate(AllocationType type, int size_in_bytes) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     AllocationResult allocation = tp_heap_->Allocate(
         size_in_bytes, type, AllocationAlignment::kWordAligned);
-    return allocation.ToObjectChecked().ptr();
+    return allocation.ToObjectChecked().address();
   } else {
     UNIMPLEMENTED();  // unimplemented
   }
