@@ -85,14 +85,11 @@ MachineType assert_size(int expected_size, MachineType type) {
 #define WASM_INSTANCE_OBJECT_OFFSET(name) \
   wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset)
 
-#define LOAD_RAW(base_pointer, byte_offset, type)                             \
-  SetEffect(graph()->NewNode(mcgraph()->machine()->Load(type), base_pointer,  \
-                             mcgraph()->Int32Constant(byte_offset), effect(), \
-                             control()))
+#define LOAD_RAW_NODE_OFFSET(base_pointer, node_offset, type) \
+  gasm_->Load(type, base_pointer, node_offset)
 
-#define LOAD_RAW_NODE_OFFSET(base_pointer, node_offset, type)                \
-  SetEffect(graph()->NewNode(mcgraph()->machine()->Load(type), base_pointer, \
-                             node_offset, effect(), control()))
+#define LOAD_RAW(base_pointer, byte_offset, type) \
+  LOAD_RAW_NODE_OFFSET(base_pointer, gasm_->Int32Constant(byte_offset), type)
 
 #define LOAD_INSTANCE_FIELD(name, type)                             \
   LOAD_RAW(instance_node_.get(), WASM_INSTANCE_OBJECT_OFFSET(name), \
@@ -117,15 +114,11 @@ MachineType assert_size(int expected_size, MachineType type) {
 #define LOAD_FIXED_ARRAY_SLOT_ANY(array_node, index) \
   LOAD_FIXED_ARRAY_SLOT(array_node, index, MachineType::AnyTagged())
 
-#define STORE_RAW(base, offset, val, rep, barrier)                          \
-  SetEffect(graph()->NewNode(                                               \
-      mcgraph()->machine()->Store(StoreRepresentation(rep, barrier)), base, \
-      mcgraph()->Int32Constant(offset), val, effect(), control()))
+#define STORE_RAW(base, offset, val, rep, barrier) \
+  STORE_RAW_NODE_OFFSET(base, gasm_->Int32Constant(offset), val, rep, barrier)
 
-#define STORE_RAW_NODE_OFFSET(base, node_offset, val, rep, barrier)         \
-  SetEffect(graph()->NewNode(                                               \
-      mcgraph()->machine()->Store(StoreRepresentation(rep, barrier)), base, \
-      node_offset, val, effect(), control()))
+#define STORE_RAW_NODE_OFFSET(base, node_offset, val, rep, barrier) \
+  gasm_->Store(StoreRepresentation(rep, barrier), base, node_offset, val)
 
 // This can be used to store tagged Smi values only.
 #define STORE_FIXED_ARRAY_SLOT_SMI(array_node, index, value)                   \
