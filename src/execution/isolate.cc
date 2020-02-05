@@ -4362,6 +4362,7 @@ void Isolate::PrintWithTimestamp(const char* format, ...) {
 }
 
 void Isolate::SetIdle(bool is_idle) {
+  if (!is_profiling()) return;
   StateTag state = current_vm_state();
   DCHECK(state == EXTERNAL || state == IDLE);
   if (js_entry_sp() != kNullAddress) return;
