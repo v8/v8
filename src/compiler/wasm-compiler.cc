@@ -5436,12 +5436,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   Node* BuildTestSmi(Node* value) {
-    MachineOperatorBuilder* machine = mcgraph()->machine();
-    return graph()->NewNode(machine->Word32Equal(),
-                            graph()->NewNode(machine->Word32And(),
-                                             BuildTruncateIntPtrToInt32(value),
-                                             Int32Constant(kSmiTagMask)),
-                            Int32Constant(0));
+    return gasm_->Word32Equal(
+        gasm_->Word32And(BuildTruncateIntPtrToInt32(value),
+                         gasm_->Int32Constant(kSmiTagMask)),
+        gasm_->Int32Constant(0));
   }
 
   Node* BuildFloat64ToWasm(Node* value, wasm::ValueType type) {
@@ -5534,25 +5532,27 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     // Build a graph implementing this diagram:
     //   input smi?
-    //    ├─ true: ───────────────────────┬─ smi-to-wasm ──────┬─ result
+    //    ├─ true: ──<fast path>──────────┬─ smi-to-wasm ──────┬─ result
     //    └─ false: ToNumber -> smi?      │                    │
     //                          ├─ true: ─┘                    │
     //                          └─ false: load -> f64-to-wasm ─┘
 
     auto smi_to_wasm = gasm_->MakeLabel(MachineRepresentation::kTaggedSigned);
+    auto call_to_number =
+        gasm_->MakeDeferredLabel(MachineRepresentation::kTaggedPointer);
     auto done =
         gasm_->MakeLabel(wasm::ValueTypes::MachineRepresentationFor(type));
 
-    // If the input is Smi, directly convert to the wasm type.
-    gasm_->GotoIf(BuildTestSmi(input), &smi_to_wasm, input);
+    // Branch to smi conversion or the ToNumber call.
+    gasm_->Branch(BuildTestSmi(input), &smi_to_wasm, &call_to_number, input);
 
-    // Otherwise, call ToNumber which returns a Smi or HeapNumber.
+    // Build the ToNumber path.
+    gasm_->Bind(&call_to_number);
     auto to_number_descriptor = Linkage::GetStubCallDescriptor(
         mcgraph()->zone(), TypeConversionDescriptor{}, 0,
         CallDescriptor::kNoFlags, Operator::kNoProperties, stub_mode_);
     Node* to_number_target =
         GetTargetForBuiltinCall(wasm::WasmCode::kToNumber, Builtins::kToNumber);
-
     Node* number =
         gasm_->Call(to_number_descriptor, to_number_target, input, js_context);
     SetSourcePosition(number, 1);
@@ -5567,7 +5567,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         BuildFloat64ToWasm(heap_number_value, type);
     gasm_->Goto(&done, converted_heap_number_value);
 
-    // Now implement the smi to wasm conversion.
+    // Implement the smi to wasm conversion.
     gasm_->Bind(&smi_to_wasm);
     Node* smi_to_wasm_result = BuildSmiToWasm(smi_to_wasm.PhiAt(0), type);
     gasm_->Goto(&done, smi_to_wasm_result);
