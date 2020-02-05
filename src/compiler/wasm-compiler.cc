@@ -85,25 +85,19 @@ MachineType assert_size(int expected_size, MachineType type) {
 #define WASM_INSTANCE_OBJECT_OFFSET(name) \
   wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset)
 
-#define LOAD_RAW_NODE_OFFSET(base_pointer, node_offset, type) \
-  gasm_->Load(type, base_pointer, node_offset)
-
-#define LOAD_RAW(base_pointer, byte_offset, type) \
-  LOAD_RAW_NODE_OFFSET(base_pointer, gasm_->Int32Constant(byte_offset), type)
-
-#define LOAD_INSTANCE_FIELD(name, type)                             \
-  LOAD_RAW(instance_node_.get(), WASM_INSTANCE_OBJECT_OFFSET(name), \
-           assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type))
+#define LOAD_INSTANCE_FIELD(name, type)                           \
+  gasm_->Load(assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), \
+              instance_node_.get(), WASM_INSTANCE_OBJECT_OFFSET(name))
 
 #define LOAD_TAGGED_POINTER(base_pointer, byte_offset) \
-  LOAD_RAW(base_pointer, byte_offset, MachineType::TaggedPointer())
+  gasm_->Load(MachineType::TaggedPointer(), base_pointer, byte_offset)
 
 #define LOAD_TAGGED_ANY(base_pointer, byte_offset) \
-  LOAD_RAW(base_pointer, byte_offset, MachineType::AnyTagged())
+  gasm_->Load(MachineType::AnyTagged(), base_pointer, byte_offset)
 
 #define LOAD_FIXED_ARRAY_SLOT(array_node, index, type) \
-  LOAD_RAW(array_node,                                 \
-           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index), type)
+  gasm_->Load(type, array_node,                        \
+              wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index))
 
 #define LOAD_FIXED_ARRAY_SLOT_SMI(array_node, index) \
   LOAD_FIXED_ARRAY_SLOT(array_node, index, MachineType::TaggedSigned())
@@ -2705,9 +2699,9 @@ Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig,
   Node* func_index_times_tagged_size = graph()->NewNode(
       mcgraph()->machine()->IntMul(), Uint32ToUintptr(func_index),
       mcgraph()->Int32Constant(kTaggedSize));
-  Node* ref_node = LOAD_RAW_NODE_OFFSET(imported_instances_data,
-                                        func_index_times_tagged_size,
-                                        MachineType::TaggedPointer());
+  Node* ref_node =
+      gasm_->Load(MachineType::TaggedPointer(), imported_instances_data,
+                  func_index_times_tagged_size);
 
   // Load the target from the imported_targets array at the offset of
   // {func_index}.
@@ -2786,25 +2780,21 @@ void WasmGraphBuilder::LoadIndirectFunctionTable(uint32_t table_index,
       LOAD_INSTANCE_FIELD(IndirectFunctionTables, MachineType::TaggedPointer());
   Node* ift_table = LOAD_FIXED_ARRAY_SLOT_ANY(ift_tables, table_index);
 
-  *ift_size = LOAD_RAW(
-      ift_table,
-      wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kSizeOffset),
-      MachineType::Int32());
+  *ift_size = gasm_->Load(
+      MachineType::Int32(), ift_table,
+      wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kSizeOffset));
 
-  *ift_sig_ids = LOAD_RAW(
-      ift_table,
-      wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kSigIdsOffset),
-      MachineType::Pointer());
+  *ift_sig_ids = gasm_->Load(
+      MachineType::Pointer(), ift_table,
+      wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kSigIdsOffset));
 
-  *ift_targets = LOAD_RAW(
-      ift_table,
-      wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kTargetsOffset),
-      MachineType::Pointer());
+  *ift_targets = gasm_->Load(
+      MachineType::Pointer(), ift_table,
+      wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kTargetsOffset));
 
-  *ift_instances = LOAD_RAW(
-      ift_table,
-      wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kRefsOffset),
-      MachineType::TaggedPointer());
+  *ift_instances = gasm_->Load(
+      MachineType::TaggedPointer(), ift_table,
+      wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kRefsOffset));
 }
 
 Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
@@ -2868,10 +2858,10 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
                                          int32_scaled_key);
   }
 
-  Node* target_instance = LOAD_RAW(
+  Node* target_instance = gasm_->Load(
+      MachineType::TaggedPointer(),
       graph()->NewNode(machine->IntAdd(), ift_instances, tagged_scaled_key),
-      wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0),
-      MachineType::TaggedPointer());
+      wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0));
 
   Node* intptr_scaled_key;
   if (kSystemPointerSize == kTaggedSize) {
@@ -3332,7 +3322,7 @@ Node* WasmGraphBuilder::GlobalGet(uint32_t index) {
       Node* base = nullptr;
       Node* offset = nullptr;
       GetBaseAndOffsetForImportedMutableAnyRefGlobal(global, &base, &offset);
-      return LOAD_RAW_NODE_OFFSET(base, offset, MachineType::AnyTagged());
+      return gasm_->Load(MachineType::AnyTagged(), base, offset);
     }
     Node* globals_buffer =
         LOAD_INSTANCE_FIELD(TaggedGlobalsBuffer, MachineType::TaggedPointer());
@@ -3402,10 +3392,9 @@ void WasmGraphBuilder::BoundsCheckTable(uint32_t table_index, Node* entry_index,
 
   int length_field_size = WasmTableObject::kCurrentLengthOffsetEnd -
                           WasmTableObject::kCurrentLengthOffset + 1;
-  Node* length_smi = LOAD_RAW(
-      table,
-      wasm::ObjectAccess::ToTagged(WasmTableObject::kCurrentLengthOffset),
-      assert_size(length_field_size, MachineType::TaggedSigned()));
+  Node* length_smi = gasm_->Load(
+      assert_size(length_field_size, MachineType::TaggedSigned()), table,
+      wasm::ObjectAccess::ToTagged(WasmTableObject::kCurrentLengthOffset));
   Node* length = BuildChangeSmiToInt32(length_smi);
 
   // Bounds check against the table size.
@@ -3416,9 +3405,9 @@ void WasmGraphBuilder::BoundsCheckTable(uint32_t table_index, Node* entry_index,
   if (base_node) {
     int storage_field_size = WasmTableObject::kEntriesOffsetEnd -
                              WasmTableObject::kEntriesOffset + 1;
-    *base_node = LOAD_RAW(
-        table, wasm::ObjectAccess::ToTagged(WasmTableObject::kEntriesOffset),
-        assert_size(storage_field_size, MachineType::TaggedPointer()));
+    *base_node = gasm_->Load(
+        assert_size(storage_field_size, MachineType::TaggedPointer()), table,
+        wasm::ObjectAccess::ToTagged(WasmTableObject::kEntriesOffset));
   }
 }
 
@@ -3450,7 +3439,7 @@ Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,
     Node* base = nullptr;
     Node* offset = nullptr;
     GetTableBaseAndOffset(table_index, index, position, &base, &offset);
-    return LOAD_RAW_NODE_OFFSET(base, offset, MachineType::AnyTagged());
+    return gasm_->Load(MachineType::AnyTagged(), base, offset);
   }
   // We access funcref tables through runtime calls.
   WasmTableGetDescriptor interface_descriptor;
@@ -4997,10 +4986,9 @@ Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
 
   int length_field_size = WasmTableObject::kCurrentLengthOffsetEnd -
                           WasmTableObject::kCurrentLengthOffset + 1;
-  Node* length_smi = LOAD_RAW(
-      table,
-      wasm::ObjectAccess::ToTagged(WasmTableObject::kCurrentLengthOffset),
-      assert_size(length_field_size, MachineType::TaggedSigned()));
+  Node* length_smi = gasm_->Load(
+      assert_size(length_field_size, MachineType::TaggedSigned()), table,
+      wasm::ObjectAccess::ToTagged(WasmTableObject::kCurrentLengthOffset));
 
   return BuildChangeSmiToInt32(length_smi);
 }
@@ -5570,8 +5558,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* isolate_root = BuildLoadIsolateRoot();
 
     Node* thread_in_wasm_flag_address =
-        LOAD_RAW(isolate_root, Isolate::thread_in_wasm_flag_address_offset(),
-                 MachineType::Pointer());
+        gasm_->Load(MachineType::Pointer(), isolate_root,
+                    Isolate::thread_in_wasm_flag_address_offset());
 
     if (FLAG_debug_code) {
       Node* flag_value = SetEffect(
@@ -5607,35 +5595,32 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   Node* BuildLoadFunctionDataFromExportedFunction(Node* closure) {
-    Node* shared = LOAD_RAW(
-        closure,
-        wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction(),
-        MachineType::AnyTagged());
-    return LOAD_RAW(shared,
-                    SharedFunctionInfo::kFunctionDataOffset - kHeapObjectTag,
-                    MachineType::AnyTagged());
+    Node* shared = gasm_->Load(
+        MachineType::AnyTagged(), closure,
+        wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction());
+    return gasm_->Load(
+        MachineType::AnyTagged(), shared,
+        SharedFunctionInfo::kFunctionDataOffset - kHeapObjectTag);
   }
 
   Node* BuildLoadInstanceFromExportedFunctionData(Node* function_data) {
-    return LOAD_RAW(function_data,
-                    WasmExportedFunctionData::kInstanceOffset - kHeapObjectTag,
-                    MachineType::AnyTagged());
+    return gasm_->Load(
+        MachineType::AnyTagged(), function_data,
+        WasmExportedFunctionData::kInstanceOffset - kHeapObjectTag);
   }
 
   Node* BuildLoadFunctionIndexFromExportedFunctionData(Node* function_data) {
-    Node* function_index_smi = LOAD_RAW(
-        function_data,
-        WasmExportedFunctionData::kFunctionIndexOffset - kHeapObjectTag,
-        MachineType::TaggedSigned());
+    Node* function_index_smi = gasm_->Load(
+        MachineType::TaggedSigned(), function_data,
+        WasmExportedFunctionData::kFunctionIndexOffset - kHeapObjectTag);
     Node* function_index = BuildChangeSmiToInt32(function_index_smi);
     return function_index;
   }
 
   Node* BuildLoadJumpTableOffsetFromExportedFunctionData(Node* function_data) {
-    Node* jump_table_offset_smi = LOAD_RAW(
-        function_data,
-        WasmExportedFunctionData::kJumpTableOffsetOffset - kHeapObjectTag,
-        MachineType::TaggedSigned());
+    Node* jump_table_offset_smi = gasm_->Load(
+        MachineType::TaggedSigned(), function_data,
+        WasmExportedFunctionData::kJumpTableOffsetOffset - kHeapObjectTag);
     Node* jump_table_offset = BuildChangeSmiToIntPtr(jump_table_offset_smi);
     return jump_table_offset;
   }
@@ -5756,14 +5741,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* BuildReceiverNode(Node* callable_node, Node* native_context,
                           Node* undefined_node) {
     // Check function strict bit.
-    Node* shared_function_info = LOAD_RAW(
-        callable_node,
-        wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction(),
-        MachineType::TaggedPointer());
+    Node* shared_function_info = gasm_->Load(
+        MachineType::TaggedPointer(), callable_node,
+        wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction());
     Node* flags =
-        LOAD_RAW(shared_function_info,
-                 wasm::ObjectAccess::FlagsOffsetInSharedFunctionInfo(),
-                 MachineType::Int32());
+        gasm_->Load(MachineType::Int32(), shared_function_info,
+                    wasm::ObjectAccess::FlagsOffsetInSharedFunctionInfo());
     Node* strict_check =
         Binop(wasm::kExprI32And, flags,
               mcgraph()->Int32Constant(SharedFunctionInfo::IsNativeBit::kMask |
@@ -5821,9 +5804,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         base::SmallVector<Node*, 16> args(wasm_count + 7);
         int pos = 0;
         Node* function_context =
-            LOAD_RAW(callable_node,
-                     wasm::ObjectAccess::ContextOffsetInTaggedJSFunction(),
-                     MachineType::TaggedPointer());
+            gasm_->Load(MachineType::TaggedPointer(), callable_node,
+                        wasm::ObjectAccess::ContextOffsetInTaggedJSFunction());
         args[pos++] = callable_node;  // target callable.
 
         // Determine receiver at runtime.
@@ -5854,9 +5836,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         base::SmallVector<Node*, 16> args(wasm_count + 9);
         int pos = 0;
         Node* function_context =
-            LOAD_RAW(callable_node,
-                     wasm::ObjectAccess::ContextOffsetInTaggedJSFunction(),
-                     MachineType::TaggedPointer());
+            gasm_->Load(MachineType::TaggedPointer(), callable_node,
+                        wasm::ObjectAccess::ContextOffsetInTaggedJSFunction());
         args[pos++] = mcgraph()->RelocatableIntPtrConstant(
             wasm::WasmCode::kArgumentsAdaptorTrampoline,
             RelocInfo::WASM_STUB_CALL);
@@ -5865,10 +5846,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         args[pos++] = mcgraph()->Int32Constant(wasm_count);  // argument count
 
         // Load shared function info, and then the formal parameter count.
-        Node* shared_function_info = LOAD_RAW(
-            callable_node,
-            wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction(),
-            MachineType::TaggedPointer());
+        Node* shared_function_info = gasm_->Load(
+            MachineType::TaggedPointer(), callable_node,
+            wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction());
         Node* formal_param_count = SetEffect(graph()->NewNode(
             mcgraph()->machine()->Load(MachineType::Uint16()),
             shared_function_info,
@@ -5993,16 +5973,15 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     }
     // The function is passed as the last parameter, after WASM arguments.
     Node* function_node = Param(param_count + 1);
-    Node* shared = LOAD_RAW(
-        function_node,
-        wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction(),
-        MachineType::AnyTagged());
-    Node* sfi_data = LOAD_RAW(
-        shared, SharedFunctionInfo::kFunctionDataOffset - kHeapObjectTag,
-        MachineType::AnyTagged());
-    Node* host_data_foreign = LOAD_RAW(
-        sfi_data, WasmCapiFunctionData::kEmbedderDataOffset - kHeapObjectTag,
-        MachineType::AnyTagged());
+    Node* shared = gasm_->Load(
+        MachineType::AnyTagged(), function_node,
+        wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction());
+    Node* sfi_data =
+        gasm_->Load(MachineType::AnyTagged(), shared,
+                    SharedFunctionInfo::kFunctionDataOffset - kHeapObjectTag);
+    Node* host_data_foreign =
+        gasm_->Load(MachineType::AnyTagged(), sfi_data,
+                    WasmCapiFunctionData::kEmbedderDataOffset - kHeapObjectTag);
 
     BuildModifyThreadInWasmFlag(false);
     Node* isolate_root = BuildLoadIsolateRoot();
@@ -7202,8 +7181,6 @@ AssemblerOptions WasmStubAssemblerOptions() {
 #undef FATAL_UNSUPPORTED_OPCODE
 #undef WASM_INSTANCE_OBJECT_SIZE
 #undef WASM_INSTANCE_OBJECT_OFFSET
-#undef LOAD_RAW
-#undef LOAD_RAW_NODE_OFFSET
 #undef LOAD_INSTANCE_FIELD
 #undef LOAD_TAGGED_POINTER
 #undef LOAD_TAGGED_ANY
