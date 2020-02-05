@@ -532,11 +532,16 @@ template <class T> class PersistentBase {
   }
 
   /**
-   *  Install a finalization callback on this object.
-   *  NOTE: There is no guarantee as to *when* or even *if* the callback is
-   *  invoked. The invocation is performed solely on a best effort basis.
-   *  As always, GC-based finalization should *not* be relied upon for any
-   *  critical form of resource management!
+   * Install a finalization callback on this object.
+   * NOTE: There is no guarantee as to *when* or even *if* the callback is
+   * invoked. The invocation is performed solely on a best effort basis.
+   * As always, GC-based finalization should *not* be relied upon for any
+   * critical form of resource management!
+   *
+   * The callback is supposed to reset the handle. No further V8 API may be
+   * called in this callback. In case additional work involving V8 needs to be
+   * done, a second callback can be scheduled using
+   * WeakCallbackInfo<void>::SetSecondPassCallback.
    */
   template <typename P>
   V8_INLINE void SetWeak(P* parameter,
