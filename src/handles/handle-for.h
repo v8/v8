@@ -22,6 +22,8 @@ using HandleFor =
 template <typename IsolateOrFactory, typename T>
 using MaybeHandleFor =
     typename HandleTraits<IsolateOrFactory>::template MaybeHandleType<T>;
+template <typename IsolateOrFactory>
+using HandleScopeFor = typename HandleTraits<IsolateOrFactory>::HandleScopeType;
 
 }  // namespace internal
 }  // namespace v8

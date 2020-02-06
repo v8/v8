@@ -454,6 +454,7 @@ struct HandleTraits<Isolate> {
   using HandleType = Handle<T>;
   template <typename T>
   using MaybeHandleType = MaybeHandle<T>;
+  using HandleScopeType = HandleScope;
 };
 
 // HiddenFactory exists so Isolate can privately inherit from it without making

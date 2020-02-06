@@ -90,6 +90,9 @@ IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
   bool Object::Is##Type(Isolate* isolate) const {                \
     return Is##Type(ReadOnlyRoots(isolate));                     \
   }                                                              \
+  bool Object::Is##Type(OffThreadIsolate* isolate) const {       \
+    return Is##Type(ReadOnlyRoots(isolate));                     \
+  }                                                              \
   bool Object::Is##Type(ReadOnlyRoots roots) const {             \
     return *this == roots.Value();                               \
   }                                                              \
@@ -97,6 +100,9 @@ IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
     return IsHeapObject() && HeapObject::cast(*this).Is##Type(); \
   }                                                              \
   bool HeapObject::Is##Type(Isolate* isolate) const {            \
+    return Object::Is##Type(isolate);                            \
+  }                                                              \
+  bool HeapObject::Is##Type(OffThreadIsolate* isolate) const {   \
     return Object::Is##Type(isolate);                            \
   }                                                              \
   bool HeapObject::Is##Type(ReadOnlyRoots roots) const {         \

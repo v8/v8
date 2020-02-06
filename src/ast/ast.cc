@@ -14,6 +14,8 @@
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
 #include "src/common/assert-scope.h"
+#include "src/execution/off-thread-isolate.h"
+#include "src/heap/off-thread-factory-inl.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/numbers/double.h"
 #include "src/objects/contexts.h"
@@ -474,6 +476,7 @@ int ObjectLiteral::InitDepthAndFlags() {
   return depth_acc;
 }
 
+template <typename Isolate>
 void ObjectLiteral::BuildBoilerplateDescription(Isolate* isolate) {
   if (!boilerplate_description_.is_null()) return;
 
@@ -491,7 +494,7 @@ void ObjectLiteral::BuildBoilerplateDescription(Isolate* isolate) {
     if (!key->IsPropertyName()) index_keys++;
   }
 
-  Handle<ObjectBoilerplateDescription> boilerplate_description =
+  HandleFor<Isolate, ObjectBoilerplateDescription> boilerplate_description =
       isolate->factory()->NewObjectBoilerplateDescription(
           boilerplate_properties_, properties()->length(), index_keys,
           has_seen_proto);
@@ -517,13 +520,16 @@ void ObjectLiteral::BuildBoilerplateDescription(Isolate* isolate) {
     // runtime. The enumeration order is maintained.
     Literal* key_literal = property->key()->AsLiteral();
     uint32_t element_index = 0;
-    Handle<Object> key =
+    HandleFor<Isolate, Object> key =
         key_literal->AsArrayIndex(&element_index)
-            ? isolate->factory()->NewNumberFromUint(element_index)
-            : Handle<Object>::cast(
+            ? isolate->factory()
+                  ->template NewNumberFromUint<AllocationType::kOld>(
+                      element_index)
+            : HandleFor<Isolate, Object>::cast(
                   key_literal->AsRawPropertyName()->string().get<Isolate>());
 
-    Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
+    HandleFor<Isolate, Object> value =
+        GetBoilerplateValue(property->value(), isolate);
 
     // Add name, value pair to the fixed array.
     boilerplate_description->set_key_value(position++, *key, *value);
@@ -533,6 +539,10 @@ void ObjectLiteral::BuildBoilerplateDescription(Isolate* isolate) {
 
   boilerplate_description_ = boilerplate_description;
 }
+template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT) void ObjectLiteral::
+    BuildBoilerplateDescription(Isolate* isolate);
+template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT) void ObjectLiteral::
+    BuildBoilerplateDescription(OffThreadIsolate* isolate);
 
 bool ObjectLiteral::IsFastCloningSupported() const {
   // The CreateShallowObjectLiteratal builtin doesn't copy elements, and object
@@ -623,6 +633,7 @@ int ArrayLiteral::InitDepthAndFlags() {
   return depth_acc;
 }
 
+template <typename Isolate>
 void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
   if (!boilerplate_description_.is_null()) return;
 
@@ -631,11 +642,13 @@ void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
   ElementsKind kind = boilerplate_descriptor_kind();
   bool use_doubles = IsDoubleElementsKind(kind);
 
-  Handle<FixedArrayBase> elements;
+  HandleFor<Isolate, FixedArrayBase> elements;
   if (use_doubles) {
-    elements = isolate->factory()->NewFixedDoubleArray(constants_length);
+    elements = isolate->factory()->NewFixedDoubleArray(constants_length,
+                                                       AllocationType::kOld);
   } else {
-    elements = isolate->factory()->NewFixedArrayWithHoles(constants_length);
+    elements = isolate->factory()->NewFixedArrayWithHoles(constants_length,
+                                                          AllocationType::kOld);
   }
 
   // Fill in the literals.
@@ -665,7 +678,7 @@ void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
       }
 
       // New handle scope here, needs to be after BuildContants().
-      HandleScope scope(isolate);
+      HandleScopeFor<Isolate> scope(isolate);
 
       Object boilerplate_value = *GetBoilerplateValue(element, isolate);
       // We shouldn't allocate after creating the boilerplate value.
@@ -680,14 +693,15 @@ void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
         boilerplate_value = Smi::zero();
       }
 
-      DCHECK_EQ(boilerplate_descriptor_kind(),
-                GetMoreGeneralElementsKind(
-                    boilerplate_descriptor_kind(),
-                    boilerplate_value.OptimalElementsKind(isolate)));
+      DCHECK_EQ(
+          boilerplate_descriptor_kind(),
+          GetMoreGeneralElementsKind(boilerplate_descriptor_kind(),
+                                     boilerplate_value.OptimalElementsKind(
+                                         GetIsolateForPtrCompr(*elements))));
 
-      Handle<FixedArray>::cast(elements)->set(array_index, boilerplate_value);
+      FixedArray::cast(*elements).set(array_index, boilerplate_value);
     }
-  }
+  }  // namespace internal
 
   // Simple and shallow arrays can be lazily copied, we transform the
   // elements array to a copy-on-write array.
@@ -699,6 +713,11 @@ void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
   boilerplate_description_ =
       isolate->factory()->NewArrayBoilerplateDescription(kind, elements);
 }
+template EXPORT_TEMPLATE_DEFINE(
+    V8_BASE_EXPORT) void ArrayLiteral::BuildBoilerplateDescription(Isolate*
+                                                                       isolate);
+template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT) void ArrayLiteral::
+    BuildBoilerplateDescription(OffThreadIsolate* isolate);
 
 bool ArrayLiteral::IsFastCloningSupported() const {
   return depth() <= 1 &&
@@ -713,8 +732,9 @@ bool MaterializedLiteral::IsSimple() const {
   return false;
 }
 
-Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
-                                                        Isolate* isolate) {
+template <typename Isolate>
+HandleFor<Isolate, Object> MaterializedLiteral::GetBoilerplateValue(
+    Expression* expression, Isolate* isolate) {
   if (expression->IsLiteral()) {
     return expression->AsLiteral()->BuildValue(isolate);
   }
@@ -722,16 +742,22 @@ Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
     if (expression->IsObjectLiteral()) {
       ObjectLiteral* object_literal = expression->AsObjectLiteral();
       DCHECK(object_literal->is_simple());
-      return object_literal->boilerplate_description();
+      return object_literal->boilerplate_description().get<Isolate>();
     } else {
       DCHECK(expression->IsArrayLiteral());
       ArrayLiteral* array_literal = expression->AsArrayLiteral();
       DCHECK(array_literal->is_simple());
-      return array_literal->boilerplate_description();
+      return array_literal->boilerplate_description().get<Isolate>();
     }
   }
   return isolate->factory()->uninitialized_value();
 }
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<Object> MaterializedLiteral::GetBoilerplateValue(
+        Expression* expression, Isolate* isolate);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    OffThreadHandle<Object> MaterializedLiteral::GetBoilerplateValue(
+        Expression* expression, OffThreadIsolate* isolate);
 
 int MaterializedLiteral::InitDepthAndFlags() {
   if (IsArrayLiteral()) return AsArrayLiteral()->InitDepthAndFlags();
@@ -751,6 +777,7 @@ bool MaterializedLiteral::NeedsInitialAllocationSite() {
   return false;
 }
 
+template <typename Isolate>
 void MaterializedLiteral::BuildConstants(Isolate* isolate) {
   if (IsArrayLiteral()) {
     AsArrayLiteral()->BuildBoilerplateDescription(isolate);
@@ -762,11 +789,18 @@ void MaterializedLiteral::BuildConstants(Isolate* isolate) {
   }
   DCHECK(IsRegExpLiteral());
 }
+template EXPORT_TEMPLATE_DEFINE(
+    V8_BASE_EXPORT) void MaterializedLiteral::BuildConstants(Isolate* isolate);
+template EXPORT_TEMPLATE_DEFINE(
+    V8_BASE_EXPORT) void MaterializedLiteral::BuildConstants(OffThreadIsolate*
+                                                                 isolate);
 
-Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
-    Isolate* isolate) {
-  Handle<FixedArray> raw_strings = isolate->factory()->NewFixedArray(
-      this->raw_strings()->length(), AllocationType::kOld);
+template <typename Isolate>
+HandleFor<Isolate, TemplateObjectDescription>
+GetTemplateObject::GetOrBuildDescription(Isolate* isolate) {
+  HandleFor<Isolate, FixedArray> raw_strings =
+      isolate->factory()->NewFixedArray(this->raw_strings()->length(),
+                                        AllocationType::kOld);
   bool raw_and_cooked_match = true;
   for (int i = 0; i < raw_strings->length(); ++i) {
     if (this->raw_strings()->at(i) != this->cooked_strings()->at(i)) {
@@ -781,7 +815,7 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
     }
     raw_strings->set(i, *this->raw_strings()->at(i)->string().get<Isolate>());
   }
-  Handle<FixedArray> cooked_strings = raw_strings;
+  HandleFor<Isolate, FixedArray> cooked_strings = raw_strings;
   if (!raw_and_cooked_match) {
     cooked_strings = isolate->factory()->NewFixedArray(
         this->cooked_strings()->length(), AllocationType::kOld);
@@ -797,6 +831,12 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
   return isolate->factory()->NewTemplateObjectDescription(raw_strings,
                                                           cooked_strings);
 }
+template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT)
+    Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
+        Isolate* isolate);
+template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT)
+    OffThreadHandle<TemplateObjectDescription> GetTemplateObject::
+        GetOrBuildDescription(OffThreadIsolate* isolate);
 
 static bool IsCommutativeOperationWithSmiLiteral(Token::Value op) {
   // Add is not commutative due to potential for string addition.
@@ -966,14 +1006,16 @@ bool Literal::AsArrayIndex(uint32_t* value) const {
   return ToUint32(value) && *value != kMaxUInt32;
 }
 
-Handle<Object> Literal::BuildValue(Isolate* isolate) const {
+template <typename Isolate>
+HandleFor<Isolate, Object> Literal::BuildValue(Isolate* isolate) const {
   switch (type()) {
     case kSmi:
       return handle(Smi::FromInt(smi_), isolate);
     case kHeapNumber:
-      return isolate->factory()->NewNumber<AllocationType::kOld>(number_);
+      return isolate->factory()->template NewNumber<AllocationType::kOld>(
+          number_);
     case kString:
-      return string_->string();
+      return string_->string().get<Isolate>();
     case kSymbol:
       return isolate->factory()->home_object_symbol();
     case kBoolean:
@@ -991,6 +1033,11 @@ Handle<Object> Literal::BuildValue(Isolate* isolate) const {
   }
   UNREACHABLE();
 }
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<Object> Literal::BuildValue(Isolate* isolate) const;
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    OffThreadHandle<Object> Literal::BuildValue(
+        OffThreadIsolate* isolate) const;
 
 bool Literal::ToBooleanIsTrue() const {
   switch (type()) {

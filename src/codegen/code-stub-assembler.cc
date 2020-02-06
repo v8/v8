@@ -1552,8 +1552,8 @@ TNode<Float64T> CodeStubAssembler::LoadHeapNumberValue(
 }
 
 TNode<Map> CodeStubAssembler::GetStructMap(InstanceType instance_type) {
-  Handle<Map> map_handle(Map::GetStructMap(isolate(), instance_type),
-                         isolate());
+  Handle<Map> map_handle(
+      Map::GetStructMap(ReadOnlyRoots(isolate()), instance_type), isolate());
   return HeapConstant(map_handle);
 }
 

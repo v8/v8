@@ -15,6 +15,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/map.h"
 #include "src/objects/objects.h"
 #include "src/roots/roots.h"
 
@@ -34,6 +35,7 @@ struct HandleTraits<OffThreadFactory> {
   using HandleType = OffThreadHandle<T>;
   template <typename T>
   using MaybeHandleType = OffThreadHandle<T>;
+  using HandleScopeType = OffThreadHandleScope;
 };
 
 struct RelativeSlot {

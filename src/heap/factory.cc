@@ -257,32 +257,6 @@ void Factory::InitializeAllocationMemento(AllocationMemento memento,
   }
 }
 
-HeapObject Factory::AllocateRawArray(int size, AllocationType allocation) {
-  HeapObject result =
-      isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(size, allocation);
-  if (size > kMaxRegularHeapObjectSize && FLAG_use_marking_progress_bar) {
-    MemoryChunk* chunk = MemoryChunk::FromHeapObject(result);
-    chunk->SetFlag<AccessMode::ATOMIC>(MemoryChunk::HAS_PROGRESS_BAR);
-  }
-  return result;
-}
-
-HeapObject Factory::AllocateRawFixedArray(int length,
-                                          AllocationType allocation) {
-  if (length < 0 || length > FixedArray::kMaxLength) {
-    isolate()->heap()->FatalProcessOutOfMemory("invalid array length");
-  }
-  return AllocateRawArray(FixedArray::SizeFor(length), allocation);
-}
-
-HeapObject Factory::AllocateRawWeakArrayList(int capacity,
-                                             AllocationType allocation) {
-  if (capacity < 0 || capacity > WeakArrayList::kMaxCapacity) {
-    isolate()->heap()->FatalProcessOutOfMemory("invalid array length");
-  }
-  return AllocateRawArray(WeakArrayList::SizeForCapacity(capacity), allocation);
-}
-
 HeapObject Factory::New(Handle<Map> map, AllocationType allocation) {
   DCHECK(map->instance_type() != MAP_TYPE);
   int size = map->instance_size();
@@ -335,28 +309,6 @@ Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1, Handle<Object> value2,
   return result;
 }
 
-Handle<ArrayBoilerplateDescription> Factory::NewArrayBoilerplateDescription(
-    ElementsKind elements_kind, Handle<FixedArrayBase> constant_values) {
-  Handle<ArrayBoilerplateDescription> result =
-      Handle<ArrayBoilerplateDescription>::cast(
-          NewStruct(ARRAY_BOILERPLATE_DESCRIPTION_TYPE, AllocationType::kOld));
-  result->set_elements_kind(elements_kind);
-  result->set_constant_elements(*constant_values);
-  return result;
-}
-
-Handle<TemplateObjectDescription> Factory::NewTemplateObjectDescription(
-    Handle<FixedArray> raw_strings, Handle<FixedArray> cooked_strings) {
-  DCHECK_EQ(raw_strings->length(), cooked_strings->length());
-  DCHECK_LT(0, raw_strings->length());
-  Handle<TemplateObjectDescription> result =
-      Handle<TemplateObjectDescription>::cast(
-          NewStruct(TEMPLATE_OBJECT_DESCRIPTION_TYPE, AllocationType::kOld));
-  result->set_raw_strings(*raw_strings);
-  result->set_cooked_strings(*cooked_strings);
-  return result;
-}
-
 Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
                                     Handle<Object> to_number,
                                     const char* type_of, byte kind) {
@@ -383,34 +335,14 @@ Handle<PropertyArray> Factory::NewPropertyArray(int length) {
   return array;
 }
 
-Handle<FixedArray> Factory::NewFixedArrayWithFiller(RootIndex map_root_index,
-                                                    int length, Object filler,
-                                                    AllocationType allocation) {
-  HeapObject result = AllocateRawFixedArray(length, allocation);
-  DCHECK(RootsTable::IsImmortalImmovable(map_root_index));
-  Map map = Map::cast(isolate()->root(map_root_index));
-  result.set_map_after_allocation(map, SKIP_WRITE_BARRIER);
-  Handle<FixedArray> array(FixedArray::cast(result), isolate());
-  array->set_length(length);
-  MemsetTagged(array->data_start(), filler, length);
-  return array;
+Handle<FixedArray> Factory::NewFixedArrayWithMapRootIndex(
+    RootIndex map_root_index, int length, AllocationType allocation) {
+  return NewFixedArrayWithMap(Map::cast(isolate()->root(map_root_index)),
+                              length, allocation);
 }
 
 template <typename T>
-Handle<T> Factory::NewFixedArrayWithMap(RootIndex map_root_index, int length,
-                                        AllocationType allocation) {
-  static_assert(std::is_base_of<FixedArray, T>::value,
-                "T must be a descendant of FixedArray");
-  // Zero-length case must be handled outside, where the knowledge about
-  // the map is.
-  DCHECK_LT(0, length);
-  return Handle<T>::cast(NewFixedArrayWithFiller(
-      map_root_index, length, *undefined_value(), allocation));
-}
-
-template <typename T>
-Handle<T> Factory::NewWeakFixedArrayWithMap(RootIndex map_root_index,
-                                            int length,
+Handle<T> Factory::NewWeakFixedArrayWithMap(Map map, int length,
                                             AllocationType allocation) {
   static_assert(std::is_base_of<WeakFixedArray, T>::value,
                 "T must be a descendant of WeakFixedArray");
@@ -420,7 +352,6 @@ Handle<T> Factory::NewWeakFixedArrayWithMap(RootIndex map_root_index,
 
   HeapObject result =
       AllocateRawArray(WeakFixedArray::SizeFor(length), AllocationType::kOld);
-  Map map = Map::cast(isolate()->root(map_root_index));
   result.set_map_after_allocation(map, SKIP_WRITE_BARRIER);
 
   Handle<WeakFixedArray> array(WeakFixedArray::cast(result), isolate());
@@ -430,25 +361,14 @@ Handle<T> Factory::NewWeakFixedArrayWithMap(RootIndex map_root_index,
   return Handle<T>::cast(array);
 }
 
-template Handle<FixedArray> Factory::NewFixedArrayWithMap<FixedArray>(
-    RootIndex, int, AllocationType allocation);
-
-Handle<FixedArray> Factory::NewFixedArray(int length,
-                                          AllocationType allocation) {
-  DCHECK_LE(0, length);
-  if (length == 0) return empty_fixed_array();
-  return NewFixedArrayWithFiller(RootIndex::kFixedArrayMap, length,
-                                 *undefined_value(), allocation);
-}
-
 Handle<WeakFixedArray> Factory::NewWeakFixedArray(int length,
                                                   AllocationType allocation) {
   DCHECK_LE(0, length);
   if (length == 0) return empty_weak_fixed_array();
   HeapObject result =
       AllocateRawArray(WeakFixedArray::SizeFor(length), allocation);
-  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kWeakFixedArrayMap));
-  result.set_map_after_allocation(*weak_fixed_array_map(), SKIP_WRITE_BARRIER);
+  result.set_map_after_allocation(read_only_roots().weak_fixed_array_map(),
+                                  SKIP_WRITE_BARRIER);
   Handle<WeakFixedArray> array(WeakFixedArray::cast(result), isolate());
   array->set_length(length);
   MemsetTagged(ObjectSlot(array->data_start()), *undefined_value(), length);
@@ -477,14 +397,6 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(
   return array;
 }
 
-Handle<FixedArray> Factory::NewFixedArrayWithHoles(int length,
-                                                   AllocationType allocation) {
-  DCHECK_LE(0, length);
-  if (length == 0) return empty_fixed_array();
-  return NewFixedArrayWithFiller(RootIndex::kFixedArrayMap, length,
-                                 *the_hole_value(), allocation);
-}
-
 Handle<FixedArray> Factory::NewUninitializedFixedArray(int length) {
   if (length == 0) return empty_fixed_array();
   if (length < 0 || length > FixedArray::kMaxLength) {
@@ -494,7 +406,7 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(int length) {
   // TODO(ulan): As an experiment this temporarily returns an initialized fixed
   // array. After getting canary/performance coverage, either remove the
   // function or revert to returning uninitilized array.
-  return NewFixedArrayWithFiller(RootIndex::kFixedArrayMap, length,
+  return NewFixedArrayWithFiller(read_only_roots().fixed_array_map(), length,
                                  *undefined_value(), AllocationType::kYoung);
 }
 
@@ -503,9 +415,9 @@ Handle<ClosureFeedbackCellArray> Factory::NewClosureFeedbackCellArray(
   if (length == 0) return empty_closure_feedback_cell_array();
 
   Handle<ClosureFeedbackCellArray> feedback_cell_array =
-      NewFixedArrayWithMap<ClosureFeedbackCellArray>(
-          RootIndex::kClosureFeedbackCellArrayMap, length,
-          AllocationType::kOld);
+      Handle<ClosureFeedbackCellArray>::cast(NewFixedArrayWithMap(
+          read_only_roots().closure_feedback_cell_array_map(), length,
+          AllocationType::kOld));
 
   return feedback_cell_array;
 }
@@ -550,56 +462,6 @@ Handle<EmbedderDataArray> Factory::NewEmbedderDataArray(int length) {
     size_t slot_count = end - start;
     MemsetTagged(start, *undefined_value(), slot_count);
   }
-  return array;
-}
-
-Handle<ObjectBoilerplateDescription> Factory::NewObjectBoilerplateDescription(
-    int boilerplate, int all_properties, int index_keys, bool has_seen_proto) {
-  DCHECK_GE(boilerplate, 0);
-  DCHECK_GE(all_properties, index_keys);
-  DCHECK_GE(index_keys, 0);
-
-  int backing_store_size =
-      all_properties - index_keys - (has_seen_proto ? 1 : 0);
-  DCHECK_GE(backing_store_size, 0);
-  bool has_different_size_backing_store = boilerplate != backing_store_size;
-
-  // Space for name and value for every boilerplate property + LiteralType flag.
-  int size =
-      2 * boilerplate + ObjectBoilerplateDescription::kDescriptionStartIndex;
-
-  if (has_different_size_backing_store) {
-    // An extra entry for the backing store size.
-    size++;
-  }
-
-  Handle<ObjectBoilerplateDescription> description =
-      Handle<ObjectBoilerplateDescription>::cast(
-          NewFixedArrayWithMap(RootIndex::kObjectBoilerplateDescriptionMap,
-                               size, AllocationType::kOld));
-
-  if (has_different_size_backing_store) {
-    DCHECK_IMPLIES((boilerplate == (all_properties - index_keys)),
-                   has_seen_proto);
-    description->set_backing_store_size(backing_store_size);
-  }
-
-  description->set_flags(0);
-
-  return description;
-}
-
-Handle<FixedArrayBase> Factory::NewFixedDoubleArray(int length) {
-  if (length == 0) return empty_fixed_array();
-  if (length < 0 || length > FixedDoubleArray::kMaxLength) {
-    isolate()->heap()->FatalProcessOutOfMemory("invalid array length");
-  }
-  int size = FixedDoubleArray::SizeFor(length);
-  Map map = *fixed_double_array_map();
-  HeapObject result = AllocateRawWithImmortalMap(size, AllocationType::kYoung,
-                                                 map, kDoubleAligned);
-  Handle<FixedDoubleArray> array(FixedDoubleArray::cast(result), isolate());
-  array->set_length(length);
   return array;
 }
 
@@ -1274,9 +1136,9 @@ Handle<Context> Factory::NewScriptContext(Handle<NativeContext> outer,
 }
 
 Handle<ScriptContextTable> Factory::NewScriptContextTable() {
-  Handle<ScriptContextTable> context_table =
-      NewFixedArrayWithMap<ScriptContextTable>(
-          RootIndex::kScriptContextTableMap, ScriptContextTable::kMinLength);
+  Handle<ScriptContextTable> context_table = Handle<ScriptContextTable>::cast(
+      NewFixedArrayWithMap(read_only_roots().script_context_table_map(),
+                           ScriptContextTable::kMinLength));
   context_table->set_used(0);
   return context_table;
 }
@@ -1395,16 +1257,6 @@ Handle<Context> Factory::NewBuiltinContext(Handle<NativeContext> native_context,
   context->set_scope_info(ReadOnlyRoots(isolate()).empty_scope_info());
   context->set_previous(*native_context);
   return context;
-}
-
-Handle<Struct> Factory::NewStruct(InstanceType type,
-                                  AllocationType allocation) {
-  Map map = Map::GetStructMap(isolate(), type);
-  int size = map.instance_size();
-  HeapObject result = AllocateRawWithImmortalMap(size, allocation, map);
-  Handle<Struct> str(Struct::cast(result), isolate());
-  str->InitializeBody(size);
-  return str;
 }
 
 Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
@@ -1656,7 +1508,7 @@ Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,
                                                     int slack) {
   int capacity = TransitionArray::LengthFor(number_of_transitions + slack);
   Handle<TransitionArray> array = NewWeakFixedArrayWithMap<TransitionArray>(
-      RootIndex::kTransitionArrayMap, capacity, AllocationType::kOld);
+      read_only_roots().transition_array_map(), capacity, AllocationType::kOld);
   // Transition arrays are AllocationType::kOld. When black allocation is on we
   // have to add the transition array to the list of
   // encountered_transition_arrays.
@@ -2018,53 +1870,6 @@ Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
   return result;
 }
 
-template <AllocationType allocation>
-Handle<Object> Factory::NewNumber(double value) {
-  // Materialize as a SMI if possible.
-  int32_t int_value;
-  if (DoubleToSmiInteger(value, &int_value)) {
-    return handle(Smi::FromInt(int_value), isolate());
-  }
-  return NewHeapNumber<allocation>(value);
-}
-
-template Handle<Object> V8_EXPORT_PRIVATE
-Factory::NewNumber<AllocationType::kYoung>(double);
-template Handle<Object> V8_EXPORT_PRIVATE
-Factory::NewNumber<AllocationType::kOld>(double);
-template Handle<Object> V8_EXPORT_PRIVATE
-Factory::NewNumber<AllocationType::kReadOnly>(double);
-
-Handle<Object> Factory::NewNumberFromInt(int32_t value) {
-  if (Smi::IsValid(value)) return handle(Smi::FromInt(value), isolate());
-  // Bypass NewNumber to avoid various redundant checks.
-  return NewHeapNumber(FastI2D(value));
-}
-
-Handle<Object> Factory::NewNumberFromUint(uint32_t value) {
-  int32_t int32v = static_cast<int32_t>(value);
-  if (int32v >= 0 && Smi::IsValid(int32v)) {
-    return handle(Smi::FromInt(int32v), isolate());
-  }
-  return NewHeapNumber(FastUI2D(value));
-}
-
-template <AllocationType allocation>
-Handle<HeapNumber> Factory::NewHeapNumber() {
-  STATIC_ASSERT(HeapNumber::kSize <= kMaxRegularHeapObjectSize);
-  Map map = *heap_number_map();
-  HeapObject result = AllocateRawWithImmortalMap(HeapNumber::kSize, allocation,
-                                                 map, kDoubleUnaligned);
-  return handle(HeapNumber::cast(result), isolate());
-}
-
-template Handle<HeapNumber> V8_EXPORT_PRIVATE
-Factory::NewHeapNumber<AllocationType::kYoung>();
-template Handle<HeapNumber> V8_EXPORT_PRIVATE
-Factory::NewHeapNumber<AllocationType::kOld>();
-template Handle<HeapNumber> V8_EXPORT_PRIVATE
-Factory::NewHeapNumber<AllocationType::kReadOnly>();
-
 Handle<HeapNumber> Factory::NewHeapNumberForCodeAssembler(double value) {
   return isolate()->heap()->CanAllocateInReadOnlySpace()
              ? NewHeapNumber<AllocationType::kReadOnly>(value)
@@ -2352,14 +2157,14 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
 Handle<ScopeInfo> Factory::NewScopeInfo(int length, AllocationType type) {
   DCHECK(type == AllocationType::kOld || type == AllocationType::kReadOnly);
-  return NewFixedArrayWithMap<ScopeInfo>(RootIndex::kScopeInfoMap, length,
-                                         type);
+  return Handle<ScopeInfo>::cast(
+      NewFixedArrayWithMap(read_only_roots().scope_info_map(), length, type));
 }
 
 Handle<SourceTextModuleInfo> Factory::NewSourceTextModuleInfo() {
-  return NewFixedArrayWithMap<SourceTextModuleInfo>(
-      RootIndex::kModuleInfoMap, SourceTextModuleInfo::kLength,
-      AllocationType::kOld);
+  return Handle<SourceTextModuleInfo>::cast(NewFixedArrayWithMap(
+      read_only_roots().module_info_map(), SourceTextModuleInfo::kLength,
+      AllocationType::kOld));
 }
 
 Handle<PreparseData> Factory::NewPreparseData(int data_length,
@@ -3792,10 +3597,6 @@ Handle<Object> Factory::GlobalConstantFor(Handle<Name> name) {
   if (Name::Equals(isolate(), name, NaN_string())) return nan_value();
   if (Name::Equals(isolate(), name, Infinity_string())) return infinity_value();
   return Handle<Object>::null();
-}
-
-Handle<Object> Factory::ToBoolean(bool value) {
-  return value ? true_value() : false_value();
 }
 
 Handle<String> Factory::ToPrimitiveHintString(ToPrimitiveHint hint) {

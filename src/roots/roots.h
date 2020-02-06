@@ -7,6 +7,7 @@
 
 #include "src/builtins/accessors.h"
 #include "src/common/globals.h"
+#include "src/handles/handles.h"
 #include "src/init/heap-symbols.h"
 #include "src/objects/objects-definitions.h"
 #include "src/objects/objects.h"
@@ -480,7 +481,7 @@ class ReadOnlyRoots {
 
   V8_INLINE explicit ReadOnlyRoots(Heap* heap);
   V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
-  V8_INLINE explicit ReadOnlyRoots(OffThreadFactory* factory);
+  V8_INLINE explicit ReadOnlyRoots(OffThreadIsolate* isolate);
 
 #define ROOT_ACCESSOR(Type, name, CamelName) \
   V8_INLINE class Type name() const;         \

@@ -787,7 +787,7 @@ class Map : public HeapObject {
 
   inline bool CanTransition() const;
 
-  static Map GetStructMap(Isolate* isolate, InstanceType type);
+  static Map GetStructMap(ReadOnlyRoots roots, InstanceType type);
 
 #define DECL_TESTER(Type, ...) inline bool Is##Type##Map() const;
   INSTANCE_TYPE_CHECKERS(DECL_TESTER)

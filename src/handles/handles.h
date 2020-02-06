@@ -75,6 +75,29 @@ class HandleBase {
   Address* location_;
 };
 
+template <typename T>
+class Handle;
+template <typename T>
+class OffThreadHandle;
+
+// {ObjectRef} is returned by {Handle::operator->}. It should never be stored
+// anywhere or used in any other code; no one should ever have to spell out
+// {ObjectRef} in code. Its only purpose is to be dereferenced immediately by
+// "operator-> chaining". Returning the address of the field is valid because
+// this objects lifetime only ends at the end of the full statement.
+template <typename T>
+class HandleObjectRef {
+ public:
+  T* operator->() { return &object_; }
+
+ private:
+  friend class Handle<T>;
+  friend class OffThreadHandle<T>;
+  explicit HandleObjectRef(T object) : object_(object) {}
+
+  T object_;
+};
+
 // ----------------------------------------------------------------------------
 // A Handle provides a reference to an object that survives relocation by
 // the garbage collector.
@@ -89,22 +112,6 @@ class HandleBase {
 template <typename T>
 class Handle final : public HandleBase {
  public:
-  // {ObjectRef} is returned by {Handle::operator->}. It should never be stored
-  // anywhere or used in any other code; no one should ever have to spell out
-  // {ObjectRef} in code. Its only purpose is to be dereferenced immediately by
-  // "operator-> chaining". Returning the address of the field is valid because
-  // this objects lifetime only ends at the end of the full statement.
-  class ObjectRef {
-   public:
-    T* operator->() { return &object_; }
-
-   private:
-    friend class Handle;
-    explicit ObjectRef(T object) : object_(object) {}
-
-    T object_;
-  };
-
   V8_INLINE explicit Handle() : HandleBase(nullptr) {
     // Skip static type check in order to allow Handle<XXX>::null() as default
     // parameter values in non-inl header files without requiring full
@@ -130,7 +137,9 @@ class Handle final : public HandleBase {
   // NOLINTNEXTLINE
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
-  V8_INLINE ObjectRef operator->() const { return ObjectRef{**this}; }
+  V8_INLINE HandleObjectRef<T> operator->() const {
+    return HandleObjectRef<T>{**this};
+  }
 
   V8_INLINE T operator*() const {
     // unchecked_cast because we rather trust Handle<T> to contain a T than
@@ -186,17 +195,19 @@ class OffThreadHandle {
   OffThreadHandle() = default;
 
   template <typename U>
-  explicit OffThreadHandle(U obj) : obj_(obj) {}
+  explicit OffThreadHandle(U obj) : address_(obj.ptr()) {}
 
   // Constructor for handling automatic up casting. We rely on the compiler
-  // making sure that the assignment to obj_ is legitimate.
+  // making sure that the cast to T is legitimate.
   template <typename U>
   // NOLINTNEXTLINE
-  OffThreadHandle<T>(OffThreadHandle<U> other) : obj_(*other) {}
+  OffThreadHandle<T>(OffThreadHandle<U> other)
+      : address_(T::cast(*other).ptr()) {}
 
-  T operator*() const { return obj_; }
-  T* operator->() { return &obj_; }
-  const T* operator->() const { return &obj_; }
+  T operator*() const { return T::unchecked_cast(Object(address_)); }
+  V8_INLINE HandleObjectRef<T> operator->() const {
+    return HandleObjectRef<T>{**this};
+  }
 
   template <typename U>
   static OffThreadHandle<T> cast(OffThreadHandle<U> other) {
@@ -206,7 +217,7 @@ class OffThreadHandle {
   bool is_null() const {
     // TODO(leszeks): This will only work for HeapObjects, figure out a way to
     // make is_null work for Object and Smi too.
-    return obj_.is_null();
+    return (*this)->is_null();
   }
 
   bool ToHandle(OffThreadHandle<T>* out) {
@@ -221,7 +232,7 @@ class OffThreadHandle {
   }
 
  private:
-  T obj_;
+  Address address_;
 };
 
 // A helper class which wraps an normal or off-thread handle, and returns one
@@ -266,7 +277,7 @@ class HandleOrOffThreadHandle {
   inline bool is_null() const { return value_ == 0; }
 
 #ifdef DEBUG
-  inline bool is_initialized() { return which_ != kUninitialized; }
+  inline bool is_initialized() const { return which_ != kUninitialized; }
 #endif
 
  private:
@@ -285,7 +296,7 @@ class HandleOrOffThreadHandle {
   }
 
   // Either handle.location() or off_thread_handle->ptr().
-  Address value_;
+  Address value_ = 0;
 
 #ifdef DEBUG
   enum { kUninitialized, kHandle, kOffThreadHandle } which_;
@@ -476,6 +487,11 @@ struct HandleScopeData final {
     sealed_level = level = 0;
     canonical_scope = nullptr;
   }
+};
+
+class OffThreadHandleScope {
+ public:
+  explicit OffThreadHandleScope(OffThreadIsolate* isolate) {}
 };
 
 }  // namespace internal

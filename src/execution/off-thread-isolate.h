@@ -22,6 +22,7 @@ struct HandleTraits<OffThreadIsolate> {
   using HandleType = OffThreadHandle<T>;
   template <typename T>
   using MaybeHandleType = OffThreadHandle<T>;
+  using HandleScopeType = OffThreadHandleScope;
 };
 
 // HiddenOffThreadFactory parallels Isolate's HiddenFactory

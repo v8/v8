@@ -5,8 +5,10 @@
 #ifndef V8_HEAP_FACTORY_BASE_H_
 #define V8_HEAP_FACTORY_BASE_H_
 
+#include "src/base/export-template.h"
 #include "src/common/globals.h"
 #include "src/handles/handle-for.h"
+#include "src/objects/instance-type.h"
 #include "src/roots/roots.h"
 
 namespace v8 {
@@ -16,10 +18,75 @@ class HeapObject;
 class SeqOneByteString;
 class SeqTwoByteString;
 class FreshlyAllocatedBigInt;
+class ObjectBoilerplateDescription;
+class ArrayBoilerplateDescription;
+class TemplateObjectDescription;
 
 template <typename Impl>
-class V8_EXPORT_PRIVATE FactoryBase {
+class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
  public:
+  // Converts the given boolean condition to JavaScript boolean value.
+  inline HandleFor<Impl, Oddball> ToBoolean(bool value);
+
+  // Numbers (e.g. literals) are pretenured by the parser.
+  // The return value may be a smi or a heap number.
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline HandleFor<Impl, Object> NewNumber(double value);
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline HandleFor<Impl, Object> NewNumberFromInt(int32_t value);
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline HandleFor<Impl, Object> NewNumberFromUint(uint32_t value);
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline HandleFor<Impl, Object> NewNumberFromSize(size_t value);
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline HandleFor<Impl, Object> NewNumberFromInt64(int64_t value);
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline HandleFor<Impl, HeapNumber> NewHeapNumber(double value);
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline HandleFor<Impl, HeapNumber> NewHeapNumberFromBits(uint64_t bits);
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline HandleFor<Impl, HeapNumber> NewHeapNumberWithHoleNaN();
+
+  template <AllocationType allocation>
+  HandleFor<Impl, HeapNumber> NewHeapNumber();
+
+  HandleFor<Impl, Struct> NewStruct(
+      InstanceType type, AllocationType allocation = AllocationType::kYoung);
+
+  // Allocates a fixed array initialized with undefined values.
+  HandleFor<Impl, FixedArray> NewFixedArray(
+      int length, AllocationType allocation = AllocationType::kYoung);
+
+  // Allocates a fixed array-like object with given map and initialized with
+  // undefined values.
+  HandleFor<Impl, FixedArray> NewFixedArrayWithMap(
+      Map map, int length, AllocationType allocation = AllocationType::kYoung);
+
+  // Allocate a new fixed array with non-existing entries (the hole).
+  HandleFor<Impl, FixedArray> NewFixedArrayWithHoles(
+      int length, AllocationType allocation = AllocationType::kYoung);
+
+  // Allocate a new uninitialized fixed double array.
+  // The function returns a pre-allocated empty fixed array for length = 0,
+  // so the return type must be the general fixed array class.
+  HandleFor<Impl, FixedArrayBase> NewFixedDoubleArray(
+      int length, AllocationType allocation = AllocationType::kYoung);
+
+  // Allocates a fixed array for name-value pairs of boilerplate properties and
+  // calculates the number of properties we need to store in the backing store.
+  HandleFor<Impl, ObjectBoilerplateDescription> NewObjectBoilerplateDescription(
+      int boilerplate, int all_properties, int index_keys, bool has_seen_proto);
+
+  // Create a new ArrayBoilerplateDescription struct.
+  HandleFor<Impl, ArrayBoilerplateDescription> NewArrayBoilerplateDescription(
+      ElementsKind elements_kind,
+      HandleFor<Impl, FixedArrayBase> constant_values);
+
+  // Create a new TemplateObjectDescription struct.
+  HandleFor<Impl, TemplateObjectDescription> NewTemplateObjectDescription(
+      HandleFor<Impl, FixedArray> raw_strings,
+      HandleFor<Impl, FixedArray> cooked_strings);
+
   HandleFor<Impl, SeqOneByteString> NewOneByteInternalizedString(
       const Vector<const uint8_t>& str, uint32_t hash_field);
   HandleFor<Impl, SeqTwoByteString> NewTwoByteInternalizedString(
@@ -54,10 +121,18 @@ class V8_EXPORT_PRIVATE FactoryBase {
       int length, AllocationType allocation = AllocationType::kYoung);
 
  protected:
+  // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
+  HeapObject AllocateRawArray(int size, AllocationType allocation);
+  HeapObject AllocateRawFixedArray(int length, AllocationType allocation);
+  HeapObject AllocateRawWeakArrayList(int length, AllocationType allocation);
+
   HeapObject AllocateRawWithImmortalMap(
       int size, AllocationType allocation, Map map,
       AllocationAlignment alignment = kWordAligned);
   HeapObject NewWithImmortalMap(Map map, AllocationType allocation);
+
+  HandleFor<Impl, FixedArray> NewFixedArrayWithFiller(
+      Map map, int length, Oddball filler, AllocationType allocation);
 
  private:
   Impl* impl() { return static_cast<Impl*>(this); }

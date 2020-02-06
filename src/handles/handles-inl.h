@@ -54,7 +54,7 @@ V8_INLINE Handle<T> handle(Handle<T> handle, Isolate* isolate) {
 }
 template <typename T>
 V8_INLINE OffThreadHandle<T> handle(Handle<T> handle,
-                                    OffThreadIsolate* factory) {
+                                    OffThreadIsolate* isolate) {
   return OffThreadHandle<T>(*handle);
 }
 

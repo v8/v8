@@ -21,6 +21,7 @@
 #include "src/objects/oddball.h"
 #include "src/objects/property.h"
 #include "src/objects/transitions-inl.h"
+#include "src/roots/roots.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
 
@@ -73,12 +74,12 @@ void Map::PrintReconfiguration(Isolate* isolate, FILE* file,
   os << "]\n";
 }
 
-Map Map::GetStructMap(Isolate* isolate, InstanceType type) {
+Map Map::GetStructMap(ReadOnlyRoots roots, InstanceType type) {
   Map map;
   switch (type) {
-#define MAKE_CASE(TYPE, Name, name)            \
-  case TYPE:                                   \
-    map = ReadOnlyRoots(isolate).name##_map(); \
+#define MAKE_CASE(TYPE, Name, name) \
+  case TYPE:                        \
+    map = roots.name##_map();       \
     break;
     STRUCT_LIST(MAKE_CASE)
 #undef MAKE_CASE

@@ -114,6 +114,7 @@ struct HandleTraits<Factory> {
   using HandleType = Handle<T>;
   template <typename T>
   using MaybeHandleType = MaybeHandle<T>;
+  using HandleScopeType = HandleScope;
 };
 
 // Interface for handle based allocation.
@@ -130,8 +131,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.
-  template <typename T = FixedArray>
-  Handle<T> NewFixedArrayWithMap(
+  Handle<FixedArray> NewFixedArrayWithMapRootIndex(
       RootIndex map_root_index, int length,
       AllocationType allocation = AllocationType::kYoung);
 
@@ -139,12 +139,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // with undefined values.
   template <typename T = WeakFixedArray>
   Handle<T> NewWeakFixedArrayWithMap(
-      RootIndex map_root_index, int length,
-      AllocationType allocation = AllocationType::kYoung);
-
-  // Allocates a fixed array initialized with undefined values.
-  Handle<FixedArray> NewFixedArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      Map map, int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a fixed array which may contain in-place weak references. The
   // array is initialized with undefined values
@@ -162,10 +157,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   MaybeHandle<FixedArray> TryNewFixedArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
-  // Allocate a new fixed array with non-existing entries (the hole).
-  Handle<FixedArray> NewFixedArrayWithHoles(
-      int length, AllocationType allocation = AllocationType::kYoung);
-
   // Allocates an uninitialized fixed array. It must be filled by the caller.
   Handle<FixedArray> NewUninitializedFixedArray(int length);
 
@@ -181,16 +172,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Allocates a clean embedder data array with given capacity.
   Handle<EmbedderDataArray> NewEmbedderDataArray(int length);
-
-  // Allocates a fixed array for name-value pairs of boilerplate properties and
-  // calculates the number of properties we need to store in the backing store.
-  Handle<ObjectBoilerplateDescription> NewObjectBoilerplateDescription(
-      int boilerplate, int all_properties, int index_keys, bool has_seen_proto);
-
-  // Allocate a new uninitialized fixed double array.
-  // The function returns a pre-allocated empty fixed array for length = 0,
-  // so the return type must be the general fixed array class.
-  Handle<FixedArrayBase> NewFixedDoubleArray(int length);
 
   // Allocate a new fixed double array with hole values.
   Handle<FixedArrayBase> NewFixedDoubleArrayWithHoles(int size);
@@ -226,14 +207,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Create a new Tuple2 struct.
   Handle<Tuple2> NewTuple2(Handle<Object> value1, Handle<Object> value2,
                            AllocationType allocation);
-
-  // Create a new ArrayBoilerplateDescription struct.
-  Handle<ArrayBoilerplateDescription> NewArrayBoilerplateDescription(
-      ElementsKind elements_kind, Handle<FixedArrayBase> constant_values);
-
-  // Create a new TemplateObjectDescription struct.
-  Handle<TemplateObjectDescription> NewTemplateObjectDescription(
-      Handle<FixedArray> raw_strings, Handle<FixedArray> cooked_strings);
 
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
@@ -414,9 +387,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Context> NewBuiltinContext(Handle<NativeContext> native_context,
                                     int length);
 
-  Handle<Struct> NewStruct(InstanceType type,
-                           AllocationType allocation = AllocationType::kYoung);
-
   Handle<AliasedArgumentsEntry> NewAliasedArgumentsEntry(
       int aliased_context_slot);
 
@@ -531,30 +501,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<FixedDoubleArray> CopyFixedDoubleArray(Handle<FixedDoubleArray> array);
 
-  // Numbers (e.g. literals) are pretenured by the parser.
-  // The return value may be a smi or a heap number.
-  template <AllocationType allocation = AllocationType::kYoung>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<Object> NewNumber(double value);
-  Handle<Object> NewNumberFromInt(int32_t value);
-  Handle<Object> NewNumberFromUint(uint32_t value);
-  inline Handle<Object> NewNumberFromSize(size_t value);
-  inline Handle<Object> NewNumberFromInt64(int64_t value);
-  template <AllocationType allocation = AllocationType::kYoung>
-  inline Handle<HeapNumber> NewHeapNumber(double value);
-  template <AllocationType allocation = AllocationType::kYoung>
-  inline Handle<HeapNumber> NewHeapNumberFromBits(uint64_t bits);
-
-  // Creates heap number object with not yet set value field.
-  template <AllocationType allocation = AllocationType::kYoung>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<HeapNumber> NewHeapNumber();
-
   // Creates a new HeapNumber in read-only space if possible otherwise old
   // space.
   Handle<HeapNumber> NewHeapNumberForCodeAssembler(double value);
-
-  inline Handle<HeapNumber> NewHeapNumberWithHoleNaN();
 
   Handle<JSObject> NewArgumentsObject(Handle<JSFunction> callee, int length);
 
@@ -884,9 +833,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Returns a null handle when the given name is unknown.
   Handle<Object> GlobalConstantFor(Handle<Name> name);
 
-  // Converts the given boolean condition to JavaScript boolean value.
-  Handle<Object> ToBoolean(bool value);
-
   // Converts the given ToPrimitive hint to it's string representation.
   Handle<String> ToPrimitiveHintString(ToPrimitiveHint hint);
 
@@ -1017,14 +963,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSArrayBufferView> NewJSArrayBufferView(
       Handle<Map> map, Handle<FixedArrayBase> elements,
       Handle<JSArrayBuffer> buffer, size_t byte_offset, size_t byte_length);
-
-  // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
-  HeapObject AllocateRawArray(int size, AllocationType allocation);
-  HeapObject AllocateRawFixedArray(int length, AllocationType allocation);
-  HeapObject AllocateRawWeakArrayList(int length, AllocationType allocation);
-  Handle<FixedArray> NewFixedArrayWithFiller(RootIndex map_root_index,
-                                             int length, Object filler,
-                                             AllocationType allocation);
 
   // Allocates new context with given map, sets length and initializes the
   // after-header part with uninitialized values and leaves the context header

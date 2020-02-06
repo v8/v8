@@ -34,6 +34,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/microtask-queue.h"
 #include "src/execution/protectors-inl.h"
+#include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/ic/ic.h"
@@ -6484,8 +6485,8 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
   Factory* factory = isolate->factory();
   int length = EntryToIndex(InternalIndex(capacity));
   RootIndex map_root_index = Shape::GetMapRootIndex();
-  Handle<FixedArray> array =
-      factory->NewFixedArrayWithMap(map_root_index, length, allocation);
+  Handle<FixedArray> array = factory->NewFixedArrayWithMapRootIndex(
+      map_root_index, length, allocation);
   Handle<Derived> table = Handle<Derived>::cast(array);
 
   table->SetNumberOfElements(0);

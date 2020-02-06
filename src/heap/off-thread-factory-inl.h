@@ -7,6 +7,7 @@
 
 #include "src/heap/off-thread-factory.h"
 
+#include "src/heap/factory-base-inl.h"
 #include "src/roots/roots-inl.h"
 
 namespace v8 {
