@@ -196,20 +196,23 @@ bool Runtime::IsWhitelistedForFuzzing(FunctionId id) {
   CHECK(FLAG_allow_natives_for_fuzzing);
   switch (id) {
     // Runtime functions whitelisted for all fuzzers. Only add functions that
-    // help increase coverage or that perform extra checks.
+    // help increase coverage.
     case Runtime::kArrayBufferDetach:
     case Runtime::kDeoptimizeFunction:
     case Runtime::kDeoptimizeNow:
     case Runtime::kEnableCodeLoggingForTesting:
     case Runtime::kGetUndetectable:
-    case Runtime::kHeapObjectVerify:
     case Runtime::kNeverOptimizeFunction:
     case Runtime::kOptimizeFunctionOnNextCall:
+    case Runtime::kOptimizeOsr:
     case Runtime::kPrepareFunctionForOptimization:
+    case Runtime::kSetAllocationTimeout:
+    case Runtime::kSimulateNewspaceFull:
       return true;
     // Runtime functions only permitted for non-differential fuzzers.
-    // This list may contain functions returning different values in the
-    // context of different flags passed to V8.
+    // This list may contain functions performing extra checks or returning
+    // different values in the context of different flags passed to V8.
+    case Runtime::kHeapObjectVerify:
     case Runtime::kIsBeingInterpreted:
       return !FLAG_allow_natives_for_differential_fuzzing;
     default:
