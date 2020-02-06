@@ -248,13 +248,13 @@ template <Heap::AllocationRetryMode mode>
 HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
                                  AllocationOrigin origin,
                                  AllocationAlignment alignment) {
+  DCHECK(AllowHandleAllocation::IsAllowed());
+  DCHECK(AllowHeapAllocation::IsAllowed());
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     AllocationResult result = AllocateRaw(size, allocation, origin, alignment);
     DCHECK(!result.IsRetry());
     return result.ToObjectChecked();
   }
-  DCHECK(AllowHandleAllocation::IsAllowed());
-  DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK_EQ(gc_state_, NOT_IN_GC);
   Heap* heap = isolate()->heap();
   Address* top = heap->NewSpaceAllocationTopAddress();
