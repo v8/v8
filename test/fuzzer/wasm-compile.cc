@@ -79,6 +79,9 @@ class DataRange {
 };
 
 ValueType GetValueType(DataRange* data) {
+  // TODO(v8:8460): We do not add kWasmS128 here yet because this method is used
+  // to generate globals, and since we do not have v128.const yet, there is no
+  // way to specify an initial value a global of this type.
   switch (data->get<uint8_t>() % 4) {
     case 0:
       return kWasmI32;
@@ -298,6 +301,12 @@ class WasmGenerator {
 
     builder_->EmitU32V(align);
     builder_->EmitU32V(offset);
+  }
+
+  template <WasmOpcode Op, ValueType... Args>
+  void simd_op(DataRange* data) {
+    Generate<Args...>(data);
+    builder_->EmitWithPrefix(Op);
   }
 
   void drop(DataRange* data) {
@@ -723,6 +732,10 @@ void WasmGenerator::Generate<kWasmI32>(DataRange* data) {
       &WasmGenerator::atomic_op<kExprI32AtomicCompareExchange16U, kWasmI32,
                                 kWasmI32, kWasmI32>,
 
+      &WasmGenerator::simd_op<kExprS1x16AnyTrue, kWasmS128>,
+      &WasmGenerator::simd_op<kExprS1x8AnyTrue, kWasmS128>,
+      &WasmGenerator::simd_op<kExprS1x4AnyTrue, kWasmS128>,
+
       &WasmGenerator::current_memory,
       &WasmGenerator::grow_memory,
 
@@ -948,6 +961,35 @@ void WasmGenerator::Generate<kWasmF64>(DataRange* data) {
   GenerateOneOf(alternatives, data);
 }
 
+template <>
+void WasmGenerator::Generate<kWasmS128>(DataRange* data) {
+  GeneratorRecursionScope rec_scope(this);
+  if (recursion_limit_reached() || data->size() <= sizeof(int32_t)) {
+    // TODO(v8:8460): v128.const is not implemented yet, and we need a way to
+    // "bottom-out", so use a splat to generate this.
+    builder_->EmitI32Const(data->get<int32_t>());
+    builder_->EmitWithPrefix(kExprI8x16Splat);
+    return;
+  }
+
+  constexpr GenerateFn alternatives[] = {
+      &WasmGenerator::simd_op<kExprI8x16Splat, kWasmI32>,
+      &WasmGenerator::simd_op<kExprI16x8Splat, kWasmI32>,
+      &WasmGenerator::simd_op<kExprI32x4Splat, kWasmI32>,
+      &WasmGenerator::simd_op<kExprI64x2Splat, kWasmI64>,
+      &WasmGenerator::simd_op<kExprF32x4Splat, kWasmF32>,
+      &WasmGenerator::simd_op<kExprF64x2Splat, kWasmF64>,
+
+      &WasmGenerator::simd_op<kExprI8x16Add, kWasmS128, kWasmS128>,
+      &WasmGenerator::simd_op<kExprI16x8Add, kWasmS128, kWasmS128>,
+      &WasmGenerator::simd_op<kExprI32x4Add, kWasmS128, kWasmS128>,
+      &WasmGenerator::simd_op<kExprI64x2Add, kWasmS128, kWasmS128>,
+      &WasmGenerator::simd_op<kExprF32x4Add, kWasmS128, kWasmS128>,
+      &WasmGenerator::simd_op<kExprF64x2Add, kWasmS128, kWasmS128>};
+
+  GenerateOneOf(alternatives, data);
+}
+
 void WasmGenerator::grow_memory(DataRange* data) {
   Generate<kWasmI32>(data);
   builder_->EmitWithU8(kExprMemoryGrow, 0);
@@ -965,6 +1007,8 @@ void WasmGenerator::Generate(ValueType type, DataRange* data) {
       return Generate<kWasmF32>(data);
     case kWasmF64:
       return Generate<kWasmF64>(data);
+    case kWasmS128:
+      return Generate<kWasmS128>(data);
     default:
       UNREACHABLE();
   }
