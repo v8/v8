@@ -22,6 +22,7 @@ namespace internal {
 class DeferredHandles;
 class HandleScopeImplementer;
 class Isolate;
+class OffThreadIsolate;
 template <typename T>
 class MaybeHandle;
 class Object;
@@ -194,15 +195,15 @@ class OffThreadHandle {
  public:
   OffThreadHandle() = default;
 
-  template <typename U>
-  explicit OffThreadHandle(U obj) : address_(obj.ptr()) {}
+  explicit OffThreadHandle(T obj, OffThreadIsolate* isolate = nullptr)
+      : address_(obj.ptr()) {}
 
   // Constructor for handling automatic up casting. We rely on the compiler
   // making sure that the cast to T is legitimate.
   template <typename U>
   // NOLINTNEXTLINE
   OffThreadHandle<T>(OffThreadHandle<U> other)
-      : address_(T::cast(*other).ptr()) {}
+      : address_(static_cast<T>(*other).ptr()) {}
 
   T operator*() const { return T::unchecked_cast(Object(address_)); }
   V8_INLINE HandleObjectRef<T> operator->() const {
@@ -258,17 +259,32 @@ class HandleOrOffThreadHandle {
 #endif
   }
 
-  // To minimize the impact of these handles on main-thread callers, we allow
-  // them to implicitly convert to Handles and MaybeHandles.
+  // Explicit getters for the Handle and OffThreadHandle.
+  inline Handle<T> get_handle() {
+    DCHECK_NE(which_, kOffThreadHandle);
+    return Handle<T>(reinterpret_cast<Address*>(value_));
+  }
+  inline OffThreadHandle<T> get_off_thread_handle() {
+    DCHECK_NE(which_, kHandle);
+    return OffThreadHandle<T>(T::unchecked_cast(Object(value_)));
+  }
+
+  // Implicitly convert to Handle, MaybeHandle and OffThreadHandle, whenever
+  // the conversion can be implicit.
   template <typename U>
   operator Handle<U>() {  // NOLINT
-    return get<class Isolate>();
+    return get_handle();
   }
   template <typename U>
   operator MaybeHandle<U>() {  // NOLINT
-    return get<class Isolate>();
+    return get_handle();
+  }
+  template <typename U>
+  operator OffThreadHandle<U>() {  // NOLINT
+    return get_off_thread_handle();
   }
 
+  // Allow templated dispatch on which type of handle to get.
   template <typename IsolateType>
   inline HandleFor<IsolateType, T> get() {
     return get_for(Tag<IsolateType>());
@@ -286,20 +302,16 @@ class HandleOrOffThreadHandle {
   template <typename IsolateType>
   struct Tag {};
 
-  V8_INLINE Handle<T> get_for(Tag<class Isolate>) {
-    DCHECK_NE(which_, kOffThreadHandle);
-    return Handle<T>(reinterpret_cast<Address*>(value_));
-  }
+  V8_INLINE Handle<T> get_for(Tag<class Isolate>) { return get_handle(); }
   V8_INLINE OffThreadHandle<T> get_for(Tag<class OffThreadIsolate>) {
-    DCHECK_NE(which_, kHandle);
-    return OffThreadHandle<T>(T::unchecked_cast(Object(value_)));
+    return get_off_thread_handle();
   }
 
   // Either handle.location() or off_thread_handle->ptr().
   Address value_ = 0;
 
 #ifdef DEBUG
-  enum { kUninitialized, kHandle, kOffThreadHandle } which_;
+  enum { kUninitialized, kHandle, kOffThreadHandle } which_ = kUninitialized;
 #endif
 };
 
