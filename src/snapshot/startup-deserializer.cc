@@ -16,11 +16,9 @@ namespace internal {
 void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   Initialize(isolate);
 
-#if !V8_ENABLE_THIRD_PARTY_HEAP_BOOL
   if (!allocator()->ReserveSpace()) {
     V8::FatalProcessOutOfMemory(isolate, "StartupDeserializer");
   }
-#endif
 
   // No active threads.
   DCHECK_NULL(isolate->thread_manager()->FirstThreadStateInUse());

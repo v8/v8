@@ -1835,8 +1835,13 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
         DCHECK_EQ(0, reserved_size % Map::kSize);
         int num_maps = reserved_size / Map::kSize;
         for (int i = 0; i < num_maps; i++) {
-          AllocationResult allocation =
-              map_space()->AllocateRawUnaligned(Map::kSize);
+          AllocationResult allocation;
+#if V8_ENABLE_THIRD_PARTY_HEAP_BOOL
+          allocation = AllocateRaw(Map::kSize, AllocationType::kMap,
+                                   AllocationOrigin::kRuntime, kWordAligned);
+#else
+          allocation = map_space()->AllocateRawUnaligned(Map::kSize);
+#endif
           HeapObject free_space;
           if (allocation.To(&free_space)) {
             // Mark with a free list node, in case we have a GC before
@@ -1863,12 +1868,24 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
           DCHECK_LE(static_cast<size_t>(size),
                     MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
                         static_cast<AllocationSpace>(space)));
+#if V8_ENABLE_THIRD_PARTY_HEAP_BOOL
+          AllocationType type = (space == CODE_SPACE)
+                                    ? AllocationType::kCode
+                                    : (space == RO_SPACE)
+                                          ? AllocationType::kReadOnly
+                                          : AllocationType::kYoung;
+          AllocationAlignment align =
+              (space == CODE_SPACE) ? kCodeAligned : kWordAligned;
+          allocation =
+              AllocateRaw(size, type, AllocationOrigin::kRuntime, align);
+#else
           if (space == NEW_SPACE) {
             allocation = new_space()->AllocateRawUnaligned(size);
           } else {
             // The deserializer will update the skip list.
             allocation = paged_space(space)->AllocateRawUnaligned(size);
           }
+#endif
           HeapObject free_space;
           if (allocation.To(&free_space)) {
             // Mark with a free list node, in case we have a GC before
