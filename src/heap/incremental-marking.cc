@@ -34,10 +34,6 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-constexpr double kMinSharableStepSizeInBytes = 4 * KB;
-}
-
 void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
                                         size_t size) {
   Heap* heap = incremental_marking_->heap();
@@ -684,14 +680,15 @@ StepResult IncrementalMarking::EmbedderStep(double expected_duration_ms,
   constexpr size_t kObjectsToProcessBeforeInterrupt = 500;
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_TRACING);
+  LocalEmbedderHeapTracer* local_tracer = heap_->local_embedder_heap_tracer();
   const double start = heap_->MonotonicallyIncreasingTimeInMs();
-  double deadline = start + expected_duration_ms;
+  const double deadline = start + expected_duration_ms;
   double current;
   bool empty_worklist;
+  bool remote_tracing_done = false;
   do {
     {
-      LocalEmbedderHeapTracer::ProcessingScope scope(
-          heap_->local_embedder_heap_tracer());
+      LocalEmbedderHeapTracer::ProcessingScope scope(local_tracer);
       HeapObject object;
       size_t cnt = 0;
       empty_worklist = true;
@@ -704,13 +701,14 @@ StepResult IncrementalMarking::EmbedderStep(double expected_duration_ms,
         }
       }
     }
-    heap_->local_embedder_heap_tracer()->Trace(deadline);
+    remote_tracing_done = local_tracer->Trace(deadline);
     current = heap_->MonotonicallyIncreasingTimeInMs();
-  } while (!empty_worklist && (current < deadline));
-  heap_->local_embedder_heap_tracer()->SetEmbedderWorklistEmpty(empty_worklist);
+  } while (!empty_worklist && !remote_tracing_done && (current < deadline));
+  local_tracer->SetEmbedderWorklistEmpty(empty_worklist);
   *duration_ms = current - start;
-  return empty_worklist ? StepResult::kNoImmediateWork
-                        : StepResult::kMoreWorkRemaining;
+  return (empty_worklist && remote_tracing_done)
+             ? StepResult::kNoImmediateWork
+             : StepResult::kMoreWorkRemaining;
 }
 
 void IncrementalMarking::Hurry() {
@@ -1086,70 +1084,40 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
     }
     // The first step after Scavenge will see many allocated bytes.
     // Cap the step size to distribute the marking work more uniformly.
+    const double marking_speed =
+        heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond();
     size_t max_step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
-        max_step_size_in_ms,
-        heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
+        max_step_size_in_ms, marking_speed);
     bytes_to_process = Min(ComputeStepSizeInBytes(step_origin), max_step_size);
-    const bool only_single_step = bytes_to_process == 0;
     bytes_to_process = Max(bytes_to_process, kMinStepSizeInBytes);
-    size_t remaining_bytes = bytes_to_process;
-    const bool using_embedder_tracer =
-        heap_->local_embedder_heap_tracer()->InUse();
-    StepResult embedder_result, v8_result;
-    do {
-      v8_result = StepResult::kMoreWorkRemaining;
-      embedder_result = using_embedder_tracer ? StepResult::kMoreWorkRemaining
-                                              : StepResult::kNoImmediateWork;
-      const size_t v8_bytes_to_process =
-          using_embedder_tracer && remaining_bytes > kMinSharableStepSizeInBytes
-              ? remaining_bytes / 2
-              : remaining_bytes;
-      size_t v8_bytes_processed_step =
-          collector_->ProcessMarkingWorklist(v8_bytes_to_process);
-      v8_bytes_processed += v8_bytes_processed_step;
-      remaining_bytes = remaining_bytes > v8_bytes_processed_step
-                            ? remaining_bytes - v8_bytes_processed_step
-                            : 0;
-      v8_result = marking_worklists()->IsEmpty()
-                      ? StepResult::kNoImmediateWork
-                      : StepResult::kMoreWorkRemaining;
-      // Allow the embedder to make marking progress, assuming it gets a share
-      // of the time for handling |bytes_to_process|.
-      if (using_embedder_tracer && remaining_bytes > 0) {
-        const double marking_speed =
-            heap_->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond();
-        double step_duration;
-        double step_expected_duration = remaining_bytes / marking_speed;
-        embedder_result = EmbedderStep(step_expected_duration, &step_duration);
-        embedder_duration += step_duration;
-        embedder_deadline += step_expected_duration;
-        size_t embedder_bytes_processed_step =
-            Max(static_cast<size_t>(step_duration * marking_speed), size_t{1});
-        remaining_bytes = remaining_bytes > embedder_bytes_processed_step
-                              ? remaining_bytes - embedder_bytes_processed_step
-                              : 0;
-      } else {
-        break;
-      }
-    } while (!only_single_step &&
-             (v8_result == StepResult::kMoreWorkRemaining ||
-              embedder_result == StepResult::kMoreWorkRemaining) &&
-             (remaining_bytes > 0));
+
+    // Perform a single V8 and a single embedder step. In case both have been
+    // observed as empty back to back, we can finalize.
+    //
+    // This ignores that case where the embedder finds new V8-side objects. The
+    // assumption is that large graphs are well connected and can mostly be
+    // processed on their own. For small graphs, helping is not necessary.
+    v8_bytes_processed = collector_->ProcessMarkingWorklist(bytes_to_process);
+    StepResult v8_result = marking_worklists()->IsEmpty()
+                               ? StepResult::kNoImmediateWork
+                               : StepResult::kMoreWorkRemaining;
+    StepResult embedder_result = StepResult::kNoImmediateWork;
+    if (heap_->local_embedder_heap_tracer()->InUse()) {
+      embedder_deadline = static_cast<double>(bytes_to_process) / marking_speed;
+      embedder_result = EmbedderStep(embedder_deadline, &embedder_duration);
+    }
     bytes_marked_ += v8_bytes_processed;
     combined_result = CombineStepResults(v8_result, embedder_result);
 
-    if (marking_worklists()->IsEmpty()) {
-      if (heap_->local_embedder_heap_tracer()
-              ->ShouldFinalizeIncrementalMarking()) {
-        if (!finalize_marking_completed_) {
-          FinalizeMarking(action);
-          FastForwardSchedule();
-          combined_result = StepResult::kWaitingForFinalization;
-          incremental_marking_job()->Start(heap_);
-        } else {
-          MarkingComplete(action);
-          combined_result = StepResult::kWaitingForFinalization;
-        }
+    if (combined_result == StepResult::kNoImmediateWork) {
+      if (!finalize_marking_completed_) {
+        FinalizeMarking(action);
+        FastForwardSchedule();
+        combined_result = StepResult::kWaitingForFinalization;
+        incremental_marking_job()->Start(heap_);
+      } else {
+        MarkingComplete(action);
+        combined_result = StepResult::kWaitingForFinalization;
       }
     }
     if (FLAG_concurrent_marking) {
