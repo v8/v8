@@ -660,7 +660,6 @@ def main():
       "Object_h.template",
       "ValueConversions_h.template",
       "DispatcherBase_h.template",
-      "Parser_h.template",
     ]
 
     protocol_cpp_templates = [
@@ -669,7 +668,6 @@ def main():
       "Values_cpp.template",
       "Object_cpp.template",
       "DispatcherBase_cpp.template",
-      "Parser_cpp.template",
     ]
 
     forward_h_templates = [
