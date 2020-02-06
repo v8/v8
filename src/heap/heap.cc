@@ -235,7 +235,7 @@ size_t Heap::HeapSizeFromPhysicalMemory(uint64_t physical_memory) {
   // Compute the old generation size and cap it.
   uint64_t old_generation = physical_memory /
                             kPhysicalMemoryToOldGenerationRatio *
-                            kPointerMultiplier;
+                            kHeapLimitMultiplier;
   old_generation =
       Min<uint64_t>(old_generation, MaxOldGenerationSize(physical_memory));
   old_generation = Max<uint64_t>(old_generation, V8HeapTrait::kMinSize);
