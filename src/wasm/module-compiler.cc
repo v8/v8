@@ -1505,6 +1505,8 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
                                    std::shared_ptr<Counters> counters,
                                    AccountingAllocator* allocator);
 
+  ~AsyncStreamingProcessor();
+
   bool ProcessModuleHeader(Vector<const uint8_t> bytes,
                            uint32_t offset) override;
 
@@ -2116,15 +2118,19 @@ AsyncStreamingProcessor::AsyncStreamingProcessor(
       async_counters_(async_counters),
       allocator_(allocator) {}
 
+AsyncStreamingProcessor::~AsyncStreamingProcessor() {
+  if (job_->native_module_ && job_->native_module_->wire_bytes().empty()) {
+    // Clean up the temporary cache entry.
+    job_->isolate_->wasm_engine()->StreamingCompilationFailed(prefix_hash_);
+  }
+}
+
 void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
     const WasmError& error) {
   DCHECK(error.has_error());
   // Make sure all background tasks stopped executing before we change the state
   // of the AsyncCompileJob to DecodeFail.
   job_->background_task_manager_.CancelAndWait();
-  if (!prefix_cache_hit_ && job_->native_module_) {
-    job_->isolate_->wasm_engine()->StreamingCompilationFailed(prefix_hash_);
-  }
 
   // Check if there is already a CompiledModule, in which case we have to clean
   // up the CompilationStateImpl as well.
@@ -2168,7 +2174,7 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
     // compilation_unit_builder_ anymore.
     CommitCompilationUnits();
     compilation_unit_builder_.reset();
-  } else {
+  } else if (!prefix_cache_hit_) {
     // Combine section hashes until code section.
     prefix_hash_ = base::hash_combine(prefix_hash_,
                                       NativeModuleCache::WireBytesHash(bytes));
@@ -2321,6 +2327,7 @@ void AsyncStreamingProcessor::OnFinishedChunk() {
 // Finish the processing of the stream.
 void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   TRACE_STREAMING("Finish stream...\n");
+  DCHECK_EQ(NativeModuleCache::PrefixHash(bytes.as_vector()), prefix_hash_);
   ModuleResult result = decoder_.FinishDecoding(false);
   if (result.failed()) {
     FinishAsyncCompileJobWithError(result.error());

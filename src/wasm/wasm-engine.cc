@@ -152,6 +152,7 @@ std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
     }
     if (it->second.has_value()) {
       if (auto shared_native_module = it->second.value().lock()) {
+        DCHECK_EQ(shared_native_module->wire_bytes(), wire_bytes);
         return shared_native_module;
       }
     }
@@ -163,15 +164,21 @@ bool NativeModuleCache::GetStreamingCompilationOwnership(size_t prefix_hash) {
   base::MutexGuard lock(&mutex_);
   auto it = map_.lower_bound(Key{prefix_hash, {}});
   if (it != map_.end() && it->first.prefix_hash == prefix_hash) {
+    DCHECK_IMPLIES(!it->first.bytes.empty(),
+                   PrefixHash(it->first.bytes) == prefix_hash);
     return false;
   }
   Key key{prefix_hash, {}};
-  return map_.emplace(key, base::nullopt).second;
+  DCHECK_EQ(0, map_.count(key));
+  map_.emplace(key, base::nullopt);
+  return true;
 }
 
 void NativeModuleCache::StreamingCompilationFailed(size_t prefix_hash) {
   base::MutexGuard lock(&mutex_);
-  map_.erase({prefix_hash, {}});
+  Key key{prefix_hash, {}};
+  DCHECK_EQ(1, map_.count(key));
+  map_.erase(key);
   cache_cv_.NotifyAll();
 }
 
@@ -180,6 +187,7 @@ std::shared_ptr<NativeModule> NativeModuleCache::Update(
   DCHECK_NOT_NULL(native_module);
   if (native_module->module()->origin != kWasmOrigin) return native_module;
   Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  DCHECK(!wire_bytes.empty());
   size_t prefix_hash = PrefixHash(native_module->wire_bytes());
   base::MutexGuard lock(&mutex_);
   map_.erase(Key{prefix_hash, {}});
@@ -189,13 +197,13 @@ std::shared_ptr<NativeModule> NativeModuleCache::Update(
     if (it->second.has_value()) {
       auto conflicting_module = it->second.value().lock();
       if (conflicting_module != nullptr) {
+        DCHECK_EQ(conflicting_module->wire_bytes(), wire_bytes);
         return conflicting_module;
       }
     }
     map_.erase(it);
   }
   if (!error) {
-    DCHECK_LT(0, native_module->wire_bytes().length());
     // The key now points to the new native module's owned copy of the bytes,
     // so that it stays valid until the native module is freed and erased from
     // the map.
@@ -211,20 +219,11 @@ std::shared_ptr<NativeModule> NativeModuleCache::Update(
 void NativeModuleCache::Erase(NativeModule* native_module) {
   if (native_module->module()->origin != kWasmOrigin) return;
   // Happens in some tests where bytes are set directly.
-  if (native_module->wire_bytes().length() == 0) return;
+  if (native_module->wire_bytes().empty()) return;
   base::MutexGuard lock(&mutex_);
   size_t prefix_hash = PrefixHash(native_module->wire_bytes());
-  auto cache_it = map_.find(Key{prefix_hash, native_module->wire_bytes()});
-  // Not all native modules are stored in the cache currently. In particular
-  // streaming compilation and asmjs compilation results are not. So make
-  // sure that we only delete existing and expired entries.
-  // Do not erase {nullopt} values either, as they indicate that the
-  // {NativeModule} is currently being created in another thread.
-  if (cache_it != map_.end() && cache_it->second.has_value() &&
-      cache_it->second.value().expired()) {
-    map_.erase(cache_it);
-    cache_cv_.NotifyAll();
-  }
+  map_.erase(Key{prefix_hash, native_module->wire_bytes()});
+  cache_cv_.NotifyAll();
 }
 
 // static
@@ -246,12 +245,17 @@ size_t NativeModuleCache::PrefixHash(Vector<const uint8_t> wire_bytes) {
     section_id = static_cast<SectionCode>(decoder.consume_u8());
     uint32_t section_size = decoder.consume_u32v("section size");
     if (section_id == SectionCode::kCodeSectionCode) {
-      hash = base::hash_combine(hash, section_size);
+      uint32_t num_functions = decoder.consume_u32v("num functions");
+      // If {num_functions} is 0, the streaming decoder skips the section. Do
+      // the same here to ensure hashes are consistent.
+      if (num_functions != 0) {
+        hash = base::hash_combine(hash, section_size);
+      }
       break;
     }
     const uint8_t* payload_start = decoder.pc();
     // TODO(v8:10126): Remove this check, bytes have been validated already.
-    if (decoder.position() + section_size >= wire_bytes.size()) {
+    if (decoder.position() + section_size > wire_bytes.size()) {
       return hash;
     }
     decoder.consume_bytes(section_size, "section payload");
@@ -359,6 +363,8 @@ WasmEngine::~WasmEngine() {
   DCHECK(isolates_.empty());
   // All NativeModules did die.
   DCHECK(native_modules_.empty());
+  // Native module cache does not leak.
+  DCHECK(native_module_cache_.empty());
 }
 
 bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,

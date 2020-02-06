@@ -67,6 +67,8 @@ class NativeModuleCache {
 
     bool operator<(const Key& other) const {
       if (prefix_hash != other.prefix_hash) {
+        DCHECK_IMPLIES(!bytes.empty() && !other.bytes.empty(),
+                       bytes != other.bytes);
         return prefix_hash < other.prefix_hash;
       }
       if (bytes.size() != other.bytes.size()) {
@@ -75,6 +77,7 @@ class NativeModuleCache {
       // Fast path when the base pointers are the same.
       // Also handles the {nullptr} case which would be UB for memcmp.
       if (bytes.begin() == other.bytes.begin()) {
+        DCHECK_EQ(prefix_hash, other.prefix_hash);
         return false;
       }
       DCHECK_NOT_NULL(bytes.begin());
@@ -90,6 +93,8 @@ class NativeModuleCache {
   std::shared_ptr<NativeModule> Update(
       std::shared_ptr<NativeModule> native_module, bool error);
   void Erase(NativeModule* native_module);
+
+  bool empty() { return map_.empty(); }
 
   static size_t WireBytesHash(Vector<const uint8_t> bytes);
 
