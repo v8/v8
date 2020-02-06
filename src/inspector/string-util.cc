@@ -95,18 +95,6 @@ bool stringViewStartsWith(const StringView& string, const char* prefix) {
   return true;
 }
 
-namespace protocol {
-
-// static
-double StringUtil::toDouble(const char* s, size_t len, bool* isOk) {
-  int flags = v8::internal::ALLOW_HEX | v8::internal::ALLOW_OCTAL |
-              v8::internal::ALLOW_BINARY;
-  double result = v8::internal::StringToDouble(s, flags);
-  *isOk = !std::isnan(result);
-  return result;
-}
-}  // namespace protocol
-
 namespace {
 // An empty string buffer doesn't own any string data; its ::string() returns a
 // default-constructed StringView instance.
