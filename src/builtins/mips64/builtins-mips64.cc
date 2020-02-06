@@ -23,6 +23,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/runtime/runtime.h"
+#include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
@@ -2456,6 +2457,34 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   }
   // Finally, jump to the entrypoint.
   __ Jump(v0);
+}
+
+void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
+  HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
+  {
+    // TODO(clemensb): Use a separate frame type and make it inspectable.
+    FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Save all parameter registers. They might hold live values, we restore
+    // them after the runtime call.
+    RegList gp_regs = 0;
+    for (Register reg : wasm::kGpParamRegisters) gp_regs |= reg.bit();
+    RegList fp_regs = 0;
+    for (DoubleRegister reg : wasm::kFpParamRegisters) fp_regs |= reg.bit();
+
+    __ MultiPush(gp_regs);
+    __ MultiPushFPU(fp_regs);
+
+    // Initialize the JavaScript context with 0. CEntry will use it to
+    // set the current context on the isolate.
+    __ Move(cp, Smi::zero());
+    __ CallRuntime(Runtime::kWasmDebugBreak, 0);
+
+    // Restore registers.
+    __ MultiPopFPU(fp_regs);
+    __ MultiPop(gp_regs);
+  }
+  __ Ret();
 }
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
