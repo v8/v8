@@ -2198,7 +2198,7 @@ WASM_SIMD_TEST(I16x8LeU) {
                     UnsignedLessEqual);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I16x8RoundingAverageU) {
+WASM_SIMD_TEST(I16x8RoundingAverageU) {
   RunI16x8BinOpTest<uint16_t>(execution_tier, lower_simd,
                               kExprI16x8RoundingAverageU,
                               base::RoundingAverageUnsigned);
@@ -2428,7 +2428,7 @@ WASM_SIMD_TEST(I8x16Mul) {
                     base::MulWithWraparound);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I8x16RoundingAverageU) {
+WASM_SIMD_TEST(I8x16RoundingAverageU) {
   RunI8x16BinOpTest<uint8_t>(execution_tier, lower_simd,
                              kExprI8x16RoundingAverageU,
                              base::RoundingAverageUnsigned);

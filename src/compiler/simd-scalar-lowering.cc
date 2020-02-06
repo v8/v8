@@ -183,7 +183,8 @@ void SimdScalarLowering::LowerGraph() {
   V(I16x8LtS)                     \
   V(I16x8LeS)                     \
   V(I16x8LtU)                     \
-  V(I16x8LeU)
+  V(I16x8LeU)                     \
+  V(I16x8RoundingAverageU)
 
 #define FOREACH_INT8X16_OPCODE(V) \
   V(I8x16Splat)                   \
@@ -214,7 +215,8 @@ void SimdScalarLowering::LowerGraph() {
   V(I8x16LtU)                     \
   V(I8x16LeU)                     \
   V(S8x16Swizzle)                 \
-  V(S8x16Shuffle)
+  V(S8x16Shuffle)                 \
+  V(I8x16RoundingAverageU)
 
 MachineType SimdScalarLowering::MachineTypeFrom(SimdType simdType) {
   switch (simdType) {
@@ -1502,6 +1504,26 @@ void SimdScalarLowering::LowerNode(Node* node) {
       rep_node[0] = tmp_result;
       for (int i = 1; i < num_lanes; ++i) {
         rep_node[i] = nullptr;
+      }
+      ReplaceNode(node, rep_node, num_lanes);
+      break;
+    }
+    case IrOpcode::kI8x16RoundingAverageU:
+    case IrOpcode::kI16x8RoundingAverageU: {
+      DCHECK_EQ(2, node->InputCount());
+      Node** rep_left = GetReplacementsWithType(node->InputAt(0), rep_type);
+      Node** rep_right = GetReplacementsWithType(node->InputAt(1), rep_type);
+      int num_lanes = NumLanes(rep_type);
+      Node** rep_node = zone()->NewArray<Node*>(num_lanes);
+      // rounding_average(left, right) = (left + right + 1) >> 1
+      for (int i = 0; i < num_lanes; ++i) {
+        Node* left_plus_right_plus_one = graph()->NewNode(
+            machine()->Int32Add(),
+            graph()->NewNode(machine()->Int32Add(), rep_left[i], rep_right[i]),
+            mcgraph_->Int32Constant(1));
+        rep_node[i] =
+            graph()->NewNode(machine()->Word32Shr(), left_plus_right_plus_one,
+                             mcgraph_->Int32Constant(1));
       }
       ReplaceNode(node, rep_node, num_lanes);
       break;
