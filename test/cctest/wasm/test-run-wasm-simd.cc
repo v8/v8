@@ -3328,15 +3328,15 @@ void RunLoadSplatTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_TEST_NO_LOWERING(S8x16LoadSplat) {
+WASM_SIMD_TEST(S8x16LoadSplat) {
   RunLoadSplatTest<int8_t>(execution_tier, lower_simd, kExprS8x16LoadSplat);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(S16x8LoadSplat) {
+WASM_SIMD_TEST(S16x8LoadSplat) {
   RunLoadSplatTest<int16_t>(execution_tier, lower_simd, kExprS16x8LoadSplat);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(S32x4LoadSplat) {
+WASM_SIMD_TEST(S32x4LoadSplat) {
   RunLoadSplatTest<int32_t>(execution_tier, lower_simd, kExprS32x4LoadSplat);
 }
 

@@ -6,6 +6,7 @@
 
 #include "src/compiler/diamond.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
@@ -270,6 +271,23 @@ void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
         replacements_[node->id()].type = SimdType::kInt8x16;
         break;
       }
+    case IrOpcode::kLoadTransform: {
+      LoadTransformParameters params = LoadTransformParametersOf(node->op());
+      switch (params.transformation) {
+        case LoadTransformation::kS8x16LoadSplat:
+          replacements_[node->id()].type = SimdType::kInt8x16;
+          break;
+        case LoadTransformation::kS16x8LoadSplat:
+          replacements_[node->id()].type = SimdType::kInt16x8;
+          break;
+        case LoadTransformation::kS32x4LoadSplat:
+          replacements_[node->id()].type = SimdType::kInt32x4;
+          break;
+        default:
+          UNIMPLEMENTED();
+      }
+      break;
+    }
     default: {
       switch (output->opcode()) {
         case IrOpcode::kF32x4SConvertI32x4:
@@ -426,6 +444,52 @@ void SimdScalarLowering::LowerLoadOp(Node* node, SimdType type) {
   } else {
     DefaultLowering(node);
   }
+}
+
+void SimdScalarLowering::LowerLoadTransformOp(Node* node, SimdType type) {
+  LoadTransformParameters params = LoadTransformParametersOf(node->op());
+  switch (params.transformation) {
+    // Lowering for s64x2 is not implemented since lowering for 64x2 operations
+    // doesn't work properly yet.
+    case LoadTransformation::kS8x16LoadSplat:
+    case LoadTransformation::kS16x8LoadSplat:
+    case LoadTransformation::kS32x4LoadSplat:
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+
+  const Operator* load_op;
+  switch (params.kind) {
+    case LoadKind::kNormal:
+      load_op = machine()->Load(MachineTypeFrom(type));
+      break;
+    case LoadKind::kUnaligned:
+      load_op = machine()->UnalignedLoad(MachineTypeFrom(type));
+      break;
+    case LoadKind::kProtected:
+      load_op = machine()->ProtectedLoad(MachineTypeFrom(type));
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  int num_lanes = NumLanes(type);
+  Node** rep_nodes = zone()->NewArray<Node*>(num_lanes);
+  rep_nodes[0] = node;
+  NodeProperties::ChangeOp(rep_nodes[0], load_op);
+
+  Node* effect_input = node->InputAt(2);
+  Node* control_input = node->InputAt(3);
+  for (int i = num_lanes - 1; i > 0; --i) {
+    rep_nodes[i] =
+        graph()->NewNode(load_op, base, index, effect_input, control_input);
+    effect_input = rep_nodes[i];
+  }
+  rep_nodes[0]->ReplaceInput(2, rep_nodes[1]);
+  ReplaceNode(node, rep_nodes, num_lanes);
 }
 
 void SimdScalarLowering::LowerStoreOp(Node* node) {
@@ -973,6 +1037,10 @@ void SimdScalarLowering::LowerNode(Node* node) {
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kProtectedLoad: {
       LowerLoadOp(node, rep_type);
+      break;
+    }
+    case IrOpcode::kLoadTransform: {
+      LowerLoadTransformOp(node, rep_type);
       break;
     }
     case IrOpcode::kStore:
