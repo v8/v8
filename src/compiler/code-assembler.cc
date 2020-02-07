@@ -257,6 +257,11 @@ TNode<IntPtrT> CodeAssembler::IntPtrConstant(intptr_t value) {
   return UncheckedCast<IntPtrT>(jsgraph()->IntPtrConstant(value));
 }
 
+TNode<TaggedIndex> CodeAssembler::TaggedIndexConstant(intptr_t value) {
+  DCHECK(TaggedIndex::IsValid(value));
+  return UncheckedCast<TaggedIndex>(raw_assembler()->IntPtrConstant(value));
+}
+
 TNode<Number> CodeAssembler::NumberConstant(double value) {
   int smi_value;
   if (DoubleToSmiInteger(value, &smi_value)) {

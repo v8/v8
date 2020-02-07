@@ -18,6 +18,7 @@
 #include "src/objects/promise.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
+#include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"
 
 #include "torque-generated/exported-macros-assembler-tq.h"
@@ -383,6 +384,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #else
 #error Unknown architecture.
 #endif
+
+  TNode<IntPtrT> TaggedIndexToIntPtr(TNode<TaggedIndex> value);
+  TNode<TaggedIndex> IntPtrToTaggedIndex(TNode<IntPtrT> value);
 
   // Pointer compression specific. Returns true if the upper 32 bits of a Smi
   // contain the sign of a lower 32 bits (i.e. not corrupted) so that the Smi

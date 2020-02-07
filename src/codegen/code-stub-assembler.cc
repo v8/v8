@@ -718,6 +718,18 @@ TNode<BoolT> CodeStubAssembler::IsValidSmiIndex(TNode<Smi> smi) {
   return Int32TrueConstant();
 }
 
+TNode<IntPtrT> CodeStubAssembler::TaggedIndexToIntPtr(
+    TNode<TaggedIndex> value) {
+  return Signed(WordSar(BitcastTaggedToWordForTagAndSmiBits(value),
+                        IntPtrConstant(kSmiTagSize)));
+}
+
+TNode<TaggedIndex> CodeStubAssembler::IntPtrToTaggedIndex(
+    TNode<IntPtrT> value) {
+  return ReinterpretCast<TaggedIndex>(
+      BitcastWordToTaggedSigned(WordShl(value, IntPtrConstant(kSmiTagSize))));
+}
+
 TNode<Smi> CodeStubAssembler::NormalizeSmiIndex(TNode<Smi> smi_index) {
   if (COMPRESS_POINTERS_BOOL) {
     TNode<Int32T> raw =
