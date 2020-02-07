@@ -23,6 +23,8 @@
 #include "src/regexp/mips64/regexp-macro-assembler-mips64.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/regexp/s390/regexp-macro-assembler-s390.h"
+#elif V8_TARGET_ARCH_RISCV
+#include "src/regexp/riscv/regexp-macro-assembler-riscv.h"
 #else
 #error Unsupported target architecture.
 #endif

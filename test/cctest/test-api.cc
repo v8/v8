@@ -16514,7 +16514,8 @@ static void GetStackLimitCallback(
 // Given a size, returns an address that is that far from the current
 // top of stack.
 static uint32_t* ComputeStackLimit(uint32_t size) {
-  uint32_t* answer = &size - (size / sizeof(size));
+  //by pass gcc9 check
+  uint32_t* answer = (uint32_t*)(((unsigned long) &size) - (size / sizeof(size)));
   // If the size is very large and the stack is very near the bottom of
   // memory then the calculation above may wrap around and give an address
   // that is above the (downwards-growing) stack.  In that case we return

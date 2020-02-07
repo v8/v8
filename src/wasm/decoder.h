@@ -359,7 +359,7 @@ class Decoder {
     *length = byte_index + (at_end ? 0 : 1);
     if (validate && (at_end || (b & 0x80))) {
       TRACE_IF(trace, at_end ? "<end> " : "<length overflow> ");
-      errorf(pc, "expected %s", name);
+      errorf(pc, "expected %s", (name == NULL) ? "(null)" : name);
       result = 0;
     }
     if (is_last_byte) {
