@@ -145,8 +145,12 @@ class AstConsString final : public ZoneObject {
   }
 
   template <typename Isolate>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  HandleFor<Isolate, String> Allocate(Isolate* isolate) const;
+  HandleFor<Isolate, String> GetString(Isolate* isolate) {
+    if (string_.is_null()) {
+      string_ = Allocate(isolate);
+    }
+    return string_;
+  }
 
   template <typename Isolate>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
@@ -157,12 +161,13 @@ class AstConsString final : public ZoneObject {
  private:
   friend class AstValueFactory;
 
-  AstConsString() : next_(nullptr), segment_({nullptr, nullptr}) {}
+  AstConsString() : string_(), segment_({nullptr, nullptr}) {}
 
-  AstConsString* next() const { return next_; }
-  AstConsString** next_location() { return &next_; }
+  template <typename Isolate>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  HandleFor<Isolate, String> Allocate(Isolate* isolate) const;
 
-  AstConsString* next_;
+  HandleOrOffThreadHandle<String> string_;
 
   // A linked list of AstRawStrings of the contents of this AstConsString.
   // This list has several properties:
@@ -321,7 +326,7 @@ class AstValueFactory {
   }
   AST_STRING_CONSTANTS(F)
 #undef F
-  const AstConsString* empty_cons_string() const { return empty_cons_string_; }
+  AstConsString* empty_cons_string() const { return empty_cons_string_; }
 
  private:
   AstRawString* AddString(AstRawString* string) {
@@ -347,7 +352,8 @@ class AstValueFactory {
 
   // Holds constant string values which are shared across the isolate.
   const AstStringConstants* string_constants_;
-  const AstConsString* empty_cons_string_;
+
+  AstConsString* empty_cons_string_;
 
   // Caches one character lowercase strings (for minified code).
   static const int kMaxOneCharStringValue = 128;

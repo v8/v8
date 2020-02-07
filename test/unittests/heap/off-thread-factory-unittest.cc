@@ -153,13 +153,13 @@ TEST_F(OffThreadFactoryTest, AstConsString_CreatesConsString) {
   const AstRawString* foo_string = ast_value_factory.GetOneByteString("foo");
   const AstRawString* bar_string =
       ast_value_factory.GetOneByteString("bar-plus-padding-for-length");
-  const AstConsString* foobar_string =
+  AstConsString* foobar_string =
       ast_value_factory.NewConsString(foo_string, bar_string);
 
   ast_value_factory.Internalize(off_thread_isolate());
 
   OffThreadHandle<FixedArray> off_thread_wrapper =
-      WrapString(foobar_string->Allocate(off_thread_isolate()));
+      WrapString(foobar_string->GetString(off_thread_isolate()));
 
   off_thread_factory()->FinishOffThread();
 

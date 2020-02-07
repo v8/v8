@@ -162,6 +162,8 @@ bool AstRawString::Compare(void* a, void* b) {
 
 template <typename Isolate>
 HandleFor<Isolate, String> AstConsString::Allocate(Isolate* isolate) const {
+  DCHECK(string_.is_null());
+
   if (IsEmpty()) {
     return isolate->factory()->empty_string();
   }

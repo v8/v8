@@ -2287,13 +2287,13 @@ class FunctionLiteral final : public Expression {
   // Returns either name or inferred name as a cstring.
   std::unique_ptr<char[]> GetDebugName() const;
 
-  Handle<String> GetInferredName(Isolate* isolate) const {
+  Handle<String> GetInferredName(Isolate* isolate) {
     if (!inferred_name_.is_null()) {
       DCHECK_NULL(raw_inferred_name_);
       return inferred_name_;
     }
     if (raw_inferred_name_ != nullptr) {
-      return raw_inferred_name_->Allocate(isolate);
+      return raw_inferred_name_->GetString(isolate);
     }
     UNREACHABLE();
   }
@@ -2301,7 +2301,7 @@ class FunctionLiteral final : public Expression {
 
   // Only one of {set_inferred_name, set_raw_inferred_name} should be called.
   void set_inferred_name(Handle<String> inferred_name);
-  void set_raw_inferred_name(const AstConsString* raw_inferred_name);
+  void set_raw_inferred_name(AstConsString* raw_inferred_name);
 
   bool pretenure() const { return Pretenure::decode(bit_field_); }
   void set_pretenure() { bit_field_ = Pretenure::update(bit_field_, true); }
@@ -2427,7 +2427,7 @@ class FunctionLiteral final : public Expression {
   const AstConsString* raw_name_;
   DeclarationScope* scope_;
   ZonePtrList<Statement> body_;
-  const AstConsString* raw_inferred_name_;
+  AstConsString* raw_inferred_name_;
   Handle<String> inferred_name_;
   ProducedPreparseData* produced_preparse_data_;
 };

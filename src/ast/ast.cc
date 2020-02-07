@@ -205,8 +205,7 @@ void FunctionLiteral::set_inferred_name(Handle<String> inferred_name) {
   scope()->set_has_inferred_function_name(true);
 }
 
-void FunctionLiteral::set_raw_inferred_name(
-    const AstConsString* raw_inferred_name) {
+void FunctionLiteral::set_raw_inferred_name(AstConsString* raw_inferred_name) {
   DCHECK_NOT_NULL(raw_inferred_name);
   raw_inferred_name_ = raw_inferred_name;
   DCHECK(inferred_name_.is_null());
