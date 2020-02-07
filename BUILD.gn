@@ -211,6 +211,9 @@ declare_args() {
   # Enable additional targets necessary for verification of torque
   # file generation
   v8_verify_torque_generation_invariance = false
+
+  # Disable all snapshot compression.
+  v8_enable_snapshot_compression = true
 }
 
 # Derived defaults.
@@ -500,6 +503,9 @@ config("features") {
   }
   if (v8_enable_regexp_interpreter_threaded_dispatch) {
     defines += [ "V8_ENABLE_REGEXP_INTERPRETER_THREADED_DISPATCH" ]
+  }
+  if (v8_enable_snapshot_compression) {
+    defines += [ "V8_SNAPSHOT_COMPRESSION" ]
   }
 }
 
@@ -2864,6 +2870,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/snapshot/serializer.cc",
     "src/snapshot/serializer.h",
     "src/snapshot/snapshot-common.cc",
+    "src/snapshot/snapshot-compression.cc",
+    "src/snapshot/snapshot-compression.h",
     "src/snapshot/snapshot-source-sink.cc",
     "src/snapshot/snapshot-source-sink.h",
     "src/snapshot/snapshot.h",
@@ -3363,7 +3371,10 @@ v8_source_set("v8_base_without_compiler") {
     ]
   }
 
-  deps += [ "//third_party/zlib" ]
+  deps += [
+    "//third_party/zlib",
+    "//third_party/zlib/google:compression_utils_portable",
+  ]
 
   if (v8_postmortem_support) {
     sources += [ "$target_gen_dir/debug-support.cc" ]

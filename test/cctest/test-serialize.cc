@@ -53,6 +53,7 @@
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/read-only-serializer.h"
+#include "src/snapshot/snapshot-compression.h"
 #include "src/snapshot/snapshot.h"
 #include "src/snapshot/startup-deserializer.h"
 #include "src/snapshot/startup-serializer.h"
@@ -412,6 +413,24 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
   }
   v8_isolate->Dispose();
   ReadOnlyHeap::ClearSharedHeapForTest();
+}
+
+UNINITIALIZED_TEST(SnapshotCompression) {
+  DisableAlwaysOpt();
+  Vector<const byte> startup_blob;
+  Vector<const byte> read_only_blob;
+  Vector<const byte> partial_blob;
+  PartiallySerializeContext(&startup_blob, &read_only_blob, &partial_blob);
+  SnapshotData original_snapshot_data(partial_blob);
+  SnapshotData compressed =
+      i::SnapshotCompression::Compress(&original_snapshot_data);
+  SnapshotData decompressed =
+      i::SnapshotCompression::Decompress(compressed.RawData());
+  CHECK_EQ(partial_blob, decompressed.RawData());
+
+  startup_blob.Dispose();
+  read_only_blob.Dispose();
+  partial_blob.Dispose();
 }
 
 UNINITIALIZED_TEST(PartialSerializerContext) {
@@ -2455,8 +2474,10 @@ TEST(CodeSerializerBitFlip) {
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = CompileRunAndProduceCache(source);
 
-  // Random bit flip.
-  const_cast<uint8_t*>(cache->data)[337] ^= 0x40;
+  // Arbitrary bit flip.
+  int arbitrary_spot = 337;
+  CHECK_LT(arbitrary_spot, cache->length);
+  const_cast<uint8_t*>(cache->data)[arbitrary_spot] ^= 0x40;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
