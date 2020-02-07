@@ -29,7 +29,8 @@ class Object;
 // of objects found in code.
 #if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
     defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_S390) ||    \
-    V8_EMBEDDED_CONSTANT_POOL
+    defined(V8_TARGET_ARCH_RISCV) || V8_EMBEDDED_CONSTANT_POOL
+    //FIXME: RISCV porting check the value
 #define V8_CODE_EMBEDS_OBJECT_POINTER 1
 #else
 #define V8_CODE_EMBEDS_OBJECT_POINTER 0

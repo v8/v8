@@ -128,7 +128,8 @@ const char* CallInterfaceDescriptor::DebugName() const {
   return "";
 }
 
-#if !defined(V8_TARGET_ARCH_MIPS) && !defined(V8_TARGET_ARCH_MIPS64)
+#if !defined(V8_TARGET_ARCH_MIPS) && !defined(V8_TARGET_ARCH_MIPS64) && !defined(V8_TARGET_ARCH_RISCV)
+//FIXME: RISCV Porting: decide the value
 bool CallInterfaceDescriptor::IsValidFloatParameterRegister(Register reg) {
   return true;
 }
@@ -400,7 +401,7 @@ void WasmAtomicNotifyDescriptor::InitializePlatformSpecific(
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
-#if !defined(V8_TARGET_ARCH_MIPS) && !defined(V8_TARGET_ARCH_MIPS64)
+#if !defined(V8_TARGET_ARCH_MIPS) && !defined(V8_TARGET_ARCH_MIPS64) && !defined(V8_TARGET_ARCH_RISCV)
 void WasmI32AtomicWaitDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);

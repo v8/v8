@@ -59,6 +59,12 @@ static void FloodWithInc(Isolate* isolate, TestingAssemblerBuffer* buffer) {
   for (int i = 0; i < kNumInstr; ++i) {
     __ agfi(r2, Operand(1));
   }
+#elif V8_TARGET_ARCH_RISCV
+  //FIXME: RISCV Porting use riscv code
+  __ mov(v0, a0);
+  for (int i = 0; i < kNumInstr; ++i) {
+    __ Addu(v0, v0, Operand(1));
+  }
 #else
 #error Unsupported architecture
 #endif

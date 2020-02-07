@@ -87,7 +87,8 @@ class SimulatorBase {
   static typename std::enable_if<std::is_integral<T>::value, intptr_t>::type
   ConvertArg(T arg) {
     static_assert(sizeof(T) <= sizeof(intptr_t), "type bigger than ptrsize");
-#if V8_TARGET_ARCH_MIPS64
+#if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_RISCV
+    // FIXME: RISCV Porting fix the value
     // The MIPS64 calling convention is to sign extend all values, even unsigned
     // ones.
     using signed_t = typename std::make_signed<T>::type;

@@ -64,6 +64,15 @@ enum CpuFeature {
   VECTOR_ENHANCE_FACILITY_1,
   VECTOR_ENHANCE_FACILITY_2,
   MISC_INSTR_EXT2,
+
+#elif V8_TARGET_ARCH_RISCV
+  //FIXME: RISCV Porting define RISCV CPU Feature set
+  FPU,
+  FP64FPU,
+  MIPSr1,
+  MIPSr2,
+  MIPSr6,
+  MIPS_SIMD,  // MSA instructions
 #endif
 
   NUMBER_OF_CPU_FEATURES
