@@ -6900,12 +6900,12 @@ UNINITIALIZED_TEST(HugeHeapLimit) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 #ifdef V8_COMPRESS_POINTERS
-  // Fix this once the fix for crbug.com/1049816 lands.
-  size_t kExpectedHeapLimit = size_t{2} * GB;
+  size_t kExpectedHeapLimit = Heap::AllocatorLimitOnMaxOldGenerationSize();
 #else
   size_t kExpectedHeapLimit = size_t{4} * GB;
 #endif
   CHECK_EQ(kExpectedHeapLimit, i_isolate->heap()->MaxOldGenerationSize());
+  CHECK_LT(size_t{3} * GB, i_isolate->heap()->MaxOldGenerationSize());
   isolate->Dispose();
 }
 #endif
