@@ -107,7 +107,7 @@ class JSArrayBuffer : public JSObject {
 
   // Allocates an ArrayBufferExtension for this array buffer, unless it is
   // already associated with an extension.
-  ArrayBufferExtension* EnsureExtension(Heap* heap);
+  ArrayBufferExtension* EnsureExtension();
 
   // Frees the associated ArrayBufferExtension and returns its backing store.
   std::shared_ptr<BackingStore> RemoveExtension();
@@ -116,6 +116,8 @@ class JSArrayBuffer : public JSObject {
   void MarkExtension();
   void YoungMarkExtension();
   void YoungMarkExtensionPromoted();
+
+  inline size_t PerIsolateAccountingLength();
 
   // Dispatched behavior.
   DECL_PRINTER(JSArrayBuffer)
@@ -163,6 +165,7 @@ class ArrayBufferExtension : public Malloced {
   std::atomic<GcState> young_gc_state_;
   std::shared_ptr<BackingStore> backing_store_;
   ArrayBufferExtension* next_;
+  std::size_t accounting_length_;
 
   GcState young_gc_state() {
     return young_gc_state_.load(std::memory_order_relaxed);
@@ -177,12 +180,14 @@ class ArrayBufferExtension : public Malloced {
       : marked_(false),
         young_gc_state_(GcState::Dead),
         backing_store_(std::shared_ptr<BackingStore>()),
-        next_(nullptr) {}
+        next_(nullptr),
+        accounting_length_(0) {}
   explicit ArrayBufferExtension(std::shared_ptr<BackingStore> backing_store)
       : marked_(false),
         young_gc_state_(GcState::Dead),
         backing_store_(backing_store),
-        next_(nullptr) {}
+        next_(nullptr),
+        accounting_length_(0) {}
 
   void Mark() { marked_.store(true, std::memory_order_relaxed); }
   void Unmark() { marked_.store(false, std::memory_order_relaxed); }
@@ -197,6 +202,12 @@ class ArrayBufferExtension : public Malloced {
 
   std::shared_ptr<BackingStore> backing_store() { return backing_store_; }
   BackingStore* backing_store_raw() { return backing_store_.get(); }
+
+  size_t accounting_length() { return accounting_length_; }
+
+  void set_accounting_length(size_t accounting_length) {
+    accounting_length_ = accounting_length;
+  }
 
   std::shared_ptr<BackingStore> RemoveBackingStore() {
     return std::move(backing_store_);

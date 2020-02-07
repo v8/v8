@@ -21,6 +21,7 @@ void ArrayBufferList::Append(ArrayBufferExtension* extension) {
     tail_ = extension;
   }
 
+  bytes_ += extension->accounting_length();
   extension->set_next(nullptr);
 }
 
@@ -37,6 +38,7 @@ void ArrayBufferList::Append(ArrayBufferList* list) {
     DCHECK_NULL(list->tail_);
   }
 
+  bytes_ += list->Bytes();
   list->Reset();
 }
 
@@ -49,6 +51,18 @@ bool ArrayBufferList::Contains(ArrayBufferExtension* extension) {
   }
 
   return false;
+}
+
+size_t ArrayBufferList::BytesSlow() {
+  ArrayBufferExtension* current = head_;
+  size_t sum = 0;
+
+  while (current) {
+    sum += current->accounting_length();
+    current = current->next();
+  }
+
+  return sum;
 }
 
 void ArrayBufferSweeper::EnsureFinished() {
@@ -86,7 +100,14 @@ void ArrayBufferSweeper::EnsureFinished() {
       UNREACHABLE();
   }
 
+  DecrementExternalMemoryCounters();
   sweeping_in_progress_ = false;
+}
+
+void ArrayBufferSweeper::DecrementExternalMemoryCounters() {
+  heap_->DecrementExternalBackingStoreBytes(
+      ExternalBackingStoreType::kArrayBuffer, job_.freed_bytes);
+  heap_->update_external_memory(-static_cast<int64_t>(job_.freed_bytes));
 }
 
 void ArrayBufferSweeper::RequestSweepYoung() {
@@ -104,7 +125,7 @@ void ArrayBufferSweeper::RequestSweep(SweepingScope scope) {
     return;
 
   if (!heap_->IsTearingDown() && !heap_->ShouldReduceMemory() &&
-      FLAG_concurrent_array_buffer_sweeping) {
+      !heap_->is_current_gc_forced() && FLAG_concurrent_array_buffer_sweeping) {
     Prepare(scope);
 
     auto task = MakeCancelableTask(heap_->isolate(), [this] {
@@ -122,6 +143,7 @@ void ArrayBufferSweeper::RequestSweep(SweepingScope scope) {
     Prepare(scope);
     job_.Sweep();
     Merge();
+    DecrementExternalMemoryCounters();
   }
 }
 
@@ -172,6 +194,16 @@ void ArrayBufferSweeper::Append(JSArrayBuffer object,
   } else {
     old_.Append(extension);
   }
+
+  size_t bytes = extension->accounting_length();
+  IncrementExternalMemoryCounters(bytes);
+}
+
+void ArrayBufferSweeper::IncrementExternalMemoryCounters(size_t bytes) {
+  heap_->IncrementExternalBackingStoreBytes(
+      ExternalBackingStoreType::kArrayBuffer, bytes);
+  reinterpret_cast<v8::Isolate*>(heap_->isolate())
+      ->AdjustAmountOfExternalAllocatedMemory(static_cast<int64_t>(bytes));
 }
 
 ArrayBufferSweeper::SweepingJob::SweepingJob()
@@ -185,6 +217,7 @@ ArrayBufferSweeper::SweepingJob ArrayBufferSweeper::SweepingJob::Prepare(
   job.scope = scope;
   job.id = 0;
   job.state = SweepingState::Prepared;
+  job.freed_bytes = 0;
   return job;
 }
 
@@ -212,23 +245,28 @@ void ArrayBufferSweeper::SweepingJob::SweepFull() {
 ArrayBufferList ArrayBufferSweeper::SweepingJob::SweepListFull(
     ArrayBufferList* list) {
   ArrayBufferExtension* current = list->head_;
-  ArrayBufferList survived;
+  ArrayBufferList survivor_list;
+
+  size_t freed_bytes = 0;
 
   while (current) {
     ArrayBufferExtension* next = current->next();
 
     if (!current->IsMarked()) {
+      freed_bytes += current->accounting_length();
       delete current;
     } else {
       current->Unmark();
-      survived.Append(current);
+      survivor_list.Append(current);
     }
 
     current = next;
   }
 
+  this->freed_bytes += freed_bytes;
+
   list->Reset();
-  return survived;
+  return survivor_list;
 }
 
 void ArrayBufferSweeper::SweepingJob::SweepYoung() {
@@ -238,10 +276,13 @@ void ArrayBufferSweeper::SweepingJob::SweepYoung() {
   ArrayBufferList new_young;
   ArrayBufferList new_old;
 
+  size_t freed_bytes = 0;
+
   while (current) {
     ArrayBufferExtension* next = current->next();
 
     if (!current->IsYoungMarked()) {
+      freed_bytes += current->accounting_length();
       delete current;
     } else if (current->IsYoungPromoted()) {
       current->YoungUnmark();
@@ -254,6 +295,7 @@ void ArrayBufferSweeper::SweepingJob::SweepYoung() {
     current = next;
   }
 
+  this->freed_bytes += freed_bytes;
   old = new_old;
   young = new_young;
 }

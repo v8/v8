@@ -65,8 +65,11 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   if (!backing_store->free_on_destruct()) set_is_external(true);
   if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
     Heap* heap = GetIsolate()->heap();
-    EnsureExtension(heap);
+    EnsureExtension();
     extension()->set_backing_store(std::move(backing_store));
+    size_t bytes = PerIsolateAccountingLength();
+    extension()->set_accounting_length(bytes);
+    heap->AppendArrayBufferExtension(*this, extension());
   } else {
     GetIsolate()->heap()->RegisterBackingStore(*this, std::move(backing_store));
   }
@@ -113,14 +116,13 @@ std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() {
   }
 }
 
-ArrayBufferExtension* JSArrayBuffer::EnsureExtension(Heap* heap) {
+ArrayBufferExtension* JSArrayBuffer::EnsureExtension() {
   DCHECK(V8_ARRAY_BUFFER_EXTENSION_BOOL);
   if (extension() != nullptr) return extension();
 
   ArrayBufferExtension* extension =
       new ArrayBufferExtension(std::shared_ptr<BackingStore>());
   set_extension(extension);
-  heap->AppendArrayBufferExtension(*this, extension);
   return extension;
 }
 

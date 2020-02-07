@@ -18,17 +18,24 @@ class Heap;
 // Singly linked-list of ArrayBufferExtensions that stores head and tail of the
 // list to allow for concatenation of lists.
 struct ArrayBufferList {
-  ArrayBufferList() : head_(nullptr), tail_(nullptr) {}
+  ArrayBufferList() : head_(nullptr), tail_(nullptr), bytes_(0) {}
 
   ArrayBufferExtension* head_;
   ArrayBufferExtension* tail_;
+  size_t bytes_;
 
   bool IsEmpty() {
     DCHECK_IMPLIES(head_, tail_);
     return head_ == nullptr;
   }
 
-  void Reset() { head_ = tail_ = nullptr; }
+  size_t Bytes() { return bytes_; }
+  size_t BytesSlow();
+
+  void Reset() {
+    head_ = tail_ = nullptr;
+    bytes_ = 0;
+  }
 
   void Append(ArrayBufferExtension* extension);
   void Append(ArrayBufferList* list);
@@ -64,6 +71,7 @@ class ArrayBufferSweeper {
     ArrayBufferList young;
     ArrayBufferList old;
     SweepingScope scope;
+    size_t freed_bytes;
 
     SweepingJob();
 
@@ -76,6 +84,9 @@ class ArrayBufferSweeper {
   } job_;
 
   void Merge();
+
+  void DecrementExternalMemoryCounters();
+  void IncrementExternalMemoryCounters(size_t bytes);
 
   void RequestSweep(SweepingScope sweeping_task);
   void Prepare(SweepingScope sweeping_task);

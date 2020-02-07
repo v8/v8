@@ -14,6 +14,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
@@ -2199,7 +2200,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       } else if (object.IsJSArrayBuffer()) {
         JSArrayBuffer array_buffer = JSArrayBuffer::cast(object);
         if (ArrayBufferTracker::IsTracked(array_buffer)) {
-          size_t size = PerIsolateAccountingLength(array_buffer);
+          size_t size = array_buffer.PerIsolateAccountingLength();
           external_page_bytes[ExternalBackingStoreType::kArrayBuffer] += size;
         }
       }
@@ -2211,10 +2212,20 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
     }
   }
   for (int i = 0; i < kNumTypes; i++) {
+    if (V8_ARRAY_BUFFER_EXTENSION_BOOL &&
+        i == ExternalBackingStoreType::kArrayBuffer)
+      continue;
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
     CHECK_EQ(external_space_bytes[t], ExternalBackingStoreBytes(t));
   }
   CHECK(allocation_pointer_found_in_space);
+
+  if (identity() == OLD_SPACE && V8_ARRAY_BUFFER_EXTENSION_BOOL) {
+    size_t bytes = heap()->array_buffer_sweeper()->old().BytesSlow();
+    CHECK_EQ(bytes,
+             ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));
+  }
+
 #ifdef DEBUG
   VerifyCountersAfterSweeping(isolate->heap());
 #endif
@@ -2687,7 +2698,7 @@ void NewSpace::Verify(Isolate* isolate) {
       } else if (object.IsJSArrayBuffer()) {
         JSArrayBuffer array_buffer = JSArrayBuffer::cast(object);
         if (ArrayBufferTracker::IsTracked(array_buffer)) {
-          size_t size = PerIsolateAccountingLength(array_buffer);
+          size_t size = array_buffer.PerIsolateAccountingLength();
           external_space_bytes[ExternalBackingStoreType::kArrayBuffer] += size;
         }
       }
@@ -2701,8 +2712,17 @@ void NewSpace::Verify(Isolate* isolate) {
   }
 
   for (int i = 0; i < kNumTypes; i++) {
+    if (V8_ARRAY_BUFFER_EXTENSION_BOOL &&
+        i == ExternalBackingStoreType::kArrayBuffer)
+      continue;
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
     CHECK_EQ(external_space_bytes[t], ExternalBackingStoreBytes(t));
+  }
+
+  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
+    size_t bytes = heap()->array_buffer_sweeper()->young().BytesSlow();
+    CHECK_EQ(bytes,
+             ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));
   }
 
   // Check semi-spaces.

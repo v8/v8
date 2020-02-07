@@ -644,6 +644,9 @@ class Heap {
   V8_INLINE void update_external_memory_concurrently_freed(uintptr_t freed);
   V8_INLINE void account_external_memory_concurrently_freed();
 
+  V8_EXPORT_PRIVATE size_t YoungArrayBufferBytes();
+  V8_EXPORT_PRIVATE size_t OldArrayBufferBytes();
+
   size_t backing_store_bytes() const { return backing_store_bytes_; }
 
   void CompactWeakArrayLists(AllocationType allocation);

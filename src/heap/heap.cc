@@ -4087,6 +4087,7 @@ void Heap::Verify() {
 
   // We have to wait here for the sweeper threads to have an iterable heap.
   mark_compact_collector()->EnsureSweepingCompleted();
+  array_buffer_sweeper()->EnsureFinished();
 
   VerifyPointersVisitor visitor(this);
   IterateRoots(&visitor, VISIT_ONLY_STRONG);
@@ -5994,6 +5995,16 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
   remembered_unmapped_pages_[remembered_unmapped_pages_index_] = page;
   remembered_unmapped_pages_index_++;
   remembered_unmapped_pages_index_ %= kRememberedUnmappedPages;
+}
+
+size_t Heap::YoungArrayBufferBytes() {
+  DCHECK(V8_ARRAY_BUFFER_EXTENSION_BOOL);
+  return array_buffer_sweeper()->young().Bytes();
+}
+
+size_t Heap::OldArrayBufferBytes() {
+  DCHECK(V8_ARRAY_BUFFER_EXTENSION_BOOL);
+  return array_buffer_sweeper()->old().Bytes();
 }
 
 void Heap::RegisterStrongRoots(FullObjectSlot start, FullObjectSlot end) {

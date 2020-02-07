@@ -2869,6 +2869,9 @@ class V8_EXPORT_PRIVATE NewSpace
   }
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
+    if (V8_ARRAY_BUFFER_EXTENSION_BOOL &&
+        type == ExternalBackingStoreType::kArrayBuffer)
+      return heap()->YoungArrayBufferBytes();
     DCHECK_EQ(0, from_space_.ExternalBackingStoreBytes(type));
     return to_space_.ExternalBackingStoreBytes(type);
   }
@@ -3132,6 +3135,13 @@ class OldSpace : public PagedSpace {
   static bool IsAtPageStart(Address addr) {
     return static_cast<intptr_t>(addr & kPageAlignmentMask) ==
            MemoryChunkLayout::ObjectStartOffsetInDataPage();
+  }
+
+  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
+    if (V8_ARRAY_BUFFER_EXTENSION_BOOL &&
+        type == ExternalBackingStoreType::kArrayBuffer)
+      return heap()->OldArrayBufferBytes();
+    return external_backing_store_bytes_[type];
   }
 };
 
