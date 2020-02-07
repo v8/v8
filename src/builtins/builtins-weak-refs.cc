@@ -148,9 +148,8 @@ BUILTIN(FinalizationGroupCleanupSome) {
     callback = callback_obj;
   }
 
-  // Don't do set_scheduled_for_cleanup(false); we still have the microtask
-  // scheduled and don't want to schedule another one in case the user never
-  // executes microtasks.
+  // Don't invalidate the cleanup task id; we still have the task scheduled and
+  // don't want to schedule another one.
   if (JSFinalizationGroup::Cleanup(isolate, finalization_group, callback)
           .IsNothing()) {
     DCHECK(isolate->has_pending_exception());
