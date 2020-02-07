@@ -85,7 +85,7 @@ type uint32 generates 'TNode<Uint32T>' constexpr 'uint32_t';
 type int31 extends int32
     generates 'TNode<Int32T>' constexpr 'int31_t';
 type uint31 extends uint32
-    generates 'TNode<Uint32T>' constexpr 'uint31_t';
+    generates 'TNode<Uint32T>' constexpr 'uint32_t';
 type int16 extends int31
     generates 'TNode<Int16T>' constexpr 'int16_t';
 type uint16 extends uint31
@@ -103,6 +103,9 @@ type float64 generates 'TNode<Float64T>' constexpr 'double';
 type bool generates 'TNode<BoolT>' constexpr 'bool';
 type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
+
+// A Smi value containing a bitfield struct as its integer data.
+type SmiTagged<T : type extends uint31> extends Smi;
 
 // WARNING: The memory representation (i.e., in class fields and arrays) of
 // float64_or_hole is just a float64 that may be the hole-representing
@@ -833,6 +836,9 @@ extern macro SmiTag(intptr): Smi;
 extern macro SmiFromInt32(int32): Smi;
 extern macro SmiFromUint32(uint32): Smi;
 extern macro SmiUntag(Smi): intptr;
+macro SmiUntag<T: type>(value: SmiTagged<T>): T {
+  return %RawDownCast<T>(Unsigned(SmiToInt32(Convert<Smi>(value))));
+}
 extern macro SmiToInt32(Smi): int32;
 extern macro RoundIntPtrToFloat64(intptr): float64;
 extern macro ChangeFloat32ToFloat64(float32): float64;

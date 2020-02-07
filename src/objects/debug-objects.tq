@@ -20,6 +20,15 @@ extern class BreakPointInfo extends Struct {
 
 type CoverageInfo extends FixedArray;
 
+bitfield struct DebugInfoFlags extends uint31 {
+  has_break_info: bool: 1 bit;
+  prepared_for_debug_execution: bool: 1 bit;
+  has_coverage_info: bool: 1 bit;
+  break_at_entry: bool: 1 bit;
+  can_break_at_entry: bool: 1 bit;
+  debug_execution_mode: bool: 1 bit;
+}
+
 @generateCppClass
 extern class DebugInfo extends Struct {
   shared: SharedFunctionInfo;
@@ -34,6 +43,6 @@ extern class DebugInfo extends Struct {
   debug_bytecode_array: Undefined|BytecodeArray;
   // Fixed array holding status information for each active break point.
   break_points: FixedArray;
-  flags: Smi;
+  flags: SmiTagged<DebugInfoFlags>;
   coverage_info: CoverageInfo|Undefined;
 }

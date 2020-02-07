@@ -66,6 +66,7 @@ static const char* const TORQUE_INTERNAL_NAMESPACE_STRING = "torque_internal";
 static const char* const REFERENCE_TYPE_STRING = "Reference";
 static const char* const SLICE_TYPE_STRING = "Slice";
 static const char* const WEAK_TYPE_STRING = "Weak";
+static const char* const SMI_TAGGED_TYPE_STRING = "SmiTagged";
 static const char* const UNINITIALIZED_ITERATOR_TYPE_STRING =
     "UninitializedIterator";
 static const char* const GENERIC_TYPE_INSTANTIATION_NAMESPACE_STRING =

@@ -11,6 +11,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
+#include "torque-generated/bit-fields-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -23,19 +24,10 @@ class BytecodeArray;
 
 // The DebugInfo class holds additional information for a function being
 // debugged.
-class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
+class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct>,
+                  public TorqueGeneratedDebugInfoFlagsFields {
  public:
   NEVER_READ_ONLY_SPACE
-  enum Flag {
-    kNone = 0,
-    kHasBreakInfo = 1 << 0,
-    kPreparedForDebugExecution = 1 << 1,
-    kHasCoverageInfo = 1 << 2,
-    kBreakAtEntry = 1 << 3,
-    kCanBreakAtEntry = 1 << 4,
-    kDebugExecutionMode = 1 << 5
-  };
-
   using Flags = base::Flags<Flag>;
 
   // A bitfield that lists uses of the current instance.
