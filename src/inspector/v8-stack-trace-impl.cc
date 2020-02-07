@@ -164,8 +164,8 @@ std::unique_ptr<StringBuffer> V8StackTraceId::ToString() {
   dict->setString(kDebuggerId, V8DebuggerId(debugger_id).toString());
   dict->setBoolean(kShouldPause, should_pause);
   std::vector<uint8_t> json;
-  std::vector<uint8_t> cbor = std::move(*dict).TakeSerialized();
-  ConvertCBORToJSON(SpanFrom(cbor), &json);
+  v8_crdtp::json::ConvertCBORToJSON(v8_crdtp::SpanFrom(dict->Serialize()),
+                                    &json);
   return StringBufferFrom(std::move(json));
 }
 

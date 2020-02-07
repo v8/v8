@@ -733,10 +733,10 @@ Response InjectedScript::resolveCallArgument(
   if (callArgument->hasValue() || callArgument->hasUnserializableValue()) {
     String16 value;
     if (callArgument->hasValue()) {
-      std::vector<uint8_t> cbor =
-          std::move(*callArgument->getValue(nullptr)).TakeSerialized();
       std::vector<uint8_t> json;
-      v8_crdtp::json::ConvertCBORToJSON(v8_crdtp::SpanFrom(cbor), &json);
+      v8_crdtp::json::ConvertCBORToJSON(
+          v8_crdtp::SpanFrom(callArgument->getValue(nullptr)->Serialize()),
+          &json);
       value =
           "(" +
           String16(reinterpret_cast<const char*>(json.data()), json.size()) +
