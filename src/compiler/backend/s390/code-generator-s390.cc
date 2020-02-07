@@ -3544,6 +3544,71 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef CONVERT_INT32_TO_FLOAT
+#define VECTOR_UNPACK(op, mode)                                             \
+  __ op(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0), \
+        Condition(0), Condition(mode));
+    case kS390_I32x4SConvertI16x8Low: {
+      VECTOR_UNPACK(vupl, 1);
+      break;
+    }
+    case kS390_I32x4SConvertI16x8High: {
+      VECTOR_UNPACK(vuph, 1);
+      break;
+    }
+    case kS390_I32x4UConvertI16x8Low: {
+      VECTOR_UNPACK(vupll, 1);
+      break;
+    }
+    case kS390_I32x4UConvertI16x8High: {
+      VECTOR_UNPACK(vuplh, 1);
+      break;
+    }
+    case kS390_I16x8SConvertI8x16Low: {
+      VECTOR_UNPACK(vupl, 0);
+      break;
+    }
+    case kS390_I16x8SConvertI8x16High: {
+      VECTOR_UNPACK(vuph, 0);
+      break;
+    }
+    case kS390_I16x8UConvertI8x16Low: {
+      VECTOR_UNPACK(vupll, 0);
+      break;
+    }
+    case kS390_I16x8UConvertI8x16High: {
+      VECTOR_UNPACK(vuplh, 0);
+      break;
+    }
+#undef VECTOR_UNPACK
+    case kS390_I16x8SConvertI32x4:
+      __ vpks(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1), Condition(0), Condition(2));
+      break;
+    case kS390_I8x16SConvertI16x8:
+      __ vpks(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1), Condition(0), Condition(1));
+      break;
+#define VECTOR_PACK_UNSIGNED(mode)                                             \
+  Simd128Register tempFPReg = i.ToSimd128Register(instr->TempAt(0));           \
+  __ vx(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg, Condition(0), \
+        Condition(0), Condition(mode));                                        \
+  __ vmx(tempFPReg, i.InputSimd128Register(0), kScratchDoubleReg,              \
+         Condition(0), Condition(0), Condition(mode));                         \
+  __ vmx(kScratchDoubleReg, i.InputSimd128Register(1), kScratchDoubleReg,      \
+         Condition(0), Condition(0), Condition(mode));                         \
+  __ vpkls(i.OutputSimd128Register(), tempFPReg, kScratchDoubleReg,            \
+           Condition(0), Condition(mode));
+    case kS390_I16x8UConvertI32x4: {
+      // treat inputs as signed, and saturate to unsigned (negative to 0)
+      VECTOR_PACK_UNSIGNED(2)
+      break;
+    }
+    case kS390_I8x16UConvertI16x8: {
+      // treat inputs as signed, and saturate to unsigned (negative to 0)
+      VECTOR_PACK_UNSIGNED(1)
+      break;
+    }
+#undef VECTOR_PACK_UNSIGNED
     default:
       UNREACHABLE();
   }

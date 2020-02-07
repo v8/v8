@@ -212,6 +212,8 @@ namespace compiler {
   V(S390_F32x4Neg)                          \
   V(S390_F32x4RecipApprox)                  \
   V(S390_F32x4RecipSqrtApprox)              \
+  V(S390_F32x4SConvertI32x4)                \
+  V(S390_F32x4UConvertI32x4)                \
   V(S390_I32x4Splat)                        \
   V(S390_I32x4ExtractLane)                  \
   V(S390_I32x4ReplaceLane)                  \
@@ -236,8 +238,10 @@ namespace compiler {
   V(S390_I32x4ShrU)                         \
   V(S390_I32x4SConvertF32x4)                \
   V(S390_I32x4UConvertF32x4)                \
-  V(S390_F32x4SConvertI32x4)                \
-  V(S390_F32x4UConvertI32x4)                \
+  V(S390_I32x4SConvertI16x8Low)             \
+  V(S390_I32x4SConvertI16x8High)            \
+  V(S390_I32x4UConvertI16x8Low)             \
+  V(S390_I32x4UConvertI16x8High)            \
   V(S390_I16x8ExtractLaneU)                 \
   V(S390_I16x8ExtractLaneS)                 \
   V(S390_I16x8ReplaceLane)                  \
@@ -259,6 +263,12 @@ namespace compiler {
   V(S390_I16x8ShrS)                         \
   V(S390_I16x8ShrU)                         \
   V(S390_I16x8Neg)                          \
+  V(S390_I16x8SConvertI32x4)                \
+  V(S390_I16x8UConvertI32x4)                \
+  V(S390_I16x8SConvertI8x16Low)             \
+  V(S390_I16x8SConvertI8x16High)            \
+  V(S390_I16x8UConvertI8x16Low)             \
+  V(S390_I16x8UConvertI8x16High)            \
   V(S390_I8x16Splat)                        \
   V(S390_I8x16ExtractLaneU)                 \
   V(S390_I8x16ExtractLaneS)                 \
@@ -280,6 +290,8 @@ namespace compiler {
   V(S390_I8x16ShrS)                         \
   V(S390_I8x16ShrU)                         \
   V(S390_I8x16Neg)                          \
+  V(S390_I8x16SConvertI16x8)                \
+  V(S390_I8x16UConvertI16x8)                \
   V(S390_S1x4AnyTrue)                       \
   V(S390_S1x8AnyTrue)                       \
   V(S390_S1x16AnyTrue)                      \

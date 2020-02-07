@@ -158,6 +158,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_F32x4Neg:
     case kS390_F32x4RecipApprox:
     case kS390_F32x4RecipSqrtApprox:
+    case kS390_F32x4SConvertI32x4:
+    case kS390_F32x4UConvertI32x4:
     case kS390_I32x4Splat:
     case kS390_I32x4ExtractLane:
     case kS390_I32x4ReplaceLane:
@@ -181,8 +183,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I32x4Neg:
     case kS390_I32x4SConvertF32x4:
     case kS390_I32x4UConvertF32x4:
-    case kS390_F32x4SConvertI32x4:
-    case kS390_F32x4UConvertI32x4:
+    case kS390_I32x4SConvertI16x8Low:
+    case kS390_I32x4SConvertI16x8High:
+    case kS390_I32x4UConvertI16x8Low:
+    case kS390_I32x4UConvertI16x8High:
     case kS390_I16x8Splat:
     case kS390_I16x8ExtractLaneU:
     case kS390_I16x8ExtractLaneS:
@@ -205,6 +209,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I16x8ShrS:
     case kS390_I16x8ShrU:
     case kS390_I16x8Neg:
+    case kS390_I16x8SConvertI32x4:
+    case kS390_I16x8UConvertI32x4:
+    case kS390_I16x8SConvertI8x16Low:
+    case kS390_I16x8SConvertI8x16High:
+    case kS390_I16x8UConvertI8x16Low:
+    case kS390_I16x8UConvertI8x16High:
     case kS390_I8x16Splat:
     case kS390_I8x16ExtractLaneU:
     case kS390_I8x16ExtractLaneS:
@@ -226,6 +236,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I8x16ShrS:
     case kS390_I8x16ShrU:
     case kS390_I8x16Neg:
+    case kS390_I8x16SConvertI16x8:
+    case kS390_I8x16UConvertI16x8:
     case kS390_S1x4AnyTrue:
     case kS390_S1x8AnyTrue:
     case kS390_S1x16AnyTrue:
