@@ -831,6 +831,8 @@ domain Profiler
       optional boolean callCount
       # Collect block-based coverage.
       optional boolean detailed
+      # Allow the backend to send updates on its own initiative
+      optional boolean allowTriggeredUpdates
     returns
       # Monotonically increasing time (in seconds) when the coverage update was taken in the backend.
       number timestamp
