@@ -149,4 +149,11 @@
   'debug/wasm/frame-inspection': [SKIP],
 }],
 
+##############################################################################
+['isolates', {
+  # Tier down/up Wasm NativeModule in debugging is non-deterministic with
+  # multiple isolates (https://crbug.com/v8/10099).
+  'debug/wasm/debug-enabled-tier-down-wasm': [SKIP],
+}],  # 'isolates'
+
 ]
