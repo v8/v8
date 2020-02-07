@@ -6891,6 +6891,41 @@ TEST(Regress9701) {
   CHECK_EQ(mark_sweep_count_before, mark_sweep_count_after);
 }
 
+#if defined(V8_TARGET_ARCH_64_BIT) && !defined(V8_OS_ANDROID)
+UNINITIALIZED_TEST(HugeHeapLimit) {
+  uint64_t kMemoryGB = 16;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.constraints.ConfigureDefaults(kMemoryGB * GB, kMemoryGB * GB);
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+#ifdef V8_COMPRESS_POINTERS
+  // Fix this once the fix for crbug.com/1049816 lands.
+  size_t kExpectedHeapLimit = size_t{2} * GB;
+#else
+  size_t kExpectedHeapLimit = size_t{4} * GB;
+#endif
+  CHECK_EQ(kExpectedHeapLimit, i_isolate->heap()->MaxOldGenerationSize());
+  isolate->Dispose();
+}
+#endif
+
+UNINITIALIZED_TEST(HeapLimit) {
+  uint64_t kMemoryGB = 15;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.constraints.ConfigureDefaults(kMemoryGB * GB, kMemoryGB * GB);
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+#if defined(V8_TARGET_ARCH_64_BIT) && !defined(V8_OS_ANDROID)
+  size_t kExpectedHeapLimit = size_t{2} * GB;
+#else
+  size_t kExpectedHeapLimit = size_t{1} * GB;
+#endif
+  CHECK_EQ(kExpectedHeapLimit, i_isolate->heap()->MaxOldGenerationSize());
+  isolate->Dispose();
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8
