@@ -2398,7 +2398,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Save all parameter registers (see wasm-linkage.cc). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    constexpr RegList gp_regs = Register::ListOf(a0, a1, a2, a3);
+    constexpr RegList gp_regs = Register::ListOf(a0, a2, a3);
     constexpr RegList fp_regs =
         DoubleRegister::ListOf(f2, f4, f6, f8, f10, f12, f14);
     __ MultiPush(gp_regs);
@@ -2428,10 +2428,10 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
     // Save all parameter registers. They might hold live values, we restore
     // them after the runtime call.
-    RegList gp_regs = 0;
-    for (Register reg : wasm::kGpParamRegisters) gp_regs |= reg.bit();
-    RegList fp_regs = 0;
-    for (DoubleRegister reg : wasm::kFpParamRegisters) fp_regs |= reg.bit();
+    constexpr RegList gp_regs =
+        Register::ListOf(a0, a2, a3, v0, v1);
+    constexpr RegList fp_regs =
+        DoubleRegister::ListOf(f2, f4, f6, f8, f10, f12, f14);
 
     __ MultiPush(gp_regs);
     __ MultiPushFPU(fp_regs);
