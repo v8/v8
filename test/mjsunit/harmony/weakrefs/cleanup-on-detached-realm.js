@@ -9,28 +9,15 @@ let r = Realm.create();
 let FG = Realm.eval(r, "FinalizationGroup");
 Realm.detachGlobal(r);
 
-let fg_not_run = new FG(() => {
-  assertUnreachable();
-});
-(() => {
-  fg_not_run.register({});
-})();
-
-gc();
-
-// Disposing the realm cancels the already scheduled fg_not_run's finalizer.
-Realm.dispose(r);
-
 let fg = new FG(()=> {
   cleanedUp = true;
 });
 
-// FGs that are alive after disposal can still schedule tasks.
 (() => {
   let object = {};
   fg.register(object, {});
 
-  // object becomes unreachable.
+  // object goes out of scope.
 })();
 
 gc();
