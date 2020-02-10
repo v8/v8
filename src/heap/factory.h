@@ -60,7 +60,6 @@ class PromiseResolveThenableJobTask;
 class RegExpMatchInfo;
 class ScriptContextTable;
 class SourceTextModule;
-class SourceTextModuleInfo;
 class StackFrameInfo;
 class StackTraceFrame;
 class StoreHandler;
@@ -676,12 +675,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSFunction> NewFunction(
       Handle<Map> map, Handle<SharedFunctionInfo> info, Handle<Context> context,
       AllocationType allocation = AllocationType::kOld);
-
-  // Create a serialized scope info.
-  Handle<ScopeInfo> NewScopeInfo(int length,
-                                 AllocationType type = AllocationType::kOld);
-
-  Handle<SourceTextModuleInfo> NewSourceTextModuleInfo();
 
   Handle<PreparseData> NewPreparseData(int data_length, int children_length);
 

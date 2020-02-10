@@ -5,6 +5,7 @@
 #ifndef V8_AST_MODULES_H_
 #define V8_AST_MODULES_H_
 
+#include "src/handles/handle-for.h"
 #include "src/parsing/scanner.h"  // Only for Scanner::Location.
 #include "src/zone/zone-containers.h"
 
@@ -107,7 +108,9 @@ class SourceTextModuleDescriptor : public ZoneObject {
           module_request(-1),
           cell_index(0) {}
 
-    Handle<SourceTextModuleInfoEntry> Serialize(Isolate* isolate) const;
+    template <typename Isolate>
+    HandleFor<Isolate, SourceTextModuleInfoEntry> Serialize(
+        Isolate* isolate) const;
   };
 
   enum CellIndexKind { kInvalid, kExport, kImport };
@@ -184,8 +187,9 @@ class SourceTextModuleDescriptor : public ZoneObject {
     namespace_imports_.push_back(entry);
   }
 
-  Handle<FixedArray> SerializeRegularExports(Isolate* isolate,
-                                             Zone* zone) const;
+  template <typename Isolate>
+  HandleFor<Isolate, FixedArray> SerializeRegularExports(Isolate* isolate,
+                                                         Zone* zone) const;
 
  private:
   ModuleRequestMap module_requests_;

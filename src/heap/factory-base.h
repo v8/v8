@@ -21,6 +21,7 @@ class FreshlyAllocatedBigInt;
 class ObjectBoilerplateDescription;
 class ArrayBoilerplateDescription;
 class TemplateObjectDescription;
+class SourceTextModuleInfo;
 
 template <typename Impl>
 class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
@@ -119,6 +120,12 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
   // MutableBigInt::New*.
   HandleFor<Impl, FreshlyAllocatedBigInt> NewBigInt(
       int length, AllocationType allocation = AllocationType::kYoung);
+
+  // Create a serialized scope info.
+  HandleFor<Impl, ScopeInfo> NewScopeInfo(
+      int length, AllocationType type = AllocationType::kOld);
+
+  HandleFor<Impl, SourceTextModuleInfo> NewSourceTextModuleInfo();
 
  protected:
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).

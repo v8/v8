@@ -2155,18 +2155,6 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
   return result;
 }
 
-Handle<ScopeInfo> Factory::NewScopeInfo(int length, AllocationType type) {
-  DCHECK(type == AllocationType::kOld || type == AllocationType::kReadOnly);
-  return Handle<ScopeInfo>::cast(
-      NewFixedArrayWithMap(read_only_roots().scope_info_map(), length, type));
-}
-
-Handle<SourceTextModuleInfo> Factory::NewSourceTextModuleInfo() {
-  return Handle<SourceTextModuleInfo>::cast(NewFixedArrayWithMap(
-      read_only_roots().module_info_map(), SourceTextModuleInfo::kLength,
-      AllocationType::kOld));
-}
-
 Handle<PreparseData> Factory::NewPreparseData(int data_length,
                                               int children_length) {
   int size = PreparseData::SizeFor(data_length, children_length);

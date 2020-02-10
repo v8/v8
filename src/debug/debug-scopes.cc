@@ -769,7 +769,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
 
   for (Variable* var : *current_scope_->locals()) {
     DCHECK(!var->is_this());
-    if (ScopeInfo::VariableIsSynthetic(*var->name())) continue;
+    if (ScopeInfo::VariableIsSynthetic(*var->name().get_handle())) continue;
 
     int index = var->index();
     Handle<Object> value;

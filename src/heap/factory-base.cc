@@ -11,8 +11,10 @@
 #include "src/heap/off-thread-factory-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/module-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/shared-function-info-inl.h"
+#include "src/objects/source-text-module.h"
 #include "src/objects/template-objects-inl.h"
 
 namespace v8 {
@@ -347,6 +349,22 @@ HandleFor<Impl, FreshlyAllocatedBigInt> FactoryBase<Impl>::NewBigInt(
   FreshlyAllocatedBigInt bigint = FreshlyAllocatedBigInt::cast(result);
   bigint.clear_padding();
   return handle(bigint, isolate());
+}
+
+template <typename Impl>
+HandleFor<Impl, ScopeInfo> FactoryBase<Impl>::NewScopeInfo(
+    int length, AllocationType type) {
+  DCHECK(type == AllocationType::kOld || type == AllocationType::kReadOnly);
+  return HandleFor<Impl, ScopeInfo>::cast(
+      NewFixedArrayWithMap(read_only_roots().scope_info_map(), length, type));
+}
+
+template <typename Impl>
+HandleFor<Impl, SourceTextModuleInfo>
+FactoryBase<Impl>::NewSourceTextModuleInfo() {
+  return HandleFor<Impl, SourceTextModuleInfo>::cast(NewFixedArrayWithMap(
+      read_only_roots().module_info_map(), SourceTextModuleInfo::kLength,
+      AllocationType::kOld));
 }
 
 template <typename Impl>

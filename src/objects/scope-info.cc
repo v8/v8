@@ -12,6 +12,7 @@
 
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {
@@ -60,8 +61,10 @@ bool ScopeInfo::Equals(ScopeInfo other) const {
 #endif
 
 // static
-Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
-                                    MaybeHandle<ScopeInfo> outer_scope) {
+template <typename Isolate>
+HandleFor<Isolate, ScopeInfo> ScopeInfo::Create(
+    Isolate* isolate, Zone* zone, Scope* scope,
+    MaybeHandleFor<Isolate, ScopeInfo> outer_scope) {
   // Collect variables.
   int context_local_count = 0;
   int module_vars_count = 0;
@@ -165,7 +168,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
                           ? 2 + kModuleVariableEntryLength * module_vars_count
                           : 0);
 
-  Handle<ScopeInfo> scope_info_handle =
+  HandleFor<Isolate, ScopeInfo> scope_info_handle =
       isolate->factory()->NewScopeInfo(length);
   int index = kVariablePartIndex;
   {
@@ -239,14 +242,15 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
               MaybeAssignedFlagField::encode(var->maybe_assigned()) |
               ParameterNumberField::encode(ParameterNumberField::kMax) |
               IsStaticFlagField::encode(var->is_static_flag());
-          scope_info.set(context_local_base + local_index, *var->name(), mode);
+          scope_info.set(context_local_base + local_index,
+                         *var->name().get<Isolate>(), mode);
           scope_info.set(context_local_info_base + local_index,
                          Smi::FromInt(info));
           break;
         }
         case VariableLocation::MODULE: {
           scope_info.set(module_var_entry + kModuleVariableNameOffset,
-                         *var->name(), mode);
+                         *var->name().get<Isolate>(), mode);
           scope_info.set(module_var_entry + kModuleVariableIndexOffset,
                          Smi::FromInt(var->index()));
           uint32_t properties =
@@ -294,7 +298,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
               MaybeAssignedFlagField::encode(var->maybe_assigned()) |
               ParameterNumberField::encode(ParameterNumberField::kMax) |
               IsStaticFlagField::encode(var->is_static_flag());
-          scope_info.set(context_local_base + local_index, *var->name(), mode);
+          scope_info.set(context_local_base + local_index,
+                         *var->name().get<Isolate>(), mode);
           scope_info.set(context_local_info_base + local_index,
                          Smi::FromInt(info));
         }
@@ -330,7 +335,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
       Object name = Smi::zero();
       if (var != nullptr) {
         var_index = var->index();
-        name = *var->name();
+        name = *var->name().get<Isolate>();
       }
       scope_info.set(index++, name, mode);
       scope_info.set(index++, Smi::FromInt(var_index));
@@ -359,8 +364,9 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
 
   // Module-specific information (only for module scopes).
   if (scope->is_module_scope()) {
-    Handle<SourceTextModuleInfo> module_info = SourceTextModuleInfo::New(
-        isolate, zone, scope->AsModuleScope()->module());
+    HandleFor<Isolate, SourceTextModuleInfo> module_info =
+        SourceTextModuleInfo::New(isolate, zone,
+                                  scope->AsModuleScope()->module());
     DCHECK_EQ(index, scope_info_handle->ModuleInfoIndex());
     scope_info_handle->set(index++, *module_info);
     DCHECK_EQ(index, scope_info_handle->ModuleVariableCountIndex());
@@ -375,6 +381,15 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   DCHECK_EQ(scope->num_heap_slots(), scope_info_handle->ContextLength());
   return scope_info_handle;
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<ScopeInfo> ScopeInfo::Create<Isolate>(
+        Isolate* isolate, Zone* zone, Scope* scope,
+        MaybeHandle<ScopeInfo> outer_scope);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    OffThreadHandle<ScopeInfo> ScopeInfo::Create<OffThreadIsolate>(
+        OffThreadIsolate* isolate, Zone* zone, Scope* scope,
+        OffThreadHandle<ScopeInfo> outer_scope);
 
 // static
 Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
@@ -1031,14 +1046,16 @@ std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {
   return os;
 }
 
-Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
-    Isolate* isolate, Handle<PrimitiveHeapObject> export_name,
-    Handle<PrimitiveHeapObject> local_name,
-    Handle<PrimitiveHeapObject> import_name, int module_request, int cell_index,
-    int beg_pos, int end_pos) {
-  Handle<SourceTextModuleInfoEntry> result =
-      Handle<SourceTextModuleInfoEntry>::cast(isolate->factory()->NewStruct(
-          SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, AllocationType::kOld));
+template <typename Isolate>
+HandleFor<Isolate, SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
+    Isolate* isolate, HandleFor<Isolate, PrimitiveHeapObject> export_name,
+    HandleFor<Isolate, PrimitiveHeapObject> local_name,
+    HandleFor<Isolate, PrimitiveHeapObject> import_name, int module_request,
+    int cell_index, int beg_pos, int end_pos) {
+  HandleFor<Isolate, SourceTextModuleInfoEntry> result =
+      HandleFor<Isolate, SourceTextModuleInfoEntry>::cast(
+          isolate->factory()->NewStruct(SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE,
+                                        AllocationType::kOld));
   result->set_export_name(*export_name);
   result->set_local_name(*local_name);
   result->set_import_name(*import_name);
@@ -1049,12 +1066,27 @@ Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
   return result;
 }
 
-Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
+template Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
+    Isolate* isolate, Handle<PrimitiveHeapObject> export_name,
+    Handle<PrimitiveHeapObject> local_name,
+    Handle<PrimitiveHeapObject> import_name, int module_request, int cell_index,
+    int beg_pos, int end_pos);
+template OffThreadHandle<SourceTextModuleInfoEntry>
+SourceTextModuleInfoEntry::New(OffThreadIsolate* isolate,
+                               OffThreadHandle<PrimitiveHeapObject> export_name,
+                               OffThreadHandle<PrimitiveHeapObject> local_name,
+                               OffThreadHandle<PrimitiveHeapObject> import_name,
+                               int module_request, int cell_index, int beg_pos,
+                               int end_pos);
+
+template <typename Isolate>
+HandleFor<Isolate, SourceTextModuleInfo> SourceTextModuleInfo::New(
     Isolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr) {
   // Serialize module requests.
   int size = static_cast<int>(descr->module_requests().size());
-  Handle<FixedArray> module_requests = isolate->factory()->NewFixedArray(size);
-  Handle<FixedArray> module_request_positions =
+  HandleFor<Isolate, FixedArray> module_requests =
+      isolate->factory()->NewFixedArray(size);
+  HandleFor<Isolate, FixedArray> module_request_positions =
       isolate->factory()->NewFixedArray(size);
   for (const auto& elem : descr->module_requests()) {
     module_requests->set(elem.second.index,
@@ -1064,46 +1096,49 @@ Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
   }
 
   // Serialize special exports.
-  Handle<FixedArray> special_exports = isolate->factory()->NewFixedArray(
-      static_cast<int>(descr->special_exports().size()));
+  HandleFor<Isolate, FixedArray> special_exports =
+      isolate->factory()->NewFixedArray(
+          static_cast<int>(descr->special_exports().size()));
   {
     int i = 0;
     for (auto entry : descr->special_exports()) {
-      Handle<SourceTextModuleInfoEntry> serialized_entry =
+      HandleFor<Isolate, SourceTextModuleInfoEntry> serialized_entry =
           entry->Serialize(isolate);
       special_exports->set(i++, *serialized_entry);
     }
   }
 
   // Serialize namespace imports.
-  Handle<FixedArray> namespace_imports = isolate->factory()->NewFixedArray(
-      static_cast<int>(descr->namespace_imports().size()));
+  HandleFor<Isolate, FixedArray> namespace_imports =
+      isolate->factory()->NewFixedArray(
+          static_cast<int>(descr->namespace_imports().size()));
   {
     int i = 0;
     for (auto entry : descr->namespace_imports()) {
-      Handle<SourceTextModuleInfoEntry> serialized_entry =
+      HandleFor<Isolate, SourceTextModuleInfoEntry> serialized_entry =
           entry->Serialize(isolate);
       namespace_imports->set(i++, *serialized_entry);
     }
   }
 
   // Serialize regular exports.
-  Handle<FixedArray> regular_exports =
+  HandleFor<Isolate, FixedArray> regular_exports =
       descr->SerializeRegularExports(isolate, zone);
 
   // Serialize regular imports.
-  Handle<FixedArray> regular_imports = isolate->factory()->NewFixedArray(
-      static_cast<int>(descr->regular_imports().size()));
+  HandleFor<Isolate, FixedArray> regular_imports =
+      isolate->factory()->NewFixedArray(
+          static_cast<int>(descr->regular_imports().size()));
   {
     int i = 0;
     for (const auto& elem : descr->regular_imports()) {
-      Handle<SourceTextModuleInfoEntry> serialized_entry =
+      HandleFor<Isolate, SourceTextModuleInfoEntry> serialized_entry =
           elem.second->Serialize(isolate);
       regular_imports->set(i++, *serialized_entry);
     }
   }
 
-  Handle<SourceTextModuleInfo> result =
+  HandleFor<Isolate, SourceTextModuleInfo> result =
       isolate->factory()->NewSourceTextModuleInfo();
   result->set(kModuleRequestsIndex, *module_requests);
   result->set(kSpecialExportsIndex, *special_exports);
@@ -1113,6 +1148,10 @@ Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
   result->set(kModuleRequestPositionsIndex, *module_request_positions);
   return result;
 }
+template Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
+    Isolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
+template OffThreadHandle<SourceTextModuleInfo> SourceTextModuleInfo::New(
+    OffThreadIsolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
 
 int SourceTextModuleInfo::RegularExportCount() const {
   DCHECK_EQ(regular_exports().length() % kRegularExportLength, 0);
