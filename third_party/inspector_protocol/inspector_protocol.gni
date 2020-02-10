@@ -35,8 +35,6 @@ template("inspector_protocol_generate") {
       "$inspector_protocol_dir/lib/base_string_adapter_h.template",
       "$inspector_protocol_dir/lib/DispatcherBase_cpp.template",
       "$inspector_protocol_dir/lib/DispatcherBase_h.template",
-      "$inspector_protocol_dir/lib/ErrorSupport_cpp.template",
-      "$inspector_protocol_dir/lib/ErrorSupport_h.template",
       "$inspector_protocol_dir/lib/Forward_h.template",
       "$inspector_protocol_dir/lib/FrontendChannel_h.template",
       "$inspector_protocol_dir/lib/Object_cpp.template",

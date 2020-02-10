@@ -655,7 +655,6 @@ def main():
     # Note these should be sorted in the right order.
     # TODO(dgozman): sort them programmatically based on commented includes.
     protocol_h_templates = [
-      "ErrorSupport_h.template",
       "Values_h.template",
       "Object_h.template",
       "ValueConversions_h.template",
@@ -664,7 +663,6 @@ def main():
 
     protocol_cpp_templates = [
       "Protocol_cpp.template",
-      "ErrorSupport_cpp.template",
       "Values_cpp.template",
       "Object_cpp.template",
       "DispatcherBase_cpp.template",
