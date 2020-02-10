@@ -764,7 +764,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void InvokeFunction(Register function, Register expected_parameter_count,
                       Register actual_parameter_count, InvokeFlag flag);
 
-  void DebugBreak();
   // Frame restart support
   void MaybeDropFrames();
 
