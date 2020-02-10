@@ -67,6 +67,7 @@ size_t ArrayBufferList::BytesSlow() {
 
 void ArrayBufferSweeper::EnsureFinished() {
   if (!sweeping_in_progress_) return;
+  CHECK(V8_ARRAY_BUFFER_EXTENSION_BOOL);
 
   TryAbortResult abort_result =
       heap_->isolate()->cancelable_task_manager()->TryAbort(job_.id);
@@ -127,6 +128,8 @@ void ArrayBufferSweeper::RequestSweep(SweepingScope scope) {
 
   if (young_.IsEmpty() && (old_.IsEmpty() || scope == SweepingScope::Young))
     return;
+
+  CHECK(V8_ARRAY_BUFFER_EXTENSION_BOOL);
 
   if (!heap_->IsTearingDown() && !heap_->ShouldReduceMemory() &&
       !heap_->is_current_gc_forced() && FLAG_concurrent_array_buffer_sweeping) {
@@ -196,6 +199,7 @@ void ArrayBufferSweeper::ReleaseAll(ArrayBufferList* list) {
 
 void ArrayBufferSweeper::Append(JSArrayBuffer object,
                                 ArrayBufferExtension* extension) {
+  CHECK(V8_ARRAY_BUFFER_EXTENSION_BOOL);
   size_t bytes = extension->accounting_length();
 
   if (Heap::InYoungGeneration(object)) {
