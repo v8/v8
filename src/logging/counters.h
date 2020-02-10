@@ -989,6 +989,7 @@ class RuntimeCallTimer final {
   V(DeoptimizeCode)                            \
   V(DeserializeContext)                        \
   V(DeserializeIsolate)                        \
+  V(FinalizationGroupCleanupFromTask)          \
   V(FunctionCallback)                          \
   V(FunctionLengthGetter)                      \
   V(FunctionPrototypeGetter)                   \
