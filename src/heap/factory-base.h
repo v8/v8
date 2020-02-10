@@ -88,6 +88,10 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
       HandleFor<Impl, FixedArray> raw_strings,
       HandleFor<Impl, FixedArray> cooked_strings);
 
+  HandleFor<Impl, Script> NewScript(HandleFor<Impl, String> source);
+  HandleFor<Impl, Script> NewScriptWithId(HandleFor<Impl, String> source,
+                                          int script_id);
+
   HandleFor<Impl, SeqOneByteString> NewOneByteInternalizedString(
       const Vector<const uint8_t>& str, uint32_t hash_field);
   HandleFor<Impl, SeqTwoByteString> NewTwoByteInternalizedString(

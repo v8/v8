@@ -22988,7 +22988,7 @@ TEST(ScriptPositionInfo) {
     // Fail when position is larger than script size.
     CHECK(!script1->GetPositionInfo(220384, &info, script1->NO_OFFSET));
 
-    i::Script::InitLineEnds(script1);
+    i::Script::InitLineEnds(i_isolate, script1);
   }
 }
 

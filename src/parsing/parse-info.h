@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "include/v8.h"
+#include "src/base/export-template.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/function-kind.h"
@@ -54,10 +55,12 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ~ParseInfo();
 
-  Handle<Script> CreateScript(Isolate* isolate, Handle<String> source,
-                              ScriptOriginOptions origin_options,
-                              REPLMode repl_mode = REPLMode::kNo,
-                              NativesFlag natives = NOT_NATIVES_CODE);
+  template <typename Isolate>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  HandleFor<Isolate, Script> CreateScript(
+      Isolate* isolate, HandleFor<Isolate, String> source,
+      ScriptOriginOptions origin_options, REPLMode repl_mode = REPLMode::kNo,
+      NativesFlag natives = NOT_NATIVES_CODE);
 
   // Either returns the ast-value-factory associcated with this ParseInfo, or
   // creates and returns a new factory if none exists.
@@ -256,6 +259,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ParallelTasks* parallel_tasks() { return parallel_tasks_.get(); }
 
+  template <typename Isolate>
   void SetFlagsFromScript(Isolate* isolate, Script script);
 
   //--------------------------------------------------------------------------
@@ -285,7 +289,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   }
 
  private:
-  void SetFlagsForToplevelCompileFromScript(Isolate* isolate, Script script);
+  template <typename Isolate>
+  void SetFlagsForToplevelCompileFromScript(Isolate* isolate, Script script,
+                                            bool is_collecting_type_profile);
 
   // Set function info flags based on those in either FunctionLiteral or
   // SharedFunctionInfo |function|

@@ -10,6 +10,8 @@
 #include "src/heap/factory.h"
 #include "src/heap/off-thread-factory-inl.h"
 #include "src/heap/read-only-heap.h"
+#include "src/logging/log.h"
+#include "src/logging/off-thread-logger.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/oddball.h"
@@ -110,6 +112,40 @@ HandleFor<Impl, FixedArrayBase> FactoryBase<Impl>::NewFixedDoubleArray(
       handle(FixedDoubleArray::cast(result), isolate());
   array->set_length(length);
   return array;
+}
+
+template <typename Impl>
+HandleFor<Impl, Script> FactoryBase<Impl>::NewScript(
+    HandleFor<Impl, String> source) {
+  return NewScriptWithId(source, isolate()->GetNextScriptId());
+}
+
+template <typename Impl>
+HandleFor<Impl, Script> FactoryBase<Impl>::NewScriptWithId(
+    HandleFor<Impl, String> source, int script_id) {
+  // Create and initialize script object.
+  ReadOnlyRoots roots = read_only_roots();
+  HandleFor<Impl, Script> script = HandleFor<Impl, Script>::cast(
+      NewStruct(SCRIPT_TYPE, AllocationType::kOld));
+  script->set_source(*source);
+  script->set_name(roots.undefined_value());
+  script->set_id(script_id);
+  script->set_line_offset(0);
+  script->set_column_offset(0);
+  script->set_context_data(roots.undefined_value());
+  script->set_type(Script::TYPE_NORMAL);
+  script->set_line_ends(roots.undefined_value());
+  script->set_eval_from_shared_or_wrapped_arguments(roots.undefined_value());
+  script->set_eval_from_position(0);
+  script->set_shared_function_infos(roots.empty_weak_fixed_array(),
+                                    SKIP_WRITE_BARRIER);
+  script->set_flags(0);
+  script->set_host_defined_options(roots.empty_fixed_array());
+
+  impl()->AddToScriptList(script);
+
+  LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
+  return script;
 }
 
 template <typename Impl>

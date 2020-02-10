@@ -391,8 +391,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<AccessorInfo> NewAccessorInfo();
 
-  Handle<Script> NewScript(Handle<String> source);
-  Handle<Script> NewScriptWithId(Handle<String> source, int script_id);
   Handle<Script> CloneScript(Handle<Script> script);
 
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
@@ -947,6 +945,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
 
+  void AddToScriptList(Handle<Script> shared);
   // ------
 
   HeapObject AllocateRawWithAllocationSite(

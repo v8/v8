@@ -70,15 +70,15 @@ class Profiler;
 class Ticker;
 
 #undef LOG
-#define LOG(isolate, Call)                              \
-  do {                                                  \
-    v8::internal::Logger* logger = (isolate)->logger(); \
-    if (logger->is_logging()) logger->Call;             \
+#define LOG(isolate, Call)                  \
+  do {                                      \
+    auto* logger = (isolate)->logger();     \
+    if (logger->is_logging()) logger->Call; \
   } while (false)
 
 #define LOG_CODE_EVENT(isolate, Call)                        \
   do {                                                       \
-    v8::internal::Logger* logger = (isolate)->logger();      \
+    auto* logger = (isolate)->logger();                      \
     if (logger->is_listening_to_code_events()) logger->Call; \
   } while (false)
 

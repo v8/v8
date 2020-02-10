@@ -2068,7 +2068,7 @@ void Debug::PrintBreakLocation() {
   if (script_obj->IsScript()) {
     Handle<Script> script = Handle<Script>::cast(script_obj);
     Handle<String> source(String::cast(script->source()), isolate_);
-    Script::InitLineEnds(script);
+    Script::InitLineEnds(isolate_, script);
     int line =
         Script::GetLineNumber(script, source_position) - script->line_offset();
     int column = Script::GetColumnNumber(script, source_position) -

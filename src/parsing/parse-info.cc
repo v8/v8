@@ -70,7 +70,7 @@ ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
 
 ParseInfo::ParseInfo(Isolate* isolate)
     : ParseInfo(isolate, isolate->allocator()) {
-  script_id_ = isolate->heap()->NextScriptId();
+  script_id_ = isolate->GetNextScriptId();
   LOG(isolate, ScriptEvent(Logger::ScriptEventType::kReserveId, script_id_));
 }
 
@@ -121,9 +121,8 @@ ParseInfo::ParseInfo(Isolate* isolate, SharedFunctionInfo shared)
 
 ParseInfo::ParseInfo(Isolate* isolate, Script script)
     : ParseInfo(isolate, isolate->allocator()) {
-  SetFlagsForToplevelCompileFromScript(isolate, script);
-  set_collect_type_profile(isolate->is_collecting_type_profile() &&
-                           script.IsUserJavaScript());
+  SetFlagsForToplevelCompileFromScript(isolate, script,
+                                       isolate->is_collecting_type_profile());
 }
 
 // static
@@ -165,19 +164,20 @@ ParseInfo::~ParseInfo() = default;
 
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
-Handle<Script> ParseInfo::CreateScript(Isolate* isolate, Handle<String> source,
-                                       ScriptOriginOptions origin_options,
-                                       REPLMode repl_mode,
-                                       NativesFlag natives) {
+template <typename Isolate>
+HandleFor<Isolate, Script> ParseInfo::CreateScript(
+    Isolate* isolate, HandleFor<Isolate, String> source,
+    ScriptOriginOptions origin_options, REPLMode repl_mode,
+    NativesFlag natives) {
   // Create a script object describing the script to be compiled.
-  Handle<Script> script;
+  HandleFor<Isolate, Script> script;
   if (script_id_ == -1) {
     script = isolate->factory()->NewScript(source);
   } else {
     script = isolate->factory()->NewScriptWithId(source, script_id_);
   }
   if (isolate->NeedsSourcePositionsForProfiling()) {
-    Script::InitLineEnds(script);
+    Script::InitLineEnds(isolate, script);
   }
   switch (natives) {
     case EXTENSION_CODE:
@@ -192,9 +192,22 @@ Handle<Script> ParseInfo::CreateScript(Isolate* isolate, Handle<String> source,
   script->set_origin_options(origin_options);
   script->set_is_repl_mode(repl_mode == REPLMode::kYes);
 
-  SetFlagsForToplevelCompileFromScript(isolate, *script);
+  SetFlagsForToplevelCompileFromScript(isolate, *script,
+                                       isolate->is_collecting_type_profile());
   return script;
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<Script> ParseInfo::CreateScript(Isolate* isolate,
+                                           Handle<String> source,
+                                           ScriptOriginOptions origin_options,
+                                           REPLMode repl_mode,
+                                           NativesFlag natives);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    OffThreadHandle<Script> ParseInfo::CreateScript(
+        OffThreadIsolate* isolate, OffThreadHandle<String> source,
+        ScriptOriginOptions origin_options, REPLMode repl_mode,
+        NativesFlag natives);
 
 AstValueFactory* ParseInfo::GetOrCreateAstValueFactory() {
   if (!ast_value_factory_.get()) {
@@ -217,20 +230,21 @@ void ParseInfo::set_character_stream(
   character_stream_.swap(character_stream);
 }
 
-void ParseInfo::SetFlagsForToplevelCompileFromScript(Isolate* isolate,
-                                                     Script script) {
+template <typename Isolate>
+void ParseInfo::SetFlagsForToplevelCompileFromScript(
+    Isolate* isolate, Script script, bool is_collecting_type_profile) {
   SetFlagsFromScript(isolate, script);
   set_allow_lazy_parsing();
   set_toplevel();
-  set_collect_type_profile(isolate->is_collecting_type_profile() &&
+  set_collect_type_profile(is_collecting_type_profile &&
                            script.IsUserJavaScript());
   set_repl_mode(script.is_repl_mode());
-
   if (script.is_wrapped()) {
     set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
   }
 }
 
+template <typename Isolate>
 void ParseInfo::SetFlagsFromScript(Isolate* isolate, Script script) {
   DCHECK(script_id_ == -1 || script_id_ == script.id());
   script_id_ = script.id();
@@ -244,7 +258,13 @@ void ParseInfo::SetFlagsFromScript(Isolate* isolate, Script script) {
   }
 
   if (script.is_wrapped()) {
-    set_wrapped_arguments(handle(script.wrapped_arguments(), isolate));
+    // This should only ever happen on the main thread. Convert this templated
+    // handle into a real Handle via HandleOrOffThreadHandle to avoid having to
+    // use template specialization for this.
+    DCHECK((std::is_same<Isolate, v8::internal::Isolate>::value));
+    HandleOrOffThreadHandle<FixedArray> wrapped_arguments_handle =
+        handle(script.wrapped_arguments(), isolate);
+    set_wrapped_arguments(wrapped_arguments_handle);
   }
 }
 

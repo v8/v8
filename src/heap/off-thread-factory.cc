@@ -122,6 +122,11 @@ void OffThreadFactory::Publish(Isolate* isolate) {
     string.set_map_no_write_barrier(map);
   }
 
+  std::vector<Handle<Script>> script_handles;
+  for (Script script : script_list_) {
+    script_handles.push_back(handle(script, isolate));
+  }
+
   // Then merge the spaces. At this point, we are allowed to point between (no
   // longer) off-thread pages and main-thread heap pages, and objects in the
   // previously off-thread page can move.
@@ -160,6 +165,16 @@ void OffThreadFactory::Publish(Isolate* isolate) {
       }
     }
   }
+
+  // Merge the recorded scripts into the isolate's script list.
+  // This for loop may seem expensive, but practically there's unlikely to be
+  // more than one script in the OffThreadFactory.
+  Handle<WeakArrayList> scripts = isolate->factory()->script_list();
+  for (Handle<Script> script_handle : script_handles) {
+    scripts = WeakArrayList::Append(isolate, scripts,
+                                    MaybeObjectHandle::Weak(script_handle));
+  }
+  isolate->heap()->SetRootScriptList(*scripts);
 }
 
 // Hacky method for creating a simple object with a slot pointing to a string.
@@ -191,6 +206,10 @@ OffThreadHandle<String> OffThreadFactory::MakeOrFindTwoCharacterString(
   ret->SeqTwoByteStringSet(0, c1);
   ret->SeqTwoByteStringSet(1, c2);
   return ret;
+}
+
+void OffThreadFactory::AddToScriptList(OffThreadHandle<Script> shared) {
+  script_list_.push_back(*shared);
 }
 
 HeapObject OffThreadFactory::AllocateRaw(int size, AllocationType allocation,

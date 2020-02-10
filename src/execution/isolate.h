@@ -1287,6 +1287,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   static std::string GetTurboCfgFileName(Isolate* isolate);
 
+  int GetNextScriptId();
+
 #if V8_SFI_HAS_UNIQUE_ID
   int GetNextUniqueSharedFunctionInfoId() { return next_unique_sfi_id_++; }
 #endif

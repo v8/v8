@@ -1284,41 +1284,16 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
   return info;
 }
 
-Handle<Script> Factory::NewScript(Handle<String> source) {
-  return NewScriptWithId(source, isolate()->heap()->NextScriptId());
-}
-
-Handle<Script> Factory::NewScriptWithId(Handle<String> source, int script_id) {
-  // Create and initialize script object.
-  Heap* heap = isolate()->heap();
-  ReadOnlyRoots roots(heap);
-  Handle<Script> script =
-      Handle<Script>::cast(NewStruct(SCRIPT_TYPE, AllocationType::kOld));
-  script->set_source(*source);
-  script->set_name(roots.undefined_value());
-  script->set_id(script_id);
-  script->set_line_offset(0);
-  script->set_column_offset(0);
-  script->set_context_data(roots.undefined_value());
-  script->set_type(Script::TYPE_NORMAL);
-  script->set_line_ends(roots.undefined_value());
-  script->set_eval_from_shared_or_wrapped_arguments(roots.undefined_value());
-  script->set_eval_from_position(0);
-  script->set_shared_function_infos(*empty_weak_fixed_array(),
-                                    SKIP_WRITE_BARRIER);
-  script->set_flags(0);
-  script->set_host_defined_options(*empty_fixed_array());
+void Factory::AddToScriptList(Handle<Script> script) {
   Handle<WeakArrayList> scripts = script_list();
   scripts = WeakArrayList::Append(isolate(), scripts,
                                   MaybeObjectHandle::Weak(script));
-  heap->set_script_list(*scripts);
-  LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
-  return script;
+  isolate()->heap()->set_script_list(*scripts);
 }
 
 Handle<Script> Factory::CloneScript(Handle<Script> script) {
   Heap* heap = isolate()->heap();
-  int script_id = isolate()->heap()->NextScriptId();
+  int script_id = isolate()->GetNextScriptId();
   Handle<Script> new_script =
       Handle<Script>::cast(NewStruct(SCRIPT_TYPE, AllocationType::kOld));
   new_script->set_source(script->source());

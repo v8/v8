@@ -9439,7 +9439,7 @@ std::vector<int> debug::Script::LineEnds() const {
 
   i::Isolate* isolate = script->GetIsolate();
   i::HandleScope scope(isolate);
-  i::Script::InitLineEnds(script);
+  i::Script::InitLineEnds(isolate, script);
   CHECK(script->line_ends().IsFixedArray());
   i::Handle<i::FixedArray> line_ends(i::FixedArray::cast(script->line_ends()),
                                      isolate);
@@ -9531,9 +9531,9 @@ bool debug::Script::GetPossibleBreakpoints(
                                                  locations);
   }
 
-  i::Script::InitLineEnds(script);
-  CHECK(script->line_ends().IsFixedArray());
   i::Isolate* isolate = script->GetIsolate();
+  i::Script::InitLineEnds(isolate, script);
+  CHECK(script->line_ends().IsFixedArray());
   i::Handle<i::FixedArray> line_ends =
       i::Handle<i::FixedArray>::cast(i::handle(script->line_ends(), isolate));
   CHECK(line_ends->length());
@@ -9586,7 +9586,7 @@ int debug::Script::GetSourceOffset(const debug::Location& location) const {
     column = std::max(0, column - script->column_offset());
   }
 
-  i::Script::InitLineEnds(script);
+  i::Script::InitLineEnds(script->GetIsolate(), script);
   CHECK(script->line_ends().IsFixedArray());
   i::Handle<i::FixedArray> line_ends = i::Handle<i::FixedArray>::cast(
       i::handle(script->line_ends(), script->GetIsolate()));

@@ -4,6 +4,7 @@
 
 #include "src/objects/string.h"
 
+#include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"  // For LooksValid implementation.
 #include "src/heap/read-only-heap.h"
@@ -688,7 +689,7 @@ void String::WriteToFlat(String src, sinkchar* sink, int f, int t) {
 }
 
 template <typename SourceChar>
-static void CalculateLineEndsImpl(Isolate* isolate, std::vector<int>* line_ends,
+static void CalculateLineEndsImpl(std::vector<int>* line_ends,
                                   Vector<const SourceChar> src,
                                   bool include_ending_line) {
   const int src_len = src.length();
@@ -708,9 +709,10 @@ static void CalculateLineEndsImpl(Isolate* isolate, std::vector<int>* line_ends,
   }
 }
 
-Handle<FixedArray> String::CalculateLineEnds(Isolate* isolate,
-                                             Handle<String> src,
-                                             bool include_ending_line) {
+template <typename Isolate>
+HandleFor<Isolate, FixedArray> String::CalculateLineEnds(
+    Isolate* isolate, HandleFor<Isolate, String> src,
+    bool include_ending_line) {
   src = Flatten(isolate, src);
   // Rough estimate of line count based on a roughly estimated average
   // length of (unpacked) code.
@@ -723,20 +725,28 @@ Handle<FixedArray> String::CalculateLineEnds(Isolate* isolate,
     String::FlatContent content = src->GetFlatContent(no_allocation);
     DCHECK(content.IsFlat());
     if (content.IsOneByte()) {
-      CalculateLineEndsImpl(isolate, &line_ends, content.ToOneByteVector(),
+      CalculateLineEndsImpl(&line_ends, content.ToOneByteVector(),
                             include_ending_line);
     } else {
-      CalculateLineEndsImpl(isolate, &line_ends, content.ToUC16Vector(),
+      CalculateLineEndsImpl(&line_ends, content.ToUC16Vector(),
                             include_ending_line);
     }
   }
   int line_count = static_cast<int>(line_ends.size());
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(line_count);
+  HandleFor<Isolate, FixedArray> array =
+      isolate->factory()->NewFixedArray(line_count, AllocationType::kOld);
   for (int i = 0; i < line_count; i++) {
     array->set(i, Smi::FromInt(line_ends[i]));
   }
   return array;
 }
+
+template Handle<FixedArray> String::CalculateLineEnds(Isolate* isolate,
+                                                      Handle<String> src,
+                                                      bool include_ending_line);
+template OffThreadHandle<FixedArray> String::CalculateLineEnds(
+    OffThreadIsolate* isolate, OffThreadHandle<String> src,
+    bool include_ending_line);
 
 bool String::SlowEquals(String other) {
   DisallowHeapAllocation no_gc;

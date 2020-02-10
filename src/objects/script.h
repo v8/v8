@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "src/base/export-template.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
@@ -154,7 +155,9 @@ class Script : public Struct {
   bool ContainsAsmModule();
 
   // Init line_ends array with source code positions of line ends.
-  V8_EXPORT_PRIVATE static void InitLineEnds(Handle<Script> script);
+  template <typename Isolate>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  static void InitLineEnds(Isolate* isolate, HandleFor<Isolate, Script> script);
 
   // Carries information about a source position.
   struct PositionInfo {

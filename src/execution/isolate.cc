@@ -2856,6 +2856,9 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
       builtins_(this),
       rail_mode_(PERFORMANCE_ANIMATION),
       code_event_dispatcher_(new CodeEventDispatcher()),
+#if V8_SFI_HAS_UNIQUE_ID
+      next_unique_sfi_id_(0),
+#endif
       cancelable_task_manager_(new CancelableTaskManager()) {
   TRACE_ISOLATE(constructor);
   CheckIsolateLayout();
@@ -4246,6 +4249,8 @@ void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
     heap_.IncrementDeferredCount(feature);
   }
 }
+
+int Isolate::GetNextScriptId() { return heap()->NextScriptId(); }
 
 // static
 std::string Isolate::GetTurboCfgFileName(Isolate* isolate) {

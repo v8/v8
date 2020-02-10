@@ -93,12 +93,15 @@ class V8_EXPORT_PRIVATE OffThreadFactory
 
   OffThreadHandle<String> MakeOrFindTwoCharacterString(uint16_t c1,
                                                        uint16_t c2);
+
+  void AddToScriptList(OffThreadHandle<Script> shared);
   // ------
 
   ReadOnlyRoots roots_;
   OffThreadSpace space_;
   OffThreadLargeObjectSpace lo_space_;
   std::vector<RelativeSlot> string_slots_;
+  std::vector<Script> script_list_;
   bool is_finished = false;
 };
 

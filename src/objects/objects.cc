@@ -4701,8 +4701,9 @@ int Script::GetEvalPosition(Isolate* isolate, Handle<Script> script) {
   return position;
 }
 
-void Script::InitLineEnds(Handle<Script> script) {
-  Isolate* isolate = script->GetIsolate();
+template <typename Isolate>
+// static
+void Script::InitLineEnds(Isolate* isolate, HandleFor<Isolate, Script> script) {
   if (!script->line_ends().IsUndefined(isolate)) return;
   DCHECK(script->type() != Script::TYPE_WASM ||
          script->source_mapping_url().IsString());
@@ -4713,19 +4714,26 @@ void Script::InitLineEnds(Handle<Script> script) {
     script->set_line_ends(ReadOnlyRoots(isolate).empty_fixed_array());
   } else {
     DCHECK(src_obj.IsString());
-    Handle<String> src(String::cast(src_obj), isolate);
-    Handle<FixedArray> array = String::CalculateLineEnds(isolate, src, true);
+    HandleFor<Isolate, String> src(String::cast(src_obj), isolate);
+    HandleFor<Isolate, FixedArray> array =
+        String::CalculateLineEnds(isolate, src, true);
     script->set_line_ends(*array);
   }
 
   DCHECK(script->line_ends().IsFixedArray());
 }
 
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Script::InitLineEnds(
+    Isolate* isolate, Handle<Script> script);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Script::InitLineEnds(
+    OffThreadIsolate* isolate, OffThreadHandle<Script> script);
+
 bool Script::GetPositionInfo(Handle<Script> script, int position,
                              PositionInfo* info, OffsetFlag offset_flag) {
   // For wasm, we do not create an artificial line_ends array, but do the
   // translation directly.
-  if (script->type() != Script::TYPE_WASM) InitLineEnds(script);
+  if (script->type() != Script::TYPE_WASM)
+    InitLineEnds(script->GetIsolate(), script);
   return script->GetPositionInfo(position, info, offset_flag);
 }
 

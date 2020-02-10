@@ -13,8 +13,8 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
-
 class OffThreadIsolate;
+class OffThreadLogger;
 
 template <>
 struct HandleTraits<OffThreadIsolate> {
@@ -38,10 +38,11 @@ class V8_EXPORT_PRIVATE HiddenOffThreadFactory : private OffThreadFactory {
 // This class holds an OffThreadFactory, but is otherwise effectively a stub
 // implementation of an Isolate. In particular, it doesn't allow throwing
 // exceptions, and hard crashes if you try.
-class V8_EXPORT_PRIVATE OffThreadIsolate : private HiddenOffThreadFactory {
+class V8_EXPORT_PRIVATE OffThreadIsolate final
+    : private HiddenOffThreadFactory {
  public:
-  explicit OffThreadIsolate(Isolate* isolate)
-      : HiddenOffThreadFactory(isolate) {}
+  explicit OffThreadIsolate(Isolate* isolate);
+  ~OffThreadIsolate();
 
   v8::internal::OffThreadFactory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid
@@ -58,8 +59,20 @@ class V8_EXPORT_PRIVATE OffThreadIsolate : private HiddenOffThreadFactory {
   [[noreturn]] void FatalProcessOutOfHeapMemory(const char* location) {
     UNREACHABLE();
   }
-  inline bool CanAllocateInReadOnlySpace() { return false; }
-  inline bool EmptyStringRootIsInitialized() { return true; }
+
+  int GetNextScriptId();
+
+  bool NeedsSourcePositionsForProfiling();
+  bool is_collecting_type_profile();
+
+  OffThreadLogger* logger() { return logger_; }
+
+ private:
+  // TODO(leszeks): Extract out the fields of the Isolate we want and store
+  // those instead of the whole thing.
+  Isolate* isolate_;
+
+  OffThreadLogger* logger_;
 };
 
 }  // namespace internal

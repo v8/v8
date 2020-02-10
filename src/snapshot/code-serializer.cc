@@ -323,7 +323,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
                         result->StartPosition(), result->EndPosition(), *name));
     }
     if (log_code_creation) {
-      Script::InitLineEnds(script);
+      Script::InitLineEnds(isolate, script);
 
       SharedFunctionInfo::ScriptIterator iter(isolate, *script);
       for (SharedFunctionInfo info = iter.Next(); !info.is_null();
@@ -350,7 +350,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 
   if (needs_source_positions) {
     Handle<Script> script(Script::cast(result->script()), isolate);
-    Script::InitLineEnds(script);
+    Script::InitLineEnds(isolate, script);
   }
   return scope.CloseAndEscape(result);
 }
