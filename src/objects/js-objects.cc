@@ -5891,7 +5891,7 @@ void JSMessageObject::EnsureSourcePositionsAvailable(
     Isolate* isolate, Handle<JSMessageObject> message) {
   if (!message->DidEnsureSourcePositionsAvailable()) {
     DCHECK_EQ(message->start_position(), -1);
-    DCHECK_GE(message->bytecode_offset().value(), 0);
+    DCHECK_GE(message->bytecode_offset().value(), kFunctionEntryBytecodeOffset);
     Handle<SharedFunctionInfo> shared_info(
         SharedFunctionInfo::cast(message->shared_info()), isolate);
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);

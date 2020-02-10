@@ -3031,7 +3031,7 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
       DCHECK_EQ(bytecode_offset, -1);
     } else {
       message_obj->set_shared_info(*shared_info);
-      DCHECK_GE(bytecode_offset, 0);
+      DCHECK_GE(bytecode_offset, kFunctionEntryBytecodeOffset);
     }
   }
 

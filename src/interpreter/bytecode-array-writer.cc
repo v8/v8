@@ -187,6 +187,12 @@ void BytecodeArrayWriter::BindTryRegionEnd(
   handler_table_builder->SetTryRegionEnd(handler_id, current_offset);
 }
 
+void BytecodeArrayWriter::SetFunctionEntrySourcePosition(int position) {
+  bool is_statement = false;
+  source_position_table_builder_.AddPosition(
+      kFunctionEntryBytecodeOffset, SourcePosition(position), is_statement);
+}
+
 void BytecodeArrayWriter::StartBasicBlock() {
   InvalidateLastBytecode();
   exit_seen_in_block_ = false;

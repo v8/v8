@@ -216,7 +216,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void LoadAddress(Register destination, ExternalReference source);
 
-  void CompareRealStackLimit(Register with);
   void CompareRoot(Register with, RootIndex index);
   void CompareRoot(Register with, Register scratch, RootIndex index);
 

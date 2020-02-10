@@ -51,6 +51,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
   void BindTryRegionEnd(HandlerTableBuilder* handler_table_builder,
                         int handler_id);
 
+  void SetFunctionEntrySourcePosition(int position);
+
   Handle<BytecodeArray> ToBytecodeArray(Isolate* isolate, int register_count,
                                         int parameter_count,
                                         Handle<ByteArray> handler_table);

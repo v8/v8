@@ -14,13 +14,12 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 148
+bytecode array length: 147
 bytecodes: [
-  /*   17 E> */ B(StackCheck),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(this), R(2),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(1), U8(2),
+  /*   17 E> */ B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(1), U8(2),
                 B(Star), R(0),
                 B(Mov), R(context), R(3),
                 B(Mov), R(context), R(4),
@@ -93,8 +92,8 @@ constant pool: [
   Smi [23],
 ]
 handlers: [
-  [20, 94, 102],
-  [23, 56, 60],
+  [19, 93, 101],
+  [22, 55, 59],
 ]
 
 ---
@@ -104,13 +103,12 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 193
+bytecode array length: 192
 bytecodes: [
-  /*   17 E> */ B(StackCheck),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(this), R(2),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(1), U8(2),
+  /*   17 E> */ B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(1), U8(2),
                 B(Star), R(0),
                 B(Mov), R(context), R(3),
                 B(Mov), R(context), R(4),
@@ -203,8 +201,8 @@ constant pool: [
   Smi [23],
 ]
 handlers: [
-  [20, 139, 147],
-  [23, 101, 105],
+  [19, 138, 146],
+  [22, 100, 104],
 ]
 
 ---
@@ -214,13 +212,12 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 364
+bytecode array length: 363
 bytecodes: [
-  /*   17 E> */ B(StackCheck),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
                 B(Mov), R(this), R(5),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(4), U8(2),
+  /*   17 E> */ B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(4), U8(2),
                 B(Star), R(0),
                 B(Mov), R(context), R(6),
                 B(Mov), R(context), R(7),
@@ -394,10 +391,10 @@ constant pool: [
   Smi [23],
 ]
 handlers: [
-  [20, 310, 318],
-  [23, 274, 276],
-  [87, 174, 182],
-  [206, 239, 241],
+  [19, 309, 317],
+  [22, 273, 275],
+  [86, 173, 181],
+  [205, 238, 240],
 ]
 
 ---
@@ -408,13 +405,12 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 467
+bytecode array length: 466
 bytecodes: [
-  /*   44 E> */ B(StackCheck),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(5),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(this), R(2),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(1), U8(2),
+  /*   44 E> */ B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(1), U8(2),
                 B(Star), R(0),
                 B(Mov), R(context), R(3),
                 B(Mov), R(context), R(4),
@@ -618,7 +614,7 @@ constant pool: [
   Smi [23],
 ]
 handlers: [
-  [20, 413, 421],
-  [23, 375, 379],
+  [19, 412, 420],
+  [22, 374, 378],
 ]
 

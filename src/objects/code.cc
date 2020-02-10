@@ -159,10 +159,12 @@ int AbstractCode::SourcePosition(int offset) {
   if (maybe_table.IsException()) return kNoSourcePosition;
 
   ByteArray source_position_table = ByteArray::cast(maybe_table);
-  int position = 0;
   // Subtract one because the current PC is one instruction after the call site.
   if (IsCode()) offset--;
-  for (SourcePositionTableIterator iterator(source_position_table);
+  int position = 0;
+  for (SourcePositionTableIterator iterator(
+           source_position_table, SourcePositionTableIterator::kJavaScriptOnly,
+           SourcePositionTableIterator::kDontSkipFunctionEntry);
        !iterator.done() && iterator.code_offset() <= offset;
        iterator.Advance()) {
     position = iterator.source_position().ScriptOffset();

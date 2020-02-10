@@ -1779,7 +1779,7 @@ void InterpretedFrame::PatchBytecodeOffset(int new_offset) {
   DCHECK_EQ(InterpreterFrameConstants::kBytecodeOffsetFromFp,
             InterpreterFrameConstants::kExpressionsOffset -
                 index * kSystemPointerSize);
-  int raw_offset = new_offset + BytecodeArray::kHeaderSize - kHeapObjectTag;
+  int raw_offset = BytecodeArray::kHeaderSize - kHeapObjectTag + new_offset;
   SetExpression(index, Smi::FromInt(raw_offset));
 }
 
