@@ -5352,7 +5352,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     Scope* outer_scope = lit->scope()->GetOuterScopeWithContext();
     if (outer_scope) {
       shared_info->set_outer_scope_info(
-          *outer_scope->scope_info().get_handle());
+          *outer_scope->scope_info().get<Isolate>());
       shared_info->set_private_name_lookup_skips_outer_class(
           lit->scope()->private_name_lookup_skips_outer_class());
     }

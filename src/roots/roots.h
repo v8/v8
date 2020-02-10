@@ -18,7 +18,7 @@ namespace internal {
 
 // Forward declarations.
 enum ElementsKind : uint8_t;
-class OffThreadFactory;
+class OffThreadIsolate;
 template <typename T>
 class Handle;
 class Heap;

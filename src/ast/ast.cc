@@ -741,12 +741,12 @@ HandleFor<Isolate, Object> MaterializedLiteral::GetBoilerplateValue(
     if (expression->IsObjectLiteral()) {
       ObjectLiteral* object_literal = expression->AsObjectLiteral();
       DCHECK(object_literal->is_simple());
-      return object_literal->boilerplate_description().get<Isolate>();
+      return object_literal->boilerplate_description();
     } else {
       DCHECK(expression->IsArrayLiteral());
       ArrayLiteral* array_literal = expression->AsArrayLiteral();
       DCHECK(array_literal->is_simple());
-      return array_literal->boilerplate_description().get<Isolate>();
+      return array_literal->boilerplate_description();
     }
   }
   return isolate->factory()->uninitialized_value();
@@ -1014,7 +1014,7 @@ HandleFor<Isolate, Object> Literal::BuildValue(Isolate* isolate) const {
       return isolate->factory()->template NewNumber<AllocationType::kOld>(
           number_);
     case kString:
-      return string_->string().get<Isolate>();
+      return string_->string();
     case kSymbol:
       return isolate->factory()->home_object_symbol();
     case kBoolean:

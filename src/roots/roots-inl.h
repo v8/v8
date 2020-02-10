@@ -10,7 +10,6 @@
 #include "src/execution/isolate.h"
 #include "src/execution/off-thread-isolate.h"
 #include "src/handles/handles.h"
-#include "src/heap/off-thread-factory.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/descriptor-array.h"

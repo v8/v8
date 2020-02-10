@@ -169,11 +169,11 @@ HandleFor<Isolate, String> AstConsString::Allocate(Isolate* isolate) const {
   }
   // AstRawStrings are internalized before AstConsStrings are allocated, so
   // AstRawString::string() will just work.
-  HandleFor<Isolate, String> tmp(segment_.string->string().get<Isolate>());
+  HandleFor<Isolate, String> tmp = segment_.string->string();
   for (AstConsString::Segment* current = segment_.next; current != nullptr;
        current = current->next) {
     tmp = isolate->factory()
-              ->NewConsString(current->string->string().get<Isolate>(), tmp,
+              ->NewConsString(current->string->string(), tmp,
                               AllocationType::kOld)
               .ToHandleChecked();
   }
@@ -191,7 +191,7 @@ HandleFor<Isolate, String> AstConsString::AllocateFlat(Isolate* isolate) const {
     return isolate->factory()->empty_string();
   }
   if (!segment_.next) {
-    return segment_.string->string().get<Isolate>();
+    return segment_.string->string();
   }
 
   int result_length = 0;
