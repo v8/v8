@@ -833,6 +833,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* NewV8Intrinsic(const AstRawString* name,
                              const ScopedPtrList<Expression>& args, int pos);
 
+  Expression* NewV8RuntimeFunctionForFuzzing(
+      const Runtime::Function* function, const ScopedPtrList<Expression>& args,
+      int pos);
+
   V8_INLINE Statement* NewThrowStatement(Expression* exception, int pos) {
     return factory()->NewExpressionStatement(
         factory()->NewThrow(exception, pos), pos);

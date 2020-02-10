@@ -10,10 +10,17 @@
 assertEquals(undefined, %GetOptimizationStatus(function (){}));
 
 // Blacklisted intrinsics can have wrong arguments.
-%GetOptimizationStatus(1, 2, 3, 4);
+assertEquals(undefined, %GetOptimizationStatus(1, 2, 3, 4));
 
 // We don't care if an intrinsic actually exists.
 assertEquals(undefined, %FooBar());
 
 // Check whitelisted intrinsic.
 assertNotEquals(undefined, %IsBeingInterpreted());
+
+// Whitelisted runtime functions with too few args are ignored.
+assertEquals(undefined, %DeoptimizeFunction());
+
+// Superfluous arguments are ignored.
+%DeoptimizeFunction(function() {}, undefined);
+assertNotEquals(undefined, %IsBeingInterpreted(1, 2, 3));

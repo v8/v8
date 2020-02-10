@@ -356,16 +356,15 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
   const Runtime::Function* function =
       Runtime::FunctionForName(name->raw_data(), name->length());
 
+  // Be more premissive when fuzzing. Intrinsics are not supported.
+  if (FLAG_allow_natives_for_fuzzing) {
+    return NewV8RuntimeFunctionForFuzzing(function, args, pos);
+  }
+
   if (function != nullptr) {
     // Check for possible name clash.
     DCHECK_EQ(Context::kNotFound,
               Context::IntrinsicIndexForName(name->raw_data(), name->length()));
-
-    // When fuzzing, only allow whitelisted runtime functions.
-    if (FLAG_allow_natives_for_fuzzing &&
-        !Runtime::IsWhitelistedForFuzzing(function->function_id)) {
-      return factory()->NewUndefinedLiteral(kNoSourcePosition);
-    }
 
     // Check that the expected number of arguments are being passed.
     if (function->nargs != -1 && function->nargs != args.length()) {
@@ -374,11 +373,6 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
     }
 
     return factory()->NewCallRuntime(function, args, pos);
-  }
-
-  // Intrinsics are not supported for fuzzing.
-  if (FLAG_allow_natives_for_fuzzing) {
-    return factory()->NewUndefinedLiteral(kNoSourcePosition);
   }
 
   int context_index =
@@ -391,6 +385,34 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
   }
 
   return factory()->NewCallRuntime(context_index, args, pos);
+}
+
+// More permissive runtime-function creation on fuzzers.
+Expression* Parser::NewV8RuntimeFunctionForFuzzing(
+    const Runtime::Function* function, const ScopedPtrList<Expression>& args,
+    int pos) {
+  CHECK(FLAG_allow_natives_for_fuzzing);
+
+  // Intrinsics are not supported for fuzzing. Only allow whitelisted runtime
+  // functions. Also prevent later errors due to too few arguments and just
+  // ignore this call.
+  if (function == nullptr ||
+      !Runtime::IsWhitelistedForFuzzing(function->function_id) ||
+      function->nargs > args.length()) {
+    return factory()->NewUndefinedLiteral(kNoSourcePosition);
+  }
+
+  // Flexible number of arguments permitted.
+  if (function->nargs == -1) {
+    return factory()->NewCallRuntime(function, args, pos);
+  }
+
+  // Otherwise ignore superfluous arguments.
+  ScopedPtrList<Expression> permissive_args(pointer_buffer());
+  for (int i = 0; i < function->nargs; i++) {
+    permissive_args.Add(args.at(i));
+  }
+  return factory()->NewCallRuntime(function, permissive_args, pos);
 }
 
 Parser::Parser(ParseInfo* info)
