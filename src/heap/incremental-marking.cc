@@ -790,6 +790,7 @@ double IncrementalMarking::CurrentTimeToMarkingTask() const {
       heap_->tracer()->AverageTimeToIncrementalMarkingTask();
   const double current_time_to_marking_task =
       incremental_marking_job_.CurrentTimeToTask(heap_);
+  if (recorded_time_to_marking_task == 0.0) return 0.0;
   return Max(recorded_time_to_marking_task, current_time_to_marking_task);
 }
 
