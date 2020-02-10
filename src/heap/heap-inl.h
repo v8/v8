@@ -10,6 +10,7 @@
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap other than src/heap/heap.h and its
 // write barrier here!
+#include "src/base/atomicops.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/heap/third-party/heap-api.h"
@@ -575,11 +576,27 @@ Oddball Heap::ToBoolean(bool condition) {
 }
 
 int Heap::NextScriptId() {
-  int last_id = last_script_id().value();
-  if (last_id == Smi::kMaxValue) last_id = v8::UnboundScript::kNoScriptId;
-  last_id++;
-  set_last_script_id(Smi::FromInt(last_id));
-  return last_id;
+  FullObjectSlot last_script_id_slot(&roots_table()[RootIndex::kLastScriptId]);
+  Smi last_id = Smi::cast(last_script_id_slot.Relaxed_Load());
+  Smi new_id, last_id_before_cas;
+  do {
+    if (last_id.value() == Smi::kMaxValue) {
+      STATIC_ASSERT(v8::UnboundScript::kNoScriptId == 0);
+      new_id = Smi::FromInt(1);
+    } else {
+      new_id = Smi::FromInt(last_id.value() + 1);
+    }
+
+    // CAS returns the old value on success, and the current value in the slot
+    // on failure. Therefore, we want to break if the returned value matches the
+    // old value (last_id), and keep looping (with the new last_id value) if it
+    // doesn't.
+    last_id_before_cas = last_id;
+    last_id =
+        Smi::cast(last_script_id_slot.Relaxed_CompareAndSwap(last_id, new_id));
+  } while (last_id != last_id_before_cas);
+
+  return new_id.value();
 }
 
 int Heap::NextDebuggingId() {
