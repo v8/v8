@@ -2958,6 +2958,9 @@ bool Heap::CanMoveObjectStart(HeapObject object) {
 
 // static
 bool Heap::InOffThreadSpace(HeapObject heap_object) {
+#ifdef V8_ENABLE_THIRD_PARTY_HEAP
+  return false;  // currently unsupported
+#else
   Space* owner = MemoryChunk::FromHeapObject(heap_object)->owner();
   if (owner->identity() == OLD_SPACE) {
     // TODO(leszeks): Should we exclude compaction spaces here?
@@ -2967,6 +2970,7 @@ bool Heap::InOffThreadSpace(HeapObject heap_object) {
     return static_cast<LargeObjectSpace*>(owner)->is_off_thread();
   }
   return false;
+#endif
 }
 
 bool Heap::IsImmovable(HeapObject object) {

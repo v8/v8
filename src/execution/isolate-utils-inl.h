@@ -27,7 +27,7 @@ V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
   // able to get the heap, but not the isolate, for off-thread objects.
 
 #if defined V8_ENABLE_THIRD_PARTY_HEAP
-  return Heap::GetIsolateFromWritableObject(obj)->heap();
+  return Heap::GetIsolateFromWritableObject(object)->heap();
 #elif defined V8_COMPRESS_POINTERS
   Isolate* isolate = Isolate::FromRoot(GetIsolateRoot(object.ptr()));
   DCHECK_NOT_NULL(isolate);
