@@ -509,6 +509,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreases) {
 }
 
 TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
+  FLAG_concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();

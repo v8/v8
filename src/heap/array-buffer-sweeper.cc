@@ -118,6 +118,10 @@ void ArrayBufferSweeper::RequestSweepFull() {
   RequestSweep(SweepingScope::Full);
 }
 
+size_t ArrayBufferSweeper::YoungBytes() { return young_bytes_; }
+
+size_t ArrayBufferSweeper::OldBytes() { return old_bytes_; }
+
 void ArrayBufferSweeper::RequestSweep(SweepingScope scope) {
   DCHECK(!sweeping_in_progress_);
 
@@ -166,6 +170,8 @@ void ArrayBufferSweeper::Merge() {
   CHECK_EQ(job_.state, SweepingState::Swept);
   young_.Append(&job_.young);
   old_.Append(&job_.old);
+  young_bytes_ = young_.Bytes();
+  old_bytes_ = old_.Bytes();
   job_.state = SweepingState::Uninitialized;
 }
 
@@ -173,6 +179,7 @@ void ArrayBufferSweeper::ReleaseAll() {
   EnsureFinished();
   ReleaseAll(&old_);
   ReleaseAll(&young_);
+  old_bytes_ = young_bytes_ = 0;
 }
 
 void ArrayBufferSweeper::ReleaseAll(ArrayBufferList* list) {
@@ -189,13 +196,16 @@ void ArrayBufferSweeper::ReleaseAll(ArrayBufferList* list) {
 
 void ArrayBufferSweeper::Append(JSArrayBuffer object,
                                 ArrayBufferExtension* extension) {
+  size_t bytes = extension->accounting_length();
+
   if (Heap::InYoungGeneration(object)) {
     young_.Append(extension);
+    young_bytes_ += bytes;
   } else {
     old_.Append(extension);
+    old_bytes_ += bytes;
   }
 
-  size_t bytes = extension->accounting_length();
   IncrementExternalMemoryCounters(bytes);
 }
 

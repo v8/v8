@@ -5999,12 +5999,12 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
 
 size_t Heap::YoungArrayBufferBytes() {
   DCHECK(V8_ARRAY_BUFFER_EXTENSION_BOOL);
-  return array_buffer_sweeper()->young().Bytes();
+  return array_buffer_sweeper()->YoungBytes();
 }
 
 size_t Heap::OldArrayBufferBytes() {
   DCHECK(V8_ARRAY_BUFFER_EXTENSION_BOOL);
-  return array_buffer_sweeper()->old().Bytes();
+  return array_buffer_sweeper()->OldBytes();
 }
 
 void Heap::RegisterStrongRoots(FullObjectSlot start, FullObjectSlot end) {

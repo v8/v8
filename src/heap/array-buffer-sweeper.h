@@ -48,7 +48,10 @@ struct ArrayBufferList {
 class ArrayBufferSweeper {
  public:
   explicit ArrayBufferSweeper(Heap* heap)
-      : heap_(heap), sweeping_in_progress_(false) {}
+      : heap_(heap),
+        sweeping_in_progress_(false),
+        young_bytes_(0),
+        old_bytes_(0) {}
   ~ArrayBufferSweeper() { ReleaseAll(); }
 
   void EnsureFinished();
@@ -59,6 +62,9 @@ class ArrayBufferSweeper {
 
   ArrayBufferList young() { return young_; }
   ArrayBufferList old() { return old_; }
+
+  size_t YoungBytes();
+  size_t OldBytes();
 
  private:
   enum class SweepingScope { Young, Full };
@@ -105,6 +111,9 @@ class ArrayBufferSweeper {
 
   ArrayBufferList young_;
   ArrayBufferList old_;
+
+  size_t young_bytes_;
+  size_t old_bytes_;
 };
 
 }  // namespace internal
