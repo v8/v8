@@ -34,11 +34,13 @@ bool HandleBase::IsDereferenceAllowed() const {
   if (object.IsSmi()) return true;
   HeapObject heap_object = HeapObject::cast(object);
   if (IsReadOnlyHeapObject(heap_object)) return true;
-  Isolate* isolate = GetIsolateFromWritableObject(heap_object);
-  RootIndex root_index;
-  if (isolate->roots_table().IsRootHandleLocation(location_, &root_index) &&
-      RootsTable::IsImmortalImmovable(root_index)) {
-    return true;
+  if (!Heap::InOffThreadSpace(heap_object)) {
+    Isolate* isolate = GetIsolateFromWritableObject(heap_object);
+    RootIndex root_index;
+    if (isolate->roots_table().IsRootHandleLocation(location_, &root_index) &&
+        RootsTable::IsImmortalImmovable(root_index)) {
+      return true;
+    }
   }
   return AllowHandleDereference::IsAllowed();
 }

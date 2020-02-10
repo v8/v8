@@ -4487,7 +4487,12 @@ void CodeLargeObjectSpace::RemovePage(LargePage* page, size_t object_size) {
 }
 
 OffThreadLargeObjectSpace::OffThreadLargeObjectSpace(Heap* heap)
-    : LargeObjectSpace(heap, LO_SPACE) {}
+    : LargeObjectSpace(heap, LO_SPACE) {
+#ifdef V8_ENABLE_THIRD_PARTY_HEAP
+  // OffThreadLargeObjectSpace doesn't work with third-party heap.
+  UNREACHABLE();
+#endif
+}
 
 AllocationResult OffThreadLargeObjectSpace::AllocateRaw(int object_size) {
   LargePage* page = AllocateLargePage(object_size, NOT_EXECUTABLE);

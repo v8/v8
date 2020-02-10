@@ -3184,7 +3184,12 @@ class V8_EXPORT_PRIVATE OffThreadSpace : public LocalSpace {
  public:
   explicit OffThreadSpace(Heap* heap)
       : LocalSpace(heap, OLD_SPACE, NOT_EXECUTABLE,
-                   LocalSpaceKind::kOffThreadSpace) {}
+                   LocalSpaceKind::kOffThreadSpace) {
+#ifdef V8_ENABLE_THIRD_PARTY_HEAP
+    // OffThreadSpace doesn't work with third-party heap.
+    UNREACHABLE();
+#endif
+  }
 
  protected:
   V8_WARN_UNUSED_RESULT bool SlowRefillLinearAllocationArea(
@@ -3289,6 +3294,8 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
 
   std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
+  virtual bool is_off_thread() const { return false; }
+
 #ifdef VERIFY_HEAP
   virtual void Verify(Isolate* isolate);
 #endif
@@ -3392,6 +3399,8 @@ class V8_EXPORT_PRIVATE OffThreadLargeObjectSpace : public LargeObjectSpace {
   V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size);
 
   void FreeUnmarkedObjects() override;
+
+  bool is_off_thread() const override { return true; }
 
  protected:
   // OldLargeObjectSpace can mess with OffThreadLargeObjectSpace during merging.

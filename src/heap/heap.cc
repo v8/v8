@@ -2958,6 +2958,19 @@ bool Heap::CanMoveObjectStart(HeapObject object) {
   return Page::FromHeapObject(object)->SweepingDone();
 }
 
+// static
+bool Heap::InOffThreadSpace(HeapObject heap_object) {
+  Space* owner = MemoryChunk::FromHeapObject(heap_object)->owner();
+  if (owner->identity() == OLD_SPACE) {
+    // TODO(leszeks): Should we exclude compaction spaces here?
+    return static_cast<PagedSpace*>(owner)->is_off_thread_space();
+  }
+  if (owner->identity() == LO_SPACE) {
+    return static_cast<LargeObjectSpace*>(owner)->is_off_thread();
+  }
+  return false;
+}
+
 bool Heap::IsImmovable(HeapObject object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     // TODO(steveblackburn): For now all objects are immovable.

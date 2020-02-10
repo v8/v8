@@ -1045,6 +1045,8 @@ class Heap {
   static inline bool InToPage(MaybeObject object);
   static inline bool InToPage(HeapObject heap_object);
 
+  V8_EXPORT_PRIVATE static bool InOffThreadSpace(HeapObject heap_object);
+
   // Returns whether the object resides in old space.
   inline bool InOldSpace(Object object);
 
