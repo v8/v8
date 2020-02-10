@@ -23,6 +23,7 @@ StartupSerializer::StartupSerializer(Isolate* isolate,
                                      ReadOnlySerializer* read_only_serializer)
     : RootsSerializer(isolate, RootIndex::kFirstStrongRoot),
       read_only_serializer_(read_only_serializer) {
+  allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
   InitializeCodeAddressMap();
 }
 
