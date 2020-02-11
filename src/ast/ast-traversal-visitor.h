@@ -295,13 +295,6 @@ void AstTraversalVisitor<Subclass>::VisitNativeFunctionLiteral(
 }
 
 template <class Subclass>
-void AstTraversalVisitor<Subclass>::VisitDoExpression(DoExpression* expr) {
-  PROCESS_EXPRESSION(expr);
-  RECURSE(VisitBlock(expr->block()));
-  RECURSE(VisitVariableProxy(expr->result()));
-}
-
-template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitConditional(Conditional* expr) {
   PROCESS_EXPRESSION(expr);
   RECURSE_EXPRESSION(Visit(expr->condition()));

@@ -2456,11 +2456,6 @@ void BytecodeGenerator::VisitNativeFunctionLiteral(
   native_function_literals_.push_back(std::make_pair(expr, entry));
 }
 
-void BytecodeGenerator::VisitDoExpression(DoExpression* expr) {
-  VisitBlock(expr->block());
-  VisitVariableProxy(expr->result());
-}
-
 void BytecodeGenerator::VisitConditional(Conditional* expr) {
   ConditionalControlFlowBuilder conditional_builder(
       builder(), block_coverage_builder_, expr);

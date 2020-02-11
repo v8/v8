@@ -89,7 +89,6 @@ namespace internal {
   V(CompoundAssignment)         \
   V(Conditional)                \
   V(CountOperation)             \
-  V(DoExpression)               \
   V(EmptyParentheses)           \
   V(FunctionLiteral)            \
   V(GetTemplateObject)          \
@@ -410,25 +409,6 @@ inline ZonePtrList<const AstRawString>* Block::labels() const {
   }
   return nullptr;
 }
-
-class DoExpression final : public Expression {
- public:
-  Block* block() { return block_; }
-  VariableProxy* result() { return result_; }
-
- private:
-  friend class AstNodeFactory;
-
-  DoExpression(Block* block, VariableProxy* result, int pos)
-      : Expression(pos, kDoExpression), block_(block), result_(result) {
-    DCHECK_NOT_NULL(block_);
-    DCHECK_NOT_NULL(result_);
-  }
-
-  Block* block_;
-  VariableProxy* result_;
-};
-
 
 class Declaration : public AstNode {
  public:
@@ -3301,11 +3281,6 @@ class AstNodeFactory final {
                                                   v8::Extension* extension,
                                                   int pos) {
     return new (zone_) NativeFunctionLiteral(name, extension, pos);
-  }
-
-  DoExpression* NewDoExpression(Block* block, Variable* result_var, int pos) {
-    VariableProxy* result = NewVariableProxy(result_var, pos);
-    return new (zone_) DoExpression(block, result, pos);
   }
 
   SuperPropertyReference* NewSuperPropertyReference(Expression* home_object,
