@@ -126,12 +126,12 @@ inline void DebugCheckZero(void* start, size_t byte_length) {
 
 bool BackingStore::ReserveAddressSpace(uint64_t num_bytes) {
   uint64_t reservation_limit = kAddressSpaceLimit;
+  uint64_t old_count = reserved_address_space_.load(std::memory_order_relaxed);
   while (true) {
-    uint64_t old_count = reserved_address_space_.load();
     if (old_count > reservation_limit) return false;
     if (reservation_limit - old_count < num_bytes) return false;
-    if (reserved_address_space_.compare_exchange_weak(old_count,
-                                                      old_count + num_bytes)) {
+    if (reserved_address_space_.compare_exchange_weak(
+            old_count, old_count + num_bytes, std::memory_order_acq_rel)) {
       return true;
     }
   }
@@ -457,10 +457,9 @@ bool BackingStore::GrowWasmMemoryInPlace(Isolate* isolate, size_t delta_pages,
   // permissions for the entire range (to be RW), so the operating system
   // should deal with that raciness. We know we succeeded when we can
   // compare/swap the old length with the new length.
-  size_t old_length = 0;
+  size_t old_length = byte_length_.load(std::memory_order_relaxed);
   size_t new_length = 0;
   while (true) {
-    old_length = byte_length_.load(std::memory_order_acquire);
     size_t current_pages = old_length / wasm::kWasmPageSize;
 
     // Check if we have exceed the supplied maximum.

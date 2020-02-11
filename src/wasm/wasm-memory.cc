@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <atomic>
 #include <limits>
 
 #include "src/heap/heap-inl.h"
@@ -174,12 +175,12 @@ void WasmMemoryTracker::FreeBackingStoreForTesting(base::AddressRegion memory,
 
 bool WasmMemoryTracker::ReserveAddressSpace(size_t num_bytes) {
   size_t reservation_limit = kAddressSpaceLimit;
+  size_t old_count = reserved_address_space_.load(std::memory_order_relaxed;
   while (true) {
-    size_t old_count = reserved_address_space_.load();
     if (old_count > reservation_limit) return false;
     if (reservation_limit - old_count < num_bytes) return false;
-    if (reserved_address_space_.compare_exchange_weak(old_count,
-                                                      old_count + num_bytes)) {
+    if (reserved_address_space_.compare_exchange_weak(
+            old_count, old_count + num_bytes, std::memory_order_acq_rel)) {
       return true;
     }
   }

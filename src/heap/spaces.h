@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_SPACES_H_
 #define V8_HEAP_SPACES_H_
 
+#include <atomic>
 #include <list>
 #include <map>
 #include <memory>
@@ -660,12 +661,11 @@ class MemoryChunk : public BasicMemoryChunk {
     // to another chunk. See the comment to Page::FromAllocationAreaAddress.
     MemoryChunk* chunk = MemoryChunk::FromAddress(mark - 1);
     intptr_t new_mark = static_cast<intptr_t>(mark - chunk->address());
-    intptr_t old_mark = 0;
-    do {
-      old_mark = chunk->high_water_mark_;
-    } while (
-        (new_mark > old_mark) &&
-        !chunk->high_water_mark_.compare_exchange_weak(old_mark, new_mark));
+    intptr_t old_mark = chunk->high_water_mark_.load(std::memory_order_relaxed);
+    while ((new_mark > old_mark) &&
+           !chunk->high_water_mark_.compare_exchange_weak(
+               old_mark, new_mark, std::memory_order_acq_rel)) {
+    }
   }
 
   static inline void MoveExternalBackingStoreBytes(
@@ -1453,15 +1453,14 @@ class MemoryAllocator {
     // The use of atomic primitives does not guarantee correctness (wrt.
     // desired semantics) by default. The loop here ensures that we update the
     // values only if they did not change in between.
-    Address ptr = kNullAddress;
-    do {
-      ptr = lowest_ever_allocated_;
-    } while ((low < ptr) &&
-             !lowest_ever_allocated_.compare_exchange_weak(ptr, low));
-    do {
-      ptr = highest_ever_allocated_;
-    } while ((high > ptr) &&
-             !highest_ever_allocated_.compare_exchange_weak(ptr, high));
+    Address ptr = lowest_ever_allocated_.load(std::memory_order_relaxed);
+    while ((low < ptr) && !lowest_ever_allocated_.compare_exchange_weak(
+                              ptr, low, std::memory_order_acq_rel)) {
+    }
+    ptr = highest_ever_allocated_.load(std::memory_order_relaxed);
+    while ((high > ptr) && !highest_ever_allocated_.compare_exchange_weak(
+                               ptr, high, std::memory_order_acq_rel)) {
+    }
   }
 
   void RegisterExecutableMemoryChunk(MemoryChunk* chunk) {
