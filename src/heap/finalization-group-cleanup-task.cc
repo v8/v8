@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 
 FinalizationGroupCleanupTask::FinalizationGroupCleanupTask(Heap* heap)
-    : heap_(heap) {}
+    : CancelableTask(heap->isolate()), heap_(heap) {}
 
 void FinalizationGroupCleanupTask::SlowAssertNoActiveJavaScript() {
 #ifdef ENABLE_SLOW_DCHECKS
@@ -35,7 +35,7 @@ void FinalizationGroupCleanupTask::SlowAssertNoActiveJavaScript() {
 #endif  // ENABLE_SLOW_DCHECKS
 }
 
-void FinalizationGroupCleanupTask::Run() {
+void FinalizationGroupCleanupTask::RunInternal() {
   Isolate* isolate = heap_->isolate();
   DCHECK(!isolate->host_cleanup_finalization_group_callback());
   SlowAssertNoActiveJavaScript();
