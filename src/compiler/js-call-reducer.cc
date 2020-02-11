@@ -977,11 +977,12 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeReduce(
             element =
                 MaybeSkipHole(element, kind, &continue_label, *accumulator);
 
+            TNode<Number> next_k = step(k);
             TNode<Object> next_accumulator = JSCall4(
                 fncallback, UndefinedConstant(), *accumulator, element, k,
                 receiver,
                 ReduceLoopLazyFrameState(frame_state_params, receiver,
-                                         fncallback, k, original_length));
+                                         fncallback, next_k, original_length));
             Goto(&continue_label, next_accumulator);
 
             Bind(&continue_label);

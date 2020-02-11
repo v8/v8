@@ -411,6 +411,8 @@
   'compiler/serializer-apply': [SKIP],
   'compiler/serializer-call': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
+  'regress/regress-1049982-1': [SKIP],
+  'regress/regress-1049982-2': [SKIP],
 
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
@@ -1018,6 +1020,13 @@
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
+['variant == nooptimization', {
+  # Tests that depend on optimization (beyond doing assertOptimized).
+  'regress/regress-1049982-1': [SKIP],
+  'regress/regress-1049982-2': [SKIP],
+}],  # variant == nooptimization
+
+##############################################################################
 ['(arch == arm or arch == arm64)', {
   # Flaky tests: https://crbug.com/v8/8090
   'regress/regress-752764': [SKIP],
@@ -1104,6 +1113,8 @@
 
   # Some tests rely on inlining.
   'compiler/opt-higher-order-functions': [SKIP],
+  'regress/regress-1049982-1': [SKIP],
+  'regress/regress-1049982-2': [SKIP],
 }],  # variant == turboprop
 
 ##############################################################################
