@@ -101,9 +101,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayPrototypePush(Node* node);
   Reduction ReduceArrayPrototypeShift(Node* node);
   Reduction ReduceArrayPrototypeSlice(Node* node);
-  Reduction ReduceArrayReduce(Node* node, const SharedFunctionInfoRef& shared);
-  Reduction ReduceArrayReduceRight(Node* node,
-                                   const SharedFunctionInfoRef& shared);
+  enum class ArrayReduceDirection { kLeft, kRight };
+  Reduction ReduceArrayReduce(Node* node, ArrayReduceDirection direction,
+                              const SharedFunctionInfoRef& shared);
   Reduction ReduceArraySome(Node* node, const SharedFunctionInfoRef& shared);
 
   enum class ArrayIteratorKind { kArray, kTypedArray };
@@ -204,6 +204,20 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   // The pendant to ReplaceWithValue when using GraphAssembler-based reductions.
   Reduction ReplaceWithSubgraph(JSCallReducerAssembler* gasm, Node* subgraph);
+
+  void WireInCallbackIsCallableCheck(Node* fncallback, Node* context,
+                                     Node* check_frame_state, Node* effect,
+                                     Node** control, Node** check_fail,
+                                     Node** check_throw);
+  void RewirePostCallbackExceptionEdges(Node* check_throw, Node* on_exception,
+                                        Node* effect, Node** check_fail,
+                                        Node** control);
+  Node* WireInLoopStart(Node* k, Node** control, Node** effect);
+  void WireInLoopEnd(Node* loop, Node* eloop, Node* vloop, Node* k,
+                     Node* control, Node* effect);
+  Node* SafeLoadElement(ElementsKind kind, Node* receiver, Node* control,
+                        Node** effect, Node** k,
+                        const FeedbackSource& feedback);
 
   // Helper to verify promise receiver maps are as expected.
   // On bailout from a reduction, be sure to return inference.NoChange().
