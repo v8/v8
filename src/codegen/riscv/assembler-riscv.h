@@ -1822,9 +1822,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenInstrIShiftW(bool arithshift, uint8_t funct3, Opcode opcode,
                        Register rd, Register rs1, uint8_t shamt);
   void GenInstrS(uint8_t funct3, Opcode opcode, Register rs1, Register rs2,
-                 uint16_t imm12);
+                 int16_t imm12);
   void GenInstrB(uint8_t funct3, Opcode opcode, Register rs1, Register rs2,
-                 uint16_t imm12);
+                 int16_t imm12);
   void GenInstrU(Opcode opcode, Register rd, uint32_t imm20);
   void GenInstrJ(Opcode opcode, Register rd, uint32_t imm20);
 
