@@ -2995,19 +2995,6 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   BuildCreateArrayLiteral(expr->values(), expr);
 }
 
-void BytecodeGenerator::VisitStoreInArrayLiteral(StoreInArrayLiteral* expr) {
-  builder()->SetExpressionAsStatementPosition(expr);
-  RegisterAllocationScope register_scope(this);
-  Register array = register_allocator()->NewRegister();
-  Register index = register_allocator()->NewRegister();
-  VisitForRegisterValue(expr->array(), array);
-  VisitForRegisterValue(expr->index(), index);
-  VisitForAccumulatorValue(expr->value());
-  builder()->StoreInArrayLiteral(
-      array, index,
-      feedback_index(feedback_spec()->AddStoreInArrayLiteralICSlot()));
-}
-
 void BytecodeGenerator::VisitVariableProxy(VariableProxy* proxy) {
   builder()->SetExpressionPosition(proxy);
   BuildVariableLoad(proxy->var(), proxy->hole_check_mode());
