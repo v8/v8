@@ -92,107 +92,25 @@ class V8_EXPORT_PRIVATE StateValuesAccess {
   class V8_EXPORT_PRIVATE iterator {
    public:
     // Bare minimum of operators needed for range iteration.
-    bool operator!=(iterator const& other) {
-      // We only allow comparison with end().
-      CHECK(other.done());
-      return !done();
-    }
-
-    iterator& operator++() {
-      Advance();
-      return *this;
-    }
-
-    // TypedNode operator*();
-    TypedNode operator*() { return TypedNode(node(), type()); }
+    bool operator!=(iterator const& other);
+    iterator& operator++();
+    TypedNode operator*();
 
    private:
     friend class StateValuesAccess;
 
     iterator() : current_depth_(-1) {}
-    explicit iterator(Node* node) : current_depth_(0) {
-      stack_[current_depth_] =
-          SparseInputMaskOf(node->op()).IterateOverInputs(node);
-      EnsureValid();
-    }
+    explicit iterator(Node* node);
 
-    Node* node() { return Top()->Get(nullptr); }
-    MachineType type() {
-      Node* parent = Top()->parent();
-      if (parent->opcode() == IrOpcode::kStateValues) {
-        return MachineType::AnyTagged();
-      } else {
-        DCHECK_EQ(IrOpcode::kTypedStateValues, parent->opcode());
+    Node* node();
+    MachineType type();
+    bool done() const;
+    void Advance();
+    void EnsureValid();
 
-        if (Top()->IsEmpty()) {
-          return MachineType::None();
-        } else {
-          ZoneVector<MachineType> const* types = MachineTypesOf(parent->op());
-          return (*types)[Top()->real_index()];
-        }
-      }
-    }
-    bool done() const { return current_depth_ < 0; }
-
-    void Advance() {
-      Top()->Advance();
-      EnsureValid();
-    }
-
-    void EnsureValid() {
-      while (true) {
-        SparseInputMask::InputIterator* top = Top();
-
-        if (top->IsEmpty()) {
-          // We are on a valid (albeit optimized out) node.
-          return;
-        }
-
-        if (top->IsEnd()) {
-          // We have hit the end of this iterator. Pop the stack and move to the
-          // next sibling iterator.
-          Pop();
-          if (done()) {
-            // Stack is exhausted, we have reached the end.
-            return;
-          }
-          Top()->Advance();
-          continue;
-        }
-
-        // At this point the value is known to be live and within our input
-        // nodes.
-        Node* value_node = top->GetReal();
-
-        if (value_node->opcode() == IrOpcode::kStateValues ||
-            value_node->opcode() == IrOpcode::kTypedStateValues) {
-          // Nested state, we need to push to the stack.
-          Push(value_node);
-          continue;
-        }
-
-        // We are on a valid node, we can stop the iteration.
-        return;
-      }
-    }
-
-    SparseInputMask::InputIterator* Top() {
-      DCHECK_LE(0, current_depth_);
-      DCHECK_GT(kMaxInlineDepth, current_depth_);
-      return &(stack_[current_depth_]);
-    }
-
-    void Push(Node* node) {
-      current_depth_++;
-      CHECK_GT(kMaxInlineDepth, current_depth_);
-      stack_[current_depth_] =
-          SparseInputMaskOf(node->op()).IterateOverInputs(node);
-    }
-
-    void Pop() {
-      DCHECK_LE(0, current_depth_);
-      current_depth_--;
-    }
+    SparseInputMask::InputIterator* Top();
+    void Push(Node* node);
+    void Pop();
 
     static const int kMaxInlineDepth = 8;
     SparseInputMask::InputIterator stack_[kMaxInlineDepth];

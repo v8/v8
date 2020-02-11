@@ -287,6 +287,11 @@ Node* SparseInputMask::InputIterator::GetReal() const {
   return parent_->InputAt(real_index_);
 }
 
+bool SparseInputMask::InputIterator::IsReal() const {
+  return bit_mask_ == SparseInputMask::kDenseBitMask ||
+         (bit_mask_ & kEntryMask);
+}
+
 bool SparseInputMask::InputIterator::IsEnd() const {
   return (bit_mask_ == kEndMarker) ||
          (bit_mask_ == SparseInputMask::kDenseBitMask &&

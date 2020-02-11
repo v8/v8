@@ -257,7 +257,7 @@ class SparseInputMask final {
   static const int kMaxSparseInputs = (sizeof(BitMaskType) * kBitsPerByte - 1);
 
   // An iterator over a node's sparse inputs.
-  class V8_EXPORT_PRIVATE InputIterator final {
+  class InputIterator final {
    public:
     InputIterator() = default;
     InputIterator(BitMaskType bit_mask, Node* parent);
@@ -281,10 +281,7 @@ class SparseInputMask final {
     }
 
     // True if the current sparse input is a real input node.
-    bool IsReal() const {
-      return bit_mask_ == SparseInputMask::kDenseBitMask ||
-             (bit_mask_ & kEntryMask);
-    }
+    bool IsReal() const;
 
     // True if the current sparse input is an empty value.
     bool IsEmpty() const { return !IsReal(); }
@@ -312,7 +309,7 @@ class SparseInputMask final {
   int CountReal() const;
 
   // Returns an iterator over the sparse inputs of {node}.
-  V8_EXPORT_PRIVATE InputIterator IterateOverInputs(Node* node);
+  InputIterator IterateOverInputs(Node* node);
 
  private:
   //
@@ -378,10 +375,9 @@ Type TypeGuardTypeOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 int OsrValueIndexOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
-V8_EXPORT_PRIVATE SparseInputMask SparseInputMaskOf(Operator const*)
-    V8_WARN_UNUSED_RESULT;
+SparseInputMask SparseInputMaskOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
-V8_EXPORT_PRIVATE ZoneVector<MachineType> const* MachineTypesOf(Operator const*)
+ZoneVector<MachineType> const* MachineTypesOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
 
 // The ArgumentsElementsState and ArgumentsLengthState can describe the layout
