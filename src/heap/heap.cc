@@ -228,7 +228,7 @@ size_t Heap::HeapSizeFromPhysicalMemory(uint64_t physical_memory) {
   // Compute the old generation size and cap it.
   uint64_t old_generation = physical_memory /
                             kPhysicalMemoryToOldGenerationRatio *
-                            kPointerMultiplier;
+                            kHeapLimitMultiplier;
   old_generation =
       Min<uint64_t>(old_generation, MaxOldGenerationSize(physical_memory));
   old_generation = Max<uint64_t>(old_generation, V8HeapTrait::kMinSize);
@@ -273,18 +273,28 @@ size_t Heap::MinOldGenerationSize() {
   return paged_space_count * Page::kPageSize;
 }
 
+size_t Heap::AllocatorLimitOnMaxOldGenerationSize() {
+#ifdef V8_COMPRESS_POINTERS
+  // Isolate and the young generation are also allocated on the heap.
+  return kPtrComprHeapReservationSize -
+         YoungGenerationSizeFromSemiSpaceSize(kMaxSemiSpaceSize) -
+         RoundUp(sizeof(Isolate), size_t{1} << kPageSizeBits);
+#endif
+  return std::numeric_limits<size_t>::max();
+}
+
 size_t Heap::MaxOldGenerationSize(uint64_t physical_memory) {
   size_t max_size = V8HeapTrait::kMaxSize;
   // Finch experiment: Increase the heap size from 2GB to 4GB for 64-bit
   // systems with physical memory bigger than 16GB. The physical memory
   // is rounded up to GB.
-  constexpr bool x64_bit = Heap::kPointerMultiplier >= 2;
+  constexpr bool x64_bit = Heap::kHeapLimitMultiplier >= 2;
   if (FLAG_huge_max_old_generation_size && x64_bit &&
       (physical_memory + 512 * MB) / GB >= 16) {
     DCHECK_EQ(max_size / GB, 2);
     max_size *= 2;
   }
-  return max_size;
+  return Min(max_size, AllocatorLimitOnMaxOldGenerationSize());
 }
 
 size_t Heap::YoungGenerationSizeFromSemiSpaceSize(size_t semi_space_size) {
@@ -3784,7 +3794,8 @@ bool Heap::InvokeNearHeapLimitCallback() {
     size_t heap_limit = callback(data, max_old_generation_size_,
                                  initial_max_old_generation_size_);
     if (heap_limit > max_old_generation_size_) {
-      max_old_generation_size_ = heap_limit;
+      max_old_generation_size_ =
+          Min(heap_limit, AllocatorLimitOnMaxOldGenerationSize());
       return true;
     }
   }
@@ -4498,6 +4509,8 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
     }
     max_old_generation_size_ =
         Max(max_old_generation_size_, MinOldGenerationSize());
+    max_old_generation_size_ =
+        Min(max_old_generation_size_, AllocatorLimitOnMaxOldGenerationSize());
     max_old_generation_size_ =
         RoundDown<Page::kPageSize>(max_old_generation_size_);
 
