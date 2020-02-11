@@ -24,10 +24,10 @@ class BytecodeArray;
 
 // The DebugInfo class holds additional information for a function being
 // debugged.
-class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct>,
-                  public TorqueGeneratedDebugInfoFlagsFields {
+class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
  public:
   NEVER_READ_ONLY_SPACE
+  DEFINE_TORQUE_GENERATED_DEBUG_INFO_FLAGS()
   using Flags = base::Flags<Flag>;
 
   // A bitfield that lists uses of the current instance.

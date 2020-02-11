@@ -167,10 +167,10 @@ class InterpreterData : public Struct {
 
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
-class SharedFunctionInfo : public HeapObject,
-                           public TorqueGeneratedSharedFunctionInfoFlagsFields {
+class SharedFunctionInfo : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
+  DEFINE_TORQUE_GENERATED_SHARED_FUNCTION_INFO_FLAGS()
 
   // This initializes the SharedFunctionInfo after allocation. It must
   // initialize all fields, and leave the SharedFunctionInfo in a state where

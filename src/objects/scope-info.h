@@ -37,8 +37,10 @@ class Zone;
 
 // This object provides quick access to scope info details for runtime
 // routines.
-class ScopeInfo : public FixedArray, public TorqueGeneratedScopeFlagsFields {
+class ScopeInfo : public FixedArray {
  public:
+  DEFINE_TORQUE_GENERATED_SCOPE_FLAGS()
+
   DECL_CAST(ScopeInfo)
   DECL_PRINTER(ScopeInfo)
 

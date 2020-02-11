@@ -858,9 +858,12 @@ void CSAGenerator::EmitInstruction(const StoreReferenceInstruction& instruction,
 namespace {
 std::string GetBitFieldSpecialization(const BitFieldStructType* container,
                                       const BitField& field) {
-  std::string suffix = field.num_bits == 1 ? "Bit" : "Bits";
-  return "TorqueGenerated" + container->name() +
-         "Fields::" + CamelifyString(field.name_and_type.name) + suffix;
+  std::stringstream stream;
+  stream << "base::BitField<"
+         << field.name_and_type.type->GetConstexprGeneratedTypeName() << ", "
+         << field.offset << ", " << field.num_bits << ", "
+         << container->GetConstexprGeneratedTypeName() << ">";
+  return stream.str();
 }
 }  // namespace
 

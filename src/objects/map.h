@@ -253,7 +253,9 @@ class Map : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field, byte)
 
   // Bit positions for |bit_field|.
-  using Bits1 = TorqueGeneratedMapBitFields1Fields;
+  struct Bits1 {
+    DEFINE_TORQUE_GENERATED_MAP_BIT_FIELDS1()
+  };
 
   //
   // Bit field 2.
@@ -261,7 +263,9 @@ class Map : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(bit_field2, byte)
 
   // Bit positions for |bit_field2|.
-  using Bits2 = TorqueGeneratedMapBitFields2Fields;
+  struct Bits2 {
+    DEFINE_TORQUE_GENERATED_MAP_BIT_FIELDS2()
+  };
 
   //
   // Bit field 3.
@@ -273,7 +277,9 @@ class Map : public HeapObject {
   V8_INLINE void clear_padding();
 
   // Bit positions for |bit_field3|.
-  using Bits3 = TorqueGeneratedMapBitFields3Fields;
+  struct Bits3 {
+    DEFINE_TORQUE_GENERATED_MAP_BIT_FIELDS3()
+  };
 
   // Ensure that Torque-defined bit widths for |bit_field3| are as expected.
   STATIC_ASSERT(Bits3::EnumLengthBits::kSize == kDescriptorIndexBitCount);

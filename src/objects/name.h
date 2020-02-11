@@ -139,9 +139,10 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
 };
 
 // ES6 symbols.
-class Symbol : public TorqueGeneratedSymbol<Symbol, Name>,
-               public TorqueGeneratedSymbolFlagsFields {
+class Symbol : public TorqueGeneratedSymbol<Symbol, Name> {
  public:
+  DEFINE_TORQUE_GENERATED_SYMBOL_FLAGS()
+
   // [is_private]: Whether this is a private symbol.  Private symbols can only
   // be used to designate own properties of objects.
   DECL_BOOLEAN_ACCESSORS(is_private)

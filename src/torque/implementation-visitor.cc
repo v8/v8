@@ -3250,20 +3250,11 @@ void ImplementationVisitor::GenerateBitFields(
     header << "#include \"src/base/bit-field.h\"\n\n";
     NamespaceScope namespaces(header, {"v8", "internal"});
 
-    // TODO(v8:7793): Once we can define enums in Torque, we should be able to
-    // do something nicer than hard-coding these predeclarations. Until then,
-    // any enum used as a bitfield must be included in this list.
-    header << R"(
-enum class FunctionSyntaxKind : uint8_t;
-enum class BailoutReason : uint8_t;
-enum FunctionKind : uint8_t;
-
-)";
-
     for (const auto& type : TypeOracle::GetBitFieldStructTypes()) {
       bool all_single_bits = true;  // Track whether every field is one bit.
 
-      header << "struct TorqueGenerated" << type->name() << "Fields {\n";
+      header << "#define DEFINE_TORQUE_GENERATED_"
+             << CapifyStringWithUnderscores(type->name()) << "() \\\n";
       std::string type_name = type->GetConstexprGeneratedTypeName();
       for (const auto& field : type->fields()) {
         const char* suffix = field.num_bits == 1 ? "Bit" : "Bits";
@@ -3273,21 +3264,21 @@ enum FunctionKind : uint8_t;
         header << "  using " << CamelifyString(field.name_and_type.name)
                << suffix << " = base::BitField<" << field_type_name << ", "
                << field.offset << ", " << field.num_bits << ", " << type_name
-               << ">;\n";
+               << ">; \\\n";
       }
 
       // If every field is one bit, we can also generate a convenient enum.
       if (all_single_bits) {
-        header << "  enum Flag {\n";
-        header << "    kNone = 0,\n";
+        header << "  enum Flag { \\\n";
+        header << "    kNone = 0, \\\n";
         for (const auto& field : type->fields()) {
           header << "    k" << CamelifyString(field.name_and_type.name)
-                 << " = 1 << " << field.offset << ",\n";
+                 << " = 1 << " << field.offset << ", \\\n";
         }
-        header << "  };\n";
+        header << "  }; \\\n";
       }
 
-      header << "};\n\n";
+      header << "\n";
     }
   }
   const std::string output_header_path = output_directory + "/" + file_name;
