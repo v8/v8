@@ -76,9 +76,11 @@ void Module::RecordError(Isolate* isolate, Handle<Object> error) {
 }
 
 void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
-  DCHECK_NE(module->status(), kInstantiating);
   DCHECK_NE(module->status(), kEvaluating);
-  if (module->status() != kPreInstantiating) return;
+  if (module->status() != kPreInstantiating &&
+      module->status() != kInstantiating) {
+    return;
+  }
 
   Handle<FixedArray> requested_modules =
       module->IsSourceTextModule()
@@ -180,15 +182,14 @@ bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
 
   if (!PrepareInstantiate(isolate, module, context, callback)) {
     ResetGraph(isolate, module);
+    DCHECK_EQ(module->status(), kUninstantiated);
     return false;
   }
   Zone zone(isolate->allocator(), ZONE_NAME);
   ZoneForwardList<Handle<SourceTextModule>> stack(&zone);
   unsigned dfs_index = 0;
   if (!FinishInstantiate(isolate, module, &stack, &dfs_index, &zone)) {
-    for (auto& descendant : stack) {
-      Reset(isolate, descendant);
-    }
+    ResetGraph(isolate, module);
     DCHECK_EQ(module->status(), kUninstantiated);
     return false;
   }
