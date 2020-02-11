@@ -233,6 +233,25 @@ template("v8_component") {
   }
 }
 
+template("v8_shared_library") {
+  shared_library(target_name) {
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "configs",
+                             "remove_configs",
+                           ])
+    configs -= v8_remove_configs
+    configs += v8_add_configs
+    if (defined(invoker.remove_configs)) {
+      configs -= invoker.remove_configs
+    }
+    if (defined(invoker.configs)) {
+      configs += invoker.configs
+    }
+  }
+}
+
 template("v8_static_library") {
   static_library(target_name) {
     complete_static_lib = true
