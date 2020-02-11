@@ -142,8 +142,8 @@ v8-foozzie source: foo
       output1 = output(stdout1, is_crash1)
       output2 = output(stdout2, is_crash2)
       self.assertEquals(
-          (capped_lines1.splitlines(), capped_lines2.splitlines()),
-          v8_suppressions.get_lines_capped(output1, output2))
+          (capped_lines1, capped_lines2),
+          v8_suppressions.get_output_capped(output1, output2))
 
     # No capping, already equal.
     check('1\n2', '1\n2', True, True, '1\n2', '1\n2')
@@ -153,15 +153,23 @@ v8-foozzie source: foo
     # Cap smallest if all runs crash.
     check('1\n2', '1\n2\n3', True, True, '1\n2', '1\n2')
     check('1\n2\n3', '1\n2', True, True, '1\n2', '1\n2')
+    check('1\n2', '1\n23', True, True, '1\n2', '1\n2')
+    check('1\n23', '1\n2', True, True, '1\n2', '1\n2')
     # Cap the non-crashy run.
     check('1\n2\n3', '1\n2', False, True, '1\n2', '1\n2')
     check('1\n2', '1\n2\n3', True, False, '1\n2', '1\n2')
+    check('1\n23', '1\n2', False, True, '1\n2', '1\n2')
+    check('1\n2', '1\n23', True, False, '1\n2', '1\n2')
     # The crashy run has more output.
     check('1\n2\n3', '1\n2', True, False, '1\n2\n3', '1\n2')
     check('1\n2', '1\n2\n3', False, True, '1\n2', '1\n2\n3')
+    check('1\n23', '1\n2', True, False, '1\n23', '1\n2')
+    check('1\n2', '1\n23', False, True, '1\n2', '1\n23')
     # Keep output difference when capping.
     check('1\n2', '3\n4\n5', True, True, '1\n2', '3\n4')
     check('1\n2\n3', '4\n5', True, True, '1\n2', '4\n5')
+    check('12', '345', True, True, '12', '34')
+    check('123', '45', True, True, '12', '45')
 
 
 def cut_verbose_output(stdout):

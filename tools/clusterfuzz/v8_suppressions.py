@@ -136,32 +136,28 @@ IGNORE_LINES = [re.compile(exp) for exp in IGNORE_LINES]
 ORIGINAL_SOURCE_PREFIX = 'v8-foozzie source: '
 
 
-def get_lines_capped(output1, output2):
-  """Returns a pair of stdout line lists.
+def get_output_capped(output1, output2):
+  """Returns a pair of stdout strings.
 
-  The lists are safely capped if at least one run has crashed. We assume
-  that output can never break off within the last line. If this assumption
-  turns out wrong, we need to add capping of the last line, too.
+  The strings are safely capped if at least one run has crashed.
   """
-  output1_lines = output1.stdout.splitlines()
-  output2_lines = output2.stdout.splitlines()
 
   # No length difference or no crash -> no capping.
-  if (len(output1_lines) == len(output2_lines) or
+  if (len(output1.stdout) == len(output2.stdout) or
       (not output1.HasCrashed() and not output2.HasCrashed())):
-    return output1_lines, output2_lines
+    return output1.stdout, output2.stdout
 
   # Both runs have crashed, cap by the shorter output.
   if output1.HasCrashed() and output2.HasCrashed():
-    cap = min(len(output1_lines), len(output2_lines))
+    cap = min(len(output1.stdout), len(output2.stdout))
   # Only the first run has crashed, cap by its output length.
   elif output1.HasCrashed():
-    cap = len(output1_lines)
+    cap = len(output1.stdout)
   # Similar if only the second run has crashed.
   else:
-    cap = len(output2_lines)
+    cap = len(output2.stdout)
 
-  return output1_lines[0:cap], output2_lines[0:cap]
+  return output1.stdout[0:cap], output2.stdout[0:cap]
 
 
 def line_pairs(lines):
@@ -297,7 +293,8 @@ class V8Suppression(Suppression):
 
   def diff(self, output1, output2):
     # Diff capped lines in the presence of crashes.
-    return self.diff_lines(*get_lines_capped(output1, output2))
+    return self.diff_lines(
+        *map(str.splitlines, get_output_capped(output1, output2)))
 
   def diff_lines(self, output1_lines, output2_lines):
     return diff_output(
