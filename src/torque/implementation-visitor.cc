@@ -137,7 +137,7 @@ void ImplementationVisitor::Visit(NamespaceConstant* decl) {
 
   assembler_ = base::nullopt;
 
-  source_out() << "return ";
+  source_out() << "  return ";
   CSAGenerator::EmitCSAValue(return_result, values, source_out());
   source_out() << ";\n";
   source_out() << "}\n\n";

@@ -625,6 +625,16 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     if_false->AddInputs(args...);
     Branch(condition, if_true->plain_label(), if_false->plain_label());
   }
+  template <class... T, class... U>
+  void Branch(TNode<BoolT> condition,
+              CodeAssemblerParameterizedLabel<T...>* if_true,
+              std::vector<Node*> args_true,
+              CodeAssemblerParameterizedLabel<U...>* if_false,
+              std::vector<Node*> args_false) {
+    if_true->AddInputsVector(std::move(args_true));
+    if_false->AddInputsVector(std::move(args_false));
+    Branch(condition, if_true->plain_label(), if_false->plain_label());
+  }
 
   template <class... T, class... Args>
   void Goto(CodeAssemblerParameterizedLabel<T...>* label, Args... args) {
@@ -1354,6 +1364,9 @@ class CodeAssemblerParameterizedLabel
  private:
   friend class CodeAssembler;
 
+  void AddInputsVector(std::vector<Node*> inputs) {
+    CodeAssemblerParameterizedLabelBase::AddInputs(std::move(inputs));
+  }
   void AddInputs(TNode<Types>... inputs) {
     CodeAssemblerParameterizedLabelBase::AddInputs(
         std::vector<Node*>{inputs...});
