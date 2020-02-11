@@ -1059,7 +1059,7 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
         module->IncrementPendingAsyncDependencies();
 
         //      2. Append module to requiredModule.[[AsyncParentModules]].
-        required_module->AddAsyncParentModule(isolate, module);
+        AddAsyncParentModule(isolate, required_module, module);
       }
     } else {
       RETURN_ON_EXCEPTION(isolate, Module::Evaluate(isolate, requested_module),

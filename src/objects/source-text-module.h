@@ -69,8 +69,9 @@ class SourceTextModule
 
   // Appends a tuple of module and generator to the async parent modules
   // ArrayList.
-  inline void AddAsyncParentModule(Isolate* isolate,
-                                   Handle<SourceTextModule> module);
+  inline static void AddAsyncParentModule(Isolate* isolate,
+                                          Handle<SourceTextModule> module,
+                                          Handle<SourceTextModule> parent);
 
   // Returns a SourceTextModule, the
   // ith parent in depth first traversal order of a given async child.
