@@ -2292,7 +2292,8 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state), kind_(kind) {}
 
   void TestAppendJSArrayImpl(Isolate* isolate, CodeAssemblerTester* csa_tester,
-                             Object o1, Object o2, Object o3, Object o4,
+                             Handle<Object> o1, Handle<Object> o2,
+                             Handle<Object> o3, Handle<Object> o4,
                              int initial_size, int result_size) {
     Handle<JSArray> array = isolate->factory()->NewJSArray(
         kind_, 2, initial_size, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
@@ -2315,23 +2316,22 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
 
     FunctionTester ft(csa_tester->GenerateCode(), kNumParams);
 
-    Handle<Object> result =
-        ft.Call(Handle<Object>(o1, isolate), Handle<Object>(o2, isolate),
-                Handle<Object>(o3, isolate), Handle<Object>(o4, isolate))
-            .ToHandleChecked();
+    Handle<Object> result = ft.Call(o1, o2, o3, o4).ToHandleChecked();
 
     CHECK_EQ(kind_, array->GetElementsKind());
     CHECK_EQ(result_size, Handle<Smi>::cast(result)->value());
     CHECK_EQ(result_size, Smi::ToInt(array->length()));
-    Object obj = *JSObject::GetElement(isolate, array, 2).ToHandleChecked();
-    HeapObject undefined_value = ReadOnlyRoots(isolate).undefined_value();
-    CHECK_EQ(result_size < 3 ? undefined_value : o1, obj);
-    obj = *JSObject::GetElement(isolate, array, 3).ToHandleChecked();
-    CHECK_EQ(result_size < 4 ? undefined_value : o2, obj);
-    obj = *JSObject::GetElement(isolate, array, 4).ToHandleChecked();
-    CHECK_EQ(result_size < 5 ? undefined_value : o3, obj);
-    obj = *JSObject::GetElement(isolate, array, 5).ToHandleChecked();
-    CHECK_EQ(result_size < 6 ? undefined_value : o4, obj);
+    Handle<Object> obj =
+        JSObject::GetElement(isolate, array, 2).ToHandleChecked();
+    Handle<HeapObject> undefined_value =
+        Handle<HeapObject>(ReadOnlyRoots(isolate).undefined_value(), isolate);
+    CHECK_EQ(result_size < 3 ? *undefined_value : *o1, *obj);
+    obj = JSObject::GetElement(isolate, array, 3).ToHandleChecked();
+    CHECK_EQ(result_size < 4 ? *undefined_value : *o2, *obj);
+    obj = JSObject::GetElement(isolate, array, 4).ToHandleChecked();
+    CHECK_EQ(result_size < 5 ? *undefined_value : *o3, *obj);
+    obj = JSObject::GetElement(isolate, array, 5).ToHandleChecked();
+    CHECK_EQ(result_size < 6 ? *undefined_value : *o4, *obj);
   }
 
   static void TestAppendJSArray(Isolate* isolate, ElementsKind kind, Object o1,
@@ -2339,8 +2339,10 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
                                 int initial_size, int result_size) {
     CodeAssemblerTester asm_tester(isolate, kNumParams);
     AppendJSArrayCodeStubAssembler m(asm_tester.state(), kind);
-    m.TestAppendJSArrayImpl(isolate, &asm_tester, o1, o2, o3, o4, initial_size,
-                            result_size);
+    m.TestAppendJSArrayImpl(
+        isolate, &asm_tester, Handle<Object>(o1, isolate),
+        Handle<Object>(o2, isolate), Handle<Object>(o3, isolate),
+        Handle<Object>(o4, isolate), initial_size, result_size);
   }
 
  private:
