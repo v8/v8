@@ -50,6 +50,7 @@ class ArrayBufferSweeper {
   explicit ArrayBufferSweeper(Heap* heap)
       : heap_(heap),
         sweeping_in_progress_(false),
+        freed_bytes_(0),
         young_bytes_(0),
         old_bytes_(0) {}
   ~ArrayBufferSweeper() { ReleaseAll(); }
@@ -77,14 +78,9 @@ class ArrayBufferSweeper {
     ArrayBufferList young;
     ArrayBufferList old;
     SweepingScope scope;
-    size_t freed_bytes;
 
     SweepingJob();
 
-    void Sweep();
-    void SweepYoung();
-    void SweepFull();
-    ArrayBufferList SweepListFull(ArrayBufferList* list);
     static SweepingJob Prepare(ArrayBufferList young, ArrayBufferList old,
                                SweepingScope scope);
   } job_;
@@ -93,11 +89,16 @@ class ArrayBufferSweeper {
 
   void DecrementExternalMemoryCounters();
   void IncrementExternalMemoryCounters(size_t bytes);
+  void IncrementFreedBytes(size_t bytes);
 
   void RequestSweep(SweepingScope sweeping_task);
   void Prepare(SweepingScope sweeping_task);
 
+  void Sweep();
+  void SweepYoung();
+  void SweepFull();
   ArrayBufferList SweepListFull(ArrayBufferList* list);
+
   ArrayBufferList SweepYoungGen();
   void SweepOldGen(ArrayBufferExtension* extension);
 
@@ -108,6 +109,7 @@ class ArrayBufferSweeper {
   bool sweeping_in_progress_;
   base::Mutex sweeping_mutex_;
   base::ConditionVariable job_finished_;
+  std::atomic<size_t> freed_bytes_;
 
   ArrayBufferList young_;
   ArrayBufferList old_;
