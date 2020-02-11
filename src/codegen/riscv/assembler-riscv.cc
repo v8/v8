@@ -1045,6 +1045,178 @@ bool Assembler::MustUseReg(RelocInfo::Mode rmode) {
   return !RelocInfo::IsNone(rmode);
 }
 
+// ----- Top-level instruction formats match those in the ISA manual
+// (R, I, S, B, U, J). These match the formats defined in LLVM's
+// RISCVInstrFormats.td.
+void Assembler::GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode,
+                          Register rd, Register rs1, Register rs2) {
+  DCHECK(is_uint7(funct7) && is_uint3(funct3) && rd.is_valid() &&
+         rs1.is_valid() && rs2.is_valid());
+  Instr instr = opcode | (rd.code() << kRdShiftRV) | (funct3 << kFunct3Shift) |
+                (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
+                (funct7 << kFunct7Shift);
+  emit(instr);
+}
+
+void Assembler::GenInstrR4(uint8_t funct2, Opcode opcode, Register rd,
+                           Register rs1, Register rs2, Register rs3,
+                           uint8_t frm) {
+  DCHECK(is_uint2(funct2) && rd.is_valid() && rs1.is_valid() &&
+         rs2.is_valid() && rs3.is_valid() && is_uint3(frm));
+  Instr instr = opcode | (rd.code() << kRdShiftRV) | (frm << kFunct3Shift) |
+                (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
+                (funct2 << kFunct2Shift) | (rs3.code() << kRs3Shift);
+  emit(instr);
+}
+
+void Assembler::GenInstrRAtomic(uint8_t funct5, bool aq, bool rl,
+                                uint8_t funct3, Opcode opcode, Register rd,
+                                Register rs1, Register rs2) {
+  DCHECK(is_uint5(funct5) && is_uint3(funct3) && rd.is_valid() &&
+         rs1.is_valid() && rs2.is_valid());
+  Instr instr = opcode | (rd.code() << kRdShiftRV) | (funct3 << kFunct3Shift) |
+                (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
+                (rl << kRlShift) | (aq << kAqShift) | (funct5 << kFunct5Shift);
+  emit(instr);
+}
+
+void Assembler::GenInstrRFrm(uint8_t funct7, Opcode opcode, Register rd,
+                             Register rs1, Register rs2, uint8_t frm) {
+  DCHECK(rd.is_valid() && rs1.is_valid() && rs2.is_valid() && is_uint3(frm));
+  Instr instr = opcode | (rd.code() << kRdShiftRV) | (frm << kFunct3Shift) |
+                (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
+                (funct7 << kFunct7Shift);
+  emit(instr);
+}
+
+void Assembler::GenInstrI(uint8_t funct3, Opcode opcode, Register rd,
+                          Register rs1, uint16_t imm12) {
+  DCHECK(is_uint3(funct3) && rd.is_valid() && rs1.is_valid() &&
+         (is_uint12(imm12) || is_int12(imm12)));
+  Instr instr = opcode | (rd.code() << kRdShiftRV) | (funct3 << kFunct3Shift) |
+                (rs1.code() << kRs1Shift) | (imm12 << kImm12Shift);
+  emit(instr);
+}
+
+void Assembler::GenInstrIShift(bool arithshift, uint8_t funct3, Opcode opcode,
+                               Register rd, Register rs1, uint8_t shamt) {
+  DCHECK(is_uint3(funct3) && rd.is_valid() && rs1.is_valid() &&
+         is_uint6(shamt));
+  Instr instr = opcode | (rd.code() << kRdShiftRV) | (funct3 << kFunct3Shift) |
+                (rs1.code() << kRs1Shift) | (shamt << kShamtShift) |
+                (arithshift << kArithShiftShift);
+  emit(instr);
+}
+
+void Assembler::GenInstrIShiftW(bool arithshift, uint8_t funct3, Opcode opcode,
+                                Register rd, Register rs1, uint8_t shamt) {
+  DCHECK(is_uint3(funct3) && rd.is_valid() && rs1.is_valid() &&
+         is_uint5(shamt));
+  Instr instr = opcode | (rd.code() << kRdShiftRV) | (funct3 << kFunct3Shift) |
+                (rs1.code() << kRs1Shift) | (shamt << kShamtWShift) |
+                (arithshift << kArithShiftShift);
+  emit(instr);
+}
+
+void Assembler::GenInstrS(uint8_t funct3, Opcode opcode, Register rs1,
+                          Register rs2, uint16_t imm12) {
+  DCHECK(is_uint3(funct3) && rs1.is_valid() && rs2.is_valid() &&
+         (is_uint12(imm12) || is_int12(imm12)));
+  Instr instr = opcode | ((imm12 & 0x1f) << 7) |  // bits  4-0
+                (funct3 << kFunct3Shift) | (rs1.code() << kRs1Shift) |
+                (rs2.code() << kRs2Shift) |
+                ((imm12 & 0xfe0) << 25);  // bits 11-5
+  emit(instr);
+}
+
+void Assembler::GenInstrB(uint8_t funct3, Opcode opcode, Register rs1,
+                          Register rs2, uint16_t imm12) {
+  DCHECK(is_uint3(funct3) && rs1.is_valid() && rs2.is_valid() &&
+         (is_uint12(imm12) || is_int12(imm12)));
+  Instr instr = opcode | ((imm12 & 0x400) << 7) |  // bit  10
+                ((imm12 & 0xf) << 8) |             // bits 3-0
+                (funct3 << kFunct3Shift) | (rs1.code() << kRs1Shift) |
+                (rs2.code() << kRs2Shift) |
+                ((imm12 & 0x3f0) << 25) |  // bits 9-4
+                ((imm12 & 0x800) << 31);   // bit 11
+  emit(instr);
+}
+
+void Assembler::GenInstrU(Opcode opcode, Register rd, uint32_t imm20) {
+  DCHECK(rd.is_valid() && (is_uint20(imm20) || is_int20(imm20)));
+  Instr instr = opcode | (rd.code() << kRdShiftRV) | (imm20 << kImm20Shift);
+  emit(instr);
+}
+
+void Assembler::GenInstrJ(Opcode opcode, Register rd, uint32_t imm20) {
+  DCHECK(rd.is_valid() && (is_uint20(imm20) || is_int20(imm20)));
+  Instr instr = opcode | (rd.code() << kRdShiftRV) |
+                ((imm20 & 0x7f800) << 12) |  // bits 18-11
+                ((imm20 & 0x400) << 20) |    // bit  10
+                ((imm20 & 0x3ff) << 21) |    // bits 9-0
+                ((imm20 & 0x8000) << 31);    // bit  19
+  emit(instr);
+}
+
+// ----- Instruction class templates match those in LLVM's RISCVInstrInfo.td
+
+void Assembler::GenInstrBranchCC_rri(uint8_t funct3, Register rs1, Register rs2,
+                                     uint16_t imm12) {
+  GenInstrB(funct3, BRANCH, rs1, rs2, imm12);
+}
+
+void Assembler::GenInstrLoad_ri(uint8_t funct3, Register rd, Register rs1,
+                                uint16_t imm12) {
+  GenInstrI(funct3, LOAD, rd, rs1, imm12);
+}
+
+void Assembler::GenInstrStore_rri(uint8_t funct3, Register rs1, Register rs2,
+                                  uint16_t imm12) {
+  GenInstrS(funct3, STORE, rs1, rs2, imm12);
+}
+
+void Assembler::GenInstrALU_ri(uint8_t funct3, Register rd, Register rs1,
+                               uint16_t imm12) {
+  GenInstrI(funct3, OP_IMM, rd, rs1, imm12);
+}
+
+void Assembler::GenInstrShift_ri(bool arithshift, uint8_t funct3, Register rd,
+                                 Register rs1, uint8_t shamt) {
+  DCHECK(is_uint6(shamt));
+  GenInstrI(funct3, OP_IMM, rd, rs1, shamt);
+}
+
+void Assembler::GenInstrALU_rr(uint8_t funct7, uint8_t funct3, Register rd,
+                               Register rs1, Register rs2) {
+  GenInstrR(funct7, funct3, OP, rd, rs1, rs2);
+}
+
+void Assembler::GenInstrCSR_ir(uint8_t funct3, Register rd, uint16_t imm12,
+                               Register rs1) {
+  GenInstrI(funct3, SYSTEM, rd, rs1, imm12);
+}
+
+void Assembler::GenInstrCSR_ii(uint8_t funct3, Register rd, uint16_t imm12,
+                               uint8_t rs1) {
+  GenInstrI(funct3, SYSTEM, rd, ToRegister(rs1), imm12);
+}
+
+void Assembler::GenInstrShiftW_ri(bool arithshift, uint8_t funct3, Register rd,
+                                  Register rs1, uint8_t shamt) {
+  GenInstrIShiftW(arithshift, funct3, OP_IMM_32, rd, rs1, shamt);
+}
+
+void Assembler::GenInstrALUW_rr(uint8_t funct7, uint8_t funct3, Register rd,
+                                Register rs1, Register rs2) {
+  GenInstrR(funct7, funct3, OP_32, rd, rs1, rs2);
+}
+
+void Assembler::GenInstrPriv(uint8_t funct7, Register rs1, Register rs2) {
+  GenInstrR(funct7, 0b000, SYSTEM, ToRegister(0), rs1, rs2);
+}
+
+// Original MIPS instruction templates
+
 void Assembler::GenInstrRegister(Opcode opcode, Register rs, Register rt,
                                  Register rd, uint16_t sa,
                                  SecondaryField func) {
@@ -1693,9 +1865,307 @@ void Assembler::jialc(Register rt, int16_t offset) {
   GenInstrImmediate(POP76, zero_reg, rt, offset);
 }
 
-// -------Data-processing-instructions---------
+//===----------------------------------------------------------------------===//
+// Instructions
+//===----------------------------------------------------------------------===//
 
-// Arithmetic.
+void Assembler::RV_lui(Register rd, uint32_t imm20) {
+  GenInstrU(RV_LUI, rd, imm20);
+}
+
+void Assembler::RV_auipc(Register rd, uint32_t imm20) {
+  GenInstrU(RV_AUIPC, rd, imm20);
+}
+
+// Jumps
+
+void Assembler::RV_jal(Register rd, uint32_t imm20) {
+  GenInstrJ(RV_JAL, rd, imm20);
+}
+
+void Assembler::RV_jalr(Register rd, Register rs1, uint16_t imm12) {
+  GenInstrI(0b000, RV_JALR, rd, rs1, imm12);
+}
+
+// Branches
+
+void Assembler::RV_beq(Register rs1, Register rs2, uint16_t imm12) {
+  GenInstrBranchCC_rri(0b000, rs1, rs2, imm12);
+}
+
+void Assembler::RV_bne(Register rs1, Register rs2, uint16_t imm12) {
+  GenInstrBranchCC_rri(0b001, rs1, rs2, imm12);
+}
+
+void Assembler::RV_blt(Register rs1, Register rs2, uint16_t imm12) {
+  GenInstrBranchCC_rri(0b100, rs1, rs2, imm12);
+}
+
+void Assembler::RV_bge(Register rs1, Register rs2, uint16_t imm12) {
+  GenInstrBranchCC_rri(0b101, rs1, rs2, imm12);
+}
+
+void Assembler::RV_bltu(Register rs1, Register rs2, uint16_t imm12) {
+  GenInstrBranchCC_rri(0b110, rs1, rs2, imm12);
+}
+
+void Assembler::RV_bgeu(Register rs1, Register rs2, uint16_t imm12) {
+  GenInstrBranchCC_rri(0b111, rs1, rs2, imm12);
+}
+
+// Loads
+
+void Assembler::RV_lb(Register rd, Register rs1, uint16_t imm12) {
+  GenInstrLoad_ri(0b000, rd, rs1, imm12);
+}
+
+void Assembler::RV_lh(Register rd, Register rs1, uint16_t imm12) {
+  GenInstrLoad_ri(0b001, rd, rs1, imm12);
+}
+
+void Assembler::RV_lw(Register rd, Register rs1, uint16_t imm12) {
+  GenInstrLoad_ri(0b010, rd, rs1, imm12);
+}
+
+void Assembler::RV_lbu(Register rd, Register rs1, uint16_t imm12) {
+  GenInstrLoad_ri(0b100, rd, rs1, imm12);
+}
+
+void Assembler::RV_lhu(Register rd, Register rs1, uint16_t imm12) {
+  GenInstrLoad_ri(0b101, rd, rs1, imm12);
+}
+
+// Stores
+
+void Assembler::RV_sb(Register rs1, Register rs2, uint16_t imm12) {
+  GenInstrStore_rri(0b000, rs1, rs2, imm12);
+}
+
+void Assembler::RV_sh(Register rs1, Register rs2, uint16_t imm12) {
+  GenInstrStore_rri(0b001, rs1, rs2, imm12);
+}
+
+void Assembler::RV_sw(Register rs1, Register rs2, uint16_t imm12) {
+  GenInstrStore_rri(0b010, rs1, rs2, imm12);
+}
+
+// Arithmetic with immediate
+
+void Assembler::RV_addi(Register rd, Register rs1, uint16_t imm12) {
+  GenInstrALU_ri(0b000, rd, rs1, imm12);
+}
+
+void Assembler::RV_slti(Register rd, Register rs1, uint16_t imm12) {
+  GenInstrALU_ri(0b010, rd, rs1, imm12);
+}
+
+void Assembler::RV_sltiu(Register rd, Register rs1, uint16_t imm12) {
+  GenInstrALU_ri(0b011, rd, rs1, imm12);
+}
+
+void Assembler::RV_xori(Register rd, Register rs1, uint16_t imm12) {
+  GenInstrALU_ri(0b100, rd, rs1, imm12);
+}
+
+void Assembler::RV_ori(Register rd, Register rs1, uint16_t imm12) {
+  GenInstrALU_ri(0b110, rd, rs1, imm12);
+}
+
+void Assembler::RV_andi(Register rd, Register rs1, uint16_t imm12) {
+  GenInstrALU_ri(0b111, rd, rs1, imm12);
+}
+
+void Assembler::RV_slli(Register rd, Register rs1, uint8_t shamt) {
+  GenInstrShift_ri(0, 0b001, rd, rs1, shamt);
+}
+
+void Assembler::RV_srli(Register rd, Register rs1, uint8_t shamt) {
+  GenInstrShift_ri(0, 0b101, rd, rs1, shamt);
+}
+
+void Assembler::RV_srai(Register rd, Register rs1, uint8_t shamt) {
+  GenInstrShift_ri(1, 0b101, rd, rs1, shamt);
+}
+
+// Arithmetic
+
+void Assembler::RV_add(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000000, 0b000, rd, rs1, rs2);
+}
+
+void Assembler::RV_sub(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0100000, 0b000, rd, rs1, rs2);
+}
+
+void Assembler::RV_sll(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000000, 0b001, rd, rs1, rs2);
+}
+
+void Assembler::RV_slt(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000000, 0b010, rd, rs1, rs2);
+}
+
+void Assembler::RV_sltu(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000000, 0b011, rd, rs1, rs2);
+}
+
+void Assembler::RV_xor(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000000, 0b100, rd, rs1, rs2);
+}
+
+void Assembler::RV_srl(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000000, 0b101, rd, rs1, rs2);
+}
+
+void Assembler::RV_sra(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0100000, 0b101, rd, rs1, rs2);
+}
+
+void Assembler::RV_or(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000000, 0b110, rd, rs1, rs2);
+}
+
+void Assembler::RV_and(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000000, 0b111, rd, rs1, rs2);
+}
+
+// Memory fences
+
+void Assembler::RV_fence(uint8_t pred, uint8_t succ) {
+  DCHECK(is_uint4(pred) && is_uint4(succ));
+  uint16_t imm12 = succ | (pred << 4) | (0b0000 << 8);
+  GenInstrI(0b000, MISC_MEM, ToRegister(0), ToRegister(0), imm12);
+}
+
+void Assembler::RV_fence_tso() {
+  uint16_t imm12 = (0b0011) | (0b0011 << 4) | (0b1000 << 8);
+  GenInstrI(0b000, MISC_MEM, ToRegister(0), ToRegister(0), imm12);
+}
+
+void Assembler::RV_fence_i() {
+  GenInstrI(0b001, MISC_MEM, ToRegister(0), ToRegister(0), 0);
+}
+
+// Environment call / break
+
+void Assembler::RV_ecall() {
+  GenInstrI(0b000, SYSTEM, ToRegister(0), ToRegister(0), 0);
+}
+
+void Assembler::RV_ebreak() {
+  GenInstrI(0b000, SYSTEM, ToRegister(0), ToRegister(0), 1);
+}
+
+// This is a de facto standard (as set by GNU binutils) 32-bit unimplemented
+// instruction (i.e., it should always trap, if your implementation has invalid
+// instruction traps).
+void Assembler::RV_unimp() {
+  GenInstrI(0b001, SYSTEM, ToRegister(0), ToRegister(0), 0b110000000000);
+}
+
+// CSR
+
+void Assembler::RV_csrrw(Register rd, uint16_t imm12, Register rs1) {
+  GenInstrCSR_ir(0b001, rd, imm12, rs1);
+}
+
+void Assembler::RV_csrrs(Register rd, uint16_t imm12, Register rs1) {
+  GenInstrCSR_ir(0b010, rd, imm12, rs1);
+}
+
+void Assembler::RV_csrrc(Register rd, uint16_t imm12, Register rs1) {
+  GenInstrCSR_ir(0b011, rd, imm12, rs1);
+}
+
+void Assembler::RV_csrrwi(Register rd, uint16_t imm12, uint8_t rs1) {
+  GenInstrCSR_ii(0b101, rd, imm12, rs1);
+}
+
+void Assembler::RV_csrrsi(Register rd, uint16_t imm12, uint8_t rs1) {
+  GenInstrCSR_ii(0b110, rd, imm12, rs1);
+}
+
+void Assembler::RV_csrrci(Register rd, uint16_t imm12, uint8_t rs1) {
+  GenInstrCSR_ii(0b111, rd, imm12, rs1);
+}
+
+// RV64I
+
+void Assembler::RV_lwu(Register rd, Register rs1, uint16_t imm12) {
+  GenInstrLoad_ri(0b110, rd, rs1, imm12);
+}
+
+void Assembler::RV_ld(Register rd, Register rs1, uint16_t imm12) {
+  GenInstrLoad_ri(0b011, rd, rs1, imm12);
+}
+
+void Assembler::RV_sd(Register rs1, Register rs2, uint16_t imm12) {
+  GenInstrStore_rri(0b011, rs1, rs2, imm12);
+}
+
+void Assembler::RV_addiw(Register rd, Register rs1, uint16_t imm12) {
+  GenInstrI(0b000, OP_IMM_32, rd, rs1, imm12);
+}
+
+void Assembler::RV_slliw(Register rd, Register rs1, uint8_t shamt) {
+  GenInstrShiftW_ri(0, 0b001, rd, rs1, shamt);
+}
+
+void Assembler::RV_srliw(Register rd, Register rs1, uint8_t shamt) {
+  GenInstrShiftW_ri(0, 0b101, rd, rs1, shamt);
+}
+
+void Assembler::RV_sraiw(Register rd, Register rs1, uint8_t shamt) {
+  GenInstrShiftW_ri(1, 0b101, rd, rs1, shamt);
+}
+
+void Assembler::RV_addw(Register rd, Register rs1, Register rs2) {
+  GenInstrALUW_rr(0b0000000, 0b000, rd, rs1, rs2);
+}
+
+void Assembler::RV_subw(Register rd, Register rs1, Register rs2) {
+  GenInstrALUW_rr(0b0100000, 0b000, rd, rs1, rs2);
+}
+
+void Assembler::RV_sllw(Register rd, Register rs1, Register rs2) {
+  GenInstrALUW_rr(0b0000000, 0b001, rd, rs1, rs2);
+}
+
+void Assembler::RV_srlw(Register rd, Register rs1, Register rs2) {
+  GenInstrALUW_rr(0b0000000, 0b101, rd, rs1, rs2);
+}
+
+void Assembler::RV_sraw(Register rd, Register rs1, Register rs2) {
+  GenInstrALUW_rr(0b0100000, 0b101, rd, rs1, rs2);
+}
+
+// Privileged
+
+void Assembler::RV_uret() {
+  GenInstrPriv(0b0000000, ToRegister(0), ToRegister(0b00010));
+}
+
+void Assembler::RV_sret() {
+  GenInstrPriv(0b0001000, ToRegister(0), ToRegister(0b00010));
+}
+
+void Assembler::RV_mret() {
+  GenInstrPriv(0b0011000, ToRegister(0), ToRegister(0b00010));
+}
+
+void Assembler::RV_wfi() {
+  GenInstrPriv(0b0001000, ToRegister(0), ToRegister(0b00101));
+}
+
+void Assembler::RV_sfence_vma(Register rs1, Register rs2) {
+  GenInstrR(0b0001001, 0b000, SYSTEM, ToRegister(0), rs1, rs2);
+}
+
+// Assembler Pseudo Instructions (User-Level ISA, Version 2.2, Chapter 20)
+
+void Assembler::RV_nop() { RV_addi(ToRegister(0), ToRegister(0), 0); }
+
+// Original MIPS Instructions
 
 void Assembler::addu(Register rd, Register rs, Register rt) {
   GenInstrRegister(SPECIAL, rs, rt, rd, 0, ADDU);
@@ -3169,7 +3639,7 @@ MSA_BRANCH_LIST(MSA_BRANCH)
 #define MSA_LD_ST(name, opcode)                                  \
   void Assembler::name(MSARegister wd, const MemOperand& rs) {   \
     MemOperand source = rs;                                      \
-    AdjustBaseAndOffset(&source);                                 \
+    AdjustBaseAndOffset(&source);                                \
     if (is_int10(source.offset())) {                             \
       GenInstrMsaMI10(opcode, source.offset(), source.rm(), wd); \
     } else {                                                     \

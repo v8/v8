@@ -121,7 +121,7 @@ class Operand {
 
 // On MIPS we have only one addressing mode with base_reg + offset.
 // Class MemOperand represents a memory operand in load and store instructions.
-class V8_EXPORT_PRIVATE  MemOperand : public Operand {
+class V8_EXPORT_PRIVATE MemOperand : public Operand {
  public:
   // Immediate value attached to offset.
   enum OffsetAddend { offset_minus_one = -1, offset_zero = 0 };
@@ -343,6 +343,120 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     FIRST_IC_MARKER = PROPERTY_ACCESS_INLINED,
   };
 
+  void RV_lui(Register rd, uint32_t imm20);
+  void RV_auipc(Register rd, uint32_t imm20);
+
+  // Jumps
+  void RV_jal(Register rd, uint32_t imm20);
+  void RV_jalr(Register rd, Register rs1, uint16_t imm12);
+
+  // Branches
+  void RV_beq(Register rs1, Register rs2, uint16_t imm12);
+  inline void RV_beq(Register rs, Register rt, Label* L) {
+    RV_beq(rs, rt, shifted_branch_offset(L));
+  }
+  void RV_bne(Register rs1, Register rs2, uint16_t imm12);
+  inline void RV_bne(Register rs, Register rt, Label* L) {
+    RV_bne(rs, rt, shifted_branch_offset(L));
+  }
+  void RV_blt(Register rs1, Register rs2, uint16_t imm12);
+  inline void RV_blt(Register rs, Register rt, Label* L) {
+    RV_blt(rs, rt, shifted_branch_offset(L));
+  }
+  void RV_bge(Register rs1, Register rs2, uint16_t imm12);
+  inline void RV_bge(Register rs, Register rt, Label* L) {
+    RV_bge(rs, rt, shifted_branch_offset(L));
+  }
+  void RV_bltu(Register rs1, Register rs2, uint16_t imm12);
+  inline void RV_bltu(Register rs, Register rt, Label* L) {
+    RV_bltu(rs, rt, shifted_branch_offset(L));
+  }
+  void RV_bgeu(Register rs1, Register rs2, uint16_t imm12);
+  inline void RV_bgeu(Register rs, Register rt, Label* L) {
+    RV_bgeu(rs, rt, shifted_branch_offset(L));
+  }
+
+  // Loads
+  void RV_lb(Register rd, Register rs1, uint16_t imm12);
+  void RV_lh(Register rd, Register rs1, uint16_t imm12);
+  void RV_lw(Register rd, Register rs1, uint16_t imm12);
+  void RV_lbu(Register rd, Register rs1, uint16_t imm12);
+  void RV_lhu(Register rd, Register rs1, uint16_t imm12);
+
+  // Stores
+  void RV_sb(Register rs1, Register rs2, uint16_t imm12);
+  void RV_sh(Register rs1, Register rs2, uint16_t imm12);
+  void RV_sw(Register rs1, Register rs2, uint16_t imm12);
+
+  // Arithmetic with immediate
+  void RV_addi(Register rd, Register rs1, uint16_t imm12);
+  void RV_slti(Register rd, Register rs1, uint16_t imm12);
+  void RV_sltiu(Register rd, Register rs1, uint16_t imm12);
+  void RV_xori(Register rd, Register rs1, uint16_t imm12);
+  void RV_ori(Register rd, Register rs1, uint16_t imm12);
+  void RV_andi(Register rd, Register rs1, uint16_t imm12);
+  void RV_slli(Register rd, Register rs1, uint8_t shamt);
+  void RV_srli(Register rd, Register rs1, uint8_t shamt);
+  void RV_srai(Register rd, Register rs1, uint8_t shamt);
+
+  // Arithmetic
+  void RV_add(Register rd, Register rs1, Register rs2);
+  void RV_sub(Register rd, Register rs1, Register rs2);
+  void RV_sll(Register rd, Register rs1, Register rs2);
+  void RV_slt(Register rd, Register rs1, Register rs2);
+  void RV_sltu(Register rd, Register rs1, Register rs2);
+  void RV_xor(Register rd, Register rs1, Register rs2);
+  void RV_srl(Register rd, Register rs1, Register rs2);
+  void RV_sra(Register rd, Register rs1, Register rs2);
+  void RV_or(Register rd, Register rs1, Register rs2);
+  void RV_and(Register rd, Register rs1, Register rs2);
+
+  // Memory fences
+  void RV_fence(uint8_t pred, uint8_t succ);
+  void RV_fence_tso();
+  void RV_fence_i();
+
+  // Environment call / break
+  void RV_ecall();
+  void RV_ebreak();
+
+  // This is a de facto standard (as set by GNU binutils) 32-bit unimplemented
+  // instruction (i.e., it should always trap, if your implementation has
+  // invalid instruction traps).
+  void RV_unimp();
+
+  // CSR
+  void RV_csrrw(Register rd, uint16_t imm12, Register rs1);
+  void RV_csrrs(Register rd, uint16_t imm12, Register rs1);
+  void RV_csrrc(Register rd, uint16_t imm12, Register rs1);
+  void RV_csrrwi(Register rd, uint16_t imm12, uint8_t rs1);
+  void RV_csrrsi(Register rd, uint16_t imm12, uint8_t rs1);
+  void RV_csrrci(Register rd, uint16_t imm12, uint8_t rs1);
+
+  // RV64I
+  void RV_lwu(Register rd, Register rs1, uint16_t imm12);
+  void RV_ld(Register rd, Register rs1, uint16_t imm12);
+  void RV_sd(Register rs1, Register rs2, uint16_t imm12);
+  void RV_addiw(Register rd, Register rs1, uint16_t imm12);
+  void RV_slliw(Register rd, Register rs1, uint8_t shamt);
+  void RV_srliw(Register rd, Register rs1, uint8_t shamt);
+  void RV_sraiw(Register rd, Register rs1, uint8_t shamt);
+  void RV_addw(Register rd, Register rs1, Register rs2);
+  void RV_subw(Register rd, Register rs1, Register rs2);
+  void RV_sllw(Register rd, Register rs1, Register rs2);
+  void RV_srlw(Register rd, Register rs1, Register rs2);
+  void RV_sraw(Register rd, Register rs1, Register rs2);
+
+  // Privileged
+  void RV_uret();
+  void RV_sret();
+  void RV_mret();
+  void RV_wfi();
+  void RV_sfence_vma(Register rs1, Register rs2);
+
+  // Assembler Pseudo Instructions (User-Level ISA, Version 2.2, Chapter 20)
+  void RV_nop();
+
   // Type == 0 is the default non-marking nop. For mips this is a
   // sll(zero_reg, zero_reg, 0). We use rt_reg == at for non-zero
   // marking, to avoid conflict with ssnop and ehb instructions.
@@ -481,6 +595,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // -------Data-processing-instructions---------
 
   // Arithmetic.
+
   void addu(Register rd, Register rs, Register rt);
   void subu(Register rd, Register rs, Register rt);
 
@@ -1687,6 +1802,54 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline void EmitHelper(Instr x, CompactBranchType is_compact_branch);
 
   // Instruction generation.
+
+  // ----- Top-level instruction formats match those in the ISA manual
+  // (R, I, S, B, U, J). These match the formats defined in LLVM's
+  // RISCVInstrFormats.td.
+
+  void GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode, Register rd,
+                 Register rs1, Register rs2);
+  void GenInstrR4(uint8_t funct2, Opcode opcode, Register rd, Register rs1,
+                  Register rs2, Register rs3, uint8_t frm);
+  void GenInstrRAtomic(uint8_t funct5, bool aq, bool rl, uint8_t funct3,
+                       Opcode opcode, Register rd, Register rs1, Register rs2);
+  void GenInstrRFrm(uint8_t funct7, Opcode opcode, Register rd, Register rs1,
+                    Register rs2, uint8_t frm);
+  void GenInstrI(uint8_t funct3, Opcode opcode, Register rd, Register rs1,
+                 uint16_t imm12);
+  void GenInstrIShift(bool arithshift, uint8_t funct3, Opcode opcode,
+                      Register rd, Register rs1, uint8_t shamt);
+  void GenInstrIShiftW(bool arithshift, uint8_t funct3, Opcode opcode,
+                       Register rd, Register rs1, uint8_t shamt);
+  void GenInstrS(uint8_t funct3, Opcode opcode, Register rs1, Register rs2,
+                 uint16_t imm12);
+  void GenInstrB(uint8_t funct3, Opcode opcode, Register rs1, Register rs2,
+                 uint16_t imm12);
+  void GenInstrU(Opcode opcode, Register rd, uint32_t imm20);
+  void GenInstrJ(Opcode opcode, Register rd, uint32_t imm20);
+
+  // ----- Instruction class templates match those in LLVM's RISCVInstrInfo.td
+  void GenInstrBranchCC_rri(uint8_t funct3, Register rs1, Register rs2,
+                            uint16_t imm12);
+  void GenInstrLoad_ri(uint8_t funct3, Register rd, Register rs1,
+                       uint16_t imm12);
+  void GenInstrStore_rri(uint8_t funct3, Register rs1, Register rs2,
+                         uint16_t imm12);
+  void GenInstrALU_ri(uint8_t funct3, Register rd, Register rs1,
+                      uint16_t imm12);
+  void GenInstrShift_ri(bool arithshift, uint8_t funct3, Register rd,
+                        Register rs1, uint8_t shamt);
+  void GenInstrALU_rr(uint8_t funct7, uint8_t funct3, Register rd, Register rs1,
+                      Register rs2);
+  void GenInstrCSR_ir(uint8_t funct3, Register rd, uint16_t imm12,
+                      Register rs1);
+  void GenInstrCSR_ii(uint8_t funct3, Register rd, uint16_t imm12, uint8_t rs1);
+  void GenInstrShiftW_ri(bool arithshift, uint8_t funct3, Register rd,
+                         Register rs1, uint8_t shamt);
+  void GenInstrALUW_rr(uint8_t funct7, uint8_t funct3, Register rd,
+                       Register rs1, Register rs2);
+  void GenInstrPriv(uint8_t funct7, Register rs1, Register rs2);
+
   // We have 3 different kind of encoding layout on MIPS.
   // However due to many different types of objects encoded in the same fields
   // we have quite a few aliases for each mode.

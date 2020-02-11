@@ -265,6 +265,36 @@ const uint32_t kMaxStopCode = 127;
 STATIC_ASSERT(kMaxWatchpointCode < kMaxStopCode);
 
 // ----- Fields offset and length.
+// RISCV constants
+const int kFunct7Shift = 25;
+const int kFunct7Bits = 7;
+const int kFunct5Shift = 27;
+const int kFunct5Bits = 5;
+const int kFunct3Shift = 12;
+const int kFunct3Bits = 3;
+const int kFunct2Shift = 25;
+const int kFunct2Bits = 2;
+const int kRs1Shift = 15;
+const int kRs1Bits = 5;
+const int kRs2Shift = 20;
+const int kRs2Bits = 5;
+const int kRs3Shift = 27;
+const int kRs3Bits = 5;
+const int kRdShiftRV = 7;
+const int kRdBitsRV = 5;
+const int kRlShift = 25;
+const int kAqShift = 26;
+const int kImm12Shift = 20;
+const int kImm12Bits = 12;
+const int kShamtShift = 20;
+const int kShamtBits = 5;
+const int kShamtWShift = 20;
+const int kShamtWBits = 6;
+const int kArithShiftShift = 30;
+const int kImm20Shift = 12;
+const int kImm20Bits = 20;
+
+// Original MIPS constants
 const int kOpcodeShift = 26;
 const int kOpcodeBits = 6;
 const int kRsShift = 21;
@@ -380,10 +410,31 @@ const int32_t kJalRawMark = 0x00000000;
 const int32_t kJRawMark = 0xf0000000;
 const int32_t kJumpRawMask = 0xf0000000;
 
-// ----- MIPS Opcodes and Function Fields.
-// We use this presentation to stay close to the table representation in
-// MIPS32 Architecture For Programmers, Volume II: The MIPS32 Instruction Set.
+// ----- RISC-V Opcodes and Function Fields.
 enum Opcode : uint32_t {
+  LOAD = 0b0000011,
+  LOAD_FP = 0b0000111,
+  MISC_MEM = 0b0001111,
+  OP_IMM = 0b0010011,
+  RV_AUIPC = 0b0010111,
+  OP_IMM_32 = 0b0011011,
+  STORE = 0b0100011,
+  STORE_FP = 0b0100111,
+  AMO = 0b0101111,
+  OP = 0b0110011,
+  RV_LUI = 0b0110111,
+  OP_32 = 0b0111011,
+  MADD = 0b1000011,
+  MSUB = 0b1000111,
+  NMSUB = 0b1001011,
+  NMADD = 0b1001111,
+  OP_FP = 0b1010011,
+  BRANCH = 0b1100011,
+  RV_JALR = 0b1100111,
+  RV_JAL = 0b1101111,
+  SYSTEM = 0b1110011,
+
+  // Original MIPS opcodes
   SPECIAL = 0U << kOpcodeShift,
   REGIMM = 1U << kOpcodeShift,
 
@@ -1427,6 +1478,23 @@ class InstructionGetters : public T {
     return this->Bits(kRdShift + kRdBits - 1, kRdShift);
   }
 
+  inline int Rs1Value() const {
+    // DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
+    //        this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(kRs1Shift + kRs1Bits - 1, kRs1Shift);
+  }
+
+  inline int Rs2Value() const {
+    // DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
+    //        this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(kRs2Shift + kRs2Bits - 1, kRs2Shift);
+  }
+
+  inline int RVRdValue() const {
+    // DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
+    return this->Bits(kRdShiftRV + kRdBitsRV - 1, kRdShiftRV);
+  }
+
   inline int BaseValue() const {
     DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     return this->Bits(kBaseShift + kBaseBits - 1, kBaseShift);
@@ -1606,6 +1674,11 @@ class InstructionGetters : public T {
   inline int32_t MsaImmMI10Value() const {
     DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     return this->Bits(kMsaImmMI10Shift + kMsaImmMI10Bits - 1, kMsaImmMI10Shift);
+  }
+
+  inline uint16_t Imm12Value() const {
+    // DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
+    return this->Bits(kImm12Shift + kImm12Bits - 1, kImm12Shift);
   }
 
   inline int32_t MsaBitDf() const {
