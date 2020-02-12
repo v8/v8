@@ -491,6 +491,14 @@ class Simulator : public SimulatorBase {
   inline int32_t wt_reg() const { return instr_.WtValue(); }
   inline int32_t wd_reg() const { return instr_.WdValue(); }
 
+  // RISCV utlity API to access register value
+  inline int32_t rs1_reg() const { return instr_.Rs1Value(); }
+  inline int64_t rs1() const { return get_register(rs1_reg()); }
+  inline int32_t rs2_reg() const { return instr_.Rs2Value(); }
+  inline int64_t rs2() const { return get_register(rs2_reg()); }
+  inline int32_t RV_rd_reg() const { return instr_.RVRdValue(); }
+  inline uint16_t imm12() const { return instr_.Imm12Value(); }
+
   inline void SetResult(const int32_t rd_reg, const int64_t alu_out) {
     set_register(rd_reg, alu_out);
     TraceRegWr(alu_out);

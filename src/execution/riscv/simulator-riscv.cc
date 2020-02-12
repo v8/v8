@@ -7270,11 +7270,8 @@ void Simulator::DecodeTypeJump() {
 void Simulator::DecodeRVRType() {
   switch (instr_.InstructionBits() & kRTypeMask) {
     case RO_ADD: {
-      int rs1 = instr_.Rs1Value();
-      int rs2 = instr_.Rs2Value();
-      int rd = instr_.RVRdValue();
       // TODO: handle signed exception
-      set_register(rd, get_register(rs1) + get_register(rs2));
+      set_register(RV_rd_reg(), rs1() + rs2());
       break;
     }
     default:
@@ -7285,12 +7282,8 @@ void Simulator::DecodeRVRType() {
 void Simulator::DecodeRVIType() {
   switch (instr_.InstructionBits() & kITypeMask) {
     case RO_JALR: {
-      int rs1 = instr_.Rs1Value();
-      int rd = instr_.RVRdValue();
-      int16_t offset = (int16_t)(instr_.Imm12Value());
-
-      set_register(rd, get_pc() + 4);
-      int64_t next_pc = get_register(rs1) + offset;
+      set_register(RV_rd_reg(), get_pc() + 4);
+      int64_t next_pc = rs1() + (int16_t)imm12();
       next_pc =
           (next_pc & 1) ? next_pc - 1 : next_pc;  // set lest significant bit 0
       set_pc(next_pc);

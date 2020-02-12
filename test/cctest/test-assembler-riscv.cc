@@ -51,25 +51,6 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ assm.
 
-TEST(RISCV0) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
-
-  // Addition.
-  __ RV_add(a0, a0, a1);
-  __ RV_jr(ra);
-
-  CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
-  auto f = GeneratedCode<F2>::FromCode(*code);
-  int64_t res = reinterpret_cast<int64_t>(f.Call(0xAB0, 0xC, 0, 0, 0));
-  CHECK_EQ(0xABCL, res);
-}
-
 TEST(MIPS0) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
