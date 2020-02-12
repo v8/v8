@@ -215,9 +215,7 @@ class StackFrame {
   // Accessors.
   Address sp() const { return state_.sp; }
   Address fp() const { return state_.fp; }
-  Address callee_pc() const {
-    return state_.callee_pc_address ? *state_.callee_pc_address : kNullAddress;
-  }
+  inline Address callee_pc() const;
   Address caller_sp() const { return GetCallerStackPointer(); }
 
   // If this frame is optimized and was dynamically aligned return its old
@@ -225,8 +223,7 @@ class StackFrame {
   // up one word and become unaligned.
   Address UnpaddedFP() const;
 
-  Address pc() const { return *pc_address(); }
-  void set_pc(Address pc) { *pc_address() = pc; }
+  inline Address pc() const;
 
   Address constant_pool() const { return *constant_pool_address(); }
   void set_constant_pool(Address constant_pool) {
@@ -264,6 +261,8 @@ class StackFrame {
   // profiler's stashed return address.
   static void SetReturnAddressLocationResolver(
       ReturnAddressLocationResolver resolver);
+
+  static inline Address ReadPC(Address* pc_address);
 
   // Resolves pc_address through the resolution address function if one is set.
   static inline Address* ResolveReturnAddressLocation(Address* pc_address);

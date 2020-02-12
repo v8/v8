@@ -291,7 +291,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
     if (must_save_lr_) {
       // We need to save and restore lr if the frame was elided.
-      __ Push(lr, padreg);
+      __ Push<TurboAssembler::kSignLR>(lr, padreg);
       unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset(), sp);
     }
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
@@ -307,7 +307,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                              save_fp_mode);
     }
     if (must_save_lr_) {
-      __ Pop(padreg, lr);
+      __ Pop<TurboAssembler::kAuthLR>(padreg, lr);
       unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());
     }
   }
@@ -496,18 +496,14 @@ void EmitMaybePoisonedFPLoad(CodeGenerator* codegen, InstructionCode opcode,
 
 void CodeGenerator::AssembleDeconstructFrame() {
   __ Mov(sp, fp);
-  __ Pop(fp, lr);
+  __ Pop<TurboAssembler::kAuthLR>(fp, lr);
 
   unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
 }
 
 void CodeGenerator::AssemblePrepareTailCall() {
   if (frame_access_state()->has_frame()) {
-    static_assert(
-        StandardFrameConstants::kCallerFPOffset + kSystemPointerSize ==
-            StandardFrameConstants::kCallerPCOffset,
-        "Offsets must be consecutive for ldp!");
-    __ Ldp(fp, lr, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+    __ RestoreFPAndLR();
   }
   frame_access_state()->SetFrameAccessToSP();
 }
@@ -779,10 +775,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Label return_location;
       if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
         // Put the return address in a stack slot.
-        Register scratch = x8;
-        __ Adr(scratch, &return_location);
-        __ Str(scratch,
-               MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
+        __ StoreReturnAddressInWasmExitFrame(&return_location);
       }
 
       if (instr->InputAt(0)->IsImmediate()) {
@@ -2812,7 +2805,7 @@ void CodeGenerator::AssembleConstructFrame() {
     if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();
     } else {
-      __ Push(lr, fp);
+      __ Push<TurboAssembler::kSignLR>(lr, fp);
       __ Mov(fp, sp);
     }
     unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
@@ -2962,7 +2955,7 @@ void CodeGenerator::AssembleConstructFrame() {
   // TODO(palfia): TF save list is not in sync with
   // CPURegList::GetCalleeSaved(): x30 is missing.
   // DCHECK(saves.list() == CPURegList::GetCalleeSaved().list());
-  __ PushCPURegList(saves);
+  __ PushCPURegList<TurboAssembler::kSignLR>(saves);
 
   if (returns != 0) {
     __ Claim(returns);
@@ -2981,7 +2974,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   // Restore registers.
   CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
                                 call_descriptor->CalleeSavedRegisters());
-  __ PopCPURegList(saves);
+  __ PopCPURegList<TurboAssembler::kAuthLR>(saves);
 
   // Restore fp registers.
   CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,

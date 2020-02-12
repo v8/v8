@@ -12227,7 +12227,8 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
       case PushPopByFour:
         // Push high-numbered registers first (to the highest addresses).
         for (i = reg_count; i >= 4; i -= 4) {
-          __ Push(r[i-1], r[i-2], r[i-3], r[i-4]);
+          __ Push<TurboAssembler::kDontSignLR>(r[i - 1], r[i - 2], r[i - 3],
+                                               r[i - 4]);
         }
         // Finish off the leftovers.
         switch (i) {
@@ -12240,7 +12241,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
         }
         break;
       case PushPopRegList:
-        __ PushSizeRegList(list, reg_size);
+        __ PushSizeRegList<TurboAssembler::kDontSignLR>(list, reg_size);
         break;
     }
 
@@ -12251,7 +12252,8 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
       case PushPopByFour:
         // Pop low-numbered registers first (from the lowest addresses).
         for (i = 0; i <= (reg_count-4); i += 4) {
-          __ Pop(r[i], r[i+1], r[i+2], r[i+3]);
+          __ Pop<TurboAssembler::kDontAuthLR>(r[i], r[i + 1], r[i + 2],
+                                              r[i + 3]);
         }
         // Finish off the leftovers.
         switch (reg_count - i) {
@@ -12264,7 +12266,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
         }
         break;
       case PushPopRegList:
-        __ PopSizeRegList(list, reg_size);
+        __ PopSizeRegList<TurboAssembler::kDontAuthLR>(list, reg_size);
         break;
     }
   }
@@ -12597,8 +12599,8 @@ TEST(push_pop) {
   __ PopXRegList(0);
   // Don't push/pop x18 (platform register) or xzr (for alignment)
   RegList all_regs = 0xFFFFFFFF & ~(x18.bit() | x31.bit());
-  __ PushXRegList(all_regs);
-  __ PopXRegList(all_regs);
+  __ PushXRegList<TurboAssembler::kDontSignLR>(all_regs);
+  __ PopXRegList<TurboAssembler::kDontAuthLR>(all_regs);
   __ Drop(12);
 
   END();
@@ -14597,13 +14599,13 @@ TEST(near_call_no_relocation) {
 
   __ Bind(&test);
   __ Mov(x0, 0x0);
-  __ Push(lr, xzr);
+  __ Push<TurboAssembler::kDontSignLR>(lr, xzr);
   {
     Assembler::BlockConstPoolScope scope(&masm);
     int offset = (function.pos() - __ pc_offset()) / kInstrSize;
     __ near_call(offset, RelocInfo::NONE);
   }
-  __ Pop(xzr, lr);
+  __ Pop<TurboAssembler::kDontAuthLR>(xzr, lr);
   END();
 
   RUN();
