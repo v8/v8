@@ -214,10 +214,6 @@ declare_args() {
 
   # Disable all snapshot compression.
   v8_enable_snapshot_compression = true
-
-  # Enable control-flow integrity features, such as pointer authentication for
-  # ARM64.
-  v8_control_flow_integrity = false
 }
 
 # Derived defaults.
@@ -276,9 +272,6 @@ assert(!v8_disable_write_barriers || v8_enable_single_generation,
 
 assert(v8_current_cpu != "x86" || !v8_untrusted_code_mitigations,
        "Untrusted code mitigations are unsupported on ia32")
-
-assert(v8_current_cpu == "arm64" || !v8_control_flow_integrity,
-       "Control-flow integrity is only supported on arm64")
 
 assert(
     !v8_enable_pointer_compression || !v8_enable_shared_ro_heap,
@@ -514,9 +507,6 @@ config("features") {
   if (v8_enable_snapshot_compression) {
     defines += [ "V8_SNAPSHOT_COMPRESSION" ]
   }
-  if (v8_control_flow_integrity) {
-    defines += [ "V8_ENABLE_CONTROL_FLOW_INTEGRITY" ]
-  }
 }
 
 config("toolchain") {
@@ -559,12 +549,6 @@ config("toolchain") {
   }
   if (v8_current_cpu == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
-    if (v8_control_flow_integrity) {
-      # TODO(v8:10026): Enable this in src/build.
-      if (current_cpu == "arm64") {
-        cflags += [ "-mbranch-protection=pac-ret" ]
-      }
-    }
   }
 
   # Mips64el/mipsel simulators.
@@ -2259,7 +2243,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/execution/microtask-queue.h",
     "src/execution/off-thread-isolate.cc",
     "src/execution/off-thread-isolate.h",
-    "src/execution/pointer-authentication.h",
     "src/execution/protectors-inl.h",
     "src/execution/protectors.cc",
     "src/execution/protectors.h",
@@ -3041,10 +3024,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/zone/zone.h",
   ]
 
-  if (!v8_control_flow_integrity) {
-    sources += [ "src/execution/pointer-authentication-dummy.h" ]
-  }
-
   if (v8_enable_third_party_heap) {
     sources += v8_third_party_heap_files
   }
@@ -3202,9 +3181,6 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/arm64/regexp-macro-assembler-arm64.h",
       "src/wasm/baseline/arm64/liftoff-assembler-arm64.h",
     ]
-    if (v8_control_flow_integrity) {
-      sources += [ "src/execution/arm64/pointer-authentication-arm64.h" ]
-    }
     if (is_win) {
       sources += [
         "src/diagnostics/unwinding-info-win64.cc",

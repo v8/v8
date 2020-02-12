@@ -258,8 +258,6 @@ void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);
 }
 
-void FrameDescription::SetPc(intptr_t pc) { pc_ = pc; }
-
 #undef __
 }  // namespace internal
 }  // namespace v8

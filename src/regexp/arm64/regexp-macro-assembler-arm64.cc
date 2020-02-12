@@ -740,8 +740,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   DCHECK_EQ(11, kCalleeSaved.Count());
   registers_to_retain.Combine(lr);
 
-  DCHECK(registers_to_retain.IncludesAliasOf(lr));
-  __ PushCPURegList<TurboAssembler::kSignLR>(registers_to_retain);
+  __ PushCPURegList(registers_to_retain);
   __ PushCPURegList(argument_registers);
 
   // Set frame pointer in place.
@@ -1036,7 +1035,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   __ Mov(sp, fp);
 
   // Restore registers.
-  __ PopCPURegList<TurboAssembler::kAuthLR>(registers_to_retain);
+  __ PopCPURegList(registers_to_retain);
 
   __ Ret();
 
@@ -1586,14 +1585,14 @@ void RegExpMacroAssemblerARM64::CallIf(Label* to, Condition condition) {
 
 
 void RegExpMacroAssemblerARM64::RestoreLinkRegister() {
-  __ Pop<TurboAssembler::kAuthLR>(padreg, lr);
+  __ Pop(lr, xzr);
   __ Add(lr, lr, Operand(masm_->CodeObject()));
 }
 
 
 void RegExpMacroAssemblerARM64::SaveLinkRegister() {
   __ Sub(lr, lr, Operand(masm_->CodeObject()));
-  __ Push<TurboAssembler::kSignLR>(lr, padreg);
+  __ Push(xzr, lr);
 }
 
 

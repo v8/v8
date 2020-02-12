@@ -14,7 +14,6 @@
 #include "src/codegen/register-configuration.h"
 #include "src/diagnostics/disasm.h"
 #include "src/execution/frames-inl.h"
-#include "src/execution/pointer-authentication.h"
 #include "src/execution/v8threads.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
@@ -253,10 +252,7 @@ class ActivationsFinder : public ThreadVisitor {
           int trampoline_pc = safepoint.trampoline_pc();
           DCHECK_IMPLIES(code == topmost_, safe_to_deopt_);
           // Replace the current pc on the stack with the trampoline.
-          // TODO(v8:10026): avoid replacing a signed pointer.
-          Address* pc_addr = it.frame()->pc_address();
-          Address new_pc = code.raw_instruction_start() + trampoline_pc;
-          PointerAuthentication::ReplacePC(pc_addr, new_pc, kSystemPointerSize);
+          it.frame()->set_pc(code.raw_instruction_start() + trampoline_pc);
         }
       }
     }
@@ -694,13 +690,6 @@ void Deoptimizer::DoComputeOutputFrames() {
     caller_fp_ = Memory<intptr_t>(fp_address);
     caller_pc_ =
         Memory<intptr_t>(fp_address + CommonFrameConstants::kCallerPCOffset);
-    // Sign caller_pc_ with caller_frame_top_ to be consistent with everything
-    // else here.
-    uint64_t sp = stack_fp_ + StandardFrameConstants::kCallerSPOffset;
-    // TODO(v8:10026): avoid replacing a signed pointer.
-    PointerAuthentication::ReplaceContext(
-        reinterpret_cast<Address*>(&caller_pc_), sp, caller_frame_top_);
-
     input_frame_context_ = Memory<intptr_t>(
         fp_address + CommonFrameConstants::kContextOrFrameTypeOffset);
 

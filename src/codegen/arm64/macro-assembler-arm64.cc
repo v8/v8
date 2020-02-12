@@ -60,7 +60,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
   list.Remove(exclusion);
   list.Align();
 
-  PushCPURegList<kSignLR>(list);
+  PushCPURegList(list);
 
   int bytes = list.Count() * kXRegSizeInBits / 8;
 
@@ -84,7 +84,7 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion) {
   list.Remove(exclusion);
   list.Align();
 
-  PopCPURegList<kAuthLR>(list);
+  PopCPURegList(list);
   bytes += list.Count() * kXRegSizeInBits / 8;
 
   return bytes;
@@ -1046,6 +1046,17 @@ void TurboAssembler::Abs(const Register& rd, const Register& rm,
 // Abstracted stack operations.
 
 void TurboAssembler::Push(const CPURegister& src0, const CPURegister& src1,
+                          const CPURegister& src2, const CPURegister& src3) {
+  DCHECK(AreSameSizeAndType(src0, src1, src2, src3));
+
+  int count = 1 + src1.is_valid() + src2.is_valid() + src3.is_valid();
+  int size = src0.SizeInBytes();
+  DCHECK_EQ(0, (size * count) % 16);
+
+  PushHelper(count, size, src0, src1, src2, src3);
+}
+
+void TurboAssembler::Push(const CPURegister& src0, const CPURegister& src1,
                           const CPURegister& src2, const CPURegister& src3,
                           const CPURegister& src4, const CPURegister& src5,
                           const CPURegister& src6, const CPURegister& src7) {
@@ -1057,6 +1068,21 @@ void TurboAssembler::Push(const CPURegister& src0, const CPURegister& src1,
 
   PushHelper(4, size, src0, src1, src2, src3);
   PushHelper(count - 4, size, src4, src5, src6, src7);
+}
+
+void TurboAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
+                         const CPURegister& dst2, const CPURegister& dst3) {
+  // It is not valid to pop into the same register more than once in one
+  // instruction, not even into the zero register.
+  DCHECK(!AreAliased(dst0, dst1, dst2, dst3));
+  DCHECK(AreSameSizeAndType(dst0, dst1, dst2, dst3));
+  DCHECK(dst0.is_valid());
+
+  int count = 1 + dst1.is_valid() + dst2.is_valid() + dst3.is_valid();
+  int size = dst0.SizeInBytes();
+  DCHECK_EQ(0, (size * count) % 16);
+
+  PopHelper(count, size, dst0, dst1, dst2, dst3);
 }
 
 void TurboAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
@@ -1075,6 +1101,48 @@ void TurboAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
 
   PopHelper(4, size, dst0, dst1, dst2, dst3);
   PopHelper(count - 4, size, dst4, dst5, dst6, dst7);
+}
+
+void TurboAssembler::Push(const Register& src0, const VRegister& src1) {
+  int size = src0.SizeInBytes() + src1.SizeInBytes();
+  DCHECK_EQ(0, size % 16);
+
+  // Reserve room for src0 and push src1.
+  str(src1, MemOperand(sp, -size, PreIndex));
+  // Fill the gap with src0.
+  str(src0, MemOperand(sp, src1.SizeInBytes()));
+}
+
+void TurboAssembler::PushCPURegList(CPURegList registers) {
+  int size = registers.RegisterSizeInBytes();
+  DCHECK_EQ(0, (size * registers.Count()) % 16);
+
+  // Push up to four registers at a time.
+  while (!registers.IsEmpty()) {
+    int count_before = registers.Count();
+    const CPURegister& src0 = registers.PopHighestIndex();
+    const CPURegister& src1 = registers.PopHighestIndex();
+    const CPURegister& src2 = registers.PopHighestIndex();
+    const CPURegister& src3 = registers.PopHighestIndex();
+    int count = count_before - registers.Count();
+    PushHelper(count, size, src0, src1, src2, src3);
+  }
+}
+
+void TurboAssembler::PopCPURegList(CPURegList registers) {
+  int size = registers.RegisterSizeInBytes();
+  DCHECK_EQ(0, (size * registers.Count()) % 16);
+
+  // Pop up to four registers at a time.
+  while (!registers.IsEmpty()) {
+    int count_before = registers.Count();
+    const CPURegister& dst0 = registers.PopLowestIndex();
+    const CPURegister& dst1 = registers.PopLowestIndex();
+    const CPURegister& dst2 = registers.PopLowestIndex();
+    const CPURegister& dst3 = registers.PopLowestIndex();
+    int count = count_before - registers.Count();
+    PopHelper(count, size, dst0, dst1, dst2, dst3);
+  }
 }
 
 void MacroAssembler::PushMultipleTimes(CPURegister src, Register count) {
@@ -1181,6 +1249,28 @@ void TurboAssembler::PopHelper(int count, int size, const CPURegister& dst0,
   }
 }
 
+void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
+  if (offset.IsImmediate()) {
+    DCHECK_GE(offset.ImmediateValue(), 0);
+  } else if (emit_debug_code()) {
+    Cmp(xzr, offset);
+    Check(le, AbortReason::kStackAccessBelowStackPointer);
+  }
+
+  Str(src, MemOperand(sp, offset));
+}
+
+void TurboAssembler::Peek(const CPURegister& dst, const Operand& offset) {
+  if (offset.IsImmediate()) {
+    DCHECK_GE(offset.ImmediateValue(), 0);
+  } else if (emit_debug_code()) {
+    Cmp(xzr, offset);
+    Check(le, AbortReason::kStackAccessBelowStackPointer);
+  }
+
+  Ldr(dst, MemOperand(sp, offset));
+}
+
 void TurboAssembler::PokePair(const CPURegister& src1, const CPURegister& src2,
                               int offset) {
   DCHECK(AreSameSizeAndType(src1, src2));
@@ -1196,61 +1286,50 @@ void MacroAssembler::PeekPair(const CPURegister& dst1, const CPURegister& dst2,
 }
 
 void MacroAssembler::PushCalleeSavedRegisters() {
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  Paciasp();
-#endif
+  // Ensure that the macro-assembler doesn't use any scratch registers.
+  InstructionAccurateScope scope(this);
 
-  {
-    // Ensure that the macro-assembler doesn't use any scratch registers.
-    InstructionAccurateScope scope(this);
+  MemOperand tos(sp, -2 * static_cast<int>(kXRegSize), PreIndex);
 
-    MemOperand tos(sp, -2 * static_cast<int>(kXRegSize), PreIndex);
+  stp(d14, d15, tos);
+  stp(d12, d13, tos);
+  stp(d10, d11, tos);
+  stp(d8, d9, tos);
 
-    stp(d14, d15, tos);
-    stp(d12, d13, tos);
-    stp(d10, d11, tos);
-    stp(d8, d9, tos);
+  STATIC_ASSERT(
+      EntryFrameConstants::kCalleeSavedRegisterBytesPushedBeforeFpLrPair ==
+      8 * kSystemPointerSize);
 
-    STATIC_ASSERT(
-        EntryFrameConstants::kCalleeSavedRegisterBytesPushedBeforeFpLrPair ==
-        8 * kSystemPointerSize);
-    stp(x29, x30, tos);  // fp, lr
+  stp(x29, x30, tos);  // fp, lr
 
-    STATIC_ASSERT(
-        EntryFrameConstants::kCalleeSavedRegisterBytesPushedAfterFpLrPair ==
-        10 * kSystemPointerSize);
+  STATIC_ASSERT(
+      EntryFrameConstants::kCalleeSavedRegisterBytesPushedAfterFpLrPair ==
+      10 * kSystemPointerSize);
 
-    stp(x27, x28, tos);
-    stp(x25, x26, tos);
-    stp(x23, x24, tos);
-    stp(x21, x22, tos);
-    stp(x19, x20, tos);
-  }
+  stp(x27, x28, tos);
+  stp(x25, x26, tos);
+  stp(x23, x24, tos);
+  stp(x21, x22, tos);
+  stp(x19, x20, tos);
 }
 
 void MacroAssembler::PopCalleeSavedRegisters() {
-  {
-    // Ensure that the macro-assembler doesn't use any scratch registers.
-    InstructionAccurateScope scope(this);
+  // Ensure that the macro-assembler doesn't use any scratch registers.
+  InstructionAccurateScope scope(this);
 
-    MemOperand tos(sp, 2 * kXRegSize, PostIndex);
+  MemOperand tos(sp, 2 * kXRegSize, PostIndex);
 
-    ldp(x19, x20, tos);
-    ldp(x21, x22, tos);
-    ldp(x23, x24, tos);
-    ldp(x25, x26, tos);
-    ldp(x27, x28, tos);
-    ldp(x29, x30, tos);
+  ldp(x19, x20, tos);
+  ldp(x21, x22, tos);
+  ldp(x23, x24, tos);
+  ldp(x25, x26, tos);
+  ldp(x27, x28, tos);
+  ldp(x29, x30, tos);
 
-    ldp(d8, d9, tos);
-    ldp(d10, d11, tos);
-    ldp(d12, d13, tos);
-    ldp(d14, d15, tos);
-  }
-
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  Autiasp();
-#endif
+  ldp(d8, d9, tos);
+  ldp(d10, d11, tos);
+  ldp(d12, d13, tos);
+  ldp(d14, d15, tos);
 }
 
 void TurboAssembler::AssertSpAligned() {
@@ -1938,22 +2017,18 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   // GC, since the callee function will return to it.
 
   UseScratchRegisterScope temps(this);
-  temps.Exclude(x16, x17);
+  Register scratch1 = temps.AcquireX();
 
   Label return_location;
-  Adr(x17, &return_location);
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  Add(x16, sp, kSystemPointerSize);
-  Pacia1716();
-#endif
-  Poke(x17, 0);
+  Adr(scratch1, &return_location);
+  Poke(scratch1, 0);
 
   if (emit_debug_code()) {
-    // Verify that the slot below fp[kSPOffset]-8 points to the signed return
-    // location.
-    Ldr(x16, MemOperand(fp, ExitFrameConstants::kSPOffset));
-    Ldr(x16, MemOperand(x16, -static_cast<int64_t>(kXRegSize)));
-    Cmp(x16, x17);
+    // Verify that the slot below fp[kSPOffset]-8 points to the return location.
+    Register scratch2 = temps.AcquireX();
+    Ldr(scratch2, MemOperand(fp, ExitFrameConstants::kSPOffset));
+    Ldr(scratch2, MemOperand(scratch2, -static_cast<int64_t>(kXRegSize)));
+    Cmp(scratch2, scratch1);
     Check(eq, AbortReason::kReturnAddressNotFoundInFrame);
   }
 
@@ -2021,7 +2096,8 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
 
   // Restore caller's frame pointer and return address now as they will be
   // overwritten by the copying loop.
-  RestoreFPAndLR();
+  Ldr(lr, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+  Ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
 
   // Now copy callee arguments to the caller frame going backwards to avoid
   // callee arguments corruption (source and destination areas could overlap).
@@ -2233,7 +2309,7 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   TryConvertDoubleToInt64(result, double_input, &done);
 
   // If we fell through then inline version didn't succeed - call stub instead.
-  Push<TurboAssembler::kSignLR>(lr, double_input);
+  Push(lr, double_input);
 
   // DoubleToI preserves any registers it needs to clobber.
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
@@ -2246,8 +2322,7 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   Ldr(result, MemOperand(sp, 0));
 
   DCHECK_EQ(xzr.SizeInBytes(), double_input.SizeInBytes());
-  // Pop into xzr here to drop the double input on the stack:
-  Pop<TurboAssembler::kAuthLR>(xzr, lr);
+  Pop(xzr, lr);  // xzr to drop the double input on the stack.
 
   Bind(&done);
   // Keep our invariant that the upper 32 bits are zero.
@@ -2255,7 +2330,7 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
 }
 
 void TurboAssembler::Prologue() {
-  Push<TurboAssembler::kSignLR>(lr, fp, cp, x1);
+  Push(lr, fp, cp, x1);
   Add(fp, sp, StandardFrameConstants::kFixedFrameSizeFromFp);
 }
 
@@ -2266,7 +2341,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     Register type_reg = temps.AcquireX();
     Mov(type_reg, StackFrame::TypeToMarker(type));
     // type_reg pushed twice for alignment.
-    Push<TurboAssembler::kSignLR>(lr, fp, type_reg, type_reg);
+    Push(lr, fp, type_reg, type_reg);
     const int kFrameSize =
         TypedFrameConstants::kFixedFrameSizeFromFp + kSystemPointerSize;
     Add(fp, sp, kFrameSize);
@@ -2279,7 +2354,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
              type == StackFrame::WASM_EXIT) {
     Register type_reg = temps.AcquireX();
     Mov(type_reg, StackFrame::TypeToMarker(type));
-    Push<TurboAssembler::kSignLR>(lr, fp);
+    Push(lr, fp);
     Mov(fp, sp);
     Push(type_reg, padreg);
     // sp[3] : lr
@@ -2293,7 +2368,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
 
     // Users of this frame type push a context pointer after the type field,
     // so do it here to keep the stack pointer aligned.
-    Push<TurboAssembler::kSignLR>(lr, fp, type_reg, cp);
+    Push(lr, fp, type_reg, cp);
 
     // The context pointer isn't part of the fixed frame, so add an extra slot
     // to account for it.
@@ -2310,7 +2385,7 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   // Drop the execution stack down to the frame pointer and restore
   // the caller frame pointer and return address.
   Mov(sp, fp);
-  Pop<TurboAssembler::kAuthLR>(fp, lr);
+  Pop(fp, lr);
 }
 
 void MacroAssembler::ExitFramePreserveFPRegs() {
@@ -2340,7 +2415,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
          frame_type == StackFrame::BUILTIN_EXIT);
 
   // Set up the new stack frame.
-  Push<TurboAssembler::kSignLR>(lr, fp);
+  Push(lr, fp);
   Mov(fp, sp);
   Mov(scratch, StackFrame::TypeToMarker(frame_type));
   Push(scratch, xzr);
@@ -2423,7 +2498,7 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
   //   fp -> fp[0]: CallerFP (old fp)
   //         fp[...]: The rest of the frame.
   Mov(sp, fp);
-  Pop<TurboAssembler::kAuthLR>(fp, lr);
+  Pop(fp, lr);
 }
 
 void MacroAssembler::LoadGlobalProxy(Register dst) {
@@ -2676,19 +2751,25 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 
 void TurboAssembler::SaveRegisters(RegList registers) {
   DCHECK_GT(NumRegs(registers), 0);
-  CPURegList regs(CPURegister::kRegister, kXRegSizeInBits, registers);
-  // If we were saving LR, we might need to sign it.
-  DCHECK(!regs.IncludesAliasOf(lr));
-  regs.Align();
+  CPURegList regs(lr);
+  for (int i = 0; i < Register::kNumRegisters; ++i) {
+    if ((registers >> i) & 1u) {
+      regs.Combine(Register::XRegFromCode(i));
+    }
+  }
+
   PushCPURegList(regs);
 }
 
 void TurboAssembler::RestoreRegisters(RegList registers) {
   DCHECK_GT(NumRegs(registers), 0);
-  CPURegList regs(CPURegister::kRegister, kXRegSizeInBits, registers);
-  // If we were saving LR, we might need to sign it.
-  DCHECK(!regs.IncludesAliasOf(lr));
-  regs.Align();
+  CPURegList regs(lr);
+  for (int i = 0; i < Register::kNumRegisters; ++i) {
+    if ((registers >> i) & 1u) {
+      regs.Combine(Register::XRegFromCode(i));
+    }
+  }
+
   PopCPURegList(regs);
 }
 
@@ -2843,11 +2924,11 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
 
   // Record the actual write.
   if (lr_status == kLRHasNotBeenSaved) {
-    Push<TurboAssembler::kSignLR>(padreg, lr);
+    Push(padreg, lr);
   }
   CallRecordWriteStub(object, offset, remembered_set_action, fp_mode);
   if (lr_status == kLRHasNotBeenSaved) {
-    Pop<TurboAssembler::kAuthLR>(lr, padreg);
+    Pop(lr, padreg);
   }
 
   Bind(&done);
@@ -3102,7 +3183,7 @@ void TurboAssembler::Printf(const char* format, CPURegister arg0,
   // Preserve all caller-saved registers as well as NZCV.
   // PushCPURegList asserts that the size of each list is a multiple of 16
   // bytes.
-  PushCPURegList<kDontSignLR>(saved_registers);
+  PushCPURegList(saved_registers);
   PushCPURegList(kCallerSavedV);
 
   // We can use caller-saved registers as scratch values (except for argN).
@@ -3155,7 +3236,7 @@ void TurboAssembler::Printf(const char* format, CPURegister arg0,
   }
 
   PopCPURegList(kCallerSavedV);
-  PopCPURegList<kDontAuthLR>(saved_registers);
+  PopCPURegList(saved_registers);
 
   TmpList()->set_list(old_tmp_list);
   FPTmpList()->set_list(old_fp_tmp_list);
@@ -3191,35 +3272,6 @@ void TurboAssembler::ComputeCodeStartAddress(const Register& rd) {
 
 void TurboAssembler::ResetSpeculationPoisonRegister() {
   Mov(kSpeculationPoisonRegister, -1);
-}
-
-void TurboAssembler::RestoreFPAndLR() {
-  static_assert(StandardFrameConstants::kCallerFPOffset + kSystemPointerSize ==
-                    StandardFrameConstants::kCallerPCOffset,
-                "Offsets must be consecutive for ldp!");
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  // Make sure we can use x16 and x17.
-  UseScratchRegisterScope temps(this);
-  temps.Exclude(x16, x17);
-  // We can load the return address directly into x17.
-  Add(x16, fp, StandardFrameConstants::kCallerSPOffset);
-  Ldp(fp, x17, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  Autia1716();
-  Mov(lr, x17);
-#else
-  Ldp(fp, lr, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-#endif
-}
-
-void TurboAssembler::StoreReturnAddressInWasmExitFrame(Label* return_location) {
-  UseScratchRegisterScope temps(this);
-  temps.Exclude(x16, x17);
-  Adr(x17, return_location);
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  Add(x16, fp, WasmExitFrameConstants::kCallingPCOffset + kSystemPointerSize);
-  Pacia1716();
-#endif
-  Str(x17, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
 }
 
 }  // namespace internal

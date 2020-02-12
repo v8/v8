@@ -1187,7 +1187,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // the frame (that is done below).
   __ Bind(&push_stack_frame);
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ Push<TurboAssembler::kSignLR>(lr, fp, cp, closure);
+  __ Push(lr, fp, cp, closure);
   __ Add(fp, sp, StandardFrameConstants::kFixedFrameSizeFromFp);
 
   // Reset code age.
@@ -1672,7 +1672,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
 
   // Restore fp, lr.
   __ Mov(sp, fp);
-  __ Pop<TurboAssembler::kAuthLR>(fp, lr);
+  __ Pop(fp, lr);
 
   __ LoadEntryFromBuiltinIndex(builtin);
   __ Jump(builtin);
@@ -2053,7 +2053,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 namespace {
 
 void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
-  __ Push<TurboAssembler::kSignLR>(lr, fp);
+  __ Push(lr, fp);
   __ Mov(x11, StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR));
   __ Push(x11, x1);  // x1: function
   __ SmiTag(x11, x0);  // x0: number of arguments.
@@ -2069,7 +2069,7 @@ void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // then drop the parameters and the receiver.
   __ Ldr(x10, MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ Mov(sp, fp);
-  __ Pop<TurboAssembler::kAuthLR>(fp, lr);
+  __ Pop(fp, lr);
 
   // Drop actual parameters and receiver.
   __ SmiUntag(x10);
@@ -3675,9 +3675,9 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   // DirectCEntry places the return address on the stack (updated by the GC),
   // making the call GC safe. The irregexp backend relies on this.
 
-  __ Poke<TurboAssembler::kSignLR>(lr, 0);  // Store the return address.
+  __ Poke(lr, 0);  // Store the return address.
   __ Blr(x10);     // Call the C++ function.
-  __ Peek<TurboAssembler::kAuthLR>(lr, 0);  // Return to calling code.
+  __ Peek(lr, 0);  // Return to calling code.
   __ AssertFPCRState();
   __ Ret();
 }

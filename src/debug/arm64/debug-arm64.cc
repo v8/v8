@@ -38,7 +38,7 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   __ Ldr(x1, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
 
   __ Mov(sp, fp);
-  __ Pop<TurboAssembler::kAuthLR>(fp, lr);
+  __ Pop(fp, lr);  // Frame, Return address.
 
   __ LoadTaggedPointerField(
       x0, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
