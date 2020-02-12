@@ -248,6 +248,27 @@ class JSWeakRef::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class JSFinalizationGroup::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    return IsValidJSObjectSlotImpl(map, obj, offset);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, JSObject::BodyDescriptor::kStartOffset, kNextOffset,
+                    v);
+    IterateCustomWeakPointer(obj, kNextOffset, v);
+    IterateJSObjectBodyImpl(map, obj, kNextOffset + kTaggedSize, object_size,
+                            v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject object) {
+    return map.instance_size();
+  }
+};
+
 class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {

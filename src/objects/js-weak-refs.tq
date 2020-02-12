@@ -8,6 +8,8 @@ extern class JSFinalizationGroup extends JSObject {
   active_cells: Undefined|WeakCell;
   cleared_cells: Undefined|WeakCell;
   key_map: Object;
+  // For the linked list of FinalizationGroups that need cleanup. This link
+  // is weak.
   next: Undefined|JSFinalizationGroup;
   flags: Smi;
 }

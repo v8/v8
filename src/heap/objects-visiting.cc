@@ -185,10 +185,31 @@ struct WeakListVisitor<AllocationSite> {
   static void VisitPhantomObject(Heap*, AllocationSite) {}
 };
 
+template <>
+struct WeakListVisitor<JSFinalizationGroup> {
+  static void SetWeakNext(JSFinalizationGroup obj, Object next) {
+    obj.set_next(next, UPDATE_WEAK_WRITE_BARRIER);
+  }
+
+  static Object WeakNext(JSFinalizationGroup obj) { return obj.next(); }
+
+  static HeapObject WeakNextHolder(JSFinalizationGroup obj) { return obj; }
+
+  static int WeakNextOffset() { return JSFinalizationGroup::kNextOffset; }
+
+  static void VisitLiveObject(Heap*, JSFinalizationGroup, WeakObjectRetainer*) {
+  }
+
+  static void VisitPhantomObject(Heap*, JSFinalizationGroup) {}
+};
+
 template Object VisitWeakList<Context>(Heap* heap, Object list,
                                        WeakObjectRetainer* retainer);
 
 template Object VisitWeakList<AllocationSite>(Heap* heap, Object list,
                                               WeakObjectRetainer* retainer);
+
+template Object VisitWeakList<JSFinalizationGroup>(
+    Heap* heap, Object list, WeakObjectRetainer* retainer);
 }  // namespace internal
 }  // namespace v8

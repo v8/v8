@@ -36,6 +36,8 @@ class JSFinalizationGroup : public JSObject {
 
   DECL_INT_ACCESSORS(flags)
 
+  class BodyDescriptor;
+
   inline static void Register(Handle<JSFinalizationGroup> finalization_group,
                               Handle<JSReceiver> target,
                               Handle<Object> holdings, Handle<Object> key,

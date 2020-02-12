@@ -54,6 +54,8 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
     isolate->heap()->set_allocation_sites_list(
         ReadOnlyRoots(isolate).undefined_value());
   }
+  isolate->heap()->set_dirty_js_finalization_groups_list(
+      ReadOnlyRoots(isolate).undefined_value());
 
   isolate->builtins()->MarkInitialized();
 

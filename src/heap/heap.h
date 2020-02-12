@@ -502,6 +502,13 @@ class Heap {
   }
   Object allocation_sites_list() { return allocation_sites_list_; }
 
+  void set_dirty_js_finalization_groups_list(Object object) {
+    dirty_js_finalization_groups_list_ = object;
+  }
+  Object dirty_js_finalization_groups_list() {
+    return dirty_js_finalization_groups_list_;
+  }
+
   // Used in CreateAllocationSiteStub and the (de)serializer.
   Address allocation_sites_list_address() {
     return reinterpret_cast<Address>(&allocation_sites_list_);
@@ -1737,6 +1744,7 @@ class Heap {
   void ProcessYoungWeakReferences(WeakObjectRetainer* retainer);
   void ProcessNativeContexts(WeakObjectRetainer* retainer);
   void ProcessAllocationSites(WeakObjectRetainer* retainer);
+  void ProcessDirtyJSFinalizationGroups(WeakObjectRetainer* retainer);
   void ProcessWeakListRoots(WeakObjectRetainer* retainer);
 
   // ===========================================================================
@@ -2041,6 +2049,7 @@ class Heap {
   // List heads are initialized lazily and contain the undefined_value at start.
   Object native_contexts_list_;
   Object allocation_sites_list_;
+  Object dirty_js_finalization_groups_list_;
 
   std::vector<GCCallbackTuple> gc_epilogue_callbacks_;
   std::vector<GCCallbackTuple> gc_prologue_callbacks_;

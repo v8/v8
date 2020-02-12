@@ -67,6 +67,7 @@ bool Heap::CreateHeapObjects() {
 
   set_native_contexts_list(ReadOnlyRoots(this).undefined_value());
   set_allocation_sites_list(ReadOnlyRoots(this).undefined_value());
+  set_dirty_js_finalization_groups_list(ReadOnlyRoots(this).undefined_value());
 
   return true;
 }
@@ -618,7 +619,6 @@ void Heap::CreateInitialObjects() {
   // There's no "current microtask" in the beginning.
   set_current_microtask(roots.undefined_value());
 
-  set_dirty_js_finalization_groups(roots.undefined_value());
   set_weak_refs_keep_during_job(roots.undefined_value());
 
   // Allocate cache for single character one byte strings.
