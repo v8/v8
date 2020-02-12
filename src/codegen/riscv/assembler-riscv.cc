@@ -1125,7 +1125,7 @@ void Assembler::GenInstrS(uint8_t funct3, Opcode opcode, Register rs1,
   Instr instr = opcode | ((imm12 & 0x1f) << 7) |  // bits  4-0
                 (funct3 << kFunct3Shift) | (rs1.code() << kRs1Shift) |
                 (rs2.code() << kRs2Shift) |
-                ((imm12 & 0xfe0) << 25);  // bits 11-5
+                ((imm12 & 0xfe0) << 20);  // bits 11-5
   emit(instr);
 }
 
@@ -1133,12 +1133,12 @@ void Assembler::GenInstrB(uint8_t funct3, Opcode opcode, Register rs1,
                           Register rs2, int16_t imm12) {
   DCHECK(is_uint3(funct3) && rs1.is_valid() && rs2.is_valid() &&
          is_int12(imm12));
-  Instr instr = opcode | ((imm12 & 0x400) << 7) |  // bit  10
-                ((imm12 & 0xf) << 8) |             // bits 3-0
+  Instr instr = opcode | ((imm12 & 0x800) >> 4) |  // bit  11
+                ((imm12 & 0x1e) << 7) |            // bits 4-1
                 (funct3 << kFunct3Shift) | (rs1.code() << kRs1Shift) |
                 (rs2.code() << kRs2Shift) |
-                ((imm12 & 0x3f0) << 25) |  // bits 9-4
-                ((imm12 & 0x800) << 31);   // bit 11
+                ((imm12 & 0x7e0) << 20) |  // bits 10-5
+                ((imm12 & 0x1000) << 19);  // bit 12
   emit(instr);
 }
 

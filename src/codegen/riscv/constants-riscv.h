@@ -1595,7 +1595,7 @@ class InstructionGetters : public T {
 
   inline int RoundMode() const {
     DCHECK((this->InstructionType() == InstructionBase::kRType ||
-           this->InstructionType() == InstructionBase::kR4Type) &&
+            this->InstructionType() == InstructionBase::kR4Type) &&
            (this->InstructionBits() & kBaseOpcodeMask) == OP_FP);
     return this->Bits(kFunct3Shift + kFunct3Bits - 1, kFunct3Shift);
   }
@@ -1614,7 +1614,17 @@ class InstructionGetters : public T {
     // | imm[12|10:5] | rs2 | rs1 | funct3 | imm[4:1|11] | opcode |
     // 31             25                   11            7
     uint32_t Bits = this->InstructionBits();
-    return (Bits & 0xf00) >> 6 | (Bits & 0x7e000000) >> 20 | (Bits & 0x80) << 4 | (Bits & 0x80000000) >> 19;
+    int16_t imm12 = ((Bits & 0xf00) >> 7) | ((Bits & 0x7e000000) >> 20) |
+           ((Bits & 0x80) << 4) | ((Bits & 0x80000000) >> 19);
+    return imm12 << 20 >> 20;
+  }
+
+  inline int StoreOffset() const {
+    // | imm[11:5] | rs2 | rs1 | funct3 | imm[4:0] | opcode |
+    // 31          25                   11         7
+    uint32_t Bits = this->InstructionBits();
+    int16_t imm12 = ((Bits & 0xf80) >> 7) | ((Bits & 0xfe000000) >> 20);
+    return imm12 << 20 >> 20;
   }
 
   // Original MIPS methods
