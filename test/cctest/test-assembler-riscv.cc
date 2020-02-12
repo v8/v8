@@ -59,8 +59,8 @@ TEST(RISCV0) {
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   // Addition.
-  __ rv_add(a0, a0, a1);
-  __ rv_jr(ra);
+  __ RV_add(a0, a0, a1);
+  __ RV_jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);

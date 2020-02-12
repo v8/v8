@@ -7269,15 +7269,14 @@ void Simulator::DecodeTypeJump() {
 // RISCV Instruction Decode Routine
 void Simulator::DecodeRVRType() {
   switch (instr_.InstructionBits() & kRTypeMask) {
-    case RO_ADD:
-      Register rs1 = instr_.Rs1Value();
-      Register rs2 = instr_.Rs2Value();
-      Register rd = instr_.RVRdValue();
-      PrintF("  ADD rs1()=%ld, rs2()=%ld\n", get_register(rs1),
-             get_register(rs2));
+    case RO_ADD: {
+      int rs1 = instr_.Rs1Value();
+      int rs2 = instr_.Rs2Value();
+      int rd = instr_.RVRdValue();
       // TODO: handle signed exception
       set_register(rd, get_register(rs1) + get_register(rs2));
       break;
+    }
     default:
       UNSUPPORTED();
   }
@@ -7285,17 +7284,18 @@ void Simulator::DecodeRVRType() {
 
 void Simulator::DecodeRVIType() {
   switch (instr_.InstructionBits() & kITypeMask) {
-    case RO_JALR:
-      Register rs1 = instr_.Rs1Value();
-      Register rd = instr_.RdValue();
+    case RO_JALR: {
+      int rs1 = instr_.Rs1Value();
+      int rd = instr_.RVRdValue();
       int16_t offset = (int16_t)(instr_.Imm12Value());
 
       set_register(rd, get_pc() + 4);
       int64_t next_pc = get_register(rs1) + offset;
       next_pc =
-          (nextpc & 1) ? nextpc - 1 : nextpc;  // set lest significant bit 0
+          (next_pc & 1) ? next_pc - 1 : next_pc;  // set lest significant bit 0
       set_pc(next_pc);
       break;
+    }
     default:
       UNSUPPORTED();
   }
@@ -7331,12 +7331,12 @@ void Simulator::InstructionDecode(Instruction* instr) {
     case Instruction::kIType:
       DecodeRVIType();
       break;
-    case Instruction::kIType:
     case Instruction::kSType:
     case Instruction::kBType:
     case Instruction::kUType:
     case Instruction::kJType:
       UNSUPPORTED();
+      break;
     // Original MIPS decoding
     case Instruction::kRegisterType:
       DecodeTypeRegister();
