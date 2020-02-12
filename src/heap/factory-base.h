@@ -8,7 +8,6 @@
 #include "src/base/export-template.h"
 #include "src/common/globals.h"
 #include "src/handles/handle-for.h"
-#include "src/objects/function-kind.h"
 #include "src/objects/instance-type.h"
 #include "src/roots/roots.h"
 
@@ -16,8 +15,6 @@ namespace v8 {
 namespace internal {
 
 class HeapObject;
-class SharedFunctionInfo;
-class FunctionLiteral;
 class SeqOneByteString;
 class SeqTwoByteString;
 class FreshlyAllocatedBigInt;
@@ -25,9 +22,6 @@ class ObjectBoilerplateDescription;
 class ArrayBoilerplateDescription;
 class TemplateObjectDescription;
 class SourceTextModuleInfo;
-class PreparseData;
-class UncompiledDataWithoutPreparseData;
-class UncompiledDataWithPreparseData;
 
 template <typename Impl>
 class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
@@ -79,16 +73,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
   HandleFor<Impl, FixedArrayBase> NewFixedDoubleArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
-  // Allocates a weak fixed array-like object with given map and initialized
-  // with undefined values.
-  HandleFor<Impl, WeakFixedArray> NewWeakFixedArrayWithMap(
-      Map map, int length, AllocationType allocation = AllocationType::kYoung);
-
-  // Allocates a fixed array which may contain in-place weak references. The
-  // array is initialized with undefined values
-  HandleFor<Impl, WeakFixedArray> NewWeakFixedArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
-
   // Allocates a fixed array for name-value pairs of boilerplate properties and
   // calculates the number of properties we need to store in the backing store.
   HandleFor<Impl, ObjectBoilerplateDescription> NewObjectBoilerplateDescription(
@@ -107,24 +91,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
   HandleFor<Impl, Script> NewScript(HandleFor<Impl, String> source);
   HandleFor<Impl, Script> NewScriptWithId(HandleFor<Impl, String> source,
                                           int script_id);
-
-  HandleFor<Impl, SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
-      FunctionLiteral* literal, HandleFor<Impl, Script> script,
-      bool is_toplevel);
-
-  HandleFor<Impl, PreparseData> NewPreparseData(int data_length,
-                                                int children_length);
-
-  HandleFor<Impl, UncompiledDataWithoutPreparseData>
-  NewUncompiledDataWithoutPreparseData(HandleFor<Impl, String> inferred_name,
-                                       int32_t start_position,
-                                       int32_t end_position);
-
-  HandleFor<Impl, UncompiledDataWithPreparseData>
-  NewUncompiledDataWithPreparseData(HandleFor<Impl, String> inferred_name,
-                                    int32_t start_position,
-                                    int32_t end_position,
-                                    HandleFor<Impl, PreparseData>);
 
   HandleFor<Impl, SeqOneByteString> NewOneByteInternalizedString(
       const Vector<const uint8_t>& str, uint32_t hash_field);
@@ -178,12 +144,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
 
   HandleFor<Impl, FixedArray> NewFixedArrayWithFiller(
       Map map, int length, Oddball filler, AllocationType allocation);
-
-  HandleFor<Impl, SharedFunctionInfo> NewSharedFunctionInfo();
-  HandleFor<Impl, SharedFunctionInfo> NewSharedFunctionInfo(
-      MaybeHandleFor<Impl, String> maybe_name,
-      MaybeHandleFor<Impl, HeapObject> maybe_function_data,
-      int maybe_builtin_index, FunctionKind kind = kNormalFunction);
 
  private:
   Impl* impl() { return static_cast<Impl*>(this); }

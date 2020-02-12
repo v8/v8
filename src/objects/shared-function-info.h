@@ -9,7 +9,6 @@
 
 #include "src/base/bit-field.h"
 #include "src/codegen/bailout-reason.h"
-#include "src/handles/handle-for.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/function-syntax-kind.h"
@@ -100,14 +99,11 @@ class PreparseData
 class UncompiledData
     : public TorqueGeneratedUncompiledData<UncompiledData, HeapObject> {
  public:
-  template <typename Isolate>
-  inline void Init(Isolate* isolate, String inferred_name, int start_position,
-                   int end_position);
-
-  inline void InitAfterBytecodeFlush(
+  inline void Init(
       String inferred_name, int start_position, int end_position,
       std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
-          gc_notify_updated_slot);
+          gc_notify_updated_slot =
+              [](HeapObject object, ObjectSlot slot, HeapObject target) {});
 
   using BodyDescriptor =
       FixedBodyDescriptor<kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
@@ -139,9 +135,12 @@ class UncompiledDataWithPreparseData
  public:
   DECL_PRINTER(UncompiledDataWithPreparseData)
 
-  template <typename Isolate>
-  inline void Init(Isolate* isolate, String inferred_name, int start_position,
-                   int end_position, PreparseData scope_data);
+  inline void Init(
+      String inferred_name, int start_position, int end_position,
+      PreparseData scope_data,
+      std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
+          gc_notify_updated_slot =
+              [](HeapObject object, ObjectSlot slot, HeapObject target) {});
 
   using BodyDescriptor = SubclassBodyDescriptor<
       UncompiledData::BodyDescriptor,
@@ -554,10 +553,9 @@ class SharedFunctionInfo : public HeapObject {
   inline bool has_simple_parameters();
 
   // Initialize a SharedFunctionInfo from a parsed function literal.
-  template <typename Isolate>
-  static void InitFromFunctionLiteral(
-      Isolate* isolate, HandleFor<Isolate, SharedFunctionInfo> shared_info,
-      FunctionLiteral* lit, bool is_toplevel);
+  static void InitFromFunctionLiteral(Isolate* isolate,
+                                      Handle<SharedFunctionInfo> shared_info,
+                                      FunctionLiteral* lit, bool is_toplevel);
 
   // Updates the expected number of properties based on estimate from parser.
   void UpdateExpectedNofPropertiesFromEstimate(FunctionLiteral* literal);
@@ -589,7 +587,6 @@ class SharedFunctionInfo : public HeapObject {
   // Dispatched behavior.
   DECL_PRINTER(SharedFunctionInfo)
   DECL_VERIFIER(SharedFunctionInfo)
-  void SharedFunctionInfoVerify(OffThreadIsolate* isolate);
 #ifdef OBJECT_PRINT
   void PrintSourceCode(std::ostream& os);
 #endif
@@ -641,8 +638,6 @@ class SharedFunctionInfo : public HeapObject {
   inline bool needs_home_object() const;
 
  private:
-  void SharedFunctionInfoVerify(ReadOnlyRoots roots);
-
   // [name_or_scope_info]: Function name string, kNoSharedNameSentinel or
   // ScopeInfo.
   DECL_ACCESSORS(name_or_scope_info, Object)
@@ -665,8 +660,7 @@ class SharedFunctionInfo : public HeapObject {
 
   inline uint16_t get_property_estimate_from_literal(FunctionLiteral* literal);
 
-  template <typename Impl>
-  friend class FactoryBase;
+  friend class Factory;
   friend class V8HeapExplorer;
   FRIEND_TEST(PreParserTest, LazyFunctionLength);
 

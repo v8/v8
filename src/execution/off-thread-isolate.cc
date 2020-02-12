@@ -18,12 +18,6 @@ OffThreadIsolate::~OffThreadIsolate() { delete logger_; }
 
 int OffThreadIsolate::GetNextScriptId() { return isolate_->GetNextScriptId(); }
 
-#if V8_SFI_HAS_UNIQUE_ID
-int OffThreadIsolate::GetNextUniqueSharedFunctionInfoId() {
-  return isolate_->GetNextUniqueSharedFunctionInfoId();
-}
-#endif  // V8_SFI_HAS_UNIQUE_ID
-
 bool OffThreadIsolate::NeedsSourcePositionsForProfiling() {
   // TODO(leszeks): Figure out if it makes sense to check this asynchronously.
   return isolate_->NeedsSourcePositionsForProfiling();

@@ -1290,19 +1290,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   int GetNextScriptId();
 
 #if V8_SFI_HAS_UNIQUE_ID
-  int GetNextUniqueSharedFunctionInfoId() {
-    int current_id = next_unique_sfi_id_.load(std::memory_order_relaxed);
-    int next_id;
-    do {
-      if (current_id >= Smi::kMaxValue) {
-        next_id = 0;
-      } else {
-        next_id = current_id + 1;
-      }
-    } while (!next_unique_sfi_id_.compare_exchange_weak(
-        current_id, next_id, std::memory_order_relaxed));
-    return current_id;
-  }
+  int GetNextUniqueSharedFunctionInfoId() { return next_unique_sfi_id_++; }
 #endif
 
   Address promise_hook_address() {
@@ -1777,7 +1765,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   int next_optimization_id_ = 0;
 
 #if V8_SFI_HAS_UNIQUE_ID
-  std::atomic<int> next_unique_sfi_id_;
+  int next_unique_sfi_id_ = 0;
 #endif
 
   // Vector of callbacks before a Call starts execution.

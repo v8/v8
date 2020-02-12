@@ -329,7 +329,7 @@ ScopeInfo SharedFunctionInfo::scope_info() const {
   if (maybe_scope_info.IsScopeInfo()) {
     return ScopeInfo::cast(maybe_scope_info);
   }
-  return GetReadOnlyRoots().empty_scope_info();
+  return ScopeInfo::Empty(GetIsolate());
 }
 
 void SharedFunctionInfo::set_scope_info(ScopeInfo scope_info,
@@ -619,15 +619,7 @@ void SharedFunctionInfo::ClearPreparseData() {
   DCHECK(HasUncompiledDataWithoutPreparseData());
 }
 
-template <typename Isolate>
-void UncompiledData::Init(Isolate* isolate, String inferred_name,
-                          int start_position, int end_position) {
-  set_inferred_name(inferred_name);
-  set_start_position(start_position);
-  set_end_position(end_position);
-}
-
-void UncompiledData::InitAfterBytecodeFlush(
+void UncompiledData::Init(
     String inferred_name, int start_position, int end_position,
     std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
         gc_notify_updated_slot) {
@@ -638,14 +630,17 @@ void UncompiledData::InitAfterBytecodeFlush(
   set_end_position(end_position);
 }
 
-template <typename Isolate>
-void UncompiledDataWithPreparseData::Init(Isolate* isolate,
-                                          String inferred_name,
-                                          int start_position, int end_position,
-                                          PreparseData scope_data) {
-  this->UncompiledData::Init(isolate, inferred_name, start_position,
-                             end_position);
+void UncompiledDataWithPreparseData::Init(
+    String inferred_name, int start_position, int end_position,
+    PreparseData scope_data,
+    std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
+        gc_notify_updated_slot) {
+  this->UncompiledData::Init(inferred_name, start_position, end_position,
+                             gc_notify_updated_slot);
   set_preparse_data(scope_data);
+  gc_notify_updated_slot(
+      *this, RawField(UncompiledDataWithPreparseData::kPreparseDataOffset),
+      scope_data);
 }
 
 bool SharedFunctionInfo::HasWasmExportedFunctionData() const {

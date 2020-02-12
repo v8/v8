@@ -15,7 +15,6 @@
 #include "src/codegen/label.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
-#include "src/execution/off-thread-isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/function-syntax-kind.h"
@@ -2209,10 +2208,8 @@ class FunctionLiteral final : public Expression {
 
   // Empty handle means that the function does not have a shared name (i.e.
   // the name will be set dynamically after creation of the function closure).
-  template <typename Isolate>
-  MaybeHandleFor<Isolate, String> GetName(Isolate* isolate) const {
-    return raw_name_ ? raw_name_->AllocateFlat(isolate)
-                     : MaybeHandleFor<Isolate, String>();
+  MaybeHandle<String> GetName(Isolate* isolate) const {
+    return raw_name_ ? raw_name_->AllocateFlat(isolate) : MaybeHandle<String>();
   }
   bool has_shared_name() const { return raw_name_ != nullptr; }
   const AstConsString* raw_name() const { return raw_name_; }
@@ -2279,11 +2276,6 @@ class FunctionLiteral final : public Expression {
       return raw_inferred_name_->GetString(isolate);
     }
     UNREACHABLE();
-  }
-  OffThreadHandle<String> GetInferredName(OffThreadIsolate* isolate) const {
-    DCHECK(inferred_name_.is_null());
-    DCHECK_NOT_NULL(raw_inferred_name_);
-    return raw_inferred_name_->GetString(isolate);
   }
   const AstConsString* raw_inferred_name() { return raw_inferred_name_; }
 

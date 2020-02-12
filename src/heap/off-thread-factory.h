@@ -17,7 +17,6 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/map.h"
 #include "src/objects/objects.h"
-#include "src/objects/shared-function-info.h"
 #include "src/roots/roots.h"
 
 namespace v8 {

@@ -61,9 +61,6 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
   }
 
   int GetNextScriptId();
-#if V8_SFI_HAS_UNIQUE_ID
-  int GetNextUniqueSharedFunctionInfoId();
-#endif  // V8_SFI_HAS_UNIQUE_ID
 
   bool NeedsSourcePositionsForProfiling();
   bool is_collecting_type_profile();

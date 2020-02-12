@@ -794,13 +794,8 @@ std::unique_ptr<Utf16CharacterStream> ScannerStream::ForTesting(
     const char* data, size_t length) {
   return std::unique_ptr<Utf16CharacterStream>(
       new BufferedCharacterStream<TestingStream>(
-          0, reinterpret_cast<const uint8_t*>(data), length));
-}
-
-std::unique_ptr<Utf16CharacterStream> ScannerStream::ForTesting(
-    const uint16_t* data, size_t length) {
-  return std::unique_ptr<Utf16CharacterStream>(
-      new UnbufferedCharacterStream<TestingStream>(0, data, length));
+          static_cast<size_t>(0), reinterpret_cast<const uint8_t*>(data),
+          static_cast<size_t>(length)));
 }
 
 Utf16CharacterStream* ScannerStream::For(
