@@ -7266,6 +7266,41 @@ void Simulator::DecodeTypeJump() {
   pc_modified_ = true;
 }
 
+// RISCV Instruction Decode Routine
+void Simulator::DecodeRVRType() {
+  switch (instr_.InstructionBits() & kRTypeMask) {
+    case RO_ADD:
+      Register rs1 = instr_.Rs1Value();
+      Register rs2 = instr_.Rs2Value();
+      Register rd = instr_.RVRdValue();
+      PrintF("  ADD rs1()=%ld, rs2()=%ld\n", get_register(rs1),
+             get_register(rs2));
+      // TODO: handle signed exception
+      set_register(rd, get_register(rs1) + get_register(rs2));
+      break;
+    default:
+      UNSUPPORTED();
+  }
+}
+
+void Simulator::DecodeRVIType() {
+  switch (instr_.InstructionBits() & kITypeMask) {
+    case RO_JALR:
+      Register rs1 = instr_.Rs1Value();
+      Register rd = instr_.RdValue();
+      int16_t offset = (int16_t)(instr_.Imm12Value());
+
+      set_register(rd, get_pc() + 4);
+      int64_t next_pc = get_register(rs1) + offset;
+      next_pc =
+          (nextpc & 1) ? nextpc - 1 : nextpc;  // set lest significant bit 0
+      set_pc(next_pc);
+      break;
+    default:
+      UNSUPPORTED();
+  }
+}
+
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instruction* instr) {
   if (v8::internal::FLAG_check_icache) {
@@ -7284,7 +7319,25 @@ void Simulator::InstructionDecode(Instruction* instr) {
   }
 
   instr_ = instr;
+  Instr bits = instr_.InstructionBits();
+  PrintF("[RISCV]Debug: Decode RISCV 0x%08x\n", bits);
   switch (instr_.InstructionType()) {
+    case Instruction::kRType:
+      DecodeRVRType();
+      break;
+    case Instruction::kR4Type:
+      UNSUPPORTED();
+      break;
+    case Instruction::kIType:
+      DecodeRVIType();
+      break;
+    case Instruction::kIType:
+    case Instruction::kSType:
+    case Instruction::kBType:
+    case Instruction::kUType:
+    case Instruction::kJType:
+      UNSUPPORTED();
+    // Original MIPS decoding
     case Instruction::kRegisterType:
       DecodeTypeRegister();
       break;
@@ -7449,7 +7502,9 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   CHECK_EQ(entry_stack, get_register(sp));
   set_register(sp, original_stack);
 
-  return get_register(v0);
+  // return get_register(v0);
+  // RISCV uses a0 to return result
+  return get_register(a0);
 }
 
 double Simulator::CallFP(Address entry, double d0, double d1) {

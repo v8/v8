@@ -2165,6 +2165,8 @@ void Assembler::RV_sfence_vma(Register rs1, Register rs2) {
 
 void Assembler::RV_nop() { RV_addi(ToRegister(0), ToRegister(0), 0); }
 
+void Assembler::RV_jr(Register rs) { RV_jalr(ToRegister(0), rs, 0); }
+
 // Original MIPS Instructions
 
 void Assembler::addu(Register rd, Register rs, Register rt) {

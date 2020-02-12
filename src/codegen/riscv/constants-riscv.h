@@ -426,6 +426,11 @@ const int32_t kJumpRawMask = 0xf0000000;
 // ----- RISCV Base Opcodes
 
 enum BaseOpcode : uint32_t {
+
+};
+
+// ----- RISC-V Opcodes and Function Fields.
+enum Opcode : uint32_t {
   LOAD = 0b0000011,      // I form: LB LH LW LBU LHU
   LOAD_FP = 0b0000111,   // I form: FLW FLD FLQ
   MISC_MEM = 0b0001111,  // I special form: FENCE FENCE.I
@@ -449,10 +454,7 @@ enum BaseOpcode : uint32_t {
   RV_JALR = 0b1100111,  // I form: JALR
   RV_JAL = 0b1101111,   // J form: JAL
   SYSTEM = 0b1110011,   // I form: ECALL EBREAK Zicsr ext
-};
 
-// ----- RISC-V Opcodes and Function Fields.
-enum Opcode : uint32_t {
   // Note use RO (RiscV Opcode) prefix
   // Need list all instructions' Opcode bits for decoding
   RO_ADD = OP | (0b000 << kFunct3Shift) | (0b0000000 << kFunct7Shift),

@@ -456,6 +456,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Assembler Pseudo Instructions (User-Level ISA, Version 2.2, Chapter 20)
   void RV_nop();
+  void RV_jr(Register rs);
 
   // Type == 0 is the default non-marking nop. For mips this is a
   // sll(zero_reg, zero_reg, 0). We use rt_reg == at for non-zero

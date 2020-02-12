@@ -529,6 +529,15 @@ class Simulator : public SimulatorBase {
   void DecodeTypeImmediate();
   void DecodeTypeJump();
 
+  // RISCV decoding routine
+  void DecodeRVRType();
+  void DecodeRVR4Type();
+  void DecodeRVIType();
+  void DecodeRVSType();
+  void DecodeRVBType();
+  void DecodeRVUType();
+  void DecodeRVJType();
+
   // Used for breakpoints and traps.
   void SoftwareInterrupt();
 
