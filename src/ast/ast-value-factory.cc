@@ -95,16 +95,18 @@ void AstRawString::Internalize(OffThreadIsolate* isolate) {
 }
 
 bool AstRawString::AsArrayIndex(uint32_t* index) const {
-  // The StringHasher will set up the hash in such a way that we can use it to
-  // figure out whether the string is convertible to an array index.
-  if ((hash_field_ & Name::kIsNotArrayIndexMask) != 0) return false;
+  // The StringHasher will set up the hash. Bail out early if we know it
+  // can't be convertible to an array index.
+  if ((hash_field_ & Name::kIsNotIntegerIndexMask) != 0) return false;
   if (length() <= Name::kMaxCachedArrayIndexLength) {
     *index = Name::ArrayIndexValueBits::decode(hash_field_);
-  } else {
-    OneByteStringStream stream(literal_bytes_);
-    CHECK(StringToIndex(&stream, index));
+    return true;
   }
-  return true;
+  // Might be an index, but too big to cache it. Do the slow conversion. This
+  // might fail if the string is outside uint32_t (but within "safe integer")
+  // range.
+  OneByteStringStream stream(literal_bytes_);
+  return StringToIndex(&stream, index);
 }
 
 bool AstRawString::IsIntegerIndex() const {

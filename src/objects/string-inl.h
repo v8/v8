@@ -781,15 +781,11 @@ void StringCharacterStream::VisitTwoByteString(const uint16_t* chars,
 bool String::AsArrayIndex(uint32_t* index) {
   DisallowHeapAllocation no_gc;
   uint32_t field = hash_field();
-  // The {IsHashFieldComputed} check is not functionally necessary as the
-  // subsequent mask includes it; it's here to make the logic more obvious,
-  // and the compile will fold it away so it doesn't hurt performance.
-  if (IsHashFieldComputed(field) &&
-      (field & kDoesNotContainCachedArrayIndexMask) == 0) {
+  if (ContainsCachedArrayIndex(field)) {
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }
-  if (IsHashFieldComputed(field) && (field & kIsNotArrayIndexMask)) {
+  if (IsHashFieldComputed(field) && (field & kIsNotIntegerIndexMask)) {
     return false;
   }
   return SlowAsArrayIndex(index);
@@ -797,11 +793,7 @@ bool String::AsArrayIndex(uint32_t* index) {
 
 bool String::AsIntegerIndex(size_t* index) {
   uint32_t field = hash_field();
-  // The {IsHashFieldComputed} check is not functionally necessary as the
-  // subsequent mask includes it; it's here to make the logic more obvious,
-  // and the compile will fold it away so it doesn't hurt performance.
-  if (IsHashFieldComputed(field) &&
-      (field & kDoesNotContainCachedArrayIndexMask) == 0) {
+  if (ContainsCachedArrayIndex(field)) {
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }

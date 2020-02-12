@@ -4624,7 +4624,6 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   value <<= String::ArrayIndexValueBits::kShift;
   value |= length << String::ArrayIndexLengthBits::kShift;
 
-  DCHECK_EQ(value & String::kIsNotArrayIndexMask, 0);
   DCHECK_EQ(value & String::kIsNotIntegerIndexMask, 0);
   DCHECK_EQ(length <= String::kMaxCachedArrayIndexLength,
             Name::ContainsCachedArrayIndex(value));
@@ -6847,8 +6846,8 @@ Address LookupString(Isolate* isolate, String string, String source,
     return Smi::FromInt(String::ArrayIndexValueBits::decode(hash_field)).ptr();
   }
 
-  if ((hash_field & Name::kIsNotArrayIndexMask) == 0) {
-    // It is an indexed, but it's not cached.
+  if ((hash_field & Name::kIsNotIntegerIndexMask) == 0) {
+    // It is an index, but it's not cached.
     return Smi::FromInt(ResultSentinel::kUnsupported).ptr();
   }
 

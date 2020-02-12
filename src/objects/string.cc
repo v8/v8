@@ -1381,7 +1381,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
   if (length <= kMaxCachedArrayIndexLength) {
     Hash();  // Force computation of hash code.
     uint32_t field = hash_field();
-    if ((field & kIsNotArrayIndexMask) != 0) return false;
+    if ((field & kIsNotIntegerIndexMask) != 0) return false;
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }
@@ -1396,12 +1396,7 @@ bool String::SlowAsIntegerIndex(size_t* index) {
   if (length <= kMaxCachedArrayIndexLength) {
     Hash();  // Force computation of hash code.
     uint32_t field = hash_field();
-    if ((field & kIsNotArrayIndexMask) != 0) {
-      // If it was short but it's not an array index, then it can't be an
-      // integer index either.
-      DCHECK_NE(0, field & kIsNotIntegerIndexMask);
-      return false;
-    }
+    if ((field & kIsNotIntegerIndexMask) != 0) return false;
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }

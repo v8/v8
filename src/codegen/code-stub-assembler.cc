@@ -6159,13 +6159,35 @@ TNode<BoolT> CodeStubAssembler::IsUniqueName(TNode<HeapObject> object) {
       [=] { return IsSymbolInstanceType(instance_type); });
 }
 
+// Semantics: guaranteed not to be an integer index (i.e. contains non-digit
+// characters, or is outside MAX_SAFE_INTEGER/size_t range). Note that for
+// non-TypedArray receivers, there are additional strings that must be treated
+// as named property keys, namely the range [0xFFFFFFFF, MAX_SAFE_INTEGER].
 TNode<BoolT> CodeStubAssembler::IsUniqueNameNoIndex(TNode<HeapObject> object) {
   TNode<Uint16T> instance_type = LoadInstanceType(object);
   return Select<BoolT>(
       IsInternalizedStringInstanceType(instance_type),
       [=] {
         return IsSetWord32(LoadNameHashField(CAST(object)),
-                           Name::kIsNotArrayIndexMask);
+                           Name::kIsNotIntegerIndexMask);
+      },
+      [=] { return IsSymbolInstanceType(instance_type); });
+}
+
+// Semantics: {object} is a Symbol, or a String that doesn't have a cached
+// index. This returns {true} for strings containing representations of
+// integers in the range above 9999999 (per kMaxCachedArrayIndexLength)
+// and below MAX_SAFE_INTEGER. For CSA_ASSERTs ensuring correct usage, this is
+// better than no checking; and we don't have a good/fast way to accurately
+// check such strings for being within "array index" (uint32_t) range.
+TNode<BoolT> CodeStubAssembler::IsUniqueNameNoCachedIndex(
+    TNode<HeapObject> object) {
+  TNode<Uint16T> instance_type = LoadInstanceType(object);
+  return Select<BoolT>(
+      IsInternalizedStringInstanceType(instance_type),
+      [=] {
+        return IsSetWord32(LoadNameHashField(CAST(object)),
+                           Name::kDoesNotContainCachedArrayIndexMask);
       },
       [=] { return IsSymbolInstanceType(instance_type); });
 }
@@ -7426,7 +7448,7 @@ void CodeStubAssembler::TryToName(SloppyTNode<Object> key, Label* if_keyisindex,
              &if_has_cached_index);
       // No cached array index. If the string knows that it contains an index,
       // then it must be an uncacheable index. Handle this case in the runtime.
-      GotoIf(IsClearWord32(hash, Name::kIsNotArrayIndexMask), if_bailout);
+      GotoIf(IsClearWord32(hash, Name::kIsNotIntegerIndexMask), if_bailout);
 
       GotoIf(InstanceTypeEqual(var_instance_type.value(), THIN_STRING_TYPE),
              &if_thinstring);
@@ -8418,7 +8440,7 @@ void CodeStubAssembler::TryLookupPropertyInSimpleObject(
     TVariable<HeapObject>* var_meta_storage, TVariable<IntPtrT>* var_name_index,
     Label* if_not_found) {
   CSA_ASSERT(this, IsSimpleObjectMap(map));
-  CSA_ASSERT(this, IsUniqueNameNoIndex(unique_name));
+  CSA_ASSERT(this, IsUniqueNameNoCachedIndex(unique_name));
 
   TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
   Label if_isfastmap(this), if_isslowmap(this);
@@ -8481,7 +8503,7 @@ void CodeStubAssembler::TryHasOwnProperty(Node* object, Node* map,
                                           Label* if_not_found,
                                           Label* if_bailout) {
   Comment("TryHasOwnProperty");
-  CSA_ASSERT(this, IsUniqueNameNoIndex(CAST(unique_name)));
+  CSA_ASSERT(this, IsUniqueNameNoCachedIndex(CAST(unique_name)));
   TVARIABLE(HeapObject, var_meta_storage);
   TVARIABLE(IntPtrT, var_name_index);
 
@@ -8797,7 +8819,7 @@ void CodeStubAssembler::TryGetOwnProperty(
     GetOwnPropertyMode mode) {
   DCHECK_EQ(MachineRepresentation::kTagged, var_value->rep());
   Comment("TryGetOwnProperty");
-  CSA_ASSERT(this, IsUniqueNameNoIndex(unique_name));
+  CSA_ASSERT(this, IsUniqueNameNoCachedIndex(unique_name));
   TVARIABLE(HeapObject, var_meta_storage);
   TVARIABLE(IntPtrT, var_entry);
 

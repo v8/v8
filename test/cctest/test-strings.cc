@@ -1873,11 +1873,6 @@ void TestString(i::Isolate* isolate, const IndexData& data) {
     uint32_t index;
     CHECK(s->AsArrayIndex(&index));
     CHECK_EQ(data.array_index, index);
-    // AsArrayIndex only forces hash computation for cacheable indices;
-    // so trigger hash computation for longer strings manually.
-    if (s->length() > String::kMaxCachedArrayIndexLength) s->Hash();
-    CHECK_EQ(0, s->hash_field() & String::kIsNotArrayIndexMask);
-    CHECK(s->HasHashCode());
   }
   if (data.is_integer_index) {
     size_t index;
@@ -1889,9 +1884,6 @@ void TestString(i::Isolate* isolate, const IndexData& data) {
   }
   if (!s->HasHashCode()) s->Hash();
   CHECK(s->HasHashCode());
-  if (!data.is_array_index) {
-    CHECK_NE(0, s->hash_field() & String::kIsNotArrayIndexMask);
-  }
   if (!data.is_integer_index) {
     CHECK_NE(0, s->hash_field() & String::kIsNotIntegerIndexMask);
   }

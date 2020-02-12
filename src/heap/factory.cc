@@ -1023,7 +1023,7 @@ Handle<Symbol> Factory::NewSymbol(AllocationType allocation) {
   int hash = isolate()->GenerateIdentityHash(Name::kHashBitMask);
 
   Handle<Symbol> symbol(Symbol::cast(result), isolate());
-  symbol->set_hash_field(Name::kIsNotArrayIndexMask |
+  symbol->set_hash_field(Name::kIsNotIntegerIndexMask |
                          (hash << Name::kHashShift));
   symbol->set_description(*undefined_value());
   symbol->set_flags(0);

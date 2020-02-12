@@ -728,10 +728,16 @@ TEST(TryToName) {
 
   {
     // TryToName(<internalized uncacheable number string greater than
-    // array index>) => is_keyisunique: <internalized string>.
+    // array index but less than MAX_SAFE_INTEGER>) => 32-bit platforms
+    // take the if_keyisunique path, 64-bit platforms bail out because they
+    // let the runtime handle the string-to-size_t parsing.
     Handle<Object> key =
         isolate->factory()->InternalizeUtf8String("4294967296");
+#if V8_TARGET_ARCH_64_BIT
+    ft.CheckTrue(key, expect_bailout);
+#else
     ft.CheckTrue(key, expect_unique, key);
+#endif
   }
 
   {
