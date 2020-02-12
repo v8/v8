@@ -1052,7 +1052,7 @@ void Assembler::GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode,
                           Register rd, Register rs1, Register rs2) {
   DCHECK(is_uint7(funct7) && is_uint3(funct3) && rd.is_valid() &&
          rs1.is_valid() && rs2.is_valid());
-  Instr instr = opcode | (rd.code() << kRdShiftRV) | (funct3 << kFunct3Shift) |
+  Instr instr = opcode | (rd.code() << RV_kRdShift) | (funct3 << kFunct3Shift) |
                 (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
                 (funct7 << kFunct7Shift);
   emit(instr);
@@ -1063,7 +1063,7 @@ void Assembler::GenInstrR4(uint8_t funct2, Opcode opcode, Register rd,
                            uint8_t frm) {
   DCHECK(is_uint2(funct2) && rd.is_valid() && rs1.is_valid() &&
          rs2.is_valid() && rs3.is_valid() && is_uint3(frm));
-  Instr instr = opcode | (rd.code() << kRdShiftRV) | (frm << kFunct3Shift) |
+  Instr instr = opcode | (rd.code() << RV_kRdShift) | (frm << kFunct3Shift) |
                 (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
                 (funct2 << kFunct2Shift) | (rs3.code() << kRs3Shift);
   emit(instr);
@@ -1074,7 +1074,7 @@ void Assembler::GenInstrRAtomic(uint8_t funct5, bool aq, bool rl,
                                 Register rs1, Register rs2) {
   DCHECK(is_uint5(funct5) && is_uint3(funct3) && rd.is_valid() &&
          rs1.is_valid() && rs2.is_valid());
-  Instr instr = opcode | (rd.code() << kRdShiftRV) | (funct3 << kFunct3Shift) |
+  Instr instr = opcode | (rd.code() << RV_kRdShift) | (funct3 << kFunct3Shift) |
                 (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
                 (rl << kRlShift) | (aq << kAqShift) | (funct5 << kFunct5Shift);
   emit(instr);
@@ -1083,7 +1083,7 @@ void Assembler::GenInstrRAtomic(uint8_t funct5, bool aq, bool rl,
 void Assembler::GenInstrRFrm(uint8_t funct7, Opcode opcode, Register rd,
                              Register rs1, Register rs2, uint8_t frm) {
   DCHECK(rd.is_valid() && rs1.is_valid() && rs2.is_valid() && is_uint3(frm));
-  Instr instr = opcode | (rd.code() << kRdShiftRV) | (frm << kFunct3Shift) |
+  Instr instr = opcode | (rd.code() << RV_kRdShift) | (frm << kFunct3Shift) |
                 (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
                 (funct7 << kFunct7Shift);
   emit(instr);
@@ -1093,7 +1093,7 @@ void Assembler::GenInstrI(uint8_t funct3, Opcode opcode, Register rd,
                           Register rs1, uint16_t imm12) {
   DCHECK(is_uint3(funct3) && rd.is_valid() && rs1.is_valid() &&
          (is_uint12(imm12) || is_int12(imm12)));
-  Instr instr = opcode | (rd.code() << kRdShiftRV) | (funct3 << kFunct3Shift) |
+  Instr instr = opcode | (rd.code() << RV_kRdShift) | (funct3 << kFunct3Shift) |
                 (rs1.code() << kRs1Shift) | (imm12 << kImm12Shift);
   emit(instr);
 }
@@ -1102,7 +1102,7 @@ void Assembler::GenInstrIShift(bool arithshift, uint8_t funct3, Opcode opcode,
                                Register rd, Register rs1, uint8_t shamt) {
   DCHECK(is_uint3(funct3) && rd.is_valid() && rs1.is_valid() &&
          is_uint6(shamt));
-  Instr instr = opcode | (rd.code() << kRdShiftRV) | (funct3 << kFunct3Shift) |
+  Instr instr = opcode | (rd.code() << RV_kRdShift) | (funct3 << kFunct3Shift) |
                 (rs1.code() << kRs1Shift) | (shamt << kShamtShift) |
                 (arithshift << kArithShiftShift);
   emit(instr);
@@ -1112,7 +1112,7 @@ void Assembler::GenInstrIShiftW(bool arithshift, uint8_t funct3, Opcode opcode,
                                 Register rd, Register rs1, uint8_t shamt) {
   DCHECK(is_uint3(funct3) && rd.is_valid() && rs1.is_valid() &&
          is_uint5(shamt));
-  Instr instr = opcode | (rd.code() << kRdShiftRV) | (funct3 << kFunct3Shift) |
+  Instr instr = opcode | (rd.code() << RV_kRdShift) | (funct3 << kFunct3Shift) |
                 (rs1.code() << kRs1Shift) | (shamt << kShamtWShift) |
                 (arithshift << kArithShiftShift);
   emit(instr);
@@ -1144,13 +1144,13 @@ void Assembler::GenInstrB(uint8_t funct3, Opcode opcode, Register rs1,
 
 void Assembler::GenInstrU(Opcode opcode, Register rd, int32_t imm20) {
   DCHECK(rd.is_valid() && is_int20(imm20));
-  Instr instr = opcode | (rd.code() << kRdShiftRV) | (imm20 << kImm20Shift);
+  Instr instr = opcode | (rd.code() << RV_kRdShift) | (imm20 << kImm20Shift);
   emit(instr);
 }
 
 void Assembler::GenInstrJ(Opcode opcode, Register rd, int32_t imm20) {
   DCHECK(rd.is_valid() && is_int20(imm20));
-  Instr instr = opcode | (rd.code() << kRdShiftRV) |
+  Instr instr = opcode | (rd.code() << RV_kRdShift) |
                 ((imm20 & 0x7f800) << 12) |  // bits 18-11
                 ((imm20 & 0x400) << 20) |    // bit  10
                 ((imm20 & 0x3ff) << 21) |    // bits 9-0

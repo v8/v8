@@ -266,6 +266,8 @@ STATIC_ASSERT(kMaxWatchpointCode < kMaxStopCode);
 
 // ----- Fields offset and length.
 // RISCV constants
+const int kBaseOpcodeShift = 0;
+const int kBaseOpcodeBits = 7;
 const int kFunct7Shift = 25;
 const int kFunct7Bits = 7;
 const int kFunct5Shift = 27;
@@ -280,8 +282,8 @@ const int kRs2Shift = 20;
 const int kRs2Bits = 5;
 const int kRs3Shift = 27;
 const int kRs3Bits = 5;
-const int kRdShiftRV = 7;
-const int kRdBitsRV = 5;
+const int RV_kRdShift = 7;
+const int RV_kRdBits = 5;
 const int kRlShift = 25;
 const int kAqShift = 26;
 const int kImm12Shift = 20;
@@ -295,17 +297,21 @@ const int kImm20Shift = 12;
 const int kImm20Bits = 20;
 
 // RISCV Instruction bit masks
-const int kBaseOpMask = 0b1111111;
+const int kBaseOpcodeMask = ((1 << kBaseOpcodeBits) - 1) << kBaseOpcodeShift;
 const int kFunct3Mask = ((1 << kFunct3Bits) - 1) << kFunct3Shift;
 const int kFunct7Mask = ((1 << kFunct7Bits) - 1) << kFunct7Shift;
 const int kFunct2Mask = 0b11 << kFunct7Shift;
-const int kRTypeMask = kBaseOpMask | kFunct3Mask | kFunct7Mask;
-const int kR4TypeMask = kBaseOpMask | kFunct3Mask | kFunct2Mask;
-const int kITypeMask = kBaseOpMask | kFunct3Mask;
-const int kSTypeMask = kBaseOpMask | kFunct3Mask;
-const int kBTypeMask = kBaseOpMask | kFunct3Mask;
-const int kUTypeMask = kBaseOpMask;
-const int kJTypeMask = kBaseOpMask;
+const int kRTypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct7Mask;
+const int kR4TypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct2Mask;
+const int kITypeMask = kBaseOpcodeMask | kFunct3Mask;
+const int kSTypeMask = kBaseOpcodeMask | kFunct3Mask;
+const int kBTypeMask = kBaseOpcodeMask | kFunct3Mask;
+const int kUTypeMask = kBaseOpcodeMask;
+const int kJTypeMask = kBaseOpcodeMask;
+const int kRs1FieldMask = ((1 << kRs1Bits) - 1) << kRs1Shift;
+const int kRs2FieldMask = ((1 << kRs2Bits) - 1) << kRs2Shift;
+const int kRs3FieldMask = ((1 << kRs3Bits) - 1) << kRs3Shift;
+const int RV_kRdFieldMask = ((1 << RV_kRdBits) - 1) << RV_kRdShift;
 
 // Original MIPS constants
 const int kOpcodeShift = 26;
@@ -1412,6 +1418,43 @@ class InstructionBase {
       FunctionFieldToBitNumber(MOVCI) | FunctionFieldToBitNumber(SELEQZ_S) |
       FunctionFieldToBitNumber(SELNEZ_S) | FunctionFieldToBitNumber(SYNC);
 
+  // Accessors for the different named fields used in the RISC-V encoding.
+  inline Opcode BaseOpcodeValue() const {
+    return static_cast<Opcode>(
+        Bits(kBaseOpcodeShift + kBaseOpcodeBits - 1, kBaseOpcodeShift));
+  }
+
+  // Return the fields at their original place in the instruction encoding.
+  inline Opcode BaseOpcodeFieldRaw() const {
+    return static_cast<Opcode>(InstructionBits() & kBaseOpcodeMask);
+  }
+
+  // Safe to call within R-type instructions
+  inline int Funct7FieldRaw() const { return InstructionBits() & kFunct7Mask; }
+
+  // Safe to call within R-, I-, S-, or B-type instructions
+  inline int Funct3FieldRaw() const { return InstructionBits() & kFunct3Mask; }
+
+  // Safe to call within R-, I-, S-, or B-type instructions
+  inline int Rs1FieldRawNoAssert() const {
+    return InstructionBits() & kRs1FieldMask;
+  }
+
+  // Safe to call within R-, S-, or B-type instructions
+  inline int Rs2FieldRawNoAssert() const {
+    return InstructionBits() & kRs2FieldMask;
+  }
+
+  // Safe to call within R4-type instructions
+  inline int Rs3FieldRawNoAssert() const {
+    return InstructionBits() & kRs3FieldMask;
+  }
+
+  // Safe to call within R-, I-, U-, or J-type instructions
+  inline int RdFieldRawNoAssert() const {
+    return InstructionBits() & kRdFieldMask;
+  }
+
   // Accessors for the different named fields used in the MIPS encoding.
   inline Opcode OpcodeValue() const {
     return static_cast<Opcode>(
@@ -1500,6 +1543,82 @@ class InstructionBase {
 template <class T>
 class InstructionGetters : public T {
  public:
+  inline int Rs1Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRType ||
+           this->InstructionType() == InstructionBase::kR4Type ||
+           this->InstructionType() == InstructionBase::kIType ||
+           this->InstructionType() == InstructionBase::kSType ||
+           this->InstructionType() == InstructionBase::kBType);
+    return this->Bits(kRs1Shift + kRs1Bits - 1, kRs1Shift);
+  }
+
+  inline int Rs2Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRType ||
+           this->InstructionType() == InstructionBase::kR4Type ||
+           this->InstructionType() == InstructionBase::kSType ||
+           this->InstructionType() == InstructionBase::kBType);
+    return this->Bits(kRs2Shift + kRs2Bits - 1, kRs2Shift);
+  }
+
+  inline int Rs3Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kR4Type);
+    return this->Bits(kRs2Shift + kRs2Bits - 1, kRs2Shift);
+  }
+
+  inline int RV_RdValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRType ||
+           this->InstructionType() == InstructionBase::kR4Type ||
+           this->InstructionType() == InstructionBase::kIType ||
+           this->InstructionType() == InstructionBase::kUType ||
+           this->InstructionType() == InstructionBase::kJType);
+    return this->Bits(RV_kRdShift + RV_kRdBits - 1, RV_kRdShift);
+  }
+
+  inline int Funct7Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRType);
+    return this->Bits(kFunct7Shift + kFunct7Bits - 1, kFunct7Shift);
+  }
+
+  inline int Funct3Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRType ||
+           this->InstructionType() == InstructionBase::kIType ||
+           this->InstructionType() == InstructionBase::kSType ||
+           this->InstructionType() == InstructionBase::kBType);
+    return this->Bits(kFunct3Shift + kFunct3Bits - 1, kFunct3Shift);
+  }
+
+  inline int Funct5Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRType &&
+           (this->InstructionBits() & kBaseOpcodeMask) == OP_FP);
+    return this->Bits(kFunct5Shift + kFunct5Bits - 1, kFunct5Shift);
+  }
+
+  inline int RoundMode() const {
+    DCHECK((this->InstructionType() == InstructionBase::kRType ||
+           this->InstructionType() == InstructionBase::kR4Type) &&
+           (this->InstructionBits() & kBaseOpcodeMask) == OP_FP);
+    return this->Bits(kFunct3Shift + kFunct3Bits - 1, kFunct3Shift);
+  }
+
+  inline int Imm12Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kIType);
+    return this->Bits(kImm12Shift + kImm12Bits - 1, kImm12Shift);
+  }
+
+  inline int32_t Imm12SExtValue() const {
+    int32_t Value = this->Imm12Value() << 20 >> 20;
+    return Value;
+  }
+
+  inline int BranchOffset() const {
+    // | imm[12|10:5] | rs2 | rs1 | funct3 | imm[4:1|11] | opcode |
+    // 31             25                   11            7
+    uint32_t Bits = this->InstructionBits();
+    return (Bits & 0xf00) >> 6 | (Bits & 0x7e000000) >> 20 | (Bits & 0x80) << 4 | (Bits & 0x80000000) >> 19;
+  }
+
+  // Original MIPS methods
+
   inline int RsValue() const {
     DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
            this->InstructionType() == InstructionBase::kImmediateType);
@@ -1515,23 +1634,6 @@ class InstructionGetters : public T {
   inline int RdValue() const {
     DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
     return this->Bits(kRdShift + kRdBits - 1, kRdShift);
-  }
-
-  inline int Rs1Value() const {
-    // DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
-    //        this->InstructionType() == InstructionBase::kImmediateType);
-    return this->Bits(kRs1Shift + kRs1Bits - 1, kRs1Shift);
-  }
-
-  inline int Rs2Value() const {
-    // DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
-    //        this->InstructionType() == InstructionBase::kImmediateType);
-    return this->Bits(kRs2Shift + kRs2Bits - 1, kRs2Shift);
-  }
-
-  inline int RVRdValue() const {
-    // DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
-    return this->Bits(kRdShiftRV + kRdBitsRV - 1, kRdShiftRV);
   }
 
   inline int BaseValue() const {
@@ -1715,11 +1817,6 @@ class InstructionGetters : public T {
     return this->Bits(kMsaImmMI10Shift + kMsaImmMI10Bits - 1, kMsaImmMI10Shift);
   }
 
-  inline uint16_t Imm12Value() const {
-    // DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
-    return this->Bits(kImm12Shift + kImm12Bits - 1, kImm12Shift);
-  }
-
   inline int32_t MsaBitDf() const {
     DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
     int32_t df_m = this->Bits(22, 16);
@@ -1841,7 +1938,7 @@ static const int kNegOffset = 0x00008000;
 
 InstructionBase::Type InstructionBase::InstructionType() const {
   // RISCV routine
-  switch (InstructionBits() & kBaseOpMask) {
+  switch (InstructionBits() & kBaseOpcodeMask) {
     case LOAD:
       return kIType;
     case LOAD_FP:

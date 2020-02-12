@@ -496,7 +496,7 @@ class Simulator : public SimulatorBase {
   inline int64_t rs1() const { return get_register(rs1_reg()); }
   inline int32_t rs2_reg() const { return instr_.Rs2Value(); }
   inline int64_t rs2() const { return get_register(rs2_reg()); }
-  inline int32_t RV_rd_reg() const { return instr_.RVRdValue(); }
+  inline int32_t RV_rd_reg() const { return instr_.RV_RdValue(); }
   inline uint16_t imm12() const { return instr_.Imm12Value(); }
 
   inline void SetResult(const int32_t rd_reg, const int64_t alu_out) {
