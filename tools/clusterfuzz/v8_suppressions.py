@@ -37,14 +37,6 @@ CARET_RE = re.compile(r'^\s*\^\s*$')
 # V8, e.g. '/v8/test/mjsunit/d8-performance-now.js' including /v8/. A test will
 # be suppressed if one of the files below was used to mutate the test.
 IGNORE_SOURCES = {
-  # This contains a usage of f.arguments that often fires.
-  'crbug.com/662424': [
-    '/v8/test/mjsunit/bugs/bug-222.js',
-    '/v8/test/mjsunit/bugs/bug-941049.js',
-    '/v8/test/mjsunit/regress/regress-crbug-668795.js',
-    '/v8/test/mjsunit/regress/regress-1079.js',
-    '/v8/test/mjsunit/regress/regress-2989.js',
-  ],
 }
 
 # Ignore by test case pattern. Map from config->bug->regexp. Config '' is used
