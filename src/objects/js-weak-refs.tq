@@ -10,7 +10,7 @@ extern class JSFinalizationGroup extends JSObject {
   key_map: Object;
   // For the linked list of FinalizationGroups that need cleanup. This link
   // is weak.
-  next: Undefined|JSFinalizationGroup;
+  next_dirty: Undefined|JSFinalizationGroup;
   flags: Smi;
 }
 

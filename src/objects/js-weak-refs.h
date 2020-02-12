@@ -31,8 +31,7 @@ class JSFinalizationGroup : public JSObject {
   DECL_ACCESSORS(cleared_cells, HeapObject)
   DECL_ACCESSORS(key_map, Object)
 
-  // For storing a list of JSFinalizationGroup objects in NativeContext.
-  DECL_ACCESSORS(next, Object)
+  DECL_ACCESSORS(next_dirty, Object)
 
   DECL_INT_ACCESSORS(flags)
 

@@ -29,7 +29,7 @@ ACCESSORS(JSFinalizationGroup, active_cells, HeapObject, kActiveCellsOffset)
 ACCESSORS(JSFinalizationGroup, cleared_cells, HeapObject, kClearedCellsOffset)
 ACCESSORS(JSFinalizationGroup, key_map, Object, kKeyMapOffset)
 SMI_ACCESSORS(JSFinalizationGroup, flags, kFlagsOffset)
-ACCESSORS(JSFinalizationGroup, next, Object, kNextOffset)
+ACCESSORS(JSFinalizationGroup, next_dirty, Object, kNextDirtyOffset)
 CAST_ACCESSOR(JSFinalizationGroup)
 
 void JSFinalizationGroup::Register(

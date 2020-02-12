@@ -6075,13 +6075,13 @@ void Heap::AddDirtyJSFinalizationGroup(
         gc_notify_updated_slot) {
   DCHECK(!HasDirtyJSFinalizationGroups() ||
          dirty_js_finalization_groups_list().IsJSFinalizationGroup());
-  DCHECK(finalization_group.next().IsUndefined(isolate()));
+  DCHECK(finalization_group.next_dirty().IsUndefined(isolate()));
   DCHECK(!finalization_group.scheduled_for_cleanup());
   finalization_group.set_scheduled_for_cleanup(true);
-  finalization_group.set_next(dirty_js_finalization_groups_list());
+  finalization_group.set_next_dirty(dirty_js_finalization_groups_list());
   gc_notify_updated_slot(
       finalization_group,
-      finalization_group.RawField(JSFinalizationGroup::kNextOffset),
+      finalization_group.RawField(JSFinalizationGroup::kNextDirtyOffset),
       dirty_js_finalization_groups_list());
   set_dirty_js_finalization_groups_list(finalization_group);
   // dirty_js_finalization_groups_list is rescanned by ProcessWeakListRoots.
@@ -6092,8 +6092,9 @@ MaybeHandle<JSFinalizationGroup> Heap::TakeOneDirtyJSFinalizationGroup() {
     Handle<JSFinalizationGroup> finalization_group(
         JSFinalizationGroup::cast(dirty_js_finalization_groups_list()),
         isolate());
-    set_dirty_js_finalization_groups_list(finalization_group->next());
-    finalization_group->set_next(ReadOnlyRoots(isolate()).undefined_value());
+    set_dirty_js_finalization_groups_list(finalization_group->next_dirty());
+    finalization_group->set_next_dirty(
+        ReadOnlyRoots(isolate()).undefined_value());
     return finalization_group;
   }
   return {};
@@ -6112,16 +6113,18 @@ void Heap::RemoveDirtyFinalizationGroupsOnContext(NativeContext context) {
     JSFinalizationGroup finalization_group = JSFinalizationGroup::cast(current);
     if (finalization_group.native_context() == context) {
       if (prev.IsUndefined(isolate)) {
-        set_dirty_js_finalization_groups_list(finalization_group.next());
+        set_dirty_js_finalization_groups_list(finalization_group.next_dirty());
       } else {
-        JSFinalizationGroup::cast(prev).set_next(finalization_group.next());
+        JSFinalizationGroup::cast(prev).set_next_dirty(
+            finalization_group.next_dirty());
       }
       finalization_group.set_scheduled_for_cleanup(false);
-      current = finalization_group.next();
-      finalization_group.set_next(ReadOnlyRoots(isolate).undefined_value());
+      current = finalization_group.next_dirty();
+      finalization_group.set_next_dirty(
+          ReadOnlyRoots(isolate).undefined_value());
     } else {
       prev = current;
-      current = finalization_group.next();
+      current = finalization_group.next_dirty();
     }
   }
 }

@@ -257,11 +257,11 @@ class JSFinalizationGroup::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, JSObject::BodyDescriptor::kStartOffset, kNextOffset,
-                    v);
-    IterateCustomWeakPointer(obj, kNextOffset, v);
-    IterateJSObjectBodyImpl(map, obj, kNextOffset + kTaggedSize, object_size,
-                            v);
+    IteratePointers(obj, JSObject::BodyDescriptor::kStartOffset,
+                    kNextDirtyOffset, v);
+    IterateCustomWeakPointer(obj, kNextDirtyOffset, v);
+    IterateJSObjectBodyImpl(map, obj, kNextDirtyOffset + kTaggedSize,
+                            object_size, v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) {

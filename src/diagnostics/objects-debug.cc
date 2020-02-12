@@ -1083,7 +1083,8 @@ void JSFinalizationGroup::JSFinalizationGroupVerify(Isolate* isolate) {
   if (cleared_cells().IsWeakCell()) {
     CHECK(WeakCell::cast(cleared_cells()).prev().IsUndefined(isolate));
   }
-  CHECK(next().IsUndefined(isolate) || next().IsJSFinalizationGroup());
+  CHECK(next_dirty().IsUndefined(isolate) ||
+        next_dirty().IsJSFinalizationGroup());
 }
 
 void JSFinalizationGroupCleanupIterator::

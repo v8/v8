@@ -188,14 +188,14 @@ struct WeakListVisitor<AllocationSite> {
 template <>
 struct WeakListVisitor<JSFinalizationGroup> {
   static void SetWeakNext(JSFinalizationGroup obj, Object next) {
-    obj.set_next(next, UPDATE_WEAK_WRITE_BARRIER);
+    obj.set_next_dirty(next, UPDATE_WEAK_WRITE_BARRIER);
   }
 
-  static Object WeakNext(JSFinalizationGroup obj) { return obj.next(); }
+  static Object WeakNext(JSFinalizationGroup obj) { return obj.next_dirty(); }
 
   static HeapObject WeakNextHolder(JSFinalizationGroup obj) { return obj; }
 
-  static int WeakNextOffset() { return JSFinalizationGroup::kNextOffset; }
+  static int WeakNextOffset() { return JSFinalizationGroup::kNextDirtyOffset; }
 
   static void VisitLiveObject(Heap*, JSFinalizationGroup, WeakObjectRetainer*) {
   }
