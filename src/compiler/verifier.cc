@@ -21,6 +21,7 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/state-values-utils.h"
 #include "src/compiler/type-cache.h"
 #include "src/utils/bit-vector.h"
 #include "src/utils/ostreams.h"
@@ -550,11 +551,34 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
               NodeProperties::GetValueInput(node, i)->opcode() ==
                   IrOpcode::kTypedStateValues);
       }
-      // The accumulator (InputAt(2)) cannot be kStateValues, but it can be
-      // kTypedStateValues (to signal the type). Once AST graph builder
-      // is removed, we should check this here. Until then, AST graph
-      // builder can generate expression stack as InputAt(2), which can
-      // still be kStateValues.
+
+      // Checks that the state input is empty for all but kInterpretedFunction
+      // frames, where it should have size one.
+      {
+        const FrameStateInfo& state_info = FrameStateInfoOf(node->op());
+        const FrameStateFunctionInfo* func_info = state_info.function_info();
+        CHECK_EQ(func_info->parameter_count(),
+                 StateValuesAccess(node->InputAt(kFrameStateParametersInput))
+                     .size());
+        CHECK_EQ(
+            func_info->local_count(),
+            StateValuesAccess(node->InputAt(kFrameStateLocalsInput)).size());
+
+        Node* accumulator = node->InputAt(kFrameStateStackInput);
+        if (func_info->type() == FrameStateType::kInterpretedFunction) {
+          // The accumulator (InputAt(2)) cannot be kStateValues.
+          // It can be kTypedStateValues (to signal the type) and it can have
+          // other Node types including that of the optimized_out HeapConstant.
+          CHECK_NE(accumulator->opcode(), IrOpcode::kStateValues);
+          if (accumulator->opcode() == IrOpcode::kTypedStateValues) {
+            CHECK_EQ(1, StateValuesAccess(accumulator).size());
+          }
+        } else {
+          CHECK(accumulator->opcode() == IrOpcode::kTypedStateValues ||
+                accumulator->opcode() == IrOpcode::kStateValues);
+          CHECK_EQ(0, StateValuesAccess(accumulator).size());
+        }
+      }
       break;
     }
     case IrOpcode::kObjectId:

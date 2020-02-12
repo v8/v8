@@ -3055,17 +3055,10 @@ namespace {
 FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone, Node* state) {
   DCHECK_EQ(IrOpcode::kFrameState, state->opcode());
   DCHECK_EQ(kFrameStateInputCount, state->InputCount());
-  FrameStateInfo state_info = FrameStateInfoOf(state->op());
-
-  int parameters = static_cast<int>(
-      StateValuesAccess(state->InputAt(kFrameStateParametersInput)).size());
-  int locals = static_cast<int>(
-      StateValuesAccess(state->InputAt(kFrameStateLocalsInput)).size());
-  int stack = static_cast<int>(
-      StateValuesAccess(state->InputAt(kFrameStateStackInput)).size());
-
-  DCHECK_EQ(parameters, state_info.parameter_count());
-  DCHECK_EQ(locals, state_info.local_count());
+  const FrameStateInfo& state_info = FrameStateInfoOf(state->op());
+  int parameters = state_info.parameter_count();
+  int locals = state_info.local_count();
+  int stack = state_info.type() == FrameStateType::kInterpretedFunction ? 1 : 0;
 
   FrameStateDescriptor* outer_state = nullptr;
   Node* outer_node = state->InputAt(kFrameStateOuterStateInput);
