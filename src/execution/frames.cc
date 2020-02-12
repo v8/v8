@@ -491,16 +491,18 @@ Code StackFrame::LookupCode() const {
 
 void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
                            Address* constant_pool_address, Code holder) {
-  Address pc = *pc_address;
+  Address old_pc = ReadPC(pc_address);
   DCHECK(ReadOnlyHeap::Contains(holder) ||
-         holder.GetHeap()->GcSafeCodeContains(holder, pc));
-  unsigned pc_offset = static_cast<unsigned>(pc - holder.InstructionStart());
+         holder.GetHeap()->GcSafeCodeContains(holder, old_pc));
+  unsigned pc_offset =
+      static_cast<unsigned>(old_pc - holder.InstructionStart());
   Object code = holder;
   v->VisitRootPointer(Root::kTop, nullptr, FullObjectSlot(&code));
   if (code == holder) return;
   holder = Code::unchecked_cast(code);
-  pc = holder.InstructionStart() + pc_offset;
-  *pc_address = pc;
+  Address pc = holder.InstructionStart() + pc_offset;
+  // TODO(v8:10026): avoid replacing a signed pointer.
+  PointerAuthentication::ReplacePC(pc_address, pc, kSystemPointerSize);
   if (FLAG_enable_embedded_constant_pool && constant_pool_address) {
     *constant_pool_address = holder.constant_pool();
   }
@@ -521,6 +523,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
       kSystemPointerSize);
   intptr_t marker = Memory<intptr_t>(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
+  Address pc = StackFrame::ReadPC(state->pc_address);
   if (!iterator->can_access_heap_objects_) {
     // TODO(titzer): "can_access_heap_objects" is kind of bogus. It really
     // means that we are being called from the profiler, which can interrupt
@@ -535,15 +538,13 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     if (!StackFrame::IsTypeMarker(marker)) {
       if (maybe_function.IsSmi()) {
         return NATIVE;
-      } else if (IsInterpreterFramePc(iterator->isolate(), *(state->pc_address),
-                                      state)) {
+      } else if (IsInterpreterFramePc(iterator->isolate(), pc, state)) {
         return INTERPRETED;
       } else {
         return OPTIMIZED;
       }
     }
   } else {
-    Address pc = *(state->pc_address);
     // If the {pc} does not point into WebAssembly code we can rely on the
     // returned {wasm_code} to be null and fall back to {GetContainingCode}.
     wasm::WasmCodeRefScope code_ref_scope;
