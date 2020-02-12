@@ -294,6 +294,19 @@ const int kArithShiftShift = 30;
 const int kImm20Shift = 12;
 const int kImm20Bits = 20;
 
+// RISCV Instruction bit masks
+const int kBaseOpMask = 0b1111111;
+const int kFunct3Mask = ((1 << kFunct3Bits) - 1) << kFunct3Shift;
+const int kFunct7Mask = ((1 << kFunct7Bits) - 1) << kFunct7Shift;
+const int kFunct2Mask = 0b11 << kFunct7Shift;
+const int kRTypeMask = kBaseOpMask | kFunct3Mask | kFunct7Mask;
+const int kR4TypeMask = kBaseOpMask | kFunct3Mask | kFunct2Mask;
+const int kITypeMask = kBaseOpMask | kFunct3Mask;
+const int kSTypeMask = kBaseOpMask | kFunct3Mask;
+const int kBTypeMask = kBaseOpMask | kFunct3Mask;
+const int kUTypeMask = kBaseOpMask;
+const int kJTypeMask = kBaseOpMask;
+
 // Original MIPS constants
 const int kOpcodeShift = 26;
 const int kOpcodeBits = 6;
@@ -410,29 +423,41 @@ const int32_t kJalRawMark = 0x00000000;
 const int32_t kJRawMark = 0xf0000000;
 const int32_t kJumpRawMask = 0xf0000000;
 
+// ----- RISCV Base Opcodes
+
+enum BaseOpcode : uint32_t {
+  LOAD = 0b0000011,      // I form: LB LH LW LBU LHU
+  LOAD_FP = 0b0000111,   // I form: FLW FLD FLQ
+  MISC_MEM = 0b0001111,  // I special form: FENCE FENCE.I
+  OP_IMM = 0b0010011,    // I form: ADDI SLTI SLTIU XORI ORI ANDI SLLI SRLI SARI
+  // Note: SLLI/SRLI/SRAI I form first, then func3 001/101 => R type
+  RV_AUIPC = 0b0010111,   // U form: AUIPC
+  OP_IMM_32 = 0b0011011,  // I form: ADDIW SLLIW SRLIW SRAIW
+  // Note:  SRLIW SRAIW I form first, then func3 101 special shift encoding
+  STORE = 0b0100011,     // S form: SB SH SW SD
+  STORE_FP = 0b0100111,  // S form: FSW FSD FSQ
+  AMO = 0b0101111,       // R form: All A instructions
+  OP = 0b0110011,      // R: ADD SUB SLL SLT SLTU XOR SRL SRA OR AND and 32M set
+  RV_LUI = 0b0110111,  // U form: LUI
+  OP_32 = 0b0111011,   // R: ADDW SUBW SLLW SRLW SRAW MULW DIVW DIVUW REMW REMUW
+  MADD = 0b1000011,    // R4 type: FMADD.S FMADD.D FMADD.Q
+  MSUB = 0b1000111,    // R4 type: FMSUB.S FMSUB.D FMSUB.Q
+  NMSUB = 0b1001011,   // R4 type: FNMSUB.S FNMSUB.D FNMSUB.Q
+  NMADD = 0b1001111,   // R4 type: FNMADD.S FNMADD.D FNMADD.Q
+  OP_FP = 0b1010011,   // R type: Q ext
+  BRANCH = 0b1100011,  // B form: BEQ BNE, BLT, BGE, BLTU BGEU
+  RV_JALR = 0b1100111,  // I form: JALR
+  RV_JAL = 0b1101111,   // J form: JAL
+  SYSTEM = 0b1110011,   // I form: ECALL EBREAK Zicsr ext
+};
+
 // ----- RISC-V Opcodes and Function Fields.
 enum Opcode : uint32_t {
-  LOAD = 0b0000011,
-  LOAD_FP = 0b0000111,
-  MISC_MEM = 0b0001111,
-  OP_IMM = 0b0010011,
-  RV_AUIPC = 0b0010111,
-  OP_IMM_32 = 0b0011011,
-  STORE = 0b0100011,
-  STORE_FP = 0b0100111,
-  AMO = 0b0101111,
-  OP = 0b0110011,
-  RV_LUI = 0b0110111,
-  OP_32 = 0b0111011,
-  MADD = 0b1000011,
-  MSUB = 0b1000111,
-  NMSUB = 0b1001011,
-  NMADD = 0b1001111,
-  OP_FP = 0b1010011,
-  BRANCH = 0b1100011,
-  RV_JALR = 0b1100111,
-  RV_JAL = 0b1101111,
-  SYSTEM = 0b1110011,
+  // Note use RO (RiscV Opcode) prefix
+  // Need list all instructions' Opcode bits for decoding
+  RO_ADD = OP | (0b000 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_JALR = RV_JALR | (0b000 < kFunct3Shift),
+  RO_JAL = RV_JAL,
 
   // Original MIPS opcodes
   SPECIAL = 0U << kOpcodeShift,
@@ -1297,7 +1322,19 @@ class InstructionBase {
   };
 
   // Instruction type.
-  enum Type { kRegisterType, kImmediateType, kJumpType, kUnsupported = -1 };
+  enum Type {
+    kRegisterType,
+    kImmediateType,
+    kJumpType,
+    kRType,
+    kR4Type,  // Special R4 for Q extension
+    kIType,
+    kSType,
+    kBType,
+    kUType,
+    kJType,
+    kUnsupported = -1
+  };
 
   // Get the raw instruction bits.
   inline Instr InstructionBits() const {
@@ -1801,6 +1838,50 @@ const int kBranchReturnOffset = 2 * kInstrSize;
 static const int kNegOffset = 0x00008000;
 
 InstructionBase::Type InstructionBase::InstructionType() const {
+  // RISCV routine
+  switch (InstructionBits() & kBaseOpMask) {
+    case LOAD:
+      return kIType;
+    case LOAD_FP:
+      return kIType;
+    case MISC_MEM:
+      return kIType;
+    case OP_IMM:
+      return kIType;
+    case RV_AUIPC:
+      return kUType;
+    case OP_IMM_32:
+      return kIType;
+    case STORE:
+      return kSType;
+    case STORE_FP:
+      return kSType;
+    case AMO:
+      return kRType;
+    case OP:
+      return kRType;
+    case RV_LUI:
+      return kUType;
+    case OP_32:
+      return kRType;
+    case MADD:
+    case MSUB:
+    case NMSUB:
+    case NMADD:
+      return kR4Type;
+    case OP_FP:
+      return kRType;
+    case BRANCH:
+      return kBType;
+    case RV_JALR:
+      return kIType;
+    case RV_JAL:
+      return kJType;
+    case SYSTEM:
+      return kIType;
+  }
+  // fall back to MIPS
+
   switch (OpcodeFieldRaw()) {
     case SPECIAL:
       if (FunctionFieldToBitNumber(FunctionFieldRaw()) &
