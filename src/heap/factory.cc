@@ -10,7 +10,6 @@
 #include <utility>  // For move
 
 #include "src/ast/ast-source-ranges.h"
-#include "src/ast/ast.h"
 #include "src/base/bits.h"
 #include "src/builtins/accessors.h"
 #include "src/builtins/constants-table-builder.h"
@@ -339,40 +338,6 @@ Handle<FixedArray> Factory::NewFixedArrayWithMapRootIndex(
     RootIndex map_root_index, int length, AllocationType allocation) {
   return NewFixedArrayWithMap(Map::cast(isolate()->root(map_root_index)),
                               length, allocation);
-}
-
-template <typename T>
-Handle<T> Factory::NewWeakFixedArrayWithMap(Map map, int length,
-                                            AllocationType allocation) {
-  static_assert(std::is_base_of<WeakFixedArray, T>::value,
-                "T must be a descendant of WeakFixedArray");
-
-  // Zero-length case must be handled outside.
-  DCHECK_LT(0, length);
-
-  HeapObject result =
-      AllocateRawArray(WeakFixedArray::SizeFor(length), AllocationType::kOld);
-  result.set_map_after_allocation(map, SKIP_WRITE_BARRIER);
-
-  Handle<WeakFixedArray> array(WeakFixedArray::cast(result), isolate());
-  array->set_length(length);
-  MemsetTagged(ObjectSlot(array->data_start()), *undefined_value(), length);
-
-  return Handle<T>::cast(array);
-}
-
-Handle<WeakFixedArray> Factory::NewWeakFixedArray(int length,
-                                                  AllocationType allocation) {
-  DCHECK_LE(0, length);
-  if (length == 0) return empty_weak_fixed_array();
-  HeapObject result =
-      AllocateRawArray(WeakFixedArray::SizeFor(length), allocation);
-  result.set_map_after_allocation(read_only_roots().weak_fixed_array_map(),
-                                  SKIP_WRITE_BARRIER);
-  Handle<WeakFixedArray> array(WeakFixedArray::cast(result), isolate());
-  array->set_length(length);
-  MemsetTagged(ObjectSlot(array->data_start()), *undefined_value(), length);
-  return array;
 }
 
 MaybeHandle<FixedArray> Factory::TryNewFixedArray(
@@ -1482,8 +1447,9 @@ Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors,
 Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,
                                                     int slack) {
   int capacity = TransitionArray::LengthFor(number_of_transitions + slack);
-  Handle<TransitionArray> array = NewWeakFixedArrayWithMap<TransitionArray>(
-      read_only_roots().transition_array_map(), capacity, AllocationType::kOld);
+  Handle<TransitionArray> array = Handle<TransitionArray>::cast(
+      NewWeakFixedArrayWithMap(read_only_roots().transition_array_map(),
+                               capacity, AllocationType::kOld));
   // Transition arrays are AllocationType::kOld. When black allocation is on we
   // have to add the transition array to the list of
   // encountered_transition_arrays.
@@ -2126,48 +2092,6 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
   // Give compiler a chance to pre-initialize.
   Compiler::PostInstantiation(result);
-
-  return result;
-}
-
-Handle<PreparseData> Factory::NewPreparseData(int data_length,
-                                              int children_length) {
-  int size = PreparseData::SizeFor(data_length, children_length);
-  Handle<PreparseData> result(
-      PreparseData::cast(AllocateRawWithImmortalMap(size, AllocationType::kOld,
-                                                    *preparse_data_map())),
-      isolate());
-  result->set_data_length(data_length);
-  result->set_children_length(children_length);
-  MemsetTagged(result->inner_data_start(), *null_value(), children_length);
-  result->clear_padding();
-  return result;
-}
-
-Handle<UncompiledDataWithoutPreparseData>
-Factory::NewUncompiledDataWithoutPreparseData(Handle<String> inferred_name,
-                                              int32_t start_position,
-                                              int32_t end_position) {
-  Handle<UncompiledDataWithoutPreparseData> result(
-      UncompiledDataWithoutPreparseData::cast(New(
-          uncompiled_data_without_preparse_data_map(), AllocationType::kOld)),
-      isolate());
-
-  result->Init(*inferred_name, start_position, end_position);
-  return result;
-}
-
-Handle<UncompiledDataWithPreparseData>
-Factory::NewUncompiledDataWithPreparseData(Handle<String> inferred_name,
-                                           int32_t start_position,
-                                           int32_t end_position,
-                                           Handle<PreparseData> preparse_data) {
-  Handle<UncompiledDataWithPreparseData> result(
-      UncompiledDataWithPreparseData::cast(
-          New(uncompiled_data_with_preparse_data_map(), AllocationType::kOld)),
-      isolate());
-
-  result->Init(*inferred_name, start_position, end_position, *preparse_data);
 
   return result;
 }
@@ -2965,18 +2889,6 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
   InitializeJSObjectFromMap(object, raw_properties_or_hash, map);
 }
 
-Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
-    FunctionLiteral* literal, Handle<Script> script, bool is_toplevel) {
-  FunctionKind kind = literal->kind();
-  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfoForBuiltin(
-      literal->GetName(isolate()), Builtins::kCompileLazy, kind);
-  SharedFunctionInfo::InitFromFunctionLiteral(isolate(), shared, literal,
-                                              is_toplevel);
-  shared->SetScript(ReadOnlyRoots(isolate()), *script,
-                    literal->function_literal_id(), false);
-  return shared;
-}
-
 Handle<JSMessageObject> Factory::NewJSMessageObject(
     MessageTemplate message, Handle<Object> argument, int start_position,
     int end_position, Handle<SharedFunctionInfo> shared_info,
@@ -3033,64 +2945,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
     MaybeHandle<String> maybe_name, int builtin_index, FunctionKind kind) {
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
       maybe_name, MaybeHandle<Code>(), builtin_index, kind);
-  return shared;
-}
-
-Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
-    MaybeHandle<String> maybe_name, MaybeHandle<HeapObject> maybe_function_data,
-    int maybe_builtin_index, FunctionKind kind) {
-  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo();
-
-  // Function names are assumed to be flat elsewhere. Must flatten before
-  // allocating SharedFunctionInfo to avoid GC seeing the uninitialized SFI.
-  Handle<String> shared_name;
-  bool has_shared_name = maybe_name.ToHandle(&shared_name);
-  if (has_shared_name) {
-    DCHECK(shared_name->IsFlat());
-    shared->set_name_or_scope_info(*shared_name);
-  } else {
-    DCHECK_EQ(shared->name_or_scope_info(),
-              SharedFunctionInfo::kNoSharedNameSentinel);
-  }
-
-  Handle<HeapObject> function_data;
-  if (maybe_function_data.ToHandle(&function_data)) {
-    // If we pass function_data then we shouldn't pass a builtin index, and
-    // the function_data should not be code with a builtin.
-    DCHECK(!Builtins::IsBuiltinId(maybe_builtin_index));
-    DCHECK_IMPLIES(function_data->IsCode(),
-                   !Code::cast(*function_data).is_builtin());
-    shared->set_function_data(*function_data);
-  } else if (Builtins::IsBuiltinId(maybe_builtin_index)) {
-    shared->set_builtin_id(maybe_builtin_index);
-  } else {
-    shared->set_builtin_id(Builtins::kIllegal);
-  }
-
-  shared->CalculateConstructAsBuiltin();
-  shared->set_kind(kind);
-
-#ifdef VERIFY_HEAP
-  shared->SharedFunctionInfoVerify(isolate());
-#endif  // VERIFY_HEAP
-  return shared;
-}
-
-Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo() {
-  Handle<Map> map = shared_function_info_map();
-
-  Handle<SharedFunctionInfo> shared(
-      SharedFunctionInfo::cast(New(map, AllocationType::kOld)), isolate());
-  int unique_id = -1;
-#if V8_SFI_HAS_UNIQUE_ID
-  unique_id = isolate()->GetNextUniqueSharedFunctionInfoId();
-#endif  // V8_SFI_HAS_UNIQUE_ID
-
-  shared->Init(ReadOnlyRoots(isolate()), unique_id);
-
-#ifdef VERIFY_HEAP
-  shared->SharedFunctionInfoVerify(isolate());
-#endif  // VERIFY_HEAP
   return shared;
 }
 

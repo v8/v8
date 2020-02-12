@@ -16,7 +16,6 @@
 #include "src/heap/heap.h"
 #include "src/objects/code.h"
 #include "src/objects/dictionary.h"
-#include "src/objects/function-kind.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/string.h"
@@ -55,7 +54,6 @@ class JSWeakMap;
 class LoadHandler;
 class NativeContext;
 class NewFunctionArgs;
-class PreparseData;
 class PromiseResolveThenableJobTask;
 class RegExpMatchInfo;
 class ScriptContextTable;
@@ -65,8 +63,6 @@ class StackTraceFrame;
 class StoreHandler;
 class SyntheticModule;
 class TemplateObjectDescription;
-class UncompiledDataWithoutPreparseData;
-class UncompiledDataWithPreparseData;
 class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
@@ -133,17 +129,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<FixedArray> NewFixedArrayWithMapRootIndex(
       RootIndex map_root_index, int length,
       AllocationType allocation = AllocationType::kYoung);
-
-  // Allocates a weak fixed array-like object with given map and initialized
-  // with undefined values.
-  template <typename T = WeakFixedArray>
-  Handle<T> NewWeakFixedArrayWithMap(
-      Map map, int length, AllocationType allocation = AllocationType::kYoung);
-
-  // Allocates a fixed array which may contain in-place weak references. The
-  // array is initialized with undefined values
-  Handle<WeakFixedArray> NewWeakFixedArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a property array initialized with undefined values.
   Handle<PropertyArray> NewPropertyArray(int length);
@@ -674,17 +659,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<Map> map, Handle<SharedFunctionInfo> info, Handle<Context> context,
       AllocationType allocation = AllocationType::kOld);
 
-  Handle<PreparseData> NewPreparseData(int data_length, int children_length);
-
-  Handle<UncompiledDataWithoutPreparseData>
-  NewUncompiledDataWithoutPreparseData(Handle<String> inferred_name,
-                                       int32_t start_position,
-                                       int32_t end_position);
-
-  Handle<UncompiledDataWithPreparseData> NewUncompiledDataWithPreparseData(
-      Handle<String> inferred_name, int32_t start_position,
-      int32_t end_position, Handle<PreparseData>);
-
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(void* value);
 
@@ -757,9 +731,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForBuiltin(
       MaybeHandle<String> name, int builtin_index,
       FunctionKind kind = kNormalFunction);
-
-  Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
-      FunctionLiteral* literal, Handle<Script> script, bool is_toplevel);
 
   static bool IsFunctionModeWithPrototype(FunctionMode function_mode) {
     return (function_mode & kWithPrototypeBits) != 0;
@@ -1008,11 +979,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<FixedArrayBase> NewJSArrayStorage(
       ElementsKind elements_kind, int capacity,
       ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
-
-  Handle<SharedFunctionInfo> NewSharedFunctionInfo();
-  Handle<SharedFunctionInfo> NewSharedFunctionInfo(
-      MaybeHandle<String> name, MaybeHandle<HeapObject> maybe_function_data,
-      int maybe_builtin_index, FunctionKind kind = kNormalFunction);
 
   void InitializeAllocationMemento(AllocationMemento memento,
                                    AllocationSite allocation_site);

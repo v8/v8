@@ -233,7 +233,7 @@ class OffThreadHandle {
   }
 
  private:
-  Address address_;
+  Address address_ = 0;
 };
 
 // A helper class which wraps an normal or off-thread handle, and returns one

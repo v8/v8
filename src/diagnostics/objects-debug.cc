@@ -32,6 +32,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/layout-descriptor.h"
 #include "src/objects/objects-inl.h"
+#include "src/roots/roots.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator-inl.h"
 #include "src/objects/js-collator-inl.h"
@@ -816,12 +817,20 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
 }
 
 void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
+  // TODO(leszeks): Add a TorqueGeneratedClassVerifier for OffThreadIsolate.
   TorqueGeneratedClassVerifiers::SharedFunctionInfoVerify(*this, isolate);
+  this->SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
+}
 
+void SharedFunctionInfo::SharedFunctionInfoVerify(OffThreadIsolate* isolate) {
+  this->SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
+}
+
+void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
   Object value = name_or_scope_info();
   if (value.IsScopeInfo()) {
     CHECK_LT(0, ScopeInfo::cast(value).length());
-    CHECK_NE(value, ReadOnlyRoots(isolate).empty_scope_info());
+    CHECK_NE(value, roots.empty_scope_info());
   }
 
   CHECK(HasWasmExportedFunctionData() || IsApiFunction() ||
@@ -830,13 +839,13 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
         HasUncompiledDataWithoutPreparseData() || HasWasmJSFunctionData() ||
         HasWasmCapiFunctionData());
 
-  CHECK(script_or_debug_info().IsUndefined(isolate) ||
+  CHECK(script_or_debug_info().IsUndefined(roots) ||
         script_or_debug_info().IsScript() || HasDebugInfo());
 
   if (!is_compiled()) {
     CHECK(!HasFeedbackMetadata());
     CHECK(outer_scope_info().IsScopeInfo() ||
-          outer_scope_info().IsTheHole(isolate));
+          outer_scope_info().IsTheHole(roots));
   } else if (HasBytecodeArray() && HasFeedbackMetadata()) {
     CHECK(feedback_metadata().IsFeedbackMetadata());
   }

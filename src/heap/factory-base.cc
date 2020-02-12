@@ -115,6 +115,35 @@ HandleFor<Impl, FixedArrayBase> FactoryBase<Impl>::NewFixedDoubleArray(
 }
 
 template <typename Impl>
+HandleFor<Impl, WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
+    Map map, int length, AllocationType allocation) {
+  // Zero-length case must be handled outside.
+  DCHECK_LT(0, length);
+  DCHECK(ReadOnlyHeap::Contains(map));
+
+  HeapObject result =
+      AllocateRawArray(WeakFixedArray::SizeFor(length), allocation);
+  result.set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+
+  HandleFor<Impl, WeakFixedArray> array =
+      handle(WeakFixedArray::cast(result), isolate());
+  array->set_length(length);
+  MemsetTagged(ObjectSlot(array->data_start()),
+               read_only_roots().undefined_value(), length);
+
+  return array;
+}
+
+template <typename Impl>
+HandleFor<Impl, WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArray(
+    int length, AllocationType allocation) {
+  DCHECK_LE(0, length);
+  if (length == 0) return impl()->empty_weak_fixed_array();
+  return NewWeakFixedArrayWithMap(read_only_roots().weak_fixed_array_map(),
+                                  length, allocation);
+}
+
+template <typename Impl>
 HandleFor<Impl, Script> FactoryBase<Impl>::NewScript(
     HandleFor<Impl, String> source) {
   return NewScriptWithId(source, isolate()->GetNextScriptId());
@@ -146,6 +175,111 @@ HandleFor<Impl, Script> FactoryBase<Impl>::NewScriptWithId(
 
   LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
   return script;
+}
+
+template <typename Impl>
+HandleFor<Impl, SharedFunctionInfo>
+FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
+    FunctionLiteral* literal, HandleFor<Impl, Script> script,
+    bool is_toplevel) {
+  FunctionKind kind = literal->kind();
+  HandleFor<Impl, SharedFunctionInfo> shared = NewSharedFunctionInfo(
+      literal->GetName(isolate()), MaybeHandleFor<Impl, Code>(),
+      Builtins::kCompileLazy, kind);
+  SharedFunctionInfo::InitFromFunctionLiteral(isolate(), shared, literal,
+                                              is_toplevel);
+  shared->SetScript(read_only_roots(), *script, literal->function_literal_id(),
+                    false);
+  return shared;
+}
+
+template <typename Impl>
+HandleFor<Impl, PreparseData> FactoryBase<Impl>::NewPreparseData(
+    int data_length, int children_length) {
+  int size = PreparseData::SizeFor(data_length, children_length);
+  HandleFor<Impl, PreparseData> result = handle(
+      PreparseData::cast(AllocateRawWithImmortalMap(
+          size, AllocationType::kOld, read_only_roots().preparse_data_map())),
+      isolate());
+  result->set_data_length(data_length);
+  result->set_children_length(children_length);
+  MemsetTagged(result->inner_data_start(), read_only_roots().null_value(),
+               children_length);
+  result->clear_padding();
+  return result;
+}
+
+template <typename Impl>
+HandleFor<Impl, UncompiledDataWithoutPreparseData>
+FactoryBase<Impl>::NewUncompiledDataWithoutPreparseData(
+    HandleFor<Impl, String> inferred_name, int32_t start_position,
+    int32_t end_position) {
+  HandleFor<Impl, UncompiledDataWithoutPreparseData> result = handle(
+      UncompiledDataWithoutPreparseData::cast(NewWithImmortalMap(
+          impl()->read_only_roots().uncompiled_data_without_preparse_data_map(),
+          AllocationType::kOld)),
+      isolate());
+
+  result->Init(impl(), *inferred_name, start_position, end_position);
+  return result;
+}
+
+template <typename Impl>
+HandleFor<Impl, UncompiledDataWithPreparseData>
+FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
+    HandleFor<Impl, String> inferred_name, int32_t start_position,
+    int32_t end_position, HandleFor<Impl, PreparseData> preparse_data) {
+  HandleFor<Impl, UncompiledDataWithPreparseData> result = handle(
+      UncompiledDataWithPreparseData::cast(NewWithImmortalMap(
+          impl()->read_only_roots().uncompiled_data_with_preparse_data_map(),
+          AllocationType::kOld)),
+      isolate());
+
+  result->Init(impl(), *inferred_name, start_position, end_position,
+               *preparse_data);
+
+  return result;
+}
+
+template <typename Impl>
+HandleFor<Impl, SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
+    MaybeHandleFor<Impl, String> maybe_name,
+    MaybeHandleFor<Impl, HeapObject> maybe_function_data,
+    int maybe_builtin_index, FunctionKind kind) {
+  HandleFor<Impl, SharedFunctionInfo> shared = NewSharedFunctionInfo();
+
+  // Function names are assumed to be flat elsewhere.
+  HandleFor<Impl, String> shared_name;
+  bool has_shared_name = maybe_name.ToHandle(&shared_name);
+  if (has_shared_name) {
+    DCHECK(shared_name->IsFlat());
+    shared->set_name_or_scope_info(*shared_name);
+  } else {
+    DCHECK_EQ(shared->name_or_scope_info(),
+              SharedFunctionInfo::kNoSharedNameSentinel);
+  }
+
+  HandleFor<Impl, HeapObject> function_data;
+  if (maybe_function_data.ToHandle(&function_data)) {
+    // If we pass function_data then we shouldn't pass a builtin index, and
+    // the function_data should not be code with a builtin.
+    DCHECK(!Builtins::IsBuiltinId(maybe_builtin_index));
+    DCHECK_IMPLIES(function_data->IsCode(),
+                   !Code::cast(*function_data).is_builtin());
+    shared->set_function_data(*function_data);
+  } else if (Builtins::IsBuiltinId(maybe_builtin_index)) {
+    shared->set_builtin_id(maybe_builtin_index);
+  } else {
+    shared->set_builtin_id(Builtins::kIllegal);
+  }
+
+  shared->CalculateConstructAsBuiltin();
+  shared->set_kind(kind);
+
+#ifdef VERIFY_HEAP
+  shared->SharedFunctionInfoVerify(isolate());
+#endif  // VERIFY_HEAP
+  return shared;
 }
 
 template <typename Impl>
@@ -401,6 +535,26 @@ FactoryBase<Impl>::NewSourceTextModuleInfo() {
   return HandleFor<Impl, SourceTextModuleInfo>::cast(NewFixedArrayWithMap(
       read_only_roots().module_info_map(), SourceTextModuleInfo::kLength,
       AllocationType::kOld));
+}
+
+template <typename Impl>
+HandleFor<Impl, SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo() {
+  Map map = read_only_roots().shared_function_info_map();
+
+  HandleFor<Impl, SharedFunctionInfo> shared = handle(
+      SharedFunctionInfo::cast(NewWithImmortalMap(map, AllocationType::kOld)),
+      isolate());
+  int unique_id = -1;
+#if V8_SFI_HAS_UNIQUE_ID
+  unique_id = isolate()->GetNextUniqueSharedFunctionInfoId();
+#endif  // V8_SFI_HAS_UNIQUE_ID
+
+  shared->Init(read_only_roots(), unique_id);
+
+#ifdef VERIFY_HEAP
+  shared->SharedFunctionInfoVerify(isolate());
+#endif  // VERIFY_HEAP
+  return shared;
 }
 
 template <typename Impl>

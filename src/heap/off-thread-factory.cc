@@ -16,6 +16,7 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/objects-body-descriptors-inl.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
 #include "src/objects/visitors.h"
 #include "src/roots/roots-inl.h"
