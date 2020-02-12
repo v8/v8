@@ -343,58 +343,58 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     FIRST_IC_MARKER = PROPERTY_ACCESS_INLINED,
   };
 
-  void RV_lui(Register rd, uint32_t imm20);
-  void RV_auipc(Register rd, uint32_t imm20);
+  void RV_lui(Register rd, int32_t imm20);
+  void RV_auipc(Register rd, int32_t imm20);
 
   // Jumps
-  void RV_jal(Register rd, uint32_t imm20);
-  void RV_jalr(Register rd, Register rs1, uint16_t imm12);
+  void RV_jal(Register rd, int32_t imm20);
+  void RV_jalr(Register rd, Register rs1, int16_t imm12);
 
   // Branches
-  void RV_beq(Register rs1, Register rs2, uint16_t imm12);
+  void RV_beq(Register rs1, Register rs2, int16_t imm12);
   inline void RV_beq(Register rs, Register rt, Label* L) {
     RV_beq(rs, rt, shifted_branch_offset(L));
   }
-  void RV_bne(Register rs1, Register rs2, uint16_t imm12);
+  void RV_bne(Register rs1, Register rs2, int16_t imm12);
   inline void RV_bne(Register rs, Register rt, Label* L) {
     RV_bne(rs, rt, shifted_branch_offset(L));
   }
-  void RV_blt(Register rs1, Register rs2, uint16_t imm12);
+  void RV_blt(Register rs1, Register rs2, int16_t imm12);
   inline void RV_blt(Register rs, Register rt, Label* L) {
     RV_blt(rs, rt, shifted_branch_offset(L));
   }
-  void RV_bge(Register rs1, Register rs2, uint16_t imm12);
+  void RV_bge(Register rs1, Register rs2, int16_t imm12);
   inline void RV_bge(Register rs, Register rt, Label* L) {
     RV_bge(rs, rt, shifted_branch_offset(L));
   }
-  void RV_bltu(Register rs1, Register rs2, uint16_t imm12);
+  void RV_bltu(Register rs1, Register rs2, int16_t imm12);
   inline void RV_bltu(Register rs, Register rt, Label* L) {
     RV_bltu(rs, rt, shifted_branch_offset(L));
   }
-  void RV_bgeu(Register rs1, Register rs2, uint16_t imm12);
+  void RV_bgeu(Register rs1, Register rs2, int16_t imm12);
   inline void RV_bgeu(Register rs, Register rt, Label* L) {
     RV_bgeu(rs, rt, shifted_branch_offset(L));
   }
 
   // Loads
-  void RV_lb(Register rd, Register rs1, uint16_t imm12);
-  void RV_lh(Register rd, Register rs1, uint16_t imm12);
-  void RV_lw(Register rd, Register rs1, uint16_t imm12);
-  void RV_lbu(Register rd, Register rs1, uint16_t imm12);
-  void RV_lhu(Register rd, Register rs1, uint16_t imm12);
+  void RV_lb(Register rd, Register rs1, int16_t imm12);
+  void RV_lh(Register rd, Register rs1, int16_t imm12);
+  void RV_lw(Register rd, Register rs1, int16_t imm12);
+  void RV_lbu(Register rd, Register rs1, int16_t imm12);
+  void RV_lhu(Register rd, Register rs1, int16_t imm12);
 
   // Stores
-  void RV_sb(Register rs1, Register rs2, uint16_t imm12);
-  void RV_sh(Register rs1, Register rs2, uint16_t imm12);
-  void RV_sw(Register rs1, Register rs2, uint16_t imm12);
+  void RV_sb(Register rs1, Register rs2, int16_t imm12);
+  void RV_sh(Register rs1, Register rs2, int16_t imm12);
+  void RV_sw(Register rs1, Register rs2, int16_t imm12);
 
   // Arithmetic with immediate
-  void RV_addi(Register rd, Register rs1, uint16_t imm12);
-  void RV_slti(Register rd, Register rs1, uint16_t imm12);
-  void RV_sltiu(Register rd, Register rs1, uint16_t imm12);
-  void RV_xori(Register rd, Register rs1, uint16_t imm12);
-  void RV_ori(Register rd, Register rs1, uint16_t imm12);
-  void RV_andi(Register rd, Register rs1, uint16_t imm12);
+  void RV_addi(Register rd, Register rs1, int16_t imm12);
+  void RV_slti(Register rd, Register rs1, int16_t imm12);
+  void RV_sltiu(Register rd, Register rs1, int16_t imm12);
+  void RV_xori(Register rd, Register rs1, int16_t imm12);
+  void RV_ori(Register rd, Register rs1, int16_t imm12);
+  void RV_andi(Register rd, Register rs1, int16_t imm12);
   void RV_slli(Register rd, Register rs1, uint8_t shamt);
   void RV_srli(Register rd, Register rs1, uint8_t shamt);
   void RV_srai(Register rd, Register rs1, uint8_t shamt);
@@ -434,10 +434,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_csrrci(Register rd, uint16_t imm12, uint8_t rs1);
 
   // RV64I
-  void RV_lwu(Register rd, Register rs1, uint16_t imm12);
-  void RV_ld(Register rd, Register rs1, uint16_t imm12);
-  void RV_sd(Register rs1, Register rs2, uint16_t imm12);
-  void RV_addiw(Register rd, Register rs1, uint16_t imm12);
+  void RV_lwu(Register rd, Register rs1, int16_t imm12);
+  void RV_ld(Register rd, Register rs1, int16_t imm12);
+  void RV_sd(Register rs1, Register rs2, int16_t imm12);
+  void RV_addiw(Register rd, Register rs1, int16_t imm12);
   void RV_slliw(Register rd, Register rs1, uint8_t shamt);
   void RV_srliw(Register rd, Register rs1, uint8_t shamt);
   void RV_sraiw(Register rd, Register rs1, uint8_t shamt);
@@ -1826,16 +1826,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                  int16_t imm12);
   void GenInstrB(uint8_t funct3, Opcode opcode, Register rs1, Register rs2,
                  int16_t imm12);
-  void GenInstrU(Opcode opcode, Register rd, uint32_t imm20);
-  void GenInstrJ(Opcode opcode, Register rd, uint32_t imm20);
+  void GenInstrU(Opcode opcode, Register rd, int32_t imm20);
+  void GenInstrJ(Opcode opcode, Register rd, int32_t imm20);
 
   // ----- Instruction class templates match those in LLVM's RISCVInstrInfo.td
   void GenInstrBranchCC_rri(uint8_t funct3, Register rs1, Register rs2,
-                            uint16_t imm12);
+                            int16_t imm12);
   void GenInstrLoad_ri(uint8_t funct3, Register rd, Register rs1,
-                       uint16_t imm12);
+                       int16_t imm12);
   void GenInstrStore_rri(uint8_t funct3, Register rs1, Register rs2,
-                         uint16_t imm12);
+                         int16_t imm12);
   void GenInstrALU_ri(uint8_t funct3, Register rd, Register rs1,
                       uint16_t imm12);
   void GenInstrShift_ri(bool arithshift, uint8_t funct3, Register rd,
