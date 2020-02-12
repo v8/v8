@@ -847,6 +847,8 @@
   'compiler/serializer-dead-after-jump': [SKIP],
   'compiler/serializer-dead-after-return': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
+  'regress/regress-1049982-1': [SKIP],
+  'regress/regress-1049982-2': [SKIP],
 
   # Bounds check triggers forced deopt for array constructors.
   'array-constructor-feedback': [SKIP],
