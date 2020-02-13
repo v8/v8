@@ -309,7 +309,7 @@ class SharedFunctionInfo : public HeapObject {
 
   inline bool IsApiFunction() const;
   inline bool is_class_constructor() const;
-  inline FunctionTemplateInfo get_api_func_data();
+  inline FunctionTemplateInfo get_api_func_data() const;
   inline void set_api_func_data(FunctionTemplateInfo data);
   inline bool HasBytecodeArray() const;
   inline BytecodeArray GetBytecodeArray() const;
