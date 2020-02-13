@@ -3376,7 +3376,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     // Check that it really works.
     DCHECK(object->HasFastProperties());
     if (FLAG_trace_maps) {
-      LOG(isolate, MapEvent("SlowToFast", *old_map, *new_map, reason));
+      LOG(isolate, MapEvent("SlowToFast", old_map, new_map, reason));
     }
     return;
   }
@@ -3466,7 +3466,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   }
 
   if (FLAG_trace_maps) {
-    LOG(isolate, MapEvent("SlowToFast", *old_map, *new_map, reason));
+    LOG(isolate, MapEvent("SlowToFast", old_map, new_map, reason));
   }
   // Transform the object.
   object->synchronized_set_map(*new_map);
@@ -5169,8 +5169,9 @@ void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
   function->set_prototype_or_initial_map(*map);
   map->SetConstructor(*function);
   if (FLAG_trace_maps) {
-    LOG(function->GetIsolate(), MapEvent("InitialMap", Map(), *map, "",
-                                         function->shared().DebugName()));
+    LOG(function->GetIsolate(), MapEvent("InitialMap", Handle<Map>(), map, "",
+                                         handle(function->shared().DebugName(),
+                                                function->GetIsolate())));
   }
 }
 

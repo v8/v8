@@ -222,14 +222,13 @@ class Logger : public CodeEventListener {
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);
 
+  void ICEvent(const char* type, bool keyed, Handle<Map> map,
+               Handle<Object> key, char old_state, char new_state,
+               const char* modifier, const char* slow_stub_reason);
 
-  void ICEvent(const char* type, bool keyed, Map map, Object key,
-               char old_state, char new_state, const char* modifier,
-               const char* slow_stub_reason);
-
-  void MapEvent(const char* type, Map from, Map to,
+  void MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
                 const char* reason = nullptr,
-                HeapObject name_or_sfi = HeapObject());
+                Handle<HeapObject> name_or_sfi = Handle<HeapObject>());
   void MapCreate(Map map);
   void MapDetails(Map map);
 

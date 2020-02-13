@@ -1641,9 +1641,9 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   msg.WriteToLogFile();
 }
 
-void Logger::ICEvent(const char* type, bool keyed, Map map, Object key,
-                     char old_state, char new_state, const char* modifier,
-                     const char* slow_stub_reason) {
+void Logger::ICEvent(const char* type, bool keyed, Handle<Map> map,
+                     Handle<Object> key, char old_state, char new_state,
+                     const char* modifier, const char* slow_stub_reason) {
   if (!log_->IsEnabled() || !FLAG_trace_ic) return;
   Log::MessageBuilder msg(log_.get());
   if (keyed) msg << "Keyed";
@@ -1652,13 +1652,13 @@ void Logger::ICEvent(const char* type, bool keyed, Map map, Object key,
   Address pc = isolate_->GetAbstractPC(&line, &column);
   msg << type << kNext << reinterpret_cast<void*>(pc) << kNext << line << kNext
       << column << kNext << old_state << kNext << new_state << kNext
-      << AsHex::Address(map.ptr()) << kNext;
-  if (key.IsSmi()) {
-    msg << Smi::ToInt(key);
-  } else if (key.IsNumber()) {
-    msg << key.Number();
-  } else if (key.IsName()) {
-    msg << Name::cast(key);
+      << AsHex::Address(map.is_null() ? kNullAddress : map->ptr()) << kNext;
+  if (key->IsSmi()) {
+    msg << Smi::ToInt(*key);
+  } else if (key->IsNumber()) {
+    msg << key->Number();
+  } else if (key->IsName()) {
+    msg << Name::cast(*key);
   }
   msg << kNext << modifier << kNext;
   if (slow_stub_reason != nullptr) {
@@ -1667,11 +1667,10 @@ void Logger::ICEvent(const char* type, bool keyed, Map map, Object key,
   msg.WriteToLogFile();
 }
 
-void Logger::MapEvent(const char* type, Map from, Map to, const char* reason,
-                      HeapObject name_or_sfi) {
-  DisallowHeapAllocation no_gc;
+void Logger::MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
+                      const char* reason, Handle<HeapObject> name_or_sfi) {
   if (!log_->IsEnabled() || !FLAG_trace_maps) return;
-  if (!to.is_null()) MapDetails(to);
+  if (!to.is_null()) MapDetails(*to);
   int line = -1;
   int column = -1;
   Address pc = 0;
@@ -1681,15 +1680,16 @@ void Logger::MapEvent(const char* type, Map from, Map to, const char* reason,
   }
   Log::MessageBuilder msg(log_.get());
   msg << "map" << kNext << type << kNext << timer_.Elapsed().InMicroseconds()
-      << kNext << AsHex::Address(from.ptr()) << kNext
-      << AsHex::Address(to.ptr()) << kNext << AsHex::Address(pc) << kNext
-      << line << kNext << column << kNext << reason << kNext;
+      << kNext << AsHex::Address(from.is_null() ? kNullAddress : from->ptr())
+      << kNext << AsHex::Address(to.is_null() ? kNullAddress : to->ptr())
+      << kNext << AsHex::Address(pc) << kNext << line << kNext << column
+      << kNext << reason << kNext;
 
   if (!name_or_sfi.is_null()) {
-    if (name_or_sfi.IsName()) {
-      msg << Name::cast(name_or_sfi);
-    } else if (name_or_sfi.IsSharedFunctionInfo()) {
-      SharedFunctionInfo sfi = SharedFunctionInfo::cast(name_or_sfi);
+    if (name_or_sfi->IsName()) {
+      msg << Name::cast(*name_or_sfi);
+    } else if (name_or_sfi->IsSharedFunctionInfo()) {
+      SharedFunctionInfo sfi = SharedFunctionInfo::cast(*name_or_sfi);
       msg << sfi.DebugName();
 #if V8_SFI_HAS_UNIQUE_ID
       msg << " " << sfi.unique_id();

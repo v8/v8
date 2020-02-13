@@ -661,11 +661,14 @@ MaybeHandle<Object> DefineClass(
     return MaybeHandle<Object>();
   }
   if (FLAG_trace_maps) {
+    Handle<Map> empty_map;
     LOG(isolate,
-        MapEvent("InitialMap", Map(), constructor->map(),
-                 "init class constructor", constructor->shared().DebugName()));
-    LOG(isolate, MapEvent("InitialMap", Map(), prototype->map(),
-                          "init class prototype"));
+        MapEvent("InitialMap", empty_map, handle(constructor->map(), isolate),
+                 "init class constructor",
+                 handle(constructor->shared().DebugName(), isolate)));
+    LOG(isolate,
+        MapEvent("InitialMap", empty_map, handle(prototype->map(), isolate),
+                 "init class prototype"));
   }
 
   return prototype;
