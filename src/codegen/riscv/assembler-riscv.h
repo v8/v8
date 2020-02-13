@@ -184,7 +184,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // but it may be bound only once.
   void bind(Label* L);  // Binds an unbound label L to current code position.
 
-  enum OffsetSize : int { kOffset26 = 26, kOffset21 = 21, kOffset16 = 16 };
+  enum OffsetSize : int {
+    kOffset26 = 26,
+    kOffset21 = 21,
+    kOffset16 = 16,
+    kOffset12 = 12,  // RISCV imm12
+    kOffset20 = 20,  // RISCV imm20
+  };
 
   // Determines if Label is bound and near enough so that branch instruction
   // can be used to reach it, instead of jump instruction.
@@ -224,6 +230,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline int32_t shifted_branch_offset26(Label* L) {
     return branch_offset26(L) >> 2;
   }
+  // RISCV related branch offset computation
+  inline int16_t shifted_branch_offset12(Label* L) {
+    // FIXME: RISCV kOffset13?
+    return (int16_t)(branch_offset_helper(L, OffsetSize::kOffset12) >> 1);
+  }
+  inline int32_t shifted_branch_offset20(Label* L) {
+    // FIXME: RISCV kOffset21?
+    return branch_offset_helper(L, OffsetSize::kOffset20) >> 1;
+  }
+
   uint64_t jump_address(Label* L);
   uint64_t jump_offset(Label* L);
   uint64_t branch_long_offset(Label* L);
@@ -457,6 +473,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Assembler Pseudo Instructions (User-Level ISA, Version 2.2, Chapter 20)
   void RV_nop();
   void RV_jr(Register rs);
+  void RV_mv(Register rd, Register rs);
+  void RV_li(Register rd, int16_t imm12);
+  void RV_j(int32_t imm20);
+  inline void RV_j(Label* L) { RV_j(shifted_branch_offset20(L)); }
+  void RV_bgtz(Register rs, int16_t imm12);
+  inline void RV_bgtz(Register rs, Label* L) {
+    RV_bgtz(rs, shifted_branch_offset12(L));
+  }
 
   // Type == 0 is the default non-marking nop. For mips this is a
   // sll(zero_reg, zero_reg, 0). We use rt_reg == at for non-zero

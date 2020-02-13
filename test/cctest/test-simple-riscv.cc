@@ -70,6 +70,39 @@ TEST(RISCV0) {
   CHECK_EQ(0xABCL, res);
 }
 
+// Loop 100 times, adding loop counter to result
+TEST(RISCV1) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  Label L, C;
+  // input a0, result a1
+  __ RV_mv(a1, a0);
+  __ RV_li(a0, 0);
+  __ RV_j(&C);
+
+  __ bind(&L);
+
+  __ RV_add(a0, a0, a1);
+  __ RV_addi(a1, a1, -1);
+
+  __ bind(&C);
+  __ RV_bgtz(a1, &L);
+  __ RV_jr(ra);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  int64_t res = reinterpret_cast<int64_t>(f.Call(100, 0, 0, 0, 0));
+  CHECK_EQ(5050, res);
+}
+
 #undef __
 
 }  // namespace internal

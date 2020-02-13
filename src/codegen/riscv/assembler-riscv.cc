@@ -2167,6 +2167,15 @@ void Assembler::RV_nop() { RV_addi(ToRegister(0), ToRegister(0), 0); }
 
 void Assembler::RV_jr(Register rs) { RV_jalr(ToRegister(0), rs, 0); }
 
+void Assembler::RV_mv(Register rd, Register rs) { RV_addi(rd, rs, 0); }
+void Assembler::RV_li(Register rd, int16_t imm12) {
+  RV_addi(rd, ToRegister(0), imm12);
+}
+void Assembler::RV_j(int32_t imm20) { RV_jal(ToRegister(0), imm20); }
+void Assembler::RV_bgtz(Register rs, int16_t imm12) {
+  RV_blt(ToRegister(0), rs, imm12);
+}
+
 // Original MIPS Instructions
 
 void Assembler::addu(Register rd, Register rs, Register rt) {
