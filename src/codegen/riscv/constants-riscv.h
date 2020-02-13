@@ -1650,8 +1650,9 @@ class InstructionGetters : public T {
   }
 
   inline int BranchOffset() const {
+    DCHECK(this->InstructionType() == InstructionBase::kBType);
     // | imm[12|10:5] | rs2 | rs1 | funct3 | imm[4:1|11] | opcode |
-    // 31             25                   11            7
+    //  31          25                      11          7
     uint32_t Bits = this->InstructionBits();
     int16_t imm12 = ((Bits & 0xf00) >> 7) | ((Bits & 0x7e000000) >> 20) |
                     ((Bits & 0x80) << 4) | ((Bits & 0x80000000) >> 19);
@@ -1659,11 +1660,30 @@ class InstructionGetters : public T {
   }
 
   inline int StoreOffset() const {
+    DCHECK(this->InstructionType() == InstructionBase::kSType);
     // | imm[11:5] | rs2 | rs1 | funct3 | imm[4:0] | opcode |
-    // 31          25                   11         7
+    //  31       25                      11       7
     uint32_t Bits = this->InstructionBits();
     int16_t imm12 = ((Bits & 0xf80) >> 7) | ((Bits & 0xfe000000) >> 20);
     return imm12 << 20 >> 20;
+  }
+
+  inline int Imm20UValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kUType);
+    // | imm[31:12] | rd | opcode |
+    //  31        12
+    int32_t Bits = this->InstructionBits();
+    return Bits >> 12 << 12;
+  }
+
+  inline int Imm20JValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kUType);
+    // | imm[20|10:1|11|19:12] | rd | opcode |
+    //  31                   12
+    uint32_t Bits = this->InstructionBits();
+    int32_t imm20 = ((Bits & 0x7fe00000) >> 20) | ((Bits & 0x100000) >> 9) |
+                    (Bits & 0xff000) | ((Bits & 0x80000000) >> 11);
+    return imm20 << 11 >> 11;
   }
 
   // Original MIPS methods

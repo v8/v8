@@ -1151,10 +1151,10 @@ void Assembler::GenInstrU(Opcode opcode, Register rd, int32_t imm20) {
 void Assembler::GenInstrJ(Opcode opcode, Register rd, int32_t imm20) {
   DCHECK(rd.is_valid() && is_int20(imm20));
   Instr instr = opcode | (rd.code() << RV_kRdShift) |
-                ((imm20 & 0x7f800) << 12) |  // bits 18-11
-                ((imm20 & 0x400) << 20) |    // bit  10
-                ((imm20 & 0x3ff) << 21) |    // bits 9-0
-                ((imm20 & 0x8000) << 31);    // bit  19
+                (imm20 & 0xff000) |          // bits 19-12
+                ((imm20 & 0x800) << 9) |     // bit  11
+                ((imm20 & 0x7fe) << 20) |    // bits 10-1
+                ((imm20 & 0x100000) << 11);  // bit  20
   emit(instr);
 }
 
