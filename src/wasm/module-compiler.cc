@@ -1547,6 +1547,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   std::unique_ptr<CompilationUnitBuilder> compilation_unit_builder_;
   int num_functions_ = 0;
   bool prefix_cache_hit_ = false;
+  bool before_code_section_ = true;
   std::shared_ptr<Counters> async_counters_;
   AccountingAllocator* allocator_;
 
@@ -2178,7 +2179,8 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
     // compilation_unit_builder_ anymore.
     CommitCompilationUnits();
     compilation_unit_builder_.reset();
-  } else if (!prefix_cache_hit_) {
+  }
+  if (before_code_section_) {
     // Combine section hashes until code section.
     prefix_hash_ = base::hash_combine(prefix_hash_,
                                       NativeModuleCache::WireBytesHash(bytes));
@@ -2209,6 +2211,7 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
     int num_functions, uint32_t offset,
     std::shared_ptr<WireBytesStorage> wire_bytes_storage,
     int code_section_length) {
+  before_code_section_ = false;
   DCHECK_GE(code_section_length, 0);
   TRACE_STREAMING("Start the code section with %d functions...\n",
                   num_functions);
