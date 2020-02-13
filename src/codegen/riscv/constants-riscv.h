@@ -462,10 +462,49 @@ enum Opcode : uint32_t {
   SYSTEM = 0b1110011,   // I form: ECALL EBREAK Zicsr ext
 
   // Note use RO (RiscV Opcode) prefix
-  // Need list all instructions' Opcode bits for decoding
-  RO_ADD = OP | (0b000 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
-  RO_JALR = RV_JALR | (0b000 < kFunct3Shift),
+  // RV32I Base Instruction Set
+  RO_LUI = RV_LUI,
+  RO_AUIPC = RV_AUIPC,
   RO_JAL = RV_JAL,
+  RO_JALR = RV_JALR | (0b000 << kFunct3Shift),
+  RO_BEQ = BRANCH | (0b000 << kFunct3Shift),
+  RO_BNE = BRANCH | (0b001 << kFunct3Shift),
+  RO_BLT = BRANCH | (0b100 << kFunct3Shift),
+  RO_BGE = BRANCH | (0b101 << kFunct3Shift),
+  RO_BLTU = BRANCH | (0b110 << kFunct3Shift),
+  RO_BGEU = BRANCH | (0b111 << kFunct3Shift),
+  RO_LB = LOAD | (0b000 << kFunct3Shift),
+  RO_LH = LOAD | (0b001 << kFunct3Shift),
+  RO_LW = LOAD | (0b010 << kFunct3Shift),
+  RO_LBU = LOAD | (0b100 << kFunct3Shift),
+  RO_LHU = LOAD | (0b101 << kFunct3Shift),
+  RO_SB = STORE | (0b000 << kFunct3Shift),
+  RO_SH = STORE | (0b001 << kFunct3Shift),
+  RO_SW = STORE | (0b010 << kFunct3Shift),
+  RO_ADDI = OP_IMM | (0b000 << kFunct3Shift),
+  RO_SLTI = OP_IMM | (0b010 << kFunct3Shift),
+  RO_SLTIU = OP_IMM | (0b011 << kFunct3Shift),
+  RO_XORI = OP_IMM | (0b100 << kFunct3Shift),
+  RO_ORI = OP_IMM | (0b110 << kFunct3Shift),
+  RO_ANDI = OP_IMM | (0b111 << kFunct3Shift),
+  RO_SLLI = OP_IMM | (0b001 << kFunct3Shift),
+  RO_SRLI = OP_IMM | (0b101 << kFunct3Shift),
+  // RO_SRAI = OP_IMM | (0b101 << kFunct3Shift), // Same as SRLI, use func7
+  RO_ADD = OP | (0b000 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SUB = OP | (0b000 << kFunct3Shift) | (0b0100000 << kFunct7Shift),
+  RO_SLL = OP | (0b001 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SLT = OP | (0b010 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SLTU = OP | (0b011 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_XOR = OP | (0b100 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SRL = OP | (0b101 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SRA = OP | (0b101 << kFunct3Shift) | (0b0100000 << kFunct7Shift),
+  RO_OR = OP | (0b110 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_AND = OP | (0b111 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_FENCE = MISC_MEM | (0b000 << kFunct3Shift),
+  RO_ECALL = SYSTEM | (0b000 << kFunct3Shift),
+  // RO_EBREAK = SYSTEM | (0b000 << kFunct3Shift), // Same as ECALL, use imm12
+
+  // RV64I Base Instruction Set (in addition to RV32I)
 
   // Original MIPS opcodes
   SPECIAL = 0U << kOpcodeShift,
@@ -1615,7 +1654,7 @@ class InstructionGetters : public T {
     // 31             25                   11            7
     uint32_t Bits = this->InstructionBits();
     int16_t imm12 = ((Bits & 0xf00) >> 7) | ((Bits & 0x7e000000) >> 20) |
-           ((Bits & 0x80) << 4) | ((Bits & 0x80000000) >> 19);
+                    ((Bits & 0x80) << 4) | ((Bits & 0x80000000) >> 19);
     return imm12 << 20 >> 20;
   }
 

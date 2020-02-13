@@ -45,6 +45,25 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
+// Utility types and functions for RISCV
+#ifdef V8_TARGET_ARCH_32_BIT
+using sreg_t = int32_t;
+using reg_t = uint32_t;
+#define xlen 32
+#elif V8_TARGET_ARCH_64_BIT
+using sreg_t = int64_t;
+using reg_t = uint64_t;
+#define xlen 64
+#else
+#error "Cannot detect Riscv's bitwidth"
+#endif
+
+#define sext32(x) ((sreg_t)(int32_t)(x))
+#define zext32(x) ((reg_t)(uint32_t)(x))
+#define sext_xlen(x) (((sreg_t)(x) << (64 - xlen)) >> (64 - xlen))
+#define zext_xlen(x) (((reg_t)(x) << (64 - xlen)) >> (64 - xlen))
+
+// -----------------------------------------------------------------------------
 // Utility functions
 
 class CachePage {
@@ -497,7 +516,7 @@ class Simulator : public SimulatorBase {
   inline int32_t rs2_reg() const { return instr_.Rs2Value(); }
   inline int64_t rs2() const { return get_register(rs2_reg()); }
   inline int32_t RV_rd_reg() const { return instr_.RV_RdValue(); }
-  inline uint16_t imm12() const { return instr_.Imm12Value(); }
+  inline int16_t imm12() const { return instr_.Imm12Value(); }
 
   inline void SetResult(const int32_t rd_reg, const int64_t alu_out) {
     set_register(rd_reg, alu_out);

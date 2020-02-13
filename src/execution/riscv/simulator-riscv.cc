@@ -7274,21 +7274,179 @@ void Simulator::DecodeRVRType() {
       set_register(RV_rd_reg(), rs1() + rs2());
       break;
     }
+    case RO_SUB: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_SLL: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_SLT: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_SLTU: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_XOR: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_SRL: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_SRA: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_OR: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_AND: {
+      UNSUPPORTED();
+      break;
+    }
     default:
       UNSUPPORTED();
   }
 }
 
+void Simulator::DecodeRVR4Type() { UNSUPPORTED(); }
+
 void Simulator::DecodeRVIType() {
   switch (instr_.InstructionBits() & kITypeMask) {
     case RO_JALR: {
-      set_register(RV_rd_reg(), get_pc() + 4);
-      int64_t next_pc = rs1() + (int16_t)imm12();
-      next_pc =
-          (next_pc & 1) ? next_pc - 1 : next_pc;  // set lest significant bit 0
+      set_register(RV_rd_reg(), get_pc());
+      int64_t next_pc = (rs1() + imm12()) & ~reg_t(1);
       set_pc(next_pc);
       break;
     }
+    case RO_LB:
+      UNSUPPORTED();
+      break;
+    case RO_LH:
+      UNSUPPORTED();
+      break;
+    case RO_LW:
+      UNSUPPORTED();
+      break;
+    case RO_LBU:
+      UNSUPPORTED();
+      break;
+    case RO_LHU:
+      UNSUPPORTED();
+      break;
+    case RO_ADDI:
+      UNSUPPORTED();
+      break;
+    case RO_SLTI:
+      UNSUPPORTED();
+      break;
+    case RO_SLTIU:
+      UNSUPPORTED();
+      break;
+    case RO_XORI:
+      UNSUPPORTED();
+      break;
+    case RO_ORI:
+      UNSUPPORTED();
+      break;
+    case RO_ANDI:
+      UNSUPPORTED();
+      break;
+    case RO_SLLI:
+      UNSUPPORTED();
+      break;
+    case RO_SRLI: {  //  RO_SRAI
+      if (instr_.Funct7Value() == 0b0000000) {
+        // SRLI
+      } else if (instr_.Funct7Value() == 0b0000000) {
+        // SRAI
+      } else {
+        UNSUPPORTED();
+      }
+      UNSUPPORTED();
+      break;
+    }
+    case RO_ECALL: {  // RO_EBREAK
+      if (instr_.Imm12Value() == 0) {
+        // ECALL
+      } else if (instr_.Imm12Value() == 1) {
+        // EBREAK
+      } else {
+        UNSUPPORTED();
+      }
+      UNSUPPORTED();
+      break;
+    }
+    default:
+      UNSUPPORTED();
+  }
+}
+
+void Simulator::DecodeRVSType() {
+  switch (instr_.InstructionBits() & kSTypeMask) {
+    case RO_SB:
+      UNSUPPORTED();
+      break;
+    case RO_SH:
+      UNSUPPORTED();
+      break;
+    case RO_SW:
+      UNSUPPORTED();
+      break;
+    default:
+      UNSUPPORTED();
+  }
+}
+
+void Simulator::DecodeRVBType() {
+  switch (instr_.InstructionBits() & kBTypeMask) {
+    case RO_BEQ:
+      UNSUPPORTED();
+      break;
+    case RO_BNE:
+      UNSUPPORTED();
+      break;
+    case RO_BLT:
+      UNSUPPORTED();
+      break;
+    case RO_BGE:
+      UNSUPPORTED();
+      break;
+    case RO_BLTU:
+      UNSUPPORTED();
+      break;
+    case RO_BGEU:
+      UNSUPPORTED();
+      break;
+    default:
+      UNSUPPORTED();
+  }
+}
+void Simulator::DecodeRVUType() {
+  // U Type doesn't have additoinal mask
+  switch (instr_.BaseOpcodeFieldRaw()) {
+    case RO_LUI:
+      UNSUPPORTED();
+      break;
+    case RO_AUIPC:
+      UNSUPPORTED();
+      break;
+    default:
+      UNSUPPORTED();
+  }
+}
+void Simulator::DecodeRVJType() {
+  // J Type doesn't have additional mask
+  switch (instr_.BaseOpcodeValue()) {
+    case RO_JAL:
+      UNSUPPORTED();
+      break;
     default:
       UNSUPPORTED();
   }
@@ -7319,16 +7477,22 @@ void Simulator::InstructionDecode(Instruction* instr) {
       DecodeRVRType();
       break;
     case Instruction::kR4Type:
-      UNSUPPORTED();
+      DecodeRVR4Type();
       break;
     case Instruction::kIType:
       DecodeRVIType();
       break;
     case Instruction::kSType:
+      DecodeRVSType();
+      break;
     case Instruction::kBType:
+      DecodeRVBType();
+      break;
     case Instruction::kUType:
+      DecodeRVUType();
+      break;
     case Instruction::kJType:
-      UNSUPPORTED();
+      DecodeRVJType();
       break;
     // Original MIPS decoding
     case Instruction::kRegisterType:
