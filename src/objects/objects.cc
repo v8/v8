@@ -33,6 +33,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/microtask-queue.h"
+#include "src/execution/off-thread-isolate.h"
 #include "src/execution/protectors-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
@@ -5332,8 +5333,9 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
 }
 
 // static
+template <typename Isolate>
 void SharedFunctionInfo::InitFromFunctionLiteral(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    Isolate* isolate, HandleFor<Isolate, SharedFunctionInfo> shared_info,
     FunctionLiteral* lit, bool is_toplevel) {
   DCHECK(!shared_info->name_or_scope_info().IsScopeInfo());
 
@@ -5387,12 +5389,12 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_is_safe_to_skip_arguments_adaptor(false);
   shared_info->UpdateExpectedNofPropertiesFromEstimate(lit);
 
-  Handle<UncompiledData> data;
+  HandleFor<Isolate, UncompiledData> data;
 
   ProducedPreparseData* scope_data = lit->produced_preparse_data();
   if (scope_data != nullptr) {
-    Handle<PreparseData> preparse_data =
-        scope_data->Serialize(shared_info->GetIsolate());
+    HandleFor<Isolate, PreparseData> preparse_data =
+        scope_data->Serialize(isolate);
 
     data = isolate->factory()->NewUncompiledDataWithPreparseData(
         lit->GetInferredName(isolate), lit->start_position(),
@@ -5405,6 +5407,16 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
 
   shared_info->set_uncompiled_data(*data);
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
+    InitFromFunctionLiteral<Isolate>(Isolate* isolate,
+                                     Handle<SharedFunctionInfo> shared_info,
+                                     FunctionLiteral* lit, bool is_toplevel);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
+    InitFromFunctionLiteral<OffThreadIsolate>(
+        OffThreadIsolate* isolate,
+        OffThreadHandle<SharedFunctionInfo> shared_info, FunctionLiteral* lit,
+        bool is_toplevel);
 
 uint16_t SharedFunctionInfo::get_property_estimate_from_literal(
     FunctionLiteral* literal) {

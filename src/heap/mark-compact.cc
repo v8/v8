@@ -2217,7 +2217,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
   // Initialize the uncompiled data.
   UncompiledData uncompiled_data = UncompiledData::cast(compiled_data);
-  uncompiled_data.Init(
+  uncompiled_data.InitAfterBytecodeFlush(
       inferred_name, start_position, end_position,
       [](HeapObject object, ObjectSlot slot, HeapObject target) {
         RecordSlot(object, slot, target);
