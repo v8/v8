@@ -3742,7 +3742,38 @@ LoadKind GetLoadKind(MachineGraph* mcgraph, MachineType memtype,
 }
 }  // namespace
 
-Node* WasmGraphBuilder::LoadTransform(MachineType memtype,
+#if defined(V8_TARGET_BIG_ENDIAN)
+Node* WasmGraphBuilder::LoadTransformBigEndian(
+    MachineType memtype, wasm::LoadTransformationKind transform, Node* value) {
+  Node* result;
+  LoadTransformation transformation = GetLoadTransformation(memtype, transform);
+
+  switch (transformation) {
+    case LoadTransformation::kS8x16LoadSplat: {
+      result = graph()->NewNode(mcgraph()->machine()->I8x16Splat(), value);
+      break;
+    }
+    case LoadTransformation::kS16x8LoadSplat: {
+      result = graph()->NewNode(mcgraph()->machine()->I16x8Splat(), value);
+      break;
+    }
+    case LoadTransformation::kS32x4LoadSplat: {
+      result = graph()->NewNode(mcgraph()->machine()->I32x4Splat(), value);
+      break;
+    }
+    case LoadTransformation::kS64x2LoadSplat: {
+      result = graph()->NewNode(mcgraph()->machine()->I64x2Splat(), value);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+
+  return result;
+}
+#endif
+
+Node* WasmGraphBuilder::LoadTransform(wasm::ValueType type, MachineType memtype,
                                       wasm::LoadTransformationKind transform,
                                       Node* index, uint32_t offset,
                                       uint32_t alignment,
@@ -3751,6 +3782,16 @@ Node* WasmGraphBuilder::LoadTransform(MachineType memtype,
     has_simd_ = true;
   }
 
+  Node* load;
+
+#if defined(V8_TARGET_BIG_ENDIAN)
+  // LoadTransform cannot efficiently be executed on BE machines as a
+  // single operation since loaded bytes need to be reversed first,
+  // therefore we divide them into separate "load" and "operation" nodes.
+  load = LoadMem(type, memtype, index, offset, alignment, position);
+  load = LoadTransformBigEndian(memtype, transform, load);
+  USE(GetLoadKind);
+#else
   // Wasm semantics throw on OOB. Introduce explicit bounds check and
   // conditioning when not using the trap handler.
   index = BoundsCheckMem(wasm::ValueTypes::MemSize(memtype), index, offset,
@@ -3759,16 +3800,13 @@ Node* WasmGraphBuilder::LoadTransform(MachineType memtype,
   LoadTransformation transformation = GetLoadTransformation(memtype, transform);
   LoadKind load_kind = GetLoadKind(mcgraph(), memtype, use_trap_handler());
 
-  Node* load = SetEffect(graph()->NewNode(
+  load = SetEffect(graph()->NewNode(
       mcgraph()->machine()->LoadTransform(load_kind, transformation),
       MemBuffer(offset), index, effect(), control()));
 
   if (load_kind == LoadKind::kProtected) {
     SetSourcePosition(load, position);
   }
-
-#if defined(V8_TARGET_BIG_ENDIAN)
-  load = BuildChangeEndiannessLoad(load, memtype, wasm::ValueType::kWasmS128);
 #endif
 
   if (FLAG_trace_wasm_memory) {

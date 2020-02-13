@@ -283,7 +283,12 @@ class WasmGraphBuilder {
   Node* LoadMem(wasm::ValueType type, MachineType memtype, Node* index,
                 uint32_t offset, uint32_t alignment,
                 wasm::WasmCodePosition position);
-  Node* LoadTransform(MachineType memtype,
+#if defined(V8_TARGET_BIG_ENDIAN)
+  Node* LoadTransformBigEndian(MachineType memtype,
+                               wasm::LoadTransformationKind transform,
+                               Node* value);
+#endif
+  Node* LoadTransform(wasm::ValueType type, MachineType memtype,
                       wasm::LoadTransformationKind transform, Node* index,
                       uint32_t offset, uint32_t alignment,
                       wasm::WasmCodePosition position);

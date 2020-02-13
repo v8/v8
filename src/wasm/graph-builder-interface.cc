@@ -397,8 +397,9 @@ class WasmGraphBuildingInterface {
                      LoadTransformationKind transform,
                      const MemoryAccessImmediate<validate>& imm,
                      const Value& index, Value* result) {
-    result->node = BUILD(LoadTransform, type.mem_type(), transform, index.node,
-                         imm.offset, imm.alignment, decoder->position());
+    result->node =
+        BUILD(LoadTransform, type.value_type(), type.mem_type(), transform,
+              index.node, imm.offset, imm.alignment, decoder->position());
   }
 
   void StoreMem(FullDecoder* decoder, StoreType type,
