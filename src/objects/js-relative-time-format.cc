@@ -132,10 +132,6 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
     icu_locale.setUnicodeKeywordValue("nu", numbering_system_str.get(), status);
     CHECK(U_SUCCESS(status));
   }
-  Handle<String> numbering_system_string =
-      isolate->factory()->NewStringFromAsciiChecked(
-          Intl::GetNumberingSystem(icu_locale).c_str());
-
   // 15. Let dataLocale be r.[[DataLocale]].
 
   // 16. Let s be ? GetOption(options, "style", "string",
@@ -165,7 +161,21 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
       icu::NumberFormat::createInstance(icu_locale, UNUM_DECIMAL, status);
   if (U_FAILURE(status)) {
     delete number_format;
-    FATAL("Failed to create ICU number format, are ICU data files missing?");
+    // Data build filter files excluded data in "rbnf_tree" since ECMA402 does
+    // not support "algorithmic" numbering systems. Therefore we may get the
+    // U_MISSING_RESOURCE_ERROR here. Fallback to locale without the numbering
+    // system and create the object again.
+    if (status == U_MISSING_RESOURCE_ERROR) {
+      status = U_ZERO_ERROR;
+      icu_locale.setUnicodeKeywordValue("nu", nullptr, status);
+      CHECK(U_SUCCESS(status));
+      number_format =
+          icu::NumberFormat::createInstance(icu_locale, UNUM_DECIMAL, status);
+    }
+    if (U_FAILURE(status)) {
+      delete number_format;
+      FATAL("Failed to create ICU number format, are ICU data files missing?");
+    }
   }
   CHECK_NOT_NULL(number_format);
 
@@ -191,6 +201,11 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   Handle<JSRelativeTimeFormat> relative_time_format_holder =
       Handle<JSRelativeTimeFormat>::cast(
           isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+
+  Handle<String> numbering_system_string =
+      isolate->factory()->NewStringFromAsciiChecked(
+          Intl::GetNumberingSystem(icu_locale).c_str());
+
   DisallowHeapAllocation no_gc;
   relative_time_format_holder->set_flags(0);
   relative_time_format_holder->set_locale(*locale_str);
