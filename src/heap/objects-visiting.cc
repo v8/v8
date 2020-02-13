@@ -197,7 +197,9 @@ struct WeakListVisitor<JSFinalizationGroup> {
 
   static int WeakNextOffset() { return JSFinalizationGroup::kNextDirtyOffset; }
 
-  static void VisitLiveObject(Heap*, JSFinalizationGroup, WeakObjectRetainer*) {
+  static void VisitLiveObject(Heap* heap, JSFinalizationGroup obj,
+                              WeakObjectRetainer*) {
+    heap->set_dirty_js_finalization_groups_list_tail(obj);
   }
 
   static void VisitPhantomObject(Heap*, JSFinalizationGroup) {}

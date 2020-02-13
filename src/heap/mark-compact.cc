@@ -2497,8 +2497,8 @@ void MarkCompactCollector::ClearJSWeakRefs() {
       JSFinalizationGroup finalization_group =
           JSFinalizationGroup::cast(weak_cell.finalization_group());
       if (!finalization_group.scheduled_for_cleanup()) {
-        heap()->AddDirtyJSFinalizationGroup(finalization_group,
-                                            gc_notify_updated_slot);
+        heap()->EnqueueDirtyJSFinalizationGroup(finalization_group,
+                                                gc_notify_updated_slot);
       }
       // We're modifying the pointers in WeakCell and JSFinalizationGroup during
       // GC; thus we need to record the slots it writes. The normal write

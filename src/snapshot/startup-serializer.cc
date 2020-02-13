@@ -169,6 +169,14 @@ void StartupSerializer::SerializeUsingPartialSnapshotCache(
   sink->PutInt(cache_index, "partial_snapshot_cache_index");
 }
 
+void StartupSerializer::CheckNoDirtyFinalizationGroups() {
+  Isolate* isolate = this->isolate();
+  CHECK(isolate->heap()->dirty_js_finalization_groups_list().IsUndefined(
+      isolate));
+  CHECK(isolate->heap()->dirty_js_finalization_groups_list_tail().IsUndefined(
+      isolate));
+}
+
 void SerializedHandleChecker::AddToSet(FixedArray serialized) {
   int length = serialized.length();
   for (int i = 0; i < length; i++) serialized_.insert(serialized.get(i));

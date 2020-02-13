@@ -508,6 +508,12 @@ class Heap {
   Object dirty_js_finalization_groups_list() {
     return dirty_js_finalization_groups_list_;
   }
+  void set_dirty_js_finalization_groups_list_tail(Object object) {
+    dirty_js_finalization_groups_list_tail_ = object;
+  }
+  Object dirty_js_finalization_groups_list_tail() {
+    return dirty_js_finalization_groups_list_tail_;
+  }
 
   // Used in CreateAllocationSiteStub and the (de)serializer.
   Address allocation_sites_list_address() {
@@ -807,14 +813,12 @@ class Heap {
   // See also: FLAG_interpreted_frames_native_stack.
   void SetInterpreterEntryTrampolineForProfiling(Code code);
 
-  // Add finalization_group to the end of the dirty_js_finalization_groups list.
-  void AddDirtyJSFinalizationGroup(
+  void EnqueueDirtyJSFinalizationGroup(
       JSFinalizationGroup finalization_group,
       std::function<void(HeapObject object, ObjectSlot slot, Object target)>
           gc_notify_updated_slot);
 
-  // Pop and return the head of the dirty_js_finalization_groups list.
-  MaybeHandle<JSFinalizationGroup> TakeOneDirtyJSFinalizationGroup();
+  MaybeHandle<JSFinalizationGroup> DequeueDirtyJSFinalizationGroup();
 
   // Called from Heap::NotifyContextDisposed to remove all FinalizationGroups
   // with {context} from the dirty list when the context e.g. navigates away or
@@ -2050,6 +2054,8 @@ class Heap {
   Object native_contexts_list_;
   Object allocation_sites_list_;
   Object dirty_js_finalization_groups_list_;
+  // Weak list tails.
+  Object dirty_js_finalization_groups_list_tail_;
 
   std::vector<GCCallbackTuple> gc_epilogue_callbacks_;
   std::vector<GCCallbackTuple> gc_prologue_callbacks_;

@@ -47,7 +47,7 @@ void FinalizationGroupCleanupTask::RunInternal() {
   Handle<JSFinalizationGroup> finalization_group;
   // There could be no dirty FinalizationGroups. When a context is disposed by
   // the embedder, its FinalizationGroups are removed from the dirty list.
-  if (!heap_->TakeOneDirtyJSFinalizationGroup().ToHandle(&finalization_group)) {
+  if (!heap_->DequeueDirtyJSFinalizationGroup().ToHandle(&finalization_group)) {
     return;
   }
   finalization_group->set_scheduled_for_cleanup(false);

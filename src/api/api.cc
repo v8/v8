@@ -884,6 +884,8 @@ StartupData SnapshotCreator::CreateBlob(
   startup_serializer.SerializeWeakReferencesAndDeferred();
   can_be_rehashed = can_be_rehashed && startup_serializer.can_be_rehashed();
 
+  startup_serializer.CheckNoDirtyFinalizationGroups();
+
   read_only_serializer.FinalizeSerialization();
   can_be_rehashed = can_be_rehashed && read_only_serializer.can_be_rehashed();
 
