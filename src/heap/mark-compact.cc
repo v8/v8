@@ -387,8 +387,9 @@ int NumberOfAvailableCores() {
 
 int MarkCompactCollectorBase::NumberOfParallelCompactionTasks(int pages) {
   DCHECK_GT(pages, 0);
-  int tasks =
-      FLAG_parallel_compaction ? Min(NumberOfAvailableCores(), pages) : 1;
+  int tasks = FLAG_parallel_compaction ? Min(NumberOfAvailableCores(),
+                                             pages / (MB / Page::kPageSize) + 1)
+                                       : 1;
   if (!heap_->CanExpandOldGeneration(
           static_cast<size_t>(tasks * Page::kPageSize))) {
     // Optimize for memory usage near the heap limit.
