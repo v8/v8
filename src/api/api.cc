@@ -6148,6 +6148,24 @@ void Context::SetAbortScriptExecution(
   }
 }
 
+Local<Value> Context::GetContinuationPreservedEmbedderData() const {
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
+  i::Handle<i::Object> data(
+      context->native_context().continuation_preserved_embedder_data(),
+      isolate);
+  return ToApiHandle<Object>(data);
+}
+
+void Context::SetContinuationPreservedEmbedderData(Local<Value> data) {
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
+  if (data.IsEmpty())
+    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  context->native_context().set_continuation_preserved_embedder_data(
+      *i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*data)));
+}
+
 namespace {
 i::Address* GetSerializedDataFromFixedArray(i::Isolate* isolate,
                                             i::FixedArray list, size_t index) {

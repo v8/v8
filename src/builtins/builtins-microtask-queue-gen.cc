@@ -223,6 +223,13 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     const TNode<HeapObject> promise_or_capability = CAST(LoadObjectField(
         microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset));
 
+    TNode<Object> preserved_embedder_data = LoadObjectField(
+        microtask,
+        PromiseReactionJobTask::kContinuationPreservedEmbedderDataOffset);
+    StoreContextElement(native_context,
+                        Context::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX,
+                        preserved_embedder_data);
+
     // Run the promise before/debug hook if enabled.
     RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
                    promise_or_capability);
@@ -236,6 +243,10 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // Run the promise after/debug hook if enabled.
     RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
                    promise_or_capability);
+
+    StoreContextElement(native_context,
+                        Context::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX,
+                        UndefinedConstant());
 
     RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
@@ -257,6 +268,13 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     const TNode<HeapObject> promise_or_capability = CAST(LoadObjectField(
         microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset));
 
+    TNode<Object> preserved_embedder_data = LoadObjectField(
+        microtask,
+        PromiseReactionJobTask::kContinuationPreservedEmbedderDataOffset);
+    StoreContextElement(native_context,
+                        Context::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX,
+                        preserved_embedder_data);
+
     // Run the promise before/debug hook if enabled.
     RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
                    promise_or_capability);
@@ -270,6 +288,10 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // Run the promise after/debug hook if enabled.
     RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
                    promise_or_capability);
+
+    StoreContextElement(native_context,
+                        Context::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX,
+                        UndefinedConstant());
 
     RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
