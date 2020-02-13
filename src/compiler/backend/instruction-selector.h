@@ -351,6 +351,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       size_t input_count, InstructionOperand* inputs, size_t temp_count,
       InstructionOperand* temps, FlagsContinuation* cont);
 
+  void EmitIdentity(Node* node);
+
   // ===========================================================================
   // ===== Architecture-independent deoptimization exit emission methods. ======
   // ===========================================================================
@@ -655,7 +657,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void EmitPrepareResults(ZoneVector<compiler::PushParameter>* results,
                           const CallDescriptor* call_descriptor, Node* node);
 
-  void EmitIdentity(Node* node);
   bool CanProduceSignalingNaN(Node* node);
 
   // ===========================================================================

@@ -494,6 +494,45 @@ void EmitMaybePoisonedFPLoad(CodeGenerator* codegen, InstructionCode opcode,
     __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 1); \
   } while (0)
 
+// If shift value is an immediate, we can call asm_imm, taking the shift value
+// modulo 2^width. Otherwise, emit code to perform the modulus operation, and
+// call asm_shl.
+#define ASSEMBLE_SIMD_SHIFT_LEFT(asm_imm, width, format, asm_shl, gp)       \
+  do {                                                                      \
+    if (instr->InputAt(1)->IsImmediate()) {                                 \
+      __ asm_imm(i.OutputSimd128Register().format(),                        \
+                 i.InputSimd128Register(0).format(), i.InputInt##width(1)); \
+    } else {                                                                \
+      VRegister tmp = i.TempSimd128Register(0);                             \
+      Register shift = i.TempRegister(1).gp();                              \
+      constexpr int mask = (1 << width) - 1;                                \
+      __ And(shift, i.InputRegister32(1), mask);                            \
+      __ Dup(tmp.format(), shift);                                          \
+      __ asm_shl(i.OutputSimd128Register().format(),                        \
+                 i.InputSimd128Register(0).format(), tmp.format());         \
+    }                                                                       \
+  } while (0)
+
+// If shift value is an immediate, we can call asm_imm, taking the shift value
+// modulo 2^width. Otherwise, emit code to perform the modulus operation, and
+// call asm_shl, passing in the negative shift value (treated as right shift).
+#define ASSEMBLE_SIMD_SHIFT_RIGHT(asm_imm, width, format, asm_shl, gp)      \
+  do {                                                                      \
+    if (instr->InputAt(1)->IsImmediate()) {                                 \
+      __ asm_imm(i.OutputSimd128Register().format(),                        \
+                 i.InputSimd128Register(0).format(), i.InputInt##width(1)); \
+    } else {                                                                \
+      VRegister tmp = i.TempSimd128Register(0);                             \
+      Register shift = i.TempRegister(1).gp();                              \
+      constexpr int mask = (1 << width) - 1;                                \
+      __ And(shift, i.InputRegister32(1), mask);                            \
+      __ Dup(tmp.format(), shift);                                          \
+      __ Neg(tmp.format(), tmp.format());                                   \
+      __ asm_shl(i.OutputSimd128Register().format(),                        \
+                 i.InputSimd128Register(0).format(), tmp.format());         \
+    }                                                                       \
+  } while (0)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ Mov(sp, fp);
   __ Pop<TurboAssembler::kAuthLR>(fp, lr);
@@ -1946,24 +1985,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
       SIMD_UNOP_CASE(kArm64I64x2Neg, Neg, 2D);
     case kArm64I64x2Shl: {
-      VRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister(1);
-      // Take shift value modulo 64.
-      __ And(shift, i.InputRegister64(1), 63);
-      __ Dup(tmp.V2D(), shift);
-      __ Sshl(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).V2D(),
-              tmp.V2D());
+      ASSEMBLE_SIMD_SHIFT_LEFT(Shl, 6, V2D, Sshl, X);
       break;
     }
     case kArm64I64x2ShrS: {
-      VRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister(1);
-      // Take shift value modulo 64.
-      __ And(shift, i.InputRegister64(1), 63);
-      __ Dup(tmp.V2D(), shift);
-      __ Neg(tmp.V2D(), tmp.V2D());
-      __ Sshl(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).V2D(),
-              tmp.V2D());
+      ASSEMBLE_SIMD_SHIFT_RIGHT(Sshr, 6, V2D, Sshl, X);
       break;
     }
       SIMD_BINOP_CASE(kArm64I64x2Add, Add, 2D);
@@ -2038,14 +2064,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I64x2GtS, Cmgt, 2D);
       SIMD_BINOP_CASE(kArm64I64x2GeS, Cmge, 2D);
     case kArm64I64x2ShrU: {
-      VRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister(1);
-      // Take shift value modulo 64.
-      __ And(shift, i.InputRegister64(1), 63);
-      __ Dup(tmp.V2D(), shift);
-      __ Neg(tmp.V2D(), tmp.V2D());
-      __ Ushl(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).V2D(),
-              tmp.V2D());
+      ASSEMBLE_SIMD_SHIFT_RIGHT(Ushr, 6, V2D, Ushl, X);
       break;
     }
       SIMD_BINOP_CASE(kArm64I64x2GtU, Cmhi, 2D);
@@ -2073,24 +2092,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_WIDENING_UNOP_CASE(kArm64I32x4SConvertI16x8High, Sxtl2, 4S, 8H);
       SIMD_UNOP_CASE(kArm64I32x4Neg, Neg, 4S);
     case kArm64I32x4Shl: {
-      VRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister32(1);
-      // Take shift value modulo 32.
-      __ And(shift, i.InputRegister32(1), 31);
-      __ Dup(tmp.V4S(), shift);
-      __ Sshl(i.OutputSimd128Register().V4S(), i.InputSimd128Register(0).V4S(),
-              tmp.V4S());
+      ASSEMBLE_SIMD_SHIFT_LEFT(Shl, 5, V4S, Sshl, W);
       break;
     }
     case kArm64I32x4ShrS: {
-      VRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister32(1);
-      // Take shift value modulo 32.
-      __ And(shift, i.InputRegister32(1), 31);
-      __ Dup(tmp.V4S(), shift);
-      __ Neg(tmp.V4S(), tmp.V4S());
-      __ Sshl(i.OutputSimd128Register().V4S(), i.InputSimd128Register(0).V4S(),
-              tmp.V4S());
+      ASSEMBLE_SIMD_SHIFT_RIGHT(Sshr, 5, V4S, Sshl, W);
       break;
     }
       SIMD_BINOP_CASE(kArm64I32x4Add, Add, 4S);
@@ -2113,14 +2119,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_WIDENING_UNOP_CASE(kArm64I32x4UConvertI16x8Low, Uxtl, 4S, 4H);
       SIMD_WIDENING_UNOP_CASE(kArm64I32x4UConvertI16x8High, Uxtl2, 4S, 8H);
     case kArm64I32x4ShrU: {
-      VRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister32(1);
-      // Take shift value modulo 32.
-      __ And(shift, i.InputRegister32(1), 31);
-      __ Dup(tmp.V4S(), shift);
-      __ Neg(tmp.V4S(), tmp.V4S());
-      __ Ushl(i.OutputSimd128Register().V4S(), i.InputSimd128Register(0).V4S(),
-              tmp.V4S());
+      ASSEMBLE_SIMD_SHIFT_RIGHT(Ushr, 5, V4S, Ushl, W);
       break;
     }
       SIMD_BINOP_CASE(kArm64I32x4MinU, Umin, 4S);
@@ -2154,24 +2153,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_WIDENING_UNOP_CASE(kArm64I16x8SConvertI8x16High, Sxtl2, 8H, 16B);
       SIMD_UNOP_CASE(kArm64I16x8Neg, Neg, 8H);
     case kArm64I16x8Shl: {
-      VRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister32(1);
-      // Take shift value modulo 16.
-      __ And(shift, i.InputRegister32(1), 15);
-      __ Dup(tmp.V8H(), shift);
-      __ Sshl(i.OutputSimd128Register().V8H(), i.InputSimd128Register(0).V8H(),
-              tmp.V8H());
+      ASSEMBLE_SIMD_SHIFT_LEFT(Shl, 4, V8H, Sshl, W);
       break;
     }
     case kArm64I16x8ShrS: {
-      VRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister32(1);
-      // Take shift value modulo 16.
-      __ And(shift, i.InputRegister32(1), 15);
-      __ Dup(tmp.V8H(), shift);
-      __ Neg(tmp.V8H(), tmp.V8H());
-      __ Sshl(i.OutputSimd128Register().V8H(), i.InputSimd128Register(0).V8H(),
-              tmp.V8H());
+      ASSEMBLE_SIMD_SHIFT_RIGHT(Sshr, 4, V8H, Sshl, W);
       break;
     }
     case kArm64I16x8SConvertI32x4: {
@@ -2216,14 +2202,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64I16x8ShrU: {
-      VRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister32(1);
-      // Take shift value modulo 16.
-      __ And(shift, i.InputRegister32(1), 15);
-      __ Dup(tmp.V8H(), shift);
-      __ Neg(tmp.V8H(), tmp.V8H());
-      __ Ushl(i.OutputSimd128Register().V8H(), i.InputSimd128Register(0).V8H(),
-              tmp.V8H());
+      ASSEMBLE_SIMD_SHIFT_RIGHT(Ushr, 4, V8H, Ushl, W);
       break;
     }
     case kArm64I16x8UConvertI32x4: {
@@ -2272,24 +2251,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
       SIMD_UNOP_CASE(kArm64I8x16Neg, Neg, 16B);
     case kArm64I8x16Shl: {
-      VRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister32(1);
-      // Take shift value modulo 8.
-      __ And(shift, i.InputRegister32(1), 7);
-      __ Dup(tmp.V16B(), shift);
-      __ Sshl(i.OutputSimd128Register().V16B(),
-              i.InputSimd128Register(0).V16B(), tmp.V16B());
+      ASSEMBLE_SIMD_SHIFT_LEFT(Shl, 3, V16B, Sshl, W);
       break;
     }
     case kArm64I8x16ShrS: {
-      VRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister32(1);
-      // Take shift value modulo 8.
-      __ And(shift, i.InputRegister32(1), 7);
-      __ Dup(tmp.V16B(), shift);
-      __ Neg(tmp.V16B(), tmp.V16B());
-      __ Sshl(i.OutputSimd128Register().V16B(),
-              i.InputSimd128Register(0).V16B(), tmp.V16B());
+      ASSEMBLE_SIMD_SHIFT_RIGHT(Sshr, 3, V16B, Sshl, W);
       break;
     }
     case kArm64I8x16SConvertI16x8: {
@@ -2324,14 +2290,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I8x16GtS, Cmgt, 16B);
       SIMD_BINOP_CASE(kArm64I8x16GeS, Cmge, 16B);
     case kArm64I8x16ShrU: {
-      VRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister32(1);
-      // Take shift value modulo 8.
-      __ And(shift, i.InputRegister32(1), 7);
-      __ Dup(tmp.V16B(), shift);
-      __ Neg(tmp.V16B(), tmp.V16B());
-      __ Ushl(i.OutputSimd128Register().V16B(),
-              i.InputSimd128Register(0).V16B(), tmp.V16B());
+      ASSEMBLE_SIMD_SHIFT_RIGHT(Ushr, 3, V16B, Ushl, W);
       break;
     }
     case kArm64I8x16UConvertI16x8: {
@@ -2566,6 +2525,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef SIMD_WIDENING_UNOP_CASE
 #undef SIMD_BINOP_CASE
 #undef SIMD_REDUCE_OP_CASE
+#undef ASSEMBLE_SIMD_SHIFT_LEFT
+#undef ASSEMBLE_SIMD_SHIFT_RIGHT
 
 // Assemble branches after this instruction.
 void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
