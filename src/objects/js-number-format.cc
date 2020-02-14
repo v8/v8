@@ -21,6 +21,7 @@
 #include "unicode/nounit.h"
 #include "unicode/numberformatter.h"
 #include "unicode/numfmt.h"
+#include "unicode/numsys.h"
 #include "unicode/ucurr.h"
 #include "unicode/uloc.h"
 #include "unicode/unumberformatter.h"
@@ -357,6 +358,21 @@ std::string CurrencyFromSkeleton(const icu::UnicodeString& skeleton) {
   return str.substr(index + search.size(), 3);
 }
 
+std::string NumberingSystemFromSkeleton(const icu::UnicodeString& skeleton) {
+  std::string str;
+  str = skeleton.toUTF8String<std::string>(str);
+  size_t index = str.find("latin");
+  if (index != str.npos) return "latn";
+  std::string search("numbering-system/");
+  index = str.find(search);
+  if (index == str.npos) return "";
+  size_t space_index = str.find(" ", index + search.size());
+  if (space_index != str.npos) {
+    space_index -= index + search.size();
+  }
+  return str.substr(index + search.size(), space_index);
+}
+
 // Return CurrencySign as string based on skeleton.
 Handle<String> CurrencySignString(Isolate* isolate,
                                   const icu::UnicodeString& skeleton) {
@@ -656,8 +672,7 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
   Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
 
   Handle<String> locale = Handle<String>(number_format->locale(), isolate);
-  Handle<String> numberingSystem =
-      Handle<String>(number_format->numberingSystem(), isolate);
+  std::string numberingSystem = NumberingSystemFromSkeleton(skeleton);
   // 5. For each row of Table 4, except the header row, in table order, do
   // Table 4: Resolved Options of NumberFormat Instances
   //  Internal Slot                    Property
@@ -676,9 +691,10 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
                                        factory->locale_string(), locale,
                                        Just(kDontThrow))
             .FromJust());
-  CHECK(JSReceiver::CreateDataProperty(isolate, options,
-                                       factory->numberingSystem_string(),
-                                       numberingSystem, Just(kDontThrow))
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->numberingSystem_string(),
+            factory->NewStringFromAsciiChecked(numberingSystem.c_str()),
+            Just(kDontThrow))
             .FromJust());
   JSNumberFormat::Style style = number_format->style();
   CHECK(JSReceiver::CreateDataProperty(
@@ -884,15 +900,20 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
     CHECK(U_SUCCESS(status));
   }
 
-  Handle<String> numberingSystem_str =
-      isolate->factory()->NewStringFromAsciiChecked(
-          Intl::GetNumberingSystem(icu_locale).c_str());
+  std::string numbering_system = Intl::GetNumberingSystem(icu_locale);
 
   // 11. Let dataLocale be r.[[dataLocale]].
 
   icu::number::LocalizedNumberFormatter icu_number_formatter =
       icu::number::NumberFormatter::withLocale(icu_locale)
           .roundingMode(UNUM_ROUND_HALFUP);
+
+  if (!numbering_system.empty()) {
+    icu_number_formatter = icu_number_formatter.adoptSymbols(
+        icu::NumberingSystem::createInstanceByName(numbering_system.c_str(),
+                                                   status));
+    CHECK(U_SUCCESS(status));
+  }
 
   // 3. Let style be ? GetOption(options, "style", "string",  « "decimal",
   // "percent", "currency", "unit" », "decimal").
@@ -1183,7 +1204,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   number_format->set_flags(0);
   number_format->set_style(style);
   number_format->set_locale(*locale_str);
-  number_format->set_numberingSystem(*numberingSystem_str);
 
   number_format->set_icu_number_formatter(*managed_number_formatter);
   number_format->set_bound_format(*factory->undefined_value());

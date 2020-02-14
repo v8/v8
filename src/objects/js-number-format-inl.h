@@ -21,7 +21,6 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(JSNumberFormat, JSObject)
 
 ACCESSORS(JSNumberFormat, locale, String, kLocaleOffset)
-ACCESSORS(JSNumberFormat, numberingSystem, String, kNumberingSystemOffset)
 ACCESSORS(JSNumberFormat, icu_number_formatter,
           Managed<icu::number::LocalizedNumberFormatter>,
           kIcuNumberFormatterOffset)

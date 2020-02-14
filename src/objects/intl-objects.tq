@@ -37,7 +37,6 @@ extern class JSListFormat extends JSObject {
 
 extern class JSNumberFormat extends JSObject {
   locale: String;
-  numberingSystem: String;
   icu_number_formatter:
       Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
   bound_format: JSFunction|Undefined;
