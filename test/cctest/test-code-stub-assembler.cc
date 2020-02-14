@@ -3624,7 +3624,7 @@ TEST(TestCallBuiltinInlineTrampoline) {
 
   const int kContextOffset = 2;
   Node* str = m.Parameter(0);
-  Node* context = m.Parameter(kNumParams + kContextOffset);
+  TNode<Context> context = m.CAST(m.Parameter(kNumParams + kContextOffset));
 
   TNode<Smi> index = m.SmiConstant(2);
 
@@ -3650,7 +3650,7 @@ DISABLED_TEST(TestCallBuiltinIndirectLoad) {
 
   const int kContextOffset = 2;
   Node* str = m.Parameter(0);
-  Node* context = m.Parameter(kNumParams + kContextOffset);
+  TNode<Context> context = m.CAST(m.Parameter(kNumParams + kContextOffset));
 
   TNode<Smi> index = m.SmiConstant(2);
 

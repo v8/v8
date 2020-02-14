@@ -950,15 +950,15 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Calls
   template <class... TArgs>
-  TNode<Object> CallRuntime(Runtime::FunctionId function,
-                            SloppyTNode<Object> context, TArgs... args) {
+  TNode<Object> CallRuntime(Runtime::FunctionId function, TNode<Object> context,
+                            TArgs... args) {
     return CallRuntimeImpl(function, context,
                            {implicit_cast<TNode<Object>>(args)...});
   }
 
   template <class... TArgs>
-  void TailCallRuntime(Runtime::FunctionId function,
-                       SloppyTNode<Object> context, TArgs... args) {
+  void TailCallRuntime(Runtime::FunctionId function, TNode<Object> context,
+                       TArgs... args) {
     int argc = static_cast<int>(sizeof...(args));
     TNode<Int32T> arity = Int32Constant(argc);
     return TailCallRuntimeImpl(function, arity, context,
@@ -967,7 +967,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   template <class... TArgs>
   void TailCallRuntime(Runtime::FunctionId function, TNode<Int32T> arity,
-                       SloppyTNode<Object> context, TArgs... args) {
+                       TNode<Object> context, TArgs... args) {
     return TailCallRuntimeImpl(function, arity, context,
                                {implicit_cast<TNode<Object>>(args)...});
   }
@@ -977,7 +977,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   //
 
   template <class T = Object, class... TArgs>
-  TNode<T> CallStub(Callable const& callable, SloppyTNode<Object> context,
+  TNode<T> CallStub(Callable const& callable, TNode<Object> context,
                     TArgs... args) {
     TNode<Code> target = HeapConstant(callable.code());
     return CallStub<T>(callable.descriptor(), target, context, args...);
@@ -985,8 +985,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   template <class T = Object, class... TArgs>
   TNode<T> CallStub(const CallInterfaceDescriptor& descriptor,
-                    SloppyTNode<Code> target, SloppyTNode<Object> context,
-                    TArgs... args) {
+                    TNode<Code> target, TNode<Object> context, TArgs... args) {
     return UncheckedCast<T>(CallStubR(StubCallMode::kCallCodeObject, descriptor,
                                       1, target, context, args...));
   }
@@ -994,8 +993,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   template <class... TArgs>
   Node* CallStubR(StubCallMode call_mode,
                   const CallInterfaceDescriptor& descriptor, size_t result_size,
-                  SloppyTNode<Object> target, SloppyTNode<Object> context,
-                  TArgs... args) {
+                  TNode<Object> target, TNode<Object> context, TArgs... args) {
     return CallStubRImpl(call_mode, descriptor, result_size, target, context,
                          {args...});
   }
@@ -1013,7 +1011,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
 
   template <class... TArgs>
-  void TailCallStub(Callable const& callable, SloppyTNode<Object> context,
+  void TailCallStub(Callable const& callable, TNode<Object> context,
                     TArgs... args) {
     TNode<Code> target = HeapConstant(callable.code());
     TailCallStub(callable.descriptor(), target, context, args...);
@@ -1021,8 +1019,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   template <class... TArgs>
   void TailCallStub(const CallInterfaceDescriptor& descriptor,
-                    SloppyTNode<Code> target, SloppyTNode<Object> context,
-                    TArgs... args) {
+                    TNode<Code> target, TNode<Object> context, TArgs... args) {
     TailCallStubImpl(descriptor, target, context, {args...});
   }
 
@@ -1054,7 +1051,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                        Node* receiver, TArgs... args) {
     int argc = static_cast<int>(sizeof...(args));
     TNode<Int32T> arity = Int32Constant(argc);
-    return CallStub(callable, context, function, arity, receiver, args...);
+    return CallStub(callable, CAST(context), function, arity, receiver,
+                    args...);
   }
 
   template <class... TArgs>
@@ -1065,8 +1063,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     TNode<Object> receiver = LoadRoot(RootIndex::kUndefinedValue);
 
     // Construct(target, new_target, arity, receiver, arguments...)
-    return CallStub(callable, context, target, new_target, arity, receiver,
-                    args...);
+    return CallStub(callable, CAST(context), target, new_target, arity,
+                    receiver, args...);
   }
   template <class... TArgs>
   Node* ConstructJS(Callable const& callable, Node* context, Node* new_target,
