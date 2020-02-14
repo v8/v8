@@ -250,7 +250,8 @@ bool Sweeper::AreSweeperTasksRunning() { return num_sweeping_tasks_ != 0; }
 int Sweeper::RawSweep(
     Page* p, FreeListRebuildingMode free_list_mode,
     FreeSpaceTreatmentMode free_space_mode,
-    FreeSpaceMayContainInvalidatedSlots invalidated_slots_in_free_space) {
+    FreeSpaceMayContainInvalidatedSlots invalidated_slots_in_free_space,
+    const base::MutexGuard& page_guard) {
   Space* space = p->owner();
   DCHECK_NOT_NULL(space);
   DCHECK(free_list_mode == IGNORE_FREE_LIST || space->identity() == OLD_SPACE ||
@@ -461,7 +462,7 @@ int Sweeper::ParallelSweepPage(
     const FreeSpaceTreatmentMode free_space_mode =
         Heap::ShouldZapGarbage() ? ZAP_FREE_SPACE : IGNORE_FREE_SPACE;
     max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode,
-                         invalidated_slots_in_free_space);
+                         invalidated_slots_in_free_space, guard);
     DCHECK(page->SweepingDone());
   }
 
@@ -601,11 +602,12 @@ void Sweeper::AddPageForIterability(Page* page) {
 }
 
 void Sweeper::MakeIterable(Page* page) {
+  base::MutexGuard guard(page->mutex());
   DCHECK(IsValidIterabilitySpace(page->owner_identity()));
   const FreeSpaceTreatmentMode free_space_mode =
       Heap::ShouldZapGarbage() ? ZAP_FREE_SPACE : IGNORE_FREE_SPACE;
   RawSweep(page, IGNORE_FREE_LIST, free_space_mode,
-           FreeSpaceMayContainInvalidatedSlots::kNo);
+           FreeSpaceMayContainInvalidatedSlots::kNo, guard);
 }
 
 }  // namespace internal
