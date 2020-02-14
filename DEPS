@@ -72,9 +72,9 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7aa6ce14923a613cac4474c8fc1eec50c66f38a4',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b3e662dde161eb950c2a656a323f95a522a9336a',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e9ed65aa190482e1d259b1c49d3b02bf139a6039',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '86fbe04c663317bf6c07a36ff56c61ffb1605e4b',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '9f4020916eb1f28f3666f018fdcbe6c9a37f0e08',
   'v8/third_party/instrumented_libraries':
@@ -168,7 +168,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '2d81e7897a7e0f97e1e72d224295eb64fc8e8114',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '0b15317ba70c2a9e3d575ce49131f75585ec5a25',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -270,7 +270,7 @@ deps = {
   'v8/third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + 'b68a347f56137b4b1a746e8c7438495a6ac1bd91',
   'v8/third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'b9b9a5af7cca2e683e5f2aead8418e5bf9d5a7d5',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'c2eb8a7f7a0fa7884234ebc1b836644084ccbec9',
   'v8/third_party/ittapi': {
     # Force checkout ittapi libraries to pass v8 header includes check on
     # bots that has check_v8_header_includes enabled.
