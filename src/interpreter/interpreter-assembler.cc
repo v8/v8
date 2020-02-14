@@ -265,8 +265,7 @@ TNode<IntPtrT> InterpreterAssembler::LoadAndUntagRegister(Register reg) {
 #if V8_TARGET_LITTLE_ENDIAN
     index += 4;
 #endif
-    return ChangeInt32ToIntPtr(
-        Load(MachineType::Int32(), base, IntPtrConstant(index)));
+    return ChangeInt32ToIntPtr(Load<Int32T>(base, IntPtrConstant(index)));
   } else {
     return SmiToIntPtr(
         Load(MachineType::TaggedSigned(), base, IntPtrConstant(index)));

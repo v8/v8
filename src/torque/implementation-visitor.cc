@@ -433,8 +433,9 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
 
       source_out()
           << "  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);\n";
-      source_out()
-          << "  TNode<IntPtrT> arguments_length(ChangeInt32ToIntPtr(argc));\n";
+      source_out() << "  TNode<IntPtrT> "
+                      "arguments_length(ChangeInt32ToIntPtr(UncheckedCast<"
+                      "Int32T>(argc)));\n";
       source_out() << "  TNode<RawPtrT> arguments_frame = "
                       "UncheckedCast<RawPtrT>(LoadFramePointer());\n";
       source_out() << "  TorqueStructArguments "

@@ -854,8 +854,8 @@ TNode<HeapObject> CollectionsBuiltinsAssembler::AllocateTable(
 
 TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
   TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   GenerateConstructor(kMap, isolate()->factory()->Map_string(), new_target,
@@ -864,8 +864,8 @@ TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
 
 TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
   TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   GenerateConstructor(kSet, isolate()->factory()->Set_string(), new_target,
@@ -2703,8 +2703,8 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::ValueIndexFromKeyIndex(
 
 TF_BUILTIN(WeakMapConstructor, WeakCollectionsBuiltinsAssembler) {
   TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   GenerateConstructor(kWeakMap, isolate()->factory()->WeakMap_string(),
@@ -2713,8 +2713,8 @@ TF_BUILTIN(WeakMapConstructor, WeakCollectionsBuiltinsAssembler) {
 
 TF_BUILTIN(WeakSetConstructor, WeakCollectionsBuiltinsAssembler) {
   TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   GenerateConstructor(kWeakSet, isolate()->factory()->WeakSet_string(),

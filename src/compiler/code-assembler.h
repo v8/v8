@@ -920,7 +920,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Changes a double to an inptr_t for pointer arithmetic outside of Smi range.
   // Assumes that the double can be exactly represented as an int.
   TNode<IntPtrT> ChangeFloat64ToIntPtr(TNode<Float64T> value);
-  TNode<UintPtrT> ChangeFloat64ToUintPtr(SloppyTNode<Float64T> value);
+  TNode<UintPtrT> ChangeFloat64ToUintPtr(TNode<Float64T> value);
   // Same in the opposite direction.
   TNode<Float64T> ChangeUintPtrToFloat64(TNode<UintPtrT> value);
 
@@ -931,7 +931,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // No-op on 32-bit, otherwise zero extend.
   TNode<UintPtrT> ChangeUint32ToWord(TNode<Word32T> value);
   // No-op on 32-bit, otherwise sign extend.
-  TNode<IntPtrT> ChangeInt32ToIntPtr(SloppyTNode<Word32T> value);
+  TNode<IntPtrT> ChangeInt32ToIntPtr(TNode<Word32T> value);
 
   // No-op that guarantees that the value is kept alive till this point even
   // if GC happens.

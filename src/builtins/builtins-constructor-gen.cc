@@ -644,8 +644,8 @@ TNode<JSObject> ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
 // ES #sec-object-constructor
 TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
   int const kValueArg = 0;
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
@@ -694,8 +694,8 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
 // ES #sec-number-constructor
 TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
 
   // 1. If no arguments were passed to this function invocation, let n be +0.

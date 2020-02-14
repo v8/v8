@@ -544,8 +544,8 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
 };
 
 TF_BUILTIN(TypedArrayPrototypeMap, ArrayBuiltinsAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = args.GetReceiver();
@@ -1071,8 +1071,8 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
 }
 
 TF_BUILTIN(ArrayIncludes, ArrayIncludesIndexofAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Generate(kIncludes, argc, context);
@@ -1112,8 +1112,8 @@ TF_BUILTIN(ArrayIncludesHoleyDoubles, ArrayIncludesIndexofAssembler) {
 }
 
 TF_BUILTIN(ArrayIndexOf, ArrayIncludesIndexofAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Generate(kIndexOf, argc, context);
@@ -1541,8 +1541,8 @@ TF_BUILTIN(FlatMapIntoArray, ArrayFlattenAssembler) {
 
 // https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flat
 TF_BUILTIN(ArrayPrototypeFlat, CodeStubAssembler) {
-  const TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  const TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
   const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   const TNode<Object> receiver = args.GetReceiver();
@@ -1583,8 +1583,8 @@ TF_BUILTIN(ArrayPrototypeFlat, CodeStubAssembler) {
 
 // https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatMap
 TF_BUILTIN(ArrayPrototypeFlatMap, CodeStubAssembler) {
-  const TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  const TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
   const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   const TNode<Object> receiver = args.GetReceiver();

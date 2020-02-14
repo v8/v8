@@ -435,8 +435,8 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
 
 // ES #sec-object.assign
 TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
 
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
@@ -1064,8 +1064,8 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   int const kPrototypeArg = 0;
   int const kPropertiesArg = 1;
 
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
 
   TNode<Object> prototype = args.GetOptionalArgumentValue(kPrototypeArg);

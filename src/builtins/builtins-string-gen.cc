@@ -973,7 +973,7 @@ void StringBuiltinsAssembler::StringIndexOf(
       const TNode<IntPtrT> search_length =
           IntPtrSub(subject_length, start_position);
       const TNode<IntPtrT> search_byte =
-          ChangeInt32ToIntPtr(Load(MachineType::Uint8(), adjusted_search_ptr));
+          ChangeInt32ToIntPtr(Load<Uint8T>(adjusted_search_ptr));
 
       const TNode<ExternalReference> memchr =
           ExternalConstant(ExternalReference::libc_memchr_function());
@@ -1074,8 +1074,8 @@ TF_BUILTIN(StringIndexOf, StringBuiltinsAssembler) {
 // ES6 String.prototype.includes(searchString [, position])
 // #sec-string.prototype.includes
 TF_BUILTIN(StringPrototypeIncludes, StringIncludesIndexOfAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   Generate(kIncludes, argc, context);
 }
@@ -1083,8 +1083,8 @@ TF_BUILTIN(StringPrototypeIncludes, StringIncludesIndexOfAssembler) {
 // ES6 String.prototype.indexOf(searchString [, position])
 // #sec-string.prototype.indexof
 TF_BUILTIN(StringPrototypeIndexOf, StringIncludesIndexOfAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   Generate(kIndexOf, argc, context);
 }
@@ -1699,8 +1699,8 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   const int kSeparatorArg = 0;
   const int kLimitArg = 1;
 
-  const TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  const TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
 
   TNode<Object> receiver = args.GetReceiver();
@@ -1808,8 +1808,8 @@ TF_BUILTIN(StringSubstring, StringBuiltinsAssembler) {
 
 // ES6 #sec-string.prototype.trim
 TF_BUILTIN(StringPrototypeTrim, StringTrimAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Generate(String::kTrim, "String.prototype.trim", argc, context);
@@ -1817,8 +1817,8 @@ TF_BUILTIN(StringPrototypeTrim, StringTrimAssembler) {
 
 // https://github.com/tc39/proposal-string-left-right-trim
 TF_BUILTIN(StringPrototypeTrimStart, StringTrimAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Generate(String::kTrimStart, "String.prototype.trimLeft", argc, context);
@@ -1826,8 +1826,8 @@ TF_BUILTIN(StringPrototypeTrimStart, StringTrimAssembler) {
 
 // https://github.com/tc39/proposal-string-left-right-trim
 TF_BUILTIN(StringPrototypeTrimEnd, StringTrimAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Generate(String::kTrimEnd, "String.prototype.trimRight", argc, context);

@@ -562,7 +562,7 @@ TNode<UintPtrT> CodeAssembler::ChangeUint32ToWord(TNode<Word32T> value) {
   return ReinterpretCast<UintPtrT>(value);
 }
 
-TNode<IntPtrT> CodeAssembler::ChangeInt32ToIntPtr(SloppyTNode<Word32T> value) {
+TNode<IntPtrT> CodeAssembler::ChangeInt32ToIntPtr(TNode<Word32T> value) {
   if (raw_assembler()->machine()->Is64()) {
     return ReinterpretCast<IntPtrT>(raw_assembler()->ChangeInt32ToInt64(value));
   }
@@ -577,8 +577,7 @@ TNode<IntPtrT> CodeAssembler::ChangeFloat64ToIntPtr(TNode<Float64T> value) {
   return ReinterpretCast<IntPtrT>(raw_assembler()->ChangeFloat64ToInt32(value));
 }
 
-TNode<UintPtrT> CodeAssembler::ChangeFloat64ToUintPtr(
-    SloppyTNode<Float64T> value) {
+TNode<UintPtrT> CodeAssembler::ChangeFloat64ToUintPtr(TNode<Float64T> value) {
   if (raw_assembler()->machine()->Is64()) {
     return ReinterpretCast<UintPtrT>(
         raw_assembler()->ChangeFloat64ToUint64(value));

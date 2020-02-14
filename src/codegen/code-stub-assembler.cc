@@ -1532,8 +1532,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(
 #if V8_TARGET_LITTLE_ENDIAN
     offset += 4;
 #endif
-    return ChangeInt32ToIntPtr(
-        LoadObjectField(object, offset, MachineType::Int32()));
+    return ChangeInt32ToIntPtr(LoadObjectField<Int32T>(object, offset));
   } else {
     return SmiToIntPtr(
         LoadObjectField(object, offset, MachineType::TaggedSigned()));
@@ -1754,8 +1753,8 @@ TNode<HeapObject> CodeStubAssembler::LoadMapPrototype(SloppyTNode<Map> map) {
 TNode<IntPtrT> CodeStubAssembler::LoadMapInstanceSizeInWords(
     SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
-  return ChangeInt32ToIntPtr(LoadObjectField(
-      map, Map::kInstanceSizeInWordsOffset, MachineType::Uint8()));
+  return ChangeInt32ToIntPtr(
+      LoadObjectField<Uint8T>(map, Map::kInstanceSizeInWordsOffset));
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadMapInobjectPropertiesStartInWords(
@@ -1763,9 +1762,8 @@ TNode<IntPtrT> CodeStubAssembler::LoadMapInobjectPropertiesStartInWords(
   CSA_SLOW_ASSERT(this, IsMap(map));
   // See Map::GetInObjectPropertiesStartInWords() for details.
   CSA_ASSERT(this, IsJSObjectMap(map));
-  return ChangeInt32ToIntPtr(LoadObjectField(
-      map, Map::kInObjectPropertiesStartOrConstructorFunctionIndexOffset,
-      MachineType::Uint8()));
+  return ChangeInt32ToIntPtr(LoadObjectField<Uint8T>(
+      map, Map::kInObjectPropertiesStartOrConstructorFunctionIndexOffset));
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadMapConstructorFunctionIndex(
@@ -1773,9 +1771,8 @@ TNode<IntPtrT> CodeStubAssembler::LoadMapConstructorFunctionIndex(
   CSA_SLOW_ASSERT(this, IsMap(map));
   // See Map::GetConstructorFunctionIndex() for details.
   CSA_ASSERT(this, IsPrimitiveInstanceType(LoadMapInstanceType(map)));
-  return ChangeInt32ToIntPtr(LoadObjectField(
-      map, Map::kInObjectPropertiesStartOrConstructorFunctionIndexOffset,
-      MachineType::Uint8()));
+  return ChangeInt32ToIntPtr(LoadObjectField<Uint8T>(
+      map, Map::kInObjectPropertiesStartOrConstructorFunctionIndexOffset));
 }
 
 TNode<Object> CodeStubAssembler::LoadMapConstructor(SloppyTNode<Map> map) {

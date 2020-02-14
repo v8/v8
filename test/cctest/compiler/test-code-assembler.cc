@@ -34,10 +34,9 @@ Node* UndefinedConstant(CodeAssembler* m) {
   return m->LoadRoot(RootIndex::kUndefinedValue);
 }
 
-TNode<Smi> SmiFromInt32(CodeAssembler* m, Node* value) {
-  value = m->ChangeInt32ToIntPtr(value);
+TNode<Smi> SmiFromInt32(CodeAssembler* m, TNode<Int32T> value) {
   return m->BitcastWordToTaggedSigned(
-      m->WordShl(value, kSmiShiftSize + kSmiTagSize));
+      m->WordShl(m->ChangeInt32ToIntPtr(value), kSmiShiftSize + kSmiTagSize));
 }
 
 Node* LoadObjectField(CodeAssembler* m, Node* object, int offset,
@@ -514,7 +513,7 @@ TEST(GotoIfExceptionMultiple) {
   error.Bind(UndefinedConstant(&m));
   string = m.CallStub(to_string, context, second_value);
   m.GotoIfException(string, &exception_handler2, &error);
-  m.Return(SmiFromInt32(&m, return_value.value()));
+  m.Return(SmiFromInt32(&m, m.UncheckedCast<Int32T>(return_value.value())));
 
   // try { ToString(param3); return 7 & ~2; } catch (e) { return e; }
   m.Bind(&exception_handler2);
@@ -523,8 +522,9 @@ TEST(GotoIfExceptionMultiple) {
   string = m.CallStub(to_string, context, third_value);
   m.GotoIfException(string, &exception_handler3, &error);
   m.Return(SmiFromInt32(
-      &m, m.Word32And(return_value.value(),
-                      m.Word32Xor(m.Int32Constant(2), m.Int32Constant(-1)))));
+      &m, m.UncheckedCast<Int32T>(m.Word32And(
+              return_value.value(),
+              m.Word32Xor(m.Int32Constant(2), m.Int32Constant(-1))))));
 
   m.Bind(&exception_handler3);
   m.Return(m.UncheckedCast<Object>(error.value()));
