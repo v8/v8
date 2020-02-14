@@ -87,7 +87,7 @@ TEST(SimpleCallRuntime1Arg) {
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
       m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* b = SmiTag(&m, m.Int32Constant(0));
+  TNode<Smi> b = SmiTag(&m, m.Int32Constant(0));
   m.Return(m.CallRuntime(Runtime::kIsSmi, context, b));
   FunctionTester ft(asm_tester.GenerateCode());
   CHECK(ft.CallChecked<Oddball>().is_identical_to(
@@ -100,7 +100,7 @@ TEST(SimpleTailCallRuntime1Arg) {
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
       m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* b = SmiTag(&m, m.Int32Constant(0));
+  TNode<Smi> b = SmiTag(&m, m.Int32Constant(0));
   m.TailCallRuntime(Runtime::kIsSmi, context, b);
   FunctionTester ft(asm_tester.GenerateCode());
   CHECK(ft.CallChecked<Oddball>().is_identical_to(
@@ -113,8 +113,8 @@ TEST(SimpleCallRuntime2Arg) {
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
       m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* a = SmiTag(&m, m.Int32Constant(2));
-  Node* b = SmiTag(&m, m.Int32Constant(4));
+  TNode<Smi> a = SmiTag(&m, m.Int32Constant(2));
+  TNode<Smi> b = SmiTag(&m, m.Int32Constant(4));
   m.Return(m.CallRuntime(Runtime::kAdd, context, a, b));
   FunctionTester ft(asm_tester.GenerateCode());
   CHECK_EQ(6, ft.CallChecked<Smi>()->value());
@@ -126,8 +126,8 @@ TEST(SimpleTailCallRuntime2Arg) {
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
       m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* a = SmiTag(&m, m.Int32Constant(2));
-  Node* b = SmiTag(&m, m.Int32Constant(4));
+  TNode<Smi> a = SmiTag(&m, m.Int32Constant(2));
+  TNode<Smi> b = SmiTag(&m, m.Int32Constant(4));
   m.TailCallRuntime(Runtime::kAdd, context, a, b);
   FunctionTester ft(asm_tester.GenerateCode());
   CHECK_EQ(6, ft.CallChecked<Smi>()->value());

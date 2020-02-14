@@ -499,13 +499,12 @@ TNode<RawPtrT> CodeAssembler::LoadParentFramePointer() {
   return UncheckedCast<RawPtrT>(raw_assembler()->LoadParentFramePointer());
 }
 
-TNode<Object> CodeAssembler::TaggedPoisonOnSpeculation(
-    SloppyTNode<Object> value) {
+TNode<Object> CodeAssembler::TaggedPoisonOnSpeculation(TNode<Object> value) {
   return UncheckedCast<Object>(
       raw_assembler()->TaggedPoisonOnSpeculation(value));
 }
 
-TNode<WordT> CodeAssembler::WordPoisonOnSpeculation(SloppyTNode<WordT> value) {
+TNode<WordT> CodeAssembler::WordPoisonOnSpeculation(TNode<WordT> value) {
   return UncheckedCast<WordT>(raw_assembler()->WordPoisonOnSpeculation(value));
 }
 
@@ -555,7 +554,7 @@ CODE_ASSEMBLER_COMPARE(Word64Equal, Word64T, int64_t, ToInt64Constant, ==)
 CODE_ASSEMBLER_COMPARE(Word64NotEqual, Word64T, int64_t, ToInt64Constant, !=)
 #undef CODE_ASSEMBLER_COMPARE
 
-TNode<UintPtrT> CodeAssembler::ChangeUint32ToWord(SloppyTNode<Word32T> value) {
+TNode<UintPtrT> CodeAssembler::ChangeUint32ToWord(TNode<Word32T> value) {
   if (raw_assembler()->machine()->Is64()) {
     return UncheckedCast<UintPtrT>(
         raw_assembler()->ChangeUint32ToUint64(value));

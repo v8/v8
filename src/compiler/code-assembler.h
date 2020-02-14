@@ -657,8 +657,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<RawPtrT> LoadParentFramePointer();
 
   // Poison |value| on speculative paths.
-  TNode<Object> TaggedPoisonOnSpeculation(SloppyTNode<Object> value);
-  TNode<WordT> WordPoisonOnSpeculation(SloppyTNode<WordT> value);
+  TNode<Object> TaggedPoisonOnSpeculation(TNode<Object> value);
+  TNode<WordT> WordPoisonOnSpeculation(TNode<WordT> value);
 
   // Load raw memory location.
   Node* Load(MachineType type, Node* base,
@@ -929,7 +929,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // rounds on 64-bit (which doesn't affect valid element indices).
   Node* RoundIntPtrToFloat64(Node* value);
   // No-op on 32-bit, otherwise zero extend.
-  TNode<UintPtrT> ChangeUint32ToWord(SloppyTNode<Word32T> value);
+  TNode<UintPtrT> ChangeUint32ToWord(TNode<Word32T> value);
   // No-op on 32-bit, otherwise sign extend.
   TNode<IntPtrT> ChangeInt32ToIntPtr(SloppyTNode<Word32T> value);
 
@@ -953,7 +953,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Object> CallRuntime(Runtime::FunctionId function,
                             SloppyTNode<Object> context, TArgs... args) {
     return CallRuntimeImpl(function, context,
-                           {implicit_cast<SloppyTNode<Object>>(args)...});
+                           {implicit_cast<TNode<Object>>(args)...});
   }
 
   template <class... TArgs>
@@ -962,14 +962,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     int argc = static_cast<int>(sizeof...(args));
     TNode<Int32T> arity = Int32Constant(argc);
     return TailCallRuntimeImpl(function, arity, context,
-                               {implicit_cast<SloppyTNode<Object>>(args)...});
+                               {implicit_cast<TNode<Object>>(args)...});
   }
 
   template <class... TArgs>
   void TailCallRuntime(Runtime::FunctionId function, TNode<Int32T> arity,
                        SloppyTNode<Object> context, TArgs... args) {
     return TailCallRuntimeImpl(function, arity, context,
-                               {implicit_cast<SloppyTNode<Object>>(args)...});
+                               {implicit_cast<TNode<Object>>(args)...});
   }
 
   //

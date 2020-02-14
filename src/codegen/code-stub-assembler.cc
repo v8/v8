@@ -3569,9 +3569,9 @@ void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
 
     // The object still has in-object slack therefore the |unsed_or_unused|
     // field contain the "used" value.
-    TNode<IntPtrT> used_size = Signed(TimesTaggedSize(ChangeUint32ToWord(
-        LoadObjectField(map, Map::kUsedOrUnusedInstanceSizeInWordsOffset,
-                        MachineType::Uint8()))));
+    TNode<IntPtrT> used_size =
+        Signed(TimesTaggedSize(ChangeUint32ToWord(LoadObjectField<Uint8T>(
+            map, Map::kUsedOrUnusedInstanceSizeInWordsOffset))));
 
     Comment("iInitialize filler fields");
     InitializeFieldsWithRoot(object, used_size, instance_size,
