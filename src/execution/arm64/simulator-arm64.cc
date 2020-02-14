@@ -3411,7 +3411,8 @@ void Simulator::Debug() {
 
         // stack / mem
         // ----------------------------------------------------------
-      } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0) {
+      } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0 ||
+                 strcmp(cmd, "dump") == 0) {
         int64_t* cur = nullptr;
         int64_t* end = nullptr;
         int next_arg = 1;
@@ -3443,20 +3444,23 @@ void Simulator::Debug() {
         }
         end = cur + words;
 
+        bool skip_obj_print = (strcmp(cmd, "dump") == 0);
         while (cur < end) {
           PrintF("  0x%016" PRIx64 ":  0x%016" PRIx64 " %10" PRId64,
                  reinterpret_cast<uint64_t>(cur), *cur, *cur);
-          Object obj(*cur);
-          Heap* current_heap = isolate_->heap();
-          if (obj.IsSmi() ||
-              IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
-            PrintF(" (");
-            if (obj.IsSmi()) {
-              PrintF("smi %" PRId32, Smi::ToInt(obj));
-            } else {
-              obj.ShortPrint();
+          if (!skip_obj_print) {
+            Object obj(*cur);
+            Heap* current_heap = isolate_->heap();
+            if (obj.IsSmi() ||
+                IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
+              PrintF(" (");
+              if (obj.IsSmi()) {
+                PrintF("smi %" PRId32, Smi::ToInt(obj));
+              } else {
+                obj.ShortPrint();
+              }
+              PrintF(")");
             }
-            PrintF(")");
           }
           PrintF("\n");
           cur++;
@@ -3533,6 +3537,10 @@ void Simulator::Debug() {
             "mem\n"
             "    mem <address> [<words>]\n"
             "    Dump memory content, default dump 10 words\n"
+            "dump\n"
+            "    dump <address> [<words>]\n"
+            "    Dump memory content without pretty printing JS objects, "
+            "default dump 10 words\n"
             "trace / t\n"
             "    Toggle disassembly and register tracing\n"
             "break / b\n"
