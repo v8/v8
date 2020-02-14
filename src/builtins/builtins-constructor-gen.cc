@@ -38,7 +38,7 @@ void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
 
 TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {
   TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  SloppyTNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
   TNode<Object> arguments_list = CAST(Parameter(Descriptor::kArgumentsList));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
@@ -46,7 +46,7 @@ TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {
 
 TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
   TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  SloppyTNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
   TNode<Object> spread = CAST(Parameter(Descriptor::kSpread));
   TNode<Int32T> args_count =
       UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
@@ -160,8 +160,8 @@ TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
 }
 
 TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
-    SloppyTNode<Context> context, SloppyTNode<JSFunction> target,
-    SloppyTNode<JSReceiver> new_target) {
+    TNode<Context> context, TNode<JSFunction> target,
+    TNode<JSReceiver> new_target) {
   TVARIABLE(JSObject, var_obj);
   Label call_runtime(this), end(this);
 
@@ -177,8 +177,8 @@ TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
 }
 
 TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
-    SloppyTNode<Context> context, SloppyTNode<JSFunction> target,
-    SloppyTNode<JSReceiver> new_target, Label* call_runtime) {
+    TNode<Context> context, TNode<JSFunction> target,
+    TNode<JSReceiver> new_target, Label* call_runtime) {
   // Verify that the new target is a JSFunction.
   Label end(this);
   TNode<JSFunction> new_target_func =

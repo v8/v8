@@ -45,7 +45,7 @@ class MicrotaskQueueBuiltinsAssembler : public CodeStubAssembler {
   void RewindEnteredContext(TNode<IntPtrT> saved_entered_context_count);
 
   void RunPromiseHook(Runtime::FunctionId id, TNode<Context> context,
-                      SloppyTNode<HeapObject> promise_or_capability);
+                      TNode<HeapObject> promise_or_capability);
 };
 
 TNode<RawPtrT> MicrotaskQueueBuiltinsAssembler::GetMicrotaskQueue(
@@ -415,7 +415,7 @@ void MicrotaskQueueBuiltinsAssembler::RewindEnteredContext(
 
 void MicrotaskQueueBuiltinsAssembler::RunPromiseHook(
     Runtime::FunctionId id, TNode<Context> context,
-    SloppyTNode<HeapObject> promise_or_capability) {
+    TNode<HeapObject> promise_or_capability) {
   Label hook(this, Label::kDeferred), done_hook(this);
   Branch(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(), &hook,
          &done_hook);

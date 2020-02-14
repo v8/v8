@@ -24,8 +24,7 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
 
   // https://tc39.github.io/ecma262/#sec-getiterator --- never used for
   // @@asyncIterator.
-  IteratorRecord GetIterator(SloppyTNode<Context> context,
-                             SloppyTNode<Object> object,
+  IteratorRecord GetIterator(TNode<Context> context, TNode<Object> object,
                              Label* if_exception = nullptr,
                              TVariable<Object>* exception = nullptr);
   IteratorRecord GetIterator(TNode<Context> context, TNode<Object> object,

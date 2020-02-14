@@ -24,8 +24,8 @@ TNode<Object> IteratorBuiltinsAssembler::GetIteratorMethod(
 }
 
 IteratorRecord IteratorBuiltinsAssembler::GetIterator(
-    SloppyTNode<Context> context, SloppyTNode<Object> object,
-    Label* if_exception, TVariable<Object>* exception) {
+    TNode<Context> context, TNode<Object> object, Label* if_exception,
+    TVariable<Object>* exception) {
   TNode<Object> method = GetIteratorMethod(context, object);
   return GetIterator(context, object, method, if_exception, exception);
 }

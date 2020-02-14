@@ -38,13 +38,13 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
       Label* call_runtime);
   TNode<JSObject> EmitCreateEmptyObjectLiteral(TNode<Context> context);
 
-  TNode<JSObject> EmitFastNewObject(SloppyTNode<Context> context,
-                                    SloppyTNode<JSFunction> target,
-                                    SloppyTNode<JSReceiver> new_target);
+  TNode<JSObject> EmitFastNewObject(TNode<Context> context,
+                                    TNode<JSFunction> target,
+                                    TNode<JSReceiver> new_target);
 
-  TNode<JSObject> EmitFastNewObject(SloppyTNode<Context> context,
-                                    SloppyTNode<JSFunction> target,
-                                    SloppyTNode<JSReceiver> new_target,
+  TNode<JSObject> EmitFastNewObject(TNode<Context> context,
+                                    TNode<JSFunction> target,
+                                    TNode<JSReceiver> new_target,
                                     Label* call_runtime);
 };
 
