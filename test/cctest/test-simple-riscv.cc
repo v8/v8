@@ -70,8 +70,27 @@ TEST(RISCV0) {
   CHECK_EQ(0xABCL, res);
 }
 
-// Loop 100 times, adding loop counter to result
 TEST(RISCV1) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  // Addition.
+  __ RV_addi(a0, a0, -1);
+  __ RV_jr(ra);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  int64_t res = reinterpret_cast<int64_t>(f.Call(100, 0, 0, 0, 0));
+  CHECK_EQ(99L, res);
+}
+
+// Loop 100 times, adding loop counter to result
+TEST(RISCV2) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);

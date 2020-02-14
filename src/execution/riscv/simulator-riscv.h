@@ -517,6 +517,13 @@ class Simulator : public SimulatorBase {
   inline int64_t rs2() const { return get_register(rs2_reg()); }
   inline int32_t RV_rd_reg() const { return instr_.RV_RdValue(); }
   inline int16_t imm12() const { return instr_.Imm12Value(); }
+  inline void set_rd(int64_t value) { set_register(RV_rd_reg(), value); }
+  inline int16_t shamt() const { return (imm12() & 0x3F); }
+  inline void require(bool check) {
+    if (!check) {
+      SignalException(kIllegalInstruction);
+    }
+  }
 
   inline void SetResult(const int32_t rd_reg, const int64_t alu_out) {
     set_register(rd_reg, alu_out);
@@ -622,7 +629,9 @@ class Simulator : public SimulatorBase {
     kIntegerOverflow,
     kIntegerUnderflow,
     kDivideByZero,
-    kNumExceptions
+    kNumExceptions,
+    // RISCV illegual instruction exception
+    kIllegalInstruction,
   };
 
   // Exceptions.

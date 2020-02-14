@@ -7270,44 +7270,43 @@ void Simulator::DecodeTypeJump() {
 void Simulator::DecodeRVRType() {
   switch (instr_.InstructionBits() & kRTypeMask) {
     case RO_ADD: {
-      // TODO: handle signed exception
-      set_register(RV_rd_reg(), rs1() + rs2());
+      set_rd(sext_xlen(rs1() + rs2()));
       break;
     }
     case RO_SUB: {
-      UNSUPPORTED();
+      set_rd(sext_xlen(rs1() - rs2()));
       break;
     }
     case RO_SLL: {
-      UNSUPPORTED();
+      set_rd(sext_xlen(rs1() << (rs2() & (xlen - 1))));
       break;
     }
     case RO_SLT: {
-      UNSUPPORTED();
+      set_rd(sreg_t(rs1()) < sreg_t(rs2()));
       break;
     }
     case RO_SLTU: {
-      UNSUPPORTED();
+      set_rd(rs1() < rs2());
       break;
     }
     case RO_XOR: {
-      UNSUPPORTED();
+      set_rd(rs1() ^ rs2());
       break;
     }
     case RO_SRL: {
-      UNSUPPORTED();
+      set_rd(sext_xlen(zext_xlen(rs1()) >> (rs2() & (xlen - 1))));
       break;
     }
     case RO_SRA: {
-      UNSUPPORTED();
+      set_rd(sext_xlen(sext_xlen(rs1()) >> (rs2() & (xlen - 1))));
       break;
     }
     case RO_OR: {
-      UNSUPPORTED();
+      set_rd(rs1() | rs2());
       break;
     }
     case RO_AND: {
-      UNSUPPORTED();
+      set_rd(rs1() & rs2());
       break;
     }
     default:
@@ -7320,7 +7319,8 @@ void Simulator::DecodeRVR4Type() { UNSUPPORTED(); }
 void Simulator::DecodeRVIType() {
   switch (instr_.InstructionBits() & kITypeMask) {
     case RO_JALR: {
-      set_register(RV_rd_reg(), get_pc());
+      set_rd(get_pc());
+      // FIXME: do we need to multiply imm12() by 2?
       int64_t next_pc = (rs1() + imm12()) & ~reg_t(1);
       set_pc(next_pc);
       break;
@@ -7340,43 +7340,52 @@ void Simulator::DecodeRVIType() {
     case RO_LHU:
       UNSUPPORTED();
       break;
-    case RO_ADDI:
-      UNSUPPORTED();
+    case RO_ADDI: {
+      set_rd(sext_xlen(rs1() + imm12()));
       break;
-    case RO_SLTI:
-      UNSUPPORTED();
+    }
+    case RO_SLTI: {
+      set_rd(sreg_t(rs1()) < sreg_t(imm12()));
       break;
-    case RO_SLTIU:
-      UNSUPPORTED();
+    }
+    case RO_SLTIU: {
+      set_rd(reg_t(rs1()) < reg_t(imm12()));
       break;
-    case RO_XORI:
-      UNSUPPORTED();
+    }
+    case RO_XORI: {
+      set_rd(imm12() ^ rs1());
       break;
-    case RO_ORI:
-      UNSUPPORTED();
+    }
+    case RO_ORI: {
+      set_rd(imm12() | rs1());
       break;
-    case RO_ANDI:
-      UNSUPPORTED();
+    }
+    case RO_ANDI: {
+      set_rd(imm12() & rs1());
       break;
-    case RO_SLLI:
-      UNSUPPORTED();
+    }
+    case RO_SLLI: {
+      require(shamt() < xlen);
+      set_rd(sext_xlen(rs1() << shamt()));
       break;
+    }
     case RO_SRLI: {  //  RO_SRAI
       if (instr_.Funct7Value() == 0b0000000) {
-        // SRLI
-      } else if (instr_.Funct7Value() == 0b0000000) {
-        // SRAI
+        require(shamt() < xlen);
+        set_rd(sext_xlen(zext_xlen(rs1()) >> shamt()));
+      } else if (instr_.Funct7Value() == 0b0100000) {
+        require(shamt() < xlen);
+        set_rd(sext_xlen(sext_xlen(rs1()) >> shamt()));
       } else {
         UNSUPPORTED();
       }
-      UNSUPPORTED();
       break;
     }
-    case RO_ECALL: {  // RO_EBREAK
-      if (instr_.Imm12Value() == 0) {
-        // ECALL
-      } else if (instr_.Imm12Value() == 1) {
-        // EBREAK
+    case RO_ECALL: {                   // RO_EBREAK
+      if (instr_.Imm12Value() == 0) {  // ECALL
+        SoftwareInterrupt();
+      } else if (instr_.Imm12Value() == 1) {  // EBREAK
+        SoftwareInterrupt();
       } else {
         UNSUPPORTED();
       }
