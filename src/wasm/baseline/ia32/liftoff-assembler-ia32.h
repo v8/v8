@@ -1929,6 +1929,13 @@ void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
   Pshufd(dst.fp(), dst.fp(), 0);
 }
 
+void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  Movd(dst.fp(), src.gp());
+  Pshuflw(dst.fp(), dst.fp(), 0);
+  Pshufd(dst.fp(), dst.fp(), 0);
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   cmp(esp, Operand(limit_address, 0));
   j(below_equal, ool_code);

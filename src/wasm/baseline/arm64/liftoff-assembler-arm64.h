@@ -1079,6 +1079,11 @@ void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
   Dup(dst.fp().V4S(), src.gp().W());
 }
 
+void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  bailout(kSimd, "i16x8splat");
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   Ldr(limit_address, MemOperand(limit_address));
   Cmp(sp, limit_address);
