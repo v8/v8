@@ -371,6 +371,22 @@ size_t StructType::PackedSize() const {
   return result;
 }
 
+StructType::Classification StructType::ClassifyContents() const {
+  Classification result = ClassificationFlag::kEmpty;
+  for (const Field& struct_field : fields()) {
+    const Type* field_type = struct_field.name_and_type.type;
+    if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      result |= ClassificationFlag::kTagged;
+    } else if (const StructType* field_as_struct =
+                   StructType::DynamicCast(field_type)) {
+      result |= field_as_struct->ClassifyContents();
+    } else {
+      result |= ClassificationFlag::kUntagged;
+    }
+  }
+  return result;
+}
+
 // static
 std::string Type::ComputeName(const std::string& basename,
                               MaybeSpecializationKey specialized_from) {

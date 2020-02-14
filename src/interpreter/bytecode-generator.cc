@@ -24,6 +24,7 @@
 #include "src/objects/template-objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/token.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -1063,7 +1064,9 @@ Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
     info()->set_coverage_info(
         isolate->factory()->NewCoverageInfo(block_coverage_builder_->slots()));
     if (FLAG_trace_block_coverage) {
-      info()->coverage_info()->Print(info()->literal()->GetDebugName());
+      StdoutStream os;
+      info()->coverage_info()->CoverageInfoPrint(
+          os, info()->literal()->GetDebugName());
     }
   }
 

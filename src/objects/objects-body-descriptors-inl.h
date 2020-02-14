@@ -423,7 +423,7 @@ class V8_EXPORT_PRIVATE SmallOrderedHashTable<Derived>::BodyDescriptor final
 
   static inline int SizeOf(Map map, HeapObject obj) {
     Derived table = Derived::cast(obj);
-    return table.SizeFor(table.Capacity());
+    return Derived::SizeFor(table.Capacity());
   }
 };
 
@@ -621,6 +621,20 @@ class ExternalTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
 };
 
+class CoverageInfo::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) { return false; }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {}
+
+  static inline int SizeOf(Map map, HeapObject object) {
+    CoverageInfo info = CoverageInfo::cast(object);
+    return CoverageInfo::SizeFor(info.slot_count());
+  }
+};
+
 class Code::BodyDescriptor final : public BodyDescriptorBase {
  public:
   STATIC_ASSERT(kRelocationInfoOffset + kTaggedSize ==
@@ -677,7 +691,7 @@ class SeqOneByteString::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject obj) {
     SeqOneByteString string = SeqOneByteString::cast(obj);
-    return string.SizeFor(string.synchronized_length());
+    return SeqOneByteString::SizeFor(string.synchronized_length());
   }
 };
 
@@ -691,7 +705,7 @@ class SeqTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject obj) {
     SeqTwoByteString string = SeqTwoByteString::cast(obj);
-    return string.SizeFor(string.synchronized_length());
+    return SeqTwoByteString::SizeFor(string.synchronized_length());
   }
 };
 
@@ -933,6 +947,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<FeedbackCell::BodyDescriptor>(p1, p2, p3, p4);
     case FEEDBACK_VECTOR_TYPE:
       return Op::template apply<FeedbackVector::BodyDescriptor>(p1, p2, p3, p4);
+    case COVERAGE_INFO_TYPE:
+      return Op::template apply<CoverageInfo::BodyDescriptor>(p1, p2, p3, p4);
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:

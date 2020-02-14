@@ -455,6 +455,8 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
                          object_boilerplate_description)
 
+    ALLOCATE_VARSIZE_MAP(COVERAGE_INFO_TYPE, coverage_info);
+
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
                  side_effect_call_handler_info)
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,

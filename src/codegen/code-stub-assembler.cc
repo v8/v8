@@ -5624,6 +5624,10 @@ TNode<BoolT> CodeStubAssembler::IsCallableMap(SloppyTNode<Map> map) {
   return IsSetWord32<Map::Bits1::IsCallableBit>(LoadMapBitField(map));
 }
 
+TNode<BoolT> CodeStubAssembler::IsCoverageInfo(TNode<HeapObject> object) {
+  return IsCoverageInfoMap(LoadMap(object));
+}
+
 TNode<BoolT> CodeStubAssembler::IsDebugInfo(TNode<HeapObject> object) {
   return HasInstanceType(object, DEBUG_INFO_TYPE);
 }

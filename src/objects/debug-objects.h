@@ -182,47 +182,34 @@ class BreakPointInfo
 };
 
 // Holds information related to block code coverage.
-class CoverageInfo : public FixedArray {
+class CoverageInfo
+    : public TorqueGeneratedCoverageInfo<CoverageInfo, HeapObject> {
  public:
-  int SlotCount() const;
-
   int StartSourcePosition(int slot_index) const;
   int EndSourcePosition(int slot_index) const;
   int BlockCount(int slot_index) const;
 
   void InitializeSlot(int slot_index, int start_pos, int end_pos);
-  void IncrementBlockCount(int slot_index);
   void ResetBlockCount(int slot_index);
 
-  static int FixedArrayLengthForSlotCount(int slot_count) {
-    return slot_count * kSlotIndexCount + kFirstSlotIndex;
+  // Computes the size for a CoverageInfo instance of a given length.
+  static int SizeFor(int slot_count) {
+    return OBJECT_POINTER_ALIGN(kHeaderSize + slot_count * Slot::kSize);
   }
-
-  DECL_CAST(CoverageInfo)
 
   // Print debug info.
-  void Print(std::unique_ptr<char[]> function_name);
+  void CoverageInfoPrint(std::ostream& os,
+                         std::unique_ptr<char[]> function_name = nullptr);
 
-  static const int kFirstSlotIndex = 0;
+  class BodyDescriptor;  // GC visitor.
 
-  // Each slot is assigned a group of indices starting at kFirstSlotIndex.
-  // Within this group, semantics are as follows:
-  static const int kSlotStartSourcePositionIndex = 0;
-  static const int kSlotEndSourcePositionIndex = 1;
-  static const int kSlotBlockCountIndex = 2;
-  static const int kSlotPaddingIndex = 3;  // Padding to make the index count 4.
-  static const int kSlotIndexCount = 4;
-
-  static const int kSlotIndexCountLog2 = 2;
-  static const int kSlotIndexCountMask = (kSlotIndexCount - 1);
-  STATIC_ASSERT(1 << kSlotIndexCountLog2 == kSlotIndexCount);
+  // Description of layout within each slot.
+  using Slot = TorqueGeneratedCoverageInfoSlotOffsets;
 
  private:
-  static int FirstIndexForSlot(int slot_index) {
-    return kFirstSlotIndex + slot_index * kSlotIndexCount;
-  }
+  int SlotFieldOffset(int slot_index, int field_offset) const;
 
-  OBJECT_CONSTRUCTORS(CoverageInfo, FixedArray);
+  TQ_OBJECT_CONSTRUCTORS(CoverageInfo)
 };
 
 // Holds breakpoint related information. This object is used by inspector.

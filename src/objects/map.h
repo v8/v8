@@ -25,6 +25,7 @@ enum InstanceType : uint16_t;
 #define DATA_ONLY_VISITOR_ID_LIST(V) \
   V(BigInt)                          \
   V(ByteArray)                       \
+  V(CoverageInfo)                    \
   V(DataObject)                      \
   V(FeedbackMetadata)                \
   V(FixedDoubleArray)                \

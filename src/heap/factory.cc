@@ -3122,10 +3122,13 @@ Handle<CoverageInfo> Factory::NewCoverageInfo(
     const ZoneVector<SourceRange>& slots) {
   const int slot_count = static_cast<int>(slots.size());
 
-  const int length = CoverageInfo::FixedArrayLengthForSlotCount(slot_count);
-  Handle<CoverageInfo> info =
-      Handle<CoverageInfo>::cast(NewUninitializedFixedArray(length));
+  int size = CoverageInfo::SizeFor(slot_count);
+  Map map = read_only_roots().coverage_info_map();
+  HeapObject result =
+      AllocateRawWithImmortalMap(size, AllocationType::kYoung, map);
+  Handle<CoverageInfo> info(CoverageInfo::cast(result), isolate());
 
+  info->set_slot_count(slot_count);
   for (int i = 0; i < slot_count; i++) {
     SourceRange range = slots[i];
     info->InitializeSlot(i, range.start, range.end);

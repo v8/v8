@@ -417,22 +417,6 @@ void TypeVisitor::VisitClassFieldsAndMethods(
         ReportError("non-extern classes do not support weak fields");
       }
     }
-    const StructType* struct_type = StructType::DynamicCast(field_type);
-    if (struct_type && struct_type != TypeOracle::GetFloat64OrHoleType()) {
-      for (const Field& struct_field : struct_type->fields()) {
-        if (!struct_field.name_and_type.type->IsSubtypeOf(
-                TypeOracle::GetTaggedType())) {
-          // If we ever actually need different sizes of struct fields, then we
-          // can define the packing and alignment rules. Until then, let's keep
-          // it simple. This restriction also helps keep the tagged and untagged
-          // regions separate in the class layout (see also
-          // FieldOffsetsGenerator::GetSectionFor).
-          Error(
-              "Classes do not support fields which are structs containing "
-              "untagged data.");
-        }
-      }
-    }
     base::Optional<Expression*> array_length = field_expression.index;
     const Field& field = class_type->RegisterField(
         {field_expression.name_and_type.name->pos,
@@ -445,6 +429,12 @@ void TypeVisitor::VisitClassFieldsAndMethods(
          field_expression.generate_verify});
     ResidueClass field_size = std::get<0>(field.GetFieldSizeInformation());
     if (field.index) {
+      // Validate that a value at any index in a packed array is aligned
+      // correctly, since it is possible to define a struct whose size is not a
+      // multiple of its alignment.
+      field.ValidateAlignment(class_offset +
+                              field_size * ResidueClass::Unknown());
+
       if (auto literal = NumberLiteralExpression::DynamicCast(*field.index)) {
         size_t value = static_cast<size_t>(literal->number);
         if (value != literal->number) {

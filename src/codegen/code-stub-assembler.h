@@ -72,6 +72,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(ConsOneByteStringMap, cons_one_byte_string_map, ConsOneByteStringMap)      \
   V(ConsStringMap, cons_string_map, ConsStringMap)                             \
   V(constructor_string, constructor_string, ConstructorString)                 \
+  V(CoverageInfoMap, coverage_info_map, CoverageInfoMap)                       \
   V(date_to_string, date_to_string, DateToString)                              \
   V(default_string, default_string, DefaultString)                             \
   V(EmptyByteArray, empty_byte_array, EmptyByteArray)                          \
@@ -2479,6 +2480,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsConsStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsConstructorMap(SloppyTNode<Map> map);
   TNode<BoolT> IsConstructor(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsCoverageInfo(TNode<HeapObject> object);
   TNode<BoolT> IsDebugInfo(TNode<HeapObject> object);
   TNode<BoolT> IsDeprecatedMap(SloppyTNode<Map> map);
   TNode<BoolT> IsNameDictionary(SloppyTNode<HeapObject> object);

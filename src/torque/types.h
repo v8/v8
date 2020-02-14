@@ -575,6 +575,17 @@ class StructType final : public AggregateType {
 
   size_t AlignmentLog2() const override;
 
+  enum class ClassificationFlag {
+    kEmpty = 0,
+    kTagged = 1 << 0,
+    kUntagged = 1 << 1,
+    kMixed = kTagged | kUntagged,
+  };
+  using Classification = base::Flags<ClassificationFlag>;
+
+  // Classifies a struct as containing tagged data, untagged data, or both.
+  Classification ClassifyContents() const;
+
  private:
   friend class TypeOracle;
   StructType(Namespace* nspace, const StructDeclaration* decl,

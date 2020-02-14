@@ -624,8 +624,7 @@ Cast<DebugInfo>(implicit context: Context)(o: HeapObject): DebugInfo
 extern macro IsCoverageInfo(HeapObject): bool;
 Cast<CoverageInfo>(implicit context: Context)(o: HeapObject): CoverageInfo
     labels CastError {
-  // TODO(jgruber): Assign an instance type.
-  if (IsFixedArray(o)) return %RawDownCast<CoverageInfo>(o);
+  if (IsCoverageInfo(o)) return %RawDownCast<CoverageInfo>(o);
   goto CastError;
 }
 

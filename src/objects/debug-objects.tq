@@ -18,8 +18,6 @@ extern class BreakPointInfo extends Struct {
   break_points: FixedArray|BreakPoint|Undefined;
 }
 
-type CoverageInfo extends FixedArray;
-
 bitfield struct DebugInfoFlags extends uint31 {
   has_break_info: bool: 1 bit;
   prepared_for_debug_execution: bool: 1 bit;
@@ -45,4 +43,20 @@ extern class DebugInfo extends Struct {
   break_points: FixedArray;
   flags: SmiTagged<DebugInfoFlags>;
   coverage_info: CoverageInfo|Undefined;
+}
+
+@export
+struct CoverageInfoSlot {
+  start_source_position: int32;
+  end_source_position: int32;
+  block_count: int32;
+  padding: int32;  // Padding to make the index count 4.
+}
+
+// CoverageInfo's visitor is included in DATA_ONLY_VISITOR_ID_LIST, so it must
+// not contain any HeapObject fields.
+@generateCppClass
+extern class CoverageInfo extends HeapObject {
+  slot_count: int32;
+  slots[slot_count]: CoverageInfoSlot;
 }

@@ -322,6 +322,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case PREPARSE_DATA_TYPE:
     case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE:
     case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE:
+    case COVERAGE_INFO_TYPE:
       return kOtherInternal;
 
     // Remaining instance types are unsupported for now. If any of them do

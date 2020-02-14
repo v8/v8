@@ -3104,14 +3104,29 @@ class FieldOffsetsGenerator {
 
  private:
   FieldSectionType GetSectionFor(const Field& f) {
-    if (f.name_and_type.type == TypeOracle::GetVoidType()) {
+    const Type* field_type = f.name_and_type.type;
+    if (field_type == TypeOracle::GetVoidType()) {
       // Allow void type for marker constants of size zero.
       return current_section_;
     }
+    StructType::Classification struct_contents =
+        StructType::ClassificationFlag::kEmpty;
+    if (const StructType* field_as_struct =
+            StructType::DynamicCast(field_type)) {
+      struct_contents = field_as_struct->ClassifyContents();
+    }
+    if (struct_contents == StructType::ClassificationFlag::kMixed) {
+      // We can't declare what section a struct goes in if it has multiple
+      // categories of data within.
+      Error(
+          "Classes do not support fields which are structs containing both "
+          "tagged and untagged data.")
+          .Position(f.pos);
+    }
     // Currently struct-valued fields are only allowed to have tagged data; see
     // TypeVisitor::VisitClassFieldsAndMethods.
-    if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType()) ||
-        f.name_and_type.type->IsStructType()) {
+    if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType()) ||
+        struct_contents == StructType::ClassificationFlag::kTagged) {
       if (f.is_weak) {
         return FieldSectionType::kWeakSection;
       } else {
@@ -3568,6 +3583,19 @@ void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
   inl_ << "}\n\n";
 }
 
+void GenerateStructLayoutDescription(std::ostream& header,
+                                     const StructType* type) {
+  header << "struct TorqueGenerated" << CamelifyString(type->name())
+         << "Offsets {\n";
+  for (const Field& field : type->fields()) {
+    header << "  static constexpr int k"
+           << CamelifyString(field.name_and_type.name)
+           << "Offset = " << *field.offset << ";\n";
+  }
+  header << "  static constexpr int kSize = " << type->PackedSize() << ";\n";
+  header << "};\n\n";
+}
+
 }  // namespace
 
 void ImplementationVisitor::GenerateClassDefinitions(
@@ -3631,11 +3659,26 @@ void ImplementationVisitor::GenerateClassDefinitions(
       header << "class " << type->GetGeneratedTNodeTypeName() << ";\n";
     }
 
+    std::unordered_set<const StructType*> structs_used_in_classes;
+
     for (const TypeAlias* alias : GlobalContext::GetClasses()) {
       const ClassType* type = ClassType::DynamicCast(alias->type());
       if (type->GenerateCppClassDefinitions()) {
         CppClassGenerator g(type, header, inline_header, implementation);
         g.GenerateClass();
+      }
+      for (const Field& f : type->fields()) {
+        const Type* field_type = f.name_and_type.type;
+        if (const StructType* field_as_struct =
+                StructType::DynamicCast(field_type)) {
+          structs_used_in_classes.insert(field_as_struct);
+        }
+      }
+    }
+
+    for (const StructType* type : structs_used_in_classes) {
+      if (type != TypeOracle::GetFloat64OrHoleType()) {
+        GenerateStructLayoutDescription(header, type);
       }
     }
   }
@@ -3826,9 +3869,11 @@ void GenerateClassFieldVerifier(const std::string& class_name,
 
   if (const StructType* struct_type = StructType::DynamicCast(field_type)) {
     for (const Field& field : struct_type->fields()) {
-      GenerateFieldValueVerifier(class_name, f, field, *field.offset,
-                                 std::to_string(struct_type->PackedSize()),
-                                 cc_contents);
+      if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+        GenerateFieldValueVerifier(class_name, f, field, *field.offset,
+                                   std::to_string(struct_type->PackedSize()),
+                                   cc_contents);
+      }
     }
   } else {
     GenerateFieldValueVerifier(class_name, f, f, 0, "kTaggedSize", cc_contents);

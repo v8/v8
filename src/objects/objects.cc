@@ -2275,6 +2275,10 @@ int HeapObject::SizeFromMap(Map map) const {
   if (instance_type == CODE_TYPE) {
     return Code::unchecked_cast(*this).CodeSize();
   }
+  if (instance_type == COVERAGE_INFO_TYPE) {
+    return CoverageInfo::SizeFor(
+        CoverageInfo::unchecked_cast(*this).slot_count());
+  }
   DCHECK_EQ(instance_type, EMBEDDER_DATA_ARRAY_TYPE);
   return EmbedderDataArray::SizeFor(
       EmbedderDataArray::unchecked_cast(*this).length());

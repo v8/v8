@@ -23,6 +23,7 @@ namespace internal {
   V(CodeDataContainer)                 \
   V(ConsString)                        \
   V(Context)                           \
+  V(CoverageInfo)                      \
   V(DataHandler)                       \
   V(DescriptorArray)                   \
   V(EmbedderDataArray)                 \
