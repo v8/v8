@@ -73,29 +73,9 @@ class JSNumberFormat : public JSObject {
   DECL_PRINTER(JSNumberFormat)
   DECL_VERIFIER(JSNumberFormat)
 
-  // [[Style]] is one of the values "decimal", "percent", "currency",
-  // or "unit" identifying the style of the number format.
-  // Note: "unit" is added in proposal-unified-intl-numberformat
-  enum class Style { DECIMAL, PERCENT, CURRENCY, UNIT };
-
-  inline void set_style(Style style);
-  inline Style style() const;
-
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_JS_NUMBER_FORMAT_FIELDS)
-
-// Bit positions in |flags|.
-#define FLAGS_BIT_FIELDS(V, _)            \
-  V(StyleBits, Style, 2, _)
-
-  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
-#undef FLAGS_BIT_FIELDS
-
-  STATIC_ASSERT(Style::DECIMAL <= StyleBits::kMax);
-  STATIC_ASSERT(Style::PERCENT <= StyleBits::kMax);
-  STATIC_ASSERT(Style::CURRENCY <= StyleBits::kMax);
-  STATIC_ASSERT(Style::UNIT <= StyleBits::kMax);
 
   DECL_ACCESSORS(locale, String)
   DECL_ACCESSORS(icu_number_formatter,

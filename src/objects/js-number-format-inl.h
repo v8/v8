@@ -26,19 +26,6 @@ ACCESSORS(JSNumberFormat, icu_number_formatter,
           kIcuNumberFormatterOffset)
 ACCESSORS(JSNumberFormat, bound_format, Object, kBoundFormatOffset)
 
-SMI_ACCESSORS(JSNumberFormat, flags, kFlagsOffset)
-
-inline void JSNumberFormat::set_style(Style style) {
-  DCHECK_GE(StyleBits::kMax, style);
-  int hints = flags();
-  hints = StyleBits::update(hints, style);
-  set_flags(hints);
-}
-
-inline JSNumberFormat::Style JSNumberFormat::style() const {
-  return StyleBits::decode(flags());
-}
-
 CAST_ACCESSOR(JSNumberFormat)
 
 }  // namespace internal

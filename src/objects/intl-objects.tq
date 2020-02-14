@@ -40,7 +40,6 @@ extern class JSNumberFormat extends JSObject {
   icu_number_formatter:
       Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
   bound_format: JSFunction|Undefined;
-  flags: Smi;
 }
 
 extern class JSPluralRules extends JSObject {

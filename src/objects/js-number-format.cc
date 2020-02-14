@@ -32,6 +32,10 @@ namespace internal {
 
 namespace {
 
+// [[Style]] is one of the values "decimal", "percent", "currency",
+// or "unit" identifying the style of the number format.
+enum class Style { DECIMAL, PERCENT, CURRENCY, UNIT };
+
 // [[CurrencyDisplay]] is one of the values "code", "symbol", "name",
 // or "narrowSymbol" identifying the display of the currency number format.
 enum class CurrencyDisplay {
@@ -306,15 +310,15 @@ bool IsWellFormedCurrencyCode(const std::string& currency) {
 }
 
 // Return the style as a String.
-Handle<String> StyleAsString(Isolate* isolate, JSNumberFormat::Style style) {
+Handle<String> StyleAsString(Isolate* isolate, Style style) {
   switch (style) {
-    case JSNumberFormat::Style::PERCENT:
+    case Style::PERCENT:
       return ReadOnlyRoots(isolate).percent_string_handle();
-    case JSNumberFormat::Style::CURRENCY:
+    case Style::CURRENCY:
       return ReadOnlyRoots(isolate).currency_string_handle();
-    case JSNumberFormat::Style::UNIT:
+    case Style::UNIT:
       return ReadOnlyRoots(isolate).unit_string_handle();
-    case JSNumberFormat::Style::DECIMAL:
+    case Style::DECIMAL:
       return ReadOnlyRoots(isolate).decimal_string_handle();
   }
   UNREACHABLE();
@@ -627,6 +631,19 @@ std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
   return result + "-per-" + str.substr(begin, end - begin);
 }
 
+Style StyleFromSkeleton(const icu::UnicodeString& skeleton) {
+  if (skeleton.indexOf("currency/") >= 0) {
+    return Style::CURRENCY;
+  }
+  if (skeleton.indexOf("measure-unit/") >= 0) {
+    return Style::UNIT;
+  }
+  if (skeleton.indexOf("percent ") >= 0) {
+    return Style::PERCENT;
+  }
+  return Style::DECIMAL;
+}
+
 }  // anonymous namespace
 
 icu::number::LocalizedNumberFormatter
@@ -696,7 +713,7 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
             factory->NewStringFromAsciiChecked(numberingSystem.c_str()),
             Just(kDontThrow))
             .FromJust());
-  JSNumberFormat::Style style = number_format->style();
+  Style style = StyleFromSkeleton(skeleton);
   CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->style_string(),
             StyleAsString(isolate, style), Just(kDontThrow))
@@ -719,7 +736,7 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
               .FromJust());
   }
 
-  if (style == JSNumberFormat::Style::UNIT) {
+  if (style == Style::UNIT) {
     std::string unit = UnitFromSkeleton(skeleton);
     if (!unit.empty()) {
       CHECK(JSReceiver::CreateDataProperty(
@@ -918,15 +935,13 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // 3. Let style be ? GetOption(options, "style", "string",  « "decimal",
   // "percent", "currency", "unit" », "decimal").
 
-  Maybe<JSNumberFormat::Style> maybe_style =
-      Intl::GetStringOption<JSNumberFormat::Style>(
-          isolate, options, "style", service,
-          {"decimal", "percent", "currency", "unit"},
-          {JSNumberFormat::Style::DECIMAL, JSNumberFormat::Style::PERCENT,
-           JSNumberFormat::Style::CURRENCY, JSNumberFormat::Style::UNIT},
-          JSNumberFormat::Style::DECIMAL);
+  Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
+      isolate, options, "style", service,
+      {"decimal", "percent", "currency", "unit"},
+      {Style::DECIMAL, Style::PERCENT, Style::CURRENCY, Style::UNIT},
+      Style::DECIMAL);
   MAYBE_RETURN(maybe_style, MaybeHandle<JSNumberFormat>());
-  JSNumberFormat::Style style = maybe_style.FromJust();
+  Style style = maybe_style.FromJust();
 
   // 4. Set intlObj.[[Style]] to style.
 
@@ -1014,7 +1029,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
 
   // 12. If style is "currency", then
   icu::UnicodeString currency_ustr;
-  if (style == JSNumberFormat::Style::CURRENCY) {
+  if (style == Style::CURRENCY) {
     // 12.a. If currency is undefined, throw a TypeError exception.
     if (!found_currency.FromJust()) {
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kCurrencyCode),
@@ -1047,7 +1062,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   }
 
   // 13. If style is "unit", then
-  if (style == JSNumberFormat::Style::UNIT) {
+  if (style == Style::UNIT) {
     // 13.a If unit is undefined, throw a TypeError exception.
     if (unit == "") {
       THROW_NEW_ERROR(isolate,
@@ -1076,14 +1091,14 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
     }
   }
 
-  if (style == JSNumberFormat::Style::PERCENT) {
+  if (style == Style::PERCENT) {
     icu_number_formatter = icu_number_formatter.unit(icu::NoUnit::percent())
                                .scale(icu::number::Scale::powerOfTen(2));
   }
 
   // 23. If style is "currency", then
   int mnfd_default, mxfd_default;
-  if (style == JSNumberFormat::Style::CURRENCY) {
+  if (style == Style::CURRENCY) {
     // b. Let cDigits be CurrencyDigits(currency).
     int c_digits = CurrencyDigits(currency_ustr);
     // c. Let mnfdDefault be cDigits.
@@ -1095,7 +1110,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
     // a. Let mnfdDefault be 0.
     mnfd_default = 0;
     // b. If style is "percent", then
-    if (style == JSNumberFormat::Style::PERCENT) {
+    if (style == Style::PERCENT) {
       // i. Let mxfdDefault be 0.
       mxfd_default = 0;
     } else {
@@ -1201,8 +1216,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   Handle<JSNumberFormat> number_format = Handle<JSNumberFormat>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowHeapAllocation no_gc;
-  number_format->set_flags(0);
-  number_format->set_style(style);
   number_format->set_locale(*locale_str);
 
   number_format->set_icu_number_formatter(*managed_number_formatter);
@@ -1442,10 +1455,15 @@ MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
       IcuFormatNumber(isolate, *fmt, numeric_obj, &fp_iter);
   MAYBE_RETURN(maybe_format, Handle<JSArray>());
 
+  UErrorCode status = U_ZERO_ERROR;
+  bool style_is_unit =
+      Style::UNIT == StyleFromSkeleton(fmt->toSkeleton(status));
+  CHECK(U_SUCCESS(status));
+
   Handle<JSArray> result = factory->NewJSArray(0);
-  Maybe<int> maybe_format_to_parts = ConstructParts(
-      isolate, maybe_format.FromJust(), &fp_iter, result, 0, numeric_obj,
-      number_format->style() == JSNumberFormat::Style::UNIT);
+  Maybe<int> maybe_format_to_parts =
+      ConstructParts(isolate, maybe_format.FromJust(), &fp_iter, result, 0,
+                     numeric_obj, style_is_unit);
   MAYBE_RETURN(maybe_format_to_parts, Handle<JSArray>());
 
   return result;
