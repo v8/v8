@@ -451,7 +451,7 @@ void CodeAssembler::PopAndReturn(Node* pop, Node* value) {
   return raw_assembler()->PopAndReturn(pop, value);
 }
 
-void CodeAssembler::ReturnIf(Node* condition, TNode<Object> value) {
+void CodeAssembler::ReturnIf(TNode<BoolT> condition, TNode<Object> value) {
   Label if_return(this), if_continue(this);
   Branch(condition, &if_return, &if_continue);
   Bind(&if_return);
@@ -1116,21 +1116,19 @@ void CodeAssembler::Goto(Label* label) {
   raw_assembler()->Goto(label->label_);
 }
 
-void CodeAssembler::GotoIf(SloppyTNode<IntegralT> condition,
-                           Label* true_label) {
+void CodeAssembler::GotoIf(TNode<IntegralT> condition, Label* true_label) {
   Label false_label(this);
   Branch(condition, true_label, &false_label);
   Bind(&false_label);
 }
 
-void CodeAssembler::GotoIfNot(SloppyTNode<IntegralT> condition,
-                              Label* false_label) {
+void CodeAssembler::GotoIfNot(TNode<IntegralT> condition, Label* false_label) {
   Label true_label(this);
   Branch(condition, &true_label, false_label);
   Bind(&true_label);
 }
 
-void CodeAssembler::Branch(SloppyTNode<IntegralT> condition, Label* true_label,
+void CodeAssembler::Branch(TNode<IntegralT> condition, Label* true_label,
                            Label* false_label) {
   int32_t constant;
   if (ToInt32Constant(condition, &constant)) {

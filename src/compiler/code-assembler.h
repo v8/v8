@@ -575,7 +575,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Return(TNode<WordT> value1, TNode<WordT> value2);
   void PopAndReturn(Node* pop, Node* value);
 
-  void ReturnIf(Node* condition, TNode<Object> value);
+  void ReturnIf(TNode<BoolT> condition, TNode<Object> value);
 
   void AbortCSAAssert(Node* message);
   void DebugBreak();
@@ -602,9 +602,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Bind(Label* label, AssemblerDebugInfo debug_info);
 #endif  // DEBUG
   void Goto(Label* label);
-  void GotoIf(SloppyTNode<IntegralT> condition, Label* true_label);
-  void GotoIfNot(SloppyTNode<IntegralT> condition, Label* false_label);
-  void Branch(SloppyTNode<IntegralT> condition, Label* true_label,
+  void GotoIf(TNode<IntegralT> condition, Label* true_label);
+  void GotoIfNot(TNode<IntegralT> condition, Label* false_label);
+  void Branch(TNode<IntegralT> condition, Label* true_label,
               Label* false_label);
 
   template <class T>

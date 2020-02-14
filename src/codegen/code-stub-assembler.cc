@@ -116,8 +116,7 @@ void CodeStubAssembler::Check(const NodeGenerator<BoolT>& condition_body,
                               const char* message, const char* file, int line,
                               std::initializer_list<ExtraNode> extra_nodes) {
   BranchGenerator branch = [=](Label* ok, Label* not_ok) {
-    Node* condition = condition_body();
-    DCHECK_NOT_NULL(condition);
+    TNode<BoolT> condition = condition_body();
     Branch(condition, ok, not_ok);
   };
 
@@ -6430,9 +6429,8 @@ TNode<BoolT> CodeStubAssembler::IsNumberArrayIndex(TNode<Number> number) {
       [=] { return IsHeapNumberUint32(CAST(number)); });
 }
 
-Node* CodeStubAssembler::FixedArraySizeDoesntFitInNewSpace(Node* element_count,
-                                                           int base_size,
-                                                           ParameterMode mode) {
+TNode<BoolT> CodeStubAssembler::FixedArraySizeDoesntFitInNewSpace(
+    Node* element_count, int base_size, ParameterMode mode) {
   int max_newspace_elements =
       (kMaxRegularHeapObjectSize - base_size) / kTaggedSize;
   return IntPtrOrSmiGreaterThan(
@@ -9965,7 +9963,7 @@ Node* CodeStubAssembler::CheckForCapacityGrow(
   Label grow_case(this), no_grow_case(this), done(this),
       grow_bailout(this, Label::kDeferred);
 
-  Node* condition;
+  TNode<BoolT> condition;
   if (IsHoleyElementsKind(kind)) {
     condition = UintPtrGreaterThanOrEqual(key, length);
   } else {

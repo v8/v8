@@ -2641,7 +2641,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // [0, 2^32-1).
   TNode<BoolT> IsNumberArrayIndex(TNode<Number> number);
 
-  Node* FixedArraySizeDoesntFitInNewSpace(
+  TNode<BoolT> FixedArraySizeDoesntFitInNewSpace(
       Node* element_count, int base_size = FixedArray::kHeaderSize,
       ParameterMode mode = INTPTR_PARAMETERS);
 
