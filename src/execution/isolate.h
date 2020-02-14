@@ -1173,6 +1173,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void set_icu_object_in_cache(ICUObjectCacheType cache_type,
                                std::shared_ptr<icu::UMemory> obj);
   void clear_cached_icu_object(ICUObjectCacheType cache_type);
+  void ClearCachedIcuObjects();
 
 #endif  // V8_INTL_SUPPORT
 

@@ -4420,6 +4420,9 @@ void Isolate::set_icu_object_in_cache(ICUObjectCacheType cache_type,
 void Isolate::clear_cached_icu_object(ICUObjectCacheType cache_type) {
   icu_object_cache_.erase(cache_type);
 }
+
+void Isolate::ClearCachedIcuObjects() { icu_object_cache_.clear(); }
+
 #endif  // V8_INTL_SUPPORT
 
 bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
