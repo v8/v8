@@ -417,7 +417,13 @@ bool Assembler::IsLwRegFpNegOffset(Instr instr) {
 // The instruction 16-bit offset field addresses 32-bit words, but in
 // code is conv to an 18-bit value addressing bytes, hence the -4 value.
 
-const int kEndOfChain = -4;
+const int kEndOfChain = 0;
+
+// The link chain is terminated by a value in the instruction of 0,
+// which is an otherwise illegal value (branch 0 is inf loop).
+
+const int RV_kEndOfChain = 0;
+
 // Determines the end of the Jump chain (a subset of the label link chain).
 const int kEndOfJumpChain = 0;
 
@@ -443,6 +449,10 @@ bool Assembler::IsMsaBranch(Instr instr) {
   } else {
     return false;
   }
+}
+
+bool Assembler::RV_IsBranch(Instr instr) {
+  return (instr & kBaseOpcodeMask) == BRANCH;
 }
 
 bool Assembler::IsBranch(Instr instr) {
@@ -546,6 +556,19 @@ bool Assembler::IsJump(Instr instr) {
          (opcode == SPECIAL && rt_field == 0 &&
           ((function_field == JALR) ||
            (rd_field == 0 && (function_field == JR))));
+}
+
+bool Assembler::RV_IsJump(Instr instr) {
+  int Op = instr & kBaseOpcodeMask;
+  return Op == RV_JAL || Op == RV_JALR;
+}
+
+bool Assembler::RV_IsJal(Instr instr) {
+  return (instr & kBaseOpcodeMask) == RV_JAL;
+}
+
+bool Assembler::RV_IsJalr(Instr instr) {
+  return (instr & kBaseOpcodeMask) == RV_JALR;
 }
 
 bool Assembler::IsJ(Instr instr) {
@@ -672,6 +695,49 @@ static inline int32_t AddBranchOffset(int pos, Instr instr) {
   }
 }
 
+int Assembler::RV_target_at(int pos, bool is_internal) {
+  if (is_internal) {
+    int64_t* p = reinterpret_cast<int64_t*>(buffer_start_ + pos);
+    int64_t address = *p;
+    if (address == kEndOfJumpChain) {
+      return RV_kEndOfChain;
+    } else {
+      int64_t instr_address = reinterpret_cast<int64_t>(p);
+      DCHECK(instr_address - address < INT_MAX);
+      int delta = static_cast<int>(instr_address - address);
+      DCHECK(pos > delta);
+      return pos - delta;
+    }
+  }
+  Instr instr = instr_at(pos);
+  // Check we have a branch or jump instruction.
+  DCHECK(RV_IsBranch(instr) || RV_IsJump(instr));
+  if (RV_IsBranch(instr)) {
+    int32_t imm12 = ((instr & 0xf00) >> 7) | ((instr & 0x7e000000) >> 20) |
+                    ((instr & 0x80) << 4) | ((instr & 0x80000000) >> 19);
+    return imm12 << 20 >> 20;
+  } else if (RV_IsJal(instr)) {
+    int32_t imm20 = ((instr & 0x7fe00000) >> 20) | ((instr & 0x100000) >> 9) |
+                    (instr & 0xff000) | ((instr & 0x80000000) >> 11);
+    imm20 = imm20 << 11 >> 11;
+    if (imm20 == kEndOfJumpChain) {
+      // EndOfChain sentinel is returned directly, not relative to pc or pos.
+      return RV_kEndOfChain;
+    } else {
+      return pos + imm20;
+    }
+  } else {
+    DCHECK(RV_IsJalr(instr));
+    int32_t imm12 = instr >> 20;
+    if (imm12 == kEndOfJumpChain) {
+      // EndOfChain sentinel is returned directly, not relative to pc or pos.
+      return RV_kEndOfChain;
+    } else {
+      return pos + imm12;
+    }
+  }
+}
+
 int Assembler::target_at(int pos, bool is_internal) {
   if (is_internal) {
     int64_t* p = reinterpret_cast<int64_t*>(buffer_start_ + pos);
@@ -769,6 +835,34 @@ int Assembler::target_at(int pos, bool is_internal) {
   }
 }
 
+static inline Instr RV_SetBranchOffset(int32_t pos, int32_t target_pos,
+                                       Instr instr) {
+  int32_t imm = target_pos - pos;
+  DCHECK_EQ(imm & 1, 0);
+
+  instr &= ~kBImm12Mask;
+  int32_t imm12 = ((imm & 0x800) >> 4) |   // bit  11
+                  ((imm & 0x1e) << 7) |    // bits 4-1
+                  ((imm & 0x7e0) << 20) |  // bits 10-5
+                  ((imm & 0x1000) << 19);  // bit 12
+
+  return instr | (imm12 & kBImm12Mask);
+}
+
+static inline Instr RV_SetJalOffset(int32_t pos, int32_t target_pos,
+                                    Instr instr) {
+  int32_t imm = target_pos - pos;
+  DCHECK_EQ(imm & 1, 0);
+
+  instr &= ~kImm20Mask;
+  int32_t imm20 = (imm & 0xff000) |          // bits 19-12
+                  ((imm & 0x800) << 9) |     // bit  11
+                  ((imm & 0x7fe) << 20) |    // bits 10-1
+                  ((imm & 0x100000) << 11);  // bit  20
+
+  return instr | (imm20 & kImm20Mask);
+}
+
 static inline Instr SetBranchOffset(int32_t pos, int32_t target_pos,
                                     Instr instr) {
   int32_t bits = OffsetSizeInBits(instr);
@@ -781,6 +875,24 @@ static inline Instr SetBranchOffset(int32_t pos, int32_t target_pos,
   DCHECK(is_intn(imm, bits));
 
   return instr | (imm & mask);
+}
+
+void Assembler::RV_target_at_put(int pos, int target_pos, bool is_internal) {
+  if (is_internal) {
+    uint64_t imm = reinterpret_cast<uint64_t>(buffer_start_) + target_pos;
+    *reinterpret_cast<uint64_t*>(buffer_start_ + pos) = imm;
+    return;
+  }
+  Instr instr = instr_at(pos);
+
+  DCHECK(RV_IsBranch(instr) || RV_IsJal(instr));
+  if (RV_IsBranch(instr)) {
+    instr = RV_SetBranchOffset(pos, target_pos, instr);
+    instr_at_put(pos, instr);
+  } else if (RV_IsJal(instr)) {
+    instr = RV_SetJalOffset(pos, target_pos, instr);
+    instr_at_put(pos, instr);
+  }
 }
 
 void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
@@ -932,6 +1044,52 @@ void Assembler::print(const Label* L) {
   }
 }
 
+void Assembler::RV_bind_to(Label* L, int pos) {
+  DCHECK(0 <= pos && pos <= pc_offset());  // Must have valid binding position.
+  int trampoline_pos = kInvalidSlotPos;
+  bool is_internal = false;
+  if (L->is_linked() && !trampoline_emitted_) {
+    unbound_labels_count_--;
+    if (!is_internal_reference(L)) {
+      next_buffer_check_ += kTrampolineSlotsSize;
+    }
+  }
+
+  while (L->is_linked()) {
+    int fixup_pos = L->pos();
+    int dist = pos - fixup_pos;
+    is_internal = is_internal_reference(L);
+    RV_next(L, is_internal);  // Call next before overwriting link with target
+                              // at fixup_pos.
+    Instr instr = instr_at(fixup_pos);
+    if (is_internal) {
+      RV_target_at_put(fixup_pos, pos, is_internal);
+    } else {
+      if (IsBranch(instr)) {
+        int branch_offset = RV_BranchOffset(instr);
+        if (dist > branch_offset) {
+          if (trampoline_pos == kInvalidSlotPos) {
+            trampoline_pos = get_trampoline_entry(fixup_pos);
+            CHECK_NE(trampoline_pos, kInvalidSlotPos);
+          }
+          CHECK((trampoline_pos - fixup_pos) <= branch_offset);
+          RV_target_at_put(fixup_pos, trampoline_pos, false);
+          fixup_pos = trampoline_pos;
+        }
+        RV_target_at_put(fixup_pos, pos, false);
+      } else {
+        DCHECK(RV_IsJal(instr));
+        RV_target_at_put(fixup_pos, pos, false);
+      }
+    }
+  }
+  L->bind_to(pos);
+
+  // Keep track of the last bound label so we don't eliminate any instructions
+  // before a bound label.
+  if (pos > last_bound_pos_) last_bound_pos_ = pos;
+}
+
 void Assembler::bind_to(Label* L, int pos) {
   DCHECK(0 <= pos && pos <= pc_offset());  // Must have valid binding position.
   int trampoline_pos = kInvalidSlotPos;
@@ -979,9 +1137,25 @@ void Assembler::bind_to(Label* L, int pos) {
   if (pos > last_bound_pos_) last_bound_pos_ = pos;
 }
 
+void Assembler::RV_bind(Label* L) {
+  DCHECK(!L->is_bound());  // Label can only be bound once.
+  RV_bind_to(L, pc_offset());
+}
+
 void Assembler::bind(Label* L) {
   DCHECK(!L->is_bound());  // Label can only be bound once.
   bind_to(L, pc_offset());
+}
+
+void Assembler::RV_next(Label* L, bool is_internal) {
+  DCHECK(L->is_linked());
+  int link = RV_target_at(L->pos(), is_internal);
+  if (link == RV_kEndOfChain) {
+    L->Unuse();
+  } else {
+    DCHECK_GT(link, 0);
+    L->link_to(link);
+  }
 }
 
 void Assembler::next(Label* L, bool is_internal) {
@@ -1009,6 +1183,11 @@ bool Assembler::is_near(Label* L, OffsetSize bits) {
 bool Assembler::is_near_branch(Label* L) {
   DCHECK(L->is_bound());
   return kArchVariant == kMips64r6 ? is_near_r6(L) : is_near_pre_r6(L);
+}
+
+int Assembler::RV_BranchOffset(Instr instr) {
+  int bits = OffsetSize::kOffset12;
+  return (1 << (bits + 1 - 1)) - 1;
 }
 
 int Assembler::BranchOffset(Instr instr) {
@@ -1090,7 +1269,7 @@ void Assembler::GenInstrRFrm(uint8_t funct7, Opcode opcode, Register rd,
 }
 
 void Assembler::GenInstrI(uint8_t funct3, Opcode opcode, Register rd,
-                          Register rs1, uint16_t imm12) {
+                          Register rs1, int16_t imm12) {
   DCHECK(is_uint3(funct3) && rd.is_valid() && rs1.is_valid() &&
          (is_uint12(imm12) || is_int12(imm12)));
   Instr instr = opcode | (rd.code() << RV_kRdShift) | (funct3 << kFunct3Shift) |
@@ -1176,7 +1355,7 @@ void Assembler::GenInstrStore_rri(uint8_t funct3, Register rs1, Register rs2,
 }
 
 void Assembler::GenInstrALU_ri(uint8_t funct3, Register rd, Register rs1,
-                               uint16_t imm12) {
+                               int16_t imm12) {
   GenInstrI(funct3, OP_IMM, rd, rs1, imm12);
 }
 
@@ -1559,6 +1738,32 @@ int32_t Assembler::branch_offset_helper(Label* L, OffsetSize bits) {
   DCHECK(is_intn(offset, bits + 2));
   DCHECK_EQ(offset & 3, 0);
 
+  return offset;
+}
+
+int32_t Assembler::RV_branch_offset_helper(Label* L, OffsetSize bits) {
+  int32_t target_pos;
+  int32_t pad = IsPrevInstrCompactBranch() ? kInstrSize : 0;
+
+  if (L->is_bound()) {
+    target_pos = L->pos();
+  } else {
+    if (L->is_linked()) {
+      target_pos = L->pos();
+      L->link_to(pc_offset() + pad);
+    } else {
+      L->link_to(pc_offset() + pad);
+      if (!trampoline_emitted_) {
+        unbound_labels_count_++;
+        next_buffer_check_ -= kTrampolineSlotsSize;
+      }
+      return RV_kEndOfChain;
+    }
+  }
+
+  int32_t offset = target_pos - (pc_offset() + pad);
+  DCHECK(is_intn(offset, bits + 1));
+  DCHECK_EQ(offset & 1, 0);
   return offset;
 }
 
@@ -2161,19 +2366,63 @@ void Assembler::RV_sfence_vma(Register rs1, Register rs2) {
   GenInstrR(0b0001001, 0b000, SYSTEM, ToRegister(0), rs1, rs2);
 }
 
-// Assembler Pseudo Instructions (User-Level ISA, Version 2.2, Chapter 20)
+// Assembler Pseudo Instructions (Tables 25.2 and 25.3, RISC-V Unprivileged ISA)
 
 void Assembler::RV_nop() { RV_addi(ToRegister(0), ToRegister(0), 0); }
-
-void Assembler::RV_jr(Register rs) { RV_jalr(ToRegister(0), rs, 0); }
-
-void Assembler::RV_mv(Register rd, Register rs) { RV_addi(rd, rs, 0); }
 void Assembler::RV_li(Register rd, int16_t imm12) {
   RV_addi(rd, ToRegister(0), imm12);
 }
-void Assembler::RV_j(int32_t imm20) { RV_jal(ToRegister(0), imm20); }
+void Assembler::RV_mv(Register rd, Register rs) { RV_addi(rd, rs, 0); }
+void Assembler::RV_not(Register rd, Register rs) { RV_xori(rd, rs, -1); }
+void Assembler::RV_neg(Register rd, Register rs) { RV_sub(rd, zero_reg, rs); }
+void Assembler::RV_negw(Register rd, Register rs) { RV_subw(rd, zero_reg, rs); }
+void Assembler::RV_sext_w(Register rd, Register rs) { RV_addiw(rd, rs, 0); }
+void Assembler::RV_seqz(Register rd, Register rs) { RV_sltiu(rd, rs, 1); }
+void Assembler::RV_snez(Register rd, Register rs) { RV_sltu(rd, zero_reg, rs); }
+void Assembler::RV_sltz(Register rd, Register rs) { RV_slt(rd, rs, zero_reg); }
+void Assembler::RV_sgtz(Register rd, Register rs) { RV_slt(rd, zero_reg, rs); }
+
+void Assembler::RV_beqz(Register rs, int16_t imm12) {
+  RV_beq(rs, zero_reg, imm12);
+}
+void Assembler::RV_bnez(Register rs, int16_t imm12) {
+  RV_bne(rs, zero_reg, imm12);
+}
+void Assembler::RV_blez(Register rs, int16_t imm12) {
+  RV_bge(zero_reg, rs, imm12);
+}
+void Assembler::RV_bgez(Register rs, int16_t imm12) {
+  RV_bge(rs, zero_reg, imm12);
+}
+void Assembler::RV_bltz(Register rs, int16_t imm12) {
+  RV_blt(rs, zero_reg, imm12);
+}
 void Assembler::RV_bgtz(Register rs, int16_t imm12) {
-  RV_blt(ToRegister(0), rs, imm12);
+  RV_blt(zero_reg, rs, imm12);
+}
+
+void Assembler::RV_bgt(Register rs1, Register rs2, int16_t imm12) {
+  RV_blt(rs2, rs1, imm12);
+}
+void Assembler::RV_ble(Register rs1, Register rs2, int16_t imm12) {
+  RV_bge(rs2, rs1, imm12);
+}
+void Assembler::RV_bgtu(Register rs1, Register rs2, int16_t imm12) {
+  RV_bltu(rs2, rs1, imm12);
+}
+void Assembler::RV_bleu(Register rs1, Register rs2, int16_t imm12) {
+  RV_bgeu(rs2, rs1, imm12);
+}
+
+// TODO: Replace uses of ToRegister with names once they are properly defined
+void Assembler::RV_j(int32_t imm20) { RV_jal(zero_reg, imm20); }
+void Assembler::RV_jal(int32_t imm20) { RV_jal(ToRegister(1), imm20); }
+void Assembler::RV_jr(Register rs) { RV_jalr(zero_reg, rs, 0); }
+void Assembler::RV_jalr(Register rs) { RV_jalr(ToRegister(1), rs, 0); }
+void Assembler::RV_ret() { RV_jalr(zero_reg, ToRegister(1), 0); }
+void Assembler::RV_call(uint32_t offset) {
+  RV_auipc(ToRegister(1), offset & 0xfffff);
+  RV_jalr(ToRegister(1), ToRegister(6), offset & 0xfff);
 }
 
 // Original MIPS Instructions

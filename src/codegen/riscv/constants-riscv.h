@@ -312,6 +312,8 @@ const int kRs1FieldMask = ((1 << kRs1Bits) - 1) << kRs1Shift;
 const int kRs2FieldMask = ((1 << kRs2Bits) - 1) << kRs2Shift;
 const int kRs3FieldMask = ((1 << kRs3Bits) - 1) << kRs3Shift;
 const int RV_kRdFieldMask = ((1 << RV_kRdBits) - 1) << RV_kRdShift;
+const int kBImm12Mask = kFunct7Mask | RV_kRdFieldMask;
+const int kImm20Mask = ((1 << kImm20Bits) - 1) << kImm20Shift;
 
 // Original MIPS constants
 const int kOpcodeShift = 26;
@@ -1641,7 +1643,8 @@ class InstructionGetters : public T {
 
   inline int Imm12Value() const {
     DCHECK(this->InstructionType() == InstructionBase::kIType);
-    return this->Bits(kImm12Shift + kImm12Bits - 1, kImm12Shift);
+    int Value = this->Bits(kImm12Shift + kImm12Bits - 1, kImm12Shift);
+    return Value << 20 >> 20;
   }
 
   inline int32_t Imm12SExtValue() const {
@@ -1677,7 +1680,7 @@ class InstructionGetters : public T {
   }
 
   inline int Imm20JValue() const {
-    DCHECK(this->InstructionType() == InstructionBase::kUType);
+    DCHECK(this->InstructionType() == InstructionBase::kJType);
     // | imm[20|10:1|11|19:12] | rd | opcode |
     //  31                   12
     uint32_t Bits = this->InstructionBits();

@@ -102,12 +102,12 @@ TEST(RISCV2) {
   __ RV_li(a0, 0);
   __ RV_j(&C);
 
-  __ bind(&L);
+  __ RV_bind(&L);
 
   __ RV_add(a0, a0, a1);
   __ RV_addi(a1, a1, -1);
 
-  __ bind(&C);
+  __ RV_bind(&C);
   __ RV_bgtz(a1, &L);
   __ RV_jr(ra);
 

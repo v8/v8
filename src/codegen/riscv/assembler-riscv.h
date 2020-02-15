@@ -182,7 +182,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   //
   // Note: The same Label can be used for forward and backward branches
   // but it may be bound only once.
-  void bind(Label* L);  // Binds an unbound label L to current code position.
+  void RV_bind(Label* L);  // Binds an unbound label L to current code position.
+  void bind(Label* L);     // Binds an unbound label L to current code position.
 
   enum OffsetSize : int {
     kOffset26 = 26,
@@ -206,12 +207,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return pc_offset() - L->pos() < kMaxCompactBranchOffset - 4 * kInstrSize;
   }
 
+  int RV_BranchOffset(Instr instr);
   int BranchOffset(Instr instr);
 
   // Returns the branch offset to the given label from the current code
   // position. Links the label to the current position if it is still unbound.
   // Manages the jump elimination optimization if the second parameter is true.
   int32_t branch_offset_helper(Label* L, OffsetSize bits);
+  int32_t RV_branch_offset_helper(Label* L, OffsetSize bits);
+  inline int32_t RV_branch_offset(Label* L) {
+    return RV_branch_offset_helper(L, OffsetSize::kOffset12);
+  }
+  inline int32_t RV_jump_offset(Label* L) {
+    return RV_branch_offset_helper(L, OffsetSize::kOffset20);
+  }
   inline int32_t branch_offset(Label* L) {
     return branch_offset_helper(L, OffsetSize::kOffset16);
   }
@@ -229,15 +238,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   inline int32_t shifted_branch_offset26(Label* L) {
     return branch_offset26(L) >> 2;
-  }
-  // RISCV related branch offset computation
-  inline int16_t shifted_branch_offset12(Label* L) {
-    // FIXME: RISCV kOffset13?
-    return (int16_t)(branch_offset_helper(L, OffsetSize::kOffset12) >> 1);
-  }
-  inline int32_t shifted_branch_offset20(Label* L) {
-    // FIXME: RISCV kOffset21?
-    return branch_offset_helper(L, OffsetSize::kOffset20) >> 1;
   }
 
   uint64_t jump_address(Label* L);
@@ -359,6 +359,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     FIRST_IC_MARKER = PROPERTY_ACCESS_INLINED,
   };
 
+  // RISC-V Instructions
+
   void RV_lui(Register rd, int32_t imm20);
   void RV_auipc(Register rd, int32_t imm20);
 
@@ -368,28 +370,28 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Branches
   void RV_beq(Register rs1, Register rs2, int16_t imm12);
-  inline void RV_beq(Register rs, Register rt, Label* L) {
-    RV_beq(rs, rt, shifted_branch_offset(L));
+  inline void RV_beq(Register rs1, Register rs2, Label* L) {
+    RV_beq(rs1, rs2, RV_branch_offset(L));
   }
   void RV_bne(Register rs1, Register rs2, int16_t imm12);
-  inline void RV_bne(Register rs, Register rt, Label* L) {
-    RV_bne(rs, rt, shifted_branch_offset(L));
+  inline void RV_bne(Register rs1, Register rs2, Label* L) {
+    RV_bne(rs1, rs2, RV_branch_offset(L));
   }
   void RV_blt(Register rs1, Register rs2, int16_t imm12);
-  inline void RV_blt(Register rs, Register rt, Label* L) {
-    RV_blt(rs, rt, shifted_branch_offset(L));
+  inline void RV_blt(Register rs1, Register rs2, Label* L) {
+    RV_blt(rs1, rs2, RV_branch_offset(L));
   }
   void RV_bge(Register rs1, Register rs2, int16_t imm12);
-  inline void RV_bge(Register rs, Register rt, Label* L) {
-    RV_bge(rs, rt, shifted_branch_offset(L));
+  inline void RV_bge(Register rs1, Register rs2, Label* L) {
+    RV_bge(rs1, rs2, RV_branch_offset(L));
   }
   void RV_bltu(Register rs1, Register rs2, int16_t imm12);
-  inline void RV_bltu(Register rs, Register rt, Label* L) {
-    RV_bltu(rs, rt, shifted_branch_offset(L));
+  inline void RV_bltu(Register rs1, Register rs2, Label* L) {
+    RV_bltu(rs1, rs2, RV_branch_offset(L));
   }
   void RV_bgeu(Register rs1, Register rs2, int16_t imm12);
-  inline void RV_bgeu(Register rs, Register rt, Label* L) {
-    RV_bgeu(rs, rt, shifted_branch_offset(L));
+  inline void RV_bgeu(Register rs1, Register rs2, Label* L) {
+    RV_bgeu(rs1, rs2, RV_branch_offset(L));
   }
 
   // Loads
@@ -470,17 +472,70 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_wfi();
   void RV_sfence_vma(Register rs1, Register rs2);
 
-  // Assembler Pseudo Instructions (User-Level ISA, Version 2.2, Chapter 20)
+  // Assembler Pseudo Instructions (Tables 25.2, 25.3, RISC-V Unprivileged ISA)
   void RV_nop();
-  void RV_jr(Register rs);
-  void RV_mv(Register rd, Register rs);
   void RV_li(Register rd, int16_t imm12);
-  void RV_j(int32_t imm20);
-  inline void RV_j(Label* L) { RV_j(shifted_branch_offset20(L)); }
-  void RV_bgtz(Register rs, int16_t imm12);
-  inline void RV_bgtz(Register rs, Label* L) {
-    RV_bgtz(rs, shifted_branch_offset12(L));
+  void RV_mv(Register rd, Register rs1);
+  void RV_not(Register rd, Register rs1);
+  void RV_neg(Register rd, Register rs1);
+  void RV_negw(Register rd, Register rs1);
+  void RV_sext_w(Register rd, Register rs1);
+  void RV_seqz(Register rd, Register rs1);
+  void RV_snez(Register rd, Register rs1);
+  void RV_sltz(Register rd, Register rs1);
+  void RV_sgtz(Register rd, Register rs1);
+
+  void RV_beqz(Register rs1, int16_t imm12);
+  inline void RV_beqz(Register rs1, Label* L) {
+    RV_beqz(rs1, RV_branch_offset(L));
   }
+  void RV_bnez(Register rs1, int16_t imm12);
+  inline void RV_bnez(Register rs1, Label* L) {
+    RV_bnez(rs1, RV_branch_offset(L));
+  }
+  void RV_blez(Register rs, int16_t imm12);
+  inline void RV_blez(Register rs1, Label* L) {
+    RV_blez(rs1, RV_branch_offset(L));
+  }
+  void RV_bgez(Register rs, int16_t imm12);
+  inline void RV_bgez(Register rs1, Label* L) {
+    RV_bgez(rs1, RV_branch_offset(L));
+  }
+  void RV_bltz(Register rs, int16_t imm12);
+  inline void RV_bltz(Register rs1, Label* L) {
+    RV_bltz(rs1, RV_branch_offset(L));
+  }
+  void RV_bgtz(Register rs, int16_t imm12);
+  inline void RV_bgtz(Register rs1, Label* L) {
+    RV_bgtz(rs1, RV_branch_offset(L));
+  }
+  void RV_bgt(Register rs1, Register rs2, int16_t imm12);
+  inline void RV_bgt(Register rs1, Register rs2, Label* L) {
+    RV_bgt(rs1, rs2, RV_branch_offset(L));
+  }
+  void RV_ble(Register rs1, Register rs2, int16_t imm12);
+  inline void RV_ble(Register rs1, Register rs2, Label* L) {
+    RV_ble(rs1, rs2, RV_branch_offset(L));
+  }
+  void RV_bgtu(Register rs1, Register rs2, int16_t imm12);
+  inline void RV_bgtu(Register rs1, Register rs2, Label* L) {
+    RV_bgtu(rs1, rs2, RV_branch_offset(L));
+  }
+  void RV_bleu(Register rs1, Register rs2, int16_t imm12);
+  inline void RV_bleu(Register rs1, Register rs2, Label* L) {
+    RV_bleu(rs1, rs2, RV_branch_offset(L));
+  }
+
+  void RV_j(int32_t imm20);
+  inline void RV_j(Label* L) { RV_j(RV_jump_offset(L)); }
+  void RV_jal(int32_t imm20);
+  inline void RV_jal(Label* L) { RV_jal(RV_jump_offset(L)); }
+  void RV_jr(Register rs);
+  void RV_jalr(Register rs);
+  void RV_ret();
+  void RV_call(uint32_t offset);
+
+  // MIPS Instructions
 
   // Type == 0 is the default non-marking nop. For mips this is a
   // sll(zero_reg, zero_reg, 0). We use rt_reg == at for non-zero
@@ -1617,6 +1672,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // Check if an instruction is a branch of some kind.
+  static bool RV_IsBranch(Instr instr);
   static bool IsBranch(Instr instr);
   static bool IsMsaBranch(Instr instr);
   static bool IsBc(Instr instr);
@@ -1630,12 +1686,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static bool IsBeqc(Instr instr);
   static bool IsBnec(Instr instr);
 
+  static bool RV_IsJump(Instr instr);
   static bool IsJump(Instr instr);
   static bool IsJ(Instr instr);
   static bool IsLui(Instr instr);
   static bool IsOri(Instr instr);
   static bool IsMov(Instr instr, Register rd, Register rs);
 
+  static bool RV_IsJal(Instr instr);
+  static bool RV_IsJalr(Instr instr);
   static bool IsJal(Instr instr);
   static bool IsJr(Instr instr);
   static bool IsJalr(Instr instr);
@@ -1711,9 +1770,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Decode branch instruction at pos and return branch target pos.
   int target_at(int pos, bool is_internal);
+  int RV_target_at(int pos, bool is_internal);
 
   // Patch branch instruction at pos to branch to given branch target pos.
   void target_at_put(int pos, int target_pos, bool is_internal);
+  void RV_target_at_put(int pos, int target_pos, bool is_internal);
 
   // Say if we need to relocate with this mode.
   bool MustUseReg(RelocInfo::Mode rmode);
@@ -1841,7 +1902,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenInstrRFrm(uint8_t funct7, Opcode opcode, Register rd, Register rs1,
                     Register rs2, uint8_t frm);
   void GenInstrI(uint8_t funct3, Opcode opcode, Register rd, Register rs1,
-                 uint16_t imm12);
+                 int16_t imm12);
   void GenInstrIShift(bool arithshift, uint8_t funct3, Opcode opcode,
                       Register rd, Register rs1, uint8_t shamt);
   void GenInstrIShiftW(bool arithshift, uint8_t funct3, Opcode opcode,
@@ -1860,8 +1921,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                        int16_t imm12);
   void GenInstrStore_rri(uint8_t funct3, Register rs1, Register rs2,
                          int16_t imm12);
-  void GenInstrALU_ri(uint8_t funct3, Register rd, Register rs1,
-                      uint16_t imm12);
+  void GenInstrALU_ri(uint8_t funct3, Register rd, Register rs1, int16_t imm12);
   void GenInstrShift_ri(bool arithshift, uint8_t funct3, Register rd,
                         Register rs1, uint8_t shamt);
   void GenInstrALU_rr(uint8_t funct7, uint8_t funct3, Register rd, Register rs1,
@@ -1995,7 +2055,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Labels.
   void print(const Label* L);
+  void RV_bind_to(Label* L, int pos);
   void bind_to(Label* L, int pos);
+  void RV_next(Label* L, bool is_internal);
   void next(Label* L, bool is_internal);
 
   // One trampoline consists of:
