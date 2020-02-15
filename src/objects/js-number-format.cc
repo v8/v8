@@ -353,28 +353,26 @@ bool UseGroupingFromSkeleton(const icu::UnicodeString& skeleton) {
 
 // Parse currency code from skeleton. For example, skeleton as
 // "currency/TWD .00 rounding-mode-half-up unit-width-full-name;"
-std::string CurrencyFromSkeleton(const icu::UnicodeString& skeleton) {
-  std::string str;
-  str = skeleton.toUTF8String<std::string>(str);
-  std::string search("currency/");
-  size_t index = str.find(search);
-  if (index == str.npos) return "";
-  return str.substr(index + search.size(), 3);
+const icu::UnicodeString CurrencyFromSkeleton(
+    const icu::UnicodeString& skeleton) {
+  const char currency[] = "currency/";
+  int32_t index = skeleton.indexOf(currency);
+  if (index < 0) return "";
+  return skeleton.tempSubString(index + std::strlen(currency), 3);
 }
 
-std::string NumberingSystemFromSkeleton(const icu::UnicodeString& skeleton) {
-  std::string str;
-  str = skeleton.toUTF8String<std::string>(str);
-  size_t index = str.find("latin");
-  if (index != str.npos) return "latn";
-  std::string search("numbering-system/");
-  index = str.find(search);
-  if (index == str.npos) return "";
-  size_t space_index = str.find(" ", index + search.size());
-  if (space_index != str.npos) {
-    space_index -= index + search.size();
-  }
-  return str.substr(index + search.size(), space_index);
+const icu::UnicodeString NumberingSystemFromSkeleton(
+    const icu::UnicodeString& skeleton) {
+  int32_t index = skeleton.indexOf("latin");
+  if (index >= 0) return "latn";
+  const char numbering_system[] = "numbering-system/";
+  index = skeleton.indexOf(numbering_system);
+  if (index < 0) return "";
+  const icu::UnicodeString res =
+      skeleton.tempSubString(index + std::strlen(numbering_system));
+  index = res.indexOf(" ");
+  if (index < 0) return res;
+  return res.tempSubString(0, index);
 }
 
 // Return CurrencySign as string based on skeleton.
@@ -689,7 +687,8 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
   Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
 
   Handle<String> locale = Handle<String>(number_format->locale(), isolate);
-  std::string numberingSystem = NumberingSystemFromSkeleton(skeleton);
+  const icu::UnicodeString numberingSystem_ustr =
+      NumberingSystemFromSkeleton(skeleton);
   // 5. For each row of Table 4, except the header row, in table order, do
   // Table 4: Resolved Options of NumberFormat Instances
   //  Internal Slot                    Property
@@ -708,22 +707,25 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
                                        factory->locale_string(), locale,
                                        Just(kDontThrow))
             .FromJust());
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->numberingSystem_string(),
-            factory->NewStringFromAsciiChecked(numberingSystem.c_str()),
-            Just(kDontThrow))
+  Handle<String> numberingSystem_string;
+  CHECK(Intl::ToString(isolate, numberingSystem_ustr)
+            .ToHandle(&numberingSystem_string));
+  CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                       factory->numberingSystem_string(),
+                                       numberingSystem_string, Just(kDontThrow))
             .FromJust());
   Style style = StyleFromSkeleton(skeleton);
   CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->style_string(),
             StyleAsString(isolate, style), Just(kDontThrow))
             .FromJust());
-  std::string currency = CurrencyFromSkeleton(skeleton);
-  if (!currency.empty()) {
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->currency_string(),
-              factory->NewStringFromAsciiChecked(currency.c_str()),
-              Just(kDontThrow))
+  const icu::UnicodeString currency_ustr = CurrencyFromSkeleton(skeleton);
+  if (!currency_ustr.isEmpty()) {
+    Handle<String> currency_string;
+    CHECK(Intl::ToString(isolate, currency_ustr).ToHandle(&currency_string));
+    CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                         factory->currency_string(),
+                                         currency_string, Just(kDontThrow))
               .FromJust());
 
     CHECK(JSReceiver::CreateDataProperty(
