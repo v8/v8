@@ -3926,18 +3926,15 @@ void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 void Isolate::FireCallCompletedCallback(MicrotaskQueue* microtask_queue) {
   if (!thread_local_top()->CallDepthIsZero()) return;
 
-  bool run_microtasks =
-      microtask_queue && microtask_queue->size() &&
-      !microtask_queue->HasMicrotasksSuppressions() &&
+  bool perform_checkpoint =
+      microtask_queue &&
       microtask_queue->microtasks_policy() == v8::MicrotasksPolicy::kAuto;
 
-  if (run_microtasks) {
-    microtask_queue->RunMicrotasks(this);
-  }
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this);
+  if (perform_checkpoint) microtask_queue->PerformCheckpoint(isolate);
 
   if (call_completed_callbacks_.empty()) return;
   // Fire callbacks.  Increase call depth to prevent recursive callbacks.
-  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this);
   v8::Isolate::SuppressMicrotaskExecutionScope suppress(isolate);
   std::vector<CallCompletedCallback> callbacks(call_completed_callbacks_);
   for (auto& callback : callbacks) {

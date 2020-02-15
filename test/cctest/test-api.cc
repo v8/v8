@@ -19928,21 +19928,25 @@ TEST(SetAutorunMicrotasks) {
   v8::HandleScope scope(env->GetIsolate());
   env->GetIsolate()->AddMicrotasksCompletedCallback(
       &MicrotasksCompletedCallback);
+
+  // If the policy is auto, there's a microtask checkpoint at the end of every
+  // zero-depth API call.
   CompileRun(
       "var ext1Calls = 0;"
       "var ext2Calls = 0;");
   CompileRun("1+1;");
   CHECK_EQ(0, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  CHECK_EQ(0u, microtasks_completed_callback_count);
+  CHECK_EQ(4u, microtasks_completed_callback_count);
 
   env->GetIsolate()->EnqueueMicrotask(
       Function::New(env.local(), MicrotaskOne).ToLocalChecked());
   CompileRun("1+1;");
   CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  CHECK_EQ(1u, microtasks_completed_callback_count);
+  CHECK_EQ(7u, microtasks_completed_callback_count);
 
+  // If the policy is explicit, microtask checkpoints are explicitly invoked.
   env->GetIsolate()->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
   env->GetIsolate()->EnqueueMicrotask(
       Function::New(env.local(), MicrotaskOne).ToLocalChecked());
@@ -19951,24 +19955,24 @@ TEST(SetAutorunMicrotasks) {
   CompileRun("1+1;");
   CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  CHECK_EQ(1u, microtasks_completed_callback_count);
+  CHECK_EQ(7u, microtasks_completed_callback_count);
 
   env->GetIsolate()->RunMicrotasks();
   CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  CHECK_EQ(2u, microtasks_completed_callback_count);
+  CHECK_EQ(8u, microtasks_completed_callback_count);
 
   env->GetIsolate()->EnqueueMicrotask(
       Function::New(env.local(), MicrotaskTwo).ToLocalChecked());
   CompileRun("1+1;");
   CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  CHECK_EQ(2u, microtasks_completed_callback_count);
+  CHECK_EQ(8u, microtasks_completed_callback_count);
 
   env->GetIsolate()->RunMicrotasks();
   CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  CHECK_EQ(3u, microtasks_completed_callback_count);
+  CHECK_EQ(9u, microtasks_completed_callback_count);
 
   env->GetIsolate()->SetMicrotasksPolicy(v8::MicrotasksPolicy::kAuto);
   env->GetIsolate()->EnqueueMicrotask(
@@ -19976,7 +19980,7 @@ TEST(SetAutorunMicrotasks) {
   CompileRun("1+1;");
   CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(3, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  CHECK_EQ(4u, microtasks_completed_callback_count);
+  CHECK_EQ(12u, microtasks_completed_callback_count);
 
   env->GetIsolate()->EnqueueMicrotask(
       Function::New(env.local(), MicrotaskTwo).ToLocalChecked());
@@ -19985,13 +19989,13 @@ TEST(SetAutorunMicrotasks) {
     CompileRun("1+1;");
     CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
     CHECK_EQ(3, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-    CHECK_EQ(4u, microtasks_completed_callback_count);
+    CHECK_EQ(12u, microtasks_completed_callback_count);
   }
 
   CompileRun("1+1;");
   CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(4, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  CHECK_EQ(5u, microtasks_completed_callback_count);
+  CHECK_EQ(15u, microtasks_completed_callback_count);
 
   env->GetIsolate()->RemoveMicrotasksCompletedCallback(
       &MicrotasksCompletedCallback);
@@ -20000,7 +20004,7 @@ TEST(SetAutorunMicrotasks) {
   CompileRun("1+1;");
   CHECK_EQ(3, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(4, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  CHECK_EQ(5u, microtasks_completed_callback_count);
+  CHECK_EQ(15u, microtasks_completed_callback_count);
 }
 
 
