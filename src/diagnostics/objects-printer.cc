@@ -2081,7 +2081,6 @@ void JSRelativeTimeFormat::JSRelativeTimeFormatPrint(
   JSObjectPrintHeader(os, *this, "JSRelativeTimeFormat");
   os << "\n - locale: " << Brief(locale());
   os << "\n - numberingSystem: " << Brief(numberingSystem());
-  os << "\n - style: " << StyleAsString();
   os << "\n - numeric: " << NumericAsString();
   os << "\n - icu formatter: " << Brief(icu_formatter());
   os << "\n";

@@ -40,7 +40,6 @@ class JSRelativeTimeFormat : public JSObject {
   V8_WARN_UNUSED_RESULT static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSRelativeTimeFormat> format_holder);
 
-  Handle<String> StyleAsString() const;
   Handle<String> NumericAsString() const;
 
   // ecma402/#sec-Intl.RelativeTimeFormat.prototype.format
@@ -63,18 +62,6 @@ class JSRelativeTimeFormat : public JSObject {
 
   DECL_ACCESSORS(icu_formatter, Managed<icu::RelativeDateTimeFormatter>)
 
-  // Style: identifying the relative time format style used.
-  //
-  // ecma402/#sec-properties-of-intl-relativetimeformat-instances
-
-  enum class Style {
-    LONG,   // Everything spelled out.
-    SHORT,  // Abbreviations used when possible.
-    NARROW  // Use the shortest possible form.
-  };
-  inline void set_style(Style style);
-  inline Style style() const;
-
   // Numeric: identifying whether numerical descriptions are always used, or
   // used only when no more specific version is available (e.g., "1 day ago" vs
   // "yesterday").
@@ -90,14 +77,10 @@ class JSRelativeTimeFormat : public JSObject {
 
 // Bit positions in |flags|.
 #define FLAGS_BIT_FIELDS(V, _) \
-  V(StyleBits, Style, 2, _)    \
   V(NumericBits, Numeric, 1, _)
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
 
-  STATIC_ASSERT(Style::LONG <= StyleBits::kMax);
-  STATIC_ASSERT(Style::SHORT <= StyleBits::kMax);
-  STATIC_ASSERT(Style::NARROW <= StyleBits::kMax);
   STATIC_ASSERT(Numeric::AUTO <= NumericBits::kMax);
   STATIC_ASSERT(Numeric::ALWAYS <= NumericBits::kMax);
 
@@ -112,9 +95,6 @@ class JSRelativeTimeFormat : public JSObject {
                                 TORQUE_GENERATED_JS_RELATIVE_TIME_FORMAT_FIELDS)
 
  private:
-  static Style getStyle(const char* str);
-  static Numeric getNumeric(const char* str);
-
   OBJECT_CONSTRUCTORS(JSRelativeTimeFormat, JSObject);
 };
 
