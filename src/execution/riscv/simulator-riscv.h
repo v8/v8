@@ -516,7 +516,9 @@ class Simulator : public SimulatorBase {
   inline int32_t rs2_reg() const { return instr_.Rs2Value(); }
   inline int64_t rs2() const { return get_register(rs2_reg()); }
   inline int32_t RV_rd_reg() const { return instr_.RV_RdValue(); }
+  inline int16_t boffset() const { return instr_.BranchOffset(); }
   inline int16_t imm12() const { return instr_.Imm12Value(); }
+  inline int32_t imm20J() const { return instr_.Imm20JValue(); }
   inline void set_rd(int64_t value) { set_register(RV_rd_reg(), value); }
   inline int16_t shamt() const { return (imm12() & 0x3F); }
   inline void require(bool check) {

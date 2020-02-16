@@ -7422,7 +7422,10 @@ void Simulator::DecodeRVBType() {
       UNSUPPORTED();
       break;
     case RO_BLT:
-      UNSUPPORTED();
+      if (rs1() < rs2()) {
+        int64_t next_pc = get_pc() + boffset();
+        set_pc(next_pc);
+      }
       break;
     case RO_BGE:
       UNSUPPORTED();
@@ -7453,9 +7456,12 @@ void Simulator::DecodeRVUType() {
 void Simulator::DecodeRVJType() {
   // J Type doesn't have additional mask
   switch (instr_.BaseOpcodeValue()) {
-    case RO_JAL:
-      UNSUPPORTED();
+    case RO_JAL: {
+      set_register(RV_rd_reg(), get_pc());
+      int64_t next_pc = get_pc() + imm20J();
+      set_pc(next_pc);
       break;
+    }
     default:
       UNSUPPORTED();
   }
