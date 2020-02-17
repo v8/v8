@@ -71,6 +71,9 @@ class Vector {
   // Returns a pointer to the start of the data in the vector.
   constexpr T* begin() const { return start_; }
 
+  // For consistency with other containers, do also provide a {data} accessor.
+  constexpr T* data() const { return start_; }
+
   // Returns a pointer past the end of the data in the vector.
   constexpr T* end() const { return start_ + length_; }
 

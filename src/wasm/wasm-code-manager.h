@@ -462,23 +462,25 @@ class V8_EXPORT_PRIVATE NativeModule final {
   Address GetCallTargetForFunction(uint32_t func_index) const;
 
   struct JumpTablesRef {
-    const Address jump_table_start;
-    const Address far_jump_table_start;
+    const Address jump_table_start = kNullAddress;
+    const Address far_jump_table_start = kNullAddress;
+
+    bool is_valid() const { return far_jump_table_start != kNullAddress; }
   };
 
-  // Finds the jump tables that should be used for the code at {code_addr}. This
+  // Finds the jump tables that should be used for given code region. This
   // information is then passed to {GetNearCallTargetForFunction} and
   // {GetNearRuntimeStubEntry} to avoid the overhead of looking this information
-  // up there.
-  JumpTablesRef FindJumpTablesForCode(Address code_addr) const;
+  // up there. Return an empty struct if no suitable jump tables exist.
+  JumpTablesRef FindJumpTablesForRegion(base::AddressRegion) const;
 
   // Similarly to {GetCallTargetForFunction}, but uses the jump table previously
-  // looked up via {FindJumpTablesForCode}.
+  // looked up via {FindJumpTablesForRegion}.
   Address GetNearCallTargetForFunction(uint32_t func_index,
                                        const JumpTablesRef&) const;
 
   // Get a runtime stub entry (which is a far jump table slot) in the jump table
-  // previously looked up via {FindJumpTablesForCode}.
+  // previously looked up via {FindJumpTablesForRegion}.
   Address GetNearRuntimeStubEntry(WasmCode::RuntimeStubId index,
                                   const JumpTablesRef&) const;
 

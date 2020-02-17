@@ -540,8 +540,8 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
              RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-  auto jump_tables_ref =
-      native_module_->FindJumpTablesForCode(code->instruction_start());
+  auto jump_tables_ref = native_module_->FindJumpTablesForRegion(
+      base::AddressRegionOf(code->instructions()));
   for (RelocIterator iter(code->instructions(), code->reloc_info(),
                           code->constant_pool(), mask);
        !iter.done(); iter.next()) {
