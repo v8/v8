@@ -7320,41 +7320,47 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
   int length = storage->length();
   int properties = 0;
   ReadOnlyRoots roots(isolate);
-  for (InternalIndex i : dictionary->IterateEntries()) {
-    Object key;
-    if (!dictionary->ToKey(roots, i, &key)) continue;
-    bool is_shadowing_key = false;
-    if (key.IsSymbol()) continue;
-    PropertyDetails details = dictionary->DetailsAt(i);
-    if (details.IsDontEnum()) {
-      if (mode == KeyCollectionMode::kIncludePrototypes) {
-        is_shadowing_key = true;
-      } else {
-        continue;
+  {
+    AllowHeapAllocation allow_gc;
+    for (InternalIndex i : dictionary->IterateEntries()) {
+      Object key;
+      if (!dictionary->ToKey(roots, i, &key)) continue;
+      bool is_shadowing_key = false;
+      if (key.IsSymbol()) continue;
+      PropertyDetails details = dictionary->DetailsAt(i);
+      if (details.IsDontEnum()) {
+        if (mode == KeyCollectionMode::kIncludePrototypes) {
+          is_shadowing_key = true;
+        } else {
+          continue;
+        }
       }
+      if (is_shadowing_key) {
+        // This might allocate, but {key} is not used afterwards.
+        accumulator->AddShadowingKey(key, &allow_gc);
+        continue;
+      } else {
+        storage->set(properties, Smi::FromInt(i.as_int()));
+      }
+      properties++;
+      if (mode == KeyCollectionMode::kOwnOnly && properties == length) break;
     }
-    if (is_shadowing_key) {
-      accumulator->AddShadowingKey(key);
-      continue;
-    } else {
-      storage->set(properties, Smi::FromInt(i.as_int()));
-    }
-    properties++;
-    if (mode == KeyCollectionMode::kOwnOnly && properties == length) break;
   }
 
   CHECK_EQ(length, properties);
-  DisallowHeapAllocation no_gc;
-  Derived raw_dictionary = *dictionary;
-  FixedArray raw_storage = *storage;
-  EnumIndexComparator<Derived> cmp(raw_dictionary);
-  // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
-  // store operations that are safe for concurrent marking.
-  AtomicSlot start(storage->GetFirstElementAddress());
-  std::sort(start, start + length, cmp);
-  for (int i = 0; i < length; i++) {
-    InternalIndex index(Smi::ToInt(raw_storage.get(i)));
-    raw_storage.set(i, raw_dictionary.NameAt(index));
+  {
+    DisallowHeapAllocation no_gc;
+    Derived raw_dictionary = *dictionary;
+    FixedArray raw_storage = *storage;
+    EnumIndexComparator<Derived> cmp(raw_dictionary);
+    // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
+    // store operations that are safe for concurrent marking.
+    AtomicSlot start(storage->GetFirstElementAddress());
+    std::sort(start, start + length, cmp);
+    for (int i = 0; i < length; i++) {
+      InternalIndex index(Smi::ToInt(raw_storage.get(i)));
+      raw_storage.set(i, raw_dictionary.NameAt(index));
+    }
   }
 }
 
@@ -7395,16 +7401,20 @@ ExceptionStatus BaseNameDictionary<Derived, Shape>::CollectKeysTo(
       isolate->factory()->NewFixedArray(dictionary->NumberOfElements());
   int array_size = 0;
   PropertyFilter filter = keys->filter();
+  // Handle enumerable strings in CopyEnumKeysTo.
+  DCHECK_NE(keys->filter(), ENUMERABLE_STRINGS);
   {
     DisallowHeapAllocation no_gc;
-    Derived raw_dictionary = *dictionary;
     for (InternalIndex i : dictionary->IterateEntries()) {
-      Object k;
-      if (!raw_dictionary.ToKey(roots, i, &k)) continue;
-      if (k.FilterKey(filter)) continue;
+      Object key;
+      Derived raw_dictionary = *dictionary;
+      if (!raw_dictionary.ToKey(roots, i, &key)) continue;
+      if (key.FilterKey(filter)) continue;
       PropertyDetails details = raw_dictionary.DetailsAt(i);
       if ((details.attributes() & filter) != 0) {
-        keys->AddShadowingKey(k);
+        AllowHeapAllocation gc;
+        // This might allocate, but {key} is not used afterwards.
+        keys->AddShadowingKey(key, &gc);
         continue;
       }
       if (filter & ONLY_ALL_CAN_READ) {
@@ -7416,7 +7426,7 @@ ExceptionStatus BaseNameDictionary<Derived, Shape>::CollectKeysTo(
       array->set(array_size++, Smi::FromInt(i.as_int()));
     }
 
-    EnumIndexComparator<Derived> cmp(raw_dictionary);
+    EnumIndexComparator<Derived> cmp(*dictionary);
     // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
     // store operations that are safe for concurrent marking.
     AtomicSlot start(array->GetFirstElementAddress());
