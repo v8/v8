@@ -507,6 +507,29 @@ enum Opcode : uint32_t {
   // RO_EBREAK = SYSTEM | (0b000 << kFunct3Shift), // Same as ECALL, use imm12
 
   // RV64I Base Instruction Set (in addition to RV32I)
+  RO_LWU = LOAD | (0b110 << kFunct3Shift),
+  RO_LD = LOAD | (0b011 << kFunct3Shift),
+  RO_SD = STORE | (0b011 << kFunct3Shift),
+  RO_ADDIW = OP_IMM_32 | (0b000 << kFunct3Shift),
+  RO_SLLIW = OP_IMM_32 | (0b001 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SRLIW = OP_IMM_32 | (0b101 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SRAIW = OP_IMM_32 | (0b101 << kFunct3Shift) | (0b0100000 << kFunct7Shift),
+  RO_ADDW = OP_32 | (0b000 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SUBW = OP_32 | (0b000 << kFunct3Shift) | (0b0100000 << kFunct7Shift),
+  RO_SLLW = OP_32 | (0b001 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SRLW = OP_32 | (0b101 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SRAW = OP_32 | (0b101 << kFunct3Shift) | (0b0100000 << kFunct7Shift),
+
+  // RV32/RV64 Zifencei Standard Extension
+  RO_FENCE_I = MISC_MEM | (0b001 << kFunct3Shift),
+
+  // RV32/RV64 Zicsr Standard Extension
+  RO_CSRRW = SYSTEM | (0b001 << kFunct3Shift),
+  RO_CSRRS = SYSTEM | (0b010 << kFunct3Shift),
+  RO_CSRRC = SYSTEM | (0b011 << kFunct3Shift),
+  RO_CSRRWI = SYSTEM | (0b101 << kFunct3Shift),
+  RO_CSRRSI = SYSTEM | (0b110 << kFunct3Shift),
+  RO_CSRRCI = SYSTEM | (0b111 << kFunct3Shift),
 
   // Original MIPS opcodes
   SPECIAL = 0U << kOpcodeShift,
