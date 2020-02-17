@@ -383,7 +383,9 @@ class CompilationStateImpl {
 
   // Initialize compilation progress for recompilation of the whole module.
   // Return a vector of functions to recompile.
-  std::vector<int> InitializeRecompilationProgress(ExecutionTier tier);
+  std::vector<int> InitializeRecompilationProgress(
+      ExecutionTier tier,
+      CompilationState::callback_t recompilation_finished_callback);
 
   // Add the callback function to be called on compilation events. Needs to be
   // set before {AddCompilationUnits} is run to ensure that it receives all
@@ -1442,16 +1444,14 @@ void RecompileNativeModule(Isolate* isolate, NativeModule* native_module,
   auto* compilation_state = Impl(native_module->compilation_state());
   DCHECK_EQ(tier, ExecutionTier::kLiftoff);
   // The callback captures a shared ptr to the semaphore.
-  compilation_state->AddCallback(
-      [recompilation_finished_semaphore](CompilationEvent event) {
-        if (event == CompilationEvent::kFinishedRecompilation) {
-          recompilation_finished_semaphore->Signal();
-        }
-      });
-
   // Initialize the compilation units and kick off background compile tasks.
   std::vector<int> recompilation_functions =
-      compilation_state->InitializeRecompilationProgress(tier);
+      compilation_state->InitializeRecompilationProgress(
+          tier, [recompilation_finished_semaphore](CompilationEvent event) {
+            if (event == CompilationEvent::kFinishedRecompilation) {
+              recompilation_finished_semaphore->Signal();
+            }
+          });
   AddBaselineCompilationUnits(native_module, VectorOf(recompilation_functions));
 
   // The main thread contributes to the compilation, except if we need
@@ -2524,11 +2524,15 @@ void CompilationStateImpl::InitializeCompilationProgress(bool lazy_module,
 }
 
 std::vector<int> CompilationStateImpl::InitializeRecompilationProgress(
-    ExecutionTier tier) {
+    ExecutionTier tier,
+    CompilationState::callback_t recompilation_finished_callback) {
   DCHECK(!failed());
 
   std::vector<int> recompilation_functions;
   base::MutexGuard guard(&callbacks_mutex_);
+
+  // Add callback.
+  callbacks_.emplace_back(std::move(recompilation_finished_callback));
 
   // Ensure that we don't trigger recompilation if another recompilation is
   // already happening.
@@ -2762,7 +2766,9 @@ void CompilationStateImpl::OnFinishedJSToWasmWrapperUnits(int num) {
 void CompilationStateImpl::TriggerCallbacks(bool completes_baseline_compilation,
                                             bool completes_top_tier_compilation,
                                             bool completes_recompilation) {
+  DCHECK(!callbacks_mutex_.TryLock());
   if (completes_recompilation) {
+    DCHECK(!callbacks_.empty());
     for (auto& callback : callbacks_) {
       callback(CompilationEvent::kFinishedRecompilation);
     }
