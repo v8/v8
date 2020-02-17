@@ -113,7 +113,13 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
     test_module_->functions.reserve(kMaxFunctions);
   }
   uint32_t index = static_cast<uint32_t>(test_module_->functions.size());
-  test_module_->functions.push_back({sig, index, 0, {0, 0}, false, false});
+  test_module_->functions.push_back({sig,      // sig
+                                     index,    // func_index
+                                     0,        // sig_index
+                                     {0, 0},   // code
+                                     false,    // imported
+                                     false,    // exported
+                                     false});  // declared
   if (type == kImport) {
     DCHECK_EQ(0, test_module_->num_declared_functions);
     ++test_module_->num_imported_functions;
@@ -289,7 +295,7 @@ uint32_t TestingModuleBuilder::AddPassiveElementSegment(
   uint32_t index = static_cast<uint32_t>(test_module_->elem_segments.size());
   DCHECK_EQ(index, dropped_elem_segments_.size());
 
-  test_module_->elem_segments.emplace_back();
+  test_module_->elem_segments.emplace_back(false);
   auto& elem_segment = test_module_->elem_segments.back();
   elem_segment.entries = entries;
 

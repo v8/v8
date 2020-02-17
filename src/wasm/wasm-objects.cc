@@ -1286,7 +1286,11 @@ void WasmInstanceObject::InitElemSegmentArrays(
   auto module = module_object->module();
   auto num_elem_segments = module->elem_segments.size();
   for (size_t i = 0; i < num_elem_segments; ++i) {
-    instance->dropped_elem_segments()[i] = 0;
+    instance->dropped_elem_segments()[i] =
+        module->elem_segments[i].status ==
+                wasm::WasmElemSegment::kStatusDeclarative
+            ? 1
+            : 0;
   }
 }
 

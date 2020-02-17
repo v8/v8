@@ -1138,6 +1138,11 @@ class WasmDecoder : public Decoder {
       errorf(pc, "invalid function index: %u", imm.index);
       return false;
     }
+    if (!VALIDATE(module_ != nullptr &&
+                  module_->functions[imm.index].declared)) {
+      this->errorf(pc, "undeclared reference to function #%u", imm.index);
+      return false;
+    }
     return true;
   }
 

@@ -482,7 +482,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // Check that indirect function table segments are within bounds.
     //--------------------------------------------------------------------------
     for (const WasmElemSegment& elem_segment : module_->elem_segments) {
-      if (!elem_segment.active) continue;
+      if (elem_segment.status != WasmElemSegment::kStatusActive) continue;
       DCHECK_LT(elem_segment.table_index, table_count);
       uint32_t base = EvalUint32InitExpr(instance, elem_segment.offset);
       // Because of imported tables, {table_size} has to come from the table
@@ -1685,7 +1685,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
        segment_index < module_->elem_segments.size(); ++segment_index) {
     auto& elem_segment = instance->module()->elem_segments[segment_index];
     // Passive segments are not copied during instantiation.
-    if (!elem_segment.active) continue;
+    if (elem_segment.status != WasmElemSegment::kStatusActive) continue;
 
     uint32_t table_index = elem_segment.table_index;
     uint32_t dst = EvalUint32InitExpr(instance, elem_segment.offset);

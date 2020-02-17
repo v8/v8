@@ -584,11 +584,11 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
   // Even when table.fill goes out-of-bounds, as many entries as possible are
   // put into the table. Only afterwards we trap.
   uint32_t fill_count = std::min(count, table_size - start);
-  WasmTableObject::Fill(isolate, table, start, value, fill_count);
-
   if (fill_count < count) {
     return ThrowTableOutOfBounds(isolate, instance);
   }
+  WasmTableObject::Fill(isolate, table, start, value, fill_count);
+
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

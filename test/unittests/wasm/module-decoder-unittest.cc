@@ -130,6 +130,13 @@ struct CheckLEB1 : std::integral_constant<size_t, num> {
 
 #define EXPECT_FAILURE(data) EXPECT_FAILURE_LEN(data, sizeof(data))
 
+#define EXPECT_FAILURE_WITH_MSG(data, msg)                         \
+  do {                                                             \
+    ModuleResult result = DecodeModule(data, data + sizeof(data)); \
+    EXPECT_FALSE(result.ok());                                     \
+    EXPECT_THAT(result.error().message(), HasSubstr(msg));         \
+  } while (false)
+
 #define EXPECT_OFF_END_FAILURE(data, min)                           \
   do {                                                              \
     STATIC_ASSERT(min < arraysize(data));                           \
@@ -252,6 +259,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
 
 TEST_F(WasmModuleVerifyTest, AnyRefGlobal) {
   WASM_FEATURE_SCOPE(anyref);
+  WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
@@ -265,6 +273,16 @@ TEST_F(WasmModuleVerifyTest, AnyRefGlobal) {
               kLocalAnyRef,                 // local type
               0,                            // immutable
               WASM_INIT_EXPR_REF_FUNC(1)),  // init
+      SECTION(Element,                      // section name
+              ENTRY_COUNT(2),               // entry count
+              DECLARATIVE,                  // flags 0
+              kExternalFunction,            // type
+              ENTRY_COUNT(1),               // func entry count
+              FUNC_INDEX(0),                // func index
+              DECLARATIVE_WITH_ELEMENTS,    // flags 1
+              kLocalFuncRef,                // local type
+              ENTRY_COUNT(1),               // func ref count
+              REF_FUNC_ELEMENT(1)),         // func ref
       TWO_EMPTY_BODIES};
 
   {
@@ -290,6 +308,7 @@ TEST_F(WasmModuleVerifyTest, AnyRefGlobal) {
 
 TEST_F(WasmModuleVerifyTest, FuncRefGlobal) {
   WASM_FEATURE_SCOPE(anyref);
+  WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
@@ -303,6 +322,16 @@ TEST_F(WasmModuleVerifyTest, FuncRefGlobal) {
               kLocalFuncRef,                // local type
               0,                            // immutable
               WASM_INIT_EXPR_REF_FUNC(1)),  // init
+      SECTION(Element,                      // section name
+              ENTRY_COUNT(2),               // entry count
+              DECLARATIVE,                  // flags 0
+              kExternalFunction,            // type
+              ENTRY_COUNT(1),               // func entry count
+              FUNC_INDEX(0),                // func index
+              DECLARATIVE_WITH_ELEMENTS,    // flags 1
+              kLocalFuncRef,                // local type
+              ENTRY_COUNT(1),               // func ref count
+              REF_FUNC_ELEMENT(1)),         // func ref
       TWO_EMPTY_BODIES};
   {
     // Should decode to two globals.
@@ -2507,7 +2536,7 @@ TEST_F(WasmModuleVerifyTest, PassiveElementSegmentWithIndices) {
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration -----------------------------------------------------
       SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 1),
-      // element segments  -----------------------------------------------------
+      // element segments ------------------------------------------------------
       SECTION(Element, ENTRY_COUNT(1), PASSIVE, kExternalFunction,
               ENTRY_COUNT(3), U32V_1(0), U32V_1(0), U32V_1(0)),
       // code ------------------------------------------------------------------
@@ -2516,6 +2545,67 @@ TEST_F(WasmModuleVerifyTest, PassiveElementSegmentWithIndices) {
   WASM_FEATURE_SCOPE(bulk_memory);
   EXPECT_VERIFIES(data);
   EXPECT_OFF_END_FAILURE(data, arraysize(data) - 5);
+}
+
+TEST_F(WasmModuleVerifyTest, DeclarativeElementSegmentFuncRef) {
+  static const byte data[] = {
+      // sig#0 -----------------------------------------------------------------
+      SIGNATURES_SECTION_VOID_VOID,
+      // funcs -----------------------------------------------------------------
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
+      // element segments  -----------------------------------------------------
+      SECTION(Element,                    // section name
+              ENTRY_COUNT(1),             // entry count
+              DECLARATIVE_WITH_ELEMENTS,  // flags
+              kLocalFuncRef,              // local type
+              U32V_1(0)),                 // func ref count
+      // code ------------------------------------------------------------------
+      ONE_EMPTY_BODY};
+  EXPECT_FAILURE(data);
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_FAILURE(data);
+  WASM_FEATURE_SCOPE(anyref);
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, DeclarativeElementSegmentWithInvalidIndex) {
+  WASM_FEATURE_SCOPE(bulk_memory);
+  WASM_FEATURE_SCOPE(anyref);
+  static const byte data[] = {
+      // sig#0 -----------------------------------------------------------------
+      SIGNATURES_SECTION_VOID_VOID,
+      // funcs -----------------------------------------------------------------
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
+      // element segments  -----------------------------------------------------
+      SECTION(Element,            // section name
+              ENTRY_COUNT(1),     // entry count
+              DECLARATIVE,        // flags
+              kExternalFunction,  // type
+              ENTRY_COUNT(2),     // func index count
+              U32V_1(0),          // func index
+              U32V_1(1)),         // func index
+      // code ------------------------------------------------------------------
+      ONE_EMPTY_BODY};
+  EXPECT_FAILURE_WITH_MSG(data, "element function index 1 out of bounds");
+}
+
+TEST_F(WasmModuleVerifyTest, DeclarativeElementSegmentMissingForGlobal) {
+  WASM_FEATURE_SCOPE(bulk_memory);
+  WASM_FEATURE_SCOPE(anyref);
+  static const byte data[] = {
+      // sig#0 -----------------------------------------------------------------
+      SIGNATURES_SECTION_VOID_VOID,
+      // funcs -----------------------------------------------------------------
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
+      // global definitions ----------------------------------------------------
+      SECTION(Global,                       // section name
+              ENTRY_COUNT(1),               // entry count
+              kLocalAnyRef,                 // local type
+              0,                            // immutable
+              WASM_INIT_EXPR_REF_FUNC(0)),  // init
+      // code ------------------------------------------------------------------
+      ONE_EMPTY_BODY};
+  EXPECT_FAILURE_WITH_MSG(data, "undeclared reference to function");
 }
 
 TEST_F(WasmModuleVerifyTest, DataCountSectionCorrectPlacement) {

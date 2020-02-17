@@ -367,6 +367,7 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeSection(SectionCode section_code, Vector<const uint8_t> bytes,
                      uint32_t offset, bool verify_functions = true) {
+    VerifyFunctionDeclarations(section_code);
     if (failed()) return;
     Reset(bytes, offset);
     TRACE("Section: %s\n", SectionName(section_code));
@@ -548,7 +549,8 @@ class ModuleDecoderImpl : public Decoder {
                                         0,              // sig_index
                                         {0, 0},         // code
                                         true,           // imported
-                                        false});        // exported
+                                        false,          // exported
+                                        false});        // declared
           WasmFunction* function = &module_->functions.back();
           function->sig_index =
               consume_sig_index(module_.get(), &function->sig);
@@ -638,7 +640,8 @@ class ModuleDecoderImpl : public Decoder {
                                     0,           // sig_index
                                     {0, 0},      // code
                                     false,       // imported
-                                    false});     // exported
+                                    false,       // exported
+                                    false});     // declared
       WasmFunction* function = &module_->functions.back();
       function->sig_index = consume_sig_index(module_.get(), &function->sig);
       if (!ok()) return;
@@ -806,21 +809,18 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t element_count =
         consume_count("element count", FLAG_wasm_max_table_size);
 
-    if (element_count > 0 && module_->tables.size() == 0) {
-      error(pc_, "The element section requires a table");
-    }
     for (uint32_t i = 0; ok() && i < element_count; ++i) {
       const byte* pos = pc();
 
-      bool is_active;
+      WasmElemSegment::Status status;
       bool functions_as_elements;
       uint32_t table_index;
       WasmInitExpr offset;
-      consume_element_segment_header(&is_active, &functions_as_elements,
+      consume_element_segment_header(&status, &functions_as_elements,
                                      &table_index, &offset);
       if (failed()) return;
 
-      if (is_active) {
+      if (status == WasmElemSegment::kStatusActive) {
         if (table_index >= module_->tables.size()) {
           errorf(pos, "out of bounds table index %u", table_index);
           break;
@@ -836,10 +836,11 @@ class ModuleDecoderImpl : public Decoder {
 
       uint32_t num_elem =
           consume_count("number of elements", max_table_init_entries());
-      if (is_active) {
+      if (status == WasmElemSegment::kStatusActive) {
         module_->elem_segments.emplace_back(table_index, offset);
       } else {
-        module_->elem_segments.emplace_back();
+        module_->elem_segments.emplace_back(
+            status == WasmElemSegment::kStatusDeclarative);
       }
 
       WasmElemSegment* init = &module_->elem_segments.back();
@@ -1116,7 +1117,41 @@ class ModuleDecoderImpl : public Decoder {
     return true;
   }
 
+  void VerifyFunctionDeclarations(SectionCode section_code) {
+    // Since we will only know if a function was properly declared after all the
+    // element sections have been parsed, but we need to verify the proper use
+    // within global initialization, we are deferring those checks.
+    if (deferred_funcref_error_offsets_.empty()) {
+      // No verifications to do be done.
+      return;
+    }
+    if (!ok()) {
+      // Previous errors exist.
+      return;
+    }
+    // TODO(ecmziegler): Adjust logic if module order changes (e.g. event
+    // section).
+    if (section_code <= kElementSectionCode &&
+        section_code != kUnknownSectionCode) {
+      // Before the element section and not at end of decoding.
+      return;
+    }
+    for (auto& func_offset : deferred_funcref_error_offsets_) {
+      DCHECK_LT(func_offset.first, module_->functions.size());
+      if (!module_->functions[func_offset.first].declared) {
+        errorf(func_offset.second, "undeclared reference to function #%u",
+               func_offset.first);
+        break;
+      }
+    }
+    deferred_funcref_error_offsets_.clear();
+  }
+
   ModuleResult FinishDecoding(bool verify_functions = true) {
+    // Ensure that function verifications were done even if no section followed
+    // the global section.
+    VerifyFunctionDeclarations(kUnknownSectionCode);
+
     if (ok() && CheckMismatchedCounts()) {
       CalculateGlobalOffsets(module_.get());
     }
@@ -1231,6 +1266,10 @@ class ModuleDecoderImpl : public Decoder {
                     kLastKnownModuleSection,
                 "not enough bits");
   WasmError intermediate_error_;
+  // Map from function index to wire byte offset of first funcref initialization
+  // in global section. Used for deferred checking and proper error reporting if
+  // these were not properly declared in the element section.
+  std::unordered_map<uint32_t, int> deferred_funcref_error_offsets_;
   ModuleOrigin origin_;
 
   bool has_seen_unordered_section(SectionCode section_code) {
@@ -1566,6 +1605,8 @@ class ModuleDecoderImpl : public Decoder {
             errorf(pc() - 1, "invalid function index: %u", imm.index);
             break;
           }
+          // Defer check for declaration of function reference.
+          deferred_funcref_error_offsets_.emplace(imm.index, pc_offset());
           expr.kind = WasmInitExpr::kRefFuncConst;
           expr.val.function_index = imm.index;
           len = imm.length;
@@ -1716,7 +1757,7 @@ class ModuleDecoderImpl : public Decoder {
     return attribute;
   }
 
-  void consume_element_segment_header(bool* is_active,
+  void consume_element_segment_header(WasmElemSegment::Status* status,
                                       bool* functions_as_elements,
                                       uint32_t* table_index,
                                       WasmInitExpr* offset) {
@@ -1749,11 +1790,31 @@ class ModuleDecoderImpl : public Decoder {
         kIsPassiveMask | kHasTableIndexMask | kFunctionsAsElementsMask;
 
     bool is_passive = flag & kIsPassiveMask;
-    *is_active = !is_passive;
+    if (!is_passive) {
+      *status = WasmElemSegment::kStatusActive;
+      if (module_->tables.size() == 0) {
+        error(pc_, "Active element sections require a table");
+      }
+    } else if ((flag & kHasTableIndexMask)) {  // Special bit combination for
+                                               // declarative segments.
+      *status = WasmElemSegment::kStatusDeclarative;
+    } else {
+      *status = WasmElemSegment::kStatusPassive;
+      if (module_->tables.size() == 0) {
+        error(pc_, "Passive element sections require a table");
+      }
+    }
     *functions_as_elements = flag & kFunctionsAsElementsMask;
-    bool has_table_index = flag & kHasTableIndexMask;
+    bool has_table_index = (flag & kHasTableIndexMask) &&
+                           *status == WasmElemSegment::kStatusActive;
 
-    if (is_passive && !enabled_features_.has_bulk_memory()) {
+    if (*status == WasmElemSegment::kStatusDeclarative &&
+        !enabled_features_.has_anyref()) {
+      error("Declarative element segments require --experimental-wasm-anyref");
+      return;
+    }
+    if (*status == WasmElemSegment::kStatusPassive &&
+        !enabled_features_.has_bulk_memory()) {
       error("Passive element segments require --experimental-wasm-bulk-memory");
       return;
     }
@@ -1770,8 +1831,8 @@ class ModuleDecoderImpl : public Decoder {
           "--experimental-wasm-bulk-memory or --experimental-wasm-anyref?");
       return;
     }
-    if ((flag & kFullMask) != flag || (!(*is_active) && has_table_index)) {
-      errorf(pos, "illegal flag value %u. Must be 0, 1, 2, 4, 5 or 6", flag);
+    if ((flag & kFullMask) != flag) {
+      errorf(pos, "illegal flag value %u. Must be between 0 and 7", flag);
     }
 
     if (has_table_index) {
@@ -1780,11 +1841,11 @@ class ModuleDecoderImpl : public Decoder {
       *table_index = 0;
     }
 
-    if (*is_active) {
+    if (*status == WasmElemSegment::kStatusActive) {
       *offset = consume_init_expr(module_.get(), kWasmI32);
     }
 
-    if (*is_active && !has_table_index) {
+    if (*status == WasmElemSegment::kStatusActive && !has_table_index) {
       // Active segments without table indices are a special case for backwards
       // compatibility. These cases have an implicit element kind or element
       // type, so we are done already with the segment header.
@@ -1859,6 +1920,7 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t index =
         consume_func_index(module_.get(), &func, "element function index");
     if (failed()) return index;
+    func->declared = true;
     DCHECK_NE(func, nullptr);
     DCHECK_EQ(index, func->func_index);
     DCHECK_NE(index, WasmElemSegment::kNullIndex);

@@ -220,13 +220,14 @@ class TestModuleBuilder {
     CHECK_LE(mod.signatures.size(), kMaxByteSizedLeb128);
     return static_cast<byte>(mod.signatures.size() - 1);
   }
-  byte AddFunction(FunctionSig* sig) {
-    mod.functions.push_back({sig,      // sig
-                             0,        // func_index
-                             0,        // sig_index
-                             {0, 0},   // code
-                             false,    // import
-                             false});  // export
+  byte AddFunction(FunctionSig* sig, bool declared = true) {
+    mod.functions.push_back({sig,         // sig
+                             0,           // func_index
+                             0,           // sig_index
+                             {0, 0},      // code
+                             false,       // import
+                             false,       // export
+                             declared});  // declared
     CHECK_LE(mod.functions.size(), kMaxByteSizedLeb128);
     return static_cast<byte>(mod.functions.size() - 1);
   }
@@ -262,12 +263,18 @@ class TestModuleBuilder {
   void InitializeTable() { mod.tables.emplace_back(); }
 
   byte AddPassiveElementSegment() {
-    mod.elem_segments.emplace_back();
+    mod.elem_segments.emplace_back(false);
     auto& init = mod.elem_segments.back();
     // Add 5 empty elements.
     for (uint32_t j = 0; j < 5; j++) {
       init.entries.push_back(WasmElemSegment::kNullIndex);
     }
+    return static_cast<byte>(mod.elem_segments.size() - 1);
+  }
+
+  byte AddDeclarativeElementSegment() {
+    mod.elem_segments.emplace_back(true);
+    mod.elem_segments.back().entries.push_back(WasmElemSegment::kNullIndex);
     return static_cast<byte>(mod.elem_segments.size() - 1);
   }
 
@@ -3240,6 +3247,57 @@ TEST_F(FunctionBodyDecoderTest, ElemDrop) {
   WASM_FEATURE_SCOPE(bulk_memory);
   ExpectValidates(sigs.v_v(), {WASM_ELEM_DROP(0)});
   ExpectFailure(sigs.v_v(), {WASM_ELEM_DROP(1)});
+}
+
+TEST_F(FunctionBodyDecoderTest, TableInitDeclarativeElem) {
+  TestModuleBuilder builder;
+  builder.InitializeTable();
+  builder.AddDeclarativeElementSegment();
+  module = builder.module();
+
+  WASM_FEATURE_SCOPE(bulk_memory);
+  WASM_FEATURE_SCOPE(anyref);
+  byte code[] = {WASM_TABLE_INIT(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO),
+                 WASM_END};
+  for (size_t i = 0; i <= arraysize(code); ++i) {
+    Validate(i == arraysize(code), sigs.v_v(), VectorOf(code, i), kOmitEnd);
+  }
+}
+
+TEST_F(FunctionBodyDecoderTest, DeclarativeElemDrop) {
+  TestModuleBuilder builder;
+  builder.InitializeTable();
+  builder.AddDeclarativeElementSegment();
+  module = builder.module();
+
+  ExpectFailure(sigs.v_v(), {WASM_ELEM_DROP(0)});
+  WASM_FEATURE_SCOPE(bulk_memory);
+  WASM_FEATURE_SCOPE(anyref);
+  ExpectValidates(sigs.v_v(), {WASM_ELEM_DROP(0)});
+  ExpectFailure(sigs.v_v(), {WASM_ELEM_DROP(1)});
+}
+
+TEST_F(FunctionBodyDecoderTest, RefFuncDeclared) {
+  TestModuleBuilder builder;
+  builder.InitializeTable();
+  byte function_index = builder.AddFunction(sigs.v_i());
+  module = builder.module();
+
+  ExpectFailure(sigs.a_v(), {WASM_REF_FUNC(function_index)});
+  WASM_FEATURE_SCOPE(bulk_memory);
+  WASM_FEATURE_SCOPE(anyref);
+  ExpectValidates(sigs.a_v(), {WASM_REF_FUNC(function_index)});
+}
+
+TEST_F(FunctionBodyDecoderTest, RefFuncUndeclared) {
+  TestModuleBuilder builder;
+  builder.InitializeTable();
+  byte function_index = builder.AddFunction(sigs.v_i(), false);
+  module = builder.module();
+
+  WASM_FEATURE_SCOPE(bulk_memory);
+  WASM_FEATURE_SCOPE(anyref);
+  ExpectFailure(sigs.a_v(), {WASM_REF_FUNC(function_index)});
 }
 
 TEST_F(FunctionBodyDecoderTest, ElemSegmentIndexUnsigned) {

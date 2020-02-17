@@ -57,6 +57,7 @@ struct WasmFunction {
   WireBytesRef code;     // code of this function.
   bool imported;
   bool exported;
+  bool declared;
 };
 
 // Static representation of a wasm global variable.
@@ -115,10 +116,13 @@ struct WasmElemSegment {
 
   // Construct an active segment.
   WasmElemSegment(uint32_t table_index, WasmInitExpr offset)
-      : table_index(table_index), offset(offset), active(true) {}
+      : table_index(table_index), offset(offset), status(kStatusActive) {}
 
-  // Construct a passive segment, which has no table index or offset.
-  WasmElemSegment() : table_index(0), active(false) {}
+  // Construct a passive or declarative segment, which has no table index or
+  // offset.
+  explicit WasmElemSegment(bool declarative)
+      : table_index(0),
+        status(declarative ? kStatusDeclarative : kStatusPassive) {}
 
   // Used in the {entries} vector to represent a `ref.null` entry in a passive
   // segment.
@@ -127,7 +131,11 @@ struct WasmElemSegment {
   uint32_t table_index;
   WasmInitExpr offset;
   std::vector<uint32_t> entries;
-  bool active;  // true if copied automatically during instantiation.
+  enum Status {
+    kStatusActive,      // copied automatically during instantiation.
+    kStatusPassive,     // copied explicitly after instantiation.
+    kStatusDeclarative  // purely declarative and never copied.
+  } status;
 };
 
 // Static representation of a wasm import.

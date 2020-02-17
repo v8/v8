@@ -1951,12 +1951,12 @@ class ThreadImpl {
         // Even when table.fill goes out-of-bounds, as many entries as possible
         // are put into the table. Only afterwards we trap.
         uint32_t fill_count = std::min(count, table_size - start);
-        WasmTableObject::Fill(isolate_, table, start, value, fill_count);
-
         if (fill_count < count) {
           DoTrap(kTrapTableOutOfBounds, pc);
           return false;
         }
+        WasmTableObject::Fill(isolate_, table, start, value, fill_count);
+
         *len += imm.length;
         return true;
       }
@@ -4319,7 +4319,13 @@ ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
   // Create some dummy structures, to avoid special-casing the implementation
   // just for testing.
   FunctionSig sig(0, 0, nullptr);
-  WasmFunction function{&sig, 0, 0, {0, 0}, false, false};
+  WasmFunction function{&sig,    // sig
+                        0,       // func_index
+                        0,       // sig_index
+                        {0, 0},  // code
+                        false,   // imported
+                        false,   // exported
+                        false};  // declared
   InterpreterCode code{
       &function, BodyLocalDecls(zone), start, end, nullptr, nullptr, nullptr};
 
