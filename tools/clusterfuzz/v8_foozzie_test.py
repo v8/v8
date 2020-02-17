@@ -18,35 +18,78 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FOOZZIE = os.path.join(BASE_DIR, 'v8_foozzie.py')
 TEST_DATA = os.path.join(BASE_DIR, 'testdata')
 
+KNOWN_BUILDS = [
+  'd8',
+  'clang_x86/d8',
+  'clang_x86_v8_arm/d8',
+  'clang_x64_v8_arm64/d8',
+  'clang_x64_pointer_compression/d8',
+]
+
 
 class ConfigTest(unittest.TestCase):
   def testExperiments(self):
-    """Test that probabilities add up to 100 and that all config names exist.
-    """
-    EXPERIMENTS = v8_fuzz_config.FOOZZIE_EXPERIMENTS
+    """Test integrity of probabilities and configs."""
     CONFIGS = v8_foozzie.CONFIGS
+    EXPERIMENTS = v8_fuzz_config.FOOZZIE_EXPERIMENTS
+    FLAGS = v8_fuzz_config.ADDITIONAL_FLAGS
+    # Probabilities add up to 100%.
+    first_is_int = lambda x: type(x[0]) == int
+    assert all(map(first_is_int, EXPERIMENTS))
     assert sum(x[0] for x in EXPERIMENTS) == 100
+    # Configs used in experiments are defined.
     assert all(map(lambda x: x[1] in CONFIGS, EXPERIMENTS))
     assert all(map(lambda x: x[2] in CONFIGS, EXPERIMENTS))
-    assert all(map(lambda x: x[3].endswith('d8'), EXPERIMENTS))
+    # The last config item points to a known build configuration.
+    assert all(map(lambda x: x[3] in KNOWN_BUILDS, EXPERIMENTS))
+    # Ensure we compare different configs and same d8, or same config
+    # to different d8.
+    is_sane_comparison = lambda x: (x[1] == x[2]) == ('d8' != x[3])
+    assert all(map(is_sane_comparison, EXPERIMENTS))
+    # All flags have a probability.
+    first_is_float = lambda x: type(x[0]) == float
+    assert all(map(first_is_float, FLAGS))
+    first_between_0_and_1 = lambda x: x[0] > 0 and x[0] < 1
+    assert all(map(first_between_0_and_1, FLAGS))
+    # Test consistent flags.
+    second_is_string = lambda x: isinstance(x[1], basestring)
+    assert all(map(second_is_string, FLAGS))
+    # We allow spaces to separate more flags. We don't allow spaces in the flag
+    # value.
+    is_flag = lambda x: x.startswith('--')
+    all_parts_are_flags = lambda x: all(map(is_flag, x[1].split()))
+    assert all(map(all_parts_are_flags, FLAGS))
 
   def testConfig(self):
-    """Smoke test how to choose experiments.
-
-    When experiment distribution changes this test might change, too.
-    """
+    """Smoke test how to choose experiments."""
+    config = v8_fuzz_config.Config('foo', random.Random(42))
+    experiments = [
+      [25, 'ignition', 'jitless', 'd8'],
+      [75, 'ignition', 'ignition', 'clang_x86/d8'],
+    ]
+    flags = [
+      [0.1, '--flag'],
+      [0.3, '--baz'],
+      [0.3, '--foo --bar'],
+    ]
     self.assertEqual(
         [
           '--first-config=ignition',
-          '--second-config=ignition_turbo_opt',
+          '--second-config=jitless',
           '--second-d8=d8',
-          '--second-config-extra-flags=--stress-scavenge=100',
-          '--second-config-extra-flags=--no-regexp-tier-up',
-          '--second-config-extra-flags=--no-enable-ssse3',
-          '--second-config-extra-flags=--no-enable-bmi2',
-          '--second-config-extra-flags=--no-enable-lzcnt',
+          '--second-config-extra-flags=--baz',
+          '--second-config-extra-flags=--foo',
+          '--second-config-extra-flags=--bar',
         ],
-        v8_fuzz_config.Config('foo', random.Random(42)).choose_foozzie_flags(),
+        config.choose_foozzie_flags(experiments, flags),
+    )
+    self.assertEqual(
+        [
+          '--first-config=ignition',
+          '--second-config=jitless',
+          '--second-d8=d8',
+        ],
+        config.choose_foozzie_flags(experiments, flags),
     )
 
 

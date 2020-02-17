@@ -31,22 +31,29 @@ class Config(object):
     self.name = name
     self.rng = rng or random.Random()
 
-  def choose_foozzie_flags(self):
+  def choose_foozzie_flags(self, foozzie_experiments=None, additional_flags=None):
     """Randomly chooses a configuration from FOOZZIE_EXPERIMENTS.
+
+    Args:
+      foozzie_experiments: Override experiment config for testing.
+      additional_flags: Override additional flags for testing.
 
     Returns: List of flags to pass to v8_foozzie.py fuzz harness.
     """
+    foozzie_experiments = foozzie_experiments or FOOZZIE_EXPERIMENTS
+    additional_flags = additional_flags or ADDITIONAL_FLAGS
 
     # Add additional flags to second config based on experiment percentages.
     extra_flags = []
-    for p, flag in ADDITIONAL_FLAGS:
+    for p, flags in additional_flags:
       if self.rng.random() < p:
-        extra_flags.append('--second-config-extra-flags=%s' % flag)
+        for flag in flags.split():
+          extra_flags.append('--second-config-extra-flags=%s' % flag)
 
     # Calculate flags determining the experiment.
     acc = 0
     threshold = self.rng.random() * 100
-    for prob, first_config, second_config, second_d8 in FOOZZIE_EXPERIMENTS:
+    for prob, first_config, second_config, second_d8 in foozzie_experiments:
       acc += prob
       if acc > threshold:
         return [
