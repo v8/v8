@@ -2128,6 +2128,22 @@ void Simulator::WriteMem(int64_t addr, T value, Instruction* instr) {
   base::OS::Abort();
 }
 
+// RISCV Memory Read/Write functions
+// Compared with mips64, RISCV can support unaligned read/write. EEI decides.
+// FIXME: RISCV porting: Add boundary check and TraceMem* support
+
+template <typename T>
+T Simulator::RV_ReadMem(int64_t addr, Instruction* instr) {
+  T* ptr = reinterpret_cast<T*>(addr);
+  return *ptr;
+}
+
+template <typename T>
+void Simulator::RV_WriteMem(int64_t addr, T value, Instruction* instr) {
+  T* ptr = reinterpret_cast<T*>(addr);
+  *ptr = value;
+}
+
 // Returns the limit of the stack area to enable checking for stack overflows.
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
@@ -7319,27 +7335,37 @@ void Simulator::DecodeRVR4Type() { UNSUPPORTED(); }
 void Simulator::DecodeRVIType() {
   switch (instr_.InstructionBits() & kITypeMask) {
     case RO_JALR: {
-      set_rd(get_pc());
-      // FIXME: do we need to multiply imm12() by 2?
+      set_rd(get_pc() + kInstrSize);
+      // Note: No need to shift 2 for JALR's imm12, but set lowest bit to 0.
       int64_t next_pc = (rs1() + imm12()) & ~reg_t(1);
       set_pc(next_pc);
       break;
     }
-    case RO_LB:
-      UNSUPPORTED();
+    case RO_LB: {
+      int8_t val = RV_ReadMem<int8_t>(rs1() + imm12(), instr_.instr());
+      set_rd(sext_xlen(val));
       break;
-    case RO_LH:
-      UNSUPPORTED();
+    }
+    case RO_LH: {
+      int16_t val = RV_ReadMem<int16_t>(rs1() + imm12(), instr_.instr());
+      set_rd(sext_xlen(val));
       break;
-    case RO_LW:
-      UNSUPPORTED();
+    }
+    case RO_LW: {
+      int32_t val = RV_ReadMem<int32_t>(rs1() + imm12(), instr_.instr());
+      set_rd(sext_xlen(val));
       break;
-    case RO_LBU:
-      UNSUPPORTED();
+    }
+    case RO_LBU: {
+      uint8_t val = RV_ReadMem<uint8_t>(rs1() + imm12(), instr_.instr());
+      set_rd(zext_xlen(val));
       break;
-    case RO_LHU:
-      UNSUPPORTED();
+    }
+    case RO_LHU: {
+      uint16_t val = RV_ReadMem<uint16_t>(rs1() + imm12(), instr_.instr());
+      set_rd(zext_xlen(val));
       break;
+    }
     case RO_ADDI: {
       set_rd(sext_xlen(rs1() + imm12()));
       break;
@@ -7400,13 +7426,13 @@ void Simulator::DecodeRVIType() {
 void Simulator::DecodeRVSType() {
   switch (instr_.InstructionBits() & kSTypeMask) {
     case RO_SB:
-      UNSUPPORTED();
+      RV_WriteMem<uint8_t>(rs1() + s_imm12(), (uint8_t)rs2(), instr_.instr());
       break;
     case RO_SH:
-      UNSUPPORTED();
+      RV_WriteMem<uint16_t>(rs1() + s_imm12(), (uint16_t)rs2(), instr_.instr());
       break;
     case RO_SW:
-      UNSUPPORTED();
+      RV_WriteMem<uint32_t>(rs1() + s_imm12(), (uint32_t)rs2(), instr_.instr());
       break;
     default:
       UNSUPPORTED();
@@ -7457,7 +7483,7 @@ void Simulator::DecodeRVJType() {
   // J Type doesn't have additional mask
   switch (instr_.BaseOpcodeValue()) {
     case RO_JAL: {
-      set_register(RV_rd_reg(), get_pc());
+      set_rd(get_pc() + kInstrSize);
       int64_t next_pc = get_pc() + imm20J();
       set_pc(next_pc);
       break;

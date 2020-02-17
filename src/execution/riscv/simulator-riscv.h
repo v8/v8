@@ -423,6 +423,13 @@ class Simulator : public SimulatorBase {
   template <typename T>
   void WriteMem(int64_t addr, T value, Instruction* instr);
 
+  // RISCV Memory read/write methods
+  template <typename T>
+  T RV_ReadMem(int64_t addr, Instruction* instr);
+  template <typename T>
+  void RV_WriteMem(int64_t addr, T value, Instruction* instr);
+  int8_t RV_ReadB(int64_t addr);
+
   // Helper for debugging memory access.
   inline void DieOrDebug();
 
@@ -521,6 +528,7 @@ class Simulator : public SimulatorBase {
   inline int32_t imm20J() const { return instr_.Imm20JValue(); }
   inline void set_rd(int64_t value) { set_register(RV_rd_reg(), value); }
   inline int16_t shamt() const { return (imm12() & 0x3F); }
+  inline int32_t s_imm12() const { return instr_.StoreOffset(); }
   inline void require(bool check) {
     if (!check) {
       SignalException(kIllegalInstruction);

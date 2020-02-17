@@ -122,6 +122,26 @@ TEST(RISCV2) {
   CHECK_EQ(5050, res);
 }
 
+// Test part of Load and Store
+TEST(RISCV3) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  __ RV_sb(sp, a0, -4);
+  __ RV_lb(a0, sp, -4);
+  __ RV_jr(ra);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  int64_t res = reinterpret_cast<int64_t>(f.Call(255, 0, 0, 0, 0));
+  CHECK_EQ(-1, res);
+}
+
 #undef __
 
 }  // namespace internal
