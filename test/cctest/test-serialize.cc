@@ -907,7 +907,8 @@ void TestInt32Expectations(const Int32Expectations& expectations) {
 void TypedArrayTestHelper(
     const char* code, const Int32Expectations& expectations,
     const char* code_to_run_after_restore = nullptr,
-    const Int32Expectations& after_restore_expectations = Int32Expectations()) {
+    const Int32Expectations& after_restore_expectations = Int32Expectations(),
+    v8::ArrayBuffer::Allocator* allocator = nullptr) {
   DisableAlwaysOpt();
   i::FLAG_allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
@@ -933,7 +934,8 @@ void TypedArrayTestHelper(
   ReadOnlyHeap::ClearSharedHeapForTest();
   v8::Isolate::CreateParams create_params;
   create_params.snapshot_blob = &blob;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator =
+      allocator != nullptr ? allocator : CcTest::array_buffer_allocator();
   v8::Isolate* isolate = TestSerializer::NewIsolate(create_params);
   {
     v8::Isolate::Scope i_scope(isolate);
@@ -1027,6 +1029,46 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobDataView) {
                                     std::make_tuple("v.getInt16(1)", 515)};
 
   TypedArrayTestHelper(code, expectations);
+}
+
+namespace {
+class AlternatingArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  AlternatingArrayBufferAllocator()
+      : allocation_fails_(false),
+        allocator_(v8::ArrayBuffer::Allocator::NewDefaultAllocator()) {}
+  ~AlternatingArrayBufferAllocator() { delete allocator_; }
+  void* Allocate(size_t length) override {
+    allocation_fails_ = !allocation_fails_;
+    if (allocation_fails_) return nullptr;
+    return allocator_->Allocate(length);
+  }
+
+  void* AllocateUninitialized(size_t length) override {
+    return this->Allocate(length);
+  }
+
+  void Free(void* data, size_t size) override { allocator_->Free(data, size); }
+
+  void* Reallocate(void* data, size_t old_length, size_t new_length) override {
+    return allocator_->Reallocate(data, old_length, new_length);
+  }
+
+ private:
+  bool allocation_fails_;
+  v8::ArrayBuffer::Allocator* allocator_;
+};
+}  // anonymous namespace
+
+UNINITIALIZED_TEST(CustomSnapshotManyArrayBuffers) {
+  const char* code =
+      "var buffers = [];"
+      "for (let i = 0; i < 70; i++) buffers.push(new Uint8Array(1000));";
+  Int32Expectations expectations = {std::make_tuple("buffers.length", 70)};
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
+      new AlternatingArrayBufferAllocator());
+  TypedArrayTestHelper(code, expectations, nullptr, Int32Expectations(),
+                       allocator.get());
 }
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlobDetachedArrayBuffer) {

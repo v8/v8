@@ -667,6 +667,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
       }
 
       case kOffHeapBackingStore: {
+        AlwaysAllocateScope scope(isolate->heap());
         int byte_length = source_.GetInt();
         std::unique_ptr<BackingStore> backing_store =
             BackingStore::Allocate(isolate, byte_length, SharedFlag::kNotShared,
