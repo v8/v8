@@ -2974,6 +2974,7 @@ Node* WasmGraphBuilder::BuildChangeInt32ToIntPtr(Node* value) {
 }
 
 Node* WasmGraphBuilder::BuildChangeInt32ToSmi(Node* value) {
+  // With pointer compression, only the lower 32 bits are used.
   if (COMPRESS_POINTERS_BOOL) {
     return graph()->NewNode(mcgraph()->machine()->Word32Shl(), value,
                             BuildSmiShiftBitsConstant32());
@@ -5259,92 +5260,64 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   Node* BuildChangeFloat64ToTagged(Node* value) {
-    MachineOperatorBuilder* machine = mcgraph()->machine();
-    CommonOperatorBuilder* common = mcgraph()->common();
-
     // Check several conditions:
     //  i32?
     //  ├─ true: zero?
-    //  │        ├─ true: negative?
-    //  │        │        ├─ true: box
-    //  │        │        └─ false: potentially Smi
+    //  │        ├─ true: positive?
+    //  │        │        ├─ true: potentially Smi
+    //  │        │        └─ false: box (-0)
     //  │        └─ false: potentially Smi
-    //  └─ false: box
+    //  └─ false: box (non-int)
     // For potential Smi values, depending on whether Smis are 31 or 32 bit, we
     // still need to check whether the value fits in a Smi.
 
-    Node* old_effect = effect();
-    Node* old_control = control();
-    Node* value32 = graph()->NewNode(machine->RoundFloat64ToInt32(), value);
-    Node* check_i32 = graph()->NewNode(
-        machine->Float64Equal(), value,
-        graph()->NewNode(machine->ChangeInt32ToFloat64(), value32));
-    Node* branch_i32 =
-        graph()->NewNode(common->Branch(), check_i32, old_control);
+    auto box_value = gasm_->MakeDeferredLabel();
+    auto potentially_smi = gasm_->MakeLabel();
+    auto done = gasm_->MakeLabel(MachineRepresentation::kTagged);
 
-    Node* if_i32 = graph()->NewNode(common->IfTrue(), branch_i32);
-    Node* if_not_i32 = graph()->NewNode(common->IfFalse(), branch_i32);
+    Node* value32 = gasm_->RoundFloat64ToInt32(value);
+    Node* check_i32 =
+        gasm_->Float64Equal(value, gasm_->ChangeInt32ToFloat64(value32));
+    gasm_->GotoIfNot(check_i32, &box_value);
 
     // We only need to check for -0 if the {value} can potentially contain -0.
-    Node* check_zero = graph()->NewNode(machine->Word32Equal(), value32,
-                                        mcgraph()->Int32Constant(0));
-    Node* branch_zero = graph()->NewNode(common->Branch(BranchHint::kFalse),
-                                         check_zero, if_i32);
+    Node* check_zero = gasm_->Word32Equal(value32, gasm_->Int32Constant(0));
+    gasm_->GotoIfNot(check_zero, &potentially_smi);
 
-    Node* if_zero = graph()->NewNode(common->IfTrue(), branch_zero);
-    Node* if_not_zero = graph()->NewNode(common->IfFalse(), branch_zero);
+    // In case of 0, we need to check the MSB (sign bit).
+    Node* check_positive = gasm_->Word32Equal(
+        gasm_->Float64ExtractHighWord32(value), gasm_->Int32Constant(0));
+    gasm_->Branch(check_positive, &potentially_smi, &box_value);
 
-    // In case of 0, we need to check the high bits for the IEEE -0 pattern.
-    Node* check_negative = graph()->NewNode(
-        machine->Int32LessThan(),
-        graph()->NewNode(machine->Float64ExtractHighWord32(), value),
-        mcgraph()->Int32Constant(0));
-    Node* branch_negative = graph()->NewNode(common->Branch(BranchHint::kFalse),
-                                             check_negative, if_zero);
-
-    Node* if_negative = graph()->NewNode(common->IfTrue(), branch_negative);
-    Node* if_not_negative =
-        graph()->NewNode(common->IfFalse(), branch_negative);
-
-    // We need to create a box for negative 0.
-    Node* if_smi =
-        graph()->NewNode(common->Merge(2), if_not_zero, if_not_negative);
-    Node* if_box = graph()->NewNode(common->Merge(2), if_not_i32, if_negative);
+    gasm_->Bind(&potentially_smi);
 
     // On 64-bit machines we can just wrap the 32-bit integer in a smi, for
     // 32-bit machines we need to deal with potential overflow and fallback to
     // boxing.
-    Node* vsmi;
     if (SmiValuesAre32Bits()) {
-      vsmi = BuildChangeInt32ToSmi(value32);
+      gasm_->Goto(&done, BuildChangeInt32ToSmi(value32));
     } else {
       DCHECK(SmiValuesAre31Bits());
-      Node* smi_tag = graph()->NewNode(machine->Int32AddWithOverflow(), value32,
-                                       value32, if_smi);
+      // The smi value is {2 * value}. If that overflows, we need to box.
+      Node* smi_tag = gasm_->Int32AddWithOverflow(value32, value32);
 
-      Node* check_ovf =
-          graph()->NewNode(common->Projection(1), smi_tag, if_smi);
-      Node* branch_ovf = graph()->NewNode(common->Branch(BranchHint::kFalse),
-                                          check_ovf, if_smi);
+      Node* check_ovf = gasm_->Projection(1, smi_tag);
+      gasm_->GotoIf(check_ovf, &box_value);
 
-      Node* if_ovf = graph()->NewNode(common->IfTrue(), branch_ovf);
-      if_box = graph()->NewNode(common->Merge(2), if_ovf, if_box);
-
-      if_smi = graph()->NewNode(common->IfFalse(), branch_ovf);
-      vsmi = graph()->NewNode(common->Projection(0), smi_tag, if_smi);
-      vsmi = BuildChangeInt32ToIntPtr(vsmi);
+      Node* smi_value = gasm_->Projection(0, smi_tag);
+      // With pointer compression, only the lower 32 bits are used.
+      if (!COMPRESS_POINTERS_BOOL) {
+        smi_value = BuildChangeInt32ToIntPtr(smi_value);
+      }
+      gasm_->Goto(&done, smi_value);
     }
 
     // Allocate the box for the {value}.
-    SetControl(if_box);
-    Node* vbox = BuildAllocateHeapNumberWithValue(value);
-    Node* ebox = effect();
+    gasm_->Bind(&box_value);
+    gasm_->Goto(&done, BuildAllocateHeapNumberWithValue(value));
 
-    Node* merge =
-        SetControl(graph()->NewNode(common->Merge(2), if_smi, if_box));
-    SetEffect(graph()->NewNode(common->EffectPhi(2), old_effect, ebox, merge));
-    return graph()->NewNode(common->Phi(MachineRepresentation::kTagged, 2),
-                            vsmi, vbox, merge);
+    gasm_->Bind(&done);
+    return done.PhiAt(0);
   }
 
   int AddArgumentNodes(Vector<Node*> args, int pos, int param_count,
