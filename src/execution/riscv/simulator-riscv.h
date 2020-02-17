@@ -529,6 +529,7 @@ class Simulator : public SimulatorBase {
   inline void set_rd(int64_t value) { set_register(RV_rd_reg(), value); }
   inline int16_t shamt() const { return (imm12() & 0x3F); }
   inline int32_t s_imm12() const { return instr_.StoreOffset(); }
+  inline int32_t u_imm() const { return instr_.Imm20UValue(); }
   inline void require(bool check) {
     if (!check) {
       SignalException(kIllegalInstruction);

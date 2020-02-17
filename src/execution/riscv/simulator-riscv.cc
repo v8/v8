@@ -7442,10 +7442,16 @@ void Simulator::DecodeRVSType() {
 void Simulator::DecodeRVBType() {
   switch (instr_.InstructionBits() & kBTypeMask) {
     case RO_BEQ:
-      UNSUPPORTED();
+      if (rs1() == rs2()) {
+        int64_t next_pc = get_pc() + boffset();
+        set_pc(next_pc);
+      }
       break;
     case RO_BNE:
-      UNSUPPORTED();
+      if (rs1() != rs2()) {
+        int64_t next_pc = get_pc() + boffset();
+        set_pc(next_pc);
+      }
       break;
     case RO_BLT:
       if (rs1() < rs2()) {
@@ -7454,13 +7460,22 @@ void Simulator::DecodeRVBType() {
       }
       break;
     case RO_BGE:
-      UNSUPPORTED();
+      if (rs1() >= rs2()) {
+        int64_t next_pc = get_pc() + boffset();
+        set_pc(next_pc);
+      }
       break;
     case RO_BLTU:
-      UNSUPPORTED();
+      if ((reg_t)rs1() < (reg_t)rs2()) {
+        int64_t next_pc = get_pc() + boffset();
+        set_pc(next_pc);
+      }
       break;
     case RO_BGEU:
-      UNSUPPORTED();
+      if ((reg_t)rs1() >= (reg_t)rs2()) {
+        int64_t next_pc = get_pc() + boffset();
+        set_pc(next_pc);
+      }
       break;
     default:
       UNSUPPORTED();
@@ -7470,10 +7485,10 @@ void Simulator::DecodeRVUType() {
   // U Type doesn't have additoinal mask
   switch (instr_.BaseOpcodeFieldRaw()) {
     case RO_LUI:
-      UNSUPPORTED();
+      set_rd(u_imm());
       break;
     case RO_AUIPC:
-      UNSUPPORTED();
+      set_rd(sext_xlen(u_imm() + get_pc()));
       break;
     default:
       UNSUPPORTED();
