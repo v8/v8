@@ -60,6 +60,9 @@ declare_args() {
 
   # Override global symbol level setting for v8
   v8_symbol_level = symbol_level
+
+  # Enable WebAssembly debugging via GDB-remote protocol.
+  v8_enable_wasm_gdb_remote_debugging = false
 }
 
 if (v8_use_external_startup_data == "") {

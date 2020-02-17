@@ -23,6 +23,10 @@
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-objects-inl.h"
 
+#ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+#include "src/debug/wasm/gdb-server/gdb-server.h"
+#endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+
 namespace v8 {
 namespace internal {
 namespace wasm {
@@ -358,6 +362,11 @@ struct WasmEngine::NativeModuleInfo {
 WasmEngine::WasmEngine() : code_manager_(FLAG_wasm_max_code_space * MB) {}
 
 WasmEngine::~WasmEngine() {
+#ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+  // Synchronize on the GDB-remote thread, if running.
+  gdb_server_ = nullptr;
+#endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+
   // Synchronize on all background compile tasks.
   background_compile_task_manager_.CancelAndWait();
   // All AsyncCompileJobs have been canceled.
@@ -838,6 +847,12 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
 std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
     Isolate* isolate, const WasmFeatures& enabled,
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
+#ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+  if (FLAG_wasm_gdb_remote && !gdb_server_) {
+    gdb_server_ = std::make_unique<gdb_server::GdbServer>();
+  }
+#endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+
   std::shared_ptr<NativeModule> native_module = code_manager_.NewNativeModule(
       this, isolate, enabled, code_size_estimate, std::move(module));
   base::MutexGuard lock(&mutex_);

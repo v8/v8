@@ -517,6 +517,9 @@ config("features") {
   if (v8_control_flow_integrity) {
     defines += [ "V8_ENABLE_CONTROL_FLOW_INTEGRITY" ]
   }
+  if (v8_enable_wasm_gdb_remote_debugging) {
+    defines += [ "V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING" ]
+  }
 }
 
 config("toolchain") {
@@ -3047,6 +3050,22 @@ v8_source_set("v8_base_without_compiler") {
 
   if (v8_enable_third_party_heap) {
     sources += v8_third_party_heap_files
+  }
+
+  if (v8_enable_wasm_gdb_remote_debugging) {
+    sources += [
+      "src/debug/wasm/gdb-server/gdb-server-thread.cc",
+      "src/debug/wasm/gdb-server/gdb-server-thread.h",
+      "src/debug/wasm/gdb-server/gdb-server.cc",
+      "src/debug/wasm/gdb-server/gdb-server.h",
+      "src/debug/wasm/gdb-server/session.cc",
+      "src/debug/wasm/gdb-server/session.h",
+      "src/debug/wasm/gdb-server/target.cc",
+      "src/debug/wasm/gdb-server/target.h",
+      "src/debug/wasm/gdb-server/transport.cc",
+      "src/debug/wasm/gdb-server/transport.h",
+      "src/debug/wasm/gdb-server/util.h",
+    ]
   }
 
   if (v8_check_header_includes) {

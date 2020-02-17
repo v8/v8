@@ -1392,6 +1392,18 @@ DEFINE_BOOL(multi_mapped_mock_allocator, false,
             "Use a multi-mapped mock ArrayBuffer allocator for testing.")
 #endif
 
+// Flags for Wasm GDB remote debugging.
+#ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+#define DEFAULT_WASM_GDB_REMOTE_PORT 8765
+DEFINE_BOOL(wasm_gdb_remote, false,
+            "enable GDB-remote for WebAssembly debugging")
+DEFINE_INT(wasm_gdb_remote_port, DEFAULT_WASM_GDB_REMOTE_PORT,
+           "default port for WebAssembly debugging with LLDB.")
+DEFINE_BOOL(wasm_pause_waiting_for_debugger, false,
+            "pause at the first Webassembly instruction waiting for a debugger "
+            "to attach")
+#endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+
 //
 // GDB JIT integration flags.
 //
@@ -1476,6 +1488,10 @@ DEFINE_BOOL(print_break_location, false, "print source location on debug break")
 // wasm instance management
 DEFINE_DEBUG_BOOL(trace_wasm_instances, false,
                   "trace creation and collection of wasm instances")
+
+#ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+DEFINE_BOOL(trace_wasm_gdb_remote, false, "trace Webassembly GDB-remote server")
+#endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
 //
 // Logging and profiling flags

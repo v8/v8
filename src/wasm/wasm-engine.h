@@ -36,6 +36,10 @@ class ErrorThrower;
 struct ModuleWireBytes;
 class WasmFeatures;
 
+namespace gdb_server {
+class GdbServer;
+}
+
 class V8_EXPORT_PRIVATE CompilationResultResolver {
  public:
   virtual void OnCompilationSucceeded(Handle<WasmModuleObject> result) = 0;
@@ -366,6 +370,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Task manager managing all background compile jobs. Before shut down of the
   // engine, they must all be finished because they access the allocator.
   CancelableTaskManager background_compile_task_manager_;
+
+#ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+  // Implements a GDB-remote stub for WebAssembly debugging.
+  std::unique_ptr<gdb_server::GdbServer> gdb_server_;
+#endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
   // This mutex protects all information which is mutated concurrently or
   // fields that are initialized lazily on the first access.
