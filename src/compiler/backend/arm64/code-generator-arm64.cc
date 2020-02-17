@@ -2794,8 +2794,10 @@ void CodeGenerator::AssembleConstructFrame() {
 
   CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
                                 call_descriptor->CalleeSavedRegisters());
+  DCHECK_EQ(saves.Count() % 2, 0);
   CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
                                    call_descriptor->CalleeSavedFPRegisters());
+  DCHECK_EQ(saves_fp.Count() % 2, 0);
   // The number of slots for returns has to be even to ensure the correct stack
   // alignment.
   const int returns = RoundUp(frame()->GetReturnSlotCount(), 2);
@@ -2849,13 +2851,10 @@ void CodeGenerator::AssembleConstructFrame() {
       {
         // Finish the frame that hasn't been fully built yet.
         UseScratchRegisterScope temps(tasm());
-        __ Claim(2);  // Claim extra slots for marker + instance.
         Register scratch = temps.AcquireX();
         __ Mov(scratch,
                StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
-        __ Str(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-        __ Str(kWasmInstanceRegister,
-               MemOperand(fp, WasmCompiledFrameConstants::kWasmInstanceOffset));
+        __ Push(scratch, kWasmInstanceRegister);
       }
 
       __ Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
@@ -2889,23 +2888,25 @@ void CodeGenerator::AssembleConstructFrame() {
         break;
       case CallDescriptor::kCallCodeObject: {
         UseScratchRegisterScope temps(tasm());
-        __ Claim(required_slots +
-                 1);  // Claim extra slot for frame type marker.
         Register scratch = temps.AcquireX();
         __ Mov(scratch,
                StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
-        __ Str(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+        __ Push(scratch, padreg);
+        // One of the extra slots has just been claimed when pushing the frame
+        // type marker above. We also know that we have at least one slot to
+        // claim here, as the typed frame has an odd number of fixed slots, and
+        // all other parts of the total frame slots are even, leaving
+        // {required_slots} to be odd.
+        DCHECK_GE(required_slots, 1);
+        __ Claim(required_slots - 1);
       } break;
       case CallDescriptor::kCallWasmFunction: {
         UseScratchRegisterScope temps(tasm());
-        __ Claim(required_slots +
-                 2);  // Claim extra slots for marker + instance.
         Register scratch = temps.AcquireX();
         __ Mov(scratch,
                StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
-        __ Str(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-        __ Str(kWasmInstanceRegister,
-               MemOperand(fp, WasmCompiledFrameConstants::kWasmInstanceOffset));
+        __ Push(scratch, kWasmInstanceRegister);
+        __ Claim(required_slots);
       } break;
       case CallDescriptor::kCallWasmImportWrapper:
       case CallDescriptor::kCallWasmCapiFunction: {
@@ -2916,30 +2917,25 @@ void CodeGenerator::AssembleConstructFrame() {
         __ LoadTaggedPointerField(
             kWasmInstanceRegister,
             FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
-        int extra_slots =
-            call_descriptor->kind() == CallDescriptor::kCallWasmImportWrapper
-                ? 2   // Import wrapper: marker + instance.
-                : 3;  // C-API function: marker + instance + PC.
-        __ Claim(required_slots + extra_slots);
         Register scratch = temps.AcquireX();
         __ Mov(scratch,
                StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
-        __ Str(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-        __ Str(kWasmInstanceRegister,
-               MemOperand(fp, WasmCompiledFrameConstants::kWasmInstanceOffset));
+        __ Push(scratch, kWasmInstanceRegister);
+        int extra_slots =
+            call_descriptor->kind() == CallDescriptor::kCallWasmImportWrapper
+                ? 0   // Import wrapper: none.
+                : 1;  // C-API function: PC.
+        __ Claim(required_slots + extra_slots);
       } break;
       case CallDescriptor::kCallAddress:
-        if (info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY) {
-          required_slots += 2;  // marker + saved c_entry_fp.
-        }
-        __ Claim(required_slots);
         if (info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY) {
           UseScratchRegisterScope temps(tasm());
           Register scratch = temps.AcquireX();
           __ Mov(scratch, StackFrame::TypeToMarker(StackFrame::C_WASM_ENTRY));
-          __ Str(scratch,
-                 MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+          __ Push(scratch, padreg);
+          // The additional slot will be used for the saved c_entry_fp.
         }
+        __ Claim(required_slots);
         break;
       default:
         UNREACHABLE();
