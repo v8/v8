@@ -581,6 +581,12 @@ Handle<Object> WasmStackFrame::GetFunctionName() {
   return name;
 }
 
+Handle<Object> WasmStackFrame::GetScriptNameOrSourceUrl() {
+  Handle<Script> script = GetScript();
+  DCHECK_EQ(Script::TYPE_WASM, script->type());
+  return ScriptNameOrSourceUrl(script, isolate_);
+}
+
 Handle<Object> WasmStackFrame::GetWasmModuleName() {
   Handle<Object> module_name;
   Handle<WasmModuleObject> module_object(wasm_instance_->module_object(),
