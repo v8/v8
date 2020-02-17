@@ -178,6 +178,12 @@
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
+['variant == no_lfa', {
+  # https://crbug.com/v8/10219
+  'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
+}],  # variant == no_lfa
+
+##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
