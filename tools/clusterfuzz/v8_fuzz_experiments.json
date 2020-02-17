@@ -6,12 +6,12 @@
   [2, "ignition_no_ic", "ignition_turbo", "d8"],
   [2, "ignition", "ignition_turbo_no_ic", "d8"],
   [15, "ignition", "ignition_turbo_opt", "d8"],
-  [2, "ignition_no_ic", "ignition_turbo_opt", "d8"],
-  [4, "ignition_turbo_opt", "ignition_turbo_opt", "clang_x64_pointer_compression/d8"],
-  [5, "ignition_turbo", "ignition_turbo", "clang_x64_pointer_compression/d8"],
-  [4, "ignition_turbo_opt", "ignition_turbo_opt", "clang_x86/d8"],
-  [4, "ignition_turbo", "ignition_turbo", "clang_x86/d8"],
+  [5, "ignition_no_ic", "ignition_turbo_opt", "d8"],
+  [3, "ignition_turbo_opt", "ignition_turbo_opt", "clang_x64_pointer_compression/d8"],
+  [3, "ignition_turbo", "ignition_turbo", "clang_x64_pointer_compression/d8"],
   [4, "ignition", "ignition", "clang_x86/d8"],
-  [4, "ignition", "ignition", "clang_x64_v8_arm64/d8"],
-  [4, "ignition", "ignition", "clang_x86_v8_arm/d8"]
+  [4, "ignition_turbo", "ignition_turbo", "clang_x86/d8"],
+  [4, "ignition_turbo_opt", "ignition_turbo_opt", "clang_x86/d8"],
+  [4, "ignition_turbo", "ignition_turbo", "clang_x64_v8_arm64/d8"],
+  [4, "ignition_turbo", "ignition_turbo", "clang_x86_v8_arm/d8"]
 ]
