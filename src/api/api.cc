@@ -453,11 +453,13 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* isolate, const char* location,
     // BUG(1718): Don't use the take_snapshot since we don't support
     // HeapObjectIterator here without doing a special GC.
     isolate->heap()->RecordStats(&heap_stats, false);
-    char* first_newline = strchr(last_few_messages, '\n');
-    if (first_newline == nullptr || first_newline[1] == '\0')
-      first_newline = last_few_messages;
-    PrintF("\n<--- Last few GCs --->\n%s\n", first_newline);
-    PrintF("\n<--- JS stacktrace --->\n%s\n", js_stacktrace);
+    if (!FLAG_correctness_fuzzer_suppressions) {
+      char* first_newline = strchr(last_few_messages, '\n');
+      if (first_newline == nullptr || first_newline[1] == '\0')
+        first_newline = last_few_messages;
+      PrintF("\n<--- Last few GCs --->\n%s\n", first_newline);
+      PrintF("\n<--- JS stacktrace --->\n%s\n", js_stacktrace);
+    }
   }
   Utils::ReportOOMFailure(isolate, location, is_heap_oom);
   // If the fatal error handler returns, we stop execution.
