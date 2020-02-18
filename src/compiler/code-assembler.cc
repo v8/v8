@@ -811,35 +811,6 @@ Node* CodeAssembler::Projection(int index, Node* value) {
   return raw_assembler()->Projection(index, value);
 }
 
-void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
-                                    Variable* exception_var) {
-  if (if_exception == nullptr) {
-    // If no handler is supplied, don't add continuations
-    return;
-  }
-
-  // No catch handlers should be active if we're using catch labels
-  DCHECK_EQ(state()->exception_handler_labels_.size(), 0);
-  DCHECK(!node->op()->HasProperty(Operator::kNoThrow));
-
-  Label success(this), exception(this, Label::kDeferred);
-  success.MergeVariables();
-  exception.MergeVariables();
-
-  raw_assembler()->Continuations(node, success.label_, exception.label_);
-
-  Bind(&exception);
-  const Operator* op = raw_assembler()->common()->IfException();
-  Node* exception_value = raw_assembler()->AddNode(op, node, node);
-  if (exception_var != nullptr) {
-    exception_var->Bind(exception_value);
-  }
-  Goto(if_exception);
-
-  Bind(&success);
-  raw_assembler()->AddNode(raw_assembler()->common()->IfSuccess(), node);
-}
-
 TNode<HeapObject> CodeAssembler::OptimizedAllocate(
     TNode<IntPtrT> size, AllocationType allocation,
     AllowLargeObjects allow_large_objects) {
@@ -1558,7 +1529,7 @@ void CodeAssemblerState::PopExceptionHandler() {
   exception_handler_labels_.pop_back();
 }
 
-CodeAssemblerScopedExceptionHandler::CodeAssemblerScopedExceptionHandler(
+ScopedExceptionHandler::ScopedExceptionHandler(
     CodeAssembler* assembler, CodeAssemblerExceptionHandlerLabel* label)
     : has_handler_(label != nullptr),
       assembler_(assembler),
@@ -1569,7 +1540,7 @@ CodeAssemblerScopedExceptionHandler::CodeAssemblerScopedExceptionHandler(
   }
 }
 
-CodeAssemblerScopedExceptionHandler::CodeAssemblerScopedExceptionHandler(
+ScopedExceptionHandler::ScopedExceptionHandler(
     CodeAssembler* assembler, CodeAssemblerLabel* label,
     TypedCodeAssemblerVariable<Object>* exception)
     : has_handler_(label != nullptr),
@@ -1583,7 +1554,7 @@ CodeAssemblerScopedExceptionHandler::CodeAssemblerScopedExceptionHandler(
   }
 }
 
-CodeAssemblerScopedExceptionHandler::~CodeAssemblerScopedExceptionHandler() {
+ScopedExceptionHandler::~ScopedExceptionHandler() {
   if (has_handler_) {
     assembler_->state()->PopExceptionHandler();
   }
@@ -1595,7 +1566,7 @@ CodeAssemblerScopedExceptionHandler::~CodeAssemblerScopedExceptionHandler() {
     }
     TNode<Object> e;
     assembler_->Bind(label_.get(), &e);
-    *exception_ = e;
+    if (exception_ != nullptr) *exception_ = e;
     assembler_->Goto(compatibility_label_);
     if (inside_block) {
       assembler_->Bind(&skip);

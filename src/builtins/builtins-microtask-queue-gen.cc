@@ -118,7 +118,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
   TNode<Map> microtask_map = LoadMap(microtask);
   TNode<Uint16T> microtask_type = LoadMapInstanceType(microtask_map);
 
-  TVARIABLE(HeapObject, var_exception, TheHoleConstant());
+  TVARIABLE(Object, var_exception);
   Label if_exception(this, Label::kDeferred);
   Label is_callable(this), is_callback(this),
       is_promise_fulfill_reaction_job(this),
@@ -147,10 +147,12 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
 
     TNode<JSReceiver> callable =
         LoadObjectField<JSReceiver>(microtask, CallableTask::kCallableOffset);
-    const TNode<Object> result = CallJS(
-        CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
-        microtask_context, callable, UndefinedConstant());
-    GotoIfException(result, &if_exception, &var_exception);
+    {
+      ScopedExceptionHandler handler(this, &if_exception, &var_exception);
+      CallJS(
+          CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
+          microtask_context, callable, UndefinedConstant());
+    }
     RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
     Goto(&done);
@@ -173,10 +175,11 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // But from our current measurements it doesn't seem to be a
     // serious performance problem, even if the microtask is full
     // of CallHandlerTasks (which is not a realistic use case anyways).
-    const TNode<Object> result =
-        CallRuntime(Runtime::kRunMicrotaskCallback, current_context,
-                    microtask_callback, microtask_data);
-    GotoIfException(result, &if_exception, &var_exception);
+    {
+      ScopedExceptionHandler handler(this, &if_exception, &var_exception);
+      CallRuntime(Runtime::kRunMicrotaskCallback, current_context,
+                  microtask_callback, microtask_data);
+    }
     Goto(&done);
   }
 
@@ -195,10 +198,11 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     const TNode<Object> thenable = LoadObjectField(
         microtask, PromiseResolveThenableJobTask::kThenableOffset);
 
-    const TNode<Object> result =
-        CallBuiltin(Builtins::kPromiseResolveThenableJob, native_context,
-                    promise_to_resolve, thenable, then);
-    GotoIfException(result, &if_exception, &var_exception);
+    {
+      ScopedExceptionHandler handler(this, &if_exception, &var_exception);
+      CallBuiltin(Builtins::kPromiseResolveThenableJob, native_context,
+                  promise_to_resolve, thenable, then);
+    }
     RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
     Goto(&done);
@@ -214,7 +218,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
 
     const TNode<Object> argument =
         LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
-    const TNode<Object> handler =
+    const TNode<Object> job_handler =
         LoadObjectField(microtask, PromiseReactionJobTask::kHandlerOffset);
     const TNode<HeapObject> promise_or_capability = CAST(LoadObjectField(
         microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset));
@@ -223,10 +227,11 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
                    promise_or_capability);
 
-    const TNode<Object> result =
-        CallBuiltin(Builtins::kPromiseFulfillReactionJob, microtask_context,
-                    argument, handler, promise_or_capability);
-    GotoIfException(result, &if_exception, &var_exception);
+    {
+      ScopedExceptionHandler handler(this, &if_exception, &var_exception);
+      CallBuiltin(Builtins::kPromiseFulfillReactionJob, microtask_context,
+                  argument, job_handler, promise_or_capability);
+    }
 
     // Run the promise after/debug hook if enabled.
     RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
@@ -247,7 +252,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
 
     const TNode<Object> argument =
         LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
-    const TNode<Object> handler =
+    const TNode<Object> job_handler =
         LoadObjectField(microtask, PromiseReactionJobTask::kHandlerOffset);
     const TNode<HeapObject> promise_or_capability = CAST(LoadObjectField(
         microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset));
@@ -256,10 +261,11 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
                    promise_or_capability);
 
-    const TNode<Object> result =
-        CallBuiltin(Builtins::kPromiseRejectReactionJob, microtask_context,
-                    argument, handler, promise_or_capability);
-    GotoIfException(result, &if_exception, &var_exception);
+    {
+      ScopedExceptionHandler handler(this, &if_exception, &var_exception);
+      CallBuiltin(Builtins::kPromiseRejectReactionJob, microtask_context,
+                  argument, job_handler, promise_or_capability);
+    }
 
     // Run the promise after/debug hook if enabled.
     RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,

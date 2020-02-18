@@ -150,8 +150,7 @@ void BaseCollectionsAssembler::AddConstructorEntry(
     TNode<Object> add_function, TNode<Object> key_value,
     Label* if_may_have_side_effects, Label* if_exception,
     TVariable<Object>* var_exception) {
-  compiler::CodeAssemblerScopedExceptionHandler handler(this, if_exception,
-                                                        var_exception);
+  compiler::ScopedExceptionHandler handler(this, if_exception, var_exception);
   CSA_ASSERT(this, Word32BinaryNot(IsTheHole(key_value)));
   if (variant == kMap || variant == kWeakMap) {
     TorqueStructKeyValuePair pair =

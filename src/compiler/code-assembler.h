@@ -1113,10 +1113,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                                  {cargs...});
   }
 
-  // Exception handling support.
-  void GotoIfException(Node* node, Label* if_exception,
-                       Variable* exception_var = nullptr);
-
   // Helpers which delegate to RawMachineAssembler.
   Factory* factory() const;
   Isolate* isolate() const;
@@ -1419,7 +1415,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   friend class CodeAssemblerVariable;
   friend class CodeAssemblerTester;
   friend class CodeAssemblerParameterizedLabelBase;
-  friend class CodeAssemblerScopedExceptionHandler;
+  friend class ScopedExceptionHandler;
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      CallDescriptor* call_descriptor, Code::Kind kind,
@@ -1448,18 +1444,17 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   DISALLOW_COPY_AND_ASSIGN(CodeAssemblerState);
 };
 
-class V8_EXPORT_PRIVATE CodeAssemblerScopedExceptionHandler {
+class V8_EXPORT_PRIVATE ScopedExceptionHandler {
  public:
-  CodeAssemblerScopedExceptionHandler(
-      CodeAssembler* assembler, CodeAssemblerExceptionHandlerLabel* label);
+  ScopedExceptionHandler(CodeAssembler* assembler,
+                         CodeAssemblerExceptionHandlerLabel* label);
 
   // Use this constructor for compatability/ports of old CSA code only. New code
   // should use the CodeAssemblerExceptionHandlerLabel version.
-  CodeAssemblerScopedExceptionHandler(
-      CodeAssembler* assembler, CodeAssemblerLabel* label,
-      TypedCodeAssemblerVariable<Object>* exception);
+  ScopedExceptionHandler(CodeAssembler* assembler, CodeAssemblerLabel* label,
+                         TypedCodeAssemblerVariable<Object>* exception);
 
-  ~CodeAssemblerScopedExceptionHandler();
+  ~ScopedExceptionHandler();
 
  private:
   bool has_handler_;

@@ -587,8 +587,8 @@ std::string CSAGenerator::PreCallableExceptionPreparation(
     catch_name = FreshCatchName();
     out() << "    compiler::CodeAssemblerExceptionHandlerLabel " << catch_name
           << "__label(&ca_, compiler::CodeAssemblerLabel::kDeferred);\n";
-    out() << "    { compiler::CodeAssemblerScopedExceptionHandler s(&ca_, &"
-          << catch_name << "__label);\n";
+    out() << "    { compiler::ScopedExceptionHandler s(&ca_, &" << catch_name
+          << "__label);\n";
   }
   return catch_name;
 }

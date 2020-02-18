@@ -274,6 +274,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       public TorqueGeneratedExportedMacrosAssembler {
  public:
   using Node = compiler::Node;
+  using ScopedExceptionHandler = compiler::ScopedExceptionHandler;
 
   template <typename T>
   using LazyNode = std::function<TNode<T>()>;
