@@ -1128,13 +1128,12 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
       heap_->concurrent_marking()->RescheduleTasksIfNeeded();
     }
   }
-
-  double duration = (heap_->MonotonicallyIncreasingTimeInMs() - start);
   if (state_ == MARKING) {
-    // Note that we report zero bytes here when sweeping was in progress or
-    // when we just started incremental marking. In these cases we did not
-    // process the marking deque.
-    heap_->tracer()->AddIncrementalMarkingStep(duration, v8_bytes_processed);
+    // Note that we do not report any marked by in case of finishing sweeping as
+    // we did not process the marking worklist.
+    const double v8_duration =
+        heap_->MonotonicallyIncreasingTimeInMs() - start - embedder_duration;
+    heap_->tracer()->AddIncrementalMarkingStep(v8_duration, v8_bytes_processed);
   }
   if (FLAG_trace_incremental_marking) {
     heap_->isolate()->PrintWithTimestamp(
@@ -1142,7 +1141,7 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
         "in %.1f\n",
         step_origin == StepOrigin::kV8 ? "in v8" : "in task",
         v8_bytes_processed / KB, bytes_to_process / KB, embedder_duration,
-        embedder_deadline, duration);
+        embedder_deadline, heap_->MonotonicallyIncreasingTimeInMs() - start);
   }
   return combined_result;
 }
