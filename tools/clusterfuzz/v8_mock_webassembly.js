@@ -4,7 +4,7 @@
 
 // This mocks out the WebAssembly object with a permissive dummy.
 
-(function () {
+(function() {
   const handler = {
     get: function(x, prop) {
       if (prop == Symbol.toPrimitive) {
@@ -13,6 +13,6 @@
       return dummy;
     },
   };
-  const dummy = new Proxy(function () { return dummy; }, handler);
+  const dummy = new Proxy(function() { return dummy; }, handler);
   WebAssembly = dummy;
 })();
