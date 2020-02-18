@@ -19,8 +19,6 @@
 #include "src/zone/zone.h"
 
 namespace v8 {
-class CFunctionInfo;
-
 namespace internal {
 
 class CallInterfaceDescriptor;
@@ -359,13 +357,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     return allocatable_registers_ != 0;
   }
 
-  // Stores the signature information for a fast API call - C++ functions
-  // that can be called directly from TurboFan.
-  void SetCFunctionInfo(const CFunctionInfo* c_function_info) {
-    c_function_info_ = c_function_info;
-  }
-  const CFunctionInfo* GetCFunctionInfo() const { return c_function_info_; }
-
  private:
   friend class Linkage;
 
@@ -383,7 +374,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const RegList allocatable_registers_;
   const Flags flags_;
   const char* const debug_name_;
-  const CFunctionInfo* c_function_info_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(CallDescriptor);
 };

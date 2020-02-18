@@ -638,7 +638,6 @@ DEFINE_BOOL(turbo_rewrite_far_jumps, true,
 DEFINE_BOOL(
     stress_gc_during_compilation, false,
     "simulate GC/compiler thread race related to https://crbug.com/v8/8520")
-DEFINE_BOOL(turbo_fast_api_calls, false, "enable fast API calls from TurboFan")
 
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, false,

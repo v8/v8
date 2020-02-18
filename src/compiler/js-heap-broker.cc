@@ -9,7 +9,6 @@
 #include <algorithm>
 #endif
 
-#include "include/v8-fast-api-calls.h"
 #include "src/api/api-inl.h"
 #include "src/ast/modules.h"
 #include "src/codegen/code-factory.h"
@@ -227,8 +226,6 @@ class FunctionTemplateInfoData : public HeapObjectData {
 
   void SerializeCallCode(JSHeapBroker* broker);
   CallHandlerInfoData* call_code() const { return call_code_; }
-  Address c_function() const { return c_function_; }
-  const CFunctionInfo* c_signature() const { return c_signature_; }
   KnownReceiversMap& known_receivers() { return known_receivers_; }
 
  private:
@@ -237,8 +234,6 @@ class FunctionTemplateInfoData : public HeapObjectData {
   bool has_call_code_ = false;
 
   CallHandlerInfoData* call_code_ = nullptr;
-  const Address c_function_;
-  const CFunctionInfo* const c_signature_;
   KnownReceiversMap known_receivers_;
 };
 
@@ -262,8 +257,6 @@ FunctionTemplateInfoData::FunctionTemplateInfoData(
     JSHeapBroker* broker, ObjectData** storage,
     Handle<FunctionTemplateInfo> object)
     : HeapObjectData(broker, storage, object),
-      c_function_(v8::ToCData<Address>(object->GetCFunction())),
-      c_signature_(v8::ToCData<CFunctionInfo*>(object->GetCSignature())),
       known_receivers_(broker->zone()) {
   auto function_template_info = Handle<FunctionTemplateInfo>::cast(object);
   is_signature_undefined_ =
@@ -3681,20 +3674,6 @@ Address CallHandlerInfoRef::callback() const {
     return v8::ToCData<Address>(object()->callback());
   }
   return HeapObjectRef::data()->AsCallHandlerInfo()->callback();
-}
-
-Address FunctionTemplateInfoRef::c_function() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    return v8::ToCData<Address>(object()->GetCFunction());
-  }
-  return HeapObjectRef::data()->AsFunctionTemplateInfo()->c_function();
-}
-
-const CFunctionInfo* FunctionTemplateInfoRef::c_signature() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    return v8::ToCData<CFunctionInfo*>(object()->GetCSignature());
-  }
-  return HeapObjectRef::data()->AsFunctionTemplateInfo()->c_signature();
 }
 
 bool StringRef::IsSeqString() const {

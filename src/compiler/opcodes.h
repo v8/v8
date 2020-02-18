@@ -475,8 +475,7 @@
   V(PoisonIndex)                        \
   V(RuntimeAbort)                       \
   V(AssertType)                         \
-  V(DateNow)                            \
-  V(FastApiCall)
+  V(DateNow)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) \
   V(SpeculativeBigIntAdd)                           \

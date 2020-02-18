@@ -82,9 +82,6 @@ class FunctionTemplateInfo
   DECL_RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, Object)
 
   DECL_RARE_ACCESSORS(access_check_info, AccessCheckInfo, Object)
-
-  DECL_RARE_ACCESSORS(c_function, CFunction, Object)
-  DECL_RARE_ACCESSORS(c_signature, CSignature, Object)
 #undef DECL_RARE_ACCESSORS
 
   // Internal field to store a flag bitfield.

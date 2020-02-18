@@ -6,9 +6,7 @@
 
 #include <functional>
 
-#include "include/v8-fast-api-calls.h"
 #include "src/api/api-inl.h"
-#include "src/base/small-vector.h"
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/code-factory.h"
@@ -864,88 +862,6 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
           effect(), control()));
     });
   }
-};
-
-class FastApiCallReducerAssembler : public JSCallReducerAssembler {
- public:
-  FastApiCallReducerAssembler(JSGraph* jsgraph, Zone* zone, Node* node,
-                              Address c_function,
-                              const CFunctionInfo* c_signature)
-      : JSCallReducerAssembler(jsgraph, zone, node),
-        c_function_(c_function),
-        c_signature_(c_signature) {
-    DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-    DCHECK_NE(c_function_, kNullAddress);
-    CHECK_NOT_NULL(c_signature_);
-  }
-
-  TNode<Object> ReduceFastApiCall() {
-    int c_arg_count = c_signature_->ArgumentCount();
-    Node* function_node =
-        ExternalConstant(ExternalReference::Create(c_function_));
-    base::SmallVector<Node*, kInlineSize + kExtraInputsCount> inputs(0);
-    inputs.emplace_back(function_node);
-    int wrapper_object_index = isolate()->embedder_wrapper_object_index();
-    CHECK_GE(wrapper_object_index, 0);
-    for (int i = 0; i < c_arg_count; ++i) {
-      if (i + kFunctionArgCount < ValueInputCount()) {
-        inputs.emplace_back(ConvertArgumentIfJSWrapper(
-            c_signature_->ArgumentInfo()[i].GetType(),
-            ValueInput(i + kFunctionArgCount), wrapper_object_index));
-      } else {
-        inputs.emplace_back(UndefinedConstant());
-      }
-    }
-    inputs.emplace_back(effect());
-    inputs.emplace_back(control());
-
-    return FastApiCall(inputs);
-  }
-
- private:
-  static constexpr int kFunctionArgCount = 1;
-  static constexpr int kExtraInputsCount =
-      kFunctionArgCount + 2;  // effect, control
-  static constexpr int kInlineSize = 10;
-
-  TNode<Object> FastApiCall(
-      base::SmallVector<Node*, kInlineSize + kExtraInputsCount> const& inputs) {
-    return AddNode<Object>(
-        graph()->NewNode(simplified()->FastApiCall(c_signature_, feedback()),
-                         static_cast<int>(inputs.size()), inputs.begin()));
-  }
-
-  TNode<RawPtrT> UnwrapApiObject(TNode<JSObject> node,
-                                 int wrapper_object_index) {
-    const int offset =
-        Internals::kJSObjectHeaderSize +
-        (Internals::kEmbedderDataSlotSize * wrapper_object_index);
-
-    FieldAccess access(kTaggedBase, offset, MaybeHandle<Name>(),
-                       MaybeHandle<Map>(), Type::Any(), MachineType::Pointer(),
-                       WriteBarrierKind::kNoWriteBarrier);
-    TNode<RawPtrT> load = AddNode<RawPtrT>(graph()->NewNode(
-        simplified()->LoadField(access), node, effect(), control()));
-    return load;
-  }
-
-  Node* ConvertArgumentIfJSWrapper(CTypeInfo::Type type, TNode<Object> node,
-                                   int wrapper_object_index) {
-    switch (type) {
-      case CTypeInfo::Type::kUnwrappedApiObject:
-        // This call assumes that {node} is a JSObject with an internal field
-        // set to a C pointer. It should fail in all other cases.
-        // TODO(mslekova): Implement instanceOf check for the C pointer type.
-        // TODO(mslekova): Introduce a GraphAssembler primitive for safe cast.
-        return UnwrapApiObject(TNode<JSObject>::UncheckedCast(node),
-                               wrapper_object_index);
-      default:
-        return node;
-    }
-  }
-
-  const Address c_function_;
-  const CFunctionInfo* const c_signature_;
 };
 
 TNode<Number> JSCallReducerAssembler::SpeculativeToNumber(
@@ -3452,9 +3368,8 @@ Reduction JSCallReducer::ReduceCallApiFunction(
       // See if we can constant-fold the compatible receiver checks.
       HolderLookupResult api_holder =
           function_template_info.LookupHolderOfExpectedType(first_receiver_map);
-      if (api_holder.lookup == CallOptimization::kHolderNotFound) {
+      if (api_holder.lookup == CallOptimization::kHolderNotFound)
         return inference.NoChange();
-      }
 
       // Check that all {receiver_maps} are actually JSReceiver maps and
       // that the {function_template_info} accepts them without access
@@ -3556,18 +3471,6 @@ Reduction JSCallReducer::ReduceCallApiFunction(
                                        << function_template_info);
     return NoChange();
   }
-
-  Address c_function = function_template_info.c_function();
-
-  if (FLAG_turbo_fast_api_calls && c_function != kNullAddress) {
-    const CFunctionInfo* c_signature = function_template_info.c_signature();
-    FastApiCallReducerAssembler a(jsgraph(), graph()->zone(), node, c_function,
-                                  c_signature);
-    Node* c_call = a.ReduceFastApiCall();
-    ReplaceWithSubgraph(&a, c_call);
-    return Replace(c_call);
-  }
-
   CallHandlerInfoRef call_handler_info = *function_template_info.call_code();
   Callable call_api_callback = CodeFactory::CallApiCallback(isolate());
   CallInterfaceDescriptor cid = call_api_callback.descriptor();

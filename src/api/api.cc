@@ -13,7 +13,6 @@
 
 #include "src/api/api-inl.h"
 
-#include "include/v8-fast-api-calls.h"
 #include "include/v8-profiler.h"
 #include "include/v8-util.h"
 #include "src/api/api-natives.h"
@@ -1462,8 +1461,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     i::Isolate* isolate, FunctionCallback callback, v8::Local<Value> data,
     v8::Local<Signature> signature, int length, bool do_not_cache,
     v8::Local<Private> cached_property_name = v8::Local<Private>(),
-    SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-    const CFunction* c_function = nullptr) {
+    SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
   i::Handle<i::Struct> struct_obj = isolate->factory()->NewStruct(
       i::FUNCTION_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::FunctionTemplateInfo> obj =
@@ -1481,8 +1479,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   }
   if (callback != nullptr) {
-    Utils::ToLocal(obj)->SetCallHandler(callback, data, side_effect_type,
-                                        c_function);
+    Utils::ToLocal(obj)->SetCallHandler(callback, data, side_effect_type);
   }
   obj->set_undetectable(false);
   obj->set_needs_access_check(false);
@@ -1500,15 +1497,14 @@ static Local<FunctionTemplate> FunctionTemplateNew(
 Local<FunctionTemplate> FunctionTemplate::New(
     Isolate* isolate, FunctionCallback callback, v8::Local<Value> data,
     v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
-    SideEffectType side_effect_type, const CFunction* c_function) {
+    SideEffectType side_effect_type) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   // Changes to the environment cannot be captured in the snapshot. Expect no
   // function templates when the isolate is created for serialization.
   LOG_API(i_isolate, FunctionTemplate, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  auto templ =
-      FunctionTemplateNew(i_isolate, callback, data, signature, length, false,
-                          Local<Private>(), side_effect_type, c_function);
+  auto templ = FunctionTemplateNew(i_isolate, callback, data, signature, length,
+                                   false, Local<Private>(), side_effect_type);
   if (behavior == ConstructorBehavior::kThrow) templ->RemovePrototype();
   return templ;
 }
@@ -1557,8 +1553,7 @@ Local<AccessorSignature> AccessorSignature::New(
 
 void FunctionTemplate::SetCallHandler(FunctionCallback callback,
                                       v8::Local<Value> data,
-                                      SideEffectType side_effect_type,
-                                      const CFunction* c_function) {
+                                      SideEffectType side_effect_type) {
   auto info = Utils::OpenHandle(this);
   EnsureNotInstantiated(info, "v8::FunctionTemplate::SetCallHandler");
   i::Isolate* isolate = info->GetIsolate();
@@ -1572,15 +1567,6 @@ void FunctionTemplate::SetCallHandler(FunctionCallback callback,
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
   obj->set_data(*Utils::OpenHandle(*data));
-  if (c_function != nullptr) {
-    DCHECK_NOT_NULL(c_function->GetAddress());
-    i::FunctionTemplateInfo::SetCFunction(
-        isolate, info,
-        i::handle(*FromCData(isolate, c_function->GetAddress()), isolate));
-    i::FunctionTemplateInfo::SetCSignature(
-        isolate, info,
-        i::handle(*FromCData(isolate, c_function->GetTypeInfo()), isolate));
-  }
   info->set_call_code(*obj);
 }
 
@@ -10868,34 +10854,6 @@ bool EmbedderHeapTracer::IsRootForNonTracingGC(
 void EmbedderHeapTracer::ResetHandleInNonTracingGC(
     const v8::TracedReference<v8::Value>& handle) {
   UNREACHABLE();
-}
-
-const void* CTypeInfo::GetWrapperInfo() const {
-  DCHECK(payload_ & kWrapperTypeInfoMask);
-  return reinterpret_cast<const void*>(payload_ & kWrapperTypeInfoMask);
-}
-
-CFunction::CFunction(const void* address, const CFunctionInfo* type_info)
-    : address_(address), type_info_(type_info) {
-  CHECK_NOT_NULL(address_);
-  CHECK_NOT_NULL(type_info_);
-  for (size_t i = 0; i < type_info_->ArgumentCount(); ++i) {
-    if (type_info_->ArgumentInfo()[i].IsArray()) {
-      // Array args require an integer passed for their length
-      // as the next argument.
-      DCHECK_LT(i + 1, type_info_->ArgumentCount());
-      switch (type_info_->ArgumentInfo()[i + 1].GetType()) {
-        case CTypeInfo::Type::kInt32:
-        case CTypeInfo::Type::kUint32:
-        case CTypeInfo::Type::kInt64:
-        case CTypeInfo::Type::kUint64:
-          break;
-        default:
-          UNREACHABLE();
-          break;
-      }
-    }
-  }
 }
 
 namespace internal {
