@@ -1202,10 +1202,15 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   CompilationUnitBuilder builder(native_module);
   auto* module = native_module->module();
+  const bool prefer_liftoff = native_module->IsTieredDown();
 
   uint32_t start = module->num_imported_functions;
   uint32_t end = start + module->num_declared_functions;
   for (uint32_t func_index = start; func_index < end; func_index++) {
+    if (prefer_liftoff) {
+      builder.AddBaselineUnit(func_index);
+      continue;
+    }
     CompileStrategy strategy = GetCompileStrategy(
         module, native_module->enabled_features(), func_index, lazy_module);
     if (strategy == CompileStrategy::kLazy) {
@@ -2472,7 +2477,21 @@ void CompilationStateImpl::InitializeCompilationProgress(bool lazy_module,
   compilation_progress_.reserve(module->num_declared_functions);
   int start = module->num_imported_functions;
   int end = start + module->num_declared_functions;
+
+  const bool prefer_liftoff = native_module_->IsTieredDown();
   for (int func_index = start; func_index < end; func_index++) {
+    if (prefer_liftoff) {
+      constexpr uint8_t kLiftoffOnlyFunctionProgress =
+          RequiredTopTierField::update(
+              RequiredBaselineTierField::update(
+                  ReachedTierField::encode(ExecutionTier::kNone),
+                  ExecutionTier::kLiftoff),
+              ExecutionTier::kLiftoff);
+      compilation_progress_.push_back(kLiftoffOnlyFunctionProgress);
+      outstanding_baseline_units_++;
+      outstanding_top_tier_functions_++;
+      continue;
+    }
     ExecutionTierPair requested_tiers = GetRequestedExecutionTiers(
         module, compile_mode(), enabled_features, func_index);
     CompileStrategy strategy =

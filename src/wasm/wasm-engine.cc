@@ -331,6 +331,9 @@ struct WasmEngine::IsolateInfo {
   std::shared_ptr<v8::TaskRunner> foreground_task_runner;
 
   const std::shared_ptr<Counters> async_counters;
+
+  // Keep new modules in tiered down state.
+  bool keep_tiered_down = false;
 };
 
 struct WasmEngine::NativeModuleInfo {
@@ -577,6 +580,8 @@ void WasmEngine::TierDownAllModulesPerIsolate(Isolate* isolate) {
   std::vector<NativeModule*> native_modules;
   {
     base::MutexGuard lock(&mutex_);
+    if (isolates_[isolate]->keep_tiered_down) return;
+    isolates_[isolate]->keep_tiered_down = true;
     for (auto* native_module : isolates_[isolate]->native_modules) {
       native_modules.push_back(native_module);
     }
@@ -841,6 +846,9 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
   DCHECK(pair.second);  // inserted new entry.
   pair.first->second.get()->isolates.insert(isolate);
   isolates_[isolate]->native_modules.insert(native_module.get());
+  if (isolates_[isolate]->keep_tiered_down) {
+    native_module->SetTieredDown();
+  }
   return native_module;
 }
 

@@ -7,33 +7,36 @@
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Create a simple Wasm module.
-function create_builder() {
+function create_builder(i) {
   const builder = new WasmModuleBuilder();
-  builder.addFunction('main', kSig_r_v)
-      .addBody([kExprRefNull])
-      .exportFunc();
+  builder.addFunction('main', kSig_i_r)
+  .addBody([
+    kExprLocalGet, 0, kExprRefIsNull,
+    ...wasmI32Const(i),
+    kExprI32Add])
+  .exportFunc();
   return builder;
 }
 
-const instance = create_builder().instantiate();
+const instance = create_builder(0).instantiate();
 
 // Test recompilation.
 const Debug = new DebugWrapper();
 Debug.enable();
 assertFalse(%IsLiftoffFunction(instance.exports.main));
+const newInstance = create_builder(1).instantiate();
+assertFalse(%IsLiftoffFunction(newInstance.exports.main));
 
 // Async.
 async function testTierDownToLiftoffAsync() {
   Debug.disable();
-  const builder = new WasmModuleBuilder();
-  builder.addFunction('main', kSig_i_r)
-      .addBody([kExprLocalGet, 0, kExprRefIsNull])
-      .exportFunc();
-  const asyncInstance = await builder.asyncInstantiate();
+  const asyncInstance = await create_builder(2).asyncInstantiate();
 
   // Test recompilation.
   Debug.enable();
-  assertFalse(%IsLiftoffFunction(instance.exports.main));
+  assertFalse(%IsLiftoffFunction(asyncInstance.exports.main));
+  const newAsyncInstance = await create_builder(3).asyncInstantiate();
+  assertFalse(%IsLiftoffFunction(newAsyncInstance.exports.main));
 }
 
 assertPromiseResult(testTierDownToLiftoffAsync());

@@ -27,6 +27,8 @@ const instance = create_builder().instantiate();
 const Debug = new DebugWrapper();
 Debug.enable();
 check(instance);
+const newInstance = create_builder(num_functions*2).instantiate();
+check(newInstance);
 
 // Async.
 async function testTierDownToLiftoffAsync() {
@@ -34,6 +36,8 @@ async function testTierDownToLiftoffAsync() {
   const asyncInstance = await create_builder(num_functions).asyncInstantiate();
   Debug.enable();
   check(asyncInstance);
+  const newAsyncInstance = await create_builder(num_functions*3).asyncInstantiate();
+  check(newAsyncInstance);
 }
 
 assertPromiseResult(testTierDownToLiftoffAsync());

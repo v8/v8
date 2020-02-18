@@ -1043,7 +1043,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
     // TODO(clemensb): Revisit this logic once tier down is fully working.
     const bool prefer_liftoff = tier_down_ || debug_info_;
     const bool update_code_table =
-        prefer_liftoff ? code->tier() == ExecutionTier::kLiftoff
+        prefer_liftoff ? !prior_code || code->tier() == ExecutionTier::kLiftoff
                        : !prior_code || prior_code->tier() < code->tier();
     if (update_code_table) {
       code_table_[slot_idx] = code.get();
@@ -1799,15 +1799,28 @@ bool NativeModule::IsRedirectedToInterpreter(uint32_t func_index) {
   return has_interpreter_redirection(func_index);
 }
 
+bool NativeModule::SetTieredDown() {
+  // Do not tier down asm.js.
+  if (module()->origin != kWasmOrigin) return false;
+
+  base::MutexGuard lock(&allocation_mutex_);
+  if (tier_down_) return true;
+  tier_down_ = true;
+  return false;
+}
+
+bool NativeModule::IsTieredDown() {
+  base::MutexGuard lock(&allocation_mutex_);
+  return tier_down_;
+}
+
 void NativeModule::TierDown(Isolate* isolate) {
   // Do not tier down asm.js.
   if (module()->origin != kWasmOrigin) return;
-  // Set the flag.
-  {
-    base::MutexGuard lock(&allocation_mutex_);
-    if (tier_down_) return;
-    tier_down_ = true;
-  }
+
+  // Set the flag. Return if it is already set.
+  if (SetTieredDown()) return;
+
   // Tier down all functions.
   isolate->wasm_engine()->RecompileAllFunctions(isolate, this,
                                                 ExecutionTier::kLiftoff);

@@ -549,6 +549,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // by publishing an entry stub with the {Kind::kInterpreterEntry} code kind.
   bool IsRedirectedToInterpreter(uint32_t func_index);
 
+  // Set {tier_down_} flag. Return previous state.
+  bool SetTieredDown();
+  bool IsTieredDown();
+
   // Sets the flag, triggers recompilation of all methods to tier down or up,
   // waits for that to complete.
   void TierDown(Isolate* isolate);

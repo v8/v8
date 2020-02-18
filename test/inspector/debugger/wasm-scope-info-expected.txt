@@ -21,6 +21,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -38,6 +40,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -55,6 +59,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -72,6 +78,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -89,6 +97,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -106,6 +116,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -123,6 +135,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -140,6 +154,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -157,6 +173,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -174,6 +192,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -191,6 +211,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -208,6 +230,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -225,6 +249,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -242,6 +268,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -259,6 +287,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -276,6 +306,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 0 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -293,6 +325,8 @@ at call_func (0:58):
  - scope (global):
    globals: "global#0": 15 (number)
  - scope (local):
+   locals: "arg#0": 4 (number), "local#1": 7.199999809265137 (number)
+   stack:
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
