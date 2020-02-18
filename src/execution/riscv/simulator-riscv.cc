@@ -7347,6 +7347,127 @@ void Simulator::DecodeRVRType() {
       break;
     }
 #endif /* V8_TARGET_ARCH_64_BIT */
+       // TODO: Add RISCV M extension macro
+    case RO_MUL: {
+      set_rd(sext_xlen(rs1() * rs2()));
+      break;
+    }
+    case RO_MULH: {
+#ifdef V8_TARGET_ARCH_64_BIT
+      set_rd(mulh(rs1(), rs2()));
+#else
+      set_rd(sext32((sext32(rs1()) * sext32(rs2())) >> 32));
+#endif /*V8_TARGET_ARCH_64_BIT*/
+      break;
+    }
+    case RO_MULHSU: {
+#ifdef V8_TARGET_ARCH_64_BIT
+      set_rd(mulhsu(rs1(), rs2()));
+#else
+      set_rd(sext32((sext32(rs1()) * reg_t((uint32_t)rs2())) >> 32));
+#endif /*V8_TARGET_ARCH_64_BIT*/
+      break;
+    }
+    case RO_MULHU: {
+#ifdef V8_TARGET_ARCH_64_BIT
+      set_rd(mulhu(rs1(), rs2()));
+#else
+      set_rd(sext32(((uint64_t)(uint32_t)rs1() * (uint64_t)(uint32_t)rs2()) >>
+                    32));
+#endif /*V8_TARGET_ARCH_64_BIT*/
+      break;
+    }
+    case RO_DIV: {
+      sreg_t lhs = sext_xlen(rs1());
+      sreg_t rhs = sext_xlen(rs2());
+      if (rhs == 0) {
+        set_rd(UINT64_MAX);
+      } else if (lhs == INT64_MIN && rhs == -1) {
+        set_rd(lhs);
+      } else {
+        set_rd(sext_xlen(lhs / rhs));
+      }
+      break;
+    }
+    case RO_DIVU: {
+      reg_t lhs = zext_xlen(rs1());
+      reg_t rhs = zext_xlen(rs2());
+      if (rhs == 0) {
+        set_rd(UINT64_MAX);
+      } else {
+        set_rd(sext_xlen(lhs / rhs));
+      }
+      break;
+    }
+    case RO_REM: {
+      sreg_t lhs = sext_xlen(rs1());
+      sreg_t rhs = sext_xlen(rs2());
+      if (rhs == 0) {
+        set_rd(lhs);
+      } else if (lhs == INT64_MIN && rhs == -1) {
+        set_rd(0);
+      } else {
+        set_rd(sext_xlen(lhs % rhs));
+      }
+      break;
+    }
+    case RO_REMU: {
+      reg_t lhs = zext_xlen(rs1());
+      reg_t rhs = zext_xlen(rs2());
+      if (rhs == 0) {
+        set_rd(sext_xlen(rs1()));
+      } else {
+        set_rd(sext_xlen(lhs % rhs));
+      }
+      break;
+    }
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_MULW: {
+      set_rd(sext32(rs1() * rs2()));
+      break;
+    }
+    case RO_DIVW: {
+      sreg_t lhs = sext32(rs1());
+      sreg_t rhs = sext32(rs2());
+      if (rhs == 0) {
+        set_rd(UINT64_MAX);
+      } else {
+        set_rd(sext32(lhs / rhs));
+      }
+      break;
+    }
+    case RO_DIVUW: {
+      reg_t lhs = zext32(rs1());
+      reg_t rhs = zext32(rs2());
+      if (rhs == 0) {
+        set_rd(UINT64_MAX);
+      } else {
+        set_rd(sext32(lhs / rhs));
+      }
+      break;
+    }
+    case RO_REMW: {
+      sreg_t lhs = sext32(rs1());
+      sreg_t rhs = sext32(rs2());
+      if (rhs == 0) {
+        set_rd(lhs);
+      } else {
+        set_rd(sext32(lhs % rhs));
+      }
+      break;
+    }
+    case RO_REMUW: {
+      reg_t lhs = zext32(rs1());
+      reg_t rhs = zext32(rs2());
+      if (rhs == 0) {
+        set_rd(sext32(lhs));
+      } else {
+        set_rd(sext32(lhs % rhs));
+      }
+      break;
+    }
+#endif /*V8_TARGET_ARCH_64_BIT*/
+       // TODO: End Add RISCV M extension macro
     default:
       UNSUPPORTED();
   }
