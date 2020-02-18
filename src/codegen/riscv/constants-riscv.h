@@ -511,9 +511,9 @@ enum Opcode : uint32_t {
   RO_LD = LOAD | (0b011 << kFunct3Shift),
   RO_SD = STORE | (0b011 << kFunct3Shift),
   RO_ADDIW = OP_IMM_32 | (0b000 << kFunct3Shift),
-  RO_SLLIW = OP_IMM_32 | (0b001 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
-  RO_SRLIW = OP_IMM_32 | (0b101 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
-  RO_SRAIW = OP_IMM_32 | (0b101 << kFunct3Shift) | (0b0100000 << kFunct7Shift),
+  RO_SLLIW = OP_IMM_32 | (0b001 << kFunct3Shift),
+  RO_SRLIW = OP_IMM_32 | (0b101 << kFunct3Shift),
+  // RO_SRAIW = OP_IMM_32 | (0b101 << kFunct3Shift), // Same as SRLIW, use func7
   RO_ADDW = OP_32 | (0b000 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
   RO_SUBW = OP_32 | (0b000 << kFunct3Shift) | (0b0100000 << kFunct7Shift),
   RO_SLLW = OP_32 | (0b001 << kFunct3Shift) | (0b0000000 << kFunct7Shift),

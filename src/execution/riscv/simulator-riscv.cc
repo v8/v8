@@ -7325,6 +7325,28 @@ void Simulator::DecodeRVRType() {
       set_rd(rs1() & rs2());
       break;
     }
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_ADDW: {
+      set_rd(sext32(rs1() + rs2()));
+      break;
+    }
+    case RO_SUBW: {
+      set_rd(sext32(rs1() - rs2()));
+      break;
+    }
+    case RO_SLLW: {
+      set_rd(sext32(rs1() << (rs2() & 0x1F)));
+      break;
+    }
+    case RO_SRLW: {
+      set_rd(sext32(uint32_t(rs1()) >> (rs2() & 0x1F)));
+      break;
+    }
+    case RO_SRAW: {
+      set_rd(sext32(int32_t(rs1()) >> (rs2() & 0x1F)));
+      break;
+    }
+#endif /* V8_TARGET_ARCH_64_BIT */
     default:
       UNSUPPORTED();
   }
@@ -7366,6 +7388,18 @@ void Simulator::DecodeRVIType() {
       set_rd(zext_xlen(val));
       break;
     }
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_LWU: {
+      uint32_t val = RV_ReadMem<uint32_t>(rs1() + imm12(), instr_.instr());
+      set_rd(zext_xlen(val));
+      break;
+    }
+    case RO_LD: {
+      int64_t val = RV_ReadMem<int64_t>(rs1() + imm12(), instr_.instr());
+      set_rd(sext_xlen(val));
+      break;
+    }
+#endif /*V8_TARGET_ARCH_64_BIT*/
     case RO_ADDI: {
       set_rd(sext_xlen(rs1() + imm12()));
       break;
@@ -7407,6 +7441,30 @@ void Simulator::DecodeRVIType() {
       }
       break;
     }
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_ADDIW: {
+      set_rd(sext32(rs1() + imm12()));
+      break;
+    }
+    case RO_SLLIW: {
+      set_rd(sext32(rs1() << shamt()));
+      break;
+    }
+    case RO_SRLIW: {  //  RO_SRAIW
+      if (instr_.Funct7Value() == 0b0000000) {
+        set_rd(sext32(uint32_t(rs1()) >> shamt()));
+      } else if (instr_.Funct7Value() == 0b0100000) {
+        set_rd(sext32(int32_t(rs1()) >> shamt()));
+      } else {
+        UNSUPPORTED();
+      }
+      break;
+    }
+#endif /*V8_TARGET_ARCH_64_BIT*/
+    case RO_FENCE: {
+      // DO nothing in sumulator
+      break;
+    }
     case RO_ECALL: {                   // RO_EBREAK
       if (instr_.Imm12Value() == 0) {  // ECALL
         SoftwareInterrupt();
@@ -7415,6 +7473,35 @@ void Simulator::DecodeRVIType() {
       } else {
         UNSUPPORTED();
       }
+      break;
+    }
+      // TODO: use Zifencei Standard Extension macro block
+    case RO_FENCE_I: {
+      // spike: flush icache.
+      break;
+    }
+      // TODO: use Zicsr Standard Extension macro block
+    case RO_CSRRW: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_CSRRS: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_CSRRC: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_CSRRWI: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_CSRRSI: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_CSRRCI: {
       UNSUPPORTED();
       break;
     }
@@ -7434,6 +7521,11 @@ void Simulator::DecodeRVSType() {
     case RO_SW:
       RV_WriteMem<uint32_t>(rs1() + s_imm12(), (uint32_t)rs2(), instr_.instr());
       break;
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_SD:
+      RV_WriteMem<uint64_t>(rs1() + s_imm12(), (uint64_t)rs2(), instr_.instr());
+      break;
+#endif /*V8_TARGET_ARCH_64_BIT*/
     default:
       UNSUPPORTED();
   }
