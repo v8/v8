@@ -1104,7 +1104,9 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
                                : StepResult::kMoreWorkRemaining;
     StepResult embedder_result = StepResult::kNoImmediateWork;
     if (heap_->local_embedder_heap_tracer()->InUse()) {
-      embedder_deadline = static_cast<double>(bytes_to_process) / marking_speed;
+      embedder_deadline =
+          Max(max_step_size_in_ms,
+              static_cast<double>(bytes_to_process) / marking_speed);
       embedder_result = EmbedderStep(embedder_deadline, &embedder_duration);
     }
     bytes_marked_ += v8_bytes_processed;
