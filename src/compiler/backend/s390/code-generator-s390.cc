@@ -3548,35 +3548,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   __ op(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0), \
         Condition(0), Condition(mode));
     case kS390_I32x4SConvertI16x8Low: {
-      VECTOR_UNPACK(vupl, 1);
+      VECTOR_UNPACK(vupl, 1)
       break;
     }
     case kS390_I32x4SConvertI16x8High: {
-      VECTOR_UNPACK(vuph, 1);
+      VECTOR_UNPACK(vuph, 1)
       break;
     }
     case kS390_I32x4UConvertI16x8Low: {
-      VECTOR_UNPACK(vupll, 1);
+      VECTOR_UNPACK(vupll, 1)
       break;
     }
     case kS390_I32x4UConvertI16x8High: {
-      VECTOR_UNPACK(vuplh, 1);
+      VECTOR_UNPACK(vuplh, 1)
       break;
     }
     case kS390_I16x8SConvertI8x16Low: {
-      VECTOR_UNPACK(vupl, 0);
+      VECTOR_UNPACK(vupl, 0)
       break;
     }
     case kS390_I16x8SConvertI8x16High: {
-      VECTOR_UNPACK(vuph, 0);
+      VECTOR_UNPACK(vuph, 0)
       break;
     }
     case kS390_I16x8UConvertI8x16Low: {
-      VECTOR_UNPACK(vupll, 0);
+      VECTOR_UNPACK(vupll, 0)
       break;
     }
     case kS390_I16x8UConvertI8x16High: {
-      VECTOR_UNPACK(vuplh, 0);
+      VECTOR_UNPACK(vuplh, 0)
       break;
     }
 #undef VECTOR_UNPACK
@@ -3609,6 +3609,86 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef VECTOR_PACK_UNSIGNED
+#define BINOP_EXTRACT(op, extract_high, extract_low, mode)              \
+  Simd128Register src1 = i.InputSimd128Register(0);                     \
+  Simd128Register src2 = i.InputSimd128Register(1);                     \
+  Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));   \
+  Simd128Register tempFPReg2 = i.ToSimd128Register(instr->TempAt(1));   \
+  __ extract_high(kScratchDoubleReg, src1, Condition(0), Condition(0),  \
+                  Condition(mode));                                     \
+  __ extract_high(tempFPReg1, src2, Condition(0), Condition(0),         \
+                  Condition(mode));                                     \
+  __ op(kScratchDoubleReg, kScratchDoubleReg, tempFPReg1, Condition(0), \
+        Condition(0), Condition(mode + 1));                             \
+  __ extract_low(tempFPReg1, src1, Condition(0), Condition(0),          \
+                 Condition(mode));                                      \
+  __ extract_low(tempFPReg2, src2, Condition(0), Condition(0),          \
+                 Condition(mode));                                      \
+  __ op(tempFPReg1, tempFPReg1, tempFPReg2, Condition(0), Condition(0), \
+        Condition(mode + 1));
+    case kS390_I16x8AddSaturateS: {
+      BINOP_EXTRACT(va, vuph, vupl, 1)
+      __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
+              Condition(0), Condition(2));
+      break;
+    }
+    case kS390_I16x8SubSaturateS: {
+      BINOP_EXTRACT(vs, vuph, vupl, 1)
+      __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
+              Condition(0), Condition(2));
+      break;
+    }
+    case kS390_I16x8AddSaturateU: {
+      BINOP_EXTRACT(va, vuplh, vupll, 1)
+      __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
+               Condition(0), Condition(2));
+      break;
+    }
+    case kS390_I16x8SubSaturateU: {
+      BINOP_EXTRACT(vs, vuplh, vupll, 1)
+      // negative to 0
+      __ vx(tempFPReg2, tempFPReg2, tempFPReg2, Condition(0), Condition(0),
+            Condition(0));
+      __ vmx(kScratchDoubleReg, tempFPReg2, kScratchDoubleReg, Condition(0),
+             Condition(0), Condition(2));
+      __ vmx(tempFPReg1, tempFPReg2, tempFPReg1, Condition(0), Condition(0),
+             Condition(2));
+      __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
+               Condition(0), Condition(2));
+      break;
+    }
+    case kS390_I8x16AddSaturateS: {
+      BINOP_EXTRACT(va, vuph, vupl, 0)
+      __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
+              Condition(0), Condition(1));
+      break;
+    }
+    case kS390_I8x16SubSaturateS: {
+      BINOP_EXTRACT(vs, vuph, vupl, 0)
+      __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
+              Condition(0), Condition(1));
+      break;
+    }
+    case kS390_I8x16AddSaturateU: {
+      BINOP_EXTRACT(va, vuplh, vupll, 0)
+      __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
+               Condition(0), Condition(1));
+      break;
+    }
+    case kS390_I8x16SubSaturateU: {
+      BINOP_EXTRACT(vs, vuplh, vupll, 0)
+      // negative to 0
+      __ vx(tempFPReg2, tempFPReg2, tempFPReg2, Condition(0), Condition(0),
+            Condition(0));
+      __ vmx(kScratchDoubleReg, tempFPReg2, kScratchDoubleReg, Condition(0),
+             Condition(0), Condition(1));
+      __ vmx(tempFPReg1, tempFPReg2, tempFPReg1, Condition(0), Condition(0),
+             Condition(1));
+      __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
+               Condition(0), Condition(1));
+      break;
+    }
+#undef BINOP_EXTRACT
     default:
       UNREACHABLE();
   }
