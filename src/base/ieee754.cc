@@ -2604,7 +2604,8 @@ double pow(double x, double y) {
   // special cases that are different.
   if ((x == 0.0 || std::isinf(x)) && y != 0.0 && std::isfinite(y)) {
     double f;
-    double result = ((x == 0.0) ^ (y > 0)) ? V8_INFINITY : 0;
+    double result =
+        ((x == 0.0) ^ (y > 0)) ? std::numeric_limits<double>::infinity() : 0;
     // retain sign if odd integer exponent
     return ((std::modf(y, &f) == 0.0) && (static_cast<int64_t>(y) & 1))
                ? copysign(result, x)
