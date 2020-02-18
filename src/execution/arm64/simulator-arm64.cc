@@ -303,6 +303,7 @@ Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
       guard_pages_(false),
       last_debugger_input_(nullptr),
       log_parameters_(NO_PARAM),
+      icount_for_stop_sim_at_(0),
       isolate_(isolate) {
   // Setup the decoder.
   decoder_->AppendVisitor(this);
@@ -384,8 +385,24 @@ void Simulator::Run() {
   LogAllWrittenRegisters();
 
   pc_modified_ = false;
-  while (pc_ != kEndOfSimAddress) {
-    ExecuteInstruction();
+
+  if (::v8::internal::FLAG_stop_sim_at == 0) {
+    // Fast version of the dispatch loop without checking whether the simulator
+    // should be stopping at a particular executed instruction.
+    while (pc_ != kEndOfSimAddress) {
+      ExecuteInstruction();
+    }
+  } else {
+    // FLAG_stop_sim_at is at the non-default value. Stop in the debugger when
+    // we reach the particular instruction count.
+    while (pc_ != kEndOfSimAddress) {
+      icount_for_stop_sim_at_ =
+          base::AddWithWraparound(icount_for_stop_sim_at_, 1);
+      if (icount_for_stop_sim_at_ == ::v8::internal::FLAG_stop_sim_at) {
+        Debug();
+      }
+      ExecuteInstruction();
+    }
   }
 }
 
