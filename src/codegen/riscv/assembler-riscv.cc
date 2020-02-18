@@ -715,7 +715,13 @@ int Assembler::RV_target_at(int pos, bool is_internal) {
   if (RV_IsBranch(instr)) {
     int32_t imm12 = ((instr & 0xf00) >> 7) | ((instr & 0x7e000000) >> 20) |
                     ((instr & 0x80) << 4) | ((instr & 0x80000000) >> 19);
-    return imm12 << 20 >> 20;
+    imm12 = imm12 << 20 >> 20;
+    if (imm12 == kEndOfJumpChain) {
+      // EndOfChain sentinel is returned directly, not relative to pc or pos.
+      return RV_kEndOfChain;
+    } else {
+      return pos + imm12;
+    }
   } else if (RV_IsJal(instr)) {
     int32_t imm20 = ((instr & 0x7fe00000) >> 20) | ((instr & 0x100000) >> 9) |
                     (instr & 0xff000) | ((instr & 0x80000000) >> 11);
@@ -1065,7 +1071,7 @@ void Assembler::RV_bind_to(Label* L, int pos) {
     if (is_internal) {
       RV_target_at_put(fixup_pos, pos, is_internal);
     } else {
-      if (IsBranch(instr)) {
+      if (RV_IsBranch(instr)) {
         int branch_offset = RV_BranchOffset(instr);
         if (dist > branch_offset) {
           if (trampoline_pos == kInvalidSlotPos) {
