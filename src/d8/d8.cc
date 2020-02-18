@@ -1002,7 +1002,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
     result_promise->Then(realm, callback_success, callback_failure)
         .ToLocalChecked();
   } else {
-    // TODO(joshualitt): Clean up exception handling after introucing new
+    // TODO(cbruni): Clean up exception handling after introducing new
     // API for evaluating async modules.
     DCHECK(!try_catch.HasCaught());
     resolver->Resolve(realm, module_namespace).ToChecked();
@@ -1047,7 +1047,7 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   }
   if (i::FLAG_harmony_top_level_await) {
     // Loop until module execution finishes
-    // TODO(joshualitt): This is a bit wonky. "Real" engines would not be
+    // TODO(cbruni): This is a bit wonky. "Real" engines would not be
     // able to just busy loop waiting for execution to finish.
     Local<Promise> result_promise(Local<Promise>::Cast(result));
     while (result_promise->State() == Promise::kPending) {
@@ -1057,7 +1057,7 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
     if (result_promise->State() == Promise::kRejected) {
       // If the exception has been caught by the promise pipeline, we rethrow
       // here in order to ReportException.
-      // TODO(joshualitt): Clean this up after we create a new API for the case
+      // TODO(cbruni): Clean this up after we create a new API for the case
       // where TLA is enabled.
       if (!try_catch.HasCaught()) {
         isolate->ThrowException(result_promise->Result());

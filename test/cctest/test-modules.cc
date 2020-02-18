@@ -726,7 +726,7 @@ TEST(ModuleEvaluationTopLevelAwaitError) {
     CHECK(promise->Result()->StrictEquals(v8_str("boom")));
     CHECK(module->GetException()->StrictEquals(v8_str("boom")));
 
-    // TODO(joshualitt) I am not sure, but this might not be supposed to throw
+    // TODO(cbruni) I am not sure, but this might not be supposed to throw
     // because it is async.
     CHECK(!try_catch.HasCaught());
   }
