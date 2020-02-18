@@ -1255,11 +1255,11 @@ void Assembler::GenInstrR4(uint8_t funct2, Opcode opcode, Register rd,
 }
 
 void Assembler::GenInstrRAtomic(uint8_t funct5, bool aq, bool rl,
-                                uint8_t funct3, Opcode opcode, Register rd,
-                                Register rs1, Register rs2) {
+                                uint8_t funct3, Register rd, Register rs1,
+                                Register rs2) {
   DCHECK(is_uint5(funct5) && is_uint3(funct3) && rd.is_valid() &&
          rs1.is_valid() && rs2.is_valid());
-  Instr instr = opcode | (rd.code() << RV_kRdShift) | (funct3 << kFunct3Shift) |
+  Instr instr = AMO | (rd.code() << RV_kRdShift) | (funct3 << kFunct3Shift) |
                 (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
                 (rl << kRlShift) | (aq << kAqShift) | (funct5 << kFunct5Shift);
   emit(instr);
@@ -2406,6 +2406,118 @@ void Assembler::RV_remuw(Register rd, Register rs1, Register rs2) {
   GenInstrALUW_rr(0b0000001, 0b111, rd, rs1, rs2);
 }
 
+// RV32A Standard Extension
+
+void Assembler::RV_lr_w(bool aq, bool rl, Register rd, Register rs1) {
+  GenInstrRAtomic(0b00010, aq, rl, 0b010, rd, rs1, zero_reg);
+}
+
+void Assembler::RV_sc_w(bool aq, bool rl, Register rd, Register rs1,
+                        Register rs2) {
+  GenInstrRAtomic(0b00011, aq, rl, 0b010, rd, rs1, rs2);
+}
+
+void Assembler::RV_amoswap_w(bool aq, bool rl, Register rd, Register rs1,
+                             Register rs2) {
+  GenInstrRAtomic(0b00001, aq, rl, 0b010, rd, rs1, rs2);
+}
+
+void Assembler::RV_amoadd_w(bool aq, bool rl, Register rd, Register rs1,
+                            Register rs2) {
+  GenInstrRAtomic(0b00000, aq, rl, 0b010, rd, rs1, rs2);
+}
+
+void Assembler::RV_amoxor_w(bool aq, bool rl, Register rd, Register rs1,
+                            Register rs2) {
+  GenInstrRAtomic(0b00100, aq, rl, 0b010, rd, rs1, rs2);
+}
+
+void Assembler::RV_amoand_w(bool aq, bool rl, Register rd, Register rs1,
+                            Register rs2) {
+  GenInstrRAtomic(0b01100, aq, rl, 0b010, rd, rs1, rs2);
+}
+
+void Assembler::RV_amoor_w(bool aq, bool rl, Register rd, Register rs1,
+                           Register rs2) {
+  GenInstrRAtomic(0b01000, aq, rl, 0b010, rd, rs1, rs2);
+}
+
+void Assembler::RV_amomin_w(bool aq, bool rl, Register rd, Register rs1,
+                            Register rs2) {
+  GenInstrRAtomic(0b10000, aq, rl, 0b010, rd, rs1, rs2);
+}
+
+void Assembler::RV_amomax_w(bool aq, bool rl, Register rd, Register rs1,
+                            Register rs2) {
+  GenInstrRAtomic(0b10100, aq, rl, 0b010, rd, rs1, rs2);
+}
+
+void Assembler::RV_amominu_w(bool aq, bool rl, Register rd, Register rs1,
+                             Register rs2) {
+  GenInstrRAtomic(0b11000, aq, rl, 0b010, rd, rs1, rs2);
+}
+
+void Assembler::RV_amomaxu_w(bool aq, bool rl, Register rd, Register rs1,
+                             Register rs2) {
+  GenInstrRAtomic(0b11100, aq, rl, 0b010, rd, rs1, rs2);
+}
+
+// RV64A Standard Extension (in addition to RV32A)
+
+void Assembler::RV_lr_d(bool aq, bool rl, Register rd, Register rs1) {
+  GenInstrRAtomic(0b00010, aq, rl, 0b011, rd, rs1, zero_reg);
+}
+
+void Assembler::RV_sc_d(bool aq, bool rl, Register rd, Register rs1,
+                        Register rs2) {
+  GenInstrRAtomic(0b00011, aq, rl, 0b011, rd, rs1, rs2);
+}
+
+void Assembler::RV_amoswap_d(bool aq, bool rl, Register rd, Register rs1,
+                             Register rs2) {
+  GenInstrRAtomic(0b00001, aq, rl, 0b011, rd, rs1, rs2);
+}
+
+void Assembler::RV_amoadd_d(bool aq, bool rl, Register rd, Register rs1,
+                            Register rs2) {
+  GenInstrRAtomic(0b00000, aq, rl, 0b011, rd, rs1, rs2);
+}
+
+void Assembler::RV_amoxor_d(bool aq, bool rl, Register rd, Register rs1,
+                            Register rs2) {
+  GenInstrRAtomic(0b00100, aq, rl, 0b011, rd, rs1, rs2);
+}
+
+void Assembler::RV_amoand_d(bool aq, bool rl, Register rd, Register rs1,
+                            Register rs2) {
+  GenInstrRAtomic(0b01100, aq, rl, 0b011, rd, rs1, rs2);
+}
+
+void Assembler::RV_amoor_d(bool aq, bool rl, Register rd, Register rs1,
+                           Register rs2) {
+  GenInstrRAtomic(0b01000, aq, rl, 0b011, rd, rs1, rs2);
+}
+
+void Assembler::RV_amomin_d(bool aq, bool rl, Register rd, Register rs1,
+                            Register rs2) {
+  GenInstrRAtomic(0b10000, aq, rl, 0b011, rd, rs1, rs2);
+}
+
+void Assembler::RV_amomax_d(bool aq, bool rl, Register rd, Register rs1,
+                            Register rs2) {
+  GenInstrRAtomic(0b10100, aq, rl, 0b011, rd, rs1, rs2);
+}
+
+void Assembler::RV_amominu_d(bool aq, bool rl, Register rd, Register rs1,
+                             Register rs2) {
+  GenInstrRAtomic(0b11000, aq, rl, 0b011, rd, rs1, rs2);
+}
+
+void Assembler::RV_amomaxu_d(bool aq, bool rl, Register rd, Register rs1,
+                             Register rs2) {
+  GenInstrRAtomic(0b11100, aq, rl, 0b011, rd, rs1, rs2);
+}
+
 // Privileged
 
 void Assembler::RV_uret() {
@@ -2488,10 +2600,9 @@ void Assembler::RV_li(Register rd, int64_t imm) {
   int64_t Hi52 = ((uint64_t)imm + 0x800ull) >> 12;
   int FirstBit = 0;
   uint64_t Val = Hi52;
-  while ((Val & 1) == 0)
-  {
-      Val = Val >> 1;
-      FirstBit++;
+  while ((Val & 1) == 0) {
+    Val = Val >> 1;
+    FirstBit++;
   }
   int ShiftAmount = 12 + FirstBit;
   Hi52 = (Hi52 >> (ShiftAmount - 12)) << ShiftAmount >> ShiftAmount;
@@ -2499,8 +2610,7 @@ void Assembler::RV_li(Register rd, int64_t imm) {
   RV_li(rd, Hi52);
 
   RV_slli(rd, rd, ShiftAmount);
-  if (Lo12)
-    RV_addi(rd, rd, Lo12);
+  if (Lo12) RV_addi(rd, rd, Lo12);
 }
 void Assembler::RV_mv(Register rd, Register rs) { RV_addi(rd, rs, 0); }
 void Assembler::RV_not(Register rd, Register rs) { RV_xori(rd, rs, -1); }

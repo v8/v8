@@ -482,6 +482,32 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_remw(Register rd, Register rs1, Register rs2);
   void RV_remuw(Register rd, Register rs1, Register rs2);
 
+  // RV32A Standard Extension
+  void RV_lr_w(bool aq, bool rl, Register rd, Register rs1);
+  void RV_sc_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amoswap_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amoadd_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amoxor_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amoand_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amoor_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amomin_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amomax_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amominu_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amomaxu_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+
+  // RV64A Standard Extension (in addition to RV32A)
+  void RV_lr_d(bool aq, bool rl, Register rd, Register rs1);
+  void RV_sc_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amoswap_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amoadd_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amoxor_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amoand_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amoor_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amomin_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amomax_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amominu_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void RV_amomaxu_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+
   // Privileged
   void RV_uret();
   void RV_sret();
@@ -1915,7 +1941,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenInstrR4(uint8_t funct2, Opcode opcode, Register rd, Register rs1,
                   Register rs2, Register rs3, uint8_t frm);
   void GenInstrRAtomic(uint8_t funct5, bool aq, bool rl, uint8_t funct3,
-                       Opcode opcode, Register rd, Register rs1, Register rs2);
+                       Register rd, Register rs1, Register rs2);
   void GenInstrRFrm(uint8_t funct7, Opcode opcode, Register rd, Register rs1,
                     Register rs2, uint8_t frm);
   void GenInstrI(uint8_t funct3, Opcode opcode, Register rd, Register rs1,
