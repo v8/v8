@@ -51,7 +51,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ assm.
 
-TEST(RISCV0) {
+TEST(RISCV_SIMPLE0) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -70,7 +70,7 @@ TEST(RISCV0) {
   CHECK_EQ(0xABCL, res);
 }
 
-TEST(RISCV1) {
+TEST(RISCV_SIMPLE1) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -90,7 +90,7 @@ TEST(RISCV1) {
 }
 
 // Loop 100 times, adding loop counter to result
-TEST(RISCV2) {
+TEST(RISCV_SIMPLE2) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -140,6 +140,57 @@ TEST(RISCV3) {
   auto f = GeneratedCode<F1>::FromCode(*code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(255, 0, 0, 0, 0));
   CHECK_EQ(-1, res);
+}
+
+// Test loading immediates of various sizes
+TEST(LI) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  Label error;
+
+  // Load 0
+  __ RV_li(a0, 0l);
+  __ RV_bnez(a0, &error);
+
+  // Load small number (<12 bits)
+  __ RV_li(a1, 5);
+  __ RV_li(a2, -5);
+  __ RV_add(a0, a1, a2);
+  __ RV_bnez(a0, &error);
+
+  // Load medium number (13-32 bits)
+  __ RV_li(a1, 124076833);
+  __ RV_li(a2, -124076833);
+  __ RV_add(a0, a1, a2);
+  __ RV_bnez(a0, &error);
+
+  // Load large number (33-64 bits)
+  __ RV_li(a1, 11649936536080);
+  __ RV_li(a2, -11649936536080);
+  __ RV_add(a0, a1, a2);
+  __ RV_bnez(a0, &error);
+
+  // Load large number (33-64 bits)
+  __ RV_li(a1, 1070935975390360080);
+  __ RV_li(a2, -1070935975390360080);
+  __ RV_add(a0, a1, a2);
+  __ RV_bnez(a0, &error);
+
+  __ RV_mv(a0, zero_reg);
+  __ RV_jr(ra);
+
+  __ RV_bind(&error);
+  __ RV_jr(ra);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  int64_t res = reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0));
+  CHECK_EQ(0L, res);
 }
 
 #undef __

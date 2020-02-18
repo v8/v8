@@ -2375,8 +2375,76 @@ void Assembler::RV_sfence_vma(Register rs1, Register rs2) {
 // Assembler Pseudo Instructions (Tables 25.2 and 25.3, RISC-V Unprivileged ISA)
 
 void Assembler::RV_nop() { RV_addi(ToRegister(0), ToRegister(0), 0); }
-void Assembler::RV_li(Register rd, int16_t imm12) {
-  RV_addi(rd, ToRegister(0), imm12);
+void Assembler::RV_li(Register rd, int64_t imm) {
+  if (is_int32(imm)) {
+    // Based on LLVM's `generateInstSeq` (RISCVMatInt.cpp)
+    // Depending on the active bits in the immediate Value v, the following
+    // instruction sequences are emitted:
+    //
+    // v == 0                        : ADDI
+    // v[0,12) != 0 && v[12,32) == 0 : ADDI
+    // v[0,12) == 0 && v[12,32) != 0 : LUI
+    // v[0,32) != 0                  : LUI+ADDI(W)
+    int64_t Hi20 = ((imm + 0x800) >> 12);
+    int64_t Lo12 = imm << 52 >> 52;
+    Register base = zero_reg;
+
+    if (Hi20) {
+      RV_lui(rd, (int32_t)Hi20);
+      base = rd;
+    }
+
+    if (Lo12 || Hi20 == 0) {
+      if (V8_TARGET_ARCH_64_BIT && Hi20)
+        RV_addiw(rd, base, Lo12);
+      else
+        RV_addi(rd, base, Lo12);
+    }
+    return;
+  }
+
+  assert(V8_TARGET_ARCH_64_BIT && "Can't emit >32-bit imm for non-RV64 target");
+
+  // In the worst case, for a full 64-bit constant, a sequence of 8 instructions
+  // (i.e., LUI+ADDIW+SLLI+ADDI+SLLI+ADDI+SLLI+ADDI) has to be emmitted. Note
+  // that the first two instructions (LUI+ADDIW) can contribute up to 32 bits
+  // while the following ADDI instructions contribute up to 12 bits each.
+  //
+  // On the first glance, implementing this seems to be possible by simply
+  // emitting the most significant 32 bits (LUI+ADDIW) followed by as many left
+  // shift (SLLI) and immediate additions (ADDI) as needed. However, due to the
+  // fact that ADDI performs a sign extended addition, doing it like that would
+  // only be possible when at most 11 bits of the ADDI instructions are used.
+  // Using all 12 bits of the ADDI instructions, like done by GAS, actually
+  // requires that the constant is processed starting with the least significant
+  // bit.
+  //
+  // In the following, constants are processed from LSB to MSB but instruction
+  // emission is performed from MSB to LSB by recursively calling
+  // generateInstSeq. In each recursion, first the lowest 12 bits are removed
+  // from the constant and the optimal shift amount, which can be greater than
+  // 12 bits if the constant is sparse, is determined. Then, the shifted
+  // remaining constant is processed recursively and gets emitted as soon as it
+  // fits into 32 bits. The emission of the shifts and additions is subsequently
+  // performed when the recursion returns.
+
+  int64_t Lo12 = imm << 52 >> 52;
+  int64_t Hi52 = ((uint64_t)imm + 0x800ull) >> 12;
+  int FirstBit = 0;
+  uint64_t Val = Hi52;
+  while ((Val & 1) == 0)
+  {
+      Val = Val >> 1;
+      FirstBit++;
+  }
+  int ShiftAmount = 12 + FirstBit;
+  Hi52 = (Hi52 >> (ShiftAmount - 12)) << ShiftAmount >> ShiftAmount;
+
+  RV_li(rd, Hi52);
+
+  RV_slli(rd, rd, ShiftAmount);
+  if (Lo12)
+    RV_addi(rd, rd, Lo12);
 }
 void Assembler::RV_mv(Register rd, Register rs) { RV_addi(rd, rs, 0); }
 void Assembler::RV_not(Register rd, Register rs) { RV_xori(rd, rs, -1); }
