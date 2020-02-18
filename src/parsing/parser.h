@@ -122,8 +122,6 @@ struct ParserTypes<Parser> {
   using FuncNameInferrer = v8::internal::FuncNameInferrer;
   using SourceRange = v8::internal::SourceRange;
   using SourceRangeScope = v8::internal::SourceRangeScope;
-  using Target = ParserTarget;
-  using TargetScope = ParserTargetScope;
 };
 
 class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
@@ -279,11 +277,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   };
   ZonePtrList<const NamedImport>* ParseNamedImports(int pos);
   Statement* BuildInitializationBlock(DeclarationParsingResult* parsing_result);
-  void DeclareLabel(ZonePtrList<const AstRawString>** labels,
-                    ZonePtrList<const AstRawString>** own_labels,
-                    const AstRawString* label);
-  bool ContainsLabel(ZonePtrList<const AstRawString>* labels,
-                     const AstRawString* label);
   Expression* RewriteReturn(Expression* return_value, int pos);
   Statement* RewriteSwitchStatement(SwitchStatement* switch_statement,
                                     Scope* scope);
@@ -406,10 +399,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                VariableKind kind, VariableMode mode, InitializationFlag init,
                Scope* declaration_scope, bool* was_added, int var_begin_pos,
                int var_end_pos = kNoSourcePosition);
-
-  bool TargetStackContainsLabel(const AstRawString* label);
-  BreakableStatement* LookupBreakTarget(const AstRawString* label);
-  IterationStatement* LookupContinueTarget(const AstRawString* label);
 
   // Factory methods.
   FunctionLiteral* DefaultConstructor(const AstRawString* name, bool call_super,
@@ -727,6 +716,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return arg;
   }
 
+  IterationStatement* AsIterationStatement(BreakableStatement* s) {
+    return s->AsIterationStatement();
+  }
+
   void ReportUnexpectedTokenAt(
       Scanner::Location location, Token::Value token,
       MessageTemplate message = MessageTemplate::kUnexpectedToken);
@@ -748,6 +741,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   template <typename T>
   V8_INLINE static bool IsNull(T subject) {
     return subject == nullptr;
+  }
+
+  V8_INLINE static bool IsIterationStatement(Statement* subject) {
+    return subject->AsIterationStatement() != nullptr;
   }
 
   // Non-null empty string.
@@ -1047,9 +1044,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   SourceRangeMap* source_range_map_ = nullptr;
 
-  friend class ParserTarget;
   friend class ParserTargetScope;
-  ParserTarget* target_stack_;  // for break, continue statements
 
   ScriptCompiler::CompileOptions compile_options_;
 
@@ -1070,47 +1065,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // indicates the correct position of the ')' that closes the parameter list.
   // After that ')' is encountered, this field is reset to kNoSourcePosition.
   int parameters_end_pos_;
-};
-
-// ----------------------------------------------------------------------------
-// Target is a support class to facilitate manipulation of the
-// Parser's target_stack_ (the stack of potential 'break' and
-// 'continue' statement targets). Upon construction, a new target is
-// added; it is removed upon destruction.
-
-class ParserTarget {
- public:
-  ParserTarget(ParserBase<Parser>* parser, BreakableStatement* statement)
-      : variable_(&parser->impl()->target_stack_),
-        statement_(statement),
-        previous_(parser->impl()->target_stack_) {
-    parser->impl()->target_stack_ = this;
-  }
-
-  ~ParserTarget() { *variable_ = previous_; }
-
-  ParserTarget* previous() { return previous_; }
-  BreakableStatement* statement() { return statement_; }
-
- private:
-  ParserTarget** variable_;
-  BreakableStatement* statement_;
-  ParserTarget* previous_;
-};
-
-class ParserTargetScope {
- public:
-  explicit ParserTargetScope(ParserBase<Parser>* parser)
-      : variable_(&parser->impl()->target_stack_),
-        previous_(parser->impl()->target_stack_) {
-    parser->impl()->target_stack_ = nullptr;
-  }
-
-  ~ParserTargetScope() { *variable_ = previous_; }
-
- private:
-  ParserTarget** variable_;
-  ParserTarget* previous_;
 };
 
 }  // namespace internal

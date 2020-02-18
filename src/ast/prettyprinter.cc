@@ -659,15 +659,6 @@ void AstPrinter::Print(const char* format, ...) {
   }
 }
 
-void AstPrinter::PrintLabels(ZonePtrList<const AstRawString>* labels) {
-  if (labels != nullptr) {
-    for (int i = 0; i < labels->length(); i++) {
-      PrintLiteral(labels->at(i), false);
-      Print(": ");
-    }
-  }
-}
-
 void AstPrinter::PrintLiteral(Literal* literal, bool quote) {
   switch (literal->type()) {
     case Literal::kString:
@@ -819,16 +810,6 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info, Variable* var,
   }
 }
 
-void AstPrinter::PrintLabelsIndented(ZonePtrList<const AstRawString>* labels,
-                                     const char* prefix) {
-  if (labels == nullptr || labels->length() == 0) return;
-  PrintIndented(prefix);
-  Print("LABELS ");
-  PrintLabels(labels);
-  Print("\n");
-}
-
-
 void AstPrinter::PrintIndentedVisit(const char* s, AstNode* node) {
   if (node != nullptr) {
     IndentedScope indent(this, s, node->position());
@@ -902,7 +883,6 @@ void AstPrinter::VisitBlock(Block* node) {
   const char* block_txt =
       node->ignore_completion_value() ? "BLOCK NOCOMPLETIONS" : "BLOCK";
   IndentedScope indent(this, block_txt, node->position());
-  PrintLabelsIndented(node->labels());
   PrintStatements(node->statements());
 }
 
@@ -953,13 +933,11 @@ void AstPrinter::VisitIfStatement(IfStatement* node) {
 
 void AstPrinter::VisitContinueStatement(ContinueStatement* node) {
   IndentedScope indent(this, "CONTINUE", node->position());
-  PrintLabelsIndented(node->target()->labels());
 }
 
 
 void AstPrinter::VisitBreakStatement(BreakStatement* node) {
   IndentedScope indent(this, "BREAK", node->position());
-  PrintLabelsIndented(node->target()->labels());
 }
 
 
@@ -978,7 +956,6 @@ void AstPrinter::VisitWithStatement(WithStatement* node) {
 
 void AstPrinter::VisitSwitchStatement(SwitchStatement* node) {
   IndentedScope indent(this, "SWITCH", node->position());
-  PrintLabelsIndented(node->labels());
   PrintIndentedVisit("TAG", node->tag());
   for (CaseClause* clause : *node->cases()) {
     if (clause->is_default()) {
@@ -995,8 +972,6 @@ void AstPrinter::VisitSwitchStatement(SwitchStatement* node) {
 
 void AstPrinter::VisitDoWhileStatement(DoWhileStatement* node) {
   IndentedScope indent(this, "DO", node->position());
-  PrintLabelsIndented(node->labels());
-  PrintLabelsIndented(node->own_labels(), "OWN ");
   PrintIndentedVisit("BODY", node->body());
   PrintIndentedVisit("COND", node->cond());
 }
@@ -1004,8 +979,6 @@ void AstPrinter::VisitDoWhileStatement(DoWhileStatement* node) {
 
 void AstPrinter::VisitWhileStatement(WhileStatement* node) {
   IndentedScope indent(this, "WHILE", node->position());
-  PrintLabelsIndented(node->labels());
-  PrintLabelsIndented(node->own_labels(), "OWN ");
   PrintIndentedVisit("COND", node->cond());
   PrintIndentedVisit("BODY", node->body());
 }
@@ -1013,8 +986,6 @@ void AstPrinter::VisitWhileStatement(WhileStatement* node) {
 
 void AstPrinter::VisitForStatement(ForStatement* node) {
   IndentedScope indent(this, "FOR", node->position());
-  PrintLabelsIndented(node->labels());
-  PrintLabelsIndented(node->own_labels(), "OWN ");
   if (node->init()) PrintIndentedVisit("INIT", node->init());
   if (node->cond()) PrintIndentedVisit("COND", node->cond());
   PrintIndentedVisit("BODY", node->body());
@@ -1024,8 +995,6 @@ void AstPrinter::VisitForStatement(ForStatement* node) {
 
 void AstPrinter::VisitForInStatement(ForInStatement* node) {
   IndentedScope indent(this, "FOR IN", node->position());
-  PrintLabelsIndented(node->labels());
-  PrintLabelsIndented(node->own_labels(), "OWN ");
   PrintIndentedVisit("FOR", node->each());
   PrintIndentedVisit("IN", node->subject());
   PrintIndentedVisit("BODY", node->body());
@@ -1034,8 +1003,6 @@ void AstPrinter::VisitForInStatement(ForInStatement* node) {
 
 void AstPrinter::VisitForOfStatement(ForOfStatement* node) {
   IndentedScope indent(this, "FOR OF", node->position());
-  PrintLabelsIndented(node->labels());
-  PrintLabelsIndented(node->own_labels(), "OWN ");
   const char* for_type;
   switch (node->type()) {
     case IteratorType::kNormal:

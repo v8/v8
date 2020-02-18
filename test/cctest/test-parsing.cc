@@ -3258,25 +3258,6 @@ TEST(FuncNameInferrerEscaped) {
 }
 
 
-TEST(RegressionLazyFunctionWithErrorWithArg) {
-  // Test only applies when lazy parsing.
-  if (!i::FLAG_lazy) return;
-
-  // The bug occurred when a lazy function had an error which requires a
-  // parameter (such as "unknown label" here). The error message was processed
-  // before the AstValueFactory containing the error message string was
-  // internalized.
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  LocalContext env;
-  i::FLAG_lazy = true;
-  CompileRun("function this_is_lazy() {\n"
-             "  break p;\n"
-             "}\n"
-             "this_is_lazy();\n");
-}
-
-
 TEST(SerializationOfMaybeAssignmentFlag) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();

@@ -427,7 +427,6 @@ Parser::Parser(ParseInfo* info)
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
       source_range_map_(info->source_range_map()),
-      target_stack_(nullptr),
       total_preparse_skipped_(0),
       consumed_preparse_data_(info->consumed_preparse_data()),
       preparse_data_buffer_(),
@@ -566,7 +565,6 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   // isolate will be nullptr.
   DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
   DCHECK_NULL(scope_);
-  DCHECK_NULL(target_stack_);
 
   ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
   ResetFunctionLiteralId();
@@ -680,9 +678,6 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   }
 
   info->set_max_function_literal_id(GetLastFunctionLiteralId());
-
-  // Make sure the target stack is empty.
-  DCHECK_NULL(target_stack_);
 
   if (has_error()) return nullptr;
 
@@ -848,7 +843,6 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
   DCHECK_NOT_NULL(raw_name);
   DCHECK_NULL(scope_);
-  DCHECK_NULL(target_stack_);
 
   DCHECK(ast_value_factory());
   fni_.PushEnclosingName(raw_name);
@@ -972,8 +966,6 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
     }
   }
 
-  // Make sure the target stack is empty.
-  DCHECK_NULL(target_stack_);
   DCHECK_IMPLIES(result,
                  info->function_literal_id() == result->function_literal_id());
   return result;
@@ -1601,43 +1593,6 @@ Statement* Parser::DeclareNative(const AstRawString* name, int pos) {
       pos);
 }
 
-void Parser::DeclareLabel(ZonePtrList<const AstRawString>** labels,
-                          ZonePtrList<const AstRawString>** own_labels,
-                          const AstRawString* label) {
-  // TODO(1240780): We don't check for redeclaration of labels during preparsing
-  // since keeping track of the set of active labels requires nontrivial changes
-  // to the way scopes are structured.  However, these are probably changes we
-  // want to make later anyway so we should go back and fix this then.
-  if (ContainsLabel(*labels, label) || TargetStackContainsLabel(label)) {
-    ReportMessage(MessageTemplate::kLabelRedeclaration, label);
-    return;
-  }
-
-  // Add {label} to both {labels} and {own_labels}.
-  if (*labels == nullptr) {
-    DCHECK_NULL(*own_labels);
-    *labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
-    *own_labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
-  } else {
-    if (*own_labels == nullptr) {
-      *own_labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
-    }
-  }
-  (*labels)->Add(label, zone());
-  (*own_labels)->Add(label, zone());
-}
-
-bool Parser::ContainsLabel(ZonePtrList<const AstRawString>* labels,
-                           const AstRawString* label) {
-  DCHECK_NOT_NULL(label);
-  if (labels != nullptr) {
-    for (int i = labels->length(); i-- > 0;) {
-      if (labels->at(i) == label) return true;
-    }
-  }
-  return false;
-}
-
 Block* Parser::IgnoreCompletion(Statement* statement) {
   Block* block = factory()->NewBlock(1, true);
   block->statements()->Add(statement, zone());
@@ -2073,8 +2028,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   // explicit break target, instead handing it directly to those nodes that
   // need to know about it. This should be safe because we don't run any code
   // in this function that looks up break targets.
-  ForStatement* outer_loop =
-      factory()->NewForStatement(nullptr, nullptr, kNoSourcePosition);
+  ForStatement* outer_loop = factory()->NewForStatement(kNoSourcePosition);
   outer_block->statements()->Add(outer_loop, zone());
   outer_block->set_scope(scope());
 
@@ -3064,40 +3018,6 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope) {
 
 // ----------------------------------------------------------------------------
 // Parser support
-
-bool Parser::TargetStackContainsLabel(const AstRawString* label) {
-  for (ParserTarget* t = target_stack_; t != nullptr; t = t->previous()) {
-    if (ContainsLabel(t->statement()->labels(), label)) return true;
-  }
-  return false;
-}
-
-BreakableStatement* Parser::LookupBreakTarget(const AstRawString* label) {
-  bool anonymous = label == nullptr;
-  for (ParserTarget* t = target_stack_; t != nullptr; t = t->previous()) {
-    BreakableStatement* stat = t->statement();
-    if ((anonymous && stat->is_target_for_anonymous()) ||
-        (!anonymous && ContainsLabel(stat->labels(), label))) {
-      return stat;
-    }
-  }
-  return nullptr;
-}
-
-IterationStatement* Parser::LookupContinueTarget(const AstRawString* label) {
-  bool anonymous = label == nullptr;
-  for (ParserTarget* t = target_stack_; t != nullptr; t = t->previous()) {
-    IterationStatement* stat = t->statement()->AsIterationStatement();
-    if (stat == nullptr) continue;
-
-    DCHECK(stat->is_target_for_anonymous());
-    if (anonymous || ContainsLabel(stat->own_labels(), label)) {
-      return stat;
-    }
-    if (ContainsLabel(stat->labels(), label)) break;
-  }
-  return nullptr;
-}
 
 void Parser::HandleSourceURLComments(Isolate* isolate, Handle<Script> script) {
   Handle<String> source_url = scanner_.SourceUrl(isolate);
