@@ -531,6 +531,23 @@ enum Opcode : uint32_t {
   RO_CSRRSI = SYSTEM | (0b110 << kFunct3Shift),
   RO_CSRRCI = SYSTEM | (0b111 << kFunct3Shift),
 
+  // RV32M Standard Extension
+  RO_MUL = OP | (0b000 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_MULH = OP | (0b001 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_MULHSU = OP | (0b010 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_MULHU = OP | (0b011 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_DIV = OP | (0b100 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_DIVU = OP | (0b101 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_REM = OP | (0b110 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_REMU = OP | (0b111 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+
+  // RV64M Standard Extension (in addition to RV32M)
+  RO_MULW = OP_32 | (0b000 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_DIVW = OP_32 | (0b100 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_DIVUW = OP_32 | (0b101 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_REMW = OP_32 | (0b110 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_REMUW = OP_32 | (0b111 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+
   // Original MIPS opcodes
   SPECIAL = 0U << kOpcodeShift,
   REGIMM = 1U << kOpcodeShift,

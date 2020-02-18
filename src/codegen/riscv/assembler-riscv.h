@@ -465,6 +465,23 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_srlw(Register rd, Register rs1, Register rs2);
   void RV_sraw(Register rd, Register rs1, Register rs2);
 
+  // RV32M Standard Extension
+  void RV_mul(Register rd, Register rs1, Register rs2);
+  void RV_mulh(Register rd, Register rs1, Register rs2);
+  void RV_mulhsu(Register rd, Register rs1, Register rs2);
+  void RV_mulhu(Register rd, Register rs1, Register rs2);
+  void RV_div(Register rd, Register rs1, Register rs2);
+  void RV_divu(Register rd, Register rs1, Register rs2);
+  void RV_rem(Register rd, Register rs1, Register rs2);
+  void RV_remu(Register rd, Register rs1, Register rs2);
+
+  // RV64M Standard Extension (in addition to RV32M)
+  void RV_mulw(Register rd, Register rs1, Register rs2);
+  void RV_divw(Register rd, Register rs1, Register rs2);
+  void RV_divuw(Register rd, Register rs1, Register rs2);
+  void RV_remw(Register rd, Register rs1, Register rs2);
+  void RV_remuw(Register rd, Register rs1, Register rs2);
+
   // Privileged
   void RV_uret();
   void RV_sret();

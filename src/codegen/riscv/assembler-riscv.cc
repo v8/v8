@@ -2350,6 +2350,62 @@ void Assembler::RV_sraw(Register rd, Register rs1, Register rs2) {
   GenInstrALUW_rr(0b0100000, 0b101, rd, rs1, rs2);
 }
 
+// RV32M Standard Extension
+
+void Assembler::RV_mul(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000001, 0b000, rd, rs1, rs2);
+}
+
+void Assembler::RV_mulh(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000001, 0b001, rd, rs1, rs2);
+}
+
+void Assembler::RV_mulhsu(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000001, 0b010, rd, rs1, rs2);
+}
+
+void Assembler::RV_mulhu(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000001, 0b011, rd, rs1, rs2);
+}
+
+void Assembler::RV_div(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000001, 0b100, rd, rs1, rs2);
+}
+
+void Assembler::RV_divu(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000001, 0b101, rd, rs1, rs2);
+}
+
+void Assembler::RV_rem(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000001, 0b110, rd, rs1, rs2);
+}
+
+void Assembler::RV_remu(Register rd, Register rs1, Register rs2) {
+  GenInstrALU_rr(0b0000001, 0b111, rd, rs1, rs2);
+}
+
+// RV64M Standard Extension (in addition to RV32M)
+
+void Assembler::RV_mulw(Register rd, Register rs1, Register rs2) {
+  GenInstrALUW_rr(0b0000001, 0b000, rd, rs1, rs2);
+}
+
+void Assembler::RV_divw(Register rd, Register rs1, Register rs2) {
+  GenInstrALUW_rr(0b0000001, 0b100, rd, rs1, rs2);
+}
+
+void Assembler::RV_divuw(Register rd, Register rs1, Register rs2) {
+  GenInstrALUW_rr(0b0000001, 0b101, rd, rs1, rs2);
+}
+
+void Assembler::RV_remw(Register rd, Register rs1, Register rs2) {
+  GenInstrALUW_rr(0b0000001, 0b110, rd, rs1, rs2);
+}
+
+void Assembler::RV_remuw(Register rd, Register rs1, Register rs2) {
+  GenInstrALUW_rr(0b0000001, 0b111, rd, rs1, rs2);
+}
+
 // Privileged
 
 void Assembler::RV_uret() {
