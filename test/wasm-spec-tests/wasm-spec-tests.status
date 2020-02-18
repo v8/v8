@@ -15,6 +15,9 @@
   'elem': [FAIL],
   'data': [FAIL],
 
+  # TODO(ecmziegler): Fix failing spec tests after update.
+  'proposals/reference-types/table-sub': [FAIL],
+
   # TODO(wasm): Roll newest tests into "js-types" repository.
   'proposals/js-types/exports': [FAIL],
   'proposals/js-types/globals': [FAIL],
