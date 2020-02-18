@@ -3368,21 +3368,21 @@ void RunLoadExtendTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I16x8Load8x8U) {
+WASM_SIMD_TEST(I16x8Load8x8U) {
   RunLoadExtendTest<uint8_t, uint16_t>(execution_tier, lower_simd,
                                        kExprI16x8Load8x8U);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I16x8Load8x8S) {
+WASM_SIMD_TEST(I16x8Load8x8S) {
   RunLoadExtendTest<int8_t, int16_t>(execution_tier, lower_simd,
                                      kExprI16x8Load8x8S);
 }
-WASM_SIMD_TEST_NO_LOWERING(I32x4Load16x4U) {
+WASM_SIMD_TEST(I32x4Load16x4U) {
   RunLoadExtendTest<uint16_t, uint32_t>(execution_tier, lower_simd,
                                         kExprI32x4Load16x4U);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I32x4Load16x4S) {
+WASM_SIMD_TEST(I32x4Load16x4S) {
   RunLoadExtendTest<int16_t, int32_t>(execution_tier, lower_simd,
                                       kExprI32x4Load16x4S);
 }

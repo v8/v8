@@ -4,6 +4,7 @@
 
 #include "src/compiler/simd-scalar-lowering.h"
 
+#include "src/codegen/machine-type.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
@@ -283,6 +284,14 @@ void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
         case LoadTransformation::kS32x4LoadSplat:
           replacements_[node->id()].type = SimdType::kInt32x4;
           break;
+        case LoadTransformation::kI16x8Load8x8S:
+        case LoadTransformation::kI16x8Load8x8U:
+          replacements_[node->id()].type = SimdType::kInt16x8;
+          break;
+        case LoadTransformation::kI32x4Load16x4S:
+        case LoadTransformation::kI32x4Load16x4U:
+          replacements_[node->id()].type = SimdType::kInt32x4;
+          break;
         default:
           UNIMPLEMENTED();
       }
@@ -448,47 +457,79 @@ void SimdScalarLowering::LowerLoadOp(Node* node, SimdType type) {
 
 void SimdScalarLowering::LowerLoadTransformOp(Node* node, SimdType type) {
   LoadTransformParameters params = LoadTransformParametersOf(node->op());
+  MachineType load_rep = MachineType::None();
+  SimdType load_type = type;
+
+  // Load extends have a different machine type for loading.
   switch (params.transformation) {
-    // Lowering for s64x2 is not implemented since lowering for 64x2 operations
-    // doesn't work properly yet.
+    case LoadTransformation::kI16x8Load8x8S:
+      load_rep = MachineType::Int8();
+      load_type = SimdType::kInt8x16;
+      break;
+    case LoadTransformation::kI16x8Load8x8U:
+      load_rep = MachineType::Uint8();
+      load_type = SimdType::kInt8x16;
+      break;
+    case LoadTransformation::kI32x4Load16x4S:
+      load_rep = MachineType::Int16();
+      load_type = SimdType::kInt16x8;
+      break;
+    case LoadTransformation::kI32x4Load16x4U:
+      load_rep = MachineType::Uint16();
+      load_type = SimdType::kInt16x8;
+      break;
     case LoadTransformation::kS8x16LoadSplat:
     case LoadTransformation::kS16x8LoadSplat:
     case LoadTransformation::kS32x4LoadSplat:
+      load_rep = MachineTypeFrom(type);
       break;
     default:
+      // Lowering for s64x2 is not implemented since lowering for 64x2
+      // operations doesn't work properly yet.
       UNIMPLEMENTED();
   }
+
+  DCHECK_NE(load_rep, MachineType::None());
 
   const Operator* load_op;
   switch (params.kind) {
     case LoadKind::kNormal:
-      load_op = machine()->Load(MachineTypeFrom(type));
+      load_op = machine()->Load(load_rep);
       break;
     case LoadKind::kUnaligned:
-      load_op = machine()->UnalignedLoad(MachineTypeFrom(type));
+      load_op = machine()->UnalignedLoad(load_rep);
       break;
     case LoadKind::kProtected:
-      load_op = machine()->ProtectedLoad(MachineTypeFrom(type));
+      load_op = machine()->ProtectedLoad(load_rep);
       break;
-    default:
-      UNREACHABLE();
   }
 
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   int num_lanes = NumLanes(type);
   Node** rep_nodes = zone()->NewArray<Node*>(num_lanes);
-  rep_nodes[0] = node;
-  NodeProperties::ChangeOp(rep_nodes[0], load_op);
-
   Node* effect_input = node->InputAt(2);
   Node* control_input = node->InputAt(3);
-  for (int i = num_lanes - 1; i > 0; --i) {
-    rep_nodes[i] =
-        graph()->NewNode(load_op, base, index, effect_input, control_input);
-    effect_input = rep_nodes[i];
+
+  if (type != load_type) {
+    // We load a smaller lane size, then extend to a larger lane size. So use
+    // the smaller lane size to calculte the index nodes for loads, but only
+    // actually load half of those lanes.
+    Node** indices = zone()->NewArray<Node*>(num_lanes * 2);
+    GetIndexNodes(index, indices, load_type);
+    for (int i = num_lanes - 1; i >= 0; --i) {
+      rep_nodes[i] = graph()->NewNode(load_op, base, indices[i], effect_input,
+                                      control_input);
+      effect_input = rep_nodes[i];
+    }
+  } else {
+    // Load splat, load from the same index for every lane.
+    for (int i = num_lanes - 1; i >= 0; --i) {
+      rep_nodes[i] =
+          graph()->NewNode(load_op, base, index, effect_input, control_input);
+      effect_input = rep_nodes[i];
+    }
   }
-  rep_nodes[0]->ReplaceInput(2, rep_nodes[1]);
   ReplaceNode(node, rep_nodes, num_lanes);
 }
 
