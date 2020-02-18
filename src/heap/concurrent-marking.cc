@@ -515,17 +515,8 @@ void ConcurrentMarking::ScheduleTasks() {
   if (total_task_count_ == 0) {
     static const int num_cores =
         V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1;
-#if defined(V8_OS_MACOSX)
-    // Mac OSX 10.11 and prior seems to have trouble when doing concurrent
-    // marking on competing hyper-threads (regresses Octane/Splay). As such,
-    // only use num_cores/2, leaving one of those for the main thread.
-    // TODO(ulan): Use all cores on Mac 10.12+.
-    total_task_count_ = Max(1, Min(kMaxTasks, (num_cores / 2) - 1));
-#else   // defined(OS_MACOSX)
-    // On other platforms use all logical cores, leaving one for the main
-    // thread.
+    // Leave one core for the main thread and other components, respectively.
     total_task_count_ = Max(1, Min(kMaxTasks, num_cores - 2));
-#endif  // defined(OS_MACOSX)
     DCHECK_LE(total_task_count_, kMaxTasks);
     // One task is for the main thread.
     STATIC_ASSERT(kMaxTasks + 1 <= MarkingWorklist::kMaxNumTasks);
