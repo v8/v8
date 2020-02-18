@@ -109,7 +109,7 @@ void CPURegList::Align() {
 }
 
 CPURegList CPURegList::GetCalleeSaved(int size) {
-  return CPURegList(CPURegister::kRegister, size, 19, 29);
+  return CPURegList(CPURegister::kRegister, size, 19, 28);
 }
 
 CPURegList CPURegList::GetCalleeSavedV(int size) {
@@ -118,9 +118,8 @@ CPURegList CPURegList::GetCalleeSavedV(int size) {
 
 CPURegList CPURegList::GetCallerSaved(int size) {
   // x18 is the platform register and is reserved for the use of platform ABIs.
-  // Registers x0-x17 and lr (x30) are caller-saved.
+  // Registers x0-x17 are caller-saved.
   CPURegList list = CPURegList(CPURegister::kRegister, size, 0, 17);
-  list.Combine(lr);
   return list;
 }
 

@@ -12191,9 +12191,10 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
   // Registers in the TmpList can be used by the macro assembler for debug code
   // (for example in 'Pop'), so we can't use them here.
   // x18 is reserved for the platform register.
-  // Disallow x31 / xzr, to ensure this list has an even number of elements, to
-  // ensure alignment.
-  RegList allowed = ~(masm.TmpList()->list() | x18.bit() | x31.bit());
+  // For simplicity, exclude LR as well, as we would need to sign it when
+  // pushing it. This also ensures that the list has an even number of elements,
+  // which is needed for alignment.
+  RegList allowed = ~(masm.TmpList()->list() | x18.bit() | lr.bit());
   if (reg_count == kPushPopMaxRegCount) {
     reg_count = CountSetBits(allowed, kNumberOfRegisters);
   }
@@ -12227,8 +12228,8 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
       case PushPopByFour:
         // Push high-numbered registers first (to the highest addresses).
         for (i = reg_count; i >= 4; i -= 4) {
-          __ Push<TurboAssembler::kDontSignLR>(r[i - 1], r[i - 2], r[i - 3],
-                                               r[i - 4]);
+          __ Push<TurboAssembler::kDontStoreLR>(r[i - 1], r[i - 2], r[i - 3],
+                                                r[i - 4]);
         }
         // Finish off the leftovers.
         switch (i) {
@@ -12241,7 +12242,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
         }
         break;
       case PushPopRegList:
-        __ PushSizeRegList<TurboAssembler::kDontSignLR>(list, reg_size);
+        __ PushSizeRegList<TurboAssembler::kDontStoreLR>(list, reg_size);
         break;
     }
 
@@ -12252,7 +12253,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
       case PushPopByFour:
         // Pop low-numbered registers first (from the lowest addresses).
         for (i = 0; i <= (reg_count-4); i += 4) {
-          __ Pop<TurboAssembler::kDontAuthLR>(r[i], r[i + 1], r[i + 2],
+          __ Pop<TurboAssembler::kDontLoadLR>(r[i], r[i + 1], r[i + 2],
                                               r[i + 3]);
         }
         // Finish off the leftovers.
@@ -12266,7 +12267,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
         }
         break;
       case PushPopRegList:
-        __ PopSizeRegList<TurboAssembler::kDontAuthLR>(list, reg_size);
+        __ PopSizeRegList<TurboAssembler::kDontLoadLR>(list, reg_size);
         break;
     }
   }
@@ -12597,10 +12598,10 @@ TEST(push_pop) {
   __ Claim(2);
   __ PushXRegList(0);
   __ PopXRegList(0);
-  // Don't push/pop x18 (platform register) or xzr (for alignment)
-  RegList all_regs = 0xFFFFFFFF & ~(x18.bit() | x31.bit());
-  __ PushXRegList<TurboAssembler::kDontSignLR>(all_regs);
-  __ PopXRegList<TurboAssembler::kDontAuthLR>(all_regs);
+  // Don't push/pop x18 (platform register) or lr
+  RegList all_regs = 0xFFFFFFFF & ~(x18.bit() | lr.bit());
+  __ PushXRegList<TurboAssembler::kDontStoreLR>(all_regs);
+  __ PopXRegList<TurboAssembler::kDontLoadLR>(all_regs);
   __ Drop(12);
 
   END();
@@ -14599,13 +14600,11 @@ TEST(near_call_no_relocation) {
 
   __ Bind(&test);
   __ Mov(x0, 0x0);
-  __ Push<TurboAssembler::kDontSignLR>(lr, xzr);
   {
     Assembler::BlockConstPoolScope scope(&masm);
     int offset = (function.pos() - __ pc_offset()) / kInstrSize;
     __ near_call(offset, RelocInfo::NONE);
   }
-  __ Pop<TurboAssembler::kDontAuthLR>(xzr, lr);
   END();
 
   RUN();

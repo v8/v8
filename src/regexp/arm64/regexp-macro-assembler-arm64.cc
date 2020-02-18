@@ -737,7 +737,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   CPURegList argument_registers(x0, x5, x6, x7);
 
   CPURegList registers_to_retain = kCalleeSaved;
-  DCHECK_EQ(11, kCalleeSaved.Count());
+  registers_to_retain.Combine(fp);
   registers_to_retain.Combine(lr);
 
   DCHECK(registers_to_retain.IncludesAliasOf(lr));

@@ -60,7 +60,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
   list.Remove(exclusion);
   list.Align();
 
-  PushCPURegList<kSignLR>(list);
+  PushCPURegList<kDontStoreLR>(list);
 
   int bytes = list.Count() * kXRegSizeInBits / 8;
 
@@ -84,7 +84,7 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion) {
   list.Remove(exclusion);
   list.Align();
 
-  PopCPURegList<kAuthLR>(list);
+  PopCPURegList<kDontLoadLR>(list);
   bytes += list.Count() * kXRegSizeInBits / 8;
 
   return bytes;
@@ -2225,7 +2225,8 @@ void TurboAssembler::TryConvertDoubleToInt64(Register result,
 void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
                                        Register result,
                                        DoubleRegister double_input,
-                                       StubCallMode stub_mode) {
+                                       StubCallMode stub_mode,
+                                       LinkRegisterStatus lr_status) {
   Label done;
 
   // Try to convert the double to an int64. If successful, the bottom 32 bits
@@ -2233,7 +2234,11 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   TryConvertDoubleToInt64(result, double_input, &done);
 
   // If we fell through then inline version didn't succeed - call stub instead.
-  Push<TurboAssembler::kSignLR>(lr, double_input);
+  if (lr_status == kLRHasNotBeenSaved) {
+    Push<TurboAssembler::kSignLR>(lr, double_input);
+  } else {
+    Push<TurboAssembler::kDontStoreLR>(xzr, double_input);
+  }
 
   // DoubleToI preserves any registers it needs to clobber.
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
@@ -2246,8 +2251,13 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   Ldr(result, MemOperand(sp, 0));
 
   DCHECK_EQ(xzr.SizeInBytes(), double_input.SizeInBytes());
-  // Pop into xzr here to drop the double input on the stack:
-  Pop<TurboAssembler::kAuthLR>(xzr, lr);
+
+  if (lr_status == kLRHasNotBeenSaved) {
+    // Pop into xzr here to drop the double input on the stack:
+    Pop<TurboAssembler::kAuthLR>(xzr, lr);
+  } else {
+    Drop(2);
+  }
 
   Bind(&done);
   // Keep our invariant that the upper 32 bits are zero.
@@ -3102,7 +3112,7 @@ void TurboAssembler::Printf(const char* format, CPURegister arg0,
   // Preserve all caller-saved registers as well as NZCV.
   // PushCPURegList asserts that the size of each list is a multiple of 16
   // bytes.
-  PushCPURegList<kDontSignLR>(saved_registers);
+  PushCPURegList<kDontStoreLR>(saved_registers);
   PushCPURegList(kCallerSavedV);
 
   // We can use caller-saved registers as scratch values (except for argN).
@@ -3155,7 +3165,7 @@ void TurboAssembler::Printf(const char* format, CPURegister arg0,
   }
 
   PopCPURegList(kCallerSavedV);
-  PopCPURegList<kDontAuthLR>(saved_registers);
+  PopCPURegList<kDontLoadLR>(saved_registers);
 
   TmpList()->set_list(old_tmp_list);
   FPTmpList()->set_list(old_fp_tmp_list);

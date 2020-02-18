@@ -926,7 +926,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
-                           i.InputDoubleRegister(0), DetermineStubCallMode());
+                           i.InputDoubleRegister(0), DetermineStubCallMode(),
+                           frame_access_state()->has_frame()
+                               ? kLRHasBeenSaved
+                               : kLRHasNotBeenSaved);
+
       break;
     case kArchStoreWithWriteBarrier: {
       RecordWriteMode mode =
@@ -2909,9 +2913,8 @@ void CodeGenerator::AssembleConstructFrame() {
   __ PushCPURegList(saves_fp);
 
   // Save registers.
-  // TODO(palfia): TF save list is not in sync with
-  // CPURegList::GetCalleeSaved(): x30 is missing.
-  // DCHECK(saves.list() == CPURegList::GetCalleeSaved().list());
+  DCHECK_IMPLIES(!saves.IsEmpty(),
+                 saves.list() == CPURegList::GetCalleeSaved().list());
   __ PushCPURegList<TurboAssembler::kSignLR>(saves);
 
   if (returns != 0) {

@@ -38,8 +38,8 @@ constexpr int kMaxLoadLiteralRange = 1 * MB;
 
 const int kNumberOfRegisters = 32;
 const int kNumberOfVRegisters = 32;
-// Callee saved registers are x19-x30(lr).
-const int kNumberOfCalleeSavedRegisters = 11;
+// Callee saved registers are x19-x28.
+const int kNumberOfCalleeSavedRegisters = 10;
 const int kFirstCalleeSavedRegisterIndex = 19;
 // Callee saved FP registers are d8-d15.
 const int kNumberOfCalleeSavedVRegisters = 8;

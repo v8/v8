@@ -194,11 +194,13 @@ void Simulator::CheckPCSComplianceAndRun() {
     saved_fpregisters[i] = dreg_bits(PopLowestIndexAsCode(&fpregister_list));
   }
   int64_t original_stack = sp();
+  int64_t original_fp = fp();
 #endif
   // Start the simulation!
   Run();
 #ifdef DEBUG
   DCHECK_EQ(original_stack, sp());
+  DCHECK_EQ(original_fp, fp());
   // Check that callee-saved registers have been preserved.
   register_list = kCalleeSaved;
   fpregister_list = kCalleeSavedV;

@@ -793,8 +793,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // when control flow integrity measures are enabled.
   // When the mode is kDontLoadLR or kDontStoreLR, LR must not be passed as an
   // argument to the operation.
-  enum LoadLRMode { kAuthLR, kDontAuthLR, kDontLoadLR };
-  enum StoreLRMode { kSignLR, kDontSignLR, kDontStoreLR };
+  enum LoadLRMode { kAuthLR, kDontLoadLR };
+  enum StoreLRMode { kSignLR, kDontStoreLR };
   template <StoreLRMode lr_mode = kDontStoreLR>
   void Push(const CPURegister& src0, const CPURegister& src1 = NoReg,
             const CPURegister& src2 = NoReg, const CPURegister& src3 = NoReg);
@@ -981,7 +981,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
   // Exits with 'result' holding the answer.
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
-                         DoubleRegister double_input, StubCallMode stub_mode);
+                         DoubleRegister double_input, StubCallMode stub_mode,
+                         LinkRegisterStatus lr_status);
 
   inline void Mul(const Register& rd, const Register& rn, const Register& rm);
 
