@@ -308,8 +308,7 @@ std::unique_ptr<v8::Platform> g_platform;
 
 static Local<Value> Throw(Isolate* isolate, const char* message) {
   return isolate->ThrowException(
-      String::NewFromUtf8(isolate, message, NewStringType::kNormal)
-          .ToLocalChecked());
+      String::NewFromUtf8(isolate, message).ToLocalChecked());
 }
 
 static MaybeLocal<Value> TryGetValue(v8::Isolate* isolate,
@@ -317,8 +316,7 @@ static MaybeLocal<Value> TryGetValue(v8::Isolate* isolate,
                                      Local<v8::Object> object,
                                      const char* property) {
   Local<String> v8_str =
-      String::NewFromUtf8(isolate, property, NewStringType::kNormal)
-          .FromMaybe(Local<String>());
+      String::NewFromUtf8(isolate, property).FromMaybe(Local<String>());
   if (v8_str.IsEmpty()) return Local<Value>();
   return object->Get(context, v8_str);
 }
@@ -370,8 +368,7 @@ class TraceConfigParser {
     HandleScope inner_scope(isolate);
 
     Local<String> source =
-        String::NewFromUtf8(isolate, json_str, NewStringType::kNormal)
-            .ToLocalChecked();
+        String::NewFromUtf8(isolate, json_str).ToLocalChecked();
     Local<Value> result = JSON::Parse(context, source).ToLocalChecked();
     Local<v8::Object> trace_config_object = Local<v8::Object>::Cast(result);
 
@@ -791,8 +788,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
     return MaybeLocal<Module>();
   }
   ScriptOrigin origin(
-      String::NewFromUtf8(isolate, file_name.c_str(), NewStringType::kNormal)
-          .ToLocalChecked(),
+      String::NewFromUtf8(isolate, file_name.c_str()).ToLocalChecked(),
       Local<Integer>(), Local<Integer>(), Local<Boolean>(), Local<Integer>(),
       Local<Value>(), Local<Boolean>(), Local<Boolean>(), True(isolate));
   ScriptCompiler::Source source(source_text, origin);
@@ -928,10 +924,9 @@ void Shell::HostInitializeImportMetaObject(Local<Context> context,
   CHECK(specifier_it != d->module_to_specifier_map.end());
 
   Local<String> url_key =
-      String::NewFromUtf8(isolate, "url", NewStringType::kNormal)
+      String::NewFromUtf8(isolate, "url", NewStringType::kInternalized)
           .ToLocalChecked();
-  Local<String> url = String::NewFromUtf8(isolate, specifier_it->second.c_str(),
-                                          NewStringType::kNormal)
+  Local<String> url = String::NewFromUtf8(isolate, specifier_it->second.c_str())
                           .ToLocalChecked();
   meta->CreateDataProperty(context, url_key, url).ToChecked();
 }
@@ -1508,8 +1503,7 @@ void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
 Local<String> Shell::ReadFromStdin(Isolate* isolate) {
   static const int kBufferSize = 256;
   char buffer[kBufferSize];
-  Local<String> accumulator =
-      String::NewFromUtf8(isolate, "", NewStringType::kNormal).ToLocalChecked();
+  Local<String> accumulator = String::NewFromUtf8(isolate, "").ToLocalChecked();
   int length;
   while (true) {
     // Continue reading if the line ends with an escape '\\' or the line has
@@ -1558,9 +1552,7 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
     if (!ExecuteString(
             args.GetIsolate(), source,
-            String::NewFromUtf8(args.GetIsolate(), *file,
-                                NewStringType::kNormal)
-                .ToLocalChecked(),
+            String::NewFromUtf8(args.GetIsolate(), *file).ToLocalChecked(),
             kNoPrintResult,
             options.quiet_load ? kNoReportExceptions : kReportExceptions,
             kNoProcessMessageQueue)) {
@@ -1734,10 +1726,9 @@ void Shell::NotifyDone(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  args.GetReturnValue().Set(String::NewFromUtf8(args.GetIsolate(),
-                                                V8::GetVersion(),
-                                                NewStringType::kNormal)
-                                .ToLocalChecked());
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(args.GetIsolate(), V8::GetVersion())
+          .ToLocalChecked());
 }
 
 void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
@@ -1891,11 +1882,9 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
       v8::Local<v8::Context>::New(isolate, evaluation_context_);
   if (stringify_function_.IsEmpty()) {
     Local<String> source =
-        String::NewFromUtf8(isolate, stringify_source_, NewStringType::kNormal)
-            .ToLocalChecked();
+        String::NewFromUtf8(isolate, stringify_source_).ToLocalChecked();
     Local<String> name =
-        String::NewFromUtf8(isolate, "d8-stringify", NewStringType::kNormal)
-            .ToLocalChecked();
+        String::NewFromUtf8(isolate, "d8-stringify").ToLocalChecked();
     ScriptOrigin origin(name);
     Local<Script> script =
         Script::Compile(context, source, &origin).ToLocalChecked();
@@ -1912,197 +1901,114 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
 
 Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
-  global_template->Set(
-      String::NewFromUtf8(isolate, "print", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, Print));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "printErr", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, PrintErr));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "write", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, Write));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "read", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, Read));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "readbuffer", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, ReadBuffer));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "readline", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, ReadLine));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "load", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, Load));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "setTimeout", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, SetTimeout));
+  global_template->Set(isolate, "print", FunctionTemplate::New(isolate, Print));
+  global_template->Set(isolate, "printErr",
+                       FunctionTemplate::New(isolate, PrintErr));
+  global_template->Set(isolate, "write", FunctionTemplate::New(isolate, Write));
+  global_template->Set(isolate, "read", FunctionTemplate::New(isolate, Read));
+  global_template->Set(isolate, "readbuffer",
+                       FunctionTemplate::New(isolate, ReadBuffer));
+  global_template->Set(isolate, "readline",
+                       FunctionTemplate::New(isolate, ReadLine));
+  global_template->Set(isolate, "load", FunctionTemplate::New(isolate, Load));
+  global_template->Set(isolate, "setTimeout",
+                       FunctionTemplate::New(isolate, SetTimeout));
   // Some Emscripten-generated code tries to call 'quit', which in turn would
   // call C's exit(). This would lead to memory leaks, because there is no way
   // we can terminate cleanly then, so we need a way to hide 'quit'.
   if (!options.omit_quit) {
-    global_template->Set(
-        String::NewFromUtf8(isolate, "quit", NewStringType::kNormal)
-            .ToLocalChecked(),
-        FunctionTemplate::New(isolate, Quit));
+    global_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
   }
   Local<ObjectTemplate> test_template = ObjectTemplate::New(isolate);
-  global_template->Set(
-      String::NewFromUtf8(isolate, "testRunner", NewStringType::kNormal)
-          .ToLocalChecked(),
-      test_template);
-  test_template->Set(
-      String::NewFromUtf8(isolate, "notifyDone", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, NotifyDone));
-  test_template->Set(
-      String::NewFromUtf8(isolate, "waitUntilDone", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, WaitUntilDone));
+  global_template->Set(isolate, "testRunner", test_template);
+  test_template->Set(isolate, "notifyDone",
+                     FunctionTemplate::New(isolate, NotifyDone));
+  test_template->Set(isolate, "waitUntilDone",
+                     FunctionTemplate::New(isolate, WaitUntilDone));
   // Reliable access to quit functionality. The "quit" method function
   // installed on the global object can be hidden with the --omit-quit flag
   // (e.g. on asan bots).
-  test_template->Set(
-      String::NewFromUtf8(isolate, "quit", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, Quit));
+  test_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
 
-  global_template->Set(
-      String::NewFromUtf8(isolate, "version", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, Version));
-  global_template->Set(
-      Symbol::GetToStringTag(isolate),
-      String::NewFromUtf8(isolate, "global", NewStringType::kNormal)
-          .ToLocalChecked());
+  global_template->Set(isolate, "version",
+                       FunctionTemplate::New(isolate, Version));
+  global_template->Set(Symbol::GetToStringTag(isolate),
+                       String::NewFromUtf8(isolate, "global").ToLocalChecked());
 
   // Bind the Realm object.
   Local<ObjectTemplate> realm_template = ObjectTemplate::New(isolate);
+  realm_template->Set(isolate, "current",
+                      FunctionTemplate::New(isolate, RealmCurrent));
+  realm_template->Set(isolate, "owner",
+                      FunctionTemplate::New(isolate, RealmOwner));
+  realm_template->Set(isolate, "global",
+                      FunctionTemplate::New(isolate, RealmGlobal));
+  realm_template->Set(isolate, "create",
+                      FunctionTemplate::New(isolate, RealmCreate));
   realm_template->Set(
-      String::NewFromUtf8(isolate, "current", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmCurrent));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "owner", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmOwner));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "global", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmGlobal));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "create", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmCreate));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "createAllowCrossRealmAccess",
-                          NewStringType::kNormal)
-          .ToLocalChecked(),
+      isolate, "createAllowCrossRealmAccess",
       FunctionTemplate::New(isolate, RealmCreateAllowCrossRealmAccess));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "navigate", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmNavigate));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "detachGlobal", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmDetachGlobal));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "dispose", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmDispose));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "switch", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmSwitch));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "eval", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmEval));
+  realm_template->Set(isolate, "navigate",
+                      FunctionTemplate::New(isolate, RealmNavigate));
+  realm_template->Set(isolate, "detachGlobal",
+                      FunctionTemplate::New(isolate, RealmDetachGlobal));
+  realm_template->Set(isolate, "dispose",
+                      FunctionTemplate::New(isolate, RealmDispose));
+  realm_template->Set(isolate, "switch",
+                      FunctionTemplate::New(isolate, RealmSwitch));
+  realm_template->Set(isolate, "eval",
+                      FunctionTemplate::New(isolate, RealmEval));
   realm_template->SetAccessor(
-      String::NewFromUtf8(isolate, "shared", NewStringType::kNormal)
-          .ToLocalChecked(),
-      RealmSharedGet, RealmSharedSet);
-  global_template->Set(
-      String::NewFromUtf8(isolate, "Realm", NewStringType::kNormal)
-          .ToLocalChecked(),
-      realm_template);
+      String::NewFromUtf8(isolate, "shared").ToLocalChecked(), RealmSharedGet,
+      RealmSharedSet);
+  global_template->Set(isolate, "Realm", realm_template);
 
   Local<ObjectTemplate> performance_template = ObjectTemplate::New(isolate);
+  performance_template->Set(isolate, "now",
+                            FunctionTemplate::New(isolate, PerformanceNow));
   performance_template->Set(
-      String::NewFromUtf8(isolate, "now", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, PerformanceNow));
-  performance_template->Set(
-      String::NewFromUtf8(isolate, "measureMemory", NewStringType::kNormal)
-          .ToLocalChecked(),
+      isolate, "measureMemory",
       FunctionTemplate::New(isolate, PerformanceMeasureMemory));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "performance", NewStringType::kNormal)
-          .ToLocalChecked(),
-      performance_template);
+  global_template->Set(isolate, "performance", performance_template);
 
   Local<FunctionTemplate> worker_fun_template =
       FunctionTemplate::New(isolate, WorkerNew);
   Local<Signature> worker_signature =
       Signature::New(isolate, worker_fun_template);
   worker_fun_template->SetClassName(
-      String::NewFromUtf8(isolate, "Worker", NewStringType::kNormal)
-          .ToLocalChecked());
+      String::NewFromUtf8(isolate, "Worker").ToLocalChecked());
   worker_fun_template->ReadOnlyPrototype();
   worker_fun_template->PrototypeTemplate()->Set(
-      String::NewFromUtf8(isolate, "terminate", NewStringType::kNormal)
-          .ToLocalChecked(),
+      isolate, "terminate",
       FunctionTemplate::New(isolate, WorkerTerminate, Local<Value>(),
                             worker_signature));
   worker_fun_template->PrototypeTemplate()->Set(
-      String::NewFromUtf8(isolate, "postMessage", NewStringType::kNormal)
-          .ToLocalChecked(),
+      isolate, "postMessage",
       FunctionTemplate::New(isolate, WorkerPostMessage, Local<Value>(),
                             worker_signature));
   worker_fun_template->PrototypeTemplate()->Set(
-      String::NewFromUtf8(isolate, "getMessage", NewStringType::kNormal)
-          .ToLocalChecked(),
+      isolate, "getMessage",
       FunctionTemplate::New(isolate, WorkerGetMessage, Local<Value>(),
                             worker_signature));
   worker_fun_template->InstanceTemplate()->SetInternalFieldCount(1);
-  global_template->Set(
-      String::NewFromUtf8(isolate, "Worker", NewStringType::kNormal)
-          .ToLocalChecked(),
-      worker_fun_template);
+  global_template->Set(isolate, "Worker", worker_fun_template);
 
   Local<ObjectTemplate> os_templ = ObjectTemplate::New(isolate);
   AddOSMethods(isolate, os_templ);
-  global_template->Set(
-      String::NewFromUtf8(isolate, "os", NewStringType::kNormal)
-          .ToLocalChecked(),
-      os_templ);
+  global_template->Set(isolate, "os", os_templ);
 
   if (i::FLAG_expose_async_hooks) {
     Local<ObjectTemplate> async_hooks_templ = ObjectTemplate::New(isolate);
     async_hooks_templ->Set(
-        String::NewFromUtf8(isolate, "createHook", NewStringType::kNormal)
-            .ToLocalChecked(),
+        isolate, "createHook",
         FunctionTemplate::New(isolate, AsyncHooksCreateHook));
     async_hooks_templ->Set(
-        String::NewFromUtf8(isolate, "executionAsyncId", NewStringType::kNormal)
-            .ToLocalChecked(),
+        isolate, "executionAsyncId",
         FunctionTemplate::New(isolate, AsyncHooksExecutionAsyncId));
     async_hooks_templ->Set(
-        String::NewFromUtf8(isolate, "triggerAsyncId", NewStringType::kNormal)
-            .ToLocalChecked(),
+        isolate, "triggerAsyncId",
         FunctionTemplate::New(isolate, AsyncHooksTriggerAsyncId));
-    global_template->Set(
-        String::NewFromUtf8(isolate, "async_hooks", NewStringType::kNormal)
-            .ToLocalChecked(),
-        async_hooks_templ);
+    global_template->Set(isolate, "async_hooks", async_hooks_templ);
   }
 
   return global_template;
@@ -2184,8 +2090,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
     Local<Array> array = Array::New(isolate, size);
     for (int i = 0; i < size; i++) {
       Local<String> arg =
-          v8::String::NewFromUtf8(isolate, args[i], v8::NewStringType::kNormal)
-              .ToLocalChecked();
+          v8::String::NewFromUtf8(isolate, args[i]).ToLocalChecked();
       Local<Number> index = v8::Number::New(isolate, i);
       array->Set(context, index, arg).FromJust();
     }
@@ -2465,9 +2370,7 @@ void Shell::RunShell(Isolate* isolate) {
       v8::Local<v8::Context>::New(isolate, evaluation_context_);
   v8::Context::Scope context_scope(context);
   PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
-  Local<String> name =
-      String::NewFromUtf8(isolate, "(d8)", NewStringType::kNormal)
-          .ToLocalChecked();
+  Local<String> name = String::NewFromUtf8(isolate, "(d8)").ToLocalChecked();
   printf("V8 version %s\n", V8::GetVersion());
   while (true) {
     HandleScope inner_scope(isolate);
@@ -2520,7 +2423,8 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
                    v8::NewStringType::kNormal, length))
             .ToLocalChecked();
     Local<String> callback_name =
-        v8::String::NewFromUtf8(isolate_, "receive", v8::NewStringType::kNormal)
+        v8::String::NewFromUtf8(isolate_, "receive",
+                                NewStringType::kInternalized)
             .ToLocalChecked();
     Local<Context> context = context_.Get(isolate_);
     Local<Value> callback =
@@ -2533,13 +2437,13 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
 #ifdef DEBUG
       if (try_catch.HasCaught()) {
         Local<Object> exception = Local<Object>::Cast(try_catch.Exception());
-        Local<String> key = v8::String::NewFromUtf8(isolate_, "message",
-                                                    v8::NewStringType::kNormal)
-                                .ToLocalChecked();
+        Local<String> key =
+            v8::String::NewFromUtf8(isolate_, "message",
+                                    NewStringType::kInternalized)
+                .ToLocalChecked();
         Local<String> expected =
             v8::String::NewFromUtf8(isolate_,
-                                    "Maximum call stack size exceeded",
-                                    v8::NewStringType::kNormal)
+                                    "Maximum call stack size exceeded")
                 .ToLocalChecked();
         Local<Value> value = exception->Get(context, key).ToLocalChecked();
         DCHECK(value->StrictEquals(expected));
@@ -2570,7 +2474,7 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
             ->GetFunction(context)
             .ToLocalChecked();
     Local<String> function_name =
-        String::NewFromUtf8(isolate_, "send", NewStringType::kNormal)
+        String::NewFromUtf8(isolate_, "send", NewStringType::kInternalized)
             .ToLocalChecked();
     CHECK(context->Global()->Set(context, function_name, function).FromJust());
 
@@ -2582,7 +2486,7 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
     v8::HandleScope handle_scope(isolate_);
     Local<String> callback_name =
         v8::String::NewFromUtf8(isolate_, "handleInspectorMessage",
-                                v8::NewStringType::kNormal)
+                                NewStringType::kInternalized)
             .ToLocalChecked();
     Local<Context> context = context_.Get(isolate_);
     Local<Value> callback =
@@ -2669,11 +2573,9 @@ bool SourceGroup::Execute(Isolate* isolate) {
       // Execute argument given to -e option directly.
       HandleScope handle_scope(isolate);
       Local<String> file_name =
-          String::NewFromUtf8(isolate, "unnamed", NewStringType::kNormal)
-              .ToLocalChecked();
+          String::NewFromUtf8(isolate, "unnamed").ToLocalChecked();
       Local<String> source =
-          String::NewFromUtf8(isolate, argv_[i + 1], NewStringType::kNormal)
-              .ToLocalChecked();
+          String::NewFromUtf8(isolate, argv_[i + 1]).ToLocalChecked();
       Shell::set_script_executed();
       if (!Shell::ExecuteString(isolate, source, file_name,
                                 Shell::kNoPrintResult, Shell::kReportExceptions,
@@ -2707,8 +2609,7 @@ bool SourceGroup::Execute(Isolate* isolate) {
     // Use all other arguments as names of files to load and run.
     HandleScope handle_scope(isolate);
     Local<String> file_name =
-        String::NewFromUtf8(isolate, arg, NewStringType::kNormal)
-            .ToLocalChecked();
+        String::NewFromUtf8(isolate, arg).ToLocalChecked();
     Local<String> source = ReadFile(isolate, arg);
     if (source.IsEmpty()) {
       printf("Error reading '%s'\n", arg);
@@ -2900,8 +2801,8 @@ void Worker::ExecuteInThread() {
                 &postmessage_fun)) {
           global
               ->Set(context,
-                    String::NewFromUtf8(isolate, "postMessage",
-                                        NewStringType::kNormal)
+                    v8::String::NewFromUtf8(isolate, "postMessage",
+                                            NewStringType::kInternalized)
                         .ToLocalChecked(),
                     postmessage_fun)
               .FromJust();
@@ -2909,20 +2810,19 @@ void Worker::ExecuteInThread() {
 
         // First run the script
         Local<String> file_name =
-            String::NewFromUtf8(isolate, "unnamed", NewStringType::kNormal)
-                .ToLocalChecked();
+            String::NewFromUtf8(isolate, "unnamed").ToLocalChecked();
         Local<String> source =
-            String::NewFromUtf8(isolate, script_, NewStringType::kNormal)
-                .ToLocalChecked();
+            String::NewFromUtf8(isolate, script_).ToLocalChecked();
         if (Shell::ExecuteString(
                 isolate, source, file_name, Shell::kNoPrintResult,
                 Shell::kReportExceptions, Shell::kProcessMessageQueue)) {
           // Get the message handler
           Local<Value> onmessage =
               global
-                  ->Get(context, String::NewFromUtf8(isolate, "onmessage",
-                                                     NewStringType::kNormal)
-                                     .ToLocalChecked())
+                  ->Get(context,
+                        String::NewFromUtf8(isolate, "onmessage",
+                                            NewStringType::kInternalized)
+                            .ToLocalChecked())
                   .ToLocalChecked();
           if (onmessage->IsFunction()) {
             Local<Function> onmessage_fun = Local<Function>::Cast(onmessage);
