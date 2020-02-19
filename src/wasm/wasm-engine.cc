@@ -254,10 +254,6 @@ size_t NativeModuleCache::PrefixHash(Vector<const uint8_t> wire_bytes) {
       break;
     }
     const uint8_t* payload_start = decoder.pc();
-    // TODO(v8:10126): Remove this check, bytes have been validated already.
-    if (decoder.position() + section_size > wire_bytes.size()) {
-      return hash;
-    }
     decoder.consume_bytes(section_size, "section payload");
     size_t section_hash = NativeModuleCache::WireBytesHash(
         Vector<const uint8_t>(payload_start, section_size));
