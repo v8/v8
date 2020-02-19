@@ -507,6 +507,45 @@ void ComputePoisonedAddressForLoad(CodeGenerator* codegen,
           i.InputSimd128Register(1).high());                                  \
   } while (0)
 
+// If shift value is an immediate, we can call asm_imm, taking the shift value
+// modulo 2^width. Otherwise, emit code to perform the modulus operation, and
+// call vshl.
+#define ASSEMBLE_SIMD_SHIFT_LEFT(asm_imm, width, sz, dt) \
+  do {                                                   \
+    QwNeonRegister dst = i.OutputSimd128Register();      \
+    QwNeonRegister src = i.InputSimd128Register(0);      \
+    if (instr->InputAt(1)->IsImmediate()) {              \
+      __ asm_imm(dt, dst, src, i.InputInt##width(1));    \
+    } else {                                             \
+      QwNeonRegister tmp = i.TempSimd128Register(0);     \
+      Register shift = i.TempRegister(1);                \
+      constexpr int mask = (1 << width) - 1;             \
+      __ and_(shift, i.InputRegister(1), Operand(mask)); \
+      __ vdup(sz, tmp, shift);                           \
+      __ vshl(dt, dst, src, tmp);                        \
+    }                                                    \
+  } while (0)
+
+// If shift value is an immediate, we can call asm_imm, taking the shift value
+// modulo 2^width. Otherwise, emit code to perform the modulus operation, and
+// call vshl, passing in the negative shift value (treated as a right shift).
+#define ASSEMBLE_SIMD_SHIFT_RIGHT(asm_imm, width, sz, dt) \
+  do {                                                    \
+    QwNeonRegister dst = i.OutputSimd128Register();       \
+    QwNeonRegister src = i.InputSimd128Register(0);       \
+    if (instr->InputAt(1)->IsImmediate()) {               \
+      __ asm_imm(dt, dst, src, i.InputInt##width(1));     \
+    } else {                                              \
+      QwNeonRegister tmp = i.TempSimd128Register(0);      \
+      Register shift = i.TempRegister(1);                 \
+      constexpr int mask = (1 << width) - 1;              \
+      __ and_(shift, i.InputRegister(1), Operand(mask));  \
+      __ vdup(sz, tmp, shift);                            \
+      __ vneg(sz, tmp, tmp);                              \
+      __ vshl(dt, dst, src, tmp);                         \
+    }                                                     \
+  } while (0)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ LeaveFrame(StackFrame::MANUAL);
   unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
@@ -2039,38 +2078,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI64x2Shl: {
-      QwNeonRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister(1);
-      // Take shift value modulo 64.
-      __ and_(shift, i.InputRegister(1), Operand(63));
-      // Only the least significant byte of each lane is used.
-      __ vdup(Neon32, tmp, shift);
-      __ vshl(NeonS64, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              tmp);
+      ASSEMBLE_SIMD_SHIFT_LEFT(vshl, 6, Neon32, NeonS64);
       break;
     }
     case kArmI64x2ShrS: {
-      QwNeonRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister(1);
-      // Take shift value modulo 64.
-      __ and_(shift, i.InputRegister(1), Operand(63));
-      // Only the least significant byte of each lane is used.
-      __ vdup(Neon32, tmp, shift);
-      __ vneg(Neon32, tmp, tmp);
-      __ vshl(NeonS64, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              tmp);
+      // Only the least significant byte of each lane is used, so we can use
+      // Neon32 as the size.
+      ASSEMBLE_SIMD_SHIFT_RIGHT(vshr, 6, Neon32, NeonS64);
       break;
     }
     case kArmI64x2ShrU: {
-      QwNeonRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister(1);
-      // Take shift value modulo 64.
-      __ and_(shift, i.InputRegister(1), Operand(63));
-      // Only the least significant byte of each lane is used.
-      __ vdup(Neon32, tmp, shift);
-      __ vneg(Neon32, tmp, tmp);
-      __ vshl(NeonU64, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              tmp);
+      // Only the least significant byte of each lane is used, so we can use
+      // Neon32 as the size.
+      ASSEMBLE_SIMD_SHIFT_RIGHT(vshr, 6, Neon32, NeonU64);
       break;
     }
     case kArmF32x4Splat: {
@@ -2238,24 +2258,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI32x4Shl: {
-      QwNeonRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister(1);
-      // Take shift value modulo 32.
-      __ and_(shift, i.InputRegister(1), Operand(31));
-      __ vdup(Neon32, tmp, shift);
-      __ vshl(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              tmp);
+      ASSEMBLE_SIMD_SHIFT_LEFT(vshl, 5, Neon32, NeonS32);
       break;
     }
     case kArmI32x4ShrS: {
-      QwNeonRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister(1);
-      // Take shift value modulo 32.
-      __ and_(shift, i.InputRegister(1), Operand(31));
-      __ vdup(Neon32, tmp, shift);
-      __ vneg(Neon32, tmp, tmp);
-      __ vshl(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              tmp);
+      ASSEMBLE_SIMD_SHIFT_RIGHT(vshr, 5, Neon32, NeonS32);
       break;
     }
     case kArmI32x4Add: {
@@ -2323,14 +2330,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI32x4ShrU: {
-      QwNeonRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister(1);
-      // Take shift value modulo 32.
-      __ and_(shift, i.InputRegister(1), Operand(31));
-      __ vdup(Neon32, tmp, shift);
-      __ vneg(Neon32, tmp, tmp);
-      __ vshl(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              tmp);
+      ASSEMBLE_SIMD_SHIFT_RIGHT(vshr, 5, Neon32, NeonU32);
       break;
     }
     case kArmI32x4MinU: {
@@ -2387,24 +2387,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI16x8Shl: {
-      QwNeonRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister(1);
-      // Take shift value modulo 16.
-      __ and_(shift, i.InputRegister(1), Operand(15));
-      __ vdup(Neon16, tmp, shift);
-      __ vshl(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              tmp);
+      ASSEMBLE_SIMD_SHIFT_LEFT(vshl, 4, Neon16, NeonS16);
       break;
     }
     case kArmI16x8ShrS: {
-      QwNeonRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister(1);
-      // Take shift value modulo 16.
-      __ and_(shift, i.InputRegister(1), Operand(15));
-      __ vdup(Neon16, tmp, shift);
-      __ vneg(Neon16, tmp, tmp);
-      __ vshl(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              tmp);
+      ASSEMBLE_SIMD_SHIFT_RIGHT(vshr, 4, Neon16, NeonS16);
       break;
     }
     case kArmI16x8SConvertI32x4:
@@ -2481,14 +2468,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI16x8ShrU: {
-      QwNeonRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister(1);
-      // Take shift value modulo 16.
-      __ and_(shift, i.InputRegister(1), Operand(15));
-      __ vdup(Neon16, tmp, shift);
-      __ vneg(Neon16, tmp, tmp);
-      __ vshl(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              tmp);
+      ASSEMBLE_SIMD_SHIFT_RIGHT(vshr, 4, Neon16, NeonU16);
       break;
     }
     case kArmI16x8UConvertI32x4:
@@ -2553,24 +2533,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI8x16Shl: {
-      QwNeonRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister(1);
-      // Take shift value modulo 8.
-      __ and_(shift, i.InputRegister(1), Operand(7));
-      __ vdup(Neon8, tmp, i.InputRegister(1));
-      __ vshl(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              tmp);
+      ASSEMBLE_SIMD_SHIFT_LEFT(vshl, 3, Neon8, NeonS8);
       break;
     }
     case kArmI8x16ShrS: {
-      QwNeonRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister(1);
-      // Take shift value modulo 8.
-      __ and_(shift, i.InputRegister(1), Operand(7));
-      __ vdup(Neon8, tmp, shift);
-      __ vneg(Neon8, tmp, tmp);
-      __ vshl(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              tmp);
+      ASSEMBLE_SIMD_SHIFT_RIGHT(vshr, 3, Neon8, NeonS8);
       break;
     }
     case kArmI8x16SConvertI16x8:
@@ -2633,14 +2600,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI8x16ShrU: {
-      QwNeonRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.TempRegister(1);
-      // Take shift value modulo 8.
-      __ and_(shift, i.InputRegister(1), Operand(7));
-      __ vdup(Neon8, tmp, shift);
-      __ vneg(Neon8, tmp, tmp);
-      __ vshl(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              tmp);
+      ASSEMBLE_SIMD_SHIFT_RIGHT(vshr, 3, Neon8, NeonU8);
       break;
     }
     case kArmI8x16UConvertI16x8:
@@ -3335,6 +3295,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef ASSEMBLE_IEEE754_UNOP
 #undef ASSEMBLE_NEON_NARROWING_OP
 #undef ASSEMBLE_NEON_PAIRWISE_OP
+#undef ASSEMBLE_SIMD_SHIFT_LEFT
+#undef ASSEMBLE_SIMD_SHIFT_RIGHT
   }
   return kSuccess;
 }  // NOLINT(readability/fn_size)

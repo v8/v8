@@ -92,12 +92,23 @@ void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
 }
 
 void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
-                       Node* node) {
+                       Node* node, int width) {
   ArmOperandGenerator g(selector);
-  InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)),
-                 g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
+  Int32Matcher m(node->InputAt(1));
+  if (m.HasValue()) {
+    if (m.IsMultipleOf(width)) {
+      selector->EmitIdentity(node);
+    } else {
+      selector->Emit(opcode, g.DefineAsRegister(node),
+                     g.UseRegister(node->InputAt(0)),
+                     g.UseImmediate(node->InputAt(1)));
+    }
+  } else {
+    InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
+    selector->Emit(opcode, g.DefineAsRegister(node),
+                   g.UseRegister(node->InputAt(0)),
+                   g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
+  }
 }
 
 void VisitRRRShuffle(InstructionSelector* selector, ArchOpcode opcode,
@@ -2516,18 +2527,18 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(S1x16AllTrue, kArmS1x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
-  V(I64x2Shl)                 \
-  V(I64x2ShrS)                \
-  V(I64x2ShrU)                \
-  V(I32x4Shl)                 \
-  V(I32x4ShrS)                \
-  V(I32x4ShrU)                \
-  V(I16x8Shl)                 \
-  V(I16x8ShrS)                \
-  V(I16x8ShrU)                \
-  V(I8x16Shl)                 \
-  V(I8x16ShrS)                \
-  V(I8x16ShrU)
+  V(I64x2Shl, 64)             \
+  V(I64x2ShrS, 64)            \
+  V(I64x2ShrU, 64)            \
+  V(I32x4Shl, 32)             \
+  V(I32x4ShrS, 32)            \
+  V(I32x4ShrU, 32)            \
+  V(I16x8Shl, 16)             \
+  V(I16x8ShrS, 16)            \
+  V(I16x8ShrU, 16)            \
+  V(I8x16Shl, 8)              \
+  V(I8x16ShrS, 8)             \
+  V(I8x16ShrU, 8)
 
 #define SIMD_BINOP_LIST(V)                            \
   V(F64x2Add, kArmF64x2Add)                           \
@@ -2655,9 +2666,9 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
 #undef SIMD_UNOP_LIST
 
-#define SIMD_VISIT_SHIFT_OP(Name)                     \
+#define SIMD_VISIT_SHIFT_OP(Name, width)              \
   void InstructionSelector::Visit##Name(Node* node) { \
-    VisitSimdShiftRRR(this, kArm##Name, node);        \
+    VisitSimdShiftRRR(this, kArm##Name, node, width); \
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
