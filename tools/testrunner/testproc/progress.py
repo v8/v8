@@ -385,7 +385,8 @@ class JsonTestProgressIndicator(ProgressIndicator):
 
     # Sort tests by duration.
     self.tests.sort(key=lambda __duration_cmd: __duration_cmd[1], reverse=True)
-    slowest_tests = self._test_records(self.tests[:20])
+    cutoff = self.options.slow_tests_cutoff
+    slowest_tests = self._test_records(self.tests[:cutoff])
 
     complete_results.append({
       "arch": self.arch,
@@ -399,8 +400,6 @@ class JsonTestProgressIndicator(ProgressIndicator):
     with open(self.options.json_test_results, "w") as f:
       f.write(json.dumps(complete_results))
 
-    self._save_test_times()
-
   def _test_records(self, tests):
     return [
       {
@@ -411,9 +410,3 @@ class JsonTestProgressIndicator(ProgressIndicator):
         "marked_slow": test.is_slow,
       } for (test, duration, cmd) in tests
     ]
-
-  def _save_test_times(self):
-    if self.options.json_test_times:
-      test_times = self._test_records(self.tests)
-      with open(self.options.json_test_times, "w") as f:
-        f.write(json.dumps(test_times))
