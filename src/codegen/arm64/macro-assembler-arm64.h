@@ -18,12 +18,6 @@
 
 // Simulator specific helpers.
 #if USE_SIMULATOR
-// TODO(all): If possible automatically prepend an indicator like
-// UNIMPLEMENTED or LOCATION.
-#define ASM_UNIMPLEMENTED(message) __ Debug(message, __LINE__, NO_PARAM)
-#define ASM_UNIMPLEMENTED_BREAK(message) \
-  __ Debug(message, __LINE__,            \
-           FLAG_ignore_asm_unimplemented_break ? NO_PARAM : BREAK)
 #if DEBUG
 #define ASM_LOCATION(message) __ Debug("LOCATION: " message, __LINE__, NO_PARAM)
 #define ASM_LOCATION_IN_ASSEMBLER(message) \
@@ -33,8 +27,6 @@
 #define ASM_LOCATION_IN_ASSEMBLER(message)
 #endif
 #else
-#define ASM_UNIMPLEMENTED(message)
-#define ASM_UNIMPLEMENTED_BREAK(message)
 #define ASM_LOCATION(message)
 #define ASM_LOCATION_IN_ASSEMBLER(message)
 #endif
@@ -136,10 +128,6 @@ inline BranchType InvertBranchType(BranchType type) {
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 enum LinkRegisterStatus { kLRHasNotBeenSaved, kLRHasBeenSaved };
-enum TargetAddressStorageMode {
-  CAN_INLINE_TARGET_ADDRESS,
-  NEVER_INLINE_TARGET_ADDRESS
-};
 enum DiscardMoveMode { kDontDiscardForSameWReg, kDiscardForSameWReg };
 
 // The macro assembler supports moving automatically pre-shifted immediates for
@@ -1711,11 +1699,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // be aligned to 16 bytes.
   void PeekPair(const CPURegister& dst1, const CPURegister& dst2, int offset);
 
-  // Insert one or more instructions into the instruction stream that encode
-  // some caller-defined data. The instructions used will be executable with no
-  // side effects.
-  inline void InlineData(uint64_t data);
-
   // Preserve the callee-saved registers (as defined by AAPCS64).
   //
   // Higher-numbered registers are pushed before lower-numbered registers, and
@@ -1742,8 +1725,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void PopCalleeSavedRegisters();
 
   // Helpers ------------------------------------------------------------------
-
-  static int SafepointRegisterStackIndex(int reg_code);
 
   template <typename Field>
   void DecodeField(Register dst, Register src) {
@@ -1975,24 +1956,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Debugging.
 
-  void AssertRegisterIsRoot(
-      Register reg, RootIndex index,
-      AbortReason reason = AbortReason::kRegisterDidNotMatchExpectedRoot);
-
   void LoadNativeContextSlot(int index, Register dst);
-
-  // Far branches resolving.
-  //
-  // The various classes of branch instructions with immediate offsets have
-  // different ranges. While the Assembler will fail to assemble a branch
-  // exceeding its range, the MacroAssembler offers a mechanism to resolve
-  // branches to too distant targets, either by tweaking the generated code to
-  // use branch instructions with wider ranges or generating veneers.
-  //
-  // Currently branches to distant targets are resolved using unconditional
-  // branch isntructions with a range of +-128MB. If that becomes too little
-  // (!), the mechanism can be extended to generate special veneers for really
-  // far targets.
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

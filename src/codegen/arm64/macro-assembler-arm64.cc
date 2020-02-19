@@ -2610,30 +2610,6 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
   RecordComment("]");
 }
 
-int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
-  // Make sure the safepoint registers list is what we expect.
-  DCHECK_EQ(CPURegList::GetSafepointSavedRegisters().list(), 0x6FFCFFFF);
-
-  // Safepoint registers are stored contiguously on the stack, but not all the
-  // registers are saved. The following registers are excluded:
-  //  - x16 and x17 (ip0 and ip1) because they shouldn't be preserved outside of
-  //    the macro assembler.
-  //  - x31 (sp) because the system stack pointer doesn't need to be included
-  //    in safepoint registers.
-  //
-  // This function implements the mapping of register code to index into the
-  // safepoint register slots.
-  if ((reg_code >= 0) && (reg_code <= 15)) {
-    return reg_code;
-  } else if ((reg_code >= 18) && (reg_code <= 30)) {
-    // Skip ip0 and ip1.
-    return reg_code - 2;
-  } else {
-    // This register has no safepoint register slot.
-    UNREACHABLE();
-  }
-}
-
 void TurboAssembler::CheckPageFlag(const Register& object, int mask,
                                    Condition cc, Label* condition_met) {
   UseScratchRegisterScope temps(this);
@@ -2871,14 +2847,6 @@ void TurboAssembler::Assert(Condition cond, AbortReason reason) {
 
 void TurboAssembler::AssertUnreachable(AbortReason reason) {
   if (emit_debug_code()) Abort(reason);
-}
-
-void MacroAssembler::AssertRegisterIsRoot(Register reg, RootIndex index,
-                                          AbortReason reason) {
-  if (emit_debug_code()) {
-    CompareRoot(reg, index);
-    Check(eq, reason);
-  }
 }
 
 void TurboAssembler::Check(Condition cond, AbortReason reason) {

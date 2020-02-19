@@ -1417,12 +1417,6 @@ void TurboAssembler::TestAndBranchIfAllClear(const Register& reg,
   }
 }
 
-void MacroAssembler::InlineData(uint64_t data) {
-  DCHECK(is_uint16(data));
-  InstructionAccurateScope scope(this, 1);
-  movz(xzr, data);
-}
-
 }  // namespace internal
 }  // namespace v8
 

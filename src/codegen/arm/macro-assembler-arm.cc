@@ -852,13 +852,6 @@ void TurboAssembler::PushStandardFrame(Register function_reg) {
   add(fp, sp, Operand(offset));
 }
 
-int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
-  // The registers are pushed starting with the highest encoding,
-  // which means that lowest encodings are closest to the stack pointer.
-  DCHECK(reg_code >= 0 && reg_code < kNumSafepointRegisters);
-  return reg_code;
-}
-
 void TurboAssembler::VFPCanonicalizeNaN(const DwVfpRegister dst,
                                         const DwVfpRegister src,
                                         const Condition cond) {

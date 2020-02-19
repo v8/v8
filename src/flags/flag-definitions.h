@@ -1245,8 +1245,6 @@ DEFINE_INT(sim_stack_size, 2 * MB / KB,
            "in kBytes (default is 2 MB)")
 DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
             "When logging, try to use coloured output.")
-DEFINE_BOOL(ignore_asm_unimplemented_break, false,
-            "Don't break for ASM_UNIMPLEMENTED_BREAK macros.")
 DEFINE_BOOL(trace_sim_messages, false,
             "Trace simulator debug messages. Implied by --trace-sim.")
 
