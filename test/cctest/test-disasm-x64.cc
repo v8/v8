@@ -506,6 +506,7 @@ TEST(DisasmX64) {
       __ palignr(xmm5, xmm1, 5);
       __ palignr(xmm5, Operand(rdx, 4), 5);
       SSSE3_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
+      SSSE3_UNOP_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
     }
   }
 
@@ -738,6 +739,13 @@ TEST(DisasmX64) {
       SSE4_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
       SSE4_2_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
 #undef EMIT_SSE34_AVXINSTR
+
+#define EMIT_SSSE3_UNOP_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
+                                 notUsed4)                                  \
+  __ v##instruction(xmm9, xmm3);                                            \
+  __ v##instruction(xmm9, Operand(rdx, 5));
+      SSSE3_UNOP_INSTRUCTION_LIST(EMIT_SSSE3_UNOP_AVXINSTR)
+#undef EMIT_SSSE3_UNOP_AVXINSTR
 
 #define EMIT_SSE4_PMOV_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
                                 notUsed4)                                  \

@@ -929,15 +929,16 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         SSE4_2_INSTRUCTION_LIST(DECLARE_SSE_AVX_DIS_CASE)
 #undef DECLARE_SSE_AVX_DIS_CASE
 
-#define DECLARE_SSE_PMOV_AVX_DIS_CASE(instruction, notUsed1, notUsed2, \
+#define DECLARE_SSE_UNOP_AVX_DIS_CASE(instruction, notUsed1, notUsed2, \
                                       notUsed3, opcode)                \
   case 0x##opcode: {                                                   \
     AppendToBuffer("v" #instruction " %s,", NameOfXMMRegister(regop)); \
     current += PrintRightXMMOperand(current);                          \
     break;                                                             \
   }
-        SSE4_PMOV_INSTRUCTION_LIST(DECLARE_SSE_PMOV_AVX_DIS_CASE)
-#undef DECLARE_SSE_PMOV_AVX_DIS_CASE
+        SSSE3_UNOP_INSTRUCTION_LIST(DECLARE_SSE_UNOP_AVX_DIS_CASE)
+        SSE4_PMOV_INSTRUCTION_LIST(DECLARE_SSE_UNOP_AVX_DIS_CASE)
+#undef DECLARE_SSE_UNOP_AVX_DIS_CASE
 
       default:
         UnimplementedInstruction();
@@ -1809,6 +1810,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
   }
 
         SSSE3_INSTRUCTION_LIST(SSE34_DIS_CASE)
+        SSSE3_UNOP_INSTRUCTION_LIST(SSE34_DIS_CASE)
         SSE4_INSTRUCTION_LIST(SSE34_DIS_CASE)
         SSE4_PMOV_INSTRUCTION_LIST(SSE34_DIS_CASE)
         SSE4_2_INSTRUCTION_LIST(SSE34_DIS_CASE)

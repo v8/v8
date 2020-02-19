@@ -128,15 +128,18 @@
   V(maxsd, F2, 0F, 5F)
 
 #define SSSE3_INSTRUCTION_LIST(V) \
-  V(pabsb, 66, 0F, 38, 1C)        \
-  V(pabsw, 66, 0F, 38, 1D)        \
-  V(pabsd, 66, 0F, 38, 1E)        \
   V(phaddd, 66, 0F, 38, 02)       \
   V(phaddw, 66, 0F, 38, 01)       \
   V(pshufb, 66, 0F, 38, 00)       \
   V(psignb, 66, 0F, 38, 08)       \
   V(psignw, 66, 0F, 38, 09)       \
   V(psignd, 66, 0F, 38, 0A)
+
+// SSSE3 instructions whose AVX version has two operands.
+#define SSSE3_UNOP_INSTRUCTION_LIST(V) \
+  V(pabsb, 66, 0F, 38, 1C)             \
+  V(pabsw, 66, 0F, 38, 1D)             \
+  V(pabsd, 66, 0F, 38, 1E)
 
 #define SSE4_INSTRUCTION_LIST(V) \
   V(pcmpeqq, 66, 0F, 38, 29)     \

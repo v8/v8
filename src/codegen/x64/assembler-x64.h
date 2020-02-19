@@ -961,6 +961,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   SSSE3_INSTRUCTION_LIST(DECLARE_SSSE3_INSTRUCTION)
+  SSSE3_UNOP_INSTRUCTION_LIST(DECLARE_SSSE3_INSTRUCTION)
 #undef DECLARE_SSSE3_INSTRUCTION
 
   // SSE4
@@ -1032,6 +1033,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   SSE4_INSTRUCTION_LIST(DECLARE_SSE34_AVX_INSTRUCTION)
   SSE4_2_INSTRUCTION_LIST(DECLARE_SSE34_AVX_INSTRUCTION)
 #undef DECLARE_SSE34_AVX_INSTRUCTION
+
+#define DECLARE_SSSE3_UNOP_AVX_INSTRUCTION(instruction, prefix, escape1,     \
+                                           escape2, opcode)                  \
+  void v##instruction(XMMRegister dst, XMMRegister src) {                    \
+    vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0); \
+  }                                                                          \
+  void v##instruction(XMMRegister dst, Operand src) {                        \
+    vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0); \
+  }
+
+  SSSE3_UNOP_INSTRUCTION_LIST(DECLARE_SSSE3_UNOP_AVX_INSTRUCTION)
+#undef DECLARE_SSSE3_UNOP_AVX_INSTRUCTION
 
   void vblendvpd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                  XMMRegister mask) {
