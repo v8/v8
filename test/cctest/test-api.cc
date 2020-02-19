@@ -19911,7 +19911,7 @@ TEST(RunMicrotasksIgnoresThrownExceptionsFromApi) {
     CHECK(!isolate->IsExecutionTerminating());
     isolate->EnqueueMicrotask(ThrowExceptionMicrotask);
     isolate->EnqueueMicrotask(IncrementCounterMicrotask);
-    isolate->RunMicrotasks();
+    isolate->PerformMicrotaskCheckpoint();
     CHECK_EQ(1, microtask_callback_count);
     CHECK(!try_catch.HasCaught());
   }
@@ -19957,7 +19957,7 @@ TEST(SetAutorunMicrotasks) {
   CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(7u, microtasks_completed_callback_count);
 
-  env->GetIsolate()->RunMicrotasks();
+  env->GetIsolate()->PerformMicrotaskCheckpoint();
   CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(8u, microtasks_completed_callback_count);
@@ -19969,7 +19969,7 @@ TEST(SetAutorunMicrotasks) {
   CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(8u, microtasks_completed_callback_count);
 
-  env->GetIsolate()->RunMicrotasks();
+  env->GetIsolate()->PerformMicrotaskCheckpoint();
   CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(9u, microtasks_completed_callback_count);
@@ -20019,7 +20019,7 @@ TEST(RunMicrotasksWithoutEnteringContext) {
     isolate->EnqueueMicrotask(
         Function::New(context, MicrotaskOne).ToLocalChecked());
   }
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
   {
     Context::Scope context_scope(context);
     CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(context).FromJust());
@@ -20043,7 +20043,7 @@ static void Regress808911_CurrentContextWrapper(
   CHECK(isolate->GetCurrentContext() !=
         isolate->GetEnteredOrMicrotaskContext());
   isolate->EnqueueMicrotask(Regress808911_MicrotaskCallback, isolate);
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
 }
 
 THREADED_TEST(Regress808911) {
@@ -22511,7 +22511,7 @@ TEST(PromiseThen) {
                   .ToLocalChecked()
                   ->Int32Value(context.local())
                   .FromJust());
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
   CHECK_EQ(1, global->Get(context.local(), v8_str("x1"))
                   .ToLocalChecked()
                   ->Int32Value(context.local())
@@ -22537,7 +22537,7 @@ TEST(PromiseThen) {
                   .ToLocalChecked()
                   ->Int32Value(context.local())
                   .FromJust());
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
   CHECK_EQ(0, global->Get(context.local(), v8_str("x1"))
                   .ToLocalChecked()
                   ->Int32Value(context.local())
@@ -22557,7 +22557,7 @@ TEST(PromiseThen) {
                   .ToLocalChecked()
                   ->Int32Value(context.local())
                   .FromJust());
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
   CHECK_EQ(3, global->Get(context.local(), v8_str("x1"))
                   .ToLocalChecked()
                   ->Int32Value(context.local())
@@ -22606,7 +22606,7 @@ TEST(PromiseThen2) {
                   .ToLocalChecked()
                   ->Int32Value(context.local())
                   .FromJust());
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
   CHECK_EQ(1, global->Get(context.local(), v8_str("x1"))
                   .ToLocalChecked()
                   ->Int32Value(context.local())
@@ -22617,7 +22617,7 @@ TEST(PromiseThen2) {
                   .FromJust());
 
   Local<v8::Promise> b = a->Then(context.local(), f3, f2).ToLocalChecked();
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
   CHECK_EQ(1, global->Get(context.local(), v8_str("x1"))
                   .ToLocalChecked()
                   ->Int32Value(context.local())
@@ -22628,7 +22628,7 @@ TEST(PromiseThen2) {
                   .FromJust());
 
   Local<v8::Promise> c = b->Then(context.local(), f1, f2).ToLocalChecked();
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
   CHECK_EQ(1, global->Get(context.local(), v8_str("x1"))
                   .ToLocalChecked()
                   ->Int32Value(context.local())
@@ -22639,7 +22639,7 @@ TEST(PromiseThen2) {
                     .FromJust());
 
   v8::Local<v8::Promise> d = c->Then(context.local(), f1, f2).ToLocalChecked();
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
   CHECK_EQ(103, global->Get(context.local(), v8_str("x1"))
                     .ToLocalChecked()
                     ->Int32Value(context.local())
@@ -22650,7 +22650,7 @@ TEST(PromiseThen2) {
                     .FromJust());
 
   v8::Local<v8::Promise> e = d->Then(context.local(), f3, f2).ToLocalChecked();
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
   CHECK_EQ(103, global->Get(context.local(), v8_str("x1"))
                     .ToLocalChecked()
                     ->Int32Value(context.local())
@@ -22661,7 +22661,7 @@ TEST(PromiseThen2) {
                     .FromJust());
 
   v8::Local<v8::Promise> f = e->Then(context.local(), f1, f3).ToLocalChecked();
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
   CHECK_EQ(103, global->Get(context.local(), v8_str("x1"))
                     .ToLocalChecked()
                     ->Int32Value(context.local())
@@ -22672,7 +22672,7 @@ TEST(PromiseThen2) {
                     .FromJust());
 
   f->Then(context.local(), f1, f2).ToLocalChecked();
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
   CHECK_EQ(103, global->Get(context.local(), v8_str("x1"))
                     .ToLocalChecked()
                     ->Int32Value(context.local())
@@ -25739,7 +25739,7 @@ TEST(DynamicImport) {
   i::MaybeHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(referrer, specifier);
   i::Handle<i::JSPromise> promise = maybe_promise.ToHandleChecked();
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
   CHECK(result->Equals(i::String::cast(promise->result())));
 }
 
@@ -26441,7 +26441,7 @@ TEST(MicrotaskContextShouldBeNativeContext) {
       "  await 42;"
       "})().then(callback);}");
 
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
 }
 
 TEST(PreviewSetKeysIteratorEntriesWithDeleted) {
