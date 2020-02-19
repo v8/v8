@@ -359,7 +359,7 @@ TF_BUILTIN(ObjectPrototypeToLocaleString, CodeStubAssembler) {
 
   TNode<Object> method =
       GetProperty(context, receiver, factory()->toString_string());
-  Return(CallJS(CodeFactory::Call(isolate()), context, method, receiver));
+  Return(Call(context, method, receiver));
 
   BIND(&if_null_or_undefined);
   ThrowTypeError(context, MessageTemplate::kCalledOnNullOrUndefined,

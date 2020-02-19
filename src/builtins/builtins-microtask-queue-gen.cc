@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+using compiler::ScopedExceptionHandler;
+
 class MicrotaskQueueBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit MicrotaskQueueBuiltinsAssembler(compiler::CodeAssemblerState* state)
@@ -149,9 +151,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
         LoadObjectField<JSReceiver>(microtask, CallableTask::kCallableOffset);
     {
       ScopedExceptionHandler handler(this, &if_exception, &var_exception);
-      CallJS(
-          CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
-          microtask_context, callable, UndefinedConstant());
+      Call(microtask_context, callable, UndefinedConstant());
     }
     RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);

@@ -160,12 +160,10 @@ void BaseCollectionsAssembler::AddConstructorEntry(
             : LoadKeyValuePair(context, key_value);
     TNode<Object> key_n = pair.key;
     TNode<Object> value_n = pair.value;
-    CallJS(CodeFactory::Call(isolate()), context, add_function, collection,
-           key_n, value_n);
+    Call(context, add_function, collection, key_n, value_n);
   } else {
     DCHECK(variant == kSet || variant == kWeakSet);
-    CallJS(CodeFactory::Call(isolate()), context, add_function, collection,
-           key_value);
+    Call(context, add_function, collection, key_value);
   }
 }
 
@@ -2034,8 +2032,7 @@ TF_BUILTIN(MapPrototypeForEach, CollectionsBuiltinsAssembler) {
 
     // Invoke the {callback} passing the {entry_key}, {entry_value} and the
     // {receiver}.
-    CallJS(CodeFactory::Call(isolate()), context, callback, this_arg,
-           entry_value, entry_key, receiver);
+    Call(context, callback, this_arg, entry_value, entry_key, receiver);
 
     // Continue with the next entry.
     var_index = index;
@@ -2265,8 +2262,7 @@ TF_BUILTIN(SetPrototypeForEach, CollectionsBuiltinsAssembler) {
         NextSkipHoles<OrderedHashSet>(table, index, &done_loop);
 
     // Invoke the {callback} passing the {entry_key} (twice) and the {receiver}.
-    CallJS(CodeFactory::Call(isolate()), context, callback, this_arg, entry_key,
-           entry_key, receiver);
+    Call(context, callback, this_arg, entry_key, entry_key, receiver);
 
     // Continue with the next entry.
     var_index = index;

@@ -563,8 +563,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
         LoadObjectField(accessor_pair, AccessorPair::kGetterOffset);
     CSA_ASSERT(this, Word32BinaryNot(IsTheHole(getter)));
 
-    Callable callable = CodeFactory::Call(isolate());
-    exit_point->Return(CallJS(callable, p->context(), getter, p->receiver()));
+    exit_point->Return(Call(p->context(), getter, p->receiver()));
   }
 
   BIND(&native_data_property);
@@ -1496,7 +1495,7 @@ void AccessorAssembler::HandleStoreAccessor(const StoreICParameters* p,
   CSA_ASSERT(this, Word32BinaryNot(IsTheHole(setter)));
 
   Callable callable = CodeFactory::Call(isolate());
-  Return(CallJS(callable, p->context(), setter, p->receiver(), p->value()));
+  Return(Call(p->context(), setter, p->receiver(), p->value()));
 }
 
 void AccessorAssembler::HandleStoreICProtoHandler(

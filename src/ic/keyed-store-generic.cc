@@ -920,8 +920,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       GotoIf(IsFunctionTemplateInfoMap(setter_map), slow);
       GotoIfNot(IsCallableMap(setter_map), &not_callable);
 
-      Callable callable = CodeFactory::Call(isolate());
-      CallJS(callable, p->context(), setter, receiver, p->value());
+      Call(p->context(), setter, receiver, p->value());
       exit_point->Return(p->value());
 
       BIND(&not_callable);

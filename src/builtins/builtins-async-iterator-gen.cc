@@ -131,8 +131,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   TNode<Object> iter_result;
   {
     ScopedExceptionHandler handler(this, &reject_promise, &var_exception);
-    iter_result = CallJS(CodeFactory::Call(isolate()), context, method,
-                         sync_iterator, sent_value);
+    iter_result = Call(context, method, sync_iterator, sent_value);
   }
 
   TNode<Object> value;

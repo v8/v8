@@ -8719,8 +8719,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
       BIND(&if_callable);
       {
         // Call the accessor.
-        Callable callable = CodeFactory::Call(isolate());
-        var_value = CallJS(callable, context, getter, receiver);
+        var_value = Call(context, getter, receiver);
         Goto(&done);
       }
 
@@ -12168,9 +12167,7 @@ TNode<Oddball> CodeStubAssembler::InstanceOf(TNode<Object> object,
     GotoIf(IsUndefined(inst_of_handler), &if_nohandler);
 
     // Call the {inst_of_handler} for {callable} and {object}.
-    Node* result = CallJS(
-        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-        context, inst_of_handler, callable, object);
+    Node* result = Call(context, inst_of_handler, callable, object);
 
     // Convert the {result} to a Boolean.
     BranchIfToBooleanIsTrue(result, &return_true, &return_false);

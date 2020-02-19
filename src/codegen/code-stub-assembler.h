@@ -3643,8 +3643,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     STATIC_ASSERT(sizeof...(TArgs) <= 3);
     const TNode<Object> make_type_error = LoadContextElement(
         LoadNativeContext(context), Context::MAKE_TYPE_ERROR_INDEX);
-    return CAST(CallJS(CodeFactory::Call(isolate()), context, make_type_error,
-                       UndefinedConstant(), SmiConstant(message), args...));
+    return CAST(Call(context, make_type_error, UndefinedConstant(),
+                     SmiConstant(message), args...));
   }
 
   void Abort(AbortReason reason) {

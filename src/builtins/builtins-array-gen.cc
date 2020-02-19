@@ -50,8 +50,7 @@ TNode<Object> ArrayBuiltinsAssembler::TypedArrayMapProcessor(
   // 8. c. Let mapped_value be ? Call(callbackfn, T, « kValue, k, O »).
   TNode<Number> k_number = ChangeUintPtrToTagged(k);
   TNode<Object> mapped_value =
-      CallJS(CodeFactory::Call(isolate()), context(), callbackfn(), this_arg(),
-             k_value, k_number, o());
+      Call(context(), callbackfn(), this_arg(), k_value, k_number, o());
   Label fast(this), slow(this), done(this), detached(this, Label::kDeferred);
 
   // 8. d. Perform ? Set(A, Pk, mapped_value, true).
@@ -1420,9 +1419,9 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
 
           // 1. Set element to ? Call(mapperFunction, thisArg , « element,
           //                          sourceIndex, source »).
-          element_maybe_smi = CallJS(CodeFactory::Call(isolate()), context,
-                                     mapper_function.value(), this_arg.value(),
-                                     element_maybe_smi, source_index, source);
+          element_maybe_smi =
+              Call(context, mapper_function.value(), this_arg.value(),
+                   element_maybe_smi, source_index, source);
         }
 
         // iii. Let shouldFlatten be false.

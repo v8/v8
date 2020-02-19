@@ -1293,8 +1293,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
                            replace));
       },
       [=](TNode<Object> fn) {
-        Callable call_callable = CodeFactory::Call(isolate());
-        Return(CallJS(call_callable, context, fn, search, receiver, replace));
+        Return(Call(context, fn, search, receiver, replace));
       });
 
   // Convert {receiver} and {search} to strings.
@@ -1394,10 +1393,9 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 
   BIND(&if_iscallablereplace);
   {
-    Callable call_callable = CodeFactory::Call(isolate());
     const TNode<Object> replacement =
-        CallJS(call_callable, context, replace, UndefinedConstant(),
-               search_string, match_start_index, subject_string);
+        Call(context, replace, UndefinedConstant(), search_string,
+             match_start_index, subject_string);
     const TNode<String> replacement_string =
         ToString_Inline(context, replacement);
     var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
@@ -1463,8 +1461,7 @@ class StringMatchSearchAssembler : public StringBuiltinsAssembler {
         context, maybe_regexp, receiver, symbol, property_to_check,
         [=] { Return(CallBuiltin(builtin, context, maybe_regexp, receiver)); },
         [=](TNode<Object> fn) {
-          Callable call_callable = CodeFactory::Call(isolate());
-          Return(CallJS(call_callable, context, fn, maybe_regexp, receiver));
+          Return(Call(context, fn, maybe_regexp, receiver));
         });
 
     // maybe_regexp is not a RegExp nor has [@@match / @@search] property.
@@ -1494,9 +1491,7 @@ class StringMatchSearchAssembler : public StringBuiltinsAssembler {
       BIND(&slow_path);
       {
         TNode<Object> maybe_func = GetProperty(context, regexp, symbol);
-        Callable call_callable = CodeFactory::Call(isolate());
-        Return(CallJS(call_callable, context, maybe_func, regexp,
-                      receiver_string));
+        Return(Call(context, maybe_func, regexp, receiver_string));
       }
     }
   }
@@ -1588,8 +1583,7 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
         RegExpPrototypeMatchAllImpl(context, native_context, maybe_regexp, s));
   };
   auto if_generic_call = [=](TNode<Object> fn) {
-    Callable call_callable = CodeFactory::Call(isolate());
-    Return(CallJS(call_callable, context, fn, maybe_regexp, receiver));
+    Return(Call(context, fn, maybe_regexp, receiver));
   };
   MaybeCallFunctionAtSymbol(
       context, maybe_regexp, receiver, isolate()->factory()->match_all_symbol(),
@@ -1606,10 +1600,9 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
                                              maybe_regexp, StringConstant("g"));
 
   // 5. Return ? Invoke(rx, @@matchAll, « S »).
-  Callable callable = CodeFactory::Call(isolate());
   TNode<Object> match_all_func =
       GetProperty(context, rx, isolate()->factory()->match_all_symbol());
-  Return(CallJS(callable, context, match_all_func, rx, s));
+  Return(Call(context, match_all_func, rx, s));
 }
 
 // ES6 #sec-string.prototype.search
@@ -1724,9 +1717,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
                                       separator, receiver, limit));
       },
       [&](TNode<Object> fn) {
-        Callable call_callable = CodeFactory::Call(isolate());
-        args.PopAndReturn(
-            CallJS(call_callable, context, fn, separator, receiver, limit));
+        args.PopAndReturn(Call(context, fn, separator, receiver, limit));
       });
 
   // String and integer conversions.

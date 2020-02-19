@@ -42,8 +42,7 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(TNode<Context> context,
 
   BIND(&if_callable);
   {
-    TNode<Object> iterator =
-        CallJS(CodeFactory::Call(isolate()), context, method, object);
+    TNode<Object> iterator = Call(context, method, object);
 
     Label get_next(this), if_notobject(this, Label::kDeferred);
     GotoIf(TaggedIsSmi(iterator), &if_notobject);
@@ -66,9 +65,7 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
     base::Optional<TNode<Map>> fast_iterator_result_map) {
   DCHECK_NOT_NULL(if_done);
   // 1. a. Let result be ? Invoke(iterator, "next", « »).
-  Callable callable = CodeFactory::Call(isolate());
-  TNode<Object> result =
-      CallJS(callable, context, iterator.next, iterator.object);
+  TNode<Object> result = Call(context, iterator.next, iterator.object);
 
   // 3. If Type(result) is not Object, throw a TypeError exception.
   Label if_notobject(this, Label::kDeferred), return_result(this);
@@ -160,7 +157,7 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
     // Let innerResult be Call(return, iterator, « »).
     // If an exception occurs, the original exception remains bound.
     compiler::ScopedExceptionHandler handler(this, if_exception, nullptr);
-    CallJS(CodeFactory::Call(isolate()), context, method, iterator.object);
+    Call(context, method, iterator.object);
   }
 
   // (If completion.[[Type]] is throw) return Completion(completion).
