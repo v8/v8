@@ -2835,7 +2835,7 @@ void Assembler::RV_sfence_vma(Register rs1, Register rs2) {
 
 void Assembler::RV_nop() { RV_addi(ToRegister(0), ToRegister(0), 0); }
 void Assembler::RV_li(Register rd, int64_t imm) {
-  if (is_int32(imm)) {
+  if (is_int32(imm + 0x800)) {
     // Based on LLVM's `generateInstSeq` (RISCVMatInt.cpp)
     // Depending on the active bits in the immediate Value v, the following
     // instruction sequences are emitted:
