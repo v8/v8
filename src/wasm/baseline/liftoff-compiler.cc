@@ -660,9 +660,14 @@ class LiftoffCompiler {
 
   void EmitBreakpoint(FullDecoder* decoder) {
     DEBUG_CODE_COMMENT("breakpoint");
+    DCHECK(env_->debug);
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), false);
     __ CallRuntimeStub(WasmCode::kWasmDebugBreak);
+    // This source position helps updating return addresses on the stack after
+    // installing a new Liftoff code object.
+    source_position_table_builder_.AddPosition(
+        __ pc_offset(), SourcePosition(decoder->position()), false);
     RegisterDebugSideTableEntry();
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
   }
@@ -2055,6 +2060,13 @@ class LiftoffCompiler {
       __ CallNativeWasmCode(addr);
     }
 
+    if (env_->debug) {
+      // This source position helps updating return addresses on the stack after
+      // installing a new Liftoff code object.
+      source_position_table_builder_.AddPosition(
+          __ pc_offset(), SourcePosition(decoder->position()), false);
+    }
+
     RegisterDebugSideTableEntry();
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
@@ -2187,6 +2199,13 @@ class LiftoffCompiler {
     Register target = scratch;
     __ PrepareCall(imm.sig, call_descriptor, &target, explicit_instance);
     __ CallIndirect(imm.sig, call_descriptor, target);
+
+    if (env_->debug) {
+      // This source position helps updating return addresses on the stack after
+      // installing a new Liftoff code object.
+      source_position_table_builder_.AddPosition(
+          __ pc_offset(), SourcePosition(decoder->position()), false);
+    }
 
     RegisterDebugSideTableEntry();
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
