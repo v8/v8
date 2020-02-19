@@ -2862,8 +2862,9 @@ void CodeStubAssembler::StoreObjectFieldRoot(TNode<HeapObject> object,
 }
 
 void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
-    Node* object, Node* index_node, Node* value, WriteBarrierMode barrier_mode,
-    int additional_offset, ParameterMode parameter_mode) {
+    TNode<UnionT<FixedArray, PropertyArray>> object, Node* index_node,
+    TNode<Object> value, WriteBarrierMode barrier_mode, int additional_offset,
+    ParameterMode parameter_mode) {
   CSA_SLOW_ASSERT(
       this, Word32Or(IsFixedArraySubclass(object), IsPropertyArray(object)));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
@@ -2972,8 +2973,9 @@ TNode<Int32T> CodeStubAssembler::EnsureArrayPushable(TNode<Context> context,
 }
 
 void CodeStubAssembler::PossiblyGrowElementsCapacity(
-    ParameterMode mode, ElementsKind kind, Node* array, Node* length,
-    Variable* var_elements, Node* growth, Label* bailout) {
+    ParameterMode mode, ElementsKind kind, TNode<HeapObject> array,
+    Node* length, TVariable<FixedArrayBase>* var_elements, Node* growth,
+    Label* bailout) {
   Label fits(this, var_elements);
   Node* capacity =
       TaggedToParameter(LoadFixedArrayBaseLength(var_elements->value()), mode);
@@ -2982,9 +2984,8 @@ void CodeStubAssembler::PossiblyGrowElementsCapacity(
   Node* new_length = IntPtrOrSmiAdd(growth, length, mode);
   GotoIfNot(IntPtrOrSmiGreaterThan(new_length, capacity, mode), &fits);
   Node* new_capacity = CalculateNewElementsCapacity(new_length, mode);
-  var_elements->Bind(GrowElementsCapacity(array, var_elements->value(), kind,
-                                          kind, capacity, new_capacity, mode,
-                                          bailout));
+  *var_elements = GrowElementsCapacity(array, var_elements->value(), kind, kind,
+                                       capacity, new_capacity, mode, bailout);
   Goto(&fits);
   BIND(&fits);
 }
@@ -3043,17 +3044,19 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
 
 void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind,
                                              ParameterMode mode, Label* bailout,
-                                             Node* elements, Node* index,
-                                             Node* value) {
+                                             TNode<FixedArrayBase> elements,
+                                             Node* index, TNode<Object> value) {
   if (IsSmiElementsKind(kind)) {
     GotoIf(TaggedIsNotSmi(value), bailout);
   } else if (IsDoubleElementsKind(kind)) {
-    GotoIfNotNumber(CAST(value), bailout);
+    GotoIfNotNumber(value, bailout);
   }
   if (IsDoubleElementsKind(kind)) {
-    value = ChangeNumberToFloat64(CAST(value));
+    StoreElement(elements, kind, index, ChangeNumberToFloat64(CAST(value)),
+                 mode);
+  } else {
+    StoreElement(elements, kind, index, value, mode);
   }
-  StoreElement(elements, kind, index, value, mode);
 }
 
 void CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
@@ -3956,7 +3959,8 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
     Node* capacity, SloppyTNode<Map> source_map, ElementsKind from_kind,
     AllocationFlags allocation_flags, ExtractFixedArrayFlags extract_flags,
     ParameterMode parameter_mode, HoleConversionMode convert_holes,
-    TVariable<BoolT>* var_holes_converted, Node* source_elements_kind) {
+    TVariable<BoolT>* var_holes_converted,
+    base::Optional<TNode<Int32T>> source_elements_kind) {
   DCHECK_NE(first, nullptr);
   DCHECK_NE(count, nullptr);
   DCHECK_NE(capacity, nullptr);
@@ -4078,9 +4082,9 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
 
         // Try to use memcpy if we don't need to convert holes to undefined.
         if (convert_holes == HoleConversionMode::kDontConvert &&
-            source_elements_kind != nullptr) {
+            source_elements_kind) {
           // Only try memcpy if we're not copying object pointers.
-          GotoIfNot(IsFastSmiElementsKind(source_elements_kind),
+          GotoIfNot(IsFastSmiElementsKind(*source_elements_kind),
                     &copy_one_by_one);
 
           const ElementsKind to_smi_kind = PACKED_SMI_ELEMENTS;
@@ -4124,7 +4128,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
 }
 
 TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
-    Node* from_array, Node* first, Node* count, Node* capacity,
+    TNode<FixedArrayBase> from_array, Node* first, Node* count, Node* capacity,
     Node* fixed_array_map, TVariable<BoolT>* var_holes_converted,
     AllocationFlags allocation_flags, ExtractFixedArrayFlags extract_flags,
     ParameterMode mode) {
@@ -4210,9 +4214,10 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
 }
 
 TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
-    Node* source, Node* first, Node* count, Node* capacity,
+    TNode<FixedArrayBase> source, Node* first, Node* count, Node* capacity,
     ExtractFixedArrayFlags extract_flags, ParameterMode parameter_mode,
-    TVariable<BoolT>* var_holes_converted, Node* source_runtime_kind) {
+    TVariable<BoolT>* var_holes_converted,
+    base::Optional<TNode<Int32T>> source_runtime_kind) {
   DCHECK(extract_flags & ExtractFixedArrayFlag::kFixedArrays ||
          extract_flags & ExtractFixedArrayFlag::kFixedDoubleArrays);
   // If we want to replace holes, ExtractFixedArrayFlag::kDontCopyCOW should not
@@ -4290,7 +4295,7 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
           kind, capacity, parameter_mode, allocation_flags, source_map);
       FillFixedArrayWithValue(kind, to_elements, count, capacity,
                               RootIndex::kTheHoleValue, parameter_mode);
-      CopyElements(kind, to_elements, IntPtrConstant(0), CAST(source),
+      CopyElements(kind, to_elements, IntPtrConstant(0), source,
                    ParameterToIntPtr(first, parameter_mode),
                    ParameterToIntPtr(count, parameter_mode));
       var_result = to_elements;
@@ -4325,9 +4330,8 @@ void CodeStubAssembler::InitializePropertyArrayLength(
                                  ParameterToTagged(length, mode));
 }
 
-Node* CodeStubAssembler::AllocatePropertyArray(Node* capacity_node,
-                                               ParameterMode mode,
-                                               AllocationFlags flags) {
+TNode<PropertyArray> CodeStubAssembler::AllocatePropertyArray(
+    Node* capacity_node, ParameterMode mode, AllocationFlags flags) {
   CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity_node, mode));
   CSA_ASSERT(this, IntPtrOrSmiGreaterThan(capacity_node,
                                           IntPtrOrSmiConstant(0, mode), mode));
@@ -4338,17 +4342,16 @@ Node* CodeStubAssembler::AllocatePropertyArray(Node* capacity_node,
   RootIndex map_index = RootIndex::kPropertyArrayMap;
   DCHECK(RootsTable::IsImmortalImmovable(map_index));
   StoreMapNoWriteBarrier(array, map_index);
-  InitializePropertyArrayLength(CAST(array), capacity_node, mode);
-  return array;
+  TNode<PropertyArray> property_array = CAST(array);
+  InitializePropertyArrayLength(property_array, capacity_node, mode);
+  return property_array;
 }
 
-void CodeStubAssembler::FillPropertyArrayWithUndefined(Node* array,
-                                                       Node* from_node,
-                                                       Node* to_node,
-                                                       ParameterMode mode) {
+void CodeStubAssembler::FillPropertyArrayWithUndefined(
+    TNode<PropertyArray> array, Node* from_node, Node* to_node,
+    ParameterMode mode) {
   CSA_SLOW_ASSERT(this, MatchesParameterMode(from_node, mode));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(to_node, mode));
-  CSA_SLOW_ASSERT(this, IsPropertyArray(array));
   ElementsKind kind = PACKED_ELEMENTS;
   TNode<Oddball> value = UndefinedConstant();
   BuildFastFixedArrayForEach(
@@ -4360,7 +4363,8 @@ void CodeStubAssembler::FillPropertyArrayWithUndefined(Node* array,
       mode);
 }
 
-void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind, Node* array,
+void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
+                                                TNode<FixedArrayBase> array,
                                                 Node* from_node, Node* to_node,
                                                 RootIndex value_root_index,
                                                 ParameterMode mode) {
@@ -4649,10 +4653,11 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
 }
 
 void CodeStubAssembler::CopyFixedArrayElements(
-    ElementsKind from_kind, Node* from_array, ElementsKind to_kind,
-    Node* to_array, Node* first_element, Node* element_count, Node* capacity,
-    WriteBarrierMode barrier_mode, ParameterMode mode,
-    HoleConversionMode convert_holes, TVariable<BoolT>* var_holes_converted) {
+    ElementsKind from_kind, TNode<FixedArrayBase> from_array,
+    ElementsKind to_kind, TNode<FixedArrayBase> to_array, Node* first_element,
+    Node* element_count, Node* capacity, WriteBarrierMode barrier_mode,
+    ParameterMode mode, HoleConversionMode convert_holes,
+    TVariable<BoolT>* var_holes_converted) {
   DCHECK_IMPLIES(var_holes_converted != nullptr,
                  convert_holes == HoleConversionMode::kConvertToUndefined);
   CSA_SLOW_ASSERT(this, MatchesParameterMode(element_count, mode));
@@ -4727,10 +4732,10 @@ void CodeStubAssembler::CopyFixedArrayElements(
       var_holes_converted != nullptr ? arraysize(vars) : arraysize(vars) - 1;
   Label decrement(this, num_vars, vars);
 
-  Node* to_array_adjusted =
+  TNode<IntPtrT> to_array_adjusted =
       element_offset_matches
           ? IntPtrSub(BitcastTaggedToWord(to_array), first_from_element_offset)
-          : to_array;
+          : ReinterpretCast<IntPtrT>(to_array);
 
   Branch(WordEqual(var_from_offset.value(), limit_offset), &done, &decrement);
 
@@ -4833,8 +4838,8 @@ TNode<FixedArray> CodeStubAssembler::HeapObjectToFixedArray(
   return UncheckedCast<FixedArray>(base);
 }
 
-void CodeStubAssembler::CopyPropertyArrayValues(Node* from_array,
-                                                Node* to_array,
+void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
+                                                TNode<PropertyArray> to_array,
                                                 Node* property_count,
                                                 WriteBarrierMode barrier_mode,
                                                 ParameterMode mode,
@@ -4842,7 +4847,6 @@ void CodeStubAssembler::CopyPropertyArrayValues(Node* from_array,
   CSA_SLOW_ASSERT(this, MatchesParameterMode(property_count, mode));
   CSA_SLOW_ASSERT(this, Word32Or(IsPropertyArray(from_array),
                                  IsEmptyFixedArray(from_array)));
-  CSA_SLOW_ASSERT(this, IsPropertyArray(to_array));
   Comment("[ CopyPropertyArrayValues");
 
   bool needs_write_barrier = barrier_mode == UPDATE_WRITE_BARRIER;
@@ -4879,7 +4883,8 @@ void CodeStubAssembler::CopyPropertyArrayValues(Node* from_array,
   if (destroy_source == DestroySource::kYes) {
     Label did_zap(this);
     GotoIf(IsEmptyFixedArray(from_array), &did_zap);
-    FillPropertyArrayWithUndefined(from_array, start, property_count, mode);
+    FillPropertyArrayWithUndefined(CAST(from_array), start, property_count,
+                                   mode);
 
     Goto(&did_zap);
     BIND(&did_zap);
@@ -4928,11 +4933,9 @@ Node* CodeStubAssembler::CalculateNewElementsCapacity(Node* old_capacity,
 }
 
 TNode<FixedArrayBase> CodeStubAssembler::TryGrowElementsCapacity(
-    Node* object, Node* elements, ElementsKind kind, Node* key,
-    Label* bailout) {
-  CSA_SLOW_ASSERT(this, TaggedIsNotSmi(object));
+    TNode<HeapObject> object, TNode<FixedArrayBase> elements, ElementsKind kind,
+    TNode<Smi> key, Label* bailout) {
   CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(elements, kind));
-  CSA_SLOW_ASSERT(this, TaggedIsSmi(key));
   TNode<Smi> capacity = LoadFixedArrayBaseLength(elements);
 
   ParameterMode mode = OptimalParameterMode();
@@ -4942,10 +4945,9 @@ TNode<FixedArrayBase> CodeStubAssembler::TryGrowElementsCapacity(
 }
 
 TNode<FixedArrayBase> CodeStubAssembler::TryGrowElementsCapacity(
-    Node* object, Node* elements, ElementsKind kind, Node* key, Node* capacity,
-    ParameterMode mode, Label* bailout) {
+    TNode<HeapObject> object, TNode<FixedArrayBase> elements, ElementsKind kind,
+    Node* key, Node* capacity, ParameterMode mode, Label* bailout) {
   Comment("TryGrowElementsCapacity");
-  CSA_SLOW_ASSERT(this, TaggedIsNotSmi(object));
   CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(elements, kind));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, mode));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(key, mode));
@@ -4963,10 +4965,10 @@ TNode<FixedArrayBase> CodeStubAssembler::TryGrowElementsCapacity(
 }
 
 TNode<FixedArrayBase> CodeStubAssembler::GrowElementsCapacity(
-    Node* object, Node* elements, ElementsKind from_kind, ElementsKind to_kind,
-    Node* capacity, Node* new_capacity, ParameterMode mode, Label* bailout) {
+    TNode<HeapObject> object, TNode<FixedArrayBase> elements,
+    ElementsKind from_kind, ElementsKind to_kind, Node* capacity,
+    Node* new_capacity, ParameterMode mode, Label* bailout) {
   Comment("[ GrowElementsCapacity");
-  CSA_SLOW_ASSERT(this, TaggedIsNotSmi(object));
   CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(elements, from_kind));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, mode));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(new_capacity, mode));
@@ -4985,12 +4987,12 @@ TNode<FixedArrayBase> CodeStubAssembler::GrowElementsCapacity(
   // Copy the elements from the old elements store to the new.
   // The size-check above guarantees that the |new_elements| is allocated
   // in new space so we can skip the write barrier.
-  CopyFixedArrayElements(from_kind, CAST(elements), to_kind, new_elements,
+  CopyFixedArrayElements(from_kind, elements, to_kind, new_elements,
                          UncheckedCast<IntPtrT>(capacity),
                          UncheckedCast<IntPtrT>(new_capacity),
                          SKIP_WRITE_BARRIER, mode);
 
-  StoreObjectField(CAST(object), JSObject::kElementsOffset, new_elements);
+  StoreObjectField(object, JSObject::kElementsOffset, new_elements);
   Comment("] GrowElementsCapacity");
   return new_elements;
 }
@@ -6049,13 +6051,13 @@ TNode<BoolT> CodeStubAssembler::IsPromiseFulfillReactionJobTask(
 // TODO(jgruber): It might we worth creating an empty_double_array constant to
 // simplify this case.
 TNode<BoolT> CodeStubAssembler::IsFixedArrayWithKindOrEmpty(
-    SloppyTNode<HeapObject> object, ElementsKind kind) {
+    SloppyTNode<FixedArrayBase> object, ElementsKind kind) {
   Label out(this);
   TVARIABLE(BoolT, var_result, Int32TrueConstant());
 
   GotoIf(IsFixedArrayWithKind(object, kind), &out);
 
-  const TNode<Smi> length = LoadFixedArrayBaseLength(CAST(object));
+  const TNode<Smi> length = LoadFixedArrayBaseLength(object);
   GotoIf(SmiEqual(length, SmiConstant(0)), &out);
 
   var_result = Int32FalseConstant();
@@ -10043,20 +10045,21 @@ Node* CodeStubAssembler::CheckForCapacityGrow(
   return checked_elements.value();
 }
 
-Node* CodeStubAssembler::CopyElementsOnWrite(Node* object, Node* elements,
+Node* CodeStubAssembler::CopyElementsOnWrite(TNode<HeapObject> object,
+                                             TNode<FixedArrayBase> elements,
                                              ElementsKind kind, Node* length,
                                              ParameterMode mode,
                                              Label* bailout) {
-  VARIABLE(new_elements_var, MachineRepresentation::kTagged, elements);
+  TVARIABLE(FixedArrayBase, new_elements_var, elements);
   Label done(this);
 
   GotoIfNot(IsFixedCOWArrayMap(LoadMap(elements)), &done);
   {
     Node* capacity =
         TaggedToParameter(LoadFixedArrayBaseLength(elements), mode);
-    Node* new_elements = GrowElementsCapacity(object, elements, kind, kind,
-                                              length, capacity, mode, bailout);
-    new_elements_var.Bind(new_elements);
+    TNode<FixedArrayBase> new_elements = GrowElementsCapacity(
+        object, elements, kind, kind, length, capacity, mode, bailout);
+    new_elements_var = new_elements;
     Goto(&done);
   }
 

@@ -502,8 +502,8 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     TNode<DescriptorArray> object_descriptors = LoadMapDescriptors(object_map);
     TNode<EnumCache> object_enum_cache = LoadObjectField<EnumCache>(
         object_descriptors, DescriptorArray::kEnumCacheOffset);
-    TNode<Object> object_enum_keys =
-        LoadObjectField(object_enum_cache, EnumCache::kKeysOffset);
+    auto object_enum_keys = LoadObjectField<FixedArrayBase>(
+        object_enum_cache, EnumCache::kKeysOffset);
 
     // Allocate a JSArray and copy the elements from the {object_enum_keys}.
     TNode<JSArray> array;
@@ -598,8 +598,8 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
     TNode<DescriptorArray> object_descriptors = LoadMapDescriptors(object_map);
     TNode<EnumCache> object_enum_cache = CAST(
         LoadObjectField(object_descriptors, DescriptorArray::kEnumCacheOffset));
-    TNode<Object> object_enum_keys =
-        LoadObjectField(object_enum_cache, EnumCache::kKeysOffset);
+    auto object_enum_keys = LoadObjectField<FixedArrayBase>(
+        object_enum_cache, EnumCache::kKeysOffset);
 
     // Allocate a JSArray and copy the elements from the {object_enum_keys}.
     TNode<NativeContext> native_context = LoadNativeContext(context);

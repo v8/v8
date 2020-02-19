@@ -1988,7 +1988,7 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
                    mode));
 
     TNode<PropertyArray> new_properties =
-        CAST(AllocatePropertyArray(new_capacity, mode));
+        AllocatePropertyArray(new_capacity, mode);
     var_new_properties = new_properties;
 
     FillPropertyArrayWithUndefined(new_properties, var_length.value(),
@@ -4055,17 +4055,18 @@ void AccessorAssembler::GenerateCloneObjectIC() {
       GotoIf(IsEmptyFixedArray(source_properties), &allocate_object);
 
       // This IC requires that the source object has fast properties.
-      CSA_SLOW_ASSERT(this, IsPropertyArray(CAST(source_properties)));
-      TNode<IntPtrT> length = LoadPropertyArrayLength(
-          UncheckedCast<PropertyArray>(source_properties));
+      TNode<PropertyArray> source_property_array = CAST(source_properties);
+
+      TNode<IntPtrT> length = LoadPropertyArrayLength(source_property_array);
       GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &allocate_object);
 
       auto mode = INTPTR_PARAMETERS;
-      var_properties = CAST(AllocatePropertyArray(length, mode));
-      FillPropertyArrayWithUndefined(var_properties.value(), IntPtrConstant(0),
-                                     length, mode);
-      CopyPropertyArrayValues(source_properties, var_properties.value(), length,
+      TNode<PropertyArray> property_array = AllocatePropertyArray(length, mode);
+      FillPropertyArrayWithUndefined(property_array, IntPtrConstant(0), length,
+                                     mode);
+      CopyPropertyArrayValues(source_property_array, property_array, length,
                               SKIP_WRITE_BARRIER, mode, DestroySource::kNo);
+      var_properties = property_array;
     }
 
     Goto(&allocate_object);

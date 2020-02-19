@@ -42,7 +42,7 @@ TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
 
 TF_BUILTIN(GrowFastDoubleElements, CodeStubAssembler) {
   TNode<JSObject> object = CAST(Parameter(Descriptor::kObject));
-  TNode<Number> key = CAST(Parameter(Descriptor::kKey));
+  TNode<Smi> key = CAST(Parameter(Descriptor::kKey));
 
   Label runtime(this, Label::kDeferred);
   TNode<FixedArrayBase> elements = LoadElements(object);
@@ -57,7 +57,7 @@ TF_BUILTIN(GrowFastDoubleElements, CodeStubAssembler) {
 
 TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
   TNode<JSObject> object = CAST(Parameter(Descriptor::kObject));
-  TNode<Number> key = CAST(Parameter(Descriptor::kKey));
+  TNode<Smi> key = CAST(Parameter(Descriptor::kKey));
 
   Label runtime(this, Label::kDeferred);
   TNode<FixedArrayBase> elements = LoadElements(object);

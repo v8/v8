@@ -1631,12 +1631,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   CheckBounds::kDebugOnly);
   }
 
-  void StoreFixedArrayOrPropertyArrayElement(
-      Node* array, Node* index, Node* value,
-      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
-      int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS);
-
   void StoreFixedArrayElement(
       TNode<FixedArray> array, Node* index, SloppyTNode<Object> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
@@ -1747,8 +1741,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     Label* bailout);
 
   void TryStoreArrayElement(ElementsKind kind, ParameterMode mode,
-                            Label* bailout, Node* elements, Node* index,
-                            Node* value);
+                            Label* bailout, TNode<FixedArrayBase> elements,
+                            Node* index, TNode<Object> value);
   // Consumes args into the array, and returns tagged new length.
   TNode<Smi> BuildAppendJSArray(ElementsKind kind, TNode<JSArray> array,
                                 CodeStubArguments* args,
@@ -1987,9 +1981,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return result;
   }
 
-  Node* AllocatePropertyArray(Node* capacity,
-                              ParameterMode mode = INTPTR_PARAMETERS,
-                              AllocationFlags flags = kNone);
+  TNode<PropertyArray> AllocatePropertyArray(
+      Node* capacity, ParameterMode mode = INTPTR_PARAMETERS,
+      AllocationFlags flags = kNone);
 
   // Perform CreateArrayIterator (ES #sec-createarrayiterator).
   TNode<JSArrayIterator> CreateArrayIterator(TNode<Context> context,
@@ -2010,8 +2004,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                        TNode<Object> originalArray,
                                        TNode<Number> len);
 
-  void FillFixedArrayWithValue(ElementsKind kind, Node* array, Node* from_index,
-                               Node* to_index, RootIndex value_root_index,
+  void FillFixedArrayWithValue(ElementsKind kind, TNode<FixedArrayBase> array,
+                               Node* from_index, Node* to_index,
+                               RootIndex value_root_index,
                                ParameterMode mode = INTPTR_PARAMETERS);
 
   // Uses memset to effectively initialize the given FixedArray with zeroes.
@@ -2020,8 +2015,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void FillFixedDoubleArrayWithZero(TNode<FixedDoubleArray> array,
                                     TNode<IntPtrT> length);
 
-  void FillPropertyArrayWithUndefined(Node* array, Node* from_index,
-                                      Node* to_index,
+  void FillPropertyArrayWithUndefined(TNode<PropertyArray> array,
+                                      Node* from_index, Node* to_index,
                                       ParameterMode mode = INTPTR_PARAMETERS);
 
   enum class DestroySource { kNo, kYes };
@@ -2052,7 +2047,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Otherwise, specify DestroySource::kNo for operations where an Object is
   // being cloned, to ensure that mutable HeapNumbers are unique between the
   // source and cloned object.
-  void CopyPropertyArrayValues(Node* from_array, Node* to_array, Node* length,
+  void CopyPropertyArrayValues(TNode<HeapObject> from_array,
+                               TNode<PropertyArray> to_array, Node* length,
                                WriteBarrierMode barrier_mode,
                                ParameterMode mode,
                                DestroySource destroy_source);
@@ -2060,7 +2056,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Copies all elements from |from_array| of |length| size to
   // |to_array| of the same size respecting the elements kind.
   void CopyFixedArrayElements(
-      ElementsKind kind, Node* from_array, Node* to_array, Node* length,
+      ElementsKind kind, TNode<FixedArrayBase> from_array,
+      TNode<FixedArrayBase> to_array, Node* length,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       ParameterMode mode = INTPTR_PARAMETERS) {
     CopyFixedArrayElements(kind, from_array, kind, to_array,
@@ -2072,9 +2069,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // zero to |to_array| of |capacity| size respecting both array's elements
   // kinds.
   void CopyFixedArrayElements(
-      ElementsKind from_kind, TNode<Object> from_array, ElementsKind to_kind,
-      TNode<Object> to_array, TNode<IntPtrT> element_count,
-      TNode<IntPtrT> capacity,
+      ElementsKind from_kind, TNode<FixedArrayBase> from_array,
+      ElementsKind to_kind, TNode<FixedArrayBase> to_array,
+      TNode<IntPtrT> element_count, TNode<IntPtrT> capacity,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       ParameterMode mode = INTPTR_PARAMETERS) {
     CopyFixedArrayElements(from_kind, from_array, to_kind, to_array,
@@ -2091,8 +2088,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // HoleConversionMode::kConvertToUndefined, then it must not be the case that
   // IsDoubleElementsKind(to_kind).
   void CopyFixedArrayElements(
-      ElementsKind from_kind, Node* from_array, ElementsKind to_kind,
-      Node* to_array, Node* first_element, Node* element_count, Node* capacity,
+      ElementsKind from_kind, TNode<FixedArrayBase> from_array,
+      ElementsKind to_kind, TNode<FixedArrayBase> to_array, Node* first_element,
+      Node* element_count, Node* capacity,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       ParameterMode mode = INTPTR_PARAMETERS,
       HoleConversionMode convert_holes = HoleConversionMode::kDontConvert,
@@ -2193,13 +2191,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // runtime elements kind of source to make copy faster. More specifically, it
   // can skip write barriers.
   TNode<FixedArrayBase> ExtractFixedArray(
-      Node* source, Node* first, Node* count = nullptr,
+      TNode<FixedArrayBase> source, Node* first, Node* count = nullptr,
       Node* capacity = nullptr,
       ExtractFixedArrayFlags extract_flags =
           ExtractFixedArrayFlag::kAllFixedArrays,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       TVariable<BoolT>* var_holes_converted = nullptr,
-      Node* source_elements_kind = nullptr);
+      base::Optional<TNode<Int32T>> source_elements_kind = base::nullopt);
 
   TNode<FixedArrayBase> ExtractFixedArray(
       TNode<FixedArrayBase> source, TNode<Smi> first, TNode<Smi> count,
@@ -2256,7 +2254,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       HoleConversionMode convert_holes = HoleConversionMode::kDontConvert,
       TVariable<BoolT>* var_holes_converted = nullptr,
-      Node* source_runtime_kind = nullptr);
+      base::Optional<TNode<Int32T>> source_runtime_kind = base::nullopt);
 
   // Attempt to copy a FixedDoubleArray to another FixedDoubleArray. In the case
   // where the source array has a hole, produce a FixedArray instead where holes
@@ -2277,8 +2275,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // * |parameter_mode| determines the parameter mode of |first|, |count| and
   // |capacity|.
   TNode<FixedArrayBase> ExtractFixedDoubleArrayFillingHoles(
-      Node* source, Node* first, Node* count, Node* capacity, Node* source_map,
-      TVariable<BoolT>* var_holes_converted, AllocationFlags allocation_flags,
+      TNode<FixedArrayBase> source, Node* first, Node* count, Node* capacity,
+      Node* source_map, TVariable<BoolT>* var_holes_converted,
+      AllocationFlags allocation_flags,
       ExtractFixedArrayFlags extract_flags =
           ExtractFixedArrayFlag::kAllFixedArrays,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
@@ -2324,34 +2323,34 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Tries to grow the |elements| array of given |object| to store the |key|
   // or bails out if the growing gap is too big. Returns new elements.
-  TNode<FixedArrayBase> TryGrowElementsCapacity(Node* object, Node* elements,
-                                                ElementsKind kind, Node* key,
-                                                Label* bailout);
+  TNode<FixedArrayBase> TryGrowElementsCapacity(TNode<HeapObject> object,
+                                                TNode<FixedArrayBase> elements,
+                                                ElementsKind kind,
+                                                TNode<Smi> key, Label* bailout);
 
   // Tries to grow the |capacity|-length |elements| array of given |object|
   // to store the |key| or bails out if the growing gap is too big. Returns
   // new elements.
-  TNode<FixedArrayBase> TryGrowElementsCapacity(Node* object, Node* elements,
+  TNode<FixedArrayBase> TryGrowElementsCapacity(TNode<HeapObject> object,
+                                                TNode<FixedArrayBase> elements,
                                                 ElementsKind kind, Node* key,
                                                 Node* capacity,
                                                 ParameterMode mode,
                                                 Label* bailout);
 
   // Grows elements capacity of given object. Returns new elements.
-  TNode<FixedArrayBase> GrowElementsCapacity(Node* object, Node* elements,
-                                             ElementsKind from_kind,
-                                             ElementsKind to_kind,
-                                             Node* capacity, Node* new_capacity,
-                                             ParameterMode mode,
-                                             Label* bailout);
+  TNode<FixedArrayBase> GrowElementsCapacity(
+      TNode<HeapObject> object, TNode<FixedArrayBase> elements,
+      ElementsKind from_kind, ElementsKind to_kind, Node* capacity,
+      Node* new_capacity, ParameterMode mode, Label* bailout);
 
   // Given a need to grow by |growth|, allocate an appropriate new capacity
   // if necessary, and return a new elements FixedArray object. Label |bailout|
   // is followed for allocation failure.
   void PossiblyGrowElementsCapacity(ParameterMode mode, ElementsKind kind,
-                                    Node* array, Node* length,
-                                    Variable* var_elements, Node* growth,
-                                    Label* bailout);
+                                    TNode<HeapObject> array, Node* length,
+                                    TVariable<FixedArrayBase>* var_elements,
+                                    Node* growth, Label* bailout);
 
   // Allocation site manipulation
   void InitializeAllocationMemento(TNode<HeapObject> base,
@@ -2495,7 +2494,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsFixedArraySubclass(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsFixedArrayWithKind(SloppyTNode<HeapObject> object,
                                     ElementsKind kind);
-  TNode<BoolT> IsFixedArrayWithKindOrEmpty(SloppyTNode<HeapObject> object,
+  TNode<BoolT> IsFixedArrayWithKindOrEmpty(SloppyTNode<FixedArrayBase> object,
                                            ElementsKind kind);
   TNode<BoolT> IsFixedDoubleArray(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsFunctionWithPrototypeSlotMap(SloppyTNode<Map> map);
@@ -3358,7 +3357,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                              TNode<UintPtrT> length, TNode<IntPtrT> key,
                              Label* bailout);
 
-  Node* CopyElementsOnWrite(Node* object, Node* elements, ElementsKind kind,
+  Node* CopyElementsOnWrite(TNode<HeapObject> object,
+                            TNode<FixedArrayBase> elements, ElementsKind kind,
                             Node* length, ParameterMode mode, Label* bailout);
 
   void TransitionElementsKind(TNode<JSObject> object, TNode<Map> map,
@@ -3900,6 +3900,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> LoadRoot(RootIndex root_index) {
     return CodeAssembler::LoadRoot(root_index);
   }
+
+  void StoreFixedArrayOrPropertyArrayElement(
+      TNode<UnionT<FixedArray, PropertyArray>> array, Node* index,
+      TNode<Object> value, WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      int additional_offset = 0,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS);
 };
 
 // template <typename TIndex>
