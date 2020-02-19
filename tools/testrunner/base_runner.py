@@ -123,9 +123,8 @@ class ModeConfig(object):
     self.execution_mode = execution_mode
 
 
-DEBUG_FLAGS = ["--nohard-abort", "--enable-slow-asserts", "--verify-heap",
-               "--testing-d8-test-runner"]
-RELEASE_FLAGS = ["--nohard-abort", "--testing-d8-test-runner"]
+DEBUG_FLAGS = ["--nohard-abort", "--enable-slow-asserts", "--verify-heap"]
+RELEASE_FLAGS = ["--nohard-abort"]
 MODES = {
   "debug": ModeConfig(
     flags=DEBUG_FLAGS,
@@ -704,13 +703,17 @@ class BaseTestRunner(object):
       "pointer_compression": self.build_config.pointer_compression,
     }
 
+  def _runner_flags(self):
+    """Extra default flags specific to the test runner implementation."""
+    return []
+
   def _create_test_config(self, options):
     timeout = options.timeout * self._timeout_scalefactor(options)
     return TestConfig(
         command_prefix=options.command_prefix,
         extra_flags=options.extra_flags,
         isolates=options.isolates,
-        mode_flags=self.mode_options.flags,
+        mode_flags=self.mode_options.flags + self._runner_flags(),
         no_harness=options.no_harness,
         noi18n=self.build_config.no_i18n,
         random_seed=options.random_seed,
