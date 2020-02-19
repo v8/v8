@@ -12,6 +12,8 @@
 #include "src/objects/instance-type.h"
 
 namespace v8 {
+class CFunctionInfo;
+
 namespace internal {
 
 class BytecodeArray;
@@ -659,6 +661,8 @@ class FunctionTemplateInfoRef : public HeapObjectRef {
 
   void SerializeCallCode();
   base::Optional<CallHandlerInfoRef> call_code() const;
+  Address c_function() const;
+  const CFunctionInfo* c_signature() const;
 
   HolderLookupResult LookupHolderOfExpectedType(
       MapRef receiver_map,

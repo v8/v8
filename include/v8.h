@@ -6284,6 +6284,7 @@ typedef bool (*AccessCheckCallback)(Local<Context> accessing_context,
                                     Local<Object> accessed_object,
                                     Local<Value> data);
 
+class CFunction;
 /**
  * A FunctionTemplate is used to create functions at runtime. There
  * can only be one function created from a FunctionTemplate in a
@@ -6383,6 +6384,12 @@ typedef bool (*AccessCheckCallback)(Local<Context> accessing_context,
  *   child_instance.instance_accessor calls 'InstanceAccessorCallback'
  *   child_instance.instance_property == 3;
  * \endcode
+ *
+ * The additional 'c_function' parameter refers to a fast API call, which
+ * must not trigger GC or JavaScript execution, or call into V8 in other
+ * ways. For more information how to define them, see
+ * include/v8-fast-api-calls.h. Please note that this feature is still
+ * experimental.
  */
 class V8_EXPORT FunctionTemplate : public Template {
  public:
@@ -6392,7 +6399,8 @@ class V8_EXPORT FunctionTemplate : public Template {
       Local<Value> data = Local<Value>(),
       Local<Signature> signature = Local<Signature>(), int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
-      SideEffectType side_effect_type = SideEffectType::kHasSideEffect);
+      SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
+      const CFunction* c_function = nullptr);
 
   /** Get a template included in the snapshot by index. */
   V8_DEPRECATED("Use v8::Isolate::GetDataFromSnapshotOnce instead")
@@ -6424,11 +6432,13 @@ class V8_EXPORT FunctionTemplate : public Template {
   /**
    * Set the call-handler callback for a FunctionTemplate.  This
    * callback is called whenever the function created from this
-   * FunctionTemplate is called.
+   * FunctionTemplate is called. The 'c_function' represents a fast
+   * API call, see the comment above the class declaration.
    */
   void SetCallHandler(
       FunctionCallback callback, Local<Value> data = Local<Value>(),
-      SideEffectType side_effect_type = SideEffectType::kHasSideEffect);
+      SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
+      const CFunction* c_function = nullptr);
 
   /** Set the predefined length property for the FunctionTemplate. */
   void SetLength(int length);
