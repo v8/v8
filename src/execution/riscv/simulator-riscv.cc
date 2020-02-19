@@ -7688,14 +7688,12 @@ void Simulator::DecodeRVIType() {
       break;
     }
     case RO_SRLI: {  //  RO_SRAI
-      if (instr_.Funct7Value() == 0b0000000) {
+      if (!instr_.IsArithShift()) {
         require(shamt() < xlen);
         set_rd(sext_xlen(zext_xlen(rs1()) >> shamt()));
-      } else if (instr_.Funct7Value() == 0b0100000) {
+      } else {
         require(shamt() < xlen);
         set_rd(sext_xlen(sext_xlen(rs1()) >> shamt()));
-      } else {
-        UNSUPPORTED();
       }
       break;
     }
@@ -7709,12 +7707,10 @@ void Simulator::DecodeRVIType() {
       break;
     }
     case RO_SRLIW: {  //  RO_SRAIW
-      if (instr_.Funct7Value() == 0b0000000) {
+      if (!instr_.IsArithShift()) {
         set_rd(sext32(uint32_t(rs1()) >> shamt()));
-      } else if (instr_.Funct7Value() == 0b0100000) {
-        set_rd(sext32(int32_t(rs1()) >> shamt()));
       } else {
-        UNSUPPORTED();
+        set_rd(sext32(int32_t(rs1()) >> shamt()));
       }
       break;
     }

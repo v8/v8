@@ -1726,6 +1726,10 @@ class InstructionBase {
 template <class T>
 class InstructionGetters : public T {
  public:
+  inline int BaseOpcode() const {
+    return this->InstructionBits() & kBaseOpcodeMask;
+  }
+
   inline int Rs1Value() const {
     DCHECK(this->InstructionType() == InstructionBase::kRType ||
            this->InstructionType() == InstructionBase::kR4Type ||
@@ -1772,14 +1776,14 @@ class InstructionGetters : public T {
 
   inline int Funct5Value() const {
     DCHECK(this->InstructionType() == InstructionBase::kRType &&
-           (this->InstructionBits() & kBaseOpcodeMask) == OP_FP);
+           this->BaseOpcode() == OP_FP);
     return this->Bits(kFunct5Shift + kFunct5Bits - 1, kFunct5Shift);
   }
 
   inline int RoundMode() const {
     DCHECK((this->InstructionType() == InstructionBase::kRType ||
             this->InstructionType() == InstructionBase::kR4Type) &&
-           (this->InstructionBits() & kBaseOpcodeMask) == OP_FP);
+           this->BaseOpcode() == OP_FP);
     return this->Bits(kFunct3Shift + kFunct3Bits - 1, kFunct3Shift);
   }
 
@@ -1829,6 +1833,14 @@ class InstructionGetters : public T {
     int32_t imm20 = ((Bits & 0x7fe00000) >> 20) | ((Bits & 0x100000) >> 9) |
                     (Bits & 0xff000) | ((Bits & 0x80000000) >> 11);
     return imm20 << 11 >> 11;
+  }
+
+  inline bool IsArithShift() const {
+    // Valid only for right shift operations
+    DCHECK((this->BaseOpcode() == OP || this->BaseOpcode() == OP_32 ||
+            this->BaseOpcode() == OP_IMM || this->BaseOpcode() == OP_IMM_32) &&
+           this->Funct3Value() == 0b101);
+    return this->InstructionBits() & 0x40000000;
   }
 
   // Original MIPS methods
