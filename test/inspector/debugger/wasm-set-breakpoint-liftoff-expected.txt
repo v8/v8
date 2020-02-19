@@ -1,37 +1,41 @@
 Tests stepping through wasm scripts.
 Instantiating.
 Waiting for wasm script (ignoring first non-wasm script).
+Setting breakpoint at offset 38 on script wasm://wasm/0c10a5fe
+Calling main(4)
+Breaking on byte offset 38
+Setting breakpoint at offset 39 on script wasm://wasm/0c10a5fe
 Setting breakpoint at offset 54 on script wasm://wasm/0c10a5fe
 Setting breakpoint at offset 53 on script wasm://wasm/0c10a5fe
 Setting breakpoint at offset 51 on script wasm://wasm/0c10a5fe
 Setting breakpoint at offset 49 on script wasm://wasm/0c10a5fe
 Setting breakpoint at offset 45 on script wasm://wasm/0c10a5fe
 Setting breakpoint at offset 47 on script wasm://wasm/0c10a5fe
-Calling main(4)
+Breaking on byte offset 39
 Breaking on byte offset 45
 Breaking on byte offset 47
 Breaking on byte offset 49
 Breaking on byte offset 51
 Breaking on byte offset 53
 Breaking on byte offset 54
+Breaking on byte offset 38
+Breaking on byte offset 39
 Breaking on byte offset 45
 Breaking on byte offset 47
 Breaking on byte offset 49
 Breaking on byte offset 51
 Breaking on byte offset 53
 Breaking on byte offset 54
+Breaking on byte offset 38
+Breaking on byte offset 39
 Breaking on byte offset 45
 Breaking on byte offset 47
 Breaking on byte offset 49
 Breaking on byte offset 51
 Breaking on byte offset 53
 Breaking on byte offset 54
-Breaking on byte offset 45
-Breaking on byte offset 47
-Breaking on byte offset 49
-Breaking on byte offset 51
-Breaking on byte offset 53
-Breaking on byte offset 54
+Breaking on byte offset 38
+Breaking on byte offset 39
 Breaking on byte offset 45
 Breaking on byte offset 47
 exports.main returned!

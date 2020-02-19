@@ -154,7 +154,7 @@ class DebugInfo {
 
   WireBytesRef GetLocalName(int func_index, int local_index);
 
-  void SetBreakpoint(int func_index, int offset);
+  void SetBreakpoint(int func_index, int offset, Isolate* current_isolate);
 
   void RemoveDebugSideTables(Vector<WasmCode* const>);
 

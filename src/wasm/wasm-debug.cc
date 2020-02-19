@@ -443,6 +443,58 @@ class InterpreterHandle {
   DISALLOW_COPY_AND_ASSIGN(InterpreterHandle);
 };
 
+Address FindNewPC(int offset, WasmCode* old_code, WasmCode* new_code) {
+  Vector<const uint8_t> old_pos_table = old_code->source_positions();
+  Vector<const uint8_t> new_pos_table = new_code->source_positions();
+
+  // Find the source position in the old code.
+  int old_source_pos = -1;
+  for (SourcePositionTableIterator old_it(old_pos_table); !old_it.done();
+       old_it.Advance()) {
+    if (old_it.code_offset() == offset) {
+      old_source_pos = old_it.source_position().ScriptOffset();
+      break;
+    }
+  }
+  DCHECK_LE(0, old_source_pos);
+
+  // Find the matching source position in the new code.
+  SourcePositionTableIterator new_it(new_pos_table);
+  while (!new_it.done() &&
+         new_it.source_position().ScriptOffset() != old_source_pos) {
+    new_it.Advance();
+  }
+  DCHECK(!new_it.done());
+
+  // Each call instruction generates two source positions with the same source
+  // offset: one for the address of the call instruction and one for the
+  // return address. Skip the first one.
+  new_it.Advance();
+  DCHECK(!new_it.done());
+  DCHECK_EQ(new_it.source_position().ScriptOffset(), old_source_pos);
+  return new_code->instruction_start() + new_it.code_offset();
+}
+
+// After installing a Liftoff code object with a different set of breakpoints,
+// update return addresses on the stack so that execution resumes in the new
+// code. The frame layout itself should be independent of breakpoints.
+// TODO(thibaudm): update other threads as well.
+void UpdateReturnAddresses(Isolate* isolate, WasmCode* new_code) {
+  DCHECK(new_code->is_liftoff());
+  for (StackTraceFrameIterator it(isolate); !it.done(); it.Advance()) {
+    if (!it.is_wasm()) continue;
+    WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
+    if (frame->native_module() != new_code->native_module()) continue;
+    if (frame->function_index() != new_code->index()) continue;
+    WasmCode* old_code = frame->wasm_code();
+    if (!old_code->is_liftoff()) return;
+    int offset = static_cast<int>(frame->pc() - old_code->instruction_start());
+    Address new_pc = FindNewPC(offset, old_code, new_code);
+    PointerAuthentication::ReplacePC(frame->pc_address(), new_pc,
+                                     kSystemPointerSize);
+  }
+}
+
 }  // namespace
 
 Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject> instance) {
@@ -573,7 +625,7 @@ class DebugInfoImpl {
     return local_names_->GetName(func_index, local_index);
   }
 
-  void SetBreakpoint(int func_index, int offset) {
+  void SetBreakpoint(int func_index, int offset, Isolate* current_isolate) {
     // Hold the mutex while setting the breakpoint. This guards against multiple
     // isolates setting breakpoints at the same time. We don't really support
     // that scenario yet, but concurrently compiling and installing different
@@ -611,8 +663,7 @@ class DebugInfoImpl {
     DCHECK(added);
     USE(added);
 
-    // TODO(clemensb): OSR active frames on the stack (on all threads).
-    USE(new_code);
+    UpdateReturnAddresses(current_isolate, new_code);
   }
 
   void RemoveDebugSideTables(Vector<WasmCode* const> codes) {
@@ -707,8 +758,9 @@ WireBytesRef DebugInfo::GetLocalName(int func_index, int local_index) {
   return impl_->GetLocalName(func_index, local_index);
 }
 
-void DebugInfo::SetBreakpoint(int func_index, int offset) {
-  impl_->SetBreakpoint(func_index, offset);
+void DebugInfo::SetBreakpoint(int func_index, int offset,
+                              Isolate* current_isolate) {
+  impl_->SetBreakpoint(func_index, offset, current_isolate);
 }
 
 void DebugInfo::RemoveDebugSideTables(Vector<WasmCode* const> code) {
@@ -1000,7 +1052,7 @@ bool WasmScript::SetBreakPointForFunction(Handle<Script> script, int func_index,
                                   break_point);
 
   if (FLAG_debug_in_liftoff) {
-    native_module->GetDebugInfo()->SetBreakpoint(func_index, offset);
+    native_module->GetDebugInfo()->SetBreakpoint(func_index, offset, isolate);
   } else {
     // Iterate over all instances and tell them to set this new breakpoint.
     // We do this using the weak list of all instances from the script.
