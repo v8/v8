@@ -95,10 +95,6 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Declarations::LookupGlobalUniqueGenericType(WEAK_TYPE_STRING);
   }
 
-  static GenericType* GetSmiTaggedGeneric() {
-    return Declarations::LookupGlobalUniqueGenericType(SMI_TAGGED_TYPE_STRING);
-  }
-
   static const Type* GetReferenceType(const Type* referenced_type) {
     return GetGenericTypeInstance(GetReferenceGeneric(), {referenced_type});
   }
@@ -231,10 +227,6 @@ class TypeOracle : public ContextualClass<TypeOracle> {
 
   static const Type* GetUint32Type() {
     return Get().GetBuiltinType(UINT32_TYPE_STRING);
-  }
-
-  static const Type* GetUint31Type() {
-    return Get().GetBuiltinType(UINT31_TYPE_STRING);
   }
 
   static const Type* GetInt16Type() {

@@ -48,18 +48,10 @@ class ValueTypeFieldIterator {
       const auto& field = struct_type->fields()[index_];
       return {field.name_and_type, field.pos, *field.offset, 0, 0};
     }
-    const Type* type = type_;
-    int bitfield_start_offset = 0;
-    if (const auto type_wrapped_in_smi =
-            Type::MatchUnaryGeneric(type_, TypeOracle::GetSmiTaggedGeneric())) {
-      type = *type_wrapped_in_smi;
-      bitfield_start_offset = kSmiTagSize + kSmiShiftSize;
-    }
     if (const BitFieldStructType* bit_field_struct_type =
-            BitFieldStructType::DynamicCast(type)) {
+            BitFieldStructType::DynamicCast(type_)) {
       const auto& field = bit_field_struct_type->fields()[index_];
-      return {field.name_and_type, field.pos, 0, field.num_bits,
-              field.offset + bitfield_start_offset};
+      return {field.name_and_type, field.pos, 0, field.num_bits, field.offset};
     }
     UNREACHABLE();
   }
@@ -91,13 +83,8 @@ class ValueTypeFieldsRange {
     if (struct_type && struct_type != TypeOracle::GetFloat64OrHoleType()) {
       index = struct_type->fields().size();
     }
-    const Type* type = type_;
-    if (const auto type_wrapped_in_smi =
-            Type::MatchUnaryGeneric(type_, TypeOracle::GetSmiTaggedGeneric())) {
-      type = *type_wrapped_in_smi;
-    }
     if (const BitFieldStructType* bit_field_struct_type =
-            BitFieldStructType::DynamicCast(type)) {
+            BitFieldStructType::DynamicCast(type_)) {
       index = bit_field_struct_type->fields().size();
     }
     return {type_, index};

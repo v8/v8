@@ -3267,31 +3267,17 @@ void ImplementationVisitor::GenerateBitFields(
     NamespaceScope namespaces(header, {"v8", "internal"});
 
     for (const auto& type : TypeOracle::GetBitFieldStructTypes()) {
-      bool all_single_bits = true;  // Track whether every field is one bit.
-
       header << "#define DEFINE_TORQUE_GENERATED_"
              << CapifyStringWithUnderscores(type->name()) << "() \\\n";
       std::string type_name = type->GetConstexprGeneratedTypeName();
       for (const auto& field : type->fields()) {
         const char* suffix = field.num_bits == 1 ? "Bit" : "Bits";
-        all_single_bits = all_single_bits && field.num_bits == 1;
         std::string field_type_name =
             field.name_and_type.type->GetConstexprGeneratedTypeName();
         header << "  using " << CamelifyString(field.name_and_type.name)
                << suffix << " = base::BitField<" << field_type_name << ", "
                << field.offset << ", " << field.num_bits << ", " << type_name
                << ">; \\\n";
-      }
-
-      // If every field is one bit, we can also generate a convenient enum.
-      if (all_single_bits) {
-        header << "  enum Flag { \\\n";
-        header << "    kNone = 0, \\\n";
-        for (const auto& field : type->fields()) {
-          header << "    k" << CamelifyString(field.name_and_type.name)
-                 << " = 1 << " << field.offset << ", \\\n";
-        }
-        header << "  }; \\\n";
       }
 
       header << "\n";
