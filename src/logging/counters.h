@@ -714,6 +714,9 @@ class RuntimeCallTimer final {
   // Make the time source configurable for testing purposes.
   V8_EXPORT_PRIVATE static base::TimeTicks (*Now)();
 
+  // Helper to switch over to CPU time.
+  static base::TimeTicks NowCPUTime();
+
  private:
   inline void Pause(base::TimeTicks now);
   inline void Resume(base::TimeTicks now);
