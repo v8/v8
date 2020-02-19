@@ -4,7 +4,6 @@
 
 #include "src/compiler/simplified-operator.h"
 
-#include "include/v8-fast-api-calls.h"
 #include "src/base/lazy-instance.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
@@ -1257,16 +1256,6 @@ const Operator* SimplifiedOperatorBuilder::AssertType(Type type) {
                                       "AssertType", 1, 0, 0, 1, 0, 0, type);
 }
 
-const Operator* SimplifiedOperatorBuilder::FastApiCall(
-    const CFunctionInfo* signature, FeedbackSource const& feedback) {
-  // function, c args
-  int value_input_count = signature->ArgumentCount() + 1;
-  return new (zone()) Operator1<FastApiCallParameters>(
-      IrOpcode::kFastApiCall, Operator::kNoThrow, "FastApiCall",
-      value_input_count, 1, 1, 1, 1, 0,
-      FastApiCallParameters(signature, feedback));
-}
-
 const Operator* SimplifiedOperatorBuilder::CheckIf(
     DeoptimizeReason reason, const FeedbackSource& feedback) {
   if (!feedback.IsValid()) {
@@ -1688,25 +1677,6 @@ const Operator* SimplifiedOperatorBuilder::NewArgumentsElements(
 int NewArgumentsElementsMappedCountOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kNewArgumentsElements, op->opcode());
   return OpParameter<int>(op);
-}
-
-FastApiCallParameters const& FastApiCallParametersOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kFastApiCall, op->opcode());
-  return OpParameter<FastApiCallParameters>(op);
-}
-
-std::ostream& operator<<(std::ostream& os, FastApiCallParameters const& p) {
-  return os << p.signature() << ", " << p.feedback();
-}
-
-size_t hash_value(FastApiCallParameters const& p) {
-  return base::hash_combine(p.signature(),
-                            FeedbackSource::Hash()(p.feedback()));
-}
-
-bool operator==(FastApiCallParameters const& lhs,
-                FastApiCallParameters const& rhs) {
-  return lhs.signature() == rhs.signature() && lhs.feedback() == rhs.feedback();
 }
 
 const Operator* SimplifiedOperatorBuilder::Allocate(Type type,
