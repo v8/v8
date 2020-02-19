@@ -189,7 +189,7 @@ TEST(LI) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   auto f = GeneratedCode<F1>::FromCode(*code);
-  int64_t res = reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0));
+  int64_t res = reinterpret_cast<int64_t>(f.Call(0xDEADBEEF, 0, 0, 0, 0));
   CHECK_EQ(0L, res);
 }
 
