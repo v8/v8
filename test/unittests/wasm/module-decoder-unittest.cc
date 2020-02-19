@@ -1753,22 +1753,12 @@ TEST_F(WasmModuleVerifyTest, SectionWithoutNameLength) {
   EXPECT_FAILURE(data);
 }
 
-TEST_F(WasmModuleVerifyTest, EmptyCustomSectionIsInvalid) {
-  // An empty custom section is invalid, because at least one byte for the
-  // length of the custom section name is required.
-  const byte data[] = {
-      0,  // unknown section code.
-      0   // section length.
-  };
-  EXPECT_FAILURE(data);
-}
-
 TEST_F(WasmModuleVerifyTest, TheLoneliestOfValidModulesTheTrulyEmptyOne) {
   const byte data[] = {
       0,  // unknown section code.
-      1,  // section length, only one byte for the name length.
-      0,  // string length of 0.
-          // Empty section name, no content, nothing but sadness.
+      0,  // Empty section name.
+          // No section name, no content, nothing but sadness.
+      0,  // No section content.
   };
   EXPECT_VERIFIES(data);
 }

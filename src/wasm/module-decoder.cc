@@ -149,42 +149,6 @@ WireBytesRef consume_string(Decoder* decoder, bool validate_utf8,
   return {offset, decoder->failed() ? 0 : length};
 }
 
-namespace {
-SectionCode IdentifyUnknownSectionInternal(Decoder* decoder) {
-  WireBytesRef string = consume_string(decoder, true, "section name");
-  if (decoder->failed()) {
-    return kUnknownSectionCode;
-  }
-  const byte* section_name_start =
-      decoder->start() + decoder->GetBufferRelativeOffset(string.offset());
-
-  TRACE("  +%d  section name        : \"%.*s\"\n",
-        static_cast<int>(section_name_start - decoder->start()),
-        string.length() < 20 ? string.length() : 20, section_name_start);
-
-  if (string.length() == num_chars(kNameString) &&
-      strncmp(reinterpret_cast<const char*>(section_name_start), kNameString,
-              num_chars(kNameString)) == 0) {
-    return kNameSectionCode;
-  } else if (string.length() == num_chars(kSourceMappingURLString) &&
-             strncmp(reinterpret_cast<const char*>(section_name_start),
-                     kSourceMappingURLString,
-                     num_chars(kSourceMappingURLString)) == 0) {
-    return kSourceMappingURLSectionCode;
-  } else if (string.length() == num_chars(kCompilationHintsString) &&
-             strncmp(reinterpret_cast<const char*>(section_name_start),
-                     kCompilationHintsString,
-                     num_chars(kCompilationHintsString)) == 0) {
-    return kCompilationHintsSectionCode;
-  } else if (string.length() == num_chars(kDebugInfoString) &&
-             strncmp(reinterpret_cast<const char*>(section_name_start),
-                     kDebugInfoString, num_chars(kDebugInfoString)) == 0) {
-    return kDebugInfoSectionCode;
-  }
-  return kUnknownSectionCode;
-}
-}  // namespace
-
 // An iterator over the sections in a wasm binary module.
 // Automatically skips all unknown sections.
 class WasmSectionIterator {
@@ -268,13 +232,8 @@ class WasmSectionIterator {
     if (section_code == kUnknownSectionCode) {
       // Check for the known "name", "sourceMappingURL", or "compilationHints"
       // section.
-      // To identify the unknown section we set the end of the decoder bytes to
-      // the end of the custom section, so that we do not read the section name
-      // beyond the end of the section.
-      const byte* module_end = decoder_->end();
-      decoder_->set_end(section_end_);
-      section_code = IdentifyUnknownSectionInternal(decoder_);
-      if (decoder_->ok()) decoder_->set_end(module_end);
+      section_code =
+          ModuleDecoder::IdentifyUnknownSection(decoder_, section_end_);
       // As a side effect, the above function will forward the decoder to after
       // the identifier string.
       payload_start_ = decoder_->pc();
@@ -2071,14 +2030,39 @@ void ModuleDecoder::set_code_section(uint32_t offset, uint32_t size) {
   return impl_->set_code_section(offset, size);
 }
 
-size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
-                                             Vector<const uint8_t> bytes,
-                                             uint32_t offset,
-                                             SectionCode* result) {
-  if (!decoder->ok()) return 0;
-  decoder->impl_->Reset(bytes, offset);
-  *result = IdentifyUnknownSectionInternal(decoder->impl_.get());
-  return decoder->impl_->pc() - bytes.begin();
+SectionCode ModuleDecoder::IdentifyUnknownSection(Decoder* decoder,
+                                                  const byte* end) {
+  WireBytesRef string = consume_string(decoder, true, "section name");
+  if (decoder->failed() || decoder->pc() > end) {
+    return kUnknownSectionCode;
+  }
+  const byte* section_name_start =
+      decoder->start() + decoder->GetBufferRelativeOffset(string.offset());
+
+  TRACE("  +%d  section name        : \"%.*s\"\n",
+        static_cast<int>(section_name_start - decoder->start()),
+        string.length() < 20 ? string.length() : 20, section_name_start);
+
+  if (string.length() == num_chars(kNameString) &&
+      strncmp(reinterpret_cast<const char*>(section_name_start), kNameString,
+              num_chars(kNameString)) == 0) {
+    return kNameSectionCode;
+  } else if (string.length() == num_chars(kSourceMappingURLString) &&
+             strncmp(reinterpret_cast<const char*>(section_name_start),
+                     kSourceMappingURLString,
+                     num_chars(kSourceMappingURLString)) == 0) {
+    return kSourceMappingURLSectionCode;
+  } else if (string.length() == num_chars(kCompilationHintsString) &&
+             strncmp(reinterpret_cast<const char*>(section_name_start),
+                     kCompilationHintsString,
+                     num_chars(kCompilationHintsString)) == 0) {
+    return kCompilationHintsSectionCode;
+  } else if (string.length() == num_chars(kDebugInfoString) &&
+             strncmp(reinterpret_cast<const char*>(section_name_start),
+                     kDebugInfoString, num_chars(kDebugInfoString)) == 0) {
+    return kDebugInfoSectionCode;
+  }
+  return kUnknownSectionCode;
 }
 
 bool ModuleDecoder::ok() { return impl_->ok(); }

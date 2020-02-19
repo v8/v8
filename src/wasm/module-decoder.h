@@ -205,10 +205,10 @@ class ModuleDecoder {
   // SectionCode if the unknown section is known to decoder.
   // The decoder is expected to point after the section length and just before
   // the identifier string of the unknown section.
-  // The return value is the number of bytes that were consumed.
-  static size_t IdentifyUnknownSection(ModuleDecoder* decoder,
-                                       Vector<const uint8_t> bytes,
-                                       uint32_t offset, SectionCode* result);
+  // If a SectionCode other than kUnknownSectionCode is returned, the decoder
+  // will point right after the identifier string. Otherwise, the position is
+  // undefined.
+  static SectionCode IdentifyUnknownSection(Decoder* decoder, const byte* end);
 
  private:
   const WasmFeatures enabled_features_;
