@@ -2142,17 +2142,27 @@ static void PrintMessageCallback(Local<Message> message, Local<Value> error) {
   printf("%s:%i: %s\n", filename_string, linenum, msg_string);
 }
 
-void Shell::Initialize(Isolate* isolate) {
-  // Set up counters
-  if (i::FLAG_map_counters[0] != '\0') {
-    MapCounters(isolate, i::FLAG_map_counters);
+void Shell::Initialize(Isolate* isolate, D8Console* console,
+                       bool isOnMainThread) {
+  if (isOnMainThread) {
+    // Set up counters
+    if (i::FLAG_map_counters[0] != '\0') {
+      MapCounters(isolate, i::FLAG_map_counters);
+    }
+    // Disable default message reporting.
+    isolate->AddMessageListenerWithErrorLevel(
+        PrintMessageCallback,
+        v8::Isolate::kMessageError | v8::Isolate::kMessageWarning |
+            v8::Isolate::kMessageInfo | v8::Isolate::kMessageDebug |
+            v8::Isolate::kMessageLog);
   }
-  // Disable default message reporting.
-  isolate->AddMessageListenerWithErrorLevel(
-      PrintMessageCallback,
-      v8::Isolate::kMessageError | v8::Isolate::kMessageWarning |
-          v8::Isolate::kMessageInfo | v8::Isolate::kMessageDebug |
-          v8::Isolate::kMessageLog);
+
+  isolate->SetHostImportModuleDynamicallyCallback(
+      Shell::HostImportModuleDynamically);
+  isolate->SetHostInitializeImportMetaObjectCallback(
+      Shell::HostInitializeImportMetaObject);
+
+  debug::SetConsoleDelegate(isolate, console);
 }
 
 Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
@@ -2726,13 +2736,10 @@ void SourceGroup::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   Isolate* isolate = Isolate::New(create_params);
-  isolate->SetHostImportModuleDynamicallyCallback(
-      Shell::HostImportModuleDynamically);
-  isolate->SetHostInitializeImportMetaObjectCallback(
-      Shell::HostInitializeImportMetaObject);
   Shell::SetWaitUntilDone(isolate, false);
   D8Console console(isolate);
-  debug::SetConsoleDelegate(isolate, &console);
+  Shell::Initialize(isolate, &console, false);
+
   for (int i = 0; i < Shell::options.stress_runs; ++i) {
     next_semaphore_.Wait();
     {
@@ -2871,12 +2878,8 @@ void Worker::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   Isolate* isolate = Isolate::New(create_params);
-  isolate->SetHostImportModuleDynamicallyCallback(
-      Shell::HostImportModuleDynamically);
-  isolate->SetHostInitializeImportMetaObjectCallback(
-      Shell::HostInitializeImportMetaObject);
   D8Console console(isolate);
-  debug::SetConsoleDelegate(isolate, &console);
+  Shell::Initialize(isolate, &console, false);
   {
     Isolate::Scope iscope(isolate);
     {
@@ -3727,17 +3730,12 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   Isolate* isolate = Isolate::New(create_params);
-  isolate->SetHostImportModuleDynamicallyCallback(
-      Shell::HostImportModuleDynamically);
-  isolate->SetHostInitializeImportMetaObjectCallback(
-      Shell::HostInitializeImportMetaObject);
 
-  D8Console console(isolate);
   {
+    D8Console console(isolate);
     Isolate::Scope scope(isolate);
-    Initialize(isolate);
+    Initialize(isolate, &console);
     PerIsolateData data(isolate);
-    debug::SetConsoleDelegate(isolate, &console);
 
     if (options.trace_enabled) {
       platform::tracing::TraceConfig* trace_config;
@@ -3789,14 +3787,9 @@ int Shell::Main(int argc, char* argv[]) {
       i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
       Isolate* isolate2 = Isolate::New(create_params);
       i::FLAG_hash_seed ^= 1337;  // Restore old hash seed.
-      isolate2->SetHostImportModuleDynamicallyCallback(
-          Shell::HostImportModuleDynamically);
-      isolate2->SetHostInitializeImportMetaObjectCallback(
-          Shell::HostInitializeImportMetaObject);
       {
         D8Console console(isolate2);
-        Initialize(isolate2);
-        debug::SetConsoleDelegate(isolate2, &console);
+        Initialize(isolate2, &console);
         PerIsolateData data(isolate2);
         Isolate::Scope isolate_scope(isolate2);
 
