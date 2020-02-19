@@ -68,5 +68,11 @@ function testArrayType(arrayType, pattern) {
   testSameOptimized(pattern, create);
 }
 
+var isBigEndian = new Uint8Array(new Uint32Array([0xABCD]).buffer)[0] === 0xAB;
 testArrayType(Float32Array, [1065353216]);
-testArrayType(Float64Array, [0, 1072693248]);
+if (isBigEndian){
+  testArrayType(Float64Array, [1072693248, 0]);
+}
+else {
+  testArrayType(Float64Array, [0, 1072693248]);
+}
