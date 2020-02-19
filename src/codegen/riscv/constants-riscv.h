@@ -299,9 +299,11 @@ const int kImm20Bits = 20;
 // RISCV Instruction bit masks
 const int kBaseOpcodeMask = ((1 << kBaseOpcodeBits) - 1) << kBaseOpcodeShift;
 const int kFunct3Mask = ((1 << kFunct3Bits) - 1) << kFunct3Shift;
+const int kFunct5Mask = ((1 << kFunct5Bits) - 1) << kFunct5Shift;
 const int kFunct7Mask = ((1 << kFunct7Bits) - 1) << kFunct7Shift;
 const int kFunct2Mask = 0b11 << kFunct7Shift;
 const int kRTypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct7Mask;
+const int kRATypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct5Mask;
 const int kR4TypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct2Mask;
 const int kITypeMask = kBaseOpcodeMask | kFunct3Mask;
 const int kSTypeMask = kBaseOpcodeMask | kFunct3Mask;

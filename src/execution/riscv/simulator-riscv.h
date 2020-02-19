@@ -461,7 +461,12 @@ class Simulator : public SimulatorBase {
   T RV_ReadMem(int64_t addr, Instruction* instr);
   template <typename T>
   void RV_WriteMem(int64_t addr, T value, Instruction* instr);
-  int8_t RV_ReadB(int64_t addr);
+  template <typename T, typename OP>
+  T RV_amo(int64_t addr, OP f, Instruction* instr) {
+    auto lhs = RV_ReadMem<T>(addr, instr);
+    RV_WriteMem<T>(addr, (T)f(lhs), instr);
+    return lhs;
+  }
 
   // Helper for debugging memory access.
   inline void DieOrDebug();

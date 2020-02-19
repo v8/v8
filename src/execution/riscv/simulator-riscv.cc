@@ -7468,8 +7468,145 @@ void Simulator::DecodeRVRType() {
     }
 #endif /*V8_TARGET_ARCH_64_BIT*/
        // TODO: End Add RISCV M extension macro
-    default:
-      UNSUPPORTED();
+    default: {
+      // TODO: Add macro for RISCV A extension
+      // Special handling for A extension instructions because it uses func5
+      // For all A extension instruction, V8 simulator is pure sequential. No
+      // Memory address lock or other synchronizaiton behaviors.
+      switch (instr_.InstructionBits() & kRATypeMask) {
+        case RO_LR_W: {
+          set_rd(sext32(ReadMem<int32_t>(rs1(), instr_.instr())));
+          break;
+        }
+        case RO_SC_W: {
+          RV_WriteMem<int32_t>(rs1(), (int32_t)rs2(), instr_.instr());
+          set_rd(0);  // Always success in simulator
+          break;
+        }
+        case RO_AMOSWAP_W: {
+          set_rd(sext32(RV_amo<uint32_t>(
+              rs1(), [&](uint32_t lhs) { return (uint32_t)rs2(); },
+              instr_.instr())));
+          break;
+        }
+        case RO_AMOADD_W: {
+          set_rd(sext32(RV_amo<uint32_t>(
+              rs1(), [&](uint32_t lhs) { return lhs + (uint32_t)rs2(); },
+              instr_.instr())));
+          break;
+        }
+        case RO_AMOXOR_W: {
+          set_rd(sext32(RV_amo<uint32_t>(
+              rs1(), [&](uint32_t lhs) { return lhs ^ (uint32_t)rs2(); },
+              instr_.instr())));
+          break;
+        }
+        case RO_AMOAND_W: {
+          set_rd(sext32(RV_amo<uint32_t>(
+              rs1(), [&](uint32_t lhs) { return lhs & (uint32_t)rs2(); },
+              instr_.instr())));
+          break;
+        }
+        case RO_AMOOR_W: {
+          set_rd(sext32(RV_amo<uint32_t>(
+              rs1(), [&](uint32_t lhs) { return lhs | (uint32_t)rs2(); },
+              instr_.instr())));
+          break;
+        }
+        case RO_AMOMIN_W: {
+          set_rd(sext32(RV_amo<int32_t>(
+              rs1(), [&](int32_t lhs) { return std::min(lhs, (int32_t)rs2()); },
+              instr_.instr())));
+          break;
+        }
+        case RO_AMOMAX_W: {
+          set_rd(sext32(RV_amo<int32_t>(
+              rs1(), [&](int32_t lhs) { return std::max(lhs, (int32_t)rs2()); },
+              instr_.instr())));
+          break;
+        }
+        case RO_AMOMINU_W: {
+          set_rd(sext32(RV_amo<uint32_t>(
+              rs1(),
+              [&](uint32_t lhs) { return std::min(lhs, (uint32_t)rs2()); },
+              instr_.instr())));
+          break;
+        }
+        case RO_AMOMAXU_W: {
+          set_rd(sext32(RV_amo<uint32_t>(
+              rs1(),
+              [&](uint32_t lhs) { return std::max(lhs, (uint32_t)rs2()); },
+              instr_.instr())));
+          break;
+        }
+#ifdef V8_TARGET_ARCH_64_BIT
+        case RO_LR_D: {
+          set_rd(RV_ReadMem<int64_t>(rs1(), instr_.instr()));
+          break;
+        }
+        case RO_SC_D: {
+          RV_WriteMem<int64_t>(rs1(), rs2(), instr_.instr());
+          set_rd(0);  // Always success in simulator
+          break;
+        }
+        case RO_AMOSWAP_D: {
+          set_rd(RV_amo<int64_t>(
+              rs1(), [&](int64_t lhs) { return rs2(); }, instr_.instr()));
+          break;
+        }
+        case RO_AMOADD_D: {
+          set_rd(RV_amo<int64_t>(
+              rs1(), [&](int64_t lhs) { return lhs + rs2(); }, instr_.instr()));
+          break;
+        }
+        case RO_AMOXOR_D: {
+          set_rd(RV_amo<int64_t>(
+              rs1(), [&](int64_t lhs) { return lhs ^ rs2(); }, instr_.instr()));
+          break;
+        }
+        case RO_AMOAND_D: {
+          set_rd(RV_amo<int64_t>(
+              rs1(), [&](int64_t lhs) { return lhs & rs2(); }, instr_.instr()));
+          break;
+        }
+        case RO_AMOOR_D: {
+          set_rd(RV_amo<int64_t>(
+              rs1(), [&](int64_t lhs) { return lhs | rs2(); }, instr_.instr()));
+          break;
+        }
+        case RO_AMOMIN_D: {
+          set_rd(RV_amo<int64_t>(
+              rs1(), [&](int64_t lhs) { return std::min(lhs, rs2()); },
+              instr_.instr()));
+          break;
+        }
+        case RO_AMOMAX_D: {
+          set_rd(RV_amo<int64_t>(
+              rs1(), [&](int64_t lhs) { return std::max(lhs, rs2()); },
+              instr_.instr()));
+          break;
+        }
+        case RO_AMOMINU_D: {
+          set_rd(RV_amo<uint64_t>(
+              rs1(),
+              [&](uint64_t lhs) { return std::min(lhs, (uint64_t)rs2()); },
+              instr_.instr()));
+          break;
+        }
+        case RO_AMOMAXU_D: {
+          set_rd(RV_amo<uint64_t>(
+              rs1(),
+              [&](uint64_t lhs) { return std::max(lhs, (uint64_t)rs2()); },
+              instr_.instr()));
+          break;
+        }
+#endif /*V8_TARGET_ARCH_64_BIT*/
+        // TODO: End Add macro for RISCV A extension
+        default: {
+          UNSUPPORTED();
+        }
+      }
+    }
   }
 }
 
