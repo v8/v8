@@ -40,13 +40,13 @@ class DebugSideTable {
  public:
   class Entry {
    public:
-    // TODO(clemensb): Add |kRegister|.
-    enum ValueKind : int8_t { kConstant, kStack };
+    enum ValueKind : int8_t { kConstant, kRegister, kStack };
     struct Value {
       ValueType type;
       ValueKind kind;
       union {
         int32_t i32_const;  // if kind == kConstant
+        int reg_code;       // if kind == kRegister
         int stack_offset;   // if kind == kStack
       };
     };
@@ -75,9 +75,18 @@ class DebugSideTable {
       return values_[index].kind == kConstant;
     }
 
+    bool is_register(int index) const {
+      return values_[index].kind == kRegister;
+    }
+
     int32_t i32_constant(int index) const {
       DCHECK_EQ(kConstant, values_[index].kind);
       return values_[index].i32_const;
+    }
+
+    int32_t register_code(int index) const {
+      DCHECK_EQ(kRegister, values_[index].kind);
+      return values_[index].reg_code;
     }
 
    private:

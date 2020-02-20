@@ -707,6 +707,23 @@ class DebugInfoImpl {
                        int64_t{debug_side_table_entry->i32_constant(index)});
     }
 
+    if (debug_side_table_entry->is_register(index)) {
+      // TODO(clemensb): Implement by loading from the frame of the
+      // WasmDebugBreak builtin. The current values are just placeholders.
+      switch (type) {
+        case kWasmI32:
+          return WasmValue(int32_t{-11});
+        case kWasmI64:
+          return WasmValue(int64_t{-11});
+        case kWasmF32:
+          return WasmValue(float{-11});
+        case kWasmF64:
+          return WasmValue(double{-11});
+        default:
+          UNIMPLEMENTED();
+      }
+    }
+
     // Otherwise load the value from the stack.
     Address stack_address =
         stack_frame_base - debug_side_table_entry->stack_offset(index);

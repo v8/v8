@@ -222,7 +222,8 @@ class TestingModuleBuilder {
 
   void SetExecutable() { native_module_->SetExecutable(true); }
 
-  CompilationEnv CreateCompilationEnv();
+  enum AssumeDebugging : bool { kDebug = true, kNoDebug = false };
+  CompilationEnv CreateCompilationEnv(AssumeDebugging = kNoDebug);
 
   ExecutionTier execution_tier() const { return execution_tier_; }
 

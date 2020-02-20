@@ -305,14 +305,18 @@ uint32_t TestingModuleBuilder::AddPassiveElementSegment(
   return index;
 }
 
-CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
+CompilationEnv TestingModuleBuilder::CreateCompilationEnv(
+    AssumeDebugging debug) {
   // This is a hack so we don't need to call
   // trap_handler::IsTrapHandlerEnabled().
   const bool is_trap_handler_enabled =
       V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler;
   return {test_module_ptr_,
           is_trap_handler_enabled ? kUseTrapHandler : kNoTrapHandler,
-          runtime_exception_support_, enabled_features_, lower_simd()};
+          runtime_exception_support_,
+          enabled_features_,
+          lower_simd(),
+          debug};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {

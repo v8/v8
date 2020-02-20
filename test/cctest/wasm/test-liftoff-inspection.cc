@@ -64,23 +64,29 @@ class LiftoffCompileEnvironment {
   std::unique_ptr<DebugSideTable> GenerateDebugSideTable(
       std::initializer_list<ValueType> return_types,
       std::initializer_list<ValueType> param_types,
-      std::initializer_list<uint8_t> raw_function_bytes) {
+      std::initializer_list<uint8_t> raw_function_bytes,
+      std::vector<int> breakpoints = {}) {
     auto test_func = AddFunction(return_types, param_types, raw_function_bytes);
 
-    CompilationEnv env = module_builder_.CreateCompilationEnv();
-    std::unique_ptr<DebugSideTable> debug_side_table =
-        GenerateLiftoffDebugSideTable(CcTest::i_isolate()->allocator(), &env,
-                                      test_func.body);
-    // Check that {ExecuteLiftoffCompilation} provides the same debug side
-    // table.
+    CompilationEnv env = module_builder_.CreateCompilationEnv(
+        breakpoints.empty() ? TestingModuleBuilder::kNoDebug
+                            : TestingModuleBuilder::kDebug);
     WasmFeatures detected;
     std::unique_ptr<DebugSideTable> debug_side_table_via_compilation;
-    ExecuteLiftoffCompilation(CcTest::i_isolate()->allocator(), &env,
-                              test_func.body, 0, nullptr, &detected, {},
-                              &debug_side_table_via_compilation);
-    CheckTableEquals(*debug_side_table, *debug_side_table_via_compilation);
+    ExecuteLiftoffCompilation(
+        CcTest::i_isolate()->allocator(), &env, test_func.body, 0, nullptr,
+        &detected, VectorOf(breakpoints), &debug_side_table_via_compilation);
 
-    return debug_side_table;
+    // If there are no breakpoint, then {ExecuteLiftoffCompilation} should
+    // provide the same debug side table.
+    if (breakpoints.empty()) {
+      std::unique_ptr<DebugSideTable> debug_side_table =
+          GenerateLiftoffDebugSideTable(CcTest::i_isolate()->allocator(), &env,
+                                        test_func.body);
+      CheckTableEquals(*debug_side_table, *debug_side_table_via_compilation);
+    }
+
+    return debug_side_table_via_compilation;
   }
 
  private:
@@ -107,6 +113,9 @@ class LiftoffCompileEnvironment {
     switch (a.kind) {
       case DebugSideTable::Entry::kConstant:
         CHECK_EQ(a.i32_const, b.i32_const);
+        break;
+      case DebugSideTable::Entry::kRegister:
+        CHECK_EQ(a.reg_code, b.reg_code);
         break;
       case DebugSideTable::Entry::kStack:
         CHECK_EQ(a.stack_offset, b.stack_offset);
@@ -196,10 +205,16 @@ std::ostream& operator<<(std::ostream& out, const DebugSideTableEntry& entry) {
   const char* comma = "";
   for (auto& v : entry.values) {
     out << comma << ValueTypes::TypeName(v.type) << " ";
-    if (v.kind == DebugSideTable::Entry::kConstant) {
-      out << "const:" << v.i32_const;
-    } else {
-      out << "stack";
+    switch (v.kind) {
+      case DebugSideTable::Entry::kConstant:
+        out << "const:" << v.i32_const;
+        break;
+      case DebugSideTable::Entry::kRegister:
+        out << "reg";
+        break;
+      case DebugSideTable::Entry::kStack:
+        out << "stack";
+        break;
     }
     comma = ", ";
   }
@@ -218,6 +233,12 @@ DebugSideTable::Entry::Value Constant(ValueType type, int32_t constant) {
   value.type = type;
   value.kind = DebugSideTable::Entry::kConstant;
   value.i32_const = constant;
+  return value;
+}
+DebugSideTable::Entry::Value Register(ValueType type) {
+  DebugSideTable::Entry::Value value;
+  value.type = type;
+  value.kind = DebugSideTable::Entry::kRegister;
   return value;
 }
 DebugSideTable::Entry::Value Stack(ValueType type) {
@@ -374,6 +395,29 @@ TEST(Liftoff_debug_side_table_trap) {
           // OOL trap (div by zero), locals spilled, stack empty.
           {Stack(kWasmI32), Stack(kWasmI32)},
           // OOL trap (result unrepresentable), locals spilled, stack empty.
+          {Stack(kWasmI32), Stack(kWasmI32)},
+      },
+      debug_side_table.get());
+}
+
+TEST(Liftoff_breakpoint_simple) {
+  LiftoffCompileEnvironment env;
+  // Set two breakpoints. At both locations, values are live in registers.
+  auto debug_side_table = env.GenerateDebugSideTable(
+      {kWasmI32}, {kWasmI32, kWasmI32},
+      {WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))},
+      {
+          1,  // break at beginning of function (first local.get)
+          5   // break at i32.add
+      });
+  CheckDebugSideTable(
+      {
+          // First break point, locals in registers.
+          {Register(kWasmI32), Register(kWasmI32)},
+          // Second break point, locals and two stack values in registers.
+          {Register(kWasmI32), Register(kWasmI32), Register(kWasmI32),
+           Register(kWasmI32)},
+          // OOL stack check, locals spilled, stack empty.
           {Stack(kWasmI32), Stack(kWasmI32)},
       },
       debug_side_table.get());

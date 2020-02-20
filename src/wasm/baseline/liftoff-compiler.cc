@@ -155,6 +155,17 @@ constexpr Condition GetCompareCondition(WasmOpcode opcode) {
 // Builds a {DebugSideTable}.
 class DebugSideTableBuilder {
  public:
+  enum AssumeSpilling {
+    // All register values will be spilled before the pc covered by the debug
+    // side table entry. Register slots will be marked as stack slots in the
+    // generated debug side table entry.
+    kAssumeSpilling,
+    // Register slots will be written out as they are.
+    kAllowRegisters,
+    // Register slots cannot appear since we already spilled.
+    kDidSpill
+  };
+
   class EntryBuilder {
    public:
     explicit EntryBuilder(int pc_offset,
@@ -176,7 +187,8 @@ class DebugSideTableBuilder {
   // Adds a new entry, and returns a pointer to a builder for modifying that
   // entry ({stack_height} includes {num_locals}).
   EntryBuilder* NewEntry(int pc_offset, int num_locals, int stack_height,
-                         LiftoffAssembler::VarState* stack_state) {
+                         LiftoffAssembler::VarState* stack_state,
+                         AssumeSpilling assume_spilling) {
     DCHECK_LE(num_locals, stack_height);
     // Record stack types.
     std::vector<DebugSideTable::Entry::Value> values(stack_height);
@@ -184,12 +196,25 @@ class DebugSideTableBuilder {
       const auto& slot = stack_state[i];
       values[i].type = slot.type();
       values[i].stack_offset = slot.offset();
-      if (slot.is_const()) {
-        values[i].kind = DebugSideTable::Entry::kConstant;
-        values[i].i32_const = slot.i32_const();
-      } else {
-        values[i].kind = DebugSideTable::Entry::kStack;
-        values[i].stack_offset = slot.offset();
+      switch (slot.loc()) {
+        case kIntConst:
+          values[i].kind = DebugSideTable::Entry::kConstant;
+          values[i].i32_const = slot.i32_const();
+          break;
+        case kRegister:
+          DCHECK_NE(kDidSpill, assume_spilling);
+          if (assume_spilling == kAllowRegisters) {
+            values[i].kind = DebugSideTable::Entry::kRegister;
+            values[i].reg_code =
+                slot.is_fp_reg() ? slot.fp_reg().code() : slot.gp_reg().code();
+            break;
+          }
+          DCHECK_EQ(kAssumeSpilling, assume_spilling);
+          V8_FALLTHROUGH;
+        case kStack:
+          values[i].kind = DebugSideTable::Entry::kStack;
+          values[i].stack_offset = slot.offset();
+          break;
       }
     }
     entries_.emplace_back(pc_offset, std::move(values));
@@ -463,9 +488,9 @@ class LiftoffCompiler {
 
   void StackCheck(WasmCodePosition position) {
     if (!FLAG_wasm_stack_checks || !env_->runtime_exception_support) return;
-    out_of_line_code_.push_back(
-        OutOfLineCode::StackCheck(position, __ cache_state()->used_registers,
-                                  RegisterDebugSideTableEntry()));
+    out_of_line_code_.push_back(OutOfLineCode::StackCheck(
+        position, __ cache_state()->used_registers,
+        RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling)));
     OutOfLineCode& ool = out_of_line_code_.back();
     Register limit_address = __ GetUnusedRegister(kGpReg).gp();
     LOAD_INSTANCE_FIELD(limit_address, StackLimitAddress, kSystemPointerSize);
@@ -651,7 +676,7 @@ class LiftoffCompiler {
     // installing a new Liftoff code object.
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), false);
-    RegisterDebugSideTableEntry();
+    RegisterDebugSideTableEntry(DebugSideTableBuilder::kAllowRegisters);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
   }
 
@@ -1706,8 +1731,9 @@ class LiftoffCompiler {
     DCHECK_EQ(pc != 0, stub == WasmCode::kThrowWasmTrapMemOutOfBounds &&
                            env_->use_trap_handler);
 
-    out_of_line_code_.push_back(
-        OutOfLineCode::Trap(stub, position, pc, RegisterDebugSideTableEntry()));
+    out_of_line_code_.push_back(OutOfLineCode::Trap(
+        stub, position, pc,
+        RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling)));
     return out_of_line_code_.back().label.get();
   }
 
@@ -1970,7 +1996,7 @@ class LiftoffCompiler {
     if (input.gp() != param_reg) __ Move(param_reg, input.gp(), kWasmI32);
 
     __ CallRuntimeStub(WasmCode::kWasmMemoryGrow);
-    RegisterDebugSideTableEntry();
+    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     if (kReturnRegister0 != result.gp()) {
@@ -1980,12 +2006,13 @@ class LiftoffCompiler {
     __ PushRegister(kWasmI32, result);
   }
 
-  DebugSideTableBuilder::EntryBuilder* RegisterDebugSideTableEntry() {
+  DebugSideTableBuilder::EntryBuilder* RegisterDebugSideTableEntry(
+      DebugSideTableBuilder::AssumeSpilling assume_spilling) {
     if (V8_LIKELY(!debug_sidetable_builder_)) return nullptr;
     int stack_height = static_cast<int>(__ cache_state()->stack_height());
     return debug_sidetable_builder_->NewEntry(
         __ pc_offset(), __ num_locals(), stack_height,
-        __ cache_state()->stack_state.begin());
+        __ cache_state()->stack_state.begin(), assume_spilling);
   }
 
   void CallDirect(FullDecoder* decoder,
@@ -2050,7 +2077,7 @@ class LiftoffCompiler {
           __ pc_offset(), SourcePosition(decoder->position()), false);
     }
 
-    RegisterDebugSideTableEntry();
+    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     __ FinishCall(imm.sig, call_descriptor);
@@ -2190,7 +2217,7 @@ class LiftoffCompiler {
           __ pc_offset(), SourcePosition(decoder->position()), false);
     }
 
-    RegisterDebugSideTableEntry();
+    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     __ FinishCall(imm.sig, call_descriptor);
