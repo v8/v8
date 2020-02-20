@@ -4129,7 +4129,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
 
 TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
     TNode<FixedArrayBase> from_array, Node* first, Node* count, Node* capacity,
-    Node* fixed_array_map, TVariable<BoolT>* var_holes_converted,
+    TNode<Map> fixed_array_map, TVariable<BoolT>* var_holes_converted,
     AllocationFlags allocation_flags, ExtractFixedArrayFlags extract_flags,
     ParameterMode mode) {
   DCHECK_NE(first, nullptr);
@@ -4181,7 +4181,7 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
         IntPtrSub(var_from_offset.value(), IntPtrConstant(kDoubleSize));
     var_from_offset = from_offset;
 
-    Node* to_offset = from_offset;
+    TNode<IntPtrT> to_offset = from_offset;
 
     Label if_hole(this);
 
@@ -8471,7 +8471,7 @@ void CodeStubAssembler::TryLookupPropertyInSimpleObject(
 }
 
 void CodeStubAssembler::TryLookupProperty(
-    SloppyTNode<JSReceiver> object, SloppyTNode<Map> map,
+    SloppyTNode<HeapObject> object, SloppyTNode<Map> map,
     SloppyTNode<Int32T> instance_type, SloppyTNode<Name> unique_name,
     Label* if_found_fast, Label* if_found_dict, Label* if_found_global,
     TVariable<HeapObject>* var_meta_storage, TVariable<IntPtrT>* var_name_index,
@@ -8495,7 +8495,7 @@ void CodeStubAssembler::TryLookupProperty(
                Map::Bits1::IsAccessCheckNeededBit::kMask;
     GotoIf(IsSetWord32(bit_field, mask), if_bailout);
 
-    TNode<GlobalDictionary> dictionary = CAST(LoadSlowProperties(object));
+    TNode<GlobalDictionary> dictionary = CAST(LoadSlowProperties(CAST(object)));
     *var_meta_storage = dictionary;
 
     NameDictionaryLookup<GlobalDictionary>(
@@ -8503,13 +8503,14 @@ void CodeStubAssembler::TryLookupProperty(
   }
 }
 
-void CodeStubAssembler::TryHasOwnProperty(Node* object, Node* map,
-                                          Node* instance_type,
-                                          Node* unique_name, Label* if_found,
-                                          Label* if_not_found,
+void CodeStubAssembler::TryHasOwnProperty(TNode<HeapObject> object,
+                                          TNode<Map> map,
+                                          TNode<Int32T> instance_type,
+                                          TNode<Name> unique_name,
+                                          Label* if_found, Label* if_not_found,
                                           Label* if_bailout) {
   Comment("TryHasOwnProperty");
-  CSA_ASSERT(this, IsUniqueNameNoCachedIndex(CAST(unique_name)));
+  CSA_ASSERT(this, IsUniqueNameNoCachedIndex(unique_name));
   TVARIABLE(HeapObject, var_meta_storage);
   TVARIABLE(IntPtrT, var_name_index);
 
@@ -8706,7 +8707,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
   {
     if (mode == kCallJSGetter) {
       Label if_callable(this), if_function_template_info(this);
-      Node* accessor_pair = value;
+      TNode<AccessorPair> accessor_pair = CAST(value);
       TNode<HeapObject> getter =
           CAST(LoadObjectField(accessor_pair, AccessorPair::kGetterOffset));
       TNode<Map> getter_map = LoadMap(getter);
@@ -9970,8 +9971,8 @@ void CodeStubAssembler::EmitElementStore(
         IsNonextensibleElementsKind(elements_kind))) {
     CSA_ASSERT(this, Word32BinaryNot(IsFixedCOWArrayMap(LoadMap(elements))));
   } else if (IsCOWHandlingStoreMode(store_mode)) {
-    elements = CAST(CopyElementsOnWrite(object, elements, elements_kind, length,
-                                        parameter_mode, bailout));
+    elements = CopyElementsOnWrite(object, elements, elements_kind, length,
+                                   parameter_mode, bailout);
   }
 
   CSA_ASSERT(this, Word32BinaryNot(IsFixedCOWArrayMap(LoadMap(elements))));
@@ -10045,11 +10046,9 @@ Node* CodeStubAssembler::CheckForCapacityGrow(
   return checked_elements.value();
 }
 
-Node* CodeStubAssembler::CopyElementsOnWrite(TNode<HeapObject> object,
-                                             TNode<FixedArrayBase> elements,
-                                             ElementsKind kind, Node* length,
-                                             ParameterMode mode,
-                                             Label* bailout) {
+TNode<FixedArrayBase> CodeStubAssembler::CopyElementsOnWrite(
+    TNode<HeapObject> object, TNode<FixedArrayBase> elements, ElementsKind kind,
+    Node* length, ParameterMode mode, Label* bailout) {
   TVARIABLE(FixedArrayBase, new_elements_var, elements);
   Label done(this);
 
@@ -12170,7 +12169,7 @@ TNode<Oddball> CodeStubAssembler::InstanceOf(TNode<Object> object,
     GotoIf(IsUndefined(inst_of_handler), &if_nohandler);
 
     // Call the {inst_of_handler} for {callable} and {object}.
-    Node* result = Call(context, inst_of_handler, callable, object);
+    TNode<Object> result = Call(context, inst_of_handler, callable, object);
 
     // Convert the {result} to a Boolean.
     BranchIfToBooleanIsTrue(result, &return_true, &return_false);
@@ -12885,53 +12884,50 @@ TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
   return CAST(fun);
 }
 
-void CodeStubAssembler::CheckPrototypeEnumCache(Node* receiver,
-                                                Node* receiver_map,
+void CodeStubAssembler::CheckPrototypeEnumCache(TNode<JSReceiver> receiver,
+                                                TNode<Map> receiver_map,
                                                 Label* if_fast,
                                                 Label* if_slow) {
-  VARIABLE(var_object, MachineRepresentation::kTagged, receiver);
-  VARIABLE(var_object_map, MachineRepresentation::kTagged, receiver_map);
+  TVARIABLE(JSReceiver, var_object, receiver);
+  TVARIABLE(Map, object_map, receiver_map);
 
-  Label loop(this, {&var_object, &var_object_map}), done_loop(this);
+  Label loop(this, {&var_object, &object_map}), done_loop(this);
   Goto(&loop);
   BIND(&loop);
   {
-    // Check that there are no elements on the current {object}.
+    // Check that there are no elements on the current {var_object}.
     Label if_no_elements(this);
-    Node* object = var_object.value();
-    Node* object_map = var_object_map.value();
 
     // The following relies on the elements only aliasing with JSProxy::target,
-    // which is a Javascript value and hence cannot be confused with an elements
+    // which is a JavaScript value and hence cannot be confused with an elements
     // backing store.
     STATIC_ASSERT(static_cast<int>(JSObject::kElementsOffset) ==
                   static_cast<int>(JSProxy::kTargetOffset));
     TNode<Object> object_elements =
-        LoadObjectField(object, JSObject::kElementsOffset);
+        LoadObjectField(var_object.value(), JSObject::kElementsOffset);
     GotoIf(IsEmptyFixedArray(object_elements), &if_no_elements);
     GotoIf(IsEmptySlowElementDictionary(object_elements), &if_no_elements);
 
     // It might still be an empty JSArray.
-    GotoIfNot(IsJSArrayMap(object_map), if_slow);
-    TNode<Number> object_length = LoadJSArrayLength(CAST(object));
+    GotoIfNot(IsJSArrayMap(object_map.value()), if_slow);
+    TNode<Number> object_length = LoadJSArrayLength(CAST(var_object.value()));
     Branch(TaggedEqual(object_length, SmiConstant(0)), &if_no_elements,
            if_slow);
 
-    // Continue with the {object}s prototype.
+    // Continue with {var_object}'s prototype.
     BIND(&if_no_elements);
-    object = LoadMapPrototype(object_map);
+    TNode<HeapObject> object = LoadMapPrototype(object_map.value());
     GotoIf(IsNull(object), if_fast);
 
     // For all {object}s but the {receiver}, check that the cache is empty.
-    var_object.Bind(object);
+    var_object = CAST(object);
     object_map = LoadMap(object);
-    var_object_map.Bind(object_map);
-    TNode<WordT> object_enum_length = LoadMapEnumLength(object_map);
+    TNode<WordT> object_enum_length = LoadMapEnumLength(object_map.value());
     Branch(WordEqual(object_enum_length, IntPtrConstant(0)), &loop, if_slow);
   }
 }
 
-TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<HeapObject> receiver,
+TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<JSReceiver> receiver,
                                              Label* if_empty,
                                              Label* if_runtime) {
   Label if_fast(this), if_cache(this), if_no_cache(this, Label::kDeferred);
@@ -12949,7 +12945,7 @@ TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<HeapObject> receiver,
     // Avoid runtime-call for empty dictionary receivers.
     GotoIfNot(IsDictionaryMap(receiver_map), if_runtime);
     TNode<HashTableBase> properties =
-        UncheckedCast<HashTableBase>(LoadSlowProperties(CAST(receiver)));
+        UncheckedCast<HashTableBase>(LoadSlowProperties(receiver));
     CSA_ASSERT(this, Word32Or(IsNameDictionary(properties),
                               IsGlobalDictionary(properties)));
     STATIC_ASSERT(static_cast<int>(NameDictionary::kNumberOfElementsIndex) ==

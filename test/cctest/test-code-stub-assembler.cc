@@ -1209,8 +1209,8 @@ TEST(TryHasOwnProperty) {
 
   enum Result { kFound, kNotFound, kBailout };
   {
-    Node* object = m.Parameter(0);
-    Node* unique_name = m.Parameter(1);
+    TNode<HeapObject> object = m.CAST(m.Parameter(0));
+    TNode<Name> unique_name = m.CAST(m.Parameter(1));
     TNode<MaybeObject> expected_result =
         m.UncheckedCast<MaybeObject>(m.Parameter(2));
 

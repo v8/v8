@@ -2276,7 +2276,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // |capacity|.
   TNode<FixedArrayBase> ExtractFixedDoubleArrayFillingHoles(
       TNode<FixedArrayBase> source, Node* first, Node* count, Node* capacity,
-      Node* source_map, TVariable<BoolT>* var_holes_converted,
+      TNode<Map> source_map, TVariable<BoolT>* var_holes_converted,
       AllocationFlags allocation_flags,
       ExtractFixedArrayFlags extract_flags =
           ExtractFixedArrayFlag::kAllFixedArrays,
@@ -3098,9 +3098,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
            Label* bailout);
 
   // Tries to check if {object} has own {unique_name} property.
-  void TryHasOwnProperty(Node* object, Node* map, Node* instance_type,
-                         Node* unique_name, Label* if_found,
-                         Label* if_not_found, Label* if_bailout);
+  void TryHasOwnProperty(TNode<HeapObject> object, TNode<Map> map,
+                         TNode<Int32T> instance_type, TNode<Name> unique_name,
+                         Label* if_found, Label* if_not_found,
+                         Label* if_bailout);
 
   // Operating mode for TryGetOwnProperty and CallGetterIfAccessor
   // kReturnAccessorPair is used when we're only getting the property descriptor
@@ -3199,7 +3200,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   //
   // Note: this code does not check if the global dictionary points to deleted
   // entry! This has to be done by the caller.
-  void TryLookupProperty(SloppyTNode<JSReceiver> object, SloppyTNode<Map> map,
+  void TryLookupProperty(SloppyTNode<HeapObject> object, SloppyTNode<Map> map,
                          SloppyTNode<Int32T> instance_type,
                          SloppyTNode<Name> unique_name, Label* if_found_fast,
                          Label* if_found_dict, Label* if_found_global,
@@ -3357,9 +3358,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                              TNode<UintPtrT> length, TNode<IntPtrT> key,
                              Label* bailout);
 
-  Node* CopyElementsOnWrite(TNode<HeapObject> object,
-                            TNode<FixedArrayBase> elements, ElementsKind kind,
-                            Node* length, ParameterMode mode, Label* bailout);
+  TNode<FixedArrayBase> CopyElementsOnWrite(TNode<HeapObject> object,
+                                            TNode<FixedArrayBase> elements,
+                                            ElementsKind kind, Node* length,
+                                            ParameterMode mode, Label* bailout);
 
   void TransitionElementsKind(TNode<JSObject> object, TNode<Map> map,
                               ElementsKind from_kind, ElementsKind to_kind,
@@ -3619,9 +3621,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate();
 
   // for..in helpers
-  void CheckPrototypeEnumCache(Node* receiver, Node* receiver_map,
-                               Label* if_fast, Label* if_slow);
-  TNode<Map> CheckEnumCache(TNode<HeapObject> receiver, Label* if_empty,
+  void CheckPrototypeEnumCache(TNode<JSReceiver> receiver,
+                               TNode<Map> receiver_map, Label* if_fast,
+                               Label* if_slow);
+  TNode<Map> CheckEnumCache(TNode<JSReceiver> receiver, Label* if_empty,
                             Label* if_runtime);
 
   TNode<Object> GetArgumentValue(TorqueStructArguments args,

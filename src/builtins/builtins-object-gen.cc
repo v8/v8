@@ -380,7 +380,9 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   Branch(TaggedIsSmi(object), &to_primitive, &if_objectisnotsmi);
   BIND(&if_objectisnotsmi);
 
-  TNode<Map> map = LoadMap(CAST(object));
+  TNode<HeapObject> heap_object = CAST(object);
+
+  TNode<Map> map = LoadMap(heap_object);
   TNode<Uint16T> instance_type = LoadMapInstanceType(map);
 
   {
@@ -393,12 +395,12 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
               &call_runtime, &if_notunique_name);
 
     BIND(&if_unique_name);
-    TryHasOwnProperty(object, map, instance_type, var_unique.value(),
+    TryHasOwnProperty(heap_object, map, instance_type, var_unique.value(),
                       &return_true, &return_false, &call_runtime);
 
     BIND(&if_index);
     {
-      TryLookupElement(CAST(object), map, instance_type, var_index.value(),
+      TryLookupElement(heap_object, map, instance_type, var_index.value(),
                        &return_true, &return_false, &return_false,
                        &call_runtime);
     }

@@ -617,9 +617,9 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
       Label found(this), found_fast(this), found_dict(this), found_global(this);
       TVARIABLE(HeapObject, var_meta_storage);
       TVARIABLE(IntPtrT, var_entry);
-      TryLookupProperty(CAST(holder), holder_map, instance_type, name,
-                        &found_fast, &found_dict, &found_global,
-                        &var_meta_storage, &var_entry, &next_proto, bailout);
+      TryLookupProperty(holder, holder_map, instance_type, name, &found_fast,
+                        &found_dict, &found_global, &var_meta_storage,
+                        &var_entry, &next_proto, bailout);
       BIND(&found_fast);
       {
         TNode<DescriptorArray> descriptors = CAST(var_meta_storage.value());

@@ -766,7 +766,7 @@ TF_BUILTIN(SetDataProperties, SetOrCopyDataPropertiesAssembler) {
 }
 
 TF_BUILTIN(ForInEnumerate, CodeStubAssembler) {
-  TNode<HeapObject> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<JSReceiver> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Label if_empty(this), if_runtime(this, Label::kDeferred);
