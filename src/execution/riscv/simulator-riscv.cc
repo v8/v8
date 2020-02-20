@@ -7626,25 +7626,36 @@ void Simulator::DecodeRVRFPType() {
   switch (instr_.InstructionBits() & kRFPTypeMask) {
     // TODO: Add macro for RISCV F extension
     case RO_FADD_S: {
+      // TODO: use rm value (round mode)
+      set_frd(frs1() + frs2());
       break;
     }
     case RO_FSUB_S: {
+      // TODO: use rm value (round mode)
+      set_frd(frs1() - frs2());
       break;
     }
     case RO_FMUL_S: {
+      // TODO: use rm value (round mode)
+      set_frd(frs1() * frs2());
       break;
     }
     case RO_FDIV_S: {
+      // TODO: use rm value (round mode)
+      set_frd(frs1() / frs2());
       break;
     }
     case RO_FSQRT_S: {
       if (instr_.Rs2Value() == 0b00000) {
+        // TODO: use rm value (round mode)
+        set_frd(std::sqrt(frs1()));
       } else {
         UNSUPPORTED();
       }
       break;
     }
     case RO_FSGNJ_S: {  // RO_FSGNJN_S  RO_FSQNJX_S
+      UNSUPPORTED();
       switch (instr_.Funct3Value()) {
         case 0b000: {  // RO_FSGNJ_S
           break;
@@ -7664,9 +7675,11 @@ void Simulator::DecodeRVRFPType() {
     case RO_FMIN_S: {  // RO_FMAX_S
       switch (instr_.Funct3Value()) {
         case 0b000: {  // RO_FMIN_S
+          set_frd(std::min(frs1(), frs2()));
           break;
         }
         case 0b001: {  // RO_FMAX_S
+          set_frd(std::max(frs1(), frs2()));
           break;
         }
         default: {
@@ -7678,16 +7691,20 @@ void Simulator::DecodeRVRFPType() {
     case RO_FCVT_W_S: {  // RO_FCVT_WU_S , 64F RO_FCVT_L_S RO_FCVT_LU_S
       switch (instr_.Rs2Value()) {
         case 0b00000: {  // RO_FCVT_W_S
+          set_rd((int32_t)frs1());
           break;
         }
         case 0b00001: {  // RO_FCVT_WU_S
+          set_rd((uint32_t)frs1());
           break;
         }
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b00010: {  // RO_FCVT_L_S
+          set_rd((int64_t)frs1());
           break;
         }
         case 0b00011: {  // RO_FCVT_LU_S
+          set_rd((uint64_t)frs1());
           break;
         }
 #endif /* V8_TARGET_ARCH_64_BIT */
@@ -7701,13 +7718,15 @@ void Simulator::DecodeRVRFPType() {
       switch (instr_.Funct3Value()) {
         case 0b000: {
           if (instr_.Rs2Value() == 0b00000) {
-            // RO_FMV
+            // RO_FMW_X_W
+            set_rd(bit_cast<uint32_t>(frs1()));
           } else {
             UNSUPPORTED();
           }
           break;
         }
         case 0b001: {  // RO_FCLASS_S
+          UNSUPPORTED();
           break;
         }
         default: {
@@ -7719,12 +7738,15 @@ void Simulator::DecodeRVRFPType() {
     case RO_FLE_S: {  // RO_FEQ_S RO_FLT_S RO_FLE_S
       switch (instr_.Funct3Value()) {
         case 0b010: {  // RO_FEQ_S
+          set_rd(frs1() == frs2() ? 1 : 0);
           break;
         }
         case 0b001: {  // RO_FLT_S
+          set_rd(frs1() < frs2() ? 1 : 0);
           break;
         }
         case 0b000: {  // RO_FLE_S
+          set_rd(frs1() <= frs2() ? 1 : 0);
           break;
         }
         default: {
@@ -7736,16 +7758,20 @@ void Simulator::DecodeRVRFPType() {
     case RO_FCVT_S_W: {  // RO_FCVT_S_WU , 64F RO_FCVT_S_L RO_FCVT_S_LU
       switch (instr_.Rs2Value()) {
         case 0b00000: {  // RO_FCVT_S_W
+          set_frd((float)(int32_t)rs1());
           break;
         }
         case 0b00001: {  // RO_FCVT_S_WU
+          set_frd((float)(uint32_t)rs1());
           break;
         }
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b00010: {  // RO_FCVT_S_L
+          set_frd((float)(int64_t)rs1());
           break;
         }
         case 0b00011: {  // RO_FCVT_S_LU
+          set_frd((float)(uint64_t)rs1());
           break;
         }
 #endif /* V8_TARGET_ARCH_64_BIT */
@@ -7757,6 +7783,7 @@ void Simulator::DecodeRVRFPType() {
     }
     case RO_FMV_W_X: {
       if (instr_.Funct3Value() == 0b000) {
+        set_frd(bit_cast<float>((uint32_t)rs1()));
       } else {
         UNSUPPORTED();
       }
@@ -7764,25 +7791,36 @@ void Simulator::DecodeRVRFPType() {
     }
       // TODO: Add macro for RISCV D extension
     case RO_FADD_D: {
+      // TODO: use rm value (round mode)
+      set_drd(drs1() + drs2());
       break;
     }
     case RO_FSUB_D: {
+      // TODO: use rm value (round mode)
+      set_drd(drs1() - drs2());
       break;
     }
     case RO_FMUL_D: {
+      // TODO: use rm value (round mode)
+      set_drd(drs1() * drs2());
       break;
     }
     case RO_FDIV_D: {
+      // TODO: use rm value (round mode)
+      set_drd(drs1() / drs2());
       break;
     }
     case RO_FSQRT_D: {
       if (instr_.Rs2Value() == 0b00000) {
+        // TODO: use rm value (round mode)
+        set_drd(std::sqrt(drs1()));
       } else {
         UNSUPPORTED();
       }
       break;
     }
     case RO_FSGNJ_D: {  // RO_FSGNJN_D RO_FSQNJX_D
+      UNSUPPORTED();
       switch (instr_.Funct3Value()) {
         case 0b000: {  // RO_FSGNJ_D
           break;
@@ -7802,9 +7840,11 @@ void Simulator::DecodeRVRFPType() {
     case RO_FMIN_D: {  // RO_FMAX_D
       switch (instr_.Funct3Value()) {
         case 0b000: {  // RO_FMIN_D
+          set_drd(std::min(drs1(), drs2()));
           break;
         }
         case 0b001: {  // RO_FMAX_D
+          set_drd(std::max(drs1(), drs2()));
           break;
         }
         default: {
@@ -7815,6 +7855,7 @@ void Simulator::DecodeRVRFPType() {
     }
     case (RO_FCVT_S_D & kRFPTypeMask): {
       if (instr_.Rs2Value() == 0b00001) {
+        set_frd((float)drs1());
       } else {
         UNSUPPORTED();
       }
@@ -7822,6 +7863,7 @@ void Simulator::DecodeRVRFPType() {
     }
     case RO_FCVT_D_S: {
       if (instr_.Rs2Value() == 0b00000) {
+        set_drd((double)frs1());
       } else {
         UNSUPPORTED();
       }
@@ -7830,12 +7872,15 @@ void Simulator::DecodeRVRFPType() {
     case RO_FLE_D: {  // RO_FEQ_D RO_FLT_D RO_FLE_D
       switch (instr_.Funct3Value()) {
         case 0b010: {  // RO_FEQ_S
+          set_rd(drs1() == drs2() ? 1 : 0);
           break;
         }
         case 0b001: {  // RO_FLT_D
+          set_rd(drs1() < drs2() ? 1 : 0);
           break;
         }
         case 0b000: {  // RO_FLE_D
+          set_rd(drs1() <= drs2() ? 1 : 0);
           break;
         }
         default: {
@@ -7851,10 +7896,12 @@ void Simulator::DecodeRVRFPType() {
       }
       switch (instr_.Funct3Value()) {
         case 0b001: {  // RO_FCLASS_D
+          UNSUPPORTED();
           break;
         }
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b000: {  // RO_FMV_X_D
+          set_rd(bit_cast<int64_t>(drs1()));
           break;
         }
 #endif /* V8_TARGET_ARCH_64_BIT */
@@ -7867,16 +7914,20 @@ void Simulator::DecodeRVRFPType() {
     case RO_FCVT_W_D: {  // RO_FCVT_WU_D , 64F RO_FCVT_L_D RO_FCVT_LU_D
       switch (instr_.Rs2Value()) {
         case 0b00000: {  // RO_FCVT_W_D
+          set_rd((int32_t)drs1());
           break;
         }
         case 0b00001: {  // RO_FCVT_WU_D
+          set_rd((uint32_t)drs1());
           break;
         }
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b00010: {  // RO_FCVT_L_D
+          set_rd((int64_t)drs1());
           break;
         }
         case 0b00011: {  // RO_FCVT_LU_D
+          set_rd((uint64_t)drs1());
           break;
         }
 #endif /* V8_TARGET_ARCH_64_BIT */
@@ -7889,16 +7940,20 @@ void Simulator::DecodeRVRFPType() {
     case RO_FCVT_D_W: {  // RO_FCVT_D_WU , 64F RO_FCVT_D_L RO_FCVT_D_LU
       switch (instr_.Rs2Value()) {
         case 0b00000: {  // RO_FCVT_D_W
+          set_drd((int32_t)rs1());
           break;
         }
         case 0b00001: {  // RO_FCVT_D_WU
+          set_drd((uint32_t)rs1());
           break;
         }
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b00010: {  // RO_FCVT_D_L
+          set_drd((int64_t)rs1());
           break;
         }
         case 0b00011: {  // RO_FCVT_D_LU
+          set_drd((uint64_t)rs1());
           break;
         }
 #endif /* V8_TARGET_ARCH_64_BIT */
@@ -7911,6 +7966,7 @@ void Simulator::DecodeRVRFPType() {
 #ifdef V8_TARGET_ARCH_64_BIT
     case RO_FMV_D_X: {
       if (instr_.Funct3Value() == 0b000 && instr_.Rs2Value() == 0b00000) {
+        set_drd(bit_cast<double>(rs1()));
       } else {
         UNSUPPORTED();
       }
