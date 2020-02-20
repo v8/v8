@@ -579,9 +579,7 @@ class DebugInfoImpl {
           const char* label = i < num_params ? "arg#%d" : "local#%d";
           name = PrintFToOneByteString<true>(isolate, label, i);
         }
-        WasmValue value =
-            GetValue(debug_side_table_entry, debug_side_table->local_type(i), i,
-                     fp - debug_side_table->local_stack_offset(i));
+        WasmValue value = GetValue(debug_side_table_entry, i, fp);
         Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
         // {name} can be a string representation of an element index.
         LookupIterator::Key lookup_key{isolate, name};
@@ -596,7 +594,6 @@ class DebugInfoImpl {
     }
 
     // Fill stack values.
-    int stack_count = debug_side_table_entry->stack_height();
     // Use an object without prototype instead of an Array, for nicer displaying
     // in DevTools. For Arrays, the length field and prototype is displayed,
     // which does not make too much sense here.
@@ -605,13 +602,12 @@ class DebugInfoImpl {
         isolate->factory()->InternalizeString(StaticCharVector("stack"));
     JSObject::AddProperty(isolate, local_scope_object, stack_name, stack_obj,
                           NONE);
-    for (int i = 0; i < stack_count; ++i) {
-      ValueType type = debug_side_table_entry->stack_type(i);
-      WasmValue value = GetValue(debug_side_table_entry, type, num_locals + i,
-                                 fp - debug_side_table_entry->stack_offset(i));
+    int value_count = debug_side_table_entry->num_values();
+    for (int i = num_locals; i < value_count; ++i) {
+      WasmValue value = GetValue(debug_side_table_entry, i, fp);
       Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
-      JSObject::AddDataElement(stack_obj, static_cast<uint32_t>(i), value_obj,
-                               NONE);
+      JSObject::AddDataElement(stack_obj, static_cast<uint32_t>(i - num_locals),
+                               value_obj, NONE);
     }
     return local_scope_object;
   }
@@ -701,16 +697,19 @@ class DebugInfoImpl {
   // Get the value of a local (including parameters) or stack value. Stack
   // values follow the locals in the same index space.
   WasmValue GetValue(const DebugSideTable::Entry* debug_side_table_entry,
-                     ValueType type, int index, Address stack_address) const {
-    if (debug_side_table_entry->IsConstant(index)) {
+                     int index, Address stack_frame_base) const {
+    ValueType type = debug_side_table_entry->value_type(index);
+    if (debug_side_table_entry->is_constant(index)) {
       DCHECK(type == kWasmI32 || type == kWasmI64);
       return type == kWasmI32
-                 ? WasmValue(debug_side_table_entry->GetConstant(index))
+                 ? WasmValue(debug_side_table_entry->i32_constant(index))
                  : WasmValue(
-                       int64_t{debug_side_table_entry->GetConstant(index)});
+                       int64_t{debug_side_table_entry->i32_constant(index)});
     }
 
     // Otherwise load the value from the stack.
+    Address stack_address =
+        stack_frame_base - debug_side_table_entry->stack_offset(index);
     switch (type) {
       case kWasmI32:
         return WasmValue(ReadUnalignedValue<int32_t>(stack_address));
