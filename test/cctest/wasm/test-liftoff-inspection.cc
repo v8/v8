@@ -68,11 +68,53 @@ class LiftoffCompileEnvironment {
     auto test_func = AddFunction(return_types, param_types, raw_function_bytes);
 
     CompilationEnv env = module_builder_.CreateCompilationEnv();
-    return GenerateLiftoffDebugSideTable(CcTest::i_isolate()->allocator(), &env,
-                                         test_func.body);
+    std::unique_ptr<DebugSideTable> debug_side_table =
+        GenerateLiftoffDebugSideTable(CcTest::i_isolate()->allocator(), &env,
+                                      test_func.body);
+    // Check that {ExecuteLiftoffCompilation} provides the same debug side
+    // table.
+    WasmFeatures detected;
+    std::unique_ptr<DebugSideTable> debug_side_table_via_compilation;
+    ExecuteLiftoffCompilation(CcTest::i_isolate()->allocator(), &env,
+                              test_func.body, 0, nullptr, &detected, {},
+                              &debug_side_table_via_compilation);
+    CheckTableEquals(*debug_side_table, *debug_side_table_via_compilation);
+
+    return debug_side_table;
   }
 
  private:
+  static void CheckTableEquals(const DebugSideTable& a,
+                               const DebugSideTable& b) {
+    CHECK_EQ(a.num_locals(), b.num_locals());
+    CHECK(std::equal(a.entries().begin(), a.entries().end(),
+                     b.entries().begin(), b.entries().end(),
+                     &CheckEntryEquals));
+  }
+
+  static bool CheckEntryEquals(const DebugSideTable::Entry& a,
+                               const DebugSideTable::Entry& b) {
+    CHECK_EQ(a.pc_offset(), b.pc_offset());
+    CHECK(std::equal(a.values().begin(), a.values().end(), b.values().begin(),
+                     b.values().end(), &CheckValueEquals));
+    return true;
+  }
+
+  static bool CheckValueEquals(const DebugSideTable::Entry::Value& a,
+                               const DebugSideTable::Entry::Value& b) {
+    CHECK_EQ(a.type, b.type);
+    CHECK_EQ(a.kind, b.kind);
+    switch (a.kind) {
+      case DebugSideTable::Entry::kConstant:
+        CHECK_EQ(a.i32_const, b.i32_const);
+        break;
+      case DebugSideTable::Entry::kStack:
+        CHECK_EQ(a.stack_offset, b.stack_offset);
+        break;
+    }
+    return true;
+  }
+
   OwnedVector<uint8_t> GenerateFunctionBody(
       std::initializer_list<uint8_t> raw_function_bytes) {
     // Build the function bytes by prepending the locals decl and appending an
