@@ -7302,7 +7302,7 @@ void Simulator::DecodeRVRType() {
       break;
     }
     case RO_SLTU: {
-      set_rd(rs1() < rs2());
+      set_rd(reg_t(rs1()) < reg_t(rs2()));
       break;
     }
     case RO_XOR: {
