@@ -4859,6 +4859,11 @@ bool v8::Object::IsApiWrapper() {
   return self->IsApiWrapper();
 }
 
+bool v8::Object::IsUndetectable() {
+  auto self = i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
+  return self->IsUndetectable();
+}
+
 MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
                                          Local<Value> recv, int argc,
                                          Local<Value> argv[]) {
