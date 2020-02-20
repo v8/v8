@@ -32,3 +32,17 @@ assertEquals(NaN, foo2());
 assertEquals(NaN, foo2());
 %OptimizeFunctionOnNextCall(foo2);
 assertEquals(NaN, foo2());
+
+
+function foo3(b) {
+  var k = 0;
+  let str = b ? "42" : "0";
+  for (var i = str; i < 1 && k++ < 1; i -= 0) { }
+  return i;
+}
+
+%PrepareFunctionForOptimization(foo3);
+assertEquals(0, foo3());
+assertEquals(0, foo3());
+%OptimizeFunctionOnNextCall(foo3);
+assertEquals(0, foo3());
