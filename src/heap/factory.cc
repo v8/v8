@@ -1328,50 +1328,6 @@ Handle<Foreign> Factory::NewForeign(Address addr) {
   return foreign;
 }
 
-Handle<ByteArray> Factory::NewByteArray(int length, AllocationType allocation) {
-  if (length < 0 || length > ByteArray::kMaxLength) {
-    isolate()->heap()->FatalProcessOutOfMemory("invalid array length");
-  }
-  int size = ByteArray::SizeFor(length);
-  HeapObject result =
-      AllocateRawWithImmortalMap(size, allocation, *byte_array_map());
-  Handle<ByteArray> array(ByteArray::cast(result), isolate());
-  array->set_length(length);
-  array->clear_padding();
-  return array;
-}
-
-Handle<BytecodeArray> Factory::NewBytecodeArray(
-    int length, const byte* raw_bytecodes, int frame_size, int parameter_count,
-    Handle<FixedArray> constant_pool) {
-  if (length < 0 || length > BytecodeArray::kMaxLength) {
-    isolate()->heap()->FatalProcessOutOfMemory("invalid array length");
-  }
-  // Bytecode array is AllocationType::kOld, so constant pool array should be
-  // too.
-  DCHECK(!Heap::InYoungGeneration(*constant_pool));
-
-  int size = BytecodeArray::SizeFor(length);
-  HeapObject result = AllocateRawWithImmortalMap(size, AllocationType::kOld,
-                                                 *bytecode_array_map());
-  Handle<BytecodeArray> instance(BytecodeArray::cast(result), isolate());
-  instance->set_length(length);
-  instance->set_frame_size(frame_size);
-  instance->set_parameter_count(parameter_count);
-  instance->set_incoming_new_target_or_generator_register(
-      interpreter::Register::invalid_value());
-  instance->set_osr_loop_nesting_level(0);
-  instance->set_bytecode_age(BytecodeArray::kNoAgeBytecodeAge);
-  instance->set_constant_pool(*constant_pool);
-  instance->set_handler_table(*empty_byte_array());
-  instance->set_source_position_table(*undefined_value());
-  CopyBytes(reinterpret_cast<byte*>(instance->GetFirstBytecodeAddress()),
-            raw_bytecodes, length);
-  instance->clear_padding();
-
-  return instance;
-}
-
 Handle<Cell> Factory::NewCell(Handle<Object> value) {
   STATIC_ASSERT(Cell::kSize <= kMaxRegularHeapObjectSize);
   HeapObject result = AllocateRawWithImmortalMap(
@@ -3116,25 +3072,6 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   shared->SetDebugInfo(*debug_info);
 
   return debug_info;
-}
-
-Handle<CoverageInfo> Factory::NewCoverageInfo(
-    const ZoneVector<SourceRange>& slots) {
-  const int slot_count = static_cast<int>(slots.size());
-
-  int size = CoverageInfo::SizeFor(slot_count);
-  Map map = read_only_roots().coverage_info_map();
-  HeapObject result =
-      AllocateRawWithImmortalMap(size, AllocationType::kYoung, map);
-  Handle<CoverageInfo> info(CoverageInfo::cast(result), isolate());
-
-  info->set_slot_count(slot_count);
-  for (int i = 0; i < slot_count; i++) {
-    SourceRange range = slots[i];
-    info->InitializeSlot(i, range.start, range.end);
-  }
-
-  return info;
 }
 
 Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {

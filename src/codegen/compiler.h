@@ -176,9 +176,10 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   // Create a shared function info object for the given function literal
   // node (the code may be lazily compiled).
-  static Handle<SharedFunctionInfo> GetSharedFunctionInfo(FunctionLiteral* node,
-                                                          Handle<Script> script,
-                                                          Isolate* isolate);
+  template <typename Isolate>
+  static HandleFor<Isolate, SharedFunctionInfo> GetSharedFunctionInfo(
+      FunctionLiteral* node, HandleFor<Isolate, Script> script,
+      Isolate* isolate);
 
   // ===========================================================================
   // The following family of methods provides support for OSR. Code generated

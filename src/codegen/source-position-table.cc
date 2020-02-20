@@ -4,6 +4,8 @@
 
 #include "src/codegen/source-position-table.h"
 
+#include "src/base/export-template.h"
+#include "src/heap/off-thread-factory-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 
@@ -153,12 +155,13 @@ void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
 #endif
 }
 
-Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
+template <typename Isolate>
+HandleFor<Isolate, ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
     Isolate* isolate) {
   if (bytes_.empty()) return isolate->factory()->empty_byte_array();
   DCHECK(!Omit());
 
-  Handle<ByteArray> table = isolate->factory()->NewByteArray(
+  HandleFor<Isolate, ByteArray> table = isolate->factory()->NewByteArray(
       static_cast<int>(bytes_.size()), AllocationType::kOld);
   MemCopy(table->GetDataStartAddress(), bytes_.data(), bytes_.size());
 
@@ -174,6 +177,13 @@ Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
 #endif
   return table;
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
+        Isolate* isolate);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    OffThreadHandle<ByteArray> SourcePositionTableBuilder::
+        ToSourcePositionTable(OffThreadIsolate* isolate);
 
 OwnedVector<byte> SourcePositionTableBuilder::ToSourcePositionTableVector() {
   if (bytes_.empty()) return OwnedVector<byte>();

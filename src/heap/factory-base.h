@@ -28,6 +28,11 @@ class SourceTextModuleInfo;
 class PreparseData;
 class UncompiledDataWithoutPreparseData;
 class UncompiledDataWithPreparseData;
+class BytecodeArray;
+class CoverageInfo;
+struct SourceRange;
+template <typename T>
+class ZoneVector;
 
 template <typename Impl>
 class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
@@ -89,6 +94,13 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
   HandleFor<Impl, WeakFixedArray> NewWeakFixedArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
+  HandleFor<Impl, ByteArray> NewByteArray(
+      int length, AllocationType allocation = AllocationType::kYoung);
+
+  HandleFor<Impl, BytecodeArray> NewBytecodeArray(
+      int length, const byte* raw_bytecodes, int frame_size,
+      int parameter_count, HandleFor<Impl, FixedArray> constant_pool);
+
   // Allocates a fixed array for name-value pairs of boilerplate properties and
   // calculates the number of properties we need to store in the backing store.
   HandleFor<Impl, ObjectBoilerplateDescription> NewObjectBoilerplateDescription(
@@ -125,6 +137,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
                                     int32_t start_position,
                                     int32_t end_position,
                                     HandleFor<Impl, PreparseData>);
+
+  HandleFor<Impl, CoverageInfo> NewCoverageInfo(
+      const ZoneVector<SourceRange>& slots);
 
   HandleFor<Impl, SeqOneByteString> NewOneByteInternalizedString(
       const Vector<const uint8_t>& str, uint32_t hash_field);

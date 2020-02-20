@@ -4895,7 +4895,8 @@ Object Script::GetNameOrSourceURL() {
   return name();
 }
 
-MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
+template <typename Isolate>
+MaybeHandleFor<Isolate, SharedFunctionInfo> Script::FindSharedFunctionInfo(
     Isolate* isolate, const FunctionLiteral* fun) {
   CHECK_NE(fun->function_literal_id(), kFunctionLiteralIdInvalid);
   // If this check fails, the problem is most probably the function id
@@ -4907,10 +4908,14 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   HeapObject heap_object;
   if (!shared->GetHeapObject(&heap_object) ||
       heap_object.IsUndefined(isolate)) {
-    return MaybeHandle<SharedFunctionInfo>();
+    return MaybeHandleFor<Isolate, SharedFunctionInfo>();
   }
   return handle(SharedFunctionInfo::cast(heap_object), isolate);
 }
+template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
+    Isolate* isolate, const FunctionLiteral* fun);
+template OffThreadHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
+    OffThreadIsolate* isolate, const FunctionLiteral* fun);
 
 Script::Iterator::Iterator(Isolate* isolate)
     : iterator_(isolate->heap()->script_list()) {}

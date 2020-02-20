@@ -4,6 +4,7 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-jump-table.h"
@@ -81,7 +82,9 @@ Register BytecodeArrayBuilder::Local(int index) const {
   return Register(index);
 }
 
-Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
+template <typename Isolate>
+HandleFor<Isolate, BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(
+    Isolate* isolate) {
   DCHECK(RemainderOfBlockIsDead());
   DCHECK(!bytecode_generated_);
   bytecode_generated_ = true;
@@ -93,24 +96,40 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
     register_count = register_optimizer_->maxiumum_register_index() + 1;
   }
 
-  Handle<ByteArray> handler_table =
+  HandleFor<Isolate, ByteArray> handler_table =
       handler_table_builder()->ToHandlerTable(isolate);
   return bytecode_array_writer_.ToBytecodeArray(
       isolate, register_count, parameter_count(), handler_table);
 }
 
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(
+        Isolate* isolate);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    OffThreadHandle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(
+        OffThreadIsolate* isolate);
+
 #ifdef DEBUG
-int BytecodeArrayBuilder::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
+int BytecodeArrayBuilder::CheckBytecodeMatches(BytecodeArray bytecode) {
+  DisallowHeapAllocation no_gc;
   return bytecode_array_writer_.CheckBytecodeMatches(bytecode);
 }
 #endif
 
-Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+template <typename Isolate>
+HandleFor<Isolate, ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
     Isolate* isolate) {
   DCHECK(RemainderOfBlockIsDead());
 
   return bytecode_array_writer_.ToSourcePositionTable(isolate);
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+        Isolate* isolate);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    OffThreadHandle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+        OffThreadIsolate* isolate);
 
 BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
     Bytecode bytecode) {
@@ -1549,8 +1568,8 @@ size_t BytecodeArrayBuilder::AllocateDeferredConstantPoolEntry() {
   return constant_array_builder()->InsertDeferred();
 }
 
-void BytecodeArrayBuilder::SetDeferredConstantPoolEntry(size_t entry,
-                                                        Handle<Object> object) {
+void BytecodeArrayBuilder::SetDeferredConstantPoolEntry(
+    size_t entry, HandleOrOffThreadHandle<Object> object) {
   constant_array_builder()->SetDeferredAt(entry, object);
 }
 

@@ -6,6 +6,7 @@
 #define V8_EXECUTION_OFF_THREAD_ISOLATE_H_
 
 #include "src/base/logging.h"
+#include "src/execution/thread-id.h"
 #include "src/handles/handle-for.h"
 #include "src/heap/off-thread-factory.h"
 
@@ -70,12 +71,15 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
 
   OffThreadLogger* logger() { return logger_; }
 
+  ThreadId thread_id() { return thread_id_; }
+
  private:
   // TODO(leszeks): Extract out the fields of the Isolate we want and store
   // those instead of the whole thing.
   Isolate* isolate_;
 
   OffThreadLogger* logger_;
+  ThreadId thread_id_;
 };
 
 }  // namespace internal

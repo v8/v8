@@ -260,11 +260,11 @@ class HandleOrOffThreadHandle {
   }
 
   // Explicit getters for the Handle and OffThreadHandle.
-  inline Handle<T> get_handle() {
+  inline Handle<T> get_handle() const {
     DCHECK_NE(which_, kOffThreadHandle);
     return Handle<T>(reinterpret_cast<Address*>(value_));
   }
-  inline OffThreadHandle<T> get_off_thread_handle() {
+  inline OffThreadHandle<T> get_off_thread_handle() const {
     DCHECK_NE(which_, kHandle);
     return OffThreadHandle<T>(T::unchecked_cast(Object(value_)));
   }
@@ -272,21 +272,21 @@ class HandleOrOffThreadHandle {
   // Implicitly convert to Handle, MaybeHandle and OffThreadHandle, whenever
   // the conversion can be implicit.
   template <typename U>
-  operator Handle<U>() {  // NOLINT
+  operator Handle<U>() const {  // NOLINT
     return get_handle();
   }
   template <typename U>
-  operator MaybeHandle<U>() {  // NOLINT
+  operator MaybeHandle<U>() const {  // NOLINT
     return get_handle();
   }
   template <typename U>
-  operator OffThreadHandle<U>() {  // NOLINT
+  operator OffThreadHandle<U>() const {  // NOLINT
     return get_off_thread_handle();
   }
 
   // Allow templated dispatch on which type of handle to get.
   template <typename IsolateType>
-  inline HandleFor<IsolateType, T> get() {
+  inline HandleFor<IsolateType, T> get() const {
     return get_for(Tag<IsolateType>());
   }
 
@@ -302,8 +302,8 @@ class HandleOrOffThreadHandle {
   template <typename IsolateType>
   struct Tag {};
 
-  V8_INLINE Handle<T> get_for(Tag<class Isolate>) { return get_handle(); }
-  V8_INLINE OffThreadHandle<T> get_for(Tag<class OffThreadIsolate>) {
+  V8_INLINE Handle<T> get_for(Tag<class Isolate>) const { return get_handle(); }
+  V8_INLINE OffThreadHandle<T> get_for(Tag<class OffThreadIsolate>) const {
     return get_off_thread_handle();
   }
 

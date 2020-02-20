@@ -164,7 +164,8 @@ CompilationJob::Status UnoptimizedCompilationJob::FinalizeJob(
 void UnoptimizedCompilationJob::RecordCompilationStats(Isolate* isolate) const {
   int code_size;
   if (compilation_info()->has_bytecode_array()) {
-    code_size = compilation_info()->bytecode_array()->SizeIncludingMetadata();
+    code_size =
+        compilation_info()->bytecode_array<Isolate>()->SizeIncludingMetadata();
   } else {
     DCHECK(compilation_info()->has_asm_wasm_data());
     code_size = compilation_info()->asm_wasm_data()->Size();
@@ -184,8 +185,8 @@ void UnoptimizedCompilationJob::RecordFunctionCompilation(
     Isolate* isolate) const {
   Handle<AbstractCode> abstract_code;
   if (compilation_info()->has_bytecode_array()) {
-    abstract_code =
-        Handle<AbstractCode>::cast(compilation_info()->bytecode_array());
+    abstract_code = Handle<AbstractCode>::cast(
+        compilation_info()->bytecode_array<Isolate>());
   } else {
     DCHECK(compilation_info()->has_asm_wasm_data());
     abstract_code =
@@ -420,8 +421,8 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
       shared_info->set_is_asm_wasm_broken(true);
     }
 
-    InstallBytecodeArray(compilation_info->bytecode_array(), shared_info,
-                         parse_info, isolate);
+    InstallBytecodeArray(compilation_info->bytecode_array<Isolate>(),
+                         shared_info, parse_info, isolate);
 
     Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
         isolate, compilation_info->feedback_vector_spec());
@@ -437,8 +438,8 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
   if (compilation_info->has_coverage_info() &&
       !shared_info->HasCoverageInfo()) {
     DCHECK(isolate->is_block_code_coverage());
-    isolate->debug()->InstallCoverageInfo(shared_info,
-                                          compilation_info->coverage_info());
+    isolate->debug()->InstallCoverageInfo(
+        shared_info, compilation_info->coverage_info<Isolate>());
   }
 }
 
@@ -1282,8 +1283,9 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   // table set on it as well.
   if (shared_info->HasDebugInfo() &&
       shared_info->GetDebugInfo().HasInstrumentedBytecodeArray()) {
-    ByteArray source_position_table =
-        job->compilation_info()->bytecode_array()->SourcePositionTable();
+    ByteArray source_position_table = job->compilation_info()
+                                          ->bytecode_array<Isolate>()
+                                          ->SourcePositionTable();
     shared_info->GetDebugBytecodeArray().set_source_position_table(
         source_position_table);
   }
@@ -2259,23 +2261,25 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   return maybe_result;
 }
 
-Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
-    FunctionLiteral* literal, Handle<Script> script, Isolate* isolate) {
+template <typename Isolate>
+HandleFor<Isolate, SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
+    FunctionLiteral* literal, HandleFor<Isolate, Script> script,
+    Isolate* isolate) {
   // Precondition: code has been parsed and scopes have been analyzed.
-  MaybeHandle<SharedFunctionInfo> maybe_existing;
+  MaybeHandleFor<Isolate, SharedFunctionInfo> maybe_existing;
 
   // Find any previously allocated shared function info for the given literal.
   maybe_existing = script->FindSharedFunctionInfo(isolate, literal);
 
   // If we found an existing shared function info, return it.
-  Handle<SharedFunctionInfo> existing;
+  HandleFor<Isolate, SharedFunctionInfo> existing;
   if (maybe_existing.ToHandle(&existing)) {
     // If the function has been uncompiled (bytecode flushed) it will have lost
     // any preparsed data. If we produced preparsed data during this compile for
     // this function, replace the uncompiled data with one that includes it.
     if (literal->produced_preparse_data() != nullptr &&
         existing->HasUncompiledDataWithoutPreparseData()) {
-      Handle<UncompiledData> existing_uncompiled_data =
+      HandleFor<Isolate, UncompiledData> existing_uncompiled_data =
           handle(existing->uncompiled_data(), isolate);
       DCHECK_EQ(literal->start_position(),
                 existing_uncompiled_data->start_position());
@@ -2283,11 +2287,11 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
                 existing_uncompiled_data->end_position());
       // Use existing uncompiled data's inferred name as it may be more
       // accurate than the literal we preparsed.
-      Handle<String> inferred_name =
+      HandleFor<Isolate, String> inferred_name =
           handle(existing_uncompiled_data->inferred_name(), isolate);
-      Handle<PreparseData> preparse_data =
+      HandleFor<Isolate, PreparseData> preparse_data =
           literal->produced_preparse_data()->Serialize(isolate);
-      Handle<UncompiledData> new_uncompiled_data =
+      HandleFor<Isolate, UncompiledData> new_uncompiled_data =
           isolate->factory()->NewUncompiledDataWithPreparseData(
               inferred_name, existing_uncompiled_data->start_position(),
               existing_uncompiled_data->end_position(), preparse_data);
@@ -2297,11 +2301,17 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   }
 
   // Allocate a shared function info object which will be compiled lazily.
-  Handle<SharedFunctionInfo> result =
+  HandleFor<Isolate, SharedFunctionInfo> result =
       isolate->factory()->NewSharedFunctionInfoForLiteral(literal, script,
                                                           false);
   return result;
 }
+
+template Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
+    FunctionLiteral* literal, Handle<Script> script, Isolate* isolate);
+template OffThreadHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
+    FunctionLiteral* literal, OffThreadHandle<Script> script,
+    OffThreadIsolate* isolate);
 
 MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
                                                    BailoutId osr_offset,

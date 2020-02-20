@@ -5,6 +5,7 @@
 #include "src/interpreter/bytecode-array-writer.h"
 
 #include "src/api/api-inl.h"
+#include "src/heap/off-thread-factory-inl.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-node.h"
@@ -36,43 +37,63 @@ BytecodeArrayWriter::BytecodeArrayWriter(
   bytecodes_.reserve(512);  // Derived via experimentation.
 }
 
-Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
+template <typename Isolate>
+HandleFor<Isolate, BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
     Isolate* isolate, int register_count, int parameter_count,
-    Handle<ByteArray> handler_table) {
+    HandleFor<Isolate, ByteArray> handler_table) {
   DCHECK_EQ(0, unbound_jumps_);
 
   int bytecode_size = static_cast<int>(bytecodes()->size());
   int frame_size = register_count * kSystemPointerSize;
-  Handle<FixedArray> constant_pool =
+  HandleFor<Isolate, FixedArray> constant_pool =
       constant_array_builder()->ToFixedArray(isolate);
-  Handle<BytecodeArray> bytecode_array = isolate->factory()->NewBytecodeArray(
-      bytecode_size, &bytecodes()->front(), frame_size, parameter_count,
-      constant_pool);
+  HandleFor<Isolate, BytecodeArray> bytecode_array =
+      isolate->factory()->NewBytecodeArray(bytecode_size, &bytecodes()->front(),
+                                           frame_size, parameter_count,
+                                           constant_pool);
   bytecode_array->set_handler_table(*handler_table);
   return bytecode_array;
 }
 
-Handle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(Isolate* isolate) {
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
+        Isolate* isolate, int register_count, int parameter_count,
+        Handle<ByteArray> handler_table);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    OffThreadHandle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
+        OffThreadIsolate* isolate, int register_count, int parameter_count,
+        OffThreadHandle<ByteArray> handler_table);
+
+template <typename Isolate>
+HandleFor<Isolate, ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
+    Isolate* isolate) {
   DCHECK(!source_position_table_builder_.Lazy());
-  Handle<ByteArray> source_position_table =
+  HandleFor<Isolate, ByteArray> source_position_table =
       source_position_table_builder_.Omit()
-          ? ReadOnlyRoots(isolate).empty_byte_array_handle()
+          ? isolate->factory()->empty_byte_array()
           : source_position_table_builder_.ToSourcePositionTable(isolate);
   return source_position_table;
 }
 
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
+        Isolate* isolate);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    OffThreadHandle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
+        OffThreadIsolate* isolate);
+
 #ifdef DEBUG
-int BytecodeArrayWriter::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
+int BytecodeArrayWriter::CheckBytecodeMatches(BytecodeArray bytecode) {
   int mismatches = false;
   int bytecode_size = static_cast<int>(bytecodes()->size());
   const byte* bytecode_ptr = &bytecodes()->front();
-  if (bytecode_size != bytecode->length()) mismatches = true;
+  if (bytecode_size != bytecode.length()) mismatches = true;
 
   // If there's a mismatch only in the length of the bytecode (very unlikely)
   // then the first mismatch will be the first extra bytecode.
-  int first_mismatch = std::min(bytecode_size, bytecode->length());
+  int first_mismatch = std::min(bytecode_size, bytecode.length());
   for (int i = 0; i < first_mismatch; ++i) {
-    if (bytecode_ptr[i] != bytecode->get(i)) {
+    if (bytecode_ptr[i] != bytecode.get(i)) {
       mismatches = true;
       first_mismatch = i;
       break;

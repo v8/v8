@@ -120,6 +120,14 @@ class FunctionTemplateInfo
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
       Isolate* isolate, Handle<FunctionTemplateInfo> info,
       MaybeHandle<Name> maybe_name);
+
+  static OffThreadHandle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
+      OffThreadIsolate* isolate, Handle<FunctionTemplateInfo> info,
+      Handle<Name> maybe_name) {
+    // We don't support streaming compilation of scripts with natives, so we
+    // don't need an off-thread implementation of this.
+    UNREACHABLE();
+  }
   // Returns parent function template or a null FunctionTemplateInfo.
   inline FunctionTemplateInfo GetParent(Isolate* isolate);
   // Returns true if |object| is an instance of this function template.

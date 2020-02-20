@@ -5,6 +5,7 @@
 #ifndef V8_CODEGEN_SOURCE_POSITION_TABLE_H_
 #define V8_CODEGEN_SOURCE_POSITION_TABLE_H_
 
+#include "src/base/export-template.h"
 #include "src/codegen/source-position.h"
 #include "src/common/assert-scope.h"
 #include "src/common/checks.h"
@@ -53,7 +54,9 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
   void AddPosition(size_t code_offset, SourcePosition source_position,
                    bool is_statement);
 
-  Handle<ByteArray> ToSourcePositionTable(Isolate* isolate);
+  template <typename Isolate>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  HandleFor<Isolate, ByteArray> ToSourcePositionTable(Isolate* isolate);
   OwnedVector<byte> ToSourcePositionTableVector();
 
   inline bool Omit() const { return mode_ != RECORD_SOURCE_POSITIONS; }

@@ -17,6 +17,7 @@
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/control-flow-builders.h"
 #include "src/logging/log.h"
+#include "src/logging/off-thread-logger.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-inl.h"
@@ -728,13 +729,13 @@ class BytecodeGenerator::TestResultScope final : public ExpressionResultScope {
 // Used to build a list of toplevel declaration data.
 class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
  public:
-  Handle<FixedArray> AllocateDeclarations(UnoptimizedCompilationInfo* info,
-                                          BytecodeGenerator* generator,
-                                          Handle<Script> script,
-                                          Isolate* isolate) {
+  template <typename Isolate>
+  HandleFor<Isolate, FixedArray> AllocateDeclarations(
+      UnoptimizedCompilationInfo* info, BytecodeGenerator* generator,
+      HandleFor<Isolate, Script> script, Isolate* isolate) {
     DCHECK(has_constant_pool_entry_);
 
-    Handle<FixedArray> data =
+    HandleFor<Isolate, FixedArray> data =
         isolate->factory()->NewFixedArray(entry_slots_, AllocationType::kOld);
 
     int array_index = 0;
@@ -748,11 +749,11 @@ class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
 #endif
         if (decl->IsFunctionDeclaration()) {
           FunctionLiteral* f = static_cast<FunctionDeclaration*>(decl)->fun();
-          Handle<Object> sfi(
+          HandleFor<Isolate, SharedFunctionInfo> sfi(
               Compiler::GetSharedFunctionInfo(f, script, isolate));
           // Return a null handle if any initial values can't be created. Caller
           // will set stack overflow.
-          if (sfi.is_null()) return Handle<FixedArray>();
+          if (sfi.is_null()) return HandleFor<Isolate, FixedArray>();
           data->set(array_index++, *sfi);
           int literal_index = generator->GetCachedCreateClosureSlot(f);
           data->set(array_index++, Smi::FromInt(literal_index));
@@ -777,11 +778,11 @@ class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
           DCHECK_EQ(start + kGlobalVariableDeclarationSize, array_index);
         } else {
           FunctionLiteral* f = static_cast<FunctionDeclaration*>(decl)->fun();
-          Handle<Object> sfi(
+          HandleFor<Isolate, SharedFunctionInfo> sfi(
               Compiler::GetSharedFunctionInfo(f, script, isolate));
           // Return a null handle if any initial values can't be created. Caller
           // will set stack overflow.
-          if (sfi.is_null()) return Handle<FixedArray>();
+          if (sfi.is_null()) return HandleFor<Isolate, FixedArray>();
           data->set(array_index++, *sfi);
           int literal_index = generator->GetCachedCreateClosureSlot(f);
           data->set(array_index++, Smi::FromInt(literal_index));
@@ -1049,29 +1050,55 @@ BytecodeGenerator::BytecodeGenerator(
   }
 }
 
-Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
-    Isolate* isolate, Handle<Script> script) {
+namespace {
+
+template <typename Isolate>
+struct NullContextScopeHelper;
+
+template <>
+struct NullContextScopeHelper<Isolate> {
+  using Type = NullContextScope;
+};
+
+template <>
+struct NullContextScopeHelper<OffThreadIsolate> {
+  class DummyNullContextScope {
+   public:
+    explicit DummyNullContextScope(OffThreadIsolate*) {}
+  };
+  using Type = DummyNullContextScope;
+};
+
+template <typename Isolate>
+using NullContextScopeFor = typename NullContextScopeHelper<Isolate>::Type;
+
+}  // namespace
+
+template <typename Isolate>
+HandleFor<Isolate, BytecodeArray> BytecodeGenerator::FinalizeBytecode(
+    Isolate* isolate, HandleFor<Isolate, Script> script) {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 #ifdef DEBUG
   // Unoptimized compilation should be context-independent. Verify that we don't
   // access the native context by nulling it out during finalization.
-  NullContextScope null_context_scope(isolate);
+  NullContextScopeFor<Isolate> null_context_scope(isolate);
 #endif
 
   AllocateDeferredConstants(isolate, script);
 
   if (block_coverage_builder_) {
-    info()->set_coverage_info(
-        isolate->factory()->NewCoverageInfo(block_coverage_builder_->slots()));
+    HandleFor<Isolate, CoverageInfo> coverage_info =
+        isolate->factory()->NewCoverageInfo(block_coverage_builder_->slots());
+    info()->set_coverage_info(coverage_info);
     if (FLAG_trace_block_coverage) {
       StdoutStream os;
-      info()->coverage_info()->CoverageInfoPrint(
-          os, info()->literal()->GetDebugName());
+      coverage_info->CoverageInfoPrint(os, info()->literal()->GetDebugName());
     }
   }
 
-  if (HasStackOverflow()) return Handle<BytecodeArray>();
-  Handle<BytecodeArray> bytecode_array = builder()->ToBytecodeArray(isolate);
+  if (HasStackOverflow()) return HandleFor<Isolate, BytecodeArray>();
+  HandleFor<Isolate, BytecodeArray> bytecode_array =
+      builder()->ToBytecodeArray(isolate);
 
   if (incoming_new_target_or_generator_.is_valid()) {
     bytecode_array->set_incoming_new_target_or_generator_register(
@@ -1081,38 +1108,51 @@ Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
   return bytecode_array;
 }
 
-Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
+template Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
+    Isolate* isolate, Handle<Script> script);
+template OffThreadHandle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
+    OffThreadIsolate* isolate, OffThreadHandle<Script> script);
+
+template <typename Isolate>
+HandleFor<Isolate, ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
     Isolate* isolate) {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 #ifdef DEBUG
   // Unoptimized compilation should be context-independent. Verify that we don't
   // access the native context by nulling it out during finalization.
-  NullContextScope null_context_scope(isolate);
+  NullContextScopeFor<Isolate> null_context_scope(isolate);
 #endif
 
-  Handle<ByteArray> source_position_table =
+  HandleFor<Isolate, ByteArray> source_position_table =
       builder()->ToSourcePositionTable(isolate);
 
-  LOG_CODE_EVENT(isolate,
-                 CodeLinePosInfoRecordEvent(
-                     info_->bytecode_array()->GetFirstBytecodeAddress(),
-                     *source_position_table));
+  LOG_CODE_EVENT(
+      isolate, CodeLinePosInfoRecordEvent(
+                   info_->bytecode_array<Isolate>()->GetFirstBytecodeAddress(),
+                   *source_position_table));
 
   return source_position_table;
 }
 
+template Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
+    Isolate* isolate);
+template OffThreadHandle<ByteArray>
+BytecodeGenerator::FinalizeSourcePositionTable(OffThreadIsolate* isolate);
+
 #ifdef DEBUG
-int BytecodeGenerator::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
+int BytecodeGenerator::CheckBytecodeMatches(BytecodeArray bytecode) {
   return builder()->CheckBytecodeMatches(bytecode);
 }
 #endif
 
-void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
-                                                  Handle<Script> script) {
+template <typename Isolate>
+void BytecodeGenerator::AllocateDeferredConstants(
+    Isolate* isolate, HandleFor<Isolate, Script> script) {
   if (top_level_builder()->has_top_level_declaration()) {
     // Build global declaration pair array.
-    Handle<FixedArray> declarations = top_level_builder()->AllocateDeclarations(
-        info(), this, script, isolate);
+    HandleFor<Isolate, FixedArray> declarations =
+        top_level_builder()->AllocateDeclarations(info(), this, script,
+                                                  isolate);
     if (declarations.is_null()) return SetStackOverflow();
     builder()->SetDeferredConstantPoolEntry(
         top_level_builder()->constant_pool_entry(), declarations);
@@ -1121,7 +1161,7 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
   // Find or build shared function infos.
   for (std::pair<FunctionLiteral*, size_t> literal : function_literals_) {
     FunctionLiteral* expr = literal.first;
-    Handle<SharedFunctionInfo> shared_info =
+    HandleFor<Isolate, SharedFunctionInfo> shared_info =
         Compiler::GetSharedFunctionInfo(expr, script, isolate);
     if (shared_info.is_null()) return SetStackOverflow();
     builder()->SetDeferredConstantPoolEntry(literal.second, shared_info);
@@ -1130,6 +1170,9 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
   // Find or build shared function infos for the native function templates.
   for (std::pair<NativeFunctionLiteral*, size_t> literal :
        native_function_literals_) {
+    // This should only happen for main-thread compilations.
+    DCHECK((std::is_same<Isolate, v8::internal::Isolate>::value));
+
     NativeFunctionLiteral* expr = literal.first;
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
 
@@ -1139,7 +1182,7 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
             v8_isolate, Utils::ToLocal(expr->name()));
     DCHECK(!info.IsEmpty());
 
-    Handle<SharedFunctionInfo> shared_info =
+    HandleFor<Isolate, SharedFunctionInfo> shared_info =
         FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
             isolate, Utils::OpenHandle(*info), expr->name());
     DCHECK(!shared_info.is_null());
@@ -1152,7 +1195,7 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
     if (object_literal->properties_count() > 0) {
       // If constant properties is an empty fixed array, we've already added it
       // to the constant pool when visiting the object literal.
-      Handle<ObjectBoilerplateDescription> constant_properties =
+      HandleFor<Isolate, ObjectBoilerplateDescription> constant_properties =
           object_literal->GetOrBuildBoilerplateDescription(isolate);
 
       builder()->SetDeferredConstantPoolEntry(literal.second,
@@ -1163,7 +1206,7 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
   // Build array literal constant elements
   for (std::pair<ArrayLiteral*, size_t> literal : array_literals_) {
     ArrayLiteral* array_literal = literal.first;
-    Handle<ArrayBoilerplateDescription> constant_elements =
+    HandleFor<Isolate, ArrayBoilerplateDescription> constant_elements =
         array_literal->GetOrBuildBoilerplateDescription(isolate);
     builder()->SetDeferredConstantPoolEntry(literal.second, constant_elements);
   }
@@ -1171,7 +1214,7 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
   // Build class literal boilerplates.
   for (std::pair<ClassLiteral*, size_t> literal : class_literals_) {
     ClassLiteral* class_literal = literal.first;
-    Handle<ClassBoilerplate> class_boilerplate =
+    HandleFor<Isolate, ClassBoilerplate> class_boilerplate =
         ClassBoilerplate::BuildClassBoilerplate(isolate, class_literal);
     builder()->SetDeferredConstantPoolEntry(literal.second, class_boilerplate);
   }
@@ -1179,11 +1222,16 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
   // Build template literals.
   for (std::pair<GetTemplateObject*, size_t> literal : template_objects_) {
     GetTemplateObject* get_template_object = literal.first;
-    Handle<TemplateObjectDescription> description =
+    HandleFor<Isolate, TemplateObjectDescription> description =
         get_template_object->GetOrBuildDescription(isolate);
     builder()->SetDeferredConstantPoolEntry(literal.second, description);
   }
 }
+
+template void BytecodeGenerator::AllocateDeferredConstants(
+    Isolate* isolate, Handle<Script> script);
+template void BytecodeGenerator::AllocateDeferredConstants(
+    OffThreadIsolate* isolate, OffThreadHandle<Script> script);
 
 namespace {
 bool NeedsContextInitialization(DeclarationScope* scope) {

@@ -5,6 +5,7 @@
 #include "src/execution/off-thread-isolate.h"
 
 #include "src/execution/isolate.h"
+#include "src/execution/thread-id.h"
 #include "src/logging/off-thread-logger.h"
 
 namespace v8 {
@@ -13,7 +14,8 @@ namespace internal {
 OffThreadIsolate::OffThreadIsolate(Isolate* isolate)
     : HiddenOffThreadFactory(isolate),
       isolate_(isolate),
-      logger_(new OffThreadLogger()) {}
+      logger_(new OffThreadLogger()),
+      thread_id_(ThreadId::Current()) {}
 OffThreadIsolate::~OffThreadIsolate() { delete logger_; }
 
 int OffThreadIsolate::GetNextScriptId() { return isolate_->GetNextScriptId(); }

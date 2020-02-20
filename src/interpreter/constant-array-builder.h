@@ -7,6 +7,7 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/common/globals.h"
+#include "src/handles/handles.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/smi.h"
 #include "src/utils/identity-map.h"
@@ -52,12 +53,16 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
   explicit ConstantArrayBuilder(Zone* zone);
 
   // Generate a fixed array of constant handles based on inserted objects.
-  Handle<FixedArray> ToFixedArray(Isolate* isolate);
+  template <typename Isolate>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  HandleFor<Isolate, FixedArray> ToFixedArray(Isolate* isolate);
 
   // Returns the object, as a handle in |isolate|, that is in the constant pool
   // array at index |index|. Returns null if there is no handle at this index.
   // Only expected to be used in tests.
-  MaybeHandle<Object> At(size_t index, Isolate* isolate) const;
+  template <typename Isolate>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  MaybeHandleFor<Isolate, Object> At(size_t index, Isolate* isolate) const;
 
   // Returns the number of elements in the array.
   size_t size() const;
@@ -84,7 +89,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
   size_t InsertJumpTable(size_t size);
 
   // Sets the deferred value at |index| to |object|.
-  void SetDeferredAt(size_t index, Handle<Object> object);
+  void SetDeferredAt(size_t index, HandleOrOffThreadHandle<Object> object);
 
   // Sets the jump table entry at |index| to |smi|. Note that |index| is the
   // constant pool index, not the switch case value.
@@ -138,7 +143,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
              tag_ == Tag::kJumpTableSmi;
     }
 
-    void SetDeferred(Handle<Object> handle) {
+    void SetDeferred(HandleOrOffThreadHandle<Object> handle) {
       DCHECK_EQ(tag_, Tag::kDeferred);
       tag_ = Tag::kHandle;
       handle_ = handle;
@@ -150,13 +155,14 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
       smi_ = smi;
     }
 
-    Handle<Object> ToHandle(Isolate* isolate) const;
+    template <typename Isolate>
+    HandleFor<Isolate, Object> ToHandle(Isolate* isolate) const;
 
    private:
     explicit Entry(Tag tag) : tag_(tag) {}
 
     union {
-      Handle<Object> handle_;
+      HandleOrOffThreadHandle<Object> handle_;
       Smi smi_;
       double heap_number_;
       const AstRawString* raw_string_;
@@ -199,6 +205,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
     const Entry& At(size_t index) const;
 
 #if DEBUG
+    template <typename Isolate>
     void CheckAllElementsAreUnique(Isolate* isolate) const;
 #endif
 

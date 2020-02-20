@@ -173,7 +173,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
 #ifdef DEBUG
 void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
     Isolate* isolate, Handle<Script> script, Handle<BytecodeArray> bytecode) {
-  int first_mismatch = generator()->CheckBytecodeMatches(bytecode);
+  int first_mismatch = generator()->CheckBytecodeMatches(*bytecode);
   if (first_mismatch >= 0) {
     parse_info()->ast_value_factory()->Internalize(isolate);
     DeclarationScope::AllocateScopeInfos(parse_info(), isolate);
@@ -214,7 +214,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileIgnitionFinalization");
 
-  Handle<BytecodeArray> bytecodes = compilation_info_.bytecode_array();
+  Handle<BytecodeArray> bytecodes = compilation_info_.bytecode_array<Isolate>();
   if (bytecodes.is_null()) {
     bytecodes = generator()->FinalizeBytecode(
         isolate, handle(Script::cast(shared_info->script()), isolate));

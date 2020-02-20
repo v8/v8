@@ -4,10 +4,12 @@
 
 #include "src/heap/factory-base.h"
 
+#include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/execution/off-thread-isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/off-thread-factory-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/logging/log.h"
@@ -141,6 +143,54 @@ HandleFor<Impl, WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArray(
   if (length == 0) return impl()->empty_weak_fixed_array();
   return NewWeakFixedArrayWithMap(read_only_roots().weak_fixed_array_map(),
                                   length, allocation);
+}
+
+template <typename Impl>
+HandleFor<Impl, ByteArray> FactoryBase<Impl>::NewByteArray(
+    int length, AllocationType allocation) {
+  if (length < 0 || length > ByteArray::kMaxLength) {
+    isolate()->FatalProcessOutOfHeapMemory("invalid array length");
+  }
+  int size = ByteArray::SizeFor(length);
+  HeapObject result = AllocateRawWithImmortalMap(
+      size, allocation, read_only_roots().byte_array_map());
+  HandleFor<Impl, ByteArray> array(ByteArray::cast(result), isolate());
+  array->set_length(length);
+  array->clear_padding();
+  return array;
+}
+
+template <typename Impl>
+HandleFor<Impl, BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
+    int length, const byte* raw_bytecodes, int frame_size, int parameter_count,
+    HandleFor<Impl, FixedArray> constant_pool) {
+  if (length < 0 || length > BytecodeArray::kMaxLength) {
+    isolate()->FatalProcessOutOfHeapMemory("invalid array length");
+  }
+  // Bytecode array is AllocationType::kOld, so constant pool array should be
+  // too.
+  DCHECK(!Heap::InYoungGeneration(*constant_pool));
+
+  int size = BytecodeArray::SizeFor(length);
+  HeapObject result = AllocateRawWithImmortalMap(
+      size, AllocationType::kOld, read_only_roots().bytecode_array_map());
+  HandleFor<Impl, BytecodeArray> instance(BytecodeArray::cast(result),
+                                          isolate());
+  instance->set_length(length);
+  instance->set_frame_size(frame_size);
+  instance->set_parameter_count(parameter_count);
+  instance->set_incoming_new_target_or_generator_register(
+      interpreter::Register::invalid_value());
+  instance->set_osr_loop_nesting_level(0);
+  instance->set_bytecode_age(BytecodeArray::kNoAgeBytecodeAge);
+  instance->set_constant_pool(*constant_pool);
+  instance->set_handler_table(read_only_roots().empty_byte_array());
+  instance->set_source_position_table(read_only_roots().undefined_value());
+  CopyBytes(reinterpret_cast<byte*>(instance->GetFirstBytecodeAddress()),
+            raw_bytecodes, length);
+  instance->clear_padding();
+
+  return instance;
 }
 
 template <typename Impl>
@@ -348,6 +398,26 @@ FactoryBase<Impl>::NewTemplateObjectDescription(
   result->set_raw_strings(*raw_strings);
   result->set_cooked_strings(*cooked_strings);
   return result;
+}
+
+template <typename Impl>
+HandleFor<Impl, CoverageInfo> FactoryBase<Impl>::NewCoverageInfo(
+    const ZoneVector<SourceRange>& slots) {
+  const int slot_count = static_cast<int>(slots.size());
+
+  int size = CoverageInfo::SizeFor(slot_count);
+  Map map = read_only_roots().coverage_info_map();
+  HeapObject result =
+      AllocateRawWithImmortalMap(size, AllocationType::kYoung, map);
+  HandleFor<Impl, CoverageInfo> info(CoverageInfo::cast(result), isolate());
+
+  info->set_slot_count(slot_count);
+  for (int i = 0; i < slot_count; i++) {
+    SourceRange range = slots[i];
+    info->InitializeSlot(i, range.start, range.end);
+  }
+
+  return info;
 }
 
 template <typename Impl>

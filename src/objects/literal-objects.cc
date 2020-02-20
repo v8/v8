@@ -5,6 +5,7 @@
 #include "src/objects/literal-objects.h"
 
 #include "src/ast/ast.h"
+#include "src/base/logging.h"
 #include "src/builtins/accessors.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -565,6 +566,12 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
       *instance_desc.computed_properties());
 
   return scope.CloseAndEscape(class_boilerplate);
+}
+
+OffThreadHandle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
+    OffThreadIsolate* isolate, ClassLiteral* expr) {
+  // TODO(leszeks): Add class boilerplate support to off-thread finalization.
+  UNREACHABLE();
 }
 
 }  // namespace internal

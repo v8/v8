@@ -11,12 +11,16 @@
 namespace v8 {
 namespace internal {
 
-// TODO(leszeks): Possibly add support for logging from off-thread.
+// TODO(leszeks): Add support for logging from off-thread.
 class OffThreadLogger {
  public:
   bool is_logging() const { return false; }
   bool is_listening_to_code_events() const { return false; }
   void ScriptEvent(Logger::ScriptEventType type, int script_id) {
+    UNREACHABLE();
+  }
+  void CodeLinePosInfoRecordEvent(Address code_start,
+                                  ByteArray source_position_table) {
     UNREACHABLE();
   }
 };

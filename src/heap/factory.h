@@ -67,9 +67,6 @@ class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
 class WeakCell;
-struct SourceRange;
-template <typename T>
-class ZoneVector;
 enum class SharedFlag : uint8_t;
 enum class InitializedFlag : uint8_t;
 
@@ -396,13 +393,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr);
-
-  Handle<ByteArray> NewByteArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
-
-  Handle<BytecodeArray> NewBytecodeArray(int length, const byte* raw_bytecodes,
-                                         int frame_size, int parameter_count,
-                                         Handle<FixedArray> constant_pool);
 
   Handle<Cell> NewCell(Handle<Object> value);
 
@@ -764,8 +754,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<ClassPositions> NewClassPositions(int start, int end);
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
-
-  Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);
 
   // Return a map for given number of properties using the map cache in the
   // native context.
