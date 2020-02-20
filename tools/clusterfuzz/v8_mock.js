@@ -32,10 +32,11 @@ var prettyPrinted = function prettyPrinted(msg) { return msg; };
   }
 
   const origDate = Date;
+  const construct = Reflect.construct;
   const constructDate = function(args) {
     let result;
     if (args.length) {
-      result = new origDate(...args);
+      result = construct(origDate, args);
     } else {
       result = new origDate(mockDateNow());
     }
