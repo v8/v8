@@ -784,6 +784,8 @@ void NativeModule::LogWasmCodes(Isolate* isolate) {
 }
 
 CompilationEnv NativeModule::CreateCompilationEnv() const {
+  // Protect concurrent accesses to {tier_down_}.
+  base::MutexGuard guard(&allocation_mutex_);
   return {module(),          use_trap_handler_, kRuntimeExceptionSupport,
           enabled_features_, kNoLowerSimd,      tier_down_};
 }
