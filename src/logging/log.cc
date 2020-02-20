@@ -238,11 +238,8 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                                       const wasm::WasmCode* code,
                                       wasm::WasmName name) {
   name_buffer_->Init(tag);
-  if (name.empty()) {
-    name_buffer_->AppendBytes("<wasm-unnamed>");
-  } else {
-    name_buffer_->AppendBytes(name.begin(), name.length());
-  }
+  DCHECK(!name.empty());
+  name_buffer_->AppendBytes(name.begin(), name.length());
   name_buffer_->AppendByte('-');
   if (code->IsAnonymous()) {
     name_buffer_->AppendBytes("<anonymous>");
@@ -1303,11 +1300,9 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
   AppendCodeCreateHeader(msg, tag, AbstractCode::Kind::WASM_FUNCTION,
                          code->instructions().begin(),
                          code->instructions().length(), &timer_);
-  if (name.empty()) {
-    msg << "<unknown wasm>";
-  } else {
-    msg.AppendString(name);
-  }
+  DCHECK(!name.empty());
+  msg.AppendString(name);
+
   // We have to add two extra fields that allow the tick processor to group
   // events for the same wasm function, even if it gets compiled again. For
   // normal JS functions, we use the shared function info. For wasm, the pointer

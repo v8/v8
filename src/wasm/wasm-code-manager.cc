@@ -195,28 +195,28 @@ void WasmCode::LogCode(Isolate* isolate) const {
         std::make_unique<WasmModuleSourceMap>(v8_isolate, source_map_str));
   }
 
-  std::unique_ptr<char[]> name_buffer;
+  std::string name_buffer;
   if (kind_ == kWasmToJsWrapper) {
-    constexpr size_t kNameBufferLen = 128;
-    constexpr size_t kNamePrefixLen = 11;
-    name_buffer = std::make_unique<char[]>(kNameBufferLen);
-    memcpy(name_buffer.get(), "wasm-to-js:", kNamePrefixLen);
-    Vector<char> remaining_buf =
-        VectorOf(name_buffer.get(), kNameBufferLen) + kNamePrefixLen;
+    name_buffer = "wasm-to-js:";
+    size_t prefix_len = name_buffer.size();
+    constexpr size_t kMaxSigLength = 128;
+    name_buffer.resize(prefix_len + kMaxSigLength);
     FunctionSig* sig = native_module()->module()->functions[index_].sig;
-    remaining_buf += PrintSignature(remaining_buf, sig);
+    size_t sig_length =
+        PrintSignature(VectorOf(&name_buffer[prefix_len], kMaxSigLength), sig);
+    name_buffer.resize(prefix_len + sig_length);
     // If the import has a name, also append that (separated by "-").
-    if (!name.empty() && remaining_buf.length() > 1) {
-      remaining_buf[0] = '-';
-      remaining_buf += 1;
-      size_t suffix_len = std::min(name.size(), remaining_buf.size());
-      memcpy(remaining_buf.begin(), name.begin(), suffix_len);
-      remaining_buf += suffix_len;
+    if (!name.empty()) {
+      name_buffer += '-';
+      name_buffer.append(name.begin(), name.size());
     }
-    size_t name_len = remaining_buf.begin() - name_buffer.get();
-    name = VectorOf(name_buffer.get(), name_len);
+    name = VectorOf(name_buffer);
   } else if (name.empty()) {
-    name = CStrVector("<wasm-unnamed>");
+    name_buffer.resize(32);
+    name_buffer.resize(
+        SNPrintF(VectorOf(&name_buffer.front(), name_buffer.size()),
+                 "wasm-function[%d]", index()));
+    name = VectorOf(name_buffer);
   }
   PROFILE(isolate,
           CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this, name));
