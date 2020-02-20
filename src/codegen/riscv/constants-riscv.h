@@ -304,6 +304,7 @@ const int kFunct7Mask = ((1 << kFunct7Bits) - 1) << kFunct7Shift;
 const int kFunct2Mask = 0b11 << kFunct7Shift;
 const int kRTypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct7Mask;
 const int kRATypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct5Mask;
+const int kRFPTypeMask = kBaseOpcodeMask | kFunct7Mask;
 const int kR4TypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct2Mask;
 const int kITypeMask = kBaseOpcodeMask | kFunct3Mask;
 const int kSTypeMask = kBaseOpcodeMask | kFunct3Mask;
