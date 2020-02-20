@@ -413,7 +413,6 @@ bool Heap::HasBeenSetUp() {
   return new_space_ != nullptr;
 }
 
-
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
                                               const char** reason) {
   // Is global GC requested?

@@ -156,7 +156,7 @@ void MemoryAllocator::InitializeCodePageAllocator(
   code_page_allocator_ = page_allocator;
 
   if (requested == 0) {
-    if (!kRequiresCodeRange) return;
+    if (!isolate_->RequiresCodeRange()) return;
     // When a target requires the code range feature, we put all code objects
     // in a kMaximalCodeRangeSize range of virtual address space, so that
     // they can call each other with near calls.
@@ -173,7 +173,7 @@ void MemoryAllocator::InitializeCodePageAllocator(
     // alignments is not supported (requires re-implementation).
     DCHECK_LE(kMinExpectedOSPageSize, page_allocator->AllocatePageSize());
   }
-  DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
+  DCHECK(!isolate_->RequiresCodeRange() || requested <= kMaximalCodeRangeSize);
 
   Address hint =
       RoundDown(code_range_address_hint.Pointer()->GetAddressHint(requested),

@@ -6926,6 +6926,13 @@ UNINITIALIZED_TEST(HeapLimit) {
   isolate->Dispose();
 }
 
+TEST(NoCodeRangeInJitlessMode) {
+  if (!FLAG_jitless) return;
+  CcTest::InitializeVM();
+  CHECK(
+      CcTest::i_isolate()->heap()->memory_allocator()->code_range().is_empty());
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

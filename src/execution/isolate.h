@@ -1522,6 +1522,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void RemoveCodeMemoryChunk(MemoryChunk* chunk);
   void AddCodeRange(Address begin, size_t length_in_bytes);
 
+  bool RequiresCodeRange() const;
+
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
   ~Isolate();
@@ -1773,6 +1775,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   unsigned int stress_deopt_count_ = 0;
 
   bool force_slow_path_ = false;
+
+  bool jitless_ = false;
 
   int next_optimization_id_ = 0;
 

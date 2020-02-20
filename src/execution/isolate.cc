@@ -2856,6 +2856,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
       builtins_(this),
       rail_mode_(PERFORMANCE_ANIMATION),
       code_event_dispatcher_(new CodeEventDispatcher()),
+      jitless_(FLAG_jitless),
 #if V8_SFI_HAS_UNIQUE_ID
       next_unique_sfi_id_(0),
 #endif
@@ -2937,7 +2938,7 @@ void Isolate::Deinit() {
 
 #if defined(V8_OS_WIN64)
   if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
-      heap()->memory_allocator()) {
+      heap()->memory_allocator() && RequiresCodeRange()) {
     const base::AddressRegion& code_range =
         heap()->memory_allocator()->code_range();
     void* start = reinterpret_cast<void*>(code_range.begin());
@@ -4492,6 +4493,10 @@ void Isolate::AddCodeMemoryChunk(MemoryChunk* chunk) {
 void Isolate::AddCodeRange(Address begin, size_t length_in_bytes) {
   AddCodeMemoryRange(
       MemoryRange{reinterpret_cast<void*>(begin), length_in_bytes});
+}
+
+bool Isolate::RequiresCodeRange() const {
+  return kPlatformRequiresCodeRange && !jitless_;
 }
 
 // |chunk| is either a Page or an executable LargePage.
