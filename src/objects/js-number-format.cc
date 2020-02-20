@@ -364,11 +364,9 @@ const icu::UnicodeString CurrencyFromSkeleton(
 
 const icu::UnicodeString NumberingSystemFromSkeleton(
     const icu::UnicodeString& skeleton) {
-  int32_t index = skeleton.indexOf("latin");
-  if (index >= 0) return "latn";
   const char numbering_system[] = "numbering-system/";
-  index = skeleton.indexOf(numbering_system);
-  if (index < 0) return "";
+  int32_t index = skeleton.indexOf(numbering_system);
+  if (index < 0) return "latn";
   index += static_cast<int32_t>(std::strlen(numbering_system));
   const icu::UnicodeString res = skeleton.tempSubString(index);
   index = res.indexOf(" ");
@@ -928,7 +926,11 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
       icu::number::NumberFormatter::withLocale(icu_locale)
           .roundingMode(UNUM_ROUND_HALFUP);
 
-  if (!numbering_system.empty()) {
+  // For 'latn' numbering system, skip the adoptSymbols which would cause
+  // 10.1%-13.7% of regression of JSTests/Intl-NewIntlNumberFormat
+  // See crbug/1052751 so we skip calling adoptSymbols and depending on the
+  // default instead.
+  if (!numbering_system.empty() && numbering_system != "latn") {
     icu_number_formatter = icu_number_formatter.adoptSymbols(
         icu::NumberingSystem::createInstanceByName(numbering_system.c_str(),
                                                    status));
