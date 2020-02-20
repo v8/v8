@@ -196,6 +196,10 @@
 ['msan == True', {
   # ICU upstream issues.
   'test-strings/CountBreakIterator': [SKIP],
+
+  # BUG(v8:10244): MSAN finding uninitialized bytes during memcmp
+  'test-code-stub-assembler/SmallOrderedHashSetAllocate': [SKIP],
+  'test-code-stub-assembler/SmallOrderedHashMapAllocate': [SKIP],
 }],  # 'msan == True'
 
 ##############################################################################
