@@ -72,15 +72,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6fddc00017feb0c641d11585b15548ca2dd375cd',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '448b7bc7a9442c0df909d7dab203898a742b83e2',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '851532894fe976bfe62e6c3ba15de4904c6f3121',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '56c9bd5a73595d6ee86bf53dcb995e97f0fe6366',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '9f4020916eb1f28f3666f018fdcbe6c9a37f0e08',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'bb3f1802c237dd19105dd0f7919f99e536a39d10',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'afc5b798c72905e85f9991152be878714c579958',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '713b351a1edc769b46f519cbcd47a88f2d72aef9',
   'v8/buildtools/clang_format/script':
     Var('chromium_url') + '/chromium/llvm-project/cfe/tools/clang-format.git' + '@' + '96636aa0e9f047f17447f2d45a094d0b59ed7917',
   'v8/buildtools/linux64': {
@@ -168,7 +168,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '83f5cce214ee812137786b95015d883c1fb99840',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'a657f879a7d688f317598b75ba498491242a3bc2',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -176,7 +176,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/fuchsia-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + 'd3720faaa9023241592b0feed62568fd57aaa607',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '493c55ddaa2d4b2b509f26ce8f56458fa8ccd768',
     'condition': 'checkout_fuchsia',
   },
   'v8/third_party/googletest/src':
