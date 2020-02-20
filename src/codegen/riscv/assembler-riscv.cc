@@ -1243,8 +1243,69 @@ void Assembler::GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode,
   emit(instr);
 }
 
+void Assembler::GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode,
+                          FPURegister rd, FPURegister rs1, FPURegister rs2) {
+  DCHECK(is_uint7(funct7) && is_uint3(funct3) && rd.is_valid() &&
+         rs1.is_valid() && rs2.is_valid());
+  Instr instr = opcode | (rd.code() << RV_kRdShift) | (funct3 << kFunct3Shift) |
+                (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
+                (funct7 << kFunct7Shift);
+  emit(instr);
+}
+
+void Assembler::GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode,
+                          Register rd, FPURegister rs1, Register rs2) {
+  DCHECK(is_uint7(funct7) && is_uint3(funct3) && rd.is_valid() &&
+         rs1.is_valid() && rs2.is_valid());
+  Instr instr = opcode | (rd.code() << RV_kRdShift) | (funct3 << kFunct3Shift) |
+                (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
+                (funct7 << kFunct7Shift);
+  emit(instr);
+}
+
+void Assembler::GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode,
+                          FPURegister rd, Register rs1, Register rs2) {
+  DCHECK(is_uint7(funct7) && is_uint3(funct3) && rd.is_valid() &&
+         rs1.is_valid() && rs2.is_valid());
+  Instr instr = opcode | (rd.code() << RV_kRdShift) | (funct3 << kFunct3Shift) |
+                (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
+                (funct7 << kFunct7Shift);
+  emit(instr);
+}
+
+void Assembler::GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode,
+                          FPURegister rd, FPURegister rs1, Register rs2) {
+  DCHECK(is_uint7(funct7) && is_uint3(funct3) && rd.is_valid() &&
+         rs1.is_valid() && rs2.is_valid());
+  Instr instr = opcode | (rd.code() << RV_kRdShift) | (funct3 << kFunct3Shift) |
+                (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
+                (funct7 << kFunct7Shift);
+  emit(instr);
+}
+
+void Assembler::GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode,
+                          Register rd, FPURegister rs1, FPURegister rs2) {
+  DCHECK(is_uint7(funct7) && is_uint3(funct3) && rd.is_valid() &&
+         rs1.is_valid() && rs2.is_valid());
+  Instr instr = opcode | (rd.code() << RV_kRdShift) | (funct3 << kFunct3Shift) |
+                (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
+                (funct7 << kFunct7Shift);
+  emit(instr);
+}
+
 void Assembler::GenInstrR4(uint8_t funct2, Opcode opcode, Register rd,
                            Register rs1, Register rs2, Register rs3,
+                           uint8_t frm) {
+  DCHECK(is_uint2(funct2) && rd.is_valid() && rs1.is_valid() &&
+         rs2.is_valid() && rs3.is_valid() && is_uint3(frm));
+  Instr instr = opcode | (rd.code() << RV_kRdShift) | (frm << kFunct3Shift) |
+                (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
+                (funct2 << kFunct2Shift) | (rs3.code() << kRs3Shift);
+  emit(instr);
+}
+
+void Assembler::GenInstrR4(uint8_t funct2, Opcode opcode, FPURegister rd,
+                           FPURegister rs1, FPURegister rs2, FPURegister rs3,
                            uint8_t frm) {
   DCHECK(is_uint2(funct2) && rd.is_valid() && rs1.is_valid() &&
          rs2.is_valid() && rs3.is_valid() && is_uint3(frm));
@@ -1283,6 +1344,15 @@ void Assembler::GenInstrI(uint8_t funct3, Opcode opcode, Register rd,
   emit(instr);
 }
 
+void Assembler::GenInstrI(uint8_t funct3, Opcode opcode, FPURegister rd,
+                          Register rs1, int16_t imm12) {
+  DCHECK(is_uint3(funct3) && rd.is_valid() && rs1.is_valid() &&
+         (is_uint12(imm12) || is_int12(imm12)));
+  Instr instr = opcode | (rd.code() << RV_kRdShift) | (funct3 << kFunct3Shift) |
+                (rs1.code() << kRs1Shift) | (imm12 << kImm12Shift);
+  emit(instr);
+}
+
 void Assembler::GenInstrIShift(bool arithshift, uint8_t funct3, Opcode opcode,
                                Register rd, Register rs1, uint8_t shamt) {
   DCHECK(is_uint3(funct3) && rd.is_valid() && rs1.is_valid() &&
@@ -1305,6 +1375,17 @@ void Assembler::GenInstrIShiftW(bool arithshift, uint8_t funct3, Opcode opcode,
 
 void Assembler::GenInstrS(uint8_t funct3, Opcode opcode, Register rs1,
                           Register rs2, int16_t imm12) {
+  DCHECK(is_uint3(funct3) && rs1.is_valid() && rs2.is_valid() &&
+         is_int12(imm12));
+  Instr instr = opcode | ((imm12 & 0x1f) << 7) |  // bits  4-0
+                (funct3 << kFunct3Shift) | (rs1.code() << kRs1Shift) |
+                (rs2.code() << kRs2Shift) |
+                ((imm12 & 0xfe0) << 20);  // bits 11-5
+  emit(instr);
+}
+
+void Assembler::GenInstrS(uint8_t funct3, Opcode opcode, Register rs1,
+                          FPURegister rs2, int16_t imm12) {
   DCHECK(is_uint3(funct3) && rs1.is_valid() && rs2.is_valid() &&
          is_int12(imm12));
   Instr instr = opcode | ((imm12 & 0x1f) << 7) |  // bits  4-0
@@ -1400,18 +1481,38 @@ void Assembler::GenInstrPriv(uint8_t funct7, Register rs1, Register rs2) {
   GenInstrR(funct7, 0b000, SYSTEM, ToRegister(0), rs1, rs2);
 }
 
-void Assembler::GenInstrLoadFP_ri(uint8_t funct3, Register rd, Register rs1,
+void Assembler::GenInstrLoadFP_ri(uint8_t funct3, FPURegister rd, Register rs1,
                                   int16_t imm12) {
   GenInstrI(funct3, LOAD_FP, rd, rs1, imm12);
 }
 
-void Assembler::GenInstrStoreFP_rri(uint8_t funct3, Register rs1, Register rs2,
-                                    int16_t imm12) {
+void Assembler::GenInstrStoreFP_rri(uint8_t funct3, Register rs1,
+                                    FPURegister rs2, int16_t imm12) {
   GenInstrS(funct3, STORE_FP, rs1, rs2, imm12);
 }
 
-void Assembler::GenInstrALUFP_rr(uint8_t funct7, uint8_t funct3, Register rd,
+void Assembler::GenInstrALUFP_rr(uint8_t funct7, uint8_t funct3, FPURegister rd,
+                                 FPURegister rs1, FPURegister rs2) {
+  GenInstrR(funct7, funct3, OP_FP, rd, rs1, rs2);
+}
+
+void Assembler::GenInstrALUFP_rr(uint8_t funct7, uint8_t funct3, FPURegister rd,
                                  Register rs1, Register rs2) {
+  GenInstrR(funct7, funct3, OP_FP, rd, rs1, rs2);
+}
+
+void Assembler::GenInstrALUFP_rr(uint8_t funct7, uint8_t funct3, FPURegister rd,
+                                 FPURegister rs1, Register rs2) {
+  GenInstrR(funct7, funct3, OP_FP, rd, rs1, rs2);
+}
+
+void Assembler::GenInstrALUFP_rr(uint8_t funct7, uint8_t funct3, Register rd,
+                                 FPURegister rs1, Register rs2) {
+  GenInstrR(funct7, funct3, OP_FP, rd, rs1, rs2);
+}
+
+void Assembler::GenInstrALUFP_rr(uint8_t funct7, uint8_t funct3, Register rd,
+                                 FPURegister rs1, FPURegister rs2) {
   GenInstrR(funct7, funct3, OP_FP, rd, rs1, rs2);
 }
 
@@ -2535,277 +2636,273 @@ void Assembler::RV_amomaxu_d(bool aq, bool rl, Register rd, Register rs1,
 
 // RV32F Standard Extension
 
-void Assembler::RV_flw(Register rd, Register rs1, int16_t imm12) {
+void Assembler::RV_flw(FPURegister rd, Register rs1, int16_t imm12) {
   GenInstrLoadFP_ri(0b010, rd, rs1, imm12);
 }
 
-void Assembler::RV_fsw(Register rs1, Register rs2, int16_t imm12) {
+void Assembler::RV_fsw(Register rs1, FPURegister rs2, int16_t imm12) {
   GenInstrStoreFP_rri(0b010, rs1, rs2, imm12);
 }
 
-void Assembler::RV_fmadd_s(Register rd, Register rs1, Register rs2,
-                           Register rs3, uint8_t frm) {
+void Assembler::RV_fmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                           FPURegister rs3, uint8_t frm) {
   GenInstrR4(0b00, MADD, rd, rs1, rs2, rs3, frm);
 }
 
-void Assembler::RV_fmsub_s(Register rd, Register rs1, Register rs2,
-                           Register rs3, uint8_t frm) {
+void Assembler::RV_fmsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                           FPURegister rs3, uint8_t frm) {
   GenInstrR4(0b00, MSUB, rd, rs1, rs2, rs3, frm);
 }
 
-void Assembler::RV_fnmsub_s(Register rd, Register rs1, Register rs2,
-                            Register rs3, uint8_t frm) {
+void Assembler::RV_fnmsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                            FPURegister rs3, uint8_t frm) {
   GenInstrR4(0b00, NMSUB, rd, rs1, rs2, rs3, frm);
 }
 
-void Assembler::RV_fnmadd_s(Register rd, Register rs1, Register rs2,
-                            Register rs3, uint8_t frm) {
+void Assembler::RV_fnmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                            FPURegister rs3, uint8_t frm) {
   GenInstrR4(0b00, NMADD, rd, rs1, rs2, rs3, frm);
 }
 
-void Assembler::RV_fadd_s(Register rd, Register rs1, Register rs2,
+void Assembler::RV_fadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
                           uint8_t frm) {
   GenInstrALUFP_rr(0b0000000, frm, rd, rs1, rs2);
 }
 
-void Assembler::RV_fsub_s(Register rd, Register rs1, Register rs2,
+void Assembler::RV_fsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
                           uint8_t frm) {
   GenInstrALUFP_rr(0b0000100, frm, rd, rs1, rs2);
 }
 
-void Assembler::RV_fmul_s(Register rd, Register rs1, Register rs2,
+void Assembler::RV_fmul_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
                           uint8_t frm) {
   GenInstrALUFP_rr(0b0001000, frm, rd, rs1, rs2);
 }
 
-void Assembler::RV_fdiv_s(Register rd, Register rs1, Register rs2,
+void Assembler::RV_fdiv_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
                           uint8_t frm) {
   GenInstrALUFP_rr(0b0001100, frm, rd, rs1, rs2);
 }
 
-void Assembler::RV_fsqrt_s(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fsqrt_s(FPURegister rd, FPURegister rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b0101100, frm, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fsgnj_s(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_fsgnj_s(FPURegister rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b0010000, 0b000, rd, rs1, rs2);
 }
 
-void Assembler::RV_fsgnjn_s(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_fsgnjn_s(FPURegister rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b0010000, 0b001, rd, rs1, rs2);
 }
 
-void Assembler::RV_fsgnjx_s(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_fsgnjx_s(FPURegister rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b0010000, 0b010, rd, rs1, rs2);
 }
 
-void Assembler::RV_fmin_s(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_fmin_s(FPURegister rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b0010100, 0b000, rd, rs1, rs2);
 }
 
-void Assembler::RV_fmax_s(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_fmax_s(FPURegister rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b0010100, 0b001, rd, rs1, rs2);
 }
 
-void Assembler::RV_fcvt_w_s(Register rd, Register rs1, Register rs2,
-                            uint8_t frm) {
+void Assembler::RV_fcvt_w_s(Register rd, FPURegister rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1100000, frm, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fcvt_wu_s(Register rd, Register rs1, Register rs2,
-                             uint8_t frm) {
+void Assembler::RV_fcvt_wu_s(Register rd, FPURegister rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1100000, frm, rd, rs1, ToRegister(1));
 }
 
-void Assembler::RV_fmv_x_w(Register rd, Register rs1) {
+void Assembler::RV_fmv_x_w(Register rd, FPURegister rs1) {
   GenInstrALUFP_rr(0b1110000, 0b000, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_feq_s(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_feq_s(Register rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b1010000, 0b010, rd, rs1, rs2);
 }
 
-void Assembler::RV_flt_s(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_flt_s(Register rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b1010000, 0b001, rd, rs1, rs2);
 }
 
-void Assembler::RV_fle_s(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_fle_s(Register rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b1010000, 0b000, rd, rs1, rs2);
 }
 
-void Assembler::RV_fclass_s(Register rd, Register rs1) {
+void Assembler::RV_fclass_s(Register rd, FPURegister rs1) {
   GenInstrALUFP_rr(0b1110000, 0b001, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fcvt_s_w(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_s_w(FPURegister rd, Register rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1101000, frm, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fcvt_s_wu(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_s_wu(FPURegister rd, Register rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1101000, frm, rd, rs1, ToRegister(1));
 }
 
-void Assembler::RV_fmv_w_x(Register rd, Register rs1) {
+void Assembler::RV_fmv_w_x(FPURegister rd, Register rs1) {
   GenInstrALUFP_rr(0b1111000, 0b000, rd, rs1, zero_reg);
 }
 
 // RV64F Standard Extension (in addition to RV32F)
 
-void Assembler::RV_fcvt_l_s(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_l_s(Register rd, FPURegister rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1100000, frm, rd, rs1, ToRegister(2));
 }
 
-void Assembler::RV_fcvt_lu_s(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_lu_s(Register rd, FPURegister rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1100000, frm, rd, rs1, ToRegister(3));
 }
 
-void Assembler::RV_fcvt_s_l(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_s_l(FPURegister rd, Register rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1101000, frm, rd, rs1, ToRegister(2));
 }
 
-void Assembler::RV_fcvt_s_lu(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_s_lu(FPURegister rd, Register rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1101000, frm, rd, rs1, ToRegister(3));
 }
 
 // RV32D Standard Extension
 
-void Assembler::RV_fld(Register rd, Register rs1, int16_t imm12) {
+void Assembler::RV_fld(FPURegister rd, Register rs1, int16_t imm12) {
   GenInstrLoadFP_ri(0b011, rd, rs1, imm12);
 }
 
-void Assembler::RV_fsd(Register rs1, Register rs2, int16_t imm12) {
+void Assembler::RV_fsd(Register rs1, FPURegister rs2, int16_t imm12) {
   GenInstrStoreFP_rri(0b011, rs1, rs2, imm12);
 }
 
-void Assembler::RV_fmadd_d(Register rd, Register rs1, Register rs2,
-                           Register rs3, uint8_t frm) {
+void Assembler::RV_fmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                           FPURegister rs3, uint8_t frm) {
   GenInstrR4(0b01, MADD, rd, rs1, rs2, rs3, frm);
 }
 
-void Assembler::RV_fmsub_d(Register rd, Register rs1, Register rs2,
-                           Register rs3, uint8_t frm) {
+void Assembler::RV_fmsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                           FPURegister rs3, uint8_t frm) {
   GenInstrR4(0b01, MSUB, rd, rs1, rs2, rs3, frm);
 }
 
-void Assembler::RV_fnmsub_d(Register rd, Register rs1, Register rs2,
-                            Register rs3, uint8_t frm) {
+void Assembler::RV_fnmsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                            FPURegister rs3, uint8_t frm) {
   GenInstrR4(0b01, NMSUB, rd, rs1, rs2, rs3, frm);
 }
 
-void Assembler::RV_fnmadd_d(Register rd, Register rs1, Register rs2,
-                            Register rs3, uint8_t frm) {
+void Assembler::RV_fnmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                            FPURegister rs3, uint8_t frm) {
   GenInstrR4(0b01, NMADD, rd, rs1, rs2, rs3, frm);
 }
 
-void Assembler::RV_fadd_d(Register rd, Register rs1, Register rs2,
+void Assembler::RV_fadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
                           uint8_t frm) {
   GenInstrALUFP_rr(0b0000001, frm, rd, rs1, rs2);
 }
 
-void Assembler::RV_fsub_d(Register rd, Register rs1, Register rs2,
+void Assembler::RV_fsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
                           uint8_t frm) {
   GenInstrALUFP_rr(0b0000101, frm, rd, rs1, rs2);
 }
 
-void Assembler::RV_fmul_d(Register rd, Register rs1, Register rs2,
+void Assembler::RV_fmul_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
                           uint8_t frm) {
   GenInstrALUFP_rr(0b0001001, frm, rd, rs1, rs2);
 }
 
-void Assembler::RV_fdiv_d(Register rd, Register rs1, Register rs2,
+void Assembler::RV_fdiv_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
                           uint8_t frm) {
   GenInstrALUFP_rr(0b0001101, frm, rd, rs1, rs2);
 }
 
-void Assembler::RV_fsqrt_d(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fsqrt_d(FPURegister rd, FPURegister rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b0101101, frm, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fsgnj_d(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_fsgnj_d(FPURegister rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b0010001, 0b000, rd, rs1, rs2);
 }
 
-void Assembler::RV_fsgnjn_d(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_fsgnjn_d(FPURegister rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b0010001, 0b001, rd, rs1, rs2);
 }
 
-void Assembler::RV_fsgnjx_d(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_fsgnjx_d(FPURegister rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b0010001, 0b010, rd, rs1, rs2);
 }
 
-void Assembler::RV_fmin_d(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_fmin_d(FPURegister rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b0010101, 0b000, rd, rs1, rs2);
 }
 
-void Assembler::RV_fmax_d(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_fmax_d(FPURegister rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b0010101, 0b001, rd, rs1, rs2);
 }
 
-void Assembler::RV_fcvt_s_d(Register rd, Register rs1, Register rs2,
-                            uint8_t frm) {
+void Assembler::RV_fcvt_s_d(FPURegister rd, FPURegister rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b0100000, frm, rd, rs1, ToRegister(1));
 }
 
-void Assembler::RV_fcvt_d_s(Register rd, Register rs1, Register rs2,
-                            uint8_t frm) {
+void Assembler::RV_fcvt_d_s(FPURegister rd, FPURegister rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b0100001, frm, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_feq_d(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_feq_d(Register rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b1010001, 0b010, rd, rs1, rs2);
 }
 
-void Assembler::RV_flt_d(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_flt_d(Register rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b1010001, 0b001, rd, rs1, rs2);
 }
 
-void Assembler::RV_fle_d(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_fle_d(Register rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b1010001, 0b000, rd, rs1, rs2);
 }
 
-void Assembler::RV_fclass_d(Register rd, Register rs1) {
+void Assembler::RV_fclass_d(Register rd, FPURegister rs1) {
   GenInstrALUFP_rr(0b1110001, 0b001, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fcvt_w_d(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_w_d(Register rd, FPURegister rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1100001, frm, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fcvt_wu_d(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_wu_d(Register rd, FPURegister rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1100001, frm, rd, rs1, ToRegister(1));
 }
 
-void Assembler::RV_fcvt_d_w(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_d_w(FPURegister rd, Register rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1101001, frm, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fcvt_d_wu(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_d_wu(FPURegister rd, Register rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1101001, frm, rd, rs1, ToRegister(1));
 }
 
 // RV64D Standard Extension (in addition to RV32D)
 
-void Assembler::RV_fcvt_l_d(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_l_d(Register rd, FPURegister rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1100001, frm, rd, rs1, ToRegister(2));
 }
 
-void Assembler::RV_fcvt_lu_d(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_lu_d(Register rd, FPURegister rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1100001, frm, rd, rs1, ToRegister(3));
 }
 
-void Assembler::RV_fmv_x_d(Register rd, Register rs1) {
+void Assembler::RV_fmv_x_d(Register rd, FPURegister rs1) {
   GenInstrALUFP_rr(0b1110001, 0b000, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fcvt_d_l(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_d_l(FPURegister rd, Register rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1101001, frm, rd, rs1, ToRegister(2));
 }
 
-void Assembler::RV_fcvt_d_lu(Register rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_d_lu(FPURegister rd, Register rs1, uint8_t frm) {
   GenInstrALUFP_rr(0b1101001, frm, rd, rs1, ToRegister(3));
 }
 
-void Assembler::RV_fmv_d_x(Register rd, Register rs1) {
+void Assembler::RV_fmv_d_x(FPURegister rd, Register rs1) {
   GenInstrALUFP_rr(0b1111001, 0b000, rd, rs1, zero_reg);
 }
 

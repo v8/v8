@@ -509,82 +509,90 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_amomaxu_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
 
   // RV32F Standard Extension
-  void RV_flw(Register rd, Register rs1, int16_t imm12);
-  void RV_fsw(Register rs1, Register rs2, int16_t imm12);
-  void RV_fmadd_s(Register rd, Register rs1, Register rs2, Register rs3,
-                  uint8_t frm);
-  void RV_fmsub_s(Register rd, Register rs1, Register rs2, Register rs3,
-                  uint8_t frm);
-  void RV_fnmsub_s(Register rd, Register rs1, Register rs2, Register rs3,
-                   uint8_t frm);
-  void RV_fnmadd_s(Register rd, Register rs1, Register rs2, Register rs3,
-                   uint8_t frm);
-  void RV_fadd_s(Register rd, Register rs1, Register rs2, uint8_t frm);
-  void RV_fsub_s(Register rd, Register rs1, Register rs2, uint8_t frm);
-  void RV_fmul_s(Register rd, Register rs1, Register rs2, uint8_t frm);
-  void RV_fdiv_s(Register rd, Register rs1, Register rs2, uint8_t frm);
-  void RV_fsqrt_s(Register rd, Register rs1, uint8_t frm);
-  void RV_fsgnj_s(Register rd, Register rs1, Register rs2);
-  void RV_fsgnjn_s(Register rd, Register rs1, Register rs2);
-  void RV_fsgnjx_s(Register rd, Register rs1, Register rs2);
-  void RV_fmin_s(Register rd, Register rs1, Register rs2);
-  void RV_fmax_s(Register rd, Register rs1, Register rs2);
-  void RV_fcvt_w_s(Register rd, Register rs1, Register rs2, uint8_t frm);
-  void RV_fcvt_wu_s(Register rd, Register rs1, Register rs2, uint8_t frm);
-  void RV_fmv_x_w(Register rd, Register rs1);
-  void RV_feq_s(Register rd, Register rs1, Register rs2);
-  void RV_flt_s(Register rd, Register rs1, Register rs2);
-  void RV_fle_s(Register rd, Register rs1, Register rs2);
-  void RV_fclass_s(Register rd, Register rs1);
-  void RV_fcvt_s_w(Register rd, Register rs1, uint8_t frm);
-  void RV_fcvt_s_wu(Register rd, Register rs1, uint8_t frm);
-  void RV_fmv_w_x(Register rd, Register rs1);
+  void RV_flw(FPURegister rd, Register rs1, int16_t imm12);
+  void RV_fsw(Register rs1, FPURegister rs2, int16_t imm12);
+  void RV_fmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                  FPURegister rs3, uint8_t frm = 0b000);
+  void RV_fmsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                  FPURegister rs3, uint8_t frm = 0b000);
+  void RV_fnmsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                   FPURegister rs3, uint8_t frm = 0b000);
+  void RV_fnmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                   FPURegister rs3, uint8_t frm = 0b000);
+  void RV_fadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                 uint8_t frm = 0b000);
+  void RV_fsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                 uint8_t frm = 0b000);
+  void RV_fmul_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                 uint8_t frm = 0b000);
+  void RV_fdiv_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                 uint8_t frm = 0b000);
+  void RV_fsqrt_s(FPURegister rd, FPURegister rs1, uint8_t frm = 0b000);
+  void RV_fsgnj_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void RV_fsgnjn_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void RV_fsgnjx_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void RV_fmin_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void RV_fmax_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void RV_fcvt_w_s(Register rd, FPURegister rs1, uint8_t frm = 0b000);
+  void RV_fcvt_wu_s(Register rd, FPURegister rs1, uint8_t frm = 0b000);
+  void RV_fmv_x_w(Register rd, FPURegister rs1);
+  void RV_feq_s(Register rd, FPURegister rs1, FPURegister rs2);
+  void RV_flt_s(Register rd, FPURegister rs1, FPURegister rs2);
+  void RV_fle_s(Register rd, FPURegister rs1, FPURegister rs2);
+  void RV_fclass_s(Register rd, FPURegister rs1);
+  void RV_fcvt_s_w(FPURegister rd, Register rs1, uint8_t frm = 0b000);
+  void RV_fcvt_s_wu(FPURegister rd, Register rs1, uint8_t frm = 0b000);
+  void RV_fmv_w_x(FPURegister rd, Register rs1);
 
   // RV64F Standard Extension (in addition to RV32F)
-  void RV_fcvt_l_s(Register rd, Register rs1, uint8_t frm);
-  void RV_fcvt_lu_s(Register rd, Register rs1, uint8_t frm);
-  void RV_fcvt_s_l(Register rd, Register rs1, uint8_t frm);
-  void RV_fcvt_s_lu(Register rd, Register rs1, uint8_t frm);
+  void RV_fcvt_l_s(Register rd, FPURegister rs1, uint8_t frm = 0b000);
+  void RV_fcvt_lu_s(Register rd, FPURegister rs1, uint8_t frm = 0b000);
+  void RV_fcvt_s_l(FPURegister rd, Register rs1, uint8_t frm = 0b000);
+  void RV_fcvt_s_lu(FPURegister rd, Register rs1, uint8_t frm = 0b000);
 
   // RV32D Standard Extension
-  void RV_fld(Register rd, Register rs1, int16_t imm12);
-  void RV_fsd(Register rs1, Register rs2, int16_t imm12);
-  void RV_fmadd_d(Register rd, Register rs1, Register rs2, Register rs3,
-                  uint8_t frm);
-  void RV_fmsub_d(Register rd, Register rs1, Register rs2, Register rs3,
-                  uint8_t frm);
-  void RV_fnmsub_d(Register rd, Register rs1, Register rs2, Register rs3,
-                   uint8_t frm);
-  void RV_fnmadd_d(Register rd, Register rs1, Register rs2, Register rs3,
-                   uint8_t frm);
-  void RV_fadd_d(Register rd, Register rs1, Register rs2, uint8_t frm);
-  void RV_fsub_d(Register rd, Register rs1, Register rs2, uint8_t frm);
-  void RV_fmul_d(Register rd, Register rs1, Register rs2, uint8_t frm);
-  void RV_fdiv_d(Register rd, Register rs1, Register rs2, uint8_t frm);
-  void RV_fsqrt_d(Register rd, Register rs1, uint8_t frm);
-  void RV_fsgnj_d(Register rd, Register rs1, Register rs2);
-  void RV_fsgnjn_d(Register rd, Register rs1, Register rs2);
-  void RV_fsgnjx_d(Register rd, Register rs1, Register rs2);
-  void RV_fmin_d(Register rd, Register rs1, Register rs2);
-  void RV_fmax_d(Register rd, Register rs1, Register rs2);
-  void RV_fcvt_s_d(Register rd, Register rs1, Register rs2, uint8_t frm);
-  void RV_fcvt_d_s(Register rd, Register rs1, Register rs2, uint8_t frm);
-  void RV_feq_d(Register rd, Register rs1, Register rs2);
-  void RV_flt_d(Register rd, Register rs1, Register rs2);
-  void RV_fle_d(Register rd, Register rs1, Register rs2);
-  void RV_fclass_d(Register rd, Register rs1);
-  void RV_fcvt_w_d(Register rd, Register rs1, uint8_t frm);
-  void RV_fcvt_wu_d(Register rd, Register rs1, uint8_t frm);
-  void RV_fcvt_d_w(Register rd, Register rs1, uint8_t frm);
-  void RV_fcvt_d_wu(Register rd, Register rs1, uint8_t frm);
+  void RV_fld(FPURegister rd, Register rs1, int16_t imm12);
+  void RV_fsd(Register rs1, FPURegister rs2, int16_t imm12);
+  void RV_fmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                  FPURegister rs3, uint8_t frm = 0b000);
+  void RV_fmsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                  FPURegister rs3, uint8_t frm = 0b000);
+  void RV_fnmsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                   FPURegister rs3, uint8_t frm = 0b000);
+  void RV_fnmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                   FPURegister rs3, uint8_t frm = 0b000);
+  void RV_fadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                 uint8_t frm = 0b000);
+  void RV_fsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                 uint8_t frm = 0b000);
+  void RV_fmul_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                 uint8_t frm = 0b000);
+  void RV_fdiv_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                 uint8_t frm = 0b000);
+  void RV_fsqrt_d(FPURegister rd, FPURegister rs1, uint8_t frm = 0b000);
+  void RV_fsgnj_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void RV_fsgnjn_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void RV_fsgnjx_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void RV_fmin_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void RV_fmax_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void RV_fcvt_s_d(FPURegister rd, FPURegister rs1, uint8_t frm = 0b000);
+  void RV_fcvt_d_s(FPURegister rd, FPURegister rs1, uint8_t frm = 0b000);
+  void RV_feq_d(Register rd, FPURegister rs1, FPURegister rs2);
+  void RV_flt_d(Register rd, FPURegister rs1, FPURegister rs2);
+  void RV_fle_d(Register rd, FPURegister rs1, FPURegister rs2);
+  void RV_fclass_d(Register rd, FPURegister rs1);
+  void RV_fcvt_w_d(Register rd, FPURegister rs1, uint8_t frm = 0b000);
+  void RV_fcvt_wu_d(Register rd, FPURegister rs1, uint8_t frm = 0b000);
+  void RV_fcvt_d_w(FPURegister rd, Register rs1, uint8_t frm = 0b000);
+  void RV_fcvt_d_wu(FPURegister rd, Register rs1, uint8_t frm = 0b000);
 
   // RV64D Standard Extension (in addition to RV32D)
-  void RV_fcvt_l_d(Register rd, Register rs1, uint8_t frm);
-  void RV_fcvt_lu_d(Register rd, Register rs1, uint8_t frm);
-  void RV_fmv_x_d(Register rd, Register rs1);
-  void RV_fcvt_d_l(Register rd, Register rs1, uint8_t frm);
-  void RV_fcvt_d_lu(Register rd, Register rs1, uint8_t frm);
-  void RV_fmv_d_x(Register rd, Register rs1);
+  void RV_fcvt_l_d(Register rd, FPURegister rs1, uint8_t frm = 0b000);
+  void RV_fcvt_lu_d(Register rd, FPURegister rs1, uint8_t frm = 0b000);
+  void RV_fmv_x_d(Register rd, FPURegister rs1);
+  void RV_fcvt_d_l(FPURegister rd, Register rs1, uint8_t frm = 0b000);
+  void RV_fcvt_d_lu(FPURegister rd, Register rs1, uint8_t frm = 0b000);
+  void RV_fmv_d_x(FPURegister rd, Register rs1);
 
   // Privileged
   void RV_uret();
@@ -2013,22 +2021,38 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // ----- Top-level instruction formats match those in the ISA manual
   // (R, I, S, B, U, J). These match the formats defined in LLVM's
   // RISCVInstrFormats.td.
-
   void GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode, Register rd,
                  Register rs1, Register rs2);
+  void GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode, FPURegister rd,
+                 FPURegister rs1, FPURegister rs2);
+  void GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode, Register rd,
+                 FPURegister rs1, Register rs2);
+  void GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode, FPURegister rd,
+                 Register rs1, Register rs2);
+  void GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode, FPURegister rd,
+                 FPURegister rs1, Register rs2);
+  void GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode, Register rd,
+                 FPURegister rs1, FPURegister rs2);
   void GenInstrR4(uint8_t funct2, Opcode opcode, Register rd, Register rs1,
                   Register rs2, Register rs3, uint8_t frm);
+  void GenInstrR4(uint8_t funct2, Opcode opcode, FPURegister rd,
+                  FPURegister rs1, FPURegister rs2, FPURegister rs3,
+                  uint8_t frm);
   void GenInstrRAtomic(uint8_t funct5, bool aq, bool rl, uint8_t funct3,
                        Register rd, Register rs1, Register rs2);
   void GenInstrRFrm(uint8_t funct7, Opcode opcode, Register rd, Register rs1,
                     Register rs2, uint8_t frm);
   void GenInstrI(uint8_t funct3, Opcode opcode, Register rd, Register rs1,
                  int16_t imm12);
+  void GenInstrI(uint8_t funct3, Opcode opcode, FPURegister rd, Register rs1,
+                 int16_t imm12);
   void GenInstrIShift(bool arithshift, uint8_t funct3, Opcode opcode,
                       Register rd, Register rs1, uint8_t shamt);
   void GenInstrIShiftW(bool arithshift, uint8_t funct3, Opcode opcode,
                        Register rd, Register rs1, uint8_t shamt);
   void GenInstrS(uint8_t funct3, Opcode opcode, Register rs1, Register rs2,
+                 int16_t imm12);
+  void GenInstrS(uint8_t funct3, Opcode opcode, Register rs1, FPURegister rs2,
                  int16_t imm12);
   void GenInstrB(uint8_t funct3, Opcode opcode, Register rs1, Register rs2,
                  int16_t imm12);
@@ -2055,12 +2079,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenInstrALUW_rr(uint8_t funct7, uint8_t funct3, Register rd,
                        Register rs1, Register rs2);
   void GenInstrPriv(uint8_t funct7, Register rs1, Register rs2);
-  void GenInstrLoadFP_ri(uint8_t funct3, Register rd, Register rs1,
+  void GenInstrLoadFP_ri(uint8_t funct3, FPURegister rd, Register rs1,
                          int16_t imm12);
-  void GenInstrStoreFP_rri(uint8_t funct3, Register rs1, Register rs2,
+  void GenInstrStoreFP_rri(uint8_t funct3, Register rs1, FPURegister rs2,
                            int16_t imm12);
-  void GenInstrALUFP_rr(uint8_t funct7, uint8_t funct3, Register rd,
+  void GenInstrALUFP_rr(uint8_t funct7, uint8_t funct3, FPURegister rd,
+                        FPURegister rs1, FPURegister rs2);
+  void GenInstrALUFP_rr(uint8_t funct7, uint8_t funct3, FPURegister rd,
                         Register rs1, Register rs2);
+  void GenInstrALUFP_rr(uint8_t funct7, uint8_t funct3, FPURegister rd,
+                        FPURegister rs1, Register rs2);
+  void GenInstrALUFP_rr(uint8_t funct7, uint8_t funct3, Register rd,
+                        FPURegister rs1, Register rs2);
+  void GenInstrALUFP_rr(uint8_t funct7, uint8_t funct3, Register rd,
+                        FPURegister rs1, FPURegister rs2);
 
   // We have 3 different kind of encoding layout on MIPS.
   // However due to many different types of objects encoded in the same fields
