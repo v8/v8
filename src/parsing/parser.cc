@@ -1788,6 +1788,11 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
     statements.Add(
         factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
     ParseStatementList(&statements, Token::RBRACE);
+    // Since the whole body is wrapped in a try-catch, make the implicit
+    // end-of-function return explicit to ensure BytecodeGenerator's special
+    // handling for ReturnStatements in async generators applies.
+    statements.Add(factory()->NewSyntheticAsyncReturnStatement(
+        factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition));
 
     // Don't create iterator result for async generators, as the resume methods
     // will create it.
