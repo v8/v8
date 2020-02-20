@@ -823,9 +823,8 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
               "allowed overshoot: %fms\n",
               time_to_marking_task, overshoot_ms);
         }
-        // Assuming kAllowedOvershoot > 0.
-        DCHECK(incremental_marking_job_.IsTaskPending(
-            IncrementalMarkingJob::TaskType::kNormal));
+        incremental_marking_job_.ScheduleTask(
+            heap(), IncrementalMarkingJob::TaskType::kNormal);
         return;
       }
     }
