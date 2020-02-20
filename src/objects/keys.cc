@@ -605,8 +605,14 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysWithPrototypeInfoCache(
                  MaybeHandle<FixedArray>());
     prototype_chain_keys = accumulator.GetKeys(keys_conversion);
   }
-  return CombineKeys(isolate_, own_keys, prototype_chain_keys, receiver_,
-                     may_have_elements_);
+  Handle<FixedArray> result = CombineKeys(
+      isolate_, own_keys, prototype_chain_keys, receiver_, may_have_elements_);
+  if (is_for_in_ && own_keys.is_identical_to(result)) {
+    // Don't leak the enumeration cache without the receiver since it might get
+    // trimmed otherwise.
+    return isolate_->factory()->CopyFixedArrayUpTo(result, result->length());
+  }
+  return result;
 }
 
 bool FastKeyAccumulator::MayHaveElements(JSReceiver receiver) {
