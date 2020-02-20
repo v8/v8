@@ -3010,6 +3010,25 @@ void Assembler::RV_snez(Register rd, Register rs) { RV_sltu(rd, zero_reg, rs); }
 void Assembler::RV_sltz(Register rd, Register rs) { RV_slt(rd, rs, zero_reg); }
 void Assembler::RV_sgtz(Register rd, Register rs) { RV_slt(rd, zero_reg, rs); }
 
+void Assembler::RV_fmv_s(FPURegister rd, FPURegister rs) {
+  RV_fsgnj_s(rd, rs, rs);
+}
+void Assembler::RV_fabs_s(FPURegister rd, FPURegister rs) {
+  RV_fsgnjx_s(rd, rs, rs);
+}
+void Assembler::RV_fneg_s(FPURegister rd, FPURegister rs) {
+  RV_fsgnjn_s(rd, rs, rs);
+}
+void Assembler::RV_fmv_d(FPURegister rd, FPURegister rs) {
+  RV_fsgnj_d(rd, rs, rs);
+}
+void Assembler::RV_fabs_d(FPURegister rd, FPURegister rs) {
+  RV_fsgnjx_d(rd, rs, rs);
+}
+void Assembler::RV_fneg_d(FPURegister rd, FPURegister rs) {
+  RV_fsgnjn_d(rd, rs, rs);
+}
+
 void Assembler::RV_beqz(Register rs, int16_t imm12) {
   RV_beq(rs, zero_reg, imm12);
 }

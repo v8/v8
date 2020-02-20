@@ -614,6 +614,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_sltz(Register rd, Register rs1);
   void RV_sgtz(Register rd, Register rs1);
 
+  void RV_fmv_s(FPURegister rd, FPURegister rs);
+  void RV_fabs_s(FPURegister rd, FPURegister rs);
+  void RV_fneg_s(FPURegister rd, FPURegister rs);
+  void RV_fmv_d(FPURegister rd, FPURegister rs);
+  void RV_fabs_d(FPURegister rd, FPURegister rs);
+  void RV_fneg_d(FPURegister rd, FPURegister rs);
+
   void RV_beqz(Register rs1, int16_t imm12);
   inline void RV_beqz(Register rs1, Label* L) {
     RV_beqz(rs1, RV_branch_offset(L));
