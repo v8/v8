@@ -404,6 +404,202 @@ TEST(RISCV4) {
   CHECK_EQ(static_cast<int64_t>(0xFFFFFFFFD2800E8EL), t.e);
 }
 
+TEST(RISCV5) {
+  // Test conversions between doubles and integers.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  struct T {
+    double a;
+    double b;
+    int i;
+    int j;
+  };
+  T t;
+
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  // Load all structure elements to registers.
+  __ RV_fld(f4, a0, offsetof(T, a));
+  __ RV_fld(f6, a0, offsetof(T, b));
+  __ RV_lw(a4, a0, offsetof(T, i));
+  __ RV_lw(a5, a0, offsetof(T, j));
+
+  // Convert double in f4 to int in element i.
+  __ RV_fcvt_l_d(a6, f4);
+  __ RV_sw(a6, a0, offsetof(T, i));
+
+  // Convert double in f6 to int in element j.
+  __ RV_fcvt_l_d(a7, f6);
+  __ RV_sw(a7, a0, offsetof(T, j));
+
+  // Convert int in original i (a4) to double in a.
+  __ RV_fcvt_d_l(f0, a4);
+  __ RV_fsd(f0, a0, offsetof(T, a));
+
+  // Convert int in original j (a5) to double in b.
+  __ RV_fcvt_d_l(f2, a5);
+  __ RV_fsd(f2, a0, offsetof(T, b));
+
+  __ jr(ra);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  auto f = GeneratedCode<F3>::FromCode(*code);
+  t.a = 1.5e4;
+  t.b = 2.75e8;
+  t.i = 12345678;
+  t.j = -100000;
+  f.Call(&t, 0, 0, 0, 0);
+
+  CHECK_EQ(12345678.0, t.a);
+  CHECK_EQ(-100000.0, t.b);
+  CHECK_EQ(15000, t.i);
+  CHECK_EQ(275000000, t.j);
+}
+
+TEST(RISCV6) {
+  // Test simple memory loads and stores.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  struct T {
+    uint32_t ui;
+    int32_t si;
+    int32_t r1;
+    int32_t r2;
+    int32_t r3;
+    int32_t r4;
+    int32_t r5;
+    int32_t r6;
+  };
+  T t;
+
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  // Basic word load/store.
+  __ RV_lw(a4, a0, offsetof(T, ui));
+  __ RV_sw(a4, a0, offsetof(T, r1));
+
+  // lh with positive data.
+  __ RV_lh(a5, a0, offsetof(T, ui));
+  __ RV_sw(a5, a0, offsetof(T, r2));
+
+  // lh with negative data.
+  __ RV_lh(a6, a0, offsetof(T, si));
+  __ RV_sw(a6, a0, offsetof(T, r3));
+
+  // lhu with negative data.
+  __ RV_lhu(a7, a0, offsetof(T, si));
+  __ RV_sw(a7, a0, offsetof(T, r4));
+
+  // Lb with negative data.
+  __ RV_lb(t0, a0, offsetof(T, si));
+  __ RV_sw(t0, a0, offsetof(T, r5));
+
+  // sh writes only 1/2 of word.
+  __ RV_li(t1, 0x33333333);
+  __ RV_sw(t1, a0, offsetof(T, r6));
+  __ RV_lhu(t1, a0, offsetof(T, si));
+  __ RV_sh(t1, a0, offsetof(T, r6));
+
+  __ jr(ra);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  auto f = GeneratedCode<F3>::FromCode(*code);
+  t.ui = 0x11223344;
+  t.si = 0x99AABBCC;
+  f.Call(&t, 0, 0, 0, 0);
+
+  CHECK_EQ(static_cast<int32_t>(0x11223344), t.r1);
+  if (kArchEndian == kLittle)  {
+    CHECK_EQ(static_cast<int32_t>(0x3344), t.r2);
+    CHECK_EQ(static_cast<int32_t>(0xFFFFBBCC), t.r3);
+    CHECK_EQ(static_cast<int32_t>(0x0000BBCC), t.r4);
+    CHECK_EQ(static_cast<int32_t>(0xFFFFFFCC), t.r5);
+    CHECK_EQ(static_cast<int32_t>(0x3333BBCC), t.r6);
+  } else {
+    CHECK_EQ(static_cast<int32_t>(0x1122), t.r2);
+    CHECK_EQ(static_cast<int32_t>(0xFFFF99AA), t.r3);
+    CHECK_EQ(static_cast<int32_t>(0x000099AA), t.r4);
+    CHECK_EQ(static_cast<int32_t>(0xFFFFFF99), t.r5);
+    CHECK_EQ(static_cast<int32_t>(0x99AA3333), t.r6);
+  }
+}
+
+TEST(RISCV7) {
+  // Test floating point compare and branch instructions.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  struct T {
+    double a;
+    double b;
+    double c;
+    double d;
+    double e;
+    double f;
+    int32_t result;
+  };
+  T t;
+
+  // Create a function that accepts &t, and loads, manipulates, and stores
+  // the doubles t.a ... t.f.
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  Label neither_is_nan, less_than, outa_here;
+
+  __ RV_fld(f4, a0, offsetof(T, a));
+  __ RV_fld(f6, a0, offsetof(T, b));
+
+  __ RV_fclass_d(t8, f4);
+  __ RV_fclass_d(t9, f6);
+  __ RV_or(t8, t8, t9);
+  __ RV_andi(t8, t8, 0b1100000000);
+  __ RV_beq(t8, zero_reg, &neither_is_nan);
+  __ RV_sw(zero_reg, a0, offsetof(T, result));
+  __ RV_j(&outa_here);
+
+  __ RV_bind(&neither_is_nan);
+
+  __ RV_flt_d(t8, f6, f4);
+  __ RV_bne(t8, zero_reg, &less_than);
+
+  __ RV_sw(zero_reg, a0, offsetof(T, result));
+  __ RV_j(&outa_here);
+
+  __ RV_bind(&less_than);
+  __ RV_li(a4, 1);
+  __ RV_sw(a4, a0, offsetof(T, result));  // Set true.
+
+  // This test-case should have additional tests.
+
+  __ RV_bind(&outa_here);
+
+  __ jr(ra);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  auto f = GeneratedCode<F3>::FromCode(*code);
+  t.a = 1.5e14;
+  t.b = 2.75e11;
+  t.c = 2.0;
+  t.d = -4.0;
+  t.e = 0.0;
+  t.f = 0.0;
+  t.result = 0;
+  f.Call(&t, 0, 0, 0, 0);
+  CHECK_EQ(1.5e14, t.a);
+  CHECK_EQ(2.75e11, t.b);
+  CHECK_EQ(1, t.result);
+}
+
 #undef __
 
 }  // namespace internal
