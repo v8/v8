@@ -257,54 +257,54 @@ TEST(RISCV3) {
   __ RV_fld(f4, a0, offsetof(T, a));
   __ RV_fld(f6, a0, offsetof(T, b));
   __ RV_fadd_d(f8, f4, f6);
-  __ RV_fsd(a0, f8, offsetof(T, c));  // c = a + b.
+  __ RV_fsd(f8, a0, offsetof(T, c));  // c = a + b.
 
   __ RV_fmv_d(f10, f8);   // c
   __ RV_fneg_d(f12, f6);  // -b
   __ RV_fsub_d(f10, f10, f12);
-  __ RV_fsd(a0, f10, offsetof(T, d));  // d = c - (-b).
+  __ RV_fsd(f10, a0, offsetof(T, d));  // d = c - (-b).
 
-  __ RV_fsd(a0, f4, offsetof(T, b));  // b = a.
+  __ RV_fsd(f4, a0, offsetof(T, b));  // b = a.
 
   __ RV_li(a4, 120);
   __ RV_fcvt_d_w(f14, a4);
   __ RV_fmul_d(f10, f10, f14);
-  __ RV_fsd(a0, f10, offsetof(T, e));  // e = d * 120 = 1.8066e16.
+  __ RV_fsd(f10, a0, offsetof(T, e));  // e = d * 120 = 1.8066e16.
 
   __ RV_fdiv_d(f12, f10, f4);
-  __ RV_fsd(a0, f12, offsetof(T, f));  // f = e / a = 120.44.
+  __ RV_fsd(f12, a0, offsetof(T, f));  // f = e / a = 120.44.
 
   __ RV_fsqrt_d(f14, f12);
-  __ RV_fsd(a0, f14, offsetof(T, g));
+  __ RV_fsd(f14, a0, offsetof(T, g));
   // g = sqrt(f) = 10.97451593465515908537
 
   __ RV_fld(f4, a0, offsetof(T, h));
   __ RV_fld(f6, a0, offsetof(T, i));
   __ RV_fmadd_d(f14, f6, f4, f6);
-  __ RV_fsd(a0, f14, offsetof(T, h));
+  __ RV_fsd(f14, a0, offsetof(T, h));
 
   // // Single precision floating point instructions.
   __ RV_flw(f4, a0, offsetof(T, fa));
   __ RV_flw(f6, a0, offsetof(T, fb));
   __ RV_fadd_s(f8, f4, f6);
-  __ RV_fsw(a0, f8, offsetof(T, fc));  // fc = fa + fb.
+  __ RV_fsw(f8, a0, offsetof(T, fc));  // fc = fa + fb.
 
   __ RV_fneg_s(f10, f6);  // -fb
   __ RV_fsub_s(f10, f8, f10);
-  __ RV_fsw(a0, f10, offsetof(T, fd));  // fd = fc - (-fb).
+  __ RV_fsw(f10, a0, offsetof(T, fd));  // fd = fc - (-fb).
 
-  __ RV_fsw(a0, f4, offsetof(T, fb));  // fb = fa.
+  __ RV_fsw(f4, a0, offsetof(T, fb));  // fb = fa.
 
   __ RV_li(t0, 120);
   __ RV_fcvt_s_w(f14, t0);  // f14 = 120.0.
   __ RV_fmul_s(f10, f10, f14);
-  __ RV_fsw(a0, f10, offsetof(T, fe));  // fe = fd * 120
+  __ RV_fsw(f10, a0, offsetof(T, fe));  // fe = fd * 120
 
   __ RV_fdiv_s(f12, f10, f4);
-  __ RV_fsw(a0, f12, offsetof(T, ff));  // ff = fe / fa
+  __ RV_fsw(f12, a0, offsetof(T, ff));  // ff = fe / fa
 
   __ RV_fsqrt_s(f14, f12);
-  __ RV_fsw(a0, f14, offsetof(T, fg));
+  __ RV_fsw(f14, a0, offsetof(T, fg));
 
   __ jr(ra);
   __ nop();

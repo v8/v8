@@ -130,7 +130,7 @@ TEST(RISCV_SIMPLE3) {
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  __ RV_sb(sp, a0, -4);
+  __ RV_sb(a0, sp, -4);
   __ RV_lb(a0, sp, -4);
   __ RV_jr(ra);
 

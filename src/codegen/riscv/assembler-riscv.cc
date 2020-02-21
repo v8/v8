@@ -2264,16 +2264,16 @@ void Assembler::RV_lhu(Register rd, Register rs1, int16_t imm12) {
 
 // Stores
 
-void Assembler::RV_sb(Register rs1, Register rs2, int16_t imm12) {
-  GenInstrStore_rri(0b000, rs1, rs2, imm12);
+void Assembler::RV_sb(Register source, Register base, int16_t imm12) {
+  GenInstrStore_rri(0b000, base, source, imm12);
 }
 
-void Assembler::RV_sh(Register rs1, Register rs2, int16_t imm12) {
-  GenInstrStore_rri(0b001, rs1, rs2, imm12);
+void Assembler::RV_sh(Register source, Register base, int16_t imm12) {
+  GenInstrStore_rri(0b001, base, source, imm12);
 }
 
-void Assembler::RV_sw(Register rs1, Register rs2, int16_t imm12) {
-  GenInstrStore_rri(0b010, rs1, rs2, imm12);
+void Assembler::RV_sw(Register source, Register base, int16_t imm12) {
+  GenInstrStore_rri(0b010, base, source, imm12);
 }
 
 // Arithmetic with immediate
@@ -2426,8 +2426,8 @@ void Assembler::RV_ld(Register rd, Register rs1, int16_t imm12) {
   GenInstrLoad_ri(0b011, rd, rs1, imm12);
 }
 
-void Assembler::RV_sd(Register rs1, Register rs2, int16_t imm12) {
-  GenInstrStore_rri(0b011, rs1, rs2, imm12);
+void Assembler::RV_sd(Register source, Register base, int16_t imm12) {
+  GenInstrStore_rri(0b011, base, source, imm12);
 }
 
 void Assembler::RV_addiw(Register rd, Register rs1, int16_t imm12) {
@@ -2640,8 +2640,8 @@ void Assembler::RV_flw(FPURegister rd, Register rs1, int16_t imm12) {
   GenInstrLoadFP_ri(0b010, rd, rs1, imm12);
 }
 
-void Assembler::RV_fsw(Register rs1, FPURegister rs2, int16_t imm12) {
-  GenInstrStoreFP_rri(0b010, rs1, rs2, imm12);
+void Assembler::RV_fsw(FPURegister source, Register base, int16_t imm12) {
+  GenInstrStoreFP_rri(0b010, base, source, imm12);
 }
 
 void Assembler::RV_fmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
@@ -2772,8 +2772,8 @@ void Assembler::RV_fld(FPURegister rd, Register rs1, int16_t imm12) {
   GenInstrLoadFP_ri(0b011, rd, rs1, imm12);
 }
 
-void Assembler::RV_fsd(Register rs1, FPURegister rs2, int16_t imm12) {
-  GenInstrStoreFP_rri(0b011, rs1, rs2, imm12);
+void Assembler::RV_fsd(FPURegister source, Register base, int16_t imm12) {
+  GenInstrStoreFP_rri(0b011, base, source, imm12);
 }
 
 void Assembler::RV_fmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,

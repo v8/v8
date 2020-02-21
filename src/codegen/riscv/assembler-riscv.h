@@ -402,9 +402,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_lhu(Register rd, Register rs1, int16_t imm12);
 
   // Stores
-  void RV_sb(Register rs1, Register rs2, int16_t imm12);
-  void RV_sh(Register rs1, Register rs2, int16_t imm12);
-  void RV_sw(Register rs1, Register rs2, int16_t imm12);
+  void RV_sb(Register source, Register base, int16_t imm12);
+  void RV_sh(Register source, Register base, int16_t imm12);
+  void RV_sw(Register source, Register base, int16_t imm12);
 
   // Arithmetic with immediate
   void RV_addi(Register rd, Register rs1, int16_t imm12);
@@ -454,7 +454,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // RV64I
   void RV_lwu(Register rd, Register rs1, int16_t imm12);
   void RV_ld(Register rd, Register rs1, int16_t imm12);
-  void RV_sd(Register rs1, Register rs2, int16_t imm12);
+  void RV_sd(Register source, Register base, int16_t imm12);
   void RV_addiw(Register rd, Register rs1, int16_t imm12);
   void RV_slliw(Register rd, Register rs1, uint8_t shamt);
   void RV_srliw(Register rd, Register rs1, uint8_t shamt);
@@ -510,7 +510,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // RV32F Standard Extension
   void RV_flw(FPURegister rd, Register rs1, int16_t imm12);
-  void RV_fsw(Register rs1, FPURegister rs2, int16_t imm12);
+  void RV_fsw(FPURegister source, Register base, int16_t imm12);
   void RV_fmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
                   FPURegister rs3, uint8_t frm = 0b000);
   void RV_fmsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
@@ -552,7 +552,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // RV32D Standard Extension
   void RV_fld(FPURegister rd, Register rs1, int16_t imm12);
-  void RV_fsd(Register rs1, FPURegister rs2, int16_t imm12);
+  void RV_fsd(FPURegister source, Register base, int16_t imm12);
   void RV_fmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
                   FPURegister rs3, uint8_t frm = 0b000);
   void RV_fmsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
