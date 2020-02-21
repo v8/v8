@@ -380,6 +380,7 @@ Handle<JSArrayBuffer> getSharedArrayBuffer(Handle<WasmInstanceObject> instance,
 }
 
 RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
+  ClearThreadInWasmScope clear_wasm_flag;
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -398,6 +399,7 @@ double WaitTimeoutInMs(double timeout_ns) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
+  ClearThreadInWasmScope clear_wasm_flag;
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -412,6 +414,7 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
+  ClearThreadInWasmScope clear_wasm_flag;
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
