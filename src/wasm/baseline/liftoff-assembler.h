@@ -928,7 +928,7 @@ class LiftoffStackSlots {
 #include "src/wasm/baseline/arm64/liftoff-assembler-arm64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "src/wasm/baseline/arm/liftoff-assembler-arm.h"
-#elif V8_TARGET_ARCH_PPC
+#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #include "src/wasm/baseline/ppc/liftoff-assembler-ppc.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "src/wasm/baseline/mips/liftoff-assembler-mips.h"

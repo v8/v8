@@ -653,8 +653,9 @@ config("toolchain") {
     }
   }
   if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
-    defines += [ "V8_TARGET_ARCH_PPC" ]
-    if (v8_current_cpu == "ppc64") {
+    if (v8_current_cpu == "ppc") {
+      defines += [ "V8_TARGET_ARCH_PPC" ]
+    } else if (v8_current_cpu == "ppc64") {
       defines += [ "V8_TARGET_ARCH_PPC64" ]
     }
     if (host_byteorder == "little") {
@@ -1656,9 +1657,14 @@ v8_source_set("v8_initializers") {
       ### gcmole(arch:mips64el) ###
       "src/builtins/mips64/builtins-mips64.cc",
     ]
-  } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
+  } else if (v8_current_cpu == "ppc") {
     sources += [
       ### gcmole(arch:ppc) ###
+      "src/builtins/ppc/builtins-ppc.cc",
+    ]
+  } else if (v8_current_cpu == "ppc64") {
+    sources += [
+      ### gcmole(arch:ppc64) ###
       "src/builtins/ppc/builtins-ppc.cc",
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
@@ -3284,8 +3290,38 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/mips64/regexp-macro-assembler-mips64.h",
       "src/wasm/baseline/mips64/liftoff-assembler-mips64.h",
     ]
-  } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
+  } else if (v8_current_cpu == "ppc") {
     sources += [  ### gcmole(arch:ppc) ###
+      "src/codegen/ppc/assembler-ppc-inl.h",
+      "src/codegen/ppc/assembler-ppc.cc",
+      "src/codegen/ppc/assembler-ppc.h",
+      "src/codegen/ppc/constants-ppc.cc",
+      "src/codegen/ppc/constants-ppc.h",
+      "src/codegen/ppc/cpu-ppc.cc",
+      "src/codegen/ppc/interface-descriptors-ppc.cc",
+      "src/codegen/ppc/macro-assembler-ppc.cc",
+      "src/codegen/ppc/macro-assembler-ppc.h",
+      "src/codegen/ppc/register-ppc.h",
+      "src/compiler/backend/ppc/code-generator-ppc.cc",
+      "src/compiler/backend/ppc/instruction-codes-ppc.h",
+      "src/compiler/backend/ppc/instruction-scheduler-ppc.cc",
+      "src/compiler/backend/ppc/instruction-selector-ppc.cc",
+      "src/compiler/backend/ppc/unwinding-info-writer-ppc.cc",
+      "src/compiler/backend/ppc/unwinding-info-writer-ppc.h",
+      "src/debug/ppc/debug-ppc.cc",
+      "src/deoptimizer/ppc/deoptimizer-ppc.cc",
+      "src/diagnostics/ppc/disasm-ppc.cc",
+      "src/diagnostics/ppc/eh-frame-ppc.cc",
+      "src/execution/ppc/frame-constants-ppc.cc",
+      "src/execution/ppc/frame-constants-ppc.h",
+      "src/execution/ppc/simulator-ppc.cc",
+      "src/execution/ppc/simulator-ppc.h",
+      "src/regexp/ppc/regexp-macro-assembler-ppc.cc",
+      "src/regexp/ppc/regexp-macro-assembler-ppc.h",
+      "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
+    ]
+  } else if (v8_current_cpu == "ppc64") {
+    sources += [  ### gcmole(arch:ppc64) ###
       "src/codegen/ppc/assembler-ppc-inl.h",
       "src/codegen/ppc/assembler-ppc.cc",
       "src/codegen/ppc/assembler-ppc.h",
