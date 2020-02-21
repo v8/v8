@@ -6701,11 +6701,7 @@ static void LdrLiteralRangeHelper(
 
   size_t expected_pool_size = 0;
 
-#if defined(_M_ARM64) && !defined(__clang__)
-  auto PoolSizeAt = [pool_entries, kEntrySize](int pc_offset) {
-#else
-  auto PoolSizeAt = [unaligned_emission](int pc_offset) {
-#endif
+  auto PoolSizeAt = [&](int pc_offset) {
     // To determine padding, consider the size of the prologue of the pool,
     // and the jump around the pool, which we always need.
     size_t prologue_size = 2 * kInstrSize + kInstrSize;
