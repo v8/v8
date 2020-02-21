@@ -82,7 +82,6 @@ extern class JSV8BreakIterator extends JSObject {
   bound_next: Undefined|JSFunction;
   bound_current: Undefined|JSFunction;
   bound_break_type: Undefined|JSFunction;
-  break_iterator_type: Smi;
 }
 
 extern class JSCollator extends JSObject {

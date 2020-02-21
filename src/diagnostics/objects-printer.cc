@@ -2007,7 +2007,6 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
 void JSV8BreakIterator::JSV8BreakIteratorPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSV8BreakIterator");
   os << "\n - locale: " << Brief(locale());
-  os << "\n - type: " << TypeAsString();
   os << "\n - break iterator: " << Brief(break_iterator());
   os << "\n - unicode string: " << Brief(unicode_string());
   os << "\n - bound adopt text: " << Brief(bound_adopt_text());
