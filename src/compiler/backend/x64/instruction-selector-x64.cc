@@ -2729,12 +2729,15 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4Neg)               \
   V(I32x4UConvertI16x8Low)  \
   V(I32x4UConvertI16x8High) \
+  V(I32x4Abs)               \
   V(I16x8SConvertI8x16Low)  \
   V(I16x8SConvertI8x16High) \
   V(I16x8Neg)               \
   V(I16x8UConvertI8x16Low)  \
   V(I16x8UConvertI8x16High) \
+  V(I16x8Abs)               \
   V(I8x16Neg)               \
+  V(I8x16Abs)               \
   V(S128Not)
 
 #define SIMD_SHIFT_OPCODES(V) \

@@ -2373,9 +2373,12 @@ class ThreadImpl {
       UNOP_CASE(F32x4RecipSqrtApprox, f32x4, float4, 4, base::RecipSqrt(a))
       UNOP_CASE(I64x2Neg, i64x2, int2, 2, base::NegateWithWraparound(a))
       UNOP_CASE(I32x4Neg, i32x4, int4, 4, base::NegateWithWraparound(a))
+      UNOP_CASE(I32x4Abs, i32x4, int4, 4, std::abs(a))
       UNOP_CASE(S128Not, i32x4, int4, 4, ~a)
       UNOP_CASE(I16x8Neg, i16x8, int8, 8, base::NegateWithWraparound(a))
+      UNOP_CASE(I16x8Abs, i16x8, int8, 8, std::abs(a))
       UNOP_CASE(I8x16Neg, i8x16, int16, 16, base::NegateWithWraparound(a))
+      UNOP_CASE(I8x16Abs, i8x16, int16, 16, std::abs(a))
 #undef UNOP_CASE
 #define CMPOP_CASE(op, name, stype, out_stype, count, expr) \
   case kExpr##op: {                                         \

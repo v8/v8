@@ -2026,6 +2026,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI32x4GtU(node);
     case IrOpcode::kI32x4GeU:
       return MarkAsSimd128(node), VisitI32x4GeU(node);
+    case IrOpcode::kI32x4Abs:
+      return MarkAsSimd128(node), VisitI32x4Abs(node);
     case IrOpcode::kI16x8Splat:
       return MarkAsSimd128(node), VisitI16x8Splat(node);
     case IrOpcode::kI16x8ExtractLaneU:
@@ -2092,6 +2094,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8GeU(node);
     case IrOpcode::kI16x8RoundingAverageU:
       return MarkAsSimd128(node), VisitI16x8RoundingAverageU(node);
+    case IrOpcode::kI16x8Abs:
+      return MarkAsSimd128(node), VisitI16x8Abs(node);
     case IrOpcode::kI8x16Splat:
       return MarkAsSimd128(node), VisitI8x16Splat(node);
     case IrOpcode::kI8x16ExtractLaneU:
@@ -2148,6 +2152,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16GeU(node);
     case IrOpcode::kI8x16RoundingAverageU:
       return MarkAsSimd128(node), VisitI8x16RoundingAverageU(node);
+    case IrOpcode::kI8x16Abs:
+      return MarkAsSimd128(node), VisitI8x16Abs(node);
     case IrOpcode::kS128Zero:
       return MarkAsSimd128(node), VisitS128Zero(node);
     case IrOpcode::kS128And:
@@ -2621,6 +2627,9 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
 #endif  // !V8_TARGET_ARCH_IA32
 
 #if !V8_TARGET_ARCH_X64
+void InstructionSelector::VisitI8x16Abs(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI16x8Abs(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI32x4Abs(Node* node) { UNIMPLEMENTED(); }
 #if !V8_TARGET_ARCH_ARM64
 void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
@@ -3235,7 +3244,6 @@ bool InstructionSelector::NeedsPoisoning(IsSafetyCheck safety_check) const {
   }
   UNREACHABLE();
 }
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

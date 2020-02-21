@@ -4357,6 +4357,8 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI32x4GeU:
       return graph()->NewNode(mcgraph()->machine()->I32x4GeU(), inputs[0],
                               inputs[1]);
+    case wasm::kExprI32x4Abs:
+      return graph()->NewNode(mcgraph()->machine()->I32x4Abs(), inputs[0]);
     case wasm::kExprI16x8Splat:
       return graph()->NewNode(mcgraph()->machine()->I16x8Splat(), inputs[0]);
     case wasm::kExprI16x8SConvertI8x16Low:
@@ -4457,6 +4459,8 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI16x8RoundingAverageU:
       return graph()->NewNode(mcgraph()->machine()->I16x8RoundingAverageU(),
                               inputs[0], inputs[1]);
+    case wasm::kExprI16x8Abs:
+      return graph()->NewNode(mcgraph()->machine()->I16x8Abs(), inputs[0]);
     case wasm::kExprI8x16Splat:
       return graph()->NewNode(mcgraph()->machine()->I8x16Splat(), inputs[0]);
     case wasm::kExprI8x16Neg:
@@ -4542,6 +4546,8 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI8x16RoundingAverageU:
       return graph()->NewNode(mcgraph()->machine()->I8x16RoundingAverageU(),
                               inputs[0], inputs[1]);
+    case wasm::kExprI8x16Abs:
+      return graph()->NewNode(mcgraph()->machine()->I8x16Abs(), inputs[0]);
     case wasm::kExprS128And:
       return graph()->NewNode(mcgraph()->machine()->S128And(), inputs[0],
                               inputs[1]);
