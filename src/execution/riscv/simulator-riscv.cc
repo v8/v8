@@ -7655,15 +7655,17 @@ void Simulator::DecodeRVRFPType() {
       break;
     }
     case RO_FSGNJ_S: {  // RO_FSGNJN_S  RO_FSQNJX_S
-      UNSUPPORTED();
       switch (instr_.Funct3Value()) {
         case 0b000: {  // RO_FSGNJ_S
+          set_frd(fsgnj32(frs1(), frs2(), false, false));
           break;
         }
         case 0b001: {  // RO_FSGNJN_S
+          set_frd(fsgnj32(frs1(), frs2(), true, false));
           break;
         }
         case 0b010: {  // RO_FSQNJX_S
+          set_frd(fsgnj32(frs1(), frs2(), false, true));
           break;
         }
         default: {
@@ -7820,15 +7822,17 @@ void Simulator::DecodeRVRFPType() {
       break;
     }
     case RO_FSGNJ_D: {  // RO_FSGNJN_D RO_FSQNJX_D
-      UNSUPPORTED();
       switch (instr_.Funct3Value()) {
         case 0b000: {  // RO_FSGNJ_D
+          set_drd(fsgnj64(drs1(), drs2(), false, false));
           break;
         }
         case 0b001: {  // RO_FSGNJN_D
+          set_drd(fsgnj64(drs1(), drs2(), true, false));
           break;
         }
         case 0b010: {  // RO_FSQNJX_D
+          set_drd(fsgnj64(drs1(), drs2(), false, true));
           break;
         }
         default: {
