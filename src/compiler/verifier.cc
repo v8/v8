@@ -1529,7 +1529,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // Object -> fieldtype
       // TODO(rossberg): activate once machine ops are typed.
       // CheckValueInputIs(node, 0, Type::Object());
-      // CheckTypeIs(node, FieldAccessOf(node->op()).type));
+      // CheckTypeIs(node, FieldAccessOf(node->op()).type);
       break;
     case IrOpcode::kLoadElement:
     case IrOpcode::kLoadStackArgument:
@@ -1539,7 +1539,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckTypeIs(node, ElementAccessOf(node->op()).type));
       break;
     case IrOpcode::kLoadFromObject:
-      // TODO(gsps): Can we check some types here?
+      CheckValueInputIs(node, 0, Type::Receiver());
       break;
     case IrOpcode::kLoadTypedElement:
       break;
@@ -1598,6 +1598,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckBigInt:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::BigInt());
+      break;
+    case IrOpcode::kFastApiCall:
+      CHECK_GE(value_count, 1);
+      CheckValueInputIs(node, 0, Type::ExternalPointer());
       break;
 
     // Machine operators

@@ -1319,6 +1319,8 @@ FunctionTemplateRareData FunctionTemplateInfo::AllocateFunctionTemplateRareData(
       FUNCTION_TEMPLATE_RARE_DATA_TYPE, AllocationType::kOld);
   Handle<FunctionTemplateRareData> rare_data =
       i::Handle<FunctionTemplateRareData>::cast(struct_obj);
+  rare_data->set_c_function(Smi(0));
+  rare_data->set_c_signature(Smi(0));
   function_template_info->set_rare_data(*rare_data);
   return *rare_data;
 }

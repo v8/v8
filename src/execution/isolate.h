@@ -437,7 +437,9 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(v8_inspector::V8Inspector*, inspector, nullptr)                            \
   V(bool, next_v8_call_is_safe_for_termination, false)                         \
   V(bool, only_terminate_in_safe_scope, false)                                 \
-  V(bool, detailed_source_positions_for_profiling, FLAG_detailed_line_info)
+  V(bool, detailed_source_positions_for_profiling, FLAG_detailed_line_info)    \
+  V(int, embedder_wrapper_type_index, -1)                                      \
+  V(int, embedder_wrapper_object_index, -1)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                         \
   inline void set_##name(type v) { thread_local_top()->name##_ = v; } \
