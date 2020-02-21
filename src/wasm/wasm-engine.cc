@@ -6,6 +6,7 @@
 
 #include "src/base/functional.h"
 #include "src/base/platform/time.h"
+#include "src/common/globals.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/diagnostics/compilation-statistics.h"
 #include "src/execution/frames.h"
@@ -21,6 +22,7 @@
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/streaming-decoder.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
@@ -1168,10 +1170,16 @@ std::shared_ptr<WasmEngine> WasmEngine::GetWasmEngine() {
   return *GetSharedWasmEngine();
 }
 
-// {max_mem_pages} is declared in wasm-limits.h.
-uint32_t max_mem_pages() {
+// {max_initial_mem_pages} is declared in wasm-limits.h.
+uint32_t max_initial_mem_pages() {
   STATIC_ASSERT(kV8MaxWasmMemoryPages <= kMaxUInt32);
   return std::min(uint32_t{kV8MaxWasmMemoryPages}, FLAG_wasm_max_mem_pages);
+}
+
+uint32_t max_maximum_mem_pages() {
+  STATIC_ASSERT(kV8MaxWasmMemoryPages <= kMaxUInt32);
+  return std::min(uint32_t{kV8MaxWasmMemoryPages},
+                  FLAG_wasm_max_mem_pages_growth);
 }
 
 // {max_table_init_entries} is declared in wasm-limits.h.

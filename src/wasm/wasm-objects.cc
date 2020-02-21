@@ -879,18 +879,18 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   if (old_buffer->is_asmjs_memory()) return -1;
 
   // Checks for maximum memory size.
-  uint32_t maximum_pages = wasm::max_mem_pages();
+  uint32_t maximum_pages = wasm::max_initial_mem_pages();
   if (memory_object->has_maximum_pages()) {
     maximum_pages = std::min(
         maximum_pages, static_cast<uint32_t>(memory_object->maximum_pages()));
   }
-  CHECK_GE(wasm::max_mem_pages(), maximum_pages);
+  CHECK_GE(wasm::max_initial_mem_pages(), maximum_pages);
   size_t old_size = old_buffer->byte_length();
   CHECK_EQ(0, old_size % wasm::kWasmPageSize);
   size_t old_pages = old_size / wasm::kWasmPageSize;
-  CHECK_GE(wasm::max_mem_pages(), old_pages);
-  if ((pages > maximum_pages - old_pages) ||          // exceeds remaining
-      (pages > wasm::max_mem_pages() - old_pages)) {  // exceeds limit
+  CHECK_GE(wasm::max_initial_mem_pages(), old_pages);
+  if ((pages > maximum_pages - old_pages) ||  // exceeds remaining
+      (pages > wasm::max_initial_mem_pages() - old_pages)) {  // exceeds limit
     return -1;
   }
   std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();

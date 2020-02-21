@@ -1879,11 +1879,13 @@ auto Memory::make(Store* store_abs, const MemoryType* type) -> own<Memory> {
 
   const Limits& limits = type->limits();
   uint32_t minimum = limits.min;
-  if (minimum > i::wasm::max_mem_pages()) return nullptr;
+  // The max_initial_mem_pages limit is only spec'ed for JS embeddings,
+  // so we'll directly use the maximum pages limit here.
+  if (minimum > i::wasm::kSpecMaxWasmMaximumMemoryPages) return nullptr;
   uint32_t maximum = limits.max;
   if (maximum != Limits(0).max) {
     if (maximum < minimum) return nullptr;
-    if (maximum > i::wasm::kSpecMaxWasmMemoryPages) return nullptr;
+    if (maximum > i::wasm::kSpecMaxWasmMaximumMemoryPages) return nullptr;
   }
   // TODO(wasm+): Support shared memory.
   i::SharedFlag shared = i::SharedFlag::kNotShared;

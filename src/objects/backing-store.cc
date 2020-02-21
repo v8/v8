@@ -313,7 +313,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
 
   // Compute size of reserved memory.
 
-  size_t engine_max_pages = wasm::max_mem_pages();
+  size_t engine_max_pages = wasm::max_initial_mem_pages();
   size_t byte_capacity =
       std::min(engine_max_pages, maximum_pages) * wasm::kWasmPageSize;
   size_t reservation_size = GetReservationSize(guards, byte_capacity);
@@ -408,7 +408,7 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
   DCHECK_EQ(0, wasm::kWasmPageSize % AllocatePageSize());
 
   // Enforce engine limitation on the maximum number of pages.
-  if (initial_pages > wasm::max_mem_pages()) return nullptr;
+  if (initial_pages > wasm::max_initial_mem_pages()) return nullptr;
 
   auto backing_store =
       TryAllocateWasmMemory(isolate, initial_pages, maximum_pages, shared);

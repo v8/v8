@@ -4,8 +4,7 @@
 
 [
 [ALWAYS, {
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8633
-  'limits': [SKIP],
+  # These are slow, and not useful to run for the proposals:
   'proposals/reference-types/limits': [SKIP],
   'proposals/multi-value/limits': [SKIP],
   'proposals/bulk-memory-operations/limits': [SKIP],
@@ -21,6 +20,11 @@
   'instance/constructor': [SKIP],
   'constructor/instantiate': [SKIP],
 }],  # 'arch == s390 or arch == s390x or system == aix'
+
+['mode == debug or simulator_run or variant != default', {
+  # Slow, and we always have the same limits anyway.
+  'limits': [SKIP],
+}],  # mode == debug or simulator_run or variant != default
 
 ##############################################################################
 ['lite_mode or variant == jitless', {
