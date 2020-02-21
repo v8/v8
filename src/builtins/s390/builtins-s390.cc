@@ -2449,7 +2449,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // -----------------------------------
 
   Label dont_adapt_arguments, stack_overflow, skip_adapt_arguments;
-  __ tmll(r4, Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
+  __ tmll(r4, Operand(kDontAdaptArgumentsSentinel));
   __ b(Condition(1), &dont_adapt_arguments);
   __ LoadP(r6, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
   __ LoadlW(r6, FieldMemOperand(r6, SharedFunctionInfo::kFlagsOffset));

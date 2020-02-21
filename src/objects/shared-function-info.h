@@ -614,8 +614,6 @@ class SharedFunctionInfo : public HeapObject {
   DECL_CAST(SharedFunctionInfo)
 
   // Constants.
-  static const uint16_t kDontAdaptArgumentsSentinel = static_cast<uint16_t>(-1);
-
   static const int kMaximumFunctionTokenOffset = kMaxUInt16 - 1;
   static const uint16_t kFunctionTokenOutOfRange = static_cast<uint16_t>(-1);
   STATIC_ASSERT(kMaximumFunctionTokenOffset + 1 == kFunctionTokenOutOfRange);

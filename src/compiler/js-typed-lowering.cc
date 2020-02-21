@@ -1530,7 +1530,7 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
 }
 
 bool NeedsArgumentAdaptorFrame(SharedFunctionInfoRef shared, int arity) {
-  static const int sentinel = SharedFunctionInfo::kDontAdaptArgumentsSentinel;
+  static const int sentinel = kDontAdaptArgumentsSentinel;
   const int num_decl_parms = shared.internal_formal_parameter_count();
   return (num_decl_parms != arity && num_decl_parms != sentinel);
 }

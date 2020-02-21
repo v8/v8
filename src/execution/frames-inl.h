@@ -192,8 +192,7 @@ inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)
 Address JavaScriptFrame::GetParameterSlot(int index) const {
   int param_count = ComputeParametersCount();
   DCHECK(-1 <= index &&
-         (index < param_count ||
-          param_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel));
+         (index < param_count || param_count == kDontAdaptArgumentsSentinel));
   int parameter_offset = (param_count - index - 1) * kSystemPointerSize;
   return caller_sp() + parameter_offset;
 }

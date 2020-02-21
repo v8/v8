@@ -2471,8 +2471,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   const Register kExpectedNumberOfArgumentsRegister = ecx;
 
   Label invoke, dont_adapt_arguments, stack_overflow, enough, too_few;
-  __ cmp(kExpectedNumberOfArgumentsRegister,
-         SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+  __ cmp(kExpectedNumberOfArgumentsRegister, kDontAdaptArgumentsSentinel);
   __ j(equal, &dont_adapt_arguments);
   __ cmp(eax, kExpectedNumberOfArgumentsRegister);
   __ j(less, &too_few);

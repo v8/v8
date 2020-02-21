@@ -2778,7 +2778,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   Label create_adaptor_frame, dont_adapt_arguments, stack_overflow,
       adapt_arguments_in_place;
 
-  __ Cmp(argc_expected, SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+  __ Cmp(argc_expected, kDontAdaptArgumentsSentinel);
   __ B(eq, &dont_adapt_arguments);
 
   // When the difference between argc_actual and argc_expected is odd, we

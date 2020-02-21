@@ -1872,7 +1872,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // -----------------------------------
 
   Label dont_adapt_arguments, stack_overflow, skip_adapt_arguments;
-  __ cmpq(rbx, Immediate(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
+  __ cmpq(rbx, Immediate(kDontAdaptArgumentsSentinel));
   __ j(equal, &dont_adapt_arguments);
   __ LoadTaggedPointerField(
       rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));

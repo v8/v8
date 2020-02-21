@@ -158,7 +158,7 @@ Code BuildWithCodeStubAssemblerJS(Isolate* isolate, int32_t builtin_index,
 
   Zone zone(isolate->allocator(), ZONE_NAME);
   const int argc_with_recv =
-      (argc == SharedFunctionInfo::kDontAdaptArgumentsSentinel) ? 0 : argc + 1;
+      (argc == kDontAdaptArgumentsSentinel) ? 0 : argc + 1;
   compiler::CodeAssemblerState state(
       isolate, &zone, argc_with_recv, Code::BUILTIN, name,
       PoisoningMitigationLevel::kDontPoison, builtin_index);

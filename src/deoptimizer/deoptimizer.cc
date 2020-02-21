@@ -3880,7 +3880,7 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
         if (frames_[i].kind() ==
                 TranslatedFrame::kJavaScriptBuiltinContinuation &&
             frames_[i].shared_info()->internal_formal_parameter_count() ==
-                SharedFunctionInfo::kDontAdaptArgumentsSentinel) {
+                kDontAdaptArgumentsSentinel) {
           DCHECK(frames_[i].shared_info()->IsApiFunction());
 
           // The argument count for this special case is always the second

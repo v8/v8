@@ -2970,8 +2970,7 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
       } else {
         builtin_definitions << "TFJ(" << builtin->ExternalName();
         if (builtin->IsVarArgsJavaScript()) {
-          builtin_definitions
-              << ", SharedFunctionInfo::kDontAdaptArgumentsSentinel";
+          builtin_definitions << ", kDontAdaptArgumentsSentinel";
         } else {
           DCHECK(builtin->IsFixedArgsJavaScript());
           // FixedArg javascript builtins need to offer the parameter

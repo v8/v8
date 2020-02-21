@@ -2326,7 +2326,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
   Label enough, too_few;
   __ Branch(&dont_adapt_arguments, eq, a2,
-            Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
+            Operand(kDontAdaptArgumentsSentinel));
   // We use Uless as the number of argument should always be greater than 0.
   __ Branch(&too_few, Uless, a0, Operand(a2));
 

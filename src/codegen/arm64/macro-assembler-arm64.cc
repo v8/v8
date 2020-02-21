@@ -2166,7 +2166,7 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
   LoadTaggedPointerField(cp,
                          FieldMemOperand(function, JSFunction::kContextOffset));
   // The number of arguments is stored as an int32_t, and -1 is a marker
-  // (SharedFunctionInfo::kDontAdaptArgumentsSentinel), so we need sign
+  // (kDontAdaptArgumentsSentinel), so we need sign
   // extension to correctly handle it.
   LoadTaggedPointerField(
       expected_parameter_count,
