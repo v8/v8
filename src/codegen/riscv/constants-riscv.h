@@ -1750,7 +1750,7 @@ class InstructionGetters : public T {
 
   inline int Rs3Value() const {
     DCHECK(this->InstructionType() == InstructionBase::kR4Type);
-    return this->Bits(kRs2Shift + kRs2Bits - 1, kRs2Shift);
+    return this->Bits(kRs3Shift + kRs3Bits - 1, kRs3Shift);
   }
 
   inline int RV_RdValue() const {
