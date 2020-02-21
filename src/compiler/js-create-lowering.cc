@@ -471,6 +471,12 @@ Reduction JSCreateLowering::ReduceNewArray(
       initial_map,
       initial_map.AsElementsKind(GetHoleyElementsKind(elements_kind)));
 
+  // Because CheckBounds performs implicit conversion from string to number, an
+  // additional CheckNumber is required to behave correctly for calls with a
+  // single string argument.
+  length = effect = graph()->NewNode(
+      simplified()->CheckNumber(FeedbackSource{}), length, effect, control);
+
   // Check that the {limit} is an unsigned integer in the valid range.
   // This has to be kept in sync with src/runtime/runtime-array.cc,
   // where this limit is protected.
@@ -512,6 +518,7 @@ Reduction JSCreateLowering::ReduceNewArray(
     const SlackTrackingPrediction& slack_tracking_prediction) {
   DCHECK(node->opcode() == IrOpcode::kJSCreateArray ||
          node->opcode() == IrOpcode::kJSCreateEmptyLiteralArray);
+  DCHECK(NodeProperties::GetType(length).Is(Type::Number()));
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
