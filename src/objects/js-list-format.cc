@@ -75,38 +75,6 @@ const char* GetIcuStyleString(JSListFormat::Style style,
 
 }  // namespace
 
-JSListFormat::Style get_style(const char* str) {
-  switch (str[0]) {
-    case 'n':
-      if (strcmp(&str[1], "arrow") == 0) return JSListFormat::Style::NARROW;
-      break;
-    case 'l':
-      if (strcmp(&str[1], "ong") == 0) return JSListFormat::Style::LONG;
-      break;
-    case 's':
-      if (strcmp(&str[1], "hort") == 0) return JSListFormat::Style::SHORT;
-      break;
-  }
-  UNREACHABLE();
-}
-
-JSListFormat::Type get_type(const char* str) {
-  switch (str[0]) {
-    case 'c':
-      if (strcmp(&str[1], "onjunction") == 0)
-        return JSListFormat::Type::CONJUNCTION;
-      break;
-    case 'd':
-      if (strcmp(&str[1], "isjunction") == 0)
-        return JSListFormat::Type::DISJUNCTION;
-      break;
-    case 'u':
-      if (strcmp(&str[1], "nit") == 0) return JSListFormat::Type::UNIT;
-      break;
-  }
-  UNREACHABLE();
-}
-
 MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate, Handle<Map> map,
                                             Handle<Object> locales,
                                             Handle<Object> input_options) {

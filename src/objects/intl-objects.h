@@ -27,7 +27,6 @@ namespace U_ICU_NAMESPACE {
 class BreakIterator;
 class Collator;
 class FormattedValue;
-class SimpleDateFormat;
 class UnicodeString;
 }  // namespace U_ICU_NAMESPACE
 
@@ -132,15 +131,6 @@ class Intl {
       Isolate* isolate, Handle<JSReceiver> options, Handle<String> property,
       int min, int max, int fallback);
 
-  // Canonicalize the locale.
-  // https://tc39.github.io/ecma402/#sec-canonicalizelanguagetag,
-  // including type check and structural validity check.
-  static Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
-                                                    Handle<Object> locale_in);
-
-  static Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
-                                                    const std::string& locale);
-
   // https://tc39.github.io/ecma402/#sec-canonicalizelocalelist
   // {only_return_one_result} is an optimization for callers that only
   // care about the first result.
@@ -189,8 +179,6 @@ class Intl {
                               int mnfd_default, int mxfd_default,
                               bool notation_is_compact);
 
-  static icu::Locale CreateICULocale(const std::string& bcp47_locale);
-
   // Helper funciton to convert a UnicodeString to a Handle<String>
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToString(
       Isolate* isolate, const icu::UnicodeString& string);
@@ -238,22 +226,6 @@ class Intl {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> LegacyUnwrapReceiver(
       Isolate* isolate, Handle<JSReceiver> receiver,
       Handle<JSFunction> constructor, bool has_initialized_slot);
-
-  // enum for "caseFirst" option: shared by Intl.Locale and Intl.Collator.
-  enum class CaseFirst { kUndefined, kUpper, kLower, kFalse };
-
-  // Shared function to read the "caseFirst" option.
-  V8_WARN_UNUSED_RESULT static Maybe<CaseFirst> GetCaseFirst(
-      Isolate* isolate, Handle<JSReceiver> options, const char* method);
-
-  // enum for "hourCycle" option: shared by Intl.Locale and Intl.DateTimeFormat.
-  enum class HourCycle { kUndefined, kH11, kH12, kH23, kH24 };
-
-  static HourCycle ToHourCycle(const std::string& str);
-
-  // Shared function to read the "hourCycle" option.
-  V8_WARN_UNUSED_RESULT static Maybe<HourCycle> GetHourCycle(
-      Isolate* isolate, Handle<JSReceiver> options, const char* method);
 
   // enum for "localeMatcher" option: shared by many Intl objects.
   enum class MatcherOption { kBestFit, kLookup };
@@ -335,10 +307,6 @@ class Intl {
   static icu::UnicodeString ToICUUnicodeString(Isolate* isolate,
                                                Handle<String> string);
 
-  // Convert a Handle<String> to icu::StringPiece
-  static icu::StringPiece ToICUStringPiece(Isolate* isolate,
-                                           Handle<String> string);
-
   static const uint8_t* ToLatin1LowerTable();
 
   static String ConvertOneByteToLower(String src, String dst);
@@ -346,8 +314,6 @@ class Intl {
   static const std::set<std::string>& GetAvailableLocalesForLocale();
 
   static const std::set<std::string>& GetAvailableLocalesForDateFormat();
-
-  static bool IsStructurallyValidLanguageTag(const std::string& tag);
 };
 
 }  // namespace internal

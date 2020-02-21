@@ -23,13 +23,6 @@
 namespace v8 {
 namespace internal {
 
-JSSegmenter::Granularity JSSegmenter::GetGranularity(const char* str) {
-  if (strcmp(str, "grapheme") == 0) return JSSegmenter::Granularity::GRAPHEME;
-  if (strcmp(str, "word") == 0) return JSSegmenter::Granularity::WORD;
-  if (strcmp(str, "sentence") == 0) return JSSegmenter::Granularity::SENTENCE;
-  UNREACHABLE();
-}
-
 MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate, Handle<Map> map,
                                           Handle<Object> locales,
                                           Handle<Object> input_options) {

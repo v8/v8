@@ -24,6 +24,7 @@
 namespace v8 {
 namespace internal {
 
+namespace {
 // Style: identifying the relative time format style used.
 //
 // ecma402/#sec-properties-of-intl-relativetimeformat-instances
@@ -34,7 +35,6 @@ enum class Style {
   NARROW  // Use the shortest possible form.
 };
 
-namespace {
 UDateRelativeDateTimeFormatterStyle toIcuStyle(Style style) {
   switch (style) {
     case Style::LONG:

@@ -31,6 +31,7 @@
 namespace v8 {
 namespace internal {
 
+namespace {
 // Type: identifying the types of the display names.
 //
 // ecma402/#sec-properties-of-intl-displaynames-instances
@@ -70,6 +71,8 @@ UDisplayContext ToUDisplayContext(JSDisplayNames::Style style) {
   }
 }
 
+}  // anonymous namespace
+
 // Abstract class for all different types.
 class DisplayNamesInternal {
  public:
@@ -81,6 +84,8 @@ class DisplayNamesInternal {
                                        const char* code) const = 0;
   virtual const char* calendar() const { return nullptr; }
 };
+
+namespace {
 
 class LocaleDisplayNamesCommon : public DisplayNamesInternal {
  public:
@@ -474,6 +479,9 @@ DisplayNamesInternal* CreateInternal(const icu::Locale& locale,
       UNREACHABLE();
   }
 }
+
+}  // anonymous namespace
+
 // ecma402 #sec-Intl.DisplayNames
 MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
                                                 Handle<Map> map,

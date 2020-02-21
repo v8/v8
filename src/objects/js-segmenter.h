@@ -82,8 +82,6 @@ class JSSegmenter : public JSObject {
                                 TORQUE_GENERATED_JS_SEGMENTER_FIELDS)
 
  private:
-  static Granularity GetGranularity(const char* str);
-
   OBJECT_CONSTRUCTORS(JSSegmenter, JSObject);
 };
 
