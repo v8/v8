@@ -181,12 +181,12 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
       number_format =
           icu::NumberFormat::createInstance(icu_locale, UNUM_DECIMAL, status);
     }
-    if (U_FAILURE(status)) {
+    if (U_FAILURE(status) || number_format == nullptr) {
       delete number_format;
-      FATAL("Failed to create ICU number format, are ICU data files missing?");
+      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                      JSRelativeTimeFormat);
     }
   }
-  CHECK_NOT_NULL(number_format);
 
   // Change UDISPCTX_CAPITALIZATION_NONE to other values if
   // ECMA402 later include option to change capitalization.
@@ -195,13 +195,11 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
       new icu::RelativeDateTimeFormatter(icu_locale, number_format,
                                          toIcuStyle(style_enum),
                                          UDISPCTX_CAPITALIZATION_NONE, status);
-  if (U_FAILURE(status)) {
+  if (U_FAILURE(status) || icu_formatter == nullptr) {
     delete icu_formatter;
-    FATAL(
-        "Failed to create ICU relative date time formatter, are ICU data files "
-        "missing?");
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSRelativeTimeFormat);
   }
-  CHECK_NOT_NULL(icu_formatter);
 
   Handle<String> numbering_system_string =
       isolate->factory()->NewStringFromAsciiChecked(

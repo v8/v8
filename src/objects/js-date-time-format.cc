@@ -1583,7 +1583,8 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       icu_date_format = CreateICUDateFormatFromCache(icu_locale, skeleton_ustr,
                                                      generator.get(), hc);
       if (icu_date_format.get() == nullptr) {
-        FATAL("Failed to create ICU date format, are ICU data files missing?");
+        THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                        JSDateTimeFormat);
       }
     }
 

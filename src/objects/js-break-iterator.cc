@@ -84,10 +84,10 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
   }
 
   // Error handling for break_iterator
-  if (U_FAILURE(status)) {
-    FATAL("Failed to create ICU break iterator, are ICU data files missing?");
+  if (U_FAILURE(status) || break_iterator.get() == nullptr) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSV8BreakIterator);
   }
-  CHECK_NOT_NULL(break_iterator.get());
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kBreakIterator);
 
   // Construct managed objects from pointers

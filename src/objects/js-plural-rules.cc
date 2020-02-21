@@ -124,7 +124,7 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate, Handle<Map> map,
   std::unique_ptr<icu::PluralRules> icu_plural_rules;
   bool success =
       CreateICUPluralRules(isolate, r.icu_locale, type, &icu_plural_rules);
-  if (!success) {
+  if (!success || icu_plural_rules.get() == nullptr) {
     // Remove extensions and try again.
     icu::Locale no_extension_locale(r.icu_locale.getBaseName());
     success = CreateICUPluralRules(isolate, no_extension_locale, type,
@@ -133,12 +133,11 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate, Handle<Map> map,
         icu::number::NumberFormatter::withLocale(no_extension_locale)
             .roundingMode(UNUM_ROUND_HALFUP);
 
-    if (!success) {
-      FATAL("Failed to create ICU PluralRules, are ICU data files missing?");
+    if (!success || icu_plural_rules.get() == nullptr) {
+      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                      JSPluralRules);
     }
   }
-
-  CHECK_NOT_NULL(icu_plural_rules.get());
 
   // 9. Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3).
   Maybe<Intl::NumberFormatDigitOptions> maybe_digit_options =

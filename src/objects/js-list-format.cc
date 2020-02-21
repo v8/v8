@@ -171,11 +171,11 @@ MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate, Handle<Map> map,
   UErrorCode status = U_ZERO_ERROR;
   icu::ListFormatter* formatter = icu::ListFormatter::createInstance(
       icu_locale, GetIcuStyleString(style_enum, type_enum), status);
-  if (U_FAILURE(status)) {
+  if (U_FAILURE(status) || formatter == nullptr) {
     delete formatter;
-    FATAL("Failed to create ICU list formatter, are ICU data files missing?");
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSListFormat);
   }
-  CHECK_NOT_NULL(formatter);
 
   Handle<Managed<icu::ListFormatter>> managed_formatter =
       Managed<icu::ListFormatter>::FromRawPtr(isolate, 0, formatter);
