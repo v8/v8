@@ -123,7 +123,7 @@ TEST(RISCV_SIMPLE2) {
 }
 
 // Test part of Load and Store
-TEST(RISCV3) {
+TEST(RISCV_SIMPLE3) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
