@@ -307,7 +307,6 @@ TEST(RISCV3) {
   __ RV_fsw(f14, a0, offsetof(T, fg));
 
   __ jr(ra);
-  __ nop();
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -347,6 +346,62 @@ TEST(RISCV3) {
   CHECK_EQ(1.866e08, t.fe);
   CHECK_EQ(124.40000152587890625, t.ff);
   CHECK_EQ(11.1534748077392578125, t.fg);
+}
+
+TEST(RISCV4) {
+  // Test moves between floating point and integer registers.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  struct T {
+    double a;
+    double b;
+    double c;
+    float d;
+    int64_t e;
+  };
+  T t;
+
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  __ RV_fld(f4, a0, offsetof(T, a));
+  __ RV_fld(f5, a0, offsetof(T, b));
+
+  // Swap f4 and f5, by using 2 integer registers, a4-a5,
+
+  __ RV_fmv_x_d(a4, f4);
+  __ RV_fmv_x_d(a5, f5);
+
+  __ RV_fmv_d_x(f5, a4);
+  __ RV_fmv_d_x(f4, a5);
+
+  // Store the swapped f4 and f5 back to memory.
+  __ RV_fsd(f4, a0, offsetof(T, a));
+  __ RV_fsd(f5, a0, offsetof(T, c));
+
+  // Test sign extension of move operations from coprocessor.
+  __ RV_flw(f4, a0, offsetof(T, d));
+  __ RV_fmv_x_w(a4, f4);
+
+  __ RV_sd(a4, a0, offsetof(T, e));
+
+  __ jr(ra);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  auto f = GeneratedCode<F3>::FromCode(*code);
+  t.a = 1.5e22;
+  t.b = 2.75e11;
+  t.c = 17.17;
+  t.d = -2.75e11;
+  f.Call(&t, 0, 0, 0, 0);
+
+  CHECK_EQ(2.75e11, t.a);
+  CHECK_EQ(2.75e11, t.b);
+  CHECK_EQ(1.5e22, t.c);
+  CHECK_EQ(static_cast<int64_t>(0xFFFFFFFFD2800E8EL), t.e);
 }
 
 #undef __
