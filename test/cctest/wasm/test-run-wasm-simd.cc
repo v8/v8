@@ -376,12 +376,14 @@ static constexpr Vector<const FMOperation<T>> qfms_vector() {
   return ArrayVector(qfms_array<T>);
 }
 
-// Fused results only when fma3 feature is enabled, and running on TurboFan.
+// Fused results only when fma3 feature is enabled, and running on TurboFan or
+// Liftoff (which can fall back to TurboFan if FMA is not implemented).
 bool ExpectFused(ExecutionTier tier) {
 #ifdef V8_TARGET_ARCH_X64
-  return CpuFeatures::IsSupported(FMA3) && (tier == ExecutionTier::kTurbofan);
+  return CpuFeatures::IsSupported(FMA3) &&
+         (tier == ExecutionTier::kTurbofan || tier == ExecutionTier::kLiftoff);
 #else
-  return (tier == ExecutionTier::kTurbofan);
+  return (tier == ExecutionTier::kTurbofan || tier == ExecutionTier::kLiftoff);
 #endif
 }
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
