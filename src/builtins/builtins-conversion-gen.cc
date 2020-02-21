@@ -376,20 +376,6 @@ TF_BUILTIN(ToLength, CodeStubAssembler) {
   }
 }
 
-TF_BUILTIN(ToInteger, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> input = CAST(Parameter(Descriptor::kArgument));
-
-  Return(ToInteger(context, input, kNoTruncation));
-}
-
-TF_BUILTIN(ToInteger_TruncateMinusZero, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> input = CAST(Parameter(Descriptor::kArgument));
-
-  Return(ToInteger(context, input, kTruncateMinusZero));
-}
-
 // ES6 section 7.1.13 ToObject (argument)
 TF_BUILTIN(ToObject, CodeStubAssembler) {
   Label if_smi(this, Label::kDeferred), if_jsreceiver(this),

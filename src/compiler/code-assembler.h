@@ -371,6 +371,11 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
 // a CodeAssemblerState instance.
 class V8_EXPORT_PRIVATE CodeAssembler {
  public:
+  enum ToIntegerTruncationMode {
+    kNoTruncation,
+    kTruncateMinusZero,
+  };
+
   explicit CodeAssembler(CodeAssemblerState* state) : state_(state) {}
   ~CodeAssembler();
 

@@ -177,9 +177,6 @@ type Callable = JSFunction|JSBoundFunction|CallableJSProxy|CallableApiObject;
 type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
 
-type ToIntegerTruncationMode
-constexpr 'CodeStubAssembler::ToIntegerTruncationMode';
-
 extern enum UnicodeEncoding { UTF16, UTF32 }
 
 // Promise constants
@@ -345,9 +342,11 @@ const kSloppyArgumentsContextIndex: constexpr int31
 const kSloppyArgumentsParameterMapStart: constexpr int31
     generates 'SloppyArgumentsElements::kParameterMapStart';
 
-const kTruncateMinusZero: constexpr ToIntegerTruncationMode
-    generates 'CodeStubAssembler::ToIntegerTruncationMode::kTruncateMinusZero'
-    ;
+extern enum ToIntegerTruncationMode extends int32
+constexpr 'compiler::CodeAssembler::ToIntegerTruncationMode' {
+  kNoTruncation,
+  kTruncateMinusZero
+}
 
 extern enum PrimitiveType { kString, kBoolean, kSymbol, kNumber }
 
@@ -433,10 +432,71 @@ extern macro Comment(constexpr string);
 extern macro StaticAssert(bool);
 extern macro Print(Object);
 extern macro DebugBreak();
-extern transitioning macro ToInteger_Inline(implicit context: Context)(JSAny):
-    Number;
-extern transitioning macro ToInteger_Inline(implicit context: Context)(
-    JSAny, constexpr ToIntegerTruncationMode): Number;
+
+// ES6 7.1.4 ToInteger ( argument )
+transitioning macro ToIntegerImpl(implicit context: Context)(
+    input: Object, mode: constexpr ToIntegerTruncationMode): Number {
+  let input = input;
+
+  while (true) {
+    typeswitch (input) {
+      case (s: Smi): {
+        return s;
+      }
+      case (hn: HeapNumber): {
+        let value = Convert<float64>(hn);
+        if (Float64IsNaN(value)) return SmiConstant(0);
+        value = math::Float64Trunc(value);
+        if constexpr (mode == ToIntegerTruncationMode::kTruncateMinusZero) {
+          if (value == 0.0) return SmiConstant(0);
+        }
+        const result = ChangeFloat64ToTagged(value);
+        if constexpr (mode == ToIntegerTruncationMode::kTruncateMinusZero) {
+          assert(IsNumberNormalized(result));
+        }
+        return result;
+      }
+      case (ho: HeapObject): {
+        input = math::NonNumberToNumber(ho);
+      }
+    }
+  }
+  unreachable;
+}
+
+transitioning builtin ToInteger(implicit context: Context)(input: Object):
+    Number {
+  return ToIntegerImpl(input, ToIntegerTruncationMode::kNoTruncation);
+}
+
+transitioning builtin ToInteger_TruncateMinusZero(implicit context: Context)(
+    input: Object): Number {
+  return ToIntegerImpl(input, ToIntegerTruncationMode::kTruncateMinusZero);
+}
+
+@export
+transitioning macro ToInteger_Inline(implicit context: Context)(input: Object):
+    Number {
+  return ToInteger_Inline(input, ToIntegerTruncationMode::kNoTruncation);
+}
+
+@export
+transitioning macro ToInteger_Inline(implicit context: Context)(
+    input: Object, mode: constexpr ToIntegerTruncationMode): Number {
+  typeswitch (input) {
+    case (s: Smi): {
+      return s;
+    }
+    case (ho: HeapObject): {
+      if constexpr (mode == ToIntegerTruncationMode::kTruncateMinusZero) {
+        return ToInteger_TruncateMinusZero(ho);
+      } else {
+        return ToInteger(ho);
+      }
+    }
+  }
+}
+
 extern transitioning macro ToLength_Inline(implicit context: Context)(JSAny):
     Number;
 extern transitioning macro ToNumber_Inline(implicit context: Context)(JSAny):
@@ -724,6 +784,10 @@ ConstexprInt31NotEqual(constexpr int31, constexpr int31): constexpr bool;
 extern operator '>=' macro
 ConstexprInt31GreaterThanEqual(
     constexpr int31, constexpr int31): constexpr bool;
+extern operator '==' macro ConstexprInt32Equal(
+    constexpr int32, constexpr int32): constexpr bool;
+extern operator '!=' macro ConstexprInt32NotEqual(
+    constexpr int32, constexpr int32): constexpr bool;
 
 extern operator '==' macro Word32Equal(int32, int32): bool;
 extern operator '==' macro Word32Equal(uint32, uint32): bool;
@@ -1206,7 +1270,8 @@ macro ChangeSafeIntegerNumberToUintPtr(value: Number):
 transitioning macro ToUintPtr(implicit context: Context)(value: JSAny):
     uintptr labels IfLessThanZero, IfUIntPtrOverflow, IfSafeIntegerOverflow {
   if (value == Undefined) return 0;
-  const indexNumber = ToInteger_Inline(value, kTruncateMinusZero);
+  const indexNumber =
+      ToInteger_Inline(value, ToIntegerTruncationMode::kTruncateMinusZero);
   return TryNumberToUintPtr(indexNumber, kModeValueIsAnyNumber)
       otherwise IfLessThanZero, IfUIntPtrOverflow, IfSafeIntegerOverflow;
 }
@@ -1220,7 +1285,8 @@ transitioning macro ToUintPtr(implicit context: Context)(value: JSAny):
 transitioning macro ToIndex(implicit context: Context)(value: JSAny):
     uintptr labels IfRangeError {
   if (value == Undefined) return 0;
-  const indexNumber = ToInteger_Inline(value, kTruncateMinusZero);
+  const indexNumber =
+      ToInteger_Inline(value, ToIntegerTruncationMode::kTruncateMinusZero);
   // Less than 0 case, uintptr range overflow and safe integer range overflow
   // imply IfRangeError.
   return TryNumberToUintPtr(indexNumber, kModeValueIsAnyNumber)
@@ -1293,7 +1359,8 @@ extern macro IsOneByteStringInstanceType(InstanceType): bool;
 @export
 transitioning macro ConvertToRelativeIndex(implicit context: Context)(
     index: JSAny, length: uintptr): uintptr {
-  const indexNumber: Number = ToInteger_Inline(index, kTruncateMinusZero);
+  const indexNumber: Number =
+      ToInteger_Inline(index, ToIntegerTruncationMode::kTruncateMinusZero);
   return ConvertToRelativeIndex(indexNumber, length);
 }
 
@@ -1340,7 +1407,8 @@ macro ConvertToRelativeIndex(indexNumber: Number, length: uintptr): uintptr {
 @export
 transitioning macro ClampToIndexRange(implicit context: Context)(
     index: JSAny, limit: uintptr): uintptr {
-  const indexNumber: Number = ToInteger_Inline(index, kTruncateMinusZero);
+  const indexNumber: Number =
+      ToInteger_Inline(index, ToIntegerTruncationMode::kTruncateMinusZero);
   return ClampToIndexRange(indexNumber, limit);
 }
 

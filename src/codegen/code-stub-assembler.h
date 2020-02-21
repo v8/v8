@@ -2732,22 +2732,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<JSReceiver> ToObject_Inline(TNode<Context> context,
                                     TNode<Object> input);
 
-  enum ToIntegerTruncationMode {
-    kNoTruncation,
-    kTruncateMinusZero,
-  };
-
   // ES6 7.1.15 ToLength, but with inlined fast path.
   TNode<Number> ToLength_Inline(SloppyTNode<Context> context,
                                 SloppyTNode<Object> input);
-
-  // ES6 7.1.4 ToInteger ( argument )
-  TNode<Number> ToInteger_Inline(SloppyTNode<Context> context,
-                                 SloppyTNode<Object> input,
-                                 ToIntegerTruncationMode mode = kNoTruncation);
-  TNode<Number> ToInteger(SloppyTNode<Context> context,
-                          SloppyTNode<Object> input,
-                          ToIntegerTruncationMode mode = kNoTruncation);
 
   // Returns a node that contains a decoded (unsigned!) value of a bit
   // field |BitField| in |word32|. Returns result as an uint32 node.
@@ -3660,6 +3647,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   bool ConstexprInt31Equal(int31_t a, int31_t b) { return a == b; }
   bool ConstexprInt31NotEqual(int31_t a, int31_t b) { return a != b; }
   bool ConstexprInt31GreaterThanEqual(int31_t a, int31_t b) { return a >= b; }
+  bool ConstexprInt32Equal(int32_t a, int32_t b) { return a == b; }
+  bool ConstexprInt32NotEqual(int32_t a, int32_t b) { return a != b; }
   bool ConstexprInt32GreaterThanEqual(int32_t a, int32_t b) { return a >= b; }
   uint32_t ConstexprUint32Add(uint32_t a, uint32_t b) { return a + b; }
   int31_t ConstexprInt31Add(int31_t a, int31_t b) {
