@@ -7720,8 +7720,8 @@ void Simulator::DecodeRVRFPType() {
       switch (instr_.Funct3Value()) {
         case 0b000: {
           if (instr_.Rs2Value() == 0b00000) {
-            // RO_FMW_X_W
-            set_rd(bit_cast<uint32_t>(frs1()));
+            // RO_FMV_X_W
+            set_rd(bit_cast<int32_t>(frs1()));
           } else {
             UNSUPPORTED();
           }
