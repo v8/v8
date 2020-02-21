@@ -85,13 +85,9 @@ function trackScripts(debuggerParams) {
   Protocol.Debugger.enable(debuggerParams);
   Protocol.Debugger.onScriptParsed(handleScriptParsed);
 
-  async function loadScript(
-      {url, scriptId, sourceMapURL, startColumn, endColumn}) {
-    InspectorTest.log(`Session #${sessionId}: Script #${
-        scripts.length} parsed. URL: ${url}. Source map URL: ${
-        sourceMapURL}, code begin: ${startColumn}, code end: ${endColumn}`);
-    let {result: {scriptSource, bytecode}} =
-        await Protocol.Debugger.getScriptSource({scriptId});
+  async function loadScript({url, scriptId, sourceMapURL}) {
+    InspectorTest.log(`Session #${sessionId}: Script #${scripts.length} parsed. URL: ${url}. Source map URL: ${sourceMapURL}`);
+    let {result: {scriptSource, bytecode}} = await Protocol.Debugger.getScriptSource({scriptId});
     if (bytecode) {
       if (scriptSource) {
         InspectorTest.log('Unexpected scriptSource with bytecode: ');
@@ -101,17 +97,10 @@ function trackScripts(debuggerParams) {
       bytecode = InspectorTest.decodeBase64(bytecode);
       // Check that it can be parsed back to a WebAssembly module.
       let module = new WebAssembly.Module(bytecode);
-      scriptSource =
-          `
+      scriptSource = `
 Raw: ${Array.from(bytecode, b => ('0' + b.toString(16)).slice(-2)).join(' ')}
-Imports: [${
-              WebAssembly.Module.imports(module)
-                  .map(i => `${i.name}: ${i.kind} from "${i.module}"`)
-                  .join(', ')}]
-Exports: [${
-              WebAssembly.Module.exports(module)
-                  .map(e => `${e.name}: ${e.kind}`)
-                  .join(', ')}]
+Imports: [${WebAssembly.Module.imports(module).map(i => `${i.name}: ${i.kind} from "${i.module}"`).join(', ')}]
+Exports: [${WebAssembly.Module.exports(module).map(e => `${e.name}: ${e.kind}`).join(', ')}]
       `.trim();
     }
     InspectorTest.log(`Session #${sessionId}: Source for ${url}:`);

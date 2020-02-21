@@ -121,20 +121,9 @@ class ActualScript : public V8DebuggerScript {
     return v8::Just(v8::debug::WasmScript::Cast(*script)->Bytecode());
   }
   int startLine() const override { return m_startLine; }
-  int startColumn() const override {
-    v8::HandleScope scope(m_isolate);
-    auto script = this->script();
-    if (!script->IsWasm()) return m_startColumn;
-    return v8::debug::WasmScript::Cast(*script)->CodeOffset();
-  }
+  int startColumn() const override { return m_startColumn; }
   int endLine() const override { return m_endLine; }
-  int endColumn() const override {
-    v8::HandleScope scope(m_isolate);
-    auto script = this->script();
-    if (!script->IsWasm()) return m_endColumn;
-    return v8::debug::WasmScript::Cast(*script)->CodeOffset() +
-           v8::debug::WasmScript::Cast(*script)->CodeLength();
-  }
+  int endColumn() const override { return m_endColumn; }
   bool isSourceLoadedLazily() const override { return false; }
   int length() const override {
     v8::HandleScope scope(m_isolate);
