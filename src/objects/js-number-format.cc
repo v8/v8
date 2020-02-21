@@ -1073,6 +1073,9 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
 
   // 13. If style is "unit", then
   if (style == Style::UNIT) {
+    // Track newer style "unit".
+    isolate->CountUsage(v8::Isolate::UseCounterFeature::kNumberFormatStyleUnit);
+
     // 13.a If unit is undefined, throw a TypeError exception.
     if (unit == "") {
       THROW_NEW_ERROR(isolate,

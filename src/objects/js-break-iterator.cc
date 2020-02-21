@@ -79,10 +79,14 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
           icu::BreakIterator::createSentenceInstance(icu_locale, status));
       break;
     case Type::LINE:
+      isolate->CountUsage(
+          v8::Isolate::UseCounterFeature::kBreakIteratorTypeLine);
       break_iterator.reset(
           icu::BreakIterator::createLineInstance(icu_locale, status));
       break;
     default:
+      isolate->CountUsage(
+          v8::Isolate::UseCounterFeature::kBreakIteratorTypeWord);
       break_iterator.reset(
           icu::BreakIterator::createWordInstance(icu_locale, status));
       break;

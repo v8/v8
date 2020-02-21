@@ -1540,6 +1540,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   // 32. If dateStyle or timeStyle are not undefined, then
   if (date_style != DateTimeStyle::kUndefined ||
       time_style != DateTimeStyle::kUndefined) {
+    // Track newer feature dateStyle/timeStyle option.
+    isolate->CountUsage(
+        v8::Isolate::UseCounterFeature::kDateTimeFormatDateTimeStyle);
+
     icu_date_format = DateTimeStylePattern(date_style, time_style, icu_locale,
                                            hc, generator.get());
   }
@@ -1948,6 +1952,9 @@ MaybeHandle<T> FormatRangeCommon(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format, double x,
     double y,
     MaybeHandle<T> (*formatToResult)(Isolate*, const icu::FormattedValue&)) {
+  // Track newer feature formateRange and formatRangeToParts
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateTimeFormatRange);
+
   // #sec-partitiondatetimerangepattern
   // 1. Let x be TimeClip(x).
   x = DateCache::TimeClip(x);
