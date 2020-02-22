@@ -1252,7 +1252,9 @@ Maybe<icu::UnicodeString> IcuFormatNumber(
     formatted = number_format.formatDecimal(
         {big_int_string->ToCString().get(), big_int_string->length()}, status);
   } else {
-    double number = numeric_obj->Number();
+    double number = numeric_obj->IsNaN()
+                        ? std::numeric_limits<double>::quiet_NaN()
+                        : numeric_obj->Number();
     formatted = number_format.formatDouble(number, status);
   }
   if (U_FAILURE(status)) {
