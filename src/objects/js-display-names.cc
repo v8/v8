@@ -556,11 +556,16 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   std::set<std::string> relevant_extension_keys = {};
   // 13. Let r be ResolveLocale(%DisplayNames%.[[AvailableLocales]],
   //     requestedLocales, opt, %DisplayNames%.[[RelevantExtensionKeys]]).
-  Intl::ResolvedLocale r = Intl::ResolveLocale(
+  Maybe<Intl::ResolvedLocale> maybe_resolve_locale = Intl::ResolveLocale(
       isolate, JSDisplayNames::GetAvailableLocales(), requested_locales,
       matcher,
       FLAG_harmony_intl_displaynames_date_types ? relevant_extension_keys_ca
                                                 : relevant_extension_keys);
+  if (maybe_resolve_locale.IsNothing()) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSDisplayNames);
+  }
+  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;

@@ -112,9 +112,14 @@ MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate, Handle<Map> map,
 
   // 10. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]],
   // requestedLocales, opt, undefined, localeData).
-  Intl::ResolvedLocale r =
+  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
       Intl::ResolveLocale(isolate, JSListFormat::GetAvailableLocales(),
                           requested_locales, matcher, {});
+  if (maybe_resolve_locale.IsNothing()) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSListFormat);
+  }
+  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
   Handle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
 

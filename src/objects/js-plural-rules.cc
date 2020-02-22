@@ -111,9 +111,14 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate, Handle<Map> map,
   // 11. Let r be ResolveLocale(%PluralRules%.[[AvailableLocales]],
   // requestedLocales, opt, %PluralRules%.[[RelevantExtensionKeys]],
   // localeData).
-  Intl::ResolvedLocale r =
+  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
       Intl::ResolveLocale(isolate, JSPluralRules::GetAvailableLocales(),
                           requested_locales, matcher, {});
+  if (maybe_resolve_locale.IsNothing()) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSPluralRules);
+  }
+  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
   Handle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
 

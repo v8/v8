@@ -1377,9 +1377,14 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   //     requestedLocales, opt, %DateTimeFormat%.[[RelevantExtensionKeys]],
   //     localeData).
   //
-  Intl::ResolvedLocale r = Intl::ResolveLocale(
+  Maybe<Intl::ResolvedLocale> maybe_resolve_locale = Intl::ResolveLocale(
       isolate, JSDateTimeFormat::GetAvailableLocales(), requested_locales,
       locale_matcher, relevant_extension_keys);
+  if (maybe_resolve_locale.IsNothing()) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSDateTimeFormat);
+  }
+  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   icu::Locale icu_locale = r.icu_locale;
   DCHECK(!icu_locale.isBogus());

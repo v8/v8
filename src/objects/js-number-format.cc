@@ -891,9 +891,14 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // requestedLocales, opt,  %NumberFormat%.[[RelevantExtensionKeys]],
   // localeData).
   std::set<std::string> relevant_extension_keys{"nu"};
-  Intl::ResolvedLocale r =
+  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
       Intl::ResolveLocale(isolate, JSNumberFormat::GetAvailableLocales(),
                           requested_locales, matcher, relevant_extension_keys);
+  if (maybe_resolve_locale.IsNothing()) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSNumberFormat);
+  }
+  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;

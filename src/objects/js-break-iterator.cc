@@ -46,9 +46,14 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSV8BreakIterator>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
-  Intl::ResolvedLocale r =
+  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
       Intl::ResolveLocale(isolate, JSV8BreakIterator::GetAvailableLocales(),
                           requested_locales, matcher, {});
+  if (maybe_resolve_locale.IsNothing()) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSV8BreakIterator);
+  }
+  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   // Extract type from options
   Maybe<Type> maybe_type = Intl::GetStringOption<Type>(

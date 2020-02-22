@@ -57,9 +57,15 @@ MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate, Handle<Map> map,
 
   // 9. Let r be ResolveLocale(%Segmenter%.[[AvailableLocales]],
   // requestedLocales, opt, %Segmenter%.[[RelevantExtensionKeys]]).
-  Intl::ResolvedLocale r =
+  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
       Intl::ResolveLocale(isolate, JSSegmenter::GetAvailableLocales(),
                           requested_locales, matcher, {});
+  if (maybe_resolve_locale.IsNothing()) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSSegmenter);
+  }
+  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
+
   Handle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
 

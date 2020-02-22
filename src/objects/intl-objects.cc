@@ -433,7 +433,7 @@ std::string Intl::GetNumberingSystem(const icu::Locale& icu_locale) {
 
 namespace {
 
-icu::Locale CreateICULocale(const std::string& bcp47_locale) {
+Maybe<icu::Locale> CreateICULocale(const std::string& bcp47_locale) {
   DisallowHeapAllocation no_gc;
 
   // Convert BCP47 into ICU locale format.
@@ -442,10 +442,10 @@ icu::Locale CreateICULocale(const std::string& bcp47_locale) {
   icu::Locale icu_locale = icu::Locale::forLanguageTag(bcp47_locale, status);
   CHECK(U_SUCCESS(status));
   if (icu_locale.isBogus()) {
-    FATAL("Failed to create ICU locale, are ICU data files missing?");
+    return Nothing<icu::Locale>();
   }
 
-  return icu_locale;
+  return Just(icu_locale);
 }
 
 }  // anonymous namespace
@@ -1867,7 +1867,7 @@ std::string LookupMatcher(Isolate* isolate,
 // this method perform such normalization.
 //
 // ecma402/#sec-resolvelocale
-Intl::ResolvedLocale Intl::ResolveLocale(
+Maybe<Intl::ResolvedLocale> Intl::ResolveLocale(
     Isolate* isolate, const std::set<std::string>& available_locales,
     const std::vector<std::string>& requested_locales, MatcherOption matcher,
     const std::set<std::string>& relevant_extension_keys) {
@@ -1878,7 +1878,9 @@ Intl::ResolvedLocale Intl::ResolveLocale(
     locale = LookupMatcher(isolate, available_locales, requested_locales);
   }
 
-  icu::Locale icu_locale = CreateICULocale(locale);
+  Maybe<icu::Locale> maybe_icu_locale = CreateICULocale(locale);
+  MAYBE_RETURN(maybe_icu_locale, Nothing<Intl::ResolvedLocale>());
+  icu::Locale icu_locale = maybe_icu_locale.FromJust();
   std::map<std::string, std::string> extensions =
       LookupAndValidateUnicodeExtensions(&icu_locale, relevant_extension_keys);
 
@@ -1886,7 +1888,8 @@ Intl::ResolvedLocale Intl::ResolveLocale(
 
   // TODO(gsathya): Remove privateuse subtags from extensions.
 
-  return Intl::ResolvedLocale{canonicalized_locale, icu_locale, extensions};
+  return Just(
+      Intl::ResolvedLocale{canonicalized_locale, icu_locale, extensions});
 }
 
 Handle<Managed<icu::UnicodeString>> Intl::SetTextToBreakIterator(

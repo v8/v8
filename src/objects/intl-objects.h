@@ -258,7 +258,7 @@ class Intl {
     std::map<std::string, std::string> extensions;
   };
 
-  static ResolvedLocale ResolveLocale(
+  static Maybe<ResolvedLocale> ResolveLocale(
       Isolate* isolate, const std::set<std::string>& available_locales,
       const std::vector<std::string>& requested_locales, MatcherOption options,
       const std::set<std::string>& relevant_extension_keys);
