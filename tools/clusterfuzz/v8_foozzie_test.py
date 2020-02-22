@@ -14,6 +14,11 @@ import v8_foozzie
 import v8_fuzz_config
 import v8_suppressions
 
+try:
+  basestring
+except NameError:
+  basestring = str
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FOOZZIE = os.path.join(BASE_DIR, 'v8_foozzie.py')
 TEST_DATA = os.path.join(BASE_DIR, 'testdata')
