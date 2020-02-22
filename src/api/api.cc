@@ -468,8 +468,8 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* isolate, const char* location,
       char* first_newline = strchr(last_few_messages, '\n');
       if (first_newline == nullptr || first_newline[1] == '\0')
         first_newline = last_few_messages;
-      PrintF("\n<--- Last few GCs --->\n%s\n", first_newline);
-      PrintF("\n<--- JS stacktrace --->\n%s\n", js_stacktrace);
+      base::OS::PrintError("\n<--- Last few GCs --->\n%s\n", first_newline);
+      base::OS::PrintError("\n<--- JS stacktrace --->\n%s\n", js_stacktrace);
     }
   }
   Utils::ReportOOMFailure(isolate, location, is_heap_oom);
