@@ -45,6 +45,84 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
+// Utility types and functions for RISCV
+// TODO: Add Spike License here
+#ifdef V8_TARGET_ARCH_32_BIT
+using sreg_t = int32_t;
+using reg_t = uint32_t;
+#define xlen 32
+#elif V8_TARGET_ARCH_64_BIT
+using sreg_t = int64_t;
+using reg_t = uint64_t;
+#define xlen 64
+#else
+#error "Cannot detect Riscv's bitwidth"
+#endif
+
+#define sext32(x) ((sreg_t)(int32_t)(x))
+#define zext32(x) ((reg_t)(uint32_t)(x))
+#define sext_xlen(x) (((sreg_t)(x) << (64 - xlen)) >> (64 - xlen))
+#define zext_xlen(x) (((reg_t)(x) << (64 - xlen)) >> (64 - xlen))
+
+inline uint64_t mulhu(uint64_t a, uint64_t b) {
+  uint64_t t;
+  uint32_t y1, y2, y3;
+  uint64_t a0 = (uint32_t)a, a1 = a >> 32;
+  uint64_t b0 = (uint32_t)b, b1 = b >> 32;
+
+  t = a1 * b0 + ((a0 * b0) >> 32);
+  y1 = (uint32_t)t;
+  y2 = t >> 32;
+
+  t = a0 * b1 + y1;
+  y1 = (uint32_t)t;
+
+  t = a1 * b1 + y2 + (t >> 32);
+  y2 = (uint32_t)t;
+  y3 = t >> 32;
+
+  return ((uint64_t)y3 << 32) | y2;
+}
+
+inline int64_t mulh(int64_t a, int64_t b) {
+  int negate = (a < 0) != (b < 0);
+  uint64_t res = mulhu(a < 0 ? -a : a, b < 0 ? -b : b);
+  return negate ? ~res + (a * b == 0) : res;
+}
+
+inline int64_t mulhsu(int64_t a, uint64_t b) {
+  int negate = a < 0;
+  uint64_t res = mulhu(a < 0 ? -a : a, b);
+  return negate ? ~res + (a * b == 0) : res;
+}
+
+// Floating point helpers
+#define F32_SIGN ((uint32_t)1 << 31)
+union u32_f32 {
+  uint32_t u;
+  float f;
+};
+inline float fsgnj32(float rs1, float rs2, bool n, bool x) {
+  u32_f32 a = {.f = rs1}, b = {.f = rs2};
+  u32_f32 res;
+  res.u =
+      (a.u & ~F32_SIGN) | ((((x) ? a.u : (n) ? F32_SIGN : 0) ^ b.u) & F32_SIGN);
+  return res.f;
+}
+#define F64_SIGN ((uint64_t)1 << 63)
+union u64_f64 {
+  uint64_t u;
+  double d;
+};
+inline double fsgnj64(double rs1, double rs2, bool n, bool x) {
+  u64_f64 a = {.d = rs1}, b = {.d = rs2};
+  u64_f64 res;
+  res.u =
+      (a.u & ~F64_SIGN) | ((((x) ? a.u : (n) ? F64_SIGN : 0) ^ b.u) & F64_SIGN);
+  return res.d;
+}
+
+// -----------------------------------------------------------------------------
 // Utility functions
 
 class CachePage {
@@ -404,6 +482,18 @@ class Simulator : public SimulatorBase {
   template <typename T>
   void WriteMem(int64_t addr, T value, Instruction* instr);
 
+  // RISCV Memory read/write methods
+  template <typename T>
+  T RV_ReadMem(int64_t addr, Instruction* instr);
+  template <typename T>
+  void RV_WriteMem(int64_t addr, T value, Instruction* instr);
+  template <typename T, typename OP>
+  T RV_amo(int64_t addr, OP f, Instruction* instr) {
+    auto lhs = RV_ReadMem<T>(addr, instr);
+    RV_WriteMem<T>(addr, (T)f(lhs), instr);
+    return lhs;
+  }
+
   // Helper for debugging memory access.
   inline void DieOrDebug();
 
@@ -491,6 +581,39 @@ class Simulator : public SimulatorBase {
   inline int32_t wt_reg() const { return instr_.WtValue(); }
   inline int32_t wd_reg() const { return instr_.WdValue(); }
 
+  // RISCV utlity API to access register value
+  inline int32_t rs1_reg() const { return instr_.Rs1Value(); }
+  inline int64_t rs1() const { return get_register(rs1_reg()); }
+  inline float frs1() const { return get_fpu_register_float(rs1_reg()); }
+  inline double drs1() const { return get_fpu_register_double(rs1_reg()); }
+  inline int32_t rs2_reg() const { return instr_.Rs2Value(); }
+  inline int64_t rs2() const { return get_register(rs2_reg()); }
+  inline float frs2() const { return get_fpu_register_float(rs2_reg()); }
+  inline double drs2() const { return get_fpu_register_double(rs2_reg()); }
+  inline int32_t rs3_reg() const { return instr_.Rs3Value(); }
+  inline int64_t rs3() const { return get_register(rs3_reg()); }
+  inline float frs3() const { return get_fpu_register_float(rs3_reg()); }
+  inline double drs3() const { return get_fpu_register_double(rs3_reg()); }
+  inline int32_t RV_rd_reg() const { return instr_.RV_RdValue(); }
+  inline int16_t boffset() const { return instr_.BranchOffset(); }
+  inline int16_t imm12() const { return instr_.Imm12Value(); }
+  inline int32_t imm20J() const { return instr_.Imm20JValue(); }
+  inline void set_rd(int64_t value) { set_register(RV_rd_reg(), value); }
+  inline void set_frd(float value) {
+    set_fpu_register_float(RV_rd_reg(), value);
+  }
+  inline void set_drd(double value) {
+    set_fpu_register_double(RV_rd_reg(), value);
+  }
+  inline int16_t shamt() const { return (imm12() & 0x3F); }
+  inline int32_t s_imm12() const { return instr_.StoreOffset(); }
+  inline int32_t u_imm() const { return instr_.Imm20UValue(); }
+  inline void require(bool check) {
+    if (!check) {
+      SignalException(kIllegalInstruction);
+    }
+  }
+
   inline void SetResult(const int32_t rd_reg, const int64_t alu_out) {
     set_register(rd_reg, alu_out);
     TraceRegWr(alu_out);
@@ -528,6 +651,17 @@ class Simulator : public SimulatorBase {
 
   void DecodeTypeImmediate();
   void DecodeTypeJump();
+
+  // RISCV decoding routine
+  void DecodeRVRType();
+  void DecodeRVR4Type();
+  void DecodeRVRFPType();  // Special routine for R/OP_FP type
+  void DecodeRVRAType();   // Special routine for R/AMO type
+  void DecodeRVIType();
+  void DecodeRVSType();
+  void DecodeRVBType();
+  void DecodeRVUType();
+  void DecodeRVJType();
 
   // Used for breakpoints and traps.
   void SoftwareInterrupt();
@@ -586,7 +720,9 @@ class Simulator : public SimulatorBase {
     kIntegerOverflow,
     kIntegerUnderflow,
     kDivideByZero,
-    kNumExceptions
+    kNumExceptions,
+    // RISCV illegual instruction exception
+    kIllegalInstruction,
   };
 
   // Exceptions.

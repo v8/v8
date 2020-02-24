@@ -265,6 +265,60 @@ const uint32_t kMaxStopCode = 127;
 STATIC_ASSERT(kMaxWatchpointCode < kMaxStopCode);
 
 // ----- Fields offset and length.
+// RISCV constants
+const int kBaseOpcodeShift = 0;
+const int kBaseOpcodeBits = 7;
+const int kFunct7Shift = 25;
+const int kFunct7Bits = 7;
+const int kFunct5Shift = 27;
+const int kFunct5Bits = 5;
+const int kFunct3Shift = 12;
+const int kFunct3Bits = 3;
+const int kFunct2Shift = 25;
+const int kFunct2Bits = 2;
+const int kRs1Shift = 15;
+const int kRs1Bits = 5;
+const int kRs2Shift = 20;
+const int kRs2Bits = 5;
+const int kRs3Shift = 27;
+const int kRs3Bits = 5;
+const int RV_kRdShift = 7;
+const int RV_kRdBits = 5;
+const int kRlShift = 25;
+const int kAqShift = 26;
+const int kImm12Shift = 20;
+const int kImm12Bits = 12;
+const int kShamtShift = 20;
+const int kShamtBits = 5;
+const int kShamtWShift = 20;
+const int kShamtWBits = 6;
+const int kArithShiftShift = 30;
+const int kImm20Shift = 12;
+const int kImm20Bits = 20;
+
+// RISCV Instruction bit masks
+const int kBaseOpcodeMask = ((1 << kBaseOpcodeBits) - 1) << kBaseOpcodeShift;
+const int kFunct3Mask = ((1 << kFunct3Bits) - 1) << kFunct3Shift;
+const int kFunct5Mask = ((1 << kFunct5Bits) - 1) << kFunct5Shift;
+const int kFunct7Mask = ((1 << kFunct7Bits) - 1) << kFunct7Shift;
+const int kFunct2Mask = 0b11 << kFunct7Shift;
+const int kRTypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct7Mask;
+const int kRATypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct5Mask;
+const int kRFPTypeMask = kBaseOpcodeMask | kFunct7Mask;
+const int kR4TypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct2Mask;
+const int kITypeMask = kBaseOpcodeMask | kFunct3Mask;
+const int kSTypeMask = kBaseOpcodeMask | kFunct3Mask;
+const int kBTypeMask = kBaseOpcodeMask | kFunct3Mask;
+const int kUTypeMask = kBaseOpcodeMask;
+const int kJTypeMask = kBaseOpcodeMask;
+const int kRs1FieldMask = ((1 << kRs1Bits) - 1) << kRs1Shift;
+const int kRs2FieldMask = ((1 << kRs2Bits) - 1) << kRs2Shift;
+const int kRs3FieldMask = ((1 << kRs3Bits) - 1) << kRs3Shift;
+const int RV_kRdFieldMask = ((1 << RV_kRdBits) - 1) << RV_kRdShift;
+const int kBImm12Mask = kFunct7Mask | RV_kRdFieldMask;
+const int kImm20Mask = ((1 << kImm20Bits) - 1) << kImm20Shift;
+
+// Original MIPS constants
 const int kOpcodeShift = 26;
 const int kOpcodeBits = 6;
 const int kRsShift = 21;
@@ -380,10 +434,224 @@ const int32_t kJalRawMark = 0x00000000;
 const int32_t kJRawMark = 0xf0000000;
 const int32_t kJumpRawMask = 0xf0000000;
 
-// ----- MIPS Opcodes and Function Fields.
-// We use this presentation to stay close to the table representation in
-// MIPS32 Architecture For Programmers, Volume II: The MIPS32 Instruction Set.
+// ----- RISCV Base Opcodes
+
+enum BaseOpcode : uint32_t {
+
+};
+
+// ----- RISC-V Opcodes and Function Fields.
 enum Opcode : uint32_t {
+  LOAD = 0b0000011,      // I form: LB LH LW LBU LHU
+  LOAD_FP = 0b0000111,   // I form: FLW FLD FLQ
+  MISC_MEM = 0b0001111,  // I special form: FENCE FENCE.I
+  OP_IMM = 0b0010011,    // I form: ADDI SLTI SLTIU XORI ORI ANDI SLLI SRLI SARI
+  // Note: SLLI/SRLI/SRAI I form first, then func3 001/101 => R type
+  RV_AUIPC = 0b0010111,   // U form: AUIPC
+  OP_IMM_32 = 0b0011011,  // I form: ADDIW SLLIW SRLIW SRAIW
+  // Note:  SRLIW SRAIW I form first, then func3 101 special shift encoding
+  STORE = 0b0100011,     // S form: SB SH SW SD
+  STORE_FP = 0b0100111,  // S form: FSW FSD FSQ
+  AMO = 0b0101111,       // R form: All A instructions
+  OP = 0b0110011,      // R: ADD SUB SLL SLT SLTU XOR SRL SRA OR AND and 32M set
+  RV_LUI = 0b0110111,  // U form: LUI
+  OP_32 = 0b0111011,   // R: ADDW SUBW SLLW SRLW SRAW MULW DIVW DIVUW REMW REMUW
+  MADD = 0b1000011,    // R4 type: FMADD.S FMADD.D FMADD.Q
+  MSUB = 0b1000111,    // R4 type: FMSUB.S FMSUB.D FMSUB.Q
+  NMSUB = 0b1001011,   // R4 type: FNMSUB.S FNMSUB.D FNMSUB.Q
+  NMADD = 0b1001111,   // R4 type: FNMADD.S FNMADD.D FNMADD.Q
+  OP_FP = 0b1010011,   // R type: Q ext
+  BRANCH = 0b1100011,  // B form: BEQ BNE, BLT, BGE, BLTU BGEU
+  RV_JALR = 0b1100111,  // I form: JALR
+  RV_JAL = 0b1101111,   // J form: JAL
+  SYSTEM = 0b1110011,   // I form: ECALL EBREAK Zicsr ext
+
+  // Note use RO (RiscV Opcode) prefix
+  // RV32I Base Instruction Set
+  RO_LUI = RV_LUI,
+  RO_AUIPC = RV_AUIPC,
+  RO_JAL = RV_JAL,
+  RO_JALR = RV_JALR | (0b000 << kFunct3Shift),
+  RO_BEQ = BRANCH | (0b000 << kFunct3Shift),
+  RO_BNE = BRANCH | (0b001 << kFunct3Shift),
+  RO_BLT = BRANCH | (0b100 << kFunct3Shift),
+  RO_BGE = BRANCH | (0b101 << kFunct3Shift),
+  RO_BLTU = BRANCH | (0b110 << kFunct3Shift),
+  RO_BGEU = BRANCH | (0b111 << kFunct3Shift),
+  RO_LB = LOAD | (0b000 << kFunct3Shift),
+  RO_LH = LOAD | (0b001 << kFunct3Shift),
+  RO_LW = LOAD | (0b010 << kFunct3Shift),
+  RO_LBU = LOAD | (0b100 << kFunct3Shift),
+  RO_LHU = LOAD | (0b101 << kFunct3Shift),
+  RO_SB = STORE | (0b000 << kFunct3Shift),
+  RO_SH = STORE | (0b001 << kFunct3Shift),
+  RO_SW = STORE | (0b010 << kFunct3Shift),
+  RO_ADDI = OP_IMM | (0b000 << kFunct3Shift),
+  RO_SLTI = OP_IMM | (0b010 << kFunct3Shift),
+  RO_SLTIU = OP_IMM | (0b011 << kFunct3Shift),
+  RO_XORI = OP_IMM | (0b100 << kFunct3Shift),
+  RO_ORI = OP_IMM | (0b110 << kFunct3Shift),
+  RO_ANDI = OP_IMM | (0b111 << kFunct3Shift),
+  RO_SLLI = OP_IMM | (0b001 << kFunct3Shift),
+  RO_SRLI = OP_IMM | (0b101 << kFunct3Shift),
+  // RO_SRAI = OP_IMM | (0b101 << kFunct3Shift), // Same as SRLI, use func7
+  RO_ADD = OP | (0b000 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SUB = OP | (0b000 << kFunct3Shift) | (0b0100000 << kFunct7Shift),
+  RO_SLL = OP | (0b001 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SLT = OP | (0b010 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SLTU = OP | (0b011 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_XOR = OP | (0b100 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SRL = OP | (0b101 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SRA = OP | (0b101 << kFunct3Shift) | (0b0100000 << kFunct7Shift),
+  RO_OR = OP | (0b110 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_AND = OP | (0b111 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_FENCE = MISC_MEM | (0b000 << kFunct3Shift),
+  RO_ECALL = SYSTEM | (0b000 << kFunct3Shift),
+  // RO_EBREAK = SYSTEM | (0b000 << kFunct3Shift), // Same as ECALL, use imm12
+
+  // RV64I Base Instruction Set (in addition to RV32I)
+  RO_LWU = LOAD | (0b110 << kFunct3Shift),
+  RO_LD = LOAD | (0b011 << kFunct3Shift),
+  RO_SD = STORE | (0b011 << kFunct3Shift),
+  RO_ADDIW = OP_IMM_32 | (0b000 << kFunct3Shift),
+  RO_SLLIW = OP_IMM_32 | (0b001 << kFunct3Shift),
+  RO_SRLIW = OP_IMM_32 | (0b101 << kFunct3Shift),
+  // RO_SRAIW = OP_IMM_32 | (0b101 << kFunct3Shift), // Same as SRLIW, use func7
+  RO_ADDW = OP_32 | (0b000 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SUBW = OP_32 | (0b000 << kFunct3Shift) | (0b0100000 << kFunct7Shift),
+  RO_SLLW = OP_32 | (0b001 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SRLW = OP_32 | (0b101 << kFunct3Shift) | (0b0000000 << kFunct7Shift),
+  RO_SRAW = OP_32 | (0b101 << kFunct3Shift) | (0b0100000 << kFunct7Shift),
+
+  // RV32/RV64 Zifencei Standard Extension
+  RO_FENCE_I = MISC_MEM | (0b001 << kFunct3Shift),
+
+  // RV32/RV64 Zicsr Standard Extension
+  RO_CSRRW = SYSTEM | (0b001 << kFunct3Shift),
+  RO_CSRRS = SYSTEM | (0b010 << kFunct3Shift),
+  RO_CSRRC = SYSTEM | (0b011 << kFunct3Shift),
+  RO_CSRRWI = SYSTEM | (0b101 << kFunct3Shift),
+  RO_CSRRSI = SYSTEM | (0b110 << kFunct3Shift),
+  RO_CSRRCI = SYSTEM | (0b111 << kFunct3Shift),
+
+  // RV32M Standard Extension
+  RO_MUL = OP | (0b000 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_MULH = OP | (0b001 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_MULHSU = OP | (0b010 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_MULHU = OP | (0b011 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_DIV = OP | (0b100 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_DIVU = OP | (0b101 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_REM = OP | (0b110 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_REMU = OP | (0b111 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+
+  // RV64M Standard Extension (in addition to RV32M)
+  RO_MULW = OP_32 | (0b000 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_DIVW = OP_32 | (0b100 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_DIVUW = OP_32 | (0b101 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_REMW = OP_32 | (0b110 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+  RO_REMUW = OP_32 | (0b111 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+
+  // RV32A Standard Extension
+  RO_LR_W = AMO | (0b010 << kFunct3Shift) | (0b00010 << kFunct5Shift),
+  RO_SC_W = AMO | (0b010 << kFunct3Shift) | (0b00011 << kFunct5Shift),
+  RO_AMOSWAP_W = AMO | (0b010 << kFunct3Shift) | (0b00001 << kFunct5Shift),
+  RO_AMOADD_W = AMO | (0b010 << kFunct3Shift) | (0b00000 << kFunct5Shift),
+  RO_AMOXOR_W = AMO | (0b010 << kFunct3Shift) | (0b00100 << kFunct5Shift),
+  RO_AMOAND_W = AMO | (0b010 << kFunct3Shift) | (0b01100 << kFunct5Shift),
+  RO_AMOOR_W = AMO | (0b010 << kFunct3Shift) | (0b01000 << kFunct5Shift),
+  RO_AMOMIN_W = AMO | (0b010 << kFunct3Shift) | (0b10000 << kFunct5Shift),
+  RO_AMOMAX_W = AMO | (0b010 << kFunct3Shift) | (0b10100 << kFunct5Shift),
+  RO_AMOMINU_W = AMO | (0b010 << kFunct3Shift) | (0b11000 << kFunct5Shift),
+  RO_AMOMAXU_W = AMO | (0b010 << kFunct3Shift) | (0b11100 << kFunct5Shift),
+
+  // RV64A Standard Extension (in addition to RV32A)
+  RO_LR_D = AMO | (0b011 << kFunct3Shift) | (0b00010 << kFunct5Shift),
+  RO_SC_D = AMO | (0b011 << kFunct3Shift) | (0b00011 << kFunct5Shift),
+  RO_AMOSWAP_D = AMO | (0b011 << kFunct3Shift) | (0b00001 << kFunct5Shift),
+  RO_AMOADD_D = AMO | (0b011 << kFunct3Shift) | (0b00000 << kFunct5Shift),
+  RO_AMOXOR_D = AMO | (0b011 << kFunct3Shift) | (0b00100 << kFunct5Shift),
+  RO_AMOAND_D = AMO | (0b011 << kFunct3Shift) | (0b01100 << kFunct5Shift),
+  RO_AMOOR_D = AMO | (0b011 << kFunct3Shift) | (0b01000 << kFunct5Shift),
+  RO_AMOMIN_D = AMO | (0b011 << kFunct3Shift) | (0b10000 << kFunct5Shift),
+  RO_AMOMAX_D = AMO | (0b011 << kFunct3Shift) | (0b10100 << kFunct5Shift),
+  RO_AMOMINU_D = AMO | (0b011 << kFunct3Shift) | (0b11000 << kFunct5Shift),
+  RO_AMOMAXU_D = AMO | (0b011 << kFunct3Shift) | (0b11100 << kFunct5Shift),
+
+  // RV32F Standard Extension
+  RO_FLW = LOAD_FP | (0b010 << kFunct3Shift),
+  RO_FSW = STORE_FP | (0b010 << kFunct3Shift),
+  RO_FMADD_S = MADD | (0b00 << kFunct2Shift),
+  RO_FMSUB_S = MSUB | (0b00 << kFunct2Shift),
+  RO_FNMSUB_S = NMSUB | (0b00 << kFunct2Shift),
+  RO_FNMADD_S = NMADD | (0b00 << kFunct2Shift),
+  RO_FADD_S = OP_FP | (0b0000000 << kFunct7Shift),
+  RO_FSUB_S = OP_FP | (0b0000100 << kFunct7Shift),
+  RO_FMUL_S = OP_FP | (0b0001000 << kFunct7Shift),
+  RO_FDIV_S = OP_FP | (0b0001100 << kFunct7Shift),
+  RO_FSQRT_S = OP_FP | (0b0101100 << kFunct7Shift) | (0b00000 << kRs2Shift),
+  RO_FSGNJ_S = OP_FP | (0b000 << kFunct3Shift) | (0b0010000 << kFunct7Shift),
+  RO_FSGNJN_S = OP_FP | (0b001 << kFunct3Shift) | (0b0010000 << kFunct7Shift),
+  RO_FSQNJX_S = OP_FP | (0b010 << kFunct3Shift) | (0b0010000 << kFunct7Shift),
+  RO_FMIN_S = OP_FP | (0b000 << kFunct3Shift) | (0b0010100 << kFunct7Shift),
+  RO_FMAX_S = OP_FP | (0b001 << kFunct3Shift) | (0b0010100 << kFunct7Shift),
+  RO_FCVT_W_S = OP_FP | (0b1100000 << kFunct7Shift) | (0b00000 << kRs2Shift),
+  RO_FCVT_WU_S = OP_FP | (0b1100000 << kFunct7Shift) | (0b00001 << kRs2Shift),
+  RO_FMV = OP_FP | (0b1110000 << kFunct7Shift) | (0b000 << kFunct3Shift) |
+           (0b00000 << kRs2Shift),
+  RO_FEQ_S = OP_FP | (0b010 << kFunct3Shift) | (0b1010000 << kFunct7Shift),
+  RO_FLT_S = OP_FP | (0b001 << kFunct3Shift) | (0b1010000 << kFunct7Shift),
+  RO_FLE_S = OP_FP | (0b000 << kFunct3Shift) | (0b1010000 << kFunct7Shift),
+  RO_FCLASS_S = OP_FP | (0b001 << kFunct3Shift) | (0b1110000 << kFunct7Shift),
+  RO_FCVT_S_W = OP_FP | (0b1101000 << kFunct7Shift) | (0b00000 << kRs2Shift),
+  RO_FCVT_S_WU = OP_FP | (0b1101000 << kFunct7Shift) | (0b00001 << kRs2Shift),
+  RO_FMV_W_X = OP_FP | (0b000 << kFunct3Shift) | (0b1111000 << kFunct7Shift),
+
+  // RV64F Standard Extension (in addition to RV32F)
+  RO_FCVT_L_S = OP_FP | (0b1100000 << kFunct7Shift) | (0b00010 << kRs2Shift),
+  RO_FCVT_LU_S = OP_FP | (0b1100000 << kFunct7Shift) | (0b00011 << kRs2Shift),
+  RO_FCVT_S_L = OP_FP | (0b1101000 << kFunct7Shift) | (0b00010 << kRs2Shift),
+  RO_FCVT_S_LU = OP_FP | (0b1101000 << kFunct7Shift) | (0b00011 << kRs2Shift),
+
+  // RV32D Standard Extension
+  RO_FLD = LOAD_FP | (0b011 << kFunct3Shift),
+  RO_FSD = STORE_FP | (0b011 << kFunct3Shift),
+  RO_FMADD_D = MADD | (0b01 << kFunct2Shift),
+  RO_FMSUB_D = MSUB | (0b01 << kFunct2Shift),
+  RO_FNMSUB_D = NMSUB | (0b01 << kFunct2Shift),
+  RO_FNMADD_D = NMADD | (0b01 << kFunct2Shift),
+  RO_FADD_D = OP_FP | (0b0000001 << kFunct7Shift),
+  RO_FSUB_D = OP_FP | (0b0000101 << kFunct7Shift),
+  RO_FMUL_D = OP_FP | (0b0001001 << kFunct7Shift),
+  RO_FDIV_D = OP_FP | (0b0001101 << kFunct7Shift),
+  RO_FSQRT_D = OP_FP | (0b0101101 << kFunct7Shift) | (0b00000 << kRs2Shift),
+  RO_FSGNJ_D = OP_FP | (0b000 << kFunct3Shift) | (0b0010001 << kFunct7Shift),
+  RO_FSGNJN_D = OP_FP | (0b001 << kFunct3Shift) | (0b0010001 << kFunct7Shift),
+  RO_FSQNJX_D = OP_FP | (0b010 << kFunct3Shift) | (0b0010001 << kFunct7Shift),
+  RO_FMIN_D = OP_FP | (0b000 << kFunct3Shift) | (0b0010101 << kFunct7Shift),
+  RO_FMAX_D = OP_FP | (0b001 << kFunct3Shift) | (0b0010101 << kFunct7Shift),
+  RO_FCVT_S_D = OP_FP | (0b0100000 << kFunct7Shift) | (0b00001 << kRs2Shift),
+  RO_FCVT_D_S = OP_FP | (0b0100001 << kFunct7Shift) | (0b00000 << kRs2Shift),
+  RO_FEQ_D = OP_FP | (0b010 << kFunct3Shift) | (0b1010001 << kFunct7Shift),
+  RO_FLT_D = OP_FP | (0b001 << kFunct3Shift) | (0b1010001 << kFunct7Shift),
+  RO_FLE_D = OP_FP | (0b000 << kFunct3Shift) | (0b1010001 << kFunct7Shift),
+  RO_FCLASS_D = OP_FP | (0b001 << kFunct3Shift) | (0b1110001 << kFunct7Shift) |
+                (0b00000 << kRs2Shift),
+  RO_FCVT_W_D = OP_FP | (0b1100001 << kFunct7Shift) | (0b00000 << kRs2Shift),
+  RO_FCVT_WU_D = OP_FP | (0b1100001 << kFunct7Shift) | (0b00001 << kRs2Shift),
+  RO_FCVT_D_W = OP_FP | (0b1101001 << kFunct7Shift) | (0b00000 << kRs2Shift),
+  RO_FCVT_D_WU = OP_FP | (0b1101001 << kFunct7Shift) | (0b00001 << kRs2Shift),
+
+  // RV64D Standard Extension (in addition to RV32D)
+  RO_FCVT_L_D = OP_FP | (0b1100001 << kFunct7Shift) | (0b00010 << kRs2Shift),
+  RO_FCVT_LU_D = OP_FP | (0b1100001 << kFunct7Shift) | (0b00011 << kRs2Shift),
+  RO_FMV_X_D = OP_FP | (0b000 << kFunct3Shift) | (0b1110001 << kFunct7Shift) |
+               (0b00000 << kRs2Shift),
+  RO_FCVT_D_L = OP_FP | (0b1101001 << kFunct7Shift) | (0b00010 << kRs2Shift),
+  RO_FCVT_D_LU = OP_FP | (0b1101001 << kFunct7Shift) | (0b00011 << kRs2Shift),
+  RO_FMV_D_X = OP_FP | (0b000 << kFunct3Shift) | (0b1111001 << kFunct7Shift) |
+               (0b00000 << kRs2Shift),
+
+  // Original MIPS opcodes
   SPECIAL = 0U << kOpcodeShift,
   REGIMM = 1U << kOpcodeShift,
 
@@ -1246,7 +1514,19 @@ class InstructionBase {
   };
 
   // Instruction type.
-  enum Type { kRegisterType, kImmediateType, kJumpType, kUnsupported = -1 };
+  enum Type {
+    kRegisterType,
+    kImmediateType,
+    kJumpType,
+    kRType,
+    kR4Type,  // Special R4 for Q extension
+    kIType,
+    kSType,
+    kBType,
+    kUType,
+    kJType,
+    kUnsupported = -1
+  };
 
   // Get the raw instruction bits.
   inline Instr InstructionBits() const {
@@ -1321,6 +1601,43 @@ class InstructionBase {
       FunctionFieldToBitNumber(MOVZ) | FunctionFieldToBitNumber(MOVN) |
       FunctionFieldToBitNumber(MOVCI) | FunctionFieldToBitNumber(SELEQZ_S) |
       FunctionFieldToBitNumber(SELNEZ_S) | FunctionFieldToBitNumber(SYNC);
+
+  // Accessors for the different named fields used in the RISC-V encoding.
+  inline Opcode BaseOpcodeValue() const {
+    return static_cast<Opcode>(
+        Bits(kBaseOpcodeShift + kBaseOpcodeBits - 1, kBaseOpcodeShift));
+  }
+
+  // Return the fields at their original place in the instruction encoding.
+  inline Opcode BaseOpcodeFieldRaw() const {
+    return static_cast<Opcode>(InstructionBits() & kBaseOpcodeMask);
+  }
+
+  // Safe to call within R-type instructions
+  inline int Funct7FieldRaw() const { return InstructionBits() & kFunct7Mask; }
+
+  // Safe to call within R-, I-, S-, or B-type instructions
+  inline int Funct3FieldRaw() const { return InstructionBits() & kFunct3Mask; }
+
+  // Safe to call within R-, I-, S-, or B-type instructions
+  inline int Rs1FieldRawNoAssert() const {
+    return InstructionBits() & kRs1FieldMask;
+  }
+
+  // Safe to call within R-, S-, or B-type instructions
+  inline int Rs2FieldRawNoAssert() const {
+    return InstructionBits() & kRs2FieldMask;
+  }
+
+  // Safe to call within R4-type instructions
+  inline int Rs3FieldRawNoAssert() const {
+    return InstructionBits() & kRs3FieldMask;
+  }
+
+  // Safe to call within R-, I-, U-, or J-type instructions
+  inline int RdFieldRawNoAssert() const {
+    return InstructionBits() & kRdFieldMask;
+  }
 
   // Accessors for the different named fields used in the MIPS encoding.
   inline Opcode OpcodeValue() const {
@@ -1410,6 +1727,125 @@ class InstructionBase {
 template <class T>
 class InstructionGetters : public T {
  public:
+  inline int BaseOpcode() const {
+    return this->InstructionBits() & kBaseOpcodeMask;
+  }
+
+  inline int Rs1Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRType ||
+           this->InstructionType() == InstructionBase::kR4Type ||
+           this->InstructionType() == InstructionBase::kIType ||
+           this->InstructionType() == InstructionBase::kSType ||
+           this->InstructionType() == InstructionBase::kBType);
+    return this->Bits(kRs1Shift + kRs1Bits - 1, kRs1Shift);
+  }
+
+  inline int Rs2Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRType ||
+           this->InstructionType() == InstructionBase::kR4Type ||
+           this->InstructionType() == InstructionBase::kSType ||
+           this->InstructionType() == InstructionBase::kBType);
+    return this->Bits(kRs2Shift + kRs2Bits - 1, kRs2Shift);
+  }
+
+  inline int Rs3Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kR4Type);
+    return this->Bits(kRs3Shift + kRs3Bits - 1, kRs3Shift);
+  }
+
+  inline int RV_RdValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRType ||
+           this->InstructionType() == InstructionBase::kR4Type ||
+           this->InstructionType() == InstructionBase::kIType ||
+           this->InstructionType() == InstructionBase::kUType ||
+           this->InstructionType() == InstructionBase::kJType);
+    return this->Bits(RV_kRdShift + RV_kRdBits - 1, RV_kRdShift);
+  }
+
+  inline int Funct7Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRType);
+    return this->Bits(kFunct7Shift + kFunct7Bits - 1, kFunct7Shift);
+  }
+
+  inline int Funct3Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRType ||
+           this->InstructionType() == InstructionBase::kIType ||
+           this->InstructionType() == InstructionBase::kSType ||
+           this->InstructionType() == InstructionBase::kBType);
+    return this->Bits(kFunct3Shift + kFunct3Bits - 1, kFunct3Shift);
+  }
+
+  inline int Funct5Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRType &&
+           this->BaseOpcode() == OP_FP);
+    return this->Bits(kFunct5Shift + kFunct5Bits - 1, kFunct5Shift);
+  }
+
+  inline int RoundMode() const {
+    DCHECK((this->InstructionType() == InstructionBase::kRType ||
+            this->InstructionType() == InstructionBase::kR4Type) &&
+           this->BaseOpcode() == OP_FP);
+    return this->Bits(kFunct3Shift + kFunct3Bits - 1, kFunct3Shift);
+  }
+
+  inline int Imm12Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kIType);
+    int Value = this->Bits(kImm12Shift + kImm12Bits - 1, kImm12Shift);
+    return Value << 20 >> 20;
+  }
+
+  inline int32_t Imm12SExtValue() const {
+    int32_t Value = this->Imm12Value() << 20 >> 20;
+    return Value;
+  }
+
+  inline int BranchOffset() const {
+    DCHECK(this->InstructionType() == InstructionBase::kBType);
+    // | imm[12|10:5] | rs2 | rs1 | funct3 | imm[4:1|11] | opcode |
+    //  31          25                      11          7
+    uint32_t Bits = this->InstructionBits();
+    int16_t imm12 = ((Bits & 0xf00) >> 7) | ((Bits & 0x7e000000) >> 20) |
+                    ((Bits & 0x80) << 4) | ((Bits & 0x80000000) >> 19);
+    return imm12 << 20 >> 20;
+  }
+
+  inline int StoreOffset() const {
+    DCHECK(this->InstructionType() == InstructionBase::kSType);
+    // | imm[11:5] | rs2 | rs1 | funct3 | imm[4:0] | opcode |
+    //  31       25                      11       7
+    uint32_t Bits = this->InstructionBits();
+    int16_t imm12 = ((Bits & 0xf80) >> 7) | ((Bits & 0xfe000000) >> 20);
+    return imm12 << 20 >> 20;
+  }
+
+  inline int Imm20UValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kUType);
+    // | imm[31:12] | rd | opcode |
+    //  31        12
+    int32_t Bits = this->InstructionBits();
+    return Bits >> 12 << 12;
+  }
+
+  inline int Imm20JValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kJType);
+    // | imm[20|10:1|11|19:12] | rd | opcode |
+    //  31                   12
+    uint32_t Bits = this->InstructionBits();
+    int32_t imm20 = ((Bits & 0x7fe00000) >> 20) | ((Bits & 0x100000) >> 9) |
+                    (Bits & 0xff000) | ((Bits & 0x80000000) >> 11);
+    return imm20 << 11 >> 11;
+  }
+
+  inline bool IsArithShift() const {
+    // Valid only for right shift operations
+    DCHECK((this->BaseOpcode() == OP || this->BaseOpcode() == OP_32 ||
+            this->BaseOpcode() == OP_IMM || this->BaseOpcode() == OP_IMM_32) &&
+           this->Funct3Value() == 0b101);
+    return this->InstructionBits() & 0x40000000;
+  }
+
+  // Original MIPS methods
+
   inline int RsValue() const {
     DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
            this->InstructionType() == InstructionBase::kImmediateType);
@@ -1728,6 +2164,50 @@ const int kBranchReturnOffset = 2 * kInstrSize;
 static const int kNegOffset = 0x00008000;
 
 InstructionBase::Type InstructionBase::InstructionType() const {
+  // RISCV routine
+  switch (InstructionBits() & kBaseOpcodeMask) {
+    case LOAD:
+      return kIType;
+    case LOAD_FP:
+      return kIType;
+    case MISC_MEM:
+      return kIType;
+    case OP_IMM:
+      return kIType;
+    case RV_AUIPC:
+      return kUType;
+    case OP_IMM_32:
+      return kIType;
+    case STORE:
+      return kSType;
+    case STORE_FP:
+      return kSType;
+    case AMO:
+      return kRType;
+    case OP:
+      return kRType;
+    case RV_LUI:
+      return kUType;
+    case OP_32:
+      return kRType;
+    case MADD:
+    case MSUB:
+    case NMSUB:
+    case NMADD:
+      return kR4Type;
+    case OP_FP:
+      return kRType;
+    case BRANCH:
+      return kBType;
+    case RV_JALR:
+      return kIType;
+    case RV_JAL:
+      return kJType;
+    case SYSTEM:
+      return kIType;
+  }
+  // fall back to MIPS
+
   switch (OpcodeFieldRaw()) {
     case SPECIAL:
       if (FunctionFieldToBitNumber(FunctionFieldRaw()) &

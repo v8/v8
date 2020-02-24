@@ -1,0 +1,24 @@
+variables:
+  # Because of the requirements of gn, we have to manually checkout our commit
+  GIT_STRATEGY: none
+
+before_script:
+  - export PATH=$PATH:$HOME/depot_tools
+  - git remote set-url gitlab http://gitlab-ci-token:$CI_BUILD_TOKEN@gitlab.futurewei.com/swlab/swe/v8.git
+  - git fetch gitlab
+  - git checkout $CI_COMMIT_SHA
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  script:
+    - gn gen out.gn/riscv64_debug --args='is_debug=true target_cpu="x64" v8_target_cpu="riscv64" is_component_build=false'
+    - ninja -C out.gn/riscv64_debug -j8
+
+cctests:
+  stage: test
+  script:
+    - tools/run-tests.py --outdir=out.gn/riscv64_debug cctest/test-simple-riscv/* cctest/test-assembler-riscv/*

@@ -2128,6 +2128,22 @@ void Simulator::WriteMem(int64_t addr, T value, Instruction* instr) {
   base::OS::Abort();
 }
 
+// RISCV Memory Read/Write functions
+// Compared with mips64, RISCV can support unaligned read/write. EEI decides.
+// FIXME: RISCV porting: Add boundary check and TraceMem* support
+
+template <typename T>
+T Simulator::RV_ReadMem(int64_t addr, Instruction* instr) {
+  T* ptr = reinterpret_cast<T*>(addr);
+  return *ptr;
+}
+
+template <typename T>
+void Simulator::RV_WriteMem(int64_t addr, T value, Instruction* instr) {
+  T* ptr = reinterpret_cast<T*>(addr);
+  *ptr = value;
+}
+
 // Returns the limit of the stack area to enable checking for stack overflows.
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
@@ -7266,6 +7282,1020 @@ void Simulator::DecodeTypeJump() {
   pc_modified_ = true;
 }
 
+// RISCV Instruction Decode Routine
+void Simulator::DecodeRVRType() {
+  switch (instr_.InstructionBits() & kRTypeMask) {
+    case RO_ADD: {
+      set_rd(sext_xlen(rs1() + rs2()));
+      break;
+    }
+    case RO_SUB: {
+      set_rd(sext_xlen(rs1() - rs2()));
+      break;
+    }
+    case RO_SLL: {
+      set_rd(sext_xlen(rs1() << (rs2() & (xlen - 1))));
+      break;
+    }
+    case RO_SLT: {
+      set_rd(sreg_t(rs1()) < sreg_t(rs2()));
+      break;
+    }
+    case RO_SLTU: {
+      set_rd(reg_t(rs1()) < reg_t(rs2()));
+      break;
+    }
+    case RO_XOR: {
+      set_rd(rs1() ^ rs2());
+      break;
+    }
+    case RO_SRL: {
+      set_rd(sext_xlen(zext_xlen(rs1()) >> (rs2() & (xlen - 1))));
+      break;
+    }
+    case RO_SRA: {
+      set_rd(sext_xlen(sext_xlen(rs1()) >> (rs2() & (xlen - 1))));
+      break;
+    }
+    case RO_OR: {
+      set_rd(rs1() | rs2());
+      break;
+    }
+    case RO_AND: {
+      set_rd(rs1() & rs2());
+      break;
+    }
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_ADDW: {
+      set_rd(sext32(rs1() + rs2()));
+      break;
+    }
+    case RO_SUBW: {
+      set_rd(sext32(rs1() - rs2()));
+      break;
+    }
+    case RO_SLLW: {
+      set_rd(sext32(rs1() << (rs2() & 0x1F)));
+      break;
+    }
+    case RO_SRLW: {
+      set_rd(sext32(uint32_t(rs1()) >> (rs2() & 0x1F)));
+      break;
+    }
+    case RO_SRAW: {
+      set_rd(sext32(int32_t(rs1()) >> (rs2() & 0x1F)));
+      break;
+    }
+#endif /* V8_TARGET_ARCH_64_BIT */
+       // TODO: Add RISCV M extension macro
+    case RO_MUL: {
+      set_rd(sext_xlen(rs1() * rs2()));
+      break;
+    }
+    case RO_MULH: {
+#ifdef V8_TARGET_ARCH_64_BIT
+      set_rd(mulh(rs1(), rs2()));
+#else
+      set_rd(sext32((sext32(rs1()) * sext32(rs2())) >> 32));
+#endif /*V8_TARGET_ARCH_64_BIT*/
+      break;
+    }
+    case RO_MULHSU: {
+#ifdef V8_TARGET_ARCH_64_BIT
+      set_rd(mulhsu(rs1(), rs2()));
+#else
+      set_rd(sext32((sext32(rs1()) * reg_t((uint32_t)rs2())) >> 32));
+#endif /*V8_TARGET_ARCH_64_BIT*/
+      break;
+    }
+    case RO_MULHU: {
+#ifdef V8_TARGET_ARCH_64_BIT
+      set_rd(mulhu(rs1(), rs2()));
+#else
+      set_rd(sext32(((uint64_t)(uint32_t)rs1() * (uint64_t)(uint32_t)rs2()) >>
+                    32));
+#endif /*V8_TARGET_ARCH_64_BIT*/
+      break;
+    }
+    case RO_DIV: {
+      sreg_t lhs = sext_xlen(rs1());
+      sreg_t rhs = sext_xlen(rs2());
+      if (rhs == 0) {
+        set_rd(UINT64_MAX);
+      } else if (lhs == INT64_MIN && rhs == -1) {
+        set_rd(lhs);
+      } else {
+        set_rd(sext_xlen(lhs / rhs));
+      }
+      break;
+    }
+    case RO_DIVU: {
+      reg_t lhs = zext_xlen(rs1());
+      reg_t rhs = zext_xlen(rs2());
+      if (rhs == 0) {
+        set_rd(UINT64_MAX);
+      } else {
+        set_rd(sext_xlen(lhs / rhs));
+      }
+      break;
+    }
+    case RO_REM: {
+      sreg_t lhs = sext_xlen(rs1());
+      sreg_t rhs = sext_xlen(rs2());
+      if (rhs == 0) {
+        set_rd(lhs);
+      } else if (lhs == INT64_MIN && rhs == -1) {
+        set_rd(0);
+      } else {
+        set_rd(sext_xlen(lhs % rhs));
+      }
+      break;
+    }
+    case RO_REMU: {
+      reg_t lhs = zext_xlen(rs1());
+      reg_t rhs = zext_xlen(rs2());
+      if (rhs == 0) {
+        set_rd(sext_xlen(rs1()));
+      } else {
+        set_rd(sext_xlen(lhs % rhs));
+      }
+      break;
+    }
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_MULW: {
+      set_rd(sext32(rs1() * rs2()));
+      break;
+    }
+    case RO_DIVW: {
+      sreg_t lhs = sext32(rs1());
+      sreg_t rhs = sext32(rs2());
+      if (rhs == 0) {
+        set_rd(UINT64_MAX);
+      } else {
+        set_rd(sext32(lhs / rhs));
+      }
+      break;
+    }
+    case RO_DIVUW: {
+      reg_t lhs = zext32(rs1());
+      reg_t rhs = zext32(rs2());
+      if (rhs == 0) {
+        set_rd(UINT64_MAX);
+      } else {
+        set_rd(sext32(lhs / rhs));
+      }
+      break;
+    }
+    case RO_REMW: {
+      sreg_t lhs = sext32(rs1());
+      sreg_t rhs = sext32(rs2());
+      if (rhs == 0) {
+        set_rd(lhs);
+      } else {
+        set_rd(sext32(lhs % rhs));
+      }
+      break;
+    }
+    case RO_REMUW: {
+      reg_t lhs = zext32(rs1());
+      reg_t rhs = zext32(rs2());
+      if (rhs == 0) {
+        set_rd(sext32(lhs));
+      } else {
+        set_rd(sext32(lhs % rhs));
+      }
+      break;
+    }
+#endif /*V8_TARGET_ARCH_64_BIT*/
+       // TODO: End Add RISCV M extension macro
+    default: {
+      switch (instr_.BaseOpcode()) {
+        case AMO:
+          DecodeRVRAType();
+          break;
+        case OP_FP:
+          DecodeRVRFPType();
+          break;
+        default:
+          UNSUPPORTED();
+      }
+    }
+  }
+}
+
+void Simulator::DecodeRVRAType() {
+  // TODO: Add macro for RISCV A extension
+  // Special handling for A extension instructions because it uses func5
+  // For all A extension instruction, V8 simulator is pure sequential. No
+  // Memory address lock or other synchronizaiton behaviors.
+  switch (instr_.InstructionBits() & kRATypeMask) {
+    case RO_LR_W: {
+      set_rd(sext32(ReadMem<int32_t>(rs1(), instr_.instr())));
+      break;
+    }
+    case RO_SC_W: {
+      RV_WriteMem<int32_t>(rs1(), (int32_t)rs2(), instr_.instr());
+      set_rd(0);  // Always success in simulator
+      break;
+    }
+    case RO_AMOSWAP_W: {
+      set_rd(sext32(RV_amo<uint32_t>(
+          rs1(), [&](uint32_t lhs) { return (uint32_t)rs2(); },
+          instr_.instr())));
+      break;
+    }
+    case RO_AMOADD_W: {
+      set_rd(sext32(RV_amo<uint32_t>(
+          rs1(), [&](uint32_t lhs) { return lhs + (uint32_t)rs2(); },
+          instr_.instr())));
+      break;
+    }
+    case RO_AMOXOR_W: {
+      set_rd(sext32(RV_amo<uint32_t>(
+          rs1(), [&](uint32_t lhs) { return lhs ^ (uint32_t)rs2(); },
+          instr_.instr())));
+      break;
+    }
+    case RO_AMOAND_W: {
+      set_rd(sext32(RV_amo<uint32_t>(
+          rs1(), [&](uint32_t lhs) { return lhs & (uint32_t)rs2(); },
+          instr_.instr())));
+      break;
+    }
+    case RO_AMOOR_W: {
+      set_rd(sext32(RV_amo<uint32_t>(
+          rs1(), [&](uint32_t lhs) { return lhs | (uint32_t)rs2(); },
+          instr_.instr())));
+      break;
+    }
+    case RO_AMOMIN_W: {
+      set_rd(sext32(RV_amo<int32_t>(
+          rs1(), [&](int32_t lhs) { return std::min(lhs, (int32_t)rs2()); },
+          instr_.instr())));
+      break;
+    }
+    case RO_AMOMAX_W: {
+      set_rd(sext32(RV_amo<int32_t>(
+          rs1(), [&](int32_t lhs) { return std::max(lhs, (int32_t)rs2()); },
+          instr_.instr())));
+      break;
+    }
+    case RO_AMOMINU_W: {
+      set_rd(sext32(RV_amo<uint32_t>(
+          rs1(), [&](uint32_t lhs) { return std::min(lhs, (uint32_t)rs2()); },
+          instr_.instr())));
+      break;
+    }
+    case RO_AMOMAXU_W: {
+      set_rd(sext32(RV_amo<uint32_t>(
+          rs1(), [&](uint32_t lhs) { return std::max(lhs, (uint32_t)rs2()); },
+          instr_.instr())));
+      break;
+    }
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_LR_D: {
+      set_rd(RV_ReadMem<int64_t>(rs1(), instr_.instr()));
+      break;
+    }
+    case RO_SC_D: {
+      RV_WriteMem<int64_t>(rs1(), rs2(), instr_.instr());
+      set_rd(0);  // Always success in simulator
+      break;
+    }
+    case RO_AMOSWAP_D: {
+      set_rd(RV_amo<int64_t>(
+          rs1(), [&](int64_t lhs) { return rs2(); }, instr_.instr()));
+      break;
+    }
+    case RO_AMOADD_D: {
+      set_rd(RV_amo<int64_t>(
+          rs1(), [&](int64_t lhs) { return lhs + rs2(); }, instr_.instr()));
+      break;
+    }
+    case RO_AMOXOR_D: {
+      set_rd(RV_amo<int64_t>(
+          rs1(), [&](int64_t lhs) { return lhs ^ rs2(); }, instr_.instr()));
+      break;
+    }
+    case RO_AMOAND_D: {
+      set_rd(RV_amo<int64_t>(
+          rs1(), [&](int64_t lhs) { return lhs & rs2(); }, instr_.instr()));
+      break;
+    }
+    case RO_AMOOR_D: {
+      set_rd(RV_amo<int64_t>(
+          rs1(), [&](int64_t lhs) { return lhs | rs2(); }, instr_.instr()));
+      break;
+    }
+    case RO_AMOMIN_D: {
+      set_rd(RV_amo<int64_t>(
+          rs1(), [&](int64_t lhs) { return std::min(lhs, rs2()); },
+          instr_.instr()));
+      break;
+    }
+    case RO_AMOMAX_D: {
+      set_rd(RV_amo<int64_t>(
+          rs1(), [&](int64_t lhs) { return std::max(lhs, rs2()); },
+          instr_.instr()));
+      break;
+    }
+    case RO_AMOMINU_D: {
+      set_rd(RV_amo<uint64_t>(
+          rs1(), [&](uint64_t lhs) { return std::min(lhs, (uint64_t)rs2()); },
+          instr_.instr()));
+      break;
+    }
+    case RO_AMOMAXU_D: {
+      set_rd(RV_amo<uint64_t>(
+          rs1(), [&](uint64_t lhs) { return std::max(lhs, (uint64_t)rs2()); },
+          instr_.instr()));
+      break;
+    }
+#endif /*V8_TARGET_ARCH_64_BIT*/
+    // TODO: End Add macro for RISCV A extension
+    default: {
+      UNSUPPORTED();
+    }
+  }
+}
+
+void Simulator::DecodeRVRFPType() {
+  // OP_FP instructions (F/D) uses func7 first. Some further uses fun3 and rs2()
+
+  // kRATypeMask is only for func7
+  switch (instr_.InstructionBits() & kRFPTypeMask) {
+    // TODO: Add macro for RISCV F extension
+    case RO_FADD_S: {
+      // TODO: use rm value (round mode)
+      set_frd(frs1() + frs2());
+      break;
+    }
+    case RO_FSUB_S: {
+      // TODO: use rm value (round mode)
+      set_frd(frs1() - frs2());
+      break;
+    }
+    case RO_FMUL_S: {
+      // TODO: use rm value (round mode)
+      set_frd(frs1() * frs2());
+      break;
+    }
+    case RO_FDIV_S: {
+      // TODO: use rm value (round mode)
+      set_frd(frs1() / frs2());
+      break;
+    }
+    case RO_FSQRT_S: {
+      if (instr_.Rs2Value() == 0b00000) {
+        // TODO: use rm value (round mode)
+        set_frd(std::sqrt(frs1()));
+      } else {
+        UNSUPPORTED();
+      }
+      break;
+    }
+    case RO_FSGNJ_S: {  // RO_FSGNJN_S  RO_FSQNJX_S
+      switch (instr_.Funct3Value()) {
+        case 0b000: {  // RO_FSGNJ_S
+          set_frd(fsgnj32(frs1(), frs2(), false, false));
+          break;
+        }
+        case 0b001: {  // RO_FSGNJN_S
+          set_frd(fsgnj32(frs1(), frs2(), true, false));
+          break;
+        }
+        case 0b010: {  // RO_FSQNJX_S
+          set_frd(fsgnj32(frs1(), frs2(), false, true));
+          break;
+        }
+        default: {
+          UNSUPPORTED();
+        }
+      }
+      break;
+    }
+    case RO_FMIN_S: {  // RO_FMAX_S
+      switch (instr_.Funct3Value()) {
+        case 0b000: {  // RO_FMIN_S
+          set_frd(std::min(frs1(), frs2()));
+          break;
+        }
+        case 0b001: {  // RO_FMAX_S
+          set_frd(std::max(frs1(), frs2()));
+          break;
+        }
+        default: {
+          UNSUPPORTED();
+        }
+      }
+      break;
+    }
+    case RO_FCVT_W_S: {  // RO_FCVT_WU_S , 64F RO_FCVT_L_S RO_FCVT_LU_S
+      switch (instr_.Rs2Value()) {
+        case 0b00000: {  // RO_FCVT_W_S
+          set_rd((int32_t)frs1());
+          break;
+        }
+        case 0b00001: {  // RO_FCVT_WU_S
+          set_rd((uint32_t)frs1());
+          break;
+        }
+#ifdef V8_TARGET_ARCH_64_BIT
+        case 0b00010: {  // RO_FCVT_L_S
+          set_rd((int64_t)frs1());
+          break;
+        }
+        case 0b00011: {  // RO_FCVT_LU_S
+          set_rd((uint64_t)frs1());
+          break;
+        }
+#endif /* V8_TARGET_ARCH_64_BIT */
+        default: {
+          UNSUPPORTED();
+        }
+      }
+      break;
+    }
+    case RO_FMV: {  // RO_FCLASS_S
+      switch (instr_.Funct3Value()) {
+        case 0b000: {
+          if (instr_.Rs2Value() == 0b00000) {
+            // RO_FMV_X_W
+            set_rd(bit_cast<int32_t>(frs1()));
+          } else {
+            UNSUPPORTED();
+          }
+          break;
+        }
+        case 0b001: {  // RO_FCLASS_S
+          UNSUPPORTED();
+          break;
+        }
+        default: {
+          UNSUPPORTED();
+        }
+      }
+      break;
+    }
+    case RO_FLE_S: {  // RO_FEQ_S RO_FLT_S RO_FLE_S
+      switch (instr_.Funct3Value()) {
+        case 0b010: {  // RO_FEQ_S
+          set_rd(frs1() == frs2() ? 1 : 0);
+          break;
+        }
+        case 0b001: {  // RO_FLT_S
+          set_rd(frs1() < frs2() ? 1 : 0);
+          break;
+        }
+        case 0b000: {  // RO_FLE_S
+          set_rd(frs1() <= frs2() ? 1 : 0);
+          break;
+        }
+        default: {
+          UNSUPPORTED();
+        }
+      }
+      break;
+    }
+    case RO_FCVT_S_W: {  // RO_FCVT_S_WU , 64F RO_FCVT_S_L RO_FCVT_S_LU
+      switch (instr_.Rs2Value()) {
+        case 0b00000: {  // RO_FCVT_S_W
+          set_frd((float)(int32_t)rs1());
+          break;
+        }
+        case 0b00001: {  // RO_FCVT_S_WU
+          set_frd((float)(uint32_t)rs1());
+          break;
+        }
+#ifdef V8_TARGET_ARCH_64_BIT
+        case 0b00010: {  // RO_FCVT_S_L
+          set_frd((float)(int64_t)rs1());
+          break;
+        }
+        case 0b00011: {  // RO_FCVT_S_LU
+          set_frd((float)(uint64_t)rs1());
+          break;
+        }
+#endif /* V8_TARGET_ARCH_64_BIT */
+        default: {
+          UNSUPPORTED();
+        }
+      }
+      break;
+    }
+    case RO_FMV_W_X: {
+      if (instr_.Funct3Value() == 0b000) {
+        set_frd(bit_cast<float>((uint32_t)rs1()));
+      } else {
+        UNSUPPORTED();
+      }
+      break;
+    }
+      // TODO: Add macro for RISCV D extension
+    case RO_FADD_D: {
+      // TODO: use rm value (round mode)
+      set_drd(drs1() + drs2());
+      break;
+    }
+    case RO_FSUB_D: {
+      // TODO: use rm value (round mode)
+      set_drd(drs1() - drs2());
+      break;
+    }
+    case RO_FMUL_D: {
+      // TODO: use rm value (round mode)
+      set_drd(drs1() * drs2());
+      break;
+    }
+    case RO_FDIV_D: {
+      // TODO: use rm value (round mode)
+      set_drd(drs1() / drs2());
+      break;
+    }
+    case RO_FSQRT_D: {
+      if (instr_.Rs2Value() == 0b00000) {
+        // TODO: use rm value (round mode)
+        set_drd(std::sqrt(drs1()));
+      } else {
+        UNSUPPORTED();
+      }
+      break;
+    }
+    case RO_FSGNJ_D: {  // RO_FSGNJN_D RO_FSQNJX_D
+      switch (instr_.Funct3Value()) {
+        case 0b000: {  // RO_FSGNJ_D
+          set_drd(fsgnj64(drs1(), drs2(), false, false));
+          break;
+        }
+        case 0b001: {  // RO_FSGNJN_D
+          set_drd(fsgnj64(drs1(), drs2(), true, false));
+          break;
+        }
+        case 0b010: {  // RO_FSQNJX_D
+          set_drd(fsgnj64(drs1(), drs2(), false, true));
+          break;
+        }
+        default: {
+          UNSUPPORTED();
+        }
+      }
+      break;
+    }
+    case RO_FMIN_D: {  // RO_FMAX_D
+      switch (instr_.Funct3Value()) {
+        case 0b000: {  // RO_FMIN_D
+          set_drd(std::min(drs1(), drs2()));
+          break;
+        }
+        case 0b001: {  // RO_FMAX_D
+          set_drd(std::max(drs1(), drs2()));
+          break;
+        }
+        default: {
+          UNSUPPORTED();
+        }
+      }
+      break;
+    }
+    case (RO_FCVT_S_D & kRFPTypeMask): {
+      if (instr_.Rs2Value() == 0b00001) {
+        set_frd((float)drs1());
+      } else {
+        UNSUPPORTED();
+      }
+      break;
+    }
+    case RO_FCVT_D_S: {
+      if (instr_.Rs2Value() == 0b00000) {
+        set_drd((double)frs1());
+      } else {
+        UNSUPPORTED();
+      }
+      break;
+    }
+    case RO_FLE_D: {  // RO_FEQ_D RO_FLT_D RO_FLE_D
+      switch (instr_.Funct3Value()) {
+        case 0b010: {  // RO_FEQ_S
+          set_rd(drs1() == drs2() ? 1 : 0);
+          break;
+        }
+        case 0b001: {  // RO_FLT_D
+          set_rd(drs1() < drs2() ? 1 : 0);
+          break;
+        }
+        case 0b000: {  // RO_FLE_D
+          set_rd(drs1() <= drs2() ? 1 : 0);
+          break;
+        }
+        default: {
+          UNSUPPORTED();
+        }
+      }
+      break;
+    }
+    case (RO_FCLASS_D & kRFPTypeMask): {  // RO_FCLASS_D , 64D RO_FMV_X_D
+      if (instr_.Rs2Value() != 0b00000) {
+        UNSUPPORTED();
+        break;
+      }
+      switch (instr_.Funct3Value()) {
+        case 0b001: {  // RO_FCLASS_D
+          UNSUPPORTED();
+          break;
+        }
+#ifdef V8_TARGET_ARCH_64_BIT
+        case 0b000: {  // RO_FMV_X_D
+          set_rd(bit_cast<int64_t>(drs1()));
+          break;
+        }
+#endif /* V8_TARGET_ARCH_64_BIT */
+        default: {
+          UNSUPPORTED();
+        }
+      }
+      break;
+    }
+    case RO_FCVT_W_D: {  // RO_FCVT_WU_D , 64F RO_FCVT_L_D RO_FCVT_LU_D
+      switch (instr_.Rs2Value()) {
+        case 0b00000: {  // RO_FCVT_W_D
+          set_rd((int32_t)drs1());
+          break;
+        }
+        case 0b00001: {  // RO_FCVT_WU_D
+          set_rd((uint32_t)drs1());
+          break;
+        }
+#ifdef V8_TARGET_ARCH_64_BIT
+        case 0b00010: {  // RO_FCVT_L_D
+          set_rd((int64_t)drs1());
+          break;
+        }
+        case 0b00011: {  // RO_FCVT_LU_D
+          set_rd((uint64_t)drs1());
+          break;
+        }
+#endif /* V8_TARGET_ARCH_64_BIT */
+        default: {
+          UNSUPPORTED();
+        }
+      }
+      break;
+    }
+    case RO_FCVT_D_W: {  // RO_FCVT_D_WU , 64F RO_FCVT_D_L RO_FCVT_D_LU
+      switch (instr_.Rs2Value()) {
+        case 0b00000: {  // RO_FCVT_D_W
+          set_drd((int32_t)rs1());
+          break;
+        }
+        case 0b00001: {  // RO_FCVT_D_WU
+          set_drd((uint32_t)rs1());
+          break;
+        }
+#ifdef V8_TARGET_ARCH_64_BIT
+        case 0b00010: {  // RO_FCVT_D_L
+          set_drd((int64_t)rs1());
+          break;
+        }
+        case 0b00011: {  // RO_FCVT_D_LU
+          set_drd((uint64_t)rs1());
+          break;
+        }
+#endif /* V8_TARGET_ARCH_64_BIT */
+        default: {
+          UNSUPPORTED();
+        }
+      }
+      break;
+    }
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_FMV_D_X: {
+      if (instr_.Funct3Value() == 0b000 && instr_.Rs2Value() == 0b00000) {
+        set_drd(bit_cast<double>(rs1()));
+      } else {
+        UNSUPPORTED();
+      }
+      break;
+    }
+#endif /* V8_TARGET_ARCH_64_BIT */
+    default: {
+      UNSUPPORTED();
+    }
+  }
+}
+
+void Simulator::DecodeRVR4Type() {
+  switch (instr_.InstructionBits() & kR4TypeMask) {
+    // TODO: use F Extension macro block
+    case RO_FMADD_S: {
+      // TODO: use rm value (round mode)
+      set_frd(frs1() * frs2() + frs3());
+      break;
+    }
+    case RO_FMSUB_S: {
+      // TODO: use rm value (round mode)
+      set_frd(frs1() * frs2() - frs3());
+      break;
+    }
+    case RO_FNMSUB_S: {
+      // TODO: use rm value (round mode)
+      set_frd(-(frs1() * frs2()) + frs3());
+      break;
+    }
+    case RO_FNMADD_S: {
+      // TODO: use rm value (round mode)
+      set_frd(-(frs1() * frs2()) - frs3());
+      break;
+    }
+    // TODO: use F Extension macro block
+    case RO_FMADD_D: {
+      // TODO: use rm value (round mode)
+      set_drd(drs1() * drs2() + drs3());
+      break;
+    }
+    case RO_FMSUB_D: {
+      // TODO: use rm value (round mode)
+      set_drd(drs1() * drs2() - drs3());
+      break;
+    }
+    case RO_FNMSUB_D: {
+      // TODO: use rm value (round mode)
+      set_drd(-(drs1() * drs2()) + drs3());
+      break;
+    }
+    case RO_FNMADD_D: {
+      // TODO: use rm value (round mode)
+      set_drd(-(drs1() * drs2()) - drs3());
+      break;
+    }
+    default:
+      UNSUPPORTED();
+  }
+}
+
+void Simulator::DecodeRVIType() {
+  switch (instr_.InstructionBits() & kITypeMask) {
+    case RO_JALR: {
+      set_rd(get_pc() + kInstrSize);
+      // Note: No need to shift 2 for JALR's imm12, but set lowest bit to 0.
+      int64_t next_pc = (rs1() + imm12()) & ~reg_t(1);
+      set_pc(next_pc);
+      break;
+    }
+    case RO_LB: {
+      int8_t val = RV_ReadMem<int8_t>(rs1() + imm12(), instr_.instr());
+      set_rd(sext_xlen(val));
+      break;
+    }
+    case RO_LH: {
+      int16_t val = RV_ReadMem<int16_t>(rs1() + imm12(), instr_.instr());
+      set_rd(sext_xlen(val));
+      break;
+    }
+    case RO_LW: {
+      int32_t val = RV_ReadMem<int32_t>(rs1() + imm12(), instr_.instr());
+      set_rd(sext_xlen(val));
+      break;
+    }
+    case RO_LBU: {
+      uint8_t val = RV_ReadMem<uint8_t>(rs1() + imm12(), instr_.instr());
+      set_rd(zext_xlen(val));
+      break;
+    }
+    case RO_LHU: {
+      uint16_t val = RV_ReadMem<uint16_t>(rs1() + imm12(), instr_.instr());
+      set_rd(zext_xlen(val));
+      break;
+    }
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_LWU: {
+      uint32_t val = RV_ReadMem<uint32_t>(rs1() + imm12(), instr_.instr());
+      set_rd(zext_xlen(val));
+      break;
+    }
+    case RO_LD: {
+      int64_t val = RV_ReadMem<int64_t>(rs1() + imm12(), instr_.instr());
+      set_rd(sext_xlen(val));
+      break;
+    }
+#endif /*V8_TARGET_ARCH_64_BIT*/
+    case RO_ADDI: {
+      set_rd(sext_xlen(rs1() + imm12()));
+      break;
+    }
+    case RO_SLTI: {
+      set_rd(sreg_t(rs1()) < sreg_t(imm12()));
+      break;
+    }
+    case RO_SLTIU: {
+      set_rd(reg_t(rs1()) < reg_t(imm12()));
+      break;
+    }
+    case RO_XORI: {
+      set_rd(imm12() ^ rs1());
+      break;
+    }
+    case RO_ORI: {
+      set_rd(imm12() | rs1());
+      break;
+    }
+    case RO_ANDI: {
+      set_rd(imm12() & rs1());
+      break;
+    }
+    case RO_SLLI: {
+      require(shamt() < xlen);
+      set_rd(sext_xlen(rs1() << shamt()));
+      break;
+    }
+    case RO_SRLI: {  //  RO_SRAI
+      if (!instr_.IsArithShift()) {
+        require(shamt() < xlen);
+        set_rd(sext_xlen(zext_xlen(rs1()) >> shamt()));
+      } else {
+        require(shamt() < xlen);
+        set_rd(sext_xlen(sext_xlen(rs1()) >> shamt()));
+      }
+      break;
+    }
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_ADDIW: {
+      set_rd(sext32(rs1() + imm12()));
+      break;
+    }
+    case RO_SLLIW: {
+      set_rd(sext32(rs1() << shamt()));
+      break;
+    }
+    case RO_SRLIW: {  //  RO_SRAIW
+      if (!instr_.IsArithShift()) {
+        set_rd(sext32(uint32_t(rs1()) >> shamt()));
+      } else {
+        set_rd(sext32(int32_t(rs1()) >> shamt()));
+      }
+      break;
+    }
+#endif /*V8_TARGET_ARCH_64_BIT*/
+    case RO_FENCE: {
+      // DO nothing in sumulator
+      break;
+    }
+    case RO_ECALL: {                   // RO_EBREAK
+      if (instr_.Imm12Value() == 0) {  // ECALL
+        SoftwareInterrupt();
+      } else if (instr_.Imm12Value() == 1) {  // EBREAK
+        SoftwareInterrupt();
+      } else {
+        UNSUPPORTED();
+      }
+      break;
+    }
+      // TODO: use Zifencei Standard Extension macro block
+    case RO_FENCE_I: {
+      // spike: flush icache.
+      break;
+    }
+      // TODO: use Zicsr Standard Extension macro block
+    case RO_CSRRW: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_CSRRS: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_CSRRC: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_CSRRWI: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_CSRRSI: {
+      UNSUPPORTED();
+      break;
+    }
+    case RO_CSRRCI: {
+      UNSUPPORTED();
+      break;
+    }
+    // TODO: use F Extension macro block
+    case RO_FLW: {
+      float val = RV_ReadMem<float>(rs1() + imm12(), instr_.instr());
+      set_frd(val);
+      break;
+    }
+    // TODO: use D Extension macro block
+    case RO_FLD: {
+      double val = RV_ReadMem<double>(rs1() + imm12(), instr_.instr());
+      set_drd(val);
+      break;
+    }
+    default:
+      UNSUPPORTED();
+  }
+}
+
+void Simulator::DecodeRVSType() {
+  switch (instr_.InstructionBits() & kSTypeMask) {
+    case RO_SB:
+      RV_WriteMem<uint8_t>(rs1() + s_imm12(), (uint8_t)rs2(), instr_.instr());
+      break;
+    case RO_SH:
+      RV_WriteMem<uint16_t>(rs1() + s_imm12(), (uint16_t)rs2(), instr_.instr());
+      break;
+    case RO_SW:
+      RV_WriteMem<uint32_t>(rs1() + s_imm12(), (uint32_t)rs2(), instr_.instr());
+      break;
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_SD:
+      RV_WriteMem<uint64_t>(rs1() + s_imm12(), (uint64_t)rs2(), instr_.instr());
+      break;
+#endif /*V8_TARGET_ARCH_64_BIT*/
+    // TODO: use F Extension macro block
+    case RO_FSW: {
+      RV_WriteMem<float>(rs1() + s_imm12(), frs2(), instr_.instr());
+      break;
+    }
+    // TODO: use D Extension macro block
+    case RO_FSD: {
+      RV_WriteMem<double>(rs1() + s_imm12(), drs2(), instr_.instr());
+      break;
+    }
+    default:
+      UNSUPPORTED();
+  }
+}
+
+void Simulator::DecodeRVBType() {
+  switch (instr_.InstructionBits() & kBTypeMask) {
+    case RO_BEQ:
+      if (rs1() == rs2()) {
+        int64_t next_pc = get_pc() + boffset();
+        set_pc(next_pc);
+      }
+      break;
+    case RO_BNE:
+      if (rs1() != rs2()) {
+        int64_t next_pc = get_pc() + boffset();
+        set_pc(next_pc);
+      }
+      break;
+    case RO_BLT:
+      if (rs1() < rs2()) {
+        int64_t next_pc = get_pc() + boffset();
+        set_pc(next_pc);
+      }
+      break;
+    case RO_BGE:
+      if (rs1() >= rs2()) {
+        int64_t next_pc = get_pc() + boffset();
+        set_pc(next_pc);
+      }
+      break;
+    case RO_BLTU:
+      if ((reg_t)rs1() < (reg_t)rs2()) {
+        int64_t next_pc = get_pc() + boffset();
+        set_pc(next_pc);
+      }
+      break;
+    case RO_BGEU:
+      if ((reg_t)rs1() >= (reg_t)rs2()) {
+        int64_t next_pc = get_pc() + boffset();
+        set_pc(next_pc);
+      }
+      break;
+    default:
+      UNSUPPORTED();
+  }
+}
+void Simulator::DecodeRVUType() {
+  // U Type doesn't have additoinal mask
+  switch (instr_.BaseOpcodeFieldRaw()) {
+    case RO_LUI:
+      set_rd(u_imm());
+      break;
+    case RO_AUIPC:
+      set_rd(sext_xlen(u_imm() + get_pc()));
+      break;
+    default:
+      UNSUPPORTED();
+  }
+}
+void Simulator::DecodeRVJType() {
+  // J Type doesn't have additional mask
+  switch (instr_.BaseOpcodeValue()) {
+    case RO_JAL: {
+      set_rd(get_pc() + kInstrSize);
+      int64_t next_pc = get_pc() + imm20J();
+      set_pc(next_pc);
+      break;
+    }
+    default:
+      UNSUPPORTED();
+  }
+}
+
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instruction* instr) {
   if (v8::internal::FLAG_check_icache) {
@@ -7284,7 +8314,31 @@ void Simulator::InstructionDecode(Instruction* instr) {
   }
 
   instr_ = instr;
+  Instr bits = instr_.InstructionBits();
+  PrintF("[RISCV]Debug: Decode RISCV 0x%08x\n", bits);
   switch (instr_.InstructionType()) {
+    case Instruction::kRType:
+      DecodeRVRType();
+      break;
+    case Instruction::kR4Type:
+      DecodeRVR4Type();
+      break;
+    case Instruction::kIType:
+      DecodeRVIType();
+      break;
+    case Instruction::kSType:
+      DecodeRVSType();
+      break;
+    case Instruction::kBType:
+      DecodeRVBType();
+      break;
+    case Instruction::kUType:
+      DecodeRVUType();
+      break;
+    case Instruction::kJType:
+      DecodeRVJType();
+      break;
+    // Original MIPS decoding
     case Instruction::kRegisterType:
       DecodeTypeRegister();
       break;
@@ -7314,8 +8368,8 @@ void Simulator::Execute() {
   // raw PC value and not the one used as input to arithmetic instructions.
   int64_t program_counter = get_pc();
   if (::v8::internal::FLAG_stop_sim_at == 0) {
-    // Fast version of the dispatch loop without checking whether the simulator
-    // should be stopping at a particular executed instruction.
+    // Fast version of the dispatch loop without checking whether the
+    // simulator should be stopping at a particular executed instruction.
     while (program_counter != end_sim_pc) {
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
       icount_++;
@@ -7449,7 +8503,9 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   CHECK_EQ(entry_stack, get_register(sp));
   set_register(sp, original_stack);
 
-  return get_register(v0);
+  // return get_register(v0);
+  // RISCV uses a0 to return result
+  return get_register(a0);
 }
 
 double Simulator::CallFP(Address entry, double d0, double d1) {
