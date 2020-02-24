@@ -1133,13 +1133,12 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, FunctionIndexImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr &&
-                  imm.index < module_->functions.size())) {
+    if (!module_) return true;
+    if (!VALIDATE(imm.index < module_->functions.size())) {
       errorf(pc, "invalid function index: %u", imm.index);
       return false;
     }
-    if (!VALIDATE(module_ != nullptr &&
-                  module_->functions[imm.index].declared)) {
+    if (!VALIDATE(module_->functions[imm.index].declared)) {
       this->errorf(pc, "undeclared reference to function #%u", imm.index);
       return false;
     }
