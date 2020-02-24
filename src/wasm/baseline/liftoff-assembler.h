@@ -693,9 +693,15 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void emit_f64x2_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_splat(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
+                             LiftoffRegister rhs);
   inline void emit_i64x2_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i32x4_splat(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
+                             LiftoffRegister rhs);
   inline void emit_i16x8_splat(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
+                             LiftoffRegister rhs);
   inline void emit_i8x16_splat(LiftoffRegister dst, LiftoffRegister src);
 
   inline void StackCheck(Label* ool_code, Register limit_address);

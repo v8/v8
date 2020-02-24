@@ -1880,6 +1880,19 @@ void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
   Shufps(dst.fp(), src.fp(), static_cast<byte>(0));
 }
 
+void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vaddps(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (dst.fp() == rhs.fp()) {
+    addps(dst.fp(), lhs.fp());
+  } else {
+    if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
+    addps(dst.fp(), rhs.fp());
+  }
+}
+
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Movq(dst.fp(), src.gp());
@@ -1892,11 +1905,37 @@ void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
   Pshufd(dst.fp(), dst.fp(), static_cast<uint8_t>(0));
 }
 
+void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpaddd(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (dst.fp() == rhs.fp()) {
+    paddd(dst.fp(), lhs.fp());
+  } else {
+    if (dst.fp() != lhs.fp()) movapd(dst.fp(), lhs.fp());
+    paddd(dst.fp(), rhs.fp());
+  }
+}
+
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Movd(dst.fp(), src.gp());
   Pshuflw(dst.fp(), dst.fp(), static_cast<uint8_t>(0));
   Pshufd(dst.fp(), dst.fp(), static_cast<uint8_t>(0));
+}
+
+void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpaddw(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (dst.fp() == rhs.fp()) {
+    paddw(dst.fp(), lhs.fp());
+  } else {
+    if (dst.fp() != lhs.fp()) movapd(dst.fp(), lhs.fp());
+    paddw(dst.fp(), rhs.fp());
+  }
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
