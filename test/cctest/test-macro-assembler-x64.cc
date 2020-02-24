@@ -94,7 +94,7 @@ static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi value) {
   __ movl(rax, Immediate(id));
   __ Move(rcx, value);
   __ Set(rdx, static_cast<intptr_t>(value.ptr()));
-  __ cmpq(rcx, rdx);
+  __ cmp_tagged(rcx, rdx);
   __ j(not_equal, exit);
 }
 

@@ -375,11 +375,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Move(Register dst, Smi source);
 
-  void Move(Operand dst, Smi source) {
-    Register constant = GetSmiConstant(source);
-    movq(dst, constant);
-  }
-
   void Move(Register dst, ExternalReference ext);
 
   void Move(XMMRegister dst, uint32_t src);
