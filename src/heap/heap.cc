@@ -33,7 +33,7 @@
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/embedder-tracing.h"
-#include "src/heap/finalization-group-cleanup-task.h"
+#include "src/heap/finalization-registry-cleanup-task.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
@@ -206,8 +206,8 @@ Heap::Heap()
 
   set_native_contexts_list(Smi::zero());
   set_allocation_sites_list(Smi::zero());
-  set_dirty_js_finalization_groups_list(Smi::zero());
-  set_dirty_js_finalization_groups_list_tail(Smi::zero());
+  set_dirty_js_finalization_registries_list(Smi::zero());
+  set_dirty_js_finalization_registries_list_tail(Smi::zero());
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
   RememberUnmappedPage(kNullAddress, false);
@@ -1202,9 +1202,10 @@ void Heap::GarbageCollectionEpilogue() {
   if (FLAG_harmony_weak_refs &&
       isolate()->host_cleanup_finalization_group_callback()) {
     HandleScope handle_scope(isolate());
-    Handle<JSFinalizationGroup> finalization_group;
-    while (DequeueDirtyJSFinalizationGroup().ToHandle(&finalization_group)) {
-      isolate()->RunHostCleanupFinalizationGroupCallback(finalization_group);
+    Handle<JSFinalizationRegistry> finalization_registry;
+    while (
+        DequeueDirtyJSFinalizationRegistry().ToHandle(&finalization_registry)) {
+      isolate()->RunHostCleanupFinalizationGroupCallback(finalization_registry);
     }
   }
 }
@@ -1659,7 +1660,7 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
   }
   isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   if (!isolate()->context().is_null()) {
-    RemoveDirtyFinalizationGroupsOnContext(isolate()->raw_native_context());
+    RemoveDirtyFinalizationRegistriesOnContext(isolate()->raw_native_context());
   }
 
   number_of_disposed_maps_ = retained_maps().length();
@@ -2652,7 +2653,7 @@ void Heap::UpdateReferencesInExternalStringTable(
 void Heap::ProcessAllWeakReferences(WeakObjectRetainer* retainer) {
   ProcessNativeContexts(retainer);
   ProcessAllocationSites(retainer);
-  ProcessDirtyJSFinalizationGroups(retainer);
+  ProcessDirtyJSFinalizationRegistries(retainer);
 }
 
 
@@ -2674,24 +2675,24 @@ void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer) {
   set_allocation_sites_list(allocation_site_obj);
 }
 
-void Heap::ProcessDirtyJSFinalizationGroups(WeakObjectRetainer* retainer) {
-  Object head = VisitWeakList<JSFinalizationGroup>(
-      this, dirty_js_finalization_groups_list(), retainer);
-  set_dirty_js_finalization_groups_list(head);
+void Heap::ProcessDirtyJSFinalizationRegistries(WeakObjectRetainer* retainer) {
+  Object head = VisitWeakList<JSFinalizationRegistry>(
+      this, dirty_js_finalization_registries_list(), retainer);
+  set_dirty_js_finalization_registries_list(head);
   // If the list is empty, set the tail to undefined. Otherwise the tail is set
   // by WeakListVisitor<JSFinalizationGroup>::VisitLiveObject.
   if (head.IsUndefined(isolate())) {
-    set_dirty_js_finalization_groups_list_tail(head);
+    set_dirty_js_finalization_registries_list_tail(head);
   }
 }
 
 void Heap::ProcessWeakListRoots(WeakObjectRetainer* retainer) {
   set_native_contexts_list(retainer->RetainAs(native_contexts_list()));
   set_allocation_sites_list(retainer->RetainAs(allocation_sites_list()));
-  set_dirty_js_finalization_groups_list(
-      retainer->RetainAs(dirty_js_finalization_groups_list()));
-  set_dirty_js_finalization_groups_list_tail(
-      retainer->RetainAs(dirty_js_finalization_groups_list_tail()));
+  set_dirty_js_finalization_registries_list(
+      retainer->RetainAs(dirty_js_finalization_registries_list()));
+  set_dirty_js_finalization_registries_list_tail(
+      retainer->RetainAs(dirty_js_finalization_registries_list_tail()));
 }
 
 void Heap::ForeachAllocationSite(
@@ -6069,58 +6070,59 @@ void Heap::SetInterpreterEntryTrampolineForProfiling(Code code) {
   set_interpreter_entry_trampoline_for_profiling(code);
 }
 
-void Heap::PostFinalizationGroupCleanupTaskIfNeeded() {
+void Heap::PostFinalizationRegistryCleanupTaskIfNeeded() {
   DCHECK(!isolate()->host_cleanup_finalization_group_callback());
   // Only one cleanup task is posted at a time.
-  if (!HasDirtyJSFinalizationGroups() ||
-      is_finalization_group_cleanup_task_posted_) {
+  if (!HasDirtyJSFinalizationRegistries() ||
+      is_finalization_registry_cleanup_task_posted_) {
     return;
   }
   auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
       reinterpret_cast<v8::Isolate*>(isolate()));
-  auto task = std::make_unique<FinalizationGroupCleanupTask>(this);
+  auto task = std::make_unique<FinalizationRegistryCleanupTask>(this);
   taskrunner->PostNonNestableTask(std::move(task));
-  is_finalization_group_cleanup_task_posted_ = true;
+  is_finalization_registry_cleanup_task_posted_ = true;
 }
 
-void Heap::EnqueueDirtyJSFinalizationGroup(
-    JSFinalizationGroup finalization_group,
+void Heap::EnqueueDirtyJSFinalizationRegistry(
+    JSFinalizationRegistry finalization_registry,
     std::function<void(HeapObject object, ObjectSlot slot, Object target)>
         gc_notify_updated_slot) {
-  // Add a FinalizationGroup to the tail of the dirty list.
-  DCHECK(!HasDirtyJSFinalizationGroups() ||
-         dirty_js_finalization_groups_list().IsJSFinalizationGroup());
-  DCHECK(finalization_group.next_dirty().IsUndefined(isolate()));
-  DCHECK(!finalization_group.scheduled_for_cleanup());
-  finalization_group.set_scheduled_for_cleanup(true);
-  if (dirty_js_finalization_groups_list_tail().IsUndefined(isolate())) {
-    DCHECK(dirty_js_finalization_groups_list().IsUndefined(isolate()));
-    set_dirty_js_finalization_groups_list(finalization_group);
-    // dirty_js_finalization_groups_list_ is rescanned by ProcessWeakListRoots.
+  // Add a FinalizationRegistry to the tail of the dirty list.
+  DCHECK(!HasDirtyJSFinalizationRegistries() ||
+         dirty_js_finalization_registries_list().IsJSFinalizationRegistry());
+  DCHECK(finalization_registry.next_dirty().IsUndefined(isolate()));
+  DCHECK(!finalization_registry.scheduled_for_cleanup());
+  finalization_registry.set_scheduled_for_cleanup(true);
+  if (dirty_js_finalization_registries_list_tail().IsUndefined(isolate())) {
+    DCHECK(dirty_js_finalization_registries_list().IsUndefined(isolate()));
+    set_dirty_js_finalization_registries_list(finalization_registry);
+    // dirty_js_finalization_registries_list_ is rescanned by
+    // ProcessWeakListRoots.
   } else {
-    JSFinalizationGroup tail =
-        JSFinalizationGroup::cast(dirty_js_finalization_groups_list_tail());
-    tail.set_next_dirty(finalization_group);
-    gc_notify_updated_slot(
-        tail,
-        finalization_group.RawField(JSFinalizationGroup::kNextDirtyOffset),
-        finalization_group);
+    JSFinalizationRegistry tail = JSFinalizationRegistry::cast(
+        dirty_js_finalization_registries_list_tail());
+    tail.set_next_dirty(finalization_registry);
+    gc_notify_updated_slot(tail,
+                           finalization_registry.RawField(
+                               JSFinalizationRegistry::kNextDirtyOffset),
+                           finalization_registry);
   }
-  set_dirty_js_finalization_groups_list_tail(finalization_group);
-  // dirty_js_finalization_groups_list_tail_ is rescanned by
+  set_dirty_js_finalization_registries_list_tail(finalization_registry);
+  // dirty_js_finalization_registries_list_tail_ is rescanned by
   // ProcessWeakListRoots.
 }
 
-MaybeHandle<JSFinalizationGroup> Heap::DequeueDirtyJSFinalizationGroup() {
-  // Take a FinalizationGroup from the head of the dirty list for fairness.
-  if (HasDirtyJSFinalizationGroups()) {
-    Handle<JSFinalizationGroup> head(
-        JSFinalizationGroup::cast(dirty_js_finalization_groups_list()),
+MaybeHandle<JSFinalizationRegistry> Heap::DequeueDirtyJSFinalizationRegistry() {
+  // Take a FinalizationRegistry from the head of the dirty list for fairness.
+  if (HasDirtyJSFinalizationRegistries()) {
+    Handle<JSFinalizationRegistry> head(
+        JSFinalizationRegistry::cast(dirty_js_finalization_registries_list()),
         isolate());
-    set_dirty_js_finalization_groups_list(head->next_dirty());
+    set_dirty_js_finalization_registries_list(head->next_dirty());
     head->set_next_dirty(ReadOnlyRoots(this).undefined_value());
-    if (*head == dirty_js_finalization_groups_list_tail()) {
-      set_dirty_js_finalization_groups_list_tail(
+    if (*head == dirty_js_finalization_registries_list_tail()) {
+      set_dirty_js_finalization_registries_list_tail(
           ReadOnlyRoots(this).undefined_value());
     }
     return head;
@@ -6128,7 +6130,7 @@ MaybeHandle<JSFinalizationGroup> Heap::DequeueDirtyJSFinalizationGroup() {
   return {};
 }
 
-void Heap::RemoveDirtyFinalizationGroupsOnContext(NativeContext context) {
+void Heap::RemoveDirtyFinalizationRegistriesOnContext(NativeContext context) {
   if (!FLAG_harmony_weak_refs) return;
   if (isolate()->host_cleanup_finalization_group_callback()) return;
 
@@ -6136,26 +6138,28 @@ void Heap::RemoveDirtyFinalizationGroupsOnContext(NativeContext context) {
 
   Isolate* isolate = this->isolate();
   Object prev = ReadOnlyRoots(isolate).undefined_value();
-  Object current = dirty_js_finalization_groups_list();
+  Object current = dirty_js_finalization_registries_list();
   while (!current.IsUndefined(isolate)) {
-    JSFinalizationGroup finalization_group = JSFinalizationGroup::cast(current);
-    if (finalization_group.native_context() == context) {
+    JSFinalizationRegistry finalization_registry =
+        JSFinalizationRegistry::cast(current);
+    if (finalization_registry.native_context() == context) {
       if (prev.IsUndefined(isolate)) {
-        set_dirty_js_finalization_groups_list(finalization_group.next_dirty());
+        set_dirty_js_finalization_registries_list(
+            finalization_registry.next_dirty());
       } else {
-        JSFinalizationGroup::cast(prev).set_next_dirty(
-            finalization_group.next_dirty());
+        JSFinalizationRegistry::cast(prev).set_next_dirty(
+            finalization_registry.next_dirty());
       }
-      finalization_group.set_scheduled_for_cleanup(false);
-      current = finalization_group.next_dirty();
-      finalization_group.set_next_dirty(
+      finalization_registry.set_scheduled_for_cleanup(false);
+      current = finalization_registry.next_dirty();
+      finalization_registry.set_next_dirty(
           ReadOnlyRoots(isolate).undefined_value());
     } else {
       prev = current;
-      current = finalization_group.next_dirty();
+      current = finalization_registry.next_dirty();
     }
   }
-  set_dirty_js_finalization_groups_list_tail(prev);
+  set_dirty_js_finalization_registries_list_tail(prev);
 }
 
 void Heap::KeepDuringJob(Handle<JSReceiver> target) {

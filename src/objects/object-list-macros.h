@@ -140,8 +140,8 @@ class ZoneForwardList;
   V(JSDataView)                                \
   V(JSDate)                                    \
   V(JSError)                                   \
-  V(JSFinalizationGroup)                       \
-  V(JSFinalizationGroupCleanupIterator)        \
+  V(JSFinalizationRegistry)                    \
+  V(JSFinalizationRegistryCleanupIterator)     \
   V(JSFunction)                                \
   V(JSFunctionOrBoundFunction)                 \
   V(JSGeneratorObject)                         \

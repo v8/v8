@@ -70,7 +70,7 @@ class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
 class HeapStats;
 class Isolate;
-class JSFinalizationGroup;
+class JSFinalizationRegistry;
 class LocalEmbedderHeapTracer;
 class MemoryAllocator;
 class MemoryMeasurement;
@@ -502,17 +502,17 @@ class Heap {
   }
   Object allocation_sites_list() { return allocation_sites_list_; }
 
-  void set_dirty_js_finalization_groups_list(Object object) {
-    dirty_js_finalization_groups_list_ = object;
+  void set_dirty_js_finalization_registries_list(Object object) {
+    dirty_js_finalization_registries_list_ = object;
   }
-  Object dirty_js_finalization_groups_list() {
-    return dirty_js_finalization_groups_list_;
+  Object dirty_js_finalization_registries_list() {
+    return dirty_js_finalization_registries_list_;
   }
-  void set_dirty_js_finalization_groups_list_tail(Object object) {
-    dirty_js_finalization_groups_list_tail_ = object;
+  void set_dirty_js_finalization_registries_list_tail(Object object) {
+    dirty_js_finalization_registries_list_tail_ = object;
   }
-  Object dirty_js_finalization_groups_list_tail() {
-    return dirty_js_finalization_groups_list_tail_;
+  Object dirty_js_finalization_registries_list_tail() {
+    return dirty_js_finalization_registries_list_tail_;
   }
 
   // Used in CreateAllocationSiteStub and the (de)serializer.
@@ -813,29 +813,29 @@ class Heap {
   // See also: FLAG_interpreted_frames_native_stack.
   void SetInterpreterEntryTrampolineForProfiling(Code code);
 
-  void EnqueueDirtyJSFinalizationGroup(
-      JSFinalizationGroup finalization_group,
+  void EnqueueDirtyJSFinalizationRegistry(
+      JSFinalizationRegistry finalization_registry,
       std::function<void(HeapObject object, ObjectSlot slot, Object target)>
           gc_notify_updated_slot);
 
-  MaybeHandle<JSFinalizationGroup> DequeueDirtyJSFinalizationGroup();
+  MaybeHandle<JSFinalizationRegistry> DequeueDirtyJSFinalizationRegistry();
 
-  // Called from Heap::NotifyContextDisposed to remove all FinalizationGroups
-  // with {context} from the dirty list when the context e.g. navigates away or
-  // is detached. If the dirty list is empty afterwards, the cleanup task is
-  // aborted if needed.
-  void RemoveDirtyFinalizationGroupsOnContext(NativeContext context);
+  // Called from Heap::NotifyContextDisposed to remove all
+  // FinalizationRegistries with {context} from the dirty list when the context
+  // e.g. navigates away or is detached. If the dirty list is empty afterwards,
+  // the cleanup task is aborted if needed.
+  void RemoveDirtyFinalizationRegistriesOnContext(NativeContext context);
 
-  inline bool HasDirtyJSFinalizationGroups();
+  inline bool HasDirtyJSFinalizationRegistries();
 
-  void PostFinalizationGroupCleanupTaskIfNeeded();
+  void PostFinalizationRegistryCleanupTaskIfNeeded();
 
-  void set_is_finalization_group_cleanup_task_posted(bool posted) {
-    is_finalization_group_cleanup_task_posted_ = posted;
+  void set_is_finalization_registry_cleanup_task_posted(bool posted) {
+    is_finalization_registry_cleanup_task_posted_ = posted;
   }
 
-  bool is_finalization_group_cleanup_task_posted() {
-    return is_finalization_group_cleanup_task_posted_;
+  bool is_finalization_registry_cleanup_task_posted() {
+    return is_finalization_registry_cleanup_task_posted_;
   }
 
   V8_EXPORT_PRIVATE void KeepDuringJob(Handle<JSReceiver> target);
@@ -1748,7 +1748,7 @@ class Heap {
   void ProcessYoungWeakReferences(WeakObjectRetainer* retainer);
   void ProcessNativeContexts(WeakObjectRetainer* retainer);
   void ProcessAllocationSites(WeakObjectRetainer* retainer);
-  void ProcessDirtyJSFinalizationGroups(WeakObjectRetainer* retainer);
+  void ProcessDirtyJSFinalizationRegistries(WeakObjectRetainer* retainer);
   void ProcessWeakListRoots(WeakObjectRetainer* retainer);
 
   // ===========================================================================
@@ -2053,9 +2053,9 @@ class Heap {
   // List heads are initialized lazily and contain the undefined_value at start.
   Object native_contexts_list_;
   Object allocation_sites_list_;
-  Object dirty_js_finalization_groups_list_;
+  Object dirty_js_finalization_registries_list_;
   // Weak list tails.
-  Object dirty_js_finalization_groups_list_tail_;
+  Object dirty_js_finalization_registries_list_tail_;
 
   std::vector<GCCallbackTuple> gc_epilogue_callbacks_;
   std::vector<GCCallbackTuple> gc_prologue_callbacks_;
@@ -2192,7 +2192,7 @@ class Heap {
 
   std::vector<HeapObjectAllocationTracker*> allocation_trackers_;
 
-  bool is_finalization_group_cleanup_task_posted_ = false;
+  bool is_finalization_registry_cleanup_task_posted_ = false;
 
   std::unique_ptr<third_party_heap::Heap> tp_heap_;
 

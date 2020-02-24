@@ -637,7 +637,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     DCHECK(try_catch.HasCaught());
     return false;
   }
-  // It's possible that a FinalizationGroup cleanup task threw an error.
+  // It's possible that a FinalizationRegistry cleanup task threw an error.
   if (try_catch.HasCaught()) success = false;
   if (print_result) {
     if (options.test_shell) {

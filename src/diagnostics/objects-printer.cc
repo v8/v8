@@ -1150,7 +1150,7 @@ void JSMapIterator::JSMapIteratorPrint(std::ostream& os) {  // NOLINT
 
 void WeakCell::WeakCellPrint(std::ostream& os) {
   PrintHeader(os, "WeakCell");
-  os << "\n - finalization_group: " << Brief(finalization_group());
+  os << "\n - finalization_registry: " << Brief(finalization_registry());
   os << "\n - target: " << Brief(target());
   os << "\n - holdings: " << Brief(holdings());
   os << "\n - prev: " << Brief(prev());
@@ -1166,8 +1166,8 @@ void JSWeakRef::JSWeakRefPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
-void JSFinalizationGroup::JSFinalizationGroupPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSFinalizationGroup");
+void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSFinalizationRegistry");
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - cleanup: " << Brief(cleanup());
   os << "\n - active_cells: " << Brief(active_cells());
@@ -1186,10 +1186,10 @@ void JSFinalizationGroup::JSFinalizationGroupPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
-void JSFinalizationGroupCleanupIterator::
-    JSFinalizationGroupCleanupIteratorPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSFinalizationGroupCleanupIterator");
-  os << "\n - finalization_group: " << Brief(finalization_group());
+void JSFinalizationRegistryCleanupIterator::
+    JSFinalizationRegistryCleanupIteratorPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSFinalizationRegistryCleanupIterator");
+  os << "\n - finalization_registry: " << Brief(finalization_registry());
   JSObjectPrintBody(os, *this);
 }
 

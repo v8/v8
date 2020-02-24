@@ -8194,35 +8194,36 @@ HashTable<NameDictionary, NameDictionaryShape>::Shrink(Isolate* isolate,
 template void HashTable<GlobalDictionary, GlobalDictionaryShape>::Rehash(
     ReadOnlyRoots roots);
 
-Maybe<bool> JSFinalizationGroup::Cleanup(
-    Isolate* isolate, Handle<JSFinalizationGroup> finalization_group,
+Maybe<bool> JSFinalizationRegistry::Cleanup(
+    Isolate* isolate, Handle<JSFinalizationRegistry> finalization_registry,
     Handle<Object> cleanup) {
   DCHECK(cleanup->IsCallable());
   // Attempt to shrink key_map now, as unregister tokens are held weakly and the
   // map is not shrinkable when sweeping dead tokens during GC itself.
-  if (!finalization_group->key_map().IsUndefined(isolate)) {
-    Handle<SimpleNumberDictionary> key_map = handle(
-        SimpleNumberDictionary::cast(finalization_group->key_map()), isolate);
+  if (!finalization_registry->key_map().IsUndefined(isolate)) {
+    Handle<SimpleNumberDictionary> key_map =
+        handle(SimpleNumberDictionary::cast(finalization_registry->key_map()),
+               isolate);
     key_map = SimpleNumberDictionary::Shrink(isolate, key_map);
-    finalization_group->set_key_map(*key_map);
+    finalization_registry->set_key_map(*key_map);
   }
 
   // It's possible that the cleared_cells list is empty, since
-  // FinalizationGroup.unregister() removed all its elements before this task
+  // FinalizationRegistry.unregister() removed all its elements before this task
   // ran. In that case, don't call the cleanup function.
-  if (!finalization_group->cleared_cells().IsUndefined(isolate)) {
+  if (!finalization_registry->cleared_cells().IsUndefined(isolate)) {
     // Construct the iterator.
-    Handle<JSFinalizationGroupCleanupIterator> iterator;
+    Handle<JSFinalizationRegistryCleanupIterator> iterator;
     {
       Handle<Map> cleanup_iterator_map(
           isolate->native_context()
-              ->js_finalization_group_cleanup_iterator_map(),
+              ->js_finalization_registry_cleanup_iterator_map(),
           isolate);
-      iterator = Handle<JSFinalizationGroupCleanupIterator>::cast(
+      iterator = Handle<JSFinalizationRegistryCleanupIterator>::cast(
           isolate->factory()->NewJSObjectFromMap(
               cleanup_iterator_map, AllocationType::kYoung,
               Handle<AllocationSite>::null()));
-      iterator->set_finalization_group(*finalization_group);
+      iterator->set_finalization_registry(*finalization_registry);
     }
     Handle<Object> args[] = {iterator};
     if (Execution::Call(

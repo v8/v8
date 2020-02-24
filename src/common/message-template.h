@@ -582,8 +582,8 @@ namespace internal {
   T(WeakRefsRegisterTargetMustBeObject,                                        \
     "FinalizationGroup.prototype.register: target must be an object")          \
   T(WeakRefsRegisterTargetAndHoldingsMustNotBeSame,                            \
-    "FinalizationGroup.prototype.register: target and holdings must not be "   \
-    "same")                                                                    \
+    "FinalizationGroup.prototype.register: target and holdings must not "      \
+    "be same")                                                                 \
   T(WeakRefsWeakRefConstructorTargetMustBeObject,                              \
     "WeakRef: target must be an object")                                       \
   T(OptionalChainingNoNew, "Invalid optional chain from new expression")       \

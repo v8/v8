@@ -979,11 +979,11 @@ namespace internal {
   CPP(Trace)                                                                   \
                                                                                \
   /* Weak refs */                                                              \
-  CPP(FinalizationGroupCleanupIteratorNext)                                    \
-  CPP(FinalizationGroupCleanupSome)                                            \
-  CPP(FinalizationGroupConstructor)                                            \
-  CPP(FinalizationGroupRegister)                                               \
-  CPP(FinalizationGroupUnregister)                                             \
+  CPP(FinalizationRegistryCleanupIteratorNext)                                 \
+  CPP(FinalizationRegistryCleanupSome)                                         \
+  CPP(FinalizationRegistryConstructor)                                         \
+  CPP(FinalizationRegistryRegister)                                            \
+  CPP(FinalizationRegistryUnregister)                                          \
   CPP(WeakRefConstructor)                                                      \
   CPP(WeakRefDeref)                                                            \
                                                                                \

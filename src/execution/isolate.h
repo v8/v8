@@ -1424,7 +1424,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   host_cleanup_finalization_group_callback() const {
     return host_cleanup_finalization_group_callback_;
   }
-  void RunHostCleanupFinalizationGroupCallback(Handle<JSFinalizationGroup> fg);
+  void RunHostCleanupFinalizationGroupCallback(
+      Handle<JSFinalizationRegistry> fr);
 
   void SetHostImportModuleDynamicallyCallback(
       HostImportModuleDynamicallyCallback callback);

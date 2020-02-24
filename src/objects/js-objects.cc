@@ -2138,10 +2138,10 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSMapIterator::kHeaderSize;
     case JS_WEAK_REF_TYPE:
       return JSWeakRef::kHeaderSize;
-    case JS_FINALIZATION_GROUP_TYPE:
-      return JSFinalizationGroup::kHeaderSize;
-    case JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE:
-      return JSFinalizationGroupCleanupIterator::kHeaderSize;
+    case JS_FINALIZATION_REGISTRY_TYPE:
+      return JSFinalizationRegistry::kHeaderSize;
+    case JS_FINALIZATION_REGISTRY_CLEANUP_ITERATOR_TYPE:
+      return JSFinalizationRegistryCleanupIterator::kHeaderSize;
     case JS_WEAK_MAP_TYPE:
       return JSWeakMap::kHeaderSize;
     case JS_WEAK_SET_TYPE:
@@ -5252,7 +5252,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
-    case JS_FINALIZATION_GROUP_TYPE:
+    case JS_FINALIZATION_REGISTRY_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_PROMISE_TYPE:
     case JS_REG_EXP_TYPE:

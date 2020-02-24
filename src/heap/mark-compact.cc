@@ -2494,18 +2494,18 @@ void MarkCompactCollector::ClearJSWeakRefs() {
     if (!non_atomic_marking_state()->IsBlackOrGrey(target)) {
       DCHECK(!target.IsUndefined());
       // The value of the WeakCell is dead.
-      JSFinalizationGroup finalization_group =
-          JSFinalizationGroup::cast(weak_cell.finalization_group());
-      if (!finalization_group.scheduled_for_cleanup()) {
-        heap()->EnqueueDirtyJSFinalizationGroup(finalization_group,
-                                                gc_notify_updated_slot);
+      JSFinalizationRegistry finalization_registry =
+          JSFinalizationRegistry::cast(weak_cell.finalization_registry());
+      if (!finalization_registry.scheduled_for_cleanup()) {
+        heap()->EnqueueDirtyJSFinalizationRegistry(finalization_registry,
+                                                   gc_notify_updated_slot);
       }
-      // We're modifying the pointers in WeakCell and JSFinalizationGroup during
-      // GC; thus we need to record the slots it writes. The normal write
+      // We're modifying the pointers in WeakCell and JSFinalizationRegistry
+      // during GC; thus we need to record the slots it writes. The normal write
       // barrier is not enough, since it's disabled before GC.
       weak_cell.Nullify(isolate(), gc_notify_updated_slot);
-      DCHECK(finalization_group.NeedsCleanup());
-      DCHECK(finalization_group.scheduled_for_cleanup());
+      DCHECK(finalization_registry.NeedsCleanup());
+      DCHECK(finalization_registry.scheduled_for_cleanup());
     } else {
       // The value of the WeakCell is alive.
       ObjectSlot slot = weak_cell.RawField(WeakCell::kTargetOffset);
@@ -2521,9 +2521,9 @@ void MarkCompactCollector::ClearJSWeakRefs() {
       // WeakCell. Like above, we're modifying pointers during GC, so record the
       // slots.
       HeapObject undefined = ReadOnlyRoots(isolate()).undefined_value();
-      JSFinalizationGroup finalization_group =
-          JSFinalizationGroup::cast(weak_cell.finalization_group());
-      finalization_group.RemoveUnregisterToken(
+      JSFinalizationRegistry finalization_registry =
+          JSFinalizationRegistry::cast(weak_cell.finalization_registry());
+      finalization_registry.RemoveUnregisterToken(
           JSReceiver::cast(unregister_token), isolate(),
           [undefined](WeakCell matched_cell) {
             matched_cell.set_unregister_token(undefined);
@@ -2536,7 +2536,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
     }
   }
   if (!isolate()->host_cleanup_finalization_group_callback()) {
-    heap()->PostFinalizationGroupCleanupTaskIfNeeded();
+    heap()->PostFinalizationRegistryCleanupTaskIfNeeded();
   }
 }
 

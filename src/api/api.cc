@@ -895,7 +895,7 @@ StartupData SnapshotCreator::CreateBlob(
   startup_serializer.SerializeWeakReferencesAndDeferred();
   can_be_rehashed = can_be_rehashed && startup_serializer.can_be_rehashed();
 
-  startup_serializer.CheckNoDirtyFinalizationGroups();
+  startup_serializer.CheckNoDirtyFinalizationRegistries();
 
   read_only_serializer.FinalizeSerialization();
   can_be_rehashed = can_be_rehashed && read_only_serializer.can_be_rehashed();
@@ -8356,16 +8356,17 @@ void Isolate::SetHostCleanupFinalizationGroupCallback(
 
 Maybe<bool> FinalizationGroup::Cleanup(
     Local<FinalizationGroup> finalization_group) {
-  i::Handle<i::JSFinalizationGroup> fg = Utils::OpenHandle(*finalization_group);
-  i::Isolate* isolate = fg->native_context().GetIsolate();
-  i::Handle<i::Context> i_context(fg->native_context(), isolate);
+  i::Handle<i::JSFinalizationRegistry> fr =
+      Utils::OpenHandle(*finalization_group);
+  i::Isolate* isolate = fr->native_context().GetIsolate();
+  i::Handle<i::Context> i_context(fr->native_context(), isolate);
   Local<Context> context = Utils::ToLocal(i_context);
   ENTER_V8(isolate, context, FinalizationGroup, Cleanup, Nothing<bool>(),
            i::HandleScope);
-  i::Handle<i::Object> callback(fg->cleanup(), isolate);
-  fg->set_scheduled_for_cleanup(false);
+  i::Handle<i::Object> callback(fr->cleanup(), isolate);
+  fr->set_scheduled_for_cleanup(false);
   has_pending_exception =
-      i::JSFinalizationGroup::Cleanup(isolate, fg, callback).IsNothing();
+      i::JSFinalizationRegistry::Cleanup(isolate, fr, callback).IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -11074,21 +11075,22 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
   callback(info);
 }
 
-void InvokeFinalizationGroupCleanupFromTask(
-    Handle<Context> context, Handle<JSFinalizationGroup> finalization_group,
+void InvokeFinalizationRegistryCleanupFromTask(
+    Handle<Context> context,
+    Handle<JSFinalizationRegistry> finalization_registry,
     Handle<Object> callback) {
-  Isolate* isolate = finalization_group->native_context().GetIsolate();
+  Isolate* isolate = finalization_registry->native_context().GetIsolate();
   RuntimeCallTimerScope timer(
-      isolate, RuntimeCallCounterId::kFinalizationGroupCleanupFromTask);
+      isolate, RuntimeCallCounterId::kFinalizationRegistryCleanupFromTask);
   // Do not use ENTER_V8 because this is always called from a running
-  // FinalizationGroupCleanupTask within V8 and we should not log it as an API
-  // call. This method is implemented here to avoid duplication of the exception
-  // handling and microtask running logic in CallDepthScope.
+  // FinalizationRegistryCleanupTask within V8 and we should not log it as an
+  // API call. This method is implemented here to avoid duplication of the
+  // exception handling and microtask running logic in CallDepthScope.
   if (IsExecutionTerminatingCheck(isolate)) return;
   Local<v8::Context> api_context = Utils::ToLocal(context);
   CallDepthScope<true> call_depth_scope(isolate, api_context);
   VMState<OTHER> state(isolate);
-  if (JSFinalizationGroup::Cleanup(isolate, finalization_group, callback)
+  if (JSFinalizationRegistry::Cleanup(isolate, finalization_registry, callback)
           .IsNothing()) {
     call_depth_scope.Escape();
   }

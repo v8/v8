@@ -169,12 +169,13 @@ void StartupSerializer::SerializeUsingPartialSnapshotCache(
   sink->PutInt(cache_index, "partial_snapshot_cache_index");
 }
 
-void StartupSerializer::CheckNoDirtyFinalizationGroups() {
+void StartupSerializer::CheckNoDirtyFinalizationRegistries() {
   Isolate* isolate = this->isolate();
-  CHECK(isolate->heap()->dirty_js_finalization_groups_list().IsUndefined(
+  CHECK(isolate->heap()->dirty_js_finalization_registries_list().IsUndefined(
       isolate));
-  CHECK(isolate->heap()->dirty_js_finalization_groups_list_tail().IsUndefined(
-      isolate));
+  CHECK(
+      isolate->heap()->dirty_js_finalization_registries_list_tail().IsUndefined(
+          isolate));
 }
 
 void SerializedHandleChecker::AddToSet(FixedArray serialized) {

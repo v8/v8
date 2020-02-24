@@ -248,7 +248,7 @@ class JSWeakRef::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class JSFinalizationGroup::BodyDescriptor final : public BodyDescriptorBase {
+class JSFinalizationRegistry::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     return IsValidJSObjectSlotImpl(map, obj, offset);
@@ -979,8 +979,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
-    case JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE:
-    case JS_FINALIZATION_GROUP_TYPE:
+    case JS_FINALIZATION_REGISTRY_CLEANUP_ITERATOR_TYPE:
+    case JS_FINALIZATION_REGISTRY_TYPE:
 #ifdef V8_INTL_SUPPORT
     case JS_V8_BREAK_ITERATOR_TYPE:
     case JS_COLLATOR_TYPE:

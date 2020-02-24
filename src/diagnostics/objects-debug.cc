@@ -1070,8 +1070,8 @@ void WeakCell::WeakCellVerify(Isolate* isolate) {
 
   CHECK(key_list_next().IsWeakCell() || key_list_next().IsUndefined(isolate));
 
-  CHECK(finalization_group().IsUndefined(isolate) ||
-        finalization_group().IsJSFinalizationGroup());
+  CHECK(finalization_registry().IsUndefined(isolate) ||
+        finalization_registry().IsJSFinalizationRegistry());
 }
 
 void JSWeakRef::JSWeakRefVerify(Isolate* isolate) {
@@ -1080,8 +1080,8 @@ void JSWeakRef::JSWeakRefVerify(Isolate* isolate) {
   CHECK(target().IsUndefined(isolate) || target().IsJSReceiver());
 }
 
-void JSFinalizationGroup::JSFinalizationGroupVerify(Isolate* isolate) {
-  CHECK(IsJSFinalizationGroup());
+void JSFinalizationRegistry::JSFinalizationRegistryVerify(Isolate* isolate) {
+  CHECK(IsJSFinalizationRegistry());
   JSObjectVerify(isolate);
   VerifyHeapPointer(isolate, cleanup());
   CHECK(active_cells().IsUndefined(isolate) || active_cells().IsWeakCell());
@@ -1093,14 +1093,14 @@ void JSFinalizationGroup::JSFinalizationGroupVerify(Isolate* isolate) {
     CHECK(WeakCell::cast(cleared_cells()).prev().IsUndefined(isolate));
   }
   CHECK(next_dirty().IsUndefined(isolate) ||
-        next_dirty().IsJSFinalizationGroup());
+        next_dirty().IsJSFinalizationRegistry());
 }
 
-void JSFinalizationGroupCleanupIterator::
-    JSFinalizationGroupCleanupIteratorVerify(Isolate* isolate) {
-  CHECK(IsJSFinalizationGroupCleanupIterator());
+void JSFinalizationRegistryCleanupIterator::
+    JSFinalizationRegistryCleanupIteratorVerify(Isolate* isolate) {
+  CHECK(IsJSFinalizationRegistryCleanupIterator());
   JSObjectVerify(isolate);
-  VerifyHeapPointer(isolate, finalization_group());
+  VerifyHeapPointer(isolate, finalization_registry());
 }
 
 void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {

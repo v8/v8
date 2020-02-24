@@ -4017,12 +4017,12 @@ void Isolate::SetHostCleanupFinalizationGroupCallback(
 }
 
 void Isolate::RunHostCleanupFinalizationGroupCallback(
-    Handle<JSFinalizationGroup> fg) {
+    Handle<JSFinalizationRegistry> fr) {
   if (host_cleanup_finalization_group_callback_ != nullptr) {
     v8::Local<v8::Context> api_context =
-        v8::Utils::ToLocal(handle(Context::cast(fg->native_context()), this));
+        v8::Utils::ToLocal(handle(Context::cast(fr->native_context()), this));
     host_cleanup_finalization_group_callback_(api_context,
-                                              v8::Utils::ToLocal(fg));
+                                              v8::Utils::ToLocal(fr));
   }
 }
 

@@ -186,23 +186,27 @@ struct WeakListVisitor<AllocationSite> {
 };
 
 template <>
-struct WeakListVisitor<JSFinalizationGroup> {
-  static void SetWeakNext(JSFinalizationGroup obj, Object next) {
+struct WeakListVisitor<JSFinalizationRegistry> {
+  static void SetWeakNext(JSFinalizationRegistry obj, Object next) {
     obj.set_next_dirty(next, UPDATE_WEAK_WRITE_BARRIER);
   }
 
-  static Object WeakNext(JSFinalizationGroup obj) { return obj.next_dirty(); }
-
-  static HeapObject WeakNextHolder(JSFinalizationGroup obj) { return obj; }
-
-  static int WeakNextOffset() { return JSFinalizationGroup::kNextDirtyOffset; }
-
-  static void VisitLiveObject(Heap* heap, JSFinalizationGroup obj,
-                              WeakObjectRetainer*) {
-    heap->set_dirty_js_finalization_groups_list_tail(obj);
+  static Object WeakNext(JSFinalizationRegistry obj) {
+    return obj.next_dirty();
   }
 
-  static void VisitPhantomObject(Heap*, JSFinalizationGroup) {}
+  static HeapObject WeakNextHolder(JSFinalizationRegistry obj) { return obj; }
+
+  static int WeakNextOffset() {
+    return JSFinalizationRegistry::kNextDirtyOffset;
+  }
+
+  static void VisitLiveObject(Heap* heap, JSFinalizationRegistry obj,
+                              WeakObjectRetainer*) {
+    heap->set_dirty_js_finalization_registries_list_tail(obj);
+  }
+
+  static void VisitPhantomObject(Heap*, JSFinalizationRegistry) {}
 };
 
 template Object VisitWeakList<Context>(Heap* heap, Object list,
@@ -211,7 +215,7 @@ template Object VisitWeakList<Context>(Heap* heap, Object list,
 template Object VisitWeakList<AllocationSite>(Heap* heap, Object list,
                                               WeakObjectRetainer* retainer);
 
-template Object VisitWeakList<JSFinalizationGroup>(
+template Object VisitWeakList<JSFinalizationRegistry>(
     Heap* heap, Object list, WeakObjectRetainer* retainer);
 }  // namespace internal
 }  // namespace v8

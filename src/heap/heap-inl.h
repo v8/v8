@@ -640,8 +640,8 @@ void Heap::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
   base::CheckedDecrement(&backing_store_bytes_, amount);
 }
 
-bool Heap::HasDirtyJSFinalizationGroups() {
-  return !dirty_js_finalization_groups_list().IsUndefined(isolate());
+bool Heap::HasDirtyJSFinalizationRegistries() {
+  return !dirty_js_finalization_registries_list().IsUndefined(isolate());
 }
 
 AlwaysAllocateScope::AlwaysAllocateScope(Heap* heap) : heap_(heap) {

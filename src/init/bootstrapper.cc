@@ -4307,44 +4307,46 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
 
   {
-    // Create %FinalizationGroupPrototype%
-    Handle<String> finalization_group_name =
+    // Create %FinalizationRegistryPrototype%
+    Handle<String> finalization_registry_name =
         factory->NewStringFromStaticChars("FinalizationGroup");
-    Handle<JSObject> finalization_group_prototype = factory->NewJSObject(
+    Handle<JSObject> finalization_registry_prototype = factory->NewJSObject(
         isolate()->object_function(), AllocationType::kOld);
 
-    // Create %FinalizationGroup%
-    Handle<JSFunction> finalization_group_fun = CreateFunction(
-        isolate(), finalization_group_name, JS_FINALIZATION_GROUP_TYPE,
-        JSFinalizationGroup::kHeaderSize, 0, finalization_group_prototype,
-        Builtins::kFinalizationGroupConstructor);
+    // Create %FinalizationRegistry%
+    Handle<JSFunction> finalization_registry_fun = CreateFunction(
+        isolate(), finalization_registry_name, JS_FINALIZATION_REGISTRY_TYPE,
+        JSFinalizationRegistry::kHeaderSize, 0, finalization_registry_prototype,
+        Builtins::kFinalizationRegistryConstructor);
     InstallWithIntrinsicDefaultProto(
-        isolate(), finalization_group_fun,
-        Context::JS_FINALIZATION_GROUP_FUNCTION_INDEX);
+        isolate(), finalization_registry_fun,
+        Context::JS_FINALIZATION_REGISTRY_FUNCTION_INDEX);
 
-    finalization_group_fun->shared().DontAdaptArguments();
-    finalization_group_fun->shared().set_length(1);
+    finalization_registry_fun->shared().DontAdaptArguments();
+    finalization_registry_fun->shared().set_length(1);
 
     // Install the "constructor" property on the prototype.
-    JSObject::AddProperty(isolate(), finalization_group_prototype,
-                          factory->constructor_string(), finalization_group_fun,
-                          DONT_ENUM);
+    JSObject::AddProperty(isolate(), finalization_registry_prototype,
+                          factory->constructor_string(),
+                          finalization_registry_fun, DONT_ENUM);
 
-    InstallToStringTag(isolate(), finalization_group_prototype,
-                       finalization_group_name);
+    InstallToStringTag(isolate(), finalization_registry_prototype,
+                       finalization_registry_name);
 
-    JSObject::AddProperty(isolate(), global, finalization_group_name,
-                          finalization_group_fun, DONT_ENUM);
+    JSObject::AddProperty(isolate(), global, finalization_registry_name,
+                          finalization_registry_fun, DONT_ENUM);
 
-    SimpleInstallFunction(isolate(), finalization_group_prototype, "register",
-                          Builtins::kFinalizationGroupRegister, 2, false);
+    SimpleInstallFunction(isolate(), finalization_registry_prototype,
+                          "register", Builtins::kFinalizationRegistryRegister,
+                          2, false);
 
-    SimpleInstallFunction(isolate(), finalization_group_prototype, "unregister",
-                          Builtins::kFinalizationGroupUnregister, 1, false);
+    SimpleInstallFunction(isolate(), finalization_registry_prototype,
+                          "unregister",
+                          Builtins::kFinalizationRegistryUnregister, 1, false);
 
-    SimpleInstallFunction(isolate(), finalization_group_prototype,
+    SimpleInstallFunction(isolate(), finalization_registry_prototype,
                           "cleanupSome",
-                          Builtins::kFinalizationGroupCleanupSome, 0, false);
+                          Builtins::kFinalizationRegistryCleanupSome, 0, false);
   }
   {
     // Create %WeakRefPrototype%
@@ -4383,7 +4385,7 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
   }
 
   {
-    // Create cleanup iterator for JSFinalizationGroup.
+    // Create cleanup iterator for JSFinalizationRegistry.
     Handle<JSObject> iterator_prototype(
         native_context()->initial_iterator_prototype(), isolate());
 
@@ -4395,14 +4397,14 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
                        "FinalizationGroup Cleanup Iterator");
 
     SimpleInstallFunction(isolate(), cleanup_iterator_prototype, "next",
-                          Builtins::kFinalizationGroupCleanupIteratorNext, 0,
+                          Builtins::kFinalizationRegistryCleanupIteratorNext, 0,
                           true);
     Handle<Map> cleanup_iterator_map =
-        factory->NewMap(JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE,
-                        JSFinalizationGroupCleanupIterator::kHeaderSize);
+        factory->NewMap(JS_FINALIZATION_REGISTRY_CLEANUP_ITERATOR_TYPE,
+                        JSFinalizationRegistryCleanupIterator::kHeaderSize);
     Map::SetPrototype(isolate(), cleanup_iterator_map,
                       cleanup_iterator_prototype);
-    native_context()->set_js_finalization_group_cleanup_iterator_map(
+    native_context()->set_js_finalization_registry_cleanup_iterator_map(
         *cleanup_iterator_map);
   }
 }

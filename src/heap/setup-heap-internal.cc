@@ -67,8 +67,9 @@ bool Heap::CreateHeapObjects() {
 
   set_native_contexts_list(ReadOnlyRoots(this).undefined_value());
   set_allocation_sites_list(ReadOnlyRoots(this).undefined_value());
-  set_dirty_js_finalization_groups_list(ReadOnlyRoots(this).undefined_value());
-  set_dirty_js_finalization_groups_list_tail(
+  set_dirty_js_finalization_registries_list(
+      ReadOnlyRoots(this).undefined_value());
+  set_dirty_js_finalization_registries_list_tail(
       ReadOnlyRoots(this).undefined_value());
 
   return true;

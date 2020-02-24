@@ -30,10 +30,10 @@ void RunStdFunction(void* data) {
 }
 
 template <typename TMixin>
-class WithFinalizationGroupMixin : public TMixin {
+class WithFinalizationRegistryMixin : public TMixin {
  public:
-  WithFinalizationGroupMixin() = default;
-  ~WithFinalizationGroupMixin() override = default;
+  WithFinalizationRegistryMixin() = default;
+  ~WithFinalizationRegistryMixin() override = default;
 
   static void SetUpTestCase() {
     CHECK_NULL(save_flags_);
@@ -54,21 +54,21 @@ class WithFinalizationGroupMixin : public TMixin {
  private:
   static SaveFlags* save_flags_;
 
-  DISALLOW_COPY_AND_ASSIGN(WithFinalizationGroupMixin);
+  DISALLOW_COPY_AND_ASSIGN(WithFinalizationRegistryMixin);
 };
 
 template <typename TMixin>
-SaveFlags* WithFinalizationGroupMixin<TMixin>::save_flags_ = nullptr;
+SaveFlags* WithFinalizationRegistryMixin<TMixin>::save_flags_ = nullptr;
 
-using TestWithNativeContextAndFinalizationGroup =  //
-    WithInternalIsolateMixin<                      //
-        WithContextMixin<                          //
-            WithFinalizationGroupMixin<            //
-                WithIsolateScopeMixin<             //
-                    WithSharedIsolateMixin<        //
+using TestWithNativeContextAndFinalizationRegistry =  //
+    WithInternalIsolateMixin<                         //
+        WithContextMixin<                             //
+            WithFinalizationRegistryMixin<            //
+                WithIsolateScopeMixin<                //
+                    WithSharedIsolateMixin<           //
                         ::testing::Test>>>>>;
 
-class MicrotaskQueueTest : public TestWithNativeContextAndFinalizationGroup {
+class MicrotaskQueueTest : public TestWithNativeContextAndFinalizationRegistry {
  public:
   template <typename F>
   Handle<Microtask> NewMicrotask(F&& f) {
