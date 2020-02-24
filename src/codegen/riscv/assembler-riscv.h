@@ -423,11 +423,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_sll(Register rd, Register rs1, Register rs2);
   void RV_slt(Register rd, Register rs1, Register rs2);
   void RV_sltu(Register rd, Register rs1, Register rs2);
-  void RV_xor(Register rd, Register rs1, Register rs2);
+  void RV_xor_(Register rd, Register rs1, Register rs2);
   void RV_srl(Register rd, Register rs1, Register rs2);
   void RV_sra(Register rd, Register rs1, Register rs2);
-  void RV_or(Register rd, Register rs1, Register rs2);
-  void RV_and(Register rd, Register rs1, Register rs2);
+  void RV_or_(Register rd, Register rs1, Register rs2);
+  void RV_and_(Register rd, Register rs1, Register rs2);
 
   // Memory fences
   void RV_fence(uint8_t pred, uint8_t succ);
