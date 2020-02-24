@@ -869,6 +869,7 @@ base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type) {
 
 bool IsAnyUnsignedInteger(const Type* type) {
   return type == TypeOracle::GetUint32Type() ||
+         type == TypeOracle::GetUint31Type() ||
          type == TypeOracle::GetUint16Type() ||
          type == TypeOracle::GetUint8Type() ||
          type == TypeOracle::GetUIntPtrType();
