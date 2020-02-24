@@ -5073,6 +5073,19 @@ void WasmGraphBuilder::RemoveBytecodePositionDecorator() {
 }
 
 namespace {
+template <typename BuiltinDescriptor>
+CallDescriptor* GetBuiltinCallDescriptor(WasmGraphBuilder* builder,
+                                         StubCallMode stub_mode) {
+  BuiltinDescriptor interface_descriptor;
+  return Linkage::GetStubCallDescriptor(
+      builder->mcgraph()->zone(),                     // zone
+      interface_descriptor,                           // descriptor
+      interface_descriptor.GetStackParameterCount(),  // stack parameter count
+      CallDescriptor::kNoFlags,                       // flags
+      Operator::kNoProperties,                        // properties
+      stub_mode);                                     // stub call mode
+}
+
 class WasmWrapperGraphBuilder : public WasmGraphBuilder {
  public:
   WasmWrapperGraphBuilder(Zone* zone, MachineGraph* mcgraph,
@@ -5083,76 +5096,34 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         stub_mode_(stub_mode),
         enabled_features_(features) {}
 
-  CallDescriptor* GetI32PairToBigIntCallDescriptor() {
-    I32PairToBigIntDescriptor interface_descriptor;
-
-    return Linkage::GetStubCallDescriptor(
-        mcgraph()->zone(),                              // zone
-        interface_descriptor,                           // descriptor
-        interface_descriptor.GetStackParameterCount(),  // stack parameter count
-        CallDescriptor::kNoFlags,                       // flags
-        Operator::kNoProperties,                        // properties
-        stub_mode_);                                    // stub call mode
-  }
-
   CallDescriptor* GetI64ToBigIntCallDescriptor() {
+    if (i64_to_bigint_descriptor_) return i64_to_bigint_descriptor_;
+    i64_to_bigint_descriptor_ =
+        GetBuiltinCallDescriptor<I64ToBigIntDescriptor>(this, stub_mode_);
     if (!lowering_special_case_) {
       lowering_special_case_ = std::make_unique<Int64LoweringSpecialCase>();
     }
-
-    if (lowering_special_case_->i64_to_bigint_call_descriptor) {
-      return lowering_special_case_->i64_to_bigint_call_descriptor;
-    }
-
-    I64ToBigIntDescriptor interface_descriptor;
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        mcgraph()->zone(),                              // zone
-        interface_descriptor,                           // descriptor
-        interface_descriptor.GetStackParameterCount(),  // stack parameter count
-        CallDescriptor::kNoFlags,                       // flags
-        Operator::kNoProperties,                        // properties
-        stub_mode_);                                    // stub call mode
-
-    lowering_special_case_->i64_to_bigint_call_descriptor = call_descriptor;
-    lowering_special_case_->i32_pair_to_bigint_call_descriptor =
-        GetI32PairToBigIntCallDescriptor();
-    return call_descriptor;
-  }
-
-  CallDescriptor* GetBigIntToI32PairCallDescriptor() {
-    BigIntToI32PairDescriptor interface_descriptor;
-
-    return Linkage::GetStubCallDescriptor(
-        mcgraph()->zone(),                              // zone
-        interface_descriptor,                           // descriptor
-        interface_descriptor.GetStackParameterCount(),  // stack parameter count
-        CallDescriptor::kNoFlags,                       // flags
-        Operator::kNoProperties,                        // properties
-        stub_mode_);                                    // stub call mode
+    lowering_special_case_->replacements.insert(
+        {i64_to_bigint_descriptor_,
+         GetBuiltinCallDescriptor<I32PairToBigIntDescriptor>(this,
+                                                             stub_mode_)});
+    return i64_to_bigint_descriptor_;
   }
 
   CallDescriptor* GetBigIntToI64CallDescriptor() {
+    if (bigint_to_i64_descriptor_) return bigint_to_i64_descriptor_;
     if (!lowering_special_case_) {
       lowering_special_case_ = std::make_unique<Int64LoweringSpecialCase>();
     }
 
-    if (lowering_special_case_->bigint_to_i64_call_descriptor) {
-      return lowering_special_case_->bigint_to_i64_call_descriptor;
-    }
+    bigint_to_i64_descriptor_ =
+        GetBuiltinCallDescriptor<BigIntToI64Descriptor>(this, stub_mode_);
 
-    BigIntToI64Descriptor interface_descriptor;
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        mcgraph()->zone(),                              // zone
-        interface_descriptor,                           // descriptor
-        interface_descriptor.GetStackParameterCount(),  // stack parameter count
-        CallDescriptor::kNoFlags,                       // flags
-        Operator::kNoProperties,                        // properties
-        stub_mode_);                                    // stub call mode
-
-    lowering_special_case_->bigint_to_i64_call_descriptor = call_descriptor;
-    lowering_special_case_->bigint_to_i32_pair_call_descriptor =
-        GetBigIntToI32PairCallDescriptor();
-    return call_descriptor;
+    lowering_special_case_->replacements.insert(
+        {bigint_to_i64_descriptor_,
+         GetBuiltinCallDescriptor<BigIntToI32PairDescriptor>(this,
+                                                             stub_mode_)});
+    return bigint_to_i64_descriptor_;
   }
 
   Node* GetBuiltinPointerTarget(Builtins::Name builtin_id) {
@@ -6307,6 +6278,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   SetOncePointer<Node> undefined_value_node_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
   wasm::WasmFeatures enabled_features_;
+  CallDescriptor* bigint_to_i64_descriptor_ = nullptr;
+  CallDescriptor* i64_to_bigint_descriptor_ = nullptr;
 };
 
 }  // namespace
