@@ -2336,7 +2336,7 @@ void Assembler::RV_sltu(Register rd, Register rs1, Register rs2) {
   GenInstrALU_rr(0b0000000, 0b011, rd, rs1, rs2);
 }
 
-void Assembler::RV_xor(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_xor_(Register rd, Register rs1, Register rs2) {
   GenInstrALU_rr(0b0000000, 0b100, rd, rs1, rs2);
 }
 
@@ -2348,11 +2348,11 @@ void Assembler::RV_sra(Register rd, Register rs1, Register rs2) {
   GenInstrALU_rr(0b0100000, 0b101, rd, rs1, rs2);
 }
 
-void Assembler::RV_or(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_or_(Register rd, Register rs1, Register rs2) {
   GenInstrALU_rr(0b0000000, 0b110, rd, rs1, rs2);
 }
 
-void Assembler::RV_and(Register rd, Register rs1, Register rs2) {
+void Assembler::RV_and_(Register rd, Register rs1, Register rs2) {
   GenInstrALU_rr(0b0000000, 0b111, rd, rs1, rs2);
 }
 

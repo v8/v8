@@ -152,10 +152,10 @@ TEST(RISCV2) {
   __ RV_li(t8, 0x7FFFFFFC);
   __ RV_bne(v1, t8, &error);
 
-  __ RV_and(v0, a5, a6);  // 0x0000000000001230
-  __ RV_or(v0, v0, a5);   // 0x0000000000001234
-  __ RV_xor(v0, v0, a6);  // 0x000000001234444C
-  __ RV_or(v0, v0, a6);
+  __ RV_and_(v0, a5, a6);  // 0x0000000000001230
+  __ RV_or_(v0, v0, a5);   // 0x0000000000001234
+  __ RV_xor_(v0, v0, a6);  // 0x000000001234444C
+  __ RV_or_(v0, v0, a6);
   __ RV_not(v0, v0);  // 0xFFFFFFFFEDCBA983
   __ RV_li(t8, 0xFFFFFFFFEDCBA983);
   __ RV_bne(v0, t8, &error);
@@ -559,7 +559,7 @@ TEST(RISCV7) {
 
   __ RV_fclass_d(t8, f4);
   __ RV_fclass_d(t9, f6);
-  __ RV_or(t8, t8, t9);
+  __ RV_or_(t8, t8, t9);
   __ RV_andi(t8, t8, 0b1100000000);
   __ RV_beq(t8, zero_reg, &neither_is_nan);
   __ RV_sw(zero_reg, a0, offsetof(T, result));
