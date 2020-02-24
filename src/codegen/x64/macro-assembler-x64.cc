@@ -2651,25 +2651,34 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
 
   // Save the frame pointer and PC so that the stack layout remains iterable,
   // even without an ExitFrame which normally exists between JS and C frames.
-  if (isolate() != nullptr) {
+  if (isolate() != nullptr || root_array_available_) {
     Label get_pc;
     DCHECK(!AreAliased(kScratchRegister, function));
     leaq(kScratchRegister, Operand(&get_pc, 0));
     bind(&get_pc);
-    movq(ExternalReferenceAsOperand(
-             ExternalReference::fast_c_call_caller_pc_address(isolate())),
+    movq(isolate() != nullptr
+             ? ExternalReferenceAsOperand(
+                   ExternalReference::fast_c_call_caller_pc_address(isolate()))
+             : Operand(kRootRegister,
+                       IsolateData::fast_c_call_caller_pc_offset()),
          kScratchRegister);
-    movq(ExternalReferenceAsOperand(
-             ExternalReference::fast_c_call_caller_fp_address(isolate())),
+    movq(isolate() != nullptr
+             ? ExternalReferenceAsOperand(
+                   ExternalReference::fast_c_call_caller_fp_address(isolate()))
+             : Operand(kRootRegister,
+                       IsolateData::fast_c_call_caller_fp_offset()),
          rbp);
   }
 
   call(function);
 
+  // We don't unset the PC; the FP is the source of truth.
   if (isolate() != nullptr) {
-    // We don't unset the PC; the FP is the source of truth.
     movq(ExternalReferenceAsOperand(
              ExternalReference::fast_c_call_caller_fp_address(isolate())),
+         Immediate(0));
+  } else if (root_array_available_) {
+    movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()),
          Immediate(0));
   }
 
