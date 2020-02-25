@@ -2550,9 +2550,6 @@ std::vector<int> CompilationStateImpl::InitializeRecompilationProgress(
   std::vector<int> recompilation_functions;
   base::MutexGuard guard(&callbacks_mutex_);
 
-  // Add callback.
-  callbacks_.emplace_back(std::move(recompilation_finished_callback));
-
   // Ensure that we don't trigger recompilation if another recompilation is
   // already happening.
   DCHECK_EQ(0, outstanding_recompilation_functions_);
@@ -2582,11 +2579,12 @@ std::vector<int> CompilationStateImpl::InitializeRecompilationProgress(
               native_module_->module()->num_declared_functions);
   }
 
-  // Trigger callbacks if module needs no recompilation.
+  // Trigger callback if module needs no recompilation. Add to the list of
+  // callbacks (to be called later) otherwise.
   if (outstanding_recompilation_functions_ == 0) {
-    for (auto& callback : callbacks_) {
-      callback(CompilationEvent::kFinishedRecompilation);
-    }
+    recompilation_finished_callback(CompilationEvent::kFinishedRecompilation);
+  } else {
+    callbacks_.emplace_back(std::move(recompilation_finished_callback));
   }
 
   return recompilation_functions;
