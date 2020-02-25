@@ -43,7 +43,7 @@ void JSArrayBuffer::Setup(SharedFlag shared,
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
     SetEmbedderField(i, Smi::zero());
   }
-  set_extension(nullptr);
+  unsynchronized_set_extension(nullptr);
   if (!backing_store) {
     set_backing_store(nullptr);
     set_byte_length(0);
@@ -59,17 +59,18 @@ void JSArrayBuffer::Setup(SharedFlag shared,
 void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   DCHECK_NOT_NULL(backing_store);
   DCHECK_EQ(is_shared(), backing_store->is_shared());
+  DCHECK(!was_detached());
   set_backing_store(backing_store->buffer_start());
   set_byte_length(backing_store->byte_length());
   if (backing_store->is_wasm_memory()) set_is_detachable(false);
   if (!backing_store->free_on_destruct()) set_is_external(true);
   if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
     Heap* heap = GetIsolate()->heap();
-    EnsureExtension();
-    extension()->set_backing_store(std::move(backing_store));
+    ArrayBufferExtension* extension = EnsureExtension();
+    extension->set_backing_store(std::move(backing_store));
     size_t bytes = PerIsolateAccountingLength();
-    extension()->set_accounting_length(bytes);
-    heap->AppendArrayBufferExtension(*this, extension());
+    extension->set_accounting_length(bytes);
+    heap->AppendArrayBufferExtension(*this, extension);
   } else {
     GetIsolate()->heap()->RegisterBackingStore(*this, std::move(backing_store));
   }
@@ -118,10 +119,10 @@ std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() {
 
 ArrayBufferExtension* JSArrayBuffer::EnsureExtension() {
   DCHECK(V8_ARRAY_BUFFER_EXTENSION_BOOL);
-  if (extension() != nullptr) return extension();
+  ArrayBufferExtension* extension = this->extension();
+  if (extension != nullptr) return extension;
 
-  ArrayBufferExtension* extension =
-      new ArrayBufferExtension(std::shared_ptr<BackingStore>());
+  extension = new ArrayBufferExtension(std::shared_ptr<BackingStore>());
   set_extension(extension);
   return extension;
 }

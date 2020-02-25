@@ -149,7 +149,16 @@ class JSArrayBuffer : public JSObject {
   OBJECT_CONSTRUCTORS(JSArrayBuffer, JSObject);
 
  private:
+  inline void unsynchronized_set_extension(ArrayBufferExtension* extension);
+
   inline ArrayBufferExtension** extension_location() const;
+
+#if V8_COMPRESS_POINTERS
+  static const int kUninitializedTagMask = 1;
+
+  inline uint32_t* extension_lo() const;
+  inline uint32_t* extension_hi() const;
+#endif
 };
 
 // Each JSArrayBuffer (with a backing store) has a corresponding native-heap
