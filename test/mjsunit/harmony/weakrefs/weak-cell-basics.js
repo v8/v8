@@ -15,7 +15,7 @@ let cleanup = function(iter) {
   cleanup_called = true;
 }
 
-let fg = new FinalizationGroup(cleanup);
+let fg = new FinalizationRegistry(cleanup);
 let o = {};
 let holdings = {'h': 55};
 

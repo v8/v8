@@ -12,7 +12,7 @@ let reentrant_gc =
   call_count++;
 }
 
-let fg = new FinalizationGroup(reentrant_gc);
+let fg = new FinalizationRegistry(reentrant_gc);
 
 (function() {
 fg.register({}, 42);

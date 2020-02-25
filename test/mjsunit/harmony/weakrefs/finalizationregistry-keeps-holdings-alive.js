@@ -16,7 +16,7 @@ let cleanup = function(iter) {
   cleanup_called = true;
 }
 
-let fg = new FinalizationGroup(cleanup);
+let fg = new FinalizationRegistry(cleanup);
 let o1 = {};
 let holdings = {'a': 'this is the holdings object'};
 
@@ -32,7 +32,7 @@ assertFalse(cleanup_called);
 // Drop the last references to o1.
 (() => {o1 = null;})()
 
-// Drop the last reference to the holdings. The FinalizationGroup keeps it
+// Drop the last reference to the holdings. The FinalizationRegistry keeps it
 // alive, so the cleanup function will be called as normal.
 holdings = null;
 gc();

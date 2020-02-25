@@ -496,13 +496,15 @@
   'language/comments/hashbang/use-strict': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8179
-  # Temporarily removed pending https://github.com/tc39/test262/issues/2339
   #
-  # These tests require exception handling support which is currently
-  #  blocked on landing https://chromium-review.googlesource.com/c/v8/v8/+/1655655
-  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-throws-in-callback': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
+  # FinalizationGroup is renamed to FinalizationRegistry, skip all of these as
+  # an intermediate state until the next roll which has the renamed tests.
+  'built-ins/FinalizationGroup/*': [SKIP],
+  'built-ins/WeakRef/prototype/deref/this-does-not-have-internal-target-throws': [SKIP],
+  'built-ins/WeakRef/prototype/deref/gc-cleanup-not-prevented-with-wr-deref': [SKIP],
+  # 'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
+  # 'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-throws-in-callback': [FAIL],
+  # 'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
   # 'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-cleanup-callback-throws': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9612

@@ -4309,7 +4309,7 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
   {
     // Create %FinalizationRegistryPrototype%
     Handle<String> finalization_registry_name =
-        factory->NewStringFromStaticChars("FinalizationGroup");
+        factory->NewStringFromStaticChars("FinalizationRegistry");
     Handle<JSObject> finalization_registry_prototype = factory->NewJSObject(
         isolate()->object_function(), AllocationType::kOld);
 
@@ -4394,7 +4394,7 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     JSObject::ForceSetPrototype(cleanup_iterator_prototype, iterator_prototype);
 
     InstallToStringTag(isolate(), cleanup_iterator_prototype,
-                       "FinalizationGroup Cleanup Iterator");
+                       "FinalizationRegistry Cleanup Iterator");
 
     SimpleInstallFunction(isolate(), cleanup_iterator_prototype, "next",
                           Builtins::kFinalizationRegistryCleanupIteratorNext, 0,

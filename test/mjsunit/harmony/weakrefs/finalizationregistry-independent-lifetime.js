@@ -10,7 +10,7 @@ function cleanup(iter) {
   cleanup_called = true;
 };
 (function() {
-  let fg = new FinalizationGroup(cleanup);
+  let fg = new FinalizationRegistry(cleanup);
   (function() {
     let x = {};
     fg.register(x, {});

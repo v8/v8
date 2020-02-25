@@ -13,8 +13,8 @@ function callback(iter) {
   throw new Error('callback');
 };
 
-const fg1 = new FinalizationGroup(callback);
-const fg2 = new FinalizationGroup(callback);
+const fg1 = new FinalizationRegistry(callback);
+const fg2 = new FinalizationRegistry(callback);
 
 (function() {
 let x = {};

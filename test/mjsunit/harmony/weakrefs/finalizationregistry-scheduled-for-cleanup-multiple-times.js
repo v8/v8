@@ -25,10 +25,10 @@ let cleanup1 = function(iter) {
   ++cleanup1_call_count;
 }
 
-let fg0 = new FinalizationGroup(cleanup0);
-let fg1 = new FinalizationGroup(cleanup1);
+let fg0 = new FinalizationRegistry(cleanup0);
+let fg1 = new FinalizationRegistry(cleanup1);
 
-// Register 1 weak reference for each FinalizationGroup and kill the objects they point to.
+// Register 1 weak reference for each FinalizationRegistry and kill the objects they point to.
 (function() {
   // The objects need to be inside a closure so that we can reliably kill them.
   let objects = [];
@@ -46,7 +46,7 @@ let fg1 = new FinalizationGroup(cleanup1);
 gc();
 
 // Before the cleanup task has a chance to run, do the same thing again, so both
-// FinalizationGroups are (again) scheduled for cleanup. This has to be a IIFE function
+// FinalizationRegistries are (again) scheduled for cleanup. This has to be a IIFE function
 // (so that we can reliably kill the objects) so we cannot use the same function
 // as before.
 (function() {

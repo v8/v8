@@ -5897,14 +5897,15 @@ class V8_EXPORT RegExp : public Object {
 };
 
 /**
- * An instance of the built-in FinalizationGroup constructor.
+ * An instance of the built-in FinalizationRegistry constructor.
  *
- * This API is experimental and may change significantly.
+ * The C++ name is FinalizationGroup for backwards compatibility. This API is
+ * experimental and deprecated.
  */
 class V8_EXPORT FinalizationGroup : public Object {
  public:
   /**
-   * Runs the cleanup callback of the given FinalizationGroup.
+   * Runs the cleanup callback of the given FinalizationRegistry.
    *
    * V8 will inform the embedder that there are finalizer callbacks be
    * called through HostCleanupFinalizationGroupCallback.
@@ -8500,12 +8501,12 @@ class V8_EXPORT Isolate {
       AbortOnUncaughtExceptionCallback callback);
 
   /**
-   * This specifies the callback to be called when finalization groups
+   * This specifies the callback to be called when FinalizationRegistries
    * are ready to be cleaned up and require FinalizationGroup::Cleanup()
    * to be called in a future task.
    */
   V8_DEPRECATED(
-      "FinalizationGroup cleanup is automatic if "
+      "FinalizationRegistry cleanup is automatic if "
       "HostCleanupFinalizationGroupCallback is not set")
   void SetHostCleanupFinalizationGroupCallback(
       HostCleanupFinalizationGroupCallback callback);
@@ -9120,7 +9121,7 @@ class V8_EXPORT Isolate {
 
   /**
    * Optional notification that a context has been disposed. V8 uses these
-   * notifications to guide the GC heuristic and cancel FinalizationGroup
+   * notifications to guide the GC heuristic and cancel FinalizationRegistry
    * cleanup tasks. Returns the number of context disposals - including this one
    * - since the last time V8 had a chance to clean up.
    *

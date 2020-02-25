@@ -20,7 +20,7 @@ Handle<JSFinalizationRegistry> ConstructJSFinalizationRegistry(
     Isolate* isolate) {
   Factory* factory = isolate->factory();
   Handle<String> finalization_registry_name =
-      factory->NewStringFromStaticChars("FinalizationGroup");
+      factory->NewStringFromStaticChars("FinalizationRegistry");
   Handle<Object> global =
       handle(isolate->native_context()->global_object(), isolate);
   Handle<JSFunction> finalization_registry_fun = Handle<JSFunction>::cast(

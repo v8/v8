@@ -2680,7 +2680,7 @@ void Heap::ProcessDirtyJSFinalizationRegistries(WeakObjectRetainer* retainer) {
       this, dirty_js_finalization_registries_list(), retainer);
   set_dirty_js_finalization_registries_list(head);
   // If the list is empty, set the tail to undefined. Otherwise the tail is set
-  // by WeakListVisitor<JSFinalizationGroup>::VisitLiveObject.
+  // by WeakListVisitor<JSFinalizationRegistry>::VisitLiveObject.
   if (head.IsUndefined(isolate())) {
     set_dirty_js_finalization_registries_list_tail(head);
   }
