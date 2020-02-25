@@ -7701,7 +7701,7 @@ void CodeStubAssembler::NumberDictionaryLookup(
   TNode<IntPtrT> mask = IntPtrSub(capacity, IntPtrConstant(1));
 
   TNode<UintPtrT> hash = ChangeUint32ToWord(ComputeSeededHash(intptr_index));
-  Node* key_as_float64 = RoundIntPtrToFloat64(intptr_index);
+  TNode<Float64T> key_as_float64 = RoundIntPtrToFloat64(intptr_index);
 
   // See Dictionary::FirstProbe().
   TNode<IntPtrT> count = IntPtrConstant(0);

@@ -564,44 +564,41 @@ TNode<UintPtrT> CodeAssembler::ChangeUint32ToWord(TNode<Word32T> value) {
 
 TNode<IntPtrT> CodeAssembler::ChangeInt32ToIntPtr(TNode<Word32T> value) {
   if (raw_assembler()->machine()->Is64()) {
-    return ReinterpretCast<IntPtrT>(raw_assembler()->ChangeInt32ToInt64(value));
+    return UncheckedCast<IntPtrT>(raw_assembler()->ChangeInt32ToInt64(value));
   }
   return ReinterpretCast<IntPtrT>(value);
 }
 
 TNode<IntPtrT> CodeAssembler::ChangeFloat64ToIntPtr(TNode<Float64T> value) {
   if (raw_assembler()->machine()->Is64()) {
-    return ReinterpretCast<IntPtrT>(
-        raw_assembler()->ChangeFloat64ToInt64(value));
+    return UncheckedCast<IntPtrT>(raw_assembler()->ChangeFloat64ToInt64(value));
   }
-  return ReinterpretCast<IntPtrT>(raw_assembler()->ChangeFloat64ToInt32(value));
+  return UncheckedCast<IntPtrT>(raw_assembler()->ChangeFloat64ToInt32(value));
 }
 
 TNode<UintPtrT> CodeAssembler::ChangeFloat64ToUintPtr(TNode<Float64T> value) {
   if (raw_assembler()->machine()->Is64()) {
-    return ReinterpretCast<UintPtrT>(
+    return UncheckedCast<UintPtrT>(
         raw_assembler()->ChangeFloat64ToUint64(value));
   }
-  return ReinterpretCast<UintPtrT>(
-      raw_assembler()->ChangeFloat64ToUint32(value));
+  return UncheckedCast<UintPtrT>(raw_assembler()->ChangeFloat64ToUint32(value));
 }
 
 TNode<Float64T> CodeAssembler::ChangeUintPtrToFloat64(TNode<UintPtrT> value) {
   if (raw_assembler()->machine()->Is64()) {
     // TODO(turbofan): Maybe we should introduce a ChangeUint64ToFloat64
     // machine operator to TurboFan here?
-    return ReinterpretCast<Float64T>(
+    return UncheckedCast<Float64T>(
         raw_assembler()->RoundUint64ToFloat64(value));
   }
-  return ReinterpretCast<Float64T>(
-      raw_assembler()->ChangeUint32ToFloat64(value));
+  return UncheckedCast<Float64T>(raw_assembler()->ChangeUint32ToFloat64(value));
 }
 
-Node* CodeAssembler::RoundIntPtrToFloat64(Node* value) {
+TNode<Float64T> CodeAssembler::RoundIntPtrToFloat64(Node* value) {
   if (raw_assembler()->machine()->Is64()) {
-    return raw_assembler()->RoundInt64ToFloat64(value);
+    return UncheckedCast<Float64T>(raw_assembler()->RoundInt64ToFloat64(value));
   }
-  return raw_assembler()->ChangeInt32ToFloat64(value);
+  return UncheckedCast<Float64T>(raw_assembler()->ChangeInt32ToFloat64(value));
 }
 
 #define DEFINE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \

@@ -932,7 +932,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Changes an intptr_t to a double, e.g. for storing an element index
   // outside Smi range in a HeapNumber. Lossless on 32-bit,
   // rounds on 64-bit (which doesn't affect valid element indices).
-  Node* RoundIntPtrToFloat64(Node* value);
+  TNode<Float64T> RoundIntPtrToFloat64(Node* value);
   // No-op on 32-bit, otherwise zero extend.
   TNode<UintPtrT> ChangeUint32ToWord(TNode<Word32T> value);
   // No-op on 32-bit, otherwise sign extend.
