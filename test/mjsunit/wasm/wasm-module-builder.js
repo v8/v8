@@ -470,8 +470,11 @@ let kExprI64AtomicCompareExchange32U = 0x4e;
 let kExprS128LoadMem = 0x00;
 let kExprS128StoreMem = 0x01;
 let kExprI32x4Splat = 0x0c;
+let kExprF32x4Splat = 0x12;
 let kExprI32x4Eq = 0x2c;
+let kExprS1x8AnyTrue = 0x63;
 let kExprS1x4AllTrue = 0x75;
+let kExprI32x4Add = 0x79;
 let kExprF32x4Min = 0x9e;
 
 // Compilation hint constants.
