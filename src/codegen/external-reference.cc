@@ -910,6 +910,11 @@ bool operator!=(ExternalReference lhs, ExternalReference rhs) {
 }
 
 size_t hash_value(ExternalReference reference) {
+  if (FLAG_predictable) {
+    // Avoid ASLR non-determinism in predictable mode. For this, just take the
+    // lowest 12 bit corresponding to a 4K page size.
+    return base::hash<Address>()(reference.address() & 0xfff);
+  }
   return base::hash<Address>()(reference.address());
 }
 
