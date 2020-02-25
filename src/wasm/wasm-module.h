@@ -116,18 +116,23 @@ struct WasmElemSegment {
 
   // Construct an active segment.
   WasmElemSegment(uint32_t table_index, WasmInitExpr offset)
-      : table_index(table_index), offset(offset), status(kStatusActive) {}
+      : type(kWasmFuncRef),
+        table_index(table_index),
+        offset(offset),
+        status(kStatusActive) {}
 
   // Construct a passive or declarative segment, which has no table index or
   // offset.
   explicit WasmElemSegment(bool declarative)
-      : table_index(0),
+      : type(kWasmFuncRef),
+        table_index(0),
         status(declarative ? kStatusDeclarative : kStatusPassive) {}
 
   // Used in the {entries} vector to represent a `ref.null` entry in a passive
   // segment.
   V8_EXPORT_PRIVATE static const uint32_t kNullIndex = ~0u;
 
+  ValueType type;
   uint32_t table_index;
   WasmInitExpr offset;
   std::vector<uint32_t> entries;

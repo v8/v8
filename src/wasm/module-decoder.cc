@@ -857,20 +857,21 @@ class ModuleDecoderImpl : public Decoder {
       bool functions_as_elements;
       uint32_t table_index;
       WasmInitExpr offset;
-      consume_element_segment_header(&status, &functions_as_elements,
+      ValueType type = kWasmBottom;
+      consume_element_segment_header(&status, &functions_as_elements, &type,
                                      &table_index, &offset);
       if (failed()) return;
+      DCHECK_NE(type, kWasmBottom);
 
       if (status == WasmElemSegment::kStatusActive) {
         if (table_index >= module_->tables.size()) {
           errorf(pos, "out of bounds table index %u", table_index);
           break;
         }
-        if (!ValueTypes::IsSubType(kWasmFuncRef,
-                                   module_->tables[table_index].type)) {
+        if (!ValueTypes::IsSubType(type, module_->tables[table_index].type)) {
           errorf(pos,
-                 "Invalid element segment. Table %u is not of type FuncRef",
-                 table_index);
+                 "Invalid element segment. Table %u is not a super-type of %s",
+                 table_index, ValueTypes::TypeName(type));
           break;
         }
       }
@@ -885,6 +886,7 @@ class ModuleDecoderImpl : public Decoder {
       }
 
       WasmElemSegment* init = &module_->elem_segments.back();
+      init->type = type;
       for (uint32_t j = 0; j < num_elem; j++) {
         uint32_t index = functions_as_elements ? consume_element_expr()
                                                : consume_element_func_index();
@@ -1794,7 +1796,7 @@ class ModuleDecoderImpl : public Decoder {
 
   void consume_element_segment_header(WasmElemSegment::Status* status,
                                       bool* functions_as_elements,
-                                      uint32_t* table_index,
+                                      ValueType* type, uint32_t* table_index,
                                       WasmInitExpr* offset) {
     const byte* pos = pc();
     uint8_t flag;
@@ -1884,17 +1886,12 @@ class ModuleDecoderImpl : public Decoder {
       // Active segments without table indices are a special case for backwards
       // compatibility. These cases have an implicit element kind or element
       // type, so we are done already with the segment header.
+      *type = kWasmFuncRef;
       return;
     }
 
     if (*functions_as_elements) {
-      // We have to check that there is an element type of type FuncRef. All
-      // other element types are not valid yet.
-      ValueType type = consume_reference_type();
-      if (!ValueTypes::IsSubType(kWasmFuncRef, type)) {
-        error(pc_ - 1, "invalid element segment type");
-        return;
-      }
+      *type = consume_reference_type();
     } else {
       // We have to check that there is an element kind of type Function. All
       // other element kinds are not valid yet.
@@ -1904,6 +1901,7 @@ class ModuleDecoderImpl : public Decoder {
         errorf(pos, "illegal element kind %x. Must be 0x00", val);
         return;
       }
+      *type = kWasmFuncRef;
     }
   }
 

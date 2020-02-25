@@ -1197,6 +1197,14 @@ class WasmDecoder : public Decoder {
     }
     if (!Validate(pc_ + imm.length - imm.table.length - 1, imm.table))
       return false;
+    if (!VALIDATE(ValueTypes::IsSubType(
+            module_->elem_segments[imm.elem_segment_index].type,
+            module_->tables[imm.table.index].type))) {
+      errorf(pc_ + 2, "table %u is not a super-type of %s", imm.table.index,
+             ValueTypes::TypeName(
+                 module_->elem_segments[imm.elem_segment_index].type));
+      return false;
+    }
     return true;
   }
 
@@ -1212,6 +1220,13 @@ class WasmDecoder : public Decoder {
   inline bool Validate(TableCopyImmediate<validate>& imm) {
     if (!Validate(pc_ + 1, imm.table_src)) return false;
     if (!Validate(pc_ + 2, imm.table_dst)) return false;
+    if (!VALIDATE(
+            ValueTypes::IsSubType(module_->tables[imm.table_src.index].type,
+                                  module_->tables[imm.table_dst.index].type))) {
+      errorf(pc_ + 2, "table %u is not a super-type of %s", imm.table_dst.index,
+             ValueTypes::TypeName(module_->tables[imm.table_src.index].type));
+      return false;
+    }
     return true;
   }
 

@@ -260,11 +260,16 @@ class TestModuleBuilder {
     mod.maximum_pages = 100;
   }
 
-  void InitializeTable() { mod.tables.emplace_back(); }
+  byte InitializeTable(wasm::ValueType type) {
+    mod.tables.emplace_back();
+    mod.tables.back().type = type;
+    return static_cast<byte>(mod.tables.size() - 1);
+  }
 
-  byte AddPassiveElementSegment() {
+  byte AddPassiveElementSegment(wasm::ValueType type) {
     mod.elem_segments.emplace_back(false);
     auto& init = mod.elem_segments.back();
+    init.type = type;
     // Add 5 empty elements.
     for (uint32_t j = 0; j < 5; j++) {
       init.entries.push_back(WasmElemSegment::kNullIndex);
@@ -1659,7 +1664,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithMismatchedSigs3) {
 
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.InitializeTable();
+  builder.InitializeTable(wasm::kWasmStmt);
   module = builder.module();
 
   byte sig0 = builder.AddSignature(sigs.i_f());
@@ -1706,7 +1711,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithoutTableCrash) {
 TEST_F(FunctionBodyDecoderTest, IncompleteIndirectReturnCall) {
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.InitializeTable();
+  builder.InitializeTable(wasm::kWasmStmt);
   module = builder.module();
 
   static byte code[] = {kExprReturnCallIndirect};
@@ -1794,7 +1799,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsOutOfBounds) {
 TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs3) {
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.InitializeTable();
+  builder.InitializeTable(wasm::kWasmStmt);
   module = builder.module();
 
   byte sig0 = builder.AddSignature(sigs.i_f());
@@ -1832,7 +1837,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithoutTableCrash) {
 TEST_F(FunctionBodyDecoderTest, IncompleteIndirectCall) {
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.InitializeTable();
+  builder.InitializeTable(wasm::kWasmStmt);
   module = builder.module();
 
   static byte code[] = {kExprCallIndirect};
@@ -1843,7 +1848,7 @@ TEST_F(FunctionBodyDecoderTest, IncompleteStore) {
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
   builder.InitializeMemory();
-  builder.InitializeTable();
+  builder.InitializeTable(wasm::kWasmStmt);
   module = builder.module();
 
   static byte code[] = {kExprI32StoreMem};
@@ -1855,7 +1860,7 @@ TEST_F(FunctionBodyDecoderTest, IncompleteS8x16Shuffle) {
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
   builder.InitializeMemory();
-  builder.InitializeTable();
+  builder.InitializeTable(wasm::kWasmStmt);
   module = builder.module();
 
   static byte code[] = {kSimdPrefix,
@@ -3210,8 +3215,8 @@ TEST_F(FunctionBodyDecoderTest, BulkMemoryOpsWithoutMemory) {
 
 TEST_F(FunctionBodyDecoderTest, TableInit) {
   TestModuleBuilder builder;
-  builder.InitializeTable();
-  builder.AddPassiveElementSegment();
+  builder.InitializeTable(wasm::kWasmFuncRef);
+  builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
   module = builder.module();
 
   ExpectFailure(sigs.v_v(),
@@ -3223,10 +3228,22 @@ TEST_F(FunctionBodyDecoderTest, TableInit) {
                 {WASM_TABLE_INIT(0, 1, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
 
+TEST_F(FunctionBodyDecoderTest, TableInitWrongType) {
+  TestModuleBuilder builder;
+  uint32_t table_index = builder.InitializeTable(wasm::kWasmFuncRef);
+  uint32_t element_index = builder.AddPassiveElementSegment(wasm::kWasmAnyRef);
+  module = builder.module();
+
+  WASM_FEATURE_SCOPE(bulk_memory);
+  WASM_FEATURE_SCOPE(anyref);
+  ExpectFailure(sigs.v_v(), {WASM_TABLE_INIT(table_index, element_index,
+                                             WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+}
+
 TEST_F(FunctionBodyDecoderTest, TableInitInvalid) {
   TestModuleBuilder builder;
-  builder.InitializeTable();
-  builder.AddPassiveElementSegment();
+  builder.InitializeTable(wasm::kWasmFuncRef);
+  builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
   module = builder.module();
 
   WASM_FEATURE_SCOPE(bulk_memory);
@@ -3239,8 +3256,8 @@ TEST_F(FunctionBodyDecoderTest, TableInitInvalid) {
 
 TEST_F(FunctionBodyDecoderTest, ElemDrop) {
   TestModuleBuilder builder;
-  builder.InitializeTable();
-  builder.AddPassiveElementSegment();
+  builder.InitializeTable(wasm::kWasmFuncRef);
+  builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
   module = builder.module();
 
   ExpectFailure(sigs.v_v(), {WASM_ELEM_DROP(0)});
@@ -3251,7 +3268,7 @@ TEST_F(FunctionBodyDecoderTest, ElemDrop) {
 
 TEST_F(FunctionBodyDecoderTest, TableInitDeclarativeElem) {
   TestModuleBuilder builder;
-  builder.InitializeTable();
+  builder.InitializeTable(wasm::kWasmFuncRef);
   builder.AddDeclarativeElementSegment();
   module = builder.module();
 
@@ -3266,7 +3283,7 @@ TEST_F(FunctionBodyDecoderTest, TableInitDeclarativeElem) {
 
 TEST_F(FunctionBodyDecoderTest, DeclarativeElemDrop) {
   TestModuleBuilder builder;
-  builder.InitializeTable();
+  builder.InitializeTable(wasm::kWasmFuncRef);
   builder.AddDeclarativeElementSegment();
   module = builder.module();
 
@@ -3279,7 +3296,7 @@ TEST_F(FunctionBodyDecoderTest, DeclarativeElemDrop) {
 
 TEST_F(FunctionBodyDecoderTest, RefFuncDeclared) {
   TestModuleBuilder builder;
-  builder.InitializeTable();
+  builder.InitializeTable(wasm::kWasmStmt);
   byte function_index = builder.AddFunction(sigs.v_i());
   module = builder.module();
 
@@ -3291,7 +3308,7 @@ TEST_F(FunctionBodyDecoderTest, RefFuncDeclared) {
 
 TEST_F(FunctionBodyDecoderTest, RefFuncUndeclared) {
   TestModuleBuilder builder;
-  builder.InitializeTable();
+  builder.InitializeTable(wasm::kWasmStmt);
   byte function_index = builder.AddFunction(sigs.v_i(), false);
   module = builder.module();
 
@@ -3302,9 +3319,9 @@ TEST_F(FunctionBodyDecoderTest, RefFuncUndeclared) {
 
 TEST_F(FunctionBodyDecoderTest, ElemSegmentIndexUnsigned) {
   TestModuleBuilder builder;
-  builder.InitializeTable();
+  builder.InitializeTable(wasm::kWasmFuncRef);
   for (int i = 0; i < 65; ++i) {
-    builder.AddPassiveElementSegment();
+    builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
   }
   module = builder.module();
 
@@ -3318,7 +3335,7 @@ TEST_F(FunctionBodyDecoderTest, ElemSegmentIndexUnsigned) {
 
 TEST_F(FunctionBodyDecoderTest, TableCopy) {
   TestModuleBuilder builder;
-  builder.InitializeTable();
+  builder.InitializeTable(wasm::kWasmStmt);
   module = builder.module();
 
   ExpectFailure(sigs.v_v(),
@@ -3326,6 +3343,18 @@ TEST_F(FunctionBodyDecoderTest, TableCopy) {
   WASM_FEATURE_SCOPE(bulk_memory);
   ExpectValidates(sigs.v_v(),
                   {WASM_TABLE_COPY(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+}
+
+TEST_F(FunctionBodyDecoderTest, TableCopyWrongType) {
+  TestModuleBuilder builder;
+  uint32_t dst_table_index = builder.InitializeTable(wasm::kWasmFuncRef);
+  uint32_t src_table_index = builder.InitializeTable(wasm::kWasmAnyRef);
+  module = builder.module();
+
+  WASM_FEATURE_SCOPE(bulk_memory);
+  WASM_FEATURE_SCOPE(anyref);
+  ExpectFailure(sigs.v_v(), {WASM_TABLE_COPY(dst_table_index, src_table_index,
+                                             WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, TableGrow) {
@@ -3427,7 +3456,7 @@ TEST_F(FunctionBodyDecoderTest, TableOpsWithoutTable) {
   }
   {
     WASM_FEATURE_SCOPE(bulk_memory);
-    builder.AddPassiveElementSegment();
+    builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
     ExpectFailure(sigs.v_v(),
                   {WASM_TABLE_INIT(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
     ExpectFailure(sigs.v_v(),
@@ -3441,7 +3470,7 @@ TEST_F(FunctionBodyDecoderTest, TableCopyMultiTable) {
   {
     TestModuleBuilder builder;
     builder.AddTable(kWasmAnyRef, 10, true, 20);
-    builder.AddPassiveElementSegment();
+    builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
     module = builder.module();
     // We added one table, therefore table.copy on table 0 should work.
     int table_src = 0;
@@ -3463,7 +3492,7 @@ TEST_F(FunctionBodyDecoderTest, TableCopyMultiTable) {
     TestModuleBuilder builder;
     builder.AddTable(kWasmAnyRef, 10, true, 20);
     builder.AddTable(kWasmAnyRef, 10, true, 20);
-    builder.AddPassiveElementSegment();
+    builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
     module = builder.module();
     // We added two tables, therefore table.copy on table 0 should work.
     int table_src = 0;
@@ -3491,7 +3520,7 @@ TEST_F(FunctionBodyDecoderTest, TableInitMultiTable) {
   {
     TestModuleBuilder builder;
     builder.AddTable(kWasmAnyRef, 10, true, 20);
-    builder.AddPassiveElementSegment();
+    builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
     module = builder.module();
     // We added one table, therefore table.init on table 0 should work.
     int table_index = 0;
@@ -3506,7 +3535,7 @@ TEST_F(FunctionBodyDecoderTest, TableInitMultiTable) {
     TestModuleBuilder builder;
     builder.AddTable(kWasmAnyRef, 10, true, 20);
     builder.AddTable(kWasmAnyRef, 10, true, 20);
-    builder.AddPassiveElementSegment();
+    builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
     module = builder.module();
     // We added two tables, therefore table.init on table 0 should work.
     int table_index = 0;
