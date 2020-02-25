@@ -37,10 +37,25 @@ class EnumSet {
   void RemoveAll() { bits_ = 0; }
   void Intersect(EnumSet set) { bits_ &= set.bits_; }
   T ToIntegral() const { return bits_; }
+
   bool operator==(EnumSet set) const { return bits_ == set.bits_; }
   bool operator!=(EnumSet set) const { return bits_ != set.bits_; }
+
   EnumSet operator|(EnumSet set) const { return EnumSet(bits_ | set.bits_); }
   EnumSet operator&(EnumSet set) const { return EnumSet(bits_ & set.bits_); }
+  EnumSet operator-(EnumSet set) const { return EnumSet(bits_ & ~set.bits_); }
+
+  EnumSet& operator|=(EnumSet set) { return *this = *this | set; }
+  EnumSet& operator&=(EnumSet set) { return *this = *this & set; }
+  EnumSet& operator-=(EnumSet set) { return *this = *this - set; }
+
+  EnumSet operator|(E element) const { return EnumSet(bits_ | Mask(element)); }
+  EnumSet operator&(E element) const { return EnumSet(bits_ & Mask(element)); }
+  EnumSet operator-(E element) const { return EnumSet(bits_ & ~Mask(element)); }
+
+  EnumSet& operator|=(E element) { return *this = *this | element; }
+  EnumSet& operator&=(E element) { return *this = *this & element; }
+  EnumSet& operator-=(E element) { return *this = *this - element; }
 
   static constexpr EnumSet FromIntegral(T bits) { return EnumSet{bits}; }
 
