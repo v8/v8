@@ -3028,7 +3028,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     // size is a multiple of 16 bytes.
     if (NumRegs(gp_regs) % 2) {
       // Just add any unset register.
-      gp_regs |= 1 << base::bits::CountTrailingZeros(~gp_regs);
+      gp_regs |= uint64_t{1} << base::bits::CountTrailingZeros(~gp_regs);
     }
     RegList fp_regs = 0;
     for (DoubleRegister reg : wasm::kFpParamRegisters) fp_regs |= reg.bit();
