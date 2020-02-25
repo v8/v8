@@ -1134,6 +1134,9 @@
   'compiler/opt-higher-order-functions': [SKIP],
   'regress/regress-1049982-1': [SKIP],
   'regress/regress-1049982-2': [SKIP],
+
+  # interrupt_budget overrides don't work with TurboProp.
+  'interrupt-budget-override': [SKIP],
 }],  # variant == turboprop
 
 ##############################################################################

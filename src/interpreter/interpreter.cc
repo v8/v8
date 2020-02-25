@@ -104,10 +104,6 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
                      kEntriesPerOperandScale;
 }
 
-int Interpreter::InterruptBudget() {
-  return FLAG_interrupt_budget;
-}
-
 namespace {
 
 void MaybePrintAst(ParseInfo* parse_info,

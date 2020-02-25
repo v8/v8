@@ -1343,7 +1343,7 @@ Handle<FeedbackCell> Factory::NewNoClosuresCell(Handle<HeapObject> value) {
                                  AllocationType::kOld, *no_closures_cell_map());
   Handle<FeedbackCell> cell(FeedbackCell::cast(result), isolate());
   cell->set_value(*value);
-  cell->set_interrupt_budget(FeedbackCell::GetInitialInterruptBudget());
+  cell->SetInitialInterruptBudget();
   cell->clear_padding();
   return cell;
 }
@@ -1354,7 +1354,7 @@ Handle<FeedbackCell> Factory::NewOneClosureCell(Handle<HeapObject> value) {
                                  AllocationType::kOld, *one_closure_cell_map());
   Handle<FeedbackCell> cell(FeedbackCell::cast(result), isolate());
   cell->set_value(*value);
-  cell->set_interrupt_budget(FeedbackCell::GetInitialInterruptBudget());
+  cell->SetInitialInterruptBudget();
   cell->clear_padding();
   return cell;
 }
@@ -1365,7 +1365,7 @@ Handle<FeedbackCell> Factory::NewManyClosuresCell(Handle<HeapObject> value) {
                                                  *many_closures_cell_map());
   Handle<FeedbackCell> cell(FeedbackCell::cast(result), isolate());
   cell->set_value(*value);
-  cell->set_interrupt_budget(FeedbackCell::GetInitialInterruptBudget());
+  cell->SetInitialInterruptBudget();
   cell->clear_padding();
   return cell;
 }

@@ -5039,6 +5039,7 @@ void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function) {
   DCHECK(function->raw_feedback_cell() !=
          isolate->heap()->many_closures_cell());
   function->raw_feedback_cell().set_value(*feedback_vector);
+  function->raw_feedback_cell().SetInterruptBudget();
 }
 
 // static
