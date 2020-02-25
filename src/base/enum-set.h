@@ -29,24 +29,18 @@ class EnumSet {
 
   bool empty() const { return bits_ == 0; }
   bool contains(E element) const { return (bits_ & Mask(element)) != 0; }
-  bool contains_any(const EnumSet& set) const {
-    return (bits_ & set.bits_) != 0;
-  }
+  bool contains_any(EnumSet set) const { return (bits_ & set.bits_) != 0; }
   void Add(E element) { bits_ |= Mask(element); }
-  void Add(const EnumSet& set) { bits_ |= set.bits_; }
+  void Add(EnumSet set) { bits_ |= set.bits_; }
   void Remove(E element) { bits_ &= ~Mask(element); }
-  void Remove(const EnumSet& set) { bits_ &= ~set.bits_; }
+  void Remove(EnumSet set) { bits_ &= ~set.bits_; }
   void RemoveAll() { bits_ = 0; }
-  void Intersect(const EnumSet& set) { bits_ &= set.bits_; }
+  void Intersect(EnumSet set) { bits_ &= set.bits_; }
   T ToIntegral() const { return bits_; }
-  bool operator==(const EnumSet& set) const { return bits_ == set.bits_; }
-  bool operator!=(const EnumSet& set) const { return bits_ != set.bits_; }
-  EnumSet operator|(const EnumSet& set) const {
-    return EnumSet(bits_ | set.bits_);
-  }
-  EnumSet operator&(const EnumSet& set) const {
-    return EnumSet(bits_ & set.bits_);
-  }
+  bool operator==(EnumSet set) const { return bits_ == set.bits_; }
+  bool operator!=(EnumSet set) const { return bits_ != set.bits_; }
+  EnumSet operator|(EnumSet set) const { return EnumSet(bits_ | set.bits_); }
+  EnumSet operator&(EnumSet set) const { return EnumSet(bits_ & set.bits_); }
 
   static constexpr EnumSet FromIntegral(T bits) { return EnumSet{bits}; }
 
