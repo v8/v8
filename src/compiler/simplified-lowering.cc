@@ -1759,13 +1759,13 @@ class RepresentationSelector {
     CHECK_EQ(c_arg_count + 1, value_input_count);
 
     base::SmallVector<UseInfo, kInitialArgumentsCount> arg_use_info(
-        value_input_count);
-    arg_use_info[0] = UseInfo::Word();
+        c_arg_count);
+    ProcessInput(node, 0, UseInfo::Word());
     // Propagate representation information from TypeInfo.
-    for (int i = 0; i < value_input_count; i++) {
+    for (int i = 0; i < c_arg_count; i++) {
       arg_use_info[i] = UseInfoForFastApiCallArgument(
-          c_signature->ArgumentInfo()[i - 1].GetType(), params.feedback());
-      ProcessInput(node, i, arg_use_info[i]);
+          c_signature->ArgumentInfo()[i].GetType(), params.feedback());
+      ProcessInput(node, i + 1, arg_use_info[i]);
     }
 
     MachineType return_type =
@@ -1780,7 +1780,7 @@ class RepresentationSelector {
             MachineTypeFor(c_signature->ArgumentInfo()[i].GetType());
         // Here the arg_use_info are indexed starting from 1 because of the
         // function input, while this loop is only over the actual arguments.
-        DCHECK_EQ(arg_use_info[i + 1].representation(),
+        DCHECK_EQ(arg_use_info[i].representation(),
                   machine_type.representation());
         builder.AddParam(machine_type);
       }
