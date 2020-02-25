@@ -673,23 +673,6 @@ void TurboAssembler::RestoreFrameStateForTailCall() {
   mtlr(r0);
 }
 
-int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
-  // The registers are pushed starting with the highest encoding,
-  // which means that lowest encodings are closest to the stack pointer.
-  RegList regs = kSafepointSavedRegisters;
-  int index = 0;
-
-  DCHECK(reg_code >= 0 && reg_code < kNumRegisters);
-
-  for (int16_t i = 0; i < reg_code; i++) {
-    if ((regs & (1 << i)) != 0) {
-      index++;
-    }
-  }
-
-  return index;
-}
-
 void TurboAssembler::CanonicalizeNaN(const DoubleRegister dst,
                                      const DoubleRegister src) {
   // Turn potential sNaN into qNaN.

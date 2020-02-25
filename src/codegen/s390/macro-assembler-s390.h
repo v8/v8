@@ -1279,13 +1279,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                       Register actual_parameter_count, Label* done,
                       InvokeFlag flag);
 
-  // Compute memory operands for safepoint stack slots.
-  static int SafepointRegisterStackIndex(int reg_code);
-
-  // Needs access to SafepointRegisterStackIndex for compiled frame
-  // traversal.
-  friend class StandardFrame;
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };
 
