@@ -82,7 +82,9 @@ MaybeHandle<String> GetLocalNameString(Isolate* isolate,
   DCHECK(wire_bytes.BoundsCheck(name_ref));
   Vector<const char> name = wire_bytes.GetNameOrNull(name_ref);
   if (name.begin() == nullptr) return {};
-  return isolate->factory()->NewStringFromUtf8(name);
+  std::string full_name("$");
+  full_name.append(name.begin(), name.end());
+  return isolate->factory()->NewStringFromUtf8(VectorOf(full_name));
 }
 
 class InterpreterHandle {
@@ -383,9 +385,8 @@ class InterpreterHandle {
     Handle<JSObject> local_scope_object =
         isolate_->factory()->NewJSObjectWithNullProto();
     // Fill parameters and locals.
-    int num_params = frame->GetParameterCount();
     int num_locals = frame->GetLocalCount();
-    DCHECK_LE(num_params, num_locals);
+    DCHECK_LE(frame->GetParameterCount(), num_locals);
     if (num_locals > 0) {
       Handle<JSObject> locals_obj =
           isolate_->factory()->NewJSObjectWithNullProto();
@@ -400,10 +401,7 @@ class InterpreterHandle {
         if (!GetLocalNameString(isolate, native_module,
                                 frame->function()->func_index, i)
                  .ToHandle(&name)) {
-          // Parameters should come before locals in alphabetical ordering, so
-          // we name them "args" here.
-          const char* label = i < num_params ? "arg#%d" : "local#%d";
-          name = PrintFToOneByteString<true>(isolate_, label, i);
+          name = PrintFToOneByteString<true>(isolate_, "$var%d", i);
         }
         WasmValue value = frame->GetLocalValue(i);
         Handle<Object> value_obj = WasmValueToValueObject(isolate_, value);
@@ -523,7 +521,7 @@ Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject> instance) {
                           globals_obj, NONE);
 
     for (size_t i = 0; i < globals.size(); ++i) {
-      const char* label = "global#%d";
+      const char* label = "$global%d";
       Handle<String> name = PrintFToOneByteString<true>(isolate, label, i);
       WasmValue value =
           WasmInstanceObject::GetGlobalValue(instance, globals[i]);
@@ -559,9 +557,8 @@ class DebugInfoImpl {
     DCHECK_NOT_NULL(debug_side_table_entry);
 
     // Fill parameters and locals.
-    int num_params = static_cast<int>(function->sig->parameter_count());
     int num_locals = static_cast<int>(debug_side_table->num_locals());
-    DCHECK_LE(num_params, num_locals);
+    DCHECK_LE(static_cast<int>(function->sig->parameter_count()), num_locals);
     if (num_locals > 0) {
       Handle<JSObject> locals_obj =
           isolate->factory()->NewJSObjectWithNullProto();
@@ -574,10 +571,7 @@ class DebugInfoImpl {
         if (!GetLocalNameString(isolate, native_module_, function->func_index,
                                 i)
                  .ToHandle(&name)) {
-          // Parameters should come before locals in alphabetical ordering, so
-          // we name them "args" here.
-          const char* label = i < num_params ? "arg#%d" : "local#%d";
-          name = PrintFToOneByteString<true>(isolate, label, i);
+          name = PrintFToOneByteString<true>(isolate, "$var%d", i);
         }
         WasmValue value = GetValue(debug_side_table_entry, i, fp);
         Handle<Object> value_obj = WasmValueToValueObject(isolate, value);

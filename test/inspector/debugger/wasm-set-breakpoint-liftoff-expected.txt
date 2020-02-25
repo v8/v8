@@ -13,7 +13,7 @@ at wasm_A (0:38):
 at wasm_B (0:56):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 3 (number)
+   locals: "$var0": 3 (number)
    stack: 
 at (anonymous) (0:17):
    -- skipped
@@ -34,7 +34,7 @@ at wasm_A (0:39):
 at wasm_B (0:56):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 3 (number)
+   locals: "$var0": 3 (number)
    stack: 
 at (anonymous) (0:17):
    -- skipped
@@ -44,7 +44,7 @@ Scope:
 at wasm_B (0:45):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 3 (number)
+   locals: "$var0": 3 (number)
    stack: 
 at (anonymous) (0:17):
    -- skipped
@@ -54,7 +54,7 @@ Scope:
 at wasm_B (0:47):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 3 (number)
+   locals: "$var0": 3 (number)
    stack: "0": -11 (number)
 at (anonymous) (0:17):
    -- skipped
@@ -64,7 +64,7 @@ Scope:
 at wasm_B (0:49):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 3 (number)
+   locals: "$var0": 3 (number)
    stack: 
 at (anonymous) (0:17):
    -- skipped
@@ -74,7 +74,7 @@ Scope:
 at wasm_B (0:51):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 3 (number)
+   locals: "$var0": 3 (number)
    stack: "0": -11 (number)
 at (anonymous) (0:17):
    -- skipped
@@ -84,7 +84,7 @@ Scope:
 at wasm_B (0:53):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 3 (number)
+   locals: "$var0": 3 (number)
    stack: "0": -11 (number), "1": 1 (number)
 at (anonymous) (0:17):
    -- skipped
@@ -94,7 +94,7 @@ Scope:
 at wasm_B (0:54):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 3 (number)
+   locals: "$var0": 3 (number)
    stack: "0": -11 (number)
 at (anonymous) (0:17):
    -- skipped
@@ -108,7 +108,7 @@ at wasm_A (0:38):
 at wasm_B (0:56):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 2 (number)
+   locals: "$var0": 2 (number)
    stack: 
 at (anonymous) (0:17):
    -- skipped
@@ -122,7 +122,7 @@ at wasm_A (0:39):
 at wasm_B (0:56):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 2 (number)
+   locals: "$var0": 2 (number)
    stack: 
 at (anonymous) (0:17):
    -- skipped
@@ -132,7 +132,7 @@ Scope:
 at wasm_B (0:45):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 2 (number)
+   locals: "$var0": 2 (number)
    stack: 
 at (anonymous) (0:17):
    -- skipped
@@ -142,7 +142,7 @@ Scope:
 at wasm_B (0:47):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 2 (number)
+   locals: "$var0": 2 (number)
    stack: "0": -11 (number)
 at (anonymous) (0:17):
    -- skipped
@@ -152,7 +152,7 @@ Scope:
 at wasm_B (0:49):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 2 (number)
+   locals: "$var0": 2 (number)
    stack: 
 at (anonymous) (0:17):
    -- skipped
@@ -162,7 +162,7 @@ Scope:
 at wasm_B (0:51):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 2 (number)
+   locals: "$var0": 2 (number)
    stack: "0": -11 (number)
 at (anonymous) (0:17):
    -- skipped
@@ -172,7 +172,7 @@ Scope:
 at wasm_B (0:53):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 2 (number)
+   locals: "$var0": 2 (number)
    stack: "0": -11 (number), "1": 1 (number)
 at (anonymous) (0:17):
    -- skipped
@@ -182,7 +182,7 @@ Scope:
 at wasm_B (0:54):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 2 (number)
+   locals: "$var0": 2 (number)
    stack: "0": -11 (number)
 at (anonymous) (0:17):
    -- skipped
@@ -196,7 +196,7 @@ at wasm_A (0:38):
 at wasm_B (0:56):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 1 (number)
+   locals: "$var0": 1 (number)
    stack: 
 at (anonymous) (0:17):
    -- skipped
@@ -210,7 +210,7 @@ at wasm_A (0:39):
 at wasm_B (0:56):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 1 (number)
+   locals: "$var0": 1 (number)
    stack: 
 at (anonymous) (0:17):
    -- skipped
@@ -220,7 +220,7 @@ Scope:
 at wasm_B (0:45):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 1 (number)
+   locals: "$var0": 1 (number)
    stack: 
 at (anonymous) (0:17):
    -- skipped
@@ -230,7 +230,7 @@ Scope:
 at wasm_B (0:47):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 1 (number)
+   locals: "$var0": 1 (number)
    stack: "0": -11 (number)
 at (anonymous) (0:17):
    -- skipped
@@ -240,7 +240,7 @@ Scope:
 at wasm_B (0:49):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 1 (number)
+   locals: "$var0": 1 (number)
    stack: 
 at (anonymous) (0:17):
    -- skipped
@@ -250,7 +250,7 @@ Scope:
 at wasm_B (0:51):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 1 (number)
+   locals: "$var0": 1 (number)
    stack: "0": -11 (number)
 at (anonymous) (0:17):
    -- skipped
@@ -260,7 +260,7 @@ Scope:
 at wasm_B (0:53):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 1 (number)
+   locals: "$var0": 1 (number)
    stack: "0": -11 (number), "1": 1 (number)
 at (anonymous) (0:17):
    -- skipped
@@ -270,7 +270,7 @@ Scope:
 at wasm_B (0:54):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 1 (number)
+   locals: "$var0": 1 (number)
    stack: "0": -11 (number)
 at (anonymous) (0:17):
    -- skipped
@@ -284,7 +284,7 @@ at wasm_A (0:38):
 at wasm_B (0:56):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 0 (number)
+   locals: "$var0": 0 (number)
    stack: 
 at (anonymous) (0:17):
    -- skipped
@@ -298,7 +298,7 @@ at wasm_A (0:39):
 at wasm_B (0:56):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 0 (number)
+   locals: "$var0": 0 (number)
    stack: 
 at (anonymous) (0:17):
    -- skipped
@@ -308,7 +308,7 @@ Scope:
 at wasm_B (0:45):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 0 (number)
+   locals: "$var0": 0 (number)
    stack: 
 at (anonymous) (0:17):
    -- skipped
@@ -318,7 +318,7 @@ Scope:
 at wasm_B (0:47):
  - scope (global):
  - scope (local):
-   locals: "arg#0": 0 (number)
+   locals: "$var0": 0 (number)
    stack: "0": -11 (number)
 at (anonymous) (0:17):
    -- skipped
