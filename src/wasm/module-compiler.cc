@@ -2191,16 +2191,19 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
                                       NativeModuleCache::WireBytesHash(bytes));
   }
   if (section_code == SectionCode::kUnknownSectionCode) {
-    Decoder decoder(bytes, offset);
-    section_code = ModuleDecoder::IdentifyUnknownSection(
-        &decoder, bytes.begin() + bytes.length());
+    size_t bytes_consumed = ModuleDecoder::IdentifyUnknownSection(
+        &decoder_, bytes, offset, &section_code);
+    if (!decoder_.ok()) {
+      FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false).error());
+      return false;
+    }
     if (section_code == SectionCode::kUnknownSectionCode) {
       // Skip unknown sections that we do not know how to handle.
       return true;
     }
     // Remove the unknown section tag from the payload bytes.
-    offset += decoder.position();
-    bytes = bytes.SubVector(decoder.position(), bytes.size());
+    offset += bytes_consumed;
+    bytes = bytes.SubVector(bytes_consumed, bytes.size());
   }
   constexpr bool verify_functions = false;
   decoder_.DecodeSection(section_code, bytes, offset, verify_functions);
