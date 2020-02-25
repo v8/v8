@@ -3853,7 +3853,7 @@ class ThreadImpl {
   ExternalCallResult CallExternalWasmFunction(Isolate* isolate,
                                               Handle<Object> object_ref,
                                               const WasmCode* code,
-                                              FunctionSig* sig) {
+                                              const FunctionSig* sig) {
     int num_args = static_cast<int>(sig->parameter_count());
     WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
 
@@ -3980,7 +3980,7 @@ class ThreadImpl {
     // and compiled we may get an exception.
     if (code == nullptr) return TryHandleException(isolate_);
 
-    FunctionSig* sig = module()->functions[function_index].sig;
+    const FunctionSig* sig = module()->functions[function_index].sig;
     return CallExternalWasmFunction(isolate_, object_ref, code, sig);
   }
 
@@ -4005,7 +4005,7 @@ class ThreadImpl {
       return {ExternalCallResult::SIGNATURE_MISMATCH};
     }
 
-    FunctionSig* signature = module()->signatures[sig_index];
+    const FunctionSig* signature = module()->signatures[sig_index];
     Handle<Object> object_ref = handle(entry.object_ref(), isolate_);
     WasmCode* code = GetTargetCode(isolate_, entry.target());
 

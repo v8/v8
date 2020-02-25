@@ -201,7 +201,7 @@ void WasmCode::LogCode(Isolate* isolate) const {
     size_t prefix_len = name_buffer.size();
     constexpr size_t kMaxSigLength = 128;
     name_buffer.resize(prefix_len + kMaxSigLength);
-    FunctionSig* sig = native_module()->module()->functions[index_].sig;
+    const FunctionSig* sig = native_module()->module()->functions[index_].sig;
     size_t sig_length =
         PrintSignature(VectorOf(&name_buffer[prefix_len], kMaxSigLength), sig);
     name_buffer.resize(prefix_len + sig_length);

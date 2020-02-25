@@ -549,29 +549,25 @@ constexpr std::array<WasmOpcodeSig, 256> kNumericExprSigTable =
 
 }  // namespace
 
-FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
+const FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
   switch (opcode >> 8) {
     case 0:
-      return const_cast<FunctionSig*>(kCachedSigs[kShortSigTable[opcode]]);
+      return kCachedSigs[kShortSigTable[opcode]];
     case kSimdPrefix:
-      return const_cast<FunctionSig*>(
-          kCachedSigs[kSimdExprSigTable[opcode & 0xFF]]);
+      return kCachedSigs[kSimdExprSigTable[opcode & 0xFF]];
     case kAtomicPrefix:
-      return const_cast<FunctionSig*>(
-          kCachedSigs[kAtomicExprSigTable[opcode & 0xFF]]);
+      return kCachedSigs[kAtomicExprSigTable[opcode & 0xFF]];
     case kNumericPrefix:
-      return const_cast<FunctionSig*>(
-          kCachedSigs[kNumericExprSigTable[opcode & 0xFF]]);
+      return kCachedSigs[kNumericExprSigTable[opcode & 0xFF]];
     default:
       UNREACHABLE();  // invalid prefix.
       return nullptr;
   }
 }
 
-FunctionSig* WasmOpcodes::AsmjsSignature(WasmOpcode opcode) {
+const FunctionSig* WasmOpcodes::AsmjsSignature(WasmOpcode opcode) {
   DCHECK_GT(kSimpleAsmjsExprSigTable.size(), opcode);
-  return const_cast<FunctionSig*>(
-      kCachedSigs[kSimpleAsmjsExprSigTable[opcode]]);
+  return kCachedSigs[kSimpleAsmjsExprSigTable[opcode]];
 }
 
 // Define constexpr arrays.

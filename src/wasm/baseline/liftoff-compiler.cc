@@ -797,7 +797,7 @@ class LiftoffCompiler {
 
   enum CCallReturn : bool { kHasReturn = true, kNoReturn = false };
 
-  void GenerateCCall(const LiftoffRegister* result_regs, FunctionSig* sig,
+  void GenerateCCall(const LiftoffRegister* result_regs, const FunctionSig* sig,
                      ValueType out_argument_type,
                      const LiftoffRegister* arg_regs,
                      ExternalReference ext_ref) {

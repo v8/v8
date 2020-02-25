@@ -1522,7 +1522,7 @@ class WasmSignatureDecodeTest : public TestWithZone {
  public:
   WasmFeatures enabled_features_ = WasmFeatures::None();
 
-  FunctionSig* DecodeSig(const byte* start, const byte* end) {
+  const FunctionSig* DecodeSig(const byte* start, const byte* end) {
     return DecodeWasmSignatureForTesting(enabled_features_, zone(), start, end);
   }
 };
@@ -1531,7 +1531,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_v) {
   static const byte data[] = {SIG_ENTRY_v_v};
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
-  FunctionSig* sig = DecodeSig(data, data + sizeof(data));
+  const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
 
   EXPECT_TRUE(sig != nullptr);
   EXPECT_EQ(0u, sig->parameter_count());
@@ -1543,7 +1543,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair ret_type = kValueTypes[i];
     const byte data[] = {SIG_ENTRY_x(ret_type.code)};
-    FunctionSig* sig = DecodeSig(data, data + sizeof(data));
+    const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
 
     EXPECT_TRUE(sig != nullptr);
     EXPECT_EQ(0u, sig->parameter_count());
@@ -1557,7 +1557,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair param_type = kValueTypes[i];
     const byte data[] = {SIG_ENTRY_v_x(param_type.code)};
-    FunctionSig* sig = DecodeSig(data, data + sizeof(data));
+    const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
 
     EXPECT_TRUE(sig != nullptr);
     EXPECT_EQ(1u, sig->parameter_count());
@@ -1573,7 +1573,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
       ValueTypePair param_type = kValueTypes[j];
       const byte data[] = {SIG_ENTRY_x_x(ret_type.code, param_type.code)};
-      FunctionSig* sig = DecodeSig(data, data + sizeof(data));
+      const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
 
       EXPECT_TRUE(sig != nullptr);
       EXPECT_EQ(1u, sig->parameter_count());
@@ -1593,7 +1593,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
       ValueTypePair p1_type = kValueTypes[j];
       const byte data[] = {
           SIG_ENTRY_x_xx(kLocalI32, p0_type.code, p1_type.code)};
-      FunctionSig* sig = DecodeSig(data, data + sizeof(data));
+      const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
 
       EXPECT_TRUE(sig != nullptr);
       EXPECT_EQ(2u, sig->parameter_count());
@@ -1613,7 +1613,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_tt_tt) {
       ValueTypePair p1_type = kValueTypes[j];
       const byte data[] = {SIG_ENTRY_xx_xx(p0_type.code, p1_type.code,
                                            p0_type.code, p1_type.code)};
-      FunctionSig* sig = DecodeSig(data, data + sizeof(data));
+      const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
 
       EXPECT_TRUE(sig != nullptr);
       EXPECT_EQ(2u, sig->parameter_count());
@@ -1630,7 +1630,7 @@ TEST_F(WasmSignatureDecodeTest, TooManyParams) {
   static const byte data[] = {kWasmFunctionTypeCode,
                               WASM_I32V_3(kV8MaxWasmFunctionParams + 1),
                               kLocalI32, 0};
-  FunctionSig* sig = DecodeSig(data, data + sizeof(data));
+  const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
   EXPECT_FALSE(sig != nullptr);
 }
 
@@ -1642,7 +1642,7 @@ TEST_F(WasmSignatureDecodeTest, TooManyReturns) {
         enable_mv ? kV8MaxWasmFunctionMultiReturns : kV8MaxWasmFunctionReturns);
     byte data[] = {kWasmFunctionTypeCode, 0, WASM_I32V_3(max_return_count + 1),
                    kLocalI32};
-    FunctionSig* sig = DecodeSig(data, data + sizeof(data));
+    const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
     EXPECT_EQ(nullptr, sig);
   }
 }
@@ -1655,7 +1655,7 @@ TEST_F(WasmSignatureDecodeTest, Fail_off_end) {
 
     for (int i = 0; i < p + 1; i++) {
       // Should fall off the end for all signatures.
-      FunctionSig* sig = DecodeSig(data, data + i);
+      const FunctionSig* sig = DecodeSig(data, data + i);
       EXPECT_EQ(nullptr, sig);
     }
   }
@@ -1670,7 +1670,7 @@ TEST_F(WasmSignatureDecodeTest, Fail_anyref_without_flag) {
       byte data[] = {SIG_ENTRY_x_xx(kLocalI32, kLocalI32, kLocalI32)};
       if (i >= arraysize(data)) break;
       data[i] = invalid_type;
-      FunctionSig* sig = DecodeSig(data, data + sizeof(data));
+      const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
       EXPECT_EQ(nullptr, sig);
     }
   }
@@ -1682,26 +1682,26 @@ TEST_F(WasmSignatureDecodeTest, Fail_invalid_type) {
     byte data[] = {SIG_ENTRY_x_xx(kLocalI32, kLocalI32, kLocalI32)};
     if (i >= arraysize(data)) break;
     data[i] = kInvalidType;
-    FunctionSig* sig = DecodeSig(data, data + sizeof(data));
+    const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
     EXPECT_EQ(nullptr, sig);
   }
 }
 
 TEST_F(WasmSignatureDecodeTest, Fail_invalid_ret_type1) {
   static const byte data[] = {SIG_ENTRY_x_x(kLocalVoid, kLocalI32)};
-  FunctionSig* sig = DecodeSig(data, data + sizeof(data));
+  const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
   EXPECT_EQ(nullptr, sig);
 }
 
 TEST_F(WasmSignatureDecodeTest, Fail_invalid_param_type1) {
   static const byte data[] = {SIG_ENTRY_x_x(kLocalI32, kLocalVoid)};
-  FunctionSig* sig = DecodeSig(data, data + sizeof(data));
+  const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
   EXPECT_EQ(nullptr, sig);
 }
 
 TEST_F(WasmSignatureDecodeTest, Fail_invalid_param_type2) {
   static const byte data[] = {SIG_ENTRY_x_xx(kLocalI32, kLocalI32, kLocalVoid)};
-  FunctionSig* sig = DecodeSig(data, data + sizeof(data));
+  const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
   EXPECT_EQ(nullptr, sig);
 }
 

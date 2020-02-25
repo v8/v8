@@ -2009,7 +2009,7 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   compiler::Graph graph(&zone);
   compiler::JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr,
                             &machine);
-  FunctionSig* sig = WasmOpcodes::Signature(opcode);
+  const FunctionSig* sig = WasmOpcodes::Signature(opcode);
 
   if (sig->parameter_count() == 1) {
     byte code[] = {WASM_NO_LOCALS, kExprLocalGet, 0, static_cast<byte>(opcode),

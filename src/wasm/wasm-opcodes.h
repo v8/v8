@@ -668,8 +668,8 @@ enum TrapReason {
 class V8_EXPORT_PRIVATE WasmOpcodes {
  public:
   static const char* OpcodeName(WasmOpcode opcode);
-  static FunctionSig* Signature(WasmOpcode opcode);
-  static FunctionSig* AsmjsSignature(WasmOpcode opcode);
+  static const FunctionSig* Signature(WasmOpcode opcode);
+  static const FunctionSig* AsmjsSignature(WasmOpcode opcode);
   static bool IsPrefixOpcode(WasmOpcode opcode);
   static bool IsControlOpcode(WasmOpcode opcode);
   static bool IsAnyRefOpcode(WasmOpcode opcode);

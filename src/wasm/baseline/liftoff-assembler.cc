@@ -592,7 +592,7 @@ void LiftoffAssembler::SpillAllRegisters() {
   cache_state_.reset_used_registers();
 }
 
-void LiftoffAssembler::PrepareCall(FunctionSig* sig,
+void LiftoffAssembler::PrepareCall(const FunctionSig* sig,
                                    compiler::CallDescriptor* call_descriptor,
                                    Register* target,
                                    Register* target_instance) {
@@ -723,7 +723,7 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
   }
 }
 
-void LiftoffAssembler::FinishCall(FunctionSig* sig,
+void LiftoffAssembler::FinishCall(const FunctionSig* sig,
                                   compiler::CallDescriptor* call_descriptor) {
   const size_t return_count = sig->return_count();
   if (return_count != 0) {
@@ -781,7 +781,7 @@ void LiftoffAssembler::ParallelRegisterMove(
   }
 }
 
-void LiftoffAssembler::MoveToReturnRegisters(FunctionSig* sig) {
+void LiftoffAssembler::MoveToReturnRegisters(const FunctionSig* sig) {
   // We do not support multi-value yet.
   DCHECK_EQ(1, sig->return_count());
   ValueType return_type = sig->GetReturn(0);

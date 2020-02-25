@@ -51,10 +51,10 @@ class WireBytesRef {
 
 // Static representation of a wasm function.
 struct WasmFunction {
-  FunctionSig* sig;      // signature of the function.
-  uint32_t func_index;   // index into the function table.
-  uint32_t sig_index;    // index into the signature table.
-  WireBytesRef code;     // code of this function.
+  const FunctionSig* sig;  // signature of the function.
+  uint32_t func_index;     // index into the function table.
+  uint32_t sig_index;      // index into the signature table.
+  WireBytesRef code;       // code of this function.
   bool imported;
   bool exported;
   bool declared;
@@ -80,7 +80,7 @@ using WasmExceptionSig = FunctionSig;
 // Static representation of a wasm exception type.
 struct WasmException {
   explicit WasmException(const WasmExceptionSig* sig) : sig(sig) {}
-  FunctionSig* ToFunctionSig() const { return const_cast<FunctionSig*>(sig); }
+  const FunctionSig* ToFunctionSig() const { return sig; }
 
   const WasmExceptionSig* sig;  // type signature of the exception.
 };
@@ -256,7 +256,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   uint32_t num_exported_functions = 0;
   uint32_t num_declared_data_segments = 0;  // From the DataCount section.
   WireBytesRef name = {0, 0};
-  std::vector<FunctionSig*> signatures;  // by signature index
+  std::vector<const FunctionSig*> signatures;  // by signature index
   std::vector<uint32_t> signature_ids;   // by signature index
   std::vector<WasmFunction> functions;
   std::vector<WasmDataSegment> data_segments;
@@ -363,7 +363,7 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(Isolate* isolate,
                                             Handle<Context> context);
 
-Handle<JSObject> GetTypeForFunction(Isolate* isolate, FunctionSig* sig);
+Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig);
 Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                   ValueType type);
 Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
@@ -430,7 +430,7 @@ class TruncatedUserString {
 // Print the signature into the given {buffer}. If {buffer} is non-empty, it
 // will be null-terminated, even if the signature is cut off. Returns the number
 // of characters written, excluding the terminating null-byte.
-size_t PrintSignature(Vector<char> buffer, wasm::FunctionSig*);
+size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig*);
 
 }  // namespace wasm
 }  // namespace internal

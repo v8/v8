@@ -220,7 +220,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 
   // Reserve buffers for argument and return values.
   DCHECK_GE(instance->module()->functions.size(), func_index);
-  wasm::FunctionSig* sig = instance->module()->functions[func_index].sig;
+  const wasm::FunctionSig* sig = instance->module()->functions[func_index].sig;
   DCHECK_GE(kMaxInt, sig->parameter_count());
   int num_params = static_cast<int>(sig->parameter_count());
   ScopedVector<wasm::WasmValue> wasm_args(num_params);

@@ -135,14 +135,14 @@ void MergeControlToEnd(MachineGraph* mcgraph, Node* node) {
   }
 }
 
-bool ContainsSimd(wasm::FunctionSig* sig) {
+bool ContainsSimd(const wasm::FunctionSig* sig) {
   for (auto type : sig->all()) {
     if (type == wasm::kWasmS128) return true;
   }
   return false;
 }
 
-bool ContainsInt64(wasm::FunctionSig* sig) {
+bool ContainsInt64(const wasm::FunctionSig* sig) {
   for (auto type : sig->all()) {
     if (type == wasm::kWasmI64) return true;
   }
@@ -158,7 +158,7 @@ class WasmGraphAssembler : public GraphAssembler {
 
 WasmGraphBuilder::WasmGraphBuilder(
     wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
-    wasm::FunctionSig* sig,
+    const wasm::FunctionSig* sig,
     compiler::SourcePositionTable* source_position_table)
     : gasm_(std::make_unique<WasmGraphAssembler>(mcgraph, zone)),
       zone_(zone),
@@ -2575,7 +2575,7 @@ Node* WasmGraphBuilder::BuildCCall(MachineSignature* sig, Node* function,
   return SetEffect(graph()->NewNode(op, arraysize(call_args), call_args));
 }
 
-Node* WasmGraphBuilder::BuildCallNode(wasm::FunctionSig* sig,
+Node* WasmGraphBuilder::BuildCallNode(const wasm::FunctionSig* sig,
                                       Vector<Node*> args,
                                       wasm::WasmCodePosition position,
                                       Node* instance_node, const Operator* op) {
@@ -2610,7 +2610,7 @@ Node* WasmGraphBuilder::BuildCallNode(wasm::FunctionSig* sig,
   return call;
 }
 
-Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig,
+Node* WasmGraphBuilder::BuildWasmCall(const wasm::FunctionSig* sig,
                                       Vector<Node*> args, Vector<Node*> rets,
                                       wasm::WasmCodePosition position,
                                       Node* instance_node,
@@ -2637,7 +2637,7 @@ Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig,
   return call;
 }
 
-Node* WasmGraphBuilder::BuildWasmReturnCall(wasm::FunctionSig* sig,
+Node* WasmGraphBuilder::BuildWasmReturnCall(const wasm::FunctionSig* sig,
                                             Vector<Node*> args,
                                             wasm::WasmCodePosition position,
                                             Node* instance_node,
@@ -2652,7 +2652,7 @@ Node* WasmGraphBuilder::BuildWasmReturnCall(wasm::FunctionSig* sig,
   return call;
 }
 
-Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig,
+Node* WasmGraphBuilder::BuildImportCall(const wasm::FunctionSig* sig,
                                         Vector<Node*> args, Vector<Node*> rets,
                                         wasm::WasmCodePosition position,
                                         int func_index,
@@ -2683,7 +2683,7 @@ Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig,
   }
 }
 
-Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig,
+Node* WasmGraphBuilder::BuildImportCall(const wasm::FunctionSig* sig,
                                         Vector<Node*> args, Vector<Node*> rets,
                                         wasm::WasmCodePosition position,
                                         Node* func_index,
@@ -2737,7 +2737,7 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Vector<Node*> args,
                                    Vector<Node*> rets,
                                    wasm::WasmCodePosition position) {
   DCHECK_NULL(args[0]);
-  wasm::FunctionSig* sig = env_->module->functions[index].sig;
+  const wasm::FunctionSig* sig = env_->module->functions[index].sig;
 
   if (env_ && index < env_->module->num_imported_functions) {
     // Call to an imported function.
@@ -2814,7 +2814,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   LoadIndirectFunctionTable(table_index, &ift_size, &ift_sig_ids, &ift_targets,
                             &ift_instances);
 
-  wasm::FunctionSig* sig = env_->module->signatures[sig_index];
+  const wasm::FunctionSig* sig = env_->module->signatures[sig_index];
 
   MachineOperatorBuilder* machine = mcgraph()->machine();
   Node* key = args[0];
@@ -2893,7 +2893,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 Node* WasmGraphBuilder::ReturnCall(uint32_t index, Vector<Node*> args,
                                    wasm::WasmCodePosition position) {
   DCHECK_NULL(args[0]);
-  wasm::FunctionSig* sig = env_->module->functions[index].sig;
+  const wasm::FunctionSig* sig = env_->module->functions[index].sig;
 
   if (env_ && index < env_->module->num_imported_functions) {
     // Return Call to an imported function.
@@ -4037,7 +4037,8 @@ Graph* WasmGraphBuilder::graph() { return mcgraph()->graph(); }
 
 namespace {
 Signature<MachineRepresentation>* CreateMachineSignature(
-    Zone* zone, wasm::FunctionSig* sig, WasmGraphBuilder::CallOrigin origin) {
+    Zone* zone, const wasm::FunctionSig* sig,
+    WasmGraphBuilder::CallOrigin origin) {
   Signature<MachineRepresentation>::Builder builder(zone, sig->return_count(),
                                                     sig->parameter_count());
   for (auto ret : sig->returns()) {
@@ -5101,7 +5102,7 @@ CallDescriptor* GetBuiltinCallDescriptor(WasmGraphBuilder* builder,
 class WasmWrapperGraphBuilder : public WasmGraphBuilder {
  public:
   WasmWrapperGraphBuilder(Zone* zone, MachineGraph* mcgraph,
-                          wasm::FunctionSig* sig,
+                          const wasm::FunctionSig* sig,
                           compiler::SourcePositionTable* spt,
                           StubCallMode stub_mode, wasm::WasmFeatures features)
       : WasmGraphBuilder(nullptr, zone, mcgraph, sig, spt),
@@ -5304,7 +5305,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   int AddArgumentNodes(Vector<Node*> args, int pos, int param_count,
-                       wasm::FunctionSig* sig) {
+                       const wasm::FunctionSig* sig) {
     // Convert wasm numbers to JS values.
     for (int i = 0; i < param_count; ++i) {
       Node* param =
@@ -6297,8 +6298,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 }  // namespace
 
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, wasm::WasmEngine* wasm_engine, wasm::FunctionSig* sig,
-    bool is_import, const wasm::WasmFeatures& enabled_features) {
+    Isolate* isolate, wasm::WasmEngine* wasm_engine,
+    const wasm::FunctionSig* sig, bool is_import,
+    const wasm::WasmFeatures& enabled_features) {
   //----------------------------------------------------------------------------
   // Create the Graph.
   //----------------------------------------------------------------------------
@@ -6338,13 +6340,13 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
 }
 
 std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
-    Handle<JSReceiver> callable, wasm::FunctionSig* expected_sig,
+    Handle<JSReceiver> callable, const wasm::FunctionSig* expected_sig,
     const wasm::WasmFeatures& enabled_features) {
   if (WasmExportedFunction::IsWasmExportedFunction(*callable)) {
     auto imported_function = Handle<WasmExportedFunction>::cast(callable);
     auto func_index = imported_function->function_index();
     auto module = imported_function->instance().module();
-    wasm::FunctionSig* imported_sig = module->functions[func_index].sig;
+    const wasm::FunctionSig* imported_sig = module->functions[func_index].sig;
     if (*imported_sig != *expected_sig) {
       return std::make_pair(WasmImportCallKind::kLinkError, callable);
     }
@@ -6383,14 +6385,15 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
     SharedFunctionInfo shared = function->shared();
 
 // Check for math intrinsics.
-#define COMPARE_SIG_FOR_BUILTIN(name)                                         \
-  {                                                                           \
-    wasm::FunctionSig* sig = wasm::WasmOpcodes::Signature(wasm::kExpr##name); \
-    if (!sig) sig = wasm::WasmOpcodes::AsmjsSignature(wasm::kExpr##name);     \
-    DCHECK_NOT_NULL(sig);                                                     \
-    if (*expected_sig == *sig) {                                              \
-      return std::make_pair(WasmImportCallKind::k##name, callable);           \
-    }                                                                         \
+#define COMPARE_SIG_FOR_BUILTIN(name)                                     \
+  {                                                                       \
+    const wasm::FunctionSig* sig =                                        \
+        wasm::WasmOpcodes::Signature(wasm::kExpr##name);                  \
+    if (!sig) sig = wasm::WasmOpcodes::AsmjsSignature(wasm::kExpr##name); \
+    DCHECK_NOT_NULL(sig);                                                 \
+    if (*expected_sig == *sig) {                                          \
+      return std::make_pair(WasmImportCallKind::k##name, callable);       \
+    }                                                                     \
   }
 #define COMPARE_SIG_FOR_BUILTIN_F64(name) \
   case Builtins::kMath##name:             \
@@ -6487,7 +6490,7 @@ wasm::WasmOpcode GetMathIntrinsicOpcode(WasmImportCallKind kind,
 
 wasm::WasmCompilationResult CompileWasmMathIntrinsic(
     wasm::WasmEngine* wasm_engine, WasmImportCallKind kind,
-    wasm::FunctionSig* sig) {
+    const wasm::FunctionSig* sig) {
   DCHECK_EQ(1, sig->return_count());
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
@@ -6550,7 +6553,8 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
 
 wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     wasm::WasmEngine* wasm_engine, wasm::CompilationEnv* env,
-    WasmImportCallKind kind, wasm::FunctionSig* sig, bool source_positions) {
+    WasmImportCallKind kind, const wasm::FunctionSig* sig,
+    bool source_positions) {
   DCHECK_NE(WasmImportCallKind::kLinkError, kind);
   DCHECK_NE(WasmImportCallKind::kWasmToWasm, kind);
 
@@ -6602,7 +6606,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
 
 wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine* wasm_engine,
                                            wasm::NativeModule* native_module,
-                                           wasm::FunctionSig* sig,
+                                           const wasm::FunctionSig* sig,
                                            Address address) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "CompileWasmCapiFunction");
 
@@ -6653,7 +6657,7 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine* wasm_engine,
 
 wasm::WasmCompilationResult CompileWasmInterpreterEntry(
     wasm::WasmEngine* wasm_engine, const wasm::WasmFeatures& enabled_features,
-    uint32_t func_index, wasm::FunctionSig* sig) {
+    uint32_t func_index, const wasm::FunctionSig* sig) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -6692,7 +6696,7 @@ wasm::WasmCompilationResult CompileWasmInterpreterEntry(
 }
 
 MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
-                                       wasm::FunctionSig* sig) {
+                                       const wasm::FunctionSig* sig) {
   std::unique_ptr<Zone> zone =
       std::make_unique<Zone>(isolate->allocator(), ZONE_NAME);
   Graph* graph = new (zone.get()) Graph(zone.get());
@@ -6737,7 +6741,8 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
   return code;
 }
 
-MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
+MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate,
+                                    const wasm::FunctionSig* sig) {
   std::unique_ptr<Zone> zone =
       std::make_unique<Zone>(isolate->allocator(), ZONE_NAME);
   Graph* graph = new (zone.get()) Graph(zone.get());
@@ -6967,7 +6972,7 @@ class LinkageLocationAllocator {
 
 // General code uses the above configuration data.
 CallDescriptor* GetWasmCallDescriptor(
-    Zone* zone, wasm::FunctionSig* fsig,
+    Zone* zone, const wasm::FunctionSig* fsig,
     WasmGraphBuilder::UseRetpoline use_retpoline, WasmCallKind call_kind) {
   // The extra here is to accomodate the instance object as first parameter
   // and, when specified, the additional callable.

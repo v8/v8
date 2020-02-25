@@ -57,7 +57,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
 V8_EXPORT_PRIVATE
 WasmCode* CompileImportWrapper(
     WasmEngine* wasm_engine, NativeModule* native_module, Counters* counters,
-    compiler::WasmImportCallKind kind, FunctionSig* sig,
+    compiler::WasmImportCallKind kind, const FunctionSig* sig,
     WasmImportWrapperCache::ModificationScope* cache_scope);
 
 V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(

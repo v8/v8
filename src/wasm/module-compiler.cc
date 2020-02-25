@@ -1080,7 +1080,8 @@ bool ExecuteCompilationUnits(
       DCHECK_LE(0, func_index);
       DCHECK_LT(func_index, native_module->num_functions());
       if (func_index < num_imported_functions) {
-        FunctionSig* sig = native_module->module()->functions[func_index].sig;
+        const FunctionSig* sig =
+            native_module->module()->functions[func_index].sig;
         WasmImportWrapperCache::CacheKey key(compiler::kDefaultImportCallKind,
                                              sig);
         // If two imported functions have the same key, only one of them should
@@ -1177,7 +1178,7 @@ int AddImportWrapperUnits(NativeModule* native_module,
       keys;
   int num_imported_functions = native_module->num_imported_functions();
   for (int func_index = 0; func_index < num_imported_functions; func_index++) {
-    FunctionSig* sig = native_module->module()->functions[func_index].sig;
+    const FunctionSig* sig = native_module->module()->functions[func_index].sig;
     if (!IsJSCompatibleSignature(sig, native_module->enabled_features())) {
       continue;
     }
@@ -2968,7 +2969,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
 
 WasmCode* CompileImportWrapper(
     WasmEngine* wasm_engine, NativeModule* native_module, Counters* counters,
-    compiler::WasmImportCallKind kind, FunctionSig* sig,
+    compiler::WasmImportCallKind kind, const FunctionSig* sig,
     WasmImportWrapperCache::ModificationScope* cache_scope) {
   // Entry should exist, so that we don't insert a new one and invalidate
   // other threads' iterators/references, but it should not have been compiled

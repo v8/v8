@@ -1516,7 +1516,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::wasm::FunctionSig* sig = builder.Build();
+  const i::wasm::FunctionSig* sig = builder.Build();
   i::Handle<i::JSReceiver> callable =
       Utils::OpenHandle(*args[1].As<Function>());
   i::Handle<i::JSFunction> result =
@@ -1531,7 +1531,7 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Function.type()");
 
-  i::wasm::FunctionSig* sig;
+  const i::wasm::FunctionSig* sig;
   i::Zone zone(i_isolate->allocator(), ZONE_NAME);
   i::Handle<i::Object> arg0 = Utils::OpenHandle(*args[0]);
   if (i::WasmExportedFunction::IsWasmExportedFunction(*arg0)) {

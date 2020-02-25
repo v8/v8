@@ -516,7 +516,7 @@ void WasmTableObject::Fill(Isolate* isolate, Handle<WasmTableObject> table,
 
 void WasmTableObject::UpdateDispatchTables(
     Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
-    wasm::FunctionSig* sig, Handle<WasmInstanceObject> target_instance,
+    const wasm::FunctionSig* sig, Handle<WasmInstanceObject> target_instance,
     int target_func_index) {
   // We simply need to update the IFTs for each instance that imports
   // this table.
@@ -1441,7 +1441,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   // Note that {SignatureMap::Find} may return {-1} if the signature is
   // not found; it will simply never match any check.
   Zone zone(isolate->allocator(), ZONE_NAME);
-  wasm::FunctionSig* sig = js_function->GetSignature(&zone);
+  const wasm::FunctionSig* sig = js_function->GetSignature(&zone);
   auto sig_id = instance->module()->signature_map.Find(*sig);
 
   // Compile a wrapper for the target callable.
@@ -1812,7 +1812,7 @@ Address WasmExportedFunction::GetWasmCallTarget() {
   return instance().GetCallTarget(function_index());
 }
 
-wasm::FunctionSig* WasmExportedFunction::sig() {
+const wasm::FunctionSig* WasmExportedFunction::sig() {
   return instance().module()->functions[function_index()].sig;
 }
 
@@ -1824,7 +1824,7 @@ bool WasmJSFunction::IsWasmJSFunction(Object object) {
 }
 
 Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
-                                           wasm::FunctionSig* sig,
+                                           const wasm::FunctionSig* sig,
                                            Handle<JSReceiver> callable) {
   DCHECK_LE(sig->all().size(), kMaxInt);
   int sig_size = static_cast<int>(sig->all().size());
@@ -1864,7 +1864,7 @@ JSReceiver WasmJSFunction::GetCallable() const {
   return shared().wasm_js_function_data().callable();
 }
 
-wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
+const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
   WasmJSFunctionData function_data = shared().wasm_js_function_data();
   int sig_size = function_data.serialized_signature().length();
   wasm::ValueType* types = zone->NewArray<wasm::ValueType>(sig_size);
@@ -1876,7 +1876,7 @@ wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
   return new (zone) wasm::FunctionSig(return_count, parameter_count, types);
 }
 
-bool WasmJSFunction::MatchesSignature(wasm::FunctionSig* sig) {
+bool WasmJSFunction::MatchesSignature(const wasm::FunctionSig* sig) {
   DCHECK_LE(sig->all().size(), kMaxInt);
   int sig_size = static_cast<int>(sig->all().size());
   int return_count = static_cast<int>(sig->return_count());

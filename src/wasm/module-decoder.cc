@@ -552,7 +552,7 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; ok() && i < signatures_count; ++i) {
       TRACE("DecodeSignature[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
-      FunctionSig* s = consume_sig(module_->signature_zone.get());
+      const FunctionSig* s = consume_sig(module_->signature_zone.get());
       module_->signatures.push_back(s);
       uint32_t id = s ? module_->signature_map.FindOrInsert(*s) : 0;
       module_->signature_ids.push_back(id);
@@ -650,7 +650,7 @@ class ModuleDecoderImpl : public Decoder {
             break;
           }
           import->index = static_cast<uint32_t>(module_->exceptions.size());
-          WasmExceptionSig* exception_sig = nullptr;
+          const WasmExceptionSig* exception_sig = nullptr;
           consume_exception_attribute();  // Attribute ignored for now.
           consume_exception_sig_index(module_.get(), &exception_sig);
           module_->exceptions.emplace_back(exception_sig);
@@ -1128,7 +1128,7 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; ok() && i < exception_count; ++i) {
       TRACE("DecodeException[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
-      WasmExceptionSig* exception_sig = nullptr;
+      const WasmExceptionSig* exception_sig = nullptr;
       consume_exception_attribute();  // Attribute ignored for now.
       consume_exception_sig_index(module_.get(), &exception_sig);
       module_->exceptions.emplace_back(exception_sig);
@@ -1262,9 +1262,9 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   // Decodes a single function signature at {start}.
-  FunctionSig* DecodeFunctionSignature(Zone* zone, const byte* start) {
+  const FunctionSig* DecodeFunctionSignature(Zone* zone, const byte* start) {
     pc_ = start;
-    FunctionSig* result = consume_sig(zone);
+    const FunctionSig* result = consume_sig(zone);
     return ok() ? result : nullptr;
   }
 
@@ -1431,7 +1431,7 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  uint32_t consume_sig_index(WasmModule* module, FunctionSig** sig) {
+  uint32_t consume_sig_index(WasmModule* module, const FunctionSig** sig) {
     const byte* pos = pc_;
     uint32_t sig_index = consume_u32v("signature index");
     if (sig_index >= module->signatures.size()) {
@@ -1444,7 +1444,8 @@ class ModuleDecoderImpl : public Decoder {
     return sig_index;
   }
 
-  uint32_t consume_exception_sig_index(WasmModule* module, FunctionSig** sig) {
+  uint32_t consume_exception_sig_index(WasmModule* module,
+                                       const FunctionSig** sig) {
     const byte* pos = pc_;
     uint32_t sig_index = consume_sig_index(module, sig);
     if (*sig && (*sig)->return_count() != 0) {
@@ -1749,7 +1750,7 @@ class ModuleDecoderImpl : public Decoder {
     return kWasmStmt;
   }
 
-  FunctionSig* consume_sig(Zone* zone) {
+  const FunctionSig* consume_sig(Zone* zone) {
     if (!expect_u8("type form", kWasmFunctionTypeCode)) return nullptr;
     // parse parameter types
     uint32_t param_count =
@@ -2071,9 +2072,9 @@ size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
 
 bool ModuleDecoder::ok() { return impl_->ok(); }
 
-FunctionSig* DecodeWasmSignatureForTesting(const WasmFeatures& enabled,
-                                           Zone* zone, const byte* start,
-                                           const byte* end) {
+const FunctionSig* DecodeWasmSignatureForTesting(const WasmFeatures& enabled,
+                                                 Zone* zone, const byte* start,
+                                                 const byte* end) {
   ModuleDecoderImpl decoder(enabled, start, end, kWasmOrigin);
   return decoder.DecodeFunctionSignature(zone, start);
 }

@@ -911,7 +911,7 @@ class WasmGraphBuildingInterface {
   }
 
   void DoCall(FullDecoder* decoder, uint32_t table_index, TFNode* index_node,
-              FunctionSig* sig, uint32_t sig_index, const Value args[],
+              const FunctionSig* sig, uint32_t sig_index, const Value args[],
               Value returns[]) {
     size_t param_count = sig->parameter_count();
     size_t return_count = sig->return_count();
@@ -937,8 +937,8 @@ class WasmGraphBuildingInterface {
   }
 
   void DoReturnCall(FullDecoder* decoder, uint32_t table_index,
-                    TFNode* index_node, FunctionSig* sig, uint32_t sig_index,
-                    const Value args[]) {
+                    TFNode* index_node, const FunctionSig* sig,
+                    uint32_t sig_index, const Value args[]) {
     size_t arg_count = sig->parameter_count();
     base::SmallVector<TFNode*, 16> arg_nodes(arg_count + 1);
     arg_nodes[0] = index_node;

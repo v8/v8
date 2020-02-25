@@ -835,7 +835,7 @@ bool InstanceBuilder::ProcessImportedFunction(
         Handle<WasmExternalFunction>::cast(value));
   }
   auto js_receiver = Handle<JSReceiver>::cast(value);
-  FunctionSig* expected_sig = module_->functions[func_index].sig;
+  const FunctionSig* expected_sig = module_->functions[func_index].sig;
   auto resolved =
       compiler::ResolveWasmImportCall(js_receiver, expected_sig, enabled_);
   compiler::WasmImportCallKind kind = resolved.first;
@@ -929,10 +929,10 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
 
     Handle<WasmInstanceObject> target_instance =
         maybe_target_instance.ToHandleChecked();
-    FunctionSig* sig = target_instance->module_object()
-                           .module()
-                           ->functions[function_index]
-                           .sig;
+    const FunctionSig* sig = target_instance->module_object()
+                                 .module()
+                                 ->functions[function_index]
+                                 .sig;
 
     // Look up the signature's canonical id. If there is no canonical
     // id, then the signature does not appear at all in this module,
@@ -1212,7 +1212,7 @@ void InstanceBuilder::CompileImportWrappers(
     }
     auto js_receiver = Handle<JSReceiver>::cast(value);
     uint32_t func_index = module_->import_table[index].index;
-    FunctionSig* sig = module_->functions[func_index].sig;
+    const FunctionSig* sig = module_->functions[func_index].sig;
     auto resolved = compiler::ResolveWasmImportCall(js_receiver, sig, enabled_);
     compiler::WasmImportCallKind kind = resolved.first;
     if (kind == compiler::WasmImportCallKind::kWasmToWasm ||

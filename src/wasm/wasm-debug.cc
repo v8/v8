@@ -166,7 +166,7 @@ class InterpreterHandle {
                Vector<WasmValue> argument_values,
                Vector<WasmValue> return_values) {
     DCHECK_GE(module()->functions.size(), func_index);
-    FunctionSig* sig = module()->functions[func_index].sig;
+    const FunctionSig* sig = module()->functions[func_index].sig;
     DCHECK_EQ(sig->parameter_count(), argument_values.size());
     DCHECK_EQ(sig->return_count(), return_values.size());
 
@@ -955,7 +955,7 @@ Handle<JSObject> WasmDebugInfo::GetLocalScopeObject(
 
 // static
 Handle<Code> WasmDebugInfo::GetCWasmEntry(Handle<WasmDebugInfo> debug_info,
-                                          wasm::FunctionSig* sig) {
+                                          const wasm::FunctionSig* sig) {
   Isolate* isolate = debug_info->GetIsolate();
   DCHECK_EQ(debug_info->has_c_wasm_entries(),
             debug_info->has_c_wasm_entry_map());

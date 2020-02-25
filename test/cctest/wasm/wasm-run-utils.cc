@@ -105,7 +105,8 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {
   return mem_start_;
 }
 
-uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
+uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
+                                           const char* name,
                                            FunctionType type) {
   if (test_module_->functions.size() == 0) {
     // TODO(titzer): Reserving space here to avoid the underlying WasmFunction
@@ -240,7 +241,7 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
   return bytes_offset;
 }
 
-uint32_t TestingModuleBuilder::AddException(FunctionSig* sig) {
+uint32_t TestingModuleBuilder::AddException(const FunctionSig* sig) {
   DCHECK_EQ(0, sig->return_count());
   uint32_t index = static_cast<uint32_t>(test_module_->exceptions.size());
   test_module_->exceptions.push_back(WasmException{sig});
@@ -358,7 +359,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
 }
 
 void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
-                                  Zone* zone, FunctionSig* sig,
+                                  Zone* zone, const FunctionSig* sig,
                                   const byte* start, const byte* end) {
   WasmFeatures unused_detected_features;
   FunctionBody body(sig, 0, start, end);
@@ -385,7 +386,7 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
 }
 
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
-                       CompilationEnv* module, FunctionSig* sig,
+                       CompilationEnv* module, const FunctionSig* sig,
                        compiler::SourcePositionTable* source_position_table,
                        const byte* start, const byte* end) {
   compiler::WasmGraphBuilder builder(module, zone, jsgraph, sig,
@@ -558,7 +559,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   if (WasmCode::ShouldBeLogged(isolate())) code->LogCode(isolate());
 }
 
-WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
+WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, const FunctionSig* sig,
                                            TestingModuleBuilder* builder,
                                            const char* name)
     : GraphAndBuilders(zone),
@@ -577,8 +578,8 @@ WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
 
 WasmFunctionCompiler::~WasmFunctionCompiler() = default;
 
-FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
-                                       Vector<MachineType> param_types) {
+const FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
+                                             Vector<MachineType> param_types) {
   int return_count = return_type.IsNone() ? 0 : 1;
   int param_count = param_types.length();
 

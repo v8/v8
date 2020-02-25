@@ -376,11 +376,11 @@ class LiftoffAssembler : public TurboAssembler {
   // Load parameters into the right registers / stack slots for the call.
   // Move {*target} into another register if needed and update {*target} to that
   // register, or {no_reg} if target was spilled to the stack.
-  void PrepareCall(FunctionSig*, compiler::CallDescriptor*,
+  void PrepareCall(const FunctionSig*, compiler::CallDescriptor*,
                    Register* target = nullptr,
                    Register* target_instance = nullptr);
   // Process return values of the call.
-  void FinishCall(FunctionSig*, compiler::CallDescriptor*);
+  void FinishCall(const FunctionSig*, compiler::CallDescriptor*);
 
   // Move {src} into {dst}. {src} and {dst} must be different.
   void Move(LiftoffRegister dst, LiftoffRegister src, ValueType);
@@ -398,7 +398,7 @@ class LiftoffAssembler : public TurboAssembler {
   };
   void ParallelRegisterMove(Vector<ParallelRegisterMoveTuple>);
 
-  void MoveToReturnRegisters(FunctionSig*);
+  void MoveToReturnRegisters(const FunctionSig*);
 
 #ifdef ENABLE_SLOW_DCHECKS
   // Validate that the register use counts reflect the state of the cache.
@@ -709,13 +709,13 @@ class LiftoffAssembler : public TurboAssembler {
   // this is the return value of the C function, stored in {rets[0]}. Further
   // outputs (specified in {sig->returns()}) are read from the buffer and stored
   // in the remaining {rets} registers.
-  inline void CallC(FunctionSig* sig, const LiftoffRegister* args,
+  inline void CallC(const FunctionSig* sig, const LiftoffRegister* args,
                     const LiftoffRegister* rets, ValueType out_argument_type,
                     int stack_bytes, ExternalReference ext_ref);
 
   inline void CallNativeWasmCode(Address addr);
   // Indirect call: If {target == no_reg}, then pop the target from the stack.
-  inline void CallIndirect(FunctionSig* sig,
+  inline void CallIndirect(const FunctionSig* sig,
                            compiler::CallDescriptor* call_descriptor,
                            Register target);
   inline void CallRuntimeStub(WasmCode::RuntimeStubId sid);
