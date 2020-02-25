@@ -828,9 +828,12 @@ StringData::StringData(JSHeapBroker* broker, ObjectData** storage,
       is_external_string_(object->IsExternalString()),
       is_seq_string_(object->IsSeqString()),
       chars_as_strings_(broker->zone()) {
-  int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
   if (length_ <= kMaxLengthForDoubleConversion) {
-    to_number_ = StringToDouble(broker->isolate(), object, flags);
+    const int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
+    uc16 buffer[kMaxLengthForDoubleConversion];
+    String::WriteToFlat(*object, buffer, 0, length_);
+    Vector<const uc16> v(buffer, length_);
+    to_number_ = StringToDouble(v, flags);
   }
 }
 
