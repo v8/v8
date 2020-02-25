@@ -265,7 +265,17 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
 
 #define FOREACH_SIMD_MEM_OPCODE(V) \
   V(S128LoadMem, 0xfd00, s_i)      \
-  V(S128StoreMem, 0xfd01, v_is)
+  V(S128StoreMem, 0xfd01, v_is)    \
+  V(S8x16LoadSplat, 0xfdc2, s_i)   \
+  V(S16x8LoadSplat, 0xfdc3, s_i)   \
+  V(S32x4LoadSplat, 0xfdc4, s_i)   \
+  V(S64x2LoadSplat, 0xfdc5, s_i)   \
+  V(I16x8Load8x8S, 0xfdd2, s_i)    \
+  V(I16x8Load8x8U, 0xfdd3, s_i)    \
+  V(I32x4Load16x4S, 0xfdd4, s_i)   \
+  V(I32x4Load16x4U, 0xfdd5, s_i)   \
+  V(I64x2Load32x2S, 0xfdd6, s_i)   \
+  V(I64x2Load32x2U, 0xfdd7, s_i)
 
 #define FOREACH_SIMD_MASK_OPERAND_OPCODE(V) V(S8x16Shuffle, 0xfd03, s_ss)
 
@@ -420,10 +430,6 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F32x4SConvertI32x4, 0xfdaf, s_s)     \
   V(F32x4UConvertI32x4, 0xfdb0, s_s)     \
   V(S8x16Swizzle, 0xfdc0, s_ss)          \
-  V(S8x16LoadSplat, 0xfdc2, s_i)         \
-  V(S16x8LoadSplat, 0xfdc3, s_i)         \
-  V(S32x4LoadSplat, 0xfdc4, s_i)         \
-  V(S64x2LoadSplat, 0xfdc5, s_i)         \
   V(I8x16SConvertI16x8, 0xfdc6, s_ss)    \
   V(I8x16UConvertI16x8, 0xfdc7, s_ss)    \
   V(I16x8SConvertI32x4, 0xfdc8, s_ss)    \
@@ -436,12 +442,6 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I32x4SConvertI16x8High, 0xfdcf, s_s) \
   V(I32x4UConvertI16x8Low, 0xfdd0, s_s)  \
   V(I32x4UConvertI16x8High, 0xfdd1, s_s) \
-  V(I16x8Load8x8S, 0xfdd2, s_s)          \
-  V(I16x8Load8x8U, 0xfdd3, s_s)          \
-  V(I32x4Load16x4S, 0xfdd4, s_s)         \
-  V(I32x4Load16x4U, 0xfdd5, s_s)         \
-  V(I64x2Load32x2S, 0xfdd6, s_s)         \
-  V(I64x2Load32x2U, 0xfdd7, s_s)         \
   V(S128AndNot, 0xfdd8, s_ss)            \
   V(I8x16RoundingAverageU, 0xfdd9, s_ss) \
   V(I16x8RoundingAverageU, 0xfdda, s_ss) \
