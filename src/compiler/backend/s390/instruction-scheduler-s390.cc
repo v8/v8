@@ -246,6 +246,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I8x16SubSaturateS:
     case kS390_I8x16AddSaturateU:
     case kS390_I8x16SubSaturateU:
+    case kS390_S8x16Shuffle:
     case kS390_S1x4AnyTrue:
     case kS390_S1x8AnyTrue:
     case kS390_S1x16AnyTrue:

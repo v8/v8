@@ -300,6 +300,7 @@ namespace compiler {
   V(S390_I8x16SubSaturateS)                 \
   V(S390_I8x16AddSaturateU)                 \
   V(S390_I8x16SubSaturateU)                 \
+  V(S390_S8x16Shuffle)                      \
   V(S390_S1x4AnyTrue)                       \
   V(S390_S1x8AnyTrue)                       \
   V(S390_S1x16AnyTrue)                      \

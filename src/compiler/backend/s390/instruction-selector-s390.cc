@@ -2718,6 +2718,34 @@ SIMD_CONVERSION_LIST(SIMD_VISIT_CONVERSION)
 #undef SIMD_CONVERSION_LIST
 #undef SIMD_TYPES
 
+void InstructionSelector::VisitS8x16Shuffle(Node* node) {
+  uint8_t shuffle[kSimd128Size];
+  bool is_swizzle;
+  CanonicalizeShuffle(node, shuffle, &is_swizzle);
+  S390OperandGenerator g(this);
+  Node* input0 = node->InputAt(0);
+  Node* input1 = node->InputAt(1);
+  // input registers are each in reverse order, we will have to remap the
+  // shuffle indices
+  int max_index = 15;
+  int total_lane_count = 2 * kSimd128Size;
+  uint8_t shuffle_remapped[kSimd128Size];
+  for (int i = 0; i < kSimd128Size; i++) {
+    uint8_t current_index = shuffle[i];
+    shuffle_remapped[i] = (current_index <= max_index
+                               ? max_index - current_index
+                               : total_lane_count - current_index + max_index);
+  }
+  Emit(kS390_S8x16Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+       g.UseRegister(input1),
+       // Pack4Lanes reverses the bytes, therefore we will need to pass it in
+       // reverse
+       g.UseImmediate(Pack4Lanes(shuffle_remapped + 12)),
+       g.UseImmediate(Pack4Lanes(shuffle_remapped + 8)),
+       g.UseImmediate(Pack4Lanes(shuffle_remapped + 4)),
+       g.UseImmediate(Pack4Lanes(shuffle_remapped)));
+}
+
 void InstructionSelector::VisitS128Zero(Node* node) {
   S390OperandGenerator g(this);
   Emit(kS390_S128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node));
@@ -2770,8 +2798,6 @@ void InstructionSelector::VisitF32x4Div(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Min(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Max(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS8x16Swizzle(Node* node) { UNIMPLEMENTED(); }
 

@@ -3689,6 +3689,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef BINOP_EXTRACT
+    case kS390_S8x16Shuffle: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      int32_t k8x16_indices[] = {i.InputInt32(2), i.InputInt32(3),
+                                 i.InputInt32(4), i.InputInt32(5)};
+      // create 2 * 8 byte inputs indicating new indices
+      for (int i = 0, j = 0; i < 2; i++, j = +2) {
+        __ lgfi(i < 1 ? ip : r0, Operand(k8x16_indices[j + 1]));
+        __ aih(i < 1 ? ip : r0, Operand(k8x16_indices[j]));
+      }
+      __ vlvgp(kScratchDoubleReg, ip, r0);
+      __ vperm(dst, src0, src1, kScratchDoubleReg, Condition(0), Condition(0));
+      break;
+    }
     default:
       UNREACHABLE();
   }
