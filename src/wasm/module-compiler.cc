@@ -381,9 +381,11 @@ class CompilationStateImpl {
   // is invoked which triggers background compilation.
   void InitializeCompilationProgress(bool lazy_module, int num_wrappers);
 
-  // Initialize compilation progress for recompilation of the whole module.
-  // Return a vector of functions to recompile.
-  std::vector<int> InitializeRecompilationProgress(
+  // Initialize recompilation of the whole module: Setup compilation progress
+  // for recompilation and add the respective compilation units. The callback is
+  // called immediately if no recompilation is needed, or called later
+  // otherwise.
+  void InitializeRecompilation(
       ExecutionTier tier,
       CompilationState::callback_t recompilation_finished_callback);
 
@@ -1232,19 +1234,6 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
   builder.Commit();
 }
 
-void AddBaselineCompilationUnits(NativeModule* native_module,
-                                 Vector<int> recompilation_functions) {
-  CompilationUnitBuilder builder(native_module);
-
-  for (int func_index : recompilation_functions) {
-    DCHECK_LE(native_module->num_imported_functions(), func_index);
-    DCHECK_LT(func_index, native_module->num_functions());
-    builder.AddBaselineUnit(func_index);
-  }
-
-  builder.Commit();
-}
-
 bool MayCompriseLazyFunctions(const WasmModule* module,
                               const WasmFeatures& enabled_features,
                               bool lazy_module) {
@@ -1450,14 +1439,12 @@ void RecompileNativeModule(Isolate* isolate, NativeModule* native_module,
   DCHECK_EQ(tier, ExecutionTier::kLiftoff);
   // The callback captures a shared ptr to the semaphore.
   // Initialize the compilation units and kick off background compile tasks.
-  std::vector<int> recompilation_functions =
-      compilation_state->InitializeRecompilationProgress(
-          tier, [recompilation_finished_semaphore](CompilationEvent event) {
-            if (event == CompilationEvent::kFinishedRecompilation) {
-              recompilation_finished_semaphore->Signal();
-            }
-          });
-  AddBaselineCompilationUnits(native_module, VectorOf(recompilation_functions));
+  compilation_state->InitializeRecompilation(
+      tier, [recompilation_finished_semaphore](CompilationEvent event) {
+        if (event == CompilationEvent::kFinishedRecompilation) {
+          recompilation_finished_semaphore->Signal();
+        }
+      });
 
   // The main thread contributes to the compilation, except if we need
   // deterministic compilation; in that case, the single background task will
@@ -2542,52 +2529,55 @@ void CompilationStateImpl::InitializeCompilationProgress(bool lazy_module,
   }
 }
 
-std::vector<int> CompilationStateImpl::InitializeRecompilationProgress(
+void CompilationStateImpl::InitializeRecompilation(
     ExecutionTier tier,
     CompilationState::callback_t recompilation_finished_callback) {
   DCHECK(!failed());
 
-  std::vector<int> recompilation_functions;
-  base::MutexGuard guard(&callbacks_mutex_);
+  // Generate necessary compilation units on the fly.
+  CompilationUnitBuilder builder(native_module_);
 
-  // Ensure that we don't trigger recompilation if another recompilation is
-  // already happening.
-  DCHECK_EQ(0, outstanding_recompilation_functions_);
-  // If compilation hasn't started yet then code would be keep as tiered-down
-  // and don't need to recompile.
-  if (compilation_progress_.size() > 0) {
-    int start = native_module_->module()->num_imported_functions;
-    int end = start + native_module_->module()->num_declared_functions;
-    for (int function_index = start; function_index < end; function_index++) {
-      int slot_index = function_index - start;
-      DCHECK_LT(slot_index, compilation_progress_.size());
-      ExecutionTier reached_tier =
-          ReachedTierField::decode(compilation_progress_[slot_index]);
-      compilation_progress_[slot_index] = ReachedRecompilationTierField::update(
-          compilation_progress_[slot_index], ExecutionTier::kLiftoff);
-      if (reached_tier != tier ||
-          !native_module_->HasCodeWithTier(function_index, tier)) {
-        outstanding_recompilation_functions_++;
-        recompilation_functions.push_back(function_index);
+  {
+    base::MutexGuard guard(&callbacks_mutex_);
+
+    // Ensure that we don't trigger recompilation if another recompilation is
+    // already happening.
+    DCHECK_EQ(0, outstanding_recompilation_functions_);
+    // If compilation hasn't started yet then code would be keep as tiered-down
+    // and don't need to recompile.
+    if (compilation_progress_.size() > 0) {
+      int start = native_module_->module()->num_imported_functions;
+      int end = start + native_module_->module()->num_declared_functions;
+      for (int function_index = start; function_index < end; function_index++) {
+        int slot_index = function_index - start;
+        DCHECK_LT(slot_index, compilation_progress_.size());
+        ExecutionTier reached_tier =
+            ReachedTierField::decode(compilation_progress_[slot_index]);
+        bool has_correct_tier =
+            reached_tier == tier &&
+            native_module_->HasCodeWithTier(function_index, tier);
         compilation_progress_[slot_index] =
             ReachedRecompilationTierField::update(
-                compilation_progress_[slot_index], ExecutionTier::kNone);
+                compilation_progress_[slot_index],
+                has_correct_tier ? tier : ExecutionTier::kNone);
+        if (!has_correct_tier) {
+          outstanding_recompilation_functions_++;
+          // TODO(duongn): Fix this for tier up.
+          builder.AddBaselineUnit(function_index);
+        }
       }
     }
-    DCHECK_LE(0, outstanding_recompilation_functions_);
-    DCHECK_LE(outstanding_recompilation_functions_,
-              native_module_->module()->num_declared_functions);
+
+    // Trigger callback if module needs no recompilation. Add to the list of
+    // callbacks (to be called later) otherwise.
+    if (outstanding_recompilation_functions_ == 0) {
+      recompilation_finished_callback(CompilationEvent::kFinishedRecompilation);
+    } else {
+      callbacks_.emplace_back(std::move(recompilation_finished_callback));
+    }
   }
 
-  // Trigger callback if module needs no recompilation. Add to the list of
-  // callbacks (to be called later) otherwise.
-  if (outstanding_recompilation_functions_ == 0) {
-    recompilation_finished_callback(CompilationEvent::kFinishedRecompilation);
-  } else {
-    callbacks_.emplace_back(std::move(recompilation_finished_callback));
-  }
-
-  return recompilation_functions;
+  builder.Commit();
 }
 
 void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
