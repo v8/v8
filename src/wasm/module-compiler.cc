@@ -394,6 +394,10 @@ class CompilationStateImpl {
   // events. The callback object must support being deleted from any thread.
   void AddCallback(CompilationState::callback_t);
 
+  // If the module is already tiered up, trigger the callback immediately with a
+  // {kFinishedTopTierCompilation} event. Otherwise, behave as {AddCallback}.
+  void NotifyTopTierReady(CompilationState::callback_t);
+
   // Inserts new functions to compile and kicks off compilation.
   void AddCompilationUnits(
       Vector<WasmCompilationUnit> baseline_units,
@@ -411,7 +415,9 @@ class CompilationStateImpl {
 
   void OnFinishedUnits(Vector<WasmCode*>, Vector<WasmCompilationResult>);
   void OnFinishedJSToWasmWrapperUnits(int num);
-  void TriggerCallbacks(base::EnumSet<CompilationEvent>);
+  void TriggerCallbacks(bool completes_baseline_compilation,
+                        bool completes_top_tier_compilation,
+                        bool completes_recompilation = false);
 
   void OnBackgroundTaskStopped(int task_id, const WasmFeatures& detected);
   void UpdateDetectedFeatures(const WasmFeatures& detected);
@@ -544,9 +550,6 @@ class CompilationStateImpl {
   // Callback functions to be called on compilation events.
   std::vector<CompilationState::callback_t> callbacks_;
 
-  // Events that already happened.
-  base::EnumSet<CompilationEvent> finished_events_;
-
   int outstanding_baseline_units_ = 0;
   int outstanding_top_tier_functions_ = 0;
   std::vector<uint8_t> compilation_progress_;
@@ -602,6 +605,11 @@ std::shared_ptr<WireBytesStorage> CompilationState::GetWireBytesStorage()
 
 void CompilationState::AddCallback(CompilationState::callback_t callback) {
   return Impl(this)->AddCallback(std::move(callback));
+}
+
+void CompilationState::NotifyTopTierReady(
+    CompilationState::callback_t callback) {
+  return Impl(this)->NotifyTopTierReady(std::move(callback));
 }
 
 bool CompilationState::failed() const { return Impl(this)->failed(); }
@@ -977,7 +985,7 @@ bool ExecuteJSToWasmWrapperCompilationUnits(
       ++num_processed_wrappers;
     }
   } while (wrapper_unit);
-  if (num_processed_wrappers > 0) {
+  {
     BackgroundCompileScope compile_scope(token);
     if (compile_scope.cancelled()) return false;
     compile_scope.compilation_state()->OnFinishedJSToWasmWrapperUnits(
@@ -2046,7 +2054,10 @@ class SampleTopTierCodeSizeCallback {
       : native_module_(std::move(native_module)) {}
 
   void operator()(CompilationEvent event) {
-    if (event != CompilationEvent::kFinishedTopTierCompilation) return;
+    // This callback is registered after baseline compilation finished, so the
+    // only possible event to follow is {kFinishedTopTierCompilation}.
+    if (event == CompilationEvent::kFinishedRecompilation) return;
+    DCHECK_EQ(CompilationEvent::kFinishedTopTierCompilation, event);
     if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
       native_module->engine()->SampleTopTierCodeSizeInAllIsolates(
           native_module);
@@ -2571,20 +2582,17 @@ void CompilationStateImpl::InitializeRecompilation(
 
 void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
   base::MutexGuard callbacks_guard(&callbacks_mutex_);
-  // Immediately trigger events that already happened.
-  for (auto event : {CompilationEvent::kFinishedBaselineCompilation,
-                     CompilationEvent::kFinishedTopTierCompilation,
-                     CompilationEvent::kFailedCompilation}) {
-    if (finished_events_.contains(event)) {
-      callback(event);
-    }
+  callbacks_.emplace_back(std::move(callback));
+}
+
+void CompilationStateImpl::NotifyTopTierReady(
+    CompilationState::callback_t callback) {
+  base::MutexGuard callbacks_guard(&callbacks_mutex_);
+  if (!compilation_progress_.empty() && outstanding_top_tier_functions_ == 0) {
+    callback(CompilationEvent::kFinishedTopTierCompilation);
+    return;
   }
-  constexpr base::EnumSet<CompilationEvent> kFinalEvents{
-      CompilationEvent::kFinishedTopTierCompilation,
-      CompilationEvent::kFailedCompilation};
-  if (!finished_events_.contains_any(kFinalEvents)) {
-    callbacks_.emplace_back(std::move(callback));
-  }
+  callbacks_.emplace_back(std::move(callback));
 }
 
 void CompilationStateImpl::AddCompilationUnits(
@@ -2669,7 +2677,9 @@ void CompilationStateImpl::OnFinishedUnits(
   DCHECK_EQ(compilation_progress_.size(),
             native_module_->module()->num_declared_functions);
 
-  base::EnumSet<CompilationEvent> triggered_events;
+  bool completes_baseline_compilation = false;
+  bool completes_top_tier_compilation = false;
+  bool completes_recompilation = false;
 
   for (size_t i = 0; i < code_vector.size(); i++) {
     WasmCode* code = code_vector[i];
@@ -2680,6 +2690,9 @@ void CompilationStateImpl::OnFinishedUnits(
       // Import wrapper.
       DCHECK_EQ(code->tier(), ExecutionTier::kTurbofan);
       outstanding_baseline_units_--;
+      if (outstanding_baseline_units_ == 0) {
+        completes_baseline_compilation = true;
+      }
     } else {
       // Function.
       DCHECK_NE(code->tier(), ExecutionTier::kNone);
@@ -2702,11 +2715,17 @@ void CompilationStateImpl::OnFinishedUnits(
           required_baseline_tier <= code->tier()) {
         DCHECK_GT(outstanding_baseline_units_, 0);
         outstanding_baseline_units_--;
+        if (outstanding_baseline_units_ == 0) {
+          completes_baseline_compilation = true;
+        }
       }
       if (reached_tier < required_top_tier &&
           required_top_tier <= code->tier()) {
         DCHECK_GT(outstanding_top_tier_functions_, 0);
         outstanding_top_tier_functions_--;
+        if (outstanding_top_tier_functions_ == 0) {
+          completes_top_tier_compilation = true;
+        }
       }
 
       // If there is recompilation in progress, we would only count the
@@ -2725,7 +2744,7 @@ void CompilationStateImpl::OnFinishedUnits(
               ReachedRecompilationTierField::update(
                   compilation_progress_[slot_index], code->tier());
           if (outstanding_recompilation_functions_ == 0) {
-            triggered_events.Add(CompilationEvent::kFinishedRecompilation);
+            completes_recompilation = true;
           }
         }
       }
@@ -2739,51 +2758,43 @@ void CompilationStateImpl::OnFinishedUnits(
     }
   }
 
-  if (outstanding_baseline_units_ == 0) {
-    triggered_events.Add(CompilationEvent::kFinishedBaselineCompilation);
-    if (outstanding_top_tier_functions_ == 0) {
-      triggered_events.Add(CompilationEvent::kFinishedTopTierCompilation);
-    }
-  }
-
-  if (!triggered_events.empty()) TriggerCallbacks(triggered_events);
+  TriggerCallbacks(completes_baseline_compilation,
+                   completes_top_tier_compilation, completes_recompilation);
 }
 
 void CompilationStateImpl::OnFinishedJSToWasmWrapperUnits(int num) {
   if (num == 0) return;
   base::MutexGuard guard(&callbacks_mutex_);
-  DCHECK_GE(outstanding_baseline_units_, num);
   outstanding_baseline_units_ -= num;
-  if (outstanding_baseline_units_ == 0) {
-    TriggerCallbacks(base::EnumSet<CompilationEvent>{
-        CompilationEvent::kFinishedBaselineCompilation});
-  }
+  bool completes_baseline_compilation = outstanding_baseline_units_ == 0;
+  TriggerCallbacks(completes_baseline_compilation, false);
 }
 
-void CompilationStateImpl::TriggerCallbacks(
-    base::EnumSet<CompilationEvent> triggered_events) {
+void CompilationStateImpl::TriggerCallbacks(bool completes_baseline_compilation,
+                                            bool completes_top_tier_compilation,
+                                            bool completes_recompilation) {
   DCHECK(!callbacks_mutex_.TryLock());
-
-  // Don't trigger past events again.
-  triggered_events -= finished_events_;
-  // Recompilation can happen multiple times, thus do not store this.
-  finished_events_ |=
-      triggered_events - CompilationEvent::kFinishedRecompilation;
-
-  for (auto event :
-       {std::make_pair(CompilationEvent::kFinishedBaselineCompilation,
-                       "BaselineFinished"),
-        std::make_pair(CompilationEvent::kFinishedTopTierCompilation,
-                       "TopTierFinished"),
-        std::make_pair(CompilationEvent::kFinishedRecompilation,
-                       "RecompilationFinished")}) {
-    if (!triggered_events.contains(event.first)) continue;
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), event.second);
+  if (completes_recompilation) {
+    DCHECK(!callbacks_.empty());
     for (auto& callback : callbacks_) {
-      callback(event.first);
+      callback(CompilationEvent::kFinishedRecompilation);
     }
   }
-
+  if (completes_baseline_compilation) {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "BaselineFinished");
+    for (auto& callback : callbacks_) {
+      callback(CompilationEvent::kFinishedBaselineCompilation);
+    }
+    if (outstanding_top_tier_functions_ == 0) {
+      completes_top_tier_compilation = true;
+    }
+  }
+  if (outstanding_baseline_units_ == 0 && completes_top_tier_compilation) {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "TopTierFinished");
+    for (auto& callback : callbacks_) {
+      callback(CompilationEvent::kFinishedTopTierCompilation);
+    }
+  }
   if (outstanding_baseline_units_ == 0 &&
       outstanding_top_tier_functions_ == 0 &&
       outstanding_recompilation_functions_ == 0) {
