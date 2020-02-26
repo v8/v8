@@ -2149,7 +2149,6 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
     int num_functions, uint32_t offset,
     std::shared_ptr<WireBytesStorage> wire_bytes_storage,
     int code_section_length) {
-  DCHECK_GE(code_section_length, 0);
   TRACE_STREAMING("Start the code section with %d functions...\n",
                   num_functions);
   if (!decoder_.CheckFunctionsCount(static_cast<uint32_t>(num_functions),
@@ -2169,8 +2168,6 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
           uses_liftoff);
   job_->DoImmediately<AsyncCompileJob::PrepareAndStartCompile>(
       decoder_.shared_module(), false, code_size_estimate);
-
-  decoder_.set_code_section(offset, static_cast<uint32_t>(code_section_length));
   auto* compilation_state = Impl(job_->native_module_->compilation_state());
   compilation_state->SetWireBytesStorage(std::move(wire_bytes_storage));
   DCHECK_EQ(job_->native_module_->module()->origin, kWasmOrigin);

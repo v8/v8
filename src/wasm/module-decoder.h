@@ -194,8 +194,6 @@ class ModuleDecoder {
 
   ModuleResult FinishDecoding(bool verify_functions = true);
 
-  void set_code_section(uint32_t offset, uint32_t size);
-
   const std::shared_ptr<WasmModule>& shared_module() const;
   WasmModule* module() const { return shared_module().get(); }
 

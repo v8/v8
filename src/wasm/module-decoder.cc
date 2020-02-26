@@ -869,8 +869,6 @@ class ModuleDecoderImpl : public Decoder {
       if (failed()) break;
       DecodeFunctionBody(i, size, offset, verify_functions);
     }
-    DCHECK_GE(pc_offset(), pos);
-    set_code_section(pos, pc_offset() - pos);
   }
 
   bool CheckFunctionsCount(uint32_t functions_count, uint32_t offset) {
@@ -1126,10 +1124,6 @@ class ModuleDecoderImpl : public Decoder {
       return ModuleResult{std::move(intermediate_error_)};
     }
     return result;
-  }
-
-  void set_code_section(uint32_t offset, uint32_t size) {
-    module_->code = {offset, size};
   }
 
   // Decodes an entire module.
@@ -1962,10 +1956,6 @@ bool ModuleDecoder::CheckFunctionsCount(uint32_t functions_count,
 
 ModuleResult ModuleDecoder::FinishDecoding(bool verify_functions) {
   return impl_->FinishDecoding(verify_functions);
-}
-
-void ModuleDecoder::set_code_section(uint32_t offset, uint32_t size) {
-  return impl_->set_code_section(offset, size);
 }
 
 SectionCode ModuleDecoder::IdentifyUnknownSection(Decoder* decoder,

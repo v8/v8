@@ -9732,26 +9732,6 @@ uint32_t debug::WasmScript::GetFunctionHash(int function_index) {
                                                function_bytes.length(), 0);
 }
 
-int debug::WasmScript::CodeOffset() const {
-  i::DisallowHeapAllocation no_gc;
-  i::Handle<i::Script> script = Utils::OpenHandle(this);
-  DCHECK_EQ(i::Script::TYPE_WASM, script->type());
-  i::wasm::NativeModule* native_module = script->wasm_native_module();
-  const i::wasm::WasmModule* module = native_module->module();
-
-  return module->code.offset();
-}
-
-int debug::WasmScript::CodeLength() const {
-  i::DisallowHeapAllocation no_gc;
-  i::Handle<i::Script> script = Utils::OpenHandle(this);
-  DCHECK_EQ(i::Script::TYPE_WASM, script->type());
-  i::wasm::NativeModule* native_module = script->wasm_native_module();
-  const i::wasm::WasmModule* module = native_module->module();
-
-  return module->code.length();
-}
-
 debug::Location::Location(int line_number, int column_number)
     : line_number_(line_number),
       column_number_(column_number),
