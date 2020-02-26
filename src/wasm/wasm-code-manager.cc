@@ -133,18 +133,18 @@ Address WasmCode::handler_table() const {
   return instruction_start() + handler_table_offset_;
 }
 
-uint32_t WasmCode::handler_table_size() const {
+int WasmCode::handler_table_size() const {
   DCHECK_GE(constant_pool_offset_, handler_table_offset_);
-  return static_cast<uint32_t>(constant_pool_offset_ - handler_table_offset_);
+  return static_cast<int>(constant_pool_offset_ - handler_table_offset_);
 }
 
 Address WasmCode::code_comments() const {
   return instruction_start() + code_comments_offset_;
 }
 
-uint32_t WasmCode::code_comments_size() const {
+int WasmCode::code_comments_size() const {
   DCHECK_GE(unpadded_binary_size_, code_comments_offset_);
-  return static_cast<uint32_t>(unpadded_binary_size_ - code_comments_offset_);
+  return static_cast<int>(unpadded_binary_size_ - code_comments_offset_);
 }
 
 void WasmCode::RegisterTrapHandlerData() {
@@ -296,7 +296,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
      << unpadded_binary_size_ << " + " << padding << " padding)\n";
 
 #ifdef ENABLE_DISASSEMBLER
-  size_t instruction_size = unpadded_binary_size_;
+  int instruction_size = unpadded_binary_size_;
   if (constant_pool_offset_ < instruction_size) {
     instruction_size = constant_pool_offset_;
   }
@@ -812,20 +812,16 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   Vector<const byte> instructions(
       reinterpret_cast<byte*>(code->InstructionStart()),
       static_cast<size_t>(code->InstructionSize()));
-  const uint32_t stack_slots = static_cast<uint32_t>(
-      code->has_safepoint_info() ? code->stack_slots() : 0);
+  const int stack_slots = code->has_safepoint_info() ? code->stack_slots() : 0;
 
   // TODO(jgruber,v8:8758): Remove this translation. It exists only because
   // Code objects contains real offsets but WasmCode expects an offset of 0 to
   // mean 'empty'.
-  const size_t safepoint_table_offset = static_cast<size_t>(
-      code->has_safepoint_table() ? code->safepoint_table_offset() : 0);
-  const size_t handler_table_offset =
-      static_cast<size_t>(code->handler_table_offset());
-  const size_t constant_pool_offset =
-      static_cast<size_t>(code->constant_pool_offset());
-  const size_t code_comments_offset =
-      static_cast<size_t>(code->code_comments_offset());
+  const int safepoint_table_offset =
+      code->has_safepoint_table() ? code->safepoint_table_offset() : 0;
+  const int handler_table_offset = code->handler_table_offset();
+  const int constant_pool_offset = code->constant_pool_offset();
+  const int code_comments_offset = code->code_comments_offset();
 
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
@@ -869,7 +865,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
       handler_table_offset,                     // handler_table_offset
       constant_pool_offset,                     // constant_pool_offset
       code_comments_offset,                     // code_comments_offset
-      instructions.size(),                      // unpadded_binary_size
+      instructions.length(),                    // unpadded_binary_size
       OwnedVector<ProtectedInstructionData>{},  // protected_instructions
       std::move(reloc_info),                    // reloc_info
       std::move(source_pos),                    // source positions
@@ -917,8 +913,8 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCode(
-    uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
-    uint32_t tagged_parameter_slots,
+    int index, const CodeDesc& desc, int stack_slots,
+    int tagged_parameter_slots,
     OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
     ExecutionTier tier) {
@@ -933,8 +929,8 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
-    uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
-    uint32_t tagged_parameter_slots,
+    int index, const CodeDesc& desc, int stack_slots,
+    int tagged_parameter_slots,
     OwnedVector<ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
     ExecutionTier tier, Vector<uint8_t> dst_code_bytes,
@@ -949,15 +945,12 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   // TODO(jgruber,v8:8758): Remove this translation. It exists only because
   // CodeDesc contains real offsets but WasmCode expects an offset of 0 to mean
   // 'empty'.
-  const size_t safepoint_table_offset = static_cast<size_t>(
-      desc.safepoint_table_size == 0 ? 0 : desc.safepoint_table_offset);
-  const size_t handler_table_offset =
-      static_cast<size_t>(desc.handler_table_offset);
-  const size_t constant_pool_offset =
-      static_cast<size_t>(desc.constant_pool_offset);
-  const size_t code_comments_offset =
-      static_cast<size_t>(desc.code_comments_offset);
-  const size_t instr_size = static_cast<size_t>(desc.instr_size);
+  const int safepoint_table_offset =
+      desc.safepoint_table_size == 0 ? 0 : desc.safepoint_table_offset;
+  const int handler_table_offset = desc.handler_table_offset;
+  const int constant_pool_offset = desc.constant_pool_offset;
+  const int code_comments_offset = desc.code_comments_offset;
+  const int instr_size = desc.instr_size;
 
   memcpy(dst_code_bytes.begin(), desc.buffer,
          static_cast<size_t>(desc.instr_size));
@@ -1080,10 +1073,10 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
 }
 
 WasmCode* NativeModule::AddDeserializedCode(
-    uint32_t index, Vector<const byte> instructions, uint32_t stack_slots,
-    uint32_t tagged_parameter_slots, size_t safepoint_table_offset,
-    size_t handler_table_offset, size_t constant_pool_offset,
-    size_t code_comments_offset, size_t unpadded_binary_size,
+    int index, Vector<const byte> instructions, int stack_slots,
+    int tagged_parameter_slots, int safepoint_table_offset,
+    int handler_table_offset, int constant_pool_offset,
+    int code_comments_offset, int unpadded_binary_size,
     OwnedVector<ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> reloc_info,
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
@@ -1140,7 +1133,7 @@ WasmModuleSourceMap* NativeModule::GetWasmSourceMap() const {
 }
 
 WasmCode* NativeModule::CreateEmptyJumpTableInRegion(
-    uint32_t jump_table_size, base::AddressRegion region,
+    int jump_table_size, base::AddressRegion region,
     const WasmCodeAllocator::OptionalLock& allocator_lock) {
   // Only call this if we really need a jump table.
   DCHECK_LT(0, jump_table_size);

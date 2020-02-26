@@ -188,21 +188,20 @@ constexpr size_t kHeaderSize =
     sizeof(uint32_t) +  // total wasm function count
     sizeof(uint32_t);   // imported functions (index of first wasm function)
 
-constexpr size_t kCodeHeaderSize =
-    sizeof(size_t) +          // size of code section
-    sizeof(size_t) +          // offset of constant pool
-    sizeof(size_t) +          // offset of safepoint table
-    sizeof(size_t) +          // offset of handler table
-    sizeof(size_t) +          // offset of code comments
-    sizeof(size_t) +          // unpadded binary size
-    sizeof(uint32_t) +        // stack slots
-    sizeof(uint32_t) +        // tagged parameter slots
-    sizeof(size_t) +          // code size
-    sizeof(size_t) +          // reloc size
-    sizeof(size_t) +          // source positions size
-    sizeof(size_t) +          // protected instructions size
-    sizeof(WasmCode::Kind) +  // code kind
-    sizeof(ExecutionTier);    // tier
+constexpr size_t kCodeHeaderSize = sizeof(bool) +  // whether code is present
+                                   sizeof(int) +   // offset of constant pool
+                                   sizeof(int) +   // offset of safepoint table
+                                   sizeof(int) +   // offset of handler table
+                                   sizeof(int) +   // offset of code comments
+                                   sizeof(int) +   // unpadded binary size
+                                   sizeof(int) +   // stack slots
+                                   sizeof(int) +   // tagged parameter slots
+                                   sizeof(int) +   // code size
+                                   sizeof(int) +   // reloc size
+                                   sizeof(int) +   // source positions size
+                                   sizeof(int) +  // protected instructions size
+                                   sizeof(WasmCode::Kind) +  // code kind
+                                   sizeof(ExecutionTier);    // tier
 
 // A List of all isolate-independent external references. This is used to create
 // a tag from the Address of an external reference and vice versa.
@@ -300,7 +299,7 @@ NativeModuleSerializer::NativeModuleSerializer(
 }
 
 size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
-  if (code == nullptr) return sizeof(size_t);
+  if (code == nullptr) return sizeof(bool);
   DCHECK(code->kind() == WasmCode::kFunction ||
          code->kind() == WasmCode::kInterpreterEntry);
   return kCodeHeaderSize + code->instructions().size() +
@@ -327,13 +326,13 @@ void NativeModuleSerializer::WriteHeader(Writer* writer) {
 
 void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   if (code == nullptr) {
-    writer->Write(size_t{0});
+    writer->Write(false);
     return;
   }
+  writer->Write(true);
   DCHECK(code->kind() == WasmCode::kFunction ||
          code->kind() == WasmCode::kInterpreterEntry);
   // Write the size of the entire code section, followed by the code header.
-  writer->Write(MeasureCode(code));
   writer->Write(code->constant_pool_offset());
   writer->Write(code->safepoint_table_offset());
   writer->Write(code->handler_table_offset());
@@ -341,10 +340,10 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   writer->Write(code->unpadded_binary_size());
   writer->Write(code->stack_slots());
   writer->Write(code->tagged_parameter_slots());
-  writer->Write(code->instructions().size());
-  writer->Write(code->reloc_info().size());
-  writer->Write(code->source_positions().size());
-  writer->Write(code->protected_instructions().size());
+  writer->Write(code->instructions().length());
+  writer->Write(code->reloc_info().length());
+  writer->Write(code->source_positions().length());
+  writer->Write(code->protected_instructions().length());
   writer->Write(code->kind());
   writer->Write(code->tier());
 
@@ -462,7 +461,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
 
  private:
   bool ReadHeader(Reader* reader);
-  bool ReadCode(uint32_t fn_index, Reader* reader);
+  bool ReadCode(int fn_index, Reader* reader);
 
   NativeModule* const native_module_;
   bool read_called_;
@@ -493,29 +492,30 @@ bool NativeModuleDeserializer::ReadHeader(Reader* reader) {
          imports == native_module_->num_imported_functions();
 }
 
-bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
-  size_t code_section_size = reader->Read<size_t>();
-  if (code_section_size == 0) {
+bool NativeModuleDeserializer::ReadCode(int fn_index, Reader* reader) {
+  bool has_code = reader->Read<bool>();
+  if (!has_code) {
     DCHECK(FLAG_wasm_lazy_compilation ||
            native_module_->enabled_features().has_compilation_hints());
     native_module_->UseLazyStub(fn_index);
     return true;
   }
-  size_t constant_pool_offset = reader->Read<size_t>();
-  size_t safepoint_table_offset = reader->Read<size_t>();
-  size_t handler_table_offset = reader->Read<size_t>();
-  size_t code_comment_offset = reader->Read<size_t>();
-  size_t unpadded_binary_size = reader->Read<size_t>();
-  uint32_t stack_slot_count = reader->Read<uint32_t>();
-  uint32_t tagged_parameter_slots = reader->Read<uint32_t>();
-  size_t code_size = reader->Read<size_t>();
-  size_t reloc_size = reader->Read<size_t>();
-  size_t source_position_size = reader->Read<size_t>();
-  size_t protected_instructions_size = reader->Read<size_t>();
+  int constant_pool_offset = reader->Read<int>();
+  int safepoint_table_offset = reader->Read<int>();
+  int handler_table_offset = reader->Read<int>();
+  int code_comment_offset = reader->Read<int>();
+  int unpadded_binary_size = reader->Read<int>();
+  int stack_slot_count = reader->Read<int>();
+  int tagged_parameter_slots = reader->Read<int>();
+  int code_size = reader->Read<int>();
+  int reloc_size = reader->Read<int>();
+  int source_position_size = reader->Read<int>();
+  int protected_instructions_size = reader->Read<int>();
   WasmCode::Kind kind = reader->Read<WasmCode::Kind>();
   ExecutionTier tier = reader->Read<ExecutionTier>();
 
-  Vector<const byte> code_buffer = {reader->current_location(), code_size};
+  Vector<const byte> code_buffer{reader->current_location(),
+                                 static_cast<size_t>(code_size)};
   reader->Skip(code_size);
 
   OwnedVector<byte> reloc_info = OwnedVector<byte>::New(reloc_size);
