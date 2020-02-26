@@ -75,14 +75,11 @@ class JSRelativeTimeFormat : public JSObject {
   inline void set_numeric(Numeric numeric);
   inline Numeric numeric() const;
 
-// Bit positions in |flags|.
-#define FLAGS_BIT_FIELDS(V, _) \
-  V(NumericBits, Numeric, 1, _)
-  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
-#undef FLAGS_BIT_FIELDS
+  // Bit positions in |flags|.
+  DEFINE_TORQUE_GENERATED_JS_RELATIVE_TIME_FORMAT_FLAGS()
 
-  STATIC_ASSERT(Numeric::AUTO <= NumericBits::kMax);
-  STATIC_ASSERT(Numeric::ALWAYS <= NumericBits::kMax);
+  STATIC_ASSERT(Numeric::AUTO <= NumericBit::kMax);
+  STATIC_ASSERT(Numeric::ALWAYS <= NumericBit::kMax);
 
   // [flags] Bit field containing various flags about the function.
   DECL_INT_ACCESSORS(flags)

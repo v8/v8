@@ -15,24 +15,52 @@
 #include 'src/objects/js-segment-iterator.h'
 #include 'src/objects/js-segmenter.h'
 
+type DateTimeStyle extends int32
+constexpr 'v8::internal::JSDateTimeFormat::DateTimeStyle';
+type HourCycle extends int32
+constexpr 'v8::internal::JSDateTimeFormat::HourCycle';
+bitfield struct JSDateTimeFormatFlags extends uint31 {
+  hour_cycle: HourCycle: 3 bit;
+  date_style: DateTimeStyle: 3 bit;
+  time_style: DateTimeStyle: 3 bit;
+}
+
 extern class JSDateTimeFormat extends JSObject {
   locale: String;
   icu_locale: Foreign;                // Managed<icu::Locale>
   icu_simple_date_format: Foreign;    // Managed<icu::SimpleDateFormat>
   icu_date_interval_format: Foreign;  // Managed<icu::DateIntervalFormat>
   bound_format: JSFunction|Undefined;
-  flags: Smi;
+  flags: SmiTagged<JSDateTimeFormatFlags>;
+}
+
+type JSDisplayNamesStyle extends int32
+constexpr 'v8::internal::JSDisplayNames::Style';
+type JSDisplayNamesFallback extends int32
+constexpr 'v8::internal::JSDisplayNames::Fallback';
+bitfield struct JSDisplayNamesFlags extends uint31 {
+  style: JSDisplayNamesStyle: 2 bit;
+  fallback: JSDisplayNamesFallback: 1 bit;
 }
 
 extern class JSDisplayNames extends JSObject {
   internal: Foreign;  // Managed<DisplayNamesInternal>
-  flags: Smi;
+  flags: SmiTagged<JSDisplayNamesFlags>;
+}
+
+type JSListFormatStyle extends int32
+constexpr 'v8::internal::JSListFormat::Style';
+type JSListFormatType extends int32
+constexpr 'v8::internal::JSListFormat::Type';
+bitfield struct JSListFormatFlags extends uint31 {
+  style: JSListFormatStyle: 2 bit;
+  Type: JSListFormatType: 2 bit;  // "type" is a reserved word.
 }
 
 extern class JSListFormat extends JSObject {
   locale: String;
   icu_formatter: Foreign;  // Managed<icu::ListFormatter>
-  flags: Smi;
+  flags: SmiTagged<JSListFormatFlags>;
 }
 
 extern class JSNumberFormat extends JSObject {
@@ -42,35 +70,58 @@ extern class JSNumberFormat extends JSObject {
   bound_format: JSFunction|Undefined;
 }
 
+type JSPluralRulesType extends int32
+constexpr 'v8::internal::JSPluralRules::Type';
+bitfield struct JSPluralRulesFlags extends uint31 {
+  Type: JSPluralRulesType: 1 bit;  // "type" is a reserved word.
+}
+
 extern class JSPluralRules extends JSObject {
   locale: String;
-  flags: Smi;
+  flags: SmiTagged<JSPluralRulesFlags>;
   icu_plural_rules: Foreign;  // Managed<icu::PluralRules>
   icu_number_formatter:
       Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
+}
+
+type JSRelativeTimeFormatNumeric extends int32
+constexpr 'v8::internal::JSRelativeTimeFormat::Numeric';
+bitfield struct JSRelativeTimeFormatFlags extends uint31 {
+  numeric: JSRelativeTimeFormatNumeric: 1 bit;
 }
 
 extern class JSRelativeTimeFormat extends JSObject {
   locale: String;
   numberingSystem: String;
   icu_formatter: Foreign;  // Managed<icu::RelativeDateTimeFormatter>
-  flags: Smi;
+  flags: SmiTagged<JSRelativeTimeFormatFlags>;
 }
 
 extern class JSLocale extends JSObject {
   icu_locale: Foreign;  // Managed<icu::Locale>
 }
 
+type JSSegmenterGranularity extends int32
+constexpr 'v8::internal::JSSegmenter::Granularity';
+bitfield struct JSSegmenterFlags extends uint31 {
+  granularity: JSSegmenterGranularity: 2 bit;
+}
+
 extern class JSSegmenter extends JSObject {
   locale: String;
   icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
-  flags: Smi;
+  flags: SmiTagged<JSSegmenterFlags>;
+}
+
+bitfield struct JSSegmentIteratorFlags extends uint31 {
+  granularity: JSSegmenterGranularity: 2 bit;
+  break_type_set: bool: 1 bit;
 }
 
 extern class JSSegmentIterator extends JSObject {
   icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
   unicode_string: Foreign;      // Managed<icu::UnicodeString>
-  flags: Smi;
+  flags: SmiTagged<JSSegmentIteratorFlags>;
 }
 
 extern class JSV8BreakIterator extends JSObject {

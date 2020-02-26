@@ -119,15 +119,8 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   // This could also be implemented as a weak hash table.
   DECL_INT_ACCESSORS(debugging_id)
 
-// Bit positions in |debugger_hints|.
-#define DEBUGGER_HINTS_BIT_FIELDS(V, _)       \
-  V(SideEffectStateBits, int, 2, _)           \
-  V(DebugIsBlackboxedBit, bool, 1, _)         \
-  V(ComputedDebugIsBlackboxedBit, bool, 1, _) \
-  V(DebuggingIdBits, int, 20, _)
-
-  DEFINE_BIT_FIELDS(DEBUGGER_HINTS_BIT_FIELDS)
-#undef DEBUGGER_HINTS_BIT_FIELDS
+  // Bit positions in |debugger_hints|.
+  DEFINE_TORQUE_GENERATED_DEBUGGER_HINTS()
 
   static const int kNoDebuggingId = 0;
 

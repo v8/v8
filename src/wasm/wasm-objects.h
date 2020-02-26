@@ -333,13 +333,7 @@ class WasmGlobalObject : public JSObject {
   DECL_PRINTER(WasmGlobalObject)
   DECL_VERIFIER(WasmGlobalObject)
 
-#define WASM_GLOBAL_OBJECT_FLAGS_BIT_FIELDS(V, _) \
-  V(TypeBits, wasm::ValueType, 8, _)              \
-  V(IsMutableBit, bool, 1, _)
-
-  DEFINE_BIT_FIELDS(WASM_GLOBAL_OBJECT_FLAGS_BIT_FIELDS)
-
-#undef WASM_GLOBAL_OBJECT_FLAGS_BIT_FIELDS
+  DEFINE_TORQUE_GENERATED_WASM_GLOBAL_OBJECT_FLAGS()
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_WASM_GLOBAL_OBJECT_FIELDS)

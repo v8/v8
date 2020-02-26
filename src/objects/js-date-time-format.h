@@ -105,14 +105,8 @@ class JSDateTimeFormat : public JSObject {
   inline void set_time_style(DateTimeStyle time_style);
   inline DateTimeStyle time_style() const;
 
-// Bit positions in |flags|.
-#define FLAGS_BIT_FIELDS(V, _)          \
-  V(HourCycleBits, HourCycle, 3, _)     \
-  V(DateStyleBits, DateTimeStyle, 3, _) \
-  V(TimeStyleBits, DateTimeStyle, 3, _)
-
-  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
-#undef FLAGS_BIT_FIELDS
+  // Bit positions in |flags|.
+  DEFINE_TORQUE_GENERATED_JS_DATE_TIME_FORMAT_FLAGS()
 
   STATIC_ASSERT(HourCycle::kUndefined <= HourCycleBits::kMax);
   STATIC_ASSERT(HourCycle::kH11 <= HourCycleBits::kMax);
