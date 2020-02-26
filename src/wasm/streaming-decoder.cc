@@ -154,7 +154,7 @@ void StreamingDecoder::NotifyNativeModuleCreated(
     const std::shared_ptr<NativeModule>& native_module) {
   if (!module_compiled_callback_) return;
   auto* comp_state = native_module->compilation_state();
-  comp_state->NotifyTopTierReady(TopTierCompiledCallback{
+  comp_state->AddCallback(TopTierCompiledCallback{
       std::move(native_module), std::move(module_compiled_callback_)});
   module_compiled_callback_ = {};
 }
