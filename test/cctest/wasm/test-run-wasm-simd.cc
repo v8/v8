@@ -1824,11 +1824,11 @@ WASM_SIMD_TEST(I32x4Neg) {
                    base::NegateWithWraparound);
 }
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(I32x4Abs) {
   RunI32x4UnOpTest(execution_tier, lower_simd, kExprI32x4Abs, Abs);
 }
-#endif
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 WASM_SIMD_TEST(S128Not) {
   RunI32x4UnOpTest(execution_tier, lower_simd, kExprS128Not, Not);
@@ -2089,11 +2089,11 @@ WASM_SIMD_TEST(I16x8Neg) {
                    base::NegateWithWraparound);
 }
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(I16x8Abs) {
   RunI16x8UnOpTest(execution_tier, lower_simd, kExprI16x8Abs, Abs);
 }
-#endif
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 template <typename T = int16_t, typename OpType = T (*)(T, T)>
 void RunI16x8BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
@@ -2296,11 +2296,11 @@ WASM_SIMD_TEST(I8x16Neg) {
                    base::NegateWithWraparound);
 }
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(I8x16Abs) {
   RunI8x16UnOpTest(execution_tier, lower_simd, kExprI8x16Abs, Abs);
 }
-#endif
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 // Tests both signed and unsigned conversion from I16x8 (packing).
 WASM_SIMD_TEST(I8x16ConvertI16x8) {
