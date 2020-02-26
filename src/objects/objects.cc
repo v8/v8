@@ -2156,7 +2156,8 @@ void ClassPositions::BriefPrintDetails(std::ostream& os) {
 }
 
 void ArrayBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
-  os << " " << elements_kind() << ", " << Brief(constant_elements());
+  os << " " << ElementsKindToString(elements_kind()) << ", "
+     << Brief(constant_elements());
 }
 
 void CallableTask::BriefPrintDetails(std::ostream& os) {
