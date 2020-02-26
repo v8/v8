@@ -150,6 +150,12 @@
   'built-ins/TypedArray/prototype/copyWithin/coerced-values-end-detached-prototype': [FAIL],
   'built-ins/TypedArray/prototype/copyWithin/coerced-values-start-detached': [FAIL],
   'built-ins/TypedArray/prototype/copyWithin/coerced-values-end-detached': [FAIL],
+  # fill should also throw on detached buffers
+  'built-ins/TypedArray/prototype/fill/coerced-value-detach': [FAIL],
+  'built-ins/TypedArray/prototype/fill/coerced-end-detach': [FAIL],
+  'built-ins/TypedArray/prototype/fill/coerced-start-detach': [FAIL],
+  # includes should also throw on detached buffers
+  'built-ins/TypedArray/prototype/includes/detached-buffer-tointeger': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
@@ -496,16 +502,9 @@
   'language/comments/hashbang/use-strict': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8179
-  #
-  # FinalizationGroup is renamed to FinalizationRegistry, skip all of these as
-  # an intermediate state until the next roll which has the renamed tests.
-  'built-ins/FinalizationGroup/*': [SKIP],
-  'built-ins/WeakRef/prototype/deref/this-does-not-have-internal-target-throws': [SKIP],
-  'built-ins/WeakRef/prototype/deref/gc-cleanup-not-prevented-with-wr-deref': [SKIP],
-  # 'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
-  # 'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-throws-in-callback': [FAIL],
-  # 'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
-  # 'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-cleanup-callback-throws': [FAIL],
+  'built-ins/FinalizationRegistry/FinalizationRegistryCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
+  'built-ins/FinalizationRegistry/prototype/cleanupSome/cleanup-throws-in-callback': [FAIL],
+  'built-ins/FinalizationRegistry/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9612
   'intl402/DateTimeFormat/prototype/formatRange/fractionalSecondDigits': [FAIL],
@@ -537,7 +536,7 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=10111
   # super() should evaluate arguments before checking IsConstructable
-  'language/expressions/class/super-evaluation-order': [FAIL],
+  'language/expressions/super/call-proto-not-ctor': [FAIL],
 
   # Intl.NumberFormat(..., {signDisplay:'exceptZero'}).format(0.0001)
   # produce +0 due to rounding
@@ -553,6 +552,20 @@
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-ja-JP': [FAIL],
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-ko-KR': [FAIL],
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-zh-TW': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10271
+  'built-ins/Atomics/store/expected-return-value-negative-zero': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10272
+  'intl402/DateTimeFormat/invalid-numbering-system-calendar-options': [FAIL],
+  'intl402/NumberFormat/invalid-numbering-system-options': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10273
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/fractionalSecondDigits': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10274
+  # BigInt as literal property names must be valid
+  'language/expressions/object/literal-property-name-bigint': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
