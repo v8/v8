@@ -105,7 +105,7 @@ void IncrementalMarkingJob::Task::RunInternal() {
     if (heap->IncrementalMarkingLimitReached() !=
         Heap::IncrementalMarkingLimit::kNoLimit) {
       heap->StartIncrementalMarking(heap->GCFlagsForIncrementalMarking(),
-                                    GarbageCollectionReason::kIdleTask,
+                                    GarbageCollectionReason::kTask,
                                     kGCCallbackScheduleIdleGarbageCollection);
     }
   }

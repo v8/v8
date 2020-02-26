@@ -183,13 +183,13 @@ struct Heap::StrongRootsList {
   StrongRootsList* next;
 };
 
-class IdleScavengeObserver : public AllocationObserver {
+class ScavengeTaskObserver : public AllocationObserver {
  public:
-  IdleScavengeObserver(Heap* heap, intptr_t step_size)
+  ScavengeTaskObserver(Heap* heap, intptr_t step_size)
       : AllocationObserver(step_size), heap_(heap) {}
 
   void Step(int bytes_allocated, Address, size_t) override {
-    heap_->ScheduleIdleScavengeIfNeeded(bytes_allocated);
+    heap_->ScheduleScavengeTaskIfNeeded();
   }
 
  private:
@@ -1247,11 +1247,9 @@ void Heap::HandleGCRequest() {
   }
 }
 
-
-void Heap::ScheduleIdleScavengeIfNeeded(int bytes_allocated) {
-  DCHECK(FLAG_idle_time_scavenge);
+void Heap::ScheduleScavengeTaskIfNeeded() {
   DCHECK_NOT_NULL(scavenge_job_);
-  scavenge_job_->ScheduleIdleTaskIfNeeded(this, bytes_allocated);
+  scavenge_job_->ScheduleTaskIfNeeded(this);
 }
 
 TimedHistogram* Heap::GCTypePriorityTimer(GarbageCollector collector) {
@@ -3966,8 +3964,8 @@ const char* Heap::GarbageCollectionReasonToString(
       return "full hash-table";
     case GarbageCollectionReason::kHeapProfiler:
       return "heap profiler";
-    case GarbageCollectionReason::kIdleTask:
-      return "idle task";
+    case GarbageCollectionReason::kTask:
+      return "task";
     case GarbageCollectionReason::kLastResort:
       return "last resort";
     case GarbageCollectionReason::kLowMemoryNotification:
@@ -5209,12 +5207,10 @@ void Heap::SetUpSpaces() {
   }
 #endif  // ENABLE_MINOR_MC
 
-  if (FLAG_idle_time_scavenge) {
-    scavenge_job_.reset(new ScavengeJob());
-    idle_scavenge_observer_.reset(new IdleScavengeObserver(
-        this, ScavengeJob::kBytesAllocatedBeforeNextIdleTask));
-    new_space()->AddAllocationObserver(idle_scavenge_observer_.get());
-  }
+  scavenge_job_.reset(new ScavengeJob());
+  scavenge_task_observer_.reset(new ScavengeTaskObserver(
+      this, ScavengeJob::YoungGenerationTaskTriggerSize(this)));
+  new_space()->AddAllocationObserver(scavenge_task_observer_.get());
 
   SetGetExternallyAllocatedMemoryInBytesCallback(
       DefaultGetExternallyAllocatedMemoryInBytesCallback);
@@ -5394,11 +5390,9 @@ void Heap::TearDown() {
     }
   }
 
-  if (FLAG_idle_time_scavenge) {
-    new_space()->RemoveAllocationObserver(idle_scavenge_observer_.get());
-    idle_scavenge_observer_.reset();
-    scavenge_job_.reset();
-  }
+  new_space()->RemoveAllocationObserver(scavenge_task_observer_.get());
+  scavenge_task_observer_.reset();
+  scavenge_job_.reset();
 
   if (FLAG_stress_marking > 0) {
     RemoveAllocationObserversFromAllSpaces(stress_marking_observer_,
