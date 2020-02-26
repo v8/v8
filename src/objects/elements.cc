@@ -645,22 +645,23 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     UNREACHABLE();
   }
 
-  uint32_t Push(Handle<JSArray> receiver, Arguments* args,
+  uint32_t Push(Handle<JSArray> receiver, JavaScriptArguments* args,
                 uint32_t push_size) final {
     return Subclass::PushImpl(receiver, args, push_size);
   }
 
-  static uint32_t PushImpl(Handle<JSArray> receiver, Arguments* args,
+  static uint32_t PushImpl(Handle<JSArray> receiver, JavaScriptArguments* args,
                            uint32_t push_sized) {
     UNREACHABLE();
   }
 
-  uint32_t Unshift(Handle<JSArray> receiver, Arguments* args,
+  uint32_t Unshift(Handle<JSArray> receiver, JavaScriptArguments* args,
                    uint32_t unshift_size) final {
     return Subclass::UnshiftImpl(receiver, args, unshift_size);
   }
 
-  static uint32_t UnshiftImpl(Handle<JSArray> receiver, Arguments* args,
+  static uint32_t UnshiftImpl(Handle<JSArray> receiver,
+                              JavaScriptArguments* args,
                               uint32_t unshift_size) {
     UNREACHABLE();
   }
@@ -2091,7 +2092,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     return Subclass::RemoveElement(receiver, AT_START);
   }
 
-  static uint32_t PushImpl(Handle<JSArray> receiver, Arguments* args,
+  static uint32_t PushImpl(Handle<JSArray> receiver, JavaScriptArguments* args,
                            uint32_t push_size) {
     Handle<FixedArrayBase> backing_store(receiver->elements(),
                                          receiver->GetIsolate());
@@ -2099,7 +2100,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                                   AT_END);
   }
 
-  static uint32_t UnshiftImpl(Handle<JSArray> receiver, Arguments* args,
+  static uint32_t UnshiftImpl(Handle<JSArray> receiver,
+                              JavaScriptArguments* args,
                               uint32_t unshift_size) {
     Handle<FixedArrayBase> backing_store(receiver->elements(),
                                          receiver->GetIsolate());
@@ -2347,7 +2349,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
   static uint32_t AddArguments(Handle<JSArray> receiver,
                                Handle<FixedArrayBase> backing_store,
-                               Arguments* args, uint32_t add_size,
+                               JavaScriptArguments* args, uint32_t add_size,
                                Where add_position) {
     uint32_t length = Smi::ToInt(receiver->length());
     DCHECK_LT(0, add_size);
@@ -2382,7 +2384,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     return new_length;
   }
 
-  static void CopyArguments(Arguments* args, Handle<FixedArrayBase> dst_store,
+  static void CopyArguments(JavaScriptArguments* args,
+                            Handle<FixedArrayBase> dst_store,
                             uint32_t copy_size, uint32_t src_index,
                             uint32_t dst_index) {
     // Add the provided values.
@@ -2564,7 +2567,7 @@ class FastNonextensibleObjectElementsAccessor
  public:
   using BackingStore = typename KindTraits::BackingStore;
 
-  static uint32_t PushImpl(Handle<JSArray> receiver, Arguments* args,
+  static uint32_t PushImpl(Handle<JSArray> receiver, JavaScriptArguments* args,
                            uint32_t push_size) {
     UNREACHABLE();
   }
@@ -2659,7 +2662,7 @@ class FastSealedObjectElementsAccessor
 
   static Handle<Object> PopImpl(Handle<JSArray> receiver) { UNREACHABLE(); }
 
-  static uint32_t PushImpl(Handle<JSArray> receiver, Arguments* args,
+  static uint32_t PushImpl(Handle<JSArray> receiver, JavaScriptArguments* args,
                            uint32_t push_size) {
     UNREACHABLE();
   }
@@ -2771,7 +2774,7 @@ class FastFrozenObjectElementsAccessor
 
   static Handle<Object> PopImpl(Handle<JSArray> receiver) { UNREACHABLE(); }
 
-  static uint32_t PushImpl(Handle<JSArray> receiver, Arguments* args,
+  static uint32_t PushImpl(Handle<JSArray> receiver, JavaScriptArguments* args,
                            uint32_t push_size) {
     UNREACHABLE();
   }
@@ -4632,8 +4635,8 @@ class SlowStringWrapperElementsAccessor
 
 }  // namespace
 
-MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
-                                                     Arguments* args) {
+MaybeHandle<Object> ArrayConstructInitializeElements(
+    Handle<JSArray> array, JavaScriptArguments* args) {
   if (args->length() == 0) {
     // Optimize the case where there are no parameters passed.
     JSArray::Initialize(array, JSArray::kPreallocatedArrayElements);
@@ -4792,7 +4795,8 @@ void ElementsAccessor::TearDown() {
   elements_accessors_ = nullptr;
 }
 
-Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
+Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate,
+                                         JavaScriptArguments* args,
                                          uint32_t concat_size,
                                          uint32_t result_len) {
   ElementsKind result_elements_kind = GetInitialFastElementsKind();

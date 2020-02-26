@@ -120,6 +120,8 @@ class EscapableHandleScope;
 template<typename T> class ReturnValue;
 
 namespace internal {
+enum class ArgumentsType;
+template <ArgumentsType>
 class Arguments;
 class DeferredHandles;
 class Heap;

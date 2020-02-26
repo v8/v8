@@ -4564,8 +4564,8 @@ void JSObject::SetImmutableProto(Handle<JSObject> object) {
 }
 
 void JSObject::EnsureCanContainElements(Handle<JSObject> object,
-                                        Arguments* args, uint32_t first_arg,
-                                        uint32_t arg_count,
+                                        JavaScriptArguments* args,
+                                        uint32_t first_arg, uint32_t arg_count,
                                         EnsureElementsMode mode) {
   // Elements in |Arguments| are ordered backwards (because they're on the
   // stack), but the method that's called here iterates over them in forward

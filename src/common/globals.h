@@ -586,11 +586,19 @@ enum class HeapObjectReferenceType {
   STRONG,
 };
 
+enum class ArgumentsType {
+  kRuntime,
+  kJS,
+};
+
 // -----------------------------------------------------------------------------
 // Forward declarations for frequently used classes
 
 class AccessorInfo;
+template <ArgumentsType>
 class Arguments;
+using RuntimeArguments = Arguments<ArgumentsType::kRuntime>;
+using JavaScriptArguments = Arguments<ArgumentsType::kJS>;
 class Assembler;
 class ClassScope;
 class Code;

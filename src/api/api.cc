@@ -9950,7 +9950,7 @@ debug::ConsoleCallArguments::ConsoleCallArguments(
     : v8::FunctionCallbackInfo<v8::Value>(
           nullptr,
           // Drop the first argument (receiver, i.e. the "console" object).
-          args.address_of_arg_at(args.length() > 1 ? 1 : 0),
+          args.length() > 1 ? args.address_of_first_argument() : nullptr,
           args.length() - 1) {}
 
 int debug::GetStackFrameId(v8::Local<v8::StackFrame> frame) {
