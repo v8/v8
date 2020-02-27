@@ -6935,6 +6935,7 @@ TNode<Numeric> CodeStubAssembler::NonNumberToNumberOrNumeric(
     }
 
     BIND(&if_inputisbigint);
+    CSA_ASSERT(this, Word32And(TaggedIsNotSmi(context), IsContext(context)));
     if (mode == Object::Conversion::kToNumeric) {
       var_result = CAST(input);
       Goto(&end);
@@ -6959,6 +6960,7 @@ TNode<Numeric> CodeStubAssembler::NonNumberToNumberOrNumeric(
 
     BIND(&if_inputisreceiver);
     {
+      CSA_ASSERT(this, Word32And(TaggedIsNotSmi(context), IsContext(context)));
       // The {input} is a JSReceiver, we need to convert it to a Primitive first
       // using the ToPrimitive type conversion, preferably yielding a Number.
       Callable callable = CodeFactory::NonPrimitiveToPrimitive(
@@ -6989,6 +6991,7 @@ TNode<Numeric> CodeStubAssembler::NonNumberToNumberOrNumeric(
 
     BIND(&if_inputisother);
     {
+      CSA_ASSERT(this, Word32And(TaggedIsNotSmi(context), IsContext(context)));
       // The {input} is something else (e.g. Symbol), let the runtime figure
       // out the correct exception.
       // Note: We cannot tail call to the runtime here, as js-to-wasm
