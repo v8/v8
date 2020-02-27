@@ -1764,7 +1764,7 @@ class RepresentationSelector {
     // Propagate representation information from TypeInfo.
     for (int i = 0; i < c_arg_count; i++) {
       arg_use_info[i] = UseInfoForFastApiCallArgument(
-          c_signature->ArgumentInfo()[i].GetType(), params.feedback());
+          c_signature->ArgumentInfo(i).GetType(), params.feedback());
       ProcessInput(node, i + 1, arg_use_info[i]);
     }
 
@@ -1777,7 +1777,7 @@ class RepresentationSelector {
       builder.AddReturn(return_type);
       for (int i = 0; i < c_arg_count; ++i) {
         MachineType machine_type =
-            MachineTypeFor(c_signature->ArgumentInfo()[i].GetType());
+            MachineTypeFor(c_signature->ArgumentInfo(i).GetType());
         // Here the arg_use_info are indexed starting from 1 because of the
         // function input, while this loop is only over the actual arguments.
         DCHECK_EQ(arg_use_info[i].representation(),

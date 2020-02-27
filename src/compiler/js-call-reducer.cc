@@ -890,7 +890,7 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     for (int i = 0; i < c_arg_count; ++i) {
       if (i + kFunctionArgCount < ValueInputCount()) {
         inputs.emplace_back(ConvertArgumentIfJSWrapper(
-            c_signature_->ArgumentInfo()[i].GetType(),
+            c_signature_->ArgumentInfo(i).GetType(),
             ValueInput(i + kFunctionArgCount), wrapper_object_index));
       } else {
         inputs.emplace_back(UndefinedConstant());

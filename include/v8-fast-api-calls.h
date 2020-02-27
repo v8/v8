@@ -241,7 +241,7 @@ class CFunctionInfo {
  public:
   virtual const CTypeInfo& ReturnInfo() const = 0;
   virtual unsigned int ArgumentCount() const = 0;
-  virtual const CTypeInfo* ArgumentInfo() const = 0;
+  virtual const CTypeInfo& ArgumentInfo(unsigned int index) const = 0;
 };
 
 template <typename T>
@@ -345,7 +345,10 @@ class CFunctionInfoImpl : public CFunctionInfo {
 
   const CTypeInfo& ReturnInfo() const override { return return_info_; }
   unsigned int ArgumentCount() const override { return arg_count_; }
-  const CTypeInfo* ArgumentInfo() const override { return arg_info_; }
+  const CTypeInfo& ArgumentInfo(unsigned int index) const override {
+    CHECK_LT(index, ArgumentCount());
+    return arg_info_[index];
+  }
 
  private:
   CTypeInfo return_info_;
@@ -359,7 +362,9 @@ class V8_EXPORT CFunction {
  public:
   const CTypeInfo& ReturnInfo() const { return type_info_->ReturnInfo(); }
 
-  const CTypeInfo* ArgumentInfo() const { return type_info_->ArgumentInfo(); }
+  const CTypeInfo& ArgumentInfo(unsigned int index) const {
+    return type_info_->ArgumentInfo(index);
+  }
 
   unsigned int ArgumentCount() const { return type_info_->ArgumentCount(); }
 
