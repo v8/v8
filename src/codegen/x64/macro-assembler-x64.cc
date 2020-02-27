@@ -34,28 +34,18 @@
 namespace v8 {
 namespace internal {
 
-Operand StackArgumentsAccessor::GetArgumentOperand(int index) {
+Operand StackArgumentsAccessor::GetArgumentOperand(int index) const {
   DCHECK_GE(index, 0);
-  int receiver = (receiver_mode_ == ARGUMENTS_CONTAIN_RECEIVER) ? 1 : 0;
-  int displacement_to_last_argument =
-      base_reg_ == rsp ? kPCOnStackSize : kFPOnStackSize + kPCOnStackSize;
-  displacement_to_last_argument += extra_displacement_to_last_argument_;
-  if (argument_count_reg_ == no_reg) {
-    // argument[0] is at base_reg_ + displacement_to_last_argument +
-    // (argument_count_immediate_ + receiver - 1) * kSystemPointerSize.
-    DCHECK_GT(argument_count_immediate_ + receiver, 0);
-    return Operand(base_reg_,
-                   displacement_to_last_argument +
-                       (argument_count_immediate_ + receiver - 1 - index) *
-                           kSystemPointerSize);
-  } else {
-    // argument[0] is at base_reg_ + displacement_to_last_argument +
-    // argument_count_reg_ * times_system_pointer_size + (receiver - 1) *
-    // kSystemPointerSize.
-    return Operand(base_reg_, argument_count_reg_, times_system_pointer_size,
-                   displacement_to_last_argument +
-                       (receiver - 1 - index) * kSystemPointerSize);
-  }
+#ifdef V8_REVERSE_JSARGS
+  // arg[0] = rsp + kPCOnStackSize;
+  // arg[i] = arg[0] + i * kSystemPointerSize;
+  return Operand(rsp, kPCOnStackSize + index * kSystemPointerSize);
+#else
+  // arg[0] = (rsp + kPCOnStackSize) + argc * kSystemPointerSize;
+  // arg[i] = arg[0] - i * kSystemPointerSize;
+  return Operand(rsp, argc_, times_system_pointer_size,
+                 kPCOnStackSize - index * kSystemPointerSize);
+#endif
 }
 
 void MacroAssembler::Load(Register destination, ExternalReference source) {
@@ -2371,8 +2361,15 @@ void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
   }
   Push(fun);
   Push(fun);
-  Push(
-      StackArgumentsAccessor(rbp, actual_parameter_count).GetReceiverOperand());
+  // Arguments are located 2 words below the base pointer.
+#ifdef V8_REVERSE_JSARGS
+  Operand receiver_op = Operand(rbp, kSystemPointerSize * 2);
+#else
+  Operand receiver_op =
+      Operand(rbp, actual_parameter_count, times_system_pointer_size,
+              kSystemPointerSize * 2);
+#endif
+  Push(receiver_op);
   CallRuntime(Runtime::kDebugOnFunctionCall);
   Pop(fun);
   if (new_target.is_valid()) {

@@ -33,36 +33,22 @@ struct SmiIndex {
   ScaleFactor scale;
 };
 
-enum StackArgumentsAccessorReceiverMode {
-  ARGUMENTS_CONTAIN_RECEIVER,
-  ARGUMENTS_DONT_CONTAIN_RECEIVER
-};
-
+// Convenient class to access arguments below the stack pointer.
 class StackArgumentsAccessor {
  public:
-  StackArgumentsAccessor(Register base_reg, Register argument_count_reg,
-                         StackArgumentsAccessorReceiverMode receiver_mode =
-                             ARGUMENTS_CONTAIN_RECEIVER,
-                         int extra_displacement_to_last_argument = 0)
-      : base_reg_(base_reg),
-        argument_count_reg_(argument_count_reg),
-        argument_count_immediate_(0),
-        receiver_mode_(receiver_mode),
-        extra_displacement_to_last_argument_(
-            extra_displacement_to_last_argument) {}
-
-  Operand GetArgumentOperand(int index);
-  Operand GetReceiverOperand() {
-    DCHECK(receiver_mode_ == ARGUMENTS_CONTAIN_RECEIVER);
-    return GetArgumentOperand(0);
+  // argc = the number of arguments not including the receiver.
+  explicit StackArgumentsAccessor(Register argc) : argc_(argc) {
+    DCHECK_NE(argc_, no_reg);
   }
 
+  // Argument 0 is the receiver (despite argc not including the receiver).
+  Operand operator[](int index) const { return GetArgumentOperand(index); }
+
+  Operand GetArgumentOperand(int index) const;
+  Operand GetReceiverOperand() const { return GetArgumentOperand(0); }
+
  private:
-  const Register base_reg_;
-  const Register argument_count_reg_;
-  const int argument_count_immediate_;
-  const StackArgumentsAccessorReceiverMode receiver_mode_;
-  const int extra_displacement_to_last_argument_;
+  const Register argc_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
 };

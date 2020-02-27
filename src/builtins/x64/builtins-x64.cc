@@ -1605,9 +1605,10 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax     : argc
   //  -- rsp[0]  : return address
-  //  -- rsp[8]  : argArray
-  //  -- rsp[16] : thisArg
-  //  -- rsp[24] : receiver
+  // The order of args depends on V8_REVERSE_JSARGS
+  //  -- args[0] : receiver
+  //  -- args[1] : thisArg
+  //  -- args[2] : argArray
   // -----------------------------------
 
   // 1. Load receiver into rdi, argArray into rbx (if present), remove all
@@ -1615,17 +1616,17 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // present) instead.
   {
     Label no_arg_array, no_this_arg;
-    StackArgumentsAccessor args(rsp, rax);
+    StackArgumentsAccessor args(rax);
     __ LoadRoot(rdx, RootIndex::kUndefinedValue);
     __ movq(rbx, rdx);
-    __ movq(rdi, args.GetReceiverOperand());
+    __ movq(rdi, args[0]);
     __ testq(rax, rax);
     __ j(zero, &no_this_arg, Label::kNear);
     {
-      __ movq(rdx, args.GetArgumentOperand(1));
+      __ movq(rdx, args[1]);
       __ cmpq(rax, Immediate(1));
       __ j(equal, &no_arg_array, Label::kNear);
-      __ movq(rbx, args.GetArgumentOperand(2));
+      __ movq(rbx, args[2]);
       __ bind(&no_arg_array);
     }
     __ bind(&no_this_arg);
@@ -1692,7 +1693,7 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
 
   // 2. Get the callable to call (passed as receiver) from the stack.
   {
-    StackArgumentsAccessor args(rsp, rax);
+    StackArgumentsAccessor args(rax);
     __ movq(rdi, args.GetReceiverOperand());
   }
 
@@ -1702,10 +1703,10 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
   {
     Label loop;
     __ movq(rcx, rax);
-    StackArgumentsAccessor args(rsp, rcx);
+    StackArgumentsAccessor args(rcx);
     __ bind(&loop);
-    __ movq(rbx, args.GetArgumentOperand(1));
-    __ movq(args.GetArgumentOperand(0), rbx);
+    __ movq(rbx, args[1]);
+    __ movq(args[0], rbx);
     __ decq(rcx);
     __ j(not_zero, &loop);              // While non-zero.
     __ DropUnderReturnAddress(1, rbx);  // Drop one slot under return address.
@@ -1722,10 +1723,11 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax     : argc
   //  -- rsp[0]  : return address
-  //  -- rsp[8]  : argumentsList
-  //  -- rsp[16] : thisArgument
-  //  -- rsp[24] : target
-  //  -- rsp[32] : receiver
+  // The order of args depends on V8_REVERSE_JSARGS
+  //  -- args[0] : receiver
+  //  -- args[1] : target
+  //  -- args[2] : thisArgument
+  //  -- args[3] : argumentsList
   // -----------------------------------
 
   // 1. Load target into rdi (if present), argumentsList into rbx (if present),
@@ -1733,18 +1735,18 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   // thisArgument (if present) instead.
   {
     Label done;
-    StackArgumentsAccessor args(rsp, rax);
+    StackArgumentsAccessor args(rax);
     __ LoadRoot(rdi, RootIndex::kUndefinedValue);
     __ movq(rdx, rdi);
     __ movq(rbx, rdi);
     __ cmpq(rax, Immediate(1));
     __ j(below, &done, Label::kNear);
-    __ movq(rdi, args.GetArgumentOperand(1));  // target
+    __ movq(rdi, args[1]);  // target
     __ j(equal, &done, Label::kNear);
-    __ movq(rdx, args.GetArgumentOperand(2));  // thisArgument
+    __ movq(rdx, args[2]);  // thisArgument
     __ cmpq(rax, Immediate(3));
     __ j(below, &done, Label::kNear);
-    __ movq(rbx, args.GetArgumentOperand(3));  // argumentsList
+    __ movq(rbx, args[3]);  // argumentsList
     __ bind(&done);
     __ PopReturnAddressTo(rcx);
     __ leaq(rsp,
@@ -1773,10 +1775,11 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax     : argc
   //  -- rsp[0]  : return address
-  //  -- rsp[8]  : new.target (optional)
-  //  -- rsp[16] : argumentsList
-  //  -- rsp[24] : target
-  //  -- rsp[32] : receiver
+  // The order of args depends on V8_REVERSE_JSARGS
+  //  -- args[0] : receiver
+  //  -- args[1] : target
+  //  -- args[2] : argumentsList
+  //  -- args[3] : new.target (optional)
   // -----------------------------------
 
   // 1. Load target into rdi (if present), argumentsList into rbx (if present),
@@ -1785,19 +1788,19 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   // (if present) instead.
   {
     Label done;
-    StackArgumentsAccessor args(rsp, rax);
+    StackArgumentsAccessor args(rax);
     __ LoadRoot(rdi, RootIndex::kUndefinedValue);
     __ movq(rdx, rdi);
     __ movq(rbx, rdi);
     __ cmpq(rax, Immediate(1));
     __ j(below, &done, Label::kNear);
-    __ movq(rdi, args.GetArgumentOperand(1));  // target
+    __ movq(rdi, args[1]);                     // target
     __ movq(rdx, rdi);                         // new.target defaults to target
     __ j(equal, &done, Label::kNear);
-    __ movq(rbx, args.GetArgumentOperand(2));  // argumentsList
+    __ movq(rbx, args[2]);  // argumentsList
     __ cmpq(rax, Immediate(3));
     __ j(below, &done, Label::kNear);
-    __ movq(rdx, args.GetArgumentOperand(3));  // new.target
+    __ movq(rdx, args[3]);  // new.target
     __ bind(&done);
     __ PopReturnAddressTo(rcx);
     __ leaq(rsp,
@@ -2137,9 +2140,9 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       __ PopReturnAddressTo(rcx);
       __ bind(&loop);
       {
-        StackArgumentsAccessor args(rbx, r8, ARGUMENTS_DONT_CONTAIN_RECEIVER);
-        __ Push(args.GetArgumentOperand(0));
         __ decl(r8);
+        __ Push(Operand(rbx, r8, times_system_pointer_size,
+                        kFPOnStackSize + kPCOnStackSize));
         __ j(not_zero, &loop);
       }
       __ PushReturnAddressFrom(rcx);
@@ -2162,7 +2165,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- rdi : the function to call (checked to be a JSFunction)
   // -----------------------------------
 
-  StackArgumentsAccessor args(rsp, rax);
+  StackArgumentsAccessor args(rax);
   __ AssertFunction(rdi);
 
   // ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
@@ -2375,7 +2378,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   __ AssertBoundFunction(rdi);
 
   // Patch the receiver to [[BoundThis]].
-  StackArgumentsAccessor args(rsp, rax);
+  StackArgumentsAccessor args(rax);
   __ LoadAnyTaggedField(rbx,
                         FieldOperand(rdi, JSBoundFunction::kBoundThisOffset));
   __ movq(args.GetReceiverOperand(), rbx);
@@ -2396,7 +2399,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   //  -- rax : the number of arguments (not including the receiver)
   //  -- rdi : the target to call (can be any Object)
   // -----------------------------------
-  StackArgumentsAccessor args(rsp, rax);
+  StackArgumentsAccessor args(rax);
 
   Label non_callable;
   __ JumpIfSmi(rdi, &non_callable);
@@ -2501,7 +2504,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   //           the JSFunction on which new was invoked initially)
   //  -- rdi : the constructor to call (can be any Object)
   // -----------------------------------
-  StackArgumentsAccessor args(rsp, rax);
+  StackArgumentsAccessor args(rax);
 
   // Check if target is a Smi.
   Label non_constructor;

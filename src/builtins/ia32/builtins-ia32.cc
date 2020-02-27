@@ -1599,9 +1599,10 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax     : argc
   //  -- esp[0]  : return address
-  //  -- esp[4]  : argArray
-  //  -- esp[8]  : thisArg
-  //  -- esp[12] : receiver
+  // The order of args depends on V8_REVERSE_JSARGS
+  //  -- args[0] : receiver
+  //  -- args[1] : thisArg
+  //  -- args[2] : argArray
   // -----------------------------------
 
   // 1. Load receiver into xmm0, argArray into edx (if present), remove all
@@ -1609,20 +1610,19 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // present) instead.
   {
     Label no_arg_array, no_this_arg;
+    StackArgumentsAccessor args(eax);
     // Spill receiver to allow the usage of edi as a scratch register.
-    __ movd(xmm0,
-            Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
+    __ movd(xmm0, args[0]);
 
     __ LoadRoot(edx, RootIndex::kUndefinedValue);
     __ mov(edi, edx);
     __ test(eax, eax);
     __ j(zero, &no_this_arg, Label::kNear);
     {
-      __ mov(edi, Operand(esp, eax, times_system_pointer_size, 0));
+      __ mov(edi, args[1]);
       __ cmp(eax, Immediate(1));
       __ j(equal, &no_arg_array, Label::kNear);
-      __ mov(edx,
-             Operand(esp, eax, times_system_pointer_size, -kSystemPointerSize));
+      __ mov(edx, args[2]);
       __ bind(&no_arg_array);
     }
     __ bind(&no_this_arg);
@@ -1690,7 +1690,10 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
   }
 
   // 2. Get the callable to call (passed as receiver) from the stack.
-  __ mov(edi, Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
+  {
+    StackArgumentsAccessor args(eax);
+    __ mov(edi, args.GetReceiverOperand());
+  }
 
   // 3. Shift arguments and return address one slot down on the stack
   //    (overwriting the original receiver).  Adjust argument count to make
@@ -1716,10 +1719,11 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax     : argc
   //  -- esp[0]  : return address
-  //  -- esp[4]  : argumentsList
-  //  -- esp[8]  : thisArgument
-  //  -- esp[12] : target
-  //  -- esp[16] : receiver
+  // The order of args depends on V8_REVERSE_JSARGS
+  //  -- args[0] : receiver
+  //  -- args[1] : target
+  //  -- args[2] : thisArgument
+  //  -- args[3] : argumentsList
   // -----------------------------------
 
   // 1. Load target into edi (if present), argumentsList into edx (if present),
@@ -1727,20 +1731,18 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   // thisArgument (if present) instead.
   {
     Label done;
+    StackArgumentsAccessor args(eax);
     __ LoadRoot(edi, RootIndex::kUndefinedValue);
     __ mov(edx, edi);
     __ mov(ecx, edi);
     __ cmp(eax, Immediate(1));
     __ j(below, &done, Label::kNear);
-    __ mov(edi, Operand(esp, eax, times_system_pointer_size,
-                        -0 * kSystemPointerSize));
+    __ mov(edi, args[1]);  // target
     __ j(equal, &done, Label::kNear);
-    __ mov(ecx, Operand(esp, eax, times_system_pointer_size,
-                        -1 * kSystemPointerSize));
+    __ mov(ecx, args[2]);  // thisArgument
     __ cmp(eax, Immediate(3));
     __ j(below, &done, Label::kNear);
-    __ mov(edx, Operand(esp, eax, times_system_pointer_size,
-                        -2 * kSystemPointerSize));
+    __ mov(edx, args[3]);  // argumentsList
     __ bind(&done);
 
     // Spill argumentsList to use edx as a scratch register.
@@ -1776,10 +1778,11 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax     : argc
   //  -- esp[0]  : return address
-  //  -- esp[4]  : new.target (optional)
-  //  -- esp[8]  : argumentsList
-  //  -- esp[12] : target
-  //  -- esp[16] : receiver
+  // The order of args depends on V8_REVERSE_JSARGS
+  //  -- args[0] : receiver
+  //  -- args[1] : target
+  //  -- args[2] : argumentsList
+  //  -- args[3] : new.target (optional)
   // -----------------------------------
 
   // 1. Load target into edi (if present), argumentsList into ecx (if present),
@@ -1788,21 +1791,19 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   // (if present) instead.
   {
     Label done;
+    StackArgumentsAccessor args(eax);
     __ LoadRoot(edi, RootIndex::kUndefinedValue);
     __ mov(edx, edi);
     __ mov(ecx, edi);
     __ cmp(eax, Immediate(1));
     __ j(below, &done, Label::kNear);
-    __ mov(edi, Operand(esp, eax, times_system_pointer_size,
-                        -0 * kSystemPointerSize));
+    __ mov(edi, args[1]);  // target
     __ mov(edx, edi);
     __ j(equal, &done, Label::kNear);
-    __ mov(ecx, Operand(esp, eax, times_system_pointer_size,
-                        -1 * kSystemPointerSize));
+    __ mov(ecx, args[2]);  // argumentsList
     __ cmp(eax, Immediate(3));
     __ j(below, &done, Label::kNear);
-    __ mov(edx, Operand(esp, eax, times_system_pointer_size,
-                        -2 * kSystemPointerSize));
+    __ mov(edx, args[3]);  // new.target
     __ bind(&done);
 
     // Spill argumentsList to use ecx as a scratch register.
@@ -2064,6 +2065,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edi : the function to call (checked to be a JSFunction)
   // -----------------------------------
+  StackArgumentsAccessor args(eax);
   __ AssertFunction(edi);
 
   // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
@@ -2097,15 +2099,13 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       __ LoadGlobalProxy(ecx);
     } else {
       Label convert_to_object, convert_receiver;
-      __ mov(ecx,
-             Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
+      __ mov(ecx, args.GetReceiverOperand());
       __ JumpIfSmi(ecx, &convert_to_object, Label::kNear);
       STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
       __ CmpObjectType(ecx, FIRST_JS_RECEIVER_TYPE, ecx);  // Clobbers ecx.
       __ j(above_equal, &done_convert);
       // Reload the receiver (it was clobbered by CmpObjectType).
-      __ mov(ecx,
-             Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
+      __ mov(ecx, args.GetReceiverOperand());
       if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
         Label convert_global_proxy;
         __ JumpIfRoot(ecx, RootIndex::kUndefinedValue, &convert_global_proxy,
@@ -2141,8 +2141,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
       __ bind(&convert_receiver);
     }
-    __ mov(Operand(esp, eax, times_system_pointer_size, kSystemPointerSize),
-           ecx);
+    __ mov(args.GetReceiverOperand(), ecx);
   }
   __ bind(&done_convert);
 
@@ -2277,8 +2276,9 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   __ AssertBoundFunction(edi);
 
   // Patch the receiver to [[BoundThis]].
+  StackArgumentsAccessor args(eax);
   __ mov(ecx, FieldOperand(edi, JSBoundFunction::kBoundThisOffset));
-  __ mov(Operand(esp, eax, times_system_pointer_size, kSystemPointerSize), ecx);
+  __ mov(args.GetReceiverOperand(), ecx);
 
   // Push the [[BoundArguments]] onto the stack.
   Generate_PushBoundArguments(masm);
@@ -2295,6 +2295,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edi : the target to call (can be any Object).
   // -----------------------------------
+  StackArgumentsAccessor args(eax);
 
   Label non_callable, non_function, non_smi, non_jsfunction,
       non_jsboundfunction;
@@ -2326,7 +2327,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // not we raise an exception).
   __ bind(&non_function);
   // Overwrite the original receiver with the (original) target.
-  __ mov(Operand(esp, eax, times_system_pointer_size, kSystemPointerSize), edi);
+  __ mov(args.GetReceiverOperand(), edi);
   // Let the "call_as_function_delegate" take care of the rest.
   __ LoadNativeContextSlot(edi, Context::CALL_AS_FUNCTION_DELEGATE_INDEX);
   __ Jump(masm->isolate()->builtins()->CallFunction(
@@ -2409,6 +2410,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   //           the JSFunction on which new was invoked initially)
   //  -- edi : the constructor to call (can be any Object)
   // -----------------------------------
+  StackArgumentsAccessor args(eax);
 
   // Check if target is a Smi.
   Label non_constructor, non_proxy, non_jsfunction, non_jsboundfunction;
@@ -2445,8 +2447,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ bind(&non_proxy);
   {
     // Overwrite the original receiver with the (original) target.
-    __ mov(Operand(esp, eax, times_system_pointer_size, kSystemPointerSize),
-           edi);
+    __ mov(args.GetReceiverOperand(), edi);
     // Let the "call_as_constructor_delegate" take care of the rest.
     __ LoadNativeContextSlot(edi, Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX);
     __ Jump(masm->isolate()->builtins()->CallFunction(),

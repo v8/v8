@@ -31,6 +31,20 @@
 namespace v8 {
 namespace internal {
 
+Operand StackArgumentsAccessor::GetArgumentOperand(int index) const {
+  DCHECK_GE(index, 0);
+#ifdef V8_REVERSE_JSARGS
+  // arg[0] = esp + kPCOnStackSize;
+  // arg[i] = arg[0] + i * kSystemPointerSize;
+  return Operand(esp, kPCOnStackSize + index * kSystemPointerSize);
+#else
+  // arg[0] = (esp + kPCOnStackSize) + argc * kSystemPointerSize;
+  // arg[i] = arg[0] - i * kSystemPointerSize;
+  return Operand(esp, argc_, times_system_pointer_size,
+                 kPCOnStackSize - index * kSystemPointerSize);
+#endif
+}
+
 // -------------------------------------------------------------------------
 // MacroAssembler implementation.
 
@@ -1095,9 +1109,14 @@ void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
   }
   Push(fun);
   Push(fun);
+  // Arguments are located 2 words below the base pointer.
+#ifdef V8_REVERSE_JSARGS
+  Operand receiver_op = Operand(ebp, kSystemPointerSize * 2);
+#else
   Operand receiver_op =
       Operand(ebp, actual_parameter_count, times_system_pointer_size,
               kSystemPointerSize * 2);
+#endif
   Push(receiver_op);
   CallRuntime(Runtime::kDebugOnFunctionCall);
   Pop(fun);

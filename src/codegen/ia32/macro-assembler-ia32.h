@@ -24,6 +24,26 @@ using MemOperand = Operand;
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 
+// Convenient class to access arguments below the stack pointer.
+class StackArgumentsAccessor {
+ public:
+  // argc = the number of arguments not including the receiver.
+  explicit StackArgumentsAccessor(Register argc) : argc_(argc) {
+    DCHECK_NE(argc_, no_reg);
+  }
+
+  // Argument 0 is the receiver (despite argc not including the receiver).
+  Operand operator[](int index) const { return GetArgumentOperand(index); }
+
+  Operand GetArgumentOperand(int index) const;
+  Operand GetReceiverOperand() const { return GetArgumentOperand(0); }
+
+ private:
+  const Register argc_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
+};
+
 class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
   using TurboAssemblerBase::TurboAssemblerBase;
