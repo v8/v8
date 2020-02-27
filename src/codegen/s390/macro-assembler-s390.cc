@@ -1828,16 +1828,24 @@ void TurboAssembler::CallCFunctionHelper(Register function,
 
   // Save the frame pointer and PC so that the stack layout remains iterable,
   // even without an ExitFrame which normally exists between JS and C frames.
-  if (isolate() != nullptr) {
-    Register scratch = r6;
-    push(scratch);
-
-    Move(scratch, ExternalReference::fast_c_call_caller_pc_address(isolate()));
+  Register addr_scratch = r1;
+  // See x64 code for reasoning about how to address the isolate data fields.
+  if (root_array_available()) {
     LoadPC(r0);
-    StoreP(r0, MemOperand(scratch));
-    Move(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    StoreP(fp, MemOperand(scratch));
-    pop(scratch);
+    StoreP(r0, MemOperand(kRootRegister,
+                          IsolateData::fast_c_call_caller_pc_offset()));
+    StoreP(fp, MemOperand(kRootRegister,
+                          IsolateData::fast_c_call_caller_fp_offset()));
+  } else {
+    DCHECK_NOT_NULL(isolate());
+
+    Move(addr_scratch,
+         ExternalReference::fast_c_call_caller_pc_address(isolate()));
+    LoadPC(r0);
+    StoreP(r0, MemOperand(addr_scratch));
+    Move(addr_scratch,
+         ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    StoreP(fp, MemOperand(addr_scratch));
   }
 
   // Just call directly. The function called cannot cause a GC, or
@@ -1851,15 +1859,19 @@ void TurboAssembler::CallCFunctionHelper(Register function,
 
   Call(dest);
 
-  if (isolate() != nullptr) {
-    // We don't unset the PC; the FP is the source of truth.
-    Register scratch1 = r6;
-    Register scratch2 = r7;
-    Push(scratch1, scratch2);
-    Move(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    lghi(scratch2, Operand::Zero());
-    StoreP(scratch2, MemOperand(scratch1));
-    Pop(scratch1, scratch2);
+  // We don't unset the PC; the FP is the source of truth.
+  Register zero_scratch = r0;
+  lghi(zero_scratch, Operand::Zero());
+
+  if (root_array_available()) {
+    StoreP(
+        zero_scratch,
+        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()));
+  } else {
+    DCHECK_NOT_NULL(isolate());
+    Move(addr_scratch,
+         ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    StoreP(zero_scratch, MemOperand(addr_scratch));
   }
 
   int stack_passed_arguments =

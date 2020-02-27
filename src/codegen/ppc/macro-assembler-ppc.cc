@@ -1897,20 +1897,32 @@ void TurboAssembler::CallCFunctionHelper(Register function,
 
   // Save the frame pointer and PC so that the stack layout remains iterable,
   // even without an ExitFrame which normally exists between JS and C frames.
-  if (isolate() != nullptr) {
-    Register scratch1 = r7;
-    Register scratch2 = r8;
-    Push(scratch1, scratch2);
-
-    mflr(scratch2);
-    Move(scratch1, ExternalReference::fast_c_call_caller_pc_address(isolate()));
+  Register addr_scratch = r7;
+  Register scratch = r8;
+  Push(scratch);
+  mflr(scratch);
+  // See x64 code for reasoning about how to address the isolate data fields.
+  if (root_array_available()) {
     LoadPC(r0);
-    StoreP(r0, MemOperand(scratch1));
-    Move(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    StoreP(fp, MemOperand(scratch1));
-    mtlr(scratch2);
-    Pop(scratch1, scratch2);
+    StoreP(r0, MemOperand(kRootRegister,
+                          IsolateData::fast_c_call_caller_pc_offset()));
+    StoreP(fp, MemOperand(kRootRegister,
+                          IsolateData::fast_c_call_caller_fp_offset()));
+  } else {
+    DCHECK_NOT_NULL(isolate());
+    Push(addr_scratch);
+
+    Move(addr_scratch,
+         ExternalReference::fast_c_call_caller_pc_address(isolate()));
+    LoadPC(r0);
+    StoreP(r0, MemOperand(addr_scratch));
+    Move(addr_scratch,
+         ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    StoreP(fp, MemOperand(addr_scratch));
+    Pop(addr_scratch);
   }
+  mtlr(scratch);
+  Pop(scratch);
 
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
@@ -1930,15 +1942,21 @@ void TurboAssembler::CallCFunctionHelper(Register function,
 
   Call(dest);
 
-  if (isolate() != nullptr) {
-    // We don't unset the PC; the FP is the source of truth.
-    Register scratch1 = r7;
-    Register scratch2 = r8;
-    Push(scratch1, scratch2);
-    Move(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    mov(scratch2, Operand::Zero());
-    StoreP(scratch2, MemOperand(scratch1));
-    Pop(scratch1, scratch2);
+  // We don't unset the PC; the FP is the source of truth.
+  Register zero_scratch = r0;
+  mov(zero_scratch, Operand::Zero());
+
+  if (root_array_available()) {
+    StoreP(
+        zero_scratch,
+        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()));
+  } else {
+    DCHECK_NOT_NULL(isolate());
+    Push(addr_scratch);
+    Move(addr_scratch,
+         ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    StoreP(zero_scratch, MemOperand(addr_scratch));
+    Pop(addr_scratch);
   }
 
   // Remove frame bought in PrepareCallCFunction
