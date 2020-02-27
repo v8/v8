@@ -372,8 +372,8 @@ TEST(GetObjectProperties) {
       heap_addresses);
   const d::ObjectProperty& flags = FindProp(*props, "flags");
   CHECK_GE(flags.num_struct_fields, 3);
-  CheckStructProp(*flags.struct_fields[0], "v8::internal::FunctionKind",
-                  "function_kind", 0, 5, 0);
+  CheckStructProp(*flags.struct_fields[0], "FunctionKind", "function_kind", 0,
+                  5, 0);
   CheckStructProp(*flags.struct_fields[1], "bool", "is_native", 0, 1, 5);
   CheckStructProp(*flags.struct_fields[2], "bool", "is_strict", 0, 1, 6);
 

@@ -15,10 +15,8 @@
 #include 'src/objects/js-segment-iterator.h'
 #include 'src/objects/js-segmenter.h'
 
-type DateTimeStyle extends int32
-constexpr 'v8::internal::JSDateTimeFormat::DateTimeStyle';
-type HourCycle extends int32
-constexpr 'v8::internal::JSDateTimeFormat::HourCycle';
+type DateTimeStyle extends int32 constexpr 'JSDateTimeFormat::DateTimeStyle';
+type HourCycle extends int32 constexpr 'JSDateTimeFormat::HourCycle';
 bitfield struct JSDateTimeFormatFlags extends uint31 {
   hour_cycle: HourCycle: 3 bit;
   date_style: DateTimeStyle: 3 bit;
@@ -34,10 +32,9 @@ extern class JSDateTimeFormat extends JSObject {
   flags: SmiTagged<JSDateTimeFormatFlags>;
 }
 
-type JSDisplayNamesStyle extends int32
-constexpr 'v8::internal::JSDisplayNames::Style';
+type JSDisplayNamesStyle extends int32 constexpr 'JSDisplayNames::Style';
 type JSDisplayNamesFallback extends int32
-constexpr 'v8::internal::JSDisplayNames::Fallback';
+constexpr 'JSDisplayNames::Fallback';
 bitfield struct JSDisplayNamesFlags extends uint31 {
   style: JSDisplayNamesStyle: 2 bit;
   fallback: JSDisplayNamesFallback: 1 bit;
@@ -48,10 +45,8 @@ extern class JSDisplayNames extends JSObject {
   flags: SmiTagged<JSDisplayNamesFlags>;
 }
 
-type JSListFormatStyle extends int32
-constexpr 'v8::internal::JSListFormat::Style';
-type JSListFormatType extends int32
-constexpr 'v8::internal::JSListFormat::Type';
+type JSListFormatStyle extends int32 constexpr 'JSListFormat::Style';
+type JSListFormatType extends int32 constexpr 'JSListFormat::Type';
 bitfield struct JSListFormatFlags extends uint31 {
   style: JSListFormatStyle: 2 bit;
   Type: JSListFormatType: 2 bit;  // "type" is a reserved word.
@@ -70,8 +65,7 @@ extern class JSNumberFormat extends JSObject {
   bound_format: JSFunction|Undefined;
 }
 
-type JSPluralRulesType extends int32
-constexpr 'v8::internal::JSPluralRules::Type';
+type JSPluralRulesType extends int32 constexpr 'JSPluralRules::Type';
 bitfield struct JSPluralRulesFlags extends uint31 {
   Type: JSPluralRulesType: 1 bit;  // "type" is a reserved word.
 }
@@ -85,7 +79,7 @@ extern class JSPluralRules extends JSObject {
 }
 
 type JSRelativeTimeFormatNumeric extends int32
-constexpr 'v8::internal::JSRelativeTimeFormat::Numeric';
+constexpr 'JSRelativeTimeFormat::Numeric';
 bitfield struct JSRelativeTimeFormatFlags extends uint31 {
   numeric: JSRelativeTimeFormatNumeric: 1 bit;
 }
@@ -102,7 +96,7 @@ extern class JSLocale extends JSObject {
 }
 
 type JSSegmenterGranularity extends int32
-constexpr 'v8::internal::JSSegmenter::Granularity';
+constexpr 'JSSegmenter::Granularity';
 bitfield struct JSSegmenterFlags extends uint31 {
   granularity: JSSegmenterGranularity: 2 bit;
 }

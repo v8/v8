@@ -14,10 +14,9 @@ extern class InterpreterData extends Struct {
   interpreter_trampoline: Code;
 }
 
-type FunctionKind extends uint8 constexpr 'v8::internal::FunctionKind';
-type FunctionSyntaxKind extends uint8
-constexpr 'v8::internal::FunctionSyntaxKind';
-type BailoutReason extends uint8 constexpr 'v8::internal::BailoutReason';
+type FunctionKind extends uint8 constexpr 'FunctionKind';
+type FunctionSyntaxKind extends uint8 constexpr 'FunctionSyntaxKind';
+type BailoutReason extends uint8 constexpr 'BailoutReason';
 
 bitfield struct SharedFunctionInfoFlags extends uint32 {
   // Have FunctionKind first to make it cheaper to access.

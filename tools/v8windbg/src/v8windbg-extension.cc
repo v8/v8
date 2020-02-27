@@ -80,6 +80,20 @@ WRL::ComPtr<IDebugHostType> Extension::GetTypeFromV8Module(
 
   auto& dictionary_entry = cached_v8_module_types_[type_name];
   if (dictionary_entry == nullptr) {
+    const std::wstring type_name_w(reinterpret_cast<const wchar_t*>(type_name));
+    // The contract from debug_helper functions is to provide type names that
+    // would be valid if used in C++ code within the v8::internal namespace.
+    // They might be fully qualified but aren't required to be. Thus, we must
+    // simluate an "unqualified name lookup" here, by searching for the type
+    // starting in the innermost namespace and working outward.
+    if (SUCCEEDED(sp_v8_module_->FindTypeByName(
+            (L"v8::internal::" + type_name_w).c_str(), &dictionary_entry))) {
+      return dictionary_entry;
+    }
+    if (SUCCEEDED(sp_v8_module_->FindTypeByName((L"v8::" + type_name_w).c_str(),
+                                                &dictionary_entry))) {
+      return dictionary_entry;
+    }
     sp_v8_module_->FindTypeByName(reinterpret_cast<PCWSTR>(type_name),
                                   &dictionary_entry);
   }

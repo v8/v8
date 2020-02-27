@@ -40,7 +40,12 @@ struct StructField {
 
   std::u16string name;
 
-  // Statically-determined type, such as from .tq definition.
+  // Statically-determined type, such as from .tq definition. This type should
+  // be treated as if it were used in the v8::internal namespace; that is, type
+  // "X::Y" can mean any of the following, in order of decreasing preference:
+  // - v8::internal::X::Y
+  // - v8::X::Y
+  // - X::Y
   std::u16string type_name;
 
   // In some cases, |type_name| may be a simple type representing a compressed
@@ -78,7 +83,12 @@ struct Property {
 
   // Statically-determined type, such as from .tq definition. Can be an empty
   // string if this property is itself a Torque-defined struct; in that case use
-  // |fields| instead.
+  // |fields| instead. This type should be treated as if it were used in the
+  // v8::internal namespace; that is, type "X::Y" can mean any of the following,
+  // in order of decreasing preference:
+  // - v8::internal::X::Y
+  // - v8::X::Y
+  // - X::Y
   std::u16string type_name;
 
   // In some cases, |type_name| may be a simple type representing a compressed

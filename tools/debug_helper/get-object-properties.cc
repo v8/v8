@@ -14,7 +14,9 @@
 
 namespace i = v8::internal;
 
-namespace v8_debug_helper_internal {
+namespace v8 {
+namespace internal {
+namespace debug_helper_internal {
 
 constexpr char kObject[] = "v8::internal::Object";
 constexpr char kTaggedValue[] = "v8::internal::TaggedValue";
@@ -591,9 +593,11 @@ std::unique_ptr<ObjectPropertiesResult> GetObjectProperties(
                                                   stream.str(), kSmi);
 }
 
-}  // namespace v8_debug_helper_internal
+}  // namespace debug_helper_internal
+}  // namespace internal
+}  // namespace v8
 
-namespace di = v8_debug_helper_internal;
+namespace di = v8::internal::debug_helper_internal;
 
 extern "C" {
 V8_DEBUG_HELPER_EXPORT d::ObjectPropertiesResult*

@@ -161,7 +161,7 @@ type LayoutDescriptor extends ByteArray
     generates 'TNode<LayoutDescriptor>';
 extern class TransitionArray extends WeakFixedArray;
 
-type InstanceType extends uint16 constexpr 'v8::internal::InstanceType';
+type InstanceType extends uint16 constexpr 'InstanceType';
 
 type NoSharedNameSentinel extends Smi;
 

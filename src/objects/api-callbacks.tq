@@ -30,9 +30,8 @@ extern class AccessCheckInfo extends Struct {
   data: Object;
 }
 
-type PropertyAttributes extends int32
-constexpr 'v8::internal::PropertyAttributes';
-type SideEffectType extends int32 constexpr 'v8::SideEffectType';
+type PropertyAttributes extends int32 constexpr 'PropertyAttributes';
+type SideEffectType extends int32 constexpr 'SideEffectType';
 
 bitfield struct AccessorInfoFlags extends uint31 {
   all_can_read: bool: 1 bit;

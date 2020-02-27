@@ -128,21 +128,19 @@ class DebugFieldType {
     if (IsTagged()) {
       return storage == kAsStoredInHeap ? "i::Tagged_t" : "uintptr_t";
     }
-    // Note that we need constexpr names to resolve correctly in the global
-    // namespace, because we're passing them as strings to a debugging
-    // extension. We can verify this during build of the debug helper, because
-    // we use this type for a local variable below, and generate this code in
-    // a disjoint namespace. However, we can't emit a useful error at this
-    // point. Instead we'll emit a comment that might be helpful.
+
+    // We can't emit a useful error at this point if the constexpr type name is
+    // wrong, but we can include a comment that might be helpful.
     return GetOriginalType(storage) +
-           " /*Failing? Ensure constexpr type name is fully qualified and "
-           "necessary #includes are in debug-helper-internal.h*/";
+           " /*Failing? Ensure constexpr type name is correct, and the "
+           "necessary #include is in any .tq file*/";
   }
 
   // Returns the type that should be used to represent a field's type to
   // debugging tools that have full V8 symbols. The types returned from this
-  // method are fully qualified and may refer to object types that are not
-  // included in the compilation of the debug helper library.
+  // method are resolveable in the v8::internal namespace and may refer to
+  // object types that are not included in the compilation of the debug helper
+  // library.
   std::string GetOriginalType(TypeStorage storage) const {
     if (name_and_type_.type->IsStructType()) {
       // There's no meaningful type we could use here, because the V8 symbols
@@ -162,6 +160,26 @@ class DebugFieldType {
                   : "Object");
     }
     return name_and_type_.type->GetConstexprGeneratedTypeName();
+  }
+
+  // Returns a C++ expression that evaluates to a string (type `const char*`)
+  // containing the name of the field's type. The types returned from this
+  // method are resolveable in the v8::internal namespace and may refer to
+  // object types that are not included in the compilation of the debug helper
+  // library.
+  std::string GetTypeString(TypeStorage storage) const {
+    if (IsTagged() || name_and_type_.type->IsStructType()) {
+      // Wrap up the original type in a string literal.
+      return "\"" + GetOriginalType(storage) + "\"";
+    }
+
+    // We require constexpr type names to be resolvable in the v8::internal
+    // namespace, according to the contract in debug-helper.h. In order to
+    // verify at compile time that constexpr type names are resolvable, we use
+    // the type name as a dummy template parameter to a function that just
+    // returns its parameter.
+    return "CheckTypeName<" + GetValueType(storage) + ">(\"" +
+           GetOriginalType(storage) + "\")";
   }
 
   // Returns the field's size in bytes.
@@ -346,10 +364,9 @@ void GenerateGetPropsChunkForField(const Field& field,
                                      struct_field.pos);
     get_props_impl << "  " << struct_field_list
                    << ".push_back(std::make_unique<StructProperty>(\""
-                   << struct_field.name_and_type.name << "\", \""
-                   << struct_field_type.GetOriginalType(kAsStoredInHeap)
-                   << "\", \""
-                   << struct_field_type.GetOriginalType(kUncompressed) << "\", "
+                   << struct_field.name_and_type.name << "\", "
+                   << struct_field_type.GetTypeString(kAsStoredInHeap) << ", "
+                   << struct_field_type.GetTypeString(kUncompressed) << ", "
                    << struct_field.offset_bytes << ", " << struct_field.num_bits
                    << ", " << struct_field.shift_bits << "));\n";
   }
@@ -383,11 +400,11 @@ void GenerateGetPropsChunkForField(const Field& field,
   }
 
   get_props_impl << "  result.push_back(std::make_unique<ObjectProperty>(\""
-                 << field.name_and_type.name << "\", \""
-                 << debug_field_type.GetOriginalType(kAsStoredInHeap)
-                 << "\", \"" << debug_field_type.GetOriginalType(kUncompressed)
-                 << "\", " << debug_field_type.GetAddressGetter() << "(), "
-                 << count_value << ", " << debug_field_type.GetSize() << ", "
+                 << field.name_and_type.name << "\", "
+                 << debug_field_type.GetTypeString(kAsStoredInHeap) << ", "
+                 << debug_field_type.GetTypeString(kUncompressed) << ", "
+                 << debug_field_type.GetAddressGetter() << "(), " << count_value
+                 << ", " << debug_field_type.GetSize() << ", "
                  << struct_field_list << ", " << property_kind << "));\n";
 }
 
@@ -537,12 +554,17 @@ void ImplementationVisitor::GenerateClassDebugReaders(
     h_contents << "#undef GetBValue\n";
     h_contents << "#endif\n\n";
 
+    for (const std::string& include_path : GlobalContext::CppIncludes()) {
+      cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
+    }
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
     cc_contents << "#include \"include/v8-internal.h\"\n\n";
     cc_contents << "namespace i = v8::internal;\n\n";
 
-    NamespaceScope h_namespaces(h_contents, {"v8_debug_helper_internal"});
-    NamespaceScope cc_namespaces(cc_contents, {"v8_debug_helper_internal"});
+    NamespaceScope h_namespaces(h_contents,
+                                {"v8", "internal", "debug_helper_internal"});
+    NamespaceScope cc_namespaces(cc_contents,
+                                 {"v8", "internal", "debug_helper_internal"});
 
     std::stringstream visitor;
     visitor << "\nclass TqObjectVisitor {\n";
