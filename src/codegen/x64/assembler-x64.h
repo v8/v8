@@ -985,7 +985,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   SSE4_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
-  SSE4_PMOV_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
+  SSE4_UNOP_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
   DECLARE_SSE4_INSTRUCTION(blendvpd, 66, 0F, 38, 15)
 #undef DECLARE_SSE4_INSTRUCTION
 
@@ -1061,7 +1061,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void v##instruction(XMMRegister dst, Operand src) {                        \
     vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0); \
   }
-  SSE4_PMOV_INSTRUCTION_LIST(DECLARE_SSE4_PMOV_AVX_INSTRUCTION)
+  SSE4_UNOP_INSTRUCTION_LIST(DECLARE_SSE4_PMOV_AVX_INSTRUCTION)
 #undef DECLARE_SSE4_PMOV_AVX_INSTRUCTION
 
   void movd(XMMRegister dst, Register src);

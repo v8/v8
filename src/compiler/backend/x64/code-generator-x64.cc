@@ -595,9 +595,9 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     XMMRegister tmp2 = i.TempSimd128Register(1); \
     __ movq(tmp1, Immediate(1));                 \
     __ xorq(dst, dst);                           \
-    __ pxor(tmp2, tmp2);                         \
+    __ Pxor(tmp2, tmp2);                         \
     __ opcode(tmp2, i.InputSimd128Register(0));  \
-    __ ptest(tmp2, tmp2);                        \
+    __ Ptest(tmp2, tmp2);                        \
     __ cmovq(zero, dst, tmp1);                   \
   } while (false)
 
@@ -3941,15 +3941,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64S1x4AllTrue: {
-      ASSEMBLE_SIMD_ALL_TRUE(pcmpeqd);
+      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqd);
       break;
     }
     case kX64S1x8AllTrue: {
-      ASSEMBLE_SIMD_ALL_TRUE(pcmpeqw);
+      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqw);
       break;
     }
     case kX64S1x16AllTrue: {
-      ASSEMBLE_SIMD_ALL_TRUE(pcmpeqb);
+      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqb);
       break;
     }
     case kWord32AtomicExchangeInt8: {

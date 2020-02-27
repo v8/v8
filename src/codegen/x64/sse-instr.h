@@ -143,7 +143,6 @@
 
 #define SSE4_INSTRUCTION_LIST(V) \
   V(pcmpeqq, 66, 0F, 38, 29)     \
-  V(ptest, 66, 0F, 38, 17)       \
   V(packusdw, 66, 0F, 38, 2B)    \
   V(pminsb, 66, 0F, 38, 38)      \
   V(pminsd, 66, 0F, 38, 39)      \
@@ -156,7 +155,8 @@
   V(pmulld, 66, 0F, 38, 40)
 
 // SSE instructions whose AVX version has two operands.
-#define SSE4_PMOV_INSTRUCTION_LIST(V) \
+#define SSE4_UNOP_INSTRUCTION_LIST(V) \
+  V(ptest, 66, 0F, 38, 17)            \
   V(pmovsxbw, 66, 0F, 38, 20)         \
   V(pmovsxwd, 66, 0F, 38, 23)         \
   V(pmovsxdq, 66, 0F, 38, 25)         \
