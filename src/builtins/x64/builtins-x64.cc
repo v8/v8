@@ -1213,11 +1213,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&stack_check_interrupt);
   // Modify the bytecode offset in the stack to be kFunctionEntryBytecodeOffset
   // for the call to the StackGuard.
-  __ Move(kScratchRegister,
-          Smi::FromInt(BytecodeArray::kHeaderSize - kHeapObjectTag +
-                       kFunctionEntryBytecodeOffset));
   __ movq(Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp),
-          kScratchRegister);
+          Immediate(Smi::FromInt(BytecodeArray::kHeaderSize - kHeapObjectTag +
+                                 kFunctionEntryBytecodeOffset)));
   __ CallRuntime(Runtime::kStackGuard);
 
   // After the call, restore the bytecode array, bytecode offset and accumulator

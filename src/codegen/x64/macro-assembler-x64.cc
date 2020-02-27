@@ -1028,7 +1028,17 @@ void TurboAssembler::Set(Operand dst, intptr_t x) {
 // Smi tagging, untagging and tag detection.
 
 Register TurboAssembler::GetSmiConstant(Smi source) {
-  Move(kScratchRegister, source);
+  STATIC_ASSERT(kSmiTag == 0);
+  int value = source.value();
+  if (value == 0) {
+    xorl(kScratchRegister, kScratchRegister);
+    return kScratchRegister;
+  }
+  if (SmiValuesAre32Bits()) {
+    Move(kScratchRegister, source);
+  } else {
+    movl(kScratchRegister, Immediate(source));
+  }
   return kScratchRegister;
 }
 
@@ -1038,11 +1048,7 @@ void TurboAssembler::Move(Register dst, Smi source) {
   if (value == 0) {
     xorl(dst, dst);
   } else {
-    if (COMPRESS_POINTERS_BOOL) {
-      movl(dst, Immediate(source));
-    } else {
-      Move(dst, source.ptr(), RelocInfo::NONE);
-    }
+    Move(dst, source.ptr(), RelocInfo::NONE);
   }
 }
 
