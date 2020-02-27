@@ -197,7 +197,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Pavgb, pavgb)
   AVX_OP(Pavgw, pavgw)
   AVX_OP(Psrad, psrad)
+  AVX_OP(Psllq, psllq)
   AVX_OP(Psrld, psrld)
+  AVX_OP(Psrlq, psrlq)
   AVX_OP(Paddd, paddd)
   AVX_OP(Paddq, paddq)
   AVX_OP(Pcmpgtd, pcmpgtd)
@@ -474,7 +476,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Pinsrb(XMMRegister dst, Register src, int8_t imm8);
   void Pinsrb(XMMRegister dst, Operand src, int8_t imm8);
 
+  void Psllq(XMMRegister dst, int imm8) { Psllq(dst, static_cast<byte>(imm8)); }
   void Psllq(XMMRegister dst, byte imm8);
+  void Psrlq(XMMRegister dst, int imm8) { Psrlq(dst, static_cast<byte>(imm8)); }
   void Psrlq(XMMRegister dst, byte imm8);
   void Pslld(XMMRegister dst, byte imm8);
   void Psrld(XMMRegister dst, byte imm8);

@@ -2654,7 +2654,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I64x2Shl: {
       // Take shift value modulo 2^6.
-      ASSEMBLE_SIMD_SHIFT(psllq, 6);
+      ASSEMBLE_SIMD_SHIFT(Psllq, 6);
       break;
     }
     case kX64I64x2ShrS: {
@@ -2667,14 +2667,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Modulo 64 not required as sarq_cl will mask cl to 6 bits.
 
       // lower quadword
-      __ pextrq(tmp, src, 0x0);
+      __ Pextrq(tmp, src, static_cast<int8_t>(0x0));
       __ sarq_cl(tmp);
-      __ pinsrq(dst, tmp, 0x0);
+      __ Pinsrq(dst, tmp, static_cast<int8_t>(0x0));
 
       // upper quadword
-      __ pextrq(tmp, src, 0x1);
+      __ Pextrq(tmp, src, static_cast<int8_t>(0x1));
       __ sarq_cl(tmp);
-      __ pinsrq(dst, tmp, 0x1);
+      __ Pinsrq(dst, tmp, static_cast<int8_t>(0x1));
       break;
     }
     case kX64I64x2Add: {
@@ -2804,7 +2804,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I64x2ShrU: {
       // Take shift value modulo 2^6.
-      ASSEMBLE_SIMD_SHIFT(psrlq, 6);
+      ASSEMBLE_SIMD_SHIFT(Psrlq, 6);
       break;
     }
     case kX64I64x2MinU: {
