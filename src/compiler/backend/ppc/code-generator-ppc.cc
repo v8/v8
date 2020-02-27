@@ -1031,7 +1031,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Label start_call;
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
-      int offset = 9 * kInstrSize;
+      int offset = 20 * kInstrSize;
 #if defined(_AIX)
       // AIX/PPC64BE Linux uses a function descriptor
       int kNumParametersMask = kHasFunctionDescriptorBitMask - 1;
@@ -1041,7 +1041,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // AIX may emit 2 extra Load instructions under CallCFunctionHelper
       // due to having function descriptor.
       if (has_function_descriptor) {
-        offset = 11 * kInstrSize;
+        offset = 22 * kInstrSize;
       }
 #endif
       if (isWasmCapiFunction) {
