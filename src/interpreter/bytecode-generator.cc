@@ -411,10 +411,7 @@ class BytecodeGenerator::ControlScopeForIteration final
                            LoopBuilder* loop_builder)
       : ControlScope(generator),
         statement_(statement),
-        loop_builder_(loop_builder) {
-    generator->loop_depth_++;
-  }
-  ~ControlScopeForIteration() override { generator()->loop_depth_--; }
+        loop_builder_(loop_builder) {}
 
  protected:
   bool Execute(Command command, Statement* statement,
@@ -953,6 +950,36 @@ class BytecodeGenerator::OptionalChainNullLabelScope final {
   BytecodeLabels* prev_;
 };
 
+// LoopScope delimits the scope of {loop}, from its header to its final jump.
+// It should be constructed iff a (conceptual) back edge should be produced. In
+// the case of creating a LoopBuilder but never emitting the loop, it is valid
+// to skip the creation of LoopScope.
+class BytecodeGenerator::LoopScope final {
+ public:
+  explicit LoopScope(BytecodeGenerator* bytecode_generator, LoopBuilder* loop)
+      : bytecode_generator_(bytecode_generator),
+        parent_loop_scope_(bytecode_generator_->current_loop_scope()),
+        loop_builder_(loop) {
+    loop_builder_->LoopHeader();
+    bytecode_generator_->set_current_loop_scope(this);
+    bytecode_generator_->loop_depth_++;
+  }
+
+  ~LoopScope() {
+    bytecode_generator_->loop_depth_--;
+    bytecode_generator_->set_current_loop_scope(parent_loop_scope_);
+    DCHECK_GE(bytecode_generator_->loop_depth_, 0);
+    loop_builder_->JumpToHeader(
+        bytecode_generator_->loop_depth_,
+        parent_loop_scope_ ? parent_loop_scope_->loop_builder_ : nullptr);
+  }
+
+ private:
+  BytecodeGenerator* const bytecode_generator_;
+  LoopScope* const parent_loop_scope_;
+  LoopBuilder* const loop_builder_;
+};
+
 namespace {
 
 template <typename PropertyT>
@@ -1043,6 +1070,7 @@ BytecodeGenerator::BytecodeGenerator(
       generator_jump_table_(nullptr),
       suspend_count_(0),
       loop_depth_(0),
+      current_loop_scope_(nullptr),
       catch_prediction_(HandlerTable::UNCAUGHT) {
   DCHECK_EQ(closure_scope(), closure_scope()->GetClosureScope());
   if (info->has_source_range_map()) {
@@ -1840,20 +1868,22 @@ void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt);
   if (stmt->cond()->ToBooleanIsFalse()) {
+    // Since we know that the condition is false, we don't create a loop.
+    // Therefore, we don't create a LoopScope (and thus we don't create a header
+    // and a JumpToHeader). However, we still need to iterate once through the
+    // body.
     VisitIterationBody(stmt, &loop_builder);
   } else if (stmt->cond()->ToBooleanIsTrue()) {
-    loop_builder.LoopHeader();
+    LoopScope loop_scope(this, &loop_builder);
     VisitIterationBody(stmt, &loop_builder);
-    loop_builder.JumpToHeader(loop_depth_);
   } else {
-    loop_builder.LoopHeader();
+    LoopScope loop_scope(this, &loop_builder);
     VisitIterationBody(stmt, &loop_builder);
     builder()->SetExpressionAsStatementPosition(stmt->cond());
     BytecodeLabels loop_backbranch(zone());
     VisitForTest(stmt->cond(), &loop_backbranch, loop_builder.break_labels(),
                  TestFallthrough::kThen);
     loop_backbranch.Bind(builder());
-    loop_builder.JumpToHeader(loop_depth_);
   }
 }
 
@@ -1865,7 +1895,7 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
     return;
   }
 
-  loop_builder.LoopHeader();
+  LoopScope loop_scope(this, &loop_builder);
   if (!stmt->cond()->ToBooleanIsTrue()) {
     builder()->SetExpressionAsStatementPosition(stmt->cond());
     BytecodeLabels loop_body(zone());
@@ -1874,22 +1904,21 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
     loop_body.Bind(builder());
   }
   VisitIterationBody(stmt, &loop_builder);
-  loop_builder.JumpToHeader(loop_depth_);
 }
 
 void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
-  LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt);
-
   if (stmt->init() != nullptr) {
     Visit(stmt->init());
   }
+
+  LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt);
   if (stmt->cond() && stmt->cond()->ToBooleanIsFalse()) {
     // If the condition is known to be false there is no need to generate
     // body, next or condition blocks. Init block should be generated.
     return;
   }
 
-  loop_builder.LoopHeader();
+  LoopScope loop_scope(this, &loop_builder);
   if (stmt->cond() && !stmt->cond()->ToBooleanIsTrue()) {
     builder()->SetExpressionAsStatementPosition(stmt->cond());
     BytecodeLabels loop_body(zone());
@@ -1902,7 +1931,6 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
     builder()->SetStatementPosition(stmt->next());
     Visit(stmt->next());
   }
-  loop_builder.JumpToHeader(loop_depth_);
 }
 
 void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
@@ -1936,7 +1964,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // The loop
   {
     LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt);
-    loop_builder.LoopHeader();
+    LoopScope loop_scope(this, &loop_builder);
     builder()->SetExpressionAsStatementPosition(stmt->each());
     builder()->ForInContinue(index, cache_length);
     loop_builder.BreakIfFalse(ToBooleanMode::kAlreadyBoolean);
@@ -1958,7 +1986,6 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
     VisitIterationBody(stmt, &loop_builder);
     builder()->ForInStep(index);
     builder()->StoreAccumulatorInRegister(index);
-    loop_builder.JumpToHeader(loop_depth_);
   }
   builder()->Bind(&subject_undefined_label);
 }
@@ -2010,7 +2037,7 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
         Register next_result = register_allocator()->NewRegister();
 
         LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt);
-        loop_builder.LoopHeader();
+        LoopScope loop_scope(this, &loop_builder);
 
         builder()->LoadTrue().StoreAccumulatorInRegister(done);
 
@@ -2042,8 +2069,6 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
         BuildAssignment(lhs_data, Token::ASSIGN, LookupHoistingMode::kNormal);
 
         VisitIterationBody(stmt, &loop_builder);
-
-        loop_builder.JumpToHeader(loop_depth_);
       },
       // Finally block.
       [&](Register iteration_continuation_token) {
@@ -2857,7 +2882,7 @@ void BytecodeGenerator::BuildFillArrayWithIterator(
   DCHECK(value.is_valid());
 
   LoopBuilder loop_builder(builder(), nullptr, nullptr);
-  loop_builder.LoopHeader();
+  LoopScope loop_scope(this, &loop_builder);
 
   // Call the iterator's .next() method. Break from the loop if the `done`
   // property is truthy, otherwise load the value from the iterator result and
@@ -2880,7 +2905,6 @@ void BytecodeGenerator::BuildFillArrayWithIterator(
       .UnaryOperation(Token::INC, feedback_index(index_slot))
       .StoreAccumulatorInRegister(index);
   loop_builder.BindContinueTarget();
-  loop_builder.JumpToHeader(loop_depth_);
 }
 
 void BytecodeGenerator::BuildCreateArrayLiteral(
@@ -4344,8 +4368,8 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
       //   - One for awaiting the iterator result yielded by the delegated
       //     iterator
 
-      LoopBuilder loop(builder(), nullptr, nullptr);
-      loop.LoopHeader();
+      LoopBuilder loop_builder(builder(), nullptr, nullptr);
+      LoopScope loop_scope(this, &loop_builder);
 
       {
         BytecodeLabels after_switch(zone());
@@ -4426,7 +4450,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
           output, ast_string_constants()->done_string(),
           feedback_index(feedback_spec()->AddLoadICSlot()));
 
-      loop.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
+      loop_builder.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
 
       // Suspend the current generator.
       if (iterator_type == IteratorType::kNormal) {
@@ -4457,8 +4481,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
                         generator_object())
           .StoreAccumulatorInRegister(resume_mode);
 
-      loop.BindContinueTarget();
-      loop.JumpToHeader(loop_depth_);
+      loop_builder.BindContinueTarget();
     }
   }
 

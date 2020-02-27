@@ -58,6 +58,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitStatements(const ZonePtrList<Statement>* statments);
 
  private:
+  class AccumulatorPreservingScope;
   class ContextScope;
   class ControlScope;
   class ControlScopeForBreakable;
@@ -66,17 +67,17 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class ControlScopeForTryCatch;
   class ControlScopeForTryFinally;
   class CurrentScope;
-  class ExpressionResultScope;
   class EffectResultScope;
+  class ExpressionResultScope;
   class FeedbackSlotCache;
-  class TopLevelDeclarationsBuilder;
   class IteratorRecord;
+  class LoopScope;
   class NaryCodeCoverageSlots;
-  class RegisterAllocationScope;
-  class AccumulatorPreservingScope;
-  class TestResultScope;
-  class ValueResultScope;
   class OptionalChainNullLabelScope;
+  class RegisterAllocationScope;
+  class TestResultScope;
+  class TopLevelDeclarationsBuilder;
+  class ValueResultScope;
 
   using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
 
@@ -488,6 +489,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     catch_prediction_ = value;
   }
 
+  LoopScope* current_loop_scope() const { return current_loop_scope_; }
+  void set_current_loop_scope(LoopScope* loop_scope) {
+    current_loop_scope_ = loop_scope;
+  }
+
   Zone* zone_;
   BytecodeArrayBuilder builder_;
   UnoptimizedCompilationInfo* info_;
@@ -524,7 +530,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   BytecodeJumpTable* generator_jump_table_;
   int suspend_count_;
+  // TODO(solanes): assess if we can move loop_depth_ into LoopScope.
   int loop_depth_;
+
+  LoopScope* current_loop_scope_;
 
   HandlerTable::CatchPrediction catch_prediction_;
 };
