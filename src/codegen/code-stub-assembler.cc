@@ -12384,11 +12384,6 @@ TNode<JSReceiver> CodeStubAssembler::ArraySpeciesCreate(TNode<Context> context,
   return Construct(context, constructor, len);
 }
 
-TNode<BoolT> CodeStubAssembler::IsDetachedBuffer(TNode<JSArrayBuffer> buffer) {
-  TNode<Uint32T> buffer_bit_field = LoadJSArrayBufferBitField(buffer);
-  return IsSetWord32<JSArrayBuffer::WasDetachedBit>(buffer_bit_field);
-}
-
 void CodeStubAssembler::ThrowIfArrayBufferIsDetached(
     SloppyTNode<Context> context, TNode<JSArrayBuffer> array_buffer,
     const char* method_name) {

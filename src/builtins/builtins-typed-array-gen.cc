@@ -378,13 +378,6 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
   BIND(&next);
 }
 
-TNode<BoolT> TypedArrayBuiltinsAssembler::IsSharedArrayBuffer(
-    TNode<JSArrayBuffer> buffer) {
-  TNode<Uint32T> bitfield =
-      LoadObjectField<Uint32T>(buffer, JSArrayBuffer::kBitFieldOffset);
-  return IsSetWord32<JSArrayBuffer::IsSharedBit>(bitfield);
-}
-
 void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     TNode<JSTypedArray> holder, TNode<ByteArray> base, TNode<UintPtrT> offset) {
   offset = UintPtrAdd(UintPtrConstant(ByteArray::kHeaderSize - kHeapObjectTag),

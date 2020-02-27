@@ -5,9 +5,9 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_H_
 
-#include "src/base/bit-field.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/js-objects.h"
+#include "torque-generated/bit-fields-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -51,14 +51,7 @@ class JSArrayBuffer : public JSObject {
   V8_INLINE void clear_padding();
 
 // Bit positions for [bit_field].
-#define JS_ARRAY_BUFFER_BIT_FIELD_FIELDS(V, _) \
-  V(IsExternalBit, bool, 1, _)                 \
-  V(IsDetachableBit, bool, 1, _)               \
-  V(WasDetachedBit, bool, 1, _)                \
-  V(IsAsmJsMemoryBit, bool, 1, _)              \
-  V(IsSharedBit, bool, 1, _)
-  DEFINE_BIT_FIELDS(JS_ARRAY_BUFFER_BIT_FIELD_FIELDS)
-#undef JS_ARRAY_BUFFER_BIT_FIELD_FIELDS
+  DEFINE_TORQUE_GENERATED_JS_ARRAY_BUFFER_FLAGS()
 
   // [is_external]: true indicates that the embedder is in charge of freeing the
   // backing_store, while is_external == false means that v8 will free the
@@ -123,22 +116,10 @@ class JSArrayBuffer : public JSObject {
   DECL_PRINTER(JSArrayBuffer)
   DECL_VERIFIER(JSArrayBuffer)
 
-// Layout description.
-#define JS_ARRAY_BUFFER_FIELDS(V)                                           \
-  V(kEndOfTaggedFieldsOffset, 0)                                            \
-  /* Raw data fields. */                                                    \
-  V(kByteLengthOffset, kUIntptrSize)                                        \
-  V(kBackingStoreOffset, kSystemPointerSize)                                \
-  V(kExtensionOffset,                                                       \
-    (V8_ARRAY_BUFFER_EXTENSION_BOOL ? kSystemPointerSize : 0))              \
-  V(kBitFieldOffset, kInt32Size)                                            \
-  /* Pads header size to be a multiple of kTaggedSize. */                   \
-  V(kOptionalPaddingOffset, OBJECT_POINTER_PADDING(kOptionalPaddingOffset)) \
-  /* Header size. */                                                        \
-  V(kHeaderSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_ARRAY_BUFFER_FIELDS)
-#undef JS_ARRAY_BUFFER_FIELDS
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JS_ARRAY_BUFFER_FIELDS)
+  static constexpr int kEndOfTaggedFieldsOffset = JSObject::kHeaderSize;
 
   static const int kSizeWithEmbedderFields =
       kHeaderSize +

@@ -853,6 +853,12 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kBranch:
+    case IrOpcode::kDeoptimizeIf:
+    case IrOpcode::kDeoptimizeUnless:
+    case IrOpcode::kTrapIf:
+    case IrOpcode::kTrapUnless:
+      return ReduceConditional(node);
     default:
       break;
   }
@@ -1676,6 +1682,37 @@ Reduction MachineOperatorReducer::ReduceFloat64RoundDown(Node* node) {
   Float64Matcher m(node->InputAt(0));
   if (m.HasValue()) {
     return ReplaceFloat64(std::floor(m.Value()));
+  }
+  return NoChange();
+}
+
+Reduction MachineOperatorReducer::ReduceConditional(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kBranch ||
+         node->opcode() == IrOpcode::kDeoptimizeIf ||
+         node->opcode() == IrOpcode::kDeoptimizeUnless ||
+         node->opcode() == IrOpcode::kTrapIf ||
+         node->opcode() == IrOpcode::kTrapUnless);
+  // This reducer only applies operator reductions to the branch condition.
+  // Reductions involving control flow happen elsewhere. Non-zero inputs are
+  // considered true in all conditional ops.
+  NodeMatcher condition(NodeProperties::GetValueInput(node, 0));
+  if (condition.IsWord32And()) {
+    Uint32BinopMatcher mand(condition.node());
+    if ((mand.left().IsWord32Shr() || mand.left().IsWord32Sar()) &&
+        mand.right().HasValue()) {
+      Uint32BinopMatcher mshift(mand.left().node());
+      // Branch condition (x >> K1) & K2 => x & (K2 << K1)
+      if (mshift.right().HasValue()) {
+        auto shift_bits = mshift.right().Value();
+        auto mask = mand.right().Value();
+        // Make sure that we won't shift data off the end.
+        if (shift_bits <= base::bits::CountLeadingZeros(mask)) {
+          NodeProperties::ReplaceValueInput(
+              node, Word32And(mshift.left().node(), mask << shift_bits), 0);
+          return Changed(node);
+        }
+      }
+    }
   }
   return NoChange();
 }

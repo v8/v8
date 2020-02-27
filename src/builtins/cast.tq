@@ -20,7 +20,6 @@ extern macro IsContext(HeapObject): bool;
 extern macro IsNativeContext(HeapObject): bool;
 extern macro IsJSReceiver(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;
-extern macro IsDetachedBuffer(JSArrayBuffer): bool;
 extern macro IsHeapNumber(HeapObject): bool;
 extern macro IsBigInt(HeapObject): bool;
 extern macro IsFixedArray(HeapObject): bool;

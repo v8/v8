@@ -1097,6 +1097,39 @@ TEST_F(MachineOperatorReducerTest,
 }
 
 // -----------------------------------------------------------------------------
+// Branch
+
+TEST_F(MachineOperatorReducerTest, BranchWithShiftedMaskedValue) {
+  // Branch condition (x >> K1) & K2 => x & (K2 << K1)
+  Node* const p0 = Parameter(0);
+  TRACED_FOREACH(uint32_t, mask, kUint32Values) {
+    TRACED_FORRANGE(uint32_t, shift_bits, 1, 31) {
+      Node* node = graph()->NewNode(
+          common()->Branch(),
+          graph()->NewNode(machine()->Word32And(),
+                           graph()->NewNode(machine()->Word32Shr(), p0,
+                                            Uint32Constant(shift_bits)),
+                           Uint32Constant(mask)),
+          graph()->start());
+      Reduction r = Reduce(node);
+      uint32_t new_mask = mask << shift_bits;
+      if (new_mask >> shift_bits == mask) {
+        ASSERT_TRUE(r.Changed());
+        // The branch condition is now a Word32And operation, unless the mask is
+        // zero in which case the newly-created Word32And is immediately reduced
+        // away.
+        Matcher<Node*> lhs = mask == 0
+                                 ? IsInt32Constant(0)
+                                 : IsWord32And(p0, IsInt32Constant(new_mask));
+        EXPECT_THAT(r.replacement(), IsBranch(lhs, graph()->start()));
+      } else {
+        ASSERT_FALSE(r.Changed());
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Int32Sub
 
 
