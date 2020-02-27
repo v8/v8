@@ -1382,8 +1382,8 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     Handle<FixedArray>* export_wrappers_out) {
   const WasmModule* wasm_module = module.get();
   std::shared_ptr<NativeModule> native_module =
-      isolate->wasm_engine()->MaybeGetNativeModule(wasm_module->origin,
-                                                   wire_bytes.module_bytes());
+      isolate->wasm_engine()->MaybeGetNativeModule(
+          wasm_module->origin, wire_bytes.module_bytes(), isolate);
   if (native_module) {
     // TODO(thibaudm): Look into sharing export wrappers.
     CompileJsToWasmWrappers(isolate, wasm_module, export_wrappers_out);
@@ -1411,7 +1411,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
 
   CompileNativeModule(isolate, thrower, wasm_module, native_module.get());
   bool cache_hit = !isolate->wasm_engine()->UpdateNativeModuleCache(
-      thrower->error(), &native_module);
+      thrower->error(), &native_module, isolate);
   if (thrower->error()) return {};
 
   if (cache_hit) {
@@ -1594,7 +1594,7 @@ void AsyncCompileJob::CreateNativeModule(
 bool AsyncCompileJob::GetOrCreateNativeModule(
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
   native_module_ = isolate_->wasm_engine()->MaybeGetNativeModule(
-      module->origin, wire_bytes_.module_bytes());
+      module->origin, wire_bytes_.module_bytes(), isolate_);
   if (native_module_ == nullptr) {
     CreateNativeModule(std::move(module), code_size_estimate);
     return false;
@@ -1720,7 +1720,7 @@ class AsyncCompileJob::CompilationStateCallback {
           std::shared_ptr<NativeModule> native_module = job_->native_module_;
           bool cache_hit =
               !job_->isolate_->wasm_engine()->UpdateNativeModuleCache(
-                  false, &native_module);
+                  false, &native_module, job_->isolate_);
           DCHECK_EQ(cache_hit, native_module != job_->native_module_);
           job_->DoSync<CompileFinished>(cache_hit ? std::move(native_module)
                                                   : nullptr);
@@ -1735,7 +1735,7 @@ class AsyncCompileJob::CompilationStateCallback {
         DCHECK(!last_event_.has_value());
         if (job_->DecrementAndCheckFinisherCount()) {
           job_->isolate_->wasm_engine()->UpdateNativeModuleCache(
-              true, &job_->native_module_);
+              true, &job_->native_module_, job_->isolate_);
           job_->DoSync<CompileFailed>();
         }
         break;
@@ -2371,7 +2371,7 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
     const bool failed = job_->native_module_->compilation_state()->failed();
     if (!cache_hit) {
       cache_hit = !job_->isolate_->wasm_engine()->UpdateNativeModuleCache(
-          failed, &job_->native_module_);
+          failed, &job_->native_module_, job_->isolate_);
     }
     if (failed) {
       job_->AsyncCompileFailed();

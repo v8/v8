@@ -620,8 +620,8 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
                                            VectorOf(module->source_map_url),
                                            module->name, source_url);
 
-  auto shared_native_module =
-      wasm_engine->MaybeGetNativeModule(module->origin, wire_bytes_vec);
+  auto shared_native_module = wasm_engine->MaybeGetNativeModule(
+      module->origin, wire_bytes_vec, isolate);
   if (shared_native_module == nullptr) {
     const bool kIncludeLiftoff = false;
     size_t code_size_estimate =
@@ -637,7 +637,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
 
     Reader reader(data + WasmSerializer::kHeaderSize);
     bool error = !deserializer.Read(&reader);
-    wasm_engine->UpdateNativeModuleCache(error, &shared_native_module);
+    wasm_engine->UpdateNativeModuleCache(error, &shared_native_module, isolate);
     if (error) return {};
   }
 

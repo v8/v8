@@ -281,7 +281,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // threads. The {wire_bytes}' underlying array should be valid at least until
   // the call to {UpdateNativeModuleCache}.
   std::shared_ptr<NativeModule> MaybeGetNativeModule(
-      ModuleOrigin origin, Vector<const uint8_t> wire_bytes);
+      ModuleOrigin origin, Vector<const uint8_t> wire_bytes, Isolate* isolate);
 
   // Replace the temporary {nullopt} with the new native module, or
   // erase it if any error occurred. Wake up blocked threads waiting for this
@@ -293,7 +293,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // its {native_module} argument and replace it with the existing entry.
   // Return true in the former case, and false in the latter.
   bool UpdateNativeModuleCache(bool error,
-                               std::shared_ptr<NativeModule>* native_module);
+                               std::shared_ptr<NativeModule>* native_module,
+                               Isolate* isolate);
 
   // Register this prefix hash for a streaming compilation job.
   // If the hash is not in the cache yet, the function returns true and the

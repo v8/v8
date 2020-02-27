@@ -450,6 +450,17 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
                             std::move(result).value(), bytes, &export_wrappers);
   if (!native_module) return {};
 
+#ifdef DEBUG
+  // Ensure that code GC will check this isolate for live code.
+  {
+    base::MutexGuard lock(&mutex_);
+    DCHECK_EQ(1, isolates_.count(isolate));
+    DCHECK_EQ(1, isolates_[isolate]->native_modules.count(native_module.get()));
+    DCHECK_EQ(1, native_modules_.count(native_module.get()));
+    DCHECK_EQ(1, native_modules_[native_module.get()]->isolates.count(isolate));
+  }
+#endif
+
   Handle<Script> script =
       CreateWasmScript(isolate, bytes.module_bytes(),
                        VectorOf(native_module->module()->source_map_url),
@@ -866,18 +877,40 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
 }
 
 std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
-    ModuleOrigin origin, Vector<const uint8_t> wire_bytes) {
-  return native_module_cache_.MaybeGetNativeModule(origin, wire_bytes);
+    ModuleOrigin origin, Vector<const uint8_t> wire_bytes, Isolate* isolate) {
+  std::shared_ptr<NativeModule> native_module =
+      native_module_cache_.MaybeGetNativeModule(origin, wire_bytes);
+  if (native_module) {
+    base::MutexGuard guard(&mutex_);
+    auto& native_module_info = native_modules_[native_module.get()];
+    if (!native_module_info) {
+      native_module_info = std::make_unique<NativeModuleInfo>();
+    }
+    native_module_info->isolates.insert(isolate);
+    isolates_[isolate]->native_modules.insert(native_module.get());
+  }
+  return native_module;
 }
 
 bool WasmEngine::UpdateNativeModuleCache(
-    bool error, std::shared_ptr<NativeModule>* native_module) {
+    bool error, std::shared_ptr<NativeModule>* native_module,
+    Isolate* isolate) {
   // Pass {native_module} by value here to keep it alive until at least after
   // we returned from {Update}. Otherwise, we might {Erase} it inside {Update}
   // which would lock the mutex twice.
   auto prev = native_module->get();
   *native_module = native_module_cache_.Update(*native_module, error);
-  return prev == native_module->get();
+
+  if (prev == native_module->get()) return true;
+
+  base::MutexGuard guard(&mutex_);
+  auto& native_module_info = native_modules_[native_module->get()];
+  if (!native_module_info) {
+    native_module_info = std::make_unique<NativeModuleInfo>();
+  }
+  native_module_info->isolates.insert(isolate);
+  isolates_[isolate]->native_modules.insert((*native_module).get());
+  return false;
 }
 
 bool WasmEngine::GetStreamingCompilationOwnership(size_t prefix_hash) {
