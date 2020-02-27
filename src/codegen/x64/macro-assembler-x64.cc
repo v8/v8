@@ -2651,34 +2651,59 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
 
   // Save the frame pointer and PC so that the stack layout remains iterable,
   // even without an ExitFrame which normally exists between JS and C frames.
-  if (isolate() != nullptr || root_array_available_) {
-    Label get_pc;
-    DCHECK(!AreAliased(kScratchRegister, function));
-    leaq(kScratchRegister, Operand(&get_pc, 0));
-    bind(&get_pc);
-    movq(isolate() != nullptr
-             ? ExternalReferenceAsOperand(
-                   ExternalReference::fast_c_call_caller_pc_address(isolate()))
-             : Operand(kRootRegister,
-                       IsolateData::fast_c_call_caller_pc_offset()),
+  Label get_pc;
+  DCHECK(!AreAliased(kScratchRegister, function));
+  leaq(kScratchRegister, Operand(&get_pc, 0));
+  bind(&get_pc);
+
+  // Addressing the following external references is tricky because we need
+  // this to work in three situations:
+  // 1. In wasm compilation, the isolate is nullptr and thus no
+  //    ExternalReference can be created, but we can construct the address
+  //    directly using the root register and a static offset.
+  // 2. In normal JIT (and builtin) compilation, the external reference is
+  //    usually addressed through the root register, so we can use the direct
+  //    offset directly in most cases.
+  // 3. In regexp compilation, the external reference is embedded into the reloc
+  //    info.
+  // The solution here is to use root register offsets wherever possible in
+  // which case we can construct it directly. When falling back to external
+  // references we need to ensure that the scratch register does not get
+  // accidentally overwritten. If we run into more such cases in the future, we
+  // should implement a more general solution.
+  if (root_array_available()) {
+    movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_pc_offset()),
          kScratchRegister);
-    movq(isolate() != nullptr
-             ? ExternalReferenceAsOperand(
-                   ExternalReference::fast_c_call_caller_fp_address(isolate()))
-             : Operand(kRootRegister,
-                       IsolateData::fast_c_call_caller_fp_offset()),
+    movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()),
          rbp);
+  } else {
+    DCHECK_NOT_NULL(isolate());
+    // Use alternative scratch register in order not to overwrite
+    // kScratchRegister.
+    Register scratch = r12;
+    pushq(scratch);
+
+    movq(ExternalReferenceAsOperand(
+             ExternalReference::fast_c_call_caller_pc_address(isolate()),
+             scratch),
+         kScratchRegister);
+    movq(ExternalReferenceAsOperand(
+             ExternalReference::fast_c_call_caller_fp_address(isolate())),
+         rbp);
+
+    popq(scratch);
   }
 
   call(function);
 
   // We don't unset the PC; the FP is the source of truth.
-  if (isolate() != nullptr) {
+  if (root_array_available()) {
+    movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()),
+         Immediate(0));
+  } else {
+    DCHECK_NOT_NULL(isolate());
     movq(ExternalReferenceAsOperand(
              ExternalReference::fast_c_call_caller_fp_address(isolate())),
-         Immediate(0));
-  } else if (root_array_available_) {
-    movq(Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()),
          Immediate(0));
   }
 

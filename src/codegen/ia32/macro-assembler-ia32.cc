@@ -1764,32 +1764,38 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
 
   // Save the frame pointer and PC so that the stack layout remains iterable,
   // even without an ExitFrame which normally exists between JS and C frames.
-  if (isolate() != nullptr) {
-    // Find two caller-saved scratch registers.
-    Register scratch1 = eax;
-    Register scratch2 = ecx;
-    if (function == eax) scratch1 = edx;
-    if (function == ecx) scratch2 = edx;
-    PushPC();
-    pop(scratch1);
-    mov(ExternalReferenceAsOperand(
-            ExternalReference::fast_c_call_caller_pc_address(isolate()),
-            scratch2),
-        scratch1);
-    mov(ExternalReferenceAsOperand(
-            ExternalReference::fast_c_call_caller_fp_address(isolate()),
-            scratch2),
-        ebp);
-  }
+  // Find two caller-saved scratch registers.
+  Register pc_scratch = eax;
+  Register scratch = ecx;
+  if (function == eax) pc_scratch = edx;
+  if (function == ecx) scratch = edx;
+  PushPC();
+  pop(pc_scratch);
+
+  // See x64 code for reasoning about how to address the isolate data fields.
+  DCHECK_IMPLIES(!root_array_available(), isolate() != nullptr);
+  mov(root_array_available()
+          ? Operand(kRootRegister, IsolateData::fast_c_call_caller_pc_offset())
+          : ExternalReferenceAsOperand(
+                ExternalReference::fast_c_call_caller_pc_address(isolate()),
+                scratch),
+      pc_scratch);
+  mov(root_array_available()
+          ? Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset())
+          : ExternalReferenceAsOperand(
+                ExternalReference::fast_c_call_caller_fp_address(isolate()),
+                scratch),
+      ebp);
 
   call(function);
 
-  if (isolate() != nullptr) {
-    // We don't unset the PC; the FP is the source of truth.
-    mov(ExternalReferenceAsOperand(
-            ExternalReference::fast_c_call_caller_fp_address(isolate()), edx),
-        Immediate(0));
-  }
+  // We don't unset the PC; the FP is the source of truth.
+  mov(root_array_available()
+          ? Operand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset())
+          : ExternalReferenceAsOperand(
+                ExternalReference::fast_c_call_caller_fp_address(isolate()),
+                scratch),
+      Immediate(0));
 
   if (base::OS::ActivationFrameAlignment() != 0) {
     mov(esp, Operand(esp, num_arguments * kSystemPointerSize));

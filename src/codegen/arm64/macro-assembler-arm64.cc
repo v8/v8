@@ -1633,34 +1633,47 @@ void TurboAssembler::CallCFunction(Register function, int num_of_reg_args,
 
   // Save the frame pointer and PC so that the stack layout remains iterable,
   // even without an ExitFrame which normally exists between JS and C frames.
-  if (isolate() != nullptr) {
-    Register scratch1 = x4;
-    Register scratch2 = x5;
-    Push(scratch1, scratch2);
+  Register pc_scratch = x4;
+  Register addr_scratch = x5;
+  Push(pc_scratch, addr_scratch);
 
-    Label get_pc;
-    Bind(&get_pc);
-    Adr(scratch2, &get_pc);
+  Label get_pc;
+  Bind(&get_pc);
+  Adr(pc_scratch, &get_pc);
 
-    Mov(scratch1, ExternalReference::fast_c_call_caller_pc_address(isolate()));
-    Str(scratch2, MemOperand(scratch1));
-    Mov(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    Str(fp, MemOperand(scratch1));
-
-    Pop(scratch2, scratch1);
+  // See x64 code for reasoning about how to address the isolate data fields.
+  if (root_array_available()) {
+    Str(pc_scratch,
+        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_pc_offset()));
+    Str(fp,
+        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()));
+  } else {
+    DCHECK_NOT_NULL(isolate());
+    Mov(addr_scratch,
+        ExternalReference::fast_c_call_caller_pc_address(isolate()));
+    Str(pc_scratch, MemOperand(addr_scratch));
+    Mov(addr_scratch,
+        ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    Str(fp, MemOperand(addr_scratch));
   }
+
+  Pop(addr_scratch, pc_scratch);
 
   // Call directly. The function called cannot cause a GC, or allow preemption,
   // so the return address in the link register stays correct.
   Call(function);
 
-  if (isolate() != nullptr) {
-    // We don't unset the PC; the FP is the source of truth.
-    Register scratch = x4;
-    Push(scratch, xzr);
-    Mov(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    Str(xzr, MemOperand(scratch));
-    Pop(xzr, scratch);
+  // We don't unset the PC; the FP is the source of truth.
+  if (root_array_available()) {
+    Str(xzr,
+        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()));
+  } else {
+    DCHECK_NOT_NULL(isolate());
+    Push(addr_scratch, xzr);
+    Mov(addr_scratch,
+        ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    Str(xzr, MemOperand(addr_scratch));
+    Pop(xzr, addr_scratch);
   }
 
   if (num_of_reg_args > kRegisterPassedArguments) {
