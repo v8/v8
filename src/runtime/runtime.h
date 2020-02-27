@@ -349,7 +349,8 @@ namespace internal {
   F(LessThanOrEqual, 2, 1)                 \
   F(NotEqual, 2, 1)                        \
   F(StrictEqual, 2, 1)                     \
-  F(StrictNotEqual, 2, 1)
+  F(StrictNotEqual, 2, 1)                  \
+  F(ReferenceEqual, 2, 1)
 
 #define FOR_EACH_INTRINSIC_PROMISE(F, I) \
   F(EnqueueMicrotask, 1, 1)              \
