@@ -2351,8 +2351,6 @@ void InstructionSelector::EmitBinarySearchSwitch(
   inputs[0] = value_operand;
   inputs[1] = g.Label(sw.default_branch());
   std::vector<CaseInfo> cases = sw.CasesSortedByValue();
-  std::stable_sort(cases.begin(), cases.end(),
-                   [](CaseInfo a, CaseInfo b) { return a.value < b.value; });
   for (size_t index = 0; index < cases.size(); ++index) {
     const CaseInfo& c = cases[index];
     inputs[index * 2 + 2 + 0] = g.TempImmediate(c.value);
