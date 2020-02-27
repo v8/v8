@@ -382,6 +382,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP2_XO_SSE3(Movddup, movddup)
 
 #undef AVX_OP2_XO_SSE3
+
+#define AVX_OP2_XO_SSSE3(macro_name, name)                                   \
+  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, XMMRegister, SSSE3) \
+  AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSSE3)
+  AVX_OP2_XO_SSSE3(Pabsb, pabsb)
+  AVX_OP2_XO_SSSE3(Pabsw, pabsw)
+  AVX_OP2_XO_SSSE3(Pabsd, pabsd)
+
+#undef AVX_OP2_XO_SSE3
+
 #define AVX_OP2_XO_SSE4(macro_name, name)                                     \
   AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, XMMRegister, SSE4_1) \
   AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSE4_1)
