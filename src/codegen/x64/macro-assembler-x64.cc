@@ -2078,7 +2078,7 @@ void TurboAssembler::AssertZeroExtended(Register int32_register) {
     DCHECK_NE(int32_register, kScratchRegister);
     movq(kScratchRegister, int64_t{0x0000000100000000});
     cmpq(kScratchRegister, int32_register);
-    Check(above_equal, AbortReason::k32BitValueInRegisterIsNotZeroExtended);
+    Check(above, AbortReason::k32BitValueInRegisterIsNotZeroExtended);
   }
 }
 
