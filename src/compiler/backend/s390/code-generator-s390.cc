@@ -2246,16 +2246,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Push:
       if (instr->InputAt(0)->IsFPRegister()) {
         LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
-        if (op->representation() == MachineRepresentation::kFloat64) {
-          __ lay(sp, MemOperand(sp, -kDoubleSize));
-          __ StoreDouble(i.InputDoubleRegister(0), MemOperand(sp));
-          frame_access_state()->IncreaseSPDelta(kDoubleSize /
-                                                kSystemPointerSize);
-        } else {
-          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
-          __ lay(sp, MemOperand(sp, -kSystemPointerSize));
-          __ StoreFloat32(i.InputDoubleRegister(0), MemOperand(sp));
-          frame_access_state()->IncreaseSPDelta(1);
+        switch (op->representation()) {
+          case MachineRepresentation::kFloat32:
+            __ lay(sp, MemOperand(sp, -kSystemPointerSize));
+            __ StoreFloat32(i.InputDoubleRegister(0), MemOperand(sp));
+            break;
+          case MachineRepresentation::kFloat64:
+            __ lay(sp, MemOperand(sp, -kDoubleSize));
+            __ StoreDouble(i.InputDoubleRegister(0), MemOperand(sp));
+            frame_access_state()->IncreaseSPDelta(kDoubleSize /
+                                                  kSystemPointerSize);
+            break;
+          case MachineRepresentation::kSimd128: {
+            __ lay(sp, MemOperand(sp, -kSimd128Size));
+            __ StoreSimd128(i.InputDoubleRegister(0), MemOperand(sp),
+                            kScratchReg);
+            frame_access_state()->IncreaseSPDelta(kSimd128Size /
+                                                  kSystemPointerSize);
+            break;
+          }
+          default:
+            UNREACHABLE();
+            break;
         }
       } else {
         __ Push(i.InputRegister(0));
@@ -2285,10 +2297,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (op->representation() == MachineRepresentation::kFloat64) {
           __ StoreDouble(i.InputDoubleRegister(0),
                          MemOperand(sp, slot * kSystemPointerSize));
-        } else {
-          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+        } else if (op->representation() == MachineRepresentation::kFloat32) {
           __ StoreFloat32(i.InputDoubleRegister(0),
                           MemOperand(sp, slot * kSystemPointerSize));
+        } else {
+          DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
+          __ StoreSimd128(i.InputDoubleRegister(0),
+                          MemOperand(sp, slot * kSystemPointerSize),
+                          kScratchReg);
         }
       } else {
         __ StoreP(i.InputRegister(0),
@@ -4197,17 +4213,29 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     }
   } else if (source->IsFPRegister()) {
-    DoubleRegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      DoubleRegister dst = g.ToDoubleRegister(destination);
-      __ Move(dst, src);
-    } else {
-      DCHECK(destination->IsFPStackSlot());
-      LocationOperand* op = LocationOperand::cast(source);
-      if (op->representation() == MachineRepresentation::kFloat64) {
-        __ StoreDouble(src, g.ToMemOperand(destination));
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kSimd128) {
+      if (destination->IsSimd128Register()) {
+        __ vlr(g.ToSimd128Register(destination), g.ToSimd128Register(source),
+               Condition(0), Condition(0), Condition(0));
       } else {
-        __ StoreFloat32(src, g.ToMemOperand(destination));
+        DCHECK(destination->IsSimd128StackSlot());
+        __ StoreSimd128(g.ToSimd128Register(source),
+                        g.ToMemOperand(destination), kScratchReg);
+      }
+    } else {
+      DoubleRegister src = g.ToDoubleRegister(source);
+      if (destination->IsFPRegister()) {
+        DoubleRegister dst = g.ToDoubleRegister(destination);
+        __ Move(dst, src);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        LocationOperand* op = LocationOperand::cast(source);
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ StoreDouble(src, g.ToMemOperand(destination));
+        } else {
+          __ StoreFloat32(src, g.ToMemOperand(destination));
+        }
       }
     }
   } else if (source->IsFPStackSlot()) {
@@ -4217,8 +4245,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       LocationOperand* op = LocationOperand::cast(source);
       if (op->representation() == MachineRepresentation::kFloat64) {
         __ LoadDouble(g.ToDoubleRegister(destination), src);
-      } else {
+      } else if (op->representation() == MachineRepresentation::kFloat32) {
         __ LoadFloat32(g.ToDoubleRegister(destination), src);
+      } else {
+        DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
+        __ LoadSimd128(g.ToSimd128Register(destination), g.ToMemOperand(source),
+                       kScratchReg);
       }
     } else {
       LocationOperand* op = LocationOperand::cast(source);
@@ -4226,9 +4258,14 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       if (op->representation() == MachineRepresentation::kFloat64) {
         __ LoadDouble(temp, src);
         __ StoreDouble(temp, g.ToMemOperand(destination));
-      } else {
+      } else if (op->representation() == MachineRepresentation::kFloat32) {
         __ LoadFloat32(temp, src);
         __ StoreFloat32(temp, g.ToMemOperand(destination));
+      } else {
+        DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
+        __ LoadSimd128(kScratchDoubleReg, g.ToMemOperand(source), kScratchReg);
+        __ StoreSimd128(kScratchDoubleReg, g.ToMemOperand(destination),
+                        kScratchReg);
       }
     }
   } else {
@@ -4278,13 +4315,23 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   } else if (source->IsFloatStackSlot()) {
     DCHECK(destination->IsFloatStackSlot());
     __ SwapFloat32(g.ToMemOperand(source), g.ToMemOperand(destination),
-                   kScratchDoubleReg, d0);
+                   kScratchDoubleReg);
   } else if (source->IsDoubleStackSlot()) {
     DCHECK(destination->IsDoubleStackSlot());
     __ SwapDouble(g.ToMemOperand(source), g.ToMemOperand(destination),
-                  kScratchDoubleReg, d0);
+                  kScratchDoubleReg);
   } else if (source->IsSimd128Register()) {
-    UNREACHABLE();
+    Simd128Register src = g.ToSimd128Register(source);
+    if (destination->IsSimd128Register()) {
+      __ SwapSimd128(src, g.ToSimd128Register(destination), kScratchDoubleReg);
+    } else {
+      DCHECK(destination->IsSimd128StackSlot());
+      __ SwapSimd128(src, g.ToMemOperand(destination), kScratchDoubleReg);
+    }
+  } else if (source->IsSimd128StackSlot()) {
+    DCHECK(destination->IsSimd128StackSlot());
+    __ SwapSimd128(g.ToMemOperand(source), g.ToMemOperand(destination),
+                   kScratchDoubleReg);
   } else {
     UNREACHABLE();
   }

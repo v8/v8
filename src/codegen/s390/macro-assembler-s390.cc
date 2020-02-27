@@ -3740,9 +3740,15 @@ void TurboAssembler::LoadFloat32ConvertToDouble(DoubleRegister dst,
   ldebr(dst, dst);
 }
 
-void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem) {
-  DCHECK(is_uint12(mem.offset()));
-  vl(dst, mem, Condition(0));
+void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem,
+                                 Register scratch) {
+  if (is_uint12(mem.offset())) {
+    vl(dst, mem, Condition(0));
+  } else {
+    DCHECK(is_int20(mem.offset()));
+    lay(scratch, mem);
+    vl(dst, MemOperand(scratch), Condition(0));
+  }
 }
 
 // Store Double Precision (64-bit) Floating Point number to memory
@@ -3772,9 +3778,15 @@ void TurboAssembler::StoreDoubleAsFloat32(DoubleRegister src,
   StoreFloat32(scratch, mem);
 }
 
-void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem) {
-  DCHECK(is_uint12(mem.offset()));
-  vst(src, mem, Condition(0));
+void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem,
+                                  Register scratch) {
+  if (is_uint12(mem.offset())) {
+    vst(src, mem, Condition(0));
+  } else {
+    DCHECK(is_int20(mem.offset()));
+    lay(scratch, mem);
+    vst(src, MemOperand(scratch), Condition(0));
+  }
 }
 
 void TurboAssembler::AddFloat32(DoubleRegister dst, const MemOperand& opnd,
@@ -4180,13 +4192,17 @@ void TurboAssembler::SwapFloat32(DoubleRegister src, MemOperand dst,
 }
 
 void TurboAssembler::SwapFloat32(MemOperand src, MemOperand dst,
-                                 DoubleRegister scratch_0,
-                                 DoubleRegister scratch_1) {
-  DCHECK(!AreAliased(scratch_0, scratch_1));
-  LoadFloat32(scratch_0, src);
-  LoadFloat32(scratch_1, dst);
-  StoreFloat32(scratch_0, dst);
-  StoreFloat32(scratch_1, src);
+                                 DoubleRegister scratch) {
+  // push d0, to be used as scratch
+  lay(sp, MemOperand(sp, -kDoubleSize));
+  StoreDouble(d0, MemOperand(sp));
+  LoadFloat32(scratch, src);
+  LoadFloat32(d0, dst);
+  StoreFloat32(scratch, dst);
+  StoreFloat32(d0, src);
+  // restore d0
+  LoadDouble(d0, MemOperand(sp));
+  lay(sp, MemOperand(sp, kDoubleSize));
 }
 
 void TurboAssembler::SwapDouble(DoubleRegister src, DoubleRegister dst,
@@ -4207,13 +4223,17 @@ void TurboAssembler::SwapDouble(DoubleRegister src, MemOperand dst,
 }
 
 void TurboAssembler::SwapDouble(MemOperand src, MemOperand dst,
-                                DoubleRegister scratch_0,
-                                DoubleRegister scratch_1) {
-  DCHECK(!AreAliased(scratch_0, scratch_1));
-  LoadDouble(scratch_0, src);
-  LoadDouble(scratch_1, dst);
-  StoreDouble(scratch_0, dst);
-  StoreDouble(scratch_1, src);
+                                DoubleRegister scratch) {
+  // push d0, to be used as scratch
+  lay(sp, MemOperand(sp, -kDoubleSize));
+  StoreDouble(d0, MemOperand(sp));
+  LoadDouble(scratch, src);
+  LoadDouble(d0, dst);
+  StoreDouble(scratch, dst);
+  StoreDouble(d0, src);
+  // restore d0
+  LoadDouble(d0, MemOperand(sp));
+  lay(sp, MemOperand(sp, kDoubleSize));
 }
 
 void TurboAssembler::SwapSimd128(Simd128Register src, Simd128Register dst,
@@ -4228,17 +4248,22 @@ void TurboAssembler::SwapSimd128(Simd128Register src, MemOperand dst,
                                  Simd128Register scratch) {
   DCHECK(!AreAliased(src, scratch));
   vlr(scratch, src, Condition(0), Condition(0), Condition(0));
-  LoadSimd128(src, dst);
-  StoreSimd128(scratch, dst);
+  LoadSimd128(src, dst, ip);
+  StoreSimd128(scratch, dst, ip);
 }
 
 void TurboAssembler::SwapSimd128(MemOperand src, MemOperand dst,
-                                 Simd128Register scratch_0,
-                                 Simd128Register scratch_1) {
-  LoadSimd128(scratch_0, src);
-  LoadSimd128(scratch_1, dst);
-  StoreSimd128(scratch_0, dst);
-  StoreSimd128(scratch_1, src);
+                                 Simd128Register scratch) {
+  // push d0, to be used as scratch
+  lay(sp, MemOperand(sp, -kSimd128Size));
+  StoreSimd128(d0, MemOperand(sp), ip);
+  LoadSimd128(scratch, src, ip);
+  LoadSimd128(d0, dst, ip);
+  StoreSimd128(scratch, dst, ip);
+  StoreSimd128(d0, src, ip);
+  // restore d0
+  LoadSimd128(d0, MemOperand(sp), ip);
+  lay(sp, MemOperand(sp, kSimd128Size));
 }
 
 void TurboAssembler::ResetSpeculationPoisonRegister() {

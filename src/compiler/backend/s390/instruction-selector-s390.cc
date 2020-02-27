@@ -2222,12 +2222,21 @@ void InstructionSelector::EmitPrepareArguments(
     int num_slots = 0;
     int slot = 0;
 
+#define INPUT_SWITCH(param)                            \
+  switch (input.location.GetType().representation()) { \
+    case MachineRepresentation::kSimd128:              \
+      param += kSimd128Size / kSystemPointerSize;      \
+      break;                                           \
+    case MachineRepresentation::kFloat64:              \
+      param += kDoubleSize / kSystemPointerSize;       \
+      break;                                           \
+    default:                                           \
+      param += 1;                                      \
+      break;                                           \
+  }
     for (PushParameter input : *arguments) {
       if (input.node == nullptr) continue;
-      num_slots += input.location.GetType().representation() ==
-                           MachineRepresentation::kFloat64
-                       ? kDoubleSize / kSystemPointerSize
-                       : 1;
+      INPUT_SWITCH(num_slots)
     }
     Emit(kS390_StackClaim, g.NoOutput(), g.TempImmediate(num_slots));
     for (PushParameter input : *arguments) {
@@ -2235,12 +2244,10 @@ void InstructionSelector::EmitPrepareArguments(
       if (input.node) {
         Emit(kS390_StoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
              g.TempImmediate(slot));
-        slot += input.location.GetType().representation() ==
-                        MachineRepresentation::kFloat64
-                    ? (kDoubleSize / kSystemPointerSize)
-                    : 1;
+        INPUT_SWITCH(slot)
       }
     }
+#undef INPUT_SWITCH
     DCHECK(num_slots == slot);
   }
 }
