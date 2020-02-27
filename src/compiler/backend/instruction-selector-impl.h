@@ -46,12 +46,6 @@ class SwitchInfo {
     }
   }
 
-  // Ensure that comparison order of if-cascades is preserved.
-  std::vector<CaseInfo> CasesSortedByOriginalOrder() const {
-    std::vector<CaseInfo> result(cases_.begin(), cases_.end());
-    std::stable_sort(result.begin(), result.end());
-    return result;
-  }
   std::vector<CaseInfo> CasesSortedByValue() const {
     std::vector<CaseInfo> result(cases_.begin(), cases_.end());
     std::stable_sort(result.begin(), result.end(),

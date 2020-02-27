@@ -1559,9 +1559,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchBinarySearchSwitch:
       AssembleArchBinarySearchSwitch(instr);
       break;
-    case kArchLookupSwitch:
-      AssembleArchLookupSwitch(instr);
-      break;
     case kArchTableSwitch:
       AssembleArchTableSwitch(instr);
       break;
@@ -3878,16 +3875,6 @@ void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   }
   AssembleArchBinarySearchSwitchRange(input, i.InputRpo(1), cases.data(),
                                       cases.data() + cases.size());
-}
-
-void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
-  S390OperandConverter i(this, instr);
-  Register input = i.InputRegister(0);
-  for (size_t index = 2; index < instr->InputCount(); index += 2) {
-    __ Cmp32(input, Operand(i.InputInt32(index + 0)));
-    __ beq(GetLabel(i.InputRpo(index + 1)));
-  }
-  AssembleArchJump(i.InputRpo(1));
 }
 
 void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {

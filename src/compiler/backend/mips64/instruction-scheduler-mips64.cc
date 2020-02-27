@@ -945,14 +945,6 @@ int AssembleArchJumpLatency() {
   return Latency::BRANCH;
 }
 
-int AssembleArchLookupSwitchLatency(const Instruction* instr) {
-  int latency = 0;
-  for (size_t index = 2; index < instr->InputCount(); index += 2) {
-    latency += 1 + Latency::BRANCH;
-  }
-  return latency + AssembleArchJumpLatency();
-}
-
 int GenerateSwitchTableLatency() {
   int latency = 0;
   if (kArchVariant >= kMips64r6) {
@@ -1301,8 +1293,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return CallCFunctionLatency();
     case kArchJmp:
       return AssembleArchJumpLatency();
-    case kArchLookupSwitch:
-      return AssembleArchLookupSwitchLatency(instr);
     case kArchTableSwitch:
       return AssembleArchTableSwitchLatency();
     case kArchAbortCSAAssert:

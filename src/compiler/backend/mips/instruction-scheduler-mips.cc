@@ -1295,13 +1295,9 @@ int AssembleArchJumpLatency() {
   return Latency::BRANCH;
 }
 
-int AssembleArchLookupSwitchLatency(int cases) {
-  return cases * (1 + Latency::BRANCH) + AssembleArchJumpLatency();
-}
-
 int AssembleArchBinarySearchSwitchLatency(int cases) {
   if (cases < CodeGenerator::kBinarySearchSwitchMinimalCases) {
-    return AssembleArchLookupSwitchLatency(cases);
+    return cases * (1 + Latency::BRANCH) + AssembleArchJumpLatency();
   }
   return 1 + Latency::BRANCH + AssembleArchBinarySearchSwitchLatency(cases / 2);
 }
@@ -1390,8 +1386,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kArchBinarySearchSwitch:
       return AssembleArchBinarySearchSwitchLatency((instr->InputCount() - 2) /
                                                    2);
-    case kArchLookupSwitch:
-      return AssembleArchLookupSwitchLatency((instr->InputCount() - 2) / 2);
     case kArchTableSwitch:
       return AssembleArchTableSwitchLatency();
     case kArchAbortCSAAssert:

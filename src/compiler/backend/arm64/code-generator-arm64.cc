@@ -856,9 +856,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchBinarySearchSwitch:
       AssembleArchBinarySearchSwitch(instr);
       break;
-    case kArchLookupSwitch:
-      AssembleArchLookupSwitch(instr);
-      break;
     case kArchAbortCSAAssert:
       DCHECK_EQ(i.InputRegister(0), x1);
       {
@@ -2693,16 +2690,6 @@ void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   }
   AssembleArchBinarySearchSwitchRange(input, i.InputRpo(1), cases.data(),
                                       cases.data() + cases.size());
-}
-
-void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
-  Arm64OperandConverter i(this, instr);
-  Register input = i.InputRegister32(0);
-  for (size_t index = 2; index < instr->InputCount(); index += 2) {
-    __ Cmp(input, i.InputInt32(index + 0));
-    __ B(eq, GetLabel(i.InputRpo(index + 1)));
-  }
-  AssembleArchJump(i.InputRpo(1));
 }
 
 void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {

@@ -510,8 +510,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   void EmitTableSwitch(const SwitchInfo& sw,
                        InstructionOperand const& index_operand);
-  void EmitLookupSwitch(const SwitchInfo& sw,
-                        InstructionOperand const& value_operand);
   void EmitBinarySearchSwitch(const SwitchInfo& sw,
                               InstructionOperand const& value_operand);
 

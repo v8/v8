@@ -82,7 +82,6 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchCallBuiltinPointer)                                            \
   V(ArchJmp)                                                           \
   V(ArchBinarySearchSwitch)                                            \
-  V(ArchLookupSwitch)                                                  \
   V(ArchTableSwitch)                                                   \
   V(ArchNop)                                                           \
   V(ArchAbortCSAAssert)                                                \

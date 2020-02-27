@@ -253,7 +253,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
                                            std::pair<int32_t, Label*>* begin,
                                            std::pair<int32_t, Label*>* end);
   void AssembleArchBinarySearchSwitch(Instruction* instr);
-  void AssembleArchLookupSwitch(Instruction* instr);
   void AssembleArchTableSwitch(Instruction* instr);
 
   // Generates code that checks whether the {kJavaScriptCallCodeStartRegister}
