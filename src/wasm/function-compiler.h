@@ -67,7 +67,7 @@ struct WasmCompilationResult {
   uint32_t frame_slot_count = 0;
   uint32_t tagged_parameter_slots = 0;
   OwnedVector<byte> source_positions;
-  OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions;
+  OwnedVector<byte> protected_instructions_data;
   int func_index = kAnonymousFuncIndex;
   ExecutionTier requested_tier;
   ExecutionTier result_tier;
