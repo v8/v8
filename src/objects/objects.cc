@@ -7287,9 +7287,10 @@ int BaseNameDictionary<Derived, Shape>::NextEnumerationIndex(
   // Check whether the next enumeration index is valid.
   if (!PropertyDetails::IsValidIndex(index)) {
     // If not, we generate new indices for the properties.
+    int length = dictionary->NumberOfElements();
+
     Handle<FixedArray> iteration_order = IterationIndices(isolate, dictionary);
-    int length = iteration_order->length();
-    DCHECK_LE(length, dictionary->NumberOfElements());
+    DCHECK_EQ(length, iteration_order->length());
 
     // Iterate over the dictionary using the enumeration order and update
     // the dictionary with new enumeration indices.
@@ -7533,8 +7534,8 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
 template <typename Derived, typename Shape>
 Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
     Isolate* isolate, Handle<Derived> dictionary) {
-  Handle<FixedArray> array =
-      isolate->factory()->NewFixedArray(dictionary->NumberOfElements());
+  int length = dictionary->NumberOfElements();
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
   ReadOnlyRoots roots(isolate);
   int array_size = 0;
   {
@@ -7546,13 +7547,7 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
       array->set(array_size++, Smi::FromInt(i.as_int()));
     }
 
-    // The global dictionary doesn't track its deletion count, so we may iterate
-    // fewer entries than the count of elements claimed by the dictionary.
-    if (std::is_same<Derived, GlobalDictionary>::value) {
-      DCHECK_LE(array_size, dictionary->NumberOfElements());
-    } else {
-      DCHECK_EQ(array_size, dictionary->NumberOfElements());
-    }
+    DCHECK_EQ(array_size, length);
 
     EnumIndexComparator<Derived> cmp(raw_dictionary);
     // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and

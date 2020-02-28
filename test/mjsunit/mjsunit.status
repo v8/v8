@@ -177,7 +177,6 @@
   'regress/regress-crbug-217858': [SKIP],
   'regress/regress-crbug-808192': [SKIP],
   'regress/regress-crbug-941743': [SKIP],
-  'regress/regress-crbug-1056054': [SKIP],
   'regress/regress-create-exception': [SKIP],
 
   # These tests run out of stack space in debug mode.
