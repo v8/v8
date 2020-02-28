@@ -30,8 +30,6 @@
   V(Return)                \
   V(TailCall)              \
   V(Terminate)             \
-  V(OsrNormalEntry)        \
-  V(OsrLoopEntry)          \
   V(Throw)                 \
   V(End)
 

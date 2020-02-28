@@ -487,8 +487,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Merge(int control_input_count);
   const Operator* Parameter(int index, const char* debug_name = nullptr);
 
-  const Operator* OsrNormalEntry();
-  const Operator* OsrLoopEntry();
   const Operator* OsrValue(int index);
 
   const Operator* Int32Constant(int32_t);
