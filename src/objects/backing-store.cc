@@ -9,6 +9,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
+#include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -313,9 +314,11 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
 
   // Compute size of reserved memory.
 
-  size_t engine_max_pages = wasm::max_initial_mem_pages();
-  size_t byte_capacity =
-      std::min(engine_max_pages, maximum_pages) * wasm::kWasmPageSize;
+  size_t engine_max_pages = wasm::max_maximum_mem_pages();
+  maximum_pages = std::min(engine_max_pages, maximum_pages);
+  CHECK_LE(maximum_pages,
+           std::numeric_limits<size_t>::max() / wasm::kWasmPageSize);
+  size_t byte_capacity = maximum_pages * wasm::kWasmPageSize;
   size_t reservation_size = GetReservationSize(guards, byte_capacity);
 
   //--------------------------------------------------------------------------
@@ -408,7 +411,7 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
   DCHECK_EQ(0, wasm::kWasmPageSize % AllocatePageSize());
 
   // Enforce engine limitation on the maximum number of pages.
-  if (initial_pages > wasm::max_initial_mem_pages()) return nullptr;
+  if (initial_pages > wasm::kV8MaxWasmMemoryPages) return nullptr;
 
   auto backing_store =
       TryAllocateWasmMemory(isolate, initial_pages, maximum_pages, shared);
@@ -422,6 +425,13 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
 
 std::unique_ptr<BackingStore> BackingStore::CopyWasmMemory(Isolate* isolate,
                                                            size_t new_pages) {
+  // Trying to allocate 4 GiB on a 32-bit platform is guaranteed to fail.
+  // We don't lower the official max_maximum_mem_pages() limit because that
+  // would be observable upon instantiation; this way the effective limit
+  // on 32-bit platforms is defined by the allocator.
+  if (new_pages > std::numeric_limits<size_t>::max() / wasm::kWasmPageSize) {
+    return {};
+  }
   DCHECK_GE(new_pages * wasm::kWasmPageSize, byte_length_);
   // Note that we could allocate uninitialized to save initialization cost here,
   // but since Wasm memories are allocated by the page allocator, the zeroing

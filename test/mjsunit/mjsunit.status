@@ -429,6 +429,7 @@
 # 32-bit platforms
 ['arch in (ia32, arm, mips, mipsel)', {
   # Needs >2GB of available contiguous memory.
+  'wasm/grow-huge-memory': [SKIP],
   'wasm/huge-memory': [SKIP],
   'wasm/huge-typedarray': [SKIP],
 }],  # 'arch in (ia32, arm, mips, mipsel)'

@@ -1405,7 +1405,7 @@ bool InstanceBuilder::AllocateMemory() {
   uint32_t initial_pages = module_->initial_pages;
   uint32_t maximum_pages = module_->has_maximum_pages
                                ? module_->maximum_pages
-                               : wasm::max_initial_mem_pages();
+                               : wasm::max_maximum_mem_pages();
   if (initial_pages > max_initial_mem_pages()) {
     thrower_->RangeError("Out of memory: wasm memory too large");
     return false;

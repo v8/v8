@@ -1698,8 +1698,8 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   uint64_t max_size64 = receiver->maximum_pages();
-  if (max_size64 > uint64_t{i::wasm::max_initial_mem_pages()}) {
-    max_size64 = i::wasm::max_initial_mem_pages();
+  if (max_size64 > uint64_t{i::wasm::max_maximum_mem_pages()}) {
+    max_size64 = i::wasm::max_maximum_mem_pages();
   }
   i::Handle<i::JSArrayBuffer> old_buffer(receiver->array_buffer(), i_isolate);
 
