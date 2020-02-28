@@ -68,146 +68,70 @@ class Typer::Visitor : public Reducer {
 
   Reduction Reduce(Node* node) override {
     if (node->op()->ValueOutputCount() == 0) return NoChange();
-    switch (node->opcode()) {
-#define DECLARE_CASE(x) \
-  case IrOpcode::k##x:  \
-    return UpdateType(node, TypeBinaryOp(node, x##Typer));
-      JS_SIMPLE_BINOP_LIST(DECLARE_CASE)
-#undef DECLARE_CASE
-
-#define DECLARE_CASE(x) \
-  case IrOpcode::k##x:  \
-    return UpdateType(node, Type##x(node));
-      DECLARE_CASE(Start)
-      DECLARE_CASE(IfException)
-      // VALUE_OP_LIST without JS_SIMPLE_BINOP_LIST:
-      COMMON_OP_LIST(DECLARE_CASE)
-      SIMPLIFIED_COMPARE_BINOP_LIST(DECLARE_CASE)
-      SIMPLIFIED_OTHER_OP_LIST(DECLARE_CASE)
-      JS_SIMPLE_UNOP_LIST(DECLARE_CASE)
-      JS_OBJECT_OP_LIST(DECLARE_CASE)
-      JS_CONTEXT_OP_LIST(DECLARE_CASE)
-      JS_OTHER_OP_LIST(DECLARE_CASE)
-#undef DECLARE_CASE
-
-#define DECLARE_CASE(x) \
-  case IrOpcode::k##x:  \
-    return UpdateType(node, TypeBinaryOp(node, x));
-      SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_CASE)
-      SIMPLIFIED_BIGINT_BINOP_LIST(DECLARE_CASE)
-      SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_CASE)
-      SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_CASE)
-#undef DECLARE_CASE
-
-#define DECLARE_CASE(x) \
-  case IrOpcode::k##x:  \
-    return UpdateType(node, TypeUnaryOp(node, x));
-      SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_CASE)
-      SIMPLIFIED_BIGINT_UNOP_LIST(DECLARE_CASE)
-      SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_CASE)
-      SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(DECLARE_CASE)
-#undef DECLARE_CASE
-
-#define DECLARE_CASE(x) case IrOpcode::k##x:
-      DECLARE_CASE(Loop)
-      DECLARE_CASE(Branch)
-      DECLARE_CASE(IfTrue)
-      DECLARE_CASE(IfFalse)
-      DECLARE_CASE(IfSuccess)
-      DECLARE_CASE(Switch)
-      DECLARE_CASE(IfValue)
-      DECLARE_CASE(IfDefault)
-      DECLARE_CASE(Merge)
-      DECLARE_CASE(Deoptimize)
-      DECLARE_CASE(DeoptimizeIf)
-      DECLARE_CASE(DeoptimizeUnless)
-      DECLARE_CASE(TrapIf)
-      DECLARE_CASE(TrapUnless)
-      DECLARE_CASE(Return)
-      DECLARE_CASE(TailCall)
-      DECLARE_CASE(Terminate)
-      DECLARE_CASE(OsrNormalEntry)
-      DECLARE_CASE(OsrLoopEntry)
-      DECLARE_CASE(Throw)
-      DECLARE_CASE(End)
-      SIMPLIFIED_CHANGE_OP_LIST(DECLARE_CASE)
-      SIMPLIFIED_CHECKED_OP_LIST(DECLARE_CASE)
-      MACHINE_SIMD_OP_LIST(DECLARE_CASE)
-      MACHINE_OP_LIST(DECLARE_CASE)
-#undef DECLARE_CASE
-      break;
-    }
-    return NoChange();
+    return UpdateType(node, TypeNode(node));
   }
 
   Type TypeNode(Node* node) {
     switch (node->opcode()) {
-#define DECLARE_CASE(x) \
-      case IrOpcode::k##x: return TypeBinaryOp(node, x##Typer);
-      JS_SIMPLE_BINOP_LIST(DECLARE_CASE)
-#undef DECLARE_CASE
-
-#define DECLARE_CASE(x) case IrOpcode::k##x: return Type##x(node);
-      DECLARE_CASE(Start)
-      DECLARE_CASE(IfException)
-      // VALUE_OP_LIST without JS_SIMPLE_BINOP_LIST:
-      COMMON_OP_LIST(DECLARE_CASE)
-      SIMPLIFIED_COMPARE_BINOP_LIST(DECLARE_CASE)
-      SIMPLIFIED_OTHER_OP_LIST(DECLARE_CASE)
-      JS_SIMPLE_UNOP_LIST(DECLARE_CASE)
-      JS_OBJECT_OP_LIST(DECLARE_CASE)
-      JS_CONTEXT_OP_LIST(DECLARE_CASE)
-      JS_OTHER_OP_LIST(DECLARE_CASE)
-#undef DECLARE_CASE
-
-#define DECLARE_CASE(x) \
-  case IrOpcode::k##x:  \
-    return TypeBinaryOp(node, x);
-      SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_CASE)
-      SIMPLIFIED_BIGINT_BINOP_LIST(DECLARE_CASE)
-      SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_CASE)
-      SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_CASE)
-#undef DECLARE_CASE
-
-#define DECLARE_CASE(x) \
-  case IrOpcode::k##x:  \
-    return TypeUnaryOp(node, x);
-      SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_CASE)
-      SIMPLIFIED_BIGINT_UNOP_LIST(DECLARE_CASE)
-      SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_CASE)
-      SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(DECLARE_CASE)
-#undef DECLARE_CASE
-
-#define DECLARE_CASE(x) case IrOpcode::k##x:
-      DECLARE_CASE(Loop)
-      DECLARE_CASE(Branch)
-      DECLARE_CASE(IfTrue)
-      DECLARE_CASE(IfFalse)
-      DECLARE_CASE(IfSuccess)
-      DECLARE_CASE(Switch)
-      DECLARE_CASE(IfValue)
-      DECLARE_CASE(IfDefault)
-      DECLARE_CASE(Merge)
-      DECLARE_CASE(Deoptimize)
-      DECLARE_CASE(DeoptimizeIf)
-      DECLARE_CASE(DeoptimizeUnless)
-      DECLARE_CASE(TrapIf)
-      DECLARE_CASE(TrapUnless)
-      DECLARE_CASE(Return)
-      DECLARE_CASE(TailCall)
-      DECLARE_CASE(Terminate)
-      DECLARE_CASE(OsrNormalEntry)
-      DECLARE_CASE(OsrLoopEntry)
-      DECLARE_CASE(Throw)
-      DECLARE_CASE(End)
-      SIMPLIFIED_CHANGE_OP_LIST(DECLARE_CASE)
-      SIMPLIFIED_CHECKED_OP_LIST(DECLARE_CASE)
-      MACHINE_SIMD_OP_LIST(DECLARE_CASE)
-      MACHINE_OP_LIST(DECLARE_CASE)
-#undef DECLARE_CASE
-      break;
+#define DECLARE_UNARY_CASE(x) \
+  case IrOpcode::k##x:        \
+    return Type##x(Operand(node, 0));
+      JS_SIMPLE_UNOP_LIST(DECLARE_UNARY_CASE)
+      SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_UNARY_CASE)
+      SIMPLIFIED_BIGINT_UNOP_LIST(DECLARE_UNARY_CASE)
+      SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_UNARY_CASE)
+      SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(DECLARE_UNARY_CASE)
+#undef DECLARE_UNARY_CASE
+#define DECLARE_BINARY_CASE(x) \
+  case IrOpcode::k##x:         \
+    return Type##x(Operand(node, 0), Operand(node, 1));
+      JS_SIMPLE_BINOP_LIST(DECLARE_BINARY_CASE)
+      SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_BINARY_CASE)
+      SIMPLIFIED_BIGINT_BINOP_LIST(DECLARE_BINARY_CASE)
+      SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_BINARY_CASE)
+      SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_BINARY_CASE)
+#undef DECLARE_BINARY_CASE
+#define DECLARE_OTHER_CASE(x) \
+  case IrOpcode::k##x:        \
+    return Type##x(node);
+      DECLARE_OTHER_CASE(Start)
+      DECLARE_OTHER_CASE(IfException)
+      COMMON_OP_LIST(DECLARE_OTHER_CASE)
+      SIMPLIFIED_COMPARE_BINOP_LIST(DECLARE_OTHER_CASE)
+      SIMPLIFIED_OTHER_OP_LIST(DECLARE_OTHER_CASE)
+      JS_OBJECT_OP_LIST(DECLARE_OTHER_CASE)
+      JS_CONTEXT_OP_LIST(DECLARE_OTHER_CASE)
+      JS_OTHER_OP_LIST(DECLARE_OTHER_CASE)
+#undef DECLARE_OTHER_CASE
+#define DECLARE_IMPOSSIBLE_CASE(x) case IrOpcode::k##x:
+      DECLARE_IMPOSSIBLE_CASE(Loop)
+      DECLARE_IMPOSSIBLE_CASE(Branch)
+      DECLARE_IMPOSSIBLE_CASE(IfTrue)
+      DECLARE_IMPOSSIBLE_CASE(IfFalse)
+      DECLARE_IMPOSSIBLE_CASE(IfSuccess)
+      DECLARE_IMPOSSIBLE_CASE(Switch)
+      DECLARE_IMPOSSIBLE_CASE(IfValue)
+      DECLARE_IMPOSSIBLE_CASE(IfDefault)
+      DECLARE_IMPOSSIBLE_CASE(Merge)
+      DECLARE_IMPOSSIBLE_CASE(Deoptimize)
+      DECLARE_IMPOSSIBLE_CASE(DeoptimizeIf)
+      DECLARE_IMPOSSIBLE_CASE(DeoptimizeUnless)
+      DECLARE_IMPOSSIBLE_CASE(TrapIf)
+      DECLARE_IMPOSSIBLE_CASE(TrapUnless)
+      DECLARE_IMPOSSIBLE_CASE(Return)
+      DECLARE_IMPOSSIBLE_CASE(TailCall)
+      DECLARE_IMPOSSIBLE_CASE(Terminate)
+      DECLARE_IMPOSSIBLE_CASE(OsrNormalEntry)
+      DECLARE_IMPOSSIBLE_CASE(OsrLoopEntry)
+      DECLARE_IMPOSSIBLE_CASE(Throw)
+      DECLARE_IMPOSSIBLE_CASE(End)
+      SIMPLIFIED_CHANGE_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
+      SIMPLIFIED_CHECKED_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
+      MACHINE_SIMD_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
+      MACHINE_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
+#undef DECLARE_IMPOSSIBLE_CASE
+      UNREACHABLE();
     }
-    UNREACHABLE();
   }
 
   Type TypeConstant(Handle<Object> value);
@@ -225,7 +149,12 @@ class Typer::Visitor : public Reducer {
   COMMON_OP_LIST(DECLARE_METHOD)
   SIMPLIFIED_COMPARE_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_OTHER_OP_LIST(DECLARE_METHOD)
-  JS_OP_LIST(DECLARE_METHOD)
+  JS_OBJECT_OP_LIST(DECLARE_METHOD)
+  JS_CONTEXT_OP_LIST(DECLARE_METHOD)
+  JS_OTHER_OP_LIST(DECLARE_METHOD)
+#undef DECLARE_METHOD
+#define DECLARE_METHOD(x) inline Type Type##x(Type input);
+  JS_SIMPLE_UNOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
   Type TypeOrNone(Node* node) {
@@ -251,8 +180,10 @@ class Typer::Visitor : public Reducer {
   using UnaryTyperFun = Type (*)(Type, Typer* t);
   using BinaryTyperFun = Type (*)(Type, Type, Typer* t);
 
-  Type TypeUnaryOp(Node* node, UnaryTyperFun);
-  Type TypeBinaryOp(Node* node, BinaryTyperFun);
+  inline Type TypeUnaryOp(Node* node, UnaryTyperFun);
+  inline Type TypeBinaryOp(Node* node, BinaryTyperFun);
+  inline Type TypeUnaryOp(Type input, UnaryTyperFun);
+  inline Type TypeBinaryOp(Type left, Type right, BinaryTyperFun);
 
   static Type BinaryNumberOpTyper(Type lhs, Type rhs, Typer* t,
                                   BinaryTyperFun f);
@@ -300,7 +231,28 @@ class Typer::Visitor : public Reducer {
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
-
+#define DECLARE_METHOD(Name)                       \
+  inline Type Type##Name(Type left, Type right) {  \
+    return TypeBinaryOp(left, right, Name##Typer); \
+  }
+  JS_SIMPLE_BINOP_LIST(DECLARE_METHOD)
+#undef DECLARE_METHOD
+#define DECLARE_METHOD(Name)                      \
+  inline Type Type##Name(Type left, Type right) { \
+    return TypeBinaryOp(left, right, Name);       \
+  }
+  SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_METHOD)
+  SIMPLIFIED_BIGINT_BINOP_LIST(DECLARE_METHOD)
+  SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
+  SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_METHOD)
+#undef DECLARE_METHOD
+#define DECLARE_METHOD(Name) \
+  inline Type Type##Name(Type input) { return TypeUnaryOp(input, Name); }
+  SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_METHOD)
+  SIMPLIFIED_BIGINT_UNOP_LIST(DECLARE_METHOD)
+  SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_METHOD)
+  SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(DECLARE_METHOD)
+#undef DECLARE_METHOD
   static Type ObjectIsArrayBufferView(Type, Typer*);
   static Type ObjectIsBigInt(Type, Typer*);
   static Type ObjectIsCallable(Type, Typer*);
@@ -461,12 +413,20 @@ void Typer::Decorator::Decorate(Node* node) {
 
 Type Typer::Visitor::TypeUnaryOp(Node* node, UnaryTyperFun f) {
   Type input = Operand(node, 0);
+  return TypeUnaryOp(input, f);
+}
+
+Type Typer::Visitor::TypeUnaryOp(Type input, UnaryTyperFun f) {
   return input.IsNone() ? Type::None() : f(input, typer_);
 }
 
 Type Typer::Visitor::TypeBinaryOp(Node* node, BinaryTyperFun f) {
   Type left = Operand(node, 0);
   Type right = Operand(node, 1);
+  return TypeBinaryOp(left, right, f);
+}
+
+Type Typer::Visitor::TypeBinaryOp(Type left, Type right, BinaryTyperFun f) {
   return left.IsNone() || right.IsNone() ? Type::None()
                                          : f(left, right, typer_);
 }
@@ -1192,59 +1152,31 @@ Type Typer::Visitor::JSExponentiateTyper(Type lhs, Type rhs, Typer* t) {
 
 // JS unary operators.
 
-Type Typer::Visitor::TypeJSBitwiseNot(Node* node) {
-  return TypeUnaryOp(node, BitwiseNot);
-}
-
-Type Typer::Visitor::TypeJSDecrement(Node* node) {
-  return TypeUnaryOp(node, Decrement);
-}
-
-Type Typer::Visitor::TypeJSIncrement(Node* node) {
-  return TypeUnaryOp(node, Increment);
-}
-
-Type Typer::Visitor::TypeJSNegate(Node* node) {
-  return TypeUnaryOp(node, Negate);
-}
+#define DEFINE_METHOD(Name)                       \
+  Type Typer::Visitor::TypeJS##Name(Type input) { \
+    return TypeUnaryOp(input, Name);              \
+  }
+DEFINE_METHOD(BitwiseNot)
+DEFINE_METHOD(Decrement)
+DEFINE_METHOD(Increment)
+DEFINE_METHOD(Negate)
+DEFINE_METHOD(ToLength)
+DEFINE_METHOD(ToName)
+DEFINE_METHOD(ToNumber)
+DEFINE_METHOD(ToNumberConvertBigInt)
+DEFINE_METHOD(ToNumeric)
+DEFINE_METHOD(ToObject)
+DEFINE_METHOD(ToString)
+#undef DEFINE_METHOD
 
 Type Typer::Visitor::TypeTypeOf(Node* node) {
   return Type::InternalizedString();
 }
 
-
 // JS conversion operators.
 
 Type Typer::Visitor::TypeToBoolean(Node* node) {
   return TypeUnaryOp(node, ToBoolean);
-}
-
-Type Typer::Visitor::TypeJSToLength(Node* node) {
-  return TypeUnaryOp(node, ToLength);
-}
-
-Type Typer::Visitor::TypeJSToName(Node* node) {
-  return TypeUnaryOp(node, ToName);
-}
-
-Type Typer::Visitor::TypeJSToNumber(Node* node) {
-  return TypeUnaryOp(node, ToNumber);
-}
-
-Type Typer::Visitor::TypeJSToNumberConvertBigInt(Node* node) {
-  return TypeUnaryOp(node, ToNumberConvertBigInt);
-}
-
-Type Typer::Visitor::TypeJSToNumeric(Node* node) {
-  return TypeUnaryOp(node, ToNumeric);
-}
-
-Type Typer::Visitor::TypeJSToObject(Node* node) {
-  return TypeUnaryOp(node, ToObject);
-}
-
-Type Typer::Visitor::TypeJSToString(Node* node) {
-  return TypeUnaryOp(node, ToString);
 }
 
 // JS object operators.
@@ -1354,7 +1286,7 @@ Type Typer::Visitor::TypeJSLoadGlobal(Node* node) {
   return Type::NonInternal();
 }
 
-Type Typer::Visitor::TypeJSParseInt(Node* node) { return Type::Number(); }
+Type Typer::Visitor::TypeJSParseInt(Type input) { return Type::Number(); }
 
 Type Typer::Visitor::TypeJSRegExpTest(Node* node) { return Type::Boolean(); }
 
