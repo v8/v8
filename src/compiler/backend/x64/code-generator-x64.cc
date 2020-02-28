@@ -3539,27 +3539,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64S128And: {
-      __ pand(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pand(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64S128Or: {
-      __ por(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Por(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64S128Xor: {
-      __ pxor(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pxor(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64S128Not: {
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
       if (dst == src) {
-        __ movaps(kScratchDoubleReg, dst);
-        __ pcmpeqd(dst, dst);
-        __ pxor(dst, kScratchDoubleReg);
+        __ Movaps(kScratchDoubleReg, dst);
+        __ Pcmpeqd(dst, dst);
+        __ Pxor(dst, kScratchDoubleReg);
       } else {
-        __ pcmpeqd(dst, dst);
-        __ pxor(dst, src);
+        __ Pcmpeqd(dst, dst);
+        __ Pxor(dst, src);
       }
 
       break;
