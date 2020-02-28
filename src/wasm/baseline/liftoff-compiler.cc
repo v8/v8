@@ -2240,10 +2240,22 @@ class LiftoffCompiler {
       return unsupported(decoder, kSimd, "simd");
     }
     switch (opcode) {
+      case wasm::kExprF64x2Splat:
+        EmitUnOp<kWasmF64, kWasmS128>(
+            [=](LiftoffRegister dst, LiftoffRegister src) {
+              __ emit_f64x2_splat(dst, src);
+            });
+        break;
       case wasm::kExprF32x4Splat:
         EmitUnOp<kWasmF32, kWasmS128>(
             [=](LiftoffRegister dst, LiftoffRegister src) {
               __ emit_f32x4_splat(dst, src);
+            });
+        break;
+      case wasm::kExprI64x2Splat:
+        EmitUnOp<kWasmI64, kWasmS128>(
+            [=](LiftoffRegister dst, LiftoffRegister src) {
+              __ emit_i64x2_splat(dst, src);
             });
         break;
       case wasm::kExprI32x4Splat:
@@ -2256,6 +2268,12 @@ class LiftoffCompiler {
         EmitUnOp<kWasmI32, kWasmS128>(
             [=](LiftoffRegister dst, LiftoffRegister src) {
               __ emit_i16x8_splat(dst, src);
+            });
+        break;
+      case wasm::kExprI8x16Splat:
+        EmitUnOp<kWasmI32, kWasmS128>(
+            [=](LiftoffRegister dst, LiftoffRegister src) {
+              __ emit_i8x16_splat(dst, src);
             });
         break;
       default:

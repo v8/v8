@@ -1912,6 +1912,11 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   liftoff::EmitFloatSetCond<&Assembler::ucomisd>(this, cond, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  Movddup(dst.fp(), src.fp());
+}
+
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -1925,6 +1930,13 @@ void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
   }
 }
 
+void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  Pinsrd(dst.fp(), src.low_gp(), 0);
+  Pinsrd(dst.fp(), src.high_gp(), 1);
+  Pshufd(dst.fp(), dst.fp(), 0x44);
+}
+
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Movd(dst.fp(), src.gp());
@@ -1936,6 +1948,13 @@ void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
   Movd(dst.fp(), src.gp());
   Pshuflw(dst.fp(), dst.fp(), 0);
   Pshufd(dst.fp(), dst.fp(), 0);
+}
+
+void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  Movd(dst.fp(), src.gp());
+  Pxor(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
+  Pshufb(dst.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
