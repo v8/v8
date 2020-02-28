@@ -43,12 +43,12 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
       SourcePositionTableBuilder::RecordingMode source_position_mode =
           SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS);
 
-  template <typename Isolate>
+  template <typename LocalIsolate>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  HandleFor<Isolate, BytecodeArray> ToBytecodeArray(Isolate* isolate);
-  template <typename Isolate>
+  Handle<BytecodeArray> ToBytecodeArray(LocalIsolate* isolate);
+  template <typename LocalIsolate>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  HandleFor<Isolate, ByteArray> ToSourcePositionTable(Isolate* isolate);
+  Handle<ByteArray> ToSourcePositionTable(LocalIsolate* isolate);
 
 #ifdef DEBUG
   int CheckBytecodeMatches(BytecodeArray bytecode);
@@ -503,8 +503,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Allocates a slot in the constant pool which can later be set.
   size_t AllocateDeferredConstantPoolEntry();
   // Sets the deferred value into an allocated constant pool entry.
-  void SetDeferredConstantPoolEntry(size_t entry,
-                                    HandleOrOffThreadHandle<Object> object);
+  void SetDeferredConstantPoolEntry(size_t entry, Handle<Object> object);
 
   void InitializeReturnPosition(FunctionLiteral* literal);
 

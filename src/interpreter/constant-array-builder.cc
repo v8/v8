@@ -65,9 +65,9 @@ const ConstantArrayBuilder::Entry& ConstantArrayBuilder::ConstantArraySlice::At(
 }
 
 #if DEBUG
-template <typename Isolate>
+template <typename LocalIsolate>
 void ConstantArrayBuilder::ConstantArraySlice::CheckAllElementsAreUnique(
-    Isolate* isolate) const {
+    LocalIsolate* isolate) const {
   std::set<Smi> smis;
   std::set<double> heap_numbers;
   std::set<const AstRawString*> strings;
@@ -93,8 +93,7 @@ void ConstantArrayBuilder::ConstantArraySlice::CheckAllElementsAreUnique(
         duplicate = !scopes.insert(entry.scope_).second;
         break;
       case Entry::Tag::kHandle:
-        duplicate =
-            !deferred_objects.insert(*entry.handle_.get<Isolate>()).second;
+        duplicate = !deferred_objects.insert(*entry.handle_).second;
         break;
       case Entry::Tag::kDeferred:
         UNREACHABLE();  // Should be kHandle at this point.
@@ -169,31 +168,29 @@ ConstantArrayBuilder::ConstantArraySlice* ConstantArrayBuilder::IndexToSlice(
   UNREACHABLE();
 }
 
-template <typename Isolate>
-MaybeHandleFor<Isolate, Object> ConstantArrayBuilder::At(
-    size_t index, Isolate* isolate) const {
+template <typename LocalIsolate>
+MaybeHandle<Object> ConstantArrayBuilder::At(size_t index,
+                                             LocalIsolate* isolate) const {
   const ConstantArraySlice* slice = IndexToSlice(index);
   DCHECK_LT(index, slice->capacity());
   if (index < slice->start_index() + slice->size()) {
     const Entry& entry = slice->At(index);
     if (!entry.IsDeferred()) return entry.ToHandle(isolate);
   }
-  return MaybeHandleFor<Isolate, Object>();
+  return MaybeHandle<Object>();
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     MaybeHandle<Object> ConstantArrayBuilder::At(size_t index,
                                                  Isolate* isolate) const;
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    OffThreadHandle<Object> ConstantArrayBuilder::At(
+    MaybeHandle<Object> ConstantArrayBuilder::At(
         size_t index, OffThreadIsolate* isolate) const;
 
-template <typename Isolate>
-HandleFor<Isolate, FixedArray> ConstantArrayBuilder::ToFixedArray(
-    Isolate* isolate) {
-  HandleFor<Isolate, FixedArray> fixed_array =
-      isolate->factory()->NewFixedArrayWithHoles(static_cast<int>(size()),
-                                                 AllocationType::kOld);
+template <typename LocalIsolate>
+Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(LocalIsolate* isolate) {
+  Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArrayWithHoles(
+      static_cast<int>(size()), AllocationType::kOld);
   int array_index = 0;
   for (const ConstantArraySlice* slice : idx_slice_) {
     DCHECK_EQ(slice->reserved(), 0);
@@ -206,7 +203,7 @@ HandleFor<Isolate, FixedArray> ConstantArrayBuilder::ToFixedArray(
 #endif
     // Copy objects from slice into array.
     for (size_t i = 0; i < slice->size(); ++i) {
-      HandleFor<Isolate, Object> value =
+      Handle<Object> value =
           slice->At(slice->start_index() + i).ToHandle(isolate);
       fixed_array->set(array_index++, *value);
     }
@@ -224,7 +221,7 @@ HandleFor<Isolate, FixedArray> ConstantArrayBuilder::ToFixedArray(
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    OffThreadHandle<FixedArray> ConstantArrayBuilder::ToFixedArray(
+    Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(
         OffThreadIsolate* isolate);
 
 size_t ConstantArrayBuilder::Insert(Smi smi) {
@@ -326,8 +323,7 @@ size_t ConstantArrayBuilder::InsertJumpTable(size_t size) {
   return AllocateIndexArray(Entry::UninitializedJumpTableSmi(), size);
 }
 
-void ConstantArrayBuilder::SetDeferredAt(
-    size_t index, HandleOrOffThreadHandle<Object> object) {
+void ConstantArrayBuilder::SetDeferredAt(size_t index, Handle<Object> object) {
   ConstantArraySlice* slice = IndexToSlice(index);
   return slice->At(index).SetDeferred(object);
 }
@@ -383,9 +379,9 @@ void ConstantArrayBuilder::DiscardReservedEntry(OperandSize operand_size) {
   OperandSizeToSlice(operand_size)->Unreserve();
 }
 
-template <typename Isolate>
-HandleFor<Isolate, Object> ConstantArrayBuilder::Entry::ToHandle(
-    Isolate* isolate) const {
+template <typename LocalIsolate>
+Handle<Object> ConstantArrayBuilder::Entry::ToHandle(
+    LocalIsolate* isolate) const {
   switch (tag_) {
     case Tag::kDeferred:
       // We shouldn't have any deferred entries by now.
@@ -420,7 +416,7 @@ HandleFor<Isolate, Object> ConstantArrayBuilder::Entry::ToHandle(
 
 template Handle<Object> ConstantArrayBuilder::Entry::ToHandle(
     Isolate* isolate) const;
-template OffThreadHandle<Object> ConstantArrayBuilder::Entry::ToHandle(
+template Handle<Object> ConstantArrayBuilder::Entry::ToHandle(
     OffThreadIsolate* isolate) const;
 
 }  // namespace interpreter

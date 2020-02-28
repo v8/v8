@@ -26,7 +26,7 @@ namespace internal {
 
 template <typename Impl>
 template <AllocationType allocation>
-HandleFor<Impl, HeapNumber> FactoryBase<Impl>::NewHeapNumber() {
+Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumber() {
   STATIC_ASSERT(HeapNumber::kSize <= kMaxRegularHeapObjectSize);
   Map map = read_only_roots().heap_number_map();
   HeapObject result = AllocateRawWithImmortalMap(HeapNumber::kSize, allocation,
@@ -41,23 +41,23 @@ FactoryBase<Factory>::NewHeapNumber<AllocationType::kOld>();
 template V8_EXPORT_PRIVATE Handle<HeapNumber>
 FactoryBase<Factory>::NewHeapNumber<AllocationType::kReadOnly>();
 
-template V8_EXPORT_PRIVATE OffThreadHandle<HeapNumber>
+template V8_EXPORT_PRIVATE Handle<HeapNumber>
 FactoryBase<OffThreadFactory>::NewHeapNumber<AllocationType::kOld>();
 
 template <typename Impl>
-HandleFor<Impl, Struct> FactoryBase<Impl>::NewStruct(
-    InstanceType type, AllocationType allocation) {
+Handle<Struct> FactoryBase<Impl>::NewStruct(InstanceType type,
+                                            AllocationType allocation) {
   Map map = Map::GetStructMap(read_only_roots(), type);
   int size = map.instance_size();
   HeapObject result = AllocateRawWithImmortalMap(size, allocation, map);
-  HandleFor<Impl, Struct> str = handle(Struct::cast(result), isolate());
+  Handle<Struct> str = handle(Struct::cast(result), isolate());
   str->InitializeBody(size);
   return str;
 }
 
 template <typename Impl>
-HandleFor<Impl, FixedArray> FactoryBase<Impl>::NewFixedArray(
-    int length, AllocationType allocation) {
+Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
+                                                    AllocationType allocation) {
   DCHECK_LE(0, length);
   if (length == 0) return impl()->empty_fixed_array();
   return NewFixedArrayWithFiller(read_only_roots().fixed_array_map(), length,
@@ -66,7 +66,7 @@ HandleFor<Impl, FixedArray> FactoryBase<Impl>::NewFixedArray(
 }
 
 template <typename Impl>
-HandleFor<Impl, FixedArray> FactoryBase<Impl>::NewFixedArrayWithMap(
+Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithMap(
     Map map, int length, AllocationType allocation) {
   // Zero-length case must be handled outside, where the knowledge about
   // the map is.
@@ -76,7 +76,7 @@ HandleFor<Impl, FixedArray> FactoryBase<Impl>::NewFixedArrayWithMap(
 }
 
 template <typename Impl>
-HandleFor<Impl, FixedArray> FactoryBase<Impl>::NewFixedArrayWithHoles(
+Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithHoles(
     int length, AllocationType allocation) {
   DCHECK_LE(0, length);
   if (length == 0) return impl()->empty_fixed_array();
@@ -86,21 +86,20 @@ HandleFor<Impl, FixedArray> FactoryBase<Impl>::NewFixedArrayWithHoles(
 }
 
 template <typename Impl>
-HandleFor<Impl, FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
+Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
     Map map, int length, Oddball filler, AllocationType allocation) {
   HeapObject result = AllocateRawFixedArray(length, allocation);
   DCHECK(ReadOnlyHeap::Contains(map));
   DCHECK(ReadOnlyHeap::Contains(filler));
   result.set_map_after_allocation(map, SKIP_WRITE_BARRIER);
-  HandleFor<Impl, FixedArray> array =
-      handle(FixedArray::cast(result), isolate());
+  Handle<FixedArray> array = handle(FixedArray::cast(result), isolate());
   array->set_length(length);
   MemsetTagged(array->data_start(), filler, length);
   return array;
 }
 
 template <typename Impl>
-HandleFor<Impl, FixedArrayBase> FactoryBase<Impl>::NewFixedDoubleArray(
+Handle<FixedArrayBase> FactoryBase<Impl>::NewFixedDoubleArray(
     int length, AllocationType allocation) {
   if (length == 0) return impl()->empty_fixed_array();
   if (length < 0 || length > FixedDoubleArray::kMaxLength) {
@@ -110,14 +109,14 @@ HandleFor<Impl, FixedArrayBase> FactoryBase<Impl>::NewFixedDoubleArray(
   Map map = read_only_roots().fixed_double_array_map();
   HeapObject result =
       AllocateRawWithImmortalMap(size, allocation, map, kDoubleAligned);
-  HandleFor<Impl, FixedDoubleArray> array =
+  Handle<FixedDoubleArray> array =
       handle(FixedDoubleArray::cast(result), isolate());
   array->set_length(length);
   return array;
 }
 
 template <typename Impl>
-HandleFor<Impl, WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
+Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
     Map map, int length, AllocationType allocation) {
   // Zero-length case must be handled outside.
   DCHECK_LT(0, length);
@@ -127,7 +126,7 @@ HandleFor<Impl, WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
       AllocateRawArray(WeakFixedArray::SizeFor(length), allocation);
   result.set_map_after_allocation(map, SKIP_WRITE_BARRIER);
 
-  HandleFor<Impl, WeakFixedArray> array =
+  Handle<WeakFixedArray> array =
       handle(WeakFixedArray::cast(result), isolate());
   array->set_length(length);
   MemsetTagged(ObjectSlot(array->data_start()),
@@ -137,7 +136,7 @@ HandleFor<Impl, WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
 }
 
 template <typename Impl>
-HandleFor<Impl, WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArray(
+Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArray(
     int length, AllocationType allocation) {
   DCHECK_LE(0, length);
   if (length == 0) return impl()->empty_weak_fixed_array();
@@ -146,24 +145,24 @@ HandleFor<Impl, WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArray(
 }
 
 template <typename Impl>
-HandleFor<Impl, ByteArray> FactoryBase<Impl>::NewByteArray(
-    int length, AllocationType allocation) {
+Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
+                                                  AllocationType allocation) {
   if (length < 0 || length > ByteArray::kMaxLength) {
     isolate()->FatalProcessOutOfHeapMemory("invalid array length");
   }
   int size = ByteArray::SizeFor(length);
   HeapObject result = AllocateRawWithImmortalMap(
       size, allocation, read_only_roots().byte_array_map());
-  HandleFor<Impl, ByteArray> array(ByteArray::cast(result), isolate());
+  Handle<ByteArray> array(ByteArray::cast(result), isolate());
   array->set_length(length);
   array->clear_padding();
   return array;
 }
 
 template <typename Impl>
-HandleFor<Impl, BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
+Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
     int length, const byte* raw_bytecodes, int frame_size, int parameter_count,
-    HandleFor<Impl, FixedArray> constant_pool) {
+    Handle<FixedArray> constant_pool) {
   if (length < 0 || length > BytecodeArray::kMaxLength) {
     isolate()->FatalProcessOutOfHeapMemory("invalid array length");
   }
@@ -174,8 +173,7 @@ HandleFor<Impl, BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   int size = BytecodeArray::SizeFor(length);
   HeapObject result = AllocateRawWithImmortalMap(
       size, AllocationType::kOld, read_only_roots().bytecode_array_map());
-  HandleFor<Impl, BytecodeArray> instance(BytecodeArray::cast(result),
-                                          isolate());
+  Handle<BytecodeArray> instance(BytecodeArray::cast(result), isolate());
   instance->set_length(length);
   instance->set_frame_size(frame_size);
   instance->set_parameter_count(parameter_count);
@@ -194,18 +192,17 @@ HandleFor<Impl, BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
 }
 
 template <typename Impl>
-HandleFor<Impl, Script> FactoryBase<Impl>::NewScript(
-    HandleFor<Impl, String> source) {
+Handle<Script> FactoryBase<Impl>::NewScript(Handle<String> source) {
   return NewScriptWithId(source, isolate()->GetNextScriptId());
 }
 
 template <typename Impl>
-HandleFor<Impl, Script> FactoryBase<Impl>::NewScriptWithId(
-    HandleFor<Impl, String> source, int script_id) {
+Handle<Script> FactoryBase<Impl>::NewScriptWithId(Handle<String> source,
+                                                  int script_id) {
   // Create and initialize script object.
   ReadOnlyRoots roots = read_only_roots();
-  HandleFor<Impl, Script> script = HandleFor<Impl, Script>::cast(
-      NewStruct(SCRIPT_TYPE, AllocationType::kOld));
+  Handle<Script> script =
+      Handle<Script>::cast(NewStruct(SCRIPT_TYPE, AllocationType::kOld));
   script->set_source(*source);
   script->set_name(roots.undefined_value());
   script->set_id(script_id);
@@ -228,14 +225,12 @@ HandleFor<Impl, Script> FactoryBase<Impl>::NewScriptWithId(
 }
 
 template <typename Impl>
-HandleFor<Impl, SharedFunctionInfo>
-FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
-    FunctionLiteral* literal, HandleFor<Impl, Script> script,
-    bool is_toplevel) {
+Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
+    FunctionLiteral* literal, Handle<Script> script, bool is_toplevel) {
   FunctionKind kind = literal->kind();
-  HandleFor<Impl, SharedFunctionInfo> shared = NewSharedFunctionInfo(
-      literal->GetName(isolate()), MaybeHandleFor<Impl, Code>(),
-      Builtins::kCompileLazy, kind);
+  Handle<SharedFunctionInfo> shared =
+      NewSharedFunctionInfo(literal->GetName(isolate()), MaybeHandle<Code>(),
+                            Builtins::kCompileLazy, kind);
   SharedFunctionInfo::InitFromFunctionLiteral(isolate(), shared, literal,
                                               is_toplevel);
   shared->SetScript(read_only_roots(), *script, literal->function_literal_id(),
@@ -244,10 +239,10 @@ FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
 }
 
 template <typename Impl>
-HandleFor<Impl, PreparseData> FactoryBase<Impl>::NewPreparseData(
-    int data_length, int children_length) {
+Handle<PreparseData> FactoryBase<Impl>::NewPreparseData(int data_length,
+                                                        int children_length) {
   int size = PreparseData::SizeFor(data_length, children_length);
-  HandleFor<Impl, PreparseData> result = handle(
+  Handle<PreparseData> result = handle(
       PreparseData::cast(AllocateRawWithImmortalMap(
           size, AllocationType::kOld, read_only_roots().preparse_data_map())),
       isolate());
@@ -260,11 +255,11 @@ HandleFor<Impl, PreparseData> FactoryBase<Impl>::NewPreparseData(
 }
 
 template <typename Impl>
-HandleFor<Impl, UncompiledDataWithoutPreparseData>
+Handle<UncompiledDataWithoutPreparseData>
 FactoryBase<Impl>::NewUncompiledDataWithoutPreparseData(
-    HandleFor<Impl, String> inferred_name, int32_t start_position,
+    Handle<String> inferred_name, int32_t start_position,
     int32_t end_position) {
-  HandleFor<Impl, UncompiledDataWithoutPreparseData> result = handle(
+  Handle<UncompiledDataWithoutPreparseData> result = handle(
       UncompiledDataWithoutPreparseData::cast(NewWithImmortalMap(
           impl()->read_only_roots().uncompiled_data_without_preparse_data_map(),
           AllocationType::kOld)),
@@ -275,11 +270,11 @@ FactoryBase<Impl>::NewUncompiledDataWithoutPreparseData(
 }
 
 template <typename Impl>
-HandleFor<Impl, UncompiledDataWithPreparseData>
+Handle<UncompiledDataWithPreparseData>
 FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
-    HandleFor<Impl, String> inferred_name, int32_t start_position,
-    int32_t end_position, HandleFor<Impl, PreparseData> preparse_data) {
-  HandleFor<Impl, UncompiledDataWithPreparseData> result = handle(
+    Handle<String> inferred_name, int32_t start_position, int32_t end_position,
+    Handle<PreparseData> preparse_data) {
+  Handle<UncompiledDataWithPreparseData> result = handle(
       UncompiledDataWithPreparseData::cast(NewWithImmortalMap(
           impl()->read_only_roots().uncompiled_data_with_preparse_data_map(),
           AllocationType::kOld)),
@@ -292,14 +287,13 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
 }
 
 template <typename Impl>
-HandleFor<Impl, SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
-    MaybeHandleFor<Impl, String> maybe_name,
-    MaybeHandleFor<Impl, HeapObject> maybe_function_data,
+Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
+    MaybeHandle<String> maybe_name, MaybeHandle<HeapObject> maybe_function_data,
     int maybe_builtin_index, FunctionKind kind) {
-  HandleFor<Impl, SharedFunctionInfo> shared = NewSharedFunctionInfo();
+  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo();
 
   // Function names are assumed to be flat elsewhere.
-  HandleFor<Impl, String> shared_name;
+  Handle<String> shared_name;
   bool has_shared_name = maybe_name.ToHandle(&shared_name);
   if (has_shared_name) {
     DCHECK(shared_name->IsFlat());
@@ -309,7 +303,7 @@ HandleFor<Impl, SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
               SharedFunctionInfo::kNoSharedNameSentinel);
   }
 
-  HandleFor<Impl, HeapObject> function_data;
+  Handle<HeapObject> function_data;
   if (maybe_function_data.ToHandle(&function_data)) {
     // If we pass function_data then we shouldn't pass a builtin index, and
     // the function_data should not be code with a builtin.
@@ -333,7 +327,7 @@ HandleFor<Impl, SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
 }
 
 template <typename Impl>
-HandleFor<Impl, ObjectBoilerplateDescription>
+Handle<ObjectBoilerplateDescription>
 FactoryBase<Impl>::NewObjectBoilerplateDescription(int boilerplate,
                                                    int all_properties,
                                                    int index_keys,
@@ -356,8 +350,8 @@ FactoryBase<Impl>::NewObjectBoilerplateDescription(int boilerplate,
     size++;
   }
 
-  HandleFor<Impl, ObjectBoilerplateDescription> description =
-      HandleFor<Impl, ObjectBoilerplateDescription>::cast(NewFixedArrayWithMap(
+  Handle<ObjectBoilerplateDescription> description =
+      Handle<ObjectBoilerplateDescription>::cast(NewFixedArrayWithMap(
           read_only_roots().object_boilerplate_description_map(), size,
           AllocationType::kOld));
 
@@ -373,12 +367,11 @@ FactoryBase<Impl>::NewObjectBoilerplateDescription(int boilerplate,
 }
 
 template <typename Impl>
-HandleFor<Impl, ArrayBoilerplateDescription>
+Handle<ArrayBoilerplateDescription>
 FactoryBase<Impl>::NewArrayBoilerplateDescription(
-    ElementsKind elements_kind,
-    HandleFor<Impl, FixedArrayBase> constant_values) {
-  HandleFor<Impl, ArrayBoilerplateDescription> result =
-      HandleFor<Impl, ArrayBoilerplateDescription>::cast(
+    ElementsKind elements_kind, Handle<FixedArrayBase> constant_values) {
+  Handle<ArrayBoilerplateDescription> result =
+      Handle<ArrayBoilerplateDescription>::cast(
           NewStruct(ARRAY_BOILERPLATE_DESCRIPTION_TYPE, AllocationType::kOld));
   result->set_elements_kind(elements_kind);
   result->set_constant_elements(*constant_values);
@@ -386,14 +379,13 @@ FactoryBase<Impl>::NewArrayBoilerplateDescription(
 }
 
 template <typename Impl>
-HandleFor<Impl, TemplateObjectDescription>
+Handle<TemplateObjectDescription>
 FactoryBase<Impl>::NewTemplateObjectDescription(
-    HandleFor<Impl, FixedArray> raw_strings,
-    HandleFor<Impl, FixedArray> cooked_strings) {
+    Handle<FixedArray> raw_strings, Handle<FixedArray> cooked_strings) {
   DCHECK_EQ(raw_strings->length(), cooked_strings->length());
   DCHECK_LT(0, raw_strings->length());
-  HandleFor<Impl, TemplateObjectDescription> result =
-      HandleFor<Impl, TemplateObjectDescription>::cast(
+  Handle<TemplateObjectDescription> result =
+      Handle<TemplateObjectDescription>::cast(
           NewStruct(TEMPLATE_OBJECT_DESCRIPTION_TYPE, AllocationType::kOld));
   result->set_raw_strings(*raw_strings);
   result->set_cooked_strings(*cooked_strings);
@@ -401,7 +393,7 @@ FactoryBase<Impl>::NewTemplateObjectDescription(
 }
 
 template <typename Impl>
-HandleFor<Impl, CoverageInfo> FactoryBase<Impl>::NewCoverageInfo(
+Handle<CoverageInfo> FactoryBase<Impl>::NewCoverageInfo(
     const ZoneVector<SourceRange>& slots) {
   const int slot_count = static_cast<int>(slots.size());
 
@@ -409,7 +401,7 @@ HandleFor<Impl, CoverageInfo> FactoryBase<Impl>::NewCoverageInfo(
   Map map = read_only_roots().coverage_info_map();
   HeapObject result =
       AllocateRawWithImmortalMap(size, AllocationType::kYoung, map);
-  HandleFor<Impl, CoverageInfo> info(CoverageInfo::cast(result), isolate());
+  Handle<CoverageInfo> info(CoverageInfo::cast(result), isolate());
 
   info->set_slot_count(slot_count);
   for (int i = 0; i < slot_count; i++) {
@@ -421,10 +413,9 @@ HandleFor<Impl, CoverageInfo> FactoryBase<Impl>::NewCoverageInfo(
 }
 
 template <typename Impl>
-HandleFor<Impl, SeqOneByteString>
-FactoryBase<Impl>::NewOneByteInternalizedString(
+Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
     const Vector<const uint8_t>& str, uint32_t hash_field) {
-  HandleFor<Impl, SeqOneByteString> result =
+  Handle<SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(str.length(), hash_field);
   DisallowHeapAllocation no_gc;
   MemCopy(result->GetChars(no_gc), str.begin(), str.length());
@@ -432,10 +423,9 @@ FactoryBase<Impl>::NewOneByteInternalizedString(
 }
 
 template <typename Impl>
-HandleFor<Impl, SeqTwoByteString>
-FactoryBase<Impl>::NewTwoByteInternalizedString(const Vector<const uc16>& str,
-                                                uint32_t hash_field) {
-  HandleFor<Impl, SeqTwoByteString> result =
+Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
+    const Vector<const uc16>& str, uint32_t hash_field) {
+  Handle<SeqTwoByteString> result =
       AllocateRawTwoByteInternalizedString(str.length(), hash_field);
   DisallowHeapAllocation no_gc;
   MemCopy(result->GetChars(no_gc), str.begin(), str.length() * kUC16Size);
@@ -443,7 +433,7 @@ FactoryBase<Impl>::NewTwoByteInternalizedString(const Vector<const uc16>& str,
 }
 
 template <typename Impl>
-MaybeHandleFor<Impl, SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
+MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
     int length, AllocationType allocation) {
   if (length > String::kMaxLength || length < 0) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqOneByteString);
@@ -454,7 +444,7 @@ MaybeHandleFor<Impl, SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
 
   HeapObject result = AllocateRawWithImmortalMap(
       size, allocation, read_only_roots().one_byte_string_map());
-  HandleFor<Impl, SeqOneByteString> string =
+  Handle<SeqOneByteString> string =
       handle(SeqOneByteString::cast(result), isolate());
   string->set_length(length);
   string->set_hash_field(String::kEmptyHashField);
@@ -463,7 +453,7 @@ MaybeHandleFor<Impl, SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
 }
 
 template <typename Impl>
-MaybeHandleFor<Impl, SeqTwoByteString> FactoryBase<Impl>::NewRawTwoByteString(
+MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawTwoByteString(
     int length, AllocationType allocation) {
   if (length > String::kMaxLength || length < 0) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqTwoByteString);
@@ -474,7 +464,7 @@ MaybeHandleFor<Impl, SeqTwoByteString> FactoryBase<Impl>::NewRawTwoByteString(
 
   HeapObject result = AllocateRawWithImmortalMap(
       size, allocation, read_only_roots().string_map());
-  HandleFor<Impl, SeqTwoByteString> string =
+  Handle<SeqTwoByteString> string =
       handle(SeqTwoByteString::cast(result), isolate());
   string->set_length(length);
   string->set_hash_field(String::kEmptyHashField);
@@ -483,9 +473,8 @@ MaybeHandleFor<Impl, SeqTwoByteString> FactoryBase<Impl>::NewRawTwoByteString(
 }
 
 template <typename Impl>
-MaybeHandleFor<Impl, String> FactoryBase<Impl>::NewConsString(
-    HandleFor<Impl, String> left, HandleFor<Impl, String> right,
-    AllocationType allocation) {
+MaybeHandle<String> FactoryBase<Impl>::NewConsString(
+    Handle<String> left, Handle<String> right, AllocationType allocation) {
   if (left->IsThinString()) {
     left = handle(ThinString::cast(*left).actual(), isolate());
   }
@@ -524,7 +513,7 @@ MaybeHandleFor<Impl, String> FactoryBase<Impl>::NewConsString(
 
     STATIC_ASSERT(ConsString::kMinLength <= String::kMaxLength);
     if (is_one_byte) {
-      HandleFor<Impl, SeqOneByteString> result =
+      Handle<SeqOneByteString> result =
           NewRawOneByteString(length, allocation).ToHandleChecked();
       DisallowHeapAllocation no_gc;
       uint8_t* dest = result->GetChars(no_gc);
@@ -537,7 +526,7 @@ MaybeHandleFor<Impl, String> FactoryBase<Impl>::NewConsString(
       return result;
     }
 
-    HandleFor<Impl, SeqTwoByteString> result =
+    Handle<SeqTwoByteString> result =
         NewRawTwoByteString(length, allocation).ToHandleChecked();
 
     DisallowHeapAllocation pointer_stays_valid;
@@ -551,15 +540,16 @@ MaybeHandleFor<Impl, String> FactoryBase<Impl>::NewConsString(
 }
 
 template <typename Impl>
-HandleFor<Impl, String> FactoryBase<Impl>::NewConsString(
-    HandleFor<Impl, String> left, HandleFor<Impl, String> right, int length,
-    bool one_byte, AllocationType allocation) {
+Handle<String> FactoryBase<Impl>::NewConsString(Handle<String> left,
+                                                Handle<String> right,
+                                                int length, bool one_byte,
+                                                AllocationType allocation) {
   DCHECK(!left->IsThinString());
   DCHECK(!right->IsThinString());
   DCHECK_GE(length, ConsString::kMinLength);
   DCHECK_LE(length, String::kMaxLength);
 
-  HandleFor<Impl, ConsString> result = handle(
+  Handle<ConsString> result = handle(
       ConsString::cast(
           one_byte
               ? NewWithImmortalMap(read_only_roots().cons_one_byte_string_map(),
@@ -579,7 +569,7 @@ HandleFor<Impl, String> FactoryBase<Impl>::NewConsString(
 }
 
 template <typename Impl>
-HandleFor<Impl, FreshlyAllocatedBigInt> FactoryBase<Impl>::NewBigInt(
+Handle<FreshlyAllocatedBigInt> FactoryBase<Impl>::NewBigInt(
     int length, AllocationType allocation) {
   if (length < 0 || length > BigInt::kMaxLength) {
     isolate()->FatalProcessOutOfHeapMemory("invalid BigInt length");
@@ -592,26 +582,25 @@ HandleFor<Impl, FreshlyAllocatedBigInt> FactoryBase<Impl>::NewBigInt(
 }
 
 template <typename Impl>
-HandleFor<Impl, ScopeInfo> FactoryBase<Impl>::NewScopeInfo(
-    int length, AllocationType type) {
+Handle<ScopeInfo> FactoryBase<Impl>::NewScopeInfo(int length,
+                                                  AllocationType type) {
   DCHECK(type == AllocationType::kOld || type == AllocationType::kReadOnly);
-  return HandleFor<Impl, ScopeInfo>::cast(
+  return Handle<ScopeInfo>::cast(
       NewFixedArrayWithMap(read_only_roots().scope_info_map(), length, type));
 }
 
 template <typename Impl>
-HandleFor<Impl, SourceTextModuleInfo>
-FactoryBase<Impl>::NewSourceTextModuleInfo() {
-  return HandleFor<Impl, SourceTextModuleInfo>::cast(NewFixedArrayWithMap(
+Handle<SourceTextModuleInfo> FactoryBase<Impl>::NewSourceTextModuleInfo() {
+  return Handle<SourceTextModuleInfo>::cast(NewFixedArrayWithMap(
       read_only_roots().module_info_map(), SourceTextModuleInfo::kLength,
       AllocationType::kOld));
 }
 
 template <typename Impl>
-HandleFor<Impl, SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo() {
+Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo() {
   Map map = read_only_roots().shared_function_info_map();
 
-  HandleFor<Impl, SharedFunctionInfo> shared = handle(
+  Handle<SharedFunctionInfo> shared = handle(
       SharedFunctionInfo::cast(NewWithImmortalMap(map, AllocationType::kOld)),
       isolate());
   int unique_id = -1;
@@ -628,7 +617,7 @@ HandleFor<Impl, SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo() {
 }
 
 template <typename Impl>
-HandleFor<Impl, SeqOneByteString>
+Handle<SeqOneByteString>
 FactoryBase<Impl>::AllocateRawOneByteInternalizedString(int length,
                                                         uint32_t hash_field) {
   CHECK_GE(String::kMaxLength, length);
@@ -642,7 +631,7 @@ FactoryBase<Impl>::AllocateRawOneByteInternalizedString(int length,
       impl()->CanAllocateInReadOnlySpace() ? AllocationType::kReadOnly
                                            : AllocationType::kOld,
       map);
-  HandleFor<Impl, SeqOneByteString> answer =
+  Handle<SeqOneByteString> answer =
       handle(SeqOneByteString::cast(result), isolate());
   answer->set_length(length);
   answer->set_hash_field(hash_field);
@@ -651,7 +640,7 @@ FactoryBase<Impl>::AllocateRawOneByteInternalizedString(int length,
 }
 
 template <typename Impl>
-HandleFor<Impl, SeqTwoByteString>
+Handle<SeqTwoByteString>
 FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(int length,
                                                         uint32_t hash_field) {
   CHECK_GE(String::kMaxLength, length);
@@ -661,7 +650,7 @@ FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(int length,
   int size = SeqTwoByteString::SizeFor(length);
   HeapObject result =
       AllocateRawWithImmortalMap(size, AllocationType::kOld, map);
-  HandleFor<Impl, SeqTwoByteString> answer =
+  Handle<SeqTwoByteString> answer =
       handle(SeqTwoByteString::cast(result), isolate());
   answer->set_length(length);
   answer->set_hash_field(hash_field);

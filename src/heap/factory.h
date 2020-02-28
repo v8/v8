@@ -98,17 +98,6 @@ enum FunctionMode {
       kWithReadonlyPrototypeBit | kWithNameBit,
 };
 
-class Factory;
-
-template <>
-struct HandleTraits<Factory> {
-  template <typename T>
-  using HandleType = Handle<T>;
-  template <typename T>
-  using MaybeHandleType = MaybeHandle<T>;
-  using HandleScopeType = HandleScope;
-};
-
 // Interface for handle based allocation.
 class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:

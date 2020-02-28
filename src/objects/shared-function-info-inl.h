@@ -619,8 +619,8 @@ void SharedFunctionInfo::ClearPreparseData() {
   DCHECK(HasUncompiledDataWithoutPreparseData());
 }
 
-template <typename Isolate>
-void UncompiledData::Init(Isolate* isolate, String inferred_name,
+template <typename LocalIsolate>
+void UncompiledData::Init(LocalIsolate* isolate, String inferred_name,
                           int start_position, int end_position) {
   set_inferred_name(inferred_name);
   set_start_position(start_position);
@@ -638,8 +638,8 @@ void UncompiledData::InitAfterBytecodeFlush(
   set_end_position(end_position);
 }
 
-template <typename Isolate>
-void UncompiledDataWithPreparseData::Init(Isolate* isolate,
+template <typename LocalIsolate>
+void UncompiledDataWithPreparseData::Init(LocalIsolate* isolate,
                                           String inferred_name,
                                           int start_position, int end_position,
                                           PreparseData scope_data) {

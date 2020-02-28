@@ -130,7 +130,7 @@ class ClassBoilerplate : public FixedArray {
   static Handle<ClassBoilerplate> BuildClassBoilerplate(Isolate* isolate,
                                                         ClassLiteral* expr);
 
-  static OffThreadHandle<ClassBoilerplate> BuildClassBoilerplate(
+  static Handle<ClassBoilerplate> BuildClassBoilerplate(
       OffThreadIsolate* isolate, ClassLiteral* expr);
 
   enum {

@@ -9,7 +9,6 @@
 
 #include "src/base/bit-field.h"
 #include "src/codegen/bailout-reason.h"
-#include "src/handles/handle-for.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/function-syntax-kind.h"
@@ -100,9 +99,9 @@ class PreparseData
 class UncompiledData
     : public TorqueGeneratedUncompiledData<UncompiledData, HeapObject> {
  public:
-  template <typename Isolate>
-  inline void Init(Isolate* isolate, String inferred_name, int start_position,
-                   int end_position);
+  template <typename LocalIsolate>
+  inline void Init(LocalIsolate* isolate, String inferred_name,
+                   int start_position, int end_position);
 
   inline void InitAfterBytecodeFlush(
       String inferred_name, int start_position, int end_position,
@@ -139,9 +138,10 @@ class UncompiledDataWithPreparseData
  public:
   DECL_PRINTER(UncompiledDataWithPreparseData)
 
-  template <typename Isolate>
-  inline void Init(Isolate* isolate, String inferred_name, int start_position,
-                   int end_position, PreparseData scope_data);
+  template <typename LocalIsolate>
+  inline void Init(LocalIsolate* isolate, String inferred_name,
+                   int start_position, int end_position,
+                   PreparseData scope_data);
 
   using BodyDescriptor = SubclassBodyDescriptor<
       UncompiledData::BodyDescriptor,
@@ -554,10 +554,10 @@ class SharedFunctionInfo : public HeapObject {
   inline bool has_simple_parameters();
 
   // Initialize a SharedFunctionInfo from a parsed function literal.
-  template <typename Isolate>
-  static void InitFromFunctionLiteral(
-      Isolate* isolate, HandleFor<Isolate, SharedFunctionInfo> shared_info,
-      FunctionLiteral* lit, bool is_toplevel);
+  template <typename LocalIsolate>
+  static void InitFromFunctionLiteral(LocalIsolate* isolate,
+                                      Handle<SharedFunctionInfo> shared_info,
+                                      FunctionLiteral* lit, bool is_toplevel);
 
   // Updates the expected number of properties based on estimate from parser.
   void UpdateExpectedNofPropertiesFromEstimate(FunctionLiteral* literal);

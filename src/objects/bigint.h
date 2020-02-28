@@ -6,7 +6,6 @@
 #define V8_OBJECTS_BIGINT_H_
 
 #include "src/common/globals.h"
-#include "src/handles/handle-for.h"
 #include "src/objects/objects.h"
 #include "src/objects/primitive-heap-object.h"
 #include "src/utils/utils.h"
@@ -239,23 +238,22 @@ class BigInt : public BigIntBase {
   class BodyDescriptor;
 
  private:
-  template <typename Isolate>
+  template <typename LocalIsolate>
   friend class StringToBigIntHelper;
   friend class ValueDeserializer;
   friend class ValueSerializer;
 
   // Special functions for StringToBigIntHelper:
-  template <typename Isolate>
-  static HandleFor<Isolate, BigInt> Zero(Isolate* isolate);
-  template <typename Isolate>
-  static MaybeHandleFor<Isolate, FreshlyAllocatedBigInt> AllocateFor(
-      Isolate* isolate, int radix, int charcount, ShouldThrow should_throw,
+  template <typename LocalIsolate>
+  static Handle<BigInt> Zero(LocalIsolate* isolate);
+  template <typename LocalIsolate>
+  static MaybeHandle<FreshlyAllocatedBigInt> AllocateFor(
+      LocalIsolate* isolate, int radix, int charcount, ShouldThrow should_throw,
       AllocationType allocation);
   static void InplaceMultiplyAdd(FreshlyAllocatedBigInt x, uintptr_t factor,
                                  uintptr_t summand);
-  template <typename Isolate>
-  static HandleFor<Isolate, BigInt> Finalize(
-      HandleFor<Isolate, FreshlyAllocatedBigInt> x, bool sign);
+  template <typename LocalIsolate>
+  static Handle<BigInt> Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign);
 
   // Special functions for ValueSerializer/ValueDeserializer:
   uint32_t GetBitfieldForSerialization() const;

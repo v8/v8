@@ -210,7 +210,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileIgnitionFinalization");
 
-  Handle<BytecodeArray> bytecodes = compilation_info_.bytecode_array<Isolate>();
+  Handle<BytecodeArray> bytecodes = compilation_info_.bytecode_array();
   if (bytecodes.is_null()) {
     bytecodes = generator()->FinalizeBytecode(
         isolate, handle(Script::cast(shared_info->script()), isolate));

@@ -124,7 +124,7 @@ class FunctionTemplateInfo
       Isolate* isolate, Handle<FunctionTemplateInfo> info,
       MaybeHandle<Name> maybe_name);
 
-  static OffThreadHandle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
+  static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
       OffThreadIsolate* isolate, Handle<FunctionTemplateInfo> info,
       Handle<Name> maybe_name) {
     // We don't support streaming compilation of scripts with natives, so we

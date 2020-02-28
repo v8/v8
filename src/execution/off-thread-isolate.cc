@@ -11,11 +11,12 @@
 namespace v8 {
 namespace internal {
 
-OffThreadIsolate::OffThreadIsolate(Isolate* isolate)
+OffThreadIsolate::OffThreadIsolate(Isolate* isolate, Zone* zone)
     : HiddenOffThreadFactory(isolate),
       isolate_(isolate),
       logger_(new OffThreadLogger()),
-      thread_id_(ThreadId::Current()) {}
+      thread_id_(ThreadId::Current()),
+      handle_zone_(zone) {}
 OffThreadIsolate::~OffThreadIsolate() { delete logger_; }
 
 int OffThreadIsolate::GetNextScriptId() { return isolate_->GetNextScriptId(); }

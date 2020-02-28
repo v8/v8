@@ -6,7 +6,6 @@
 #define V8_OBJECTS_SCOPE_INFO_H_
 
 #include "src/common/globals.h"
-#include "src/handles/handle-for.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/objects.h"
@@ -221,10 +220,10 @@ class ScopeInfo : public FixedArray {
   bool Equals(ScopeInfo other) const;
 #endif
 
-  template <typename Isolate>
-  static HandleFor<Isolate, ScopeInfo> Create(
-      Isolate* isolate, Zone* zone, Scope* scope,
-      MaybeHandleFor<Isolate, ScopeInfo> outer_scope);
+  template <typename LocalIsolate>
+  static Handle<ScopeInfo> Create(LocalIsolate* isolate, Zone* zone,
+                                  Scope* scope,
+                                  MaybeHandle<ScopeInfo> outer_scope);
   static Handle<ScopeInfo> CreateForWithScope(
       Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForEmptyFunction(

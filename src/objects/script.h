@@ -155,9 +155,9 @@ class Script : public Struct {
   bool ContainsAsmModule();
 
   // Init line_ends array with source code positions of line ends.
-  template <typename Isolate>
+  template <typename LocalIsolate>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  static void InitLineEnds(Isolate* isolate, HandleFor<Isolate, Script> script);
+  static void InitLineEnds(LocalIsolate* isolate, Handle<Script> script);
 
   // Carries information about a source position.
   struct PositionInfo {
@@ -195,9 +195,9 @@ class Script : public Struct {
 
   // Look through the list of existing shared function infos to find one
   // that matches the function literal.  Return empty handle if not found.
-  template <typename Isolate>
-  MaybeHandleFor<Isolate, SharedFunctionInfo> FindSharedFunctionInfo(
-      Isolate* isolate, const FunctionLiteral* fun);
+  template <typename LocalIsolate>
+  MaybeHandle<SharedFunctionInfo> FindSharedFunctionInfo(
+      LocalIsolate* isolate, const FunctionLiteral* fun);
 
   // Iterate over all script objects on the heap.
   class V8_EXPORT_PRIVATE Iterator {

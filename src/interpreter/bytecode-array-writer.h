@@ -53,15 +53,15 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
 
   void SetFunctionEntrySourcePosition(int position);
 
-  template <typename Isolate>
+  template <typename LocalIsolate>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  HandleFor<Isolate, BytecodeArray> ToBytecodeArray(
-      Isolate* isolate, int register_count, int parameter_count,
-      HandleFor<Isolate, ByteArray> handler_table);
+  Handle<BytecodeArray> ToBytecodeArray(LocalIsolate* isolate,
+                                        int register_count, int parameter_count,
+                                        Handle<ByteArray> handler_table);
 
-  template <typename Isolate>
+  template <typename LocalIsolate>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  HandleFor<Isolate, ByteArray> ToSourcePositionTable(Isolate* isolate);
+  Handle<ByteArray> ToSourcePositionTable(LocalIsolate* isolate);
 
 #ifdef DEBUG
   // Returns -1 if they match or the offset of the first mismatching byte.

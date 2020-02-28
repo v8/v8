@@ -37,11 +37,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
       std::vector<FunctionLiteral*>* eager_inner_literals);
 
   void GenerateBytecode(uintptr_t stack_limit);
-  template <typename Isolate>
-  HandleFor<Isolate, BytecodeArray> FinalizeBytecode(
-      Isolate* isolate, HandleFor<Isolate, Script> script);
-  template <typename Isolate>
-  HandleFor<Isolate, ByteArray> FinalizeSourcePositionTable(Isolate* isolate);
+  template <typename LocalIsolate>
+  Handle<BytecodeArray> FinalizeBytecode(LocalIsolate* isolate,
+                                         Handle<Script> script);
+  template <typename LocalIsolate>
+  Handle<ByteArray> FinalizeSourcePositionTable(LocalIsolate* isolate);
 
 #ifdef DEBUG
   int CheckBytecodeMatches(BytecodeArray bytecode);
@@ -163,9 +163,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   };
 
   void GenerateBytecodeBody();
-  template <typename Isolate>
-  void AllocateDeferredConstants(Isolate* isolate,
-                                 HandleFor<Isolate, Script> script);
+  template <typename LocalIsolate>
+  void AllocateDeferredConstants(LocalIsolate* isolate, Handle<Script> script);
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 

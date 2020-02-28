@@ -709,10 +709,10 @@ static void CalculateLineEndsImpl(std::vector<int>* line_ends,
   }
 }
 
-template <typename Isolate>
-HandleFor<Isolate, FixedArray> String::CalculateLineEnds(
-    Isolate* isolate, HandleFor<Isolate, String> src,
-    bool include_ending_line) {
+template <typename LocalIsolate>
+Handle<FixedArray> String::CalculateLineEnds(LocalIsolate* isolate,
+                                             Handle<String> src,
+                                             bool include_ending_line) {
   src = Flatten(isolate, src);
   // Rough estimate of line count based on a roughly estimated average
   // length of (unpacked) code.
@@ -733,7 +733,7 @@ HandleFor<Isolate, FixedArray> String::CalculateLineEnds(
     }
   }
   int line_count = static_cast<int>(line_ends.size());
-  HandleFor<Isolate, FixedArray> array =
+  Handle<FixedArray> array =
       isolate->factory()->NewFixedArray(line_count, AllocationType::kOld);
   for (int i = 0; i < line_count; i++) {
     array->set(i, Smi::FromInt(line_ends[i]));
@@ -744,9 +744,9 @@ HandleFor<Isolate, FixedArray> String::CalculateLineEnds(
 template Handle<FixedArray> String::CalculateLineEnds(Isolate* isolate,
                                                       Handle<String> src,
                                                       bool include_ending_line);
-template OffThreadHandle<FixedArray> String::CalculateLineEnds(
-    OffThreadIsolate* isolate, OffThreadHandle<String> src,
-    bool include_ending_line);
+template Handle<FixedArray> String::CalculateLineEnds(OffThreadIsolate* isolate,
+                                                      Handle<String> src,
+                                                      bool include_ending_line);
 
 bool String::SlowEquals(String other) {
   DisallowHeapAllocation no_gc;

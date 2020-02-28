@@ -448,17 +448,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
 #define THREAD_LOCAL_TOP_ADDRESS(type, name) \
   type* name##_address() { return &thread_local_top()->name##_; }
 
-class Isolate;
-
-template <>
-struct HandleTraits<Isolate> {
-  template <typename T>
-  using HandleType = Handle<T>;
-  template <typename T>
-  using MaybeHandleType = MaybeHandle<T>;
-  using HandleScopeType = HandleScope;
-};
-
 // HiddenFactory exists so Isolate can privately inherit from it without making
 // Factory's members available to Isolate directly.
 class V8_EXPORT_PRIVATE HiddenFactory : private Factory {};
@@ -470,6 +459,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   class EntryStackItem;
 
  public:
+  using HandleScopeType = HandleScope;
+
   // A thread has a PerIsolateThreadData instance for each isolate that it has
   // entered. That instance is allocated when the isolate is initially entered
   // and reused on subsequent entries.

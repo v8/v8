@@ -14,8 +14,8 @@ namespace v8 {
 namespace internal {
 
 #define ROOT_ACCESSOR(Type, name, CamelName)                \
-  OffThreadHandle<Type> OffThreadFactory::name() {          \
-    return OffThreadHandle<Type>(read_only_roots().name()); \
+  Handle<Type> OffThreadFactory::name() {                   \
+    return Handle<Type>(read_only_roots().name##_handle()); \
   }
 READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR

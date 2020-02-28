@@ -7,7 +7,6 @@
 
 #include "src/base/export-template.h"
 #include "src/common/globals.h"
-#include "src/handles/handle-for.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type.h"
 #include "src/roots/roots.h"
@@ -38,147 +37,137 @@ template <typename Impl>
 class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
  public:
   // Converts the given boolean condition to JavaScript boolean value.
-  inline HandleFor<Impl, Oddball> ToBoolean(bool value);
+  inline Handle<Oddball> ToBoolean(bool value);
 
   // Numbers (e.g. literals) are pretenured by the parser.
   // The return value may be a smi or a heap number.
   template <AllocationType allocation = AllocationType::kYoung>
-  inline HandleFor<Impl, Object> NewNumber(double value);
+  inline Handle<Object> NewNumber(double value);
   template <AllocationType allocation = AllocationType::kYoung>
-  inline HandleFor<Impl, Object> NewNumberFromInt(int32_t value);
+  inline Handle<Object> NewNumberFromInt(int32_t value);
   template <AllocationType allocation = AllocationType::kYoung>
-  inline HandleFor<Impl, Object> NewNumberFromUint(uint32_t value);
+  inline Handle<Object> NewNumberFromUint(uint32_t value);
   template <AllocationType allocation = AllocationType::kYoung>
-  inline HandleFor<Impl, Object> NewNumberFromSize(size_t value);
+  inline Handle<Object> NewNumberFromSize(size_t value);
   template <AllocationType allocation = AllocationType::kYoung>
-  inline HandleFor<Impl, Object> NewNumberFromInt64(int64_t value);
+  inline Handle<Object> NewNumberFromInt64(int64_t value);
   template <AllocationType allocation = AllocationType::kYoung>
-  inline HandleFor<Impl, HeapNumber> NewHeapNumber(double value);
+  inline Handle<HeapNumber> NewHeapNumber(double value);
   template <AllocationType allocation = AllocationType::kYoung>
-  inline HandleFor<Impl, HeapNumber> NewHeapNumberFromBits(uint64_t bits);
+  inline Handle<HeapNumber> NewHeapNumberFromBits(uint64_t bits);
   template <AllocationType allocation = AllocationType::kYoung>
-  inline HandleFor<Impl, HeapNumber> NewHeapNumberWithHoleNaN();
+  inline Handle<HeapNumber> NewHeapNumberWithHoleNaN();
 
   template <AllocationType allocation>
-  HandleFor<Impl, HeapNumber> NewHeapNumber();
+  Handle<HeapNumber> NewHeapNumber();
 
-  HandleFor<Impl, Struct> NewStruct(
-      InstanceType type, AllocationType allocation = AllocationType::kYoung);
+  Handle<Struct> NewStruct(InstanceType type,
+                           AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a fixed array initialized with undefined values.
-  HandleFor<Impl, FixedArray> NewFixedArray(
+  Handle<FixedArray> NewFixedArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.
-  HandleFor<Impl, FixedArray> NewFixedArrayWithMap(
+  Handle<FixedArray> NewFixedArrayWithMap(
       Map map, int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocate a new fixed array with non-existing entries (the hole).
-  HandleFor<Impl, FixedArray> NewFixedArrayWithHoles(
+  Handle<FixedArray> NewFixedArrayWithHoles(
       int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocate a new uninitialized fixed double array.
   // The function returns a pre-allocated empty fixed array for length = 0,
   // so the return type must be the general fixed array class.
-  HandleFor<Impl, FixedArrayBase> NewFixedDoubleArray(
+  Handle<FixedArrayBase> NewFixedDoubleArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a weak fixed array-like object with given map and initialized
   // with undefined values.
-  HandleFor<Impl, WeakFixedArray> NewWeakFixedArrayWithMap(
+  Handle<WeakFixedArray> NewWeakFixedArrayWithMap(
       Map map, int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a fixed array which may contain in-place weak references. The
   // array is initialized with undefined values
-  HandleFor<Impl, WeakFixedArray> NewWeakFixedArray(
+  Handle<WeakFixedArray> NewWeakFixedArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
-  HandleFor<Impl, ByteArray> NewByteArray(
+  Handle<ByteArray> NewByteArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
-  HandleFor<Impl, BytecodeArray> NewBytecodeArray(
-      int length, const byte* raw_bytecodes, int frame_size,
-      int parameter_count, HandleFor<Impl, FixedArray> constant_pool);
+  Handle<BytecodeArray> NewBytecodeArray(int length, const byte* raw_bytecodes,
+                                         int frame_size, int parameter_count,
+                                         Handle<FixedArray> constant_pool);
 
   // Allocates a fixed array for name-value pairs of boilerplate properties and
   // calculates the number of properties we need to store in the backing store.
-  HandleFor<Impl, ObjectBoilerplateDescription> NewObjectBoilerplateDescription(
+  Handle<ObjectBoilerplateDescription> NewObjectBoilerplateDescription(
       int boilerplate, int all_properties, int index_keys, bool has_seen_proto);
 
   // Create a new ArrayBoilerplateDescription struct.
-  HandleFor<Impl, ArrayBoilerplateDescription> NewArrayBoilerplateDescription(
-      ElementsKind elements_kind,
-      HandleFor<Impl, FixedArrayBase> constant_values);
+  Handle<ArrayBoilerplateDescription> NewArrayBoilerplateDescription(
+      ElementsKind elements_kind, Handle<FixedArrayBase> constant_values);
 
   // Create a new TemplateObjectDescription struct.
-  HandleFor<Impl, TemplateObjectDescription> NewTemplateObjectDescription(
-      HandleFor<Impl, FixedArray> raw_strings,
-      HandleFor<Impl, FixedArray> cooked_strings);
+  Handle<TemplateObjectDescription> NewTemplateObjectDescription(
+      Handle<FixedArray> raw_strings, Handle<FixedArray> cooked_strings);
 
-  HandleFor<Impl, Script> NewScript(HandleFor<Impl, String> source);
-  HandleFor<Impl, Script> NewScriptWithId(HandleFor<Impl, String> source,
-                                          int script_id);
+  Handle<Script> NewScript(Handle<String> source);
+  Handle<Script> NewScriptWithId(Handle<String> source, int script_id);
 
-  HandleFor<Impl, SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
-      FunctionLiteral* literal, HandleFor<Impl, Script> script,
-      bool is_toplevel);
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
+      FunctionLiteral* literal, Handle<Script> script, bool is_toplevel);
 
-  HandleFor<Impl, PreparseData> NewPreparseData(int data_length,
-                                                int children_length);
+  Handle<PreparseData> NewPreparseData(int data_length, int children_length);
 
-  HandleFor<Impl, UncompiledDataWithoutPreparseData>
-  NewUncompiledDataWithoutPreparseData(HandleFor<Impl, String> inferred_name,
+  Handle<UncompiledDataWithoutPreparseData>
+  NewUncompiledDataWithoutPreparseData(Handle<String> inferred_name,
                                        int32_t start_position,
                                        int32_t end_position);
 
-  HandleFor<Impl, UncompiledDataWithPreparseData>
-  NewUncompiledDataWithPreparseData(HandleFor<Impl, String> inferred_name,
-                                    int32_t start_position,
-                                    int32_t end_position,
-                                    HandleFor<Impl, PreparseData>);
+  Handle<UncompiledDataWithPreparseData> NewUncompiledDataWithPreparseData(
+      Handle<String> inferred_name, int32_t start_position,
+      int32_t end_position, Handle<PreparseData>);
 
-  HandleFor<Impl, CoverageInfo> NewCoverageInfo(
-      const ZoneVector<SourceRange>& slots);
+  Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);
 
-  HandleFor<Impl, SeqOneByteString> NewOneByteInternalizedString(
+  Handle<SeqOneByteString> NewOneByteInternalizedString(
       const Vector<const uint8_t>& str, uint32_t hash_field);
-  HandleFor<Impl, SeqTwoByteString> NewTwoByteInternalizedString(
+  Handle<SeqTwoByteString> NewTwoByteInternalizedString(
       const Vector<const uc16>& str, uint32_t hash_field);
 
-  HandleFor<Impl, SeqOneByteString> AllocateRawOneByteInternalizedString(
+  Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
       int length, uint32_t hash_field);
-  HandleFor<Impl, SeqTwoByteString> AllocateRawTwoByteInternalizedString(
+  Handle<SeqTwoByteString> AllocateRawTwoByteInternalizedString(
       int length, uint32_t hash_field);
 
   // Allocates and partially initializes an one-byte or two-byte String. The
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
-  V8_WARN_UNUSED_RESULT MaybeHandleFor<Impl, SeqOneByteString>
-  NewRawOneByteString(int length,
-                      AllocationType allocation = AllocationType::kYoung);
-  V8_WARN_UNUSED_RESULT MaybeHandleFor<Impl, SeqTwoByteString>
-  NewRawTwoByteString(int length,
-                      AllocationType allocation = AllocationType::kYoung);
+  V8_WARN_UNUSED_RESULT MaybeHandle<SeqOneByteString> NewRawOneByteString(
+      int length, AllocationType allocation = AllocationType::kYoung);
+  V8_WARN_UNUSED_RESULT MaybeHandle<SeqTwoByteString> NewRawTwoByteString(
+      int length, AllocationType allocation = AllocationType::kYoung);
   // Create a new cons string object which consists of a pair of strings.
-  V8_WARN_UNUSED_RESULT MaybeHandleFor<Impl, String> NewConsString(
-      HandleFor<Impl, String> left, HandleFor<Impl, String> right,
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewConsString(
+      Handle<String> left, Handle<String> right,
       AllocationType allocation = AllocationType::kYoung);
 
-  V8_WARN_UNUSED_RESULT HandleFor<Impl, String> NewConsString(
-      HandleFor<Impl, String> left, HandleFor<Impl, String> right, int length,
-      bool one_byte, AllocationType allocation = AllocationType::kYoung);
+  V8_WARN_UNUSED_RESULT Handle<String> NewConsString(
+      Handle<String> left, Handle<String> right, int length, bool one_byte,
+      AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a new BigInt with {length} digits. Only to be used by
   // MutableBigInt::New*.
-  HandleFor<Impl, FreshlyAllocatedBigInt> NewBigInt(
+  Handle<FreshlyAllocatedBigInt> NewBigInt(
       int length, AllocationType allocation = AllocationType::kYoung);
 
   // Create a serialized scope info.
-  HandleFor<Impl, ScopeInfo> NewScopeInfo(
-      int length, AllocationType type = AllocationType::kOld);
+  Handle<ScopeInfo> NewScopeInfo(int length,
+                                 AllocationType type = AllocationType::kOld);
 
-  HandleFor<Impl, SourceTextModuleInfo> NewSourceTextModuleInfo();
+  Handle<SourceTextModuleInfo> NewSourceTextModuleInfo();
 
  protected:
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
@@ -191,14 +180,15 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
       AllocationAlignment alignment = kWordAligned);
   HeapObject NewWithImmortalMap(Map map, AllocationType allocation);
 
-  HandleFor<Impl, FixedArray> NewFixedArrayWithFiller(
-      Map map, int length, Oddball filler, AllocationType allocation);
+  Handle<FixedArray> NewFixedArrayWithFiller(Map map, int length,
+                                             Oddball filler,
+                                             AllocationType allocation);
 
-  HandleFor<Impl, SharedFunctionInfo> NewSharedFunctionInfo();
-  HandleFor<Impl, SharedFunctionInfo> NewSharedFunctionInfo(
-      MaybeHandleFor<Impl, String> maybe_name,
-      MaybeHandleFor<Impl, HeapObject> maybe_function_data,
-      int maybe_builtin_index, FunctionKind kind = kNormalFunction);
+  Handle<SharedFunctionInfo> NewSharedFunctionInfo();
+  Handle<SharedFunctionInfo> NewSharedFunctionInfo(
+      MaybeHandle<String> maybe_name,
+      MaybeHandle<HeapObject> maybe_function_data, int maybe_builtin_index,
+      FunctionKind kind = kNormalFunction);
 
  private:
   Impl* impl() { return static_cast<Impl*>(this); }

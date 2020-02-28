@@ -83,7 +83,7 @@ void AstRawString::Internalize(OffThreadIsolate* isolate) {
   // construction and don't have access to the main thread string table yet, so
   // we just unconditionally create strings and will internalize them properly
   // during merging.
-  OffThreadHandle<SeqString> string;
+  Handle<SeqString> string;
   if (is_one_byte()) {
     string = isolate->factory()->NewOneByteInternalizedString(
         Vector<const uint8_t>::cast(literal_bytes_), hash_field());
@@ -162,8 +162,8 @@ bool AstRawString::Compare(void* a, void* b) {
   }
 }
 
-template <typename Isolate>
-HandleFor<Isolate, String> AstConsString::Allocate(Isolate* isolate) const {
+template <typename LocalIsolate>
+Handle<String> AstConsString::Allocate(LocalIsolate* isolate) const {
   DCHECK(string_.is_null());
 
   if (IsEmpty()) {
@@ -171,7 +171,7 @@ HandleFor<Isolate, String> AstConsString::Allocate(Isolate* isolate) const {
   }
   // AstRawStrings are internalized before AstConsStrings are allocated, so
   // AstRawString::string() will just work.
-  HandleFor<Isolate, String> tmp = segment_.string->string();
+  Handle<String> tmp = segment_.string->string();
   for (AstConsString::Segment* current = segment_.next; current != nullptr;
        current = current->next) {
     tmp = isolate->factory()
@@ -184,11 +184,11 @@ HandleFor<Isolate, String> AstConsString::Allocate(Isolate* isolate) const {
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<String> AstConsString::Allocate<Isolate>(Isolate* isolate) const;
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    OffThreadHandle<String> AstConsString::Allocate<OffThreadIsolate>(
+    Handle<String> AstConsString::Allocate<OffThreadIsolate>(
         OffThreadIsolate* isolate) const;
 
-template <typename Isolate>
-HandleFor<Isolate, String> AstConsString::AllocateFlat(Isolate* isolate) const {
+template <typename LocalIsolate>
+Handle<String> AstConsString::AllocateFlat(LocalIsolate* isolate) const {
   if (IsEmpty()) {
     return isolate->factory()->empty_string();
   }
@@ -205,7 +205,7 @@ HandleFor<Isolate, String> AstConsString::AllocateFlat(Isolate* isolate) const {
   }
 
   if (is_one_byte) {
-    HandleFor<Isolate, SeqOneByteString> result =
+    Handle<SeqOneByteString> result =
         isolate->factory()
             ->NewRawOneByteString(result_length, AllocationType::kOld)
             .ToHandleChecked();
@@ -221,7 +221,7 @@ HandleFor<Isolate, String> AstConsString::AllocateFlat(Isolate* isolate) const {
     return result;
   }
 
-  HandleFor<Isolate, SeqTwoByteString> result =
+  Handle<SeqTwoByteString> result =
       isolate->factory()
           ->NewRawTwoByteString(result_length, AllocationType::kOld)
           .ToHandleChecked();
@@ -245,7 +245,7 @@ HandleFor<Isolate, String> AstConsString::AllocateFlat(Isolate* isolate) const {
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<String> AstConsString::AllocateFlat<Isolate>(Isolate* isolate) const;
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    OffThreadHandle<String> AstConsString::AllocateFlat<OffThreadIsolate>(
+    Handle<String> AstConsString::AllocateFlat<OffThreadIsolate>(
         OffThreadIsolate* isolate) const;
 
 std::forward_list<const AstRawString*> AstConsString::ToRawStrings() const {
@@ -344,8 +344,8 @@ AstConsString* AstValueFactory::NewConsString(const AstRawString* str1,
   return NewConsString()->AddString(zone_, str1)->AddString(zone_, str2);
 }
 
-template <typename Isolate>
-void AstValueFactory::Internalize(Isolate* isolate) {
+template <typename LocalIsolate>
+void AstValueFactory::Internalize(LocalIsolate* isolate) {
   // Strings need to be internalized before values, because values refer to
   // strings.
   for (AstRawString* current = strings_; current != nullptr;) {

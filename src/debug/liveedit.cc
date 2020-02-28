@@ -663,7 +663,7 @@ bool HasChangedScope(FunctionLiteral* a, FunctionLiteral* b) {
       if (!var->IsContextSlot()) continue;
       auto it = vars.find(var->index());
       if (it == vars.end()) return true;
-      if (*it->second != *var->name().get_handle()) return true;
+      if (*it->second != *var->name()) return true;
     }
     scope_a = scope_a->outer_scope();
     scope_b = scope_b->outer_scope();

@@ -197,9 +197,9 @@ class SourceTextModuleInfo : public FixedArray {
  public:
   DECL_CAST(SourceTextModuleInfo)
 
-  template <typename Isolate>
-  static HandleFor<Isolate, SourceTextModuleInfo> New(
-      Isolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
+  template <typename LocalIsolate>
+  static Handle<SourceTextModuleInfo> New(LocalIsolate* isolate, Zone* zone,
+                                          SourceTextModuleDescriptor* descr);
 
   inline FixedArray module_requests() const;
   inline FixedArray special_exports() const;
@@ -253,11 +253,11 @@ class SourceTextModuleInfoEntry
   DECL_INT_ACCESSORS(beg_pos)
   DECL_INT_ACCESSORS(end_pos)
 
-  template <typename Isolate>
-  static HandleFor<Isolate, SourceTextModuleInfoEntry> New(
-      Isolate* isolate, HandleFor<Isolate, PrimitiveHeapObject> export_name,
-      HandleFor<Isolate, PrimitiveHeapObject> local_name,
-      HandleFor<Isolate, PrimitiveHeapObject> import_name, int module_request,
+  template <typename LocalIsolate>
+  static Handle<SourceTextModuleInfoEntry> New(
+      LocalIsolate* isolate, Handle<PrimitiveHeapObject> export_name,
+      Handle<PrimitiveHeapObject> local_name,
+      Handle<PrimitiveHeapObject> import_name, int module_request,
       int cell_index, int beg_pos, int end_pos);
 
   TQ_OBJECT_CONSTRUCTORS(SourceTextModuleInfoEntry)

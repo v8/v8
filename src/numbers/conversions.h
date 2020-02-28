@@ -8,7 +8,6 @@
 #include "src/base/export-template.h"
 #include "src/base/logging.h"
 #include "src/common/globals.h"
-#include "src/handles/handle-for.h"
 #include "src/utils/vector.h"
 
 namespace v8 {
@@ -101,10 +100,9 @@ MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string);
 //   0x -> hex
 //   0o -> octal
 //   0b -> binary
-template <typename Isolate>
+template <typename LocalIsolate>
 EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-MaybeHandleFor<Isolate, BigInt> BigIntLiteral(Isolate* isolate,
-                                              const char* string);
+MaybeHandle<BigInt> BigIntLiteral(LocalIsolate* isolate, const char* string);
 
 const int kDoubleToCStringMinBufferSize = 100;
 

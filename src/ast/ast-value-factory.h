@@ -71,7 +71,7 @@ class AstRawString final : public ZoneObject {
   uint32_t Hash() const { return hash_field_ >> Name::kHashShift; }
 
   // This function can be called after internalizing.
-  V8_INLINE HandleOrOffThreadHandle<String> string() const {
+  V8_INLINE Handle<String> string() const {
     DCHECK(has_string_);
     return string_;
   }
@@ -98,7 +98,7 @@ class AstRawString final : public ZoneObject {
     return &next_;
   }
 
-  void set_string(HandleOrOffThreadHandle<String> string) {
+  void set_string(Handle<String> string) {
     DCHECK(!string.is_null());
     DCHECK(!has_string_);
     string_ = string;
@@ -109,7 +109,7 @@ class AstRawString final : public ZoneObject {
 
   union {
     AstRawString* next_;
-    HandleOrOffThreadHandle<String> string_;
+    Handle<String> string_;
   };
 
   Vector<const byte> literal_bytes_;  // Memory owned by Zone.
@@ -144,17 +144,17 @@ class AstConsString final : public ZoneObject {
     return segment_.string == nullptr;
   }
 
-  template <typename Isolate>
-  HandleFor<Isolate, String> GetString(Isolate* isolate) {
+  template <typename LocalIsolate>
+  Handle<String> GetString(LocalIsolate* isolate) {
     if (string_.is_null()) {
       string_ = Allocate(isolate);
     }
     return string_;
   }
 
-  template <typename Isolate>
+  template <typename LocalIsolate>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  HandleFor<Isolate, String> AllocateFlat(Isolate* isolate) const;
+  Handle<String> AllocateFlat(LocalIsolate* isolate) const;
 
   std::forward_list<const AstRawString*> ToRawStrings() const;
 
@@ -163,11 +163,11 @@ class AstConsString final : public ZoneObject {
 
   AstConsString() : string_(), segment_({nullptr, nullptr}) {}
 
-  template <typename Isolate>
+  template <typename LocalIsolate>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  HandleFor<Isolate, String> Allocate(Isolate* isolate) const;
+  Handle<String> Allocate(LocalIsolate* isolate) const;
 
-  HandleOrOffThreadHandle<String> string_;
+  Handle<String> string_;
 
   // A linked list of AstRawStrings of the contents of this AstConsString.
   // This list has several properties:
@@ -317,8 +317,8 @@ class AstValueFactory {
   V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str1,
                                                  const AstRawString* str2);
 
-  template <typename Isolate>
-  void Internalize(Isolate* isolate);
+  template <typename LocalIsolate>
+  void Internalize(LocalIsolate* isolate);
 
 #define F(name, str)                           \
   const AstRawString* name##_string() const {  \

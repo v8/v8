@@ -60,7 +60,6 @@ void AstNode::Print(Isolate* isolate) {
   AstPrinter::PrintOut(isolate, this);
 }
 
-
 #endif  // DEBUG
 
 #define RETURN_NODE(Node) \
@@ -235,11 +234,7 @@ int FunctionLiteral::start_position() const {
   return scope()->start_position();
 }
 
-
-int FunctionLiteral::end_position() const {
-  return scope()->end_position();
-}
-
+int FunctionLiteral::end_position() const { return scope()->end_position(); }
 
 LanguageMode FunctionLiteral::language_mode() const {
   return scope()->language_mode();
@@ -340,7 +335,6 @@ bool ObjectLiteral::Property::IsCompileTimeValue() const {
   return kind_ == CONSTANT ||
          (kind_ == MATERIALIZED_LITERAL && value_->IsCompileTimeValue());
 }
-
 
 void ObjectLiteral::Property::set_emit_store(bool emit_store) {
   emit_store_ = emit_store;
@@ -475,8 +469,8 @@ int ObjectLiteral::InitDepthAndFlags() {
   return depth_acc;
 }
 
-template <typename Isolate>
-void ObjectLiteral::BuildBoilerplateDescription(Isolate* isolate) {
+template <typename LocalIsolate>
+void ObjectLiteral::BuildBoilerplateDescription(LocalIsolate* isolate) {
   if (!boilerplate_description_.is_null()) return;
 
   int index_keys = 0;
@@ -493,7 +487,7 @@ void ObjectLiteral::BuildBoilerplateDescription(Isolate* isolate) {
     if (!key->IsPropertyName()) index_keys++;
   }
 
-  HandleFor<Isolate, ObjectBoilerplateDescription> boilerplate_description =
+  Handle<ObjectBoilerplateDescription> boilerplate_description =
       isolate->factory()->NewObjectBoilerplateDescription(
           boilerplate_properties_, properties()->length(), index_keys,
           has_seen_proto);
@@ -519,16 +513,14 @@ void ObjectLiteral::BuildBoilerplateDescription(Isolate* isolate) {
     // runtime. The enumeration order is maintained.
     Literal* key_literal = property->key()->AsLiteral();
     uint32_t element_index = 0;
-    HandleFor<Isolate, Object> key =
+    Handle<Object> key =
         key_literal->AsArrayIndex(&element_index)
             ? isolate->factory()
                   ->template NewNumberFromUint<AllocationType::kOld>(
                       element_index)
-            : HandleFor<Isolate, Object>::cast(
-                  key_literal->AsRawPropertyName()->string().get<Isolate>());
+            : Handle<Object>::cast(key_literal->AsRawPropertyName()->string());
 
-    HandleFor<Isolate, Object> value =
-        GetBoilerplateValue(property->value(), isolate);
+    Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
 
     // Add name, value pair to the fixed array.
     boilerplate_description->set_key_value(position++, *key, *value);
@@ -632,8 +624,8 @@ int ArrayLiteral::InitDepthAndFlags() {
   return depth_acc;
 }
 
-template <typename Isolate>
-void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
+template <typename LocalIsolate>
+void ArrayLiteral::BuildBoilerplateDescription(LocalIsolate* isolate) {
   if (!boilerplate_description_.is_null()) return;
 
   int constants_length =
@@ -641,7 +633,7 @@ void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
   ElementsKind kind = boilerplate_descriptor_kind();
   bool use_doubles = IsDoubleElementsKind(kind);
 
-  HandleFor<Isolate, FixedArrayBase> elements;
+  Handle<FixedArrayBase> elements;
   if (use_doubles) {
     elements = isolate->factory()->NewFixedDoubleArray(constants_length,
                                                        AllocationType::kOld);
@@ -677,7 +669,7 @@ void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
       }
 
       // New handle scope here, needs to be after BuildContants().
-      HandleScopeFor<Isolate> scope(isolate);
+      typename LocalIsolate::HandleScopeType scope(isolate);
 
       Object boilerplate_value = *GetBoilerplateValue(element, isolate);
       // We shouldn't allocate after creating the boilerplate value.
@@ -731,9 +723,9 @@ bool MaterializedLiteral::IsSimple() const {
   return false;
 }
 
-template <typename Isolate>
-HandleFor<Isolate, Object> MaterializedLiteral::GetBoilerplateValue(
-    Expression* expression, Isolate* isolate) {
+template <typename LocalIsolate>
+Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
+                                                        LocalIsolate* isolate) {
   if (expression->IsLiteral()) {
     return expression->AsLiteral()->BuildValue(isolate);
   }
@@ -755,7 +747,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<Object> MaterializedLiteral::GetBoilerplateValue(
         Expression* expression, Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    OffThreadHandle<Object> MaterializedLiteral::GetBoilerplateValue(
+    Handle<Object> MaterializedLiteral::GetBoilerplateValue(
         Expression* expression, OffThreadIsolate* isolate);
 
 int MaterializedLiteral::InitDepthAndFlags() {
@@ -776,8 +768,8 @@ bool MaterializedLiteral::NeedsInitialAllocationSite() {
   return false;
 }
 
-template <typename Isolate>
-void MaterializedLiteral::BuildConstants(Isolate* isolate) {
+template <typename LocalIsolate>
+void MaterializedLiteral::BuildConstants(LocalIsolate* isolate) {
   if (IsArrayLiteral()) {
     AsArrayLiteral()->BuildBoilerplateDescription(isolate);
     return;
@@ -794,12 +786,11 @@ template EXPORT_TEMPLATE_DEFINE(
     V8_BASE_EXPORT) void MaterializedLiteral::BuildConstants(OffThreadIsolate*
                                                                  isolate);
 
-template <typename Isolate>
-HandleFor<Isolate, TemplateObjectDescription>
-GetTemplateObject::GetOrBuildDescription(Isolate* isolate) {
-  HandleFor<Isolate, FixedArray> raw_strings =
-      isolate->factory()->NewFixedArray(this->raw_strings()->length(),
-                                        AllocationType::kOld);
+template <typename LocalIsolate>
+Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
+    LocalIsolate* isolate) {
+  Handle<FixedArray> raw_strings = isolate->factory()->NewFixedArray(
+      this->raw_strings()->length(), AllocationType::kOld);
   bool raw_and_cooked_match = true;
   for (int i = 0; i < raw_strings->length(); ++i) {
     if (this->raw_strings()->at(i) != this->cooked_strings()->at(i)) {
@@ -807,21 +798,20 @@ GetTemplateObject::GetOrBuildDescription(Isolate* isolate) {
       // Strings, since the AstValueFactory should have deduplicated them
       // already.
       DCHECK_IMPLIES(this->cooked_strings()->at(i) != nullptr,
-                     *this->cooked_strings()->at(i)->string().get<Isolate>() !=
-                         *this->raw_strings()->at(i)->string().get<Isolate>());
+                     *this->cooked_strings()->at(i)->string() !=
+                         *this->raw_strings()->at(i)->string());
 
       raw_and_cooked_match = false;
     }
-    raw_strings->set(i, *this->raw_strings()->at(i)->string().get<Isolate>());
+    raw_strings->set(i, *this->raw_strings()->at(i)->string());
   }
-  HandleFor<Isolate, FixedArray> cooked_strings = raw_strings;
+  Handle<FixedArray> cooked_strings = raw_strings;
   if (!raw_and_cooked_match) {
     cooked_strings = isolate->factory()->NewFixedArray(
         this->cooked_strings()->length(), AllocationType::kOld);
     for (int i = 0; i < cooked_strings->length(); ++i) {
       if (this->cooked_strings()->at(i) != nullptr) {
-        cooked_strings->set(
-            i, *this->cooked_strings()->at(i)->string().get<Isolate>());
+        cooked_strings->set(i, *this->cooked_strings()->at(i)->string());
       } else {
         cooked_strings->set(i, ReadOnlyRoots(isolate).undefined_value());
       }
@@ -834,8 +824,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT)
     Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
         Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT)
-    OffThreadHandle<TemplateObjectDescription> GetTemplateObject::
-        GetOrBuildDescription(OffThreadIsolate* isolate);
+    Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
+        OffThreadIsolate* isolate);
 
 static bool IsCommutativeOperationWithSmiLiteral(Token::Value op) {
   // Add is not commutative due to potential for string addition.
@@ -884,20 +874,16 @@ bool CompareOperation::IsLiteralCompareTypeof(Expression** expr,
          MatchLiteralCompareTypeof(right_, op(), left_, expr, literal);
 }
 
-
 static bool IsVoidOfLiteral(Expression* expr) {
   UnaryOperation* maybe_unary = expr->AsUnaryOperation();
   return maybe_unary != nullptr && maybe_unary->op() == Token::VOID &&
          maybe_unary->expression()->IsLiteral();
 }
 
-
 // Check for the pattern: void <literal> equals <expression> or
 // undefined equals <expression>
-static bool MatchLiteralCompareUndefined(Expression* left,
-                                         Token::Value op,
-                                         Expression* right,
-                                         Expression** expr) {
+static bool MatchLiteralCompareUndefined(Expression* left, Token::Value op,
+                                         Expression* right, Expression** expr) {
   if (IsVoidOfLiteral(left) && Token::IsEqualityOp(op)) {
     *expr = right;
     return true;
@@ -915,10 +901,8 @@ bool CompareOperation::IsLiteralCompareUndefined(Expression** expr) {
 }
 
 // Check for the pattern: null equals <expression>
-static bool MatchLiteralCompareNull(Expression* left,
-                                    Token::Value op,
-                                    Expression* right,
-                                    Expression** expr) {
+static bool MatchLiteralCompareNull(Expression* left, Token::Value op,
+                                    Expression* right, Expression** expr) {
   if (left->IsNullLiteral() && Token::IsEqualityOp(op)) {
     *expr = right;
     return true;
@@ -1005,8 +989,8 @@ bool Literal::AsArrayIndex(uint32_t* value) const {
   return ToUint32(value) && *value != kMaxUInt32;
 }
 
-template <typename Isolate>
-HandleFor<Isolate, Object> Literal::BuildValue(Isolate* isolate) const {
+template <typename LocalIsolate>
+Handle<Object> Literal::BuildValue(LocalIsolate* isolate) const {
   switch (type()) {
     case kSmi:
       return handle(Smi::FromInt(smi_), isolate);
@@ -1035,8 +1019,7 @@ HandleFor<Isolate, Object> Literal::BuildValue(Isolate* isolate) const {
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<Object> Literal::BuildValue(Isolate* isolate) const;
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    OffThreadHandle<Object> Literal::BuildValue(
-        OffThreadIsolate* isolate) const;
+    Handle<Object> Literal::BuildValue(OffThreadIsolate* isolate) const;
 
 bool Literal::ToBooleanIsTrue() const {
   switch (type()) {
@@ -1075,7 +1058,6 @@ uint32_t Literal::Hash() {
   return IsString() ? AsRawString()->Hash()
                     : ComputeLongHash(double_to_uint64(AsNumber()));
 }
-
 
 // static
 bool Literal::Match(void* a, void* b) {

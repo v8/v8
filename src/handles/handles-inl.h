@@ -6,16 +6,18 @@
 #define V8_HANDLES_HANDLES_INL_H_
 
 #include "src/execution/isolate.h"
+#include "src/execution/off-thread-isolate.h"
 #include "src/handles/handles.h"
 #include "src/sanitizer/msan.h"
 
 namespace v8 {
 namespace internal {
 
-class OffThreadIsolate;
-
 HandleBase::HandleBase(Address object, Isolate* isolate)
     : location_(HandleScope::GetHandle(isolate, object)) {}
+
+HandleBase::HandleBase(Address object, OffThreadIsolate* isolate)
+    : location_(isolate->NewHandle(object)) {}
 
 // Allocate a new handle for the object, do not canonicalize.
 
@@ -36,26 +38,28 @@ Handle<T>::Handle(T object, Isolate* isolate)
     : HandleBase(object.ptr(), isolate) {}
 
 template <typename T>
+Handle<T>::Handle(T object, OffThreadIsolate* isolate)
+    : HandleBase(object.ptr(), isolate) {}
+
+template <typename T>
 V8_INLINE Handle<T> handle(T object, Isolate* isolate) {
   return Handle<T>(object, isolate);
 }
 
 template <typename T>
-V8_INLINE OffThreadHandle<T> handle(T object, OffThreadIsolate* isolate) {
-  // Convienently, we don't actually need the isolate to create this handle.
-  return OffThreadHandle<T>(object);
+V8_INLINE Handle<T> handle(T object, OffThreadIsolate* isolate) {
+  return Handle<T>(object, isolate);
 }
 
 // Convenience overloads for when we already have a Handle, but want
-// either a Handle or an OffThreadHandle.
+// either a Handle or an Handle.
 template <typename T>
 V8_INLINE Handle<T> handle(Handle<T> handle, Isolate* isolate) {
   return handle;
 }
 template <typename T>
-V8_INLINE OffThreadHandle<T> handle(Handle<T> handle,
-                                    OffThreadIsolate* isolate) {
-  return OffThreadHandle<T>(*handle);
+V8_INLINE Handle<T> handle(Handle<T> handle, OffThreadIsolate* isolate) {
+  return Handle<T>(*handle);
 }
 
 template <typename T>

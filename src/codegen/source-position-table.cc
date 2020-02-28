@@ -155,13 +155,13 @@ void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
 #endif
 }
 
-template <typename Isolate>
-HandleFor<Isolate, ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
-    Isolate* isolate) {
+template <typename LocalIsolate>
+Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
+    LocalIsolate* isolate) {
   if (bytes_.empty()) return isolate->factory()->empty_byte_array();
   DCHECK(!Omit());
 
-  HandleFor<Isolate, ByteArray> table = isolate->factory()->NewByteArray(
+  Handle<ByteArray> table = isolate->factory()->NewByteArray(
       static_cast<int>(bytes_.size()), AllocationType::kOld);
   MemCopy(table->GetDataStartAddress(), bytes_.data(), bytes_.size());
 
@@ -182,8 +182,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
         Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    OffThreadHandle<ByteArray> SourcePositionTableBuilder::
-        ToSourcePositionTable(OffThreadIsolate* isolate);
+    Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
+        OffThreadIsolate* isolate);
 
 OwnedVector<byte> SourcePositionTableBuilder::ToSourcePositionTableVector() {
   if (bytes_.empty()) return OwnedVector<byte>();

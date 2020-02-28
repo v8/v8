@@ -12,7 +12,6 @@
 #include "src/base/macros.h"
 #include "src/common/checks.h"
 #include "src/common/globals.h"
-#include "src/handles/handle-for.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -40,6 +39,7 @@ class HandleBase {
  public:
   V8_INLINE explicit HandleBase(Address* location) : location_(location) {}
   V8_INLINE explicit HandleBase(Address object, Isolate* isolate);
+  V8_INLINE explicit HandleBase(Address object, OffThreadIsolate* isolate);
 
   // Check if this handle refers to the exact same object as the other handle.
   V8_INLINE bool is_identical_to(const HandleBase that) const {
@@ -76,29 +76,6 @@ class HandleBase {
   Address* location_;
 };
 
-template <typename T>
-class Handle;
-template <typename T>
-class OffThreadHandle;
-
-// {ObjectRef} is returned by {Handle::operator->}. It should never be stored
-// anywhere or used in any other code; no one should ever have to spell out
-// {ObjectRef} in code. Its only purpose is to be dereferenced immediately by
-// "operator-> chaining". Returning the address of the field is valid because
-// this objects lifetime only ends at the end of the full statement.
-template <typename T>
-class HandleObjectRef {
- public:
-  T* operator->() { return &object_; }
-
- private:
-  friend class Handle<T>;
-  friend class OffThreadHandle<T>;
-  explicit HandleObjectRef(T object) : object_(object) {}
-
-  T object_;
-};
-
 // ----------------------------------------------------------------------------
 // A Handle provides a reference to an object that survives relocation by
 // the garbage collector.
@@ -113,6 +90,22 @@ class HandleObjectRef {
 template <typename T>
 class Handle final : public HandleBase {
  public:
+  // {ObjectRef} is returned by {Handle::operator->}. It should never be stored
+  // anywhere or used in any other code; no one should ever have to spell out
+  // {ObjectRef} in code. Its only purpose is to be dereferenced immediately by
+  // "operator-> chaining". Returning the address of the field is valid because
+  // this objects lifetime only ends at the end of the full statement.
+  class ObjectRef {
+   public:
+    T* operator->() { return &object_; }
+
+   private:
+    friend class Handle<T>;
+    explicit ObjectRef(T object) : object_(object) {}
+
+    T object_;
+  };
+
   V8_INLINE explicit Handle() : HandleBase(nullptr) {
     // Skip static type check in order to allow Handle<XXX>::null() as default
     // parameter values in non-inl header files without requiring full
@@ -127,6 +120,7 @@ class Handle final : public HandleBase {
   }
 
   V8_INLINE Handle(T object, Isolate* isolate);
+  V8_INLINE Handle(T object, OffThreadIsolate* isolate);
 
   // Allocate a new handle for the object, do not canonicalize.
   V8_INLINE static Handle<T> New(T object, Isolate* isolate);
@@ -138,9 +132,7 @@ class Handle final : public HandleBase {
   // NOLINTNEXTLINE
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
-  V8_INLINE HandleObjectRef<T> operator->() const {
-    return HandleObjectRef<T>{**this};
-  }
+  V8_INLINE ObjectRef operator->() const { return ObjectRef{**this}; }
 
   V8_INLINE T operator*() const {
     // unchecked_cast because we rather trust Handle<T> to contain a T than
@@ -184,136 +176,6 @@ class Handle final : public HandleBase {
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, Handle<T> handle);
-
-// ----------------------------------------------------------------------------
-// A fake Handle that simply wraps an object reference. This is used for
-// off-thread Objects, where we want a class that behaves like Handle for the
-// purposes of operator->, casting, etc., but isn't a GC root and doesn't
-// require access to the Isolate.
-template <typename T>
-class OffThreadHandle {
- public:
-  OffThreadHandle() = default;
-
-  explicit OffThreadHandle(T obj, OffThreadIsolate* isolate = nullptr)
-      : address_(obj.ptr()) {}
-
-  // Constructor for handling automatic up casting. We rely on the compiler
-  // making sure that the cast to T is legitimate.
-  template <typename U>
-  // NOLINTNEXTLINE
-  OffThreadHandle<T>(OffThreadHandle<U> other)
-      : address_(static_cast<T>(*other).ptr()) {}
-
-  T operator*() const { return T::unchecked_cast(Object(address_)); }
-  V8_INLINE HandleObjectRef<T> operator->() const {
-    return HandleObjectRef<T>{**this};
-  }
-
-  template <typename U>
-  static OffThreadHandle<T> cast(OffThreadHandle<U> other) {
-    return OffThreadHandle<T>(T::cast(*other));
-  }
-
-  bool is_null() const {
-    // TODO(leszeks): This will only work for HeapObjects, figure out a way to
-    // make is_null work for Object and Smi too.
-    return (*this)->is_null();
-  }
-
-  bool ToHandle(OffThreadHandle<T>* out) {
-    if (is_null()) return false;
-
-    *out = *this;
-    return true;
-  }
-  OffThreadHandle<T> ToHandleChecked() {
-    DCHECK(!is_null());
-    return *this;
-  }
-
- private:
-  Address address_ = 0;
-};
-
-// A helper class which wraps an normal or off-thread handle, and returns one
-// or the other depending on the factory type.
-template <typename T>
-class HandleOrOffThreadHandle {
- public:
-  HandleOrOffThreadHandle() = default;
-
-  template <typename U>
-  HandleOrOffThreadHandle(Handle<U> handle)  // NOLINT
-      : value_(bit_cast<Address>(static_cast<Handle<T>>(handle).location())) {
-#ifdef DEBUG
-    which_ = kHandle;
-#endif
-  }
-
-  template <typename U>
-  HandleOrOffThreadHandle(OffThreadHandle<U> handle)  // NOLINT
-      : value_(static_cast<OffThreadHandle<T>>(handle)->ptr()) {
-#ifdef DEBUG
-    which_ = kOffThreadHandle;
-#endif
-  }
-
-  // Explicit getters for the Handle and OffThreadHandle.
-  inline Handle<T> get_handle() const {
-    DCHECK_NE(which_, kOffThreadHandle);
-    return Handle<T>(reinterpret_cast<Address*>(value_));
-  }
-  inline OffThreadHandle<T> get_off_thread_handle() const {
-    DCHECK_NE(which_, kHandle);
-    return OffThreadHandle<T>(T::unchecked_cast(Object(value_)));
-  }
-
-  // Implicitly convert to Handle, MaybeHandle and OffThreadHandle, whenever
-  // the conversion can be implicit.
-  template <typename U>
-  operator Handle<U>() const {  // NOLINT
-    return get_handle();
-  }
-  template <typename U>
-  operator MaybeHandle<U>() const {  // NOLINT
-    return get_handle();
-  }
-  template <typename U>
-  operator OffThreadHandle<U>() const {  // NOLINT
-    return get_off_thread_handle();
-  }
-
-  // Allow templated dispatch on which type of handle to get.
-  template <typename IsolateType>
-  inline HandleFor<IsolateType, T> get() const {
-    return get_for(Tag<IsolateType>());
-  }
-
-  inline bool is_null() const { return value_ == 0; }
-
-#ifdef DEBUG
-  inline bool is_initialized() const { return which_ != kUninitialized; }
-#endif
-
- private:
-  // Tagged overloads because we can't specialize the above getter
-  // without also specializing the class.
-  template <typename IsolateType>
-  struct Tag {};
-
-  V8_INLINE Handle<T> get_for(Tag<class Isolate>) const { return get_handle(); }
-  V8_INLINE OffThreadHandle<T> get_for(Tag<class OffThreadIsolate>) const {
-    return get_off_thread_handle();
-  }
-
-  // Either handle.location() or off_thread_handle->ptr().
-  Address value_ = 0;
-
-#ifdef DEBUG
-  enum { kUninitialized, kHandle, kOffThreadHandle } which_ = kUninitialized;
-#endif
-};
 
 // ----------------------------------------------------------------------------
 // A stack-allocated class that governs a number of local handles.
@@ -503,6 +365,8 @@ struct HandleScopeData final {
 
 class OffThreadHandleScope {
  public:
+  // Off-thread Handles are allocated in the parse/compile zone, and not
+  // cleared out, so the scope doesn't have to do anything
   explicit OffThreadHandleScope(OffThreadIsolate* isolate) {}
 };
 

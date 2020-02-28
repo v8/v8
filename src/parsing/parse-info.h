@@ -55,12 +55,12 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ~ParseInfo();
 
-  template <typename Isolate>
+  template <typename LocalIsolate>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  HandleFor<Isolate, Script> CreateScript(
-      Isolate* isolate, HandleFor<Isolate, String> source,
-      ScriptOriginOptions origin_options, REPLMode repl_mode = REPLMode::kNo,
-      NativesFlag natives = NOT_NATIVES_CODE);
+  Handle<Script> CreateScript(LocalIsolate* isolate, Handle<String> source,
+                              ScriptOriginOptions origin_options,
+                              REPLMode repl_mode = REPLMode::kNo,
+                              NativesFlag natives = NOT_NATIVES_CODE);
 
   // Either returns the ast-value-factory associcated with this ParseInfo, or
   // creates and returns a new factory if none exists.
@@ -259,8 +259,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ParallelTasks* parallel_tasks() { return parallel_tasks_.get(); }
 
-  template <typename Isolate>
-  void SetFlagsFromScript(Isolate* isolate, Script script);
+  template <typename LocalIsolate>
+  void SetFlagsFromScript(LocalIsolate* isolate, Script script);
 
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.
@@ -289,8 +289,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   }
 
  private:
-  template <typename Isolate>
-  void SetFlagsForToplevelCompileFromScript(Isolate* isolate, Script script,
+  template <typename LocalIsolate>
+  void SetFlagsForToplevelCompileFromScript(LocalIsolate* isolate,
+                                            Script script,
                                             bool is_collecting_type_profile);
 
   // Set function info flags based on those in either FunctionLiteral or

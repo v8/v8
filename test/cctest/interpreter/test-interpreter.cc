@@ -195,8 +195,7 @@ TEST(InterpreterLoadLiteral) {
     InterpreterTester tester(isolate, bytecode_array);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_val = callable().ToHandleChecked();
-    CHECK(i::String::cast(*return_val)
-              .Equals(*raw_string->string().get<Isolate>()));
+    CHECK(i::String::cast(*return_val).Equals(*raw_string->string()));
   }
 }
 

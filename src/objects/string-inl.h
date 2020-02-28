@@ -397,9 +397,8 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
   return string;
 }
 
-OffThreadHandle<String> String::Flatten(OffThreadIsolate* isolate,
-                                        OffThreadHandle<String> string,
-                                        AllocationType allocation) {
+Handle<String> String::Flatten(OffThreadIsolate* isolate, Handle<String> string,
+                               AllocationType allocation) {
   // We should never pass non-flat strings to String::Flatten when off-thread.
   DCHECK(string->IsFlat());
   return string;

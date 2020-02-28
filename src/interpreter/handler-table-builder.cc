@@ -15,14 +15,11 @@ namespace interpreter {
 
 HandlerTableBuilder::HandlerTableBuilder(Zone* zone) : entries_(zone) {}
 
-template <typename Isolate>
-HandleFor<Isolate, ByteArray> HandlerTableBuilder::ToHandlerTable(
-    Isolate* isolate) {
+template <typename LocalIsolate>
+Handle<ByteArray> HandlerTableBuilder::ToHandlerTable(LocalIsolate* isolate) {
   int handler_table_size = static_cast<int>(entries_.size());
-  HandleFor<Isolate, ByteArray> table_byte_array =
-      isolate->factory()->NewByteArray(
-          HandlerTable::LengthForRange(handler_table_size),
-          AllocationType::kOld);
+  Handle<ByteArray> table_byte_array = isolate->factory()->NewByteArray(
+      HandlerTable::LengthForRange(handler_table_size), AllocationType::kOld);
   HandlerTable table(*table_byte_array);
   for (int i = 0; i < handler_table_size; ++i) {
     Entry& entry = entries_[i];
@@ -37,7 +34,7 @@ HandleFor<Isolate, ByteArray> HandlerTableBuilder::ToHandlerTable(
 
 template Handle<ByteArray> HandlerTableBuilder::ToHandlerTable(
     Isolate* isolate);
-template OffThreadHandle<ByteArray> HandlerTableBuilder::ToHandlerTable(
+template Handle<ByteArray> HandlerTableBuilder::ToHandlerTable(
     OffThreadIsolate* isolate);
 
 int HandlerTableBuilder::NewHandlerEntry() {

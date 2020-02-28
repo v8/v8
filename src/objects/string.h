@@ -9,7 +9,6 @@
 
 #include "src/base/bits.h"
 #include "src/base/export-template.h"
-#include "src/handles/handle-for.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/name.h"
 #include "src/objects/smi.h"
@@ -204,8 +203,8 @@ class String : public TorqueGeneratedString<String, Name> {
   static inline Handle<String> Flatten(
       Isolate* isolate, Handle<String> string,
       AllocationType allocation = AllocationType::kYoung);
-  static inline OffThreadHandle<String> Flatten(
-      OffThreadIsolate* isolate, OffThreadHandle<String> string,
+  static inline Handle<String> Flatten(
+      OffThreadIsolate* isolate, Handle<String> string,
       AllocationType allocation = AllocationType::kYoung);
 
   // Tries to return the content of a flat string as a structure holding either
@@ -458,10 +457,10 @@ class String : public TorqueGeneratedString<String, Name> {
   static inline ConsString VisitFlat(Visitor* visitor, String string,
                                      int offset = 0);
 
-  template <typename Isolate>
-  static HandleFor<Isolate, FixedArray> CalculateLineEnds(
-      Isolate* isolate, HandleFor<Isolate, String> string,
-      bool include_ending_line);
+  template <typename LocalIsolate>
+  static Handle<FixedArray> CalculateLineEnds(LocalIsolate* isolate,
+                                              Handle<String> string,
+                                              bool include_ending_line);
 
  private:
   friend class Name;

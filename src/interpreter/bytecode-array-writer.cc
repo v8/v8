@@ -37,20 +37,19 @@ BytecodeArrayWriter::BytecodeArrayWriter(
   bytecodes_.reserve(512);  // Derived via experimentation.
 }
 
-template <typename Isolate>
-HandleFor<Isolate, BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
-    Isolate* isolate, int register_count, int parameter_count,
-    HandleFor<Isolate, ByteArray> handler_table) {
+template <typename LocalIsolate>
+Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
+    LocalIsolate* isolate, int register_count, int parameter_count,
+    Handle<ByteArray> handler_table) {
   DCHECK_EQ(0, unbound_jumps_);
 
   int bytecode_size = static_cast<int>(bytecodes()->size());
   int frame_size = register_count * kSystemPointerSize;
-  HandleFor<Isolate, FixedArray> constant_pool =
+  Handle<FixedArray> constant_pool =
       constant_array_builder()->ToFixedArray(isolate);
-  HandleFor<Isolate, BytecodeArray> bytecode_array =
-      isolate->factory()->NewBytecodeArray(bytecode_size, &bytecodes()->front(),
-                                           frame_size, parameter_count,
-                                           constant_pool);
+  Handle<BytecodeArray> bytecode_array = isolate->factory()->NewBytecodeArray(
+      bytecode_size, &bytecodes()->front(), frame_size, parameter_count,
+      constant_pool);
   bytecode_array->set_handler_table(*handler_table);
   return bytecode_array;
 }
@@ -60,15 +59,15 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         Isolate* isolate, int register_count, int parameter_count,
         Handle<ByteArray> handler_table);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    OffThreadHandle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
+    Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
         OffThreadIsolate* isolate, int register_count, int parameter_count,
-        OffThreadHandle<ByteArray> handler_table);
+        Handle<ByteArray> handler_table);
 
-template <typename Isolate>
-HandleFor<Isolate, ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
-    Isolate* isolate) {
+template <typename LocalIsolate>
+Handle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
+    LocalIsolate* isolate) {
   DCHECK(!source_position_table_builder_.Lazy());
-  HandleFor<Isolate, ByteArray> source_position_table =
+  Handle<ByteArray> source_position_table =
       source_position_table_builder_.Omit()
           ? isolate->factory()->empty_byte_array()
           : source_position_table_builder_.ToSourcePositionTable(isolate);
@@ -79,7 +78,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
         Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    OffThreadHandle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
+    Handle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
         OffThreadIsolate* isolate);
 
 #ifdef DEBUG

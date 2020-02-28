@@ -568,7 +568,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   return scope.CloseAndEscape(class_boilerplate);
 }
 
-OffThreadHandle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
+Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
     OffThreadIsolate* isolate, ClassLiteral* expr) {
   // TODO(leszeks): Add class boilerplate support to off-thread finalization.
   UNREACHABLE();

@@ -28,17 +28,6 @@ class AstRawString;
 class AstConsString;
 class OffThreadIsolate;
 
-class OffThreadFactory;
-
-template <>
-struct HandleTraits<OffThreadFactory> {
-  template <typename T>
-  using HandleType = OffThreadHandle<T>;
-  template <typename T>
-  using MaybeHandleType = OffThreadHandle<T>;
-  using HandleScopeType = OffThreadHandleScope;
-};
-
 struct RelativeSlot {
   RelativeSlot() = default;
   RelativeSlot(Address object_address, int slot_offset)
@@ -55,8 +44,7 @@ class V8_EXPORT_PRIVATE OffThreadFactory
 
   ReadOnlyRoots read_only_roots() const { return roots_; }
 
-#define ROOT_ACCESSOR(Type, name, CamelName) \
-  inline OffThreadHandle<Type> name();
+#define ROOT_ACCESSOR(Type, name, CamelName) inline Handle<Type> name();
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
@@ -65,13 +53,12 @@ class V8_EXPORT_PRIVATE OffThreadFactory
 
   // The parser shouldn't allow the OffThreadFactory to get into a state where
   // it generates errors.
-  OffThreadHandle<Object> NewInvalidStringLengthError() { UNREACHABLE(); }
-  OffThreadHandle<Object> NewRangeError(MessageTemplate template_index) {
+  Handle<Object> NewInvalidStringLengthError() { UNREACHABLE(); }
+  Handle<Object> NewRangeError(MessageTemplate template_index) {
     UNREACHABLE();
   }
 
-  OffThreadHandle<FixedArray> StringWrapperForTest(
-      OffThreadHandle<String> string);
+  Handle<FixedArray> StringWrapperForTest(Handle<String> string);
 
  private:
   friend class FactoryBase<OffThreadFactory>;
@@ -92,10 +79,9 @@ class V8_EXPORT_PRIVATE OffThreadFactory
   inline bool EmptyStringRootIsInitialized() { return true; }
   // ------
 
-  OffThreadHandle<String> MakeOrFindTwoCharacterString(uint16_t c1,
-                                                       uint16_t c2);
+  Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
 
-  void AddToScriptList(OffThreadHandle<Script> shared);
+  void AddToScriptList(Handle<Script> shared);
   // ------
 
   ReadOnlyRoots roots_;

@@ -967,8 +967,8 @@ class Literal final : public Expression {
 
   // Returns an appropriate Object representing this Literal, allocating
   // a heap object if needed.
-  template <typename Isolate>
-  HandleFor<Isolate, Object> BuildValue(Isolate* isolate) const;
+  template <typename LocalIsolate>
+  Handle<Object> BuildValue(LocalIsolate* isolate) const;
 
   // Support for using Literal as a HashMap key. NOTE: Currently, this works
   // only for string and number literals!
@@ -1044,23 +1044,23 @@ class MaterializedLiteral : public Expression {
   bool NeedsInitialAllocationSite();
 
   // Populate the constant properties/elements fixed array.
-  template <typename Isolate>
-  void BuildConstants(Isolate* isolate);
+  template <typename LocalIsolate>
+  void BuildConstants(LocalIsolate* isolate);
 
   // If the expression is a literal, return the literal value;
   // if the expression is a materialized literal and is_simple
   // then return an Array or Object Boilerplate Description
   // Otherwise, return undefined literal as the placeholder
   // in the object literal boilerplate.
-  template <typename Isolate>
-  HandleFor<Isolate, Object> GetBoilerplateValue(Expression* expression,
-                                                 Isolate* isolate);
+  template <typename LocalIsolate>
+  Handle<Object> GetBoilerplateValue(Expression* expression,
+                                     LocalIsolate* isolate);
 };
 
 // Node for capturing a regexp literal.
 class RegExpLiteral final : public MaterializedLiteral {
  public:
-  HandleOrOffThreadHandle<String> pattern() const { return pattern_->string(); }
+  Handle<String> pattern() const { return pattern_->string(); }
   const AstRawString* raw_pattern() const { return pattern_; }
   int flags() const { return flags_; }
 
@@ -1218,9 +1218,8 @@ class ObjectLiteral final : public AggregateLiteral {
  public:
   using Property = ObjectLiteralProperty;
 
-  HandleOrOffThreadHandle<ObjectBoilerplateDescription>
-  boilerplate_description() const {
-    DCHECK(boilerplate_description_.is_initialized());
+  Handle<ObjectBoilerplateDescription> boilerplate_description() const {
+    DCHECK(!boilerplate_description_.is_null());
     return boilerplate_description_;
   }
   int properties_count() const { return boilerplate_properties_; }
@@ -1248,9 +1247,9 @@ class ObjectLiteral final : public AggregateLiteral {
   int InitDepthAndFlags();
 
   // Get the boilerplate description, populating it if necessary.
-  template <typename Isolate>
-  HandleFor<Isolate, ObjectBoilerplateDescription>
-  GetOrBuildBoilerplateDescription(Isolate* isolate) {
+  template <typename LocalIsolate>
+  Handle<ObjectBoilerplateDescription> GetOrBuildBoilerplateDescription(
+      LocalIsolate* isolate) {
     if (boilerplate_description_.is_null()) {
       BuildBoilerplateDescription(isolate);
     }
@@ -1258,8 +1257,8 @@ class ObjectLiteral final : public AggregateLiteral {
   }
 
   // Populate the boilerplate description.
-  template <typename Isolate>
-  void BuildBoilerplateDescription(Isolate* isolate);
+  template <typename LocalIsolate>
+  void BuildBoilerplateDescription(LocalIsolate* isolate);
 
   // Mark all computed expressions that are bound to a key that
   // is shadowed by a later occurrence of the same key. For the
@@ -1320,8 +1319,7 @@ class ObjectLiteral final : public AggregateLiteral {
     bit_field_ = HasNullPrototypeField::update(bit_field_, has_null_prototype);
   }
   uint32_t boilerplate_properties_;
-  HandleOrOffThreadHandle<ObjectBoilerplateDescription>
-      boilerplate_description_;
+  Handle<ObjectBoilerplateDescription> boilerplate_description_;
   ZoneList<Property*> properties_;
 
   using HasElementsField = AggregateLiteral::NextBitField<bool, 1>;
@@ -1334,8 +1332,7 @@ class ObjectLiteral final : public AggregateLiteral {
 // for minimizing the work when constructing it at runtime.
 class ArrayLiteral final : public AggregateLiteral {
  public:
-  HandleOrOffThreadHandle<ArrayBoilerplateDescription> boilerplate_description()
-      const {
+  Handle<ArrayBoilerplateDescription> boilerplate_description() const {
     return boilerplate_description_;
   }
 
@@ -1347,18 +1344,18 @@ class ArrayLiteral final : public AggregateLiteral {
   int InitDepthAndFlags();
 
   // Get the boilerplate description, populating it if necessary.
-  template <typename Isolate>
-  HandleFor<Isolate, ArrayBoilerplateDescription>
-  GetOrBuildBoilerplateDescription(Isolate* isolate) {
+  template <typename LocalIsolate>
+  Handle<ArrayBoilerplateDescription> GetOrBuildBoilerplateDescription(
+      LocalIsolate* isolate) {
     if (boilerplate_description_.is_null()) {
       BuildBoilerplateDescription(isolate);
     }
-    return boilerplate_description_.get<Isolate>();
+    return boilerplate_description_;
   }
 
   // Populate the boilerplate description.
-  template <typename Isolate>
-  void BuildBoilerplateDescription(Isolate* isolate);
+  template <typename LocalIsolate>
+  void BuildBoilerplateDescription(LocalIsolate* isolate);
 
   // Determines whether the {CreateShallowArrayLiteral} builtin can be used.
   bool IsFastCloningSupported() const;
@@ -1380,7 +1377,7 @@ class ArrayLiteral final : public AggregateLiteral {
   }
 
   int first_spread_index_;
-  HandleOrOffThreadHandle<ArrayBoilerplateDescription> boilerplate_description_;
+  Handle<ArrayBoilerplateDescription> boilerplate_description_;
   ZonePtrList<Expression> values_;
 };
 
@@ -2083,10 +2080,9 @@ class FunctionLiteral final : public Expression {
 
   // Empty handle means that the function does not have a shared name (i.e.
   // the name will be set dynamically after creation of the function closure).
-  template <typename Isolate>
-  MaybeHandleFor<Isolate, String> GetName(Isolate* isolate) const {
-    return raw_name_ ? raw_name_->AllocateFlat(isolate)
-                     : MaybeHandleFor<Isolate, String>();
+  template <typename LocalIsolate>
+  MaybeHandle<String> GetName(LocalIsolate* isolate) const {
+    return raw_name_ ? raw_name_->AllocateFlat(isolate) : MaybeHandle<String>();
   }
   bool has_shared_name() const { return raw_name_ != nullptr; }
   const AstConsString* raw_name() const { return raw_name_; }
@@ -2154,7 +2150,7 @@ class FunctionLiteral final : public Expression {
     }
     UNREACHABLE();
   }
-  OffThreadHandle<String> GetInferredName(OffThreadIsolate* isolate) const {
+  Handle<String> GetInferredName(OffThreadIsolate* isolate) const {
     DCHECK(inferred_name_.is_null());
     DCHECK_NOT_NULL(raw_inferred_name_);
     return raw_inferred_name_->GetString(isolate);
@@ -2534,9 +2530,9 @@ class GetTemplateObject final : public Expression {
     return raw_strings_;
   }
 
-  template <typename Isolate>
-  HandleFor<Isolate, TemplateObjectDescription> GetOrBuildDescription(
-      Isolate* isolate);
+  template <typename LocalIsolate>
+  Handle<TemplateObjectDescription> GetOrBuildDescription(
+      LocalIsolate* isolate);
 
  private:
   friend class AstNodeFactory;

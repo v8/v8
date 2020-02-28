@@ -175,41 +175,40 @@ void OffThreadFactory::Publish(Isolate* isolate) {
     scripts = WeakArrayList::Append(isolate, scripts,
                                     MaybeObjectHandle::Weak(script_handle));
   }
-  isolate->heap()->SetRootScriptList(*scripts);
 }
 
 // Hacky method for creating a simple object with a slot pointing to a string.
 // TODO(leszeks): Remove once we have full FixedArray support.
-OffThreadHandle<FixedArray> OffThreadFactory::StringWrapperForTest(
-    OffThreadHandle<String> string) {
+Handle<FixedArray> OffThreadFactory::StringWrapperForTest(
+    Handle<String> string) {
   HeapObject wrapper =
       AllocateRaw(FixedArray::SizeFor(1), AllocationType::kOld);
   wrapper.set_map_after_allocation(read_only_roots().fixed_array_map());
   FixedArray array = FixedArray::cast(wrapper);
   array.set_length(1);
   array.data_start().Relaxed_Store(*string);
-  return OffThreadHandle<FixedArray>(array);
+  return handle(array, isolate());
 }
 
-OffThreadHandle<String> OffThreadFactory::MakeOrFindTwoCharacterString(
-    uint16_t c1, uint16_t c2) {
+Handle<String> OffThreadFactory::MakeOrFindTwoCharacterString(uint16_t c1,
+                                                              uint16_t c2) {
   // TODO(leszeks): Do some real caching here. Also, these strings should be
   // internalized.
   if ((c1 | c2) <= unibrow::Latin1::kMaxChar) {
-    OffThreadHandle<SeqOneByteString> ret =
-        NewRawOneByteString(2, AllocationType::kOld);
+    Handle<SeqOneByteString> ret =
+        NewRawOneByteString(2, AllocationType::kOld).ToHandleChecked();
     ret->SeqOneByteStringSet(0, c1);
     ret->SeqOneByteStringSet(1, c2);
     return ret;
   }
-  OffThreadHandle<SeqTwoByteString> ret =
-      NewRawTwoByteString(2, AllocationType::kOld);
+  Handle<SeqTwoByteString> ret =
+      NewRawTwoByteString(2, AllocationType::kOld).ToHandleChecked();
   ret->SeqTwoByteStringSet(0, c1);
   ret->SeqTwoByteStringSet(1, c2);
   return ret;
 }
 
-void OffThreadFactory::AddToScriptList(OffThreadHandle<Script> shared) {
+void OffThreadFactory::AddToScriptList(Handle<Script> shared) {
   script_list_.push_back(*shared);
 }
 

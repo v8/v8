@@ -7,7 +7,7 @@
 
 #include "src/base/logging.h"
 #include "src/execution/thread-id.h"
-#include "src/handles/handle-for.h"
+#include "src/handles/handles.h"
 #include "src/heap/off-thread-factory.h"
 
 namespace v8 {
@@ -16,15 +16,6 @@ namespace internal {
 class Isolate;
 class OffThreadIsolate;
 class OffThreadLogger;
-
-template <>
-struct HandleTraits<OffThreadIsolate> {
-  template <typename T>
-  using HandleType = OffThreadHandle<T>;
-  template <typename T>
-  using MaybeHandleType = OffThreadHandle<T>;
-  using HandleScopeType = OffThreadHandleScope;
-};
 
 // HiddenOffThreadFactory parallels Isolate's HiddenFactory
 class V8_EXPORT_PRIVATE HiddenOffThreadFactory : private OffThreadFactory {
@@ -42,7 +33,9 @@ class V8_EXPORT_PRIVATE HiddenOffThreadFactory : private OffThreadFactory {
 class V8_EXPORT_PRIVATE OffThreadIsolate final
     : private HiddenOffThreadFactory {
  public:
-  explicit OffThreadIsolate(Isolate* isolate);
+  using HandleScopeType = OffThreadHandleScope;
+
+  explicit OffThreadIsolate(Isolate* isolate, Zone* zone);
   ~OffThreadIsolate();
 
   v8::internal::OffThreadFactory* factory() {
@@ -53,12 +46,23 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
         v8::internal::OffThreadFactory*)this;  // NOLINT(readability/casting)
   }
 
+  // This method finishes the use of the off-thread Isolate, and can be safely
+  // called off-thread.
+  void FinishOffThread() { factory()->FinishOffThread(); }
+
   template <typename T>
-  OffThreadHandle<T> Throw(OffThreadHandle<Object> exception) {
+  Handle<T> Throw(Handle<Object> exception) {
     UNREACHABLE();
   }
   [[noreturn]] void FatalProcessOutOfHeapMemory(const char* location) {
     UNREACHABLE();
+  }
+
+  Address* NewHandle(Address object) {
+    Address* location =
+        static_cast<Address*>(handle_zone_->New(sizeof(Address)));
+    *location = object;
+    return location;
   }
 
   int GetNextScriptId();
@@ -80,6 +84,7 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
 
   OffThreadLogger* logger_;
   ThreadId thread_id_;
+  Zone* handle_zone_;
 };
 
 }  // namespace internal

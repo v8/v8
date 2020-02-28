@@ -836,8 +836,8 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK_NULL(cache->variables_.Lookup(name));
   DisallowHeapAllocation no_gc;
 
-  String name_handle = *name->string().get_handle();
-  ScopeInfo scope_info = *scope_info_.get_handle();
+  String name_handle = *name->string();
+  ScopeInfo scope_info = *scope_info_;
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
   // it's ok to get the Handle<String> here.
@@ -1222,7 +1222,7 @@ void DeclarationScope::DeserializeReceiver(AstValueFactory* ast_value_factory) {
     receiver_->AllocateTo(VariableLocation::LOOKUP, -1);
   } else {
     receiver_->AllocateTo(VariableLocation::CONTEXT,
-                          scope_info_.get_handle()->ReceiverContextSlotIndex());
+                          scope_info_->ReceiverContextSlotIndex());
   }
 }
 
@@ -2451,11 +2451,11 @@ void Scope::AllocateVariablesRecursively() {
   });
 }
 
-template <typename Isolate>
-void Scope::AllocateScopeInfosRecursively(
-    Isolate* isolate, MaybeHandleFor<Isolate, ScopeInfo> outer_scope) {
+template <typename LocalIsolate>
+void Scope::AllocateScopeInfosRecursively(LocalIsolate* isolate,
+                                          MaybeHandle<ScopeInfo> outer_scope) {
   DCHECK(scope_info_.is_null());
-  MaybeHandleFor<Isolate, ScopeInfo> next_outer_scope = outer_scope;
+  MaybeHandle<ScopeInfo> next_outer_scope = outer_scope;
 
   if (NeedsScopeInfo()) {
     scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
@@ -2478,7 +2478,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Scope::
                                            MaybeHandle<ScopeInfo> outer_scope);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Scope::
     AllocateScopeInfosRecursively<OffThreadIsolate>(
-        OffThreadIsolate* isolate, OffThreadHandle<ScopeInfo> outer_scope);
+        OffThreadIsolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
 
 void DeclarationScope::RecalcPrivateNameContextChain() {
   // The outermost scope in a class heritage expression is marked to skip the
@@ -2522,14 +2522,15 @@ void DeclarationScope::RecordNeedsPrivateNameContextChainRecalc() {
 }
 
 // static
-template <typename Isolate>
-void DeclarationScope::AllocateScopeInfos(ParseInfo* info, Isolate* isolate) {
+template <typename LocalIsolate>
+void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
+                                          LocalIsolate* isolate) {
   DeclarationScope* scope = info->literal()->scope();
 
   // No one else should have allocated a scope info for this scope yet.
   DCHECK(scope->scope_info_.is_null());
 
-  MaybeHandleFor<Isolate, ScopeInfo> outer_scope;
+  MaybeHandle<ScopeInfo> outer_scope;
   if (scope->outer_scope_ != nullptr) {
     DCHECK((std::is_same<Isolate, v8::internal::Isolate>::value));
     outer_scope = scope->outer_scope_->scope_info_;
@@ -2671,14 +2672,14 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   DCHECK_NULL(LookupLocalPrivateName(name));
   DisallowHeapAllocation no_gc;
 
-  String name_handle = *name->string().get_handle();
+  String name_handle = *name->string();
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
   IsStaticFlag is_static_flag;
-  int index = ScopeInfo::ContextSlotIndex(
-      *scope_info_.get_handle(), name_handle, &mode, &init_flag,
-      &maybe_assigned_flag, &is_static_flag);
+  int index =
+      ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &mode, &init_flag,
+                                  &maybe_assigned_flag, &is_static_flag);
   if (index < 0) {
     return nullptr;
   }

@@ -85,17 +85,17 @@ void SourceTextModuleDescriptor::AddStarExport(
 }
 
 namespace {
-template <typename Isolate>
-HandleFor<Isolate, PrimitiveHeapObject> ToStringOrUndefined(
-    Isolate* isolate, const AstRawString* s) {
+template <typename LocalIsolate>
+Handle<PrimitiveHeapObject> ToStringOrUndefined(LocalIsolate* isolate,
+                                                const AstRawString* s) {
   if (s == nullptr) return isolate->factory()->undefined_value();
   return s->string();
 }
 }  // namespace
 
-template <typename Isolate>
-HandleFor<Isolate, SourceTextModuleInfoEntry>
-SourceTextModuleDescriptor::Entry::Serialize(Isolate* isolate) const {
+template <typename LocalIsolate>
+Handle<SourceTextModuleInfoEntry> SourceTextModuleDescriptor::Entry::Serialize(
+    LocalIsolate* isolate) const {
   CHECK(Smi::IsValid(module_request));  // TODO(neis): Check earlier?
   return SourceTextModuleInfoEntry::New(
       isolate, ToStringOrUndefined(isolate, export_name),
@@ -105,18 +105,17 @@ SourceTextModuleDescriptor::Entry::Serialize(Isolate* isolate) const {
 }
 template Handle<SourceTextModuleInfoEntry>
 SourceTextModuleDescriptor::Entry::Serialize(Isolate* isolate) const;
-template OffThreadHandle<SourceTextModuleInfoEntry>
+template Handle<SourceTextModuleInfoEntry>
 SourceTextModuleDescriptor::Entry::Serialize(OffThreadIsolate* isolate) const;
 
-template <typename Isolate>
-HandleFor<Isolate, FixedArray>
-SourceTextModuleDescriptor::SerializeRegularExports(Isolate* isolate,
-                                                    Zone* zone) const {
+template <typename LocalIsolate>
+Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
+    LocalIsolate* isolate, Zone* zone) const {
   // We serialize regular exports in a way that lets us later iterate over their
   // local names and for each local name immediately access all its export
   // names.  (Regular exports have neither import name nor module request.)
 
-  ZoneVector<HandleFor<Isolate, Object>> data(
+  ZoneVector<Handle<Object>> data(
       SourceTextModuleInfo::kRegularExportLength * regular_exports_.size(),
       zone);
   int index = 0;
@@ -132,8 +131,7 @@ SourceTextModuleDescriptor::SerializeRegularExports(Isolate* isolate,
       ++count;
     } while (next != regular_exports_.end() && next->first == it->first);
 
-    HandleFor<Isolate, FixedArray> export_names =
-        isolate->factory()->NewFixedArray(count);
+    Handle<FixedArray> export_names = isolate->factory()->NewFixedArray(count);
     data[index + SourceTextModuleInfo::kRegularExportLocalNameOffset] =
         it->second->local_name->string();
     data[index + SourceTextModuleInfo::kRegularExportCellIndexOffset] =
@@ -145,7 +143,7 @@ SourceTextModuleDescriptor::SerializeRegularExports(Isolate* isolate,
     // Collect the export names.
     int i = 0;
     for (; it != next; ++it) {
-      export_names->set(i++, *it->second->export_name->string().get<Isolate>());
+      export_names->set(i++, *it->second->export_name->string());
     }
     DCHECK_EQ(i, count);
 
@@ -157,8 +155,7 @@ SourceTextModuleDescriptor::SerializeRegularExports(Isolate* isolate,
 
   // We cannot create the FixedArray earlier because we only now know the
   // precise size.
-  HandleFor<Isolate, FixedArray> result =
-      isolate->factory()->NewFixedArray(index);
+  Handle<FixedArray> result = isolate->factory()->NewFixedArray(index);
   for (int i = 0; i < index; ++i) {
     result->set(i, *data[i]);
   }
@@ -166,9 +163,8 @@ SourceTextModuleDescriptor::SerializeRegularExports(Isolate* isolate,
 }
 template Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
     Isolate* isolate, Zone* zone) const;
-template OffThreadHandle<FixedArray>
-SourceTextModuleDescriptor::SerializeRegularExports(OffThreadIsolate* isolate,
-                                                    Zone* zone) const;
+template Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
+    OffThreadIsolate* isolate, Zone* zone) const;
 
 void SourceTextModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {
   for (auto it = regular_exports_.begin(); it != regular_exports_.end();) {

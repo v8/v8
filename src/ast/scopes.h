@@ -11,7 +11,6 @@
 #include "src/base/hashmap.h"
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
-#include "src/handles/handle-for.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/objects.h"
 #include "src/utils/pointer-with-payload.h"
@@ -521,7 +520,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool HasThisReference() const;
 
   // Analyze() must have been called once to create the ScopeInfo.
-  HandleOrOffThreadHandle<ScopeInfo> scope_info() const {
+  Handle<ScopeInfo> scope_info() const {
     DCHECK(!scope_info_.is_null());
     return scope_info_;
   }
@@ -671,9 +670,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   V8_INLINE void AllocateNonParameterLocalsAndDeclaredGlobals();
   void AllocateVariablesRecursively();
 
-  template <typename Isolate>
-  void AllocateScopeInfosRecursively(
-      Isolate* isolate, MaybeHandleFor<Isolate, ScopeInfo> outer_scope);
+  template <typename LocalIsolate>
+  void AllocateScopeInfosRecursively(LocalIsolate* isolate,
+                                     MaybeHandle<ScopeInfo> outer_scope);
 
   void AllocateDebuggerScopeInfos(Isolate* isolate,
                                   MaybeHandle<ScopeInfo> outer_scope);
@@ -694,7 +693,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void SetDefaults();
 
   void set_scope_info(Handle<ScopeInfo> scope_info);
-  void set_scope_info(OffThreadHandle<ScopeInfo> scope_info);
 
   friend class DeclarationScope;
   friend class ClassScope;
@@ -723,7 +721,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   base::ThreadedList<Declaration> decls_;
 
   // Serialized scope info support.
-  HandleOrOffThreadHandle<ScopeInfo> scope_info_;
+  Handle<ScopeInfo> scope_info_;
 // Debugging support.
 #ifdef DEBUG
   const AstRawString* scope_name_;
@@ -1103,9 +1101,9 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   // Allocate ScopeInfos for top scope and any inner scopes that need them.
   // Does nothing if ScopeInfo is already allocated.
-  template <typename Isolate>
+  template <typename LocalIsolate>
   V8_EXPORT_PRIVATE static void AllocateScopeInfos(ParseInfo* info,
-                                                   Isolate* isolate);
+                                                   LocalIsolate* isolate);
 
   Handle<StringSet> CollectNonLocals(Isolate* isolate, ParseInfo* info,
                                      Handle<StringSet> non_locals);
