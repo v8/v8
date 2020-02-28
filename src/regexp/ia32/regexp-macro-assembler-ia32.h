@@ -178,7 +178,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIA32
   Isolate* isolate() const { return masm_->isolate(); }
 
   MacroAssembler* masm_;
-  NoRootArrayScope no_root_array_scope_;
 
   // Which mode to generate code for (LATIN1 or UC16).
   Mode mode_;

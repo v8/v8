@@ -102,7 +102,6 @@ RegExpMacroAssemblerPPC::RegExpMacroAssemblerPPC(Isolate* isolate, Zone* zone,
     : NativeRegExpMacroAssembler(isolate, zone),
       masm_(new MacroAssembler(isolate, CodeObjectRequired::kYes,
                                NewAssemblerBuffer(kRegExpCodeSize))),
-      no_root_array_scope_(masm_),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -112,6 +111,8 @@ RegExpMacroAssemblerPPC::RegExpMacroAssemblerPPC(Isolate* isolate, Zone* zone,
       backtrack_label_(),
       exit_label_(),
       internal_failure_label_() {
+  masm_->set_root_array_available(false);
+
   DCHECK_EQ(0, registers_to_save % 2);
 
 
