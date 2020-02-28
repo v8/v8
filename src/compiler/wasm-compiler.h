@@ -558,13 +558,6 @@ class WasmGraphBuilder {
                                       Node** parameters, int parameter_count);
   TrapId GetTrapIdForTrap(wasm::TrapReason reason);
 
-  void AddInt64LoweringReplacement(CallDescriptor* original,
-                                   CallDescriptor* replacement);
-
-  CallDescriptor* GetI32AtomicWaitCallDescriptor();
-
-  CallDescriptor* GetI64AtomicWaitCallDescriptor();
-
   std::unique_ptr<WasmGraphAssembler> gasm_;
   Zone* const zone_;
   MachineGraph* const mcgraph_;
@@ -590,8 +583,6 @@ class WasmGraphBuilder {
   compiler::SourcePositionTable* const source_position_table_ = nullptr;
 
   std::unique_ptr<Int64LoweringSpecialCase> lowering_special_case_;
-  CallDescriptor* i32_atomic_wait_descriptor_ = nullptr;
-  CallDescriptor* i64_atomic_wait_descriptor_ = nullptr;
 };
 
 enum WasmCallKind { kWasmFunction, kWasmImportWrapper, kWasmCapiFunction };
