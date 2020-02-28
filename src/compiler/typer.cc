@@ -136,6 +136,9 @@ class Typer::Visitor : public Reducer {
 
   Type TypeConstant(Handle<Object> value);
 
+  bool InductionVariablePhiTypeIsPrefixedPoint(
+      InductionVariable* induction_var);
+
  private:
   Typer* typer_;
   LoopVariableOptimizer* induction_vars_;
@@ -383,6 +386,14 @@ void Typer::Run(const NodeVector& roots,
   graph_reducer.ReduceGraph();
 
   if (induction_vars != nullptr) {
+    // Validate the types computed by TypeInductionVariablePhi.
+    for (auto entry : induction_vars->induction_variables()) {
+      InductionVariable* induction_var = entry.second;
+      if (induction_var->phi()->opcode() == IrOpcode::kInductionVariablePhi) {
+        CHECK(visitor.InductionVariablePhiTypeIsPrefixedPoint(induction_var));
+      }
+    }
+
     induction_vars->ChangeToPhisAndInsertGuards();
   }
 }
@@ -810,11 +821,13 @@ Type Typer::Visitor::TypeInductionVariablePhi(Node* node) {
   Type initial_type = Operand(node, 0);
   Type increment_type = Operand(node, 2);
 
-  // Fallback to normal phi typing in a variety of cases: when the induction
-  // variable is not initially of type Integer (we want to work with ranges
-  // below), when the increment is zero (in that case, phi typing will generally
-  // yield a better type), and when the induction variable can become NaN
-  // (through addition/subtraction of opposing infinities).
+  // Fallback to normal phi typing in a variety of cases:
+  // - when the induction variable is not initially of type Integer, because we
+  //   want to work with ranges in the algorithm below.
+  // - when the increment is zero, because in that case normal phi typing will
+  //   generally yield a more precise type.
+  // - when the induction variable can become NaN (through addition/subtraction
+  //   of opposing infinities), because the code below can't handle that case.
   if (initial_type.IsNone() ||
       increment_type.Is(typer_->cache_->kSingletonZero) ||
       !initial_type.Is(typer_->cache_->kInteger) ||
@@ -833,9 +846,8 @@ Type Typer::Visitor::TypeInductionVariablePhi(Node* node) {
     return type;
   }
 
-  // Now process the bounds.
   auto res = induction_vars_->induction_variables().find(node->id());
-  DCHECK(res != induction_vars_->induction_variables().end());
+  DCHECK_NE(res, induction_vars_->induction_variables().end());
   InductionVariable* induction_var = res->second;
   InductionVariable::ArithmeticType arithmetic_type = induction_var->Type();
 
@@ -848,13 +860,13 @@ Type Typer::Visitor::TypeInductionVariablePhi(Node* node) {
     increment_min = increment_type.Min();
     increment_max = increment_type.Max();
   } else {
-    DCHECK_EQ(InductionVariable::ArithmeticType::kSubtraction, arithmetic_type);
+    DCHECK_EQ(arithmetic_type, InductionVariable::ArithmeticType::kSubtraction);
     increment_min = -increment_type.Max();
     increment_max = -increment_type.Min();
   }
 
   if (increment_min >= 0) {
-    // increasing sequence
+    // Increasing sequence.
     min = initial_type.Min();
     for (auto bound : induction_var->upper_bounds()) {
       Type bound_type = TypeOrNone(bound.bound);
@@ -874,7 +886,7 @@ Type Typer::Visitor::TypeInductionVariablePhi(Node* node) {
     // The upper bound must be at least the initial value's upper bound.
     max = std::max(max, initial_type.Max());
   } else if (increment_max <= 0) {
-    // decreasing sequence
+    // Decreasing sequence.
     max = initial_type.Max();
     for (auto bound : induction_var->lower_bounds()) {
       Type bound_type = TypeOrNone(bound.bound);
@@ -895,9 +907,12 @@ Type Typer::Visitor::TypeInductionVariablePhi(Node* node) {
     min = std::min(min, initial_type.Min());
   } else {
     // If the increment can be both positive and negative, the variable can go
-    // arbitrarily far.
-    return typer_->cache_->kInteger;
+    // arbitrarily far. Use the maximal range in that case. Note that this may
+    // be less precise than what ordinary typing would produce.
+    min = -V8_INFINITY;
+    max = +V8_INFINITY;
   }
+
   if (FLAG_trace_turbo_loop) {
     StdoutStream{} << std::setprecision(10) << "Loop ("
                    << NodeProperties::GetControlInput(node)->id()
@@ -909,7 +924,66 @@ Type Typer::Visitor::TypeInductionVariablePhi(Node* node) {
                    << " for phi " << node->id() << ": (" << min << ", " << max
                    << ")\n";
   }
+
   return Type::Range(min, max, typer_->zone());
+}
+
+bool Typer::Visitor::InductionVariablePhiTypeIsPrefixedPoint(
+    InductionVariable* induction_var) {
+  Node* node = induction_var->phi();
+  DCHECK_EQ(node->opcode(), IrOpcode::kInductionVariablePhi);
+  Type type = NodeProperties::GetType(node);
+  Type initial_type = Operand(node, 0);
+  Node* arith = node->InputAt(1);
+  Type increment_type = Operand(node, 2);
+
+  // Intersect {type} with useful bounds.
+  for (auto bound : induction_var->upper_bounds()) {
+    Type bound_type = TypeOrNone(bound.bound);
+    if (!bound_type.Is(typer_->cache_->kInteger)) continue;
+    if (!bound_type.IsNone()) {
+      bound_type = Type::Range(
+          -V8_INFINITY,
+          bound_type.Max() - (bound.kind == InductionVariable::kStrict),
+          zone());
+    }
+    type = Type::Intersect(type, bound_type, typer_->zone());
+  }
+  for (auto bound : induction_var->lower_bounds()) {
+    Type bound_type = TypeOrNone(bound.bound);
+    if (!bound_type.Is(typer_->cache_->kInteger)) continue;
+    if (!bound_type.IsNone()) {
+      bound_type = Type::Range(
+          bound_type.Min() + (bound.kind == InductionVariable::kStrict),
+          +V8_INFINITY, typer_->zone());
+    }
+    type = Type::Intersect(type, bound_type, typer_->zone());
+  }
+
+  // Apply ordinary typing to the "increment" operation.
+  // clang-format off
+  switch (arith->opcode()) {
+#define CASE(x)                             \
+    case IrOpcode::k##x:                    \
+      type = Type##x(type, increment_type); \
+      break;
+    CASE(JSAdd)
+    CASE(JSSubtract)
+    CASE(NumberAdd)
+    CASE(NumberSubtract)
+    CASE(SpeculativeNumberAdd)
+    CASE(SpeculativeNumberSubtract)
+    CASE(SpeculativeSafeIntegerAdd)
+    CASE(SpeculativeSafeIntegerSubtract)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+  // clang-format on
+
+  type = Type::Union(initial_type, type, typer_->zone());
+
+  return type.Is(NodeProperties::GetType(node));
 }
 
 Type Typer::Visitor::TypeEffectPhi(Node* node) { UNREACHABLE(); }
