@@ -530,13 +530,12 @@ Type Typer::Visitor::ToBoolean(Type type, Typer* t) {
 Type Typer::Visitor::ToInteger(Type type, Typer* t) {
   // ES6 section 7.1.4 ToInteger ( argument )
   type = ToNumber(type, t);
-  if (type.Is(t->cache_->kIntegerOrMinusZero)) return type;
+  if (type.Is(t->cache_->kInteger)) return type;
   if (type.Is(t->cache_->kIntegerOrMinusZeroOrNaN)) {
-    return Type::Union(
-        Type::Intersect(type, t->cache_->kIntegerOrMinusZero, t->zone()),
-        t->cache_->kSingletonZero, t->zone());
+    return Type::Union(Type::Intersect(type, t->cache_->kInteger, t->zone()),
+                       t->cache_->kSingletonZero, t->zone());
   }
-  return t->cache_->kIntegerOrMinusZero;
+  return t->cache_->kInteger;
 }
 
 

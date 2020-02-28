@@ -993,7 +993,6 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtins::Name caller,
     case Builtins::kStringIndexOf:
     case Builtins::kStringRepeat:
     case Builtins::kToInteger:
-    case Builtins::kToInteger_TruncateMinusZero:
     case Builtins::kToLength:
     case Builtins::kToName:
     case Builtins::kToObject:

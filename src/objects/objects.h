@@ -702,16 +702,17 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   ConvertToString(Isolate* isolate, Handle<Object> input);
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToNumberOrNumeric(
       Isolate* isolate, Handle<Object> input, Conversion mode);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToInteger(
-      Isolate* isolate, Handle<Object> input);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  ConvertToInteger(Isolate* isolate, Handle<Object> input);
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToInt32(
       Isolate* isolate, Handle<Object> input);
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToUint32(
       Isolate* isolate, Handle<Object> input);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToLength(
-      Isolate* isolate, Handle<Object> input);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToIndex(
-      Isolate* isolate, Handle<Object> input, MessageTemplate error_index);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  ConvertToLength(Isolate* isolate, Handle<Object> input);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  ConvertToIndex(Isolate* isolate, Handle<Object> input,
+                 MessageTemplate error_index);
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const Object& obj);

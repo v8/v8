@@ -553,9 +553,6 @@
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-ko-KR': [FAIL],
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-zh-TW': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10271
-  'built-ins/Atomics/store/expected-return-value-negative-zero': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=10272
   'intl402/DateTimeFormat/invalid-numbering-system-calendar-options': [FAIL],
   'intl402/NumberFormat/invalid-numbering-system-options': [FAIL],

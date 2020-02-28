@@ -583,7 +583,7 @@ MaybeHandle<Object> Object::ConvertToIndex(Isolate* isolate,
   if (input->IsUndefined(isolate)) return handle(Smi::zero(), isolate);
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(isolate, input), Object);
   if (input->IsSmi() && Smi::ToInt(*input) >= 0) return input;
-  double len = DoubleToInteger(input->Number()) + 0.0;
+  double len = DoubleToInteger(input->Number());
   auto js_len = isolate->factory()->NewNumber(len);
   if (len < 0.0 || len > kMaxSafeInteger) {
     THROW_NEW_ERROR(isolate, NewRangeError(error_index, js_len), Object);
