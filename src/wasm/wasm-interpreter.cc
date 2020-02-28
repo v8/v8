@@ -1752,15 +1752,11 @@ class ThreadImpl {
   bool ExtractAtomicWaitNotifyParams(Decoder* decoder, InterpreterCode* code,
                                      pc_t pc, int* const len,
                                      uint32_t* buffer_offset, type* val,
-                                     double* timeout = nullptr) {
+                                     int64_t* timeout = nullptr) {
     MemoryAccessImmediate<Decoder::kValidate> imm(decoder, code->at(pc + 1),
                                                   sizeof(type));
     if (timeout) {
-      double timeout_ns = Pop().to<int64_t>();
-      *timeout = (timeout_ns < 0)
-                     ? V8_INFINITY
-                     : timeout_ns / (base::Time::kNanosecondsPerMicrosecond *
-                                     base::Time::kMicrosecondsPerMillisecond);
+      *timeout = Pop().to<int64_t>();
     }
     *val = Pop().to<type>();
     auto index = Pop().to<uint32_t>();
@@ -2169,7 +2165,7 @@ class ThreadImpl {
         break;
       case kExprI32AtomicWait: {
         int32_t val;
-        double timeout;
+        int64_t timeout;
         uint32_t buffer_offset;
         if (!ExtractAtomicWaitNotifyParams<int32_t>(
                 decoder, code, pc, len, &buffer_offset, &val, &timeout)) {
@@ -2178,14 +2174,14 @@ class ThreadImpl {
         HandleScope handle_scope(isolate_);
         Handle<JSArrayBuffer> array_buffer(
             instance_object_->memory_object().array_buffer(), isolate_);
-        auto result = FutexEmulation::Wait32(isolate_, array_buffer,
-                                             buffer_offset, val, timeout);
+        auto result = FutexEmulation::WaitWasm32(isolate_, array_buffer,
+                                                 buffer_offset, val, timeout);
         Push(WasmValue(result.ToSmi().value()));
         break;
       }
       case kExprI64AtomicWait: {
         int64_t val;
-        double timeout;
+        int64_t timeout;
         uint32_t buffer_offset;
         if (!ExtractAtomicWaitNotifyParams<int64_t>(
                 decoder, code, pc, len, &buffer_offset, &val, &timeout)) {
@@ -2194,8 +2190,8 @@ class ThreadImpl {
         HandleScope handle_scope(isolate_);
         Handle<JSArrayBuffer> array_buffer(
             instance_object_->memory_object().array_buffer(), isolate_);
-        auto result = FutexEmulation::Wait64(isolate_, array_buffer,
-                                             buffer_offset, val, timeout);
+        auto result = FutexEmulation::WaitWasm64(isolate_, array_buffer,
+                                                 buffer_offset, val, timeout);
         Push(WasmValue(result.ToSmi().value()));
         break;
       }

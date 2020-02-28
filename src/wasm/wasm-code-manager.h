@@ -50,8 +50,10 @@ struct WasmModule;
   V(WasmCompileLazy)                     \
   V(WasmDebugBreak)                      \
   V(WasmAtomicNotify)                    \
-  V(WasmI32AtomicWait)                   \
-  V(WasmI64AtomicWait)                   \
+  V(WasmI32AtomicWait32)                 \
+  V(WasmI32AtomicWait64)                 \
+  V(WasmI64AtomicWait32)                 \
+  V(WasmI64AtomicWait64)                 \
   V(WasmMemoryGrow)                      \
   V(WasmTableGet)                        \
   V(WasmTableSet)                        \
