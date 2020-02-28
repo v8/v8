@@ -3436,35 +3436,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I8x16MinS: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pminsb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pminsb(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I8x16MaxS: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pmaxsb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pmaxsb(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I8x16Eq: {
-      __ pcmpeqb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pcmpeqb(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I8x16Ne: {
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ pcmpeqb(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      __ pcmpeqb(tmp, tmp);
-      __ pxor(i.OutputSimd128Register(), tmp);
+      __ Pcmpeqb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pcmpeqb(tmp, tmp);
+      __ Pxor(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I8x16GtS: {
-      __ pcmpgtb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pcmpgtb(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I8x16GeS: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
-      __ pminsb(dst, src);
-      __ pcmpeqb(dst, src);
+      __ Pminsb(dst, src);
+      __ Pcmpeqb(dst, src);
       break;
     }
     case kX64I8x16UConvertI16x8: {
@@ -3503,12 +3503,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I8x16MinU: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pminub(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pminub(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I8x16MaxU: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pmaxub(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pmaxub(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I8x16GtU: {
@@ -3516,18 +3516,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ pmaxub(dst, src);
-      __ pcmpeqb(dst, src);
-      __ pcmpeqb(tmp, tmp);
-      __ pxor(dst, tmp);
+      __ Pmaxub(dst, src);
+      __ Pcmpeqb(dst, src);
+      __ Pcmpeqb(tmp, tmp);
+      __ Pxor(dst, tmp);
       break;
     }
     case kX64I8x16GeU: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
-      __ pminub(dst, src);
-      __ pcmpeqb(dst, src);
+      __ Pminub(dst, src);
+      __ Pcmpeqb(dst, src);
       break;
     }
     case kX64I8x16RoundingAverageU: {
