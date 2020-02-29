@@ -2169,6 +2169,8 @@ Type Typer::Visitor::TypeCheckNotTaggedHole(Node* node) {
   return type;
 }
 
+Type Typer::Visitor::TypeCheckClosure(Node* node) { return Type::Function(); }
+
 Type Typer::Visitor::TypeConvertReceiver(Node* node) {
   Type arg = Operand(node, 0);
   return typer_->operation_typer_.ConvertReceiver(arg);

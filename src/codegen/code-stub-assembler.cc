@@ -145,7 +145,8 @@ TNode<IntPtrT> CodeStubAssembler::IntPtrToParameter<IntPtrT>(
 
 void CodeStubAssembler::CollectCallableFeedback(
     TNode<Object> maybe_target, TNode<Context> context,
-    TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot_id) {
+    TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot_id,
+    CallableFeedbackMode mode) {
   Label extra_checks(this, Label::kDeferred), done(this);
 
   // Check if we have monomorphic {target} feedback already.
@@ -175,7 +176,47 @@ void CodeStubAssembler::CollectCallableFeedback(
     // If the weak reference is cleared, we have a new chance to become
     // monomorphic.
     Comment("check if weak reference is cleared");
-    Branch(IsCleared(feedback), &initialize, &mark_megamorphic);
+    GotoIf(IsCleared(feedback), &initialize);
+    GotoIf(TaggedIsSmi(maybe_target), &mark_megamorphic);
+
+    if (mode == CallableFeedbackMode::kDontCollectFeedbackCell) {
+      Goto(&mark_megamorphic);
+    } else {
+      Label try_transition_to_feedback_cell(this);
+
+      // Check if {target} is a JSFunction.
+      Comment("check if target is a JSFunction");
+      TNode<HeapObject> target = CAST(maybe_target);
+      GotoIfNot(IsJSFunction(target), &mark_megamorphic);
+
+      // Check if {target}s feedback vector cell matches the {feedback_value}.
+      TNode<HeapObject> feedback_value = GetHeapObjectAssumeWeak(feedback);
+      TNode<Object> target_feedback_cell =
+          LoadObjectField(target, JSFunction::kFeedbackCellOffset);
+      Branch(TaggedEqual(feedback_value, target_feedback_cell), &done,
+             &try_transition_to_feedback_cell);
+
+      BIND(&try_transition_to_feedback_cell);
+      {
+        // Check if {target} and {feedback_value} are both JSFunctions with
+        // the same feedback vector cell, and that those functions were
+        // actually compiled already.
+        GotoIfNot(IsJSFunction(feedback_value), &mark_megamorphic);
+        TNode<HeapObject> feedback_cell = CAST(
+            LoadObjectField(feedback_value, JSFunction::kFeedbackCellOffset));
+        GotoIfNot(TaggedEqual(feedback_cell, target_feedback_cell),
+                  &mark_megamorphic);
+        GotoIfNot(IsFeedbackCell(feedback_cell), &mark_megamorphic);
+
+        // Record the feedback vector cell.
+        Comment("transition to polymorphic");
+        StoreWeakReferenceInFeedbackVector(feedback_vector, slot_id,
+                                           feedback_cell);
+        ReportFeedbackUpdate(feedback_vector, slot_id,
+                             "Call:FeedbackVectorCell");
+        Goto(&done);
+      }
+    }
 
     BIND(&initialize);
     {
@@ -254,7 +295,8 @@ void CodeStubAssembler::CollectCallFeedback(
   IncrementCallCount(feedback_vector, slot_id);
 
   // Collect the callable {target} feedback.
-  CollectCallableFeedback(maybe_target, context, feedback_vector, slot_id);
+  CollectCallableFeedback(maybe_target, context, feedback_vector, slot_id,
+                          CallableFeedbackMode::kCollectFeedbackCell);
   Goto(&feedback_done);
 
   BIND(&feedback_done);

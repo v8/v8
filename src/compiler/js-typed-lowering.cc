@@ -1665,6 +1665,9 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
   }
 
   // Check if {target} is a known JSFunction.
+  // TODO(turbofan): Also extract the SharedFunctionInfo from JSCreateClosure
+  // and CheckClosure {target}s such that we can perform the same optimizations
+  // as for known constants here.
   if (target_type.IsHeapConstant() &&
       target_type.AsHeapConstant()->Ref().IsJSFunction()) {
     JSFunctionRef function = target_type.AsHeapConstant()->Ref().AsJSFunction();

@@ -631,9 +631,16 @@ InlineCacheState FeedbackNexus::ic_state() const {
       if (feedback == MaybeObject::FromObject(
                           *FeedbackVector::MegamorphicSentinel(isolate))) {
         return GENERIC;
-      } else if (feedback->IsWeakOrCleared() ||
-                 (feedback->GetHeapObjectIfStrong(&heap_object) &&
-                  heap_object.IsAllocationSite())) {
+      } else if (feedback->IsWeakOrCleared()) {
+        if (feedback->GetHeapObjectIfWeak(&heap_object)) {
+          if (heap_object.IsFeedbackCell()) {
+            return POLYMORPHIC;
+          }
+          CHECK(heap_object.IsJSFunction() || heap_object.IsJSBoundFunction());
+        }
+        return MONOMORPHIC;
+      } else if (feedback->GetHeapObjectIfStrong(&heap_object) &&
+                 heap_object.IsAllocationSite()) {
         return MONOMORPHIC;
       }
 

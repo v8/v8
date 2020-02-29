@@ -1902,7 +1902,8 @@ IGNITION_HANDLER(TestInstanceOf, InterpreterAssembler) {
 
   // Record feedback for the {callable} in the {feedback_vector}.
   CollectCallableFeedback(callable, context, CAST(maybe_feedback_vector),
-                          slot_id);
+                          slot_id,
+                          CallableFeedbackMode::kDontCollectFeedbackCell);
   Goto(&feedback_done);
 
   BIND(&feedback_done);

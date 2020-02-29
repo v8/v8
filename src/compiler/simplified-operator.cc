@@ -10,6 +10,7 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
 #include "src/handles/handles-inl.h"
+#include "src/objects/feedback-cell.h"
 #include "src/objects/map.h"
 #include "src/objects/name.h"
 #include "src/objects/objects-inl.h"
@@ -1485,6 +1486,21 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntNegate(
       IrOpcode::kSpeculativeBigIntNegate,
       Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntNegate", 1, 1,
       1, 1, 1, 0, hint);
+}
+
+const Operator* SimplifiedOperatorBuilder::CheckClosure(
+    const Handle<FeedbackCell>& feedback_cell) {
+  return new (zone()) Operator1<Handle<FeedbackCell>>(  // --
+      IrOpcode::kCheckClosure,                          // opcode
+      Operator::kNoThrow | Operator::kNoWrite,          // flags
+      "CheckClosure",                                   // name
+      1, 1, 1, 1, 1, 0,                                 // counts
+      feedback_cell);                                   // parameter
+}
+
+Handle<FeedbackCell> FeedbackCellOf(const Operator* op) {
+  DCHECK(IrOpcode::kCheckClosure == op->opcode());
+  return OpParameter<Handle<FeedbackCell>>(op);
 }
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeToNumber(

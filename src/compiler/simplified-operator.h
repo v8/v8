@@ -300,6 +300,9 @@ bool operator==(CheckFloat64HoleParameters const&,
 bool operator!=(CheckFloat64HoleParameters const&,
                 CheckFloat64HoleParameters const&);
 
+// Parameter for CheckClosure node.
+Handle<FeedbackCell> FeedbackCellOf(const Operator* op);
+
 enum class CheckTaggedInputMode : uint8_t {
   kNumber,
   kNumberOrOddball,
@@ -779,6 +782,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* MapGuard(ZoneHandleSet<Map> maps);
 
   const Operator* CheckBounds(const FeedbackSource& feedback);
+  const Operator* CheckClosure(const Handle<FeedbackCell>& feedback_cell);
   const Operator* CheckEqualsInternalizedString();
   const Operator* CheckEqualsSymbol();
   const Operator* CheckFloat64Hole(CheckFloat64HoleMode, FeedbackSource const&);

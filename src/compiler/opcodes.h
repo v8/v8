@@ -409,6 +409,7 @@
   V(CheckSmi)                           \
   V(CheckHeapObject)                    \
   V(CheckFloat64Hole)                   \
+  V(CheckClosure)                       \
   V(CheckNotTaggedHole)                 \
   V(CheckEqualsInternalizedString)      \
   V(CheckEqualsSymbol)                  \
