@@ -130,10 +130,10 @@ namespace promise {
 
   macro NewPromiseResolveThenableJobTask(implicit context: Context)(
       promiseToResolve: JSPromise, then: JSReceiver, thenable: JSReceiver,
-      thenContext: Context): PromiseResolveThenableJobTask {
+      thenableContext: Context): PromiseResolveThenableJobTask {
     return new PromiseResolveThenableJobTask{
       map: PromiseResolveThenableJobTaskMapConstant(),
-      context: thenContext,
+      context: thenableContext,
       promise_to_resolve: promiseToResolve,
       then: then,
       thenable: thenable

@@ -40,8 +40,7 @@ namespace promise {
   EnqueueMicrotask(Context, Microtask): Undefined;
 
   macro
-  ExtractHandlerContextInternal(implicit context: Context)(handler: Callable|
-                                                           Undefined):
+  ExtractHandlerContext(implicit context: Context)(handler: Callable|Undefined):
       Context labels NotFound {
     let iter: JSAny = handler;
     while (true) {
@@ -63,25 +62,16 @@ namespace promise {
     goto NotFound;
   }
 
-  macro
-  ExtractHandlerContext(implicit context: Context)(handler: Callable|
-                                                   Undefined): Context {
-    try {
-      return ExtractHandlerContextInternal(handler) otherwise NotFound;
-    }
-    label NotFound deferred {
-      return context;
-    }
-  }
-
+  // According to the HTML specification, we use the handler's context to
+  // EnqueueJob for Promise resolution.
   macro
   ExtractHandlerContext(implicit context: Context)(
       primary: Callable|Undefined, secondary: Callable|Undefined): Context {
     try {
-      return ExtractHandlerContextInternal(primary) otherwise NotFound;
+      return ExtractHandlerContext(primary) otherwise NotFound;
     }
     label NotFound deferred {
-      return ExtractHandlerContextInternal(secondary) otherwise Default;
+      return ExtractHandlerContext(secondary) otherwise Default;
     }
     label Default deferred {
       return context;
@@ -102,9 +92,6 @@ namespace promise {
       secondaryHandler = promiseReaction.fulfill_handler;
     }
 
-    // According to HTML, we use the context of the appropriate handler as the
-    // context of the microtask. See step 3 of HTML's EnqueueJob:
-    // https://html.spec.whatwg.org/C/#enqueuejob(queuename,-job,-arguments)
     const handlerContext: Context =
         ExtractHandlerContext(primaryHandler, secondaryHandler);
 

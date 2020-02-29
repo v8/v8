@@ -6017,20 +6017,10 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
 
   // 12. Perform EnqueueJob("PromiseJobs", PromiseResolveThenableJob,
   //                        «promise, resolution, thenAction»).
-
-  // According to HTML, we use the context of the then function (|thenAction|)
-  // as the context of the microtask. See step 3 of HTML's EnqueueJob:
-  // https://html.spec.whatwg.org/C/#enqueuejob(queuename,-job,-arguments)
-  Handle<NativeContext> then_context;
-  if (!JSReceiver::GetContextForMicrotask(Handle<JSReceiver>::cast(then_action))
-           .ToHandle(&then_context)) {
-    then_context = isolate->native_context();
-  }
-
   Handle<PromiseResolveThenableJobTask> task =
       isolate->factory()->NewPromiseResolveThenableJobTask(
           promise, Handle<JSReceiver>::cast(then_action),
-          Handle<JSReceiver>::cast(resolution), then_context);
+          Handle<JSReceiver>::cast(resolution), isolate->native_context());
   if (isolate->debug()->is_active() && resolution->IsJSPromise()) {
     // Mark the dependency of the new {promise} on the {resolution}.
     Object::SetProperty(isolate, resolution,
@@ -6038,7 +6028,8 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
                         promise)
         .Check();
   }
-  MicrotaskQueue* microtask_queue = then_context->microtask_queue();
+  MicrotaskQueue* microtask_queue =
+      isolate->native_context()->microtask_queue();
   if (microtask_queue) microtask_queue->EnqueueMicrotask(*task);
 
   // 13. Return undefined.
@@ -6074,9 +6065,6 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
     Handle<PromiseReaction> reaction = Handle<PromiseReaction>::cast(task);
     reactions = handle(reaction->next(), isolate);
 
-    // According to HTML, we use the context of the appropriate handler as the
-    // context of the microtask. See step 3 of HTML's EnqueueJob:
-    // https://html.spec.whatwg.org/C/#enqueuejob(queuename,-job,-arguments)
     Handle<NativeContext> handler_context;
 
     Handle<HeapObject> primary_handler;
