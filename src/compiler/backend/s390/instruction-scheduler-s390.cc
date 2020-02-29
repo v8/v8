@@ -143,6 +143,22 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_CompressSigned:
     case kS390_CompressPointer:
     case kS390_CompressAny:
+    case kS390_F64x2Splat:
+    case kS390_F64x2ReplaceLane:
+    case kS390_F64x2Abs:
+    case kS390_F64x2Neg:
+    case kS390_F64x2Sqrt:
+    case kS390_F64x2Add:
+    case kS390_F64x2Sub:
+    case kS390_F64x2Mul:
+    case kS390_F64x2Div:
+    case kS390_F64x2Eq:
+    case kS390_F64x2Ne:
+    case kS390_F64x2Lt:
+    case kS390_F64x2Le:
+    case kS390_F64x2Min:
+    case kS390_F64x2Max:
+    case kS390_F64x2ExtractLane:
     case kS390_F32x4Splat:
     case kS390_F32x4ExtractLane:
     case kS390_F32x4ReplaceLane:
@@ -160,6 +176,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_F32x4RecipSqrtApprox:
     case kS390_F32x4SConvertI32x4:
     case kS390_F32x4UConvertI32x4:
+    case kS390_F32x4Sqrt:
+    case kS390_F32x4Div:
+    case kS390_F32x4Min:
+    case kS390_F32x4Max:
     case kS390_I32x4Splat:
     case kS390_I32x4ExtractLane:
     case kS390_I32x4ReplaceLane:

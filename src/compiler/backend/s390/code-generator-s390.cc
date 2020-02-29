@@ -2900,6 +2900,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC64_COMP_EXCHANGE_WORD64();
       break;
       // vector replicate element
+    case kS390_F64x2Splat: {
+      __ vrep(i.OutputSimd128Register(), i.InputDoubleRegister(0), Operand(0),
+              Condition(3));
+      break;
+    }
     case kS390_F32x4Splat: {
 #ifdef V8_TARGET_BIG_ENDIAN
       __ vrep(i.OutputSimd128Register(), i.InputDoubleRegister(0), Operand(0),
@@ -2929,6 +2934,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     // vector extract element
+    case kS390_F64x2ExtractLane: {
+      __ vrep(i.OutputDoubleRegister(), i.InputSimd128Register(0),
+              Operand(1 - i.InputInt8(1)), Condition(3));
+      break;
+    }
     case kS390_F32x4ExtractLane: {
       __ vrep(i.OutputDoubleRegister(), i.InputSimd128Register(0),
               Operand(3 - i.InputInt8(1)), Condition(2));
@@ -2945,8 +2955,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_I16x8ExtractLaneS: {
-      __ vlgv(i.OutputRegister(), i.InputSimd128Register(0),
+      __ vlgv(kScratchReg, i.InputSimd128Register(0),
               MemOperand(r0, 7 - i.InputInt8(1)), Condition(1));
+      __ lghr(i.OutputRegister(), kScratchReg);
       break;
     }
     case kS390_I8x16ExtractLaneU: {
@@ -2955,21 +2966,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_I8x16ExtractLaneS: {
-      __ vlgv(i.OutputRegister(), i.InputSimd128Register(0),
+      __ vlgv(kScratchReg, i.InputSimd128Register(0),
               MemOperand(r0, 15 - i.InputInt8(1)), Condition(0));
+      __ lgbr(i.OutputRegister(), kScratchReg);
       break;
     }
     // vector replace element
+    case kS390_F64x2ReplaceLane: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vlr(kScratchDoubleReg, src, Condition(0), Condition(0), Condition(0));
+      __ vlgv(kScratchReg, i.InputDoubleRegister(2), MemOperand(r0, 0),
+              Condition(3));
+      __ vlvg(kScratchDoubleReg, kScratchReg,
+              MemOperand(r0, 1 - i.InputInt8(1)), Condition(3));
+      __ vlr(dst, kScratchDoubleReg, Condition(0), Condition(0), Condition(0));
+      break;
+    }
     case kS390_F32x4ReplaceLane: {
       Simd128Register src = i.InputSimd128Register(0);
       Simd128Register dst = i.OutputSimd128Register();
-      if (src != dst) {
-        __ vlr(dst, src, Condition(0), Condition(0), Condition(0));
-      }
-      __ lgdr(kScratchReg, i.InputDoubleRegister(2));
-      __ srlg(kScratchReg, kScratchReg, Operand(32));
-      __ vlvg(i.OutputSimd128Register(), kScratchReg,
+      __ vlr(kScratchDoubleReg, src, Condition(0), Condition(0), Condition(0));
+      __ vlgv(kScratchReg, i.InputDoubleRegister(2), MemOperand(r0, 0),
+              Condition(2));
+      __ vlvg(kScratchDoubleReg, kScratchReg,
               MemOperand(r0, 3 - i.InputInt8(1)), Condition(2));
+      __ vlr(dst, kScratchDoubleReg, Condition(0), Condition(0), Condition(0));
       break;
     }
     case kS390_I32x4ReplaceLane: {
@@ -3003,6 +3025,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     // vector binops
+    case kS390_F64x2Add: {
+      __ vfa(i.OutputSimd128Register(), i.InputSimd128Register(0),
+             i.InputSimd128Register(1), Condition(0), Condition(0),
+             Condition(3));
+      break;
+    }
+    case kS390_F64x2Sub: {
+      __ vfs(i.OutputSimd128Register(), i.InputSimd128Register(0),
+             i.InputSimd128Register(1), Condition(0), Condition(0),
+             Condition(3));
+      break;
+    }
+    case kS390_F64x2Mul: {
+      __ vfm(i.OutputSimd128Register(), i.InputSimd128Register(0),
+             i.InputSimd128Register(1), Condition(0), Condition(0),
+             Condition(3));
+      break;
+    }
+    case kS390_F64x2Div: {
+      __ vfd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+             i.InputSimd128Register(1), Condition(0), Condition(0),
+             Condition(3));
+      break;
+    }
+    case kS390_F64x2Min: {
+      __ vfmin(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1), Condition(1), Condition(0),
+               Condition(3));
+      break;
+    }
+    case kS390_F64x2Max: {
+      __ vfmax(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1), Condition(1), Condition(0),
+               Condition(3));
+      break;
+    }
     case kS390_F32x4Add: {
       __ vfa(i.OutputSimd128Register(), i.InputSimd128Register(0),
              i.InputSimd128Register(1), Condition(0), Condition(0),
@@ -3038,6 +3096,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vfm(i.OutputSimd128Register(), i.InputSimd128Register(0),
              i.InputSimd128Register(1), Condition(0), Condition(0),
              Condition(2));
+      break;
+    }
+    case kS390_F32x4Div: {
+      __ vfd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+             i.InputSimd128Register(1), Condition(0), Condition(0),
+             Condition(2));
+      break;
+    }
+    case kS390_F32x4Min: {
+      __ vfmin(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1), Condition(1), Condition(0),
+               Condition(2));
+      break;
+    }
+    case kS390_F32x4Max: {
+      __ vfmax(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1), Condition(1), Condition(0),
+               Condition(2));
       break;
     }
     case kS390_I32x4Add: {
@@ -3123,6 +3199,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     // vector comparisons
+    case kS390_F64x2Eq: {
+      __ vfce(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1), Condition(0), Condition(0),
+              Condition(3));
+      break;
+    }
+    case kS390_F64x2Ne: {
+      __ vfce(kScratchDoubleReg, i.InputSimd128Register(0),
+              i.InputSimd128Register(1), Condition(0), Condition(0),
+              Condition(3));
+      __ vno(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg,
+             Condition(0), Condition(0), Condition(3));
+      break;
+    }
+    case kS390_F64x2Le: {
+      __ vfche(i.OutputSimd128Register(), i.InputSimd128Register(1),
+               i.InputSimd128Register(0), Condition(0), Condition(0),
+               Condition(3));
+      break;
+    }
+    case kS390_F64x2Lt: {
+      __ vfch(i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0), Condition(0), Condition(0),
+              Condition(3));
+      break;
+    }
     case kS390_I32x4MinS: {
       __ vmn(i.OutputSimd128Register(), i.InputSimd128Register(0),
              i.InputSimd128Register(1), Condition(0), Condition(0),
@@ -3217,12 +3319,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_F32x4Ne: {
-      __ vfce(i.OutputSimd128Register(), i.InputSimd128Register(0),
+      __ vfce(kScratchDoubleReg, i.InputSimd128Register(0),
               i.InputSimd128Register(1), Condition(0), Condition(0),
               Condition(2));
-      __ vno(i.OutputSimd128Register(), i.OutputSimd128Register(),
-             i.OutputSimd128Register(), Condition(0), Condition(0),
-             Condition(2));
+      __ vno(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg,
+             Condition(0), Condition(0), Condition(2));
       break;
     }
     case kS390_I32x4Ne: {
@@ -3392,6 +3493,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     // vector unary ops
+    case kS390_F64x2Abs: {
+      __ vfpso(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               Condition(2), Condition(0), Condition(3));
+      break;
+    }
+    case kS390_F64x2Neg: {
+      __ vfpso(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               Condition(0), Condition(0), Condition(3));
+      break;
+    }
+    case kS390_F64x2Sqrt: {
+      __ vfsq(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              Condition(0), Condition(0), Condition(3));
+      break;
+    }
     case kS390_F32x4Abs: {
       __ vfpso(i.OutputSimd128Register(), i.InputSimd128Register(0),
                Condition(2), Condition(0), Condition(2));
@@ -3435,6 +3551,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vrep(kScratchDoubleReg, kScratchDoubleReg, Operand(0), Condition(2));
       __ vfd(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
              Condition(0), Condition(0), Condition(2));
+      break;
+    }
+    case kS390_F32x4Sqrt: {
+      __ vfsq(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              Condition(0), Condition(0), Condition(2));
       break;
     }
     case kS390_S128Not: {

@@ -197,6 +197,22 @@ namespace compiler {
   V(S390_Word64AtomicXorUint16)             \
   V(S390_Word64AtomicXorUint32)             \
   V(S390_Word64AtomicXorUint64)             \
+  V(S390_F64x2Splat)                        \
+  V(S390_F64x2ReplaceLane)                  \
+  V(S390_F64x2Abs)                          \
+  V(S390_F64x2Neg)                          \
+  V(S390_F64x2Sqrt)                         \
+  V(S390_F64x2Add)                          \
+  V(S390_F64x2Sub)                          \
+  V(S390_F64x2Mul)                          \
+  V(S390_F64x2Div)                          \
+  V(S390_F64x2Eq)                           \
+  V(S390_F64x2Ne)                           \
+  V(S390_F64x2Lt)                           \
+  V(S390_F64x2Le)                           \
+  V(S390_F64x2Min)                          \
+  V(S390_F64x2Max)                          \
+  V(S390_F64x2ExtractLane)                  \
   V(S390_F32x4Splat)                        \
   V(S390_F32x4ExtractLane)                  \
   V(S390_F32x4ReplaceLane)                  \
@@ -214,6 +230,10 @@ namespace compiler {
   V(S390_F32x4RecipSqrtApprox)              \
   V(S390_F32x4SConvertI32x4)                \
   V(S390_F32x4UConvertI32x4)                \
+  V(S390_F32x4Sqrt)                         \
+  V(S390_F32x4Div)                          \
+  V(S390_F32x4Min)                          \
+  V(S390_F32x4Max)                          \
   V(S390_I32x4Splat)                        \
   V(S390_I32x4ExtractLane)                  \
   V(S390_I32x4ReplaceLane)                  \
