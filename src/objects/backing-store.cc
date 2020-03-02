@@ -413,6 +413,14 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
   // Enforce engine limitation on the maximum number of pages.
   if (initial_pages > wasm::kV8MaxWasmMemoryPages) return nullptr;
 
+  // Trying to allocate 4 GiB on a 32-bit platform is guaranteed to fail.
+  // We don't lower the official max_maximum_mem_pages() limit because that
+  // would be observable upon instantiation; this way the effective limit
+  // on 32-bit platforms is defined by the allocator.
+  constexpr size_t kPlatformMax =
+      std::numeric_limits<size_t>::max() / wasm::kWasmPageSize;
+  if (initial_pages > kPlatformMax) return nullptr;
+
   auto backing_store =
       TryAllocateWasmMemory(isolate, initial_pages, maximum_pages, shared);
   if (!backing_store && maximum_pages > initial_pages) {
@@ -425,14 +433,6 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
 
 std::unique_ptr<BackingStore> BackingStore::CopyWasmMemory(Isolate* isolate,
                                                            size_t new_pages) {
-  // Trying to allocate 4 GiB on a 32-bit platform is guaranteed to fail.
-  // We don't lower the official max_maximum_mem_pages() limit because that
-  // would be observable upon instantiation; this way the effective limit
-  // on 32-bit platforms is defined by the allocator.
-  if (new_pages > std::numeric_limits<size_t>::max() / wasm::kWasmPageSize) {
-    return {};
-  }
-  DCHECK_GE(new_pages * wasm::kWasmPageSize, byte_length_);
   // Note that we could allocate uninitialized to save initialization cost here,
   // but since Wasm memories are allocated by the page allocator, the zeroing
   // cost is already built-in.
@@ -447,6 +447,9 @@ std::unique_ptr<BackingStore> BackingStore::CopyWasmMemory(Isolate* isolate,
   }
 
   if (byte_length_ > 0) {
+    // If the allocation was successful, then the new buffer must be at least
+    // as big as the old one.
+    DCHECK_GE(new_pages * wasm::kWasmPageSize, byte_length_);
     memcpy(new_backing_store->buffer_start(), buffer_start_, byte_length_);
   }
 
