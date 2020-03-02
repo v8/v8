@@ -382,6 +382,8 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
   bailout(kAtomics, "AtomicXor");
 }
 
+void LiftoffAssembler::AtomicFence() { Dmb(InnerShareable, BarrierAll); }
+
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {

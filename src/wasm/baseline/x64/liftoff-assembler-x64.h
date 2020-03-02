@@ -573,6 +573,8 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                        offset_reg, offset_imm, value, type);
 }
 
+void LiftoffAssembler::AtomicFence() { mfence(); }
+
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {

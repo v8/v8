@@ -465,6 +465,8 @@ class LiftoffAssembler : public TurboAssembler {
                         uint32_t offset_imm, LiftoffRegister result,
                         StoreType type);
 
+  inline void AtomicFence();
+
   inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,
                                   ValueType);
   inline void MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
