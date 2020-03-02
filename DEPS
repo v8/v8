@@ -104,11 +104,11 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'v8/buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/chromium/llvm-project/libcxx.git' + '@' + '78d6a7767ed57b50122a161b91f59f19c9bd0d19',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'd9040c75cfea5928c804ab7c235fed06a63f743a',
   'v8/buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/chromium/llvm-project/libcxxabi.git' + '@' + '0d529660e32d77d9111912d73f2c74fc5fa2a858',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '196ba1aaa8ac285d94f4ea8d9836390a45360533',
   'v8/buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/llvm.org/libunwind.git' + '@' + '69d9b84cca8354117b9fe9705a4430d789ee599b',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '43bb9f872232f531bac80093ceb4de61c64b9ab7',
   'v8/buildtools/win': {
     'packages': [
       {
