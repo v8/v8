@@ -773,12 +773,20 @@ DEFINE_BOOL(wasm_lazy_compilation, false,
             "enable lazy compilation for all wasm modules")
 DEFINE_DEBUG_BOOL(trace_wasm_lazy_compilation, false,
                   "trace lazy compilation of wasm functions")
-DEFINE_BOOL(wasm_grow_shared_memory, true,
-            "allow growing shared WebAssembly memory objects")
-DEFINE_BOOL(wasm_atomics_on_non_shared_memory, false,
-            "allow atomic operations on non-shared WebAssembly memory")
 DEFINE_BOOL(wasm_lazy_validation, false,
             "enable lazy validation for lazily compiled wasm functions")
+
+// Flags for wasm prototyping that are not strictly features i.e., part of
+// an existing proposal that may be conditionally enabled.
+DEFINE_BOOL(wasm_atomics_on_non_shared_memory, false,
+            "allow atomic operations on non-shared WebAssembly memory")
+DEFINE_BOOL(wasm_grow_shared_memory, true,
+            "allow growing shared WebAssembly memory objects")
+DEFINE_BOOL(wasm_simd_post_mvp, false,
+            "allow experimental SIMD operations for prototyping that are not "
+            "included in the current proposal")
+DEFINE_IMPLICATION(wasm_simd_post_mvp, experimental_wasm_simd)
+
 // wasm-interpret-all resets {asm-,}wasm-lazy-compilation.
 DEFINE_NEG_IMPLICATION(wasm_interpret_all, asm_wasm_lazy_compilation)
 DEFINE_NEG_IMPLICATION(wasm_interpret_all, wasm_lazy_compilation)

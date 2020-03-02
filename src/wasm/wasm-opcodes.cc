@@ -429,6 +429,17 @@ bool WasmOpcodes::IsThrowingOpcode(WasmOpcode opcode) {
   }
 }
 
+bool WasmOpcodes::IsSimdPostMvpOpcode(WasmOpcode opcode) {
+  switch (opcode) {
+#define CHECK_OPCODE(name, opcode, _) case kExpr##name:
+    FOREACH_SIMD_POST_MVP_OPCODE(CHECK_OPCODE)
+#undef CHECK_OPCODE
+    return true;
+    default:
+      return false;
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   if (sig.return_count() == 0) os << "v";
   for (auto ret : sig.returns()) {

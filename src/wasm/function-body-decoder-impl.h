@@ -2779,6 +2779,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                                      LoadTransformationKind::kExtend);
         break;
       default: {
+        if (!FLAG_wasm_simd_post_mvp &&
+            WasmOpcodes::IsSimdPostMvpOpcode(opcode)) {
+          this->error(
+              "simd opcode not available, enable with --wasm-simd-post-mvp");
+          break;
+        }
         const FunctionSig* sig = WasmOpcodes::Signature(opcode);
         if (!VALIDATE(sig != nullptr)) {
           this->error("invalid simd opcode");
