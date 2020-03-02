@@ -89,6 +89,11 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   OBJECT_CONSTRUCTORS(Dictionary, HashTable<Derived, Shape>);
 };
 
+#define EXTERN_DECLARE_DICTIONARY(DERIVED, SHAPE)                  \
+  EXTERN_DECLARE_HASH_TABLE(DERIVED, SHAPE)                        \
+  extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) \
+      Dictionary<DERIVED, SHAPE>;
+
 template <typename Key>
 class BaseDictionaryShape : public BaseShape<Key> {
  public:
@@ -170,10 +175,12 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   OBJECT_CONSTRUCTORS(BaseNameDictionary, Dictionary<Derived, Shape>);
 };
 
-class NameDictionary;
+#define EXTERN_DECLARE_BASE_NAME_DICTIONARY(DERIVED, SHAPE)        \
+  EXTERN_DECLARE_DICTIONARY(DERIVED, SHAPE)                        \
+  extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) \
+      BaseNameDictionary<DERIVED, SHAPE>;
 
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    BaseNameDictionary<NameDictionary, NameDictionaryShape>;
+EXTERN_DECLARE_BASE_NAME_DICTIONARY(NameDictionary, NameDictionaryShape)
 
 class V8_EXPORT_PRIVATE NameDictionary
     : public BaseNameDictionary<NameDictionary, NameDictionaryShape> {
@@ -214,10 +221,7 @@ class V8_EXPORT_PRIVATE GlobalDictionaryShape : public NameDictionaryShape {
   static inline RootIndex GetMapRootIndex();
 };
 
-class GlobalDictionary;
-
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>;
+EXTERN_DECLARE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
 
 class V8_EXPORT_PRIVATE GlobalDictionary
     : public BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape> {
@@ -277,11 +281,7 @@ class SimpleNumberDictionaryShape : public NumberDictionaryBaseShape {
   static inline RootIndex GetMapRootIndex();
 };
 
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    HashTable<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
-
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
+EXTERN_DECLARE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
 
 // SimpleNumberDictionary is used to map number to an entry.
 class SimpleNumberDictionary
@@ -300,11 +300,7 @@ class SimpleNumberDictionary
       Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>);
 };
 
-extern template class EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) HashTable<NumberDictionary, NumberDictionaryShape>;
-
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    Dictionary<NumberDictionary, NumberDictionaryShape>;
+EXTERN_DECLARE_DICTIONARY(NumberDictionary, NumberDictionaryShape)
 
 // NumberDictionary is used as elements backing store and provides a bitfield
 // and stores property details for every entry.

@@ -55,6 +55,8 @@ class V8_EXPORT_PRIVATE StringTableShape : public BaseShape<StringTableKey*> {
 
 class SeqOneByteString;
 
+EXTERN_DECLARE_HASH_TABLE(StringTable, StringTableShape)
+
 // StringTable.
 //
 // No special elements in the prefix and the element size is 1
@@ -104,6 +106,8 @@ class StringSetShape : public BaseShape<String> {
   static const int kPrefixSize = 0;
   static const int kEntrySize = 1;
 };
+
+EXTERN_DECLARE_HASH_TABLE(StringSet, StringSetShape)
 
 class StringSet : public HashTable<StringSet, StringSetShape> {
  public:

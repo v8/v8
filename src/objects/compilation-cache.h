@@ -70,6 +70,8 @@ class InfoCellPair {
   FeedbackCell feedback_cell_;
 };
 
+EXTERN_DECLARE_HASH_TABLE(CompilationCacheTable, CompilationCacheShape)
+
 // This cache is used in two different variants. For regexp caching, it simply
 // maps identifying info of the regexp to the cached regexp object. Scripts and
 // eval code only gets cached after a second probe for the code object. To do

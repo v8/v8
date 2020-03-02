@@ -243,6 +243,10 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   OBJECT_CONSTRUCTORS(HashTable, HashTableBase);
 };
 
+#define EXTERN_DECLARE_HASH_TABLE(DERIVED, SHAPE)                  \
+  extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) \
+      HashTable<class DERIVED, SHAPE>;
+
 // HashTableKey is an abstract superclass for virtual key behavior.
 class HashTableKey {
  public:
@@ -321,12 +325,12 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) ObjectHashTableBase
   OBJECT_CONSTRUCTORS(ObjectHashTableBase, HashTable<Derived, Shape>);
 };
 
-class ObjectHashTable;
+#define EXTERN_DECLARE_OBJECT_BASE_HASH_TABLE(DERIVED, SHAPE)      \
+  EXTERN_DECLARE_HASH_TABLE(DERIVED, SHAPE)                        \
+  extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) \
+      ObjectHashTableBase<class DERIVED, SHAPE>;
 
-extern template class EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) HashTable<ObjectHashTable, ObjectHashTableShape>;
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>;
+EXTERN_DECLARE_OBJECT_BASE_HASH_TABLE(ObjectHashTable, ObjectHashTableShape)
 
 // ObjectHashTable maps keys that are arbitrary objects to object values by
 // using the identity hash of the key for hashing purposes.
@@ -346,12 +350,8 @@ class EphemeronHashTableShape : public ObjectHashTableShape {
   static inline RootIndex GetMapRootIndex();
 };
 
-class EphemeronHashTable;
-
-extern template class EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) HashTable<EphemeronHashTable, EphemeronHashTableShape>;
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>;
+EXTERN_DECLARE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable,
+                                      EphemeronHashTableShape)
 
 // EphemeronHashTable is similar to ObjectHashTable but gets special treatment
 // by the GC. The GC treats its entries as ephemerons: both key and value are
@@ -383,9 +383,7 @@ class ObjectHashSetShape : public ObjectHashTableShape {
   static const int kEntrySize = 1;
 };
 
-class ObjectHashSet;
-extern template class EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) HashTable<ObjectHashSet, ObjectHashSetShape>;
+EXTERN_DECLARE_HASH_TABLE(ObjectHashSet, ObjectHashSetShape)
 
 class V8_EXPORT_PRIVATE ObjectHashSet
     : public HashTable<ObjectHashSet, ObjectHashSetShape> {

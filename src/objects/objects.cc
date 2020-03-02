@@ -6688,9 +6688,6 @@ Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
   return new_table;
 }
 
-template bool
-HashTable<NameDictionary, NameDictionaryShape>::HasSufficientCapacityToAdd(int);
-
 template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::HasSufficientCapacityToAdd(
     int number_of_additional_elements) {
@@ -8167,62 +8164,44 @@ Address Smi::LexicographicCompare(Isolate* isolate, Smi x, Smi y) {
 // Please note this list is compiler dependent.
 // Keep this at the end of this file
 
-template class HashTable<StringTable, StringTableShape>;
+#define EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)           \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) \
+      HashTable<DERIVED, SHAPE>;
 
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<CompilationCacheTable, CompilationCacheShape>;
+#define EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(DERIVED, SHAPE) \
+  EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                   \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)   \
+      ObjectHashTableBase<DERIVED, SHAPE>;
 
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<ObjectHashTable, ObjectHashTableShape>;
+#define EXTERN_DEFINE_DICTIONARY(DERIVED, SHAPE)           \
+  EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                 \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) \
+      Dictionary<DERIVED, SHAPE>;
 
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<ObjectHashSet, ObjectHashSetShape>;
+#define EXTERN_DEFINE_BASE_NAME_DICTIONARY(DERIVED, SHAPE) \
+  EXTERN_DEFINE_DICTIONARY(DERIVED, SHAPE)                 \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) \
+      BaseNameDictionary<DERIVED, SHAPE>;
 
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>;
+EXTERN_DEFINE_HASH_TABLE(StringTable, StringTableShape)
+EXTERN_DEFINE_HASH_TABLE(StringSet, StringSetShape)
+EXTERN_DEFINE_HASH_TABLE(CompilationCacheTable, CompilationCacheShape)
+EXTERN_DEFINE_HASH_TABLE(ObjectHashSet, ObjectHashSetShape)
 
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<EphemeronHashTable, EphemeronHashTableShape>;
+EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(ObjectHashTable, ObjectHashTableShape)
+EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable,
+                                     EphemeronHashTableShape)
 
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>;
+EXTERN_DEFINE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
+EXTERN_DEFINE_DICTIONARY(NumberDictionary, NumberDictionaryShape)
 
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    BaseNameDictionary<NameDictionary, NameDictionaryShape>;
+EXTERN_DEFINE_BASE_NAME_DICTIONARY(NameDictionary, NameDictionaryShape)
+EXTERN_DEFINE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
 
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Dictionary<NameDictionary, NameDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Dictionary<GlobalDictionary, GlobalDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<NumberDictionary, NumberDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Dictionary<NumberDictionary, NumberDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    HashTable<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
-
-template Handle<NameDictionary>
-HashTable<NameDictionary, NameDictionaryShape>::New(Isolate*, int,
-                                                    AllocationType,
-                                                    MinimumCapacity);
-
-template V8_EXPORT_PRIVATE Handle<NameDictionary>
-HashTable<NameDictionary, NameDictionaryShape>::Shrink(Isolate* isolate,
-                                                       Handle<NameDictionary>,
-                                                       int additionalCapacity);
-
-template void HashTable<GlobalDictionary, GlobalDictionaryShape>::Rehash(
-    ReadOnlyRoots roots);
+#undef EXTERN_DEFINE_HASH_TABLE
+#undef EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE
+#undef EXTERN_DEFINE_DICTIONARY
+#undef EXTERN_DEFINE_BASE_NAME_DICTIONARY
 
 Maybe<bool> JSFinalizationRegistry::Cleanup(
     Isolate* isolate, Handle<JSFinalizationRegistry> finalization_registry,
