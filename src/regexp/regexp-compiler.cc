@@ -3429,8 +3429,8 @@ void BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
   DCHECK_EQ(start_reg_ + 1, end_reg_);
   if (IgnoreCase(flags_)) {
-    assembler->CheckNotBackReferenceIgnoreCase(
-        start_reg_, read_backward(), IsUnicode(flags_), trace->backtrack());
+    assembler->CheckNotBackReferenceIgnoreCase(start_reg_, read_backward(),
+                                               trace->backtrack());
   } else {
     assembler->CheckNotBackReference(start_reg_, read_backward(),
                                      trace->backtrack());

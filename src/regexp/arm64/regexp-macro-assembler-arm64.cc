@@ -288,9 +288,8 @@ void RegExpMacroAssemblerARM64::CheckGreedyLoop(Label* on_equal) {
   BranchOrBacktrack(eq, on_equal);
 }
 
-
 void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
-    int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
+    int start_reg, bool read_backward, Label* on_no_match) {
   Label fallthrough;
 
   Register capture_start_offset = w10;
@@ -404,7 +403,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
     //   x0: Address byte_offset1 - Address captured substring's start.
     //   x1: Address byte_offset2 - Address of current character position.
     //   w2: size_t byte_length - length of capture in bytes(!)
-    //   x3: Isolate* isolate or 0 if unicode flag
+    //   x3: Isolate* isolate.
 
     // Address of start of capture.
     __ Add(x0, input_end(), Operand(capture_start_offset, SXTW));
@@ -416,14 +415,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
       __ Sub(x1, x1, Operand(capture_length, SXTW));
     }
     // Isolate.
-#ifdef V8_INTL_SUPPORT
-    if (unicode) {
-      __ Mov(x3, Operand(0));
-    } else  // NOLINT
-#endif      // V8_INTL_SUPPORT
-    {
-      __ Mov(x3, ExternalReference::isolate_address(isolate()));
-    }
+    __ Mov(x3, ExternalReference::isolate_address(isolate()));
 
     {
       AllowExternalCallThatCantCauseGC scope(masm_);
