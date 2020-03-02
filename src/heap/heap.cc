@@ -2263,7 +2263,7 @@ void Heap::MinorMarkCompact() {
   LOG(isolate_, ResourceEvent("MinorMarkCompact", "begin"));
 
   TRACE_GC(tracer(), GCTracer::Scope::MINOR_MC);
-  AlwaysAllocateScope always_allocate(isolate());
+  AlwaysAllocateScope always_allocate(this);
   IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
       incremental_marking());
   ConcurrentMarking::PauseScope pause_scope(concurrent_marking());
@@ -2380,7 +2380,7 @@ void Heap::Scavenge() {
   // There are soft limits in the allocation code, designed to trigger a mark
   // sweep collection by failing allocations. There is no sense in trying to
   // trigger one during scavenge: scavenges allocation should always succeed.
-  AlwaysAllocateScope scope(isolate());
+  AlwaysAllocateScope scope(this);
 
   // Bump-pointer allocations done during scavenge are not real allocations.
   // Pause the inline allocation steps.
@@ -5063,7 +5063,7 @@ HeapObject Heap::AllocateRawWithRetryOrFailSlowPath(
   isolate()->counters()->gc_last_resort_from_handles()->Increment();
   CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
   {
-    AlwaysAllocateScope scope(isolate());
+    AlwaysAllocateScope scope(this);
     alloc = AllocateRaw(size, allocation, origin, alignment);
   }
   if (alloc.To(&result)) {
@@ -5097,7 +5097,7 @@ HeapObject Heap::AllocateRawCodeInLargeObjectSpace(int size) {
   isolate()->counters()->gc_last_resort_from_handles()->Increment();
   CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
   {
-    AlwaysAllocateScope scope(isolate());
+    AlwaysAllocateScope scope(this);
     alloc = code_lo_space()->AllocateRaw(size);
   }
   if (alloc.To(&result)) {

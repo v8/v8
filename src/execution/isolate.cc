@@ -3342,7 +3342,7 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
   has_fatal_error_ = false;
 
   // The initialization process does not handle memory exhaustion.
-  AlwaysAllocateScope always_allocate(this);
+  AlwaysAllocateScope always_allocate(heap());
 
 #define ASSIGN_ELEMENT(CamelName, hacker_name)                  \
   isolate_addresses_[IsolateAddressId::k##CamelName##Address] = \
@@ -3471,8 +3471,8 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
 
   // If we are deserializing, read the state into the now-empty heap.
   {
-    AlwaysAllocateScope always_allocate(this);
-    CodeSpaceMemoryModificationScope modification_scope(&heap_);
+    AlwaysAllocateScope always_allocate(heap());
+    CodeSpaceMemoryModificationScope modification_scope(heap());
 
     if (create_heap_objects) {
       heap_.read_only_space()->ClearStringPaddingIfNeeded();

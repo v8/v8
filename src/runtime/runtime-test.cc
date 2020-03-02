@@ -730,7 +730,6 @@ RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
   NewSpace* space = heap->new_space();
-  AlwaysAllocateScope always_allocate(heap);
   do {
     FillUpOneNewSpacePage(isolate, heap);
   } while (space->AddFreshPage());

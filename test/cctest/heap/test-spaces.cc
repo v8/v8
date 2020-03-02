@@ -568,7 +568,7 @@ HEAP_TEST(Regress777177) {
 
   {
     // Ensure a new linear allocation area on a fresh page.
-    AlwaysAllocateScope always_allocate(isolate);
+    AlwaysAllocateScopeForTesting always_allocate(heap);
     heap::SimulateFullSpace(old_space);
     AllocationResult result = old_space->AllocateRaw(filler_size, kWordAligned);
     HeapObject obj = result.ToObjectChecked();

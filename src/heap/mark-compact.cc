@@ -2940,7 +2940,7 @@ void Evacuator::EvacuatePage(MemoryChunk* chunk) {
   intptr_t saved_live_bytes = 0;
   double evacuation_time = 0.0;
   {
-    AlwaysAllocateScope always_allocate(heap()->isolate());
+    AlwaysAllocateScope always_allocate(heap());
     TimedScope timed_scope(&evacuation_time);
     RawEvacuatePage(chunk, &saved_live_bytes);
   }

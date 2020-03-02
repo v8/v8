@@ -1871,7 +1871,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   Handle<String> moving_object;
   Page* ec_page;
   {
-    AlwaysAllocateScope always_allocate(isolate);
+    AlwaysAllocateScopeForTesting always_allocate(heap);
     heap::SimulateFullSpace(heap->old_space());
     moving_object = isolate->factory()->InternalizeString(
         isolate->factory()->NewStringFromAsciiChecked("happy_hippo"));

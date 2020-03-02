@@ -13751,7 +13751,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     const int kIterations = 10;
     for (int i = 0; i < kIterations; ++i) {
       LocalContext env(isolate);
-      i::AlwaysAllocateScope always_allocate(i_isolate);
+      i::AlwaysAllocateScopeForTesting always_allocate(heap);
       CompileRun(script);
 
       // Keep a strong reference to the code object in the handle scope.
@@ -16448,7 +16448,7 @@ TEST(RecursionWithSourceURLInMessageScriptResourceNameOrSourceURL) {
 static void CreateGarbageInOldSpace() {
   i::Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
-  i::AlwaysAllocateScope always_allocate(CcTest::i_isolate());
+  i::AlwaysAllocateScopeForTesting always_allocate(CcTest::i_isolate()->heap());
   for (int i = 0; i < 1000; i++) {
     factory->NewFixedArray(1000, i::AllocationType::kOld);
   }

@@ -648,12 +648,12 @@ AlwaysAllocateScope::AlwaysAllocateScope(Heap* heap) : heap_(heap) {
   heap_->always_allocate_scope_count_++;
 }
 
-AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
-    : AlwaysAllocateScope(isolate->heap()) {}
-
 AlwaysAllocateScope::~AlwaysAllocateScope() {
   heap_->always_allocate_scope_count_--;
 }
+
+AlwaysAllocateScopeForTesting::AlwaysAllocateScopeForTesting(Heap* heap)
+    : scope_(heap) {}
 
 CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
     : heap_(heap) {

@@ -46,8 +46,8 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   // we wrap the allocator function in an AlwaysAllocateScope.  Test that
   // all allocations succeed immediately without any retry.
   CcTest::CollectAllAvailableGarbage();
-  AlwaysAllocateScope scope(CcTest::i_isolate());
   Heap* heap = CcTest::heap();
+  AlwaysAllocateScopeForTesting scope(heap);
   int size = FixedArray::SizeFor(100);
   // Young generation.
   HeapObject obj =
