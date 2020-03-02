@@ -2430,6 +2430,41 @@ class LiftoffCompiler {
 #endif
   }
 
+  void AtomicNotify(FullDecoder* decoder,
+                    const MemoryAccessImmediate<validate>& imm) {
+    LiftoffRegList pinned;
+    LiftoffRegister count = pinned.set(__ PopToRegister());
+    Register index = pinned.set(__ PopToRegister(pinned)).gp();
+    if (BoundsCheckMem(decoder, ValueTypes::ElementSizeInBytes(kWasmI32),
+                       imm.offset, index, pinned, kDoForceCheck)) {
+      return;
+    }
+    AlignmentCheckMem(decoder, ValueTypes::ElementSizeInBytes(kWasmI32),
+                      imm.offset, index, pinned);
+
+    uint32_t offset = imm.offset;
+    index = AddMemoryMasking(index, &offset, &pinned);
+    if (offset) __ emit_i32_add(index, index, offset);
+
+    // TODO(ahaas): Use PrepareCall to prepare parameters.
+    __ SpillAllRegisters();
+
+    WasmAtomicNotifyDescriptor descriptor;
+    DCHECK_EQ(0, descriptor.GetStackParameterCount());
+    DCHECK_EQ(2, descriptor.GetRegisterParameterCount());
+    LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
+        {LiftoffRegister(descriptor.GetRegisterParameter(0)),
+         LiftoffRegister(index), kWasmI32},
+        {LiftoffRegister(descriptor.GetRegisterParameter(1)), count, kWasmI32}};
+    __ ParallelRegisterMove(ArrayVector(reg_moves));
+
+    __ CallRuntimeStub(WasmCode::kWasmAtomicNotify);
+    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+
+    __ PushRegister(kWasmI32, LiftoffRegister(kReturnRegister0));
+  }
+
 #define ATOMIC_STORE_LIST(V)        \
   V(I32AtomicStore, kI32Store)      \
   V(I64AtomicStore, kI64Store)      \
@@ -2516,6 +2551,9 @@ class LiftoffCompiler {
         break;
       case kExprI64AtomicWait:
         AtomicWait(decoder, kWasmI64, imm);
+        break;
+      case kExprAtomicNotify:
+        AtomicNotify(decoder, imm);
         break;
       default:
         unsupported(decoder, kAtomics, "atomicop");
