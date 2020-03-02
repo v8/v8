@@ -144,8 +144,6 @@ class ClassBoilerplate : public FixedArray {
     kBoileplateLength  // last element
   };
 
-  static const int kFullComputedEntrySize = 2;
-
  private:
   DECL_INT_ACCESSORS(flags)
 

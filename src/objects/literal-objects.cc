@@ -299,11 +299,9 @@ class ObjectDescriptor {
             ? NumberDictionary::New(isolate, element_count_ + computed_count_)
             : factory->empty_slow_element_dictionary();
 
-    computed_properties_ =
-        computed_count_
-            ? factory->NewFixedArray(computed_count_ *
-                                     ClassBoilerplate::kFullComputedEntrySize)
-            : factory->empty_fixed_array();
+    computed_properties_ = computed_count_
+                               ? factory->NewFixedArray(computed_count_)
+                               : factory->empty_fixed_array();
 
     temp_handle_ = handle(Smi::zero(), isolate);
   }
@@ -366,10 +364,9 @@ class ObjectDescriptor {
 
   void Finalize(Isolate* isolate) {
     if (HasDictionaryProperties()) {
+      DCHECK_EQ(current_computed_index_, computed_properties_->length());
       properties_dictionary_template_->set_next_enumeration_index(
           next_enumeration_index_);
-      computed_properties_ = FixedArray::ShrinkOrEmpty(
-          isolate, computed_properties_, current_computed_index_);
     } else {
       DCHECK(descriptor_array_template_->IsSortedNoDuplicates());
     }
@@ -420,7 +417,9 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
     ObjectDescriptor& desc =
         property->is_static() ? static_desc : instance_desc;
     if (property->is_computed_name()) {
-      desc.IncComputedCount();
+      if (property->kind() != ClassLiteral::Property::FIELD) {
+        desc.IncComputedCount();
+      }
     } else {
       if (property->key()->AsLiteral()->IsPropertyName()) {
         desc.IncPropertiesCount();
