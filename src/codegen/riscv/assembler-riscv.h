@@ -678,7 +678,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // marking, to avoid conflict with ssnop and ehb instructions.
   void nop(unsigned int type = 0) {
     DCHECK_LT(type, 32);
-    Register nop_rt_reg = (type == 0) ? zero_reg : at;
+    Register nop_rt_reg = (type == 0) ? zero_reg : t3;
     sll(zero_reg, nop_rt_reg, type, true);
   }
 

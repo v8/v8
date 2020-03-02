@@ -89,11 +89,11 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
   }
 
-  // Preserve "deoptimizer" object in register v0 and get the input
+  // Preserve "deoptimizer" object in register t0 and get the input
   // frame descriptor pointer to a1 (deoptimizer->input_);
   // Move deopt-obj to a0 for call to Deoptimizer::ComputeOutputFrames() below.
-  __ mov(a0, v0);
-  __ Ld(a1, MemOperand(v0, Deoptimizer::input_offset()));
+  __ mov(a0, t0);
+  __ Ld(a1, MemOperand(t0, Deoptimizer::input_offset()));
 
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
   DCHECK_EQ(Register::kNumRegisters, kNumberOfRegisters);
@@ -116,8 +116,8 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     int dst_offset = code * kDoubleSize + double_regs_offset;
     int src_offset =
         code * kDoubleSize + kNumberOfRegisters * kPointerSize;
-    __ Ldc1(f0, MemOperand(sp, src_offset));
-    __ Sdc1(f0, MemOperand(a1, dst_offset));
+    __ Ldc1(ft0, MemOperand(sp, src_offset));
+    __ Sdc1(ft0, MemOperand(a1, dst_offset));
   }
 
   // Remove the saved registers from the stack.
@@ -193,21 +193,21 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ Ld(a6, MemOperand(a2, FrameDescription::continuation_offset()));
   __ push(a6);
 
-  // Technically restoring 'at' should work unless zero_reg is also restored
+  // Technically restoring 't3' should work unless zero_reg is also restored
   // but it's safer to check for this.
-  DCHECK(!(at.bit() & restored_regs));
+  DCHECK(!(t3.bit() & restored_regs));
   // Restore the registers from the last output frame.
-  __ mov(at, a2);
+  __ mov(t3, a2);
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     if ((restored_regs & (1 << i)) != 0) {
-      __ Ld(ToRegister(i), MemOperand(at, offset));
+      __ Ld(ToRegister(i), MemOperand(t3, offset));
     }
   }
 
-  __ pop(at);  // Get continuation, leave pc on stack.
+  __ pop(t3);  // Get continuation, leave pc on stack.
   __ pop(ra);
-  __ Jump(at);
+  __ Jump(t3);
   __ stop();
 }
 

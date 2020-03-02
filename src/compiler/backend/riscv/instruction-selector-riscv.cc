@@ -1531,8 +1531,8 @@ void InstructionSelector::VisitFloat64Div(Node* node) {
 
 void InstructionSelector::VisitFloat64Mod(Node* node) {
   Mips64OperandGenerator g(this);
-  Emit(kMips64ModD, g.DefineAsFixed(node, f0),
-       g.UseFixed(node->InputAt(0), f12), g.UseFixed(node->InputAt(1), f14))
+  Emit(kMips64ModD, g.DefineAsFixed(node, fa0),
+       g.UseFixed(node->InputAt(0), fa0), g.UseFixed(node->InputAt(1), fa1))
       ->MarkAsCall();
 }
 
@@ -1623,15 +1623,15 @@ void InstructionSelector::VisitFloat64Neg(Node* node) {
 void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
                                                    InstructionCode opcode) {
   Mips64OperandGenerator g(this);
-  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(node->InputAt(0), f2),
-       g.UseFixed(node->InputAt(1), f4))
+  Emit(opcode, g.DefineAsFixed(node, fa0), g.UseFixed(node->InputAt(0), fa1),
+       g.UseFixed(node->InputAt(1), ft0))
       ->MarkAsCall();
 }
 
 void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
                                                   InstructionCode opcode) {
   Mips64OperandGenerator g(this);
-  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(node->InputAt(0), f12))
+  Emit(opcode, g.DefineAsFixed(node, fa0), g.UseFixed(node->InputAt(0), fa1))
       ->MarkAsCall();
 }
 

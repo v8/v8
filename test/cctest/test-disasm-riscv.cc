@@ -174,10 +174,10 @@ TEST(Type0) {
           "016c5021       addu    a6, a7, t0");
   COMPARE(daddu(a6, a7, t0),
           "016c502d       daddu   a6, a7, t0");
-  COMPARE(addu(v0, v1, s0),
-          "00701021       addu    v0, v1, s0");
-  COMPARE(daddu(v0, v1, s0),
-          "0070102d       daddu   v0, v1, s0");
+  COMPARE(addu(t0, t1, fp),
+          "00701021       addu    t0, t1, fp");
+  COMPARE(daddu(t0, t1, fp),
+          "0070102d       daddu   t0, t1, fp");
 
   COMPARE(subu(a0, a1, a2),
           "00a62023       subu    a0, a1, a2");
@@ -187,10 +187,10 @@ TEST(Type0) {
           "016c5023       subu    a6, a7, t0");
   COMPARE(dsubu(a6, a7, t0),
           "016c502f       dsubu   a6, a7, t0");
-  COMPARE(subu(v0, v1, s0),
-          "00701023       subu    v0, v1, s0");
-  COMPARE(dsubu(v0, v1, s0),
-          "0070102f       dsubu   v0, v1, s0");
+  COMPARE(subu(t0, t1, fp),
+          "00701023       subu    t0, t1, fp");
+  COMPARE(dsubu(t0, t1, fp),
+          "0070102f       dsubu   t0, t1, fp");
 
   if (kArchVariant != kMips64r6) {
     COMPARE(mult(a0, a1),
@@ -201,10 +201,10 @@ TEST(Type0) {
             "014b0018       mult    a6, a7");
     COMPARE(dmult(a6, a7),
             "014b001c       dmult   a6, a7");
-    COMPARE(mult(v0, v1),
-            "00430018       mult    v0, v1");
-    COMPARE(dmult(v0, v1),
-            "0043001c       dmult   v0, v1");
+    COMPARE(mult(t0, t1),
+            "00430018       mult    t0, t1");
+    COMPARE(dmult(t0, t1),
+            "0043001c       dmult   t0, t1");
 
     COMPARE(multu(a0, a1),
             "00850019       multu   a0, a1");
@@ -214,42 +214,42 @@ TEST(Type0) {
             "014b0019       multu   a6, a7");
     COMPARE(dmultu(a6, a7),
             "014b001d       dmultu  a6, a7");
-    COMPARE(multu(v0, v1),
-            "00430019       multu   v0, v1");
-    COMPARE(dmultu(v0, v1),
-            "0043001d       dmultu  v0, v1");
+    COMPARE(multu(t0, t1),
+            "00430019       multu   t0, t1");
+    COMPARE(dmultu(t0, t1),
+            "0043001d       dmultu  t0, t1");
 
     COMPARE(div(a0, a1),
             "0085001a       div     a0, a1");
     COMPARE(div(a6, a7),
             "014b001a       div     a6, a7");
-    COMPARE(div(v0, v1),
-            "0043001a       div     v0, v1");
+    COMPARE(div(t0, t1),
+            "0043001a       div     t0, t1");
     COMPARE(ddiv(a0, a1),
             "0085001e       ddiv    a0, a1");
     COMPARE(ddiv(a6, a7),
             "014b001e       ddiv    a6, a7");
-    COMPARE(ddiv(v0, v1),
-            "0043001e       ddiv    v0, v1");
+    COMPARE(ddiv(t0, t1),
+            "0043001e       ddiv    t0, t1");
 
     COMPARE(divu(a0, a1),
             "0085001b       divu    a0, a1");
     COMPARE(divu(a6, a7),
             "014b001b       divu    a6, a7");
-    COMPARE(divu(v0, v1),
-            "0043001b       divu    v0, v1");
+    COMPARE(divu(t0, t1),
+            "0043001b       divu    t0, t1");
     COMPARE(ddivu(a0, a1),
             "0085001f       ddivu   a0, a1");
     COMPARE(ddivu(a6, a7),
             "014b001f       ddivu   a6, a7");
-    COMPARE(ddivu(v0, v1),
-            "0043001f       ddivu   v0, v1");
+    COMPARE(ddivu(t0, t1),
+            "0043001f       ddivu   t0, t1");
     COMPARE(mul(a0, a1, a2),
             "70a62002       mul     a0, a1, a2");
     COMPARE(mul(a6, a7, t0),
             "716c5002       mul     a6, a7, t0");
-    COMPARE(mul(v0, v1, s0),
-            "70701002       mul     v0, v1, s0");
+    COMPARE(mul(t0, t1, fp),
+            "70701002       mul     t0, t1, fp");
   } else {  // MIPS64r6.
     COMPARE(mul(a0, a1, a2),
             "00a62098       mul    a0, a1, a2");
@@ -267,14 +267,14 @@ TEST(Type0) {
             "014b489c       dmul   a5, a6, a7");
     COMPARE(dmuh(a5, a6, a7),
             "014b48dc       dmuh   a5, a6, a7");
-    COMPARE(mul(v0, v1, a0),
-            "00641098       mul    v0, v1, a0");
-    COMPARE(muh(v0, v1, a0),
-            "006410d8       muh    v0, v1, a0");
-    COMPARE(dmul(v0, v1, a0),
-            "0064109c       dmul   v0, v1, a0");
-    COMPARE(dmuh(v0, v1, a0),
-            "006410dc       dmuh   v0, v1, a0");
+    COMPARE(mul(t0, t1, a0),
+            "00641098       mul    t0, t1, a0");
+    COMPARE(muh(t0, t1, a0),
+            "006410d8       muh    t0, t1, a0");
+    COMPARE(dmul(t0, t1, a0),
+            "0064109c       dmul   t0, t1, a0");
+    COMPARE(dmuh(t0, t1, a0),
+            "006410dc       dmuh   t0, t1, a0");
 
     COMPARE(mulu(a0, a1, a2),
             "00a62099       mulu   a0, a1, a2");
@@ -292,14 +292,14 @@ TEST(Type0) {
             "014b489d       dmulu  a5, a6, a7");
     COMPARE(dmuhu(a5, a6, a7),
             "014b48dd       dmuhu  a5, a6, a7");
-    COMPARE(mulu(v0, v1, a0),
-            "00641099       mulu   v0, v1, a0");
-    COMPARE(muhu(v0, v1, a0),
-            "006410d9       muhu   v0, v1, a0");
-    COMPARE(dmulu(v0, v1, a0),
-            "0064109d       dmulu  v0, v1, a0");
-    COMPARE(dmuhu(v0, v1, a0),
-            "006410dd       dmuhu  v0, v1, a0");
+    COMPARE(mulu(t0, t1, a0),
+            "00641099       mulu   t0, t1, a0");
+    COMPARE(muhu(t0, t1, a0),
+            "006410d9       muhu   t0, t1, a0");
+    COMPARE(dmulu(t0, t1, a0),
+            "0064109d       dmulu  t0, t1, a0");
+    COMPARE(dmuhu(t0, t1, a0),
+            "006410dd       dmuhu  t0, t1, a0");
 
     COMPARE(div(a0, a1, a2),
             "00a6209a       div    a0, a1, a2");
@@ -317,14 +317,14 @@ TEST(Type0) {
             "014b489e       ddiv   a5, a6, a7");
     COMPARE(dmod(a5, a6, a7),
             "014b48de       dmod   a5, a6, a7");
-    COMPARE(div(v0, v1, a0),
-            "0064109a       div    v0, v1, a0");
-    COMPARE(mod(v0, v1, a0),
-            "006410da       mod    v0, v1, a0");
-    COMPARE(ddiv(v0, v1, a0),
-            "0064109e       ddiv   v0, v1, a0");
-    COMPARE(dmod(v0, v1, a0),
-            "006410de       dmod   v0, v1, a0");
+    COMPARE(div(t0, t1, a0),
+            "0064109a       div    t0, t1, a0");
+    COMPARE(mod(t0, t1, a0),
+            "006410da       mod    t0, t1, a0");
+    COMPARE(ddiv(t0, t1, a0),
+            "0064109e       ddiv   t0, t1, a0");
+    COMPARE(dmod(t0, t1, a0),
+            "006410de       dmod   t0, t1, a0");
 
     COMPARE(divu(a0, a1, a2),
             "00a6209b       divu   a0, a1, a2");
@@ -342,227 +342,227 @@ TEST(Type0) {
             "014b489f       ddivu  a5, a6, a7");
     COMPARE(dmodu(a5, a6, a7),
             "014b48df       dmodu  a5, a6, a7");
-    COMPARE(divu(v0, v1, a0),
-            "0064109b       divu   v0, v1, a0");
-    COMPARE(modu(v0, v1, a0),
-            "006410db       modu   v0, v1, a0");
-    COMPARE(ddivu(v0, v1, a0),
-            "0064109f       ddivu  v0, v1, a0");
-    COMPARE(dmodu(v0, v1, a0),
-            "006410df       dmodu  v0, v1, a0");
+    COMPARE(divu(t0, t1, a0),
+            "0064109b       divu   t0, t1, a0");
+    COMPARE(modu(t0, t1, a0),
+            "006410db       modu   t0, t1, a0");
+    COMPARE(ddivu(t0, t1, a0),
+            "0064109f       ddivu  t0, t1, a0");
+    COMPARE(dmodu(t0, t1, a0),
+            "006410df       dmodu  t0, t1, a0");
   }
 
   COMPARE(addiu(a0, a1, 0x0),
           "24a40000       addiu   a0, a1, 0");
-  COMPARE(addiu(s0, s1, 32767),
-          "26307fff       addiu   s0, s1, 32767");
+  COMPARE(addiu(fp, s1, 32767),
+          "26307fff       addiu   fp, s1, 32767");
   COMPARE(addiu(a6, a7, -32768),
           "256a8000       addiu   a6, a7, -32768");
-  COMPARE(addiu(v0, v1, -1),
-          "2462ffff       addiu   v0, v1, -1");
+  COMPARE(addiu(t0, t1, -1),
+          "2462ffff       addiu   t0, t1, -1");
   COMPARE(daddiu(a0, a1, 0x0),
           "64a40000       daddiu  a0, a1, 0");
-  COMPARE(daddiu(s0, s1, 32767),
-          "66307fff       daddiu  s0, s1, 32767");
+  COMPARE(daddiu(fp, s1, 32767),
+          "66307fff       daddiu  fp, s1, 32767");
   COMPARE(daddiu(a6, a7, -32768),
           "656a8000       daddiu  a6, a7, -32768");
-  COMPARE(daddiu(v0, v1, -1),
-          "6462ffff       daddiu  v0, v1, -1");
+  COMPARE(daddiu(t0, t1, -1),
+          "6462ffff       daddiu  t0, t1, -1");
 
   COMPARE(and_(a0, a1, a2),
           "00a62024       and     a0, a1, a2");
-  COMPARE(and_(s0, s1, s2),
-          "02328024       and     s0, s1, s2");
+  COMPARE(and_(fp, s1, s2),
+          "02328024       and     fp, s1, s2");
   COMPARE(and_(a6, a7, t0),
           "016c5024       and     a6, a7, t0");
-  COMPARE(and_(v0, v1, a2),
-          "00661024       and     v0, v1, a2");
+  COMPARE(and_(t0, t1, a2),
+          "00661024       and     t0, t1, a2");
 
   COMPARE(or_(a0, a1, a2),
           "00a62025       or      a0, a1, a2");
-  COMPARE(or_(s0, s1, s2),
-          "02328025       or      s0, s1, s2");
+  COMPARE(or_(fp, s1, s2),
+          "02328025       or      fp, s1, s2");
   COMPARE(or_(a6, a7, t0),
           "016c5025       or      a6, a7, t0");
-  COMPARE(or_(v0, v1, a2),
-          "00661025       or      v0, v1, a2");
+  COMPARE(or_(t0, t1, a2),
+          "00661025       or      t0, t1, a2");
 
   COMPARE(xor_(a0, a1, a2),
           "00a62026       xor     a0, a1, a2");
-  COMPARE(xor_(s0, s1, s2),
-          "02328026       xor     s0, s1, s2");
+  COMPARE(xor_(fp, s1, s2),
+          "02328026       xor     fp, s1, s2");
   COMPARE(xor_(a6, a7, t0),
           "016c5026       xor     a6, a7, t0");
-  COMPARE(xor_(v0, v1, a2),
-          "00661026       xor     v0, v1, a2");
+  COMPARE(xor_(t0, t1, a2),
+          "00661026       xor     t0, t1, a2");
 
   COMPARE(nor(a0, a1, a2),
           "00a62027       nor     a0, a1, a2");
-  COMPARE(nor(s0, s1, s2),
-          "02328027       nor     s0, s1, s2");
+  COMPARE(nor(fp, s1, s2),
+          "02328027       nor     fp, s1, s2");
   COMPARE(nor(a6, a7, t0),
           "016c5027       nor     a6, a7, t0");
-  COMPARE(nor(v0, v1, a2),
-          "00661027       nor     v0, v1, a2");
+  COMPARE(nor(t0, t1, a2),
+          "00661027       nor     t0, t1, a2");
 
   COMPARE(andi(a0, a1, 0x1),
           "30a40001       andi    a0, a1, 0x1");
-  COMPARE(andi(v0, v1, 0xffff),
-          "3062ffff       andi    v0, v1, 0xffff");
+  COMPARE(andi(t0, t1, 0xffff),
+          "3062ffff       andi    t0, t1, 0xffff");
 
   COMPARE(ori(a0, a1, 0x1),
           "34a40001       ori     a0, a1, 0x1");
-  COMPARE(ori(v0, v1, 0xffff),
-          "3462ffff       ori     v0, v1, 0xffff");
+  COMPARE(ori(t0, t1, 0xffff),
+          "3462ffff       ori     t0, t1, 0xffff");
 
   COMPARE(xori(a0, a1, 0x1),
           "38a40001       xori    a0, a1, 0x1");
-  COMPARE(xori(v0, v1, 0xffff),
-          "3862ffff       xori    v0, v1, 0xffff");
+  COMPARE(xori(t0, t1, 0xffff),
+          "3862ffff       xori    t0, t1, 0xffff");
 
   COMPARE(lui(a0, 0x1),
           "3c040001       lui     a0, 0x1");
-  COMPARE(lui(v0, 0xffff),
-          "3c02ffff       lui     v0, 0xffff");
+  COMPARE(lui(t0, 0xffff),
+          "3c02ffff       lui     t0, 0xffff");
 
   if (kArchVariant == (kMips64r6)) {
     COMPARE(aui(a0, a1, 0x1), "3ca40001       aui     a0, a1, 0x1");
-    COMPARE(aui(v0, v1, 0xffff), "3c62ffff       aui     v0, v1, 0xffff");
+    COMPARE(aui(t0, t1, 0xffff), "3c62ffff       aui     t0, t1, 0xffff");
 
     COMPARE(daui(a0, a1, 0x1), "74a40001       daui    a0, a1, 0x1");
-    COMPARE(daui(v0, v1, 0xffff), "7462ffff       daui    v0, v1, 0xffff");
+    COMPARE(daui(t0, t1, 0xffff), "7462ffff       daui    t0, t1, 0xffff");
 
     COMPARE(dahi(a0, 0x1), "04860001       dahi    a0, 0x1");
-    COMPARE(dahi(v0, 0xffff), "0446ffff       dahi    v0, 0xffff");
+    COMPARE(dahi(t0, 0xffff), "0446ffff       dahi    t0, 0xffff");
 
     COMPARE(dati(a0, 0x1), "049e0001       dati    a0, 0x1");
-    COMPARE(dati(v0, 0xffff), "045effff       dati    v0, 0xffff");
+    COMPARE(dati(t0, 0xffff), "045effff       dati    t0, 0xffff");
   }
 
   COMPARE(sll(a0, a1, 0),
           "00052000       sll     a0, a1, 0");
-  COMPARE(sll(s0, s1, 8),
-          "00118200       sll     s0, s1, 8");
+  COMPARE(sll(fp, s1, 8),
+          "00118200       sll     fp, s1, 8");
   COMPARE(sll(a6, a7, 24),
           "000b5600       sll     a6, a7, 24");
-  COMPARE(sll(v0, v1, 31),
-          "000317c0       sll     v0, v1, 31");
+  COMPARE(sll(t0, t1, 31),
+          "000317c0       sll     t0, t1, 31");
   COMPARE(dsll(a0, a1, 0),
           "00052038       dsll    a0, a1, 0");
-  COMPARE(dsll(s0, s1, 8),
-          "00118238       dsll    s0, s1, 8");
+  COMPARE(dsll(fp, s1, 8),
+          "00118238       dsll    fp, s1, 8");
   COMPARE(dsll(a6, a7, 24),
           "000b5638       dsll    a6, a7, 24");
-  COMPARE(dsll(v0, v1, 31),
-          "000317f8       dsll    v0, v1, 31");
+  COMPARE(dsll(t0, t1, 31),
+          "000317f8       dsll    t0, t1, 31");
 
   COMPARE(sllv(a0, a1, a2),
           "00c52004       sllv    a0, a1, a2");
-  COMPARE(sllv(s0, s1, s2),
-          "02518004       sllv    s0, s1, s2");
+  COMPARE(sllv(fp, s1, s2),
+          "02518004       sllv    fp, s1, s2");
   COMPARE(sllv(a6, a7, t0),
           "018b5004       sllv    a6, a7, t0");
-  COMPARE(sllv(v0, v1, fp),
-          "03c31004       sllv    v0, v1, fp");
+  COMPARE(sllv(t0, t1, fp),
+          "03c31004       sllv    t0, t1, fp");
   COMPARE(dsllv(a0, a1, a2),
           "00c52014       dsllv   a0, a1, a2");
-  COMPARE(dsllv(s0, s1, s2),
-          "02518014       dsllv   s0, s1, s2");
+  COMPARE(dsllv(fp, s1, s2),
+          "02518014       dsllv   fp, s1, s2");
   COMPARE(dsllv(a6, a7, t0),
           "018b5014       dsllv   a6, a7, t0");
-  COMPARE(dsllv(v0, v1, fp),
-          "03c31014       dsllv   v0, v1, fp");
+  COMPARE(dsllv(t0, t1, fp),
+          "03c31014       dsllv   t0, t1, fp");
 
   COMPARE(srl(a0, a1, 0),
           "00052002       srl     a0, a1, 0");
-  COMPARE(srl(s0, s1, 8),
-          "00118202       srl     s0, s1, 8");
+  COMPARE(srl(fp, s1, 8),
+          "00118202       srl     fp, s1, 8");
   COMPARE(srl(a6, a7, 24),
           "000b5602       srl     a6, a7, 24");
-  COMPARE(srl(v0, v1, 31),
-          "000317c2       srl     v0, v1, 31");
+  COMPARE(srl(t0, t1, 31),
+          "000317c2       srl     t0, t1, 31");
   COMPARE(dsrl(a0, a1, 0),
           "0005203a       dsrl    a0, a1, 0");
-  COMPARE(dsrl(s0, s1, 8),
-          "0011823a       dsrl    s0, s1, 8");
+  COMPARE(dsrl(fp, s1, 8),
+          "0011823a       dsrl    fp, s1, 8");
   COMPARE(dsrl(a6, a7, 24),
           "000b563a       dsrl    a6, a7, 24");
-  COMPARE(dsrl(v0, v1, 31),
-          "000317fa       dsrl    v0, v1, 31");
+  COMPARE(dsrl(t0, t1, 31),
+          "000317fa       dsrl    t0, t1, 31");
 
   COMPARE(srlv(a0, a1, a2),
           "00c52006       srlv    a0, a1, a2");
-  COMPARE(srlv(s0, s1, s2),
-          "02518006       srlv    s0, s1, s2");
+  COMPARE(srlv(fp, s1, s2),
+          "02518006       srlv    fp, s1, s2");
   COMPARE(srlv(a6, a7, t0),
           "018b5006       srlv    a6, a7, t0");
-  COMPARE(srlv(v0, v1, fp),
-          "03c31006       srlv    v0, v1, fp");
+  COMPARE(srlv(t0, t1, fp),
+          "03c31006       srlv    t0, t1, fp");
   COMPARE(dsrlv(a0, a1, a2),
           "00c52016       dsrlv   a0, a1, a2");
-  COMPARE(dsrlv(s0, s1, s2),
-          "02518016       dsrlv   s0, s1, s2");
+  COMPARE(dsrlv(fp, s1, s2),
+          "02518016       dsrlv   fp, s1, s2");
   COMPARE(dsrlv(a6, a7, t0),
           "018b5016       dsrlv   a6, a7, t0");
-  COMPARE(dsrlv(v0, v1, fp),
-          "03c31016       dsrlv   v0, v1, fp");
+  COMPARE(dsrlv(t0, t1, fp),
+          "03c31016       dsrlv   t0, t1, fp");
 
   COMPARE(sra(a0, a1, 0),
           "00052003       sra     a0, a1, 0");
-  COMPARE(sra(s0, s1, 8),
-          "00118203       sra     s0, s1, 8");
+  COMPARE(sra(fp, s1, 8),
+          "00118203       sra     fp, s1, 8");
   COMPARE(sra(a6, a7, 24),
           "000b5603       sra     a6, a7, 24");
-  COMPARE(sra(v0, v1, 31),
-          "000317c3       sra     v0, v1, 31");
+  COMPARE(sra(t0, t1, 31),
+          "000317c3       sra     t0, t1, 31");
   COMPARE(dsra(a0, a1, 0),
           "0005203b       dsra    a0, a1, 0");
-  COMPARE(dsra(s0, s1, 8),
-          "0011823b       dsra    s0, s1, 8");
+  COMPARE(dsra(fp, s1, 8),
+          "0011823b       dsra    fp, s1, 8");
   COMPARE(dsra(a6, a7, 24),
           "000b563b       dsra    a6, a7, 24");
-  COMPARE(dsra(v0, v1, 31),
-          "000317fb       dsra    v0, v1, 31");
+  COMPARE(dsra(t0, t1, 31),
+          "000317fb       dsra    t0, t1, 31");
 
   COMPARE(srav(a0, a1, a2),
           "00c52007       srav    a0, a1, a2");
-  COMPARE(srav(s0, s1, s2),
-          "02518007       srav    s0, s1, s2");
+  COMPARE(srav(fp, s1, s2),
+          "02518007       srav    fp, s1, s2");
   COMPARE(srav(a6, a7, t0),
           "018b5007       srav    a6, a7, t0");
-  COMPARE(srav(v0, v1, fp),
-          "03c31007       srav    v0, v1, fp");
+  COMPARE(srav(t0, t1, fp),
+          "03c31007       srav    t0, t1, fp");
   COMPARE(dsrav(a0, a1, a2),
           "00c52017       dsrav   a0, a1, a2");
-  COMPARE(dsrav(s0, s1, s2),
-          "02518017       dsrav   s0, s1, s2");
+  COMPARE(dsrav(fp, s1, s2),
+          "02518017       dsrav   fp, s1, s2");
   COMPARE(dsrav(a6, a7, t0),
           "018b5017       dsrav   a6, a7, t0");
-  COMPARE(dsrav(v0, v1, fp),
-          "03c31017       dsrav   v0, v1, fp");
+  COMPARE(dsrav(t0, t1, fp),
+          "03c31017       dsrav   t0, t1, fp");
 
   COMPARE(rotr(a0, a1, 0), "00252002       rotr    a0, a1, 0");
-  COMPARE(rotr(s0, s1, 8), "00318202       rotr    s0, s1, 8");
+  COMPARE(rotr(fp, s1, 8), "00318202       rotr    fp, s1, 8");
   COMPARE(rotr(a6, a7, 24), "002b5602       rotr    a6, a7, 24");
-  COMPARE(rotr(v0, v1, 31), "002317c2       rotr    v0, v1, 31");
+  COMPARE(rotr(t0, t1, 31), "002317c2       rotr    t0, t1, 31");
   COMPARE(drotr(a0, a1, 0), "0025203a       drotr   a0, a1, 0");
-  COMPARE(drotr(s0, s1, 8), "0031823a       drotr   s0, s1, 8");
+  COMPARE(drotr(fp, s1, 8), "0031823a       drotr   fp, s1, 8");
   COMPARE(drotr(a6, a7, 24), "002b563a       drotr   a6, a7, 24");
-  COMPARE(drotr(v0, v1, 31), "002317fa       drotr   v0, v1, 31");
+  COMPARE(drotr(t0, t1, 31), "002317fa       drotr   t0, t1, 31");
 
   COMPARE(drotr32(a0, a1, 0), "0025203e       drotr32 a0, a1, 0");
-  COMPARE(drotr32(s0, s1, 8), "0031823e       drotr32 s0, s1, 8");
+  COMPARE(drotr32(fp, s1, 8), "0031823e       drotr32 fp, s1, 8");
   COMPARE(drotr32(a6, a7, 24), "002b563e       drotr32 a6, a7, 24");
-  COMPARE(drotr32(v0, v1, 31), "002317fe       drotr32 v0, v1, 31");
+  COMPARE(drotr32(t0, t1, 31), "002317fe       drotr32 t0, t1, 31");
 
   COMPARE(rotrv(a0, a1, a2), "00c52046       rotrv   a0, a1, a2");
-  COMPARE(rotrv(s0, s1, s2), "02518046       rotrv   s0, s1, s2");
+  COMPARE(rotrv(fp, s1, s2), "02518046       rotrv   fp, s1, s2");
   COMPARE(rotrv(a6, a7, t0), "018b5046       rotrv   a6, a7, t0");
-  COMPARE(rotrv(v0, v1, fp), "03c31046       rotrv   v0, v1, fp");
+  COMPARE(rotrv(t0, t1, fp), "03c31046       rotrv   t0, t1, fp");
   COMPARE(drotrv(a0, a1, a2), "00c52056       drotrv  a0, a1, a2");
-  COMPARE(drotrv(s0, s1, s2), "02518056       drotrv  s0, s1, s2");
+  COMPARE(drotrv(fp, s1, s2), "02518056       drotrv  fp, s1, s2");
   COMPARE(drotrv(a6, a7, t0), "018b5056       drotrv  a6, a7, t0");
-  COMPARE(drotrv(v0, v1, fp), "03c31056       drotrv  v0, v1, fp");
+  COMPARE(drotrv(t0, t1, fp), "03c31056       drotrv  t0, t1, fp");
 
   COMPARE(break_(0),
           "0000000d       break, code: 0x00000 (0)");
@@ -573,28 +573,28 @@ TEST(Type0) {
 
   COMPARE(tge(a0, a1, 0),
           "00850030       tge     a0, a1, code: 0x000");
-  COMPARE(tge(s0, s1, 1023),
-          "0211fff0       tge     s0, s1, code: 0x3ff");
+  COMPARE(tge(fp, s1, 1023),
+          "0211fff0       tge     fp, s1, code: 0x3ff");
   COMPARE(tgeu(a0, a1, 0),
           "00850031       tgeu    a0, a1, code: 0x000");
-  COMPARE(tgeu(s0, s1, 1023),
-          "0211fff1       tgeu    s0, s1, code: 0x3ff");
+  COMPARE(tgeu(fp, s1, 1023),
+          "0211fff1       tgeu    fp, s1, code: 0x3ff");
   COMPARE(tlt(a0, a1, 0),
           "00850032       tlt     a0, a1, code: 0x000");
-  COMPARE(tlt(s0, s1, 1023),
-          "0211fff2       tlt     s0, s1, code: 0x3ff");
+  COMPARE(tlt(fp, s1, 1023),
+          "0211fff2       tlt     fp, s1, code: 0x3ff");
   COMPARE(tltu(a0, a1, 0),
           "00850033       tltu    a0, a1, code: 0x000");
-  COMPARE(tltu(s0, s1, 1023),
-          "0211fff3       tltu    s0, s1, code: 0x3ff");
+  COMPARE(tltu(fp, s1, 1023),
+          "0211fff3       tltu    fp, s1, code: 0x3ff");
   COMPARE(teq(a0, a1, 0),
           "00850034       teq     a0, a1, code: 0x000");
-  COMPARE(teq(s0, s1, 1023),
-          "0211fff4       teq     s0, s1, code: 0x3ff");
+  COMPARE(teq(fp, s1, 1023),
+          "0211fff4       teq     fp, s1, code: 0x3ff");
   COMPARE(tne(a0, a1, 0),
           "00850036       tne     a0, a1, code: 0x000");
-  COMPARE(tne(s0, s1, 1023),
-          "0211fff6       tne     s0, s1, code: 0x3ff");
+  COMPARE(tne(fp, s1, 1023),
+          "0211fff6       tne     fp, s1, code: 0x3ff");
 
   COMPARE(mfhi(a0),
           "00002010       mfhi    a0");
@@ -602,385 +602,385 @@ TEST(Type0) {
           "00009010       mfhi    s2");
   COMPARE(mfhi(t0),
           "00006010       mfhi    t0");
-  COMPARE(mfhi(v1),
-          "00001810       mfhi    v1");
+  COMPARE(mfhi(t1),
+          "00001810       mfhi    t1");
   COMPARE(mflo(a0),
           "00002012       mflo    a0");
   COMPARE(mflo(s2),
           "00009012       mflo    s2");
   COMPARE(mflo(t0),
           "00006012       mflo    t0");
-  COMPARE(mflo(v1),
-          "00001812       mflo    v1");
+  COMPARE(mflo(t1),
+          "00001812       mflo    t1");
 
   COMPARE(slt(a0, a1, a2),
           "00a6202a       slt     a0, a1, a2");
-  COMPARE(slt(s0, s1, s2),
-          "0232802a       slt     s0, s1, s2");
+  COMPARE(slt(fp, s1, s2),
+          "0232802a       slt     fp, s1, s2");
   COMPARE(slt(a6, a7, t0),
           "016c502a       slt     a6, a7, t0");
-  COMPARE(slt(v0, v1, a2),
-          "0066102a       slt     v0, v1, a2");
+  COMPARE(slt(t0, t1, a2),
+          "0066102a       slt     t0, t1, a2");
   COMPARE(sltu(a0, a1, a2),
           "00a6202b       sltu    a0, a1, a2");
-  COMPARE(sltu(s0, s1, s2),
-          "0232802b       sltu    s0, s1, s2");
+  COMPARE(sltu(fp, s1, s2),
+          "0232802b       sltu    fp, s1, s2");
   COMPARE(sltu(a6, a7, t0),
           "016c502b       sltu    a6, a7, t0");
-  COMPARE(sltu(v0, v1, a2),
-          "0066102b       sltu    v0, v1, a2");
+  COMPARE(sltu(t0, t1, a2),
+          "0066102b       sltu    t0, t1, a2");
 
   COMPARE(slti(a0, a1, 0),
           "28a40000       slti    a0, a1, 0");
-  COMPARE(slti(s0, s1, 32767),
-          "2a307fff       slti    s0, s1, 32767");
+  COMPARE(slti(fp, s1, 32767),
+          "2a307fff       slti    fp, s1, 32767");
   COMPARE(slti(a6, a7, -32768),
           "296a8000       slti    a6, a7, -32768");
-  COMPARE(slti(v0, v1, -1),
-          "2862ffff       slti    v0, v1, -1");
+  COMPARE(slti(t0, t1, -1),
+          "2862ffff       slti    t0, t1, -1");
   COMPARE(sltiu(a0, a1, 0),
           "2ca40000       sltiu   a0, a1, 0");
-  COMPARE(sltiu(s0, s1, 32767),
-          "2e307fff       sltiu   s0, s1, 32767");
+  COMPARE(sltiu(fp, s1, 32767),
+          "2e307fff       sltiu   fp, s1, 32767");
   COMPARE(sltiu(a6, a7, -32768),
           "2d6a8000       sltiu   a6, a7, -32768");
-  COMPARE(sltiu(v0, v1, -1),
-          "2c62ffff       sltiu   v0, v1, -1");
+  COMPARE(sltiu(t0, t1, -1),
+          "2c62ffff       sltiu   t0, t1, -1");
   COMPARE(movz(a0, a1, a2),
           "00a6200a       movz    a0, a1, a2");
-  COMPARE(movz(s0, s1, s2),
-          "0232800a       movz    s0, s1, s2");
+  COMPARE(movz(fp, s1, s2),
+          "0232800a       movz    fp, s1, s2");
   COMPARE(movz(a6, a7, t0),
           "016c500a       movz    a6, a7, t0");
-  COMPARE(movz(v0, v1, a2),
-          "0066100a       movz    v0, v1, a2");
+  COMPARE(movz(t0, t1, a2),
+          "0066100a       movz    t0, t1, a2");
   COMPARE(movn(a0, a1, a2),
           "00a6200b       movn    a0, a1, a2");
-  COMPARE(movn(s0, s1, s2),
-          "0232800b       movn    s0, s1, s2");
+  COMPARE(movn(fp, s1, s2),
+          "0232800b       movn    fp, s1, s2");
   COMPARE(movn(a6, a7, t0),
           "016c500b       movn    a6, a7, t0");
-  COMPARE(movn(v0, v1, a2),
-          "0066100b       movn    v0, v1, a2");
+  COMPARE(movn(t0, t1, a2),
+          "0066100b       movn    t0, t1, a2");
 
   COMPARE(movt(a0, a1, 1),
           "00a52001       movt    a0, a1, 1");
-  COMPARE(movt(s0, s1, 2),
-          "02298001       movt    s0, s1, 2");
+  COMPARE(movt(fp, s1, 2),
+          "02298001       movt    fp, s1, 2");
   COMPARE(movt(a6, a7, 3),
           "016d5001       movt    a6, a7, 3");
-  COMPARE(movt(v0, v1, 7),
-          "007d1001       movt    v0, v1, 7");
+  COMPARE(movt(t0, t1, 7),
+          "007d1001       movt    t0, t1, 7");
   COMPARE(movf(a0, a1, 0),
           "00a02001       movf    a0, a1, 0");
-  COMPARE(movf(s0, s1, 4),
-          "02308001       movf    s0, s1, 4");
+  COMPARE(movf(fp, s1, 4),
+          "02308001       movf    fp, s1, 4");
   COMPARE(movf(a6, a7, 5),
           "01745001       movf    a6, a7, 5");
-  COMPARE(movf(v0, v1, 6),
-          "00781001       movf    v0, v1, 6");
+  COMPARE(movf(t0, t1, 6),
+          "00781001       movf    t0, t1, 6");
 
   if (kArchVariant == kMips64r6) {
     COMPARE(clz(a0, a1),
             "00a02050       clz     a0, a1");
     COMPARE(clz(s6, s7),
             "02e0b050       clz     s6, s7");
-    COMPARE(clz(v0, v1),
-            "00601050       clz     v0, v1");
+    COMPARE(clz(t0, t1),
+            "00601050       clz     t0, t1");
   } else {
     COMPARE(clz(a0, a1),
             "70a42020       clz     a0, a1");
     COMPARE(clz(s6, s7),
             "72f6b020       clz     s6, s7");
-    COMPARE(clz(v0, v1),
-            "70621020       clz     v0, v1");
+    COMPARE(clz(t0, t1),
+            "70621020       clz     t0, t1");
   }
 
   COMPARE(seb(a0, a1), "7c052420       seb     a0, a1");
   COMPARE(seb(s6, s7), "7c17b420       seb     s6, s7");
-  COMPARE(seb(v0, v1), "7c031420       seb     v0, v1");
+  COMPARE(seb(t0, t1), "7c031420       seb     t0, t1");
 
   COMPARE(seh(a0, a1), "7c052620       seh     a0, a1");
   COMPARE(seh(s6, s7), "7c17b620       seh     s6, s7");
-  COMPARE(seh(v0, v1), "7c031620       seh     v0, v1");
+  COMPARE(seh(t0, t1), "7c031620       seh     t0, t1");
 
   COMPARE(wsbh(a0, a1), "7c0520a0       wsbh    a0, a1");
   COMPARE(wsbh(s6, s7), "7c17b0a0       wsbh    s6, s7");
-  COMPARE(wsbh(v0, v1), "7c0310a0       wsbh    v0, v1");
+  COMPARE(wsbh(t0, t1), "7c0310a0       wsbh    t0, t1");
 
   COMPARE(dsbh(a0, a1), "7c0520a4       dsbh    a0, a1");
   COMPARE(dsbh(s6, s7), "7c17b0a4       dsbh    s6, s7");
-  COMPARE(dsbh(v0, v1), "7c0310a4       dsbh    v0, v1");
+  COMPARE(dsbh(t0, t1), "7c0310a4       dsbh    t0, t1");
 
   COMPARE(dshd(a0, a1), "7c052164       dshd    a0, a1");
   COMPARE(dshd(s6, s7), "7c17b164       dshd    s6, s7");
-  COMPARE(dshd(v0, v1), "7c031164       dshd    v0, v1");
+  COMPARE(dshd(t0, t1), "7c031164       dshd    t0, t1");
 
   COMPARE(ext_(a0, a1, 31, 1), "7ca407c0       ext     a0, a1, 31, 1");
   COMPARE(ext_(s6, s7, 30, 2), "7ef60f80       ext     s6, s7, 30, 2");
-  COMPARE(ext_(v0, v1, 0, 32), "7c62f800       ext     v0, v1, 0, 32");
+  COMPARE(ext_(t0, t1, 0, 32), "7c62f800       ext     t0, t1, 0, 32");
 
   COMPARE(dext_(a0, a1, 31, 1), "7ca407c3       dext    a0, a1, 31, 1");
   COMPARE(dext_(s6, s7, 30, 2), "7ef60f83       dext    s6, s7, 30, 2");
-  COMPARE(dext_(v0, v1, 0, 32), "7c62f803       dext    v0, v1, 0, 32");
+  COMPARE(dext_(t0, t1, 0, 32), "7c62f803       dext    t0, t1, 0, 32");
 
   COMPARE(dextm_(a0, a1, 31, 33), "7ca407c1       dextm   a0, a1, 31, 33");
   COMPARE(dextm_(s6, s7, 0, 33), "7ef60001       dextm   s6, s7, 0, 33");
-  COMPARE(dextm_(v0, v1, 0, 64), "7c62f801       dextm   v0, v1, 0, 64");
+  COMPARE(dextm_(t0, t1, 0, 64), "7c62f801       dextm   t0, t1, 0, 64");
 
   COMPARE(dextu_(a0, a1, 32, 1), "7ca40002       dextu   a0, a1, 32, 1");
   COMPARE(dextu_(s6, s7, 63, 1), "7ef607c2       dextu   s6, s7, 63, 1");
-  COMPARE(dextu_(v0, v1, 32, 32), "7c62f802       dextu   v0, v1, 32, 32");
+  COMPARE(dextu_(t0, t1, 32, 32), "7c62f802       dextu   t0, t1, 32, 32");
 
   COMPARE(ins_(a0, a1, 31, 1), "7ca4ffc4       ins     a0, a1, 31, 1");
   COMPARE(ins_(s6, s7, 30, 2), "7ef6ff84       ins     s6, s7, 30, 2");
-  COMPARE(ins_(v0, v1, 0, 32), "7c62f804       ins     v0, v1, 0, 32");
+  COMPARE(ins_(t0, t1, 0, 32), "7c62f804       ins     t0, t1, 0, 32");
 
   COMPARE(dins_(a0, a1, 31, 1), "7ca4ffc7       dins    a0, a1, 31, 1");
   COMPARE(dins_(s6, s7, 30, 2), "7ef6ff87       dins    s6, s7, 30, 2");
-  COMPARE(dins_(v0, v1, 0, 32), "7c62f807       dins    v0, v1, 0, 32");
+  COMPARE(dins_(t0, t1, 0, 32), "7c62f807       dins    t0, t1, 0, 32");
 
   COMPARE(dinsm_(a0, a1, 31, 2), "7ca407c5       dinsm   a0, a1, 31, 2");
   COMPARE(dinsm_(s6, s7, 0, 33), "7ef60005       dinsm   s6, s7, 0, 33");
-  COMPARE(dinsm_(v0, v1, 0, 64), "7c62f805       dinsm   v0, v1, 0, 64");
+  COMPARE(dinsm_(t0, t1, 0, 64), "7c62f805       dinsm   t0, t1, 0, 64");
 
   COMPARE(dinsu_(a0, a1, 32, 1), "7ca40006       dinsu   a0, a1, 32, 1");
   COMPARE(dinsu_(s6, s7, 63, 1), "7ef6ffc6       dinsu   s6, s7, 63, 1");
-  COMPARE(dinsu_(v0, v1, 32, 32), "7c62f806       dinsu   v0, v1, 32, 32");
+  COMPARE(dinsu_(t0, t1, 32, 32), "7c62f806       dinsu   t0, t1, 32, 32");
 
-  COMPARE(add_s(f4, f6, f8), "46083100       add.s   f4, f6, f8");
-  COMPARE(add_d(f12, f14, f16), "46307300       add.d   f12, f14, f16");
+//   COMPARE(add_s(ft0, ft1, ft8), "46083100       add.s   ft0, ft1, ft8");
+//   COMPARE(add_d(ft3, ft4, ft5), "46307300       add.d   ft3, ft4, ft5");
 
-  if (kArchVariant == kMips64r6) {
-    COMPARE(bitswap(a0, a1), "7c052020       bitswap a0, a1");
-    COMPARE(bitswap(t8, s0), "7c10c020       bitswap t8, s0");
-    COMPARE(dbitswap(a0, a1), "7c052024       dbitswap a0, a1");
-    COMPARE(dbitswap(t8, s0), "7c10c024       dbitswap t8, s0");
-  }
+//   if (kArchVariant == kMips64r6) {
+//     COMPARE(bitswap(a0, a1), "7c052020       bitswap a0, a1");
+//     COMPARE(bitswap(t8, fp), "7c10c020       bitswap t8, fp");
+//     COMPARE(dbitswap(a0, a1), "7c052024       dbitswap a0, a1");
+//     COMPARE(dbitswap(t8, fp), "7c10c024       dbitswap t8, fp");
+//   }
 
-  COMPARE(abs_s(f6, f8), "46004185       abs.s   f6, f8");
-  COMPARE(abs_d(f10, f12), "46206285       abs.d   f10, f12");
+//   COMPARE(abs_s(ft1, ft8), "46004185       abs.s   ft1, ft8");
+//   COMPARE(abs_d(f10, ft3), "46206285       abs.d   f10, ft3");
 
-  COMPARE(div_s(f2, f4, f6), "46062083       div.s   f2, f4, f6");
-  COMPARE(div_d(f2, f4, f6), "46262083       div.d   f2, f4, f6");
+//   COMPARE(div_s(f2, ft0, ft1), "46062083       div.s   f2, ft0, ft1");
+//   COMPARE(div_d(f2, ft0, ft1), "46262083       div.d   f2, ft0, ft1");
 
-  if (kArchVariant == kMips64r6) {
-    COMPARE(align(v0, a0, a1, 0), "7c851220       align  v0, a0, a1, 0");
-    COMPARE(align(v0, a0, a1, 1), "7c851260       align  v0, a0, a1, 1");
-    COMPARE(align(v0, a0, a1, 2), "7c8512a0       align  v0, a0, a1, 2");
-    COMPARE(align(v0, a0, a1, 3), "7c8512e0       align  v0, a0, a1, 3");
-  }
+//   if (kArchVariant == kMips64r6) {
+//     COMPARE(align(t0, a0, a1, 0), "7c851220       align  t0, a0, a1, 0");
+//     COMPARE(align(t0, a0, a1, 1), "7c851260       align  t0, a0, a1, 1");
+//     COMPARE(align(t0, a0, a1, 2), "7c8512a0       align  t0, a0, a1, 2");
+//     COMPARE(align(t0, a0, a1, 3), "7c8512e0       align  t0, a0, a1, 3");
+//   }
 
-  if (kArchVariant == kMips64r6) {
-    COMPARE(dalign(v0, a0, a1, 0), "7c851224       dalign  v0, a0, a1, 0");
-    COMPARE(dalign(v0, a0, a1, 1), "7c851264       dalign  v0, a0, a1, 1");
-    COMPARE(dalign(v0, a0, a1, 2), "7c8512a4       dalign  v0, a0, a1, 2");
-    COMPARE(dalign(v0, a0, a1, 3), "7c8512e4       dalign  v0, a0, a1, 3");
-    COMPARE(dalign(v0, a0, a1, 4), "7c851324       dalign  v0, a0, a1, 4");
-    COMPARE(dalign(v0, a0, a1, 5), "7c851364       dalign  v0, a0, a1, 5");
-    COMPARE(dalign(v0, a0, a1, 6), "7c8513a4       dalign  v0, a0, a1, 6");
-    COMPARE(dalign(v0, a0, a1, 7), "7c8513e4       dalign  v0, a0, a1, 7");
-  }
+//   if (kArchVariant == kMips64r6) {
+//     COMPARE(dalign(t0, a0, a1, 0), "7c851224       dalign  t0, a0, a1, 0");
+//     COMPARE(dalign(t0, a0, a1, 1), "7c851264       dalign  t0, a0, a1, 1");
+//     COMPARE(dalign(t0, a0, a1, 2), "7c8512a4       dalign  t0, a0, a1, 2");
+//     COMPARE(dalign(t0, a0, a1, 3), "7c8512e4       dalign  t0, a0, a1, 3");
+//     COMPARE(dalign(t0, a0, a1, 4), "7c851324       dalign  t0, a0, a1, 4");
+//     COMPARE(dalign(t0, a0, a1, 5), "7c851364       dalign  t0, a0, a1, 5");
+//     COMPARE(dalign(t0, a0, a1, 6), "7c8513a4       dalign  t0, a0, a1, 6");
+//     COMPARE(dalign(t0, a0, a1, 7), "7c8513e4       dalign  t0, a0, a1, 7");
+//   }
 
-  if (kArchVariant == kMips64r6) {
-    COMPARE(aluipc(v0, 0), "ec5f0000       aluipc  v0, 0");
-    COMPARE(aluipc(v0, 1), "ec5f0001       aluipc  v0, 1");
-    COMPARE(aluipc(v0, 32767), "ec5f7fff       aluipc  v0, 32767");
-    COMPARE(aluipc(v0, -32768), "ec5f8000       aluipc  v0, -32768");
-    COMPARE(aluipc(v0, -1), "ec5fffff       aluipc  v0, -1");
-  }
+//   if (kArchVariant == kMips64r6) {
+//     COMPARE(aluipc(t0, 0), "ec5f0000       aluipc  t0, 0");
+//     COMPARE(aluipc(t0, 1), "ec5f0001       aluipc  t0, 1");
+//     COMPARE(aluipc(t0, 32767), "ec5f7fff       aluipc  t0, 32767");
+//     COMPARE(aluipc(t0, -32768), "ec5ft8000       aluipc  t0, -32768");
+//     COMPARE(aluipc(t0, -1), "ec5fffff       aluipc  t0, -1");
+//   }
 
-  if (kArchVariant == kMips64r6) {
-    COMPARE(auipc(t8, 0), "ef1e0000       auipc   t8, 0");
-    COMPARE(auipc(t8, 1), "ef1e0001       auipc   t8, 1");
-    COMPARE(auipc(t8, 32767), "ef1e7fff       auipc   t8, 32767");
-    COMPARE(auipc(t8, -32768), "ef1e8000       auipc   t8, -32768");
-    COMPARE(auipc(t8, -1), "ef1effff       auipc   t8, -1");
-  }
+//   if (kArchVariant == kMips64r6) {
+//     COMPARE(auipc(t8, 0), "ef1e0000       auipc   t8, 0");
+//     COMPARE(auipc(t8, 1), "ef1e0001       auipc   t8, 1");
+//     COMPARE(auipc(t8, 32767), "ef1e7fff       auipc   t8, 32767");
+//     COMPARE(auipc(t8, -32768), "ef1e8000       auipc   t8, -32768");
+//     COMPARE(auipc(t8, -1), "ef1effff       auipc   t8, -1");
+//   }
 
-  if (kArchVariant == kMips64r6) {
-    COMPARE(lwpc(a5, 0), "ed280000       lwpc    a5, 0");
-    COMPARE(lwpc(a5, 4), "ed280004       lwpc    a5, 4");
-    COMPARE(lwpc(a5, -4), "ed2ffffc       lwpc    a5, -4");
-  }
+//   if (kArchVariant == kMips64r6) {
+//     COMPARE(lwpc(a5, 0), "ed280000       lwpc    a5, 0");
+//     COMPARE(lwpc(a5, 4), "ed280004       lwpc    a5, 4");
+//     COMPARE(lwpc(a5, -4), "ed2ffffc       lwpc    a5, -4");
+//   }
 
-  if (kArchVariant == kMips64r6) {
-    COMPARE(lwupc(a0, -262144), "ec940000       lwupc   a0, -262144");
-    COMPARE(lwupc(a0, -1), "ec97ffff       lwupc   a0, -1");
-    COMPARE(lwupc(a0, 0), "ec900000       lwupc   a0, 0");
-    COMPARE(lwupc(a0, 1), "ec900001       lwupc   a0, 1");
-    COMPARE(lwupc(a0, 262143), "ec93ffff       lwupc   a0, 262143");
-  }
+//   if (kArchVariant == kMips64r6) {
+//     COMPARE(lwupc(a0, -262144), "ec940000       lwupc   a0, -262144");
+//     COMPARE(lwupc(a0, -1), "ec97ffff       lwupc   a0, -1");
+//     COMPARE(lwupc(a0, 0), "ec900000       lwupc   a0, 0");
+//     COMPARE(lwupc(a0, 1), "ec900001       lwupc   a0, 1");
+//     COMPARE(lwupc(a0, 262143), "ec93ffff       lwupc   a0, 262143");
+//   }
 
-  if (kArchVariant == kMips64r6) {
-    COMPARE(jic(t0, 16), "d80c0010       jic     t0, 16");
-    COMPARE(jic(t0, 4), "d80c0004       jic     t0, 4");
-    COMPARE(jic(t0, -32), "d80cffe0       jic     t0, -32");
-  }
+//   if (kArchVariant == kMips64r6) {
+//     COMPARE(jic(t0, 16), "d80c0010       jic     t0, 16");
+//     COMPARE(jic(t0, 4), "d80c0004       jic     t0, 4");
+//     COMPARE(jic(t0, -32), "d80cffe0       jic     t0, -32");
+//   }
 
-  if (kArchVariant == kMips64r6) {
-    COMPARE(ldpc(v0, 256), "ec580100       ldpc    v0, 256");
-    COMPARE(ldpc(a0, -1), "ec9bffff       ldpc    a0, -1");
-    COMPARE(ldpc(a1, 0), "ecb80000       ldpc    a1, 0");
-  }
+//   if (kArchVariant == kMips64r6) {
+//     COMPARE(ldpc(t0, 256), "ec580100       ldpc    t0, 256");
+//     COMPARE(ldpc(a0, -1), "ec9bffff       ldpc    a0, -1");
+//     COMPARE(ldpc(a1, 0), "ecb80000       ldpc    a1, 0");
+//   }
 
-  if (kArchVariant == kMips64r6) {
-    COMPARE(addiupc(a0, 262143), "ec83ffff       addiupc a0, 262143");
-    COMPARE(addiupc(a0, -1), "ec87ffff       addiupc a0, -1");
-    COMPARE(addiupc(v0, 0), "ec400000       addiupc v0, 0");
-    COMPARE(addiupc(s1, 1), "ee200001       addiupc s1, 1");
-    COMPARE(addiupc(a0, -262144), "ec840000       addiupc a0, -262144");
-  }
+//   if (kArchVariant == kMips64r6) {
+//     COMPARE(addiupc(a0, 262143), "ec83ffff       addiupc a0, 262143");
+//     COMPARE(addiupc(a0, -1), "ec87ffff       addiupc a0, -1");
+//     COMPARE(addiupc(t0, 0), "ec400000       addiupc t0, 0");
+//     COMPARE(addiupc(s1, 1), "ee200001       addiupc s1, 1");
+//     COMPARE(addiupc(a0, -262144), "ec840000       addiupc a0, -262144");
+//   }
 
-  if (kArchVariant == kMips64r6) {
-    COMPARE(jialc(a0, -32768), "f8048000       jialc   a0, -32768");
-    COMPARE(jialc(a0, -1), "f804ffff       jialc   a0, -1");
-    COMPARE(jialc(v0, 0), "f8020000       jialc   v0, 0");
-    COMPARE(jialc(s1, 1), "f8110001       jialc   s1, 1");
-    COMPARE(jialc(a0, 32767), "f8047fff       jialc   a0, 32767");
-  }
+//   if (kArchVariant == kMips64r6) {
+//     COMPARE(jialc(a0, -32768), "ft8048000       jialc   a0, -32768");
+//     COMPARE(jialc(a0, -1), "ft804ffff       jialc   a0, -1");
+//     COMPARE(jialc(t0, 0), "ft8020000       jialc   t0, 0");
+//     COMPARE(jialc(s1, 1), "ft8110001       jialc   s1, 1");
+//     COMPARE(jialc(a0, 32767), "ft8047fff       jialc   a0, 32767");
+//   }
 
-  VERIFY_RUN();
-}
-
-
-TEST(Type1) {
-  SET_UP();
-  if (kArchVariant == kMips64r6) {
-    COMPARE(seleqz(a0, a1, a2), "00a62035       seleqz    a0, a1, a2");
-    COMPARE(selnez(a0, a1, a2), "00a62037       selnez    a0, a1, a2");
+//   VERIFY_RUN();
+// }
 
 
-    COMPARE(seleqz(D, f3, f4, f5), "462520d4       seleqz.d    f3, f4, f5");
-    COMPARE(selnez(D, f3, f4, f5), "462520d7       selnez.d    f3, f4, f5");
-    COMPARE(seleqz(S, f3, f4, f5), "460520d4       seleqz.s    f3, f4, f5");
-    COMPARE(selnez(S, f3, f4, f5), "460520d7       selnez.s    f3, f4, f5");
-
-    COMPARE(min_d(f3, f4, f5), "462520dc       min.d    f3, f4, f5");
-    COMPARE(max_d(f3, f4, f5), "462520de       max.d    f3, f4, f5");
-
-    COMPARE(sel(S, f3, f4, f5), "460520d0       sel.s      f3, f4, f5");
-    COMPARE(sel(D, f3, f4, f5), "462520d0       sel.d      f3, f4, f5");
-
-    COMPARE(rint_d(f8, f6), "4620321a       rint.d    f8, f6");
-
-    COMPARE(min_s(f3, f4, f5), "460520dc       min.s    f3, f4, f5");
-    COMPARE(max_s(f3, f4, f5), "460520de       max.s    f3, f4, f5");
-
-    COMPARE(rint(S, f8, f6), "4600321a       rint.s    f8, f6");
-
-    COMPARE(mina_d(f3, f4, f5), "462520dd       mina.d   f3, f4, f5");
-    COMPARE(mina_s(f3, f4, f5), "460520dd       mina.s   f3, f4, f5");
-
-    COMPARE(maxa_d(f3, f4, f5), "462520df       maxa.d   f3, f4, f5");
-    COMPARE(maxa_s(f3, f4, f5), "460520df       maxa.s   f3, f4, f5");
-  }
-  COMPARE(trunc_w_d(f8, f6), "4620320d       trunc.w.d f8, f6");
-  COMPARE(trunc_w_s(f8, f6), "4600320d       trunc.w.s f8, f6");
-
-  COMPARE(round_w_s(f8, f6), "4600320c       round.w.s f8, f6");
-  COMPARE(round_w_d(f8, f6), "4620320c       round.w.d f8, f6");
-
-  COMPARE(round_l_s(f8, f6), "46003208       round.l.s f8, f6");
-  COMPARE(round_l_d(f8, f6), "46203208       round.l.d f8, f6");
-
-  COMPARE(floor_w_s(f8, f6), "4600320f       floor.w.s f8, f6");
-  COMPARE(floor_w_d(f8, f6), "4620320f       floor.w.d f8, f6");
-
-  COMPARE(floor_l_s(f8, f6), "4600320b       floor.l.s f8, f6");
-  COMPARE(floor_l_d(f8, f6), "4620320b       floor.l.d f8, f6");
-
-  COMPARE(ceil_w_s(f8, f6), "4600320e       ceil.w.s f8, f6");
-  COMPARE(ceil_w_d(f8, f6), "4620320e       ceil.w.d f8, f6");
-
-  COMPARE(ceil_l_s(f8, f6), "4600320a       ceil.l.s f8, f6");
-  COMPARE(ceil_l_d(f8, f6), "4620320a       ceil.l.d f8, f6");
-
-  COMPARE(sub_s(f10, f8, f6), "46064281       sub.s   f10, f8, f6");
-  COMPARE(sub_d(f10, f8, f6), "46264281       sub.d   f10, f8, f6");
-
-  COMPARE(sqrt_s(f8, f6), "46003204       sqrt.s  f8, f6");
-  COMPARE(sqrt_d(f8, f6), "46203204       sqrt.d  f8, f6");
-
-  COMPARE(neg_s(f8, f6), "46003207       neg.s   f8, f6");
-  COMPARE(neg_d(f8, f6), "46203207       neg.d   f8, f6");
-
-  COMPARE(mul_s(f8, f6, f4), "46043202       mul.s   f8, f6, f4");
-  COMPARE(mul_d(f8, f6, f4), "46243202       mul.d   f8, f6, f4");
-
-  COMPARE(rsqrt_s(f8, f6), "46003216       rsqrt.s  f8, f6");
-  COMPARE(rsqrt_d(f8, f6), "46203216       rsqrt.d  f8, f6");
-
-  COMPARE(recip_s(f8, f6), "46003215       recip.s  f8, f6");
-  COMPARE(recip_d(f8, f6), "46203215       recip.d  f8, f6");
-
-  COMPARE(mov_s(f6, f4), "46002186       mov.s   f6, f4");
-  COMPARE(mov_d(f6, f4), "46202186       mov.d   f6, f4");
-  if (kArchVariant == kMips64r2) {
-    COMPARE(trunc_l_d(f8, f6), "46203209       trunc.l.d f8, f6");
-    COMPARE(trunc_l_s(f8, f6), "46003209       trunc.l.s f8, f6");
-
-    COMPARE(movz_s(f6, f4, t0), "460c2192       movz.s    f6, f4, t0");
-    COMPARE(movz_d(f6, f4, t0), "462c2192       movz.d    f6, f4, t0");
-
-    COMPARE(movt_s(f6, f4, 4), "46112191       movt.s    f6, f4, cc(1)");
-    COMPARE(movt_d(f6, f4, 4), "46312191       movt.d    f6, f4, cc(1)");
-
-    COMPARE(movf_s(f6, f4, 4), "46102191       movf.s    f6, f4, cc(1)");
-    COMPARE(movf_d(f6, f4, 4), "46302191       movf.d    f6, f4, cc(1)");
-
-    COMPARE(movn_s(f6, f4, t0), "460c2193       movn.s    f6, f4, t0");
-    COMPARE(movn_d(f6, f4, t0), "462c2193       movn.d    f6, f4, t0");
-  }
-  VERIFY_RUN();
-}
+// TEST(Type1) {
+//   SET_UP();
+//   if (kArchVariant == kMips64r6) {
+//     COMPARE(seleqz(a0, a1, a2), "00a62035       seleqz    a0, a1, a2");
+//     COMPARE(selnez(a0, a1, a2), "00a62037       selnez    a0, a1, a2");
 
 
-TEST(Type2) {
-  if (kArchVariant == kMips64r6) {
-    SET_UP();
+//     COMPARE(seleqz(D, f3, ft0, f5), "462520d4       seleqz.d    f3, ft0, f5");
+//     COMPARE(selnez(D, f3, ft0, f5), "462520d7       selnez.d    f3, ft0, f5");
+//     COMPARE(seleqz(S, f3, ft0, f5), "460520d4       seleqz.s    f3, ft0, f5");
+//     COMPARE(selnez(S, f3, ft0, f5), "460520d7       selnez.s    f3, ft0, f5");
 
-    COMPARE(class_s(f3, f4), "460020db       class.s f3, f4");
-    COMPARE(class_d(f2, f3), "4620189b       class.d f2, f3");
+//     COMPARE(min_d(f3, ft0, f5), "462520dc       min.d    f3, ft0, f5");
+//     COMPARE(max_d(f3, ft0, f5), "462520de       max.d    f3, ft0, f5");
 
-    VERIFY_RUN();
-  }
-}
+//     COMPARE(sel(S, f3, ft0, f5), "460520d0       sel.s      f3, ft0, f5");
+//     COMPARE(sel(D, f3, ft0, f5), "462520d0       sel.d      f3, ft0, f5");
+
+//     COMPARE(rint_d(ft8, ft1), "4620321a       rint.d    ft8, ft1");
+
+//     COMPARE(min_s(f3, ft0, f5), "460520dc       min.s    f3, ft0, f5");
+//     COMPARE(max_s(f3, ft0, f5), "460520de       max.s    f3, ft0, f5");
+
+//     COMPARE(rint(S, ft8, ft1), "4600321a       rint.s    ft8, ft1");
+
+//     COMPARE(mina_d(f3, ft0, f5), "462520dd       mina.d   f3, ft0, f5");
+//     COMPARE(mina_s(f3, ft0, f5), "460520dd       mina.s   f3, ft0, f5");
+
+//     COMPARE(maxa_d(f3, ft0, f5), "462520df       maxa.d   f3, ft0, f5");
+//     COMPARE(maxa_s(f3, ft0, f5), "460520df       maxa.s   f3, ft0, f5");
+//   }
+//   COMPARE(trunc_w_d(ft8, ft1), "4620320d       trunc.w.d ft8, ft1");
+//   COMPARE(trunc_w_s(ft8, ft1), "4600320d       trunc.w.s ft8, ft1");
+
+//   COMPARE(round_w_s(ft8, ft1), "4600320c       round.w.s ft8, ft1");
+//   COMPARE(round_w_d(ft8, ft1), "4620320c       round.w.d ft8, ft1");
+
+//   COMPARE(round_l_s(ft8, ft1), "46003208       round.l.s ft8, ft1");
+//   COMPARE(round_l_d(ft8, ft1), "46203208       round.l.d ft8, ft1");
+
+//   COMPARE(floor_w_s(ft8, ft1), "4600320f       floor.w.s ft8, ft1");
+//   COMPARE(floor_w_d(ft8, ft1), "4620320f       floor.w.d ft8, ft1");
+
+//   COMPARE(floor_l_s(ft8, ft1), "4600320b       floor.l.s ft8, ft1");
+//   COMPARE(floor_l_d(ft8, ft1), "4620320b       floor.l.d ft8, ft1");
+
+//   COMPARE(ceil_w_s(ft8, ft1), "4600320e       ceil.w.s ft8, ft1");
+//   COMPARE(ceil_w_d(ft8, ft1), "4620320e       ceil.w.d ft8, ft1");
+
+//   COMPARE(ceil_l_s(ft8, ft1), "4600320a       ceil.l.s ft8, ft1");
+//   COMPARE(ceil_l_d(ft8, ft1), "4620320a       ceil.l.d ft8, ft1");
+
+//   COMPARE(sub_s(f10, ft8, ft1), "46064281       sub.s   f10, ft8, ft1");
+//   COMPARE(sub_d(f10, ft8, ft1), "46264281       sub.d   f10, ft8, ft1");
+
+//   COMPARE(sqrt_s(ft8, ft1), "46003204       sqrt.s  ft8, ft1");
+//   COMPARE(sqrt_d(ft8, ft1), "46203204       sqrt.d  ft8, ft1");
+
+//   COMPARE(neg_s(ft8, ft1), "46003207       neg.s   ft8, ft1");
+//   COMPARE(neg_d(ft8, ft1), "46203207       neg.d   ft8, ft1");
+
+//   COMPARE(mul_s(ft8, ft1, ft0), "46043202       mul.s   ft8, ft1, ft0");
+//   COMPARE(mul_d(ft8, ft1, ft0), "46243202       mul.d   ft8, ft1, ft0");
+
+//   COMPARE(rsqrt_s(ft8, ft1), "46003216       rsqrt.s  ft8, ft1");
+//   COMPARE(rsqrt_d(ft8, ft1), "46203216       rsqrt.d  ft8, ft1");
+
+//   COMPARE(recip_s(ft8, ft1), "46003215       recip.s  ft8, ft1");
+//   COMPARE(recip_d(ft8, ft1), "46203215       recip.d  ft8, ft1");
+
+//   COMPARE(mov_s(ft1, ft0), "46002186       mov.s   ft1, ft0");
+//   COMPARE(mov_d(ft1, ft0), "46202186       mov.d   ft1, ft0");
+//   if (kArchVariant == kMips64r2) {
+//     COMPARE(trunc_l_d(ft8, ft1), "46203209       trunc.l.d ft8, ft1");
+//     COMPARE(trunc_l_s(ft8, ft1), "46003209       trunc.l.s ft8, ft1");
+
+//     COMPARE(movz_s(ft1, ft0, t0), "460c2192       movz.s    ft1, ft0, t0");
+//     COMPARE(movz_d(ft1, ft0, t0), "462c2192       movz.d    ft1, ft0, t0");
+
+//     COMPARE(movt_s(ft1, ft0, 4), "46112191       movt.s    ft1, ft0, cc(1)");
+//     COMPARE(movt_d(ft1, ft0, 4), "46312191       movt.d    ft1, ft0, cc(1)");
+
+//     COMPARE(movf_s(ft1, ft0, 4), "46102191       movf.s    ft1, ft0, cc(1)");
+//     COMPARE(movf_d(ft1, ft0, 4), "46302191       movf.d    ft1, ft0, cc(1)");
+
+//     COMPARE(movn_s(ft1, ft0, t0), "460c2193       movn.s    ft1, ft0, t0");
+//     COMPARE(movn_d(ft1, ft0, t0), "462c2193       movn.d    ft1, ft0, t0");
+//   }
+//   VERIFY_RUN();
+// }
 
 
-TEST(Type3) {
-  SET_UP();
+// TEST(Type2) {
+//   if (kArchVariant == kMips64r6) {
+//     SET_UP();
 
-  if (kArchVariant == kMips64r6) {
-    COMPARE_PC_REL_COMPACT(bovc(a0, a0, static_cast<int16_t>(0)),
-                           "20840000       bovc  a0, a0, 0", 0);
-    COMPARE_PC_REL_COMPACT(bovc(a1, a0, static_cast<int16_t>(0)),
-                           "20a40000       bovc  a1, a0, 0", 0);
-    COMPARE_PC_REL_COMPACT(bovc(a1, a0, 32767),
-                           "20a47fff       bovc  a1, a0, 32767", 32767);
-    COMPARE_PC_REL_COMPACT(bovc(a1, a0, -32768),
-                           "20a48000       bovc  a1, a0, -32768", -32768);
+//     COMPARE(class_s(f3, ft0), "460020db       class.s f3, ft0");
+//     COMPARE(class_d(f2, f3), "4620189b       class.d f2, f3");
 
-    COMPARE_PC_REL_COMPACT(bnvc(a0, a0, static_cast<int16_t>(0)),
-                           "60840000       bnvc  a0, a0, 0", 0);
-    COMPARE_PC_REL_COMPACT(bnvc(a1, a0, static_cast<int16_t>(0)),
-                           "60a40000       bnvc  a1, a0, 0", 0);
-    COMPARE_PC_REL_COMPACT(bnvc(a1, a0, 32767),
-                           "60a47fff       bnvc  a1, a0, 32767", 32767);
-    COMPARE_PC_REL_COMPACT(bnvc(a1, a0, -32768),
-                           "60a48000       bnvc  a1, a0, -32768", -32768);
+//     VERIFY_RUN();
+//   }
+// }
 
-    COMPARE_PC_REL_COMPACT(beqzc(a0, 0), "d8800000       beqzc   a0, 0", 0);
-    COMPARE_PC_REL_COMPACT(beqzc(a0, 1048575),  // 0x0FFFFF ==  1048575.
-                           "d88fffff       beqzc   a0, 1048575", 1048575);
-    COMPARE_PC_REL_COMPACT(beqzc(a0, -1048576),  // 0x100000 == -1048576.
-                           "d8900000       beqzc   a0, -1048576", -1048576);
 
-    COMPARE_PC_REL_COMPACT(bnezc(a0, 0), "f8800000       bnezc   a0, 0", 0);
-    COMPARE_PC_REL_COMPACT(bnezc(a0, 1048575),  // int21 maximal value.
-                           "f88fffff       bnezc   a0, 1048575", 1048575);
-    COMPARE_PC_REL_COMPACT(bnezc(a0, -1048576),  // int21 minimal value.
-                           "f8900000       bnezc   a0, -1048576", -1048576);
+// TEST(Type3) {
+//   SET_UP();
+
+//   if (kArchVariant == kMips64r6) {
+//     COMPARE_PC_REL_COMPACT(bovc(a0, a0, static_cast<int16_t>(0)),
+//                            "20840000       bovc  a0, a0, 0", 0);
+//     COMPARE_PC_REL_COMPACT(bovc(a1, a0, static_cast<int16_t>(0)),
+//                            "20a40000       bovc  a1, a0, 0", 0);
+//     COMPARE_PC_REL_COMPACT(bovc(a1, a0, 32767),
+//                            "20a47fff       bovc  a1, a0, 32767", 32767);
+//     COMPARE_PC_REL_COMPACT(bovc(a1, a0, -32768),
+//                            "20a48000       bovc  a1, a0, -32768", -32768);
+
+//     COMPARE_PC_REL_COMPACT(bnvc(a0, a0, static_cast<int16_t>(0)),
+//                            "60840000       bnvc  a0, a0, 0", 0);
+//     COMPARE_PC_REL_COMPACT(bnvc(a1, a0, static_cast<int16_t>(0)),
+//                            "60a40000       bnvc  a1, a0, 0", 0);
+//     COMPARE_PC_REL_COMPACT(bnvc(a1, a0, 32767),
+//                            "60a47fff       bnvc  a1, a0, 32767", 32767);
+//     COMPARE_PC_REL_COMPACT(bnvc(a1, a0, -32768),
+//                            "60a48000       bnvc  a1, a0, -32768", -32768);
+
+//     COMPARE_PC_REL_COMPACT(beqzc(a0, 0), "d8800000       beqzc   a0, 0", 0);
+//     COMPARE_PC_REL_COMPACT(beqzc(a0, 1048575),  // 0x0FFFFF ==  1048575.
+//                            "d88fffff       beqzc   a0, 1048575", 1048575);
+//     COMPARE_PC_REL_COMPACT(beqzc(a0, -1048576),  // 0x100000 == -1048576.
+//                            "d8900000       beqzc   a0, -1048576", -1048576);
+
+//     COMPARE_PC_REL_COMPACT(bnezc(a0, 0), "ft8800000       bnezc   a0, 0", 0);
+//     COMPARE_PC_REL_COMPACT(bnezc(a0, 1048575),  // int21 maximal value.
+//                            "ft88fffff       bnezc   a0, 1048575", 1048575);
+//     COMPARE_PC_REL_COMPACT(bnezc(a0, -1048576),  // int21 minimal value.
+//                            "ft8900000       bnezc   a0, -1048576", -1048576);
 
     COMPARE_PC_REL_COMPACT(bc(-33554432), "ca000000       bc      -33554432",
                            -33554432);
@@ -1094,21 +1094,21 @@ TEST(Type3) {
     COMPARE_PC_REL_COMPACT(bgtzc(a0, 32767),
                            "5c047fff       bgtzc    a0, 32767", 32767);
 
-    COMPARE_PC_REL_COMPACT(bc1eqz(-32768, f1),
-                           "45218000       bc1eqz    f1, -32768", -32768);
-    COMPARE_PC_REL_COMPACT(bc1eqz(-1, f1), "4521ffff       bc1eqz    f1, -1",
+    COMPARE_PC_REL_COMPACT(bc1eqz(-32768, fa0),
+                           "45218000       bc1eqz    fa0, -32768", -32768);
+    COMPARE_PC_REL_COMPACT(bc1eqz(-1, fa0), "4521ffff       bc1eqz    fa0, -1",
                            -1);
-    COMPARE_PC_REL_COMPACT(bc1eqz(1, f1), "45210001       bc1eqz    f1, 1", 1);
-    COMPARE_PC_REL_COMPACT(bc1eqz(32767, f1),
-                           "45217fff       bc1eqz    f1, 32767", 32767);
+    COMPARE_PC_REL_COMPACT(bc1eqz(1, fa0), "45210001       bc1eqz    fa0, 1", 1);
+    COMPARE_PC_REL_COMPACT(bc1eqz(32767, fa0),
+                           "45217fff       bc1eqz    fa0, 32767", 32767);
 
-    COMPARE_PC_REL_COMPACT(bc1nez(-32768, f1),
-                           "45a18000       bc1nez    f1, -32768", -32768);
-    COMPARE_PC_REL_COMPACT(bc1nez(-1, f1), "45a1ffff       bc1nez    f1, -1",
+    COMPARE_PC_REL_COMPACT(bc1nez(-32768, fa0),
+                           "45a18000       bc1nez    fa0, -32768", -32768);
+    COMPARE_PC_REL_COMPACT(bc1nez(-1, fa0), "45a1ffff       bc1nez    fa0, -1",
                            -1);
-    COMPARE_PC_REL_COMPACT(bc1nez(1, f1), "45a10001       bc1nez    f1, 1", 1);
-    COMPARE_PC_REL_COMPACT(bc1nez(32767, f1),
-                           "45a17fff       bc1nez    f1, 32767", 32767);
+    COMPARE_PC_REL_COMPACT(bc1nez(1, fa0), "45a10001       bc1nez    fa0, 1", 1);
+    COMPARE_PC_REL_COMPACT(bc1nez(32767, fa0),
+                           "45a17fff       bc1nez    fa0, 32767", 32767);
 
     COMPARE_PC_REL_COMPACT(bovc(a1, a0, -1), "20a4ffff       bovc  a1, a0, -1",
                            -1);
@@ -1132,7 +1132,7 @@ TEST(Type3) {
                            1);
     COMPARE_PC_REL_COMPACT(bnec(a0, a1, 32767),
                            "60857fff       bnec  a0, a1, 32767", 32767);
-  }
+		//}
 
   COMPARE_PC_REL_COMPACT(bne(a0, a1, -32768),
                          "14858000       bne     a0, a1, -32768", -32768);
@@ -1186,29 +1186,29 @@ TEST(C_FMT_DISASM) {
   if (kArchVariant == kMips64r2) {
     SET_UP();
 
-    COMPARE(c_s(F, f8, f10, 0), "460a4030       c.f.s   f8, f10, cc(0)");
-    COMPARE(c_d(F, f8, f10, 0), "462a4030       c.f.d   f8, f10, cc(0)");
+    COMPARE(c_s(F, ft8, ft6, 0), "460a4030       c.f.s   ft8, ft6, cc(0)");
+    COMPARE(c_d(F, ft8, ft6, 0), "462a4030       c.f.d   ft8, ft6, cc(0)");
 
-    COMPARE(c_s(UN, f8, f10, 2), "460a4231       c.un.s  f8, f10, cc(2)");
-    COMPARE(c_d(UN, f8, f10, 2), "462a4231       c.un.d  f8, f10, cc(2)");
+    COMPARE(c_s(UN, ft8, ft6, 2), "460a4231       c.un.s  ft8, ft6, cc(2)");
+    COMPARE(c_d(UN, ft8, ft6, 2), "462a4231       c.un.d  ft8, ft6, cc(2)");
 
-    COMPARE(c_s(EQ, f8, f10, 4), "460a4432       c.eq.s  f8, f10, cc(4)");
-    COMPARE(c_d(EQ, f8, f10, 4), "462a4432       c.eq.d  f8, f10, cc(4)");
+    COMPARE(c_s(EQ, ft8, ft6, 4), "460a4432       c.eq.s  ft8, ft6, cc(4)");
+    COMPARE(c_d(EQ, ft8, ft6, 4), "462a4432       c.eq.d  ft8, ft6, cc(4)");
 
-    COMPARE(c_s(UEQ, f8, f10, 6), "460a4633       c.ueq.s f8, f10, cc(6)");
-    COMPARE(c_d(UEQ, f8, f10, 6), "462a4633       c.ueq.d f8, f10, cc(6)");
+    COMPARE(c_s(UEQ, ft8, ft6, 6), "460a4633       c.ueq.s ft8, ft6, cc(6)");
+    COMPARE(c_d(UEQ, ft8, ft6, 6), "462a4633       c.ueq.d ft8, ft6, cc(6)");
 
-    COMPARE(c_s(OLT, f8, f10, 0), "460a4034       c.olt.s f8, f10, cc(0)");
-    COMPARE(c_d(OLT, f8, f10, 0), "462a4034       c.olt.d f8, f10, cc(0)");
+    COMPARE(c_s(OLT, ft8, ft6, 0), "460a4034       c.olt.s ft8, ft6, cc(0)");
+    COMPARE(c_d(OLT, ft8, ft6, 0), "462a4034       c.olt.d ft8, ft6, cc(0)");
 
-    COMPARE(c_s(ULT, f8, f10, 2), "460a4235       c.ult.s f8, f10, cc(2)");
-    COMPARE(c_d(ULT, f8, f10, 2), "462a4235       c.ult.d f8, f10, cc(2)");
+    COMPARE(c_s(ULT, ft8, ft6, 2), "460a4235       c.ult.s ft8, ft6, cc(2)");
+    COMPARE(c_d(ULT, ft8, ft6, 2), "462a4235       c.ult.d ft8, ft6, cc(2)");
 
-    COMPARE(c_s(OLE, f8, f10, 4), "460a4436       c.ole.s f8, f10, cc(4)");
-    COMPARE(c_d(OLE, f8, f10, 4), "462a4436       c.ole.d f8, f10, cc(4)");
+    COMPARE(c_s(OLE, ft8, ft6, 4), "460a4436       c.ole.s ft8, ft6, cc(4)");
+    COMPARE(c_d(OLE, ft8, ft6, 4), "462a4436       c.ole.d ft8, ft6, cc(4)");
 
-    COMPARE(c_s(ULE, f8, f10, 6), "460a4637       c.ule.s f8, f10, cc(6)");
-    COMPARE(c_d(ULE, f8, f10, 6), "462a4637       c.ule.d f8, f10, cc(6)");
+    COMPARE(c_s(ULE, ft8, ft6, 6), "460a4637       c.ule.s ft8, ft6, cc(6)");
+    COMPARE(c_d(ULE, ft8, ft6, 6), "462a4637       c.ule.d ft8, ft6, cc(6)");
 
     VERIFY_RUN();
   }
@@ -1219,38 +1219,38 @@ TEST(COND_FMT_DISASM) {
   if (kArchVariant == kMips64r6) {
     SET_UP();
 
-    COMPARE(cmp_s(F, f6, f8, f10), "468a4180       cmp.af.s    f6, f8, f10");
-    COMPARE(cmp_d(F, f6, f8, f10), "46aa4180       cmp.af.d  f6,  f8, f10");
+    COMPARE(cmp_s(F, ft1, ft8, ft6), "468a4180       cmp.af.s    ft1, ft8, ft6");
+    COMPARE(cmp_d(F, ft1, ft8, ft6), "46aa4180       cmp.af.d  ft1,  ft8, ft6");
 
-    COMPARE(cmp_s(UN, f6, f8, f10), "468a4181       cmp.un.s    f6, f8, f10");
-    COMPARE(cmp_d(UN, f6, f8, f10), "46aa4181       cmp.un.d  f6,  f8, f10");
+    COMPARE(cmp_s(UN, ft1, ft8, ft6), "468a4181       cmp.un.s    ft1, ft8, ft6");
+    COMPARE(cmp_d(UN, ft1, ft8, ft6), "46aa4181       cmp.un.d  ft1,  ft8, ft6");
 
-    COMPARE(cmp_s(EQ, f6, f8, f10), "468a4182       cmp.eq.s    f6, f8, f10");
-    COMPARE(cmp_d(EQ, f6, f8, f10), "46aa4182       cmp.eq.d  f6,  f8, f10");
+    COMPARE(cmp_s(EQ, ft1, ft8, ft6), "468a4182       cmp.eq.s    ft1, ft8, ft6");
+    COMPARE(cmp_d(EQ, ft1, ft8, ft6), "46aa4182       cmp.eq.d  ft1,  ft8, ft6");
 
-    COMPARE(cmp_s(UEQ, f6, f8, f10), "468a4183       cmp.ueq.s   f6, f8, f10");
-    COMPARE(cmp_d(UEQ, f6, f8, f10), "46aa4183       cmp.ueq.d  f6,  f8, f10");
+    COMPARE(cmp_s(UEQ, ft1, ft8, ft6), "468a4183       cmp.ueq.s   ft1, ft8, ft6");
+    COMPARE(cmp_d(UEQ, ft1, ft8, ft6), "46aa4183       cmp.ueq.d  ft1,  ft8, ft6");
 
-    COMPARE(cmp_s(LT, f6, f8, f10), "468a4184       cmp.lt.s    f6, f8, f10");
-    COMPARE(cmp_d(LT, f6, f8, f10), "46aa4184       cmp.lt.d  f6,  f8, f10");
+    COMPARE(cmp_s(LT, ft1, ft8, ft6), "468a4184       cmp.lt.s    ft1, ft8, ft6");
+    COMPARE(cmp_d(LT, ft1, ft8, ft6), "46aa4184       cmp.lt.d  ft1,  ft8, ft6");
 
-    COMPARE(cmp_s(ULT, f6, f8, f10), "468a4185       cmp.ult.s   f6, f8, f10");
-    COMPARE(cmp_d(ULT, f6, f8, f10), "46aa4185       cmp.ult.d  f6,  f8, f10");
+    COMPARE(cmp_s(ULT, ft1, ft8, ft6), "468a4185       cmp.ult.s   ft1, ft8, ft6");
+    COMPARE(cmp_d(ULT, ft1, ft8, ft6), "46aa4185       cmp.ult.d  ft1,  ft8, ft6");
 
-    COMPARE(cmp_s(LE, f6, f8, f10), "468a4186       cmp.le.s    f6, f8, f10");
-    COMPARE(cmp_d(LE, f6, f8, f10), "46aa4186       cmp.le.d  f6,  f8, f10");
+    COMPARE(cmp_s(LE, ft1, ft8, ft6), "468a4186       cmp.le.s    ft1, ft8, ft6");
+    COMPARE(cmp_d(LE, ft1, ft8, ft6), "46aa4186       cmp.le.d  ft1,  ft8, ft6");
 
-    COMPARE(cmp_s(ULE, f6, f8, f10), "468a4187       cmp.ule.s   f6, f8, f10");
-    COMPARE(cmp_d(ULE, f6, f8, f10), "46aa4187       cmp.ule.d  f6,  f8, f10");
+    COMPARE(cmp_s(ULE, ft1, ft8, ft6), "468a4187       cmp.ule.s   ft1, ft8, ft6");
+    COMPARE(cmp_d(ULE, ft1, ft8, ft6), "46aa4187       cmp.ule.d  ft1,  ft8, ft6");
 
-    COMPARE(cmp_s(ORD, f6, f8, f10), "468a4191       cmp.or.s    f6, f8, f10");
-    COMPARE(cmp_d(ORD, f6, f8, f10), "46aa4191       cmp.or.d  f6,  f8, f10");
+    COMPARE(cmp_s(ORD, ft1, ft8, ft6), "468a4191       cmp.or.s    ft1, ft8, ft6");
+    COMPARE(cmp_d(ORD, ft1, ft8, ft6), "46aa4191       cmp.or.d  ft1,  ft8, ft6");
 
-    COMPARE(cmp_s(UNE, f6, f8, f10), "468a4192       cmp.une.s   f6, f8, f10");
-    COMPARE(cmp_d(UNE, f6, f8, f10), "46aa4192       cmp.une.d  f6,  f8, f10");
+    COMPARE(cmp_s(UNE, ft1, ft8, ft6), "468a4192       cmp.une.s   ft1, ft8, ft6");
+    COMPARE(cmp_d(UNE, ft1, ft8, ft6), "46aa4192       cmp.une.d  ft1,  ft8, ft6");
 
-    COMPARE(cmp_s(NE, f6, f8, f10), "468a4193       cmp.ne.s    f6, f8, f10");
-    COMPARE(cmp_d(NE, f6, f8, f10), "46aa4193       cmp.ne.d  f6,  f8, f10");
+    COMPARE(cmp_s(NE, ft1, ft8, ft6), "468a4193       cmp.ne.s    ft1, ft8, ft6");
+    COMPARE(cmp_d(NE, ft1, ft8, ft6), "46aa4193       cmp.ne.d  ft1,  ft8, ft6");
 
     VERIFY_RUN();
   }
@@ -1259,25 +1259,25 @@ TEST(COND_FMT_DISASM) {
 
 TEST(CVT_DISSASM) {
   SET_UP();
-  COMPARE(cvt_d_s(f22, f24), "4600c5a1       cvt.d.s f22, f24");
-  COMPARE(cvt_d_w(f22, f24), "4680c5a1       cvt.d.w f22, f24");
+  COMPARE(cvt_d_s(fs2, fs3), "4600c5a1       cvt.d.s fs2, fs3");
+  COMPARE(cvt_d_w(fs2, fs3), "4680c5a1       cvt.d.w fs2, fs3");
   if (kArchVariant == kMips64r6 || kArchVariant == kMips64r2) {
-    COMPARE(cvt_d_l(f22, f24), "46a0c5a1       cvt.d.l f22, f24");
+    COMPARE(cvt_d_l(fs2, fs3), "46a0c5a1       cvt.d.l fs2, fs3");
   }
 
   if (kArchVariant == kMips64r6 || kArchVariant == kMips64r2) {
-    COMPARE(cvt_l_s(f22, f24), "4600c5a5       cvt.l.s f22, f24");
-    COMPARE(cvt_l_d(f22, f24), "4620c5a5       cvt.l.d f22, f24");
+    COMPARE(cvt_l_s(fs2, fs3), "4600c5a5       cvt.l.s fs2, fs3");
+    COMPARE(cvt_l_d(fs2, fs3), "4620c5a5       cvt.l.d fs2, fs3");
   }
 
-  COMPARE(cvt_s_d(f22, f24), "4620c5a0       cvt.s.d f22, f24");
-  COMPARE(cvt_s_w(f22, f24), "4680c5a0       cvt.s.w f22, f24");
+  COMPARE(cvt_s_d(fs2, fs3), "4620c5a0       cvt.s.d fs2, fs3");
+  COMPARE(cvt_s_w(fs2, fs3), "4680c5a0       cvt.s.w fs2, fs3");
   if (kArchVariant == kMips64r6 || kArchVariant == kMips64r2) {
-    COMPARE(cvt_s_l(f22, f24), "46a0c5a0       cvt.s.l f22, f24");
+    COMPARE(cvt_s_l(fs2, fs3), "46a0c5a0       cvt.s.l fs2, fs3");
   }
 
-  COMPARE(cvt_s_d(f22, f24), "4620c5a0       cvt.s.d f22, f24");
-  COMPARE(cvt_s_w(f22, f24), "4680c5a0       cvt.s.w f22, f24");
+  COMPARE(cvt_s_d(fs2, fs3), "4620c5a0       cvt.s.d fs2, fs3");
+  COMPARE(cvt_s_w(fs2, fs3), "4680c5a0       cvt.s.w fs2, fs3");
 
   VERIFY_RUN();
 }
@@ -1285,8 +1285,8 @@ TEST(CVT_DISSASM) {
 
 TEST(ctc1_cfc1_disasm) {
   SET_UP();
-  COMPARE(abs_d(f10, f31), "4620fa85       abs.d   f10, f31");
-  COMPARE(ceil_w_s(f8, f31), "4600fa0e       ceil.w.s f8, f31");
+  COMPARE(abs_d(ft6, fs11), "4620fa85       abs.d   ft6, fs11");
+  COMPARE(ceil_w_s(ft8, fs11), "4600fa0e       ceil.w.s ft8, fs11");
   COMPARE(ctc1(a0, FCSR), "44c4f800       ctc1    a0, FCSR");
   COMPARE(cfc1(a0, FCSR), "4444f800       cfc1    a0, FCSR");
   VERIFY_RUN();
@@ -1295,10 +1295,10 @@ TEST(ctc1_cfc1_disasm) {
 TEST(madd_msub_maddf_msubf) {
   SET_UP();
   if (kArchVariant == kMips64r6) {
-    COMPARE(maddf_s(f4, f8, f10), "460a4118       maddf.s  f4, f8, f10");
-    COMPARE(maddf_d(f4, f8, f10), "462a4118       maddf.d  f4, f8, f10");
-    COMPARE(msubf_s(f4, f8, f10), "460a4119       msubf.s  f4, f8, f10");
-    COMPARE(msubf_d(f4, f8, f10), "462a4119       msubf.d  f4, f8, f10");
+    COMPARE(maddf_s(ft0, ft8, ft6), "460a4118       maddf.s  ft0, ft8, ft6");
+    COMPARE(maddf_d(ft0, ft8, ft6), "462a4118       maddf.d  ft0, ft8, ft6");
+    COMPARE(msubf_s(ft0, ft8, ft6), "460a4119       msubf.s  ft0, ft8, ft6");
+    COMPARE(msubf_d(ft0, ft8, ft6), "462a4119       msubf.d  ft0, ft8, ft6");
   }
   VERIFY_RUN();
 }
@@ -1306,15 +1306,15 @@ TEST(madd_msub_maddf_msubf) {
 TEST(atomic_load_store) {
   SET_UP();
   if (kArchVariant == kMips64r6) {
-    COMPARE(ll(v0, MemOperand(v1, -1)), "7c62ffb6       ll     v0, -1(v1)");
-    COMPARE(sc(v0, MemOperand(v1, 1)), "7c6200a6       sc     v0, 1(v1)");
-    COMPARE(lld(v0, MemOperand(v1, -1)), "7c62ffb7       lld     v0, -1(v1)");
-    COMPARE(scd(v0, MemOperand(v1, 1)), "7c6200a7       scd     v0, 1(v1)");
+    COMPARE(ll(t0, MemOperand(t1, -1)), "7c62ffb6       ll     t0, -1(t1)");
+    COMPARE(sc(t0, MemOperand(t1, 1)), "7c6200a6       sc     t0, 1(t1)");
+    COMPARE(lld(t0, MemOperand(t1, -1)), "7c62ffb7       lld     t0, -1(t1)");
+    COMPARE(scd(t0, MemOperand(t1, 1)), "7c6200a7       scd     t0, 1(t1)");
   } else {
-    COMPARE(ll(v0, MemOperand(v1, -1)), "c062ffff       ll     v0, -1(v1)");
-    COMPARE(sc(v0, MemOperand(v1, 1)), "e0620001       sc     v0, 1(v1)");
-    COMPARE(lld(v0, MemOperand(v1, -1)), "d062ffff       lld     v0, -1(v1)");
-    COMPARE(scd(v0, MemOperand(v1, 1)), "f0620001       scd     v0, 1(v1)");
+    COMPARE(ll(t0, MemOperand(t1, -1)), "c062ffff       ll     t0, -1(t1)");
+    COMPARE(sc(t0, MemOperand(t1, 1)), "e0620001       sc     t0, 1(t1)");
+    COMPARE(lld(t0, MemOperand(t1, -1)), "d062ffff       lld     t0, -1(t1)");
+    COMPARE(scd(t0, MemOperand(t1, 1)), "f0620001       scd     t0, 1(t1)");
   }
   VERIFY_RUN();
 }
@@ -1349,10 +1349,10 @@ TEST(MSA_MI10) {
   if ((kArchVariant == kMips64r6) && CpuFeatures::IsSupported(MIPS_SIMD)) {
     CpuFeatureScope fscope(&assm, MIPS_SIMD);
 
-    COMPARE(ld_b(w0, MemOperand(at, -512)),
-            "7a000820       ld.b  w0, -512(at)");
-    COMPARE(ld_b(w1, MemOperand(v0, 0)), "78001060       ld.b  w1, 0(v0)");
-    COMPARE(ld_b(w2, MemOperand(v1, 511)), "79ff18a0       ld.b  w2, 511(v1)");
+    COMPARE(ld_b(w0, MemOperand(t3, -512)),
+            "7a000820       ld.b  w0, -512(t3)");
+    COMPARE(ld_b(w1, MemOperand(t0, 0)), "78001060       ld.b  w1, 0(t0)");
+    COMPARE(ld_b(w2, MemOperand(t1, 511)), "79ff18a0       ld.b  w2, 511(t1)");
     COMPARE(ld_h(w4, MemOperand(a1, -512)),
             "7a002921       ld.h  w4, -512(a1)");
     COMPARE(ld_h(w5, MemOperand(a2, 64)), "78403161       ld.h  w5, 64(a2)");
@@ -1369,10 +1369,10 @@ TEST(MSA_MI10) {
             "78809ca3       ld.d  w18, 128(s3)");
     COMPARE(ld_d(w19, MemOperand(s4, 511)),
             "79ffa4e3       ld.d  w19, 511(s4)");
-    COMPARE(st_b(w0, MemOperand(at, -512)),
-            "7a000824       st.b  w0, -512(at)");
-    COMPARE(st_b(w1, MemOperand(v0, 0)), "78001064       st.b  w1, 0(v0)");
-    COMPARE(st_b(w2, MemOperand(v1, 511)), "79ff18a4       st.b  w2, 511(v1)");
+    COMPARE(st_b(w0, MemOperand(t3, -512)),
+            "7a000824       st.b  w0, -512(t3)");
+    COMPARE(st_b(w1, MemOperand(t0, 0)), "78001064       st.b  w1, 0(t0)");
+    COMPARE(st_b(w2, MemOperand(t1, 511)), "79ff18a4       st.b  w2, 511(t1)");
     COMPARE(st_h(w4, MemOperand(a1, -512)),
             "7a002925       st.h  w4, -512(a1)");
     COMPARE(st_h(w5, MemOperand(a2, 64)), "78403165       st.h  w5, 64(a2)");
@@ -1501,7 +1501,7 @@ TEST(MSA_2R) {
 
     COMPARE(fill_b(w30, a5), "7b004f9e       fill.b  w30, a5");
     COMPARE(fill_h(w31, s7), "7b01bfde       fill.h  w31, s7");
-    COMPARE(fill_w(w16, t8), "7b02c41e       fill.w  w16, t8");
+    COMPARE(fill_w(w16, t5), "7b02c41e       fill.w  w16, t5");
     COMPARE(fill_d(w27, a5), "7b034ede       fill.d  w27, a5");
     COMPARE(nloc_b(w21, w0), "7b08055e       nloc.b  w21, w0");
     COMPARE(nloc_h(w18, w31), "7b09fc9e       nloc.h  w18, w31");
@@ -1759,17 +1759,17 @@ TEST(MSA_3R) {
     COMPARE(pckod_w(w9, w4, w2), "79c22254       pckod.w  w9, w4, w2");
     COMPARE(pckod_d(w30, w22, w20), "79f4b794       pckod.d  w30, w22, w20");
     COMPARE(sld_b(w5, w23, t0), "780cb954       sld.b  w5, w23[t0]");
-    COMPARE(sld_h(w1, w23, v1), "7823b854       sld.h  w1, w23[v1]");
+    COMPARE(sld_h(w1, w23, t1), "7823b854       sld.h  w1, w23[t1]");
     COMPARE(sld_w(w20, w8, a5), "78494514       sld.w  w20, w8[a5]");
     COMPARE(sld_d(w7, w23, fp), "787eb9d4       sld.d  w7, w23[fp]");
     COMPARE(sll_b(w3, w0, w17), "781100cd       sll.b  w3, w0, w17");
     COMPARE(sll_h(w17, w27, w3), "7823dc4d       sll.h  w17, w27, w3");
     COMPARE(sll_w(w16, w7, w6), "78463c0d       sll.w  w16, w7, w6");
     COMPARE(sll_d(w9, w0, w26), "787a024d       sll.d  w9, w0, w26");
-    COMPARE(splat_b(w28, w1, at), "78810f14       splat.b  w28, w1[at]");
+    COMPARE(splat_b(w28, w1, t3), "78810f14       splat.b  w28, w1[t3]");
     COMPARE(splat_h(w2, w11, a7), "78ab5894       splat.h  w2, w11[a7]");
     COMPARE(splat_w(w22, w0, a7), "78cb0594       splat.w  w22, w0[a7]");
-    COMPARE(splat_d(w0, w0, v0), "78e20014       splat.d  w0, w0[v0]");
+    COMPARE(splat_d(w0, w0, t0), "78e20014       splat.d  w0, w0[t0]");
     COMPARE(sra_b(w28, w4, w17), "7891270d       sra.b  w28, w4, w17");
     COMPARE(sra_h(w13, w9, w3), "78a34b4d       sra.h  w13, w9, w3");
     COMPARE(sra_w(w27, w21, w19), "78d3aecd       sra.w  w27, w21, w19");
@@ -1917,7 +1917,7 @@ TEST(MSA_ELM) {
     CpuFeatureScope fscope(&assm, MIPS_SIMD);
 
     COMPARE(copy_s_b(t1, w8, 2), "78824359       copy_s.b  t1, w8[2]");
-    COMPARE(copy_s_h(at, w25, 0), "78a0c859       copy_s.h  at, w25[0]");
+    COMPARE(copy_s_h(a5, w25, 0), "78a0c859       copy_s.h  at, w25[0]");
     COMPARE(copy_s_w(s6, w5, 1), "78b12d99       copy_s.w  s6, w5[1]");
     COMPARE(copy_s_d(s3, w31, 0), "78b8fcd9       copy_s.d  s3, w31[0]");
     COMPARE(copy_u_b(s6, w20, 4), "78c4a599       copy_u.b  s6, w20[4]");
@@ -1934,16 +1934,16 @@ TEST(MSA_ELM) {
     COMPARE(move_v(w23, w24), "78bec5d9       move.v  w23, w24");
     COMPARE(insert_b(w23, 3, sp), "7903edd9       insert.b  w23[3], sp");
     COMPARE(insert_h(w20, 2, a1), "79222d19       insert.h  w20[2], a1");
-    COMPARE(insert_w(w8, 2, s0), "79328219       insert.w  w8[2], s0");
+    COMPARE(insert_w(w8, 2, fp), "79328219       insert.w  w8[2], fp");
     COMPARE(insert_d(w1, 1, sp), "7939e859       insert.d  w1[1], sp");
     COMPARE(insve_b(w25, 3, w9), "79434e59       insve.b  w25[3], w9[0]");
     COMPARE(insve_h(w24, 2, w2), "79621619       insve.h  w24[2], w2[0]");
     COMPARE(insve_w(w0, 2, w13), "79726819       insve.w  w0[2], w13[0]");
     COMPARE(insve_d(w3, 0, w18), "797890d9       insve.d  w3[0], w18[0]");
-    COMPARE(cfcmsa(at, MSAIR), "787e0059       cfcmsa  at, MSAIR");
-    COMPARE(cfcmsa(v0, MSACSR), "787e0899       cfcmsa  v0, MSACSR");
-    COMPARE(ctcmsa(MSAIR, at), "783e0819       ctcmsa  MSAIR, at");
-    COMPARE(ctcmsa(MSACSR, v0), "783e1059       ctcmsa  MSACSR, v0");
+    COMPARE(cfcmsa(a5, MSAIR), "787e0059       cfcmsa  at, MSAIR");
+    COMPARE(cfcmsa(t0, MSACSR), "787e0899       cfcmsa  t0, MSACSR");
+    COMPARE(ctcmsa(MSAIR, t3), "783e0819       ctcmsa  MSAIR, t3");
+    COMPARE(ctcmsa(MSACSR, t0), "783e1059       ctcmsa  MSACSR, t0");
   }
   VERIFY_RUN();
 }

@@ -83,10 +83,10 @@ namespace {
 #define STACK_SHADOW_WORDS 4
 #define PARAM_REGISTERS a0, a1, a2, a3
 #define CALLEE_SAVE_REGISTERS                                                  \
-  s0.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
+  fp.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
       s7.bit()
 #define CALLEE_SAVE_FP_REGISTERS \
-  f20.bit() | f22.bit() | f24.bit() | f26.bit() | f28.bit() | f30.bit()
+  fs2.bit() | fs3.bit() | fs4.bit() | fs5.bit() | fs6.bit() | fs7.bit()
 
 #elif V8_TARGET_ARCH_MIPS64
 // ===========================================================================
@@ -94,10 +94,10 @@ namespace {
 // ===========================================================================
 #define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
 #define CALLEE_SAVE_REGISTERS                                                  \
-  s0.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
+  fp.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
       s7.bit()
 #define CALLEE_SAVE_FP_REGISTERS \
-  f20.bit() | f22.bit() | f24.bit() | f26.bit() | f28.bit() | f30.bit()
+  fs2.bit() | fs3.bit() | fs4.bit() | fs5.bit() | fs6.bit() | fs7.bit()
 
 #elif V8_TARGET_ARCH_PPC64
 // ===========================================================================
@@ -137,11 +137,10 @@ namespace {
 // ===========================================================================
 #define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
 #define CALLEE_SAVE_REGISTERS                                                  \
-  s0.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
+	fp.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
       s7.bit()
 #define CALLEE_SAVE_FP_REGISTERS \
-  f20.bit() | f22.bit() | f24.bit() | f26.bit() | f28.bit() | f30.bit()
-
+	fs2.bit() | fs3.bit() | fs4.bit() | fs5.bit() | fs6.bit() | fs7.bit()
 #else
 // ===========================================================================
 // == unknown ================================================================

@@ -28,7 +28,7 @@ enum class AbortReason : uint8_t;
 //
 // Per the MIPS ABI, register t9 must be used for indirect function call
 // via 'jalr t9' or 'jr t9' instructions. This is relied upon by gcc when
-// trying to update gp register for position-independent-code. Whenever
+// trying to update t3 register for position-independent-code. Whenever
 // MIPS generated code calls C code, it must be via t9 register.
 
 // Flags used for LeaveExitFrame function.
@@ -786,7 +786,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Ceil_s_s(FPURegister fd, FPURegister fs);
 
   // Jump the register contains a smi.
-  void JumpIfSmi(Register value, Label* smi_label, Register scratch = at,
+  void JumpIfSmi(Register value, Label* smi_label, Register scratch = t3,
                  BranchDelaySlot bd = PROTECT);
 
   void JumpIfEqual(Register a, int32_t b, Label* dest) {
@@ -809,9 +809,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // between [1, 31] (inclusive). On pre-r6 architectures the scratch register
   // may be clobbered.
   void Lsa(Register rd, Register rs, Register rt, uint8_t sa,
-           Register scratch = at);
+           Register scratch = t3);
   void Dlsa(Register rd, Register rs, Register rt, uint8_t sa,
-            Register scratch = at);
+            Register scratch = t3);
 
   // Compute the start of the generated instruction stream from the current PC.
   // This is an alternative to embedding the {CodeObject} handle as a reference.
@@ -959,8 +959,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Pseudo-instructions.
 
-  void LoadWordPair(Register rd, const MemOperand& rs, Register scratch = at);
-  void StoreWordPair(Register rd, const MemOperand& rs, Register scratch = at);
+  void LoadWordPair(Register rd, const MemOperand& rs, Register scratch = t3);
+  void StoreWordPair(Register rd, const MemOperand& rs, Register scratch = t3);
 
   // Convert double to unsigned long.
   void Trunc_l_ud(FPURegister fd, FPURegister fs, FPURegister scratch);
@@ -1141,7 +1141,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   }
 
   // Jump if the register contains a non-smi.
-  void JumpIfNotSmi(Register value, Label* not_smi_label, Register scratch = at,
+  void JumpIfNotSmi(Register value, Label* not_smi_label, Register scratch = t3,
                     BranchDelaySlot bd = PROTECT);
 
   // Abort execution if argument is a smi, enabled via --debug-code.

@@ -77,10 +77,10 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
       assm->Usd(src.gp(), dst);
       break;
     case kWasmF32:
-      assm->Uswc1(src.fp(), dst, t8);
+      assm->Uswc1(src.fp(), dst, t5);
       break;
     case kWasmF64:
-      assm->Usdc1(src.fp(), dst, t8);
+      assm->Usdc1(src.fp(), dst, t5);
       break;
     default:
       UNREACHABLE();
@@ -369,10 +369,10 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       TurboAssembler::Uld(dst.gp(), src_op);
       break;
     case LoadType::kF32Load:
-      TurboAssembler::Ulwc1(dst.fp(), src_op, t8);
+      TurboAssembler::Ulwc1(dst.fp(), src_op, t5);
       break;
     case LoadType::kF64Load:
-      TurboAssembler::Uldc1(dst.fp(), src_op, t8);
+      TurboAssembler::Uldc1(dst.fp(), src_op, t5);
       break;
     default:
       UNREACHABLE();
@@ -422,7 +422,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kI32Store16:
     case StoreType::kI64Store16:
-      TurboAssembler::Ush(src.gp(), dst_op, t8);
+      TurboAssembler::Ush(src.gp(), dst_op, t5);
       break;
     case StoreType::kI32Store:
     case StoreType::kI64Store32:
@@ -432,10 +432,10 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       TurboAssembler::Usd(src.gp(), dst_op);
       break;
     case StoreType::kF32Store:
-      TurboAssembler::Uswc1(src.fp(), dst_op, t8);
+      TurboAssembler::Uswc1(src.fp(), dst_op, t5);
       break;
     case StoreType::kF64Store:
-      TurboAssembler::Usdc1(src.fp(), dst_op, t8);
+      TurboAssembler::Usdc1(src.fp(), dst_op, t5);
       break;
     default:
       UNREACHABLE();
@@ -1383,7 +1383,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
   const LiftoffRegister* next_result_reg = rets;
   if (sig->return_count() > 0) {
     DCHECK_EQ(1, sig->return_count());
-    constexpr Register kReturnReg = v0;
+    constexpr Register kReturnReg = t0;
     if (kReturnReg != next_result_reg->gp()) {
       Move(*next_result_reg, LiftoffRegister(kReturnReg), sig->GetReturn(0));
     }

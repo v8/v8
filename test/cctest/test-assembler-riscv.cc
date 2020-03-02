@@ -132,76 +132,76 @@ TEST(RISCV2) {
   __ RV_li(t2, 0xEDCBA988);
   __ RV_li(t3, 0x80000000);
 
-  __ RV_srliw(v0, a6, 8);   // 0x00123456
-  __ RV_slliw(v0, v0, 11);  // 0x91A2B000
-  __ RV_sraiw(v0, v0, 3);   // 0xFFFFFFFF F2345600
-  __ RV_sraw(v0, v0, a4);   // 0xFFFFFFFF FF234560
-  __ RV_sllw(v0, v0, a4);   // 0xFFFFFFFF F2345600
-  __ RV_srlw(v0, v0, a4);   // 0x0F234560
-  __ RV_li(t8, 0x0F234560);
-  __ RV_bne(v0, t8, &error);
+  __ RV_srliw(t0, a6, 8);   // 0x00123456
+  __ RV_slliw(t0, t0, 11);  // 0x91A2B000
+  __ RV_sraiw(t0, t0, 3);   // 0xFFFFFFFF F2345600
+  __ RV_sraw(t0, t0, a4);   // 0xFFFFFFFF FF234560
+  __ RV_sllw(t0, t0, a4);   // 0xFFFFFFFF F2345600
+  __ RV_srlw(t0, t0, a4);   // 0x0F234560
+  __ RV_li(t5, 0x0F234560);
+  __ RV_bne(t0, t5, &error);
 
-  __ RV_addw(v0, a4, a5);  // 0x00001238
-  __ RV_subw(v0, v0, a4);  // 0x00001234
-  __ RV_li(t8, 0x00001234);
-  __ RV_bne(v0, t8, &error);
-  __ RV_addw(v1, a7, a4);  // 32bit addu result is sign-extended into 64bit reg.
-  __ RV_li(t8, 0xFFFFFFFF80000003);
-  __ RV_bne(v1, t8, &error);
-  __ RV_subw(v1, t3, a4);  // 0x7FFFFFFC
-  __ RV_li(t8, 0x7FFFFFFC);
-  __ RV_bne(v1, t8, &error);
+  __ RV_addw(t0, a4, a5);  // 0x00001238
+  __ RV_subw(t0, t0, a4);  // 0x00001234
+  __ RV_li(t5, 0x00001234);
+  __ RV_bne(t0, t5, &error);
+  __ RV_addw(a1, a7, a4);  // 32bit addu result is sign-extended into 64bit reg.
+  __ RV_li(t5, 0xFFFFFFFF80000003);
+  __ RV_bne(a1, t5, &error);
+  __ RV_subw(a1, t3, a4);  // 0x7FFFFFFC
+  __ RV_li(t5, 0x7FFFFFFC);
+  __ RV_bne(a1, t5, &error);
 
-  __ RV_and_(v0, a5, a6);  // 0x0000000000001230
-  __ RV_or_(v0, v0, a5);   // 0x0000000000001234
-  __ RV_xor_(v0, v0, a6);  // 0x000000001234444C
-  __ RV_or_(v0, v0, a6);
-  __ RV_not(v0, v0);  // 0xFFFFFFFFEDCBA983
-  __ RV_li(t8, 0xFFFFFFFFEDCBA983);
-  __ RV_bne(v0, t8, &error);
+  __ RV_and_(t0, a5, a6);  // 0x0000000000001230
+  __ RV_or_(t0, t0, a5);   // 0x0000000000001234
+  __ RV_xor_(t0, t0, a6);  // 0x000000001234444C
+  __ RV_or_(t0, t0, a6);
+  __ RV_not(t0, t0);  // 0xFFFFFFFFEDCBA983
+  __ RV_li(t5, 0xFFFFFFFFEDCBA983);
+  __ RV_bne(t0, t5, &error);
 
   // Shift both 32bit number to left, to preserve meaning of next comparison.
   __ RV_slli(a7, a7, 32);
   __ RV_slli(t3, t3, 32);
 
-  __ RV_slt(v0, t3, a7);
-  __ RV_li(t8, 1);
-  __ RV_bne(v0, t8, &error);
-  __ RV_sltu(v0, t3, a7);
-  __ RV_bne(v0, zero_reg, &error);
+  __ RV_slt(t0, t3, a7);
+  __ RV_li(t5, 1);
+  __ RV_bne(t0, t5, &error);
+  __ RV_sltu(t0, t3, a7);
+  __ RV_bne(t0, zero_reg, &error);
 
   // Restore original values in registers.
   __ RV_srli(a7, a7, 32);
   __ RV_srli(t3, t3, 32);
 
-  __ RV_li(v0, 0x7421);       // 0x00007421
-  __ RV_addi(v0, v0, -0x1);   // 0x00007420
-  __ RV_addi(v0, v0, -0x20);  // 0x00007400
-  __ RV_li(t8, 0x00007400);
-  __ RV_bne(v0, t8, &error);
-  __ RV_addiw(v1, a7, 0x1);  // 0x80000000 - result is sign-extended.
-  __ RV_li(t8, 0xFFFFFFFF80000000);
-  __ RV_bne(v1, t8, &error);
+  __ RV_li(t0, 0x7421);       // 0x00007421
+  __ RV_addi(t0, t0, -0x1);   // 0x00007420
+  __ RV_addi(t0, t0, -0x20);  // 0x00007400
+  __ RV_li(t5, 0x00007400);
+  __ RV_bne(t0, t5, &error);
+  __ RV_addiw(a1, a7, 0x1);  // 0x80000000 - result is sign-extended.
+  __ RV_li(t5, 0xFFFFFFFF80000000);
+  __ RV_bne(a1, t5, &error);
 
-  __ RV_li(t8, 0x00002000);
-  __ RV_slt(v0, a5, t8);  // 0x1
-  __ RV_li(t9, 0xFFFFFFFFFFFF8000);
-  __ RV_slt(v0, v0, t9);  // 0x0
-  __ RV_bne(v0, zero_reg, &error);
-  __ RV_sltu(v0, a5, t8);  // 0x1
-  __ RV_li(t9, 0x00008000);
-  __ RV_sltu(v0, v0, t9);  // 0x1
-  __ RV_li(t8, 1);
-  __ RV_bne(v0, t8, &error);
+  __ RV_li(t5, 0x00002000);
+  __ RV_slt(t0, a5, t5);  // 0x1
+  __ RV_li(t6, 0xFFFFFFFFFFFF8000);
+  __ RV_slt(t0, t0, t6);  // 0x0
+  __ RV_bne(t0, zero_reg, &error);
+  __ RV_sltu(t0, a5, t5);  // 0x1
+  __ RV_li(t6, 0x00008000);
+  __ RV_sltu(t0, t0, t6);  // 0x1
+  __ RV_li(t5, 1);
+  __ RV_bne(t0, t5, &error);
 
-  __ RV_andi(v0, a5, 0x0F0);  // 0x00000030
-  __ RV_ori(v0, v0, 0x200);   // 0x00000230
-  __ RV_xori(v0, v0, 0x3CC);  // 0x000001FC
-  __ RV_li(t8, 0x000001FC);
-  __ RV_bne(v0, t8, &error);
-  __ RV_lui(v1, -519628);  // Result is sign-extended into 64bit register.
-  __ RV_li(t8, 0xFFFFFFFF81234000);
-  __ RV_bne(v1, t8, &error);
+  __ RV_andi(t0, a5, 0x0F0);  // 0x00000030
+  __ RV_ori(t0, t0, 0x200);   // 0x00000230
+  __ RV_xori(t0, t0, 0x3CC);  // 0x000001FC
+  __ RV_li(t5, 0x000001FC);
+  __ RV_bne(t0, t5, &error);
+  __ RV_lui(a1, -519628);  // Result is sign-extended into 64bit register.
+  __ RV_li(t5, 0xFFFFFFFF81234000);
+  __ RV_bne(a1, t5, &error);
 
   // Everything was correctly executed. Load the expected result.
   __ RV_li(a0, 0x31415926);
@@ -254,57 +254,57 @@ TEST(RISCV3) {
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   // Double precision floating point instructions.
-  __ RV_fld(f4, a0, offsetof(T, a));
-  __ RV_fld(f6, a0, offsetof(T, b));
-  __ RV_fadd_d(f8, f4, f6);
-  __ RV_fsd(f8, a0, offsetof(T, c));  // c = a + b.
+  __ RV_fld(ft0, a0, offsetof(T, a));
+  __ RV_fld(ft1, a0, offsetof(T, b));
+  __ RV_fadd_d(ft2, ft0, ft1);
+  __ RV_fsd(ft2, a0, offsetof(T, c));  // c = a + b.
 
-  __ RV_fmv_d(f10, f8);   // c
-  __ RV_fneg_d(f12, f6);  // -b
-  __ RV_fsub_d(f10, f10, f12);
-  __ RV_fsd(f10, a0, offsetof(T, d));  // d = c - (-b).
+  __ RV_fmv_d(ft3, ft2);   // c
+  __ RV_fneg_d(fa0, ft1);  // -b
+  __ RV_fsub_d(ft3, ft3, fa0);
+  __ RV_fsd(ft3, a0, offsetof(T, d));  // d = c - (-b).
 
-  __ RV_fsd(f4, a0, offsetof(T, b));  // b = a.
+  __ RV_fsd(ft0, a0, offsetof(T, b));  // b = a.
 
   __ RV_li(a4, 120);
-  __ RV_fcvt_d_w(f14, a4);
-  __ RV_fmul_d(f10, f10, f14);
-  __ RV_fsd(f10, a0, offsetof(T, e));  // e = d * 120 = 1.8066e16.
+  __ RV_fcvt_d_w(ft5, a4);
+  __ RV_fmul_d(ft3, ft3, ft5);
+  __ RV_fsd(ft3, a0, offsetof(T, e));  // e = d * 120 = 1.8066e16.
 
-  __ RV_fdiv_d(f12, f10, f4);
-  __ RV_fsd(f12, a0, offsetof(T, f));  // f = e / a = 120.44.
+  __ RV_fdiv_d(ft4, ft3, ft0);
+  __ RV_fsd(ft4, a0, offsetof(T, f));  // f = e / a = 120.44.
 
-  __ RV_fsqrt_d(f14, f12);
-  __ RV_fsd(f14, a0, offsetof(T, g));
+  __ RV_fsqrt_d(ft5, ft4);
+  __ RV_fsd(ft5, a0, offsetof(T, g));
   // g = sqrt(f) = 10.97451593465515908537
 
-  __ RV_fld(f4, a0, offsetof(T, h));
-  __ RV_fld(f6, a0, offsetof(T, i));
-  __ RV_fmadd_d(f14, f6, f4, f6);
-  __ RV_fsd(f14, a0, offsetof(T, h));
+  __ RV_fld(ft0, a0, offsetof(T, h));
+  __ RV_fld(ft1, a0, offsetof(T, i));
+  __ RV_fmadd_d(ft5, ft1, ft0, ft1);
+  __ RV_fsd(ft5, a0, offsetof(T, h));
 
   // // Single precision floating point instructions.
-  __ RV_flw(f4, a0, offsetof(T, fa));
-  __ RV_flw(f6, a0, offsetof(T, fb));
-  __ RV_fadd_s(f8, f4, f6);
-  __ RV_fsw(f8, a0, offsetof(T, fc));  // fc = fa + fb.
+  __ RV_flw(ft0, a0, offsetof(T, fa));
+  __ RV_flw(ft1, a0, offsetof(T, fb));
+  __ RV_fadd_s(ft2, ft0, ft1);
+  __ RV_fsw(ft2, a0, offsetof(T, fc));  // fc = fa + fb.
 
-  __ RV_fneg_s(f10, f6);  // -fb
-  __ RV_fsub_s(f10, f8, f10);
-  __ RV_fsw(f10, a0, offsetof(T, fd));  // fd = fc - (-fb).
+  __ RV_fneg_s(ft3, ft1);  // -fb
+  __ RV_fsub_s(ft3, ft2, ft3);
+  __ RV_fsw(ft3, a0, offsetof(T, fd));  // fd = fc - (-fb).
 
-  __ RV_fsw(f4, a0, offsetof(T, fb));  // fb = fa.
+  __ RV_fsw(ft0, a0, offsetof(T, fb));  // fb = fa.
 
   __ RV_li(t0, 120);
-  __ RV_fcvt_s_w(f14, t0);  // f14 = 120.0.
-  __ RV_fmul_s(f10, f10, f14);
-  __ RV_fsw(f10, a0, offsetof(T, fe));  // fe = fd * 120
+  __ RV_fcvt_s_w(ft5, t0);  // ft5 = 120.0.
+  __ RV_fmul_s(ft3, ft3, ft5);
+  __ RV_fsw(ft3, a0, offsetof(T, fe));  // fe = fd * 120
 
-  __ RV_fdiv_s(f12, f10, f4);
-  __ RV_fsw(f12, a0, offsetof(T, ff));  // ff = fe / fa
+  __ RV_fdiv_s(ft4, ft3, ft0);
+  __ RV_fsw(ft4, a0, offsetof(T, ff));  // ff = fe / fa
 
-  __ RV_fsqrt_s(f14, f12);
-  __ RV_fsw(f14, a0, offsetof(T, fg));
+  __ RV_fsqrt_s(ft5, ft4);
+  __ RV_fsw(ft5, a0, offsetof(T, fg));
 
   __ jr(ra);
 
@@ -365,24 +365,24 @@ TEST(RISCV4) {
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  __ RV_fld(f4, a0, offsetof(T, a));
-  __ RV_fld(f5, a0, offsetof(T, b));
+  __ RV_fld(ft0, a0, offsetof(T, a));
+  __ RV_fld(fa1, a0, offsetof(T, b));
 
-  // Swap f4 and f5, by using 2 integer registers, a4-a5,
+  // Swap ft0 and fa1, by using 2 integer registers, a4-a5,
 
-  __ RV_fmv_x_d(a4, f4);
-  __ RV_fmv_x_d(a5, f5);
+  __ RV_fmv_x_d(a4, ft0);
+  __ RV_fmv_x_d(a5, fa1);
 
-  __ RV_fmv_d_x(f5, a4);
-  __ RV_fmv_d_x(f4, a5);
+  __ RV_fmv_d_x(fa1, a4);
+  __ RV_fmv_d_x(ft0, a5);
 
-  // Store the swapped f4 and f5 back to memory.
-  __ RV_fsd(f4, a0, offsetof(T, a));
-  __ RV_fsd(f5, a0, offsetof(T, c));
+  // Store the swapped ft0 and fa1 back to memory.
+  __ RV_fsd(ft0, a0, offsetof(T, a));
+  __ RV_fsd(fa1, a0, offsetof(T, c));
 
   // Test sign extension of move operations from coprocessor.
-  __ RV_flw(f4, a0, offsetof(T, d));
-  __ RV_fmv_x_w(a4, f4);
+  __ RV_flw(ft0, a0, offsetof(T, d));
+  __ RV_fmv_x_w(a4, ft0);
 
   __ RV_sd(a4, a0, offsetof(T, e));
 
@@ -421,26 +421,26 @@ TEST(RISCV5) {
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   // Load all structure elements to registers.
-  __ RV_fld(f4, a0, offsetof(T, a));
-  __ RV_fld(f6, a0, offsetof(T, b));
+  __ RV_fld(ft0, a0, offsetof(T, a));
+  __ RV_fld(ft1, a0, offsetof(T, b));
   __ RV_lw(a4, a0, offsetof(T, i));
   __ RV_lw(a5, a0, offsetof(T, j));
 
-  // Convert double in f4 to int in element i.
-  __ RV_fcvt_l_d(a6, f4);
+  // Convert double in ft0 to int in element i.
+  __ RV_fcvt_l_d(a6, ft0);
   __ RV_sw(a6, a0, offsetof(T, i));
 
-  // Convert double in f6 to int in element j.
-  __ RV_fcvt_l_d(a7, f6);
+  // Convert double in ft1 to int in element j.
+  __ RV_fcvt_l_d(a7, ft1);
   __ RV_sw(a7, a0, offsetof(T, j));
 
   // Convert int in original i (a4) to double in a.
-  __ RV_fcvt_d_l(f0, a4);
-  __ RV_fsd(f0, a0, offsetof(T, a));
+  __ RV_fcvt_d_l(fa0, a4);
+  __ RV_fsd(fa0, a0, offsetof(T, a));
 
   // Convert int in original j (a5) to double in b.
-  __ RV_fcvt_d_l(f2, a5);
-  __ RV_fsd(f2, a0, offsetof(T, b));
+  __ RV_fcvt_d_l(fa1, a5);
+  __ RV_fsd(fa1, a0, offsetof(T, b));
 
   __ jr(ra);
 
@@ -554,21 +554,21 @@ TEST(RISCV7) {
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
   Label neither_is_nan, less_than, outa_here;
 
-  __ RV_fld(f4, a0, offsetof(T, a));
-  __ RV_fld(f6, a0, offsetof(T, b));
+  __ RV_fld(ft0, a0, offsetof(T, a));
+  __ RV_fld(ft1, a0, offsetof(T, b));
 
-  __ RV_fclass_d(t8, f4);
-  __ RV_fclass_d(t9, f6);
-  __ RV_or_(t8, t8, t9);
-  __ RV_andi(t8, t8, 0b1100000000);
-  __ RV_beq(t8, zero_reg, &neither_is_nan);
+  __ RV_fclass_d(t5, ft0);
+  __ RV_fclass_d(t6, ft1);
+  __ RV_or_(t5, t5, t6);
+  __ RV_andi(t5, t5, 0b1100000000);
+  __ RV_beq(t5, zero_reg, &neither_is_nan);
   __ RV_sw(zero_reg, a0, offsetof(T, result));
   __ RV_j(&outa_here);
 
   __ RV_bind(&neither_is_nan);
 
-  __ RV_flt_d(t8, f6, f4);
-  __ RV_bne(t8, zero_reg, &less_than);
+  __ RV_flt_d(t5, ft1, ft0);
+  __ RV_bne(t5, zero_reg, &less_than);
 
   __ RV_sw(zero_reg, a0, offsetof(T, result));
   __ RV_j(&outa_here);

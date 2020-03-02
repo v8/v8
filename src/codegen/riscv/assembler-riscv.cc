@@ -101,37 +101,37 @@ int ToNumber(Register reg) {
   DCHECK(reg.is_valid());
   const int kNumbers[] = {
       0,   // zero_reg
-      1,   // at
-      2,   // v0
-      3,   // v1
-      4,   // a0
-      5,   // a1
-      6,   // a2
-      7,   // a3
-      8,   // a4
-      9,   // a5
-      10,  // a6
-      11,  // a7
-      12,  // t0
-      13,  // t1
-      14,  // t2
-      15,  // t3
-      16,  // s0
-      17,  // s1
+      1,   // ra
+      2,   // sp
+      3,   // gp
+      4,   // tp
+      5,   // t0
+      6,   // t1
+      7,   // t2
+      8,   // s0/fp
+      9,   // s1
+      10,  // s2
+      11,  // a0
+      12,  // a2
+      13,  // a3
+      14,  // a4
+      15,  // a5
+      16,  // a6
+      17,  // a7
       18,  // s2
       19,  // s3
       20,  // s4
       21,  // s5
       22,  // s6
       23,  // s7
-      24,  // t8
-      25,  // t9
-      26,  // k0
-      27,  // k1
-      28,  // gp
-      29,  // sp
-      30,  // fp
-      31,  // ra
+      24,  // s8
+      25,  // s9
+      26,  // s10
+      27,  // s11
+      28,  // t3
+      29,  // t4
+      30,  // t5
+      31,  // t6
   };
   return kNumbers[reg.code()];
 }
@@ -139,8 +139,8 @@ int ToNumber(Register reg) {
 Register ToRegister(int num) {
   DCHECK(num >= 0 && num < kNumRegisters);
   const Register kRegisters[] = {
-      zero_reg, at, v0, v1, a0, a1, a2, a3, a4, a5, a6, a7, t0, t1, t2, t3,
-      s0,       s1, s2, s3, s4, s5, s6, s7, t8, t9, k0, k1, gp, sp, fp, ra};
+	    zero_reg, ra, sp, gp, tp, t0, t1, t2, fp, s1, s2, a0, a2, a3, a4, a5,
+      a6, a7, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, t3, t4, t5, t6};
   return kRegisters[num];
 }
 
@@ -260,7 +260,7 @@ const Instr kLwSwOffsetMask = kImm16Mask;
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_(at.bit()) {
+      scratch_register_list_(t3.bit()) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
   last_trampoline_pool_end_ = 0;
@@ -613,7 +613,7 @@ bool Assembler::IsNop(Instr instr, unsigned int type) {
   // to avoid use of mips ssnop and ehb special encodings
   // of the sll instruction.
 
-  Register nop_rt_reg = (type == 0) ? zero_reg : at;
+  Register nop_rt_reg = (type == 0) ? zero_reg : t3;
   bool ret = (opcode == SPECIAL && function == SLL &&
               rd == static_cast<uint32_t>(ToNumber(zero_reg)) &&
               rt == static_cast<uint32_t>(ToNumber(nop_rt_reg)) && sa == type);
@@ -770,12 +770,12 @@ int Assembler::target_at(int pos, bool is_internal) {
   }
   // Check we have a branch or jump instruction.
   DCHECK(IsBranch(instr) || IsJ(instr) || IsJal(instr) || IsLui(instr) ||
-         IsMov(instr, t8, ra));
+         IsMov(instr, t5, ra));
   // Do NOT change this to <<2. We rely on arithmetic shifts here, assuming
   // the compiler uses arithmetic shifts for signed integers.
   if (IsBranch(instr)) {
     return AddBranchOffset(pos, instr);
-  } else if (IsMov(instr, t8, ra)) {
+  } else if (IsMov(instr, t5, ra)) {
     int32_t imm32;
     Instr instr_lui = instr_at(pos + 2 * kInstrSize);
     Instr instr_ori = instr_at(pos + 3 * kInstrSize);
@@ -968,7 +968,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
                    instr_ori | ((imm >> 16) & kImm16Mask));
       instr_at_put(pos + 3 * kInstrSize, instr_ori2 | (imm & kImm16Mask));
     }
-  } else if (IsMov(instr, t8, ra)) {
+  } else if (IsMov(instr, t5, ra)) {
     Instr instr_lui = instr_at(pos + 2 * kInstrSize);
     Instr instr_ori = instr_at(pos + 3 * kInstrSize);
     DCHECK(IsLui(instr_lui));
@@ -1131,7 +1131,7 @@ void Assembler::bind_to(Label* L, int pos) {
         target_at_put(fixup_pos, pos, false);
       } else {
         DCHECK(IsJ(instr) || IsJal(instr) || IsLui(instr) ||
-               IsEmittedConstant(instr) || IsMov(instr, t8, ra));
+               IsEmittedConstant(instr) || IsMov(instr, t5, ra));
         target_at_put(fixup_pos, pos, false);
       }
     }
@@ -3400,7 +3400,7 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src,
   }
 
   DCHECK(src->rm() !=
-         at);  // Must not overwrite the register 'base' while loading 'offset'.
+         t3);  // Must not overwrite the register 'base' while loading 'offset'.
 
 #ifdef DEBUG
   // Remember the "(mis)alignment" of 'offset', it will be checked at the end.
@@ -4034,27 +4034,27 @@ void Assembler::sdc1(FPURegister fs, const MemOperand& src) {
 }
 
 void Assembler::mtc1(Register rt, FPURegister fs) {
-  GenInstrRegister(COP1, MTC1, rt, fs, f0);
+  GenInstrRegister(COP1, MTC1, rt, fs, fa0);
 }
 
 void Assembler::mthc1(Register rt, FPURegister fs) {
-  GenInstrRegister(COP1, MTHC1, rt, fs, f0);
+  GenInstrRegister(COP1, MTHC1, rt, fs, fa0);
 }
 
 void Assembler::dmtc1(Register rt, FPURegister fs) {
-  GenInstrRegister(COP1, DMTC1, rt, fs, f0);
+  GenInstrRegister(COP1, DMTC1, rt, fs, fa0);
 }
 
 void Assembler::mfc1(Register rt, FPURegister fs) {
-  GenInstrRegister(COP1, MFC1, rt, fs, f0);
+  GenInstrRegister(COP1, MFC1, rt, fs, fa0);
 }
 
 void Assembler::mfhc1(Register rt, FPURegister fs) {
-  GenInstrRegister(COP1, MFHC1, rt, fs, f0);
+  GenInstrRegister(COP1, MFHC1, rt, fs, fa0);
 }
 
 void Assembler::dmfc1(Register rt, FPURegister fs) {
-  GenInstrRegister(COP1, DMFC1, rt, fs, f0);
+  GenInstrRegister(COP1, DMFC1, rt, fs, fa0);
 }
 
 void Assembler::ctc1(Register rt, FPUControlRegister fs) {
@@ -4239,92 +4239,92 @@ void Assembler::div_d(FPURegister fd, FPURegister fs, FPURegister ft) {
 }
 
 void Assembler::abs_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, ABS_D);
+  GenInstrRegister(COP1, S, fa0, fs, fd, ABS_D);
 }
 
 void Assembler::abs_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, ABS_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, ABS_D);
 }
 
 void Assembler::mov_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, MOV_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, MOV_D);
 }
 
 void Assembler::mov_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, MOV_S);
+  GenInstrRegister(COP1, S, fa0, fs, fd, MOV_S);
 }
 
 void Assembler::neg_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, NEG_D);
+  GenInstrRegister(COP1, S, fa0, fs, fd, NEG_D);
 }
 
 void Assembler::neg_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, NEG_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, NEG_D);
 }
 
 void Assembler::sqrt_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, SQRT_D);
+  GenInstrRegister(COP1, S, fa0, fs, fd, SQRT_D);
 }
 
 void Assembler::sqrt_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, SQRT_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, SQRT_D);
 }
 
 void Assembler::rsqrt_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, RSQRT_S);
+  GenInstrRegister(COP1, S, fa0, fs, fd, RSQRT_S);
 }
 
 void Assembler::rsqrt_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, RSQRT_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, RSQRT_D);
 }
 
 void Assembler::recip_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, RECIP_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, RECIP_D);
 }
 
 void Assembler::recip_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, RECIP_S);
+  GenInstrRegister(COP1, S, fa0, fs, fd, RECIP_S);
 }
 
 // Conversions.
 void Assembler::cvt_w_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, CVT_W_S);
+  GenInstrRegister(COP1, S, fa0, fs, fd, CVT_W_S);
 }
 
 void Assembler::cvt_w_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, CVT_W_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, CVT_W_D);
 }
 
 void Assembler::trunc_w_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, TRUNC_W_S);
+  GenInstrRegister(COP1, S, fa0, fs, fd, TRUNC_W_S);
 }
 
 void Assembler::trunc_w_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, TRUNC_W_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, TRUNC_W_D);
 }
 
 void Assembler::round_w_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, ROUND_W_S);
+  GenInstrRegister(COP1, S, fa0, fs, fd, ROUND_W_S);
 }
 
 void Assembler::round_w_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, ROUND_W_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, ROUND_W_D);
 }
 
 void Assembler::floor_w_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, FLOOR_W_S);
+  GenInstrRegister(COP1, S, fa0, fs, fd, FLOOR_W_S);
 }
 
 void Assembler::floor_w_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, FLOOR_W_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, FLOOR_W_D);
 }
 
 void Assembler::ceil_w_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, CEIL_W_S);
+  GenInstrRegister(COP1, S, fa0, fs, fd, CEIL_W_S);
 }
 
 void Assembler::ceil_w_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, CEIL_W_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, CEIL_W_D);
 }
 
 void Assembler::rint_s(FPURegister fd, FPURegister fs) { rint(S, fd, fs); }
@@ -4333,61 +4333,61 @@ void Assembler::rint_d(FPURegister fd, FPURegister fs) { rint(D, fd, fs); }
 
 void Assembler::rint(SecondaryField fmt, FPURegister fd, FPURegister fs) {
   DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(COP1, fmt, f0, fs, fd, RINT);
+  GenInstrRegister(COP1, fmt, fa0, fs, fd, RINT);
 }
 
 void Assembler::cvt_l_s(FPURegister fd, FPURegister fs) {
   DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(COP1, S, f0, fs, fd, CVT_L_S);
+  GenInstrRegister(COP1, S, fa0, fs, fd, CVT_L_S);
 }
 
 void Assembler::cvt_l_d(FPURegister fd, FPURegister fs) {
   DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(COP1, D, f0, fs, fd, CVT_L_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, CVT_L_D);
 }
 
 void Assembler::trunc_l_s(FPURegister fd, FPURegister fs) {
   DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(COP1, S, f0, fs, fd, TRUNC_L_S);
+  GenInstrRegister(COP1, S, fa0, fs, fd, TRUNC_L_S);
 }
 
 void Assembler::trunc_l_d(FPURegister fd, FPURegister fs) {
   DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(COP1, D, f0, fs, fd, TRUNC_L_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, TRUNC_L_D);
 }
 
 void Assembler::round_l_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, ROUND_L_S);
+  GenInstrRegister(COP1, S, fa0, fs, fd, ROUND_L_S);
 }
 
 void Assembler::round_l_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, ROUND_L_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, ROUND_L_D);
 }
 
 void Assembler::floor_l_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, FLOOR_L_S);
+  GenInstrRegister(COP1, S, fa0, fs, fd, FLOOR_L_S);
 }
 
 void Assembler::floor_l_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, FLOOR_L_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, FLOOR_L_D);
 }
 
 void Assembler::ceil_l_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, CEIL_L_S);
+  GenInstrRegister(COP1, S, fa0, fs, fd, CEIL_L_S);
 }
 
 void Assembler::ceil_l_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, CEIL_L_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, CEIL_L_D);
 }
 
 void Assembler::class_s(FPURegister fd, FPURegister fs) {
   DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(COP1, S, f0, fs, fd, CLASS_S);
+  GenInstrRegister(COP1, S, fa0, fs, fd, CLASS_S);
 }
 
 void Assembler::class_d(FPURegister fd, FPURegister fs) {
   DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(COP1, D, f0, fs, fd, CLASS_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, CLASS_D);
 }
 
 void Assembler::mina(SecondaryField fmt, FPURegister fd, FPURegister fs,
@@ -4405,29 +4405,29 @@ void Assembler::maxa(SecondaryField fmt, FPURegister fd, FPURegister fs,
 }
 
 void Assembler::cvt_s_w(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, W, f0, fs, fd, CVT_S_W);
+  GenInstrRegister(COP1, W, fa0, fs, fd, CVT_S_W);
 }
 
 void Assembler::cvt_s_l(FPURegister fd, FPURegister fs) {
   DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(COP1, L, f0, fs, fd, CVT_S_L);
+  GenInstrRegister(COP1, L, fa0, fs, fd, CVT_S_L);
 }
 
 void Assembler::cvt_s_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, CVT_S_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, CVT_S_D);
 }
 
 void Assembler::cvt_d_w(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, W, f0, fs, fd, CVT_D_W);
+  GenInstrRegister(COP1, W, fa0, fs, fd, CVT_D_W);
 }
 
 void Assembler::cvt_d_l(FPURegister fd, FPURegister fs) {
   DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(COP1, L, f0, fs, fd, CVT_D_L);
+  GenInstrRegister(COP1, L, fa0, fs, fd, CVT_D_L);
 }
 
 void Assembler::cvt_d_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, CVT_D_S);
+  GenInstrRegister(COP1, S, fa0, fs, fd, CVT_D_S);
 }
 
 // Conditions for >= MIPSr6.
@@ -4490,9 +4490,9 @@ void Assembler::c_d(FPUCondition cond, FPURegister fs, FPURegister ft,
 
 void Assembler::fcmp(FPURegister src1, const double src2, FPUCondition cond) {
   DCHECK_EQ(src2, 0.0);
-  mtc1(zero_reg, f14);
-  cvt_d_w(f14, f14);
-  c(cond, D, src1, f14, 0);
+  mtc1(zero_reg, fa1);
+  cvt_d_w(fa1, fa1);
+  c(cond, D, src1, fa1, 0);
 }
 
 void Assembler::bc1f(int16_t offset, uint16_t cc) {
@@ -5217,16 +5217,16 @@ void Assembler::CheckTrampolinePool() {
             bc(&after_pool);
             nop();
           } else {
-            or_(t8, ra, zero_reg);
+            or_(t5, ra, zero_reg);
             nal();       // Read PC into ra register.
-            lui(t9, 0);  // Branch delay slot.
-            ori(t9, t9, 0);
-            daddu(t9, ra, t9);
-            or_(ra, t8, zero_reg);
+            lui(t6, 0);  // Branch delay slot.
+            ori(t6, t6, 0);
+            daddu(t6, ra, t6);
+            or_(ra, t5, zero_reg);
             // Instruction jr will take or_ from the next trampoline.
             // in its branch delay slot. This is the expected behavior
             // in order to decrease size of trampoline pool.
-            jr(t9);
+            jr(t6);
           }
         }
       }
