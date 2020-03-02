@@ -7744,12 +7744,14 @@ EVALUATE(LPGR) {
   // Load Positive (32)
   DECODE_RRE_INSTRUCTION(r1, r2);
   int64_t r2_val = get_register(r2);
-  r2_val = (r2_val < 0) ? -r2_val : r2_val;  // If negative, then negate it.
-  set_register(r1, r2_val);
   SetS390ConditionCode<int64_t>(r2_val, 0);
   if (r2_val == (static_cast<int64_t>(1) << 63)) {
     SetS390OverflowCode(true);
+  } else {
+    // If negative and not overflowing, then negate it.
+    r2_val = (r2_val < 0) ? -r2_val : r2_val;
   }
+  set_register(r1, r2_val);
   return length;
 }
 
