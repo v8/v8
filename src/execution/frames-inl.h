@@ -190,10 +190,15 @@ inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {}
 
 Address JavaScriptFrame::GetParameterSlot(int index) const {
-  int param_count = ComputeParametersCount();
   DCHECK(-1 <= index &&
-         (index < param_count || param_count == kDontAdaptArgumentsSentinel));
+         (index < ComputeParametersCount() ||
+          ComputeParametersCount() == kDontAdaptArgumentsSentinel));
+#ifdef V8_REVERSE_JSARGS
+  int parameter_offset = (index + 1) * kSystemPointerSize;
+#else
+  int param_count = ComputeParametersCount();
   int parameter_offset = (param_count - index - 1) * kSystemPointerSize;
+#endif
   return caller_sp() + parameter_offset;
 }
 

@@ -21,6 +21,9 @@ namespace internal {
 // header, with slot index 2 corresponding to the current function context and 3
 // corresponding to the frame marker/JSFunction.
 //
+// If V8_REVERSE_JSARGS is set, then the parameters are reversed in the stack,
+// i.e., the first parameter (the receiver) is just above the return address.
+//
 //  slot      JS frame
 //       +-----------------+--------------------------------
 //  -n-1 |   parameter 0   |                            ^
@@ -326,8 +329,13 @@ class InterpreterFrameConstants : public AllStatic {
       StandardFrameConstants::kFixedFrameSizeFromFp + 2 * kSystemPointerSize;
 
   // FP-relative.
+#ifdef V8_REVERSE_JSARGS
+  static constexpr int kFirstParamFromFp =
+      StandardFrameConstants::kCallerSPOffset;
+#else
   static constexpr int kLastParamFromFp =
       StandardFrameConstants::kCallerSPOffset;
+#endif
   static constexpr int kCallerPCOffsetFromFp =
       StandardFrameConstants::kCallerPCOffset;
   static constexpr int kBytecodeArrayFromFp =

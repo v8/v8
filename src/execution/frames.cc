@@ -1668,6 +1668,7 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
   return DeoptimizationData();
 }
 
+#ifndef V8_REVERSE_JSARGS
 Object OptimizedFrame::receiver() const {
   Code code = LookupCode();
   if (code.kind() == Code::BUILTIN) {
@@ -1682,6 +1683,7 @@ Object OptimizedFrame::receiver() const {
     return JavaScriptFrame::receiver();
   }
 }
+#endif
 
 void OptimizedFrame::GetFunctions(
     std::vector<SharedFunctionInfo>* functions) const {

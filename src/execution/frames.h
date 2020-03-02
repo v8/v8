@@ -819,7 +819,11 @@ class OptimizedFrame : public JavaScriptFrame {
 
   DeoptimizationData GetDeoptimizationData(int* deopt_index) const;
 
+#ifndef V8_REVERSE_JSARGS
+  // When the arguments are reversed in the stack, receiver() is
+  // inherited from JavaScriptFrame.
   Object receiver() const override;
+#endif
   int ComputeParametersCount() const override;
 
   static int StackSlotOffsetRelativeToFp(int slot_index);
