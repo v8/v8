@@ -2371,6 +2371,65 @@ class LiftoffCompiler {
     __ PushRegister(result_type, result);
   }
 
+  void AtomicWait(FullDecoder* decoder, ValueType type,
+                  const MemoryAccessImmediate<validate>& imm) {
+#if V8_TARGET_ARCH_32_BIT
+    // The current implementation does not work on 32-bit platforms, as it
+    // passes i64 values over registers to builtins.
+    unsupported(decoder, kAtomics, "AtomicWait");
+    return;
+#else
+    LiftoffRegList pinned;
+    LiftoffRegister timeout = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister expected_value = pinned.set(__ PopToRegister(pinned));
+    Register index = pinned.set(__ PopToRegister(pinned)).gp();
+    if (BoundsCheckMem(decoder, ValueTypes::ElementSizeInBytes(type),
+                       imm.offset, index, pinned, kDoForceCheck)) {
+      return;
+    }
+    AlignmentCheckMem(decoder, ValueTypes::ElementSizeInBytes(type), imm.offset,
+                      index, pinned);
+
+    uint32_t offset = imm.offset;
+    index = AddMemoryMasking(index, &offset, &pinned);
+    if (offset != 0) __ emit_i32_add(index, index, offset);
+
+    // TODO(ahaas): Use PrepareCall to prepare parameters.
+    __ SpillAllRegisters();
+
+    Register params[3]{no_reg, no_reg, no_reg};
+    if (type == kWasmI32) {
+      WasmI32AtomicWait64Descriptor descriptor;
+      DCHECK_EQ(0, descriptor.GetStackParameterCount());
+      DCHECK_EQ(3, descriptor.GetRegisterParameterCount());
+      params[0] = descriptor.GetRegisterParameter(0);
+      params[1] = descriptor.GetRegisterParameter(1);
+      params[2] = descriptor.GetRegisterParameter(2);
+    } else {
+      DCHECK_EQ(kWasmI64, type);
+
+      WasmI64AtomicWait64Descriptor descriptor;
+      DCHECK_EQ(0, descriptor.GetStackParameterCount());
+      DCHECK_EQ(3, descriptor.GetRegisterParameterCount());
+      params[0] = descriptor.GetRegisterParameter(0);
+      params[1] = descriptor.GetRegisterParameter(1);
+      params[2] = descriptor.GetRegisterParameter(2);
+    }
+    LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
+        {LiftoffRegister(params[0]), LiftoffRegister(index), kWasmI32},
+        {LiftoffRegister(params[1]), expected_value, type},
+        {LiftoffRegister(params[2]), timeout, kWasmI64}};
+    __ ParallelRegisterMove(ArrayVector(reg_moves));
+
+    __ CallRuntimeStub(type == kWasmI32 ? WasmCode::kWasmI32AtomicWait64
+                                        : WasmCode::kWasmI64AtomicWait64);
+    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+
+    __ PushRegister(kWasmI32, LiftoffRegister(kReturnRegister0));
+#endif
+  }
+
 #define ATOMIC_STORE_LIST(V)        \
   V(I32AtomicStore, kI32Store)      \
   V(I64AtomicStore, kI64Store)      \
@@ -2452,6 +2511,12 @@ class LiftoffCompiler {
 
       ATOMIC_BINOP_INSTRUCTION_LIST(ATOMIC_BINOP_OP)
 #undef ATOMIC_BINOP_OP
+      case kExprI32AtomicWait:
+        AtomicWait(decoder, kWasmI32, imm);
+        break;
+      case kExprI64AtomicWait:
+        AtomicWait(decoder, kWasmI64, imm);
+        break;
       default:
         unsupported(decoder, kAtomics, "atomicop");
     }
