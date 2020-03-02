@@ -3607,6 +3607,9 @@ class Analysis : public NodeVisitor {
   void EnsureAnalyzed(RegExpNode* that) {
     StackLimitCheck check(isolate());
     if (check.HasOverflowed()) {
+      if (FLAG_correctness_fuzzer_suppressions) {
+        FATAL("Analysis: Aborting on stack overflow");
+      }
       fail("Stack overflow");
       return;
     }
