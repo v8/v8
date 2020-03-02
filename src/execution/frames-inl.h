@@ -246,6 +246,10 @@ inline WasmInterpreterEntryFrame::WasmInterpreterEntryFrame(
     StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {}
 
+inline WasmDebugBreakFrame::WasmDebugBreakFrame(
+    StackFrameIteratorBase* iterator)
+    : StandardFrame(iterator) {}
+
 inline WasmToJsFrame::WasmToJsFrame(StackFrameIteratorBase* iterator)
     : StubFrame(iterator) {}
 

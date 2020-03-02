@@ -622,6 +622,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case WASM_COMPILED:
     case WASM_COMPILE_LAZY:
     case WASM_EXIT:
+    case WASM_DEBUG_BREAK:
       return candidate;
     case JS_TO_WASM:
     case OPTIMIZED:
@@ -968,6 +969,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
       case CONSTRUCT:
       case JS_TO_WASM:
       case C_WASM_ENTRY:
+      case WASM_DEBUG_BREAK:
         frame_header_size = TypedFrameConstants::kFixedFrameSizeFromFp;
         break;
       case WASM_TO_JS:
@@ -2029,6 +2031,26 @@ Object WasmInterpreterEntryFrame::context() const {
 
 Address WasmInterpreterEntryFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPOffset;
+}
+
+void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
+  // Nothing to iterate here. This will change once we support references in
+  // Liftoff.
+}
+
+Code WasmDebugBreakFrame::unchecked_code() const { return Code(); }
+
+void WasmDebugBreakFrame::Print(StringStream* accumulator, PrintMode mode,
+                                int index) const {
+  PrintIndex(accumulator, mode, index);
+  accumulator->Add("WASM DEBUG BREAK");
+  if (mode != OVERVIEW) accumulator->Add("\n");
+}
+
+Address WasmDebugBreakFrame::GetCallerStackPointer() const {
+  // WasmDebugBreak does not receive any arguments, hence the stack pointer of
+  // the caller is at a fixed offset from the frame pointer.
+  return fp() + StandardFrameConstants::kCallerSPOffset;
 }
 
 Code WasmCompileLazyFrame::unchecked_code() const { return Code(); }

@@ -617,7 +617,7 @@ RUNTIME_FUNCTION(Runtime_WasmNewMultiReturnJSArray) {
 RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  FrameFinder<WasmCompiledFrame, StackFrame::EXIT, StackFrame::INTERNAL>
+  FrameFinder<WasmCompiledFrame, StackFrame::EXIT, StackFrame::WASM_DEBUG_BREAK>
       frame_finder(isolate);
   auto instance = handle(frame_finder.frame()->wasm_instance(), isolate);
   int position = frame_finder.frame()->position();

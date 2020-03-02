@@ -3017,8 +3017,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
 void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
   HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
   {
-    // TODO(clemensb): Use a separate frame type and make it inspectable.
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::WASM_DEBUG_BREAK);
 
     // Save all parameter registers. They might hold live values, we restore
     // them after the runtime call.

@@ -2285,11 +2285,10 @@ void TurboAssembler::Prologue() {
 void TurboAssembler::EnterFrame(StackFrame::Type type) {
   UseScratchRegisterScope temps(this);
 
-  if (type == StackFrame::INTERNAL) {
+  if (type == StackFrame::INTERNAL || type == StackFrame::WASM_DEBUG_BREAK) {
     Register type_reg = temps.AcquireX();
     Mov(type_reg, StackFrame::TypeToMarker(type));
-    // type_reg pushed twice for alignment.
-    Push<TurboAssembler::kSignLR>(lr, fp, type_reg, type_reg);
+    Push<TurboAssembler::kSignLR>(lr, fp, type_reg, padreg);
     const int kFrameSize =
         TypedFrameConstants::kFixedFrameSizeFromFp + kSystemPointerSize;
     Add(fp, sp, kFrameSize);
