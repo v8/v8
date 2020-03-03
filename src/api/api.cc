@@ -8483,6 +8483,7 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->total_physical_size_ = heap->CommittedPhysicalMemory();
   heap_statistics->total_available_size_ = heap->Available();
   heap_statistics->used_heap_size_ = heap->SizeOfObjects();
+  heap_statistics->total_global_handles_size_ = heap->TotalGlobalHandlesSize();
 
 #ifndef V8_SHARED_RO_HEAP
   i::ReadOnlySpace* ro_space = heap->read_only_space();

@@ -186,6 +186,8 @@ class GlobalHandles::NodeSpace final {
   iterator begin() { return iterator(first_used_block_); }
   iterator end() { return iterator(nullptr); }
 
+  size_t TotalSize() const { return blocks_ * sizeof(NodeType) * kBlockSize; }
+
  private:
   void PutNodesOnFreeList(BlockType* block);
   V8_INLINE void Free(NodeType* node);
@@ -194,6 +196,7 @@ class GlobalHandles::NodeSpace final {
   BlockType* first_block_ = nullptr;
   BlockType* first_used_block_ = nullptr;
   NodeType* first_free_ = nullptr;
+  size_t blocks_ = 0;
 };
 
 template <class NodeType>
@@ -210,6 +213,7 @@ template <class NodeType>
 NodeType* GlobalHandles::NodeSpace<NodeType>::Acquire(Object object) {
   if (first_free_ == nullptr) {
     first_block_ = new BlockType(global_handles_, this, first_block_);
+    blocks_++;
     PutNodesOnFreeList(first_block_);
   }
   DCHECK_NOT_NULL(first_free_);
@@ -873,6 +877,10 @@ void GlobalHandles::CleanupOnStackReferencesBelowCurrentStackPosition() {
 
 size_t GlobalHandles::NumberOfOnStackHandlesForTesting() {
   return on_stack_nodes_->NumberOfHandlesForTesting();
+}
+
+size_t GlobalHandles::TotalSize() const {
+  return regular_nodes_->TotalSize() + traced_nodes_->TotalSize();
 }
 
 void GlobalHandles::SetStackStart(void* stack_start) {

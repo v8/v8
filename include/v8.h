@@ -7578,6 +7578,7 @@ class V8_EXPORT HeapStatistics {
   size_t total_heap_size_executable() { return total_heap_size_executable_; }
   size_t total_physical_size() { return total_physical_size_; }
   size_t total_available_size() { return total_available_size_; }
+  size_t total_global_handles_size() { return total_global_handles_size_; }
   size_t used_heap_size() { return used_heap_size_; }
   size_t heap_size_limit() { return heap_size_limit_; }
   size_t malloced_memory() { return malloced_memory_; }
@@ -7605,6 +7606,7 @@ class V8_EXPORT HeapStatistics {
   bool does_zap_garbage_;
   size_t number_of_native_contexts_;
   size_t number_of_detached_contexts_;
+  size_t total_global_handles_size_;
 
   friend class V8;
   friend class Isolate;

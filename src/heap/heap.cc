@@ -867,6 +867,10 @@ size_t Heap::SizeOfObjects() {
   return total;
 }
 
+size_t Heap::TotalGlobalHandlesSize() {
+  return isolate_->global_handles()->TotalSize();
+}
+
 // static
 const char* Heap::GetSpaceName(AllocationSpace space) {
   switch (space) {

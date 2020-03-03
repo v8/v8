@@ -1195,8 +1195,11 @@ class Heap {
   // all available bytes. Check MaxHeapObjectSize() instead.
   size_t Available();
 
-  // Returns of size of all objects residing in the heap.
+  // Returns size of all objects residing in the heap.
   V8_EXPORT_PRIVATE size_t SizeOfObjects();
+
+  // Returns size of all global handles in the heap.
+  V8_EXPORT_PRIVATE size_t TotalGlobalHandlesSize();
 
   void UpdateSurvivalStatistics(int start_new_space_size);
 

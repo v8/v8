@@ -176,6 +176,8 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
 
   Isolate* isolate() const { return isolate_; }
 
+  size_t TotalSize() const;
+
   // Number of global handles.
   size_t handles_count() const { return handles_count_; }
 
