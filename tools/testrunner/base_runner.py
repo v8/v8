@@ -379,6 +379,8 @@ class BaseTestRunner(object):
                       help="Timeout for single test in seconds")
     parser.add_option("-v", "--verbose", default=False, action="store_true",
                       help="Verbose output")
+    parser.add_option('--regenerate-expected-files', default=False, action='store_true',
+                      help='Regenerate expected files')
 
     # TODO(machenbach): Temporary options for rolling out new test runner
     # features.
@@ -721,6 +723,7 @@ class BaseTestRunner(object):
         shell_dir=self.outdir,
         timeout=timeout,
         verbose=options.verbose,
+        regenerate_expected_files=options.regenerate_expected_files,
     )
 
   def _timeout_scalefactor(self, options):
