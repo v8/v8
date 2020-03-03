@@ -140,8 +140,6 @@
 
 ##############################################################################
 ['arch == arm64', {
-  'test-api/Bug618': [PASS],
-
   # BUG(v8:3385).
   'test-serialize/StartupSerializerOnceRunScript': [PASS, FAIL],
   'test-serialize/StartupSerializerTwiceRunScript': [PASS, FAIL],
