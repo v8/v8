@@ -2835,6 +2835,12 @@ void InstructionSelector::VisitI64x2Mul(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitLoadTransform(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitI8x16Abs(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI16x8Abs(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI32x4Abs(Node* node) { UNIMPLEMENTED(); }
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
