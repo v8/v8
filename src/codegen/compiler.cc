@@ -39,6 +39,7 @@
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/object-list-macros.h"
+#include "src/objects/shared-function-info.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/parsing.h"
@@ -2345,28 +2346,6 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
       wrapped, context, AllocationType::kYoung);
 }
 
-namespace {
-
-void RecursivelyEnsureSourcePositionsAvailable(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared_info) {
-  SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
-  if (shared_info->HasBytecodeArray()) {
-    Handle<FixedArray> constant_pool(
-        shared_info->GetBytecodeArray().constant_pool(isolate), isolate);
-
-    int length = constant_pool->length();
-    FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i++, {
-      Object entry = constant_pool->get(isolate, i);
-      if (entry.IsSharedFunctionInfo(isolate)) {
-        RecursivelyEnsureSourcePositionsAvailable(
-            isolate, handle(SharedFunctionInfo::cast(entry), isolate));
-      }
-    });
-  }
-}
-
-}  // namespace
-
 MaybeHandle<SharedFunctionInfo>
 Compiler::GetSharedFunctionInfoForStreamedScript(
     Isolate* isolate, Handle<String> source,
@@ -2413,12 +2392,23 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
                                     origin_options, NOT_NATIVES_CODE);
 
       // It's possible that source position collection was enabled after the
-      // background compile was started in which the compiled bytecode will not
-      // be missing source positions (for instance by enabling the cpu
-      // profiler). So force source position collection now in that case.
+      // background compile was started (for instance by enabling the cpu
+      // profiler), and the compiled bytecode is missing source positions. So,
+      // walk all the SharedFunctionInfos in the script and force source
+      // position collection.
       if (!task->collected_source_positions() &&
           isolate->NeedsDetailedOptimizedCodeLineInfo()) {
-        RecursivelyEnsureSourcePositionsAvailable(isolate, sfi);
+        Handle<WeakFixedArray> shared_function_infos(
+            script->shared_function_infos(isolate), isolate);
+        int length = shared_function_infos->length();
+        FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i++, {
+          Object entry = shared_function_infos->Get(isolate, i)
+                             .GetHeapObjectOrSmi(isolate);
+          if (entry.IsSharedFunctionInfo(isolate)) {
+            SharedFunctionInfo::EnsureSourcePositionsAvailable(
+                isolate, handle(SharedFunctionInfo::cast(entry), isolate));
+          }
+        });
       }
 
       maybe_result = sfi;
