@@ -828,6 +828,9 @@ const char* AstPrinter::PrintProgram(FunctionLiteral* program) {
     if (program->requires_instance_members_initializer()) {
       Print(" REQUIRES INSTANCE FIELDS INITIALIZER\n");
     }
+    if (program->class_scope_has_private_brand()) {
+      Print(" CLASS SCOPE HAS PRIVATE BRAND\n");
+    }
     PrintParameters(program->scope());
     PrintDeclarations(program->scope()->declarations());
     PrintStatements(program->body());

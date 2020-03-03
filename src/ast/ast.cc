@@ -278,17 +278,6 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
   return result;
 }
 
-bool FunctionLiteral::requires_brand_initialization() const {
-  Scope* outer = scope_->outer_scope();
-
-  // If there are no variables declared in the outer scope other than
-  // the class name variable, the outer class scope may be elided when
-  // the function is deserialized after preparsing.
-  if (!outer->is_class_scope()) return false;
-
-  return outer->AsClassScope()->brand() != nullptr;
-}
-
 bool FunctionLiteral::private_name_lookup_skips_outer_class() const {
   return scope()->private_name_lookup_skips_outer_class();
 }

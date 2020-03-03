@@ -110,11 +110,12 @@ INT_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
 UINT16_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
 UINT16_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
                  kFormalParameterCountOffset)
-UINT16_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
-                 kExpectedNofPropertiesOffset)
+UINT8_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
+                kExpectedNofPropertiesOffset)
 UINT16_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
                  kFunctionTokenOffsetOffset)
 RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
+UINT8_ACCESSORS(SharedFunctionInfo, flags2, kFlags2Offset)
 
 bool SharedFunctionInfo::HasSharedName() const {
   Object value = name_or_scope_info();
@@ -183,6 +184,9 @@ int SharedFunctionInfo::function_token_position() const {
     return StartPosition() - offset;
   }
 }
+
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, class_scope_has_private_brand,
+                    SharedFunctionInfo::ClassScopeHasPrivateBrandBit)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, syntax_kind,
                     SharedFunctionInfo::FunctionSyntaxKindBits)

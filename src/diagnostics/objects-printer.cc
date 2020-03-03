@@ -1364,6 +1364,9 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   if (HasInferredName()) {
     os << "\n - inferred name: " << Brief(inferred_name());
   }
+  if (class_scope_has_private_brand()) {
+    os << "\n - class_scope_has_private_brand";
+  }
   os << "\n - kind: " << kind();
   os << "\n - syntax kind: " << syntax_kind();
   if (needs_home_object()) {

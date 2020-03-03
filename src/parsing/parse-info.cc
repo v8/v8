@@ -81,6 +81,7 @@ void ParseInfo::SetFunctionInfo(T function) {
   set_function_syntax_kind(function->syntax_kind());
   set_requires_instance_members_initializer(
       function->requires_instance_members_initializer());
+  set_class_scope_has_private_brand(function->class_scope_has_private_brand());
   set_toplevel(function->is_toplevel());
   set_is_oneshot_iife(function->is_oneshot_iife());
 }

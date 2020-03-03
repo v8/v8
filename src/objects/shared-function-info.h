@@ -172,6 +172,7 @@ class SharedFunctionInfo : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
   DEFINE_TORQUE_GENERATED_SHARED_FUNCTION_INFO_FLAGS()
+  DEFINE_TORQUE_GENERATED_SHARED_FUNCTION_INFO_FLAGS2()
 
   // This initializes the SharedFunctionInfo after allocation. It must
   // initialize all fields, and leave the SharedFunctionInfo in a state where
@@ -279,7 +280,7 @@ class SharedFunctionInfo : public HeapObject {
 
   // [expected_nof_properties]: Expected number of properties for the
   // function. The value is only reliable when the function has been compiled.
-  DECL_UINT16_ACCESSORS(expected_nof_properties)
+  DECL_UINT8_ACCESSORS(expected_nof_properties)
 
   // [function_literal_id] - uniquely identifies the FunctionLiteral this
   // SharedFunctionInfo represents within its script, or -1 if this
@@ -402,6 +403,11 @@ class SharedFunctionInfo : public HeapObject {
 
   // [flags] Bit field containing various flags about the function.
   DECL_INT32_ACCESSORS(flags)
+  DECL_UINT8_ACCESSORS(flags2)
+
+  // True if the outer class scope contains a private brand for
+  // private instance methdos.
+  DECL_BOOLEAN_ACCESSORS(class_scope_has_private_brand)
 
   // Is this function a top-level function (scripts, evals).
   DECL_BOOLEAN_ACCESSORS(is_toplevel)

@@ -4971,6 +4971,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   // All flags default to false or 0, except ConstructAsBuiltinBit just because
   // we're using the kIllegal builtin.
   set_flags(ConstructAsBuiltinBit::encode(true));
+  set_flags2(0);
 
   UpdateFunctionMapIndex();
 
@@ -5365,6 +5366,10 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
                  IsClassConstructor(lit->kind()));
   shared_info->set_requires_instance_members_initializer(
       lit->requires_instance_members_initializer());
+  DCHECK_IMPLIES(lit->class_scope_has_private_brand(),
+                 IsClassConstructor(lit->kind()));
+  shared_info->set_class_scope_has_private_brand(
+      lit->class_scope_has_private_brand());
 
   shared_info->set_is_toplevel(is_toplevel);
   DCHECK(shared_info->outer_scope_info().IsTheHole());
@@ -5438,7 +5443,11 @@ uint16_t SharedFunctionInfo::get_property_estimate_from_literal(
 
 void SharedFunctionInfo::UpdateExpectedNofPropertiesFromEstimate(
     FunctionLiteral* literal) {
-  set_expected_nof_properties(get_property_estimate_from_literal(literal));
+  // Limit actual estimate to fit in a 8 bit field, we will never allocate
+  // more than this in any case.
+  STATIC_ASSERT(JSObject::kMaxInObjectProperties <= kMaxUInt8);
+  int estimate = get_property_estimate_from_literal(literal);
+  set_expected_nof_properties(std::min(estimate, kMaxUInt8));
 }
 
 void SharedFunctionInfo::UpdateAndFinalizeExpectedNofPropertiesFromEstimate(

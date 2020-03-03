@@ -511,6 +511,9 @@ void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
   if (literal->dont_optimize_reason() != BailoutReason::kNoReason) {
     shared_info.DisableOptimization(literal->dont_optimize_reason());
   }
+
+  shared_info.set_class_scope_has_private_brand(
+      literal->class_scope_has_private_brand());
   shared_info.set_is_safe_to_skip_arguments_adaptor(
       literal->SafeToSkipArgumentsAdaptor());
 }
