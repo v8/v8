@@ -519,9 +519,19 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   bailout(kUnsupportedArchitecture, "emit_f64_set_cond");
 }
 
+void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  bailout(kUnsupportedArchitecture, "emit_f64x2splat");
+}
+
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   bailout(kUnsupportedArchitecture, "emit_f32x4_splat");
+}
+
+void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  bailout(kUnsupportedArchitecture, "emit_i64x2splat");
 }
 
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
@@ -531,7 +541,12 @@ void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "i16x8splat");
+  bailout(kUnsupportedArchitecture, "emit_i16x8splat");
+}
+
+void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  bailout(kUnsupportedArchitecture, "emit_i8x16splat");
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
