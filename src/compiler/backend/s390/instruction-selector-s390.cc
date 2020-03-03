@@ -2547,6 +2547,9 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(F32x4Div)              \
   V(F32x4Min)              \
   V(F32x4Max)              \
+  V(I64x2Add)              \
+  V(I64x2Sub)              \
+  V(I64x2Mul)              \
   V(I32x4Add)              \
   V(I32x4AddHoriz)         \
   V(I32x4Sub)              \
@@ -2613,6 +2616,7 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(F32x4RecipApprox)       \
   V(F32x4RecipSqrtApprox)   \
   V(F32x4Sqrt)              \
+  V(I64x2Neg)               \
   V(I32x4Neg)               \
   V(I32x4SConvertI16x8Low)  \
   V(I32x4SConvertI16x8High) \
@@ -2627,6 +2631,9 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(S128Not)
 
 #define SIMD_SHIFT_LIST(V) \
+  V(I64x2Shl)              \
+  V(I64x2ShrS)             \
+  V(I64x2ShrU)             \
   V(I32x4Shl)              \
   V(I32x4ShrS)             \
   V(I32x4ShrU)             \
@@ -2772,6 +2779,12 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
        g.UseImmediate(Pack4Lanes(shuffle_remapped)));
 }
 
+void InstructionSelector::VisitS8x16Swizzle(Node* node) {
+  S390OperandGenerator g(this);
+  Emit(kS390_S8x16Swizzle, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
 void InstructionSelector::VisitS128Zero(Node* node) {
   S390OperandGenerator g(this);
   Emit(kS390_S128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node));
@@ -2816,22 +2829,6 @@ void InstructionSelector::EmitPrepareResults(
     reverse_slot += output.location.GetSizeInPointers();
   }
 }
-
-void InstructionSelector::VisitS8x16Swizzle(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI64x2Neg(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI64x2Add(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI64x2Sub(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI64x2Shl(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI64x2ShrS(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI64x2ShrU(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI64x2Mul(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitLoadTransform(Node* node) { UNIMPLEMENTED(); }
 

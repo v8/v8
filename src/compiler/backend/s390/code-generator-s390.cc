@@ -3116,6 +3116,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                Condition(2));
       break;
     }
+    case kS390_I64x2Add: {
+      __ va(i.OutputSimd128Register(), i.InputSimd128Register(0),
+            i.InputSimd128Register(1), Condition(0), Condition(0),
+            Condition(3));
+      break;
+    }
+    case kS390_I64x2Sub: {
+      __ vs(i.OutputSimd128Register(), i.InputSimd128Register(0),
+            i.InputSimd128Register(1), Condition(0), Condition(0),
+            Condition(3));
+      break;
+    }
+    case kS390_I64x2Mul: {
+      __ vml(i.OutputSimd128Register(), i.InputSimd128Register(0),
+             i.InputSimd128Register(1), Condition(0), Condition(0),
+             Condition(3));
+      break;
+    }
     case kS390_I32x4Add: {
       __ va(i.OutputSimd128Register(), i.InputSimd128Register(0),
             i.InputSimd128Register(1), Condition(0), Condition(0),
@@ -3456,6 +3474,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     __ op(i.OutputSimd128Register(), i.InputSimd128Register(0),            \
           kScratchDoubleReg, Condition(0), Condition(0), Condition(mode)); \
   }
+    case kS390_I64x2Shl: {
+      VECTOR_SHIFT(veslv, 3);
+      break;
+    }
+    case kS390_I64x2ShrS: {
+      VECTOR_SHIFT(vesrav, 3);
+      break;
+    }
+    case kS390_I64x2ShrU: {
+      VECTOR_SHIFT(vesrlv, 3);
+      break;
+    }
     case kS390_I32x4Shl: {
       VECTOR_SHIFT(veslv, 2);
       break;
@@ -3516,6 +3546,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_F32x4Neg: {
       __ vfpso(i.OutputSimd128Register(), i.InputSimd128Register(0),
                Condition(0), Condition(0), Condition(2));
+      break;
+    }
+    case kS390_I64x2Neg: {
+      __ vlc(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0),
+             Condition(0), Condition(3));
       break;
     }
     case kS390_I32x4Neg: {
@@ -3836,6 +3871,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       __ vlvgp(kScratchDoubleReg, ip, r0);
       __ vperm(dst, src0, src1, kScratchDoubleReg, Condition(0), Condition(0));
+      break;
+    }
+    case kS390_S8x16Swizzle: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      //  input needs to be reversed
+      __ vlgv(r0, src0, MemOperand(r0, 0), Condition(3));
+      __ vlgv(r1, src0, MemOperand(r0, 1), Condition(3));
+      __ lrvgr(r0, r0);
+      __ lrvgr(r1, r1);
+      __ vlvgp(kScratchDoubleReg, r1, r0);
+      // clear scr0
+      __ vx(src0, src0, src0, Condition(0), Condition(0), Condition(0));
+      __ vperm(dst, kScratchDoubleReg, src0, src1, Condition(0), Condition(0));
       break;
     }
     default:

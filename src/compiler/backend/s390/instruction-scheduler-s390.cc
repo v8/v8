@@ -180,6 +180,13 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_F32x4Div:
     case kS390_F32x4Min:
     case kS390_F32x4Max:
+    case kS390_I64x2Neg:
+    case kS390_I64x2Add:
+    case kS390_I64x2Sub:
+    case kS390_I64x2Shl:
+    case kS390_I64x2ShrS:
+    case kS390_I64x2ShrU:
+    case kS390_I64x2Mul:
     case kS390_I32x4Splat:
     case kS390_I32x4ExtractLane:
     case kS390_I32x4ReplaceLane:
@@ -267,6 +274,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I8x16AddSaturateU:
     case kS390_I8x16SubSaturateU:
     case kS390_S8x16Shuffle:
+    case kS390_S8x16Swizzle:
     case kS390_S1x4AnyTrue:
     case kS390_S1x8AnyTrue:
     case kS390_S1x16AnyTrue:

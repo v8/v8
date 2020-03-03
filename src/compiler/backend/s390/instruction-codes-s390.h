@@ -234,6 +234,13 @@ namespace compiler {
   V(S390_F32x4Div)                          \
   V(S390_F32x4Min)                          \
   V(S390_F32x4Max)                          \
+  V(S390_I64x2Neg)                          \
+  V(S390_I64x2Add)                          \
+  V(S390_I64x2Sub)                          \
+  V(S390_I64x2Shl)                          \
+  V(S390_I64x2ShrS)                         \
+  V(S390_I64x2ShrU)                         \
+  V(S390_I64x2Mul)                          \
   V(S390_I32x4Splat)                        \
   V(S390_I32x4ExtractLane)                  \
   V(S390_I32x4ReplaceLane)                  \
@@ -321,6 +328,7 @@ namespace compiler {
   V(S390_I8x16AddSaturateU)                 \
   V(S390_I8x16SubSaturateU)                 \
   V(S390_S8x16Shuffle)                      \
+  V(S390_S8x16Swizzle)                      \
   V(S390_S1x4AnyTrue)                       \
   V(S390_S1x8AnyTrue)                       \
   V(S390_S1x16AnyTrue)                      \
