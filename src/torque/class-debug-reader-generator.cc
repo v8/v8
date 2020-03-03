@@ -552,8 +552,7 @@ void ImplementationVisitor::GenerateClassDebugReaders(
     std::stringstream class_names;
 
     std::unordered_set<const ClassType*> done;
-    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
-      const ClassType* type = ClassType::DynamicCast(alias->type());
+    for (const ClassType* type : TypeOracle::GetClasses()) {
       GenerateClassDebugReader(*type, h_contents, cc_contents, visitor,
                                class_names, &done);
     }

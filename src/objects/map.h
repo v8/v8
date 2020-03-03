@@ -84,6 +84,13 @@ enum InstanceType : uint16_t;
   V(WeakArray)                         \
   V(WeakCell)
 
+#define TORQUE_OBJECT_BODY_TO_VISITOR_ID_LIST_ADAPTER(V, TYPE, TypeName) \
+  V(TypeName)
+
+#define TORQUE_VISITOR_ID_LIST(V)        \
+  TORQUE_BODY_DESCRIPTOR_LIST_GENERATOR( \
+      TORQUE_OBJECT_BODY_TO_VISITOR_ID_LIST_ADAPTER, V)
+
 // Objects with the same visitor id are processed in the same way by
 // the heap visitors. The visitor ids for data only objects must precede
 // other visitor ids. We rely on kDataOnlyVisitorIdCount for quick check
@@ -92,8 +99,9 @@ enum VisitorId {
 #define VISITOR_ID_ENUM_DECL(id) kVisit##id,
   DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL) kDataOnlyVisitorIdCount,
   POINTER_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
+      TORQUE_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
 #undef VISITOR_ID_ENUM_DECL
-      kVisitorIdCount
+          kVisitorIdCount
 };
 
 enum class ObjectFields {
@@ -794,7 +802,7 @@ class Map : public HeapObject {
 
   inline bool CanTransition() const;
 
-  static Map GetStructMap(ReadOnlyRoots roots, InstanceType type);
+  static Map GetInstanceTypeMap(ReadOnlyRoots roots, InstanceType type);
 
 #define DECL_TESTER(Type, ...) inline bool Is##Type##Map() const;
   INSTANCE_TYPE_CHECKERS(DECL_TESTER)

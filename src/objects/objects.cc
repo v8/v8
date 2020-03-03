@@ -125,6 +125,7 @@
 
 #include "torque-generated/class-definitions-tq-inl.h"
 #include "torque-generated/internal-class-definitions-tq-inl.h"
+#include "torque-generated/objects-body-descriptors-tq-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -2276,6 +2277,14 @@ int HeapObject::SizeFromMap(Map map) const {
     PreparseData data = PreparseData::unchecked_cast(*this);
     return PreparseData::SizeFor(data.data_length(), data.children_length());
   }
+#define MAKE_TORQUE_SIZE_FOR(TYPE, TypeName)             \
+  if (instance_type == TYPE) {                           \
+    TypeName instance = TypeName::unchecked_cast(*this); \
+    return TypeName::SizeFor(instance);                  \
+  }
+  TORQUE_BODY_DESCRIPTOR_LIST(MAKE_TORQUE_SIZE_FOR)
+#undef MAKE_TORQUE_SIZE_FOR
+
   if (instance_type == CODE_TYPE) {
     return Code::unchecked_cast(*this).CodeSize();
   }

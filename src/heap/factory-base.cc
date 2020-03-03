@@ -47,7 +47,7 @@ FactoryBase<OffThreadFactory>::NewHeapNumber<AllocationType::kOld>();
 template <typename Impl>
 Handle<Struct> FactoryBase<Impl>::NewStruct(InstanceType type,
                                             AllocationType allocation) {
-  Map map = Map::GetStructMap(read_only_roots(), type);
+  Map map = Map::GetInstanceTypeMap(read_only_roots(), type);
   int size = map.instance_size();
   HeapObject result = AllocateRawWithImmortalMap(size, allocation, map);
   Handle<Struct> str = handle(Struct::cast(result), isolate());

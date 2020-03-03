@@ -1100,6 +1100,12 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case SYNTHETIC_MODULE_TYPE:
       return Op::template apply<SyntheticModule::BodyDescriptor>(p1, p2, p3,
                                                                  p4);
+#define MAKE_TORQUE_BODY_DESCRIPTOR_APPLY(TYPE, TypeName) \
+  case TYPE:                                              \
+    return Op::template apply<TypeName::BodyDescriptor>(p1, p2, p3, p4);
+      TORQUE_BODY_DESCRIPTOR_LIST(MAKE_TORQUE_BODY_DESCRIPTOR_APPLY)
+#undef MAKE_TORQUE_BODY_DESCRIPTOR_APPLY
+
     default:
       PrintF("Unknown type: %d\n", type);
       UNREACHABLE();

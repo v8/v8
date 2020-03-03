@@ -53,6 +53,9 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(TypedArraySpeciesProtector, typed_array_species_protector,                \
     TypedArraySpeciesProtector)
 
+#define TORQUE_INTERNAL_CLASS_LIST_CSA_ADAPTER(V, NAME, Name, name) \
+  V(Name##Map, name##_map, Name##Map)
+
 #define HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)                                \
   V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                       \
   V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                       \
@@ -174,7 +177,9 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(UndefinedValue, undefined_value, Undefined)                                \
   V(uninitialized_symbol, uninitialized_symbol, UninitializedSymbol)           \
   V(WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArrayMap)                \
-  V(zero_string, zero_string, ZeroString)
+  V(zero_string, zero_string, ZeroString)                                      \
+  TORQUE_INTERNAL_CLASS_LIST_GENERATOR(TORQUE_INTERNAL_CLASS_LIST_CSA_ADAPTER, \
+                                       V)
 
 #define HEAP_IMMOVABLE_OBJECT_LIST(V)   \
   HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(V) \
@@ -1942,7 +1947,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           Label* if_bailout);
   TNode<Object> GetConstructor(TNode<Map> map);
 
-  TNode<Map> GetStructMap(InstanceType instance_type);
+  TNode<Map> GetInstanceTypeMap(InstanceType instance_type);
 
   TNode<FixedArray> AllocateUninitializedFixedArray(intptr_t capacity) {
     return UncheckedCast<FixedArray>(AllocateFixedArray(

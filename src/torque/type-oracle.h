@@ -293,6 +293,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(UNINITIALIZED_ITERATOR_TYPE_STRING);
   }
 
+  static const Type* GetFixedArrayBaseType() {
+    return Get().GetBuiltinType(FIXED_ARRAY_BASE_TYPE_STRING);
+  }
+
   static base::Optional<const Type*> ImplicitlyConvertableFrom(
       const Type* to, const Type* from) {
     while (from != nullptr) {
@@ -314,6 +318,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   static const std::vector<std::unique_ptr<AggregateType>>& GetAggregateTypes();
   static const std::vector<std::unique_ptr<BitFieldStructType>>&
   GetBitFieldStructTypes();
+
+  // By construction, this list of all classes is topologically sorted w.r.t.
+  // inheritance.
+  static std::vector<const ClassType*> GetClasses();
 
   static void FinalizeAggregateTypes();
 

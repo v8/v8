@@ -104,6 +104,7 @@ TypedObject GetTypedObjectByInstanceType(uintptr_t address,
   case i::INSTANCE_TYPE:                             \
     return {type_source, std::make_unique<Tq##ClassName>(address)};
     TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(INSTANCE_TYPE_CASE)
+    TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(INSTANCE_TYPE_CASE)
 #undef INSTANCE_TYPE_CASE
 
     default:

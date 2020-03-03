@@ -24,6 +24,7 @@
 #include "src/roots/roots.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
+#include "torque-generated/field-offsets-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -74,7 +75,7 @@ void Map::PrintReconfiguration(Isolate* isolate, FILE* file,
   os << "]\n";
 }
 
-Map Map::GetStructMap(ReadOnlyRoots roots, InstanceType type) {
+Map Map::GetInstanceTypeMap(ReadOnlyRoots roots, InstanceType type) {
   Map map;
   switch (type) {
 #define MAKE_CASE(TYPE, Name, name) \
@@ -82,6 +83,12 @@ Map Map::GetStructMap(ReadOnlyRoots roots, InstanceType type) {
     map = roots.name##_map();       \
     break;
     STRUCT_LIST(MAKE_CASE)
+#undef MAKE_CASE
+#define MAKE_CASE(_, TYPE, Name, name) \
+  case TYPE:                           \
+    map = roots.name##_map();          \
+    break;
+    TORQUE_INTERNAL_CLASS_LIST_GENERATOR(MAKE_CASE, _)
 #undef MAKE_CASE
     default:
       UNREACHABLE();
@@ -359,6 +366,12 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitSourceTextModule;
     case SYNTHETIC_MODULE_TYPE:
       return kVisitSyntheticModule;
+
+#define MAKE_TQ_CASE(TYPE, Name) \
+  case TYPE:                     \
+    return kVisit##Name;
+      TORQUE_BODY_DESCRIPTOR_LIST(MAKE_TQ_CASE)
+#undef MAKE_TQ_CASE
 
     default:
       UNREACHABLE();

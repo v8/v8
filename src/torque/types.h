@@ -113,6 +113,8 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   // Used for naming generated code.
   virtual std::string SimpleName() const;
 
+  std::string HandlifiedCppTypeName() const;
+
   const Type* parent() const { return parent_; }
   bool IsVoid() const { return IsAbstractName(VOID_TYPE_STRING); }
   bool IsNever() const { return IsAbstractName(NEVER_TYPE_STRING); }
@@ -611,12 +613,15 @@ class ClassType final : public AggregateType {
   std::string GetGeneratedTNodeTypeNameImpl() const override;
   bool IsExtern() const { return flags_ & ClassFlag::kExtern; }
   bool ShouldGeneratePrint() const {
-    return (flags_ & ClassFlag::kGeneratePrint || !IsExtern()) &&
-           !HasUndefinedLayout();
+    return !IsExtern() ||
+           ((flags_ & ClassFlag::kGeneratePrint) && !HasUndefinedLayout());
   }
   bool ShouldGenerateVerify() const {
-    return (flags_ & ClassFlag::kGenerateVerify || !IsExtern()) &&
-           !HasUndefinedLayout() && !IsShape();
+    return !IsExtern() || ((flags_ & ClassFlag::kGenerateVerify) &&
+                           (!HasUndefinedLayout() && !IsShape()));
+  }
+  bool ShouldGenerateBodyDescriptor() const {
+    return flags_ & ClassFlag::kGenerateBodyDescriptor || !IsExtern();
   }
   bool IsTransient() const override { return flags_ & ClassFlag::kTransient; }
   bool IsAbstract() const { return flags_ & ClassFlag::kAbstract; }
@@ -624,8 +629,10 @@ class ClassType final : public AggregateType {
     return flags_ & ClassFlag::kHasSameInstanceTypeAsParent;
   }
   bool GenerateCppClassDefinitions() const {
-    return flags_ & ClassFlag::kGenerateCppClassDefinitions || !IsExtern();
+    return flags_ & ClassFlag::kGenerateCppClassDefinitions || !IsExtern() ||
+           ShouldGenerateBodyDescriptor();
   }
+  bool ShouldExport() const { return flags_ & ClassFlag::kExport; }
   bool IsShape() const { return flags_ & ClassFlag::kIsShape; }
   bool HasStaticSize() const;
   bool HasIndexedField() const override;

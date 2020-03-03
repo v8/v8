@@ -1176,11 +1176,14 @@ template("run_torque") {
       "bit-fields-tq.h",
       "builtin-definitions-tq.h",
       "interface-descriptors-tq.inc",
+      "factory-tq.cc",
+      "factory-tq.inc",
       "field-offsets-tq.h",
       "class-verifiers-tq.cc",
       "class-verifiers-tq.h",
       "enum-verifiers-tq.cc",
       "objects-printer-tq.cc",
+      "objects-body-descriptors-tq-inl.h",
       "class-definitions-tq.cc",
       "class-definitions-tq-inl.h",
       "class-definitions-tq.h",
@@ -1302,6 +1305,7 @@ v8_source_set("torque_generated_definitions") {
     "$target_gen_dir/torque-generated/class-definitions-tq.cc",
     "$target_gen_dir/torque-generated/class-verifiers-tq.cc",
     "$target_gen_dir/torque-generated/class-verifiers-tq.h",
+    "$target_gen_dir/torque-generated/factory-tq.cc",
     "$target_gen_dir/torque-generated/objects-printer-tq.cc",
   ]
 

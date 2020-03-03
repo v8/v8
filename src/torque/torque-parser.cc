@@ -549,9 +549,24 @@ base::Optional<ParseResult> MakeIntrinsicDeclaration(
   return ParseResult{result};
 }
 
+namespace {
+bool HasExportAnnotation(ParseResultIterator* child_results,
+                         const char* declaration) {
+  auto annotations = child_results->NextAs<std::vector<Annotation>>();
+  if (annotations.size()) {
+    if (annotations.size() > 1 || annotations[0].name->value != "@export") {
+      Error(declaration,
+            " declarations only support a single @export annotation");
+    }
+    return true;
+  }
+  return false;
+}
+}  // namespace
+
 base::Optional<ParseResult> MakeTorqueMacroDeclaration(
     ParseResultIterator* child_results) {
-  auto export_to_csa = child_results->NextAs<bool>();
+  bool export_to_csa = HasExportAnnotation(child_results, "macro");
   auto transitioning = child_results->NextAs<bool>();
   auto operator_name = child_results->NextAs<base::Optional<std::string>>();
   auto name = child_results->NextAs<Identifier*>();
@@ -835,7 +850,8 @@ base::Optional<ParseResult> MakeClassDeclaration(
       child_results,
       {ANNOTATION_GENERATE_PRINT, ANNOTATION_NO_VERIFIER, ANNOTATION_ABSTRACT,
        ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT,
-       ANNOTATION_GENERATE_CPP_CLASS,
+       ANNOTATION_GENERATE_CPP_CLASS, ANNOTATION_GENERATE_BODY_DESCRIPTOR,
+       ANNOTATION_EXPORT_CPP_CLASS,
        ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT,
        ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT},
       {ANNOTATION_RESERVE_BITS_IN_INSTANCE_TYPE,
@@ -853,6 +869,12 @@ base::Optional<ParseResult> MakeClassDeclaration(
   }
   if (annotations.Contains(ANNOTATION_GENERATE_CPP_CLASS)) {
     flags |= ClassFlag::kGenerateCppClassDefinitions;
+  }
+  if (annotations.Contains(ANNOTATION_GENERATE_BODY_DESCRIPTOR)) {
+    flags |= ClassFlag::kGenerateBodyDescriptor;
+  }
+  if (annotations.Contains(ANNOTATION_EXPORT_CPP_CLASS)) {
+    flags |= ClassFlag::kExport;
   }
   if (annotations.Contains(ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT)) {
     flags |= ClassFlag::kHighestInstanceTypeWithinParent;
@@ -945,7 +967,8 @@ base::Optional<ParseResult> MakeSpecializationDeclaration(
 
 base::Optional<ParseResult> MakeStructDeclaration(
     ParseResultIterator* child_results) {
-  bool is_export = child_results->NextAs<bool>();
+  bool is_export = HasExportAnnotation(child_results, "Struct");
+
   StructFlags flags = StructFlag::kNone;
   if (is_export) flags |= StructFlag::kExport;
 
@@ -2322,7 +2345,7 @@ struct TorqueGrammar : Grammar {
                 Sequence({Token("generates"), &externalString})),
             &optionalClassBody},
            AsSingletonVector<Declaration*, MakeClassDeclaration>()),
-      Rule({CheckIf(Token("@export")), Token("struct"), &name,
+      Rule({annotations, Token("struct"), &name,
             TryOrDefault<GenericParameters>(&genericParameters), Token("{"),
             List<Declaration*>(&method),
             List<StructFieldExpression>(&structField), Token("}")},
@@ -2363,7 +2386,7 @@ struct TorqueGrammar : Grammar {
       Rule({Token("extern"), CheckIf(Token("transitioning")), Token("runtime"),
             &name, &typeListMaybeVarArgs, &optionalReturnType, Token(";")},
            AsSingletonVector<Declaration*, MakeExternalRuntime>()),
-      Rule({CheckIf(Token("@export")), CheckIf(Token("transitioning")),
+      Rule({annotations, CheckIf(Token("transitioning")),
             Optional<std::string>(
                 Sequence({Token("operator"), &externalString})),
             Token("macro"), &name,
