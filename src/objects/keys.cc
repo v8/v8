@@ -572,15 +572,17 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysWithPrototypeInfoCache(
     GetKeysConversion keys_conversion) {
   Handle<FixedArray> own_keys;
   if (may_have_elements_) {
+    MaybeHandle<FixedArray> maybe_own_keys;
     if (receiver_->map().is_dictionary_map()) {
-      GetOwnKeysWithElements<false>(isolate_, Handle<JSObject>::cast(receiver_),
-                                    keys_conversion, skip_indices_)
-          .ToHandle(&own_keys);
+      maybe_own_keys = GetOwnKeysWithElements<false>(
+          isolate_, Handle<JSObject>::cast(receiver_), keys_conversion,
+          skip_indices_);
     } else {
-      GetOwnKeysWithElements<true>(isolate_, Handle<JSObject>::cast(receiver_),
-                                   keys_conversion, skip_indices_)
-          .ToHandle(&own_keys);
+      maybe_own_keys = GetOwnKeysWithElements<true>(
+          isolate_, Handle<JSObject>::cast(receiver_), keys_conversion,
+          skip_indices_);
     }
+    ASSIGN_RETURN_ON_EXCEPTION(isolate_, own_keys, maybe_own_keys, FixedArray);
   } else {
     own_keys = KeyAccumulator::GetOwnEnumPropertyKeys(
         isolate_, Handle<JSObject>::cast(receiver_));
