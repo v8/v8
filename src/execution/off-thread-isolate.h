@@ -48,7 +48,10 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
 
   // This method finishes the use of the off-thread Isolate, and can be safely
   // called off-thread.
-  void FinishOffThread() { factory()->FinishOffThread(); }
+  void FinishOffThread() {
+    factory()->FinishOffThread();
+    handle_zone_ = nullptr;
+  }
 
   template <typename T>
   Handle<T> Throw(Handle<Object> exception) {
@@ -59,6 +62,7 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
   }
 
   Address* NewHandle(Address object) {
+    DCHECK_NOT_NULL(handle_zone_);
     Address* location =
         static_cast<Address*>(handle_zone_->New(sizeof(Address)));
     *location = object;

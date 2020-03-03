@@ -3024,7 +3024,9 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope) {
 // ----------------------------------------------------------------------------
 // Parser support
 
-void Parser::HandleSourceURLComments(Isolate* isolate, Handle<Script> script) {
+template <typename LocalIsolate>
+void Parser::HandleSourceURLComments(LocalIsolate* isolate,
+                                     Handle<Script> script) {
   Handle<String> source_url = scanner_.SourceUrl(isolate);
   if (!source_url.is_null()) {
     script->set_source_url(*source_url);
@@ -3034,6 +3036,11 @@ void Parser::HandleSourceURLComments(Isolate* isolate, Handle<Script> script) {
     script->set_source_mapping_url(*source_mapping_url);
   }
 }
+
+template void Parser::HandleSourceURLComments(Isolate* isolate,
+                                              Handle<Script> script);
+template void Parser::HandleSourceURLComments(OffThreadIsolate* isolate,
+                                              Handle<Script> script);
 
 void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
   // Move statistics to Isolate.

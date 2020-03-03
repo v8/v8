@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/objects/feedback-vector.h"
+#include "src/heap/off-thread-factory-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"
 #include "src/objects/data-handler-inl.h"
@@ -73,9 +74,10 @@ void FeedbackMetadata::SetKind(FeedbackSlot slot, FeedbackSlotKind kind) {
 }
 
 // static
-Handle<FeedbackMetadata> FeedbackMetadata::New(Isolate* isolate,
+template <typename LocalIsolate>
+Handle<FeedbackMetadata> FeedbackMetadata::New(LocalIsolate* isolate,
                                                const FeedbackVectorSpec* spec) {
-  Factory* factory = isolate->factory();
+  auto* factory = isolate->factory();
 
   const int slot_count = spec == nullptr ? 0 : spec->slots();
   const int closure_feedback_cell_count =
@@ -110,6 +112,11 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(Isolate* isolate,
 
   return metadata;
 }
+
+template Handle<FeedbackMetadata> FeedbackMetadata::New(
+    Isolate* isolate, const FeedbackVectorSpec* spec);
+template Handle<FeedbackMetadata> FeedbackMetadata::New(
+    OffThreadIsolate* isolate, const FeedbackVectorSpec* spec);
 
 bool FeedbackMetadata::SpecDiffersFrom(
     const FeedbackVectorSpec* other_spec) const {

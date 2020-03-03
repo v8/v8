@@ -200,6 +200,10 @@ class AsmJsCompilationJob final : public UnoptimizedCompilationJob {
   Status ExecuteJobImpl() final;
   Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
                          Isolate* isolate) final;
+  Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
+                         OffThreadIsolate* isolate) final {
+    UNREACHABLE();
+  }
 
  private:
   void RecordHistograms(Isolate* isolate);

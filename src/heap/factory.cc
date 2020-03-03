@@ -439,25 +439,6 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(int length) {
   return array;
 }
 
-Handle<FeedbackMetadata> Factory::NewFeedbackMetadata(
-    int slot_count, int feedback_cell_count, AllocationType allocation) {
-  DCHECK_LE(0, slot_count);
-  int size = FeedbackMetadata::SizeFor(slot_count);
-  HeapObject result =
-      AllocateRawWithImmortalMap(size, allocation, *feedback_metadata_map());
-  Handle<FeedbackMetadata> data(FeedbackMetadata::cast(result), isolate());
-  data->set_slot_count(slot_count);
-  data->set_closure_feedback_cell_count(feedback_cell_count);
-
-  // Initialize the data section to 0.
-  int data_size = size - FeedbackMetadata::kHeaderSize;
-  Address data_start = data->address() + FeedbackMetadata::kHeaderSize;
-  memset(reinterpret_cast<byte*>(data_start), 0, data_size);
-  // Fields have been zeroed out but not initialized, so this object will not
-  // pass object verification at this point.
-  return data;
-}
-
 Handle<FrameArray> Factory::NewFrameArray(int number_of_frames) {
   DCHECK_LE(0, number_of_frames);
   Handle<FixedArray> result =

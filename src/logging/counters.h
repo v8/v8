@@ -907,6 +907,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Eval)                         \
   ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Function)                     \
   ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Ignition)                     \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, IgnitionFinalization)         \
   ADD_THREAD_SPECIFIC_COUNTER(V, Compile, RewriteReturnResult)          \
   ADD_THREAD_SPECIFIC_COUNTER(V, Compile, ScopeAnalysis)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Script)                       \
@@ -986,7 +987,7 @@ class RuntimeCallTimer final {
   V(CompileFinalizeBackgroundCompileTask)      \
   V(CompileFinishNowOnDispatcher)              \
   V(CompileGetFromOptimizedCodeMap)            \
-  V(CompileIgnitionFinalization)               \
+  V(CompilePublishBackgroundFinalization)      \
   V(CompileSerialize)                          \
   V(CompileWaitForDispatcher)                  \
   V(DeoptimizeCode)                            \

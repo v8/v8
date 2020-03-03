@@ -53,6 +53,9 @@ class V8_EXPORT_PRIVATE OffThreadFactory
   ACCESSOR_INFO_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
+  Handle<String> InternalizeString(const Vector<const uint8_t>& string);
+  Handle<String> InternalizeString(const Vector<const uint16_t>& string);
+
   void FinishOffThread();
   void Publish(Isolate* isolate);
 

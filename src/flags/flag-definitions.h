@@ -1073,6 +1073,9 @@ DEFINE_BOOL(enable_regexp_unaligned_accesses, true,
 
 // api.cc
 DEFINE_BOOL(script_streaming, true, "enable parsing on background")
+DEFINE_BOOL(
+    finalize_streaming_on_background, false,
+    "perform the script streaming finalization on the background thread")
 DEFINE_BOOL(disable_old_api_accessors, false,
             "Disable old-style API accessors whose setters trigger through the "
             "prototype chain")

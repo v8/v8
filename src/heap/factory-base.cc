@@ -393,6 +393,26 @@ FactoryBase<Impl>::NewTemplateObjectDescription(
 }
 
 template <typename Impl>
+Handle<FeedbackMetadata> FactoryBase<Impl>::NewFeedbackMetadata(
+    int slot_count, int feedback_cell_count, AllocationType allocation) {
+  DCHECK_LE(0, slot_count);
+  int size = FeedbackMetadata::SizeFor(slot_count);
+  HeapObject result = AllocateRawWithImmortalMap(
+      size, allocation, read_only_roots().feedback_metadata_map());
+  Handle<FeedbackMetadata> data(FeedbackMetadata::cast(result), isolate());
+  data->set_slot_count(slot_count);
+  data->set_closure_feedback_cell_count(feedback_cell_count);
+
+  // Initialize the data section to 0.
+  int data_size = size - FeedbackMetadata::kHeaderSize;
+  Address data_start = data->address() + FeedbackMetadata::kHeaderSize;
+  memset(reinterpret_cast<byte*>(data_start), 0, data_size);
+  // Fields have been zeroed out but not initialized, so this object will not
+  // pass object verification at this point.
+  return data;
+}
+
+template <typename Impl>
 Handle<CoverageInfo> FactoryBase<Impl>::NewCoverageInfo(
     const ZoneVector<SourceRange>& slots) {
   const int slot_count = static_cast<int>(slots.size());

@@ -146,11 +146,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Allocate a new fixed double array with hole values.
   Handle<FixedArrayBase> NewFixedDoubleArrayWithHoles(int size);
 
-  // Allocates a FeedbackMedata object and zeroes the data section.
-  Handle<FeedbackMetadata> NewFeedbackMetadata(
-      int slot_count, int feedback_cell_count,
-      AllocationType allocation = AllocationType::kOld);
-
   Handle<FrameArray> NewFrameArray(int number_of_frames);
 
   Handle<OrderedHashSet> NewOrderedHashSet();

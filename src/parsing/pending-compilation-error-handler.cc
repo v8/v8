@@ -75,6 +75,12 @@ void PendingCompilationErrorHandler::ReportWarnings(Isolate* isolate,
   }
 }
 
+void PendingCompilationErrorHandler::ReportWarnings(OffThreadIsolate* isolate,
+                                                    Handle<Script> script) {
+  // TODO(leszeks): Do nothing, re-report on the main thread.
+  UNREACHABLE();
+}
+
 void PendingCompilationErrorHandler::ReportErrors(
     Isolate* isolate, Handle<Script> script,
     AstValueFactory* ast_value_factory) {

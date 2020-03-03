@@ -130,6 +130,11 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
       Handle<String> inferred_name, int32_t start_position,
       int32_t end_position, Handle<PreparseData>);
 
+  // Allocates a FeedbackMedata object and zeroes the data section.
+  Handle<FeedbackMetadata> NewFeedbackMetadata(
+      int slot_count, int feedback_cell_count,
+      AllocationType allocation = AllocationType::kOld);
+
   Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);
 
   Handle<SeqOneByteString> NewOneByteInternalizedString(
