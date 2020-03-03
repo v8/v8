@@ -78,6 +78,8 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
   ThreadId thread_id() { return thread_id_; }
 
  private:
+  friend class v8::internal::OffThreadFactory;
+
   // TODO(leszeks): Extract out the fields of the Isolate we want and store
   // those instead of the whole thing.
   Isolate* isolate_;

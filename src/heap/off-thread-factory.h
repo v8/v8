@@ -46,6 +46,11 @@ class V8_EXPORT_PRIVATE OffThreadFactory
 
 #define ROOT_ACCESSOR(Type, name, CamelName) inline Handle<Type> name();
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
+  // AccessorInfos appear mutable, but they're actually not mutated once they
+  // finish initializing. In particular, the root accessors are not mutated and
+  // are safe to access (as long as the off-thread job doesn't try to mutate
+  // them).
+  ACCESSOR_INFO_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
   void FinishOffThread();
