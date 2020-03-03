@@ -133,7 +133,13 @@ Handle<Map> EphemeronHashTableShape::GetMap(ReadOnlyRoots roots) {
 
 template <typename Derived, typename Shape>
 InternalIndex HashTable<Derived, Shape>::FindEntry(Isolate* isolate, Key key) {
-  return FindEntry(ReadOnlyRoots(isolate), key, Shape::Hash(isolate, key));
+  return FindEntry(ReadOnlyRoots(isolate), key);
+}
+
+template <typename Derived, typename Shape>
+InternalIndex HashTable<Derived, Shape>::FindEntry(ReadOnlyRoots roots,
+                                                   Key key) {
+  return FindEntry(roots, key, Shape::Hash(roots, key));
 }
 
 // Find entry for key otherwise return kNotFound.
@@ -237,7 +243,7 @@ bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object other) {
   return key->SameValue(other);
 }
 
-uint32_t ObjectHashTableShape::Hash(Isolate* isolate, Handle<Object> key) {
+uint32_t ObjectHashTableShape::Hash(ReadOnlyRoots roots, Handle<Object> key) {
   return Smi::ToInt(key->GetHash());
 }
 

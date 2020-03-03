@@ -4,6 +4,7 @@
 
 #include <iomanip>
 
+#include "src/execution/isolate-utils.h"
 #include "src/objects/code.h"
 
 #include "src/codegen/assembler-inl.h"
@@ -963,14 +964,14 @@ bool DependentCode::Compact() {
 }
 
 bool DependentCode::MarkCodeForDeoptimization(
-    Isolate* isolate, DependentCode::DependencyGroup group) {
+    DependentCode::DependencyGroup group) {
   if (this->length() == 0 || this->group() > group) {
     // There is no such group.
     return false;
   }
   if (this->group() < group) {
     // The group comes later in the list.
-    return next_link().MarkCodeForDeoptimization(isolate, group);
+    return next_link().MarkCodeForDeoptimization(group);
   }
   DCHECK_EQ(group, this->group());
   DisallowHeapAllocation no_allocation_scope;
@@ -994,12 +995,12 @@ bool DependentCode::MarkCodeForDeoptimization(
 }
 
 void DependentCode::DeoptimizeDependentCodeGroup(
-    Isolate* isolate, DependentCode::DependencyGroup group) {
+    DependentCode::DependencyGroup group) {
   DisallowHeapAllocation no_allocation_scope;
-  bool marked = MarkCodeForDeoptimization(isolate, group);
+  bool marked = MarkCodeForDeoptimization(group);
   if (marked) {
     DCHECK(AllowCodeDependencyChange::IsAllowed());
-    Deoptimizer::DeoptimizeMarkedCode(isolate);
+    Deoptimizer::DeoptimizeMarkedCode(GetIsolateFromWritableObject(*this));
   }
 }
 

@@ -41,8 +41,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   inline PropertyDetails DetailsAt(InternalIndex entry);
 
   // Set the details for entry.
-  inline void DetailsAtPut(Isolate* isolate, InternalIndex entry,
-                           PropertyDetails value);
+  inline void DetailsAtPut(InternalIndex entry, PropertyDetails value);
 
   // Delete a property from the dictionary.
   V8_WARN_UNUSED_RESULT static Handle<Derived> DeleteEntry(
@@ -66,9 +65,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   Object SlowReverseLookup(Object value);
 
   // Sets the entry to (key, value) pair.
-  inline void ClearEntry(Isolate* isolate, InternalIndex entry);
-  inline void SetEntry(Isolate* isolate, InternalIndex entry, Object key,
-                       Object value, PropertyDetails details);
+  inline void ClearEntry(InternalIndex entry);
+  inline void SetEntry(InternalIndex entry, Object key, Object value,
+                       PropertyDetails details);
 
   // Garbage collection support.
   inline ObjectSlot RawFieldOfValueAt(InternalIndex entry);
@@ -102,14 +101,14 @@ class BaseDictionaryShape : public BaseShape<Key> {
   static inline PropertyDetails DetailsAt(Dictionary dict, InternalIndex entry);
 
   template <typename Dictionary>
-  static inline void DetailsAtPut(Isolate* isolate, Dictionary dict,
-                                  InternalIndex entry, PropertyDetails value);
+  static inline void DetailsAtPut(Dictionary dict, InternalIndex entry,
+                                  PropertyDetails value);
 };
 
 class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
  public:
   static inline bool IsMatch(Handle<Name> key, Object other);
-  static inline uint32_t Hash(Isolate* isolate, Handle<Name> key);
+  static inline uint32_t Hash(ReadOnlyRoots roots, Handle<Name> key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
@@ -212,8 +211,8 @@ class V8_EXPORT_PRIVATE GlobalDictionaryShape : public NameDictionaryShape {
   static inline PropertyDetails DetailsAt(Dictionary dict, InternalIndex entry);
 
   template <typename Dictionary>
-  static inline void DetailsAtPut(Isolate* isolate, Dictionary dict,
-                                  InternalIndex entry, PropertyDetails value);
+  static inline void DetailsAtPut(Dictionary dict, InternalIndex entry,
+                                  PropertyDetails value);
 
   static inline Object Unwrap(Object key);
   static inline bool IsKey(ReadOnlyRoots roots, Object k);
@@ -232,8 +231,8 @@ class V8_EXPORT_PRIVATE GlobalDictionary
   inline Object ValueAt(const Isolate* isolate, InternalIndex entry);
   inline PropertyCell CellAt(InternalIndex entry);
   inline PropertyCell CellAt(const Isolate* isolate, InternalIndex entry);
-  inline void SetEntry(Isolate* isolate, InternalIndex entry, Object key,
-                       Object value, PropertyDetails details);
+  inline void SetEntry(InternalIndex entry, Object key, Object value,
+                       PropertyDetails details);
   inline Name NameAt(InternalIndex entry);
   inline Name NameAt(const Isolate* isolate, InternalIndex entry);
   inline void ValueAtPut(InternalIndex entry, Object value);
@@ -248,7 +247,7 @@ class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
   static inline bool IsMatch(uint32_t key, Object other);
   static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
 
-  static inline uint32_t Hash(Isolate* isolate, uint32_t key);
+  static inline uint32_t Hash(ReadOnlyRoots roots, uint32_t key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 };
 
@@ -273,8 +272,8 @@ class SimpleNumberDictionaryShape : public NumberDictionaryBaseShape {
   }
 
   template <typename Dictionary>
-  static inline void DetailsAtPut(Isolate* isolate, Dictionary dict,
-                                  InternalIndex entry, PropertyDetails value) {
+  static inline void DetailsAtPut(Dictionary dict, InternalIndex entry,
+                                  PropertyDetails value) {
     UNREACHABLE();
   }
 

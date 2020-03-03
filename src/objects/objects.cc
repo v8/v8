@@ -6947,7 +6947,7 @@ Handle<StringSet> StringSet::Add(Isolate* isolate, Handle<StringSet> stringset,
                                  Handle<String> name) {
   if (!stringset->Has(isolate, name)) {
     stringset = EnsureCapacity(isolate, stringset);
-    uint32_t hash = ShapeT::Hash(isolate, *name);
+    uint32_t hash = ShapeT::Hash(ReadOnlyRoots(isolate), *name);
     InternalIndex entry = stringset->FindInsertionEntry(hash);
     stringset->set(EntryToIndex(entry), *name);
     stringset->ElementAdded();
@@ -7294,7 +7294,7 @@ int BaseNameDictionary<Derived, Shape>::NextEnumerationIndex(
 
       PropertyDetails details = dictionary->DetailsAt(index);
       PropertyDetails new_details = details.set_index(enum_index);
-      dictionary->DetailsAtPut(isolate, index, new_details);
+      dictionary->DetailsAtPut(index, new_details);
     }
 
     index = PropertyDetails::kInitialIndex + length;
@@ -7310,7 +7310,7 @@ Handle<Derived> Dictionary<Derived, Shape>::DeleteEntry(
     Isolate* isolate, Handle<Derived> dictionary, InternalIndex entry) {
   DCHECK(Shape::kEntrySize != 3 ||
          dictionary->DetailsAt(entry).IsConfigurable());
-  dictionary->ClearEntry(isolate, entry);
+  dictionary->ClearEntry(entry);
   dictionary->ElementRemoved();
   return Shrink(isolate, dictionary);
 }
@@ -7329,7 +7329,7 @@ Handle<Derived> Dictionary<Derived, Shape>::AtPut(Isolate* isolate,
 
   // We don't need to copy over the enumeration index.
   dictionary->ValueAtPut(entry, *value);
-  if (Shape::kEntrySize == 3) dictionary->DetailsAtPut(isolate, entry, details);
+  if (Shape::kEntrySize == 3) dictionary->DetailsAtPut(entry, details);
   return dictionary;
 }
 
@@ -7367,9 +7367,10 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Isolate* isolate,
                                                 Key key, Handle<Object> value,
                                                 PropertyDetails details,
                                                 InternalIndex* entry_out) {
-  uint32_t hash = Shape::Hash(isolate, key);
+  uint32_t hash = Shape::Hash(ReadOnlyRoots(isolate), key);
   // Validate that the key is absent.
-  SLOW_DCHECK(dictionary->FindEntry(isolate, key).is_not_found());
+  SLOW_DCHECK(
+      dictionary->FindEntry(ReadOnlyRoots(isolate), key).is_not_found());
   // Check whether the dictionary should be extended.
   dictionary = Derived::EnsureCapacity(isolate, dictionary);
 
@@ -7377,7 +7378,7 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Isolate* isolate,
   Handle<Object> k = Shape::AsHandle(isolate, key);
 
   InternalIndex entry = dictionary->FindInsertionEntry(hash);
-  dictionary->SetEntry(isolate, entry, *k, *value, details);
+  dictionary->SetEntry(entry, *k, *value, details);
   DCHECK(dictionary->KeyAt(entry).IsNumber() ||
          Shape::Unwrap(dictionary->KeyAt(entry)).IsUniqueName());
   dictionary->ElementAdded();
@@ -7912,7 +7913,7 @@ Handle<PropertyCell> PropertyCell::InvalidateEntry(
   details = details.set_cell_type(PropertyCellType::kInvalidated);
   cell->set_property_details(details);
   cell->dependent_code().DeoptimizeDependentCodeGroup(
-      isolate, DependentCode::kPropertyCellChangedGroup);
+      DependentCode::kPropertyCellChangedGroup);
   return new_cell;
 }
 
@@ -8013,7 +8014,7 @@ Handle<PropertyCell> PropertyCell::PrepareForValue(
   if (!invalidate && (old_type != new_type ||
                       original_details.IsReadOnly() != details.IsReadOnly())) {
     cell->dependent_code().DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kPropertyCellChangedGroup);
+        DependentCode::kPropertyCellChangedGroup);
   }
   return cell;
 }
@@ -8026,7 +8027,7 @@ void PropertyCell::SetValueWithInvalidation(Isolate* isolate,
   if (cell->value() != *new_value) {
     cell->set_value(*new_value);
     cell->dependent_code().DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kPropertyCellChangedGroup);
+        DependentCode::kPropertyCellChangedGroup);
   }
 }
 

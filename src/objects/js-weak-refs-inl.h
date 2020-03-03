@@ -161,7 +161,7 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
   }
   if (new_key_list_head.IsUndefined(isolate)) {
     DCHECK(was_present);
-    key_map.ClearEntry(isolate, entry);
+    key_map.ClearEntry(entry);
     key_map.ElementRemoved();
   } else {
     key_map.ValueAtPut(entry, new_key_list_head);

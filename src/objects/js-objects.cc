@@ -2377,7 +2377,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
       int enumeration_index = original_details.dictionary_index();
       DCHECK_GT(enumeration_index, 0);
       details = details.set_index(enumeration_index);
-      dictionary->SetEntry(isolate, entry, *name, *value, details);
+      dictionary->SetEntry(entry, *name, *value, details);
     }
   }
 }
@@ -3797,7 +3797,7 @@ void JSObject::ApplyAttributesToDictionary(
       if (v.IsAccessorPair()) attrs &= ~READ_ONLY;
     }
     details = details.CopyAddAttributes(static_cast<PropertyAttributes>(attrs));
-    dictionary->DetailsAtPut(isolate, i, details);
+    dictionary->DetailsAtPut(i, details);
   }
 }
 
@@ -5107,7 +5107,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
 
     // Deoptimize all code that embeds the previous initial map.
     initial_map->dependent_code().DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kInitialMapChangedGroup);
+        DependentCode::kInitialMapChangedGroup);
   } else {
     // Put the value in the initial map field until an initial map is
     // needed.  At that point, a new initial map is created and the

@@ -126,7 +126,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
                              Key key, int key_index,
                              ClassBoilerplate::ValueKind value_kind,
                              Smi value) {
-  InternalIndex entry = dictionary->FindEntry(isolate, key);
+  InternalIndex entry = dictionary->FindEntry(ReadOnlyRoots(isolate), key);
 
   if (entry.is_not_found()) {
     // Entry not found, add new one.
@@ -184,7 +184,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
           // was not defined yet, so overwrite property to kData.
           PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
                                   enum_order);
-          dictionary->DetailsAtPut(isolate, entry, details);
+          dictionary->DetailsAtPut(entry, details);
           dictionary->ValueAtPut(entry, value);
 
         } else {
@@ -218,7 +218,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
         if (!existing_value.IsSmi() || Smi::ToInt(existing_value) < key_index) {
           PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
                                   enum_order);
-          dictionary->DetailsAtPut(isolate, entry, details);
+          dictionary->DetailsAtPut(entry, details);
           dictionary->ValueAtPut(entry, value);
         }
       }
@@ -242,7 +242,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
         pair->set(component, value);
         PropertyDetails details(kAccessor, DONT_ENUM, PropertyCellType::kNoCell,
                                 enum_order);
-        dictionary->DetailsAtPut(isolate, entry, details);
+        dictionary->DetailsAtPut(entry, details);
         dictionary->ValueAtPut(entry, *pair);
       }
     }

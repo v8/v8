@@ -41,7 +41,7 @@ class V8_EXPORT_PRIVATE StringTableShape : public BaseShape<StringTableKey*> {
  public:
   static inline bool IsMatch(Key key, Object value);
 
-  static inline uint32_t Hash(Isolate* isolate, Key key);
+  static inline uint32_t Hash(ReadOnlyRoots roots, Key key);
 
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
@@ -100,7 +100,7 @@ class V8_EXPORT_PRIVATE StringTable
 class StringSetShape : public BaseShape<String> {
  public:
   static inline bool IsMatch(String key, Object value);
-  static inline uint32_t Hash(Isolate* isolate, String key);
+  static inline uint32_t Hash(ReadOnlyRoots roots, String key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
   static const int kPrefixSize = 0;

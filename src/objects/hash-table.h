@@ -38,7 +38,7 @@ namespace internal {
 //     // Tells whether key matches other.
 //     static bool IsMatch(Key key, Object other);
 //     // Returns the hash value for key.
-//     static uint32_t Hash(Isolate* isolate, Key key);
+//     static uint32_t Hash(ReadOnlyRoots roots, Key key);
 //     // Returns the hash value for object.
 //     static uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 //     // Convert key to an object.
@@ -140,6 +140,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
 
   // Find entry for key otherwise return kNotFound.
   inline InternalIndex FindEntry(ReadOnlyRoots roots, Key key, int32_t hash);
+  inline InternalIndex FindEntry(ReadOnlyRoots roots, Key key);
   inline InternalIndex FindEntry(Isolate* isolate, Key key);
 
   // Rehashes the table in-place.
@@ -273,7 +274,7 @@ class HashTableKey {
 class ObjectHashTableShape : public BaseShape<Handle<Object>> {
  public:
   static inline bool IsMatch(Handle<Object> key, Object other);
-  static inline uint32_t Hash(Isolate* isolate, Handle<Object> key);
+  static inline uint32_t Hash(ReadOnlyRoots roots, Handle<Object> key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
   static inline Handle<Object> AsHandle(Handle<Object> key);
   static const int kPrefixSize = 0;

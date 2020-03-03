@@ -601,7 +601,7 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
     LOG(isolate, MapEvent("Deprecate", handle(*this, isolate), Handle<Map>()));
   }
   dependent_code().DeoptimizeDependentCodeGroup(
-      isolate, DependentCode::kTransitionGroup);
+      DependentCode::kTransitionGroup);
   NotifyLeafMapLayoutChange(isolate);
 }
 
@@ -782,7 +782,7 @@ void Map::GeneralizeField(Isolate* isolate, Handle<Map> map,
   field_owner->UpdateFieldType(isolate, modify_index, name, new_constness,
                                new_representation, wrapped_type);
   field_owner->dependent_code().DeoptimizeDependentCodeGroup(
-      isolate, DependentCode::kFieldOwnerGroup);
+      DependentCode::kFieldOwnerGroup);
 
   if (FLAG_trace_generalization) {
     map->PrintGeneralization(
@@ -2197,7 +2197,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
 
       // Deoptimize all code that embeds the previous initial map.
       initial_map->dependent_code().DeoptimizeDependentCodeGroup(
-          isolate, DependentCode::kInitialMapChangedGroup);
+          DependentCode::kInitialMapChangedGroup);
       if (!result->EquivalentToForNormalization(*map,
                                                 CLEAR_INOBJECT_PROPERTIES)) {
         result =

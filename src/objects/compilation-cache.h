@@ -23,7 +23,7 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
     return key->IsMatch(value);
   }
 
-  static inline uint32_t Hash(Isolate* isolate, HashTableKey* key) {
+  static inline uint32_t Hash(ReadOnlyRoots roots, HashTableKey* key) {
     return key->Hash();
   }
 

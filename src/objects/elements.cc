@@ -1384,7 +1384,7 @@ class DictionaryElementsAccessor
             if (dict->IsKey(roots, index)) {
               uint32_t number = static_cast<uint32_t>(index.Number());
               if (length <= number && number < old_length) {
-                dict->ClearEntry(isolate, entry);
+                dict->ClearEntry(entry);
                 removed_entries++;
               }
             }
@@ -1461,7 +1461,7 @@ class DictionaryElementsAccessor
     details = PropertyDetails(kData, attributes, PropertyCellType::kNoCell,
                               details.dictionary_index());
 
-    dictionary.DetailsAtPut(object->GetIsolate(), entry, details);
+    dictionary.DetailsAtPut(entry, details);
   }
 
   static void AddImpl(Handle<JSObject> object, uint32_t index,

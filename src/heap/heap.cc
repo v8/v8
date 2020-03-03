@@ -1096,10 +1096,10 @@ void Heap::DeoptMarkedAllocationSites() {
   // TODO(hpayer): If iterating over the allocation sites list becomes a
   // performance issue, use a cache data structure in heap instead.
 
-  ForeachAllocationSite(allocation_sites_list(), [this](AllocationSite site) {
+  ForeachAllocationSite(allocation_sites_list(), [](AllocationSite site) {
     if (site.deopt_dependent_code()) {
       site.dependent_code().MarkCodeForDeoptimization(
-          isolate_, DependentCode::kAllocationSiteTenuringChangedGroup);
+          DependentCode::kAllocationSiteTenuringChangedGroup);
       site.set_deopt_dependent_code(false);
     }
   });
