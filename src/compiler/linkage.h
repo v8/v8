@@ -18,6 +18,13 @@
 #include "src/runtime/runtime.h"
 #include "src/zone/zone.h"
 
+#if !defined(__clang__) && defined(_M_ARM64)
+// _M_ARM64 is an MSVC-specific macro that clang-cl emulates.
+#define NO_INLINE_FOR_ARM64_MSVC __declspec(noinline)
+#else
+#define NO_INLINE_FOR_ARM64_MSVC
+#endif
+
 namespace v8 {
 class CFunctionInfo;
 
@@ -136,7 +143,9 @@ class LinkageLocation {
            LocationField::kShift;
   }
 
-  bool IsRegister() const { return TypeField::decode(bit_field_) == REGISTER; }
+  NO_INLINE_FOR_ARM64_MSVC bool IsRegister() const {
+    return TypeField::decode(bit_field_) == REGISTER;
+  }
   bool IsAnyRegister() const {
     return IsRegister() && GetLocation() == ANY_REGISTER;
   }
@@ -515,5 +524,6 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
+#undef NO_INLINE_FOR_ARM64_MSVC
 
 #endif  // V8_COMPILER_LINKAGE_H_
