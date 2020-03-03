@@ -113,6 +113,7 @@ void SimdScalarLowering::LowerGraph() {
   V(I32x4LeU)                     \
   V(I32x4GtU)                     \
   V(I32x4GeU)                     \
+  V(I32x4Abs)                     \
   V(S128And)                      \
   V(S128Or)                       \
   V(S128Xor)                      \
@@ -186,7 +187,8 @@ void SimdScalarLowering::LowerGraph() {
   V(I16x8LeS)                     \
   V(I16x8LtU)                     \
   V(I16x8LeU)                     \
-  V(I16x8RoundingAverageU)
+  V(I16x8RoundingAverageU)        \
+  V(I16x8Abs)
 
 #define FOREACH_INT8X16_OPCODE(V) \
   V(I8x16Splat)                   \
@@ -218,7 +220,8 @@ void SimdScalarLowering::LowerGraph() {
   V(I8x16LeU)                     \
   V(S8x16Swizzle)                 \
   V(S8x16Shuffle)                 \
-  V(I8x16RoundingAverageU)
+  V(I8x16RoundingAverageU)        \
+  V(I8x16Abs)
 
 MachineType SimdScalarLowering::MachineTypeFrom(SimdType simdType) {
   switch (simdType) {
@@ -1229,6 +1232,30 @@ void SimdScalarLowering::LowerNode(Node* node) {
       Node* zero = graph()->NewNode(common()->Int32Constant(0));
       for (int i = 0; i < num_lanes; ++i) {
         rep_node[i] = graph()->NewNode(machine()->Int32Sub(), zero, rep[i]);
+        if (node->opcode() == IrOpcode::kI16x8Neg) {
+          rep_node[i] = FixUpperBits(rep_node[i], kShift16);
+        } else if (node->opcode() == IrOpcode::kI8x16Neg) {
+          rep_node[i] = FixUpperBits(rep_node[i], kShift8);
+        }
+      }
+      ReplaceNode(node, rep_node, num_lanes);
+      break;
+    }
+    case IrOpcode::kI32x4Abs:
+    case IrOpcode::kI16x8Abs:
+    case IrOpcode::kI8x16Abs: {
+      // From https://stackoverflow.com/a/14194764
+      // abs(x) = (x XOR y) - y
+      Node** rep = GetReplacementsWithType(node->InputAt(0), rep_type);
+      Node** rep_node = zone()->NewArray<Node*>(num_lanes);
+      for (int i = 0; i < num_lanes; ++i) {
+        // It's fine to shift by 31 even for i8x16 since each node is
+        // effectively expanded to 32 bits.
+        Node* y = graph()->NewNode(machine()->Word32Sar(), rep[i],
+                                   mcgraph_->Int32Constant(31));
+        rep_node[i] = graph()->NewNode(
+            machine()->Int32Sub(),
+            graph()->NewNode(machine()->Word32Xor(), rep[i], y), y);
         if (node->opcode() == IrOpcode::kI16x8Neg) {
           rep_node[i] = FixUpperBits(rep_node[i], kShift16);
         } else if (node->opcode() == IrOpcode::kI8x16Neg) {

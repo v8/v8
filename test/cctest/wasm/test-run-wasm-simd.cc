@@ -1836,7 +1836,7 @@ WASM_SIMD_TEST(I32x4Neg) {
                    base::NegateWithWraparound);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I32x4Abs) {
+WASM_SIMD_TEST(I32x4Abs) {
   RunI32x4UnOpTest(execution_tier, lower_simd, kExprI32x4Abs, Abs);
 }
 
@@ -2099,7 +2099,7 @@ WASM_SIMD_TEST(I16x8Neg) {
                    base::NegateWithWraparound);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I16x8Abs) {
+WASM_SIMD_TEST(I16x8Abs) {
   RunI16x8UnOpTest(execution_tier, lower_simd, kExprI16x8Abs, Abs);
 }
 
@@ -2304,7 +2304,7 @@ WASM_SIMD_TEST(I8x16Neg) {
                    base::NegateWithWraparound);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I8x16Abs) {
+WASM_SIMD_TEST(I8x16Abs) {
   RunI8x16UnOpTest(execution_tier, lower_simd, kExprI8x16Abs, Abs);
 }
 
