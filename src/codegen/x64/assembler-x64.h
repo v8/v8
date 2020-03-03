@@ -1273,6 +1273,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vcvtss2sd(XMMRegister dst, XMMRegister src1, Operand src2) {
     vinstr(0x5a, dst, src1, src2, kF3, k0F, kWIG);
   }
+  void vcvttps2dq(XMMRegister dst, XMMRegister src) {
+    vinstr(0x5b, dst, xmm0, src, kF3, k0F, kWIG);
+  }
   void vcvtlsi2sd(XMMRegister dst, XMMRegister src1, Register src2) {
     XMMRegister isrc2 = XMMRegister::from_code(src2.code());
     vinstr(0x2a, dst, src1, isrc2, kF2, k0F, kW0);

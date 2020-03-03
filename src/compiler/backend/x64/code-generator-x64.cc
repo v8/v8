@@ -2912,18 +2912,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister tmp = i.TempSimd128Register(0);
       // NAN->0
-      __ movaps(tmp, dst);
-      __ cmpeqps(tmp, tmp);
-      __ pand(dst, tmp);
+      __ Movaps(tmp, dst);
+      __ Cmpeqps(tmp, tmp);
+      __ Pand(dst, tmp);
       // Set top bit if >= 0 (but not -0.0!)
-      __ pxor(tmp, dst);
+      __ Pxor(tmp, dst);
       // Convert
-      __ cvttps2dq(dst, dst);
+      __ Cvttps2dq(dst, dst);
       // Set top bit if >=0 is now < 0
-      __ pand(tmp, dst);
-      __ psrad(tmp, 31);
+      __ Pand(tmp, dst);
+      __ Psrad(tmp, static_cast<byte>(31));
       // Set positive overflow lanes to 0x7FFFFFFF
-      __ pxor(dst, tmp);
+      __ Pxor(dst, tmp);
       break;
     }
     case kX64I32x4SConvertI16x8Low: {
@@ -2966,7 +2966,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I32x4AddHoriz: {
       CpuFeatureScope sse_scope(tasm(), SSSE3);
-      __ phaddd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Phaddd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I32x4Sub: {
@@ -3018,26 +3018,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister tmp = i.TempSimd128Register(0);
       XMMRegister tmp2 = i.TempSimd128Register(1);
       // NAN->0, negative->0
-      __ pxor(tmp2, tmp2);
-      __ maxps(dst, tmp2);
+      __ Pxor(tmp2, tmp2);
+      __ Maxps(dst, tmp2);
       // scratch: float representation of max_signed
-      __ pcmpeqd(tmp2, tmp2);
-      __ psrld(tmp2, 1);        // 0x7fffffff
-      __ cvtdq2ps(tmp2, tmp2);  // 0x4f000000
+      __ Pcmpeqd(tmp2, tmp2);
+      __ Psrld(tmp2, static_cast<uint8_t>(1));  // 0x7fffffff
+      __ Cvtdq2ps(tmp2, tmp2);                  // 0x4f000000
       // tmp: convert (src-max_signed).
       // Positive overflow lanes -> 0x7FFFFFFF
       // Negative lanes -> 0
-      __ movaps(tmp, dst);
-      __ subps(tmp, tmp2);
-      __ cmpleps(tmp2, tmp);
-      __ cvttps2dq(tmp, tmp);
-      __ pxor(tmp, tmp2);
-      __ pxor(tmp2, tmp2);
-      __ pmaxsd(tmp, tmp2);
+      __ Movaps(tmp, dst);
+      __ Subps(tmp, tmp2);
+      __ Cmpleps(tmp2, tmp);
+      __ Cvttps2dq(tmp, tmp);
+      __ Pxor(tmp, tmp2);
+      __ Pxor(tmp2, tmp2);
+      __ Pmaxsd(tmp, tmp2);
       // convert. Overflow lanes above max_signed will be 0x80000000
-      __ cvttps2dq(dst, dst);
+      __ Cvttps2dq(dst, dst);
       // Add (src-max_signed) for overflow lanes.
-      __ paddd(dst, tmp);
+      __ Paddd(dst, tmp);
       break;
     }
     case kX64I32x4UConvertI16x8Low: {
