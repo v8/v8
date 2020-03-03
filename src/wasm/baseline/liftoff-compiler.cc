@@ -2389,6 +2389,38 @@ class LiftoffCompiler {
     __ PushRegister(result_type, result);
   }
 
+  void AtomicCompareExchange(FullDecoder* decoder, StoreType type,
+                             const MemoryAccessImmediate<validate>& imm) {
+#ifdef V8_TARGET_ARCH_IA32
+    // With the current implementation we do not have enough registers on ia32
+    // to even get to the platform-specific code. Therefore we bailout early.
+    unsupported(decoder, kAtomics, "AtomicCompareExchange");
+    return;
+#else
+    ValueType result_type = type.value_type();
+    LiftoffRegList pinned;
+    LiftoffRegister new_value = pinned.set(__ PopToRegister());
+    LiftoffRegister expected = pinned.set(__ PopToRegister(pinned));
+    Register index = pinned.set(__ PopToRegister(pinned)).gp();
+    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
+                       kDoForceCheck)) {
+      return;
+    }
+    AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
+
+    uint32_t offset = imm.offset;
+    index = AddMemoryMasking(index, &offset, &pinned);
+    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
+    LiftoffRegister result =
+        pinned.set(__ GetUnusedRegister(reg_class_for(result_type), pinned));
+
+    __ AtomicCompareExchange(addr, index, offset, expected, new_value, result,
+                             type);
+    __ PushRegister(result_type, result);
+#endif
+  }
+
   void AtomicWait(FullDecoder* decoder, ValueType type,
                   const MemoryAccessImmediate<validate>& imm) {
 #if V8_TARGET_ARCH_32_BIT
@@ -2501,42 +2533,58 @@ class LiftoffCompiler {
   V(I64AtomicLoad16U, kI64Load16U) \
   V(I64AtomicLoad32U, kI64Load32U)
 
-#define ATOMIC_BINOP_INSTRUCTION_LIST(V) \
-  V(Add, I32AtomicAdd, kI32Store)        \
-  V(Add, I64AtomicAdd, kI64Store)        \
-  V(Add, I32AtomicAdd8U, kI32Store8)     \
-  V(Add, I32AtomicAdd16U, kI32Store16)   \
-  V(Add, I64AtomicAdd8U, kI64Store8)     \
-  V(Add, I64AtomicAdd16U, kI64Store16)   \
-  V(Add, I64AtomicAdd32U, kI64Store32)   \
-  V(Sub, I32AtomicSub, kI32Store)        \
-  V(Sub, I64AtomicSub, kI64Store)        \
-  V(Sub, I32AtomicSub8U, kI32Store8)     \
-  V(Sub, I32AtomicSub16U, kI32Store16)   \
-  V(Sub, I64AtomicSub8U, kI64Store8)     \
-  V(Sub, I64AtomicSub16U, kI64Store16)   \
-  V(Sub, I64AtomicSub32U, kI64Store32)   \
-  V(And, I32AtomicAnd, kI32Store)        \
-  V(And, I64AtomicAnd, kI64Store)        \
-  V(And, I32AtomicAnd8U, kI32Store8)     \
-  V(And, I32AtomicAnd16U, kI32Store16)   \
-  V(And, I64AtomicAnd8U, kI64Store8)     \
-  V(And, I64AtomicAnd16U, kI64Store16)   \
-  V(And, I64AtomicAnd32U, kI64Store32)   \
-  V(Or, I32AtomicOr, kI32Store)          \
-  V(Or, I64AtomicOr, kI64Store)          \
-  V(Or, I32AtomicOr8U, kI32Store8)       \
-  V(Or, I32AtomicOr16U, kI32Store16)     \
-  V(Or, I64AtomicOr8U, kI64Store8)       \
-  V(Or, I64AtomicOr16U, kI64Store16)     \
-  V(Or, I64AtomicOr32U, kI64Store32)     \
-  V(Xor, I32AtomicXor, kI32Store)        \
-  V(Xor, I64AtomicXor, kI64Store)        \
-  V(Xor, I32AtomicXor8U, kI32Store8)     \
-  V(Xor, I32AtomicXor16U, kI32Store16)   \
-  V(Xor, I64AtomicXor8U, kI64Store8)     \
-  V(Xor, I64AtomicXor16U, kI64Store16)   \
-  V(Xor, I64AtomicXor32U, kI64Store32)
+#define ATOMIC_BINOP_INSTRUCTION_LIST(V)         \
+  V(Add, I32AtomicAdd, kI32Store)                \
+  V(Add, I64AtomicAdd, kI64Store)                \
+  V(Add, I32AtomicAdd8U, kI32Store8)             \
+  V(Add, I32AtomicAdd16U, kI32Store16)           \
+  V(Add, I64AtomicAdd8U, kI64Store8)             \
+  V(Add, I64AtomicAdd16U, kI64Store16)           \
+  V(Add, I64AtomicAdd32U, kI64Store32)           \
+  V(Sub, I32AtomicSub, kI32Store)                \
+  V(Sub, I64AtomicSub, kI64Store)                \
+  V(Sub, I32AtomicSub8U, kI32Store8)             \
+  V(Sub, I32AtomicSub16U, kI32Store16)           \
+  V(Sub, I64AtomicSub8U, kI64Store8)             \
+  V(Sub, I64AtomicSub16U, kI64Store16)           \
+  V(Sub, I64AtomicSub32U, kI64Store32)           \
+  V(And, I32AtomicAnd, kI32Store)                \
+  V(And, I64AtomicAnd, kI64Store)                \
+  V(And, I32AtomicAnd8U, kI32Store8)             \
+  V(And, I32AtomicAnd16U, kI32Store16)           \
+  V(And, I64AtomicAnd8U, kI64Store8)             \
+  V(And, I64AtomicAnd16U, kI64Store16)           \
+  V(And, I64AtomicAnd32U, kI64Store32)           \
+  V(Or, I32AtomicOr, kI32Store)                  \
+  V(Or, I64AtomicOr, kI64Store)                  \
+  V(Or, I32AtomicOr8U, kI32Store8)               \
+  V(Or, I32AtomicOr16U, kI32Store16)             \
+  V(Or, I64AtomicOr8U, kI64Store8)               \
+  V(Or, I64AtomicOr16U, kI64Store16)             \
+  V(Or, I64AtomicOr32U, kI64Store32)             \
+  V(Xor, I32AtomicXor, kI32Store)                \
+  V(Xor, I64AtomicXor, kI64Store)                \
+  V(Xor, I32AtomicXor8U, kI32Store8)             \
+  V(Xor, I32AtomicXor16U, kI32Store16)           \
+  V(Xor, I64AtomicXor8U, kI64Store8)             \
+  V(Xor, I64AtomicXor16U, kI64Store16)           \
+  V(Xor, I64AtomicXor32U, kI64Store32)           \
+  V(Exchange, I32AtomicExchange, kI32Store)      \
+  V(Exchange, I64AtomicExchange, kI64Store)      \
+  V(Exchange, I32AtomicExchange8U, kI32Store8)   \
+  V(Exchange, I32AtomicExchange16U, kI32Store16) \
+  V(Exchange, I64AtomicExchange8U, kI64Store8)   \
+  V(Exchange, I64AtomicExchange16U, kI64Store16) \
+  V(Exchange, I64AtomicExchange32U, kI64Store32)
+
+#define ATOMIC_COMPARE_EXCHANGE_LIST(V)       \
+  V(I32AtomicCompareExchange, kI32Store)      \
+  V(I64AtomicCompareExchange, kI64Store)      \
+  V(I32AtomicCompareExchange8U, kI32Store8)   \
+  V(I32AtomicCompareExchange16U, kI32Store16) \
+  V(I64AtomicCompareExchange8U, kI64Store8)   \
+  V(I64AtomicCompareExchange16U, kI64Store16) \
+  V(I64AtomicCompareExchange32U, kI64Store32)
 
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
                 const MemoryAccessImmediate<validate>& imm, Value* result) {
@@ -2564,6 +2612,15 @@ class LiftoffCompiler {
 
       ATOMIC_BINOP_INSTRUCTION_LIST(ATOMIC_BINOP_OP)
 #undef ATOMIC_BINOP_OP
+
+#define ATOMIC_COMPARE_EXCHANGE_OP(name, type)            \
+  case wasm::kExpr##name:                                 \
+    AtomicCompareExchange(decoder, StoreType::type, imm); \
+    break;
+
+      ATOMIC_COMPARE_EXCHANGE_LIST(ATOMIC_COMPARE_EXCHANGE_OP)
+#undef ATOMIC_COMPARE_EXCHANGE_OP
+
       case kExprI32AtomicWait:
         AtomicWait(decoder, kWasmI32, imm);
         break;
@@ -2581,6 +2638,7 @@ class LiftoffCompiler {
 #undef ATOMIC_STORE_LIST
 #undef ATOMIC_LOAD_LIST
 #undef ATOMIC_BINOP_INSTRUCTION_LIST
+#undef ATOMIC_COMPARE_EXCHANGE_LIST
 
   void AtomicFence(FullDecoder* decoder) { __ AtomicFence(); }
   void MemoryInit(FullDecoder* decoder,

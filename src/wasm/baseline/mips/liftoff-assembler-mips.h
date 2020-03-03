@@ -568,6 +568,19 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
   bailout(kAtomics, "AtomicXor");
 }
 
+void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
+                                      uint32_t offset_imm,
+                                      LiftoffRegister value, StoreType type) {
+  bailout(kAtomics, "AtomicExchange");
+}
+
+void LiftoffAssembler::AtomicCompareExchange(
+    Register dst_addr, Register offset_reg, uint32_t offset_imm,
+    LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
+    StoreType type) {
+  bailout(kAtomics, "AtomicCompareExchange");
+}
+
 void LiftoffAssembler::AtomicFence() { sync(); }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,

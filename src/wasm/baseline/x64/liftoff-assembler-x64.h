@@ -460,32 +460,41 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
 }
 
 namespace liftoff {
+#define __ lasm->
+// Checks if a register in {possible_uses} uses {reg}. If so, it allocates a
+// replacement register for that use, and moves the content of {reg} to {use}.
+// The replacement register is written into the pointer stored in
+// {possible_uses}.
+inline void ClearRegister(LiftoffAssembler* lasm, Register reg,
+                          std::initializer_list<Register*> possible_uses,
+                          LiftoffRegList pinned) {
+  liftoff::SpillRegisters(lasm, reg);
+  Register replacement = no_reg;
+  for (Register* use : possible_uses) {
+    if (reg != *use) continue;
+    if (replacement == no_reg) {
+      replacement = __ GetUnusedRegister(kGpReg, pinned).gp();
+      __ movq(replacement, reg);
+    }
+    // We cannot leave this loop early. There may be multiple uses of {reg}.
+    *use = replacement;
+  }
+}
+
 inline void AtomicBinop(LiftoffAssembler* lasm,
                         void (Assembler::*opl)(Register, Register),
                         void (Assembler::*opq)(Register, Register),
                         Register dst_addr, Register offset_reg,
                         uint32_t offset_imm, LiftoffRegister value,
                         StoreType type) {
-#define __ lasm->
   DCHECK(!__ cache_state()->is_used(value));
+  Register value_reg = value.gp();
   // The cmpxchg instruction uses rax to store the old value of the
   // compare-exchange primitive. Therefore we have to spill the register and
   // move any use to another register.
-  liftoff::SpillRegisters(lasm, rax);
-  Register value_reg = value.gp();
   LiftoffRegList pinned =
       LiftoffRegList::ForRegs(dst_addr, offset_reg, value_reg);
-  if (pinned.has(rax)) {
-    Register replacement =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    for (Register* reg : {&dst_addr, &offset_reg, &value_reg}) {
-      if (*reg == rax) {
-        *reg = replacement;
-      }
-    }
-    __ movq(replacement, rax);
-  }
-
+  ClearRegister(lasm, rax, {&dst_addr, &offset_reg, &value_reg}, pinned);
   if (__ emit_debug_code() && offset_reg != no_reg) {
     __ AssertZeroExtended(offset_reg);
   }
@@ -571,6 +580,90 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  StoreType type) {
   liftoff::AtomicBinop(this, &Assembler::xorl, &Assembler::xorq, dst_addr,
                        offset_reg, offset_imm, value, type);
+}
+
+void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
+                                      uint32_t offset_imm,
+                                      LiftoffRegister value, StoreType type) {
+  DCHECK(!cache_state()->is_used(value));
+  if (emit_debug_code() && offset_reg != no_reg) {
+    AssertZeroExtended(offset_reg);
+  }
+  Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+  switch (type.value()) {
+    case StoreType::kI32Store8:
+    case StoreType::kI64Store8:
+      xchgb(value.gp(), dst_op);
+      movzxbq(value.gp(), value.gp());
+      break;
+    case StoreType::kI32Store16:
+    case StoreType::kI64Store16:
+      xchgw(value.gp(), dst_op);
+      movzxwq(value.gp(), value.gp());
+      break;
+    case StoreType::kI32Store:
+    case StoreType::kI64Store32:
+      xchgl(value.gp(), dst_op);
+      break;
+    case StoreType::kI64Store:
+      xchgq(value.gp(), dst_op);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void LiftoffAssembler::AtomicCompareExchange(
+    Register dst_addr, Register offset_reg, uint32_t offset_imm,
+    LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
+    StoreType type) {
+  Register value_reg = new_value.gp();
+  // The cmpxchg instruction uses rax to store the old value of the
+  // compare-exchange primitive. Therefore we have to spill the register and
+  // move any use to another register.
+  LiftoffRegList pinned =
+      LiftoffRegList::ForRegs(dst_addr, offset_reg, expected, value_reg);
+  liftoff::ClearRegister(this, rax, {&dst_addr, &offset_reg, &value_reg},
+                         pinned);
+  if (expected.gp() != rax) {
+    movq(rax, expected.gp());
+  }
+
+  if (emit_debug_code() && offset_reg != no_reg) {
+    AssertZeroExtended(offset_reg);
+  }
+  Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+
+  lock();
+  switch (type.value()) {
+    case StoreType::kI32Store8:
+    case StoreType::kI64Store8: {
+      cmpxchgb(dst_op, value_reg);
+      movzxbq(rax, rax);
+      break;
+    }
+    case StoreType::kI32Store16:
+    case StoreType::kI64Store16: {
+      cmpxchgw(dst_op, value_reg);
+      movzxwq(rax, rax);
+      break;
+    }
+    case StoreType::kI32Store:
+    case StoreType::kI64Store32: {
+      cmpxchgl(dst_op, value_reg);
+      break;
+    }
+    case StoreType::kI64Store: {
+      cmpxchgq(dst_op, value_reg);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+
+  if (result.gp() != rax) {
+    movq(result.gp(), rax);
+  }
 }
 
 void LiftoffAssembler::AtomicFence() { mfence(); }
