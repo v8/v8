@@ -3162,7 +3162,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I16x8SConvertI32x4: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ packssdw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Packssdw(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I16x8Add: {
@@ -3243,7 +3243,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I16x8UConvertI32x4: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ packusdw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Packusdw(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I16x8AddSaturateU: {
@@ -3328,7 +3328,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I8x16SConvertI16x8: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ packsswb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Packsswb(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I8x16Neg: {
@@ -3470,7 +3470,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I8x16UConvertI16x8: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ packuswb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Packuswb(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I8x16ShrU: {
