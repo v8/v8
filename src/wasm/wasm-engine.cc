@@ -733,15 +733,6 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
   }
 }
 
-namespace {
-int GetGCTimeMicros(base::TimeTicks start) {
-  DCHECK(!start.IsNull());
-  int64_t duration_us = (base::TimeTicks::Now() - start).InMicroseconds();
-  return static_cast<int>(
-      std::min(std::max(int64_t{0}, duration_us), int64_t{kMaxInt}));
-}
-}  // namespace
-
 void WasmEngine::AddIsolate(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
   DCHECK_EQ(0, isolates_.count(isolate));
@@ -760,13 +751,6 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
     DCHECK_EQ(1, engine->isolates_.count(isolate));
     for (auto* native_module : engine->isolates_[isolate]->native_modules) {
       native_module->SampleCodeSize(counters, NativeModule::kSampling);
-    }
-    // If there is an ongoing code GC, sample its time here. This will record
-    // samples for very long-running or never ending GCs.
-    if (engine->current_gc_info_ &&
-        !engine->current_gc_info_->start_time.IsNull()) {
-      isolate->counters()->wasm_code_gc_time()->AddSample(
-          GetGCTimeMicros(engine->current_gc_info_->start_time));
     }
   };
   isolate->heap()->AddGCEpilogueCallback(callback, v8::kGCTypeMarkSweepCompact,
@@ -1096,9 +1080,6 @@ void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
   DCHECK(FLAG_wasm_code_gc);
   new_potentially_dead_code_size_ = 0;
   current_gc_info_.reset(new CurrentGCInfo(gc_sequence_index));
-  if (base::TimeTicks::IsHighResolution()) {
-    current_gc_info_->start_time = base::TimeTicks::Now();
-  }
   // Add all potentially dead code to this GC, and trigger a GC task in each
   // isolate.
   for (auto& entry : native_modules_) {
@@ -1160,16 +1141,8 @@ void WasmEngine::PotentiallyFinishCurrentGC() {
 
   FreeDeadCodeLocked(dead_code);
 
-  int duration_us = 0;
-  if (!current_gc_info_->start_time.IsNull()) {
-    duration_us = GetGCTimeMicros(current_gc_info_->start_time);
-    for (auto& entry : isolates_) {
-      entry.second->async_counters->wasm_code_gc_time()->AddSample(duration_us);
-    }
-  }
-
-  TRACE_CODE_GC("Took %d us; found %zu dead code objects, freed %zu.\n",
-                duration_us, current_gc_info_->dead_code.size(), num_freed);
+  TRACE_CODE_GC("Found %zu dead code objects, freed %zu.\n",
+                current_gc_info_->dead_code.size(), num_freed);
   USE(num_freed);
 
   int8_t next_gc_sequence_index = current_gc_info_->next_gc_sequence_index;

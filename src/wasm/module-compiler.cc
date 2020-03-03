@@ -832,13 +832,8 @@ DecodeResult ValidateSingleFunction(const WasmModule* module, int func_index,
   FunctionBody body{func->sig, func->code.offset(), code.begin(), code.end()};
   DecodeResult result;
 
-  auto time_counter =
-      SELECT_WASM_COUNTER(counters, module->origin, wasm_decode, function_time);
-  TimedHistogramScope wasm_decode_function_time_scope(time_counter);
   WasmFeatures detected;
-  result = VerifyWasmCode(allocator, enabled_features, module, &detected, body);
-
-  return result;
+  return VerifyWasmCode(allocator, enabled_features, module, &detected, body);
 }
 
 enum OnlyLazyFunctions : bool {
@@ -890,11 +885,7 @@ bool CompileLazy(Isolate* isolate, NativeModule* native_module,
   Counters* counters = isolate->counters();
 
   DCHECK(!native_module->lazy_compile_frozen());
-  HistogramTimerScope lazy_time_scope(counters->wasm_lazy_compilation_time());
   NativeModuleModificationScope native_module_modification_scope(native_module);
-
-  base::ElapsedTimer compilation_timer;
-  compilation_timer.Start();
 
   TRACE_LAZY("Compiling wasm-function#%d.\n", func_index);
 
@@ -935,13 +926,7 @@ bool CompileLazy(Isolate* isolate, NativeModule* native_module,
 
   if (WasmCode::ShouldBeLogged(isolate)) code->LogCode(isolate);
 
-  double func_kb = 1e-3 * func->code.length();
-  double compilation_seconds = compilation_timer.Elapsed().InSecondsF();
-
   counters->wasm_lazily_compiled_functions()->Increment();
-
-  int throughput_sample = static_cast<int>(func_kb / compilation_seconds);
-  counters->wasm_lazy_compilation_throughput()->AddSample(throughput_sample);
 
   const bool lazy_module = IsLazyModule(module);
   if (GetCompileStrategy(module, enabled_features, func_index, lazy_module) ==

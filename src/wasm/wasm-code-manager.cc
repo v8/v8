@@ -1743,8 +1743,6 @@ void NativeModule::SampleCodeSize(
       if (generated_size >= 2 * MB && module()->origin == kWasmOrigin) {
         size_t freed_size = code_allocator_.freed_code_size();
         DCHECK_LE(freed_size, generated_size);
-        int total_freed_mb = static_cast<int>(freed_size / MB);
-        counters->wasm_module_freed_code_size_mb()->AddSample(total_freed_mb);
         int freed_percent = static_cast<int>(100 * freed_size / generated_size);
         counters->wasm_module_freed_code_size_percent()->AddSample(
             freed_percent);

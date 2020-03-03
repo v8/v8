@@ -1409,16 +1409,9 @@ class ModuleDecoderImpl : public Decoder {
         start_ + GetBufferRelativeOffset(function->code.offset()),
         start_ + GetBufferRelativeOffset(function->code.end_offset())};
 
-    DecodeResult result;
-    {
-      auto time_counter = SELECT_WASM_COUNTER(GetCounters(), origin_,
-                                              wasm_decode, function_time);
-
-      TimedHistogramScope wasm_decode_function_time_scope(time_counter);
-      WasmFeatures unused_detected_features = WasmFeatures::None();
-      result = VerifyWasmCode(allocator, enabled_features_, module,
-                              &unused_detected_features, body);
-    }
+    WasmFeatures unused_detected_features = WasmFeatures::None();
+    DecodeResult result = VerifyWasmCode(allocator, enabled_features_, module,
+                                         &unused_detected_features, body);
 
     // If the decode failed and this is the first error, set error code and
     // location.
@@ -1987,9 +1980,6 @@ ModuleResult DecodeWasmModule(const WasmFeatures& enabled,
                               bool verify_functions, ModuleOrigin origin,
                               Counters* counters,
                               AccountingAllocator* allocator) {
-  auto counter =
-      SELECT_WASM_COUNTER(counters, origin, wasm_decode, module_time);
-  TimedHistogramScope wasm_decode_module_time_scope(counter);
   size_t size = module_end - module_start;
   CHECK_LE(module_start, module_end);
   if (size >= kV8MaxWasmModuleSize) {
@@ -2003,19 +1993,7 @@ ModuleResult DecodeWasmModule(const WasmFeatures& enabled,
   // Signatures are stored in zone memory, which have the same lifetime
   // as the {module}.
   ModuleDecoderImpl decoder(enabled, module_start, module_end, origin);
-  ModuleResult result =
-      decoder.DecodeModule(counters, allocator, verify_functions);
-  // TODO(bradnelson): Improve histogram handling of size_t.
-  // TODO(titzer): this isn't accurate, since it doesn't count the data
-  // allocated on the C++ heap.
-  // https://bugs.chromium.org/p/chromium/issues/detail?id=657320
-  if (result.ok()) {
-    auto peak_counter = SELECT_WASM_COUNTER(counters, origin, wasm_decode,
-                                            module_peak_memory_bytes);
-    peak_counter->AddSample(
-        static_cast<int>(result.value()->signature_zone->allocation_size()));
-  }
-  return result;
+  return decoder.DecodeModule(counters, allocator, verify_functions);
 }
 
 ModuleDecoder::ModuleDecoder(const WasmFeatures& enabled)
