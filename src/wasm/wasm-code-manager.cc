@@ -1834,6 +1834,9 @@ void NativeModule::TierDown(Isolate* isolate) {
 }
 
 void NativeModule::TierUp(Isolate* isolate) {
+  // Do not tier up asm.js.
+  if (module()->origin != kWasmOrigin) return;
+
   // Set the flag.
   {
     base::MutexGuard lock(&allocation_mutex_);
@@ -1841,13 +1844,8 @@ void NativeModule::TierUp(Isolate* isolate) {
   }
 
   // Tier up all functions.
-  // TODO(duongn): parallelize this eventually.
-  for (uint32_t index = module_->num_imported_functions;
-       index < num_functions(); index++) {
-    isolate->wasm_engine()->CompileFunction(isolate, this, index,
-                                            ExecutionTier::kTurbofan);
-    DCHECK(!compilation_state()->failed());
-  }
+  isolate->wasm_engine()->RecompileAllFunctions(isolate, this,
+                                                ExecutionTier::kTurbofan);
 }
 
 void NativeModule::FreeCode(Vector<WasmCode* const> codes) {

@@ -556,6 +556,7 @@ class CompilationStateImpl {
   std::vector<uint8_t> compilation_progress_;
 
   int outstanding_recompilation_functions_ = 0;
+  ExecutionTier recompilation_tier_;
   // End of fields protected by {callbacks_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
@@ -772,8 +773,9 @@ class CompilationUnitBuilder {
     tiering_units_.emplace_back(func_index, tiers.top_tier);
   }
 
-  void AddBaselineUnit(int func_index) {
-    baseline_units_.emplace_back(func_index, ExecutionTier::kLiftoff);
+  void AddRecompilationUnit(int func_index, ExecutionTier tier) {
+    // For recompilation, just treat all units like baseline units.
+    baseline_units_.emplace_back(func_index, tier);
   }
 
   bool Commit() {
@@ -1192,7 +1194,7 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
   uint32_t end = start + module->num_declared_functions;
   for (uint32_t func_index = start; func_index < end; func_index++) {
     if (prefer_liftoff) {
-      builder.AddBaselineUnit(func_index);
+      builder.AddRecompilationUnit(func_index, ExecutionTier::kLiftoff);
       continue;
     }
     CompileStrategy strategy = GetCompileStrategy(
@@ -1418,7 +1420,7 @@ void RecompileNativeModule(Isolate* isolate, NativeModule* native_module,
   // Install a callback to notify us once background recompilation finished.
   auto recompilation_finished_semaphore = std::make_shared<base::Semaphore>(0);
   auto* compilation_state = Impl(native_module->compilation_state());
-  DCHECK_EQ(tier, ExecutionTier::kLiftoff);
+  DCHECK(tier == ExecutionTier::kTurbofan || tier == ExecutionTier::kLiftoff);
   // The callback captures a shared ptr to the semaphore.
   // Initialize the compilation units and kick off background compile tasks.
   compilation_state->InitializeRecompilation(
@@ -1434,7 +1436,8 @@ void RecompileNativeModule(Isolate* isolate, NativeModule* native_module,
   if (!NeedsDeterministicCompile()) {
     while (ExecuteCompilationUnits(
         compilation_state->background_compile_token(), isolate->counters(),
-        kMainThreadTaskId, kBaselineOnly)) {
+        kMainThreadTaskId,
+        tier == ExecutionTier::kLiftoff ? kBaselineOnly : kBaselineOrTopTier)) {
       // Continue executing compilation units.
     }
   }
@@ -2541,8 +2544,7 @@ void CompilationStateImpl::InitializeRecompilation(
                 has_correct_tier ? tier : ExecutionTier::kNone);
         if (!has_correct_tier) {
           outstanding_recompilation_functions_++;
-          // TODO(duongn): Fix this for tier up.
-          builder.AddBaselineUnit(function_index);
+          builder.AddRecompilationUnit(function_index, tier);
         }
       }
     }
@@ -2553,6 +2555,7 @@ void CompilationStateImpl::InitializeRecompilation(
       recompilation_finished_callback(CompilationEvent::kFinishedRecompilation);
     } else {
       callbacks_.emplace_back(std::move(recompilation_finished_callback));
+      recompilation_tier_ = tier;
     }
   }
 
@@ -2706,9 +2709,9 @@ void CompilationStateImpl::OnFinishedUnits(
         // TODO(duongn): extend this logic for tier up.
         ExecutionTier recompilation_tier =
             ReachedRecompilationTierField::decode(function_progress);
-        if (results[i].requested_tier == ExecutionTier::kLiftoff &&
+        if (results[i].requested_tier == recompilation_tier_ &&
             recompilation_tier == ExecutionTier::kNone) {
-          DCHECK(code->tier() >= ExecutionTier::kLiftoff);
+          DCHECK(code->tier() >= recompilation_tier_);
           outstanding_recompilation_functions_--;
           // Update function's recompilation progress.
           compilation_progress_[slot_index] =
