@@ -14,6 +14,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/ordered-hash-table.h"
+#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {
@@ -2508,8 +2509,9 @@ TNode<HeapObject> WeakCollectionsBuiltinsAssembler::AllocateTable(
   TNode<FixedArray> table = CAST(
       AllocateFixedArray(HOLEY_ELEMENTS, length, kAllowLargeObjectAllocation));
 
-  RootIndex map_root_index = EphemeronHashTableShape::GetMapRootIndex();
-  StoreMapNoWriteBarrier(table, map_root_index);
+  TNode<Map> map =
+      HeapConstant(EphemeronHashTableShape::GetMap(ReadOnlyRoots(isolate())));
+  StoreMapNoWriteBarrier(table, map);
   StoreFixedArrayElement(table, EphemeronHashTable::kNumberOfElementsIndex,
                          SmiConstant(0), SKIP_WRITE_BARRIER);
   StoreFixedArrayElement(table,

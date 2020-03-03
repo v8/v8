@@ -334,12 +334,6 @@ Handle<PropertyArray> Factory::NewPropertyArray(int length) {
   return array;
 }
 
-Handle<FixedArray> Factory::NewFixedArrayWithMapRootIndex(
-    RootIndex map_root_index, int length, AllocationType allocation) {
-  return NewFixedArrayWithMap(Map::cast(isolate()->root(map_root_index)),
-                              length, allocation);
-}
-
 MaybeHandle<FixedArray> Factory::TryNewFixedArray(
     int length, AllocationType allocation_type) {
   DCHECK_LE(0, length);
@@ -371,8 +365,9 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(int length) {
   // TODO(ulan): As an experiment this temporarily returns an initialized fixed
   // array. After getting canary/performance coverage, either remove the
   // function or revert to returning uninitilized array.
-  return NewFixedArrayWithFiller(read_only_roots().fixed_array_map(), length,
-                                 *undefined_value(), AllocationType::kYoung);
+  return NewFixedArrayWithFiller(read_only_roots().fixed_array_map_handle(),
+                                 length, undefined_value(),
+                                 AllocationType::kYoung);
 }
 
 Handle<ClosureFeedbackCellArray> Factory::NewClosureFeedbackCellArray(
@@ -381,7 +376,7 @@ Handle<ClosureFeedbackCellArray> Factory::NewClosureFeedbackCellArray(
 
   Handle<ClosureFeedbackCellArray> feedback_cell_array =
       Handle<ClosureFeedbackCellArray>::cast(NewFixedArrayWithMap(
-          read_only_roots().closure_feedback_cell_array_map(), length,
+          read_only_roots().closure_feedback_cell_array_map_handle(), length,
           AllocationType::kOld));
 
   return feedback_cell_array;
@@ -1083,7 +1078,7 @@ Handle<Context> Factory::NewScriptContext(Handle<NativeContext> outer,
 
 Handle<ScriptContextTable> Factory::NewScriptContextTable() {
   Handle<ScriptContextTable> context_table = Handle<ScriptContextTable>::cast(
-      NewFixedArrayWithMap(read_only_roots().script_context_table_map(),
+      NewFixedArrayWithMap(read_only_roots().script_context_table_map_handle(),
                            ScriptContextTable::kMinLength));
   context_table->set_used(0);
   return context_table;

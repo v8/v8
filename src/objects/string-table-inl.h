@@ -72,8 +72,8 @@ uint32_t StringTableShape::HashForObject(ReadOnlyRoots roots, Object object) {
   return String::cast(object).Hash();
 }
 
-RootIndex StringTableShape::GetMapRootIndex() {
-  return RootIndex::kStringTableMap;
+Handle<Map> StringTableShape::GetMap(ReadOnlyRoots roots) {
+  return roots.string_table_map_handle();
 }
 
 }  // namespace internal

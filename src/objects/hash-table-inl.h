@@ -123,12 +123,12 @@ void HashTableBase::SetNumberOfDeletedElements(int nod) {
 }
 
 template <typename Key>
-RootIndex BaseShape<Key>::GetMapRootIndex() {
-  return RootIndex::kHashTableMap;
+Handle<Map> BaseShape<Key>::GetMap(ReadOnlyRoots roots) {
+  return roots.hash_table_map_handle();
 }
 
-RootIndex EphemeronHashTableShape::GetMapRootIndex() {
-  return RootIndex::kEphemeronHashTableMap;
+Handle<Map> EphemeronHashTableShape::GetMap(ReadOnlyRoots roots) {
+  return roots.ephemeron_hash_table_map_handle();
 }
 
 template <typename Derived, typename Shape>

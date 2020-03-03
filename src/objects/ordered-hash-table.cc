@@ -9,6 +9,7 @@
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
+#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {
@@ -26,11 +27,10 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
     return MaybeHandle<Derived>();
   }
   int num_buckets = capacity / kLoadFactor;
-  Handle<FixedArray> backing_store =
-      isolate->factory()->NewFixedArrayWithMapRootIndex(
-          Derived::GetMapRootIndex(),
-          HashTableStartIndex() + num_buckets + (capacity * kEntrySize),
-          allocation);
+  Handle<FixedArray> backing_store = isolate->factory()->NewFixedArrayWithMap(
+      Derived::GetMap(ReadOnlyRoots(isolate)),
+      HashTableStartIndex() + num_buckets + (capacity * kEntrySize),
+      allocation);
   Handle<Derived> table = Handle<Derived>::cast(backing_store);
   for (int i = 0; i < num_buckets; ++i) {
     table->set(HashTableStartIndex() + i, Smi::FromInt(kNotFound));

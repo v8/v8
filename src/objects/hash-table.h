@@ -60,7 +60,7 @@ template <typename KeyT>
 class V8_EXPORT_PRIVATE BaseShape {
  public:
   using Key = KeyT;
-  static inline RootIndex GetMapRootIndex();
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static const bool kNeedsHoleCheck = true;
   static Object Unwrap(Object key) { return key; }
   static inline bool IsKey(ReadOnlyRoots roots, Object key);
@@ -347,7 +347,7 @@ class V8_EXPORT_PRIVATE ObjectHashTable
 
 class EphemeronHashTableShape : public ObjectHashTableShape {
  public:
-  static inline RootIndex GetMapRootIndex();
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 };
 
 EXTERN_DECLARE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable,

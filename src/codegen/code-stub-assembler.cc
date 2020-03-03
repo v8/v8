@@ -23,6 +23,7 @@
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-cell.h"
+#include "src/roots/roots.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
@@ -3374,7 +3375,6 @@ TNode<String> CodeStubAssembler::AllocateSlicedTwoByteString(
                               offset);
 }
 
-
 TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionary(
     int at_least_space_for) {
   return AllocateNameDictionary(IntPtrConstant(at_least_space_for));
@@ -3479,7 +3479,7 @@ TNode<CollectionType> CodeStubAssembler::AllocateOrderedHashTable() {
   const ElementsKind elements_kind = HOLEY_ELEMENTS;
   TNode<IntPtrT> length_intptr = IntPtrConstant(kFixedArrayLength);
   TNode<Map> fixed_array_map =
-      CAST(LoadRoot(CollectionType::GetMapRootIndex()));
+      HeapConstant(CollectionType::GetMap(ReadOnlyRoots(isolate())));
   TNode<CollectionType> table =
       CAST(AllocateFixedArray(elements_kind, length_intptr,
                               kAllowLargeObjectAllocation, fixed_array_map));

@@ -179,8 +179,8 @@ Object GlobalDictionaryShape::Unwrap(Object object) {
   return PropertyCell::cast(object).name();
 }
 
-RootIndex GlobalDictionaryShape::GetMapRootIndex() {
-  return RootIndex::kGlobalDictionaryMap;
+Handle<Map> GlobalDictionaryShape::GetMap(ReadOnlyRoots roots) {
+  return roots.global_dictionary_map_handle();
 }
 
 Name NameDictionary::NameAt(InternalIndex entry) {
@@ -192,8 +192,8 @@ Name NameDictionary::NameAt(const Isolate* isolate, InternalIndex entry) {
   return Name::cast(KeyAt(isolate, entry));
 }
 
-RootIndex NameDictionaryShape::GetMapRootIndex() {
-  return RootIndex::kNameDictionaryMap;
+Handle<Map> NameDictionaryShape::GetMap(ReadOnlyRoots roots) {
+  return roots.name_dictionary_map_handle();
 }
 
 PropertyCell GlobalDictionary::CellAt(InternalIndex entry) {
@@ -267,12 +267,12 @@ Handle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,
   return isolate->factory()->NewNumberFromUint(key);
 }
 
-RootIndex NumberDictionaryShape::GetMapRootIndex() {
-  return RootIndex::kNumberDictionaryMap;
+Handle<Map> NumberDictionaryShape::GetMap(ReadOnlyRoots roots) {
+  return roots.number_dictionary_map_handle();
 }
 
-RootIndex SimpleNumberDictionaryShape::GetMapRootIndex() {
-  return RootIndex::kSimpleNumberDictionaryMap;
+Handle<Map> SimpleNumberDictionaryShape::GetMap(ReadOnlyRoots roots) {
+  return roots.simple_number_dictionary_map_handle();
 }
 
 bool NameDictionaryShape::IsMatch(Handle<Name> key, Object other) {

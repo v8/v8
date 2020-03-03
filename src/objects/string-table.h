@@ -47,7 +47,7 @@ class V8_EXPORT_PRIVATE StringTableShape : public BaseShape<StringTableKey*> {
 
   static inline Handle<Object> AsHandle(Isolate* isolate, Key key);
 
-  static inline RootIndex GetMapRootIndex();
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 1;

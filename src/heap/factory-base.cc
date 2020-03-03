@@ -60,19 +60,19 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
                                                     AllocationType allocation) {
   DCHECK_LE(0, length);
   if (length == 0) return impl()->empty_fixed_array();
-  return NewFixedArrayWithFiller(read_only_roots().fixed_array_map(), length,
-                                 read_only_roots().undefined_value(),
-                                 allocation);
+  return NewFixedArrayWithFiller(
+      read_only_roots().fixed_array_map_handle(), length,
+      read_only_roots().undefined_value_handle(), allocation);
 }
 
 template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithMap(
-    Map map, int length, AllocationType allocation) {
+    Handle<Map> map, int length, AllocationType allocation) {
   // Zero-length case must be handled outside, where the knowledge about
   // the map is.
   DCHECK_LT(0, length);
   return NewFixedArrayWithFiller(
-      map, length, read_only_roots().undefined_value(), allocation);
+      map, length, read_only_roots().undefined_value_handle(), allocation);
 }
 
 template <typename Impl>
@@ -80,21 +80,22 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithHoles(
     int length, AllocationType allocation) {
   DCHECK_LE(0, length);
   if (length == 0) return impl()->empty_fixed_array();
-  return NewFixedArrayWithFiller(read_only_roots().fixed_array_map(), length,
-                                 read_only_roots().the_hole_value(),
-                                 allocation);
+  return NewFixedArrayWithFiller(
+      read_only_roots().fixed_array_map_handle(), length,
+      read_only_roots().the_hole_value_handle(), allocation);
 }
 
 template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
-    Map map, int length, Oddball filler, AllocationType allocation) {
+    Handle<Map> map, int length, Handle<Oddball> filler,
+    AllocationType allocation) {
   HeapObject result = AllocateRawFixedArray(length, allocation);
-  DCHECK(ReadOnlyHeap::Contains(map));
-  DCHECK(ReadOnlyHeap::Contains(filler));
-  result.set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  DCHECK(ReadOnlyHeap::Contains(*map));
+  DCHECK(ReadOnlyHeap::Contains(*filler));
+  result.set_map_after_allocation(*map, SKIP_WRITE_BARRIER);
   Handle<FixedArray> array = handle(FixedArray::cast(result), isolate());
   array->set_length(length);
-  MemsetTagged(array->data_start(), filler, length);
+  MemsetTagged(array->data_start(), *filler, length);
   return array;
 }
 
@@ -352,7 +353,7 @@ FactoryBase<Impl>::NewObjectBoilerplateDescription(int boilerplate,
 
   Handle<ObjectBoilerplateDescription> description =
       Handle<ObjectBoilerplateDescription>::cast(NewFixedArrayWithMap(
-          read_only_roots().object_boilerplate_description_map(), size,
+          read_only_roots().object_boilerplate_description_map_handle(), size,
           AllocationType::kOld));
 
   if (has_different_size_backing_store) {
@@ -605,14 +606,14 @@ template <typename Impl>
 Handle<ScopeInfo> FactoryBase<Impl>::NewScopeInfo(int length,
                                                   AllocationType type) {
   DCHECK(type == AllocationType::kOld || type == AllocationType::kReadOnly);
-  return Handle<ScopeInfo>::cast(
-      NewFixedArrayWithMap(read_only_roots().scope_info_map(), length, type));
+  return Handle<ScopeInfo>::cast(NewFixedArrayWithMap(
+      read_only_roots().scope_info_map_handle(), length, type));
 }
 
 template <typename Impl>
 Handle<SourceTextModuleInfo> FactoryBase<Impl>::NewSourceTextModuleInfo() {
   return Handle<SourceTextModuleInfo>::cast(NewFixedArrayWithMap(
-      read_only_roots().module_info_map(), SourceTextModuleInfo::kLength,
+      read_only_roots().module_info_map_handle(), SourceTextModuleInfo::kLength,
       AllocationType::kOld));
 }
 

@@ -110,12 +110,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Marks self references within code generation.
   Handle<Oddball> NewSelfReferenceMarker();
 
-  // Allocates a fixed array-like object with given map and initialized with
-  // undefined values.
-  Handle<FixedArray> NewFixedArrayWithMapRootIndex(
-      RootIndex map_root_index, int length,
-      AllocationType allocation = AllocationType::kYoung);
-
   // Allocates a property array initialized with undefined values.
   Handle<PropertyArray> NewPropertyArray(int length);
   // Tries allocating a fixed array initialized with undefined values.

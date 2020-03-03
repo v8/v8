@@ -71,7 +71,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.
   Handle<FixedArray> NewFixedArrayWithMap(
-      Map map, int length, AllocationType allocation = AllocationType::kYoung);
+      Handle<Map> map, int length,
+      AllocationType allocation = AllocationType::kYoung);
 
   // Allocate a new fixed array with non-existing entries (the hole).
   Handle<FixedArray> NewFixedArrayWithHoles(
@@ -185,8 +186,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
       AllocationAlignment alignment = kWordAligned);
   HeapObject NewWithImmortalMap(Map map, AllocationType allocation);
 
-  Handle<FixedArray> NewFixedArrayWithFiller(Map map, int length,
-                                             Oddball filler,
+  Handle<FixedArray> NewFixedArrayWithFiller(Handle<Map> map, int length,
+                                             Handle<Oddball> filler,
                                              AllocationType allocation);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfo();
