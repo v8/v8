@@ -16,6 +16,7 @@
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-opcodes.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-module-runner.h"
@@ -281,8 +282,8 @@ class WasmGenerator {
     // Generate the index and the arguments, if any.
     Generate<kWasmI32, arg_types...>(data);
 
-    if ((memory_op & 0xfe00) == 0xfe00) {
-      // This is an atomic-load or atomic-store.
+    if (WasmOpcodes::IsPrefixOpcode(memory_op)) {
+      DCHECK(memory_op >> 8 == kAtomicPrefix || memory_op >> 8 == kSimdPrefix);
       builder_->EmitWithPrefix(memory_op);
     } else {
       builder_->Emit(memory_op);
@@ -985,7 +986,10 @@ void WasmGenerator::Generate<kWasmS128>(DataRange* data) {
       &WasmGenerator::simd_op<kExprI32x4Add, kWasmS128, kWasmS128>,
       &WasmGenerator::simd_op<kExprI64x2Add, kWasmS128, kWasmS128>,
       &WasmGenerator::simd_op<kExprF32x4Add, kWasmS128, kWasmS128>,
-      &WasmGenerator::simd_op<kExprF64x2Add, kWasmS128, kWasmS128>};
+      &WasmGenerator::simd_op<kExprF64x2Add, kWasmS128, kWasmS128>,
+
+      &WasmGenerator::memop<kExprS128LoadMem>,
+      &WasmGenerator::memop<kExprS128StoreMem, kWasmS128>};
 
   GenerateOneOf(alternatives, data);
 }
