@@ -2723,14 +2723,12 @@ class FastSealedObjectElementsAccessor
 class FastPackedSealedObjectElementsAccessor
     : public FastSealedObjectElementsAccessor<
           FastPackedSealedObjectElementsAccessor,
-          ElementsKindTraits<PACKED_SEALED_ELEMENTS>> {
-};
+          ElementsKindTraits<PACKED_SEALED_ELEMENTS>> {};
 
 class FastHoleySealedObjectElementsAccessor
     : public FastSealedObjectElementsAccessor<
           FastHoleySealedObjectElementsAccessor,
-          ElementsKindTraits<HOLEY_SEALED_ELEMENTS>> {
-};
+          ElementsKindTraits<HOLEY_SEALED_ELEMENTS>> {};
 
 template <typename Subclass, typename KindTraits>
 class FastFrozenObjectElementsAccessor
@@ -2802,14 +2800,12 @@ class FastFrozenObjectElementsAccessor
 class FastPackedFrozenObjectElementsAccessor
     : public FastFrozenObjectElementsAccessor<
           FastPackedFrozenObjectElementsAccessor,
-          ElementsKindTraits<PACKED_FROZEN_ELEMENTS>> {
-};
+          ElementsKindTraits<PACKED_FROZEN_ELEMENTS>> {};
 
 class FastHoleyFrozenObjectElementsAccessor
     : public FastFrozenObjectElementsAccessor<
           FastHoleyFrozenObjectElementsAccessor,
-          ElementsKindTraits<HOLEY_FROZEN_ELEMENTS>> {
-};
+          ElementsKindTraits<HOLEY_FROZEN_ELEMENTS>> {};
 
 class FastHoleyObjectElementsAccessor
     : public FastSmiOrObjectElementsAccessor<

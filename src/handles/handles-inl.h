@@ -196,6 +196,13 @@ inline SealHandleScope::~SealHandleScope() {
 
 #endif
 
+template <typename T>
+Handle<T> OffThreadHandleScope::CloseAndEscape(Handle<T> handle_value) {
+  // At the moment, off-thread handle scopes do nothing on close, so we can
+  // safely return the same handle value.
+  return handle_value;
+}
+
 }  // namespace internal
 }  // namespace v8
 

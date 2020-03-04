@@ -37,6 +37,7 @@
 #include "src/execution/protectors-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/off-thread-factory-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
@@ -4271,13 +4272,22 @@ Handle<FrameArray> FrameArray::EnsureSpace(Isolate* isolate,
       EnsureSpaceInFixedArray(isolate, array, length));
 }
 
-Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
+template <typename LocalIsolate>
+Handle<DescriptorArray> DescriptorArray::Allocate(LocalIsolate* isolate,
                                                   int nof_descriptors,
-                                                  int slack) {
+                                                  int slack,
+                                                  AllocationType allocation) {
   return nof_descriptors + slack == 0
              ? isolate->factory()->empty_descriptor_array()
-             : isolate->factory()->NewDescriptorArray(nof_descriptors, slack);
+             : isolate->factory()->NewDescriptorArray(nof_descriptors, slack,
+                                                      allocation);
 }
+template Handle<DescriptorArray> DescriptorArray::Allocate(
+    Isolate* isolate, int nof_descriptors, int slack,
+    AllocationType allocation);
+template Handle<DescriptorArray> DescriptorArray::Allocate(
+    OffThreadIsolate* isolate, int nof_descriptors, int slack,
+    AllocationType allocation);
 
 void DescriptorArray::Initialize(EnumCache enum_cache,
                                  HeapObject undefined_value,
@@ -6533,8 +6543,9 @@ void HashTable<Derived, Shape>::IterateElements(ObjectVisitor* v) {
 }
 
 template <typename Derived, typename Shape>
+template <typename LocalIsolate>
 Handle<Derived> HashTable<Derived, Shape>::New(
-    Isolate* isolate, int at_least_space_for, AllocationType allocation,
+    LocalIsolate* isolate, int at_least_space_for, AllocationType allocation,
     MinimumCapacity capacity_option) {
   DCHECK_LE(0, at_least_space_for);
   DCHECK_IMPLIES(capacity_option == USE_CUSTOM_MINIMUM_CAPACITY,
@@ -6544,15 +6555,16 @@ Handle<Derived> HashTable<Derived, Shape>::New(
                      ? at_least_space_for
                      : ComputeCapacity(at_least_space_for);
   if (capacity > HashTable::kMaxCapacity) {
-    isolate->heap()->FatalProcessOutOfMemory("invalid table size");
+    isolate->FatalProcessOutOfHeapMemory("invalid table size");
   }
   return NewInternal(isolate, capacity, allocation);
 }
 
 template <typename Derived, typename Shape>
+template <typename LocalIsolate>
 Handle<Derived> HashTable<Derived, Shape>::NewInternal(
-    Isolate* isolate, int capacity, AllocationType allocation) {
-  Factory* factory = isolate->factory();
+    LocalIsolate* isolate, int capacity, AllocationType allocation) {
+  auto* factory = isolate->factory();
   int length = EntryToIndex(InternalIndex(capacity));
   Handle<FixedArray> array = factory->NewFixedArrayWithMap(
       Shape::GetMap(ReadOnlyRoots(isolate)), length, allocation);
@@ -6677,8 +6689,10 @@ void HashTable<Derived, Shape>::Rehash(ReadOnlyRoots roots) {
 }
 
 template <typename Derived, typename Shape>
+template <typename LocalIsolate>
 Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
-    Isolate* isolate, Handle<Derived> table, int n, AllocationType allocation) {
+    LocalIsolate* isolate, Handle<Derived> table, int n,
+    AllocationType allocation) {
   if (table->HasSufficientCapacityToAdd(n)) return table;
 
   int capacity = table->Capacity();
@@ -7270,8 +7284,9 @@ void CompilationCacheTable::Remove(Object value) {
 }
 
 template <typename Derived, typename Shape>
+template <typename LocalIsolate>
 Handle<Derived> BaseNameDictionary<Derived, Shape>::New(
-    Isolate* isolate, int at_least_space_for, AllocationType allocation,
+    LocalIsolate* isolate, int at_least_space_for, AllocationType allocation,
     MinimumCapacity capacity_option) {
   DCHECK_LE(0, at_least_space_for);
   Handle<Derived> dict = Dictionary<Derived, Shape>::New(
@@ -7343,10 +7358,11 @@ Handle<Derived> Dictionary<Derived, Shape>::AtPut(Isolate* isolate,
 }
 
 template <typename Derived, typename Shape>
+template <typename LocalIsolate>
 Handle<Derived>
 BaseNameDictionary<Derived, Shape>::AddNoUpdateNextEnumerationIndex(
-    Isolate* isolate, Handle<Derived> dictionary, Key key, Handle<Object> value,
-    PropertyDetails details, InternalIndex* entry_out) {
+    LocalIsolate* isolate, Handle<Derived> dictionary, Key key,
+    Handle<Object> value, PropertyDetails details, InternalIndex* entry_out) {
   // Insert element at empty or deleted entry.
   return Dictionary<Derived, Shape>::Add(isolate, dictionary, key, value,
                                          details, entry_out);
@@ -7371,7 +7387,8 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::Add(
 }
 
 template <typename Derived, typename Shape>
-Handle<Derived> Dictionary<Derived, Shape>::Add(Isolate* isolate,
+template <typename LocalIsolate>
+Handle<Derived> Dictionary<Derived, Shape>::Add(LocalIsolate* isolate,
                                                 Handle<Derived> dictionary,
                                                 Key key, Handle<Object> value,
                                                 PropertyDetails details,
@@ -8178,24 +8195,61 @@ Address Smi::LexicographicCompare(Isolate* isolate, Smi x, Smi y) {
 // Please note this list is compiler dependent.
 // Keep this at the end of this file
 
-#define EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)           \
-  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) \
-      HashTable<DERIVED, SHAPE>;
+#define EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                            \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)                  \
+      HashTable<DERIVED, SHAPE>;                                            \
+                                                                            \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
+  HashTable<DERIVED, SHAPE>::New(Isolate*, int, AllocationType,             \
+                                 MinimumCapacity);                          \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
+  HashTable<DERIVED, SHAPE>::New(OffThreadIsolate*, int, AllocationType,    \
+                                 MinimumCapacity);                          \
+                                                                            \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
+  HashTable<DERIVED, SHAPE>::EnsureCapacity(Isolate*, Handle<DERIVED>, int, \
+                                            AllocationType);                \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
+  HashTable<DERIVED, SHAPE>::EnsureCapacity(                                \
+      OffThreadIsolate*, Handle<DERIVED>, int, AllocationType);
 
 #define EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(DERIVED, SHAPE) \
   EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                   \
   template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)   \
       ObjectHashTableBase<DERIVED, SHAPE>;
 
-#define EXTERN_DEFINE_DICTIONARY(DERIVED, SHAPE)           \
-  EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                 \
-  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) \
-      Dictionary<DERIVED, SHAPE>;
+#define EXTERN_DEFINE_DICTIONARY(DERIVED, SHAPE)                               \
+  EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                                     \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)                     \
+      Dictionary<DERIVED, SHAPE>;                                              \
+                                                                               \
+  template V8_EXPORT_PRIVATE Handle<DERIVED> Dictionary<DERIVED, SHAPE>::Add(  \
+      Isolate* isolate, Handle<DERIVED>, Key, Handle<Object>, PropertyDetails, \
+      InternalIndex*);                                                         \
+  template V8_EXPORT_PRIVATE Handle<DERIVED> Dictionary<DERIVED, SHAPE>::Add(  \
+      OffThreadIsolate* isolate, Handle<DERIVED>, Key, Handle<Object>,         \
+      PropertyDetails, InternalIndex*);
 
-#define EXTERN_DEFINE_BASE_NAME_DICTIONARY(DERIVED, SHAPE) \
-  EXTERN_DEFINE_DICTIONARY(DERIVED, SHAPE)                 \
-  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) \
-      BaseNameDictionary<DERIVED, SHAPE>;
+#define EXTERN_DEFINE_BASE_NAME_DICTIONARY(DERIVED, SHAPE)                     \
+  EXTERN_DEFINE_DICTIONARY(DERIVED, SHAPE)                                     \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)                     \
+      BaseNameDictionary<DERIVED, SHAPE>;                                      \
+                                                                               \
+  template V8_EXPORT_PRIVATE Handle<DERIVED>                                   \
+  BaseNameDictionary<DERIVED, SHAPE>::New(Isolate*, int, AllocationType,       \
+                                          MinimumCapacity);                    \
+  template V8_EXPORT_PRIVATE Handle<DERIVED>                                   \
+  BaseNameDictionary<DERIVED, SHAPE>::New(OffThreadIsolate*, int,              \
+                                          AllocationType, MinimumCapacity);    \
+                                                                               \
+  template Handle<DERIVED>                                                     \
+  BaseNameDictionary<DERIVED, SHAPE>::AddNoUpdateNextEnumerationIndex(         \
+      Isolate* isolate, Handle<DERIVED>, Key, Handle<Object>, PropertyDetails, \
+      InternalIndex*);                                                         \
+  template Handle<DERIVED>                                                     \
+  BaseNameDictionary<DERIVED, SHAPE>::AddNoUpdateNextEnumerationIndex(         \
+      OffThreadIsolate* isolate, Handle<DERIVED>, Key, Handle<Object>,         \
+      PropertyDetails, InternalIndex*);
 
 EXTERN_DEFINE_HASH_TABLE(StringTable, StringTableShape)
 EXTERN_DEFINE_HASH_TABLE(StringSet, StringSetShape)

@@ -56,6 +56,15 @@ Handle<Struct> FactoryBase<Impl>::NewStruct(InstanceType type,
 }
 
 template <typename Impl>
+Handle<AccessorPair> FactoryBase<Impl>::NewAccessorPair() {
+  Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(
+      NewStruct(ACCESSOR_PAIR_TYPE, AllocationType::kOld));
+  accessors->set_getter(read_only_roots().null_value(), SKIP_WRITE_BARRIER);
+  accessors->set_setter(read_only_roots().null_value(), SKIP_WRITE_BARRIER);
+  return accessors;
+}
+
+template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
                                                     AllocationType allocation) {
   DCHECK_LE(0, length);
@@ -635,6 +644,32 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo() {
   shared->SharedFunctionInfoVerify(isolate());
 #endif  // VERIFY_HEAP
   return shared;
+}
+
+template <typename Impl>
+Handle<DescriptorArray> FactoryBase<Impl>::NewDescriptorArray(
+    int number_of_descriptors, int slack, AllocationType allocation) {
+  int number_of_all_descriptors = number_of_descriptors + slack;
+  // Zero-length case must be handled outside.
+  DCHECK_LT(0, number_of_all_descriptors);
+  int size = DescriptorArray::SizeFor(number_of_all_descriptors);
+  HeapObject obj = AllocateRawWithImmortalMap(
+      size, AllocationType::kYoung, read_only_roots().descriptor_array_map());
+  DescriptorArray array = DescriptorArray::cast(obj);
+  array.Initialize(read_only_roots().empty_enum_cache(),
+                   read_only_roots().undefined_value(), number_of_descriptors,
+                   slack);
+  return handle(array, isolate());
+}
+
+template <typename Impl>
+Handle<ClassPositions> FactoryBase<Impl>::NewClassPositions(int start,
+                                                            int end) {
+  Handle<ClassPositions> class_positions = Handle<ClassPositions>::cast(
+      NewStruct(CLASS_POSITIONS_TYPE, AllocationType::kOld));
+  class_positions->set_start(start);
+  class_positions->set_end(end);
+  return class_positions;
 }
 
 template <typename Impl>

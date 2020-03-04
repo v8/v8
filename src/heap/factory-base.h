@@ -29,6 +29,7 @@ class UncompiledDataWithoutPreparseData;
 class UncompiledDataWithPreparseData;
 class BytecodeArray;
 class CoverageInfo;
+class ClassPositions;
 struct SourceRange;
 template <typename T>
 class ZoneVector;
@@ -63,6 +64,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
 
   Handle<Struct> NewStruct(InstanceType type,
                            AllocationType allocation = AllocationType::kYoung);
+
+  // Create a pre-tenured empty AccessorPair.
+  Handle<AccessorPair> NewAccessorPair();
 
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
@@ -174,6 +178,12 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
                                  AllocationType type = AllocationType::kOld);
 
   Handle<SourceTextModuleInfo> NewSourceTextModuleInfo();
+
+  Handle<DescriptorArray> NewDescriptorArray(
+      int number_of_entries, int slack = 0,
+      AllocationType allocation = AllocationType::kYoung);
+
+  Handle<ClassPositions> NewClassPositions(int start, int end);
 
  protected:
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).

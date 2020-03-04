@@ -368,6 +368,9 @@ class OffThreadHandleScope {
   // Off-thread Handles are allocated in the parse/compile zone, and not
   // cleared out, so the scope doesn't have to do anything
   explicit OffThreadHandleScope(OffThreadIsolate* isolate) {}
+
+  template <typename T>
+  inline Handle<T> CloseAndEscape(Handle<T> handle_value);
 };
 
 }  // namespace internal

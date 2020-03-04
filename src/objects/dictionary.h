@@ -72,8 +72,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   // Garbage collection support.
   inline ObjectSlot RawFieldOfValueAt(InternalIndex entry);
 
+  template <typename LocalIsolate>
   V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
-      Isolate* isolate, Handle<Derived> dictionary, Key key,
+      LocalIsolate* isolate, Handle<Derived> dictionary, Key key,
       Handle<Object> value, PropertyDetails details,
       InternalIndex* entry_out = nullptr);
 
@@ -111,6 +112,8 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
   static inline uint32_t Hash(ReadOnlyRoots roots, Handle<Name> key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
+  static inline Handle<Object> AsHandle(OffThreadIsolate* isolate,
+                                        Handle<Name> key);
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
@@ -133,8 +136,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   inline int Hash() const;
 
   // Creates a new dictionary.
+  template <typename LocalIsolate>
   V8_WARN_UNUSED_RESULT static Handle<Derived> New(
-      Isolate* isolate, int at_least_space_for,
+      LocalIsolate* isolate, int at_least_space_for,
       AllocationType allocation = AllocationType::kYoung,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
@@ -161,8 +165,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
                              Handle<FixedArray> storage, KeyCollectionMode mode,
                              KeyAccumulator* accumulator);
 
+  template <typename LocalIsolate>
   V8_WARN_UNUSED_RESULT static Handle<Derived> AddNoUpdateNextEnumerationIndex(
-      Isolate* isolate, Handle<Derived> dictionary, Key key,
+      LocalIsolate* isolate, Handle<Derived> dictionary, Key key,
       Handle<Object> value, PropertyDetails details,
       InternalIndex* entry_out = nullptr);
 
@@ -246,6 +251,8 @@ class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Object other);
   static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
+  static inline Handle<Object> AsHandle(OffThreadIsolate* isolate,
+                                        uint32_t key);
 
   static inline uint32_t Hash(ReadOnlyRoots roots, uint32_t key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);

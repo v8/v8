@@ -167,9 +167,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Tuple2> NewTuple2(Handle<Object> value1, Handle<Object> value2,
                            AllocationType allocation);
 
-  // Create a pre-tenured empty AccessorPair.
-  Handle<AccessorPair> NewAccessorPair();
-
   // Create a new PropertyDescriptorObject struct.
   Handle<PropertyDescriptorObject> NewPropertyDescriptorObject();
 
@@ -381,8 +378,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<FeedbackCell> NewOneClosureCell(Handle<HeapObject> value);
   Handle<FeedbackCell> NewManyClosuresCell(Handle<HeapObject> value);
 
-  Handle<DescriptorArray> NewDescriptorArray(int number_of_entries,
-                                             int slack = 0);
   Handle<TransitionArray> NewTransitionArray(int number_of_transitions,
                                              int slack = 0);
 
@@ -730,7 +725,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int end_position, Handle<SharedFunctionInfo> shared_info,
       int bytecode_offset, Handle<Script> script, Handle<Object> stack_frames);
 
-  Handle<ClassPositions> NewClassPositions(int start, int end);
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
 
   // Return a map for given number of properties using the map cache in the

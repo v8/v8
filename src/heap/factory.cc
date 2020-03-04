@@ -501,14 +501,6 @@ Handle<OrderedNameDictionary> Factory::NewOrderedNameDictionary() {
       .ToHandleChecked();
 }
 
-Handle<AccessorPair> Factory::NewAccessorPair() {
-  Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(
-      NewStruct(ACCESSOR_PAIR_TYPE, AllocationType::kOld));
-  accessors->set_getter(*null_value(), SKIP_WRITE_BARRIER);
-  accessors->set_setter(*null_value(), SKIP_WRITE_BARRIER);
-  return accessors;
-}
-
 Handle<PropertyDescriptorObject> Factory::NewPropertyDescriptorObject() {
   Handle<PropertyDescriptorObject> object =
       Handle<PropertyDescriptorObject>::cast(
@@ -1359,21 +1351,6 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name,
   cell->set_name(*name);
   cell->set_value(*the_hole_value());
   return cell;
-}
-
-Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors,
-                                                    int slack) {
-  int number_of_all_descriptors = number_of_descriptors + slack;
-  // Zero-length case must be handled outside.
-  DCHECK_LT(0, number_of_all_descriptors);
-  int size = DescriptorArray::SizeFor(number_of_all_descriptors);
-  HeapObject obj = isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(
-      size, AllocationType::kYoung);
-  obj.set_map_after_allocation(*descriptor_array_map(), SKIP_WRITE_BARRIER);
-  DescriptorArray array = DescriptorArray::cast(obj);
-  array.Initialize(*empty_enum_cache(), *undefined_value(),
-                   number_of_descriptors, slack);
-  return Handle<DescriptorArray>(array, isolate());
 }
 
 Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,
@@ -3017,14 +2994,6 @@ Handle<String> Factory::SizeToString(size_t value, bool check_cache) {
     result->set_hash_field(field);
   }
   return result;
-}
-
-Handle<ClassPositions> Factory::NewClassPositions(int start, int end) {
-  Handle<ClassPositions> class_positions = Handle<ClassPositions>::cast(
-      NewStruct(CLASS_POSITIONS_TYPE, AllocationType::kOld));
-  class_positions->set_start(start);
-  class_positions->set_end(end);
-  return class_positions;
 }
 
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {

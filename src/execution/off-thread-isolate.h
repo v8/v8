@@ -14,7 +14,6 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
-class OffThreadIsolate;
 class OffThreadLogger;
 
 // HiddenOffThreadFactory parallels Isolate's HiddenFactory

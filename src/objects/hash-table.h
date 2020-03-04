@@ -129,8 +129,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   using Key = typename Shape::Key;
 
   // Returns a new HashTable object.
+  template <typename LocalIsolate>
   V8_WARN_UNUSED_RESULT static Handle<Derived> New(
-      Isolate* isolate, int at_least_space_for,
+      LocalIsolate* isolate, int at_least_space_for,
       AllocationType allocation = AllocationType::kYoung,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
@@ -192,8 +193,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   }
 
   // Ensure enough space for n additional elements.
+  template <typename LocalIsolate>
   V8_WARN_UNUSED_RESULT static Handle<Derived> EnsureCapacity(
-      Isolate* isolate, Handle<Derived> table, int n = 1,
+      LocalIsolate* isolate, Handle<Derived> table, int n = 1,
       AllocationType allocation = AllocationType::kYoung);
 
   // Returns true if this table has sufficient capacity for adding n elements.
@@ -202,8 +204,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
  protected:
   friend class ObjectHashTable;
 
+  template <typename LocalIsolate>
   V8_WARN_UNUSED_RESULT static Handle<Derived> NewInternal(
-      Isolate* isolate, int capacity, AllocationType allocation);
+      LocalIsolate* isolate, int capacity, AllocationType allocation);
 
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
@@ -244,9 +247,23 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   OBJECT_CONSTRUCTORS(HashTable, HashTableBase);
 };
 
-#define EXTERN_DECLARE_HASH_TABLE(DERIVED, SHAPE)                  \
-  extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) \
-      HashTable<class DERIVED, SHAPE>;
+#define EXTERN_DECLARE_HASH_TABLE(DERIVED, SHAPE)                            \
+  extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)           \
+      HashTable<class DERIVED, SHAPE>;                                       \
+                                                                             \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Handle<DERIVED> \
+  HashTable<DERIVED, SHAPE>::New(Isolate*, int, AllocationType,              \
+                                 MinimumCapacity);                           \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Handle<DERIVED> \
+  HashTable<DERIVED, SHAPE>::New(OffThreadIsolate*, int, AllocationType,     \
+                                 MinimumCapacity);                           \
+                                                                             \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Handle<DERIVED> \
+  HashTable<DERIVED, SHAPE>::EnsureCapacity(Isolate*, Handle<DERIVED>, int,  \
+                                            AllocationType);                 \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Handle<DERIVED> \
+  HashTable<DERIVED, SHAPE>::EnsureCapacity(                                 \
+      OffThreadIsolate*, Handle<DERIVED>, int, AllocationType);
 
 // HashTableKey is an abstract superclass for virtual key behavior.
 class HashTableKey {

@@ -264,6 +264,11 @@ Handle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,
   return isolate->factory()->NewNumberFromUint(key);
 }
 
+Handle<Object> NumberDictionaryBaseShape::AsHandle(OffThreadIsolate* isolate,
+                                                   uint32_t key) {
+  return isolate->factory()->NewNumberFromUint<AllocationType::kOld>(key);
+}
+
 Handle<Map> NumberDictionaryShape::GetMap(ReadOnlyRoots roots) {
   return roots.number_dictionary_map_handle();
 }
@@ -297,6 +302,12 @@ uint32_t GlobalDictionaryShape::HashForObject(ReadOnlyRoots roots,
 }
 
 Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
+                                             Handle<Name> key) {
+  DCHECK(key->IsUniqueName());
+  return key;
+}
+
+Handle<Object> NameDictionaryShape::AsHandle(OffThreadIsolate* isolate,
                                              Handle<Name> key) {
   DCHECK(key->IsUniqueName());
   return key;
