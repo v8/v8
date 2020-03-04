@@ -2169,6 +2169,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4GeS, kMipsI32x4GeS)                           \
   V(I32x4GtU, kMipsI32x4GtU)                           \
   V(I32x4GeU, kMipsI32x4GeU)                           \
+  V(I32x4Abs, kMipsI32x4Abs)                           \
   V(I16x8Add, kMipsI16x8Add)                           \
   V(I16x8AddSaturateS, kMipsI16x8AddSaturateS)         \
   V(I16x8AddSaturateU, kMipsI16x8AddSaturateU)         \
@@ -2190,6 +2191,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8SConvertI32x4, kMipsI16x8SConvertI32x4)       \
   V(I16x8UConvertI32x4, kMipsI16x8UConvertI32x4)       \
   V(I16x8RoundingAverageU, kMipsI16x8RoundingAverageU) \
+  V(I16x8Abs, kMipsI16x8Abs)                           \
   V(I8x16Add, kMipsI8x16Add)                           \
   V(I8x16AddSaturateS, kMipsI8x16AddSaturateS)         \
   V(I8x16AddSaturateU, kMipsI8x16AddSaturateU)         \
@@ -2210,6 +2212,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16RoundingAverageU, kMipsI8x16RoundingAverageU) \
   V(I8x16SConvertI16x8, kMipsI8x16SConvertI16x8)       \
   V(I8x16UConvertI16x8, kMipsI8x16UConvertI16x8)       \
+  V(I8x16Abs, kMipsI8x16Abs)                           \
   V(S128And, kMipsS128And)                             \
   V(S128Or, kMipsS128Or)                               \
   V(S128Xor, kMipsS128Xor)                             \
