@@ -1086,7 +1086,7 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
 
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  bailout(kSimd, "f64x2splat");
+  Dup(dst.fp().V2D(), src.fp().D(), 0);
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
@@ -1101,7 +1101,7 @@ void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  bailout(kSimd, "i64x2splat");
+  Dup(dst.fp().V2D(), src.gp().X());
 }
 
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
@@ -1126,7 +1126,7 @@ void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  bailout(kSimd, "i8x16splat");
+  Dup(dst.fp().V16B(), src.gp().W());
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
