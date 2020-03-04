@@ -362,7 +362,9 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   // buffer if necessary so we can relocate the serialized code.
   std::unique_ptr<byte[]> aligned_buffer;
   if (!IsAligned(reinterpret_cast<Address>(serialized_code_start),
-                 kInt32Size)) {
+                 kSystemPointerSize)) {
+    // 'byte' does not guarantee an alignment but seems to work well enough in
+    // practice.
     aligned_buffer.reset(new byte[code_size]);
     code_start = aligned_buffer.get();
   }
