@@ -59,13 +59,7 @@ class TaggedIndex : public Object {
 
   // Returns whether value can be represented in a TaggedIndex.
   static inline bool constexpr IsValid(intptr_t value) {
-    // Is value in range [kMinValue, kMaxValue].
-    // Use unsigned operations in order to avoid undefined behaviour in case of
-    // signed integer overflow.
-    return (static_cast<uintptr_t>(value) -
-            static_cast<uintptr_t>(kMinValue)) <=
-           (static_cast<uintptr_t>(kMaxValue) -
-            static_cast<uintptr_t>(kMinValue));
+    return kMinValue <= value && value <= kMaxValue;
   }
 
   DECL_CAST(TaggedIndex)

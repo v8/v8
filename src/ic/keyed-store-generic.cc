@@ -1053,7 +1053,7 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
   TNode<Object> receiver_maybe_smi = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Label miss(this, Label::kDeferred), store_property(this);

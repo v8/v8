@@ -1158,6 +1158,13 @@ const Operator* CommonOperatorBuilder::Int64Constant(int64_t value) {
       value);                                     // parameter
 }
 
+const Operator* CommonOperatorBuilder::TaggedIndexConstant(int32_t value) {
+  return new (zone()) Operator1<int32_t>(               // --
+      IrOpcode::kTaggedIndexConstant, Operator::kPure,  // opcode
+      "TaggedIndexConstant",                            // name
+      0, 0, 0, 1, 0, 0,                                 // counts
+      value);                                           // parameter
+}
 
 const Operator* CommonOperatorBuilder::Float32Constant(volatile float value) {
   return new (zone()) Operator1<float>(             // --

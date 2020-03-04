@@ -440,13 +440,15 @@ TF_BUILTIN(GetIteratorWithFeedbackLazyDeoptContinuation,
            IteratorBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Smi> callSlot = CAST(Parameter(Descriptor::kCallSlot));
+  // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
+  TNode<Smi> call_slot_smi = CAST(Parameter(Descriptor::kCallSlot));
+  TNode<TaggedIndex> call_slot = SmiToTaggedIndex(call_slot_smi);
   TNode<FeedbackVector> feedback = CAST(Parameter(Descriptor::kFeedback));
-  TNode<Object> iteratorMethod = CAST(Parameter(Descriptor::kResult));
+  TNode<Object> iterator_method = CAST(Parameter(Descriptor::kResult));
 
   TNode<Object> result =
       CallBuiltin(Builtins::kCallIteratorWithFeedback, context, receiver,
-                  iteratorMethod, callSlot, feedback);
+                  iterator_method, call_slot, feedback);
   Return(result);
 }
 

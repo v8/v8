@@ -624,6 +624,13 @@ TNode<Smi> InterpreterAssembler::BytecodeOperandIdxSmi(int operand_index) {
   return SmiTag(Signed(BytecodeOperandIdx(operand_index)));
 }
 
+TNode<TaggedIndex> InterpreterAssembler::BytecodeOperandIdxTaggedIndex(
+    int operand_index) {
+  TNode<IntPtrT> index =
+      ChangeInt32ToIntPtr(Signed(BytecodeOperandIdxInt32(operand_index)));
+  return IntPtrToTaggedIndex(index);
+}
+
 TNode<UintPtrT> InterpreterAssembler::BytecodeOperandConstantPoolIdx(
     int operand_index, LoadSensitivity needs_poisoning) {
   DCHECK_EQ(OperandType::kIdx,

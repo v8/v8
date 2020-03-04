@@ -770,6 +770,8 @@ Type Typer::Visitor::TypeInt32Constant(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeInt64Constant(Node* node) { UNREACHABLE(); }
 
+Type Typer::Visitor::TypeTaggedIndexConstant(Node* node) { UNREACHABLE(); }
+
 Type Typer::Visitor::TypeRelocatableInt32Constant(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeRelocatableInt64Constant(Node* node) { UNREACHABLE(); }

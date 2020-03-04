@@ -232,7 +232,7 @@ class FeedbackVector : public HeapObject {
   static int GetIndex(FeedbackSlot slot) { return slot.ToInt(); }
 
   // Conversion from an integer index to the underlying array to a slot.
-  static inline FeedbackSlot ToSlot(int index);
+  static inline FeedbackSlot ToSlot(intptr_t index);
   inline MaybeObject Get(FeedbackSlot slot) const;
   inline MaybeObject Get(const Isolate* isolate, FeedbackSlot slot) const;
   inline MaybeObject get(int index) const;

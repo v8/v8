@@ -389,6 +389,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<IntPtrT> TaggedIndexToIntPtr(TNode<TaggedIndex> value);
   TNode<TaggedIndex> IntPtrToTaggedIndex(TNode<IntPtrT> value);
+  // TODO(v8:10047): Get rid of these convertions eventually.
+  TNode<Smi> TaggedIndexToSmi(TNode<TaggedIndex> value);
+  TNode<TaggedIndex> SmiToTaggedIndex(TNode<Smi> value);
 
   // Pointer compression specific. Returns true if the upper 32 bits of a Smi
   // contain the sign of a lower 32 bits (i.e. not corrupted) so that the Smi

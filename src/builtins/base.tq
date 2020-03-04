@@ -29,6 +29,8 @@ type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
 type StrongTagged extends Tagged
     generates 'TNode<Object>' constexpr 'ObjectPtr';
 type Smi extends StrongTagged generates 'TNode<Smi>' constexpr 'Smi';
+type TaggedIndex extends StrongTagged
+    generates 'TNode<TaggedIndex>' constexpr 'TaggedIndex';
 // A possibly cleared weak pointer with a bit pattern that distinguishes it from
 // strong HeapObject pointers and Smi values.
 type WeakHeapObject extends Tagged;
@@ -498,7 +500,8 @@ extern transitioning builtin HasProperty(implicit context: Context)(
     JSAny, JSAny): Boolean;
 extern transitioning macro HasProperty_Inline(implicit context: Context)(
     JSReceiver, JSAny): Boolean;
-extern builtin LoadIC(Context, JSAny, JSAny, Smi, FeedbackVector): JSAny;
+extern builtin LoadIC(
+    Context, JSAny, JSAny, TaggedIndex, FeedbackVector): JSAny;
 extern macro CollectCallFeedback(
     JSAny, Context, Undefined | FeedbackVector, uintptr);
 
@@ -880,6 +883,10 @@ macro SmiUntag<T: type>(value: SmiTagged<T>): T {
   return %RawDownCast<T>(Unsigned(SmiToInt32(Convert<Smi>(value))));
 }
 extern macro SmiToInt32(Smi): int32;
+extern macro TaggedIndexToIntPtr(TaggedIndex): intptr;
+extern macro IntPtrToTaggedIndex(intptr): TaggedIndex;
+extern macro TaggedIndexToSmi(TaggedIndex): Smi;
+extern macro SmiToTaggedIndex(Smi): TaggedIndex;
 extern macro RoundIntPtrToFloat64(intptr): float64;
 extern macro ChangeFloat32ToFloat64(float32): float64;
 extern macro ChangeNumberToFloat64(Number): float64;

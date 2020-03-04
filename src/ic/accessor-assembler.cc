@@ -64,8 +64,9 @@ TNode<MaybeObject> AccessorAssembler::LoadHandlerDataField(
 }
 
 TNode<MaybeObject> AccessorAssembler::TryMonomorphicCase(
-    TNode<Smi> slot, TNode<FeedbackVector> vector, TNode<Map> receiver_map,
-    Label* if_handler, TVariable<MaybeObject>* var_handler, Label* if_miss) {
+    TNode<TaggedIndex> slot, TNode<FeedbackVector> vector,
+    TNode<Map> receiver_map, Label* if_handler,
+    TVariable<MaybeObject>* var_handler, Label* if_miss) {
   Comment("TryMonomorphicCase");
   DCHECK_EQ(MachineRepresentation::kTagged, var_handler->rep());
 
@@ -2830,8 +2831,7 @@ void AccessorAssembler::LoadIC_NoFeedback(const LoadICParameters* p,
 }
 
 void AccessorAssembler::LoadGlobalIC(TNode<HeapObject> maybe_feedback_vector,
-                                     const LazyNode<Smi>& lazy_smi_slot,
-                                     const LazyNode<UintPtrT>& lazy_slot,
+                                     const LazyNode<TaggedIndex>& lazy_slot,
                                      const LazyNode<Context>& lazy_context,
                                      const LazyNode<Name>& lazy_name,
                                      TypeofMode typeof_mode,
@@ -2841,24 +2841,27 @@ void AccessorAssembler::LoadGlobalIC(TNode<HeapObject> maybe_feedback_vector,
 
   GotoIf(IsUndefined(maybe_feedback_vector), &no_feedback);
   {
-    TNode<FeedbackVector> vector = CAST(maybe_feedback_vector);
-    TNode<UintPtrT> slot = lazy_slot();
-    LoadGlobalIC_TryPropertyCellCase(vector, slot, lazy_context, exit_point,
-                                     &try_handler, &miss);
+    TNode<TaggedIndex> slot = lazy_slot();
 
-    BIND(&try_handler);
-    LoadGlobalIC_TryHandlerCase(vector, slot, lazy_smi_slot, lazy_context,
-                                lazy_name, typeof_mode, exit_point, &miss);
-  }
+    {
+      TNode<FeedbackVector> vector = CAST(maybe_feedback_vector);
+      LoadGlobalIC_TryPropertyCellCase(vector, slot, lazy_context, exit_point,
+                                       &try_handler, &miss);
 
-  BIND(&miss);
-  {
-    Comment("LoadGlobalIC_MissCase");
-    TNode<Context> context = lazy_context();
-    TNode<Name> name = lazy_name();
-    exit_point->ReturnCallRuntime(Runtime::kLoadGlobalIC_Miss, context, name,
-                                  lazy_smi_slot(), maybe_feedback_vector,
-                                  SmiConstant(typeof_mode));
+      BIND(&try_handler);
+      LoadGlobalIC_TryHandlerCase(vector, slot, lazy_context, lazy_name,
+                                  typeof_mode, exit_point, &miss);
+    }
+
+    BIND(&miss);
+    {
+      Comment("LoadGlobalIC_MissCase");
+      TNode<Context> context = lazy_context();
+      TNode<Name> name = lazy_name();
+      exit_point->ReturnCallRuntime(Runtime::kLoadGlobalIC_Miss, context, name,
+                                    slot, maybe_feedback_vector,
+                                    SmiConstant(typeof_mode));
+    }
   }
 
   BIND(&no_feedback);
@@ -2874,7 +2877,7 @@ void AccessorAssembler::LoadGlobalIC(TNode<HeapObject> maybe_feedback_vector,
 }
 
 void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
-    TNode<FeedbackVector> vector, TNode<UintPtrT> slot,
+    TNode<FeedbackVector> vector, TNode<TaggedIndex> slot,
     const LazyNode<Context>& lazy_context, ExitPoint* exit_point,
     Label* try_handler, Label* miss) {
   Comment("LoadGlobalIC_TryPropertyCellCase");
@@ -2911,10 +2914,9 @@ void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
 }
 
 void AccessorAssembler::LoadGlobalIC_TryHandlerCase(
-    TNode<FeedbackVector> vector, TNode<UintPtrT> slot,
-    const LazyNode<Smi>& lazy_smi_slot, const LazyNode<Context>& lazy_context,
-    const LazyNode<Name>& lazy_name, TypeofMode typeof_mode,
-    ExitPoint* exit_point, Label* miss) {
+    TNode<FeedbackVector> vector, TNode<TaggedIndex> slot,
+    const LazyNode<Context>& lazy_context, const LazyNode<Name>& lazy_name,
+    TypeofMode typeof_mode, ExitPoint* exit_point, Label* miss) {
   Comment("LoadGlobalIC_TryHandlerCase");
 
   Label call_handler(this), non_smi(this);
@@ -2936,7 +2938,7 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(
       LoadContextElement(native_context, Context::EXTENSION_INDEX);
 
   LazyLoadICParameters p([=] { return context; }, receiver, lazy_name,
-                         lazy_smi_slot, vector, holder);
+                         [=] { return slot; }, vector, holder);
 
   HandleLoadICHandlerCase(&p, handler, miss, exit_point, ICMode::kGlobalIC,
                           on_nonexistent);
@@ -3232,7 +3234,7 @@ void AccessorAssembler::KeyedLoadICPolymorphicName(const LoadICParameters* p,
   TNode<Map> receiver_map = LoadReceiverMap(receiver);
   TNode<Name> name = CAST(p->name());
   TNode<FeedbackVector> vector = CAST(p->vector());
-  TNode<Smi> slot = p->slot();
+  TNode<TaggedIndex> slot = p->slot();
   TNode<Context> context = p->context();
 
   // When we get here, we know that the {name} matches the recorded
@@ -3633,7 +3635,7 @@ void AccessorAssembler::GenerateLoadIC() {
 
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
@@ -3646,7 +3648,7 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
 
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
@@ -3658,8 +3660,13 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
                     &if_handler, &var_handler, &miss);
 
   BIND(&if_handler);
-  LazyLoadICParameters p([=] { return context; }, receiver,
-                         [=] { return name; }, [=] { return slot; }, vector);
+  LazyLoadICParameters p(
+      // lazy_context
+      [=] { return context; }, receiver,
+      // lazy_name
+      [=] { return name; },
+      // lazy_slot
+      [=] { return slot; }, vector);
   HandleLoadICHandlerCase(&p, CAST(var_handler.value()), &miss, &direct_exit);
 
   BIND(&miss);
@@ -3672,7 +3679,7 @@ void AccessorAssembler::GenerateLoadIC_Noninlined() {
 
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<FeedbackVector> vector = CAST(Parameter(Descriptor::kVector));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
@@ -3708,10 +3715,9 @@ void AccessorAssembler::GenerateLoadIC_NoFeedback() {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Smi> ic_kind = CAST(Parameter(Descriptor::kICKind));
 
-  LoadICParameters p(
-      context, receiver, name,
-      SmiConstant(static_cast<int>(FeedbackSlot::Invalid().ToInt())),
-      UndefinedConstant());
+  LoadICParameters p(context, receiver, name,
+                     TaggedIndexConstant(FeedbackSlot::Invalid().ToInt()),
+                     UndefinedConstant());
   LoadIC_NoFeedback(&p, ic_kind);
 }
 
@@ -3720,7 +3726,7 @@ void AccessorAssembler::GenerateLoadICTrampoline() {
 
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
@@ -3732,7 +3738,7 @@ void AccessorAssembler::GenerateLoadICTrampoline_Megamorphic() {
 
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
@@ -3754,17 +3760,15 @@ void AccessorAssembler::GenerateLoadGlobalIC(TypeofMode typeof_mode) {
   using Descriptor = LoadGlobalWithVectorDescriptor;
 
   TNode<Name> name = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   ExitPoint direct_exit(this);
   LoadGlobalIC(
       vector,
-      // lazy_smi_slot
-      [=] { return slot; },
       // lazy_slot
-      [=] { return Unsigned(SmiUntag(slot)); },
+      [=] { return slot; },
       // lazy_context
       [=] { return context; },
       // lazy_name
@@ -3775,7 +3779,7 @@ void AccessorAssembler::GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode) {
   using Descriptor = LoadGlobalDescriptor;
 
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
@@ -3789,7 +3793,7 @@ void AccessorAssembler::GenerateKeyedLoadIC() {
 
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
@@ -3802,7 +3806,7 @@ void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {
 
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
@@ -3815,7 +3819,7 @@ void AccessorAssembler::GenerateKeyedLoadICTrampoline() {
 
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
@@ -3828,7 +3832,7 @@ void AccessorAssembler::GenerateKeyedLoadICTrampoline_Megamorphic() {
 
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
@@ -3841,7 +3845,7 @@ void AccessorAssembler::GenerateKeyedLoadIC_PolymorphicName() {
 
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<FeedbackVector> vector = CAST(Parameter(Descriptor::kVector));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
@@ -3854,7 +3858,7 @@ void AccessorAssembler::GenerateStoreGlobalIC() {
 
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
@@ -3867,7 +3871,7 @@ void AccessorAssembler::GenerateStoreGlobalICTrampoline() {
 
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
@@ -3880,7 +3884,7 @@ void AccessorAssembler::GenerateStoreIC() {
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
@@ -3894,7 +3898,7 @@ void AccessorAssembler::GenerateStoreICTrampoline() {
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
@@ -3908,7 +3912,7 @@ void AccessorAssembler::GenerateKeyedStoreIC() {
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
@@ -3922,7 +3926,7 @@ void AccessorAssembler::GenerateKeyedStoreICTrampoline() {
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
@@ -3936,7 +3940,7 @@ void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
   TNode<Object> array = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> index = CAST(Parameter(Descriptor::kName));
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
@@ -4006,7 +4010,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
   using Descriptor = CloneObjectWithVectorDescriptor;
   TNode<Object> source = CAST(Parameter(Descriptor::kSource));
   TNode<Smi> flags = CAST(Parameter(Descriptor::kFlags));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<HeapObject> maybe_vector = CAST(Parameter(Descriptor::kVector));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TVARIABLE(MaybeObject, var_handler);
@@ -4171,7 +4175,7 @@ void AccessorAssembler::GenerateKeyedHasIC() {
 
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
@@ -4195,7 +4199,7 @@ void AccessorAssembler::GenerateKeyedHasIC_PolymorphicName() {
 
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 

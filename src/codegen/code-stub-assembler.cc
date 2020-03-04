@@ -772,6 +772,37 @@ TNode<TaggedIndex> CodeStubAssembler::IntPtrToTaggedIndex(
       BitcastWordToTaggedSigned(WordShl(value, IntPtrConstant(kSmiTagSize))));
 }
 
+TNode<Smi> CodeStubAssembler::TaggedIndexToSmi(TNode<TaggedIndex> value) {
+  if (SmiValuesAre32Bits()) {
+    DCHECK_EQ(kSmiShiftSize, 31);
+    return BitcastWordToTaggedSigned(
+        WordShl(BitcastTaggedToWordForTagAndSmiBits(value),
+                IntPtrConstant(kSmiShiftSize)));
+  }
+  DCHECK(SmiValuesAre31Bits());
+  DCHECK_EQ(kSmiShiftSize, 0);
+  return ReinterpretCast<Smi>(value);
+}
+
+TNode<TaggedIndex> CodeStubAssembler::SmiToTaggedIndex(TNode<Smi> value) {
+  if (kSystemPointerSize == kInt32Size) {
+    return ReinterpretCast<TaggedIndex>(value);
+  }
+  if (SmiValuesAre32Bits()) {
+    DCHECK_EQ(kSmiShiftSize, 31);
+    return ReinterpretCast<TaggedIndex>(BitcastWordToTaggedSigned(
+        WordSar(BitcastTaggedToWordForTagAndSmiBits(value),
+                IntPtrConstant(kSmiShiftSize))));
+  }
+  DCHECK(SmiValuesAre31Bits());
+  DCHECK_EQ(kSmiShiftSize, 0);
+  // Just sign-extend the lower 32 bits.
+  TNode<Int32T> raw =
+      TruncateWordToInt32(BitcastTaggedToWordForTagAndSmiBits(value));
+  return ReinterpretCast<TaggedIndex>(
+      BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(raw)));
+}
+
 TNode<Smi> CodeStubAssembler::NormalizeSmiIndex(TNode<Smi> smi_index) {
   if (COMPRESS_POINTERS_BOOL) {
     TNode<Int32T> raw =
@@ -2494,7 +2525,7 @@ TNode<MaybeObject> CodeStubAssembler::LoadFeedbackVectorSlot(
 }
 
 template TNode<MaybeObject> CodeStubAssembler::LoadFeedbackVectorSlot(
-    TNode<FeedbackVector> feedback_vector, TNode<Smi> slot,
+    TNode<FeedbackVector> feedback_vector, TNode<TaggedIndex> slot,
     int additional_offset);
 template TNode<MaybeObject> CodeStubAssembler::LoadFeedbackVectorSlot(
     TNode<FeedbackVector> feedback_vector, TNode<IntPtrT> slot,
@@ -9277,17 +9308,18 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(
     TNode<TIndex> index_node, ElementsKind kind, int base_size) {
   // TODO(v8:9708): Remove IntPtrT variant in favor of UintPtrT.
   static_assert(std::is_same<TIndex, Smi>::value ||
+                    std::is_same<TIndex, TaggedIndex>::value ||
                     std::is_same<TIndex, IntPtrT>::value ||
                     std::is_same<TIndex, UintPtrT>::value,
                 "Only Smi, UintPtrT or IntPtrT index nodes are allowed");
   int element_size_shift = ElementsKindToShiftSize(kind);
   int element_size = 1 << element_size_shift;
-  int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
   intptr_t index = 0;
   TNode<IntPtrT> intptr_index_node;
   bool constant_index = false;
   if (std::is_same<TIndex, Smi>::value) {
     TNode<Smi> smi_index_node = ReinterpretCast<Smi>(index_node);
+    int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
     element_size_shift -= kSmiShiftBits;
     Smi smi_index;
     constant_index = ToSmiConstant(smi_index_node, &smi_index);
@@ -9299,6 +9331,12 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(
       }
     }
     intptr_index_node = BitcastTaggedToWordForTagAndSmiBits(smi_index_node);
+  } else if (std::is_same<TIndex, TaggedIndex>::value) {
+    TNode<TaggedIndex> tagged_index_node =
+        ReinterpretCast<TaggedIndex>(index_node);
+    element_size_shift -= kSmiTagSize;
+    intptr_index_node = BitcastTaggedToWordForTagAndSmiBits(tagged_index_node);
+    constant_index = ToIntPtrConstant(intptr_index_node, &index);
   } else {
     intptr_index_node = ReinterpretCast<IntPtrT>(index_node);
     constant_index = ToIntPtrConstant(intptr_index_node, &index);
@@ -9323,6 +9361,9 @@ template V8_EXPORT_PRIVATE TNode<IntPtrT>
 CodeStubAssembler::ElementOffsetFromIndex<Smi>(TNode<Smi> index_node,
                                                ElementsKind kind,
                                                int base_size);
+template V8_EXPORT_PRIVATE TNode<IntPtrT>
+CodeStubAssembler::ElementOffsetFromIndex<TaggedIndex>(
+    TNode<TaggedIndex> index_node, ElementsKind kind, int base_size);
 template V8_EXPORT_PRIVATE TNode<IntPtrT>
 CodeStubAssembler::ElementOffsetFromIndex<IntPtrT>(TNode<IntPtrT> index_node,
                                                    ElementsKind kind,

@@ -37,6 +37,7 @@
 #define CONSTANT_OP_LIST(V)   \
   V(Int32Constant)            \
   V(Int64Constant)            \
+  V(TaggedIndexConstant)      \
   V(Float32Constant)          \
   V(Float64Constant)          \
   V(ExternalConstant)         \

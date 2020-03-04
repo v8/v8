@@ -1335,6 +1335,7 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitProjection(node);
     case IrOpcode::kInt32Constant:
     case IrOpcode::kInt64Constant:
+    case IrOpcode::kTaggedIndexConstant:
     case IrOpcode::kExternalConstant:
     case IrOpcode::kRelocatableInt32Constant:
     case IrOpcode::kRelocatableInt64Constant:

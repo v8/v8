@@ -47,6 +47,8 @@ class Arguments {
 
   inline int smi_at(int index) const;
 
+  inline int tagged_index_at(int index) const;
+
   inline double number_at(int index) const;
 
   inline void set_at(int index, Object value) {

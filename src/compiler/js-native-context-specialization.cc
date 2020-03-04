@@ -1375,6 +1375,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
       javascript()->LoadNamed(iterator_symbol, p.loadFeedback());
 
   // Lazy deopt of the load iterator property
+  // TODO(v8:10047): Use TaggedIndexConstant here once deoptimizer supports it.
   Node* call_slot = jsgraph()->SmiConstant(p.callFeedback().slot.ToInt());
   Node* call_feedback = jsgraph()->HeapConstant(p.callFeedback().vector);
   Node* lazy_deopt_parameters[] = {receiver, call_slot, call_feedback};
