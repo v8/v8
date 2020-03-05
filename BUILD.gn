@@ -3507,6 +3507,7 @@ v8_source_set("v8_uninitialized") {
   ]
 
   public_deps = [
+    ":generate_bytecode_builtins_list",
     ":run_torque",
     ":v8_maybe_icu",
   ]
