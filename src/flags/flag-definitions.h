@@ -488,7 +488,7 @@ DEFINE_BOOL(turboprop, false,
             "enable experimental turboprop mid-tier compiler.")
 DEFINE_NEG_IMPLICATION(turboprop, turbo_inlining)
 DEFINE_IMPLICATION(turboprop, concurrent_inlining)
-DEFINE_VALUE_IMPLICATION(turboprop, interrupt_budget, 10 * KB)
+DEFINE_VALUE_IMPLICATION(turboprop, interrupt_budget, 15 * KB)
 
 // Flags for concurrent recompilation.
 DEFINE_BOOL(concurrent_recompilation, true,
