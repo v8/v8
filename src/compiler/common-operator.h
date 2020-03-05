@@ -273,6 +273,11 @@ class SparseInputMask final {
     // current sparse input is real.
     Node* GetReal() const;
 
+    // Advance to the next real value or the end. Only valid if the iterator is
+    // not dense. Returns the number of empty values that were skipped. This can
+    // return 0 and in that case, it does not advance.
+    size_t AdvanceToNextRealOrEnd();
+
     // Get the current sparse input, returning either a real input node if
     // the current sparse input is real, or the given {empty_value} if the
     // current sparse input is empty.

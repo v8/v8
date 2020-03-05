@@ -574,11 +574,7 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
     StateValueList* values, InstructionOperandVector* inputs,
     OperandGenerator* g, StateObjectDeduplicator* deduplicator, Node* input,
     MachineType type, FrameStateInputKind kind, Zone* zone) {
-  if (input == nullptr) {
-    values->PushOptimizedOut();
-    return 0;
-  }
-
+  DCHECK_NOT_NULL(input);
   switch (input->opcode()) {
     case IrOpcode::kArgumentsElementsState: {
       values->PushArgumentsElements(ArgumentsStateTypeOf(input->op()));
@@ -636,6 +632,26 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
   }
 }
 
+size_t InstructionSelector::AddInputsToFrameStateDescriptor(
+    StateValueList* values, InstructionOperandVector* inputs,
+    OperandGenerator* g, StateObjectDeduplicator* deduplicator, Node* node,
+    FrameStateInputKind kind, Zone* zone) {
+  size_t entries = 0;
+  StateValuesAccess::iterator it = StateValuesAccess(node).begin();
+  // Take advantage of sparse nature of StateValuesAccess to skip over multiple
+  // empty nodes at once pushing repeated OptimizedOuts all in one go.
+  while (!it.done()) {
+    values->PushOptimizedOut(it.AdvanceTillNotEmpty());
+    if (it.done()) break;
+    StateValuesAccess::TypedNode input_node = *it;
+    entries += AddOperandToStateValueDescriptor(values, inputs, g, deduplicator,
+                                                input_node.node,
+                                                input_node.type, kind, zone);
+    ++it;
+  }
+  return entries;
+}
+
 // Returns the number of instruction operands added to inputs.
 size_t InstructionSelector::AddInputsToFrameStateDescriptor(
     FrameStateDescriptor* descriptor, Node* state, OperandGenerator* g,
@@ -669,30 +685,25 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
   DCHECK_EQ(values_descriptor->size(), 0u);
   values_descriptor->ReserveSize(descriptor->GetSize());
 
+  DCHECK_NOT_NULL(function);
   entries += AddOperandToStateValueDescriptor(
       values_descriptor, inputs, g, deduplicator, function,
       MachineType::AnyTagged(), FrameStateInputKind::kStackSlot, zone);
-  for (StateValuesAccess::TypedNode input_node :
-       StateValuesAccess(parameters)) {
-    entries += AddOperandToStateValueDescriptor(values_descriptor, inputs, g,
-                                                deduplicator, input_node.node,
-                                                input_node.type, kind, zone);
-  }
+
+  entries += AddInputsToFrameStateDescriptor(
+      values_descriptor, inputs, g, deduplicator, parameters, kind, zone);
+
   if (descriptor->HasContext()) {
+    DCHECK_NOT_NULL(context);
     entries += AddOperandToStateValueDescriptor(
         values_descriptor, inputs, g, deduplicator, context,
         MachineType::AnyTagged(), FrameStateInputKind::kStackSlot, zone);
   }
-  for (StateValuesAccess::TypedNode input_node : StateValuesAccess(locals)) {
-    entries += AddOperandToStateValueDescriptor(values_descriptor, inputs, g,
-                                                deduplicator, input_node.node,
-                                                input_node.type, kind, zone);
-  }
-  for (StateValuesAccess::TypedNode input_node : StateValuesAccess(stack)) {
-    entries += AddOperandToStateValueDescriptor(values_descriptor, inputs, g,
-                                                deduplicator, input_node.node,
-                                                input_node.type, kind, zone);
-  }
+
+  entries += AddInputsToFrameStateDescriptor(values_descriptor, inputs, g,
+                                             deduplicator, locals, kind, zone);
+  entries += AddInputsToFrameStateDescriptor(values_descriptor, inputs, g,
+                                             deduplicator, stack, kind, zone);
   DCHECK_EQ(initial_size + entries, inputs->size());
   return entries;
 }

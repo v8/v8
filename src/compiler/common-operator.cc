@@ -282,6 +282,15 @@ void SparseInputMask::InputIterator::Advance() {
   bit_mask_ >>= 1;
 }
 
+size_t SparseInputMask::InputIterator::AdvanceToNextRealOrEnd() {
+  DCHECK_NE(bit_mask_, SparseInputMask::kDenseBitMask);
+
+  size_t count = base::bits::CountTrailingZeros(bit_mask_);
+  bit_mask_ >>= count;
+  DCHECK(IsReal() || IsEnd());
+  return count;
+}
+
 Node* SparseInputMask::InputIterator::GetReal() const {
   DCHECK(IsReal());
   return parent_->InputAt(real_index_);

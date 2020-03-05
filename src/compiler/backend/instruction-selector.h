@@ -576,6 +576,12 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                                          StateObjectDeduplicator* deduplicator,
                                          InstructionOperandVector* inputs,
                                          FrameStateInputKind kind, Zone* zone);
+  size_t AddInputsToFrameStateDescriptor(StateValueList* values,
+                                         InstructionOperandVector* inputs,
+                                         OperandGenerator* g,
+                                         StateObjectDeduplicator* deduplicator,
+                                         Node* node, FrameStateInputKind kind,
+                                         Zone* zone);
   size_t AddOperandToStateValueDescriptor(StateValueList* values,
                                           InstructionOperandVector* inputs,
                                           OperandGenerator* g,
