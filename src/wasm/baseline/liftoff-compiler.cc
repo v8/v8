@@ -321,10 +321,9 @@ class LiftoffCompiler {
     return source_position_table_builder_.ToSourcePositionTableVector();
   }
 
-  OwnedVector<trap_handler::ProtectedInstructionData> GetProtectedInstructions()
-      const {
-    return OwnedVector<trap_handler::ProtectedInstructionData>::Of(
-        protected_instructions_);
+  OwnedVector<uint8_t> GetProtectedInstructionsData() const {
+    return OwnedVector<uint8_t>::Of(
+        Vector<const uint8_t>::cast(VectorOf(protected_instructions_)));
   }
 
   uint32_t GetTotalFrameSlotCount() const {
@@ -2796,7 +2795,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   compiler->GetCode(&result.code_desc);
   result.instr_buffer = instruction_buffer->ReleaseBuffer();
   result.source_positions = compiler->GetSourcePositionTable();
-  result.protected_instructions = compiler->GetProtectedInstructions();
+  result.protected_instructions_data = compiler->GetProtectedInstructionsData();
   result.frame_slot_count = compiler->GetTotalFrameSlotCount();
   result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result.func_index = func_index;

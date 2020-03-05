@@ -1460,8 +1460,9 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
         isolate->wasm_engine(), &env, kind, sig, false);
     std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
         result.func_index, result.code_desc, result.frame_slot_count,
-        result.tagged_parameter_slots, std::move(result.protected_instructions),
-        std::move(result.source_positions), GetCodeKind(result),
+        result.tagged_parameter_slots,
+        result.protected_instructions_data.as_vector(),
+        result.source_positions.as_vector(), GetCodeKind(result),
         wasm::ExecutionTier::kNone);
     wasm::WasmCode* published_code =
         native_module->PublishCode(std::move(wasm_code));

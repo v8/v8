@@ -144,8 +144,9 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
         sig);
     std::unique_ptr<wasm::WasmCode> code = native_module_->AddCode(
         index, result.code_desc, result.frame_slot_count,
-        result.tagged_parameter_slots, std::move(result.protected_instructions),
-        std::move(result.source_positions), wasm::WasmCode::kInterpreterEntry,
+        result.tagged_parameter_slots,
+        result.protected_instructions_data.as_vector(),
+        result.source_positions.as_vector(), wasm::WasmCode::kInterpreterEntry,
         wasm::ExecutionTier::kInterpreter);
     native_module_->PublishCode(std::move(code));
   }

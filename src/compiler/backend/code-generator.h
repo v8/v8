@@ -125,8 +125,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   MaybeHandle<Code> FinalizeCode();
 
   OwnedVector<byte> GetSourcePositionTable();
-  OwnedVector<trap_handler::ProtectedInstructionData>
-  GetProtectedInstructions();
+  OwnedVector<byte> GetProtectedInstructionsData();
 
   InstructionSequence* instructions() const { return instructions_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
