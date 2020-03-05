@@ -123,6 +123,8 @@ namespace internal {
   HT(gc_finalize, V8.GCFinalizeMC, 10000, MILLISECOND)                         \
   HT(gc_finalize_background, V8.GCFinalizeMCBackground, 10000, MILLISECOND)    \
   HT(gc_finalize_foreground, V8.GCFinalizeMCForeground, 10000, MILLISECOND)    \
+  HT(gc_finalize_measure_memory, V8.GCFinalizeMCMeasureMemory, 10000,          \
+     MILLISECOND)                                                              \
   HT(gc_finalize_reduce_memory, V8.GCFinalizeMCReduceMemory, 10000,            \
      MILLISECOND)                                                              \
   HT(gc_finalize_reduce_memory_background,                                     \
@@ -132,6 +134,8 @@ namespace internal {
   HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                         \
   HT(gc_scavenger_background, V8.GCScavengerBackground, 10000, MILLISECOND)    \
   HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
+  HT(measure_memory_delay_ms, V8.MeasureMemoryDelayMilliseconds, 100000,       \
+     MILLISECOND)                                                              \
   /* TurboFan timers. */                                                       \
   HT(turbofan_optimize_prepare, V8.TurboFanOptimizePrepare, 1000000,           \
      MICROSECOND)                                                              \

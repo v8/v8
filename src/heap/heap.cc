@@ -1287,17 +1287,18 @@ TimedHistogram* Heap::GCTypePriorityTimer(GarbageCollector collector) {
 TimedHistogram* Heap::GCTypeTimer(GarbageCollector collector) {
   if (IsYoungGenerationCollector(collector)) {
     return isolate_->counters()->gc_scavenger();
-  } else {
-    if (!incremental_marking()->IsStopped()) {
-      if (ShouldReduceMemory()) {
-        return isolate_->counters()->gc_finalize_reduce_memory();
-      } else {
-        return isolate_->counters()->gc_finalize();
-      }
-    } else {
-      return isolate_->counters()->gc_compactor();
-    }
   }
+  if (incremental_marking()->IsStopped()) {
+    return isolate_->counters()->gc_compactor();
+  }
+  if (ShouldReduceMemory()) {
+    return isolate_->counters()->gc_finalize_reduce_memory();
+  }
+  if (incremental_marking()->IsMarking() &&
+      incremental_marking()->marking_worklists()->IsPerContextMode()) {
+    return isolate_->counters()->gc_finalize_measure_memory();
+  }
+  return isolate_->counters()->gc_finalize();
 }
 
 void Heap::CollectAllGarbage(int flags, GarbageCollectionReason gc_reason,
