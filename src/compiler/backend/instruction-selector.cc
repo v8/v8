@@ -798,21 +798,6 @@ void InstructionSelector::AppendDeoptimizeArguments(
                                   instruction_zone());
 }
 
-Instruction* InstructionSelector::EmitDeoptimize(
-    InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
-    size_t input_count, InstructionOperand* inputs, DeoptimizeKind kind,
-    DeoptimizeReason reason, FeedbackSource const& feedback,
-    Node* frame_state) {
-  InstructionOperandVector args(instruction_zone());
-  for (size_t i = 0; i < input_count; ++i) {
-    args.push_back(inputs[i]);
-  }
-  opcode |= MiscField::encode(static_cast<int>(input_count));
-  AppendDeoptimizeArguments(&args, kind, reason, feedback, frame_state);
-  return Emit(opcode, output_count, outputs, args.size(), &args.front(), 0,
-              nullptr);
-}
-
 // An internal helper class for generating the operands to calls.
 // TODO(bmeurer): Get rid of the CallBuffer business and make
 // InstructionSelector::VisitCall platform independent instead.
@@ -2978,9 +2963,10 @@ void InstructionSelector::EmitIdentity(Node* node) {
 void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind,
                                           DeoptimizeReason reason,
                                           FeedbackSource const& feedback,
-                                          Node* value) {
-  EmitDeoptimize(kArchDeoptimize, 0, nullptr, 0, nullptr, kind, reason,
-                 feedback, value);
+                                          Node* frame_state) {
+  InstructionOperandVector args(instruction_zone());
+  AppendDeoptimizeArguments(&args, kind, reason, feedback, frame_state);
+  Emit(kArchDeoptimize, 0, nullptr, args.size(), &args.front(), 0, nullptr);
 }
 
 void InstructionSelector::VisitThrow(Node* node) {
