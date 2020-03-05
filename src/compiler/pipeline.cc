@@ -2765,8 +2765,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
       static_cast<int>(code_generator->GetHandlerTableOffset()));
   result.instr_buffer = instruction_buffer->ReleaseBuffer();
   result.source_positions = code_generator->GetSourcePositionTable();
-  result.protected_instructions_data =
-      code_generator->GetProtectedInstructionsData();
+  result.protected_instructions = code_generator->GetProtectedInstructions();
   result.frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
   result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result.result_tier = wasm::ExecutionTier::kTurbofan;
@@ -2973,8 +2972,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   result->frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
   result->tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result->source_positions = code_generator->GetSourcePositionTable();
-  result->protected_instructions_data =
-      code_generator->GetProtectedInstructionsData();
+  result->protected_instructions = code_generator->GetProtectedInstructions();
   result->result_tier = wasm::ExecutionTier::kTurbofan;
 
   if (data.info()->trace_turbo_json_enabled()) {

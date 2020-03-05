@@ -9,7 +9,6 @@
 #include <cstring>
 #include <iterator>
 #include <memory>
-#include <type_traits>
 
 #include "src/common/checks.h"
 #include "src/common/globals.h"
@@ -117,14 +116,6 @@ class Vector {
 
   template <typename S>
   static constexpr Vector<T> cast(Vector<S> input) {
-    // Casting is potentially dangerous, so be really restrictive here. This
-    // might be lifted once we have use cases for that.
-    STATIC_ASSERT(std::is_pod<S>::value);
-    STATIC_ASSERT(std::is_pod<T>::value);
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK_EQ(0, (input.length() * sizeof(S)) % sizeof(T));
-    DCHECK_EQ(0, reinterpret_cast<uintptr_t>(input.begin()) % alignof(T));
-#endif
     return Vector<T>(reinterpret_cast<T*>(input.begin()),
                      input.length() * sizeof(S) / sizeof(T));
   }

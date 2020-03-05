@@ -99,17 +99,16 @@ class Reader {
     return value;
   }
 
-  template <typename T>
-  Vector<const T> ReadVector(size_t size) {
-    DCHECK_GE(current_size(), size);
-    Vector<const byte> bytes{pos_, size * sizeof(T)};
-    pos_ += size * sizeof(T);
+  void ReadVector(Vector<byte> v) {
+    if (v.size() > 0) {
+      DCHECK_GE(current_size(), v.size());
+      memcpy(v.begin(), current_location(), v.size());
+      pos_ += v.size();
+    }
     if (FLAG_trace_wasm_serialization) {
-      StdoutStream{} << "read vector of " << size << " elements of size "
-                     << sizeof(T) << " (total size " << size * sizeof(T) << ")"
+      StdoutStream{} << "read vector of " << v.size() << " elements"
                      << std::endl;
     }
-    return Vector<const T>::cast(bytes);
   }
 
   void Skip(size_t size) { pos_ += size; }
@@ -305,7 +304,8 @@ size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
          code->kind() == WasmCode::kInterpreterEntry);
   return kCodeHeaderSize + code->instructions().size() +
          code->reloc_info().size() + code->source_positions().size() +
-         code->protected_instructions_data().size();
+         code->protected_instructions().size() *
+             sizeof(trap_handler::ProtectedInstructionData);
 }
 
 size_t NativeModuleSerializer::Measure() const {
@@ -343,7 +343,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   writer->Write(code->instructions().length());
   writer->Write(code->reloc_info().length());
   writer->Write(code->source_positions().length());
-  writer->Write(code->protected_instructions_data().length());
+  writer->Write(code->protected_instructions().length());
   writer->Write(code->kind());
   writer->Write(code->tier());
 
@@ -355,7 +355,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   // Write the reloc info, source positions, and protected code.
   writer->WriteVector(code->reloc_info());
   writer->WriteVector(code->source_positions());
-  writer->WriteVector(code->protected_instructions_data());
+  writer->WriteVector(Vector<byte>::cast(code->protected_instructions()));
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM || \
     V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_S390X
   // On platforms that don't support misaligned word stores, copy to an aligned
@@ -516,17 +516,25 @@ bool NativeModuleDeserializer::ReadCode(int fn_index, Reader* reader) {
   WasmCode::Kind kind = reader->Read<WasmCode::Kind>();
   ExecutionTier tier = reader->Read<ExecutionTier>();
 
-  auto code_buffer = reader->ReadVector<byte>(code_size);
-  auto reloc_info = reader->ReadVector<byte>(reloc_size);
-  auto source_pos = reader->ReadVector<byte>(source_position_size);
+  Vector<const byte> code_buffer{reader->current_location(),
+                                 static_cast<size_t>(code_size)};
+  reader->Skip(code_size);
+
+  OwnedVector<byte> reloc_info = OwnedVector<byte>::New(reloc_size);
+  reader->ReadVector(reloc_info.as_vector());
+  OwnedVector<byte> source_pos = OwnedVector<byte>::New(source_position_size);
+  reader->ReadVector(source_pos.as_vector());
   auto protected_instructions =
-      reader->ReadVector<byte>(protected_instructions_size);
+      OwnedVector<trap_handler::ProtectedInstructionData>::New(
+          protected_instructions_size);
+  reader->ReadVector(Vector<byte>::cast(protected_instructions.as_vector()));
 
   WasmCode* code = native_module_->AddDeserializedCode(
       fn_index, code_buffer, stack_slot_count, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
-      code_comment_offset, unpadded_binary_size, protected_instructions,
-      std::move(reloc_info), std::move(source_pos), kind, tier);
+      code_comment_offset, unpadded_binary_size,
+      std::move(protected_instructions), std::move(reloc_info),
+      std::move(source_pos), kind, tier);
 
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |

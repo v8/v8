@@ -900,9 +900,8 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
         module->functions[func_index].sig);
     std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
         func_index, result.code_desc, result.frame_slot_count,
-        result.tagged_parameter_slots,
-        result.protected_instructions_data.as_vector(),
-        result.source_positions.as_vector(), wasm::WasmCode::kInterpreterEntry,
+        result.tagged_parameter_slots, std::move(result.protected_instructions),
+        std::move(result.source_positions), wasm::WasmCode::kInterpreterEntry,
         wasm::ExecutionTier::kInterpreter);
     native_module->PublishCode(std::move(wasm_code));
     DCHECK(native_module->IsRedirectedToInterpreter(func_index));
