@@ -12526,10 +12526,18 @@ CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler,
       argc_(argc),
       base_(),
       fp_(fp != nullptr ? fp : assembler_->LoadFramePointer()) {
+#ifdef V8_REVERSE_JSARGS
+  TNode<IntPtrT> offset = assembler_->IntPtrConstant(
+      (StandardFrameConstants::kFixedSlotCountAboveFp + 1) *
+      kSystemPointerSize);
+#else
   TNode<IntPtrT> offset = assembler_->ElementOffsetFromIndex(
       argc_, SYSTEM_POINTER_ELEMENTS,
       (StandardFrameConstants::kFixedSlotCountAboveFp - 1) *
           kSystemPointerSize);
+#endif
+  // base_ points to the first argument, not the receiver
+  // whether present or not.
   base_ = assembler_->RawPtrAdd(fp_, offset);
 }
 
@@ -12546,10 +12554,14 @@ void CodeStubArguments::SetReceiver(TNode<Object> object) const {
 }
 
 TNode<RawPtrT> CodeStubArguments::AtIndexPtr(TNode<IntPtrT> index) const {
+#ifdef V8_REVERSE_JSARGS
+  TNode<IntPtrT> offset = index;
+#else
   TNode<IntPtrT> negated_index =
       assembler_->IntPtrOrSmiSub(assembler_->IntPtrConstant(0), index);
   TNode<IntPtrT> offset = assembler_->ElementOffsetFromIndex(
       negated_index, SYSTEM_POINTER_ELEMENTS, 0);
+#endif
   return assembler_->RawPtrAdd(base_, offset);
 }
 
@@ -12613,18 +12625,20 @@ void CodeStubArguments::ForEach(
   if (last == nullptr) {
     last = argc_;
   }
-  TNode<RawPtrT> start = assembler_->RawPtrSub(
-      base_,
-      assembler_->ElementOffsetFromIndex(first, SYSTEM_POINTER_ELEMENTS));
-  TNode<RawPtrT> end = assembler_->RawPtrSub(
-      base_, assembler_->ElementOffsetFromIndex(last, SYSTEM_POINTER_ELEMENTS));
+  TNode<RawPtrT> start = AtIndexPtr(first);
+  TNode<RawPtrT> end = AtIndexPtr(last);
+#ifdef V8_REVERSE_JSARGS
+  const int increment = kSystemPointerSize;
+#else
+  const int increment = -kSystemPointerSize;
+#endif
   assembler_->BuildFastLoop<RawPtrT>(
       vars, start, end,
       [&](TNode<RawPtrT> current) {
         TNode<Object> arg = assembler_->Load<Object>(current);
         body(arg);
       },
-      -kSystemPointerSize, CodeStubAssembler::IndexAdvanceMode::kPost);
+      increment, CodeStubAssembler::IndexAdvanceMode::kPost);
 }
 
 void CodeStubArguments::PopAndReturn(TNode<Object> value) {
