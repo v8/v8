@@ -6323,14 +6323,15 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
   std::unique_ptr<Zone> zone =
       std::make_unique<Zone>(wasm_engine->allocator(), ZONE_NAME);
   Graph* graph = new (zone.get()) Graph(zone.get());
-  CommonOperatorBuilder common(zone.get());
-  MachineOperatorBuilder machine(
+  CommonOperatorBuilder* common =
+      new (zone.get()) CommonOperatorBuilder(zone.get());
+  MachineOperatorBuilder* machine = new (zone.get()) MachineOperatorBuilder(
       zone.get(), MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags(),
       InstructionSelector::AlignmentRequirements());
-  MachineGraph mcgraph(graph, &common, &machine);
+  MachineGraph* mcgraph = new (zone.get()) MachineGraph(graph, common, machine);
 
-  WasmWrapperGraphBuilder builder(zone.get(), &mcgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, nullptr,
                                   StubCallMode::kCallBuiltinPointer,
                                   enabled_features);
   builder.BuildJSToWasmWrapper(is_import);
@@ -6587,18 +6588,18 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   // Create the Graph
   //----------------------------------------------------------------------------
   Zone zone(wasm_engine->allocator(), ZONE_NAME);
-  Graph graph(&zone);
-  CommonOperatorBuilder common(&zone);
-  MachineOperatorBuilder machine(
+  Graph* graph = new (&zone) Graph(&zone);
+  CommonOperatorBuilder* common = new (&zone) CommonOperatorBuilder(&zone);
+  MachineOperatorBuilder* machine = new (&zone) MachineOperatorBuilder(
       &zone, MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags(),
       InstructionSelector::AlignmentRequirements());
-  MachineGraph mcgraph(&graph, &common, &machine);
+  MachineGraph* mcgraph = new (&zone) MachineGraph(graph, common, machine);
 
   SourcePositionTable* source_position_table =
-      source_positions ? new (&zone) SourcePositionTable(&graph) : nullptr;
+      source_positions ? new (&zone) SourcePositionTable(graph) : nullptr;
 
-  WasmWrapperGraphBuilder builder(&zone, &mcgraph, sig, source_position_table,
+  WasmWrapperGraphBuilder builder(&zone, mcgraph, sig, source_position_table,
                                   StubCallMode::kCallWasmRuntimeStub,
                                   env->enabled_features);
   builder.BuildWasmImportCallWrapper(kind);
@@ -6609,11 +6610,11 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   CallDescriptor* incoming =
       GetWasmCallDescriptor(&zone, sig, WasmGraphBuilder::kNoRetpoline,
                             WasmCallKind::kWasmImportWrapper);
-  if (machine.Is32()) {
+  if (machine->Is32()) {
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
   wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
-      wasm_engine, incoming, &mcgraph, Code::WASM_TO_JS_FUNCTION,
+      wasm_engine, incoming, mcgraph, Code::WASM_TO_JS_FUNCTION,
       wasm::WasmCode::kWasmToJsWrapper, func_name, WasmStubAssemblerOptions(),
       source_position_table);
   result.kind = wasm::WasmCompilationResult::kWasmToJsWrapper;
@@ -6678,22 +6679,22 @@ wasm::WasmCompilationResult CompileWasmInterpreterEntry(
   // Create the Graph
   //----------------------------------------------------------------------------
   Zone zone(wasm_engine->allocator(), ZONE_NAME);
-  Graph graph(&zone);
-  CommonOperatorBuilder common(&zone);
-  MachineOperatorBuilder machine(
+  Graph* graph = new (&zone) Graph(&zone);
+  CommonOperatorBuilder* common = new (&zone) CommonOperatorBuilder(&zone);
+  MachineOperatorBuilder* machine = new (&zone) MachineOperatorBuilder(
       &zone, MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags(),
       InstructionSelector::AlignmentRequirements());
-  MachineGraph mcgraph(&graph, &common, &machine);
+  MachineGraph* mcgraph = new (&zone) MachineGraph(graph, common, machine);
 
-  WasmWrapperGraphBuilder builder(&zone, &mcgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(&zone, mcgraph, sig, nullptr,
                                   StubCallMode::kCallWasmRuntimeStub,
                                   enabled_features);
   builder.BuildWasmInterpreterEntry(func_index);
 
   // Schedule and compile to machine code.
   CallDescriptor* incoming = GetWasmCallDescriptor(&zone, sig);
-  if (machine.Is32()) {
+  if (machine->Is32()) {
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
 
@@ -6702,7 +6703,7 @@ wasm::WasmCompilationResult CompileWasmInterpreterEntry(
       SNPrintF(func_name, "wasm-interpreter-entry#%d", func_index));
 
   wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
-      wasm_engine, incoming, &mcgraph, Code::WASM_INTERPRETER_ENTRY,
+      wasm_engine, incoming, mcgraph, Code::WASM_INTERPRETER_ENTRY,
       wasm::WasmCode::kInterpreterEntry, func_name.begin(),
       WasmStubAssemblerOptions());
   result.result_tier = wasm::ExecutionTier::kInterpreter;
@@ -6716,14 +6717,15 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
   std::unique_ptr<Zone> zone =
       std::make_unique<Zone>(isolate->allocator(), ZONE_NAME);
   Graph* graph = new (zone.get()) Graph(zone.get());
-  CommonOperatorBuilder common(zone.get());
-  MachineOperatorBuilder machine(
+  CommonOperatorBuilder* common =
+      new (zone.get()) CommonOperatorBuilder(zone.get());
+  MachineOperatorBuilder* machine = new (zone.get()) MachineOperatorBuilder(
       zone.get(), MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags(),
       InstructionSelector::AlignmentRequirements());
-  MachineGraph mcgraph(graph, &common, &machine);
+  MachineGraph* mcgraph = new (zone.get()) MachineGraph(graph, common, machine);
 
-  WasmWrapperGraphBuilder builder(zone.get(), &mcgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, nullptr,
                                   StubCallMode::kCallBuiltinPointer,
                                   wasm::WasmFeatures::FromIsolate(isolate));
   builder.BuildJSToJSWrapper(isolate);
@@ -6762,14 +6764,15 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate,
   std::unique_ptr<Zone> zone =
       std::make_unique<Zone>(isolate->allocator(), ZONE_NAME);
   Graph* graph = new (zone.get()) Graph(zone.get());
-  CommonOperatorBuilder common(zone.get());
-  MachineOperatorBuilder machine(
+  CommonOperatorBuilder* common =
+      new (zone.get()) CommonOperatorBuilder(zone.get());
+  MachineOperatorBuilder* machine = new (zone.get()) MachineOperatorBuilder(
       zone.get(), MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags(),
       InstructionSelector::AlignmentRequirements());
-  MachineGraph mcgraph(graph, &common, &machine);
+  MachineGraph* mcgraph = new (zone.get()) MachineGraph(graph, common, machine);
 
-  WasmWrapperGraphBuilder builder(zone.get(), &mcgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, nullptr,
                                   StubCallMode::kCallBuiltinPointer,
                                   wasm::WasmFeatures::FromIsolate(isolate));
   builder.BuildCWasmEntry();

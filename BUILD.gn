@@ -1909,7 +1909,6 @@ v8_compiler_sources = [
   "src/compiler/memory-optimizer.cc",
   "src/compiler/memory-optimizer.h",
   "src/compiler/node-aux-data.h",
-  "src/compiler/node-cache.cc",
   "src/compiler/node-cache.h",
   "src/compiler/node-marker.cc",
   "src/compiler/node-marker.h",
