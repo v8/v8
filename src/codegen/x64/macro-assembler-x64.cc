@@ -1401,6 +1401,31 @@ void TurboAssembler::Push(Handle<HeapObject> source) {
   Push(kScratchRegister);
 }
 
+void TurboAssembler::PushArray(Register array, Register size, Register scratch,
+                               PushArrayOrder order) {
+  DCHECK(!AreAliased(array, size, scratch));
+  Register counter = scratch;
+  Label loop, entry;
+  if (order == PushArrayOrder::kReverse) {
+    Set(counter, 0);
+    jmp(&entry);
+    bind(&loop);
+    Push(Operand(array, counter, times_system_pointer_size, 0));
+    incq(counter);
+    bind(&entry);
+    cmpq(counter, size);
+    j(less, &loop, Label::kNear);
+  } else {
+    movq(counter, size);
+    jmp(&entry);
+    bind(&loop);
+    Push(Operand(array, counter, times_system_pointer_size, 0));
+    bind(&entry);
+    decq(counter);
+    j(greater_equal, &loop, Label::kNear);
+  }
+}
+
 void TurboAssembler::Move(Register result, Handle<HeapObject> object,
                           RelocInfo::Mode rmode) {
   // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
