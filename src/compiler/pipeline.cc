@@ -2621,6 +2621,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   PipelineData data(&zone_stats, &info, isolate, isolate->allocator(), graph,
                     jsgraph, nullptr, source_positions, &node_origins,
                     should_optimize_jumps ? &jump_opt : nullptr, options);
+  PipelineJobScope scope(&data, isolate->counters()->runtime_call_stats());
+  RuntimeCallTimerScope timer_scope(isolate,
+                                    RuntimeCallCounterId::kOptimizeCode);
   data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
@@ -2672,6 +2675,8 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
                            data.graph(), data.jsgraph(), data.schedule(),
                            data.source_positions(), data.node_origins(),
                            data.jump_optimization_info(), options);
+  PipelineJobScope second_scope(&second_data,
+                                isolate->counters()->runtime_call_stats());
   second_data.set_verify_graph(FLAG_verify_csa);
   PipelineImpl second_pipeline(&second_data);
   second_pipeline.SelectInstructionsAndAssemble(call_descriptor);
