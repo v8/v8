@@ -2604,7 +2604,7 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
 }
 #endif  // !V8_TARGET_ARCH_IA32
 
-#if !V8_TARGET_ARCH_X64
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
 #if !V8_TARGET_ARCH_ARM64
 void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
@@ -2626,7 +2626,7 @@ void InstructionSelector::VisitI64x2MinS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MaxS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MinU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MaxU(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 

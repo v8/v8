@@ -2521,6 +2521,7 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
 #define SIMD_TYPES(V) \
   V(F64x2)            \
   V(F32x4)            \
+  V(I64x2)            \
   V(I32x4)            \
   V(I16x8)            \
   V(I8x16)
@@ -2550,6 +2551,16 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I64x2Add)              \
   V(I64x2Sub)              \
   V(I64x2Mul)              \
+  V(I64x2Eq)               \
+  V(I64x2Ne)               \
+  V(I64x2GtS)              \
+  V(I64x2GeS)              \
+  V(I64x2GtU)              \
+  V(I64x2GeU)              \
+  V(I64x2MinS)             \
+  V(I64x2MinU)             \
+  V(I64x2MaxS)             \
+  V(I64x2MaxU)             \
   V(I32x4Add)              \
   V(I32x4AddHoriz)         \
   V(I32x4Sub)              \
@@ -2584,6 +2595,7 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I16x8SubSaturateS)     \
   V(I16x8AddSaturateU)     \
   V(I16x8SubSaturateU)     \
+  V(I16x8RoundingAverageU) \
   V(I8x16Add)              \
   V(I8x16Sub)              \
   V(I8x16Mul)              \
@@ -2603,9 +2615,11 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I8x16SubSaturateS)     \
   V(I8x16AddSaturateU)     \
   V(I8x16SubSaturateU)     \
+  V(I8x16RoundingAverageU) \
   V(S128And)               \
   V(S128Or)                \
-  V(S128Xor)
+  V(S128Xor)               \
+  V(S128AndNot)
 
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2Abs)               \
@@ -2617,17 +2631,20 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(F32x4RecipSqrtApprox)   \
   V(F32x4Sqrt)              \
   V(I64x2Neg)               \
+  V(I16x8Abs)               \
   V(I32x4Neg)               \
   V(I32x4SConvertI16x8Low)  \
   V(I32x4SConvertI16x8High) \
   V(I32x4UConvertI16x8Low)  \
   V(I32x4UConvertI16x8High) \
+  V(I32x4Abs)               \
   V(I16x8Neg)               \
   V(I16x8SConvertI8x16Low)  \
   V(I16x8SConvertI8x16High) \
   V(I16x8UConvertI8x16Low)  \
   V(I16x8UConvertI8x16High) \
   V(I8x16Neg)               \
+  V(I8x16Abs)               \
   V(S128Not)
 
 #define SIMD_SHIFT_LIST(V) \
@@ -2645,9 +2662,11 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I8x16ShrU)
 
 #define SIMD_BOOL_LIST(V) \
+  V(S1x2AnyTrue)          \
   V(S1x4AnyTrue)          \
   V(S1x8AnyTrue)          \
   V(S1x16AnyTrue)         \
+  V(S1x2AllTrue)          \
   V(S1x4AllTrue)          \
   V(S1x8AllTrue)          \
   V(S1x16AllTrue)
@@ -2676,6 +2695,7 @@ SIMD_TYPES(SIMD_VISIT_SPLAT)
   }
 SIMD_VISIT_EXTRACT_LANE(F64x2, )
 SIMD_VISIT_EXTRACT_LANE(F32x4, )
+SIMD_VISIT_EXTRACT_LANE(I64x2, )
 SIMD_VISIT_EXTRACT_LANE(I32x4, )
 SIMD_VISIT_EXTRACT_LANE(I16x8, U)
 SIMD_VISIT_EXTRACT_LANE(I16x8, S)
@@ -2749,6 +2769,20 @@ SIMD_BOOL_LIST(SIMD_VISIT_BOOL)
 SIMD_CONVERSION_LIST(SIMD_VISIT_CONVERSION)
 #undef SIMD_VISIT_CONVERSION
 #undef SIMD_CONVERSION_LIST
+
+#define SIMD_VISIT_QFMOP(Opcode)                        \
+  void InstructionSelector::Visit##Opcode(Node* node) { \
+    S390OperandGenerator g(this);                       \
+    Emit(kS390_##Opcode, g.DefineSameAsFirst(node),     \
+         g.UseUniqueRegister(node->InputAt(0)),         \
+         g.UseUniqueRegister(node->InputAt(1)),         \
+         g.UseRegister(node->InputAt(2)));              \
+  }
+SIMD_VISIT_QFMOP(F64x2Qfma)
+SIMD_VISIT_QFMOP(F64x2Qfms)
+SIMD_VISIT_QFMOP(F32x4Qfma)
+SIMD_VISIT_QFMOP(F32x4Qfms)
+#undef SIMD_VISIT_QFMOP
 #undef SIMD_TYPES
 
 void InstructionSelector::VisitS8x16Shuffle(Node* node) {
@@ -2797,16 +2831,6 @@ void InstructionSelector::VisitS128Select(Node* node) {
        g.UseRegister(node->InputAt(2)));
 }
 
-void InstructionSelector::VisitI16x8RoundingAverageU(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitI8x16RoundingAverageU(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitS128AndNot(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
     Node* node) {
@@ -2830,13 +2854,10 @@ void InstructionSelector::EmitPrepareResults(
   }
 }
 
-void InstructionSelector::VisitLoadTransform(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI8x16Abs(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8Abs(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI32x4Abs(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitLoadTransform(Node* node) {
+  // We should never reach here, see http://crrev.com/c/2050811
+  UNREACHABLE();
+}
 
 // static
 MachineOperatorBuilder::Flags
