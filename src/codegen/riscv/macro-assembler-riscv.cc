@@ -374,59 +374,61 @@ void MacroAssembler::RecordWrite(Register object, Register address,
 
 void TurboAssembler::Addu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    addu(rd, rs, rt.rm());
+    RV_addw(rd, rs, rt.rm());
   } else {
-    if (is_int16(rt.immediate()) && !MustUseReg(rt.rmode())) {
-      addiu(rd, rs, static_cast<int32_t>(rt.immediate()));
+    if (is_int12(rt.immediate()) && !MustUseReg(rt.rmode())) {
+      RV_addiw(rd, rs, static_cast<int32_t>(rt.immediate()));
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       DCHECK(rs != scratch);
-      li(scratch, rt);
-      addu(rd, rs, scratch);
+      RV_li(scratch, rt.immediate());
+      RV_addw(rd, rs, scratch);
     }
   }
 }
 
 void TurboAssembler::Daddu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    daddu(rd, rs, rt.rm());
+    RV_add(rd, rs, rt.rm());
   } else {
-    if (is_int16(rt.immediate()) && !MustUseReg(rt.rmode())) {
-      daddiu(rd, rs, static_cast<int32_t>(rt.immediate()));
+    if (is_int12(rt.immediate()) && !MustUseReg(rt.rmode())) {
+      RV_addi(rd, rs, static_cast<int32_t>(rt.immediate()));
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
+      // Register scratch = temps.Acquire();
+      BlockTrampolinePoolScope block_trampoline_pool(this);
+      Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
       DCHECK(rs != scratch);
-      li(scratch, rt);
-      daddu(rd, rs, scratch);
+      RV_li(scratch, rt.immediate());
+      RV_add(rd, rs, scratch);
     }
   }
 }
 
 void TurboAssembler::Subu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    subu(rd, rs, rt.rm());
+    RV_subw(rd, rs, rt.rm());
   } else {
     DCHECK(is_int32(rt.immediate()));
-    if (is_int16(-rt.immediate()) && !MustUseReg(rt.rmode())) {
-      addiu(rd, rs,
-            static_cast<int32_t>(
-                -rt.immediate()));  // No subiu instr, use addiu(x, y, -imm).
+    if (is_int12(-rt.immediate()) && !MustUseReg(rt.rmode())) {
+      RV_addiw(rd, rs,
+               static_cast<int32_t>(
+                   -rt.immediate()));  // No subiu instr, use addiu(x, y, -imm).
     } else {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       DCHECK(rs != scratch);
-      if (-rt.immediate() >> 16 == 0 && !MustUseReg(rt.rmode())) {
+      if (-rt.immediate() >> 12 == 0 && !MustUseReg(rt.rmode())) {
         // Use load -imm and addu when loading -imm generates one instruction.
-        li(scratch, -rt.immediate());
-        addu(rd, rs, scratch);
+        RV_li(scratch, -rt.immediate());
+        RV_addw(rd, rs, scratch);
       } else {
         // li handles the relocation.
-        li(scratch, rt);
-        subu(rd, rs, scratch);
+        RV_li(scratch, rt.immediate());
+        RV_subw(rd, rs, scratch);
       }
     }
   }
@@ -434,11 +436,11 @@ void TurboAssembler::Subu(Register rd, Register rs, const Operand& rt) {
 
 void TurboAssembler::Dsubu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    dsubu(rd, rs, rt.rm());
+    RV_sub(rd, rs, rt.rm());
   } else if (is_int16(-rt.immediate()) && !MustUseReg(rt.rmode())) {
-    daddiu(rd, rs,
-           static_cast<int32_t>(
-               -rt.immediate()));  // No dsubiu instr, use daddiu(x, y, -imm).
+    RV_addi(rd, rs,
+            static_cast<int32_t>(
+                -rt.immediate()));  // No dsubiu instr, use daddiu(x, y, -imm).
   } else {
     DCHECK(rs != t3);
     int li_count = InstrCountForLi64Bit(rt.immediate());
@@ -448,746 +450,489 @@ void TurboAssembler::Dsubu(Register rd, Register rs, const Operand& rt) {
       DCHECK(rt.immediate() != std::numeric_limits<int32_t>::min());
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      li(scratch, Operand(-rt.immediate()));
-      Daddu(rd, rs, scratch);
+      RV_li(scratch, -rt.immediate());
+      RV_add(rd, rs, scratch);
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      li(scratch, rt);
-      dsubu(rd, rs, scratch);
+      RV_li(scratch, rt.immediate());
+      RV_sub(rd, rs, scratch);
     }
   }
 }
 
 void TurboAssembler::Mul(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    mul(rd, rs, rt.rm());
+    RV_mulw(rd, rs, rt.rm());
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     DCHECK(rs != scratch);
-    li(scratch, rt);
-    mul(rd, rs, scratch);
+    RV_li(scratch, rt.immediate());
+    RV_mulw(rd, rs, scratch);
   }
 }
 
 void TurboAssembler::Mulh(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (kArchVariant != kMips64r6) {
-      mult(rs, rt.rm());
-      mfhi(rd);
-    } else {
-      muh(rd, rs, rt.rm());
-    }
+    // Perform the 64 bit multiplication, then extract the top 32 bits
+    RV_mulh(rd, rs, rt.rm());
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     DCHECK(rs != scratch);
-    li(scratch, rt);
-    if (kArchVariant != kMips64r6) {
-      mult(rs, scratch);
-      mfhi(rd);
-    } else {
-      muh(rd, rs, scratch);
-    }
+    RV_li(scratch, rt.immediate());
+    RV_mulh(rd, rs, scratch);
   }
 }
 
 void TurboAssembler::Mulhu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (kArchVariant != kMips64r6) {
-      multu(rs, rt.rm());
-      mfhi(rd);
-    } else {
-      muhu(rd, rs, rt.rm());
-    }
+    RV_mulhu(rd, rs, rt.rm());
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     DCHECK(rs != scratch);
-    li(scratch, rt);
-    if (kArchVariant != kMips64r6) {
-      multu(rs, scratch);
-      mfhi(rd);
-    } else {
-      muhu(rd, rs, scratch);
-    }
+    RV_li(scratch, rt.immediate());
+    RV_mulhu(rd, rs, scratch);
   }
 }
 
 void TurboAssembler::Dmul(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (kArchVariant == kMips64r6) {
-      dmul(rd, rs, rt.rm());
-    } else {
-      dmult(rs, rt.rm());
-      mflo(rd);
-    }
+    RV_mul(rd, rs, rt.rm());
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     DCHECK(rs != scratch);
-    li(scratch, rt);
-    if (kArchVariant == kMips64r6) {
-      dmul(rd, rs, scratch);
-    } else {
-      dmult(rs, scratch);
-      mflo(rd);
-    }
+    RV_li(scratch, rt.immediate());
+    RV_mul(rd, rs, scratch);
   }
 }
 
 void TurboAssembler::Dmulh(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (kArchVariant == kMips64r6) {
-      dmuh(rd, rs, rt.rm());
-    } else {
-      dmult(rs, rt.rm());
-      mfhi(rd);
-    }
+    RV_mulh(rd, rs, rt.rm());
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     DCHECK(rs != scratch);
-    li(scratch, rt);
-    if (kArchVariant == kMips64r6) {
-      dmuh(rd, rs, scratch);
-    } else {
-      dmult(rs, scratch);
-      mfhi(rd);
-    }
-  }
-}
-
-void TurboAssembler::Mult(Register rs, const Operand& rt) {
-  if (rt.is_reg()) {
-    mult(rs, rt.rm());
-  } else {
-    // li handles the relocation.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    DCHECK(rs != scratch);
-    li(scratch, rt);
-    mult(rs, scratch);
-  }
-}
-
-void TurboAssembler::Dmult(Register rs, const Operand& rt) {
-  if (rt.is_reg()) {
-    dmult(rs, rt.rm());
-  } else {
-    // li handles the relocation.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    DCHECK(rs != scratch);
-    li(scratch, rt);
-    dmult(rs, scratch);
-  }
-}
-
-void TurboAssembler::Multu(Register rs, const Operand& rt) {
-  if (rt.is_reg()) {
-    multu(rs, rt.rm());
-  } else {
-    // li handles the relocation.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    DCHECK(rs != scratch);
-    li(scratch, rt);
-    multu(rs, scratch);
-  }
-}
-
-void TurboAssembler::Dmultu(Register rs, const Operand& rt) {
-  if (rt.is_reg()) {
-    dmultu(rs, rt.rm());
-  } else {
-    // li handles the relocation.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    DCHECK(rs != scratch);
-    li(scratch, rt);
-    dmultu(rs, scratch);
-  }
-}
-
-void TurboAssembler::Div(Register rs, const Operand& rt) {
-  if (rt.is_reg()) {
-    div(rs, rt.rm());
-  } else {
-    // li handles the relocation.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    DCHECK(rs != scratch);
-    li(scratch, rt);
-    div(rs, scratch);
+    RV_li(scratch, rt.immediate());
+    RV_mulh(rd, rs, scratch);
   }
 }
 
 void TurboAssembler::Div(Register res, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (kArchVariant != kMips64r6) {
-      div(rs, rt.rm());
-      mflo(res);
-    } else {
-      div(res, rs, rt.rm());
-    }
+    RV_divw(res, rs, rt.rm());
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     DCHECK(rs != scratch);
-    li(scratch, rt);
-    if (kArchVariant != kMips64r6) {
-      div(rs, scratch);
-      mflo(res);
-    } else {
-      div(res, rs, scratch);
-    }
+    RV_li(scratch, rt.immediate());
+    RV_divw(res, rs, scratch);
   }
 }
 
 void TurboAssembler::Mod(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (kArchVariant != kMips64r6) {
-      div(rs, rt.rm());
-      mfhi(rd);
-    } else {
-      mod(rd, rs, rt.rm());
-    }
+    RV_remw(rd, rs, rt.rm());
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     DCHECK(rs != scratch);
-    li(scratch, rt);
-    if (kArchVariant != kMips64r6) {
-      div(rs, scratch);
-      mfhi(rd);
-    } else {
-      mod(rd, rs, scratch);
-    }
+    RV_li(scratch, rt.immediate());
+    RV_remw(rd, rs, scratch);
   }
 }
 
 void TurboAssembler::Modu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (kArchVariant != kMips64r6) {
-      divu(rs, rt.rm());
-      mfhi(rd);
-    } else {
-      modu(rd, rs, rt.rm());
-    }
+    RV_remuw(rd, rs, rt.rm());
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     DCHECK(rs != scratch);
-    li(scratch, rt);
-    if (kArchVariant != kMips64r6) {
-      divu(rs, scratch);
-      mfhi(rd);
-    } else {
-      modu(rd, rs, scratch);
-    }
-  }
-}
-
-void TurboAssembler::Ddiv(Register rs, const Operand& rt) {
-  if (rt.is_reg()) {
-    ddiv(rs, rt.rm());
-  } else {
-    // li handles the relocation.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    DCHECK(rs != scratch);
-    li(scratch, rt);
-    ddiv(rs, scratch);
+    RV_li(scratch, rt.immediate());
+    RV_remuw(rd, rs, scratch);
   }
 }
 
 void TurboAssembler::Ddiv(Register rd, Register rs, const Operand& rt) {
-  if (kArchVariant != kMips64r6) {
-    if (rt.is_reg()) {
-      ddiv(rs, rt.rm());
-      mflo(rd);
-    } else {
-      // li handles the relocation.
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      DCHECK(rs != scratch);
-      li(scratch, rt);
-      ddiv(rs, scratch);
-      mflo(rd);
-    }
-  } else {
-    if (rt.is_reg()) {
-      ddiv(rd, rs, rt.rm());
-    } else {
-      // li handles the relocation.
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      DCHECK(rs != scratch);
-      li(scratch, rt);
-      ddiv(rd, rs, scratch);
-    }
-  }
-}
-
-void TurboAssembler::Divu(Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    divu(rs, rt.rm());
+    RV_div(rd, rs, rt.rm());
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     DCHECK(rs != scratch);
-    li(scratch, rt);
-    divu(rs, scratch);
+    RV_li(scratch, rt.immediate());
+    RV_div(rd, rs, scratch);
   }
 }
 
 void TurboAssembler::Divu(Register res, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (kArchVariant != kMips64r6) {
-      divu(rs, rt.rm());
-      mflo(res);
-    } else {
-      divu(res, rs, rt.rm());
-    }
+    RV_divu(res, rs, rt.rm());
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     DCHECK(rs != scratch);
-    li(scratch, rt);
-    if (kArchVariant != kMips64r6) {
-      divu(rs, scratch);
-      mflo(res);
-    } else {
-      divu(res, rs, scratch);
-    }
+    RV_li(scratch, rt.immediate());
+    RV_divu(res, rs, scratch);
   }
 }
 
-void TurboAssembler::Ddivu(Register rs, const Operand& rt) {
-  if (rt.is_reg()) {
-    ddivu(rs, rt.rm());
-  } else {
-    // li handles the relocation.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    DCHECK(rs != scratch);
-    li(scratch, rt);
-    ddivu(rs, scratch);
-  }
-}
+// void TurboAssembler::Ddivu(Register rs, const Operand& rt) {
+//   if (rt.is_reg()) {
+//     ddivu(rs, rt.rm());
+//   } else {
+//     // li handles the relocation.
+//     UseScratchRegisterScope temps(this);
+//     Register scratch = temps.Acquire();
+//     DCHECK(rs != scratch);
+//     li(scratch, rt);
+//     ddivu(rs, scratch);
+//   }
+// }
 
 void TurboAssembler::Ddivu(Register res, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (kArchVariant != kMips64r6) {
-      ddivu(rs, rt.rm());
-      mflo(res);
-    } else {
-      ddivu(res, rs, rt.rm());
-    }
+    RV_divu(res, rs, rt.rm());
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     DCHECK(rs != scratch);
-    li(scratch, rt);
-    if (kArchVariant != kMips64r6) {
-      ddivu(rs, scratch);
-      mflo(res);
-    } else {
-      ddivu(res, rs, scratch);
-    }
+    RV_li(scratch, rt.immediate());
+    RV_divu(res, rs, scratch);
   }
 }
 
 void TurboAssembler::Dmod(Register rd, Register rs, const Operand& rt) {
-  if (kArchVariant != kMips64r6) {
-    if (rt.is_reg()) {
-      ddiv(rs, rt.rm());
-      mfhi(rd);
-    } else {
-      // li handles the relocation.
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      DCHECK(rs != scratch);
-      li(scratch, rt);
-      ddiv(rs, scratch);
-      mfhi(rd);
-    }
+  if (rt.is_reg()) {
+    RV_rem(rd, rs, rt.rm());
   } else {
-    if (rt.is_reg()) {
-      dmod(rd, rs, rt.rm());
-    } else {
-      // li handles the relocation.
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      DCHECK(rs != scratch);
-      li(scratch, rt);
-      dmod(rd, rs, scratch);
-    }
+    // li handles the relocation.
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    DCHECK(rs != scratch);
+    RV_li(scratch, rt.immediate());
+    RV_rem(rd, rs, scratch);
   }
 }
 
 void TurboAssembler::Dmodu(Register rd, Register rs, const Operand& rt) {
-  if (kArchVariant != kMips64r6) {
-    if (rt.is_reg()) {
-      ddivu(rs, rt.rm());
-      mfhi(rd);
-    } else {
-      // li handles the relocation.
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      DCHECK(rs != scratch);
-      li(scratch, rt);
-      ddivu(rs, scratch);
-      mfhi(rd);
-    }
+  if (rt.is_reg()) {
+    RV_remu(rd, rs, rt.rm());
   } else {
-    if (rt.is_reg()) {
-      dmodu(rd, rs, rt.rm());
-    } else {
-      // li handles the relocation.
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      DCHECK(rs != scratch);
-      li(scratch, rt);
-      dmodu(rd, rs, scratch);
-    }
+    // li handles the relocation.
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    DCHECK(rs != scratch);
+    RV_li(scratch, rt.immediate());
+    RV_remu(rd, rs, scratch);
   }
 }
 
 void TurboAssembler::And(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    and_(rd, rs, rt.rm());
+    RV_and_(rd, rs, rt.rm());
   } else {
-    if (is_uint16(rt.immediate()) && !MustUseReg(rt.rmode())) {
-      andi(rd, rs, static_cast<int32_t>(rt.immediate()));
+    if (is_int12(rt.immediate()) && !MustUseReg(rt.rmode())) {
+      RV_andi(rd, rs, static_cast<int32_t>(rt.immediate()));
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-			// I make the following to comment to compile R.Y.
-      //DCHECK(rs != scratch);
-      li(scratch, rt);
-      and_(rd, rs, scratch);
+      DCHECK(rs != scratch);
+      RV_li(scratch, rt.immediate());
+      RV_and_(rd, rs, scratch);
     }
   }
 }
 
 void TurboAssembler::Or(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    or_(rd, rs, rt.rm());
+    RV_or_(rd, rs, rt.rm());
   } else {
-    if (is_uint16(rt.immediate()) && !MustUseReg(rt.rmode())) {
-      ori(rd, rs, static_cast<int32_t>(rt.immediate()));
+    if (is_int12(rt.immediate()) && !MustUseReg(rt.rmode())) {
+      RV_ori(rd, rs, static_cast<int32_t>(rt.immediate()));
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       DCHECK(rs != scratch);
-      li(scratch, rt);
-      or_(rd, rs, scratch);
+      RV_li(scratch, rt.immediate());
+      RV_or_(rd, rs, scratch);
     }
   }
 }
 
 void TurboAssembler::Xor(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    xor_(rd, rs, rt.rm());
+    RV_xor_(rd, rs, rt.rm());
   } else {
-    if (is_uint16(rt.immediate()) && !MustUseReg(rt.rmode())) {
-      xori(rd, rs, static_cast<int32_t>(rt.immediate()));
+    if (is_int12(rt.immediate()) && !MustUseReg(rt.rmode())) {
+      RV_xori(rd, rs, static_cast<int32_t>(rt.immediate()));
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       DCHECK(rs != scratch);
-      li(scratch, rt);
-      xor_(rd, rs, scratch);
+      RV_li(scratch, rt.immediate());
+      RV_xor_(rd, rs, scratch);
     }
   }
 }
 
 void TurboAssembler::Nor(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    nor(rd, rs, rt.rm());
+    RV_or_(rd, rs, rt.rm());
+    RV_not(rd, rd);
   } else {
-    // li handles the relocation.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    DCHECK(rs != scratch);
-    li(scratch, rt);
-    nor(rd, rs, scratch);
+    Or(rd, rs, rt);
+    RV_not(rd, rd);
   }
 }
 
 void TurboAssembler::Neg(Register rs, const Operand& rt) {
-  dsubu(rs, zero_reg, rt.rm());
+  DCHECK(rt.is_reg());
+  RV_neg(rs, rt.rm());
 }
 
 void TurboAssembler::Slt(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    slt(rd, rs, rt.rm());
+    RV_slt(rd, rs, rt.rm());
   } else {
-    if (is_int16(rt.immediate()) && !MustUseReg(rt.rmode())) {
-      slti(rd, rs, static_cast<int32_t>(rt.immediate()));
+    if (is_int12(rt.immediate()) && !MustUseReg(rt.rmode())) {
+      RV_slti(rd, rs, static_cast<int32_t>(rt.immediate()));
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
       BlockTrampolinePoolScope block_trampoline_pool(this);
       Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
       DCHECK(rs != scratch);
-      li(scratch, rt);
-      slt(rd, rs, scratch);
+      RV_li(scratch, rt.immediate());
+      RV_slt(rd, rs, scratch);
     }
   }
 }
 
 void TurboAssembler::Sltu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    sltu(rd, rs, rt.rm());
+    RV_sltu(rd, rs, rt.rm());
   } else {
-    const uint64_t int16_min = std::numeric_limits<int16_t>::min();
-    if (is_uint15(rt.immediate()) && !MustUseReg(rt.rmode())) {
-      // Imm range is: [0, 32767].
-      sltiu(rd, rs, static_cast<int32_t>(rt.immediate()));
-    } else if (is_uint15(rt.immediate() - int16_min) &&
-               !MustUseReg(rt.rmode())) {
-      // Imm range is: [max_unsigned-32767,max_unsigned].
-      sltiu(rd, rs, static_cast<uint16_t>(rt.immediate()));
+    if (is_int12(rt.immediate()) && !MustUseReg(rt.rmode())) {
+      RV_sltiu(rd, rs, static_cast<int32_t>(rt.immediate()));
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
       BlockTrampolinePoolScope block_trampoline_pool(this);
       Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
       DCHECK(rs != scratch);
-      li(scratch, rt);
-      sltu(rd, rs, scratch);
+      RV_li(scratch, rt.immediate());
+      RV_sltu(rd, rs, scratch);
     }
   }
 }
 
 void TurboAssembler::Sle(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    slt(rd, rt.rm(), rs);
+    RV_slt(rd, rt.rm(), rs);
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
     BlockTrampolinePoolScope block_trampoline_pool(this);
     DCHECK(rs != scratch);
-    li(scratch, rt);
-    slt(rd, scratch, rs);
+    RV_li(scratch, rt.immediate());
+    RV_slt(rd, scratch, rs);
   }
-  xori(rd, rd, 1);
+  RV_xori(rd, rd, 1);
 }
 
 void TurboAssembler::Sleu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    sltu(rd, rt.rm(), rs);
+    RV_sltu(rd, rt.rm(), rs);
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
     BlockTrampolinePoolScope block_trampoline_pool(this);
     DCHECK(rs != scratch);
-    li(scratch, rt);
-    sltu(rd, scratch, rs);
+    RV_li(scratch, rt.immediate());
+    RV_sltu(rd, scratch, rs);
   }
-  xori(rd, rd, 1);
+  RV_xori(rd, rd, 1);
 }
 
 void TurboAssembler::Sge(Register rd, Register rs, const Operand& rt) {
   Slt(rd, rs, rt);
-  xori(rd, rd, 1);
+  RV_xori(rd, rd, 1);
 }
 
 void TurboAssembler::Sgeu(Register rd, Register rs, const Operand& rt) {
   Sltu(rd, rs, rt);
-  xori(rd, rd, 1);
+  RV_xori(rd, rd, 1);
 }
 
 void TurboAssembler::Sgt(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    slt(rd, rt.rm(), rs);
+    RV_slt(rd, rt.rm(), rs);
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
     BlockTrampolinePoolScope block_trampoline_pool(this);
     DCHECK(rs != scratch);
-    li(scratch, rt);
-    slt(rd, scratch, rs);
+    RV_li(scratch, rt.immediate());
+    RV_slt(rd, scratch, rs);
   }
 }
 
 void TurboAssembler::Sgtu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    sltu(rd, rt.rm(), rs);
+    RV_sltu(rd, rt.rm(), rs);
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
     BlockTrampolinePoolScope block_trampoline_pool(this);
     DCHECK(rs != scratch);
-    li(scratch, rt);
-    sltu(rd, scratch, rs);
+    RV_li(scratch, rt.immediate());
+    RV_sltu(rd, scratch, rs);
   }
 }
 
 void TurboAssembler::Ror(Register rd, Register rs, const Operand& rt) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  DCHECK(rs != scratch);
   if (rt.is_reg()) {
-    rotrv(rd, rs, rt.rm());
+    RV_negw(scratch, rt.rm());
+    RV_sllw(scratch, rs, scratch);
+    RV_srlw(rd, rs, rt.rm());
+    RV_or_(rd, scratch, rd);
+    RV_sext_w(rd, rd);
   } else {
     int64_t ror_value = rt.immediate() % 32;
     if (ror_value < 0) {
       ror_value += 32;
     }
-    rotr(rd, rs, ror_value);
+    RV_srliw(scratch, rs, ror_value);
+    RV_slliw(rd, rs, 32 - ror_value);
+    RV_or_(rd, scratch, rd);
+    RV_sext_w(rd, rd);
   }
 }
 
 void TurboAssembler::Dror(Register rd, Register rs, const Operand& rt) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  DCHECK(rs != scratch);
   if (rt.is_reg()) {
-    drotrv(rd, rs, rt.rm());
+    RV_negw(scratch, rt.rm());
+    RV_sll(scratch, rs, scratch);
+    RV_srl(rd, rs, rt.rm());
+    RV_or_(rd, scratch, rd);
   } else {
     int64_t dror_value = rt.immediate() % 64;
     if (dror_value < 0) dror_value += 64;
-    if (dror_value <= 31) {
-      drotr(rd, rs, dror_value);
-    } else {
-      drotr32(rd, rs, dror_value - 32);
-    }
+    RV_srli(scratch, rs, dror_value);
+    RV_slli(rd, rs, 64 - dror_value);
+    RV_or_(rd, scratch, rd);
   }
 }
 
-void MacroAssembler::Pref(int32_t hint, const MemOperand& rs) {
-  pref(hint, rs);
-}
+// void MacroAssembler::Pref(int32_t hint, const MemOperand& rs) {
+//   pref(hint, rs);
+// }
 
 void TurboAssembler::Lsa(Register rd, Register rt, Register rs, uint8_t sa,
                          Register scratch) {
   DCHECK(sa >= 1 && sa <= 31);
-  if (kArchVariant == kMips64r6 && sa <= 4) {
-    lsa(rd, rt, rs, sa - 1);
-  } else {
-    Register tmp = rd == rt ? scratch : rd;
-    DCHECK(tmp != rt);
-    sll(tmp, rs, sa);
-    Addu(rd, rt, tmp);
-  }
+  Register tmp = rd == rt ? scratch : rd;
+  DCHECK(tmp != rt);
+  RV_slliw(tmp, rs, sa);
+  Addu(rd, rt, tmp);
 }
 
 void TurboAssembler::Dlsa(Register rd, Register rt, Register rs, uint8_t sa,
                           Register scratch) {
   DCHECK(sa >= 1 && sa <= 31);
-  if (kArchVariant == kMips64r6 && sa <= 4) {
-    dlsa(rd, rt, rs, sa - 1);
-  } else {
-    Register tmp = rd == rt ? scratch : rd;
-    DCHECK(tmp != rt);
-    dsll(tmp, rs, sa);
-    Daddu(rd, rt, tmp);
-  }
-}
-
-void TurboAssembler::Bovc(Register rs, Register rt, Label* L) {
-  if (is_trampoline_emitted()) {
-    Label skip;
-    bnvc(rs, rt, &skip);
-    BranchLong(L, PROTECT);
-    bind(&skip);
-  } else {
-    bovc(rs, rt, L);
-  }
-}
-
-void TurboAssembler::Bnvc(Register rs, Register rt, Label* L) {
-  if (is_trampoline_emitted()) {
-    Label skip;
-    bovc(rs, rt, &skip);
-    BranchLong(L, PROTECT);
-    bind(&skip);
-  } else {
-    bnvc(rs, rt, L);
-  }
+  Register tmp = rd == rt ? scratch : rd;
+  DCHECK(tmp != rt);
+  RV_slli(tmp, rs, sa);
+  Daddu(rd, rt, tmp);
 }
 
 // ------------Pseudo-instructions-------------
 
-// Change endianness
-void TurboAssembler::ByteSwapSigned(Register dest, Register src,
-                                    int operand_size) {
-  DCHECK(operand_size == 2 || operand_size == 4 || operand_size == 8);
-  DCHECK(kArchVariant == kMips64r6 || kArchVariant == kMips64r2);
-  if (operand_size == 2) {
-    wsbh(dest, src);
-    seh(dest, dest);
-  } else if (operand_size == 4) {
-    wsbh(dest, src);
-    rotr(dest, dest, 16);
-  } else {
-    dsbh(dest, src);
-    dshd(dest, dest);
-  }
-}
-
-void TurboAssembler::ByteSwapUnsigned(Register dest, Register src,
-                                      int operand_size) {
-  DCHECK(operand_size == 2 || operand_size == 4);
-  if (operand_size == 2) {
-    wsbh(dest, src);
-    andi(dest, dest, 0xFFFF);
-  } else {
-    wsbh(dest, src);
-    rotr(dest, dest, 16);
-    dinsu_(dest, zero_reg, 32, 32);
-  }
-}
-
 void TurboAssembler::Ulw(Register rd, const MemOperand& rs) {
   DCHECK(rd != t3);
   DCHECK(rs.rm() != t3);
-  if (kArchVariant == kMips64r6) {
-    Lw(rd, rs);
-  } else {
-    DCHECK_EQ(kArchVariant, kMips64r2);
-    DCHECK(kMipsLwrOffset <= 3 && kMipsLwlOffset <= 3);
-    MemOperand source = rs;
-    // Adjust offset for two accesses and check if offset + 3 fits into int16_t.
-    AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 3);
-    if (rd != source.rm()) {
-      lwr(rd, MemOperand(source.rm(), source.offset() + kMipsLwrOffset));
-      lwl(rd, MemOperand(source.rm(), source.offset() + kMipsLwlOffset));
-    } else {
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      lwr(scratch, MemOperand(rs.rm(), rs.offset() + kMipsLwrOffset));
-      lwl(scratch, MemOperand(rs.rm(), rs.offset() + kMipsLwlOffset));
-      mov(rd, scratch);
+  MemOperand source = rs;
+  // Adjust offset for two accesses and check if offset + 3 fits into int12.
+  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 3);
+  if (rd != source.rm()) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    RV_lb(rd, source.rm(), source.offset() + 3);
+    RV_slli(rd, rd, 24);
+    for (size_t i = 2; i >= 0; i++) {
+      RV_lbu(scratch, source.rm(), source.offset() + i);
+      RV_slli(scratch, scratch, i * 8);
+      RV_or_(rd, rd, scratch);
     }
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    RV_lbu(scratch, source.rm(), source.offset());
+    for (size_t i = 1; i < 3; i++) {
+      RV_lbu(t5, source.rm(), source.offset() + i);
+      RV_slli(t5, t5, i * 8);
+      RV_or_(scratch, scratch, t5);
+    }
+    RV_sext_w(rd, scratch);
   }
 }
 
 void TurboAssembler::Ulwu(Register rd, const MemOperand& rs) {
-  if (kArchVariant == kMips64r6) {
-    Lwu(rd, rs);
+  DCHECK(rd != t3);
+  DCHECK(rs.rm() != t3);
+  MemOperand source = rs;
+  // Adjust offset for two accesses and check if offset + 3 fits into int12.
+  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 3);
+  if (rd != source.rm()) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    RV_lbu(rd, source.rm(), source.offset());
+    for (size_t i = 1; i < 3; i++) {
+      RV_lbu(scratch, source.rm(), source.offset() + i);
+      RV_slli(scratch, scratch, i * 8);
+      RV_or_(rd, rd, scratch);
+    }
   } else {
-    DCHECK_EQ(kArchVariant, kMips64r2);
-    Ulw(rd, rs);
-    Dext(rd, rd, 0, 32);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    RV_lbu(scratch, source.rm(), source.offset());
+    for (size_t i = 1; i < 3; i++) {
+      RV_lbu(t5, source.rm(), source.offset() + i);
+      RV_slli(t5, t5, i * 8);
+      RV_or_(scratch, scratch, t5);
+    }
+    RV_mv(rd, scratch);
   }
 }
 
@@ -1195,16 +940,15 @@ void TurboAssembler::Usw(Register rd, const MemOperand& rs) {
   DCHECK(rd != t3);
   DCHECK(rs.rm() != t3);
   DCHECK(rd != rs.rm());
-  if (kArchVariant == kMips64r6) {
-    Sw(rd, rs);
-  } else {
-    DCHECK_EQ(kArchVariant, kMips64r2);
-    DCHECK(kMipsSwrOffset <= 3 && kMipsSwlOffset <= 3);
-    MemOperand source = rs;
-    // Adjust offset for two accesses and check if offset + 3 fits into int16_t.
-    AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 3);
-    swr(rd, MemOperand(source.rm(), source.offset() + kMipsSwrOffset));
-    swl(rd, MemOperand(source.rm(), source.offset() + kMipsSwlOffset));
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  MemOperand source = rs;
+  // Adjust offset for two accesses and check if offset + 3 fits into int16_t.
+  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 3);
+  RV_sb(rd, source.rm(), source.offset());
+  for (size_t i = 0; i < 3; i++) {
+    RV_srliw(scratch, rd, i * 8);
+    RV_sb(scratch, source.rm(), source.offset() + i);
   }
 }
 

@@ -710,6 +710,42 @@ TEST(RISCV7) {
   CHECK_EQ(1, t.result);
 }
 
+TEST(TARGET_ADDR) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  // This is the series of instructions to load 0x123456789abcdef0
+  uint32_t buffer[8] = {0x01234237, 0x5682021b, 0x00c21213, 0x89b20213,
+                        0x00c21213, 0xbce20213, 0x00c21213, 0xef020213};
+
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  uintptr_t addr = reinterpret_cast<uintptr_t>(&buffer[0]);
+  Address res = __ target_address_at(static_cast<Address>(addr));
+
+  CHECK_EQ(0x123456789abcdef0L, res);
+}
+
+TEST(SET_TARGET_ADDR) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  // This is the series of instructions to load 0x123456789abcdef0
+  uint32_t buffer[8] = {0x01234237, 0x5682021b, 0x00c21213, 0x89b20213,
+                        0x00c21213, 0xbce20213, 0x00c21213, 0xef020213};
+
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  uintptr_t addr = reinterpret_cast<uintptr_t>(&buffer[0]);
+  __ set_target_value_at(static_cast<Address>(addr), 0xfedcba9876543210, FLUSH_ICACHE_IF_NEEDED);
+  Address res = __ target_address_at(static_cast<Address>(addr));
+
+  CHECK_EQ(0xfedcba9876543210, res);
+}
+
+
 #undef __
 
 }  // namespace internal

@@ -570,16 +570,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Neg_d(FPURegister fd, FPURegister fs);
 
   // MIPS64 R6 instruction macros.
-  void Bovc(Register rt, Register rs, Label* L);
-  void Bnvc(Register rt, Register rs, Label* L);
 
   // Convert single to unsigned word.
   void Trunc_uw_s(FPURegister fd, FPURegister fs, FPURegister scratch);
   void Trunc_uw_s(Register rd, FPURegister fs, FPURegister scratch);
-
-  // Change endianness
-  void ByteSwapSigned(Register dest, Register src, int operand_size);
-  void ByteSwapUnsigned(Register dest, Register src, int operand_size);
 
   void Ulh(Register rd, const MemOperand& rs);
   void Ulhu(Register rd, const MemOperand& rs);
@@ -954,7 +948,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK);
 
-  void Pref(int32_t hint, const MemOperand& rs);
+  // void Pref(int32_t hint, const MemOperand& rs);
 
   // ---------------------------------------------------------------------------
   // Pseudo-instructions.

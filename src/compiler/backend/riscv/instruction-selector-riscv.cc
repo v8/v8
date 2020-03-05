@@ -89,7 +89,7 @@ class Mips64OperandGenerator final : public OperandGenerator {
       case kMips64Or:
       case kMips64Tst:
       case kMips64Xor:
-        return is_uint16(value);
+        return is_int12(value);
       case kMips64Lb:
       case kMips64Lbu:
       case kMips64Sb:
@@ -106,7 +106,7 @@ class Mips64OperandGenerator final : public OperandGenerator {
       case kMips64Sdc1:
         return is_int32(value);
       default:
-        return is_int16(value);
+        return is_int12(value);
     }
   }
 
@@ -850,17 +850,9 @@ void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitWord64ReverseBits(Node* node) { UNREACHABLE(); }
 
-void InstructionSelector::VisitWord64ReverseBytes(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64ByteSwap64, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
-}
+void InstructionSelector::VisitWord64ReverseBytes(Node* node) { UNREACHABLE(); }
 
-void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64ByteSwap32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
-}
+void InstructionSelector::VisitWord32ReverseBytes(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitSimd128ReverseBytes(Node* node) {
   UNREACHABLE();
