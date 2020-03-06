@@ -2218,6 +2218,14 @@ class FunctionLiteral final : public Expression {
     return RequiresInstanceMembersInitializer::decode(bit_field_);
   }
 
+  void set_has_static_private_methods_or_accessors(bool value) {
+    bit_field_ =
+        HasStaticPrivateMethodsOrAccessorsField::update(bit_field_, value);
+  }
+  bool has_static_private_methods_or_accessors() const {
+    return HasStaticPrivateMethodsOrAccessorsField::decode(bit_field_);
+  }
+
   void set_class_scope_has_private_brand(bool value) {
     bit_field_ = ClassScopeHasPrivateBrandField::update(bit_field_, value);
   }
@@ -2277,7 +2285,9 @@ class FunctionLiteral final : public Expression {
       DontOptimizeReasonField::Next<bool, 1>;
   using ClassScopeHasPrivateBrandField =
       RequiresInstanceMembersInitializer::Next<bool, 1>;
-  using HasBracesField = ClassScopeHasPrivateBrandField::Next<bool, 1>;
+  using HasStaticPrivateMethodsOrAccessorsField =
+      ClassScopeHasPrivateBrandField::Next<bool, 1>;
+  using HasBracesField = HasStaticPrivateMethodsOrAccessorsField::Next<bool, 1>;
   using OneshotIIFEBit = HasBracesField::Next<bool, 1>;
 
   // expected_property_count_ is the sum of instance fields and properties.

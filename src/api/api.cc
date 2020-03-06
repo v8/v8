@@ -9325,6 +9325,34 @@ MaybeLocal<Array> debug::GetInternalProperties(Isolate* v8_isolate,
   return Utils::ToLocal(result);
 }
 
+namespace {
+void CollectPrivateMethodsAndAccessorsFromContext(
+    i::Isolate* isolate, i::Handle<i::Context> context,
+    i::IsStaticFlag is_static_flag, std::vector<Local<Value>>* names_out,
+    std::vector<Local<Value>>* values_out) {
+  i::Handle<i::ScopeInfo> scope_info(context->scope_info(), isolate);
+  int local_count = scope_info->ContextLocalCount();
+  for (int j = 0; j < local_count; ++j) {
+    i::VariableMode mode = scope_info->ContextLocalMode(j);
+    i::IsStaticFlag flag = scope_info->ContextLocalIsStaticFlag(j);
+    if (!i::IsPrivateMethodOrAccessorVariableMode(mode) ||
+        flag != is_static_flag) {
+      continue;
+    }
+
+    i::Handle<i::String> name(scope_info->ContextLocalName(j), isolate);
+    int context_index = scope_info->ContextHeaderLength() + j;
+    i::Handle<i::Object> slot_value(context->get(context_index), isolate);
+    DCHECK_IMPLIES(mode == i::VariableMode::kPrivateMethod,
+                   slot_value->IsJSFunction());
+    DCHECK_IMPLIES(mode != i::VariableMode::kPrivateMethod,
+                   slot_value->IsAccessorPair());
+    names_out->push_back(Utils::ToLocal(name));
+    values_out->push_back(Utils::ToLocal(slot_value));
+  }
+}
+}  // anonymous namespace
+
 bool debug::GetPrivateMembers(Local<Context> context, Local<Object> value,
                               std::vector<Local<Value>>* names_out,
                               std::vector<Local<Value>>* values_out) {
@@ -9345,7 +9373,7 @@ bool debug::GetPrivateMembers(Local<Context> context, Local<Object> value,
                                  i::GetKeysConversion::kConvertToString),
       false);
 
-  // Estimate number of private entries to return in the FixedArray.
+  // Estimate number of private fields and private instance methods/accessors.
   int private_entries_count = 0;
   for (int i = 0; i < keys->length(); ++i) {
     // Exclude the private brand symbols.
@@ -9365,10 +9393,42 @@ bool debug::GetPrivateMembers(Local<Context> context, Local<Object> value,
     }
   }
 
+  // Estimate number of static private methods/accessors for classes.
+  bool has_static_private_methods_or_accessors = false;
+  if (receiver->IsJSFunction()) {
+    i::Handle<i::JSFunction> func(i::JSFunction::cast(*receiver), isolate);
+    i::Handle<i::SharedFunctionInfo> shared(func->shared(), isolate);
+    if (shared->is_class_constructor() &&
+        shared->has_static_private_methods_or_accessors()) {
+      has_static_private_methods_or_accessors = true;
+      i::Handle<i::Context> context(func->context(), isolate);
+      i::Handle<i::ScopeInfo> scope_info(context->scope_info(), isolate);
+      int local_count = scope_info->ContextLocalCount();
+      for (int j = 0; j < local_count; ++j) {
+        i::VariableMode mode = scope_info->ContextLocalMode(j);
+        i::IsStaticFlag is_static_flag =
+            scope_info->ContextLocalIsStaticFlag(j);
+        if (i::IsPrivateMethodOrAccessorVariableMode(mode) &&
+            is_static_flag == i::IsStaticFlag::kStatic) {
+          private_entries_count += local_count;
+          break;
+        }
+      }
+    }
+  }
+
   DCHECK(names_out->empty());
   names_out->reserve(private_entries_count);
   DCHECK(values_out->empty());
   values_out->reserve(private_entries_count);
+
+  if (has_static_private_methods_or_accessors) {
+    i::Handle<i::Context> context(i::JSFunction::cast(*receiver).context(),
+                                  isolate);
+    CollectPrivateMethodsAndAccessorsFromContext(
+        isolate, context, i::IsStaticFlag::kStatic, names_out, values_out);
+  }
+
   for (int i = 0; i < keys->length(); ++i) {
     i::Handle<i::Object> obj_key(keys->get(i), isolate);
     i::Handle<i::Symbol> key(i::Symbol::cast(*obj_key), isolate);
@@ -9380,25 +9440,8 @@ bool debug::GetPrivateMembers(Local<Context> context, Local<Object> value,
     if (key->is_private_brand()) {
       DCHECK(value->IsContext());
       i::Handle<i::Context> context(i::Context::cast(*value), isolate);
-      i::Handle<i::ScopeInfo> scope_info(context->scope_info(), isolate);
-      int local_count = scope_info->ContextLocalCount();
-
-      for (int j = 0; j < local_count; ++j) {
-        i::VariableMode mode = scope_info->ContextLocalMode(j);
-        if (!i::IsPrivateMethodOrAccessorVariableMode(mode)) {
-          continue;
-        }
-
-        i::Handle<i::String> name(scope_info->ContextLocalName(j), isolate);
-        int context_index = scope_info->ContextHeaderLength() + j;
-        i::Handle<i::Object> slot_value(context->get(context_index), isolate);
-        DCHECK_IMPLIES(mode == i::VariableMode::kPrivateMethod,
-                       slot_value->IsJSFunction());
-        DCHECK_IMPLIES(mode != i::VariableMode::kPrivateMethod,
-                       slot_value->IsAccessorPair());
-        names_out->push_back(Utils::ToLocal(name));
-        values_out->push_back(Utils::ToLocal(slot_value));
-      }
+      CollectPrivateMethodsAndAccessorsFromContext(
+          isolate, context, i::IsStaticFlag::kNotStatic, names_out, values_out);
     } else {  // Private fields
       i::Handle<i::String> name(
           i::String::cast(i::Symbol::cast(*key).description()), isolate);

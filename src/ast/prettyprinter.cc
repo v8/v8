@@ -831,6 +831,9 @@ const char* AstPrinter::PrintProgram(FunctionLiteral* program) {
     if (program->class_scope_has_private_brand()) {
       Print(" CLASS SCOPE HAS PRIVATE BRAND\n");
     }
+    if (program->has_static_private_methods_or_accessors()) {
+      Print(" HAS STATIC PRIVATE METHODS\n");
+    }
     PrintParameters(program->scope());
     PrintDeclarations(program->scope()->declarations());
     PrintStatements(program->body());

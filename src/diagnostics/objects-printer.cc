@@ -1368,6 +1368,9 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   if (class_scope_has_private_brand()) {
     os << "\n - class_scope_has_private_brand";
   }
+  if (has_static_private_methods_or_accessors()) {
+    os << "\n - has_static_private_methods_or_accessors";
+  }
   os << "\n - kind: " << kind();
   os << "\n - syntax kind: " << syntax_kind();
   if (needs_home_object()) {

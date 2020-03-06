@@ -95,6 +95,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_requires_instance_members_initializer)
   FLAG_ACCESSOR(kClassScopeHasPrivateBrand, class_scope_has_private_brand,
                 set_class_scope_has_private_brand)
+  FLAG_ACCESSOR(kHasStaticPrivateMethodsOrAccessors,
+                has_static_private_methods_or_accessors,
+                set_has_static_private_methods_or_accessors)
   FLAG_ACCESSOR(kMightAlwaysOpt, might_always_opt, set_might_always_opt)
   FLAG_ACCESSOR(kAllowNativeSyntax, allow_natives_syntax,
                 set_allow_natives_syntax)
@@ -328,7 +331,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kAllowHarmonyDynamicImport = 1u << 21,
     kAllowHarmonyImportMeta = 1u << 22,
     kAllowHarmonyOptionalChaining = 1u << 23,
-    kAllowHarmonyPrivateFields = 1u << 24,
+    kHasStaticPrivateMethodsOrAccessors = 1u << 24,
     kAllowHarmonyPrivateMethods = 1u << 25,
     kIsOneshotIIFE = 1u << 26,
     kCollectSourcePositions = 1u << 27,

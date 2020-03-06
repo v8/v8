@@ -5,137 +5,119 @@
 // Flags: --harmony-private-methods
 
 let { session, contextGroup, Protocol } = InspectorTest.start(
-  "Test private class methods"
+  "Test static private class methods"
 );
 
-contextGroup.addScript(`
+const script = `
 function run() {
   class A {
-    #field = 2;
-
-    static #staticMethod() {}  // should not show up
-    static get #staticAccessor() { }  // should not show up
-    static set #staticAccessor(val) { }  // should not show up
-
-    #inc() { this.#field++; return this.#field; }
-
-    set #writeOnly(val) { this.#field = val; }
-
-    get #readOnly() { return this.#field; }
-
-    get #accessor() { return this.#field; }
-    set #accessor(val) { this.#field = val; }
-
-    fn() {
+    static test() {
       debugger;
     }
-  };
-  const a = new A();
-  a.fn();
+    static #field = 2;
+    #instanceMethod() { }  // should not show up
+    get #instanceAccessor() { return this.#field; }  // should not show up
+    set #instanceAccessor(val) { this.#field = val; }  // should not show up
 
+    static set #writeOnly(val) { this.#field = val; }
+    static get #readOnly() { return this.#field; }
+    static get #accessor() { return this.#field; }
+    static set #accessor(val) { this.#field = val; }
+    static #inc() { return ++A.#accessor; }
+  };
+  A.test();
 
   class B extends A {
-    #subclassMethod() { return 'subclassMethod'; }
-    #inc() { return 'subclass #inc'; }
-    test() { debugger; }
+    static get #accessor() { return 'subclassAccessor'; }
+    static #subclassMethod() { return B.#accessor; }
+    static test() {
+      debugger;
+    }
   }
 
-  const b = new B();
-  b.fn();
-  b.test();
-}`);
+  B.test();
+}`;
+
+contextGroup.addScript(script);
 
 InspectorTest.runAsyncTestSuite([
   async function testScopesPaused() {
     Protocol.Debugger.enable();
-    Protocol.Runtime.evaluate({ expression: "run()" });
 
+    // Do not await here, instead oncePaused should be awaited.
+    Protocol.Runtime.evaluate({ expression: 'run()' });
+
+    InspectorTest.log('privateProperties on the base class');
     let {
       params: { callFrames }
-    } = await Protocol.Debugger.oncePaused(); // inside a.fn()
+    } = await Protocol.Debugger.oncePaused(); // inside A.test()
     let frame = callFrames[0];
     let { result } = await Protocol.Runtime.getProperties({
       objectId: frame.this.objectId
     });
-
-    InspectorTest.log('privateProperties on the base class instance');
     InspectorTest.logMessage(result.privateProperties);
 
+    // TODO(joyee): make it possible to desugar the brand check, which requires
+    // the class variable to be saved, even when the static private
+    // methods/accessors are not referenced in the class body.
+    InspectorTest.log('Evaluating A.#inc();');
+    ({ result } = await Protocol.Debugger.evaluateOnCallFrame({
+      expression: 'A.#inc();',
+      callFrameId: callFrames[0].callFrameId
+    }));
+    InspectorTest.logObject(result);
+
+    InspectorTest.log('Evaluating this.#inc();');
     ({ result } = await Protocol.Debugger.evaluateOnCallFrame({
       expression: 'this.#inc();',
       callFrameId: callFrames[0].callFrameId
     }));
-
-    InspectorTest.log('Evaluating private methods');
     InspectorTest.logObject(result);
 
-    ({ result } = await Protocol.Debugger.evaluateOnCallFrame({
-      expression: 'this.#inc();',
-      callFrameId: callFrames[0].callFrameId
-    }));
-
-    InspectorTest.log('Evaluating private methods');
-    InspectorTest.logObject(result);
-
+    InspectorTest.log('Evaluating ++this.#accessor;');
     ({ result } = await Protocol.Debugger.evaluateOnCallFrame({
       expression: '++this.#accessor;',
       callFrameId: callFrames[0].callFrameId
     }));
-
-    InspectorTest.log('Evaluating private accessors');
     InspectorTest.logObject(result);
 
+    InspectorTest.log('Evaluating this.#readOnly;');
     ({ result } = await Protocol.Debugger.evaluateOnCallFrame({
       expression: 'this.#readOnly;',
       callFrameId: callFrames[0].callFrameId
     }));
-
-    InspectorTest.log('Evaluating read-only accessor');
     InspectorTest.logObject(result);
 
+    InspectorTest.log('Evaluating this.#writeOnly = 0; this.#field;');
     ({ result } = await Protocol.Debugger.evaluateOnCallFrame({
       expression: 'this.#writeOnly = 0; this.#field;',
       callFrameId: callFrames[0].callFrameId
     }));
-
-    InspectorTest.log('Evaluating write-only accessor');
     InspectorTest.logObject(result);
 
     Protocol.Debugger.resume();
-    ({ params: { callFrames }  } = await Protocol.Debugger.oncePaused());  // b.fn();
+    ({ params: { callFrames } } = await Protocol.Debugger.oncePaused());  // B.test();
     frame = callFrames[0];
 
+    InspectorTest.log('privateProperties on the subclass');
     ({ result } = await Protocol.Runtime.getProperties({
       objectId: frame.this.objectId
     }));
-    InspectorTest.log('privateProperties on the subclass instance');
     InspectorTest.logMessage(result.privateProperties);
 
-    ({ result } = await Protocol.Debugger.evaluateOnCallFrame({
-      expression: 'this.#subclassMethod();',
-      callFrameId: callFrames[0].callFrameId
-    }));
-
-    InspectorTest.log('Evaluating private methods in the base class from the subclass');
-    InspectorTest.logMessage(result);
-
-    Protocol.Debugger.resume();
-    ({ params: { callFrames }  } = await Protocol.Debugger.oncePaused());  // b.test();
-    ({ result } = await Protocol.Debugger.evaluateOnCallFrame({
-      expression: 'this.#subclassMethod();',
-      callFrameId: callFrames[0].callFrameId
-    }));
-
-    InspectorTest.log('Evaluating private method in the subclass from the subclass');
-    InspectorTest.logObject(result);
-
+    InspectorTest.log('Evaluating this.#inc(); from the base class');
     ({ result } = await Protocol.Debugger.evaluateOnCallFrame({
       expression: 'this.#inc();',
       callFrameId: callFrames[0].callFrameId
     }));
+    InspectorTest.logMessage(result);
 
-    InspectorTest.log('Evaluating private method shadowing the base class method');
-    InspectorTest.logObject(result);
+    InspectorTest.log('Evaluating this.#subclassMethod();');
+    ({ result } = await Protocol.Debugger.evaluateOnCallFrame({
+      expression: 'this.#subclassMethod();',
+      callFrameId: callFrames[0].callFrameId
+    }));
+    InspectorTest.logMessage(result);
 
     Protocol.Debugger.resume();
     Protocol.Debugger.disable();
