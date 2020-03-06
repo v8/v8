@@ -648,9 +648,6 @@
   # BUG(v8:9337).
   'compiler/regress-9017': [SKIP],
 
-  # BUG(v8:10307).
-  'wasm/liftoff-simd-params': [SKIP],
-
   # Slow tests.
   'array-sort': [PASS, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],

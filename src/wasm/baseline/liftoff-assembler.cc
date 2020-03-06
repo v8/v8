@@ -214,6 +214,10 @@ class StackTransferRecipe {
           RegisterLoad::HalfStack(stack_offset, kHighWord);
     } else if (dst.is_fp_pair()) {
       DCHECK_EQ(kWasmS128, type);
+      // load_dst_regs_.set above will set both low and high fp regs.
+      // But unlike gp_pair, we load a kWasm128 in one go in ExecuteLoads.
+      // So unset the top fp register to skip loading it.
+      load_dst_regs_.clear(dst.high());
       *register_load(dst.low()) = RegisterLoad::Stack(stack_offset, type);
     } else {
       *register_load(dst) = RegisterLoad::Stack(stack_offset, type);
