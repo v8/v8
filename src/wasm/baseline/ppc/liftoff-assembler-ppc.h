@@ -542,6 +542,11 @@ void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
   bailout(kUnsupportedArchitecture, "emit_f32x4_splat");
 }
 
+void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_f32x4add");
+}
+
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   bailout(kUnsupportedArchitecture, "emit_i64x2splat");
@@ -552,9 +557,19 @@ void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
   bailout(kUnsupportedArchitecture, "emit_i32x4_splat");
 }
 
+void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i32x4add");
+}
+
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   bailout(kUnsupportedArchitecture, "emit_i16x8splat");
+}
+
+void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i16x8add");
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
