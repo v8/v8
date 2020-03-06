@@ -661,8 +661,14 @@ class LiftoffCompiler {
       EmitBreakpoint(decoder);
     }
     TraceCacheState(decoder);
+#ifdef DEBUG
     SLOW_DCHECK(__ ValidateCacheState());
+    if (WasmOpcodes::IsPrefixOpcode(opcode)) {
+      byte op_index = *(decoder->pc() + 1);
+      opcode = static_cast<WasmOpcode>(opcode << 8 | op_index);
+    }
     DEBUG_CODE_COMMENT(WasmOpcodes::OpcodeName(opcode));
+#endif
   }
 
   void EmitBreakpoint(FullDecoder* decoder) {
