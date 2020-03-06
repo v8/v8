@@ -583,8 +583,7 @@ double InternalStringToDouble(Iterator current, EndMark end, int flags,
 
   // The longest form of simplified number is: "-<significant digits>'.1eXXX\0".
   const int kBufferSize = kMaxSignificantDigits + 10;
-  // Avoid slowdown in js-perf-test/Numbers. See crbug.com/1055317.
-  V8_STACK_UNINITIALIZED char buffer[kBufferSize];
+  char buffer[kBufferSize];
   int buffer_pos = 0;
 
   // Exponent will be adjusted if insignificant digits of the integer part

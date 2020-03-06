@@ -2795,10 +2795,8 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
 
   Handle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
                                       isolate);
-  // Initialization significantly slows down indexed-getter.html of
-  // blink_perf.bindings on linux-perf. https://crbug.com/977230
-  V8_STACK_UNINITIALIZED PropertyCallbackArguments arguments(
-      isolate, interceptor->data(), *receiver, *receiver, Just(kDontThrow));
+  PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
+                                      *receiver, Just(kDontThrow));
   Handle<Object> result = arguments.CallIndexedGetter(interceptor, index);
 
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);

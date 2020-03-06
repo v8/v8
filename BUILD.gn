@@ -2984,12 +2984,15 @@ v8_source_set("v8_base_without_compiler") {
     "src/utils/version.cc",
     "src/utils/version.h",
     "src/wasm/baseline/liftoff-assembler-defs.h",
+    "src/wasm/baseline/liftoff-assembler.cc",
     "src/wasm/baseline/liftoff-assembler.h",
+    "src/wasm/baseline/liftoff-compiler.cc",
     "src/wasm/baseline/liftoff-compiler.h",
     "src/wasm/baseline/liftoff-register.h",
     "src/wasm/compilation-environment.h",
     "src/wasm/decoder.h",
     "src/wasm/function-body-decoder-impl.h",
+    "src/wasm/function-body-decoder.cc",
     "src/wasm/function-body-decoder.h",
     "src/wasm/function-compiler.cc",
     "src/wasm/function-compiler.h",
@@ -3405,7 +3408,6 @@ v8_source_set("v8_base_without_compiler") {
     ":v8_libbase",
     ":v8_libsampler",
     ":v8_shared_internal_headers",
-    ":v8_uninitialized",
     ":v8_version",
     "src/inspector:inspector",
   ]
@@ -3497,27 +3499,6 @@ v8_source_set("v8_base_without_compiler") {
     ]
     deps += [ "src/third_party/vtune:v8_vtune_trace_mark" ]
   }
-}
-
-# Disable -ftrivial-auto-var-init=pattern for this sources. Initialization
-# can increase v8/Wasm validation time. See crbug.com/1055312.
-v8_source_set("v8_uninitialized") {
-  visibility = [ ":*" ]
-
-  sources = [
-    "src/wasm/baseline/liftoff-assembler.cc",
-    "src/wasm/baseline/liftoff-compiler.cc",
-    "src/wasm/function-body-decoder.cc",
-  ]
-
-  public_deps = [
-    ":generate_bytecode_builtins_list",
-    ":run_torque",
-    ":v8_maybe_icu",
-  ]
-
-  remove_configs = [ "//build/config/compiler:default_init_stack_vars" ]
-  configs = [ ":internal_config" ]
 }
 
 group("v8_base") {

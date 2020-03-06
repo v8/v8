@@ -115,6 +115,13 @@ if (is_debug && !v8_optimized_debug) {
   }
 }
 
+if (!is_debug) {
+  v8_remove_configs += [
+    # Too much performance impact, unclear security benefit.
+    "//build/config/compiler:default_init_stack_vars",
+  ]
+}
+
 if (v8_code_coverage && !is_clang) {
   v8_add_configs += [
     v8_path_prefix + ":v8_gcov_coverage_cflags",
