@@ -347,7 +347,8 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             if (unicode()) {
               ZoneList<CharacterRange>* ranges =
                   new (zone()) ZoneList<CharacterRange>(2, zone());
-              std::vector<char> name_1, name_2;
+              ZoneVector<char> name_1(zone());
+              ZoneVector<char> name_2(zone());
               if (ParsePropertyClassName(&name_1, &name_2)) {
                 if (AddPropertyClassRange(ranges, p == 'P', name_1, name_2)) {
                   RegExpCharacterClass* cc = new (zone())
@@ -1385,8 +1386,8 @@ bool IsUnicodePropertyValueCharacter(char c) {
 
 }  // anonymous namespace
 
-bool RegExpParser::ParsePropertyClassName(std::vector<char>* name_1,
-                                          std::vector<char>* name_2) {
+bool RegExpParser::ParsePropertyClassName(ZoneVector<char>* name_1,
+                                          ZoneVector<char>* name_2) {
   DCHECK(name_1->empty());
   DCHECK(name_2->empty());
   // Parse the property class as follows:
@@ -1425,8 +1426,8 @@ bool RegExpParser::ParsePropertyClassName(std::vector<char>* name_1,
 
 bool RegExpParser::AddPropertyClassRange(ZoneList<CharacterRange>* add_to,
                                          bool negate,
-                                         const std::vector<char>& name_1,
-                                         const std::vector<char>& name_2) {
+                                         const ZoneVector<char>& name_1,
+                                         const ZoneVector<char>& name_2) {
   if (name_2.empty()) {
     // First attempt to interpret as general category property value name.
     const char* name = name_1.data();
@@ -1463,7 +1464,7 @@ bool RegExpParser::AddPropertyClassRange(ZoneList<CharacterRange>* add_to,
   }
 }
 
-RegExpTree* RegExpParser::GetPropertySequence(const std::vector<char>& name_1) {
+RegExpTree* RegExpParser::GetPropertySequence(const ZoneVector<char>& name_1) {
   if (!FLAG_harmony_regexp_sequence) return nullptr;
   const char* name = name_1.data();
   const uc32* sequence_list = nullptr;
@@ -1529,19 +1530,19 @@ RegExpTree* RegExpParser::GetPropertySequence(const std::vector<char>& name_1) {
 
 #else  // V8_INTL_SUPPORT
 
-bool RegExpParser::ParsePropertyClassName(std::vector<char>* name_1,
-                                          std::vector<char>* name_2) {
+bool RegExpParser::ParsePropertyClassName(ZoneVector<char>* name_1,
+                                          ZoneVector<char>* name_2) {
   return false;
 }
 
 bool RegExpParser::AddPropertyClassRange(ZoneList<CharacterRange>* add_to,
                                          bool negate,
-                                         const std::vector<char>& name_1,
-                                         const std::vector<char>& name_2) {
+                                         const ZoneVector<char>& name_1,
+                                         const ZoneVector<char>& name_2) {
   return false;
 }
 
-RegExpTree* RegExpParser::GetPropertySequence(const std::vector<char>& name) {
+RegExpTree* RegExpParser::GetPropertySequence(const ZoneVector<char>& name) {
   return nullptr;
 }
 
@@ -1710,7 +1711,8 @@ void RegExpParser::ParseClassEscape(ZoneList<CharacterRange>* ranges,
         if (unicode()) {
           bool negate = Next() == 'P';
           Advance(2);
-          std::vector<char> name_1, name_2;
+          ZoneVector<char> name_1(zone);
+          ZoneVector<char> name_2(zone);
           if (!ParsePropertyClassName(&name_1, &name_2) ||
               !AddPropertyClassRange(ranges, negate, name_1, name_2)) {
             ReportError(CStrVector("Invalid property name in character class"));

@@ -252,7 +252,7 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
 #endif
     macro_assembler_ = macro_assembler;
 
-  std::vector<RegExpNode*> work_list;
+  ZoneVector<RegExpNode*> work_list(zone());
   work_list_ = &work_list;
   Label fail;
   macro_assembler_->PushBacktrack(&fail);
