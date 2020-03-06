@@ -862,10 +862,6 @@ static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
   return false;
 }
 
-using EmitCharacterFunction = bool(Isolate* isolate, RegExpCompiler* compiler,
-                                   uc16 c, Label* on_failure, int cp_offset,
-                                   bool check, bool preloaded);
-
 // Only emits letters (things that have case).  Only used for case independent
 // matches.
 static inline bool EmitAtomLetter(Isolate* isolate, RegExpCompiler* compiler,
@@ -2314,7 +2310,6 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler, TextEmitPassType pass,
       for (int j = preloaded ? 0 : quarks.length() - 1; j >= 0; j--) {
         if (first_element_checked && i == 0 && j == 0) continue;
         if (DeterminedAlready(quick_check, elm.cp_offset() + j)) continue;
-        EmitCharacterFunction* emit_function = nullptr;
         uc16 quark = quarks[j];
         if (elm.atom()->ignore_case()) {
           // Everywhere else we assume that a non-Latin-1 character cannot match
@@ -2322,6 +2317,9 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler, TextEmitPassType pass,
           // invalid by using the Latin1 equivalent instead.
           quark = unibrow::Latin1::TryConvertToLatin1(quark);
         }
+        bool needs_bounds_check =
+            *checked_up_to < cp_offset + j || read_backward();
+        bool bounds_checked = false;
         switch (pass) {
           case NON_LATIN1_MATCH:
             DCHECK(one_byte);
@@ -2331,24 +2329,24 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler, TextEmitPassType pass,
             }
             break;
           case NON_LETTER_CHARACTER_MATCH:
-            emit_function = &EmitAtomNonLetter;
+            bounds_checked =
+                EmitAtomNonLetter(isolate, compiler, quark, backtrack,
+                                  cp_offset + j, needs_bounds_check, preloaded);
             break;
           case SIMPLE_CHARACTER_MATCH:
-            emit_function = &EmitSimpleCharacter;
+            bounds_checked = EmitSimpleCharacter(isolate, compiler, quark,
+                                                 backtrack, cp_offset + j,
+                                                 needs_bounds_check, preloaded);
             break;
           case CASE_CHARACTER_MATCH:
-            emit_function = &EmitAtomLetter;
+            bounds_checked =
+                EmitAtomLetter(isolate, compiler, quark, backtrack,
+                               cp_offset + j, needs_bounds_check, preloaded);
             break;
           default:
             break;
         }
-        if (emit_function != nullptr) {
-          bool bounds_check = *checked_up_to < cp_offset + j || read_backward();
-          bool bound_checked =
-              emit_function(isolate, compiler, quark, backtrack, cp_offset + j,
-                            bounds_check, preloaded);
-          if (bound_checked) UpdateBoundsCheck(cp_offset + j, checked_up_to);
-        }
+        if (bounds_checked) UpdateBoundsCheck(cp_offset + j, checked_up_to);
       }
     } else {
       DCHECK_EQ(TextElement::CHAR_CLASS, elm.text_type());
