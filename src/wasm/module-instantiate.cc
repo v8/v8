@@ -673,7 +673,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
           reinterpret_cast<Address>(instance->memory_start()) + dest_offset;
       Address src_addr = reinterpret_cast<Address>(wire_bytes.begin()) +
                          segment.source.offset();
-      memory_copy_wrapper(dest_addr, src_addr, size);
+      memory_copy(dest_addr, src_addr, size);
     } else {
       DCHECK(segment.active);
       // Segments of size == 0 are just nops.

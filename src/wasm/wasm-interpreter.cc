@@ -1824,7 +1824,7 @@ class ThreadImpl {
         Address src_addr =
             instance_object_->data_segment_starts()[imm.data_segment_index] +
             src;
-        memory_copy_wrapper(dst_addr, src_addr, size);
+        memory_copy(dst_addr, src_addr, size);
         return true;
       }
       case kExprDataDrop: {
@@ -1850,7 +1850,7 @@ class ThreadImpl {
           return false;
         }
 
-        memory_copy_wrapper(dst_addr, src_addr, size);
+        memory_copy(dst_addr, src_addr, size);
         return true;
       }
       case kExprMemoryFill: {
