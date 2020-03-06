@@ -1477,14 +1477,9 @@ class MemoryAllocator {
 
   Isolate* isolate_;
 
-  // This object controls virtual space reserved for V8 heap instance.
-  // Depending on the configuration it may contain the following:
-  // - no reservation (on 32-bit architectures)
-  // - code range reservation used by bounded code page allocator (on 64-bit
-  //   architectures without pointers compression in V8 heap)
-  // - data + code range reservation (on 64-bit architectures with pointers
-  //   compression in V8 heap)
-  VirtualMemory heap_reservation_;
+  // This object controls virtual space reserved for code on the V8 heap. This
+  // is only valid for 64-bit architectures where kRequiresCodeRange.
+  VirtualMemory code_reservation_;
 
   // Page allocator used for allocating data pages. Depending on the
   // configuration it may be a page allocator instance provided by v8::Platform
@@ -1498,7 +1493,7 @@ class MemoryAllocator {
   // can be used for call and jump instructions).
   v8::PageAllocator* code_page_allocator_;
 
-  // A part of the |heap_reservation_| that may contain executable code
+  // A part of the |code_reservation_| that may contain executable code
   // including reserved page with read-write access in the beginning.
   // See details below.
   base::AddressRegion code_range_;
@@ -1507,9 +1502,9 @@ class MemoryAllocator {
   // that controls executable pages allocation. It does not control the
   // optionally existing page in the beginning of the |code_range_|.
   // So, summarizing all above, the following conditions hold:
-  // 1) |heap_reservation_| >= |code_range_|
+  // 1) |code_reservation_| >= |code_range_|
   // 2) |code_range_| >= |optional RW pages| + |code_page_allocator_instance_|.
-  // 3) |heap_reservation_| is AllocatePageSize()-aligned
+  // 3) |code_reservation_| is AllocatePageSize()-aligned
   // 4) |code_page_allocator_instance_| is MemoryChunk::kAlignment-aligned
   // 5) |code_range_| is CommitPageSize()-aligned
   std::unique_ptr<base::BoundedPageAllocator> code_page_allocator_instance_;
