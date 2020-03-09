@@ -6529,13 +6529,8 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
         jsgraph()->Constant(TYPE##_ELEMENTS -                          \
                             FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));   \
     control = graph()->NewNode(common()->Branch(), check, control);    \
-    if (should_disallow_heap_access()) {                               \
-      values.push_back(jsgraph()->Constant(                            \
-          broker()->GetTypedArrayStringTag(TYPE##_ELEMENTS)));         \
-    } else {                                                           \
-      values.push_back(jsgraph()->HeapConstant(                        \
-          factory()->InternalizeUtf8String(#Type "Array")));           \
-    }                                                                  \
+    values.push_back(jsgraph()->Constant(                              \
+        broker()->GetTypedArrayStringTag(TYPE##_ELEMENTS)));           \
     effects.push_back(effect);                                         \
     controls.push_back(graph()->NewNode(common()->IfTrue(), control)); \
     control = graph()->NewNode(common()->IfFalse(), control);          \

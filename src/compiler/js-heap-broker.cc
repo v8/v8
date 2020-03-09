@@ -2530,23 +2530,17 @@ void JSHeapBroker::CollectArrayAndObjectPrototypes() {
   CHECK(!array_and_object_prototypes_.empty());
 }
 
-void JSHeapBroker::SerializeTypedArrayStringTags() {
-#define TYPED_ARRAY_STRING_TAG(Type, type, TYPE, ctype)              \
-  do {                                                               \
-    ObjectData* data = GetOrCreateData(                              \
-        isolate()->factory()->InternalizeUtf8String(#Type "Array")); \
-    typed_array_string_tags_.push_back(data);                        \
-  } while (false);
-
-  TYPED_ARRAYS(TYPED_ARRAY_STRING_TAG)
-#undef TYPED_ARRAY_STRING_TAG
-}
-
 StringRef JSHeapBroker::GetTypedArrayStringTag(ElementsKind kind) {
   DCHECK(IsTypedArrayElementsKind(kind));
-  size_t idx = kind - FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
-  CHECK_LT(idx, typed_array_string_tags_.size());
-  return StringRef(this, typed_array_string_tags_[idx]);
+  switch (kind) {
+#define TYPED_ARRAY_STRING_TAG(Type, type, TYPE, ctype) \
+  case ElementsKind::TYPE##_ELEMENTS:                   \
+    return StringRef(this, isolate()->factory()->Type##Array_string());
+    TYPED_ARRAYS(TYPED_ARRAY_STRING_TAG)
+#undef TYPED_ARRAY_STRING_TAG
+    default:
+      UNREACHABLE();
+  }
 }
 
 bool JSHeapBroker::ShouldBeSerializedForCompilation(
@@ -2613,7 +2607,6 @@ void JSHeapBroker::InitializeAndStartSerializing(
   target_native_context().Serialize();
 
   CollectArrayAndObjectPrototypes();
-  SerializeTypedArrayStringTags();
 
   // Serialize Cells
   Factory* const f = isolate()->factory();
