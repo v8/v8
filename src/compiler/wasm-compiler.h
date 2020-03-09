@@ -565,6 +565,9 @@ class WasmGraphBuilder {
 
   CallDescriptor* GetI64AtomicWaitCallDescriptor();
 
+  Node* StoreArgsInStackSlot(
+      std::initializer_list<std::pair<MachineRepresentation, Node*>> args);
+
   std::unique_ptr<WasmGraphAssembler> gasm_;
   Zone* const zone_;
   MachineGraph* const mcgraph_;

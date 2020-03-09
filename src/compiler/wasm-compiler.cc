@@ -1750,14 +1750,7 @@ Node* WasmGraphBuilder::BuildI32AsmjsUConvertF64(Node* input) {
 
 Node* WasmGraphBuilder::BuildBitCountingCall(Node* input, ExternalReference ref,
                                              MachineRepresentation input_type) {
-  Node* stack_slot_param =
-      graph()->NewNode(mcgraph()->machine()->StackSlot(input_type));
-
-  const Operator* store_op = mcgraph()->machine()->Store(
-      StoreRepresentation(input_type, kNoWriteBarrier));
-  SetEffect(graph()->NewNode(store_op, stack_slot_param,
-                             mcgraph()->Int32Constant(0), input, effect(),
-                             control()));
+  Node* stack_slot_param = StoreArgsInStackSlot({{input_type, input}});
 
   MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
   MachineSignature sig(1, 1, sig_types);
@@ -1872,27 +1865,17 @@ Node* WasmGraphBuilder::BuildCFuncInstruction(ExternalReference ref,
   // parameters in this buffer slots, pass a pointer to the buffer to the C
   // function, and after calling the C function we collect the return value from
   // the buffer.
-
-  const int type_size = ElementSizeInBytes(type.representation());
-  const int stack_slot_bytes = (input1 == nullptr ? 1 : 2) * type_size;
-  Node* stack_slot =
-      graph()->NewNode(mcgraph()->machine()->StackSlot(stack_slot_bytes));
-
-  const Operator* store_op = mcgraph()->machine()->Store(
-      StoreRepresentation(type.representation(), kNoWriteBarrier));
-  SetEffect(graph()->NewNode(store_op, stack_slot, mcgraph()->Int32Constant(0),
-                             input0, effect(), control()));
-
-  Node* function = graph()->NewNode(mcgraph()->common()->ExternalConstant(ref));
-
-  if (input1 != nullptr) {
-    SetEffect(graph()->NewNode(store_op, stack_slot,
-                               mcgraph()->Int32Constant(type_size), input1,
-                               effect(), control()));
+  Node* stack_slot;
+  if (input1) {
+    stack_slot = StoreArgsInStackSlot(
+        {{type.representation(), input0}, {type.representation(), input1}});
+  } else {
+    stack_slot = StoreArgsInStackSlot({{type.representation(), input0}});
   }
 
   MachineType sig_types[] = {MachineType::Pointer()};
   MachineSignature sig(0, 1, sig_types);
+  Node* function = graph()->NewNode(mcgraph()->common()->ExternalConstant(ref));
   BuildCCall(&sig, function, stack_slot);
 
   return SetEffect(graph()->NewNode(mcgraph()->machine()->Load(type),
@@ -2538,15 +2521,8 @@ Node* WasmGraphBuilder::BuildDiv64Call(Node* left, Node* right,
                                        wasm::TrapReason trap_zero,
                                        wasm::WasmCodePosition position) {
   Node* stack_slot =
-      graph()->NewNode(mcgraph()->machine()->StackSlot(2 * sizeof(double)));
-
-  const Operator* store_op = mcgraph()->machine()->Store(
-      StoreRepresentation(MachineRepresentation::kWord64, kNoWriteBarrier));
-  SetEffect(graph()->NewNode(store_op, stack_slot, mcgraph()->Int32Constant(0),
-                             left, effect(), control()));
-  SetEffect(graph()->NewNode(store_op, stack_slot,
-                             mcgraph()->Int32Constant(sizeof(double)), right,
-                             effect(), control()));
+      StoreArgsInStackSlot({{MachineRepresentation::kWord64, left},
+                            {MachineRepresentation::kWord64, right}});
 
   MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
   MachineSignature sig(1, 1, sig_types);
@@ -4957,26 +4933,10 @@ Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
   Node* function = graph()->NewNode(mcgraph()->common()->ExternalConstant(
       ExternalReference::wasm_memory_copy()));
 
-  int stack_slot_bytes = kSystemPointerSize * 2 + sizeof(uint32_t);
   Node* stack_slot =
-      graph()->NewNode(mcgraph()->machine()->StackSlot(stack_slot_bytes));
-
-  SetEffect(graph()->NewNode(
-      mcgraph()->machine()->Store(StoreRepresentation(
-          MachineType::PointerRepresentation(), kNoWriteBarrier)),
-      stack_slot, mcgraph()->Int32Constant(0), dst, effect(), control()));
-
-  SetEffect(graph()->NewNode(
-      mcgraph()->machine()->Store(StoreRepresentation(
-          MachineType::PointerRepresentation(), kNoWriteBarrier)),
-      stack_slot, mcgraph()->Int32Constant(kSystemPointerSize), src, effect(),
-      control()));
-
-  SetEffect(graph()->NewNode(
-      mcgraph()->machine()->Store(
-          StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier)),
-      stack_slot, mcgraph()->Int32Constant(kSystemPointerSize * 2), size,
-      effect(), control()));
+      StoreArgsInStackSlot({{MachineType::PointerRepresentation(), dst},
+                            {MachineType::PointerRepresentation(), src},
+                            {MachineRepresentation::kWord32, size}});
 
   MachineType sig_types[] = {MachineType::Pointer()};
   MachineSignature sig(0, 1, sig_types);
@@ -4998,6 +4958,27 @@ Node* WasmGraphBuilder::DataDrop(uint32_t data_segment_index,
                        mcgraph()->Int32Constant(0), effect(), control()));
 }
 
+Node* WasmGraphBuilder::StoreArgsInStackSlot(
+    std::initializer_list<std::pair<MachineRepresentation, Node*>> args) {
+  int slot_size = 0;
+  for (auto arg : args) {
+    slot_size += ElementSizeInBytes(arg.first);
+  }
+  DCHECK_LT(0, slot_size);
+  Node* stack_slot =
+      graph()->NewNode(mcgraph()->machine()->StackSlot(slot_size));
+
+  int offset = 0;
+  for (auto arg : args) {
+    MachineRepresentation type = arg.first;
+    Node* value = arg.second;
+    gasm_->Store(StoreRepresentation(type, kNoWriteBarrier), stack_slot,
+                 mcgraph()->Int32Constant(offset), value);
+    offset += ElementSizeInBytes(type);
+  }
+  return stack_slot;
+}
+
 Node* WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
                                    wasm::WasmCodePosition position) {
   Node* dst_fail = BoundsCheckMemRange(&dst, &size, position);
@@ -5008,26 +4989,10 @@ Node* WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
   Node* function = graph()->NewNode(mcgraph()->common()->ExternalConstant(
       ExternalReference::wasm_memory_copy()));
 
-  int stack_slot_bytes = kSystemPointerSize * 2 + sizeof(uint32_t);
   Node* stack_slot =
-      graph()->NewNode(mcgraph()->machine()->StackSlot(stack_slot_bytes));
-
-  SetEffect(graph()->NewNode(
-      mcgraph()->machine()->Store(StoreRepresentation(
-          MachineType::PointerRepresentation(), kNoWriteBarrier)),
-      stack_slot, mcgraph()->Int32Constant(0), dst, effect(), control()));
-
-  SetEffect(graph()->NewNode(
-      mcgraph()->machine()->Store(StoreRepresentation(
-          MachineType::PointerRepresentation(), kNoWriteBarrier)),
-      stack_slot, mcgraph()->Int32Constant(kSystemPointerSize), src, effect(),
-      control()));
-
-  SetEffect(graph()->NewNode(
-      mcgraph()->machine()->Store(
-          StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier)),
-      stack_slot, mcgraph()->Int32Constant(kSystemPointerSize * 2), size,
-      effect(), control()));
+      StoreArgsInStackSlot({{MachineType::PointerRepresentation(), dst},
+                            {MachineType::PointerRepresentation(), src},
+                            {MachineRepresentation::kWord32, size}});
 
   MachineType sig_types[] = {MachineType::Pointer()};
   MachineSignature sig(0, 1, sig_types);
