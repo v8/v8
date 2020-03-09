@@ -9868,6 +9868,11 @@ void debug::TierDownAllModulesPerIsolate(Isolate* v8_isolate) {
   isolate->wasm_engine()->TierDownAllModulesPerIsolate(isolate);
 }
 
+void debug::TierUpAllModulesPerIsolate(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  isolate->wasm_engine()->TierUpAllModulesPerIsolate(isolate);
+}
+
 void debug::SetDebugDelegate(Isolate* v8_isolate,
                              debug::DebugDelegate* delegate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);

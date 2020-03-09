@@ -147,6 +147,7 @@ void V8Debugger::disable() {
   m_taskWithScheduledBreakPauseRequested = false;
   m_pauseOnNextCallRequested = false;
   m_pauseOnAsyncCall = false;
+  v8::debug::TierUpAllModulesPerIsolate(m_isolate);
   v8::debug::SetDebugDelegate(m_isolate, nullptr);
   m_isolate->RemoveNearHeapLimitCallback(&V8Debugger::nearHeapLimitCallback,
                                          m_originalHeapLimit);

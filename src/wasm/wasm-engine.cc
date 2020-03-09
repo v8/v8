@@ -609,6 +609,20 @@ void WasmEngine::TierDownAllModulesPerIsolate(Isolate* isolate) {
   }
 }
 
+void WasmEngine::TierUpAllModulesPerIsolate(Isolate* isolate) {
+  std::vector<NativeModule*> native_modules;
+  {
+    base::MutexGuard lock(&mutex_);
+    isolates_[isolate]->keep_tiered_down = false;
+    for (auto* native_module : isolates_[isolate]->native_modules) {
+      native_modules.push_back(native_module);
+    }
+  }
+  for (auto* native_module : native_modules) {
+    native_module->TierUp(isolate);
+  }
+}
+
 std::shared_ptr<NativeModule> WasmEngine::ExportNativeModule(
     Handle<WasmModuleObject> module_object) {
   return module_object->shared_native_module();

@@ -17,27 +17,46 @@ function create_builder(delta = 0) {
   return builder;
 }
 
-function check(instance) {
+function checkTieredDown(instance) {
   for (let i = 0; i < num_functions; ++i) {
     assertTrue(%IsLiftoffFunction(instance.exports['f' + i]));
+  }
+}
+
+function checkTieredUp(instance) {
+  // Busy waiting until all functions are tiered up.
+  let num_liftoff_functions = 0;
+  while (true) {
+    num_liftoff_functions = 0;
+    for (let i = 0; i < num_functions; ++i) {
+      if (%IsLiftoffFunction(instance.exports['f' + i])) {
+        num_liftoff_functions++;
+      }
+    }
+    if (num_liftoff_functions == 0) return;
   }
 }
 
 const instance = create_builder().instantiate();
 const Debug = new DebugWrapper();
 Debug.enable();
-check(instance);
+checkTieredDown(instance);
 const newInstance = create_builder(num_functions*2).instantiate();
-check(newInstance);
+checkTieredDown(newInstance);
+Debug.disable();
+checkTieredUp(instance);
+checkTieredUp(newInstance);
 
 // Async.
 async function testTierDownToLiftoffAsync() {
-  Debug.disable();
   const asyncInstance = await create_builder(num_functions).asyncInstantiate();
   Debug.enable();
-  check(asyncInstance);
+  checkTieredDown(asyncInstance);
   const newAsyncInstance = await create_builder(num_functions*3).asyncInstantiate();
-  check(newAsyncInstance);
+  checkTieredDown(newAsyncInstance);
+  Debug.disable();
+  checkTieredUp(asyncInstance);
+  checkTieredUp(newAsyncInstance);
 }
 
 assertPromiseResult(testTierDownToLiftoffAsync());

@@ -1430,21 +1430,23 @@ void RecompileNativeModule(Isolate* isolate, NativeModule* native_module,
         }
       });
 
-  // The main thread contributes to the compilation, except if we need
-  // deterministic compilation; in that case, the single background task will
-  // execute all compilation.
-  if (!NeedsDeterministicCompile()) {
-    while (ExecuteCompilationUnits(
-        compilation_state->background_compile_token(), isolate->counters(),
-        kMainThreadTaskId,
-        tier == ExecutionTier::kLiftoff ? kBaselineOnly : kBaselineOrTopTier)) {
-      // Continue executing compilation units.
+  // For tier down only.
+  if (tier == ExecutionTier::kLiftoff) {
+    // The main thread contributes to the compilation, except if we need
+    // deterministic compilation; in that case, the single background task will
+    // execute all compilation.
+    if (!NeedsDeterministicCompile()) {
+      while (ExecuteCompilationUnits(
+          compilation_state->background_compile_token(), isolate->counters(),
+          kMainThreadTaskId, kBaselineOnly)) {
+        // Continue executing compilation units.
+      }
     }
-  }
 
-  // Now wait until baseline recompilation finished.
-  recompilation_finished_semaphore->Wait();
-  DCHECK(!compilation_state->failed());
+    // Now wait until baseline recompilation finished.
+    recompilation_finished_semaphore->Wait();
+    DCHECK(!compilation_state->failed());
+  }
 }
 
 AsyncCompileJob::AsyncCompileJob(
@@ -2522,9 +2524,8 @@ void CompilationStateImpl::InitializeRecompilation(
   {
     base::MutexGuard guard(&callbacks_mutex_);
 
-    // Ensure that we don't trigger recompilation if another recompilation is
-    // already happening.
-    DCHECK_EQ(0, outstanding_recompilation_functions_);
+    // Restart recompilation if another recompilation is already happening.
+    outstanding_recompilation_functions_ = 0;
     // If compilation hasn't started yet then code would be keep as tiered-down
     // and don't need to recompile.
     if (compilation_progress_.size() > 0) {
