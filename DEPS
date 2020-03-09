@@ -34,7 +34,7 @@ vars = {
   'gn_version': 'git_revision:4166e9fbc1fa5ceab69b69710a0f8b430c50127b',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:02ba678a47594da180904851f3e6f809da7e0fc5',
+  'luci_go': 'git_revision:3d22d4e5a77a3d9cbe4b1bf5ed2fc85b61c1e3e6',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -72,11 +72,11 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e393474c8c5e0e8c7437574379709915e55b14f2',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1739acfe5148f87781e5d51f462d23a2f542f0d5',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ee8be8a368620af69739f41046464630ed4f2309',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ffd02955e6680f9f5a32872682bd03227487014e',
   'v8/third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '49ee7b1d18c88676f77e8316f604bc6f89af9cb1',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '0b6134378c4b96a7854ff366dd706f5b9b502929',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'bb3f1802c237dd19105dd0f7919f99e536a39d10',
   'v8/buildtools':
@@ -168,7 +168,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b3bfbaa3217f23451e822d0148c76659030e5742',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c5f5b9e9517992dfca42135bf2fb67918236dfa8',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -236,7 +236,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '101bca19ca19fb2cf28d1389f545c8852cb49007',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '0f734f7dfa1f92431421c866af23c1355d6f3afc',
   'v8/tools/luci-go': {
       'packages': [
         {
