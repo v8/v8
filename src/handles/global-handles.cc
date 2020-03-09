@@ -187,6 +187,7 @@ class GlobalHandles::NodeSpace final {
   iterator end() { return iterator(nullptr); }
 
   size_t TotalSize() const { return blocks_ * sizeof(NodeType) * kBlockSize; }
+  size_t handles_count() const { return handles_count_; }
 
  private:
   void PutNodesOnFreeList(BlockType* block);
@@ -197,6 +198,7 @@ class GlobalHandles::NodeSpace final {
   BlockType* first_used_block_ = nullptr;
   NodeType* first_free_ = nullptr;
   size_t blocks_ = 0;
+  size_t handles_count_ = 0;
 };
 
 template <class NodeType>
@@ -225,7 +227,7 @@ NodeType* GlobalHandles::NodeSpace<NodeType>::Acquire(Object object) {
     block->ListAdd(&first_used_block_);
   }
   global_handles_->isolate()->counters()->global_handles()->Increment();
-  global_handles_->handles_count_++;
+  handles_count_++;
   DCHECK(node->IsInUse());
   return node;
 }
@@ -257,7 +259,7 @@ void GlobalHandles::NodeSpace<NodeType>::Free(NodeType* node) {
     block->ListRemove(&first_used_block_);
   }
   global_handles_->isolate()->counters()->global_handles()->Decrement();
-  global_handles_->handles_count_--;
+  handles_count_--;
 }
 
 template <class Child>
@@ -881,6 +883,15 @@ size_t GlobalHandles::NumberOfOnStackHandlesForTesting() {
 
 size_t GlobalHandles::TotalSize() const {
   return regular_nodes_->TotalSize() + traced_nodes_->TotalSize();
+}
+
+size_t GlobalHandles::UsedSize() const {
+  return regular_nodes_->handles_count() * sizeof(Node) +
+         traced_nodes_->handles_count() * sizeof(TracedNode);
+}
+
+size_t GlobalHandles::handles_count() const {
+  return regular_nodes_->handles_count() + traced_nodes_->handles_count();
 }
 
 void GlobalHandles::SetStackStart(void* stack_start) {

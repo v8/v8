@@ -871,6 +871,10 @@ size_t Heap::TotalGlobalHandlesSize() {
   return isolate_->global_handles()->TotalSize();
 }
 
+size_t Heap::UsedGlobalHandlesSize() {
+  return isolate_->global_handles()->UsedSize();
+}
+
 // static
 const char* Heap::GetSpaceName(AllocationSpace space) {
   switch (space) {

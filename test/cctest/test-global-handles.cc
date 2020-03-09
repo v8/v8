@@ -678,9 +678,13 @@ TEST(TotalSizeRegularNode) {
 
   v8::Global<v8::Object>* global = new Global<v8::Object>();
   CHECK_EQ(i_isolate->global_handles()->TotalSize(), 0);
+  CHECK_EQ(i_isolate->global_handles()->UsedSize(), 0);
   ConstructJSObject(isolate, global);
   CHECK_GT(i_isolate->global_handles()->TotalSize(), 0);
+  CHECK_GT(i_isolate->global_handles()->UsedSize(), 0);
   delete global;
+  CHECK_GT(i_isolate->global_handles()->TotalSize(), 0);
+  CHECK_EQ(i_isolate->global_handles()->UsedSize(), 0);
 }
 
 TEST(TotalSizeTracedNode) {
@@ -691,9 +695,13 @@ TEST(TotalSizeTracedNode) {
 
   v8::TracedGlobal<v8::Object>* global = new TracedGlobal<v8::Object>();
   CHECK_EQ(i_isolate->global_handles()->TotalSize(), 0);
+  CHECK_EQ(i_isolate->global_handles()->UsedSize(), 0);
   ConstructJSObject(isolate, global);
   CHECK_GT(i_isolate->global_handles()->TotalSize(), 0);
+  CHECK_GT(i_isolate->global_handles()->UsedSize(), 0);
   delete global;
+  CHECK_GT(i_isolate->global_handles()->TotalSize(), 0);
+  CHECK_EQ(i_isolate->global_handles()->UsedSize(), 0);
 }
 
 }  // namespace internal

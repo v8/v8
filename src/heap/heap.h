@@ -1201,6 +1201,9 @@ class Heap {
   // Returns size of all global handles in the heap.
   V8_EXPORT_PRIVATE size_t TotalGlobalHandlesSize();
 
+  // Returns size of all allocated/used global handles in the heap.
+  V8_EXPORT_PRIVATE size_t UsedGlobalHandlesSize();
+
   void UpdateSurvivalStatistics(int start_new_space_size);
 
   inline void IncrementPromotedObjectsSize(size_t object_size) {
