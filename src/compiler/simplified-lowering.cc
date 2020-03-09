@@ -1687,7 +1687,7 @@ class RepresentationSelector {
         }
       }
     } else {
-      DCHECK(length_type.Is(type_cache_->kPositiveSafeInteger));
+      CHECK(length_type.Is(type_cache_->kPositiveSafeInteger));
       VisitBinop(node,
                  UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, p.feedback()),
                  UseInfo::Word64(), MachineRepresentation::kWord64);

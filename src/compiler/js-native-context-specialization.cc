@@ -2636,6 +2636,15 @@ JSNativeContextSpecialization::BuildElementAccess(
           Node* etrue = effect;
           Node* vtrue;
           {
+            // Do a real bounds check against {length}. This is in order to
+            // protect against a potential typer bug leading to the elimination
+            // of the NumberLessThan above.
+            index = etrue = graph()->NewNode(
+                simplified()->CheckBounds(
+                    FeedbackSource(),
+                    CheckBoundsParameters::kAbortOnOutOfBounds),
+                index, length, etrue, if_true);
+
             // Perform the actual load
             vtrue = etrue = graph()->NewNode(
                 simplified()->LoadTypedElement(external_array_type),
@@ -2697,6 +2706,15 @@ JSNativeContextSpecialization::BuildElementAccess(
           Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
           Node* etrue = effect;
           {
+            // Do a real bounds check against {length}. This is in order to
+            // protect against a potential typer bug leading to the elimination
+            // of the NumberLessThan above.
+            index = etrue = graph()->NewNode(
+                simplified()->CheckBounds(
+                    FeedbackSource(),
+                    CheckBoundsParameters::kAbortOnOutOfBounds),
+                index, length, etrue, if_true);
+
             // Perform the actual store.
             etrue = graph()->NewNode(
                 simplified()->StoreTypedElement(external_array_type),
@@ -2829,6 +2847,14 @@ JSNativeContextSpecialization::BuildElementAccess(
         Node* etrue = effect;
         Node* vtrue;
         {
+          // Do a real bounds check against {length}. This is in order to
+          // protect against a potential typer bug leading to the elimination of
+          // the NumberLessThan above.
+          index = etrue = graph()->NewNode(
+              simplified()->CheckBounds(
+                  FeedbackSource(), CheckBoundsParameters::kAbortOnOutOfBounds),
+              index, length, etrue, if_true);
+
           // Perform the actual load
           vtrue = etrue =
               graph()->NewNode(simplified()->LoadElement(element_access),
@@ -3097,13 +3123,18 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
                                           IsSafetyCheck::kCriticalSafetyCheck),
                          check, *control);
 
-    Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
-
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* etrue;
+    // Do a real bounds check against {length}. This is in order to protect
+    // against a potential typer bug leading to the elimination of the
+    // NumberLessThan above.
+    Node* etrue = index = graph()->NewNode(
+        simplified()->CheckBounds(FeedbackSource(),
+                                  CheckBoundsParameters::kAbortOnOutOfBounds),
+        index, length, *effect, if_true);
+    Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
     Node* vtrue = etrue =
         graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                         masked_index, *effect, if_true);
+                         masked_index, etrue, if_true);
     vtrue = graph()->NewNode(simplified()->StringFromSingleCharCode(), vtrue);
 
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
