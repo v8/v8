@@ -72,10 +72,10 @@ constexpr RegList kLiftoffAssemblerFpCacheRegs = CPURegister::ListOf(
 #elif V8_TARGET_ARCH_RISCV
 
 constexpr RegList kLiftoffAssemblerGpCacheRegs =
-	Register::ListOf(a0, a1, a2, a3, a4, a5, a6, a7, t0, t1, t2, s7, t3, t4, t5, t6);
+  Register::ListOf(a0, a1, a2, a3, a4, a5, a6, a7, t0, t1, t2, s7, t3, t4, t5, t6);
 
-constexpr RegList kLiftoffAssemblerFpCacheRegs = DoubleRegister::ListOf(
- ft0, ft1, ft2, ft3, ft4, ft5, ft6, ft7, fa0, fa1, fa2, fa3, fa4, fa5, fa6, fa7);
+constexpr RegList kLiftoffAssemblerFpCacheRegs = DoubleRegister::ListOf(ft0, ft1, ft2,
+    ft3, ft4, ft5, ft6, ft7, fa0, fa1, fa2, fa3, fa4, fa5, fa6, fa7, ft8, ft9, ft10, ft11);
 
 #else
 

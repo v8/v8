@@ -44,8 +44,7 @@
 #include "src/objects/heap-number-inl.h"
 
 namespace v8 {
-namespace internal {
-
+namespace internal {	
 // Get the CPU features enabled by the build. For cross compilation the
 // preprocessor symbols CAN_USE_FPU_INSTRUCTIONS
 // can be defined to enable FPU instructions when building the
@@ -110,14 +109,14 @@ int ToNumber(Register reg) {
       7,   // t2
       8,   // s0/fp
       9,   // s1
-      10,  // s2
-      11,  // a0
+      10,  // a0
+      11,  // a1
       12,  // a2
       13,  // a3
       14,  // a4
       15,  // a5
       16,  // a6
-      17,  // a7
+      17,  // a7			
       18,  // s2
       19,  // s3
       20,  // s4
@@ -139,7 +138,7 @@ int ToNumber(Register reg) {
 Register ToRegister(int num) {
   DCHECK(num >= 0 && num < kNumRegisters);
   const Register kRegisters[] = {
-	    zero_reg, ra, sp, gp, tp, t0, t1, t2, fp, s1, s2, a0, a2, a3, a4, a5,
+		zero_reg, ra, sp, gp, tp, t0, t1, t2, fp, s1, a0, a1, a2, a3, a4, a5,
       a6, a7, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, t3, t4, t5, t6};
   return kRegisters[num];
 }
@@ -232,7 +231,7 @@ const Instr kPopInstruction = DADDIU | (sp.code() << kRsShift) |
 // daddiu(sp, sp, -8) part of Push(r) operation as pre-decrement of sp.
 const Instr kPushInstruction = DADDIU | (sp.code() << kRsShift) |
                                (sp.code() << kRtShift) |
-                               (-kPointerSize & kImm16Mask);  // NOLINT
+                               (-kPointerSize & kImm16Mask);  // NOLINT 
 // Sd(r, MemOperand(sp, 0))
 const Instr kPushRegPattern =
     SD | (sp.code() << kRsShift) | (0 & kImm16Mask);  // NOLINT

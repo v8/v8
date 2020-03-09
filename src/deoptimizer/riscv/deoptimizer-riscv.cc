@@ -89,11 +89,10 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
   }
 
-  // Preserve "deoptimizer" object in register t0 and get the input
+  // Preserve "deoptimizer" object in register a0 and get the input
   // frame descriptor pointer to a1 (deoptimizer->input_);
   // Move deopt-obj to a0 for call to Deoptimizer::ComputeOutputFrames() below.
-  __ mov(a0, t0);
-  __ Ld(a1, MemOperand(t0, Deoptimizer::input_offset()));
+  __ Ld(a1, MemOperand(a0, Deoptimizer::input_offset()));
 
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
   DCHECK_EQ(Register::kNumRegisters, kNumberOfRegisters);

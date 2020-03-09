@@ -147,7 +147,7 @@ RegExpMacroAssemblerMIPS::RegExpMacroAssemblerMIPS(Isolate* isolate, Zone* zone,
   // If the code gets too big or corrupted, an internal exception will be
   // raised, and we will exit right away.
   __ bind(&internal_failure_label_);
-  __ li(t0, Operand(FAILURE));
+  __ li(a0, Operand(FAILURE));
   __ Ret();
   __ bind(&start_label_);  // And then continue from here.
 }
@@ -392,7 +392,7 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
     __ Ld(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
 
     // Check if function returned non-zero for success or zero for failure.
-    BranchOrBacktrack(on_no_match, eq, t0, Operand(zero_reg));
+    BranchOrBacktrack(on_no_match, eq, a0, Operand(zero_reg));
     // On success, increment position by length of capture.
     if (read_backward) {
       __ Dsubu(current_input_offset(), current_input_offset(), Operand(s3));
@@ -645,13 +645,13 @@ bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
 
 
 void RegExpMacroAssemblerMIPS::Fail() {
-  __ li(t0, Operand(FAILURE));
+  __ li(a0, Operand(FAILURE));
   __ jmp(&exit_label_);
 }
 
 
 Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
-  Label return_t0;
+  Label return_a0;
   if (masm_->has_exception()) {
     // If the code gets corrupted due to long regular expressions and lack of
     // space on trampolines, an internal exception flag is set. If this case
@@ -677,10 +677,10 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
     // TODO(plind): we save fp..s7, but ONLY use s3 here - use the regs
     // or dont save.
     RegList registers_to_retain = fp.bit() | s1.bit() | s2.bit() |
-        s3.bit() | s4.bit() | s5.bit() | s6.bit() | s7.bit() | fp.bit();
-    RegList argument_registers = a0.bit() | a1.bit() | a2.bit() | a3.bit();
-
-    argument_registers |= a4.bit() | a5.bit() | a6.bit() | a7.bit();
+			s3.bit() | s4.bit() | s5.bit() | s6.bit() | s7.bit() | s8.bit() |
+			s9.bit() | s10.bit() | s11.bit();
+    RegList argument_registers = a0.bit() | a1.bit() | a2.bit() |
+			a3.bit() | a4.bit() | a5.bit() | a6.bit() | a7.bit();
 
     __ MultiPush(argument_registers | registers_to_retain | ra.bit());
     // Set frame pointer in space for it if this is not a direct call
@@ -712,13 +712,13 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
     __ Branch(&stack_ok, hs, a0, Operand(num_registers_ * kPointerSize));
     // Exit with OutOfMemory exception. There is not enough space on the stack
     // for our working registers.
-    __ li(t0, Operand(EXCEPTION));
-    __ jmp(&return_t0);
+    __ li(a0, Operand(EXCEPTION));
+    __ jmp(&return_a0);
 
     __ bind(&stack_limit_hit);
     CallCheckStackGuardState(a0);
     // If returned value is non-zero, we exit with the returned value as result.
-    __ Branch(&return_t0, ne, t0, Operand(zero_reg));
+    __ Branch(&return_a0, ne, a0, Operand(zero_reg));
 
     __ bind(&stack_ok);
     // Allocate space on stack for registers.
@@ -838,8 +838,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
         // output registers is reduced by the number of stored captures.
         __ Dsubu(a1, a1, num_saved_registers_);
         // Check whether we have enough room for another set of capture results.
-        __ mov(t0, a0);
-        __ Branch(&return_t0, lt, a1, Operand(num_saved_registers_));
+        __ Branch(&return_a0, lt, a1, Operand(num_saved_registers_));
 
         __ Sd(a1, MemOperand(frame_pointer(), kNumOutputRegisters));
         // Advance the location for output.
@@ -869,16 +868,16 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
 
         __ Branch(&load_char_start_regexp);
       } else {
-        __ li(t0, Operand(SUCCESS));
+        __ li(a0, Operand(SUCCESS));
       }
     }
-    // Exit and return t0.
+    // Exit and return a0.
     __ bind(&exit_label_);
     if (global()) {
-      __ Ld(t0, MemOperand(frame_pointer(), kSuccessfulCaptures));
+      __ Ld(a0, MemOperand(frame_pointer(), kSuccessfulCaptures));
     }
 
-    __ bind(&return_t0);
+    __ bind(&return_a0);
     // Skip sp past regexp registers and local variables..
     __ mov(sp, frame_pointer());
     // Restore registers fp..s7 and return (restoring ra to pc).
@@ -904,7 +903,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
       __ MultiPop(regexp_registers_to_retain);
       // If returning non-zero, we should end execution with the given
       // result as return value.
-      __ Branch(&return_t0, ne, t0, Operand(zero_reg));
+      __ Branch(&return_a0, ne, a0, Operand(zero_reg));
 
       // String might have moved: Reload end of string from frame.
       __ Ld(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
@@ -934,9 +933,9 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
       __ MultiPop(regexp_registers);
       // If return nullptr, we have failed to grow the stack, and
       // must exit with a stack-overflow exception.
-      __ Branch(&exit_with_exception, eq, t0, Operand(zero_reg));
+      __ Branch(&exit_with_exception, eq, a0, Operand(zero_reg));
       // Otherwise use return value as new stack pointer.
-      __ mov(backtrack_stackpointer(), t0);
+      __ mov(backtrack_stackpointer(), a0);
       // Restore saved registers and continue.
       __ li(code_pointer(), Operand(masm_->CodeObject()), CONSTANT_SIZE);
       __ Ld(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
@@ -947,8 +946,8 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
       // If any of the code above needed to exit with an exception.
       __ bind(&exit_with_exception);
       // Exit with Result EXCEPTION(-1) to signal thrown exception.
-      __ li(t0, Operand(EXCEPTION));
-      __ jmp(&return_t0);
+      __ li(a0, Operand(EXCEPTION));
+      __ jmp(&return_a0);
     }
   }
 

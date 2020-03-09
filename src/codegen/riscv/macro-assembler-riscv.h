@@ -28,7 +28,7 @@ enum class AbortReason : uint8_t;
 //
 // Per the MIPS ABI, register t9 must be used for indirect function call
 // via 'jalr t9' or 'jr t9' instructions. This is relied upon by gcc when
-// trying to update t3 register for position-independent-code. Whenever
+// trying to update gp register for position-independent-code. Whenever
 // MIPS generated code calls C code, it must be via t9 register.
 
 // Flags used for LeaveExitFrame function.

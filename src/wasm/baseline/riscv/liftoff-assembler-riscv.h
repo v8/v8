@@ -1383,7 +1383,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
   const LiftoffRegister* next_result_reg = rets;
   if (sig->return_count() > 0) {
     DCHECK_EQ(1, sig->return_count());
-    constexpr Register kReturnReg = t0;
+    constexpr Register kReturnReg = a0;
     if (kReturnReg != next_result_reg->gp()) {
       Move(*next_result_reg, LiftoffRegister(kReturnReg), sig->GetReturn(0));
     }

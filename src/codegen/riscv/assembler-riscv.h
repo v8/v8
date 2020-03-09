@@ -359,7 +359,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     FIRST_IC_MARKER = PROPERTY_ACCESS_INLINED,
   };
 
-  // RISC-V Instructions
+  // RISC-V Instructions Emited to a buffer
 
   void RV_lui(Register rd, int32_t imm20);
   void RV_auipc(Register rd, int32_t imm20);
@@ -671,10 +671,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_ret();
   void RV_call(uint32_t offset);
 
+	// RISC-V Instructions
+	//Instr addi(Register rd, Register rs1, int16_t imm12);
+	Instr addi(Register rd, Register rs1, int16_t imm12);
   // MIPS Instructions
 
   // Type == 0 is the default non-marking nop. For mips this is a
   // sll(zero_reg, zero_reg, 0). We use rt_reg == at for non-zero
+		
   // marking, to avoid conflict with ssnop and ehb instructions.
   void nop(unsigned int type = 0) {
     DCHECK_LT(type, 32);

@@ -111,7 +111,7 @@ constexpr size_t kMaxPCRelativeCodeRangeInMB = 0;
 const int kNumRegisters = 32;
 const int kInvalidRegister = -1;
 
-// Number of registers with HI, LO, and pc.
+// Number of registers with pc.
 const int kNumSimuRegisters = 35;
 
 // In the simulator, the PC register is simulated as the 34th register.
@@ -243,7 +243,7 @@ class MSARegisters {
 // -----------------------------------------------------------------------------
 // Instructions encoding constants.
 
-// On MIPS all instructions are 32 bits.
+// On RISCV all instructions are 32 bits.
 using Instr = int32_t;
 
 // Special Software Interrupt codes when used in the presence of the MIPS
