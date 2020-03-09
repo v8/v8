@@ -506,8 +506,7 @@
   'built-ins/FinalizationRegistry/prototype/cleanupSome/cleanup-throws-in-callback': [FAIL],
   'built-ins/FinalizationRegistry/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9612
-  'intl402/DateTimeFormat/prototype/formatRange/fractionalSecondDigits': [SKIP],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10313
   'built-ins/Date/parse/without-utc-offset': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9613
@@ -557,9 +556,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=10272
   'intl402/DateTimeFormat/invalid-numbering-system-calendar-options': [FAIL],
   'intl402/NumberFormat/invalid-numbering-system-options': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10273
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/fractionalSecondDigits': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=10274
   # BigInt as literal property names must be valid
