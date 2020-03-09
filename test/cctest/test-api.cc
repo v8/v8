@@ -562,8 +562,7 @@ THREADED_TEST(ScriptMakingExternalString) {
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
     Local<String> source =
-        String::NewFromTwoByte(env->GetIsolate(), two_byte_source,
-                               v8::NewStringType::kNormal)
+        String::NewFromTwoByte(env->GetIsolate(), two_byte_source)
             .ToLocalChecked();
     // Trigger GCs so that the newly allocated string moves to old gen.
     CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
@@ -625,15 +624,13 @@ TEST(MakingExternalStringConditions) {
 
   uint16_t* two_byte_string = AsciiToTwoByteString("s1");
   Local<String> tiny_local_string =
-      String::NewFromTwoByte(env->GetIsolate(), two_byte_string,
-                             v8::NewStringType::kNormal)
+      String::NewFromTwoByte(env->GetIsolate(), two_byte_string)
           .ToLocalChecked();
   i::DeleteArray(two_byte_string);
 
   two_byte_string = AsciiToTwoByteString("s1234");
   Local<String> local_string =
-      String::NewFromTwoByte(env->GetIsolate(), two_byte_string,
-                             v8::NewStringType::kNormal)
+      String::NewFromTwoByte(env->GetIsolate(), two_byte_string)
           .ToLocalChecked();
   i::DeleteArray(two_byte_string);
 
@@ -943,8 +940,7 @@ THREADED_TEST(StringConcat) {
 
     uint16_t* two_byte_source = AsciiToTwoByteString(two_byte_string_1);
     Local<String> right =
-        String::NewFromTwoByte(env->GetIsolate(), two_byte_source,
-                               v8::NewStringType::kNormal)
+        String::NewFromTwoByte(env->GetIsolate(), two_byte_source)
             .ToLocalChecked();
     i::DeleteArray(two_byte_source);
 
@@ -963,8 +959,7 @@ THREADED_TEST(StringConcat) {
     source = String::Concat(isolate, source, right);
 
     two_byte_source = AsciiToTwoByteString(two_byte_string_2);
-    right = String::NewFromTwoByte(env->GetIsolate(), two_byte_source,
-                                   v8::NewStringType::kNormal)
+    right = String::NewFromTwoByte(env->GetIsolate(), two_byte_source)
                 .ToLocalChecked();
     i::DeleteArray(two_byte_source);
 
@@ -3381,9 +3376,7 @@ THREADED_TEST(PrivatePropertiesOnProxies) {
 
   CHECK(priv2->Name()
             ->Equals(env.local(),
-                     v8::String::NewFromUtf8(isolate, "my-private",
-                                             v8::NewStringType::kNormal)
-                         .ToLocalChecked())
+                     v8::String::NewFromUtf8Literal(isolate, "my-private"))
             .FromJust());
 
   // Make sure delete of a non-existent private symbol property works.
@@ -3409,10 +3402,9 @@ THREADED_TEST(PrivatePropertiesOnProxies) {
            proxy->GetOwnPropertyNames(env.local()).ToLocalChecked()->Length());
   unsigned num_props =
       proxy->GetPropertyNames(env.local()).ToLocalChecked()->Length();
-  CHECK(proxy->Set(env.local(), v8::String::NewFromUtf8(
-                                    isolate, "bla", v8::NewStringType::kNormal)
-                                    .ToLocalChecked(),
-                   v8::Integer::New(isolate, 20))
+  CHECK(proxy
+            ->Set(env.local(), v8::String::NewFromUtf8Literal(isolate, "bla"),
+                  v8::Integer::New(isolate, 20))
             .FromJust());
   CHECK_EQ(1u,
            proxy->GetOwnPropertyNames(env.local()).ToLocalChecked()->Length());
@@ -3475,9 +3467,7 @@ THREADED_TEST(PrivateProperties) {
 
   CHECK(priv2->Name()
             ->Equals(env.local(),
-                     v8::String::NewFromUtf8(isolate, "my-private",
-                                             v8::NewStringType::kNormal)
-                         .ToLocalChecked())
+                     v8::String::NewFromUtf8Literal(isolate, "my-private"))
             .FromJust());
 
   // Make sure delete of a non-existent private symbol property works.
@@ -3503,9 +3493,7 @@ THREADED_TEST(PrivateProperties) {
            obj->GetOwnPropertyNames(env.local()).ToLocalChecked()->Length());
   unsigned num_props =
       obj->GetPropertyNames(env.local()).ToLocalChecked()->Length();
-  CHECK(obj->Set(env.local(), v8::String::NewFromUtf8(
-                                  isolate, "bla", v8::NewStringType::kNormal)
-                                  .ToLocalChecked(),
+  CHECK(obj->Set(env.local(), v8::String::NewFromUtf8Literal(isolate, "bla"),
                  v8::Integer::New(isolate, 20))
             .FromJust());
   CHECK_EQ(1u,
@@ -4000,9 +3988,8 @@ class TwoPassCallbackData {
     HandleScope scope(isolate);
     i::ScopedVector<char> buffer(40);
     i::SNPrintF(buffer, "%p", static_cast<void*>(this));
-    auto string = v8::String::NewFromUtf8(isolate, buffer.begin(),
-                                          v8::NewStringType::kNormal)
-                      .ToLocalChecked();
+    auto string =
+        v8::String::NewFromUtf8(isolate, buffer.begin()).ToLocalChecked();
     cell_.Reset(isolate, string);
     metadata_->instance_counter++;
   }
@@ -8081,9 +8068,7 @@ THREADED_TEST(StringWrite) {
   // abc<Icelandic eth><Unicode snowman>.
   v8::Local<String> str2 = v8_str("abc\xC3\xB0\xE2\x98\x83");
   v8::Local<String> str3 =
-      v8::String::NewFromUtf8(context->GetIsolate(), "abc\0def",
-                              v8::NewStringType::kNormal, 7)
-          .ToLocalChecked();
+      v8::String::NewFromUtf8Literal(context->GetIsolate(), "abc\0def");
   // "ab" + lead surrogate + "wx" + trail surrogate + "yz"
   uint16_t orphans[8] = {0x61, 0x62, 0xD800, 0x77, 0x78, 0xDC00, 0x79, 0x7A};
   v8::Local<String> orphans_str =
@@ -8539,14 +8524,10 @@ THREADED_TEST(Utf16Symbol) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
-  Local<String> symbol1 =
-      v8::String::NewFromUtf8(context->GetIsolate(), "abc",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked();
-  Local<String> symbol2 =
-      v8::String::NewFromUtf8(context->GetIsolate(), "abc",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked();
+  Local<String> symbol1 = v8::String::NewFromUtf8Literal(
+      context->GetIsolate(), "abc", v8::NewStringType::kInternalized);
+  Local<String> symbol2 = v8::String::NewFromUtf8Literal(
+      context->GetIsolate(), "abc", v8::NewStringType::kInternalized);
   CHECK(SameSymbol(symbol1, symbol2));
 
   CompileRun(
@@ -8564,30 +8545,22 @@ THREADED_TEST(Utf16Symbol) {
       "if (sym3.charCodeAt(2) != 0xDC07) throw sym1.charCodeAt(2);"
       "if (sym4.length != 3) throw sym4;"
       "if (sym4.charCodeAt(2) != 0xDC08) throw sym2.charCodeAt(2);");
-  Local<String> sym0 =
-      v8::String::NewFromUtf8(context->GetIsolate(), "benedictus",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked();
-  Local<String> sym0b =
-      v8::String::NewFromUtf8(context->GetIsolate(), "S\xC3\xB8ren",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked();
-  Local<String> sym1 =
-      v8::String::NewFromUtf8(context->GetIsolate(), "\xED\xA0\x81\xED\xB0\x87",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked();
+  Local<String> sym0 = v8::String::NewFromUtf8Literal(
+      context->GetIsolate(), "benedictus", v8::NewStringType::kInternalized);
+  Local<String> sym0b = v8::String::NewFromUtf8Literal(
+      context->GetIsolate(), "S\xC3\xB8ren", v8::NewStringType::kInternalized);
+  Local<String> sym1 = v8::String::NewFromUtf8Literal(
+      context->GetIsolate(), "\xED\xA0\x81\xED\xB0\x87",
+      v8::NewStringType::kInternalized);
   Local<String> sym2 =
-      v8::String::NewFromUtf8(context->GetIsolate(), "\xF0\x90\x90\x88",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked();
-  Local<String> sym3 = v8::String::NewFromUtf8(context->GetIsolate(),
-                                               "x\xED\xA0\x81\xED\xB0\x87",
-                                               v8::NewStringType::kInternalized)
-                           .ToLocalChecked();
+      v8::String::NewFromUtf8Literal(context->GetIsolate(), "\xF0\x90\x90\x88",
+                                     v8::NewStringType::kInternalized);
+  Local<String> sym3 = v8::String::NewFromUtf8Literal(
+      context->GetIsolate(), "x\xED\xA0\x81\xED\xB0\x87",
+      v8::NewStringType::kInternalized);
   Local<String> sym4 =
-      v8::String::NewFromUtf8(context->GetIsolate(), "x\xF0\x90\x90\x88",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked();
+      v8::String::NewFromUtf8Literal(context->GetIsolate(), "x\xF0\x90\x90\x88",
+                                     v8::NewStringType::kInternalized);
   v8::Local<v8::Object> global = context->Global();
   Local<Value> s0 =
       global->Get(context.local(), v8_str("sym0")).ToLocalChecked();
@@ -15324,19 +15297,15 @@ THREADED_TEST(ReplaceConstantFunction) {
 THREADED_TEST(ScriptContextDependence) {
   LocalContext c1;
   v8::HandleScope scope(c1->GetIsolate());
-  const char *source = "foo";
+  const char source[] = "foo";
   v8::Local<v8::Script> dep = v8_compile(source);
   v8::ScriptCompiler::Source script_source(
-      v8::String::NewFromUtf8(c1->GetIsolate(), source,
-                              v8::NewStringType::kNormal)
-          .ToLocalChecked());
+      v8::String::NewFromUtf8Literal(c1->GetIsolate(), source));
   v8::Local<v8::UnboundScript> indep =
       v8::ScriptCompiler::CompileUnboundScript(c1->GetIsolate(), &script_source)
           .ToLocalChecked();
   c1->Global()
-      ->Set(c1.local(), v8::String::NewFromUtf8(c1->GetIsolate(), "foo",
-                                                v8::NewStringType::kNormal)
-                            .ToLocalChecked(),
+      ->Set(c1.local(), v8::String::NewFromUtf8Literal(c1->GetIsolate(), "foo"),
             v8::Integer::New(c1->GetIsolate(), 100))
       .FromJust();
   CHECK_EQ(
@@ -15350,9 +15319,7 @@ THREADED_TEST(ScriptContextDependence) {
            100);
   LocalContext c2;
   c2->Global()
-      ->Set(c2.local(), v8::String::NewFromUtf8(c2->GetIsolate(), "foo",
-                                                v8::NewStringType::kNormal)
-                            .ToLocalChecked(),
+      ->Set(c2.local(), v8::String::NewFromUtf8Literal(c2->GetIsolate(), "foo"),
             v8::Integer::New(c2->GetIsolate(), 101))
       .FromJust();
   CHECK_EQ(
@@ -16768,7 +16735,7 @@ TEST(VisitExternalStrings) {
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
   v8::HandleScope scope(isolate);
-  const char* string = "Some string";
+  const char string[] = "Some string";
   uint16_t* two_byte_string = AsciiToTwoByteString(string);
   TestResource* resource[4];
   resource[0] = new TestResource(two_byte_string);
@@ -16782,10 +16749,8 @@ TEST(VisitExternalStrings) {
 
   // Externalized symbol.
   resource[2] = new TestResource(two_byte_string, nullptr, false);
-  v8::Local<v8::String> string2 =
-      v8::String::NewFromUtf8(env->GetIsolate(), string,
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked();
+  v8::Local<v8::String> string2 = v8::String::NewFromUtf8Literal(
+      env->GetIsolate(), string, v8::NewStringType::kInternalized);
   CHECK(string2->MakeExternal(resource[2]));
 
   // Symbolized External.
@@ -17286,8 +17251,7 @@ THREADED_TEST(FunctionGetDebugName) {
     v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
         env->Global()
             ->Get(env.local(),
-                  v8::String::NewFromUtf8(isolate, functions[i * 2],
-                                          v8::NewStringType::kNormal)
+                  v8::String::NewFromUtf8(isolate, functions[i * 2])
                       .ToLocalChecked())
             .ToLocalChecked());
     CHECK_EQ(0, strcmp(functions[i * 2 + 1],
@@ -18025,9 +17989,7 @@ TEST(ContainsOnlyOneByte) {
           .ToLocalChecked();
   CHECK(!string->IsOneByte() && string->ContainsOnlyOneByte());
   // Counter example.
-  string = String::NewFromTwoByte(isolate, string_contents,
-                                  v8::NewStringType::kNormal)
-               .ToLocalChecked();
+  string = String::NewFromTwoByte(isolate, string_contents).ToLocalChecked();
   CHECK(string->IsOneByte() && string->ContainsOnlyOneByte());
   // Test left right and balanced cons strings.
   Local<String> base = v8_str("a");
@@ -19323,9 +19285,7 @@ v8::ModifyCodeGenerationFromStringsResult ModifyCodeGeneration(
     if (*i == '2') *i = '3';
   }
   return {/* codegen_allowed= */ true,
-          String::NewFromUtf8(context->GetIsolate(), *utf8,
-                              v8::NewStringType::kNormal)
-              .ToLocalChecked()};
+          String::NewFromUtf8(context->GetIsolate(), *utf8).ToLocalChecked()};
 }
 
 THREADED_TEST(AllowCodeGenFromStrings) {
@@ -22711,12 +22671,8 @@ TEST(ResolvedPromiseReFulfill) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::Local<v8::String> value1 =
-      v8::String::NewFromUtf8(isolate, "foo", v8::NewStringType::kNormal)
-          .ToLocalChecked();
-  v8::Local<v8::String> value2 =
-      v8::String::NewFromUtf8(isolate, "bar", v8::NewStringType::kNormal)
-          .ToLocalChecked();
+  v8::Local<v8::String> value1 = v8::String::NewFromUtf8Literal(isolate, "foo");
+  v8::Local<v8::String> value2 = v8::String::NewFromUtf8Literal(isolate, "bar");
 
   v8::Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(context.local()).ToLocalChecked();
@@ -22742,12 +22698,8 @@ TEST(RejectedPromiseReFulfill) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::Local<v8::String> value1 =
-      v8::String::NewFromUtf8(isolate, "foo", v8::NewStringType::kNormal)
-          .ToLocalChecked();
-  v8::Local<v8::String> value2 =
-      v8::String::NewFromUtf8(isolate, "bar", v8::NewStringType::kNormal)
-          .ToLocalChecked();
+  v8::Local<v8::String> value1 = v8::String::NewFromUtf8Literal(isolate, "foo");
+  v8::Local<v8::String> value2 = v8::String::NewFromUtf8Literal(isolate, "bar");
 
   v8::Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(context.local()).ToLocalChecked();
@@ -25585,8 +25537,8 @@ THREADED_TEST(GlobalAccessorInfo) {
   v8::HandleScope scope(isolate);
   Local<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New(isolate);
   global_template->SetAccessor(
-      v8::String::NewFromUtf8(isolate, "prop", v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
+      v8::String::NewFromUtf8Literal(isolate, "prop",
+                                     v8::NewStringType::kInternalized),
       &ensure_receiver_is_global_proxy);
   LocalContext env(nullptr, global_template);
   CompileRun("for (var i = 0; i < 10; i++) this.prop");
@@ -25892,9 +25844,8 @@ TEST(PrimitiveArray) {
   array->Set(isolate, 0, symbol);
   CHECK(array->Get(isolate, 0)->IsSymbol());
 
-  Local<v8::String> string =
-      v8::String::NewFromUtf8(isolate, "test", v8::NewStringType::kInternalized)
-          .ToLocalChecked();
+  Local<v8::String> string = v8::String::NewFromUtf8Literal(
+      isolate, "test", v8::NewStringType::kInternalized);
   array->Set(isolate, 1, string);
   CHECK(array->Get(isolate, 0)->IsSymbol());
   CHECK(array->Get(isolate, 1)->IsString());
@@ -25930,10 +25881,8 @@ TEST(PersistentValueMap) {
       std::string, v8::Value,
       v8::DefaultPersistentValueMapTraits<std::string, v8::Value>>
       map(isolate);
-  v8::Local<v8::Value> value =
-      v8::String::NewFromUtf8(isolate, "value",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked();
+  v8::Local<v8::Value> value = v8::String::NewFromUtf8Literal(
+      isolate, "value", v8::NewStringType::kInternalized);
   map.Set("key", value);
 }
 

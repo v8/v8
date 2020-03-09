@@ -865,6 +865,7 @@ class RuntimeCallTimer final {
   V(String_NewFromOneByte)                                 \
   V(String_NewFromTwoByte)                                 \
   V(String_NewFromUtf8)                                    \
+  V(String_NewFromUtf8Literal)                             \
   V(StringObject_New)                                      \
   V(StringObject_StringValue)                              \
   V(String_Write)                                          \

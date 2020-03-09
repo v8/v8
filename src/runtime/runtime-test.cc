@@ -91,8 +91,7 @@ v8::Local<v8::Value> NewRangeException(v8::Isolate* isolate,
                                        const char* message) {
   return v8::Exception::RangeError(
       v8::String::NewFromOneByte(isolate,
-                                 reinterpret_cast<const uint8_t*>(message),
-                                 v8::NewStringType::kNormal)
+                                 reinterpret_cast<const uint8_t*>(message))
           .ToLocalChecked());
 }
 

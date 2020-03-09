@@ -924,8 +924,7 @@ void Shell::HostInitializeImportMetaObject(Local<Context> context,
   CHECK(specifier_it != d->module_to_specifier_map.end());
 
   Local<String> url_key =
-      String::NewFromUtf8(isolate, "url", NewStringType::kInternalized)
-          .ToLocalChecked();
+      String::NewFromUtf8Literal(isolate, "url", NewStringType::kInternalized);
   Local<String> url = String::NewFromUtf8(isolate, specifier_it->second.c_str())
                           .ToLocalChecked();
   meta->CreateDataProperty(context, url_key, url).ToChecked();
@@ -1503,7 +1502,7 @@ void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
 Local<String> Shell::ReadFromStdin(Isolate* isolate) {
   static const int kBufferSize = 256;
   char buffer[kBufferSize];
-  Local<String> accumulator = String::NewFromUtf8(isolate, "").ToLocalChecked();
+  Local<String> accumulator = String::NewFromUtf8Literal(isolate, "");
   int length;
   while (true) {
     // Continue reading if the line ends with an escape '\\' or the line has
@@ -1883,8 +1882,7 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
   if (stringify_function_.IsEmpty()) {
     Local<String> source =
         String::NewFromUtf8(isolate, stringify_source_).ToLocalChecked();
-    Local<String> name =
-        String::NewFromUtf8(isolate, "d8-stringify").ToLocalChecked();
+    Local<String> name = String::NewFromUtf8Literal(isolate, "d8-stringify");
     ScriptOrigin origin(name);
     Local<Script> script =
         Script::Compile(context, source, &origin).ToLocalChecked();
@@ -1933,7 +1931,7 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   global_template->Set(isolate, "version",
                        FunctionTemplate::New(isolate, Version));
   global_template->Set(Symbol::GetToStringTag(isolate),
-                       String::NewFromUtf8(isolate, "global").ToLocalChecked());
+                       String::NewFromUtf8Literal(isolate, "global"));
 
   // Bind the Realm object.
   Local<ObjectTemplate> realm_template = ObjectTemplate::New(isolate);
@@ -1958,9 +1956,8 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
                       FunctionTemplate::New(isolate, RealmSwitch));
   realm_template->Set(isolate, "eval",
                       FunctionTemplate::New(isolate, RealmEval));
-  realm_template->SetAccessor(
-      String::NewFromUtf8(isolate, "shared").ToLocalChecked(), RealmSharedGet,
-      RealmSharedSet);
+  realm_template->SetAccessor(String::NewFromUtf8Literal(isolate, "shared"),
+                              RealmSharedGet, RealmSharedSet);
   global_template->Set(isolate, "Realm", realm_template);
 
   Local<ObjectTemplate> performance_template = ObjectTemplate::New(isolate);
@@ -1976,7 +1973,7 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   Local<Signature> worker_signature =
       Signature::New(isolate, worker_fun_template);
   worker_fun_template->SetClassName(
-      String::NewFromUtf8(isolate, "Worker").ToLocalChecked());
+      String::NewFromUtf8Literal(isolate, "Worker"));
   worker_fun_template->ReadOnlyPrototype();
   worker_fun_template->PrototypeTemplate()->Set(
       isolate, "terminate",
@@ -2094,9 +2091,8 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
       Local<Number> index = v8::Number::New(isolate, i);
       array->Set(context, index, arg).FromJust();
     }
-    Local<String> name =
-        String::NewFromUtf8(isolate, "arguments", NewStringType::kInternalized)
-            .ToLocalChecked();
+    Local<String> name = String::NewFromUtf8Literal(
+        isolate, "arguments", NewStringType::kInternalized);
     context->Global()->Set(context, name, array).FromJust();
   }
   return handle_scope.Escape(context);
@@ -2370,7 +2366,7 @@ void Shell::RunShell(Isolate* isolate) {
       v8::Local<v8::Context>::New(isolate, evaluation_context_);
   v8::Context::Scope context_scope(context);
   PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
-  Local<String> name = String::NewFromUtf8(isolate, "(d8)").ToLocalChecked();
+  Local<String> name = String::NewFromUtf8Literal(isolate, "(d8)");
   printf("V8 version %s\n", V8::GetVersion());
   while (true) {
     HandleScope inner_scope(isolate);
@@ -2422,10 +2418,8 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
                    reinterpret_cast<const uint16_t*>(string.characters16()),
                    v8::NewStringType::kNormal, length))
             .ToLocalChecked();
-    Local<String> callback_name =
-        v8::String::NewFromUtf8(isolate_, "receive",
-                                NewStringType::kInternalized)
-            .ToLocalChecked();
+    Local<String> callback_name = v8::String::NewFromUtf8Literal(
+        isolate_, "receive", NewStringType::kInternalized);
     Local<Context> context = context_.Get(isolate_);
     Local<Value> callback =
         context->Global()->Get(context, callback_name).ToLocalChecked();
@@ -2437,14 +2431,10 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
 #ifdef DEBUG
       if (try_catch.HasCaught()) {
         Local<Object> exception = Local<Object>::Cast(try_catch.Exception());
-        Local<String> key =
-            v8::String::NewFromUtf8(isolate_, "message",
-                                    NewStringType::kInternalized)
-                .ToLocalChecked();
-        Local<String> expected =
-            v8::String::NewFromUtf8(isolate_,
-                                    "Maximum call stack size exceeded")
-                .ToLocalChecked();
+        Local<String> key = v8::String::NewFromUtf8Literal(
+            isolate_, "message", NewStringType::kInternalized);
+        Local<String> expected = v8::String::NewFromUtf8Literal(
+            isolate_, "Maximum call stack size exceeded");
         Local<Value> value = exception->Get(context, key).ToLocalChecked();
         DCHECK(value->StrictEquals(expected));
       }
@@ -2473,9 +2463,8 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
         FunctionTemplate::New(isolate_, SendInspectorMessage)
             ->GetFunction(context)
             .ToLocalChecked();
-    Local<String> function_name =
-        String::NewFromUtf8(isolate_, "send", NewStringType::kInternalized)
-            .ToLocalChecked();
+    Local<String> function_name = String::NewFromUtf8Literal(
+        isolate_, "send", NewStringType::kInternalized);
     CHECK(context->Global()->Set(context, function_name, function).FromJust());
 
     context_.Reset(isolate_, context);
@@ -2484,10 +2473,8 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
   void runMessageLoopOnPause(int contextGroupId) override {
     v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate_);
     v8::HandleScope handle_scope(isolate_);
-    Local<String> callback_name =
-        v8::String::NewFromUtf8(isolate_, "handleInspectorMessage",
-                                NewStringType::kInternalized)
-            .ToLocalChecked();
+    Local<String> callback_name = v8::String::NewFromUtf8Literal(
+        isolate_, "handleInspectorMessage", NewStringType::kInternalized);
     Local<Context> context = context_.Get(isolate_);
     Local<Value> callback =
         context->Global()->Get(context, callback_name).ToLocalChecked();
@@ -2572,8 +2559,7 @@ bool SourceGroup::Execute(Isolate* isolate) {
     if (strcmp(arg, "-e") == 0 && i + 1 < end_offset_) {
       // Execute argument given to -e option directly.
       HandleScope handle_scope(isolate);
-      Local<String> file_name =
-          String::NewFromUtf8(isolate, "unnamed").ToLocalChecked();
+      Local<String> file_name = String::NewFromUtf8Literal(isolate, "unnamed");
       Local<String> source =
           String::NewFromUtf8(isolate, argv_[i + 1]).ToLocalChecked();
       Shell::set_script_executed();
@@ -2801,16 +2787,15 @@ void Worker::ExecuteInThread() {
                 &postmessage_fun)) {
           global
               ->Set(context,
-                    v8::String::NewFromUtf8(isolate, "postMessage",
-                                            NewStringType::kInternalized)
-                        .ToLocalChecked(),
+                    v8::String::NewFromUtf8Literal(
+                        isolate, "postMessage", NewStringType::kInternalized),
                     postmessage_fun)
               .FromJust();
         }
 
         // First run the script
         Local<String> file_name =
-            String::NewFromUtf8(isolate, "unnamed").ToLocalChecked();
+            String::NewFromUtf8Literal(isolate, "unnamed");
         Local<String> source =
             String::NewFromUtf8(isolate, script_).ToLocalChecked();
         if (Shell::ExecuteString(
@@ -2820,9 +2805,8 @@ void Worker::ExecuteInThread() {
           Local<Value> onmessage =
               global
                   ->Get(context,
-                        String::NewFromUtf8(isolate, "onmessage",
-                                            NewStringType::kInternalized)
-                            .ToLocalChecked())
+                        String::NewFromUtf8Literal(
+                            isolate, "onmessage", NewStringType::kInternalized))
                   .ToLocalChecked();
           if (onmessage->IsFunction()) {
             Local<Function> onmessage_fun = Local<Function>::Cast(onmessage);

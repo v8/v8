@@ -3553,10 +3553,8 @@ TEST(AfterCompileEventOnBindToContext) {
   ScriptCompiledDelegate delegate;
   v8::debug::SetDebugDelegate(isolate, &delegate);
 
-  const char* source = "var a=1";
   v8::ScriptCompiler::Source script_source(
-      v8::String::NewFromUtf8(isolate, source, v8::NewStringType::kNormal)
-          .ToLocalChecked());
+      v8::String::NewFromUtf8Literal(isolate, "var a=1"));
 
   v8::Local<v8::UnboundScript> unbound =
       v8::ScriptCompiler::CompileUnboundScript(isolate, &script_source)
@@ -5245,8 +5243,7 @@ void RejectPromiseThroughCpp(const v8::FunctionCallbackInfo<v8::Value>& info) {
       info.Data().As<v8::External>()->Value());
 
   v8::Local<v8::String> value1 =
-      v8::String::NewFromUtf8(data->first, "foo", v8::NewStringType::kNormal)
-          .ToLocalChecked();
+      v8::String::NewFromUtf8Literal(data->first, "foo");
 
   v8::Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(data->second->local()).ToLocalChecked();

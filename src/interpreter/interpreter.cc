@@ -388,9 +388,7 @@ Local<v8::Object> Interpreter::GetDispatchCountersObject() {
       if (counter > 0) {
         std::string to_name = Bytecodes::ToString(to_bytecode);
         Local<v8::String> to_name_object =
-            v8::String::NewFromUtf8(isolate, to_name.c_str(),
-                                    NewStringType::kNormal)
-                .ToLocalChecked();
+            v8::String::NewFromUtf8(isolate, to_name.c_str()).ToLocalChecked();
         Local<v8::Number> counter_object = v8::Number::New(isolate, counter);
         CHECK(counters_row
                   ->DefineOwnProperty(context, to_name_object, counter_object)
@@ -400,9 +398,7 @@ Local<v8::Object> Interpreter::GetDispatchCountersObject() {
 
     std::string from_name = Bytecodes::ToString(from_bytecode);
     Local<v8::String> from_name_object =
-        v8::String::NewFromUtf8(isolate, from_name.c_str(),
-                                NewStringType::kNormal)
-            .ToLocalChecked();
+        v8::String::NewFromUtf8(isolate, from_name.c_str()).ToLocalChecked();
 
     CHECK(
         counters_map->DefineOwnProperty(context, from_name_object, counters_row)

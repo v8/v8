@@ -398,13 +398,11 @@ bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
   v8::Context::Scope context_scope(context);
   v8::TryCatch try_catch(isolate);
   v8::Local<v8::String> source_string;
-  if (!v8::String::NewFromUtf8(isolate, utf8_source, v8::NewStringType::kNormal)
-           .ToLocal(&source_string)) {
+  if (!v8::String::NewFromUtf8(isolate, utf8_source).ToLocal(&source_string)) {
     return false;
   }
   v8::Local<v8::String> resource_name =
-      v8::String::NewFromUtf8(isolate, name, v8::NewStringType::kNormal)
-          .ToLocalChecked();
+      v8::String::NewFromUtf8(isolate, name).ToLocalChecked();
   v8::ScriptOrigin origin(resource_name);
   v8::ScriptCompiler::Source source(source_string, origin);
   v8::Local<v8::Script> script;

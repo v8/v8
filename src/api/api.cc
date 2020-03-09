@@ -6371,6 +6371,19 @@ STATIC_ASSERT(v8::String::kMaxLength == i::String::kMaxLength);
     result = Utils::ToLocal(handle_result);                                \
   }
 
+Local<String> String::NewFromUtf8Literal(Isolate* isolate, const char* literal,
+                                         NewStringType type, int length) {
+  DCHECK_LE(length, i::String::kMaxLength);
+  i::Isolate* i_isolate = reinterpret_cast<internal::Isolate*>(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  LOG_API(i_isolate, String, NewFromUtf8Literal);
+  i::Handle<i::String> handle_result =
+      NewString(i_isolate->factory(), type,
+                i::Vector<const char>(literal, length))
+          .ToHandleChecked();
+  return Utils::ToLocal(handle_result);
+}
+
 MaybeLocal<String> String::NewFromUtf8(Isolate* isolate, const char* data,
                                        NewStringType type, int length) {
   NEW_STRING(isolate, String, NewFromUtf8, char, data, type, length);

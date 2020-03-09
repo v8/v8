@@ -446,10 +446,8 @@ TEST(TracedGlobalToJSApiObjectWithModifiedMapSurvivesScavenge) {
     // Create an API object which does not have the same map as constructor.
     auto function_template = FunctionTemplate::New(isolate);
     auto instance_t = function_template->InstanceTemplate();
-    instance_t->Set(
-        v8::String::NewFromUtf8(isolate, "a", NewStringType::kNormal)
-            .ToLocalChecked(),
-        v8::Number::New(isolate, 10));
+    instance_t->Set(v8::String::NewFromUtf8Literal(isolate, "a"),
+                    v8::Number::New(isolate, 10));
     auto function =
         function_template->GetFunction(context.local()).ToLocalChecked();
     auto i = function->NewInstance(context.local()).ToLocalChecked();
@@ -471,14 +469,10 @@ TEST(TracedGlobalTOJsApiObjectWithElementsSurvivesScavenge) {
     // Create an API object which has elements.
     auto function_template = FunctionTemplate::New(isolate);
     auto instance_t = function_template->InstanceTemplate();
-    instance_t->Set(
-        v8::String::NewFromUtf8(isolate, "1", NewStringType::kNormal)
-            .ToLocalChecked(),
-        v8::Number::New(isolate, 10));
-    instance_t->Set(
-        v8::String::NewFromUtf8(isolate, "2", NewStringType::kNormal)
-            .ToLocalChecked(),
-        v8::Number::New(isolate, 10));
+    instance_t->Set(v8::String::NewFromUtf8Literal(isolate, "1"),
+                    v8::Number::New(isolate, 10));
+    instance_t->Set(v8::String::NewFromUtf8Literal(isolate, "2"),
+                    v8::Number::New(isolate, 10));
     auto function =
         function_template->GetFunction(context.local()).ToLocalChecked();
     auto i = function->NewInstance(context.local()).ToLocalChecked();

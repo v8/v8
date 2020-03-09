@@ -120,9 +120,8 @@
  *        v8::ObjectTemplate::New(isolate);
  *      object_template->SetInternalFieldCount(
  *        kV8EmbedderWrapperObjectIndex + 1);
- *      object_template->Set(v8::String::NewFromUtf8(isolate, "method",
- *                                     v8::NewStringType::kNormal)
- *          .ToLocalChecked(), method_template);
+ *      object_template->Set(
+            v8::String::NewFromUtf8Literal(isolate, "method"), method_template);
  *
  *      // Instantiate the wrapper JS object.
  *      v8::Local<v8::Object> object =
