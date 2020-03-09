@@ -1872,6 +1872,19 @@ void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
   Movddup(dst.fp(), src.fp());
 }
 
+void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vaddpd(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (dst.fp() == rhs.fp()) {
+    addpd(dst.fp(), lhs.fp());
+  } else {
+    if (dst.fp() != lhs.fp()) movapd(dst.fp(), lhs.fp());
+    addpd(dst.fp(), rhs.fp());
+  }
+}
+
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   if (dst.fp() != src.fp()) {
@@ -1897,6 +1910,19 @@ void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Movq(dst.fp(), src.gp());
   Movddup(dst.fp(), dst.fp());
+}
+
+void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpaddq(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (dst.fp() == rhs.fp()) {
+    paddq(dst.fp(), lhs.fp());
+  } else {
+    if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
+    paddq(dst.fp(), rhs.fp());
+  }
 }
 
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
@@ -1943,6 +1969,19 @@ void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
   Movd(dst.fp(), src.gp());
   Pxor(kScratchDoubleReg, kScratchDoubleReg);
   Pshufb(dst.fp(), kScratchDoubleReg);
+}
+
+void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpaddb(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (dst.fp() == rhs.fp()) {
+    paddb(dst.fp(), lhs.fp());
+  } else {
+    if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
+    paddb(dst.fp(), rhs.fp());
+  }
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
