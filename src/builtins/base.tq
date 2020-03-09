@@ -473,7 +473,7 @@ transitioning macro ToInteger_Inline(implicit context: Context)(input: Object):
       return s;
     }
     case (ho: HeapObject): {
-      return ToIntegerImpl(ho);
+      return ToInteger(ho);
     }
   }
 }
