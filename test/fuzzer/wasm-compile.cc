@@ -282,7 +282,7 @@ class WasmGenerator {
     // Generate the index and the arguments, if any.
     Generate<kWasmI32, arg_types...>(data);
 
-    if (WasmOpcodes::IsPrefixOpcode(memory_op)) {
+    if (WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(memory_op >> 8))) {
       DCHECK(memory_op >> 8 == kAtomicPrefix || memory_op >> 8 == kSimdPrefix);
       builder_->EmitWithPrefix(memory_op);
     } else {
