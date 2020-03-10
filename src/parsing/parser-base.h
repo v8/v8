@@ -4606,7 +4606,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   }
 
   if (class_info.requires_brand) {
-    // TODO(joyee): implement static brand checking
     class_scope->DeclareBrandVariable(
         ast_value_factory(), IsStaticFlag::kNotStatic, kNoSourcePosition);
   }
