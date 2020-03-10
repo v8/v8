@@ -7,6 +7,7 @@
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
+#include "src/common/globals.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/heap/heap-inl.h"
 #include "src/logging/counters.h"
@@ -175,7 +176,6 @@ template <typename LocalIsolate>
 Handle<Script> ParseInfo::CreateScript(LocalIsolate* isolate,
                                        Handle<String> source,
                                        ScriptOriginOptions origin_options,
-                                       REPLMode repl_mode,
                                        NativesFlag natives) {
   // Create a script object describing the script to be compiled.
   Handle<Script> script;
@@ -198,10 +198,15 @@ Handle<Script> ParseInfo::CreateScript(LocalIsolate* isolate,
       break;
   }
   script->set_origin_options(origin_options);
-  script->set_is_repl_mode(repl_mode == REPLMode::kYes);
+  script->set_is_repl_mode(is_repl_mode());
+  if (is_wrapped_as_function()) {
+    script->set_wrapped_arguments(*wrapped_arguments());
+  } else if (is_eval()) {
+    script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
+  }
 
-  SetFlagsForToplevelCompileFromScript(isolate, *script,
-                                       isolate->is_collecting_type_profile());
+  CheckFlagsForToplevelCompileFromScript(*script,
+                                         isolate->is_collecting_type_profile());
   return script;
 }
 
@@ -209,13 +214,11 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<Script> ParseInfo::CreateScript(Isolate* isolate,
                                            Handle<String> source,
                                            ScriptOriginOptions origin_options,
-                                           REPLMode repl_mode,
                                            NativesFlag natives);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<Script> ParseInfo::CreateScript(OffThreadIsolate* isolate,
                                            Handle<String> source,
                                            ScriptOriginOptions origin_options,
-                                           REPLMode repl_mode,
                                            NativesFlag natives);
 
 AstValueFactory* ParseInfo::GetOrCreateAstValueFactory() {
@@ -228,6 +231,7 @@ AstValueFactory* ParseInfo::GetOrCreateAstValueFactory() {
 
 void ParseInfo::AllocateSourceRangeMap() {
   DCHECK(block_coverage_enabled());
+  DCHECK_NULL(source_range_map());
   set_source_range_map(new (zone()) SourceRangeMap(zone()));
 }
 
@@ -239,19 +243,48 @@ void ParseInfo::set_character_stream(
   character_stream_.swap(character_stream);
 }
 
+void ParseInfo::SetFlagsForToplevelCompile(bool is_collecting_type_profile,
+                                           bool is_user_javascript,
+                                           LanguageMode language_mode,
+                                           REPLMode repl_mode) {
+  set_allow_lazy_parsing();
+  set_toplevel();
+  set_collect_type_profile(is_user_javascript && is_collecting_type_profile);
+  set_language_mode(
+      stricter_language_mode(this->language_mode(), language_mode));
+  set_repl_mode(repl_mode == REPLMode::kYes);
+
+  if (V8_UNLIKELY(is_user_javascript && block_coverage_enabled())) {
+    AllocateSourceRangeMap();
+  }
+}
+
 template <typename LocalIsolate>
 void ParseInfo::SetFlagsForToplevelCompileFromScript(
     LocalIsolate* isolate, Script script, bool is_collecting_type_profile) {
   SetFlagsForFunctionFromScript(script);
-  set_allow_lazy_parsing();
-  set_toplevel();
-  set_collect_type_profile(is_collecting_type_profile &&
-                           script.IsUserJavaScript());
-  set_repl_mode(script.is_repl_mode());
+  SetFlagsForToplevelCompile(is_collecting_type_profile,
+                             script.IsUserJavaScript(), language_mode(),
+                             construct_repl_mode(script.is_repl_mode()));
 
   if (script.is_wrapped()) {
     set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
     set_wrapped_arguments(handle(script.wrapped_arguments(), isolate));
+  }
+}
+
+void ParseInfo::CheckFlagsForToplevelCompileFromScript(
+    Script script, bool is_collecting_type_profile) {
+  CheckFlagsForFunctionFromScript(script);
+  DCHECK(allow_lazy_parsing());
+  DCHECK(is_toplevel());
+  DCHECK_EQ(collect_type_profile(),
+            is_collecting_type_profile && script.IsUserJavaScript());
+  DCHECK_EQ(is_repl_mode(), script.is_repl_mode());
+
+  if (script.is_wrapped()) {
+    DCHECK_EQ(function_syntax_kind(), FunctionSyntaxKind::kWrapped);
+    DCHECK_EQ(*wrapped_arguments(), script.wrapped_arguments());
   }
 }
 
@@ -266,6 +299,17 @@ void ParseInfo::SetFlagsForFunctionFromScript(Script script) {
   if (block_coverage_enabled() && script.IsUserJavaScript()) {
     AllocateSourceRangeMap();
   }
+}
+
+void ParseInfo::CheckFlagsForFunctionFromScript(Script script) {
+  DCHECK_EQ(script_id_, script.id());
+  // We set "is_eval" for wrapped functions to get an outer declaration scope.
+  // This is a bit hacky, but ok since we can't be both eval and wrapped.
+  DCHECK_EQ(is_eval() && !is_wrapped_as_function(),
+            script.compilation_type() == Script::COMPILATION_TYPE_EVAL);
+  DCHECK_EQ(is_module(), script.origin_options().IsModule());
+  DCHECK_IMPLIES(block_coverage_enabled() && script.IsUserJavaScript(),
+                 source_range_map() != nullptr);
 }
 
 void ParseInfo::ParallelTasks::Enqueue(ParseInfo* outer_parse_info,

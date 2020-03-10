@@ -720,6 +720,7 @@ bool FinalizeUnoptimizedCode(
   }
 
   Handle<Script> script(Script::cast(shared_info->script()), isolate);
+  parse_info->CheckFlagsForFunctionFromScript(*script);
 
   // Finalize the inner functions' compilation jobs.
   for (auto&& inner_job : *inner_function_jobs) {
@@ -1149,14 +1150,9 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
   // will happen in the main thread after parsing.
   LOG(isolate, ScriptEvent(Logger::ScriptEventType::kStreamingCompile,
                            info_->script_id()));
-  info_->set_toplevel();
-  info_->set_allow_lazy_parsing();
-  if (V8_UNLIKELY(info_->block_coverage_enabled())) {
-    info_->AllocateSourceRangeMap();
-  }
-  LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
-  info_->set_language_mode(
-      stricter_language_mode(info_->language_mode(), language_mode));
+  info_->SetFlagsForToplevelCompile(isolate->is_collecting_type_profile(), true,
+                                    construct_language_mode(FLAG_use_strict),
+                                    REPLMode::kNo);
   language_mode_ = info_->language_mode();
 
   std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
@@ -1277,10 +1273,10 @@ void BackgroundCompileTask::Run() {
       // We don't have the script source or the script origin yet, so use a few
       // default values for them. These will be fixed up during the main-thread
       // merge.
-      Handle<Script> script = info_->CreateScript(
-          off_thread_isolate_.get(),
-          off_thread_isolate_->factory()->empty_string(), ScriptOriginOptions(),
-          REPLMode::kNo, NOT_NATIVES_CODE);
+      Handle<Script> script =
+          info_->CreateScript(off_thread_isolate_.get(),
+                              off_thread_isolate_->factory()->empty_string(),
+                              ScriptOriginOptions(), NOT_NATIVES_CODE);
 
       Handle<SharedFunctionInfo> outer_function_sfi =
           FinalizeTopLevel(info_.get(), script, off_thread_isolate_.get(),
@@ -1594,9 +1590,7 @@ bool Compiler::FinalizeBackgroundCompileTask(
   DCHECK(!shared_info->is_compiled());
 
   Handle<Script> script(Script::cast(shared_info->script()), isolate);
-  // TODO(leszeks): We can probably remove this, the parse_info flags should
-  // already match the script's.
-  parse_info->SetFlagsForFunctionFromScript(*script);
+  parse_info->CheckFlagsForFunctionFromScript(*script);
 
   task->parser()->UpdateStatistics(isolate, script);
   task->parser()->HandleSourceURLComments(isolate, script);
@@ -1703,9 +1697,19 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     allow_eval_cache = true;
   } else {
     ParseInfo parse_info(isolate);
+    parse_info.SetFlagsForToplevelCompile(isolate->is_collecting_type_profile(),
+                                          true, language_mode, REPLMode::kNo);
+
+    parse_info.set_eval();
+    parse_info.set_parse_restriction(restriction);
+    parse_info.set_parameters_end_pos(parameters_end_pos);
+    if (!context->IsNativeContext()) {
+      parse_info.set_outer_scope_info(handle(context->scope_info(), isolate));
+    }
+    DCHECK(!parse_info.is_module());
+
     script = parse_info.CreateScript(
         isolate, source, OriginOptionsForEval(outer_info->script()));
-    script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
     script->set_eval_from_shared(*outer_info);
     if (eval_position == kNoSourcePosition) {
       // If the position is missing, attempt to get the code offset by
@@ -1723,15 +1727,6 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       }
     }
     script->set_eval_from_position(eval_position);
-
-    parse_info.set_eval();
-    parse_info.set_language_mode(language_mode);
-    parse_info.set_parse_restriction(restriction);
-    parse_info.set_parameters_end_pos(parameters_end_pos);
-    if (!context->IsNativeContext()) {
-      parse_info.set_outer_scope_info(handle(context->scope_info(), isolate));
-    }
-    DCHECK(!parse_info.is_module());
 
     if (!CompileToplevel(&parse_info, script, isolate, &is_compiled_scope)
              .ToHandle(&shared_info)) {
@@ -2143,8 +2138,8 @@ Handle<Script> NewScript(Isolate* isolate, ParseInfo* parse_info,
                          ScriptOriginOptions origin_options,
                          NativesFlag natives) {
   // Create a script object describing the script to be compiled.
-  Handle<Script> script = parse_info->CreateScript(
-      isolate, source, origin_options, script_details.repl_mode, natives);
+  Handle<Script> script =
+      parse_info->CreateScript(isolate, source, origin_options, natives);
   SetScriptFieldsFromDetails(*script, script_details);
   LOG(isolate, ScriptDetails(*script));
   return script;
@@ -2234,19 +2229,24 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   }
 
   if (maybe_result.is_null()) {
-    ParseInfo parse_info(isolate);
     // No cache entry found compile the script.
-    Handle<Script> script = NewScript(isolate, &parse_info, source,
-                                      script_details, origin_options, natives);
-    DCHECK_EQ(parse_info.is_repl_mode(), script->is_repl_mode());
+    ParseInfo parse_info(isolate);
 
-    // Compile the function and add it to the isolate cache.
-    if (origin_options.IsModule()) parse_info.set_module();
+    parse_info.SetFlagsForToplevelCompile(
+        isolate->is_collecting_type_profile(), natives == NOT_NATIVES_CODE,
+        language_mode, script_details.repl_mode);
+
+    parse_info.set_module(origin_options.IsModule());
     parse_info.set_extension(extension);
     parse_info.set_eager(compile_options == ScriptCompiler::kEagerCompile);
 
-    parse_info.set_language_mode(
-        stricter_language_mode(parse_info.language_mode(), language_mode));
+    Handle<Script> script = NewScript(isolate, &parse_info, source,
+                                      script_details, origin_options, natives);
+    DCHECK_IMPLIES(parse_info.collect_type_profile(),
+                   script->IsUserJavaScript());
+    DCHECK_EQ(parse_info.is_repl_mode(), script->is_repl_mode());
+
+    // Compile the function and add it to the isolate cache.
     maybe_result =
         CompileToplevel(&parse_info, script, isolate, &is_compiled_scope);
     Handle<SharedFunctionInfo> result;
@@ -2308,9 +2308,9 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
   IsCompiledScope is_compiled_scope;
   if (!maybe_result.ToHandle(&wrapped)) {
     ParseInfo parse_info(isolate);
-    script = NewScript(isolate, &parse_info, source, script_details,
-                       origin_options, NOT_NATIVES_CODE);
-    script->set_wrapped_arguments(*arguments);
+    parse_info.SetFlagsForToplevelCompile(isolate->is_collecting_type_profile(),
+                                          true, language_mode,
+                                          script_details.repl_mode);
 
     parse_info.set_eval();  // Use an eval scope as declaration scope.
     parse_info.set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
@@ -2323,8 +2323,9 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     if (!context->IsNativeContext()) {
       parse_info.set_outer_scope_info(handle(context->scope_info(), isolate));
     }
-    parse_info.set_language_mode(
-        stricter_language_mode(parse_info.language_mode(), language_mode));
+
+    script = NewScript(isolate, &parse_info, source, script_details,
+                       origin_options, NOT_NATIVES_CODE);
 
     Handle<SharedFunctionInfo> top_level;
     maybe_result =

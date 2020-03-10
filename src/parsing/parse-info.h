@@ -59,7 +59,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   Handle<Script> CreateScript(LocalIsolate* isolate, Handle<String> source,
                               ScriptOriginOptions origin_options,
-                              REPLMode repl_mode = REPLMode::kNo,
                               NativesFlag natives = NOT_NATIVES_CODE);
 
   // Either returns the ast-value-factory associcated with this ParseInfo, or
@@ -264,7 +263,12 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ParallelTasks* parallel_tasks() { return parallel_tasks_.get(); }
 
-  void SetFlagsForFunctionFromScript(Script script);
+  void SetFlagsForToplevelCompile(bool is_collecting_type_profile,
+                                  bool is_user_javascript,
+                                  LanguageMode language_mode,
+                                  REPLMode repl_mode);
+
+  void CheckFlagsForFunctionFromScript(Script script);
 
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.
@@ -293,10 +297,14 @@ class V8_EXPORT_PRIVATE ParseInfo {
   }
 
  private:
+  void SetFlagsForFunctionFromScript(Script script);
+
   template <typename LocalIsolate>
   void SetFlagsForToplevelCompileFromScript(LocalIsolate* isolate,
                                             Script script,
                                             bool is_collecting_type_profile);
+  void CheckFlagsForToplevelCompileFromScript(Script script,
+                                              bool is_collecting_type_profile);
 
   // Set function info flags based on those in either FunctionLiteral or
   // SharedFunctionInfo |function|
