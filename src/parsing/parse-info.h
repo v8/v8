@@ -41,9 +41,7 @@ class Zone;
 // A container for the inputs, configuration options, and outputs of parsing.
 class V8_EXPORT_PRIVATE ParseInfo {
  public:
-  explicit ParseInfo(AccountingAllocator* zone_allocator);
   explicit ParseInfo(Isolate*);
-  ParseInfo(Isolate*, AccountingAllocator* zone_allocator);
   ParseInfo(Isolate* isolate, Script script);
   ParseInfo(Isolate* isolate, SharedFunctionInfo shared);
 
@@ -297,6 +295,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   }
 
  private:
+  ParseInfo(AccountingAllocator* zone_allocator, int script_id);
+  ParseInfo(Isolate*, AccountingAllocator* zone_allocator, int script_id);
+
   void SetFlagsForFunctionFromScript(Script script);
 
   template <typename LocalIsolate>
