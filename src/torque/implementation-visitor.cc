@@ -3888,7 +3888,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
     NamespaceScope implementation_namespaces(implementation,
                                              {"v8", "internal"});
 
-    std::unordered_set<const StructType*> structs_used_in_classes;
+    std::set<const StructType*, TypeLess> structs_used_in_classes;
 
     for (const ClassType* type : TypeOracle::GetClasses()) {
       std::stringstream& header = (type->IsExtern() || type->ShouldExport())
