@@ -1051,20 +1051,22 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                        Node* receiver, TArgs... args) {
     int argc = static_cast<int>(sizeof...(args));
     TNode<Int32T> arity = Int32Constant(argc);
-    return CallStub(callable, CAST(context), function, arity, receiver,
-                    args...);
+    TNode<Code> target = HeapConstant(callable.code());
+    return CAST(CallJSStubImpl(callable.descriptor(), target, CAST(context),
+                               CAST(function), TNode<Object>(), arity,
+                               {receiver, args...}));
   }
 
   template <class... TArgs>
   Node* ConstructJSWithTarget(Callable const& callable, Node* context,
-                              Node* target, Node* new_target, TArgs... args) {
+                              Node* function, Node* new_target, TArgs... args) {
     int argc = static_cast<int>(sizeof...(args));
     TNode<Int32T> arity = Int32Constant(argc);
     TNode<Object> receiver = LoadRoot(RootIndex::kUndefinedValue);
-
-    // Construct(target, new_target, arity, receiver, arguments...)
-    return CallStub(callable, CAST(context), target, new_target, arity,
-                    receiver, args...);
+    TNode<Code> target = HeapConstant(callable.code());
+    return CallJSStubImpl(callable.descriptor(), target, CAST(context),
+                          CAST(function), CAST(new_target), arity,
+                          {receiver, args...});
   }
   template <class... TArgs>
   Node* ConstructJS(Callable const& callable, Node* context, Node* new_target,
@@ -1172,6 +1174,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                       const CallInterfaceDescriptor& descriptor,
                       size_t result_size, TNode<Object> target,
                       TNode<Object> context, std::initializer_list<Node*> args);
+
+  Node* CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
+                       TNode<Object> target, TNode<Object> context,
+                       TNode<Object> function, TNode<Object> new_target,
+                       TNode<Int32T> arity, std::initializer_list<Node*> args);
 
   // These two don't have definitions and are here only for catching use cases
   // where the cast is not necessary.
