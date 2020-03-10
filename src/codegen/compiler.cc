@@ -1596,7 +1596,7 @@ bool Compiler::FinalizeBackgroundCompileTask(
   Handle<Script> script(Script::cast(shared_info->script()), isolate);
   // TODO(leszeks): We can probably remove this, the parse_info flags should
   // already match the script's.
-  parse_info->SetFlagsFromScript(isolate, *script);
+  parse_info->SetFlagsForFunctionFromScript(*script);
 
   task->parser()->UpdateStatistics(isolate, script);
   task->parser()->HandleSourceURLComments(isolate, script);

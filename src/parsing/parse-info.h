@@ -264,8 +264,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ParallelTasks* parallel_tasks() { return parallel_tasks_.get(); }
 
-  template <typename LocalIsolate>
-  void SetFlagsFromScript(LocalIsolate* isolate, Script script);
+  void SetFlagsForFunctionFromScript(Script script);
 
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.

@@ -104,7 +104,11 @@ ParseInfo::ParseInfo(Isolate* isolate, SharedFunctionInfo shared)
   SetFunctionInfo(&shared);
 
   Script script = Script::cast(shared.script());
-  SetFlagsFromScript(isolate, script);
+  SetFlagsForFunctionFromScript(script);
+  if (shared.is_wrapped()) {
+    DCHECK(script.is_wrapped());
+    set_wrapped_arguments(handle(script.wrapped_arguments(), isolate));
+  }
 
   if (shared.HasOuterScopeInfo()) {
     set_outer_scope_info(handle(shared.GetOuterScopeInfo(), isolate));
@@ -238,19 +242,20 @@ void ParseInfo::set_character_stream(
 template <typename LocalIsolate>
 void ParseInfo::SetFlagsForToplevelCompileFromScript(
     LocalIsolate* isolate, Script script, bool is_collecting_type_profile) {
-  SetFlagsFromScript(isolate, script);
+  SetFlagsForFunctionFromScript(script);
   set_allow_lazy_parsing();
   set_toplevel();
   set_collect_type_profile(is_collecting_type_profile &&
                            script.IsUserJavaScript());
   set_repl_mode(script.is_repl_mode());
+
   if (script.is_wrapped()) {
     set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
+    set_wrapped_arguments(handle(script.wrapped_arguments(), isolate));
   }
 }
 
-template <typename LocalIsolate>
-void ParseInfo::SetFlagsFromScript(LocalIsolate* isolate, Script script) {
+void ParseInfo::SetFlagsForFunctionFromScript(Script script) {
   DCHECK(script_id_ == -1 || script_id_ == script.id());
   script_id_ = script.id();
 
@@ -260,16 +265,6 @@ void ParseInfo::SetFlagsFromScript(LocalIsolate* isolate, Script script) {
 
   if (block_coverage_enabled() && script.IsUserJavaScript()) {
     AllocateSourceRangeMap();
-  }
-
-  if (script.is_wrapped()) {
-    // This should only ever happen on the main thread. Convert this templated
-    // handle into a real Handle via Handle to avoid having to
-    // use template specialization for this.
-    DCHECK((std::is_same<Isolate, v8::internal::Isolate>::value));
-    Handle<FixedArray> wrapped_arguments_handle =
-        handle(script.wrapped_arguments(), isolate);
-    set_wrapped_arguments(wrapped_arguments_handle);
   }
 }
 
