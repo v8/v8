@@ -655,6 +655,7 @@ config("toolchain") {
   }
   if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     defines += [ "V8_TARGET_ARCH_S390" ]
+    cflags += [ "-ffp-contract=off" ]
     if (v8_current_cpu == "s390x") {
       defines += [ "V8_TARGET_ARCH_S390X" ]
     }
