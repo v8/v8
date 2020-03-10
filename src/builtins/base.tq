@@ -940,6 +940,10 @@ macro UnsafeCast<A : type extends Object>(implicit context: Context)(o: Object):
   return %RawDownCast<A>(o);
 }
 
+macro UnsafeConstCast<T: type>(r: const &T):&T {
+  return %RawDownCast<&T>(r);
+}
+
 extern macro FixedArrayMapConstant(): Map;
 extern macro FixedDoubleArrayMapConstant(): Map;
 extern macro FixedCOWArrayMapConstant(): Map;

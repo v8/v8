@@ -16,10 +16,6 @@ namespace promise_internal {
       void;
 
   extern macro PromiseBuiltinsAssembler::AllocateJSPromise(Context): HeapObject;
-
-  extern macro PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
-      Context): HeapObject;
-
 }
 
 namespace promise {
@@ -45,7 +41,7 @@ namespace promise {
     assert(IsFunctionWithPrototypeSlotMap(promiseFun.map));
     const promiseMap = UnsafeCast<Map>(promiseFun.prototype_or_initial_map);
     const promiseHeapObject = promise_internal::AllocateJSPromise(context);
-    promiseHeapObject.map = promiseMap;
+    * UnsafeConstCast(& promiseHeapObject.map) = promiseMap;
     const promise = UnsafeCast<JSPromise>(promiseHeapObject);
     promise.properties_or_hash = kEmptyFixedArray;
     promise.elements = kEmptyFixedArray;
@@ -54,24 +50,36 @@ namespace promise {
     return promise;
   }
 
-  macro NewPromiseReactionJobTask(implicit context: Context)(
-      map: Map, handlerContext: Context, argument: Object,
-      handler: Callable|Undefined,
+  macro NewPromiseFulfillReactionJobTask(implicit context: Context)(
+      handlerContext: Context, argument: Object, handler: Callable|Undefined,
       promiseOrCapability: JSPromise|PromiseCapability|
-      Undefined): PromiseReactionJobTask {
+      Undefined): PromiseFulfillReactionJobTask {
     const nativeContext = LoadNativeContext(handlerContext);
-    const taskHeapObject =
-        promise_internal::AllocatePromiseReactionJobTask(context);
-    taskHeapObject.map = map;
-    const jobTask = UnsafeCast<PromiseReactionJobTask>(taskHeapObject);
-    jobTask.argument = argument;
-    jobTask.context = handlerContext;
-    jobTask.handler = handler;
-    jobTask.promise_or_capability = promiseOrCapability;
-    jobTask.continuation_preserved_embedder_data =
-        nativeContext[NativeContextSlot::
-                          CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX];
-    return jobTask;
+    return new PromiseFulfillReactionJobTask{
+      map: PromiseFulfillReactionJobTaskMapConstant(),
+      argument,
+      context: handlerContext,
+      handler,
+      promise_or_capability: promiseOrCapability,
+      continuation_preserved_embedder_data: nativeContext
+          [NativeContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX]
+    };
+  }
+
+  macro NewPromiseRejectReactionJobTask(implicit context: Context)(
+      handlerContext: Context, argument: Object, handler: Callable|Undefined,
+      promiseOrCapability: JSPromise|PromiseCapability|
+      Undefined): PromiseRejectReactionJobTask {
+    const nativeContext = LoadNativeContext(handlerContext);
+    return new PromiseRejectReactionJobTask{
+      map: PromiseRejectReactionJobTaskMapConstant(),
+      argument,
+      context: handlerContext,
+      handler,
+      promise_or_capability: promiseOrCapability,
+      continuation_preserved_embedder_data: nativeContext
+          [NativeContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX]
+    };
   }
 
   // These allocate and initialize a promise with pending state and
