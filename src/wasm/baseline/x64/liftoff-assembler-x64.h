@@ -1879,6 +1879,13 @@ void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
   Movddup(dst.fp(), src.fp());
 }
 
+void LiftoffAssembler::emit_f64x2_extract_lane(LiftoffRegister dst,
+                                               LiftoffRegister lhs,
+                                               uint8_t imm_lane_idx) {
+  Pextrq(kScratchRegister, lhs.fp(), static_cast<int8_t>(imm_lane_idx));
+  Movq(dst.fp(), kScratchRegister);
+}
+
 void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -1900,6 +1907,18 @@ void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
   Shufps(dst.fp(), src.fp(), static_cast<byte>(0));
 }
 
+void LiftoffAssembler::emit_f32x4_extract_lane(LiftoffRegister dst,
+                                               LiftoffRegister lhs,
+                                               uint8_t imm_lane_idx) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vshufps(dst.fp(), lhs.fp(), lhs.fp(), imm_lane_idx);
+  } else {
+    if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
+    if (imm_lane_idx != 0) shufps(dst.fp(), dst.fp(), imm_lane_idx);
+  }
+}
+
 void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -1919,6 +1938,12 @@ void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
   Movddup(dst.fp(), dst.fp());
 }
 
+void LiftoffAssembler::emit_i64x2_extract_lane(LiftoffRegister dst,
+                                               LiftoffRegister lhs,
+                                               uint8_t imm_lane_idx) {
+  Pextrq(dst.gp(), lhs.fp(), static_cast<int8_t>(imm_lane_idx));
+}
+
 void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -1936,6 +1961,12 @@ void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Movd(dst.fp(), src.gp());
   Pshufd(dst.fp(), dst.fp(), static_cast<uint8_t>(0));
+}
+
+void LiftoffAssembler::emit_i32x4_extract_lane(LiftoffRegister dst,
+                                               LiftoffRegister lhs,
+                                               uint8_t imm_lane_idx) {
+  Pextrd(dst.gp(), lhs.fp(), imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1958,6 +1989,19 @@ void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
   Pshufd(dst.fp(), dst.fp(), static_cast<uint8_t>(0));
 }
 
+void LiftoffAssembler::emit_i16x8_extract_lane_u(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 uint8_t imm_lane_idx) {
+  Pextrw(dst.gp(), lhs.fp(), imm_lane_idx);
+}
+
+void LiftoffAssembler::emit_i16x8_extract_lane_s(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 uint8_t imm_lane_idx) {
+  Pextrw(dst.gp(), lhs.fp(), imm_lane_idx);
+  movsxwl(dst.gp(), dst.gp());
+}
+
 void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -1976,6 +2020,19 @@ void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
   Movd(dst.fp(), src.gp());
   Pxor(kScratchDoubleReg, kScratchDoubleReg);
   Pshufb(dst.fp(), kScratchDoubleReg);
+}
+
+void LiftoffAssembler::emit_i8x16_extract_lane_u(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 uint8_t imm_lane_idx) {
+  Pextrb(dst.gp(), lhs.fp(), imm_lane_idx);
+}
+
+void LiftoffAssembler::emit_i8x16_extract_lane_s(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 uint8_t imm_lane_idx) {
+  Pextrb(dst.gp(), lhs.fp(), imm_lane_idx);
+  movsxbl(dst.gp(), dst.gp());
 }
 
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
