@@ -4892,55 +4892,21 @@ Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
   // validation.
   DCHECK_LT(data_segment_index, env_->module->num_declared_data_segments);
 
-  Node* dst_fail = BoundsCheckMemRange(&dst, &size, position);
-  TrapIfTrue(wasm::kTrapMemOutOfBounds, dst_fail, position);
-
-  Node* seg_index = Uint32Constant(data_segment_index);
-  auto m = mcgraph()->machine();
-
-  {
-    // Load segment size from WasmInstanceObject::data_segment_sizes.
-    Node* seg_size_array =
-        LOAD_INSTANCE_FIELD(DataSegmentSizes, MachineType::Pointer());
-    STATIC_ASSERT(wasm::kV8MaxWasmDataSegments <= kMaxUInt32 >> 2);
-    Node* scaled_index = Uint32ToUintptr(
-        graph()->NewNode(m->Word32Shl(), seg_index, Int32Constant(2)));
-    Node* seg_size = SetEffect(graph()->NewNode(m->Load(MachineType::Uint32()),
-                                                seg_size_array, scaled_index,
-                                                effect(), control()));
-
-    // Bounds check the src index against the segment size.
-    Node* src_fail = BoundsCheckRange(src, &size, seg_size, position);
-    TrapIfTrue(wasm::kTrapMemOutOfBounds, src_fail, position);
-  }
-
-  {
-    // Load segment's base pointer from WasmInstanceObject::data_segment_starts.
-    Node* seg_start_array =
-        LOAD_INSTANCE_FIELD(DataSegmentStarts, MachineType::Pointer());
-    STATIC_ASSERT(wasm::kV8MaxWasmDataSegments <=
-                  kMaxUInt32 / kSystemPointerSize);
-    Node* scaled_index = Uint32ToUintptr(graph()->NewNode(
-        m->Word32Shl(), seg_index, Int32Constant(kSystemPointerSizeLog2)));
-    Node* seg_start = SetEffect(
-        graph()->NewNode(m->Load(MachineType::Pointer()), seg_start_array,
-                         scaled_index, effect(), control()));
-
-    // Convert src index to pointer.
-    src = graph()->NewNode(m->IntAdd(), seg_start, Uint32ToUintptr(src));
-  }
-
   Node* function = graph()->NewNode(mcgraph()->common()->ExternalConstant(
       ExternalReference::wasm_memory_init()));
 
-  Node* stack_slot =
-      StoreArgsInStackSlot({{MachineType::PointerRepresentation(), dst},
-                            {MachineType::PointerRepresentation(), src},
-                            {MachineRepresentation::kWord32, size}});
+  Node* stack_slot = StoreArgsInStackSlot(
+      {{MachineType::PointerRepresentation(), instance_node_.get()},
+       {MachineRepresentation::kWord32, dst},
+       {MachineRepresentation::kWord32, src},
+       {MachineRepresentation::kWord32,
+        gasm_->Uint32Constant(data_segment_index)},
+       {MachineRepresentation::kWord32, size}});
 
-  MachineType sig_types[] = {MachineType::Pointer()};
-  MachineSignature sig(0, 1, sig_types);
-  return SetEffect(BuildCCall(&sig, function, stack_slot));
+  MachineType sig_types[] = {MachineType::Bool(), MachineType::Pointer()};
+  MachineSignature sig(1, 1, sig_types);
+  Node* call = SetEffect(BuildCCall(&sig, function, stack_slot));
+  return TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
 }
 
 Node* WasmGraphBuilder::DataDrop(uint32_t data_segment_index,
