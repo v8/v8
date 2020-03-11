@@ -81,6 +81,9 @@ struct assert_field_size {
 constexpr LoadType::LoadTypeValue kPointerLoadType =
     kSystemPointerSize == 8 ? LoadType::kI64Load : LoadType::kI32Load;
 
+constexpr ValueType kPointerValueType =
+    kSystemPointerSize == 8 ? kWasmI64 : kWasmI32;
+
 #if V8_TARGET_ARCH_ARM64
 // On ARM64, the Assembler keeps track of pointers to Labels to resolve
 // branches to distant targets. Moving labels would confuse the Assembler,
@@ -1731,10 +1734,6 @@ class LiftoffCompiler {
   Label* AddOutOfLineTrap(WasmCodePosition position,
                           WasmCode::RuntimeStubId stub, uint32_t pc = 0) {
     DCHECK(FLAG_wasm_bounds_checks);
-    // The pc is needed for memory OOB trap with trap handler enabled. Other
-    // callers should not even compute it.
-    DCHECK_EQ(pc != 0, stub == WasmCode::kThrowWasmTrapMemOutOfBounds &&
-                           env_->use_trap_handler);
 
     out_of_line_code_.push_back(OutOfLineCode::Trap(
         stub, position, pc,
@@ -2691,9 +2690,26 @@ class LiftoffCompiler {
     unsupported(decoder, kBulkMemory, "data.drop");
   }
   void MemoryCopy(FullDecoder* decoder,
-                  const MemoryCopyImmediate<validate>& imm, const Value& dst,
-                  const Value& src, const Value& size) {
-    unsupported(decoder, kBulkMemory, "memory.copy");
+                  const MemoryCopyImmediate<validate>& imm, const Value&,
+                  const Value&, const Value&) {
+    LiftoffRegList pinned;
+    LiftoffRegister size = pinned.set(__ PopToRegister());
+    LiftoffRegister src = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister dst = pinned.set(__ PopToRegister(pinned));
+    Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    __ FillInstanceInto(instance);
+    ExternalReference ext_ref = ExternalReference::wasm_memory_copy();
+    ValueType sig_reps[] = {kWasmI32, kPointerValueType, kWasmI32, kWasmI32,
+                            kWasmI32};
+    FunctionSig sig(1, 4, sig_reps);
+    LiftoffRegister args[] = {LiftoffRegister(instance), dst, src, size};
+    // We don't need the instance anymore after the call. We can use the
+    // register for the result.
+    LiftoffRegister result(instance);
+    GenerateCCall(&result, &sig, kWasmStmt, args, ext_ref);
+    Label* trap_label = AddOutOfLineTrap(
+        decoder->position(), WasmCode::kThrowWasmTrapMemOutOfBounds);
+    __ emit_cond_jump(kEqual, trap_label, kWasmI32, result.gp());
   }
   void MemoryFill(FullDecoder* decoder,
                   const MemoryIndexImmediate<validate>& imm, const Value& dst,
