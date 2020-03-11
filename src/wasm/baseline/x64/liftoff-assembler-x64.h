@@ -1874,6 +1874,24 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
                                                       rhs);
 }
 
+// TODO(fanchenk): Distinguish mov* if data bypass delay matter.
+namespace liftoff {
+template <void (Assembler::*avx_op)(XMMRegister, XMMRegister, XMMRegister),
+          void (Assembler::*sse_op)(XMMRegister, XMMRegister)>
+void EmitSimdCommutativeBinOp(LiftoffAssembler* assm, LiftoffRegister dst,
+                              LiftoffRegister lhs, LiftoffRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(assm, AVX);
+    (assm->*avx_op)(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (dst.fp() == rhs.fp()) {
+    (assm->*sse_op)(dst.fp(), lhs.fp());
+  } else {
+    if (dst.fp() != lhs.fp()) (assm->movaps)(dst.fp(), lhs.fp());
+    (assm->*sse_op)(dst.fp(), rhs.fp());
+  }
+}
+}  // namespace liftoff
+
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Movddup(dst.fp(), src.fp());
@@ -1888,15 +1906,8 @@ void LiftoffAssembler::emit_f64x2_extract_lane(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vaddpd(dst.fp(), lhs.fp(), rhs.fp());
-  } else if (dst.fp() == rhs.fp()) {
-    addpd(dst.fp(), lhs.fp());
-  } else {
-    if (dst.fp() != lhs.fp()) movapd(dst.fp(), lhs.fp());
-    addpd(dst.fp(), rhs.fp());
-  }
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vaddpd, &Assembler::addpd>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
@@ -1921,15 +1932,8 @@ void LiftoffAssembler::emit_f32x4_extract_lane(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vaddps(dst.fp(), lhs.fp(), rhs.fp());
-  } else if (dst.fp() == rhs.fp()) {
-    addps(dst.fp(), lhs.fp());
-  } else {
-    if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
-    addps(dst.fp(), rhs.fp());
-  }
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vaddps, &Assembler::addps>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
@@ -1946,15 +1950,8 @@ void LiftoffAssembler::emit_i64x2_extract_lane(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpaddq(dst.fp(), lhs.fp(), rhs.fp());
-  } else if (dst.fp() == rhs.fp()) {
-    paddq(dst.fp(), lhs.fp());
-  } else {
-    if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
-    paddq(dst.fp(), rhs.fp());
-  }
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddq, &Assembler::paddq>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
@@ -1971,15 +1968,8 @@ void LiftoffAssembler::emit_i32x4_extract_lane(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpaddd(dst.fp(), lhs.fp(), rhs.fp());
-  } else if (dst.fp() == rhs.fp()) {
-    paddd(dst.fp(), lhs.fp());
-  } else {
-    if (dst.fp() != lhs.fp()) movapd(dst.fp(), lhs.fp());
-    paddd(dst.fp(), rhs.fp());
-  }
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddd, &Assembler::paddd>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
@@ -2004,15 +1994,8 @@ void LiftoffAssembler::emit_i16x8_extract_lane_s(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpaddw(dst.fp(), lhs.fp(), rhs.fp());
-  } else if (dst.fp() == rhs.fp()) {
-    paddw(dst.fp(), lhs.fp());
-  } else {
-    if (dst.fp() != lhs.fp()) movapd(dst.fp(), lhs.fp());
-    paddw(dst.fp(), rhs.fp());
-  }
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddw, &Assembler::paddw>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
@@ -2037,15 +2020,8 @@ void LiftoffAssembler::emit_i8x16_extract_lane_s(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpaddb(dst.fp(), lhs.fp(), rhs.fp());
-  } else if (dst.fp() == rhs.fp()) {
-    paddb(dst.fp(), lhs.fp());
-  } else {
-    if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
-    paddb(dst.fp(), rhs.fp());
-  }
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddb, &Assembler::paddb>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
