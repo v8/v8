@@ -1040,9 +1040,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   RegExpStack* regexp_stack() { return regexp_stack_; }
 
   size_t total_regexp_code_generated() { return total_regexp_code_generated_; }
-  void IncreaseTotalRegexpCodeGenerated(int size) {
-    total_regexp_code_generated_ += size;
-  }
+  void IncreaseTotalRegexpCodeGenerated(Handle<HeapObject> code);
 
   std::vector<int>* regexp_indices() { return &regexp_indices_; }
 

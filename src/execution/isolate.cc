@@ -3705,6 +3705,11 @@ bool Isolate::use_optimizer() {
          !is_precise_count_code_coverage();
 }
 
+void Isolate::IncreaseTotalRegexpCodeGenerated(Handle<HeapObject> code) {
+  DCHECK(code->IsCode() || code->IsByteArray());
+  total_regexp_code_generated_ += code->Size();
+}
+
 bool Isolate::NeedsDetailedOptimizedCodeLineInfo() const {
   return NeedsSourcePositionsForProfiling() ||
          detailed_source_positions_for_profiling();

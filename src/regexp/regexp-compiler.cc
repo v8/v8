@@ -272,7 +272,7 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
   }
 
   Handle<HeapObject> code = macro_assembler_->GetCode(pattern);
-  isolate->IncreaseTotalRegexpCodeGenerated(code->Size());
+  isolate->IncreaseTotalRegexpCodeGenerated(code);
   work_list_ = nullptr;
 
 #ifdef DEBUG
@@ -1849,13 +1849,13 @@ RegExpNode* TextNode::FilterOneByte(int depth) {
     if (elm.text_type() == TextElement::ATOM) {
       Vector<const uc16> quarks = elm.atom()->data();
       for (int j = 0; j < quarks.length(); j++) {
-        uint16_t c = quarks[j];
+        uc16 c = quarks[j];
         if (elm.atom()->ignore_case()) {
           c = unibrow::Latin1::TryConvertToLatin1(c);
         }
         if (c > unibrow::Latin1::kMaxChar) return set_replacement(nullptr);
         // Replace quark in case we converted to Latin-1.
-        uint16_t* writable_quarks = const_cast<uint16_t*>(quarks.begin());
+        uc16* writable_quarks = const_cast<uc16*>(quarks.begin());
         writable_quarks[j] = c;
       }
     } else {

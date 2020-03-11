@@ -1681,7 +1681,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       return 0;
     }
   }
-  return 0;
+  UNREACHABLE();
 }
 
 void RegExpParser::ParseClassEscape(ZoneList<CharacterRange>* ranges,
