@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 # Copyright 2017 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -18,6 +18,9 @@ All arguments are optional. Most combinations should work, e.g.:
     gm.py x64 mjsunit/foo cctest/test-bar/*
 """
 # See HELP below for additional documentation.
+# Note on Python3 compatibility: gm.py itself is Python3 compatible, but
+# run-tests.py, which will be executed by the same binary, is not; hence
+# the hashbang line at the top of this file explicitly requires Python2.
 
 from __future__ import print_function
 import errno
