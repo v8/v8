@@ -72,6 +72,7 @@ class HeapStats;
 class Isolate;
 class JSFinalizationRegistry;
 class LocalEmbedderHeapTracer;
+class LocalHeap;
 class MemoryAllocator;
 class MemoryMeasurement;
 class MemoryReducer;
@@ -617,6 +618,11 @@ class Heap {
 
   void AppendArrayBufferExtension(JSArrayBuffer object,
                                   ArrayBufferExtension* extension);
+
+  void AddLocalHeap(LocalHeap* local_heap);
+  void RemoveLocalHeap(LocalHeap* local_heap);
+  V8_EXPORT_PRIVATE bool ContainsLocalHeap(LocalHeap* local_heap);
+  V8_EXPORT_PRIVATE bool ContainsAnyLocalHeap();
 
   V8_EXPORT_PRIVATE double MonotonicallyIncreasingTimeInMs();
 
@@ -2161,6 +2167,9 @@ class Heap {
   // the embedder and V8's GC.
   GCCallbackFlags current_gc_callback_flags_ =
       GCCallbackFlags::kNoGCCallbackFlags;
+
+  base::Mutex local_heaps_mutex_;
+  LocalHeap* local_heaps_head_;
 
   bool is_current_gc_forced_ = false;
 
