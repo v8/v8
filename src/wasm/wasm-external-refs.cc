@@ -325,13 +325,33 @@ void float64_pow_wrapper(Address data) {
   WriteUnalignedValue<double>(data, base::ieee754::pow(x, y));
 }
 
-void memory_init_wrapper(Address data) {
-  Address dst = ReadUnalignedValue<Address>(data);
-  Address src = ReadUnalignedValue<Address>(data + sizeof(dst));
-  uint32_t size =
-      ReadUnalignedValue<uint32_t>(data + sizeof(dst) + sizeof(src));
-  std::memmove(reinterpret_cast<byte*>(dst), reinterpret_cast<byte*>(src),
-               size);
+int32_t memory_init_wrapper(Address data) {
+  constexpr int32_t kSuccess = 1;
+  constexpr int32_t kOutOfBounds = 0;
+  DisallowHeapAllocation disallow_heap_allocation;
+  size_t offset = 0;
+  Object raw_instance = ReadUnalignedValue<Object>(data);
+  WasmInstanceObject instance = WasmInstanceObject::cast(raw_instance);
+  offset += sizeof(Object);
+  size_t dst = ReadUnalignedValue<uint32_t>(data + offset);
+  offset += sizeof(uint32_t);
+  size_t src = ReadUnalignedValue<uint32_t>(data + offset);
+  offset += sizeof(uint32_t);
+  uint32_t seg_index = ReadUnalignedValue<uint32_t>(data + offset);
+  offset += sizeof(uint32_t);
+  size_t size = ReadUnalignedValue<uint32_t>(data + offset);
+
+  size_t mem_size = instance.memory_size();
+  if (!base::IsInBounds(dst, size, mem_size)) return kOutOfBounds;
+
+  size_t seg_size = instance.data_segment_sizes()[seg_index];
+  if (!base::IsInBounds(src, size, seg_size)) return kOutOfBounds;
+
+  byte* mem_start = instance.memory_start();
+  byte* seg_start =
+      reinterpret_cast<byte*>(instance.data_segment_starts()[seg_index]);
+  std::memcpy(mem_start + dst, seg_start + src, size);
+  return kSuccess;
 }
 
 int32_t memory_copy_wrapper(Address data) {
