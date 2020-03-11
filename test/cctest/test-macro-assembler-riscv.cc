@@ -68,7 +68,7 @@ TEST(LoadConstants) {
   __ RV_mv(a4, a0);
   for (int i = 0; i < 64; i++) {
     // Load constant.
-    __ RV_Li(a5, Operand(refConstants[i]));
+    __ li(a5, Operand(refConstants[i]));
     __ Sd(a5, MemOperand(a4));
     __ Daddu(a4, a4, Operand(kPointerSize));
   }
@@ -104,9 +104,9 @@ TEST(LoadAddress) {
   __ RV_jr(ra);
   __ nop();
   __ bind(&skip);
-  __ RV_Li(a4, Operand(masm->jump_address(&to_jump)), ADDRESS_LOAD);
+  __ li(a4, Operand(masm->jump_address(&to_jump)), ADDRESS_LOAD);
   int check_size = masm->InstructionsGeneratedSince(&skip);
-  // FIXME (RISCV): current RV_Li generates 8 instructions, if the sequenc has
+  // FIXME (RISCV): current li generates 8 instructions, if the sequence has
   // changed, need to adjust the CHECK_EQ value too
   CHECK_EQ(8, check_size);
   __ RV_jr(a4);

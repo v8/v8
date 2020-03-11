@@ -43,6 +43,9 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/heap-number-inl.h"
 
+#include "src/diagnostics/disasm.h"
+#include "src/diagnostics/disassembler.h"
+
 namespace v8 {
 namespace internal {
 // Get the CPU features enabled by the build. For cross compilation the
@@ -411,17 +414,10 @@ bool Assembler::IsLwRegFpNegOffset(Instr instr) {
 // to be generated; pos() is the position of the last
 // instruction using the label.
 
-// The link chain is terminated by a value in the instruction of -1,
-// which is an otherwise illegal value (branch -1 is inf loop).
-// The instruction 16-bit offset field addresses 32-bit words, but in
-// code is conv to an 18-bit value addressing bytes, hence the -4 value.
-
-const int kEndOfChain = 0;
-
 // The link chain is terminated by a value in the instruction of 0,
 // which is an otherwise illegal value (branch 0 is inf loop).
 
-const int RV_kEndOfChain = 0;
+const int kEndOfChain = 0;
 
 // Determines the end of the Jump chain (a subset of the label link chain).
 const int kEndOfJumpChain = 0;
@@ -666,84 +662,7 @@ bool Assembler::IsAndImmediate(Instr instr) {
   return GetOpcodeField(instr) == ANDI;
 }
 
-static Assembler::OffsetSize OffsetSizeInBits(Instr instr) {
-  if (kArchVariant == kMips64r6) {
-    if (Assembler::IsBc(instr)) {
-      return Assembler::OffsetSize::kOffset26;
-    } else if (Assembler::IsBzc(instr)) {
-      return Assembler::OffsetSize::kOffset21;
-    }
-  }
-  return Assembler::OffsetSize::kOffset16;
-}
-
-static inline int32_t AddBranchOffset(int pos, Instr instr) {
-  int bits = OffsetSizeInBits(instr);
-  const int32_t mask = (1 << bits) - 1;
-  bits = 32 - bits;
-
-  // Do NOT change this to <<2. We rely on arithmetic shifts here, assuming
-  // the compiler uses arithmetic shifts for signed integers.
-  int32_t imm = ((instr & mask) << bits) >> (bits - 2);
-
-  if (imm == kEndOfChain) {
-    // EndOfChain sentinel is returned directly, not relative to pc or pos.
-    return kEndOfChain;
-  } else {
-    return pos + Assembler::kBranchPCOffset + imm;
-  }
-}
-
 int Assembler::RV_target_at(int pos, bool is_internal) {
-  if (is_internal) {
-    int64_t* p = reinterpret_cast<int64_t*>(buffer_start_ + pos);
-    int64_t address = *p;
-    if (address == kEndOfJumpChain) {
-      return RV_kEndOfChain;
-    } else {
-      int64_t instr_address = reinterpret_cast<int64_t>(p);
-      DCHECK(instr_address - address < INT_MAX);
-      int delta = static_cast<int>(instr_address - address);
-      DCHECK(pos > delta);
-      return pos - delta;
-    }
-  }
-  Instr instr = instr_at(pos);
-  // Check we have a branch or jump instruction.
-  DCHECK(RV_IsBranch(instr) || RV_IsJump(instr));
-  if (RV_IsBranch(instr)) {
-    int32_t imm12 = ((instr & 0xf00) >> 7) | ((instr & 0x7e000000) >> 20) |
-                    ((instr & 0x80) << 4) | ((instr & 0x80000000) >> 19);
-    imm12 = imm12 << 20 >> 20;
-    if (imm12 == kEndOfJumpChain) {
-      // EndOfChain sentinel is returned directly, not relative to pc or pos.
-      return RV_kEndOfChain;
-    } else {
-      return pos + imm12;
-    }
-  } else if (RV_IsJal(instr)) {
-    int32_t imm20 = ((instr & 0x7fe00000) >> 20) | ((instr & 0x100000) >> 9) |
-                    (instr & 0xff000) | ((instr & 0x80000000) >> 11);
-    imm20 = imm20 << 11 >> 11;
-    if (imm20 == kEndOfJumpChain) {
-      // EndOfChain sentinel is returned directly, not relative to pc or pos.
-      return RV_kEndOfChain;
-    } else {
-      return pos + imm20;
-    }
-  } else {
-    DCHECK(RV_IsJalr(instr));
-    int32_t imm12 = instr >> 20;
-    if (imm12 == kEndOfJumpChain) {
-      // EndOfChain sentinel is returned directly, not relative to pc or pos.
-      return RV_kEndOfChain;
-    } else {
-      return pos + imm12;
-    }
-  }
-}
-
-int Assembler::target_at(int pos, bool is_internal) {
   if (is_internal) {
     int64_t* p = reinterpret_cast<int64_t*>(buffer_start_ + pos);
     int64_t address = *p;
@@ -758,7 +677,34 @@ int Assembler::target_at(int pos, bool is_internal) {
     }
   }
   Instr instr = instr_at(pos);
-  if ((instr & ~kImm16Mask) == 0) {
+  DEBUG_PRINTF("target_at: %p (%d)\n\t",
+               reinterpret_cast<Instr*>(buffer_start_ + pos), pos);
+  disassembleInstr(instr);
+  if (RV_IsBranch(instr)) {
+    int32_t imm13 = RV_BranchOffset(instr);
+    if (imm13 == kEndOfJumpChain) {
+      // EndOfChain sentinel is returned directly, not relative to pc or pos.
+      return kEndOfChain;
+    } else {
+      return pos + imm13;
+    }
+  } else if (RV_IsJal(instr)) {
+    int32_t imm21 = RV_JumpOffset(instr);
+    if (imm21 == kEndOfJumpChain) {
+      // EndOfChain sentinel is returned directly, not relative to pc or pos.
+      return kEndOfChain;
+    } else {
+      return pos + imm21;
+    }
+  } else if (RV_IsJalr(instr)) {
+    int32_t imm12 = instr >> 20;
+    if (imm12 == kEndOfJumpChain) {
+      // EndOfChain sentinel is returned directly, not relative to pc or pos.
+      return kEndOfChain;
+    } else {
+      return pos + imm12;
+    }
+  } else {
     // Emitted label constant, not part of a branch.
     if (instr == 0) {
       return kEndOfChain;
@@ -767,77 +713,11 @@ int Assembler::target_at(int pos, bool is_internal) {
       return (imm18 + pos);
     }
   }
-  // Check we have a branch or jump instruction.
-  DCHECK(IsBranch(instr) || IsJ(instr) || IsJal(instr) || IsLui(instr) ||
-         IsMov(instr, t5, ra));
-  // Do NOT change this to <<2. We rely on arithmetic shifts here, assuming
-  // the compiler uses arithmetic shifts for signed integers.
-  if (IsBranch(instr)) {
-    return AddBranchOffset(pos, instr);
-  } else if (IsMov(instr, t5, ra)) {
-    int32_t imm32;
-    Instr instr_lui = instr_at(pos + 2 * kInstrSize);
-    Instr instr_ori = instr_at(pos + 3 * kInstrSize);
-    DCHECK(IsLui(instr_lui));
-    DCHECK(IsOri(instr_ori));
-    imm32 = (instr_lui & static_cast<int32_t>(kImm16Mask)) << kLuiShift;
-    imm32 |= (instr_ori & static_cast<int32_t>(kImm16Mask));
-    if (imm32 == kEndOfJumpChain) {
-      // EndOfChain sentinel is returned directly, not relative to pc or pos.
-      return kEndOfChain;
-    }
-    return pos + Assembler::kLongBranchPCOffset + imm32;
-  } else if (IsLui(instr)) {
-    if (IsNal(instr_at(pos + kInstrSize))) {
-      int32_t imm32;
-      Instr instr_lui = instr_at(pos + 0 * kInstrSize);
-      Instr instr_ori = instr_at(pos + 2 * kInstrSize);
-      DCHECK(IsLui(instr_lui));
-      DCHECK(IsOri(instr_ori));
-      imm32 = (instr_lui & static_cast<int32_t>(kImm16Mask)) << kLuiShift;
-      imm32 |= (instr_ori & static_cast<int32_t>(kImm16Mask));
-      if (imm32 == kEndOfJumpChain) {
-        // EndOfChain sentinel is returned directly, not relative to pc or pos.
-        return kEndOfChain;
-      }
-      return pos + Assembler::kLongBranchPCOffset + imm32;
-    } else {
-      Instr instr_lui = instr_at(pos + 0 * kInstrSize);
-      Instr instr_ori = instr_at(pos + 1 * kInstrSize);
-      Instr instr_ori2 = instr_at(pos + 3 * kInstrSize);
-      DCHECK(IsOri(instr_ori));
-      DCHECK(IsOri(instr_ori2));
+}
 
-      // TODO(plind) create named constants for shift values.
-      int64_t imm = static_cast<int64_t>(instr_lui & kImm16Mask) << 48;
-      imm |= static_cast<int64_t>(instr_ori & kImm16Mask) << 32;
-      imm |= static_cast<int64_t>(instr_ori2 & kImm16Mask) << 16;
-      // Sign extend address;
-      imm >>= 16;
-
-      if (imm == kEndOfJumpChain) {
-        // EndOfChain sentinel is returned directly, not relative to pc or pos.
-        return kEndOfChain;
-      } else {
-        uint64_t instr_address = reinterpret_cast<int64_t>(buffer_start_ + pos);
-        DCHECK(instr_address - imm < INT_MAX);
-        int delta = static_cast<int>(instr_address - imm);
-        DCHECK(pos > delta);
-        return pos - delta;
-      }
-    }
-  } else {
-    DCHECK(IsJ(instr) || IsJal(instr));
-    int32_t imm28 = (instr & static_cast<int32_t>(kImm26Mask)) << 2;
-    if (imm28 == kEndOfJumpChain) {
-      // EndOfChain sentinel is returned directly, not relative to pc or pos.
-      return kEndOfChain;
-    } else {
-      // Sign extend 28-bit offset.
-      int32_t delta = static_cast<int32_t>((imm28 << 4) >> 4);
-      return pos + delta;
-    }
-  }
+int Assembler::target_at(int pos, bool is_internal) {
+  DCHECK(0);
+  return 0;
 }
 
 static inline Instr RV_SetBranchOffset(int32_t pos, int32_t target_pos,
@@ -868,161 +748,34 @@ static inline Instr RV_SetJalOffset(int32_t pos, int32_t target_pos,
   return instr | (imm20 & kImm20Mask);
 }
 
-static inline Instr SetBranchOffset(int32_t pos, int32_t target_pos,
-                                    Instr instr) {
-  int32_t bits = OffsetSizeInBits(instr);
-  int32_t imm = target_pos - (pos + Assembler::kBranchPCOffset);
-  DCHECK_EQ(imm & 3, 0);
-  imm >>= 2;
-
-  const int32_t mask = (1 << bits) - 1;
-  instr &= ~mask;
-  DCHECK(is_intn(imm, bits));
-
-  return instr | (imm & mask);
-}
-
 void Assembler::RV_target_at_put(int pos, int target_pos, bool is_internal) {
   if (is_internal) {
     uint64_t imm = reinterpret_cast<uint64_t>(buffer_start_) + target_pos;
     *reinterpret_cast<uint64_t*>(buffer_start_ + pos) = imm;
     return;
   }
+  DEBUG_PRINTF("target_at_put: %p (%d) to %p (%d)\n",
+               reinterpret_cast<Instr*>(buffer_start_ + pos), pos,
+               reinterpret_cast<Instr*>(buffer_start_ + target_pos),
+               target_pos);
   Instr instr = instr_at(pos);
 
-  DCHECK(RV_IsBranch(instr) || RV_IsJal(instr));
   if (RV_IsBranch(instr)) {
     instr = RV_SetBranchOffset(pos, target_pos, instr);
     instr_at_put(pos, instr);
   } else if (RV_IsJal(instr)) {
     instr = RV_SetJalOffset(pos, target_pos, instr);
     instr_at_put(pos, instr);
-  }
-}
-
-void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
-  if (is_internal) {
-    uint64_t imm = reinterpret_cast<uint64_t>(buffer_start_) + target_pos;
-    *reinterpret_cast<uint64_t*>(buffer_start_ + pos) = imm;
-    return;
-  }
-  Instr instr = instr_at(pos);
-  if ((instr & ~kImm16Mask) == 0) {
-    DCHECK(target_pos == kEndOfChain || target_pos >= 0);
+  } else {
     // Emitted label constant, not part of a branch.
     // Make label relative to Code pointer of generated Code object.
     instr_at_put(pos, target_pos + (Code::kHeaderSize - kHeapObjectTag));
-    return;
   }
+  disassembleInstr(instr);
+}
 
-  if (IsBranch(instr)) {
-    instr = SetBranchOffset(pos, target_pos, instr);
-    instr_at_put(pos, instr);
-  } else if (IsLui(instr)) {
-    if (IsNal(instr_at(pos + kInstrSize))) {
-      Instr instr_lui = instr_at(pos + 0 * kInstrSize);
-      Instr instr_ori = instr_at(pos + 2 * kInstrSize);
-      DCHECK(IsLui(instr_lui));
-      DCHECK(IsOri(instr_ori));
-      int32_t imm = target_pos - (pos + Assembler::kLongBranchPCOffset);
-      DCHECK_EQ(imm & 3, 0);
-      if (is_int16(imm + Assembler::kLongBranchPCOffset -
-                   Assembler::kBranchPCOffset)) {
-        // Optimize by converting to regular branch and link with 16-bit
-        // offset.
-        Instr instr_b = REGIMM | BGEZAL;  // Branch and link.
-        instr_b = SetBranchOffset(pos, target_pos, instr_b);
-        // Correct ra register to point to one instruction after jalr from
-        // TurboAssembler::BranchAndLinkLong.
-        Instr instr_a = DADDIU | ra.code() << kRsShift | ra.code() << kRtShift |
-                        kOptimizedBranchAndLinkLongReturnOffset;
-
-        instr_at_put(pos, instr_b);
-        instr_at_put(pos + 1 * kInstrSize, instr_a);
-      } else {
-        instr_lui &= ~kImm16Mask;
-        instr_ori &= ~kImm16Mask;
-
-        instr_at_put(pos + 0 * kInstrSize,
-                     instr_lui | ((imm >> kLuiShift) & kImm16Mask));
-        instr_at_put(pos + 2 * kInstrSize, instr_ori | (imm & kImm16Mask));
-      }
-    } else {
-      Instr instr_lui = instr_at(pos + 0 * kInstrSize);
-      Instr instr_ori = instr_at(pos + 1 * kInstrSize);
-      Instr instr_ori2 = instr_at(pos + 3 * kInstrSize);
-      DCHECK(IsOri(instr_ori));
-      DCHECK(IsOri(instr_ori2));
-
-      uint64_t imm = reinterpret_cast<uint64_t>(buffer_start_) + target_pos;
-      DCHECK_EQ(imm & 3, 0);
-
-      instr_lui &= ~kImm16Mask;
-      instr_ori &= ~kImm16Mask;
-      instr_ori2 &= ~kImm16Mask;
-
-      instr_at_put(pos + 0 * kInstrSize,
-                   instr_lui | ((imm >> 32) & kImm16Mask));
-      instr_at_put(pos + 1 * kInstrSize,
-                   instr_ori | ((imm >> 16) & kImm16Mask));
-      instr_at_put(pos + 3 * kInstrSize, instr_ori2 | (imm & kImm16Mask));
-    }
-  } else if (IsMov(instr, t5, ra)) {
-    Instr instr_lui = instr_at(pos + 2 * kInstrSize);
-    Instr instr_ori = instr_at(pos + 3 * kInstrSize);
-    DCHECK(IsLui(instr_lui));
-    DCHECK(IsOri(instr_ori));
-
-    int32_t imm_short = target_pos - (pos + Assembler::kBranchPCOffset);
-
-    if (is_int16(imm_short)) {
-      // Optimize by converting to regular branch with 16-bit
-      // offset
-      Instr instr_b = BEQ;
-      instr_b = SetBranchOffset(pos, target_pos, instr_b);
-
-      Instr instr_j = instr_at(pos + 5 * kInstrSize);
-      Instr instr_branch_delay;
-
-      if (IsJump(instr_j)) {
-        instr_branch_delay = instr_at(pos + 6 * kInstrSize);
-      } else {
-        instr_branch_delay = instr_at(pos + 7 * kInstrSize);
-      }
-      instr_at_put(pos, instr_b);
-      instr_at_put(pos + 1 * kInstrSize, instr_branch_delay);
-    } else {
-      int32_t imm = target_pos - (pos + Assembler::kLongBranchPCOffset);
-      DCHECK_EQ(imm & 3, 0);
-
-      instr_lui &= ~kImm16Mask;
-      instr_ori &= ~kImm16Mask;
-
-      instr_at_put(pos + 2 * kInstrSize,
-                   instr_lui | ((imm >> kLuiShift) & kImm16Mask));
-      instr_at_put(pos + 3 * kInstrSize, instr_ori | (imm & kImm16Mask));
-    }
-  } else if (IsJ(instr) || IsJal(instr)) {
-    int32_t imm28 = target_pos - pos;
-    DCHECK_EQ(imm28 & 3, 0);
-
-    uint32_t imm26 = static_cast<uint32_t>(imm28 >> 2);
-    DCHECK(is_uint26(imm26));
-    // Place 26-bit signed offset with markings.
-    // When code is committed it will be resolved to j/jal.
-    int32_t mark = IsJ(instr) ? kJRawMark : kJalRawMark;
-    instr_at_put(pos, mark | (imm26 & kImm26Mask));
-  } else {
-    int32_t imm28 = target_pos - pos;
-    DCHECK_EQ(imm28 & 3, 0);
-
-    uint32_t imm26 = static_cast<uint32_t>(imm28 >> 2);
-    DCHECK(is_uint26(imm26));
-    // Place raw 26-bit signed offset.
-    // When code is committed it will be resolved to j/jal.
-    instr &= ~kImm26Mask;
-    instr_at_put(pos, instr | (imm26 & kImm26Mask));
-  }
+void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
+  DCHECK(0);
 }
 
 void Assembler::print(const Label* L) {
@@ -1049,8 +802,9 @@ void Assembler::print(const Label* L) {
   }
 }
 
-void Assembler::RV_bind_to(Label* L, int pos) {
+void Assembler::bind_to(Label* L, int pos) {
   DCHECK(0 <= pos && pos <= pc_offset());  // Must have valid binding position.
+  DEBUG_PRINTF("binding %d to label %p\n", pos, L);
   int trampoline_pos = kInvalidSlotPos;
   bool is_internal = false;
   if (L->is_linked() && !trampoline_emitted_) {
@@ -1064,26 +818,26 @@ void Assembler::RV_bind_to(Label* L, int pos) {
     int fixup_pos = L->pos();
     int dist = pos - fixup_pos;
     is_internal = is_internal_reference(L);
-    RV_next(L, is_internal);  // Call next before overwriting link with target
-                              // at fixup_pos.
+    next(L, is_internal);  // Call next before overwriting link with target
+                           // at fixup_pos.
     Instr instr = instr_at(fixup_pos);
+    DEBUG_PRINTF("\tfixup: %d to %d\n", fixup_pos, dist);
     if (is_internal) {
       RV_target_at_put(fixup_pos, pos, is_internal);
     } else {
       if (RV_IsBranch(instr)) {
-        int branch_offset = RV_BranchOffset(instr);
-        if (dist > branch_offset) {
+        if (dist > kMaxBranchOffset) {
           if (trampoline_pos == kInvalidSlotPos) {
             trampoline_pos = get_trampoline_entry(fixup_pos);
             CHECK_NE(trampoline_pos, kInvalidSlotPos);
           }
-          CHECK((trampoline_pos - fixup_pos) <= branch_offset);
+          CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
+          DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
           RV_target_at_put(fixup_pos, trampoline_pos, false);
           fixup_pos = trampoline_pos;
         }
         RV_target_at_put(fixup_pos, pos, false);
       } else {
-        DCHECK(RV_IsJal(instr));
         RV_target_at_put(fixup_pos, pos, false);
       }
     }
@@ -1093,58 +847,6 @@ void Assembler::RV_bind_to(Label* L, int pos) {
   // Keep track of the last bound label so we don't eliminate any instructions
   // before a bound label.
   if (pos > last_bound_pos_) last_bound_pos_ = pos;
-}
-
-void Assembler::bind_to(Label* L, int pos) {
-  DCHECK(0 <= pos && pos <= pc_offset());  // Must have valid binding position.
-  int trampoline_pos = kInvalidSlotPos;
-  bool is_internal = false;
-  if (L->is_linked() && !trampoline_emitted_) {
-    unbound_labels_count_--;
-    if (!is_internal_reference(L)) {
-      next_buffer_check_ += kTrampolineSlotsSize;
-    }
-  }
-
-  while (L->is_linked()) {
-    int fixup_pos = L->pos();
-    int dist = pos - fixup_pos;
-    is_internal = is_internal_reference(L);
-    next(L, is_internal);  // Call next before overwriting link with target at
-                           // fixup_pos.
-    Instr instr = instr_at(fixup_pos);
-    if (is_internal) {
-      target_at_put(fixup_pos, pos, is_internal);
-    } else {
-      if (IsBranch(instr)) {
-        int branch_offset = BranchOffset(instr);
-        if (dist > branch_offset) {
-          if (trampoline_pos == kInvalidSlotPos) {
-            trampoline_pos = get_trampoline_entry(fixup_pos);
-            CHECK_NE(trampoline_pos, kInvalidSlotPos);
-          }
-          CHECK((trampoline_pos - fixup_pos) <= branch_offset);
-          target_at_put(fixup_pos, trampoline_pos, false);
-          fixup_pos = trampoline_pos;
-        }
-        target_at_put(fixup_pos, pos, false);
-      } else {
-        DCHECK(IsJ(instr) || IsJal(instr) || IsLui(instr) ||
-               IsEmittedConstant(instr) || IsMov(instr, t5, ra));
-        target_at_put(fixup_pos, pos, false);
-      }
-    }
-  }
-  L->bind_to(pos);
-
-  // Keep track of the last bound label so we don't eliminate any instructions
-  // before a bound label.
-  if (pos > last_bound_pos_) last_bound_pos_ = pos;
-}
-
-void Assembler::RV_bind(Label* L) {
-  DCHECK(!L->is_bound());  // Label can only be bound once.
-  RV_bind_to(L, pc_offset());
 }
 
 void Assembler::bind(Label* L) {
@@ -1152,73 +854,48 @@ void Assembler::bind(Label* L) {
   bind_to(L, pc_offset());
 }
 
-void Assembler::RV_next(Label* L, bool is_internal) {
-  DCHECK(L->is_linked());
-  int link = RV_target_at(L->pos(), is_internal);
-  if (link == RV_kEndOfChain) {
-    L->Unuse();
-  } else {
-    DCHECK_GT(link, 0);
-    L->link_to(link);
-  }
-}
-
 void Assembler::next(Label* L, bool is_internal) {
   DCHECK(L->is_linked());
-  int link = target_at(L->pos(), is_internal);
+  int link = RV_target_at(L->pos(), is_internal);
   if (link == kEndOfChain) {
     L->Unuse();
   } else {
-    DCHECK_GE(link, 0);
+    DCHECK_GT(link, 0);
+    DEBUG_PRINTF("next: %p to %p (%d)\n", L,
+                 reinterpret_cast<Instr*>(buffer_start_ + link), link);
     L->link_to(link);
   }
 }
 
 bool Assembler::is_near(Label* L) {
   DCHECK(L->is_bound());
-  return pc_offset() - L->pos() < kMaxBranchOffset - 4 * kInstrSize;
+  return is_intn((pc_offset() - L->pos()), kJumpOffsetBits);
 }
 
 bool Assembler::is_near(Label* L, OffsetSize bits) {
   if (L == nullptr || !L->is_bound()) return true;
-  return ((pc_offset() - L->pos()) <
-          (1 << (bits + 2 - 1)) - 1 - 5 * kInstrSize);
+  return is_intn((pc_offset() - L->pos()), bits);
 }
 
 bool Assembler::is_near_branch(Label* L) {
   DCHECK(L->is_bound());
-  return kArchVariant == kMips64r6 ? is_near_r6(L) : is_near_pre_r6(L);
+  return is_intn((pc_offset() - L->pos()), kBranchOffsetBits);
 }
 
 int Assembler::RV_BranchOffset(Instr instr) {
-  int bits = OffsetSize::kOffset12;
-  return (1 << (bits + 1 - 1)) - 1;
+  // | imm[12] | imm[10:5] | rs2 | rs1 | funct3 | imm[4:1|11] | opcode |
+  //  31          25                      11          7
+  int32_t imm13 = ((instr & 0xf00) >> 7) | ((instr & 0x7e000000) >> 20) |
+                  ((instr & 0x80) << 4) | ((instr & 0x80000000) >> 19);
+  imm13 = imm13 << 19 >> 19;
+  return imm13;
 }
 
-int Assembler::BranchOffset(Instr instr) {
-  // At pre-R6 and for other R6 branches the offset is 16 bits.
-  int bits = OffsetSize::kOffset16;
-
-  if (kArchVariant == kMips64r6) {
-    uint32_t opcode = GetOpcodeField(instr);
-    switch (opcode) {
-      // Checks BC or BALC.
-      case BC:
-      case BALC:
-        bits = OffsetSize::kOffset26;
-        break;
-
-      // Checks BEQZC or BNEZC.
-      case POP66:
-      case POP76:
-        if (GetRsField(instr) != 0) bits = OffsetSize::kOffset21;
-        break;
-      default:
-        break;
-    }
-  }
-
-  return (1 << (bits + 2 - 1)) - 1;
+int Assembler::RV_JumpOffset(Instr instr) {
+  int32_t imm21 = ((instr & 0x7fe00000) >> 20) | ((instr & 0x100000) >> 9) |
+                  (instr & 0xff000) | ((instr & 0x80000000) >> 11);
+  imm21 = imm21 << 11 >> 11;
+  return imm21;
 }
 
 // We have to use a temporary register for things that can be relocated even
@@ -1227,6 +904,16 @@ int Assembler::BranchOffset(Instr instr) {
 // encoded.
 bool Assembler::MustUseReg(RelocInfo::Mode rmode) {
   return !RelocInfo::IsNone(rmode);
+}
+
+void Assembler::disassembleInstr(Instr instr) {
+  if (!FLAG_debug_riscv) return;
+  disasm::NameConverter converter;
+  disasm::Disassembler disasm(converter);
+  EmbeddedVector<char, 128> disasm_buffer;
+
+  disasm.InstructionDecode(disasm_buffer, reinterpret_cast<byte*>(&instr));
+  DEBUG_PRINTF("%s\n", disasm_buffer.begin());
 }
 
 // ----- Top-level instruction formats match those in the ISA manual
@@ -1395,15 +1082,15 @@ void Assembler::GenInstrS(uint8_t funct3, Opcode opcode, Register rs1,
 }
 
 void Assembler::GenInstrB(uint8_t funct3, Opcode opcode, Register rs1,
-                          Register rs2, int16_t imm12) {
+                          Register rs2, int16_t imm13) {
   DCHECK(is_uint3(funct3) && rs1.is_valid() && rs2.is_valid() &&
-         is_int12(imm12));
-  Instr instr = opcode | ((imm12 & 0x800) >> 4) |  // bit  11
-                ((imm12 & 0x1e) << 7) |            // bits 4-1
+         is_int13(imm13) && ((imm13 & 1) == 0));
+  Instr instr = opcode | ((imm13 & 0x800) >> 4) |  // bit  11
+                ((imm13 & 0x1e) << 7) |            // bits 4-1
                 (funct3 << kFunct3Shift) | (rs1.code() << kRs1Shift) |
                 (rs2.code() << kRs2Shift) |
-                ((imm12 & 0x7e0) << 20) |  // bits 10-5
-                ((imm12 & 0x1000) << 19);  // bit 12
+                ((imm13 & 0x7e0) << 20) |  // bits 10-5
+                ((imm13 & 0x1000) << 19);  // bit 12
   emit(instr);
 }
 
@@ -1413,21 +1100,21 @@ void Assembler::GenInstrU(Opcode opcode, Register rd, int32_t imm20) {
   emit(instr);
 }
 
-void Assembler::GenInstrJ(Opcode opcode, Register rd, int32_t imm20) {
-  DCHECK(rd.is_valid() && is_int20(imm20));
+void Assembler::GenInstrJ(Opcode opcode, Register rd, int32_t imm21) {
+  DCHECK(rd.is_valid() && is_int21(imm21) && ((imm21 & 1) == 0));
   Instr instr = opcode | (rd.code() << RV_kRdShift) |
-                (imm20 & 0xff000) |          // bits 19-12
-                ((imm20 & 0x800) << 9) |     // bit  11
-                ((imm20 & 0x7fe) << 20) |    // bits 10-1
-                ((imm20 & 0x100000) << 11);  // bit  20
+                (imm21 & 0xff000) |          // bits 19-12
+                ((imm21 & 0x800) << 9) |     // bit  11
+                ((imm21 & 0x7fe) << 20) |    // bits 10-1
+                ((imm21 & 0x100000) << 11);  // bit  20
   emit(instr);
 }
 
 // ----- Instruction class templates match those in LLVM's RISCVInstrInfo.td
 
 void Assembler::GenInstrBranchCC_rri(uint8_t funct3, Register rs1, Register rs2,
-                                     int16_t imm12) {
-  GenInstrB(funct3, BRANCH, rs1, rs2, imm12);
+                                     int16_t imm13) {
+  GenInstrB(funct3, BRANCH, rs1, rs2, imm13);
 }
 
 void Assembler::GenInstrLoad_ri(uint8_t funct3, Register rd, Register rs1,
@@ -1777,6 +1464,9 @@ int32_t Assembler::get_trampoline_entry(int32_t pos) {
 
 uint64_t Assembler::jump_address(Label* L) {
   int64_t target_pos;
+  DEBUG_PRINTF("jump_address: %p to %p (%d)\n", L,
+               reinterpret_cast<Instr*>(buffer_start_ + pc_offset()),
+               pc_offset());
   if (L->is_bound()) {
     target_pos = L->pos();
   } else {
@@ -1796,20 +1486,22 @@ uint64_t Assembler::jump_address(Label* L) {
 
 uint64_t Assembler::jump_offset(Label* L) {
   int64_t target_pos;
-  int32_t pad = IsPrevInstrCompactBranch() ? kInstrSize : 0;
 
+  DEBUG_PRINTF("jump_offset: %p to %p (%d)\n", L,
+               reinterpret_cast<Instr*>(buffer_start_ + pc_offset()),
+               pc_offset());
   if (L->is_bound()) {
     target_pos = L->pos();
   } else {
     if (L->is_linked()) {
       target_pos = L->pos();  // L's link.
-      L->link_to(pc_offset() + pad);
+      L->link_to(pc_offset());
     } else {
-      L->link_to(pc_offset() + pad);
+      L->link_to(pc_offset());
       return kEndOfJumpChain;
     }
   }
-  int64_t imm = target_pos - (pc_offset() + pad);
+  int64_t imm = target_pos - (pc_offset());
   DCHECK_EQ(imm & 3, 0);
 
   return static_cast<uint64_t>(imm);
@@ -1818,6 +1510,9 @@ uint64_t Assembler::jump_offset(Label* L) {
 uint64_t Assembler::branch_long_offset(Label* L) {
   int64_t target_pos;
 
+  DEBUG_PRINTF("branch_long_offset: %p to %p (%d)\n", L,
+               reinterpret_cast<Instr*>(buffer_start_ + pc_offset()),
+               pc_offset());
   if (L->is_bound()) {
     target_pos = L->pos();
   } else {
@@ -1829,7 +1524,7 @@ uint64_t Assembler::branch_long_offset(Label* L) {
       return kEndOfJumpChain;
     }
   }
-  int64_t offset = target_pos - (pc_offset() + kLongBranchPCOffset);
+  int64_t offset = target_pos - pc_offset();
   DCHECK_EQ(offset & 3, 0);
 
   return static_cast<uint64_t>(offset);
@@ -1837,59 +1532,40 @@ uint64_t Assembler::branch_long_offset(Label* L) {
 
 int32_t Assembler::branch_offset_helper(Label* L, OffsetSize bits) {
   int32_t target_pos;
-  int32_t pad = IsPrevInstrCompactBranch() ? kInstrSize : 0;
 
+  DEBUG_PRINTF("branch_offset_helper: %p to %p (%d)\n", L,
+               reinterpret_cast<Instr*>(buffer_start_ + pc_offset()),
+               pc_offset());
   if (L->is_bound()) {
     target_pos = L->pos();
+    DEBUG_PRINTF("\tbound: %d", target_pos);
   } else {
     if (L->is_linked()) {
       target_pos = L->pos();
-      L->link_to(pc_offset() + pad);
+      L->link_to(pc_offset());
+      DEBUG_PRINTF("\tadded to link: %d\n", target_pos);
     } else {
-      L->link_to(pc_offset() + pad);
+      L->link_to(pc_offset());
       if (!trampoline_emitted_) {
         unbound_labels_count_++;
         next_buffer_check_ -= kTrampolineSlotsSize;
       }
+      DEBUG_PRINTF("\tstarted link\n");
       return kEndOfChain;
     }
   }
 
-  int32_t offset = target_pos - (pc_offset() + kBranchPCOffset + pad);
-  DCHECK(is_intn(offset, bits + 2));
-  DCHECK_EQ(offset & 3, 0);
-
-  return offset;
-}
-
-int32_t Assembler::RV_branch_offset_helper(Label* L, OffsetSize bits) {
-  int32_t target_pos;
-  int32_t pad = IsPrevInstrCompactBranch() ? kInstrSize : 0;
-
-  if (L->is_bound()) {
-    target_pos = L->pos();
-  } else {
-    if (L->is_linked()) {
-      target_pos = L->pos();
-      L->link_to(pc_offset() + pad);
-    } else {
-      L->link_to(pc_offset() + pad);
-      if (!trampoline_emitted_) {
-        unbound_labels_count_++;
-        next_buffer_check_ -= kTrampolineSlotsSize;
-      }
-      return RV_kEndOfChain;
-    }
-  }
-
-  int32_t offset = target_pos - (pc_offset() + pad);
-  DCHECK(is_intn(offset, bits + 1));
+  int32_t offset = target_pos - pc_offset();
+  DCHECK(is_intn(offset, bits));
   DCHECK_EQ(offset & 1, 0);
+  DEBUG_PRINTF("\toffset = %d\n", offset);
   return offset;
 }
 
 void Assembler::label_at_put(Label* L, int at_offset) {
   int target_pos;
+  DEBUG_PRINTF("label_at_put: %p @ %p (%d)\n", L,
+               reinterpret_cast<Instr*>(buffer_start_ + at_offset), at_offset);
   if (L->is_bound()) {
     target_pos = L->pos();
     instr_at_put(at_offset, target_pos + (Code::kHeaderSize - kHeapObjectTag));
@@ -1916,14 +1592,13 @@ void Assembler::label_at_put(Label* L, int at_offset) {
 //------- Branch and jump instructions --------
 
 void Assembler::b(int16_t offset) {
-  if (is_int16(offset))
+  if (is_int13(offset))
     RV_beq(zero_reg, zero_reg, offset);
   else {
     // Generate position independent long branch.
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    RV_jal(t5, 0);                            // Read PC into t5.
-    RV_lui(t6, (offset & 0xfffff000) >> 12);  // Branch delay slot.
-    RV_ori(t6, t6, (offset & 0xfff));
+    RV_auipc(t5, 0);    // Read PC into t5.
+    RV_li(t6, offset);  // Load offset into t6
     RV_add(t6, t5, t6);
     RV_jr(t6);
   }
@@ -2217,8 +1892,8 @@ void Assembler::RV_auipc(Register rd, int32_t imm20) {
 
 // Jumps
 
-void Assembler::RV_jal(Register rd, int32_t imm20) {
-  GenInstrJ(RV_JAL, rd, imm20);
+void Assembler::RV_jal(Register rd, int32_t imm21) {
+  GenInstrJ(RV_JAL, rd, imm21);
 }
 
 void Assembler::RV_jalr(Register rd, Register rs1, int16_t imm12) {
@@ -2227,28 +1902,28 @@ void Assembler::RV_jalr(Register rd, Register rs1, int16_t imm12) {
 
 // Branches
 
-void Assembler::RV_beq(Register rs1, Register rs2, int16_t imm12) {
-  GenInstrBranchCC_rri(0b000, rs1, rs2, imm12);
+void Assembler::RV_beq(Register rs1, Register rs2, int16_t imm13) {
+  GenInstrBranchCC_rri(0b000, rs1, rs2, imm13);
 }
 
-void Assembler::RV_bne(Register rs1, Register rs2, int16_t imm12) {
-  GenInstrBranchCC_rri(0b001, rs1, rs2, imm12);
+void Assembler::RV_bne(Register rs1, Register rs2, int16_t imm13) {
+  GenInstrBranchCC_rri(0b001, rs1, rs2, imm13);
 }
 
-void Assembler::RV_blt(Register rs1, Register rs2, int16_t imm12) {
-  GenInstrBranchCC_rri(0b100, rs1, rs2, imm12);
+void Assembler::RV_blt(Register rs1, Register rs2, int16_t imm13) {
+  GenInstrBranchCC_rri(0b100, rs1, rs2, imm13);
 }
 
-void Assembler::RV_bge(Register rs1, Register rs2, int16_t imm12) {
-  GenInstrBranchCC_rri(0b101, rs1, rs2, imm12);
+void Assembler::RV_bge(Register rs1, Register rs2, int16_t imm13) {
+  GenInstrBranchCC_rri(0b101, rs1, rs2, imm13);
 }
 
-void Assembler::RV_bltu(Register rs1, Register rs2, int16_t imm12) {
-  GenInstrBranchCC_rri(0b110, rs1, rs2, imm12);
+void Assembler::RV_bltu(Register rs1, Register rs2, int16_t imm13) {
+  GenInstrBranchCC_rri(0b110, rs1, rs2, imm13);
 }
 
-void Assembler::RV_bgeu(Register rs1, Register rs2, int16_t imm12) {
-  GenInstrBranchCC_rri(0b111, rs1, rs2, imm12);
+void Assembler::RV_bgeu(Register rs1, Register rs2, int16_t imm13) {
+  GenInstrBranchCC_rri(0b111, rs1, rs2, imm13);
 }
 
 // Loads
@@ -3008,15 +2683,49 @@ void Assembler::RV_li(Register rd, int64_t imm) {
   RV_slli(rd, rd, ShiftAmount);
   if (Lo12) RV_addi(rd, rd, Lo12);
 }
+int Assembler::li_count(int64_t imm) {
+  int count = 0;
+  if (is_int32(imm + 0x800)) {
+    int64_t Hi20 = ((imm + 0x800) >> 12);
+    int64_t Lo12 = imm << 52 >> 52;
+
+    if (Hi20) count++;
+
+    if (Lo12 || Hi20 == 0) count++;
+    return count;
+  }
+
+  int64_t Lo12 = imm << 52 >> 52;
+  int64_t Hi52 = ((uint64_t)imm + 0x800ull) >> 12;
+  int FirstBit = 0;
+  uint64_t Val = Hi52;
+  while ((Val & 1) == 0) {
+    Val = Val >> 1;
+    FirstBit++;
+  }
+  int ShiftAmount = 12 + FirstBit;
+  Hi52 = (Hi52 >> (ShiftAmount - 12)) << ShiftAmount >> ShiftAmount;
+
+  count += li_count(Hi52);
+
+  count++;
+  if (Lo12) count++;
+
+  return count;
+}
 void Assembler::RV_li_constant(Register rd, int64_t imm) {
-  RV_lui(rd, (imm + (1ULL << 47)) >> 48);
-  RV_addiw(rd, rd, (imm + (1ULL << 35)) << 16 >> 52);
+  DEBUG_PRINTF("RV_li_constant(%d, %lx <%ld>)\n", ToNumber(rd), imm, imm);
+  RV_lui(rd, (imm + (1LL << 47) + (1LL << 35) + (1LL << 23) + (1LL << 11)) >>
+                 48);  // Bits 63:48
+  RV_addiw(rd, rd,
+           (imm + (1LL << 35) + (1LL << 23) + (1LL << 11)) << 16 >>
+               52);  // Bits 47:36
   RV_slli(rd, rd, 12);
-  RV_addi(rd, rd, (imm + (1ULL << 23)) << 28 >> 52);
+  RV_addi(rd, rd, (imm + (1LL << 23) + (1LL << 11)) << 28 >> 52);  // Bits 35:24
   RV_slli(rd, rd, 12);
-  RV_addi(rd, rd, (imm + (1ULL << 11)) << 40 >> 52);
+  RV_addi(rd, rd, (imm + (1LL << 11)) << 40 >> 52);  // Bits 23:12
   RV_slli(rd, rd, 12);
-  RV_addi(rd, rd, imm << 52 >> 52);
+  RV_addi(rd, rd, imm << 52 >> 52);  // Bits 11:0
 }
 void Assembler::RV_mv(Register rd, Register rs) { RV_addi(rd, rs, 0); }
 void Assembler::RV_not(Register rd, Register rs) { RV_xori(rd, rs, -1); }
@@ -3047,47 +2756,47 @@ void Assembler::RV_fneg_d(FPURegister rd, FPURegister rs) {
   RV_fsgnjn_d(rd, rs, rs);
 }
 
-void Assembler::RV_beqz(Register rs, int16_t imm12) {
-  RV_beq(rs, zero_reg, imm12);
+void Assembler::RV_beqz(Register rs, int16_t imm13) {
+  RV_beq(rs, zero_reg, imm13);
 }
-void Assembler::RV_bnez(Register rs, int16_t imm12) {
-  RV_bne(rs, zero_reg, imm12);
+void Assembler::RV_bnez(Register rs, int16_t imm13) {
+  RV_bne(rs, zero_reg, imm13);
 }
-void Assembler::RV_blez(Register rs, int16_t imm12) {
-  RV_bge(zero_reg, rs, imm12);
+void Assembler::RV_blez(Register rs, int16_t imm13) {
+  RV_bge(zero_reg, rs, imm13);
 }
-void Assembler::RV_bgez(Register rs, int16_t imm12) {
-  RV_bge(rs, zero_reg, imm12);
+void Assembler::RV_bgez(Register rs, int16_t imm13) {
+  RV_bge(rs, zero_reg, imm13);
 }
-void Assembler::RV_bltz(Register rs, int16_t imm12) {
-  RV_blt(rs, zero_reg, imm12);
+void Assembler::RV_bltz(Register rs, int16_t imm13) {
+  RV_blt(rs, zero_reg, imm13);
 }
-void Assembler::RV_bgtz(Register rs, int16_t imm12) {
-  RV_blt(zero_reg, rs, imm12);
+void Assembler::RV_bgtz(Register rs, int16_t imm13) {
+  RV_blt(zero_reg, rs, imm13);
 }
 
-void Assembler::RV_bgt(Register rs1, Register rs2, int16_t imm12) {
-  RV_blt(rs2, rs1, imm12);
+void Assembler::RV_bgt(Register rs1, Register rs2, int16_t imm13) {
+  RV_blt(rs2, rs1, imm13);
 }
-void Assembler::RV_ble(Register rs1, Register rs2, int16_t imm12) {
-  RV_bge(rs2, rs1, imm12);
+void Assembler::RV_ble(Register rs1, Register rs2, int16_t imm13) {
+  RV_bge(rs2, rs1, imm13);
 }
-void Assembler::RV_bgtu(Register rs1, Register rs2, int16_t imm12) {
-  RV_bltu(rs2, rs1, imm12);
+void Assembler::RV_bgtu(Register rs1, Register rs2, int16_t imm13) {
+  RV_bltu(rs2, rs1, imm13);
 }
-void Assembler::RV_bleu(Register rs1, Register rs2, int16_t imm12) {
-  RV_bgeu(rs2, rs1, imm12);
+void Assembler::RV_bleu(Register rs1, Register rs2, int16_t imm13) {
+  RV_bgeu(rs2, rs1, imm13);
 }
 
 // TODO: Replace uses of ToRegister with names once they are properly defined
-void Assembler::RV_j(int32_t imm20) { RV_jal(zero_reg, imm20); }
-void Assembler::RV_jal(int32_t imm20) { RV_jal(ToRegister(1), imm20); }
+void Assembler::RV_j(int32_t imm21) { RV_jal(zero_reg, imm21); }
+void Assembler::RV_jal(int32_t imm21) { RV_jal(ToRegister(1), imm21); }
 void Assembler::RV_jr(Register rs) { RV_jalr(zero_reg, rs, 0); }
 void Assembler::RV_jalr(Register rs) { RV_jalr(ToRegister(1), rs, 0); }
 void Assembler::RV_ret() { RV_jalr(zero_reg, ToRegister(1), 0); }
-void Assembler::RV_call(uint32_t offset) {
-  RV_auipc(ToRegister(1), offset & 0xfffff);
-  RV_jalr(ToRegister(1), ToRegister(6), offset & 0xfff);
+void Assembler::RV_call(int32_t offset) {
+  RV_auipc(ToRegister(1), (offset >> 12) + ((offset & 0x800) >> 11));
+  RV_jalr(ToRegister(1), ToRegister(1), offset << 20 >> 20);
 }
 
 void Assembler::RV_rdinstret(Register rd) {
@@ -3260,7 +2969,7 @@ void Assembler::daddu(Register rd, Register rs, Register rt) {
 }
 
 void Assembler::dsubu(Register rd, Register rs, Register rt) {
-  GenInstrRegister(SPECIAL, rs, rt, rd, 0, DSUBU);
+  RV_sub(rd, rs, rt);
 }
 
 void Assembler::dmult(Register rs, Register rt) {
@@ -3302,7 +3011,7 @@ void Assembler::dmodu(Register rd, Register rs, Register rt) {
 // Logical.
 
 void Assembler::and_(Register rd, Register rs, Register rt) {
-  GenInstrRegister(SPECIAL, rs, rt, rd, 0, AND);
+  RV_and_(rd, rs, rt);
 }
 
 void Assembler::andi(Register rt, Register rs, int32_t j) {
@@ -3398,7 +3107,7 @@ void Assembler::dsll(Register rd, Register rt, uint16_t sa) {
 }
 
 void Assembler::dsllv(Register rd, Register rt, Register rs) {
-  GenInstrRegister(SPECIAL, rs, rt, rd, 0, DSLLV);
+  RV_sll(rd, rt, rs);
 }
 
 void Assembler::dsrl(Register rd, Register rt, uint16_t sa) {
@@ -3439,7 +3148,7 @@ void Assembler::dsrav(Register rd, Register rt, Register rs) {
 }
 
 void Assembler::dsll32(Register rd, Register rt, uint16_t sa) {
-  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa & 0x1F, DSLL32);
+  RV_slli(rd, rt, 32 + (sa & 0x1F));
 }
 
 void Assembler::dsrl32(Register rd, Register rt, uint16_t sa) {
@@ -5171,6 +4880,7 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
 }
 
 void Assembler::GrowBuffer() {
+  DEBUG_PRINTF("GrowBuffer: %p -> ", buffer_start_);
   // Compute new buffer size.
   int old_size = buffer_->size();
   int new_size = std::min(2 * old_size, old_size + 1 * MB);
@@ -5197,6 +4907,7 @@ void Assembler::GrowBuffer() {
   // Switch buffers.
   buffer_ = std::move(new_buffer);
   buffer_start_ = new_start;
+  DEBUG_PRINTF("%p\n", buffer_start_);
   pc_ += pc_delta;
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
@@ -5276,38 +4987,19 @@ void Assembler::CheckTrampolinePool() {
   DCHECK(!trampoline_emitted_);
   DCHECK_GE(unbound_labels_count_, 0);
   if (unbound_labels_count_ > 0) {
-    // First we emit jump (2 instructions), then we emit trampoline pool.
+    // First we emit jump, then we emit trampoline pool.
     {
+      DEBUG_PRINTF("inserting trampoline pool at %p (%d)\n",
+                   reinterpret_cast<Instr*>(buffer_start_ + pc_offset()),
+                   pc_offset());
       BlockTrampolinePoolScope block_trampoline_pool(this);
       Label after_pool;
-      if (kArchVariant == kMips64r6) {
-        bc(&after_pool);
-      } else {
-        b(&after_pool);
-      }
-      nop();
+      RV_j(&after_pool);
 
       int pool_start = pc_offset();
       for (int i = 0; i < unbound_labels_count_; i++) {
-        {
-          if (kArchVariant == kMips64r6) {
-            bc(&after_pool);
-            nop();
-          } else {
-            or_(t5, ra, zero_reg);
-            nal();       // Read PC into ra register.
-            lui(t6, 0);  // Branch delay slot.
-            ori(t6, t6, 0);
-            daddu(t6, ra, t6);
-            or_(ra, t5, zero_reg);
-            // Instruction jr will take or_ from the next trampoline.
-            // in its branch delay slot. This is the expected behavior
-            // in order to decrease size of trampoline pool.
-            jr(t6);
-          }
-        }
+        RV_j(&after_pool);
       }
-      nop();
       bind(&after_pool);
       trampoline_ = Trampoline(pool_start, unbound_labels_count_);
 
@@ -5326,72 +5018,106 @@ void Assembler::CheckTrampolinePool() {
 }
 
 Address Assembler::target_address_at(Address pc) {
-  Instr instr0 = instr_at(pc);
-  Instr instr1 = instr_at(pc + 1 * kInstrSize);
-  Instr instr3 = instr_at(pc + 3 * kInstrSize);
+  DEBUG_PRINTF("target_address_at: pc: %lx\t", pc);
+  Instruction* instr0 = Instruction::At((unsigned char*)pc);
+  Instruction* instr1 = Instruction::At((unsigned char*)(pc + 1 * kInstrSize));
+  Instruction* instr3 = Instruction::At((unsigned char*)(pc + 3 * kInstrSize));
+  Instruction* instr5 = Instruction::At((unsigned char*)(pc + 5 * kInstrSize));
+  Instruction* instr7 = Instruction::At((unsigned char*)(pc + 7 * kInstrSize));
 
-  // Interpret 4 instructions for address generated by li: See listing in
+  // Interpret 5 instructions for address generated by li: See listing in
   // Assembler::set_target_address_at() just below.
-  if ((GetOpcodeField(instr0) == LUI) && (GetOpcodeField(instr1) == ORI) &&
-      (GetOpcodeField(instr3) == ORI)) {
-    // Assemble the 48 bit value.
-    int64_t addr =
-        static_cast<int64_t>(((uint64_t)(GetImmediate16(instr0)) << 32) |
-                             ((uint64_t)(GetImmediate16(instr1)) << 16) |
-                             ((uint64_t)(GetImmediate16(instr3))));
+  if ((instr0->BaseOpcodeFieldRaw() == RV_LUI) &&
+      (instr1->ITypeBits() == RO_ADDIW) && (instr3->ITypeBits() == RO_ADDI) &&
+      (instr5->ITypeBits() == RO_ADDI) && (instr7->ITypeBits() == RO_ADDI)) {
+    // Assemble the 64 bit value.
+    int64_t addr = (int64_t)(instr0->Imm20UValue() << kImm20Shift) +
+                   (int64_t)instr1->Imm12Value();
+    addr <<= 12;
+    addr += (int64_t)instr3->Imm12Value();
+    addr <<= 12;
+    addr += (int64_t)instr5->Imm12Value();
+    addr <<= 12;
+    addr += (int64_t)instr7->Imm12Value();
 
-    // Sign extend to get canonical address.
-    addr = (addr << 16) >> 16;
+    DEBUG_PRINTF("addr: %lx\n", addr);
     return static_cast<Address>(addr);
   }
   // We should never get here, force a bad address if we do.
   UNREACHABLE();
 }
 
-// On Mips64, a target address is stored in a 4-instruction sequence:
-//    0: lui(rd, (j.imm64_ >> 32) & kImm16Mask);
-//    1: ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
-//    2: dsll(rd, rd, 16);
-//    3: ori(rd, rd, j.imm32_ & kImm16Mask);
+// On RISC-V, a 64-bit target address is stored in an 8-instruction sequence:
+//    0: lui(rd, (j.imm64_ + (1LL << 47) + (1LL << 35) +
+//                           (1LL << 23) + (1LL << 11)) >> 48);
+//    1: addiw(rd, rd, (j.imm64_ + (1LL << 35) + (1LL << 23) + (1LL << 11))
+//                       << 16 >> 52);
+//    2: slli(rd, rd, 12);
+//    3: addi(rd, rd, (j.imm64_ + (1LL << 23) + (1LL << 11)) << 28 >> 52);
+//    4: slli(rd, rd, 12);
+//    5: addi(rd, rd, (j.imm64_ + (1 << 11)) << 40 >> 52);
+//    6: slli(rd, rd, 12);
+//    7: addi(rd, rd, j.imm64_ << 52 >> 52);
 //
-// Patching the address must replace all the lui & ori instructions,
+// Patching the address must replace all the lui & addi instructions,
 // and flush the i-cache.
-//
-// There is an optimization below, which emits a nop when the address
-// fits in just 16 bits. This is unlikely to help, and should be benchmarked,
-// and possibly removed.
 void Assembler::set_target_value_at(Address pc, uint64_t target,
                                     ICacheFlushMode icache_flush_mode) {
+  // FIXME(RISC-V): Does the below statement apply to RISC-V? If so, we do not
+  //   need all 8 instructions.
   // There is an optimization where only 4 instructions are used to load address
   // in code on MIP64 because only 48-bits of address is effectively used.
   // It relies on fact the upper [63:48] bits are not used for virtual address
   // translation and they have to be set according to value of bit 47 in order
   // get canonical address.
-  Instr instr1 = instr_at(pc + kInstrSize);
-  uint32_t rt_code = GetRt(instr1);
+  Instruction* instr0 = Instruction::At((unsigned char*)pc);
+  DEBUG_PRINTF("set_target_value_at: pc: %lx\ttarget: %lx\n", pc, target);
+  int rd_code = instr0->RV_RdValue();
   uint32_t* p = reinterpret_cast<uint32_t*>(pc);
 
 #ifdef DEBUG
   // Check we have the result from a li macro-instruction.
-  Instr instr0 = instr_at(pc);
-  Instr instr3 = instr_at(pc + kInstrSize * 3);
-  DCHECK((GetOpcodeField(instr0) == LUI && GetOpcodeField(instr1) == ORI &&
-          GetOpcodeField(instr3) == ORI));
+  Instruction* instr1 = Instruction::At((unsigned char*)(pc + 1 * kInstrSize));
+  Instruction* instr3 = Instruction::At((unsigned char*)(pc + 3 * kInstrSize));
+  Instruction* instr5 = Instruction::At((unsigned char*)(pc + 5 * kInstrSize));
+  Instruction* instr7 = Instruction::At((unsigned char*)(pc + 7 * kInstrSize));
+  DCHECK(
+      ((instr0->BaseOpcodeFieldRaw() == RV_LUI) &&
+       (instr1->ITypeBits() == RO_ADDIW) && (instr3->ITypeBits() == RO_ADDI) &&
+       (instr5->ITypeBits() == RO_ADDI) && (instr7->ITypeBits() == RO_ADDI)));
 #endif
 
-  // Must use 4 instructions to insure patchable code.
-  // lui rt, upper-16.
-  // ori rt, rt, lower-16.
-  // dsll rt, rt, 16.
-  // ori rt rt, lower-16.
-  *p = LUI | (rt_code << kRtShift) | ((target >> 32) & kImm16Mask);
-  *(p + 1) = ORI | (rt_code << kRtShift) | (rt_code << kRsShift) |
-             ((target >> 16) & kImm16Mask);
-  *(p + 3) = ORI | (rt_code << kRsShift) | (rt_code << kRtShift) |
-             (target & kImm16Mask);
+  // Must use 8 instructions to insure patchable code (see above comment).
+  *p = RV_LUI | (rd_code << RV_kRdShift) |
+       ((uint32_t)(
+            (target + (1LL << 47) + (1LL << 35) + (1LL << 23) + (1LL << 11)) >>
+            48)
+        << kImm20Shift);
+  *(p + 1) =
+      OP_IMM_32 | (rd_code << RV_kRdShift) | (0b000 << kFunct3Shift) |
+      (rd_code << kRs1Shift) |
+      ((uint32_t)((target + (1LL << 35) + (1LL << 23) + (1LL << 11)) << 16 >>
+                  52)
+       << kImm12Shift);
+  *(p + 2) = OP_IMM | (rd_code << RV_kRdShift) | (0b001 << kFunct3Shift) |
+             (rd_code << kRs1Shift) | (12 << kImm12Shift);
+  *(p + 3) = OP_IMM | (rd_code << RV_kRdShift) | (0b000 << kFunct3Shift) |
+             (rd_code << kRs1Shift) |
+             ((uint32_t)((target + (1LL << 23) + (1LL << 11)) << 28 >> 52)
+              << kImm12Shift);
+  *(p + 4) = OP_IMM | (rd_code << RV_kRdShift) | (0b001 << kFunct3Shift) |
+             (rd_code << kRs1Shift) | (12 << kImm12Shift);
+  *(p + 5) = OP_IMM | (rd_code << RV_kRdShift) | (0b000 << kFunct3Shift) |
+             (rd_code << kRs1Shift) |
+             ((uint32_t)((target + (1LL << 11)) << 40 >> 52) << kImm12Shift);
+  *(p + 6) = OP_IMM | (rd_code << RV_kRdShift) | (0b001 << kFunct3Shift) |
+             (rd_code << kRs1Shift) | (12 << kImm12Shift);
+  *(p + 7) = OP_IMM | (rd_code << RV_kRdShift) | (0b000 << kFunct3Shift) |
+             (rd_code << kRs1Shift) |
+             ((uint32_t)(target << 52 >> 52) << kImm12Shift);
 
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    FlushInstructionCache(pc, 4 * kInstrSize);
+    FlushInstructionCache(pc, 8 * kInstrSize);
   }
 }
 

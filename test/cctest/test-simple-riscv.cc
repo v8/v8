@@ -102,12 +102,12 @@ TEST(RISCV_SIMPLE2) {
   __ RV_li(a0, 0);
   __ RV_j(&C);
 
-  __ RV_bind(&L);
+  __ bind(&L);
 
   __ RV_add(a0, a0, a1);
   __ RV_addi(a1, a1, -1);
 
-  __ RV_bind(&C);
+  __ bind(&C);
   __ RV_bgtz(a1, &L);
   __ RV_jr(ra);
 
@@ -182,7 +182,57 @@ TEST(LI) {
   __ RV_mv(a0, zero_reg);
   __ RV_jr(ra);
 
-  __ RV_bind(&error);
+  __ bind(&error);
+  __ RV_jr(ra);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  int64_t res = reinterpret_cast<int64_t>(f.Call(0xDEADBEEF, 0, 0, 0, 0));
+  CHECK_EQ(0L, res);
+}
+
+TEST(LI_CONST) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  Label error;
+
+  // Load 0
+  __ RV_li_constant(a0, 0l);
+  __ RV_bnez(a0, &error);
+
+  // Load small number (<12 bits)
+  __ RV_li_constant(a1, 5);
+  __ RV_li_constant(a2, -5);
+  __ RV_add(a0, a1, a2);
+  __ RV_bnez(a0, &error);
+
+  // Load medium number (13-32 bits)
+  __ RV_li_constant(a1, 124076833);
+  __ RV_li_constant(a2, -124076833);
+  __ RV_add(a0, a1, a2);
+  __ RV_bnez(a0, &error);
+
+  // Load large number (33-64 bits)
+  __ RV_li_constant(a1, 11649936536080);
+  __ RV_li_constant(a2, -11649936536080);
+  __ RV_add(a0, a1, a2);
+  __ RV_bnez(a0, &error);
+
+  // Load large number (33-64 bits)
+  __ RV_li_constant(a1, 1070935975390360080);
+  __ RV_li_constant(a2, -1070935975390360080);
+  __ RV_add(a0, a1, a2);
+  __ RV_bnez(a0, &error);
+
+  __ RV_mv(a0, zero_reg);
+  __ RV_jr(ra);
+
+  __ bind(&error);
   __ RV_jr(ra);
 
   CodeDesc desc;

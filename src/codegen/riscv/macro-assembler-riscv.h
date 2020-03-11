@@ -44,11 +44,10 @@ enum LiFlags {
   // sequence. A number of other optimizations that emits less than
   // maximum number of instructions exists.
   OPTIMIZE_SIZE = 0,
-  // Always use 6 instructions (lui/ori/dsll sequence) for release 2 or 4
-  // instructions for release 6 (lui/ori/dahi/dati), even if the constant
+  // Always use 8 instructions (lui/addi/sll sequence), even if the constant
   // could be loaded with just one, so that this value is patchable later.
   CONSTANT_SIZE = 1,
-  // For address loads only 4 instruction are required. Used to mark
+  // For address loads 8 instruction are required. Used to mark
   // constant load that will be used as address without relocation
   // information. It ensures predictable code size, so specific sites
   // in code are patchable.
@@ -197,7 +196,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void li_optimized(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
   // Load int32 in the rd register.
   void li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
-  void RV_Li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
   inline void li(Register rd, int64_t j, LiFlags mode = OPTIMIZE_SIZE) {
     li(rd, Operand(j), mode);
   }
@@ -878,25 +876,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   bool CalculateOffset(Label* L, int32_t* offset, OffsetSize bits,
                        Register* scratch, const Operand& rt);
 
-  void BranchShortHelperR6(int32_t offset, Label* L);
-  void BranchShortHelper(int16_t offset, Label* L, BranchDelaySlot bdslot);
-  bool BranchShortHelperR6(int32_t offset, Label* L, Condition cond,
-                           Register rs, const Operand& rt);
-  bool BranchShortHelper(int16_t offset, Label* L, Condition cond, Register rs,
-                         const Operand& rt, BranchDelaySlot bdslot);
+  void BranchShortHelper(int32_t offset, Label* L);
+  bool BranchShortHelper(int32_t offset, Label* L, Condition cond, Register rs,
+                         const Operand& rt);
   bool BranchShortCheck(int32_t offset, Label* L, Condition cond, Register rs,
                         const Operand& rt, BranchDelaySlot bdslot);
 
-  void BranchAndLinkShortHelperR6(int32_t offset, Label* L);
-  void BranchAndLinkShortHelper(int16_t offset, Label* L,
-                                BranchDelaySlot bdslot);
+  void BranchAndLinkShortHelper(int32_t offset, Label* L);
   void BranchAndLinkShort(int32_t offset, BranchDelaySlot bdslot = PROTECT);
   void BranchAndLinkShort(Label* L, BranchDelaySlot bdslot = PROTECT);
-  bool BranchAndLinkShortHelperR6(int32_t offset, Label* L, Condition cond,
-                                  Register rs, const Operand& rt);
-  bool BranchAndLinkShortHelper(int16_t offset, Label* L, Condition cond,
-                                Register rs, const Operand& rt,
-                                BranchDelaySlot bdslot);
+  bool BranchAndLinkShortHelper(int32_t offset, Label* L, Condition cond,
+                                Register rs, const Operand& rt);
   bool BranchAndLinkShortCheck(int32_t offset, Label* L, Condition cond,
                                Register rs, const Operand& rt,
                                BranchDelaySlot bdslot);

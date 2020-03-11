@@ -127,7 +127,7 @@ void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
 void TurboAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition cond, Register src1,
                               const Operand& src2) {
-  Branch(2, NegateCondition(cond), src1, src2);
+  Branch(kInstrSize, NegateCondition(cond), src1, src2);
   Ld(destination, MemOperand(s6, RootRegisterOffsetForRootIndex(index)));
 }
 
@@ -137,7 +137,7 @@ void TurboAssembler::PushCommonFrame(Register marker_reg) {
     Daddu(fp, sp, Operand(kPointerSize));
   } else {
     Push(ra, fp);
-    mov(fp, sp);
+    RV_mv(fp, sp);
   }
 }
 
@@ -187,7 +187,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
     Label ok;
     And(t5, dst, Operand(kPointerSize - 1));
     Branch(&ok, eq, t5, Operand(zero_reg));
-    stop();
+    RV_ebreak();
     bind(&ok);
   }
 
@@ -1312,374 +1312,32 @@ void TurboAssembler::li(Register dst, const StringConstantBase* string,
 }
 
 static inline int InstrCountForLiLower32Bit(int64_t value) {
-  if (!is_int16(static_cast<int32_t>(value)) && (value & kUpper16MaskOf64) &&
-      (value & kImm16Mask)) {
-    return 2;
-  } else {
+  int64_t Hi20 = ((value + 0x800) >> 12);
+  int64_t Lo12 = value << 52 >> 52;
+  if (Hi20 == 0 || Lo12 == 0) {
     return 1;
   }
-}
-
-void TurboAssembler::LiLower32BitHelper(Register rd, Operand j) {
-  if (is_int16(static_cast<int32_t>(j.immediate()))) {
-    daddiu(rd, zero_reg, (j.immediate() & kImm16Mask));
-  } else if (!(j.immediate() & kUpper16MaskOf64)) {
-    ori(rd, zero_reg, j.immediate() & kImm16Mask);
-  } else {
-    lui(rd, j.immediate() >> kLuiShift & kImm16Mask);
-    if (j.immediate() & kImm16Mask) {
-      ori(rd, rd, j.immediate() & kImm16Mask);
-    }
-  }
-}
-
-static inline int InstrCountForLoadReplicatedConst32(int64_t value) {
-  uint32_t x = static_cast<uint32_t>(value);
-  uint32_t y = static_cast<uint32_t>(value >> 32);
-
-  if (x == y) {
-    return (is_uint16(x) || is_int16(x) || (x & kImm16Mask) == 0) ? 2 : 3;
-  }
-
-  return INT_MAX;
+  return 2;
 }
 
 int TurboAssembler::InstrCountForLi64Bit(int64_t value) {
   if (is_int32(value)) {
     return InstrCountForLiLower32Bit(value);
   } else {
-    int bit31 = value >> 31 & 0x1;
-    if ((value & kUpper16MaskOf64) == 0 && is_int16(value >> 32) &&
-        kArchVariant == kMips64r6) {
-      return 2;
-    } else if ((value & (kHigher16MaskOf64 | kUpper16MaskOf64)) == 0 &&
-               kArchVariant == kMips64r6) {
-      return 2;
-    } else if ((value & kImm16Mask) == 0 && is_int16((value >> 32) + bit31) &&
-               kArchVariant == kMips64r6) {
-      return 2;
-    } else if ((value & kImm16Mask) == 0 &&
-               ((value >> 31) & 0x1FFFF) == ((0x20000 - bit31) & 0x1FFFF) &&
-               kArchVariant == kMips64r6) {
-      return 2;
-    } else if (is_int16(static_cast<int32_t>(value)) &&
-               is_int16((value >> 32) + bit31) && kArchVariant == kMips64r6) {
-      return 2;
-    } else if (is_int16(static_cast<int32_t>(value)) &&
-               ((value >> 31) & 0x1FFFF) == ((0x20000 - bit31) & 0x1FFFF) &&
-               kArchVariant == kMips64r6) {
-      return 2;
-    } else if (base::bits::IsPowerOfTwo(value + 1) ||
-               value == std::numeric_limits<int64_t>::max()) {
-      return 2;
-    } else {
-      int shift_cnt = base::bits::CountTrailingZeros64(value);
-      int rep32_count = InstrCountForLoadReplicatedConst32(value);
-      int64_t tmp = value >> shift_cnt;
-      if (is_uint16(tmp)) {
-        return 2;
-      } else if (is_int16(tmp)) {
-        return 2;
-      } else if (rep32_count < 3) {
-        return 2;
-      } else if (is_int32(tmp)) {
-        return 3;
-      } else {
-        shift_cnt = 16 + base::bits::CountTrailingZeros64(value >> 16);
-        tmp = value >> shift_cnt;
-        if (is_uint16(tmp)) {
-          return 3;
-        } else if (is_int16(tmp)) {
-          return 3;
-        } else if (rep32_count < 4) {
-          return 3;
-        } else if (kArchVariant == kMips64r6) {
-          int64_t imm = value;
-          int count = InstrCountForLiLower32Bit(imm);
-          imm = (imm >> 32) + bit31;
-          if (imm & kImm16Mask) {
-            count++;
-          }
-          imm = (imm >> 16) + (imm >> 15 & 0x1);
-          if (imm & kImm16Mask) {
-            count++;
-          }
-          return count;
-        } else {
-          if (is_int48(value)) {
-            int64_t k = value >> 16;
-            int count = InstrCountForLiLower32Bit(k) + 1;
-            if (value & kImm16Mask) {
-              count++;
-            }
-            return count;
-          } else {
-            int64_t k = value >> 32;
-            int count = InstrCountForLiLower32Bit(k);
-            if ((value >> 16) & kImm16Mask) {
-              count += 3;
-              if (value & kImm16Mask) {
-                count++;
-              }
-            } else {
-              count++;
-              if (value & kImm16Mask) {
-                count++;
-              }
-            }
-            return count;
-          }
-        }
-      }
-    }
+    return li_count(value);
   }
   UNREACHABLE();
   return INT_MAX;
 }
 
-// All changes to if...else conditions here must be added to
-// InstrCountForLi64Bit as well.
 void TurboAssembler::li_optimized(Register rd, Operand j, LiFlags mode) {
   DCHECK(!j.is_reg());
   DCHECK(!MustUseReg(j.rmode()));
   DCHECK(mode == OPTIMIZE_SIZE);
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  // Normal load of an immediate value which does not need Relocation Info.
-  if (is_int32(j.immediate())) {
-    LiLower32BitHelper(rd, j);
-  } else {
-    int bit31 = j.immediate() >> 31 & 0x1;
-    if ((j.immediate() & kUpper16MaskOf64) == 0 &&
-        is_int16(j.immediate() >> 32) && kArchVariant == kMips64r6) {
-      // 64-bit value which consists of an unsigned 16-bit value in its
-      // least significant 32-bits, and a signed 16-bit value in its
-      // most significant 32-bits.
-      ori(rd, zero_reg, j.immediate() & kImm16Mask);
-      dahi(rd, j.immediate() >> 32 & kImm16Mask);
-    } else if ((j.immediate() & (kHigher16MaskOf64 | kUpper16MaskOf64)) == 0 &&
-               kArchVariant == kMips64r6) {
-      // 64-bit value which consists of an unsigned 16-bit value in its
-      // least significant 48-bits, and a signed 16-bit value in its
-      // most significant 16-bits.
-      ori(rd, zero_reg, j.immediate() & kImm16Mask);
-      dati(rd, j.immediate() >> 48 & kImm16Mask);
-    } else if ((j.immediate() & kImm16Mask) == 0 &&
-               is_int16((j.immediate() >> 32) + bit31) &&
-               kArchVariant == kMips64r6) {
-      // 16 LSBs (Least Significant Bits) all set to zero.
-      // 48 MSBs (Most Significant Bits) hold a signed 32-bit value.
-      lui(rd, j.immediate() >> kLuiShift & kImm16Mask);
-      dahi(rd, ((j.immediate() >> 32) + bit31) & kImm16Mask);
-    } else if ((j.immediate() & kImm16Mask) == 0 &&
-               ((j.immediate() >> 31) & 0x1FFFF) ==
-                   ((0x20000 - bit31) & 0x1FFFF) &&
-               kArchVariant == kMips64r6) {
-      // 16 LSBs all set to zero.
-      // 48 MSBs hold a signed value which can't be represented by signed
-      // 32-bit number, and the middle 16 bits are all zero, or all one.
-      lui(rd, j.immediate() >> kLuiShift & kImm16Mask);
-      dati(rd, ((j.immediate() >> 48) + bit31) & kImm16Mask);
-    } else if (is_int16(static_cast<int32_t>(j.immediate())) &&
-               is_int16((j.immediate() >> 32) + bit31) &&
-               kArchVariant == kMips64r6) {
-      // 32 LSBs contain a signed 16-bit number.
-      // 32 MSBs contain a signed 16-bit number.
-      daddiu(rd, zero_reg, j.immediate() & kImm16Mask);
-      dahi(rd, ((j.immediate() >> 32) + bit31) & kImm16Mask);
-    } else if (is_int16(static_cast<int32_t>(j.immediate())) &&
-               ((j.immediate() >> 31) & 0x1FFFF) ==
-                   ((0x20000 - bit31) & 0x1FFFF) &&
-               kArchVariant == kMips64r6) {
-      // 48 LSBs contain an unsigned 16-bit number.
-      // 16 MSBs contain a signed 16-bit number.
-      daddiu(rd, zero_reg, j.immediate() & kImm16Mask);
-      dati(rd, ((j.immediate() >> 48) + bit31) & kImm16Mask);
-    } else if (base::bits::IsPowerOfTwo(j.immediate() + 1) ||
-               j.immediate() == std::numeric_limits<int64_t>::max()) {
-      // 64-bit values which have their "n" LSBs set to one, and their
-      // "64-n" MSBs set to zero. "n" must meet the restrictions 0 < n < 64.
-      int shift_cnt = 64 - base::bits::CountTrailingZeros64(j.immediate() + 1);
-      daddiu(rd, zero_reg, -1);
-      if (shift_cnt < 32) {
-        dsrl(rd, rd, shift_cnt);
-      } else {
-        dsrl32(rd, rd, shift_cnt & 31);
-      }
-    } else {
-      int shift_cnt = base::bits::CountTrailingZeros64(j.immediate());
-      int rep32_count = InstrCountForLoadReplicatedConst32(j.immediate());
-      int64_t tmp = j.immediate() >> shift_cnt;
-      if (is_uint16(tmp)) {
-        // Value can be computed by loading a 16-bit unsigned value, and
-        // then shifting left.
-        ori(rd, zero_reg, tmp & kImm16Mask);
-        if (shift_cnt < 32) {
-          dsll(rd, rd, shift_cnt);
-        } else {
-          dsll32(rd, rd, shift_cnt & 31);
-        }
-      } else if (is_int16(tmp)) {
-        // Value can be computed by loading a 16-bit signed value, and
-        // then shifting left.
-        daddiu(rd, zero_reg, static_cast<int32_t>(tmp));
-        if (shift_cnt < 32) {
-          dsll(rd, rd, shift_cnt);
-        } else {
-          dsll32(rd, rd, shift_cnt & 31);
-        }
-      } else if (rep32_count < 3) {
-        // Value being loaded has 32 LSBs equal to the 32 MSBs, and the
-        // value loaded into the 32 LSBs can be loaded with a single
-        // MIPS instruction.
-        LiLower32BitHelper(rd, j);
-        Dins(rd, rd, 32, 32);
-      } else if (is_int32(tmp)) {
-        // Loads with 3 instructions.
-        // Value can be computed by loading a 32-bit signed value, and
-        // then shifting left.
-        lui(rd, tmp >> kLuiShift & kImm16Mask);
-        ori(rd, rd, tmp & kImm16Mask);
-        if (shift_cnt < 32) {
-          dsll(rd, rd, shift_cnt);
-        } else {
-          dsll32(rd, rd, shift_cnt & 31);
-        }
-      } else {
-        shift_cnt = 16 + base::bits::CountTrailingZeros64(j.immediate() >> 16);
-        tmp = j.immediate() >> shift_cnt;
-        if (is_uint16(tmp)) {
-          // Value can be computed by loading a 16-bit unsigned value,
-          // shifting left, and "or"ing in another 16-bit unsigned value.
-          ori(rd, zero_reg, tmp & kImm16Mask);
-          if (shift_cnt < 32) {
-            dsll(rd, rd, shift_cnt);
-          } else {
-            dsll32(rd, rd, shift_cnt & 31);
-          }
-          ori(rd, rd, j.immediate() & kImm16Mask);
-        } else if (is_int16(tmp)) {
-          // Value can be computed by loading a 16-bit signed value,
-          // shifting left, and "or"ing in a 16-bit unsigned value.
-          daddiu(rd, zero_reg, static_cast<int32_t>(tmp));
-          if (shift_cnt < 32) {
-            dsll(rd, rd, shift_cnt);
-          } else {
-            dsll32(rd, rd, shift_cnt & 31);
-          }
-          ori(rd, rd, j.immediate() & kImm16Mask);
-        } else if (rep32_count < 4) {
-          // Value being loaded has 32 LSBs equal to the 32 MSBs, and the
-          // value in the 32 LSBs requires 2 MIPS instructions to load.
-          LiLower32BitHelper(rd, j);
-          Dins(rd, rd, 32, 32);
-        } else if (kArchVariant == kMips64r6) {
-          // Loads with 3-4 instructions.
-          // Catch-all case to get any other 64-bit values which aren't
-          // handled by special cases above.
-          int64_t imm = j.immediate();
-          LiLower32BitHelper(rd, j);
-          imm = (imm >> 32) + bit31;
-          if (imm & kImm16Mask) {
-            dahi(rd, imm & kImm16Mask);
-          }
-          imm = (imm >> 16) + (imm >> 15 & 0x1);
-          if (imm & kImm16Mask) {
-            dati(rd, imm & kImm16Mask);
-          }
-        } else {
-          if (is_int48(j.immediate())) {
-            Operand k = Operand(j.immediate() >> 16);
-            LiLower32BitHelper(rd, k);
-            dsll(rd, rd, 16);
-            if (j.immediate() & kImm16Mask) {
-              ori(rd, rd, j.immediate() & kImm16Mask);
-            }
-          } else {
-            Operand k = Operand(j.immediate() >> 32);
-            LiLower32BitHelper(rd, k);
-            if ((j.immediate() >> 16) & kImm16Mask) {
-              dsll(rd, rd, 16);
-              ori(rd, rd, (j.immediate() >> 16) & kImm16Mask);
-              dsll(rd, rd, 16);
-              if (j.immediate() & kImm16Mask) {
-                ori(rd, rd, j.immediate() & kImm16Mask);
-              }
-            } else {
-              dsll32(rd, rd, 0);
-              if (j.immediate() & kImm16Mask) {
-                ori(rd, rd, j.immediate() & kImm16Mask);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+  RV_li(rd, j.immediate());
 }
 
 void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
-  DCHECK(!j.is_reg());
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  if (!MustUseReg(j.rmode()) && mode == OPTIMIZE_SIZE) {
-    int li_count = InstrCountForLi64Bit(j.immediate());
-    int li_neg_count = InstrCountForLi64Bit(-j.immediate());
-    int li_not_count = InstrCountForLi64Bit(~j.immediate());
-    // Loading -MIN_INT64 could cause problems, but loading MIN_INT64 takes only
-    // two instructions so no need to check for this.
-    if (li_neg_count <= li_not_count && li_neg_count < li_count - 1) {
-      DCHECK(j.immediate() != std::numeric_limits<int64_t>::min());
-      li_optimized(rd, Operand(-j.immediate()), mode);
-      Dsubu(rd, zero_reg, rd);
-    } else if (li_neg_count > li_not_count && li_not_count < li_count - 1) {
-      DCHECK(j.immediate() != std::numeric_limits<int64_t>::min());
-      li_optimized(rd, Operand(~j.immediate()), mode);
-      nor(rd, rd, rd);
-    } else {
-      li_optimized(rd, j, mode);
-    }
-  } else if (MustUseReg(j.rmode())) {
-    int64_t immediate;
-    if (j.IsHeapObjectRequest()) {
-      RequestHeapObject(j.heap_object_request());
-      immediate = 0;
-    } else {
-      immediate = j.immediate();
-    }
-
-    RecordRelocInfo(j.rmode(), immediate);
-    lui(rd, (immediate >> 32) & kImm16Mask);
-    ori(rd, rd, (immediate >> 16) & kImm16Mask);
-    dsll(rd, rd, 16);
-    ori(rd, rd, immediate & kImm16Mask);
-  } else if (mode == ADDRESS_LOAD) {
-    // We always need the same number of instructions as we may need to patch
-    // this code to load another value which may need all 4 instructions.
-    lui(rd, (j.immediate() >> 32) & kImm16Mask);
-    ori(rd, rd, (j.immediate() >> 16) & kImm16Mask);
-    dsll(rd, rd, 16);
-    ori(rd, rd, j.immediate() & kImm16Mask);
-  } else {  // mode == CONSTANT_SIZE - always emit the same instruction
-            // sequence.
-    if (kArchVariant == kMips64r6) {
-      int64_t imm = j.immediate();
-      lui(rd, imm >> kLuiShift & kImm16Mask);
-      ori(rd, rd, (imm & kImm16Mask));
-      imm = (imm >> 32) + ((imm >> 31) & 0x1);
-      dahi(rd, imm & kImm16Mask & kImm16Mask);
-      imm = (imm >> 16) + ((imm >> 15) & 0x1);
-      dati(rd, imm & kImm16Mask & kImm16Mask);
-    } else {
-      lui(rd, (j.immediate() >> 48) & kImm16Mask);
-      ori(rd, rd, (j.immediate() >> 32) & kImm16Mask);
-      dsll(rd, rd, 16);
-      ori(rd, rd, (j.immediate() >> 16) & kImm16Mask);
-      dsll(rd, rd, 16);
-      ori(rd, rd, j.immediate() & kImm16Mask);
-    }
-  }
-}
-
-void TurboAssembler::RV_Li(Register rd, Operand j, LiFlags mode) {
   DCHECK(!j.is_reg());
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (!MustUseReg(j.rmode()) && mode == OPTIMIZE_SIZE) {
@@ -2143,25 +1801,27 @@ void TurboAssembler::CompareIsNanF(SecondaryField sizeField, FPURegister cmp1,
 }
 
 void TurboAssembler::BranchTrueShortF(Label* target, BranchDelaySlot bd) {
-  if (kArchVariant == kMips64r6) {
-    bc1nez(target, kDoubleCompareReg);
-  } else {
-    bc1t(target);
-  }
-  if (bd == PROTECT) {
-    nop();
-  }
+  // FIXME(RISCV): This is a temporary fix to avoid errors, but needs to be
+  // changed to actually perform the appropriate branch
+  Branch(target, cc_always, zero_reg, Operand(zero_reg));
+
+  // if (kArchVariant == kMips64r6) {
+  //   bc1nez(target, kDoubleCompareReg);
+  // } else {
+  //   bc1t(target);
+  // }
 }
 
 void TurboAssembler::BranchFalseShortF(Label* target, BranchDelaySlot bd) {
-  if (kArchVariant == kMips64r6) {
-    bc1eqz(target, kDoubleCompareReg);
-  } else {
-    bc1f(target);
-  }
-  if (bd == PROTECT) {
-    nop();
-  }
+  // FIXME(RISCV): This is a temporary fix to avoid errors, but needs to be
+  // changed to actually perform the appropriate branch
+  Branch(target, cc_always, zero_reg, Operand(zero_reg));
+
+  // if (kArchVariant == kMips64r6) {
+  //   bc1eqz(target, kDoubleCompareReg);
+  // } else {
+  //   bc1f(target);
+  // }
 }
 
 void TurboAssembler::BranchTrueF(Label* target, BranchDelaySlot bd) {
@@ -2262,9 +1922,6 @@ void TurboAssembler::BranchShortMSA(MSABranchDF df, Label* target,
       }
     }
   }
-  if (bd == PROTECT) {
-    nop();
-  }
 }
 
 void TurboAssembler::FmoveLow(FPURegister dst, Register src_low) {
@@ -2335,7 +1992,7 @@ void TurboAssembler::LoadZeroOnCondition(Register rd, Register rs,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   switch (cond) {
     case cc_always:
-      mov(rd, zero_reg);
+      RV_mv(rd, zero_reg);
       break;
     case eq:
       if (rs == zero_reg) {
@@ -2343,9 +2000,9 @@ void TurboAssembler::LoadZeroOnCondition(Register rd, Register rs,
           LoadZeroIfConditionZero(rd, rt.rm());
         } else {
           if (rt.immediate() == 0) {
-            mov(rd, zero_reg);
+            RV_mv(rd, zero_reg);
           } else {
-            nop();
+            RV_nop();
           }
         }
       } else if (IsZero(rt)) {
@@ -2361,9 +2018,9 @@ void TurboAssembler::LoadZeroOnCondition(Register rd, Register rs,
           LoadZeroIfConditionNotZero(rd, rt.rm());
         } else {
           if (rt.immediate() != 0) {
-            mov(rd, zero_reg);
+            RV_mv(rd, zero_reg);
           } else {
-            nop();
+            RV_nop();
           }
         }
       } else if (IsZero(rt)) {
@@ -2680,7 +2337,7 @@ void MacroAssembler::EmitFPUTruncate(
   Label done;
 
   // Clear the except flag (0 = no exception)
-  mov(except_flag, zero_reg);
+  RV_mv(except_flag, zero_reg);
 
   // Test for values that can be exactly represented as a signed 32-bit integer.
   cvt_w_d(double_scratch, double_input);
@@ -2790,7 +2447,7 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
          (cond != cc_always && (rs != zero_reg || rt.rm() != zero_reg)))
 
 void TurboAssembler::Branch(int32_t offset, BranchDelaySlot bdslot) {
-  DCHECK_EQ(kArchVariant, kMips64r6 ? is_int26(offset) : is_int16(offset));
+  DCHECK(is_int21(offset));
   BranchShort(offset, bdslot);
 }
 
@@ -2856,43 +2513,24 @@ void TurboAssembler::Branch(Label* L, Condition cond, Register rs,
   Branch(L, cond, rs, Operand(scratch), bdslot);
 }
 
-void TurboAssembler::BranchShortHelper(int16_t offset, Label* L,
-                                       BranchDelaySlot bdslot) {
+void TurboAssembler::BranchShortHelper(int32_t offset, Label* L) {
   DCHECK(L == nullptr || offset == 0);
-  offset = GetOffset(offset, L, OffsetSize::kOffset16);
-  b(offset);
-
-  // Emit a nop in the branch delay slot if required.
-  if (bdslot == PROTECT) nop();
-}
-
-void TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L) {
-  DCHECK(L == nullptr || offset == 0);
-  offset = GetOffset(offset, L, OffsetSize::kOffset26);
-  bc(offset);
+  offset = GetOffset(offset, L, OffsetSize::kOffset21);
+  RV_j(offset);
 }
 
 void TurboAssembler::BranchShort(int32_t offset, BranchDelaySlot bdslot) {
-  if (kArchVariant == kMips64r6 && bdslot == PROTECT) {
-    DCHECK(is_int26(offset));
-    BranchShortHelperR6(offset, nullptr);
-  } else {
-    DCHECK(is_int16(offset));
-    BranchShortHelper(offset, nullptr, bdslot);
-  }
+  DCHECK(is_int21(offset));
+  BranchShortHelper(offset, nullptr);
 }
 
 void TurboAssembler::BranchShort(Label* L, BranchDelaySlot bdslot) {
-  if (kArchVariant == kMips64r6 && bdslot == PROTECT) {
-    BranchShortHelperR6(0, L);
-  } else {
-    BranchShortHelper(0, L, bdslot);
-  }
+  BranchShortHelper(0, L);
 }
 
 int32_t TurboAssembler::GetOffset(int32_t offset, Label* L, OffsetSize bits) {
   if (L) {
-    offset = branch_offset_helper(L, bits) >> 2;
+    offset = branch_offset_helper(L, bits);
   } else {
     DCHECK(is_intn(offset, bits));
   }
@@ -2927,353 +2565,145 @@ bool TurboAssembler::CalculateOffset(Label* L, int32_t* offset, OffsetSize bits,
   return true;
 }
 
-bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
-                                         Condition cond, Register rs,
-                                         const Operand& rt) {
+bool TurboAssembler::BranchShortHelper(int32_t offset, Label* L, Condition cond,
+                                       Register rs, const Operand& rt) {
   DCHECK(L == nullptr || offset == 0);
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
 
-  // Be careful to always use shifted_branch_offset only just before the
-  // branch instruction, as the location will be remember for patching the
-  // target.
   {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     switch (cond) {
       case cc_always:
-        if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
-        bc(offset);
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
+        RV_j(offset);
         break;
       case eq:
-        if (rt.is_reg() && rs.code() == rt.rm().code()) {
-          // Pre R6 beq is used here to make the code patchable. Otherwise bc
-          // should be used which has no condition field so is not patchable.
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
-            return false;
-          beq(rs, scratch, offset);
-          nop();
-        } else if (IsZero(rt)) {
+        // rs == rt
+        if (rt.is_reg() && rs == rt.rm()) {
           if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
-          beqzc(rs, offset);
+          RV_j(offset);
         } else {
-          // We don't want any other register but scratch clobbered.
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13, &scratch, rt))
             return false;
-          beqc(rs, scratch, offset);
+          DCHECK(rs != scratch);
+          RV_beq(rs, scratch, offset);
         }
         break;
       case ne:
-        if (rt.is_reg() && rs.code() == rt.rm().code()) {
-          // Pre R6 bne is used here to make the code patchable. Otherwise we
-          // should not generate any instruction.
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
-            return false;
-          bne(rs, scratch, offset);
-          nop();
-        } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
-          bnezc(rs, offset);
+        // rs != rt
+        if (rt.is_reg() && rs == rt.rm()) {
+          break;  // No code needs to be emitted
         } else {
-          // We don't want any other register but scratch clobbered.
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13, &scratch, rt))
             return false;
-          bnec(rs, scratch, offset);
+          DCHECK(rs != scratch);
+          RV_bne(rs, scratch, offset);
         }
         break;
 
       // Signed comparison.
       case greater:
         // rs > rt
-        if (rt.is_reg() && rs.code() == rt.rm().code()) {
+        if (rt.is_reg() && rs == rt.rm()) {
           break;  // No code needs to be emitted.
-        } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
-            return false;
-          bltzc(scratch, offset);
-        } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
-          bgtzc(rs, offset);
         } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
-          bltc(scratch, rs, offset);
+          RV_bgt(rs, scratch, offset);
         }
         break;
       case greater_equal:
         // rs >= rt
-        if (rt.is_reg() && rs.code() == rt.rm().code()) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
-          bc(offset);
-        } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
-            return false;
-          blezc(scratch, offset);
-        } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
-          bgezc(rs, offset);
+        if (rt.is_reg() && rs == rt.rm()) {
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
+          RV_j(offset);
         } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
-          bgec(rs, scratch, offset);
+          RV_bge(rs, scratch, offset);
         }
         break;
       case less:
         // rs < rt
-        if (rt.is_reg() && rs.code() == rt.rm().code()) {
+        if (rt.is_reg() && rs == rt.rm()) {
           break;  // No code needs to be emitted.
-        } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
-            return false;
-          bgtzc(scratch, offset);
-        } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
-          bltzc(rs, offset);
         } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
-          bltc(rs, scratch, offset);
+          RV_blt(rs, scratch, offset);
         }
         break;
       case less_equal:
         // rs <= rt
-        if (rt.is_reg() && rs.code() == rt.rm().code()) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
-          bc(offset);
-        } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
-            return false;
-          bgezc(scratch, offset);
-        } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
-          blezc(rs, offset);
+        if (rt.is_reg() && rs == rt.rm()) {
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
+          RV_j(offset);
         } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
-          bgec(scratch, rs, offset);
+          RV_ble(rs, scratch, offset);
         }
         break;
 
       // Unsigned comparison.
       case Ugreater:
         // rs > rt
-        if (rt.is_reg() && rs.code() == rt.rm().code()) {
+        if (rt.is_reg() && rs == rt.rm()) {
           break;  // No code needs to be emitted.
-        } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21, &scratch, rt))
-            return false;
-          bnezc(scratch, offset);
-        } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
-          bnezc(rs, offset);
         } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
-          bltuc(scratch, rs, offset);
+          RV_bgtu(rs, scratch, offset);
         }
         break;
       case Ugreater_equal:
         // rs >= rt
-        if (rt.is_reg() && rs.code() == rt.rm().code()) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
-          bc(offset);
-        } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21, &scratch, rt))
-            return false;
-          beqzc(scratch, offset);
-        } else if (IsZero(rt)) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
-          bc(offset);
+        if (rt.is_reg() && rs == rt.rm()) {
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
+          RV_j(offset);
         } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
-          bgeuc(rs, scratch, offset);
+          RV_bgeu(rs, scratch, offset);
         }
         break;
       case Uless:
         // rs < rt
-        if (rt.is_reg() && rs.code() == rt.rm().code()) {
-          break;  // No code needs to be emitted.
-        } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset21, &scratch, rt))
-            return false;
-          bnezc(scratch, offset);
-        } else if (IsZero(rt)) {
+        if (rt.is_reg() && rs == rt.rm()) {
           break;  // No code needs to be emitted.
         } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
-          bltuc(rs, scratch, offset);
+          RV_bltu(rs, scratch, offset);
         }
         break;
       case Uless_equal:
         // rs <= rt
-        if (rt.is_reg() && rs.code() == rt.rm().code()) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
-          bc(offset);
-        } else if (rs == zero_reg) {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset26, &scratch, rt))
-            return false;
-          bc(offset);
-        } else if (IsZero(rt)) {
+        if (rt.is_reg() && rs == rt.rm()) {
           if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
-          beqzc(rs, offset);
+          RV_j(offset);
         } else {
-          if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
+          if (!CalculateOffset(L, &offset, OffsetSize::kOffset13, &scratch, rt))
             return false;
           DCHECK(rs != scratch);
-          bgeuc(scratch, rs, offset);
+          RV_bleu(rs, scratch, offset);
         }
         break;
       default:
         UNREACHABLE();
     }
   }
+
   CheckTrampolinePoolQuick(1);
-  return true;
-}
-
-bool TurboAssembler::BranchShortHelper(int16_t offset, Label* L, Condition cond,
-                                       Register rs, const Operand& rt,
-                                       BranchDelaySlot bdslot) {
-  DCHECK(L == nullptr || offset == 0);
-  if (!is_near(L, OffsetSize::kOffset16)) return false;
-
-  UseScratchRegisterScope temps(this);
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
-  int32_t offset32;
-
-  // Be careful to always use shifted_branch_offset only just before the
-  // branch instruction, as the location will be remember for patching the
-  // target.
-  {
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    switch (cond) {
-      case cc_always:
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        b(offset32);
-        break;
-      case eq:
-        if (IsZero(rt)) {
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          beq(rs, zero_reg, offset32);
-        } else {
-          // We don't want any other register but scratch clobbered.
-          scratch = GetRtAsRegisterHelper(rt, scratch);
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          beq(rs, scratch, offset32);
-        }
-        break;
-      case ne:
-        if (IsZero(rt)) {
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          bne(rs, zero_reg, offset32);
-        } else {
-          // We don't want any other register but scratch clobbered.
-          scratch = GetRtAsRegisterHelper(rt, scratch);
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          bne(rs, scratch, offset32);
-        }
-        break;
-
-      // Signed comparison.
-      case greater:
-        if (IsZero(rt)) {
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          bgtz(rs, offset32);
-        } else {
-          Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          bne(scratch, zero_reg, offset32);
-        }
-        break;
-      case greater_equal:
-        if (IsZero(rt)) {
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          bgez(rs, offset32);
-        } else {
-          Slt(scratch, rs, rt);
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          beq(scratch, zero_reg, offset32);
-        }
-        break;
-      case less:
-        if (IsZero(rt)) {
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          bltz(rs, offset32);
-        } else {
-          Slt(scratch, rs, rt);
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          bne(scratch, zero_reg, offset32);
-        }
-        break;
-      case less_equal:
-        if (IsZero(rt)) {
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          blez(rs, offset32);
-        } else {
-          Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          beq(scratch, zero_reg, offset32);
-        }
-        break;
-
-      // Unsigned comparison.
-      case Ugreater:
-        if (IsZero(rt)) {
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          bne(rs, zero_reg, offset32);
-        } else {
-          Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          bne(scratch, zero_reg, offset32);
-        }
-        break;
-      case Ugreater_equal:
-        if (IsZero(rt)) {
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          b(offset32);
-        } else {
-          Sltu(scratch, rs, rt);
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          beq(scratch, zero_reg, offset32);
-        }
-        break;
-      case Uless:
-        if (IsZero(rt)) {
-          return true;  // No code needs to be emitted.
-        } else {
-          Sltu(scratch, rs, rt);
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          bne(scratch, zero_reg, offset32);
-        }
-        break;
-      case Uless_equal:
-        if (IsZero(rt)) {
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          beq(rs, zero_reg, offset32);
-        } else {
-          Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-          beq(scratch, zero_reg, offset32);
-        }
-        break;
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  // Emit a nop in the branch delay slot if required.
-  if (bdslot == PROTECT) nop();
-
   return true;
 }
 
@@ -3283,20 +2713,11 @@ bool TurboAssembler::BranchShortCheck(int32_t offset, Label* L, Condition cond,
   BRANCH_ARGS_CHECK(cond, rs, rt);
 
   if (!L) {
-    if (kArchVariant == kMips64r6 && bdslot == PROTECT) {
-      DCHECK(is_int26(offset));
-      return BranchShortHelperR6(offset, nullptr, cond, rs, rt);
-    } else {
-      DCHECK(is_int16(offset));
-      return BranchShortHelper(offset, nullptr, cond, rs, rt, bdslot);
-    }
+    DCHECK(is_int13(offset));
+    return BranchShortHelper(offset, nullptr, cond, rs, rt);
   } else {
     DCHECK_EQ(offset, 0);
-    if (kArchVariant == kMips64r6 && bdslot == PROTECT) {
-      return BranchShortHelperR6(0, L, cond, rs, rt);
-    } else {
-      return BranchShortHelper(0, L, cond, rs, rt, bdslot);
-    }
+    return BranchShortHelper(0, L, cond, rs, rt);
   }
   return false;
 }
@@ -3361,269 +2782,43 @@ void TurboAssembler::BranchAndLink(Label* L, Condition cond, Register rs,
   }
 }
 
-void TurboAssembler::BranchAndLinkShortHelper(int16_t offset, Label* L,
-                                              BranchDelaySlot bdslot) {
+void TurboAssembler::BranchAndLinkShortHelper(int32_t offset, Label* L) {
   DCHECK(L == nullptr || offset == 0);
-  offset = GetOffset(offset, L, OffsetSize::kOffset16);
-  bal(offset);
-
-  // Emit a nop in the branch delay slot if required.
-  if (bdslot == PROTECT) nop();
-}
-
-void TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L) {
-  DCHECK(L == nullptr || offset == 0);
-  offset = GetOffset(offset, L, OffsetSize::kOffset26);
-  balc(offset);
+  offset = GetOffset(offset, L, OffsetSize::kOffset21);
+  RV_jal(offset);
 }
 
 void TurboAssembler::BranchAndLinkShort(int32_t offset,
                                         BranchDelaySlot bdslot) {
-  if (kArchVariant == kMips64r6 && bdslot == PROTECT) {
-    DCHECK(is_int26(offset));
-    BranchAndLinkShortHelperR6(offset, nullptr);
-  } else {
-    DCHECK(is_int16(offset));
-    BranchAndLinkShortHelper(offset, nullptr, bdslot);
-  }
+  DCHECK(is_int21(offset));
+  BranchAndLinkShortHelper(offset, nullptr);
 }
 
 void TurboAssembler::BranchAndLinkShort(Label* L, BranchDelaySlot bdslot) {
-  if (kArchVariant == kMips64r6 && bdslot == PROTECT) {
-    BranchAndLinkShortHelperR6(0, L);
-  } else {
-    BranchAndLinkShortHelper(0, L, bdslot);
-  }
-}
-
-bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
-                                                Condition cond, Register rs,
-                                                const Operand& rt) {
-  DCHECK(L == nullptr || offset == 0);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
-  OffsetSize bits = OffsetSize::kOffset16;
-
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  DCHECK((cond == cc_always && is_int26(offset)) || is_int16(offset));
-  switch (cond) {
-    case cc_always:
-      if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
-      balc(offset);
-      break;
-    case eq:
-      if (!is_near(L, bits)) return false;
-      Subu(scratch, rs, rt);
-      offset = GetOffset(offset, L, bits);
-      beqzalc(scratch, offset);
-      break;
-    case ne:
-      if (!is_near(L, bits)) return false;
-      Subu(scratch, rs, rt);
-      offset = GetOffset(offset, L, bits);
-      bnezalc(scratch, offset);
-      break;
-
-    // Signed comparison.
-    case greater:
-      // rs > rt
-      if (rs.code() == rt.rm().code()) {
-        break;  // No code needs to be emitted.
-      } else if (rs == zero_reg) {
-        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
-          return false;
-        bltzalc(scratch, offset);
-      } else if (IsZero(rt)) {
-        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
-        bgtzalc(rs, offset);
-      } else {
-        if (!is_near(L, bits)) return false;
-        Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-        offset = GetOffset(offset, L, bits);
-        bnezalc(scratch, offset);
-      }
-      break;
-    case greater_equal:
-      // rs >= rt
-      if (rs.code() == rt.rm().code()) {
-        if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
-        balc(offset);
-      } else if (rs == zero_reg) {
-        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
-          return false;
-        blezalc(scratch, offset);
-      } else if (IsZero(rt)) {
-        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
-        bgezalc(rs, offset);
-      } else {
-        if (!is_near(L, bits)) return false;
-        Slt(scratch, rs, rt);
-        offset = GetOffset(offset, L, bits);
-        beqzalc(scratch, offset);
-      }
-      break;
-    case less:
-      // rs < rt
-      if (rs.code() == rt.rm().code()) {
-        break;  // No code needs to be emitted.
-      } else if (rs == zero_reg) {
-        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
-          return false;
-        bgtzalc(scratch, offset);
-      } else if (IsZero(rt)) {
-        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
-        bltzalc(rs, offset);
-      } else {
-        if (!is_near(L, bits)) return false;
-        Slt(scratch, rs, rt);
-        offset = GetOffset(offset, L, bits);
-        bnezalc(scratch, offset);
-      }
-      break;
-    case less_equal:
-      // rs <= r2
-      if (rs.code() == rt.rm().code()) {
-        if (!CalculateOffset(L, &offset, OffsetSize::kOffset26)) return false;
-        balc(offset);
-      } else if (rs == zero_reg) {
-        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16, &scratch, rt))
-          return false;
-        bgezalc(scratch, offset);
-      } else if (IsZero(rt)) {
-        if (!CalculateOffset(L, &offset, OffsetSize::kOffset16)) return false;
-        blezalc(rs, offset);
-      } else {
-        if (!is_near(L, bits)) return false;
-        Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-        offset = GetOffset(offset, L, bits);
-        beqzalc(scratch, offset);
-      }
-      break;
-
-    // Unsigned comparison.
-    case Ugreater:
-      // rs > r2
-      if (!is_near(L, bits)) return false;
-      Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-      offset = GetOffset(offset, L, bits);
-      bnezalc(scratch, offset);
-      break;
-    case Ugreater_equal:
-      // rs >= r2
-      if (!is_near(L, bits)) return false;
-      Sltu(scratch, rs, rt);
-      offset = GetOffset(offset, L, bits);
-      beqzalc(scratch, offset);
-      break;
-    case Uless:
-      // rs < r2
-      if (!is_near(L, bits)) return false;
-      Sltu(scratch, rs, rt);
-      offset = GetOffset(offset, L, bits);
-      bnezalc(scratch, offset);
-      break;
-    case Uless_equal:
-      // rs <= r2
-      if (!is_near(L, bits)) return false;
-      Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-      offset = GetOffset(offset, L, bits);
-      beqzalc(scratch, offset);
-      break;
-    default:
-      UNREACHABLE();
-  }
-  return true;
+  BranchAndLinkShortHelper(0, L);
 }
 
 // Pre r6 we need to use a bgezal or bltzal, but they can't be used directly
 // with the slt instructions. We could use sub or add instead but we would miss
 // overflow cases, so we keep slt and add an intermediate third instruction.
-bool TurboAssembler::BranchAndLinkShortHelper(int16_t offset, Label* L,
+bool TurboAssembler::BranchAndLinkShortHelper(int32_t offset, Label* L,
                                               Condition cond, Register rs,
-                                              const Operand& rt,
-                                              BranchDelaySlot bdslot) {
+                                              const Operand& rt) {
   DCHECK(L == nullptr || offset == 0);
-  if (!is_near(L, OffsetSize::kOffset16)) return false;
+  if (!is_near(L, OffsetSize::kOffset21)) return false;
 
   Register scratch = t5;
   BlockTrampolinePoolScope block_trampoline_pool(this);
 
-  switch (cond) {
-    case cc_always:
-      offset = GetOffset(offset, L, OffsetSize::kOffset16);
-      bal(offset);
-      break;
-    case eq:
-      bne(rs, GetRtAsRegisterHelper(rt, scratch), 2);
-      nop();
-      offset = GetOffset(offset, L, OffsetSize::kOffset16);
-      bal(offset);
-      break;
-    case ne:
-      beq(rs, GetRtAsRegisterHelper(rt, scratch), 2);
-      nop();
-      offset = GetOffset(offset, L, OffsetSize::kOffset16);
-      bal(offset);
-      break;
-
-    // Signed comparison.
-    case greater:
-      Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-      addiu(scratch, scratch, -1);
-      offset = GetOffset(offset, L, OffsetSize::kOffset16);
-      bgezal(scratch, offset);
-      break;
-    case greater_equal:
-      Slt(scratch, rs, rt);
-      addiu(scratch, scratch, -1);
-      offset = GetOffset(offset, L, OffsetSize::kOffset16);
-      bltzal(scratch, offset);
-      break;
-    case less:
-      Slt(scratch, rs, rt);
-      addiu(scratch, scratch, -1);
-      offset = GetOffset(offset, L, OffsetSize::kOffset16);
-      bgezal(scratch, offset);
-      break;
-    case less_equal:
-      Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-      addiu(scratch, scratch, -1);
-      offset = GetOffset(offset, L, OffsetSize::kOffset16);
-      bltzal(scratch, offset);
-      break;
-
-    // Unsigned comparison.
-    case Ugreater:
-      Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-      addiu(scratch, scratch, -1);
-      offset = GetOffset(offset, L, OffsetSize::kOffset16);
-      bgezal(scratch, offset);
-      break;
-    case Ugreater_equal:
-      Sltu(scratch, rs, rt);
-      addiu(scratch, scratch, -1);
-      offset = GetOffset(offset, L, OffsetSize::kOffset16);
-      bltzal(scratch, offset);
-      break;
-    case Uless:
-      Sltu(scratch, rs, rt);
-      addiu(scratch, scratch, -1);
-      offset = GetOffset(offset, L, OffsetSize::kOffset16);
-      bgezal(scratch, offset);
-      break;
-    case Uless_equal:
-      Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-      addiu(scratch, scratch, -1);
-      offset = GetOffset(offset, L, OffsetSize::kOffset16);
-      bltzal(scratch, offset);
-      break;
-
-    default:
-      UNREACHABLE();
+  if (cond == cc_always) {
+    offset = GetOffset(offset, L, OffsetSize::kOffset21);
+    RV_jal(offset);
+  } else {
+    Branch(kInstrSize, NegateCondition(cond), rs,
+           Operand(GetRtAsRegisterHelper(rt, scratch)));
+    offset = GetOffset(offset, L, OffsetSize::kOffset21);
+    RV_jal(offset);
   }
-
-  // Emit a nop in the branch delay slot if required.
-  if (bdslot == PROTECT) nop();
 
   return true;
 }
@@ -3635,20 +2830,11 @@ bool TurboAssembler::BranchAndLinkShortCheck(int32_t offset, Label* L,
   BRANCH_ARGS_CHECK(cond, rs, rt);
 
   if (!L) {
-    if (kArchVariant == kMips64r6 && bdslot == PROTECT) {
-      DCHECK(is_int26(offset));
-      return BranchAndLinkShortHelperR6(offset, nullptr, cond, rs, rt);
-    } else {
-      DCHECK(is_int16(offset));
-      return BranchAndLinkShortHelper(offset, nullptr, cond, rs, rt, bdslot);
-    }
+    DCHECK(is_int21(offset));
+    return BranchAndLinkShortHelper(offset, nullptr, cond, rs, rt);
   } else {
     DCHECK_EQ(offset, 0);
-    if (kArchVariant == kMips64r6 && bdslot == PROTECT) {
-      return BranchAndLinkShortHelperR6(0, L, cond, rs, rt);
-    } else {
-      return BranchAndLinkShortHelper(0, L, cond, rs, rt, bdslot);
-    }
+    return BranchAndLinkShortHelper(0, L, cond, rs, rt);
   }
   return false;
 }
@@ -3678,24 +2864,12 @@ void TurboAssembler::LoadRootRegisterOffset(Register destination,
 void TurboAssembler::Jump(Register target, Condition cond, Register rs,
                           const Operand& rt, BranchDelaySlot bd) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  if (kArchVariant == kMips64r6 && bd == PROTECT) {
-    if (cond == cc_always) {
-      jic(target, 0);
-    } else {
-      BRANCH_ARGS_CHECK(cond, rs, rt);
-      Branch(2, NegateCondition(cond), rs, rt);
-      jic(target, 0);
-    }
+  if (cond == cc_always) {
+    RV_jr(target);
   } else {
-    if (cond == cc_always) {
-      jr(target);
-    } else {
-      BRANCH_ARGS_CHECK(cond, rs, rt);
-      Branch(2, NegateCondition(cond), rs, rt);
-      jr(target);
-    }
-    // Emit a nop in the branch delay slot if required.
-    if (bd == PROTECT) nop();
+    BRANCH_ARGS_CHECK(cond, rs, rt);
+    Branch(kInstrSize, NegateCondition(cond), rs, rt);
+    RV_jr(target);
   }
 }
 
@@ -3762,22 +2936,20 @@ void TurboAssembler::Call(Register target, Condition cond, Register rs,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (kArchVariant == kMips64r6 && bd == PROTECT) {
     if (cond == cc_always) {
-      jialc(target, 0);
+      RV_jalr(ra, target, 0);
     } else {
       BRANCH_ARGS_CHECK(cond, rs, rt);
-      Branch(2, NegateCondition(cond), rs, rt);
-      jialc(target, 0);
+      Branch(kInstrSize, NegateCondition(cond), rs, rt);
+      RV_jalr(ra, target, 0);
     }
   } else {
     if (cond == cc_always) {
-      jalr(target);
+      RV_jalr(ra, target, 0);
     } else {
       BRANCH_ARGS_CHECK(cond, rs, rt);
-      Branch(2, NegateCondition(cond), rs, rt);
-      jalr(target);
+      Branch(kInstrSize, NegateCondition(cond), rs, rt);
+      RV_jalr(ra, target, 0);
     }
-    // Emit a nop in the branch delay slot if required.
-    if (bd == PROTECT) nop();
   }
 }
 
@@ -3849,22 +3021,14 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
 }
 
 void TurboAssembler::PatchAndJump(Address target) {
-  if (kArchVariant != kMips64r6) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    mov(scratch, ra);
-    bal(1);                                  // jump to ld
-    nop();                                   // in the delay slot
-    ld(t6, MemOperand(ra, kInstrSize * 3));  // ra == pc_
-    jr(t6);
-    mov(ra, scratch);  // in delay slot
-    DCHECK_EQ(reinterpret_cast<uint64_t>(pc_) % 8, 0);
-    *reinterpret_cast<uint64_t*>(pc_) = target;  // pc_ should be align.
-    pc_ += sizeof(uint64_t);
-  } else {
-    // TODO(mips r6): Implement.
-    UNIMPLEMENTED();
-  }
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  RV_auipc(scratch, 0);  // Load PC into scratch
+  Ld(t6, MemOperand(scratch, kInstrSize * 3));
+  RV_jr(t6);
+  DCHECK_EQ(reinterpret_cast<uint64_t>(pc_) % 8, 0);
+  *reinterpret_cast<uint64_t*>(pc_) = target;  // pc_ should be align.
+  pc_ += sizeof(uint64_t);
 }
 
 void TurboAssembler::StoreReturnAddressAndCall(Register target) {
@@ -3880,19 +3044,16 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   // instructions, so add another 4 to pc to get the return address.
 
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(this);
-  static constexpr int kNumInstructionsToJump = 4;
+  static constexpr int kNumInstructionsToJump = 5;
   Label find_ra;
-  // Adjust the value in ra to point to the correct return location, 2nd
+  // Adjust the value in ra to point to the correct return location, one
   // instruction past the real call into C code (the jalr(t6)), and push it.
   // This is the return address of the exit frame.
-  if (kArchVariant >= kMips64r6) {
-    addiupc(ra, kNumInstructionsToJump + 1);
-  } else {
-    // This no-op-and-link sequence saves PC + 8 in ra register on pre-r6 MIPS
-    nal();  // nal has branch delay slot.
-    Daddu(ra, ra, kNumInstructionsToJump * kInstrSize);
-  }
+  RV_auipc(ra, 0);  // Set ra the current PC
   bind(&find_ra);
+  RV_addi(
+      ra, ra,
+      kNumInstructionsToJump * kInstrSize);  // Set ra to insn after the call
 
   // This spot was reserved in EnterExitFrame.
   Sd(ra, MemOperand(sp));
@@ -3900,10 +3061,9 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   // Stack is still aligned.
 
   // Call the C routine.
-  mov(t6, target);  // Function pointer to t6 to conform to ABI for PIC.
-  jalr(t6);
-  // Set up sp in the delay slot.
+  RV_mv(t6, target);  // Function pointer to t6 to conform to ABI for PIC.
   RV_addi(sp, sp, -kCArgsSlotsSize);
+  RV_jalr(t6);
   // Make sure the stored 'ra' points to this position.
   DCHECK_EQ(kNumInstructionsToJump, InstructionsGeneratedSince(&find_ra));
 }
@@ -3914,46 +3074,34 @@ void TurboAssembler::Ret(Condition cond, Register rs, const Operand& rt,
 }
 
 void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
-  if (kArchVariant == kMips64r6 && bdslot == PROTECT &&
-      (!L->is_bound() || is_near_r6(L))) {
-    BranchShortHelperR6(0, L);
+  if (!L->is_bound() || is_near(L)) {
+    BranchShortHelper(0, L);
   } else {
     // Generate position independent long branch.
     BlockTrampolinePoolScope block_trampoline_pool(this);
     int64_t imm64;
     imm64 = branch_long_offset(L);
     DCHECK(is_int32(imm64));
-    or_(t5, ra, zero_reg);
-    nal();                                        // Read PC into ra register.
-    lui(t6, (imm64 & kHiMaskOf32) >> kLuiShift);  // Branch delay slot.
-    ori(t6, t6, (imm64 & kImm16Mask));
-    RV_add(t6, ra, t6);
-    if (bdslot == USE_DELAY_SLOT) {
-      or_(ra, t5, zero_reg);
-    }
-    jr(t6);
-    // Emit a or_ in the branch delay slot if it's protected.
-    if (bdslot == PROTECT) or_(ra, t5, zero_reg);
+    RV_auipc(t5, 0);  // Read PC into t5.
+    RV_li(t6, imm64);
+    RV_add(t6, t5, t6);
+    RV_jr(t6);
   }
 }
 
 void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
-  if (kArchVariant == kMips64r6 && bdslot == PROTECT &&
-      (!L->is_bound() || is_near_r6(L))) {
-    BranchAndLinkShortHelperR6(0, L);
+  if (!L->is_bound() || is_near(L)) {
+    BranchAndLinkShortHelper(0, L);
   } else {
     // Generate position independent long branch and link.
     BlockTrampolinePoolScope block_trampoline_pool(this);
     int64_t imm64;
     imm64 = branch_long_offset(L);
     DCHECK(is_int32(imm64));
-    lui(t5, (imm64 & kHiMaskOf32) >> kLuiShift);
-    nal();                              // Read PC into ra register.
-    ori(t5, t5, (imm64 & kImm16Mask));  // Branch delay slot.
+    RV_auipc(ra, 0);  // Read PC into ra register.
+    RV_li(t5, imm64);
     RV_add(t5, ra, t5);
-    jalr(t5);
-    // Emit a nop in the branch delay slot if required.
-    if (bdslot == PROTECT) nop();
+    RV_jalr(t5);
   }
 }
 
@@ -4004,9 +3152,9 @@ void MacroAssembler::Swap(Register reg1, Register reg2, Register scratch) {
     Xor(reg2, reg2, Operand(reg1));
     Xor(reg1, reg1, Operand(reg2));
   } else {
-    mov(scratch, reg1);
-    mov(reg1, reg2);
-    mov(reg2, scratch);
+    RV_mv(scratch, reg1);
+    RV_mv(reg1, reg2);
+    RV_mv(reg2, scratch);
   }
 }
 
@@ -4194,7 +3342,7 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   Branch(&loop, ne, sp, Operand(src_reg));
 
   // Leave current frame.
-  mov(sp, dst_reg);
+  RV_mv(sp, dst_reg);
 }
 
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
@@ -4378,7 +3526,7 @@ void TurboAssembler::DaddOverflow(Register dst, Register left,
     xor_(overflow, scratch, left);
     xor_(t3, scratch, right_reg);
     and_(overflow, overflow, t3);
-    mov(dst, scratch);
+    RV_mv(dst, scratch);
   } else {
     RV_add(dst, left, right_reg);
     xor_(overflow, dst, left);
@@ -4408,7 +3556,7 @@ void TurboAssembler::DsubOverflow(Register dst, Register left,
     xor_(overflow, left, scratch);
     xor_(t3, left, right_reg);
     and_(overflow, overflow, t3);
-    mov(dst, scratch);
+    RV_mv(dst, scratch);
   } else {
     dsubu(dst, left, right_reg);
     xor_(overflow, left, dst);
@@ -4436,7 +3584,7 @@ void TurboAssembler::MulOverflow(Register dst, Register left,
   if (dst == left || dst == right_reg) {
     Mul(scratch, left, right_reg);
     Mulh(overflow, left, right_reg);
-    mov(dst, scratch);
+    RV_mv(dst, scratch);
   } else {
     Mul(dst, left, right_reg);
     Mulh(overflow, left, right_reg);
@@ -4589,7 +3737,7 @@ void TurboAssembler::Abort(AbortReason reason) {
     int abort_instructions = InstructionsGeneratedSince(&abort_start);
     DCHECK_LE(abort_instructions, kExpectedAbortInstructions);
     while (abort_instructions++ < kExpectedAbortInstructions) {
-      nop();
+      RV_nop();
     }
   }
 }
@@ -4750,7 +3898,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
 #endif
 
   // Pop the arguments, restore registers, and return.
-  mov(sp, fp);  // Respect ABI stack constraint.
+  RV_mv(sp, fp);  // Respect ABI stack constraint.
   Ld(fp, MemOperand(sp, ExitFrameConstants::kCallerFPOffset));
   Ld(ra, MemOperand(sp, ExitFrameConstants::kCallerPCOffset));
 
@@ -4796,7 +3944,7 @@ void MacroAssembler::AssertStackIsAligned() {
       {
         UseScratchRegisterScope temps(this);
         Register scratch = temps.Acquire();
-        andi(scratch, sp, frame_alignment_mask);
+        RV_andi(scratch, sp, frame_alignment_mask);
         Branch(&alignment_as_expected, eq, scratch, Operand(zero_reg));
       }
       // Don't use Check here, as it will call Runtime_Abort re-entering here.
@@ -4819,14 +3967,14 @@ void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
 void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
                                Register scratch, BranchDelaySlot bd) {
   DCHECK_EQ(0, kSmiTag);
-  andi(scratch, value, kSmiTagMask);
+  RV_andi(scratch, value, kSmiTagMask);
   Branch(bd, smi_label, eq, scratch, Operand(zero_reg));
 }
 
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label,
                                   Register scratch, BranchDelaySlot bd) {
   DCHECK_EQ(0, kSmiTag);
-  andi(scratch, value, kSmiTagMask);
+  RV_andi(scratch, value, kSmiTagMask);
   Branch(bd, not_smi_label, ne, scratch, Operand(zero_reg));
 }
 
@@ -5162,7 +4310,7 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
   if (frame_alignment > kPointerSize) {
     // Make stack end at alignment and make room for num_arguments - 4 words
     // and the original value of sp.
-    mov(scratch, sp);
+    RV_mv(scratch, sp);
     Dsubu(sp, sp, Operand((stack_passed_arguments + 1) * kPointerSize));
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     And(sp, sp, Operand(-frame_alignment));
@@ -5237,7 +4385,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     if (function != t6) {
-      mov(t6, function);
+      RV_mv(t6, function);
       function = t6;
     }
 
@@ -5250,12 +4398,12 @@ void TurboAssembler::CallCFunctionHelper(Register function,
       DCHECK(!AreAliased(scratch1, scratch2, function));
 
       Label get_pc;
-      mov(scratch1, ra);
+      RV_mv(scratch1, ra);
       Call(&get_pc);
 
       bind(&get_pc);
-      mov(scratch2, ra);
-      mov(ra, scratch1);
+      RV_mv(scratch2, ra);
+      RV_mv(ra, scratch1);
 
       li(scratch1, ExternalReference::fast_c_call_caller_pc_address(isolate()));
       Sd(scratch2, MemOperand(scratch1));
@@ -5319,14 +4467,8 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   // register ra, which is needed while computing the code start address.
   push(ra);
 
-  // The nal instruction puts the address of the current instruction into
-  // the return address (ra) register, which we can use later on.
-  if (kArchVariant == kMips64r6) {
-    addiupc(ra, 1);
-  } else {
-    nal();
-    nop();
-  }
+  RV_auipc(ra, 0);
+  RV_addi(ra, ra, kInstrSize * 2);  // ra = address of li
   int pc = pc_offset();
   li(dst, Operand(pc));
   Dsubu(dst, ra, dst);

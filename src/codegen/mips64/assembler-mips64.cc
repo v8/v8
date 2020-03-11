@@ -3872,6 +3872,7 @@ void Assembler::CheckTrampolinePool() {
 }
 
 Address Assembler::target_address_at(Address pc) {
+  DEBUG_PRINTF("target_address_at: pc: %lx\t", pc);
   Instr instr0 = instr_at(pc);
   Instr instr1 = instr_at(pc + 1 * kInstrSize);
   Instr instr3 = instr_at(pc + 3 * kInstrSize);
@@ -3888,6 +3889,7 @@ Address Assembler::target_address_at(Address pc) {
 
     // Sign extend to get canonical address.
     addr = (addr << 16) >> 16;
+    DEBUG_PRINTF("addr: %lx\n", addr);
     return static_cast<Address>(addr);
   }
   // We should never get here, force a bad address if we do.
@@ -3920,6 +3922,7 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
 #ifdef DEBUG
   // Check we have the result from a li macro-instruction.
   Instr instr0 = instr_at(pc);
+  DEBUG_PRINTF("set_target_value_at: pc: %lx\ttarget: %lx\n", pc, target);
   Instr instr3 = instr_at(pc + kInstrSize * 3);
   DCHECK((GetOpcodeField(instr0) == LUI && GetOpcodeField(instr1) == ORI &&
           GetOpcodeField(instr3) == ORI));

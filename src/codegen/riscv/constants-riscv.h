@@ -1481,7 +1481,7 @@ enum RoundingMode {
   RDN = 0b010,  // Round Down (towards -infinity)
   RUP = 0b011,  // Round Up (towards +infinity)
   RMM = 0b100,  // Round to Nearest, tiest to Max Magnitude
-  DYN = 0b111   // In instruction’s rm field, selects dynamic rounding mode;
+  DYN = 0b111   // In instruction's rm field, selects dynamic rounding mode;
                 // In Rounding Mode register, Invalid
 };
 
@@ -1682,6 +1682,8 @@ class InstructionBase {
     return InstructionBits() & kFunctionFieldMask;
   }
 
+  inline int32_t ITypeBits() const { return InstructionBits() & kITypeMask; }
+
   // Return the fields at their original place in the instruction encoding.
   inline Opcode OpcodeFieldRaw() const {
     return static_cast<Opcode>(InstructionBits() & kOpcodeMask);
@@ -1853,9 +1855,9 @@ class InstructionGetters : public T {
     // | imm[12|10:5] | rs2 | rs1 | funct3 | imm[4:1|11] | opcode |
     //  31          25                      11          7
     uint32_t Bits = this->InstructionBits();
-    int16_t imm12 = ((Bits & 0xf00) >> 7) | ((Bits & 0x7e000000) >> 20) |
+    int16_t imm13 = ((Bits & 0xf00) >> 7) | ((Bits & 0x7e000000) >> 20) |
                     ((Bits & 0x80) << 4) | ((Bits & 0x80000000) >> 19);
-    return imm12 << 20 >> 20;
+    return imm13 << 19 >> 19;
   }
 
   inline int StoreOffset() const {
