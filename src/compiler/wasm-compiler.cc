@@ -4931,7 +4931,7 @@ Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
   }
 
   Node* function = graph()->NewNode(mcgraph()->common()->ExternalConstant(
-      ExternalReference::wasm_memory_init()));
+      ExternalReference::wasm_memory_copy()));
 
   Node* stack_slot =
       StoreArgsInStackSlot({{MachineType::PointerRepresentation(), dst},
@@ -4981,19 +4981,22 @@ Node* WasmGraphBuilder::StoreArgsInStackSlot(
 
 Node* WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
                                    wasm::WasmCodePosition position) {
+  Node* dst_fail = BoundsCheckMemRange(&dst, &size, position);
+  TrapIfTrue(wasm::kTrapMemOutOfBounds, dst_fail, position);
+  Node* src_fail = BoundsCheckMemRange(&src, &size, position);
+  TrapIfTrue(wasm::kTrapMemOutOfBounds, src_fail, position);
+
   Node* function = graph()->NewNode(mcgraph()->common()->ExternalConstant(
       ExternalReference::wasm_memory_copy()));
 
-  Node* stack_slot = StoreArgsInStackSlot(
-      {{MachineType::PointerRepresentation(), instance_node_.get()},
-       {MachineRepresentation::kWord32, dst},
-       {MachineRepresentation::kWord32, src},
-       {MachineRepresentation::kWord32, size}});
+  Node* stack_slot =
+      StoreArgsInStackSlot({{MachineType::PointerRepresentation(), dst},
+                            {MachineType::PointerRepresentation(), src},
+                            {MachineRepresentation::kWord32, size}});
 
-  MachineType sig_types[] = {MachineType::Bool(), MachineType::Pointer()};
-  MachineSignature sig(1, 1, sig_types);
-  Node* call = SetEffect(BuildCCall(&sig, function, stack_slot));
-  return TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
+  MachineType sig_types[] = {MachineType::Pointer()};
+  MachineSignature sig(0, 1, sig_types);
+  return SetEffect(BuildCCall(&sig, function, stack_slot));
 }
 
 Node* WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,

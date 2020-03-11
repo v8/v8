@@ -669,8 +669,11 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
       }
       // No need to copy empty segments.
       if (size == 0) continue;
-      std::memcpy(instance->memory_start() + dest_offset,
-                  wire_bytes.begin() + segment.source.offset(), size);
+      Address dest_addr =
+          reinterpret_cast<Address>(instance->memory_start()) + dest_offset;
+      Address src_addr = reinterpret_cast<Address>(wire_bytes.begin()) +
+                         segment.source.offset();
+      memory_copy(dest_addr, src_addr, size);
     } else {
       DCHECK(segment.active);
       // Segments of size == 0 are just nops.
