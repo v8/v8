@@ -82,9 +82,7 @@ MaybeHandle<String> GetLocalNameString(Isolate* isolate,
   DCHECK(wire_bytes.BoundsCheck(name_ref));
   Vector<const char> name = wire_bytes.GetNameOrNull(name_ref);
   if (name.begin() == nullptr) return {};
-  std::string full_name("$");
-  full_name.append(name.begin(), name.end());
-  return isolate->factory()->NewStringFromUtf8(VectorOf(full_name));
+  return isolate->factory()->NewStringFromUtf8(name);
 }
 
 class InterpreterHandle {
@@ -401,7 +399,7 @@ class InterpreterHandle {
         if (!GetLocalNameString(isolate, native_module,
                                 frame->function()->func_index, i)
                  .ToHandle(&name)) {
-          name = PrintFToOneByteString<true>(isolate_, "$var%d", i);
+          name = PrintFToOneByteString<true>(isolate_, "var%d", i);
         }
         WasmValue value = frame->GetLocalValue(i);
         Handle<Object> value_obj = WasmValueToValueObject(isolate_, value);
@@ -521,7 +519,7 @@ Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject> instance) {
                           globals_obj, NONE);
 
     for (size_t i = 0; i < globals.size(); ++i) {
-      const char* label = "$global%d";
+      const char* label = "global%d";
       Handle<String> name = PrintFToOneByteString<true>(isolate, label, i);
       WasmValue value =
           WasmInstanceObject::GetGlobalValue(instance, globals[i]);
@@ -571,7 +569,7 @@ class DebugInfoImpl {
         if (!GetLocalNameString(isolate, native_module_, function->func_index,
                                 i)
                  .ToHandle(&name)) {
-          name = PrintFToOneByteString<true>(isolate, "$var%d", i);
+          name = PrintFToOneByteString<true>(isolate, "var%d", i);
         }
         WasmValue value = GetValue(debug_side_table_entry, i, fp);
         Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
