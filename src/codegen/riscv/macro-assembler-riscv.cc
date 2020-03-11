@@ -892,14 +892,14 @@ void TurboAssembler::Ulw(Register rd, const MemOperand& rs) {
     RV_slli(rd, rd, 24);
     for (size_t i = 2; i >= 0; i++) {
       RV_lbu(scratch, source.rm(), source.offset() + i);
-      RV_slli(scratch, scratch, i * 8);
+      if (i) RV_slli(scratch, scratch, i * 8);
       RV_or_(rd, rd, scratch);
     }
   } else {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     RV_lbu(scratch, source.rm(), source.offset());
-    for (size_t i = 1; i < 3; i++) {
+    for (size_t i = 1; i <= 3; i++) {
       RV_lbu(t5, source.rm(), source.offset() + i);
       RV_slli(t5, t5, i * 8);
       RV_or_(scratch, scratch, t5);
@@ -918,7 +918,7 @@ void TurboAssembler::Ulwu(Register rd, const MemOperand& rs) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     RV_lbu(rd, source.rm(), source.offset());
-    for (size_t i = 1; i < 3; i++) {
+    for (size_t i = 1; i <= 3; i++) {
       RV_lbu(scratch, source.rm(), source.offset() + i);
       RV_slli(scratch, scratch, i * 8);
       RV_or_(rd, rd, scratch);
@@ -927,7 +927,7 @@ void TurboAssembler::Ulwu(Register rd, const MemOperand& rs) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     RV_lbu(scratch, source.rm(), source.offset());
-    for (size_t i = 1; i < 3; i++) {
+    for (size_t i = 1; i <= 3; i++) {
       RV_lbu(t5, source.rm(), source.offset() + i);
       RV_slli(t5, t5, i * 8);
       RV_or_(scratch, scratch, t5);
@@ -939,14 +939,13 @@ void TurboAssembler::Ulwu(Register rd, const MemOperand& rs) {
 void TurboAssembler::Usw(Register rd, const MemOperand& rs) {
   DCHECK(rd != t3);
   DCHECK(rs.rm() != t3);
-  DCHECK(rd != rs.rm());
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   MemOperand source = rs;
-  // Adjust offset for two accesses and check if offset + 3 fits into int16_t.
+  // Adjust offset for two accesses and check if offset + 3 fits into int12.
   AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 3);
   RV_sb(rd, source.rm(), source.offset());
-  for (size_t i = 0; i < 3; i++) {
+  for (size_t i = 0; i <= 3; i++) {
     RV_srliw(scratch, rd, i * 8);
     RV_sb(scratch, source.rm(), source.offset() + i);
   }
@@ -955,121 +954,86 @@ void TurboAssembler::Usw(Register rd, const MemOperand& rs) {
 void TurboAssembler::Ulh(Register rd, const MemOperand& rs) {
   DCHECK(rd != t3);
   DCHECK(rs.rm() != t3);
-  if (kArchVariant == kMips64r6) {
-    Lh(rd, rs);
-  } else {
-    DCHECK_EQ(kArchVariant, kMips64r2);
-    MemOperand source = rs;
-    // Adjust offset for two accesses and check if offset + 1 fits into int16_t.
-    AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 1);
+  MemOperand source = rs;
+  // Adjust offset for two accesses and check if offset + 1 fits into int12.
+  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 1);
+  if (rd != source.rm()) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
-    if (source.rm() == scratch) {
-#if defined(V8_TARGET_LITTLE_ENDIAN)
-      Lb(rd, MemOperand(source.rm(), source.offset() + 1));
-      Lbu(scratch, source);
-#elif defined(V8_TARGET_BIG_ENDIAN)
-      Lb(rd, source);
-      Lbu(scratch, MemOperand(source.rm(), source.offset() + 1));
-#endif
-    } else {
-#if defined(V8_TARGET_LITTLE_ENDIAN)
-      Lbu(scratch, source);
-      Lb(rd, MemOperand(source.rm(), source.offset() + 1));
-#elif defined(V8_TARGET_BIG_ENDIAN)
-      Lbu(scratch, MemOperand(source.rm(), source.offset() + 1));
-      Lb(rd, source);
-#endif
-    }
-    dsll(rd, rd, 8);
-    or_(rd, rd, scratch);
+    RV_lb(rd, source.rm(), source.offset() + 1);
+    RV_slli(rd, rd, 8);
+    RV_lbu(scratch, source.rm(), source.offset());
+    RV_or_(rd, rd, scratch);
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    RV_lb(t5, source.rm(), source.offset() + 1);
+    RV_slli(t5, t5, 8);
+    RV_lbu(scratch, source.rm(), source.offset());
+    RV_or_(rd, scratch, t5);
   }
 }
 
 void TurboAssembler::Ulhu(Register rd, const MemOperand& rs) {
   DCHECK(rd != t3);
   DCHECK(rs.rm() != t3);
-  if (kArchVariant == kMips64r6) {
-    Lhu(rd, rs);
-  } else {
-    DCHECK_EQ(kArchVariant, kMips64r2);
-    MemOperand source = rs;
-    // Adjust offset for two accesses and check if offset + 1 fits into int16_t.
-    AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 1);
+  MemOperand source = rs;
+  // Adjust offset for two accesses and check if offset + 1 fits into int12.
+  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 1);
+  if (rd != source.rm()) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
-    if (source.rm() == scratch) {
-#if defined(V8_TARGET_LITTLE_ENDIAN)
-      Lbu(rd, MemOperand(source.rm(), source.offset() + 1));
-      Lbu(scratch, source);
-#elif defined(V8_TARGET_BIG_ENDIAN)
-      Lbu(rd, source);
-      Lbu(scratch, MemOperand(source.rm(), source.offset() + 1));
-#endif
-    } else {
-#if defined(V8_TARGET_LITTLE_ENDIAN)
-      Lbu(scratch, source);
-      Lbu(rd, MemOperand(source.rm(), source.offset() + 1));
-#elif defined(V8_TARGET_BIG_ENDIAN)
-      Lbu(scratch, MemOperand(source.rm(), source.offset() + 1));
-      Lbu(rd, source);
-#endif
-    }
-    dsll(rd, rd, 8);
-    or_(rd, rd, scratch);
+    RV_lbu(rd, source.rm(), source.offset());
+    RV_lbu(scratch, source.rm(), source.offset() + 1);
+    RV_slli(scratch, scratch, 8);
+    RV_or_(rd, rd, scratch);
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    RV_lbu(scratch, source.rm(), source.offset());
+    RV_lbu(t5, source.rm(), source.offset() + 1);
+    RV_slli(t5, t5, 8);
+    RV_or_(rd, scratch, t5);
   }
 }
 
 void TurboAssembler::Ush(Register rd, const MemOperand& rs, Register scratch) {
   DCHECK(rd != t3);
   DCHECK(rs.rm() != t3);
-  DCHECK(rs.rm() != scratch);
-  DCHECK(scratch != t3);
-  if (kArchVariant == kMips64r6) {
-    Sh(rd, rs);
-  } else {
-    DCHECK_EQ(kArchVariant, kMips64r2);
-    MemOperand source = rs;
-    // Adjust offset for two accesses and check if offset + 1 fits into int16_t.
-    AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 1);
-
-    if (scratch != rd) {
-      mov(scratch, rd);
-    }
-
-#if defined(V8_TARGET_LITTLE_ENDIAN)
-    Sb(scratch, source);
-    srl(scratch, scratch, 8);
-    Sb(scratch, MemOperand(source.rm(), source.offset() + 1));
-#elif defined(V8_TARGET_BIG_ENDIAN)
-    Sb(scratch, MemOperand(source.rm(), source.offset() + 1));
-    srl(scratch, scratch, 8);
-    Sb(scratch, source);
-#endif
-  }
+  MemOperand source = rs;
+  // Adjust offset for two accesses and check if offset + 1 fits into int12.
+  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 1);
+  RV_sb(rd, source.rm(), source.offset());
+  RV_srliw(scratch, rd, 8);
+  RV_sb(scratch, source.rm(), source.offset() + 1);
 }
 
 void TurboAssembler::Uld(Register rd, const MemOperand& rs) {
   DCHECK(rd != t3);
   DCHECK(rs.rm() != t3);
-  if (kArchVariant == kMips64r6) {
-    Ld(rd, rs);
-  } else {
-    DCHECK_EQ(kArchVariant, kMips64r2);
-    DCHECK(kMipsLdrOffset <= 7 && kMipsLdlOffset <= 7);
-    MemOperand source = rs;
-    // Adjust offset for two accesses and check if offset + 7 fits into int16_t.
-    AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 7);
-    if (rd != source.rm()) {
-      ldr(rd, MemOperand(source.rm(), source.offset() + kMipsLdrOffset));
-      ldl(rd, MemOperand(source.rm(), source.offset() + kMipsLdlOffset));
-    } else {
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      ldr(scratch, MemOperand(rs.rm(), rs.offset() + kMipsLdrOffset));
-      ldl(scratch, MemOperand(rs.rm(), rs.offset() + kMipsLdlOffset));
-      mov(rd, scratch);
+  MemOperand source = rs;
+  // Adjust offset for two accesses and check if offset + 7 fits into int12.
+  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 7);
+  if (rd != source.rm()) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    RV_lb(rd, source.rm(), source.offset() + 7);
+    RV_slli(rd, rd, 56);
+    for (size_t i = 6; i >= 0; i++) {
+      RV_lbu(scratch, source.rm(), source.offset() + i);
+      if (i) RV_slli(scratch, scratch, i * 8);
+      RV_or_(rd, rd, scratch);
     }
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    RV_lbu(scratch, source.rm(), source.offset());
+    for (size_t i = 1; i <= 7; i++) {
+      RV_lbu(t5, source.rm(), source.offset() + i);
+      RV_slli(t5, t5, i * 8);
+      RV_or_(scratch, scratch, t5);
+    }
+    RV_mv(rd, scratch);
   }
 }
 
@@ -1080,23 +1044,22 @@ void MacroAssembler::LoadWordPair(Register rd, const MemOperand& rs,
                                   Register scratch) {
   Lwu(rd, rs);
   Lw(scratch, MemOperand(rs.rm(), rs.offset() + kPointerSize / 2));
-  dsll32(scratch, scratch, 0);
+  RV_slli(scratch, scratch, 32);
   Daddu(rd, rd, scratch);
 }
 
 void TurboAssembler::Usd(Register rd, const MemOperand& rs) {
   DCHECK(rd != t3);
   DCHECK(rs.rm() != t3);
-  if (kArchVariant == kMips64r6) {
-    Sd(rd, rs);
-  } else {
-    DCHECK_EQ(kArchVariant, kMips64r2);
-    DCHECK(kMipsSdrOffset <= 7 && kMipsSdlOffset <= 7);
-    MemOperand source = rs;
-    // Adjust offset for two accesses and check if offset + 7 fits into int16_t.
-    AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 7);
-    sdr(rd, MemOperand(source.rm(), source.offset() + kMipsSdrOffset));
-    sdl(rd, MemOperand(source.rm(), source.offset() + kMipsSdlOffset));
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  MemOperand source = rs;
+  // Adjust offset for two accesses and check if offset + 7 fits into int12.
+  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 7);
+  RV_sb(rd, source.rm(), source.offset());
+  for (size_t i = 0; i <= 7; i++) {
+    RV_srliw(scratch, rd, i * 8);
+    RV_sb(scratch, source.rm(), source.offset() + i);
   }
 }
 
@@ -1104,7 +1067,7 @@ void TurboAssembler::Usd(Register rd, const MemOperand& rs) {
 void MacroAssembler::StoreWordPair(Register rd, const MemOperand& rs,
                                    Register scratch) {
   Sw(rd, rs);
-  dsrl32(scratch, rd, 0);
+  RV_srai(scratch, rd, 32);
   Sw(scratch, MemOperand(rs.rm(), rs.offset() + kPointerSize / 2));
 }
 
@@ -1157,67 +1120,67 @@ void TurboAssembler::Usdc1(FPURegister fd, const MemOperand& rs,
 void TurboAssembler::Lb(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
   AdjustBaseAndOffset(&source);
-  lb(rd, source);
+  RV_lb(rd, source.rm(), source.offset());
 }
 
 void TurboAssembler::Lbu(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
   AdjustBaseAndOffset(&source);
-  lbu(rd, source);
+  RV_lbu(rd, source.rm(), source.offset());
 }
 
 void TurboAssembler::Sb(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
   AdjustBaseAndOffset(&source);
-  sb(rd, source);
+  RV_sb(rd, source.rm(), source.offset());
 }
 
 void TurboAssembler::Lh(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
   AdjustBaseAndOffset(&source);
-  lh(rd, source);
+  RV_lh(rd, source.rm(), source.offset());
 }
 
 void TurboAssembler::Lhu(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
   AdjustBaseAndOffset(&source);
-  lhu(rd, source);
+  RV_lhu(rd, source.rm(), source.offset());
 }
 
 void TurboAssembler::Sh(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
   AdjustBaseAndOffset(&source);
-  sh(rd, source);
+  RV_sh(rd, source.rm(), source.offset());
 }
 
 void TurboAssembler::Lw(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
   AdjustBaseAndOffset(&source);
-  lw(rd, source);
+  RV_lw(rd, source.rm(), source.offset());
 }
 
 void TurboAssembler::Lwu(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
   AdjustBaseAndOffset(&source);
-  lwu(rd, source);
+  RV_lwu(rd, source.rm(), source.offset());
 }
 
 void TurboAssembler::Sw(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
   AdjustBaseAndOffset(&source);
-  sw(rd, source);
+  RV_sw(rd, source.rm(), source.offset());
 }
 
 void TurboAssembler::Ld(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
   AdjustBaseAndOffset(&source);
-  ld(rd, source);
+  RV_ld(rd, source.rm(), source.offset());
 }
 
 void TurboAssembler::Sd(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
   AdjustBaseAndOffset(&source);
-  sd(rd, source);
+  RV_sd(rd, source.rm(), source.offset());
 }
 
 void TurboAssembler::Lwc1(FPURegister fd, const MemOperand& src) {
@@ -1692,6 +1655,33 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
       dsll(rd, rd, 16);
       ori(rd, rd, j.immediate() & kImm16Mask);
     }
+  }
+}
+
+void TurboAssembler::RV_Li(Register rd, Operand j, LiFlags mode) {
+  DCHECK(!j.is_reg());
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  if (!MustUseReg(j.rmode()) && mode == OPTIMIZE_SIZE) {
+    RV_li(rd, j.immediate());
+  } else if (MustUseReg(j.rmode())) {
+    int64_t immediate;
+    if (j.IsHeapObjectRequest()) {
+      RequestHeapObject(j.heap_object_request());
+      immediate = 0;
+    } else {
+      immediate = j.immediate();
+    }
+
+    RecordRelocInfo(j.rmode(), immediate);
+    // FIXME(RISC_V): Does this case need to be constant size?
+    RV_li_constant(rd, immediate);
+  } else if (mode == ADDRESS_LOAD) {
+    // We always need the same number of instructions as we may need to patch
+    // this code to load another value which may need all 8 instructions.
+    RV_li_constant(rd, j.immediate());
+  } else {  // mode == CONSTANT_SIZE - always emit the same instruction
+            // sequence.
+    RV_li_constant(rd, j.immediate());
   }
 }
 

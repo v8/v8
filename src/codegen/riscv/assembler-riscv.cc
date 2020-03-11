@@ -2999,6 +2999,16 @@ void Assembler::RV_li(Register rd, int64_t imm) {
   RV_slli(rd, rd, ShiftAmount);
   if (Lo12) RV_addi(rd, rd, Lo12);
 }
+void Assembler::RV_li_constant(Register rd, int64_t imm) {
+  RV_lui(rd, (imm + (1ULL << 47)) >> 48);
+  RV_addiw(rd, rd, (imm + (1ULL << 35)) << 16 >> 52);
+  RV_slli(rd, rd, 12);
+  RV_addi(rd, rd, (imm + (1ULL << 23)) << 28 >> 52);
+  RV_slli(rd, rd, 12);
+  RV_addi(rd, rd, (imm + (1ULL << 11)) << 40 >> 52);
+  RV_slli(rd, rd, 12);
+  RV_addi(rd, rd, imm << 52 >> 52);
+}
 void Assembler::RV_mv(Register rd, Register rs) { RV_addi(rd, rs, 0); }
 void Assembler::RV_not(Register rd, Register rs) { RV_xori(rd, rs, -1); }
 void Assembler::RV_neg(Register rd, Register rs) { RV_sub(rd, zero_reg, rs); }
@@ -3376,128 +3386,30 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src,
                                     OffsetAccessType access_type,
                                     int second_access_add_to_offset) {
   // This method is used to adjust the base register and offset pair
-  // for a load/store when the offset doesn't fit into int16_t.
-  // It is assumed that 'base + offset' is sufficiently aligned for memory
-  // operands that are machine word in size or smaller. For doubleword-sized
-  // operands it's assumed that 'base' is a multiple of 8, while 'offset'
-  // may be a multiple of 4 (e.g. 4-byte-aligned long and double arguments
-  // and spilled variables on the stack accessed relative to the stack
-  // pointer register).
-  // We preserve the "alignment" of 'offset' by adjusting it by a multiple of 8.
-
-  bool doubleword_aligned = (src->offset() & (kDoubleSize - 1)) == 0;
-  bool two_accesses = static_cast<bool>(access_type) || !doubleword_aligned;
+  // for a load/store when the offset doesn't fit into int12.
+  bool two_accesses = static_cast<bool>(access_type);
   DCHECK_LE(second_access_add_to_offset, 7);  // Must be <= 7.
 
-  // is_int16 must be passed a signed value, hence the static cast below.
-  if (is_int16(src->offset()) &&
-      (!two_accesses || is_int16(static_cast<int32_t>(
+  // is_int12 must be passed a signed value, hence the static cast below.
+  if (is_int12(src->offset()) &&
+      (!two_accesses || is_int12(static_cast<int32_t>(
                             src->offset() + second_access_add_to_offset)))) {
     // Nothing to do: 'offset' (and, if needed, 'offset + 4', or other specified
-    // value) fits into int16_t.
+    // value) fits into int12.
     return;
   }
 
   DCHECK(src->rm() !=
          t3);  // Must not overwrite the register 'base' while loading 'offset'.
 
-#ifdef DEBUG
-  // Remember the "(mis)alignment" of 'offset', it will be checked at the end.
-  uint32_t misalignment = src->offset() & (kDoubleSize - 1);
-#endif
-
-  // Do not load the whole 32-bit 'offset' if it can be represented as
-  // a sum of two 16-bit signed offsets. This can save an instruction or two.
-  // To simplify matters, only do this for a symmetric range of offsets from
-  // about -64KB to about +64KB, allowing further addition of 4 when accessing
-  // 64-bit variables with two 32-bit accesses.
-  constexpr int32_t kMinOffsetForSimpleAdjustment =
-      0x7FF8;  // Max int16_t that's a multiple of 8.
-  constexpr int32_t kMaxOffsetForSimpleAdjustment =
-      2 * kMinOffsetForSimpleAdjustment;
-
+  // FIXME(RISC-V): There may be a more optimal way to do this
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  if (0 <= src->offset() && src->offset() <= kMaxOffsetForSimpleAdjustment) {
-    daddiu(scratch, src->rm(), kMinOffsetForSimpleAdjustment);
-    src->offset_ -= kMinOffsetForSimpleAdjustment;
-  } else if (-kMaxOffsetForSimpleAdjustment <= src->offset() &&
-             src->offset() < 0) {
-    daddiu(scratch, src->rm(), -kMinOffsetForSimpleAdjustment);
-    src->offset_ += kMinOffsetForSimpleAdjustment;
-  } else if (kArchVariant == kMips64r6) {
-    // On r6 take advantage of the daui instruction, e.g.:
-    //    daui   at, base, offset_high
-    //   [dahi   at, 1]                       // When `offset` is close to +2GB.
-    //    lw     reg_lo, offset_low(at)
-    //   [lw     reg_hi, (offset_low+4)(at)]  // If misaligned 64-bit load.
-    // or when offset_low+4 overflows int16_t:
-    //    daui   at, base, offset_high
-    //    daddiu at, at, 8
-    //    lw     reg_lo, (offset_low-8)(at)
-    //    lw     reg_hi, (offset_low-4)(at)
-    int16_t offset_low = static_cast<uint16_t>(src->offset());
-    int32_t offset_low32 = offset_low;
-    int16_t offset_high = static_cast<uint16_t>(src->offset() >> 16);
-    bool increment_hi16 = offset_low < 0;
-    bool overflow_hi16 = false;
-
-    if (increment_hi16) {
-      offset_high++;
-      overflow_hi16 = (offset_high == -32768);
-    }
-    daui(scratch, src->rm(), static_cast<uint16_t>(offset_high));
-
-    if (overflow_hi16) {
-      dahi(scratch, 1);
-    }
-
-    if (two_accesses && !is_int16(static_cast<int32_t>(
-                            offset_low32 + second_access_add_to_offset))) {
-      // Avoid overflow in the 16-bit offset of the load/store instruction when
-      // adding 4.
-      daddiu(scratch, scratch, kDoubleSize);
-      offset_low32 -= kDoubleSize;
-    }
-
-    src->offset_ = offset_low32;
-  } else {
-    // Do not load the whole 32-bit 'offset' if it can be represented as
-    // a sum of three 16-bit signed offsets. This can save an instruction.
-    // To simplify matters, only do this for a symmetric range of offsets from
-    // about -96KB to about +96KB, allowing further addition of 4 when accessing
-    // 64-bit variables with two 32-bit accesses.
-    constexpr int32_t kMinOffsetForMediumAdjustment =
-        2 * kMinOffsetForSimpleAdjustment;
-    constexpr int32_t kMaxOffsetForMediumAdjustment =
-        3 * kMinOffsetForSimpleAdjustment;
-    if (0 <= src->offset() && src->offset() <= kMaxOffsetForMediumAdjustment) {
-      daddiu(scratch, src->rm(), kMinOffsetForMediumAdjustment / 2);
-      daddiu(scratch, scratch, kMinOffsetForMediumAdjustment / 2);
-      src->offset_ -= kMinOffsetForMediumAdjustment;
-    } else if (-kMaxOffsetForMediumAdjustment <= src->offset() &&
-               src->offset() < 0) {
-      daddiu(scratch, src->rm(), -kMinOffsetForMediumAdjustment / 2);
-      daddiu(scratch, scratch, -kMinOffsetForMediumAdjustment / 2);
-      src->offset_ += kMinOffsetForMediumAdjustment;
-    } else {
-      // Now that all shorter options have been exhausted, load the full 32-bit
-      // offset.
-      int32_t loaded_offset = RoundDown(src->offset(), kDoubleSize);
-      lui(scratch, (loaded_offset >> kLuiShift) & kImm16Mask);
-      ori(scratch, scratch, loaded_offset & kImm16Mask);  // Load 32-bit offset.
-      daddu(scratch, scratch, src->rm());
-      src->offset_ -= loaded_offset;
-    }
-  }
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+  RV_li(scratch, src->offset());
+  RV_add(scratch, scratch, src->rm());
+  src->offset_ = 0;
   src->rm_ = scratch;
-
-  DCHECK(is_int16(src->offset()));
-  if (two_accesses) {
-    DCHECK(is_int16(
-        static_cast<int32_t>(src->offset() + second_access_add_to_offset)));
-  }
-  DCHECK(misalignment == (src->offset() & (kDoubleSize - 1)));
 }
 
 void Assembler::lb(Register rd, const MemOperand& rs) {

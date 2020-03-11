@@ -604,6 +604,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Assembler Pseudo Instructions (Tables 25.2, 25.3, RISC-V Unprivileged ISA)
   void RV_nop();
   void RV_li(Register rd, int64_t imm);
+  // Loads an immediate, always using 8 instructions, regardless of the value,
+  // so that it can be modified later.
+  void RV_li_constant(Register rd, int64_t imm);
   void RV_mv(Register rd, Register rs1);
   void RV_not(Register rd, Register rs1);
   void RV_neg(Register rd, Register rs1);

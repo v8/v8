@@ -65,16 +65,15 @@ TEST(LoadConstants) {
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
-  __ mov(a4, a0);
+  __ RV_mv(a4, a0);
   for (int i = 0; i < 64; i++) {
     // Load constant.
-    __ li(a5, Operand(refConstants[i]));
+    __ RV_Li(a5, Operand(refConstants[i]));
     __ Sd(a5, MemOperand(a4));
     __ Daddu(a4, a4, Operand(kPointerSize));
   }
 
-  __ jr(ra);
-  __ nop();
+  __ RV_jr(ra);
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
