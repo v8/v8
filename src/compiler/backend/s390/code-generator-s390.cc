@@ -3767,21 +3767,36 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ locgr(Condition(8), dst, temp);
       break;
     }
-    case kS390_S1x2AllTrue:
-    case kS390_S1x4AllTrue:
-    case kS390_S1x8AllTrue:
-    case kS390_S1x16AllTrue: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Register dst = i.OutputRegister();
-      Register temp = i.TempRegister(0);
-      __ lgfi(temp, Operand(1));
-      __ xgr(dst, dst);
-      __ vceq(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
-              Condition(0), Condition(2));
-      __ vtm(src, kScratchDoubleReg, Condition(0), Condition(0), Condition(0));
-      __ locgr(Condition(1), dst, temp);
+#define SIMD_ALL_TRUE(mode)                                                    \
+  Simd128Register src = i.InputSimd128Register(0);                             \
+  Register dst = i.OutputRegister();                                           \
+  Register temp = i.TempRegister(0);                                           \
+  __ lgfi(temp, Operand(1));                                                   \
+  __ xgr(dst, dst);                                                            \
+  __ vx(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg, Condition(0), \
+        Condition(0), Condition(2));                                           \
+  __ vceq(kScratchDoubleReg, src, kScratchDoubleReg, Condition(0),             \
+          Condition(mode));                                                    \
+  __ vtm(kScratchDoubleReg, kScratchDoubleReg, Condition(0), Condition(0),     \
+         Condition(0));                                                        \
+  __ locgr(Condition(8), dst, temp);
+    case kS390_S1x2AllTrue: {
+      SIMD_ALL_TRUE(3)
       break;
     }
+    case kS390_S1x4AllTrue: {
+      SIMD_ALL_TRUE(2)
+      break;
+    }
+    case kS390_S1x8AllTrue: {
+      SIMD_ALL_TRUE(1)
+      break;
+    }
+    case kS390_S1x16AllTrue: {
+      SIMD_ALL_TRUE(0)
+      break;
+    }
+#undef SIMD_ALL_TRUE
     // vector bitwise ops
     case kS390_S128And: {
       Simd128Register dst = i.OutputSimd128Register();
