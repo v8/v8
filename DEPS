@@ -34,7 +34,7 @@ vars = {
   'gn_version': 'git_revision:fd3d768bcfd44a8d9639fe278581bd9851d0ce3a',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:3d22d4e5a77a3d9cbe4b1bf5ed2fc85b61c1e3e6',
+  'luci_go': 'git_revision:de73cf6c4bde86f0a9c8d54151b69b0154a398f1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -72,9 +72,9 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9b4e0260e779403e7ecf67cc9fc632a8b7833576',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3e210049d3196d9f0b09e975dc071f885e2f6fc4',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a12175c2a7a9f79c3296068a022ac4f3051f8600',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '552ddbf3bfe04c7daa75e04d17263b4cd348999b',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '0b6134378c4b96a7854ff366dd706f5b9b502929',
   'v8/third_party/instrumented_libraries':
@@ -168,7 +168,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'abdb603cd140a77ceb8adef16d6f3cd7bb596ad1',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'a8e510a1a6cb0430c749de8e62b6acb62ba7c9fa',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -186,7 +186,7 @@ deps = {
   'v8/third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
   'v8/tools/swarming_client':
-    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '0ac28472d073a515124c85b128c4378a914e0a4d',
+    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + 'cc958279ffd6853e0a1b227a7e957ca334fe56af',
   'v8/test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
   'v8/test/mozilla/data':
