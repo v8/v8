@@ -564,7 +564,7 @@ bool Type::SlowIs(Type that) const {
   }
 
   if (that.IsRange()) {
-    return (this->IsRange() && Contains(that.AsRange(), this->AsRange()));
+    return this->IsRange() && Contains(that.AsRange(), this->AsRange());
   }
   if (this->IsRange()) return false;
 
