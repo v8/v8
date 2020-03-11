@@ -2874,6 +2874,8 @@ void InstructionSelector::VisitS128Zero(Node* node) {
   Emit(kMips64S128Zero, g.DefineSameAsFirst(node));
 }
 
+void InstructionSelector::VisitS128AndNot(Node* node) { UNIMPLEMENTED(); }
+
 #define SIMD_VISIT_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
     VisitRR(this, kMips64##Type##Splat, node);               \
