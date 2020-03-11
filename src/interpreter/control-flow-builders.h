@@ -105,6 +105,7 @@ class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
           block_coverage_builder_->AllocateBlockCoverageSlot(
               node, SourceRangeKind::kBody);
     }
+    source_position_ = node ? node->position() : kNoSourcePosition;
   }
   ~LoopBuilder() override;
 
@@ -140,6 +141,8 @@ class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
   BytecodeLabels end_labels_;
 
   int block_coverage_body_slot_;
+
+  int source_position_;
 };
 
 // A class to help with co-ordinating break statements with their switch.

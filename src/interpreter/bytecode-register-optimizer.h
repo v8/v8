@@ -68,7 +68,8 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
     if (Bytecodes::IsJump(bytecode) || Bytecodes::IsSwitch(bytecode) ||
         bytecode == Bytecode::kDebugger ||
         bytecode == Bytecode::kSuspendGenerator ||
-        bytecode == Bytecode::kResumeGenerator) {
+        bytecode == Bytecode::kResumeGenerator ||
+        bytecode == Bytecode::kStackCheck) {
       // All state must be flushed before emitting
       // - a jump bytecode (as the register equivalents at the jump target
       //   aren't known)

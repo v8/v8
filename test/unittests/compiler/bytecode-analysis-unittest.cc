@@ -257,6 +257,9 @@ TEST_F(BytecodeAnalysisTest, SimpleLoop) {
 
     loop_builder.BindContinueTarget();
     loop_builder.JumpToHeader(0, nullptr);
+    // TODO(solanes): Remove the liveness of the Stack Check once it is
+    // implicit.
+    expected_liveness.emplace_back("L.L.", "L.L.");
     expected_liveness.emplace_back("L.L.", "L.L.");
   }
 
@@ -362,6 +365,9 @@ TEST_F(BytecodeAnalysisTest, DiamondInLoop) {
 
     loop_builder.BindContinueTarget();
     loop_builder.JumpToHeader(0, nullptr);
+    // TODO(solanes): Remove the liveness of the Stack Check once it is
+    // implicit.
+    expected_liveness.emplace_back("L...", "L...");
     expected_liveness.emplace_back("L...", "L...");
   }
 
@@ -434,11 +440,17 @@ TEST_F(BytecodeAnalysisTest, KillingLoopInsideLoop) {
 
       inner_loop_builder.BindContinueTarget();
       inner_loop_builder.JumpToHeader(1, &loop_builder);
+      // TODO(solanes): Remove the liveness of the Stack Check once it is
+      // implicit.
+      expected_liveness.emplace_back(".L..", ".L..");
       expected_liveness.emplace_back(".L..", ".L..");
     }
 
     loop_builder.BindContinueTarget();
     loop_builder.JumpToHeader(0, nullptr);
+    // TODO(solanes): Remove the liveness of the Stack Check once it is
+    // implicit.
+    expected_liveness.emplace_back("LL..", "LL..");
     expected_liveness.emplace_back("LL..", "LL..");
   }
 
