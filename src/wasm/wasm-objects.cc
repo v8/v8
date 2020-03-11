@@ -256,7 +256,8 @@ Handle<String> WasmModuleObject::GetFunctionName(
       GetFunctionNameOrNull(isolate, module_object, func_index);
   if (!name.is_null()) return name.ToHandleChecked();
   EmbeddedVector<char, 32> buffer;
-  int length = SNPrintF(buffer, "wasm-function[%u]", func_index);
+  DCHECK_GE(func_index, module_object->module()->num_imported_functions);
+  int length = SNPrintF(buffer, "func%u", func_index);
   return isolate->factory()
       ->NewStringFromOneByte(Vector<uint8_t>::cast(buffer.SubVector(0, length)))
       .ToHandleChecked();

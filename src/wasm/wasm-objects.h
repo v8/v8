@@ -170,7 +170,7 @@ class WasmModuleObject : public JSObject {
                                                    uint32_t func_index);
 
   // Get the function name of the function identified by the given index.
-  // Returns "wasm-function[func_index]" if the function is unnamed or the
+  // Returns "func[func_index]" if the function is unnamed or the
   // name is not a valid UTF-8 string.
   static Handle<String> GetFunctionName(Isolate*, Handle<WasmModuleObject>,
                                         uint32_t func_index);
