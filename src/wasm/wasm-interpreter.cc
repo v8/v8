@@ -1824,7 +1824,8 @@ class ThreadImpl {
         Address src_addr =
             instance_object_->data_segment_starts()[imm.data_segment_index] +
             src;
-        memory_copy(dst_addr, src_addr, size);
+        std::memmove(reinterpret_cast<void*>(dst_addr),
+                     reinterpret_cast<void*>(src_addr), size);
         return true;
       }
       case kExprDataDrop: {
@@ -1850,7 +1851,8 @@ class ThreadImpl {
           return false;
         }
 
-        memory_copy(dst_addr, src_addr, size);
+        std::memmove(reinterpret_cast<void*>(dst_addr),
+                     reinterpret_cast<void*>(src_addr), size);
         return true;
       }
       case kExprMemoryFill: {
