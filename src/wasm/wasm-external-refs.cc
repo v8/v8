@@ -11,7 +11,9 @@
 
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
+#include "src/common/assert-scope.h"
 #include "src/utils/memcopy.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 #if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
     defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER) ||    \
@@ -323,41 +325,35 @@ void float64_pow_wrapper(Address data) {
   WriteUnalignedValue<double>(data, base::ieee754::pow(x, y));
 }
 
-// Asan on Windows triggers exceptions in this function to allocate
-// shadow memory lazily. When this function is called from WebAssembly,
-// these exceptions would be handled by the trap handler before they get
-// handled by Asan, and thereby confuse the thread-in-wasm flag.
-// Therefore we disable ASAN for this function. Alternatively we could
-// reset the thread-in-wasm flag before calling this function. However,
-// as this is only a problem with Asan on Windows, we did not consider
-// it worth the overhead.
-DISABLE_ASAN void memory_copy(Address dst, Address src, uint32_t size) {
-  // Use explicit forward and backward copy to match the required semantics for
-  // the memory.copy instruction. It is assumed that the caller of this
-  // function has already performed bounds checks, so {src + size} and
-  // {dst + size} should not overflow.
-  DCHECK(src + size >= src && dst + size >= dst);
-  uint8_t* dst8 = reinterpret_cast<uint8_t*>(dst);
-  uint8_t* src8 = reinterpret_cast<uint8_t*>(src);
-  if (src < dst && src + size > dst && dst + size > src) {
-    dst8 += size - 1;
-    src8 += size - 1;
-    for (; size > 0; size--) {
-      *dst8-- = *src8--;
-    }
-  } else {
-    for (; size > 0; size--) {
-      *dst8++ = *src8++;
-    }
-  }
-}
-
-void memory_copy_wrapper(Address data) {
+void memory_init_wrapper(Address data) {
   Address dst = ReadUnalignedValue<Address>(data);
   Address src = ReadUnalignedValue<Address>(data + sizeof(dst));
   uint32_t size =
       ReadUnalignedValue<uint32_t>(data + sizeof(dst) + sizeof(src));
-  memory_copy(dst, src, size);
+  std::memmove(reinterpret_cast<byte*>(dst), reinterpret_cast<byte*>(src),
+               size);
+}
+
+bool memory_copy_wrapper(Address data) {
+  DisallowHeapAllocation disallow_heap_allocation;
+  size_t offset = 0;
+  Object raw_instance = ReadUnalignedValue<Object>(data);
+  WasmInstanceObject instance = WasmInstanceObject::cast(raw_instance);
+  offset += sizeof(Object);
+  size_t dst = ReadUnalignedValue<uint32_t>(data + offset);
+  offset += sizeof(uint32_t);
+  size_t src = ReadUnalignedValue<uint32_t>(data + offset);
+  offset += sizeof(uint32_t);
+  size_t size = ReadUnalignedValue<uint32_t>(data + offset);
+
+  size_t mem_size = instance.memory_size();
+  if (!base::IsInBounds(dst, size, mem_size)) return false;
+  if (!base::IsInBounds(src, size, mem_size)) return false;
+
+  byte* memory_start = instance.memory_start();
+  // Use std::memmove, because the ranges can overlap.
+  std::memmove(memory_start + dst, memory_start + src, size);
+  return true;
 }
 
 // Asan on Windows triggers exceptions in this function that confuse the
