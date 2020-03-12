@@ -2950,10 +2950,7 @@ void Assembler::RV_li(Register rd, int64_t imm) {
     }
 
     if (Lo12 || Hi20 == 0) {
-      if (V8_TARGET_ARCH_64_BIT && Hi20)
-        RV_addiw(rd, base, Lo12);
-      else
-        RV_addi(rd, base, Lo12);
+      RV_addi(rd, base, Lo12);
     }
     return;
   }
