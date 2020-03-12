@@ -787,7 +787,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
       // from start_call to return address.
-      int offset = 40;
+      int offset = __ root_array_available() ? 68 : 80;
 #if V8_HOST_ARCH_MIPS
       if (__ emit_debug_code()) {
         offset += 16;
