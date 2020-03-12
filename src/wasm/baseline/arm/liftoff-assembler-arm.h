@@ -264,7 +264,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
     patching_assembler.PadWithNops();
 
     // Now generate the OOL code.
-    AllocateStackSpace(bytes);
+    AllocateStackSpace(frame_size);
     // Jump back to the start of the function (from {pc_offset()} to {offset +
     // liftoff::kPatchInstructionsRequired * kInstrSize}).
     int func_start_offset =

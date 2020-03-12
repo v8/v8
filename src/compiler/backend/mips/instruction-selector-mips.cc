@@ -1615,16 +1615,6 @@ void InstructionSelector::VisitStackPointerGreaterThan(
 // Shared routine for word comparisons against zero.
 void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
                                                FlagsContinuation* cont) {
-  // Try to combine with comparisons against 0 by simply inverting the branch.
-  while (value->opcode() == IrOpcode::kWord32Equal && CanCover(user, value)) {
-    Int32BinopMatcher m(value);
-    if (!m.right().Is(0)) break;
-
-    user = value;
-    value = m.left().node();
-    cont->Negate();
-  }
-
   if (CanCover(user, value)) {
     switch (value->opcode()) {
       case IrOpcode::kWord32Equal:

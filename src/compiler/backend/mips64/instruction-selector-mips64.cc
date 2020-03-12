@@ -2169,6 +2169,16 @@ void InstructionSelector::VisitStackPointerGreaterThan(
 void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
                                                FlagsContinuation* cont) {
   // Try to combine with comparisons against 0 by simply inverting the branch.
+  // This was already performed by CommonOperatorReducer, but it did not include
+  // the 64-bit comparison case because not all platforms handle 64-bit
+  // comparisons the same way.
+  //
+  // We actually must not include the 64bit case in CommonOperatorReducer, it
+  // would be unsound on platforms with pointer compression, since we got sloppy
+  // there about truncating 64 to 32 bit implicitly. That's an issue related to
+  // the general problem that it's unclear if the semantics of a Branch node is
+  // a 32 or 64 bit non-zero check. On most platforms, it seems to be a 32bit
+  // check while on Mips64 it's a 64bit check.
   while (CanCover(user, value)) {
     if (value->opcode() == IrOpcode::kWord32Equal) {
       Int32BinopMatcher m(value);
