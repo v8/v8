@@ -1238,7 +1238,7 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
     return false;
   }
 
-  if (!ResolveVariablesRecursively(info)) {
+  if (!ResolveVariablesRecursively(info->scope())) {
     DCHECK(info->pending_error_handler()->has_pending_error());
     return false;
   }
@@ -1429,9 +1429,8 @@ bool Scope::IsOuterScopeOf(Scope* other) const {
 }
 
 void Scope::CollectNonLocals(DeclarationScope* max_outer_scope,
-                             Isolate* isolate, ParseInfo* info,
-                             Handle<StringSet>* non_locals) {
-  this->ForEach([max_outer_scope, isolate, info, non_locals](Scope* scope) {
+                             Isolate* isolate, Handle<StringSet>* non_locals) {
+  this->ForEach([max_outer_scope, isolate, non_locals](Scope* scope) {
     // Module variables must be allocated before variable resolution
     // to ensure that UpdateNeedsHoleCheck() can detect import variables.
     if (scope->is_module_scope()) {
@@ -1453,7 +1452,7 @@ void Scope::CollectNonLocals(DeclarationScope* max_outer_scope,
         // In this case we need to leave scopes in a way that they can be
         // allocated. If we resolved variables from lazy parsed scopes, we need
         // to context allocate the var.
-        scope->ResolveTo(info, proxy, var);
+        scope->ResolveTo(proxy, var);
         if (!var->is_dynamic() && lookup != scope)
           var->ForceContextAllocation();
       }
@@ -1502,8 +1501,8 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
 }
 
 Handle<StringSet> DeclarationScope::CollectNonLocals(
-    Isolate* isolate, ParseInfo* info, Handle<StringSet> non_locals) {
-  Scope::CollectNonLocals(this, isolate, info, &non_locals);
+    Isolate* isolate, Handle<StringSet> non_locals) {
+  Scope::CollectNonLocals(this, isolate, &non_locals);
   return non_locals;
 }
 
@@ -2107,12 +2106,11 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
   return var;
 }
 
-void Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
-  DCHECK(info->script_scope()->is_script_scope());
+void Scope::ResolveVariable(VariableProxy* proxy) {
   DCHECK(!proxy->is_resolved());
   Variable* var = Lookup<kParsedScope>(proxy, this, nullptr);
   DCHECK_NOT_NULL(var);
-  ResolveTo(info, proxy, var);
+  ResolveTo(proxy, var);
 }
 
 namespace {
@@ -2175,7 +2173,7 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
 
 }  // anonymous namespace
 
-void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
+void Scope::ResolveTo(VariableProxy* proxy, Variable* var) {
   DCHECK_NOT_NULL(var);
   UpdateNeedsHoleCheck(var, proxy, this);
   proxy->BindTo(var);
@@ -2197,14 +2195,12 @@ void Scope::ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
   }
 }
 
-bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
-  DCHECK(info->script_scope()->is_script_scope());
+bool Scope::ResolveVariablesRecursively(Scope* end) {
   // Lazy parsed declaration scopes are already partially analyzed. If there are
   // unresolved references remaining, they just need to be resolved in outer
   // scopes.
   if (WasLazilyParsed(this)) {
     DCHECK_EQ(variables_.occupancy(), 0);
-    Scope* end = info->scope();
     // Resolve in all parsed scopes except for the script scope.
     if (!end->is_script_scope()) end = end->outer_scope();
 
@@ -2214,13 +2210,13 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
   } else {
     // Resolve unresolved variables for this scope.
     for (VariableProxy* proxy : unresolved_list_) {
-      ResolveVariable(info, proxy);
+      ResolveVariable(proxy);
     }
 
     // Resolve unresolved variables for inner scopes.
     for (Scope* scope = inner_scope_; scope != nullptr;
          scope = scope->sibling_) {
-      if (!scope->ResolveVariablesRecursively(info)) return false;
+      if (!scope->ResolveVariablesRecursively(end)) return false;
     }
   }
   return true;
