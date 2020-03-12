@@ -92,7 +92,7 @@ class ConstantFoldingReducerTest : public TypedGraphTest {
 TEST_F(ConstantFoldingReducerTest, ParameterWithMinusZero) {
   {
     Reduction r = Reduce(Parameter(
-        Type::NewConstant(broker(), factory()->minus_zero_value(), zone())));
+        Type::Constant(broker(), factory()->minus_zero_value(), zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(-0.0));
   }
@@ -104,7 +104,7 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithMinusZero) {
   {
     Reduction r = Reduce(Parameter(Type::Union(
         Type::MinusZero(),
-        Type::NewConstant(broker(), factory()->NewNumber(0), zone()), zone())));
+        Type::Constant(broker(), factory()->NewNumber(0), zone()), zone())));
     EXPECT_FALSE(r.Changed());
   }
 }
@@ -112,7 +112,7 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithMinusZero) {
 TEST_F(ConstantFoldingReducerTest, ParameterWithNull) {
   Handle<HeapObject> null = factory()->null_value();
   {
-    Reduction r = Reduce(Parameter(Type::NewConstant(broker(), null, zone())));
+    Reduction r = Reduce(Parameter(Type::Constant(broker(), null, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsHeapConstant(null));
   }
@@ -129,14 +129,13 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithNaN) {
                           std::numeric_limits<double>::signaling_NaN()};
   TRACED_FOREACH(double, nan, kNaNs) {
     Handle<Object> constant = factory()->NewNumber(nan);
-    Reduction r =
-        Reduce(Parameter(Type::NewConstant(broker(), constant, zone())));
+    Reduction r = Reduce(Parameter(Type::Constant(broker(), constant, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(IsNaN()));
   }
   {
     Reduction r = Reduce(
-        Parameter(Type::NewConstant(broker(), factory()->nan_value(), zone())));
+        Parameter(Type::Constant(broker(), factory()->nan_value(), zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(IsNaN()));
   }
@@ -150,8 +149,7 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithNaN) {
 TEST_F(ConstantFoldingReducerTest, ParameterWithPlainNumber) {
   TRACED_FOREACH(double, value, kFloat64Values) {
     Handle<Object> constant = factory()->NewNumber(value);
-    Reduction r =
-        Reduce(Parameter(Type::NewConstant(broker(), constant, zone())));
+    Reduction r = Reduce(Parameter(Type::Constant(broker(), constant, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(value));
   }
@@ -171,7 +169,7 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithUndefined) {
   }
   {
     Reduction r =
-        Reduce(Parameter(Type::NewConstant(broker(), undefined, zone())));
+        Reduce(Parameter(Type::Constant(broker(), undefined, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsHeapConstant(undefined));
   }
@@ -193,8 +191,8 @@ TEST_F(ConstantFoldingReducerTest, ToBooleanWithFalsish) {
                       Type::Union(
                           Type::Undetectable(),
                           Type::Union(
-                              Type::NewConstant(
-                                  broker(), factory()->false_value(), zone()),
+                              Type::Constant(broker(), factory()->false_value(),
+                                             zone()),
                               Type::Range(0.0, 0.0, zone()), zone()),
                           zone()),
                       zone()),
@@ -210,7 +208,7 @@ TEST_F(ConstantFoldingReducerTest, ToBooleanWithFalsish) {
 TEST_F(ConstantFoldingReducerTest, ToBooleanWithTruish) {
   Node* input = Parameter(
       Type::Union(
-          Type::NewConstant(broker(), factory()->true_value(), zone()),
+          Type::Constant(broker(), factory()->true_value(), zone()),
           Type::Union(Type::DetectableReceiver(), Type::Symbol(), zone()),
           zone()),
       0);

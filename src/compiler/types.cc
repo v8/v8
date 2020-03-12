@@ -841,7 +841,7 @@ Type Type::NormalizeRangeAndBitset(Type range, bitset* bits, Zone* zone) {
   return Type::Range(range_min, range_max, zone);
 }
 
-Type Type::NewConstant(double value, Zone* zone) {
+Type Type::Constant(double value, Zone* zone) {
   if (RangeType::IsInteger(value)) {
     return Range(value, value, zone);
   } else if (IsMinusZero(value)) {
@@ -854,14 +854,13 @@ Type Type::NewConstant(double value, Zone* zone) {
   return OtherNumberConstant(value, zone);
 }
 
-Type Type::NewConstant(JSHeapBroker* broker, Handle<i::Object> value,
-                       Zone* zone) {
+Type Type::Constant(JSHeapBroker* broker, Handle<i::Object> value, Zone* zone) {
   ObjectRef ref(broker, value);
   if (ref.IsSmi()) {
-    return NewConstant(static_cast<double>(ref.AsSmi()), zone);
+    return Constant(static_cast<double>(ref.AsSmi()), zone);
   }
   if (ref.IsHeapNumber()) {
-    return NewConstant(ref.AsHeapNumber().value(), zone);
+    return Constant(ref.AsHeapNumber().value(), zone);
   }
   if (ref.IsString() && !ref.IsInternalizedString()) {
     return Type::String();
@@ -1094,15 +1093,12 @@ Type Type::OtherNumberConstant(double value, Zone* zone) {
 }
 
 // static
-Type Type::HeapConstant(JSHeapBroker* broker, Handle<i::Object> value,
-                        Zone* zone) {
-  return FromTypeBase(
-      HeapConstantType::New(HeapObjectRef(broker, value), zone));
-}
-
-// static
 Type Type::HeapConstant(const HeapObjectRef& value, Zone* zone) {
-  return HeapConstantType::New(value, zone);
+  DCHECK(!value.IsHeapNumber());
+  DCHECK_IMPLIES(value.IsString(), value.IsInternalizedString());
+  BitsetType::bitset bitset = BitsetType::Lub(value.GetHeapObjectType());
+  if (Type(bitset).IsSingleton()) return Type(bitset);
+  return HeapConstantType::New(value, bitset, zone);
 }
 
 // static
@@ -1113,11 +1109,6 @@ Type Type::Range(double min, double max, Zone* zone) {
 // static
 Type Type::Range(RangeType::Limits lims, Zone* zone) {
   return FromTypeBase(RangeType::New(lims, zone));
-}
-
-// static
-Type Type::Union(int length, Zone* zone) {
-  return FromTypeBase(UnionType::New(length, zone));
 }
 
 const HeapConstantType* Type::AsHeapConstant() const {
