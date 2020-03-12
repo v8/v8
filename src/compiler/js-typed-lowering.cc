@@ -1664,37 +1664,46 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     convert_mode = ConvertReceiverMode::kNotNullOrUndefined;
   }
 
-  // Check if {target} is a known JSFunction.
-  // TODO(turbofan): Also extract the SharedFunctionInfo from JSCreateClosure
-  // and CheckClosure {target}s such that we can perform the same optimizations
-  // as for known constants here.
+  // Check if we know the SharedFunctionInfo of {target}.
+  base::Optional<JSFunctionRef> function;
+  base::Optional<SharedFunctionInfoRef> shared;
+
   if (target_type.IsHeapConstant() &&
       target_type.AsHeapConstant()->Ref().IsJSFunction()) {
-    JSFunctionRef function = target_type.AsHeapConstant()->Ref().AsJSFunction();
+    function = target_type.AsHeapConstant()->Ref().AsJSFunction();
 
-    if (!function.serialized()) {
-      TRACE_BROKER_MISSING(broker(), "data for function " << function);
+    if (!function->serialized()) {
+      TRACE_BROKER_MISSING(broker(), "data for function " << *function);
       return NoChange();
     }
-    SharedFunctionInfoRef shared = function.shared();
+    shared = function->shared();
+  } else if (target->opcode() == IrOpcode::kJSCreateClosure) {
+    CreateClosureParameters const& ccp =
+        CreateClosureParametersOf(target->op());
+    shared = SharedFunctionInfoRef(broker(), ccp.shared_info());
+  } else if (target->opcode() == IrOpcode::kCheckClosure) {
+    FeedbackCellRef cell(broker(), FeedbackCellOf(target->op()));
+    shared = cell.value().AsFeedbackVector().shared_function_info();
+  }
 
+  if (shared.has_value()) {
     // Do not inline the call if we need to check whether to break at entry.
-    if (shared.HasBreakInfo()) return NoChange();
+    if (shared->HasBreakInfo()) return NoChange();
 
     // Class constructors are callable, but [[Call]] will raise an exception.
     // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
-    if (IsClassConstructor(shared.kind())) return NoChange();
+    if (IsClassConstructor(shared->kind())) return NoChange();
 
     // Check if we need to convert the {receiver}, but bailout if it would
     // require data from a foreign native context.
-    if (is_sloppy(shared.language_mode()) && !shared.native() &&
+    if (is_sloppy(shared->language_mode()) && !shared->native() &&
         !receiver_type.Is(Type::Receiver())) {
-      if (!function.native_context().equals(
-              broker()->target_native_context())) {
+      if (!function.has_value() || !function->native_context().equals(
+                                       broker()->target_native_context())) {
         return NoChange();
       }
       Node* global_proxy =
-          jsgraph()->Constant(function.native_context().global_proxy_object());
+          jsgraph()->Constant(function->native_context().global_proxy_object());
       receiver = effect =
           graph()->NewNode(simplified()->ConvertReceiver(convert_mode),
                            receiver, global_proxy, effect, control);
@@ -1714,20 +1723,20 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     Node* new_target = jsgraph()->UndefinedConstant();
 
-    if (NeedsArgumentAdaptorFrame(shared, arity)) {
+    if (NeedsArgumentAdaptorFrame(*shared, arity)) {
       // Check if it's safe to skip the arguments adaptor for {shared},
       // that is whether the target function anyways cannot observe the
       // actual arguments. Details can be found in this document at
       // https://bit.ly/v8-faster-calls-with-arguments-mismatch and
       // on the tracking bug at https://crbug.com/v8/8895
-      if (shared.is_safe_to_skip_arguments_adaptor()) {
+      if (shared->is_safe_to_skip_arguments_adaptor()) {
         // Currently we only support skipping arguments adaptor frames
         // for strict mode functions, since there's Function.arguments
         // legacy accessor, which is still available in sloppy mode.
-        DCHECK_EQ(LanguageMode::kStrict, shared.language_mode());
+        DCHECK_EQ(LanguageMode::kStrict, shared->language_mode());
 
         // Massage the arguments to match the expected number of arguments.
-        int expected_argument_count = shared.internal_formal_parameter_count();
+        int expected_argument_count = shared->internal_formal_parameter_count();
         for (; arity > expected_argument_count; --arity) {
           node->RemoveInput(arity + 1);
         }
@@ -1753,20 +1762,21 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
         node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
         node->InsertInput(
             graph()->zone(), 4,
-            jsgraph()->Constant(shared.internal_formal_parameter_count()));
+            jsgraph()->Constant(shared->internal_formal_parameter_count()));
         NodeProperties::ChangeOp(
             node,
             common()->Call(Linkage::GetStubCallDescriptor(
                 graph()->zone(), callable.descriptor(), 1 + arity, flags)));
       }
-    } else if (shared.HasBuiltinId() && Builtins::IsCpp(shared.builtin_id())) {
+    } else if (shared->HasBuiltinId() &&
+               Builtins::IsCpp(shared->builtin_id())) {
       // Patch {node} to a direct CEntry call.
-      ReduceBuiltin(jsgraph(), node, shared.builtin_id(), arity, flags);
-    } else if (shared.HasBuiltinId()) {
-      DCHECK(Builtins::HasJSLinkage(shared.builtin_id()));
+      ReduceBuiltin(jsgraph(), node, shared->builtin_id(), arity, flags);
+    } else if (shared->HasBuiltinId()) {
+      DCHECK(Builtins::HasJSLinkage(shared->builtin_id()));
       // Patch {node} to a direct code object call.
       Callable callable = Builtins::CallableFor(
-          isolate(), static_cast<Builtins::Name>(shared.builtin_id()));
+          isolate(), static_cast<Builtins::Name>(shared->builtin_id()));
       CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
 
       const CallInterfaceDescriptor& descriptor = callable.descriptor();
