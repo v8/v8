@@ -178,6 +178,9 @@ class WasmGenerator {
   // TODO(eholk): make this function constexpr once gcc supports it
   static uint8_t max_alignment(WasmOpcode memop) {
     switch (memop) {
+      case kExprS128LoadMem:
+      case kExprS128StoreMem:
+        return 4;
       case kExprI64LoadMem:
       case kExprF64LoadMem:
       case kExprI64StoreMem:
@@ -614,6 +617,7 @@ void WasmGenerator::Generate<ValueType::kStmt>(DataRange* data) {
       &WasmGenerator::memop<kExprI64AtomicStore8U, ValueType::kI64>,
       &WasmGenerator::memop<kExprI64AtomicStore16U, ValueType::kI64>,
       &WasmGenerator::memop<kExprI64AtomicStore32U, ValueType::kI64>,
+      &WasmGenerator::memop<kExprS128StoreMem, ValueType::kS128>,
 
       &WasmGenerator::drop,
 
@@ -1053,8 +1057,7 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
       &WasmGenerator::simd_op<kExprF64x2Add, ValueType::kS128,
                               ValueType::kS128>,
 
-      &WasmGenerator::memop<kExprS128LoadMem>,
-      &WasmGenerator::memop<kExprS128StoreMem, ValueType::kS128>};
+      &WasmGenerator::memop<kExprS128LoadMem>};
 
   GenerateOneOf(alternatives, data);
 }
