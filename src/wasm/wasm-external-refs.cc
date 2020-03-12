@@ -325,9 +325,47 @@ void float64_pow_wrapper(Address data) {
   WriteUnalignedValue<double>(data, base::ieee754::pow(x, y));
 }
 
+namespace {
+class ThreadNotInWasmScope {
+// Asan on Windows triggers exceptions to allocate shadow memory lazily. When
+// this function is called from WebAssembly, these exceptions would be handled
+// by the trap handler before they get handled by Asan, and thereby confuse the
+// thread-in-wasm flag. Therefore we disable ASAN for this function.
+// Alternatively we could reset the thread-in-wasm flag before calling this
+// function. However, as this is only a problem with Asan on Windows, we did not
+// consider it worth the overhead.
+#if defined(RESET_THREAD_IN_WASM_FLAG_FOR_ASAN_ON_WINDOWS)
+
+ public:
+  ThreadNotInWasmScope() : thread_was_in_wasm_(trap_handler::IsThreadInWasm()) {
+    if (thread_was_in_wasm_) {
+      trap_handler::ClearThreadInWasm();
+    }
+  }
+
+  ~ThreadNotInWasmScope() {
+    if (thread_was_in_wasm_) {
+      trap_handler::SetThreadInWasm();
+    }
+  }
+
+ private:
+  bool thread_was_in_wasm_;
+#else
+
+ public:
+  ThreadNotInWasmScope() {
+    // This is needed to avoid compilation errors (unused variable).
+    USE(this);
+  }
+#endif
+};
+}  // namespace
+
 int32_t memory_init_wrapper(Address data) {
   constexpr int32_t kSuccess = 1;
   constexpr int32_t kOutOfBounds = 0;
+  ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowHeapAllocation disallow_heap_allocation;
   size_t offset = 0;
   Object raw_instance = ReadUnalignedValue<Object>(data);
@@ -357,6 +395,7 @@ int32_t memory_init_wrapper(Address data) {
 int32_t memory_copy_wrapper(Address data) {
   constexpr int32_t kSuccess = 1;
   constexpr int32_t kOutOfBounds = 0;
+  ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowHeapAllocation disallow_heap_allocation;
   size_t offset = 0;
   Object raw_instance = ReadUnalignedValue<Object>(data);
@@ -378,17 +417,8 @@ int32_t memory_copy_wrapper(Address data) {
   return kSuccess;
 }
 
-// Asan on Windows triggers exceptions in this function that confuse the
-// WebAssembly trap handler, so Asan is disabled. See the comment on
-// memory_copy_wrapper above for more info.
 void memory_fill_wrapper(Address dst, uint32_t value, uint32_t size) {
-#if defined(RESET_THREAD_IN_WASM_FLAG_FOR_ASAN_ON_WINDOWS)
-  bool thread_was_in_wasm = trap_handler::IsThreadInWasm();
-  if (thread_was_in_wasm) {
-    trap_handler::ClearThreadInWasm();
-  }
-#endif
-
+  ThreadNotInWasmScope thread_not_in_wasm_scope;
   // Use an explicit forward copy to match the required semantics for the
   // memory.fill instruction. It is assumed that the caller of this function
   // has already performed bounds checks, so {dst + size} should not overflow.
@@ -398,11 +428,6 @@ void memory_fill_wrapper(Address dst, uint32_t value, uint32_t size) {
   for (; size > 0; size--) {
     *dst8++ = value8;
   }
-#if defined(RESET_THREAD_IN_WASM_FLAG_FOR_ASAN_ON_WINDOWS)
-  if (thread_was_in_wasm) {
-    trap_handler::SetThreadInWasm();
-  }
-#endif
 }
 
 static WasmTrapCallbackForTesting wasm_trap_callback_for_testing = nullptr;
