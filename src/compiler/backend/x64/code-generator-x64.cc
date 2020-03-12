@@ -4061,6 +4061,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64Word64AtomicCompareExchangeUint32: {
       __ lock();
       __ cmpxchgl(i.MemoryOperand(2), i.InputRegister(1));
+      // Zero-extend the 32 bit value to 64 bit.
+      __ movl(rax, rax);
       break;
     }
     case kX64Word64AtomicCompareExchangeUint64: {

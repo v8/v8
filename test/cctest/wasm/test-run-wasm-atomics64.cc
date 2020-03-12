@@ -781,6 +781,23 @@ WASM_EXEC_TEST(I64AtomicCompareExchangeUseOnlyHighWord) {
                WASM_I64V(32))));
   CHECK_EQ(0x12345678, r.Call());
 }
+
+WASM_EXEC_TEST(I64AtomicCompareExchange32UZeroExtended) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t> r(execution_tier);
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  memory[1] = 0;
+  r.builder().SetHasSharedMemory();
+  // Test that the high word of the expected value is cleared in the return
+  // value.
+  BUILD(r, WASM_I64_EQZ(WASM_ATOMICS_TERNARY_OP(
+               kExprI64AtomicCompareExchange32U, WASM_I32V(8),
+               WASM_I64V(0x1234567800000000), WASM_I64V(0),
+               MachineRepresentation::kWord32)));
+  CHECK_EQ(1, r.Call());
+}
+
 }  // namespace test_run_wasm_atomics_64
 }  // namespace wasm
 }  // namespace internal

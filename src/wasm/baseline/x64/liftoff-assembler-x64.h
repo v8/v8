@@ -639,30 +639,37 @@ void LiftoffAssembler::AtomicCompareExchange(
     case StoreType::kI32Store8:
     case StoreType::kI64Store8: {
       cmpxchgb(dst_op, value_reg);
-      movzxbq(rax, rax);
+      movzxbq(result.gp(), rax);
       break;
     }
     case StoreType::kI32Store16:
     case StoreType::kI64Store16: {
       cmpxchgw(dst_op, value_reg);
-      movzxwq(rax, rax);
+      movzxwq(result.gp(), rax);
       break;
     }
-    case StoreType::kI32Store:
+    case StoreType::kI32Store: {
+      cmpxchgl(dst_op, value_reg);
+      if (result.gp() != rax) {
+        movl(result.gp(), rax);
+      }
+      break;
+    }
     case StoreType::kI64Store32: {
       cmpxchgl(dst_op, value_reg);
+      // Zero extension.
+      movl(result.gp(), rax);
       break;
     }
     case StoreType::kI64Store: {
       cmpxchgq(dst_op, value_reg);
+      if (result.gp() != rax) {
+        movq(result.gp(), rax);
+      }
       break;
     }
     default:
       UNREACHABLE();
-  }
-
-  if (result.gp() != rax) {
-    movq(result.gp(), rax);
   }
 }
 
