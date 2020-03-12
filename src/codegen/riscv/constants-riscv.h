@@ -112,7 +112,7 @@ const int kNumRegisters = 32;
 const int kInvalidRegister = -1;
 
 // Number of registers with pc.
-const int kNumSimuRegisters = 35;
+const int kNumSimuRegisters = 33;
 
 // In the simulator, the PC register is simulated as the 34th register.
 const int kPCRegister = 34;
