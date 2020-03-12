@@ -236,12 +236,6 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
 template <typename LocalIsolate>
 InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
     Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
-  RuntimeCallTimerScope runtimeTimerScope(
-      parse_info()->runtime_call_stats(),
-      RuntimeCallCounterId::kCompileIgnitionFinalization);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompileIgnitionFinalization");
-
   Handle<BytecodeArray> bytecodes = compilation_info_.bytecode_array();
   if (bytecodes.is_null()) {
     bytecodes = generator()->FinalizeBytecode(
