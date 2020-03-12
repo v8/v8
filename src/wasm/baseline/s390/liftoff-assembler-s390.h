@@ -65,17 +65,17 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueType type) {
-  switch (type) {
-    case kWasmS128:
-      return ValueTypes::ElementSizeInBytes(type);
+  switch (type.kind()) {
+    case ValueType::kS128:
+      return type.element_size_bytes();
     default:
       return kStackSlotSize;
   }
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueType type) {
-  switch (type) {
-    case kWasmS128:
+  switch (type.kind()) {
+    case ValueType::kS128:
       return true;
     default:
       // No alignment because all other types are kStackSlotSize.
