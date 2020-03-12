@@ -634,7 +634,9 @@ class LiftoffCompiler {
 
   void FinishFunction(FullDecoder* decoder) {
     // All breakpoints (if any) must be emitted by now.
-    DCHECK_NULL(next_breakpoint_ptr_);
+    DCHECK(next_breakpoint_ptr_ == nullptr ||
+           (*next_breakpoint_ptr_ == 0 &&
+            next_breakpoint_ptr_ + 1 == next_breakpoint_end_));
     if (DidAssemblerBailout(decoder)) return;
     for (OutOfLineCode& ool : out_of_line_code_) {
       GenerateOutOfLineCode(&ool);
@@ -655,13 +657,19 @@ class LiftoffCompiler {
   }
 
   void NextInstruction(FullDecoder* decoder, WasmOpcode opcode) {
-    if (V8_UNLIKELY(next_breakpoint_ptr_) &&
-        *next_breakpoint_ptr_ == decoder->position()) {
-      ++next_breakpoint_ptr_;
-      if (next_breakpoint_ptr_ == next_breakpoint_end_) {
-        next_breakpoint_ptr_ = next_breakpoint_end_ = nullptr;
+    if (V8_UNLIKELY(next_breakpoint_ptr_)) {
+      if (*next_breakpoint_ptr_ == 0) {
+        // A single breakpoint at offset 0 indicates stepping.
+        DCHECK_EQ(next_breakpoint_ptr_ + 1, next_breakpoint_end_);
+        EmitBreakpoint(decoder);
+      } else if (*next_breakpoint_ptr_ == decoder->position()) {
+        ++next_breakpoint_ptr_;
+        // TODO(thibaudm): skip unreachable breakpoints.
+        if (next_breakpoint_ptr_ == next_breakpoint_end_) {
+          next_breakpoint_ptr_ = next_breakpoint_end_ = nullptr;
+        }
+        EmitBreakpoint(decoder);
       }
-      EmitBreakpoint(decoder);
     }
     TraceCacheState(decoder);
 #ifdef DEBUG
@@ -2834,6 +2842,8 @@ class LiftoffCompiler {
   uint32_t pc_offset_stack_frame_construction_ = 0;
   // For emitting breakpoint, we store a pointer to the position of the next
   // breakpoint, and a pointer after the list of breakpoints as end marker.
+  // A single breakpoint at offset 0 indicates that we should prepare the
+  // function for stepping by flooding it with breakpoints.
   int* next_breakpoint_ptr_ = nullptr;
   int* next_breakpoint_end_ = nullptr;
 

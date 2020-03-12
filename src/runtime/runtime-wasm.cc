@@ -19,6 +19,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-constants.h"
+#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-value.h"
@@ -615,6 +616,13 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   // Enter the debugger.
   DebugScope debug_scope(isolate->debug());
 
+  const auto undefined = ReadOnlyRoots(isolate).undefined_value();
+  auto* debug_info = frame_finder.frame()->native_module()->GetDebugInfo();
+  if (debug_info->IsStepping(frame_finder.frame())) {
+    isolate->debug()->OnDebugBreak(isolate->factory()->empty_fixed_array());
+    return undefined;
+  }
+
   // Check whether we hit a breakpoint.
   if (isolate->debug()->break_points_active()) {
     Handle<Script> script(instance->module_object().script(), isolate);
@@ -626,7 +634,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
     }
   }
 
-  return ReadOnlyRoots(isolate).undefined_value();
+  return undefined;
 }
 
 }  // namespace internal

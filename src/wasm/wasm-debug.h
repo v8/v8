@@ -23,6 +23,7 @@ class Handle;
 class JSObject;
 template <typename T>
 class Vector;
+class WasmCompiledFrame;
 class WasmInstanceObject;
 
 namespace wasm {
@@ -145,6 +146,10 @@ class DebugInfo {
   WireBytesRef GetLocalName(int func_index, int local_index);
 
   void SetBreakpoint(int func_index, int offset, Isolate* current_isolate);
+
+  void PrepareStep(Isolate*);
+
+  bool IsStepping(WasmCompiledFrame*);
 
   void RemoveDebugSideTables(Vector<WasmCode* const>);
 

@@ -613,6 +613,35 @@ class DebugInfoImpl {
     return local_names_->GetName(func_index, local_index);
   }
 
+  void RecompileLiftoffWithBreakpoints(int func_index, Vector<int> offsets,
+                                       Isolate* current_isolate) {
+    // Recompile the function with Liftoff, setting the new breakpoints.
+    // Not thread-safe. The caller is responsible for locking {mutex_}.
+    CompilationEnv env = native_module_->CreateCompilationEnv();
+    auto* function = &native_module_->module()->functions[func_index];
+    Vector<const uint8_t> wire_bytes = native_module_->wire_bytes();
+    FunctionBody body{function->sig, function->code.offset(),
+                      wire_bytes.begin() + function->code.offset(),
+                      wire_bytes.begin() + function->code.end_offset()};
+    std::unique_ptr<DebugSideTable> debug_sidetable;
+
+    WasmCompilationResult result;
+    result = ExecuteLiftoffCompilation(native_module_->engine()->allocator(),
+                                       &env, body, func_index, nullptr, nullptr,
+                                       offsets, &debug_sidetable);
+    DCHECK(result.succeeded());
+    DCHECK_NOT_NULL(debug_sidetable);
+
+    WasmCodeRefScope wasm_code_ref_scope;
+    WasmCode* new_code = native_module_->AddCompiledCode(std::move(result));
+    bool added =
+        debug_side_tables_.emplace(new_code, std::move(debug_sidetable)).second;
+    DCHECK(added);
+    USE(added);
+
+    UpdateReturnAddresses(current_isolate, new_code);
+  }
+
   void SetBreakpoint(int func_index, int offset, Isolate* current_isolate) {
     // Hold the mutex while setting the breakpoint. This guards against multiple
     // isolates setting breakpoints at the same time. We don't really support
@@ -621,37 +650,44 @@ class DebugInfoImpl {
     base::MutexGuard guard(&mutex_);
 
     std::vector<int>& breakpoints = breakpoints_per_function_[func_index];
-    auto insertion_point =
-        std::lower_bound(breakpoints.begin(), breakpoints.end(), offset);
-    if (insertion_point != breakpoints.end() && *insertion_point == offset) {
-      // The breakpoint is already set.
-      return;
+    // offset == 0 indicates flooding and is handled by the compiler.
+    if (offset != 0) {
+      auto insertion_point =
+          std::lower_bound(breakpoints.begin(), breakpoints.end(), offset);
+      if (insertion_point != breakpoints.end() && *insertion_point == offset) {
+        // The breakpoint is already set.
+        return;
+      }
+      breakpoints.insert(insertion_point, offset);
     }
-    breakpoints.insert(insertion_point, offset);
 
-    // Recompile the function with Liftoff, setting the new breakpoints.
-    CompilationEnv env = native_module_->CreateCompilationEnv();
-    auto* function = &native_module_->module()->functions[func_index];
-    Vector<const uint8_t> wire_bytes = native_module_->wire_bytes();
-    FunctionBody body{function->sig, function->code.offset(),
-                      wire_bytes.begin() + function->code.offset(),
-                      wire_bytes.begin() + function->code.end_offset()};
-    std::unique_ptr<DebugSideTable> debug_sidetable;
-    WasmCompilationResult result = ExecuteLiftoffCompilation(
-        native_module_->engine()->allocator(), &env, body, func_index, nullptr,
-        nullptr, VectorOf(breakpoints), &debug_sidetable);
-    DCHECK(result.succeeded());
-    DCHECK_NOT_NULL(debug_sidetable);
+    RecompileLiftoffWithBreakpoints(func_index, VectorOf(breakpoints),
+                                    current_isolate);
+  }
 
-    WasmCodeRefScope wasm_code_ref_scope;
-    WasmCode* new_code = native_module_->AddCompiledCode(std::move(result));
+  void FloodWithBreakpoints(NativeModule* native_module, int func_index,
+                            Isolate* current_isolate) {
+    base::MutexGuard guard(&mutex_);
+    // 0 is an invalid offset used to indicate flooding.
+    int offset = 0;
+    RecompileLiftoffWithBreakpoints(func_index, Vector<int>(&offset, 1),
+                                    current_isolate);
+  }
 
-    bool added =
-        debug_side_tables_.emplace(new_code, std::move(debug_sidetable)).second;
-    DCHECK(added);
-    USE(added);
+  void PrepareStep(Isolate* isolate) {
+    StackTraceFrameIterator it(isolate);
+    DCHECK(!it.done());
+    DCHECK(it.frame()->is_wasm_compiled());
+    WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
+    if (frame->id() != stepping_frame_) {
+      FloodWithBreakpoints(frame->native_module(), frame->function_index(),
+                           isolate);
+      stepping_frame_ = frame->id();
+    }
+  }
 
-    UpdateReturnAddresses(current_isolate, new_code);
+  bool IsStepping(WasmCompiledFrame* frame) {
+    return frame->id() == stepping_frame_;
   }
 
   void RemoveDebugSideTables(Vector<WasmCode* const> codes) {
@@ -749,6 +785,10 @@ class DebugInfoImpl {
   // function).
   std::unordered_map<int, std::vector<int>> breakpoints_per_function_;
 
+  // Store the frame ID when stepping, to avoid breaking in recursive calls of
+  // the same function.
+  StackFrameId stepping_frame_ = NO_ID;
+
   DISALLOW_COPY_AND_ASSIGN(DebugInfoImpl);
 };
 
@@ -769,6 +809,12 @@ WireBytesRef DebugInfo::GetLocalName(int func_index, int local_index) {
 void DebugInfo::SetBreakpoint(int func_index, int offset,
                               Isolate* current_isolate) {
   impl_->SetBreakpoint(func_index, offset, current_isolate);
+}
+
+void DebugInfo::PrepareStep(Isolate* isolate) { impl_->PrepareStep(isolate); }
+
+bool DebugInfo::IsStepping(WasmCompiledFrame* frame) {
+  return impl_->IsStepping(frame);
 }
 
 void DebugInfo::RemoveDebugSideTables(Vector<WasmCode* const> code) {
@@ -985,7 +1031,7 @@ Handle<Code> WasmDebugInfo::GetCWasmEntry(Handle<WasmDebugInfo> debug_info,
 
 namespace {
 
-// Return the next breakable position after {offset_in_func} in function
+// Return the next breakable position at or after {offset_in_func} in function
 // {func_index}, or 0 if there is none.
 // Note that 0 is never a breakable position in wasm, since the first byte
 // contains the locals count for the function.

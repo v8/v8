@@ -37,6 +37,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/snapshot.h"
+#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
@@ -1002,6 +1003,15 @@ void Debug::PrepareStep(StepAction step_action) {
     if (wasm_frame->NumberOfActiveFrames() > 0) {
       wasm_frame->debug_info().PrepareStep(step_action);
       return;
+    }
+  }
+  // Handle stepping in Liftoff code.
+  if (FLAG_debug_in_liftoff && frame->is_wasm_compiled()) {
+    WasmCompiledFrame* wasm_frame = WasmCompiledFrame::cast(frame);
+    wasm::WasmCodeRefScope code_ref_scope;
+    wasm::WasmCode* code = wasm_frame->wasm_code();
+    if (code->is_liftoff()) {
+      wasm_frame->native_module()->GetDebugInfo()->PrepareStep(isolate_);
     }
   }
   // If this is wasm, but there are no interpreted frames on top, all we can do
