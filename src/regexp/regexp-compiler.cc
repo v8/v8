@@ -8,7 +8,6 @@
 #include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
-#include "src/regexp/regexp-macro-assembler-tracer.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/regexp/special-case.h"
 #endif  // V8_INTL_SUPPORT
@@ -245,12 +244,7 @@ RegExpCompiler::RegExpCompiler(Isolate* isolate, Zone* zone, int capture_count,
 RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
     Isolate* isolate, RegExpMacroAssembler* macro_assembler, RegExpNode* start,
     int capture_count, Handle<String> pattern) {
-#ifdef DEBUG
-  if (FLAG_trace_regexp_assembler)
-    macro_assembler_ = new RegExpMacroAssemblerTracer(isolate, macro_assembler);
-  else
-#endif
-    macro_assembler_ = macro_assembler;
+  macro_assembler_ = macro_assembler;
 
   ZoneVector<RegExpNode*> work_list(zone());
   work_list_ = &work_list;
@@ -275,11 +269,6 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
   isolate->IncreaseTotalRegexpCodeGenerated(code);
   work_list_ = nullptr;
 
-#ifdef DEBUG
-  if (FLAG_trace_regexp_assembler) {
-    delete macro_assembler_;
-  }
-#endif
   return {*code, next_register_};
 }
 

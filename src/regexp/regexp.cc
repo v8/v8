@@ -14,6 +14,7 @@
 #include "src/regexp/regexp-dotprinter.h"
 #include "src/regexp/regexp-interpreter.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
+#include "src/regexp/regexp-macro-assembler-tracer.h"
 #include "src/regexp/regexp-parser.h"
 #include "src/strings/string-search.h"
 #include "src/utils/ostreams.h"
@@ -878,8 +879,18 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
     macro_assembler->set_global_mode(mode);
   }
 
+  RegExpMacroAssembler* macro_assembler_ptr = macro_assembler.get();
+#ifdef DEBUG
+  std::unique_ptr<RegExpMacroAssembler> tracer_macro_assembler;
+  if (FLAG_trace_regexp_assembler) {
+    tracer_macro_assembler.reset(
+        new RegExpMacroAssemblerTracer(isolate, macro_assembler_ptr));
+    macro_assembler_ptr = tracer_macro_assembler.get();
+  }
+#endif
+
   RegExpCompiler::CompilationResult result = compiler.Assemble(
-      isolate, macro_assembler.get(), node, data->capture_count, pattern);
+      isolate, macro_assembler_ptr, node, data->capture_count, pattern);
 
   // Code / bytecode printing.
   {
