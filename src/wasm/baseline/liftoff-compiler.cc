@@ -2682,9 +2682,33 @@ class LiftoffCompiler {
 
   void AtomicFence(FullDecoder* decoder) { __ AtomicFence(); }
   void MemoryInit(FullDecoder* decoder,
-                  const MemoryInitImmediate<validate>& imm, const Value& dst,
-                  const Value& src, const Value& size) {
-    unsupported(decoder, kBulkMemory, "memory.init");
+                  const MemoryInitImmediate<validate>& imm, const Value&,
+                  const Value&, const Value&) {
+    LiftoffRegList pinned;
+    LiftoffRegister size = pinned.set(__ PopToRegister());
+    LiftoffRegister src = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister dst = pinned.set(__ PopToRegister(pinned));
+
+    Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    __ FillInstanceInto(instance);
+
+    LiftoffRegister segment_index =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(segment_index, WasmValue(imm.data_segment_index));
+
+    ExternalReference ext_ref = ExternalReference::wasm_memory_init();
+    ValueType sig_reps[] = {kWasmI32, kPointerValueType, kWasmI32,
+                            kWasmI32, kWasmI32,          kWasmI32};
+    FunctionSig sig(1, 5, sig_reps);
+    LiftoffRegister args[] = {LiftoffRegister(instance), dst, src,
+                              segment_index, size};
+    // We don't need the instance anymore after the call. We can use the
+    // register for the result.
+    LiftoffRegister result(instance);
+    GenerateCCall(&result, &sig, kWasmStmt, args, ext_ref);
+    Label* trap_label = AddOutOfLineTrap(
+        decoder->position(), WasmCode::kThrowWasmTrapMemOutOfBounds);
+    __ emit_cond_jump(kEqual, trap_label, kWasmI32, result.gp());
   }
   void DataDrop(FullDecoder* decoder, const DataDropImmediate<validate>& imm) {
     unsupported(decoder, kBulkMemory, "data.drop");
