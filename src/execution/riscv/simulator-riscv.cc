@@ -38,25 +38,26 @@ uint32_t get_fcsr_condition_bit(uint32_t cc) {
     return 24 + cc;
   }
 }
-
+// FIXME(RISCV) This function is not used in RISCV.  commented it out. RY	
+/*
 static int64_t MultiplyHighSigned(int64_t u, int64_t v) {
-  uint64_t u0, v0, w0;
-  int64_t u1, v1, w1, w2, t;
+  uint64_t u0, a0, w0;
+  int64_t u1, a1, w1, w2, t;
 
   u0 = u & 0xFFFFFFFFL;
   u1 = u >> 32;
-  v0 = v & 0xFFFFFFFFL;
-  v1 = v >> 32;
+  a0 = v & 0xFFFFFFFFL;
+  a1 = v >> 32;
 
-  w0 = u0 * v0;
-  t = u1 * v0 + (w0 >> 32);
+  w0 = u0 * a0;
+  t = u1 * a0 + (w0 >> 32);
   w1 = t & 0xFFFFFFFFL;
   w2 = t >> 32;
-  w1 = u0 * v1 + w1;
+  w1 = u0 * a1 + w1;
 
-  return u1 * v1 + w2 + (w1 >> 32);
+  return u1 * a1 + w2 + (w1 >> 32);
 }
-
+*/
 // This macro provides a platform independent use of sscanf. The reason for
 // SScanF not being implemented in a platform independent was through
 // ::v8::internal::OS in the same way as SNPrintF is that the Windows C Run-Time
@@ -198,11 +199,11 @@ void MipsDebugger::PrintAllRegs() {
 #define REG_INFO(n) Registers::Name(n), GetRegisterValue(n), GetRegisterValue(n)
 
   PrintF("\n");
-  // at, v0, a0.
+  // at, a0, a0.
   PrintF("%3s: 0x%016" PRIx64 " %14" PRId64 "\t%3s: 0x%016" PRIx64 " %14" PRId64
          "\t%3s: 0x%016" PRIx64 " %14" PRId64 "\n",
          REG_INFO(1), REG_INFO(2), REG_INFO(4));
-  // v1, a1.
+  // a1, a1.
   PrintF("%34s\t%3s: 0x%016" PRIx64 "  %14" PRId64 " \t%3s: 0x%016" PRIx64
          "  %14" PRId64 " \n",
          "", REG_INFO(3), REG_INFO(5));
@@ -970,7 +971,7 @@ void Simulator::set_msa_register(int wreg, const T* value) {
 
 // Runtime FP routines take up to two double arguments and zero
 // or one integer arguments. All are constructed here,
-// from a0-a3 or f12 and f13 (n64), or f14 (O32).
+// from a0-a3 or fa0 and fa1 (n64), or fa2 (O32).
 void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
   if (!IsMipsSoftFloatABI) {
     const int fparg2 = 13;
@@ -998,7 +999,7 @@ void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
   }
 }
 
-// The return value is either in v0/v1 or f0.
+// The return value is either in a0/a1 or ft0.
 void Simulator::SetFpResult(const double& result) {
   if (!IsMipsSoftFloatABI) {
     set_fpu_register_double(0, result);
@@ -1006,9 +1007,9 @@ void Simulator::SetFpResult(const double& result) {
     char buffer[2 * sizeof(registers_[0])];
     int64_t* reg_buffer = reinterpret_cast<int64_t*>(buffer);
     memcpy(buffer, &result, sizeof(buffer));
-    // Copy result to v0 and v1.
-    set_register(v0, reg_buffer[0]);
-    set_register(v1, reg_buffer[1]);
+    // Copy result to a0 and a1.
+    set_register(a0, reg_buffer[0]);
+    set_register(a1, reg_buffer[1]);
   }
 }
 
@@ -2168,7 +2169,7 @@ void Simulator::Format(Instruction* instr, const char* format) {
 // Note: To be able to return two values from some calls the code in runtime.cc
 // uses the ObjectPair which is essentially two 32-bit values stuffed into a
 // 64-bit value. With the code below we assume that all runtime calls return
-// 64 bits of result. If they don't, the v1 result register contains a bogus
+// 64 bits of result. If they don't, the a1 result register contains a bogus
 // value, which is fine because it is caller-saved.
 
 using SimulatorRuntimeCall = ObjectPair (*)(int64_t arg0, int64_t arg1,
@@ -2233,18 +2234,18 @@ void Simulator::SoftwareInterrupt() {
       switch (redirection->type()) {
         case ExternalReference::BUILTIN_FP_FP_CALL:
         case ExternalReference::BUILTIN_COMPARE_CALL:
-          arg0 = get_fpu_register(f12);
-          arg1 = get_fpu_register(f13);
-          arg2 = get_fpu_register(f14);
-          arg3 = get_fpu_register(f15);
+          arg0 = get_fpu_register(fa0);
+          arg1 = get_fpu_register(fa1);
+          arg2 = get_fpu_register(fa2);
+          arg3 = get_fpu_register(fa3);
           break;
         case ExternalReference::BUILTIN_FP_CALL:
-          arg0 = get_fpu_register(f12);
-          arg1 = get_fpu_register(f13);
+          arg0 = get_fpu_register(fa0);
+          arg1 = get_fpu_register(fa1);
           break;
         case ExternalReference::BUILTIN_FP_INT_CALL:
-          arg0 = get_fpu_register(f12);
-          arg1 = get_fpu_register(f13);
+          arg0 = get_fpu_register(fa0);
+          arg1 = get_fpu_register(fa1);
           arg2 = get_register(a2);
           break;
         default:
@@ -2299,8 +2300,8 @@ void Simulator::SoftwareInterrupt() {
           SimulatorRuntimeCompareCall target =
               reinterpret_cast<SimulatorRuntimeCompareCall>(external);
           iresult = target(dval0, dval1);
-          set_register(v0, static_cast<int64_t>(iresult));
-          //  set_register(v1, static_cast<int64_t>(iresult >> 32));
+          set_register(a0, static_cast<int64_t>(iresult));
+          //  set_register(a1, static_cast<int64_t>(iresult >> 32));
           break;
         }
         case ExternalReference::BUILTIN_FP_FP_CALL: {
@@ -2395,12 +2396,12 @@ void Simulator::SoftwareInterrupt() {
       }
       ObjectPair result =
           target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
-      set_register(v0, (int64_t)(result.x));
-      set_register(v1, (int64_t)(result.y));
+      set_register(a0, (int64_t)(result.x));
+      set_register(a1, (int64_t)(result.y));
     }
     if (::v8::internal::FLAG_trace_sim) {
-      PrintF("Returned %08" PRIx64 "  : %08" PRIx64 " \n", get_register(v1),
-             get_register(v0));
+      PrintF("Returned %08" PRIx64 "  : %08" PRIx64 " \n", get_register(a1),
+             get_register(a0));
     }
     set_register(ra, saved_ra);
     set_pc(get_register(ra));
@@ -3674,6 +3675,8 @@ void Simulator::DecodeTypeRegisterCOP1X() {
 }
 
 void Simulator::DecodeTypeRegisterSPECIAL() {
+// FIXME(RISCV) This function is not supported in RISCV.  commented it out. RY
+/*
   int64_t i64hilo;
   uint64_t u64hilo;
   int64_t alu_out;
@@ -4142,9 +4145,12 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
   if (do_interrupt) {
     SoftwareInterrupt();
   }
+*/	
 }
 
 void Simulator::DecodeTypeRegisterSPECIAL2() {
+// FIXME(RISCV) This function is not supported in RISCV.  commented it out. RY
+/*
   int64_t alu_out;
   switch (instr_.FunctionFieldRaw()) {
     case MUL:
@@ -4170,6 +4176,7 @@ void Simulator::DecodeTypeRegisterSPECIAL2() {
       alu_out = 0x12345678;
       UNREACHABLE();
   }
+*/	
 }
 
 void Simulator::DecodeTypeRegisterSPECIAL3() {
@@ -8503,15 +8510,15 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   CHECK_EQ(entry_stack, get_register(sp));
   set_register(sp, original_stack);
 
-  // return get_register(v0);
+  // return get_register(a0);
   // RISCV uses a0 to return result
   return get_register(a0);
 }
 
 double Simulator::CallFP(Address entry, double d0, double d1) {
   if (!IsMipsSoftFloatABI) {
-    const FPURegister fparg2 = f13;
-    set_fpu_register_double(f12, d0);
+    const FPURegister fparg2 = fa1;
+    set_fpu_register_double(fa0, d0);
     set_fpu_register_double(fparg2, d1);
   } else {
     int buffer[2];
@@ -8523,9 +8530,9 @@ double Simulator::CallFP(Address entry, double d0, double d1) {
   }
   CallInternal(entry);
   if (!IsMipsSoftFloatABI) {
-    return get_fpu_register_double(f0);
+    return get_fpu_register_double(ft0);
   } else {
-    return get_double_from_register_pair(v0);
+    return get_double_from_register_pair(a0);
   }
 }
 
