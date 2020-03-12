@@ -443,12 +443,12 @@ bool WasmOpcodes::IsSimdPostMvpOpcode(WasmOpcode opcode) {
 std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   if (sig.return_count() == 0) os << "v";
   for (auto ret : sig.returns()) {
-    os << ValueTypes::ShortNameOf(ret);
+    os << ret.short_name();
   }
   os << "_";
   if (sig.parameter_count() == 0) os << "v";
   for (auto param : sig.parameters()) {
-    os << ValueTypes::ShortNameOf(param);
+    os << param.short_name();
   }
   return os;
 }

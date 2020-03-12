@@ -62,18 +62,18 @@ auto ReadLebU64(const byte_t** pos) -> uint64_t {
 }
 
 ValKind V8ValueTypeToWasm(i::wasm::ValueType v8_valtype) {
-  switch (v8_valtype) {
-    case i::wasm::kWasmI32:
+  switch (v8_valtype.kind()) {
+    case i::wasm::ValueType::kI32:
       return I32;
-    case i::wasm::kWasmI64:
+    case i::wasm::ValueType::kI64:
       return I64;
-    case i::wasm::kWasmF32:
+    case i::wasm::ValueType::kF32:
       return F32;
-    case i::wasm::kWasmF64:
+    case i::wasm::ValueType::kF64:
       return F64;
-    case i::wasm::kWasmFuncRef:
+    case i::wasm::ValueType::kFuncRef:
       return FUNCREF;
-    case i::wasm::kWasmAnyRef:
+    case i::wasm::ValueType::kAnyRef:
       return ANYREF;
     default:
       // TODO(wasm+): support new value types
@@ -1212,7 +1212,7 @@ namespace {
 class SignatureHelper : public i::AllStatic {
  public:
   // Use an invalid type as a marker separating params and results.
-  static const i::wasm::ValueType kMarker = i::wasm::kWasmStmt;
+  static constexpr i::wasm::ValueType kMarker = i::wasm::kWasmStmt;
 
   static i::Handle<i::PodArray<i::wasm::ValueType>> Serialize(
       i::Isolate* isolate, FuncType* type) {
@@ -1397,25 +1397,25 @@ void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
               i::wasm::CWasmArgumentsPacker* packer, StoreImpl* store) {
   for (size_t i = 0; i < sig->parameter_count(); i++) {
     i::wasm::ValueType type = sig->GetParam(i);
-    switch (type) {
-      case i::wasm::kWasmI32:
+    switch (type.kind()) {
+      case i::wasm::ValueType::kI32:
         packer->Push(args[i].i32());
         break;
-      case i::wasm::kWasmI64:
+      case i::wasm::ValueType::kI64:
         packer->Push(args[i].i64());
         break;
-      case i::wasm::kWasmF32:
+      case i::wasm::ValueType::kF32:
         packer->Push(args[i].f32());
         break;
-      case i::wasm::kWasmF64:
+      case i::wasm::ValueType::kF64:
         packer->Push(args[i].f64());
         break;
-      case i::wasm::kWasmAnyRef:
-      case i::wasm::kWasmFuncRef:
-      case i::wasm::kWasmNullRef:
+      case i::wasm::ValueType::kAnyRef:
+      case i::wasm::ValueType::kFuncRef:
+      case i::wasm::ValueType::kNullRef:
         packer->Push(WasmRefToV8(store->i_isolate(), args[i].ref())->ptr());
         break;
-      case i::wasm::kWasmExnRef:
+      case i::wasm::ValueType::kExnRef:
         // TODO(jkummerow): Implement these.
         UNIMPLEMENTED();
         break;
@@ -1430,29 +1430,29 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
   packer->Reset();
   for (size_t i = 0; i < sig->return_count(); i++) {
     i::wasm::ValueType type = sig->GetReturn(i);
-    switch (type) {
-      case i::wasm::kWasmI32:
+    switch (type.kind()) {
+      case i::wasm::ValueType::kI32:
         results[i] = Val(packer->Pop<int32_t>());
         break;
-      case i::wasm::kWasmI64:
+      case i::wasm::ValueType::kI64:
         results[i] = Val(packer->Pop<int64_t>());
         break;
-      case i::wasm::kWasmF32:
+      case i::wasm::ValueType::kF32:
         results[i] = Val(packer->Pop<float>());
         break;
-      case i::wasm::kWasmF64:
+      case i::wasm::ValueType::kF64:
         results[i] = Val(packer->Pop<double>());
         break;
-      case i::wasm::kWasmAnyRef:
-      case i::wasm::kWasmFuncRef:
-      case i::wasm::kWasmNullRef: {
+      case i::wasm::ValueType::kAnyRef:
+      case i::wasm::ValueType::kFuncRef:
+      case i::wasm::ValueType::kNullRef: {
         i::Address raw = packer->Pop<i::Address>();
         i::Handle<i::Object> obj(i::Object(raw), store->i_isolate());
         DCHECK_IMPLIES(type == i::wasm::kWasmNullRef, obj->IsNull());
         results[i] = Val(V8RefValueToWasm(store, obj));
         break;
       }
-      case i::wasm::kWasmExnRef:
+      case i::wasm::ValueType::kExnRef:
         // TODO(jkummerow): Implement these.
         UNIMPLEMENTED();
         break;
@@ -1694,17 +1694,17 @@ auto Global::type() const -> own<GlobalType> {
 
 auto Global::get() const -> Val {
   i::Handle<i::WasmGlobalObject> v8_global = impl(this)->v8_object();
-  switch (v8_global->type()) {
-    case i::wasm::kWasmI32:
+  switch (v8_global->type().kind()) {
+    case i::wasm::ValueType::kI32:
       return Val(v8_global->GetI32());
-    case i::wasm::kWasmI64:
+    case i::wasm::ValueType::kI64:
       return Val(v8_global->GetI64());
-    case i::wasm::kWasmF32:
+    case i::wasm::ValueType::kF32:
       return Val(v8_global->GetF32());
-    case i::wasm::kWasmF64:
+    case i::wasm::ValueType::kF64:
       return Val(v8_global->GetF64());
-    case i::wasm::kWasmAnyRef:
-    case i::wasm::kWasmFuncRef: {
+    case i::wasm::ValueType::kAnyRef:
+    case i::wasm::ValueType::kFuncRef: {
       StoreImpl* store = impl(this)->store();
       i::HandleScope scope(store->i_isolate());
       return Val(V8RefValueToWasm(store, v8_global->GetRef()));
@@ -1811,11 +1811,11 @@ auto Table::type() const -> own<TableType> {
   uint32_t max;
   if (!table->maximum_length().ToUint32(&max)) max = 0xFFFFFFFFu;
   ValKind kind;
-  switch (table->type()) {
-    case i::wasm::kWasmFuncRef:
+  switch (table->type().kind()) {
+    case i::wasm::ValueType::kFuncRef:
       kind = FUNCREF;
       break;
-    case i::wasm::kWasmAnyRef:
+    case i::wasm::ValueType::kAnyRef:
       kind = ANYREF;
       break;
     default:

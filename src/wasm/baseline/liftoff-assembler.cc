@@ -22,6 +22,8 @@ namespace wasm {
 
 using VarState = LiftoffAssembler::VarState;
 
+constexpr ValueType LiftoffAssembler::kWasmIntPtr;
+
 namespace {
 
 class StackTransferRecipe {
@@ -922,7 +924,7 @@ void LiftoffAssembler::set_num_locals(uint32_t num_locals) {
 }
 
 std::ostream& operator<<(std::ostream& os, VarState slot) {
-  os << ValueTypes::TypeName(slot.type()) << ":";
+  os << slot.type().type_name() << ":";
   switch (slot.loc()) {
     case VarState::kStack:
       return os << "s";

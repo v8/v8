@@ -40,21 +40,21 @@ static constexpr LiftoffRegList kByteRegs =
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
                  int32_t offset, ValueType type) {
   Operand src(base, offset);
-  switch (type) {
-    case kWasmI32:
+  switch (type.kind()) {
+    case ValueType::kI32:
       assm->mov(dst.gp(), src);
       break;
-    case kWasmI64:
+    case ValueType::kI64:
       assm->mov(dst.low_gp(), src);
       assm->mov(dst.high_gp(), Operand(base, offset + 4));
       break;
-    case kWasmF32:
+    case ValueType::kF32:
       assm->movss(dst.fp(), src);
       break;
-    case kWasmF64:
+    case ValueType::kF64:
       assm->movsd(dst.fp(), src);
       break;
-    case kWasmS128:
+    case ValueType::kS128:
       assm->movdqu(dst.fp(), src);
       break;
     default:
@@ -65,18 +65,18 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
 inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
                   LiftoffRegister src, ValueType type) {
   Operand dst(base, offset);
-  switch (type) {
-    case kWasmI32:
+  switch (type.kind()) {
+    case ValueType::kI32:
       assm->mov(dst, src.gp());
       break;
-    case kWasmI64:
+    case ValueType::kI64:
       assm->mov(dst, src.low_gp());
       assm->mov(Operand(base, offset + 4), src.high_gp());
       break;
-    case kWasmF32:
+    case ValueType::kF32:
       assm->movss(dst, src.fp());
       break;
-    case kWasmF64:
+    case ValueType::kF64:
       assm->movsd(dst, src.fp());
       break;
     default:
@@ -85,23 +85,23 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
 }
 
 inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
-  switch (type) {
-    case kWasmI32:
+  switch (type.kind()) {
+    case ValueType::kI32:
       assm->push(reg.gp());
       break;
-    case kWasmI64:
+    case ValueType::kI64:
       assm->push(reg.high_gp());
       assm->push(reg.low_gp());
       break;
-    case kWasmF32:
+    case ValueType::kF32:
       assm->AllocateStackSpace(sizeof(float));
       assm->movss(Operand(esp, 0), reg.fp());
       break;
-    case kWasmF64:
+    case ValueType::kF64:
       assm->AllocateStackSpace(sizeof(double));
       assm->movsd(Operand(esp, 0), reg.fp());
       break;
-    case kWasmS128:
+    case ValueType::kS128:
       assm->AllocateStackSpace(sizeof(double) * 2);
       assm->movdqu(Operand(esp, 0), reg.fp());
       break;
@@ -202,18 +202,18 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueType type) {
-  return ValueTypes::ElementSizeInBytes(type);
+  return type.element_size_bytes();
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueType type) { return false; }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
-  switch (value.type()) {
-    case kWasmI32:
+  switch (value.type().kind()) {
+    case ValueType::kI32:
       TurboAssembler::Move(reg.gp(), Immediate(value.to_i32(), rmode));
       break;
-    case kWasmI64: {
+    case ValueType::kI64: {
       DCHECK(RelocInfo::IsNone(rmode));
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
@@ -221,10 +221,10 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       TurboAssembler::Move(reg.high_gp(), Immediate(high_word));
       break;
     }
-    case kWasmF32:
+    case ValueType::kF32:
       TurboAssembler::Move(reg.fp(), value.to_f32_boxed().get_bits());
       break;
-    case kWasmF64:
+    case ValueType::kF64:
       TurboAssembler::Move(reg.fp(), value.to_f64_boxed().get_bits());
       break;
     default:
@@ -578,21 +578,21 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
 void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
   RecordUsedSpillOffset(offset);
   Operand dst = liftoff::GetStackSlot(offset);
-  switch (type) {
-    case kWasmI32:
+  switch (type.kind()) {
+    case ValueType::kI32:
       mov(dst, reg.gp());
       break;
-    case kWasmI64:
+    case ValueType::kI64:
       mov(liftoff::GetHalfStackSlot(offset, kLowWord), reg.low_gp());
       mov(liftoff::GetHalfStackSlot(offset, kHighWord), reg.high_gp());
       break;
-    case kWasmF32:
+    case ValueType::kF32:
       movss(dst, reg.fp());
       break;
-    case kWasmF64:
+    case ValueType::kF64:
       movsd(dst, reg.fp());
       break;
-    case kWasmS128:
+    case ValueType::kS128:
       movdqu(dst, reg.fp());
       break;
     default:
@@ -603,11 +603,11 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
 void LiftoffAssembler::Spill(int offset, WasmValue value) {
   RecordUsedSpillOffset(offset);
   Operand dst = liftoff::GetStackSlot(offset);
-  switch (value.type()) {
-    case kWasmI32:
+  switch (value.type().kind()) {
+    case ValueType::kI32:
       mov(dst, Immediate(value.to_i32()));
       break;
-    case kWasmI64: {
+    case ValueType::kI64: {
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
       mov(liftoff::GetHalfStackSlot(offset, kLowWord), Immediate(low_word));
@@ -622,21 +622,21 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
 
 void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
   Operand src = liftoff::GetStackSlot(offset);
-  switch (type) {
-    case kWasmI32:
+  switch (type.kind()) {
+    case ValueType::kI32:
       mov(reg.gp(), src);
       break;
-    case kWasmI64:
+    case ValueType::kI64:
       mov(reg.low_gp(), liftoff::GetHalfStackSlot(offset, kLowWord));
       mov(reg.high_gp(), liftoff::GetHalfStackSlot(offset, kHighWord));
       break;
-    case kWasmF32:
+    case ValueType::kF32:
       movss(reg.fp(), src);
       break;
-    case kWasmF64:
+    case ValueType::kF64:
       movsd(reg.fp(), src);
       break;
-    case kWasmS128:
+    case ValueType::kS128:
       movdqu(reg.fp(), src);
       break;
     default:
@@ -1783,8 +1783,8 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
                                       ValueType type, Register lhs,
                                       Register rhs) {
   if (rhs != no_reg) {
-    switch (type) {
-      case kWasmI32:
+    switch (type.kind()) {
+      case ValueType::kI32:
         cmp(lhs, rhs);
         break;
       default:
@@ -2118,7 +2118,7 @@ void LiftoffAssembler::CallC(const wasm::FunctionSig* sig,
   int arg_bytes = 0;
   for (ValueType param_type : sig->parameters()) {
     liftoff::Store(this, esp, arg_bytes, *args++, param_type);
-    arg_bytes += ValueTypes::MemSize(param_type);
+    arg_bytes += param_type.element_size_bytes();
   }
   DCHECK_LE(arg_bytes, stack_bytes);
 

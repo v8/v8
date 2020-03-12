@@ -123,13 +123,16 @@ ACCESSORS(WasmGlobalObject, untagged_buffer, JSArrayBuffer,
 ACCESSORS(WasmGlobalObject, tagged_buffer, FixedArray, kTaggedBufferOffset)
 SMI_ACCESSORS(WasmGlobalObject, offset, kOffsetOffset)
 SMI_ACCESSORS(WasmGlobalObject, flags, kFlagsOffset)
-BIT_FIELD_ACCESSORS(WasmGlobalObject, flags, type, WasmGlobalObject::TypeBits)
+wasm::ValueType WasmGlobalObject::type() const {
+  return wasm::ValueType(TypeBits::decode(flags()));
+}
+void WasmGlobalObject::set_type(wasm::ValueType value) {
+  set_flags(TypeBits::update(flags(), value.kind()));
+}
 BIT_FIELD_ACCESSORS(WasmGlobalObject, flags, is_mutable,
                     WasmGlobalObject::IsMutableBit)
 
-int WasmGlobalObject::type_size() const {
-  return wasm::ValueTypes::ElementSizeInBytes(type());
-}
+int WasmGlobalObject::type_size() const { return type().element_size_bytes(); }
 
 Address WasmGlobalObject::address() const {
   DCHECK_NE(type(), wasm::kWasmAnyRef);
@@ -155,7 +158,7 @@ double WasmGlobalObject::GetF64() {
 
 Handle<Object> WasmGlobalObject::GetRef() {
   // We use this getter for anyref, funcref, and exnref.
-  DCHECK(wasm::ValueTypes::IsReferenceType(type()));
+  DCHECK(type().IsReferenceType());
   return handle(tagged_buffer().get(offset()), GetIsolate());
 }
 
@@ -396,7 +399,7 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 #undef PRIMITIVE_ACCESSORS
 
 wasm::ValueType WasmTableObject::type() {
-  return static_cast<wasm::ValueType>(raw_type());
+  return wasm::ValueType(static_cast<wasm::ValueType::Kind>(raw_type()));
 }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }

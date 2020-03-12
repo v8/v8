@@ -695,21 +695,21 @@ class WasmGraphBuildingInterface {
   }
 
   TFNode* DefaultValue(ValueType type) {
-    switch (type) {
-      case kWasmI32:
+    switch (type.kind()) {
+      case ValueType::kI32:
         return builder_->Int32Constant(0);
-      case kWasmI64:
+      case ValueType::kI64:
         return builder_->Int64Constant(0);
-      case kWasmF32:
+      case ValueType::kF32:
         return builder_->Float32Constant(0);
-      case kWasmF64:
+      case ValueType::kF64:
         return builder_->Float64Constant(0);
-      case kWasmS128:
+      case ValueType::kS128:
         return builder_->S128Zero();
-      case kWasmAnyRef:
-      case kWasmFuncRef:
-      case kWasmNullRef:
-      case kWasmExnRef:
+      case ValueType::kAnyRef:
+      case ValueType::kFuncRef:
+      case ValueType::kNullRef:
+      case ValueType::kExnRef:
         return builder_->RefNull();
       default:
         UNREACHABLE();
@@ -730,13 +730,12 @@ class WasmGraphBuildingInterface {
       Value& val = values[i];
       Value& old = (*merge)[i];
       DCHECK_NOT_NULL(val.node);
-      DCHECK(val.type == kWasmBottom ||
-             ValueTypes::MachineRepresentationFor(val.type) ==
-                 ValueTypes::MachineRepresentationFor(old.type));
+      DCHECK(val.type == kWasmBottom || val.type.machine_representation() ==
+                                            old.type.machine_representation());
       old.node = first ? val.node
                        : builder_->CreateOrMergeIntoPhi(
-                             ValueTypes::MachineRepresentationFor(old.type),
-                             target->control, old.node, val.node);
+                             old.type.machine_representation(), target->control,
+                             old.node, val.node);
     }
   }
 
@@ -798,8 +797,8 @@ class WasmGraphBuildingInterface {
         // Merge locals.
         for (int i = decoder->num_locals() - 1; i >= 0; i--) {
           to->locals[i] = builder_->CreateOrMergeIntoPhi(
-              ValueTypes::MachineRepresentationFor(decoder->GetLocalType(i)),
-              merge, to->locals[i], ssa_env_->locals[i]);
+              decoder->GetLocalType(i).machine_representation(), merge,
+              to->locals[i], ssa_env_->locals[i]);
         }
         // Merge the instance caches.
         builder_->MergeInstanceCacheInto(&to->instance_cache,

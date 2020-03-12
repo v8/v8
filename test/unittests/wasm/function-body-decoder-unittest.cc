@@ -1485,7 +1485,7 @@ TEST_F(FunctionBodyDecoderTest, AllLoadMemCombinations) {
       MachineType mem_type = machineTypes[j];
       byte code[] = {WASM_LOAD_MEM(mem_type, WASM_ZERO)};
       FunctionSig sig(1, 0, &local_type);
-      Validate(local_type == ValueTypes::ValueTypeFor(mem_type), &sig, code);
+      Validate(local_type == ValueType::For(mem_type), &sig, code);
     }
   }
 }
@@ -1500,7 +1500,7 @@ TEST_F(FunctionBodyDecoderTest, AllStoreMemCombinations) {
       MachineType mem_type = machineTypes[j];
       byte code[] = {WASM_STORE_MEM(mem_type, WASM_ZERO, WASM_GET_LOCAL(0))};
       FunctionSig sig(0, 1, &local_type);
-      Validate(local_type == ValueTypes::ValueTypeFor(mem_type), &sig, code);
+      Validate(local_type == ValueType::For(mem_type), &sig, code);
     }
   }
 }
@@ -1749,8 +1749,8 @@ TEST_F(FunctionBodyDecoderTest, MultiReturnType) {
 
           ExpectValidates(&sig_cd_v, {WASM_CALL_FUNCTION0(0)});
 
-          if (ValueTypes::IsSubType(kValueTypes[c], kValueTypes[a]) &&
-              ValueTypes::IsSubType(kValueTypes[d], kValueTypes[b])) {
+          if (kValueTypes[c].IsSubTypeOf(kValueTypes[a]) &&
+              kValueTypes[d].IsSubTypeOf(kValueTypes[b])) {
             ExpectValidates(&sig_ab_v, {WASM_CALL_FUNCTION0(0)});
           } else {
             ExpectFailure(&sig_ab_v, {WASM_CALL_FUNCTION0(0)});
@@ -1996,8 +1996,7 @@ TEST_F(FunctionBodyDecoderTest, AllGetGlobalCombinations) {
       TestModuleBuilder builder;
       module = builder.module();
       builder.AddGlobal(global_type);
-      Validate(ValueTypes::IsSubType(global_type, local_type), &sig,
-               {WASM_GET_GLOBAL(0)});
+      Validate(global_type.IsSubTypeOf(local_type), &sig, {WASM_GET_GLOBAL(0)});
     }
   }
 }
@@ -2011,7 +2010,7 @@ TEST_F(FunctionBodyDecoderTest, AllSetGlobalCombinations) {
       TestModuleBuilder builder;
       module = builder.module();
       builder.AddGlobal(global_type);
-      Validate(ValueTypes::IsSubType(local_type, global_type), &sig,
+      Validate(local_type.IsSubTypeOf(global_type), &sig,
                {WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0))});
     }
   }
@@ -2407,8 +2406,7 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll1) {
           sig.GetReturn(), WASM_IF(WASM_ZERO, WASM_BRV(0, WASM_GET_LOCAL(0))),
           WASM_GET_LOCAL(1))};
 
-      Validate(ValueTypes::IsSubType(kValueTypes[j], kValueTypes[i]), &sig,
-               code);
+      Validate(kValueTypes[j].IsSubTypeOf(kValueTypes[i]), &sig, code);
     }
   }
 }
@@ -2422,8 +2420,7 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll2) {
                                     WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0)),
                                     WASM_GET_LOCAL(1))};
 
-      Validate(ValueTypes::IsSubType(kValueTypes[j], kValueTypes[i]), &sig,
-               code);
+      Validate(kValueTypes[j].IsSubTypeOf(kValueTypes[i]), &sig, code);
     }
   }
 }
@@ -2437,8 +2434,7 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll3) {
                                     WASM_GET_LOCAL(1),
                                     WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0)))};
 
-      Validate(ValueTypes::IsSubType(kValueTypes[j], kValueTypes[i]), &sig,
-               code);
+      Validate(kValueTypes[j].IsSubTypeOf(kValueTypes[i]), &sig, code);
     }
   }
 }
@@ -2482,8 +2478,7 @@ TEST_F(FunctionBodyDecoderTest, BreakIf_val_type) {
           types[1], WASM_BRV_IF(0, WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)),
           WASM_DROP, WASM_GET_LOCAL(0))};
 
-      Validate(ValueTypes::IsSubType(kValueTypes[j], kValueTypes[i]), &sig,
-               code);
+      Validate(kValueTypes[j].IsSubTypeOf(kValueTypes[i]), &sig, code);
     }
   }
 }
@@ -3811,8 +3806,7 @@ TEST_F(LocalDeclDecoderTest, OneLocal) {
   WASM_FEATURE_SCOPE(anyref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueType type = kValueTypes[i];
-    const byte data[] = {1, 1,
-                         static_cast<byte>(ValueTypes::ValueTypeCodeFor(type))};
+    const byte data[] = {1, 1, static_cast<byte>(type.value_type_code())};
     BodyLocalDecls decls(zone());
     bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
     EXPECT_TRUE(result);
@@ -3827,8 +3821,7 @@ TEST_F(LocalDeclDecoderTest, FiveLocals) {
   WASM_FEATURE_SCOPE(anyref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueType type = kValueTypes[i];
-    const byte data[] = {1, 5,
-                         static_cast<byte>(ValueTypes::ValueTypeCodeFor(type))};
+    const byte data[] = {1, 5, static_cast<byte>(type.value_type_code())};
     BodyLocalDecls decls(zone());
     bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
     EXPECT_TRUE(result);
@@ -3893,8 +3886,7 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
 TEST_F(LocalDeclDecoderTest, ExnRef) {
   WASM_FEATURE_SCOPE(eh);
   ValueType type = kWasmExnRef;
-  const byte data[] = {1, 1,
-                       static_cast<byte>(ValueTypes::ValueTypeCodeFor(type))};
+  const byte data[] = {1, 1, static_cast<byte>(type.value_type_code())};
   BodyLocalDecls decls(zone());
   bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
   EXPECT_TRUE(result);

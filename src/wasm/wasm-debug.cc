@@ -48,23 +48,23 @@ Handle<String> PrintFToOneByteString(Isolate* isolate, const char* format,
 }
 
 Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
-  switch (value.type()) {
-    case kWasmI32:
+  switch (value.type().kind()) {
+    case ValueType::kI32:
       if (Smi::IsValid(value.to<int32_t>()))
         return handle(Smi::FromInt(value.to<int32_t>()), isolate);
       return PrintFToOneByteString<false>(isolate, "%d", value.to<int32_t>());
-    case kWasmI64: {
+    case ValueType::kI64: {
       int64_t i64 = value.to<int64_t>();
       int32_t i32 = static_cast<int32_t>(i64);
       if (i32 == i64 && Smi::IsValid(i32))
         return handle(Smi::FromIntptr(i32), isolate);
       return PrintFToOneByteString<false>(isolate, "%" PRId64, i64);
     }
-    case kWasmF32:
+    case ValueType::kF32:
       return isolate->factory()->NewNumber(value.to<float>());
-    case kWasmF64:
+    case ValueType::kF64:
       return isolate->factory()->NewNumber(value.to<double>());
-    case kWasmAnyRef:
+    case ValueType::kAnyRef:
       return value.to_anyref();
     default:
       UNIMPLEMENTED();
@@ -702,14 +702,14 @@ class DebugInfoImpl {
     if (debug_side_table_entry->is_register(index)) {
       // TODO(clemensb): Implement by loading from the frame of the
       // WasmDebugBreak builtin. The current values are just placeholders.
-      switch (type) {
-        case kWasmI32:
+      switch (type.kind()) {
+        case ValueType::kI32:
           return WasmValue(int32_t{-11});
-        case kWasmI64:
+        case ValueType::kI64:
           return WasmValue(int64_t{-11});
-        case kWasmF32:
+        case ValueType::kF32:
           return WasmValue(float{-11});
-        case kWasmF64:
+        case ValueType::kF64:
           return WasmValue(double{-11});
         default:
           UNIMPLEMENTED();
@@ -719,14 +719,14 @@ class DebugInfoImpl {
     // Otherwise load the value from the stack.
     Address stack_address =
         stack_frame_base - debug_side_table_entry->stack_offset(index);
-    switch (type) {
-      case kWasmI32:
+    switch (type.kind()) {
+      case ValueType::kI32:
         return WasmValue(ReadUnalignedValue<int32_t>(stack_address));
-      case kWasmI64:
+      case ValueType::kI64:
         return WasmValue(ReadUnalignedValue<int64_t>(stack_address));
-      case kWasmF32:
+      case ValueType::kF32:
         return WasmValue(ReadUnalignedValue<float>(stack_address));
-      case kWasmF64:
+      case ValueType::kF64:
         return WasmValue(ReadUnalignedValue<double>(stack_address));
       default:
         UNIMPLEMENTED();

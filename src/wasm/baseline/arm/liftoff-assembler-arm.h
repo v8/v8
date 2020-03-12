@@ -287,17 +287,17 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueType type) {
-  switch (type) {
-    case kWasmS128:
-      return ValueTypes::ElementSizeInBytes(type);
+  switch (type.kind()) {
+    case ValueType::kS128:
+      return type.element_size_bytes();
     default:
       return kStackSlotSize;
   }
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueType type) {
-  switch (type) {
-    case kWasmS128:
+  switch (type.kind()) {
+    case ValueType::kS128:
       return true;
     default:
       // No alignment because all other types are kStackSlotSize.
@@ -307,11 +307,11 @@ bool LiftoffAssembler::NeedsAlignment(ValueType type) {
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
-  switch (value.type()) {
-    case kWasmI32:
+  switch (value.type().kind()) {
+    case ValueType::kI32:
       TurboAssembler::Move(reg.gp(), Operand(value.to_i32(), rmode));
       break;
-    case kWasmI64: {
+    case ValueType::kI64: {
       DCHECK(RelocInfo::IsNone(rmode));
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
@@ -319,10 +319,10 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       TurboAssembler::Move(reg.high_gp(), Operand(high_word));
       break;
     }
-    case kWasmF32:
+    case ValueType::kF32:
       vmov(liftoff::GetFloatRegister(reg.fp()), value.to_f32_boxed());
       break;
-    case kWasmF64: {
+    case ValueType::kF64: {
       Register extra_scratch = GetUnusedRegister(kGpReg).gp();
       vmov(reg.fp(), Double(value.to_f64_boxed().get_scalar()), extra_scratch);
       break;
@@ -602,21 +602,21 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            ValueType type) {
   int32_t offset = (caller_slot_idx + 1) * kSystemPointerSize;
   MemOperand src(fp, offset);
-  switch (type) {
-    case kWasmI32:
+  switch (type.kind()) {
+    case ValueType::kI32:
       ldr(dst.gp(), src);
       break;
-    case kWasmI64:
+    case ValueType::kI64:
       ldr(dst.low_gp(), src);
       ldr(dst.high_gp(), MemOperand(fp, offset + kSystemPointerSize));
       break;
-    case kWasmF32:
+    case ValueType::kF32:
       vldr(liftoff::GetFloatRegister(dst.fp()), src);
       break;
-    case kWasmF64:
+    case ValueType::kF64:
       vldr(dst.fp(), src);
       break;
-    case kWasmS128: {
+    case ValueType::kS128: {
       UseScratchRegisterScope temps(this);
       Register addr = liftoff::CalculateActualAddress(this, &temps, src.rn(),
                                                       no_reg, src.offset());
@@ -658,21 +658,21 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
 void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
-  switch (type) {
-    case kWasmI32:
+  switch (type.kind()) {
+    case ValueType::kI32:
       str(reg.gp(), dst);
       break;
-    case kWasmI64:
+    case ValueType::kI64:
       str(reg.low_gp(), liftoff::GetHalfStackSlot(offset, kLowWord));
       str(reg.high_gp(), liftoff::GetHalfStackSlot(offset, kHighWord));
       break;
-    case kWasmF32:
+    case ValueType::kF32:
       vstr(liftoff::GetFloatRegister(reg.fp()), dst);
       break;
-    case kWasmF64:
+    case ValueType::kF64:
       vstr(reg.fp(), dst);
       break;
-    case kWasmS128: {
+    case ValueType::kS128: {
       UseScratchRegisterScope temps(this);
       Register addr = liftoff::CalculateActualAddress(this, &temps, dst.rn(),
                                                       no_reg, dst.offset());
@@ -696,12 +696,12 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
   } else {
     src = temps.Acquire();
   }
-  switch (value.type()) {
-    case kWasmI32:
+  switch (value.type().kind()) {
+    case ValueType::kI32:
       mov(src, Operand(value.to_i32()));
       str(src, dst);
       break;
-    case kWasmI64: {
+    case ValueType::kI64: {
       int32_t low_word = value.to_i64();
       mov(src, Operand(low_word));
       str(src, liftoff::GetHalfStackSlot(offset, kLowWord));
@@ -717,21 +717,21 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
 }
 
 void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
-  switch (type) {
-    case kWasmI32:
+  switch (type.kind()) {
+    case ValueType::kI32:
       ldr(reg.gp(), liftoff::GetStackSlot(offset));
       break;
-    case kWasmI64:
+    case ValueType::kI64:
       ldr(reg.low_gp(), liftoff::GetHalfStackSlot(offset, kLowWord));
       ldr(reg.high_gp(), liftoff::GetHalfStackSlot(offset, kHighWord));
       break;
-    case kWasmF32:
+    case ValueType::kF32:
       vldr(liftoff::GetFloatRegister(reg.fp()), liftoff::GetStackSlot(offset));
       break;
-    case kWasmF64:
+    case ValueType::kF64:
       vldr(reg.fp(), liftoff::GetStackSlot(offset));
       break;
-    case kWasmS128: {
+    case ValueType::kS128: {
       // Get memory address of slot to fill from.
       MemOperand slot = liftoff::GetStackSlot(offset);
       UseScratchRegisterScope temps(this);
@@ -1703,25 +1703,25 @@ void LiftoffAssembler::CallC(const wasm::FunctionSig* sig,
 
   int arg_bytes = 0;
   for (ValueType param_type : sig->parameters()) {
-    switch (param_type) {
-      case kWasmI32:
+    switch (param_type.kind()) {
+      case ValueType::kI32:
         str(args->gp(), MemOperand(sp, arg_bytes));
         break;
-      case kWasmI64:
+      case ValueType::kI64:
         str(args->low_gp(), MemOperand(sp, arg_bytes));
         str(args->high_gp(), MemOperand(sp, arg_bytes + kSystemPointerSize));
         break;
-      case kWasmF32:
+      case ValueType::kF32:
         vstr(liftoff::GetFloatRegister(args->fp()), MemOperand(sp, arg_bytes));
         break;
-      case kWasmF64:
+      case ValueType::kF64:
         vstr(args->fp(), MemOperand(sp, arg_bytes));
         break;
       default:
         UNREACHABLE();
     }
     args++;
-    arg_bytes += ValueTypes::MemSize(param_type);
+    arg_bytes += param_type.element_size_bytes();
   }
   DCHECK_LE(arg_bytes, stack_bytes);
 
@@ -1746,18 +1746,18 @@ void LiftoffAssembler::CallC(const wasm::FunctionSig* sig,
 
   // Load potential output value from the buffer on the stack.
   if (out_argument_type != kWasmStmt) {
-    switch (out_argument_type) {
-      case kWasmI32:
+    switch (out_argument_type.kind()) {
+      case ValueType::kI32:
         ldr(result_reg->gp(), MemOperand(sp));
         break;
-      case kWasmI64:
+      case ValueType::kI64:
         ldr(result_reg->low_gp(), MemOperand(sp));
         ldr(result_reg->high_gp(), MemOperand(sp, kSystemPointerSize));
         break;
-      case kWasmF32:
+      case ValueType::kF32:
         vldr(liftoff::GetFloatRegister(result_reg->fp()), MemOperand(sp));
         break;
-      case kWasmF64:
+      case ValueType::kF64:
         vldr(result_reg->fp(), MemOperand(sp));
         break;
       default:
@@ -1798,25 +1798,25 @@ void LiftoffStackSlots::Construct() {
     const LiftoffAssembler::VarState& src = slot.src_;
     switch (src.loc()) {
       case LiftoffAssembler::VarState::kStack: {
-        switch (src.type()) {
+        switch (src.type().kind()) {
           // i32 and i64 can be treated as similar cases, i64 being previously
           // split into two i32 registers
-          case kWasmI32:
-          case kWasmI64:
-          case kWasmF32: {
+          case ValueType::kI32:
+          case ValueType::kI64:
+          case ValueType::kF32: {
             UseScratchRegisterScope temps(asm_);
             Register scratch = temps.Acquire();
             asm_->ldr(scratch,
                       liftoff::GetHalfStackSlot(slot.src_offset_, slot.half_));
             asm_->Push(scratch);
           } break;
-          case kWasmF64: {
+          case ValueType::kF64: {
             UseScratchRegisterScope temps(asm_);
             DwVfpRegister scratch = temps.AcquireD();
             asm_->vldr(scratch, liftoff::GetStackSlot(slot.src_offset_));
             asm_->vpush(scratch);
           } break;
-          case kWasmS128: {
+          case ValueType::kS128: {
             MemOperand mem_op = liftoff::GetStackSlot(slot.src_offset_);
             UseScratchRegisterScope temps(asm_);
             Register addr = liftoff::CalculateActualAddress(
@@ -1832,22 +1832,22 @@ void LiftoffStackSlots::Construct() {
         break;
       }
       case LiftoffAssembler::VarState::kRegister:
-        switch (src.type()) {
-          case kWasmI64: {
+        switch (src.type().kind()) {
+          case ValueType::kI64: {
             LiftoffRegister reg =
                 slot.half_ == kLowWord ? src.reg().low() : src.reg().high();
             asm_->push(reg.gp());
           } break;
-          case kWasmI32:
+          case ValueType::kI32:
             asm_->push(src.reg().gp());
             break;
-          case kWasmF32:
+          case ValueType::kF32:
             asm_->vpush(liftoff::GetFloatRegister(src.reg().fp()));
             break;
-          case kWasmF64:
+          case ValueType::kF64:
             asm_->vpush(src.reg().fp());
             break;
-          case kWasmS128:
+          case ValueType::kS128:
             asm_->vpush(liftoff::GetSimd128Register(src.reg().low_fp()));
             break;
           default:

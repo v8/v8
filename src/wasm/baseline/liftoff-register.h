@@ -53,20 +53,24 @@ static inline constexpr bool needs_fp_reg_pair(ValueType type) {
   return kNeedS128RegPair && type == kWasmS128;
 }
 
-static inline constexpr RegClass reg_class_for(ValueType type) {
-  switch (type) {
-    case kWasmF32:
-    case kWasmF64:
+static inline constexpr RegClass reg_class_for(ValueType::Kind kind) {
+  switch (kind) {
+    case ValueType::kF32:
+    case ValueType::kF64:
       return kFpReg;
-    case kWasmI32:
+    case ValueType::kI32:
       return kGpReg;
-    case kWasmI64:
+    case ValueType::kI64:
       return kNeedI64RegPair ? kGpRegPair : kGpReg;
-    case kWasmS128:
+    case ValueType::kS128:
       return kNeedS128RegPair ? kFpRegPair : kFpReg;
     default:
       return kNoReg;  // unsupported type
   }
+}
+
+static inline constexpr RegClass reg_class_for(ValueType type) {
+  return reg_class_for(type.kind());
 }
 
 // Description of LiftoffRegister code encoding.

@@ -104,8 +104,7 @@ class TestingModuleBuilder {
   }
 
   template <typename T>
-  T* AddGlobal(
-      ValueType type = ValueTypes::ValueTypeFor(MachineTypeForC<T>())) {
+  T* AddGlobal(ValueType type = ValueType::For(MachineTypeForC<T>())) {
     const WasmGlobal* global = AddGlobal(type);
     return reinterpret_cast<T*>(globals_data_ + global->offset);
   }

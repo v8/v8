@@ -868,10 +868,10 @@ class ModuleDecoderImpl : public Decoder {
           errorf(pos, "out of bounds table index %u", table_index);
           break;
         }
-        if (!ValueTypes::IsSubType(type, module_->tables[table_index].type)) {
+        if (!type.IsSubTypeOf(module_->tables[table_index].type)) {
           errorf(pos,
                  "Invalid element segment. Table %u is not a super-type of %s",
-                 table_index, ValueTypes::TypeName(type));
+                 table_index, type.type_name());
           break;
         }
       }
@@ -1359,14 +1359,14 @@ class ModuleDecoderImpl : public Decoder {
         errorf(pos,
                "type mismatch in global initialization "
                "(from global #%u), expected %s, got %s",
-               other_index, ValueTypes::TypeName(global->type),
-               ValueTypes::TypeName(module->globals[other_index].type));
+               other_index, global->type.type_name(),
+               module->globals[other_index].type.type_name());
       }
     } else {
-      if (!ValueTypes::IsSubType(TypeOf(module, global->init), global->type)) {
+      if (!TypeOf(module, global->init).IsSubTypeOf(global->type)) {
         errorf(pos, "type error in global initialization, expected %s, got %s",
-               ValueTypes::TypeName(global->type),
-               ValueTypes::TypeName(TypeOf(module, global->init)));
+               global->type.type_name(),
+               TypeOf(module, global->init).type_name());
       }
     }
   }
@@ -1379,13 +1379,12 @@ class ModuleDecoderImpl : public Decoder {
     for (WasmGlobal& global : module->globals) {
       if (global.mutability && global.imported) {
         global.index = num_imported_mutable_globals++;
-      } else if (ValueTypes::IsReferenceType(global.type)) {
+      } else if (global.type.IsReferenceType()) {
         global.offset = tagged_offset;
         // All entries in the tagged_globals_buffer have size 1.
         tagged_offset++;
       } else {
-        byte size =
-            ValueTypes::MemSize(ValueTypes::MachineTypeFor(global.type));
+        int size = global.type.element_size_bytes();
         untagged_offset = (untagged_offset + size - 1) & ~(size - 1);  // align
         global.offset = untagged_offset;
         untagged_offset += size;
@@ -1657,8 +1656,7 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (expected != kWasmStmt && TypeOf(module, expr) != kWasmI32) {
       errorf(pos, "type error in init expression, expected %s, got %s",
-             ValueTypes::TypeName(expected),
-             ValueTypes::TypeName(TypeOf(module, expr)));
+             expected.type_name(), TypeOf(module, expr).type_name());
     }
     return expr;
   }

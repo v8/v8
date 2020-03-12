@@ -80,20 +80,20 @@ PrintSig PrintReturns(const FunctionSig* sig) {
   return {sig->return_count(), [=](size_t i) { return sig->GetReturn(i); }};
 }
 const char* ValueTypeToConstantName(ValueType type) {
-  switch (type) {
-    case kWasmI32:
+  switch (type.kind()) {
+    case ValueType::kI32:
       return "kWasmI32";
-    case kWasmI64:
+    case ValueType::kI64:
       return "kWasmI64";
-    case kWasmF32:
+    case ValueType::kF32:
       return "kWasmF32";
-    case kWasmF64:
+    case ValueType::kF64:
       return "kWasmF64";
-    case kWasmAnyRef:
+    case ValueType::kAnyRef:
       return "kWasmAnyRef";
-    case kWasmFuncRef:
+    case ValueType::kFuncRef:
       return "kWasmFuncRef";
-    case kWasmExnRef:
+    case ValueType::kExnRef:
       return "kWasmExnRef";
     default:
       UNREACHABLE();
@@ -224,8 +224,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         ValueType type = decls.type_list[pos];
         while (pos + count < locals && decls.type_list[pos + count] == type)
           ++count;
-        os << ".addLocals({" << ValueTypes::TypeName(type)
-           << "_count: " << count << "})";
+        os << ".addLocals({" << type.type_name() << "_count: " << count << "})";
       }
       os << "\n";
     }

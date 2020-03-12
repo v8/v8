@@ -1195,14 +1195,14 @@ class WasmDecoder : public Decoder {
              imm.elem_segment_index);
       return false;
     }
-    if (!Validate(pc_ + imm.length - imm.table.length - 1, imm.table))
+    if (!Validate(pc_ + imm.length - imm.table.length - 1, imm.table)) {
       return false;
-    if (!VALIDATE(ValueTypes::IsSubType(
-            module_->elem_segments[imm.elem_segment_index].type,
-            module_->tables[imm.table.index].type))) {
+    }
+    ValueType elem_type = module_->elem_segments[imm.elem_segment_index].type;
+    if (!VALIDATE(
+            elem_type.IsSubTypeOf(module_->tables[imm.table.index].type))) {
       errorf(pc_ + 2, "table %u is not a super-type of %s", imm.table.index,
-             ValueTypes::TypeName(
-                 module_->elem_segments[imm.elem_segment_index].type));
+             elem_type.type_name());
       return false;
     }
     return true;
@@ -1220,11 +1220,11 @@ class WasmDecoder : public Decoder {
   inline bool Validate(TableCopyImmediate<validate>& imm) {
     if (!Validate(pc_ + 1, imm.table_src)) return false;
     if (!Validate(pc_ + 2, imm.table_dst)) return false;
+    ValueType src_type = module_->tables[imm.table_src.index].type;
     if (!VALIDATE(
-            ValueTypes::IsSubType(module_->tables[imm.table_src.index].type,
-                                  module_->tables[imm.table_dst.index].type))) {
+            src_type.IsSubTypeOf(module_->tables[imm.table_dst.index].type))) {
       errorf(pc_ + 2, "table %u is not a super-type of %s", imm.table_dst.index,
-             ValueTypes::TypeName(module_->tables[imm.table_src.index].type));
+             src_type.type_name());
       return false;
     }
     return true;
@@ -1946,7 +1946,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           auto fval = Pop();
           auto tval = Pop(0, fval.type);
           ValueType type = tval.type == kWasmBottom ? fval.type : tval.type;
-          if (ValueTypes::IsSubType(type, kWasmAnyRef)) {
+          if (type.IsSubTypeOf(kWasmAnyRef)) {
             this->error(
                 "select without type is only valid for value type inputs");
             break;
@@ -2428,7 +2428,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           if (WasmOpcodes::IsPrefixOpcode(opcode)) {
             opcode = static_cast<WasmOpcode>(opcode << 8 | *(val.pc + 1));
           }
-          TRACE_PART(" %c@%d:%s", ValueTypes::ShortNameOf(val.type),
+          TRACE_PART(" %c@%d:%s", val.type.short_name(),
                      static_cast<int>(val.pc - this->start_),
                      WasmOpcodes::OpcodeName(opcode));
           // If the decoder failed, don't try to decode the immediates, as this
@@ -2550,7 +2550,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (!CheckHasMemory()) return 0;
     MemoryAccessImmediate<validate> imm(this, this->pc_ + 1, type.size_log_2());
     auto index = Pop(0, kWasmI32);
-    auto* result = Push(ValueType::kWasmS128);
+    auto* result = Push(kWasmS128);
     CALL_INTERFACE_IF_REACHABLE(LoadTransform, type, transform, imm, index,
                                 result);
     return imm.length;
@@ -2602,15 +2602,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       if (this->enabled_.has_anyref()) {
         // The expected type is the biggest common sub type of all targets.
         (*result_types)[i] =
-            ValueTypes::CommonSubType((*result_types)[i], (*merge)[i].type);
+            ValueType::CommonSubType((*result_types)[i], (*merge)[i].type);
       } else {
         // All target must have the same signature.
         if ((*result_types)[i] != (*merge)[i].type) {
           this->errorf(pos,
                        "inconsistent type in br_table target %u (previous "
                        "was %s, this one is %s)",
-                       index, ValueTypes::TypeName((*result_types)[i]),
-                       ValueTypes::TypeName((*merge)[i].type));
+                       index, (*result_types)[i].type_name(),
+                       (*merge)[i].type.type_name());
           return false;
         }
       }
@@ -2635,11 +2635,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       // Type-check the topmost br_arity values on the stack.
       for (int i = 0; i < br_arity; ++i) {
         Value& val = stack_values[i];
-        if (!ValueTypes::IsSubType(val.type, result_types[i])) {
+        if (!val.type.IsSubTypeOf(result_types[i])) {
           this->errorf(this->pc_,
                        "type error in merge[%u] (expected %s, got %s)", i,
-                       ValueTypes::TypeName(result_types[i]),
-                       ValueTypes::TypeName(val.type));
+                       result_types[i].type_name(), val.type.type_name());
           return false;
         }
       }
@@ -3004,12 +3003,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   V8_INLINE Value Pop(int index, ValueType expected) {
     auto val = Pop();
-    if (!VALIDATE(ValueTypes::IsSubType(val.type, expected) ||
-                  val.type == kWasmBottom || expected == kWasmBottom)) {
+    if (!VALIDATE(val.type.IsSubTypeOf(expected) || val.type == kWasmBottom ||
+                  expected == kWasmBottom)) {
       this->errorf(val.pc, "%s[%d] expected type %s, found %s of type %s",
-                   SafeOpcodeNameAt(this->pc_), index,
-                   ValueTypes::TypeName(expected), SafeOpcodeNameAt(val.pc),
-                   ValueTypes::TypeName(val.type));
+                   SafeOpcodeNameAt(this->pc_), index, expected.type_name(),
+                   SafeOpcodeNameAt(val.pc), val.type.type_name());
     }
     return val;
   }
@@ -3069,10 +3067,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (uint32_t i = 0; i < merge->arity; ++i) {
       Value& val = stack_values[i];
       Value& old = (*merge)[i];
-      if (!ValueTypes::IsSubType(val.type, old.type)) {
+      if (!val.type.IsSubTypeOf(old.type)) {
         this->errorf(this->pc_, "type error in merge[%u] (expected %s, got %s)",
-                     i, ValueTypes::TypeName(old.type),
-                     ValueTypes::TypeName(val.type));
+                     i, old.type.type_name(), val.type.type_name());
         return false;
       }
     }
@@ -3087,10 +3084,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (uint32_t i = 0; i < c->start_merge.arity; ++i) {
       Value& start = c->start_merge[i];
       Value& end = c->end_merge[i];
-      if (!ValueTypes::IsSubType(start.type, end.type)) {
+      if (!start.type.IsSubTypeOf(end.type)) {
         this->errorf(this->pc_, "type error in merge[%u] (expected %s, got %s)",
-                     i, ValueTypes::TypeName(end.type),
-                     ValueTypes::TypeName(start.type));
+                     i, end.type.type_name(), start.type.type_name());
         return false;
       }
     }
@@ -3192,11 +3188,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (int i = 0; i < num_returns; ++i) {
       auto& val = stack_values[i];
       ValueType expected_type = this->sig_->GetReturn(i);
-      if (!ValueTypes::IsSubType(val.type, expected_type)) {
+      if (!val.type.IsSubTypeOf(expected_type)) {
         this->errorf(this->pc_,
                      "type error in return[%u] (expected %s, got %s)", i,
-                     ValueTypes::TypeName(expected_type),
-                     ValueTypes::TypeName(val.type));
+                     expected_type.type_name(), val.type.type_name());
         return false;
       }
     }

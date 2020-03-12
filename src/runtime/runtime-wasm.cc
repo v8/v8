@@ -234,33 +234,33 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   Address arg_buf_ptr = arg_buffer;
   for (int i = 0; i < num_params; ++i) {
 #define CASE_ARG_TYPE(type, ctype)                                     \
-  case wasm::type:                                                     \
-    DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),  \
-              sizeof(ctype));                                          \
+  case wasm::ValueType::type:                                          \
+    DCHECK_EQ(sig->GetParam(i).element_size_bytes(), sizeof(ctype));   \
     wasm_args[i] =                                                     \
         wasm::WasmValue(base::ReadUnalignedValue<ctype>(arg_buf_ptr)); \
     arg_buf_ptr += sizeof(ctype);                                      \
     break;
-    switch (sig->GetParam(i)) {
-      CASE_ARG_TYPE(kWasmI32, uint32_t)
-      CASE_ARG_TYPE(kWasmI64, uint64_t)
-      CASE_ARG_TYPE(kWasmF32, float)
-      CASE_ARG_TYPE(kWasmF64, double)
+    switch (sig->GetParam(i).kind()) {
+      CASE_ARG_TYPE(kI32, uint32_t)
+      CASE_ARG_TYPE(kI64, uint64_t)
+      CASE_ARG_TYPE(kF32, float)
+      CASE_ARG_TYPE(kF64, double)
 #undef CASE_ARG_TYPE
-      case wasm::kWasmAnyRef:
-      case wasm::kWasmFuncRef:
-      case wasm::kWasmNullRef:
-      case wasm::kWasmExnRef: {
-        DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),
-                  kSystemPointerSize);
-        Handle<Object> ref(base::ReadUnalignedValue<Object>(arg_buf_ptr),
-                           isolate);
+      case wasm::ValueType::kAnyRef:
+      case wasm::ValueType::kFuncRef:
+      case wasm::ValueType::kNullRef:
+      case wasm::ValueType::kExnRef: {
+        DCHECK_EQ(sig->GetParam(i).element_size_bytes(), kSystemPointerSize);
+        Handle<Object> ref(
+            Object(base::ReadUnalignedValue<Address>(arg_buf_ptr)), isolate);
         DCHECK_IMPLIES(sig->GetParam(i) == wasm::kWasmNullRef, ref->IsNull());
         wasm_args[i] = wasm::WasmValue(ref);
         arg_buf_ptr += kSystemPointerSize;
         break;
       }
-      default:
+      case wasm::ValueType::kStmt:
+      case wasm::ValueType::kS128:
+      case wasm::ValueType::kBottom:
         UNREACHABLE();
     }
   }
@@ -288,24 +288,22 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   arg_buf_ptr = arg_buffer;
   for (int i = 0; i < num_returns; ++i) {
 #define CASE_RET_TYPE(type, ctype)                                           \
-  case wasm::type:                                                           \
-    DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)),       \
-              sizeof(ctype));                                                \
+  case wasm::ValueType::type:                                                \
+    DCHECK_EQ(sig->GetReturn(i).element_size_bytes(), sizeof(ctype));        \
     base::WriteUnalignedValue<ctype>(arg_buf_ptr, wasm_rets[i].to<ctype>()); \
     arg_buf_ptr += sizeof(ctype);                                            \
     break;
-    switch (sig->GetReturn(i)) {
-      CASE_RET_TYPE(kWasmI32, uint32_t)
-      CASE_RET_TYPE(kWasmI64, uint64_t)
-      CASE_RET_TYPE(kWasmF32, float)
-      CASE_RET_TYPE(kWasmF64, double)
+    switch (sig->GetReturn(i).kind()) {
+      CASE_RET_TYPE(kI32, uint32_t)
+      CASE_RET_TYPE(kI64, uint64_t)
+      CASE_RET_TYPE(kF32, float)
+      CASE_RET_TYPE(kF64, double)
 #undef CASE_RET_TYPE
-      case wasm::kWasmAnyRef:
-      case wasm::kWasmFuncRef:
-      case wasm::kWasmNullRef:
-      case wasm::kWasmExnRef: {
-        DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)),
-                  kSystemPointerSize);
+      case wasm::ValueType::kAnyRef:
+      case wasm::ValueType::kFuncRef:
+      case wasm::ValueType::kNullRef:
+      case wasm::ValueType::kExnRef: {
+        DCHECK_EQ(sig->GetReturn(i).element_size_bytes(), kSystemPointerSize);
         DCHECK_IMPLIES(sig->GetReturn(i) == wasm::kWasmNullRef,
                        wasm_rets[i].to_anyref()->IsNull());
         base::WriteUnalignedValue<Object>(arg_buf_ptr,

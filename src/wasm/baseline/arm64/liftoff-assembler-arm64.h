@@ -46,16 +46,16 @@ inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 
 inline CPURegister GetRegFromType(const LiftoffRegister& reg, ValueType type) {
-  switch (type) {
-    case kWasmI32:
+  switch (type.kind()) {
+    case ValueType::kI32:
       return reg.gp().W();
-    case kWasmI64:
+    case ValueType::kI64:
       return reg.gp().X();
-    case kWasmF32:
+    case ValueType::kF32:
       return reg.fp().S();
-    case kWasmF64:
+    case ValueType::kF64:
       return reg.fp().D();
-    case kWasmS128:
+    case ValueType::kS128:
       return reg.fp().Q();
     default:
       UNREACHABLE();
@@ -74,14 +74,14 @@ inline CPURegList PadVRegList(RegList list) {
 
 inline CPURegister AcquireByType(UseScratchRegisterScope* temps,
                                  ValueType type) {
-  switch (type) {
-    case kWasmI32:
+  switch (type.kind()) {
+    case ValueType::kI32:
       return temps->AcquireW();
-    case kWasmI64:
+    case ValueType::kI64:
       return temps->AcquireX();
-    case kWasmF32:
+    case ValueType::kF32:
       return temps->AcquireS();
-    case kWasmF64:
+    case ValueType::kF64:
       return temps->AcquireD();
     default:
       UNREACHABLE();
@@ -174,17 +174,17 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
 int LiftoffAssembler::SlotSizeForType(ValueType type) {
   // TODO(zhin): Unaligned access typically take additional cycles, we should do
   // some performance testing to see how big an effect it will take.
-  switch (type) {
-    case kWasmS128:
-      return ValueTypes::ElementSizeInBytes(type);
+  switch (type.kind()) {
+    case ValueType::kS128:
+      return type.element_size_bytes();
     default:
       return kStackSlotSize;
   }
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueType type) {
-  switch (type) {
-    case kWasmS128:
+  switch (type.kind()) {
+    case ValueType::kS128:
       return true;
     default:
       // No alignment because all other types are kStackSlotSize.
@@ -194,17 +194,17 @@ bool LiftoffAssembler::NeedsAlignment(ValueType type) {
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
-  switch (value.type()) {
-    case kWasmI32:
+  switch (value.type().kind()) {
+    case ValueType::kI32:
       Mov(reg.gp().W(), Immediate(value.to_i32(), rmode));
       break;
-    case kWasmI64:
+    case ValueType::kI64:
       Mov(reg.gp().X(), Immediate(value.to_i64(), rmode));
       break;
-    case kWasmF32:
+    case ValueType::kF32:
       Fmov(reg.fp().S(), value.to_f32_boxed().get_scalar());
       break;
-    case kWasmF64:
+    case ValueType::kF64:
       Fmov(reg.fp().D(), value.to_f64_boxed().get_scalar());
       break;
     default:
@@ -444,8 +444,8 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
   MemOperand dst = liftoff::GetStackSlot(offset);
   UseScratchRegisterScope temps(this);
   CPURegister src = CPURegister::no_reg();
-  switch (value.type()) {
-    case kWasmI32:
+  switch (value.type().kind()) {
+    case ValueType::kI32:
       if (value.to_i32() == 0) {
         src = wzr;
       } else {
@@ -453,7 +453,7 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
         Mov(src.W(), value.to_i32());
       }
       break;
-    case kWasmI64:
+    case ValueType::kI64:
       if (value.to_i64() == 0) {
         src = xzr;
       } else {
@@ -1018,15 +1018,15 @@ void LiftoffAssembler::emit_jump(Register target) { Br(target); }
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
                                       ValueType type, Register lhs,
                                       Register rhs) {
-  switch (type) {
-    case kWasmI32:
+  switch (type.kind()) {
+    case ValueType::kI32:
       if (rhs.is_valid()) {
         Cmp(lhs.W(), rhs.W());
       } else {
         Cmp(lhs.W(), wzr);
       }
       break;
-    case kWasmI64:
+    case ValueType::kI64:
       if (rhs.is_valid()) {
         Cmp(lhs.X(), rhs.X());
       } else {
@@ -1186,7 +1186,7 @@ void LiftoffAssembler::CallC(const wasm::FunctionSig* sig,
   int arg_bytes = 0;
   for (ValueType param_type : sig->parameters()) {
     Poke(liftoff::GetRegFromType(*args++, param_type), arg_bytes);
-    arg_bytes += ValueTypes::MemSize(param_type);
+    arg_bytes += param_type.element_size_bytes();
   }
   DCHECK_LE(arg_bytes, stack_bytes);
 

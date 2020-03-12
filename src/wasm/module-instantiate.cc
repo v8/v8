@@ -688,22 +688,22 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
 void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
   TRACE("init [globals_start=%p + %u] = %lf, type = %s\n",
         raw_buffer_ptr(untagged_globals_, 0), global.offset, num,
-        ValueTypes::TypeName(global.type));
-  switch (global.type) {
-    case kWasmI32:
+        global.type.type_name());
+  switch (global.type.kind()) {
+    case ValueType::kI32:
       WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global),
                                       DoubleToInt32(num));
       break;
-    case kWasmI64:
+    case ValueType::kI64:
       // The Wasm-BigInt proposal currently says that i64 globals may
       // only be initialized with BigInts. See:
       // https://github.com/WebAssembly/JS-BigInt-integration/issues/12
       UNREACHABLE();
-    case kWasmF32:
+    case ValueType::kF32:
       WriteLittleEndianValue<float>(GetRawGlobalPtr<float>(global),
                                     DoubleToFloat32(num));
       break;
-    case kWasmF64:
+    case ValueType::kF64:
       WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global), num);
       break;
     default:
@@ -714,7 +714,7 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
 void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, int64_t num) {
   TRACE("init [globals_start=%p + %u] = %" PRId64 ", type = %s\n",
         raw_buffer_ptr(untagged_globals_, 0), global.offset, num,
-        ValueTypes::TypeName(global.type));
+        global.type.type_name());
   DCHECK_EQ(kWasmI64, global.type);
   WriteLittleEndianValue<int64_t>(GetRawGlobalPtr<int64_t>(global), num);
 }
@@ -723,44 +723,45 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
                                        Handle<WasmGlobalObject> value) {
   TRACE("init [globals_start=%p + %u] = ", raw_buffer_ptr(untagged_globals_, 0),
         global.offset);
-  switch (global.type) {
-    case kWasmI32: {
+  switch (global.type.kind()) {
+    case ValueType::kI32: {
       int32_t num = value->GetI32();
       WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global), num);
       TRACE("%d", num);
       break;
     }
-    case kWasmI64: {
+    case ValueType::kI64: {
       int64_t num = value->GetI64();
       WriteLittleEndianValue<int64_t>(GetRawGlobalPtr<int64_t>(global), num);
       TRACE("%" PRId64, num);
       break;
     }
-    case kWasmF32: {
+    case ValueType::kF32: {
       float num = value->GetF32();
       WriteLittleEndianValue<float>(GetRawGlobalPtr<float>(global), num);
       TRACE("%f", num);
       break;
     }
-    case kWasmF64: {
+    case ValueType::kF64: {
       double num = value->GetF64();
       WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global), num);
       TRACE("%lf", num);
       break;
     }
-    case kWasmAnyRef:
-    case kWasmFuncRef:
-    case kWasmNullRef:
-    case kWasmExnRef: {
+    case ValueType::kAnyRef:
+    case ValueType::kFuncRef:
+    case ValueType::kNullRef:
+    case ValueType::kExnRef: {
       DCHECK_IMPLIES(global.type == kWasmNullRef, value->GetRef()->IsNull());
       tagged_globals_->set(global.offset, *value->GetRef());
       break;
     }
-    default:
+    case ValueType::kStmt:
+    case ValueType::kS128:
+    case ValueType::kBottom:
       UNREACHABLE();
   }
-  TRACE(", type = %s (from WebAssembly.Global)\n",
-        ValueTypes::TypeName(global.type));
+  TRACE(", type = %s (from WebAssembly.Global)\n", global.type.type_name());
 }
 
 void InstanceBuilder::WriteGlobalAnyRef(const WasmGlobal& global,
@@ -1062,7 +1063,7 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     return false;
   }
 
-  bool is_sub_type = ValueTypes::IsSubType(global_object->type(), global.type);
+  bool is_sub_type = global_object->type().IsSubTypeOf(global.type);
   bool is_same_type = global_object->type() == global.type;
   bool valid_type = global.mutability ? is_same_type : is_sub_type;
 
@@ -1075,7 +1076,7 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     DCHECK_LT(global.index, module_->num_imported_mutable_globals);
     Handle<Object> buffer;
     Address address_or_offset;
-    if (ValueTypes::IsReferenceType(global.type)) {
+    if (global.type.IsReferenceType()) {
       static_assert(sizeof(global_object->offset()) <= sizeof(Address),
                     "The offset into the globals buffer does not fit into "
                     "the imported_mutable_globals array");
@@ -1153,8 +1154,8 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
     return false;
   }
 
-  if (ValueTypes::IsReferenceType(global.type)) {
-    if (global.type == ValueType::kWasmFuncRef) {
+  if (global.type.IsReferenceType()) {
+    if (global.type == kWasmFuncRef) {
       if (!value->IsNull(isolate_) &&
           !WasmExportedFunction::IsWasmExportedFunction(*value)) {
         ReportLinkError(
@@ -1162,7 +1163,7 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
             import_index, module_name, import_name);
         return false;
       }
-    } else if (global.type == ValueType::kWasmNullRef) {
+    } else if (global.type == kWasmNullRef) {
       if (!value->IsNull(isolate_)) {
         ReportLinkError("imported nullref global must be null", import_index,
                         module_name, import_name);
@@ -1375,7 +1376,7 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
         uint32_t old_offset =
             module_->globals[global.init.val.global_index].offset;
         TRACE("init [globals+%u] = [globals+%d]\n", global.offset, old_offset);
-        if (ValueTypes::IsReferenceType(global.type)) {
+        if (global.type.IsReferenceType()) {
           DCHECK(enabled_.has_anyref() || enabled_.has_eh());
           tagged_globals_->set(new_offset, tagged_globals_->get(old_offset));
         } else {
@@ -1514,7 +1515,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         if (global.mutability && global.imported) {
           Handle<FixedArray> buffers_array(
               instance->imported_mutable_globals_buffers(), isolate_);
-          if (ValueTypes::IsReferenceType(global.type)) {
+          if (global.type.IsReferenceType()) {
             tagged_buffer = handle(
                 FixedArray::cast(buffers_array->get(global.index)), isolate_);
             // For anyref globals we store the relative offset in the
@@ -1538,7 +1539,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
             offset = static_cast<uint32_t>(global_addr - backing_store);
           }
         } else {
-          if (ValueTypes::IsReferenceType(global.type)) {
+          if (global.type.IsReferenceType()) {
             tagged_buffer = handle(instance->tagged_globals_buffer(), isolate_);
           } else {
             untagged_buffer =
