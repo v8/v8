@@ -1448,7 +1448,7 @@ void Assembler::GenInstrALU_ri(uint8_t funct3, Register rd, Register rs1,
 void Assembler::GenInstrShift_ri(bool arithshift, uint8_t funct3, Register rd,
                                  Register rs1, uint8_t shamt) {
   DCHECK(is_uint6(shamt));
-  GenInstrI(funct3, OP_IMM, rd, rs1, shamt);
+  GenInstrI(funct3, OP_IMM, rd, rs1, (arithshift << 10) | shamt);
 }
 
 void Assembler::GenInstrALU_rr(uint8_t funct7, uint8_t funct3, Register rd,
