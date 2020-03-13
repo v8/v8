@@ -1460,11 +1460,10 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(isolate(), object)) {
-    Handle<Object> result;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), result, Object::SetProperty(isolate(), object, name, value),
-        Object);
-    return result;
+    LookupIterator::Key key(isolate(), name);
+    LookupIterator it(isolate(), object, key);
+    MAYBE_RETURN_NULL(Object::SetProperty(&it, value, StoreOrigin::kNamed));
+    return value;
   }
 
   bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic;
