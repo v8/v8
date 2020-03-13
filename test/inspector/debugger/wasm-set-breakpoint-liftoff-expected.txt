@@ -18,6 +18,8 @@ at wasm_B (0:56):
 at (anonymous) (0:17):
    -- skipped
 Setting breakpoint at offset 39 on script v8://test/runWasm
+Setting breakpoint at offset 61 on script v8://test/runWasm
+Setting breakpoint at offset 60 on script v8://test/runWasm
 Setting breakpoint at offset 54 on script v8://test/runWasm
 Setting breakpoint at offset 53 on script v8://test/runWasm
 Setting breakpoint at offset 51 on script v8://test/runWasm
@@ -320,6 +322,16 @@ at wasm_B (0:47):
  - scope (local):
    locals: "var0": 0 (number)
    stack: "0": -11 (number)
+at (anonymous) (0:17):
+   -- skipped
+Paused:
+Script wasm://wasm/0c10a5fe byte offset 61: Wasm opcode 0xb
+Scope:
+at wasm_B (0:61):
+ - scope (global):
+ - scope (local):
+   locals: "var0": 0 (number)
+   stack: 
 at (anonymous) (0:17):
    -- skipped
 exports.main returned!

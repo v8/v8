@@ -633,10 +633,6 @@ class LiftoffCompiler {
   }
 
   void FinishFunction(FullDecoder* decoder) {
-    // All breakpoints (if any) must be emitted by now.
-    DCHECK(next_breakpoint_ptr_ == nullptr ||
-           (*next_breakpoint_ptr_ == 0 &&
-            next_breakpoint_ptr_ + 1 == next_breakpoint_end_));
     if (DidAssemblerBailout(decoder)) return;
     for (OutOfLineCode& ool : out_of_line_code_) {
       GenerateOutOfLineCode(&ool);
@@ -662,13 +658,17 @@ class LiftoffCompiler {
         // A single breakpoint at offset 0 indicates stepping.
         DCHECK_EQ(next_breakpoint_ptr_ + 1, next_breakpoint_end_);
         EmitBreakpoint(decoder);
-      } else if (*next_breakpoint_ptr_ == decoder->position()) {
-        ++next_breakpoint_ptr_;
-        // TODO(thibaudm): skip unreachable breakpoints.
+      } else {
+        while (next_breakpoint_ptr_ != next_breakpoint_end_ &&
+               *next_breakpoint_ptr_ < decoder->position()) {
+          // Skip unreachable breakpoints.
+          ++next_breakpoint_ptr_;
+        }
         if (next_breakpoint_ptr_ == next_breakpoint_end_) {
           next_breakpoint_ptr_ = next_breakpoint_end_ = nullptr;
+        } else if (*next_breakpoint_ptr_ == decoder->position()) {
+          EmitBreakpoint(decoder);
         }
-        EmitBreakpoint(decoder);
       }
     }
     TraceCacheState(decoder);
