@@ -49,7 +49,118 @@ using F3 = void*(void* p, int p1, int p2, int p3, int p4);
 using F4 = void*(int64_t x, int64_t y, int64_t p2, int64_t p3, int64_t p4);
 using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 
+using U0 = int64_t();
+using U1 = int64_t(int64_t rs2);
+using U2 = int64_t(int64_t rs1, int64_t rs2);
+using U3 = int64_t(void* base, int64_t val);
+
 #define __ assm.
+
+#define MIN_VAL_IMM12 -(1 << 11)
+#define LARGE_INT_EXCEED_32_BIT 0x01C910750321FB01
+
+// return the maximal positive number representable by an immediate field of
+// nbits
+static int32_t max_val(int32_t nbits) {
+  CHECK_LE(nbits, 32);
+  return (1 << (nbits - 1)) - 1;
+}
+
+// return the minimal negative number representable by an immediate field of
+// nbits
+static int32_t min_val(int32_t nbits) {
+  CHECK_LE(nbits, 32);
+  return -(1 << (nbits - 1));
+}
+
+// check whether a value can be expressed by nbits immediate value
+static bool check_imm_range(int32_t val, int32_t nbits) {
+  return (val <= max_val(nbits) && val >= min_val(nbits));
+}
+
+#define kReturnReg a0
+#define kArg0Reg a0
+#define kArg1Reg a1
+#define kReturnAddrReg ra
+
+#define UTEST_R_FORM_WITH_RES(instr_name, rs1_val, rs2_val, expected_res)  \
+  TEST(RISCV_UTEST_##instr_name) {                                         \
+    CcTest::InitializeVM();                                                \
+    Isolate* isolate = CcTest::i_isolate();                                \
+    HandleScope scope(isolate);                                            \
+                                                                           \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);  \
+    __ RV_##instr_name(kReturnReg, kArg0Reg, kArg1Reg);                    \
+    __ RV_jr(kReturnAddrReg);                                              \
+                                                                           \
+    /* construct the codelet and invoke generated codes via f.Call(...) */ \
+    CodeDesc desc;                                                         \
+    assm.GetCode(isolate, &desc);                                          \
+    Handle<Code> code =                                                    \
+        Factory::CodeBuilder(isolate, desc, Code::STUB).Build();           \
+                                                                           \
+    auto f = GeneratedCode<U2>::FromCode(*code);                           \
+    int64_t res = reinterpret_cast<int64_t>(f.Call(rs1_val, rs2_val));     \
+    /* std::cout << "res = " << res << std::endl; */                       \
+    CHECK_EQ((int64_t)expected_res, res);                                  \
+  }
+
+#define UTEST_R_FORM_WITH_OP(instr_name, rs1_val, rs2_val, tested_op) \
+  UTEST_R_FORM_WITH_RES(instr_name, rs1_val, rs2_val,                 \
+                        ((rs1_val)tested_op(rs2_val)))
+
+#define UTEST_I_FORM_WITH_RES(instr_name, rs1_val, imm12, expected_res)    \
+  TEST(RISCV_UTEST_##instr_name) {                                         \
+    CcTest::InitializeVM();                                                \
+    Isolate* isolate = CcTest::i_isolate();                                \
+    HandleScope scope(isolate);                                            \
+                                                                           \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);  \
+    CHECK_EQ(check_imm_range(imm12, 12), true);                            \
+    __ RV_##instr_name(kReturnReg, kArg0Reg, imm12);                       \
+    __ RV_jr(kReturnAddrReg);                                              \
+                                                                           \
+    /* construct the codelet and invoke generated codes via f.Call(...) */ \
+    CodeDesc desc;                                                         \
+    assm.GetCode(isolate, &desc);                                          \
+    Handle<Code> code =                                                    \
+        Factory::CodeBuilder(isolate, desc, Code::STUB).Build();           \
+    auto f = GeneratedCode<U1>::FromCode(*code);                           \
+    int64_t res = reinterpret_cast<int64_t>(f.Call(rs1_val));              \
+    CHECK_EQ((int64_t)expected_res, res);                                  \
+  }
+
+#define UTEST_I_FORM_WITH_OP(instr_name, rs1_val, imm12, tested_op) \
+  UTEST_I_FORM_WITH_RES(instr_name, rs1_val, imm12, ((rs1_val)tested_op(imm12)))
+
+#define UTEST_LOAD_STORE(ldname, stname, value)                            \
+  TEST(RISCV_UTEST_##stname##ldname) {                                     \
+    CcTest::InitializeVM();                                                \
+    Isolate* isolate = CcTest::i_isolate();                                \
+    HandleScope scope(isolate);                                            \
+                                                                           \
+    int64_t tmp = 0;                                                       \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);  \
+    __ RV_##stname(kArg1Reg, kArg0Reg, 0);                                 \
+    __ RV_##ldname(kReturnReg, kArg0Reg, 0);                               \
+    __ RV_jr(kReturnAddrReg);                                              \
+                                                                           \
+    /* construct the codelet and invoke generated codes via f.Call(...) */ \
+    CodeDesc desc;                                                         \
+    assm.GetCode(isolate, &desc);                                          \
+    Handle<Code> code =                                                    \
+        Factory::CodeBuilder(isolate, desc, Code::STUB).Build();           \
+    auto f = GeneratedCode<U3>::FromCode(*code);                           \
+    int64_t res = reinterpret_cast<int64_t>(f.Call(&tmp, value));          \
+    /* std::cout << std::hex << "res = " << res << std::endl;   */         \
+    CHECK_EQ(((int64_t)value), res);                                       \
+  }  // namespace internal
+
+// RISCV I-set
+UTEST_R_FORM_WITH_OP(add, LARGE_INT_EXCEED_32_BIT, 20, +)
+UTEST_I_FORM_WITH_OP(addi, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, +)
+UTEST_LOAD_STORE(ld, sd, 0xFBB10A9C12345678)
+UTEST_LOAD_STORE(lw, sw, 0x456AF894)
 
 TEST(RISCV0) {
   CcTest::InitializeVM();
@@ -516,7 +627,7 @@ TEST(RISCV6) {
   f.Call(&t, 0, 0, 0, 0);
 
   CHECK_EQ(static_cast<int32_t>(0x11223344), t.r1);
-  if (kArchEndian == kLittle)  {
+  if (kArchEndian == kLittle) {
     CHECK_EQ(static_cast<int32_t>(0x3344), t.r2);
     CHECK_EQ(static_cast<int32_t>(0xFFFFBBCC), t.r3);
     CHECK_EQ(static_cast<int32_t>(0x0000BBCC), t.r4);
