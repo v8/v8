@@ -1271,6 +1271,10 @@ class SignatureHelper : public i::AllStatic {
   }
 };
 
+// Explicit instantiation makes the linker happy for component builds of
+// wasm_api_tests.
+constexpr i::wasm::ValueType SignatureHelper::kMarker;
+
 auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
   auto store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
