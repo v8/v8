@@ -64,11 +64,11 @@ static int64_t MultiplyHighSigned(int64_t u, int64_t v) {
 // Library does not provide vsscanf.
 #define SScanF sscanf  // NOLINT
 
-// The MipsDebugger class is used by the simulator while debugging simulated
+// The RiscvDebugger class is used by the simulator while debugging simulated
 // code.
-class MipsDebugger {
+class RiscvDebugger {
  public:
-  explicit MipsDebugger(Simulator* sim) : sim_(sim) {}
+  explicit RiscvDebugger(Simulator* sim) : sim_(sim) {}
 
   void Stop(Instruction* instr);
   void Debug();
@@ -101,14 +101,14 @@ class MipsDebugger {
 
 inline void UNSUPPORTED() { printf("Sim: Unsupported instruction.\n"); }
 
-void MipsDebugger::Stop(Instruction* instr) {
+void RiscvDebugger::Stop(Instruction* instr) {
   // Get the stop code.
   uint32_t code = instr->Bits(25, 6);
   PrintF("Simulator hit (%u)\n", code);
   Debug();
 }
 
-int64_t MipsDebugger::GetRegisterValue(int regnum) {
+int64_t RiscvDebugger::GetRegisterValue(int regnum) {
   if (regnum == kNumSimuRegisters) {
     return sim_->get_pc();
   } else {
@@ -116,7 +116,7 @@ int64_t MipsDebugger::GetRegisterValue(int regnum) {
   }
 }
 
-int64_t MipsDebugger::GetFPURegisterValue(int regnum) {
+int64_t RiscvDebugger::GetFPURegisterValue(int regnum) {
   if (regnum == kNumFPURegisters) {
     return sim_->get_pc();
   } else {
@@ -124,7 +124,7 @@ int64_t MipsDebugger::GetFPURegisterValue(int regnum) {
   }
 }
 
-float MipsDebugger::GetFPURegisterValueFloat(int regnum) {
+float RiscvDebugger::GetFPURegisterValueFloat(int regnum) {
   if (regnum == kNumFPURegisters) {
     return sim_->get_pc();
   } else {
@@ -132,7 +132,7 @@ float MipsDebugger::GetFPURegisterValueFloat(int regnum) {
   }
 }
 
-double MipsDebugger::GetFPURegisterValueDouble(int regnum) {
+double RiscvDebugger::GetFPURegisterValueDouble(int regnum) {
   if (regnum == kNumFPURegisters) {
     return sim_->get_pc();
   } else {
@@ -140,7 +140,7 @@ double MipsDebugger::GetFPURegisterValueDouble(int regnum) {
   }
 }
 
-bool MipsDebugger::GetValue(const char* desc, int64_t* value) {
+bool RiscvDebugger::GetValue(const char* desc, int64_t* value) {
   int regnum = Registers::Number(desc);
   int fpuregnum = FPURegisters::Number(desc);
 
@@ -159,7 +159,7 @@ bool MipsDebugger::GetValue(const char* desc, int64_t* value) {
   return false;
 }
 
-bool MipsDebugger::SetBreakpoint(Instruction* breakpc) {
+bool RiscvDebugger::SetBreakpoint(Instruction* breakpc) {
   // Check if a breakpoint can be set. If not return without any side-effects.
   if (sim_->break_pc_ != nullptr) {
     return false;
@@ -173,7 +173,7 @@ bool MipsDebugger::SetBreakpoint(Instruction* breakpc) {
   return true;
 }
 
-bool MipsDebugger::DeleteBreakpoint(Instruction* breakpc) {
+bool RiscvDebugger::DeleteBreakpoint(Instruction* breakpc) {
   if (sim_->break_pc_ != nullptr) {
     sim_->break_pc_->SetInstructionBits(sim_->break_instr_);
   }
@@ -183,19 +183,19 @@ bool MipsDebugger::DeleteBreakpoint(Instruction* breakpc) {
   return true;
 }
 
-void MipsDebugger::UndoBreakpoints() {
+void RiscvDebugger::UndoBreakpoints() {
   if (sim_->break_pc_ != nullptr) {
     sim_->break_pc_->SetInstructionBits(sim_->break_instr_);
   }
 }
 
-void MipsDebugger::RedoBreakpoints() {
+void RiscvDebugger::RedoBreakpoints() {
   if (sim_->break_pc_ != nullptr) {
     sim_->break_pc_->SetInstructionBits(kBreakpointInstr);
   }
 }
 
-void MipsDebugger::PrintAllRegs() {
+void RiscvDebugger::PrintAllRegs() {
 #define REG_INFO(n) Registers::Name(n), GetRegisterValue(n), GetRegisterValue(n)
 
   PrintF("\n");
@@ -241,7 +241,7 @@ void MipsDebugger::PrintAllRegs() {
 #undef REG_INFO
 }
 
-void MipsDebugger::PrintAllRegsIncludingFPU() {
+void RiscvDebugger::PrintAllRegsIncludingFPU() {
 #define FPU_REG_INFO(n) \
   FPURegisters::Name(n), GetFPURegisterValue(n), GetFPURegisterValueDouble(n)
 
@@ -286,7 +286,7 @@ void MipsDebugger::PrintAllRegsIncludingFPU() {
 #undef FPU_REG_INFO
 }
 
-void MipsDebugger::Debug() {
+void RiscvDebugger::Debug() {
   intptr_t last_pc = -1;
   bool done = false;
 
@@ -536,7 +536,7 @@ void MipsDebugger::Debug() {
           PrintF("deleting breakpoint failed\n");
         }
       } else if (strcmp(cmd, "flags") == 0) {
-        PrintF("No flags on MIPS !\n");
+        PrintF("No flags on RISC-V !\n");
       } else if (strcmp(cmd, "stop") == 0) {
         int64_t value;
         intptr_t stop_pc = sim_->get_pc() - 2 * kInstrSize;
@@ -1517,7 +1517,7 @@ int64_t Simulator::get_pc() const { return registers_[pc]; }
 // TODO(plind): refactor this messy debug code when we do unaligned access.
 void Simulator::DieOrDebug() {
   if ((1)) {  // Flag for this was removed.
-    MipsDebugger dbg(this);
+    RiscvDebugger dbg(this);
     dbg.Debug();
   } else {
     base::OS::Abort();
@@ -2162,7 +2162,7 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
 void Simulator::Format(Instruction* instr, const char* format) {
   PrintF("Simulator found unsupported instruction:\n 0x%08" PRIxPTR " : %s\n",
          reinterpret_cast<intptr_t>(instr), format);
-  UNIMPLEMENTED_MIPS();
+  UNIMPLEMENTED_RISCV();
 }
 
 // Calls into the V8 runtime are based on this very simple interface.
@@ -2415,7 +2415,7 @@ void Simulator::SoftwareInterrupt() {
     }
   } else {
     // All remaining break_ codes, and all traps are handled here.
-    MipsDebugger dbg(this);
+    RiscvDebugger dbg(this);
     dbg.Debug();
   }
 }
@@ -2426,7 +2426,7 @@ bool Simulator::IsWatchpoint(uint64_t code) {
 }
 
 void Simulator::PrintWatchpoint(uint64_t code) {
-  MipsDebugger dbg(this);
+  RiscvDebugger dbg(this);
   ++break_count_;
   PrintF("\n---- break %" PRId64 "  marker: %3d  (instr count: %8" PRId64
          " ) ----------"
@@ -2439,7 +2439,7 @@ void Simulator::HandleStop(uint64_t code, Instruction* instr) {
   // Stop if it is enabled, otherwise go on jumping over the stop
   // and the message address.
   if (IsEnabledStop(code)) {
-    MipsDebugger dbg(this);
+    RiscvDebugger dbg(this);
     dbg.Stop(instr);
   }
 }
@@ -3878,7 +3878,7 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
             SetResult(rd_reg(), static_cast<int32_t>(i64hilo >> 32));
             break;
           default:
-            UNIMPLEMENTED_MIPS();
+            UNIMPLEMENTED_RISCV();
             break;
         }
       }
@@ -3899,7 +3899,7 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
             SetResult(rd_reg(), static_cast<int32_t>(u64hilo >> 32));
             break;
           default:
-            UNIMPLEMENTED_MIPS();
+            UNIMPLEMENTED_RISCV();
             break;
         }
       }
@@ -3917,13 +3917,13 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
             SetResult(rd_reg(), MultiplyHighSigned(rs(), rt()));
             break;
           default:
-            UNIMPLEMENTED_MIPS();
+            UNIMPLEMENTED_RISCV();
             break;
         }
       }
       break;
     case DMULTU:
-      UNIMPLEMENTED_MIPS();
+      UNIMPLEMENTED_RISCV();
       break;
     case DIV:
     case DDIV: {
@@ -3960,7 +3960,7 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
               }
               break;
             default:
-              UNIMPLEMENTED_MIPS();
+              UNIMPLEMENTED_RISCV();
               break;
           }
           break;
@@ -3986,7 +3986,7 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
               }
               break;
             default:
-              UNIMPLEMENTED_MIPS();
+              UNIMPLEMENTED_RISCV();
               break;
           }
         } break;
@@ -4015,7 +4015,7 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
               }
               break;
             default:
-              UNIMPLEMENTED_MIPS();
+              UNIMPLEMENTED_RISCV();
               break;
           }
         } break;
@@ -8321,8 +8321,6 @@ void Simulator::InstructionDecode(Instruction* instr) {
   }
 
   instr_ = instr;
-  Instr bits = instr_.InstructionBits();
-  PrintF("[RISCV]Debug: Decode RISCV 0x%08x\n", bits);
   switch (instr_.InstructionType()) {
     case Instruction::kRType:
       DecodeRVRType();
@@ -8390,7 +8388,7 @@ void Simulator::Execute() {
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
       icount_++;
       if (icount_ == static_cast<int64_t>(::v8::internal::FLAG_stop_sim_at)) {
-        MipsDebugger dbg(this);
+        RiscvDebugger dbg(this);
         dbg.Debug();
       } else {
         InstructionDecode(instr);

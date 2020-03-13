@@ -64,100 +64,47 @@ class Decoder {
   // Printing of common values.
   void PrintRegister(int reg);
   void PrintFPURegister(int freg);
-  void PrintMSARegister(int wreg);
   void PrintFPUStatusRegister(int freg);
-  void PrintMSAControlRegister(int creg);
-  void PrintRs(Instruction* instr);
-  void PrintRt(Instruction* instr);
+  void PrintRs1(Instruction* instr);
+  void PrintRs2(Instruction* instr);
   void PrintRd(Instruction* instr);
-  void PrintFs(Instruction* instr);
-  void PrintFt(Instruction* instr);
-  void PrintFd(Instruction* instr);
-  void PrintSa(Instruction* instr);
-  void PrintLsaSa(Instruction* instr);
-  void PrintSd(Instruction* instr);
-  void PrintSs1(Instruction* instr);
-  void PrintSs2(Instruction* instr);
-  void PrintSs3(Instruction* instr);
-  void PrintSs4(Instruction* instr);
-  void PrintSs5(Instruction* instr);
-  void PrintBc(Instruction* instr);
-  void PrintCc(Instruction* instr);
-  void PrintFunction(Instruction* instr);
-  void PrintSecondaryField(Instruction* instr);
-  void PrintUImm9(Instruction* instr);
-  void PrintSImm9(Instruction* instr);
-  void PrintUImm16(Instruction* instr);
-  void PrintSImm16(Instruction* instr);
-  void PrintXImm16(Instruction* instr);
-  void PrintPCImm16(Instruction* instr, int delta_pc, int n_bits);
-  void PrintXImm18(Instruction* instr);
-  void PrintSImm18(Instruction* instr);
-  void PrintXImm19(Instruction* instr);
-  void PrintSImm19(Instruction* instr);
-  void PrintXImm21(Instruction* instr);
-  void PrintSImm21(Instruction* instr);
-  void PrintPCImm21(Instruction* instr, int delta_pc, int n_bits);
-  void PrintXImm26(Instruction* instr);
-  void PrintSImm26(Instruction* instr);
-  void PrintPCImm26(Instruction* instr, int delta_pc, int n_bits);
-  void PrintPCImm26(Instruction* instr);
-  void PrintCode(Instruction* instr);    // For break and trap instructions.
-  void PrintFormat(Instruction* instr);  // For floating format postfix.
-  void PrintBp2(Instruction* instr);
-  void PrintBp3(Instruction* instr);
-  void PrintMsaDataFormat(Instruction* instr);
-  void PrintMsaXImm8(Instruction* instr);
-  void PrintMsaImm8(Instruction* instr);
-  void PrintMsaImm5(Instruction* instr);
-  void PrintMsaSImm5(Instruction* instr);
-  void PrintMsaSImm10(Instruction* instr, bool is_mi10 = false);
-  void PrintMsaImmBit(Instruction* instr);
-  void PrintMsaImmElm(Instruction* instr);
-  void PrintMsaCopy(Instruction* instr);
+  void PrintVs1(Instruction* instr);
+  void PrintVs2(Instruction* instr);
+  void PrintVd(Instruction* instr);
+  void PrintFRs1(Instruction* instr);
+  void PrintFRs2(Instruction* instr);
+  void PrintFRs3(Instruction* instr);
+  void PrintFRd(Instruction* instr);
+  void PrintImm12(Instruction* instr);
+  void PrintImm20U(Instruction* instr);
+  void PrintImm20J(Instruction* instr);
+  void PrintShamt(Instruction* instr);
+  void PrintShamt32(Instruction* instr);
+  void PrintAcquireRelease(Instruction* instr);
+  void PrintBranchOffset(Instruction* instr);
+  void PrintStoreOffset(Instruction* instr);
+  void PrintRoundMode(Instruction* instr);
+
+  // Each of these functions decodes one particular instruction type.
+  void DecodeRType(Instruction* instr);
+  void DecodeR4Type(Instruction* instr);
+  void DecodeRAType(Instruction* instr);
+  void DecodeRFPType(Instruction* instr);
+  void DecodeIType(Instruction* instr);
+  void DecodeSType(Instruction* instr);
+  void DecodeBType(Instruction* instr);
+  void DecodeUType(Instruction* instr);
+  void DecodeJType(Instruction* instr);
+
   // Printing of instruction name.
   void PrintInstructionName(Instruction* instr);
 
   // Handle formatting of instructions and their options.
   int FormatRegister(Instruction* instr, const char* option);
   int FormatFPURegister(Instruction* instr, const char* option);
-  int FormatMSARegister(Instruction* instr, const char* option);
   int FormatOption(Instruction* instr, const char* option);
   void Format(Instruction* instr, const char* format);
   void Unknown(Instruction* instr);
-  int DecodeBreakInstr(Instruction* instr);
-
-  // Each of these functions decodes one particular instruction type.
-  bool DecodeTypeRegisterRsType(Instruction* instr);
-  void DecodeTypeRegisterSRsType(Instruction* instr);
-  void DecodeTypeRegisterDRsType(Instruction* instr);
-  void DecodeTypeRegisterLRsType(Instruction* instr);
-  void DecodeTypeRegisterWRsType(Instruction* instr);
-  void DecodeTypeRegisterSPECIAL(Instruction* instr);
-  void DecodeTypeRegisterSPECIAL2(Instruction* instr);
-  void DecodeTypeRegisterSPECIAL3(Instruction* instr);
-  void DecodeTypeRegisterCOP1(Instruction* instr);
-  void DecodeTypeRegisterCOP1X(Instruction* instr);
-  int DecodeTypeRegister(Instruction* instr);
-
-  void DecodeTypeImmediateCOP1(Instruction* instr);
-  void DecodeTypeImmediateREGIMM(Instruction* instr);
-  void DecodeTypeImmediateSPECIAL3(Instruction* instr);
-  void DecodeTypeImmediate(Instruction* instr);
-
-  void DecodeTypeJump(Instruction* instr);
-
-  void DecodeTypeMsaI8(Instruction* instr);
-  void DecodeTypeMsaI5(Instruction* instr);
-  void DecodeTypeMsaI10(Instruction* instr);
-  void DecodeTypeMsaELM(Instruction* instr);
-  void DecodeTypeMsaBIT(Instruction* instr);
-  void DecodeTypeMsaMI10(Instruction* instr);
-  void DecodeTypeMsa3R(Instruction* instr);
-  void DecodeTypeMsa3RF(Instruction* instr);
-  void DecodeTypeMsaVec(Instruction* instr);
-  void DecodeTypeMsa2R(Instruction* instr);
-  void DecodeTypeMsa2RF(Instruction* instr);
 
   const disasm::NameConverter& converter_;
   v8::internal::Vector<char> out_buffer_;
@@ -188,19 +135,34 @@ void Decoder::PrintRegister(int reg) {
   Print(converter_.NameOfCPURegister(reg));
 }
 
-void Decoder::PrintRs(Instruction* instr) {
-  int reg = instr->RsValue();
+void Decoder::PrintRs1(Instruction* instr) {
+  int reg = instr->Rs1Value();
   PrintRegister(reg);
 }
 
-void Decoder::PrintRt(Instruction* instr) {
-  int reg = instr->RtValue();
+void Decoder::PrintRs2(Instruction* instr) {
+  int reg = instr->Rs2Value();
   PrintRegister(reg);
 }
 
 void Decoder::PrintRd(Instruction* instr) {
-  int reg = instr->RdValue();
+  int reg = instr->RV_RdValue();
   PrintRegister(reg);
+}
+
+void Decoder::PrintVs1(Instruction* instr) {
+  int val = instr->Rs1Value();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", val);
+}
+
+void Decoder::PrintVs2(Instruction* instr) {
+  int val = instr->Rs2Value();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", val);
+}
+
+void Decoder::PrintVd(Instruction* instr) {
+  int val = instr->RV_RdValue();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", val);
 }
 
 // Print the FPUregister name according to the active name converter.
@@ -208,439 +170,73 @@ void Decoder::PrintFPURegister(int freg) {
   Print(converter_.NameOfXMMRegister(freg));
 }
 
-void Decoder::PrintMSARegister(int wreg) { Print(MSARegisters::Name(wreg)); }
-
-void Decoder::PrintFPUStatusRegister(int freg) {
-  switch (freg) {
-    case kFCSRRegister:
-      Print("FCSR");
-      break;
-    default:
-      Print(converter_.NameOfXMMRegister(freg));
-  }
+void Decoder::PrintFRs1(Instruction* instr) {
+  int reg = instr->Rs1Value();
+  PrintFPURegister(reg);
 }
 
-void Decoder::PrintMSAControlRegister(int creg) {
-  switch (creg) {
-    case kMSAIRRegister:
-      Print("MSAIR");
-      break;
-    case kMSACSRRegister:
-      Print("MSACSR");
-      break;
-    default:
-      Print("no_msacreg");
-  }
+void Decoder::PrintFRs2(Instruction* instr) {
+  int reg = instr->Rs2Value();
+  PrintFPURegister(reg);
 }
 
-void Decoder::PrintFs(Instruction* instr) {
-  int freg = instr->RsValue();
-  PrintFPURegister(freg);
+void Decoder::PrintFRs3(Instruction* instr) {
+  int reg = instr->Rs3Value();
+  PrintFPURegister(reg);
 }
 
-void Decoder::PrintFt(Instruction* instr) {
-  int freg = instr->RtValue();
-  PrintFPURegister(freg);
+void Decoder::PrintFRd(Instruction* instr) {
+  int reg = instr->RV_RdValue();
+  PrintFPURegister(reg);
 }
 
-void Decoder::PrintFd(Instruction* instr) {
-  int freg = instr->RdValue();
-  PrintFPURegister(freg);
-}
-
-// Print the integer value of the sa field.
-void Decoder::PrintSa(Instruction* instr) {
-  int sa = instr->SaValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", sa);
-}
-
-// Print the integer value of the sa field of a lsa instruction.
-void Decoder::PrintLsaSa(Instruction* instr) {
-  int sa = instr->LsaSaValue() + 1;
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", sa);
-}
-
-// Print the integer value of the rd field, when it is not used as reg.
-void Decoder::PrintSd(Instruction* instr) {
-  int sd = instr->RdValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", sd);
-}
-
-// Print the integer value of ext/dext/dextu size from the msbd field.
-void Decoder::PrintSs1(Instruction* instr) {
-  int msbd = instr->RdValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", msbd + 1);
-}
-
-// Print the integer value of ins/dins/dinsu size from the msb and lsb fields
-// (for dinsu it is msbminus32 and lsbminus32 fields).
-void Decoder::PrintSs2(Instruction* instr) {
-  int msb = instr->RdValue();
-  int lsb = instr->SaValue();
-  out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%d", msb - lsb + 1);
-}
-
-// Print the integer value of dextm size from the msbdminus32 field.
-void Decoder::PrintSs3(Instruction* instr) {
-  int msbdminus32 = instr->RdValue();
-  out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%d", msbdminus32 + 32 + 1);
-}
-
-// Print the integer value of dinsm size from the msbminus32 and lsb fields.
-void Decoder::PrintSs4(Instruction* instr) {
-  int msbminus32 = instr->RdValue();
-  int lsb = instr->SaValue();
-  out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%d", msbminus32 + 32 - lsb + 1);
-}
-
-// Print the integer value of dextu/dinsu pos from the lsbminus32 field.
-void Decoder::PrintSs5(Instruction* instr) {
-  int lsbminus32 = instr->SaValue();
-  out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%d", lsbminus32 + 32);
-}
-
-// Print the integer value of the cc field for the bc1t/f instructions.
-void Decoder::PrintBc(Instruction* instr) {
-  int cc = instr->FBccValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", cc);
-}
-
-// Print the integer value of the cc field for the FP compare instructions.
-void Decoder::PrintCc(Instruction* instr) {
-  int cc = instr->FCccValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "cc(%d)", cc);
-}
-
-// Print 9-bit unsigned immediate value.
-void Decoder::PrintUImm9(Instruction* instr) {
-  int32_t imm = instr->Imm9Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", imm);
-}
-
-// Print 9-bit signed immediate value.
-void Decoder::PrintSImm9(Instruction* instr) {
-  int32_t imm = ((instr->Imm9Value()) << 23) >> 23;
+void Decoder::PrintImm12(Instruction* instr) {
+  int32_t imm = instr->Imm12Value();
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
-// Print 16-bit unsigned immediate value.
-void Decoder::PrintUImm16(Instruction* instr) {
-  int32_t imm = instr->Imm16Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", imm);
-}
-
-// Print 16-bit signed immediate value.
-void Decoder::PrintSImm16(Instruction* instr) {
-  int32_t imm =
-      ((instr->Imm16Value()) << (32 - kImm16Bits)) >> (32 - kImm16Bits);
+void Decoder::PrintBranchOffset(Instruction* instr) {
+  int32_t imm = instr->BranchOffset();
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
-// Print 16-bit hexa immediate value.
-void Decoder::PrintXImm16(Instruction* instr) {
-  int32_t imm = instr->Imm16Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
-}
-
-// Print absoulte address for 16-bit offset or immediate value.
-// The absolute address is calculated according following expression:
-//      PC + delta_pc + (offset << n_bits)
-void Decoder::PrintPCImm16(Instruction* instr, int delta_pc, int n_bits) {
-  int16_t offset = instr->Imm16Value();
-  out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
-               converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
-                                        delta_pc + (offset << n_bits)));
-}
-
-// Print 18-bit signed immediate value.
-void Decoder::PrintSImm18(Instruction* instr) {
-  int32_t imm =
-      ((instr->Imm18Value()) << (32 - kImm18Bits)) >> (32 - kImm18Bits);
+void Decoder::PrintStoreOffset(Instruction* instr) {
+  int32_t imm = instr->StoreOffset();
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
-// Print 18-bit hexa immediate value.
-void Decoder::PrintXImm18(Instruction* instr) {
-  int32_t imm = instr->Imm18Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+void Decoder::PrintImm20U(Instruction* instr) {
+  int32_t imm = instr->Imm20UValue();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
-// Print 19-bit hexa immediate value.
-void Decoder::PrintXImm19(Instruction* instr) {
-  int32_t imm = instr->Imm19Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+void Decoder::PrintImm20J(Instruction* instr) {
+  int32_t imm = instr->Imm20JValue();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
-// Print 19-bit signed immediate value.
-void Decoder::PrintSImm19(Instruction* instr) {
-  int32_t imm19 = instr->Imm19Value();
-  // set sign
-  imm19 <<= (32 - kImm19Bits);
-  imm19 >>= (32 - kImm19Bits);
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm19);
+void Decoder::PrintShamt(Instruction* instr) {
+  int32_t imm = instr->Shamt();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
-// Print 21-bit immediate value.
-void Decoder::PrintXImm21(Instruction* instr) {
-  uint32_t imm = instr->Imm21Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+void Decoder::PrintShamt32(Instruction* instr) {
+  int32_t imm = instr->Shamt32();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
-// Print 21-bit signed immediate value.
-void Decoder::PrintSImm21(Instruction* instr) {
-  int32_t imm21 = instr->Imm21Value();
-  // set sign
-  imm21 <<= (32 - kImm21Bits);
-  imm21 >>= (32 - kImm21Bits);
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm21);
-}
-
-// Print absoulte address for 21-bit offset or immediate value.
-// The absolute address is calculated according following expression:
-//      PC + delta_pc + (offset << n_bits)
-void Decoder::PrintPCImm21(Instruction* instr, int delta_pc, int n_bits) {
-  int32_t imm21 = instr->Imm21Value();
-  // set sign
-  imm21 <<= (32 - kImm21Bits);
-  imm21 >>= (32 - kImm21Bits);
-  out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
-               converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
-                                        delta_pc + (imm21 << n_bits)));
-}
-
-// Print 26-bit hex immediate value.
-void Decoder::PrintXImm26(Instruction* instr) {
-  uint64_t target = static_cast<uint64_t>(instr->Imm26Value())
-                    << kImmFieldShift;
-  target = (reinterpret_cast<uint64_t>(instr) & ~0xFFFFFFF) | target;
-  out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "0x%" PRIx64, target);
-}
-
-// Print 26-bit signed immediate value.
-void Decoder::PrintSImm26(Instruction* instr) {
-  int32_t imm26 = instr->Imm26Value();
-  // set sign
-  imm26 <<= (32 - kImm26Bits);
-  imm26 >>= (32 - kImm26Bits);
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm26);
-}
-
-// Print absoulte address for 26-bit offset or immediate value.
-// The absolute address is calculated according following expression:
-//      PC + delta_pc + (offset << n_bits)
-void Decoder::PrintPCImm26(Instruction* instr, int delta_pc, int n_bits) {
-  int32_t imm26 = instr->Imm26Value();
-  // set sign
-  imm26 <<= (32 - kImm26Bits);
-  imm26 >>= (32 - kImm26Bits);
-  out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
-               converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
-                                        delta_pc + (imm26 << n_bits)));
-}
-
-// Print absoulte address for 26-bit offset or immediate value.
-// The absolute address is calculated according following expression:
-//      PC[GPRLEN-1 .. 28] || instr_index26 || 00
-void Decoder::PrintPCImm26(Instruction* instr) {
-  int32_t imm26 = instr->Imm26Value();
-  uint64_t pc_mask = ~0xFFFFFFF;
-  uint64_t pc = ((uint64_t)(instr + 1) & pc_mask) | (imm26 << 2);
-  out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
-               converter_.NameOfAddress((reinterpret_cast<byte*>(pc))));
-}
-
-void Decoder::PrintBp2(Instruction* instr) {
-  int bp2 = instr->Bp2Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", bp2);
-}
-
-void Decoder::PrintBp3(Instruction* instr) {
-  int bp3 = instr->Bp3Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", bp3);
-}
-
-// Print 26-bit immediate value.
-void Decoder::PrintCode(Instruction* instr) {
-  if (instr->OpcodeFieldRaw() != SPECIAL)
-    return;  // Not a break or trap instruction.
-  switch (instr->FunctionFieldRaw()) {
-    case BREAK: {
-      int32_t code = instr->Bits(25, 6);
-      out_buffer_pos_ +=
-          SNPrintF(out_buffer_ + out_buffer_pos_, "0x%05x (%d)", code, code);
-      break;
-    }
-    case TGE:
-    case TGEU:
-    case TLT:
-    case TLTU:
-    case TEQ:
-    case TNE: {
-      int32_t code = instr->Bits(15, 6);
-      out_buffer_pos_ +=
-          SNPrintF(out_buffer_ + out_buffer_pos_, "0x%03x", code);
-      break;
-    }
-    default:  // Not a break or trap instruction.
-      break;
+void Decoder::PrintAcquireRelease(Instruction* instr) {
+  bool aq = instr->AqValue();
+  bool rl = instr->RlValue();
+  if (aq || rl) {
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, ".");
   }
-}
-
-void Decoder::PrintMsaXImm8(Instruction* instr) {
-  int32_t imm = instr->MsaImm8Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
-}
-
-void Decoder::PrintMsaImm8(Instruction* instr) {
-  int32_t imm = instr->MsaImm8Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", imm);
-}
-
-void Decoder::PrintMsaImm5(Instruction* instr) {
-  int32_t imm = instr->MsaImm5Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", imm);
-}
-
-void Decoder::PrintMsaSImm5(Instruction* instr) {
-  int32_t imm = instr->MsaImm5Value();
-  imm <<= (32 - kMsaImm5Bits);
-  imm >>= (32 - kMsaImm5Bits);
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
-}
-
-void Decoder::PrintMsaSImm10(Instruction* instr, bool is_mi10) {
-  int32_t imm = is_mi10 ? instr->MsaImmMI10Value() : instr->MsaImm10Value();
-  imm <<= (32 - kMsaImm10Bits);
-  imm >>= (32 - kMsaImm10Bits);
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
-}
-
-void Decoder::PrintMsaImmBit(Instruction* instr) {
-  int32_t m = instr->MsaBitMValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", m);
-}
-
-void Decoder::PrintMsaImmElm(Instruction* instr) {
-  int32_t n = instr->MsaElmNValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", n);
-}
-
-void Decoder::PrintMsaCopy(Instruction* instr) {
-  int32_t rd = instr->WdValue();
-  int32_t ws = instr->WsValue();
-  int32_t n = instr->MsaElmNValue();
-  out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%s, %s[%u]",
-               converter_.NameOfCPURegister(rd), MSARegisters::Name(ws), n);
-}
-
-void Decoder::PrintFormat(Instruction* instr) {
-  char formatLetter = ' ';
-  switch (instr->RsFieldRaw()) {
-    case S:
-      formatLetter = 's';
-      break;
-    case D:
-      formatLetter = 'd';
-      break;
-    case W:
-      formatLetter = 'w';
-      break;
-    case L:
-      formatLetter = 'l';
-      break;
-    default:
-      UNREACHABLE();
+  if (aq) {
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "aq");
   }
-  PrintChar(formatLetter);
-}
-
-void Decoder::PrintMsaDataFormat(Instruction* instr) {
-  DCHECK(instr->IsMSAInstr());
-  char df = ' ';
-  if (instr->IsMSABranchInstr()) {
-    switch (instr->RsFieldRaw()) {
-      case BZ_V:
-      case BNZ_V:
-        df = 'v';
-        break;
-      case BZ_B:
-      case BNZ_B:
-        df = 'b';
-        break;
-      case BZ_H:
-      case BNZ_H:
-        df = 'h';
-        break;
-      case BZ_W:
-      case BNZ_W:
-        df = 'w';
-        break;
-      case BZ_D:
-      case BNZ_D:
-        df = 'd';
-        break;
-      default:
-        UNREACHABLE();
-        break;
-    }
-  } else {
-    char DF[] = {'b', 'h', 'w', 'd'};
-    switch (instr->MSAMinorOpcodeField()) {
-      case kMsaMinorI5:
-      case kMsaMinorI10:
-      case kMsaMinor3R:
-        df = DF[instr->Bits(22, 21)];
-        break;
-      case kMsaMinorMI10:
-        df = DF[instr->Bits(1, 0)];
-        break;
-      case kMsaMinorBIT:
-        df = DF[instr->MsaBitDf()];
-        break;
-      case kMsaMinorELM:
-        df = DF[instr->MsaElmDf()];
-        break;
-      case kMsaMinor3RF: {
-        uint32_t opcode = instr->InstructionBits() & kMsa3RFMask;
-        switch (opcode) {
-          case FEXDO:
-          case FTQ:
-          case MUL_Q:
-          case MADD_Q:
-          case MSUB_Q:
-          case MULR_Q:
-          case MADDR_Q:
-          case MSUBR_Q:
-            df = DF[1 + instr->Bit(21)];
-            break;
-          default:
-            df = DF[2 + instr->Bit(21)];
-            break;
-        }
-      } break;
-      case kMsaMinor2R:
-        df = DF[instr->Bits(17, 16)];
-        break;
-      case kMsaMinor2RF:
-        df = DF[2 + instr->Bit(16)];
-        break;
-      default:
-        UNREACHABLE();
-        break;
-    }
+  if (rl) {
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "rl");
   }
-
-  PrintChar(df);
 }
 
 // Printing of instruction name.
@@ -650,16 +246,19 @@ void Decoder::PrintInstructionName(Instruction* instr) {}
 // complexity of FormatOption.
 int Decoder::FormatRegister(Instruction* instr, const char* format) {
   DCHECK_EQ(format[0], 'r');
-  if (format[1] == 's') {  // 'rs: Rs register.
-    int reg = instr->RsValue();
-    PrintRegister(reg);
-    return 2;
-  } else if (format[1] == 't') {  // 'rt: rt register.
-    int reg = instr->RtValue();
-    PrintRegister(reg);
-    return 2;
+  if (format[1] == 's') {  // 'rs[12]: Rs register.
+    if (format[2] == '1') {
+      int reg = instr->Rs1Value();
+      PrintRegister(reg);
+      return 3;
+    } else if (format[2] == '2') {
+      int reg = instr->Rs2Value();
+      PrintRegister(reg);
+      return 3;
+    }
+    UNREACHABLE();
   } else if (format[1] == 'd') {  // 'rd: rd register.
-    int reg = instr->RdValue();
+    int reg = instr->RV_RdValue();
     PrintRegister(reg);
     return 2;
   }
@@ -670,64 +269,26 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
 // complexity of FormatOption.
 int Decoder::FormatFPURegister(Instruction* instr, const char* format) {
   DCHECK_EQ(format[0], 'f');
-  if ((CTC1 == instr->RsFieldRaw()) || (CFC1 == instr->RsFieldRaw())) {
-    if (format[1] == 's') {  // 'fs: fs register.
-      int reg = instr->FsValue();
-      PrintFPUStatusRegister(reg);
-      return 2;
-    } else if (format[1] == 't') {  // 'ft: ft register.
-      int reg = instr->FtValue();
-      PrintFPUStatusRegister(reg);
-      return 2;
-    } else if (format[1] == 'd') {  // 'fd: fd register.
-      int reg = instr->FdValue();
-      PrintFPUStatusRegister(reg);
-      return 2;
-    } else if (format[1] == 'r') {  // 'fr: fr register.
-      int reg = instr->FrValue();
-      PrintFPUStatusRegister(reg);
-      return 2;
+  if (format[1] == 's') {  // 'fs[1-3]: Rs register.
+    if (format[2] == '1') {
+      int reg = instr->Rs1Value();
+      PrintFPURegister(reg);
+      return 3;
+    } else if (format[2] == '2') {
+      int reg = instr->Rs2Value();
+      PrintFPURegister(reg);
+      return 3;
+    } else if (format[2] == '3') {
+      int reg = instr->Rs3Value();
+      PrintFPURegister(reg);
+      return 3;
     }
-  } else {
-    if (format[1] == 's') {  // 'fs: fs register.
-      int reg = instr->FsValue();
-      PrintFPURegister(reg);
-      return 2;
-    } else if (format[1] == 't') {  // 'ft: ft register.
-      int reg = instr->FtValue();
-      PrintFPURegister(reg);
-      return 2;
-    } else if (format[1] == 'd') {  // 'fd: fd register.
-      int reg = instr->FdValue();
-      PrintFPURegister(reg);
-      return 2;
-    } else if (format[1] == 'r') {  // 'fr: fr register.
-      int reg = instr->FrValue();
-      PrintFPURegister(reg);
-      return 2;
-    }
-  }
-  UNREACHABLE();
-}
-
-// Handle all MSARegister based formatting in this function to reduce the
-// complexity of FormatOption.
-int Decoder::FormatMSARegister(Instruction* instr, const char* format) {
-  DCHECK_EQ(format[0], 'w');
-  if (format[1] == 's') {
-    int reg = instr->WsValue();
-    PrintMSARegister(reg);
-    return 2;
-  } else if (format[1] == 't') {
-    int reg = instr->WtValue();
-    PrintMSARegister(reg);
-    return 2;
-  } else if (format[1] == 'd') {
-    int reg = instr->WdValue();
-    PrintMSARegister(reg);
+    UNREACHABLE();
+  } else if (format[1] == 'd') {  // 'fd: fd register.
+    int reg = instr->FdValue();
+    PrintFPURegister(reg);
     return 2;
   }
-
   UNREACHABLE();
 }
 
@@ -738,183 +299,37 @@ int Decoder::FormatMSARegister(Instruction* instr, const char* format) {
 // characters that were consumed from the formatting string.
 int Decoder::FormatOption(Instruction* instr, const char* format) {
   switch (format[0]) {
-    case 'c': {  // 'code for break or trap instructions.
-      DCHECK(STRING_STARTS_WITH(format, "code"));
-      PrintCode(instr);
-      return 4;
-    }
-    case 'i': {  // 'imm16u or 'imm26.
+    case 'i': {  // 'imm12, 'imm20U, or 'imm20J: Immediates.
       if (format[3] == '1') {
-        if (format[4] == '6') {
-          DCHECK(STRING_STARTS_WITH(format, "imm16"));
-          switch (format[5]) {
-            case 's':
-              DCHECK(STRING_STARTS_WITH(format, "imm16s"));
-              PrintSImm16(instr);
-              break;
-            case 'u':
-              DCHECK(STRING_STARTS_WITH(format, "imm16u"));
-              PrintSImm16(instr);
-              break;
-            case 'x':
-              DCHECK(STRING_STARTS_WITH(format, "imm16x"));
-              PrintXImm16(instr);
-              break;
-            case 'p': {  // The PC relative address.
-              DCHECK(STRING_STARTS_WITH(format, "imm16p"));
-              int delta_pc = 0;
-              int n_bits = 0;
-              switch (format[6]) {
-                case '4': {
-                  DCHECK(STRING_STARTS_WITH(format, "imm16p4"));
-                  delta_pc = 4;
-                  switch (format[8]) {
-                    case '2':
-                      DCHECK(STRING_STARTS_WITH(format, "imm16p4s2"));
-                      n_bits = 2;
-                      PrintPCImm16(instr, delta_pc, n_bits);
-                      return 9;
-                  }
-                }
-              }
-            }
-          }
-          return 6;
-        } else if (format[4] == '8') {
-          DCHECK(STRING_STARTS_WITH(format, "imm18"));
-          switch (format[5]) {
-            case 's':
-              DCHECK(STRING_STARTS_WITH(format, "imm18s"));
-              PrintSImm18(instr);
-              break;
-            case 'x':
-              DCHECK(STRING_STARTS_WITH(format, "imm18x"));
-              PrintXImm18(instr);
-              break;
-          }
-          return 6;
-        } else if (format[4] == '9') {
-          DCHECK(STRING_STARTS_WITH(format, "imm19"));
-          switch (format[5]) {
-            case 's':
-              DCHECK(STRING_STARTS_WITH(format, "imm19s"));
-              PrintSImm19(instr);
-              break;
-            case 'x':
-              DCHECK(STRING_STARTS_WITH(format, "imm19x"));
-              PrintXImm19(instr);
-              break;
-          }
-          return 6;
-        } else if (format[4] == '0' && format[5] == 's') {
-          DCHECK(STRING_STARTS_WITH(format, "imm10s"));
-          if (format[6] == '1') {
-            DCHECK(STRING_STARTS_WITH(format, "imm10s1"));
-            PrintMsaSImm10(instr, false);
-          } else if (format[6] == '2') {
-            DCHECK(STRING_STARTS_WITH(format, "imm10s2"));
-            PrintMsaSImm10(instr, true);
-          }
-          return 7;
+        if (format[4] == '2') {
+          DCHECK(STRING_STARTS_WITH(format, "imm12"));
+          PrintImm12(instr);
+          return 5;
         }
-      } else if (format[3] == '2' && format[4] == '1') {
-        DCHECK(STRING_STARTS_WITH(format, "imm21"));
+      } else if (format[3] == '2' && format[4] == '0') {
+        DCHECK(STRING_STARTS_WITH(format, "imm20"));
         switch (format[5]) {
-          case 's':
-            DCHECK(STRING_STARTS_WITH(format, "imm21s"));
-            PrintSImm21(instr);
+          case 'U':
+            DCHECK(STRING_STARTS_WITH(format, "imm20U"));
+            PrintImm20U(instr);
             break;
-          case 'x':
-            DCHECK(STRING_STARTS_WITH(format, "imm21x"));
-            PrintXImm21(instr);
+          case 'J':
+            DCHECK(STRING_STARTS_WITH(format, "imm20J"));
+            PrintImm20J(instr);
             break;
-          case 'p': {  // The PC relative address.
-            DCHECK(STRING_STARTS_WITH(format, "imm21p"));
-            int delta_pc = 0;
-            int n_bits = 0;
-            switch (format[6]) {
-              case '4': {
-                DCHECK(STRING_STARTS_WITH(format, "imm21p4"));
-                delta_pc = 4;
-                switch (format[8]) {
-                  case '2':
-                    DCHECK(STRING_STARTS_WITH(format, "imm21p4s2"));
-                    n_bits = 2;
-                    PrintPCImm21(instr, delta_pc, n_bits);
-                    return 9;
-                }
-              }
-            }
-          }
         }
         return 6;
-      } else if (format[3] == '2' && format[4] == '6') {
-        DCHECK(STRING_STARTS_WITH(format, "imm26"));
-        switch (format[5]) {
-          case 's':
-            DCHECK(STRING_STARTS_WITH(format, "imm26s"));
-            PrintSImm26(instr);
-            break;
-          case 'x':
-            DCHECK(STRING_STARTS_WITH(format, "imm26x"));
-            PrintXImm26(instr);
-            break;
-          case 'p': {  // The PC relative address.
-            DCHECK(STRING_STARTS_WITH(format, "imm26p"));
-            int delta_pc = 0;
-            int n_bits = 0;
-            switch (format[6]) {
-              case '4': {
-                DCHECK(STRING_STARTS_WITH(format, "imm26p4"));
-                delta_pc = 4;
-                switch (format[8]) {
-                  case '2':
-                    DCHECK(STRING_STARTS_WITH(format, "imm26p4s2"));
-                    n_bits = 2;
-                    PrintPCImm26(instr, delta_pc, n_bits);
-                    return 9;
-                }
-              }
-            }
-          }
-          case 'j': {  // Absolute address for jump instructions.
-            DCHECK(STRING_STARTS_WITH(format, "imm26j"));
-            PrintPCImm26(instr);
-            break;
-          }
-        }
-        return 6;
-      } else if (format[3] == '5') {
-        DCHECK(STRING_STARTS_WITH(format, "imm5"));
-        if (format[4] == 'u') {
-          DCHECK(STRING_STARTS_WITH(format, "imm5u"));
-          PrintMsaImm5(instr);
-        } else if (format[4] == 's') {
-          DCHECK(STRING_STARTS_WITH(format, "imm5s"));
-          PrintMsaSImm5(instr);
-        }
-        return 5;
-      } else if (format[3] == '8') {
-        DCHECK(STRING_STARTS_WITH(format, "imm8"));
-        PrintMsaImm8(instr);
+      }
+      UNREACHABLE();
+    }
+    case 'o': {  // 'offB or 'offS: Offsets.
+      if (format[3] == 'B') {
+        DCHECK(STRING_STARTS_WITH(format, "offB"));
+        PrintBranchOffset(instr);
         return 4;
-      } else if (format[3] == '9') {
-        DCHECK(STRING_STARTS_WITH(format, "imm9"));
-        if (format[4] == 'u') {
-          DCHECK(STRING_STARTS_WITH(format, "imm9u"));
-          PrintUImm9(instr);
-        } else if (format[4] == 's') {
-          DCHECK(STRING_STARTS_WITH(format, "imm9s"));
-          PrintSImm9(instr);
-        }
-        return 5;
-      } else if (format[3] == 'b') {
-        DCHECK(STRING_STARTS_WITH(format, "immb"));
-        PrintMsaImmBit(instr);
-        return 4;
-      } else if (format[3] == 'e') {
-        DCHECK(STRING_STARTS_WITH(format, "imme"));
-        PrintMsaImmElm(instr);
+      } else if (format[3] == 'S') {
+        DCHECK(STRING_STARTS_WITH(format, "offS"));
+        PrintStoreOffset(instr);
         return 4;
       }
       UNREACHABLE();
@@ -925,83 +340,37 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     case 'f': {  // 'f: FPUregisters.
       return FormatFPURegister(instr, format);
     }
-    case 'w': {  // 'w: MSA Register
-      return FormatMSARegister(instr, format);
+    case 'a': {  // 'a: Atomic acquire and release.
+      PrintAcquireRelease(instr);
+      return 1;
     }
-    case 's': {  // 'sa.
-      switch (format[1]) {
-        case 'a':
-          if (format[2] == '2') {
-            DCHECK(STRING_STARTS_WITH(format, "sa2"));  // 'sa2
-            PrintLsaSa(instr);
-            return 3;
-          } else {
-            DCHECK(STRING_STARTS_WITH(format, "sa"));
-            PrintSa(instr);
-            return 2;
-          }
-          break;
-        case 'd': {
-          DCHECK(STRING_STARTS_WITH(format, "sd"));
-          PrintSd(instr);
-          return 2;
-        }
-        case 's': {
-          if (format[2] == '1') {
-            DCHECK(STRING_STARTS_WITH(format, "ss1"));  // ext, dext, dextu size
-            PrintSs1(instr);
-          } else if (format[2] == '2') {
-            DCHECK(STRING_STARTS_WITH(format, "ss2"));  // ins, dins, dinsu size
-            PrintSs2(instr);
-          } else if (format[2] == '3') {
-            DCHECK(STRING_STARTS_WITH(format, "ss3"));  // dextm size
-            PrintSs3(instr);
-          } else if (format[2] == '4') {
-            DCHECK(STRING_STARTS_WITH(format, "ss4"));  // dinsm size
-            PrintSs4(instr);
-          } else {
-            DCHECK(STRING_STARTS_WITH(format, "ss5"));  // dextu, dinsu pos
-            PrintSs5(instr);
-          }
+    case 's': {  // 's32 or 's64: Shift amount.
+      if (format[1] == '3') {
+        DCHECK(STRING_STARTS_WITH(format, "s32"));
+        PrintShamt32(instr);
+        return 3;
+      } else if (format[1] == '6') {
+        DCHECK(STRING_STARTS_WITH(format, "s64"));
+        PrintShamt(instr);
+        return 3;
+      }
+      UNREACHABLE();
+    }
+    case 'v': {  // 'vd, 'vs1, or 'vs2: Raw values from register fields
+      if (format[1] == 'd') {
+        PrintVd(instr);
+        return 2;
+      } else if (format[1] == 's') {
+        if (format[2] == '1') {
+          PrintVs1(instr);
+          return 3;
+        } else if (format[2] == '2') {
+          PrintVs2(instr);
           return 3;
         }
       }
+      UNREACHABLE();
     }
-    case 'b': {
-      switch (format[1]) {
-        case 'c': {  // 'bc - Special for bc1 cc field.
-          DCHECK(STRING_STARTS_WITH(format, "bc"));
-          PrintBc(instr);
-          return 2;
-        }
-        case 'p': {
-          switch (format[2]) {
-            case '2': {  // 'bp2
-              DCHECK(STRING_STARTS_WITH(format, "bp2"));
-              PrintBp2(instr);
-              return 3;
-            }
-            case '3': {  // 'bp3
-              DCHECK(STRING_STARTS_WITH(format, "bp3"));
-              PrintBp3(instr);
-              return 3;
-            }
-          }
-        }
-      }
-    }
-    case 'C': {  // 'Cc - Special for c.xx.d cc field.
-      DCHECK(STRING_STARTS_WITH(format, "Cc"));
-      PrintCc(instr);
-      return 2;
-    }
-    case 't':
-      if (instr->IsMSAInstr()) {
-        PrintMsaDataFormat(instr);
-      } else {
-        PrintFormat(instr);
-      }
-      return 1;
   }
   UNREACHABLE();
 }
@@ -1026,1910 +395,721 @@ void Decoder::Format(Instruction* instr, const char* format) {
 // which will just print "unknown" of the instruction bits.
 void Decoder::Unknown(Instruction* instr) { Format(instr, "unknown"); }
 
-int Decoder::DecodeBreakInstr(Instruction* instr) {
-  // This is already known to be BREAK instr, just extract the code.
-  if (instr->Bits(25, 6) == static_cast<int>(kMaxStopCode)) {
-    // This is stop(msg).
-    Format(instr, "break, code: 'code");
-    out_buffer_pos_ += SNPrintF(
-        out_buffer_ + out_buffer_pos_, "\n%p       %08" PRIx64,
-        static_cast<void*>(reinterpret_cast<int32_t*>(instr + kInstrSize)),
-        reinterpret_cast<uint64_t>(
-            *reinterpret_cast<char**>(instr + kInstrSize)));
-    // Size 3: the break_ instr, plus embedded 64-bit char pointer.
-    return 3 * kInstrSize;
-  } else {
-    Format(instr, "break, code: 'code");
-    return kInstrSize;
-  }
-}
-
-bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
-  switch (instr->FunctionFieldRaw()) {
-    case RINT:
-      Format(instr, "rint.'t    'fd, 'fs");
+// RISCV Instruction Decode Routine
+void Decoder::DecodeRType(Instruction* instr) {
+  switch (instr->InstructionBits() & kRTypeMask) {
+    case RO_ADD:
+      Format(instr, "add     'rd, 'rs1, 'rs2");
       break;
-    case SEL:
-      Format(instr, "sel.'t      'fd, 'fs, 'ft");
+    case RO_SUB:
+      Format(instr, "sub     'rd, 'rs1, 'rs2");
       break;
-    case SELEQZ_C:
-      Format(instr, "seleqz.'t    'fd, 'fs, 'ft");
+    case RO_SLL:
+      Format(instr, "ll      'rd, 'rs1, 'rs2");
       break;
-    case SELNEZ_C:
-      Format(instr, "selnez.'t    'fd, 'fs, 'ft");
+    case RO_SLT:
+      Format(instr, "slt     'rd, 'rs1, 'rs2");
       break;
-    case MOVZ_C:
-      Format(instr, "movz.'t    'fd, 'fs, 'rt");
+    case RO_SLTU:
+      Format(instr, "sltu    'rd, 'rs1, 'rs2");
       break;
-    case MOVN_C:
-      Format(instr, "movn.'t    'fd, 'fs, 'rt");
+    case RO_XOR:
+      Format(instr, "xor     'rd, 'rs1, 'rs2");
       break;
-    case MOVF:
-      if (instr->Bit(16)) {
-        Format(instr, "movt.'t    'fd, 'fs, 'Cc");
-      } else {
-        Format(instr, "movf.'t    'fd, 'fs, 'Cc");
-      }
+    case RO_SRL:
+      Format(instr, "srl     'rd, 'rs1, 'rs2");
       break;
-    case MIN:
-      Format(instr, "min.'t    'fd, 'fs, 'ft");
+    case RO_SRA:
+      Format(instr, "sra     'rd, 'rs1, 'rs2");
       break;
-    case MAX:
-      Format(instr, "max.'t    'fd, 'fs, 'ft");
+    case RO_OR:
+      Format(instr, "or      'rd, 'rs1, 'rs2");
       break;
-    case MINA:
-      Format(instr, "mina.'t   'fd, 'fs, 'ft");
+    case RO_AND:
+      Format(instr, "and     'rd, 'rs1, 'rs2");
       break;
-    case MAXA:
-      Format(instr, "maxa.'t   'fd, 'fs, 'ft");
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_ADDW:
+      Format(instr, "addw    'rd, 'rs1, 'rs2");
       break;
-    case ADD_D:
-      Format(instr, "add.'t   'fd, 'fs, 'ft");
+    case RO_SUBW:
+      Format(instr, "subw    'rd, 'rs1, 'rs2");
       break;
-    case SUB_D:
-      Format(instr, "sub.'t   'fd, 'fs, 'ft");
+    case RO_SLLW:
+      Format(instr, "sllw    'rd, 'rs1, 'rs2");
       break;
-    case MUL_D:
-      Format(instr, "mul.'t   'fd, 'fs, 'ft");
+    case RO_SRLW:
+      Format(instr, "srlw    'rd, 'rs1, 'rs2");
       break;
-    case DIV_D:
-      Format(instr, "div.'t   'fd, 'fs, 'ft");
+    case RO_SRAW:
+      Format(instr, "sraw    'rd, 'rs1, 'rs2");
       break;
-    case ABS_D:
-      Format(instr, "abs.'t   'fd, 'fs");
+#endif /* V8_TARGET_ARCH_64_BIT */
+    // TODO: Add RISCV M extension macro
+    case RO_MUL:
+      Format(instr, "mul     'rd, 'rs1, 'rs2");
       break;
-    case MOV_D:
-      Format(instr, "mov.'t   'fd, 'fs");
+    case RO_MULH:
+      Format(instr, "mulh    'rd, 'rs1, 'rs2");
       break;
-    case NEG_D:
-      Format(instr, "neg.'t   'fd, 'fs");
+    case RO_MULHSU:
+      Format(instr, "mulhsu  'rd, 'rs1, 'rs2");
       break;
-    case SQRT_D:
-      Format(instr, "sqrt.'t  'fd, 'fs");
+    case RO_MULHU:
+      Format(instr, "mulhu   'rd, 'rs1, 'rs2");
       break;
-    case RECIP_D:
-      Format(instr, "recip.'t  'fd, 'fs");
+    case RO_DIV:
+      Format(instr, "div     'rd, 'rs1, 'rs2");
       break;
-    case RSQRT_D:
-      Format(instr, "rsqrt.'t  'fd, 'fs");
+    case RO_DIVU:
+      Format(instr, "divu    'rd, 'rs1, 'rs2");
       break;
-    case CVT_W_D:
-      Format(instr, "cvt.w.'t 'fd, 'fs");
+    case RO_REM:
+      Format(instr, "rem     'rd, 'rs1, 'rs2");
       break;
-    case CVT_L_D:
-      Format(instr, "cvt.l.'t 'fd, 'fs");
+    case RO_REMU:
+      Format(instr, "remu    'rd, 'rs1, 'rs2");
       break;
-    case TRUNC_W_D:
-      Format(instr, "trunc.w.'t 'fd, 'fs");
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_MULW:
+      Format(instr, "mulw    'rd, 'rs1, 'rs2");
       break;
-    case TRUNC_L_D:
-      Format(instr, "trunc.l.'t 'fd, 'fs");
+    case RO_DIVW:
+      Format(instr, "divw    'rd, 'rs1, 'rs2");
       break;
-    case ROUND_W_D:
-      Format(instr, "round.w.'t 'fd, 'fs");
+    case RO_DIVUW:
+      Format(instr, "divuw   'rd, 'rs1, 'rs2");
       break;
-    case ROUND_L_D:
-      Format(instr, "round.l.'t 'fd, 'fs");
+    case RO_REMW:
+      Format(instr, "remw    'rd, 'rs1, 'rs2");
       break;
-    case FLOOR_W_D:
-      Format(instr, "floor.w.'t 'fd, 'fs");
+    case RO_REMUW:
+      Format(instr, "remuw   'rd, 'rs1, 'rs2");
       break;
-    case FLOOR_L_D:
-      Format(instr, "floor.l.'t 'fd, 'fs");
-      break;
-    case CEIL_W_D:
-      Format(instr, "ceil.w.'t 'fd, 'fs");
-      break;
-    case CEIL_L_D:
-      Format(instr, "ceil.l.'t 'fd, 'fs");
-      break;
-    case CLASS_D:
-      Format(instr, "class.'t 'fd, 'fs");
-      break;
-    case CVT_S_D:
-      Format(instr, "cvt.s.'t 'fd, 'fs");
-      break;
-    case C_F_D:
-      Format(instr, "c.f.'t   'fs, 'ft, 'Cc");
-      break;
-    case C_UN_D:
-      Format(instr, "c.un.'t  'fs, 'ft, 'Cc");
-      break;
-    case C_EQ_D:
-      Format(instr, "c.eq.'t  'fs, 'ft, 'Cc");
-      break;
-    case C_UEQ_D:
-      Format(instr, "c.ueq.'t 'fs, 'ft, 'Cc");
-      break;
-    case C_OLT_D:
-      Format(instr, "c.olt.'t 'fs, 'ft, 'Cc");
-      break;
-    case C_ULT_D:
-      Format(instr, "c.ult.'t 'fs, 'ft, 'Cc");
-      break;
-    case C_OLE_D:
-      Format(instr, "c.ole.'t 'fs, 'ft, 'Cc");
-      break;
-    case C_ULE_D:
-      Format(instr, "c.ule.'t 'fs, 'ft, 'Cc");
-      break;
-    default:
-      return false;
-  }
-  return true;
-}
-
-void Decoder::DecodeTypeRegisterSRsType(Instruction* instr) {
-  if (!DecodeTypeRegisterRsType(instr)) {
-    switch (instr->FunctionFieldRaw()) {
-      case CVT_D_S:
-        Format(instr, "cvt.d.'t 'fd, 'fs");
-        break;
-      case MADDF_S:
-        Format(instr, "maddf.s  'fd, 'fs, 'ft");
-        break;
-      case MSUBF_S:
-        Format(instr, "msubf.s  'fd, 'fs, 'ft");
-        break;
-      default:
-        Format(instr, "unknown.cop1.'t");
-        break;
-    }
-  }
-}
-
-void Decoder::DecodeTypeRegisterDRsType(Instruction* instr) {
-  if (!DecodeTypeRegisterRsType(instr)) {
-    switch (instr->FunctionFieldRaw()) {
-      case MADDF_D:
-        Format(instr, "maddf.d  'fd, 'fs, 'ft");
-        break;
-      case MSUBF_D:
-        Format(instr, "msubf.d  'fd, 'fs, 'ft");
-        break;
-      default:
-        Format(instr, "unknown.cop1.'t");
-        break;
-    }
-  }
-}
-
-void Decoder::DecodeTypeRegisterLRsType(Instruction* instr) {
-  switch (instr->FunctionFieldRaw()) {
-    case CVT_D_L:
-      Format(instr, "cvt.d.l 'fd, 'fs");
-      break;
-    case CVT_S_L:
-      Format(instr, "cvt.s.l 'fd, 'fs");
-      break;
-    case CMP_AF:
-      Format(instr, "cmp.af.d  'fd,  'fs, 'ft");
-      break;
-    case CMP_UN:
-      Format(instr, "cmp.un.d  'fd,  'fs, 'ft");
-      break;
-    case CMP_EQ:
-      Format(instr, "cmp.eq.d  'fd,  'fs, 'ft");
-      break;
-    case CMP_UEQ:
-      Format(instr, "cmp.ueq.d  'fd,  'fs, 'ft");
-      break;
-    case CMP_LT:
-      Format(instr, "cmp.lt.d  'fd,  'fs, 'ft");
-      break;
-    case CMP_ULT:
-      Format(instr, "cmp.ult.d  'fd,  'fs, 'ft");
-      break;
-    case CMP_LE:
-      Format(instr, "cmp.le.d  'fd,  'fs, 'ft");
-      break;
-    case CMP_ULE:
-      Format(instr, "cmp.ule.d  'fd,  'fs, 'ft");
-      break;
-    case CMP_OR:
-      Format(instr, "cmp.or.d  'fd,  'fs, 'ft");
-      break;
-    case CMP_UNE:
-      Format(instr, "cmp.une.d  'fd,  'fs, 'ft");
-      break;
-    case CMP_NE:
-      Format(instr, "cmp.ne.d  'fd,  'fs, 'ft");
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-void Decoder::DecodeTypeRegisterWRsType(Instruction* instr) {
-  switch (instr->FunctionValue()) {
-    case CVT_S_W:  // Convert word to float (single).
-      Format(instr, "cvt.s.w 'fd, 'fs");
-      break;
-    case CVT_D_W:  // Convert word to double.
-      Format(instr, "cvt.d.w 'fd, 'fs");
-      break;
-    case CMP_AF:
-      Format(instr, "cmp.af.s    'fd, 'fs, 'ft");
-      break;
-    case CMP_UN:
-      Format(instr, "cmp.un.s    'fd, 'fs, 'ft");
-      break;
-    case CMP_EQ:
-      Format(instr, "cmp.eq.s    'fd, 'fs, 'ft");
-      break;
-    case CMP_UEQ:
-      Format(instr, "cmp.ueq.s   'fd, 'fs, 'ft");
-      break;
-    case CMP_LT:
-      Format(instr, "cmp.lt.s    'fd, 'fs, 'ft");
-      break;
-    case CMP_ULT:
-      Format(instr, "cmp.ult.s   'fd, 'fs, 'ft");
-      break;
-    case CMP_LE:
-      Format(instr, "cmp.le.s    'fd, 'fs, 'ft");
-      break;
-    case CMP_ULE:
-      Format(instr, "cmp.ule.s   'fd, 'fs, 'ft");
-      break;
-    case CMP_OR:
-      Format(instr, "cmp.or.s    'fd, 'fs, 'ft");
-      break;
-    case CMP_UNE:
-      Format(instr, "cmp.une.s   'fd, 'fs, 'ft");
-      break;
-    case CMP_NE:
-      Format(instr, "cmp.ne.s    'fd, 'fs, 'ft");
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-void Decoder::DecodeTypeRegisterCOP1(Instruction* instr) {
-  switch (instr->RsFieldRaw()) {
-    case MFC1:
-      Format(instr, "mfc1    'rt, 'fs");
-      break;
-    case DMFC1:
-      Format(instr, "dmfc1    'rt, 'fs");
-      break;
-    case MFHC1:
-      Format(instr, "mfhc1   'rt, 'fs");
-      break;
-    case MTC1:
-      Format(instr, "mtc1    'rt, 'fs");
-      break;
-    case DMTC1:
-      Format(instr, "dmtc1    'rt, 'fs");
-      break;
-    // These are called "fs" too, although they are not FPU registers.
-    case CTC1:
-      Format(instr, "ctc1    'rt, 'fs");
-      break;
-    case CFC1:
-      Format(instr, "cfc1    'rt, 'fs");
-      break;
-    case MTHC1:
-      Format(instr, "mthc1   'rt, 'fs");
-      break;
-    case S:
-      DecodeTypeRegisterSRsType(instr);
-      break;
-    case D:
-      DecodeTypeRegisterDRsType(instr);
-      break;
-    case W:
-      DecodeTypeRegisterWRsType(instr);
-      break;
-    case L:
-      DecodeTypeRegisterLRsType(instr);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-void Decoder::DecodeTypeRegisterCOP1X(Instruction* instr) {
-  switch (instr->FunctionFieldRaw()) {
-    case MADD_S:
-      Format(instr, "madd.s  'fd, 'fr, 'fs, 'ft");
-      break;
-    case MADD_D:
-      Format(instr, "madd.d  'fd, 'fr, 'fs, 'ft");
-      break;
-    case MSUB_S:
-      Format(instr, "msub.s  'fd, 'fr, 'fs, 'ft");
-      break;
-    case MSUB_D:
-      Format(instr, "msub.d  'fd, 'fr, 'fs, 'ft");
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
-  switch (instr->FunctionFieldRaw()) {
-    case JR:
-      Format(instr, "jr      'rs");
-      break;
-    case JALR:
-      Format(instr, "jalr    'rs, 'rd");
-      break;
-    case SLL:
-      if (0x0 == static_cast<int>(instr->InstructionBits()))
-        Format(instr, "nop");
-      else
-        Format(instr, "sll     'rd, 'rt, 'sa");
-      break;
-    case DSLL:
-      Format(instr, "dsll    'rd, 'rt, 'sa");
-      break;
-    case D_MUL_MUH:  // Equals to DMUL.
-      if (kArchVariant != kMips64r6) {
-        Format(instr, "dmult   'rs, 'rt");
-      } else {
-        if (instr->SaValue() == MUL_OP) {
-          Format(instr, "dmul   'rd, 'rs, 'rt");
-        } else {
-          Format(instr, "dmuh   'rd, 'rs, 'rt");
-        }
-      }
-      break;
-    case DSLL32:
-      Format(instr, "dsll32  'rd, 'rt, 'sa");
-      break;
-    case SRL:
-      if (instr->RsValue() == 0) {
-        Format(instr, "srl     'rd, 'rt, 'sa");
-      } else {
-        Format(instr, "rotr    'rd, 'rt, 'sa");
-      }
-      break;
-    case DSRL:
-      if (instr->RsValue() == 0) {
-        Format(instr, "dsrl    'rd, 'rt, 'sa");
-      } else {
-        Format(instr, "drotr   'rd, 'rt, 'sa");
-      }
-      break;
-    case DSRL32:
-      if (instr->RsValue() == 0) {
-        Format(instr, "dsrl32  'rd, 'rt, 'sa");
-      } else {
-        Format(instr, "drotr32 'rd, 'rt, 'sa");
-      }
-      break;
-    case SRA:
-      Format(instr, "sra     'rd, 'rt, 'sa");
-      break;
-    case DSRA:
-      Format(instr, "dsra    'rd, 'rt, 'sa");
-      break;
-    case DSRA32:
-      Format(instr, "dsra32  'rd, 'rt, 'sa");
-      break;
-    case SLLV:
-      Format(instr, "sllv    'rd, 'rt, 'rs");
-      break;
-    case DSLLV:
-      Format(instr, "dsllv   'rd, 'rt, 'rs");
-      break;
-    case SRLV:
-      if (instr->SaValue() == 0) {
-        Format(instr, "srlv    'rd, 'rt, 'rs");
-      } else {
-        Format(instr, "rotrv   'rd, 'rt, 'rs");
-      }
-      break;
-    case DSRLV:
-      if (instr->SaValue() == 0) {
-        Format(instr, "dsrlv   'rd, 'rt, 'rs");
-      } else {
-        Format(instr, "drotrv  'rd, 'rt, 'rs");
-      }
-      break;
-    case SRAV:
-      Format(instr, "srav    'rd, 'rt, 'rs");
-      break;
-    case DSRAV:
-      Format(instr, "dsrav   'rd, 'rt, 'rs");
-      break;
-    case LSA:
-      Format(instr, "lsa     'rd, 'rt, 'rs, 'sa2");
-      break;
-    case DLSA:
-      Format(instr, "dlsa    'rd, 'rt, 'rs, 'sa2");
-      break;
-    case MFHI:
-      if (instr->Bits(25, 16) == 0) {
-        Format(instr, "mfhi    'rd");
-      } else {
-        if ((instr->FunctionFieldRaw() == CLZ_R6) && (instr->FdValue() == 1)) {
-          Format(instr, "clz     'rd, 'rs");
-        } else if ((instr->FunctionFieldRaw() == CLO_R6) &&
-                   (instr->FdValue() == 1)) {
-          Format(instr, "clo     'rd, 'rs");
-        }
-      }
-      break;
-    case MFLO:
-      if (instr->Bits(25, 16) == 0) {
-        Format(instr, "mflo    'rd");
-      } else {
-        if ((instr->FunctionFieldRaw() == DCLZ_R6) && (instr->FdValue() == 1)) {
-          Format(instr, "dclz    'rd, 'rs");
-        } else if ((instr->FunctionFieldRaw() == DCLO_R6) &&
-                   (instr->FdValue() == 1)) {
-          Format(instr, "dclo     'rd, 'rs");
-        }
-      }
-      break;
-    case D_MUL_MUH_U:  // Equals to DMULTU.
-      if (kArchVariant != kMips64r6) {
-        Format(instr, "dmultu  'rs, 'rt");
-      } else {
-        if (instr->SaValue() == MUL_OP) {
-          Format(instr, "dmulu  'rd, 'rs, 'rt");
-        } else {
-          Format(instr, "dmuhu  'rd, 'rs, 'rt");
-        }
-      }
-      break;
-    case MULT:  // @Mips64r6 == MUL_MUH.
-      if (kArchVariant != kMips64r6) {
-        Format(instr, "mult    'rs, 'rt");
-      } else {
-        if (instr->SaValue() == MUL_OP) {
-          Format(instr, "mul    'rd, 'rs, 'rt");
-        } else {
-          Format(instr, "muh    'rd, 'rs, 'rt");
-        }
-      }
-      break;
-    case MULTU:  // @Mips64r6 == MUL_MUH_U.
-      if (kArchVariant != kMips64r6) {
-        Format(instr, "multu   'rs, 'rt");
-      } else {
-        if (instr->SaValue() == MUL_OP) {
-          Format(instr, "mulu   'rd, 'rs, 'rt");
-        } else {
-          Format(instr, "muhu   'rd, 'rs, 'rt");
-        }
-      }
-
-      break;
-    case DIV:  // @Mips64r6 == DIV_MOD.
-      if (kArchVariant != kMips64r6) {
-        Format(instr, "div     'rs, 'rt");
-      } else {
-        if (instr->SaValue() == DIV_OP) {
-          Format(instr, "div    'rd, 'rs, 'rt");
-        } else {
-          Format(instr, "mod    'rd, 'rs, 'rt");
-        }
-      }
-      break;
-    case DDIV:  // @Mips64r6 == D_DIV_MOD.
-      if (kArchVariant != kMips64r6) {
-        Format(instr, "ddiv    'rs, 'rt");
-      } else {
-        if (instr->SaValue() == DIV_OP) {
-          Format(instr, "ddiv   'rd, 'rs, 'rt");
-        } else {
-          Format(instr, "dmod   'rd, 'rs, 'rt");
-        }
-      }
-      break;
-    case DIVU:  // @Mips64r6 == DIV_MOD_U.
-      if (kArchVariant != kMips64r6) {
-        Format(instr, "divu    'rs, 'rt");
-      } else {
-        if (instr->SaValue() == DIV_OP) {
-          Format(instr, "divu   'rd, 'rs, 'rt");
-        } else {
-          Format(instr, "modu   'rd, 'rs, 'rt");
-        }
-      }
-      break;
-    case DDIVU:  // @Mips64r6 == D_DIV_MOD_U.
-      if (kArchVariant != kMips64r6) {
-        Format(instr, "ddivu   'rs, 'rt");
-      } else {
-        if (instr->SaValue() == DIV_OP) {
-          Format(instr, "ddivu  'rd, 'rs, 'rt");
-        } else {
-          Format(instr, "dmodu  'rd, 'rs, 'rt");
-        }
-      }
-      break;
-    case ADD:
-      Format(instr, "add     'rd, 'rs, 'rt");
-      break;
-    case DADD:
-      Format(instr, "dadd    'rd, 'rs, 'rt");
-      break;
-    case ADDU:
-      Format(instr, "addu    'rd, 'rs, 'rt");
-      break;
-    case DADDU:
-      Format(instr, "daddu   'rd, 'rs, 'rt");
-      break;
-    case SUB:
-      Format(instr, "sub     'rd, 'rs, 'rt");
-      break;
-    case DSUB:
-      Format(instr, "dsub    'rd, 'rs, 'rt");
-      break;
-    case SUBU:
-      Format(instr, "subu    'rd, 'rs, 'rt");
-      break;
-    case DSUBU:
-      Format(instr, "dsubu   'rd, 'rs, 'rt");
-      break;
-    case AND:
-      Format(instr, "and     'rd, 'rs, 'rt");
-      break;
-    case OR:
-      if (0 == instr->RsValue()) {
-        Format(instr, "mov     'rd, 'rt");
-      } else if (0 == instr->RtValue()) {
-        Format(instr, "mov     'rd, 'rs");
-      } else {
-        Format(instr, "or      'rd, 'rs, 'rt");
-      }
-      break;
-    case XOR:
-      Format(instr, "xor     'rd, 'rs, 'rt");
-      break;
-    case NOR:
-      Format(instr, "nor     'rd, 'rs, 'rt");
-      break;
-    case SLT:
-      Format(instr, "slt     'rd, 'rs, 'rt");
-      break;
-    case SLTU:
-      Format(instr, "sltu    'rd, 'rs, 'rt");
-      break;
-    case TGE:
-      Format(instr, "tge     'rs, 'rt, code: 'code");
-      break;
-    case TGEU:
-      Format(instr, "tgeu    'rs, 'rt, code: 'code");
-      break;
-    case TLT:
-      Format(instr, "tlt     'rs, 'rt, code: 'code");
-      break;
-    case TLTU:
-      Format(instr, "tltu    'rs, 'rt, code: 'code");
-      break;
-    case TEQ:
-      Format(instr, "teq     'rs, 'rt, code: 'code");
-      break;
-    case TNE:
-      Format(instr, "tne     'rs, 'rt, code: 'code");
-      break;
-    case SYNC:
-      Format(instr, "sync");
-      break;
-    case MOVZ:
-      Format(instr, "movz    'rd, 'rs, 'rt");
-      break;
-    case MOVN:
-      Format(instr, "movn    'rd, 'rs, 'rt");
-      break;
-    case MOVCI:
-      if (instr->Bit(16)) {
-        Format(instr, "movt    'rd, 'rs, 'bc");
-      } else {
-        Format(instr, "movf    'rd, 'rs, 'bc");
-      }
-      break;
-    case SELEQZ_S:
-      Format(instr, "seleqz    'rd, 'rs, 'rt");
-      break;
-    case SELNEZ_S:
-      Format(instr, "selnez    'rd, 'rs, 'rt");
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-void Decoder::DecodeTypeRegisterSPECIAL2(Instruction* instr) {
-  switch (instr->FunctionFieldRaw()) {
-    case MUL:
-      Format(instr, "mul     'rd, 'rs, 'rt");
-      break;
-    case CLZ:
-      if (kArchVariant != kMips64r6) {
-        Format(instr, "clz     'rd, 'rs");
-      }
-      break;
-    case DCLZ:
-      if (kArchVariant != kMips64r6) {
-        Format(instr, "dclz    'rd, 'rs");
-      }
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
-  switch (instr->FunctionFieldRaw()) {
-    case EXT: {
-      Format(instr, "ext     'rt, 'rs, 'sa, 'ss1");
-      break;
-    }
-    case DEXT: {
-      Format(instr, "dext    'rt, 'rs, 'sa, 'ss1");
-      break;
-    }
-    case DEXTM: {
-      Format(instr, "dextm   'rt, 'rs, 'sa, 'ss3");
-      break;
-    }
-    case DEXTU: {
-      Format(instr, "dextu   'rt, 'rs, 'ss5, 'ss1");
-      break;
-    }
-    case INS: {
-      Format(instr, "ins     'rt, 'rs, 'sa, 'ss2");
-      break;
-    }
-    case DINS: {
-      Format(instr, "dins    'rt, 'rs, 'sa, 'ss2");
-      break;
-    }
-    case DINSM: {
-      Format(instr, "dinsm   'rt, 'rs, 'sa, 'ss4");
-      break;
-    }
-    case DINSU: {
-      Format(instr, "dinsu   'rt, 'rs, 'ss5, 'ss2");
-      break;
-    }
-    case BSHFL: {
-      int sa = instr->SaFieldRaw() >> kSaShift;
-      switch (sa) {
-        case BITSWAP: {
-          Format(instr, "bitswap 'rd, 'rt");
+#endif /*V8_TARGET_ARCH_64_BIT*/
+    // TODO: End Add RISCV M extension macro
+    default: {
+      switch (instr->BaseOpcode()) {
+        case AMO:
+          DecodeRAType(instr);
           break;
-        }
-        case SEB: {
-          Format(instr, "seb     'rd, 'rt");
-          break;
-        }
-        case SEH: {
-          Format(instr, "seh     'rd, 'rt");
-          break;
-        }
-        case WSBH: {
-          Format(instr, "wsbh    'rd, 'rt");
-          break;
-        }
-        default: {
-          sa >>= kBp2Bits;
-          switch (sa) {
-            case ALIGN: {
-              Format(instr, "align  'rd, 'rs, 'rt, 'bp2");
-              break;
-            }
-            default:
-              UNREACHABLE();
-              break;
-          }
-          break;
-        }
-      }
-      break;
-    }
-    case DBSHFL: {
-      int sa = instr->SaFieldRaw() >> kSaShift;
-      switch (sa) {
-        case DBITSWAP: {
-          switch (instr->SaFieldRaw() >> kSaShift) {
-            case DBITSWAP_SA:
-              Format(instr, "dbitswap 'rd, 'rt");
-              break;
-            default:
-              UNREACHABLE();
-              break;
-          }
-          break;
-        }
-        case DSBH: {
-          Format(instr, "dsbh    'rd, 'rt");
-          break;
-        }
-        case DSHD: {
-          Format(instr, "dshd    'rd, 'rt");
-          break;
-        }
-        default: {
-          sa >>= kBp3Bits;
-          switch (sa) {
-            case DALIGN: {
-              Format(instr, "dalign  'rd, 'rs, 'rt, 'bp3");
-              break;
-            }
-            default:
-              UNREACHABLE();
-              break;
-          }
-          break;
-        }
-      }
-      break;
-    }
-    default:
-      UNREACHABLE();
-  }
-}
-
-int Decoder::DecodeTypeRegister(Instruction* instr) {
-  switch (instr->OpcodeFieldRaw()) {
-    case COP1:  // Coprocessor instructions.
-      DecodeTypeRegisterCOP1(instr);
-      break;
-    case COP1X:
-      DecodeTypeRegisterCOP1X(instr);
-      break;
-    case SPECIAL:
-      switch (instr->FunctionFieldRaw()) {
-        case BREAK:
-          return DecodeBreakInstr(instr);
-        default:
-          DecodeTypeRegisterSPECIAL(instr);
-          break;
-      }
-      break;
-    case SPECIAL2:
-      DecodeTypeRegisterSPECIAL2(instr);
-      break;
-    case SPECIAL3:
-      DecodeTypeRegisterSPECIAL3(instr);
-      break;
-    case MSA:
-      switch (instr->MSAMinorOpcodeField()) {
-        case kMsaMinor3R:
-          DecodeTypeMsa3R(instr);
-          break;
-        case kMsaMinor3RF:
-          DecodeTypeMsa3RF(instr);
-          break;
-        case kMsaMinorVEC:
-          DecodeTypeMsaVec(instr);
-          break;
-        case kMsaMinor2R:
-          DecodeTypeMsa2R(instr);
-          break;
-        case kMsaMinor2RF:
-          DecodeTypeMsa2RF(instr);
-          break;
-        case kMsaMinorELM:
-          DecodeTypeMsaELM(instr);
+        case OP_FP:
+          DecodeRFPType(instr);
           break;
         default:
-          UNREACHABLE();
+          UNSUPPORTED_RISCV();
       }
-      break;
-    default:
-      UNREACHABLE();
-  }
-  return kInstrSize;
-}
-
-void Decoder::DecodeTypeImmediateCOP1(Instruction* instr) {
-  switch (instr->RsFieldRaw()) {
-    case BC1:
-      if (instr->FBtrueValue()) {
-        Format(instr, "bc1t    'bc, 'imm16u -> 'imm16p4s2");
-      } else {
-        Format(instr, "bc1f    'bc, 'imm16u -> 'imm16p4s2");
-      }
-      break;
-    case BC1EQZ:
-      Format(instr, "bc1eqz    'ft, 'imm16u -> 'imm16p4s2");
-      break;
-    case BC1NEZ:
-      Format(instr, "bc1nez    'ft, 'imm16u -> 'imm16p4s2");
-      break;
-    case BZ_V:
-    case BZ_B:
-    case BZ_H:
-    case BZ_W:
-    case BZ_D:
-      Format(instr, "bz.'t  'wt, 'imm16s -> 'imm16p4s2");
-      break;
-    case BNZ_V:
-    case BNZ_B:
-    case BNZ_H:
-    case BNZ_W:
-    case BNZ_D:
-      Format(instr, "bnz.'t  'wt, 'imm16s -> 'imm16p4s2");
-      break;
-    default:
-      UNREACHABLE();
+    }
   }
 }
 
-void Decoder::DecodeTypeImmediateREGIMM(Instruction* instr) {
-  switch (instr->RtFieldRaw()) {
-    case BLTZ:
-      Format(instr, "bltz    'rs, 'imm16u -> 'imm16p4s2");
+void Decoder::DecodeRAType(Instruction* instr) {
+  // TODO: Add macro for RISCV A extension
+  // Special handling for A extension instructions because it uses func5
+  // For all A extension instruction, V8 simulator is pure sequential. No
+  // Memory address lock or other synchronizaiton behaviors.
+  switch (instr->InstructionBits() & kRATypeMask) {
+    case RO_LR_W:
+      Format(instr, "lr.w'a    'rd, ('rs1)");
       break;
-    case BLTZAL:
-      Format(instr, "bltzal  'rs, 'imm16u -> 'imm16p4s2");
+    case RO_SC_W:
+      Format(instr, "sc.w'a    'rd, 'rs2, ('rs1)");
       break;
-    case BGEZ:
-      Format(instr, "bgez    'rs, 'imm16u -> 'imm16p4s2");
+    case RO_AMOSWAP_W:
+      Format(instr, "amoswap.w'a 'rd, 'rs2, ('rs1)");
       break;
-    case BGEZAL: {
-      if (instr->RsValue() == 0)
-        Format(instr, "bal     'imm16s -> 'imm16p4s2");
-      else
-        Format(instr, "bgezal  'rs, 'imm16u -> 'imm16p4s2");
+    case RO_AMOADD_W:
+      Format(instr, "amoadd.w'a 'rd, 'rs2, ('rs1)");
       break;
+    case RO_AMOXOR_W:
+      Format(instr, "amoxor.w'a 'rd, 'rs2, ('rs1)");
+      break;
+    case RO_AMOAND_W:
+      Format(instr, "amoand.w'a 'rd, 'rs2, ('rs1)");
+      break;
+    case RO_AMOOR_W:
+      Format(instr, "amoor.w'a 'rd, 'rs2, ('rs1)");
+      break;
+    case RO_AMOMIN_W:
+      Format(instr, "amomin.w'a 'rd, 'rs2, ('rs1)");
+      break;
+    case RO_AMOMAX_W:
+      Format(instr, "amomax.w'a 'rd, 'rs2, ('rs1)");
+      break;
+    case RO_AMOMINU_W:
+      Format(instr, "amominu.w'a 'rd, 'rs2, ('rs1)");
+      break;
+    case RO_AMOMAXU_W:
+      Format(instr, "amomaxu.w'a 'rd, 'rs2, ('rs1)");
+      break;
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_LR_D:
+      Format(instr, "lr.d'a 'rd, ('rs1)");
+      break;
+    case RO_SC_D:
+      Format(instr, "sc.d'a 'rd, 'rs2, ('rs1)");
+      break;
+    case RO_AMOSWAP_D:
+      Format(instr, "amoswap.d'a 'rd, 'rs2, ('rs1)");
+      break;
+    case RO_AMOADD_D:
+      Format(instr, "amoadd.d'a 'rd, 'rs2, ('rs1)");
+      break;
+    case RO_AMOXOR_D:
+      Format(instr, "amoxor.d'a 'rd, 'rs2, ('rs1)");
+      break;
+    case RO_AMOAND_D:
+      Format(instr, "amoand.d'a 'rd, 'rs2, ('rs1)");
+      break;
+    case RO_AMOOR_D:
+      Format(instr, "amoor.d'a 'rd, 'rs2, ('rs1)");
+      break;
+    case RO_AMOMIN_D:
+      Format(instr, "amomin.d'a 'rd, 'rs2, ('rs1)");
+      break;
+    case RO_AMOMAX_D:
+      Format(instr, "amoswap.d'a 'rd, 'rs2, ('rs1)");
+      break;
+    case RO_AMOMINU_D:
+      Format(instr, "amominu.d'a 'rd, 'rs2, ('rs1)");
+      break;
+    case RO_AMOMAXU_D:
+      Format(instr, "amomaxu.d'a 'rd, 'rs2, ('rs1)");
+      break;
+#endif /*V8_TARGET_ARCH_64_BIT*/
+    // TODO: End Add macro for RISCV A extension
+    default: {
+      UNSUPPORTED_RISCV();
     }
-    case BGEZALL:
-      Format(instr, "bgezall 'rs, 'imm16u -> 'imm16p4s2");
-      break;
-    case DAHI:
-      Format(instr, "dahi    'rs, 'imm16x");
-      break;
-    case DATI:
-      Format(instr, "dati    'rs, 'imm16x");
-      break;
-    default:
-      UNREACHABLE();
   }
 }
 
-void Decoder::DecodeTypeImmediateSPECIAL3(Instruction* instr) {
-  switch (instr->FunctionFieldRaw()) {
-    case LL_R6: {
-      if (kArchVariant == kMips64r6) {
-        Format(instr, "ll     'rt, 'imm9s('rs)");
-      } else {
-        Unknown(instr);
-      }
-      break;
-    }
-    case LLD_R6: {
-      if (kArchVariant == kMips64r6) {
-        Format(instr, "lld     'rt, 'imm9s('rs)");
-      } else {
-        Unknown(instr);
-      }
-      break;
-    }
-    case SC_R6: {
-      if (kArchVariant == kMips64r6) {
-        Format(instr, "sc     'rt, 'imm9s('rs)");
-      } else {
-        Unknown(instr);
-      }
-      break;
-    }
-    case SCD_R6: {
-      if (kArchVariant == kMips64r6) {
-        Format(instr, "scd     'rt, 'imm9s('rs)");
-      } else {
-        Unknown(instr);
-      }
-      break;
-    }
-    default:
-      UNREACHABLE();
-  }
-}
+void Decoder::DecodeRFPType(Instruction* instr) {
+  // OP_FP instructions (F/D) uses func7 first. Some further uses fun3 and rs2()
 
-void Decoder::DecodeTypeImmediate(Instruction* instr) {
-  switch (instr->OpcodeFieldRaw()) {
-    case COP1:
-      DecodeTypeImmediateCOP1(instr);
-      break;  // Case COP1.
-    // ------------- REGIMM class.
-    case REGIMM:
-      DecodeTypeImmediateREGIMM(instr);
-      break;  // Case REGIMM.
-    // ------------- Branch instructions.
-    case BEQ:
-      Format(instr, "beq     'rs, 'rt, 'imm16u -> 'imm16p4s2");
+  // kRATypeMask is only for func7
+  switch (instr->InstructionBits() & kRFPTypeMask) {
+    // TODO: Add macro for RISCV F extension
+    case RO_FADD_S:
+      Format(instr, "fadd.s  'fd, 'fs1, 'fs2");
       break;
-    case BC:
-      Format(instr, "bc      'imm26s -> 'imm26p4s2");
+    case RO_FSUB_S:
+      Format(instr, "fsub.s  'fd, 'fs1, 'fs2");
       break;
-    case BALC:
-      Format(instr, "balc    'imm26s -> 'imm26p4s2");
+    case RO_FMUL_S:
+      Format(instr, "fmul.s  'fd, 'fs1, 'fs2");
       break;
-    case BNE:
-      Format(instr, "bne     'rs, 'rt, 'imm16u -> 'imm16p4s2");
+    case RO_FDIV_S:
+      Format(instr, "fdiv.s  'fd, 'fs1, 'fs2");
       break;
-    case BLEZ:
-      if ((instr->RtValue() == 0) && (instr->RsValue() != 0)) {
-        Format(instr, "blez    'rs, 'imm16u -> 'imm16p4s2");
-      } else if ((instr->RtValue() != instr->RsValue()) &&
-                 (instr->RsValue() != 0) && (instr->RtValue() != 0)) {
-        Format(instr, "bgeuc   'rs, 'rt, 'imm16u -> 'imm16p4s2");
-      } else if ((instr->RtValue() == instr->RsValue()) &&
-                 (instr->RtValue() != 0)) {
-        Format(instr, "bgezalc 'rs, 'imm16u -> 'imm16p4s2");
-      } else if ((instr->RsValue() == 0) && (instr->RtValue() != 0)) {
-        Format(instr, "blezalc 'rt, 'imm16u -> 'imm16p4s2");
-      } else {
-        UNREACHABLE();
+    case RO_FSQRT_S:
+      Format(instr, "fsqrt.s 'fd, 'fs1");
+      break;
+    case RO_FSGNJ_S: {  // RO_FSGNJN_S  RO_FSQNJX_S
+      switch (instr->Funct3Value()) {
+        case 0b000:  // RO_FSGNJ_S
+          Format(instr, "fsgnj.s 'fd, 'fs1, 'fs2");
+          break;
+        case 0b001:  // RO_FSGNJN_S
+          Format(instr, "fsgnjn.s 'fd, 'fs1, 'fs2");
+          break;
+        case 0b010:  // RO_FSQNJX_S
+          Format(instr, "fsqnjx.s 'fd, 'fs1, 'fs2");
+          break;
+        default:
+          UNSUPPORTED_RISCV();
       }
       break;
-    case BGTZ:
-      if ((instr->RtValue() == 0) && (instr->RsValue() != 0)) {
-        Format(instr, "bgtz    'rs, 'imm16u -> 'imm16p4s2");
-      } else if ((instr->RtValue() != instr->RsValue()) &&
-                 (instr->RsValue() != 0) && (instr->RtValue() != 0)) {
-        Format(instr, "bltuc   'rs, 'rt, 'imm16u -> 'imm16p4s2");
-      } else if ((instr->RtValue() == instr->RsValue()) &&
-                 (instr->RtValue() != 0)) {
-        Format(instr, "bltzalc 'rt, 'imm16u -> 'imm16p4s2");
-      } else if ((instr->RsValue() == 0) && (instr->RtValue() != 0)) {
-        Format(instr, "bgtzalc 'rt, 'imm16u -> 'imm16p4s2");
-      } else {
-        UNREACHABLE();
+    }
+    case RO_FMIN_S: {  // RO_FMAX_S
+      switch (instr->Funct3Value()) {
+        case 0b000:  // RO_FMIN_S
+          Format(instr, "fmin.s  'fd, 'fs1, 'fs2");
+          break;
+        case 0b001:  // RO_FMAX_S
+          Format(instr, "fmax.s  'fd, 'fs1, 'fs2");
+          break;
+        default:
+          UNSUPPORTED_RISCV();
       }
       break;
-    case BLEZL:
-      if ((instr->RtValue() == instr->RsValue()) && (instr->RtValue() != 0)) {
-        Format(instr, "bgezc    'rt, 'imm16u -> 'imm16p4s2");
-      } else if ((instr->RtValue() != instr->RsValue()) &&
-                 (instr->RsValue() != 0) && (instr->RtValue() != 0)) {
-        Format(instr, "bgec     'rs, 'rt, 'imm16u -> 'imm16p4s2");
-      } else if ((instr->RsValue() == 0) && (instr->RtValue() != 0)) {
-        Format(instr, "blezc    'rt, 'imm16u -> 'imm16p4s2");
-      } else {
-        UNREACHABLE();
+    }
+    case RO_FCVT_W_S: {  // RO_FCVT_WU_S , 64F RO_FCVT_L_S RO_FCVT_LU_S
+      switch (instr->Rs2Value()) {
+        case 0b00000:  // RO_FCVT_W_S
+          Format(instr, "fcvt.w.s 'rd, 'fs1");
+          break;
+        case 0b00001:  // RO_FCVT_WU_S
+          Format(instr, "fcvt.wu.s 'rd, 'fs1");
+          break;
+#ifdef V8_TARGET_ARCH_64_BIT
+        case 0b00010:  // RO_FCVT_L_S
+          Format(instr, "fcvt.l.s 'rd, 'fs1");
+          break;
+        case 0b00011:  // RO_FCVT_LU_S
+          Format(instr, "fcvt.lu.s 'rd, 'fs1");
+          break;
+#endif /* V8_TARGET_ARCH_64_BIT */
+        default:
+          UNSUPPORTED_RISCV();
       }
       break;
-    case BGTZL:
-      if ((instr->RtValue() == instr->RsValue()) && (instr->RtValue() != 0)) {
-        Format(instr, "bltzc    'rt, 'imm16u -> 'imm16p4s2");
-      } else if ((instr->RtValue() != instr->RsValue()) &&
-                 (instr->RsValue() != 0) && (instr->RtValue() != 0)) {
-        Format(instr, "bltc    'rs, 'rt, 'imm16u -> 'imm16p4s2");
-      } else if ((instr->RsValue() == 0) && (instr->RtValue() != 0)) {
-        Format(instr, "bgtzc    'rt, 'imm16u -> 'imm16p4s2");
-      } else {
-        UNREACHABLE();
-      }
-      break;
-    case POP66:
-      if (instr->RsValue() == JIC) {
-        Format(instr, "jic     'rt, 'imm16s");
-      } else {
-        Format(instr, "beqzc   'rs, 'imm21s -> 'imm21p4s2");
-      }
-      break;
-    case POP76:
-      if (instr->RsValue() == JIALC) {
-        Format(instr, "jialc   'rt, 'imm16s");
-      } else {
-        Format(instr, "bnezc   'rs, 'imm21s -> 'imm21p4s2");
-      }
-      break;
-    // ------------- Arithmetic instructions.
-    case ADDI:
-      if (kArchVariant != kMips64r6) {
-        Format(instr, "addi    'rt, 'rs, 'imm16s");
-      } else {
-        int rs_reg = instr->RsValue();
-        int rt_reg = instr->RtValue();
-        // Check if BOVC, BEQZALC or BEQC instruction.
-        if (rs_reg >= rt_reg) {
-          Format(instr, "bovc  'rs, 'rt, 'imm16s -> 'imm16p4s2");
-        } else {
-          DCHECK_GT(rt_reg, 0);
-          if (rs_reg == 0) {
-            Format(instr, "beqzalc 'rt, 'imm16s -> 'imm16p4s2");
+    }
+    case RO_FMV: {  // RO_FCLASS_S
+      switch (instr->Funct3Value()) {
+        case 0b000: {
+          if (instr->Rs2Value() == 0b00000) {
+            // RO_FMV_X_W
+            Format(instr, "fmv.x.w 'fd, 'fs1");
           } else {
-            Format(instr, "beqc    'rs, 'rt, 'imm16s -> 'imm16p4s2");
+            UNSUPPORTED_RISCV();
           }
-        }
-      }
-      break;
-    case DADDI:
-      if (kArchVariant != kMips64r6) {
-        Format(instr, "daddi   'rt, 'rs, 'imm16s");
-      } else {
-        int rs_reg = instr->RsValue();
-        int rt_reg = instr->RtValue();
-        // Check if BNVC, BNEZALC or BNEC instruction.
-        if (rs_reg >= rt_reg) {
-          Format(instr, "bnvc  'rs, 'rt, 'imm16s -> 'imm16p4s2");
-        } else {
-          DCHECK_GT(rt_reg, 0);
-          if (rs_reg == 0) {
-            Format(instr, "bnezalc 'rt, 'imm16s -> 'imm16p4s2");
-          } else {
-            Format(instr, "bnec  'rs, 'rt, 'imm16s -> 'imm16p4s2");
-          }
-        }
-      }
-      break;
-    case ADDIU:
-      Format(instr, "addiu   'rt, 'rs, 'imm16s");
-      break;
-    case DADDIU:
-      Format(instr, "daddiu  'rt, 'rs, 'imm16s");
-      break;
-    case SLTI:
-      Format(instr, "slti    'rt, 'rs, 'imm16s");
-      break;
-    case SLTIU:
-      Format(instr, "sltiu   'rt, 'rs, 'imm16u");
-      break;
-    case ANDI:
-      Format(instr, "andi    'rt, 'rs, 'imm16x");
-      break;
-    case ORI:
-      Format(instr, "ori     'rt, 'rs, 'imm16x");
-      break;
-    case XORI:
-      Format(instr, "xori    'rt, 'rs, 'imm16x");
-      break;
-    case LUI:
-      if (kArchVariant != kMips64r6) {
-        Format(instr, "lui     'rt, 'imm16x");
-      } else {
-        if (instr->RsValue() != 0) {
-          Format(instr, "aui     'rt, 'rs, 'imm16x");
-        } else {
-          Format(instr, "lui     'rt, 'imm16x");
-        }
-      }
-      break;
-    case DAUI:
-      Format(instr, "daui    'rt, 'rs, 'imm16x");
-      break;
-    // ------------- Memory instructions.
-    case LB:
-      Format(instr, "lb      'rt, 'imm16s('rs)");
-      break;
-    case LH:
-      Format(instr, "lh      'rt, 'imm16s('rs)");
-      break;
-    case LWL:
-      Format(instr, "lwl     'rt, 'imm16s('rs)");
-      break;
-    case LDL:
-      Format(instr, "ldl     'rt, 'imm16s('rs)");
-      break;
-    case LW:
-      Format(instr, "lw      'rt, 'imm16s('rs)");
-      break;
-    case LWU:
-      Format(instr, "lwu     'rt, 'imm16s('rs)");
-      break;
-    case LD:
-      Format(instr, "ld      'rt, 'imm16s('rs)");
-      break;
-    case LBU:
-      Format(instr, "lbu     'rt, 'imm16s('rs)");
-      break;
-    case LHU:
-      Format(instr, "lhu     'rt, 'imm16s('rs)");
-      break;
-    case LWR:
-      Format(instr, "lwr     'rt, 'imm16s('rs)");
-      break;
-    case LDR:
-      Format(instr, "ldr     'rt, 'imm16s('rs)");
-      break;
-    case PREF:
-      Format(instr, "pref    'rt, 'imm16s('rs)");
-      break;
-    case SB:
-      Format(instr, "sb      'rt, 'imm16s('rs)");
-      break;
-    case SH:
-      Format(instr, "sh      'rt, 'imm16s('rs)");
-      break;
-    case SWL:
-      Format(instr, "swl     'rt, 'imm16s('rs)");
-      break;
-    case SW:
-      Format(instr, "sw      'rt, 'imm16s('rs)");
-      break;
-    case SD:
-      Format(instr, "sd      'rt, 'imm16s('rs)");
-      break;
-    case SWR:
-      Format(instr, "swr     'rt, 'imm16s('rs)");
-      break;
-    case SDR:
-      Format(instr, "sdr     'rt, 'imm16s('rs)");
-      break;
-    case SDL:
-      Format(instr, "sdl     'rt, 'imm16s('rs)");
-      break;
-    case LL:
-      if (kArchVariant == kMips64r6) {
-        Unknown(instr);
-      } else {
-        Format(instr, "ll     'rt, 'imm16s('rs)");
-      }
-      break;
-    case LLD:
-      if (kArchVariant == kMips64r6) {
-        Unknown(instr);
-      } else {
-        Format(instr, "lld     'rt, 'imm16s('rs)");
-      }
-      break;
-    case SC:
-      if (kArchVariant == kMips64r6) {
-        Unknown(instr);
-      } else {
-        Format(instr, "sc     'rt, 'imm16s('rs)");
-      }
-      break;
-    case SCD:
-      if (kArchVariant == kMips64r6) {
-        Unknown(instr);
-      } else {
-        Format(instr, "scd     'rt, 'imm16s('rs)");
-      }
-      break;
-    case LWC1:
-      Format(instr, "lwc1    'ft, 'imm16s('rs)");
-      break;
-    case LDC1:
-      Format(instr, "ldc1    'ft, 'imm16s('rs)");
-      break;
-    case SWC1:
-      Format(instr, "swc1    'ft, 'imm16s('rs)");
-      break;
-    case SDC1:
-      Format(instr, "sdc1    'ft, 'imm16s('rs)");
-      break;
-    case PCREL: {
-      int32_t imm21 = instr->Imm21Value();
-      // rt field: 5-bits checking
-      uint8_t rt = (imm21 >> kImm16Bits);
-      switch (rt) {
-        case ALUIPC:
-          Format(instr, "aluipc  'rs, 'imm16s");
           break;
-        case AUIPC:
-          Format(instr, "auipc   'rs, 'imm16s");
+        }
+        case 0b001:  // RO_FCLASS_S
+          UNSUPPORTED_RISCV();
           break;
+        default:
+          UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FLE_S: {  // RO_FEQ_S RO_FLT_S RO_FLE_S
+      switch (instr->Funct3Value()) {
+        case 0b010:  // RO_FEQ_S
+          Format(instr, "feq.s 'rd, 'fs1, 'fs2");
+          break;
+        case 0b001:  // RO_FLT_S
+          Format(instr, "flt.s 'rd, 'fs1, 'fs2");
+          break;
+        case 0b000:  // RO_FLE_S
+          Format(instr, "fle.s 'rd, 'fs1, 'fs2");
+          break;
+        default:
+          UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FCVT_S_W: {  // RO_FCVT_S_WU , 64F RO_FCVT_S_L RO_FCVT_S_LU
+      switch (instr->Rs2Value()) {
+        case 0b00000:  // RO_FCVT_S_W
+          Format(instr, "fcvt.s.w 'fd, 'rs1");
+          break;
+        case 0b00001:  // RO_FCVT_S_WU
+          Format(instr, "fcvt.s.wu 'fd, 'rs1");
+          break;
+#ifdef V8_TARGET_ARCH_64_BIT
+        case 0b00010:  // RO_FCVT_S_L
+          Format(instr, "fcvt.s.l 'fd, 'rs1");
+          break;
+        case 0b00011:  // RO_FCVT_S_LU
+          Format(instr, "fcvt.s.lu 'fd, 'rs1");
+          break;
+#endif /* V8_TARGET_ARCH_64_BIT */
         default: {
-          // rt field: checking of the most significant 3-bits
-          rt = (imm21 >> kImm18Bits);
-          switch (rt) {
-            case LDPC:
-              Format(instr, "ldpc    'rs, 'imm18s");
-              break;
-            default: {
-              // rt field: checking of the most significant 2-bits
-              rt = (imm21 >> kImm19Bits);
-              switch (rt) {
-                case LWUPC:
-                  Format(instr, "lwupc   'rs, 'imm19s");
-                  break;
-                case LWPC:
-                  Format(instr, "lwpc    'rs, 'imm19s");
-                  break;
-                case ADDIUPC:
-                  Format(instr, "addiupc 'rs, 'imm19s");
-                  break;
-                default:
-                  UNREACHABLE();
-                  break;
-              }
-              break;
-            }
-          }
-          break;
+          UNSUPPORTED_RISCV();
         }
       }
       break;
     }
-    case SPECIAL3:
-      DecodeTypeImmediateSPECIAL3(instr);
+    case RO_FMV_W_X: {
+      if (instr->Funct3Value() == 0b000) {
+        Format(instr, "fmv.w.x 'fd, 'rs1");
+      } else {
+        UNSUPPORTED_RISCV();
+      }
       break;
-    case MSA:
-      switch (instr->MSAMinorOpcodeField()) {
-        case kMsaMinorI8:
-          DecodeTypeMsaI8(instr);
+    }
+    // TODO: Add macro for RISCV D extension
+    case RO_FADD_D:
+      Format(instr, "fadd.d 'fd, 'fs1, 'fs2");
+      break;
+    case RO_FSUB_D:
+      Format(instr, "fsub.d 'fd, 'fs1, 'fs2");
+      break;
+    case RO_FMUL_D:
+      Format(instr, "fmul.d 'fd, 'fs1, 'fs2");
+      break;
+    case RO_FDIV_D:
+      Format(instr, "fdiv.d 'fd, 'fs1, 'fs2");
+      break;
+    case RO_FSQRT_D: {
+      if (instr->Rs2Value() == 0b00000) {
+        Format(instr, "fsqrt.d 'fd, 'fs1");
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FSGNJ_D: {  // RO_FSGNJN_D RO_FSQNJX_D
+      switch (instr->Funct3Value()) {
+        case 0b000:  // RO_FSGNJ_D
+          Format(instr, "fsgnj.d 'fd, 'fs1, 'fs2");
           break;
-        case kMsaMinorI5:
-          DecodeTypeMsaI5(instr);
+        case 0b001:  // RO_FSGNJN_D
+          Format(instr, "fsgnjn.d 'fd, 'fs1, 'fs2");
           break;
-        case kMsaMinorI10:
-          DecodeTypeMsaI10(instr);
-          break;
-        case kMsaMinorELM:
-          DecodeTypeMsaELM(instr);
-          break;
-        case kMsaMinorBIT:
-          DecodeTypeMsaBIT(instr);
-          break;
-        case kMsaMinorMI10:
-          DecodeTypeMsaMI10(instr);
+        case 0b010:  // RO_FSQNJX_D
+          Format(instr, "fsgnjx.d 'fd, 'fs1, 'fs2");
           break;
         default:
-          UNREACHABLE();
+          UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FMIN_D: {  // RO_FMAX_D
+      switch (instr->Funct3Value()) {
+        case 0b000:  // RO_FMIN_D
+          Format(instr, "fmin.d 'fd, 'fs1, 'fs2");
           break;
+        case 0b001:  // RO_FMAX_D
+          Format(instr, "fmax.d 'fd, 'fs1, 'fs2");
+          break;
+        default:
+          UNSUPPORTED_RISCV();
       }
       break;
-    default:
-      printf("a 0x%x \n", instr->OpcodeFieldRaw());
-      UNREACHABLE();
-  }
-}
-
-void Decoder::DecodeTypeJump(Instruction* instr) {
-  switch (instr->OpcodeFieldRaw()) {
-    case J:
-      Format(instr, "j       'imm26x -> 'imm26j");
-      break;
-    case JAL:
-      Format(instr, "jal     'imm26x -> 'imm26j");
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-void Decoder::DecodeTypeMsaI8(Instruction* instr) {
-  uint32_t opcode = instr->InstructionBits() & kMsaI8Mask;
-
-  switch (opcode) {
-    case ANDI_B:
-      Format(instr, "andi.b  'wd, 'ws, 'imm8");
-      break;
-    case ORI_B:
-      Format(instr, "ori.b  'wd, 'ws, 'imm8");
-      break;
-    case NORI_B:
-      Format(instr, "nori.b  'wd, 'ws, 'imm8");
-      break;
-    case XORI_B:
-      Format(instr, "xori.b  'wd, 'ws, 'imm8");
-      break;
-    case BMNZI_B:
-      Format(instr, "bmnzi.b  'wd, 'ws, 'imm8");
-      break;
-    case BMZI_B:
-      Format(instr, "bmzi.b  'wd, 'ws, 'imm8");
-      break;
-    case BSELI_B:
-      Format(instr, "bseli.b  'wd, 'ws, 'imm8");
-      break;
-    case SHF_B:
-      Format(instr, "shf.b  'wd, 'ws, 'imm8");
-      break;
-    case SHF_H:
-      Format(instr, "shf.h  'wd, 'ws, 'imm8");
-      break;
-    case SHF_W:
-      Format(instr, "shf.w  'wd, 'ws, 'imm8");
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-void Decoder::DecodeTypeMsaI5(Instruction* instr) {
-  uint32_t opcode = instr->InstructionBits() & kMsaI5Mask;
-
-  switch (opcode) {
-    case ADDVI:
-      Format(instr, "addvi.'t  'wd, 'ws, 'imm5u");
-      break;
-    case SUBVI:
-      Format(instr, "subvi.'t  'wd, 'ws, 'imm5u");
-      break;
-    case MAXI_S:
-      Format(instr, "maxi_s.'t  'wd, 'ws, 'imm5s");
-      break;
-    case MAXI_U:
-      Format(instr, "maxi_u.'t  'wd, 'ws, 'imm5u");
-      break;
-    case MINI_S:
-      Format(instr, "mini_s.'t  'wd, 'ws, 'imm5s");
-      break;
-    case MINI_U:
-      Format(instr, "mini_u.'t  'wd, 'ws, 'imm5u");
-      break;
-    case CEQI:
-      Format(instr, "ceqi.'t  'wd, 'ws, 'imm5s");
-      break;
-    case CLTI_S:
-      Format(instr, "clti_s.'t  'wd, 'ws, 'imm5s");
-      break;
-    case CLTI_U:
-      Format(instr, "clti_u.'t  'wd, 'ws, 'imm5u");
-      break;
-    case CLEI_S:
-      Format(instr, "clei_s.'t  'wd, 'ws, 'imm5s");
-      break;
-    case CLEI_U:
-      Format(instr, "clei_u.'t  'wd, 'ws, 'imm5u");
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-void Decoder::DecodeTypeMsaI10(Instruction* instr) {
-  uint32_t opcode = instr->InstructionBits() & kMsaI5Mask;
-  if (opcode == LDI) {
-    Format(instr, "ldi.'t  'wd, 'imm10s1");
-  } else {
-    UNREACHABLE();
-  }
-}
-
-void Decoder::DecodeTypeMsaELM(Instruction* instr) {
-  uint32_t opcode = instr->InstructionBits() & kMsaELMMask;
-  switch (opcode) {
-    case SLDI:
-      if (instr->Bits(21, 16) == 0x3E) {
-        Format(instr, "ctcmsa  ");
-        PrintMSAControlRegister(instr->WdValue());
-        Print(", ");
-        PrintRegister(instr->WsValue());
+    }
+    case (RO_FCVT_S_D & kRFPTypeMask): {
+      if (instr->Rs2Value() == 0b00001) {
+        Format(instr, "fcvt.s.d 'fd, 'rs1");
       } else {
-        Format(instr, "sldi.'t  'wd, 'ws['imme]");
+        UNSUPPORTED_RISCV();
       }
       break;
-    case SPLATI:
-      if (instr->Bits(21, 16) == 0x3E) {
-        Format(instr, "cfcmsa  ");
-        PrintRegister(instr->WdValue());
-        Print(", ");
-        PrintMSAControlRegister(instr->WsValue());
+    }
+    case RO_FCVT_D_S: {
+      if (instr->Rs2Value() == 0b00000) {
+        Format(instr, "fcvt.d.s 'rd, 'fs1");
       } else {
-        Format(instr, "splati.'t  'wd, 'ws['imme]");
+        UNSUPPORTED_RISCV();
       }
       break;
-    case COPY_S:
-      if (instr->Bits(21, 16) == 0x3E) {
-        Format(instr, "move.v  'wd, 'ws");
+    }
+    case RO_FLE_D: {  // RO_FEQ_D RO_FLT_D RO_FLE_D
+      switch (instr->Funct3Value()) {
+        case 0b010:  // RO_FEQ_S
+          Format(instr, "feq.d 'rd, 'fs1, 'fs2");
+          break;
+        case 0b001:  // RO_FLT_D
+          Format(instr, "flt.d 'rd, 'fs1, 'fs2");
+          break;
+        case 0b000:  // RO_FLE_D
+          Format(instr, "fle.d 'rd, 'fs1, 'fs2");
+          break;
+        default:
+          UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case (RO_FCLASS_D & kRFPTypeMask): {  // RO_FCLASS_D , 64D RO_FMV_X_D
+      if (instr->Rs2Value() != 0b00000) {
+        UNSUPPORTED_RISCV();
+        break;
+      }
+      switch (instr->Funct3Value()) {
+        case 0b001:  // RO_FCLASS_D
+          UNSUPPORTED_RISCV();
+          break;
+#ifdef V8_TARGET_ARCH_64_BIT
+        case 0b000:  // RO_FMV_X_D
+          Format(instr, "fmv.x.d 'rd, 'fs1");
+          break;
+#endif /* V8_TARGET_ARCH_64_BIT */
+        default:
+          UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FCVT_W_D: {  // RO_FCVT_WU_D , 64F RO_FCVT_L_D RO_FCVT_LU_D
+      switch (instr->Rs2Value()) {
+        case 0b00000:  // RO_FCVT_W_D
+          Format(instr, "fcvt.w.d 'rd, 'fs1");
+          break;
+        case 0b00001:  // RO_FCVT_WU_D
+          Format(instr, "fcvt.wu.d 'rd, 'fs1");
+          break;
+#ifdef V8_TARGET_ARCH_64_BIT
+        case 0b00010:  // RO_FCVT_L_D
+          Format(instr, "fcvt.l.d 'rd, 'fs1");
+          break;
+        case 0b00011:  // RO_FCVT_LU_D
+          Format(instr, "fcvt.lu.d 'rd, 'fs1");
+          break;
+#endif /* V8_TARGET_ARCH_64_BIT */
+        default:
+          UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FCVT_D_W: {  // RO_FCVT_D_WU , 64F RO_FCVT_D_L RO_FCVT_D_LU
+      switch (instr->Rs2Value()) {
+        case 0b00000:  // RO_FCVT_D_W
+          Format(instr, "fcvt.d.w 'fd, 'rs1");
+          break;
+        case 0b00001:  // RO_FCVT_D_WU
+          Format(instr, "fcvt.d.wu 'fd, 'rs1");
+          break;
+#ifdef V8_TARGET_ARCH_64_BIT
+        case 0b00010:  // RO_FCVT_D_L
+          Format(instr, "fcvt.d.l 'fd, 'rs1");
+          break;
+        case 0b00011:  // RO_FCVT_D_LU
+          Format(instr, "fcvt.d.lu 'fd, 'rs1");
+          break;
+#endif /* V8_TARGET_ARCH_64_BIT */
+        default:
+          UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_FMV_D_X: {
+      if (instr->Funct3Value() == 0b000 && instr->Rs2Value() == 0b00000) {
+        Format(instr, "fmv.d.x 'fd, 'rs1");
       } else {
-        Format(instr, "copy_s.'t  ");
-        PrintMsaCopy(instr);
+        UNSUPPORTED_RISCV();
       }
       break;
-    case COPY_U:
-      Format(instr, "copy_u.'t  ");
-      PrintMsaCopy(instr);
-      break;
-    case INSERT:
-      Format(instr, "insert.'t  'wd['imme], ");
-      PrintRegister(instr->WsValue());
-      break;
-    case INSVE:
-      Format(instr, "insve.'t  'wd['imme], 'ws[0]");
-      break;
-    default:
-      UNREACHABLE();
+    }
+#endif /* V8_TARGET_ARCH_64_BIT */
+    default: {
+      UNSUPPORTED_RISCV();
+    }
   }
 }
 
-void Decoder::DecodeTypeMsaBIT(Instruction* instr) {
-  uint32_t opcode = instr->InstructionBits() & kMsaBITMask;
-
-  switch (opcode) {
-    case SLLI:
-      Format(instr, "slli.'t  'wd, 'ws, 'immb");
+void Decoder::DecodeR4Type(Instruction* instr) {
+  switch (instr->InstructionBits() & kR4TypeMask) {
+    // TODO: use F Extension macro block
+    case RO_FMADD_S:
+      Format(instr, "fmadd.s 'fd, 'fs1, 'fs2");
       break;
-    case SRAI:
-      Format(instr, "srai.'t  'wd, 'ws, 'immb");
+    case RO_FMSUB_S:
+      Format(instr, "fmsub.s 'fd, 'fs1, 'fs2");
       break;
-    case SRLI:
-      Format(instr, "srli.'t  'wd, 'ws, 'immb");
+    case RO_FNMSUB_S:
+      Format(instr, "fnmsub.s 'fd, 'fs1, 'fs2");
       break;
-    case BCLRI:
-      Format(instr, "bclri.'t  'wd, 'ws, 'immb");
+    case RO_FNMADD_S:
+      Format(instr, "fnmadd.s 'fd, 'fs1, 'fs2");
       break;
-    case BSETI:
-      Format(instr, "bseti.'t  'wd, 'ws, 'immb");
+    // TODO: use F Extension macro block
+    case RO_FMADD_D:
+      Format(instr, "fmadd.d 'fd, 'fs1, 'fs2");
       break;
-    case BNEGI:
-      Format(instr, "bnegi.'t  'wd, 'ws, 'immb");
+    case RO_FMSUB_D:
+      Format(instr, "fmsub.d 'fd, 'fs1, 'fs2");
       break;
-    case BINSLI:
-      Format(instr, "binsli.'t  'wd, 'ws, 'immb");
+    case RO_FNMSUB_D:
+      Format(instr, "fnmsub.d 'fd, 'fs1, 'fs2");
       break;
-    case BINSRI:
-      Format(instr, "binsri.'t  'wd, 'ws, 'immb");
-      break;
-    case SAT_S:
-      Format(instr, "sat_s.'t  'wd, 'ws, 'immb");
-      break;
-    case SAT_U:
-      Format(instr, "sat_u.'t  'wd, 'ws, 'immb");
-      break;
-    case SRARI:
-      Format(instr, "srari.'t  'wd, 'ws, 'immb");
-      break;
-    case SRLRI:
-      Format(instr, "srlri.'t  'wd, 'ws, 'immb");
+    case RO_FNMADD_D:
+      Format(instr, "fnmadd.d 'fd, 'fs1, 'fs2");
       break;
     default:
-      UNREACHABLE();
+      UNSUPPORTED_RISCV();
   }
 }
 
-void Decoder::DecodeTypeMsaMI10(Instruction* instr) {
-  uint32_t opcode = instr->InstructionBits() & kMsaMI10Mask;
-  if (opcode == MSA_LD) {
-    Format(instr, "ld.'t  'wd, 'imm10s2(");
-    PrintRegister(instr->WsValue());
-    Print(")");
-  } else if (opcode == MSA_ST) {
-    Format(instr, "st.'t  'wd, 'imm10s2(");
-    PrintRegister(instr->WsValue());
-    Print(")");
-  } else {
-    UNREACHABLE();
+void Decoder::DecodeIType(Instruction* instr) {
+  switch (instr->InstructionBits() & kITypeMask) {
+    case RO_JALR:
+      Format(instr, "jalr    'rd, 'imm12('rs1)");
+      break;
+    case RO_LB:
+      Format(instr, "lb      'rd, 'imm12('rs1)");
+      break;
+    case RO_LH:
+      Format(instr, "lh      'rd, 'imm12('rs1)");
+      break;
+    case RO_LW:
+      Format(instr, "lw      'rd, 'imm12('rs1)");
+      break;
+    case RO_LBU:
+      Format(instr, "lbu     'rd, 'imm12('rs1)");
+      break;
+    case RO_LHU:
+      Format(instr, "lhu     'rd, 'imm12('rs1)");
+      break;
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_LWU:
+      Format(instr, "lwu     'rd, 'imm12('rs1)");
+      break;
+    case RO_LD:
+      Format(instr, "ld      'rd, 'imm12('rs1)");
+      break;
+#endif /*V8_TARGET_ARCH_64_BIT*/
+    case RO_ADDI:
+      Format(instr, "addi    'rd, 'rs1, 'imm12");
+      break;
+    case RO_SLTI:
+      Format(instr, "slti    'rd, 'rs1, 'imm12");
+      break;
+    case RO_SLTIU:
+      Format(instr, "sltiu   'rd, 'rs1, 'imm12");
+      break;
+    case RO_XORI:
+      Format(instr, "xori    'rd, 'rs1, 'imm12");
+      break;
+    case RO_ORI:
+      Format(instr, "ori     'rd, 'rs1, 'imm12");
+      break;
+    case RO_ANDI:
+      Format(instr, "andi    'rd, 'rs1, 'imm12");
+      break;
+    case RO_SLLI:
+      Format(instr, "slli    'rd, 'rs1, 's64");
+      break;
+    case RO_SRLI: {  //  RO_SRAI
+      if (!instr->IsArithShift()) {
+        Format(instr, "srli    'rd, 'rs1, 's64");
+      } else {
+        Format(instr, "srai    'rd, 'rs1, 's64");
+      }
+      break;
+    }
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_ADDIW:
+      Format(instr, "addiw   'rd, 'rs1, 'imm12");
+      break;
+    case RO_SLLIW:
+      Format(instr, "slliw   'rd, 'rs1, 's32");
+      break;
+    case RO_SRLIW: {  //  RO_SRAIW
+      if (!instr->IsArithShift()) {
+        Format(instr, "srliw   'rd, 'rs1, 's32");
+      } else {
+        Format(instr, "sraiw   'rd, 'rs1, 's32");
+      }
+      break;
+    }
+#endif /*V8_TARGET_ARCH_64_BIT*/
+    case RO_FENCE:
+      // FIXME(RISC-V): Need to extract bits for type of fence
+      Format(instr, "fence");
+      break;
+    case RO_ECALL: {                   // RO_EBREAK
+      if (instr->Imm12Value() == 0) {  // ECALL
+        Format(instr, "ecall");
+      } else if (instr->Imm12Value() == 1) {  // EBREAK
+        Format(instr, "ebreak");
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    // TODO: use Zifencei Standard Extension macro block
+    case RO_FENCE_I:
+      Format(instr, "fence");
+      break;
+    // TODO: use Zicsr Standard Extension macro block
+    // FIXME(RISC-V): Add special formatting for CSR registers
+    case RO_CSRRW:
+      Format(instr, "csrrw   'rd, 'rs1, 'imm12");
+      break;
+    case RO_CSRRS:
+      Format(instr, "csrrs   'rd, 'rs1, 'imm12");
+      break;
+    case RO_CSRRC:
+      Format(instr, "csrrc   'rd, 'rs1, 'imm12");
+      break;
+    case RO_CSRRWI:
+      Format(instr, "csrrwi  'rd, 'vs1, 'imm12");
+      break;
+    case RO_CSRRSI:
+      Format(instr, "csrrsi  'rd, 'vs1, 'imm12");
+      break;
+    case RO_CSRRCI:
+      Format(instr, "csrrci  'rd, 'vs1, 'imm12");
+      break;
+    // TODO: use F Extension macro block
+    case RO_FLW:
+      Format(instr, "flw     'fd, 'imm12('rs1)");
+      break;
+    // TODO: use D Extension macro block
+    case RO_FLD:
+      Format(instr, "fld     'fd, 'imm12('rs1)");
+      break;
+    default:
+      UNSUPPORTED_RISCV();
   }
 }
 
-void Decoder::DecodeTypeMsa3R(Instruction* instr) {
-  uint32_t opcode = instr->InstructionBits() & kMsa3RMask;
-  switch (opcode) {
-    case SLL_MSA:
-      Format(instr, "sll.'t  'wd, 'ws, 'wt");
+void Decoder::DecodeSType(Instruction* instr) {
+  switch (instr->InstructionBits() & kSTypeMask) {
+    case RO_SB:
+      Format(instr, "sb      'rs2, 'offS('rs1)");
       break;
-    case SRA_MSA:
-      Format(instr, "sra.'t  'wd, 'ws, 'wt");
+    case RO_SH:
+      Format(instr, "sh      'rs2, 'offS('rs1)");
       break;
-    case SRL_MSA:
-      Format(instr, "srl.'t  'wd, 'ws, 'wt");
+    case RO_SW:
+      Format(instr, "sw      'rs2, 'offS('rs1)");
       break;
-    case BCLR:
-      Format(instr, "bclr.'t  'wd, 'ws, 'wt");
+#ifdef V8_TARGET_ARCH_64_BIT
+    case RO_SD:
+      Format(instr, "sd      'rs2, 'offS('rs1)");
       break;
-    case BSET:
-      Format(instr, "bset.'t  'wd, 'ws, 'wt");
+#endif /*V8_TARGET_ARCH_64_BIT*/
+    // TODO: use F Extension macro block
+    case RO_FSW:
+      Format(instr, "fsw      'fs2, 'offS('rs1)");
       break;
-    case BNEG:
-      Format(instr, "bneg.'t  'wd, 'ws, 'wt");
-      break;
-    case BINSL:
-      Format(instr, "binsl.'t  'wd, 'ws, 'wt");
-      break;
-    case BINSR:
-      Format(instr, "binsr.'t  'wd, 'ws, 'wt");
-      break;
-    case ADDV:
-      Format(instr, "addv.'t  'wd, 'ws, 'wt");
-      break;
-    case SUBV:
-      Format(instr, "subv.'t  'wd, 'ws, 'wt");
-      break;
-    case MAX_S:
-      Format(instr, "max_s.'t  'wd, 'ws, 'wt");
-      break;
-    case MAX_U:
-      Format(instr, "max_u.'t  'wd, 'ws, 'wt");
-      break;
-    case MIN_S:
-      Format(instr, "min_s.'t  'wd, 'ws, 'wt");
-      break;
-    case MIN_U:
-      Format(instr, "min_u.'t  'wd, 'ws, 'wt");
-      break;
-    case MAX_A:
-      Format(instr, "max_a.'t  'wd, 'ws, 'wt");
-      break;
-    case MIN_A:
-      Format(instr, "min_a.'t  'wd, 'ws, 'wt");
-      break;
-    case CEQ:
-      Format(instr, "ceq.'t  'wd, 'ws, 'wt");
-      break;
-    case CLT_S:
-      Format(instr, "clt_s.'t  'wd, 'ws, 'wt");
-      break;
-    case CLT_U:
-      Format(instr, "clt_u.'t  'wd, 'ws, 'wt");
-      break;
-    case CLE_S:
-      Format(instr, "cle_s.'t  'wd, 'ws, 'wt");
-      break;
-    case CLE_U:
-      Format(instr, "cle_u.'t  'wd, 'ws, 'wt");
-      break;
-    case ADD_A:
-      Format(instr, "add_a.'t  'wd, 'ws, 'wt");
-      break;
-    case ADDS_A:
-      Format(instr, "adds_a.'t  'wd, 'ws, 'wt");
-      break;
-    case ADDS_S:
-      Format(instr, "adds_s.'t  'wd, 'ws, 'wt");
-      break;
-    case ADDS_U:
-      Format(instr, "adds_u.'t  'wd, 'ws, 'wt");
-      break;
-    case AVE_S:
-      Format(instr, "ave_s.'t  'wd, 'ws, 'wt");
-      break;
-    case AVE_U:
-      Format(instr, "ave_u.'t  'wd, 'ws, 'wt");
-      break;
-    case AVER_S:
-      Format(instr, "aver_s.'t  'wd, 'ws, 'wt");
-      break;
-    case AVER_U:
-      Format(instr, "aver_u.'t  'wd, 'ws, 'wt");
-      break;
-    case SUBS_S:
-      Format(instr, "subs_s.'t  'wd, 'ws, 'wt");
-      break;
-    case SUBS_U:
-      Format(instr, "subs_u.'t  'wd, 'ws, 'wt");
-      break;
-    case SUBSUS_U:
-      Format(instr, "subsus_u.'t  'wd, 'ws, 'wt");
-      break;
-    case SUBSUU_S:
-      Format(instr, "subsuu_s.'t  'wd, 'ws, 'wt");
-      break;
-    case ASUB_S:
-      Format(instr, "asub_s.'t  'wd, 'ws, 'wt");
-      break;
-    case ASUB_U:
-      Format(instr, "asub_u.'t  'wd, 'ws, 'wt");
-      break;
-    case MULV:
-      Format(instr, "mulv.'t  'wd, 'ws, 'wt");
-      break;
-    case MADDV:
-      Format(instr, "maddv.'t  'wd, 'ws, 'wt");
-      break;
-    case MSUBV:
-      Format(instr, "msubv.'t  'wd, 'ws, 'wt");
-      break;
-    case DIV_S_MSA:
-      Format(instr, "div_s.'t  'wd, 'ws, 'wt");
-      break;
-    case DIV_U:
-      Format(instr, "div_u.'t  'wd, 'ws, 'wt");
-      break;
-    case MOD_S:
-      Format(instr, "mod_s.'t  'wd, 'ws, 'wt");
-      break;
-    case MOD_U:
-      Format(instr, "mod_u.'t  'wd, 'ws, 'wt");
-      break;
-    case DOTP_S:
-      Format(instr, "dotp_s.'t  'wd, 'ws, 'wt");
-      break;
-    case DOTP_U:
-      Format(instr, "dotp_u.'t  'wd, 'ws, 'wt");
-      break;
-    case DPADD_S:
-      Format(instr, "dpadd_s.'t  'wd, 'ws, 'wt");
-      break;
-    case DPADD_U:
-      Format(instr, "dpadd_u.'t  'wd, 'ws, 'wt");
-      break;
-    case DPSUB_S:
-      Format(instr, "dpsub_s.'t  'wd, 'ws, 'wt");
-      break;
-    case DPSUB_U:
-      Format(instr, "dpsub_u.'t  'wd, 'ws, 'wt");
-      break;
-    case SLD:
-      Format(instr, "sld.'t  'wd, 'ws['rt]");
-      break;
-    case SPLAT:
-      Format(instr, "splat.'t  'wd, 'ws['rt]");
-      break;
-    case PCKEV:
-      Format(instr, "pckev.'t  'wd, 'ws, 'wt");
-      break;
-    case PCKOD:
-      Format(instr, "pckod.'t  'wd, 'ws, 'wt");
-      break;
-    case ILVL:
-      Format(instr, "ilvl.'t  'wd, 'ws, 'wt");
-      break;
-    case ILVR:
-      Format(instr, "ilvr.'t  'wd, 'ws, 'wt");
-      break;
-    case ILVEV:
-      Format(instr, "ilvev.'t  'wd, 'ws, 'wt");
-      break;
-    case ILVOD:
-      Format(instr, "ilvod.'t  'wd, 'ws, 'wt");
-      break;
-    case VSHF:
-      Format(instr, "vshf.'t  'wd, 'ws, 'wt");
-      break;
-    case SRAR:
-      Format(instr, "srar.'t  'wd, 'ws, 'wt");
-      break;
-    case SRLR:
-      Format(instr, "srlr.'t  'wd, 'ws, 'wt");
-      break;
-    case HADD_S:
-      Format(instr, "hadd_s.'t  'wd, 'ws, 'wt");
-      break;
-    case HADD_U:
-      Format(instr, "hadd_u.'t  'wd, 'ws, 'wt");
-      break;
-    case HSUB_S:
-      Format(instr, "hsub_s.'t  'wd, 'ws, 'wt");
-      break;
-    case HSUB_U:
-      Format(instr, "hsub_u.'t  'wd, 'ws, 'wt");
+    // TODO: use D Extension macro block
+    case RO_FSD:
+      Format(instr, "fsd      'fs2, 'offS('rs1)");
       break;
     default:
-      UNREACHABLE();
+      UNSUPPORTED_RISCV();
   }
 }
 
-void Decoder::DecodeTypeMsa3RF(Instruction* instr) {
-  uint32_t opcode = instr->InstructionBits() & kMsa3RFMask;
-  switch (opcode) {
-    case FCAF:
-      Format(instr, "fcaf.'t  'wd, 'ws, 'wt");
+void Decoder::DecodeBType(Instruction* instr) {
+  switch (instr->InstructionBits() & kBTypeMask) {
+    case RO_BEQ:
+      Format(instr, "beq     'rs1, 'rs2, 'offB");
       break;
-    case FCUN:
-      Format(instr, "fcun.'t  'wd, 'ws, 'wt");
+    case RO_BNE:
+      Format(instr, "bne     'rs1, 'rs2, 'offB");
       break;
-    case FCEQ:
-      Format(instr, "fceq.'t  'wd, 'ws, 'wt");
+    case RO_BLT:
+      Format(instr, "blt     'rs1, 'rs2, 'offB");
       break;
-    case FCUEQ:
-      Format(instr, "fcueq.'t  'wd, 'ws, 'wt");
+    case RO_BGE:
+      Format(instr, "bge     'rs1, 'rs2, 'offB");
       break;
-    case FCLT:
-      Format(instr, "fclt.'t  'wd, 'ws, 'wt");
+    case RO_BLTU:
+      Format(instr, "bltu    'rs1, 'rs2, 'offB");
       break;
-    case FCULT:
-      Format(instr, "fcult.'t  'wd, 'ws, 'wt");
-      break;
-    case FCLE:
-      Format(instr, "fcle.'t  'wd, 'ws, 'wt");
-      break;
-    case FCULE:
-      Format(instr, "fcule.'t  'wd, 'ws, 'wt");
-      break;
-    case FSAF:
-      Format(instr, "fsaf.'t  'wd, 'ws, 'wt");
-      break;
-    case FSUN:
-      Format(instr, "fsun.'t  'wd, 'ws, 'wt");
-      break;
-    case FSEQ:
-      Format(instr, "fseq.'t  'wd, 'ws, 'wt");
-      break;
-    case FSUEQ:
-      Format(instr, "fsueq.'t  'wd, 'ws, 'wt");
-      break;
-    case FSLT:
-      Format(instr, "fslt.'t  'wd, 'ws, 'wt");
-      break;
-    case FSULT:
-      Format(instr, "fsult.'t  'wd, 'ws, 'wt");
-      break;
-    case FSLE:
-      Format(instr, "fsle.'t  'wd, 'ws, 'wt");
-      break;
-    case FSULE:
-      Format(instr, "fsule.'t  'wd, 'ws, 'wt");
-      break;
-    case FADD:
-      Format(instr, "fadd.'t  'wd, 'ws, 'wt");
-      break;
-    case FSUB:
-      Format(instr, "fsub.'t  'wd, 'ws, 'wt");
-      break;
-    case FMUL:
-      Format(instr, "fmul.'t  'wd, 'ws, 'wt");
-      break;
-    case FDIV:
-      Format(instr, "fdiv.'t  'wd, 'ws, 'wt");
-      break;
-    case FMADD:
-      Format(instr, "fmadd.'t  'wd, 'ws, 'wt");
-      break;
-    case FMSUB:
-      Format(instr, "fmsub.'t  'wd, 'ws, 'wt");
-      break;
-    case FEXP2:
-      Format(instr, "fexp2.'t  'wd, 'ws, 'wt");
-      break;
-    case FEXDO:
-      Format(instr, "fexdo.'t  'wd, 'ws, 'wt");
-      break;
-    case FTQ:
-      Format(instr, "ftq.'t  'wd, 'ws, 'wt");
-      break;
-    case FMIN:
-      Format(instr, "fmin.'t  'wd, 'ws, 'wt");
-      break;
-    case FMIN_A:
-      Format(instr, "fmin_a.'t  'wd, 'ws, 'wt");
-      break;
-    case FMAX:
-      Format(instr, "fmax.'t  'wd, 'ws, 'wt");
-      break;
-    case FMAX_A:
-      Format(instr, "fmax_a.'t  'wd, 'ws, 'wt");
-      break;
-    case FCOR:
-      Format(instr, "fcor.'t  'wd, 'ws, 'wt");
-      break;
-    case FCUNE:
-      Format(instr, "fcune.'t  'wd, 'ws, 'wt");
-      break;
-    case FCNE:
-      Format(instr, "fcne.'t  'wd, 'ws, 'wt");
-      break;
-    case MUL_Q:
-      Format(instr, "mul_q.'t  'wd, 'ws, 'wt");
-      break;
-    case MADD_Q:
-      Format(instr, "madd_q.'t  'wd, 'ws, 'wt");
-      break;
-    case MSUB_Q:
-      Format(instr, "msub_q.'t  'wd, 'ws, 'wt");
-      break;
-    case FSOR:
-      Format(instr, "fsor.'t  'wd, 'ws, 'wt");
-      break;
-    case FSUNE:
-      Format(instr, "fsune.'t  'wd, 'ws, 'wt");
-      break;
-    case FSNE:
-      Format(instr, "fsne.'t  'wd, 'ws, 'wt");
-      break;
-    case MULR_Q:
-      Format(instr, "mulr_q.'t  'wd, 'ws, 'wt");
-      break;
-    case MADDR_Q:
-      Format(instr, "maddr_q.'t  'wd, 'ws, 'wt");
-      break;
-    case MSUBR_Q:
-      Format(instr, "msubr_q.'t  'wd, 'ws, 'wt");
+    case RO_BGEU:
+      Format(instr, "bgeu    'rs1, 'rs2, 'offB");
       break;
     default:
-      UNREACHABLE();
+      UNSUPPORTED_RISCV();
   }
 }
-
-void Decoder::DecodeTypeMsaVec(Instruction* instr) {
-  uint32_t opcode = instr->InstructionBits() & kMsaVECMask;
-  switch (opcode) {
-    case AND_V:
-      Format(instr, "and.v  'wd, 'ws, 'wt");
+void Decoder::DecodeUType(Instruction* instr) {
+  // U Type doesn't have additional mask
+  switch (instr->BaseOpcodeFieldRaw()) {
+    case RO_LUI:
+      Format(instr, "lui     'rd, 'imm20U");
       break;
-    case OR_V:
-      Format(instr, "or.v  'wd, 'ws, 'wt");
-      break;
-    case NOR_V:
-      Format(instr, "nor.v  'wd, 'ws, 'wt");
-      break;
-    case XOR_V:
-      Format(instr, "xor.v  'wd, 'ws, 'wt");
-      break;
-    case BMNZ_V:
-      Format(instr, "bmnz.v  'wd, 'ws, 'wt");
-      break;
-    case BMZ_V:
-      Format(instr, "bmz.v  'wd, 'ws, 'wt");
-      break;
-    case BSEL_V:
-      Format(instr, "bsel.v  'wd, 'ws, 'wt");
+    case RO_AUIPC:
+      Format(instr, "auipc   'rd, 'imm20U");
       break;
     default:
-      UNREACHABLE();
+      UNSUPPORTED_RISCV();
   }
 }
-
-void Decoder::DecodeTypeMsa2R(Instruction* instr) {
-  uint32_t opcode = instr->InstructionBits() & kMsa2RMask;
-  switch (opcode) {
-    case FILL: {
-      Format(instr, "fill.'t  'wd, ");
-      PrintRegister(instr->WsValue());  // rs value is in ws field
-    } break;
-    case PCNT:
-      Format(instr, "pcnt.'t  'wd, 'ws");
-      break;
-    case NLOC:
-      Format(instr, "nloc.'t  'wd, 'ws");
-      break;
-    case NLZC:
-      Format(instr, "nlzc.'t  'wd, 'ws");
+void Decoder::DecodeJType(Instruction* instr) {
+  // J Type doesn't have additional mask
+  switch (instr->BaseOpcodeValue()) {
+    case RO_JAL:
+      Format(instr, "jal     'rd, 'imm20J");
       break;
     default:
-      UNREACHABLE();
-  }
-}
-
-void Decoder::DecodeTypeMsa2RF(Instruction* instr) {
-  uint32_t opcode = instr->InstructionBits() & kMsa2RFMask;
-  switch (opcode) {
-    case FCLASS:
-      Format(instr, "fclass.'t  'wd, 'ws");
-      break;
-    case FTRUNC_S:
-      Format(instr, "ftrunc_s.'t  'wd, 'ws");
-      break;
-    case FTRUNC_U:
-      Format(instr, "ftrunc_u.'t  'wd, 'ws");
-      break;
-    case FSQRT:
-      Format(instr, "fsqrt.'t  'wd, 'ws");
-      break;
-    case FRSQRT:
-      Format(instr, "frsqrt.'t  'wd, 'ws");
-      break;
-    case FRCP:
-      Format(instr, "frcp.'t  'wd, 'ws");
-      break;
-    case FRINT:
-      Format(instr, "frint.'t  'wd, 'ws");
-      break;
-    case FLOG2:
-      Format(instr, "flog2.'t  'wd, 'ws");
-      break;
-    case FEXUPL:
-      Format(instr, "fexupl.'t  'wd, 'ws");
-      break;
-    case FEXUPR:
-      Format(instr, "fexupr.'t  'wd, 'ws");
-      break;
-    case FFQL:
-      Format(instr, "ffql.'t  'wd, 'ws");
-      break;
-    case FFQR:
-      Format(instr, "ffqr.'t  'wd, 'ws");
-      break;
-    case FTINT_S:
-      Format(instr, "ftint_s.'t  'wd, 'ws");
-      break;
-    case FTINT_U:
-      Format(instr, "ftint_u.'t  'wd, 'ws");
-      break;
-    case FFINT_S:
-      Format(instr, "ffint_s.'t  'wd, 'ws");
-      break;
-    case FFINT_U:
-      Format(instr, "ffint_u.'t  'wd, 'ws");
-      break;
-    default:
-      UNREACHABLE();
+      UNSUPPORTED_RISCV();
   }
 }
 
@@ -2943,21 +1123,30 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%08x       ",
                               instr->InstructionBits());
   switch (instr->InstructionType()) {
-    case Instruction::kRegisterType: {
-      return DecodeTypeRegister(instr);
-    }
-    case Instruction::kImmediateType: {
-      DecodeTypeImmediate(instr);
+    case Instruction::kRType:
+      DecodeRType(instr);
       break;
-    }
-    case Instruction::kJumpType: {
-      DecodeTypeJump(instr);
+    case Instruction::kR4Type:
+      DecodeR4Type(instr);
       break;
-    }
-    default: {
+    case Instruction::kIType:
+      DecodeIType(instr);
+      break;
+    case Instruction::kSType:
+      DecodeSType(instr);
+      break;
+    case Instruction::kBType:
+      DecodeBType(instr);
+      break;
+    case Instruction::kUType:
+      DecodeUType(instr);
+      break;
+    case Instruction::kJType:
+      DecodeJType(instr);
+      break;
+    default:
       Format(instr, "UNSUPPORTED");
-      UNSUPPORTED_MIPS();
-    }
+      UNSUPPORTED_RISCV();
   }
   return kInstrSize;
 }
