@@ -896,6 +896,7 @@ void StandardFrame::ComputeCallerState(State* state) const {
   state->fp = caller_fp();
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(ComputePCAddress(fp())));
+  state->callee_fp = fp();
   state->callee_pc_address = pc_address();
   state->constant_pool_address =
       reinterpret_cast<Address*>(ComputeConstantPoolAddress(fp()));

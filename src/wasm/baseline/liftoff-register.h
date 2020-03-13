@@ -159,11 +159,17 @@ class LiftoffRegister {
     DCHECK_EQ(reg, fp());
   }
 
-  static LiftoffRegister from_liftoff_code(uint32_t code) {
-    DCHECK_LE(0, code);
-    DCHECK_GT(kAfterMaxLiftoffRegCode, code);
-    DCHECK_EQ(code, static_cast<storage_t>(code));
-    return LiftoffRegister(code);
+  static LiftoffRegister from_liftoff_code(int code) {
+    LiftoffRegister reg{static_cast<storage_t>(code)};
+    // Check that the code is correct by round-tripping through the
+    // reg-class-specific constructor.
+    DCHECK(
+        (reg.is_gp() && code == LiftoffRegister{reg.gp()}.liftoff_code()) ||
+        (reg.is_fp() && code == LiftoffRegister{reg.fp()}.liftoff_code()) ||
+        (reg.is_gp_pair() &&
+         code == ForPair(reg.low_gp(), reg.high_gp()).liftoff_code()) ||
+        (reg.is_fp_pair() && code == ForFpPair(reg.low_fp()).liftoff_code()));
+    return reg;
   }
 
   static LiftoffRegister from_code(RegClass rc, int code) {
@@ -257,8 +263,8 @@ class LiftoffRegister {
   }
 
   int liftoff_code() const {
-    DCHECK(is_gp() || is_fp());
-    return code_;
+    STATIC_ASSERT(sizeof(int) >= sizeof(storage_t));
+    return static_cast<int>(code_);
   }
 
   RegClass reg_class() const {

@@ -141,7 +141,10 @@ class DebugInfo {
   explicit DebugInfo(NativeModule*);
   ~DebugInfo();
 
-  Handle<JSObject> GetLocalScopeObject(Isolate*, Address pc, Address fp);
+  // {fp} is the frame pointer of the Liftoff frame, {debug_break_fp} that of
+  // the {WasmDebugBreak} frame (if any).
+  Handle<JSObject> GetLocalScopeObject(Isolate*, Address pc, Address fp,
+                                       Address debug_break_fp);
 
   WireBytesRef GetLocalName(int func_index, int local_index);
 

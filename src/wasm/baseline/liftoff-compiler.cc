@@ -208,8 +208,7 @@ class DebugSideTableBuilder {
           DCHECK_NE(kDidSpill, assume_spilling);
           if (assume_spilling == kAllowRegisters) {
             values[i].kind = DebugSideTable::Entry::kRegister;
-            values[i].reg_code =
-                slot.is_fp_reg() ? slot.fp_reg().code() : slot.gp_reg().code();
+            values[i].reg_code = slot.reg().liftoff_code();
             break;
           }
           DCHECK_EQ(kAssumeSpilling, assume_spilling);

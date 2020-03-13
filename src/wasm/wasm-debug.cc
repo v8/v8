@@ -17,6 +17,7 @@
 #include "src/heap/factory.h"
 #include "src/utils/identity-map.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
+#include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-interpreter.h"
@@ -536,8 +537,8 @@ class DebugInfoImpl {
   explicit DebugInfoImpl(NativeModule* native_module)
       : native_module_(native_module) {}
 
-  Handle<JSObject> GetLocalScopeObject(Isolate* isolate, Address pc,
-                                       Address fp) {
+  Handle<JSObject> GetLocalScopeObject(Isolate* isolate, Address pc, Address fp,
+                                       Address debug_break_fp) {
     Handle<JSObject> local_scope_object =
         isolate->factory()->NewJSObjectWithNullProto();
 
@@ -571,7 +572,8 @@ class DebugInfoImpl {
                  .ToHandle(&name)) {
           name = PrintFToOneByteString<true>(isolate, "var%d", i);
         }
-        WasmValue value = GetValue(debug_side_table_entry, i, fp);
+        WasmValue value =
+            GetValue(debug_side_table_entry, i, fp, debug_break_fp);
         Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
         // {name} can be a string representation of an element index.
         LookupIterator::Key lookup_key{isolate, name};
@@ -596,7 +598,7 @@ class DebugInfoImpl {
                           NONE);
     int value_count = debug_side_table_entry->num_values();
     for (int i = num_locals; i < value_count; ++i) {
-      WasmValue value = GetValue(debug_side_table_entry, i, fp);
+      WasmValue value = GetValue(debug_side_table_entry, i, fp, debug_break_fp);
       Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
       JSObject::AddDataElement(stack_obj, static_cast<uint32_t>(i - num_locals),
                                value_obj, NONE);
@@ -729,7 +731,8 @@ class DebugInfoImpl {
   // Get the value of a local (including parameters) or stack value. Stack
   // values follow the locals in the same index space.
   WasmValue GetValue(const DebugSideTable::Entry* debug_side_table_entry,
-                     int index, Address stack_frame_base) const {
+                     int index, Address stack_frame_base,
+                     Address debug_break_fp) const {
     ValueType type = debug_side_table_entry->value_type(index);
     if (debug_side_table_entry->is_constant(index)) {
       DCHECK(type == kWasmI32 || type == kWasmI64);
@@ -740,20 +743,35 @@ class DebugInfoImpl {
     }
 
     if (debug_side_table_entry->is_register(index)) {
-      // TODO(clemensb): Implement by loading from the frame of the
-      // WasmDebugBreak builtin. The current values are just placeholders.
-      switch (type.kind()) {
-        case ValueType::kI32:
-          return WasmValue(int32_t{-11});
-        case ValueType::kI64:
-          return WasmValue(int64_t{-11});
-        case ValueType::kF32:
-          return WasmValue(float{-11});
-        case ValueType::kF64:
-          return WasmValue(double{-11});
-        default:
-          UNIMPLEMENTED();
+      LiftoffRegister reg = LiftoffRegister::from_liftoff_code(
+          debug_side_table_entry->register_code(index));
+      auto gp_addr = [debug_break_fp](Register reg) {
+        return debug_break_fp +
+               WasmDebugBreakFrameConstants::GetPushedGpRegisterOffset(
+                   reg.code());
+      };
+      if (reg.is_gp_pair()) {
+        DCHECK_EQ(kWasmI64, type);
+        uint32_t low_word = ReadUnalignedValue<uint32_t>(gp_addr(reg.low_gp()));
+        uint32_t high_word =
+            ReadUnalignedValue<uint32_t>(gp_addr(reg.high_gp()));
+        return WasmValue((uint64_t{high_word} << 32) | low_word);
       }
+      if (reg.is_gp()) {
+        return type == kWasmI32
+                   ? WasmValue(ReadUnalignedValue<uint32_t>(gp_addr(reg.gp())))
+                   : WasmValue(ReadUnalignedValue<uint64_t>(gp_addr(reg.gp())));
+      }
+      // TODO(clemensb/zhin): Fix this for SIMD.
+      DCHECK(reg.is_fp() || reg.is_fp_pair());
+      if (reg.is_fp_pair()) UNIMPLEMENTED();
+      Address spilled_addr =
+          debug_break_fp +
+          WasmDebugBreakFrameConstants::GetPushedFpRegisterOffset(
+              reg.fp().code());
+      return type == kWasmF32
+                 ? WasmValue(ReadUnalignedValue<float>(spilled_addr))
+                 : WasmValue(ReadUnalignedValue<double>(spilled_addr));
     }
 
     // Otherwise load the value from the stack.
@@ -803,8 +821,9 @@ DebugInfo::DebugInfo(NativeModule* native_module)
 DebugInfo::~DebugInfo() = default;
 
 Handle<JSObject> DebugInfo::GetLocalScopeObject(Isolate* isolate, Address pc,
-                                                Address fp) {
-  return impl_->GetLocalScopeObject(isolate, pc, fp);
+                                                Address fp,
+                                                Address debug_break_fp) {
+  return impl_->GetLocalScopeObject(isolate, pc, fp, debug_break_fp);
 }
 
 WireBytesRef DebugInfo::GetLocalName(int func_index, int local_index) {

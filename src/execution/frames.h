@@ -118,6 +118,7 @@ class StackFrame {
     Address sp = kNullAddress;
     Address fp = kNullAddress;
     Address* pc_address = nullptr;
+    Address callee_fp = kNullAddress;
     Address* callee_pc_address = nullptr;
     Address* constant_pool_address = nullptr;
   };
@@ -217,6 +218,7 @@ class StackFrame {
   // Accessors.
   Address sp() const { return state_.sp; }
   Address fp() const { return state_.fp; }
+  Address callee_fp() const { return state_.callee_fp; }
   inline Address callee_pc() const;
   Address caller_sp() const { return GetCallerStackPointer(); }
 
