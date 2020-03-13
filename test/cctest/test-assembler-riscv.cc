@@ -306,7 +306,7 @@ TEST(RISCV3) {
   __ RV_fsqrt_s(ft5, ft4);
   __ RV_fsw(ft5, a0, offsetof(T, fg));
 
-  __ jr(ra);
+  __ RV_jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
