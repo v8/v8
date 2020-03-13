@@ -2505,15 +2505,14 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
     // Save all parameter registers. They might hold live values, we restore
     // them after the runtime call.
-    RegList gp_regs = 0;
-    for (Register reg : wasm::kGpParamRegisters) gp_regs |= reg.bit();
-    constexpr DwVfpRegister lowest_fp_reg = wasm::kFpParamRegisters[0];
-    constexpr DwVfpRegister highest_fp_reg =
-        wasm::kFpParamRegisters[arraysize(wasm::kFpParamRegisters) - 1];
-    STATIC_ASSERT(arraysize(wasm::kFpParamRegisters) ==
-                  highest_fp_reg.code() - lowest_fp_reg.code() + 1);
+    constexpr DwVfpRegister lowest_fp_reg = DwVfpRegister::from_code(
+        WasmDebugBreakFrameConstants::kFirstPushedFpReg);
+    constexpr DwVfpRegister highest_fp_reg = DwVfpRegister::from_code(
+        WasmDebugBreakFrameConstants::kLastPushedFpReg);
 
-    __ stm(db_w, sp, gp_regs);
+    // Store gp parameter registers.
+    __ stm(db_w, sp, WasmDebugBreakFrameConstants::kPushedGpRegs);
+    // Store fp parameter registers.
     __ vstm(db_w, sp, lowest_fp_reg, highest_fp_reg);
 
     // Initialize the JavaScript context with 0. CEntry will use it to
@@ -2523,7 +2522,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
     // Restore registers.
     __ vldm(ia_w, sp, lowest_fp_reg, highest_fp_reg);
-    __ ldm(ia_w, sp, gp_regs);
+    __ ldm(ia_w, sp, WasmDebugBreakFrameConstants::kPushedGpRegs);
   }
   __ Ret();
 }

@@ -2050,7 +2050,7 @@ void WasmDebugBreakFrame::Print(StringStream* accumulator, PrintMode mode,
 Address WasmDebugBreakFrame::GetCallerStackPointer() const {
   // WasmDebugBreak does not receive any arguments, hence the stack pointer of
   // the caller is at a fixed offset from the frame pointer.
-  return fp() + StandardFrameConstants::kCallerSPOffset;
+  return fp() + WasmDebugBreakFrameConstants::kCallerSPOffset;
 }
 
 Code WasmCompileLazyFrame::unchecked_code() const { return Code(); }

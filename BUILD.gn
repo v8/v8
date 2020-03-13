@@ -3635,6 +3635,7 @@ v8_component("v8_libbase") {
     "src/base/atomicops_internals_std.h",
     "src/base/base-export.h",
     "src/base/bit-field.h",
+    "src/base/bits-iterator.h",
     "src/base/bits.cc",
     "src/base/bits.h",
     "src/base/bounded-page-allocator.cc",

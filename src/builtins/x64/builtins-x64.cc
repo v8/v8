@@ -5,6 +5,7 @@
 #if V8_TARGET_ARCH_X64
 
 #include "src/api/api-arguments.h"
+#include "src/base/bits-iterator.h"
 #include "src/base/iterator.h"
 #include "src/codegen/code-factory.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
@@ -2857,17 +2858,19 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
     // Save all parameter registers. They might hold live values, we restore
     // them after the runtime call.
-    for (Register reg : wasm::kGpParamRegisters) {
-      __ Push(reg);
+    for (int reg_code : base::bits::IterateBitsBackwards(
+             WasmDebugBreakFrameConstants::kPushedGpRegs)) {
+      __ Push(Register::from_code(reg_code));
     }
 
     constexpr int kFpStackSize =
-        kSimd128Size * arraysize(wasm::kFpParamRegisters);
+        kSimd128Size * WasmDebugBreakFrameConstants::kNumPushedFpRegisters;
     __ AllocateStackSpace(kFpStackSize);
-    int offset = 0;
-    for (DoubleRegister reg : wasm::kFpParamRegisters) {
-      __ movdqu(Operand(rsp, offset), reg);
-      offset += kSimd128Size;
+    int offset = kFpStackSize;
+    for (int reg_code : base::bits::IterateBitsBackwards(
+             WasmDebugBreakFrameConstants::kPushedFpRegs)) {
+      offset -= kSimd128Size;
+      __ movdqu(Operand(rsp, offset), DoubleRegister::from_code(reg_code));
     }
 
     // Initialize the JavaScript context with 0. CEntry will use it to
@@ -2876,13 +2879,15 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kWasmDebugBreak, 0);
 
     // Restore registers.
-    for (DoubleRegister reg : base::Reversed(wasm::kFpParamRegisters)) {
-      offset -= kSimd128Size;
-      __ movdqu(reg, Operand(rsp, offset));
+    for (int reg_code :
+         base::bits::IterateBits(WasmDebugBreakFrameConstants::kPushedFpRegs)) {
+      __ movdqu(DoubleRegister::from_code(reg_code), Operand(rsp, offset));
+      offset += kSimd128Size;
     }
     __ addq(rsp, Immediate(kFpStackSize));
-    for (Register reg : base::Reversed(wasm::kGpParamRegisters)) {
-      __ Pop(reg);
+    for (int reg_code :
+         base::bits::IterateBits(WasmDebugBreakFrameConstants::kPushedGpRegs)) {
+      __ Pop(Register::from_code(reg_code));
     }
   }
 

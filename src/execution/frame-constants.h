@@ -163,7 +163,7 @@ class OptimizedBuiltinFrameConstants : public StandardFrameConstants {
   static constexpr int kFixedSlotCount = kFixedFrameSize / kSystemPointerSize;
 };
 
-// TypedFrames have a SMI type maker value below the saved FP/constant pool to
+// TypedFrames have a type maker value below the saved FP/constant pool to
 // distinguish them from StandardFrames, which have a context in that position
 // instead.
 //
@@ -205,8 +205,7 @@ class TypedFrameConstants : public CommonFrameConstants {
       StandardFrameConstants::kFixedFrameSizeAboveFp + kFixedFrameSizeFromFp;
   static constexpr int kFixedSlotCount = kFixedFrameSize / kSystemPointerSize;
   static constexpr int kFirstPushedFrameValueOffset =
-      -StandardFrameConstants::kCPSlotSize - kFrameTypeSize -
-      kSystemPointerSize;
+      -kFixedFrameSizeFromFp - kSystemPointerSize;
 };
 
 #define TYPED_FRAME_PUSHED_VALUE_OFFSET(x) \
