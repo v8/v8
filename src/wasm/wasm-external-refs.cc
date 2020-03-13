@@ -383,6 +383,12 @@ inline byte* EffectiveAddress(byte* base, size_t size, uint32_t index) {
 }
 #endif
 
+template <typename V>
+V ReadAndIncrementOffset(Address data, size_t* offset) {
+  V result = ReadUnalignedValue<V>(data + *offset);
+  *offset += sizeof(V);
+  return result;
+}
 }  // namespace
 
 int32_t memory_init_wrapper(Address data) {
@@ -391,16 +397,12 @@ int32_t memory_init_wrapper(Address data) {
   ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowHeapAllocation disallow_heap_allocation;
   size_t offset = 0;
-  Object raw_instance = ReadUnalignedValue<Object>(data);
+  Object raw_instance = ReadAndIncrementOffset<Object>(data, &offset);
   WasmInstanceObject instance = WasmInstanceObject::cast(raw_instance);
-  offset += sizeof(Object);
-  uint32_t dst = ReadUnalignedValue<uint32_t>(data + offset);
-  offset += sizeof(uint32_t);
-  uint32_t src = ReadUnalignedValue<uint32_t>(data + offset);
-  offset += sizeof(uint32_t);
-  uint32_t seg_index = ReadUnalignedValue<uint32_t>(data + offset);
-  offset += sizeof(uint32_t);
-  size_t size = ReadUnalignedValue<uint32_t>(data + offset);
+  uint32_t dst = ReadAndIncrementOffset<uint32_t>(data, &offset);
+  uint32_t src = ReadAndIncrementOffset<uint32_t>(data, &offset);
+  uint32_t seg_index = ReadAndIncrementOffset<uint32_t>(data, &offset);
+  size_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
 
   size_t mem_size = instance.memory_size();
   if (!base::IsInBounds(dst, size, mem_size)) return kOutOfBounds;
@@ -421,14 +423,11 @@ int32_t memory_copy_wrapper(Address data) {
   ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowHeapAllocation disallow_heap_allocation;
   size_t offset = 0;
-  Object raw_instance = ReadUnalignedValue<Object>(data);
+  Object raw_instance = ReadAndIncrementOffset<Object>(data, &offset);
   WasmInstanceObject instance = WasmInstanceObject::cast(raw_instance);
-  offset += sizeof(Object);
-  uint32_t dst = ReadUnalignedValue<uint32_t>(data + offset);
-  offset += sizeof(uint32_t);
-  uint32_t src = ReadUnalignedValue<uint32_t>(data + offset);
-  offset += sizeof(uint32_t);
-  size_t size = ReadUnalignedValue<uint32_t>(data + offset);
+  uint32_t dst = ReadAndIncrementOffset<uint32_t>(data, &offset);
+  uint32_t src = ReadAndIncrementOffset<uint32_t>(data, &offset);
+  size_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
 
   size_t mem_size = instance.memory_size();
   if (!base::IsInBounds(dst, size, mem_size)) return kOutOfBounds;
@@ -448,15 +447,12 @@ int32_t memory_fill_wrapper(Address data) {
   DisallowHeapAllocation disallow_heap_allocation;
 
   size_t offset = 0;
-  Object raw_instance = ReadUnalignedValue<Object>(data);
+  Object raw_instance = ReadAndIncrementOffset<Object>(data, &offset);
   WasmInstanceObject instance = WasmInstanceObject::cast(raw_instance);
-  offset += sizeof(Object);
-  uint32_t dst = ReadUnalignedValue<uint32_t>(data + offset);
-  offset += sizeof(uint32_t);
+  uint32_t dst = ReadAndIncrementOffset<uint32_t>(data, &offset);
   uint8_t value =
-      static_cast<uint8_t>(ReadUnalignedValue<uint32_t>(data + offset));
-  offset += sizeof(uint32_t);
-  size_t size = ReadUnalignedValue<uint32_t>(data + offset);
+      static_cast<uint8_t>(ReadAndIncrementOffset<uint32_t>(data, &offset));
+  size_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
 
   size_t mem_size = instance.memory_size();
   if (!base::IsInBounds(dst, size, mem_size)) return kOutOfBounds;
