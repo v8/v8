@@ -587,18 +587,16 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ opcode(i.OutputSimd128Register(), i.InputSimd128Register(1), imm); \
   } while (false)
 
-#define ASSEMBLE_SIMD_ALL_TRUE(opcode)           \
-  do {                                           \
-    CpuFeatureScope sse_scope(tasm(), SSE4_1);   \
-    Register dst = i.OutputRegister();           \
-    Register tmp1 = i.TempRegister(0);           \
-    XMMRegister tmp2 = i.TempSimd128Register(1); \
-    __ movq(tmp1, Immediate(1));                 \
-    __ xorq(dst, dst);                           \
-    __ Pxor(tmp2, tmp2);                         \
-    __ opcode(tmp2, i.InputSimd128Register(0));  \
-    __ Ptest(tmp2, tmp2);                        \
-    __ cmovq(zero, dst, tmp1);                   \
+#define ASSEMBLE_SIMD_ALL_TRUE(opcode)          \
+  do {                                          \
+    CpuFeatureScope sse_scope(tasm(), SSE4_1);  \
+    Register dst = i.OutputRegister();          \
+    XMMRegister tmp = i.TempSimd128Register(0); \
+    __ xorq(dst, dst);                          \
+    __ Pxor(tmp, tmp);                          \
+    __ opcode(tmp, i.InputSimd128Register(0));  \
+    __ Ptest(tmp, tmp);                         \
+    __ setcc(equal, dst);                       \
   } while (false)
 
 // This macro will directly emit the opcode if the shift is an immediate - the
@@ -3922,11 +3920,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       Register dst = i.OutputRegister();
       XMMRegister src = i.InputSimd128Register(0);
-      Register tmp = i.TempRegister(0);
-      __ xorq(tmp, tmp);
-      __ movq(dst, Immediate(1));
-      __ ptest(src, src);
-      __ cmovq(zero, dst, tmp);
+
+      __ xorq(dst, dst);
+      __ Ptest(src, src);
+      __ setcc(not_equal, dst);
       break;
     }
     // Need to split up all the different lane structures because the
