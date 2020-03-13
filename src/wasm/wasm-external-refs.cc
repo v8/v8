@@ -360,6 +360,29 @@ class ThreadNotInWasmScope {
   }
 #endif
 };
+
+#ifdef DISABLE_UNTRUSTED_CODE_MITIGATIONS
+inline byte* EffectiveAddress(WasmInstanceObject instance, uint32_t index) {
+  return instance.memory_start() + index;
+}
+
+inline byte* EffectiveAddress(byte* base, size_t size, uint32_t index) {
+  return base + index;
+}
+
+#else
+inline byte* EffectiveAddress(WasmInstanceObject instance, uint32_t index) {
+  // Compute the effective address of the access, making sure to condition
+  // the index even in the in-bounds case.
+  return instance.memory_start() + (index & instance.memory_mask());
+}
+
+inline byte* EffectiveAddress(byte* base, size_t size, uint32_t index) {
+  size_t mem_mask = base::bits::RoundUpToPowerOfTwo(size) - 1;
+  return base + (index & mem_mask);
+}
+#endif
+
 }  // namespace
 
 int32_t memory_init_wrapper(Address data) {
@@ -371,9 +394,9 @@ int32_t memory_init_wrapper(Address data) {
   Object raw_instance = ReadUnalignedValue<Object>(data);
   WasmInstanceObject instance = WasmInstanceObject::cast(raw_instance);
   offset += sizeof(Object);
-  size_t dst = ReadUnalignedValue<uint32_t>(data + offset);
+  uint32_t dst = ReadUnalignedValue<uint32_t>(data + offset);
   offset += sizeof(uint32_t);
-  size_t src = ReadUnalignedValue<uint32_t>(data + offset);
+  uint32_t src = ReadUnalignedValue<uint32_t>(data + offset);
   offset += sizeof(uint32_t);
   uint32_t seg_index = ReadUnalignedValue<uint32_t>(data + offset);
   offset += sizeof(uint32_t);
@@ -385,10 +408,10 @@ int32_t memory_init_wrapper(Address data) {
   size_t seg_size = instance.data_segment_sizes()[seg_index];
   if (!base::IsInBounds(src, size, seg_size)) return kOutOfBounds;
 
-  byte* mem_start = instance.memory_start();
   byte* seg_start =
       reinterpret_cast<byte*>(instance.data_segment_starts()[seg_index]);
-  std::memcpy(mem_start + dst, seg_start + src, size);
+  std::memcpy(EffectiveAddress(instance, dst),
+              EffectiveAddress(seg_start, seg_size, src), size);
   return kSuccess;
 }
 
@@ -401,9 +424,9 @@ int32_t memory_copy_wrapper(Address data) {
   Object raw_instance = ReadUnalignedValue<Object>(data);
   WasmInstanceObject instance = WasmInstanceObject::cast(raw_instance);
   offset += sizeof(Object);
-  size_t dst = ReadUnalignedValue<uint32_t>(data + offset);
+  uint32_t dst = ReadUnalignedValue<uint32_t>(data + offset);
   offset += sizeof(uint32_t);
-  size_t src = ReadUnalignedValue<uint32_t>(data + offset);
+  uint32_t src = ReadUnalignedValue<uint32_t>(data + offset);
   offset += sizeof(uint32_t);
   size_t size = ReadUnalignedValue<uint32_t>(data + offset);
 
@@ -411,9 +434,9 @@ int32_t memory_copy_wrapper(Address data) {
   if (!base::IsInBounds(dst, size, mem_size)) return kOutOfBounds;
   if (!base::IsInBounds(src, size, mem_size)) return kOutOfBounds;
 
-  byte* memory_start = instance.memory_start();
   // Use std::memmove, because the ranges can overlap.
-  std::memmove(memory_start + dst, memory_start + src, size);
+  std::memmove(EffectiveAddress(instance, dst), EffectiveAddress(instance, src),
+               size);
   return kSuccess;
 }
 
