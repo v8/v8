@@ -347,7 +347,6 @@ TEST(RISCV3) {
   CHECK_EQ(124.40000152587890625, t.ff);
   CHECK_EQ(11.1534748077392578125, t.fg);
 }
-
 TEST(RISCV4) {
   // Test moves between floating point and integer registers.
   CcTest::InitializeVM();
@@ -386,7 +385,7 @@ TEST(RISCV4) {
 
   __ RV_sd(a4, a0, offsetof(T, e));
 
-  __ jr(ra);
+  __ RV_jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -442,7 +441,7 @@ TEST(RISCV5) {
   __ RV_fcvt_d_l(fa1, a5);
   __ RV_fsd(fa1, a0, offsetof(T, b));
 
-  __ jr(ra);
+  __ RV_jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -506,7 +505,7 @@ TEST(RISCV6) {
   __ RV_lhu(t1, a0, offsetof(T, si));
   __ RV_sh(t1, a0, offsetof(T, r6));
 
-  __ jr(ra);
+  __ RV_jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -581,7 +580,7 @@ TEST(RISCV7) {
 
   __ RV_bind(&outa_here);
 
-  __ jr(ra);
+  __ RV_jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
