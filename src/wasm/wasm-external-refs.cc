@@ -440,17 +440,29 @@ int32_t memory_copy_wrapper(Address data) {
   return kSuccess;
 }
 
-void memory_fill_wrapper(Address dst, uint32_t value, uint32_t size) {
+int32_t memory_fill_wrapper(Address data) {
+  constexpr int32_t kSuccess = 1;
+  constexpr int32_t kOutOfBounds = 0;
+
   ThreadNotInWasmScope thread_not_in_wasm_scope;
-  // Use an explicit forward copy to match the required semantics for the
-  // memory.fill instruction. It is assumed that the caller of this function
-  // has already performed bounds checks, so {dst + size} should not overflow.
-  DCHECK(dst + size >= dst);
-  uint8_t* dst8 = reinterpret_cast<uint8_t*>(dst);
-  uint8_t value8 = static_cast<uint8_t>(value);
-  for (; size > 0; size--) {
-    *dst8++ = value8;
-  }
+  DisallowHeapAllocation disallow_heap_allocation;
+
+  size_t offset = 0;
+  Object raw_instance = ReadUnalignedValue<Object>(data);
+  WasmInstanceObject instance = WasmInstanceObject::cast(raw_instance);
+  offset += sizeof(Object);
+  uint32_t dst = ReadUnalignedValue<uint32_t>(data + offset);
+  offset += sizeof(uint32_t);
+  uint8_t value =
+      static_cast<uint8_t>(ReadUnalignedValue<uint32_t>(data + offset));
+  offset += sizeof(uint32_t);
+  size_t size = ReadUnalignedValue<uint32_t>(data + offset);
+
+  size_t mem_size = instance.memory_size();
+  if (!base::IsInBounds(dst, size, mem_size)) return kOutOfBounds;
+
+  std::memset(EffectiveAddress(instance, dst), value, size);
+  return kSuccess;
 }
 
 static WasmTrapCallbackForTesting wasm_trap_callback_for_testing = nullptr;

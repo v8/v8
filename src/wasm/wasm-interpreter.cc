@@ -1869,7 +1869,7 @@ class ThreadImpl {
           DoTrap(kTrapMemOutOfBounds, pc);
           return false;
         }
-        memory_fill_wrapper(dst_addr, value, size);
+        std::memset(reinterpret_cast<void*>(dst_addr), value, size);
         return true;
       }
       case kExprTableInit: {

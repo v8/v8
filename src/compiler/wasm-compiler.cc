@@ -4890,7 +4890,7 @@ Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
         gasm_->Uint32Constant(data_segment_index)},
        {MachineRepresentation::kWord32, size}});
 
-  MachineType sig_types[] = {MachineType::Bool(), MachineType::Pointer()};
+  MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
   MachineSignature sig(1, 1, sig_types);
   Node* call = SetEffect(BuildCCall(&sig, function, stack_slot));
   return TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
@@ -4943,7 +4943,7 @@ Node* WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
        {MachineRepresentation::kWord32, src},
        {MachineRepresentation::kWord32, size}});
 
-  MachineType sig_types[] = {MachineType::Bool(), MachineType::Pointer()};
+  MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
   MachineSignature sig(1, 1, sig_types);
   Node* call = SetEffect(BuildCCall(&sig, function, stack_slot));
   return TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
@@ -4951,15 +4951,19 @@ Node* WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
 
 Node* WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,
                                    wasm::WasmCodePosition position) {
-  Node* fail = BoundsCheckMemRange(&dst, &size, position);
-  TrapIfTrue(wasm::kTrapMemOutOfBounds, fail, position);
-
   Node* function = graph()->NewNode(mcgraph()->common()->ExternalConstant(
       ExternalReference::wasm_memory_fill()));
-  MachineType sig_types[] = {MachineType::Pointer(), MachineType::Uint32(),
-                             MachineType::Uint32()};
-  MachineSignature sig(0, 3, sig_types);
-  return SetEffect(BuildCCall(&sig, function, dst, value, size));
+
+  Node* stack_slot = StoreArgsInStackSlot(
+      {{MachineType::PointerRepresentation(), instance_node_.get()},
+       {MachineRepresentation::kWord32, dst},
+       {MachineRepresentation::kWord32, value},
+       {MachineRepresentation::kWord32, size}});
+
+  MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
+  MachineSignature sig(1, 1, sig_types);
+  Node* call = SetEffect(BuildCCall(&sig, function, stack_slot));
+  return TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
 }
 
 Node* WasmGraphBuilder::TableInit(uint32_t table_index,
