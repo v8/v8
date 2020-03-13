@@ -10,6 +10,16 @@ Setting breakpoint on offset 59 (should be propagated to 60, the offset of the c
 Paused at wasm://wasm/befe41aa:0:60
 Debugger.stepOver called
 Paused at wasm://wasm/befe41aa:0:62
+Debugger.resume called
+Paused at wasm://wasm/befe41aa:0:60
+Debugger.stepOver called
+Paused at wasm://wasm/befe41aa:0:62
+Debugger.stepOver called
+Paused at wasm://wasm/befe41aa:0:46
+Debugger.resume called
+Paused at wasm://wasm/befe41aa:0:60
+Debugger.stepOver called
+Paused at wasm://wasm/befe41aa:0:62
 Debugger.stepOver called
 Paused at wasm://wasm/befe41aa:0:46
 Debugger.stepOver called
@@ -27,4 +37,9 @@ Paused at wasm://wasm/befe41aa:0:57
 Debugger.stepOver called
 Paused at wasm://wasm/befe41aa:0:60
 Debugger.stepOver called
+Paused at wasm://wasm/befe41aa:0:62
+Debugger.stepOver called
+Paused at wasm://wasm/befe41aa:0:46
+Debugger.resume called
+exports.main returned!
 Finished!

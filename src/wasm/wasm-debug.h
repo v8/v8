@@ -149,6 +149,8 @@ class DebugInfo {
 
   void PrepareStep(Isolate*);
 
+  void ClearStepping();
+
   bool IsStepping(WasmCompiledFrame*);
 
   void RemoveDebugSideTables(Vector<WasmCode* const>);

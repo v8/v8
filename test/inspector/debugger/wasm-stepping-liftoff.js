@@ -75,8 +75,17 @@ function instantiate(bytes) {
   const actualLocation = bpmsg.result.actualLocation;
   InspectorTest.logMessage(actualLocation);
   Protocol.Runtime.evaluate({ expression: 'instance.exports.main(4)' });
+  await waitForPauseAndStep('stepOver');  // over call to wasm_A
+  await waitForPauseAndStep('resume');    // stop on breakpoint
+  await waitForPauseAndStep('stepOver');  // over call
+  await waitForPauseAndStep('stepOver');  // over br
+  await waitForPauseAndStep('resume');    // to next breakpoint (3rd iteration)
+  await waitForPauseAndStep('stepOver');  // over wasm_A
   // Step over 10 times.
   for (let i = 0; i < 10; ++i) await waitForPauseAndStep('stepOver');
+  // Then just resume.
+  await waitForPauseAndStep('resume');
+  InspectorTest.log('exports.main returned!');
   InspectorTest.log('Finished!');
 })().catch(reason => InspectorTest.log(`Failed: ${reason}`))
     .finally(InspectorTest.completeTest);

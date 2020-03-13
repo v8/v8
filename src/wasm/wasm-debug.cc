@@ -684,10 +684,14 @@ class DebugInfoImpl {
                            isolate);
       stepping_frame_ = frame->id();
     }
+    stepping_ = true;
   }
 
+  void ClearStepping() { stepping_ = false; }
+
   bool IsStepping(WasmCompiledFrame* frame) {
-    return frame->id() == stepping_frame_;
+    DCHECK_IMPLIES(stepping_, stepping_frame_ != NO_ID);
+    return stepping_;
   }
 
   void RemoveDebugSideTables(Vector<WasmCode* const> codes) {
@@ -788,6 +792,7 @@ class DebugInfoImpl {
   // Store the frame ID when stepping, to avoid breaking in recursive calls of
   // the same function.
   StackFrameId stepping_frame_ = NO_ID;
+  bool stepping_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(DebugInfoImpl);
 };
@@ -812,6 +817,8 @@ void DebugInfo::SetBreakpoint(int func_index, int offset,
 }
 
 void DebugInfo::PrepareStep(Isolate* isolate) { impl_->PrepareStep(isolate); }
+
+void DebugInfo::ClearStepping() { impl_->ClearStepping(); }
 
 bool DebugInfo::IsStepping(WasmCompiledFrame* frame) {
   return impl_->IsStepping(frame);

@@ -619,6 +619,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   const auto undefined = ReadOnlyRoots(isolate).undefined_value();
   auto* debug_info = frame_finder.frame()->native_module()->GetDebugInfo();
   if (debug_info->IsStepping(frame_finder.frame())) {
+    debug_info->ClearStepping();
     isolate->debug()->OnDebugBreak(isolate->factory()->empty_fixed_array());
     return undefined;
   }
