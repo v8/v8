@@ -123,7 +123,8 @@ class FrameWriter {
       PrintF(trace_scope_->file(), "    " V8PRIxPTR_FMT ": [top + %3d] <- ",
              output_address(output_offset), output_offset);
       if (obj.IsSmi()) {
-        PrintF(V8PRIxPTR_FMT " <Smi %d>", obj.ptr(), Smi::cast(obj).value());
+        PrintF(trace_scope_->file(), V8PRIxPTR_FMT " <Smi %d>", obj.ptr(),
+               Smi::cast(obj).value());
       } else {
         obj.ShortPrint(trace_scope_->file());
       }
@@ -1728,7 +1729,8 @@ void Deoptimizer::MaterializeHeapObjects() {
     Handle<Object> value = materialization.value_->GetValue();
 
     if (trace_scope_ != nullptr) {
-      PrintF("Materialization [" V8PRIxPTR_FMT "] <- " V8PRIxPTR_FMT " ;  ",
+      PrintF(trace_scope_->file(),
+             "Materialization [" V8PRIxPTR_FMT "] <- " V8PRIxPTR_FMT " ;  ",
              static_cast<intptr_t>(materialization.output_slot_address_),
              value->ptr());
       value->ShortPrint(trace_scope_->file());

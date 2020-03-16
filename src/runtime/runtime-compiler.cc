@@ -252,9 +252,10 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   Handle<JSFunction> function(frame->function(), isolate);
   if (IsSuitableForOnStackReplacement(isolate, function)) {
     if (FLAG_trace_osr) {
-      PrintF("[OSR - Compiling: ");
-      function->PrintName();
-      PrintF(" at AST id %d]\n", ast_id.ToInt());
+      CodeTracer::Scope scope(isolate->GetCodeTracer());
+      PrintF(scope.file(), "[OSR - Compiling: ");
+      function->PrintName(scope.file());
+      PrintF(scope.file(), " at AST id %d]\n", ast_id.ToInt());
     }
     maybe_result = Compiler::GetOptimizedCodeForOSR(function, ast_id, frame);
   }
@@ -269,7 +270,9 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
     if (data.OsrPcOffset().value() >= 0) {
       DCHECK(BailoutId(data.OsrBytecodeOffset().value()) == ast_id);
       if (FLAG_trace_osr) {
-        PrintF("[OSR - Entry at AST id %d, offset %d in optimized code]\n",
+        CodeTracer::Scope scope(isolate->GetCodeTracer());
+        PrintF(scope.file(),
+               "[OSR - Entry at AST id %d, offset %d in optimized code]\n",
                ast_id.ToInt(), data.OsrPcOffset().value());
       }
 
@@ -298,9 +301,10 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
         // the next call, otherwise we'd run unoptimized once more and
         // potentially compile for OSR again.
         if (FLAG_trace_osr) {
-          PrintF("[OSR - Re-marking ");
-          function->PrintName();
-          PrintF(" for non-concurrent optimization]\n");
+          CodeTracer::Scope scope(isolate->GetCodeTracer());
+          PrintF(scope.file(), "[OSR - Re-marking ");
+          function->PrintName(scope.file());
+          PrintF(scope.file(), " for non-concurrent optimization]\n");
         }
         function->SetOptimizationMarker(OptimizationMarker::kCompileOptimized);
       }
@@ -310,9 +314,10 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
 
   // Failed.
   if (FLAG_trace_osr) {
-    PrintF("[OSR - Failed: ");
-    function->PrintName();
-    PrintF(" at AST id %d]\n", ast_id.ToInt());
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintF(scope.file(), "[OSR - Failed: ");
+    function->PrintName(scope.file());
+    PrintF(scope.file(), " at AST id %d]\n", ast_id.ToInt());
   }
 
   if (!function->IsOptimized()) {

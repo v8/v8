@@ -448,9 +448,10 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // Ensure that the function is marked for non-concurrent optimization, so that
   // subsequent runs don't also optimize.
   if (FLAG_trace_osr) {
-    PrintF("[OSR - OptimizeOsr marking ");
-    function->ShortPrint();
-    PrintF(" for non-concurrent optimization]\n");
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintF(scope.file(), "[OSR - OptimizeOsr marking ");
+    function->ShortPrint(scope.file());
+    PrintF(scope.file(), " for non-concurrent optimization]\n");
   }
   JSFunction::EnsureFeedbackVector(function);
   function->MarkForOptimization(ConcurrencyMode::kNotConcurrent);

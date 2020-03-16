@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/objects/feedback-vector.h"
+#include "src/diagnostics/code-tracer.h"
 #include "src/heap/off-thread-factory-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"
@@ -367,10 +368,12 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
   Code code = Code::cast(slot->GetHeapObject());
   if (code.marked_for_deoptimization()) {
     if (FLAG_trace_deopt) {
-      PrintF("[evicting optimizing code marked for deoptimization (%s) for ",
+      CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
+      PrintF(scope.file(),
+             "[evicting optimizing code marked for deoptimization (%s) for ",
              reason);
-      shared.ShortPrint();
-      PrintF("]\n");
+      shared.ShortPrint(scope.file());
+      PrintF(scope.file(), "]\n");
     }
     if (!code.deopt_already_counted()) {
       code.set_deopt_already_counted(true);

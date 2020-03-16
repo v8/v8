@@ -28,6 +28,7 @@
 #include "src/common/message-template.h"
 #include "src/date/date.h"
 #include "src/debug/debug.h"
+#include "src/diagnostics/code-tracer.h"
 #include "src/execution/arguments.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
@@ -5356,9 +5357,10 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
           CodeDisableOptEvent(handle(abstract_code(), GetIsolate()),
                               handle(*this, GetIsolate())));
   if (FLAG_trace_opt) {
-    PrintF("[disabled optimization for ");
-    ShortPrint();
-    PrintF(", reason: %s]\n", GetBailoutReason(reason));
+    CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
+    PrintF(scope.file(), "[disabled optimization for ");
+    ShortPrint(scope.file());
+    PrintF(scope.file(), ", reason: %s]\n", GetBailoutReason(reason));
   }
 }
 

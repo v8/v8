@@ -26,6 +26,7 @@
 #include "src/compiler/pipeline.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
+#include "src/diagnostics/code-tracer.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/isolate.h"
@@ -224,7 +225,8 @@ CompilationJob::Status OptimizedCompilationJob::PrepareJob(Isolate* isolate) {
   DisallowJavascriptExecution no_js(isolate);
 
   if (FLAG_trace_opt && compilation_info()->IsOptimizing()) {
-    StdoutStream os;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    OFStream os(scope.file());
     os << "[compiling method " << Brief(*compilation_info()->closure())
        << " using " << compiler_name_;
     if (compilation_info()->is_osr()) os << " OSR";
@@ -278,10 +280,11 @@ void OptimizedCompilationJob::RecordCompilationStats(CompilationMode mode,
   double ms_optimize = time_taken_to_execute_.InMillisecondsF();
   double ms_codegen = time_taken_to_finalize_.InMillisecondsF();
   if (FLAG_trace_opt) {
-    PrintF("[optimizing ");
-    function->ShortPrint();
-    PrintF(" - took %0.3f, %0.3f, %0.3f ms]\n", ms_creategraph, ms_optimize,
-           ms_codegen);
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintF(scope.file(), "[optimizing ");
+    function->ShortPrint(scope.file());
+    PrintF(scope.file(), " - took %0.3f, %0.3f, %0.3f ms]\n", ms_creategraph,
+           ms_optimize, ms_codegen);
   }
   if (FLAG_trace_opt_stats) {
     static double compilation_time = 0.0;
@@ -824,9 +827,10 @@ bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate) {
           CompilationJob::SUCCEEDED ||
       job->FinalizeJob(isolate) != CompilationJob::SUCCEEDED) {
     if (FLAG_trace_opt) {
-      PrintF("[aborted optimizing ");
-      compilation_info->closure()->ShortPrint();
-      PrintF(" because: %s]\n",
+      CodeTracer::Scope scope(isolate->GetCodeTracer());
+      PrintF(scope.file(), "[aborted optimizing ");
+      compilation_info->closure()->ShortPrint(scope.file());
+      PrintF(scope.file(), " because: %s]\n",
              GetBailoutReason(compilation_info->bailout_reason()));
     }
     return false;
@@ -910,12 +914,13 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   if (GetCodeFromOptimizedCodeCache(function, osr_offset)
           .ToHandle(&cached_code)) {
     if (FLAG_trace_opt) {
-      PrintF("[found optimized code for ");
-      function->ShortPrint();
+      CodeTracer::Scope scope(isolate->GetCodeTracer());
+      PrintF(scope.file(), "[found optimized code for ");
+      function->ShortPrint(scope.file());
       if (!osr_offset.IsNone()) {
-        PrintF(" at OSR AST id %d", osr_offset.ToInt());
+        PrintF(scope.file(), " at OSR AST id %d", osr_offset.ToInt());
       }
-      PrintF("]\n");
+      PrintF(scope.file(), "]\n");
     }
     return cached_code;
   }
@@ -1556,9 +1561,10 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
   // Optimize now if --always-opt is enabled.
   if (FLAG_always_opt && !function->shared().HasAsmWasmData()) {
     if (FLAG_trace_opt) {
-      PrintF("[optimizing ");
-      function->ShortPrint();
-      PrintF(" because --always-opt]\n");
+      CodeTracer::Scope scope(isolate->GetCodeTracer());
+      PrintF(scope.file(), "[optimizing ");
+      function->ShortPrint(scope.file());
+      PrintF(scope.file(), " because --always-opt]\n");
     }
     Handle<Code> opt_code;
     if (GetOptimizedCode(function, ConcurrencyMode::kNotConcurrent)
@@ -2558,9 +2564,10 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
                                      isolate);
       InsertCodeIntoOptimizedCodeCache(compilation_info);
       if (FLAG_trace_opt) {
-        PrintF("[completed optimizing ");
-        compilation_info->closure()->ShortPrint();
-        PrintF("]\n");
+        CodeTracer::Scope scope(isolate->GetCodeTracer());
+        PrintF(scope.file(), "[completed optimizing ");
+        compilation_info->closure()->ShortPrint(scope.file());
+        PrintF(scope.file(), "]\n");
       }
       compilation_info->closure()->set_code(*compilation_info->code());
       return CompilationJob::SUCCEEDED;
@@ -2569,9 +2576,10 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
 
   DCHECK_EQ(job->state(), CompilationJob::State::kFailed);
   if (FLAG_trace_opt) {
-    PrintF("[aborted optimizing ");
-    compilation_info->closure()->ShortPrint();
-    PrintF(" because: %s]\n",
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintF(scope.file(), "[aborted optimizing ");
+    compilation_info->closure()->ShortPrint(scope.file());
+    PrintF(scope.file(), " because: %s]\n",
            GetBailoutReason(compilation_info->bailout_reason()));
   }
   compilation_info->closure()->set_code(shared->GetCode());
