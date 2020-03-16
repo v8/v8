@@ -83,6 +83,7 @@ class Page;
 class PagedSpace;
 class ReadOnlyHeap;
 class RootVisitor;
+class Safepoint;
 class ScavengeJob;
 class Scavenger;
 class ScavengerCollector;
@@ -623,6 +624,8 @@ class Heap {
   void RemoveLocalHeap(LocalHeap* local_heap);
   V8_EXPORT_PRIVATE bool ContainsLocalHeap(LocalHeap* local_heap);
   V8_EXPORT_PRIVATE bool ContainsAnyLocalHeap();
+
+  Safepoint* safepoint() { return safepoint_.get(); }
 
   V8_EXPORT_PRIVATE double MonotonicallyIncreasingTimeInMs();
 
@@ -2171,6 +2174,8 @@ class Heap {
   base::Mutex local_heaps_mutex_;
   LocalHeap* local_heaps_head_;
 
+  std::unique_ptr<Safepoint> safepoint_;
+
   bool is_current_gc_forced_ = false;
 
   ExternalStringTable external_string_table_;
@@ -2238,6 +2243,7 @@ class Heap {
   friend class Page;
   friend class PagedSpace;
   friend class ReadOnlyRoots;
+  friend class Safepoint;
   friend class Scavenger;
   friend class ScavengerCollector;
   friend class Space;
