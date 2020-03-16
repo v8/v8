@@ -631,7 +631,9 @@ class DebugInfoImpl {
     result = ExecuteLiftoffCompilation(native_module_->engine()->allocator(),
                                        &env, body, func_index, nullptr, nullptr,
                                        offsets, &debug_sidetable);
-    DCHECK(result.succeeded());
+    // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
+    // support for debugging.
+    if (!result.succeeded()) FATAL("Liftoff compilation failed");
     DCHECK_NOT_NULL(debug_sidetable);
 
     WasmCodeRefScope wasm_code_ref_scope;
