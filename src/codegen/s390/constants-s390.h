@@ -2333,6 +2333,13 @@ class VRR_E_Instruction : SixByteInstruction {
   DECLARE_FIELD_FOR_SIX_BYTE_INSTR(M5Value, uint32_t, 28, 32)
 };
 
+class VRR_F_Instruction : SixByteInstruction {
+ public:
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R1Value, int, 8, 12)
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R2Value, int, 12, 16)
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R3Value, int, 16, 20)
+};
+
 class VRX_Instruction : SixByteInstruction {
  public:
   DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R1Value, int, 8, 12)

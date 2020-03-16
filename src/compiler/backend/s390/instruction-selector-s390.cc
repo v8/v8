@@ -2750,11 +2750,12 @@ SIMD_BOOL_LIST(SIMD_VISIT_BOOL)
 #undef SIMD_VISIT_BOOL
 #undef SIMD_BOOL_LIST
 
-#define SIMD_VISIT_CONVERSION(Opcode)                   \
-  void InstructionSelector::Visit##Opcode(Node* node) { \
-    S390OperandGenerator g(this);                       \
-    Emit(kS390_##Opcode, g.DefineAsRegister(node),      \
-         g.UseRegister(node->InputAt(0)));              \
+#define SIMD_VISIT_CONVERSION(Opcode)                               \
+  void InstructionSelector::Visit##Opcode(Node* node) {             \
+    S390OperandGenerator g(this);                                   \
+    InstructionOperand temps[] = {g.TempSimd128Register()};         \
+    Emit(kS390_##Opcode, g.DefineAsRegister(node),                  \
+         g.UseRegister(node->InputAt(0)), arraysize(temps), temps); \
   }
 SIMD_CONVERSION_LIST(SIMD_VISIT_CONVERSION)
 #undef SIMD_VISIT_CONVERSION
@@ -2782,6 +2783,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   S390OperandGenerator g(this);
   Node* input0 = node->InputAt(0);
   Node* input1 = node->InputAt(1);
+#ifdef V8_TARGET_BIG_ENDIAN
   // input registers are each in reverse order, we will have to remap the
   // shuffle indices
   int max_index = 15;
@@ -2801,12 +2803,21 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
        g.UseImmediate(Pack4Lanes(shuffle_remapped + 8)),
        g.UseImmediate(Pack4Lanes(shuffle_remapped + 4)),
        g.UseImmediate(Pack4Lanes(shuffle_remapped)));
+#else
+  Emit(kS390_S8x16Shuffle, g.DefineAsRegister(node),
+       g.UseUniqueRegister(input0), g.UseUniqueRegister(input1),
+       g.UseImmediate(Pack4Lanes(shuffle)),
+       g.UseImmediate(Pack4Lanes(shuffle + 4)),
+       g.UseImmediate(Pack4Lanes(shuffle + 8)),
+       g.UseImmediate(Pack4Lanes(shuffle + 12)));
+#endif
 }
 
 void InstructionSelector::VisitS8x16Swizzle(Node* node) {
   S390OperandGenerator g(this);
   Emit(kS390_S8x16Swizzle, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)));
 }
 
 void InstructionSelector::VisitS128Zero(Node* node) {
