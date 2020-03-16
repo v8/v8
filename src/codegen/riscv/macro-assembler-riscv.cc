@@ -1891,8 +1891,8 @@ void TurboAssembler::Cvt_d_ul(FPURegister fd, Register rs) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   // Convert rs to a FP value in fd.
 
-  //DCHECK(rs != t6); To do needs to put the right check
-  //DCHECK(rs != t3); To do needs to put the right check
+  DCHECK(rs != t6);
+  DCHECK(rs != t3);
 
   Label msb_clear, conversion_done;
 
@@ -4559,12 +4559,9 @@ void TurboAssembler::DaddOverflow(Register dst, Register left,
   } else {
     right_reg = right.rm();
   }
-	/*
-  ToDo Need to put right checks for riscv
   DCHECK(left != scratch && right_reg != scratch && dst != scratch &&
          overflow != scratch);
   DCHECK(overflow != left && overflow != right_reg);
-	*/
   if (dst == left || dst == right_reg) {
     daddu(scratch, left, right_reg);
     xor_(overflow, scratch, left);

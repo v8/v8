@@ -44,7 +44,7 @@
 #include "src/objects/heap-number-inl.h"
 
 namespace v8 {
-namespace internal {	
+namespace internal {
 // Get the CPU features enabled by the build. For cross compilation the
 // preprocessor symbols CAN_USE_FPU_INSTRUCTIONS
 // can be defined to enable FPU instructions when building the
@@ -116,7 +116,7 @@ int ToNumber(Register reg) {
       14,  // a4
       15,  // a5
       16,  // a6
-      17,  // a7			
+      17,  // a7
       18,  // s2
       19,  // s3
       20,  // s4
@@ -231,7 +231,7 @@ const Instr kPopInstruction = DADDIU | (sp.code() << kRsShift) |
 // daddiu(sp, sp, -8) part of Push(r) operation as pre-decrement of sp.
 const Instr kPushInstruction = DADDIU | (sp.code() << kRsShift) |
                                (sp.code() << kRtShift) |
-                               (-kPointerSize & kImm16Mask);  // NOLINT 
+                               (-kPointerSize & kImm16Mask);  // NOLINT
 // Sd(r, MemOperand(sp, 0))
 const Instr kPushRegPattern =
     SD | (sp.code() << kRsShift) | (0 & kImm16Mask);  // NOLINT
@@ -3402,7 +3402,7 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src,
   // FIXME(RISC-V): There may be a more optimal way to do this
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+  Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
   RV_li(scratch, src->offset());
   RV_add(scratch, scratch, src->rm());
   src->offset_ = 0;

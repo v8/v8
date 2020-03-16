@@ -33,9 +33,8 @@ namespace internal {
 */
 #define ALLOCATABLE_GENERAL_REGISTERS(V)        \
   V(a0)  V(a1)  V(a2)  V(a3) \
-	V(a4)  V(a5)  V(a6)  V(a7)  V(t0)  V(t1) V(t2) V(s7) V(t3) V(t4)	\
-  V(t5)  V(t6)
-/*  
+	V(a4)  V(a5)  V(a6)  V(a7)  V(t0)  V(t1) V(t2) V(s7)
+/*
 #define DOUBLE_REGISTERS(V)                               \
   V(f0)  V(f1)  V(f2)  V(f3)  V(f4)  V(f5)  V(f6)  V(f7)  \
   V(f8)  V(f9)  V(f10) V(f11) V(f12) V(f13) V(f14) V(f15) \
@@ -47,7 +46,7 @@ namespace internal {
   V(fs0)  V(fs1)  V(fa0) V(fa1) V(fa2) V(fa3) V(fa4) V(fa5) \
   V(fa6) V(fa7) V(fs2) V(fs3) V(fs4) V(fs5) V(fs6) V(fs7) \
   V(fs8) V(fs9) V(fs10) V(fs11) V(ft8) V(ft9) V(ft10) V(ft11)
-  
+
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
 #define SIMD128_REGISTERS(V)                              \
   V(w0)  V(w1)  V(w2)  V(w3)  V(w4)  V(w5)  V(w6)  V(w7)  \
@@ -63,13 +62,13 @@ namespace internal {
   V(ft0)  V(ft1)  V(ft2) V(ft3)  \
   V(ft4)  V(ft5) V(ft6) V(ft7) V(fa0) V(fa1) V(fa2) V(fa3) V(fa4) V(fa5)  \
   V(fa6) V(fa7)
-  
+
 // clang-format on
 
 // Note that the bit values must match those used in actual instruction
 // encoding.
 const int kNumRegs = 32;
-   
+
 const RegList kJSCallerSaved = 1 << 5  |   // t0
                                1 << 6  |   // t1
                                1 << 7  |   // t2
@@ -185,7 +184,7 @@ const int kUndefIndex = -1;
                                                        24,            // t4
                                                        25,            // t5
                                                        26};           // t6
- 
+
 // CPU Registers.
 //
 // 1) We would prefer to use an enum, but enum values are assignment-
