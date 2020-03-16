@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Declares a Simulator for MIPS instructions if we are not generating a native
-// MIPS binary. This Simulator allows us to run and debug MIPS code generation
+// Declares a Simulator for RISC-V instructions if we are not generating a native
+// RISC-V binary. This Simulator allows us to run and debug RISC-V code generation
 // on regular desktop machines.
 // V8 calls into generated code via the GeneratedCode wrapper,
 // which will start execution in the Simulator or forwards to the real entry
-// on a MIPS HW platform.
+// on a RISC-V HW platform.
 
 #ifndef V8_EXECUTION_RISCV_SIMULATOR_RISCV_H_
 #define V8_EXECUTION_RISCV_SIMULATOR_RISCV_H_
@@ -186,7 +186,7 @@ class SimInstruction : public InstructionGetters<SimInstructionBase> {
 
 class Simulator : public SimulatorBase {
  public:
-  friend class MipsDebugger;
+  friend class RiscvDebugger;
 
   // Registers are declared in order. See SMRL chapter 2.
   enum Register {
@@ -311,7 +311,7 @@ class Simulator : public SimulatorBase {
   // for each native thread.
   V8_EXPORT_PRIVATE static Simulator* current(v8::internal::Isolate* isolate);
 
-  // Accessors for register state. Reading the pc value adheres to the MIPS
+  // Accessors for register state. Reading the pc value adheres to the RISC-V
   // architecture specification and is off by a 8 from the currently executing
   // instruction.
   void set_register(int reg, int64_t value);
@@ -371,7 +371,7 @@ class Simulator : public SimulatorBase {
   // Accessor to the internal simulator stack area.
   uintptr_t StackLimit(uintptr_t c_limit) const;
 
-  // Executes MIPS instructions until the PC reaches end_sim_pc.
+  // Executes RISC-V instructions until the PC reaches end_sim_pc.
   void Execute();
 
   template <typename Return, typename... Args>

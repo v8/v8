@@ -9,16 +9,16 @@
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 
-// UNIMPLEMENTED_ macro for MIPS.
+// UNIMPLEMENTED_ macro for RISCV.
 #ifdef DEBUG
-#define UNIMPLEMENTED_MIPS()                                               \
+#define UNIMPLEMENTED_RISCV()                                              \
   v8::internal::PrintF("%s, \tline %d: \tfunction %s not implemented. \n", \
                        __FILE__, __LINE__, __func__)
 #else
-#define UNIMPLEMENTED_MIPS()
+#define UNIMPLEMENTED_RISCV()
 #endif
 
-#define UNSUPPORTED_MIPS() v8::internal::PrintF("Unsupported instruction.\n")
+#define UNSUPPORTED_RISCV() v8::internal::PrintF("Unsupported instruction.\n")
 
 enum ArchVariants { kMips64r2, kMips64r6 };
 
@@ -1843,6 +1843,28 @@ class InstructionGetters : public T {
            this->Funct3Value() == 0b101);
     return this->InstructionBits() & 0x40000000;
   }
+
+  inline int Shamt() const {
+    // Valid only for shift instructions (SLLI, SRLI, SRAI)
+    DCHECK((this->InstructionBits() & kBaseOpcodeMask) == OP_IMM &&
+           (this->Funct3Value() == 0b001 || this->Funct3Value() == 0b101));
+    // | 0A0000 | shamt | rs1 | funct3 | rd | opcode |
+    //  31       25    20
+    return this->Bits(kImm12Shift + 5, kImm12Shift);
+  }
+
+  inline int Shamt32() const {
+    // Valid only for shift instructions (SLLIW, SRLIW, SRAIW)
+    DCHECK((this->InstructionBits() & kBaseOpcodeMask) == OP_IMM_32 &&
+           (this->Funct3Value() == 0b001 || this->Funct3Value() == 0b101));
+    // | 0A00000 | shamt | rs1 | funct3 | rd | opcode |
+    //  31        24   20
+    return this->Bits(kImm12Shift + 4, kImm12Shift);
+  }
+
+  inline bool AqValue() const { return this->Bits(kAqShift, kAqShift); }
+
+  inline bool RlValue() const { return this->Bits(kRlShift, kRlShift); }
 
   // Original MIPS methods
 
