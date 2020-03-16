@@ -1275,7 +1275,13 @@ void NativeModule::AddCodeSpace(
         WasmCode::kRuntimeStubCount, num_function_slots);
   }
 
-  if (is_first_code_space) main_jump_table_ = jump_table;
+  if (is_first_code_space) {
+    // This can be updated and accessed without locks, since the addition of the
+    // first code space happens during initialization of the {NativeModule},
+    // where no concurrent accesses are possible.
+    main_jump_table_ = jump_table;
+    main_far_jump_table_ = far_jump_table;
+  }
 
   base::MutexGuard guard(&allocation_mutex_);
   code_space_data_.push_back(CodeSpaceData{region, jump_table, far_jump_table});
@@ -1364,6 +1370,18 @@ NativeModule::JumpTablesRef NativeModule::FindJumpTablesForRegion(
         table_end > code_region.begin() ? table_end - code_region.begin() : 0);
     return max_distance < kMaxWasmCodeSpaceSize;
   };
+
+  // Fast path: Try to use {main_jump_table_} and {main_far_jump_table_}.
+  // Access to these fields is possible without locking, since these fields are
+  // initialized on construction of the {NativeModule}.
+  if (main_far_jump_table_ && jump_table_usable(main_far_jump_table_) &&
+      (main_jump_table_ == nullptr || jump_table_usable(main_jump_table_))) {
+    return {
+        main_jump_table_ ? main_jump_table_->instruction_start() : kNullAddress,
+        main_far_jump_table_->instruction_start()};
+  }
+
+  // Otherwise, take the mutex and look for another suitable jump table.
   base::MutexGuard guard(&allocation_mutex_);
   for (auto& code_space_data : code_space_data_) {
     DCHECK_IMPLIES(code_space_data.jump_table, code_space_data.far_jump_table);

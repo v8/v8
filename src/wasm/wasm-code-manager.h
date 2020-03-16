@@ -679,9 +679,13 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // {WireBytesStorage}, held by background compile tasks.
   std::shared_ptr<OwnedVector<const uint8_t>> wire_bytes_;
 
-  // Jump table used by external calls (from JS). Wasm calls use one of the jump
-  // tables stored in {code_space_data_}.
+  // The first allocated jump table. Always used by external calls (from JS).
+  // Wasm calls might use one of the other jump tables stored in
+  // {code_space_data_}.
   WasmCode* main_jump_table_ = nullptr;
+
+  // The first allocated far jump table.
+  WasmCode* main_far_jump_table_ = nullptr;
 
   // Lazy compile stub table, containing entries to jump to the
   // {WasmCompileLazy} builtin, passing the function index.
