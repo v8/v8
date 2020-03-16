@@ -2945,13 +2945,13 @@ WasmCompilationResult ExecuteLiftoffCompilation(
     counters->liftoff_bailout_reasons()->AddSample(
         static_cast<int>(compiler->bailout_reason()));
     if (compiler->did_bailout()) {
-      // Liftoff compilation failed.
       counters->liftoff_unsupported_functions()->Increment();
-      return WasmCompilationResult{};
+    } else {
+      counters->liftoff_compiled_functions()->Increment();
     }
-
-    counters->liftoff_compiled_functions()->Increment();
   }
+
+  if (compiler->did_bailout()) return WasmCompilationResult{};
 
   WasmCompilationResult result;
   compiler->GetCode(&result.code_desc);
