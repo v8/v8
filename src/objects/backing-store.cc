@@ -263,7 +263,8 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
                                  false,         // is_wasm_memory
                                  true,          // free_on_destruct
                                  false,         // has_guard_regions
-                                 false);        // custom_deleter
+                                 false,         // custom_deleter
+                                 false);        // empty_deleter
 
   TRACE_BS("BS:alloc  bs=%p mem=%p (length=%zu)\n", result,
            result->buffer_start(), byte_length);
@@ -388,7 +389,8 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
                                  true,           // is_wasm_memory
                                  true,           // free_on_destruct
                                  guards,         // has_guard_regions
-                                 false);         // custom_deleter
+                                 false,          // custom_deleter
+                                 false);         // empty_deleter
 
   TRACE_BS("BSw:alloc bs=%p mem=%p (length=%zu, capacity=%zu)\n", result,
            result->buffer_start(), byte_length, byte_capacity);
@@ -492,7 +494,7 @@ bool BackingStore::GrowWasmMemoryInPlace(Isolate* isolate, size_t delta_pages,
     }
   }
 
-  if (!is_shared_) {
+  if (!is_shared_ && free_on_destruct_) {
     // Only do per-isolate accounting for non-shared backing stores.
     reinterpret_cast<v8::Isolate*>(isolate)
         ->AdjustAmountOfExternalAllocatedMemory(new_length - old_length);
@@ -534,7 +536,8 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
                                  false,              // is_wasm_memory
                                  free_on_destruct,   // free_on_destruct
                                  false,              // has_guard_regions
-                                 false);             // custom_deleter
+                                 false,              // custom_deleter
+                                 false);             // empty_deleter
   result->SetAllocatorFromIsolate(isolate);
   TRACE_BS("BS:wrap   bs=%p mem=%p (length=%zu)\n", result,
            result->buffer_start(), result->byte_length());
@@ -543,8 +546,9 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
 
 std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
     void* allocation_base, size_t allocation_length,
-    v8::BackingStoreDeleterCallback deleter, void* deleter_data,
+    v8::BackingStore::DeleterCallback deleter, void* deleter_data,
     SharedFlag shared) {
+  bool is_empty_deleter = (deleter == v8::BackingStore::EmptyDeleter);
   auto result = new BackingStore(allocation_base,    // start
                                  allocation_length,  // length
                                  allocation_length,  // capacity
@@ -552,7 +556,8 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
                                  false,              // is_wasm_memory
                                  true,               // free_on_destruct
                                  false,              // has_guard_regions
-                                 true);              // custom_deleter
+                                 true,               // custom_deleter
+                                 is_empty_deleter);  // empty_deleter
   result->type_specific_data_.deleter = {deleter, deleter_data};
   TRACE_BS("BS:wrap   bs=%p mem=%p (length=%zu)\n", result,
            result->buffer_start(), result->byte_length());
@@ -568,7 +573,8 @@ std::unique_ptr<BackingStore> BackingStore::EmptyBackingStore(
                                  false,    // is_wasm_memory
                                  true,     // free_on_destruct
                                  false,    // has_guard_regions
-                                 false);   // custom_deleter
+                                 false,    // custom_deleter
+                                 false);   // empty_deleter
 
   return std::unique_ptr<BackingStore>(result);
 }

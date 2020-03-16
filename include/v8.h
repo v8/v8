@@ -4971,6 +4971,25 @@ class V8_EXPORT BackingStore : public v8::internal::BackingStoreBase {
       v8::Isolate* isolate, std::unique_ptr<BackingStore> backing_store,
       size_t byte_length);
 
+  /**
+   * This callback is used only if the memory block for a BackingStore cannot be
+   * allocated with an ArrayBuffer::Allocator. In such cases the destructor of
+   * the BackingStore invokes the callback to free the memory block.
+   */
+  using DeleterCallback = void (*)(void* data, size_t length,
+                                   void* deleter_data);
+
+  /**
+   * If the memory block of a BackingStore is static or is managed manually,
+   * then this empty deleter along with nullptr deleter_data can be passed to
+   * ArrayBuffer::NewBackingStore to indicate that.
+   *
+   * The manually managed case should be used with caution and only when it
+   * is guaranteed that the memory block freeing happens after detaching its
+   * ArrayBuffer.
+   */
+  static void EmptyDeleter(void* data, size_t length, void* deleter_data);
+
  private:
   /**
    * See [Shared]ArrayBuffer::GetBackingStore and
@@ -4979,13 +4998,12 @@ class V8_EXPORT BackingStore : public v8::internal::BackingStoreBase {
   BackingStore();
 };
 
-/**
- * This callback is used only if the memory block for this backing store cannot
- * be allocated with an ArrayBuffer::Allocator. In such cases the destructor
- * of this backing store object invokes the callback to free the memory block.
- */
+#if !defined(V8_IMMINENT_DEPRECATION_WARNINGS)
+// Use v8::BackingStore::DeleterCallback instead.
 using BackingStoreDeleterCallback = void (*)(void* data, size_t length,
                                              void* deleter_data);
+
+#endif
 
 /**
  * An instance of the built-in ArrayBuffer constructor (ES6 draft 15.13.5).
@@ -5174,7 +5192,7 @@ class V8_EXPORT ArrayBuffer : public Object {
    * to the buffer must not be passed again to any V8 API function.
    */
   static std::unique_ptr<BackingStore> NewBackingStore(
-      void* data, size_t byte_length, BackingStoreDeleterCallback deleter,
+      void* data, size_t byte_length, v8::BackingStore::DeleterCallback deleter,
       void* deleter_data);
 
   /**
@@ -5656,7 +5674,7 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * to the buffer must not be passed again to any V8 functions.
    */
   static std::unique_ptr<BackingStore> NewBackingStore(
-      void* data, size_t byte_length, BackingStoreDeleterCallback deleter,
+      void* data, size_t byte_length, v8::BackingStore::DeleterCallback deleter,
       void* deleter_data);
 
   /**

@@ -30,6 +30,7 @@ void ArrayBufferTracker::RegisterNew(
   // ArrayBuffer tracking works only for small objects.
   DCHECK(!heap->IsLargeObject(buffer));
   DCHECK_EQ(backing_store->buffer_start(), buffer.backing_store());
+  const size_t length = backing_store->PerIsolateAccountingLength();
 
   Page* page = Page::FromHeapObject(buffer);
   {
@@ -49,7 +50,6 @@ void ArrayBufferTracker::RegisterNew(
   // TODO(wez): Remove backing-store from external memory accounting.
   // We may go over the limit of externally allocated memory here. We call the
   // api function to trigger a GC in this case.
-  const size_t length = buffer.PerIsolateAccountingLength();
   reinterpret_cast<v8::Isolate*>(heap->isolate())
       ->AdjustAmountOfExternalAllocatedMemory(length);
 }
@@ -58,7 +58,6 @@ std::shared_ptr<BackingStore> ArrayBufferTracker::Unregister(
     Heap* heap, JSArrayBuffer buffer) {
   std::shared_ptr<BackingStore> backing_store;
 
-  const size_t length = buffer.PerIsolateAccountingLength();
   Page* page = Page::FromHeapObject(buffer);
   {
     base::MutexGuard guard(page->mutex());
@@ -68,6 +67,7 @@ std::shared_ptr<BackingStore> ArrayBufferTracker::Unregister(
   }
 
   // TODO(wez): Remove backing-store from external memory accounting.
+  const size_t length = backing_store->PerIsolateAccountingLength();
   heap->update_external_memory(-static_cast<intptr_t>(length));
   return backing_store;
 }
@@ -90,7 +90,7 @@ void LocalArrayBufferTracker::Free(Callback should_free) {
        it != array_buffers_.end();) {
     // Unchecked cast because the map might already be dead at this point.
     JSArrayBuffer buffer = JSArrayBuffer::unchecked_cast(it->first);
-    const size_t length = buffer.PerIsolateAccountingLength();
+    const size_t length = it->second->PerIsolateAccountingLength();
 
     if (should_free(buffer)) {
       // Destroy the shared pointer, (perhaps) freeing the backing store.
@@ -127,7 +127,7 @@ void ArrayBufferTracker::FreeDead(Page* page, MarkingState* marking_state) {
 
 void LocalArrayBufferTracker::Add(JSArrayBuffer buffer,
                                   std::shared_ptr<BackingStore> backing_store) {
-  auto length = buffer.PerIsolateAccountingLength();
+  auto length = backing_store->PerIsolateAccountingLength();
   page_->IncrementExternalBackingStoreBytes(
       ExternalBackingStoreType::kArrayBuffer, length);
 
@@ -161,7 +161,7 @@ std::shared_ptr<BackingStore> LocalArrayBufferTracker::Remove(
   array_buffers_.erase(it);
 
   // Update accounting.
-  auto length = buffer.PerIsolateAccountingLength();
+  auto length = backing_store->PerIsolateAccountingLength();
   page_->DecrementExternalBackingStoreBytes(
       ExternalBackingStoreType::kArrayBuffer, length);
 

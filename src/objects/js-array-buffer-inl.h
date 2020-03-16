@@ -156,13 +156,6 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_asmjs_memory,
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
 
-size_t JSArrayBuffer::PerIsolateAccountingLength() {
-  // TODO(titzer): SharedArrayBuffers and shared WasmMemorys cause problems with
-  // accounting for per-isolate external memory. In particular, sharing the same
-  // array buffer or memory multiple times, which happens in stress tests, can
-  // cause overcounting, leading to GC thrashing. Fix with global accounting?
-  return is_shared() ? 0 : byte_length();
-}
 
 size_t JSArrayBufferView::byte_offset() const {
   return ReadField<size_t>(kByteOffsetOffset);

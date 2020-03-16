@@ -2200,7 +2200,9 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       } else if (object.IsJSArrayBuffer()) {
         JSArrayBuffer array_buffer = JSArrayBuffer::cast(object);
         if (ArrayBufferTracker::IsTracked(array_buffer)) {
-          size_t size = array_buffer.PerIsolateAccountingLength();
+          size_t size =
+              ArrayBufferTracker::Lookup(isolate->heap(), array_buffer)
+                  ->PerIsolateAccountingLength();
           external_page_bytes[ExternalBackingStoreType::kArrayBuffer] += size;
         }
       }
@@ -2698,7 +2700,8 @@ void NewSpace::Verify(Isolate* isolate) {
       } else if (object.IsJSArrayBuffer()) {
         JSArrayBuffer array_buffer = JSArrayBuffer::cast(object);
         if (ArrayBufferTracker::IsTracked(array_buffer)) {
-          size_t size = array_buffer.PerIsolateAccountingLength();
+          size_t size = ArrayBufferTracker::Lookup(heap(), array_buffer)
+                            ->PerIsolateAccountingLength();
           external_space_bytes[ExternalBackingStoreType::kArrayBuffer] += size;
         }
       }

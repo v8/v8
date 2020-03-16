@@ -110,8 +110,6 @@ class JSArrayBuffer : public JSObject {
   void YoungMarkExtension();
   void YoungMarkExtensionPromoted();
 
-  inline size_t PerIsolateAccountingLength();
-
   // Dispatched behavior.
   DECL_PRINTER(JSArrayBuffer)
   DECL_VERIFIER(JSArrayBuffer)

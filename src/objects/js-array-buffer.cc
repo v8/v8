@@ -67,9 +67,9 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
     Heap* heap = GetIsolate()->heap();
     ArrayBufferExtension* extension = EnsureExtension();
-    extension->set_backing_store(std::move(backing_store));
-    size_t bytes = PerIsolateAccountingLength();
+    size_t bytes = backing_store->PerIsolateAccountingLength();
     extension->set_accounting_length(bytes);
+    extension->set_backing_store(std::move(backing_store));
     heap->AppendArrayBufferExtension(*this, extension);
   } else {
     GetIsolate()->heap()->RegisterBackingStore(*this, std::move(backing_store));
