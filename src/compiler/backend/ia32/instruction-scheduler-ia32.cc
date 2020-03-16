@@ -270,8 +270,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSEI8x16SConvertI16x8:
     case kAVXI8x16SConvertI16x8:
     case kIA32I8x16Neg:
-    case kSSEI8x16Shl:
-    case kAVXI8x16Shl:
+    case kIA32I8x16Shl:
     case kIA32I8x16ShrS:
     case kSSEI8x16Add:
     case kAVXI8x16Add:

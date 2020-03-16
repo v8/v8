@@ -2451,13 +2451,8 @@ void InstructionSelector::VisitI8x16Shl(Node* node) {
   InstructionOperand operand0 = g.UseUniqueRegister(node->InputAt(0));
   InstructionOperand operand1 = g.UseUniqueRegister(node->InputAt(1));
   InstructionOperand temps[] = {g.TempRegister(), g.TempSimd128Register()};
-  if (IsSupported(AVX)) {
-    Emit(kAVXI8x16Shl, g.DefineAsRegister(node), operand0, operand1,
-         arraysize(temps), temps);
-  } else {
-    Emit(kSSEI8x16Shl, g.DefineSameAsFirst(node), operand0, operand1,
-         arraysize(temps), temps);
-  }
+  Emit(kIA32I8x16Shl, g.DefineSameAsFirst(node), operand0, operand1,
+       arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {

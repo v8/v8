@@ -289,8 +289,7 @@ namespace compiler {
   V(SSEI8x16SConvertI16x8)         \
   V(AVXI8x16SConvertI16x8)         \
   V(IA32I8x16Neg)                  \
-  V(SSEI8x16Shl)                   \
-  V(AVXI8x16Shl)                   \
+  V(IA32I8x16Shl)                  \
   V(IA32I8x16ShrS)                 \
   V(SSEI8x16Add)                   \
   V(AVXI8x16Add)                   \

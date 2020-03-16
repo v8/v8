@@ -3146,7 +3146,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kSSEI8x16Shl: {
+    case kIA32I8x16Shl: {
       XMMRegister dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       Register shift = i.InputRegister(1);
@@ -3155,36 +3155,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Take shift value modulo 8.
       __ and_(shift, 7);
       // Mask off the unwanted bits before word-shifting.
-      __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
+      __ Pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
       __ mov(tmp, shift);
       __ add(tmp, Immediate(8));
-      __ movd(tmp_simd, tmp);
-      __ psrlw(kScratchDoubleReg, tmp_simd);
-      __ packuswb(kScratchDoubleReg, kScratchDoubleReg);
-      __ pand(dst, kScratchDoubleReg);
-      __ movd(tmp_simd, shift);
-      __ psllw(dst, tmp_simd);
-      break;
-    }
-    case kAVXI8x16Shl: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      Register tmp = i.ToRegister(instr->TempAt(0));
-      XMMRegister tmp_simd = i.TempSimd128Register(1);
-      // Take shift value modulo 8.
-      __ and_(shift, 7);
-      // Mask off the unwanted bits before word-shifting.
-      __ vpcmpeqw(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ mov(tmp, shift);
-      __ add(tmp, Immediate(8));
-      __ movd(tmp_simd, tmp);
-      __ vpsrlw(kScratchDoubleReg, kScratchDoubleReg, tmp_simd);
-      __ vpackuswb(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vpand(dst, src, kScratchDoubleReg);
-      __ movd(tmp_simd, shift);
-      __ vpsllw(dst, dst, tmp_simd);
+      __ Movd(tmp_simd, tmp);
+      __ Psrlw(kScratchDoubleReg, kScratchDoubleReg, tmp_simd);
+      __ Packuswb(kScratchDoubleReg, kScratchDoubleReg);
+      __ Pand(dst, kScratchDoubleReg);
+      __ Movd(tmp_simd, shift);
+      __ Psllw(dst, dst, tmp_simd);
       break;
     }
     case kIA32I8x16ShrS: {
