@@ -52,9 +52,12 @@ void ReadOnlyHeap::SetUp(Isolate* isolate, ReadOnlyDeserializer* des) {
 #ifdef DEBUG
   const base::Optional<uint32_t> last_checksum =
       shared_ro_heap_->read_only_blob_checksum_;
-  if (last_checksum || des_checksum) {
+  if (last_checksum) {
     // The read-only heap was set up from a snapshot. Make sure it's the always
     // the same snapshot.
+    CHECK_WITH_MSG(des_checksum,
+                   "Attempt to create the read-only heap after "
+                   "already creating from a snapshot.");
     CHECK_EQ(last_checksum, des_checksum);
   } else {
     // The read-only heap objects were created. Make sure this happens only
