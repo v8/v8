@@ -73,6 +73,7 @@
   'debugger/wasm-scope-info': [SKIP],
   'debugger/wasm-scope-info-liftoff': [SKIP],
   'debugger/wasm-set-breakpoint-liftoff': [SKIP],
+  'debugger/wasm-stepping-liftoff': [SKIP],
 }],  # 'arch == ppc or arch == ppc64'
 
 ##############################################################################
@@ -83,6 +84,7 @@
   'debugger/wasm-scope-info': [SKIP],
   'debugger/wasm-scope-info-liftoff': [SKIP],
   'debugger/wasm-set-breakpoint-liftoff': [SKIP],
+  'debugger/wasm-stepping-liftoff': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
