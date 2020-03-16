@@ -1562,7 +1562,8 @@ void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
 void LiftoffAssembler::emit_f64x2_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  bailout(kSimd, "f64x2extractlane");
+  ExtractLane(dst.fp(), liftoff::GetSimd128Register(lhs.low_fp()),
+              imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1579,7 +1580,8 @@ void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
 void LiftoffAssembler::emit_f32x4_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  bailout(kSimd, "f32x4extractlane");
+  ExtractLane(liftoff::GetFloatRegister(dst.fp()),
+              liftoff::GetSimd128Register(lhs.low_fp()), imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1600,7 +1602,10 @@ void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
 void LiftoffAssembler::emit_i64x2_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  bailout(kSimd, "i64x2extractlane");
+  ExtractLane(dst.low_gp(), liftoff::GetSimd128Register(lhs.low_fp()), NeonS32,
+              imm_lane_idx * 2);
+  ExtractLane(dst.high_gp(), liftoff::GetSimd128Register(lhs.low_fp()), NeonS32,
+              imm_lane_idx * 2 + 1);
 }
 
 void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1618,7 +1623,8 @@ void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  bailout(kSimd, "i32x4extractlane");
+  ExtractLane(dst.gp(), liftoff::GetSimd128Register(lhs.low_fp()), NeonS32,
+              imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1643,13 +1649,15 @@ void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i16x8_extract_lane_u(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  bailout(kSimd, "i16x8extractlane_u");
+  ExtractLane(dst.gp(), liftoff::GetSimd128Register(lhs.low_fp()), NeonU16,
+              imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_i16x8_extract_lane_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  bailout(kSimd, "i16x8extractlane_s");
+  ExtractLane(dst.gp(), liftoff::GetSimd128Register(lhs.low_fp()), NeonS16,
+              imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
@@ -1660,13 +1668,15 @@ void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_extract_lane_u(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  bailout(kSimd, "i8x16extractlane_u");
+  ExtractLane(dst.gp(), liftoff::GetSimd128Register(lhs.low_fp()), NeonU8,
+              imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_i8x16_extract_lane_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  bailout(kSimd, "i8x16extractlane_s");
+  ExtractLane(dst.gp(), liftoff::GetSimd128Register(lhs.low_fp()), NeonS8,
+              imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,

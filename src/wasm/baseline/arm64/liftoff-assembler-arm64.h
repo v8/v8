@@ -1092,7 +1092,7 @@ void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
 void LiftoffAssembler::emit_f64x2_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  bailout(kSimd, "f64x2extractlane");
+  Mov(dst.fp().D(), lhs.fp().V2D(), imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1108,7 +1108,7 @@ void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
 void LiftoffAssembler::emit_f32x4_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  bailout(kSimd, "f32x4extractlane");
+  Mov(dst.fp().S(), lhs.fp().V4S(), imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1124,7 +1124,7 @@ void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
 void LiftoffAssembler::emit_i64x2_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  bailout(kSimd, "i64x2extractlane");
+  Mov(dst.gp().X(), lhs.fp().V2D(), imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1140,7 +1140,7 @@ void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  bailout(kSimd, "i32x4extractlane");
+  Mov(dst.gp().W(), lhs.fp().V4S(), imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1156,13 +1156,13 @@ void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_extract_lane_u(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  bailout(kSimd, "i16x8extractlane_u");
+  Umov(dst.gp().W(), lhs.fp().V8H(), imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_i16x8_extract_lane_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  bailout(kSimd, "i16x8extractlane_s");
+  Smov(dst.gp().W(), lhs.fp().V8H(), imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1178,13 +1178,13 @@ void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_extract_lane_u(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  bailout(kSimd, "i8x16extractlane_u");
+  Umov(dst.gp().W(), lhs.fp().V16B(), imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_i8x16_extract_lane_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  bailout(kSimd, "i8x16extractlane_s");
+  Smov(dst.gp().W(), lhs.fp().V16B(), imm_lane_idx);
 }
 
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
