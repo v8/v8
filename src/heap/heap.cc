@@ -50,6 +50,7 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
+#include "src/heap/safepoint.h"
 #include "src/heap/scavenge-job.h"
 #include "src/heap/scavenger-inl.h"
 #include "src/heap/stress-marking-observer.h"
@@ -202,6 +203,7 @@ Heap::Heap()
       memory_pressure_level_(MemoryPressureLevel::kNone),
       global_pretenuring_feedback_(kInitialFeedbackCapacity),
       local_heaps_head_(nullptr),
+      safepoint_(new Safepoint(this)),
       external_string_table_(this) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size_ & (Page::kPageSize - 1));
