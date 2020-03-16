@@ -1097,7 +1097,7 @@ void LiftoffAssembler::emit_f64x2_extract_lane(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "f64x2add");
+  Fadd(dst.fp().V2D(), lhs.fp().V2D(), rhs.fp().V2D());
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
@@ -1129,7 +1129,7 @@ void LiftoffAssembler::emit_i64x2_extract_lane(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2add");
+  Add(dst.fp().V2D(), lhs.fp().V2D(), rhs.fp().V2D());
 }
 
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
@@ -1189,7 +1189,7 @@ void LiftoffAssembler::emit_i8x16_extract_lane_s(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16add");
+  Add(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
