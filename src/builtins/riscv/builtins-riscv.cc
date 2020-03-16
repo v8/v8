@@ -1160,7 +1160,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Load code entry from the weak reference, if it was cleared, resume
   // execution of unoptimized code.
   __ LoadWeakValue(optimized_code_entry, optimized_code_entry, &not_optimized);
-  TailCallOptimizedCodeSlot(masm, optimized_code_entry, t3, a5);
+  TailCallOptimizedCodeSlot(masm, optimized_code_entry, t4, a5);
 
   __ bind(&compile_lazy);
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);

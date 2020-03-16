@@ -1850,14 +1850,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kMips64ByteSwap64: {
-      __ ByteSwapSigned(i.OutputRegister(0), i.InputRegister(0), 8);
-      break;
-    }
-    case kMips64ByteSwap32: {
-      __ ByteSwapSigned(i.OutputRegister(0), i.InputRegister(0), 4);
-      break;
-    }
     case kMips64S8x16LoadSplat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ Lb(kScratchReg, i.MemoryOperand());
