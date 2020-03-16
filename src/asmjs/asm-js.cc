@@ -408,9 +408,12 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
     return single_function;
   }
 
-  Handle<String> exports_name =
-      isolate->factory()->InternalizeUtf8String("exports");
-  return Object::GetProperty(isolate, instance, exports_name);
+  // Here we rely on the fact that the exports object is eagerly created.
+  // The following check is a weak indicator for that. If this ever changes,
+  // then we'll have to call the "exports" getter, and be careful about
+  // handling possible stack overflow exceptions.
+  DCHECK(instance->exports_object().IsJSObject());
+  return handle(instance->exports_object(), isolate);
 }
 
 }  // namespace internal

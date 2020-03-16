@@ -142,6 +142,7 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   DCHECK(function->code() ==
          isolate->builtins()->builtin(Builtins::kInstantiateAsmJs));
   function->set_code(isolate->builtins()->builtin(Builtins::kCompileLazy));
+  DCHECK(!isolate->has_pending_exception());
   return Smi::zero();
 }
 
