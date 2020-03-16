@@ -1004,6 +1004,8 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
   }
 }
 
+#ifndef COMPILING_IRREGEXP_FOR_EXTERNAL_EMBEDDER
+
 // This method is called through an external reference from RegExpExecInternal
 // builtin.
 IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
@@ -1029,6 +1031,8 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
   return Match(isolate, regexp_obj, subject_string, registers, registers_length,
                start_position, call_origin);
 }
+
+#endif  // !COMPILING_IRREGEXP_FOR_EXTERNAL_EMBEDDER
 
 IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromRuntime(
     Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject_string,

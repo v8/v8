@@ -246,9 +246,6 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   static Address GrowStack(Address stack_pointer, Address* stack_top,
                            Isolate* isolate);
 
-  static const byte* StringCharacterPosition(
-      String subject, int start_index, const DisallowHeapAllocation& no_gc);
-
   static int CheckStackGuardState(Isolate* isolate, int start_index,
                                   RegExp::CallOrigin call_origin,
                                   Address* return_address, Code re_code,

@@ -115,34 +115,7 @@ bool NativeRegExpMacroAssembler::CanReadUnaligned() {
   return FLAG_enable_regexp_unaligned_accesses && !slow_safe();
 }
 
-const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
-    String subject, int start_index, const DisallowHeapAllocation& no_gc) {
-  if (subject.IsConsString()) {
-    subject = ConsString::cast(subject).first();
-  } else if (subject.IsSlicedString()) {
-    start_index += SlicedString::cast(subject).offset();
-    subject = SlicedString::cast(subject).parent();
-  }
-  if (subject.IsThinString()) {
-    subject = ThinString::cast(subject).actual();
-  }
-  DCHECK_LE(0, start_index);
-  DCHECK_LE(start_index, subject.length());
-  if (subject.IsSeqOneByteString()) {
-    return reinterpret_cast<const byte*>(
-        SeqOneByteString::cast(subject).GetChars(no_gc) + start_index);
-  } else if (subject.IsSeqTwoByteString()) {
-    return reinterpret_cast<const byte*>(
-        SeqTwoByteString::cast(subject).GetChars(no_gc) + start_index);
-  } else if (subject.IsExternalOneByteString()) {
-    return reinterpret_cast<const byte*>(
-        ExternalOneByteString::cast(subject).GetChars() + start_index);
-  } else {
-    DCHECK(subject.IsExternalTwoByteString());
-    return reinterpret_cast<const byte*>(
-        ExternalTwoByteString::cast(subject).GetChars() + start_index);
-  }
-}
+#ifndef COMPILING_IRREGEXP_FOR_EXTERNAL_EMBEDDER
 
 // This method may only be called after an interrupt.
 int NativeRegExpMacroAssembler::CheckStackGuardState(
@@ -214,8 +187,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     } else {
       *subject = subject_handle->ptr();
       intptr_t byte_length = *input_end - *input_start;
-      *input_start =
-          StringCharacterPosition(*subject_handle, start_index, no_gc);
+      *input_start = subject_handle->AddressOfCharacterAt(start_index, no_gc);
       *input_end = *input_start + byte_length;
     }
   }
@@ -263,7 +235,7 @@ int NativeRegExpMacroAssembler::Match(Handle<JSRegExp> regexp,
 
   DisallowHeapAllocation no_gc;
   const byte* input_start =
-      StringCharacterPosition(subject_ptr, start_offset + slice_offset, no_gc);
+      subject_ptr.AddressOfCharacterAt(start_offset + slice_offset, no_gc);
   int byte_length = char_length << char_size_shift;
   const byte* input_end = input_start + byte_length;
   return Execute(*subject, start_offset, input_start, input_end, offsets_vector,
@@ -308,6 +280,8 @@ int NativeRegExpMacroAssembler::Execute(
   }
   return result;
 }
+
+#endif  // !COMPILING_IRREGEXP_FOR_EXTERNAL_EMBEDDER
 
 // clang-format off
 const byte NativeRegExpMacroAssembler::word_character_map[] = {
