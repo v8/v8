@@ -4672,16 +4672,37 @@ void BytecodeGenerator::BuildPrivateBrandCheck(Property* property,
   DCHECK(IsPrivateMethodOrAccessorVariableMode(private_name->mode()));
   ClassScope* scope = private_name->scope()->AsClassScope();
   if (private_name->is_static()) {
-    DCHECK_NOT_NULL(scope->class_variable());
     // For static private methods, the only valid receiver is the class.
     // Load the class constructor.
-    BuildVariableLoadForAccumulatorValue(scope->class_variable(),
-                                         HoleCheckMode::kElided);
-    BytecodeLabel return_check;
-    builder()->CompareReference(object).JumpIfTrue(
-        ToBooleanMode::kAlreadyBoolean, &return_check);
-    BuildInvalidPropertyAccess(tmpl, property);
-    builder()->Bind(&return_check);
+    if (scope->class_variable() == nullptr) {
+      // If the static private method has not been used used in source
+      // code (either explicitly or through the presence of eval), but is
+      // accessed by the debugger at runtime, reference to the class variable
+      // is not available since it was not be context-allocated. Therefore we
+      // can't build a branch check, and throw an ReferenceError as if the
+      // method was optimized away.
+      // TODO(joyee): get a reference to the class constructor through
+      // something other than scope->class_variable() in this scenario.
+      RegisterAllocationScope register_scope(this);
+      RegisterList args = register_allocator()->NewRegisterList(2);
+      builder()
+          ->LoadLiteral(Smi::FromEnum(
+              MessageTemplate::
+                  kInvalidUnusedPrivateStaticMethodAccessedByDebugger))
+          .StoreAccumulatorInRegister(args[0])
+          .LoadLiteral(private_name->raw_name())
+          .StoreAccumulatorInRegister(args[1])
+          .CallRuntime(Runtime::kNewError, args)
+          .Throw();
+    } else {
+      BuildVariableLoadForAccumulatorValue(scope->class_variable(),
+                                           HoleCheckMode::kElided);
+      BytecodeLabel return_check;
+      builder()->CompareReference(object).JumpIfTrue(
+          ToBooleanMode::kAlreadyBoolean, &return_check);
+      BuildInvalidPropertyAccess(tmpl, property);
+      builder()->Bind(&return_check);
+    }
   } else {
     BuildVariableLoadForAccumulatorValue(scope->brand(),
                                          HoleCheckMode::kElided);

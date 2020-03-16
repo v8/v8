@@ -57,9 +57,6 @@ InspectorTest.runAsyncTestSuite([
     });
     InspectorTest.logMessage(result.privateProperties);
 
-    // TODO(joyee): make it possible to desugar the brand check, which requires
-    // the class variable to be saved, even when the static private
-    // methods/accessors are not referenced in the class body.
     InspectorTest.log('Evaluating A.#inc();');
     ({ result } = await Protocol.Debugger.evaluateOnCallFrame({
       expression: 'A.#inc();',

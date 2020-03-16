@@ -38,9 +38,7 @@ InspectorTest.runAsyncTestSuite([
     let {
       params: { callFrames }
     } = await Protocol.Debugger.oncePaused(); // inside A.#method()
-    // TODO(joyee): make it possible to desugar the brand check, which requires
-    // the class variable to be saved, even when the static private
-    // methods/accessors are not referenced in the class body.
+
     let frame = callFrames[0];
     let { result } = await Protocol.Runtime.getProperties({
       objectId: frame.this.objectId

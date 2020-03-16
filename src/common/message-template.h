@@ -426,6 +426,8 @@ namespace internal {
   T(InvalidPrivateMethodWrite, "Private method '%' is not writable")           \
   T(InvalidPrivateGetterAccess, "'%' was defined without a getter")            \
   T(InvalidPrivateSetterAccess, "'%' was defined without a setter")            \
+  T(InvalidUnusedPrivateStaticMethodAccessedByDebugger,                        \
+    "Unused static private method '%' cannot be accessed at debug time")       \
   T(JsonParseUnexpectedEOS, "Unexpected end of JSON input")                    \
   T(JsonParseUnexpectedToken, "Unexpected token % in JSON at position %")      \
   T(JsonParseUnexpectedTokenNumber, "Unexpected number in JSON at position %") \
