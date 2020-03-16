@@ -62,13 +62,6 @@ namespace compiler {
 
 namespace {
 
-// TODO(titzer): pull WASM_64 up to a common header.
-#if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64
-#define WASM_64 1
-#else
-#define WASM_64 0
-#endif
-
 #define FATAL_UNSUPPORTED_OPCODE(opcode)        \
   FATAL("Unsupported opcode 0x%x:%s", (opcode), \
         wasm::WasmOpcodes::OpcodeName(opcode));
@@ -1417,31 +1410,24 @@ Node* WasmGraphBuilder::BuildF32CopySign(Node* left, Node* right) {
 }
 
 Node* WasmGraphBuilder::BuildF64CopySign(Node* left, Node* right) {
-#if WASM_64
-  Node* result = Unop(
-      wasm::kExprF64ReinterpretI64,
-      Binop(wasm::kExprI64Ior,
-            Binop(wasm::kExprI64And, Unop(wasm::kExprI64ReinterpretF64, left),
-                  mcgraph()->Int64Constant(0x7FFFFFFFFFFFFFFF)),
-            Binop(wasm::kExprI64And, Unop(wasm::kExprI64ReinterpretF64, right),
-                  mcgraph()->Int64Constant(0x8000000000000000))));
+  if (mcgraph()->machine()->Is64()) {
+    return gasm_->BitcastInt64ToFloat64(gasm_->Word64Or(
+        gasm_->Word64And(gasm_->BitcastFloat64ToInt64(left),
+                         gasm_->Int64Constant(0x7FFFFFFFFFFFFFFF)),
+        gasm_->Word64And(gasm_->BitcastFloat64ToInt64(right),
+                         gasm_->Int64Constant(0x8000000000000000))));
+  }
 
-  return result;
-#else
-  MachineOperatorBuilder* m = mcgraph()->machine();
+  DCHECK(mcgraph()->machine()->Is32());
 
-  Node* high_word_left = graph()->NewNode(m->Float64ExtractHighWord32(), left);
-  Node* high_word_right =
-      graph()->NewNode(m->Float64ExtractHighWord32(), right);
+  Node* high_word_left = gasm_->Float64ExtractHighWord32(left);
+  Node* high_word_right = gasm_->Float64ExtractHighWord32(right);
 
-  Node* new_high_word = Binop(wasm::kExprI32Ior,
-                              Binop(wasm::kExprI32And, high_word_left,
-                                    mcgraph()->Int32Constant(0x7FFFFFFF)),
-                              Binop(wasm::kExprI32And, high_word_right,
-                                    mcgraph()->Int32Constant(0x80000000)));
+  Node* new_high_word = gasm_->Word32Or(
+      gasm_->Word32And(high_word_left, gasm_->Int32Constant(0x7FFFFFFF)),
+      gasm_->Word32And(high_word_right, gasm_->Int32Constant(0x80000000)));
 
-  return graph()->NewNode(m->Float64InsertHighWord32(), left, new_high_word);
-#endif
+  return gasm_->Float64InsertHighWord32(left, new_high_word);
 }
 
 namespace {
@@ -7156,7 +7142,6 @@ AssemblerOptions WasmStubAssemblerOptions() {
   return options;
 }
 
-#undef WASM_64
 #undef FATAL_UNSUPPORTED_OPCODE
 #undef WASM_INSTANCE_OBJECT_SIZE
 #undef WASM_INSTANCE_OBJECT_OFFSET
