@@ -14,7 +14,6 @@ namespace v8 {
 namespace internal {
 
 class Heap;
-class Safepoint;
 
 class LocalHeap {
  public:
@@ -27,7 +26,7 @@ class LocalHeap {
 
   // Frequently invoked by local thread to check whether safepoint was requested
   // from the main thread.
-  V8_EXPORT_PRIVATE void Safepoint();
+  void Safepoint();
 
  private:
   enum class ThreadState {
@@ -40,41 +39,21 @@ class LocalHeap {
     Safepoint
   };
 
-  V8_EXPORT_PRIVATE void Park();
-  V8_EXPORT_PRIVATE void Unpark();
-  void EnsureParkedBeforeDestruction();
-
+  void Park();
+  void Unpark();
   bool IsSafepointRequested();
   void ClearSafepointRequested();
-
   void EnterSafepoint();
 
   Heap* heap_;
-
   base::Mutex state_mutex_;
-  base::ConditionVariable state_change_;
+  base::ConditionVariable state_condvar_;
   ThreadState state_;
-
   std::atomic<bool> safepoint_requested_;
-
   LocalHeap* prev_;
   LocalHeap* next_;
 
   friend class Heap;
-  friend class Safepoint;
-  friend class ParkedScope;
-};
-
-class ParkedScope {
- public:
-  explicit ParkedScope(LocalHeap* local_heap) : local_heap_(local_heap) {
-    local_heap_->Park();
-  }
-
-  ~ParkedScope() { local_heap_->Unpark(); }
-
- private:
-  LocalHeap* local_heap_;
 };
 
 }  // namespace internal

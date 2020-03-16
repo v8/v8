@@ -2402,8 +2402,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/read-only-heap.cc",
     "src/heap/read-only-heap.h",
     "src/heap/remembered-set.h",
-    "src/heap/safepoint.cc",
-    "src/heap/safepoint.h",
     "src/heap/scavenge-job.cc",
     "src/heap/scavenge-job.h",
     "src/heap/scavenger-inl.h",
