@@ -220,6 +220,9 @@
   'tzoffset-transition-new-york': [PASS, ['no_i18n == True', SKIP]],
   'tzoffset-seoul': [PASS, ['no_i18n == True', SKIP]],
 
+  # i18n is required for Intl
+  'regress/regress-crbug-1052647': [PASS, ['no_i18n == True', SKIP]],
+
   # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
   'unicodelctest': [PASS, NO_VARIANTS],
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
