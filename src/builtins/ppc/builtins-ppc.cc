@@ -2605,12 +2605,8 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
     // Save all parameter registers. They might hold live values, we restore
     // them after the runtime call.
-    constexpr RegList gp_regs =
-        Register::ListOf(r3, r4, r5, r6, r7, r8, r9, r10);
-    constexpr RegList fp_regs =
-        DoubleRegister::ListOf(d1, d2, d3, d4, d5, d6, d7, d8);
-    __ MultiPush(gp_regs);
-    __ MultiPushDoubles(fp_regs);
+    __ MultiPush(WasmDebugBreakFrameConstants::kPushedGpRegs);
+    __ MultiPushDoubles(WasmDebugBreakFrameConstants::kPushedFpRegs);
 
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
@@ -2618,8 +2614,8 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kWasmDebugBreak, 0);
 
     // Restore registers.
-    __ MultiPopDoubles(fp_regs);
-    __ MultiPop(gp_regs);
+    __ MultiPopDoubles(WasmDebugBreakFrameConstants::kPushedFpRegs);
+    __ MultiPop(WasmDebugBreakFrameConstants::kPushedGpRegs);
   }
   __ Ret();
 }
