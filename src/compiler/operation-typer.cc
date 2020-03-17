@@ -1246,9 +1246,7 @@ Type OperationTyper::StrictEqual(Type lhs, Type rhs) {
     DCHECK(lhs.Is(Type::NonInternal()) || lhs.Is(Type::Hole()));
     return singleton_true();
   }
-  if ((!lhs.Maybe(Type::NumericOrString()) ||
-       !rhs.Maybe(Type::NumericOrString())) &&
-      !lhs.Maybe(rhs)) {
+  if ((lhs.Is(Type::Unique()) || rhs.Is(Type::Unique())) && !lhs.Maybe(rhs)) {
     // One of the inputs has a canonical representation but types don't overlap.
     return singleton_false();
   }

@@ -191,7 +191,7 @@ namespace compiler {
   V(SymbolOrReceiver,             kSymbol | kReceiver) \
   V(StringOrReceiver,             kString | kReceiver) \
   V(Unique,                       kBoolean | kUniqueName | kNull | \
-                                  kUndefined | kReceiver) \
+                                  kUndefined | kHole | kReceiver) \
   V(Internal,                     kHole | kExternalPointer | kOtherInternal) \
   V(NonInternal,                  kPrimitive | kReceiver) \
   V(NonBigInt,                    kNonBigIntPrimitive | kReceiver) \
