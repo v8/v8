@@ -48,9 +48,9 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
     kNoThrow = 1 << 5,      // Can never generate an exception.
     kNoDeopt = 1 << 6,      // Can never generate an eager deoptimization exit.
     kFoldable = kNoRead | kNoWrite,
-    kKontrol = kNoDeopt | kFoldable | kNoThrow,
     kEliminatable = kNoDeopt | kNoWrite | kNoThrow,
-    kPure = kNoDeopt | kNoRead | kNoWrite | kNoThrow | kIdempotent
+    kKontrol = kNoDeopt | kFoldable | kNoThrow,
+    kPure = kKontrol | kIdempotent
   };
 
 // List of all bits, for the visualizer.
