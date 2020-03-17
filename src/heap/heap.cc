@@ -202,7 +202,6 @@ Heap::Heap()
     : isolate_(isolate()),
       memory_pressure_level_(MemoryPressureLevel::kNone),
       global_pretenuring_feedback_(kInitialFeedbackCapacity),
-      local_heaps_head_(nullptr),
       safepoint_(new Safepoint(this)),
       external_string_table_(this) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
@@ -3876,40 +3875,6 @@ void Heap::RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
 void Heap::AppendArrayBufferExtension(JSArrayBuffer object,
                                       ArrayBufferExtension* extension) {
   array_buffer_sweeper_->Append(object, extension);
-}
-
-void Heap::AddLocalHeap(LocalHeap* local_heap) {
-  base::MutexGuard guard(&local_heaps_mutex_);
-  if (local_heaps_head_) local_heaps_head_->prev_ = local_heap;
-  local_heap->prev_ = nullptr;
-  local_heap->next_ = local_heaps_head_;
-  local_heaps_head_ = local_heap;
-}
-
-void Heap::RemoveLocalHeap(LocalHeap* local_heap) {
-  base::MutexGuard guard(&local_heaps_mutex_);
-  if (local_heap->next_) local_heap->next_->prev_ = local_heap->prev_;
-  if (local_heap->prev_)
-    local_heap->prev_->next_ = local_heap->next_;
-  else
-    local_heaps_head_ = local_heap->next_;
-}
-
-bool Heap::ContainsLocalHeap(LocalHeap* local_heap) {
-  base::MutexGuard guard(&local_heaps_mutex_);
-  LocalHeap* current = local_heaps_head_;
-
-  while (current) {
-    if (current == local_heap) return true;
-    current = current->next_;
-  }
-
-  return false;
-}
-
-bool Heap::ContainsAnyLocalHeap() {
-  base::MutexGuard guard(&local_heaps_mutex_);
-  return local_heaps_head_ != nullptr;
 }
 
 void Heap::AutomaticallyRestoreInitialHeapLimit(double threshold_percent) {

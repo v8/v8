@@ -9,19 +9,19 @@
 namespace v8 {
 namespace internal {
 
-Safepoint::Safepoint(Heap* heap) : heap_(heap) {}
+Safepoint::Safepoint(Heap* heap) : heap_(heap), local_heaps_head_(nullptr) {}
 
 void Safepoint::StopThreads() {
-  heap_->local_heaps_mutex_.Lock();
+  local_heaps_mutex_.Lock();
 
   barrier_.Arm();
 
-  for (LocalHeap* current = heap_->local_heaps_head_; current;
+  for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
     current->RequestSafepoint();
   }
 
-  for (LocalHeap* current = heap_->local_heaps_head_; current;
+  for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
     current->state_mutex_.Lock();
 
@@ -32,14 +32,14 @@ void Safepoint::StopThreads() {
 }
 
 void Safepoint::ResumeThreads() {
-  for (LocalHeap* current = heap_->local_heaps_head_; current;
+  for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
     current->state_mutex_.Unlock();
   }
 
   barrier_.Disarm();
 
-  heap_->local_heaps_mutex_.Unlock();
+  local_heaps_mutex_.Unlock();
 }
 
 void Safepoint::EnterFromThread(LocalHeap* local_heap) {
@@ -82,6 +82,40 @@ SafepointScope::SafepointScope(Heap* heap) : safepoint_(heap->safepoint()) {
 }
 
 SafepointScope::~SafepointScope() { safepoint_->ResumeThreads(); }
+
+void Safepoint::AddLocalHeap(LocalHeap* local_heap) {
+  base::MutexGuard guard(&local_heaps_mutex_);
+  if (local_heaps_head_) local_heaps_head_->prev_ = local_heap;
+  local_heap->prev_ = nullptr;
+  local_heap->next_ = local_heaps_head_;
+  local_heaps_head_ = local_heap;
+}
+
+void Safepoint::RemoveLocalHeap(LocalHeap* local_heap) {
+  base::MutexGuard guard(&local_heaps_mutex_);
+  if (local_heap->next_) local_heap->next_->prev_ = local_heap->prev_;
+  if (local_heap->prev_)
+    local_heap->prev_->next_ = local_heap->next_;
+  else
+    local_heaps_head_ = local_heap->next_;
+}
+
+bool Safepoint::ContainsLocalHeap(LocalHeap* local_heap) {
+  base::MutexGuard guard(&local_heaps_mutex_);
+  LocalHeap* current = local_heaps_head_;
+
+  while (current) {
+    if (current == local_heap) return true;
+    current = current->next_;
+  }
+
+  return false;
+}
+
+bool Safepoint::ContainsAnyLocalHeap() {
+  base::MutexGuard guard(&local_heaps_mutex_);
+  return local_heaps_head_ != nullptr;
+}
 
 }  // namespace internal
 }  // namespace v8

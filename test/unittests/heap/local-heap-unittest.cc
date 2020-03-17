@@ -4,6 +4,7 @@
 
 #include "src/heap/local-heap.h"
 #include "src/heap/heap.h"
+#include "src/heap/safepoint.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -17,20 +18,20 @@ TEST_F(LocalHeapTest, Initialize) {
 
   {
     LocalHeap lh1(heap);
-    CHECK(heap->ContainsLocalHeap(&lh1));
+    CHECK(heap->safepoint()->ContainsLocalHeap(&lh1));
     LocalHeap lh2(heap);
-    CHECK(heap->ContainsLocalHeap(&lh2));
+    CHECK(heap->safepoint()->ContainsLocalHeap(&lh2));
 
     {
       LocalHeap lh3(heap);
-      CHECK(heap->ContainsLocalHeap(&lh3));
+      CHECK(heap->safepoint()->ContainsLocalHeap(&lh3));
     }
 
-    CHECK(heap->ContainsLocalHeap(&lh1));
-    CHECK(heap->ContainsLocalHeap(&lh2));
+    CHECK(heap->safepoint()->ContainsLocalHeap(&lh1));
+    CHECK(heap->safepoint()->ContainsLocalHeap(&lh2));
   }
 
-  CHECK(!heap->ContainsAnyLocalHeap());
+  CHECK(!heap->safepoint()->ContainsAnyLocalHeap());
 }
 
 }  // namespace internal

@@ -21,6 +21,9 @@ class Safepoint {
   // Enter the safepoint from a thread
   void EnterFromThread(LocalHeap* local_heap);
 
+  V8_EXPORT_PRIVATE bool ContainsLocalHeap(LocalHeap* local_heap);
+  V8_EXPORT_PRIVATE bool ContainsAnyLocalHeap();
+
  private:
   class Barrier {
     base::Mutex mutex_;
@@ -38,10 +41,17 @@ class Safepoint {
   void StopThreads();
   void ResumeThreads();
 
+  void AddLocalHeap(LocalHeap* local_heap);
+  void RemoveLocalHeap(LocalHeap* local_heap);
+
   Barrier barrier_;
   Heap* heap_;
 
+  base::Mutex local_heaps_mutex_;
+  LocalHeap* local_heaps_head_;
+
   friend class SafepointScope;
+  friend class LocalHeap;
 };
 
 class SafepointScope {

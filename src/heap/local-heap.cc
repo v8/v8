@@ -15,14 +15,14 @@ LocalHeap::LocalHeap(Heap* heap)
       safepoint_requested_(false),
       prev_(nullptr),
       next_(nullptr) {
-  heap_->AddLocalHeap(this);
+  heap_->safepoint()->AddLocalHeap(this);
 }
 
 LocalHeap::~LocalHeap() {
   // Park thread since removing the local heap could block.
   EnsureParkedBeforeDestruction();
 
-  heap_->RemoveLocalHeap(this);
+  heap_->safepoint()->RemoveLocalHeap(this);
 }
 
 void LocalHeap::Park() {
