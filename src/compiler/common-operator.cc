@@ -1310,6 +1310,13 @@ const Operator* CommonOperatorBuilder::TypeGuard(Type type) {
       type);                                  // parameter
 }
 
+const Operator* CommonOperatorBuilder::FoldConstant() {
+  return new (zone()) Operator(                  // --
+      IrOpcode::kFoldConstant, Operator::kPure,  // opcode
+      "FoldConstant",                            // name
+      2, 0, 0, 1, 0, 0);                         // counts
+}
+
 const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {
   DCHECK_LT(0, effect_input_count);  // Disallow empty effect phis.
   switch (effect_input_count) {

@@ -36,8 +36,25 @@ Node* TryGetConstant(JSGraph* jsgraph, Node* node) {
   }
   DCHECK_EQ(result != nullptr, type.IsSingleton());
   DCHECK_IMPLIES(result != nullptr,
-                 NodeProperties::GetType(result).Equals(type));
+                 type.Equals(NodeProperties::GetType(result)));
   return result;
+}
+
+bool IsAlreadyBeingFolded(Node* node) {
+  DCHECK(FLAG_assert_types);
+  if (node->opcode() == IrOpcode::kFoldConstant) return true;
+  bool found = false;
+  for (Edge edge : node->use_edges()) {
+    if (!NodeProperties::IsValueEdge(edge)) continue;
+    DCHECK(!found);
+    if (edge.from()->opcode() == IrOpcode::kFoldConstant) {
+      found = true;
+#ifndef ENABLE_SLOW_DCHECKS
+      break;
+#endif
+    }
+  }
+  return found;
 }
 }  // namespace
 
@@ -54,9 +71,23 @@ Reduction ConstantFoldingReducer::Reduce(Node* node) {
       node->opcode() != IrOpcode::kFinishRegion) {
     Node* constant = TryGetConstant(jsgraph(), node);
     if (constant != nullptr) {
-      DCHECK_EQ(node->op()->ControlOutputCount(), 0);
-      ReplaceWithValue(node, constant);
-      return Replace(constant);
+      DCHECK(NodeProperties::IsTyped(constant));
+      if (!FLAG_assert_types) {
+        DCHECK_EQ(node->op()->ControlOutputCount(), 0);
+        ReplaceWithValue(node, constant);
+        return Replace(constant);
+      } else if (!IsAlreadyBeingFolded(node)) {
+        // Delay the constant folding (by inserting a FoldConstant operation
+        // instead) in order to keep type assertions meaningful.
+        Node* fold_constant = jsgraph()->graph()->NewNode(
+            jsgraph()->common()->FoldConstant(), node, constant);
+        DCHECK(NodeProperties::IsTyped(fold_constant));
+        ReplaceWithValue(node, fold_constant, node, node);
+        fold_constant->ReplaceInput(0, node);
+        DCHECK(IsAlreadyBeingFolded(node));
+        DCHECK(IsAlreadyBeingFolded(fold_constant));
+        return Changed(node);
+      }
     }
   }
   return NoChange();

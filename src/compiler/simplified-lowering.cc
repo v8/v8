@@ -3615,6 +3615,7 @@ class RepresentationSelector {
         return VisitObjectState(node);
       case IrOpcode::kObjectId:
         return SetOutput(node, MachineRepresentation::kTaggedPointer);
+
       case IrOpcode::kTypeGuard: {
         // We just get rid of the sigma here, choosing the best representation
         // for the sigma's type.
@@ -3634,6 +3635,10 @@ class RepresentationSelector {
         SetOutput(node, representation);
         return;
       }
+
+      case IrOpcode::kFoldConstant:
+        VisitInputs(node);
+        return SetOutput(node, MachineRepresentation::kTaggedPointer);
 
       case IrOpcode::kFinishRegion:
         VisitInputs(node);

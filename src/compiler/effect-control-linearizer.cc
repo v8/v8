@@ -199,6 +199,7 @@ class EffectControlLinearizer {
   void LowerTransitionAndStoreNonNumberElement(Node* node);
   void LowerRuntimeAbort(Node* node);
   Node* LowerAssertType(Node* node);
+  Node* LowerFoldConstant(Node* node);
   Node* LowerConvertReceiver(Node* node);
   Node* LowerDateNow(Node* node);
 
@@ -235,6 +236,10 @@ class EffectControlLinearizer {
   Node* IsElementsKindGreaterThan(Node* kind, ElementsKind reference_kind);
 
   Node* BuildTypedArrayDataPointer(Node* base, Node* external);
+
+  template <typename... Args>
+  Node* CallBuiltin(Builtins::Name builtin, Operator::Properties properties,
+                    Args...);
 
   Node* ChangeInt32ToSmi(Node* value);
   // In pointer compression, we smi-corrupt. This means the upper bits of a Smi
@@ -1302,6 +1307,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kDateNow:
       result = LowerDateNow(node);
+      break;
+    case IrOpcode::kFoldConstant:
+      result = LowerFoldConstant(node);
       break;
     default:
       return false;
@@ -5449,28 +5457,39 @@ void EffectControlLinearizer::LowerRuntimeAbort(Node* node) {
           __ Int32Constant(1), __ NoContextConstant());
 }
 
+template <typename... Args>
+Node* EffectControlLinearizer::CallBuiltin(Builtins::Name builtin,
+                                           Operator::Properties properties,
+                                           Args... args) {
+  Callable const callable = Builtins::CallableFor(isolate(), builtin);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      properties);
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), args...,
+                 __ NoContextConstant());
+}
+
 Node* EffectControlLinearizer::LowerAssertType(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kAssertType);
   Type type = OpParameter<Type>(node->op());
   DCHECK(type.IsRange());
   auto range = type.AsRange();
-
   Node* const input = node->InputAt(0);
   Node* const min = __ NumberConstant(range->Min());
   Node* const max = __ NumberConstant(range->Max());
+  CallBuiltin(Builtins::kCheckNumberInRange, node->op()->properties(), input,
+              min, max);
+  return input;
+}
 
-  {
-    Callable const callable =
-        Builtins::CallableFor(isolate(), Builtins::kCheckNumberInRange);
-    Operator::Properties const properties = node->op()->properties();
-    CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        graph()->zone(), callable.descriptor(),
-        callable.descriptor().GetStackParameterCount(), flags, properties);
-    __ Call(call_descriptor, __ HeapConstant(callable.code()), input, min, max,
-            __ NoContextConstant());
-    return input;
-  }
+Node* EffectControlLinearizer::LowerFoldConstant(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kFoldConstant);
+  Node* original = node->InputAt(0);
+  Node* constant = node->InputAt(1);
+  CallBuiltin(Builtins::kCheckSameObject, node->op()->properties(), original,
+              constant);
+  return constant;
 }
 
 Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {

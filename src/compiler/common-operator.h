@@ -538,6 +538,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Projection(size_t index);
   const Operator* Retain();
   const Operator* TypeGuard(Type type);
+  const Operator* FoldConstant();
 
   // Constructs a new merge or phi operator with the same opcode as {op}, but
   // with {size} inputs.
