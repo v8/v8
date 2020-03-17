@@ -854,16 +854,14 @@ struct SimplifiedOperatorGlobalCache final {
   PURE_OP_LIST(PURE)
 #undef PURE
 
-#define EFFECT_DEPENDENT(Name, properties, value_input_count,              \
-                         control_input_count)                              \
-  struct Name##Operator final : public Operator {                          \
-    Name##Operator()                                                       \
-        : Operator(IrOpcode::k##Name,                                      \
-                   Operator::kNoDeopt | Operator::kNoWrite |               \
-                       Operator::kNoThrow | properties,                    \
-                   #Name, value_input_count, 1, control_input_count, 1, 1, \
-                   0) {}                                                   \
-  };                                                                       \
+#define EFFECT_DEPENDENT(Name, properties, value_input_count,               \
+                         control_input_count)                               \
+  struct Name##Operator final : public Operator {                           \
+    Name##Operator()                                                        \
+        : Operator(IrOpcode::k##Name, Operator::kEliminatable | properties, \
+                   #Name, value_input_count, 1, control_input_count, 1, 1,  \
+                   0) {}                                                    \
+  };                                                                        \
   Name##Operator k##Name;
   EFFECT_DEPENDENT_OP_LIST(EFFECT_DEPENDENT)
 #undef EFFECT_DEPENDENT
@@ -1129,10 +1127,9 @@ struct SimplifiedOperatorGlobalCache final {
     LoadStackArgumentOperator()
         : Operator(                          // --
               IrOpcode::kLoadStackArgument,  // opcode
-              Operator::kNoDeopt | Operator::kNoThrow |
-                  Operator::kNoWrite,  // flags
-              "LoadStackArgument",     // name
-              2, 1, 1, 1, 1, 0) {}     // counts
+              Operator::kEliminatable,       // flags
+              "LoadStackArgument",           // name
+              2, 1, 1, 1, 1, 0) {}           // counts
   };
   LoadStackArgumentOperator kLoadStackArgument;
 
@@ -1730,9 +1727,8 @@ bool operator==(FastApiCallParameters const& lhs,
 const Operator* SimplifiedOperatorBuilder::Allocate(Type type,
                                                     AllocationType allocation) {
   return new (zone()) Operator1<AllocateParameters>(
-      IrOpcode::kAllocate,
-      Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite, "Allocate",
-      1, 1, 1, 1, 1, 0, AllocateParameters(type, allocation));
+      IrOpcode::kAllocate, Operator::kEliminatable, "Allocate", 1, 1, 1, 1, 1,
+      0, AllocateParameters(type, allocation));
 }
 
 const Operator* SimplifiedOperatorBuilder::AllocateRaw(
@@ -1744,10 +1740,8 @@ const Operator* SimplifiedOperatorBuilder::AllocateRaw(
            allocation == AllocationType::kYoung &&
            !FLAG_young_generation_large_objects));
   return new (zone()) Operator1<AllocateParameters>(
-      IrOpcode::kAllocateRaw,
-      Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
-      "AllocateRaw", 1, 1, 1, 1, 1, 1,
-      AllocateParameters(type, allocation, allow_large_objects));
+      IrOpcode::kAllocateRaw, Operator::kEliminatable, "AllocateRaw", 1, 1, 1,
+      1, 1, 1, AllocateParameters(type, allocation, allow_large_objects));
 }
 
 #define SPECULATIVE_NUMBER_BINOP(Name)                                        \
@@ -1795,10 +1789,8 @@ ACCESS_OP_LIST(ACCESS)
 #undef ACCESS
 
 const Operator* SimplifiedOperatorBuilder::LoadMessage() {
-  return new (zone())
-      Operator(IrOpcode::kLoadMessage,
-               Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
-               "LoadMessage", 1, 1, 1, 1, 1, 0);
+  return new (zone()) Operator(IrOpcode::kLoadMessage, Operator::kEliminatable,
+                               "LoadMessage", 1, 1, 1, 1, 1, 0);
 }
 
 const Operator* SimplifiedOperatorBuilder::StoreMessage() {
