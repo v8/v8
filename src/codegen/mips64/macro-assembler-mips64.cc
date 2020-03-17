@@ -5794,7 +5794,9 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
   li(kSpeculationPoisonRegister, -1);
 }
 
-void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
+void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
+                                           Label* exit, DeoptimizeKind kind) {
+  USE(exit, kind);
   NoRootArrayScope no_root_array(this);
 
   // Save the deopt id in kRootRegister (we don't need the roots array from now

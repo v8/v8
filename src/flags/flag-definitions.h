@@ -134,6 +134,12 @@ struct MaybeBoolFlag {
 #define COMPRESS_POINTERS_BOOL false
 #endif
 
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+#define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL true
+#else
+#define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL false
+#endif
+
 // Supported ARM configurations are:
 //  "armv6":       ARMv6 + VFPv2
 //  "armv7":       ARMv7 + VFPv3-D32 + NEON

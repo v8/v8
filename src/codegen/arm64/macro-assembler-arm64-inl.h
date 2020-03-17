@@ -326,6 +326,56 @@ void TurboAssembler::Bind(Label* label, BranchTargetIdentifier id) {
   }
 }
 
+void TurboAssembler::CodeEntry() {
+  // Since `kJavaScriptCallCodeStartRegister` is the target register for tail
+  // calls, we have to allow for jumps too, with "BTI jc". We also allow the
+  // register allocator to pick the target register for calls made from
+  // WebAssembly.
+  // TODO(v8:10026): Consider changing this so that we can use CallTarget(),
+  // which maps to "BTI c", here instead.
+  JumpOrCallTarget();
+}
+
+void TurboAssembler::ExceptionHandler() { JumpTarget(); }
+
+void TurboAssembler::BindExceptionHandler(Label* label) {
+  BindJumpTarget(label);
+}
+
+void TurboAssembler::JumpTarget() {
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  bti(BranchTargetIdentifier::kBtiJump);
+#endif
+}
+
+void TurboAssembler::BindJumpTarget(Label* label) {
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  Bind(label, BranchTargetIdentifier::kBtiJump);
+#else
+  Bind(label);
+#endif
+}
+
+void TurboAssembler::CallTarget() {
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  bti(BranchTargetIdentifier::kBtiCall);
+#endif
+}
+
+void TurboAssembler::JumpOrCallTarget() {
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  bti(BranchTargetIdentifier::kBtiJumpCall);
+#endif
+}
+
+void TurboAssembler::BindJumpOrCallTarget(Label* label) {
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  Bind(label, BranchTargetIdentifier::kBtiJumpCall);
+#else
+  Bind(label);
+#endif
+}
+
 void TurboAssembler::Bl(Label* label) {
   DCHECK(allow_macro_instructions());
   bl(label);

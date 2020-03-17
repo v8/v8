@@ -109,6 +109,8 @@ const int kMmapFd = -1;
 
 const int kMmapFdOffset = 0;
 
+// TODO(v8:10026): Add the right permission flag to make executable pages
+// guarded.
 int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:

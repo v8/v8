@@ -300,7 +300,7 @@ void Simulator::SetRedirectInstruction(Instruction* instruction) {
 Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
                      Isolate* isolate, FILE* stream)
     : decoder_(decoder),
-      guard_pages_(false),
+      guard_pages_(ENABLE_CONTROL_FLOW_INTEGRITY_BOOL),
       last_debugger_input_(nullptr),
       log_parameters_(NO_PARAM),
       icount_for_stop_sim_at_(0),
@@ -318,7 +318,7 @@ Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
 
 Simulator::Simulator()
     : decoder_(nullptr),
-      guard_pages_(false),
+      guard_pages_(ENABLE_CONTROL_FLOW_INTEGRITY_BOOL),
       last_debugger_input_(nullptr),
       log_parameters_(NO_PARAM),
       isolate_(nullptr) {

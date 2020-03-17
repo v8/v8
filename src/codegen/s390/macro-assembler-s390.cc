@@ -4402,7 +4402,9 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   bind(&return_label);
 }
 
-void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
+void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
+                                           Label* exit, DeoptimizeKind kind) {
+  USE(exit, kind);
   NoRootArrayScope no_root_array(this);
 
   // Save the deopt id in r10 (we don't need the roots array from now on).

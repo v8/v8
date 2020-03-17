@@ -7,6 +7,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/interface-descriptors.h"
+#include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/compiler/code-assembler.h"
 #include "src/execution/isolate.h"
@@ -96,6 +97,7 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
                       ExternalAssemblerBuffer(buffer, kBufferSize));
   masm.set_builtin_index(builtin_index);
   DCHECK(!masm.has_frame());
+  masm.CodeEntry();
   generator(&masm);
 
   int handler_table_offset = 0;

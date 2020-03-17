@@ -186,6 +186,7 @@ static void InitializeVM() {
 #define RESET()                                                \
   owned_buf->MakeWritable();                                   \
   __ Reset();                                                  \
+  __ CodeEntry();                                              \
   /* Reset the machine state (like simulator.ResetState()). */ \
   __ Msr(NZCV, xzr);                                           \
   __ Msr(FPCR, xzr);
@@ -193,8 +194,8 @@ static void InitializeVM() {
 #define START_AFTER_RESET()                                                    \
   __ PushCalleeSavedRegisters();
 
-#define START()                                                                \
-  RESET();                                                                     \
+#define START() \
+  RESET();      \
   START_AFTER_RESET();
 
 #define RUN()                                      \
@@ -1649,27 +1650,27 @@ TEST(adr) {
   __ Adr(x3, &label_1);
   __ Adr(x4, &label_1);
 
-  __ Bind(&label_2);
+  __ Bind(&label_2, BranchTargetIdentifier::kBtiJump);
   __ Eor(x5, x2, Operand(x3));  // Ensure that x2,x3 and x4 are identical.
   __ Eor(x6, x2, Operand(x4));
   __ Orr(x0, x0, Operand(x5));
   __ Orr(x0, x0, Operand(x6));
   __ Br(x2);  // label_1, label_3
 
-  __ Bind(&label_3);
+  __ Bind(&label_3, BranchTargetIdentifier::kBtiJump);
   __ Adr(x2, &label_3);   // Self-reference (offset 0).
   __ Eor(x1, x1, Operand(x2));
   __ Adr(x2, &label_4);   // Simple forward reference.
   __ Br(x2);  // label_4
 
-  __ Bind(&label_1);
+  __ Bind(&label_1, BranchTargetIdentifier::kBtiJump);
   __ Adr(x2, &label_3);   // Multiple reverse references to the same label.
   __ Adr(x3, &label_3);
   __ Adr(x4, &label_3);
   __ Adr(x5, &label_2);   // Simple reverse reference.
   __ Br(x5);  // label_2
 
-  __ Bind(&label_4);
+  __ Bind(&label_4, BranchTargetIdentifier::kBtiJump);
   END();
 
   RUN();
@@ -1695,11 +1696,11 @@ TEST(adr_far) {
   __ Adr(x10, &near_forward, MacroAssembler::kAdrFar);
   __ Br(x10);
   __ B(&fail);
-  __ Bind(&near_backward);
+  __ Bind(&near_backward, BranchTargetIdentifier::kBtiJump);
   __ Orr(x0, x0, 1 << 1);
   __ B(&test_far);
 
-  __ Bind(&near_forward);
+  __ Bind(&near_forward, BranchTargetIdentifier::kBtiJump);
   __ Orr(x0, x0, 1 << 0);
   __ Adr(x10, &near_backward, MacroAssembler::kAdrFar);
   __ Br(x10);
@@ -1708,7 +1709,7 @@ TEST(adr_far) {
   __ Adr(x10, &far_forward, MacroAssembler::kAdrFar);
   __ Br(x10);
   __ B(&fail);
-  __ Bind(&far_backward);
+  __ Bind(&far_backward, BranchTargetIdentifier::kBtiJump);
   __ Orr(x0, x0, 1 << 3);
   __ B(&done);
 
@@ -1722,8 +1723,7 @@ TEST(adr_far) {
     }
   }
 
-
-  __ Bind(&far_forward);
+  __ Bind(&far_forward, BranchTargetIdentifier::kBtiJump);
   __ Orr(x0, x0, 1 << 2);
   __ Adr(x10, &far_backward, MacroAssembler::kAdrFar);
   __ Br(x10);
@@ -1832,7 +1832,7 @@ TEST(branch_to_reg) {
   SETUP();
 
   // Test br.
-  Label fn1, after_fn1;
+  Label fn1, after_fn1, after_bl1;
 
   START();
   __ Mov(x29, lr);
@@ -1847,9 +1847,10 @@ TEST(branch_to_reg) {
 
   __ Bind(&after_fn1);
   __ Bl(&fn1);
+  __ Bind(&after_bl1, BranchTargetIdentifier::kBtiJump);  // For Br(x0) in fn1.
 
   // Test blr.
-  Label fn2, after_fn2;
+  Label fn2, after_fn2, after_bl2;
 
   __ Mov(x2, 0);
   __ B(&after_fn2);
@@ -1861,6 +1862,7 @@ TEST(branch_to_reg) {
 
   __ Bind(&after_fn2);
   __ Bl(&fn2);
+  __ Bind(&after_bl2, BranchTargetIdentifier::kBtiCall);  // For Blr(x0) in fn2.
   __ Mov(x3, lr);
 
   __ Mov(lr, x29);
@@ -13978,7 +13980,7 @@ TEST(blr_lr) {
   __ Mov(x0, 0xDEADBEEF);
   __ B(&end);
 
-  __ Bind(&target);
+  __ Bind(&target, BranchTargetIdentifier::kBtiCall);
   __ Mov(x0, 0xC001C0DE);
 
   __ Bind(&end);
@@ -14820,7 +14822,7 @@ TEST(jump_tables_forward) {
   }
 
   for (int i = 0; i < kNumCases; ++i) {
-    __ Bind(&labels[i]);
+    __ Bind(&labels[i], BranchTargetIdentifier::kBtiJump);
     __ Mov(value, values[i]);
     __ B(&done);
   }
@@ -14868,7 +14870,7 @@ TEST(jump_tables_backward) {
   __ B(&loop);
 
   for (int i = 0; i < kNumCases; ++i) {
-    __ Bind(&labels[i]);
+    __ Bind(&labels[i], BranchTargetIdentifier::kBtiJump);
     __ Mov(value, values[i]);
     __ B(&done);
   }
@@ -14930,7 +14932,7 @@ TEST(internal_reference_linked) {
   __ dcptr(&done);
   __ Tbz(x0, 1, &done);
 
-  __ Bind(&done);
+  __ Bind(&done, BranchTargetIdentifier::kBtiJump);
   __ Mov(x0, 1);
 
   END();

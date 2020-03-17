@@ -538,6 +538,8 @@ class LiftoffCompiler {
     uint32_t num_params =
         static_cast<uint32_t>(decoder->sig_->parameter_count());
 
+    __ CodeEntry();
+
     __ EnterFrame(StackFrame::WASM_COMPILED);
     __ set_has_frame(true);
     pc_offset_stack_frame_construction_ = __ PrepareStackFrame();

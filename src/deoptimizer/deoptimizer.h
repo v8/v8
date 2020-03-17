@@ -513,11 +513,12 @@ class Deoptimizer : public Malloced {
   // Set to true when the architecture supports deoptimization exit sequences
   // of a fixed size, that can be sorted so that the deoptimization index is
   // deduced from the address of the deoptimization exit.
-  static const bool kSupportsFixedDeoptExitSize;
+  static const bool kSupportsFixedDeoptExitSizes;
 
   // Size of deoptimization exit sequence. This is only meaningful when
-  // kSupportsFixedDeoptExitSize is true.
-  static const int kDeoptExitSize;
+  // kSupportsFixedDeoptExitSizes is true.
+  static const int kNonLazyDeoptExitSize;
+  static const int kLazyDeoptExitSize;
 
  private:
   friend class FrameWriter;

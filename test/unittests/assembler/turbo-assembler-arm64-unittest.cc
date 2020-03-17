@@ -37,6 +37,8 @@ TEST_F(TurboAssemblerTest, TestHardAbort) {
   __ set_root_array_available(false);
   __ set_abort_hard(true);
 
+  __ CodeEntry();
+
   __ Abort(AbortReason::kNoReason);
 
   CodeDesc desc;
@@ -54,6 +56,8 @@ TEST_F(TurboAssemblerTest, TestCheck) {
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
+
+  __ CodeEntry();
 
   // Fail if the first parameter is 17.
   __ Mov(w1, Immediate(17));
@@ -115,6 +119,7 @@ TEST_P(TurboAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
     TurboAssembler tasm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
                         buffer->CreateView());
 
+    __ CodeEntry();
     __ Push(x0, padreg);
     __ Mov(test_case.object, x1);
 

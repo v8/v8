@@ -864,7 +864,8 @@ class DeoptimizationData : public FixedArray {
   static const int kSharedFunctionInfoIndex = 6;
   static const int kInliningPositionsIndex = 7;
   static const int kDeoptExitStartIndex = 8;
-  static const int kFirstDeoptEntryIndex = 9;
+  static const int kNonLazyDeoptCountIndex = 9;
+  static const int kFirstDeoptEntryIndex = 10;
 
   // Offsets of deopt entry elements relative to the start of the entry.
   static const int kBytecodeOffsetRawOffset = 0;
@@ -886,6 +887,7 @@ class DeoptimizationData : public FixedArray {
   DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
   DECL_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
   DECL_ELEMENT_ACCESSORS(DeoptExitStart, Smi)
+  DECL_ELEMENT_ACCESSORS(NonLazyDeoptCount, Smi)
 
 #undef DECL_ELEMENT_ACCESSORS
 

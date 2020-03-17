@@ -130,7 +130,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Trap() override;
   void DebugBreak() override;
 
-  void CallForDeoptimization(Address target, int deopt_id);
+  void CallForDeoptimization(Address target, int deopt_id, Label* exit,
+                             DeoptimizeKind kind);
 
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label,
@@ -536,6 +537,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // TODO(860429): Remove remaining poisoning infrastructure on ia32.
   void ResetSpeculationPoisonRegister() { UNREACHABLE(); }
+
+  // Control-flow integrity:
+
+  // Define a function entrypoint. This doesn't emit any code for this
+  // architecture, as control-flow integrity is not supported for it.
+  void CodeEntry() {}
+  // Define an exception handler.
+  void ExceptionHandler() {}
+  // Define an exception handler and bind a label.
+  void BindExceptionHandler(Label* label) { bind(label); }
 
   void CallRecordWriteStub(Register object, Register address,
                            RememberedSetAction remembered_set_action,

@@ -252,7 +252,7 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
   macro_assembler_->PushBacktrack(&fail);
   Trace new_trace;
   start->Emit(this, &new_trace);
-  macro_assembler_->Bind(&fail);
+  macro_assembler_->BindJumpTarget(&fail);
   macro_assembler_->Fail();
   while (!work_list.empty()) {
     RegExpNode* node = work_list.back();
@@ -554,7 +554,7 @@ void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
   }
 
   // On backtrack we need to restore state.
-  assembler->Bind(&undo);
+  assembler->BindJumpTarget(&undo);
   RestoreAffectedRegisters(assembler, max_register, registers_to_pop,
                            registers_to_clear);
   if (backtrack() == nullptr) {

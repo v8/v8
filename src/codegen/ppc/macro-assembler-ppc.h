@@ -420,7 +420,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void JumpCodeObject(Register code_object) override;
 
   void CallBuiltinByIndex(Register builtin_index) override;
-  void CallForDeoptimization(Address target, int deopt_id);
+  void CallForDeoptimization(Address target, int deopt_id, Label* exit,
+                             DeoptimizeKind kind);
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
@@ -638,6 +639,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreReturnAddressAndCall(Register target);
 
   void ResetSpeculationPoisonRegister();
+
+  // Control-flow integrity:
+
+  // Define a function entrypoint. This doesn't emit any code for this
+  // architecture, as control-flow integrity is not supported for it.
+  void CodeEntry() {}
+  // Define an exception handler.
+  void ExceptionHandler() {}
+  // Define an exception handler and bind a label.
+  void BindExceptionHandler(Label* label) { bind(label); }
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;

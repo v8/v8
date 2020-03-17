@@ -533,17 +533,37 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
       InternalFormalParameterCountWithReceiver(function.shared());
   input_ = new (size) FrameDescription(size, parameter_count);
 
-  if (kSupportsFixedDeoptExitSize) {
+  if (kSupportsFixedDeoptExitSizes) {
     DCHECK_EQ(bailout_id_, kMaxUInt32);
     // Calculate bailout id from return address.
-    DCHECK_GT(kDeoptExitSize, 0);
+    DCHECK_GT(kNonLazyDeoptExitSize, 0);
+    DCHECK_GT(kLazyDeoptExitSize, 0);
     DeoptimizationData deopt_data =
         DeoptimizationData::cast(compiled_code_.deoptimization_data());
     Address deopt_start = compiled_code_.raw_instruction_start() +
                           deopt_data.DeoptExitStart().value();
-    int offset = static_cast<int>(from_ - kDeoptExitSize - deopt_start);
-    DCHECK_EQ(0, offset % kDeoptExitSize);
-    bailout_id_ = offset / kDeoptExitSize;
+    int non_lazy_deopt_count = deopt_data.NonLazyDeoptCount().value();
+    Address lazy_deopt_start =
+        deopt_start + non_lazy_deopt_count * kNonLazyDeoptExitSize;
+    // The deoptimization exits are sorted so that lazy deopt exits appear last.
+    static_assert(DeoptimizeKind::kLazy > DeoptimizeKind::kEager,
+                  "lazy deopts are expected to be emitted last");
+    static_assert(DeoptimizeKind::kLazy > DeoptimizeKind::kSoft,
+                  "lazy deopts are expected to be emitted last");
+    // from_ is the value of the link register after the call to the
+    // deoptimizer, so for the last lazy deopt, from_ points to the first
+    // non-lazy deopt, so we use <=.
+    if (from_ <= lazy_deopt_start) {
+      int offset =
+          static_cast<int>(from_ - kNonLazyDeoptExitSize - deopt_start);
+      DCHECK_EQ(0, offset % kNonLazyDeoptExitSize);
+      bailout_id_ = offset / kNonLazyDeoptExitSize;
+    } else {
+      int offset =
+          static_cast<int>(from_ - kLazyDeoptExitSize - lazy_deopt_start);
+      DCHECK_EQ(0, offset % kLazyDeoptExitSize);
+      bailout_id_ = non_lazy_deopt_count + (offset / kLazyDeoptExitSize);
+    }
   }
 }
 

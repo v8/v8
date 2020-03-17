@@ -13,8 +13,9 @@
 namespace v8 {
 namespace internal {
 
-const bool Deoptimizer::kSupportsFixedDeoptExitSize = false;
-const int Deoptimizer::kDeoptExitSize = 0;
+const bool Deoptimizer::kSupportsFixedDeoptExitSizes = false;
+const int Deoptimizer::kNonLazyDeoptExitSize = 0;
+const int Deoptimizer::kLazyDeoptExitSize = 0;
 
 #define __ masm->
 

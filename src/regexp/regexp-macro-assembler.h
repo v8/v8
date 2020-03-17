@@ -122,6 +122,11 @@ class RegExpMacroAssembler {
   // not have custom support.
   // May clobber the current loaded character.
   virtual bool CheckSpecialCharacterClass(uc16 type, Label* on_no_match);
+
+  // Control-flow integrity:
+  // Define a jump target and bind a label.
+  virtual void BindJumpTarget(Label* label) { Bind(label); }
+
   virtual void Fail() = 0;
   virtual Handle<HeapObject> GetCode(Handle<String> source) = 0;
   virtual void GoTo(Label* label) = 0;

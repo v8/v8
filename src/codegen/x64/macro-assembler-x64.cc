@@ -2768,7 +2768,9 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
   Set(kSpeculationPoisonRegister, -1);
 }
 
-void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
+void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
+                                           Label* exit, DeoptimizeKind kind) {
+  USE(exit, kind);
   NoRootArrayScope no_root_array(this);
   // Save the deopt id in r13 (we don't need the roots array from now on).
   movq(r13, Immediate(deopt_id));

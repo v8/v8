@@ -2702,15 +2702,21 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ Cmp(input, case_count);
   __ B(hs, GetLabel(i.InputRpo(1)));
   __ Adr(temp, &table);
-  __ Add(temp, temp, Operand(input, UXTW, 2));
+  int entry_size_log2 = 2;
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  ++entry_size_log2;  // Account for BTI.
+#endif
+  __ Add(temp, temp, Operand(input, UXTW, entry_size_log2));
   __ Br(temp);
   {
     TurboAssembler::BlockPoolsScope block_pools(tasm(),
                                                 case_count * kInstrSize);
     __ Bind(&table);
     for (size_t index = 0; index < case_count; ++index) {
+      __ JumpTarget();
       __ B(GetLabel(i.InputRpo(index + 2)));
     }
+    __ JumpTarget();
   }
 }
 
@@ -2970,7 +2976,11 @@ void CodeGenerator::FinishCode() { __ ForceConstantPoolEmissionWithoutJump(); }
 
 void CodeGenerator::PrepareForDeoptimizationExits(int deopt_count) {
   __ ForceConstantPoolEmissionWithoutJump();
-  __ CheckVeneerPool(false, false, deopt_count * Deoptimizer::kDeoptExitSize);
+  // We are conservative here, assuming all deopts are lazy deopts.
+  DCHECK_GE(Deoptimizer::kLazyDeoptExitSize,
+            Deoptimizer::kNonLazyDeoptExitSize);
+  __ CheckVeneerPool(false, false,
+                     deopt_count * Deoptimizer::kLazyDeoptExitSize);
 }
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,

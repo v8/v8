@@ -316,7 +316,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // This should only be used when assembling a deoptimizer call because of
   // the CheckConstPool invocation, which is only needed for deoptimization.
-  void CallForDeoptimization(Address target, int deopt_id);
+  void CallForDeoptimization(Address target, int deopt_id, Label* exit,
+                             DeoptimizeKind kind);
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
@@ -531,6 +532,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void ComputeCodeStartAddress(Register dst);
 
   void ResetSpeculationPoisonRegister();
+
+  // Control-flow integrity:
+
+  // Define a function entrypoint. This doesn't emit any code for this
+  // architecture, as control-flow integrity is not supported for it.
+  void CodeEntry() {}
+  // Define an exception handler.
+  void ExceptionHandler() {}
+  // Define an exception handler and bind a label.
+  void BindExceptionHandler(Label* label) { bind(label); }
 
  private:
   // Compare single values and then load the fpscr flags to a register.

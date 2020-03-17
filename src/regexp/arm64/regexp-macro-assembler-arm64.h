@@ -65,6 +65,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   virtual void CheckPosition(int cp_offset, Label* on_outside_input);
   virtual bool CheckSpecialCharacterClass(uc16 type,
                                           Label* on_no_match);
+  virtual void BindJumpTarget(Label* label = nullptr);
   virtual void Fail();
   virtual Handle<HeapObject> GetCode(Handle<String> source);
   virtual void GoTo(Label* label);
