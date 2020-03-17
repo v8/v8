@@ -106,7 +106,7 @@ void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
   } else {
     InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
     selector->Emit(opcode, g.DefineAsRegister(node),
-                   g.UseRegister(node->InputAt(0)),
+                   g.UseUniqueRegister(node->InputAt(0)),
                    g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
   }
 }
