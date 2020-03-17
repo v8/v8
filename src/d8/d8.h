@@ -298,6 +298,7 @@ class ShellOptions {
   bool include_arguments = true;
   bool cpu_profiler = false;
   bool cpu_profiler_print = false;
+  bool fuzzy_module_file_extensions = true;
 };
 
 class Shell : public i::AllStatic {

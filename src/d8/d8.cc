@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
+#include <iterator>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -705,18 +707,29 @@ std::string DirName(const std::string& path) {
 // and replacing backslashes with slashes).
 std::string NormalizePath(const std::string& path,
                           const std::string& dir_name) {
-  std::string result;
+  std::string absolute_path;
   if (IsAbsolutePath(path)) {
-    result = path;
+    absolute_path = path;
   } else {
-    result = dir_name + '/' + path;
+    absolute_path = dir_name + '/' + path;
   }
-  std::replace(result.begin(), result.end(), '\\', '/');
-  size_t i;
-  while ((i = result.find("/./")) != std::string::npos) {
-    result.erase(i, 2);
+  std::replace(absolute_path.begin(), absolute_path.end(), '\\', '/');
+  std::vector<std::string> segments;
+  std::istringstream segment_stream(absolute_path);
+  std::string segment;
+  while (std::getline(segment_stream, segment, '/')) {
+    if (segment == "..") {
+      segments.pop_back();
+    } else if (segment != ".") {
+      segments.push_back(segment);
+    }
   }
-  return result;
+  // Join path segments.
+  std::ostringstream os;
+  std::copy(segments.begin(), segments.end() - 1,
+            std::ostream_iterator<std::string>(os, "/"));
+  os << *segments.rbegin();
+  return os.str();
 }
 
 // Per-context Module data, allowing sharing of module maps
@@ -784,6 +797,14 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
   DCHECK(IsAbsolutePath(file_name));
   Isolate* isolate = context->GetIsolate();
   Local<String> source_text = ReadFile(isolate, file_name.c_str());
+  if (source_text.IsEmpty() && options.fuzzy_module_file_extensions) {
+    std::string fallback_file_name = file_name + ".js";
+    source_text = ReadFile(isolate, fallback_file_name.c_str());
+    if (source_text.IsEmpty()) {
+      fallback_file_name = file_name + ".mjs";
+      source_text = ReadFile(isolate, fallback_file_name.c_str());
+    }
+  }
   if (source_text.IsEmpty()) {
     std::string msg = "Error reading: " + file_name;
     Throw(isolate, msg.c_str());
@@ -813,10 +834,9 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
     Local<String> name = module->GetModuleRequest(i);
     std::string absolute_path =
         NormalizePath(ToSTLString(isolate, name), dir_name);
-    if (!d->specifier_to_module_map.count(absolute_path)) {
-      if (FetchModuleTree(context, absolute_path).IsEmpty()) {
-        return MaybeLocal<Module>();
-      }
+    if (d->specifier_to_module_map.count(absolute_path)) continue;
+    if (FetchModuleTree(context, absolute_path).IsEmpty()) {
+      return MaybeLocal<Module>();
     }
   }
 
@@ -3015,6 +3035,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--cpu-profiler-print") == 0) {
       options.cpu_profiler = true;
       options.cpu_profiler_print = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--fuzzy-module-file-extensions") == 0) {
+      options.fuzzy_module_file_extensions = true;
       argv[i] = nullptr;
     }
   }
