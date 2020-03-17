@@ -1012,6 +1012,7 @@ void Debug::PrepareStep(StepAction step_action) {
     wasm::WasmCode* code = wasm_frame->wasm_code();
     if (code->is_liftoff()) {
       wasm_frame->native_module()->GetDebugInfo()->PrepareStep(isolate_);
+      return;
     }
   }
   // If this is wasm, but there are no interpreted frames on top, all we can do

@@ -665,6 +665,9 @@ class DebugInfoImpl {
       breakpoints.insert(insertion_point, offset);
     }
 
+    // No need to recompile if the function is already flooded.
+    if (func_index == flooded_function_index_) return;
+
     RecompileLiftoffWithBreakpoints(func_index, VectorOf(breakpoints),
                                     current_isolate);
   }
@@ -683,19 +686,19 @@ class DebugInfoImpl {
     DCHECK(!it.done());
     DCHECK(it.frame()->is_wasm_compiled());
     WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
-    if (frame->id() != stepping_frame_) {
+    if (static_cast<int>(frame->function_index()) != flooded_function_index_) {
       FloodWithBreakpoints(frame->native_module(), frame->function_index(),
                            isolate);
-      stepping_frame_ = frame->id();
+      flooded_function_index_ = frame->function_index();
     }
-    stepping_ = true;
+    stepping_frame_ = frame->id();
   }
 
-  void ClearStepping() { stepping_ = false; }
+  void ClearStepping() { stepping_frame_ = NO_ID; }
 
   bool IsStepping(WasmCompiledFrame* frame) {
-    DCHECK_IMPLIES(stepping_, stepping_frame_ != NO_ID);
-    return stepping_;
+    DCHECK_IMPLIES(stepping_frame_ != NO_ID, flooded_function_index_ != -1);
+    return stepping_frame_ == frame->id();
   }
 
   void RemoveDebugSideTables(Vector<WasmCode* const> codes) {
@@ -812,7 +815,7 @@ class DebugInfoImpl {
   // Store the frame ID when stepping, to avoid breaking in recursive calls of
   // the same function.
   StackFrameId stepping_frame_ = NO_ID;
-  bool stepping_ = false;
+  int flooded_function_index_ = -1;
 
   DISALLOW_COPY_AND_ASSIGN(DebugInfoImpl);
 };
