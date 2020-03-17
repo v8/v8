@@ -615,4 +615,17 @@
   'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
 }],  # variant == turboprop
 
+##############################################################################
+['arch == s390x and simulator_run', {
+  # LoadTransform must also follow BE behaviour on sim (see http://crrev.com/c/2050811).
+  # Skip tests until V8_TARGET_BIG_ENDIAN also applies to the simulator.
+  'test-run-wasm-simd/RunWasm_I64x2Load*': [SKIP],
+  'test-run-wasm-simd/RunWasm_I32x4Load*': [SKIP],
+  'test-run-wasm-simd/RunWasm_I16x8Load*': [SKIP],
+  'test-run-wasm-simd/RunWasm_S64x2Load*': [SKIP],
+  'test-run-wasm-simd/RunWasm_S32x4Load*': [SKIP],
+  'test-run-wasm-simd/RunWasm_S16x8Load*': [SKIP],
+  'test-run-wasm-simd/RunWasm_S8x16Load*': [SKIP],
+}],  # 'arch == s390x and simulator_run'
+
 ]

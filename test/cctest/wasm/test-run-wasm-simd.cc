@@ -306,7 +306,7 @@ int64_t Less(double a, double b) { return a < b ? -1 : 0; }
 
 int64_t LessEqual(double a, double b) { return a <= b ? -1 : 0; }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 // Only used for qfma and qfms tests below.
 
 // FMOperation holds the params (a, b, c) for a Multiply-Add or
@@ -391,7 +391,7 @@ bool ExpectFused(ExecutionTier tier) {
   return (tier == ExecutionTier::kTurbofan || tier == ExecutionTier::kLiftoff);
 #endif
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 
 }  // namespace
 
@@ -880,7 +880,7 @@ WASM_SIMD_TEST(F32x4Le) {
   RunF32x4CompareOpTest(execution_tier, lower_simd, kExprF32x4Le, LessEqual);
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_TEST_NO_LOWERING(F32x4Qfma) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   WasmRunner<int32_t, float, float, float> r(execution_tier, lower_simd);
@@ -930,7 +930,7 @@ WASM_SIMD_TEST_NO_LOWERING(F32x4Qfms) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 
 WASM_SIMD_TEST_NO_LOWERING(I64x2Splat) {
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
@@ -1092,7 +1092,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2Sub) {
                     base::SubWithWraparound);
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_TEST_NO_LOWERING(I64x2Eq) {
   RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2Eq, Equal);
 }
@@ -1134,7 +1134,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2GeU) {
   RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2GeU,
                     UnsignedGreaterEqual);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2Splat) {
   WasmRunner<int32_t, double> r(execution_tier, lower_simd);
@@ -1203,7 +1203,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2ReplaceLane) {
   CHECK_EQ(1., ReadLittleEndianValue<double>(&g1[1]));
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_TEST_NO_LOWERING(F64x2ExtractLaneWithI64x2) {
   WasmRunner<int64_t> r(execution_tier, lower_simd);
   BUILD(r, WASM_IF_ELSE_L(
@@ -1223,7 +1223,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2ExtractWithF64x2) {
                WASM_I64V(1), WASM_I64V(0)));
   CHECK_EQ(1, r.Call());
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 
 bool IsExtreme(double x) {
   double abs_x = std::fabs(x);
@@ -1486,7 +1486,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2Mul) {
                     base::MulWithWraparound);
 }
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_TEST_NO_LOWERING(I64x2MinS) {
   RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2MinS, Minimum);
 }
@@ -1504,9 +1504,9 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2MaxU) {
   RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2MaxU,
                     UnsignedMaximum);
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_TEST_NO_LOWERING(F64x2Qfma) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   WasmRunner<int32_t, double, double, double> r(execution_tier, lower_simd);
@@ -1556,7 +1556,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Qfms) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 
 WASM_SIMD_TEST(I32x4Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
@@ -3044,9 +3044,9 @@ WASM_SIMD_COMPILED_TEST(S8x16MultiShuffleFuzz) {
     CHECK_EQ(1, r.Call());                                                     \
   }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_BOOL_REDUCTION_TEST(64x2, 2, WASM_I64V)
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_BOOL_REDUCTION_TEST(32x4, 4, WASM_I32V)
 WASM_SIMD_BOOL_REDUCTION_TEST(16x8, 8, WASM_I32V)
 WASM_SIMD_BOOL_REDUCTION_TEST(8x16, 16, WASM_I32V)
@@ -3433,7 +3433,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2Load32x2S) {
 }
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X
 #define WASM_SIMD_ANYTRUE_TEST(format, lanes, max, param_type)                \
   WASM_SIMD_TEST(S##format##AnyTrue) {                                        \
     FLAG_SCOPE(wasm_simd_post_mvp); \
@@ -3448,9 +3448,9 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2Load32x2S) {
     DCHECK_EQ(1, r.Call(5));                                                  \
     DCHECK_EQ(0, r.Call(0));                                                  \
   }
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_ANYTRUE_TEST(64x2, 2, 0xffffffffffffffff, int64_t)
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_ANYTRUE_TEST(32x4, 4, 0xffffffff, int32_t)
 WASM_SIMD_ANYTRUE_TEST(16x8, 8, 0xffff, int32_t)
 WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff, int32_t)
@@ -3469,14 +3469,14 @@ WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff, int32_t)
     DCHECK_EQ(1, r.Call(0x1));                                                \
     DCHECK_EQ(0, r.Call(0));                                                  \
   }
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_ALLTRUE_TEST(64x2, 2, 0xffffffffffffffff, int64_t)
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_ALLTRUE_TEST(32x4, 4, 0xffffffff, int32_t)
 WASM_SIMD_ALLTRUE_TEST(16x8, 8, 0xffff, int32_t)
 WASM_SIMD_ALLTRUE_TEST(8x16, 16, 0xff, int32_t)
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||
-        // V8_TARGET_ARCH_ARM
+        // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X
 
 WASM_SIMD_TEST(BitSelect) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
