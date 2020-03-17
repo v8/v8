@@ -113,6 +113,15 @@ base::Optional<const ClassType*> Type::ClassSupertype() const {
   return base::nullopt;
 }
 
+base::Optional<const StructType*> Type::StructSupertype() const {
+  for (const Type* t = this; t != nullptr; t = t->parent()) {
+    if (auto* struct_type = StructType::DynamicCast(t)) {
+      return struct_type;
+    }
+  }
+  return base::nullopt;
+}
+
 // static
 const Type* Type::CommonSupertype(const Type* a, const Type* b) {
   int diff = a->Depth() - b->Depth();
@@ -161,6 +170,7 @@ std::string Type::GetGeneratedTNodeTypeName() const {
 }
 
 std::string AbstractType::GetGeneratedTNodeTypeNameImpl() const {
+  if (generated_type_.empty()) return parent()->GetGeneratedTNodeTypeName();
   return generated_type_;
 }
 
@@ -391,9 +401,8 @@ StructType::Classification StructType::ClassifyContents() const {
     const Type* field_type = struct_field.name_and_type.type;
     if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
       result |= ClassificationFlag::kTagged;
-    } else if (const StructType* field_as_struct =
-                   StructType::DynamicCast(field_type)) {
-      result |= field_as_struct->ClassifyContents();
+    } else if (auto field_as_struct = field_type->StructSupertype()) {
+      result |= (*field_as_struct)->ClassifyContents();
     } else {
       result |= ClassificationFlag::kUntagged;
     }
@@ -405,6 +414,12 @@ StructType::Classification StructType::ClassifyContents() const {
 std::string Type::ComputeName(const std::string& basename,
                               MaybeSpecializationKey specialized_from) {
   if (!specialized_from) return basename;
+  if (specialized_from->generic == TypeOracle::GetConstReferenceGeneric()) {
+    return torque::ToString("const &", *specialized_from->specialized_types[0]);
+  }
+  if (specialized_from->generic == TypeOracle::GetMutableReferenceGeneric()) {
+    return torque::ToString("&", *specialized_from->specialized_types[0]);
+  }
   std::stringstream s;
   s << basename << "<";
   bool first = true;
@@ -572,33 +587,35 @@ void ClassType::GenerateAccessors() {
                                load_signature, load_body, base::nullopt);
 
     // Store accessor
-    IdentifierExpression* value = MakeNode<IdentifierExpression>(
-        std::vector<std::string>{}, MakeNode<Identifier>(std::string{"v"}));
-    std::string store_macro_name = "Store" + this->name() + camel_field_name;
-    Signature store_signature;
-    store_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
-    store_signature.parameter_types.types.push_back(this);
-    if (field.index) {
-      store_signature.parameter_names.push_back(MakeNode<Identifier>("i"));
-      store_signature.parameter_types.types.push_back(
-          TypeOracle::GetIntPtrType());
+    if (!field.const_qualified) {
+      IdentifierExpression* value = MakeNode<IdentifierExpression>(
+          std::vector<std::string>{}, MakeNode<Identifier>(std::string{"v"}));
+      std::string store_macro_name = "Store" + this->name() + camel_field_name;
+      Signature store_signature;
+      store_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
+      store_signature.parameter_types.types.push_back(this);
+      if (field.index) {
+        store_signature.parameter_names.push_back(MakeNode<Identifier>("i"));
+        store_signature.parameter_types.types.push_back(
+            TypeOracle::GetIntPtrType());
+      }
+      store_signature.parameter_names.push_back(MakeNode<Identifier>("v"));
+      store_signature.parameter_types.types.push_back(field.name_and_type.type);
+      store_signature.parameter_types.var_args = false;
+      // TODO(danno): Store macros probably should return their value argument
+      store_signature.return_type = TypeOracle::GetVoidType();
+      Expression* store_expression = MakeNode<FieldAccessExpression>(
+          parameter, MakeNode<Identifier>(field.name_and_type.name));
+      if (field.index) {
+        store_expression =
+            MakeNode<ElementAccessExpression>(store_expression, index);
+      }
+      Statement* store_body = MakeNode<ExpressionStatement>(
+          MakeNode<AssignmentExpression>(store_expression, value));
+      Declarations::DeclareMacro(store_macro_name, true, base::nullopt,
+                                 store_signature, store_body, base::nullopt,
+                                 false);
     }
-    store_signature.parameter_names.push_back(MakeNode<Identifier>("v"));
-    store_signature.parameter_types.types.push_back(field.name_and_type.type);
-    store_signature.parameter_types.var_args = false;
-    // TODO(danno): Store macros probably should return their value argument
-    store_signature.return_type = TypeOracle::GetVoidType();
-    Expression* store_expression = MakeNode<FieldAccessExpression>(
-        parameter, MakeNode<Identifier>(field.name_and_type.name));
-    if (field.index) {
-      store_expression =
-          MakeNode<ElementAccessExpression>(store_expression, index);
-    }
-    Statement* store_body = MakeNode<ExpressionStatement>(
-        MakeNode<AssignmentExpression>(store_expression, value));
-    Declarations::DeclareMacro(store_macro_name, true, base::nullopt,
-                               store_signature, store_body, base::nullopt,
-                               false);
   }
 }
 
@@ -715,7 +732,7 @@ VisitResult ProjectStructField(VisitResult structure,
   BottomOffset begin = structure.stack_range().begin();
 
   // Check constructor this super classes for fields.
-  const StructType* type = StructType::cast(structure.type());
+  const StructType* type = *structure.type()->StructSupertype();
   auto& fields = type->fields();
   for (auto& field : fields) {
     BottomOffset end = begin + LoweredSlotCount(field.name_and_type.type);
@@ -734,8 +751,8 @@ void AppendLoweredTypes(const Type* type, std::vector<const Type*>* result) {
   DCHECK_NE(type, TypeOracle::GetNeverType());
   if (type->IsConstexpr()) return;
   if (type == TypeOracle::GetVoidType()) return;
-  if (auto* s = StructType::DynamicCast(type)) {
-    for (const Field& field : s->fields()) {
+  if (base::Optional<const StructType*> s = type->StructSupertype()) {
+    for (const Field& field : (*s)->fields()) {
       AppendLoweredTypes(field.name_and_type.type, result);
     }
   } else {
@@ -838,9 +855,9 @@ size_t StructType::AlignmentLog2() const {
 
 void Field::ValidateAlignment(ResidueClass at_offset) const {
   const Type* type = name_and_type.type;
-  const StructType* struct_type = StructType::DynamicCast(type);
+  base::Optional<const StructType*> struct_type = type->StructSupertype();
   if (struct_type && struct_type != TypeOracle::GetFloat64OrHoleType()) {
-    for (const Field& field : struct_type->fields()) {
+    for (const Field& field : (*struct_type)->fields()) {
       field.ValidateAlignment(at_offset);
       size_t field_size = std::get<0>(field.GetFieldSizeInformation());
       at_offset += field_size;
@@ -894,12 +911,12 @@ base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type) {
   } else if (type->IsSubtypeOf(TypeOracle::GetUIntPtrType())) {
     size = TargetArchitecture::RawPtrSize();
     size_string = "kIntptrSize";
-  } else if (const StructType* struct_type = StructType::DynamicCast(type)) {
+  } else if (auto struct_type = type->StructSupertype()) {
     if (type == TypeOracle::GetFloat64OrHoleType()) {
       size = kDoubleSize;
       size_string = "kDoubleSize";
     } else {
-      size = struct_type->PackedSize();
+      size = (*struct_type)->PackedSize();
       size_string = std::to_string(size);
     }
   } else {

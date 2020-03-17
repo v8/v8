@@ -44,8 +44,8 @@ class ValueTypeFieldIterator {
     int shift_bits;
   };
   const Result operator*() const {
-    if (const StructType* struct_type = StructType::DynamicCast(type_)) {
-      const auto& field = struct_type->fields()[index_];
+    if (auto struct_type = type_->StructSupertype()) {
+      const auto& field = (*struct_type)->fields()[index_];
       return {field.name_and_type, field.pos, *field.offset, 0, 0};
     }
     const Type* type = type_;
@@ -87,9 +87,9 @@ class ValueTypeFieldsRange {
   ValueTypeFieldIterator begin() { return {type_, 0}; }
   ValueTypeFieldIterator end() {
     size_t index = 0;
-    const StructType* struct_type = StructType::DynamicCast(type_);
-    if (struct_type && struct_type != TypeOracle::GetFloat64OrHoleType()) {
-      index = struct_type->fields().size();
+    base::Optional<const StructType*> struct_type = type_->StructSupertype();
+    if (struct_type && *struct_type != TypeOracle::GetFloat64OrHoleType()) {
+      index = (*struct_type)->fields().size();
     }
     const Type* type = type_;
     if (const auto type_wrapped_in_smi =
@@ -142,7 +142,7 @@ class DebugFieldType {
   // object types that are not included in the compilation of the debug helper
   // library.
   std::string GetOriginalType(TypeStorage storage) const {
-    if (name_and_type_.type->IsStructType()) {
+    if (name_and_type_.type->StructSupertype()) {
       // There's no meaningful type we could use here, because the V8 symbols
       // don't have any definition of a C++ struct matching this struct type.
       return "";
@@ -259,7 +259,7 @@ void GenerateFieldValueAccessor(const Field& field,
                                 std::ostream& h_contents,
                                 std::ostream& cc_contents) {
   // Currently not implemented for struct fields.
-  if (field.name_and_type.type->IsStructType()) return;
+  if (field.name_and_type.type->StructSupertype()) return;
 
   DebugFieldType debug_field_type(field);
 
@@ -274,25 +274,23 @@ void GenerateFieldValueAccessor(const Field& field,
     index_offset = " + offset * sizeof(value)";
   }
 
-  if (!field.name_and_type.type->IsStructType()) {
-    std::string field_value_type = debug_field_type.GetValueType(kUncompressed);
-    h_contents << "  Value<" << field_value_type << "> " << field_getter
-               << "(d::MemoryAccessor accessor " << index_param << ") const;\n";
-    cc_contents << "\nValue<" << field_value_type << "> Tq" << class_name
-                << "::" << field_getter << "(d::MemoryAccessor accessor"
-                << index_param << ") const {\n";
-    cc_contents << "  " << debug_field_type.GetValueType(kAsStoredInHeap)
-                << " value{};\n";
-    cc_contents << "  d::MemoryAccessResult validity = accessor("
-                << address_getter << "()" << index_offset
-                << ", reinterpret_cast<uint8_t*>(&value), sizeof(value));\n";
-    cc_contents << "  return {validity, "
-                << (debug_field_type.IsTagged()
-                        ? "EnsureDecompressed(value, address_)"
-                        : "value")
-                << "};\n";
-    cc_contents << "}\n";
-  }
+  std::string field_value_type = debug_field_type.GetValueType(kUncompressed);
+  h_contents << "  Value<" << field_value_type << "> " << field_getter
+             << "(d::MemoryAccessor accessor " << index_param << ") const;\n";
+  cc_contents << "\nValue<" << field_value_type << "> Tq" << class_name
+              << "::" << field_getter << "(d::MemoryAccessor accessor"
+              << index_param << ") const {\n";
+  cc_contents << "  " << debug_field_type.GetValueType(kAsStoredInHeap)
+              << " value{};\n";
+  cc_contents << "  d::MemoryAccessResult validity = accessor("
+              << address_getter << "()" << index_offset
+              << ", reinterpret_cast<uint8_t*>(&value), sizeof(value));\n";
+  cc_contents << "  return {validity, "
+              << (debug_field_type.IsTagged()
+                      ? "EnsureDecompressed(value, address_)"
+                      : "value")
+              << "};\n";
+  cc_contents << "}\n";
 }
 
 // Emits a portion of the member function GetProperties that is responsible for

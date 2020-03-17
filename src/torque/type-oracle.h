@@ -81,10 +81,21 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   static const Type* GetGenericTypeInstance(GenericType* generic_type,
                                             TypeVector arg_types);
 
-  static GenericType* GetReferenceGeneric() {
-    return Declarations::LookupUniqueGenericType(QualifiedName(
-        {TORQUE_INTERNAL_NAMESPACE_STRING}, REFERENCE_TYPE_STRING));
+  static GenericType* GetReferenceGeneric(bool is_const) {
+    return Declarations::LookupUniqueGenericType(
+        QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
+                      is_const ? CONST_REFERENCE_TYPE_STRING
+                               : MUTABLE_REFERENCE_TYPE_STRING));
   }
+  static GenericType* GetConstReferenceGeneric() {
+    return GetReferenceGeneric(true);
+  }
+  static GenericType* GetMutableReferenceGeneric() {
+    return GetReferenceGeneric(false);
+  }
+
+  static base::Optional<const Type*> MatchReferenceGeneric(
+      const Type* reference_type, bool* is_const = nullptr);
 
   static GenericType* GetSliceGeneric() {
     return Declarations::LookupUniqueGenericType(
@@ -99,8 +110,16 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Declarations::LookupGlobalUniqueGenericType(SMI_TAGGED_TYPE_STRING);
   }
 
-  static const Type* GetReferenceType(const Type* referenced_type) {
-    return GetGenericTypeInstance(GetReferenceGeneric(), {referenced_type});
+  static const Type* GetReferenceType(const Type* referenced_type,
+                                      bool is_const) {
+    return GetGenericTypeInstance(GetReferenceGeneric(is_const),
+                                  {referenced_type});
+  }
+  static const Type* GetConstReferenceType(const Type* referenced_type) {
+    return GetReferenceType(referenced_type, true);
+  }
+  static const Type* GetMutableReferenceType(const Type* referenced_type) {
+    return GetReferenceType(referenced_type, false);
   }
 
   static const Type* GetSliceType(const Type* referenced_type) {

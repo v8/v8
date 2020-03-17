@@ -55,8 +55,7 @@ class LocationReference {
   // pointer.
   static LocationReference HeapReference(VisitResult heap_reference) {
     LocationReference result;
-    DCHECK(Type::MatchUnaryGeneric(heap_reference.type(),
-                                   TypeOracle::GetReferenceGeneric()));
+    DCHECK(TypeOracle::MatchReferenceGeneric(heap_reference.type()));
     result.heap_reference_ = std::move(heap_reference);
     return result;
   }
@@ -92,7 +91,17 @@ class LocationReference {
     return result;
   }
 
-  bool IsConst() const { return temporary_.has_value(); }
+  bool IsConst() const {
+    if (IsHeapReference()) {
+      bool is_const;
+      bool success =
+          TypeOracle::MatchReferenceGeneric(heap_reference().type(), &is_const)
+              .has_value();
+      CHECK(success);
+      return is_const;
+    }
+    return IsTemporary();
+  }
 
   bool IsVariableAccess() const { return variable_.has_value(); }
   const VisitResult& variable() const {
@@ -130,8 +139,7 @@ class LocationReference {
 
   const Type* ReferencedType() const {
     if (IsHeapReference()) {
-      return *Type::MatchUnaryGeneric(heap_reference().type(),
-                                      TypeOracle::GetReferenceGeneric());
+      return *TypeOracle::MatchReferenceGeneric(heap_reference().type());
     }
     if (IsHeapSlice()) {
       return *Type::MatchUnaryGeneric(heap_slice().type(),
@@ -360,7 +368,7 @@ inline bool Binding<LocalValue>::CheckWritten() const {
   auto binding = *manager_->current_bindings_[name_];
   const LocationReference& ref = binding->value;
   if (!ref.IsVariableAccess()) return false;
-  return !ref.GetVisitResult().type()->IsStructType();
+  return !ref.GetVisitResult().type()->StructSupertype();
 }
 template <>
 inline std::string Binding<LocalLabel>::BindingTypeString() const {
@@ -411,7 +419,7 @@ class ImplementationVisitor {
   LocationReference GenerateFieldReference(VisitResult object,
                                            const Field& field,
                                            const ClassType* class_type);
-  LocationReference GenerateFieldReference(
+  LocationReference GenerateFieldReferenceForInit(
       VisitResult object, const Field& field,
       const LayoutForInitialization& layout);
   VisitResult GenerateArrayLength(
@@ -437,6 +445,7 @@ class ImplementationVisitor {
   LocationReference GetLocationReference(FieldAccessExpression* expr);
   LocationReference GenerateFieldAccess(
       LocationReference reference, const std::string& fieldname,
+      bool ignore_stuct_field_constness = false,
       base::Optional<SourcePosition> pos = {});
   LocationReference GetLocationReference(ElementAccessExpression* expr);
 

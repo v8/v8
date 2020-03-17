@@ -133,6 +133,7 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   virtual const Type* NonConstexprVersion() const { return this; }
   std::string GetConstexprGeneratedTypeName() const;
   base::Optional<const ClassType*> ClassSupertype() const;
+  base::Optional<const StructType*> StructSupertype() const;
   virtual std::vector<RuntimeType> GetRuntimeTypes() const { return {}; }
   static const Type* CommonSupertype(const Type* a, const Type* b);
   void AddAlias(std::string alias) const { aliases_.insert(std::move(alias)); }
@@ -258,6 +259,9 @@ class AbstractType final : public Type {
   const std::string& name() const { return name_; }
   std::string ToExplicitString() const override { return name(); }
   std::string GetGeneratedTypeNameImpl() const override {
+    if (generated_type_.empty()) {
+      return parent()->GetGeneratedTypeName();
+    }
     return IsConstexpr() ? generated_type_ : "TNode<" + generated_type_ + ">";
   }
   std::string GetGeneratedTNodeTypeNameImpl() const override;

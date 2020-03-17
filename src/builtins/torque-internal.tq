@@ -17,13 +17,12 @@ namespace torque_internal {
     const offset: intptr;
     unsafeMarker: Unsafe;
   }
+  type ConstReference<T: type> extends Reference<T>;
+  type MutableReference<T: type> extends ConstReference<T>;
 
   macro UnsafeNewReference<T: type>(object: HeapObject, offset: intptr):&T {
-    return Reference<T>{
-      object: object,
-      offset: offset,
-      unsafeMarker: Unsafe {}
-    };
+    return %RawDownCast<&T>(
+        Reference<T>{object: object, offset: offset, unsafeMarker: Unsafe {}});
   }
 
   struct Slice<T: type> {

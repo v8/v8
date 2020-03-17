@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/torque/type-oracle.h"
+#include "src/base/optional.h"
 #include "src/torque/type-visitor.h"
 #include "src/torque/types.h"
 
@@ -78,6 +79,21 @@ std::vector<const ClassType*> TypeOracle::GetClasses() {
     }
   }
   return result;
+}
+
+base::Optional<const Type*> TypeOracle::MatchReferenceGeneric(
+    const Type* reference_type, bool* is_const) {
+  if (auto type = Type::MatchUnaryGeneric(reference_type,
+                                          GetMutableReferenceGeneric())) {
+    if (is_const) *is_const = false;
+    return type;
+  }
+  if (auto type =
+          Type::MatchUnaryGeneric(reference_type, GetConstReferenceGeneric())) {
+    if (is_const) *is_const = true;
+    return type;
+  }
+  return base::nullopt;
 }
 
 }  // namespace torque

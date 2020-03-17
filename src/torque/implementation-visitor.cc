@@ -1282,17 +1282,16 @@ LocationReference ImplementationVisitor::GenerateFieldReference(
     result_range.Extend(length.stack_range());
     const Type* slice_type = TypeOracle::GetSliceType(field.name_and_type.type);
     return LocationReference::HeapSlice(VisitResult(slice_type, result_range));
-
   } else {
-    VisitResult heap_reference(
-        TypeOracle::GetReferenceType(field.name_and_type.type), result_range);
-    return LocationReference::HeapReference(heap_reference);
+    const Type* type = TypeOracle::GetReferenceType(field.name_and_type.type,
+                                                    field.const_qualified);
+    return LocationReference::HeapReference(VisitResult(type, result_range));
   }
 }
 
 // This is used to generate field references during initialization, where we can
 // re-use the offsets used for computing the allocation size.
-LocationReference ImplementationVisitor::GenerateFieldReference(
+LocationReference ImplementationVisitor::GenerateFieldReferenceForInit(
     VisitResult object, const Field& field,
     const LayoutForInitialization& layout) {
   StackRange result_range = assembler().TopRange(0);
@@ -1307,8 +1306,10 @@ LocationReference ImplementationVisitor::GenerateFieldReference(
     const Type* slice_type = TypeOracle::GetSliceType(field.name_and_type.type);
     return LocationReference::HeapSlice(VisitResult(slice_type, result_range));
   } else {
+    // Const fields are writable during initialization.
     VisitResult heap_reference(
-        TypeOracle::GetReferenceType(field.name_and_type.type), result_range);
+        TypeOracle::GetMutableReferenceType(field.name_and_type.type),
+        result_range);
     return LocationReference::HeapReference(heap_reference);
   }
 }
@@ -1325,7 +1326,7 @@ void ImplementationVisitor::InitializeClass(
     VisitResult initializer_value =
         initializer_results.field_value_map.at(f.name_and_type.name);
     LocationReference field =
-        GenerateFieldReference(allocate_result, f, layout);
+        GenerateFieldReferenceForInit(allocate_result, f, layout);
     if (f.index) {
       DCHECK(field.IsHeapSlice());
       VisitResult slice = field.GetVisitResult();
@@ -1654,7 +1655,7 @@ std::vector<std::string> ImplementationVisitor::GenerateFunctionDeclaration(
     size_t i = 0;
     for (const Type* type : label_info.types) {
       std::string generated_type_name;
-      if (type->IsStructType()) {
+      if (type->StructSupertype()) {
         generated_type_name = "\n#error no structs allowed in labels\n";
       } else {
         generated_type_name = "compiler::TypedCodeAssemblerVariable<";
@@ -1949,15 +1950,15 @@ LocationReference ImplementationVisitor::GetLocationReference(
 LocationReference ImplementationVisitor::GetLocationReference(
     FieldAccessExpression* expr) {
   return GenerateFieldAccess(GetLocationReference(expr->object),
-                             expr->field->value, expr->field->pos);
+                             expr->field->value, false, expr->field->pos);
 }
 
 LocationReference ImplementationVisitor::GenerateFieldAccess(
     LocationReference reference, const std::string& fieldname,
-    base::Optional<SourcePosition> pos) {
+    bool ignore_stuct_field_constness, base::Optional<SourcePosition> pos) {
   if (reference.IsVariableAccess() &&
-      reference.variable().type()->IsStructType()) {
-    const StructType* type = StructType::cast(reference.variable().type());
+      reference.variable().type()->StructSupertype()) {
+    const StructType* type = *reference.variable().type()->StructSupertype();
     const Field& field = type->LookupField(fieldname);
     if (GlobalContext::collect_language_server_data() && pos.has_value()) {
       LanguageServerData::AddDefinition(*pos, field.pos);
@@ -1971,9 +1972,10 @@ LocationReference ImplementationVisitor::GenerateFieldAccess(
           ProjectStructField(reference.variable(), fieldname));
     }
   }
-  if (reference.IsTemporary() && reference.temporary().type()->IsStructType()) {
+  if (reference.IsTemporary() &&
+      reference.temporary().type()->StructSupertype()) {
     if (GlobalContext::collect_language_server_data() && pos.has_value()) {
-      const StructType* type = StructType::cast(reference.temporary().type());
+      const StructType* type = *reference.temporary().type()->StructSupertype();
       const Field& field = type->LookupField(fieldname);
       LanguageServerData::AddDefinition(*pos, field.pos);
     }
@@ -1989,20 +1991,23 @@ LocationReference ImplementationVisitor::GenerateFieldAccess(
   }
   if (reference.IsHeapReference()) {
     VisitResult ref = reference.heap_reference();
-    auto generic_type = StructType::MatchUnaryGeneric(
-        ref.type(), TypeOracle::GetReferenceGeneric());
+    bool is_const;
+    auto generic_type =
+        TypeOracle::MatchReferenceGeneric(ref.type(), &is_const);
     if (!generic_type) {
       ReportError(
           "Left-hand side of field access expression is marked as a reference "
           "but is not of type Reference<...>. Found type: ",
           ref.type()->ToString());
     }
-    if (const StructType* struct_type =
-            StructType::DynamicCast(*generic_type)) {
-      const Field& field = struct_type->LookupField(fieldname);
+    if (auto struct_type = (*generic_type)->StructSupertype()) {
+      const Field& field = (*struct_type)->LookupField(fieldname);
       // Update the Reference's type to refer to the field type within the
       // struct.
-      ref.SetType(TypeOracle::GetReferenceType(field.name_and_type.type));
+      ref.SetType(TypeOracle::GetReferenceType(
+          field.name_and_type.type,
+          is_const ||
+              (field.const_qualified && !ignore_stuct_field_constness)));
       if (!field.offset.has_value()) {
         Error("accessing field with unknown offset").Throw();
       }
@@ -2137,9 +2142,10 @@ LocationReference ImplementationVisitor::GetLocationReference(
 LocationReference ImplementationVisitor::GetLocationReference(
     DereferenceExpression* expr) {
   VisitResult ref = Visit(expr->reference);
-  if (!Type::MatchUnaryGeneric(ref.type(), TypeOracle::GetReferenceGeneric())) {
-    ReportError("Operator * expects a reference but found a value of type ",
-                *ref.type());
+  if (!TypeOracle::MatchReferenceGeneric(ref.type())) {
+    Error("Operator * expects a reference type but found a value of type ",
+          *ref.type())
+        .Throw();
   }
   return LocationReference::HeapReference(ref);
 }
@@ -2156,9 +2162,9 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
       return GenerateCall(QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
                                         "LoadFloat64OrHole"),
                           Arguments{{reference.heap_reference()}, {}});
-    } else if (auto* struct_type = StructType::DynamicCast(referenced_type)) {
+    } else if (auto struct_type = referenced_type->StructSupertype()) {
       StackRange result_range = assembler().TopRange(0);
-      for (const Field& field : struct_type->fields()) {
+      for (const Field& field : (*struct_type)->fields()) {
         StackScope scope(this);
         const std::string& fieldname = field.name_and_type.name;
         VisitResult field_value = scope.Yield(GenerateFetchFromLocation(
@@ -2213,20 +2219,27 @@ void ImplementationVisitor::GenerateAssignToLocation(
     ReportError("assigning a value directly to an indexed field isn't allowed");
   } else if (reference.IsHeapReference()) {
     const Type* referenced_type = reference.ReferencedType();
+    if (reference.IsConst()) {
+      Error("cannot assign to const value of type ", *referenced_type).Throw();
+    }
     if (referenced_type == TypeOracle::GetFloat64OrHoleType()) {
       GenerateCall(
           QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
                         "StoreFloat64OrHole"),
           Arguments{{reference.heap_reference(), assignment_value}, {}});
-    } else if (auto* struct_type = StructType::DynamicCast(referenced_type)) {
-      if (assignment_value.type() != referenced_type) {
+    } else if (auto struct_type = referenced_type->StructSupertype()) {
+      if (!assignment_value.type()->IsSubtypeOf(referenced_type)) {
         ReportError("Cannot assign to ", *referenced_type,
                     " with value of type ", *assignment_value.type());
       }
-      for (const Field& field : struct_type->fields()) {
+      for (const Field& field : (*struct_type)->fields()) {
         const std::string& fieldname = field.name_and_type.name;
+        // Allow assignment of structs even if they contain const fields.
+        // Const on struct fields just disallows direct writes to them.
+        bool ignore_stuct_field_constness = true;
         GenerateAssignToLocation(
-            GenerateFieldAccess(reference, fieldname),
+            GenerateFieldAccess(reference, fieldname,
+                                ignore_stuct_field_constness),
             ProjectStructField(assignment_value, fieldname));
       }
     } else {
@@ -2759,9 +2772,9 @@ std::vector<Binding<LocalLabel>*> ImplementationVisitor::LabelsFromIdentifiers(
 StackRange ImplementationVisitor::LowerParameter(
     const Type* type, const std::string& parameter_name,
     Stack<std::string>* lowered_parameters) {
-  if (const StructType* struct_type = StructType::DynamicCast(type)) {
+  if (base::Optional<const StructType*> struct_type = type->StructSupertype()) {
     StackRange range = lowered_parameters->TopRange(0);
-    for (auto& field : struct_type->fields()) {
+    for (auto& field : (*struct_type)->fields()) {
       StackRange parameter_range = LowerParameter(
           field.name_and_type.type,
           parameter_name + "." + field.name_and_type.name, lowered_parameters);
@@ -2777,8 +2790,8 @@ StackRange ImplementationVisitor::LowerParameter(
 void ImplementationVisitor::LowerLabelParameter(
     const Type* type, const std::string& parameter_name,
     std::vector<std::string>* lowered_parameters) {
-  if (const StructType* struct_type = StructType::DynamicCast(type)) {
-    for (auto& field : struct_type->fields()) {
+  if (base::Optional<const StructType*> struct_type = type->StructSupertype()) {
+    for (auto& field : (*struct_type)->fields()) {
       LowerLabelParameter(
           field.name_and_type.type,
           "&((*" + parameter_name + ")." + field.name_and_type.name + ")",
@@ -3110,9 +3123,8 @@ class FieldOffsetsGenerator {
     }
     StructType::Classification struct_contents =
         StructType::ClassificationFlag::kEmpty;
-    if (const StructType* field_as_struct =
-            StructType::DynamicCast(field_type)) {
-      struct_contents = field_as_struct->ClassifyContents();
+    if (auto field_as_struct = field_type->StructSupertype()) {
+      struct_contents = (*field_as_struct)->ClassifyContents();
     }
     if (struct_contents == StructType::ClassificationFlag::kMixed) {
       // We can't declare what section a struct goes in if it has multiple
@@ -3904,9 +3916,8 @@ void ImplementationVisitor::GenerateClassDefinitions(
       }
       for (const Field& f : type->fields()) {
         const Type* field_type = f.name_and_type.type;
-        if (const StructType* field_as_struct =
-                StructType::DynamicCast(field_type)) {
-          structs_used_in_classes.insert(field_as_struct);
+        if (auto field_as_struct = field_type->StructSupertype()) {
+          structs_used_in_classes.insert(*field_as_struct);
         }
       }
       if (type->ShouldExport()) {
@@ -4015,8 +4026,13 @@ void GeneratePrintDefinitionsForClass(std::ostream& impl, const ClassType* type,
         if ((aggregate_type == TypeOracle::GetFixedArrayBaseType() &&
              f.name_and_type.name == "length") ||
             !f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-          impl << "  os << \"\\n - " << f.name_and_type.name << ": \" << "
-               << "this->" << f.name_and_type.name << "();\n";
+          impl << "  os << \"\\n - " << f.name_and_type.name << ": \" << ";
+          if (f.name_and_type.type->StructSupertype()) {
+            // TODO(tebbi): Print struct fields too.
+            impl << "\" <struct field printing still unimplemented>\";\n";
+          } else {
+            impl << "this->" << f.name_and_type.name << "();\n";
+          }
         } else {
           impl << "  os << \"\\n - " << f.name_and_type.name << ": \" << "
                << "Brief(this->" << f.name_and_type.name << "());\n";
@@ -4282,7 +4298,7 @@ void GenerateClassFieldVerifier(const std::string& class_name,
   // We only verify tagged types, not raw numbers or pointers. Structs
   // consisting of tagged types are also included.
   if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType()) &&
-      !field_type->IsStructType())
+      !field_type->StructSupertype())
     return;
   if (field_type == TypeOracle::GetFloat64OrHoleType()) return;
   // Do not verify if the field may be uninitialized.
@@ -4321,11 +4337,11 @@ void GenerateClassFieldVerifier(const std::string& class_name,
     cc_contents << "  {\n";
   }
 
-  if (const StructType* struct_type = StructType::DynamicCast(field_type)) {
-    for (const Field& field : struct_type->fields()) {
+  if (auto struct_type = field_type->StructSupertype()) {
+    for (const Field& field : (*struct_type)->fields()) {
       if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
         GenerateFieldValueVerifier(class_name, f, field, *field.offset,
-                                   std::to_string(struct_type->PackedSize()),
+                                   std::to_string((*struct_type)->PackedSize()),
                                    cc_contents);
       }
     }
@@ -4576,7 +4592,7 @@ void ImplementationVisitor::GenerateCSATypes(
           h_contents << ", ";
         }
         first = false;
-        if (field.name_and_type.type->IsStructType()) {
+        if (field.name_and_type.type->StructSupertype()) {
           h_contents << field.name_and_type.name << ".Flatten()";
         } else {
           h_contents << "std::make_tuple(" << field.name_and_type.name << ")";

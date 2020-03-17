@@ -81,17 +81,13 @@ const AbstractType* TypeVisitor::ComputeType(
 
   const Type* parent_type = nullptr;
   if (decl->extends) {
-    parent_type = Declarations::LookupType(*decl->extends);
+    parent_type = TypeVisitor::ComputeType(*decl->extends);
     if (parent_type->IsUnionType()) {
       // UnionType::IsSupertypeOf requires that types can only extend from non-
       // union types in order to work correctly.
       ReportError("type \"", decl->name->value,
                   "\" cannot extend a type union");
     }
-  }
-
-  if (generates == "" && parent_type) {
-    generates = parent_type->GetGeneratedTNodeTypeName();
   }
 
   if (decl->is_constexpr && decl->transient) {

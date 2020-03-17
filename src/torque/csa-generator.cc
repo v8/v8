@@ -6,6 +6,7 @@
 
 #include "src/common/globals.h"
 #include "src/torque/type-oracle.h"
+#include "src/torque/types.h"
 #include "src/torque/utils.h"
 
 namespace v8 {
@@ -181,7 +182,7 @@ void CSAGenerator::EmitInstruction(
   }
 
   out() << "    ";
-  if (type->IsStructType()) {
+  if (type->StructSupertype()) {
     out() << "std::tie(";
     PrintCommaSeparatedList(out(), results);
     out() << ") = ";
@@ -189,7 +190,7 @@ void CSAGenerator::EmitInstruction(
     out() << results[0] << " = ";
   }
   out() << instruction.constant->external_name() << "(state_)";
-  if (type->IsStructType()) {
+  if (type->StructSupertype()) {
     out() << ".Flatten();\n";
   } else {
     out() << ";\n";
@@ -239,7 +240,7 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
   }
 
   out() << "    ";
-  if (return_type->IsStructType()) {
+  if (return_type->StructSupertype()) {
     out() << "std::tie(";
     PrintCommaSeparatedList(out(), results);
     out() << ") = ";
@@ -262,8 +263,9 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       ReportError("%RawDownCast error: ", *return_type, " is not a subtype of ",
                   *original_type);
     }
-    if (return_type->GetGeneratedTNodeTypeName() !=
-        original_type->GetGeneratedTNodeTypeName()) {
+    if (!original_type->StructSupertype() &&
+        return_type->GetGeneratedTNodeTypeName() !=
+            original_type->GetGeneratedTNodeTypeName()) {
       if (return_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
         out() << "TORQUE_CAST";
       } else {
@@ -318,7 +320,7 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
   if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
     out() << ")";
   }
-  if (return_type->IsStructType()) {
+  if (return_type->StructSupertype()) {
     out() << ").Flatten();\n";
   } else {
     out() << ");\n";
@@ -349,7 +351,7 @@ void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
   std::string catch_name =
       PreCallableExceptionPreparation(instruction.catch_block);
   out() << "    ";
-  bool needs_flattening = return_type->IsStructType();
+  bool needs_flattening = return_type->StructSupertype().has_value();
   if (needs_flattening) {
     out() << "std::tie(";
     PrintCommaSeparatedList(out(), results);
@@ -448,7 +450,7 @@ void CSAGenerator::EmitInstruction(
       out() << ", &" << var_names[i][j];
     }
   }
-  if (return_type->IsStructType()) {
+  if (return_type->StructSupertype()) {
     out() << ").Flatten();\n";
   } else {
     out() << ");\n";
@@ -931,10 +933,10 @@ void CSAGenerator::EmitCSAValue(VisitResult result,
                                 std::ostream& out) {
   if (!result.IsOnStack()) {
     out << result.constexpr_value();
-  } else if (auto* struct_type = StructType::DynamicCast(result.type())) {
-    out << struct_type->GetGeneratedTypeName() << "{";
+  } else if (auto struct_type = result.type()->StructSupertype()) {
+    out << (*struct_type)->GetGeneratedTypeName() << "{";
     bool first = true;
-    for (auto& field : struct_type->fields()) {
+    for (auto& field : (*struct_type)->fields()) {
       if (!first) {
         out << ", ";
       }
