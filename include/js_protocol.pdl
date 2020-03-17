@@ -503,6 +503,12 @@ domain Debugger
   # Fired when the virtual machine resumed execution.
   event resumed
 
+  # Enum of possible script languages.
+  type ScriptLanguage extends string
+    enum
+      JavaScript
+      WebAssembly
+
   # Fired when virtual machine fails to parse the script.
   event scriptFailedToParse
     parameters
@@ -534,6 +540,10 @@ domain Debugger
       optional integer length
       # JavaScript top stack frame of where the script parsed event was triggered if available.
       experimental optional Runtime.StackTrace stackTrace
+      # If the scriptLanguage is WebAssembly, the code section offset in the module.
+      experimental optional integer codeOffset
+      # The language of the script.
+      experimental optional Debugger.ScriptLanguage scriptLanguage
 
   # Fired when virtual machine parses script. This event is also fired for all known and uncollected
   # scripts upon enabling debugger.
@@ -569,6 +579,10 @@ domain Debugger
       optional integer length
       # JavaScript top stack frame of where the script parsed event was triggered if available.
       experimental optional Runtime.StackTrace stackTrace
+      # If the scriptLanguage is WebAssembly, the code section offset in the module.
+      experimental optional integer codeOffset
+      # The language of the script.
+      experimental optional Debugger.ScriptLanguage scriptLanguage
 
 experimental domain HeapProfiler
   depends on Runtime

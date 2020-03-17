@@ -1,15 +1,15 @@
 Tests how wasm scripts are reported
 Check that each inspector gets a wasm script at module creation time.
-Session #1: Script #0 parsed. URL: wasm://wasm/7b04570e. Source map URL:
-Session #2: Script #0 parsed. URL: wasm://wasm/7b04570e. Source map URL:
-Session #1: Script #1 parsed. URL: wasm://wasm/ba7c35be. Source map URL: wasm://dwarf
-Session #2: Script #1 parsed. URL: wasm://wasm/ba7c35be. Source map URL: wasm://dwarf
-Session #1: Script #2 parsed. URL: wasm://wasm/1baa71fe. Source map URL: abc
-Session #2: Script #2 parsed. URL: wasm://wasm/1baa71fe. Source map URL: abc
-Session #1: Script #3 parsed. URL: wasm://wasm/95e97206. Source map URL: abc
-Session #2: Script #3 parsed. URL: wasm://wasm/95e97206. Source map URL: abc
-Session #1: Script #4 parsed. URL: wasm://wasm/7ab47392. Source map URL: abc
-Session #2: Script #4 parsed. URL: wasm://wasm/7ab47392. Source map URL: abc
+Session #1: Script #0 parsed. URL: wasm://wasm/7b04570e. Source map URL: , module begin: 0, module end: 0, code offset: 34
+Session #2: Script #0 parsed. URL: wasm://wasm/7b04570e. Source map URL: , module begin: 0, module end: 0, code offset: 34
+Session #1: Script #1 parsed. URL: wasm://wasm/ba7c35be. Source map URL: wasm://dwarf, module begin: 0, module end: 0, code offset: 34
+Session #2: Script #1 parsed. URL: wasm://wasm/ba7c35be. Source map URL: wasm://dwarf, module begin: 0, module end: 0, code offset: 34
+Session #1: Script #2 parsed. URL: wasm://wasm/1baa71fe. Source map URL: abc, module begin: 0, module end: 0, code offset: 34
+Session #2: Script #2 parsed. URL: wasm://wasm/1baa71fe. Source map URL: abc, module begin: 0, module end: 0, code offset: 34
+Session #1: Script #3 parsed. URL: wasm://wasm/95e97206. Source map URL: abc, module begin: 0, module end: 0, code offset: 34
+Session #2: Script #3 parsed. URL: wasm://wasm/95e97206. Source map URL: abc, module begin: 0, module end: 0, code offset: 34
+Session #1: Script #4 parsed. URL: wasm://wasm/7ab47392. Source map URL: abc, module begin: 0, module end: 0, code offset: 34
+Session #2: Script #4 parsed. URL: wasm://wasm/7ab47392. Source map URL: abc, module begin: 0, module end: 0, code offset: 34
 Session #1: Source for wasm://wasm/7b04570e:
 Raw: 00 61 73 6d 01 00 00 00 01 07 02 60 00 00 60 00 00 03 03 02 00 01 07 08 01 04 6d 61 69 6e 00 01 0a 0e 02 03 00 01 0b 08 00 02 40 41 02 1a 0b 0b 00 1b 04 6e 61 6d 65 01 14 02 00 0b 6e 6f 70 46 75 6e 63 74 69 6f 6e 01 04 6d 61 69 6e
 Imports: []

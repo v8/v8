@@ -11,6 +11,7 @@
 #include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
+#include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/remote-object-id.h"
 #include "src/inspector/search-util.h"
@@ -1401,6 +1402,15 @@ bool V8DebuggerAgentImpl::isPaused() const {
   return m_debugger->isPausedInContextGroup(m_session->contextGroupId());
 }
 
+static String16 getScriptLanguage(const V8DebuggerScript& script) {
+  switch (script.getLanguage()) {
+    case V8DebuggerScript::Language::WebAssembly:
+      return protocol::Debugger::ScriptLanguageEnum::WebAssembly;
+    case V8DebuggerScript::Language::JavaScript:
+      return protocol::Debugger::ScriptLanguageEnum::JavaScript;
+  }
+}
+
 void V8DebuggerAgentImpl::didParseSource(
     std::unique_ptr<V8DebuggerScript> script, bool success) {
   v8::HandleScope handles(m_isolate);
@@ -1431,6 +1441,11 @@ void V8DebuggerAgentImpl::didParseSource(
   bool isModule = script->isModule();
   String16 scriptId = script->scriptId();
   String16 scriptURL = script->sourceURL();
+  String16 scriptLanguage = getScriptLanguage(*script);
+  Maybe<int> codeOffset =
+      script->getLanguage() == V8DebuggerScript::Language::JavaScript
+          ? Maybe<int>()
+          : script->codeOffset();
 
   m_scripts[scriptId] = std::move(script);
   // Release the strong reference to get notified when debugger is the only
@@ -1466,7 +1481,8 @@ void V8DebuggerAgentImpl::didParseSource(
         scriptRef->endLine(), scriptRef->endColumn(), contextId,
         scriptRef->hash(), std::move(executionContextAuxDataParam),
         std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam,
-        scriptRef->length(), std::move(stackTrace));
+        scriptRef->length(), std::move(stackTrace), std::move(codeOffset),
+        std::move(scriptLanguage));
     return;
   }
 
@@ -1477,14 +1493,16 @@ void V8DebuggerAgentImpl::didParseSource(
         scriptId, scriptURL, 0, 0, 0, 0, contextId, scriptRef->hash(),
         std::move(executionContextAuxDataParam), isLiveEditParam,
         std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam, 0,
-        std::move(stackTrace));
+        std::move(stackTrace), std::move(codeOffset),
+        std::move(scriptLanguage));
   } else {
     m_frontend.scriptParsed(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
         scriptRef->endLine(), scriptRef->endColumn(), contextId,
         scriptRef->hash(), std::move(executionContextAuxDataParam),
         isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
-        isModuleParam, scriptRef->length(), std::move(stackTrace));
+        isModuleParam, scriptRef->length(), std::move(stackTrace),
+        std::move(codeOffset), std::move(scriptLanguage));
   }
 
   std::vector<protocol::DictionaryValue*> potentialBreakpoints;
