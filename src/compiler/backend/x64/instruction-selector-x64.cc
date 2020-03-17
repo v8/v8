@@ -2742,7 +2742,6 @@ VISIT_ATOMIC_BINOP(Xor)
 
 #define SIMD_NARROW_SHIFT_OPCODES(V) \
   V(I8x16Shl)                        \
-  V(I8x16ShrS)                       \
   V(I8x16ShrU)
 
 #define SIMD_ANYTRUE_LIST(V) \
@@ -2820,9 +2819,15 @@ SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
   void InstructionSelector::Visit##Opcode(Node* node) {                       \
     X64OperandGenerator g(this);                                              \
     InstructionOperand temps[] = {g.TempRegister(), g.TempSimd128Register()}; \
-    Emit(kX64##Opcode, g.DefineSameAsFirst(node),                             \
-         g.UseUniqueRegister(node->InputAt(0)),                               \
-         g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);     \
+    if (g.CanBeImmediate(node->InputAt(1))) {                                 \
+      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                           \
+           g.UseRegister(node->InputAt(0)), g.UseImmediate(node->InputAt(1)), \
+           arraysize(temps), temps);                                          \
+    } else {                                                                  \
+      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                           \
+           g.UseUniqueRegister(node->InputAt(0)),                             \
+           g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);   \
+    }                                                                         \
   }
 SIMD_NARROW_SHIFT_OPCODES(VISIT_SIMD_NARROW_SHIFT)
 #undef VISIT_SIMD_NARROW_SHIFT
@@ -3030,6 +3035,19 @@ void InstructionSelector::VisitI8x16Mul(Node* node) {
   Emit(kX64I8x16Mul, g.DefineSameAsFirst(node),
        g.UseUniqueRegister(node->InputAt(0)),
        g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitI8x16ShrS(Node* node) {
+  X64OperandGenerator g(this);
+  if (g.CanBeImmediate(node->InputAt(1))) {
+    Emit(kX64I8x16ShrS, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.UseImmediate(node->InputAt(1)));
+  } else {
+    InstructionOperand temps[] = {g.TempRegister(), g.TempSimd128Register()};
+    Emit(kX64I8x16ShrS, g.DefineSameAsFirst(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+  }
 }
 
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {

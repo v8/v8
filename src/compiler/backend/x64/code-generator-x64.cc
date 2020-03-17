@@ -3345,42 +3345,64 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I8x16Shl: {
       XMMRegister dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      // Temp registers for shift mask andadditional moves to XMM registers.
+      // Temp registers for shift mask and additional moves to XMM registers.
       Register tmp = i.ToRegister(instr->TempAt(0));
       XMMRegister tmp_simd = i.TempSimd128Register(1);
-      Register shift = i.InputRegister(1);
-      // Mask off the unwanted bits before word-shifting.
-      __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
-      // Take shift value modulo 8.
-      __ andq(shift, Immediate(7));
-      __ movq(tmp, shift);
-      __ addq(tmp, Immediate(8));
-      __ movq(tmp_simd, tmp);
-      __ psrlw(kScratchDoubleReg, tmp_simd);
-      __ packuswb(kScratchDoubleReg, kScratchDoubleReg);
-      __ pand(dst, kScratchDoubleReg);
-      __ movq(tmp_simd, shift);
-      __ psllw(dst, tmp_simd);
+      if (HasImmediateInput(instr, 1)) {
+        // Perform 16-bit shift, then mask away low bits.
+        uint8_t shift = i.InputInt3(1);
+        __ Psllw(dst, static_cast<byte>(shift));
+
+        uint8_t bmask = static_cast<uint8_t>(0xff << shift);
+        uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
+        __ movl(tmp, Immediate(mask));
+        __ Movd(tmp_simd, tmp);
+        __ Pshufd(tmp_simd, tmp_simd, static_cast<uint8_t>(0));
+        __ Pand(dst, tmp_simd);
+      } else {
+        Register shift = i.InputRegister(1);
+        // Mask off the unwanted bits before word-shifting.
+        __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
+        // Take shift value modulo 8.
+        __ andq(shift, Immediate(7));
+        __ movq(tmp, shift);
+        __ addq(tmp, Immediate(8));
+        __ movq(tmp_simd, tmp);
+        __ psrlw(kScratchDoubleReg, tmp_simd);
+        __ packuswb(kScratchDoubleReg, kScratchDoubleReg);
+        __ pand(dst, kScratchDoubleReg);
+        __ movq(tmp_simd, shift);
+        __ psllw(dst, tmp_simd);
+      }
       break;
     }
     case kX64I8x16ShrS: {
       XMMRegister dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      // Temp registers for shift mask andadditional moves to XMM registers.
-      Register tmp = i.ToRegister(instr->TempAt(0));
-      XMMRegister tmp_simd = i.TempSimd128Register(1);
-      // Unpack the bytes into words, do arithmetic shifts, and repack.
-      __ punpckhbw(kScratchDoubleReg, dst);
-      __ punpcklbw(dst, dst);
-      // Prepare shift value
-      __ movq(tmp, i.InputRegister(1));
-      // Take shift value modulo 8.
-      __ andq(tmp, Immediate(7));
-      __ addq(tmp, Immediate(8));
-      __ movq(tmp_simd, tmp);
-      __ psraw(kScratchDoubleReg, tmp_simd);
-      __ psraw(dst, tmp_simd);
-      __ packsswb(dst, kScratchDoubleReg);
+      if (HasImmediateInput(instr, 1)) {
+        __ punpckhbw(kScratchDoubleReg, dst);
+        __ punpcklbw(dst, dst);
+        uint8_t shift = i.InputInt3(1) + 8;
+        __ psraw(kScratchDoubleReg, shift);
+        __ psraw(dst, shift);
+        __ packsswb(dst, kScratchDoubleReg);
+      } else {
+        // Temp registers for shift mask andadditional moves to XMM registers.
+        Register tmp = i.ToRegister(instr->TempAt(0));
+        XMMRegister tmp_simd = i.TempSimd128Register(1);
+        // Unpack the bytes into words, do arithmetic shifts, and repack.
+        __ punpckhbw(kScratchDoubleReg, dst);
+        __ punpcklbw(dst, dst);
+        // Prepare shift value
+        __ movq(tmp, i.InputRegister(1));
+        // Take shift value modulo 8.
+        __ andq(tmp, Immediate(7));
+        __ addq(tmp, Immediate(8));
+        __ movq(tmp_simd, tmp);
+        __ psraw(kScratchDoubleReg, tmp_simd);
+        __ psraw(dst, tmp_simd);
+        __ packsswb(dst, kScratchDoubleReg);
+      }
       break;
     }
     case kX64I8x16Add: {
@@ -3478,17 +3500,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Temp registers for shift mask andadditional moves to XMM registers.
       Register tmp = i.ToRegister(instr->TempAt(0));
       XMMRegister tmp_simd = i.TempSimd128Register(1);
-      __ punpckhbw(kScratchDoubleReg, dst);
-      __ punpcklbw(dst, dst);
-      // Prepare shift value
-      __ movq(tmp, i.InputRegister(1));
-      // Take shift value modulo 8.
-      __ andq(tmp, Immediate(7));
-      __ addq(tmp, Immediate(8));
-      __ movq(tmp_simd, tmp);
-      __ psrlw(kScratchDoubleReg, tmp_simd);
-      __ psrlw(dst, tmp_simd);
-      __ packuswb(dst, kScratchDoubleReg);
+      if (HasImmediateInput(instr, 1)) {
+        // Perform 16-bit shift, then mask away high bits.
+        uint8_t shift = i.InputInt3(1);
+        __ Psrlw(dst, static_cast<byte>(shift));
+
+        uint8_t bmask = 0xff >> shift;
+        uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
+        __ movl(tmp, Immediate(mask));
+        __ Movd(tmp_simd, tmp);
+        __ Pshufd(tmp_simd, tmp_simd, static_cast<byte>(0));
+        __ Pand(dst, tmp_simd);
+      } else {
+        __ punpckhbw(kScratchDoubleReg, dst);
+        __ punpcklbw(dst, dst);
+        // Prepare shift value
+        __ movq(tmp, i.InputRegister(1));
+        // Take shift value modulo 8.
+        __ andq(tmp, Immediate(7));
+        __ addq(tmp, Immediate(8));
+        __ movq(tmp_simd, tmp);
+        __ psrlw(kScratchDoubleReg, tmp_simd);
+        __ psrlw(dst, tmp_simd);
+        __ packuswb(dst, kScratchDoubleReg);
+      }
       break;
     }
     case kX64I8x16AddSaturateU: {
