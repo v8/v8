@@ -3,15 +3,19 @@
 // found in the LICENSE file.
 
 #include <algorithm>
+#include <string>
 
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/torque/csa-generator.h"
 #include "src/torque/declaration-visitor.h"
+#include "src/torque/global-context.h"
 #include "src/torque/implementation-visitor.h"
 #include "src/torque/parameter-difference.h"
 #include "src/torque/server-data.h"
 #include "src/torque/type-inference.h"
 #include "src/torque/type-visitor.h"
+#include "src/torque/types.h"
 
 namespace v8 {
 namespace internal {
@@ -3446,8 +3450,7 @@ void CppClassGenerator::GenerateClass() {
     bool first = true;
     for (const Field& field : *index_fields) {
       if (!first) hdr_ << ", ";
-      hdr_ << field.name_and_type.type->HandlifiedCppTypeName() << " "
-           << field.name_and_type.name;
+      hdr_ << "int " << field.name_and_type.name;
       first = false;
     }
     hdr_ << ") {\n";
@@ -3462,19 +3465,8 @@ void CppClassGenerator::GenerateClass() {
             *ExtractSimpleFieldArraySize(*type_, *field.index);
         size_t field_size = 0;
         std::tie(field_size, std::ignore) = field.GetFieldSizeInformation();
-        hdr_ << "    size += ";
-        auto index_field = std::find_if(
-            index_fields->begin(), index_fields->end(),
-            [&](const Field& field) {
-              return field.name_and_type.name == index_name_and_type.name;
-            });
-        if (index_field->name_and_type.type->IsSubtypeOf(
-                TypeOracle::GetSmiType())) {
-          hdr_ << "Smi::ToInt(" << index_name_and_type.name << ")";
-        } else {
-          hdr_ << index_name_and_type.name;
-        }
-        hdr_ << " * " << field_size << ";\n";
+        hdr_ << "    size += " << index_name_and_type.name << " * "
+             << field_size << ";\n";
       }
     }
     hdr_ << "    return size;\n";
@@ -3492,7 +3484,7 @@ void CppClassGenerator::GenerateClass() {
       // int-based.
       if (field.aggregate == TypeOracle::GetFixedArrayBaseType() &&
           field.name_and_type.name == "length") {
-        hdr_ << "Smi::FromInt(o.synchronized_length())";
+        hdr_ << "o.synchronized_length()";
       } else {
         hdr_ << "o." << field.name_and_type.name << "()";
       }
@@ -3634,7 +3626,8 @@ void CppClassGenerator::GenerateFieldAccessorForUntagged(const Field& f) {
 
 void CppClassGenerator::GenerateFieldAccessorForSmi(const Field& f) {
   DCHECK(f.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType()));
-  const std::string type = "Smi";
+  // Follow the convention to create Smi accessors with type int.
+  const std::string type = "int";
   const std::string& name = f.name_and_type.name;
   const std::string offset = "k" + CamelifyString(name) + "Offset";
 
@@ -3656,10 +3649,11 @@ void CppClassGenerator::GenerateFieldAccessorForSmi(const Field& f) {
   inl_ << ") const {\n";
   if (f.index) {
     inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
-    inl_ << "  return this->template ReadField<Smi>(offset);\n";
+    inl_ << "  return this->template ReadField<Smi>(offset).value();\n";
     inl_ << "}\n";
   } else {
-    inl_ << "  return TaggedField<Smi, " << offset << ">::load(*this);\n";
+    inl_ << "  return TaggedField<Smi, " << offset
+         << ">::load(*this).value();\n";
     inl_ << "}\n";
   }
 
@@ -3669,12 +3663,11 @@ void CppClassGenerator::GenerateFieldAccessorForSmi(const Field& f) {
     inl_ << "int i, ";
   }
   inl_ << type << " value) {\n";
-  inl_ << "  DCHECK(value.IsSmi());\n";
   if (f.index) {
     inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
-    inl_ << "  WRITE_FIELD(*this, offset, value);\n";
+    inl_ << "  WRITE_FIELD(*this, offset, Smi::FromInt(value));\n";
   } else {
-    inl_ << "  WRITE_FIELD(*this, " << offset << ", value);\n";
+    inl_ << "  WRITE_FIELD(*this, " << offset << ", Smi::FromInt(value));\n";
   }
   inl_ << "}\n\n";
 }
@@ -4023,8 +4016,7 @@ void GeneratePrintDefinitionsForClass(std::ostream& impl, const ClassType* type,
     for (const Field& f : aggregate_type->fields()) {
       if (f.name_and_type.name == "map") continue;
       if (!f.index.has_value()) {
-        if ((aggregate_type == TypeOracle::GetFixedArrayBaseType() &&
-             f.name_and_type.name == "length") ||
+        if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType()) ||
             !f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
           impl << "  os << \"\\n - " << f.name_and_type.name << ": \" << ";
           if (f.name_and_type.type->StructSupertype()) {

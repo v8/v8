@@ -682,7 +682,6 @@ class SlicedString : public TorqueGeneratedSlicedString<SlicedString, String> {
  public:
   inline void set_parent(String parent,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  DECL_INT_ACCESSORS(offset)
   // Dispatched behavior.
   V8_EXPORT_PRIVATE uint16_t Get(int index);
 

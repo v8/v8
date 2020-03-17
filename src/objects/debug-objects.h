@@ -30,12 +30,6 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   DEFINE_TORQUE_GENERATED_DEBUG_INFO_FLAGS()
   using Flags = base::Flags<Flag>;
 
-  // A bitfield that lists uses of the current instance.
-  DECL_INT_ACCESSORS(flags)
-
-  // Bit field containing various information collected for debugging.
-  DECL_INT_ACCESSORS(debugger_hints)
-
   // DebugInfo can be detached from the SharedFunctionInfo iff it is empty.
   bool IsEmpty() const;
 
@@ -150,9 +144,6 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
 class BreakPointInfo
     : public TorqueGeneratedBreakPointInfo<BreakPointInfo, Struct> {
  public:
-  // The position in the source for the break position.
-  DECL_INT_ACCESSORS(source_position)
-
   // Removes a break point.
   static void ClearBreakPoint(Isolate* isolate, Handle<BreakPointInfo> info,
                               Handle<BreakPoint> break_point);
@@ -208,8 +199,6 @@ class CoverageInfo
 // Holds breakpoint related information. This object is used by inspector.
 class BreakPoint : public TorqueGeneratedBreakPoint<BreakPoint, Struct> {
  public:
-  DECL_INT_ACCESSORS(id)
-
   TQ_OBJECT_CONSTRUCTORS(BreakPoint)
 };
 

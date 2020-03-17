@@ -1026,8 +1026,6 @@ inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
 ACCESSORS(JSIteratorResult, value, Object, kValueOffset)
 ACCESSORS(JSIteratorResult, done, Object, kDoneOffset)
 
-TQ_SMI_ACCESSORS(JSStringIterator, index)
-
 // If the fast-case backing storage takes up much more memory than a dictionary
 // backing storage would, the object should have slow elements.
 // static

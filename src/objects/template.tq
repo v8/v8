@@ -43,7 +43,9 @@ extern class FunctionTemplateInfo extends TemplateInfo {
   // undefined.
   rare_data: HeapObject;
   shared_function_info: Object;
+  // Internal field to store a flag bitfield.
   flag: Smi;
+  // "length" property of the final JSFunction.
   length: Smi;
   // Either the_hole or a private symbol. Used to cache the result on
   // the receiver under the the cached_property_name when this

@@ -85,13 +85,6 @@ class SourceTextModule
   inline void IncrementPendingAsyncDependencies();
   inline void DecrementPendingAsyncDependencies();
 
-  // TODO(neis): Don't store those in the module object?
-  DECL_INT_ACCESSORS(dfs_index)
-  DECL_INT_ACCESSORS(dfs_ancestor_index)
-
-  // Storage for boolean flags.
-  DECL_INT_ACCESSORS(flags)
-
   // Bits for flags.
   static const int kAsyncBit = 0;
   static const int kAsyncEvaluatingBit = 1;
@@ -107,9 +100,6 @@ class SourceTextModule
   // The top level promise capability of this module. Will only be defined
   // for cycle roots.
   DECL_ACCESSORS(top_level_capability, HeapObject)
-
-  // The number of currently evaluating async dependencies of this module.
-  DECL_INT_ACCESSORS(pending_async_dependencies)
 
   // The parent modules of a given async dependency, use async_parent_modules()
   // to retrieve the ArrayList representation.
@@ -247,11 +237,6 @@ class SourceTextModuleInfoEntry
  public:
   DECL_PRINTER(SourceTextModuleInfoEntry)
   DECL_VERIFIER(SourceTextModuleInfoEntry)
-
-  DECL_INT_ACCESSORS(module_request)
-  DECL_INT_ACCESSORS(cell_index)
-  DECL_INT_ACCESSORS(beg_pos)
-  DECL_INT_ACCESSORS(end_pos)
 
   template <typename LocalIsolate>
   static Handle<SourceTextModuleInfoEntry> New(

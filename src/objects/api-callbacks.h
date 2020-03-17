@@ -111,9 +111,6 @@ class InterceptorInfo
   DECL_BOOLEAN_ACCESSORS(is_named)
   DECL_BOOLEAN_ACCESSORS(has_no_side_effect)
 
-  inline int flags() const;
-  inline void set_flags(int flags);
-
   // Dispatched behavior.
   DECL_PRINTER(InterceptorInfo)
 

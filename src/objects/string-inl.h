@@ -582,8 +582,6 @@ void SlicedString::set_parent(String parent, WriteBarrierMode mode) {
   TorqueGeneratedSlicedString<SlicedString, Super>::set_parent(parent, mode);
 }
 
-TQ_SMI_ACCESSORS(SlicedString, offset)
-
 Object ConsString::unchecked_first() {
   return TaggedField<Object, kFirstOffset>::load(*this);
 }

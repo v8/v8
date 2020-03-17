@@ -70,8 +70,8 @@ std::string Type::SimpleName() const {
 // TODO(danno): HandlifiedCppTypeName should be used universally in Torque
 // where the C++ type of a Torque object is required.
 std::string Type::HandlifiedCppTypeName() const {
-  if (IsSubtypeOf(TypeOracle::GetTaggedType()) &&
-      !IsSubtypeOf(TypeOracle::GetSmiType())) {
+  if (IsSubtypeOf(TypeOracle::GetSmiType())) return "int";
+  if (IsSubtypeOf(TypeOracle::GetTaggedType())) {
     base::Optional<const ClassType*> class_type = ClassSupertype();
     std::string type =
         class_type ? (*class_type)->GetGeneratedTNodeTypeName() : "Object";

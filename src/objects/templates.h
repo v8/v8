@@ -16,7 +16,6 @@ namespace internal {
 class TemplateInfo : public TorqueGeneratedTemplateInfo<TemplateInfo, Struct> {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_INT_ACCESSORS(number_of_properties)
 
   static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
 
@@ -86,12 +85,6 @@ class FunctionTemplateInfo
   DECL_RARE_ACCESSORS(c_function, CFunction, Object)
   DECL_RARE_ACCESSORS(c_signature, CSignature, Object)
 #undef DECL_RARE_ACCESSORS
-
-  // Internal field to store a flag bitfield.
-  DECL_INT_ACCESSORS(flag)
-
-  // "length" property of the final JSFunction.
-  DECL_INT_ACCESSORS(length)
 
   // Begin flag bits ---------------------
   DECL_BOOLEAN_ACCESSORS(undetectable)

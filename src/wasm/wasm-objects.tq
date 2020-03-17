@@ -51,6 +51,9 @@ extern class WasmDebugInfo extends Struct {
 
 @generateCppClass
 extern class WasmExceptionTag extends Struct {
+  // Note that this index is only useful for debugging purposes and it is not
+  // unique across modules. The GC however does not allow objects without at
+  // least one field, hence this also serves as a padding field for now.
   index: Smi;
 }
 

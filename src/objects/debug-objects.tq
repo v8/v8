@@ -37,6 +37,7 @@ bitfield struct DebuggerHints extends uint31 {
 @generateCppClass
 extern class DebugInfo extends Struct {
   shared: SharedFunctionInfo;
+  // Bit field containing various information collected for debugging.
   debugger_hints: SmiTagged<DebuggerHints>;
   // Script field from shared function info.
   script: Undefined|Script;
@@ -48,6 +49,7 @@ extern class DebugInfo extends Struct {
   debug_bytecode_array: Undefined|BytecodeArray;
   // Fixed array holding status information for each active break point.
   break_points: FixedArray;
+  // A bitfield that lists uses of the current instance.
   flags: SmiTagged<DebugInfoFlags>;
   coverage_info: CoverageInfo|Undefined;
 }

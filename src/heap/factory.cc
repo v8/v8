@@ -505,7 +505,7 @@ Handle<PropertyDescriptorObject> Factory::NewPropertyDescriptorObject() {
   Handle<PropertyDescriptorObject> object =
       Handle<PropertyDescriptorObject>::cast(
           NewStruct(PROPERTY_DESCRIPTOR_OBJECT_TYPE, AllocationType::kYoung));
-  object->set_flags(Smi::zero());
+  object->set_flags(0);
   object->set_value(*the_hole_value(), SKIP_WRITE_BARRIER);
   object->set_get(*the_hole_value(), SKIP_WRITE_BARRIER);
   object->set_set(*the_hole_value(), SKIP_WRITE_BARRIER);

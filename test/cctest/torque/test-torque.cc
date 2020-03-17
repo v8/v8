@@ -748,7 +748,7 @@ TEST(TestFullyGeneratedClassFromCpp) {
       Handle<ExportedSubClass>::cast(ft.Call().ToHandleChecked());
   CHECK_EQ(result->c_field(), 7);
   CHECK_EQ(result->d_field(), 8);
-  CHECK_EQ(Smi::ToInt(result->e_field()), 9);
+  CHECK_EQ(result->e_field(), 9);
 }
 
 TEST(TestFullyGeneratedClassWithElements) {

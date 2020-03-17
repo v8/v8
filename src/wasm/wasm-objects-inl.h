@@ -404,9 +404,6 @@ wasm::ValueType WasmTableObject::type() {
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
 
-// WasmExceptionTag
-TQ_SMI_ACCESSORS(WasmExceptionTag, index)
-
 // AsmWasmData
 ACCESSORS(AsmWasmData, managed_native_module, Managed<wasm::NativeModule>,
           kManagedNativeModuleOffset)

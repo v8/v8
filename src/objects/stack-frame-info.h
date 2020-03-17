@@ -76,8 +76,6 @@ class StackTraceFrame
     : public TorqueGeneratedStackTraceFrame<StackTraceFrame, Struct> {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_INT_ACCESSORS(frame_index)
-  DECL_INT_ACCESSORS(id)
 
   // Dispatched behavior.
   DECL_PRINTER(StackTraceFrame)

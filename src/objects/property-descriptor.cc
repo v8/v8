@@ -355,7 +355,7 @@ Handle<PropertyDescriptorObject> PropertyDescriptor::ToPropertyDescriptorObject(
       PropertyDescriptorObject::HasGetBit::encode(has_get()) |
       PropertyDescriptorObject::HasSetBit::encode(has_set());
 
-  obj->set_flags(Smi::FromInt(flags));
+  obj->set_flags(flags);
 
   if (has_value()) obj->set_value(*value_);
   if (has_get()) obj->set_get(*get_);

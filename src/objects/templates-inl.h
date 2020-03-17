@@ -24,9 +24,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateRareData)
 
 NEVER_READ_ONLY_SPACE_IMPL(TemplateInfo)
 
-TQ_SMI_ACCESSORS(TemplateInfo, number_of_properties)
-
-TQ_SMI_ACCESSORS(FunctionTemplateInfo, length)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, undetectable, kUndetectableBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, needs_access_check,
                kNeedsAccessCheckBit)
@@ -37,7 +34,6 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, remove_prototype,
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, do_not_cache, kDoNotCacheBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
                kAcceptAnyReceiver)
-TQ_SMI_ACCESSORS(FunctionTemplateInfo, flag)
 
 // static
 FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(

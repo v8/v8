@@ -1443,10 +1443,6 @@ class JSStringIterator
   DECL_PRINTER(JSStringIterator)
   DECL_VERIFIER(JSStringIterator)
 
-  // [index]: The [[StringIteratorNextIndex]] slot.
-  inline int index() const;
-  inline void set_index(int value);
-
   TQ_OBJECT_CONSTRUCTORS(JSStringIterator)
 };
 

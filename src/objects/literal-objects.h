@@ -70,7 +70,6 @@ class ArrayBoilerplateDescription
   void BriefPrintDetails(std::ostream& os);
 
  private:
-  DECL_INT_ACCESSORS(flags)
   TQ_OBJECT_CONSTRUCTORS(ArrayBoilerplateDescription)
 };
 

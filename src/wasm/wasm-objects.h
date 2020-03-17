@@ -949,11 +949,6 @@ class WasmExceptionTag
   V8_EXPORT_PRIVATE static Handle<WasmExceptionTag> New(Isolate* isolate,
                                                         int index);
 
-  // Note that this index is only useful for debugging purposes and it is not
-  // unique across modules. The GC however does not allow objects without at
-  // least one field, hence this also serves as a padding field for now.
-  DECL_INT_ACCESSORS(index)
-
   DECL_PRINTER(WasmExceptionTag)
 
   TQ_OBJECT_CONSTRUCTORS(WasmExceptionTag)
