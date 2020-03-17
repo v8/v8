@@ -1239,15 +1239,18 @@ Type OperationTyper::StrictEqual(Type lhs, Type rhs) {
       (lhs.Max() < rhs.Min() || lhs.Min() > rhs.Max())) {
     return singleton_false();
   }
-  if ((lhs.Is(Type::Hole()) || rhs.Is(Type::Hole())) && !lhs.Maybe(rhs)) {
-    return singleton_false();
-  }
   if (lhs.IsSingleton() && rhs.Is(lhs)) {
     // Types are equal and are inhabited only by a single semantic value,
     // which is not nan due to the earlier check.
     DCHECK(lhs.Is(rhs));
     DCHECK(lhs.Is(Type::NonInternal()) || lhs.Is(Type::Hole()));
     return singleton_true();
+  }
+  if ((!lhs.Maybe(Type::NumericOrString()) ||
+       !rhs.Maybe(Type::NumericOrString())) &&
+      !lhs.Maybe(rhs)) {
+    // One of the inputs has a canonical representation but types don't overlap.
+    return singleton_false();
   }
   return Type::Boolean();
 }

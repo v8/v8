@@ -848,23 +848,18 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
   JSBinopReduction r(this, node);
+  if (r.type().IsSingleton()) {
+    // Let ConstantFoldingReducer handle this.
+    return NoChange();
+  }
   if (r.left() == r.right()) {
     // x === x is always true if x != NaN
     Node* replacement = graph()->NewNode(
         simplified()->BooleanNot(),
         graph()->NewNode(simplified()->ObjectIsNaN(), r.left()));
+    DCHECK(NodeProperties::GetType(replacement).Is(r.type()));
     ReplaceWithValue(node, replacement);
     return Replace(replacement);
-  }
-  if (r.OneInputCannotBe(Type::NumericOrString())) {
-    // For values with canonical representation (i.e. neither String nor
-    // Numeric) an empty type intersection means the values cannot be strictly
-    // equal.
-    if (!r.left_type().Maybe(r.right_type())) {
-      Node* replacement = jsgraph()->FalseConstant();
-      ReplaceWithValue(node, replacement);
-      return Replace(replacement);
-    }
   }
 
   if (r.BothInputsAre(Type::Unique())) {

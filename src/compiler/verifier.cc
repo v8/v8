@@ -1593,7 +1593,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       if (typing == TYPED) {
         Type type = NodeProperties::GetType(node);
         CHECK(type.IsSingleton());
-        CHECK(type.Is(NodeProperties::GetType(node->InputAt(0))));
+        CHECK(type.Equals(NodeProperties::GetType(node->InputAt(0))));
         CHECK(type.Equals(NodeProperties::GetType(node->InputAt(1))));
       }
       break;
