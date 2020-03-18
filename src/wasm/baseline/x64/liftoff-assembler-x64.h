@@ -1890,6 +1890,25 @@ void EmitSimdCommutativeBinOp(LiftoffAssembler* assm, LiftoffRegister dst,
     (assm->*sse_op)(dst.fp(), rhs.fp());
   }
 }
+
+template <void (Assembler::*avx_op)(XMMRegister, XMMRegister, XMMRegister),
+          void (Assembler::*sse_op)(XMMRegister, XMMRegister)>
+void EmitSimdSub(LiftoffAssembler* assm, LiftoffRegister dst,
+                 LiftoffRegister lhs, LiftoffRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(assm, AVX);
+    (assm->*avx_op)(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (lhs.fp() == rhs.fp()) {
+    assm->pxor(dst.fp(), dst.fp());
+  } else if (dst.fp() == rhs.fp()) {
+    assm->movaps(kScratchDoubleReg, rhs.fp());
+    assm->movaps(dst.fp(), lhs.fp());
+    (assm->*sse_op)(dst.fp(), kScratchDoubleReg);
+  } else {
+    if (dst.fp() != lhs.fp()) assm->movaps(dst.fp(), lhs.fp());
+    (assm->*sse_op)(dst.fp(), rhs.fp());
+  }
+}
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
@@ -1908,6 +1927,12 @@ void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vaddpd, &Assembler::addpd>(
       this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_f64x2_sub(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  liftoff::EmitSimdSub<&Assembler::vsubpd, &Assembler::subpd>(this, dst, lhs,
+                                                              rhs);
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
@@ -1936,6 +1961,12 @@ void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_f32x4_sub(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  liftoff::EmitSimdSub<&Assembler::vsubps, &Assembler::subps>(this, dst, lhs,
+                                                              rhs);
+}
+
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Movq(dst.fp(), src.gp());
@@ -1954,6 +1985,12 @@ void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i64x2_sub(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  liftoff::EmitSimdSub<&Assembler::vpsubq, &Assembler::psubq>(this, dst, lhs,
+                                                              rhs);
+}
+
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Movd(dst.fp(), src.gp());
@@ -1970,6 +2007,12 @@ void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddd, &Assembler::paddd>(
       this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32x4_sub(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  liftoff::EmitSimdSub<&Assembler::vpsubd, &Assembler::psubd>(this, dst, lhs,
+                                                              rhs);
 }
 
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
@@ -1998,6 +2041,12 @@ void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i16x8_sub(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  liftoff::EmitSimdSub<&Assembler::vpsubw, &Assembler::psubw>(this, dst, lhs,
+                                                              rhs);
+}
+
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Movd(dst.fp(), src.gp());
@@ -2022,6 +2071,12 @@ void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddb, &Assembler::paddb>(
       this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i8x16_sub(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  liftoff::EmitSimdSub<&Assembler::vpsubb, &Assembler::psubb>(this, dst, lhs,
+                                                              rhs);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {

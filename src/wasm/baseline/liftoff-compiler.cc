@@ -2271,6 +2271,12 @@ class LiftoffCompiler {
               __ emit_f64x2_add(dst, lhs, rhs);
             });
         break;
+      case wasm::kExprF64x2Sub:
+        EmitBinOp<ValueType::kS128, ValueType::kS128>(
+            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
+              __ emit_f64x2_sub(dst, lhs, rhs);
+            });
+        break;
       case wasm::kExprF32x4Splat:
         EmitUnOp<ValueType::kF32, ValueType::kS128>(
             [=](LiftoffRegister dst, LiftoffRegister src) {
@@ -2281,6 +2287,12 @@ class LiftoffCompiler {
         EmitBinOp<ValueType::kS128, ValueType::kS128>(
             [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
               __ emit_f32x4_add(dst, lhs, rhs);
+            });
+        break;
+      case wasm::kExprF32x4Sub:
+        EmitBinOp<ValueType::kS128, ValueType::kS128>(
+            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
+              __ emit_f32x4_sub(dst, lhs, rhs);
             });
         break;
       case wasm::kExprI64x2Splat:
@@ -2295,6 +2307,12 @@ class LiftoffCompiler {
               __ emit_i64x2_add(dst, lhs, rhs);
             });
         break;
+      case wasm::kExprI64x2Sub:
+        EmitBinOp<ValueType::kS128, ValueType::kS128>(
+            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
+              __ emit_i64x2_sub(dst, lhs, rhs);
+            });
+        break;
       case wasm::kExprI32x4Splat:
         EmitUnOp<ValueType::kI32, ValueType::kS128>(
             [=](LiftoffRegister dst, LiftoffRegister src) {
@@ -2305,6 +2323,12 @@ class LiftoffCompiler {
         EmitBinOp<ValueType::kS128, ValueType::kS128>(
             [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
               __ emit_i32x4_add(dst, lhs, rhs);
+            });
+        break;
+      case wasm::kExprI32x4Sub:
+        EmitBinOp<ValueType::kS128, ValueType::kS128>(
+            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
+              __ emit_i32x4_sub(dst, lhs, rhs);
             });
         break;
       case wasm::kExprI16x8Splat:
@@ -2319,6 +2343,12 @@ class LiftoffCompiler {
               __ emit_i16x8_add(dst, lhs, rhs);
             });
         break;
+      case wasm::kExprI16x8Sub:
+        EmitBinOp<ValueType::kS128, ValueType::kS128>(
+            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
+              __ emit_i16x8_sub(dst, lhs, rhs);
+            });
+        break;
       case wasm::kExprI8x16Splat:
         EmitUnOp<ValueType::kI32, ValueType::kS128>(
             [=](LiftoffRegister dst, LiftoffRegister src) {
@@ -2329,6 +2359,12 @@ class LiftoffCompiler {
         EmitBinOp<ValueType::kS128, ValueType::kS128>(
             [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
               __ emit_i8x16_add(dst, lhs, rhs);
+            });
+        break;
+      case wasm::kExprI8x16Sub:
+        EmitBinOp<ValueType::kS128, ValueType::kS128>(
+            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
+              __ emit_i8x16_sub(dst, lhs, rhs);
             });
         break;
       default:
