@@ -453,6 +453,9 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I16x8AddHoriz, 0xfdbd, s_ss)        \
   V(I32x4AddHoriz, 0xfdbe, s_ss)        \
   V(F32x4AddHoriz, 0xfdbf, s_ss)        \
+  V(I8x16BitMask, 0xfde4, i_s)          \
+  V(I16x8BitMask, 0xfde5, i_s)          \
+  V(I32x4BitMask, 0xfde6, i_s)          \
   V(F32x4RecipApprox, 0xfdee, s_s)      \
   V(F32x4RecipSqrtApprox, 0xfdef, s_s)
 

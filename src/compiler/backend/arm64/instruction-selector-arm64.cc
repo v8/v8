@@ -3368,6 +3368,29 @@ VISIT_SIMD_QFMOP(F32x4Qfms)
 #undef VISIT_SIMD_QFMOP
 
 namespace {
+template <ArchOpcode opcode>
+void VisitBitMask(InstructionSelector* selector, Node* node) {
+  Arm64OperandGenerator g(selector);
+  InstructionOperand temps[] = {g.TempSimd128Register(),
+                                g.TempSimd128Register()};
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
+}
+}  // namespace
+
+void InstructionSelector::VisitI8x16BitMask(Node* node) {
+  VisitBitMask<kArm64I8x16BitMask>(this, node);
+}
+
+void InstructionSelector::VisitI16x8BitMask(Node* node) {
+  VisitBitMask<kArm64I16x8BitMask>(this, node);
+}
+
+void InstructionSelector::VisitI32x4BitMask(Node* node) {
+  VisitBitMask<kArm64I32x4BitMask>(this, node);
+}
+
+namespace {
 
 struct ShuffleEntry {
   uint8_t shuffle[kSimd128Size];

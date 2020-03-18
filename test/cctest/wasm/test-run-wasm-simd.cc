@@ -1658,6 +1658,68 @@ WASM_SIMD_TEST(I16x8ReplaceLane) {
   }
 }
 
+#if V8_TARGET_ARCH_ARM64
+WASM_SIMD_TEST_NO_LOWERING(I8x16BitMask) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
+  WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+  byte value1 = r.AllocateLocal(kWasmS128);
+
+  BUILD(r, WASM_SET_LOCAL(value1, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(0))),
+        WASM_SET_LOCAL(value1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                   0, WASM_GET_LOCAL(value1), WASM_I32V(0))),
+        WASM_SET_LOCAL(value1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                   1, WASM_GET_LOCAL(value1), WASM_I32V(-1))),
+        WASM_SIMD_UNOP(kExprI8x16BitMask, WASM_GET_LOCAL(value1)));
+
+  FOR_INT8_INPUTS(x) {
+    int32_t actual = r.Call(x);
+    // Lane 0 is always 0 (positive), lane 1 is always -1.
+    int32_t expected = std::signbit(x) ? 0xFFFE : 0x0002;
+    CHECK_EQ(actual, expected);
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I16x8BitMask) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
+  WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+  byte value1 = r.AllocateLocal(kWasmS128);
+
+  BUILD(r, WASM_SET_LOCAL(value1, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(0))),
+        WASM_SET_LOCAL(value1, WASM_SIMD_I16x8_REPLACE_LANE(
+                                   0, WASM_GET_LOCAL(value1), WASM_I32V(0))),
+        WASM_SET_LOCAL(value1, WASM_SIMD_I16x8_REPLACE_LANE(
+                                   1, WASM_GET_LOCAL(value1), WASM_I32V(-1))),
+        WASM_SIMD_UNOP(kExprI16x8BitMask, WASM_GET_LOCAL(value1)));
+
+  FOR_INT16_INPUTS(x) {
+    int32_t actual = r.Call(x);
+    // Lane 0 is always 0 (positive), lane 1 is always -1.
+    int32_t expected = std::signbit(x) ? 0xFE : 2;
+    CHECK_EQ(actual, expected);
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I32x4BitMask) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
+  WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+  byte value1 = r.AllocateLocal(kWasmS128);
+
+  BUILD(r, WASM_SET_LOCAL(value1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0))),
+        WASM_SET_LOCAL(value1, WASM_SIMD_I32x4_REPLACE_LANE(
+                                   0, WASM_GET_LOCAL(value1), WASM_I32V(0))),
+        WASM_SET_LOCAL(value1, WASM_SIMD_I32x4_REPLACE_LANE(
+                                   1, WASM_GET_LOCAL(value1), WASM_I32V(-1))),
+        WASM_SIMD_UNOP(kExprI32x4BitMask, WASM_GET_LOCAL(value1)));
+
+  FOR_INT32_INPUTS(x) {
+    int32_t actual = r.Call(x);
+    // Lane 0 is always 0 (positive), lane 1 is always -1.
+    int32_t expected = std::signbit(x) ? 0xE : 2;
+    CHECK_EQ(actual, expected);
+  }
+}
+#endif  // V8_TARGET_ARCH_ARM64
+
 WASM_SIMD_TEST(I8x16Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.

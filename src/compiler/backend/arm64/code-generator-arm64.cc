@@ -2128,6 +2128,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I32x4GtU, Cmhi, 4S);
       SIMD_BINOP_CASE(kArm64I32x4GeU, Cmhs, 4S);
       SIMD_UNOP_CASE(kArm64I32x4Abs, Abs, 4S);
+    case kArm64I32x4BitMask: {
+      Register dst = i.OutputRegister32();
+      VRegister src = i.InputSimd128Register(0);
+      VRegister tmp = i.TempSimd128Register(0);
+      VRegister mask = i.TempSimd128Register(1);
+
+      __ Sshr(tmp.V4S(), src.V4S(), 31);
+      // Set i-th bit of each lane i. When AND with tmp, the lanes that
+      // are signed will have i-th bit set, unsigned will be 0.
+      __ Movi(mask.V2D(), 0x0000'0008'0000'0004, 0x0000'0002'0000'0001);
+      __ And(tmp.V16B(), mask.V16B(), tmp.V16B());
+      __ Addv(tmp.S(), tmp.V4S());
+      __ Mov(dst.W(), tmp.V4S(), 0);
+      break;
+    }
     case kArm64I16x8Splat: {
       __ Dup(i.OutputSimd128Register().V8H(), i.InputRegister32(0));
       break;
@@ -2229,6 +2244,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I16x8GeU, Cmhs, 8H);
       SIMD_BINOP_CASE(kArm64I16x8RoundingAverageU, Urhadd, 8H);
       SIMD_UNOP_CASE(kArm64I16x8Abs, Abs, 8H);
+    case kArm64I16x8BitMask: {
+      Register dst = i.OutputRegister32();
+      VRegister src = i.InputSimd128Register(0);
+      VRegister tmp = i.TempSimd128Register(0);
+      VRegister mask = i.TempSimd128Register(1);
+
+      __ Sshr(tmp.V8H(), src.V8H(), 15);
+      // Set i-th bit of each lane i. When AND with tmp, the lanes that
+      // are signed will have i-th bit set, unsigned will be 0.
+      __ Movi(mask.V2D(), 0x0080'0040'0020'0010, 0x0008'0004'0002'0001);
+      __ And(tmp.V16B(), mask.V16B(), tmp.V16B());
+      __ Addv(tmp.H(), tmp.V8H());
+      __ Mov(dst.W(), tmp.V8H(), 0);
+      break;
+    }
     case kArm64I8x16Splat: {
       __ Dup(i.OutputSimd128Register().V16B(), i.InputRegister32(0));
       break;
@@ -2318,6 +2348,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I8x16GeU, Cmhs, 16B);
       SIMD_BINOP_CASE(kArm64I8x16RoundingAverageU, Urhadd, 16B);
       SIMD_UNOP_CASE(kArm64I8x16Abs, Abs, 16B);
+    case kArm64I8x16BitMask: {
+      Register dst = i.OutputRegister32();
+      VRegister src = i.InputSimd128Register(0);
+      VRegister tmp = i.TempSimd128Register(0);
+      VRegister mask = i.TempSimd128Register(1);
+
+      // Set i-th bit of each lane i. When AND with tmp, the lanes that
+      // are signed will have i-th bit set, unsigned will be 0.
+      __ Sshr(tmp.V16B(), src.V16B(), 7);
+      __ Movi(mask.V2D(), 0x8040'2010'0804'0201);
+      __ And(tmp.V16B(), mask.V16B(), tmp.V16B());
+      __ Ext(mask.V16B(), tmp.V16B(), tmp.V16B(), 8);
+      __ Zip1(tmp.V16B(), tmp.V16B(), mask.V16B());
+      __ Addv(tmp.H(), tmp.V8H());
+      __ Mov(dst.W(), tmp.V8H(), 0);
+      break;
+    }
     case kArm64S128Zero: {
       __ Movi(i.OutputSimd128Register().V16B(), 0);
       break;

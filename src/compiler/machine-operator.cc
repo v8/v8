@@ -390,6 +390,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(I32x4GtU, Operator::kNoProperties, 2, 0, 1)                            \
   V(I32x4GeU, Operator::kNoProperties, 2, 0, 1)                            \
   V(I32x4Abs, Operator::kNoProperties, 1, 0, 1)                            \
+  V(I32x4BitMask, Operator::kNoProperties, 1, 0, 1)                        \
   V(I16x8Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)               \
   V(I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)              \
@@ -421,6 +422,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(I16x8GeU, Operator::kNoProperties, 2, 0, 1)                            \
   V(I16x8RoundingAverageU, Operator::kCommutative, 2, 0, 1)                \
   V(I16x8Abs, Operator::kNoProperties, 1, 0, 1)                            \
+  V(I16x8BitMask, Operator::kNoProperties, 1, 0, 1)                        \
   V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I8x16Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(I8x16Shl, Operator::kNoProperties, 2, 0, 1)                            \
@@ -447,6 +449,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(I8x16GeU, Operator::kNoProperties, 2, 0, 1)                            \
   V(I8x16RoundingAverageU, Operator::kCommutative, 2, 0, 1)                \
   V(I8x16Abs, Operator::kNoProperties, 1, 0, 1)                            \
+  V(I8x16BitMask, Operator::kNoProperties, 1, 0, 1)                        \
   V(S128Load, Operator::kNoProperties, 2, 0, 1)                            \
   V(S128Store, Operator::kNoProperties, 3, 0, 1)                           \
   V(S128Zero, Operator::kNoProperties, 0, 0, 1)                            \
