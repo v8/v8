@@ -46,8 +46,8 @@ bool IsAlreadyBeingFolded(Node* node) {
   bool found = false;
   for (Edge edge : node->use_edges()) {
     if (!NodeProperties::IsValueEdge(edge)) continue;
-    DCHECK(!found);
     if (edge.from()->opcode() == IrOpcode::kFoldConstant) {
+      DCHECK(!found);
       found = true;
 #ifndef ENABLE_SLOW_DCHECKS
       break;
