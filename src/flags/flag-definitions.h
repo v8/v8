@@ -818,9 +818,6 @@ DEFINE_SIZE_T(max_semi_space_size, 0,
               "max size of a semi-space (in MBytes), the new space consists of "
               "two semi-spaces")
 DEFINE_INT(semi_space_growth_factor, 2, "factor by which to grow the new space")
-DEFINE_BOOL(experimental_new_space_growth_heuristic, false,
-            "Grow the new space based on the percentage of survivors instead "
-            "of their absolute value.")
 DEFINE_SIZE_T(max_old_space_size, 0, "max size of the old space (in Mbytes)")
 DEFINE_SIZE_T(
     max_heap_size, 0,

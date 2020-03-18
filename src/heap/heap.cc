@@ -2314,16 +2314,8 @@ void Heap::MarkCompactPrologue() {
 
 
 void Heap::CheckNewSpaceExpansionCriteria() {
-  if (FLAG_experimental_new_space_growth_heuristic) {
-    if (new_space_->TotalCapacity() < new_space_->MaximumCapacity() &&
-        survived_last_scavenge_ * 100 / new_space_->TotalCapacity() >= 10) {
-      // Grow the size of new space if there is room to grow, and more than 10%
-      // have survived the last scavenge.
-      new_space_->Grow();
-      survived_since_last_expansion_ = 0;
-    }
-  } else if (new_space_->TotalCapacity() < new_space_->MaximumCapacity() &&
-             survived_since_last_expansion_ > new_space_->TotalCapacity()) {
+  if (new_space_->TotalCapacity() < new_space_->MaximumCapacity() &&
+      survived_since_last_expansion_ > new_space_->TotalCapacity()) {
     // Grow the size of new space if there is room to grow, and enough data
     // has survived scavenge since the last expansion.
     new_space_->Grow();
