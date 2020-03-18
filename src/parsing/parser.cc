@@ -515,8 +515,9 @@ void MaybeProcessSourceRanges(ParseInfo* parse_info, Expression* root,
 
 }  // namespace
 
-FunctionLiteral* Parser::ParseProgram(Isolate* isolate, Handle<Script> script,
-                                      ParseInfo* info) {
+FunctionLiteral* Parser::ParseProgram(
+    Isolate* isolate, Handle<Script> script, ParseInfo* info,
+    MaybeHandle<ScopeInfo> maybe_outer_scope_info) {
   // TODO(bmeurer): We temporarily need to pass allow_nesting = true here,
   // see comment for HistogramTimerScope class.
   DCHECK_EQ(script->id(), script_id());
@@ -533,8 +534,13 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, Handle<Script> script,
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
   // Initialize parser state.
-  DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info(),
+  DeserializeScopeChain(isolate, info, maybe_outer_scope_info,
                         Scope::DeserializationMode::kIncludingVariables);
+
+  DCHECK_EQ(script->is_wrapped(), info->is_wrapped_as_function());
+  if (script->is_wrapped()) {
+    maybe_wrapped_arguments_ = handle(script->wrapped_arguments(), isolate);
+  }
 
   scanner_.Initialize();
   FunctionLiteral* result = DoParseProgram(isolate, info);
@@ -690,7 +696,7 @@ ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
     Isolate* isolate, ParseInfo* info, Zone* zone) {
   DCHECK(parsing_on_main_thread_);
   DCHECK_NOT_NULL(isolate);
-  Handle<FixedArray> arguments = info->wrapped_arguments();
+  Handle<FixedArray> arguments = maybe_wrapped_arguments_.ToHandleChecked();
   int arguments_length = arguments->length();
   ZonePtrList<const AstRawString>* arguments_for_wrapped_function =
       new (zone) ZonePtrList<const AstRawString>(arguments_length, zone);
@@ -796,9 +802,18 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
-  DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info(),
+  MaybeHandle<ScopeInfo> maybe_outer_scope_info;
+  if (shared_info->HasOuterScopeInfo()) {
+    maybe_outer_scope_info = handle(shared_info->GetOuterScopeInfo(), isolate);
+  }
+  DeserializeScopeChain(isolate, info, maybe_outer_scope_info,
                         Scope::DeserializationMode::kIncludingVariables);
   DCHECK_EQ(factory()->zone(), info->zone());
+
+  if (shared_info->is_wrapped()) {
+    maybe_wrapped_arguments_ = handle(
+        Script::cast(shared_info->script()).wrapped_arguments(), isolate);
+  }
 
   // Initialize parser state.
   Handle<String> name(shared_info->Name(), isolate);
@@ -3080,7 +3095,6 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   FunctionLiteral* result = nullptr;
 
   scanner_.Initialize();
-  DCHECK(info->maybe_outer_scope_info().is_null());
 
   DCHECK(original_scope_);
 

@@ -166,8 +166,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   friend class i::ParameterDeclarationParsingScope<ParserTypes<Parser>>;
   friend class i::ArrowHeadParsingScope<ParserTypes<Parser>>;
   friend bool v8::internal::parsing::ParseProgram(
-      ParseInfo*, Handle<Script>, Isolate*,
-      parsing::ReportErrorsAndStatisticsMode stats_mode);
+      ParseInfo*, Handle<Script>, MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+      Isolate*, parsing::ReportErrorsAndStatisticsMode stats_mode);
   friend bool v8::internal::parsing::ParseFunction(
       ParseInfo*, Handle<SharedFunctionInfo> shared_info, Isolate*,
       parsing::ReportErrorsAndStatisticsMode stats_mode);
@@ -209,7 +209,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Returns nullptr if parsing failed.
   FunctionLiteral* ParseProgram(Isolate* isolate, Handle<Script> script,
-                                ParseInfo* info);
+                                ParseInfo* info,
+                                MaybeHandle<ScopeInfo> maybe_outer_scope_info);
 
   FunctionLiteral* ParseFunction(Isolate* isolate, ParseInfo* info,
                                  Handle<SharedFunctionInfo> shared_info);
@@ -1042,6 +1043,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Zone preparser_zone_;
   PreParser* reusable_preparser_;
   Mode mode_;
+
+  MaybeHandle<FixedArray> maybe_wrapped_arguments_;
 
   SourceRangeMap* source_range_map_ = nullptr;
 

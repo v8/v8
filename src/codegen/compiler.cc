@@ -32,6 +32,7 @@
 #include "src/execution/isolate.h"
 #include "src/execution/runtime-profiler.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/handles/maybe-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/off-thread-factory-inl.h"
 #include "src/init/bootstrapper.h"
@@ -1075,7 +1076,8 @@ MaybeHandle<SharedFunctionInfo> FinalizeTopLevel(
 }
 
 MaybeHandle<SharedFunctionInfo> CompileToplevel(
-    ParseInfo* parse_info, Handle<Script> script, Isolate* isolate,
+    ParseInfo* parse_info, Handle<Script> script,
+    MaybeHandle<ScopeInfo> maybe_outer_scope_info, Isolate* isolate,
     IsCompiledScope* is_compiled_scope) {
   TimerEventScope<TimerEventCompileCode> top_level_timer(isolate);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
@@ -1088,7 +1090,8 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
                                      : RuntimeCallCounterId::kCompileScript);
   VMState<BYTECODE_COMPILER> state(isolate);
   if (parse_info->literal() == nullptr &&
-      !parsing::ParseProgram(parse_info, script, isolate)) {
+      !parsing::ParseProgram(parse_info, script, maybe_outer_scope_info,
+                             isolate)) {
     return MaybeHandle<SharedFunctionInfo>();
   }
   // Measure how long it takes to do the compilation; only take the
@@ -1133,6 +1136,13 @@ std::unique_ptr<UnoptimizedCompilationJob> CompileOnBackgroundThread(
   std::unique_ptr<UnoptimizedCompilationJob> outer_function_job(
       GenerateUnoptimizedCode(parse_info, allocator, inner_function_jobs));
   return outer_function_job;
+}
+
+MaybeHandle<SharedFunctionInfo> CompileToplevel(
+    ParseInfo* parse_info, Handle<Script> script, Isolate* isolate,
+    IsCompiledScope* is_compiled_scope) {
+  return CompileToplevel(parse_info, script, kNullMaybeHandle, isolate,
+                         is_compiled_scope);
 }
 
 }  // namespace
@@ -1709,10 +1719,12 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     parse_info.set_eval();
     parse_info.set_parse_restriction(restriction);
     parse_info.set_parameters_end_pos(parameters_end_pos);
-    if (!context->IsNativeContext()) {
-      parse_info.set_outer_scope_info(handle(context->scope_info(), isolate));
-    }
     DCHECK(!parse_info.is_module());
+
+    MaybeHandle<ScopeInfo> maybe_outer_scope_info;
+    if (!context->IsNativeContext()) {
+      maybe_outer_scope_info = handle(context->scope_info(), isolate);
+    }
 
     script = parse_info.CreateScript(
         isolate, source, OriginOptionsForEval(outer_info->script()));
@@ -1734,7 +1746,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     }
     script->set_eval_from_position(eval_position);
 
-    if (!CompileToplevel(&parse_info, script, isolate, &is_compiled_scope)
+    if (!CompileToplevel(&parse_info, script, maybe_outer_scope_info, isolate,
+                         &is_compiled_scope)
              .ToHandle(&shared_info)) {
       return MaybeHandle<JSFunction>();
     }
@@ -2320,22 +2333,24 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
 
     parse_info.set_eval();  // Use an eval scope as declaration scope.
     parse_info.set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
-    parse_info.set_wrapped_arguments(arguments);
     // TODO(delphick): Remove this and instead make the wrapped and wrapper
     // functions fully non-lazy instead thus preventing source positions from
     // being omitted.
     parse_info.set_collect_source_positions(true);
     // parse_info.set_eager(compile_options == ScriptCompiler::kEagerCompile);
+
+    MaybeHandle<ScopeInfo> maybe_outer_scope_info;
     if (!context->IsNativeContext()) {
-      parse_info.set_outer_scope_info(handle(context->scope_info(), isolate));
+      maybe_outer_scope_info = handle(context->scope_info(), isolate);
     }
 
     script = NewScript(isolate, &parse_info, source, script_details,
                        origin_options, NOT_NATIVES_CODE);
+    script->set_wrapped_arguments(*arguments);
 
     Handle<SharedFunctionInfo> top_level;
-    maybe_result =
-        CompileToplevel(&parse_info, script, isolate, &is_compiled_scope);
+    maybe_result = CompileToplevel(&parse_info, script, maybe_outer_scope_info,
+                                   isolate, &is_compiled_scope);
     if (maybe_result.is_null()) isolate->ReportPendingMessages();
     ASSIGN_RETURN_ON_EXCEPTION(isolate, top_level, maybe_result, JSFunction);
 

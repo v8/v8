@@ -107,14 +107,6 @@ ParseInfo::ParseInfo(Isolate* isolate, SharedFunctionInfo shared)
 
   Script script = Script::cast(shared.script());
   SetFlagsForFunctionFromScript(script);
-  if (shared.is_wrapped()) {
-    DCHECK(script.is_wrapped());
-    set_wrapped_arguments(handle(script.wrapped_arguments(), isolate));
-  }
-
-  if (shared.HasOuterScopeInfo()) {
-    set_outer_scope_info(handle(shared.GetOuterScopeInfo(), isolate));
-  }
 
   set_repl_mode(shared.is_repl_mode());
 
@@ -150,7 +142,6 @@ std::unique_ptr<ParseInfo> ParseInfo::FromParent(
 
   DCHECK_EQ(outer_parse_info->parameters_end_pos(), kNoSourcePosition);
   DCHECK_NULL(outer_parse_info->extension());
-  DCHECK(outer_parse_info->maybe_outer_scope_info().is_null());
 
   // Clone the function_name AstRawString into the ParseInfo's own
   // AstValueFactory.
@@ -197,9 +188,7 @@ Handle<Script> ParseInfo::CreateScript(LocalIsolate* isolate,
   }
   script->set_origin_options(origin_options);
   script->set_is_repl_mode(is_repl_mode());
-  if (is_wrapped_as_function()) {
-    script->set_wrapped_arguments(*wrapped_arguments());
-  } else if (is_eval()) {
+  if (is_eval() && !is_wrapped_as_function()) {
     script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
   }
 
@@ -267,7 +256,6 @@ void ParseInfo::SetFlagsForToplevelCompileFromScript(
 
   if (script.is_wrapped()) {
     set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
-    set_wrapped_arguments(handle(script.wrapped_arguments(), isolate));
   }
 }
 
@@ -282,7 +270,6 @@ void ParseInfo::CheckFlagsForToplevelCompileFromScript(
 
   if (script.is_wrapped()) {
     DCHECK_EQ(function_syntax_kind(), FunctionSyntaxKind::kWrapped);
-    DCHECK_EQ(*wrapped_arguments(), script.wrapped_arguments());
   }
 }
 

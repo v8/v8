@@ -268,21 +268,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   void CheckFlagsForFunctionFromScript(Script script);
 
-  //--------------------------------------------------------------------------
-  // TODO(titzer): these should not be part of ParseInfo.
-  //--------------------------------------------------------------------------
-  Handle<FixedArray> wrapped_arguments() const { return wrapped_arguments_; }
-  void set_wrapped_arguments(Handle<FixedArray> wrapped_arguments) {
-    wrapped_arguments_ = wrapped_arguments;
-  }
-
-  MaybeHandle<ScopeInfo> maybe_outer_scope_info() const {
-    return maybe_outer_scope_info_;
-  }
-  void set_outer_scope_info(Handle<ScopeInfo> outer_scope_info) {
-    maybe_outer_scope_info_ = outer_scope_info;
-  }
-
   int script_id() const { return script_id_; }
   //--------------------------------------------------------------------------
 
@@ -364,10 +349,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int parameters_end_pos_;
   int function_literal_id_;
   int max_function_literal_id_;
-
-  // TODO(titzer): Move handles out of ParseInfo.
-  Handle<FixedArray> wrapped_arguments_;
-  MaybeHandle<ScopeInfo> maybe_outer_scope_info_;
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   std::unique_ptr<Utf16CharacterStream> character_stream_;

@@ -573,10 +573,11 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   DeclarationScope* scope = info->literal()->scope();
 
   base::Optional<AllowHandleDereference> allow_deref;
-  if (!info->maybe_outer_scope_info().is_null()) {
-    // Allow dereferences to the scope info if there is one.
+#ifdef DEBUG
+  if (scope->outer_scope() && !scope->outer_scope()->scope_info_.is_null()) {
     allow_deref.emplace();
   }
+#endif
 
   if (scope->is_eval_scope() && is_sloppy(scope->language_mode())) {
     AstNodeFactory factory(info->ast_value_factory(), info->zone());

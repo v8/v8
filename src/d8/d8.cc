@@ -35,6 +35,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/handles/maybe-handles.h"
 #include "src/init/v8.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
@@ -549,7 +550,8 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
 
     i::Handle<i::Script> script =
         parse_info.CreateScript(i_isolate, str, options.compile_options);
-    if (!i::parsing::ParseProgram(&parse_info, script, i_isolate)) {
+    if (!i::parsing::ParseProgram(&parse_info, script, i::kNullMaybeHandle,
+                                  i_isolate)) {
       fprintf(stderr, "Failed parsing\n");
       return false;
     }
