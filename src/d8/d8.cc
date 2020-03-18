@@ -544,16 +544,16 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     i::Handle<i::String> str = Utils::OpenHandle(*(source));
 
     // Set up ParseInfo.
-    i::ParseInfo parse_info(i_isolate);
-    parse_info.set_toplevel();
-    parse_info.set_allow_lazy_parsing();
-    parse_info.set_language_mode(
-        i::construct_language_mode(i::FLAG_use_strict));
+    i::UnoptimizedCompileFlags flags =
+        i::UnoptimizedCompileFlags::ForToplevelCompile(
+            i_isolate, true, i::construct_language_mode(i::FLAG_use_strict),
+            i::REPLMode::kNo);
 
-    i::Handle<i::Script> script =
-        parse_info.CreateScript(i_isolate, str, options.compile_options);
-    if (!i::parsing::ParseProgram(&parse_info, script, i::kNullMaybeHandle,
-                                  i_isolate)) {
+    i::ParseInfo parse_info(i_isolate, flags);
+
+    i::Handle<i::Script> script = parse_info.CreateScript(
+        i_isolate, str, i::kNullMaybeHandle, options.compile_options);
+    if (!i::parsing::ParseProgram(&parse_info, script, i_isolate)) {
       fprintf(stderr, "Failed parsing\n");
       return false;
     }

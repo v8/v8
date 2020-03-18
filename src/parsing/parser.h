@@ -14,6 +14,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
@@ -134,7 +135,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   static bool IsPreParser() { return false; }
 
-  void ParseOnBackground(ParseInfo* info);
+  void ParseOnBackground(ParseInfo* info, int start_position, int end_position,
+                         int function_literal_id);
 
   // Initializes an empty scope chain for top-level scripts, or scopes which
   // consist of only the native context.
@@ -215,6 +217,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   FunctionLiteral* ParseFunction(Isolate* isolate, ParseInfo* info,
                                  Handle<SharedFunctionInfo> shared_info);
   FunctionLiteral* DoParseFunction(Isolate* isolate, ParseInfo* info,
+                                   int start_position, int end_position,
+                                   int function_literal_id,
                                    const AstRawString* raw_name);
 
   // Called by ParseProgram after setting up the scanner.
@@ -239,15 +243,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (reusable_preparser_ == nullptr) {
       reusable_preparser_ = new PreParser(
           &preparser_zone_, &scanner_, stack_limit_, ast_value_factory(),
-          pending_error_handler(), runtime_call_stats_, logger_, -1,
-          parsing_module_, parsing_on_main_thread_);
-#define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
-      SET_ALLOW(natives);
-      SET_ALLOW(harmony_dynamic_import);
-      SET_ALLOW(harmony_import_meta);
-      SET_ALLOW(harmony_private_methods);
-      SET_ALLOW(eval_cache);
-#undef SET_ALLOW
+          pending_error_handler(), runtime_call_stats_, logger_, flags(),
+          parsing_on_main_thread_);
+      reusable_preparser_->set_allow_eval_cache(allow_eval_cache());
       preparse_data_buffer_.reserve(128);
     }
     return reusable_preparser_;

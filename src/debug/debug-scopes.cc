@@ -40,7 +40,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
   TryParseAndRetrieveScopes(strategy);
 }
 
-ScopeIterator::~ScopeIterator() { delete info_; }
+ScopeIterator::~ScopeIterator() = default;
 
 Handle<Object> ScopeIterator::GetFunctionDebugName() const {
   if (!function_.is_null()) return JSFunction::GetDebugName(function_);
@@ -236,36 +236,41 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   // Depending on the choosen strategy, the whole script or just
   // the closure is re-parsed for function scopes.
   Handle<Script> script(Script::cast(shared_info->script()), isolate_);
+
+  UnoptimizedCompileFlags flags;
   if (scope_info->scope_type() == FUNCTION_SCOPE &&
       strategy == ReparseStrategy::kFunctionLiteral) {
-    info_ = new ParseInfo(isolate_, *shared_info);
+    flags = UnoptimizedCompileFlags::ForFunctionCompile(isolate_, *shared_info);
   } else {
-    info_ = new ParseInfo(isolate_, *script);
-    info_->set_eager();
+    flags = UnoptimizedCompileFlags::ForScriptCompile(isolate_, *script);
+    flags.is_eager = true;
   }
 
   MaybeHandle<ScopeInfo> maybe_outer_scope;
   if (scope_info->scope_type() == EVAL_SCOPE || script->is_wrapped()) {
-    info_->set_eval();
+    flags.is_eval = true;
     if (!context_->IsNativeContext()) {
       maybe_outer_scope = handle(context_->scope_info(), isolate_);
     }
     // Language mode may be inherited from the eval caller.
     // Retrieve it from shared function info.
-    info_->set_language_mode(shared_info->language_mode());
+    flags.outer_language_mode = shared_info->language_mode();
   } else if (scope_info->scope_type() == MODULE_SCOPE) {
-    DCHECK(info_->is_module());
+    DCHECK(flags.is_module);
   } else {
     DCHECK(scope_info->scope_type() == SCRIPT_SCOPE ||
            scope_info->scope_type() == FUNCTION_SCOPE);
   }
 
-  const bool parse_result =
-      info_->is_toplevel()
-          ? parsing::ParseProgram(info_, script, maybe_outer_scope, isolate_)
-          : parsing::ParseFunction(info_, shared_info, isolate_);
+  info_ = std::make_unique<ParseInfo>(isolate_, flags);
 
-  if (parse_result && Rewriter::Rewrite(info_)) {
+  const bool parse_result =
+      flags.is_toplevel
+          ? parsing::ParseProgram(info_.get(), script, maybe_outer_scope,
+                                  isolate_)
+          : parsing::ParseFunction(info_.get(), shared_info, isolate_);
+
+  if (parse_result && Rewriter::Rewrite(info_.get())) {
     info_->ast_value_factory()->Internalize(isolate_);
     DeclarationScope* literal_scope = info_->literal()->scope();
 
@@ -280,7 +285,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
                          ? scope_chain_retriever.ClosureScope()
                          : literal_scope;
 
-    CHECK(DeclarationScope::Analyze(info_));
+    CHECK(DeclarationScope::Analyze(info_.get()));
     if (ignore_nested_scopes) {
       current_scope_ = closure_scope_;
       start_scope_ = current_scope_;
