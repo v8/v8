@@ -23,7 +23,7 @@ namespace torque {
 
 template <typename T>
 class Binding;
-struct LocalValue;
+class LocalValue;
 class ImplementationVisitor;
 
 // LocationReference is the representation of an l-value, so a value that might
@@ -345,8 +345,32 @@ class BlockBindings {
   std::vector<std::unique_ptr<Binding<T>>> bindings_;
 };
 
-struct LocalValue {
-  LocationReference value;
+class LocalValue {
+ public:
+  explicit LocalValue(LocationReference reference)
+      : value(std::move(reference)) {}
+  explicit LocalValue(std::string inaccessible_explanation)
+      : inaccessible_explanation(std::move(inaccessible_explanation)) {}
+
+  LocationReference GetLocationReference(Binding<LocalValue>* binding) {
+    if (value) {
+      const LocationReference& ref = *value;
+      if (ref.IsVariableAccess()) {
+        // Attach the binding to enable the never-assigned-to lint check.
+        return LocationReference::VariableAccess(ref.GetVisitResult(), binding);
+      }
+      return ref;
+    } else {
+      Error("Cannot access ", binding->name(), ": ", inaccessible_explanation)
+          .Throw();
+    }
+  }
+
+  bool IsAccessible() const { return value.has_value(); }
+
+ private:
+  base::Optional<LocationReference> value;
+  std::string inaccessible_explanation;
 };
 
 struct LocalLabel {
@@ -366,7 +390,8 @@ template <>
 inline bool Binding<LocalValue>::CheckWritten() const {
   // Do the check only for non-const variables and non struct types.
   auto binding = *manager_->current_bindings_[name_];
-  const LocationReference& ref = binding->value;
+  if (!binding->IsAccessible()) return false;
+  const LocationReference& ref = binding->GetLocationReference(binding);
   if (!ref.IsVariableAccess()) return false;
   return !ref.GetVisitResult().type()->StructSupertype();
 }
@@ -424,7 +449,7 @@ class ImplementationVisitor {
       const LayoutForInitialization& layout);
   VisitResult GenerateArrayLength(
       Expression* array_length, Namespace* nspace,
-      const std::map<std::string, LocationReference>& bindings);
+      const std::map<std::string, LocalValue>& bindings);
   VisitResult GenerateArrayLength(VisitResult object, const Field& field);
   VisitResult GenerateArrayLength(const ClassType* class_type,
                                   const InitializerResults& initializer_results,
@@ -440,6 +465,7 @@ class ImplementationVisitor {
   VisitResult Visit(StructExpression* decl);
 
   LocationReference GetLocationReference(Expression* location);
+  LocationReference LookupLocalValue(const std::string& name);
   LocationReference GetLocationReference(IdentifierExpression* expr);
   LocationReference GetLocationReference(DereferenceExpression* expr);
   LocationReference GetLocationReference(FieldAccessExpression* expr);

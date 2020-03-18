@@ -1345,7 +1345,7 @@ void ImplementationVisitor::InitializeClass(
 
 VisitResult ImplementationVisitor::GenerateArrayLength(
     Expression* array_length, Namespace* nspace,
-    const std::map<std::string, LocationReference>& bindings) {
+    const std::map<std::string, LocalValue>& bindings) {
   StackScope stack_scope(this);
   CurrentSourcePosition::Scope pos_scope(array_length->pos);
   // Switch to the namespace where the class was declared.
@@ -1369,11 +1369,15 @@ VisitResult ImplementationVisitor::GenerateArrayLength(VisitResult object,
 
   StackScope stack_scope(this);
   const ClassType* class_type = *object.type()->ClassSupertype();
-  std::map<std::string, LocationReference> bindings;
+  std::map<std::string, LocalValue> bindings;
   for (Field f : class_type->ComputeAllFields()) {
     if (f.index) break;
     bindings.insert(
-        {f.name_and_type.name, GenerateFieldReference(object, f, class_type)});
+        {f.name_and_type.name,
+         f.const_qualified
+             ? LocalValue{GenerateFieldReference(object, f, class_type)}
+             : LocalValue(
+                   "Non-const fields cannot be used for array lengths.")});
   }
   return stack_scope.Yield(
       GenerateArrayLength(*field.index, class_type->nspace(), bindings));
@@ -1385,13 +1389,18 @@ VisitResult ImplementationVisitor::GenerateArrayLength(
   DCHECK(field.index);
 
   StackScope stack_scope(this);
-  std::map<std::string, LocationReference> bindings;
+  std::map<std::string, LocalValue> bindings;
   for (Field f : class_type->ComputeAllFields()) {
     if (f.index) break;
     const std::string& fieldname = f.name_and_type.name;
     VisitResult value = initializer_results.field_value_map.at(fieldname);
-    bindings.insert({fieldname, LocationReference::Temporary(
-                                    value, "initial field " + fieldname)});
+    bindings.insert(
+        {fieldname,
+         f.const_qualified
+             ? LocalValue{LocationReference::Temporary(
+                   value, "initial field " + fieldname)}
+             : LocalValue(
+                   "Non-const fields cannot be used for array lengths.")});
   }
   return stack_scope.Yield(
       GenerateArrayLength(*field.index, class_type->nspace(), bindings));
@@ -2085,12 +2094,7 @@ LocationReference ImplementationVisitor::GetLocationReference(
         ReportError("cannot have generic parameters on local name ",
                     expr->name);
       }
-      const LocationReference& ref = (*value)->value;
-      if (ref.IsVariableAccess()) {
-        // Attach the binding to enable the never-assigned-to lint check.
-        return LocationReference::VariableAccess(ref.GetVisitResult(), *value);
-      }
-      return ref;
+      return (*value)->GetLocationReference(*value);
     }
   }
 
@@ -2376,7 +2380,8 @@ VisitResult ImplementationVisitor::GenerateCall(
                   "' required for call to '", callable->ReadableName(),
                   "' is not defined");
     }
-    implicit_arguments.push_back(GenerateFetchFromLocation((*val)->value));
+    implicit_arguments.push_back(
+        GenerateFetchFromLocation((*val)->GetLocationReference(*val)));
   }
 
   std::vector<VisitResult> converted_arguments;

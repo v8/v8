@@ -1148,7 +1148,7 @@ namespace test {
   class InternalClassWithStructElements extends HeapObject {
     dummy1: int32;
     dummy2: int32;
-    count: Smi;
+    const count: Smi;
     data: Smi;
     object: Object;
     entries[count]: Smi;

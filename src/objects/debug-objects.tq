@@ -66,6 +66,6 @@ struct CoverageInfoSlot {
 // not contain any HeapObject fields.
 @generateCppClass
 extern class CoverageInfo extends HeapObject {
-  slot_count: int32;
+  const slot_count: int32;
   slots[slot_count]: CoverageInfoSlot;
 }
