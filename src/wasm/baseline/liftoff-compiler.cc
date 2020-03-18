@@ -720,6 +720,10 @@ class LiftoffCompiler {
         __ pc_offset(), SourcePosition(decoder->position()), false);
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kAllowRegisters);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+    // Add a nop after the breakpoint, such that following code has another PC
+    // and does not collide with the source position recorded above.
+    // TODO(thibaudm/clemens): Remove this.
+    __ nop();
   }
 
   void Block(FullDecoder* decoder, Control* block) {}
@@ -2113,15 +2117,19 @@ class LiftoffCompiler {
       __ CallNativeWasmCode(addr);
     }
 
+    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+
     if (V8_UNLIKELY(env_->debug)) {
       // This source position helps updating return addresses on the stack after
       // installing a new Liftoff code object.
       source_position_table_builder_.AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), false);
+      // Add a nop after the call, such that following code has another PC
+      // and does not collide with the source position recorded above.
+      // TODO(thibaudm/clemens): Remove this.
+      __ nop();
     }
-
-    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
-    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     __ FinishCall(imm.sig, call_descriptor);
   }
@@ -2253,15 +2261,19 @@ class LiftoffCompiler {
     __ PrepareCall(imm.sig, call_descriptor, &target, explicit_instance);
     __ CallIndirect(imm.sig, call_descriptor, target);
 
+    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+
     if (V8_UNLIKELY(env_->debug)) {
       // This source position helps updating return addresses on the stack after
       // installing a new Liftoff code object.
       source_position_table_builder_.AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), false);
+      // Add a nop after the call, such that following code has another PC
+      // and does not collide with the source position recorded above.
+      // TODO(thibaudm/clemens): Remove this.
+      __ nop();
     }
-
-    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
-    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     __ FinishCall(imm.sig, call_descriptor);
   }
