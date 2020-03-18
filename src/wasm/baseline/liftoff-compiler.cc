@@ -587,6 +587,30 @@ class LiftoffCompiler {
     // The function-prologue stack check is associated with position 0, which
     // is never a position of any instruction in the function.
     StackCheck(0);
+
+    // If we are generating debug code, do check the "hook on function call"
+    // flag. If set, trigger a break.
+    if (V8_UNLIKELY(env_->debug)) {
+      // If there is a breakpoint set on the first instruction (== start of the
+      // function), then skip the check for "hook on function call", since we
+      // will unconditionally break there anyway.
+      bool has_breakpoint = next_breakpoint_ptr_ != nullptr &&
+                            (*next_breakpoint_ptr_ == 0 ||
+                             *next_breakpoint_ptr_ == decoder->position());
+      if (!has_breakpoint) {
+        DEBUG_CODE_COMMENT("check hook on function call");
+        Register flag = __ GetUnusedRegister(kGpReg).gp();
+        LOAD_INSTANCE_FIELD(flag, HookOnFunctionCallAddress,
+                            kSystemPointerSize);
+        Label no_break;
+        __ Load(LiftoffRegister{flag}, flag, no_reg, 0, LoadType::kI32Load8U,
+                {});
+        // Unary "equal" means "equals zero".
+        __ emit_cond_jump(kEqual, &no_break, kWasmI32, flag);
+        EmitBreakpoint(decoder);
+        __ bind(&no_break);
+      }
+    }
   }
 
   void GenerateOutOfLineCode(OutOfLineCode* ool) {
@@ -2089,7 +2113,7 @@ class LiftoffCompiler {
       __ CallNativeWasmCode(addr);
     }
 
-    if (env_->debug) {
+    if (V8_UNLIKELY(env_->debug)) {
       // This source position helps updating return addresses on the stack after
       // installing a new Liftoff code object.
       source_position_table_builder_.AddPosition(
@@ -2229,7 +2253,7 @@ class LiftoffCompiler {
     __ PrepareCall(imm.sig, call_descriptor, &target, explicit_instance);
     __ CallIndirect(imm.sig, call_descriptor, target);
 
-    if (env_->debug) {
+    if (V8_UNLIKELY(env_->debug)) {
       // This source position helps updating return addresses on the stack after
       // installing a new Liftoff code object.
       source_position_table_builder_.AddPosition(

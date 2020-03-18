@@ -1232,6 +1232,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_module_object(*module_object);
   instance->set_jump_table_start(
       module_object->native_module()->jump_table_start());
+  instance->set_hook_on_function_call_address(
+      isolate->debug()->hook_on_function_call_address());
 
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.

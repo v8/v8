@@ -405,6 +405,7 @@ class WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(data_segment_starts, Address*)
   DECL_PRIMITIVE_ACCESSORS(data_segment_sizes, uint32_t*)
   DECL_PRIMITIVE_ACCESSORS(dropped_elem_segments, byte*)
+  DECL_PRIMITIVE_ACCESSORS(hook_on_function_call_address, Address)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic. Depending on the V8 build mode there could be no padding.
@@ -451,6 +452,7 @@ class WasmInstanceObject : public JSObject {
   V(kDataSegmentStartsOffset, kSystemPointerSize)                         \
   V(kDataSegmentSizesOffset, kSystemPointerSize)                          \
   V(kDroppedElemSegmentsOffset, kSystemPointerSize)                       \
+  V(kHookOnFunctionCallAddressOffset, kSystemPointerSize)                 \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,

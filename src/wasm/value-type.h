@@ -190,6 +190,11 @@ inline size_t hash_value(ValueType type) {
   return static_cast<size_t>(type.kind());
 }
 
+// Output operator, useful for DCHECKS and others.
+inline std::ostream& operator<<(std::ostream& oss, ValueType type) {
+  return oss << type.type_name();
+}
+
 constexpr ValueType kWasmI32 = ValueType(ValueType::kI32);
 constexpr ValueType kWasmI64 = ValueType(ValueType::kI64);
 constexpr ValueType kWasmF32 = ValueType(ValueType::kF32);

@@ -234,6 +234,8 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, data_segment_sizes, uint32_t*,
                     kDataSegmentSizesOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, dropped_elem_segments, byte*,
                     kDroppedElemSegmentsOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, hook_on_function_call_address, Address,
+                    kHookOnFunctionCallAddressOffset)
 
 ACCESSORS(WasmInstanceObject, module_object, WasmModuleObject,
           kModuleObjectOffset)
