@@ -2412,6 +2412,26 @@ class LiftoffCompiler {
     __ PushRegister(ValueType(result_type), dst);
   }
 
+  template <ValueType::Kind src2_type, typename EmitFn>
+  void EmitSimdReplaceLaneOp(EmitFn fn,
+                             const SimdLaneImmediate<validate>& imm) {
+    static constexpr RegClass src1_rc = reg_class_for(ValueType::kS128);
+    static constexpr RegClass src2_rc = reg_class_for(src2_type);
+    static constexpr RegClass result_rc = reg_class_for(ValueType::kS128);
+    LiftoffRegister src2 = __ PopToRegister();
+    LiftoffRegister src1 = src1_rc == src2_rc
+                               ? __ PopToRegister(LiftoffRegList::ForRegs(src2))
+                               : __
+                                 PopToRegister();
+    LiftoffRegister dst =
+        src2_rc == result_rc
+            ? __ GetUnusedRegister(result_rc, {src1},
+                                   LiftoffRegList::ForRegs(src2))
+            : __ GetUnusedRegister(result_rc, {src1});
+    fn(dst, src1, src2, imm.lane);
+    __ PushRegister(kWasmS128, dst);
+  }
+
   void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,
                   const SimdLaneImmediate<validate>& imm,
                   const Vector<Value> inputs, Value* result) {
@@ -2436,6 +2456,22 @@ class LiftoffCompiler {
       CASE_SIMD_EXTRACT_LANE_OP(I8x16ExtractLaneU, I32, i8x16_extract_lane_u)
       CASE_SIMD_EXTRACT_LANE_OP(I8x16ExtractLaneS, I32, i8x16_extract_lane_s)
 #undef CASE_SIMD_EXTRACT_LANE_OP
+#define CASE_SIMD_REPLACE_LANE_OP(opcode, type, fn)                          \
+  case wasm::kExpr##opcode:                                                  \
+    EmitSimdReplaceLaneOp<ValueType::k##type>(                               \
+        [=](LiftoffRegister dst, LiftoffRegister src1, LiftoffRegister src2, \
+            uint8_t imm_lane_idx) {                                          \
+          __ emit_##fn(dst, src1, src2, imm_lane_idx);                       \
+        },                                                                   \
+        imm);                                                                \
+    break;
+      CASE_SIMD_REPLACE_LANE_OP(F64x2ReplaceLane, F64, f64x2_replace_lane)
+      CASE_SIMD_REPLACE_LANE_OP(F32x4ReplaceLane, F32, f32x4_replace_lane)
+      CASE_SIMD_REPLACE_LANE_OP(I64x2ReplaceLane, I64, i64x2_replace_lane)
+      CASE_SIMD_REPLACE_LANE_OP(I32x4ReplaceLane, I32, i32x4_replace_lane)
+      CASE_SIMD_REPLACE_LANE_OP(I16x8ReplaceLane, I32, i16x8_replace_lane)
+      CASE_SIMD_REPLACE_LANE_OP(I8x16ReplaceLane, I32, i8x16_replace_lane)
+#undef CASE_SIMD_REPLACE_LANE_OP
       default:
         unsupported(decoder, kSimd, "simd");
     }
