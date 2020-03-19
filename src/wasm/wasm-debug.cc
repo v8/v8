@@ -653,17 +653,17 @@ class DebugInfoImpl {
     // Liftoff variants of a function would be problematic.
     base::MutexGuard guard(&mutex_);
 
+    // offset == 0 indicates flooding and should not happen here.
+    DCHECK_NE(0, offset);
+
     std::vector<int>& breakpoints = breakpoints_per_function_[func_index];
-    // offset == 0 indicates flooding and is handled by the compiler.
-    if (offset != 0) {
-      auto insertion_point =
-          std::lower_bound(breakpoints.begin(), breakpoints.end(), offset);
-      if (insertion_point != breakpoints.end() && *insertion_point == offset) {
-        // The breakpoint is already set.
-        return;
-      }
-      breakpoints.insert(insertion_point, offset);
+    auto insertion_point =
+        std::lower_bound(breakpoints.begin(), breakpoints.end(), offset);
+    if (insertion_point != breakpoints.end() && *insertion_point == offset) {
+      // The breakpoint is already set.
+      return;
     }
+    breakpoints.insert(insertion_point, offset);
 
     // No need to recompile if the function is already flooded.
     if (func_index == flooded_function_index_) return;
@@ -672,8 +672,7 @@ class DebugInfoImpl {
                                     current_isolate);
   }
 
-  void FloodWithBreakpoints(NativeModule* native_module, int func_index,
-                            Isolate* current_isolate) {
+  void FloodWithBreakpoints(int func_index, Isolate* current_isolate) {
     base::MutexGuard guard(&mutex_);
     // 0 is an invalid offset used to indicate flooding.
     int offset = 0;
@@ -687,8 +686,7 @@ class DebugInfoImpl {
     DCHECK(it.frame()->is_wasm_compiled());
     WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
     if (static_cast<int>(frame->function_index()) != flooded_function_index_) {
-      FloodWithBreakpoints(frame->native_module(), frame->function_index(),
-                           isolate);
+      FloodWithBreakpoints(frame->function_index(), isolate);
       flooded_function_index_ = frame->function_index();
     }
     stepping_frame_ = frame->id();
