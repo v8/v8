@@ -482,6 +482,7 @@
   'test-streaming-compilation/*': [SKIP],
   'test-wasm-breakpoints/*': [SKIP],
   'test-wasm-codegen/*': [SKIP],
+  'test-wasm-debug-evaluate/*': [SKIP],
   'test-wasm-import-wrapper-cache/*': [SKIP],
   'test-wasm-interpreter-entry/*': [SKIP],
   'test-wasm-serialization/*': [SKIP],

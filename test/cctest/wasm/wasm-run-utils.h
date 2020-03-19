@@ -409,17 +409,22 @@ class WasmRunnerBase : public HandleAndZoneScope {
   bool interpret() { return builder_.interpret(); }
 
   template <typename ReturnType, typename... ParamTypes>
-  const FunctionSig* CreateSig() {
+  FunctionSig* CreateSig() {
+    return WasmRunnerBase::CreateSig<ReturnType, ParamTypes...>(&zone_);
+  }
+
+  template <typename ReturnType, typename... ParamTypes>
+  static FunctionSig* CreateSig(Zone* zone) {
     std::array<MachineType, sizeof...(ParamTypes)> param_machine_types{
         {MachineTypeForC<ParamTypes>()...}};
     Vector<MachineType> param_vec(param_machine_types.data(),
                                   param_machine_types.size());
-    return CreateSig(MachineTypeForC<ReturnType>(), param_vec);
+    return CreateSig(zone, MachineTypeForC<ReturnType>(), param_vec);
   }
 
  private:
-  const FunctionSig* CreateSig(MachineType return_type,
-                               Vector<MachineType> param_types);
+  static FunctionSig* CreateSig(Zone* zone, MachineType return_type,
+                                Vector<MachineType> param_types);
 
  protected:
   v8::internal::AccountingAllocator allocator_;

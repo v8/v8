@@ -579,13 +579,14 @@ WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, const FunctionSig* sig,
 
 WasmFunctionCompiler::~WasmFunctionCompiler() = default;
 
-const FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
-                                             Vector<MachineType> param_types) {
+/* static */
+FunctionSig* WasmRunnerBase::CreateSig(Zone* zone, MachineType return_type,
+                                       Vector<MachineType> param_types) {
   int return_count = return_type.IsNone() ? 0 : 1;
   int param_count = param_types.length();
 
   // Allocate storage array in zone.
-  ValueType* sig_types = zone_.NewArray<ValueType>(return_count + param_count);
+  ValueType* sig_types = zone->NewArray<ValueType>(return_count + param_count);
 
   // Convert machine types to local types, and check that there are no
   // MachineType::None()'s in the parameters.
@@ -595,7 +596,7 @@ const FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
     CHECK_NE(MachineType::None(), param);
     sig_types[idx++] = ValueType::For(param);
   }
-  return new (&zone_) FunctionSig(return_count, param_count, sig_types);
+  return new (zone) FunctionSig(return_count, param_count, sig_types);
 }
 
 // static

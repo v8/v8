@@ -31,6 +31,7 @@
 #include "src/wasm/wasm-serialization.h"
 
 using v8::internal::wasm::ErrorThrower;
+using v8::internal::wasm::ScheduledErrorThrower;
 
 namespace v8 {
 
@@ -137,35 +138,6 @@ namespace {
       DCHECK(!i_isolate->has_scheduled_exception()); \
     }                                                \
   } while (false)
-
-// Like an ErrorThrower, but turns all pending exceptions into scheduled
-// exceptions when going out of scope. Use this in API methods.
-// Note that pending exceptions are not necessarily created by the ErrorThrower,
-// but e.g. by the wasm start function. There might also be a scheduled
-// exception, created by another API call (e.g. v8::Object::Get). But there
-// should never be both pending and scheduled exceptions.
-class ScheduledErrorThrower : public ErrorThrower {
- public:
-  ScheduledErrorThrower(i::Isolate* isolate, const char* context)
-      : ErrorThrower(isolate, context) {}
-
-  ~ScheduledErrorThrower();
-};
-
-ScheduledErrorThrower::~ScheduledErrorThrower() {
-  // There should never be both a pending and a scheduled exception.
-  DCHECK(!isolate()->has_scheduled_exception() ||
-         !isolate()->has_pending_exception());
-  // Don't throw another error if there is already a scheduled error.
-  if (isolate()->has_scheduled_exception()) {
-    Reset();
-  } else if (isolate()->has_pending_exception()) {
-    Reset();
-    isolate()->OptionalRescheduleException(false);
-  } else if (error()) {
-    isolate()->ScheduleThrow(*Reify());
-  }
-}
 
 i::Handle<i::String> v8_str(i::Isolate* isolate, const char* str) {
   return isolate->factory()->NewStringFromAsciiChecked(str);

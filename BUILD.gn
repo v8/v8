@@ -3026,6 +3026,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/wasm/wasm-code-manager.cc",
     "src/wasm/wasm-code-manager.h",
     "src/wasm/wasm-constants.h",
+    "src/wasm/wasm-debug-evaluate.cc",
+    "src/wasm/wasm-debug-evaluate.h",
     "src/wasm/wasm-debug.cc",
     "src/wasm/wasm-engine.cc",
     "src/wasm/wasm-engine.h",
