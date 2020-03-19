@@ -174,12 +174,12 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   icu::NumberFormat* number_format =
       icu::NumberFormat::createInstance(icu_locale, UNUM_DECIMAL, status);
   if (U_FAILURE(status)) {
-    delete number_format;
     // Data build filter files excluded data in "rbnf_tree" since ECMA402 does
     // not support "algorithmic" numbering systems. Therefore we may get the
     // U_MISSING_RESOURCE_ERROR here. Fallback to locale without the numbering
     // system and create the object again.
     if (status == U_MISSING_RESOURCE_ERROR) {
+      delete number_format;
       status = U_ZERO_ERROR;
       icu_locale.setUnicodeKeywordValue("nu", nullptr, status);
       CHECK(U_SUCCESS(status));
