@@ -4956,19 +4956,18 @@ Node* WasmGraphBuilder::TableInit(uint32_t table_index,
                                   uint32_t elem_segment_index, Node* dst,
                                   Node* src, Node* size,
                                   wasm::WasmCodePosition position) {
-  DCHECK_LT(table_index, env_->module->tables.size());
-  // The elem segment index must be in bounds since it is required by
-  // validation.
-  DCHECK_LT(elem_segment_index, env_->module->elem_segments.size());
+  auto call_descriptor = GetBuiltinCallDescriptor<WasmTableInitDescriptor>(
+      this, StubCallMode::kCallWasmRuntimeStub);
 
-  Node* args[] = {
+  intptr_t target = wasm::WasmCode::kWasmTableInit;
+  Node* call_target =
+      mcgraph()->RelocatableIntPtrConstant(target, RelocInfo::WASM_STUB_CALL);
+
+  return gasm_->Call(
+      call_descriptor, call_target, dst, src, size,
       graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)),
-      graph()->NewNode(mcgraph()->common()->NumberConstant(elem_segment_index)),
-      BuildConvertUint32ToSmiWithSaturation(dst, FLAG_wasm_max_table_size),
-      BuildConvertUint32ToSmiWithSaturation(src, FLAG_wasm_max_table_size),
-      BuildConvertUint32ToSmiWithSaturation(size, FLAG_wasm_max_table_size)};
-  return SetEffect(
-      BuildCallToRuntime(Runtime::kWasmTableInit, args, arraysize(args)));
+      graph()->NewNode(
+          mcgraph()->common()->NumberConstant(elem_segment_index)));
 }
 
 Node* WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,

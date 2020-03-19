@@ -498,17 +498,15 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
 
 RUNTIME_FUNCTION(Runtime_WasmTableInit) {
   HandleScope scope(isolate);
-  DCHECK_EQ(5, args.length());
-  auto instance =
-      Handle<WasmInstanceObject>(GetWasmInstanceOnStackTop(isolate), isolate);
-  CONVERT_UINT32_ARG_CHECKED(table_index, 0);
-  CONVERT_UINT32_ARG_CHECKED(elem_segment_index, 1);
-  CONVERT_UINT32_ARG_CHECKED(dst, 2);
-  CONVERT_UINT32_ARG_CHECKED(src, 3);
-  CONVERT_UINT32_ARG_CHECKED(count, 4);
+  DCHECK_EQ(6, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_UINT32_ARG_CHECKED(table_index, 1);
+  CONVERT_UINT32_ARG_CHECKED(elem_segment_index, 2);
+  CONVERT_UINT32_ARG_CHECKED(dst, 3);
+  CONVERT_UINT32_ARG_CHECKED(src, 4);
+  CONVERT_UINT32_ARG_CHECKED(count, 5);
 
-  DCHECK(isolate->context().is_null());
-  isolate->set_context(instance->native_context());
+  DCHECK(!isolate->context().is_null());
 
   bool oob = !WasmInstanceObject::InitTableEntries(
       isolate, instance, table_index, elem_segment_index, dst, src, count);

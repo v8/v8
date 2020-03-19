@@ -55,6 +55,7 @@ struct WasmModule;
   V(WasmI64AtomicWait32)                 \
   V(WasmI64AtomicWait64)                 \
   V(WasmMemoryGrow)                      \
+  V(WasmTableInit)                       \
   V(WasmTableGet)                        \
   V(WasmTableSet)                        \
   V(WasmStackGuard)                      \
