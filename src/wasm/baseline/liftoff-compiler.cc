@@ -488,6 +488,7 @@ class LiftoffCompiler {
   }
 
   void StackCheck(WasmCodePosition position) {
+    DEBUG_CODE_COMMENT("stack check");
     if (!FLAG_wasm_stack_checks || !env_->runtime_exception_support) return;
     out_of_line_code_.push_back(OutOfLineCode::StackCheck(
         position, __ cache_state()->used_registers,
@@ -540,6 +541,7 @@ class LiftoffCompiler {
 
     __ CodeEntry();
 
+    DEBUG_CODE_COMMENT("enter frame");
     __ EnterFrame(StackFrame::WASM_COMPILED);
     __ set_has_frame(true);
     pc_offset_stack_frame_construction_ = __ PrepareStackFrame();
@@ -552,6 +554,7 @@ class LiftoffCompiler {
     if (DidAssemblerBailout(decoder)) return;
 
     // Process parameters.
+    if (num_params) DEBUG_CODE_COMMENT("process parameters");
     __ SpillInstance(instance_reg);
     // Input 0 is the code target, 1 is the instance. First parameter at 2.
     uint32_t input_idx = kInstanceParameterIndex + 1;
@@ -562,6 +565,7 @@ class LiftoffCompiler {
     DCHECK_EQ(input_idx, descriptor_->InputCount());
 
     // Initialize locals beyond parameters.
+    if (num_params < __ num_locals()) DEBUG_CODE_COMMENT("init locals");
     if (SpillLocalsInitially(decoder, num_params)) {
       for (uint32_t param_idx = num_params; param_idx < __ num_locals();
            ++param_idx) {
@@ -632,6 +636,7 @@ class LiftoffCompiler {
       // In this mode, we never generate stack checks.
       DCHECK(!is_stack_check);
       __ CallTrapCallbackForTesting();
+      DEBUG_CODE_COMMENT("leave frame");
       __ LeaveFrame(StackFrame::WASM_COMPILED);
       __ DropStackSlotsAndRet(
           static_cast<uint32_t>(descriptor_->StackParameterCount()));
@@ -1480,6 +1485,7 @@ class LiftoffCompiler {
       return unsupported(decoder, kMultiValue, "multi-return");
     }
     if (num_returns > 0) __ MoveToReturnRegisters(decoder->sig_);
+    DEBUG_CODE_COMMENT("leave frame");
     __ LeaveFrame(StackFrame::WASM_COMPILED);
     __ DropStackSlotsAndRet(
         static_cast<uint32_t>(descriptor_->StackParameterCount()));
