@@ -3594,9 +3594,7 @@ template <typename... Propagators>
 class Analysis : public NodeVisitor {
  public:
   Analysis(Isolate* isolate, bool is_one_byte)
-      : isolate_(isolate),
-        is_one_byte_(is_one_byte),
-        error_(RegExpError::kNone) {}
+      : isolate_(isolate), is_one_byte_(is_one_byte), error_message_(nullptr) {}
 
   void EnsureAnalyzed(RegExpNode* that) {
     StackLimitCheck check(isolate());
@@ -3604,7 +3602,7 @@ class Analysis : public NodeVisitor {
       if (FLAG_correctness_fuzzer_suppressions) {
         FATAL("Analysis: Aborting on stack overflow");
       }
-      fail(RegExpError::kAnalysisStackOverflow);
+      fail("Stack overflow");
       return;
     }
     if (that->info()->been_analyzed || that->info()->being_analyzed) return;
@@ -3614,12 +3612,12 @@ class Analysis : public NodeVisitor {
     that->info()->been_analyzed = true;
   }
 
-  bool has_failed() { return error_ != RegExpError::kNone; }
-  RegExpError error() {
-    DCHECK(error_ != RegExpError::kNone);
-    return error_;
+  bool has_failed() { return error_message_ != nullptr; }
+  const char* error_message() {
+    DCHECK(error_message_ != nullptr);
+    return error_message_;
   }
-  void fail(RegExpError error) { error_ = error; }
+  void fail(const char* error_message) { error_message_ = error_message; }
 
   Isolate* isolate() const { return isolate_; }
 
@@ -3704,19 +3702,19 @@ class Analysis : public NodeVisitor {
  private:
   Isolate* isolate_;
   bool is_one_byte_;
-  RegExpError error_;
+  const char* error_message_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Analysis);
 };
 
-RegExpError AnalyzeRegExp(Isolate* isolate, bool is_one_byte,
+const char* AnalyzeRegExp(Isolate* isolate, bool is_one_byte,
                           RegExpNode* node) {
   Analysis<AssertionPropagator, EatsAtLeastPropagator> analysis(isolate,
                                                                 is_one_byte);
   DCHECK_EQ(node->info()->been_analyzed, false);
   analysis.EnsureAnalyzed(node);
-  DCHECK_IMPLIES(analysis.has_failed(), analysis.error() != RegExpError::kNone);
-  return analysis.has_failed() ? analysis.error() : RegExpError::kNone;
+  DCHECK_IMPLIES(analysis.has_failed(), analysis.error_message() != nullptr);
+  return analysis.has_failed() ? analysis.error_message() : nullptr;
 }
 
 void BackReferenceNode::FillInBMInfo(Isolate* isolate, int offset, int budget,

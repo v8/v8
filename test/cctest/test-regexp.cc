@@ -76,7 +76,7 @@ static void CheckParseEq(const char* input, const char* expected,
   CHECK(v8::internal::RegExpParser::ParseRegExp(CcTest::i_isolate(), &zone,
                                                 &reader, flags, &result));
   CHECK_NOT_NULL(result.tree);
-  CHECK(result.error == RegExpError::kNone);
+  CHECK(result.error.is_null());
   std::ostringstream os;
   result.tree->Print(os, &zone);
   if (strcmp(expected, os.str().c_str()) != 0) {
@@ -94,7 +94,7 @@ static bool CheckSimple(const char* input) {
   CHECK(v8::internal::RegExpParser::ParseRegExp(
       CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result));
   CHECK_NOT_NULL(result.tree);
-  CHECK(result.error == RegExpError::kNone);
+  CHECK(result.error.is_null());
   return result.simple;
 }
 
@@ -112,7 +112,7 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
   CHECK(v8::internal::RegExpParser::ParseRegExp(
       CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result));
   CHECK_NOT_NULL(result.tree);
-  CHECK(result.error == RegExpError::kNone);
+  CHECK(result.error.is_null());
   int min_match = result.tree->min_match();
   int max_match = result.tree->max_match();
   MinMaxPair pair = { min_match, max_match };
@@ -428,8 +428,9 @@ static void ExpectError(const char* input, const char* expected,
   CHECK(!v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
                                                  &result));
   CHECK_NULL(result.tree);
-  CHECK(result.error != RegExpError::kNone);
-  CHECK_EQ(0, strcmp(expected, RegExpErrorString(result.error)));
+  CHECK(!result.error.is_null());
+  std::unique_ptr<char[]> str = result.error->ToCString(ALLOW_NULLS);
+  CHECK_EQ(0, strcmp(expected, str.get()));
 }
 
 
@@ -467,7 +468,7 @@ TEST(Errors) {
   ExpectError("\\k<a", kInvalidCaptureName, true);
   const char* kDuplicateCaptureName = "Duplicate capture group name";
   ExpectError("(?<a>.)(?<a>.)", kDuplicateCaptureName, true);
-  const char* kInvalidUnicodeEscape = "Invalid Unicode escape";
+  const char* kInvalidUnicodeEscape = "Invalid Unicode escape sequence";
   ExpectError("(?<\\u{FISK}", kInvalidUnicodeEscape, true);
   const char* kInvalidCaptureReferenced = "Invalid named capture referenced";
   ExpectError("\\k<a>", kInvalidCaptureReferenced, true);

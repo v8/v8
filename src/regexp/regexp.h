@@ -6,7 +6,6 @@
 #define V8_REGEXP_REGEXP_H_
 
 #include "src/objects/js-regexp.h"
-#include "src/regexp/regexp-error.h"
 
 namespace v8 {
 namespace internal {
@@ -43,11 +42,7 @@ struct RegExpCompileData {
 
   // The error message. Only used if an error occurred during parsing or
   // compilation.
-  RegExpError error = RegExpError::kNone;
-
-  // The position at which the error was detected. Only used if an
-  // error occurred.
-  int error_pos = 0;
+  Handle<String> error;
 
   // The number of capture groups, without the global capture \0.
   int capture_count = 0;

@@ -423,7 +423,10 @@ struct PreloadState {
 // Analysis performs assertion propagation and computes eats_at_least_ values.
 // See the comments on AssertionPropagator and EatsAtLeastPropagator for more
 // details.
-RegExpError AnalyzeRegExp(Isolate* isolate, bool is_one_byte, RegExpNode* node);
+//
+// This method returns nullptr on success or a null-terminated failure message
+// on failure.
+const char* AnalyzeRegExp(Isolate* isolate, bool is_one_byte, RegExpNode* node);
 
 class FrequencyCollator {
  public:
@@ -500,17 +503,18 @@ class RegExpCompiler {
   }
 
   struct CompilationResult final {
-    explicit CompilationResult(RegExpError err) : error(err) {}
+    explicit CompilationResult(const char* error_message)
+        : error_message(error_message) {}
     CompilationResult(Object code, int registers)
         : code(code), num_registers(registers) {}
 
     static CompilationResult RegExpTooBig() {
-      return CompilationResult(RegExpError::kTooLarge);
+      return CompilationResult("RegExp too big");
     }
 
-    bool Succeeded() const { return error == RegExpError::kNone; }
+    bool Succeeded() const { return error_message == nullptr; }
 
-    const RegExpError error = RegExpError::kNone;
+    const char* const error_message = nullptr;
     Object code;
     int num_registers = 0;
   };
