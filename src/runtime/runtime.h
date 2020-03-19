@@ -570,7 +570,7 @@ namespace internal {
   F(WasmFunctionTableGet, 3, 1)         \
   F(WasmFunctionTableSet, 4, 1)         \
   F(WasmTableInit, 6, 1)                \
-  F(WasmTableCopy, 5, 1)                \
+  F(WasmTableCopy, 6, 1)                \
   F(WasmTableGrow, 3, 1)                \
   F(WasmTableFill, 4, 1)                \
   F(WasmIsValidFuncRefValue, 1, 1)      \

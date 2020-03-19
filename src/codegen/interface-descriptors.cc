@@ -386,6 +386,12 @@ void WasmTableInitDescriptor::InitializePlatformSpecific(
                                     kParameterCount - kStackArgumentsCount);
 }
 
+void WasmTableCopyDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data,
+                                    kParameterCount - kStackArgumentsCount);
+}
+
 void WasmTableGetDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);

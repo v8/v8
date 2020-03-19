@@ -4996,16 +4996,17 @@ Node* WasmGraphBuilder::TableCopy(uint32_t table_dst_index,
                                   uint32_t table_src_index, Node* dst,
                                   Node* src, Node* size,
                                   wasm::WasmCodePosition position) {
-  Node* args[] = {
-      graph()->NewNode(mcgraph()->common()->NumberConstant(table_dst_index)),
-      graph()->NewNode(mcgraph()->common()->NumberConstant(table_src_index)),
-      BuildConvertUint32ToSmiWithSaturation(dst, FLAG_wasm_max_table_size),
-      BuildConvertUint32ToSmiWithSaturation(src, FLAG_wasm_max_table_size),
-      BuildConvertUint32ToSmiWithSaturation(size, FLAG_wasm_max_table_size)};
-  Node* result =
-      BuildCallToRuntime(Runtime::kWasmTableCopy, args, arraysize(args));
+  auto call_descriptor = GetBuiltinCallDescriptor<WasmTableCopyDescriptor>(
+      this, StubCallMode::kCallWasmRuntimeStub);
 
-  return result;
+  intptr_t target = wasm::WasmCode::kWasmTableCopy;
+  Node* call_target =
+      mcgraph()->RelocatableIntPtrConstant(target, RelocInfo::WASM_STUB_CALL);
+
+  return gasm_->Call(
+      call_descriptor, call_target, dst, src, size,
+      graph()->NewNode(mcgraph()->common()->NumberConstant(table_dst_index)),
+      graph()->NewNode(mcgraph()->common()->NumberConstant(table_src_index)));
 }
 
 Node* WasmGraphBuilder::TableGrow(uint32_t table_index, Node* value,

@@ -248,6 +248,39 @@ TF_BUILTIN(WasmTableInit, WasmBuiltinsAssembler) {
                   segment_index, dst, src, size);
 }
 
+TF_BUILTIN(WasmTableCopy, WasmBuiltinsAssembler) {
+  // We cap {dst}, {src}, and {size} by {wasm::kV8MaxWasmTableSize + 1} to make
+  // sure that the values fit into a Smi.
+  STATIC_ASSERT(static_cast<size_t>(Smi::kMaxValue) >=
+                wasm::kV8MaxWasmTableSize + 1);
+  constexpr uint32_t kCap =
+      static_cast<uint32_t>(wasm::kV8MaxWasmTableSize + 1);
+
+  TNode<Uint32T> dst_raw =
+      UncheckedCast<Uint32T>(Parameter(Descriptor::kDestination));
+  TNode<Smi> dst = SmiFromUint32WithSaturation(dst_raw, kCap);
+
+  TNode<Uint32T> src_raw =
+      UncheckedCast<Uint32T>(Parameter(Descriptor::kSource));
+  TNode<Smi> src = SmiFromUint32WithSaturation(src_raw, kCap);
+
+  TNode<Uint32T> size_raw =
+      UncheckedCast<Uint32T>(Parameter(Descriptor::kSize));
+  TNode<Smi> size = SmiFromUint32WithSaturation(size_raw, kCap);
+
+  TNode<Smi> dst_table =
+      UncheckedCast<Smi>(Parameter(Descriptor::kDestinationTable));
+
+  TNode<Smi> src_table =
+      UncheckedCast<Smi>(Parameter(Descriptor::kSourceTable));
+
+  TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
+  TNode<Context> context = LoadContextFromInstance(instance);
+
+  TailCallRuntime(Runtime::kWasmTableCopy, context, instance, dst_table,
+                  src_table, dst, src, size);
+}
+
 TF_BUILTIN(WasmTableGet, WasmBuiltinsAssembler) {
   TNode<Int32T> entry_index =
       UncheckedCast<Int32T>(Parameter(Descriptor::kEntryIndex));

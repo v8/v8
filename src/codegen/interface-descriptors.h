@@ -97,6 +97,7 @@ namespace internal {
   V(WasmI64AtomicWait64)              \
   V(WasmMemoryGrow)                   \
   V(WasmTableInit)                    \
+  V(WasmTableCopy)                    \
   V(WasmTableGet)                     \
   V(WasmTableSet)                     \
   V(WasmThrow)                        \
@@ -1317,6 +1318,29 @@ class WasmTableInitDescriptor final : public CallInterfaceDescriptor {
   static constexpr int kStackArgumentsCount = kPassLastArgOnStack ? 1 : 0;
 
   DECLARE_DESCRIPTOR(WasmTableInitDescriptor, CallInterfaceDescriptor)
+};
+
+class WasmTableCopyDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kDestination, kSource, kSize, kDestinationTable,
+                               kSourceTable)
+  DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kDestination
+                         MachineType::Int32(),      // kSource
+                         MachineType::Int32(),      // kSize
+                         MachineType::AnyTagged(),  // kDestinationTable
+                         MachineType::AnyTagged(),  // kSourceTable
+  )
+
+#if V8_TARGET_ARCH_IA32
+  static constexpr bool kPassLastArgOnStack = true;
+#else
+  static constexpr bool kPassLastArgOnStack = false;
+#endif
+
+  // Pass the last parameter through the stack.
+  static constexpr int kStackArgumentsCount = kPassLastArgOnStack ? 1 : 0;
+
+  DECLARE_DESCRIPTOR(WasmTableCopyDescriptor, CallInterfaceDescriptor)
 };
 
 class WasmTableGetDescriptor final : public CallInterfaceDescriptor {
