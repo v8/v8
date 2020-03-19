@@ -39,6 +39,8 @@ class BuiltinArguments : public JavaScriptArguments {
     *address_of_arg_at(index + kArgsOffset) = value.ptr();
   }
 
+  // Note: this should return the address after the receiver,
+  // even when length() == 1.
   inline Address* address_of_first_argument() const {
     return address_of_arg_at(kArgsOffset + 1);  // Skips receiver.
   }

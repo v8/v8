@@ -12547,19 +12547,29 @@ CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler,
 
 TNode<Object> CodeStubArguments::GetReceiver() const {
   DCHECK_EQ(receiver_mode_, ReceiverMode::kHasReceiver);
-  return assembler_->UncheckedCast<Object>(assembler_->LoadFullTagged(
-      base_, assembler_->IntPtrConstant(kSystemPointerSize)));
+#ifdef V8_REVERSE_JSARGS
+  intptr_t offset = -kSystemPointerSize;
+#else
+  intptr_t offset = kSystemPointerSize;
+#endif
+  return assembler_->LoadFullTagged(base_, assembler_->IntPtrConstant(offset));
 }
 
 void CodeStubArguments::SetReceiver(TNode<Object> object) const {
   DCHECK_EQ(receiver_mode_, ReceiverMode::kHasReceiver);
+#ifdef V8_REVERSE_JSARGS
+  intptr_t offset = -kSystemPointerSize;
+#else
+  intptr_t offset = kSystemPointerSize;
+#endif
   assembler_->StoreFullTaggedNoWriteBarrier(
-      base_, assembler_->IntPtrConstant(kSystemPointerSize), object);
+      base_, assembler_->IntPtrConstant(offset), object);
 }
 
 TNode<RawPtrT> CodeStubArguments::AtIndexPtr(TNode<IntPtrT> index) const {
 #ifdef V8_REVERSE_JSARGS
-  TNode<IntPtrT> offset = index;
+  TNode<IntPtrT> offset =
+      assembler_->ElementOffsetFromIndex(index, SYSTEM_POINTER_ELEMENTS, 0);
 #else
   TNode<IntPtrT> negated_index =
       assembler_->IntPtrOrSmiSub(assembler_->IntPtrConstant(0), index);
@@ -13067,6 +13077,62 @@ void CodeStubAssembler::InitializeSyntheticFunctionContext(
                                     UndefinedConstant());
 }
 
+TNode<Object> CodeStubAssembler::CallApiCallback(
+    TNode<Object> context, TNode<RawPtrT> callback, TNode<IntPtrT> argc,
+    TNode<Object> data, TNode<Object> holder, TNode<Object> receiver) {
+  Callable callable = CodeFactory::CallApiCallback(isolate());
+  return CallStub(callable, context, callback, argc, data, holder, receiver);
+}
+
+TNode<Object> CodeStubAssembler::CallApiCallback(
+    TNode<Object> context, TNode<RawPtrT> callback, TNode<IntPtrT> argc,
+    TNode<Object> data, TNode<Object> holder, TNode<Object> receiver,
+    TNode<Object> value) {
+  // CallApiCallback receives the first four arguments in registers
+  // (callback, argc, data and holder). The last arguments are in the stack in
+  // JS ordering. See ApiCallbackDescriptor.
+  Callable callable = CodeFactory::CallApiCallback(isolate());
+#ifdef V8_REVERSE_JSARGS
+  return CallStub(callable, context, callback, argc, data, holder, value,
+                  receiver);
+#else
+  return CallStub(callable, context, callback, argc, data, holder, receiver,
+                  value);
+#endif
+}
+
+TNode<Object> CodeStubAssembler::CallRuntimeNewArray(
+    TNode<Context> context, TNode<Object> receiver, TNode<Object> length,
+    TNode<Object> new_target, TNode<Object> allocation_site) {
+  // Runtime_NewArray receives arguments in the JS order (to avoid unnecessary
+  // copy). Except the last two (new_target and allocation_site) which are add
+  // on top of the stack later.
+#ifdef V8_REVERSE_JSARGS
+  return CallRuntime(Runtime::kNewArray, context, length, receiver, new_target,
+                     allocation_site);
+#else
+  return CallRuntime(Runtime::kNewArray, context, receiver, length, new_target,
+                     allocation_site);
+#endif
+}
+
+void CodeStubAssembler::TailCallRuntimeNewArray(TNode<Context> context,
+                                                TNode<Object> receiver,
+                                                TNode<Object> length,
+                                                TNode<Object> new_target,
+                                                TNode<Object> allocation_site) {
+  // Runtime_NewArray receives arguments in the JS order (to avoid unnecessary
+  // copy). Except the last two (new_target and allocation_site) which are add
+  // on top of the stack later.
+#ifdef V8_REVERSE_JSARGS
+  return TailCallRuntime(Runtime::kNewArray, context, length, receiver,
+                         new_target, allocation_site);
+#else
+  return TailCallRuntime(Runtime::kNewArray, context, receiver, length,
+                         new_target, allocation_site);
+#endif
+}
+
 TNode<JSArray> CodeStubAssembler::ArrayCreate(TNode<Context> context,
                                               TNode<Number> length) {
   TVARIABLE(JSArray, array);
@@ -13089,8 +13155,8 @@ TNode<JSArray> CodeStubAssembler::ArrayCreate(TNode<Context> context,
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> array_function =
         CAST(LoadContextElement(native_context, Context::ARRAY_FUNCTION_INDEX));
-    array = CAST(CallRuntime(Runtime::kNewArray, context, array_function,
-                             length, array_function, UndefinedConstant()));
+    array = CAST(CallRuntimeNewArray(context, array_function, length,
+                                     array_function, UndefinedConstant()));
     Goto(&done);
   }
 

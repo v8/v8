@@ -206,6 +206,18 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
   } else {
     argv = new Address[frame_argc];
   }
+#ifdef V8_REVERSE_JSARGS
+  argv[BuiltinArguments::kNewTargetOffset] = new_target->ptr();
+  argv[BuiltinArguments::kTargetOffset] = function->ptr();
+  argv[BuiltinArguments::kArgcOffset] = Smi::FromInt(frame_argc).ptr();
+  argv[BuiltinArguments::kPaddingOffset] =
+      ReadOnlyRoots(isolate).the_hole_value().ptr();
+  int cursor = BuiltinArguments::kNumExtraArgs;
+  argv[cursor++] = receiver->ptr();
+  for (int i = 0; i < argc; ++i) {
+    argv[cursor++] = args[i]->ptr();
+  }
+#else
   int cursor = frame_argc - 1;
   argv[cursor--] = receiver->ptr();
   for (int i = 0; i < argc; ++i) {
@@ -217,6 +229,7 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
   argv[BuiltinArguments::kArgcOffset] = Smi::FromInt(frame_argc).ptr();
   argv[BuiltinArguments::kTargetOffset] = function->ptr();
   argv[BuiltinArguments::kNewTargetOffset] = new_target->ptr();
+#endif
   MaybeHandle<Object> result;
   {
     RelocatableArguments arguments(isolate, frame_argc, &argv[frame_argc - 1]);

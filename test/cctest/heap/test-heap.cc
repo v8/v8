@@ -3506,8 +3506,13 @@ TEST(DetailedErrorStackTraceBuiltinExit) {
     FixedArray parameters = stack_trace->Parameters(0);
 
     CHECK_EQ(parameters.length(), 2);
+#ifdef V8_REVERSE_JSARGS
+    CHECK(parameters.get(1).IsSmi());
+    CHECK_EQ(Smi::ToInt(parameters.get(1)), 9999);
+#else
     CHECK(parameters.get(0).IsSmi());
     CHECK_EQ(Smi::ToInt(parameters.get(0)), 9999);
+#endif
   });
 }
 

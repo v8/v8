@@ -60,8 +60,8 @@ class Arguments {
   }
 
   inline Address* address_of_arg_at(int index) const {
-    DCHECK_LT(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
-    int offset = index * kSystemPointerSize;
+    DCHECK_LE(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
+    uintptr_t offset = index * kSystemPointerSize;
 #ifdef V8_REVERSE_JSARGS
     if (arguments_type == ArgumentsType::kJS) {
       offset = (length_ - index - 1) * kSystemPointerSize;

@@ -645,23 +645,22 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     UNREACHABLE();
   }
 
-  uint32_t Push(Handle<JSArray> receiver, JavaScriptArguments* args,
+  uint32_t Push(Handle<JSArray> receiver, BuiltinArguments* args,
                 uint32_t push_size) final {
     return Subclass::PushImpl(receiver, args, push_size);
   }
 
-  static uint32_t PushImpl(Handle<JSArray> receiver, JavaScriptArguments* args,
+  static uint32_t PushImpl(Handle<JSArray> receiver, BuiltinArguments* args,
                            uint32_t push_sized) {
     UNREACHABLE();
   }
 
-  uint32_t Unshift(Handle<JSArray> receiver, JavaScriptArguments* args,
+  uint32_t Unshift(Handle<JSArray> receiver, BuiltinArguments* args,
                    uint32_t unshift_size) final {
     return Subclass::UnshiftImpl(receiver, args, unshift_size);
   }
 
-  static uint32_t UnshiftImpl(Handle<JSArray> receiver,
-                              JavaScriptArguments* args,
+  static uint32_t UnshiftImpl(Handle<JSArray> receiver, BuiltinArguments* args,
                               uint32_t unshift_size) {
     UNREACHABLE();
   }
@@ -2092,7 +2091,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     return Subclass::RemoveElement(receiver, AT_START);
   }
 
-  static uint32_t PushImpl(Handle<JSArray> receiver, JavaScriptArguments* args,
+  static uint32_t PushImpl(Handle<JSArray> receiver, BuiltinArguments* args,
                            uint32_t push_size) {
     Handle<FixedArrayBase> backing_store(receiver->elements(),
                                          receiver->GetIsolate());
@@ -2100,8 +2099,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                                   AT_END);
   }
 
-  static uint32_t UnshiftImpl(Handle<JSArray> receiver,
-                              JavaScriptArguments* args,
+  static uint32_t UnshiftImpl(Handle<JSArray> receiver, BuiltinArguments* args,
                               uint32_t unshift_size) {
     Handle<FixedArrayBase> backing_store(receiver->elements(),
                                          receiver->GetIsolate());
@@ -2349,7 +2347,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
   static uint32_t AddArguments(Handle<JSArray> receiver,
                                Handle<FixedArrayBase> backing_store,
-                               JavaScriptArguments* args, uint32_t add_size,
+                               BuiltinArguments* args, uint32_t add_size,
                                Where add_position) {
     uint32_t length = Smi::ToInt(receiver->length());
     DCHECK_LT(0, add_size);
@@ -2384,7 +2382,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     return new_length;
   }
 
-  static void CopyArguments(JavaScriptArguments* args,
+  static void CopyArguments(BuiltinArguments* args,
                             Handle<FixedArrayBase> dst_store,
                             uint32_t copy_size, uint32_t src_index,
                             uint32_t dst_index) {
@@ -2567,7 +2565,7 @@ class FastNonextensibleObjectElementsAccessor
  public:
   using BackingStore = typename KindTraits::BackingStore;
 
-  static uint32_t PushImpl(Handle<JSArray> receiver, JavaScriptArguments* args,
+  static uint32_t PushImpl(Handle<JSArray> receiver, BuiltinArguments* args,
                            uint32_t push_size) {
     UNREACHABLE();
   }
@@ -2662,7 +2660,7 @@ class FastSealedObjectElementsAccessor
 
   static Handle<Object> PopImpl(Handle<JSArray> receiver) { UNREACHABLE(); }
 
-  static uint32_t PushImpl(Handle<JSArray> receiver, JavaScriptArguments* args,
+  static uint32_t PushImpl(Handle<JSArray> receiver, BuiltinArguments* args,
                            uint32_t push_size) {
     UNREACHABLE();
   }
@@ -2772,7 +2770,7 @@ class FastFrozenObjectElementsAccessor
 
   static Handle<Object> PopImpl(Handle<JSArray> receiver) { UNREACHABLE(); }
 
-  static uint32_t PushImpl(Handle<JSArray> receiver, JavaScriptArguments* args,
+  static uint32_t PushImpl(Handle<JSArray> receiver, BuiltinArguments* args,
                            uint32_t push_size) {
     UNREACHABLE();
   }
@@ -4668,7 +4666,7 @@ MaybeHandle<Object> ArrayConstructInitializeElements(
 
   // Set length and elements on the array.
   int number_of_elements = args->length();
-  JSObject::EnsureCanContainElements(array, args, 0, number_of_elements,
+  JSObject::EnsureCanContainElements(array, args, number_of_elements,
                                      ALLOW_CONVERTED_DOUBLE_ELEMENTS);
 
   // Allocate an appropriately typed elements array.
@@ -4792,7 +4790,7 @@ void ElementsAccessor::TearDown() {
 }
 
 Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate,
-                                         JavaScriptArguments* args,
+                                         BuiltinArguments* args,
                                          uint32_t concat_size,
                                          uint32_t result_len) {
   ElementsKind result_elements_kind = GetInitialFastElementsKind();

@@ -892,6 +892,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                         callable, receiver, args...));
   }
 
+  TNode<Object> CallApiCallback(TNode<Object> context, TNode<RawPtrT> callback,
+                                TNode<IntPtrT> argc, TNode<Object> data,
+                                TNode<Object> holder, TNode<Object> receiver);
+
+  TNode<Object> CallApiCallback(TNode<Object> context, TNode<RawPtrT> callback,
+                                TNode<IntPtrT> argc, TNode<Object> data,
+                                TNode<Object> holder, TNode<Object> receiver,
+                                TNode<Object> value);
+
+  TNode<Object> CallRuntimeNewArray(TNode<Context> context,
+                                    TNode<Object> receiver,
+                                    TNode<Object> length,
+                                    TNode<Object> new_target,
+                                    TNode<Object> allocation_site);
+
+  void TailCallRuntimeNewArray(TNode<Context> context, TNode<Object> receiver,
+                               TNode<Object> length, TNode<Object> new_target,
+                               TNode<Object> allocation_site);
+
   template <class... TArgs>
   TNode<JSReceiver> ConstructWithTarget(TNode<Context> context,
                                         TNode<JSReceiver> target,
