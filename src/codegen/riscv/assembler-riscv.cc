@@ -1915,7 +1915,19 @@ void Assembler::label_at_put(Label* L, int at_offset) {
 
 //------- Branch and jump instructions --------
 
-void Assembler::b(int16_t offset) { beq(zero_reg, zero_reg, offset); }
+void Assembler::b(int16_t offset) {
+  if (is_int16(offset))
+    RV_beq(zero_reg, zero_reg, offset);
+  else {
+    // Generate position independent long branch.
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    RV_jal(t5, 0);                            // Read PC into t5.
+    RV_lui(t6, (offset & 0xfffff000) >> 12);  // Branch delay slot.
+    RV_ori(t6, t6, (offset & 0xfff));
+    RV_add(t6, t5, t6);
+    RV_jr(t6);
+  }
+}
 
 void Assembler::bal(int16_t offset) { bgezal(zero_reg, offset); }
 
@@ -3308,8 +3320,7 @@ void Assembler::andi(Register rt, Register rs, int32_t j) {
 // FIXME (RISCV): emulation of or_ will trigger DCHECK failure in
 // Assembler::target_at
 void Assembler::or_(Register rd, Register rs, Register rt) {
-  GenInstrRegister(SPECIAL, rs, rt, rd, 0, OR);
-  // RV_or_(rd, rs, rt);
+  RV_or_(rd, rs, rt);
 }
 
 void Assembler::ori(Register rt, Register rs, int32_t j) {
