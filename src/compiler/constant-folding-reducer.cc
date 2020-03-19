@@ -43,18 +43,16 @@ Node* TryGetConstant(JSGraph* jsgraph, Node* node) {
 bool IsAlreadyBeingFolded(Node* node) {
   DCHECK(FLAG_assert_types);
   if (node->opcode() == IrOpcode::kFoldConstant) return true;
-  bool found = false;
   for (Edge edge : node->use_edges()) {
-    if (!NodeProperties::IsValueEdge(edge)) continue;
-    if (edge.from()->opcode() == IrOpcode::kFoldConstant) {
-      DCHECK(!found);
-      found = true;
-#ifndef ENABLE_SLOW_DCHECKS
-      break;
-#endif
+    if (NodeProperties::IsValueEdge(edge) &&
+        edge.from()->opcode() == IrOpcode::kFoldConstant) {
+      // Note: {node} may have gained new value uses since the time it was
+      // "constant-folded", and theses uses should ideally be rewritten as well.
+      // For simplicity, we ignore them here.
+      return true;
     }
   }
-  return found;
+  return false;
 }
 }  // namespace
 
