@@ -2634,11 +2634,11 @@ void InstructionSelector::VisitI64x2MinU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MaxU(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
 
-#if !V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitI8x16BitMask(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI16x8BitMask(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4BitMask(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM64
+#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 

@@ -2353,6 +2353,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vabs(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kArmI32x4BitMask: {
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register tmp2 = i.TempSimd128Register(0);
+      Simd128Register mask = i.TempSimd128Register(1);
+
+      __ vshr(NeonS32, tmp2, src, 31);
+      // Set i-th bit of each lane i. When AND with tmp, the lanes that
+      // are signed will have i-th bit set, unsigned will be 0.
+      __ vmov(mask.low(), Double((uint64_t)0x0000'0002'0000'0001));
+      __ vmov(mask.high(), Double((uint64_t)0x0000'0008'0000'0004));
+      __ vand(tmp2, mask, tmp2);
+      __ vpadd(Neon32, tmp2.low(), tmp2.low(), tmp2.high());
+      __ vpadd(Neon32, tmp2.low(), tmp2.low(), kDoubleRegZero);
+      __ VmovLow(dst, tmp2.low());
+      break;
+    }
     case kArmI16x8Splat: {
       __ vdup(Neon16, i.OutputSimd128Register(), i.InputRegister(0));
       break;
@@ -2513,6 +2530,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vabs(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kArmI16x8BitMask: {
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register tmp2 = i.TempSimd128Register(0);
+      Simd128Register mask = i.TempSimd128Register(1);
+
+      __ vshr(NeonS16, tmp2, src, 15);
+      // Set i-th bit of each lane i. When AND with tmp, the lanes that
+      // are signed will have i-th bit set, unsigned will be 0.
+      __ vmov(mask.low(), Double((uint64_t)0x0008'0004'0002'0001));
+      __ vmov(mask.high(), Double((uint64_t)0x0080'0040'0020'0010));
+      __ vand(tmp2, mask, tmp2);
+      __ vpadd(Neon16, tmp2.low(), tmp2.low(), tmp2.high());
+      __ vpadd(Neon16, tmp2.low(), tmp2.low(), tmp2.low());
+      __ vpadd(Neon16, tmp2.low(), tmp2.low(), tmp2.low());
+      __ vmov(NeonU16, dst, tmp2.low(), 0);
+      break;
+    }
     case kArmI8x16Splat: {
       __ vdup(Neon8, i.OutputSimd128Register(), i.InputRegister(0));
       break;
@@ -2647,6 +2682,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArmI8x16Abs: {
       __ vabs(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmI8x16BitMask: {
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register tmp2 = i.TempSimd128Register(0);
+      Simd128Register mask = i.TempSimd128Register(1);
+
+      __ vshr(NeonS8, tmp2, src, 7);
+      // Set i-th bit of each lane i. When AND with tmp, the lanes that
+      // are signed will have i-th bit set, unsigned will be 0.
+      __ vmov(mask.low(), Double((uint64_t)0x8040'2010'0804'0201));
+      __ vmov(mask.high(), Double((uint64_t)0x8040'2010'0804'0201));
+      __ vand(tmp2, mask, tmp2);
+      __ vext(mask, tmp2, tmp2, 8);
+      __ vzip(Neon8, mask, tmp2);
+      __ vpadd(Neon16, tmp2.low(), tmp2.low(), tmp2.high());
+      __ vpadd(Neon16, tmp2.low(), tmp2.low(), tmp2.low());
+      __ vpadd(Neon16, tmp2.low(), tmp2.low(), tmp2.low());
+      __ vmov(NeonU16, dst, tmp2.low(), 0);
       break;
     }
     case kArmS128Zero: {
