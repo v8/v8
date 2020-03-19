@@ -9285,7 +9285,7 @@ class V8_EXPORT Isolate {
    * Returns the UnwindState necessary for use with the Unwinder API.
    */
   // TODO(petermarshall): Remove this API.
-  V8_DEPRECATE_SOON("Use entry_stubs + code_pages version.")
+  V8_DEPRECATED("Use entry_stubs + code_pages version.")
   UnwindState GetUnwindState();
 
   /**
@@ -10642,7 +10642,7 @@ class V8_EXPORT Unwinder {
    * \return True on success.
    */
   // TODO(petermarshall): Remove this API
-  V8_DEPRECATE_SOON("Use entry_stubs + code_pages version.")
+  V8_DEPRECATED("Use entry_stubs + code_pages version.")
   static bool TryUnwindV8Frames(const UnwindState& unwind_state,
                                 RegisterState* register_state,
                                 const void* stack_base);
@@ -10670,7 +10670,7 @@ class V8_EXPORT Unwinder {
    * (but not necessarily) be successful.
    */
   // TODO(petermarshall): Remove this API
-  V8_DEPRECATE_SOON("Use code_pages version.")
+  V8_DEPRECATED("Use code_pages version.")
   static bool PCIsInV8(const UnwindState& unwind_state, void* pc);
 
   /**
