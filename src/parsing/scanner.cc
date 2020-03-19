@@ -13,7 +13,6 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/bigint.h"
-#include "src/parsing/parse-info.h"
 #include "src/parsing/scanner-inl.h"
 #include "src/zone/zone.h"
 
@@ -90,10 +89,12 @@ bool Scanner::BookmarkScope::HasBeenApplied() const {
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner(Utf16CharacterStream* source, UnoptimizedCompileFlags flags)
-    : flags_(flags),
-      source_(source),
+Scanner::Scanner(Utf16CharacterStream* source, bool is_module)
+    : source_(source),
       found_html_comment_(false),
+      allow_harmony_optional_chaining_(false),
+      allow_harmony_nullish_(false),
+      is_module_(is_module),
       octal_pos_(Location::invalid()),
       octal_message_(MessageTemplate::kNone) {
   DCHECK_NOT_NULL(source);
@@ -189,7 +190,7 @@ Token::Value Scanner::PeekAhead() {
 }
 
 Token::Value Scanner::SkipSingleHTMLComment() {
-  if (flags_.is_module) {
+  if (is_module_) {
     ReportScannerError(source_pos(), MessageTemplate::kHtmlCommentInModule);
     return Token::ILLEGAL;
   }

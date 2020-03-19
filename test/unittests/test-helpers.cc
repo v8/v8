@@ -56,8 +56,8 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
 std::unique_ptr<ParseInfo> OuterParseInfoForShared(
     Isolate* isolate, Handle<SharedFunctionInfo> shared) {
   Script script = Script::cast(shared->script());
-  std::unique_ptr<ParseInfo> result = std::make_unique<ParseInfo>(
-      isolate, i::UnoptimizedCompileFlags::ForScriptCompile(isolate, script));
+  std::unique_ptr<ParseInfo> result =
+      std::make_unique<ParseInfo>(isolate, script);
 
   // Create a character stream to simulate the parser having done so for the
   // to-level ParseProgram.

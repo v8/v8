@@ -191,18 +191,17 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
     std::cerr << "Bytecode mismatch";
 #ifdef OBJECT_PRINT
     std::cerr << " found for function: ";
-    MaybeHandle<String> maybe_name = parse_info()->literal()->GetName(isolate);
-    Handle<String> name;
-    if (maybe_name.ToHandle(&name) && name->length() != 0) {
-      name->StringPrint(std::cerr);
-    } else {
+    Handle<String> name = parse_info()->function_name()->string();
+    if (name->length() == 0) {
       std::cerr << "anonymous";
+    } else {
+      name->StringPrint(std::cerr);
     }
     Object script_name = script->GetNameOrSourceURL();
     if (script_name.IsString()) {
       std::cerr << " ";
       String::cast(script_name).StringPrint(std::cerr);
-      std::cerr << ":" << parse_info()->literal()->start_position();
+      std::cerr << ":" << parse_info()->start_position();
     }
 #endif
     std::cerr << "\nOriginal bytecode:\n";

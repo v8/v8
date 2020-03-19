@@ -400,7 +400,7 @@ base::Optional<VariableProxy*> Rewriter::RewriteBody(
       int pos = kNoSourcePosition;
       VariableProxy* result_value =
           processor.factory()->NewVariableProxy(result, pos);
-      if (!info->flags().is_repl_mode) {
+      if (!info->is_repl_mode()) {
         Statement* result_statement =
             processor.factory()->NewReturnStatement(result_value, pos);
         body->Add(result_statement, info->zone());
