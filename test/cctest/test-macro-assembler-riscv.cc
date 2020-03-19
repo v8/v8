@@ -641,20 +641,6 @@ TEST(cvt_d_l_Trunc_l_d) {
   }
 }
 
-TEST(cvt_d_l_Trunc_l_ud) {
-  CcTest::InitializeVM();
-  FOR_INT64_INPUTS(i, cvt_trunc_int64_test_values) {
-    int64_t input = *i;
-    uint64_t abs_input = (input < 0) ? -input : input;
-    auto fn = [](MacroAssembler* masm) {
-      __ dmtc1(a0, fa3);
-      __ cvt_d_l(fa0, fa3);
-      __ Trunc_l_ud(fa1, fa0, fa2);
-    };
-    CHECK_EQ(static_cast<double>(abs_input), run_Cvt<uint64_t>(input, fn));
-  }
-}
-
 TEST(cvt_d_w_Trunc_w_d) {
   CcTest::InitializeVM();
   FOR_INT32_INPUTS(i, cvt_trunc_int32_test_values) {

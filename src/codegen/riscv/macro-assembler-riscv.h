@@ -957,9 +957,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LoadWordPair(Register rd, const MemOperand& rs, Register scratch = t3);
   void StoreWordPair(Register rd, const MemOperand& rs, Register scratch = t3);
 
-  // Convert double to unsigned long.
-  void Trunc_l_ud(FPURegister fd, FPURegister fs, FPURegister scratch);
-
   void Trunc_l_d(FPURegister fd, FPURegister fs);
   void Round_l_d(FPURegister fd, FPURegister fs);
   void Floor_l_d(FPURegister fd, FPURegister fs);
