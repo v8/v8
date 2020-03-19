@@ -164,8 +164,11 @@ void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
     }
   } else {
     InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
+    // We only need a unique register for the first input (src), since in
+    // the codegen we use tmp to store the shifts, and then later use it with
+    // src. The second input can be the same as the second temp (shift).
     selector->Emit(opcode, g.DefineAsRegister(node),
-                   g.UseRegister(node->InputAt(0)),
+                   g.UseUniqueRegister(node->InputAt(0)),
                    g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
   }
 }
