@@ -92,9 +92,15 @@ class RegExpImpl final : public AllStatic {
 };
 
 V8_WARN_UNUSED_RESULT
-static inline MaybeHandle<Object> ThrowRegExpException(
-    Isolate* isolate, Handle<JSRegExp> re, Handle<String> pattern,
-    Handle<String> error_text) {
+static inline MaybeHandle<Object> ThrowRegExpException(Isolate* isolate,
+                                                       Handle<JSRegExp> re,
+                                                       Handle<String> pattern,
+                                                       RegExpError error) {
+  Vector<const char> error_data = CStrVector(RegExpErrorString(error));
+  Handle<String> error_text =
+      isolate->factory()
+          ->NewStringFromOneByte(Vector<const uint8_t>::cast(error_data))
+          .ToHandleChecked();
   THROW_NEW_ERROR(
       isolate,
       NewSyntaxError(MessageTemplate::kMalformedRegExp, pattern, error_text),
@@ -102,7 +108,7 @@ static inline MaybeHandle<Object> ThrowRegExpException(
 }
 
 inline void ThrowRegExpException(Isolate* isolate, Handle<JSRegExp> re,
-                                 Handle<String> error_text) {
+                                 RegExpError error_text) {
   USE(ThrowRegExpException(isolate, re, Handle<String>(re->Pattern(), isolate),
                            error_text));
 }
@@ -408,7 +414,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
       Compile(isolate, &zone, &compile_data, flags, pattern, sample_subject,
               is_one_byte, re->BacktrackLimit());
   if (!compilation_succeeded) {
-    DCHECK(!compile_data.error.is_null());
+    DCHECK(compile_data.error != RegExpError::kNone);
     ThrowRegExpException(isolate, re, compile_data.error);
     return false;
   }
@@ -741,8 +747,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
                          Handle<String> sample_subject, bool is_one_byte,
                          uint32_t backtrack_limit) {
   if ((data->capture_count + 1) * 2 - 1 > RegExpMacroAssembler::kMaxRegister) {
-    data->error =
-        isolate->factory()->NewStringFromAsciiChecked("RegExp too big");
+    data->error = RegExpError::kTooLarge;
     return false;
   }
 
@@ -810,8 +815,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 
   if (node == nullptr) node = new (zone) EndNode(EndNode::BACKTRACK, zone);
   data->node = node;
-  if (const char* error_message = AnalyzeRegExp(isolate, is_one_byte, node)) {
-    data->error = isolate->factory()->NewStringFromAsciiChecked(error_message);
+  data->error = AnalyzeRegExp(isolate, is_one_byte, node);
+  if (data->error != RegExpError::kNone) {
     return false;
   }
 
@@ -913,13 +918,12 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
     }
   }
 
-  if (result.error_message != nullptr) {
+  if (result.error != RegExpError::kNone) {
     if (FLAG_correctness_fuzzer_suppressions &&
-        strncmp(result.error_message, "Stack overflow", 15) == 0) {
+        result.error == RegExpError::kStackOverflow) {
       FATAL("Aborting on stack overflow");
     }
-    data->error =
-        isolate->factory()->NewStringFromAsciiChecked(result.error_message);
+    data->error = result.error;
   }
 
   data->code = result.code;
