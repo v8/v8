@@ -4037,7 +4037,7 @@ void GeneratePrintDefinitionsForClass(std::ostream& impl, const ClassType* type,
       }
     }
   }
-  impl << "  os << \"\\n\";\n";
+  impl << "  os << '\\n';\n";
   impl << "}\n\n";
 }
 }  // namespace
