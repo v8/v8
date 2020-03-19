@@ -98,11 +98,15 @@ function instantiate(bytes) {
   await waitForPauseAndStep('stepOver');  // over call
   await waitForPauseAndStep('stepOver');  // over br
   await waitForPauseAndStep('resume');    // to next breakpoint (3rd iteration)
-  await waitForPauseAndStep('stepOver');  // over wasm_A
+  await waitForPauseAndStep('stepInto');  // into wasm_A
+  // Step out of wasm_A, back to wasm_B.
+  // TODO(clemensb/thibaudm): Replace by an actual 'stepOut'.
+  for (let i = 0; i < 3; ++i) await waitForPauseAndStep('stepOver');
   // Step over 10 times.
-  for (let i = 0; i < 10; ++i) await waitForPauseAndStep('stepOver');
-  // Then just resume.
-  await waitForPauseAndStep('resume');
+  // TODO(clemensb/thibaudm): Reenable once stepping over return works.
+  //for (let i = 0; i < 10; ++i) await waitForPauseAndStep('stepOver');
+  // Resume three more times to continue over other breakpoints.
+  for (let i = 0; i < 3; ++i) await waitForPauseAndStep('resume');
   InspectorTest.log('exports.main returned!');
 
   InspectorTest.log('Test stepping over a recursive call');

@@ -996,29 +996,6 @@ void Debug::PrepareStep(StepAction step_action) {
   StackTraceFrameIterator frames_it(isolate_, frame_id);
   StandardFrame* frame = frames_it.frame();
 
-  // Handle stepping in wasm functions via the wasm interpreter.
-  if (frame->is_wasm_interpreter_entry()) {
-    WasmInterpreterEntryFrame* wasm_frame =
-        WasmInterpreterEntryFrame::cast(frame);
-    if (wasm_frame->NumberOfActiveFrames() > 0) {
-      wasm_frame->debug_info().PrepareStep(step_action);
-      return;
-    }
-  }
-  // Handle stepping in Liftoff code.
-  if (FLAG_debug_in_liftoff && frame->is_wasm_compiled()) {
-    WasmCompiledFrame* wasm_frame = WasmCompiledFrame::cast(frame);
-    wasm::WasmCodeRefScope code_ref_scope;
-    wasm::WasmCode* code = wasm_frame->wasm_code();
-    if (code->is_liftoff()) {
-      wasm_frame->native_module()->GetDebugInfo()->PrepareStep(isolate_);
-      return;
-    }
-  }
-  // If this is wasm, but there are no interpreted frames on top, all we can do
-  // is step out.
-  if (frame->is_wasm()) step_action = StepOut;
-
   BreakLocation location = BreakLocation::Invalid();
   Handle<SharedFunctionInfo> shared;
   int current_frame_count = CurrentFrameCount();
@@ -1062,6 +1039,25 @@ void Debug::PrepareStep(StepAction step_action) {
     thread_local_.last_frame_count_ = current_frame_count;
     // No longer perform the current async step.
     clear_suspended_generator();
+  } else if (frame->is_wasm_interpreter_entry()) {
+    // Handle stepping in wasm functions via the wasm interpreter.
+    WasmInterpreterEntryFrame* wasm_frame =
+        WasmInterpreterEntryFrame::cast(frame);
+    if (wasm_frame->NumberOfActiveFrames() > 0) {
+      wasm_frame->debug_info().PrepareStep(step_action);
+      return;
+    }
+  } else if (FLAG_debug_in_liftoff && frame->is_wasm_compiled()) {
+    // Handle stepping in Liftoff code.
+    WasmCompiledFrame* wasm_frame = WasmCompiledFrame::cast(frame);
+    wasm::WasmCodeRefScope code_ref_scope;
+    wasm::WasmCode* code = wasm_frame->wasm_code();
+    if (code->is_liftoff()) {
+      wasm_frame->native_module()->GetDebugInfo()->PrepareStep(isolate_);
+    }
+    // In case the wasm code returns, prepare the next frame (if JS) to break.
+    step_action = StepOut;
+    UpdateHookOnFunctionCall();
   }
 
   switch (step_action) {

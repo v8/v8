@@ -18,28 +18,18 @@ Debugger.stepOver called
 Paused at wasm://wasm/42af3c82:0:59
 Debugger.resume called
 Paused at wasm://wasm/42af3c82:0:73
+Debugger.stepInto called
+Paused at wasm://wasm/42af3c82:0:52
 Debugger.stepOver called
-Paused at wasm://wasm/42af3c82:0:75
+Paused at wasm://wasm/42af3c82:0:53
 Debugger.stepOver called
-Paused at wasm://wasm/42af3c82:0:59
-Debugger.stepOver called
-Paused at wasm://wasm/42af3c82:0:61
-Debugger.stepOver called
-Paused at wasm://wasm/42af3c82:0:63
-Debugger.stepOver called
-Paused at wasm://wasm/42af3c82:0:65
-Debugger.stepOver called
-Paused at wasm://wasm/42af3c82:0:67
-Debugger.stepOver called
-Paused at wasm://wasm/42af3c82:0:68
-Debugger.stepOver called
-Paused at wasm://wasm/42af3c82:0:70
+Paused at wasm://wasm/42af3c82:0:54
 Debugger.stepOver called
 Paused at wasm://wasm/42af3c82:0:73
-Debugger.stepOver called
-Paused at wasm://wasm/42af3c82:0:75
-Debugger.stepOver called
-Paused at wasm://wasm/42af3c82:0:59
+Debugger.resume called
+Paused at wasm://wasm/42af3c82:0:52
+Debugger.resume called
+Paused at :0:24
 Debugger.resume called
 exports.main returned!
 Test stepping over a recursive call

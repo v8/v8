@@ -698,7 +698,9 @@ class DebugInfoImpl {
 
   bool IsStepping(WasmCompiledFrame* frame) {
     DCHECK_IMPLIES(stepping_frame_ != NO_ID, flooded_function_index_ != -1);
-    return stepping_frame_ == frame->id();
+    Isolate* isolate = frame->wasm_instance().GetIsolate();
+    StepAction last_step_action = isolate->debug()->last_step_action();
+    return last_step_action == StepIn || stepping_frame_ == frame->id();
   }
 
   void RemoveDebugSideTables(Vector<WasmCode* const> codes) {
