@@ -762,7 +762,8 @@ Page* PagedSpace::InitializePage(MemoryChunk* chunk) {
       page->area_size());
   // Make sure that categories are initialized before freeing the area.
   page->ResetAllocationStatistics();
-  page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
+  page->SetOldGenerationPageFlags(!is_off_thread_space() &&
+                                  heap()->incremental_marking()->IsMarking());
   page->AllocateFreeListCategories();
   page->InitializeFreeListCategories();
   page->list_node().Initialize();
@@ -1744,6 +1745,7 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
 
     if (merging_from_off_thread) {
       DCHECK_NULL(p->sweeping_slot_set());
+      p->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
       if (heap()->incremental_marking()->black_allocation()) {
         p->CreateBlackArea(p->area_start(), p->HighWaterMark());
       }
@@ -1912,7 +1914,7 @@ int PagedSpace::CountTotalPages() {
 
 void PagedSpace::SetLinearAllocationArea(Address top, Address limit) {
   SetTopAndLimit(top, limit);
-  if (top != kNullAddress && top != limit &&
+  if (top != kNullAddress && top != limit && !is_off_thread_space() &&
       heap()->incremental_marking()->black_allocation()) {
     Page::FromAllocationAreaAddress(top)->CreateBlackArea(top, limit);
   }

@@ -169,8 +169,7 @@ void OffThreadFactory::Publish(Isolate* isolate) {
             isolate->factory()->InternalizeString(string_handle);
 
         // Recalculate the slot in case there was GC and the holder moved.
-        ObjectSlot slot(heap_object_handles[i]->ptr() +
-                        string_slots_[i].slot_offset);
+        ObjectSlot slot(heap_object_handles[i]->ptr() + slot_offset);
 
         DCHECK(string_handle->IsThinString() ||
                string_handle->IsInternalizedString());
