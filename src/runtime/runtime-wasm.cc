@@ -614,22 +614,34 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   DebugScope debug_scope(isolate->debug());
 
   const auto undefined = ReadOnlyRoots(isolate).undefined_value();
-  auto* debug_info = frame_finder.frame()->native_module()->GetDebugInfo();
-  if (debug_info->IsStepping(frame_finder.frame())) {
+  WasmCompiledFrame* frame = frame_finder.frame();
+  auto* debug_info = frame->native_module()->GetDebugInfo();
+  if (debug_info->IsStepping(frame)) {
     debug_info->ClearStepping();
     isolate->debug()->OnDebugBreak(isolate->factory()->empty_fixed_array());
     return undefined;
   }
 
   // Check whether we hit a breakpoint.
-  if (isolate->debug()->break_points_active()) {
-    Handle<Script> script(instance->module_object().script(), isolate);
-    Handle<FixedArray> breakpoints;
-    if (WasmScript::CheckBreakPoints(isolate, script, position)
-            .ToHandle(&breakpoints)) {
+  Handle<Script> script(instance->module_object().script(), isolate);
+  Handle<FixedArray> breakpoints;
+  if (WasmScript::CheckBreakPoints(isolate, script, position)
+          .ToHandle(&breakpoints)) {
+    if (isolate->debug()->break_points_active()) {
       // We hit one or several breakpoints. Notify the debug listeners.
       isolate->debug()->OnDebugBreak(breakpoints);
     }
+  } else {
+    // Unused breakpoint. Possible scenarios:
+    // 1. We hit a breakpoint that was already removed,
+    // 2. We hit a stepping breakpoint after resuming,
+    // 3. We hit a stepping breakpoint during a stepOver on a recursive call.
+    // 4. The breakpoint was set in a different isolate.
+    // We can handle the first three cases by simply removing the breakpoint (if
+    // it exists), since this will also recompile the function without the
+    // stepping breakpoints.
+    // TODO(thibaudm/clemensb): handle case 4.
+    debug_info->RemoveBreakpoint(frame->function_index(), position, isolate);
   }
 
   return undefined;

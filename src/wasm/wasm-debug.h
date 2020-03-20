@@ -156,6 +156,8 @@ class DebugInfo {
 
   bool IsStepping(WasmCompiledFrame*);
 
+  void RemoveBreakpoint(int func_index, int offset, Isolate* current_isolate);
+
   void RemoveDebugSideTables(Vector<WasmCode* const>);
 
  private:

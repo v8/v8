@@ -461,7 +461,11 @@ Address FindNewPC(int offset, WasmCode* old_code, WasmCode* new_code) {
          new_it.source_position().ScriptOffset() != old_source_pos) {
     new_it.Advance();
   }
-  DCHECK(!new_it.done());
+  if (new_it.done()) {
+    // TODO(thibaudm): Make Liftoff generate the missing source positions when
+    // removing breakpoints.
+    return 0;
+  }
 
   // Each call instruction generates two source positions with the same source
   // offset: one for the address of the call instruction and one for the
@@ -470,26 +474,6 @@ Address FindNewPC(int offset, WasmCode* old_code, WasmCode* new_code) {
   DCHECK(!new_it.done());
   DCHECK_EQ(new_it.source_position().ScriptOffset(), old_source_pos);
   return new_code->instruction_start() + new_it.code_offset();
-}
-
-// After installing a Liftoff code object with a different set of breakpoints,
-// update return addresses on the stack so that execution resumes in the new
-// code. The frame layout itself should be independent of breakpoints.
-// TODO(thibaudm): update other threads as well.
-void UpdateReturnAddresses(Isolate* isolate, WasmCode* new_code) {
-  DCHECK(new_code->is_liftoff());
-  for (StackTraceFrameIterator it(isolate); !it.done(); it.Advance()) {
-    if (!it.is_wasm()) continue;
-    WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
-    if (frame->native_module() != new_code->native_module()) continue;
-    if (frame->function_index() != new_code->index()) continue;
-    WasmCode* old_code = frame->wasm_code();
-    if (!old_code->is_liftoff()) return;
-    int offset = static_cast<int>(frame->pc() - old_code->instruction_start());
-    Address new_pc = FindNewPC(offset, old_code, new_code);
-    PointerAuthentication::ReplacePC(frame->pc_address(), new_pc,
-                                     kSystemPointerSize);
-  }
 }
 
 }  // namespace
@@ -617,6 +601,11 @@ class DebugInfoImpl {
 
   void RecompileLiftoffWithBreakpoints(int func_index, Vector<int> offsets,
                                        Isolate* current_isolate) {
+    if (func_index == flooded_function_index_) {
+      // We should not be flooding a function that is already flooded.
+      DCHECK(!(offsets.size() == 1 && offsets[0] == 0));
+      flooded_function_index_ = -1;
+    }
     // Recompile the function with Liftoff, setting the new breakpoints.
     // Not thread-safe. The caller is responsible for locking {mutex_}.
     CompilationEnv env = native_module_->CreateCompilationEnv();
@@ -695,10 +684,23 @@ class DebugInfoImpl {
   void ClearStepping() { stepping_frame_ = NO_ID; }
 
   bool IsStepping(WasmCompiledFrame* frame) {
-    DCHECK_IMPLIES(stepping_frame_ != NO_ID, flooded_function_index_ != -1);
     Isolate* isolate = frame->wasm_instance().GetIsolate();
     StepAction last_step_action = isolate->debug()->last_step_action();
     return last_step_action == StepIn || stepping_frame_ == frame->id();
+  }
+
+  void RemoveBreakpoint(int func_index, int offset, Isolate* current_isolate) {
+    base::MutexGuard guard(&mutex_);
+
+    std::vector<int>& breakpoints = breakpoints_per_function_[func_index];
+    DCHECK_LT(0, offset);
+    auto insertion_point =
+        std::lower_bound(breakpoints.begin(), breakpoints.end(), offset);
+    if (insertion_point != breakpoints.end() && *insertion_point == offset) {
+      breakpoints.erase(insertion_point);
+    }
+    RecompileLiftoffWithBreakpoints(func_index, VectorOf(breakpoints),
+                                    current_isolate);
   }
 
   void RemoveDebugSideTables(Vector<WasmCode* const> codes) {
@@ -796,6 +798,31 @@ class DebugInfoImpl {
     }
   }
 
+  // After installing a Liftoff code object with a different set of breakpoints,
+  // update return addresses on the stack so that execution resumes in the new
+  // code. The frame layout itself should be independent of breakpoints.
+  // TODO(thibaudm): update other threads as well.
+  void UpdateReturnAddresses(Isolate* isolate, WasmCode* new_code) {
+    DCHECK(new_code->is_liftoff());
+    for (StackTraceFrameIterator it(isolate); !it.done(); it.Advance()) {
+      // We still need the flooded function for stepping.
+      if (it.frame()->id() == stepping_frame_) continue;
+      if (!it.is_wasm()) continue;
+      WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
+      if (frame->native_module() != new_code->native_module()) continue;
+      if (frame->function_index() != new_code->index()) continue;
+      WasmCode* old_code = frame->wasm_code();
+      if (!old_code->is_liftoff()) return;
+      int offset =
+          static_cast<int>(frame->pc() - old_code->instruction_start());
+      Address new_pc = FindNewPC(offset, old_code, new_code);
+      if (new_pc) {
+        PointerAuthentication::ReplacePC(frame->pc_address(), new_pc,
+                                         kSystemPointerSize);
+      }
+    }
+  }
+
   NativeModule* const native_module_;
 
   // {mutex_} protects all fields below.
@@ -846,6 +873,11 @@ void DebugInfo::ClearStepping() { impl_->ClearStepping(); }
 
 bool DebugInfo::IsStepping(WasmCompiledFrame* frame) {
   return impl_->IsStepping(frame);
+}
+
+void DebugInfo::RemoveBreakpoint(int func_index, int offset,
+                                 Isolate* current_isolate) {
+  impl_->RemoveBreakpoint(func_index, offset, current_isolate);
 }
 
 void DebugInfo::RemoveDebugSideTables(Vector<WasmCode* const> code) {
