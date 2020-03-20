@@ -580,9 +580,8 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     ASSEMBLE_SIMD_INSTR(opcode, dst, input_index);       \
   } while (false)
 
-#define ASSEMBLE_SIMD_IMM_SHUFFLE(opcode, SSELevel, imm)                  \
+#define ASSEMBLE_SIMD_IMM_SHUFFLE(opcode, imm)                            \
   do {                                                                    \
-    CpuFeatureScope sse_scope(tasm(), SSELevel);                          \
     DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));      \
     __ opcode(i.OutputSimd128Register(), i.InputSimd128Register(1), imm); \
   } while (false)
@@ -3747,129 +3746,126 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64S32x4Swizzle: {
       DCHECK_EQ(2, instr->InputCount());
-      ASSEMBLE_SIMD_IMM_INSTR(pshufd, i.OutputSimd128Register(), 0,
-                              i.InputInt8(1));
+      ASSEMBLE_SIMD_IMM_INSTR(Pshufd, i.OutputSimd128Register(), 0,
+                              i.InputUint8(1));
       break;
     }
     case kX64S32x4Shuffle: {
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
       DCHECK_EQ(4, instr->InputCount());  // Swizzles should be handled above.
-      int8_t shuffle = i.InputInt8(2);
+      uint8_t shuffle = i.InputUint8(2);
       DCHECK_NE(0xe4, shuffle);  // A simple blend should be handled below.
-      ASSEMBLE_SIMD_IMM_INSTR(pshufd, kScratchDoubleReg, 1, shuffle);
-      ASSEMBLE_SIMD_IMM_INSTR(pshufd, i.OutputSimd128Register(), 0, shuffle);
-      __ pblendw(i.OutputSimd128Register(), kScratchDoubleReg, i.InputInt8(3));
+      ASSEMBLE_SIMD_IMM_INSTR(Pshufd, kScratchDoubleReg, 1, shuffle);
+      ASSEMBLE_SIMD_IMM_INSTR(Pshufd, i.OutputSimd128Register(), 0, shuffle);
+      __ Pblendw(i.OutputSimd128Register(), kScratchDoubleReg, i.InputUint8(3));
       break;
     }
     case kX64S16x8Blend: {
-      ASSEMBLE_SIMD_IMM_SHUFFLE(pblendw, SSE4_1, i.InputInt8(2));
+      ASSEMBLE_SIMD_IMM_SHUFFLE(Pblendw, i.InputUint8(2));
       break;
     }
     case kX64S16x8HalfShuffle1: {
       XMMRegister dst = i.OutputSimd128Register();
-      ASSEMBLE_SIMD_IMM_INSTR(pshuflw, dst, 0, i.InputInt8(1));
-      __ pshufhw(dst, dst, i.InputInt8(2));
+      ASSEMBLE_SIMD_IMM_INSTR(Pshuflw, dst, 0, i.InputUint8(1));
+      __ Pshufhw(dst, dst, i.InputUint8(2));
       break;
     }
     case kX64S16x8HalfShuffle2: {
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
-      ASSEMBLE_SIMD_IMM_INSTR(pshuflw, kScratchDoubleReg, 1, i.InputInt8(2));
-      __ pshufhw(kScratchDoubleReg, kScratchDoubleReg, i.InputInt8(3));
-      ASSEMBLE_SIMD_IMM_INSTR(pshuflw, dst, 0, i.InputInt8(2));
-      __ pshufhw(dst, dst, i.InputInt8(3));
-      __ pblendw(dst, kScratchDoubleReg, i.InputInt8(4));
+      ASSEMBLE_SIMD_IMM_INSTR(Pshuflw, kScratchDoubleReg, 1, i.InputUint8(2));
+      __ Pshufhw(kScratchDoubleReg, kScratchDoubleReg, i.InputUint8(3));
+      ASSEMBLE_SIMD_IMM_INSTR(Pshuflw, dst, 0, i.InputUint8(2));
+      __ Pshufhw(dst, dst, i.InputUint8(3));
+      __ Pblendw(dst, kScratchDoubleReg, i.InputUint8(4));
       break;
     }
     case kX64S8x16Alignr: {
-      ASSEMBLE_SIMD_IMM_SHUFFLE(palignr, SSSE3, i.InputInt8(2));
+      ASSEMBLE_SIMD_IMM_SHUFFLE(Palignr, i.InputUint8(2));
       break;
     }
     case kX64S16x8Dup: {
       XMMRegister dst = i.OutputSimd128Register();
-      int8_t lane = i.InputInt8(1) & 0x7;
-      int8_t lane4 = lane & 0x3;
-      int8_t half_dup = lane4 | (lane4 << 2) | (lane4 << 4) | (lane4 << 6);
+      uint8_t lane = i.InputInt8(1) & 0x7;
+      uint8_t lane4 = lane & 0x3;
+      uint8_t half_dup = lane4 | (lane4 << 2) | (lane4 << 4) | (lane4 << 6);
       if (lane < 4) {
-        ASSEMBLE_SIMD_IMM_INSTR(pshuflw, dst, 0, half_dup);
-        __ pshufd(dst, dst, 0);
+        ASSEMBLE_SIMD_IMM_INSTR(Pshuflw, dst, 0, half_dup);
+        __ Pshufd(dst, dst, static_cast<uint8_t>(0));
       } else {
-        ASSEMBLE_SIMD_IMM_INSTR(pshufhw, dst, 0, half_dup);
-        __ pshufd(dst, dst, 0xaa);
+        ASSEMBLE_SIMD_IMM_INSTR(Pshufhw, dst, 0, half_dup);
+        __ Pshufd(dst, dst, static_cast<uint8_t>(0xaa));
       }
       break;
     }
     case kX64S8x16Dup: {
       XMMRegister dst = i.OutputSimd128Register();
-      int8_t lane = i.InputInt8(1) & 0xf;
+      uint8_t lane = i.InputInt8(1) & 0xf;
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       if (lane < 8) {
-        __ punpcklbw(dst, dst);
+        __ Punpcklbw(dst, dst);
       } else {
-        __ punpckhbw(dst, dst);
+        __ Punpckhbw(dst, dst);
       }
       lane &= 0x7;
-      int8_t lane4 = lane & 0x3;
-      int8_t half_dup = lane4 | (lane4 << 2) | (lane4 << 4) | (lane4 << 6);
+      uint8_t lane4 = lane & 0x3;
+      uint8_t half_dup = lane4 | (lane4 << 2) | (lane4 << 4) | (lane4 << 6);
       if (lane < 4) {
-        __ pshuflw(dst, dst, half_dup);
-        __ pshufd(dst, dst, 0);
+        __ Pshuflw(dst, dst, half_dup);
+        __ Pshufd(dst, dst, static_cast<uint8_t>(0));
       } else {
-        __ pshufhw(dst, dst, half_dup);
-        __ pshufd(dst, dst, 0xaa);
+        __ Pshufhw(dst, dst, half_dup);
+        __ Pshufd(dst, dst, static_cast<uint8_t>(0xaa));
       }
       break;
     }
     case kX64S64x2UnpackHigh:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhqdq);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpckhqdq);
       break;
     case kX64S32x4UnpackHigh:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhdq);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpckhdq);
       break;
     case kX64S16x8UnpackHigh:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhwd);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpckhwd);
       break;
     case kX64S8x16UnpackHigh:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhbw);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpckhbw);
       break;
     case kX64S64x2UnpackLow:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpcklqdq);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpcklqdq);
       break;
     case kX64S32x4UnpackLow:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckldq);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpckldq);
       break;
     case kX64S16x8UnpackLow:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpcklwd);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpcklwd);
       break;
     case kX64S8x16UnpackLow:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpcklbw);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpcklbw);
       break;
     case kX64S16x8UnzipHigh: {
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src2 = dst;
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       if (instr->InputCount() == 2) {
-        ASSEMBLE_SIMD_INSTR(movups, kScratchDoubleReg, 1);
-        __ psrld(kScratchDoubleReg, 16);
+        ASSEMBLE_SIMD_INSTR(Movups, kScratchDoubleReg, 1);
+        __ Psrld(kScratchDoubleReg, static_cast<byte>(16));
         src2 = kScratchDoubleReg;
       }
-      __ psrld(dst, 16);
-      __ packusdw(dst, src2);
+      __ Psrld(dst, static_cast<byte>(16));
+      __ Packusdw(dst, src2);
       break;
     }
     case kX64S16x8UnzipLow: {
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src2 = dst;
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      __ pxor(kScratchDoubleReg, kScratchDoubleReg);
+      __ Pxor(kScratchDoubleReg, kScratchDoubleReg);
       if (instr->InputCount() == 2) {
-        ASSEMBLE_SIMD_IMM_INSTR(pblendw, kScratchDoubleReg, 1, 0x55);
+        ASSEMBLE_SIMD_IMM_INSTR(Pblendw, kScratchDoubleReg, 1,
+                                static_cast<uint8_t>(0x55));
         src2 = kScratchDoubleReg;
       }
-      __ pblendw(dst, kScratchDoubleReg, 0xaa);
-      __ packusdw(dst, src2);
+      __ Pblendw(dst, kScratchDoubleReg, static_cast<uint8_t>(0xaa));
+      __ Packusdw(dst, src2);
       break;
     }
     case kX64S8x16UnzipHigh: {
@@ -3877,12 +3873,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src2 = dst;
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       if (instr->InputCount() == 2) {
-        ASSEMBLE_SIMD_INSTR(movups, kScratchDoubleReg, 1);
-        __ psrlw(kScratchDoubleReg, 8);
+        ASSEMBLE_SIMD_INSTR(Movups, kScratchDoubleReg, 1);
+        __ Psrlw(kScratchDoubleReg, static_cast<byte>(8));
         src2 = kScratchDoubleReg;
       }
-      __ psrlw(dst, 8);
-      __ packuswb(dst, src2);
+      __ Psrlw(dst, static_cast<byte>(8));
+      __ Packuswb(dst, src2);
       break;
     }
     case kX64S8x16UnzipLow: {
@@ -3890,44 +3886,44 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src2 = dst;
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       if (instr->InputCount() == 2) {
-        ASSEMBLE_SIMD_INSTR(movups, kScratchDoubleReg, 1);
-        __ psllw(kScratchDoubleReg, 8);
-        __ psrlw(kScratchDoubleReg, 8);
+        ASSEMBLE_SIMD_INSTR(Movups, kScratchDoubleReg, 1);
+        __ Psllw(kScratchDoubleReg, static_cast<byte>(8));
+        __ Psrlw(kScratchDoubleReg, static_cast<byte>(8));
         src2 = kScratchDoubleReg;
       }
-      __ psllw(dst, 8);
-      __ psrlw(dst, 8);
-      __ packuswb(dst, src2);
+      __ Psllw(dst, static_cast<byte>(8));
+      __ Psrlw(dst, static_cast<byte>(8));
+      __ Packuswb(dst, src2);
       break;
     }
     case kX64S8x16TransposeLow: {
       XMMRegister dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      __ psllw(dst, 8);
+      __ Psllw(dst, static_cast<byte>(8));
       if (instr->InputCount() == 1) {
-        __ movups(kScratchDoubleReg, dst);
+        __ Movups(kScratchDoubleReg, dst);
       } else {
         DCHECK_EQ(2, instr->InputCount());
-        ASSEMBLE_SIMD_INSTR(movups, kScratchDoubleReg, 1);
-        __ psllw(kScratchDoubleReg, 8);
+        ASSEMBLE_SIMD_INSTR(Movups, kScratchDoubleReg, 1);
+        __ Psllw(kScratchDoubleReg, static_cast<byte>(8));
       }
-      __ psrlw(dst, 8);
-      __ por(dst, kScratchDoubleReg);
+      __ Psrlw(dst, static_cast<byte>(8));
+      __ Por(dst, kScratchDoubleReg);
       break;
     }
     case kX64S8x16TransposeHigh: {
       XMMRegister dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      __ psrlw(dst, 8);
+      __ Psrlw(dst, static_cast<byte>(8));
       if (instr->InputCount() == 1) {
-        __ movups(kScratchDoubleReg, dst);
+        __ Movups(kScratchDoubleReg, dst);
       } else {
         DCHECK_EQ(2, instr->InputCount());
-        ASSEMBLE_SIMD_INSTR(movups, kScratchDoubleReg, 1);
-        __ psrlw(kScratchDoubleReg, 8);
+        ASSEMBLE_SIMD_INSTR(Movups, kScratchDoubleReg, 1);
+        __ Psrlw(kScratchDoubleReg, static_cast<byte>(8));
       }
-      __ psllw(kScratchDoubleReg, 8);
-      __ por(dst, kScratchDoubleReg);
+      __ Psllw(kScratchDoubleReg, static_cast<byte>(8));
+      __ Por(dst, kScratchDoubleReg);
       break;
     }
     case kX64S8x8Reverse:
@@ -3938,14 +3934,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       if (arch_opcode != kX64S8x2Reverse) {
         // First shuffle words into position.
-        int8_t shuffle_mask = arch_opcode == kX64S8x4Reverse ? 0xB1 : 0x1B;
-        __ pshuflw(dst, dst, shuffle_mask);
-        __ pshufhw(dst, dst, shuffle_mask);
+        uint8_t shuffle_mask = arch_opcode == kX64S8x4Reverse ? 0xB1 : 0x1B;
+        __ Pshuflw(dst, dst, shuffle_mask);
+        __ Pshufhw(dst, dst, shuffle_mask);
       }
-      __ movaps(kScratchDoubleReg, dst);
-      __ psrlw(kScratchDoubleReg, 8);
-      __ psllw(dst, 8);
-      __ por(dst, kScratchDoubleReg);
+      __ Movaps(kScratchDoubleReg, dst);
+      __ Psrlw(kScratchDoubleReg, static_cast<byte>(8));
+      __ Psllw(dst, static_cast<byte>(8));
+      __ Por(dst, kScratchDoubleReg);
       break;
     }
     case kX64S1x2AnyTrue:
