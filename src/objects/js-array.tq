@@ -8,6 +8,24 @@ extern class JSArrayIterator extends JSObject {
   kind: Smi;
 }
 
+extern enum IterationKind extends int31
+constexpr 'IterationKind' { kKeys, kValues, kEntries }
+
+// Perform CreateArrayIterator (ES #sec-createarrayiterator).
+@export
+macro CreateArrayIterator(implicit context: NativeContext)(
+    array: JSReceiver, kind: constexpr IterationKind): JSArrayIterator {
+  return new JSArrayIterator{
+    map: UnsafeCast<Map>(
+        context[NativeContextSlot::INITIAL_ARRAY_ITERATOR_MAP_INDEX]),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    iterated_object: array,
+    next_index: 0,
+    kind: FromConstexpr<Smi>(kind)
+  };
+}
+
 extern class JSArray extends JSObject {
   macro IsEmpty(): bool {
     return this.length == 0;

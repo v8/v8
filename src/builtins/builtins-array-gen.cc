@@ -1152,7 +1152,7 @@ TF_BUILTIN(ArrayIndexOfHoleyDoubles, ArrayIncludesIndexofAssembler) {
 
 // ES #sec-array.prototype.values
 TF_BUILTIN(ArrayPrototypeValues, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<NativeContext> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Return(CreateArrayIterator(context, ToObject_Inline(context, receiver),
                              IterationKind::kValues));
@@ -1160,7 +1160,7 @@ TF_BUILTIN(ArrayPrototypeValues, CodeStubAssembler) {
 
 // ES #sec-array.prototype.entries
 TF_BUILTIN(ArrayPrototypeEntries, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<NativeContext> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Return(CreateArrayIterator(context, ToObject_Inline(context, receiver),
                              IterationKind::kEntries));
@@ -1168,7 +1168,7 @@ TF_BUILTIN(ArrayPrototypeEntries, CodeStubAssembler) {
 
 // ES #sec-array.prototype.keys
 TF_BUILTIN(ArrayPrototypeKeys, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<NativeContext> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Return(CreateArrayIterator(context, ToObject_Inline(context, receiver),
                              IterationKind::kKeys));

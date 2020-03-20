@@ -95,6 +95,10 @@ FromConstexpr<PromiseState, constexpr PromiseState>(c: constexpr PromiseState):
   return %RawDownCast<PromiseState>(Int32Constant(c));
 }
 
+FromConstexpr<Smi, constexpr IterationKind>(c: constexpr IterationKind): Smi {
+  return %RawDownCast<Smi>(SmiConstant(c));
+}
+
 macro Convert<To: type, From: type>(i: From): To {
   return i;
 }
