@@ -874,7 +874,7 @@ class StringToBigIntHelper : public StringToIntHelper<LocalIsolate> {
       case State::kError:
         return MaybeHandle<BigInt>();
       case State::kZero:
-        return BigInt::Zero(this->isolate());
+        return BigInt::Zero(this->isolate(), allocation_type());
       case State::kDone:
         return BigInt::Finalize<Isolate>(result_, this->negative());
       case State::kEmpty:
@@ -891,13 +891,9 @@ class StringToBigIntHelper : public StringToIntHelper<LocalIsolate> {
     // Optimization opportunity: Would it makes sense to scan for trailing
     // junk before allocating the result?
     int charcount = this->length() - this->cursor();
-    // For literals, we pretenure the allocated BigInt, since it's about
-    // to be stored in the interpreter's constants array.
-    AllocationType allocation = behavior_ == Behavior::kLiteral
-                                    ? AllocationType::kOld
-                                    : AllocationType::kYoung;
-    MaybeHandle<FreshlyAllocatedBigInt> maybe = BigInt::AllocateFor(
-        this->isolate(), this->radix(), charcount, kDontThrow, allocation);
+    MaybeHandle<FreshlyAllocatedBigInt> maybe =
+        BigInt::AllocateFor(this->isolate(), this->radix(), charcount,
+                            kDontThrow, allocation_type());
     if (!maybe.ToHandle(&result_)) {
       this->set_state(State::kError);
     }
@@ -906,6 +902,13 @@ class StringToBigIntHelper : public StringToIntHelper<LocalIsolate> {
   void ResultMultiplyAdd(uint32_t multiplier, uint32_t part) override {
     BigInt::InplaceMultiplyAdd(*result_, static_cast<uintptr_t>(multiplier),
                                static_cast<uintptr_t>(part));
+  }
+
+  AllocationType allocation_type() {
+    // For literals, we pretenure the allocated BigInt, since it's about
+    // to be stored in the interpreter's constants array.
+    return behavior_ == Behavior::kLiteral ? AllocationType::kOld
+                                           : AllocationType::kYoung;
   }
 
  private:

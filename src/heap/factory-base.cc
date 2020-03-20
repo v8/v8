@@ -654,7 +654,7 @@ Handle<DescriptorArray> FactoryBase<Impl>::NewDescriptorArray(
   DCHECK_LT(0, number_of_all_descriptors);
   int size = DescriptorArray::SizeFor(number_of_all_descriptors);
   HeapObject obj = AllocateRawWithImmortalMap(
-      size, AllocationType::kYoung, read_only_roots().descriptor_array_map());
+      size, allocation, read_only_roots().descriptor_array_map());
   DescriptorArray array = DescriptorArray::cast(obj);
   array.Initialize(read_only_roots().empty_enum_cache(),
                    read_only_roots().undefined_value(), number_of_descriptors,

@@ -301,17 +301,20 @@ class ObjectDescriptor {
             AllocationType::kOld);
       } else {
         descriptor_array_template_ = DescriptorArray::Allocate(
-            isolate, 0, property_count_ + property_slack_);
+            isolate, 0, property_count_ + property_slack_,
+            AllocationType::kOld);
       }
     }
     elements_dictionary_template_ =
         element_count_ || computed_count_
-            ? NumberDictionary::New(isolate, element_count_ + computed_count_)
+            ? NumberDictionary::New(isolate, element_count_ + computed_count_,
+                                    AllocationType::kOld)
             : factory->empty_slow_element_dictionary();
 
-    computed_properties_ = computed_count_
-                               ? factory->NewFixedArray(computed_count_)
-                               : factory->empty_fixed_array();
+    computed_properties_ =
+        computed_count_
+            ? factory->NewFixedArray(computed_count_, AllocationType::kOld)
+            : factory->empty_fixed_array();
 
     temp_handle_ = handle(Smi::zero(), isolate);
   }
@@ -570,8 +573,8 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   static_desc.Finalize(isolate);
   instance_desc.Finalize(isolate);
 
-  Handle<ClassBoilerplate> class_boilerplate =
-      Handle<ClassBoilerplate>::cast(factory->NewFixedArray(kBoileplateLength));
+  Handle<ClassBoilerplate> class_boilerplate = Handle<ClassBoilerplate>::cast(
+      factory->NewFixedArray(kBoileplateLength, AllocationType::kOld));
 
   class_boilerplate->set_flags(0);
   class_boilerplate->set_install_class_name_accessor(

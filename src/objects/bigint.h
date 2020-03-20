@@ -245,7 +245,8 @@ class BigInt : public BigIntBase {
 
   // Special functions for StringToBigIntHelper:
   template <typename LocalIsolate>
-  static Handle<BigInt> Zero(LocalIsolate* isolate);
+  static Handle<BigInt> Zero(LocalIsolate* isolate, AllocationType allocation =
+                                                        AllocationType::kYoung);
   template <typename LocalIsolate>
   static MaybeHandle<FreshlyAllocatedBigInt> AllocateFor(
       LocalIsolate* isolate, int radix, int charcount, ShouldThrow should_throw,

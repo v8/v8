@@ -61,9 +61,12 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   static Handle<MutableBigInt> Copy(Isolate* isolate,
                                     Handle<BigIntBase> source);
   template <typename LocalIsolate>
-  static Handle<BigInt> Zero(LocalIsolate* isolate) {
+  static Handle<BigInt> Zero(
+      LocalIsolate* isolate,
+      AllocationType allocation = AllocationType::kYoung) {
     // TODO(jkummerow): Consider caching a canonical zero-BigInt.
-    return MakeImmutable<LocalIsolate>(New(isolate, 0).ToHandleChecked());
+    return MakeImmutable<LocalIsolate>(
+        New(isolate, 0, allocation).ToHandleChecked());
   }
 
   static Handle<MutableBigInt> Cast(Handle<FreshlyAllocatedBigInt> bigint) {
@@ -412,12 +415,13 @@ void MutableBigInt::Canonicalize(MutableBigInt result) {
 }
 
 template <typename LocalIsolate>
-Handle<BigInt> BigInt::Zero(LocalIsolate* isolate) {
-  return MutableBigInt::Zero(isolate);
+Handle<BigInt> BigInt::Zero(LocalIsolate* isolate, AllocationType allocation) {
+  return MutableBigInt::Zero(isolate, allocation);
 }
-template Handle<BigInt> BigInt::Zero<Isolate>(Isolate* isolate);
+template Handle<BigInt> BigInt::Zero<Isolate>(Isolate* isolate,
+                                              AllocationType allocation);
 template Handle<BigInt> BigInt::Zero<OffThreadIsolate>(
-    OffThreadIsolate* isolate);
+    OffThreadIsolate* isolate, AllocationType allocation);
 
 Handle<BigInt> BigInt::UnaryMinus(Isolate* isolate, Handle<BigInt> x) {
   // Special case: There is no -0n.
