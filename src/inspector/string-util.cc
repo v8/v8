@@ -161,3 +161,10 @@ String16 stackTraceIdToString(uintptr_t id) {
 }
 
 }  // namespace v8_inspector
+
+namespace v8_crdtp {
+void SerializerTraits<v8_inspector::protocol::Binary>::Serialize(
+    const v8_inspector::protocol::Binary& binary, std::vector<uint8_t>* out) {
+  cbor::EncodeBinary(span<uint8_t>(binary.data(), binary.size()), out);
+}
+}  // namespace v8_crdtp

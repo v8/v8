@@ -658,19 +658,16 @@ def main():
       "Values_h.template",
       "Object_h.template",
       "ValueConversions_h.template",
-      "DispatcherBase_h.template",
     ]
 
     protocol_cpp_templates = [
       "Protocol_cpp.template",
       "Values_cpp.template",
       "Object_cpp.template",
-      "DispatcherBase_cpp.template",
     ]
 
     forward_h_templates = [
       "Forward_h.template",
-      "FrontendChannel_h.template",
     ]
 
     base_string_adapter_h_templates = [

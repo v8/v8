@@ -5,6 +5,7 @@
 #include "src/inspector/v8-inspector-session-impl.h"
 
 #include "../../third_party/inspector_protocol/crdtp/cbor.h"
+#include "../../third_party/inspector_protocol/crdtp/dispatch.h"
 #include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -184,23 +185,24 @@ std::unique_ptr<StringBuffer> V8InspectorSessionImpl::serializeForFrontend(
   return StringBufferFrom(std::move(string16));
 }
 
-void V8InspectorSessionImpl::sendProtocolResponse(
+void V8InspectorSessionImpl::SendProtocolResponse(
     int callId, std::unique_ptr<protocol::Serializable> message) {
   m_channel->sendResponse(callId, serializeForFrontend(std::move(message)));
 }
 
-void V8InspectorSessionImpl::sendProtocolNotification(
+void V8InspectorSessionImpl::SendProtocolNotification(
     std::unique_ptr<protocol::Serializable> message) {
   m_channel->sendNotification(serializeForFrontend(std::move(message)));
 }
 
-void V8InspectorSessionImpl::fallThrough(int callId, const String16& method,
+void V8InspectorSessionImpl::FallThrough(int callId,
+                                         const v8_crdtp::span<uint8_t> method,
                                          v8_crdtp::span<uint8_t> message) {
   // There's no other layer to handle the command.
   UNREACHABLE();
 }
 
-void V8InspectorSessionImpl::flushProtocolNotifications() {
+void V8InspectorSessionImpl::FlushProtocolNotifications() {
   m_channel->flushProtocolNotifications();
 }
 
@@ -224,14 +226,15 @@ Response V8InspectorSessionImpl::findInjectedScript(
   injectedScript = nullptr;
   InspectedContext* context =
       m_inspector->getContext(m_contextGroupId, contextId);
-  if (!context) return Response::Error("Cannot find context with specified id");
+  if (!context)
+    return Response::ServerError("Cannot find context with specified id");
   injectedScript = context->getInjectedScript(m_sessionId);
   if (!injectedScript) {
     injectedScript = context->createInjectedScript(m_sessionId);
     if (m_customObjectFormatterEnabled)
       injectedScript->setCustomObjectFormatterEnabled(true);
   }
-  return Response::OK();
+  return Response::Success();
 }
 
 Response V8InspectorSessionImpl::findInjectedScript(
@@ -259,8 +262,11 @@ bool V8InspectorSessionImpl::unwrapObject(
   String16 objectGroupString;
   Response response = unwrapObject(toString16(objectId), object, context,
                                    objectGroup ? &objectGroupString : nullptr);
-  if (!response.isSuccess()) {
-    if (error) *error = StringBufferFrom(response.errorMessage());
+  if (response.IsError()) {
+    if (error) {
+      const std::string& msg = response.Message();
+      *error = StringBufferFrom(String16::fromUTF8(msg.data(), msg.size()));
+    }
     return false;
   }
   if (objectGroup)
@@ -274,15 +280,15 @@ Response V8InspectorSessionImpl::unwrapObject(const String16& objectId,
                                               String16* objectGroup) {
   std::unique_ptr<RemoteObjectId> remoteId;
   Response response = RemoteObjectId::parse(objectId, &remoteId);
-  if (!response.isSuccess()) return response;
+  if (!response.IsSuccess()) return response;
   InjectedScript* injectedScript = nullptr;
   response = findInjectedScript(remoteId.get(), injectedScript);
-  if (!response.isSuccess()) return response;
+  if (!response.IsSuccess()) return response;
   response = injectedScript->findObject(*remoteId, object);
-  if (!response.isSuccess()) return response;
+  if (!response.IsSuccess()) return response;
   *context = injectedScript->context()->context();
   if (objectGroup) *objectGroup = injectedScript->objectGroupName(*remoteId);
-  return Response::OK();
+  return Response::Success();
 }
 
 std::unique_ptr<protocol::Runtime::API::RemoteObject>
@@ -349,19 +355,29 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(
   } else {
     // We're ignoring the return value of the conversion function
     // intentionally. It means the |parsed_message| below will be nullptr.
-    ConvertToCBOR(message, &converted_cbor);
+    auto status = ConvertToCBOR(message, &converted_cbor);
+    if (!status.ok()) {
+      m_channel->sendNotification(
+          serializeForFrontend(v8_crdtp::CreateErrorNotification(
+              v8_crdtp::DispatchResponse::ParseError(status.ToASCIIString()))));
+      return;
+    }
     cbor = SpanFrom(converted_cbor);
   }
-  int callId;
-  std::unique_ptr<protocol::Value> parsed_message =
-      protocol::Value::parseBinary(cbor.data(), cbor.size());
-  String16 method;
-  if (m_dispatcher.parseCommand(parsed_message.get(), &callId, &method)) {
-    // Pass empty string instead of the actual message to save on a conversion.
-    // We're allowed to do so because fall-through is not implemented.
-    m_dispatcher.dispatch(callId, method, std::move(parsed_message),
-                          v8_crdtp::span<uint8_t>());
+  v8_crdtp::Dispatchable dispatchable(cbor);
+  if (!dispatchable.ok()) {
+    if (dispatchable.HasCallId()) {
+      m_channel->sendNotification(serializeForFrontend(
+          v8_crdtp::CreateErrorNotification(dispatchable.DispatchError())));
+    } else {
+      m_channel->sendResponse(
+          dispatchable.CallId(),
+          serializeForFrontend(v8_crdtp::CreateErrorResponse(
+              dispatchable.CallId(), dispatchable.DispatchError())));
+    }
+    return;
   }
+  m_dispatcher.Dispatch(dispatchable).Run();
 }
 
 std::vector<uint8_t> V8InspectorSessionImpl::state() {

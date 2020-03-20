@@ -24,17 +24,6 @@ using String = v8_inspector::String16;
 
 class StringUtil {
  public:
-  static String substring(const String& s, size_t pos, size_t len) {
-    return s.substring(pos, len);
-  }
-  static size_t find(const String& s, const char* needle) {
-    return s.find(needle);
-  }
-  static size_t find(const String& s, const String& needle) {
-    return s.find(needle);
-  }
-  static const size_t kNotFound = String::kNotFound;
-
   static String fromUTF8(const uint8_t* data, size_t length) {
     return String16::fromUTF8(reinterpret_cast<const char*>(data), length);
   }
@@ -99,5 +88,14 @@ std::unique_ptr<StringBuffer> StringBufferFrom(std::vector<uint8_t> str);
 String16 stackTraceIdToString(uintptr_t id);
 
 }  //  namespace v8_inspector
+
+// See third_party/inspector_protocol/crdtp/serializer_traits.h.
+namespace v8_crdtp {
+template <>
+struct SerializerTraits<v8_inspector::protocol::Binary> {
+  static void Serialize(const v8_inspector::protocol::Binary& binary,
+                        std::vector<uint8_t>* out);
+};
+}  // namespace v8_crdtp
 
 #endif  // V8_INSPECTOR_STRING_UTIL_H_

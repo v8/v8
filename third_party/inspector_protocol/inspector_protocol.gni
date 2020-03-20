@@ -33,10 +33,7 @@ template("inspector_protocol_generate") {
       invoker.config_file,
       "$inspector_protocol_dir/lib/base_string_adapter_cc.template",
       "$inspector_protocol_dir/lib/base_string_adapter_h.template",
-      "$inspector_protocol_dir/lib/DispatcherBase_cpp.template",
-      "$inspector_protocol_dir/lib/DispatcherBase_h.template",
       "$inspector_protocol_dir/lib/Forward_h.template",
-      "$inspector_protocol_dir/lib/FrontendChannel_h.template",
       "$inspector_protocol_dir/lib/Object_cpp.template",
       "$inspector_protocol_dir/lib/Object_h.template",
       "$inspector_protocol_dir/lib/Protocol_cpp.template",
@@ -56,6 +53,7 @@ template("inspector_protocol_generate") {
       "--jinja_dir",
       rebase_path("//third_party/", root_build_dir),  # jinja is in chromium's
                                                       # third_party
+
       "--output_base",
       rebase_path(invoker.out_dir, root_build_dir),
       "--config",

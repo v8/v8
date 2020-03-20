@@ -116,7 +116,7 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
     protocol::Response response =
         injectedScript->wrapObject(originValue, groupName, WrapMode::kNoPreview,
                                    configValue, maxDepth - 1, &wrapper);
-    if (!response.isSuccess() || !wrapper) {
+    if (!response.IsSuccess() || !wrapper) {
       reportError(context, tryCatch, "cannot wrap value");
       return false;
     }

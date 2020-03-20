@@ -34,17 +34,6 @@ using String = std::string;
 
 class {{config.lib.export_macro}} StringUtil {
  public:
-  static String substring(const String& s, unsigned pos, unsigned len) {
-    return s.substr(pos, len);
-  }
-  static size_t find(const String& s, const char* needle) {
-    return s.find(needle);
-  }
-  static size_t find(const String& s, const String& needle) {
-    return s.find(needle);
-  }
-  static const size_t kNotFound = static_cast<size_t>(-1);
-
   static String fromUTF8(const uint8_t* data, size_t length) {
     return std::string(reinterpret_cast<const char*>(data), length);
   }
