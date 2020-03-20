@@ -2592,63 +2592,85 @@ class LiftoffCompiler {
 #endif
   }
 
+  template <typename BuiltinDescriptor>
+  compiler::CallDescriptor* GetBuiltinCallDescriptor(Zone* zone) {
+    BuiltinDescriptor interface_descriptor;
+    return compiler::Linkage::GetStubCallDescriptor(
+        zone,                                           // zone
+        interface_descriptor,                           // descriptor
+        interface_descriptor.GetStackParameterCount(),  // stack parameter count
+        compiler::CallDescriptor::kNoFlags,             // flags
+        compiler::Operator::kNoProperties,              // properties
+        StubCallMode::kCallWasmRuntimeStub);            // stub call mode
+  }
+
   void AtomicWait(FullDecoder* decoder, ValueType type,
                   const MemoryAccessImmediate<validate>& imm) {
-#if V8_TARGET_ARCH_32_BIT
-    // The current implementation does not work on 32-bit platforms, as it
-    // passes i64 values over registers to builtins.
-    unsupported(decoder, kAtomics, "AtomicWait");
-    return;
-#else
     LiftoffRegList pinned;
-    LiftoffRegister timeout = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister expected_value = pinned.set(__ PopToRegister(pinned));
-    Register index = pinned.set(__ PopToRegister(pinned)).gp();
-    if (BoundsCheckMem(decoder, type.element_size_bytes(), imm.offset, index,
-                       pinned, kDoForceCheck)) {
+    Register index_reg = pinned.set(__ PeekToRegister(2, pinned)).gp();
+    if (BoundsCheckMem(decoder, type.element_size_bytes(), imm.offset,
+                       index_reg, pinned, kDoForceCheck)) {
       return;
     }
-    AlignmentCheckMem(decoder, type.element_size_bytes(), imm.offset, index,
+    AlignmentCheckMem(decoder, type.element_size_bytes(), imm.offset, index_reg,
                       pinned);
 
     uint32_t offset = imm.offset;
-    index = AddMemoryMasking(index, &offset, &pinned);
-    if (offset != 0) __ emit_i32_add(index, index, offset);
+    index_reg = AddMemoryMasking(index_reg, &offset, &pinned);
+    if (offset != 0) __ emit_i32_add(index_reg, index_reg, offset);
 
-    // TODO(ahaas): Use PrepareCall to prepare parameters.
-    __ SpillAllRegisters();
+    LiftoffAssembler::VarState timeout =
+        __ cache_state()->stack_state.end()[-1];
+    LiftoffAssembler::VarState expected_value =
+        __ cache_state()->stack_state.end()[-2];
+    LiftoffAssembler::VarState index = __ cache_state()->stack_state.end()[-3];
 
-    Register params[3]{no_reg, no_reg, no_reg};
+    // We have to set the correct register for the index. It may have changed
+    // above in {AddMemoryMasking}.
+    index.MakeRegister(LiftoffRegister(index_reg));
+
+    WasmCode::RuntimeStubId target;
+    compiler::CallDescriptor* call_descriptor;
     if (type == kWasmI32) {
-      WasmI32AtomicWait64Descriptor descriptor;
-      DCHECK_EQ(0, descriptor.GetStackParameterCount());
-      DCHECK_EQ(3, descriptor.GetRegisterParameterCount());
-      params[0] = descriptor.GetRegisterParameter(0);
-      params[1] = descriptor.GetRegisterParameter(1);
-      params[2] = descriptor.GetRegisterParameter(2);
+      if (kNeedI64RegPair) {
+        target = WasmCode::kWasmI32AtomicWait32;
+        call_descriptor =
+            GetBuiltinCallDescriptor<WasmI32AtomicWait32Descriptor>(
+                compilation_zone_);
+      } else {
+        target = WasmCode::kWasmI32AtomicWait64;
+        call_descriptor =
+            GetBuiltinCallDescriptor<WasmI32AtomicWait64Descriptor>(
+                compilation_zone_);
+      }
     } else {
-      DCHECK_EQ(kWasmI64, type);
-
-      WasmI64AtomicWait64Descriptor descriptor;
-      DCHECK_EQ(0, descriptor.GetStackParameterCount());
-      DCHECK_EQ(3, descriptor.GetRegisterParameterCount());
-      params[0] = descriptor.GetRegisterParameter(0);
-      params[1] = descriptor.GetRegisterParameter(1);
-      params[2] = descriptor.GetRegisterParameter(2);
+      if (kNeedI64RegPair) {
+        target = WasmCode::kWasmI64AtomicWait32;
+        call_descriptor =
+            GetBuiltinCallDescriptor<WasmI64AtomicWait32Descriptor>(
+                compilation_zone_);
+      } else {
+        target = WasmCode::kWasmI64AtomicWait64;
+        call_descriptor =
+            GetBuiltinCallDescriptor<WasmI64AtomicWait64Descriptor>(
+                compilation_zone_);
+      }
     }
-    LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
-        {LiftoffRegister(params[0]), LiftoffRegister(index), kWasmI32},
-        {LiftoffRegister(params[1]), expected_value, type},
-        {LiftoffRegister(params[2]), timeout, kWasmI64}};
-    __ ParallelRegisterMove(ArrayVector(reg_moves));
 
-    __ CallRuntimeStub(type == kWasmI32 ? WasmCode::kWasmI32AtomicWait64
-                                        : WasmCode::kWasmI64AtomicWait64);
+    ValueType sig_reps[] = {kWasmI32, type, kWasmI64};
+    FunctionSig sig(0, 3, sig_reps);
+
+    __ PrepareBuiltinCall(&sig, call_descriptor,
+                          {index, expected_value, timeout});
+    __ CallRuntimeStub(target);
+
+    // Pop parameters from the value stack.
+    __ cache_state()->stack_state.pop_back(3);
+
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     __ PushRegister(kWasmI32, LiftoffRegister(kReturnRegister0));
-#endif
   }
 
   void AtomicNotify(FullDecoder* decoder,

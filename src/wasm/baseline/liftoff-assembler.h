@@ -103,6 +103,11 @@ class LiftoffAssembler : public TurboAssembler {
 
     void MakeStack() { loc_ = kStack; }
 
+    void MakeRegister(LiftoffRegister r) {
+      reg_ = r;
+      loc_ = kRegister;
+    }
+
     // Copy src to this, except for offset, since src and this could have been
     // from different stack states.
     void Copy(VarState src) {
@@ -282,6 +287,16 @@ class LiftoffAssembler : public TurboAssembler {
 
   LiftoffRegister PopToRegister(LiftoffRegList pinned = {});
 
+  // Returns the register which holds the value of stack slot {index}. If the
+  // value is not stored in a register yet, a register is allocated for it. The
+  // register is then assigned to the stack slot. The value stack height is not
+  // modified. The top of the stack is index 0, i.e. {PopToRegister()} and
+  // {PeekToRegister(0)} should result in the same register.
+  // {PeekToRegister} already decrements the used count of the register of the
+  // stack slot. Therefore the register must not be popped by {PopToRegister}
+  // but discarded with {stack_state.pop_back(count)}.
+  LiftoffRegister PeekToRegister(int index, LiftoffRegList pinned);
+
   int NextSpillOffset(ValueType type) {
     int offset = TopSpillOffset() + SlotSizeForType(type);
     if (NeedsAlignment(type)) {
@@ -372,6 +387,11 @@ class LiftoffAssembler : public TurboAssembler {
   void RecordUsedSpillOffset(int offset) {
     if (offset >= max_used_spill_offset_) max_used_spill_offset_ = offset;
   }
+
+  // Load parameters into the right registers / stack slots for the call.
+  void PrepareBuiltinCall(const FunctionSig* sig,
+                          compiler::CallDescriptor* call_descriptor,
+                          std::initializer_list<VarState> params);
 
   // Load parameters into the right registers / stack slots for the call.
   // Move {*target} into another register if needed and update {*target} to that
@@ -816,6 +836,8 @@ class LiftoffAssembler : public TurboAssembler {
   }
 
  private:
+  LiftoffRegister LoadToRegister(VarState slot, LiftoffRegList pinned);
+
   uint32_t num_locals_ = 0;
   static constexpr uint32_t kInlineLocalTypes = 8;
   union {
