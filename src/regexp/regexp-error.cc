@@ -7,7 +7,7 @@
 namespace v8 {
 namespace internal {
 
-const char* kRegExpErrorStrings[] = {
+const char* const kRegExpErrorStrings[] = {
 #define TEMPLATE(NAME, STRING) STRING,
     REGEXP_ERROR_MESSAGES(TEMPLATE)
 #undef TEMPLATE
