@@ -59,7 +59,7 @@ std::unique_ptr<protocol::Value> toProtocolValue(
       if (converted)
         result->pushValue(std::move(converted));
     }
-    return std::move(result);
+    return result;
   }
   if (value->is_dict()) {
     const base::DictionaryValue* dictionary = nullptr;
@@ -73,7 +73,7 @@ std::unique_ptr<protocol::Value> toProtocolValue(
       if (converted)
         result->setValue(it.key(), std::move(converted));
     }
-    return std::move(result);
+    return result;
   }
   return nullptr;
 }
@@ -112,7 +112,7 @@ std::unique_ptr<base::Value> toBaseValue(Value* value, int depth) {
       if (converted)
         result->Append(std::move(converted));
     }
-    return std::move(result);
+    return result;
   }
   if (value->type() == Value::TypeObject) {
     DictionaryValue* dict = DictionaryValue::cast(value);
@@ -124,7 +124,7 @@ std::unique_ptr<base::Value> toBaseValue(Value* value, int depth) {
       if (converted)
         result->SetWithoutPathExpansion(entry.first, std::move(converted));
     }
-    return std::move(result);
+    return result;
   }
   return nullptr;
 }

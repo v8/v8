@@ -491,7 +491,7 @@ std::unique_ptr<Value> DictionaryValue::clone() const
         DCHECK(value != m_data.cend() && value->second);
         result->setValue(key, value->second->clone());
     }
-    return std::move(result);
+    return result;
 }
 
 DictionaryValue::DictionaryValue()
@@ -519,7 +519,7 @@ std::unique_ptr<Value> ListValue::clone() const
     std::unique_ptr<ListValue> result = ListValue::create();
     for (const std::unique_ptr<protocol::Value>& value : m_data)
         result->pushValue(value->clone());
-    return std::move(result);
+    return result;
 }
 
 ListValue::ListValue()
