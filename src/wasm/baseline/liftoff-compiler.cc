@@ -2937,7 +2937,21 @@ class LiftoffCompiler {
   }
 
   void ElemDrop(FullDecoder* decoder, const ElemDropImmediate<validate>& imm) {
-    unsupported(decoder, kBulkMemory, "elem.drop");
+    LiftoffRegList pinned;
+    Register seg_size_array =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    LOAD_INSTANCE_FIELD(seg_size_array, DroppedElemSegments,
+                        kSystemPointerSize);
+
+    LiftoffRegister seg_index =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(seg_index, WasmValue(imm.index));
+
+    // Set the length of the segment to '0' to drop it.
+    LiftoffRegister one_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(one_reg, WasmValue(1));
+    __ Store(seg_size_array, seg_index.gp(), 0, one_reg, StoreType::kI32Store,
+             pinned);
   }
 
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate<validate>& imm,
