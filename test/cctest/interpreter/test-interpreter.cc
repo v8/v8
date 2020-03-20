@@ -1555,7 +1555,7 @@ TEST(InterpreterJumps) {
   IncrementRegister(&builder, reg, 1, scratch, GetIndex(slot)).Jump(&label[1]);
   SetRegister(&builder, reg, 2048, scratch).Bind(&label[0]);
   IncrementRegister(&builder, reg, 2, scratch, GetIndex(slot1))
-      .JumpLoop(&loop_header, 0);
+      .JumpLoop(&loop_header, 0, 0);
   SetRegister(&builder, reg, 4096, scratch).Bind(&label[1]);
   IncrementRegister(&builder, reg, 4, scratch, GetIndex(slot2))
       .LoadAccumulatorWithRegister(reg)

@@ -479,6 +479,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kForInContinue:
     case Bytecode::kForInNext:
     case Bytecode::kForInStep:
+    case Bytecode::kJumpLoop:
     case Bytecode::kThrow:
     case Bytecode::kReThrow:
     case Bytecode::kThrowReferenceErrorIfHole:

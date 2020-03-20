@@ -263,8 +263,10 @@ class BytecodeGraphBuilder {
   // feedback. Returns kDisallowSpeculation if feedback is insufficient.
   SpeculationMode GetSpeculationMode(int slot_id) const;
 
-  // Helper for building the implicit FunctionEntry StackCheck.
+  // Helpers for building the implicit FunctionEntry and IterationBody
+  // StackChecks.
   void BuildFunctionEntryStackCheck();
+  void BuildIterationBodyStackCheck();
 
   // Control flow plumbing.
   void BuildJump();
@@ -360,8 +362,6 @@ class BytecodeGraphBuilder {
     currently_peeled_loop_offset_ = offset;
   }
   bool skip_first_stack_check() const { return skip_first_stack_check_; }
-  bool visited_first_stack_check() const { return visited_first_stack_check_; }
-  void set_visited_first_stack_check() { visited_first_stack_check_ = true; }
   int current_exception_handler() const { return current_exception_handler_; }
   void set_current_exception_handler(int index) {
     current_exception_handler_ = index;
@@ -400,7 +400,6 @@ class BytecodeGraphBuilder {
   int currently_peeled_loop_offset_;
 
   const bool skip_first_stack_check_;
-  bool visited_first_stack_check_ = false;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all
@@ -1224,14 +1223,18 @@ void BytecodeGraphBuilder::RemoveMergeEnvironmentsBeforeOffset(
 }
 
 void BytecodeGraphBuilder::BuildFunctionEntryStackCheck() {
-  DCHECK(!visited_first_stack_check());
-  set_visited_first_stack_check();
   if (!skip_first_stack_check()) {
     Node* node =
         NewNode(javascript()->StackCheck(StackCheckKind::kJSFunctionEntry));
     PrepareFrameState(node, OutputFrameStateCombine::Ignore(),
                       BailoutId(kFunctionEntryBytecodeOffset));
   }
+}
+
+void BytecodeGraphBuilder::BuildIterationBodyStackCheck() {
+  Node* node =
+      NewNode(javascript()->StackCheck(StackCheckKind::kJSIterationBody));
+  environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
 // We will iterate through the OSR loop, then its parent, and so on
@@ -3261,7 +3264,10 @@ void BytecodeGraphBuilder::VisitJumpIfUndefinedOrNullConstant() {
   BuildJumpIfEqual(jsgraph()->NullConstant());
 }
 
-void BytecodeGraphBuilder::VisitJumpLoop() { BuildJump(); }
+void BytecodeGraphBuilder::VisitJumpLoop() {
+  BuildIterationBodyStackCheck();
+  BuildJump();
+}
 
 void BytecodeGraphBuilder::BuildSwitchOnSmi(Node* condition) {
   interpreter::JumpTableTargetOffsets offsets =
@@ -3284,18 +3290,8 @@ void BytecodeGraphBuilder::VisitSwitchOnSmiNoFeedback() {
   BuildSwitchOnSmi(acc_smi);
 }
 
-void BytecodeGraphBuilder::VisitStackCheck() {
-  // TODO(v8:9977): In OSR we don't generate a FunctionEntry. However, we visit
-  // the OSR bytecodes. These bytecodes will contain a JumpLoop which will have
-  // an IterationBody stack check. In Non-Osr we guarantee that we have visited
-  // the FunctionEntry StackCheck before visiting the IterationBody ones.
-  DCHECK(osr_ || visited_first_stack_check());
-
-  PrepareEagerCheckpoint();
-  Node* node =
-      NewNode(javascript()->StackCheck(StackCheckKind::kJSIterationBody));
-  environment()->RecordAfterState(node, Environment::kAttachFrameState);
-}
+// TODO(solanes): Remove this and all mentions of StackCheck.
+void BytecodeGraphBuilder::VisitStackCheck() { UNREACHABLE(); }
 
 void BytecodeGraphBuilder::VisitSetPendingMessage() {
   Node* previous_message = NewNode(javascript()->LoadMessage());

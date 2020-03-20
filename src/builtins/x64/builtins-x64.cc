@@ -1004,15 +1004,25 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
 // Advance the current bytecode offset. This simulates what all bytecode
 // handlers do upon completion of the underlying operation. Will bail out to a
-// label if the bytecode (without prefix) is a return bytecode.
+// label if the bytecode (without prefix) is a return bytecode. Will not advance
+// the bytecode offset if the current bytecode is a JumpLoop, instead just
+// re-executing the JumpLoop to jump to the correct bytecode.
 static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
                                           Register bytecode_array,
                                           Register bytecode_offset,
                                           Register bytecode, Register scratch1,
-                                          Label* if_return) {
+                                          Register scratch2, Label* if_return) {
   Register bytecode_size_table = scratch1;
-  DCHECK(!AreAliased(bytecode_array, bytecode_offset, bytecode_size_table,
-                     bytecode));
+
+  // The bytecode offset value will be increased by one in wide and extra wide
+  // cases. In the case of having a wide or extra wide JumpLoop bytecode, we
+  // will restore the original bytecode. In order to simplify the code, we have
+  // a backup of it.
+  Register original_bytecode_offset = scratch2;
+  DCHECK(!AreAliased(bytecode_array, bytecode_offset, bytecode,
+                     bytecode_size_table, original_bytecode_offset));
+
+  __ movq(original_bytecode_offset, bytecode_offset);
 
   __ Move(bytecode_size_table,
           ExternalReference::bytecode_size_table_address());
@@ -1054,9 +1064,23 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   RETURN_BYTECODE_LIST(JUMP_IF_EQUAL)
 #undef JUMP_IF_EQUAL
 
+  // If this is a JumpLoop, re-execute it to perform the jump to the beginning
+  // of the loop.
+  Label end, not_jump_loop;
+  __ cmpb(bytecode,
+          Immediate(static_cast<int>(interpreter::Bytecode::kJumpLoop)));
+  __ j(not_equal, &not_jump_loop, Label::kNear);
+  // We need to restore the original bytecode_offset since we might have
+  // increased it to skip the wide / extra-wide prefix bytecode.
+  __ movq(bytecode_offset, original_bytecode_offset);
+  __ jmp(&end, Label::kNear);
+
+  __ bind(&not_jump_loop);
   // Otherwise, load the size of the current bytecode and advance the offset.
   __ addl(bytecode_offset,
           Operand(bytecode_size_table, bytecode, times_int_size, 0));
+
+  __ bind(&end);
 }
 
 // Generate code for entering a JS function with the interpreter.
@@ -1201,7 +1225,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
   __ cmpq(rsp, StackLimitAsOperand(masm, StackLimitKind::kInterruptStackLimit));
-  __ j(below, &stack_check_interrupt, Label::kNear);
+  __ j(below, &stack_check_interrupt);
   __ bind(&after_stack_check_interrupt);
 
   // The accumulator is already loaded with undefined.
@@ -1236,7 +1260,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
                           kInterpreterBytecodeOffsetRegister, times_1, 0));
   AdvanceBytecodeOffsetOrReturn(masm, kInterpreterBytecodeArrayRegister,
                                 kInterpreterBytecodeOffsetRegister, rbx, rcx,
-                                &do_return);
+                                r11, &do_return);
   __ jmp(&do_dispatch);
 
   __ bind(&do_return);
@@ -1575,7 +1599,7 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
   Label if_return;
   AdvanceBytecodeOffsetOrReturn(masm, kInterpreterBytecodeArrayRegister,
                                 kInterpreterBytecodeOffsetRegister, rbx, rcx,
-                                &if_return);
+                                r11, &if_return);
 
   __ bind(&enter_bytecode);
   // Convert new bytecode offset to a Smi and save in the stackframe.

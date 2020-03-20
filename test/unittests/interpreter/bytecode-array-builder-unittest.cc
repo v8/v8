@@ -312,7 +312,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .Bind(&after_jump10)
         .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &after_jump11)
         .Bind(&after_jump11)
-        .JumpLoop(&loop_header, 0)
+        .JumpLoop(&loop_header, 0, 0)
         .Bind(&after_loop);
   }
 
@@ -710,12 +710,14 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   BytecodeLoopHeader loop_header;
   builder.JumpIfNull(&after_loop)
       .Bind(&loop_header)
-      .JumpLoop(&loop_header, 0)
+      .JumpLoop(&loop_header, 0, 0)
       .Bind(&after_loop);
   for (int i = 0; i < 42; i++) {
     BytecodeLabel after_loop;
     // Conditional jump to force the code after the JumpLoop to be live.
-    builder.JumpIfNull(&after_loop).JumpLoop(&loop_header, 0).Bind(&after_loop);
+    builder.JumpIfNull(&after_loop)
+        .JumpLoop(&loop_header, 0, 0)
+        .Bind(&after_loop);
   }
 
   // Add padding to force wide backwards jumps.
@@ -723,7 +725,7 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
     builder.Debugger();
   }
 
-  builder.JumpLoop(&loop_header, 0);
+  builder.JumpLoop(&loop_header, 0, 0);
   builder.Bind(&end);
   builder.Return();
 

@@ -91,7 +91,7 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 119
+bytecode array length: 118
 bytecodes: [
   /*  128 E> */ B(CreateRestParameter),
                 B(Star), R(3),
@@ -120,14 +120,13 @@ bytecodes: [
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(10), U8(1),
                 B(LdaNamedProperty), R(10), U8(1), U8(16),
-                B(JumpIfToBooleanTrue), U8(20),
+                B(JumpIfToBooleanTrue), U8(19),
                 B(LdaNamedProperty), R(10), U8(2), U8(10),
                 B(StaInArrayLiteral), R(7), R(6), U8(1),
                 B(Ldar), R(6),
                 B(Inc), U8(3),
                 B(Star), R(6),
-                B(StackCheck),
-                B(JumpLoop), U8(34), I8(0),
+                B(JumpLoop), U8(33), I8(0),
                 B(LdaSmi), I8(1),
                 B(StaInArrayLiteral), R(7), R(6), U8(1),
                 B(Mov), R(5), R(6),

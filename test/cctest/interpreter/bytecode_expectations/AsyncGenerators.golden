@@ -210,7 +210,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 362
+bytecode array length: 361
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -249,7 +249,7 @@ bytecodes: [
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(14), U8(1),
                 B(LdaNamedProperty), R(14), U8(6), U8(9),
-                B(JumpIfToBooleanTrue), U8(67),
+                B(JumpIfToBooleanTrue), U8(66),
                 B(LdaNamedProperty), R(14), U8(7), U8(11),
                 B(Star), R(14),
                 B(LdaFalse),
@@ -271,10 +271,9 @@ bytecodes: [
                 B(LdaSmi), I8(1),
                 B(Star), R(11),
                 B(Mov), R(15), R(12),
-                B(Jump), U8(21),
+                B(Jump), U8(20),
                 B(Ldar), R(15),
-  /*   22 E> */ B(StackCheck),
-                B(JumpLoop), U8(84), I8(0),
+  /*   22 E> */ B(JumpLoop), U8(83), I8(0),
                 B(LdaSmi), I8(-1),
                 B(Star), R(12),
                 B(Star), R(11),
@@ -383,16 +382,16 @@ constant pool: [
   Smi [6],
   Smi [9],
   SCOPE_INFO_TYPE,
-  Smi [268],
+  Smi [267],
   Smi [6],
   Smi [9],
   Smi [23],
 ]
 handlers: [
-  [19, 316, 316],
-  [22, 282, 282],
-  [86, 173, 181],
-  [205, 238, 240],
+  [19, 315, 315],
+  [22, 281, 281],
+  [86, 172, 180],
+  [204, 237, 239],
 ]
 
 ---
@@ -403,7 +402,7 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 464
+bytecode array length: 463
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(5),
                 B(Mov), R(closure), R(1),
@@ -471,7 +470,7 @@ bytecodes: [
                 B(LdaSmi), I8(1),
                 B(Star), R(1),
                 B(Mov), R(10), R(2),
-                B(Jump), U8(239),
+                B(Jump), U8(238),
                 B(LdaNamedProperty), R(7), U8(14), U8(20),
                 B(JumpIfUndefinedOrNull), U8(11),
                 B(Star), R(12),
@@ -518,7 +517,7 @@ bytecodes: [
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(5), U8(1),
                 B(LdaNamedProperty), R(5), U8(15), U8(28),
-                B(JumpIfToBooleanTrue), U8(39),
+                B(JumpIfToBooleanTrue), U8(38),
                 B(LdaNamedProperty), R(5), U8(16), U8(30),
                 B(Star), R(15),
                 B(LdaFalse),
@@ -530,8 +529,7 @@ bytecodes: [
                 B(Star), R(8),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), U8(1),
                 B(Star), R(6),
-                B(StackCheck),
-                B(JumpLoop), U8(237), I8(0),
+                B(JumpLoop), U8(236), I8(0),
                 B(LdaNamedProperty), R(5), U8(16), U8(32),
                 B(Star), R(7),
                 B(LdaSmi), I8(1),
@@ -606,13 +604,13 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
   SCOPE_INFO_TYPE,
-  Smi [370],
+  Smi [369],
   Smi [6],
   Smi [9],
   Smi [23],
 ]
 handlers: [
-  [19, 418, 418],
-  [22, 384, 384],
+  [19, 417, 417],
+  [22, 383, 383],
 ]
 
