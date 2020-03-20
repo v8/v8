@@ -1017,18 +1017,27 @@ static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
 
 // Advance the current bytecode offset. This simulates what all bytecode
 // handlers do upon completion of the underlying operation. Will bail out to a
-// label if the bytecode (without prefix) is a return bytecode.
+// label if the bytecode (without prefix) is a return bytecode. Will not advance
+// the bytecode offset if the current bytecode is a JumpLoop, instead just
+// re-executing the JumpLoop to jump to the correct bytecode.
 static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
                                           Register bytecode_array,
                                           Register bytecode_offset,
                                           Register bytecode, Register scratch1,
-                                          Label* if_return) {
+                                          Register scratch2, Label* if_return) {
   Register bytecode_size_table = scratch1;
-  Register scratch2 = bytecode;
+  Register scratch3 = bytecode;
+
+  // The bytecode offset value will be increased by one in wide and extra wide
+  // cases. In the case of having a wide or extra wide JumpLoop bytecode, we
+  // will restore the original bytecode. In order to simplify the code, we have
+  // a backup of it.
+  Register original_bytecode_offset = scratch2;
   DCHECK(!AreAliased(bytecode_array, bytecode_offset, bytecode_size_table,
-                     bytecode));
+                     bytecode, original_bytecode_offset));
   __ Move(bytecode_size_table,
           ExternalReference::bytecode_size_table_address());
+  __ Move(original_bytecode_offset, bytecode_offset);
 
   // Check if the bytecode is a Wide or ExtraWide prefix bytecode.
   Label process_bytecode, extra_wide;
@@ -1059,7 +1068,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   // Load the size of the current bytecode.
   __ bind(&process_bytecode);
 
-// Bailout to the return label if this is a return bytecode.
+  // Bailout to the return label if this is a return bytecode.
 #define JUMP_IF_EQUAL(NAME)                                           \
   __ CmpP(bytecode,                                                   \
           Operand(static_cast<int>(interpreter::Bytecode::k##NAME))); \
@@ -1067,10 +1076,24 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   RETURN_BYTECODE_LIST(JUMP_IF_EQUAL)
 #undef JUMP_IF_EQUAL
 
+  // If this is a JumpLoop, re-execute it to perform the jump to the beginning
+  // of the loop.
+  Label end, not_jump_loop;
+  __ CmpP(bytecode,
+          Operand(static_cast<int>(interpreter::Bytecode::kJumpLoop)));
+  __ bne(&not_jump_loop);
+  // We need to restore the original bytecode_offset since we might have
+  // increased it to skip the wide / extra-wide prefix bytecode.
+  __ Move(bytecode_offset, original_bytecode_offset);
+  __ b(&end);
+
+  __ bind(&not_jump_loop);
   // Otherwise, load the size of the current bytecode and advance the offset.
-  __ ShiftLeftP(scratch2, bytecode, Operand(2));
-  __ LoadlW(scratch2, MemOperand(bytecode_size_table, scratch2));
-  __ AddP(bytecode_offset, bytecode_offset, scratch2);
+  __ ShiftLeftP(scratch3, bytecode, Operand(2));
+  __ LoadlW(scratch3, MemOperand(bytecode_size_table, scratch3));
+  __ AddP(bytecode_offset, bytecode_offset, scratch3);
+
+  __ bind(&end);
 }
 
 // Generate code for entering a JS function with the interpreter.
@@ -1255,7 +1278,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ LoadlB(r3, MemOperand(kInterpreterBytecodeArrayRegister,
                            kInterpreterBytecodeOffsetRegister));
   AdvanceBytecodeOffsetOrReturn(masm, kInterpreterBytecodeArrayRegister,
-                                kInterpreterBytecodeOffsetRegister, r3, r4,
+                                kInterpreterBytecodeOffsetRegister, r3, r4, r5,
                                 &do_return);
   __ b(&do_dispatch);
 
@@ -1532,7 +1555,7 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
   // Advance to the next bytecode.
   Label if_return;
   AdvanceBytecodeOffsetOrReturn(masm, kInterpreterBytecodeArrayRegister,
-                                kInterpreterBytecodeOffsetRegister, r3, r4,
+                                kInterpreterBytecodeOffsetRegister, r3, r4, r5,
                                 &if_return);
 
   __ bind(&enter_bytecode);
