@@ -51,7 +51,7 @@ class WasmDebugBreakFrameConstants : public TypedFrameConstants {
   static constexpr int kLastPushedGpRegisterOffset =
       -kFixedFrameSizeFromFp - kNumPushedGpRegisters * kSystemPointerSize;
   static constexpr int kLastPushedFpRegisterOffset =
-      kLastPushedGpRegisterOffset - kNumPushedFpRegisters * kSimd128Size;
+      kLastPushedGpRegisterOffset - kNumPushedFpRegisters * kDoubleSize;
 
   // Offsets are fp-relative.
   static int GetPushedGpRegisterOffset(int reg_code) {
@@ -65,7 +65,7 @@ class WasmDebugBreakFrameConstants : public TypedFrameConstants {
     DCHECK_NE(0, kPushedFpRegs & (1 << reg_code));
     uint32_t lower_regs = kPushedFpRegs & ((uint32_t{1} << reg_code) - 1);
     return kLastPushedFpRegisterOffset +
-           base::bits::CountPopulation(lower_regs) * kSimd128Size;
+           base::bits::CountPopulation(lower_regs) * kDoubleSize;
   }
 };
 
