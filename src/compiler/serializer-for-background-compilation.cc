@@ -87,7 +87,6 @@ namespace compiler {
 
 #define IGNORED_BYTECODE_LIST(V)      \
   V(IncBlockCounter)                  \
-  V(StackCheck)                       \
   V(ThrowSuperAlreadyCalledIfNotHole) \
   V(ThrowSuperNotCalledIfHole)
 

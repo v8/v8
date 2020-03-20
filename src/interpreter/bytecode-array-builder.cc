@@ -1279,24 +1279,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::SwitchOnSmiNoFeedback(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck(int position) {
-  if (position != kNoSourcePosition) {
-    // We need to attach a non-breakable source position to a stack
-    // check, so we simply add it as expression position. There can be
-    // a prior statement position from constructs like:
-    //
-    //    do var x;  while (false);
-    //
-    // A Nop could be inserted for empty statements, but since no code
-    // is associated with these positions, instead we force the stack
-    // check's expression position which eliminates the empty
-    // statement's position.
-    latest_source_info_.ForceExpressionPosition(position);
-  }
-  OutputStackCheck();
-  return *this;
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::SetPendingMessage() {
   OutputSetPendingMessage();
   return *this;

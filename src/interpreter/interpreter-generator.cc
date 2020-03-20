@@ -2843,15 +2843,6 @@ IGNITION_HANDLER(CreateRestParameter, InterpreterAssembler) {
   Dispatch();
 }
 
-// StackCheck
-//
-// Performs a stack guard check.
-IGNITION_HANDLER(StackCheck, InterpreterAssembler) {
-  TNode<Context> context = GetContext();
-  PerformStackCheck(context);
-  Dispatch();
-}
-
 // SetPendingMessage
 //
 // Sets the pending message to the value in the accumulator, and returns the

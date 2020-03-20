@@ -487,7 +487,6 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kThrowSuperAlreadyCalledIfNotHole:
     case Bytecode::kIllegal:
     case Bytecode::kCallJSRuntime:
-    case Bytecode::kStackCheck:
     case Bytecode::kReturn:
     case Bytecode::kSetPendingMessage:
       return true;

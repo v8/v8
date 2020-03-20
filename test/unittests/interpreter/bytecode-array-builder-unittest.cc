@@ -79,8 +79,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreAccumulatorInRegister(wide);
 
   // Emit Ldar and Star taking care to foil the register optimizer.
-  builder.StackCheck(0)
-      .LoadAccumulatorWithRegister(other)
+  builder.LoadAccumulatorWithRegister(other)
       .BinaryOperation(Token::ADD, reg, 1)
       .StoreAccumulatorInRegister(reg)
       .LoadNull();
@@ -342,9 +341,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit set pending message bytecode.
   builder.SetPendingMessage();
-
-  // Emit stack check bytecode.
-  builder.StackCheck(0);
 
   // Emit throw and re-throw in it's own basic block so that the rest of the
   // code isn't omitted due to being dead.

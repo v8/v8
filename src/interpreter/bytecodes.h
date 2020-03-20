@@ -333,9 +333,6 @@ namespace interpreter {
     OperandType::kRegPair, OperandType::kIdx)                                  \
   V(ForInStep, AccumulatorUse::kWrite, OperandType::kReg)                      \
                                                                                \
-  /* Perform a stack guard check */                                            \
-  V(StackCheck, AccumulatorUse::kNone)                                         \
-                                                                               \
   /* Update the pending message */                                             \
   V(SetPendingMessage, AccumulatorUse::kReadWrite)                             \
                                                                                \

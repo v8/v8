@@ -3290,9 +3290,6 @@ void BytecodeGraphBuilder::VisitSwitchOnSmiNoFeedback() {
   BuildSwitchOnSmi(acc_smi);
 }
 
-// TODO(solanes): Remove this and all mentions of StackCheck.
-void BytecodeGraphBuilder::VisitStackCheck() { UNREACHABLE(); }
-
 void BytecodeGraphBuilder::VisitSetPendingMessage() {
   Node* previous_message = NewNode(javascript()->LoadMessage());
   NewNode(javascript()->StoreMessage(), environment()->LookupAccumulator());

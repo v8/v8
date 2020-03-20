@@ -444,8 +444,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   BytecodeArrayBuilder& SwitchOnSmiNoFeedback(BytecodeJumpTable* jump_table);
 
-  BytecodeArrayBuilder& StackCheck(int position);
-
   // Sets the pending message to the value in the accumulator, and returns the
   // previous pending message in the accumulator.
   BytecodeArrayBuilder& SetPendingMessage();
