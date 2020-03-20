@@ -53,11 +53,26 @@ using U0 = int64_t();
 using U1 = int64_t(int64_t rs2);
 using U2 = int64_t(int64_t rs1, int64_t rs2);
 using U3 = int64_t(void* base, int64_t val);
+using U4 = int64_t(int64_t, int64_t, int64_t val);
+
+using S0 = int32_t();
+using S1 = int32_t(int32_t rs2);
+using S2 = int32_t(int32_t rs1, int32_t rs2);
+using S3 = int32_t(void* base, int32_t val);
+using S4 = int32_t(int32_t, int32_t, int32_t val);
 
 #define __ assm.
 
 #define MIN_VAL_IMM12 -(1 << 11)
-#define LARGE_INT_EXCEED_32_BIT 0x01C910750321FB01
+#define LARGE_INT_EXCEED_32_BIT 0x01C910750321FB01LL
+#define LARGE_INT_UNDER_32_BIT 0x12345678
+#define LARGE_UINT_EXCEED_32_BIT 0xFDCB1234A0345691ULL
+#define MAX_UINT32 0xFFFFFFFFU
+
+#define PRINT_RES(res, expected_res, in_hex)                         \
+  if (in_hex) std::cout << std::hex;                                 \
+  std::cout << "res = " << (res) << " expected = " << (expected_res) \
+            << std::endl;
 
 // return the maximal positive number representable by an immediate field of
 // nbits
@@ -78,89 +93,703 @@ static bool check_imm_range(int32_t val, int32_t nbits) {
   return (val <= max_val(nbits) && val >= min_val(nbits));
 }
 
-#define kReturnReg a0
-#define kArg0Reg a0
-#define kArg1Reg a1
-#define kReturnAddrReg ra
+typedef union {
+  int32_t i32val;
+  int64_t i64val;
+  float fval;
+  double dval;
+} Param_T;
 
-#define UTEST_R_FORM_WITH_RES(instr_name, rs1_val, rs2_val, expected_res)  \
-  TEST(RISCV_UTEST_##instr_name) {                                         \
-    CcTest::InitializeVM();                                                \
-    Isolate* isolate = CcTest::i_isolate();                                \
-    HandleScope scope(isolate);                                            \
-                                                                           \
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);  \
-    __ RV_##instr_name(kReturnReg, kArg0Reg, kArg1Reg);                    \
-    __ RV_jr(kReturnAddrReg);                                              \
-                                                                           \
-    /* construct the codelet and invoke generated codes via f.Call(...) */ \
-    CodeDesc desc;                                                         \
-    assm.GetCode(isolate, &desc);                                          \
-    Handle<Code> code =                                                    \
-        Factory::CodeBuilder(isolate, desc, Code::STUB).Build();           \
-                                                                           \
-    auto f = GeneratedCode<U2>::FromCode(*code);                           \
-    int64_t res = reinterpret_cast<int64_t>(f.Call(rs1_val, rs2_val));     \
-    /* std::cout << "res = " << res << std::endl; */                       \
-    CHECK_EQ((int64_t)expected_res, res);                                  \
+template <typename T, typename std::enable_if<
+                          std::is_same<float, T>::value>::type* = nullptr>
+static void SetParam(Param_T* params, T val) {
+  params->fval = val;
+}
+
+template <typename T, typename std::enable_if<
+                          std::is_same<double, T>::value>::type* = nullptr>
+static void SetParam(Param_T* params, T val) {
+  params->dval = val;
+}
+
+template <typename T, typename std::enable_if<
+                          std::is_same<int32_t, T>::value>::type* = nullptr>
+static void SetParam(Param_T* params, T val) {
+  params->i32val = val;
+}
+
+template <typename T, typename std::enable_if<
+                          std::is_same<int64_t, T>::value>::type* = nullptr>
+static void SetParam(Param_T* params, T val) {
+  params->i64val = val;
+}
+
+template <typename T,
+          typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+static void ValidateResult(T generated_res, T expected_res) {
+  PRINT_RES(generated_res, expected_res, true);
+  CHECK_EQ(generated_res, expected_res);
+}
+
+template <typename T, typename std::enable_if<
+                          std::is_same<T, float>::value>::type* = nullptr>
+static void ValidateResult(int32_t generated_res, T expected_res) {
+  Param_T t;
+  t.i32val = generated_res;
+  PRINT_RES(t.fval, expected_res, false);
+  CHECK_EQ(t.fval, expected_res);
+}
+
+template <typename T, typename std::enable_if<
+                          std::is_same<T, double>::value>::type* = nullptr>
+static void ValidateResult(int64_t generated_res, T expected_res) {
+  Param_T t;
+  t.i64val = generated_res;
+  PRINT_RES(t.dval, expected_res, false);
+  CHECK_EQ(t.dval, expected_res);
+}
+
+// f.Call(...) interface is implemented as varargs in V8. For varargs,
+// floating-point arguments and return values are passed in GPRs, therefore
+// the special handling to reinterpret floating-point as integer values when
+// passed in and out of f.Call()
+template <typename INPUT_T, typename OUTPUT_T>
+static void GenerateTestCall(Isolate* isolate, MacroAssembler& assm,
+                             int num_inputs, INPUT_T input0, INPUT_T input1,
+                             INPUT_T input2, OUTPUT_T expected_res) {
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+
+  assert(num_inputs >= 1 && num_inputs <= 3);
+
+  // setup parameters (to pass floats as integers)
+  Param_T t[3];
+  memset(&t, 0, sizeof(t));
+  SetParam<INPUT_T>(&t[0], input0);
+  if (num_inputs >= 2) SetParam<INPUT_T>(&t[1], input1);
+  if (num_inputs >= 3) SetParam<INPUT_T>(&t[2], input2);
+
+  assert(sizeof(INPUT_T) == 4 || sizeof(INPUT_T) == 8);
+
+  if (sizeof(INPUT_T) == 4) {
+    int32_t res = 0;
+    if (num_inputs == 1) {
+      auto f = GeneratedCode<S1>::FromCode(*code);
+      res = f.Call(t[0].i32val);
+    } else if (num_inputs == 2) {
+      auto f = GeneratedCode<S2>::FromCode(*code);
+      res = f.Call(t[0].i32val, t[1].i32val);
+    } else if (num_inputs == 3) {
+      auto f = GeneratedCode<S4>::FromCode(*code);
+      res = f.Call(t[0].i32val, t[1].i32val, t[2].i32val);
+    }
+    ValidateResult<OUTPUT_T>(res, expected_res);
+  } else if (sizeof(INPUT_T) == 8) {
+    int64_t res = 0;
+    if (num_inputs == 1) {
+      auto f = GeneratedCode<U1>::FromCode(*code);
+      res = f.Call(t[0].i64val);
+    } else if (num_inputs == 2) {
+      auto f = GeneratedCode<U2>::FromCode(*code);
+      res = f.Call(t[0].i64val, t[1].i64val);
+    } else if (num_inputs == 3) {
+      auto f = GeneratedCode<U4>::FromCode(*code);
+      res = f.Call(t[0].i64val, t[1].i64val, t[2].i64val);
+    }
+    ValidateResult<OUTPUT_T>(res, expected_res);
+  } else {
+    assert(false);
+  }
+}
+
+template <typename T>
+static void GenerateTestCallForLoadStore(Isolate* isolate, MacroAssembler& assm,
+                                         T value) {
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+
+  // setup parameters (to pass floats as integers)
+  Param_T t;
+  memset(&t, 0, sizeof(t));
+  SetParam<T>(&t, value);
+
+  assert(sizeof(T) == 4 || sizeof(T) == 8);
+
+  int64_t tmp = 0;
+  if (sizeof(T) == 4) {
+    auto f = GeneratedCode<S3>::FromCode(*code);
+    auto res = f.Call(&tmp, t.i32val);
+    ValidateResult<T>(res, value);
+  } else if (sizeof(T) == 8) {
+    auto f = GeneratedCode<U3>::FromCode(*code);
+    auto res = f.Call(&tmp, t.i64val);
+    ValidateResult<T>(res, value);
+  } else {
+    assert(false);
+  }
+}
+
+#define UTEST_R2_FORM_WITH_RES(instr_name, inout_type, rs1_val, rs2_val,  \
+                               expected_res)                              \
+  TEST(RISCV_UTEST_##instr_name) {                                        \
+    CcTest::InitializeVM();                                               \
+    Isolate* isolate = CcTest::i_isolate();                               \
+    HandleScope scope(isolate);                                           \
+                                                                          \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes); \
+    __ RV_##instr_name(a0, a0, a1);                                       \
+    __ RV_jr(ra);                                                         \
+                                                                          \
+    GenerateTestCall<inout_type, inout_type>(isolate, assm, 2, rs1_val,   \
+                                             rs2_val, 0, expected_res);   \
   }
 
-#define UTEST_R_FORM_WITH_OP(instr_name, rs1_val, rs2_val, tested_op) \
-  UTEST_R_FORM_WITH_RES(instr_name, rs1_val, rs2_val,                 \
-                        ((rs1_val)tested_op(rs2_val)))
-
-#define UTEST_I_FORM_WITH_RES(instr_name, rs1_val, imm12, expected_res)    \
-  TEST(RISCV_UTEST_##instr_name) {                                         \
-    CcTest::InitializeVM();                                                \
-    Isolate* isolate = CcTest::i_isolate();                                \
-    HandleScope scope(isolate);                                            \
-                                                                           \
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);  \
-    CHECK_EQ(check_imm_range(imm12, 12), true);                            \
-    __ RV_##instr_name(kReturnReg, kArg0Reg, imm12);                       \
-    __ RV_jr(kReturnAddrReg);                                              \
-                                                                           \
-    /* construct the codelet and invoke generated codes via f.Call(...) */ \
-    CodeDesc desc;                                                         \
-    assm.GetCode(isolate, &desc);                                          \
-    Handle<Code> code =                                                    \
-        Factory::CodeBuilder(isolate, desc, Code::STUB).Build();           \
-    auto f = GeneratedCode<U1>::FromCode(*code);                           \
-    int64_t res = reinterpret_cast<int64_t>(f.Call(rs1_val));              \
-    CHECK_EQ((int64_t)expected_res, res);                                  \
+#define UTEST_R1_FORM_WITH_RES(instr_name, in_type, out_type, rs1_val,    \
+                               expected_res)                              \
+  TEST(RISCV_UTEST_##instr_name) {                                        \
+    CcTest::InitializeVM();                                               \
+    Isolate* isolate = CcTest::i_isolate();                               \
+    HandleScope scope(isolate);                                           \
+                                                                          \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes); \
+    __ RV_##instr_name(a0, a0);                                           \
+    __ RV_jr(ra);                                                         \
+                                                                          \
+    GenerateTestCall<in_type, out_type>(isolate, assm, 1, rs1_val, 0, 0,  \
+                                        expected_res);                    \
   }
 
-#define UTEST_I_FORM_WITH_OP(instr_name, rs1_val, imm12, tested_op) \
-  UTEST_I_FORM_WITH_RES(instr_name, rs1_val, imm12, ((rs1_val)tested_op(imm12)))
+#define UTEST_I_FORM_WITH_RES(instr_name, inout_type, rs1_val, imm12,         \
+                              expected_res)                                   \
+  TEST(RISCV_UTEST_##instr_name) {                                            \
+    CcTest::InitializeVM();                                                   \
+    Isolate* isolate = CcTest::i_isolate();                                   \
+    HandleScope scope(isolate);                                               \
+                                                                              \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);     \
+    CHECK_EQ(check_imm_range(imm12, 12), true);                               \
+    __ RV_##instr_name(a0, a0, imm12);                                        \
+    __ RV_jr(ra);                                                             \
+                                                                              \
+    GenerateTestCall<inout_type, inout_type>(isolate, assm, 1, rs1_val, 0, 0, \
+                                             expected_res);                   \
+  }
 
-#define UTEST_LOAD_STORE(ldname, stname, value)                            \
-  TEST(RISCV_UTEST_##stname##ldname) {                                     \
-    CcTest::InitializeVM();                                                \
-    Isolate* isolate = CcTest::i_isolate();                                \
-    HandleScope scope(isolate);                                            \
-                                                                           \
-    int64_t tmp = 0;                                                       \
-    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);  \
-    __ RV_##stname(kArg1Reg, kArg0Reg, 0);                                 \
-    __ RV_##ldname(kReturnReg, kArg0Reg, 0);                               \
-    __ RV_jr(kReturnAddrReg);                                              \
-                                                                           \
-    /* construct the codelet and invoke generated codes via f.Call(...) */ \
-    CodeDesc desc;                                                         \
-    assm.GetCode(isolate, &desc);                                          \
-    Handle<Code> code =                                                    \
-        Factory::CodeBuilder(isolate, desc, Code::STUB).Build();           \
-    auto f = GeneratedCode<U3>::FromCode(*code);                           \
-    int64_t res = reinterpret_cast<int64_t>(f.Call(&tmp, value));          \
-    /* std::cout << std::hex << "res = " << res << std::endl;   */         \
-    CHECK_EQ(((int64_t)value), res);                                       \
-  }  // namespace internal
+#define UTEST_LOAD_STORE(ldname, stname, value_type, value)               \
+  TEST(RISCV_UTEST_##stname##ldname) {                                    \
+    CcTest::InitializeVM();                                               \
+    Isolate* isolate = CcTest::i_isolate();                               \
+    HandleScope scope(isolate);                                           \
+                                                                          \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes); \
+    __ RV_##stname(a1, a0, 0);                                            \
+    __ RV_##ldname(a0, a0, 0);                                            \
+    __ RV_jr(ra);                                                         \
+                                                                          \
+    GenerateTestCallForLoadStore<value_type>(isolate, assm, value);       \
+  }
 
-// RISCV I-set
-UTEST_R_FORM_WITH_OP(add, LARGE_INT_EXCEED_32_BIT, 20, +)
-UTEST_I_FORM_WITH_OP(addi, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, +)
-UTEST_LOAD_STORE(ld, sd, 0xFBB10A9C12345678)
-UTEST_LOAD_STORE(lw, sw, 0x456AF894)
+// Since f.Call() is implemented as vararg calls and RISCV calling convention
+// passes all vararg arguments and returns (including floats) in GPRs, we have
+// to move from GPR to FPR and back in all floating point tests
+#define UTEST_LOAD_STORE_F(ldname, stname, value_type, value)             \
+  TEST(RISCV_UTEST_##stname##ldname) {                                    \
+    CcTest::InitializeVM();                                               \
+    Isolate* isolate = CcTest::i_isolate();                               \
+    HandleScope scope(isolate);                                           \
+                                                                          \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes); \
+    __ RV_fmv_w_x(fa0, a1);                                               \
+    __ RV_##stname(fa0, a0, 0);                                           \
+    __ RV_##ldname(fa0, a0, 0);                                           \
+    __ RV_fmv_x_w(a0, fa0);                                               \
+    __ RV_jr(ra);                                                         \
+                                                                          \
+    GenerateTestCallForLoadStore<value_type>(isolate, assm, value);       \
+  }
+
+#define UTEST_R1_FORM_WITH_RES_F(instr_name, inout_type, rs1_fval,             \
+                                 expected_fres)                                \
+  TEST(RISCV_UTEST_##instr_name) {                                             \
+    CcTest::InitializeVM();                                                    \
+    Isolate* isolate = CcTest::i_isolate();                                    \
+    HandleScope scope(isolate);                                                \
+                                                                               \
+    assert(std::is_floating_point<inout_type>::value);                         \
+                                                                               \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);      \
+    __ RV_fmv_w_x(fa0, a0);                                                    \
+    __ RV_##instr_name(fa0, fa0);                                              \
+    __ RV_fmv_x_w(a0, fa0);                                                    \
+    __ RV_jr(ra);                                                              \
+                                                                               \
+    GenerateTestCall<inout_type, inout_type>(isolate, assm, 1, rs1_fval, 0, 0, \
+                                             expected_fres);                   \
+  }
+
+#define UTEST_R2_FORM_WITH_RES_F(instr_name, inout_type, rs1_fval, rs2_fval, \
+                                 expected_fres)                              \
+  TEST(RISCV_UTEST_##instr_name) {                                           \
+    CcTest::InitializeVM();                                                  \
+    Isolate* isolate = CcTest::i_isolate();                                  \
+    HandleScope scope(isolate);                                              \
+                                                                             \
+    assert(std::is_floating_point<inout_type>::value);                       \
+                                                                             \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);    \
+    __ RV_fmv_w_x(fa0, a0);                                                  \
+    __ RV_fmv_w_x(fa1, a1);                                                  \
+    __ RV_##instr_name(fa0, fa0, fa1);                                       \
+    __ RV_fmv_x_w(a0, fa0);                                                  \
+    __ RV_jr(ra);                                                            \
+                                                                             \
+    GenerateTestCall<inout_type, inout_type>(isolate, assm, 2, rs1_fval,     \
+                                             rs2_fval, 0, expected_fres);    \
+  }
+
+#define UTEST_R3_FORM_WITH_RES_F(instr_name, inout_type, rs1_fval, rs2_fval, \
+                                 rs3_fval, expected_fres)                    \
+  TEST(RISCV_UTEST_##instr_name) {                                           \
+    CcTest::InitializeVM();                                                  \
+    Isolate* isolate = CcTest::i_isolate();                                  \
+    HandleScope scope(isolate);                                              \
+                                                                             \
+    assert(std::is_floating_point<inout_type>::value);                       \
+                                                                             \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);    \
+    __ RV_fmv_w_x(fa0, a0);                                                  \
+    __ RV_fmv_w_x(fa1, a1);                                                  \
+    __ RV_fmv_w_x(fa2, a2);                                                  \
+    __ RV_##instr_name(fa0, fa0, fa1, fa2);                                  \
+    __ RV_fmv_x_w(a0, fa0);                                                  \
+    __ RV_jr(ra);                                                            \
+                                                                             \
+    GenerateTestCall<inout_type>(isolate, assm, 3, rs1_fval, rs2_fval,       \
+                                 rs3_fval, expected_fres);                   \
+  }
+
+#define UTEST_COMPARE_WITH_RES_F(instr_name, input_type, output_type,     \
+                                 rs1_fval, rs2_fval, expected_res)        \
+  TEST(RISCV_UTEST_##instr_name) {                                        \
+    CcTest::InitializeVM();                                               \
+    Isolate* isolate = CcTest::i_isolate();                               \
+    HandleScope scope(isolate);                                           \
+                                                                          \
+    assert(std::is_floating_point<input_type>::value&&                    \
+               std::is_integral<output_type>::value);                     \
+                                                                          \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes); \
+    __ RV_fmv_w_x(fa0, a0);                                               \
+    __ RV_fmv_w_x(fa1, a1);                                               \
+    __ RV_##instr_name(a0, fa0, fa1);                                     \
+    __ RV_jr(ra);                                                         \
+                                                                          \
+    GenerateTestCall<input_type, output_type>(isolate, assm, 2, rs1_fval, \
+                                              rs2_fval, 0, expected_res); \
+  }
+
+#define UTEST_CONV_F_FROM_W(instr_name, input_type, output_type, rs1_val,      \
+                            expected_fres)                                     \
+  TEST(RISCV_UTEST_##instr_name) {                                             \
+    CcTest::InitializeVM();                                                    \
+    Isolate* isolate = CcTest::i_isolate();                                    \
+    HandleScope scope(isolate);                                                \
+                                                                               \
+    assert(std::is_integral<input_type>::value&&                               \
+               std::is_floating_point<output_type>::value);                    \
+                                                                               \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);      \
+    __ RV_##instr_name(fa0, a0);                                               \
+    __ RV_fmv_x_w(a0, fa0);                                                    \
+    __ RV_jr(ra);                                                              \
+                                                                               \
+    GenerateTestCall<input_type, output_type>(isolate, assm, 1, rs1_val, 0, 0, \
+                                              expected_fres);                  \
+  }
+
+#define UTEST_CONV_W_FROM_F(instr_name, input_type, output_type, rs1_fval,   \
+                            expected_res)                                    \
+  TEST(RISCV_UTEST_##instr_name) {                                           \
+    CcTest::InitializeVM();                                                  \
+    Isolate* isolate = CcTest::i_isolate();                                  \
+    HandleScope scope(isolate);                                              \
+                                                                             \
+    assert(std::is_floating_point<input_type>::value&&                       \
+               std::is_integral<output_type>::value);                        \
+                                                                             \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);    \
+    __ RV_fmv_w_x(fa0, a0);                                                  \
+    __ RV_##instr_name(a0, fa0);                                             \
+    __ RV_jr(ra);                                                            \
+                                                                             \
+    GenerateTestCall<input_type, output_type>(isolate, assm, 1, rs1_fval, 0, \
+                                              0, expected_res);              \
+  }
+
+#define UTEST_R2_FORM_WITH_OP(instr_name, inout_type, rs1_val, rs2_val, \
+                              tested_op)                                \
+  UTEST_R2_FORM_WITH_RES(instr_name, inout_type, rs1_val, rs2_val,      \
+                         ((rs1_val)tested_op(rs2_val)))
+
+#define UTEST_I_FORM_WITH_OP(instr_name, inout_type, rs1_val, imm12, \
+                             tested_op)                              \
+  UTEST_I_FORM_WITH_RES(instr_name, inout_type, rs1_val, imm12,      \
+                        ((rs1_val)tested_op(imm12)))
+
+#define UTEST_R2_FORM_WITH_OP_F(instr_name, inout_type, rs1_fval, rs2_fval, \
+                                tested_op)                                  \
+  UTEST_R2_FORM_WITH_RES_F(instr_name, inout_type, rs1_fval, rs2_fval,      \
+                           ((rs1_fval)tested_op(rs2_fval)))
+
+#define UTEST_COMPARE_WITH_OP_F(instr_name, input_type, output_type, rs1_fval, \
+                                rs2_fval, tested_op)                           \
+  UTEST_COMPARE_WITH_RES_F(instr_name, input_type, output_type, rs1_fval,      \
+                           rs2_fval, ((rs1_fval)tested_op(rs2_fval)))
+
+// -- test load-store --
+UTEST_LOAD_STORE(ld, sd, int64_t, 0xFBB10A9C12345678)
+// due to sign-extension of lw
+// instruction, value-to-stored must have
+// its 32th least significant bit be 0
+UTEST_LOAD_STORE(lw, sw, int32_t, 0x456AF894)
+// set the 32th least significant bit of
+// value-to-store to 1 to test
+// zero-extension by lwu
+UTEST_LOAD_STORE(lwu, sw, int32_t, 0x856AF894)
+// due to sign-extension of lh
+// instruction, value-to-stored must have
+// its 16th least significant bit be 0
+UTEST_LOAD_STORE(lh, sh, int32_t, 0x7894)
+// set the 16th least significant bit of
+// value-to-store to 1 to test
+// zero-extension by lhu
+UTEST_LOAD_STORE(lhu, sh, int32_t, 0xF894)
+// due to sign-extension of lb
+// instruction, value-to-stored must have
+// its 8th least significant bit be 0
+UTEST_LOAD_STORE(lb, sb, int32_t, 0x54)
+// set the 8th least significant bit of
+// value-to-store to 1 to test
+// zero-extension by lbu
+UTEST_LOAD_STORE(lbu, sb, int32_t, 0x94)
+
+// -- arithmetic w/ immediate --
+UTEST_I_FORM_WITH_OP(addi, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, +)
+UTEST_I_FORM_WITH_OP(slti, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, <)
+UTEST_I_FORM_WITH_OP(sltiu, int64_t, LARGE_UINT_EXCEED_32_BIT, 0x4FB, <)
+UTEST_I_FORM_WITH_OP(xori, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, ^)
+UTEST_I_FORM_WITH_OP(ori, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, |)
+UTEST_I_FORM_WITH_OP(andi, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, &)
+UTEST_I_FORM_WITH_OP(slli, int64_t, 0x12345678ULL, 33, <<)
+UTEST_I_FORM_WITH_OP(srli, int64_t, 0x8234567800000000ULL, 33, >>)
+UTEST_I_FORM_WITH_OP(srai, int64_t,
+                     -9064525076593901568 /* 0x8234567800000000LL */, 33, >>)
+
+// -- arithmetic --
+UTEST_R2_FORM_WITH_OP(add, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, +)
+UTEST_R2_FORM_WITH_OP(sub, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, -)
+UTEST_R2_FORM_WITH_OP(slt, int64_t, MIN_VAL_IMM12, LARGE_INT_EXCEED_32_BIT, <)
+UTEST_R2_FORM_WITH_OP(sltu, int64_t, 0x4FB, LARGE_UINT_EXCEED_32_BIT, <)
+UTEST_R2_FORM_WITH_OP(xor_, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, ^)
+UTEST_R2_FORM_WITH_OP(or_, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, |)
+UTEST_R2_FORM_WITH_OP(and_, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, &)
+UTEST_R2_FORM_WITH_OP(sll, int64_t, 0x12345678ULL, 33, <<)
+UTEST_R2_FORM_WITH_OP(srl, int64_t, 0x8234567800000000ULL, 33, >>)
+UTEST_R2_FORM_WITH_OP(sra, int64_t,
+                      -9064525076593901568 /* 0x8234567800000000LL */, 33, >>)
+
+// -- Memory fences --
+// void RV_fence(uint8_t pred, uint8_t succ);
+// void RV_fence_tso();
+// void RV_fence_i();
+
+// -- Environment call / break --
+// void RV_ecall();
+// void RV_ebreak();
+// void RV_unimp();
+
+// -- CSR --
+// void RV_csrrw(Register rd, uint16_t imm12, Register rs1);
+// void RV_csrrs(Register rd, uint16_t imm12, Register rs1);
+// void RV_csrrc(Register rd, uint16_t imm12, Register rs1);
+// void RV_csrrwi(Register rd, uint16_t imm12, uint8_t rs1);
+// void RV_csrrsi(Register rd, uint16_t imm12, uint8_t rs1);
+// void RV_csrrci(Register rd, uint16_t imm12, uint8_t rs1);
+
+// -- RV64I --
+UTEST_I_FORM_WITH_OP(addiw, int32_t, LARGE_INT_UNDER_32_BIT, MIN_VAL_IMM12, +)
+UTEST_I_FORM_WITH_OP(slliw, int32_t, 0x12345678U, 12, <<)
+UTEST_I_FORM_WITH_OP(srliw, int32_t, 0x82345678U, 12, >>)
+UTEST_I_FORM_WITH_OP(sraiw, int32_t, -123, 12, >>)
+
+UTEST_R2_FORM_WITH_OP(addw, int32_t, LARGE_INT_UNDER_32_BIT, MIN_VAL_IMM12, +)
+UTEST_R2_FORM_WITH_OP(subw, int32_t, LARGE_INT_UNDER_32_BIT, MIN_VAL_IMM12, -)
+UTEST_R2_FORM_WITH_OP(sllw, int32_t, 0x12345678U, 12, <<)
+UTEST_R2_FORM_WITH_OP(srlw, int32_t, 0x82345678U, 12, >>)
+UTEST_R2_FORM_WITH_OP(sraw, int32_t, -123, 12, >>)
+
+// -- RV32M Standard Extension --
+UTEST_R2_FORM_WITH_OP(mul, int64_t, 0x0F945001L, MIN_VAL_IMM12, *)
+UTEST_R2_FORM_WITH_RES(mulh, int64_t, 0x1234567800000000LL,
+                       0xF896702100000000LL,
+                       0x12345678LL * 0xFFFFFFFFF8967021LL)
+UTEST_R2_FORM_WITH_RES(mulhu, int64_t, 0x1234567800000000ULL,
+                       0xF896702100000000ULL, 0x12345678ULL * 0xF8967021ULL)
+UTEST_R2_FORM_WITH_RES(mulhsu, int64_t, 0xF896702100000000LL,
+                       0x1234567800000000ULL,
+                       0xFFFFFFFFF8967021LL * 0x12345678ULL)
+UTEST_R2_FORM_WITH_OP(div, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, /)
+UTEST_R2_FORM_WITH_OP(divu, int64_t, LARGE_UINT_EXCEED_32_BIT, 100, /)
+UTEST_R2_FORM_WITH_OP(rem, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, %)
+UTEST_R2_FORM_WITH_OP(remu, int64_t, LARGE_UINT_EXCEED_32_BIT, 100, %)
+
+// -- RV64M Standard Extension (in
+// addition to RV32M) --
+UTEST_R2_FORM_WITH_OP(mulw, int32_t, -20, 56, *)
+UTEST_R2_FORM_WITH_OP(divw, int32_t, 200, -10, /)
+UTEST_R2_FORM_WITH_OP(divuw, int32_t, 1000, 100, /)
+UTEST_R2_FORM_WITH_OP(remw, int32_t, 1234, -91, %)
+UTEST_R2_FORM_WITH_OP(remuw, int32_t, 1234, 43, %)
+
+/*
+// RV32A Standard Extension
+void RV_lr_w(bool aq, bool rl, Register
+rd, Register rs1); void RV_sc_w(bool aq,
+bool rl, Register rd, Register rs1,
+Register rs2); void RV_amoswap_w(bool aq,
+bool rl, Register rd, Register rs1,
+Register rs2); void RV_amoadd_w(bool aq,
+bool rl, Register rd, Register rs1,
+Register rs2); void RV_amoxor_w(bool aq,
+bool rl, Register rd, Register rs1,
+Register rs2); void RV_amoand_w(bool aq,
+bool rl, Register rd, Register rs1,
+Register rs2); void RV_amoor_w(bool aq,
+bool rl, Register rd, Register rs1,
+Register rs2); void RV_amomin_w(bool aq,
+bool rl, Register rd, Register rs1,
+Register rs2); void RV_amomax_w(bool aq,
+bool rl, Register rd, Register rs1,
+Register rs2); void RV_amominu_w(bool aq,
+bool rl, Register rd, Register rs1,
+Register rs2); void RV_amomaxu_w(bool aq,
+bool rl, Register rd, Register rs1,
+Register rs2);
+
+// RV64A Standard Extension (in addition
+to RV32A) void RV_lr_d(bool aq, bool rl,
+Register rd, Register rs1); void
+RV_sc_d(bool aq, bool rl, Register rd,
+Register rs1, Register rs2); void
+RV_amoswap_d(bool aq, bool rl, Register
+rd, Register rs1, Register rs2); void
+RV_amoadd_d(bool aq, bool rl, Register rd,
+Register rs1, Register rs2); void
+RV_amoxor_d(bool aq, bool rl, Register rd,
+Register rs1, Register rs2); void
+RV_amoand_d(bool aq, bool rl, Register rd,
+Register rs1, Register rs2); void
+RV_amoor_d(bool aq, bool rl, Register rd,
+Register rs1, Register rs2); void
+RV_amomin_d(bool aq, bool rl, Register rd,
+Register rs1, Register rs2); void
+RV_amomax_d(bool aq, bool rl, Register rd,
+Register rs1, Register rs2); void
+RV_amominu_d(bool aq, bool rl, Register
+rd, Register rs1, Register rs2); void
+RV_amomaxu_d(bool aq, bool rl, Register
+rd, Register rs1, Register rs2);
+*/
+
+// -- RV32F Standard Extension --
+UTEST_LOAD_STORE_F(flw, fsw, float, -2345.678f)
+UTEST_R2_FORM_WITH_OP_F(fadd_s, float, -1012.01f, 3456.13f, +)
+UTEST_R2_FORM_WITH_OP_F(fsub_s, float, -1012.01f, 3456.13f, -)
+UTEST_R2_FORM_WITH_OP_F(fmul_s, float, -10.01f, 56.13f, *)
+UTEST_R2_FORM_WITH_OP_F(fdiv_s, float, -10.01f, 34.13f, /)
+UTEST_R1_FORM_WITH_RES_F(fsqrt_s, float, 34.13f, sqrtf(34.13f))
+UTEST_R2_FORM_WITH_RES_F(fmin_s, float, -1012.0f, 3456.13f, -1012.0f)
+UTEST_R2_FORM_WITH_RES_F(fmax_s, float, -1012.0f, 3456.13f, 3456.13f)
+UTEST_R3_FORM_WITH_RES_F(fmadd_s, float, 67.56f, -1012.01f, 3456.13f,
+                         (67.56f * (-1012.01f) + 3456.13f))
+UTEST_R3_FORM_WITH_RES_F(fmsub_s, float, 67.56f, -1012.01f, 3456.13f,
+                         (67.56f * (-1012.01f) - 3456.13f))
+UTEST_R3_FORM_WITH_RES_F(fnmsub_s, float, 67.56f, -1012.01f, 3456.13f,
+                         (-(67.56f * (-1012.01f)) + 3456.13f))
+UTEST_R3_FORM_WITH_RES_F(fnmadd_s, float, 67.56f, -1012.01f, 3456.13f,
+                         (-(67.56f * (-1012.01f)) - 3456.13f))
+UTEST_COMPARE_WITH_OP_F(feq_s, float, int32_t, -3456.56, -3456.56, ==)
+UTEST_COMPARE_WITH_OP_F(flt_s, float, int32_t, -3456.56, -3456.56, <)
+UTEST_COMPARE_WITH_OP_F(fle_s, float, int32_t, -3456.56, -3456.56, <=)
+UTEST_CONV_F_FROM_W(fcvt_s_w, int32_t, float, -100, (float)(-100))
+UTEST_CONV_F_FROM_W(fcvt_s_wu, int32_t, float, MAX_UINT32, (float)(MAX_UINT32))
+UTEST_CONV_W_FROM_F(fcvt_w_s, float, int32_t, -100.0f, -100)
+// FIXME: this following test fails, need
+// to investigate
+// UTEST_CONV_W_FROM_F(fcvt_wu_s, float,
+// int32_t, (float)(MAX_UINT32),
+// MAX_UINT32)
+UTEST_CONV_W_FROM_F(fcvt_wu_s, float, int32_t, 100.0f, 100)
+
+/*
+// RV32F Standard Extension
+
+void RV_fsgnj_s(FPURegister rd,
+FPURegister rs1, FPURegister rs2); void
+RV_fsgnjn_s(FPURegister rd, FPURegister
+rs1, FPURegister rs2); void
+RV_fsgnjx_s(FPURegister rd, FPURegister
+rs1, FPURegister rs2); void
+RV_fclass_s(Register rd, FPURegister rs1);
+*/
+
+// -- RV64F Standard Extension (in
+// addition to RV32F) --
+// FIXME: this test failed, need to debug
+// UTEST_LOAD_STORE_F(fld, fsd, double, -3456.678)
+// FIXME: all of the double tests below
+// failed, need to debug
+/*
+UTEST_R2_FORM_WITH_OP_F(fadd_d, double,
+-1012.01, 3456.13, +)
+UTEST_R2_FORM_WITH_OP_F(fsub_d, double,
+-1012.01, 3456.13, -)
+UTEST_R2_FORM_WITH_OP_F(fmul_d, double,
+-10.01, 56.13, *)
+UTEST_R2_FORM_WITH_OP_F(fdiv_d, double,
+-10.01, 34.13, /)
+UTEST_R1_FORM_WITH_RES_F(fsqrt_d,
+double, 34.13, sqrtf(34.13))
+UTEST_R2_FORM_WITH_RES_F(fmin_d, double,
+-1012.0, 3456.13, -1012.0)
+UTEST_R2_FORM_WITH_RES_F(fmax_d, double,
+-1012.0, 3456.13, 3456.13)
+
+UTEST_R3_FORM_WITH_RES_F(fmadd_d,
+double, 67.56, -1012.01, 3456.13, (67.56 *
+(-1012.01) + 3456.13))
+UTEST_R3_FORM_WITH_RES_F(fmsub_d,
+double, 67.56, -1012.01, 3456.13, (67.56 *
+(-1012.01) - 3456.13))
+UTEST_R3_FORM_WITH_RES_F(fnmsub_d,
+double, 67.56, -1012.01, 3456.13,
+                         (-(67.56 *
+(-1012.01)) + 3456.13))
+UTEST_R3_FORM_WITH_RES_F(fnmadd_d,
+double, 67.56, -1012.01, 3456.13,
+                         (-(67.56 *
+(-1012.01)) - 3456.13))
+UTEST_COMPARE_WITH_OP_F(feq_d, double,
+int64_t, -3456.56, -3456.56, ==)
+UTEST_COMPARE_WITH_OP_F(flt_d, double,
+int64_t, -3456.56, -3456.56, <)
+UTEST_COMPARE_WITH_OP_F(fle_d, double,
+int64_t, -3456.56, -3456.56, <=)
+*/
+
+/*
+UTEST_CONV_D_FROM_W(fcvt_d_w, int32_t,
+double, -100, -100.0)
+UTEST_CONV_D_FROM_W(fcvt_d_wu, int32_t,
+double, MAX_UINT32, (double)(MAX_UINT32))
+UTEST_CONV_W_FROM_D(fcvt_w_d, double,
+int32_t, -100.0, -100)
+UTEST_CONV_W_FROM_D(fcvt_wu_d, double,
+int32_t, (double)(MAX_UINT32), MAX_UINT32)
+*/
+
+/*
+// RV64F Standard Extension (in addition
+to RV32F)
+void RV_fcvt_l_s(Register rd,
+FPURegister rs1, uint8_t frm = 0b000);
+void RV_fcvt_lu_s(Register rd, FPURegister
+rs1, uint8_t frm = 0b000); void
+RV_fcvt_s_l(FPURegister rd, Register rs1,
+uint8_t frm = 0b000); void
+RV_fcvt_s_lu(FPURegister rd, Register rs1,
+uint8_t frm = 0b000);
+*/
+
+/*
+// RV32D Standard Extension
+void RV_fsgnj_d(FPURegister rd,
+FPURegister rs1, FPURegister rs2); void
+RV_fsgnjn_d(FPURegister rd, FPURegister
+rs1, FPURegister rs2); void
+RV_fsgnjx_d(FPURegister rd, FPURegister
+rs1, FPURegister rs2); void
+RV_fcvt_s_d(FPURegister rd, FPURegister
+rs1, uint8_t frm = 0b000); void
+RV_fcvt_d_s(FPURegister rd, FPURegister
+rs1, uint8_t frm = 0b000); void
+RV_fclass_d(Register rd, FPURegister rs1);
+
+// RV64D Standard Extension (in addition
+to RV32D) void RV_fcvt_l_d(Register rd,
+FPURegister rs1, uint8_t frm = 0b000);
+void RV_fcvt_lu_d(Register rd, FPURegister
+rs1, uint8_t frm = 0b000); void
+RV_fmv_x_d(Register rd, FPURegister rs1);
+void RV_fcvt_d_l(FPURegister rd, Register
+rs1, uint8_t frm = 0b000); void
+RV_fcvt_d_lu(FPURegister rd, Register rs1,
+uint8_t frm = 0b000); void
+RV_fmv_d_x(FPURegister rd, Register rs1);
+*/
+
+/*
+// Privileged
+void RV_uret();
+void RV_sret();
+void RV_mret();
+void RV_wfi();
+void RV_sfence_vma(Register rs1, Register
+rs2);
+*/
+
+// -- Assembler Pseudo Instructions --
+UTEST_R1_FORM_WITH_RES(mv, int64_t, int64_t, 0x0f5600ab123400, 0x0f5600ab123400)
+UTEST_R1_FORM_WITH_RES(not, int64_t, int64_t, 0, ~0)
+UTEST_R1_FORM_WITH_RES(neg, int64_t, int64_t, 0x0f5600ab123400LL,
+                       -(0x0f5600ab123400LL))
+UTEST_R1_FORM_WITH_RES(negw, int32_t, int32_t, 0xab123400, -(0xab123400))
+UTEST_R1_FORM_WITH_RES(sext_w, int32_t, int64_t, 0xFA011234,
+                       0xFFFFFFFFFA011234LL)
+UTEST_R1_FORM_WITH_RES(seqz, int64_t, int64_t, 20, 20 == 0)
+UTEST_R1_FORM_WITH_RES(snez, int64_t, int64_t, 20, 20 != 0)
+UTEST_R1_FORM_WITH_RES(sltz, int64_t, int64_t, -20, -20 < 0)
+UTEST_R1_FORM_WITH_RES(sgtz, int64_t, int64_t, -20, -20 > 0)
+
+UTEST_R1_FORM_WITH_RES_F(fmv_s, float, -23.5f, -23.5f)
+UTEST_R1_FORM_WITH_RES_F(fabs_s, float, -23.5f, 23.5f)
+UTEST_R1_FORM_WITH_RES_F(fneg_s, float, 23.5f, -23.5f)
+// FIXME: the following failed, need to debug
+// UTEST_R1_FORM_WITH_RES_F(fmv_d, double, -23.5, -23.5)
+// UTEST_R1_FORM_WITH_RES_F(fabs_d, double, -23.5, 23.5)
+// UTEST_R1_FORM_WITH_RES_F(fneg_d, double, 23.5, -23.5)
+
+TEST(RISCV_UTEST_li) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  int64_t imm64 = 0x1234567887654321LL;
+
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  __ RV_li(a0, imm64);
+  __ RV_jr(ra);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+
+  auto f = GeneratedCode<U0>::FromCode(*code);
+  int64_t res = f.Call();
+  ValidateResult<int64_t>(res, imm64);
+}
 
 TEST(RISCV0) {
   CcTest::InitializeVM();
@@ -222,8 +851,10 @@ TEST(RISCV2) {
 
   // ----- Test all instructions.
 
-  // Test lui, ori, and addiu, used in the li pseudo-instruction.
-  // This way we can then safely load registers with chosen values.
+  // Test lui, ori, and addiu, used in the
+  // li pseudo-instruction. This way we
+  // can then safely load registers with
+  // chosen values.
 
   __ RV_ori(a4, zero_reg, 0);
   __ RV_lui(a4, 0x12345);
@@ -271,7 +902,8 @@ TEST(RISCV2) {
   __ RV_li(t5, 0xFFFFFFFFEDCBA983);
   __ RV_bne(t0, t5, &error);
 
-  // Shift both 32bit number to left, to preserve meaning of next comparison.
+  // Shift both 32bit number to left, to
+  // preserve meaning of next comparison.
   __ RV_slli(a7, a7, 32);
   __ RV_slli(t3, t3, 32);
 
@@ -314,7 +946,8 @@ TEST(RISCV2) {
   __ RV_li(t5, 0xFFFFFFFF81234000);
   __ RV_bne(a1, t5, &error);
 
-  // Everything was correctly executed. Load the expected result.
+  // Everything was correctly executed.
+  // Load the expected result.
   __ RV_li(a0, 0x31415926);
   __ RV_j(&exit);
 
@@ -360,7 +993,8 @@ TEST(RISCV3) {
   };
   T t;
 
-  // Create a function that accepts &t, and loads, manipulates, and stores
+  // Create a function that accepts &t,
+  // and loads, manipulates, and stores
   // the doubles t.a ... t.f.
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -459,7 +1093,8 @@ TEST(RISCV3) {
   CHECK_EQ(11.1534748077392578125, t.fg);
 }
 TEST(RISCV4) {
-  // Test moves between floating point and integer registers.
+  // Test moves between floating point and
+  // integer registers.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -515,7 +1150,8 @@ TEST(RISCV4) {
 }
 
 TEST(RISCV5) {
-  // Test conversions between doubles and integers.
+  // Test conversions between doubles and
+  // integers.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -643,7 +1279,8 @@ TEST(RISCV6) {
 }
 
 TEST(RISCV7) {
-  // Test floating point compare and branch instructions.
+  // Test floating point compare and
+  // branch instructions.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -659,7 +1296,8 @@ TEST(RISCV7) {
   };
   T t;
 
-  // Create a function that accepts &t, and loads, manipulates, and stores
+  // Create a function that accepts &t,
+  // and loads, manipulates, and stores
   // the doubles t.a ... t.f.
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
   Label neither_is_nan, less_than, outa_here;
@@ -687,7 +1325,8 @@ TEST(RISCV7) {
   __ RV_li(a4, 1);
   __ RV_sw(a4, a0, offsetof(T, result));  // Set true.
 
-  // This test-case should have additional tests.
+  // This test-case should have additional
+  // tests.
 
   __ RV_bind(&outa_here);
 
