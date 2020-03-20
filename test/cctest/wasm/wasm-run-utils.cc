@@ -8,13 +8,44 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/wasm/graph-builder-interface.h"
+#include "src/wasm/leb-helper.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+template <>
+void AppendSingle(std::vector<byte>* code, WasmOpcode op) {
+  // We do not yet have opcodes that take up more than 2 byte (decoded). But if
+  // that changes, this will need to be updated.
+  DCHECK_EQ(0, op >> 16);
+  byte prefix = (op >> 8) & 0xff;
+  byte opcode = op & 0xff;
+
+  if (!prefix) {
+    code->push_back(opcode);
+    return;
+  }
+
+  // Ensure the prefix is really one of the supported prefixed opcodes.
+  DCHECK(WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(prefix)));
+  code->push_back(prefix);
+
+  // Decoded opcodes fit in a byte (0x00-0xff).
+  DCHECK_LE(LEBHelper::sizeof_u32v(opcode), 2);
+  // Therefore, the encoding needs max 2 bytes.
+  uint8_t encoded[2];
+  uint8_t* d = encoded;
+  // d is updated to after the last uint8_t written.
+  LEBHelper::write_u32v(&d, opcode);
+  for (uint8_t* p = encoded; p < d; p++) {
+    code->push_back(*p);
+  }
+}
 
 TestingModuleBuilder::TestingModuleBuilder(
     Zone* zone, ManuallyImportedJSFunction* maybe_import, ExecutionTier tier,

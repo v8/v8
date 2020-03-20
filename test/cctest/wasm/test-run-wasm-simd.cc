@@ -409,6 +409,9 @@ bool ExpectFused(ExecutionTier tier) {
           WASM_RETURN1(WASM_ZERO))
 
 #define TO_BYTE(val) static_cast<byte>(val)
+// TODO(v8:10258): We have support for emitting multi-byte opcodes now, so this
+// can change to simply, op, once the decoder is fixed to decode multi byte
+// opcodes.
 #define WASM_SIMD_OP(op) kSimdPrefix, TO_BYTE(op)
 #define WASM_SIMD_SPLAT(Type, ...) __VA_ARGS__, WASM_SIMD_OP(kExpr##Type##Splat)
 #define WASM_SIMD_UNOP(op, x) x, WASM_SIMD_OP(op)
@@ -545,7 +548,7 @@ WASM_SIMD_TEST(S128Globals) {
   // Set up a global to hold input and output vectors.
   int32_t* g0 = r.builder().AddGlobal<int32_t>(kWasmS128);
   int32_t* g1 = r.builder().AddGlobal<int32_t>(kWasmS128);
-  BUILD(r, WASM_SET_GLOBAL(1, WASM_GET_GLOBAL(0)), WASM_ONE);
+  BUILD_V(r, WASM_SET_GLOBAL(1, WASM_GET_GLOBAL(0)), WASM_ONE);
 
   FOR_INT32_INPUTS(x) {
     for (int i = 0; i < 4; i++) {
@@ -937,8 +940,8 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2Splat) {
   // Set up a global to hold output vector.
   int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
   byte param1 = 0;
-  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(param1))),
-        WASM_ONE);
+  BUILD_V(r, WASM_SET_GLOBAL(0, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(param1))),
+          WASM_ONE);
 
   FOR_INT64_INPUTS(x) {
     r.Call(x);
