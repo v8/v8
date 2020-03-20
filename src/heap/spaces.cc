@@ -1120,7 +1120,7 @@ size_t Page::ShrinkToHighWaterMark() {
 void Page::CreateBlackArea(Address start, Address end) {
   DCHECK(heap()->incremental_marking()->black_allocation());
   DCHECK_EQ(Page::FromAddress(start), this);
-  DCHECK_NE(start, end);
+  DCHECK_LT(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
   IncrementalMarking::MarkingState* marking_state =
       heap()->incremental_marking()->marking_state();
@@ -1132,7 +1132,7 @@ void Page::CreateBlackArea(Address start, Address end) {
 void Page::DestroyBlackArea(Address start, Address end) {
   DCHECK(heap()->incremental_marking()->black_allocation());
   DCHECK_EQ(Page::FromAddress(start), this);
-  DCHECK_NE(start, end);
+  DCHECK_LT(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
   IncrementalMarking::MarkingState* marking_state =
       heap()->incremental_marking()->marking_state();
@@ -1998,7 +1998,8 @@ void PagedSpace::FreeLinearAllocationArea() {
     return;
   }
 
-  if (heap()->incremental_marking()->black_allocation()) {
+  if (!is_off_thread_space() &&
+      heap()->incremental_marking()->black_allocation()) {
     Page* page = Page::FromAllocationAreaAddress(current_top);
 
     // Clear the bits in the unused black area.
