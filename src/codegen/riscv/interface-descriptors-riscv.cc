@@ -28,7 +28,7 @@ void CallInterfaceDescriptor::DefaultInitializePlatformSpecific(
 // E.g if fourth parameter goes to float register, f7 would be assigned for
 // parameter (a3 casted to int is 7).
 bool CallInterfaceDescriptor::IsValidFloatParameterRegister(Register reg) {
-  return reg.code() % 2 == 0;
+  return true;
 }
 
 void WasmI32AtomicWaitDescriptor::InitializePlatformSpecific(

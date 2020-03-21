@@ -21,7 +21,7 @@ namespace internal {
 /* clang-format off
  *
  * This assembler uses the following register assignment convention
- * - t3 : Temporarily stores the index of capture start after a matching pass
+ * - t4 : Temporarily stores the index of capture start after a matching pass
  *        for a global regexp.
  * - a5 : Pointer to current Code object including heap object tag.
  * - a6 : Current position in input, as negative offset from end of string.
@@ -674,7 +674,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
     // Start new stack frame.
     // Store link register in existing stack-cell.
     // Order here should correspond to order of offset constants in header file.
-    // TODO(plind): we save fp..s7, but ONLY use s3 here - use the regs
+    // TODO(plind): we save fp..s11, but ONLY use s3 here - use the regs
     // or dont save.
     RegList registers_to_retain = fp.bit() | s1.bit() | s2.bit() |
 			s3.bit() | s4.bit() | s5.bit() | s6.bit() | s7.bit() | s8.bit() |
@@ -807,7 +807,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
           __ Ld(a3, register_location(i + 1));
           if (i == 0 && global_with_zero_length_check()) {
             // Keep capture start in a4 for the zero-length check later.
-            __ mov(t3, a2);
+            __ mov(t4, a2);
           }
           if (mode_ == UC16) {
             __ dsra(a2, a2, 1);
@@ -850,10 +850,10 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
 
         if (global_with_zero_length_check()) {
           // Special case for zero-length matches.
-          // t3: capture start index
+          // t4: capture start index
           // Not a zero-length match, restart.
           __ Branch(
-              &load_char_start_regexp, ne, current_input_offset(), Operand(t3));
+              &load_char_start_regexp, ne, current_input_offset(), Operand(t4));
           // Offset from the end is zero if we already reached the end.
           __ Branch(&exit_label_, eq, current_input_offset(),
                     Operand(zero_reg));
@@ -880,7 +880,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
     __ bind(&return_a0);
     // Skip sp past regexp registers and local variables..
     __ mov(sp, frame_pointer());
-    // Restore registers fp..s7 and return (restoring ra to pc).
+    // Restore registers fp..s11 and return (restoring ra to pc).
     __ MultiPop(registers_to_retain | ra.bit());
     __ Ret();
 
@@ -1338,9 +1338,9 @@ void RegExpMacroAssemblerMIPS::LoadCurrentCharacterUnchecked(int cp_offset,
                                                              int characters) {
   Register offset = current_input_offset();
   if (cp_offset != 0) {
-    // t3 is not being used to store the capture start index at this point.
-    __ Daddu(t3, current_input_offset(), Operand(cp_offset * char_size()));
-    offset = t3;
+    // t4 is not being used to store the capture start index at this point.
+    __ Daddu(t4, current_input_offset(), Operand(cp_offset * char_size()));
+    offset = t4;
   }
   // We assume that we cannot do unaligned loads on MIPS, so this function
   // must only be used to load a single character at a time.

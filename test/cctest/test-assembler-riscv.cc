@@ -677,52 +677,30 @@ UTEST_R2_FORM_WITH_OP(remuw, int32_t, 1234, 43, %)
 
 /*
 // RV32A Standard Extension
-void RV_lr_w(bool aq, bool rl, Register
-rd, Register rs1); void RV_sc_w(bool aq,
-bool rl, Register rd, Register rs1,
-Register rs2); void RV_amoswap_w(bool aq,
-bool rl, Register rd, Register rs1,
-Register rs2); void RV_amoadd_w(bool aq,
-bool rl, Register rd, Register rs1,
-Register rs2); void RV_amoxor_w(bool aq,
-bool rl, Register rd, Register rs1,
-Register rs2); void RV_amoand_w(bool aq,
-bool rl, Register rd, Register rs1,
-Register rs2); void RV_amoor_w(bool aq,
-bool rl, Register rd, Register rs1,
-Register rs2); void RV_amomin_w(bool aq,
-bool rl, Register rd, Register rs1,
-Register rs2); void RV_amomax_w(bool aq,
-bool rl, Register rd, Register rs1,
-Register rs2); void RV_amominu_w(bool aq,
-bool rl, Register rd, Register rs1,
-Register rs2); void RV_amomaxu_w(bool aq,
-bool rl, Register rd, Register rs1,
-Register rs2);
+void RV_lr_w(bool aq, bool rl, Register rd, Register rs1);
+void RV_sc_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amoswap_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amoadd_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amoxor_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amoand_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amoor_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amomin_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amomax_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amominu_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amomaxu_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
 
-// RV64A Standard Extension (in addition
-to RV32A) void RV_lr_d(bool aq, bool rl,
-Register rd, Register rs1); void
-RV_sc_d(bool aq, bool rl, Register rd,
-Register rs1, Register rs2); void
-RV_amoswap_d(bool aq, bool rl, Register
-rd, Register rs1, Register rs2); void
-RV_amoadd_d(bool aq, bool rl, Register rd,
-Register rs1, Register rs2); void
-RV_amoxor_d(bool aq, bool rl, Register rd,
-Register rs1, Register rs2); void
-RV_amoand_d(bool aq, bool rl, Register rd,
-Register rs1, Register rs2); void
-RV_amoor_d(bool aq, bool rl, Register rd,
-Register rs1, Register rs2); void
-RV_amomin_d(bool aq, bool rl, Register rd,
-Register rs1, Register rs2); void
-RV_amomax_d(bool aq, bool rl, Register rd,
-Register rs1, Register rs2); void
-RV_amominu_d(bool aq, bool rl, Register
-rd, Register rs1, Register rs2); void
-RV_amomaxu_d(bool aq, bool rl, Register
-rd, Register rs1, Register rs2);
+// RV64A Standard Extension (in addition to RV32A)
+void RV_lr_d(bool aq, bool rl, Register rd, Register rs1);
+void RV_sc_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amoswap_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amoadd_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amoxor_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amoand_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amoor_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amomin_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amomax_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amominu_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+void RV_amomaxu_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
 */
 
 // -- RV32F Standard Extension --
@@ -785,8 +763,8 @@ UTEST_CONV_F_FROM_W(fcvt_d_w, int32_t, double, -100, -100.0)
 UTEST_CONV_F_FROM_W(fcvt_d_wu, int32_t, double, MAX_UINT32,
                     (double)(MAX_UINT32))
 UTEST_CONV_W_FROM_F(fcvt_w_d, double, int32_t, RTZ, -100.0, -100)
-UTEST_CONV_W_FROM_F(fcvt_wu_d, double, int32_t, RTZ,
-                    (double)(MAX_UINT32), MAX_UINT32)
+UTEST_CONV_W_FROM_F(fcvt_wu_d, double, int32_t, RTZ, (double)(MAX_UINT32),
+                    MAX_UINT32)
 
 // -- RV64F Standard Extension (in addition to RV32F) --
 // FIXME: this test failed
@@ -823,8 +801,7 @@ UTEST_R2_FORM_WITH_RES_F(fsgnjx_d, double, -100.0, 200.0, -100.0)
 // UTEST_CONV_W_FROM_F(fcvt_l_d, double, int64_t, RTZ,
 //                    (double)(-0x1234'5678'0000'0001LL),
 //                    (-0x1234'5678'0000'0001LL))
-UTEST_CONV_W_FROM_F(fcvt_l_d, double, int64_t, RTZ, (double)(-100),
-                    (-100))
+UTEST_CONV_W_FROM_F(fcvt_l_d, double, int64_t, RTZ, (double)(-100), (-100))
 // FIXME: this test failed
 // UTEST_CONV_W_FROM_F(fcvt_lu_d, double, int64_t, RTZ,
 // (double)(MAX_UINT64), MAX_UINT64)

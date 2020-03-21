@@ -145,7 +145,7 @@ TEST(jump_tables4) {
   Label near_start, end, done;
 
   __ Push(ra);
-  __ mov(t0, zero_reg);
+  __ mov(a0, zero_reg);
 
   __ Branch(&end);
   __ bind(&near_start);
@@ -153,7 +153,7 @@ TEST(jump_tables4) {
   // Generate slightly less than 32K instructions, which will soon require
   // trampoline for branch distance fixup.
   for (int i = 0; i < 32768 - 256; ++i) {
-    __ addiu(t0, t0, 1);
+    __ addiu(a0, a0, 1);
   }
 
   __ GenerateSwitchTable(a0, kNumCases,
@@ -161,7 +161,7 @@ TEST(jump_tables4) {
 
   for (int i = 0; i < kNumCases; ++i) {
     __ bind(&labels[i]);
-    __ li(t0, values[i]);
+    __ li(a0, values[i]);
     __ Branch(&done);
   }
 
@@ -232,7 +232,7 @@ TEST(jump_tables5) {
 
   for (int i = 0; i < kNumCases; ++i) {
     __ bind(&labels[i]);
-    __ li(t0, values[i]);
+    __ li(a0, values[i]);
     __ jr(ra);
     __ nop();
   }
@@ -287,7 +287,7 @@ TEST(jump_tables6) {
   Label near_start, end, done;
 
   __ Push(ra);
-  __ mov(t0, zero_reg);
+  __ mov(a0, zero_reg);
 
   int offs1 = masm->pc_offset();
   int gen_insn = 0;
@@ -299,7 +299,7 @@ TEST(jump_tables6) {
   // Generate slightly less than 32K instructions, which will soon require
   // trampoline for branch distance fixup.
   for (int i = 0; i < kFillInstr; ++i) {
-    __ addiu(t0, t0, 1);
+    __ addiu(a0, a0, 1);
   }
   gen_insn += kFillInstr;
 
@@ -309,7 +309,7 @@ TEST(jump_tables6) {
 
   for (int i = 0; i < kSwitchTableCases; ++i) {
     __ bind(&labels[i]);
-    __ li(t0, values[i]);
+    __ li(a0, values[i]);
     __ Branch(&done);
   }
   gen_insn +=
@@ -350,7 +350,7 @@ static uint64_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
-  __ Lsa(t0, a0, a1, sa);
+  __ Lsa(a0, a0, a1, sa);
   __ jr(ra);
   __ nop();
 
@@ -429,7 +429,7 @@ static uint64_t run_dlsa(uint64_t rt, uint64_t rs, int8_t sa) {
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
-  __ Dlsa(t0, a0, a1, sa);
+  __ Dlsa(a0, a0, a1, sa);
   __ jr(ra);
   __ nop();
 
@@ -578,7 +578,7 @@ RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
   MacroAssembler* masm = &assm;
 
   GenerateConvertInstructionFunc(masm);
-  __ dmfc1(t0, fa1);
+  __ dmfc1(a0, fa1);
   __ jr(ra);
   __ nop();
 

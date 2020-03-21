@@ -66,7 +66,6 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
   return true;
 }
 
-
 // Set up V8 to a state where we can at least run the assembler and
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
@@ -83,14 +82,13 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // disassembles the generated instruction, comparing the output to the expected
 // value. If the comparison fails an error message is printed, but the test
 // continues to run until the end.
-#define COMPARE(asm_, compare_string) \
-  { \
-    int pc_offset = assm.pc_offset(); \
-    byte *progcounter = &buffer[pc_offset]; \
-    assm.asm_; \
+#define COMPARE(asm_, compare_string)                                        \
+  {                                                                          \
+    int pc_offset = assm.pc_offset();                                        \
+    byte* progcounter = &buffer[pc_offset];                                  \
+    assm.asm_;                                                               \
     if (!DisassembleAndCompare(progcounter, compare_string)) failure = true; \
   }
-
 
 // Verify that all invocations of the COMPARE macro passed successfully.
 // Exit with a failure if at least one of the tests failed.
@@ -102,17 +100,17 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 #define COMPARE_PC_REL_COMPACT(asm_, compare_string, offset)                   \
   {                                                                            \
     int pc_offset = assm.pc_offset();                                          \
-    byte *progcounter = &buffer[pc_offset];                                    \
+    byte* progcounter = &buffer[pc_offset];                                    \
     char str_with_address[100];                                                \
     prev_instr_compact_branch = assm.IsPrevInstrCompactBranch();               \
     if (prev_instr_compact_branch) {                                           \
       snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",         \
                compare_string,                                                 \
-               static_cast<void *>(progcounter + 8 + (offset * 4)));           \
+               static_cast<void*>(progcounter + 8 + (offset * 4)));            \
     } else {                                                                   \
       snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",         \
                compare_string,                                                 \
-               static_cast<void *>(progcounter + 4 + (offset * 4)));           \
+               static_cast<void*>(progcounter + 4 + (offset * 4)));            \
     }                                                                          \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
@@ -121,10 +119,10 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 #define COMPARE_PC_REL(asm_, compare_string, offset)                           \
   {                                                                            \
     int pc_offset = assm.pc_offset();                                          \
-    byte *progcounter = &buffer[pc_offset];                                    \
+    byte* progcounter = &buffer[pc_offset];                                    \
     char str_with_address[100];                                                \
     snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",           \
-             compare_string, static_cast<void *>(progcounter + (offset * 4))); \
+             compare_string, static_cast<void*>(progcounter + (offset * 4)));  \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
   }
@@ -166,18 +164,12 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 TEST(Type0) {
   SET_UP();
 
-  COMPARE(RV_addw(a0, a1, a2),
-          "00c5853b       addw    a0, a1, a2");
-  COMPARE(RV_add(a0, a1, a2),
-          "00c58533       add     a0, a1, a2");
-  COMPARE(RV_addw(a6, a7, t0),
-          "0058883b       addw    a6, a7, t0");
-  COMPARE(RV_add(a6, a7, t0),
-          "00588833       add     a6, a7, t0");
-  COMPARE(RV_addw(t4, t6, fp),
-          "008f8ebb       addw    t4, t6, s0");
-  COMPARE(RV_add(s3, s9, s11),
-          "01bc89b3       add     s3, s9, s11");
+  COMPARE(RV_addw(a0, a1, a2), "00c5853b       addw    a0, a1, a2");
+  COMPARE(RV_add(a0, a1, a2), "00c58533       add     a0, a1, a2");
+  COMPARE(RV_addw(a6, a7, t0), "0058883b       addw    a6, a7, t0");
+  COMPARE(RV_add(a6, a7, t0), "00588833       add     a6, a7, t0");
+  COMPARE(RV_addw(t4, t6, fp), "008f8ebb       addw    t4, t6, s0");
+  COMPARE(RV_add(s3, s9, s11), "01bc89b3       add     s3, s9, s11");
 
   // TODO: Add more tests!
 

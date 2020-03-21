@@ -3976,9 +3976,9 @@ void TurboAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
 void TurboAssembler::MovFromFloatResult(const DoubleRegister dst) {
   if (IsMipsSoftFloatABI) {
     if (kArchEndian == kLittle) {
-      Move(dst, t0, t1);
+      Move(dst, a0, a1);
     } else {
-      Move(dst, t1, t0);
+      Move(dst, a1, a0);
     }
   } else {
     Move(dst, fa0);  // Reg fa0 is o32 ABI FP return value.
@@ -4014,9 +4014,9 @@ void TurboAssembler::MovToFloatResult(DoubleRegister src) {
     Move(fa0, src);
   } else {
     if (kArchEndian == kLittle) {
-      Move(t0, t1, src);
+      Move(a0, a1, src);
     } else {
-      Move(t1, t0, src);
+      Move(a1, a0, src);
     }
   }
 }
@@ -4344,7 +4344,7 @@ void TurboAssembler::MulOverflow(Register dst, Register left,
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
                                  SaveFPRegsMode save_doubles) {
-  // All parameters are on the stack. t0 has the return value after call.
+  // All parameters are on the stack. a0 has the return value after call.
 
   // If the expected number of arguments of the runtime function is
   // constant, we check that the actual number of arguments match the
