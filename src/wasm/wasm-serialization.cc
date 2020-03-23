@@ -481,6 +481,7 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
   if (!ReadHeader(reader)) return false;
   uint32_t total_fns = native_module_->num_functions();
   uint32_t first_wasm_fn = native_module_->num_imported_functions();
+  WasmCodeRefScope wasm_code_ref_scope;
   for (uint32_t i = first_wasm_fn; i < total_fns; ++i) {
     if (!ReadCode(i, reader)) return false;
   }
@@ -627,8 +628,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
         OwnedVector<uint8_t>::Of(wire_bytes_vec));
 
     NativeModuleDeserializer deserializer(shared_native_module.get());
-    WasmCodeRefScope wasm_code_ref_scope;
-
     Reader reader(data + WasmSerializer::kHeaderSize);
     bool error = !deserializer.Read(&reader);
     wasm_engine->UpdateNativeModuleCache(error, &shared_native_module, isolate);
