@@ -1677,7 +1677,7 @@ WASM_SIMD_TEST_NO_LOWERING(I8x16BitMask) {
   FOR_INT8_INPUTS(x) {
     int32_t actual = r.Call(x);
     // Lane 0 is always 0 (positive), lane 1 is always -1.
-    int32_t expected = std::signbit(x) ? 0xFFFE : 0x0002;
+    int32_t expected = std::signbit(static_cast<double>(x)) ? 0xFFFE : 0x0002;
     CHECK_EQ(actual, expected);
   }
 }
@@ -1697,7 +1697,7 @@ WASM_SIMD_TEST_NO_LOWERING(I16x8BitMask) {
   FOR_INT16_INPUTS(x) {
     int32_t actual = r.Call(x);
     // Lane 0 is always 0 (positive), lane 1 is always -1.
-    int32_t expected = std::signbit(x) ? 0xFE : 2;
+    int32_t expected = std::signbit(static_cast<double>(x)) ? 0xFE : 2;
     CHECK_EQ(actual, expected);
   }
 }
@@ -1717,7 +1717,7 @@ WASM_SIMD_TEST_NO_LOWERING(I32x4BitMask) {
   FOR_INT32_INPUTS(x) {
     int32_t actual = r.Call(x);
     // Lane 0 is always 0 (positive), lane 1 is always -1.
-    int32_t expected = std::signbit(x) ? 0xE : 2;
+    int32_t expected = std::signbit(static_cast<double>(x)) ? 0xE : 2;
     CHECK_EQ(actual, expected);
   }
 }
