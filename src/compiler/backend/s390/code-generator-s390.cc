@@ -3916,8 +3916,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kS390_S128Zero: {
       Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src = i.InputSimd128Register(1);
-      __ vx(dst, dst, src, Condition(0), Condition(0), Condition(0));
+      __ vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
       break;
     }
     case kS390_S128Select: {

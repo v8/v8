@@ -2822,7 +2822,7 @@ void InstructionSelector::VisitS8x16Swizzle(Node* node) {
 
 void InstructionSelector::VisitS128Zero(Node* node) {
   S390OperandGenerator g(this);
-  Emit(kS390_S128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node));
+  Emit(kS390_S128Zero, g.DefineAsRegister(node));
 }
 
 void InstructionSelector::VisitS128Select(Node* node) {
