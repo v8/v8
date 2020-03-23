@@ -8,7 +8,7 @@ import {
   VIEW_BY_INSTANCE_TYPE,
   VIEW_BY_INSTANCE_CATEGORY,
   VIEW_BY_FIELD_TYPE
-} from '/details-selection.js';
+} from './details-selection.js';
 
 defineCustomElement('histogram-viewer', (templateText) =>
  class HistogramViewer extends HTMLElement {

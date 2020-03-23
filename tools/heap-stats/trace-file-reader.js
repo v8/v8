@@ -4,7 +4,7 @@
 
 'use strict';
 
-import {Isolate} from '/model.js';
+import {Isolate} from './model.js';
 
 defineCustomElement('trace-file-reader', (templateText) =>
  class TraceFileReader extends HTMLElement {

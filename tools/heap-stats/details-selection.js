@@ -4,7 +4,7 @@
 
 'use strict';
 
-import {CATEGORIES, CATEGORY_NAMES} from '/categories.js';
+import {CATEGORIES, CATEGORY_NAMES} from './categories.js';
 
 export const VIEW_BY_INSTANCE_TYPE = 'by-instance-type';
 export const VIEW_BY_INSTANCE_CATEGORY = 'by-instance-category';
