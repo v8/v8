@@ -2917,7 +2917,52 @@ class LiftoffCompiler {
 
   void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,
                  Vector<Value> args) {
-    unsupported(decoder, kBulkMemory, "table.init");
+    LiftoffRegList pinned;
+    LiftoffRegister table_index_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+
+#if V8_TARGET_ARCH_32_BIT || defined(V8_COMPRESS_POINTERS)
+    WasmValue table_index_val(
+        static_cast<uint32_t>(Smi::FromInt(imm.table.index).ptr()));
+    WasmValue segment_index_val(
+        static_cast<uint32_t>(Smi::FromInt(imm.elem_segment_index).ptr()));
+#else
+    WasmValue table_index_val(
+        static_cast<uint64_t>(Smi::FromInt(imm.table.index).ptr()));
+    WasmValue segment_index_val(
+        static_cast<uint64_t>(Smi::FromInt(imm.elem_segment_index).ptr()));
+#endif
+    __ LoadConstant(table_index_reg, table_index_val);
+    LiftoffAssembler::VarState table_index(kPointerValueType, table_index_reg,
+                                           0);
+
+    LiftoffRegister segment_index_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(segment_index_reg, segment_index_val);
+    LiftoffAssembler::VarState segment_index(kPointerValueType,
+                                             segment_index_reg, 0);
+
+    LiftoffAssembler::VarState size = __ cache_state()->stack_state.end()[-1];
+    LiftoffAssembler::VarState src = __ cache_state()->stack_state.end()[-2];
+    LiftoffAssembler::VarState dst = __ cache_state()->stack_state.end()[-3];
+
+    WasmCode::RuntimeStubId target = WasmCode::kWasmTableInit;
+    compiler::CallDescriptor* call_descriptor =
+        GetBuiltinCallDescriptor<WasmTableInitDescriptor>(compilation_zone_);
+
+    ValueType sig_reps[] = {kWasmI32, kWasmI32, kWasmI32,
+                            table_index_val.type(), segment_index_val.type()};
+    FunctionSig sig(0, 5, sig_reps);
+
+    __ PrepareBuiltinCall(&sig, call_descriptor,
+                          {dst, src, size, table_index, segment_index});
+    __ CallRuntimeStub(target);
+
+    // Pop parameters from the value stack.
+    __ cache_state()->stack_state.pop_back(3);
+
+    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
   }
 
   void ElemDrop(FullDecoder* decoder, const ElemDropImmediate<validate>& imm) {
