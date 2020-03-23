@@ -1769,7 +1769,6 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
 }
 
 // static
-// TODO(victor): merge steps 1, 2 and 3 when V8_REVERSE_JSARGS is set.
 void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
   // Stack Layout:
   // rsp[0]           : Return address
@@ -1781,19 +1780,40 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
   // NOTE: The order of args are reversed if V8_REVERSE_JSARGS
   // rax contains the number of arguments, n, not counting the receiver.
 
+#ifdef V8_REVERSE_JSARGS
+  // 1. Get the callable to call (passed as receiver) from the stack.
+  {
+    StackArgumentsAccessor args(rax);
+    __ movq(rdi, args.GetReceiverOperand());
+  }
+
+  // 2. Save the return address and drop the callable.
+  __ PopReturnAddressTo(rbx);
+  __ Pop(kScratchRegister);
+
+  // 3. Make sure we have at least one argument.
+  {
+    Label done;
+    __ testq(rax, rax);
+    __ j(not_zero, &done, Label::kNear);
+    __ PushRoot(RootIndex::kUndefinedValue);
+    __ incq(rax);
+    __ bind(&done);
+  }
+
+  // 4. Push back the return address one slot down on the stack (overwriting the
+  // original callable), making the original first argument the new receiver.
+  __ PushReturnAddressFrom(rbx);
+  __ decq(rax);  // One fewer argument (first argument is new receiver).
+
+#else
   // 1. Make sure we have at least one argument.
   {
     Label done;
     __ testq(rax, rax);
     __ j(not_zero, &done, Label::kNear);
     __ PopReturnAddressTo(rbx);
-#ifdef V8_REVERSE_JSARGS
-    __ Pop(kScratchRegister);  // Pop the receiver.
     __ PushRoot(RootIndex::kUndefinedValue);
-    __ Push(kScratchRegister);
-#else
-    __ PushRoot(RootIndex::kUndefinedValue);
-#endif
     __ PushReturnAddressFrom(rbx);
     __ incq(rax);
     __ bind(&done);
@@ -1805,14 +1825,6 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
     __ movq(rdi, args.GetReceiverOperand());
   }
 
-#ifdef V8_REVERSE_JSARGS
-  // 3. Shift return address one slot down on the stack (overwriting the
-  // original receiver), making the original first argument the new receiver.
-  {
-    __ DropUnderReturnAddress(1, rbx);  // Drop one slot under return address.
-    __ decq(rax);  // One fewer argument (first argument is new receiver).
-  }
-#else
   // 3. Shift arguments and return address one slot down on the stack
   //    (overwriting the original receiver).  Adjust argument count to make
   //    the original first argument the new receiver.
