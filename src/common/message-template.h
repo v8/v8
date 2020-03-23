@@ -552,6 +552,7 @@ namespace internal {
   T(WasmTrapElemSegmentDropped, "element segment has been dropped")            \
   T(WasmTrapTableOutOfBounds, "table access out of bounds")                    \
   T(WasmTrapBrOnExnNullRef, "br_on_exn on nullref value")                      \
+  T(WasmTrapRethrowNullRef, "rethrowing nullref value")                        \
   T(WasmExceptionError, "wasm exception")                                      \
   /* Asm.js validation related */                                              \
   T(AsmJsInvalid, "Invalid asm.js: %")                                         \

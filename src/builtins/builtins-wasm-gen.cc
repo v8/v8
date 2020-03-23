@@ -60,7 +60,16 @@ TF_BUILTIN(WasmRethrow, WasmBuiltinsAssembler) {
   TNode<Object> exception = CAST(Parameter(Descriptor::kException));
   TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
   TNode<Context> context = LoadContextFromInstance(instance);
+
+  Label nullref(this, Label::kDeferred);
+  GotoIf(TaggedEqual(NullConstant(), exception), &nullref);
+
   TailCallRuntime(Runtime::kReThrow, context, exception);
+
+  BIND(&nullref);
+  MessageTemplate message_id = MessageTemplate::kWasmTrapRethrowNullRef;
+  TailCallRuntime(Runtime::kThrowWasmError, context,
+                  SmiConstant(static_cast<int>(message_id)));
 }
 
 TF_BUILTIN(WasmTraceMemory, WasmBuiltinsAssembler) {

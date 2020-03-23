@@ -502,6 +502,7 @@ let kTrapDataSegmentDropped   = 10;
 let kTrapElemSegmentDropped   = 11;
 let kTrapTableOutOfBounds     = 12;
 let kTrapBrOnExnNullRef       = 13;
+let kTrapRethrowNullRef       = 14;
 
 let kTrapMsgs = [
   "unreachable",
@@ -517,7 +518,8 @@ let kTrapMsgs = [
   "data segment has been dropped",
   "element segment has been dropped",
   "table access out of bounds",
-  "br_on_exn on nullref value"
+  "br_on_exn on nullref value",
+  "rethrowing nullref value"
 ];
 
 function assertTraps(trap, code) {

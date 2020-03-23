@@ -232,3 +232,48 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   assertTraps(kTrapBrOnExnNullRef, () => instance.exports.call_import(2));
   assertEquals(kNoMatch, instance.exports.call_import(3));
 })();
+
+// 'rethrow' on a null-ref value should trap.
+(function TestRethrowNullRefSimple() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_r);
+  builder.addFunction('rethrow_nullref', kSig_v_v)
+      .addBody([
+        kExprRefNull,
+        kExprRethrow
+      ]).exportFunc();
+  let instance = builder.instantiate();
+
+  assertTraps(kTrapRethrowNullRef, () => instance.exports.rethrow_nullref());
+})();
+
+(function TestRethrowNullRefFromJS() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_i);
+  let imp = builder.addImport('imp', 'ort', kSig_i_i);
+  let kSuccess = 11;
+  builder.addFunction('call_import', kSig_i_i)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprLocalGet, 0,
+          kExprCallFunction, imp,
+        kExprCatch,
+          kExprRethrow,
+        kExprEnd
+      ]).exportFunc();
+  let instance;
+  function js_import(i) {
+    if (i == 0) return kSuccess;       // Will return kSuccess.
+    if (i == 1) throw new Error('1');  // Will rethrow.
+    if (i == 2) throw null;            // Will trap.
+    throw undefined;                   // Will rethrow.
+  }
+  instance = builder.instantiate({imp: {ort: js_import}});
+
+  assertEquals(kSuccess, instance.exports.call_import(0));
+  assertThrows(() => instance.exports.call_import(1), Error, '1');
+  assertTraps(kTrapRethrowNullRef, () => instance.exports.call_import(2));
+  assertThrowsEquals(() => instance.exports.call_import(3), undefined);
+})();

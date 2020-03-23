@@ -879,6 +879,7 @@ namespace internal {
   TFS(ThrowWasmTrapElemSegmentDropped)                                         \
   TFS(ThrowWasmTrapTableOutOfBounds)                                           \
   TFS(ThrowWasmTrapBrOnExnNullRef)                                             \
+  TFS(ThrowWasmTrapRethrowNullRef)                                             \
                                                                                \
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, kDontAdaptArgumentsSentinel)                         \

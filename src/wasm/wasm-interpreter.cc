@@ -3121,6 +3121,7 @@ class ThreadImpl {
         case kExprRethrow: {
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           WasmValue ex = Pop();
+          if (ex.to_anyref()->IsNull()) return DoTrap(kTrapRethrowNullRef, pc);
           CommitPc(pc);  // Needed for local unwinding.
           if (!DoRethrowException(ex)) return;
           ReloadFromFrameOnException(&decoder, &code, &pc, &limit);
