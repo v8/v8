@@ -190,8 +190,11 @@ class InterpreterHandle {
         case WasmInterpreter::State::TRAPPED: {
           MessageTemplate message_id =
               WasmOpcodes::TrapReasonToMessageId(thread->GetTrapReason());
-          Handle<Object> exception =
+          Handle<JSObject> exception =
               isolate_->factory()->NewWasmRuntimeError(message_id);
+          JSObject::AddProperty(isolate_, exception,
+                                isolate_->factory()->wasm_uncatchable_symbol(),
+                                isolate_->factory()->true_value(), NONE);
           auto result = thread->RaiseException(isolate_, exception);
           if (result == WasmInterpreter::Thread::HANDLED) break;
           // If no local handler was found, we fall-thru to {STOPPED}.

@@ -1614,6 +1614,7 @@ Object Isolate::UnwindAndFindHandler() {
   // Special handling of termination exceptions, uncatchable by JavaScript and
   // Wasm code, we unwind the handlers until the top ENTRY handler is found.
   bool catchable_by_js = is_catchable_by_javascript(exception);
+  bool catchable_by_wasm = is_catchable_by_wasm(exception);
 
   // Compute handler and stack unwinding information by performing a full walk
   // over the stack and dispatching according to the frame type.
@@ -1664,8 +1665,9 @@ Object Isolate::UnwindAndFindHandler() {
           trap_handler::ClearThreadInWasm();
         }
 
+        if (!catchable_by_wasm) break;
+
         // For WebAssembly frames we perform a lookup in the handler table.
-        if (!catchable_by_js) break;
         // This code ref scope is here to avoid a check failure when looking up
         // the code. It's not actually necessary to keep the code alive as it's
         // currently being executed.

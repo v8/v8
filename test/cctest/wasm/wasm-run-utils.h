@@ -602,6 +602,10 @@ class WasmRunner : public WasmRunnerBase {
     CheckCallApplyViaJS(expected, function()->func_index, buffer, sizeof...(p));
   }
 
+  void CheckCallViaJSTraps(ParamTypes... p) {
+    CheckCallViaJS(static_cast<double>(0xDEADBEEF), p...);
+  }
+
   void CheckUsedExecutionTier(ExecutionTier expected_tier) {
     // Liftoff can fail and fallback to Turbofan, so check that the function
     // gets compiled by the tier requested, to guard against accidental success.

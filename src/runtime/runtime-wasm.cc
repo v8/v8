@@ -77,7 +77,10 @@ class ClearThreadInWasmScope {
 
 Object ThrowWasmError(Isolate* isolate, MessageTemplate message) {
   HandleScope scope(isolate);
-  Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(message);
+  Handle<JSObject> error_obj = isolate->factory()->NewWasmRuntimeError(message);
+  JSObject::AddProperty(isolate, error_obj,
+                        isolate->factory()->wasm_uncatchable_symbol(),
+                        isolate->factory()->true_value(), NONE);
   return isolate->Throw(*error_obj);
 }
 }  // namespace

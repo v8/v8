@@ -1302,12 +1302,14 @@ class ThreadImpl {
   WasmInterpreter::Thread::ExceptionHandlingResult HandleException(
       Isolate* isolate) {
     DCHECK(isolate->has_pending_exception());
+    bool catchable =
+        isolate->is_catchable_by_wasm(isolate->pending_exception());
     DCHECK_LT(0, activations_.size());
     Activation& act = activations_.back();
     while (frames_.size() > act.fp) {
       Frame& frame = frames_.back();
       InterpreterCode* code = frame.code;
-      if (code->side_table->HasEntryAt(frame.pc)) {
+      if (catchable && code->side_table->HasEntryAt(frame.pc)) {
         TRACE("----- HANDLE -----\n");
         Push(WasmValue(handle(isolate->pending_exception(), isolate)));
         isolate->clear_pending_exception();
