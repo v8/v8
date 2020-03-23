@@ -4,15 +4,14 @@
 
 'use strict';
 
-const trace_file_reader_template =
-    document.currentScript.ownerDocument.querySelector(
-        '#trace-file-reader-template');
+import {Isolate} from '/model.js';
 
-class TraceFileReader extends HTMLElement {
+defineCustomElement('trace-file-reader', (templateText) =>
+ class TraceFileReader extends HTMLElement {
   constructor() {
     super();
     const shadowRoot = this.attachShadow({mode: 'open'});
-    shadowRoot.appendChild(trace_file_reader_template.content.cloneNode(true));
+    shadowRoot.innerHTML = templateText;
     this.addEventListener('click', e => this.handleClick(e));
     this.addEventListener('dragover', e => this.handleDragOver(e));
     this.addEventListener('drop', e => this.handleChange(e));
@@ -314,6 +313,4 @@ class TraceFileReader extends HTMLElement {
     }
     return data;
   }
-}
-
-customElements.define('trace-file-reader', TraceFileReader);
+});
