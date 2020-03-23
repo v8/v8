@@ -443,40 +443,56 @@ class InterpreterHandle {
   DISALLOW_COPY_AND_ASSIGN(InterpreterHandle);
 };
 
-Address FindNewPC(int offset, WasmCode* old_code, WasmCode* new_code) {
-  Vector<const uint8_t> old_pos_table = old_code->source_positions();
-  Vector<const uint8_t> new_pos_table = new_code->source_positions();
-
-  // Find the source position in the old code.
-  int old_source_pos = -1;
-  for (SourcePositionTableIterator old_it(old_pos_table); !old_it.done();
-       old_it.Advance()) {
-    if (old_it.code_offset() == offset) {
-      old_source_pos = old_it.source_position().ScriptOffset();
-      break;
-    }
+int FindByteOffset(int pc_offset, WasmCode* wasm_code) {
+  int position = 0;
+  SourcePositionTableIterator iterator(wasm_code->source_positions());
+  for (SourcePositionTableIterator iterator(wasm_code->source_positions());
+       !iterator.done() && iterator.code_offset() < pc_offset;
+       iterator.Advance()) {
+    position = iterator.source_position().ScriptOffset();
   }
-  DCHECK_LE(0, old_source_pos);
+  return position;
+}
 
-  // Find the matching source position in the new code.
-  SourcePositionTableIterator new_it(new_pos_table);
-  while (!new_it.done() &&
-         new_it.source_position().ScriptOffset() != old_source_pos) {
-    new_it.Advance();
+// Generate a sorted and deduplicated list of byte offsets for this function's
+// current positions on the stack.
+std::vector<int> StackFramePositions(int func_index, Isolate* isolate) {
+  std::vector<int> byte_offsets;
+  WasmCodeRefScope code_ref_scope;
+  for (StackTraceFrameIterator it(isolate); !it.done(); it.Advance()) {
+    if (!it.is_wasm()) continue;
+    WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
+    if (static_cast<int>(frame->function_index()) != func_index) continue;
+    WasmCode* wasm_code = frame->wasm_code();
+    if (!wasm_code->is_liftoff()) continue;
+    int pc_offset =
+        static_cast<int>(frame->pc() - wasm_code->instruction_start());
+    int byte_offset = FindByteOffset(pc_offset, wasm_code);
+    byte_offsets.push_back(byte_offset);
   }
-  if (new_it.done()) {
-    // TODO(thibaudm): Make Liftoff generate the missing source positions when
-    // removing breakpoints.
-    return 0;
-  }
+  std::sort(byte_offsets.begin(), byte_offsets.end());
+  auto last = std::unique(byte_offsets.begin(), byte_offsets.end());
+  byte_offsets.erase(last, byte_offsets.end());
+  return byte_offsets;
+}
 
-  // Each call instruction generates two source positions with the same source
-  // offset: one for the address of the call instruction and one for the
-  // return address. Skip the first one.
-  new_it.Advance();
-  DCHECK(!new_it.done());
-  DCHECK_EQ(new_it.source_position().ScriptOffset(), old_source_pos);
-  return new_code->instruction_start() + new_it.code_offset();
+Address FindNewPC(int byte_offset, WasmCode* wasm_code) {
+  Vector<const uint8_t> new_pos_table = wasm_code->source_positions();
+
+  DCHECK_LE(0, byte_offset);
+
+  SourcePositionTableIterator it(new_pos_table);
+  while (!it.done() && it.source_position().ScriptOffset() != byte_offset) {
+    it.Advance();
+  }
+  DCHECK(!it.done());
+  DCHECK_EQ(byte_offset, it.source_position().ScriptOffset());
+  // If there are two source positions with this offset, one is for the call and
+  // one for the return address. Get the return address.
+  it.Advance();
+  DCHECK(!it.done());
+  DCHECK_EQ(byte_offset, it.source_position().ScriptOffset());
+  return wasm_code->instruction_start() + it.code_offset();
 }
 
 }  // namespace
@@ -619,10 +635,15 @@ class DebugInfoImpl {
                       wire_bytes.begin() + function->code.end_offset()};
     std::unique_ptr<DebugSideTable> debug_sidetable;
 
+    // Generate additional source positions for current stack frame positions.
+    // These source positions are used to find return addresses in the new code.
+    std::vector<int> stack_frame_positions =
+        StackFramePositions(func_index, current_isolate);
+
     WasmCompilationResult result;
-    result = ExecuteLiftoffCompilation(native_module_->engine()->allocator(),
-                                       &env, body, func_index, nullptr, nullptr,
-                                       offsets, &debug_sidetable);
+    result = ExecuteLiftoffCompilation(
+        native_module_->engine()->allocator(), &env, body, func_index, nullptr,
+        nullptr, offsets, &debug_sidetable, VectorOf(stack_frame_positions));
     // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
     // support for debugging.
     if (!result.succeeded()) FATAL("Liftoff compilation failed");
@@ -816,13 +837,12 @@ class DebugInfoImpl {
       if (frame->function_index() != new_code->index()) continue;
       WasmCode* old_code = frame->wasm_code();
       if (!old_code->is_liftoff()) return;
-      int offset =
+      int pc_offset =
           static_cast<int>(frame->pc() - old_code->instruction_start());
-      Address new_pc = FindNewPC(offset, old_code, new_code);
-      if (new_pc) {
-        PointerAuthentication::ReplacePC(frame->pc_address(), new_pc,
-                                         kSystemPointerSize);
-      }
+      int byte_offset = FindByteOffset(pc_offset, old_code);
+      Address new_pc = FindNewPC(byte_offset, new_code);
+      PointerAuthentication::ReplacePC(frame->pc_address(), new_pc,
+                                       kSystemPointerSize);
     }
   }
 

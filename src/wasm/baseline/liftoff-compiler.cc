@@ -300,7 +300,8 @@ class LiftoffCompiler {
                   CompilationEnv* env, Zone* compilation_zone,
                   std::unique_ptr<AssemblerBuffer> buffer,
                   DebugSideTableBuilder* debug_sidetable_builder,
-                  Vector<int> breakpoints = {})
+                  Vector<int> breakpoints = {},
+                  Vector<int> extra_source_pos = {})
       : asm_(std::move(buffer)),
         descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
@@ -309,7 +310,9 @@ class LiftoffCompiler {
         compilation_zone_(compilation_zone),
         safepoint_table_builder_(compilation_zone_),
         next_breakpoint_ptr_(breakpoints.begin()),
-        next_breakpoint_end_(breakpoints.end()) {}
+        next_breakpoint_end_(breakpoints.end()),
+        next_extra_source_pos_ptr_(extra_source_pos.begin()),
+        next_extra_source_pos_end_(extra_source_pos.end()) {}
 
   bool did_bailout() const { return bailout_reason_ != kSuccess; }
   LiftoffBailoutReason bailout_reason() const { return bailout_reason_; }
@@ -683,11 +686,12 @@ class LiftoffCompiler {
   }
 
   void NextInstruction(FullDecoder* decoder, WasmOpcode opcode) {
+    bool breakpoint = false;
     if (V8_UNLIKELY(next_breakpoint_ptr_)) {
       if (*next_breakpoint_ptr_ == 0) {
         // A single breakpoint at offset 0 indicates stepping.
         DCHECK_EQ(next_breakpoint_ptr_ + 1, next_breakpoint_end_);
-        EmitBreakpoint(decoder);
+        breakpoint = true;
       } else {
         while (next_breakpoint_ptr_ != next_breakpoint_end_ &&
                *next_breakpoint_ptr_ < decoder->position()) {
@@ -697,9 +701,16 @@ class LiftoffCompiler {
         if (next_breakpoint_ptr_ == next_breakpoint_end_) {
           next_breakpoint_ptr_ = next_breakpoint_end_ = nullptr;
         } else if (*next_breakpoint_ptr_ == decoder->position()) {
-          EmitBreakpoint(decoder);
+          breakpoint = true;
         }
       }
+    }
+    if (breakpoint) {
+      EmitBreakpoint(decoder);
+    } else if (opcode != kExprCallFunction) {
+      // There is no breakpoint and no call instruction, but we might still need
+      // a source position to get the return address for a removed breakpoint.
+      MaybeGenerateExtraSourcePos(decoder, false);
     }
     TraceCacheState(decoder);
 #ifdef DEBUG
@@ -719,16 +730,9 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), false);
     __ CallRuntimeStub(WasmCode::kWasmDebugBreak);
-    // This source position helps updating return addresses on the stack after
-    // installing a new Liftoff code object.
-    source_position_table_builder_.AddPosition(
-        __ pc_offset(), SourcePosition(decoder->position()), false);
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kAllowRegisters);
+    MaybeGenerateExtraSourcePos(decoder);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
-    // Add a nop after the breakpoint, such that following code has another PC
-    // and does not collide with the source position recorded above.
-    // TODO(thibaudm/clemens): Remove this.
-    __ nop();
   }
 
   void Block(FullDecoder* decoder, Control* block) {}
@@ -2126,16 +2130,7 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
-    if (V8_UNLIKELY(env_->debug)) {
-      // This source position helps updating return addresses on the stack after
-      // installing a new Liftoff code object.
-      source_position_table_builder_.AddPosition(
-          __ pc_offset(), SourcePosition(decoder->position()), false);
-      // Add a nop after the call, such that following code has another PC
-      // and does not collide with the source position recorded above.
-      // TODO(thibaudm/clemens): Remove this.
-      __ nop();
-    }
+    MaybeGenerateExtraSourcePos(decoder);
 
     __ FinishCall(imm.sig, call_descriptor);
   }
@@ -2269,17 +2264,6 @@ class LiftoffCompiler {
 
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
-
-    if (V8_UNLIKELY(env_->debug)) {
-      // This source position helps updating return addresses on the stack after
-      // installing a new Liftoff code object.
-      source_position_table_builder_.AddPosition(
-          __ pc_offset(), SourcePosition(decoder->position()), false);
-      // Add a nop after the call, such that following code has another PC
-      // and does not collide with the source position recorded above.
-      // TODO(thibaudm/clemens): Remove this.
-      __ nop();
-    }
 
     __ FinishCall(imm.sig, call_descriptor);
   }
@@ -2975,6 +2959,38 @@ class LiftoffCompiler {
   }
 
  private:
+  // Emit additional source positions for return addresses. Used by debugging to
+  // OSR frames with different sets of breakpoints.
+  void MaybeGenerateExtraSourcePos(Decoder* decoder, bool after_call = true) {
+    if (V8_UNLIKELY(next_extra_source_pos_ptr_) &&
+        *next_extra_source_pos_ptr_ == static_cast<int>(decoder->position())) {
+      if (*next_extra_source_pos_ptr_ ==
+          static_cast<int>(decoder->position())) {
+        next_extra_source_pos_ptr_++;
+        if (next_extra_source_pos_ptr_ == next_extra_source_pos_end_) {
+          next_extra_source_pos_ptr_ = next_extra_source_pos_end_ = nullptr;
+        }
+        source_position_table_builder_.AddPosition(
+            __ pc_offset(), SourcePosition(decoder->position()), false);
+        // Add a nop after the breakpoint, such that following code has another
+        // PC and does not collide with the source position recorded above.
+        // TODO(thibaudm/clemens): Remove this.
+        __ nop();
+        if (!after_call) {
+          // A frame position is given by the last source position before the
+          // return address. If the return address does not follow a call, which
+          // happens after removing a breakpoint, this would be incorrect.
+          // Generate two source positions in this case. The second one will be
+          // used as the return address and the first one as the actual
+          // position.
+          source_position_table_builder_.AddPosition(
+              __ pc_offset(), SourcePosition(decoder->position()), false);
+          __ nop();
+        }
+      }
+    }
+  }
+
   static constexpr WasmOpcode kNoOutstandingOp = kExprUnreachable;
 
   LiftoffAssembler asm_;
@@ -3004,6 +3020,9 @@ class LiftoffCompiler {
   // function for stepping by flooding it with breakpoints.
   int* next_breakpoint_ptr_ = nullptr;
   int* next_breakpoint_end_ = nullptr;
+  // Use a similar approach to generate additional source positions.
+  int* next_extra_source_pos_ptr_ = nullptr;
+  int* next_extra_source_pos_end_ = nullptr;
 
   bool has_outstanding_op() const {
     return outstanding_op_ != kNoOutstandingOp;
@@ -3033,7 +3052,8 @@ WasmCompilationResult ExecuteLiftoffCompilation(
     AccountingAllocator* allocator, CompilationEnv* env,
     const FunctionBody& func_body, int func_index, Counters* counters,
     WasmFeatures* detected, Vector<int> breakpoints,
-    std::unique_ptr<DebugSideTable>* debug_sidetable) {
+    std::unique_ptr<DebugSideTable>* debug_sidetable,
+    Vector<int> extra_source_pos) {
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteLiftoffCompilation", "func_index", func_index,
@@ -3060,7 +3080,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
       &zone, env->module, env->enabled_features, detected, func_body,
       call_descriptor, env, &zone, instruction_buffer->CreateView(),
-      debug_sidetable_builder.get(), breakpoints);
+      debug_sidetable_builder.get(), breakpoints, extra_source_pos);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();
