@@ -432,8 +432,8 @@ class ModuleDecoderImpl : public Decoder {
         break;
       case kExceptionSectionCode:
         if (!CheckUnorderedSection(section_code)) return;
-        if (!CheckSectionOrder(section_code, kGlobalSectionCode,
-                               kExportSectionCode))
+        if (!CheckSectionOrder(section_code, kMemorySectionCode,
+                               kGlobalSectionCode))
           return;
         break;
       case kNameSectionCode:
