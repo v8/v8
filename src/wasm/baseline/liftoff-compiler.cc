@@ -3021,7 +3021,54 @@ class LiftoffCompiler {
 
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate<validate>& imm,
                  Vector<Value> args) {
-    unsupported(decoder, kBulkMemory, "table.copy");
+    LiftoffRegList pinned;
+
+#if V8_TARGET_ARCH_32_BIT || defined(V8_COMPRESS_POINTERS)
+    WasmValue table_dst_index_val(
+        static_cast<uint32_t>(Smi::FromInt(imm.table_dst.index).ptr()));
+    WasmValue table_src_index_val(
+        static_cast<uint32_t>(Smi::FromInt(imm.table_src.index).ptr()));
+#else
+    WasmValue table_dst_index_val(
+        static_cast<uint64_t>(Smi::FromInt(imm.table_dst.index).ptr()));
+    WasmValue table_src_index_val(
+        static_cast<uint64_t>(Smi::FromInt(imm.table_src.index).ptr()));
+#endif
+
+    LiftoffRegister table_dst_index_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(table_dst_index_reg, table_dst_index_val);
+    LiftoffAssembler::VarState table_dst_index(kPointerValueType,
+                                               table_dst_index_reg, 0);
+
+    LiftoffRegister table_src_index_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(table_src_index_reg, table_src_index_val);
+    LiftoffAssembler::VarState table_src_index(kPointerValueType,
+                                               table_src_index_reg, 0);
+
+    LiftoffAssembler::VarState size = __ cache_state()->stack_state.end()[-1];
+    LiftoffAssembler::VarState src = __ cache_state()->stack_state.end()[-2];
+    LiftoffAssembler::VarState dst = __ cache_state()->stack_state.end()[-3];
+
+    WasmCode::RuntimeStubId target = WasmCode::kWasmTableCopy;
+    compiler::CallDescriptor* call_descriptor =
+        GetBuiltinCallDescriptor<WasmTableCopyDescriptor>(compilation_zone_);
+
+    ValueType sig_reps[] = {kWasmI32, kWasmI32, kWasmI32,
+                            table_dst_index_val.type(),
+                            table_src_index_val.type()};
+    FunctionSig sig(0, 5, sig_reps);
+
+    __ PrepareBuiltinCall(&sig, call_descriptor,
+                          {dst, src, size, table_dst_index, table_src_index});
+    __ CallRuntimeStub(target);
+
+    // Pop parameters from the value stack.
+    __ cache_state()->stack_state.pop_back(3);
+
+    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
   }
 
   void TableGrow(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
