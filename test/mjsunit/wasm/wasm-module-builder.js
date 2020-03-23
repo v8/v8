@@ -501,6 +501,7 @@ let kTrapUnalignedAccess      = 9;
 let kTrapDataSegmentDropped   = 10;
 let kTrapElemSegmentDropped   = 11;
 let kTrapTableOutOfBounds     = 12;
+let kTrapBrOnExnNullRef       = 13;
 
 let kTrapMsgs = [
   "unreachable",
@@ -515,7 +516,8 @@ let kTrapMsgs = [
   "operation does not support unaligned accesses",
   "data segment has been dropped",
   "element segment has been dropped",
-  "table access out of bounds"
+  "table access out of bounds",
+  "br_on_exn on nullref value"
 ];
 
 function assertTraps(trap, code) {

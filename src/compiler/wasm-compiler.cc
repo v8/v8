@@ -2150,8 +2150,10 @@ Node* WasmGraphBuilder::LoadExceptionTagFromTable(uint32_t exception_index) {
   return tag;
 }
 
-Node* WasmGraphBuilder::GetExceptionTag(Node* except_obj) {
-  needs_stack_check_ = true;
+Node* WasmGraphBuilder::GetExceptionTag(Node* except_obj,
+                                        wasm::WasmCodePosition position) {
+  TrapIfTrue(wasm::kTrapBrOnExnNullRef, gasm_->WordEqual(RefNull(), except_obj),
+             position);
   return BuildCallToRuntime(Runtime::kWasmExceptionGetTag, &except_obj, 1);
 }
 

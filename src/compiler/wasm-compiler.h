@@ -213,7 +213,7 @@ class WasmGraphBuilder {
   Node* Rethrow(Node* except_obj);
   Node* ExceptionTagEqual(Node* caught_tag, Node* expected_tag);
   Node* LoadExceptionTagFromTable(uint32_t exception_index);
-  Node* GetExceptionTag(Node* except_obj);
+  Node* GetExceptionTag(Node* except_obj, wasm::WasmCodePosition);
   Node* GetExceptionValues(Node* except_obj,
                            const wasm::WasmException* exception,
                            Vector<Node*> values_out);

@@ -492,7 +492,8 @@ class WasmGraphBuildingInterface {
     TFNode* if_no_match = nullptr;
 
     // Get the exception tag and see if it matches the expected one.
-    TFNode* caught_tag = BUILD(GetExceptionTag, exception.node);
+    TFNode* caught_tag =
+        BUILD(GetExceptionTag, exception.node, decoder->position());
     TFNode* exception_tag = BUILD(LoadExceptionTagFromTable, imm.index);
     TFNode* compare = BUILD(ExceptionTagEqual, caught_tag, exception_tag);
     BUILD(BranchNoHint, compare, &if_match, &if_no_match);

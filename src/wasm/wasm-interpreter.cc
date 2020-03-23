@@ -3132,6 +3132,7 @@ class ThreadImpl {
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           WasmValue ex = Pop();
           Handle<Object> exception = ex.to_anyref();
+          if (exception->IsNull()) return DoTrap(kTrapBrOnExnNullRef, pc);
           if (MatchingExceptionTag(exception, imm.index.index)) {
             imm.index.exception = &module()->exceptions[imm.index.index];
             DoUnpackException(imm.index.exception, exception);
