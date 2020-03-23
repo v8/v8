@@ -106,7 +106,9 @@ struct FieldAccess {
         write_barrier_kind(write_barrier_kind),
         load_sensitivity(load_sensitivity),
         const_field_info(const_field_info),
-        is_store_in_literal(is_store_in_literal) {}
+        is_store_in_literal(is_store_in_literal) {
+    DCHECK_GE(offset, 0);
+  }
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
