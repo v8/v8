@@ -43,7 +43,10 @@ v8_executable("cppgc_unittests") {
 v8_source_set("cppgc_unittests_sources") {
   testonly = true
 
-  sources = [ "heap/cppgc/finalizer-trait_unittest.cc" ]
+  sources = [
+    "heap/cppgc/finalizer-trait_unittest.cc",
+    "heap/cppgc/gc-info_unittest.cc",
+  ]
 
   configs = [
     "../..:external_config",
