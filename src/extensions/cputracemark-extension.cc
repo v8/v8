@@ -19,6 +19,7 @@ void CpuTraceMarkExtension::Mark(
     args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
         args.GetIsolate(),
         "First parameter to cputracemark() must be a unsigned int32."));
+    return;
   }
 
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
