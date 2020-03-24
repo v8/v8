@@ -1230,6 +1230,7 @@ class OffThreadParseInfoScope {
   }
 
   ~OffThreadParseInfoScope() {
+    DCHECK_NOT_NULL(parse_info_);
     parse_info_->set_stack_limit(original_stack_limit_);
     parse_info_->set_runtime_call_stats(original_runtime_call_stats_);
   }
@@ -1251,8 +1252,9 @@ void BackgroundCompileTask::Run() {
   DisallowHeapAccess no_heap_access;
 
   TimedHistogramScope timer(timer_);
-  OffThreadParseInfoScope off_thread_scope(
-      info_.get(), worker_thread_runtime_call_stats_, stack_size_);
+  base::Optional<OffThreadParseInfoScope> off_thread_scope(
+      base::in_place, info_.get(), worker_thread_runtime_call_stats_,
+      stack_size_);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "BackgroundCompileTask::Run");
   RuntimeCallTimerScope runtimeTimer(
@@ -1311,6 +1313,7 @@ void BackgroundCompileTask::Run() {
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.FinalizeCodeBackground.ReleaseParser");
       DCHECK_EQ(language_mode_, info_->language_mode());
+      off_thread_scope.reset();
       parser_.reset();
       info_.reset();
       outer_function_job_.reset();
