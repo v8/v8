@@ -1149,4 +1149,12 @@
   'wasm/many-modules': [SKIP],
 }],  # variant == stress_js_bg_compile_wasm_code_gc
 
+##############################################################################
+['variant == assert_types', {
+  # Type assertions can lead to differences in representation selection,
+  # which in turn can lead to different deopt behavior.
+  'compiler/number-abs': [SKIP],
+  'compiler/number-toboolean': [SKIP],
+}],  # variant == assert_types
+
 ]
