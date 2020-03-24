@@ -476,23 +476,35 @@ std::vector<int> StackFramePositions(int func_index, Isolate* isolate) {
   return byte_offsets;
 }
 
-Address FindNewPC(int byte_offset, WasmCode* wasm_code) {
+enum ReturnLocation { kAfterBreakpoint, kAfterWasmCall };
+
+Address FindNewPC(WasmCode* wasm_code, int byte_offset,
+                  ReturnLocation return_location) {
   Vector<const uint8_t> new_pos_table = wasm_code->source_positions();
 
   DCHECK_LE(0, byte_offset);
 
+  // If {return_location == kAfterBreakpoint} we search for the first code
+  // offset which is marked as instruction (i.e. not the breakpoint).
+  // If {return_location == kAfterWasmCall} we return the last code offset
+  // associated with the byte offset.
   SourcePositionTableIterator it(new_pos_table);
   while (!it.done() && it.source_position().ScriptOffset() != byte_offset) {
     it.Advance();
   }
-  DCHECK(!it.done());
-  DCHECK_EQ(byte_offset, it.source_position().ScriptOffset());
-  // If there are two source positions with this offset, one is for the call and
-  // one for the return address. Get the return address.
-  it.Advance();
-  DCHECK(!it.done());
-  DCHECK_EQ(byte_offset, it.source_position().ScriptOffset());
-  return wasm_code->instruction_start() + it.code_offset();
+  if (return_location == kAfterBreakpoint) {
+    while (!it.is_statement()) it.Advance();
+    DCHECK_EQ(byte_offset, it.source_position().ScriptOffset());
+    return wasm_code->instruction_start() + it.code_offset();
+  }
+
+  DCHECK_EQ(kAfterWasmCall, return_location);
+  int code_offset;
+  do {
+    code_offset = it.code_offset();
+    it.Advance();
+  } while (!it.done() && it.source_position().ScriptOffset() == byte_offset);
+  return wasm_code->instruction_start() + code_offset;
 }
 
 }  // namespace
@@ -640,8 +652,7 @@ class DebugInfoImpl {
     std::vector<int> stack_frame_positions =
         StackFramePositions(func_index, current_isolate);
 
-    WasmCompilationResult result;
-    result = ExecuteLiftoffCompilation(
+    WasmCompilationResult result = ExecuteLiftoffCompilation(
         native_module_->engine()->allocator(), &env, body, func_index, nullptr,
         nullptr, offsets, &debug_sidetable, VectorOf(stack_frame_positions));
     // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
@@ -710,7 +721,8 @@ class DebugInfoImpl {
   bool IsStepping(WasmCompiledFrame* frame) {
     Isolate* isolate = frame->wasm_instance().GetIsolate();
     StepAction last_step_action = isolate->debug()->last_step_action();
-    return last_step_action == StepIn || stepping_frame_ == frame->id();
+    return stepping_frame_ == frame->id() ||
+           (last_step_action == StepIn && stepping_frame_ != NO_ID);
   }
 
   void RemoveBreakpoint(int func_index, int offset, Isolate* current_isolate) {
@@ -828,7 +840,11 @@ class DebugInfoImpl {
   // TODO(thibaudm): update other threads as well.
   void UpdateReturnAddresses(Isolate* isolate, WasmCode* new_code) {
     DCHECK(new_code->is_liftoff());
-    for (StackTraceFrameIterator it(isolate); !it.done(); it.Advance()) {
+    // The first return location is after the breakpoint, others are after wasm
+    // calls.
+    ReturnLocation return_location = kAfterBreakpoint;
+    for (StackTraceFrameIterator it(isolate); !it.done();
+         it.Advance(), return_location = kAfterWasmCall) {
       // We still need the flooded function for stepping.
       if (it.frame()->id() == stepping_frame_) continue;
       if (!it.is_wasm()) continue;
@@ -840,7 +856,7 @@ class DebugInfoImpl {
       int pc_offset =
           static_cast<int>(frame->pc() - old_code->instruction_start());
       int byte_offset = FindByteOffset(pc_offset, old_code);
-      Address new_pc = FindNewPC(byte_offset, new_code);
+      Address new_pc = FindNewPC(new_code, byte_offset, return_location);
       PointerAuthentication::ReplacePC(frame->pc_address(), new_pc,
                                        kSystemPointerSize);
     }

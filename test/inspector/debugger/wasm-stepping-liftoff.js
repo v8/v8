@@ -96,7 +96,7 @@ function instantiate(bytes) {
   await waitForPauseAndStep('stepOver');  // over call to wasm_A
   await waitForPauseAndStep('resume');    // stop on breakpoint
   await waitForPauseAndStep('stepOver');  // over call
-  await waitForPauseAndStep('stepOver');  // over br
+  await waitForPauseAndStep('stepInto');  // == stepOver br
   await waitForPauseAndStep('resume');    // to next breakpoint (3rd iteration)
   await waitForPauseAndStep('stepInto');  // into wasm_A
   // Step out of wasm_A, back to wasm_B.

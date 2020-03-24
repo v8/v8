@@ -649,7 +649,7 @@ class LiftoffCompiler {
     if (!ool->regs_to_save.is_empty()) __ PushRegisters(ool->regs_to_save);
 
     source_position_table_builder_.AddPosition(
-        __ pc_offset(), SourcePosition(ool->position), false);
+        __ pc_offset(), SourcePosition(ool->position), true);
     __ CallRuntimeStub(ool->stub);
     DCHECK_EQ(!debug_sidetable_builder_, !ool->debug_sidetable_entry_builder);
     if (V8_UNLIKELY(ool->debug_sidetable_entry_builder)) {
@@ -686,12 +686,11 @@ class LiftoffCompiler {
   }
 
   void NextInstruction(FullDecoder* decoder, WasmOpcode opcode) {
-    bool breakpoint = false;
     if (V8_UNLIKELY(next_breakpoint_ptr_)) {
       if (*next_breakpoint_ptr_ == 0) {
         // A single breakpoint at offset 0 indicates stepping.
         DCHECK_EQ(next_breakpoint_ptr_ + 1, next_breakpoint_end_);
-        breakpoint = true;
+        EmitBreakpoint(decoder);
       } else {
         while (next_breakpoint_ptr_ != next_breakpoint_end_ &&
                *next_breakpoint_ptr_ < decoder->position()) {
@@ -701,17 +700,12 @@ class LiftoffCompiler {
         if (next_breakpoint_ptr_ == next_breakpoint_end_) {
           next_breakpoint_ptr_ = next_breakpoint_end_ = nullptr;
         } else if (*next_breakpoint_ptr_ == decoder->position()) {
-          breakpoint = true;
+          EmitBreakpoint(decoder);
         }
       }
     }
-    if (breakpoint) {
-      EmitBreakpoint(decoder);
-    } else if (opcode != kExprCallFunction) {
-      // There is no breakpoint and no call instruction, but we might still need
-      // a source position to get the return address for a removed breakpoint.
-      MaybeGenerateExtraSourcePos(decoder, false);
-    }
+    // Potentially generate the source position to OSR to this instruction.
+    MaybeGenerateExtraSourcePos(decoder);
     TraceCacheState(decoder);
 #ifdef DEBUG
     SLOW_DCHECK(__ ValidateCacheState());
@@ -731,7 +725,6 @@ class LiftoffCompiler {
         __ pc_offset(), SourcePosition(decoder->position()), false);
     __ CallRuntimeStub(WasmCode::kWasmDebugBreak);
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kAllowRegisters);
-    MaybeGenerateExtraSourcePos(decoder);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
   }
 
@@ -1923,7 +1916,7 @@ class LiftoffCompiler {
     }
 
     source_position_table_builder_.AddPosition(__ pc_offset(),
-                                               SourcePosition(position), false);
+                                               SourcePosition(position), true);
     __ CallRuntimeStub(WasmCode::kWasmTraceMemory);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
@@ -2089,6 +2082,11 @@ class LiftoffCompiler {
     call_descriptor =
         GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
 
+    // Place the source position before any stack manipulation, since this will
+    // be used for OSR in debugging.
+    source_position_table_builder_.AddPosition(
+        __ pc_offset(), SourcePosition(decoder->position()), true);
+
     if (imm.index < env_->module->num_imported_functions) {
       // A direct call to an imported function.
       LiftoffRegList pinned;
@@ -2111,16 +2109,10 @@ class LiftoffCompiler {
 
       Register* explicit_instance = &imported_function_ref;
       __ PrepareCall(imm.sig, call_descriptor, &target, explicit_instance);
-      source_position_table_builder_.AddPosition(
-          __ pc_offset(), SourcePosition(decoder->position()), false);
-
       __ CallIndirect(imm.sig, call_descriptor, target);
     } else {
       // A direct call within this module just gets the current instance.
       __ PrepareCall(imm.sig, call_descriptor);
-
-      source_position_table_builder_.AddPosition(
-          __ pc_offset(), SourcePosition(decoder->position()), false);
 
       // Just encode the function index. This will be patched at instantiation.
       Address addr = static_cast<Address>(imm.index);
@@ -2149,6 +2141,11 @@ class LiftoffCompiler {
                             "return")) {
       return;
     }
+
+    // Place the source position before any stack manipulation, since this will
+    // be used for OSR in debugging.
+    source_position_table_builder_.AddPosition(
+        __ pc_offset(), SourcePosition(decoder->position()), true);
 
     // Pop the index.
     Register index = __ PopToRegister().gp();
@@ -2250,9 +2247,6 @@ class LiftoffCompiler {
     __ Load(LiftoffRegister(scratch), table, index, 0, kPointerLoadType,
             pinned);
 
-    source_position_table_builder_.AddPosition(
-        __ pc_offset(), SourcePosition(decoder->position()), false);
-
     auto call_descriptor =
         compiler::GetWasmCallDescriptor(compilation_zone_, imm.sig);
     call_descriptor =
@@ -2264,6 +2258,8 @@ class LiftoffCompiler {
 
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+
+    MaybeGenerateExtraSourcePos(decoder);
 
     __ FinishCall(imm.sig, call_descriptor);
   }
@@ -3089,34 +3085,23 @@ class LiftoffCompiler {
  private:
   // Emit additional source positions for return addresses. Used by debugging to
   // OSR frames with different sets of breakpoints.
-  void MaybeGenerateExtraSourcePos(Decoder* decoder, bool after_call = true) {
-    if (V8_UNLIKELY(next_extra_source_pos_ptr_) &&
-        *next_extra_source_pos_ptr_ == static_cast<int>(decoder->position())) {
-      if (*next_extra_source_pos_ptr_ ==
-          static_cast<int>(decoder->position())) {
-        next_extra_source_pos_ptr_++;
-        if (next_extra_source_pos_ptr_ == next_extra_source_pos_end_) {
-          next_extra_source_pos_ptr_ = next_extra_source_pos_end_ = nullptr;
-        }
-        source_position_table_builder_.AddPosition(
-            __ pc_offset(), SourcePosition(decoder->position()), false);
-        // Add a nop after the breakpoint, such that following code has another
-        // PC and does not collide with the source position recorded above.
-        // TODO(thibaudm/clemens): Remove this.
-        __ nop();
-        if (!after_call) {
-          // A frame position is given by the last source position before the
-          // return address. If the return address does not follow a call, which
-          // happens after removing a breakpoint, this would be incorrect.
-          // Generate two source positions in this case. The second one will be
-          // used as the return address and the first one as the actual
-          // position.
-          source_position_table_builder_.AddPosition(
-              __ pc_offset(), SourcePosition(decoder->position()), false);
-          __ nop();
-        }
+  void MaybeGenerateExtraSourcePos(Decoder* decoder) {
+    if (V8_LIKELY(next_extra_source_pos_ptr_ == nullptr)) return;
+    int position = static_cast<int>(decoder->position());
+    while (*next_extra_source_pos_ptr_ < position) {
+      ++next_extra_source_pos_ptr_;
+      if (next_extra_source_pos_ptr_ == next_extra_source_pos_end_) {
+        next_extra_source_pos_ptr_ = next_extra_source_pos_end_ = nullptr;
+        return;
       }
     }
+    if (*next_extra_source_pos_ptr_ != position) return;
+    source_position_table_builder_.AddPosition(
+        __ pc_offset(), SourcePosition(decoder->position()), true);
+    // Add a nop here, such that following code has another
+    // PC and does not collide with the source position recorded above.
+    // TODO(thibaudm/clemens): Remove this.
+    __ nop();
   }
 
   static constexpr WasmOpcode kNoOutstandingOp = kExprUnreachable;
