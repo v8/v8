@@ -245,78 +245,55 @@ function testMemoryGrowCurrentMemory() {
 
 testMemoryGrowCurrentMemory();
 
-function testMemoryGrowPreservesDataMemOp32() {
+function testMemoryGrowPreservesDataMemOpBase(size, load_fn, store_fn) {
   var builder = genMemoryGrowBuilder();
   builder.addMemory(1, undefined, false);
   var module = builder.instantiate();
-  var offset, val;
-  function peek() { return module.exports.load(offset); }
-  function poke(value) { return module.exports.store(offset, value); }
+  var offset;
+  var load = module.exports[load_fn];
+  var store = module.exports[store_fn];
+  function peek() { return load(offset); }
+  function poke(value) { return store(offset, value); }
   function growMem(pages) { return module.exports.grow_memory(pages); }
+  // Maximum unsigned integer of size bits.
+  const max = Math.pow(2, (size * 8)) - 1;
 
-  for(offset = 0; offset <= (kPageSize - 4); offset+=4) {
-    poke(100000 - offset);
-    assertEquals(100000 - offset, peek());
+  // Check the first 5 offsets.
+  for(offset = 0; offset <= (4*size); offset+=size) {
+    poke(offset % max);
+    assertEquals(offset % max, peek());
+  }
+
+  // Check the last 5 valid offsets.
+  for(offset = kPageSize - 5*size; offset <= (kPageSize - size); offset+=size) {
+    poke(offset % max);
+    assertEquals(offset % max, peek());
   }
 
   assertEquals(1, growMem(3));
 
-  for(offset = 0; offset <= (kPageSize - 4); offset+=4) {
-    assertEquals(100000 - offset, peek());
+  // Check the first 5 offsets are preserved by growMem.
+  for(offset = 0; offset <= (4*size); offset+=size) {
+    assertEquals(offset % max, peek());
+  }
+
+  // Check the last 5 valid offsets are preserved by growMem.
+  for(offset = kPageSize - 5*size; offset <= (kPageSize - size); offset+=size) {
+    assertEquals(offset % max, peek());
   }
 }
 
-testMemoryGrowPreservesDataMemOp32();
+(function testMemoryGrowPreservesDataMemOp32() {
+  testMemoryGrowPreservesDataMemOpBase(4, "load", "store");
+})();
 
-function testMemoryGrowPreservesDataMemOp16() {
-  var builder = genMemoryGrowBuilder();
-  builder.addMemory(1, undefined, false);
-  var module = builder.instantiate();
-  var offset, val;
-  function peek() { return module.exports.load16(offset); }
-  function poke(value) { return module.exports.store16(offset, value); }
-  function growMem(pages) { return module.exports.grow_memory(pages); }
+(function testMemoryGrowPreservesDataMemOp16() {
+  testMemoryGrowPreservesDataMemOpBase(2, "load16", "store16");
+})();
 
-  for(offset = 0; offset <= (kPageSize - 2); offset+=2) {
-    poke(65535 - offset);
-    assertEquals(65535 - offset, peek());
-  }
-
-  assertEquals(1, growMem(3));
-
-  for(offset = 0; offset <= (kPageSize - 2); offset+=2) {
-    assertEquals(65535 - offset, peek());
-  }
-}
-
-testMemoryGrowPreservesDataMemOp16();
-
-function testMemoryGrowPreservesDataMemOp8() {
-  var builder = genMemoryGrowBuilder();
-  builder.addMemory(1, undefined, false);
-  var module = builder.instantiate();
-  var offset, val = 0;
-  function peek() { return module.exports.load8(offset); }
-  function poke(value) { return module.exports.store8(offset, value); }
-  function growMem(pages) { return module.exports.grow_memory(pages); }
-
-  for(offset = 0; offset <= (kPageSize - 1); offset++, val++) {
-    poke(val);
-    assertEquals(val, peek());
-    if (val == 255) val = 0;
-  }
-
-  assertEquals(1, growMem(3));
-
-  val = 0;
-
-  for(offset = 0; offset <= (kPageSize - 1); offset++, val++) {
-    assertEquals(val, peek());
-    if (val == 255) val = 0;
-  }
-}
-
-testMemoryGrowPreservesDataMemOp8();
+(function testMemoryGrowPreservesDataMemOp8() {
+  testMemoryGrowPreservesDataMemOpBase(1, "load8", "store8");
+})();
 
 function testMemoryGrowOutOfBoundsOffset() {
   var builder = genMemoryGrowBuilder();
