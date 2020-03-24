@@ -932,7 +932,13 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   // Try allocating a new backing store and copying.
   std::unique_ptr<BackingStore> new_backing_store =
       backing_store->CopyWasmMemory(isolate, new_pages);
-  if (!new_backing_store) return -1;
+  if (!new_backing_store) {
+    // Crash on out-of-memory if the correctness fuzzer is running.
+    if (FLAG_correctness_fuzzer_suppressions) {
+      FATAL("could not grow wasm memory");
+    }
+    return -1;
+  }
 
   // Detach old and create a new one with the new backing store.
   old_buffer->Detach(true);
