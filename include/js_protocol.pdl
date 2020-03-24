@@ -954,7 +954,8 @@ domain Runtime
         boolean
         symbol
         bigint
-      # Object subtype hint. Specified for `object` type values only.
+        wasm
+      # Object subtype hint. Specified for `object` or `wasm` type values only.
       optional enum subtype
         array
         null
@@ -973,6 +974,11 @@ domain Runtime
         typedarray
         arraybuffer
         dataview
+        i32
+        i64
+        f32
+        f64
+        v128
       # Object class (constructor) name. Specified for `object` type values only.
       optional string className
       # Remote object value in case of primitive values or JSON values (if it was requested).
