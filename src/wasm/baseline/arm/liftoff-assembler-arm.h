@@ -1731,6 +1731,12 @@ void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
        liftoff::GetSimd128Register(rhs.low_fp()));
 }
 
+void LiftoffAssembler::emit_i16x8_add_saturate_s(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 LiftoffRegister rhs) {
+  bailout(kSimd, "i16x8addsaturate_s");
+}
+
 void LiftoffAssembler::emit_i16x8_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   vsub(Neon16, liftoff::GetSimd128Register(dst.low_fp()),
@@ -1741,6 +1747,12 @@ void LiftoffAssembler::emit_i16x8_sub(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i16x8_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   bailout(kSimd, "i16x8mul");
+}
+
+void LiftoffAssembler::emit_i16x8_add_saturate_u(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 LiftoffRegister rhs) {
+  bailout(kSimd, "i16x8addsaturate_u");
 }
 
 void LiftoffAssembler::emit_i16x8_extract_lane_u(LiftoffRegister dst,
@@ -1801,6 +1813,12 @@ void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
        liftoff::GetSimd128Register(rhs.low_fp()));
 }
 
+void LiftoffAssembler::emit_i8x16_add_saturate_s(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 LiftoffRegister rhs) {
+  bailout(kSimd, "i8x16addsaturate_s");
+}
+
 void LiftoffAssembler::emit_i8x16_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   vsub(Neon8, liftoff::GetSimd128Register(dst.low_fp()),
@@ -1811,6 +1829,12 @@ void LiftoffAssembler::emit_i8x16_sub(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   bailout(kSimd, "i8x16mul");
+}
+
+void LiftoffAssembler::emit_i8x16_add_saturate_u(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 LiftoffRegister rhs) {
+  bailout(kSimd, "i8x16addsaturate_u");
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {

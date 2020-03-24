@@ -2170,6 +2170,13 @@ void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i16x8_add_saturate_s(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 LiftoffRegister rhs) {
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddsw, &Assembler::paddsw>(
+      this, dst, lhs, rhs);
+}
+
 void LiftoffAssembler::emit_i16x8_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdSub<&Assembler::vpsubw, &Assembler::psubw>(this, dst, lhs,
@@ -2179,6 +2186,13 @@ void LiftoffAssembler::emit_i16x8_sub(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i16x8_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmullw, &Assembler::pmullw>(
+      this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i16x8_add_saturate_u(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 LiftoffRegister rhs) {
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddusw, &Assembler::paddusw>(
       this, dst, lhs, rhs);
 }
 
@@ -2219,6 +2233,13 @@ void LiftoffAssembler::emit_i8x16_replace_lane(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddb, &Assembler::paddb>(
+      this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i8x16_add_saturate_s(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 LiftoffRegister rhs) {
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddsb, &Assembler::paddsb>(
       this, dst, lhs, rhs);
 }
 
@@ -2288,6 +2309,13 @@ void LiftoffAssembler::emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
     //    => PPpp PPpp ...  PPpp  PPpp
     por(dst.fp(), tmp.fp());
   }
+}
+
+void LiftoffAssembler::emit_i8x16_add_saturate_u(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 LiftoffRegister rhs) {
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddusb, &Assembler::paddusb>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {

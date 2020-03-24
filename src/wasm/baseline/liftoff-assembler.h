@@ -771,10 +771,16 @@ class LiftoffAssembler : public TurboAssembler {
                                       uint8_t imm_lane_idx);
   inline void emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
+  inline void emit_i16x8_add_saturate_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs);
   inline void emit_i16x8_sub(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
   inline void emit_i16x8_mul(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
+  inline void emit_i16x8_add_saturate_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs);
   inline void emit_i8x16_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i8x16_extract_lane_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
@@ -787,10 +793,16 @@ class LiftoffAssembler : public TurboAssembler {
                                       uint8_t imm_lane_idx);
   inline void emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
+  inline void emit_i8x16_add_saturate_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs);
   inline void emit_i8x16_sub(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
   inline void emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
+  inline void emit_i8x16_add_saturate_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs);
 
   inline void StackCheck(Label* ool_code, Register limit_address);
 

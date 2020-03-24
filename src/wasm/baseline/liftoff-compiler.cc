@@ -2320,18 +2320,30 @@ class LiftoffCompiler {
         return EmitUnOp<kI32, kS128>(&LiftoffAssembler::emit_i16x8_splat);
       case wasm::kExprI16x8Add:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_add);
+      case wasm::kExprI16x8AddSaturateS:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_add_saturate_s);
       case wasm::kExprI16x8Sub:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_sub);
       case wasm::kExprI16x8Mul:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_mul);
+      case wasm::kExprI16x8AddSaturateU:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_add_saturate_u);
       case wasm::kExprI8x16Splat:
         return EmitUnOp<kI32, kS128>(&LiftoffAssembler::emit_i8x16_splat);
       case wasm::kExprI8x16Add:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_add);
+      case wasm::kExprI8x16AddSaturateS:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i8x16_add_saturate_s);
       case wasm::kExprI8x16Sub:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_sub);
       case wasm::kExprI8x16Mul:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_mul);
+      case wasm::kExprI8x16AddSaturateU:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i8x16_add_saturate_u);
       default:
         unsupported(decoder, kSimd, "simd");
     }
