@@ -709,6 +709,15 @@ class DebugInfoImpl {
     DCHECK(!it.done());
     DCHECK(it.frame()->is_wasm_compiled());
     WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
+
+    // If we are at a return instruction, then any stepping action is equivalent
+    // to StepOut, and we need to flood the parent function.
+    if (IsAtReturn(frame)) {
+      it.Advance();
+      if (it.done() || !it.frame()->is_wasm_compiled()) return;
+      frame = WasmCompiledFrame::cast(it.frame());
+    }
+
     if (static_cast<int>(frame->function_index()) != flooded_function_index_) {
       FloodWithBreakpoints(frame->function_index(), isolate);
       flooded_function_index_ = frame->function_index();
@@ -860,6 +869,19 @@ class DebugInfoImpl {
       PointerAuthentication::ReplacePC(frame->pc_address(), new_pc,
                                        kSystemPointerSize);
     }
+  }
+
+  bool IsAtReturn(WasmCompiledFrame* frame) {
+    DisallowHeapAllocation no_gc;
+    int position = frame->position();
+    NativeModule* native_module =
+        frame->wasm_instance().module_object().native_module();
+    uint8_t opcode = native_module->wire_bytes()[position];
+    if (opcode == kExprReturn) return true;
+    // Another implicit return is at the last kExprEnd in the function body.
+    int func_index = frame->function_index();
+    WireBytesRef code = native_module->module()->functions[func_index].code;
+    return static_cast<size_t>(position) == code.end_offset() - 1;
   }
 
   NativeModule* const native_module_;
