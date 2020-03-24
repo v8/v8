@@ -40,148 +40,83 @@ function genMemoryGrowBuilder() {
 var kV8MaxPages = 65536;
 
 
-// TODO(gdeepti): Generate tests programatically for all the sizes instead of
-// current implementation.
-function testMemoryGrowReadWrite32() {
+function testMemoryGrowReadWriteBase(size, load_fn, store_fn) {
+  // size is the number of bytes for load and stores.
   var builder = genMemoryGrowBuilder();
   builder.addMemory(1, undefined, false);
   var module = builder.instantiate();
   var offset;
-  function peek() { return module.exports.load(offset); }
-  function poke(value) { return module.exports.store(offset, value); }
+  var load = module.exports[load_fn];
+  var store = module.exports[store_fn];
+  function peek() { return load(offset); }
+  function poke(value) { return store(offset, value); }
   function growMem(pages) { return module.exports.grow_memory(pages); }
 
-  for(offset = 0; offset <= (kPageSize - 4); offset+=4) {
+  // Instead of checking every n-th offset, check the first 5.
+  for(offset = 0; offset <= (4*size); offset+=size) {
     poke(20);
     assertEquals(20, peek());
   }
-  for (offset = kPageSize - 3; offset < kPageSize + 4; offset++) {
+  for (offset = kPageSize - (size - 1); offset < kPageSize + size; offset++) {
     assertTraps(kTrapMemOutOfBounds, poke);
     assertTraps(kTrapMemOutOfBounds, peek);
   }
 
   assertEquals(1, growMem(3));
 
-  for (offset = kPageSize; offset <= 4*kPageSize -4; offset+=4) {
+  for (let n = 1; n <= 3; n++) {
+    for (offset = n * kPageSize - 5 * size; offset <= n * kPageSize + 4 * size;
+         offset += size) {
+      // Check the 5 offsets to the before and after the n-th page.
+      //    page n-1              page n          page n+1
+      //    +---- ... ------------+---------- ... +------ ...
+      //    | | | ... | | | | | | | | | | | | ... | | | | ...
+      //      <+>       ^                 ^
+      //       |        first offset      last offset
+      //       +-> size bytes
+      poke(20);
+      assertEquals(20, peek());
+    }
+  }
+
+  // Check the last 5 valid offsets of the last page.
+  for (offset = 4*kPageSize-size-(4*size); offset <= 4*kPageSize -size; offset+=size) {
     poke(20);
     assertEquals(20, peek());
   }
-  for (offset = 4*kPageSize - 3; offset < 4*kPageSize + 4; offset++) {
+
+  for (offset = 4*kPageSize - (size-1); offset < 4*kPageSize + size; offset++) {
     assertTraps(kTrapMemOutOfBounds, poke);
     assertTraps(kTrapMemOutOfBounds, peek);
   }
 
   assertEquals(4, growMem(15));
 
-  for (offset = 4*kPageSize - 3; offset <= 4*kPageSize + 4; offset+=4) {
+  for (offset = 4*kPageSize - (size-1); offset <= 4*kPageSize + size; offset+=size) {
     poke(20);
     assertEquals(20, peek());
   }
-  for (offset = 19*kPageSize - 10; offset <= 19*kPageSize - 4; offset+=4) {
+  for (offset = 19*kPageSize - 10; offset <= 19*kPageSize - size; offset+=size) {
     poke(20);
     assertEquals(20, peek());
   }
-  for (offset = 19*kPageSize - 3; offset < 19*kPageSize + 5; offset++) {
+  for (offset = 19*kPageSize - (size-1); offset < 19*kPageSize + 5; offset++) {
     assertTraps(kTrapMemOutOfBounds, poke);
     assertTraps(kTrapMemOutOfBounds, peek);
   }
 }
 
-testMemoryGrowReadWrite32();
+(function testMemoryGrowReadWrite32() {
+  testMemoryGrowReadWriteBase(4, "load", "store");
+})();
 
-function testMemoryGrowReadWrite16() {
-  var builder = genMemoryGrowBuilder();
-  builder.addMemory(1, undefined, false);
-  var module = builder.instantiate();
-  var offset;
-  function peek() { return module.exports.load16(offset); }
-  function poke(value) { return module.exports.store16(offset, value); }
-  function growMem(pages) { return module.exports.grow_memory(pages); }
+(function testMemoryGrowReadWrite16() {
+  testMemoryGrowReadWriteBase(2, "load16", "store16");
+})();
 
-  for(offset = 0; offset <= (kPageSize - 2); offset+=2) {
-    poke(20);
-    assertEquals(20, peek());
-  }
-  for (offset = kPageSize - 1; offset < kPageSize + 4; offset++) {
-    assertTraps(kTrapMemOutOfBounds, poke);
-    assertTraps(kTrapMemOutOfBounds, peek);
-  }
-
-  assertEquals(1, growMem(3));
-
-  for (offset = kPageSize; offset <= 4*kPageSize -2; offset+=2) {
-    poke(20);
-    assertEquals(20, peek());
-  }
-  for (offset = 4*kPageSize - 1; offset < 4*kPageSize + 4; offset++) {
-    assertTraps(kTrapMemOutOfBounds, poke);
-    assertTraps(kTrapMemOutOfBounds, peek);
-  }
-
-  assertEquals(4, growMem(15));
-
-  for (offset = 4*kPageSize - 2; offset <= 4*kPageSize + 4; offset+=2) {
-    poke(20);
-    assertEquals(20, peek());
-  }
-  for (offset = 19*kPageSize - 10; offset <= 19*kPageSize - 2; offset+=2) {
-    poke(20);
-    assertEquals(20, peek());
-  }
-  for (offset = 19*kPageSize - 1; offset < 19*kPageSize + 5; offset++) {
-    assertTraps(kTrapMemOutOfBounds, poke);
-    assertTraps(kTrapMemOutOfBounds, peek);
-  }
-}
-
-testMemoryGrowReadWrite16();
-
-function testMemoryGrowReadWrite8() {
-  var builder = genMemoryGrowBuilder();
-  builder.addMemory(1, undefined, false);
-  var module = builder.instantiate();
-  var offset;
-  function peek() { return module.exports.load8(offset); }
-  function poke(value) { return module.exports.store8(offset, value); }
-  function growMem(pages) { return module.exports.grow_memory(pages); }
-
-  for(offset = 0; offset <= kPageSize - 1; offset++) {
-    poke(20);
-    assertEquals(20, peek());
-  }
-  for (offset = kPageSize; offset < kPageSize + 4; offset++) {
-    assertTraps(kTrapMemOutOfBounds, poke);
-    assertTraps(kTrapMemOutOfBounds, peek);
-  }
-
-  assertEquals(1, growMem(3));
-
-  for (offset = kPageSize; offset <= 4*kPageSize -1; offset++) {
-    poke(20);
-    assertEquals(20, peek());
-  }
-  for (offset = 4*kPageSize; offset < 4*kPageSize + 4; offset++) {
-    assertTraps(kTrapMemOutOfBounds, poke);
-    assertTraps(kTrapMemOutOfBounds, peek);
-  }
-
-  assertEquals(4, growMem(15));
-
-  for (offset = 4*kPageSize; offset <= 4*kPageSize + 4; offset++) {
-    poke(20);
-    assertEquals(20, peek());
-  }
-  for (offset = 19*kPageSize - 10; offset <= 19*kPageSize - 1; offset++) {
-    poke(20);
-    assertEquals(20, peek());
-  }
-  for (offset = 19*kPageSize; offset < 19*kPageSize + 5; offset++) {
-    assertTraps(kTrapMemOutOfBounds, poke);
-    assertTraps(kTrapMemOutOfBounds, peek);
-  }
-}
-
-testMemoryGrowReadWrite8();
+(function testMemoryGrowReadWrite8() {
+  testMemoryGrowReadWriteBase(1, "load8", "store8");
+})();
 
 function testMemoryGrowZeroInitialSize() {
   var builder = genMemoryGrowBuilder();
@@ -217,13 +152,15 @@ function testMemoryGrowZeroInitialSize() {
 
 testMemoryGrowZeroInitialSize();
 
-function testMemoryGrowZeroInitialSize32() {
+function testMemoryGrowZeroInitialSizeBase(size, load_fn, store_fn) {
   var builder = genMemoryGrowBuilder();
   builder.addMemory(0, undefined, false);
   var module = builder.instantiate();
   var offset;
-  function peek() { return module.exports.load(offset); }
-  function poke(value) { return module.exports.store(offset, value); }
+  var load = module.exports[load_fn];
+  var store = module.exports[store_fn];
+  function peek() { return load(offset); }
+  function poke(value) { return store(offset, value); }
   function growMem(pages) { return module.exports.grow_memory(pages); }
 
   assertTraps(kTrapMemOutOfBounds, peek);
@@ -231,69 +168,34 @@ function testMemoryGrowZeroInitialSize32() {
 
   assertEquals(0, growMem(1));
 
-  for(offset = 0; offset <= kPageSize - 4; offset++) {
+  // Instead of checking every offset, check the first 5.
+  for(offset = 0; offset <= 4; offset++) {
     poke(20);
     assertEquals(20, peek());
   }
 
-  for(offset = kPageSize - 3; offset <= kPageSize + 5; offset++) {
-    assertTraps(kTrapMemOutOfBounds, peek);
-  }
-}
-
-testMemoryGrowZeroInitialSize32();
-
-function testMemoryGrowZeroInitialSize16() {
-  var builder = genMemoryGrowBuilder();
-  builder.addMemory(0, undefined, false);
-  var module = builder.instantiate();
-  var offset;
-  function peek() { return module.exports.load16(offset); }
-  function poke(value) { return module.exports.store16(offset, value); }
-  function growMem(pages) { return module.exports.grow_memory(pages); }
-
-  assertTraps(kTrapMemOutOfBounds, peek);
-  assertTraps(kTrapMemOutOfBounds, poke);
-
-  assertEquals(0, growMem(1));
-
-  for(offset = 0; offset <= kPageSize - 2; offset++) {
+  // Check the last 5 valid ones.
+  for(offset = kPageSize - (size * 4); offset <= kPageSize - size; offset++) {
     poke(20);
     assertEquals(20, peek());
   }
 
-  for(offset = kPageSize - 1; offset <= kPageSize + 5; offset++) {
+  for(offset = kPageSize - (size - 1); offset <= kPageSize + 5; offset++) {
     assertTraps(kTrapMemOutOfBounds, peek);
   }
 }
 
-testMemoryGrowZeroInitialSize16();
+(function testMemoryGrowZeroInitialSize32() {
+  testMemoryGrowZeroInitialSizeBase(4, "load", "store");
+})();
 
-function testMemoryGrowZeroInitialSize8() {
-  var builder = genMemoryGrowBuilder();
-  builder.addMemory(0, undefined, false);
-  var module = builder.instantiate();
-  var offset;
-  function peek() { return module.exports.load8(offset); }
-  function poke(value) { return module.exports.store8(offset, value); }
-  function growMem(pages) { return module.exports.grow_memory(pages); }
+(function testMemoryGrowZeroInitialSize16() {
+  testMemoryGrowZeroInitialSizeBase(2, "load16", "store16");
+})();
 
-  assertTraps(kTrapMemOutOfBounds, peek);
-  assertTraps(kTrapMemOutOfBounds, poke);
-
-  assertEquals(0, growMem(1));
-
-  for(offset = 0; offset <= kPageSize - 1; offset++) {
-    poke(20);
-    assertEquals(20, peek());
-  }
-
-  for(offset = kPageSize; offset <= kPageSize + 5; offset++) {
-    assertTraps(kTrapMemOutOfBounds, peek);
-  }
-}
-
-testMemoryGrowZeroInitialSize8();
+(function testMemoryGrowZeroInitialSize8() {
+  testMemoryGrowZeroInitialSizeBase(1, "load8", "store8");
+})();
 
 function testMemoryGrowTrapMaxPagesZeroInitialMemory() {
   var builder = genMemoryGrowBuilder();
