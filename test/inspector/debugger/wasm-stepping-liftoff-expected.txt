@@ -7,53 +7,54 @@ Setting breakpoint on offset 72 (should be propagated to 73, the offset of the c
     lineNumber : 0
     scriptId : <scriptId>
 }
-Paused at wasm://wasm/42af3c82:0:73
+Script wasm://wasm/42af3c82 byte offset 73: Wasm opcode 0x10
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:52
+Script wasm://wasm/42af3c82 byte offset 52: Wasm opcode 0x1
 Debugger.stepOver called
-Paused at wasm://wasm/42af3c82:0:53
+Script wasm://wasm/42af3c82 byte offset 53: Wasm opcode 0x1
 Debugger.stepOut called
-Paused at wasm://wasm/42af3c82:0:75
+Script wasm://wasm/42af3c82 byte offset 75: Wasm opcode 0xc
 Debugger.stepOut called
-Paused at wasm://wasm/42af3c82:0:73
+Script wasm://wasm/42af3c82 byte offset 73: Wasm opcode 0x10
 Debugger.stepOver called
-Paused at wasm://wasm/42af3c82:0:75
+Script wasm://wasm/42af3c82 byte offset 75: Wasm opcode 0xc
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:59
+Script wasm://wasm/42af3c82 byte offset 59: Wasm opcode 0x20
 Debugger.resume called
-Paused at wasm://wasm/42af3c82:0:73
+Script wasm://wasm/42af3c82 byte offset 73: Wasm opcode 0x10
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:52
+Script wasm://wasm/42af3c82 byte offset 52: Wasm opcode 0x1
 Debugger.stepOut called
-Paused at wasm://wasm/42af3c82:0:75
+Script wasm://wasm/42af3c82 byte offset 75: Wasm opcode 0xc
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:59
+Script wasm://wasm/42af3c82 byte offset 59: Wasm opcode 0x20
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:61
+Script wasm://wasm/42af3c82 byte offset 61: Wasm opcode 0x4
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:63
+Script wasm://wasm/42af3c82 byte offset 63: Wasm opcode 0x20
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:65
+Script wasm://wasm/42af3c82 byte offset 65: Wasm opcode 0x41
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:67
+Script wasm://wasm/42af3c82 byte offset 67: Wasm opcode 0x6b
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:68
+Script wasm://wasm/42af3c82 byte offset 68: Wasm opcode 0x21
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:70
+Script wasm://wasm/42af3c82 byte offset 70: Wasm opcode 0x41
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:73
+Script wasm://wasm/42af3c82 byte offset 73: Wasm opcode 0x10
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:52
+Script wasm://wasm/42af3c82 byte offset 52: Wasm opcode 0x1
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:53
+Script wasm://wasm/42af3c82 byte offset 53: Wasm opcode 0x1
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:54
+Script wasm://wasm/42af3c82 byte offset 54: Wasm opcode 0xb
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:75
+Script wasm://wasm/42af3c82 byte offset 75: Wasm opcode 0xc
 Debugger.stepInto called
-Paused at wasm://wasm/42af3c82:0:59
+Script wasm://wasm/42af3c82 byte offset 59: Wasm opcode 0x20
 Debugger.resume called
-Paused at :0:24
+instance.exports.main(4)#
+
 Debugger.resume called
 exports.main returned!
 Test stepping over a recursive call
@@ -63,9 +64,9 @@ Setting breakpoint on the recursive call instruction @+93, url wasm://wasm/42af3
     lineNumber : 0
     scriptId : <scriptId>
 }
-Paused at wasm://wasm/42af3c82:0:93
+Script wasm://wasm/42af3c82 byte offset 93: Wasm opcode 0x10
 Removing breakpoint
 Debugger.stepOver called
-Paused at wasm://wasm/42af3c82:0:95
+Script wasm://wasm/42af3c82 byte offset 95: Wasm opcode 0x20
 Debugger.resume called
 Finished!

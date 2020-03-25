@@ -7,7 +7,7 @@ Setting breakpoint on offset 59 (should be propagated to 60, the offset of the c
     lineNumber : 0
     scriptId : <scriptId>
 }
-Paused at wasm://wasm/befe41aa:0:60
+Script wasm://wasm/befe41aa byte offset 60: Wasm opcode 0x10
 at wasm_B (0:60):
  - scope (global):
    -- skipped
@@ -18,7 +18,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:39
+Script wasm://wasm/befe41aa byte offset 39: Wasm opcode 0x1
 at wasm_A (0:39):
  - scope (global):
    -- skipped
@@ -35,7 +35,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOver called
-Paused at wasm://wasm/befe41aa:0:40
+Script wasm://wasm/befe41aa byte offset 40: Wasm opcode 0x1
 at wasm_A (0:40):
  - scope (global):
    -- skipped
@@ -52,7 +52,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOut called
-Paused at wasm://wasm/befe41aa:0:62
+Script wasm://wasm/befe41aa byte offset 62: Wasm opcode 0xc
 at wasm_B (0:62):
  - scope (global):
    -- skipped
@@ -63,7 +63,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOut called
-Paused at wasm://wasm/befe41aa:0:60
+Script wasm://wasm/befe41aa byte offset 60: Wasm opcode 0x10
 at wasm_B (0:60):
  - scope (global):
    -- skipped
@@ -74,7 +74,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOver called
-Paused at wasm://wasm/befe41aa:0:62
+Script wasm://wasm/befe41aa byte offset 62: Wasm opcode 0xc
 at wasm_B (0:62):
  - scope (global):
    -- skipped
@@ -85,7 +85,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:44
+Script wasm://wasm/befe41aa byte offset 44: Wasm opcode 0x3
 at wasm_B (0:44):
  - scope (global):
    -- skipped
@@ -96,7 +96,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.resume called
-Paused at wasm://wasm/befe41aa:0:60
+Script wasm://wasm/befe41aa byte offset 60: Wasm opcode 0x10
 at wasm_B (0:60):
  - scope (global):
    -- skipped
@@ -107,7 +107,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:39
+Script wasm://wasm/befe41aa byte offset 39: Wasm opcode 0x1
 at wasm_A (0:39):
  - scope (global):
    -- skipped
@@ -124,7 +124,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOut called
-Paused at wasm://wasm/befe41aa:0:62
+Script wasm://wasm/befe41aa byte offset 62: Wasm opcode 0xc
 at wasm_B (0:62):
  - scope (global):
    -- skipped
@@ -135,7 +135,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:44
+Script wasm://wasm/befe41aa byte offset 44: Wasm opcode 0x3
 at wasm_B (0:44):
  - scope (global):
    -- skipped
@@ -146,7 +146,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:46
+Script wasm://wasm/befe41aa byte offset 46: Wasm opcode 0x20
 at wasm_B (0:46):
  - scope (global):
    -- skipped
@@ -157,7 +157,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:48
+Script wasm://wasm/befe41aa byte offset 48: Wasm opcode 0x4
 at wasm_B (0:48):
  - scope (global):
    -- skipped
@@ -168,7 +168,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:50
+Script wasm://wasm/befe41aa byte offset 50: Wasm opcode 0x20
 at wasm_B (0:50):
  - scope (global):
    -- skipped
@@ -179,7 +179,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:52
+Script wasm://wasm/befe41aa byte offset 52: Wasm opcode 0x41
 at wasm_B (0:52):
  - scope (global):
    -- skipped
@@ -190,7 +190,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:54
+Script wasm://wasm/befe41aa byte offset 54: Wasm opcode 0x6b
 at wasm_B (0:54):
  - scope (global):
    -- skipped
@@ -201,7 +201,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:55
+Script wasm://wasm/befe41aa byte offset 55: Wasm opcode 0x21
 at wasm_B (0:55):
  - scope (global):
    -- skipped
@@ -212,7 +212,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:57
+Script wasm://wasm/befe41aa byte offset 57: Wasm opcode 0x41
 at wasm_B (0:57):
  - scope (global):
    -- skipped
@@ -223,7 +223,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:60
+Script wasm://wasm/befe41aa byte offset 60: Wasm opcode 0x10
 at wasm_B (0:60):
  - scope (global):
    -- skipped
@@ -234,7 +234,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:39
+Script wasm://wasm/befe41aa byte offset 39: Wasm opcode 0x1
 at wasm_A (0:39):
  - scope (global):
    -- skipped
@@ -251,7 +251,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:40
+Script wasm://wasm/befe41aa byte offset 40: Wasm opcode 0x1
 at wasm_A (0:40):
  - scope (global):
    -- skipped
@@ -268,7 +268,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:41
+Script wasm://wasm/befe41aa byte offset 41: Wasm opcode 0xb
 at wasm_A (0:41):
  - scope (global):
    -- skipped
@@ -285,7 +285,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/befe41aa:0:62
+Script wasm://wasm/befe41aa byte offset 62: Wasm opcode 0xc
 at wasm_B (0:62):
  - scope (global):
    -- skipped

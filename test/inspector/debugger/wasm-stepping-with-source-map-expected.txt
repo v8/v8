@@ -10,7 +10,7 @@ Setting breakpoint on offset 54 (on the setlocal before the call), url wasm://wa
     lineNumber : 0
     scriptId : <scriptId>
 }
-Paused at wasm://wasm/9b4bf87e:0:54
+Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21
 at wasm_B (0:54):
  - scope (global):
    -- skipped
@@ -21,7 +21,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:56
+Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10
 at wasm_B (0:56):
  - scope (global):
    -- skipped
@@ -32,7 +32,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:38
+Script wasm://wasm/9b4bf87e byte offset 38: Wasm opcode 0x1
 at wasm_A (0:38):
  - scope (global):
    -- skipped
@@ -48,7 +48,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOver called
-Paused at wasm://wasm/9b4bf87e:0:39
+Script wasm://wasm/9b4bf87e byte offset 39: Wasm opcode 0x1
 at wasm_A (0:39):
  - scope (global):
    -- skipped
@@ -64,7 +64,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOut called
-Paused at wasm://wasm/9b4bf87e:0:58
+Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0xc
 at wasm_B (0:58):
  - scope (global):
    -- skipped
@@ -75,7 +75,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOut called
-Paused at wasm://wasm/9b4bf87e:0:54
+Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21
 at wasm_B (0:54):
  - scope (global):
    -- skipped
@@ -86,7 +86,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOver called
-Paused at wasm://wasm/9b4bf87e:0:56
+Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10
 at wasm_B (0:56):
  - scope (global):
    -- skipped
@@ -97,7 +97,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOver called
-Paused at wasm://wasm/9b4bf87e:0:58
+Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0xc
 at wasm_B (0:58):
  - scope (global):
    -- skipped
@@ -108,7 +108,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.resume called
-Paused at wasm://wasm/9b4bf87e:0:54
+Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21
 at wasm_B (0:54):
  - scope (global):
    -- skipped
@@ -119,7 +119,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:56
+Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10
 at wasm_B (0:56):
  - scope (global):
    -- skipped
@@ -130,7 +130,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:38
+Script wasm://wasm/9b4bf87e byte offset 38: Wasm opcode 0x1
 at wasm_A (0:38):
  - scope (global):
    -- skipped
@@ -146,7 +146,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOut called
-Paused at wasm://wasm/9b4bf87e:0:58
+Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0xc
 at wasm_B (0:58):
  - scope (global):
    -- skipped
@@ -157,7 +157,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:43
+Script wasm://wasm/9b4bf87e byte offset 43: Wasm opcode 0x3
 at wasm_B (0:43):
  - scope (global):
    -- skipped
@@ -168,7 +168,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:45
+Script wasm://wasm/9b4bf87e byte offset 45: Wasm opcode 0x20
 at wasm_B (0:45):
  - scope (global):
    -- skipped
@@ -179,7 +179,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:47
+Script wasm://wasm/9b4bf87e byte offset 47: Wasm opcode 0x4
 at wasm_B (0:47):
  - scope (global):
    -- skipped
@@ -190,7 +190,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:49
+Script wasm://wasm/9b4bf87e byte offset 49: Wasm opcode 0x20
 at wasm_B (0:49):
  - scope (global):
    -- skipped
@@ -201,7 +201,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:51
+Script wasm://wasm/9b4bf87e byte offset 51: Wasm opcode 0x41
 at wasm_B (0:51):
  - scope (global):
    -- skipped
@@ -212,7 +212,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:53
+Script wasm://wasm/9b4bf87e byte offset 53: Wasm opcode 0x6b
 at wasm_B (0:53):
  - scope (global):
    -- skipped
@@ -223,7 +223,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:54
+Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21
 at wasm_B (0:54):
  - scope (global):
    -- skipped
@@ -234,7 +234,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:56
+Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10
 at wasm_B (0:56):
  - scope (global):
    -- skipped
@@ -245,7 +245,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:38
+Script wasm://wasm/9b4bf87e byte offset 38: Wasm opcode 0x1
 at wasm_A (0:38):
  - scope (global):
    -- skipped
@@ -261,7 +261,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:39
+Script wasm://wasm/9b4bf87e byte offset 39: Wasm opcode 0x1
 at wasm_A (0:39):
  - scope (global):
    -- skipped
@@ -277,7 +277,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:40
+Script wasm://wasm/9b4bf87e byte offset 40: Wasm opcode 0xb
 at wasm_A (0:40):
  - scope (global):
    -- skipped
@@ -293,7 +293,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/9b4bf87e:0:58
+Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0xc
 at wasm_B (0:58):
  - scope (global):
    -- skipped

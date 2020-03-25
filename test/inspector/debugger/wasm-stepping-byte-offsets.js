@@ -4,6 +4,7 @@
 
 let {session, contextGroup, Protocol} =
     InspectorTest.start('Tests stepping through wasm scripts by byte offsets');
+session.setupScriptMap();
 
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -95,9 +96,7 @@ function instantiate(bytes) {
 
 async function waitForPauseAndStep(stepAction) {
   const {params: {callFrames}} = await Protocol.Debugger.oncePaused();
-  const topFrame = callFrames[0];
-  InspectorTest.log(
-      `Paused at ${topFrame.url}:${topFrame.location.lineNumber}:${topFrame.location.columnNumber}`);
+  await session.logSourceLocation(callFrames[0].location);
   for (var frame of callFrames) {
     const functionName = frame.functionName || '(anonymous)';
     const lineNumber = frame.location.lineNumber;
