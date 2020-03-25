@@ -15,7 +15,6 @@ OffThreadIsolate::OffThreadIsolate(Isolate* isolate, Zone* zone)
     : HiddenOffThreadFactory(isolate),
       isolate_(isolate),
       logger_(new OffThreadLogger()),
-      thread_id_(ThreadId::Current()),
       handle_zone_(zone) {}
 OffThreadIsolate::~OffThreadIsolate() { delete logger_; }
 
@@ -35,6 +34,11 @@ bool OffThreadIsolate::NeedsSourcePositionsForProfiling() {
 bool OffThreadIsolate::is_collecting_type_profile() {
   // TODO(leszeks): Figure out if it makes sense to check this asynchronously.
   return isolate_->is_collecting_type_profile();
+}
+
+void OffThreadIsolate::PinToCurrentThread() {
+  DCHECK(!thread_id_.IsValid());
+  thread_id_ = ThreadId::Current();
 }
 
 }  // namespace internal

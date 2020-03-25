@@ -1285,6 +1285,8 @@ void BackgroundCompileTask::Run() {
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.FinalizeCodeBackground");
 
+      off_thread_isolate_->PinToCurrentThread();
+
       OffThreadHandleScope handle_scope(off_thread_isolate_.get());
 
       // We don't have the script source or the script origin yet, so use a few

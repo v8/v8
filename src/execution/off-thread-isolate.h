@@ -78,6 +78,7 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
 
   OffThreadLogger* logger() { return logger_; }
 
+  void PinToCurrentThread();
   ThreadId thread_id() { return thread_id_; }
 
  private:
