@@ -203,6 +203,16 @@ inline void CheckedDecrement(std::atomic<T>* number, T amount) {
   USE(old);
 }
 
+template <typename T>
+V8_INLINE std::atomic<T>* AsAtomicPtr(T* t) {
+  return reinterpret_cast<std::atomic<T>*>(t);
+}
+
+template <typename T>
+V8_INLINE const std::atomic<T>* AsAtomicPtr(const T* t) {
+  return reinterpret_cast<const std::atomic<T>*>(t);
+}
+
 }  // namespace base
 }  // namespace v8
 

@@ -3927,6 +3927,8 @@ v8_source_set("cppgc_base") {
   visibility = [ ":*" ]
 
   sources = [
+    "include/cppgc/allocation.h",
+    "include/cppgc/api-constants.h",
     "include/cppgc/finalizer-trait.h",
     "include/cppgc/gc-info.h",
     "include/cppgc/platform.h",
@@ -3934,6 +3936,9 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/gc-info-table.cc",
     "src/heap/cppgc/gc-info-table.h",
     "src/heap/cppgc/gc-info.cc",
+    "src/heap/cppgc/heap-object-header-inl.h",
+    "src/heap/cppgc/heap-object-header.cc",
+    "src/heap/cppgc/heap-object-header.h",
   ]
 
   configs = [ ":internal_config" ]
