@@ -133,8 +133,8 @@ class ConcurrentGCThread final : public v8::base::Thread {
   void Run() final {
     while (header_->IsInConstruction<HeapObjectHeader::AccessMode::kAtomic>()) {
     }
-    v8::base::AsAtomicPtr(const_cast<size_t*>(&payload_->value))
-        ->load(std::memory_order_relaxed);
+    USE(v8::base::AsAtomicPtr(const_cast<size_t*>(&payload_->value))
+            ->load(std::memory_order_relaxed));
   }
 
  private:
