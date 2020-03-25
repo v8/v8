@@ -709,16 +709,23 @@ class DebugInfoImpl {
     DCHECK(!it.done());
     DCHECK(it.frame()->is_wasm_compiled());
     WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
+    StepAction step_action = isolate->debug()->last_step_action();
 
     // If we are at a return instruction, then any stepping action is equivalent
     // to StepOut, and we need to flood the parent function.
-    if (IsAtReturn(frame)) {
+    if (IsAtReturn(frame) || step_action == StepOut) {
       it.Advance();
       if (it.done() || !it.frame()->is_wasm_compiled()) return;
       frame = WasmCompiledFrame::cast(it.frame());
     }
 
     if (static_cast<int>(frame->function_index()) != flooded_function_index_) {
+      if (flooded_function_index_ != -1) {
+        std::vector<int>& breakpoints =
+            breakpoints_per_function_[flooded_function_index_];
+        RecompileLiftoffWithBreakpoints(flooded_function_index_,
+                                        VectorOf(breakpoints), isolate);
+      }
       FloodWithBreakpoints(frame->function_index(), isolate);
       flooded_function_index_ = frame->function_index();
     }

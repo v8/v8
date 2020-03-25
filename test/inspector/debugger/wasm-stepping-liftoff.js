@@ -93,15 +93,15 @@ function instantiate(bytes) {
 
   InspectorTest.logMessage(bpmsg.result.actualLocation);
   Protocol.Runtime.evaluate({ expression: 'instance.exports.main(4)' });
-  await waitForPauseAndStep('stepOver');  // over call to wasm_A
-  await waitForPauseAndStep('resume');    // stop on breakpoint
+  await waitForPauseAndStep('stepInto');  // into call to wasm_A
+  await waitForPauseAndStep('stepOver');  // over first nop
+  await waitForPauseAndStep('stepOut');   // out of wasm_A
+  await waitForPauseAndStep('stepOut');   // out of wasm_B, stop on breakpoint
   await waitForPauseAndStep('stepOver');  // over call
   await waitForPauseAndStep('stepInto');  // == stepOver br
   await waitForPauseAndStep('resume');    // to next breakpoint (3rd iteration)
   await waitForPauseAndStep('stepInto');  // into wasm_A
-  // Step out of wasm_A, back to wasm_B.
-  // TODO(clemensb/thibaudm): Replace by an actual 'stepOut'.
-  for (let i = 0; i < 3; ++i) await waitForPauseAndStep('stepOver');
+  await waitForPauseAndStep('stepOut');   // out to wasm_B
   // Now step 10 times, until we are in wasm_A again.
   for (let i = 0; i < 10; ++i) await waitForPauseAndStep('stepInto');
   // 3 more times, back to wasm_B.

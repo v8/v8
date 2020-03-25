@@ -8,9 +8,13 @@ Setting breakpoint on offset 72 (should be propagated to 73, the offset of the c
     scriptId : <scriptId>
 }
 Paused at wasm://wasm/42af3c82:0:73
+Debugger.stepInto called
+Paused at wasm://wasm/42af3c82:0:52
 Debugger.stepOver called
+Paused at wasm://wasm/42af3c82:0:53
+Debugger.stepOut called
 Paused at wasm://wasm/42af3c82:0:75
-Debugger.resume called
+Debugger.stepOut called
 Paused at wasm://wasm/42af3c82:0:73
 Debugger.stepOver called
 Paused at wasm://wasm/42af3c82:0:75
@@ -20,11 +24,7 @@ Debugger.resume called
 Paused at wasm://wasm/42af3c82:0:73
 Debugger.stepInto called
 Paused at wasm://wasm/42af3c82:0:52
-Debugger.stepOver called
-Paused at wasm://wasm/42af3c82:0:53
-Debugger.stepOver called
-Paused at wasm://wasm/42af3c82:0:54
-Debugger.stepOver called
+Debugger.stepOut called
 Paused at wasm://wasm/42af3c82:0:75
 Debugger.stepInto called
 Paused at wasm://wasm/42af3c82:0:59
