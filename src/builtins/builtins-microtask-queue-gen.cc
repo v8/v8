@@ -226,9 +226,13 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<Object> preserved_embedder_data = LoadObjectField(
         microtask,
         PromiseReactionJobTask::kContinuationPreservedEmbedderDataOffset);
+    Label preserved_data_done(this);
+    GotoIf(IsUndefined(preserved_embedder_data), &preserved_data_done);
     StoreContextElement(native_context,
                         Context::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX,
                         preserved_embedder_data);
+    Goto(&preserved_data_done);
+    BIND(&preserved_data_done);
 
     // Run the promise before/debug hook if enabled.
     RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
@@ -244,9 +248,13 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
                    promise_or_capability);
 
+    Label preserved_data_reset_done(this);
+    GotoIf(IsUndefined(preserved_embedder_data), &preserved_data_reset_done);
     StoreContextElement(native_context,
                         Context::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX,
                         UndefinedConstant());
+    Goto(&preserved_data_reset_done);
+    BIND(&preserved_data_reset_done);
 
     RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
@@ -271,9 +279,13 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<Object> preserved_embedder_data = LoadObjectField(
         microtask,
         PromiseReactionJobTask::kContinuationPreservedEmbedderDataOffset);
+    Label preserved_data_done(this);
+    GotoIf(IsUndefined(preserved_embedder_data), &preserved_data_done);
     StoreContextElement(native_context,
                         Context::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX,
                         preserved_embedder_data);
+    Goto(&preserved_data_done);
+    BIND(&preserved_data_done);
 
     // Run the promise before/debug hook if enabled.
     RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
@@ -289,9 +301,13 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
                    promise_or_capability);
 
+    Label preserved_data_reset_done(this);
+    GotoIf(IsUndefined(preserved_embedder_data), &preserved_data_reset_done);
     StoreContextElement(native_context,
                         Context::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX,
                         UndefinedConstant());
+    Goto(&preserved_data_reset_done);
+    BIND(&preserved_data_reset_done);
 
     RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
