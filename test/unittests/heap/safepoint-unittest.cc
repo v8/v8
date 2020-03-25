@@ -13,9 +13,9 @@
 namespace v8 {
 namespace internal {
 
-using SafepoinTest = TestWithIsolate;
+using SafepointTest = TestWithIsolate;
 
-TEST_F(SafepoinTest, ReachSafepointWithoutLocalHeaps) {
+TEST_F(SafepointTest, ReachSafepointWithoutLocalHeaps) {
   Heap* heap = i_isolate()->heap();
   bool run = false;
   {
@@ -45,7 +45,7 @@ class ParkedThread final : public v8::base::Thread {
   base::Mutex* mutex_;
 };
 
-TEST_F(SafepoinTest, StopParkedThreads) {
+TEST_F(SafepointTest, StopParkedThreads) {
   Heap* heap = i_isolate()->heap();
 
   int safepoints = 0;
@@ -103,7 +103,7 @@ class RunningThread final : public v8::base::Thread {
   std::atomic<int>* counter_;
 };
 
-TEST_F(SafepoinTest, StopRunningThreads) {
+TEST_F(SafepointTest, StopRunningThreads) {
   Heap* heap = i_isolate()->heap();
 
   const int kThreads = 10;

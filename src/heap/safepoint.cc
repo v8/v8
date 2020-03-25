@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/heap/safepoint.h"
+
+#include "src/handles/local-handles.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
 
@@ -10,6 +12,10 @@ namespace v8 {
 namespace internal {
 
 Safepoint::Safepoint(Heap* heap) : heap_(heap), local_heaps_head_(nullptr) {}
+
+void Safepoint::Start() { StopThreads(); }
+
+void Safepoint::End() { ResumeThreads(); }
 
 void Safepoint::StopThreads() {
   local_heaps_mutex_.Lock();
@@ -115,6 +121,13 @@ bool Safepoint::ContainsLocalHeap(LocalHeap* local_heap) {
 bool Safepoint::ContainsAnyLocalHeap() {
   base::MutexGuard guard(&local_heaps_mutex_);
   return local_heaps_head_ != nullptr;
+}
+
+void Safepoint::Iterate(RootVisitor* visitor) {
+  for (LocalHeap* current = local_heaps_head_; current;
+       current = current->next_) {
+    current->handles()->Iterate(visitor);
+  }
 }
 
 }  // namespace internal

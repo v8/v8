@@ -822,12 +822,6 @@ void Heap::GarbageCollectionPrologue() {
   {
     AllowHeapAllocation for_the_first_part_of_prologue;
     gc_count_++;
-
-#ifdef VERIFY_HEAP
-    if (FLAG_verify_heap) {
-      Verify();
-    }
-#endif
   }
 
   // Reset GC statistics.
@@ -1120,12 +1114,6 @@ void Heap::GarbageCollectionEpilogue() {
   if (Heap::ShouldZapGarbage() || FLAG_clear_free_memory) {
     ZapFromSpace();
   }
-
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    Verify();
-  }
-#endif
 
   AllowHeapAllocation for_the_rest_of_the_epilogue;
 
@@ -2022,6 +2010,13 @@ bool Heap::PerformGarbageCollection(
     }
   }
 
+  if (FLAG_local_heaps) safepoint()->Start();
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    Verify();
+  }
+#endif
+
   EnsureFromSpaceIsCommitted();
 
   size_t start_young_generation_size =
@@ -2094,6 +2089,13 @@ bool Heap::PerformGarbageCollection(
     // can potentially trigger recursive garbage
     local_embedder_heap_tracer()->TraceEpilogue();
   }
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    Verify();
+  }
+#endif
+  if (FLAG_local_heaps) safepoint()->End();
 
   {
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);
@@ -4467,6 +4469,12 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   FixStaleLeftTrimmedHandlesVisitor left_trim_visitor(this);
   isolate_->handle_scope_implementer()->Iterate(&left_trim_visitor);
   isolate_->handle_scope_implementer()->Iterate(v);
+
+  if (FLAG_local_heaps) {
+    safepoint_->Iterate(&left_trim_visitor);
+    safepoint_->Iterate(v);
+  }
+
   isolate_->IterateDeferredHandles(&left_trim_visitor);
   isolate_->IterateDeferredHandles(v);
   v->Synchronize(VisitorSynchronization::kHandleScope);

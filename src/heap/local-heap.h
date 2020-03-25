@@ -6,6 +6,7 @@
 #define V8_HEAP_LOCAL_HEAP_H_
 
 #include <atomic>
+#include <memory>
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
@@ -15,6 +16,7 @@ namespace internal {
 
 class Heap;
 class Safepoint;
+class LocalHandles;
 
 class LocalHeap {
  public:
@@ -28,6 +30,8 @@ class LocalHeap {
   // Frequently invoked by local thread to check whether safepoint was requested
   // from the main thread.
   V8_EXPORT_PRIVATE void Safepoint();
+
+  LocalHandles* handles() { return handles_.get(); }
 
  private:
   enum class ThreadState {
@@ -59,6 +63,8 @@ class LocalHeap {
 
   LocalHeap* prev_;
   LocalHeap* next_;
+
+  std::unique_ptr<LocalHandles> handles_;
 
   friend class Heap;
   friend class Safepoint;

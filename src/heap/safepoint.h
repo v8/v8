@@ -13,6 +13,7 @@ namespace internal {
 
 class Heap;
 class LocalHeap;
+class RootVisitor;
 
 class Safepoint {
  public:
@@ -23,6 +24,13 @@ class Safepoint {
 
   V8_EXPORT_PRIVATE bool ContainsLocalHeap(LocalHeap* local_heap);
   V8_EXPORT_PRIVATE bool ContainsAnyLocalHeap();
+
+  // Iterate handles in local heaps
+  void Iterate(RootVisitor* visitor);
+
+  // Use these methods now instead of the more intrusive SafepointScope
+  void Start();
+  void End();
 
  private:
   class Barrier {

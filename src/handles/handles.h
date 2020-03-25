@@ -21,6 +21,7 @@ namespace internal {
 class DeferredHandles;
 class HandleScopeImplementer;
 class Isolate;
+class LocalHeap;
 class OffThreadIsolate;
 template <typename T>
 class MaybeHandle;
@@ -28,6 +29,7 @@ class Object;
 class OrderedHashMap;
 class OrderedHashSet;
 class OrderedNameDictionary;
+class RootVisitor;
 class SmallOrderedHashMap;
 class SmallOrderedHashSet;
 class SmallOrderedNameDictionary;
@@ -40,6 +42,7 @@ class HandleBase {
   V8_INLINE explicit HandleBase(Address* location) : location_(location) {}
   V8_INLINE explicit HandleBase(Address object, Isolate* isolate);
   V8_INLINE explicit HandleBase(Address object, OffThreadIsolate* isolate);
+  V8_INLINE explicit HandleBase(Address object, LocalHeap* local_heap);
 
   // Check if this handle refers to the exact same object as the other handle.
   V8_INLINE bool is_identical_to(const HandleBase that) const {
@@ -121,6 +124,7 @@ class Handle final : public HandleBase {
 
   V8_INLINE Handle(T object, Isolate* isolate);
   V8_INLINE Handle(T object, OffThreadIsolate* isolate);
+  V8_INLINE Handle(T object, LocalHeap* local_heap);
 
   // Allocate a new handle for the object, do not canonicalize.
   V8_INLINE static Handle<T> New(T object, Isolate* isolate);

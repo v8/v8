@@ -8,16 +8,22 @@
 #include "src/execution/isolate.h"
 #include "src/execution/off-thread-isolate.h"
 #include "src/handles/handles.h"
+#include "src/handles/local-handles-inl.h"
 #include "src/sanitizer/msan.h"
 
 namespace v8 {
 namespace internal {
+
+class LocalHeap;
 
 HandleBase::HandleBase(Address object, Isolate* isolate)
     : location_(HandleScope::GetHandle(isolate, object)) {}
 
 HandleBase::HandleBase(Address object, OffThreadIsolate* isolate)
     : location_(isolate->NewHandle(object)) {}
+
+HandleBase::HandleBase(Address object, LocalHeap* local_heap)
+    : location_(LocalHandleScope::GetHandle(local_heap, object)) {}
 
 // Allocate a new handle for the object, do not canonicalize.
 
@@ -42,6 +48,10 @@ Handle<T>::Handle(T object, OffThreadIsolate* isolate)
     : HandleBase(object.ptr(), isolate) {}
 
 template <typename T>
+Handle<T>::Handle(T object, LocalHeap* local_heap)
+    : HandleBase(object.ptr(), local_heap) {}
+
+template <typename T>
 V8_INLINE Handle<T> handle(T object, Isolate* isolate) {
   return Handle<T>(object, isolate);
 }
@@ -49,6 +59,11 @@ V8_INLINE Handle<T> handle(T object, Isolate* isolate) {
 template <typename T>
 V8_INLINE Handle<T> handle(T object, OffThreadIsolate* isolate) {
   return Handle<T>(object, isolate);
+}
+
+template <typename T>
+V8_INLINE Handle<T> handle(T object, LocalHeap* local_heap) {
+  return Handle<T>(object, local_heap);
 }
 
 // Convenience overloads for when we already have a Handle, but want
@@ -60,6 +75,10 @@ V8_INLINE Handle<T> handle(Handle<T> handle, Isolate* isolate) {
 template <typename T>
 V8_INLINE Handle<T> handle(Handle<T> handle, OffThreadIsolate* isolate) {
   return Handle<T>(*handle);
+}
+template <typename T>
+V8_INLINE Handle<T> handle(Handle<T> handle, LocalHeap* local_heap) {
+  return Handle<T>(*handle, local_heap);
 }
 
 template <typename T>

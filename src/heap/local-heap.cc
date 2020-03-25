@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/heap/local-heap.h"
+#include "src/handles/local-handles.h"
 #include "src/heap/heap.h"
 #include "src/heap/safepoint.h"
 
@@ -14,7 +15,8 @@ LocalHeap::LocalHeap(Heap* heap)
       state_(ThreadState::Running),
       safepoint_requested_(false),
       prev_(nullptr),
-      next_(nullptr) {
+      next_(nullptr),
+      handles_(new LocalHandles) {
   heap_->safepoint()->AddLocalHeap(this);
 }
 

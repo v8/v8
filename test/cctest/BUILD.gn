@@ -219,6 +219,7 @@ v8_source_set("cctest_sources") {
     "test-intl.cc",
     "test-js-weak-refs.cc",
     "test-liveedit.cc",
+    "test-local-handles.cc",
     "test-lockers.cc",
     "test-log.cc",
     "test-managed.cc",
