@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Disable Liftoff to get deterministic (non-existing) scope information for
-// compiled frames.
-// Flags: --no-liftoff
+// Flags: --debug-in-liftoff
 
 let {session, contextGroup, Protocol} = InspectorTest.start(
     'Test retrieving scope information when pausing in wasm functions');

@@ -332,6 +332,19 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
+Script wasm://wasm/d374ef0a byte offset 60: Wasm opcode 0xb
+Scope:
+at call_func (0:60):
+ - scope (global):
+   globals: "global0": 15 (number)
+ - scope (local):
+   locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
+   stack: 
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
 instance.exports.main(4)#
 
 Scope:
