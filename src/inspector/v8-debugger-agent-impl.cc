@@ -243,6 +243,8 @@ String16 scopeType(v8::debug::ScopeIterator::ScopeType type) {
       return Scope::TypeEnum::Eval;
     case v8::debug::ScopeIterator::ScopeTypeModule:
       return Scope::TypeEnum::Module;
+    case v8::debug::ScopeIterator::ScopeTypeWasmExpressionStack:
+      return Scope::TypeEnum::WasmExpressionStack;
   }
   UNREACHABLE();
   return String16();

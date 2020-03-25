@@ -423,7 +423,8 @@ class V8_EXPORT_PRIVATE ScopeIterator {
     ScopeTypeBlock,
     ScopeTypeScript,
     ScopeTypeEval,
-    ScopeTypeModule
+    ScopeTypeModule,
+    ScopeTypeWasmExpressionStack
   };
 
   virtual bool Done() = 0;

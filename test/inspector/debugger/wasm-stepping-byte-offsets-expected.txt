@@ -14,6 +14,8 @@ at wasm_B (0:60):
  - scope (local):
    locals: {"var0":3}
    stack: {"0":1024}
+ - scope (wasm-expression-stack):
+   {"0":1024}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -25,12 +27,16 @@ at wasm_A (0:39):
  - scope (local):
    locals: {"var0":1024}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at wasm_B (0:60):
  - scope (global):
    -- skipped
  - scope (local):
    locals: {"var0":3}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -42,12 +48,16 @@ at wasm_A (0:40):
  - scope (local):
    locals: {"var0":1024}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at wasm_B (0:60):
  - scope (global):
    -- skipped
  - scope (local):
    locals: {"var0":3}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -59,6 +69,8 @@ at wasm_B (0:62):
  - scope (local):
    locals: {"var0":3}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -70,6 +82,8 @@ at wasm_B (0:60):
  - scope (local):
    locals: {"var0":2}
    stack: {"0":1024}
+ - scope (wasm-expression-stack):
+   {"0":1024}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -81,6 +95,8 @@ at wasm_B (0:62):
  - scope (local):
    locals: {"var0":2}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -92,6 +108,8 @@ at wasm_B (0:44):
  - scope (local):
    locals: {"var0":2}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -103,6 +121,8 @@ at wasm_B (0:60):
  - scope (local):
    locals: {"var0":1}
    stack: {"0":1024}
+ - scope (wasm-expression-stack):
+   {"0":1024}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -114,12 +134,16 @@ at wasm_A (0:39):
  - scope (local):
    locals: {"var0":1024}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at wasm_B (0:60):
  - scope (global):
    -- skipped
  - scope (local):
    locals: {"var0":1}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -131,6 +155,8 @@ at wasm_B (0:62):
  - scope (local):
    locals: {"var0":1}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -142,6 +168,8 @@ at wasm_B (0:44):
  - scope (local):
    locals: {"var0":1}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -153,6 +181,8 @@ at wasm_B (0:46):
  - scope (local):
    locals: {"var0":1}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -164,6 +194,8 @@ at wasm_B (0:48):
  - scope (local):
    locals: {"var0":1}
    stack: {"0":1}
+ - scope (wasm-expression-stack):
+   {"0":1}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -175,6 +207,8 @@ at wasm_B (0:50):
  - scope (local):
    locals: {"var0":1}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -186,6 +220,8 @@ at wasm_B (0:52):
  - scope (local):
    locals: {"var0":1}
    stack: {"0":1}
+ - scope (wasm-expression-stack):
+   {"0":1}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -197,6 +233,8 @@ at wasm_B (0:54):
  - scope (local):
    locals: {"var0":1}
    stack: {"0":1,"1":1}
+ - scope (wasm-expression-stack):
+   {"0":1,"1":1}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -208,6 +246,8 @@ at wasm_B (0:55):
  - scope (local):
    locals: {"var0":1}
    stack: {"0":0}
+ - scope (wasm-expression-stack):
+   {"0":0}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -219,6 +259,8 @@ at wasm_B (0:57):
  - scope (local):
    locals: {"var0":0}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -230,6 +272,8 @@ at wasm_B (0:60):
  - scope (local):
    locals: {"var0":0}
    stack: {"0":1024}
+ - scope (wasm-expression-stack):
+   {"0":1024}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -241,12 +285,16 @@ at wasm_A (0:39):
  - scope (local):
    locals: {"var0":1024}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at wasm_B (0:60):
  - scope (global):
    -- skipped
  - scope (local):
    locals: {"var0":0}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -258,12 +306,16 @@ at wasm_A (0:40):
  - scope (local):
    locals: {"var0":1024}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at wasm_B (0:60):
  - scope (global):
    -- skipped
  - scope (local):
    locals: {"var0":0}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -275,12 +327,16 @@ at wasm_A (0:41):
  - scope (local):
    locals: {"var0":1024}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at wasm_B (0:60):
  - scope (global):
    -- skipped
  - scope (local):
    locals: {"var0":0}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
@@ -292,6 +348,8 @@ at wasm_B (0:62):
  - scope (local):
    locals: {"var0":0}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped

@@ -879,6 +879,12 @@ class WasmDebugInfo : public Struct {
                                               Address frame_pointer,
                                               int frame_index);
 
+  // Get stack scope details for a specific interpreted frame. It contains
+  // information about stack values.
+  static Handle<JSObject> GetStackScopeObject(Handle<WasmDebugInfo>,
+                                              Address frame_pointer,
+                                              int frame_index);
+
   V8_EXPORT_PRIVATE static Handle<Code> GetCWasmEntry(Handle<WasmDebugInfo>,
                                                       const wasm::FunctionSig*);
 

@@ -685,6 +685,9 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
       case v8::debug::ScopeIterator::ScopeTypeModule:
         description = "Module" + nameSuffix;
         break;
+      case v8::debug::ScopeIterator::ScopeTypeWasmExpressionStack:
+        description = "Wasm Expression Stack" + nameSuffix;
+        break;
     }
     v8::Local<v8::Object> object = iterator->GetObject();
     createDataProperty(context, scope,

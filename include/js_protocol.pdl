@@ -119,6 +119,7 @@ domain Debugger
         script
         eval
         module
+        wasm-expression-stack
       # Object representing the scope. For `global` and `with` scopes it represents the actual
       # object; for the rest of the scopes, it is artificial transient object enumerating scope
       # variables as its properties.
