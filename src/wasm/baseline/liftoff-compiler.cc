@@ -2427,13 +2427,19 @@ class LiftoffCompiler {
     static constexpr RegClass src1_rc = reg_class_for(ValueType::kS128);
     static constexpr RegClass src2_rc = reg_class_for(src2_type);
     static constexpr RegClass result_rc = reg_class_for(ValueType::kS128);
+    // On backends which need fp pair, src1_rc and result_rc end up being
+    // kFpRegPair, which is != kFpReg, but we still want to pin src2 when it is
+    // kFpReg, since it can overlap with those pairs.
+    static constexpr bool pin_src2 = kNeedS128RegPair && src2_rc == kFpReg;
+
+    // Does not work for arm
     LiftoffRegister src2 = __ PopToRegister();
-    LiftoffRegister src1 = src1_rc == src2_rc
+    LiftoffRegister src1 = (src1_rc == src2_rc || pin_src2)
                                ? __ PopToRegister(LiftoffRegList::ForRegs(src2))
                                : __
                                  PopToRegister();
     LiftoffRegister dst =
-        src2_rc == result_rc
+        (src2_rc == result_rc || pin_src2)
             ? __ GetUnusedRegister(result_rc, {src1},
                                    LiftoffRegList::ForRegs(src2))
             : __ GetUnusedRegister(result_rc, {src1});
