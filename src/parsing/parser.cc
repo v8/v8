@@ -3111,6 +3111,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
         DoParseFunction(/* isolate = */ nullptr, info, info->function_name());
   }
   MaybeResetCharacterStream(info, result);
+  MaybeProcessSourceRanges(info, result, stack_limit_);
 
   info->set_literal(result);
 
