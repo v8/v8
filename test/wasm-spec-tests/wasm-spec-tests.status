@@ -24,6 +24,8 @@
   'proposals/multi-value/call': [FAIL],
   'proposals/multi-value/if': [FAIL],
   'proposals/multi-value/func': [FAIL],
+
+  'proposals/bulk-memory-operations/bulk': [FAIL],
 }],  # ALWAYS
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
