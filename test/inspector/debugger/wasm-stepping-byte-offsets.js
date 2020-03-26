@@ -83,8 +83,8 @@ function instantiate(bytes) {
   await waitForPauseAndStep('resume');    // to next breakpoint (3rd iteration)
   await waitForPauseAndStep('stepInto');  // into wasm_A
   await waitForPauseAndStep('stepOut');   // out to wasm_B
-  // Now step 10 times, until we are in wasm_A again.
-  for (let i = 0; i < 10; ++i) await waitForPauseAndStep('stepInto');
+  // Now step 9 times, until we are in wasm_A again.
+  for (let i = 0; i < 9; ++i) await waitForPauseAndStep('stepInto');
   // 3 more times, back to wasm_B.
   for (let i = 0; i < 3; ++i) await waitForPauseAndStep('stepInto');
   // Then just resume.

@@ -1248,8 +1248,10 @@ int FindNextBreakablePosition(wasm::NativeModule* native_module, int func_index,
                                   &locals);
   DCHECK_LT(0, locals.encoded_size);
   if (offset_in_func < 0) return 0;
-  for (uint32_t offset : iterator.offsets()) {
-    if (offset >= static_cast<uint32_t>(offset_in_func)) return offset;
+  for (; iterator.has_next(); iterator.next()) {
+    if (iterator.pc_offset() < static_cast<uint32_t>(offset_in_func)) continue;
+    if (!wasm::WasmOpcodes::IsBreakable(iterator.current())) continue;
+    return static_cast<int>(iterator.pc_offset());
   }
   return 0;
 }
@@ -1598,13 +1600,14 @@ bool WasmScript::GetPossibleBreakpoints(
                                     module_start + func.code.end_offset(),
                                     &locals);
     DCHECK_LT(0u, locals.encoded_size);
-    for (uint32_t offset : iterator.offsets()) {
-      uint32_t total_offset = func.code.offset() + offset;
+    for (; iterator.has_next(); iterator.next()) {
+      uint32_t total_offset = func.code.offset() + iterator.pc_offset();
       if (total_offset >= end_offset) {
         DCHECK_EQ(end_func_index, func_idx);
         break;
       }
       if (total_offset < start_offset) continue;
+      if (!wasm::WasmOpcodes::IsBreakable(iterator.current())) continue;
       locations->emplace_back(0, total_offset, debug::kCommonBreakLocation);
     }
   }

@@ -81,8 +81,8 @@ function instantiate(bytes) {
   await waitForPauseAndStep('stepInto');  // to call
   await waitForPauseAndStep('stepInto');  // into wasm_A
   await waitForPauseAndStep('stepOut');   // out to wasm_B
-  // now step 9 times, until we are in wasm_A again.
-  for (let i = 0; i < 9; ++i) await waitForPauseAndStep('stepInto');
+  // Now step 8 times, until we are in wasm_A again.
+  for (let i = 0; i < 8; ++i) await waitForPauseAndStep('stepInto');
   // 3 more times, back to wasm_B.
   for (let i = 0; i < 3; ++i) await waitForPauseAndStep('stepInto');
   // then just resume.

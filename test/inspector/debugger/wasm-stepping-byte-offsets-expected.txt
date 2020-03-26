@@ -101,8 +101,8 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/befe41aa byte offset 44: Wasm opcode 0x3
-at wasm_B (0:44):
+Script wasm://wasm/befe41aa byte offset 46: Wasm opcode 0x20
+at wasm_B (0:46):
  - scope (global):
    -- skipped
  - scope (local):
@@ -150,19 +150,6 @@ at (anonymous) (0:17):
 Debugger.stepOut called
 Script wasm://wasm/befe41aa byte offset 62: Wasm opcode 0xc
 at wasm_B (0:62):
- - scope (global):
-   -- skipped
- - scope (local):
-   locals: {"var0":1}
-   stack: {}
- - scope (wasm-expression-stack):
-   {}
-at (anonymous) (0:17):
- - scope (global):
-   -- skipped
-Debugger.stepInto called
-Script wasm://wasm/befe41aa byte offset 44: Wasm opcode 0x3
-at wasm_B (0:44):
  - scope (global):
    -- skipped
  - scope (local):

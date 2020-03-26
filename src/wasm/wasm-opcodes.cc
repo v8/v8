@@ -409,6 +409,19 @@ bool WasmOpcodes::IsUnconditionalJump(WasmOpcode opcode) {
   }
 }
 
+bool WasmOpcodes::IsBreakable(WasmOpcode opcode) {
+  switch (opcode) {
+    case kExprBlock:
+    case kExprTry:
+    case kExprCatch:
+    case kExprLoop:
+    case kExprElse:
+      return false;
+    default:
+      return true;
+  }
+}
+
 bool WasmOpcodes::IsAnyRefOpcode(WasmOpcode opcode) {
   switch (opcode) {
     case kExprRefNull:

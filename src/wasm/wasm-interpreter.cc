@@ -3059,8 +3059,10 @@ class ThreadImpl {
       }
 
       // If max is 0, break. If max is positive (a limit is set), decrement it.
-      if (max == 0) break;
-      if (max > 0) --max;
+      if (max >= 0 && WasmOpcodes::IsBreakable(opcode)) {
+        if (max == 0) break;
+        --max;
+      }
 
       USE(skip);
       TRACE("@%-3zu: %s%-24s:", pc, skip, WasmOpcodes::OpcodeName(opcode));
