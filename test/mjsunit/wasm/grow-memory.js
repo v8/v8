@@ -132,7 +132,14 @@ function testMemoryGrowZeroInitialSize() {
 
   assertEquals(0, growMem(1));
 
-  for(offset = 0; offset <= kPageSize - 4; offset++) {
+  // Check first 5 offsets.
+  for(offset = 0; offset <= 5; offset++) {
+    poke(20);
+    assertEquals(20, peek());
+  }
+
+  // Check last 5 offsets.
+  for(offset = kPageSize - 5*4; offset <= kPageSize - 4; offset++) {
     poke(20);
     assertEquals(20, peek());
   }
@@ -315,7 +322,12 @@ function testMemoryGrowOutOfBoundsOffset() {
 
   assertEquals(3, growMem(1));
 
-  for (offset = 3*kPageSize; offset <= 4*kPageSize - 4; offset++) {
+  for (offset = 3*kPageSize; offset <= 3*kPageSize + 4; offset++) {
+    poke(0xaced);
+    assertEquals(0xaced, peek());
+  }
+
+  for (offset = 4*kPageSize-8; offset <= 4*kPageSize - 4; offset++) {
     poke(0xaced);
     assertEquals(0xaced, peek());
   }
@@ -376,21 +388,40 @@ testMemoryGrowDeclaredMaxTraps();
   function poke(value) { return module.exports.store(offset, value); }
   function growMem(pages) { return module.exports.grow_memory(pages); }
 
-  for (offset = 0; offset <= (kPageSize - 4); offset += 4) {
+  // Check first 5 offsets.
+  for (offset = 0; offset <= 4 * 4; offset += 4) {
+    poke(100000 - offset);
+    assertEquals(100000 - offset, peek());
+  }
+
+  // Check last 5 offsets.
+  for (offset = (kPageSize - 5 * 4); offset <= (kPageSize - 4); offset += 4) {
     poke(100000 - offset);
     assertEquals(100000 - offset, peek());
   }
 
   let result = growMem(kV8MaxPages - 1);
   if (result == 1) {
-    for (offset = 0; offset <= (kPageSize - 4); offset += 4) {
+    // Check first 5 offsets.
+    for (offset = 0; offset <= 4 * 4; offset += 4) {
+      assertEquals(100000 - offset, peek());
+    }
+
+    // Check last 5 offsets.
+    for (offset = (kPageSize - 5 * 4); offset <= (kPageSize - 4); offset += 4) {
       assertEquals(100000 - offset, peek());
     }
 
     // Bounds check for large mem size.
     let kMemSize = (kV8MaxPages * kPageSize);
     let kLastValidOffset = kMemSize - 4;  // Accommodate a 4-byte read/write.
-    for (offset = kMemSize - kPageSize; offset <= kLastValidOffset;
+    // Check first 5 offsets of last page.
+    for (offset = kMemSize - kPageSize; offset <= kMemSize - kPageSize + 4 * 4;
+         offset += 4) {
+      poke(0xaced);
+      assertEquals(0xaced, peek());
+    }
+    for (offset = kLastValidOffset - 5 * 4; offset <= kLastValidOffset;
          offset += 4) {
       poke(0xaced);
       assertEquals(0xaced, peek());
