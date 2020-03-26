@@ -1294,7 +1294,7 @@ void Assembler::GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode,
 
 void Assembler::GenInstrR4(uint8_t funct2, Opcode opcode, Register rd,
                            Register rs1, Register rs2, Register rs3,
-                           uint8_t frm) {
+                           RoundingMode frm) {
   DCHECK(is_uint2(funct2) && rd.is_valid() && rs1.is_valid() &&
          rs2.is_valid() && rs3.is_valid() && is_uint3(frm));
   Instr instr = opcode | (rd.code() << RV_kRdShift) | (frm << kFunct3Shift) |
@@ -1305,7 +1305,7 @@ void Assembler::GenInstrR4(uint8_t funct2, Opcode opcode, Register rd,
 
 void Assembler::GenInstrR4(uint8_t funct2, Opcode opcode, FPURegister rd,
                            FPURegister rs1, FPURegister rs2, FPURegister rs3,
-                           uint8_t frm) {
+                           RoundingMode frm) {
   DCHECK(is_uint2(funct2) && rd.is_valid() && rs1.is_valid() &&
          rs2.is_valid() && rs3.is_valid() && is_uint3(frm));
   Instr instr = opcode | (rd.code() << RV_kRdShift) | (frm << kFunct3Shift) |
@@ -1326,7 +1326,7 @@ void Assembler::GenInstrRAtomic(uint8_t funct5, bool aq, bool rl,
 }
 
 void Assembler::GenInstrRFrm(uint8_t funct7, Opcode opcode, Register rd,
-                             Register rs1, Register rs2, uint8_t frm) {
+                             Register rs1, Register rs2, RoundingMode frm) {
   DCHECK(rd.is_valid() && rs1.is_valid() && rs2.is_valid() && is_uint3(frm));
   Instr instr = opcode | (rd.code() << RV_kRdShift) | (frm << kFunct3Shift) |
                 (rs1.code() << kRs1Shift) | (rs2.code() << kRs2Shift) |
@@ -1456,14 +1456,14 @@ void Assembler::GenInstrALU_rr(uint8_t funct7, uint8_t funct3, Register rd,
   GenInstrR(funct7, funct3, OP, rd, rs1, rs2);
 }
 
-void Assembler::GenInstrCSR_ir(uint8_t funct3, Register rd, uint16_t imm12,
-                               Register rs1) {
-  GenInstrI(funct3, SYSTEM, rd, rs1, imm12);
+void Assembler::GenInstrCSR_ir(uint8_t funct3, Register rd,
+                               ControlStatusReg csr, Register rs1) {
+  GenInstrI(funct3, SYSTEM, rd, rs1, csr);
 }
 
-void Assembler::GenInstrCSR_ii(uint8_t funct3, Register rd, uint16_t imm12,
-                               uint8_t rs1) {
-  GenInstrI(funct3, SYSTEM, rd, ToRegister(rs1), imm12);
+void Assembler::GenInstrCSR_ii(uint8_t funct3, Register rd,
+                               ControlStatusReg csr, uint8_t rs1) {
+  GenInstrI(funct3, SYSTEM, rd, ToRegister(rs1), csr);
 }
 
 void Assembler::GenInstrShiftW_ri(bool arithshift, uint8_t funct3, Register rd,
@@ -2391,28 +2391,28 @@ void Assembler::RV_unimp() {
 
 // CSR
 
-void Assembler::RV_csrrw(Register rd, uint16_t imm12, Register rs1) {
-  GenInstrCSR_ir(0b001, rd, imm12, rs1);
+void Assembler::RV_csrrw(Register rd, ControlStatusReg csr, Register rs1) {
+  GenInstrCSR_ir(0b001, rd, csr, rs1);
 }
 
-void Assembler::RV_csrrs(Register rd, uint16_t imm12, Register rs1) {
-  GenInstrCSR_ir(0b010, rd, imm12, rs1);
+void Assembler::RV_csrrs(Register rd, ControlStatusReg csr, Register rs1) {
+  GenInstrCSR_ir(0b010, rd, csr, rs1);
 }
 
-void Assembler::RV_csrrc(Register rd, uint16_t imm12, Register rs1) {
-  GenInstrCSR_ir(0b011, rd, imm12, rs1);
+void Assembler::RV_csrrc(Register rd, ControlStatusReg csr, Register rs1) {
+  GenInstrCSR_ir(0b011, rd, csr, rs1);
 }
 
-void Assembler::RV_csrrwi(Register rd, uint16_t imm12, uint8_t rs1) {
-  GenInstrCSR_ii(0b101, rd, imm12, rs1);
+void Assembler::RV_csrrwi(Register rd, ControlStatusReg csr, uint8_t rs1) {
+  GenInstrCSR_ii(0b101, rd, csr, rs1);
 }
 
-void Assembler::RV_csrrsi(Register rd, uint16_t imm12, uint8_t rs1) {
-  GenInstrCSR_ii(0b110, rd, imm12, rs1);
+void Assembler::RV_csrrsi(Register rd, ControlStatusReg csr, uint8_t rs1) {
+  GenInstrCSR_ii(0b110, rd, csr, rs1);
 }
 
-void Assembler::RV_csrrci(Register rd, uint16_t imm12, uint8_t rs1) {
-  GenInstrCSR_ii(0b111, rd, imm12, rs1);
+void Assembler::RV_csrrci(Register rd, ControlStatusReg csr, uint8_t rs1) {
+  GenInstrCSR_ii(0b111, rd, csr, rs1);
 }
 
 // RV64I
@@ -2644,46 +2644,46 @@ void Assembler::RV_fsw(FPURegister source, Register base, int16_t imm12) {
 }
 
 void Assembler::RV_fmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                           FPURegister rs3, uint8_t frm) {
+                           FPURegister rs3, RoundingMode frm) {
   GenInstrR4(0b00, MADD, rd, rs1, rs2, rs3, frm);
 }
 
 void Assembler::RV_fmsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                           FPURegister rs3, uint8_t frm) {
+                           FPURegister rs3, RoundingMode frm) {
   GenInstrR4(0b00, MSUB, rd, rs1, rs2, rs3, frm);
 }
 
 void Assembler::RV_fnmsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                            FPURegister rs3, uint8_t frm) {
+                            FPURegister rs3, RoundingMode frm) {
   GenInstrR4(0b00, NMSUB, rd, rs1, rs2, rs3, frm);
 }
 
 void Assembler::RV_fnmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                            FPURegister rs3, uint8_t frm) {
+                            FPURegister rs3, RoundingMode frm) {
   GenInstrR4(0b00, NMADD, rd, rs1, rs2, rs3, frm);
 }
 
 void Assembler::RV_fadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                          uint8_t frm) {
+                          RoundingMode frm) {
   GenInstrALUFP_rr(0b0000000, frm, rd, rs1, rs2);
 }
 
 void Assembler::RV_fsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                          uint8_t frm) {
+                          RoundingMode frm) {
   GenInstrALUFP_rr(0b0000100, frm, rd, rs1, rs2);
 }
 
 void Assembler::RV_fmul_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                          uint8_t frm) {
+                          RoundingMode frm) {
   GenInstrALUFP_rr(0b0001000, frm, rd, rs1, rs2);
 }
 
 void Assembler::RV_fdiv_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                          uint8_t frm) {
+                          RoundingMode frm) {
   GenInstrALUFP_rr(0b0001100, frm, rd, rs1, rs2);
 }
 
-void Assembler::RV_fsqrt_s(FPURegister rd, FPURegister rs1, uint8_t frm) {
+void Assembler::RV_fsqrt_s(FPURegister rd, FPURegister rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b0101100, frm, rd, rs1, zero_reg);
 }
 
@@ -2707,11 +2707,11 @@ void Assembler::RV_fmax_s(FPURegister rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b0010100, 0b001, rd, rs1, rs2);
 }
 
-void Assembler::RV_fcvt_w_s(Register rd, FPURegister rs1, uint8_t frm) {
+void Assembler::RV_fcvt_w_s(Register rd, FPURegister rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1100000, frm, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fcvt_wu_s(Register rd, FPURegister rs1, uint8_t frm) {
+void Assembler::RV_fcvt_wu_s(Register rd, FPURegister rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1100000, frm, rd, rs1, ToRegister(1));
 }
 
@@ -2735,11 +2735,11 @@ void Assembler::RV_fclass_s(Register rd, FPURegister rs1) {
   GenInstrALUFP_rr(0b1110000, 0b001, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fcvt_s_w(FPURegister rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_s_w(FPURegister rd, Register rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1101000, frm, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fcvt_s_wu(FPURegister rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_s_wu(FPURegister rd, Register rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1101000, frm, rd, rs1, ToRegister(1));
 }
 
@@ -2749,19 +2749,19 @@ void Assembler::RV_fmv_w_x(FPURegister rd, Register rs1) {
 
 // RV64F Standard Extension (in addition to RV32F)
 
-void Assembler::RV_fcvt_l_s(Register rd, FPURegister rs1, uint8_t frm) {
+void Assembler::RV_fcvt_l_s(Register rd, FPURegister rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1100000, frm, rd, rs1, ToRegister(2));
 }
 
-void Assembler::RV_fcvt_lu_s(Register rd, FPURegister rs1, uint8_t frm) {
+void Assembler::RV_fcvt_lu_s(Register rd, FPURegister rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1100000, frm, rd, rs1, ToRegister(3));
 }
 
-void Assembler::RV_fcvt_s_l(FPURegister rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_s_l(FPURegister rd, Register rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1101000, frm, rd, rs1, ToRegister(2));
 }
 
-void Assembler::RV_fcvt_s_lu(FPURegister rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_s_lu(FPURegister rd, Register rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1101000, frm, rd, rs1, ToRegister(3));
 }
 
@@ -2776,46 +2776,46 @@ void Assembler::RV_fsd(FPURegister source, Register base, int16_t imm12) {
 }
 
 void Assembler::RV_fmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                           FPURegister rs3, uint8_t frm) {
+                           FPURegister rs3, RoundingMode frm) {
   GenInstrR4(0b01, MADD, rd, rs1, rs2, rs3, frm);
 }
 
 void Assembler::RV_fmsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                           FPURegister rs3, uint8_t frm) {
+                           FPURegister rs3, RoundingMode frm) {
   GenInstrR4(0b01, MSUB, rd, rs1, rs2, rs3, frm);
 }
 
 void Assembler::RV_fnmsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                            FPURegister rs3, uint8_t frm) {
+                            FPURegister rs3, RoundingMode frm) {
   GenInstrR4(0b01, NMSUB, rd, rs1, rs2, rs3, frm);
 }
 
 void Assembler::RV_fnmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                            FPURegister rs3, uint8_t frm) {
+                            FPURegister rs3, RoundingMode frm) {
   GenInstrR4(0b01, NMADD, rd, rs1, rs2, rs3, frm);
 }
 
 void Assembler::RV_fadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                          uint8_t frm) {
+                          RoundingMode frm) {
   GenInstrALUFP_rr(0b0000001, frm, rd, rs1, rs2);
 }
 
 void Assembler::RV_fsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                          uint8_t frm) {
+                          RoundingMode frm) {
   GenInstrALUFP_rr(0b0000101, frm, rd, rs1, rs2);
 }
 
 void Assembler::RV_fmul_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                          uint8_t frm) {
+                          RoundingMode frm) {
   GenInstrALUFP_rr(0b0001001, frm, rd, rs1, rs2);
 }
 
 void Assembler::RV_fdiv_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                          uint8_t frm) {
+                          RoundingMode frm) {
   GenInstrALUFP_rr(0b0001101, frm, rd, rs1, rs2);
 }
 
-void Assembler::RV_fsqrt_d(FPURegister rd, FPURegister rs1, uint8_t frm) {
+void Assembler::RV_fsqrt_d(FPURegister rd, FPURegister rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b0101101, frm, rd, rs1, zero_reg);
 }
 
@@ -2839,11 +2839,11 @@ void Assembler::RV_fmax_d(FPURegister rd, FPURegister rs1, FPURegister rs2) {
   GenInstrALUFP_rr(0b0010101, 0b001, rd, rs1, rs2);
 }
 
-void Assembler::RV_fcvt_s_d(FPURegister rd, FPURegister rs1, uint8_t frm) {
+void Assembler::RV_fcvt_s_d(FPURegister rd, FPURegister rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b0100000, frm, rd, rs1, ToRegister(1));
 }
 
-void Assembler::RV_fcvt_d_s(FPURegister rd, FPURegister rs1, uint8_t frm) {
+void Assembler::RV_fcvt_d_s(FPURegister rd, FPURegister rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b0100001, frm, rd, rs1, zero_reg);
 }
 
@@ -2863,29 +2863,29 @@ void Assembler::RV_fclass_d(Register rd, FPURegister rs1) {
   GenInstrALUFP_rr(0b1110001, 0b001, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fcvt_w_d(Register rd, FPURegister rs1, uint8_t frm) {
+void Assembler::RV_fcvt_w_d(Register rd, FPURegister rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1100001, frm, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fcvt_wu_d(Register rd, FPURegister rs1, uint8_t frm) {
+void Assembler::RV_fcvt_wu_d(Register rd, FPURegister rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1100001, frm, rd, rs1, ToRegister(1));
 }
 
-void Assembler::RV_fcvt_d_w(FPURegister rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_d_w(FPURegister rd, Register rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1101001, frm, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fcvt_d_wu(FPURegister rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_d_wu(FPURegister rd, Register rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1101001, frm, rd, rs1, ToRegister(1));
 }
 
 // RV64D Standard Extension (in addition to RV32D)
 
-void Assembler::RV_fcvt_l_d(Register rd, FPURegister rs1, uint8_t frm) {
+void Assembler::RV_fcvt_l_d(Register rd, FPURegister rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1100001, frm, rd, rs1, ToRegister(2));
 }
 
-void Assembler::RV_fcvt_lu_d(Register rd, FPURegister rs1, uint8_t frm) {
+void Assembler::RV_fcvt_lu_d(Register rd, FPURegister rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1100001, frm, rd, rs1, ToRegister(3));
 }
 
@@ -2893,11 +2893,11 @@ void Assembler::RV_fmv_x_d(Register rd, FPURegister rs1) {
   GenInstrALUFP_rr(0b1110001, 0b000, rd, rs1, zero_reg);
 }
 
-void Assembler::RV_fcvt_d_l(FPURegister rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_d_l(FPURegister rd, Register rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1101001, frm, rd, rs1, ToRegister(2));
 }
 
-void Assembler::RV_fcvt_d_lu(FPURegister rd, Register rs1, uint8_t frm) {
+void Assembler::RV_fcvt_d_lu(FPURegister rd, Register rs1, RoundingMode frm) {
   GenInstrALUFP_rr(0b1101001, frm, rd, rs1, ToRegister(3));
 }
 
@@ -3757,9 +3757,7 @@ void Assembler::tne(Register rs, Register rt, uint16_t code) {
   emit(instr);
 }
 
-void Assembler::sync() {
-  RV_fence(0b1111, 0b1111);
-}
+void Assembler::sync() { RV_fence(0b1111, 0b1111); }
 
 // Move from HI/LO register.
 

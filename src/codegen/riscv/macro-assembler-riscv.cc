@@ -1851,28 +1851,28 @@ void TurboAssembler::Cvt_s_ul(FPURegister fd, Register rs) {
 void MacroAssembler::Round_l_d(FPURegister fd, FPURegister fs) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  RV_fcvt_l_d(scratch, fs, 0b000);
+  RV_fcvt_l_d(scratch, fs, RNE);
   RV_fmv_d_x(fd, scratch);
 }
 
 void MacroAssembler::Floor_l_d(FPURegister fd, FPURegister fs) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  RV_fcvt_l_d(scratch, fs, 0b010);
+  RV_fcvt_l_d(scratch, fs, RDN);
   RV_fmv_d_x(fd, scratch);
 }
 
 void MacroAssembler::Ceil_l_d(FPURegister fd, FPURegister fs) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  RV_fcvt_l_d(scratch, fs, 0b011);
+  RV_fcvt_l_d(scratch, fs, RUP);
   RV_fmv_d_x(fd, scratch);
 }
 
 void MacroAssembler::Trunc_l_d(FPURegister fd, FPURegister fs) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  RV_fcvt_l_d(scratch, fs, 0b001);
+  RV_fcvt_l_d(scratch, fs, RTZ);
   RV_fmv_d_x(fd, scratch);
 }
 
@@ -1907,59 +1907,59 @@ void TurboAssembler::Trunc_ul_s(FPURegister fd, FPURegister fs,
 void MacroAssembler::Trunc_w_d(FPURegister fd, FPURegister fs) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  RV_fcvt_w_d(scratch, fs, 0b001);
+  RV_fcvt_w_d(scratch, fs, RTZ);
   RV_fmv_w_x(fd, scratch);
 }
 
 void MacroAssembler::Round_w_d(FPURegister fd, FPURegister fs) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  RV_fcvt_w_d(scratch, fs, 0b000);
+  RV_fcvt_w_d(scratch, fs, RNE);
   RV_fmv_w_x(fd, scratch);
 }
 
 void MacroAssembler::Floor_w_d(FPURegister fd, FPURegister fs) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  RV_fcvt_w_d(scratch, fs, 0b010);
+  RV_fcvt_w_d(scratch, fs, RDN);
   RV_fmv_w_x(fd, scratch);
 }
 
 void MacroAssembler::Ceil_w_d(FPURegister fd, FPURegister fs) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  RV_fcvt_w_d(scratch, fs, 0b011);
+  RV_fcvt_w_d(scratch, fs, RUP);
   RV_fmv_w_x(fd, scratch);
 }
 
 void TurboAssembler::Trunc_uw_d(Register rd, FPURegister fs,
                                 FPURegister scratch) {
-  RV_fcvt_wu_d(rd, fs, 0b001);
+  RV_fcvt_wu_d(rd, fs, RTZ);
 }
 
 void TurboAssembler::Trunc_uw_s(Register rd, FPURegister fs,
                                 FPURegister scratch) {
-  RV_fcvt_wu_s(rd, fs, 0b001);
+  RV_fcvt_wu_s(rd, fs, RTZ);
 }
 
 void TurboAssembler::Trunc_ul_d(Register rd, FPURegister fs,
                                 FPURegister scratch, Register result) {
-  RV_fcvt_lu_d(rd, fs, 0b001);
+  RV_fcvt_lu_d(rd, fs, RTZ);
   if (result.is_valid()) {
     // Bit 4 of the accrued exceptions flag is set for an invalid conversion
-    RV_csrrs(result, 1, zero_reg);
-    RV_andi(result, result, 0b10000);
+    RV_csrrs(result, csr_fflags, zero_reg);
+    RV_andi(result, result, NV);
     RV_snez(result, result);
   }
 }
 
 void TurboAssembler::Trunc_ul_s(Register rd, FPURegister fs,
                                 FPURegister scratch, Register result) {
-  RV_fcvt_lu_s(rd, fs, 0b001);
+  RV_fcvt_lu_s(rd, fs, RTZ);
   if (result.is_valid()) {
     // Bit 4 of the accrued exceptions flag is set for an invalid conversion
-    RV_csrrs(result, 1, zero_reg);
-    RV_andi(result, result, 0b10000);
+    RV_csrrs(result, csr_fflags, zero_reg);
+    RV_andi(result, result, NV);
     RV_snez(result, result);
   }
 }
@@ -1967,19 +1967,19 @@ void TurboAssembler::Trunc_ul_s(Register rd, FPURegister fs,
 template <typename RoundFunc>
 void TurboAssembler::RoundDouble(FPURegister dst, FPURegister src,
                                  FPURoundingMode mode, RoundFunc round) {
-  int frm;
+  RoundingMode frm;
   switch (mode) {
     case RN:
-      frm = 0b000;
+      frm = RNE;
       break;
     case RZ:
-      frm = 0b001;
+      frm = RTZ;
       break;
     case RP:
-      frm = 0b011;
+      frm = RUP;
       break;
     case RM:
-      frm = 0b010;
+      frm = RDN;
       break;
     default:
       UNREACHABLE();
@@ -2011,19 +2011,19 @@ void TurboAssembler::Round_d_d(FPURegister dst, FPURegister src) {
 template <typename RoundFunc>
 void TurboAssembler::RoundFloat(FPURegister dst, FPURegister src,
                                 FPURoundingMode mode, RoundFunc round) {
-  int frm;
+  RoundingMode frm;
   switch (mode) {
     case RN:
-      frm = 0b000;
+      frm = RNE;
       break;
     case RZ:
-      frm = 0b001;
+      frm = RTZ;
       break;
     case RP:
-      frm = 0b011;
+      frm = RUP;
       break;
     case RM:
-      frm = 0b010;
+      frm = RDN;
       break;
     default:
       UNREACHABLE();
