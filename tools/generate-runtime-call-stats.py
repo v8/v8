@@ -9,6 +9,7 @@
 import argparse
 import csv
 import json
+import glob
 import os
 import pathlib
 import re
@@ -18,7 +19,6 @@ import statistics
 import subprocess
 import sys
 import tempfile
-import gzip
 
 from callstats_groups import RUNTIME_CALL_STATS_GROUPS
 
@@ -375,23 +375,19 @@ def collect_buckets(story, group=True, repeats=1, output_dir="."):
     story_dir = f"{story.replace(':', '_')}_{i + 1}"
     trace_dir = os.path.join(output_dir, "artifacts", story_dir, "trace",
                              "traceEvents")
-    trace_file = os.path.join(trace_dir, "results.json")
 
-    # this script always unzips the json file and stores the output in
-    # results.json so just re-use that if it already exists, otherwise unzip the
-    # one file found in the traceEvents directory.
-    if not os.path.isfile(trace_file):
-      trace_files = os.listdir(trace_dir)
-      if len(trace_files) != 1:
-        print("Expecting just one file but got: %s" % trace_files)
-        sys.exit(1)
+    # run_benchmark now dumps two files: a .pb.gz file and a .pb_converted.json
+    # file. We only need the latter.
+    trace_file_glob = os.path.join(trace_dir, "*.pb_converted.json")
+    trace_files = glob.glob(trace_file_glob)
+    if not trace_files:
+      print("Could not find *.pb_converted.json file in %s" % trace_dir)
+      sys.exit(1)
+    if len(trace_files) > 1:
+      print("Expecting one file but got: %s" % trace_files)
+      sys.exit(1)
 
-      gz_trace_file = os.path.join(trace_dir, trace_files[0])
-      trace_file = os.path.join(trace_dir, "results.json")
-
-      with gzip.open(gz_trace_file, "rb") as f_in:
-        with open(trace_file, "wb") as f_out:
-          shutil.copyfileobj(f_in, f_out)
+    trace_file = trace_files[0]
 
     output = process_trace(trace_file)
     for name in output:
