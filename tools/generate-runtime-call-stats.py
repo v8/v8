@@ -23,6 +23,8 @@ import tempfile
 from callstats_groups import RUNTIME_CALL_STATS_GROUPS
 
 
+JSON_FILE_EXTENSION=".pb_converted.json"
+
 def parse_args():
   parser = argparse.ArgumentParser(
       description="Run story and collect runtime call stats.")
@@ -378,10 +380,10 @@ def collect_buckets(story, group=True, repeats=1, output_dir="."):
 
     # run_benchmark now dumps two files: a .pb.gz file and a .pb_converted.json
     # file. We only need the latter.
-    trace_file_glob = os.path.join(trace_dir, "*.pb_converted.json")
+    trace_file_glob = os.path.join(trace_dir, "*" + JSON_FILE_EXTENSION)
     trace_files = glob.glob(trace_file_glob)
     if not trace_files:
-      print("Could not find *.pb_converted.json file in %s" % trace_dir)
+      print("Could not find *%s file in %s" % (JSON_FILE_EXTENSION, trace_dir))
       sys.exit(1)
     if len(trace_files) > 1:
       print("Expecting one file but got: %s" % trace_files)
@@ -470,12 +472,12 @@ def main():
     if retain == "none":
       shutil.rmtree(output_dir)
     elif retain == "json":
-      # Delete all files bottom up except .json.gz files and attempt to delete
-      # subdirectories (ignoring errors).
+      # Delete all files bottom up except ones ending in JSON_FILE_EXTENSION and
+      # attempt to delete subdirectories (ignoring errors).
       for dir_name, subdir_list, file_list in os.walk(
           output_dir, topdown=False):
         for file_name in file_list:
-          if not file_name.endswith(".json.gz"):
+          if not file_name.endswith(JSON_FILE_EXTENSION):
             os.remove(os.path.join(dir_name, file_name))
         for subdir in subdir_list:
           try:
