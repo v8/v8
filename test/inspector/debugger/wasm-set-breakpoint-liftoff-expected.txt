@@ -4,7 +4,7 @@ Waiting for wasm script (ignoring first non-wasm script).
 Setting breakpoint at offset 38 on script wasm://wasm/0c10a5fe
 Calling main(4)
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x1
+Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x01
 Scope:
 at wasm_A (0:38):
  - scope (global):
@@ -29,7 +29,7 @@ Setting breakpoint at offset 49 on script v8://test/runWasm
 Setting breakpoint at offset 45 on script v8://test/runWasm
 Setting breakpoint at offset 47 on script v8://test/runWasm
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x1
+Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x01
 Scope:
 at wasm_A (0:39):
  - scope (global):
@@ -56,7 +56,7 @@ at wasm_B (0:45):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x4
+Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04
 Scope:
 at wasm_B (0:47):
  - scope (global):
@@ -116,7 +116,7 @@ at wasm_B (0:54):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x1
+Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x01
 Scope:
 at wasm_A (0:38):
  - scope (global):
@@ -132,7 +132,7 @@ at wasm_B (0:56):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x1
+Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x01
 Scope:
 at wasm_A (0:39):
  - scope (global):
@@ -159,7 +159,7 @@ at wasm_B (0:45):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x4
+Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04
 Scope:
 at wasm_B (0:47):
  - scope (global):
@@ -219,7 +219,7 @@ at wasm_B (0:54):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x1
+Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x01
 Scope:
 at wasm_A (0:38):
  - scope (global):
@@ -235,7 +235,7 @@ at wasm_B (0:56):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x1
+Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x01
 Scope:
 at wasm_A (0:39):
  - scope (global):
@@ -262,7 +262,7 @@ at wasm_B (0:45):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x4
+Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04
 Scope:
 at wasm_B (0:47):
  - scope (global):
@@ -322,7 +322,7 @@ at wasm_B (0:54):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x1
+Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x01
 Scope:
 at wasm_A (0:38):
  - scope (global):
@@ -338,7 +338,7 @@ at wasm_B (0:56):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x1
+Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x01
 Scope:
 at wasm_A (0:39):
  - scope (global):
@@ -365,7 +365,7 @@ at wasm_B (0:45):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x4
+Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04
 Scope:
 at wasm_B (0:47):
  - scope (global):
@@ -377,7 +377,7 @@ at wasm_B (0:47):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 61: Wasm opcode 0xb
+Script wasm://wasm/0c10a5fe byte offset 61: Wasm opcode 0x0b
 Scope:
 at wasm_B (0:61):
  - scope (global):

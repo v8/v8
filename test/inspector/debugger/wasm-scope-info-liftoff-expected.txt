@@ -132,7 +132,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 93: Wasm opcode 0xb
+Script wasm://wasm/c4eb034a byte offset 93: Wasm opcode 0x0b
 Scope:
 at C (interpreted) (0:93):
  - scope (global):

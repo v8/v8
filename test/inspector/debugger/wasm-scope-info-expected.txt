@@ -357,7 +357,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/d374ef0a byte offset 116: Wasm opcode 0xb
+Script wasm://wasm/d374ef0a byte offset 116: Wasm opcode 0x0b
 Scope:
 at func (0:116):
  - scope (global):
@@ -378,7 +378,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/d374ef0a byte offset 60: Wasm opcode 0xb
+Script wasm://wasm/d374ef0a byte offset 60: Wasm opcode 0x0b
 Scope:
 at call_func (0:60):
  - scope (global):

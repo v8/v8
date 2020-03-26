@@ -9,27 +9,27 @@ Setting breakpoint on offset 72 (should be propagated to 73, the offset of the c
 }
 Script wasm://wasm/42af3c82 byte offset 73: Wasm opcode 0x10
 Debugger.stepInto called
-Script wasm://wasm/42af3c82 byte offset 52: Wasm opcode 0x1
+Script wasm://wasm/42af3c82 byte offset 52: Wasm opcode 0x01
 Debugger.stepOver called
-Script wasm://wasm/42af3c82 byte offset 53: Wasm opcode 0x1
+Script wasm://wasm/42af3c82 byte offset 53: Wasm opcode 0x01
 Debugger.stepOut called
-Script wasm://wasm/42af3c82 byte offset 75: Wasm opcode 0xc
+Script wasm://wasm/42af3c82 byte offset 75: Wasm opcode 0x0c
 Debugger.stepOut called
 Script wasm://wasm/42af3c82 byte offset 73: Wasm opcode 0x10
 Debugger.stepOver called
-Script wasm://wasm/42af3c82 byte offset 75: Wasm opcode 0xc
+Script wasm://wasm/42af3c82 byte offset 75: Wasm opcode 0x0c
 Debugger.stepInto called
 Script wasm://wasm/42af3c82 byte offset 59: Wasm opcode 0x20
 Debugger.resume called
 Script wasm://wasm/42af3c82 byte offset 73: Wasm opcode 0x10
 Debugger.stepInto called
-Script wasm://wasm/42af3c82 byte offset 52: Wasm opcode 0x1
+Script wasm://wasm/42af3c82 byte offset 52: Wasm opcode 0x01
 Debugger.stepOut called
-Script wasm://wasm/42af3c82 byte offset 75: Wasm opcode 0xc
+Script wasm://wasm/42af3c82 byte offset 75: Wasm opcode 0x0c
 Debugger.stepInto called
 Script wasm://wasm/42af3c82 byte offset 59: Wasm opcode 0x20
 Debugger.stepInto called
-Script wasm://wasm/42af3c82 byte offset 61: Wasm opcode 0x4
+Script wasm://wasm/42af3c82 byte offset 61: Wasm opcode 0x04
 Debugger.stepInto called
 Script wasm://wasm/42af3c82 byte offset 63: Wasm opcode 0x20
 Debugger.stepInto called
@@ -43,13 +43,13 @@ Script wasm://wasm/42af3c82 byte offset 70: Wasm opcode 0x41
 Debugger.stepInto called
 Script wasm://wasm/42af3c82 byte offset 73: Wasm opcode 0x10
 Debugger.stepInto called
-Script wasm://wasm/42af3c82 byte offset 52: Wasm opcode 0x1
+Script wasm://wasm/42af3c82 byte offset 52: Wasm opcode 0x01
 Debugger.stepInto called
-Script wasm://wasm/42af3c82 byte offset 53: Wasm opcode 0x1
+Script wasm://wasm/42af3c82 byte offset 53: Wasm opcode 0x01
 Debugger.stepInto called
-Script wasm://wasm/42af3c82 byte offset 54: Wasm opcode 0xb
+Script wasm://wasm/42af3c82 byte offset 54: Wasm opcode 0x0b
 Debugger.stepInto called
-Script wasm://wasm/42af3c82 byte offset 75: Wasm opcode 0xc
+Script wasm://wasm/42af3c82 byte offset 75: Wasm opcode 0x0c
 Debugger.stepInto called
 Script wasm://wasm/42af3c82 byte offset 59: Wasm opcode 0x20
 Debugger.resume called
