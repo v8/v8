@@ -1944,9 +1944,14 @@ void TurboAssembler::Trunc_uw_s(Register rd, FPURegister fs,
 
 void TurboAssembler::Trunc_ul_d(Register rd, FPURegister fs,
                                 FPURegister scratch, Register result) {
+  if (result.is_valid()) {
+    // If a valid result register is passed in, clear the invalid flag before
+    // the convert, so that afterwards, we can check if it was set.
+    RV_csrrci(zero_reg, csr_fflags, NV);
+  }
   RV_fcvt_lu_d(rd, fs, RTZ);
   if (result.is_valid()) {
-    // Bit 4 of the accrued exceptions flag is set for an invalid conversion
+    // Check if the invalid flag was set.
     RV_csrrs(result, csr_fflags, zero_reg);
     RV_andi(result, result, NV);
     RV_snez(result, result);
@@ -1955,9 +1960,14 @@ void TurboAssembler::Trunc_ul_d(Register rd, FPURegister fs,
 
 void TurboAssembler::Trunc_ul_s(Register rd, FPURegister fs,
                                 FPURegister scratch, Register result) {
+  if (result.is_valid()) {
+    // If a valid result register is passed in, clear the invalid flag before
+    // the convert, so that afterwards, we can check if it was set.
+    RV_csrrci(zero_reg, csr_fflags, NV);
+  }
   RV_fcvt_lu_s(rd, fs, RTZ);
   if (result.is_valid()) {
-    // Bit 4 of the accrued exceptions flag is set for an invalid conversion
+    // Check if the invalid flag was set.
     RV_csrrs(result, csr_fflags, zero_reg);
     RV_andi(result, result, NV);
     RV_snez(result, result);
