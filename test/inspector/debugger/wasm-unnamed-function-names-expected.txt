@@ -4,7 +4,7 @@ Paused on 'debugger;'
 Number of frames: 5
   - [0] call_debugger
   - [1] func1
-  - [2] func2
+  - [2] main
   - [3] testFunction
   - [4] 
 Finished!

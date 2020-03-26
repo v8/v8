@@ -119,7 +119,7 @@ Error.prepareStackTrace = function(error, frames) {
     assertContains("out of bounds", e.message);
     verifyStack(e.stack, [
         // isWasm                  function   line  pos        file  offset funcIndex
-        [    true,                     null,     0,   3,       null, '0x91',        3],
+        [    true,      "mem_out_of_bounds",     0,   3,       null, '0x91',        3],
         [    true, "call_mem_out_of_bounds",     0,   1,       null, '0x97',        4],
         [   false, "testWasmMemOutOfBounds",   116,   0, "stack.js"],
         [   false,                     null,   128,   0, "stack.js"]

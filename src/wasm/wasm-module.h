@@ -194,7 +194,8 @@ struct ModuleWireBytes;
 class V8_EXPORT_PRIVATE DecodedFunctionNames {
  public:
   WireBytesRef Lookup(const ModuleWireBytes& wire_bytes,
-                      uint32_t function_index) const;
+                      uint32_t function_index,
+                      Vector<const WasmExport> export_table) const;
   void AddForTesting(int function_index, WireBytesRef name);
 
  private:

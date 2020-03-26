@@ -30,13 +30,14 @@ namespace wasm {
 // static
 const uint32_t WasmElemSegment::kNullIndex;
 
-WireBytesRef DecodedFunctionNames::Lookup(const ModuleWireBytes& wire_bytes,
-                                          uint32_t function_index) const {
+WireBytesRef DecodedFunctionNames::Lookup(
+    const ModuleWireBytes& wire_bytes, uint32_t function_index,
+    Vector<const WasmExport> export_table) const {
   base::MutexGuard lock(&mutex_);
   if (!function_names_) {
     function_names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
     DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(),
-                        function_names_.get());
+                        function_names_.get(), export_table);
   }
   auto it = function_names_->find(function_index);
   if (it == function_names_->end()) return WireBytesRef();
@@ -176,8 +177,8 @@ WasmName ModuleWireBytes::GetNameOrNull(WireBytesRef ref) const {
 // Get a string stored in the module bytes representing a function name.
 WasmName ModuleWireBytes::GetNameOrNull(const WasmFunction* function,
                                         const WasmModule* module) const {
-  return GetNameOrNull(
-      module->function_names.Lookup(*this, function->func_index));
+  return GetNameOrNull(module->function_names.Lookup(
+      *this, function->func_index, VectorOf(module->export_table)));
 }
 
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {

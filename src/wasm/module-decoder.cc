@@ -313,6 +313,8 @@ class ModuleDecoderImpl : public Decoder {
       error(start_, "end is less than start");
       end_ = start_;
     }
+    module_start_ = module_start;
+    module_end_ = module_end;
   }
 
   void onFirstError() override {
@@ -933,7 +935,7 @@ class ModuleDecoderImpl : public Decoder {
         &module_->functions[index + module_->num_imported_functions];
     function->code = {offset, length};
     if (verify_functions) {
-      ModuleWireBytes bytes(start_, end_);
+      ModuleWireBytes bytes(module_start_, module_end_);
       VerifyFunctionBody(module_->signature_zone->allocator(),
                          index + module_->num_imported_functions, bytes,
                          module_.get(), function);
@@ -1296,6 +1298,8 @@ class ModuleDecoderImpl : public Decoder {
  private:
   const WasmFeatures enabled_features_;
   std::shared_ptr<WasmModule> module_;
+  const byte* module_start_;
+  const byte* module_end_;
   Counters* counters_ = nullptr;
   // The type section is the first section in a module.
   uint8_t next_ordered_section_ = kFirstSectionInModule;
@@ -2208,36 +2212,50 @@ bool FindNameSection(Decoder* decoder) {
 }  // namespace
 
 void DecodeFunctionNames(const byte* module_start, const byte* module_end,
-                         std::unordered_map<uint32_t, WireBytesRef>* names) {
+                         std::unordered_map<uint32_t, WireBytesRef>* names,
+                         const Vector<const WasmExport> export_table) {
   DCHECK_NOT_NULL(names);
   DCHECK(names->empty());
 
   Decoder decoder(module_start, module_end);
-  if (!FindNameSection(&decoder)) return;
+  if (FindNameSection(&decoder)) {
+    while (decoder.ok() && decoder.more()) {
+      uint8_t name_type = decoder.consume_u8("name type");
+      if (name_type & 0x80) break;  // no varuint7
 
-  while (decoder.ok() && decoder.more()) {
-    uint8_t name_type = decoder.consume_u8("name type");
-    if (name_type & 0x80) break;  // no varuint7
+      uint32_t name_payload_len = decoder.consume_u32v("name payload length");
+      if (!decoder.checkAvailable(name_payload_len)) break;
 
-    uint32_t name_payload_len = decoder.consume_u32v("name payload length");
-    if (!decoder.checkAvailable(name_payload_len)) break;
-
-    if (name_type != NameSectionKindCode::kFunction) {
-      decoder.consume_bytes(name_payload_len, "name subsection payload");
-      continue;
-    }
-    uint32_t functions_count = decoder.consume_u32v("functions count");
-
-    for (; decoder.ok() && functions_count > 0; --functions_count) {
-      uint32_t function_index = decoder.consume_u32v("function index");
-      WireBytesRef name = consume_string(&decoder, false, "function name");
-
-      // Be lenient with errors in the name section: Ignore non-UTF8 names. You
-      // can even assign to the same function multiple times (last valid one
-      // wins).
-      if (decoder.ok() && validate_utf8(&decoder, name)) {
-        names->insert(std::make_pair(function_index, name));
+      if (name_type != NameSectionKindCode::kFunction) {
+        decoder.consume_bytes(name_payload_len, "name subsection payload");
+        continue;
       }
+      uint32_t functions_count = decoder.consume_u32v("functions count");
+
+      for (; decoder.ok() && functions_count > 0; --functions_count) {
+        uint32_t function_index = decoder.consume_u32v("function index");
+        WireBytesRef name = consume_string(&decoder, false, "function name");
+
+        // Be lenient with errors in the name section: Ignore non-UTF8 names.
+        // You can even assign to the same function multiple times (last valid
+        // one wins).
+        if (decoder.ok() && validate_utf8(&decoder, name)) {
+          names->insert(std::make_pair(function_index, name));
+        }
+      }
+    }
+  }
+
+  // Extract from export table.
+  for (const WasmExport& exp : export_table) {
+    switch (exp.kind) {
+      case kExternalFunction:
+        if (names->count(exp.index) == 0) {
+          names->insert(std::make_pair(exp.index, exp.name));
+        }
+        break;
+      default:
+        break;
     }
   }
 }
