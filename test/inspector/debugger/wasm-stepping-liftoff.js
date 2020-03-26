@@ -109,8 +109,6 @@ function instantiate(bytes) {
   for (let i = 0; i < 3; ++i) await waitForPauseAndStep('stepInto');
   // Then just resume.
   await waitForPauseAndStep('resume');
-  // TODO(clemensb/thibaudm): Figure out what this last break is (at ":0:24").
-  await waitForPauseAndStep('resume');
   InspectorTest.log('exports.main returned!');
 
   InspectorTest.log('Test stepping over a recursive call');
