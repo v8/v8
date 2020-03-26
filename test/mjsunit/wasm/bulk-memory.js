@@ -222,3 +222,12 @@ function getMemoryFill(mem) {
   // Should not throw.
   builder.instantiate();
 })();
+
+(function TestPassiveElementSegmentNoMemory() {
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('f', kSig_v_v).addBody([]);
+  builder.addPassiveElementSegment([0, 0, 0]);
+
+  // Should not throw.
+  builder.instantiate();
+})();

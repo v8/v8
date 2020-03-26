@@ -1841,9 +1841,6 @@ class ModuleDecoderImpl : public Decoder {
       *status = WasmElemSegment::kStatusDeclarative;
     } else {
       *status = WasmElemSegment::kStatusPassive;
-      if (module_->tables.size() == 0) {
-        error(pc_, "Passive element sections require a table");
-      }
     }
     *functions_as_elements = flag & kFunctionsAsElementsMask;
     bool has_table_index = (flag & kHasTableIndexMask) &&
