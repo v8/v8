@@ -922,10 +922,14 @@ class DebugInfoImpl {
       if (!old_code->is_liftoff()) return;
       int pc_offset =
           static_cast<int>(frame->pc() - old_code->instruction_start());
+      int position = frame->position();
       int byte_offset = FindByteOffset(pc_offset, old_code);
       Address new_pc = FindNewPC(new_code, byte_offset, return_location);
       PointerAuthentication::ReplacePC(frame->pc_address(), new_pc,
                                        kSystemPointerSize);
+      USE(position);
+      // The frame position should still be the same after OSR.
+      DCHECK_EQ(position, frame->position());
     }
   }
 

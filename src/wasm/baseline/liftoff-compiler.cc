@@ -686,10 +686,12 @@ class LiftoffCompiler {
   }
 
   void NextInstruction(FullDecoder* decoder, WasmOpcode opcode) {
+    bool breakpoint = false;
     if (V8_UNLIKELY(next_breakpoint_ptr_)) {
       if (*next_breakpoint_ptr_ == 0) {
         // A single breakpoint at offset 0 indicates stepping.
         DCHECK_EQ(next_breakpoint_ptr_ + 1, next_breakpoint_end_);
+        breakpoint = true;
         EmitBreakpoint(decoder);
       } else {
         while (next_breakpoint_ptr_ != next_breakpoint_end_ &&
@@ -700,12 +702,13 @@ class LiftoffCompiler {
         if (next_breakpoint_ptr_ == next_breakpoint_end_) {
           next_breakpoint_ptr_ = next_breakpoint_end_ = nullptr;
         } else if (*next_breakpoint_ptr_ == decoder->position()) {
+          breakpoint = true;
           EmitBreakpoint(decoder);
         }
       }
     }
     // Potentially generate the source position to OSR to this instruction.
-    MaybeGenerateExtraSourcePos(decoder);
+    MaybeGenerateExtraSourcePos(decoder, !breakpoint);
     TraceCacheState(decoder);
 #ifdef DEBUG
     SLOW_DCHECK(__ ValidateCacheState());
@@ -3085,7 +3088,8 @@ class LiftoffCompiler {
  private:
   // Emit additional source positions for return addresses. Used by debugging to
   // OSR frames with different sets of breakpoints.
-  void MaybeGenerateExtraSourcePos(Decoder* decoder) {
+  void MaybeGenerateExtraSourcePos(Decoder* decoder,
+                                   bool emit_breakpoint_position = false) {
     if (V8_LIKELY(next_extra_source_pos_ptr_ == nullptr)) return;
     int position = static_cast<int>(decoder->position());
     while (*next_extra_source_pos_ptr_ < position) {
@@ -3096,6 +3100,26 @@ class LiftoffCompiler {
       }
     }
     if (*next_extra_source_pos_ptr_ != position) return;
+    if (emit_breakpoint_position) {
+      // Removing a breakpoint while paused on that breakpoint will OSR the
+      // return address as follows:
+      //   pos  instr
+      //   0    foo
+      //   1    call WasmDebugBreak
+      //   1    bar  // top frame return address
+      // becomes:
+      //   pos  instr
+      //   0    foo
+      //   1    nop  // top frame return address
+      //        bar
+      // {WasmCompiledFrame::position} would then return "0" as the source
+      // position of the top frame instead of "1".  This is fixed by explicitly
+      // emitting the missing position before the return address, with a nop so
+      // that code offsets do not collide.
+      source_position_table_builder_.AddPosition(
+          __ pc_offset(), SourcePosition(decoder->position()), false);
+      __ nop();
+    }
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), true);
     // Add a nop here, such that following code has another
