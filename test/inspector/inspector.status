@@ -17,6 +17,18 @@
 }],  # ALWAYS
 
 ##############################################################################
+['variant == future', {
+  # https://crbug.com/v8/10351
+  # --debug-in-liftoff is staged behind --future, but still shows some
+  # differences to the old behaviour (in particular, anyref is not
+  # implemented in Liftoff yet).
+  # TODO(clemensb/thibaudm): Get this list to zero and remove this block.
+  'debugger/wasm-scope-info-liftoff': [FAIL],
+  'debugger/wasm-stepping-in-from-js': [FAIL],
+  'debugger/wasm-anyref-global': [FAIL],
+}],
+
+##############################################################################
 ['system == android', {
   # https://crbug.com/v8/8197
   'debugger/get-possible-breakpoints-class-fields': [SKIP],

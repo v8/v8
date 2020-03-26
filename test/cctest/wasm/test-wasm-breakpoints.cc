@@ -139,6 +139,7 @@ class BreakHandler : public debug::DebugDelegate {
 Handle<BreakPoint> SetBreakpoint(WasmRunnerBase* runner, int function_index,
                                  int byte_offset,
                                  int expected_set_byte_offset = -1) {
+  runner->TierDown();
   int func_offset =
       runner->builder().GetFunctionAt(function_index)->code.offset();
   int code_offset = func_offset + byte_offset;

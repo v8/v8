@@ -258,6 +258,8 @@ class TestingModuleBuilder {
 
   void SetExecutable() { native_module_->SetExecutable(true); }
 
+  void TierDown() { native_module_->TierDown(isolate_); }
+
   enum AssumeDebugging : bool { kDebug = true, kNoDebug = false };
   CompilationEnv CreateCompilationEnv(AssumeDebugging = kNoDebug);
 
@@ -443,6 +445,8 @@ class WasmRunnerBase : public HandleAndZoneScope {
   Zone* zone() { return &zone_; }
 
   bool interpret() { return builder_.interpret(); }
+
+  void TierDown() { builder_.TierDown(); }
 
   template <typename ReturnType, typename... ParamTypes>
   FunctionSig* CreateSig() {

@@ -721,6 +721,7 @@ DEFINE_INT(wasm_tier_mask_for_testing, 0,
 DEFINE_BOOL(debug_in_liftoff, false,
             "use Liftoff instead of the C++ interpreter for debugging "
             "WebAssembly (experimental)")
+DEFINE_IMPLICATION(future, debug_in_liftoff)
 
 DEFINE_BOOL(validate_asm, true, "validate asm.js modules before compiling")
 DEFINE_BOOL(suppress_asm_messages, false,

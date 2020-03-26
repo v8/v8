@@ -49,6 +49,7 @@ class TestCode {
   }
 
   Handle<BreakPoint> BreakOnReturn(WasmRunnerBase* runner) {
+    runner->TierDown();
     uint32_t return_offset_in_function = FindReturn();
 
     int function_index = compiler_->function_index();
