@@ -1947,12 +1947,12 @@ void TurboAssembler::Trunc_ul_d(Register rd, FPURegister fs,
   if (result.is_valid()) {
     // If a valid result register is passed in, clear the invalid flag before
     // the convert, so that afterwards, we can check if it was set.
-    RV_csrrci(zero_reg, csr_fflags, NV);
+    RV_csrci(csr_fflags, NV);
   }
   RV_fcvt_lu_d(rd, fs, RTZ);
   if (result.is_valid()) {
     // Check if the invalid flag was set.
-    RV_csrrs(result, csr_fflags, zero_reg);
+    RV_frflags(result);
     RV_andi(result, result, NV);
     RV_snez(result, result);
   }
@@ -1963,12 +1963,12 @@ void TurboAssembler::Trunc_ul_s(Register rd, FPURegister fs,
   if (result.is_valid()) {
     // If a valid result register is passed in, clear the invalid flag before
     // the convert, so that afterwards, we can check if it was set.
-    RV_csrrci(zero_reg, csr_fflags, NV);
+    RV_csrci(csr_fflags, NV);
   }
   RV_fcvt_lu_s(rd, fs, RTZ);
   if (result.is_valid()) {
     // Check if the invalid flag was set.
-    RV_csrrs(result, csr_fflags, zero_reg);
+    RV_frflags(result);
     RV_andi(result, result, NV);
     RV_snez(result, result);
   }

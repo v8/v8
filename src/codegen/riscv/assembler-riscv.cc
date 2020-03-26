@@ -3078,6 +3078,78 @@ void Assembler::RV_call(uint32_t offset) {
   RV_jalr(ToRegister(1), ToRegister(6), offset & 0xfff);
 }
 
+void Assembler::RV_rdinstret(Register rd) {
+  RV_csrrs(rd, csr_instret, zero_reg);
+}
+void Assembler::RV_rdinstreth(Register rd) {
+  RV_csrrs(rd, csr_instreth, zero_reg);
+}
+void Assembler::RV_rdcycle(Register rd) {
+  RV_csrrs(rd, csr_cycle, zero_reg);
+}
+void Assembler::RV_rdcycleh(Register rd) {
+  RV_csrrs(rd, csr_cycleh, zero_reg);
+}
+void Assembler::RV_rdtime(Register rd) {
+  RV_csrrs(rd, csr_time, zero_reg);
+}
+void Assembler::RV_rdtimeh(Register rd) {
+  RV_csrrs(rd, csr_timeh, zero_reg);
+}
+
+void Assembler::RV_csrr(Register rd, ControlStatusReg csr) {
+  RV_csrrs(rd, csr, zero_reg);
+}
+void Assembler::RV_csrw(ControlStatusReg csr, Register rs) {
+  RV_csrrw(zero_reg, csr, rs);
+}
+void Assembler::RV_csrs(ControlStatusReg csr, Register rs) {
+  RV_csrrs(zero_reg, csr, rs);
+}
+void Assembler::RV_csrc(ControlStatusReg csr, Register rs) {
+  RV_csrrc(zero_reg, csr, rs);
+}
+
+void Assembler::RV_csrwi(ControlStatusReg csr, uint8_t imm) {
+  RV_csrrwi(zero_reg, csr, imm);
+}
+void Assembler::RV_csrsi(ControlStatusReg csr, uint8_t imm) {
+  RV_csrrsi(zero_reg, csr, imm);
+}
+void Assembler::RV_csrci(ControlStatusReg csr, uint8_t imm) {
+  RV_csrrci(zero_reg, csr, imm);
+}
+
+void Assembler::RV_frcsr(Register rd) {
+  RV_csrrs(rd, csr_fcsr, zero_reg);
+}
+void Assembler::RV_fscsr(Register rd, Register rs) {
+  RV_csrrw(rd, csr_fcsr, rs);
+}
+void Assembler::RV_fscsr(Register rs) {
+  RV_csrrw(zero_reg, csr_fcsr, rs);
+}
+
+void Assembler::RV_frrm(Register rd) {
+  RV_csrrs(rd, csr_frm, zero_reg);
+}
+void Assembler::RV_fsrm(Register rd, Register rs) {
+  RV_csrrw(rd, csr_frm, rs);
+}
+void Assembler::RV_fsrm(Register rs) {
+  RV_csrrw(zero_reg, csr_frm, rs);
+}
+
+void Assembler::RV_frflags(Register rd) {
+  RV_csrrs(rd, csr_fflags, zero_reg);
+}
+void Assembler::RV_fsflags(Register rd, Register rs) {
+  RV_csrrw(rd, csr_fflags, rs);
+}
+void Assembler::RV_fsflags(Register rs) {
+  RV_csrrw(zero_reg, csr_fflags, rs);
+}
+
 // Original MIPS Instructions
 
 void Assembler::addu(Register rd, Register rs, Register rt) {

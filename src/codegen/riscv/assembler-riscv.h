@@ -674,6 +674,56 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_ret();
   void RV_call(uint32_t offset);
 
+  // Read instructions-retired counter
+  void RV_rdinstret(Register rd);
+  // Read upper 32-bits of instructions-retired counter
+  void RV_rdinstreth(Register rd);
+  // Read cycle counter
+  void RV_rdcycle(Register rd);
+  // Read upper 32-bits of cycle counter
+  void RV_rdcycleh(Register rd);
+  // Read real-time clock
+  void RV_rdtime(Register rd);
+  // Read upper 32-bits of real-time clock
+  void RV_rdtimeh(Register rd);
+
+  // Read CSR
+  void RV_csrr(Register rd, ControlStatusReg csr);
+  // Write CSR
+  void RV_csrw(ControlStatusReg csr, Register rs);
+  // Set bits in CSR
+  void RV_csrs(ControlStatusReg csr, Register rs);
+  // Clear bits in CSR
+  void RV_csrc(ControlStatusReg csr, Register rs);
+
+  // Write CSR, immediate
+  void RV_csrwi(ControlStatusReg csr, uint8_t imm);
+  // Set bits in CSR, immediate
+  void RV_csrsi(ControlStatusReg csr, uint8_t imm);
+  // Clear bits in CSR, immediate
+  void RV_csrci(ControlStatusReg csr, uint8_t imm);
+
+  // Read FP control/status register
+  void RV_frcsr(Register rd);
+  // Swap FP control/status register
+  void RV_fscsr(Register rd, Register rs);
+  // Write FP control/status register
+  void RV_fscsr(Register rs);
+
+  // Read FP rounding mode
+  void RV_frrm(Register rd);
+  // Swap FP rounding mode
+  void RV_fsrm(Register rd, Register rs);
+  // Write FP rounding mode
+  void RV_fsrm(Register rs);
+
+  // Read FP exception flags
+  void RV_frflags(Register rd);
+  // Swap FP exception flags
+  void RV_fsflags(Register rd, Register rs);
+  // Write FP exception flags
+  void RV_fsflags(Register rs);
+
   // RISC-V Instructions
   // Instr addi(Register rd, Register rs1, int16_t imm12);
   Instr addi(Register rd, Register rs1, int16_t imm12);
