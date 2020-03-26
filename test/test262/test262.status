@@ -557,10 +557,6 @@
   'intl402/DateTimeFormat/invalid-numbering-system-calendar-options': [FAIL],
   'intl402/NumberFormat/invalid-numbering-system-options': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10274
-  # BigInt as literal property names must be valid
-  'language/expressions/object/literal-property-name-bigint': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
