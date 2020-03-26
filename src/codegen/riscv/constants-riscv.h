@@ -1338,6 +1338,36 @@ enum Condition {
   cc_default = kNoCondition
 };
 
+enum ControlStatusReg {
+  csr_fflags = 0x001,   // Floating-Point Accrued Exceptions (RW)
+  csr_frm = 0x002,      // Floating-Point Dynamic Rounding Mode (RW)
+  csr_fcsr = 0x003,     // Floating-Point Control and Status Register (RW)
+  csr_cycle = 0xc00,    // Cycle counter for RDCYCLE instruction (RO)
+  csr_time = 0xc01,     // Timer for RDTIME instruction (RO)
+  csr_instret = 0xc02,  // Insns-retired counter for RDINSTRET instruction (RO)
+  csr_cycleh = 0xc80,   // Upper 32 bits of cycle, RV32I only (RO)
+  csr_timeh = 0xc81,    // Upper 32 bits of time, RV32I only (RO)
+  csr_instreth = 0xc82  // Upper 32 bits of instret, RV32I only (RO)
+};
+
+enum FFlagsMask {
+  NV = 0b10000,  // Invalid
+  DZ = 0b1000,   // Divide by Zero
+  OF = 0b100,    // Overflow
+  UF = 0b10,     // Underflow
+  NX = 0b1       // Inexact
+};
+
+enum RoundingMode {
+  RNE = 0b000,  // Round to Nearest, ties to Even
+  RTZ = 0b001,  // Round towards Zero
+  RDN = 0b010,  // Round Down (towards -infinity)
+  RUP = 0b011,  // Round Up (towards +infinity)
+  RMM = 0b100,  // Round to Nearest, tiest to Max Magnitude
+  DYN = 0b111   // In instruction’s rm field, selects dynamic rounding mode;
+                // In Rounding Mode register, Invalid
+};
+
 // Returns the equivalent of !cc.
 // Negation of the default kNoCondition (-1) results in a non-default
 // no_condition value (-2). As long as tests for no_condition check

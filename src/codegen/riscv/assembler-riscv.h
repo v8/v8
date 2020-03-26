@@ -444,12 +444,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_unimp();
 
   // CSR
-  void RV_csrrw(Register rd, uint16_t imm12, Register rs1);
-  void RV_csrrs(Register rd, uint16_t imm12, Register rs1);
-  void RV_csrrc(Register rd, uint16_t imm12, Register rs1);
-  void RV_csrrwi(Register rd, uint16_t imm12, uint8_t rs1);
-  void RV_csrrsi(Register rd, uint16_t imm12, uint8_t rs1);
-  void RV_csrrci(Register rd, uint16_t imm12, uint8_t rs1);
+  void RV_csrrw(Register rd, ControlStatusReg csr, Register rs1);
+  void RV_csrrs(Register rd, ControlStatusReg csr, Register rs1);
+  void RV_csrrc(Register rd, ControlStatusReg csr, Register rs1);
+  void RV_csrrwi(Register rd, ControlStatusReg csr, uint8_t rs1);
+  void RV_csrrsi(Register rd, ControlStatusReg csr, uint8_t rs1);
+  void RV_csrrci(Register rd, ControlStatusReg csr, uint8_t rs1);
 
   // RV64I
   void RV_lwu(Register rd, Register rs1, int16_t imm12);
@@ -512,86 +512,86 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_flw(FPURegister rd, Register rs1, int16_t imm12);
   void RV_fsw(FPURegister source, Register base, int16_t imm12);
   void RV_fmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                  FPURegister rs3, uint8_t frm = 0b000);
+                  FPURegister rs3, RoundingMode frm = RNE);
   void RV_fmsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                  FPURegister rs3, uint8_t frm = 0b000);
+                  FPURegister rs3, RoundingMode frm = RNE);
   void RV_fnmsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                   FPURegister rs3, uint8_t frm = 0b000);
+                   FPURegister rs3, RoundingMode frm = RNE);
   void RV_fnmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                   FPURegister rs3, uint8_t frm = 0b000);
+                   FPURegister rs3, RoundingMode frm = RNE);
   void RV_fadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 uint8_t frm = 0b000);
+                 RoundingMode frm = RNE);
   void RV_fsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 uint8_t frm = 0b000);
+                 RoundingMode frm = RNE);
   void RV_fmul_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 uint8_t frm = 0b000);
+                 RoundingMode frm = RNE);
   void RV_fdiv_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 uint8_t frm = 0b000);
-  void RV_fsqrt_s(FPURegister rd, FPURegister rs1, uint8_t frm = 0b000);
+                 RoundingMode frm = RNE);
+  void RV_fsqrt_s(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
   void RV_fsgnj_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void RV_fsgnjn_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void RV_fsgnjx_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void RV_fmin_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void RV_fmax_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
-  void RV_fcvt_w_s(Register rd, FPURegister rs1, uint8_t frm = 0b000);
-  void RV_fcvt_wu_s(Register rd, FPURegister rs1, uint8_t frm = 0b000);
+  void RV_fcvt_w_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void RV_fcvt_wu_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
   void RV_fmv_x_w(Register rd, FPURegister rs1);
   void RV_feq_s(Register rd, FPURegister rs1, FPURegister rs2);
   void RV_flt_s(Register rd, FPURegister rs1, FPURegister rs2);
   void RV_fle_s(Register rd, FPURegister rs1, FPURegister rs2);
   void RV_fclass_s(Register rd, FPURegister rs1);
-  void RV_fcvt_s_w(FPURegister rd, Register rs1, uint8_t frm = 0b000);
-  void RV_fcvt_s_wu(FPURegister rd, Register rs1, uint8_t frm = 0b000);
+  void RV_fcvt_s_w(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void RV_fcvt_s_wu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
   void RV_fmv_w_x(FPURegister rd, Register rs1);
 
   // RV64F Standard Extension (in addition to RV32F)
-  void RV_fcvt_l_s(Register rd, FPURegister rs1, uint8_t frm = 0b000);
-  void RV_fcvt_lu_s(Register rd, FPURegister rs1, uint8_t frm = 0b000);
-  void RV_fcvt_s_l(FPURegister rd, Register rs1, uint8_t frm = 0b000);
-  void RV_fcvt_s_lu(FPURegister rd, Register rs1, uint8_t frm = 0b000);
+  void RV_fcvt_l_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void RV_fcvt_lu_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void RV_fcvt_s_l(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void RV_fcvt_s_lu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
 
   // RV32D Standard Extension
   void RV_fld(FPURegister rd, Register rs1, int16_t imm12);
   void RV_fsd(FPURegister source, Register base, int16_t imm12);
   void RV_fmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                  FPURegister rs3, uint8_t frm = 0b000);
+                  FPURegister rs3, RoundingMode frm = RNE);
   void RV_fmsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                  FPURegister rs3, uint8_t frm = 0b000);
+                  FPURegister rs3, RoundingMode frm = RNE);
   void RV_fnmsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                   FPURegister rs3, uint8_t frm = 0b000);
+                   FPURegister rs3, RoundingMode frm = RNE);
   void RV_fnmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                   FPURegister rs3, uint8_t frm = 0b000);
+                   FPURegister rs3, RoundingMode frm = RNE);
   void RV_fadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 uint8_t frm = 0b000);
+                 RoundingMode frm = RNE);
   void RV_fsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 uint8_t frm = 0b000);
+                 RoundingMode frm = RNE);
   void RV_fmul_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 uint8_t frm = 0b000);
+                 RoundingMode frm = RNE);
   void RV_fdiv_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 uint8_t frm = 0b000);
-  void RV_fsqrt_d(FPURegister rd, FPURegister rs1, uint8_t frm = 0b000);
+                 RoundingMode frm = RNE);
+  void RV_fsqrt_d(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
   void RV_fsgnj_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void RV_fsgnjn_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void RV_fsgnjx_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void RV_fmin_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
   void RV_fmax_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
-  void RV_fcvt_s_d(FPURegister rd, FPURegister rs1, uint8_t frm = 0b000);
-  void RV_fcvt_d_s(FPURegister rd, FPURegister rs1, uint8_t frm = 0b000);
+  void RV_fcvt_s_d(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
+  void RV_fcvt_d_s(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
   void RV_feq_d(Register rd, FPURegister rs1, FPURegister rs2);
   void RV_flt_d(Register rd, FPURegister rs1, FPURegister rs2);
   void RV_fle_d(Register rd, FPURegister rs1, FPURegister rs2);
   void RV_fclass_d(Register rd, FPURegister rs1);
-  void RV_fcvt_w_d(Register rd, FPURegister rs1, uint8_t frm = 0b000);
-  void RV_fcvt_wu_d(Register rd, FPURegister rs1, uint8_t frm = 0b000);
-  void RV_fcvt_d_w(FPURegister rd, Register rs1, uint8_t frm = 0b000);
-  void RV_fcvt_d_wu(FPURegister rd, Register rs1, uint8_t frm = 0b000);
+  void RV_fcvt_w_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void RV_fcvt_wu_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void RV_fcvt_d_w(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void RV_fcvt_d_wu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
 
   // RV64D Standard Extension (in addition to RV32D)
-  void RV_fcvt_l_d(Register rd, FPURegister rs1, uint8_t frm = 0b000);
-  void RV_fcvt_lu_d(Register rd, FPURegister rs1, uint8_t frm = 0b000);
+  void RV_fcvt_l_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void RV_fcvt_lu_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
   void RV_fmv_x_d(Register rd, FPURegister rs1);
-  void RV_fcvt_d_l(FPURegister rd, Register rs1, uint8_t frm = 0b000);
-  void RV_fcvt_d_lu(FPURegister rd, Register rs1, uint8_t frm = 0b000);
+  void RV_fcvt_d_l(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void RV_fcvt_d_lu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
   void RV_fmv_d_x(FPURegister rd, Register rs1);
 
   // Privileged
@@ -674,14 +674,64 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_ret();
   void RV_call(uint32_t offset);
 
-	// RISC-V Instructions
-	//Instr addi(Register rd, Register rs1, int16_t imm12);
-	Instr addi(Register rd, Register rs1, int16_t imm12);
+  // Read instructions-retired counter
+  void RV_rdinstret(Register rd);
+  // Read upper 32-bits of instructions-retired counter
+  void RV_rdinstreth(Register rd);
+  // Read cycle counter
+  void RV_rdcycle(Register rd);
+  // Read upper 32-bits of cycle counter
+  void RV_rdcycleh(Register rd);
+  // Read real-time clock
+  void RV_rdtime(Register rd);
+  // Read upper 32-bits of real-time clock
+  void RV_rdtimeh(Register rd);
+
+  // Read CSR
+  void RV_csrr(Register rd, ControlStatusReg csr);
+  // Write CSR
+  void RV_csrw(ControlStatusReg csr, Register rs);
+  // Set bits in CSR
+  void RV_csrs(ControlStatusReg csr, Register rs);
+  // Clear bits in CSR
+  void RV_csrc(ControlStatusReg csr, Register rs);
+
+  // Write CSR, immediate
+  void RV_csrwi(ControlStatusReg csr, uint8_t imm);
+  // Set bits in CSR, immediate
+  void RV_csrsi(ControlStatusReg csr, uint8_t imm);
+  // Clear bits in CSR, immediate
+  void RV_csrci(ControlStatusReg csr, uint8_t imm);
+
+  // Read FP control/status register
+  void RV_frcsr(Register rd);
+  // Swap FP control/status register
+  void RV_fscsr(Register rd, Register rs);
+  // Write FP control/status register
+  void RV_fscsr(Register rs);
+
+  // Read FP rounding mode
+  void RV_frrm(Register rd);
+  // Swap FP rounding mode
+  void RV_fsrm(Register rd, Register rs);
+  // Write FP rounding mode
+  void RV_fsrm(Register rs);
+
+  // Read FP exception flags
+  void RV_frflags(Register rd);
+  // Swap FP exception flags
+  void RV_fsflags(Register rd, Register rs);
+  // Write FP exception flags
+  void RV_fsflags(Register rs);
+
+  // RISC-V Instructions
+  // Instr addi(Register rd, Register rs1, int16_t imm12);
+  Instr addi(Register rd, Register rs1, int16_t imm12);
   // MIPS Instructions
 
   // Type == 0 is the default non-marking nop. For mips this is a
   // sll(zero_reg, zero_reg, 0). We use rt_reg == at for non-zero
-		
+
   // marking, to avoid conflict with ssnop and ehb instructions.
   void nop(unsigned int type = 0) {
     DCHECK_LT(type, 32);
@@ -2048,14 +2098,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode, Register rd,
                  FPURegister rs1, FPURegister rs2);
   void GenInstrR4(uint8_t funct2, Opcode opcode, Register rd, Register rs1,
-                  Register rs2, Register rs3, uint8_t frm);
+                  Register rs2, Register rs3, RoundingMode frm);
   void GenInstrR4(uint8_t funct2, Opcode opcode, FPURegister rd,
                   FPURegister rs1, FPURegister rs2, FPURegister rs3,
-                  uint8_t frm);
+                  RoundingMode frm);
   void GenInstrRAtomic(uint8_t funct5, bool aq, bool rl, uint8_t funct3,
                        Register rd, Register rs1, Register rs2);
   void GenInstrRFrm(uint8_t funct7, Opcode opcode, Register rd, Register rs1,
-                    Register rs2, uint8_t frm);
+                    Register rs2, RoundingMode frm);
   void GenInstrI(uint8_t funct3, Opcode opcode, Register rd, Register rs1,
                  int16_t imm12);
   void GenInstrI(uint8_t funct3, Opcode opcode, FPURegister rd, Register rs1,
@@ -2085,9 +2135,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                         Register rs1, uint8_t shamt);
   void GenInstrALU_rr(uint8_t funct7, uint8_t funct3, Register rd, Register rs1,
                       Register rs2);
-  void GenInstrCSR_ir(uint8_t funct3, Register rd, uint16_t imm12,
+  void GenInstrCSR_ir(uint8_t funct3, Register rd, ControlStatusReg csr,
                       Register rs1);
-  void GenInstrCSR_ii(uint8_t funct3, Register rd, uint16_t imm12, uint8_t rs1);
+  void GenInstrCSR_ii(uint8_t funct3, Register rd, ControlStatusReg csr,
+                      uint8_t rs1);
   void GenInstrShiftW_ri(bool arithshift, uint8_t funct3, Register rd,
                          Register rs1, uint8_t shamt);
   void GenInstrALUW_rr(uint8_t funct7, uint8_t funct3, Register rd,
