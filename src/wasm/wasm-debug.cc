@@ -449,7 +449,7 @@ class InterpreterHandle {
     Handle<JSObject> stack_scope_obj =
         isolate_->factory()->NewJSObjectWithNullProto();
     for (int i = 0; i < stack_count; ++i) {
-      WasmValue value = frame->GetStackValue(stack_count - i - 1);
+      WasmValue value = frame->GetStackValue(i);
       Handle<Object> value_obj = WasmValueToValueObject(isolate_, value);
       JSObject::AddDataElement(stack_scope_obj, static_cast<uint32_t>(i),
                                value_obj, NONE);
@@ -661,13 +661,12 @@ class DebugInfoImpl {
     // which does not make too much sense here.
     int num_locals = static_cast<int>(debug_side_table->num_locals());
     int value_count = debug_side_table_entry->num_values();
-    int stack_count = value_count - num_locals;
-    for (int i = 0; i < stack_count; ++i) {
-      WasmValue value = GetValue(debug_side_table_entry, value_count - i - 1,
-                                 fp, debug_break_fp);
+    for (int i = num_locals; i < value_count; ++i) {
+      WasmValue value = GetValue(debug_side_table_entry, i, fp, debug_break_fp);
       Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
-      JSObject::AddDataElement(stack_scope_obj, static_cast<uint32_t>(i),
-                               value_obj, NONE);
+      JSObject::AddDataElement(stack_scope_obj,
+                               static_cast<uint32_t>(i - num_locals), value_obj,
+                               NONE);
     }
     return stack_scope_obj;
   }

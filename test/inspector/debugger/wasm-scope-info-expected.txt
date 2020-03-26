@@ -255,8 +255,8 @@ at func (0:108):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
    stack: "0": 1 (number), "1": 7 (number)
  - scope (wasm-expression-stack):
-   0: 7 (number)
-   1: 1 (number)
+   0: 1 (number)
+   1: 7 (number)
 at call_func (0:58):
  - scope (global):
    globals: "global0": 0 (number)
@@ -278,8 +278,8 @@ at func (0:109):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
    stack: "0": 1 (number), "1": 7 (number)
  - scope (wasm-expression-stack):
-   0: 7 (number)
-   1: 1 (number)
+   0: 1 (number)
+   1: 7 (number)
 at call_func (0:58):
  - scope (global):
    globals: "global0": 0 (number)
