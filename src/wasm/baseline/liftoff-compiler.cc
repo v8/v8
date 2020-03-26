@@ -312,7 +312,14 @@ class LiftoffCompiler {
         next_breakpoint_ptr_(breakpoints.begin()),
         next_breakpoint_end_(breakpoints.end()),
         next_extra_source_pos_ptr_(extra_source_pos.begin()),
-        next_extra_source_pos_end_(extra_source_pos.end()) {}
+        next_extra_source_pos_end_(extra_source_pos.end()) {
+    if (breakpoints.empty()) {
+      next_breakpoint_ptr_ = next_breakpoint_end_ = nullptr;
+    }
+    if (extra_source_pos.empty()) {
+      next_extra_source_pos_ptr_ = next_extra_source_pos_end_ = nullptr;
+    }
+  }
 
   bool did_bailout() const { return bailout_reason_ != kSuccess; }
   LiftoffBailoutReason bailout_reason() const { return bailout_reason_; }

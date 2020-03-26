@@ -791,8 +791,11 @@ class DebugInfoImpl {
            (last_step_action == StepIn && stepping_frame_ != NO_ID);
   }
 
-  void RemoveBreakpoint(int func_index, int offset, Isolate* current_isolate) {
+  void RemoveBreakpoint(int func_index, int position,
+                        Isolate* current_isolate) {
     base::MutexGuard guard(&mutex_);
+    const auto& function = native_module_->module()->functions[func_index];
+    int offset = position - function.code.offset();
 
     std::vector<int>& breakpoints = breakpoints_per_function_[func_index];
     DCHECK_LT(0, offset);
@@ -918,7 +921,7 @@ class DebugInfoImpl {
       if (frame->native_module() != new_code->native_module()) continue;
       if (frame->function_index() != new_code->index()) continue;
       WasmCode* old_code = frame->wasm_code();
-      if (!old_code->is_liftoff()) return;
+      if (!old_code->is_liftoff()) continue;
       int pc_offset =
           static_cast<int>(frame->pc() - old_code->instruction_start());
       int position = frame->position();
