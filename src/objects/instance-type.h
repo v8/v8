@@ -154,7 +154,7 @@ enum InstanceType : uint16_t {
 };
 
 // This constant is defined outside of the InstanceType enum because the
-// string instance types are sparce and there's no such a string instance type.
+// string instance types are sparse and there's no such string instance type.
 // But it's still useful for range checks to have such a value.
 constexpr InstanceType LAST_STRING_TYPE =
     static_cast<InstanceType>(FIRST_NONSTRING_TYPE - 1);
