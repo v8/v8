@@ -958,10 +958,6 @@ class ModuleDecoderImpl : public Decoder {
     module_->data_segments.reserve(data_segments_count);
     for (uint32_t i = 0; ok() && i < data_segments_count; ++i) {
       const byte* pos = pc();
-      if (!module_->has_memory) {
-        error("cannot load data without memory");
-        break;
-      }
       TRACE("DecodeDataSegment[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
 
@@ -971,9 +967,15 @@ class ModuleDecoderImpl : public Decoder {
       consume_data_segment_header(&is_active, &memory_index, &dest_addr);
       if (failed()) break;
 
-      if (is_active && memory_index != 0) {
-        errorf(pos, "illegal memory index %u != 0", memory_index);
-        break;
+      if (is_active) {
+        if (!module_->has_memory) {
+          error("cannot load data without memory");
+          break;
+        }
+        if (memory_index != 0) {
+          errorf(pos, "illegal memory index %u != 0", memory_index);
+          break;
+        }
       }
 
       uint32_t source_length = consume_u32v("source size");

@@ -214,3 +214,11 @@ function getMemoryFill(mem) {
 
   assertEquals(0, view[0]);
 })();
+
+(function TestPassiveDataSegmentNoMemory() {
+  const builder = new WasmModuleBuilder();
+  builder.addPassiveDataSegment([0, 1, 2]);
+
+  // Should not throw.
+  builder.instantiate();
+})();
