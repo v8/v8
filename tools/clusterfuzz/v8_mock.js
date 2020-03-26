@@ -46,6 +46,10 @@ var prettyPrinted = function prettyPrinted(msg) { return msg; };
     return result;
   }
 
+  origDate.prototype.constructor = function(...args) {
+    return constructDate(args);
+  };
+
   var handler = {
     apply: function(target, thisArg, args) {
       return constructDate(args);

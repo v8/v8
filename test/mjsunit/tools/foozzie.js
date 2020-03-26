@@ -16,6 +16,7 @@ assertEquals(0.3, Math.random());
 assertEquals(1477662728698, Date.now());
 assertEquals(1477662728701, Date.now());
 assertEquals(1477662728705, new Date().getTime());
+assertEquals(710, new Date.prototype.constructor().getUTCMilliseconds());
 
 // Deterministic arguments in constructor keep working.
 assertEquals(819134640000,
