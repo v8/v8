@@ -18,11 +18,9 @@
 
 ##############################################################################
 ['variant == future', {
-  # https://crbug.com/v8/10351
-  # --debug-in-liftoff is staged behind --future, but still shows some
-  # differences to the old behaviour (in particular, anyref is not
-  # implemented in Liftoff yet).
-  # TODO(clemensb/thibaudm): Get this list to zero and remove this block.
+  # https://crbug.com/v8/10356
+  # This test worked in the wasm interpreter, but fails when using Liftoff for
+  # debugging.
   'debugger/wasm-anyref-global': [FAIL],
 }],
 
