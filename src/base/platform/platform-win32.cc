@@ -1394,5 +1394,23 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 
 void OS::AdjustSchedulingParams() {}
 
+// static
+void* Stack::GetStackStart() {
+#if defined(V8_TARGET_ARCH_32_BIT)
+  return reinterpret_cast<void*>(__readfsdword(offsetof(NT_TIB, StackBase)));
+#else
+  return reinterpret_cast<void*>(__readgsqword(offsetof(NT_TIB64, StackBase)));
+#endif
+}
+
+// static
+void* Stack::GetCurrentStackPosition() {
+#if V8_CC_MSVC
+  return _AddressOfReturnAddress();
+#else
+  return __builtin_frame_address(0);
+#endif
+}
+
 }  // namespace base
 }  // namespace v8
