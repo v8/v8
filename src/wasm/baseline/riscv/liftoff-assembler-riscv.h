@@ -925,81 +925,54 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI32ConvertI64:
       TurboAssembler::Ext(dst.gp(), src.gp(), 0, 32);
       return true;
-    case kExprI32SConvertF32: {
-      LiftoffRegister rounded =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
-      LiftoffRegister converted_back =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
-
-      // Real conversion.
-      TurboAssembler::Trunc_s_s(rounded.fp(), src.fp());
-      trunc_w_s(kScratchDoubleReg, rounded.fp());
-      mfc1(dst.gp(), kScratchDoubleReg);
-      // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
-      // because INT32_MIN allows easier out-of-bounds detection.
-      TurboAssembler::Addu(kScratchReg, dst.gp(), 1);
-      TurboAssembler::Slt(kScratchReg2, kScratchReg, dst.gp());
-      TurboAssembler::Movn(dst.gp(), kScratchReg, kScratchReg2);
-
-      // Checking if trap.
-      mtc1(dst.gp(), kScratchDoubleReg);
-      cvt_s_w(converted_back.fp(), kScratchDoubleReg);
-      TurboAssembler::CompareF32(EQ, rounded.fp(), converted_back.fp());
-      TurboAssembler::BranchFalseF(trap);
-      return true;
-    }
-    case kExprI32UConvertF32: {
-      LiftoffRegister rounded =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
-      LiftoffRegister converted_back =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
-
-      // Real conversion.
-      TurboAssembler::Trunc_s_s(rounded.fp(), src.fp());
-      TurboAssembler::Trunc_uw_s(dst.gp(), rounded.fp(), kScratchDoubleReg);
-      // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
-      // because 0 allows easier out-of-bounds detection.
-      TurboAssembler::Addu(kScratchReg, dst.gp(), 1);
-      TurboAssembler::Movz(dst.gp(), zero_reg, kScratchReg);
-
-      // Checking if trap.
-      TurboAssembler::Cvt_d_uw(converted_back.fp(), dst.gp());
-      cvt_s_d(converted_back.fp(), converted_back.fp());
-      TurboAssembler::CompareF32(EQ, rounded.fp(), converted_back.fp());
-      TurboAssembler::BranchFalseF(trap);
-      return true;
-    }
-    case kExprI32SConvertF64: {
-      LiftoffRegister rounded =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
-      LiftoffRegister converted_back =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
-
-      // Real conversion.
-      TurboAssembler::Trunc_d_d(rounded.fp(), src.fp());
-      trunc_w_d(kScratchDoubleReg, rounded.fp());
-      mfc1(dst.gp(), kScratchDoubleReg);
-
-      // Checking if trap.
-      cvt_d_w(converted_back.fp(), kScratchDoubleReg);
-      TurboAssembler::CompareF64(EQ, rounded.fp(), converted_back.fp());
-      TurboAssembler::BranchFalseF(trap);
-      return true;
-    }
-    case kExprI32UConvertF64: {
-      LiftoffRegister rounded =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
-      LiftoffRegister converted_back =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
-
-      // Real conversion.
-      TurboAssembler::Trunc_d_d(rounded.fp(), src.fp());
-      TurboAssembler::Trunc_uw_d(dst.gp(), rounded.fp(), kScratchDoubleReg);
-
-      // Checking if trap.
-      TurboAssembler::Cvt_d_uw(converted_back.fp(), dst.gp());
-      TurboAssembler::CompareF64(EQ, rounded.fp(), converted_back.fp());
-      TurboAssembler::BranchFalseF(trap);
+    case kExprI32SConvertF32:
+    case kExprI32UConvertF32:
+    case kExprI32SConvertF64:
+    case kExprI32UConvertF64:
+    case kExprI64SConvertF32:
+    case kExprI64UConvertF32:
+    case kExprI64SConvertF64:
+    case kExprI64UConvertF64:
+    case kExprF32ConvertF64: {
+      // clear the Invalid Operation flag before conversion so that we can check
+      // if it is set afterwards
+      RV_csrci(csr_fflags, NV);
+      // real conversion
+      switch (opcode) {
+        case kExprI32SConvertF32:
+          RV_fcvt_w_s(dst.gp(), src.fp());
+          break;
+        case kExprI32UConvertF32:
+          RV_fcvt_wu_s(dst.gp(), src.fp());
+          break;
+        case kExprI32SConvertF64:
+          RV_fcvt_w_d(dst.gp(), src.fp());
+          break;
+        case kExprI32UConvertF64:
+          RV_fcvt_wu_d(dst.gp(), src.fp());
+          break;
+        case kExprI64SConvertF32:
+          RV_fcvt_l_s(dst.gp(), src.fp());
+          break;
+        case kExprI64UConvertF32:
+          RV_fcvt_lu_s(dst.gp(), src.fp());
+          break;
+        case kExprI64SConvertF64:
+          RV_fcvt_l_d(dst.gp(), src.fp());
+          break;
+        case kExprI64UConvertF64:
+          RV_fcvt_lu_d(dst.gp(), src.fp());
+          break;
+        case kExprF32ConvertF64:
+          RV_fcvt_s_d(dst.fp(), src.fp());
+          break;
+        default:
+          UNREACHABLE();
+      }
+      // trap if the Invalid Operation flag was set
+      RV_frflags(kScratchReg);
+      RV_andi(kScratchReg, kScratchReg, NV);
+      JumpIfEqual(kScratchReg, NV, trap);
       return true;
     }
     case kExprI32ReinterpretF32:
@@ -1011,109 +984,36 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI64UConvertI32:
       TurboAssembler::Dext(dst.gp(), src.gp(), 0, 32);
       return true;
-    case kExprI64SConvertF32: {
-      LiftoffRegister rounded =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
-      LiftoffRegister converted_back =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
-
-      // Real conversion.
-      TurboAssembler::Trunc_s_s(rounded.fp(), src.fp());
-      trunc_l_s(kScratchDoubleReg, rounded.fp());
-      dmfc1(dst.gp(), kScratchDoubleReg);
-      // Avoid INT64_MAX as an overflow indicator and use INT64_MIN instead,
-      // because INT64_MIN allows easier out-of-bounds detection.
-      TurboAssembler::Daddu(kScratchReg, dst.gp(), 1);
-      TurboAssembler::Slt(kScratchReg2, kScratchReg, dst.gp());
-      TurboAssembler::Movn(dst.gp(), kScratchReg, kScratchReg2);
-
-      // Checking if trap.
-      dmtc1(dst.gp(), kScratchDoubleReg);
-      cvt_s_l(converted_back.fp(), kScratchDoubleReg);
-      TurboAssembler::CompareF32(EQ, rounded.fp(), converted_back.fp());
-      TurboAssembler::BranchFalseF(trap);
-      return true;
-    }
-    case kExprI64UConvertF32: {
-      // Real conversion.
-      TurboAssembler::Trunc_ul_s(dst.gp(), src.fp(), kScratchDoubleReg,
-                                 kScratchReg);
-
-      // Checking if trap.
-      TurboAssembler::Branch(trap, eq, kScratchReg, Operand(zero_reg));
-      return true;
-    }
-    case kExprI64SConvertF64: {
-      LiftoffRegister rounded =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
-      LiftoffRegister converted_back =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
-
-      // Real conversion.
-      TurboAssembler::Trunc_d_d(rounded.fp(), src.fp());
-      trunc_l_d(kScratchDoubleReg, rounded.fp());
-      dmfc1(dst.gp(), kScratchDoubleReg);
-      // Avoid INT64_MAX as an overflow indicator and use INT64_MIN instead,
-      // because INT64_MIN allows easier out-of-bounds detection.
-      TurboAssembler::Daddu(kScratchReg, dst.gp(), 1);
-      TurboAssembler::Slt(kScratchReg2, kScratchReg, dst.gp());
-      TurboAssembler::Movn(dst.gp(), kScratchReg, kScratchReg2);
-
-      // Checking if trap.
-      dmtc1(dst.gp(), kScratchDoubleReg);
-      cvt_d_l(converted_back.fp(), kScratchDoubleReg);
-      TurboAssembler::CompareF64(EQ, rounded.fp(), converted_back.fp());
-      TurboAssembler::BranchFalseF(trap);
-      return true;
-    }
-    case kExprI64UConvertF64: {
-      // Real conversion.
-      TurboAssembler::Trunc_ul_d(dst.gp(), src.fp(), kScratchDoubleReg,
-                                 kScratchReg);
-
-      // Checking if trap.
-      TurboAssembler::Branch(trap, eq, kScratchReg, Operand(zero_reg));
-      return true;
-    }
     case kExprI64ReinterpretF64:
       dmfc1(dst.gp(), src.fp());
       return true;
     case kExprF32SConvertI32: {
-      LiftoffRegister scratch =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst));
-      mtc1(src.gp(), scratch.fp());
-      cvt_s_w(dst.fp(), scratch.fp());
+      TurboAssembler::Cvt_s_w(dst.fp(), src.gp());
       return true;
     }
     case kExprF32UConvertI32:
       TurboAssembler::Cvt_s_uw(dst.fp(), src.gp());
       return true;
-    case kExprF32ConvertF64:
-      cvt_s_d(dst.fp(), src.fp());
-      return true;
     case kExprF32ReinterpretI32:
       TurboAssembler::FmoveLow(dst.fp(), src.gp());
       return true;
     case kExprF64SConvertI32: {
-      LiftoffRegister scratch =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst));
-      mtc1(src.gp(), scratch.fp());
-      cvt_d_w(dst.fp(), scratch.fp());
+      TurboAssembler::Cvt_d_w(dst.fp(), src.gp());
       return true;
     }
     case kExprF64UConvertI32:
       TurboAssembler::Cvt_d_uw(dst.fp(), src.gp());
       return true;
     case kExprF64ConvertF32:
-      cvt_d_s(dst.fp(), src.fp());
+      RV_fcvt_d_s(dst.fp(), src.fp());
       return true;
     case kExprF64ReinterpretI64:
       dmtc1(src.gp(), dst.fp());
       return true;
     default:
       return false;
-  }
-}
+  }  // namespace wasm
+}  // namespace internal
 
 void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
   bailout(kComplexOperation, "i32_signextend_i8");
