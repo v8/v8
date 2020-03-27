@@ -222,6 +222,7 @@ inline void ChangeEndiannessStore(LiftoffAssembler* assm, LiftoffRegister src,
 
 }  // namespace liftoff
 
+// FIXME (RISCV): how many instructions do RISCV require to patch this?
 int LiftoffAssembler::PrepareStackFrame() {
   int offset = pc_offset();
   // When constant that represents size of stack frame can't be represented
@@ -233,6 +234,7 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
+// FIXME (RISCV): need to match w/ PrepareStackFrame
 void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
@@ -647,11 +649,11 @@ void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
   }
 
 // clang-format off
-I32_BINOP(add, addu)
-I32_BINOP(sub, subu)
-I32_BINOP(and, and_)
-I32_BINOP(or, or_)
-I32_BINOP(xor, xor_)
+I32_BINOP(add, RV_addw)
+I32_BINOP(sub, RV_subw)
+I32_BINOP(and, RV_and_)
+I32_BINOP(or, RV_or_)
+I32_BINOP(xor, RV_xor_)
 // clang-format on
 
 #undef I32_BINOP
@@ -690,16 +692,19 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
     instruction(dst, src, amount);                                   \
   }
 #define I32_SHIFTOP_I(name, instruction)                             \
-  I32_SHIFTOP(name, instruction##v)                                  \
   void LiftoffAssembler::emit_i32_##name(Register dst, Register src, \
                                          int amount) {               \
     DCHECK(is_uint5(amount));                                        \
     instruction(dst, src, amount);                                   \
   }
 
-I32_SHIFTOP_I(shl, sll)
-I32_SHIFTOP_I(sar, sra)
-I32_SHIFTOP_I(shr, srl)
+I32_SHIFTOP(shl, RV_sllw)
+I32_SHIFTOP(sar, RV_sraw)
+I32_SHIFTOP(shr, RV_srlw)
+
+I32_SHIFTOP_I(shl, RV_slliw)
+I32_SHIFTOP_I(sar, RV_sraiw)
+I32_SHIFTOP_I(shr, RV_srliw)
 
 #undef I32_SHIFTOP
 #undef I32_SHIFTOP_I
@@ -760,11 +765,11 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
   }
 
 // clang-format off
-I64_BINOP(add, daddu)
-I64_BINOP(sub, dsubu)
-I64_BINOP(and, and_)
-I64_BINOP(or, or_)
-I64_BINOP(xor, xor_)
+I64_BINOP(add, RV_add)
+I64_BINOP(sub, RV_sub)
+I64_BINOP(and, RV_and_)
+I64_BINOP(or, RV_or_)
+I64_BINOP(xor, RV_xor_)
 // clang-format on
 
 #undef I64_BINOP
@@ -790,19 +795,19 @@ I64_BINOP_I(xor, Xor)
     instruction(dst.gp(), src.gp(), amount);                       \
   }
 #define I64_SHIFTOP_I(name, instruction)                                    \
-  I64_SHIFTOP(name, instruction##v)                                         \
   void LiftoffAssembler::emit_i64_##name(LiftoffRegister dst,               \
                                          LiftoffRegister src, int amount) { \
     DCHECK(is_uint6(amount));                                               \
-    if (amount < 32)                                                        \
-      instruction(dst.gp(), src.gp(), amount);                              \
-    else                                                                    \
-      instruction##32(dst.gp(), src.gp(), amount - 32);                     \
+    instruction(dst.gp(), src.gp(), amount);                                \
   }
 
-I64_SHIFTOP_I(shl, dsll)
-I64_SHIFTOP_I(sar, dsra)
-I64_SHIFTOP_I(shr, dsrl)
+I64_SHIFTOP(shl, RV_sll)
+I64_SHIFTOP(sar, RV_sra)
+I64_SHIFTOP(shr, RV_srl)
+
+I64_SHIFTOP_I(shl, RV_slli)
+I64_SHIFTOP_I(sar, RV_srai)
+I64_SHIFTOP_I(shr, RV_srli)
 
 #undef I64_SHIFTOP
 #undef I64_SHIFTOP_I
@@ -888,26 +893,26 @@ void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
     return true;                                                               \
   }
 
-FP_BINOP(f32_add, add_s)
-FP_BINOP(f32_sub, sub_s)
-FP_BINOP(f32_mul, mul_s)
-FP_BINOP(f32_div, div_s)
-FP_UNOP(f32_abs, abs_s)
+FP_BINOP(f32_add, RV_fadd_s)
+FP_BINOP(f32_sub, RV_fsub_s)
+FP_BINOP(f32_mul, RV_fmul_s)
+FP_BINOP(f32_div, RV_fdiv_s)
+FP_UNOP(f32_abs, RV_fabs_s)
 FP_UNOP_RETURN_TRUE(f32_ceil, Ceil_s_s)
 FP_UNOP_RETURN_TRUE(f32_floor, Floor_s_s)
 FP_UNOP_RETURN_TRUE(f32_trunc, Trunc_s_s)
 FP_UNOP_RETURN_TRUE(f32_nearest_int, Round_s_s)
-FP_UNOP(f32_sqrt, sqrt_s)
-FP_BINOP(f64_add, add_d)
-FP_BINOP(f64_sub, sub_d)
-FP_BINOP(f64_mul, mul_d)
-FP_BINOP(f64_div, div_d)
-FP_UNOP(f64_abs, abs_d)
+FP_UNOP(f32_sqrt, RV_fsqrt_s)
+FP_BINOP(f64_add, RV_fadd_d)
+FP_BINOP(f64_sub, RV_fsub_d)
+FP_BINOP(f64_mul, RV_fmul_d)
+FP_BINOP(f64_div, RV_fdiv_d)
+FP_UNOP(f64_abs, RV_fabs_d)
 FP_UNOP_RETURN_TRUE(f64_ceil, Ceil_d_d)
 FP_UNOP_RETURN_TRUE(f64_floor, Floor_d_d)
 FP_UNOP_RETURN_TRUE(f64_trunc, Trunc_d_d)
 FP_UNOP_RETURN_TRUE(f64_nearest_int, Round_d_d)
-FP_UNOP(f64_sqrt, sqrt_d)
+FP_UNOP(f64_sqrt, RV_fsqrt_d)
 
 #undef FP_BINOP
 #undef FP_UNOP

@@ -642,7 +642,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
 
-  void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
+  void mov(Register rd, Register rt) { RV_or_(rd, rt, zero_reg); }
 
   inline void Move(Register dst, Handle<HeapObject> handle) { li(dst, handle); }
   inline void Move(Register dst, Smi smi) { li(dst, Operand(smi)); }
