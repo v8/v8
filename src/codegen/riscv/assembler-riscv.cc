@@ -3153,7 +3153,7 @@ void Assembler::RV_fsflags(Register rs) {
 // Original MIPS Instructions
 
 void Assembler::addu(Register rd, Register rs, Register rt) {
-  GenInstrRegister(SPECIAL, rs, rt, rd, 0, ADDU);
+  RV_addw(rd, rs, rt);
 }
 
 void Assembler::addiu(Register rd, Register rs, int32_t j) {
@@ -3509,7 +3509,16 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src,
 }
 
 void Assembler::lb(Register rd, const MemOperand& rs) {
-  GenInstrImmediate(LB, rs.rm(), rd, rs.offset_);
+  if (is_int12(rs.offset()))
+    RV_lb(rd, rs.rm(), rs.offset());
+  else {
+    UseScratchRegisterScope temps(this);
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
+    RV_li(scratch, rs.offset());
+    RV_add(scratch, scratch, rs.rm());
+    RV_lb(rd, scratch, 0);
+  }
 }
 
 void Assembler::lbu(Register rd, const MemOperand& rs) {
@@ -3534,7 +3543,16 @@ void Assembler::lhu(Register rd, const MemOperand& rs) {
 }
 
 void Assembler::lw(Register rd, const MemOperand& rs) {
-  GenInstrImmediate(LW, rs.rm(), rd, rs.offset_);
+  if (is_int12(rs.offset()))
+    RV_lw(rd, rs.rm(), rs.offset());
+  else {
+    UseScratchRegisterScope temps(this);
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
+    RV_li(scratch, rs.offset());
+    RV_add(scratch, scratch, rs.rm());
+    RV_lw(rd, scratch, 0);
+  }
 }
 
 void Assembler::lwu(Register rd, const MemOperand& rs) {
@@ -3563,7 +3581,16 @@ void Assembler::lwr(Register rd, const MemOperand& rs) {
 }
 
 void Assembler::sb(Register rd, const MemOperand& rs) {
-  GenInstrImmediate(SB, rs.rm(), rd, rs.offset_);
+  if (is_int12(rs.offset()))
+    RV_sb(rd, rs.rm(), rs.offset());
+  else {
+    UseScratchRegisterScope temps(this);
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
+    RV_li(scratch, rs.offset());
+    RV_add(scratch, scratch, rs.rm());
+    RV_sb(rd, scratch, 0);
+  }
 }
 
 void Assembler::sh(Register rd, const MemOperand& rs) {
@@ -3580,8 +3607,8 @@ void Assembler::sh(Register rd, const MemOperand& rs) {
 }
 
 void Assembler::sw(Register rd, const MemOperand& rs) {
-  if (is_int12(rs.offset_))
-    RV_sw(rd, rs.rm(), rs.offset_);
+  if (is_int12(rs.offset()))
+    RV_sw(rd, rs.rm(), rs.offset());
   else {
     UseScratchRegisterScope temps(this);
     BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -3843,8 +3870,7 @@ void Assembler::mflo(Register rd) {
 
 // Set on less than instructions.
 void Assembler::slt(Register rd, Register rs, Register rt) {
-  DCHECK(rd != rs && rd != rt);
-  DCHECK(rs != t3 && rt != t3);
+  DCHECK(rd != rt);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   RV_sext_w(rd, rs);
@@ -3853,8 +3879,7 @@ void Assembler::slt(Register rd, Register rs, Register rt) {
 }
 
 void Assembler::sltu(Register rd, Register rs, Register rt) {
-  DCHECK(rd != rs && rd != rt);
-  DCHECK(rs != t3 && rt != t3);
+  DCHECK(rd != rt);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   RV_sext_w(rd, rs);
@@ -3866,8 +3891,16 @@ void Assembler::slti(Register rt, Register rs, int32_t j) {
   GenInstrImmediate(SLTI, rs, rt, j);
 }
 
-void Assembler::sltiu(Register rt, Register rs, int32_t j) {
-  GenInstrImmediate(SLTIU, rs, rt, j);
+void Assembler::sltiu(Register rd, Register rs, int32_t j) {
+  RV_sext_w(rd, rs);
+  if (is_int12(j)) {
+    RV_sltiu(rd, rd, j);
+  } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    RV_li(scratch, j);
+    RV_sltu(rd, rd, scratch);
+  }
 }
 
 // Conditional move.
@@ -4086,7 +4119,16 @@ void Assembler::seb(Register rd, Register rt) {
 
 // Load, store, move.
 void Assembler::lwc1(FPURegister fd, const MemOperand& src) {
-  GenInstrImmediate(LWC1, src.rm(), fd, src.offset_);
+  if (is_int12(src.offset()))
+    RV_flw(fd, src.rm(), src.offset());
+  else {
+    UseScratchRegisterScope temps(this);
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
+    RV_li(scratch, src.offset());
+    RV_add(scratch, scratch, src.rm());
+    RV_flw(fd, scratch, 0);
+  }
 }
 
 void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
@@ -4094,36 +4136,37 @@ void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
 }
 
 void Assembler::swc1(FPURegister fs, const MemOperand& src) {
-  GenInstrImmediate(SWC1, src.rm(), fs, src.offset_);
+  if (is_int12(src.offset()))
+    RV_fsw(fs, src.rm(), src.offset());
+  else {
+    UseScratchRegisterScope temps(this);
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
+    RV_li(scratch, src.offset());
+    RV_add(scratch, scratch, src.rm());
+    RV_fsw(fs, scratch, 0);
+  }
 }
 
 void Assembler::sdc1(FPURegister fs, const MemOperand& src) {
   GenInstrImmediate(SDC1, src.rm(), fs, src.offset_);
 }
 
-void Assembler::mtc1(Register rt, FPURegister fs) {
-  GenInstrRegister(COP1, MTC1, rt, fs, fa0);
-}
+void Assembler::mtc1(Register rt, FPURegister fs) { RV_fmv_w_x(fs, rt); }
 
 void Assembler::mthc1(Register rt, FPURegister fs) {
   GenInstrRegister(COP1, MTHC1, rt, fs, fa0);
 }
 
-void Assembler::dmtc1(Register rt, FPURegister fs) {
-  GenInstrRegister(COP1, DMTC1, rt, fs, fa0);
-}
+void Assembler::dmtc1(Register rt, FPURegister fs) { RV_fmv_d_x(fs, rt); }
 
-void Assembler::mfc1(Register rt, FPURegister fs) {
-  GenInstrRegister(COP1, MFC1, rt, fs, fa0);
-}
+void Assembler::mfc1(Register rt, FPURegister fs) { RV_fmv_x_w(rt, fs); }
 
 void Assembler::mfhc1(Register rt, FPURegister fs) {
   GenInstrRegister(COP1, MFHC1, rt, fs, fa0);
 }
 
-void Assembler::dmfc1(Register rt, FPURegister fs) {
-  GenInstrRegister(COP1, DMFC1, rt, fs, fa0);
-}
+void Assembler::dmfc1(Register rt, FPURegister fs) { RV_fmv_x_d(rt, fs); }
 
 void Assembler::ctc1(Register rt, FPUControlRegister fs) {
   GenInstrRegister(COP1, CTC1, rt, fs);
