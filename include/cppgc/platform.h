@@ -6,6 +6,7 @@
 #define INCLUDE_CPPGC_PLATFORM_H_
 
 #include "include/v8-platform.h"
+#include "include/v8config.h"
 
 namespace cppgc {
 
@@ -13,6 +14,18 @@ namespace cppgc {
 // depending on namespace v8.
 using PageAllocator = v8::PageAllocator;
 
+// Initializes the garbage collector with the provided platform. Must be called
+// before creating a Heap.
+V8_EXPORT void InitializePlatform(PageAllocator* page_allocator);
+
+// Must be called after destroying the last used heap.
+V8_EXPORT void ShutdownPlatform();
+
+namespace internal {
+
+V8_EXPORT void Abort();
+
+}  // namespace internal
 }  // namespace cppgc
 
 #endif  // INCLUDE_CPPGC_PLATFORM_H_

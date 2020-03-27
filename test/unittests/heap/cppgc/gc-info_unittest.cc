@@ -8,6 +8,7 @@
 #include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
 #include "src/heap/cppgc/gc-info-table.h"
+#include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cppgc {
@@ -123,30 +124,26 @@ TEST(GCInfoTableTest, MultiThreadedResizeToMaxIndex) {
 
 namespace {
 
+class GCInfoTraitTest : public testing::TestWithPlatform {};
+
 class BasicType final {};
 class OtherBasicType final {};
 
 }  // namespace
 
-TEST(GCInfoTraitTest, IndexInBounds) {
-  v8::base::PageAllocator page_allocator;
-  GlobalGCInfoTable::Create(&page_allocator);
+TEST_F(GCInfoTraitTest, IndexInBounds) {
   const GCInfoIndex index = GCInfoTrait<BasicType>::Index();
   EXPECT_GT(GCInfoTable::kMaxIndex, index);
   EXPECT_LE(GCInfoTable::kMinIndex, index);
 }
 
-TEST(GCInfoTraitTest, TraitReturnsSameIndexForSameType) {
-  v8::base::PageAllocator page_allocator;
-  GlobalGCInfoTable::Create(&page_allocator);
+TEST_F(GCInfoTraitTest, TraitReturnsSameIndexForSameType) {
   const GCInfoIndex index1 = GCInfoTrait<BasicType>::Index();
   const GCInfoIndex index2 = GCInfoTrait<BasicType>::Index();
   EXPECT_EQ(index1, index2);
 }
 
-TEST(GCInfoTraitTest, TraitReturnsDifferentIndexForDifferentTypes) {
-  v8::base::PageAllocator page_allocator;
-  GlobalGCInfoTable::Create(&page_allocator);
+TEST_F(GCInfoTraitTest, TraitReturnsDifferentIndexForDifferentTypes) {
   const GCInfoIndex index1 = GCInfoTrait<BasicType>::Index();
   const GCInfoIndex index2 = GCInfoTrait<OtherBasicType>::Index();
   EXPECT_NE(index1, index2);

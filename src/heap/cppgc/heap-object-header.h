@@ -8,7 +8,6 @@
 #include <stdint.h>
 #include <atomic>
 
-#include "include/cppgc/api-constants.h"
 #include "include/cppgc/gc-info.h"
 #include "src/base/bit-field.h"
 #include "src/heap/cppgc/globals.h"
@@ -69,6 +68,7 @@ class HeapObjectHeader final {
 
   template <AccessMode = AccessMode::kNonAtomic>
   bool IsInConstruction() const;
+  inline void MarkAsFullyConstructed();
   // Use MarkObjectAsFullyConstructed() to mark an object as being constructed.
 
   template <AccessMode = AccessMode::kNonAtomic>
@@ -76,6 +76,8 @@ class HeapObjectHeader final {
   template <AccessMode = AccessMode::kNonAtomic>
   void Unmark();
   inline bool TryMarkAtomic();
+
+  void Finalize();
 
  private:
   enum class EncodedHalf : uint8_t { kLow, kHigh };

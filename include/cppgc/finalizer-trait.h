@@ -7,18 +7,12 @@
 
 #include <type_traits>
 
+#include "include/cppgc/internals.h"
+
 namespace cppgc {
 namespace internal {
 
 using FinalizationCallback = void (*)(void*);
-
-// Pre-C++17 custom implementation of std::void_t.
-template <typename... Ts>
-struct make_void {
-  typedef void type;
-};
-template <typename... Ts>
-using void_t = typename make_void<Ts...>::type;
 
 template <typename T, typename = void>
 struct HasFinalizeGarbageCollectedObject : std::false_type {};

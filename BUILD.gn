@@ -3930,15 +3930,22 @@ v8_source_set("cppgc_base") {
     "include/cppgc/allocation.h",
     "include/cppgc/api-constants.h",
     "include/cppgc/finalizer-trait.h",
+    "include/cppgc/garbage-collected.h",
     "include/cppgc/gc-info.h",
+    "include/cppgc/heap.h",
     "include/cppgc/platform.h",
     "include/v8config.h",
+    "src/heap/cppgc/allocation.cc",
     "src/heap/cppgc/gc-info-table.cc",
     "src/heap/cppgc/gc-info-table.h",
     "src/heap/cppgc/gc-info.cc",
+    "src/heap/cppgc/heap-inl.h",
     "src/heap/cppgc/heap-object-header-inl.h",
     "src/heap/cppgc/heap-object-header.cc",
     "src/heap/cppgc/heap-object-header.h",
+    "src/heap/cppgc/heap.cc",
+    "src/heap/cppgc/heap.h",
+    "src/heap/cppgc/platform.cc",
   ]
 
   configs = [ ":internal_config" ]

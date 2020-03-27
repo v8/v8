@@ -72,7 +72,7 @@ TEST(HeapObjectHeaderTest, MarkObjectAsFullyConstructed) {
   constexpr size_t kSize = kAllocationGranularity;
   HeapObjectHeader header(kSize, kGCInfoIndex);
   EXPECT_TRUE(header.IsInConstruction());
-  MarkObjectAsFullyConstructed(&header + 1);
+  header.MarkAsFullyConstructed();
   EXPECT_FALSE(header.IsInConstruction());
   // Size shares the same bitfield and should be unaffected by
   // MarkObjectAsFullyConstructed.
@@ -157,7 +157,7 @@ TEST(HeapObjectHeaderTest, ConstructionBitProtectsNonAtomicWrites) {
                                reinterpret_cast<Payload*>(header->Payload()));
   CHECK(gc_thread.Start());
   new (header->Payload()) Payload();
-  MarkObjectAsFullyConstructed(header->Payload());
+  header->MarkAsFullyConstructed();
   gc_thread.Join();
 }
 

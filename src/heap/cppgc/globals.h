@@ -26,6 +26,13 @@ using ConstAddress = const uint8_t*;
 constexpr size_t kAllocationGranularity = 8;
 constexpr size_t kAllocationMask = kAllocationGranularity - 1;
 
+constexpr size_t kPageSizeLog2 = 17;
+constexpr size_t kPageSize = 1 << kPageSizeLog2;
+constexpr size_t kPageOffsetMask = kPageSize - 1;
+constexpr size_t kPageBaseMask = ~kPageOffsetMask;
+
+constexpr size_t kLargeObjectSizeThreshold = kPageSize / 2;
+
 }  // namespace internal
 }  // namespace cppgc
 

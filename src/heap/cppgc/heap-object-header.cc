@@ -4,7 +4,10 @@
 
 #include "src/heap/cppgc/heap-object-header.h"
 
+#include "include/cppgc/internals.h"
 #include "src/base/macros.h"
+#include "src/heap/cppgc/gc-info-table.h"
+#include "src/heap/cppgc/heap-object-header-inl.h"
 
 namespace cppgc {
 namespace internal {
@@ -14,6 +17,13 @@ void HeapObjectHeader::CheckApiConstants() {
                 FullyConstructedField::kMask);
   STATIC_ASSERT(api_constants::kFullyConstructedBitFieldOffsetFromPayload ==
                 (sizeof(encoded_high_) + sizeof(encoded_low_)));
+}
+
+void HeapObjectHeader::Finalize() {
+  const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
+  if (gc_info.finalize) {
+    gc_info.finalize(Payload());
+  }
 }
 
 }  // namespace internal

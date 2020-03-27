@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef INCLUDE_CPPGC_API_CONSTANTS_H_
-#define INCLUDE_CPPGC_API_CONSTANTS_H_
+#ifndef INCLUDE_CPPGC_INTERNALS_H_
+#define INCLUDE_CPPGC_INTERNALS_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -13,8 +13,17 @@
 namespace cppgc {
 namespace internal {
 
+// Pre-C++17 custom implementation of std::void_t.
+template <typename... Ts>
+struct make_void {
+  typedef void type;
+};
+template <typename... Ts>
+using void_t = typename make_void<Ts...>::type;
+
+// Embedders should not rely on this code!
+
 // Internal constants to avoid exposing internal types on the API surface.
-// DO NOT USE THESE CONSTANTS FROM USER CODE!
 namespace api_constants {
 // Offset of the uint16_t bitfield from the payload contaning the
 // in-construction bit. This is subtracted from the payload pointer to get
@@ -29,4 +38,4 @@ static constexpr size_t kFullyConstructedBitMask = size_t{1};
 }  // namespace internal
 }  // namespace cppgc
 
-#endif  // INCLUDE_CPPGC_API_CONSTANTS_H_
+#endif  // INCLUDE_CPPGC_INTERNALS_H_
