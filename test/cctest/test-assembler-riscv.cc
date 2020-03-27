@@ -747,12 +747,12 @@ UTEST_COMPARE_WITH_OP_F(flt_s, float, int32_t, -3456.56, -3456.56, <)
 UTEST_COMPARE_WITH_OP_F(fle_s, float, int32_t, -3456.56, -3456.56, <=)
 UTEST_CONV_F_FROM_W(fcvt_s_w, int32_t, float, -100, (float)(-100))
 UTEST_CONV_F_FROM_W(fcvt_s_wu, int32_t, float, MAX_UINT32, (float)(MAX_UINT32))
-UTEST_CONV_W_FROM_F(fcvt_w_s, float, int32_t, kRoundToZero, -100.0f, -100)
+UTEST_CONV_W_FROM_F(fcvt_w_s, float, int32_t, RTZ, -100.0f, -100)
 // FIXME: this following test fails, need
-// UTEST_CONV_W_FROM_F(fcvt_wu_s, float, int32_t, kRoundToZero,
+// UTEST_CONV_W_FROM_F(fcvt_wu_s, float, int32_t, RTZ,
 // (float)(MAX_UINT32), MAX_UINT32)
 // FIXME: use large UINT32 number and not exactly int
-UTEST_CONV_W_FROM_F(fcvt_wu_s, float, int32_t, kRoundToZero, 100.0f, 100)
+UTEST_CONV_W_FROM_F(fcvt_wu_s, float, int32_t, RTZ, 100.0f, 100)
 UTEST_R2_FORM_WITH_RES_F(fsgnj_s, float, -100.0f, 200.0f, 100.0f)
 UTEST_R2_FORM_WITH_RES_F(fsgnjn_s, float, 100.0f, 200.0f, -100.0f)
 UTEST_R2_FORM_WITH_RES_F(fsgnjx_s, float, -100.0f, 200.0f, -100.0f)
@@ -784,25 +784,25 @@ UTEST_COMPARE_WITH_OP_F(fle_d, double, int64_t, -3456.56, -3456.56, <=)
 UTEST_CONV_F_FROM_W(fcvt_d_w, int32_t, double, -100, -100.0)
 UTEST_CONV_F_FROM_W(fcvt_d_wu, int32_t, double, MAX_UINT32,
                     (double)(MAX_UINT32))
-UTEST_CONV_W_FROM_F(fcvt_w_d, double, int32_t, kRoundToZero, -100.0, -100)
-UTEST_CONV_W_FROM_F(fcvt_wu_d, double, int32_t, kRoundToZero,
+UTEST_CONV_W_FROM_F(fcvt_w_d, double, int32_t, RTZ, -100.0, -100)
+UTEST_CONV_W_FROM_F(fcvt_wu_d, double, int32_t, RTZ,
                     (double)(MAX_UINT32), MAX_UINT32)
 
 // -- RV64F Standard Extension (in addition to RV32F) --
 // FIXME: this test failed
-/*UTEST_CONV_W_FROM_F(fcvt_l_s, float, int64_t, kRoundToZero,
+/*UTEST_CONV_W_FROM_F(fcvt_l_s, float, int64_t, RTZ,
                     (float)(-0x1234'5678'0000'0001LL),
                     (-0x1234'5678'0000'0001LL))*/
 // FIXME: this test reveals a rounding mode bug in the simulator, temporarily
 // comment this out to make the CI happy (will open an issue after the MR is
 // merged)
-// UTEST_CONV_W_FROM_F(fcvt_l_s, float, int64_t, kRoundToMinusInf, -100.5f,
+// UTEST_CONV_W_FROM_F(fcvt_l_s, float, int64_t, RDN, -100.5f,
 // -101)
-UTEST_CONV_W_FROM_F(fcvt_l_s, float, int64_t, kRoundToZero, -100.5f, -100)
+UTEST_CONV_W_FROM_F(fcvt_l_s, float, int64_t, RTZ, -100.5f, -100)
 // FIXME: this test failed
-// UTEST_CONV_W_FROM_F(fcvt_lu_s, float, int64_t, kRoundToZero,
+// UTEST_CONV_W_FROM_F(fcvt_lu_s, float, int64_t, RTZ,
 // (float)(MAX_UINT64), MAX_UINT64)
-UTEST_CONV_W_FROM_F(fcvt_lu_s, float, int64_t, kRoundToZero, (float)100, 100)
+UTEST_CONV_W_FROM_F(fcvt_lu_s, float, int64_t, RTZ, (float)100, 100)
 UTEST_CONV_F_FROM_W(fcvt_s_l, int64_t, float, (-0x1234'5678'0000'0001LL),
                     (float)(-0x1234'5678'0000'0001LL))
 UTEST_CONV_F_FROM_W(fcvt_s_lu, int64_t, float, MAX_UINT64, (float)(MAX_UINT64))
@@ -820,15 +820,15 @@ UTEST_R2_FORM_WITH_RES_F(fsgnjx_d, double, -100.0, 200.0, -100.0)
 
 // -- RV64D Standard Extension (in addition to RV32D) --
 // FIXME: this test failed
-// UTEST_CONV_W_FROM_F(fcvt_l_d, double, int64_t, kRoundToZero,
+// UTEST_CONV_W_FROM_F(fcvt_l_d, double, int64_t, RTZ,
 //                    (double)(-0x1234'5678'0000'0001LL),
 //                    (-0x1234'5678'0000'0001LL))
-UTEST_CONV_W_FROM_F(fcvt_l_d, double, int64_t, kRoundToZero, (double)(-100),
+UTEST_CONV_W_FROM_F(fcvt_l_d, double, int64_t, RTZ, (double)(-100),
                     (-100))
 // FIXME: this test failed
-// UTEST_CONV_W_FROM_F(fcvt_lu_d, double, int64_t, kRoundToZero,
+// UTEST_CONV_W_FROM_F(fcvt_lu_d, double, int64_t, RTZ,
 // (double)(MAX_UINT64), MAX_UINT64)
-UTEST_CONV_W_FROM_F(fcvt_lu_d, double, int64_t, kRoundToZero, (double)100, 100)
+UTEST_CONV_W_FROM_F(fcvt_lu_d, double, int64_t, RTZ, (double)100, 100)
 UTEST_CONV_F_FROM_W(fcvt_d_l, int64_t, double, (-0x1234'5678'0000'0001LL),
                     (double)(-0x1234'5678'0000'0001LL))
 UTEST_CONV_F_FROM_W(fcvt_d_lu, int64_t, double, MAX_UINT64,
