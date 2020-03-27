@@ -4481,6 +4481,7 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
     h_contents << "#include \"torque-generated/csa-types-tq.h\"\n";
     h_contents
         << "#include \"torque-generated/internal-class-definitions-tq.h\"\n";
+    cc_contents << "#include \"src/objects/fixed-array-inl.h\"\n";
     cc_contents << "#include \"src/objects/free-space.h\"\n";
     cc_contents << "#include \"src/objects/js-regexp-string-iterator.h\"\n";
     cc_contents << "#include \"src/objects/ordered-hash-table.h\"\n";
