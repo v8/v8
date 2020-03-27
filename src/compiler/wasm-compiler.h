@@ -285,7 +285,7 @@ class WasmGraphBuilder {
   Node* LoadMem(wasm::ValueType type, MachineType memtype, Node* index,
                 uint32_t offset, uint32_t alignment,
                 wasm::WasmCodePosition position);
-#if defined(V8_TARGET_BIG_ENDIAN)
+#if defined(V8_TARGET_BIG_ENDIAN) || defined(V8_TARGET_ARCH_S390_LE_SIM)
   Node* LoadTransformBigEndian(MachineType memtype,
                                wasm::LoadTransformationKind transform,
                                Node* value);

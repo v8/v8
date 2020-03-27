@@ -3698,7 +3698,10 @@ LoadKind GetLoadKind(MachineGraph* mcgraph, MachineType memtype,
 }
 }  // namespace
 
-#if defined(V8_TARGET_BIG_ENDIAN)
+// S390 simulator does not execute BE code, hence needs to also check if we are
+// running on a LE simulator.
+// TODO(miladfar): Remove SIM once V8_TARGET_BIG_ENDIAN includes the Sim.
+#if defined(V8_TARGET_BIG_ENDIAN) || defined(V8_TARGET_ARCH_S390_LE_SIM)
 Node* WasmGraphBuilder::LoadTransformBigEndian(
     MachineType memtype, wasm::LoadTransformationKind transform, Node* value) {
   Node* result;
@@ -3746,7 +3749,7 @@ Node* WasmGraphBuilder::LoadTransform(wasm::ValueType type, MachineType memtype,
 
   Node* load;
 
-#if defined(V8_TARGET_BIG_ENDIAN)
+#if defined(V8_TARGET_BIG_ENDIAN) || defined(V8_TARGET_ARCH_S390_LE_SIM)
   // LoadTransform cannot efficiently be executed on BE machines as a
   // single operation since loaded bytes need to be reversed first,
   // therefore we divide them into separate "load" and "operation" nodes.
