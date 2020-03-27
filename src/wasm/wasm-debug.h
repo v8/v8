@@ -153,7 +153,7 @@ class DebugInfo {
 
   void SetBreakpoint(int func_index, int offset, Isolate* current_isolate);
 
-  void PrepareStep(Isolate*);
+  void PrepareStep(Isolate*, StackFrameId);
 
   void ClearStepping();
 

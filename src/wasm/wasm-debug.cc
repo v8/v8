@@ -754,8 +754,8 @@ class DebugInfoImpl {
                                     current_isolate);
   }
 
-  void PrepareStep(Isolate* isolate) {
-    StackTraceFrameIterator it(isolate);
+  void PrepareStep(Isolate* isolate, StackFrameId break_frame_id) {
+    StackTraceFrameIterator it(isolate, break_frame_id);
     DCHECK(!it.done());
     DCHECK(it.frame()->is_wasm_compiled());
     WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
@@ -787,8 +787,7 @@ class DebugInfoImpl {
   bool IsStepping(WasmCompiledFrame* frame) {
     Isolate* isolate = frame->wasm_instance().GetIsolate();
     StepAction last_step_action = isolate->debug()->last_step_action();
-    return stepping_frame_ == frame->id() ||
-           (last_step_action == StepIn && stepping_frame_ != NO_ID);
+    return stepping_frame_ == frame->id() || last_step_action == StepIn;
   }
 
   void RemoveBreakpoint(int func_index, int position,
@@ -998,7 +997,9 @@ void DebugInfo::SetBreakpoint(int func_index, int offset,
   impl_->SetBreakpoint(func_index, offset, current_isolate);
 }
 
-void DebugInfo::PrepareStep(Isolate* isolate) { impl_->PrepareStep(isolate); }
+void DebugInfo::PrepareStep(Isolate* isolate, StackFrameId break_frame_id) {
+  impl_->PrepareStep(isolate, break_frame_id);
+}
 
 void DebugInfo::ClearStepping() { impl_->ClearStepping(); }
 
