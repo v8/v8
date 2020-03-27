@@ -23,7 +23,6 @@
   # differences to the old behaviour (in particular, anyref is not
   # implemented in Liftoff yet).
   # TODO(clemensb/thibaudm): Get this list to zero and remove this block.
-  'debugger/wasm-scope-info-liftoff': [FAIL],
   'debugger/wasm-stepping-in-from-js': [FAIL],
   'debugger/wasm-anyref-global': [FAIL],
 }],
