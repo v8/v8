@@ -291,13 +291,13 @@ class V8Suppression(Suppression):
       # already minimized test cases might have dropped the delimiter line.
       content = testcase
     for key in ['', self.arch1, self.arch2, self.config1, self.config2]:
-      for bug, exp in IGNORE_TEST_CASES.get(key, {}).iteritems():
+      for bug, exp in IGNORE_TEST_CASES.get(key, {}).items():
         if exp.search(content):
           return bug
     return None
 
   def ignore_by_metadata(self, metadata):
-    for bug, sources in self.ignore_sources.iteritems():
+    for bug, sources in self.ignore_sources.items():
       for source in sources:
         if source in metadata['sources']:
           return bug
@@ -311,7 +311,7 @@ class V8Suppression(Suppression):
 
   def ignore_by_output(self, output, arch, config):
     def check(mapping):
-      for bug, exp in mapping.iteritems():
+      for bug, exp in mapping.items():
         if exp.search(output):
           return bug
       return None
