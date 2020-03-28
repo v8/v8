@@ -27,6 +27,13 @@ to silence a particular class of problems.
 import itertools
 import re
 
+try:
+  # Python 3
+  from itertools import zip_longest
+except ImportError:
+  # Python 2
+  from itertools import izip_longest as zip_longest
+
 # Max line length for regular experessions checking for lines to ignore.
 MAX_LINE_LENGTH = 512
 
@@ -135,7 +142,7 @@ def get_output_capped(output1, output2):
 
 
 def line_pairs(lines):
-  return itertools.izip_longest(
+  return zip_longest(
       lines, itertools.islice(lines, 1, None), fillvalue=None)
 
 
@@ -183,14 +190,14 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
       return all(not e.match(line) for e in ignore)
     return fun
 
-  lines1 = filter(useful_line(ignore1), output1)
-  lines2 = filter(useful_line(ignore2), output2)
+  lines1 = list(filter(useful_line(ignore1), output1))
+  lines2 = list(filter(useful_line(ignore2), output2))
 
   # This keeps track where we are in the original source file of the fuzz
   # test case.
   source = None
 
-  for ((line1, lookahead1), (line2, lookahead2)) in itertools.izip_longest(
+  for ((line1, lookahead1), (line2, lookahead2)) in zip_longest(
       line_pairs(lines1), line_pairs(lines2), fillvalue=(None, None)):
 
     # Only one of the two iterators should run out.

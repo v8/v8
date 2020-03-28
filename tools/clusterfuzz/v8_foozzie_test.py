@@ -19,6 +19,8 @@ try:
 except NameError:
   basestring = str
 
+PYTHON3 = sys.version_info >= (3, 0)
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FOOZZIE = os.path.join(BASE_DIR, 'v8_foozzie.py')
 TEST_DATA = os.path.join(BASE_DIR, 'testdata')
@@ -108,12 +110,12 @@ class UnitTest(unittest.TestCase):
     one = ''
     two = ''
     diff = None, None
-    self.assertEquals(diff, diff_fun(one, two))
+    self.assertEqual(diff, diff_fun(one, two))
 
     one = 'a \n  b\nc();'
     two = 'a \n  b\nc();'
     diff = None, None
-    self.assertEquals(diff, diff_fun(one, two))
+    self.assertEqual(diff, diff_fun(one, two))
 
     # Ignore line before caret, caret position and error message.
     one = """
@@ -131,7 +133,7 @@ somefile.js: TypeError: baz is not a function
   undefined
 """
     diff = None, None
-    self.assertEquals(diff, diff_fun(one, two))
+    self.assertEqual(diff, diff_fun(one, two))
 
     one = """
 Still equal
@@ -141,7 +143,7 @@ Extra line
 Still equal
 """
     diff = '- Extra line', None
-    self.assertEquals(diff, diff_fun(one, two))
+    self.assertEqual(diff, diff_fun(one, two))
 
     one = """
 Still equal
@@ -151,7 +153,7 @@ Still equal
 Extra line
 """
     diff = '+ Extra line', None
-    self.assertEquals(diff, diff_fun(one, two))
+    self.assertEqual(diff, diff_fun(one, two))
 
     one = """
 undefined
@@ -163,7 +165,7 @@ otherfile.js: TypeError: undefined is not a constructor
 """
     diff = """- somefile.js: TypeError: undefined is not a constructor
 + otherfile.js: TypeError: undefined is not a constructor""", None
-    self.assertEquals(diff, diff_fun(one, two))
+    self.assertEqual(diff, diff_fun(one, two))
 
     # Test that skipping suppressions works.
     one = """
@@ -174,10 +176,10 @@ v8-foozzie source: foo
 v8-foozzie source: foo
 42:TypeError: baz is not a function
 """
-    self.assertEquals((None, 'foo'), diff_fun(one, two))
+    self.assertEqual((None, 'foo'), diff_fun(one, two))
     diff = """- 23:TypeError: bar is not a function
 + 42:TypeError: baz is not a function""", 'foo'
-    self.assertEquals(diff, diff_fun(one, two, skip=True))
+    self.assertEqual(diff, diff_fun(one, two, skip=True))
 
   def testOutputCapping(self):
     def output(stdout, is_crash):
@@ -189,7 +191,7 @@ v8-foozzie source: foo
               capped_lines2):
       output1 = output(stdout1, is_crash1)
       output2 = output(stdout2, is_crash2)
-      self.assertEquals(
+      self.assertEqual(
           (capped_lines1, capped_lines2),
           v8_suppressions.get_output_capped(output1, output2))
 
@@ -229,6 +231,9 @@ def run_foozzie(second_d8_dir, *extra_flags, **kwargs):
   second_config = 'ignition_turbo'
   if 'second_config' in kwargs:
     second_config = 'jitless'
+  kwargs = {}
+  if PYTHON3:
+    kwargs['text'] = True
   return subprocess.check_output([
     sys.executable, FOOZZIE,
     '--random-seed', '12345',
@@ -237,8 +242,7 @@ def run_foozzie(second_d8_dir, *extra_flags, **kwargs):
     '--first-config', 'ignition',
     '--second-config', second_config,
     os.path.join(TEST_DATA, 'fuzz-123.js'),
-  ] + list(extra_flags))
-
+  ] + list(extra_flags), **kwargs)
 
 class SystemTest(unittest.TestCase):
   """This tests the whole correctness-fuzzing harness with fake build
@@ -254,7 +258,7 @@ class SystemTest(unittest.TestCase):
   """
   def testSyntaxErrorDiffPass(self):
     stdout = run_foozzie('build1', '--skip-sanity-checks')
-    self.assertEquals('# V8 correctness - pass\n', cut_verbose_output(stdout))
+    self.assertEqual('# V8 correctness - pass\n', cut_verbose_output(stdout))
     # Default comparison includes suppressions.
     self.assertIn('v8_suppressions.js', stdout)
     # Default comparison doesn't include any specific mock files.
@@ -270,8 +274,8 @@ class SystemTest(unittest.TestCase):
                   '--first-config-extra-flags=--flag2=0',
                   '--second-config-extra-flags=--flag3')
     e = ctx.exception
-    self.assertEquals(v8_foozzie.RETURN_FAIL, e.returncode)
-    self.assertEquals(expected_output, cut_verbose_output(e.output))
+    self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
+    self.assertEqual(expected_output, cut_verbose_output(e.output))
 
   def testSanityCheck(self):
     with open(os.path.join(TEST_DATA, 'sanity_check_output.txt')) as f:
@@ -279,8 +283,8 @@ class SystemTest(unittest.TestCase):
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
       run_foozzie('build2')
     e = ctx.exception
-    self.assertEquals(v8_foozzie.RETURN_FAIL, e.returncode)
-    self.assertEquals(expected_output, e.output)
+    self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
+    self.assertEqual(expected_output, e.output)
 
   def testDifferentArch(self):
     """Test that the architecture-specific mocks are passed to both runs when
@@ -319,7 +323,7 @@ class SystemTest(unittest.TestCase):
       run_foozzie(
           'build1', '--skip-sanity-checks', '--skip-suppressions')
     e = ctx.exception
-    self.assertEquals(v8_foozzie.RETURN_FAIL, e.returncode)
+    self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
     self.assertNotIn('v8_suppressions.js', e.output)
 
 

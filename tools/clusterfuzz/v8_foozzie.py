@@ -25,6 +25,8 @@ from collections import namedtuple
 import v8_commands
 import v8_suppressions
 
+PYTHON3 = sys.version_info >= (3, 0)
+
 CONFIGS = dict(
   default=[],
   ignition=[
@@ -283,7 +285,15 @@ def print_difference(
   first_config_label = '%s,%s' % (options.first.arch, options.first.config)
   second_config_label = '%s,%s' % (options.second.arch, options.second.config)
   source_file_text = SOURCE_FILE_TEMPLATE % source if source else ''
-  print((FAILURE_TEMPLATE % dict(
+
+  if PYTHON3:
+    first_stdout = first_config_output.stdout
+    second_stdout = second_config_output.stdout
+  else:
+    first_stdout = first_config_output.stdout.decode('utf-8', 'replace')
+    second_stdout = second_config_output.stdout.decode('utf-8', 'replace')
+
+  text = (FAILURE_TEMPLATE % dict(
       configs='%s:%s' % (first_config_label, second_config_label),
       source_file_text=source_file_text,
       source_key=source_key,
@@ -292,13 +302,15 @@ def print_difference(
       second_config_label=second_config_label,
       first_config_flags=' '.join(first_command.flags),
       second_config_flags=' '.join(second_command.flags),
-      first_config_output=
-          first_config_output.stdout.decode('utf-8', 'replace'),
-      second_config_output=
-          second_config_output.stdout.decode('utf-8', 'replace'),
+      first_config_output=first_stdout,
+      second_config_output=second_stdout,
       source=source,
-      difference=difference.decode('utf-8', 'replace'),
-  )).encode('utf-8', 'replace'))
+      difference=difference,
+  ))
+  if PYTHON3:
+    print(text)
+  else:
+    print(text.encode('utf-8', 'replace'))
 
 
 def main():
@@ -312,7 +324,10 @@ def main():
   )
 
   # Static bailout based on test case content or metadata.
-  with open(options.testcase) as f:
+  kwargs = {}
+  if PYTHON3:
+    kwargs['encoding'] = 'utf-8'
+  with open(options.testcase, 'r', **kwargs) as f:
     content = f.read()
   if content_bailout(get_meta_data(content), suppress.ignore_by_metadata):
     return RETURN_FAIL
@@ -354,7 +369,8 @@ def main():
   difference, source = suppress.diff(first_config_output, second_config_output)
 
   if source:
-    source_key = hashlib.sha1(source).hexdigest()[:ORIGINAL_SOURCE_HASH_LENGTH]
+    long_key = hashlib.sha1(source.encode('utf-8')).hexdigest()
+    source_key = long_key[:ORIGINAL_SOURCE_HASH_LENGTH]
   else:
     source_key = ORIGINAL_SOURCE_DEFAULT
 
