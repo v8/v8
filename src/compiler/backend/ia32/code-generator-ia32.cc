@@ -3184,26 +3184,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       if (HasImmediateInput(instr, 1)) {
-        __ punpckhbw(kScratchDoubleReg, dst);
-        __ punpcklbw(dst, dst);
+        __ Punpckhbw(kScratchDoubleReg, dst);
+        __ Punpcklbw(dst, dst);
         uint8_t shift = i.InputInt3(1) + 8;
-        __ psraw(kScratchDoubleReg, shift);
-        __ psraw(dst, shift);
-        __ packsswb(dst, kScratchDoubleReg);
+        __ Psraw(kScratchDoubleReg, shift);
+        __ Psraw(dst, shift);
+        __ Packsswb(dst, kScratchDoubleReg);
       } else {
         Register tmp = i.ToRegister(instr->TempAt(0));
         XMMRegister tmp_simd = i.TempSimd128Register(1);
         // Unpack the bytes into words, do arithmetic shifts, and repack.
-        __ punpckhbw(kScratchDoubleReg, dst);
-        __ punpcklbw(dst, dst);
+        __ Punpckhbw(kScratchDoubleReg, dst);
+        __ Punpcklbw(dst, dst);
         __ mov(tmp, i.InputRegister(1));
         // Take shift value modulo 8.
         __ and_(tmp, 7);
         __ add(tmp, Immediate(8));
-        __ movd(tmp_simd, tmp);
-        __ psraw(kScratchDoubleReg, tmp_simd);
-        __ psraw(dst, tmp_simd);
-        __ packsswb(dst, kScratchDoubleReg);
+        __ Movd(tmp_simd, tmp);
+        __ Psraw(kScratchDoubleReg, kScratchDoubleReg, tmp_simd);
+        __ Psraw(dst, dst, tmp_simd);
+        __ Packsswb(dst, kScratchDoubleReg);
       }
       break;
     }
@@ -3464,16 +3464,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Pand(dst, tmp_simd);
       } else {
         // Unpack the bytes into words, do logical shifts, and repack.
-        __ punpckhbw(kScratchDoubleReg, dst);
-        __ punpcklbw(dst, dst);
+        __ Punpckhbw(kScratchDoubleReg, dst);
+        __ Punpcklbw(dst, dst);
         __ mov(tmp, i.InputRegister(1));
         // Take shift value modulo 8.
         __ and_(tmp, 7);
         __ add(tmp, Immediate(8));
-        __ movd(tmp_simd, tmp);
-        __ psrlw(kScratchDoubleReg, tmp_simd);
-        __ psrlw(dst, tmp_simd);
-        __ packuswb(dst, kScratchDoubleReg);
+        __ Movd(tmp_simd, tmp);
+        __ Psrlw(kScratchDoubleReg, kScratchDoubleReg, tmp_simd);
+        __ Psrlw(dst, dst, tmp_simd);
+        __ Packuswb(dst, kScratchDoubleReg);
       }
       break;
     }
