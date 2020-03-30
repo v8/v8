@@ -332,6 +332,13 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   // but should instead point to the instantiation site (more intuitive).
   int position = shared->StartPosition();
 
+  // Check that the module is not instantiated as a generator or async function.
+  if (IsResumableFunction(shared->scope_info().function_kind())) {
+    ReportInstantiationFailure(script, position,
+                               "Cannot be instantiated as resumable function");
+    return MaybeHandle<Object>();
+  }
+
   // Check that all used stdlib members are valid.
   bool stdlib_use_of_typed_array_present = false;
   wasm::AsmJsParser::StdlibSet stdlib_uses =
