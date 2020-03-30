@@ -40,7 +40,7 @@ TEST(GCInfoTableDeathTest, MoreThanMaxIndexInfos) {
        i++) {
     table.RegisterNewGCInfo(info);
   }
-  EXPECT_DEATH(table.RegisterNewGCInfo(info), "");
+  EXPECT_DEATH_IF_SUPPORTED(table.RegisterNewGCInfo(info), "");
 }
 
 TEST(GCInfoTableDeathTest, OldTableAreaIsReadOnly) {
@@ -62,7 +62,7 @@ TEST(GCInfoTableDeathTest, OldTableAreaIsReadOnly) {
   EXPECT_NE(limit, table.LimitForTesting());
   // Old area is now read-only.
   auto& first_slot = table.TableSlotForTesting(GCInfoTable::kMinIndex);
-  EXPECT_DEATH(first_slot.finalize = nullptr, "");
+  EXPECT_DEATH_IF_SUPPORTED(first_slot.finalize = nullptr, "");
 }
 
 namespace {

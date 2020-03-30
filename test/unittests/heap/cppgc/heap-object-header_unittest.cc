@@ -166,13 +166,13 @@ TEST(HeapObjectHeaderTest, ConstructionBitProtectsNonAtomicWrites) {
 TEST(HeapObjectHeaderDeathTest, ConstructorTooLargeSize) {
   constexpr GCInfoIndex kGCInfoIndex = 17;
   constexpr size_t kSize = HeapObjectHeader::kMaxSize + 1;
-  EXPECT_DEATH(HeapObjectHeader header(kSize, kGCInfoIndex), "");
+  EXPECT_DEATH_IF_SUPPORTED(HeapObjectHeader header(kSize, kGCInfoIndex), "");
 }
 
 TEST(HeapObjectHeaderDeathTest, ConstructorTooLargeGCInfoIndex) {
   constexpr GCInfoIndex kGCInfoIndex = GCInfoTable::kMaxIndex + 1;
   constexpr size_t kSize = kAllocationGranularity;
-  EXPECT_DEATH(HeapObjectHeader header(kSize, kGCInfoIndex), "");
+  EXPECT_DEATH_IF_SUPPORTED(HeapObjectHeader header(kSize, kGCInfoIndex), "");
 }
 
 #endif  // DEBUG
