@@ -44,6 +44,21 @@ WireBytesRef DecodedFunctionNames::Lookup(
   return it->second;
 }
 
+std::pair<WireBytesRef, WireBytesRef> DecodedGlobalNames::Lookup(
+    uint32_t global_index, Vector<const WasmImport> import_table,
+    Vector<const WasmExport> export_table) const {
+  base::MutexGuard lock(&mutex_);
+  if (!global_names_) {
+    global_names_.reset(
+        new std::unordered_map<uint32_t,
+                               std::pair<WireBytesRef, WireBytesRef>>());
+    DecodeGlobalNames(import_table, export_table, global_names_.get());
+  }
+  auto it = global_names_->find(global_index);
+  if (it == global_names_->end()) return {};
+  return it->second;
+}
+
 // static
 int MaxNumExportWrappers(const WasmModule* module) {
   // For each signature there may exist a wrapper, both for imported and

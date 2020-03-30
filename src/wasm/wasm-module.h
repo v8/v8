@@ -206,6 +206,21 @@ class V8_EXPORT_PRIVATE DecodedFunctionNames {
       function_names_;
 };
 
+class V8_EXPORT_PRIVATE DecodedGlobalNames {
+ public:
+  std::pair<WireBytesRef, WireBytesRef> Lookup(
+      uint32_t global_index, Vector<const WasmImport> import_table,
+      Vector<const WasmExport> export_table) const;
+
+ private:
+  // {global_names_} is populated lazily after decoding, and therefore needs a
+  // mutex to protect concurrent modifications from multiple {WasmModuleObject}.
+  mutable base::Mutex mutex_;
+  mutable std::unique_ptr<
+      std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>>
+      global_names_;
+};
+
 class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
  public:
   explicit AsmJsOffsetInformation(Vector<const byte> encoded_offsets);
@@ -272,6 +287,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   ModuleOrigin origin = kWasmOrigin;  // origin of the module
   DecodedFunctionNames function_names;
+  DecodedGlobalNames global_names;
   std::string source_map_url;
 
   // Asm.js source position information. Only available for modules compiled

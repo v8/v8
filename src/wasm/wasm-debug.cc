@@ -552,9 +552,13 @@ Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject> instance) {
     JSObject::AddProperty(isolate, global_scope_object, globals_name,
                           globals_obj, NONE);
 
-    for (size_t i = 0; i < globals.size(); ++i) {
-      const char* label = "global%d";
-      Handle<String> name = PrintFToOneByteString<true>(isolate, label, i);
+    for (uint32_t i = 0; i < globals.size(); ++i) {
+      Handle<String> name;
+      if (!WasmInstanceObject::GetGlobalNameOrNull(isolate, instance, i)
+               .ToHandle(&name)) {
+        const char* label = "global%d";
+        name = PrintFToOneByteString<true>(isolate, label, i);
+      }
       WasmValue value =
           WasmInstanceObject::GetGlobalValue(instance, globals[i]);
       Handle<Object> value_obj = WasmValueToValueObject(isolate, value);

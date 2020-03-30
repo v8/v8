@@ -567,6 +567,11 @@ class WasmInstanceObject : public JSObject {
   static wasm::WasmValue GetGlobalValue(Handle<WasmInstanceObject>,
                                         const wasm::WasmGlobal&);
 
+  // Get the name of a global in the given instance by index.
+  static MaybeHandle<String> GetGlobalNameOrNull(Isolate*,
+                                                 Handle<WasmInstanceObject>,
+                                                 uint32_t global_index);
+
   OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject);
 
  private:
