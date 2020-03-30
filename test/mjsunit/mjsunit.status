@@ -158,6 +158,9 @@
   # Only makes sense in the no_i18n variant.
   'es6/unicode-regexp-ignore-case-noi18n':
       [['no_i18n == True', PASS], ['no_i18n == False', FAIL]],
+
+  # Needs to be adapted after changes to Function constructor. chromium:1065094
+  'cross-realm-filtering': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
