@@ -1498,7 +1498,7 @@ void V8DebuggerAgentImpl::didParseSource(
     return;
   }
 
-  // TODO(herhut, dgozman): Report correct length for WASM if needed for
+  // TODO(herhut, dgozman): Report correct length for Wasm if needed for
   // coverage. Or do not send the length at all and change coverage instead.
   if (scriptRef->isSourceLoadedLazily()) {
     m_frontend.scriptParsed(

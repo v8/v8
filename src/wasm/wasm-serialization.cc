@@ -30,7 +30,7 @@ namespace wasm {
 namespace {
 
 // TODO(bbudge) Try to unify the various implementations of readers and writers
-// in WASM, e.g. StreamProcessor and ZoneBuffer, with these.
+// in Wasm, e.g. StreamProcessor and ZoneBuffer, with these.
 class Writer {
  public:
   explicit Writer(Vector<byte> buffer)

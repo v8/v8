@@ -7522,7 +7522,7 @@ typedef void (*WasmStreamingCallback)(const FunctionCallbackInfo<Value>&);
 // --- Callback for checking if WebAssembly threads are enabled ---
 typedef bool (*WasmThreadsEnabledCallback)(Local<Context> context);
 
-// --- Callback for loading source map file for WASM profiling support
+// --- Callback for loading source map file for Wasm profiling support
 typedef Local<String> (*WasmLoadSourceMapCallback)(Isolate* isolate,
                                                    const char* name);
 

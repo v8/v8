@@ -635,7 +635,7 @@ void GlobalBackingStoreRegistry::Register(
     // BackingStore per buffer_start() because the destructor of
     // of the BackingStore will be a no-op in that case.
 
-    // All WASM memory has to be registered.
+    // All Wasm memory has to be registered.
     CHECK(!backing_store->is_wasm_memory());
     return;
   }

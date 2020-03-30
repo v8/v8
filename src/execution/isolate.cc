@@ -970,13 +970,13 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
             builder.AppendJavaScriptFrame(java_script);
           } else if (summary.IsWasmCompiled()) {
             //=========================================================
-            // Handle a WASM compiled frame.
+            // Handle a Wasm compiled frame.
             //=========================================================
             auto const& wasm_compiled = summary.AsWasmCompiled();
             builder.AppendWasmCompiledFrame(wasm_compiled);
           } else if (summary.IsWasmInterpreted()) {
             //=========================================================
-            // Handle a WASM interpreted frame.
+            // Handle a Wasm interpreted frame.
             //=========================================================
             auto const& wasm_interpreted = summary.AsWasmInterpreted();
             builder.AppendWasmInterpretedFrame(wasm_interpreted);

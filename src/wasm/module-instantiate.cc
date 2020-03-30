@@ -844,7 +844,7 @@ bool InstanceBuilder::ProcessImportedFunction(
                       import_index, module_name, import_name);
       return false;
     case compiler::WasmImportCallKind::kWasmToWasm: {
-      // The imported function is a WASM function from another instance.
+      // The imported function is a Wasm function from another instance.
       auto imported_function = Handle<WasmExportedFunction>::cast(js_receiver);
       Handle<WasmInstanceObject> imported_instance(
           imported_function->instance(), isolate_);

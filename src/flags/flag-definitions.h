@@ -736,7 +736,7 @@ DEFINE_DEBUG_BOOL(dump_wasm_module, false, "dump wasm module bytes")
 DEFINE_STRING(dump_wasm_module_path, nullptr,
               "directory to dump wasm modules to")
 
-// Declare command-line flags for WASM features. Warning: avoid using these
+// Declare command-line flags for Wasm features. Warning: avoid using these
 // flags directly in the implementation. Instead accept wasm::WasmFeatures
 // for configurability.
 #include "src/wasm/wasm-feature-flags.h"

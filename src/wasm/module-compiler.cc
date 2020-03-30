@@ -989,7 +989,7 @@ bool ExecuteCompilationUnits(
   TRACE_COMPILE("Compiling (task %d)...\n", task_id);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "ExecuteCompilationUnits");
 
-  // Execute JS to WASM wrapper units first, so that they are ready to be
+  // Execute JS to Wasm wrapper units first, so that they are ready to be
   // finalized by the main thread when the kFinishedBaselineCompilation event is
   // triggered.
   if (!ExecuteJSToWasmWrapperCompilationUnits(token)) {

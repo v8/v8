@@ -2670,7 +2670,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
       offset += kSimd128Size;
     }
 
-    // Push the WASM instance as an explicit argument to WasmCompileLazy.
+    // Push the Wasm instance as an explicit argument to WasmCompileLazy.
     __ Push(kWasmInstanceRegister);
     // Push the function index as second argument.
     __ Push(kWasmCompileLazyFuncIndexRegister);

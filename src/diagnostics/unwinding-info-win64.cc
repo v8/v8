@@ -517,7 +517,7 @@ void RegisterNonABICompliantCodeRange(void* start, size_t size_in_bytes) {
 
   // When the --win64-unwinding-info flag is set, we call
   // RtlAddGrowableFunctionTable to register unwinding info for the whole code
-  // range of an isolate or WASM module. This enables the Windows OS stack
+  // range of an isolate or Wasm module. This enables the Windows OS stack
   // unwinder to work correctly with V8-generated code, enabling stack walking
   // in Windows debuggers and performance tools. However, the
   // RtlAddGrowableFunctionTable API is only supported on Windows 8 and above.

@@ -4997,7 +4997,7 @@ bool Genesis::InstallSpecialObjects(Isolate* isolate,
     WasmJs::Install(isolate, true);
   } else if (FLAG_validate_asm) {
     // Install the internal data structures only; these are needed for asm.js
-    // translated to WASM to work correctly.
+    // translated to Wasm to work correctly.
     WasmJs::Install(isolate, false);
   }
 

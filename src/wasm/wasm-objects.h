@@ -93,21 +93,21 @@ class IndirectFunctionTableEntry {
 // The underlying storage in the instance is used by generated code to
 // call imported functions at runtime.
 // Each entry is either:
-//   - WASM to JS, which has fields
+//   - Wasm to JS, which has fields
 //      - object = a Tuple2 of the importing instance and the callable
 //      - target = entrypoint to import wrapper code
-//   - WASM to WASM, which has fields
+//   - Wasm to Wasm, which has fields
 //      - object = target instance
 //      - target = entrypoint for the function
 class ImportedFunctionEntry {
  public:
   inline ImportedFunctionEntry(Handle<WasmInstanceObject>, int index);
 
-  // Initialize this entry as a WASM to JS call. This accepts the isolate as a
+  // Initialize this entry as a Wasm to JS call. This accepts the isolate as a
   // parameter, since it must allocate a tuple.
   V8_EXPORT_PRIVATE void SetWasmToJs(Isolate*, Handle<JSReceiver> callable,
                                      const wasm::WasmCode* wasm_to_js_wrapper);
-  // Initialize this entry as a WASM to WASM call.
+  // Initialize this entry as a Wasm to Wasm call.
   void SetWasmToWasm(WasmInstanceObject target_instance, Address call_target);
 
   WasmInstanceObject instance();

@@ -58,16 +58,16 @@ wasm::WasmCompilationResult ExecuteInterpreterEntryCompilation(
     wasm::WasmEngine*, wasm::CompilationEnv*, const wasm::FunctionBody&,
     int func_index, Counters*, wasm::WasmFeatures* detected);
 
-// Calls to WASM imports are handled in several different ways, depending on the
+// Calls to Wasm imports are handled in several different ways, depending on the
 // type of the target function/callable and whether the signature matches the
 // argument arity.
 enum class WasmImportCallKind : uint8_t {
-  kLinkError,                      // static WASM->WASM type error
-  kRuntimeTypeError,               // runtime WASM->JS type error
-  kWasmToCapi,                     // fast WASM->C-API call
-  kWasmToWasm,                     // fast WASM->WASM call
-  kJSFunctionArityMatch,           // fast WASM->JS call
-  kJSFunctionArityMismatch,        // WASM->JS, needs adapter frame
+  kLinkError,                // static Wasm->Wasm type error
+  kRuntimeTypeError,         // runtime Wasm->JS type error
+  kWasmToCapi,               // fast Wasm->C-API call
+  kWasmToWasm,               // fast Wasm->Wasm call
+  kJSFunctionArityMatch,     // fast Wasm->JS call
+  kJSFunctionArityMismatch,  // Wasm->JS, needs adapter frame
   // Math functions imported from JavaScript that are intrinsified
   kFirstMathIntrinsic,
   kF64Acos = kFirstMathIntrinsic,
@@ -109,12 +109,12 @@ V8_EXPORT_PRIVATE std::pair<WasmImportCallKind, Handle<JSReceiver>>
 ResolveWasmImportCall(Handle<JSReceiver> callable, const wasm::FunctionSig* sig,
                       const wasm::WasmFeatures& enabled_features);
 
-// Compiles an import call wrapper, which allows WASM to call imports.
+// Compiles an import call wrapper, which allows Wasm to call imports.
 V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     wasm::WasmEngine*, wasm::CompilationEnv* env, WasmImportCallKind,
     const wasm::FunctionSig*, bool source_positions);
 
-// Compiles a host call wrapper, which allows WASM to call host functions.
+// Compiles a host call wrapper, which allows Wasm to call host functions.
 wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine*,
                                            wasm::NativeModule*,
                                            const wasm::FunctionSig*,
@@ -150,9 +150,9 @@ enum CWasmEntryParameters {
 // which knows how to feed it its parameters.
 MaybeHandle<Code> CompileCWasmEntry(Isolate*, const wasm::FunctionSig*);
 
-// Values from the instance object are cached between WASM-level function calls.
+// Values from the instance object are cached between Wasm-level function calls.
 // This struct allows the SSA environment handling this cache to be defined
-// and manipulated in wasm-compiler.{h,cc} instead of inside the WASM decoder.
+// and manipulated in wasm-compiler.{h,cc} instead of inside the Wasm decoder.
 // (Note that currently, the globals base is immutable, so not cached here.)
 struct WasmInstanceCacheNodes {
   Node* mem_start;

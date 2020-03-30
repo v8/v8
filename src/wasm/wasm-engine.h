@@ -131,13 +131,13 @@ class NativeModuleCache {
 };
 
 // The central data structure that represents an engine instance capable of
-// loading, instantiating, and executing WASM code.
+// loading, instantiating, and executing Wasm code.
 class V8_EXPORT_PRIVATE WasmEngine {
  public:
   WasmEngine();
   ~WasmEngine();
 
-  // Synchronously validates the given bytes that represent an encoded WASM
+  // Synchronously validates the given bytes that represent an encoded Wasm
   // module.
   bool SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
                     const ModuleWireBytes& bytes);
@@ -152,14 +152,14 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Isolate* isolate, Handle<AsmWasmData> asm_wasm_data,
       Handle<Script> script);
 
-  // Synchronously compiles the given bytes that represent an encoded WASM
+  // Synchronously compiles the given bytes that represent an encoded Wasm
   // module.
   MaybeHandle<WasmModuleObject> SyncCompile(Isolate* isolate,
                                             const WasmFeatures& enabled,
                                             ErrorThrower* thrower,
                                             const ModuleWireBytes& bytes);
 
-  // Synchronously instantiate the given WASM module with the given imports.
+  // Synchronously instantiate the given Wasm module with the given imports.
   // If the module represents an asm.js module, then the supplied {memory}
   // should be used as the memory of the instance.
   MaybeHandle<WasmInstanceObject> SyncInstantiate(
@@ -168,7 +168,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
       MaybeHandle<JSArrayBuffer> memory);
 
   // Begin an asynchronous compilation of the given bytes that represent an
-  // encoded WASM module.
+  // encoded Wasm module.
   // The {is_shared} flag indicates if the bytes backing the module could
   // be shared across threads, i.e. could be concurrently modified.
   void AsyncCompile(Isolate* isolate, const WasmFeatures& enabled,
@@ -176,7 +176,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
                     const ModuleWireBytes& bytes, bool is_shared,
                     const char* api_method_name_for_errors);
 
-  // Begin an asynchronous instantiation of the given WASM module.
+  // Begin an asynchronous instantiation of the given Wasm module.
   void AsyncInstantiate(Isolate* isolate,
                         std::unique_ptr<InstantiationResultResolver> resolver,
                         Handle<WasmModuleObject> module_object,

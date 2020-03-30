@@ -1307,12 +1307,12 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   }
   if (WasmExportedFunction::IsWasmExportedFunction(*this)) {
     WasmExportedFunction function = WasmExportedFunction::cast(*this);
-    os << "\n - WASM instance: " << Brief(function.instance());
-    os << "\n - WASM function index: " << function.function_index();
+    os << "\n - Wasm instance: " << Brief(function.instance());
+    os << "\n - Wasm function index: " << function.function_index();
   }
   if (WasmJSFunction::IsWasmJSFunction(*this)) {
     WasmJSFunction function = WasmJSFunction::cast(*this);
-    os << "\n - WASM wrapper around: " << Brief(function.GetCallable());
+    os << "\n - Wasm wrapper around: " << Brief(function.GetCallable());
   }
   shared().PrintSourceCode(os);
   JSObjectPrintBody(os, *this);

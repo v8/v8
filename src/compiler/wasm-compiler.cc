@@ -5752,7 +5752,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       return false;
     }
 
-    // The callable is passed as the last parameter, after WASM arguments.
+    // The callable is passed as the last parameter, after Wasm arguments.
     Node* callable_node = Param(wasm_count + 1);
 
     Node* undefined_node = BuildLoadUndefinedValueFromInstance();
@@ -5937,7 +5937,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                  control()));
       offset += type.element_size_bytes();
     }
-    // The function is passed as the last parameter, after WASM arguments.
+    // The function is passed as the last parameter, after Wasm arguments.
     Node* function_node = Param(param_count + 1);
     Node* shared = gasm_->Load(
         MachineType::AnyTagged(), function_node,
@@ -6470,7 +6470,7 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
 
   Zone zone(wasm_engine->allocator(), ZONE_NAME);
 
-  // Compile a WASM function with a single bytecode and let TurboFan
+  // Compile a Wasm function with a single bytecode and let TurboFan
   // generate either inlined machine code or a call to a helper.
   SourcePositionTable* source_positions = nullptr;
   MachineGraph* mcgraph = new (&zone) MachineGraph(
