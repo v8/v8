@@ -23,6 +23,9 @@
 #include "src/roots/roots.h"
 #include "src/tracing/trace-event.h"
 
+// Has to be the last include (doesn't have include guards)
+#include "src/objects/object-macros.h"
+
 namespace v8 {
 namespace internal {
 
@@ -41,7 +44,8 @@ class StringSlotCollectingVisitor : public ObjectVisitor {
       Object obj = *slot;
       if (obj.IsInternalizedString() &&
           !ReadOnlyHeap::Contains(HeapObject::cast(obj))) {
-        string_slots.emplace_back(host.ptr(), slot.address() - host.ptr());
+        string_slots.emplace_back(host.address(),
+                                  slot.address() - host.address());
       }
     }
   }
@@ -52,7 +56,8 @@ class StringSlotCollectingVisitor : public ObjectVisitor {
       HeapObject obj;
       if (maybe_obj.GetHeapObjectIfStrong(&obj)) {
         if (obj.IsInternalizedString() && !ReadOnlyHeap::Contains(obj)) {
-          string_slots.emplace_back(host.ptr(), slot.address() - host.ptr());
+          string_slots.emplace_back(host.address(),
+                                    slot.address() - host.address());
         }
       }
     }
@@ -116,12 +121,12 @@ void OffThreadFactory::Publish(Isolate* isolate) {
     for (RelativeSlot relative_slot : string_slots_) {
       // TODO(leszeks): Group slots in the same parent object to avoid creating
       // multiple duplicate handles.
-      heap_object_handles.push_back(handle(
-          HeapObject::cast(Object(relative_slot.object_address)), isolate));
+      HeapObject obj = HeapObject::FromAddress(relative_slot.object_address);
+      heap_object_handles.push_back(handle(obj, isolate));
 
       // De-internalize the string so that we can re-internalize it later.
-      ObjectSlot slot(relative_slot.object_address + relative_slot.slot_offset);
-      String string = String::cast(slot.Acquire_Load());
+      String string =
+          String::cast(RELAXED_READ_FIELD(obj, relative_slot.slot_offset));
       bool one_byte = string.IsOneByteRepresentation();
       Map map = one_byte ? read_only_roots().one_byte_string_map()
                          : read_only_roots().string_map();
@@ -149,18 +154,19 @@ void OffThreadFactory::Publish(Isolate* isolate) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.OffThreadFinalization.Publish.UpdateHandles");
     for (size_t i = 0; i < string_slots_.size(); ++i) {
+      HeapObject obj = *heap_object_handles[i];
       int slot_offset = string_slots_[i].slot_offset;
 
       // There's currently no cases where the holder object could have been
       // resized.
-      DCHECK_LT(slot_offset, heap_object_handles[i]->Size());
+      DCHECK_LT(slot_offset, obj.Size());
 
-      ObjectSlot slot(heap_object_handles[i]->ptr() + slot_offset);
-
-      String string = String::cast(slot.Acquire_Load());
+      String string = String::cast(RELAXED_READ_FIELD(obj, slot_offset));
       if (string.IsThinString()) {
         // We may have already internalized this string via another slot.
-        slot.Release_Store(ThinString::cast(string).GetUnderlying());
+        String value = ThinString::cast(string).GetUnderlying();
+        RELAXED_WRITE_FIELD(obj, slot_offset, value);
+        WRITE_BARRIER(obj, slot_offset, value);
       } else {
         HandleScope handle_scope(isolate);
 
@@ -168,13 +174,15 @@ void OffThreadFactory::Publish(Isolate* isolate) {
         Handle<String> internalized_string =
             isolate->factory()->InternalizeString(string_handle);
 
-        // Recalculate the slot in case there was GC and the holder moved.
-        ObjectSlot slot(heap_object_handles[i]->ptr() + slot_offset);
-
         DCHECK(string_handle->IsThinString() ||
                string_handle->IsInternalizedString());
         if (*string_handle != *internalized_string) {
-          slot.Release_Store(*internalized_string);
+          // Re-read the object from the handle in case there was GC during
+          // internalization and it moved.
+          HeapObject obj = *heap_object_handles[i];
+          String value = *internalized_string;
+          RELAXED_WRITE_FIELD(obj, slot_offset, value);
+          WRITE_BARRIER(obj, slot_offset, value);
         }
       }
     }
@@ -256,3 +264,6 @@ HeapObject OffThreadFactory::AllocateRaw(int size, AllocationType allocation,
 
 }  // namespace internal
 }  // namespace v8
+
+// Undefine the heap manipulation macros.
+#include "src/objects/object-macros-undef.h"
