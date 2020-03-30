@@ -147,6 +147,25 @@ class IncrementalStringBuilder {
     }
   }
 
+  V8_INLINE void AppendNString(const char* s, size_t len) {
+    const uint8_t* u = reinterpret_cast<const uint8_t*>(s);
+    const uint8_t* end = u + len;
+    if (encoding_ == String::ONE_BYTE_ENCODING) {
+      while (u != end) Append<uint8_t, uint8_t>(*(u++));
+    } else {
+      while (u != end) Append<uint8_t, uc16>(*(u++));
+    }
+  }
+
+  V8_INLINE void AppendNString(const uc16* s, size_t len) {
+    const uc16* end = s + len;
+    if (encoding_ == String::ONE_BYTE_ENCODING) {
+      while (s != end) Append<uc16, uint8_t>(*(s++));
+    } else {
+      while (s != end) Append<uc16, uc16>(*(s++));
+    }
+  }
+
   V8_INLINE void AppendInt(int i) {
     char buffer[kIntToCStringBufferSize];
     const char* str =

@@ -20,7 +20,6 @@ namespace internal {
 CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js,
                          SpreadErrorInArgsHint error_in_spread_args)
     : builder_(new IncrementalStringBuilder(isolate)) {
-  isolate_ = isolate;
   position_ = 0;
   num_prints_ = 0;
   found_ = false;
@@ -77,10 +76,16 @@ void CallPrinter::Print(const char* str) {
   builder_->AppendCString(str);
 }
 
-void CallPrinter::Print(Handle<String> str) {
+void CallPrinter::Print(const AstRawString* str) {
   if (!found_ || done_) return;
   num_prints_++;
-  builder_->AppendString(str);
+  if (str->is_one_byte()) {
+    builder_->AppendNString(reinterpret_cast<const char*>(str->raw_data()),
+                            str->length());
+  } else {
+    builder_->AppendNString(reinterpret_cast<const uc16*>(str->raw_data()),
+                            str->length());
+  }
 }
 
 void CallPrinter::VisitBlock(Block* node) {
@@ -244,17 +249,11 @@ void CallPrinter::VisitConditional(Conditional* node) {
   Find(node->else_expression());
 }
 
-
-void CallPrinter::VisitLiteral(Literal* node) {
-  // TODO(adamk): Teach Literal how to print its values without
-  // allocating on the heap.
-  PrintLiteral(node->BuildValue(isolate_), true);
-}
-
+void CallPrinter::VisitLiteral(Literal* node) { PrintLiteral(node, true); }
 
 void CallPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   Print("/");
-  PrintLiteral(node->pattern(), false);
+  Print(node->raw_pattern());
   Print("/");
   if (node->flags() & RegExp::kGlobal) Print("g");
   if (node->flags() & RegExp::kIgnoreCase) Print("i");
@@ -295,7 +294,7 @@ void CallPrinter::VisitArrayLiteral(ArrayLiteral* node) {
 
 void CallPrinter::VisitVariableProxy(VariableProxy* node) {
   if (is_user_js_) {
-    PrintLiteral(node->name(), false);
+    Print(node->raw_name());
   } else {
     // Variable names of non-user code are meaningless due to minification.
     Print("(var)");
@@ -380,16 +379,13 @@ void CallPrinter::VisitOptionalChain(OptionalChain* node) {
 void CallPrinter::VisitProperty(Property* node) {
   Expression* key = node->key();
   Literal* literal = key->AsLiteral();
-  if (literal != nullptr &&
-      literal->BuildValue(isolate_)->IsInternalizedString()) {
+  if (literal != nullptr && literal->IsStringLiteral()) {
     Find(node->obj(), true);
     if (node->is_optional_chain_link()) {
       Print("?");
     }
     Print(".");
-    // TODO(adamk): Teach Literal how to print its values without
-    // allocating on the heap.
-    PrintLiteral(literal->BuildValue(isolate_), false);
+    PrintLiteral(literal, false);
   } else {
     Find(node->obj(), true);
     if (node->is_optional_chain_link()) {
@@ -578,31 +574,45 @@ void CallPrinter::FindArguments(const ZonePtrList<Expression>* arguments) {
   }
 }
 
-void CallPrinter::PrintLiteral(Handle<Object> value, bool quote) {
-  if (value->IsString()) {
-    if (quote) Print("\"");
-    Print(Handle<String>::cast(value));
-    if (quote) Print("\"");
-  } else if (value->IsNull(isolate_)) {
-    Print("null");
-  } else if (value->IsTrue(isolate_)) {
-    Print("true");
-  } else if (value->IsFalse(isolate_)) {
-    Print("false");
-  } else if (value->IsUndefined(isolate_)) {
-    Print("undefined");
-  } else if (value->IsNumber()) {
-    Print(isolate_->factory()->NumberToString(value));
-  } else if (value->IsSymbol()) {
-    // Symbols can only occur as literals if they were inserted by the parser.
-    PrintLiteral(handle(Handle<Symbol>::cast(value)->description(), isolate_),
-                 false);
+void CallPrinter::PrintLiteral(Literal* literal, bool quote) {
+  switch (literal->type()) {
+    case Literal::kSmi:
+    case Literal::kHeapNumber: {
+      double double_value = literal->AsNumber();
+      char buffer_data[kDoubleToCStringMinBufferSize];
+      Vector<char> buffer(buffer_data, kDoubleToCStringMinBufferSize);
+
+      int smi_value;
+      if (DoubleToSmiInteger(double_value, &smi_value)) {
+        return Print(DoubleToCString(smi_value, buffer));
+      }
+      return Print(DoubleToCString(double_value, buffer));
+    }
+    case Literal::kBigInt:
+      return Print(literal->AsBigInt().c_str());
+    case Literal::kString:
+      return PrintLiteral(literal->AsRawString(), quote);
+    case Literal::kSymbol:
+      switch (literal->AsSymbol()) {
+        case AstSymbol::kHomeObjectSymbol:
+          return Print("HomeObjectSymbol");
+      }
+      UNREACHABLE();
+    case Literal::kBoolean:
+      return Print(literal->ToBooleanIsTrue() ? "true" : "false");
+    case Literal::kUndefined:
+      return Print("undefined");
+    case Literal::kNull:
+      return Print("null");
+    case Literal::kTheHole:
+      return;
   }
 }
 
-
 void CallPrinter::PrintLiteral(const AstRawString* value, bool quote) {
-  PrintLiteral(value->string(), quote);
+  if (quote) Print("\"");
+  Print(value);
+  if (quote) Print("\"");
 }
 
 //-----------------------------------------------------------------------------
