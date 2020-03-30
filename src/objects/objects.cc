@@ -5179,9 +5179,9 @@ bool SharedFunctionInfo::PassesFilter(const char* raw_filter) {
 }
 
 bool SharedFunctionInfo::HasSourceCode() const {
-  Isolate* isolate = GetIsolate();
-  return !script().IsUndefined(isolate) &&
-         !Script::cast(script()).source().IsUndefined(isolate);
+  ReadOnlyRoots roots = GetReadOnlyRoots();
+  return !script().IsUndefined(roots) &&
+         !Script::cast(script()).source().IsUndefined(roots);
 }
 
 void SharedFunctionInfo::DiscardCompiledMetadata(

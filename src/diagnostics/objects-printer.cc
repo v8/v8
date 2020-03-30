@@ -1384,7 +1384,12 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - expected_nof_properties: " << expected_nof_properties();
   os << "\n - language_mode: " << language_mode();
   os << "\n - data: " << Brief(function_data());
-  os << "\n - code (from data): " << Brief(GetCode());
+  os << "\n - code (from data): ";
+  if (Heap::InOffThreadSpace(*this)) {
+    os << "<not available off-thread>";
+  } else {
+    os << Brief(GetCode());
+  }
   PrintSourceCode(os);
   // Script files are often large, thus only print their {Brief} representation.
   os << "\n - script: " << Brief(script());
