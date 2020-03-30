@@ -31,7 +31,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
 
   if (!Builtins::AllowDynamicFunction(isolate, target, target_global_proxy)) {
     isolate->CountUsage(v8::Isolate::kFunctionConstructorReturnedUndefined);
-    return isolate->factory()->undefined_value();
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kNoAccess), Object);
   }
 
   // Build the source string.

@@ -263,6 +263,9 @@
   # Predictable tests fail due to race between postMessage and GrowMemory
   # Agressively skipping test for variants, and simulator runs.
   'regress/wasm/regress-1010272': [PASS, NO_VARIANTS, ['simulator_run', SKIP], ['system == android', SKIP], ['predictable', SKIP]],
+
+  # Needs to be adapted after changes to Function constructor. chromium:1065094
+  'cross-realm-filtering': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
