@@ -2109,6 +2109,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I32x4UConvertI16x8Low)  \
   V(I32x4UConvertI16x8High) \
   V(I32x4Abs)               \
+  V(I32x4BitMask)           \
   V(I16x8SConvertI8x16Low)  \
   V(I16x8SConvertI8x16High) \
   V(I16x8Neg)               \
@@ -2116,7 +2117,8 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8UConvertI8x16High) \
   V(I16x8Abs)               \
   V(I8x16Neg)               \
-  V(I8x16Abs)
+  V(I8x16Abs)               \
+  V(I8x16BitMask)
 
 #define SIMD_UNOP_PREFIX_LIST(V) \
   V(F32x4Abs)                    \
@@ -2437,6 +2439,13 @@ void VisitPack(InstructionSelector* selector, Node* node, ArchOpcode avx_opcode,
 
 void InstructionSelector::VisitI16x8UConvertI32x4(Node* node) {
   VisitPack(this, node, kAVXI16x8UConvertI32x4, kSSEI16x8UConvertI32x4);
+}
+
+void InstructionSelector::VisitI16x8BitMask(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  Emit(kIA32I16x8BitMask, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {

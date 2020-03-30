@@ -207,6 +207,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSEI32x4GeU:
     case kAVXI32x4GeU:
     case kIA32I32x4Abs:
+    case kIA32I32x4BitMask:
     case kIA32I16x8Splat:
     case kIA32I16x8ExtractLaneU:
     case kIA32I16x8ExtractLaneS:
@@ -262,6 +263,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXI16x8GeU:
     case kIA32I16x8RoundingAverageU:
     case kIA32I16x8Abs:
+    case kIA32I16x8BitMask:
     case kIA32I8x16Splat:
     case kIA32I8x16ExtractLaneU:
     case kIA32I8x16ExtractLaneS:
@@ -311,6 +313,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXI8x16GeU:
     case kIA32I8x16RoundingAverageU:
     case kIA32I8x16Abs:
+    case kIA32I8x16BitMask:
     case kIA32S128Zero:
     case kSSES128Not:
     case kAVXS128Not:

@@ -2759,6 +2759,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pabsd(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kIA32I32x4BitMask: {
+      __ Movmskps(i.OutputRegister(), i.InputSimd128Register(0));
+      break;
+    }
     case kIA32I16x8Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Movd(dst, i.InputOperand(0));
@@ -3091,6 +3095,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32I16x8Abs: {
       __ Pabsw(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kIA32I16x8BitMask: {
+      Register dst = i.OutputRegister();
+      XMMRegister tmp = i.TempSimd128Register(0);
+      __ Packsswb(tmp, i.InputSimd128Register(0));
+      __ Pmovmskb(dst, tmp);
+      __ shr(dst, 8);
       break;
     }
     case kIA32I8x16Splat: {
@@ -3544,6 +3556,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32I8x16Abs: {
       __ Pabsb(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kIA32I8x16BitMask: {
+      __ Pmovmskb(i.OutputRegister(), i.InputSimd128Register(0));
       break;
     }
     case kIA32S128Zero: {

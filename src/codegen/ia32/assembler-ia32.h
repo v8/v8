@@ -958,6 +958,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movmskpd(Register dst, XMMRegister src);
   void movmskps(Register dst, XMMRegister src);
 
+  void pmovmskb(Register dst, XMMRegister src);
+
   void cmpltsd(XMMRegister dst, XMMRegister src);
 
   void maxsd(XMMRegister dst, XMMRegister src) { maxsd(dst, Operand(src)); }
@@ -1438,6 +1440,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmovd(Operand dst, XMMRegister src) {
     vinstr(0x7E, src, xmm0, dst, k66, k0F, kWIG);
   }
+
+  void vmovmskps(Register dst, XMMRegister src);
+
+  void vpmovmskb(Register dst, XMMRegister src);
 
   // BMI instruction
   void andn(Register dst, Register src1, Register src2) {
