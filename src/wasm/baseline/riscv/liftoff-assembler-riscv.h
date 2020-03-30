@@ -1016,26 +1016,31 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
 }  // namespace internal
 
 void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
-  bailout(kComplexOperation, "i32_signextend_i8");
+  RV_slliw(dst, src, 32 - 8);
+  RV_sraiw(dst, dst, 32 - 8);
 }
 
 void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
-  bailout(kComplexOperation, "i32_signextend_i16");
+  RV_slliw(dst, src, 32 - 16);
+  RV_sraiw(dst, dst, 32 - 16);
 }
 
 void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
                                               LiftoffRegister src) {
-  bailout(kComplexOperation, "i64_signextend_i8");
+  RV_slli(dst.gp(), src.gp(), 64 - 8);
+  RV_srai(dst.gp(), dst.gp(), 64 - 8);
 }
 
 void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
                                                LiftoffRegister src) {
-  bailout(kComplexOperation, "i64_signextend_i16");
+  RV_slli(dst.gp(), src.gp(), 64 - 16);
+  RV_srai(dst.gp(), dst.gp(), 64 - 16);
 }
 
 void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
                                                LiftoffRegister src) {
-  bailout(kComplexOperation, "i64_signextend_i32");
+  RV_slli(dst.gp(), src.gp(), 64 - 32);
+  RV_srai(dst.gp(), dst.gp(), 64 - 32);
 }
 
 void LiftoffAssembler::emit_jump(Label* label) {
