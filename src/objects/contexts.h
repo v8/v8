@@ -65,6 +65,7 @@ enum ContextLookupFlags {
   V(EMBEDDER_DATA_INDEX, HeapObject, embedder_data)                            \
   V(CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX, HeapObject,                    \
     continuation_preserved_embedder_data)                                      \
+  NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                                        \
   /* Below is alpha-sorted */                                                  \
   V(ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX, Map,                               \
     accessor_property_descriptor_map)                                          \
@@ -370,8 +371,7 @@ enum ContextLookupFlags {
   V(WEAKMAP_SET_INDEX, JSFunction, weakmap_set)                                \
   V(WEAKMAP_GET_INDEX, JSFunction, weakmap_get)                                \
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)                                \
-  V(OSR_CODE_CACHE_INDEX, WeakFixedArray, osr_code_cache)                      \
-  NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)
+  V(OSR_CODE_CACHE_INDEX, WeakFixedArray, osr_code_cache)
 
 // A table of all script contexts. Every loaded top-level script with top-level
 // lexical declarations contributes its ScriptContext into this table.
