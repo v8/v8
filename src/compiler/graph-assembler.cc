@@ -698,6 +698,11 @@ TNode<Number> JSGraphAssembler::PlainPrimitiveToNumber(TNode<Object> value) {
                                           NoContextConstant(), effect()));
 }
 
+Node* GraphAssembler::BitcastWordToTaggedSigned(Node* value) {
+  return AddNode(
+      graph()->NewNode(machine()->BitcastWordToTaggedSigned(), value));
+}
+
 Node* GraphAssembler::BitcastWordToTagged(Node* value) {
   return AddNode(graph()->NewNode(machine()->BitcastWordToTagged(), value,
                                   effect(), control()));

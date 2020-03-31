@@ -424,7 +424,7 @@ class Code : public HeapObject {
   static constexpr int kHeaderPaddingSize =
       FLAG_enable_embedded_constant_pool ? 28 : 0;
 #elif V8_TARGET_ARCH_S390X
-  static constexpr int kHeaderPaddingSize = 0;
+  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 20 : 0;
 #else
 #error Unknown architecture.
 #endif

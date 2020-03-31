@@ -303,6 +303,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* Float64RoundTruncate(Node* value);
 
   Node* BitcastWordToTagged(Node* value);
+  Node* BitcastWordToTaggedSigned(Node* value);
   Node* BitcastTaggedToWord(Node* value);
   Node* BitcastTaggedToWordForTagAndSmiBits(Node* value);
 

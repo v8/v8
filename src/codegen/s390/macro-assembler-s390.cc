@@ -122,7 +122,11 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
   CHECK(is_uint19(offset));
   DCHECK_NE(destination, r0);
   LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
-  LoadP(destination, MemOperand(destination, offset), r1);
+  LoadTaggedPointerField(
+      destination,
+      FieldMemOperand(destination,
+                      FixedArray::OffsetOfElementAt(constant_index)),
+      r1);
 }
 
 void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
@@ -287,15 +291,22 @@ void TurboAssembler::Push(Smi smi) {
   push(r0);
 }
 
-void TurboAssembler::Move(Register dst, Handle<HeapObject> value) {
+void TurboAssembler::Move(Register dst, Handle<HeapObject> value,
+                          RelocInfo::Mode rmode) {
   // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
   // non-isolate-independent code. In many cases it might be cheaper than
   // embedding the relocatable value.
   if (root_array_available_ && options().isolate_independent_code) {
     IndirectLoadConstant(dst, value);
     return;
+  } else if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
+    EmbeddedObjectIndex index = AddEmbeddedObject(value);
+    DCHECK(is_uint32(index));
+    mov(dst, Operand(static_cast<int>(index), rmode));
+  } else {
+    DCHECK(RelocInfo::IsFullEmbeddedObject(rmode));
+    mov(dst, Operand(value.address(), rmode));
   }
-  mov(dst, Operand(value));
 }
 
 void TurboAssembler::Move(Register dst, ExternalReference reference) {
@@ -426,6 +437,96 @@ void TurboAssembler::LoadRoot(Register destination, RootIndex index,
         MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)), r0);
 }
 
+void TurboAssembler::LoadTaggedPointerField(const Register& destination,
+                                            const MemOperand& field_operand,
+                                            const Register& scratch) {
+  if (COMPRESS_POINTERS_BOOL) {
+    DecompressTaggedPointer(destination, field_operand);
+  } else {
+    LoadP(destination, field_operand, scratch);
+  }
+}
+
+void TurboAssembler::LoadAnyTaggedField(const Register& destination,
+                                        const MemOperand& field_operand,
+                                        const Register& scratch) {
+  if (COMPRESS_POINTERS_BOOL) {
+    DecompressAnyTagged(destination, field_operand);
+  } else {
+    LoadP(destination, field_operand, scratch);
+  }
+}
+
+void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
+  if (SmiValuesAre31Bits()) {
+    LoadW(dst, src);
+  } else {
+    LoadP(dst, src);
+  }
+  SmiUntag(dst);
+}
+
+void TurboAssembler::SmiUntagField(Register dst, const MemOperand& src) {
+  SmiUntag(dst, src);
+}
+
+void TurboAssembler::StoreTaggedField(const Register& value,
+                                      const MemOperand& dst_field_operand,
+                                      const Register& scratch) {
+  if (COMPRESS_POINTERS_BOOL) {
+    RecordComment("[ StoreTagged");
+    StoreW(value, dst_field_operand);
+    RecordComment("]");
+  } else {
+    StoreP(value, dst_field_operand, scratch);
+  }
+}
+
+void TurboAssembler::DecompressTaggedSigned(Register destination,
+                                            Register src) {
+  RecordComment("[ DecompressTaggedSigned");
+  llgfr(destination, src);
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressTaggedSigned(Register destination,
+                                            MemOperand field_operand) {
+  RecordComment("[ DecompressTaggedSigned");
+  llgf(destination, field_operand);
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressTaggedPointer(Register destination,
+                                             Register source) {
+  RecordComment("[ DecompressTaggedPointer");
+  llgfr(destination, source);
+  agr(destination, kRootRegister);
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressTaggedPointer(Register destination,
+                                             MemOperand field_operand) {
+  RecordComment("[ DecompressTaggedPointer");
+  llgf(destination, field_operand);
+  agr(destination, kRootRegister);
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressAnyTagged(Register destination,
+                                         MemOperand field_operand) {
+  RecordComment("[ DecompressAnyTagged");
+  llgf(destination, field_operand);
+  agr(destination, kRootRegister);
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressAnyTagged(Register destination,
+                                         Register source) {
+  RecordComment("[ DecompressAnyTagged");
+  llgfr(destination, source);
+  agr(destination, kRootRegister);
+  RecordComment("]");
+}
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, Register dst,
                                       LinkRegisterStatus lr_status,
@@ -443,12 +544,12 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 
   // Although the object register is tagged, the offset is relative to the start
   // of the object, so so offset must be a multiple of kSystemPointerSize.
-  DCHECK(IsAligned(offset, kSystemPointerSize));
+  DCHECK(IsAligned(offset, kTaggedSize));
 
   lay(dst, MemOperand(object, offset - kHeapObjectTag));
   if (emit_debug_code()) {
     Label ok;
-    AndP(r0, dst, Operand(kSystemPointerSize - 1));
+    AndP(r0, dst, Operand(kTaggedSize - 1));
     beq(&ok, Label::kNear);
     stop();
     bind(&ok);
@@ -582,7 +683,8 @@ void MacroAssembler::RecordWrite(Register object, Register address,
                                  SmiCheck smi_check) {
   DCHECK(object != value);
   if (emit_debug_code()) {
-    CmpP(value, MemOperand(address));
+    LoadTaggedPointerField(r0, MemOperand(address));
+    CmpP(value, r0);
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
@@ -1331,17 +1433,17 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   // allow recompilation to take effect without changing any of the
   // call sites.
   Register code = kJavaScriptCallCodeStartRegister;
-  LoadP(code, FieldMemOperand(function, JSFunction::kCodeOffset));
+  LoadTaggedPointerField(code,
+                         FieldMemOperand(function, JSFunction::kCodeOffset));
   if (flag == CALL_FUNCTION) {
     CallCodeObject(code);
   } else {
     DCHECK(flag == JUMP_FUNCTION);
     JumpCodeObject(code);
   }
-
-    // Continue here if InvokePrologue does handle the invocation due to
-    // mismatched parameter counts.
-    bind(&done);
+  // Continue here if InvokePrologue does handle the invocation due to
+  // mismatched parameter counts.
+  bind(&done);
 }
 
 void MacroAssembler::InvokeFunctionWithNewTarget(
@@ -1355,8 +1457,9 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
 
   Register expected_reg = r4;
   Register temp_reg = r6;
-  LoadP(temp_reg, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
-  LoadP(cp, FieldMemOperand(r3, JSFunction::kContextOffset));
+  LoadTaggedPointerField(cp, FieldMemOperand(fun, JSFunction::kContextOffset));
+  LoadTaggedPointerField(
+      temp_reg, FieldMemOperand(fun, JSFunction::kSharedFunctionInfoOffset));
   LoadLogicalHalfWordP(
       expected_reg,
       FieldMemOperand(temp_reg,
@@ -1377,7 +1480,8 @@ void MacroAssembler::InvokeFunction(Register function,
   DCHECK_EQ(function, r3);
 
   // Get the function and setup the context.
-  LoadP(cp, FieldMemOperand(r3, JSFunction::kContextOffset));
+  LoadTaggedPointerField(cp,
+                         FieldMemOperand(function, JSFunction::kContextOffset));
 
   InvokeFunctionCode(r3, no_reg, expected_parameter_count,
                      actual_parameter_count, flag);
@@ -1447,7 +1551,11 @@ void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
 }
 
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
-  CmpP(obj, MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+  int32_t offset = RootRegisterOffsetForRootIndex(index);
+#ifdef V8_TARGET_BIG_ENDIAN
+  offset += (COMPRESS_POINTERS_BOOL ? kTaggedSize : 0);
+#endif
+  CompareTagged(obj, MemOperand(kRootRegister, offset));
 }
 
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
@@ -1634,14 +1742,16 @@ void TurboAssembler::Abort(AbortReason reason) {
 }
 
 void MacroAssembler::LoadMap(Register destination, Register object) {
-  LoadP(destination, FieldMemOperand(object, HeapObject::kMapOffset));
+  LoadTaggedPointerField(destination,
+                         FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
 void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
   LoadMap(dst, cp);
-  LoadP(dst, FieldMemOperand(
-                 dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
-  LoadP(dst, MemOperand(dst, Context::SlotOffset(index)));
+  LoadTaggedPointerField(
+      dst, FieldMemOperand(
+               dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
+  LoadTaggedPointerField(dst, MemOperand(dst, Context::SlotOffset(index)));
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {
@@ -4306,20 +4416,17 @@ void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   STATIC_ASSERT(kSystemPointerSize == 8);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
-
   // The builtin_index register contains the builtin index as a Smi.
-  // Untagging is folded into the indexing operand below.
-#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-  STATIC_ASSERT(kSmiShiftSize == 0);
-  ShiftLeftP(builtin_index, builtin_index,
-             Operand(kSystemPointerSizeLog2 - kSmiShift));
-#else
-  ShiftRightArithP(builtin_index, builtin_index,
-                   Operand(kSmiShift - kSystemPointerSizeLog2));
-#endif
-  AddP(builtin_index, builtin_index,
-       Operand(IsolateData::builtin_entry_table_offset()));
-  LoadP(builtin_index, MemOperand(kRootRegister, builtin_index));
+  if (SmiValuesAre32Bits()) {
+    ShiftRightArithP(builtin_index, builtin_index,
+                     Operand(kSmiShift - kSystemPointerSizeLog2));
+  } else {
+    DCHECK(SmiValuesAre31Bits());
+    ShiftLeftP(builtin_index, builtin_index,
+               Operand(kSystemPointerSizeLog2 - kSmiShift));
+  }
+  LoadP(builtin_index, MemOperand(kRootRegister, builtin_index,
+                                  IsolateData::builtin_entry_table_offset()));
 }
 
 void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {

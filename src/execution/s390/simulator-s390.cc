@@ -501,7 +501,7 @@ void S390Debugger::Debug() {
       } else if (strcmp(cmd, "stop") == 0) {
         intptr_t value;
         intptr_t stop_pc =
-            sim_->get_pc() - (sizeof(FourByteInstr) + kPointerSize);
+            sim_->get_pc() - (sizeof(FourByteInstr) + kSystemPointerSize);
         Instruction* stop_instr = reinterpret_cast<Instruction*>(stop_pc);
         Instruction* msg_address =
             reinterpret_cast<Instruction*>(stop_pc + sizeof(FourByteInstr));
@@ -1926,8 +1926,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       // Remaining arguments on stack
       intptr_t* stack_pointer = reinterpret_cast<intptr_t*>(get_register(sp));
       for (int i = kRegisterArgCount; i < kArgCount; i++) {
-        arg[i] = stack_pointer[(kCalleeRegisterSaveAreaSize / kPointerSize) +
-                               (i - kRegisterArgCount)];
+        arg[i] =
+            stack_pointer[(kCalleeRegisterSaveAreaSize / kSystemPointerSize) +
+                          (i - kRegisterArgCount)];
       }
       STATIC_ASSERT(kArgCount == kRegisterArgCount + 5);
       STATIC_ASSERT(kMaxCParameters == kArgCount);
@@ -1939,7 +1940,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
 
       // Place the return address on the stack, making the call GC safe.
       *reinterpret_cast<intptr_t*>(get_register(sp) +
-                                   kStackFrameRASlot * kPointerSize) =
+                                   kStackFrameRASlot * kSystemPointerSize) =
           get_register(r14);
 
       intptr_t external =
@@ -2207,7 +2208,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         // #endif
       }
       int64_t saved_lr = *reinterpret_cast<intptr_t*>(
-          get_register(sp) + kStackFrameRASlot * kPointerSize);
+          get_register(sp) + kStackFrameRASlot * kSystemPointerSize);
 #if (!V8_TARGET_ARCH_S390X && V8_HOST_ARCH_S390)
       // On zLinux-31, the saved_lr might be tagged with a high bit of 1.
       // Cleanse it before proceeding with simulation.
@@ -2236,7 +2237,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           }
           DebugAtNextPC();
         } else {
-          set_pc(get_pc() + sizeof(FourByteInstr) + kPointerSize);
+          set_pc(get_pc() + sizeof(FourByteInstr) + kSystemPointerSize);
         }
       } else {
         // This is not a valid svc code.
@@ -6723,7 +6724,7 @@ EVALUATE(TRAP4) {
   int length = 4;
   // whack the space of the caller allocated stack
   int64_t sp_addr = get_register(sp);
-  for (int i = 0; i < kCalleeRegisterSaveAreaSize / kPointerSize; ++i) {
+  for (int i = 0; i < kCalleeRegisterSaveAreaSize / kSystemPointerSize; ++i) {
     // we dont want to whack the RA (r14)
     if (i != 14) (reinterpret_cast<intptr_t*>(sp_addr))[i] = 0xDEADBABE;
   }

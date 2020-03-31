@@ -122,8 +122,8 @@ void InterpreterAssembler::SaveBytecodeOffset() {
                         IntPtrConstant(payload_offset),
                         TruncateIntPtrToInt32(bytecode_offset));
   } else {
-    StoreNoWriteBarrier(MachineRepresentation::kTaggedSigned, base,
-                        IntPtrConstant(store_offset), SmiTag(bytecode_offset));
+    StoreFullTaggedNoWriteBarrier(base, IntPtrConstant(store_offset),
+                                  SmiTag(bytecode_offset));
   }
 }
 
@@ -267,8 +267,7 @@ TNode<IntPtrT> InterpreterAssembler::LoadAndUntagRegister(Register reg) {
 #endif
     return ChangeInt32ToIntPtr(Load<Int32T>(base, IntPtrConstant(index)));
   } else {
-    return SmiToIntPtr(
-        Load(MachineType::TaggedSigned(), base, IntPtrConstant(index)));
+    return SmiToIntPtr(CAST(LoadFullTagged(base, IntPtrConstant(index))));
   }
 }
 

@@ -1582,8 +1582,7 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(SloppyTNode<Object> value,
 
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
   TNode<RawPtrT> frame_pointer = LoadParentFramePointer();
-  return CAST(
-      Load(MachineType::AnyTagged(), frame_pointer, IntPtrConstant(offset)));
+  return LoadFullTagged(frame_pointer, IntPtrConstant(offset));
 }
 
 Node* CodeStubAssembler::LoadObjectField(SloppyTNode<HeapObject> object,
@@ -12649,7 +12648,7 @@ void CodeStubArguments::ForEach(
   assembler_->BuildFastLoop<RawPtrT>(
       vars, start, end,
       [&](TNode<RawPtrT> current) {
-        TNode<Object> arg = assembler_->Load<Object>(current);
+        TNode<Object> arg = assembler_->LoadFullTagged(current);
         body(arg);
       },
       increment, CodeStubAssembler::IndexAdvanceMode::kPost);

@@ -82,6 +82,9 @@ MachineType assert_size(int expected_size, MachineType type) {
   gasm_->Load(assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), \
               instance_node_.get(), WASM_INSTANCE_OBJECT_OFFSET(name))
 
+#define LOAD_FULL_POINTER(base_pointer, byte_offset) \
+  gasm_->Load(MachineType::Pointer(), base_pointer, byte_offset)
+
 #define LOAD_TAGGED_POINTER(base_pointer, byte_offset) \
   gasm_->Load(MachineType::TaggedPointer(), base_pointer, byte_offset)
 
@@ -254,7 +257,7 @@ Node* WasmGraphBuilder::EffectPhi(unsigned count, Node** effects_and_control) {
 
 Node* WasmGraphBuilder::RefNull() {
   Node* isolate_root = BuildLoadIsolateRoot();
-  return LOAD_TAGGED_POINTER(
+  return LOAD_FULL_POINTER(
       isolate_root, IsolateData::root_slot_offset(RootIndex::kNullValue));
 }
 
@@ -3245,7 +3248,7 @@ Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(Runtime::FunctionId f,
   DCHECK_EQ(1, fun->result_size);
   auto centry_id =
       Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit;
-  Node* centry_stub = LOAD_TAGGED_POINTER(
+  Node* centry_stub = LOAD_FULL_POINTER(
       isolate_root, IsolateData::builtin_slot_offset(centry_id));
   // TODO(titzer): allow arbitrary number of runtime arguments
   // At the moment we only allow 5 parameters. If more parameters are needed,
@@ -5177,8 +5180,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(IsolateRoot)),
           graph()->start(), graph()->start());
       undefined_value_node_ = graph()->NewNode(
-          mcgraph()->machine()->Load(MachineType::TaggedPointer()),
-          isolate_root,
+          mcgraph()->machine()->Load(MachineType::Pointer()), isolate_root,
           mcgraph()->Int32Constant(
               IsolateData::root_slot_offset(RootIndex::kUndefinedValue)),
           isolate_root, graph()->start());

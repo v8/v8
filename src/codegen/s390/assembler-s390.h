@@ -275,11 +275,21 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Read/Modify the code target address in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   V8_INLINE static Address target_address_at(Address pc, Address constant_pool);
+
+  // Read/Modify the code target address in the branch/call instruction at pc.
+  inline static Tagged_t target_compressed_address_at(Address pc,
+                                                      Address constant_pool);
   V8_INLINE static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
+  inline static void set_target_compressed_address_at(
+      Address pc, Address constant_pool, Tagged_t target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
   inline Handle<Object> code_target_object_handle_at(Address pc);
+  inline Handle<HeapObject> compressed_embedded_object_handle_at(
+      Address pc, Address constant_pool);
   // This sets the branch destination.
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(

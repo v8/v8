@@ -204,6 +204,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
       __ JumpIfSmi(value_, exit());
     }
+    if (COMPRESS_POINTERS_BOOL) {
+      __ DecompressTaggedPointer(value_, value_);
+    }
     __ CheckPageFlag(value_, scratch0_,
                      MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
@@ -1330,7 +1333,8 @@ void CodeGenerator::BailoutIfDeoptimized() {
   }
 
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
-  __ LoadP(ip, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  __ LoadTaggedPointerField(
+      ip, MemOperand(kJavaScriptCallCodeStartRegister, offset), r0);
   __ LoadW(ip,
            FieldMemOperand(ip, CodeDataContainer::kKindSpecificFlagsOffset));
   __ TestBit(ip, Code::kMarkedForDeoptimizationBit);
@@ -1467,13 +1471,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
-        __ LoadP(kScratchReg,
-                 FieldMemOperand(func, JSFunction::kContextOffset));
+        __ LoadTaggedPointerField(
+            kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
         __ CmpP(cp, kScratchReg);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
       static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
-      __ LoadP(r4, FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ LoadTaggedPointerField(r4,
+                                FieldMemOperand(func, JSFunction::kCodeOffset));
       __ CallCodeObject(r4);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -1643,14 +1648,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         ool = new (zone()) OutOfLineRecordWrite(
             this, object, offset, value, scratch0, scratch1, mode,
             DetermineStubCallMode(), &unwinding_info_writer_);
-        __ StoreP(value, MemOperand(object, offset));
+        __ StoreTaggedField(value, MemOperand(object, offset), r0);
       } else {
         DCHECK_EQ(kMode_MRR, addressing_mode);
         Register offset(i.InputRegister(1));
         ool = new (zone()) OutOfLineRecordWrite(
             this, object, offset, value, scratch0, scratch1, mode,
             DetermineStubCallMode(), &unwinding_info_writer_);
-        __ StoreP(value, MemOperand(object, offset));
+        __ StoreTaggedField(value, MemOperand(object, offset));
       }
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask, ne,
@@ -4181,6 +4186,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
       break;
     }
+    case kS390_StoreCompressTagged: {
+      CHECK(!instr->HasOutput());
+      size_t index = 0;
+      AddressingMode mode = kMode_None;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      Register value = i.InputRegister(index);
+      __ StoreTaggedField(value, operand, r1);
+      break;
+    }
+    case kS390_LoadDecompressTaggedSigned: {
+      CHECK(instr->HasOutput());
+      __ DecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand());
+      break;
+    }
+    case kS390_LoadDecompressTaggedPointer: {
+      CHECK(instr->HasOutput());
+      __ DecompressTaggedPointer(i.OutputRegister(), i.MemoryOperand());
+      break;
+    }
+    case kS390_LoadDecompressAnyTagged: {
+      CHECK(instr->HasOutput());
+      __ DecompressAnyTagged(i.OutputRegister(), i.MemoryOperand());
+      break;
+    }
     default:
       UNREACHABLE();
   }
@@ -4411,10 +4440,12 @@ void CodeGenerator::AssembleConstructFrame() {
         // Unpack the tuple into the instance and the target callable.
         // This must be done here in the codegen because it cannot be expressed
         // properly in the graph.
-        __ LoadP(kJSFunctionRegister,
-                 FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
-        __ LoadP(kWasmInstanceRegister,
-                 FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
+        __ LoadTaggedPointerField(
+            kJSFunctionRegister,
+            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset), r0);
+        __ LoadTaggedPointerField(
+            kWasmInstanceRegister,
+            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset), r0);
         __ Push(kWasmInstanceRegister);
         if (call_descriptor->IsWasmCapiFunction()) {
           // Reserve space for saving the PC later.
@@ -4634,9 +4665,16 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           }
           break;
         }
-        case Constant::kCompressedHeapObject:
-          UNREACHABLE();
+        case Constant::kCompressedHeapObject: {
+          Handle<HeapObject> src_object = src.ToHeapObject();
+          RootIndex index;
+          if (IsMaterializableFromRoot(src_object, &index)) {
+            __ LoadRoot(dst, index);
+          } else {
+            __ Move(dst, src_object, RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
+          }
           break;
+        }
         case Constant::kRpoNumber:
           UNREACHABLE();  // TODO(dcarney): loading RPO constants on S390.
           break;

@@ -179,7 +179,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi smi) { LoadSmiLiteral(dst, smi); }
-  void Move(Register dst, Handle<HeapObject> value);
+  void Move(Register dst, Handle<HeapObject> source,
+            RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
   void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
@@ -972,16 +973,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     // High bits must be identical to fit into an 32-bit integer
     cgfr(value, value);
   }
-  void SmiUntag(Register reg, int scale = 0) { SmiUntag(reg, reg, scale); }
+  void SmiUntag(Register reg) { SmiUntag(reg, reg); }
 
-  void SmiUntag(Register dst, Register src, int scale = 0) {
-    if (scale > kSmiShift) {
-      ShiftLeftP(dst, src, Operand(scale - kSmiShift));
-    } else if (scale < kSmiShift) {
-      ShiftRightArithP(dst, src, Operand(kSmiShift - scale));
+  void SmiUntag(Register dst, const MemOperand& src);
+  void SmiUntag(Register dst, Register src) {
+    if (SmiValuesAre31Bits()) {
+      ShiftRightArith(dst, src, Operand(kSmiShift));
     } else {
-      // do nothing
+      ShiftRightArithP(dst, src, Operand(kSmiShift));
     }
+    lgfr(dst, dst);
   }
 
   // Activation support.
@@ -1011,6 +1012,35 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // instruction following the call.
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
+
+  // ---------------------------------------------------------------------------
+  // Pointer compression Support
+
+  // Loads a field containing a HeapObject and decompresses it if pointer
+  // compression is enabled.
+  void LoadTaggedPointerField(const Register& destination,
+                              const MemOperand& field_operand,
+                              const Register& scratch = no_reg);
+
+  // Loads a field containing any tagged value and decompresses it if necessary.
+  void LoadAnyTaggedField(const Register& destination,
+                          const MemOperand& field_operand,
+                          const Register& scratch = no_reg);
+
+  // Loads a field containing smi value and untags it.
+  void SmiUntagField(Register dst, const MemOperand& src);
+
+  // Compresses and stores tagged value to given on-heap location.
+  void StoreTaggedField(const Register& value,
+                        const MemOperand& dst_field_operand,
+                        const Register& scratch = no_reg);
+
+  void DecompressTaggedSigned(Register destination, MemOperand field_operand);
+  void DecompressTaggedSigned(Register destination, Register src);
+  void DecompressTaggedPointer(Register destination, MemOperand field_operand);
+  void DecompressTaggedPointer(Register destination, Register source);
+  void DecompressAnyTagged(Register destination, MemOperand field_operand);
+  void DecompressAnyTagged(Register destination, Register source);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -1081,6 +1111,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void PushRoot(RootIndex index) {
     LoadRoot(r0, index);
     Push(r0);
+  }
+
+  template <class T>
+  void CompareTagged(Register src1, T src2) {
+    if (COMPRESS_POINTERS_BOOL) {
+      Cmp32(src1, src2);
+    } else {
+      CmpP(src1, src2);
+    }
   }
 
   // Jump to a runtime routine.

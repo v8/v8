@@ -154,10 +154,12 @@ class S390OperandGenerator final : public OperandGenerator {
     switch (opcode) {
       case kS390_Cmp64:
       case kS390_LoadAndTestWord64:
-        return rep == MachineRepresentation::kWord64 || IsAnyTagged(rep);
+        return rep == MachineRepresentation::kWord64 ||
+               (!COMPRESS_POINTERS_BOOL && IsAnyTagged(rep));
       case kS390_LoadAndTestWord32:
       case kS390_Cmp32:
-        return rep == MachineRepresentation::kWord32;
+        return rep == MachineRepresentation::kWord32 ||
+               (COMPRESS_POINTERS_BOOL && IsAnyTagged(rep));
       default:
         break;
     }
@@ -285,29 +287,38 @@ ArchOpcode SelectLoadOpcode(Node* node) {
     case MachineRepresentation::kWord16:
       opcode = load_rep.IsSigned() ? kS390_LoadWordS16 : kS390_LoadWordU16;
       break;
-#if !V8_TARGET_ARCH_S390X
+    case MachineRepresentation::kWord32:
+      opcode = kS390_LoadWordU32;
+      break;
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:
+#ifdef V8_COMPRESS_POINTERS
+      opcode = kS390_LoadWordS32;
+      break;
+#else
+      UNREACHABLE();
+#endif
+#ifdef V8_COMPRESS_POINTERS
+    case MachineRepresentation::kTaggedSigned:
+      opcode = kS390_LoadDecompressTaggedSigned;
+      break;
+    case MachineRepresentation::kTaggedPointer:
+      opcode = kS390_LoadDecompressTaggedPointer;
+      break;
+    case MachineRepresentation::kTagged:
+      opcode = kS390_LoadDecompressAnyTagged;
+      break;
+#else
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:         // Fall through.
 #endif
-    case MachineRepresentation::kWord32:
-      opcode = kS390_LoadWordU32;
+    case MachineRepresentation::kWord64:
+      opcode = kS390_LoadWord64;
       break;
     case MachineRepresentation::kSimd128:
       opcode = kS390_LoadSimd128;
       break;
-#if V8_TARGET_ARCH_S390X
-    case MachineRepresentation::kTaggedSigned:   // Fall through.
-    case MachineRepresentation::kTaggedPointer:  // Fall through.
-    case MachineRepresentation::kTagged:         // Fall through.
-    case MachineRepresentation::kWord64:
-      opcode = kS390_LoadWord64;
-      break;
-#else
-    case MachineRepresentation::kWord64:  // Fall through.
-#endif
-    case MachineRepresentation::kCompressedPointer:  // Fall through.
-    case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kNone:
     default:
       UNREACHABLE();
@@ -683,8 +694,7 @@ void InstructionSelector::VisitAbortCSAAssert(Node* node) {
 void InstructionSelector::VisitLoad(Node* node) {
   S390OperandGenerator g(this);
   InstructionCode opcode = SelectLoadOpcode(node);
-  InstructionOperand outputs[1];
-  outputs[0] = g.DefineAsRegister(node);
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
   InstructionOperand inputs[3];
   size_t input_count = 0;
   AddressingMode mode =
@@ -694,7 +704,6 @@ void InstructionSelector::VisitLoad(Node* node) {
     CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
     opcode |= MiscField::encode(kMemoryAccessPoisoned);
   }
-
   Emit(opcode, 1, outputs, input_count, inputs);
 }
 
@@ -714,7 +723,7 @@ static void VisitGeneralStore(
   Node* value = node->InputAt(2);
   if (write_barrier_kind != kNoWriteBarrier &&
       V8_LIKELY(!FLAG_disable_write_barriers)) {
-    DCHECK(CanBeTaggedPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
     size_t input_count = 0;
@@ -754,17 +763,30 @@ static void VisitGeneralStore(
       case MachineRepresentation::kWord16:
         opcode = kS390_StoreWord16;
         break;
-#if !V8_TARGET_ARCH_S390X
-      case MachineRepresentation::kTaggedSigned:       // Fall through.
-      case MachineRepresentation::kTaggedPointer:      // Fall through.
-      case MachineRepresentation::kTagged:             // Fall through.
-      case MachineRepresentation::kCompressedPointer:  // Fall through.
-      case MachineRepresentation::kCompressed:         // Fall through.
-#endif
       case MachineRepresentation::kWord32:
         opcode = kS390_StoreWord32;
         if (m.IsWord32ReverseBytes()) {
           opcode = kS390_StoreReverse32;
+          value = value->InputAt(0);
+        }
+        break;
+      case MachineRepresentation::kCompressedPointer:  // Fall through.
+      case MachineRepresentation::kCompressed:
+#ifdef V8_COMPRESS_POINTERS
+        opcode = kS390_StoreCompressTagged;
+        break;
+#else
+        UNREACHABLE();
+#endif
+      case MachineRepresentation::kTaggedSigned:   // Fall through.
+      case MachineRepresentation::kTaggedPointer:  // Fall through.
+      case MachineRepresentation::kTagged:
+        opcode = kS390_StoreCompressTagged;
+        break;
+      case MachineRepresentation::kWord64:
+        opcode = kS390_StoreWord64;
+        if (m.IsWord64ReverseBytes()) {
+          opcode = kS390_StoreReverse64;
           value = value->InputAt(0);
         }
         break;
@@ -775,22 +797,6 @@ static void VisitGeneralStore(
           value = value->InputAt(0);
         }
         break;
-#if V8_TARGET_ARCH_S390X
-      case MachineRepresentation::kTaggedSigned:       // Fall through.
-      case MachineRepresentation::kTaggedPointer:      // Fall through.
-      case MachineRepresentation::kTagged:             // Fall through.
-      case MachineRepresentation::kCompressedPointer:  // Fall through.
-      case MachineRepresentation::kCompressed:         // Fall through.
-      case MachineRepresentation::kWord64:
-        opcode = kS390_StoreWord64;
-        if (m.IsWord64ReverseBytes()) {
-          opcode = kS390_StoreReverse64;
-          value = value->InputAt(0);
-        }
-        break;
-#else
-      case MachineRepresentation::kWord64:  // Fall through.
-#endif
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;

@@ -3486,9 +3486,9 @@ Node* EffectControlLinearizer::LowerArgumentsLength(Node* node) {
     __ Goto(&if_adaptor_frame);
 
     __ Bind(&if_adaptor_frame);
-    Node* arguments_length = __ Load(
-        MachineType::TaggedSigned(), arguments_frame,
-        __ IntPtrConstant(ArgumentsAdaptorFrameConstants::kLengthOffset));
+    Node* arguments_length = __ BitcastWordToTaggedSigned(__ Load(
+        MachineType::Pointer(), arguments_frame,
+        __ IntPtrConstant(ArgumentsAdaptorFrameConstants::kLengthOffset)));
 
     Node* rest_length =
         __ SmiSub(arguments_length, __ SmiConstant(formal_parameter_count));
@@ -3511,9 +3511,9 @@ Node* EffectControlLinearizer::LowerArgumentsLength(Node* node) {
     __ Goto(&if_adaptor_frame);
 
     __ Bind(&if_adaptor_frame);
-    Node* arguments_length = __ Load(
-        MachineType::TaggedSigned(), arguments_frame,
-        __ IntPtrConstant(ArgumentsAdaptorFrameConstants::kLengthOffset));
+    Node* arguments_length = __ BitcastWordToTaggedSigned(__ Load(
+        MachineType::Pointer(), arguments_frame,
+        __ IntPtrConstant(ArgumentsAdaptorFrameConstants::kLengthOffset)));
     __ Goto(&done, arguments_length);
 
     __ Bind(&done);

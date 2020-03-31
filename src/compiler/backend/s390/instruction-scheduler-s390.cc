@@ -328,6 +328,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_LoadReverse32:
     case kS390_LoadReverse64:
     case kS390_Peek:
+    case kS390_LoadDecompressTaggedSigned:
+    case kS390_LoadDecompressTaggedPointer:
+    case kS390_LoadDecompressAnyTagged:
       return kIsLoadOperation;
 
     case kS390_StoreWord8:
@@ -341,6 +344,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_StoreFloat32:
     case kS390_StoreDouble:
     case kS390_StoreSimd128:
+    case kS390_StoreCompressTagged:
     case kS390_Push:
     case kS390_PushFrame:
     case kS390_StoreToStackSlot:

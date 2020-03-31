@@ -2850,7 +2850,8 @@ IGNITION_HANDLER(CreateRestParameter, InterpreterAssembler) {
 IGNITION_HANDLER(SetPendingMessage, InterpreterAssembler) {
   TNode<ExternalReference> pending_message = ExternalConstant(
       ExternalReference::address_of_pending_message_obj(isolate()));
-  TNode<HeapObject> previous_message = Load<HeapObject>(pending_message);
+  TNode<HeapObject> previous_message =
+      UncheckedCast<HeapObject>(LoadFullTagged(pending_message));
   TNode<Object> new_message = GetAccumulator();
   StoreFullTaggedNoWriteBarrier(pending_message, new_message);
   SetAccumulator(previous_message);
