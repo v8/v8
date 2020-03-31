@@ -28,9 +28,9 @@ PushAllRegistersAndIterateStack:
     push r13
     push r14
     push r15
-    ;; Pass 1st parameter (rcx) unchanged (this).
+    ;; Pass 1st parameter (rcx) unchanged (Stack*).
     ;; Pass 2nd parameter (rdx) unchanged (StackVisitor*).
-    ;; Save 3rd parameter (r8; callback)
+    ;; Save 3rd parameter (r8; IterateStackCallback)
     mov r9, r8
     ;; Pass 3rd parameter as rsp (stack pointer).
     mov r8, rsp

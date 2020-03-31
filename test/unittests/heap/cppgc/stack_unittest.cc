@@ -46,45 +46,7 @@ TEST_F(GCStackTest, IsOnStackForHeapValue) {
   EXPECT_FALSE(GetStack()->IsOnStack(dummy.get()));
 }
 
-// The following test uses inline assembly and has been checked to work on clang
-// to verify that the stack-scanning trampoline pushes callee-saved registers.
-//
-// The test uses a macro loop as asm() can only be passed string literals.
-//
-// TODO(chromium:1056170): Add more platforms as backends are implemented.
-#ifdef __clang__
-#ifdef V8_TARGET_ARCH_X64
-
-// All of x64 support conservative stack scanning.
-#define CONSERVATIVE_STACK_SCAN_SUPPORTED 1
-
-#ifdef V8_OS_WIN
-
-// Excluded from test: rbp
-#define FOR_ALL_CALLEE_SAVED_REGS(V) \
-  V("rdi")                           \
-  V("rsi")                           \
-  V("rbx")                           \
-  V("r12")                           \
-  V("r13")                           \
-  V("r14")                           \
-  V("r15")
-
-#else  // !V8_OS_WIN
-
-// Excluded from test: rbp
-#define FOR_ALL_CALLEE_SAVED_REGS(V) \
-  V("rbx")                           \
-  V("r12")                           \
-  V("r13")                           \
-  V("r14")                           \
-  V("r15")
-
-#endif  // !V8_OS_WIN
-#endif  // V8_TARGET_ARCH_X64
-#endif  // __clang__
-
-#ifdef CONSERVATIVE_STACK_SCAN_SUPPORTED
+#ifdef CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
 
 namespace {
 
@@ -200,6 +162,40 @@ TEST_F(GCStackTest, IteratePointersFindsParameterInNestedFunction) {
   EXPECT_TRUE(scanner->found());
 }
 
+// The following test uses inline assembly and has been checked to work on clang
+// to verify that the stack-scanning trampoline pushes callee-saved registers.
+//
+// The test uses a macro loop as asm() can only be passed string literals.
+#ifdef __clang__
+#ifdef V8_TARGET_ARCH_X64
+#ifdef V8_OS_WIN
+
+// Excluded from test: rbp
+#define FOR_ALL_CALLEE_SAVED_REGS(V) \
+  V("rdi")                           \
+  V("rsi")                           \
+  V("rbx")                           \
+  V("r12")                           \
+  V("r13")                           \
+  V("r14")                           \
+  V("r15")
+
+#else  // !V8_OS_WIN
+
+// Excluded from test: rbp
+#define FOR_ALL_CALLEE_SAVED_REGS(V) \
+  V("rbx")                           \
+  V("r12")                           \
+  V("r13")                           \
+  V("r14")                           \
+  V("r15")
+
+#endif  // !V8_OS_WIN
+#endif  // V8_TARGET_ARCH_X64
+#endif  // __clang__
+
+#ifdef FOR_ALL_CALLEE_SAVED_REGS
+
 TEST_F(GCStackTest, IteratePointersFindsCalleeSavedRegisters) {
   auto scanner = std::make_unique<StackScanner>();
 
@@ -236,6 +232,7 @@ TEST_F(GCStackTest, IteratePointersFindsCalleeSavedRegisters) {
 #undef KEEP_ALIVE_FROM_CALLEE_SAVED
 #undef FOR_ALL_CALLEE_SAVED_REGS
 }
+#endif  // FOR_ALL_CALLEE_SAVED_REGS
 
 #if V8_OS_LINUX && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 class CheckStackAlignmentVisitor final : public StackVisitor {
@@ -253,7 +250,7 @@ TEST_F(GCStackTest, StackAlignment) {
 }
 #endif  // V8_OS_LINUX && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 
-#endif  // CONSERVATIVE_STACK_SCAN_SUPPORTED
+#endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
 
 }  // namespace internal
 }  // namespace cppgc

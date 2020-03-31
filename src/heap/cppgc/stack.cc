@@ -63,7 +63,7 @@ void IterateAsanFakeFrameIfNecessary(StackVisitor* visitor,
 
 #endif  // V8_USE_ADDRESS_SANITIZER
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
 
 void IterateSafeStackIfNecessary(StackVisitor* visitor) {
 #if defined(__has_feature)
@@ -88,18 +88,18 @@ void IterateSafeStackIfNecessary(StackVisitor* visitor) {
 #endif  // defined(__has_feature)
 }
 
-#endif  // V8_TARGET_ARCH_X64
+#endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
 
 }  // namespace
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
 void Stack::IteratePointers(StackVisitor* visitor) const {
   PushAllRegistersAndIterateStack(this, visitor, &Stack::IteratePointersImpl);
   // No need to deal with callee-saved registers as they will be kept alive by
   // the regular conservative stack iteration.
   IterateSafeStackIfNecessary(visitor);
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
 
 // No ASAN support as method accesses redzones while walking the stack.
 NO_SANITIZE_ADDRESS

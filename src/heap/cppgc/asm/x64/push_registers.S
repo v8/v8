@@ -37,9 +37,9 @@ PushAllRegistersAndIterateStack:
     push %r13
     push %r14
     push %r15
-    // Pass 1st parameter (rdi) unchanged (this).
+    // Pass 1st parameter (rdi) unchanged (Stack*).
     // Pass 2nd parameter (rsi) unchanged (StackVisitor*).
-    // Save 3rd parameter (rdx; callback)
+    // Save 3rd parameter (rdx; IterateStackCallback)
     mov %rdx, %r8
     // Pass 3rd parameter as rsp (stack pointer).
     mov %rsp, %rdx
