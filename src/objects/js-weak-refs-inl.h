@@ -33,6 +33,9 @@ SMI_ACCESSORS(JSFinalizationRegistry, flags, kFlagsOffset)
 ACCESSORS(JSFinalizationRegistry, next_dirty, Object, kNextDirtyOffset)
 CAST_ACCESSOR(JSFinalizationRegistry)
 
+BIT_FIELD_ACCESSORS(JSFinalizationRegistry, flags, scheduled_for_cleanup,
+                    JSFinalizationRegistry::ScheduledForCleanupBit)
+
 void JSFinalizationRegistry::Register(
     Handle<JSFinalizationRegistry> finalization_registry,
     Handle<JSReceiver> target, Handle<Object> holdings,
@@ -173,15 +176,6 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
 
 bool JSFinalizationRegistry::NeedsCleanup() const {
   return cleared_cells().IsWeakCell();
-}
-
-bool JSFinalizationRegistry::scheduled_for_cleanup() const {
-  return ScheduledForCleanupField::decode(flags());
-}
-
-void JSFinalizationRegistry::set_scheduled_for_cleanup(
-    bool scheduled_for_cleanup) {
-  set_flags(ScheduledForCleanupField::update(flags(), scheduled_for_cleanup));
 }
 
 Object JSFinalizationRegistry::PopClearedCellHoldings(

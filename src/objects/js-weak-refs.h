@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_WEAK_REFS_H_
 
 #include "src/objects/js-objects.h"
+#include "torque-generated/bit-fields-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -35,6 +36,8 @@ class JSFinalizationRegistry : public JSObject {
 
   DECL_INT_ACCESSORS(flags)
 
+  DECL_BOOLEAN_ACCESSORS(scheduled_for_cleanup)
+
   class BodyDescriptor;
 
   inline static void Register(
@@ -58,9 +61,6 @@ class JSFinalizationRegistry : public JSObject {
   // Returns true if the cleared_cells list is non-empty.
   inline bool NeedsCleanup() const;
 
-  inline bool scheduled_for_cleanup() const;
-  inline void set_scheduled_for_cleanup(bool scheduled_for_cleanup);
-
   // Remove the first cleared WeakCell from the cleared_cells
   // list (assumes there is one) and return its holdings.
   inline static Object PopClearedCellHoldings(
@@ -79,7 +79,7 @@ class JSFinalizationRegistry : public JSObject {
       JSObject::kHeaderSize, TORQUE_GENERATED_JS_FINALIZATION_REGISTRY_FIELDS)
 
   // Bitfields in flags.
-  using ScheduledForCleanupField = base::BitField<bool, 0, 1>;
+  DEFINE_TORQUE_GENERATED_FINALIZATION_REGISTRY_FLAGS()
 
   OBJECT_CONSTRUCTORS(JSFinalizationRegistry, JSObject);
 };

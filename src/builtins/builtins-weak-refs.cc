@@ -36,7 +36,7 @@ BUILTIN(FinalizationRegistryConstructor) {
   finalization_registry->set_native_context(*isolate->native_context());
   finalization_registry->set_cleanup(*cleanup);
   finalization_registry->set_flags(
-      JSFinalizationRegistry::ScheduledForCleanupField::encode(false));
+      JSFinalizationRegistry::ScheduledForCleanupBit::encode(false));
 
   DCHECK(finalization_registry->active_cells().IsUndefined(isolate));
   DCHECK(finalization_registry->cleared_cells().IsUndefined(isolate));
