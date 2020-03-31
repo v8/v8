@@ -1,10 +1,9 @@
-# Copyright 2019 the V8 project authors. All rights reserved.
+# Copyright 2020 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 *%(basename)s:9: TypeError: Object must be an instance of class C
-  setA(obj, val) { obj.#a = val; }
-                       ^
+  test(obj) { obj.#a(); }
+                  ^
 TypeError: Object must be an instance of class C
-    at C.setA (*%(basename)s:9:24)
-    at new C (*%(basename)s:15:10)
-    at *%(basename)s:19:1
+    at C.test (*%(basename)s:9:19)
+    at *%(basename)s:11:9 
