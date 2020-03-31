@@ -2811,7 +2811,7 @@ IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
   BIND(&if_duplicate_parameters);
   {
     TNode<Object> result =
-        CallRuntime(Runtime::kNewSloppyArguments_Generic, context, closure);
+        CallRuntime(Runtime::kNewSloppyArguments, context, closure);
     SetAccumulator(result);
     Dispatch();
   }
