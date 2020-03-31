@@ -27,9 +27,12 @@ PushAllRegistersAndIterateStack:
     // on the stack and we push 56 bytes which maintains 16-byte stack alignment
     // at the call.
     // Source: https://github.com/hjl-tools/x86-psABI/wiki/x86-64-psABI-1.0.pdf
+    //
+    // rbp is callee-saved. Maintain proper frame pointer for debugging.
+    push %rbp
+    mov %rsp, %rbp
     push $0xCDCDCD  // Dummy for alignment.
     push %rbx
-    push %rbp
     push %r12
     push %r13
     push %r14
@@ -42,7 +45,8 @@ PushAllRegistersAndIterateStack:
     mov %rsp, %rdx
     // Call the callback.
     call *%r8
-    // Pop the callee-saved registers. None of them were modified so no
-    // restoring is needed.
-    add $56, %rsp
+    // Pop the callee-saved registers.
+    add $48, %rsp
+    // Restore rbp as it was used as frame pointer.
+    pop %rbp
     ret

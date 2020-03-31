@@ -16,11 +16,14 @@ PushAllRegistersAndIterateStack:
     ;; on the stack and we push 72 bytes which maintains 16-byte stack alignment
     ;; at the call.
     ;; Source: https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention
+    ;;
+    ;; rbp is callee-saved. Maintain proper frame pointer for debugging.
+    push rbp
+    mov rbp, rsp
     push 0CDCDCDh  ;; Dummy for alignment.
     push rsi
     push rdi
     push rbx
-    push rbp
     push r12
     push r13
     push r14
@@ -33,9 +36,10 @@ PushAllRegistersAndIterateStack:
     mov r8, rsp
     ;; Call the callback.
     call r9
-    ;; Pop the callee-saved registers. None of them were modified so no
-    ;; restoring is needed.
-    add rsp, 72
+    ;; Pop the callee-saved registers.
+    add rsp, 64
+    ;; Restore rbp as it was used as frame pointer.
+    pop rbp
     ret
 
 end
