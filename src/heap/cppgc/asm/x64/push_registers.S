@@ -6,19 +6,19 @@
 
 .text
 
-#ifdef V8_TARGET_OS_MACOSX
+#if defined(V8_TARGET_OS_MACOSX) || defined(V8_TARGET_OS_IOS)
 
 .globl _PushAllRegistersAndIterateStack
 _PushAllRegistersAndIterateStack:
 
-#else  // !V8_TARGET_OS_MACOSX
+#else  // !(defined(V8_TARGET_OS_MACOSX) || defined(V8_TARGET_OS_IOS))
 
 .type PushAllRegistersAndIterateStack, %function
 .global PushAllRegistersAndIterateStack
 .hidden PushAllRegistersAndIterateStack
 PushAllRegistersAndIterateStack:
 
-#endif  // !V8_TARGET_OS_MACOSX
+#endif  // !(defined(V8_TARGET_OS_MACOSX) || defined(V8_TARGET_OS_IOS))
 
     // Push all callee-saved registers to get them on the stack for conservative
     // stack scanning.
