@@ -11,6 +11,10 @@
 #include "src/base/platform/platform.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if V8_OS_LINUX && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
+#include <xmmintrin.h>
+#endif
+
 namespace cppgc {
 namespace internal {
 
@@ -232,6 +236,22 @@ TEST_F(GCStackTest, IteratePointersFindsCalleeSavedRegisters) {
 #undef KEEP_ALIVE_FROM_CALLEE_SAVED
 #undef FOR_ALL_CALLEE_SAVED_REGS
 }
+
+#if V8_OS_LINUX && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
+class CheckStackAlignmentVisitor final : public StackVisitor {
+ public:
+  void VisitPointer(const void*) final {
+    float f[4] = {0.};
+    volatile auto xmm = ::_mm_load_ps(f);
+    USE(xmm);
+  }
+};
+
+TEST_F(GCStackTest, StackAlignment) {
+  auto checker = std::make_unique<CheckStackAlignmentVisitor>();
+  GetStack()->IteratePointers(checker.get());
+}
+#endif  // V8_OS_LINUX && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 
 #endif  // CONSERVATIVE_STACK_SCAN_SUPPORTED
 
