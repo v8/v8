@@ -840,7 +840,7 @@ void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {
   }
 }
 
-void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, int32_t imm) {
+void LiftoffAssembler::emit_i32_addi(Register dst, Register lhs, int32_t imm) {
   if (lhs != dst) {
     leal(dst, Operand(lhs, imm));
   } else {
@@ -1006,7 +1006,7 @@ void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, Register rhs) {
                                                                     lhs, rhs);
 }
 
-void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, int32_t imm) {
+void LiftoffAssembler::emit_i32_andi(Register dst, Register lhs, int32_t imm) {
   liftoff::EmitCommutativeBinOpImm<&Assembler::andl, &Assembler::movl>(
       this, dst, lhs, imm);
 }
@@ -1016,7 +1016,7 @@ void LiftoffAssembler::emit_i32_or(Register dst, Register lhs, Register rhs) {
                                                                    lhs, rhs);
 }
 
-void LiftoffAssembler::emit_i32_or(Register dst, Register lhs, int32_t imm) {
+void LiftoffAssembler::emit_i32_ori(Register dst, Register lhs, int32_t imm) {
   liftoff::EmitCommutativeBinOpImm<&Assembler::orl, &Assembler::movl>(this, dst,
                                                                       lhs, imm);
 }
@@ -1026,7 +1026,7 @@ void LiftoffAssembler::emit_i32_xor(Register dst, Register lhs, Register rhs) {
                                                                     lhs, rhs);
 }
 
-void LiftoffAssembler::emit_i32_xor(Register dst, Register lhs, int32_t imm) {
+void LiftoffAssembler::emit_i32_xori(Register dst, Register lhs, int32_t imm) {
   liftoff::EmitCommutativeBinOpImm<&Assembler::xorl, &Assembler::movl>(
       this, dst, lhs, imm);
 }
@@ -1071,8 +1071,8 @@ void LiftoffAssembler::emit_i32_shl(Register dst, Register src,
                                                &Assembler::shll_cl);
 }
 
-void LiftoffAssembler::emit_i32_shl(Register dst, Register src,
-                                    int32_t amount) {
+void LiftoffAssembler::emit_i32_shli(Register dst, Register src,
+                                     int32_t amount) {
   if (dst != src) movl(dst, src);
   shll(dst, Immediate(amount & 31));
 }
@@ -1083,8 +1083,8 @@ void LiftoffAssembler::emit_i32_sar(Register dst, Register src,
                                                &Assembler::sarl_cl);
 }
 
-void LiftoffAssembler::emit_i32_sar(Register dst, Register src,
-                                    int32_t amount) {
+void LiftoffAssembler::emit_i32_sari(Register dst, Register src,
+                                     int32_t amount) {
   if (dst != src) movl(dst, src);
   sarl(dst, Immediate(amount & 31));
 }
@@ -1095,8 +1095,8 @@ void LiftoffAssembler::emit_i32_shr(Register dst, Register src,
                                                &Assembler::shrl_cl);
 }
 
-void LiftoffAssembler::emit_i32_shr(Register dst, Register src,
-                                    int32_t amount) {
+void LiftoffAssembler::emit_i32_shri(Register dst, Register src,
+                                     int32_t amount) {
   if (dst != src) movl(dst, src);
   shrl(dst, Immediate(amount & 31));
 }
@@ -1125,8 +1125,8 @@ void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
   }
 }
 
-void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
-                                    int32_t imm) {
+void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
+                                     int32_t imm) {
   if (lhs.gp() != dst.gp()) {
     leaq(dst.gp(), Operand(lhs.gp(), imm));
   } else {
@@ -1191,8 +1191,8 @@ void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst.gp(), lhs.gp(), rhs.gp());
 }
 
-void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
-                                    int32_t imm) {
+void LiftoffAssembler::emit_i64_andi(LiftoffRegister dst, LiftoffRegister lhs,
+                                     int32_t imm) {
   liftoff::EmitCommutativeBinOpImm<&Assembler::andq, &Assembler::movq>(
       this, dst.gp(), lhs.gp(), imm);
 }
@@ -1203,8 +1203,8 @@ void LiftoffAssembler::emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst.gp(), lhs.gp(), rhs.gp());
 }
 
-void LiftoffAssembler::emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
-                                   int32_t imm) {
+void LiftoffAssembler::emit_i64_ori(LiftoffRegister dst, LiftoffRegister lhs,
+                                    int32_t imm) {
   liftoff::EmitCommutativeBinOpImm<&Assembler::orq, &Assembler::movq>(
       this, dst.gp(), lhs.gp(), imm);
 }
@@ -1215,8 +1215,8 @@ void LiftoffAssembler::emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst.gp(), lhs.gp(), rhs.gp());
 }
 
-void LiftoffAssembler::emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
-                                    int32_t imm) {
+void LiftoffAssembler::emit_i64_xori(LiftoffRegister dst, LiftoffRegister lhs,
+                                     int32_t imm) {
   liftoff::EmitCommutativeBinOpImm<&Assembler::xorq, &Assembler::movq>(
       this, dst.gp(), lhs.gp(), imm);
 }
@@ -1227,8 +1227,8 @@ void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
                                                &Assembler::shlq_cl);
 }
 
-void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
-                                    int32_t amount) {
+void LiftoffAssembler::emit_i64_shli(LiftoffRegister dst, LiftoffRegister src,
+                                     int32_t amount) {
   if (dst.gp() != src.gp()) movq(dst.gp(), src.gp());
   shlq(dst.gp(), Immediate(amount & 63));
 }
@@ -1239,8 +1239,8 @@ void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
                                                &Assembler::sarq_cl);
 }
 
-void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
-                                    int32_t amount) {
+void LiftoffAssembler::emit_i64_sari(LiftoffRegister dst, LiftoffRegister src,
+                                     int32_t amount) {
   if (dst.gp() != src.gp()) movq(dst.gp(), src.gp());
   sarq(dst.gp(), Immediate(amount & 63));
 }
@@ -1251,8 +1251,8 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                                &Assembler::shrq_cl);
 }
 
-void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
-                                    int32_t amount) {
+void LiftoffAssembler::emit_i64_shri(LiftoffRegister dst, LiftoffRegister src,
+                                     int32_t amount) {
   if (dst != src) movq(dst.gp(), src.gp());
   shrq(dst.gp(), Immediate(amount & 63));
 }

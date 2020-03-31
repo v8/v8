@@ -515,7 +515,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   // i32 binops.
   inline void emit_i32_add(Register dst, Register lhs, Register rhs);
-  inline void emit_i32_add(Register dst, Register lhs, int32_t imm);
+  inline void emit_i32_addi(Register dst, Register lhs, int32_t imm);
   inline void emit_i32_sub(Register dst, Register lhs, Register rhs);
   inline void emit_i32_mul(Register dst, Register lhs, Register rhs);
   inline void emit_i32_divs(Register dst, Register lhs, Register rhs,
@@ -528,17 +528,17 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i32_remu(Register dst, Register lhs, Register rhs,
                             Label* trap_rem_by_zero);
   inline void emit_i32_and(Register dst, Register lhs, Register rhs);
-  inline void emit_i32_and(Register dst, Register lhs, int32_t imm);
+  inline void emit_i32_andi(Register dst, Register lhs, int32_t imm);
   inline void emit_i32_or(Register dst, Register lhs, Register rhs);
-  inline void emit_i32_or(Register dst, Register lhs, int32_t imm);
+  inline void emit_i32_ori(Register dst, Register lhs, int32_t imm);
   inline void emit_i32_xor(Register dst, Register lhs, Register rhs);
-  inline void emit_i32_xor(Register dst, Register lhs, int32_t imm);
+  inline void emit_i32_xori(Register dst, Register lhs, int32_t imm);
   inline void emit_i32_shl(Register dst, Register src, Register amount);
-  inline void emit_i32_shl(Register dst, Register src, int32_t amount);
+  inline void emit_i32_shli(Register dst, Register src, int32_t amount);
   inline void emit_i32_sar(Register dst, Register src, Register amount);
-  inline void emit_i32_sar(Register dst, Register src, int32_t amount);
+  inline void emit_i32_sari(Register dst, Register src, int32_t amount);
   inline void emit_i32_shr(Register dst, Register src, Register amount);
-  inline void emit_i32_shr(Register dst, Register src, int32_t amount);
+  inline void emit_i32_shri(Register dst, Register src, int32_t amount);
 
   // i32 unops.
   inline void emit_i32_clz(Register dst, Register src);
@@ -548,8 +548,8 @@ class LiftoffAssembler : public TurboAssembler {
   // i64 binops.
   inline void emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
-  inline void emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
-                           int32_t imm);
+  inline void emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
+                            int32_t imm);
   inline void emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
   inline void emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
@@ -565,28 +565,28 @@ class LiftoffAssembler : public TurboAssembler {
                             LiftoffRegister rhs, Label* trap_rem_by_zero);
   inline void emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
-  inline void emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
-                           int32_t imm);
+  inline void emit_i64_andi(LiftoffRegister dst, LiftoffRegister lhs,
+                            int32_t imm);
   inline void emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
                           LiftoffRegister rhs);
-  inline void emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
-                          int32_t imm);
+  inline void emit_i64_ori(LiftoffRegister dst, LiftoffRegister lhs,
+                           int32_t imm);
   inline void emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
-  inline void emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
-                           int32_t imm);
+  inline void emit_i64_xori(LiftoffRegister dst, LiftoffRegister lhs,
+                            int32_t imm);
   inline void emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
                            Register amount);
-  inline void emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
-                           int32_t amount);
+  inline void emit_i64_shli(LiftoffRegister dst, LiftoffRegister src,
+                            int32_t amount);
   inline void emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
                            Register amount);
-  inline void emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
-                           int32_t amount);
+  inline void emit_i64_sari(LiftoffRegister dst, LiftoffRegister src,
+                            int32_t amount);
   inline void emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                            Register amount);
-  inline void emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
-                           int32_t amount);
+  inline void emit_i64_shri(LiftoffRegister dst, LiftoffRegister src,
+                            int32_t amount);
 
   // i64 unops.
   inline void emit_i64_clz(LiftoffRegister dst, LiftoffRegister src);
@@ -619,19 +619,19 @@ class LiftoffAssembler : public TurboAssembler {
       emit_i32_and(dst, lhs, rhs);
     }
   }
-  inline void emit_ptrsize_shr(Register dst, Register src, int amount) {
+  inline void emit_ptrsize_shri(Register dst, Register src, int amount) {
     if (kSystemPointerSize == 8) {
-      emit_i64_shr(LiftoffRegister(dst), LiftoffRegister(src), amount);
+      emit_i64_shri(LiftoffRegister(dst), LiftoffRegister(src), amount);
     } else {
-      emit_i32_shr(dst, src, amount);
+      emit_i32_shri(dst, src, amount);
     }
   }
 
-  inline void emit_ptrsize_add(Register dst, Register lhs, int32_t imm) {
+  inline void emit_ptrsize_addi(Register dst, Register lhs, int32_t imm) {
     if (kSystemPointerSize == 8) {
-      emit_i64_add(LiftoffRegister(dst), LiftoffRegister(lhs), imm);
+      emit_i64_addi(LiftoffRegister(dst), LiftoffRegister(lhs), imm);
     } else {
-      emit_i32_add(dst, lhs, imm);
+      emit_i32_addi(dst, lhs, imm);
     }
   }
 
@@ -957,9 +957,9 @@ void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst, lhs, rhs);
 }
 
-void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
-                                    int32_t imm) {
-  liftoff::EmitI64IndependentHalfOperationImm<&LiftoffAssembler::emit_i32_and>(
+void LiftoffAssembler::emit_i64_andi(LiftoffRegister dst, LiftoffRegister lhs,
+                                     int32_t imm) {
+  liftoff::EmitI64IndependentHalfOperationImm<&LiftoffAssembler::emit_i32_andi>(
       this, dst, lhs, imm);
 }
 
@@ -969,9 +969,9 @@ void LiftoffAssembler::emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst, lhs, rhs);
 }
 
-void LiftoffAssembler::emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
-                                   int32_t imm) {
-  liftoff::EmitI64IndependentHalfOperationImm<&LiftoffAssembler::emit_i32_or>(
+void LiftoffAssembler::emit_i64_ori(LiftoffRegister dst, LiftoffRegister lhs,
+                                    int32_t imm) {
+  liftoff::EmitI64IndependentHalfOperationImm<&LiftoffAssembler::emit_i32_ori>(
       this, dst, lhs, imm);
 }
 
@@ -981,9 +981,9 @@ void LiftoffAssembler::emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst, lhs, rhs);
 }
 
-void LiftoffAssembler::emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
-                                    int32_t imm) {
-  liftoff::EmitI64IndependentHalfOperationImm<&LiftoffAssembler::emit_i32_xor>(
+void LiftoffAssembler::emit_i64_xori(LiftoffRegister dst, LiftoffRegister lhs,
+                                     int32_t imm) {
+  liftoff::EmitI64IndependentHalfOperationImm<&LiftoffAssembler::emit_i32_xori>(
       this, dst, lhs, imm);
 }
 

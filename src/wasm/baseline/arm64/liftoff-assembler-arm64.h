@@ -532,22 +532,22 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
                                      Register rhs) {             \
     instruction(dst.W(), lhs.W(), rhs.W());                      \
   }
-#define I32_BINOP_I(name, instruction)                           \
-  I32_BINOP(name, instruction)                                   \
-  void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
-                                     int32_t imm) {              \
-    instruction(dst.W(), lhs.W(), Immediate(imm));               \
+#define I32_BINOP_I(name, instruction)                              \
+  I32_BINOP(name, instruction)                                      \
+  void LiftoffAssembler::emit_##name##i(Register dst, Register lhs, \
+                                        int32_t imm) {              \
+    instruction(dst.W(), lhs.W(), Immediate(imm));                  \
   }
 #define I64_BINOP(name, instruction)                                           \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
                                      LiftoffRegister rhs) {                    \
     instruction(dst.gp().X(), lhs.gp().X(), rhs.gp().X());                     \
   }
-#define I64_BINOP_I(name, instruction)                                         \
-  I64_BINOP(name, instruction)                                                 \
-  void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
-                                     int32_t imm) {                            \
-    instruction(dst.gp().X(), lhs.gp().X(), imm);                              \
+#define I64_BINOP_I(name, instruction)                                      \
+  I64_BINOP(name, instruction)                                              \
+  void LiftoffAssembler::emit_##name##i(LiftoffRegister dst,                \
+                                        LiftoffRegister lhs, int32_t imm) { \
+    instruction(dst.gp().X(), lhs.gp().X(), imm);                           \
   }
 #define FP32_BINOP(name, instruction)                                        \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
@@ -577,22 +577,22 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     instruction(dst.D(), src.D());                                             \
     return true;                                                               \
   }
-#define I32_SHIFTOP(name, instruction)                           \
-  void LiftoffAssembler::emit_##name(Register dst, Register src, \
-                                     Register amount) {          \
-    instruction(dst.W(), src.W(), amount.W());                   \
-  }                                                              \
-  void LiftoffAssembler::emit_##name(Register dst, Register src, \
-                                     int32_t amount) {           \
-    instruction(dst.W(), src.W(), amount & 31);                  \
+#define I32_SHIFTOP(name, instruction)                              \
+  void LiftoffAssembler::emit_##name(Register dst, Register src,    \
+                                     Register amount) {             \
+    instruction(dst.W(), src.W(), amount.W());                      \
+  }                                                                 \
+  void LiftoffAssembler::emit_##name##i(Register dst, Register src, \
+                                        int32_t amount) {           \
+    instruction(dst.W(), src.W(), amount & 31);                     \
   }
 #define I64_SHIFTOP(name, instruction)                                         \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
                                      Register amount) {                        \
     instruction(dst.gp().X(), src.gp().X(), amount.X());                       \
   }                                                                            \
-  void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
-                                     int32_t amount) {                         \
+  void LiftoffAssembler::emit_##name##i(LiftoffRegister dst,                   \
+                                        LiftoffRegister src, int32_t amount) { \
     instruction(dst.gp().X(), src.gp().X(), amount & 63);                      \
   }
 

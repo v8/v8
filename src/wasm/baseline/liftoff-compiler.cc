@@ -1129,17 +1129,11 @@ class LiftoffCompiler {
                                 ? __ GetUnusedRegister(result_rc, {lhs})
                                 : __ GetUnusedRegister(result_rc);
 
-      fnImm(dst, lhs, imm);
+      CallEmitFn(fnImm, dst, lhs, imm);
       __ PushRegister(ValueType(result_type), dst);
     } else {
       // The RHS was not an immediate.
-      LiftoffRegister rhs = __ PopToRegister();
-      LiftoffRegister lhs = __ PopToRegister(LiftoffRegList::ForRegs(rhs));
-      LiftoffRegister dst = src_rc == result_rc
-                                ? __ GetUnusedRegister(result_rc, {lhs, rhs})
-                                : __ GetUnusedRegister(result_rc);
-      fn(dst, lhs, rhs);
-      __ PushRegister(ValueType(result_type), dst);
+      EmitBinOp<src_type, result_type>(fn);
     }
   }
 
@@ -1187,28 +1181,18 @@ class LiftoffCompiler {
   case kExpr##opcode:                                   \
     return EmitBinOp<ValueType::kI32, ValueType::kI32>( \
         &LiftoffAssembler::emit_##fn);
-#define CASE_I32_BINOPI(opcode, fn)                                          \
-  case kExpr##opcode:                                                        \
-    return EmitBinOpImm<ValueType::kI32, ValueType::kI32>(                   \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp());                        \
-        },                                                                   \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, int32_t imm) {         \
-          __ emit_##fn(dst.gp(), lhs.gp(), imm);                             \
-        });
+#define CASE_I32_BINOPI(opcode, fn)                        \
+  case kExpr##opcode:                                      \
+    return EmitBinOpImm<ValueType::kI32, ValueType::kI32>( \
+        &LiftoffAssembler::emit_##fn, &LiftoffAssembler::emit_##fn##i);
 #define CASE_I64_BINOP(opcode, fn)                      \
   case kExpr##opcode:                                   \
     return EmitBinOp<ValueType::kI64, ValueType::kI64>( \
         &LiftoffAssembler::emit_##fn);
-#define CASE_I64_BINOPI(opcode, fn)                                          \
-  case kExpr##opcode:                                                        \
-    return EmitBinOpImm<ValueType::kI64, ValueType::kI64>(                   \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_##fn(dst, lhs, rhs);                                       \
-        },                                                                   \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, int32_t imm) {         \
-          __ emit_##fn(dst, lhs, imm);                                       \
-        });
+#define CASE_I64_BINOPI(opcode, fn)                        \
+  case kExpr##opcode:                                      \
+    return EmitBinOpImm<ValueType::kI64, ValueType::kI64>( \
+        &LiftoffAssembler::emit_##fn, &LiftoffAssembler::emit_##fn##i);
 #define CASE_FLOAT_BINOP(opcode, type, fn)                    \
   case kExpr##opcode:                                         \
     return EmitBinOp<ValueType::k##type, ValueType::k##type>( \
@@ -1252,9 +1236,7 @@ class LiftoffCompiler {
           __ emit_##fn(dst, src,                                             \
                        amount.is_gp_pair() ? amount.low_gp() : amount.gp()); \
         },                                                                   \
-        [=](LiftoffRegister dst, LiftoffRegister src, int32_t amount) {      \
-          __ emit_##fn(dst, src, amount);                                    \
-        });
+        &LiftoffAssembler::emit_##fn##i);
 #define CASE_CCALL_BINOP(opcode, type, ext_ref_fn)                           \
   case kExpr##opcode:                                                        \
     return EmitBinOp<ValueType::k##type, ValueType::k##type>(                \
@@ -1894,12 +1876,12 @@ class LiftoffCompiler {
       // AND of two operands. We could introduce a new variant of
       // {emit_cond_jump} to use the "test" instruction without the "and" here.
       // Then we can also avoid using the temp register here.
-      __ emit_i32_and(address, index, align_mask);
+      __ emit_i32_andi(address, index, align_mask);
       __ emit_cond_jump(kUnequal, trap_label, kWasmI32, address);
       return;
     }
-    __ emit_i32_add(address, index, offset);
-    __ emit_i32_and(address, address, align_mask);
+    __ emit_i32_addi(address, index, offset);
+    __ emit_i32_andi(address, address, align_mask);
 
     __ emit_cond_jump(kUnequal, trap_label, kWasmI32, address);
   }
@@ -1962,7 +1944,7 @@ class LiftoffCompiler {
       if (index != old_index) __ Move(index, old_index, kWasmI32);
     }
     Register tmp = __ GetUnusedRegister(kGpReg, *pinned).gp();
-    __ emit_ptrsize_add(index, index, *offset);
+    __ emit_ptrsize_addi(index, index, *offset);
     LOAD_INSTANCE_FIELD(tmp, MemoryMask, kSystemPointerSize);
     __ emit_ptrsize_and(index, index, tmp);
     *offset = 0;
@@ -2046,7 +2028,7 @@ class LiftoffCompiler {
   void CurrentMemoryPages(FullDecoder* decoder, Value* result) {
     Register mem_size = __ GetUnusedRegister(kGpReg).gp();
     LOAD_INSTANCE_FIELD(mem_size, MemorySize, kSystemPointerSize);
-    __ emit_ptrsize_shr(mem_size, mem_size, kWasmPageSizeLog2);
+    __ emit_ptrsize_shri(mem_size, mem_size, kWasmPageSizeLog2);
     __ PushRegister(kWasmI32, LiftoffRegister(mem_size));
   }
 
@@ -2219,7 +2201,7 @@ class LiftoffCompiler {
       // 3) mask = diff & neg_index
       __ emit_i32_and(mask, diff, neg_index);
       // 4) mask = mask >> 31
-      __ emit_i32_sar(mask, mask, 31);
+      __ emit_i32_sari(mask, mask, 31);
 
       // Apply mask.
       __ emit_i32_and(index, index, mask);
@@ -2230,7 +2212,7 @@ class LiftoffCompiler {
     LOAD_INSTANCE_FIELD(table, IndirectFunctionTableSigIds, kSystemPointerSize);
     // Shift {index} by 2 (multiply by 4) to represent kInt32Size items.
     STATIC_ASSERT((1 << 2) == kInt32Size);
-    __ emit_i32_shl(index, index, 2);
+    __ emit_i32_shli(index, index, 2);
     __ Load(LiftoffRegister(scratch), table, index, 0, LoadType::kI32Load,
             pinned);
 
@@ -2652,7 +2634,7 @@ class LiftoffCompiler {
 
     uint32_t offset = imm.offset;
     index_reg = AddMemoryMasking(index_reg, &offset, &pinned);
-    if (offset != 0) __ emit_i32_add(index_reg, index_reg, offset);
+    if (offset != 0) __ emit_i32_addi(index_reg, index_reg, offset);
 
     LiftoffAssembler::VarState timeout =
         __ cache_state()->stack_state.end()[-1];
@@ -2722,7 +2704,7 @@ class LiftoffCompiler {
 
     uint32_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
-    if (offset) __ emit_i32_add(index, index, offset);
+    if (offset) __ emit_i32_addi(index, index, offset);
 
     // TODO(ahaas): Use PrepareCall to prepare parameters.
     __ SpillAllRegisters();
