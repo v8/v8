@@ -8,8 +8,10 @@
 #include "src/base/macros.h"
 
 // TODO(chromium:1056170): Implement all platforms.
-#if defined(V8_TARGET_ARCH_X64)
+#ifdef __clang__
+#if defined(V8_HOST_ARCH_X64)
 #define CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN 1
+#endif
 #endif
 
 namespace cppgc {
