@@ -786,6 +786,11 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckBounds(const FeedbackSource& feedback,
                               CheckBoundsParameters::Mode mode =
                                   CheckBoundsParameters::kDeoptOnOutOfBounds);
+  const Operator* CheckedUint32Bounds(const FeedbackSource& feedback,
+                                      CheckBoundsParameters::Mode mode);
+  const Operator* CheckedUint64Bounds(const FeedbackSource& feedback,
+                                      CheckBoundsParameters::Mode mode);
+
   const Operator* CheckClosure(const Handle<FeedbackCell>& feedback_cell);
   const Operator* CheckEqualsInternalizedString();
   const Operator* CheckEqualsSymbol();
@@ -831,11 +836,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                                                 const FeedbackSource& feedback);
   const Operator* CheckedUint32Div();
   const Operator* CheckedUint32Mod();
-  const Operator* CheckedUint32Bounds(const FeedbackSource& feedback,
-                                      CheckBoundsParameters::Mode mode);
   const Operator* CheckedUint32ToInt32(const FeedbackSource& feedback);
   const Operator* CheckedUint32ToTaggedSigned(const FeedbackSource& feedback);
-  const Operator* CheckedUint64Bounds(const FeedbackSource& feedback);
   const Operator* CheckedUint64ToInt32(const FeedbackSource& feedback);
   const Operator* CheckedUint64ToTaggedSigned(const FeedbackSource& feedback);
 

@@ -835,13 +835,13 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckedTaggedToTaggedSigned, 1, 1)      \
   V(CheckedUint32ToInt32, 1, 1)             \
   V(CheckedUint32ToTaggedSigned, 1, 1)      \
-  V(CheckedUint64Bounds, 2, 1)              \
   V(CheckedUint64ToInt32, 1, 1)             \
   V(CheckedUint64ToTaggedSigned, 1, 1)
 
 #define CHECKED_BOUNDS_OP_LIST(V) \
   V(CheckBounds)                  \
-  V(CheckedUint32Bounds)
+  V(CheckedUint32Bounds)          \
+  V(CheckedUint64Bounds)
 
 struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, value_input_count, control_input_count)     \
@@ -1615,7 +1615,8 @@ std::ostream& operator<<(std::ostream& os, CheckParameters const& p) {
 
 CheckParameters const& CheckParametersOf(Operator const* op) {
   if (op->opcode() == IrOpcode::kCheckBounds ||
-      op->opcode() == IrOpcode::kCheckedUint32Bounds) {
+      op->opcode() == IrOpcode::kCheckedUint32Bounds ||
+      op->opcode() == IrOpcode::kCheckedUint64Bounds) {
     return OpParameter<CheckBoundsParameters>(op).check_parameters();
   }
 #define MAKE_OR(name, arg2, arg3) op->opcode() == IrOpcode::k##name ||
@@ -1648,7 +1649,9 @@ std::ostream& operator<<(std::ostream& os, CheckBoundsParameters const& p) {
 }
 
 CheckBoundsParameters const& CheckBoundsParametersOf(Operator const* op) {
-  CHECK_EQ(op->opcode(), IrOpcode::kCheckedUint32Bounds);
+  DCHECK(op->opcode() == IrOpcode::kCheckBounds ||
+         op->opcode() == IrOpcode::kCheckedUint32Bounds ||
+         op->opcode() == IrOpcode::kCheckedUint64Bounds);
   return OpParameter<CheckBoundsParameters>(op);
 }
 

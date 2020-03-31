@@ -1646,7 +1646,8 @@ class RepresentationSelector {
   }
 
   void VisitCheckBounds(Node* node, SimplifiedLowering* lowering) {
-    CheckParameters const& p = CheckParametersOf(node->op());
+    CheckBoundsParameters const& p = CheckBoundsParametersOf(node->op());
+    FeedbackSource const& feedback = p.check_parameters().feedback();
     Type const index_type = TypeOf(node->InputAt(0));
     Type const length_type = TypeOf(node->InputAt(1));
     if (length_type.Is(Type::Unsigned31())) {
@@ -1657,8 +1658,7 @@ class RepresentationSelector {
         VisitBinop(node, UseInfo::TruncatingWord32(),
                    MachineRepresentation::kWord32);
         if (lower()) {
-          CheckBoundsParameters::Mode mode =
-              CheckBoundsParameters::kDeoptOnOutOfBounds;
+          CheckBoundsParameters::Mode mode = p.mode();
           if (lowering->poisoning_level_ ==
                   PoisoningMitigationLevel::kDontPoison &&
               (index_type.IsNone() || length_type.IsNone() ||
@@ -1669,31 +1669,29 @@ class RepresentationSelector {
             mode = CheckBoundsParameters::kAbortOnOutOfBounds;
           }
           NodeProperties::ChangeOp(
-              node, simplified()->CheckedUint32Bounds(p.feedback(), mode));
+              node, simplified()->CheckedUint32Bounds(feedback, mode));
         }
       } else {
-        VisitBinop(node, UseInfo::CheckedTaggedAsArrayIndex(p.feedback()),
+        VisitBinop(node, UseInfo::CheckedTaggedAsArrayIndex(feedback),
                    UseInfo::Word(), MachineType::PointerRepresentation());
         if (lower()) {
           if (jsgraph_->machine()->Is64()) {
             NodeProperties::ChangeOp(
-                node, simplified()->CheckedUint64Bounds(p.feedback()));
+                node, simplified()->CheckedUint64Bounds(feedback, p.mode()));
           } else {
             NodeProperties::ChangeOp(
-                node,
-                simplified()->CheckedUint32Bounds(
-                    p.feedback(), CheckBoundsParameters::kDeoptOnOutOfBounds));
+                node, simplified()->CheckedUint32Bounds(feedback, p.mode()));
           }
         }
       }
     } else {
       CHECK(length_type.Is(type_cache_->kPositiveSafeInteger));
       VisitBinop(node,
-                 UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, p.feedback()),
+                 UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, feedback),
                  UseInfo::Word64(), MachineRepresentation::kWord64);
       if (lower()) {
         NodeProperties::ChangeOp(
-            node, simplified()->CheckedUint64Bounds(p.feedback()));
+            node, simplified()->CheckedUint64Bounds(feedback, p.mode()));
       }
     }
   }

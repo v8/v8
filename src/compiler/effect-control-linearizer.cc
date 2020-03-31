@@ -2416,13 +2416,31 @@ Node* EffectControlLinearizer::LowerCheckedUint32ToTaggedSigned(
 
 Node* EffectControlLinearizer::LowerCheckedUint64Bounds(Node* node,
                                                         Node* frame_state) {
-  CheckParameters const& params = CheckParametersOf(node->op());
   Node* const index = node->InputAt(0);
   Node* const limit = node->InputAt(1);
+  const CheckBoundsParameters& params = CheckBoundsParametersOf(node->op());
 
   Node* check = __ Uint64LessThan(index, limit);
-  __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds, params.feedback(), check,
-                     frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+  switch (params.mode()) {
+    case CheckBoundsParameters::kDeoptOnOutOfBounds:
+      __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds,
+                         params.check_parameters().feedback(), check,
+                         frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+      break;
+    case CheckBoundsParameters::kAbortOnOutOfBounds: {
+      auto if_abort = __ MakeDeferredLabel();
+      auto done = __ MakeLabel();
+
+      __ Branch(check, &done, &if_abort);
+
+      __ Bind(&if_abort);
+      __ Unreachable();
+      __ Goto(&done);
+
+      __ Bind(&done);
+      break;
+    }
+  }
   return index;
 }
 
