@@ -122,7 +122,7 @@ void Stack::IteratePointersImpl(StackVisitor* visitor,
     // MSAN: Instead of unpoisoning the whole stack, the slot's value is copied
     // into a local which is unpoisoned.
     void* address = *current;
-    MSAN_UNPOISON(address, sizeof(address));
+    MSAN_UNPOISON(&address, sizeof(address));
     if (address == nullptr) continue;
     visitor->VisitPointer(address);
 #ifdef V8_USE_ADDRESS_SANITIZER
