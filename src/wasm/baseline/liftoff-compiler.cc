@@ -1170,23 +1170,6 @@ class LiftoffCompiler {
 
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
              const Value& rhs, Value* result) {
-#define CASE_I32_BINOP(opcode, fn) \
-  case kExpr##opcode:              \
-    return EmitBinOp<kI32, kI32>(&LiftoffAssembler::emit_##fn);
-#define CASE_I32_BINOPI(opcode, fn)                               \
-  case kExpr##opcode:                                             \
-    return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_##fn, \
-                                    &LiftoffAssembler::emit_##fn##i);
-#define CASE_I64_BINOP(opcode, fn) \
-  case kExpr##opcode:              \
-    return EmitBinOp<kI64, kI64>(&LiftoffAssembler::emit_##fn);
-#define CASE_I64_BINOPI(opcode, fn)                               \
-  case kExpr##opcode:                                             \
-    return EmitBinOpImm<kI64, kI64>(&LiftoffAssembler::emit_##fn, \
-                                    &LiftoffAssembler::emit_##fn##i);
-#define CASE_FLOAT_BINOP(opcode, type, fn) \
-  case kExpr##opcode:                      \
-    return EmitBinOp<k##type, k##type>(&LiftoffAssembler::emit_##fn);
 #define CASE_I32_CMPOP(opcode)                                               \
   case kExpr##opcode:                                                        \
     DCHECK(decoder->lookahead(0, kExpr##opcode));                            \
@@ -1240,74 +1223,114 @@ class LiftoffCompiler {
           GenerateCCall(&dst, &sig, out_arg_type, args, ext_ref);            \
         });
     switch (opcode) {
-      CASE_I32_BINOPI(I32Add, i32_add)
-      CASE_I32_BINOP(I32Sub, i32_sub)
-      CASE_I32_BINOP(I32Mul, i32_mul)
-      CASE_I32_BINOPI(I32And, i32_and)
-      CASE_I32_BINOPI(I32Ior, i32_or)
-      CASE_I32_BINOPI(I32Xor, i32_xor)
-      CASE_I64_BINOPI(I64And, i64_and)
-      CASE_I64_BINOPI(I64Ior, i64_or)
-      CASE_I64_BINOPI(I64Xor, i64_xor)
-      CASE_I32_CMPOP(I32Eq)
-      CASE_I32_CMPOP(I32Ne)
-      CASE_I32_CMPOP(I32LtS)
-      CASE_I32_CMPOP(I32LtU)
-      CASE_I32_CMPOP(I32GtS)
-      CASE_I32_CMPOP(I32GtU)
-      CASE_I32_CMPOP(I32LeS)
-      CASE_I32_CMPOP(I32LeU)
-      CASE_I32_CMPOP(I32GeS)
-      CASE_I32_CMPOP(I32GeU)
-      CASE_I64_BINOPI(I64Add, i64_add)
-      CASE_I64_BINOP(I64Sub, i64_sub)
-      CASE_I64_BINOP(I64Mul, i64_mul)
-      CASE_I64_CMPOP(I64Eq, kEqual)
-      CASE_I64_CMPOP(I64Ne, kUnequal)
-      CASE_I64_CMPOP(I64LtS, kSignedLessThan)
-      CASE_I64_CMPOP(I64LtU, kUnsignedLessThan)
-      CASE_I64_CMPOP(I64GtS, kSignedGreaterThan)
-      CASE_I64_CMPOP(I64GtU, kUnsignedGreaterThan)
-      CASE_I64_CMPOP(I64LeS, kSignedLessEqual)
-      CASE_I64_CMPOP(I64LeU, kUnsignedLessEqual)
-      CASE_I64_CMPOP(I64GeS, kSignedGreaterEqual)
-      CASE_I64_CMPOP(I64GeU, kUnsignedGreaterEqual)
-      CASE_F32_CMPOP(F32Eq, kEqual)
-      CASE_F32_CMPOP(F32Ne, kUnequal)
-      CASE_F32_CMPOP(F32Lt, kUnsignedLessThan)
-      CASE_F32_CMPOP(F32Gt, kUnsignedGreaterThan)
-      CASE_F32_CMPOP(F32Le, kUnsignedLessEqual)
-      CASE_F32_CMPOP(F32Ge, kUnsignedGreaterEqual)
-      CASE_F64_CMPOP(F64Eq, kEqual)
-      CASE_F64_CMPOP(F64Ne, kUnequal)
-      CASE_F64_CMPOP(F64Lt, kUnsignedLessThan)
-      CASE_F64_CMPOP(F64Gt, kUnsignedGreaterThan)
-      CASE_F64_CMPOP(F64Le, kUnsignedLessEqual)
-      CASE_F64_CMPOP(F64Ge, kUnsignedGreaterEqual)
-      CASE_I32_BINOPI(I32Shl, i32_shl)
-      CASE_I32_BINOPI(I32ShrS, i32_sar)
-      CASE_I32_BINOPI(I32ShrU, i32_shr)
-      CASE_CCALL_BINOP(I32Rol, I32, wasm_word32_rol)
-      CASE_CCALL_BINOP(I32Ror, I32, wasm_word32_ror)
-      CASE_I64_SHIFTOP(I64Shl, i64_shl)
-      CASE_I64_SHIFTOP(I64ShrS, i64_sar)
-      CASE_I64_SHIFTOP(I64ShrU, i64_shr)
-      CASE_CCALL_BINOP(I64Rol, I64, wasm_word64_rol)
-      CASE_CCALL_BINOP(I64Ror, I64, wasm_word64_ror)
-      CASE_FLOAT_BINOP(F32Add, F32, f32_add)
-      CASE_FLOAT_BINOP(F32Sub, F32, f32_sub)
-      CASE_FLOAT_BINOP(F32Mul, F32, f32_mul)
-      CASE_FLOAT_BINOP(F32Div, F32, f32_div)
-      CASE_FLOAT_BINOP(F32Min, F32, f32_min)
-      CASE_FLOAT_BINOP(F32Max, F32, f32_max)
-      CASE_FLOAT_BINOP(F32CopySign, F32, f32_copysign)
-      CASE_FLOAT_BINOP(F64Add, F64, f64_add)
-      CASE_FLOAT_BINOP(F64Sub, F64, f64_sub)
-      CASE_FLOAT_BINOP(F64Mul, F64, f64_mul)
-      CASE_FLOAT_BINOP(F64Div, F64, f64_div)
-      CASE_FLOAT_BINOP(F64Min, F64, f64_min)
-      CASE_FLOAT_BINOP(F64Max, F64, f64_max)
-      CASE_FLOAT_BINOP(F64CopySign, F64, f64_copysign)
+      case kExprI32Add:
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_add,
+                                        &LiftoffAssembler::emit_i32_addi);
+      case kExprI32Sub:
+        return EmitBinOp<kI32, kI32>(&LiftoffAssembler::emit_i32_sub);
+      case kExprI32Mul:
+        return EmitBinOp<kI32, kI32>(&LiftoffAssembler::emit_i32_mul);
+      case kExprI32And:
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_and,
+                                        &LiftoffAssembler::emit_i32_andi);
+      case kExprI32Ior:
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_or,
+                                        &LiftoffAssembler::emit_i32_ori);
+      case kExprI32Xor:
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_xor,
+                                        &LiftoffAssembler::emit_i32_xori);
+        CASE_I32_CMPOP(I32Eq)
+        CASE_I32_CMPOP(I32Ne)
+        CASE_I32_CMPOP(I32LtS)
+        CASE_I32_CMPOP(I32LtU)
+        CASE_I32_CMPOP(I32GtS)
+        CASE_I32_CMPOP(I32GtU)
+        CASE_I32_CMPOP(I32LeS)
+        CASE_I32_CMPOP(I32LeU)
+        CASE_I32_CMPOP(I32GeS)
+        CASE_I32_CMPOP(I32GeU)
+      case kExprI64Add:
+        return EmitBinOpImm<kI64, kI64>(&LiftoffAssembler::emit_i64_add,
+                                        &LiftoffAssembler::emit_i64_addi);
+      case kExprI64Sub:
+        return EmitBinOp<kI64, kI64>(&LiftoffAssembler::emit_i64_sub);
+      case kExprI64Mul:
+        return EmitBinOp<kI64, kI64>(&LiftoffAssembler::emit_i64_mul);
+      case kExprI64And:
+        return EmitBinOpImm<kI64, kI64>(&LiftoffAssembler::emit_i64_and,
+                                        &LiftoffAssembler::emit_i64_andi);
+      case kExprI64Ior:
+        return EmitBinOpImm<kI64, kI64>(&LiftoffAssembler::emit_i64_or,
+                                        &LiftoffAssembler::emit_i64_ori);
+      case kExprI64Xor:
+        return EmitBinOpImm<kI64, kI64>(&LiftoffAssembler::emit_i64_xor,
+                                        &LiftoffAssembler::emit_i64_xori);
+        CASE_I64_CMPOP(I64Eq, kEqual)
+        CASE_I64_CMPOP(I64Ne, kUnequal)
+        CASE_I64_CMPOP(I64LtS, kSignedLessThan)
+        CASE_I64_CMPOP(I64LtU, kUnsignedLessThan)
+        CASE_I64_CMPOP(I64GtS, kSignedGreaterThan)
+        CASE_I64_CMPOP(I64GtU, kUnsignedGreaterThan)
+        CASE_I64_CMPOP(I64LeS, kSignedLessEqual)
+        CASE_I64_CMPOP(I64LeU, kUnsignedLessEqual)
+        CASE_I64_CMPOP(I64GeS, kSignedGreaterEqual)
+        CASE_I64_CMPOP(I64GeU, kUnsignedGreaterEqual)
+        CASE_F32_CMPOP(F32Eq, kEqual)
+        CASE_F32_CMPOP(F32Ne, kUnequal)
+        CASE_F32_CMPOP(F32Lt, kUnsignedLessThan)
+        CASE_F32_CMPOP(F32Gt, kUnsignedGreaterThan)
+        CASE_F32_CMPOP(F32Le, kUnsignedLessEqual)
+        CASE_F32_CMPOP(F32Ge, kUnsignedGreaterEqual)
+        CASE_F64_CMPOP(F64Eq, kEqual)
+        CASE_F64_CMPOP(F64Ne, kUnequal)
+        CASE_F64_CMPOP(F64Lt, kUnsignedLessThan)
+        CASE_F64_CMPOP(F64Gt, kUnsignedGreaterThan)
+        CASE_F64_CMPOP(F64Le, kUnsignedLessEqual)
+        CASE_F64_CMPOP(F64Ge, kUnsignedGreaterEqual)
+      case kExprI32Shl:
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_shl,
+                                        &LiftoffAssembler::emit_i32_shli);
+      case kExprI32ShrS:
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_sar,
+                                        &LiftoffAssembler::emit_i32_sari);
+      case kExprI32ShrU:
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_shr,
+                                        &LiftoffAssembler::emit_i32_shri);
+        CASE_CCALL_BINOP(I32Rol, I32, wasm_word32_rol)
+        CASE_CCALL_BINOP(I32Ror, I32, wasm_word32_ror)
+        CASE_I64_SHIFTOP(I64Shl, i64_shl)
+        CASE_I64_SHIFTOP(I64ShrS, i64_sar)
+        CASE_I64_SHIFTOP(I64ShrU, i64_shr)
+        CASE_CCALL_BINOP(I64Rol, I64, wasm_word64_rol)
+        CASE_CCALL_BINOP(I64Ror, I64, wasm_word64_ror)
+      case kExprF32Add:
+        return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_add);
+      case kExprF32Sub:
+        return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_sub);
+      case kExprF32Mul:
+        return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_mul);
+      case kExprF32Div:
+        return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_div);
+      case kExprF32Min:
+        return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_min);
+      case kExprF32Max:
+        return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_max);
+      case kExprF32CopySign:
+        return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_copysign);
+      case kExprF64Add:
+        return EmitBinOp<kF64, kF64>(&LiftoffAssembler::emit_f64_add);
+      case kExprF64Sub:
+        return EmitBinOp<kF64, kF64>(&LiftoffAssembler::emit_f64_sub);
+      case kExprF64Mul:
+        return EmitBinOp<kF64, kF64>(&LiftoffAssembler::emit_f64_mul);
+      case kExprF64Div:
+        return EmitBinOp<kF64, kF64>(&LiftoffAssembler::emit_f64_div);
+      case kExprF64Min:
+        return EmitBinOp<kF64, kF64>(&LiftoffAssembler::emit_f64_min);
+      case kExprF64Max:
+        return EmitBinOp<kF64, kF64>(&LiftoffAssembler::emit_f64_max);
+      case kExprF64CopySign:
+        return EmitBinOp<kF64, kF64>(&LiftoffAssembler::emit_f64_copysign);
       case kExprI32DivS:
         return EmitBinOp<kI32, kI32>([this, decoder](LiftoffRegister dst,
                                                      LiftoffRegister lhs,
@@ -1402,11 +1425,6 @@ class LiftoffCompiler {
       default:
         UNREACHABLE();
     }
-#undef CASE_I32_BINOP
-#undef CASE_I32_BINOPI
-#undef CASE_I64_BINOP
-#undef CASE_I64_BINOPI
-#undef CASE_FLOAT_BINOP
 #undef CASE_I32_CMPOP
 #undef CASE_I64_CMPOP
 #undef CASE_F32_CMPOP
