@@ -140,7 +140,8 @@ namespace {
 	fp.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
 	s7.bit() | s8.bit() | s9.bit() | s10.bit() | s11.bit()
 #define CALLEE_SAVE_FP_REGISTERS \
-	fs2.bit() | fs3.bit() | fs4.bit() | fs5.bit() | fs6.bit() | fs7.bit()
+	fs0.bit() | fs1.bit() | fs2.bit() | fs3.bit() | fs4.bit() | fs5.bit() | \
+	fs6.bit() | fs7.bit() | fs8.bit() | fs9.bit() | fs10.bit() | fs11.bit()
 #else
 // ===========================================================================
 // == unknown ================================================================
