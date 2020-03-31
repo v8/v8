@@ -3283,13 +3283,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArmWord32AtomicPairStore: {
       Label store;
-      __ add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+      Register base = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register value_low = i.InputRegister(2);
+      Register value_high = i.InputRegister(3);
+      Register actual_addr = i.TempRegister(0);
+      // The {ldrexd} instruction needs two temp registers. We do not need the
+      // result of {ldrexd}, but {strexd} likely fails without the {ldrexd}.
+      Register tmp1 = i.TempRegister(1);
+      Register tmp2 = i.TempRegister(2);
+      // Reuse one of the temp registers for the result of {strexd}.
+      Register store_result = tmp1;
+      __ add(actual_addr, base, offset);
       __ dmb(ISH);
       __ bind(&store);
-      __ ldrexd(i.TempRegister(1), i.TempRegister(2), i.TempRegister(0));
-      __ strexd(i.TempRegister(1), i.InputRegister(2), i.InputRegister(3),
-                i.TempRegister(0));
-      __ teq(i.TempRegister(1), Operand(0));
+      // Add this {ldrexd} instruction here so that {strexd} below can succeed.
+      // We don't need the result of {ldrexd} itself.
+      __ ldrexd(tmp1, tmp2, actual_addr);
+      __ strexd(store_result, value_low, value_high, actual_addr);
+      __ cmp(store_result, Operand(0));
       __ b(ne, &store);
       __ dmb(ISH);
       break;
