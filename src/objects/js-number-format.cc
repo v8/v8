@@ -18,7 +18,6 @@
 #include "unicode/currunit.h"
 #include "unicode/decimfmt.h"
 #include "unicode/locid.h"
-#include "unicode/nounit.h"
 #include "unicode/numberformatter.h"
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
@@ -218,7 +217,7 @@ class UnitFactory {
       return found->second;
     }
     // 2. Return false.
-    return icu::NoUnit::base();
+    return icu::MeasureUnit();
   }
 
  private:
@@ -236,7 +235,7 @@ icu::MeasureUnit IsSanctionedUnitIdentifier(const std::string& unit) {
 Maybe<std::pair<icu::MeasureUnit, icu::MeasureUnit>> IsWellFormedUnitIdentifier(
     Isolate* isolate, const std::string& unit) {
   icu::MeasureUnit result = IsSanctionedUnitIdentifier(unit);
-  icu::MeasureUnit none = icu::NoUnit::base();
+  icu::MeasureUnit none = icu::MeasureUnit();
   // 1. If the result of IsSanctionedUnitIdentifier(unitIdentifier) is true,
   // then
   if (result != none) {
@@ -633,10 +632,11 @@ Style StyleFromSkeleton(const icu::UnicodeString& skeleton) {
     return Style::CURRENCY;
   }
   if (skeleton.indexOf("measure-unit/") >= 0) {
+    if (skeleton.indexOf("scale/100") >= 0 &&
+        skeleton.indexOf("measure-unit/concentr-percent") >= 0) {
+      return Style::PERCENT;
+    }
     return Style::UNIT;
-  }
-  if (skeleton.indexOf("percent ") >= 0) {
-    return Style::PERCENT;
   }
   return Style::DECIMAL;
 }
@@ -1088,11 +1088,12 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
     std::pair<icu::MeasureUnit, icu::MeasureUnit> unit_pair =
         maybe_wellformed_unit.FromJust();
 
+    icu::MeasureUnit none = icu::MeasureUnit();
     // 13.b Set intlObj.[[Unit]] to unit.
-    if (unit_pair.first != icu::NoUnit::base()) {
+    if (unit_pair.first != none) {
       icu_number_formatter = icu_number_formatter.unit(unit_pair.first);
     }
-    if (unit_pair.second != icu::NoUnit::base()) {
+    if (unit_pair.second != none) {
       icu_number_formatter = icu_number_formatter.perUnit(unit_pair.second);
     }
 
@@ -1105,8 +1106,9 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   }
 
   if (style == Style::PERCENT) {
-    icu_number_formatter = icu_number_formatter.unit(icu::NoUnit::percent())
-                               .scale(icu::number::Scale::powerOfTen(2));
+    icu_number_formatter =
+        icu_number_formatter.unit(icu::MeasureUnit::getPercent())
+            .scale(icu::number::Scale::powerOfTen(2));
   }
 
   // 23. If style is "currency", then
