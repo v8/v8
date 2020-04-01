@@ -79,8 +79,7 @@ TEST_F(GCStackTest, IteratePointersFindsOnStackValue) {
   auto scanner = std::make_unique<StackScanner>();
 
   // No check that the needle is initially not found as on some platforms it
-  // may be part of the redzone or temporaries after setting it up throuhg
-  // StackScanner.
+  // may be part of  temporaries after setting it up through StackScanner.
   {
     int* volatile tmp = scanner->needle();
     USE(tmp);
@@ -93,8 +92,7 @@ TEST_F(GCStackTest, IteratePointersFindsOnStackValuePotentiallyUnaligned) {
   auto scanner = std::make_unique<StackScanner>();
 
   // No check that the needle is initially not found as on some platforms it
-  // may be part of the redzone or temporaries after setting it up throuhg
-  // StackScanner.
+  // may be part of  temporaries after setting it up through StackScanner.
   {
     char a = 'c';
     USE(a);
@@ -107,58 +105,166 @@ TEST_F(GCStackTest, IteratePointersFindsOnStackValuePotentiallyUnaligned) {
 
 namespace {
 
-void RecursivelyPassOnParameter(int* volatile p1, int* volatile p2,
-                                int* volatile p3, int* volatile p4,
-                                int* volatile p5, int* volatile p6,
-                                int* volatile p7, int* volatile p8,
-                                Stack* stack, StackVisitor* visitor) {
+// Prevent inlining as that would allow the compiler to prove that the parameter
+// must not actually be materialized.
+//
+// Parameter positiosn are explicit to test various calling conventions.
+V8_NOINLINE void* RecursivelyPassOnParameterImpl(void* p1, void* p2, void* p3,
+                                                 void* p4, void* p5, void* p6,
+                                                 void* p7, void* p8,
+                                                 Stack* stack,
+                                                 StackVisitor* visitor) {
   if (p1) {
-    RecursivelyPassOnParameter(nullptr, p1, nullptr, nullptr, nullptr, nullptr,
-                               nullptr, nullptr, stack, visitor);
+    return RecursivelyPassOnParameterImpl(nullptr, p1, nullptr, nullptr,
+                                          nullptr, nullptr, nullptr, nullptr,
+                                          stack, visitor);
   } else if (p2) {
-    RecursivelyPassOnParameter(nullptr, nullptr, p2, nullptr, nullptr, nullptr,
-                               nullptr, nullptr, stack, visitor);
+    return RecursivelyPassOnParameterImpl(nullptr, nullptr, p2, nullptr,
+                                          nullptr, nullptr, nullptr, nullptr,
+                                          stack, visitor);
   } else if (p3) {
-    RecursivelyPassOnParameter(nullptr, nullptr, nullptr, p3, nullptr, nullptr,
-                               nullptr, nullptr, stack, visitor);
+    return RecursivelyPassOnParameterImpl(nullptr, nullptr, nullptr, p3,
+                                          nullptr, nullptr, nullptr, nullptr,
+                                          stack, visitor);
   } else if (p4) {
-    RecursivelyPassOnParameter(nullptr, nullptr, nullptr, nullptr, p4, nullptr,
-                               nullptr, nullptr, stack, visitor);
+    return RecursivelyPassOnParameterImpl(nullptr, nullptr, nullptr, nullptr,
+                                          p4, nullptr, nullptr, nullptr, stack,
+                                          visitor);
   } else if (p5) {
-    RecursivelyPassOnParameter(nullptr, nullptr, nullptr, nullptr, nullptr, p5,
-                               nullptr, nullptr, stack, visitor);
+    return RecursivelyPassOnParameterImpl(nullptr, nullptr, nullptr, nullptr,
+                                          nullptr, p5, nullptr, nullptr, stack,
+                                          visitor);
   } else if (p6) {
-    RecursivelyPassOnParameter(nullptr, nullptr, nullptr, nullptr, nullptr,
-                               nullptr, p6, nullptr, stack, visitor);
+    return RecursivelyPassOnParameterImpl(nullptr, nullptr, nullptr, nullptr,
+                                          nullptr, nullptr, p6, nullptr, stack,
+                                          visitor);
   } else if (p7) {
-    RecursivelyPassOnParameter(nullptr, nullptr, nullptr, nullptr, nullptr,
-                               nullptr, nullptr, p7, stack, visitor);
+    return RecursivelyPassOnParameterImpl(nullptr, nullptr, nullptr, nullptr,
+                                          nullptr, nullptr, nullptr, p7, stack,
+                                          visitor);
   } else if (p8) {
     stack->IteratePointers(visitor);
+    return p8;
   }
+  return nullptr;
+}
+
+V8_NOINLINE void* RecursivelyPassOnParameter(size_t num, void* parameter,
+                                             Stack* stack,
+                                             StackVisitor* visitor) {
+  switch (num) {
+    case 0:
+      stack->IteratePointers(visitor);
+      return parameter;
+    case 1:
+      return RecursivelyPassOnParameterImpl(nullptr, nullptr, nullptr, nullptr,
+                                            nullptr, nullptr, nullptr,
+                                            parameter, stack, visitor);
+    case 2:
+      return RecursivelyPassOnParameterImpl(nullptr, nullptr, nullptr, nullptr,
+                                            nullptr, nullptr, parameter,
+                                            nullptr, stack, visitor);
+    case 3:
+      return RecursivelyPassOnParameterImpl(nullptr, nullptr, nullptr, nullptr,
+                                            nullptr, parameter, nullptr,
+                                            nullptr, stack, visitor);
+    case 4:
+      return RecursivelyPassOnParameterImpl(nullptr, nullptr, nullptr, nullptr,
+                                            parameter, nullptr, nullptr,
+                                            nullptr, stack, visitor);
+    case 5:
+      return RecursivelyPassOnParameterImpl(nullptr, nullptr, nullptr,
+                                            parameter, nullptr, nullptr,
+                                            nullptr, nullptr, stack, visitor);
+    case 6:
+      return RecursivelyPassOnParameterImpl(nullptr, nullptr, parameter,
+                                            nullptr, nullptr, nullptr, nullptr,
+                                            nullptr, stack, visitor);
+    case 7:
+      return RecursivelyPassOnParameterImpl(nullptr, parameter, nullptr,
+                                            nullptr, nullptr, nullptr, nullptr,
+                                            nullptr, stack, visitor);
+    case 8:
+      return RecursivelyPassOnParameterImpl(parameter, nullptr, nullptr,
+                                            nullptr, nullptr, nullptr, nullptr,
+                                            nullptr, stack, visitor);
+    default:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
 }
 
 }  // namespace
 
-TEST_F(GCStackTest, IteratePointersFindsParameter) {
+TEST_F(GCStackTest, IteratePointersFindsParameterNesting0) {
   auto scanner = std::make_unique<StackScanner>();
-  // No check that the needle is initially not found as on some platforms it
-  // may be part of the redzone or temporaries after setting it up throuhg
-  // StackScanner.
-  RecursivelyPassOnParameter(nullptr, nullptr, nullptr, nullptr, nullptr,
-                             nullptr, nullptr, scanner->needle(), GetStack(),
-                             scanner.get());
+  void* needle = RecursivelyPassOnParameter(0, scanner->needle(), GetStack(),
+                                            scanner.get());
+  EXPECT_EQ(scanner->needle(), needle);
   EXPECT_TRUE(scanner->found());
 }
 
-TEST_F(GCStackTest, IteratePointersFindsParameterInNestedFunction) {
+TEST_F(GCStackTest, IteratePointersFindsParameterNesting1) {
   auto scanner = std::make_unique<StackScanner>();
-  // No check that the needle is initially not found as on some platforms it
-  // may be part of the redzone or temporaries after setting it up throuhg
-  // StackScanner.
-  RecursivelyPassOnParameter(scanner->needle(), nullptr, nullptr, nullptr,
-                             nullptr, nullptr, nullptr, nullptr, GetStack(),
-                             scanner.get());
+  void* needle = RecursivelyPassOnParameter(1, scanner->needle(), GetStack(),
+                                            scanner.get());
+  EXPECT_EQ(scanner->needle(), needle);
+  EXPECT_TRUE(scanner->found());
+}
+
+TEST_F(GCStackTest, IteratePointersFindsParameterNesting2) {
+  auto scanner = std::make_unique<StackScanner>();
+  void* needle = RecursivelyPassOnParameter(2, scanner->needle(), GetStack(),
+                                            scanner.get());
+  EXPECT_EQ(scanner->needle(), needle);
+  EXPECT_TRUE(scanner->found());
+}
+
+TEST_F(GCStackTest, IteratePointersFindsParameterNesting3) {
+  auto scanner = std::make_unique<StackScanner>();
+  void* needle = RecursivelyPassOnParameter(3, scanner->needle(), GetStack(),
+                                            scanner.get());
+  EXPECT_EQ(scanner->needle(), needle);
+  EXPECT_TRUE(scanner->found());
+}
+
+TEST_F(GCStackTest, IteratePointersFindsParameterNesting4) {
+  auto scanner = std::make_unique<StackScanner>();
+  void* needle = RecursivelyPassOnParameter(4, scanner->needle(), GetStack(),
+                                            scanner.get());
+  EXPECT_EQ(scanner->needle(), needle);
+  EXPECT_TRUE(scanner->found());
+}
+
+TEST_F(GCStackTest, IteratePointersFindsParameterNesting5) {
+  auto scanner = std::make_unique<StackScanner>();
+  void* needle = RecursivelyPassOnParameter(5, scanner->needle(), GetStack(),
+                                            scanner.get());
+  EXPECT_EQ(scanner->needle(), needle);
+  EXPECT_TRUE(scanner->found());
+}
+
+TEST_F(GCStackTest, IteratePointersFindsParameterNesting6) {
+  auto scanner = std::make_unique<StackScanner>();
+  void* needle = RecursivelyPassOnParameter(6, scanner->needle(), GetStack(),
+                                            scanner.get());
+  EXPECT_EQ(scanner->needle(), needle);
+  EXPECT_TRUE(scanner->found());
+}
+
+TEST_F(GCStackTest, IteratePointersFindsParameterNesting7) {
+  auto scanner = std::make_unique<StackScanner>();
+  void* needle = RecursivelyPassOnParameter(7, scanner->needle(), GetStack(),
+                                            scanner.get());
+  EXPECT_EQ(scanner->needle(), needle);
+  EXPECT_TRUE(scanner->found());
+}
+
+TEST_F(GCStackTest, IteratePointersFindsParameterNesting8) {
+  auto scanner = std::make_unique<StackScanner>();
+  void* needle = RecursivelyPassOnParameter(8, scanner->needle(), GetStack(),
+                                            scanner.get());
+  EXPECT_EQ(scanner->needle(), needle);
   EXPECT_TRUE(scanner->found());
 }
 
@@ -200,8 +306,7 @@ TEST_F(GCStackTest, IteratePointersFindsCalleeSavedRegisters) {
   auto scanner = std::make_unique<StackScanner>();
 
   // No check that the needle is initially not found as on some platforms it
-  // may be part of the redzone or temporaries after setting it up throuhg
-  // StackScanner.
+  // may be part of  temporaries after setting it up through StackScanner.
 
 // First, clear all callee-saved registers.
 #define CLEAR_REGISTER(reg) asm("mov $0, %%" reg : : : reg);
