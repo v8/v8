@@ -750,8 +750,7 @@ struct CheckCalendar {
 }  // namespace
 
 const std::set<std::string>& JSDisplayNames::GetAvailableLocales() {
-  static base::LazyInstance<
-      Intl::AvailableLocales<icu::Locale, CheckCalendar>>::type
+  static base::LazyInstance<Intl::AvailableLocales<CheckCalendar>>::type
       available_locales = LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
 }

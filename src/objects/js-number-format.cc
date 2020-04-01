@@ -1494,8 +1494,7 @@ struct CheckNumberElements {
 }  // namespace
 
 const std::set<std::string>& JSNumberFormat::GetAvailableLocales() {
-  static base::LazyInstance<
-      Intl::AvailableLocales<icu::NumberFormat, CheckNumberElements>>::type
+  static base::LazyInstance<Intl::AvailableLocales<CheckNumberElements>>::type
       available_locales = LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
 }
