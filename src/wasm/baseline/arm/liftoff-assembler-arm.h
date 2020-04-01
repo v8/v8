@@ -6,6 +6,7 @@
 #define V8_WASM_BASELINE_ARM_LIFTOFF_ASSEMBLER_ARM_H_
 
 #include "src/wasm/baseline/liftoff-assembler.h"
+#include "src/wasm/baseline/liftoff-register.h"
 
 namespace v8 {
 namespace internal {
@@ -1589,7 +1590,8 @@ void LiftoffAssembler::emit_f64x2_sub(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "f64x2mul");
+  vmul(dst.low_fp(), lhs.low_fp(), rhs.low_fp());
+  vmul(dst.high_fp(), lhs.high_fp(), rhs.high_fp());
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
@@ -1629,7 +1631,9 @@ void LiftoffAssembler::emit_f32x4_sub(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "f32x4mul");
+  vmul(liftoff::GetSimd128Register(dst.low_fp()),
+       liftoff::GetSimd128Register(lhs.low_fp()),
+       liftoff::GetSimd128Register(rhs.low_fp()));
 }
 
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
@@ -1676,7 +1680,45 @@ void LiftoffAssembler::emit_i64x2_sub(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2mul");
+  UseScratchRegisterScope temps(this);
+
+  QwNeonRegister dst_neon = liftoff::GetSimd128Register(dst.low_fp());
+  QwNeonRegister left = liftoff::GetSimd128Register(lhs.low_fp());
+  QwNeonRegister right = liftoff::GetSimd128Register(rhs.low_fp());
+
+  // These temporary registers will be modified. We can directly modify lhs and
+  // rhs if they are not uesd, saving on temporaries.
+  QwNeonRegister tmp1 = left;
+  QwNeonRegister tmp2 = right;
+
+  if (cache_state()->is_used(lhs) && cache_state()->is_used(rhs)) {
+    tmp1 = temps.AcquireQ();
+    // We only have 1 scratch Q register, so acquire another ourselves.
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(dst);
+    LiftoffRegister unused_pair = GetUnusedRegister(kFpRegPair, pinned);
+    tmp2 = liftoff::GetSimd128Register(unused_pair.low_fp());
+  } else if (cache_state()->is_used(lhs)) {
+    tmp1 = temps.AcquireQ();
+  } else if (cache_state()->is_used(rhs)) {
+    tmp2 = temps.AcquireQ();
+  }
+
+  // Algorithm from code-generator-arm.cc, refer to comments there for details.
+  if (tmp1 != left) {
+    vmov(tmp1, left);
+  }
+  if (tmp2 != right) {
+    vmov(tmp2, right);
+  }
+
+  vtrn(Neon32, tmp1.low(), tmp1.high());
+  vtrn(Neon32, tmp2.low(), tmp2.high());
+
+  vmull(NeonU32, dst_neon, tmp1.low(), tmp2.high());
+  vmlal(NeonU32, dst_neon, tmp1.high(), tmp2.low());
+  vshl(NeonU64, dst_neon, dst_neon, 32);
+
+  vmlal(NeonU32, dst_neon, tmp1.low(), tmp2.low());
 }
 
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
@@ -1716,7 +1758,9 @@ void LiftoffAssembler::emit_i32x4_sub(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i32x4mul");
+  vmul(Neon32, liftoff::GetSimd128Register(dst.low_fp()),
+       liftoff::GetSimd128Register(lhs.low_fp()),
+       liftoff::GetSimd128Register(rhs.low_fp()));
 }
 
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
@@ -1746,7 +1790,9 @@ void LiftoffAssembler::emit_i16x8_sub(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i16x8_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8mul");
+  vmul(Neon16, liftoff::GetSimd128Register(dst.low_fp()),
+       liftoff::GetSimd128Register(lhs.low_fp()),
+       liftoff::GetSimd128Register(rhs.low_fp()));
 }
 
 void LiftoffAssembler::emit_i16x8_add_saturate_u(LiftoffRegister dst,
@@ -1828,7 +1874,9 @@ void LiftoffAssembler::emit_i8x16_sub(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16mul");
+  vmul(Neon8, liftoff::GetSimd128Register(dst.low_fp()),
+       liftoff::GetSimd128Register(lhs.low_fp()),
+       liftoff::GetSimd128Register(rhs.low_fp()));
 }
 
 void LiftoffAssembler::emit_i8x16_add_saturate_u(LiftoffRegister dst,

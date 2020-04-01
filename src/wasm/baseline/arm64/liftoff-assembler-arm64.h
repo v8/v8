@@ -1117,7 +1117,7 @@ void LiftoffAssembler::emit_f64x2_sub(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "f64x2mul");
+  Fmul(dst.fp().V2D(), lhs.fp().V2D(), rhs.fp().V2D());
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
@@ -1153,7 +1153,7 @@ void LiftoffAssembler::emit_f32x4_sub(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "f32x4mul");
+  Fmul(dst.fp().V4S(), lhs.fp().V4S(), rhs.fp().V4S());
 }
 
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
@@ -1189,7 +1189,23 @@ void LiftoffAssembler::emit_i64x2_sub(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2mul");
+  UseScratchRegisterScope temps(this);
+  VRegister tmp1 = temps.AcquireV(kFormat2D);
+  VRegister tmp2 = temps.AcquireV(kFormat2D);
+
+  // Algorithm copied from code-generator-arm64.cc with minor modifications:
+  // - 2 (max number of scratch registers in Liftoff) temporaries instead of 3
+  // - 1 more Umull instruction to calculate | cg | ae |,
+  // - so, we can no longer use Umlal in the last step, and use Add instead.
+  // Refer to comments there for details.
+  Xtn(tmp1.V2S(), lhs.fp().V2D());
+  Xtn(tmp2.V2S(), rhs.fp().V2D());
+  Umull(tmp1.V2D(), tmp1.V2S(), tmp2.V2S());
+  Rev64(tmp2.V4S(), rhs.fp().V4S());
+  Mul(tmp2.V4S(), tmp2.V4S(), lhs.fp().V4S());
+  Addp(tmp2.V4S(), tmp2.V4S(), tmp2.V4S());
+  Shll(dst.fp().V2D(), tmp2.V2S(), 32);
+  Add(dst.fp().V2D(), dst.fp().V2D(), tmp1.V2D());
 }
 
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
@@ -1225,7 +1241,7 @@ void LiftoffAssembler::emit_i32x4_sub(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i32x4mul");
+  Mul(dst.fp().V4S(), lhs.fp().V4S(), rhs.fp().V4S());
 }
 
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
@@ -1273,7 +1289,7 @@ void LiftoffAssembler::emit_i16x8_sub(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i16x8_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8mul");
+  Mul(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
 void LiftoffAssembler::emit_i16x8_add_saturate_u(LiftoffRegister dst,
@@ -1327,7 +1343,7 @@ void LiftoffAssembler::emit_i8x16_sub(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16mul");
+  Mul(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
 void LiftoffAssembler::emit_i8x16_add_saturate_u(LiftoffRegister dst,
