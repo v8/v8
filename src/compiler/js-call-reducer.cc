@@ -5810,19 +5810,24 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
   }
+
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
   if (node->op()->ValueInputCount() < 3) {
+    effect = graph()->NewNode(simplified()->CheckString(p.feedback()), receiver,
+                              effect, control);
+
     Node* value = jsgraph()->FalseConstant();
-    ReplaceWithValue(node, value);
+    ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
 
-  Node* string = NodeProperties::GetValueInput(node, 1);
   Node* search_string = NodeProperties::GetValueInput(node, 2);
   Node* position = node->op()->ValueInputCount() >= 4
                        ? NodeProperties::GetValueInput(node, 3)
                        : jsgraph()->ZeroConstant();
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
 
   HeapObjectMatcher m(search_string);
   if (m.HasValue()) {
@@ -5830,13 +5835,14 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
     if (target_ref.IsString()) {
       StringRef str = target_ref.AsString();
       if (str.length() == 1) {
-        string = effect = graph()->NewNode(
-            simplified()->CheckString(p.feedback()), string, effect, control);
+        receiver = effect = graph()->NewNode(
+            simplified()->CheckString(p.feedback()), receiver, effect, control);
+
         position = effect = graph()->NewNode(
             simplified()->CheckSmi(p.feedback()), position, effect, control);
 
         Node* string_length =
-            graph()->NewNode(simplified()->StringLength(), string);
+            graph()->NewNode(simplified()->StringLength(), receiver);
         Node* unsigned_position = graph()->NewNode(
             simplified()->NumberMax(), position, jsgraph()->ZeroConstant());
 
@@ -5856,7 +5862,7 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
           Node* masked_position =
               graph()->NewNode(simplified()->PoisonIndex(), unsigned_position);
           Node* string_first = etrue =
-              graph()->NewNode(simplified()->StringCharCodeAt(), string,
+              graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
                                masked_position, etrue, if_true);
 
           Node* search_first = jsgraph()->Constant(str.GetFirstChar());
