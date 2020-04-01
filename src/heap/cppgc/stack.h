@@ -44,7 +44,11 @@ class V8_EXPORT_PRIVATE Stack final {
 #endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
 
  private:
-  void IteratePointersImpl(StackVisitor* visitor, intptr_t* stack_end) const;
+  // Called by the trampoline that pushes registers on the stack. This method
+  // should never be inlined to ensure that a possible redzone cannot contain
+  // any data that needs to be scanned.
+  V8_NOINLINE void IteratePointersImpl(StackVisitor* visitor,
+                                       intptr_t* stack_end) const;
 
   const void* stack_start_;
 };

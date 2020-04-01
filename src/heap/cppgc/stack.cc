@@ -111,12 +111,7 @@ void Stack::IteratePointersImpl(StackVisitor* visitor,
   // All supported platforms should have their stack aligned to at least
   // sizeof(void*).
   constexpr size_t kMinStackAlignment = sizeof(void*);
-  // Redzone should not contain any pointers as the iteration is always called
-  // from the assembly trampoline. If inline assembly is ever inlined through
-  // LTO this may become necessary.
-  constexpr size_t kRedZoneBytes = 128;
-  void** current = reinterpret_cast<void**>(
-      reinterpret_cast<uintptr_t>(stack_end - kRedZoneBytes));
+  void** current = reinterpret_cast<void**>(stack_end);
   CHECK_EQ(0u, reinterpret_cast<uintptr_t>(current) & (kMinStackAlignment - 1));
   for (; current < stack_start_; ++current) {
     // MSAN: Instead of unpoisoning the whole stack, the slot's value is copied
