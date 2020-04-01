@@ -58,6 +58,7 @@ v8_source_set("cppgc_unittests_sources") {
   configs = [
     "../..:external_config",
     "../..:internal_config_base",
+    "../..:cppgc_base_config",
   ]
 
   deps = [

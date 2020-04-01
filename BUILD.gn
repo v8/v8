@@ -346,6 +346,15 @@ config("libbase_config") {
   }
 }
 
+# This config should be applied to code using the cppgc_base.
+config("cppgc_base_config") {
+  if (target_cpu == "x64") {
+    if (is_clang) {
+      defines = [ "CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN" ]
+    }
+  }
+}
+
 # This config should be applied to code using the libsampler.
 config("libsampler_config") {
   include_dirs = [ "include" ]
@@ -3955,12 +3964,15 @@ v8_source_set("cppgc_base") {
   ]
 
   if (target_cpu == "x64") {
-    if (!is_win) {
-      sources += [ "src/heap/cppgc/asm/x64/push_registers.S" ]
+    if (is_clang) {
+      sources += [ "src/heap/cppgc/asm/x64/push_registers_clang.cc" ]
     }
   }
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":internal_config",
+    ":cppgc_base_config",
+  ]
 
   public_deps = [ ":v8_libbase" ]
 }
