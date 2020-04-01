@@ -695,10 +695,10 @@ I32_BINOP(xor, xor_)
 
 #undef I32_BINOP
 
-#define I32_BINOP_I(name, instruction)                               \
-  void LiftoffAssembler::emit_i32_##name(Register dst, Register lhs, \
-                                         int32_t imm) {              \
-    instruction(dst, lhs, Operand(imm));                             \
+#define I32_BINOP_I(name, instruction)                                  \
+  void LiftoffAssembler::emit_i32_##name##i(Register dst, Register lhs, \
+                                            int32_t imm) {              \
+    instruction(dst, lhs, Operand(imm));                                \
   }
 
 // clang-format off
@@ -728,12 +728,12 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
                                          Register amount) {          \
     instruction(dst, src, amount);                                   \
   }
-#define I32_SHIFTOP_I(name, instruction)                             \
-  I32_SHIFTOP(name, instruction##v)                                  \
-  void LiftoffAssembler::emit_i32_##name(Register dst, Register src, \
-                                         int amount) {               \
-    DCHECK(is_uint5(amount));                                        \
-    instruction(dst, src, amount);                                   \
+#define I32_SHIFTOP_I(name, instruction)                                \
+  I32_SHIFTOP(name, instruction##v)                                     \
+  void LiftoffAssembler::emit_i32_##name##i(Register dst, Register src, \
+                                            int amount) {               \
+    DCHECK(is_uint5(amount));                                           \
+    instruction(dst, src, amount);                                      \
   }
 
 I32_SHIFTOP_I(shl, sll)
@@ -808,10 +808,10 @@ I64_BINOP(xor, xor_)
 
 #undef I64_BINOP
 
-#define I64_BINOP_I(name, instruction)                                       \
-  void LiftoffAssembler::emit_i64_##name(LiftoffRegister dst,                \
-                                         LiftoffRegister lhs, int32_t imm) { \
-    instruction(dst.gp(), lhs.gp(), Operand(imm));                           \
+#define I64_BINOP_I(name, instruction)                         \
+  void LiftoffAssembler::emit_i64_##name##i(                   \
+      LiftoffRegister dst, LiftoffRegister lhs, int32_t imm) { \
+    instruction(dst.gp(), lhs.gp(), Operand(imm));             \
   }
 
 // clang-format off
@@ -828,15 +828,15 @@ I64_BINOP_I(xor, Xor)
       LiftoffRegister dst, LiftoffRegister src, Register amount) { \
     instruction(dst.gp(), src.gp(), amount);                       \
   }
-#define I64_SHIFTOP_I(name, instruction)                                    \
-  I64_SHIFTOP(name, instruction##v)                                         \
-  void LiftoffAssembler::emit_i64_##name(LiftoffRegister dst,               \
-                                         LiftoffRegister src, int amount) { \
-    DCHECK(is_uint6(amount));                                               \
-    if (amount < 32)                                                        \
-      instruction(dst.gp(), src.gp(), amount);                              \
-    else                                                                    \
-      instruction##32(dst.gp(), src.gp(), amount - 32);                     \
+#define I64_SHIFTOP_I(name, instruction)                                       \
+  I64_SHIFTOP(name, instruction##v)                                            \
+  void LiftoffAssembler::emit_i64_##name##i(LiftoffRegister dst,               \
+                                            LiftoffRegister src, int amount) { \
+    DCHECK(is_uint6(amount));                                                  \
+    if (amount < 32)                                                           \
+      instruction(dst.gp(), src.gp(), amount);                                 \
+    else                                                                       \
+      instruction##32(dst.gp(), src.gp(), amount - 32);                        \
   }
 
 I64_SHIFTOP_I(shl, dsll)

@@ -801,12 +801,12 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
                                          Register amount) {          \
     instruction(dst, src, amount);                                   \
   }
-#define I32_SHIFTOP_I(name, instruction)                             \
-  I32_SHIFTOP(name, instruction##v)                                  \
-  void LiftoffAssembler::emit_i32_##name(Register dst, Register src, \
-                                         int amount) {               \
-    DCHECK(is_uint5(amount));                                        \
-    instruction(dst, src, amount);                                   \
+#define I32_SHIFTOP_I(name, instruction)                                \
+  I32_SHIFTOP(name, instruction##v)                                     \
+  void LiftoffAssembler::emit_i32_##name##i(Register dst, Register src, \
+                                            int amount) {               \
+    DCHECK(is_uint5(amount));                                           \
+    instruction(dst, src, amount);                                      \
   }
 
 I32_SHIFTOP_I(shl, sll)
