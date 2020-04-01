@@ -12,7 +12,9 @@
 // requires fixing e.g. simulator platforms.
 #ifdef __clang__
 #if defined(V8_TARGET_ARCH_X64)
+#if !defined(V8_TARGET_OS_WIN)
 #define CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN 1
+#endif
 #endif
 #endif
 

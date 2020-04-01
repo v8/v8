@@ -3955,9 +3955,7 @@ v8_source_set("cppgc_base") {
   ]
 
   if (target_cpu == "x64") {
-    if (is_win) {
-      sources += [ "src/heap/cppgc/asm/x64/push_registers_win.S" ]
-    } else {
+    if (!is_win) {
       sources += [ "src/heap/cppgc/asm/x64/push_registers.S" ]
     }
   }
