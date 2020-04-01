@@ -1812,6 +1812,11 @@ void TurboAssembler::Cvt_d_uw(FPURegister fd, Register rs) {
   RV_fcvt_d_wu(fd, rs);
 }
 
+void TurboAssembler::Cvt_d_w(FPURegister fd, Register rs) {
+  // Convert rs to a FP value in fd.
+  RV_fcvt_d_w(fd, rs);
+}
+
 void TurboAssembler::Cvt_d_ul(FPURegister fd, FPURegister fs) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   // Move the data from fs to t5.
@@ -1834,6 +1839,11 @@ void TurboAssembler::Cvt_s_uw(FPURegister fd, FPURegister fs) {
 void TurboAssembler::Cvt_s_uw(FPURegister fd, Register rs) {
   // Convert rs to a FP value in fd.
   RV_fcvt_s_wu(fd, rs);
+}
+
+void TurboAssembler::Cvt_s_w(FPURegister fd, Register rs) {
+  // Convert rs to a FP value in fd.
+  RV_fcvt_s_w(fd, rs);
 }
 
 void TurboAssembler::Cvt_s_ul(FPURegister fd, FPURegister fs) {

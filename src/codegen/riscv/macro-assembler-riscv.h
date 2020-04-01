@@ -740,6 +740,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Cvt_d_uw(FPURegister fd, FPURegister fs);
   void Cvt_d_uw(FPURegister fd, Register rs);
 
+  // convert signed word to double.
+  void Cvt_d_w(FPURegister fd, Register rs);
+
   // Convert unsigned long to double.
   void Cvt_d_ul(FPURegister fd, FPURegister fs);
   void Cvt_d_ul(FPURegister fd, Register rs);
@@ -747,6 +750,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Convert unsigned word to float.
   void Cvt_s_uw(FPURegister fd, FPURegister fs);
   void Cvt_s_uw(FPURegister fd, Register rs);
+
+  // convert signed word to float.
+  void Cvt_s_w(FPURegister fd, Register rs);
 
   // Convert unsigned long to float.
   void Cvt_s_ul(FPURegister fd, FPURegister fs);
