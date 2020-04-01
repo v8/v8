@@ -452,19 +452,6 @@ function tr() {
   return document.createElement("tr");
 }
 
-function define(prototype, name, fn) {
-  Object.defineProperty(prototype, name, {value:fn, enumerable:false});
-}
-
-define(Array.prototype, "max", function(fn) {
-  if (this.length == 0) return undefined;
-  if (fn == undefined) fn = (each) => each;
-  let max = fn(this[0]);
-  for (let i = 1; i < this.length; i++) {
-    max = Math.max(max, fn(this[i]));
-  }
-  return max;
-})
 define(Array.prototype, "histogram", function(mapFn) {
   let histogram = [];
   for (let i = 0; i < this.length; i++) {
@@ -482,9 +469,6 @@ define(Array.prototype, "histogram", function(mapFn) {
   }
   return histogram;
 });
-
-define(Array.prototype, "first", function() { return this[0] });
-define(Array.prototype, "last", function() { return this[this.length - 1] });
 
 // =========================================================================
 // EventHandlers
@@ -698,6 +682,7 @@ class View {
       timeNode.style.left = ((time-start) * timeToPixel) + "px";
       chunksNode.appendChild(timeNode);
     };
+    let backgroundTodo = [];
     for (let i = 0; i < chunks.length; i++) {
       let chunk = chunks[i];
       let height = (chunk.size() / max * kChunkHeight);
@@ -711,10 +696,13 @@ class View {
       node.addEventListener("mousemove", e => this.handleChunkMouseMove(e));
       node.addEventListener("click", e => this.handleChunkClick(e));
       node.addEventListener("dblclick", e => this.handleChunkDoubleClick(e));
-      this.setTimelineChunkBackground(chunk, node);
+      backgroundTodo.push([chunk, node])
       chunksNode.appendChild(node);
       chunk.markers.forEach(marker => addTimestamp(marker.time, marker.name));
     }
+
+    this.asyncSetTimelineChunkBackground(backgroundTodo)
+
     // Put a time marker roughly every 20 chunks.
     let expected  = duration / chunks.length * 20;
     let interval = (10 ** Math.floor(Math.log10(expected)));
@@ -753,6 +741,22 @@ class View {
     this.transitionView.showMaps(chunk.getUniqueTransitions());
   }
 
+  asyncSetTimelineChunkBackground(backgroundTodo) {
+    const kIncrement = 100;
+    let start = 0;
+    let delay = 1;
+    while (start < backgroundTodo.length) {
+      let end = Math.min(start+kIncrement, backgroundTodo.length);
+      setTimeout((from, to) => {
+        for (let i = from; i < to; i++) {
+          let [chunk, node] = backgroundTodo[i];
+          this.setTimelineChunkBackground(chunk, node);
+        }
+      }, delay++, start, end);
+      start = end;
+    }
+  }
+
   setTimelineChunkBackground(chunk, node) {
     // Render the types of transitions as bar charts
     const kHeight = chunk.height;
@@ -779,7 +783,7 @@ class View {
       });
     }
 
-    let imageData = this.backgroundCanvas.toDataURL("image/png");
+    let imageData = this.backgroundCanvas.toDataURL("image/webp", 0.2);
     node.style.backgroundImage = "url(" + imageData + ")";
   }
 
@@ -818,7 +822,7 @@ class View {
     ctx.stroke();
     ctx.closePath();
     ctx.fill();
-    let imageData = canvas.toDataURL("image/png");
+    let imageData = canvas.toDataURL("image/webp", 0.2);
     $("timelineOverview").style.backgroundImage = "url(" + imageData + ")";
   }
 
@@ -1122,11 +1126,16 @@ class StatsView {
       if (color !== null) {
         row.appendChild(td(div(['colorbox', color])));
       } else {
-       row.appendChild(td(""));
+        row.appendChild(td(""));
       }
-      row.maps = this.timeline.filterUniqueTransitions(filter);
-      row.onclick =
-          (e) => this.transitionView.showMaps(e.target.parentNode.maps);
+      row.onclick = (e) => {
+        // lazily compute the stats
+        let node = e.target.parentNode;
+        if (node.maps == undefined) {
+          node.maps = this.timeline.filterUniqueTransitions(filter);
+        }
+        this.transitionView.showMaps(node.maps);
+      }
       row.appendChild(td(name));
       let count = this.timeline.count(filter);
       row.appendChild(td(count));
