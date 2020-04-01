@@ -72,6 +72,10 @@ class MakeGarbageCollectedTrait : public MakeGarbageCollectedTraitBase<T> {
   static T* Call(Heap* heap, Args&&... args) {
     static_assert(internal::IsGarbageCollectedType<T>::value,
                   "T needs to be a garbage collected object");
+    static_assert(
+        !internal::IsGarbageCollectedMixinType<T>::value ||
+            sizeof(T) <= internal::api_constants::kLargeObjectSizeThreshold,
+        "GarbageCollectedMixin may not be a large object");
     void* memory = MakeGarbageCollectedTraitBase<T>::Allocate(heap, sizeof(T));
     T* object = ::new (memory) T(std::forward<Args>(args)...);
     MakeGarbageCollectedTraitBase<T>::MarkObjectAsFullyConstructed(object);

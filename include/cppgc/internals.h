@@ -33,6 +33,8 @@ static constexpr size_t kFullyConstructedBitFieldOffsetFromPayload =
 // Mask for in-construction bit.
 static constexpr size_t kFullyConstructedBitMask = size_t{1};
 
+static constexpr size_t kLargeObjectSizeThreshold = 65536;
+
 }  // namespace api_constants
 
 }  // namespace internal

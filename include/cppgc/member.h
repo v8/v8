@@ -8,7 +8,6 @@
 #include <atomic>
 #include <cstddef>
 
-#include "include/cppgc/garbage-collected.h"
 #include "include/v8config.h"
 
 namespace cppgc {

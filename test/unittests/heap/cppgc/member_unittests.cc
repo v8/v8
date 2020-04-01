@@ -4,6 +4,7 @@
 
 #include <array>
 
+#include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/member.h"
 #include "include/cppgc/type_traits.h"
 

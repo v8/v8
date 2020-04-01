@@ -11,6 +11,9 @@
 namespace cppgc {
 namespace internal {
 
+STATIC_ASSERT(api_constants::kLargeObjectSizeThreshold ==
+              kLargeObjectSizeThreshold);
+
 // static
 void* MakeGarbageCollectedTraitInternal::Allocate(cppgc::Heap* heap,
                                                   size_t size,

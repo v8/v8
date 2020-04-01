@@ -21,6 +21,18 @@ template <typename T, typename WriteBarrierPolicy>
 struct IsWeak<internal::BasicWeakMember<T, WriteBarrierPolicy>>
     : std::true_type {};
 
+template <typename T, template <typename... V> class U>
+struct IsSubclassOfTemplate {
+ private:
+  template <typename... W>
+  static std::true_type SubclassCheck(U<W...>*);
+  static std::false_type SubclassCheck(...);
+
+ public:
+  static constexpr bool value =
+      decltype(SubclassCheck(std::declval<T*>()))::value;
+};
+
 }  // namespace internal
 
 template <typename T>
