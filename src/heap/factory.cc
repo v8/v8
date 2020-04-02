@@ -3019,6 +3019,15 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   return debug_info;
 }
 
+Handle<WasmValue> Factory::NewWasmValue(int value_type,
+                                        Handle<ByteArray> bytes) {
+  Handle<WasmValue> wasm_value =
+      Handle<WasmValue>::cast(NewStruct(WASM_VALUE_TYPE, AllocationType::kOld));
+  wasm_value->set_value_type(value_type);
+  wasm_value->set_bytes(*bytes);
+  return wasm_value;
+}
+
 Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
   Handle<BreakPointInfo> new_break_point_info = Handle<BreakPointInfo>::cast(
       NewStruct(BREAK_POINT_INFO_TYPE, AllocationType::kOld));

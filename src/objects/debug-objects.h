@@ -202,6 +202,14 @@ class BreakPoint : public TorqueGeneratedBreakPoint<BreakPoint, Struct> {
   TQ_OBJECT_CONSTRUCTORS(BreakPoint)
 };
 
+// Holds Wasm values. This is used by the inspector.
+class WasmValue : public TorqueGeneratedWasmValue<WasmValue, Struct> {
+ public:
+  DECL_PRINTER(WasmValue)
+
+  TQ_OBJECT_CONSTRUCTORS(WasmValue)
+};
+
 }  // namespace internal
 }  // namespace v8
 

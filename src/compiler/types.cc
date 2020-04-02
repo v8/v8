@@ -351,6 +351,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case TUPLE2_TYPE:
     case BREAK_POINT_TYPE:
     case BREAK_POINT_INFO_TYPE:
+    case WASM_VALUE_TYPE:
     case CACHED_TEMPLATE_OBJECT_TYPE:
     case ENUM_CACHE_TYPE:
     case WASM_CAPI_FUNCTION_DATA_TYPE:
