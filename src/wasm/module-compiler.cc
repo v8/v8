@@ -1604,10 +1604,9 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
   DCHECK(module_object_.is_null());
   const WasmModule* module = native_module_->module();
   auto source_url = stream_ ? stream_->url() : Vector<const char>();
-  Handle<Script> script = CreateWasmScript(
-      isolate_, native_module_->wire_bytes(), VectorOf(module->source_map_url),
+  auto script = isolate_->wasm_engine()->GetOrCreateScript(
+      isolate_, native_module_.get(), VectorOf(module->source_map_url),
       module->name, source_url);
-
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, native_module_, script);
 
