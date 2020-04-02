@@ -345,8 +345,8 @@ namespace promise {
       const promise = Construct(promiseConstructor, executor);
       capability.promise = promise;
 
-      if (!TaggedIsCallable(capability.resolve) ||
-          !TaggedIsCallable(capability.reject)) {
+      if (!Is<Callable>(capability.resolve) ||
+          !Is<Callable>(capability.reject)) {
         ThrowTypeError(MessageTemplate::kPromiseNonCallable);
       }
       return capability;

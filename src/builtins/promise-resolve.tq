@@ -165,11 +165,8 @@ namespace promise {
       }
 
       // 11. If IsCallable(thenAction) is false, then
-      if (TaggedIsSmi(then)) {
-        return FulfillPromise(promise, resolution);
-      }
-
-      if (!IsCallable(UnsafeCast<HeapObject>(then))) {
+      if (!Is<Callable>(then)) {
+        // a. Return FulfillPromise(promise, resolution).
         return FulfillPromise(promise, resolution);
       }
       goto Enqueue;
