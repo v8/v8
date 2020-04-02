@@ -13,7 +13,7 @@
 namespace cppgc {
 namespace internal {
 
-using IterateStackCallback = void (Stack::*)(StackVisitor*, intptr_t*) const;
+using IterateStackCallback = void (*)(const Stack*, StackVisitor*, intptr_t*);
 extern "C" void PushAllRegistersAndIterateStack(const Stack*, StackVisitor*,
                                                 IterateStackCallback);
 
@@ -88,23 +88,14 @@ void IterateSafeStackIfNecessary(StackVisitor* visitor) {
 #endif  // defined(__has_feature)
 }
 
-#endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
-
-}  // namespace
-
-#ifdef CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
-void Stack::IteratePointers(StackVisitor* visitor) const {
-  PushAllRegistersAndIterateStack(this, visitor, &Stack::IteratePointersImpl);
-  // No need to deal with callee-saved registers as they will be kept alive by
-  // the regular conservative stack iteration.
-  IterateSafeStackIfNecessary(visitor);
-}
-#endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
-
+// Called by the trampoline that pushes registers on the stack. This method
+// should never be inlined to ensure that a possible redzone cannot contain
+// any data that needs to be scanned.
+V8_NOINLINE
 // No ASAN support as method accesses redzones while walking the stack.
 NO_SANITIZE_ADDRESS
-void Stack::IteratePointersImpl(StackVisitor* visitor,
-                                intptr_t* stack_end) const {
+void IteratePointersImpl(const Stack* stack, StackVisitor* visitor,
+                         intptr_t* stack_end) {
 #ifdef V8_USE_ADDRESS_SANITIZER
   void* asan_fake_stack = __asan_get_current_fake_stack();
 #endif  // V8_USE_ADDRESS_SANITIZER
@@ -113,7 +104,7 @@ void Stack::IteratePointersImpl(StackVisitor* visitor,
   constexpr size_t kMinStackAlignment = sizeof(void*);
   void** current = reinterpret_cast<void**>(stack_end);
   CHECK_EQ(0u, reinterpret_cast<uintptr_t>(current) & (kMinStackAlignment - 1));
-  for (; current < stack_start_; ++current) {
+  for (; current < stack->stack_start(); ++current) {
     // MSAN: Instead of unpoisoning the whole stack, the slot's value is copied
     // into a local which is unpoisoned.
     void* address = *current;
@@ -121,11 +112,24 @@ void Stack::IteratePointersImpl(StackVisitor* visitor,
     if (address == nullptr) continue;
     visitor->VisitPointer(address);
 #ifdef V8_USE_ADDRESS_SANITIZER
-    IterateAsanFakeFrameIfNecessary(visitor, asan_fake_stack, stack_start_,
-                                    stack_end, address);
+    IterateAsanFakeFrameIfNecessary(visitor, asan_fake_stack,
+                                    stack->stack_start(), stack_end, address);
 #endif  // V8_USE_ADDRESS_SANITIZER
   }
 }
+
+#endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
+
+}  // namespace
+
+#ifdef CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
+void Stack::IteratePointers(StackVisitor* visitor) const {
+  PushAllRegistersAndIterateStack(this, visitor, &IteratePointersImpl);
+  // No need to deal with callee-saved registers as they will be kept alive by
+  // the regular conservative stack iteration.
+  IterateSafeStackIfNecessary(visitor);
+}
+#endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
 
 }  // namespace internal
 }  // namespace cppgc

@@ -7,14 +7,9 @@
 //
 // See asm/x64/push_registers_clang.cc for why the function is not generated
 // using clang.
-
+//
 // Do not depend on V8_TARGET_OS_* defines as some embedders may override the
 // GN toolchain (e.g. ChromeOS) and not provide them.
-#ifdef _WIN32
-
-#error "Not yet supported"
-
-#else  // !_WIN32
 
 // We maintain 16-byte alignment at calls. There is an 4-byte return address
 // on the stack and we push 28 bytes which maintains 16-byte stack alignment
@@ -22,9 +17,15 @@
 //
 // The following assumes cdecl calling convention.
 // Source: https://en.wikipedia.org/wiki/X86_calling_conventions#cdecl
-asm(".globl PushAllRegistersAndIterateStack             \n"
+asm(
+#ifdef _WIN32
+    ".globl _PushAllRegistersAndIterateStack            \n"
+    "_PushAllRegistersAndIterateStack:                  \n"
+#else   // !_WIN32
+    ".globl PushAllRegistersAndIterateStack             \n"
     ".hidden PushAllRegistersAndIterateStack            \n"
     "PushAllRegistersAndIterateStack:                   \n"
+#endif  // !_WIN32
     // [ IterateStackCallback ]
     // [ StackVisitor*        ]
     // [ Stack*               ]
@@ -49,5 +50,3 @@ asm(".globl PushAllRegistersAndIterateStack             \n"
     // Restore rbp as it was used as frame pointer.
     "  pop %ebp                                         \n"
     "  ret                                              \n");
-
-#endif  // !_WIN32
