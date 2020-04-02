@@ -1452,22 +1452,6 @@ WasmCode::RuntimeStubId NativeModule::GetRuntimeStubId(Address target) const {
   return WasmCode::kRuntimeStubCount;
 }
 
-const char* NativeModule::GetRuntimeStubName(Address target) const {
-  WasmCode::RuntimeStubId stub_id = GetRuntimeStubId(target);
-
-#define RUNTIME_STUB_NAME(Name) #Name,
-#define RUNTIME_STUB_NAME_TRAP(Name) "ThrowWasm" #Name,
-  constexpr const char* runtime_stub_names[] = {WASM_RUNTIME_STUB_LIST(
-      RUNTIME_STUB_NAME, RUNTIME_STUB_NAME_TRAP) "<unknown>"};
-#undef RUNTIME_STUB_NAME
-#undef RUNTIME_STUB_NAME_TRAP
-  STATIC_ASSERT(arraysize(runtime_stub_names) ==
-                WasmCode::kRuntimeStubCount + 1);
-
-  DCHECK_GT(arraysize(runtime_stub_names), stub_id);
-  return runtime_stub_names[stub_id];
-}
-
 NativeModule::~NativeModule() {
   TRACE_HEAP("Deleting native module: %p\n", this);
   // Cancel all background compilation before resetting any field of the
@@ -1996,6 +1980,20 @@ void WasmCodeRefScope::AddRef(WasmCode* code) {
   auto entry = current_scope->code_ptrs_.insert(code);
   // If we added a new entry, increment the ref counter.
   if (entry.second) code->IncRef();
+}
+
+const char* GetRuntimeStubName(WasmCode::RuntimeStubId stub_id) {
+#define RUNTIME_STUB_NAME(Name) #Name,
+#define RUNTIME_STUB_NAME_TRAP(Name) "ThrowWasm" #Name,
+  constexpr const char* runtime_stub_names[] = {WASM_RUNTIME_STUB_LIST(
+      RUNTIME_STUB_NAME, RUNTIME_STUB_NAME_TRAP) "<unknown>"};
+#undef RUNTIME_STUB_NAME
+#undef RUNTIME_STUB_NAME_TRAP
+  STATIC_ASSERT(arraysize(runtime_stub_names) ==
+                WasmCode::kRuntimeStubCount + 1);
+
+  DCHECK_GT(arraysize(runtime_stub_names), stub_id);
+  return runtime_stub_names[stub_id];
 }
 
 }  // namespace wasm

@@ -561,8 +561,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // must be a far jump table slot). Returns {kRuntimeStubCount} on failure.
   WasmCode::RuntimeStubId GetRuntimeStubId(Address runtime_stub_target) const;
 
-  const char* GetRuntimeStubName(Address runtime_stub_target) const;
-
   // Sample the current code size of this modules to the given counters.
   enum CodeSamplingTime : int8_t { kAfterBaseline, kAfterTopTier, kSampling };
   void SampleCodeSize(Counters*, CodeSamplingTime) const;
@@ -880,6 +878,8 @@ class GlobalWasmCodeRef {
   const std::shared_ptr<NativeModule> native_module_;
   DISALLOW_COPY_AND_ASSIGN(GlobalWasmCodeRef);
 };
+
+const char* GetRuntimeStubName(WasmCode::RuntimeStubId);
 
 }  // namespace wasm
 }  // namespace internal
