@@ -352,6 +352,10 @@ config("cppgc_base_config") {
     if (is_clang) {
       defines = [ "CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN" ]
     }
+  } else if (target_cpu == "x86") {
+    if (is_clang && !is_win) {
+      defines = [ "CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN" ]
+    }
   }
 }
 
@@ -3966,6 +3970,10 @@ v8_source_set("cppgc_base") {
   if (target_cpu == "x64") {
     if (is_clang) {
       sources += [ "src/heap/cppgc/asm/x64/push_registers_clang.cc" ]
+    }
+  } else if (target_cpu == "x86") {
+    if (is_clang && !is_win) {
+      sources += [ "src/heap/cppgc/asm/ia32/push_registers_clang.cc" ]
     }
   }
 
