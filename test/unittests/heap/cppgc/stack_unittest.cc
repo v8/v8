@@ -47,6 +47,7 @@ TEST_F(GCStackTest, IsOnStackForHeapValue) {
 }
 
 #ifdef CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
+#ifndef THREAD_SANITIZER
 
 namespace {
 
@@ -356,6 +357,7 @@ TEST_F(GCStackTest, StackAlignment) {
 #endif  // V8_OS_LINUX && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 
 #endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
+#endif  // !THREAD_SANITIZER
 
 }  // namespace internal
 }  // namespace cppgc
