@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HAVE_TARGET_OS
-#error "File assumes V8_TARGET_OS_* defines are present"
-#endif  // V8_HAVE_TARGET_OS
-
 // Push all callee-saved registers to get them on the stack for conservative
 // stack scanning.
 //
@@ -15,7 +11,11 @@ extern "C" __attribute__((naked, noinline)) void
 PushAllRegistersAndIterateStack(void* /* {Stack*} */,
                                 void* /* {StackVisitor*} */,
                                 void* /* {IterateStackCallback} */) {
-#ifdef V8_TARGET_OS_WIN
+// Do not depend on V8_TARGET_OS_* defines as some embedders may override the
+// GN toolchain (e.g. ChromeOS) and not provide them.
+// _WIN64 Defined as 1 when the compilation target is 64-bit ARM or x64.
+// Otherwise, undefined.
+#ifdef _WIN64
 
   // We maintain 16-byte alignment at calls. There is an 8-byte return address
   // on the stack and we push 72 bytes which maintains 16-byte stack alignment
@@ -48,7 +48,7 @@ PushAllRegistersAndIterateStack(void* /* {Stack*} */,
       " pop %rbp            \n"
       " ret                 \n");
 
-#else  // !V8_TARGET_OS_WIN
+#else  // !_WIN64
 
   // We maintain 16-byte alignment at calls. There is an 8-byte return address
   // on the stack and we push 56 bytes which maintains 16-byte stack alignment
@@ -79,5 +79,5 @@ PushAllRegistersAndIterateStack(void* /* {Stack*} */,
       " pop %rbp            \n"
       " ret                 \n");
 
-#endif  // !V8_TARGET_OS_WIN
+#endif  // !_WIN64
 }
