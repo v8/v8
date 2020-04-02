@@ -4,7 +4,6 @@
 
 #include "src/objects/lookup.h"
 
-#include "include/v8config.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
@@ -943,12 +942,7 @@ Handle<Map> LookupIterator::GetFieldOwnerMap() const {
                 isolate_);
 }
 
-#if defined(__clang__) && defined(V8_OS_WIN)
-// Force function alignment to work around CPU bug: https://crbug.com/968683
-__attribute__((__aligned__(32)))
-#endif
-FieldIndex
-LookupIterator::GetFieldIndex() const {
+FieldIndex LookupIterator::GetFieldIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(kField, property_details_.location());
