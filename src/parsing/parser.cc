@@ -2733,6 +2733,7 @@ void Parser::ParseFunction(
     bool* has_duplicate_parameters, int* expected_property_count,
     int* suspend_count,
     ZonePtrList<const AstRawString>* arguments_for_wrapped_function) {
+  FunctionParsingScope function_parsing_scope(this);
   ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
 
   FunctionState function_state(&function_state_, &scope_, function_scope);

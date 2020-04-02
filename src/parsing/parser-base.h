@@ -1501,16 +1501,14 @@ class ParserBase {
     FormalParametersT* parent_parameters_;
   };
 
-  class FunctionBodyParsingScope {
+  class FunctionParsingScope {
    public:
-    explicit FunctionBodyParsingScope(Impl* parser)
+    explicit FunctionParsingScope(Impl* parser)
         : parser_(parser), expression_scope_(parser_->expression_scope_) {
       parser_->expression_scope_ = nullptr;
     }
 
-    ~FunctionBodyParsingScope() {
-      parser_->expression_scope_ = expression_scope_;
-    }
+    ~FunctionParsingScope() { parser_->expression_scope_ = expression_scope_; }
 
    private:
     Impl* parser_;
@@ -2437,7 +2435,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
     ClassInfo* class_info, int beg_pos, bool is_static) {
-  FunctionBodyParsingScope body_parsing_scope(impl());
+  FunctionParsingScope body_parsing_scope(impl());
   DeclarationScope* initializer_scope =
       is_static ? class_info->static_fields_scope
                 : class_info->instance_members_scope;
@@ -4157,8 +4155,6 @@ void ParserBase<Impl>::ParseFunctionBody(
     StatementListT* body, IdentifierT function_name, int pos,
     const FormalParametersT& parameters, FunctionKind kind,
     FunctionSyntaxKind function_syntax_kind, FunctionBodyType body_type) {
-  FunctionBodyParsingScope body_parsing_scope(impl());
-
   if (IsResumableFunction(kind)) impl()->PrepareGeneratorVariables();
 
   DeclarationScope* function_scope = parameters.scope;
@@ -4435,6 +4431,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
           Consume(Token::LBRACE);
 
           AcceptINScope scope(this, true);
+          FunctionParsingScope body_parsing_scope(impl());
           ParseFunctionBody(&body, impl()->NullIdentifier(), kNoSourcePosition,
                             parameters, kind,
                             FunctionSyntaxKind::kAnonymousExpression,
@@ -4445,6 +4442,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       } else {
         Consume(Token::LBRACE);
         AcceptINScope scope(this, true);
+        FunctionParsingScope body_parsing_scope(impl());
         ParseFunctionBody(&body, impl()->NullIdentifier(), kNoSourcePosition,
                           formal_parameters, kind,
                           FunctionSyntaxKind::kAnonymousExpression,
@@ -4454,6 +4452,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     } else {
       // Single-expression body
       has_braces = false;
+      FunctionParsingScope body_parsing_scope(impl());
       ParseFunctionBody(&body, impl()->NullIdentifier(), kNoSourcePosition,
                         formal_parameters, kind,
                         FunctionSyntaxKind::kAnonymousExpression,
