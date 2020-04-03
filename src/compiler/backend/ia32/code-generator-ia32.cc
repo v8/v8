@@ -501,10 +501,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ opcode(dst, dst, static_cast<byte>(i.InputInt##width(1))); \
     } else {                                                        \
       XMMRegister tmp = i.TempSimd128Register(0);                   \
-      Register shift = i.InputRegister(1);                          \
+      Register tmp_shift = i.TempRegister(1);                       \
       constexpr int mask = (1 << width) - 1;                        \
-      __ and_(shift, Immediate(mask));                              \
-      __ Movd(tmp, shift);                                          \
+      __ mov(tmp_shift, i.InputRegister(1));                        \
+      __ and_(tmp_shift, Immediate(mask));                          \
+      __ Movd(tmp, tmp_shift);                                      \
       __ opcode(dst, dst, tmp);                                     \
     }                                                               \
   } while (false)
@@ -3176,18 +3177,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Pshufd(tmp_simd, tmp_simd, 0);
         __ Pand(dst, tmp_simd);
       } else {
-        Register shift = i.InputRegister(1);
         // Take shift value modulo 8.
-        __ and_(shift, 7);
+        __ mov(tmp, i.InputRegister(1));
+        __ and_(tmp, 7);
         // Mask off the unwanted bits before word-shifting.
         __ Pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
-        __ mov(tmp, shift);
         __ add(tmp, Immediate(8));
         __ Movd(tmp_simd, tmp);
         __ Psrlw(kScratchDoubleReg, kScratchDoubleReg, tmp_simd);
         __ Packuswb(kScratchDoubleReg, kScratchDoubleReg);
         __ Pand(dst, kScratchDoubleReg);
-        __ Movd(tmp_simd, shift);
+        // TODO(zhin): sub here to avoid asking for another temporary register,
+        // examine codegen for other i8x16 shifts, they use less instructions.
+        __ sub(tmp, Immediate(8));
+        __ Movd(tmp_simd, tmp);
         __ Psllw(dst, dst, tmp_simd);
       }
       break;

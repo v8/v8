@@ -2817,7 +2817,8 @@ SIMD_TYPES(VISIT_SIMD_REPLACE_LANE)
       Emit(kX64##Opcode, g.DefineSameAsFirst(node),                            \
            g.UseRegister(node->InputAt(0)), g.UseImmediate(node->InputAt(1))); \
     } else {                                                                   \
-      InstructionOperand temps[] = {g.TempSimd128Register()};                  \
+      InstructionOperand temps[] = {g.TempSimd128Register(),                   \
+                                    g.TempRegister()};                         \
       Emit(kX64##Opcode, g.DefineSameAsFirst(node),                            \
            g.UseUniqueRegister(node->InputAt(0)),                              \
            g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);    \

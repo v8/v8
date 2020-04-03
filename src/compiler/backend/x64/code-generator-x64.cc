@@ -609,10 +609,11 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
       __ opcode(dst, static_cast<byte>(i.InputInt##width(1))); \
     } else {                                                   \
       XMMRegister tmp = i.TempSimd128Register(0);              \
-      Register shift = i.InputRegister(1);                     \
+      Register tmp_shift = i.TempRegister(1);                  \
       constexpr int mask = (1 << width) - 1;                   \
-      __ andq(shift, Immediate(mask));                         \
-      __ Movq(tmp, shift);                                     \
+      __ movq(tmp_shift, i.InputRegister(1));                  \
+      __ andq(tmp_shift, Immediate(mask));                     \
+      __ Movq(tmp, tmp_shift);                                 \
       __ opcode(dst, tmp);                                     \
     }                                                          \
   } while (false)
@@ -3351,18 +3352,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Pshufd(tmp_simd, tmp_simd, static_cast<uint8_t>(0));
         __ Pand(dst, tmp_simd);
       } else {
-        Register shift = i.InputRegister(1);
         // Mask off the unwanted bits before word-shifting.
         __ Pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
         // Take shift value modulo 8.
-        __ andq(shift, Immediate(7));
-        __ movq(tmp, shift);
+        __ movq(tmp, i.InputRegister(1));
+        __ andq(tmp, Immediate(7));
         __ addq(tmp, Immediate(8));
         __ Movq(tmp_simd, tmp);
         __ Psrlw(kScratchDoubleReg, tmp_simd);
         __ Packuswb(kScratchDoubleReg, kScratchDoubleReg);
         __ Pand(dst, kScratchDoubleReg);
-        __ Movq(tmp_simd, shift);
+        // TODO(zhin): subq here to avoid asking for another temporary register,
+        // examine codegen for other i8x16 shifts, they use less instructions.
+        __ subq(tmp, Immediate(8));
+        __ Movq(tmp_simd, tmp);
         __ Psllw(dst, tmp_simd);
       }
       break;
