@@ -47,7 +47,8 @@ void IncrementalMarkingJob::Start(Heap* heap) {
 }
 
 void IncrementalMarkingJob::ScheduleTask(Heap* heap, TaskType task_type) {
-  if (!IsTaskPending(task_type) && !heap->IsTearingDown()) {
+  if (!IsTaskPending(task_type) && !heap->IsTearingDown() &&
+      FLAG_incremental_marking_task) {
     v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap->isolate());
     SetTaskPending(task_type, true);
     auto taskrunner =
