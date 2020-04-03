@@ -314,7 +314,7 @@ void VisitRROSimdShift(InstructionSelector* selector, Node* node,
   } else {
     InstructionOperand operand0 = g.UseUniqueRegister(node->InputAt(0));
     InstructionOperand operand1 = g.UseUniqueRegister(node->InputAt(1));
-    InstructionOperand temps[] = {g.TempSimd128Register()};
+    InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
     selector->Emit(opcode, g.DefineSameAsFirst(node), operand0, operand1,
                    arraysize(temps), temps);
   }
