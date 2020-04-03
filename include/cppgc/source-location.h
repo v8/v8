@@ -13,7 +13,7 @@
 #define CPPGC_SUPPORTS_SOURCE_LOCATION                                   \
   (__has_builtin(__builtin_FUNCTION) && __has_builtin(__builtin_FILE) && \
    __has_builtin(__builtin_LINE))  // NOLINT
-#elif defined(V8_CC_GNU) && __GNUC__ >= 5
+#elif defined(V8_CC_GNU) && __GNUC__ >= 7
 #define CPPGC_SUPPORTS_SOURCE_LOCATION 1
 #elif defined(V8_CC_INTEL) && __ICC >= 1800
 #define CPPGC_SUPPORTS_SOURCE_LOCATION 1
