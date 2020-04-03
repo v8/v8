@@ -2322,6 +2322,10 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_min_s);
       case wasm::kExprI32x4MinU:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_min_u);
+      case wasm::kExprI32x4MaxS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_max_s);
+      case wasm::kExprI32x4MaxU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_max_u);
       case wasm::kExprI16x8Splat:
         return EmitUnOp<kI32, kS128>(&LiftoffAssembler::emit_i16x8_splat);
       case wasm::kExprI16x8Add:
@@ -2340,6 +2344,10 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_min_s);
       case wasm::kExprI16x8MinU:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_min_u);
+      case wasm::kExprI16x8MaxS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_max_s);
+      case wasm::kExprI16x8MaxU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_max_u);
       case wasm::kExprI8x16Splat:
         return EmitUnOp<kI32, kS128>(&LiftoffAssembler::emit_i8x16_splat);
       case wasm::kExprI8x16Add:
@@ -2358,6 +2366,10 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_min_s);
       case wasm::kExprI8x16MinU:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_min_u);
+      case wasm::kExprI8x16MaxS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_max_s);
+      case wasm::kExprI8x16MaxU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_max_u);
       default:
         unsupported(decoder, kSimd, "simd");
     }
