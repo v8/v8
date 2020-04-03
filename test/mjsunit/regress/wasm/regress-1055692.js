@@ -32,4 +32,4 @@ kExprEnd,  // end @18
 ]);
 builder.addExport('main', 0);
 const instance = builder.instantiate();
-instance.exports.main(1, 2, 3);
+print(instance.exports.main(1, 2, 3));
