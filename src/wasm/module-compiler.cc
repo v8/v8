@@ -2545,14 +2545,16 @@ void CompilationStateImpl::InitializeRecompilation(
         DCHECK_LT(slot_index, compilation_progress_.size());
         ExecutionTier reached_tier =
             ReachedTierField::decode(compilation_progress_[slot_index]);
+        // Ignore Liftoff code, since we don't know if it was compiled with
+        // debugging support.
+        // TODO(clemensb): Introduce {kLiftoffDebug} as a separate tier.
         bool has_correct_tier =
-            reached_tier == tier &&
+            tier == ExecutionTier::kTurbofan && reached_tier == tier &&
             native_module_->HasCodeWithTier(function_index, tier);
-        compilation_progress_[slot_index] =
-            ReachedRecompilationTierField::update(
-                compilation_progress_[slot_index],
-                has_correct_tier ? tier : ExecutionTier::kNone);
         if (!has_correct_tier) {
+          compilation_progress_[slot_index] =
+              ReachedRecompilationTierField::update(
+                  compilation_progress_[slot_index], ExecutionTier::kNone);
           outstanding_recompilation_functions_++;
           builder.AddRecompilationUnit(function_index, tier);
         }
