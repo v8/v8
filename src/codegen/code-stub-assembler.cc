@@ -5988,6 +5988,16 @@ TNode<BoolT> CodeStubAssembler::IsJSObject(SloppyTNode<HeapObject> object) {
   return IsJSObjectMap(LoadMap(object));
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSFinalizationRegistryMap(TNode<Map> map) {
+  return InstanceTypeEqual(LoadMapInstanceType(map),
+                           JS_FINALIZATION_REGISTRY_TYPE);
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSFinalizationRegistry(
+    TNode<HeapObject> object) {
+  return IsJSFinalizationRegistryMap(LoadMap(object));
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSPromiseMap(SloppyTNode<Map> map) {
   CSA_ASSERT(this, IsMap(map));
   return InstanceTypeEqual(LoadMapInstanceType(map), JS_PROMISE_TYPE);

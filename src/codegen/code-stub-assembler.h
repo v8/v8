@@ -2565,6 +2565,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSObjectInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsJSObjectMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSObject(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSFinalizationRegistryMap(TNode<Map> map);
+  TNode<BoolT> IsJSFinalizationRegistry(TNode<HeapObject> object);
   TNode<BoolT> IsJSPromiseMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSPromise(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSProxy(SloppyTNode<HeapObject> object);

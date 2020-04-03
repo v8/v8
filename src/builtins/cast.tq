@@ -12,6 +12,7 @@ extern macro IsMap(HeapObject): bool;
 extern macro IsJSFunction(HeapObject): bool;
 extern macro IsJSBoundFunction(HeapObject): bool;
 extern macro IsJSObject(HeapObject): bool;
+extern macro IsJSFinalizationRegistry(HeapObject): bool;
 extern macro IsJSPromise(HeapObject): bool;
 extern macro IsJSTypedArray(HeapObject): bool;
 extern macro IsNumberDictionary(HeapObject): bool;
@@ -730,6 +731,14 @@ Cast<SharedFunctionInfo>(o: HeapObject): SharedFunctionInfo labels CastError {
 
 Cast<JSPromise>(o: HeapObject): JSPromise labels CastError {
   if (IsJSPromise(o)) return %RawDownCast<JSPromise>(o);
+  goto CastError;
+}
+
+Cast<JSFinalizationRegistry>(o: HeapObject):
+    JSFinalizationRegistry labels CastError {
+  if (IsJSFinalizationRegistry(o)) {
+    return %RawDownCast<JSFinalizationRegistry>(o);
+  }
   goto CastError;
 }
 
