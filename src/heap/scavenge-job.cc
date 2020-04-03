@@ -39,7 +39,7 @@ bool ScavengeJob::YoungGenerationSizeTaskTriggerReached(Heap* heap) {
 }
 
 void ScavengeJob::ScheduleTaskIfNeeded(Heap* heap) {
-  if (!task_pending_ && !heap->IsTearingDown() &&
+  if (FLAG_scavenge_task && !task_pending_ && !heap->IsTearingDown() &&
       YoungGenerationSizeTaskTriggerReached(heap)) {
     v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap->isolate());
     auto taskrunner =
