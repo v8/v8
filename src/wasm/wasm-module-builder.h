@@ -159,6 +159,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   // Building methods.
   void SetSignature(FunctionSig* sig);
   uint32_t AddLocal(ValueType type);
+  void EmitByte(byte b);
   void EmitI32V(int32_t val);
   void EmitU32V(uint32_t val);
   void EmitCode(const byte* code, uint32_t code_size);
