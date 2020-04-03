@@ -664,6 +664,18 @@ void LiftoffAssembler::emit_i32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
   bailout(kUnsupportedArchitecture, "emit_i32x4mul");
 }
 
+void LiftoffAssembler::emit_i32x4_min_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i32x4_min_s");
+}
+
+void LiftoffAssembler::emit_i32x4_min_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i32x4_min_u");
+}
+
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   bailout(kUnsupportedArchitecture, "emit_i16x8splat");
@@ -694,6 +706,18 @@ void LiftoffAssembler::emit_i16x8_add_saturate_u(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
   bailout(kUnsupportedArchitecture, "emit_i16x8addsaturate_u");
+}
+
+void LiftoffAssembler::emit_i16x8_min_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i16x8_min_s");
+}
+
+void LiftoffAssembler::emit_i16x8_min_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i16x8_min_u");
 }
 
 void LiftoffAssembler::emit_i16x8_extract_lane_u(LiftoffRegister dst,
@@ -748,6 +772,18 @@ void LiftoffAssembler::emit_i8x16_add_saturate_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
   bailout(kUnsupportedArchitecture, "emit_i8x16addsaturate_s");
+}
+
+void LiftoffAssembler::emit_i8x16_min_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i8x16_min_s");
+}
+
+void LiftoffAssembler::emit_i8x16_min_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i8x16_min_u");
 }
 
 void LiftoffAssembler::emit_i8x16_sub(LiftoffRegister dst, LiftoffRegister lhs,
