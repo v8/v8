@@ -715,7 +715,9 @@ class DebugInfoImpl {
     DCHECK_NOT_NULL(debug_sidetable);
 
     WasmCodeRefScope wasm_code_ref_scope;
-    WasmCode* new_code = native_module_->AddCompiledCode(std::move(result));
+    WasmCode* new_code = native_module_->PublishCode(
+        native_module_->AddCompiledCode(std::move(result)));
+
     bool added =
         debug_side_tables_.emplace(new_code, std::move(debug_sidetable)).second;
     DCHECK(added);

@@ -258,7 +258,8 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
       isolate->counters(), detected);
   if (result.succeeded()) {
     WasmCodeRefScope code_ref_scope;
-    native_module->AddCompiledCode(std::move(result));
+    native_module->PublishCode(
+        native_module->AddCompiledCode(std::move(result)));
   } else {
     native_module->compilation_state()->SetError();
   }

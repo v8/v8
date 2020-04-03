@@ -1010,6 +1010,18 @@ WasmCode* NativeModule::PublishCode(std::unique_ptr<WasmCode> code) {
   return PublishCodeLocked(std::move(code));
 }
 
+std::vector<WasmCode*> NativeModule::PublishCode(
+    Vector<std::unique_ptr<WasmCode>> codes) {
+  std::vector<WasmCode*> published_code;
+  published_code.reserve(codes.size());
+  base::MutexGuard lock(&allocation_mutex_);
+  // The published code is put into the top-most surrounding {WasmCodeRefScope}.
+  for (auto& code : codes) {
+    published_code.push_back(PublishCodeLocked(std::move(code)));
+  }
+  return published_code;
+}
+
 WasmCode::Kind GetCodeKind(const WasmCompilationResult& result) {
   switch (result.kind) {
     case WasmCompilationResult::kWasmToJsWrapper:
@@ -1763,11 +1775,13 @@ void NativeModule::SampleCodeSize(
   histogram->AddSample(code_size_mb);
 }
 
-WasmCode* NativeModule::AddCompiledCode(WasmCompilationResult result) {
-  return AddCompiledCode({&result, 1})[0];
+std::unique_ptr<WasmCode> NativeModule::AddCompiledCode(
+    WasmCompilationResult result) {
+  std::vector<std::unique_ptr<WasmCode>> code = AddCompiledCode({&result, 1});
+  return std::move(code[0]);
 }
 
-std::vector<WasmCode*> NativeModule::AddCompiledCode(
+std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
     Vector<WasmCompilationResult> results) {
   DCHECK(!results.empty());
   // First, allocate code space for all the results.
@@ -1799,17 +1813,7 @@ std::vector<WasmCode*> NativeModule::AddCompiledCode(
   }
   DCHECK_EQ(0, code_space.size());
 
-  // Under the {allocation_mutex_}, publish the code. The published code is put
-  // into the top-most surrounding {WasmCodeRefScope} by {PublishCodeLocked}.
-  std::vector<WasmCode*> code_vector;
-  code_vector.reserve(results.size());
-  {
-    base::MutexGuard lock(&allocation_mutex_);
-    for (auto& result : generated_code)
-      code_vector.push_back(PublishCodeLocked(std::move(result)));
-  }
-
-  return code_vector;
+  return generated_code;
 }
 
 bool NativeModule::IsRedirectedToInterpreter(uint32_t func_index) {

@@ -923,7 +923,8 @@ bool CompileLazy(Isolate* isolate, NativeModule* native_module,
   }
 
   WasmCodeRefScope code_ref_scope;
-  WasmCode* code = native_module->AddCompiledCode(std::move(result));
+  WasmCode* code = native_module->PublishCode(
+      native_module->AddCompiledCode(std::move(result)));
   DCHECK_EQ(func_index, code->index());
 
   if (WasmCode::ShouldBeLogged(isolate)) code->LogCode(isolate);
@@ -1053,9 +1054,14 @@ bool ExecuteCompilationUnits(
                  "num_results", results_to_publish.size());
     if (results_to_publish.empty()) return;
     WasmCodeRefScope code_ref_scope;
-    std::vector<WasmCode*> code_vector =
+    std::vector<std::unique_ptr<WasmCode>> unpublished_code =
         compile_scope->native_module()->AddCompiledCode(
             VectorOf(results_to_publish));
+    // TODO(clemensb): Avoid blocking to publish code
+    // (https://crbug.com/v8/10330).
+    std::vector<WasmCode*> code_vector =
+        compile_scope->native_module()->PublishCode(
+            VectorOf(std::move(unpublished_code)));
 
     // For import wrapper compilation units, add result to the cache.
     const NativeModule* native_module = compile_scope->native_module();

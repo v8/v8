@@ -440,10 +440,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // {PublishCode} makes the code available to the system by entering it into
   // the code table and patching the jump table. It returns a raw pointer to the
-  // given {WasmCode} object.
+  // given {WasmCode} object. Ownership is transferred to the {NativeModule}.
   WasmCode* PublishCode(std::unique_ptr<WasmCode>);
-  // Hold the {allocation_mutex_} when calling {PublishCodeLocked}.
-  WasmCode* PublishCodeLocked(std::unique_ptr<WasmCode>);
+  std::vector<WasmCode*> PublishCode(Vector<std::unique_ptr<WasmCode>>);
 
   WasmCode* AddDeserializedCode(
       int index, Vector<const byte> instructions, int stack_slots,
@@ -565,8 +564,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   enum CodeSamplingTime : int8_t { kAfterBaseline, kAfterTopTier, kSampling };
   void SampleCodeSize(Counters*, CodeSamplingTime) const;
 
-  WasmCode* AddCompiledCode(WasmCompilationResult);
-  std::vector<WasmCode*> AddCompiledCode(Vector<WasmCompilationResult>);
+  V8_WARN_UNUSED_RESULT std::unique_ptr<WasmCode> AddCompiledCode(
+      WasmCompilationResult);
+  V8_WARN_UNUSED_RESULT std::vector<std::unique_ptr<WasmCode>> AddCompiledCode(
+      Vector<WasmCompilationResult>);
 
   // Allows to check whether a function has been redirected to the interpreter
   // by publishing an entry stub with the {Kind::kInterpreterEntry} code kind.
@@ -635,6 +636,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Called by the {WasmCodeAllocator} to register a new code space.
   void AddCodeSpace(base::AddressRegion,
                     const WasmCodeAllocator::OptionalLock&);
+
+  // Hold the {allocation_mutex_} when calling {PublishCodeLocked}.
+  WasmCode* PublishCodeLocked(std::unique_ptr<WasmCode>);
 
   // Hold the {allocation_mutex_} when calling this method.
   bool has_interpreter_redirection(uint32_t func_index) {
