@@ -2112,8 +2112,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
             Managed<wasm::GlobalWasmCodeRef>::cast(elements->WasmCodeObject(i))
                 .get()
                 ->code();
-        offset = FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
-            code, offset);
+        offset = code->GetSourcePositionBefore(offset);
       }
       Handle<WasmInstanceObject> instance(elements->WasmInstance(i), this);
       const wasm::WasmModule* module = elements->WasmInstance(i).module();

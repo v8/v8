@@ -444,6 +444,16 @@ void WasmCode::DecrementRefCount(Vector<WasmCode* const> code_vec) {
   if (engine) engine->FreeDeadCode(dead_code);
 }
 
+int WasmCode::GetSourcePositionBefore(int offset) {
+  int position = kNoSourcePosition;
+  for (SourcePositionTableIterator iterator(source_positions());
+       !iterator.done() && iterator.code_offset() < offset;
+       iterator.Advance()) {
+    position = iterator.source_position().ScriptOffset();
+  }
+  return position;
+}
+
 WasmCodeAllocator::OptionalLock::~OptionalLock() {
   if (allocator_) allocator_->mutex_.Unlock();
 }

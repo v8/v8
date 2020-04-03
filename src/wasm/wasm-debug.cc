@@ -461,17 +461,6 @@ class InterpreterHandle {
   DISALLOW_COPY_AND_ASSIGN(InterpreterHandle);
 };
 
-int FindByteOffset(int pc_offset, WasmCode* wasm_code) {
-  int position = 0;
-  SourcePositionTableIterator iterator(wasm_code->source_positions());
-  for (SourcePositionTableIterator iterator(wasm_code->source_positions());
-       !iterator.done() && iterator.code_offset() < pc_offset;
-       iterator.Advance()) {
-    position = iterator.source_position().ScriptOffset();
-  }
-  return position;
-}
-
 // Generate a sorted and deduplicated list of byte offsets for this function's
 // current positions on the stack.
 std::vector<int> StackFramePositions(int func_index, Isolate* isolate) {
@@ -483,10 +472,7 @@ std::vector<int> StackFramePositions(int func_index, Isolate* isolate) {
     if (static_cast<int>(frame->function_index()) != func_index) continue;
     WasmCode* wasm_code = frame->wasm_code();
     if (!wasm_code->is_liftoff()) continue;
-    int pc_offset =
-        static_cast<int>(frame->pc() - wasm_code->instruction_start());
-    int byte_offset = FindByteOffset(pc_offset, wasm_code);
-    byte_offsets.push_back(byte_offset);
+    byte_offsets.push_back(frame->byte_offset());
   }
   std::sort(byte_offsets.begin(), byte_offsets.end());
   auto last = std::unique(byte_offsets.begin(), byte_offsets.end());
@@ -925,12 +911,9 @@ class DebugInfoImpl {
       WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
       if (frame->native_module() != new_code->native_module()) continue;
       if (frame->function_index() != new_code->index()) continue;
-      WasmCode* old_code = frame->wasm_code();
-      if (!old_code->is_liftoff()) continue;
-      int pc_offset =
-          static_cast<int>(frame->pc() - old_code->instruction_start());
+      if (!frame->wasm_code()->is_liftoff()) continue;
       int position = frame->position();
-      int byte_offset = FindByteOffset(pc_offset, old_code);
+      int byte_offset = frame->byte_offset();
       Address new_pc = FindNewPC(new_code, byte_offset, return_location);
       PointerAuthentication::ReplacePC(frame->pc_address(), new_pc,
                                        kSystemPointerSize);

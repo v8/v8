@@ -1454,21 +1454,8 @@ uint32_t FrameSummary::WasmCompiledFrameSummary::function_index() const {
   return code()->index();
 }
 
-int FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
-    const wasm::WasmCode* code, int offset) {
-  int position = 0;
-  // Subtract one because the current PC is one instruction after the call site.
-  offset--;
-  for (SourcePositionTableIterator iterator(code->source_positions());
-       !iterator.done() && iterator.code_offset() <= offset;
-       iterator.Advance()) {
-    position = iterator.source_position().ScriptOffset();
-  }
-  return position;
-}
-
 int FrameSummary::WasmCompiledFrameSummary::byte_offset() const {
-  return GetWasmSourcePosition(code_, code_offset());
+  return code_->GetSourcePositionBefore(code_offset());
 }
 
 FrameSummary::WasmInterpretedFrameSummary::WasmInterpretedFrameSummary(
@@ -1922,7 +1909,16 @@ uint32_t WasmCompiledFrame::function_index() const {
 Script WasmCompiledFrame::script() const { return module_object().script(); }
 
 int WasmCompiledFrame::position() const {
-  return FrameSummary::GetSingle(this).SourcePosition();
+  wasm::WasmCodeRefScope code_ref_scope;
+  const wasm::WasmModule* module = wasm_instance().module_object().module();
+  return GetSourcePosition(module, function_index(), byte_offset(),
+                           at_to_number_conversion());
+}
+
+int WasmCompiledFrame::byte_offset() const {
+  wasm::WasmCode* code = wasm_code();
+  int offset = static_cast<int>(pc() - code->instruction_start());
+  return code->GetSourcePositionBefore(offset);
 }
 
 Object WasmCompiledFrame::context() const {
@@ -1951,11 +1947,11 @@ bool WasmCompiledFrame::at_to_number_conversion() const {
           : nullptr;
   if (!code || code->kind() != wasm::WasmCode::kWasmToJsWrapper) return false;
   int offset = static_cast<int>(callee_pc() - code->instruction_start());
-  int pos = FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
-      code, offset);
-  DCHECK(pos == 0 || pos == 1);
+  int pos = code->GetSourcePositionBefore(offset);
   // The imported call has position 0, ToNumber has position 1.
-  return !!pos;
+  // If there is no source position available, this is also not a ToNumber call.
+  DCHECK(pos == wasm::kNoCodePosition || pos == 0 || pos == 1);
+  return pos == 1;
 }
 
 int WasmCompiledFrame::LookupExceptionHandlerInTable() {

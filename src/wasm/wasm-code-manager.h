@@ -219,6 +219,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // belonging to different {NativeModule}s. Dead code will be deleted.
   static void DecrementRefCount(Vector<WasmCode* const>);
 
+  // Returns the last source position before {offset}.
+  int GetSourcePositionBefore(int offset);
+
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
  private:

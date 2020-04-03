@@ -601,10 +601,7 @@ Handle<Object> WasmStackFrame::GetWasmModuleName() {
 Handle<Object> WasmStackFrame::GetWasmInstance() { return wasm_instance_; }
 
 int WasmStackFrame::GetPosition() const {
-  return IsInterpreted()
-             ? offset_
-             : FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
-                   code_, offset_);
+  return IsInterpreted() ? offset_ : code_->GetSourcePositionBefore(offset_);
 }
 
 int WasmStackFrame::GetColumnNumber() { return GetModuleOffset(); }
@@ -657,9 +654,7 @@ Handle<Object> AsmJsWasmStackFrame::GetScriptNameOrSourceUrl() {
 
 int AsmJsWasmStackFrame::GetPosition() const {
   DCHECK_LE(0, offset_);
-  int byte_offset =
-      FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(code_,
-                                                                    offset_);
+  int byte_offset = code_->GetSourcePositionBefore(offset_);
   const wasm::WasmModule* module = wasm_instance_->module();
   return GetSourcePosition(module, wasm_func_index_, byte_offset,
                            is_at_number_conversion_);

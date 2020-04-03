@@ -546,7 +546,6 @@ class V8_EXPORT_PRIVATE FrameSummary {
     wasm::WasmCode* code() const { return code_; }
     int code_offset() const { return code_offset_; }
     int byte_offset() const;
-    static int GetWasmSourcePosition(const wasm::WasmCode* code, int offset);
 
    private:
     wasm::WasmCode* const code_;
@@ -961,9 +960,12 @@ class WasmCompiledFrame : public StandardFrame {
   wasm::WasmCode* wasm_code() const;
   uint32_t function_index() const;
   Script script() const override;
+  // Byte position in the module, or asm.js source position.
   int position() const override;
   Object context() const override;
   bool at_to_number_conversion() const;
+  // Byte offset in the function.
+  int byte_offset() const;
 
   void Summarize(std::vector<FrameSummary>* frames) const override;
 
