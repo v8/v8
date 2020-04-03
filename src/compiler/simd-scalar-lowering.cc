@@ -26,7 +26,31 @@ static const int32_t kMask16 = 0xFFFF;
 static const int32_t kMask8 = 0xFF;
 static const int32_t kShift16 = 16;
 static const int32_t kShift8 = 24;
-}  // anonymous
+static const int32_t kShiftMask8 = 0x7;
+static const int32_t kShiftMask16 = 0xF;
+static const int32_t kShiftMask32 = 0x1F;
+
+// Shift values are taken modulo lane size. This helper calculates the mask
+// required for different shift opcodes.
+int GetMaskForShift(Node* node) {
+  switch (node->opcode()) {
+    case IrOpcode::kI8x16Shl:
+    case IrOpcode::kI8x16ShrS:
+    case IrOpcode::kI8x16ShrU:
+      return kShiftMask8;
+    case IrOpcode::kI16x8Shl:
+    case IrOpcode::kI16x8ShrS:
+    case IrOpcode::kI16x8ShrU:
+      return kShiftMask16;
+    case IrOpcode::kI32x4Shl:
+    case IrOpcode::kI32x4ShrS:
+    case IrOpcode::kI32x4ShrU:
+      return kShiftMask32;
+    default:
+      UNIMPLEMENTED();
+  }
+}
+}  // anonymous namespace
 
 SimdScalarLowering::SimdScalarLowering(
     MachineGraph* mcgraph, Signature<MachineRepresentation>* signature)
@@ -934,9 +958,8 @@ void SimdScalarLowering::LowerPack(Node* node, SimdType input_rep_type,
 }
 
 void SimdScalarLowering::LowerShiftOp(Node* node, SimdType type) {
-  DCHECK_EQ(1, node->InputCount());
-  int32_t shift_amount = OpParameter<int32_t>(node->op());
-  Node* shift_node = graph()->NewNode(common()->Int32Constant(shift_amount));
+  DCHECK_EQ(2, node->InputCount());
+  Node* shift_node = Mask(node->InputAt(1), GetMaskForShift(node));
   Node** rep = GetReplacementsWithType(node->InputAt(0), type);
   int num_lanes = NumLanes(type);
   Node** rep_node = zone()->NewArray<Node*>(num_lanes);

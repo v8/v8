@@ -2061,17 +2061,17 @@ void RunI32x4ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I32x4Shl) {
+WASM_SIMD_TEST(I32x4Shl) {
   RunI32x4ShiftOpTest(execution_tier, lower_simd, kExprI32x4Shl,
                       LogicalShiftLeft);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I32x4ShrS) {
+WASM_SIMD_TEST(I32x4ShrS) {
   RunI32x4ShiftOpTest(execution_tier, lower_simd, kExprI32x4ShrS,
                       ArithmeticShiftRight);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I32x4ShrU) {
+WASM_SIMD_TEST(I32x4ShrU) {
   RunI32x4ShiftOpTest(execution_tier, lower_simd, kExprI32x4ShrU,
                       LogicalShiftRight);
 }
@@ -2330,17 +2330,17 @@ void RunI16x8ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I16x8Shl) {
+WASM_SIMD_TEST(I16x8Shl) {
   RunI16x8ShiftOpTest(execution_tier, lower_simd, kExprI16x8Shl,
                       LogicalShiftLeft);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I16x8ShrS) {
+WASM_SIMD_TEST(I16x8ShrS) {
   RunI16x8ShiftOpTest(execution_tier, lower_simd, kExprI16x8ShrS,
                       ArithmeticShiftRight);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I16x8ShrU) {
+WASM_SIMD_TEST(I16x8ShrU) {
   RunI16x8ShiftOpTest(execution_tier, lower_simd, kExprI16x8ShrU,
                       LogicalShiftRight);
 }
@@ -2564,17 +2564,17 @@ void RunI8x16ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I8x16Shl) {
+WASM_SIMD_TEST(I8x16Shl) {
   RunI8x16ShiftOpTest(execution_tier, lower_simd, kExprI8x16Shl,
                       LogicalShiftLeft);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I8x16ShrS) {
+WASM_SIMD_TEST(I8x16ShrS) {
   RunI8x16ShiftOpTest(execution_tier, lower_simd, kExprI8x16ShrS,
                       ArithmeticShiftRight);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I8x16ShrU) {
+WASM_SIMD_TEST(I8x16ShrU) {
   RunI8x16ShiftOpTest(execution_tier, lower_simd, kExprI8x16ShrU,
                       LogicalShiftRight);
 }
