@@ -335,11 +335,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   void FreeDeadCode(const DeadCodeMap&);
   void FreeDeadCodeLocked(const DeadCodeMap&);
 
-  Handle<Script> GetOrCreateScript(Isolate*, NativeModule*,
-                                   Vector<const char> source_map_url,
-                                   WireBytesRef name,
-                                   Vector<const char> source_url = {});
-
   // Call on process start and exit.
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
