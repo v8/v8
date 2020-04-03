@@ -30,8 +30,7 @@ class ScavengeJob::Task : public CancelableTask {
 };
 
 size_t ScavengeJob::YoungGenerationTaskTriggerSize(Heap* heap) {
-  static constexpr double kTaskTriggerFactor = 0.8;
-  return heap->new_space()->Capacity() * kTaskTriggerFactor;
+  return heap->new_space()->Capacity() * FLAG_scavenge_task_trigger / 100;
 }
 
 bool ScavengeJob::YoungGenerationSizeTaskTriggerReached(Heap* heap) {
