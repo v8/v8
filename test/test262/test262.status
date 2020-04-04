@@ -600,9 +600,10 @@
   'language/comments/hashbang/use-strict': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8179
-  'built-ins/FinalizationRegistry/FinalizationRegistryCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
-  'built-ins/FinalizationRegistry/prototype/cleanupSome/cleanup-throws-in-callback': [FAIL],
-  'built-ins/FinalizationRegistry/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
+  'built-ins/FinalizationRegistry/gc-has-one-chance-to-call-cleanupCallback': [FAIL],
+  'built-ins/FinalizationRegistry/prototype/cleanupSome/cleanup-prevented-with-reference': [FAIL],
+  'built-ins/FinalizationRegistry/prototype/cleanupSome/holdings-multiple-values': [FAIL],
+  'built-ins/FinalizationRegistry/prototype/unregister/unregister-cleaned-up-cell': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=10313
   'built-ins/Date/parse/without-utc-offset': [SKIP],
@@ -663,6 +664,57 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=10383
   'built-ins/RegExp/prototype/Symbol.replace/fn-invoke-args-empty-result': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10395
+  'built-ins/AsyncFromSyncIteratorPrototype/next/absent-value-not-passed': [FAIL],
+  'built-ins/AsyncFromSyncIteratorPrototype/return/absent-value-not-passed': [FAIL],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/absent-value-not-passed': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10394
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-bigint': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-lhs-before-rhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-no-set': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-no-set-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-non-extensible': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-non-writeable': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-non-writeable-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-unresolved-lhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-unresolved-rhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-unresolved-rhs-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-whitespace': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-bigint': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-lhs-before-rhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-no-set': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-no-set-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-non-extensible': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-non-writeable': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-non-writeable-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-unresolved-lhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-unresolved-rhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-unresolved-rhs-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-whitespace': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-bigint': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-lhs-before-rhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-no-set': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-no-set-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-non-extensible': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-non-writeable': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-non-writeable-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-unresolved-lhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-unresolved-rhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-unresolved-rhs-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-whitespace': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10396
+  'language/expressions/class/elements/grammar-private-field-optional-chaining': [FAIL],
+  'language/statements/class/elements/grammar-private-field-optional-chaining': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10397
+  'language/statements/for-await-of/iterator-close-throw-get-method-abrupt': [FAIL],
+  'language/statements/for-of/iterator-close-throw-get-method-abrupt': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
