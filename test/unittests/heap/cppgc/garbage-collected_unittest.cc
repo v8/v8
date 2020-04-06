@@ -60,6 +60,8 @@ TEST(GarbageCollectedTest, GarbageCollectedMixinTrait) {
   STATIC_ASSERT(IsGarbageCollectedMixinType<GCWithMergedMixins>::value);
 }
 
+#ifdef CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
+
 TEST_F(GarbageCollectedTestWithHeap, GetObjectStartReturnsCorrentAddress) {
   GCed* gced = MakeGarbageCollected<GCed>(GetHeap());
   GCedWithMixin* gced_with_mixin =
@@ -68,5 +70,8 @@ TEST_F(GarbageCollectedTestWithHeap, GetObjectStartReturnsCorrentAddress) {
             static_cast<Mixin*>(gced_with_mixin)->GetObjectStart());
   EXPECT_NE(gced, static_cast<Mixin*>(gced_with_mixin)->GetObjectStart());
 }
+
+#endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
+
 }  // namespace internal
 }  // namespace cppgc
