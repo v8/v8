@@ -4118,11 +4118,14 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtins::kArrayPrototypeSlice:
       return ReduceArrayPrototypeSlice(node);
     case Builtins::kArrayPrototypeEntries:
-      return ReduceArrayIterator(node, IterationKind::kEntries);
+      return ReduceArrayIterator(node, ArrayIteratorKind::kArrayLike,
+                                 IterationKind::kEntries);
     case Builtins::kArrayPrototypeKeys:
-      return ReduceArrayIterator(node, IterationKind::kKeys);
+      return ReduceArrayIterator(node, ArrayIteratorKind::kArrayLike,
+                                 IterationKind::kKeys);
     case Builtins::kArrayPrototypeValues:
-      return ReduceArrayIterator(node, IterationKind::kValues);
+      return ReduceArrayIterator(node, ArrayIteratorKind::kArrayLike,
+                                 IterationKind::kValues);
     case Builtins::kArrayIteratorPrototypeNext:
       return ReduceArrayIteratorPrototypeNext(node);
     case Builtins::kArrayIsArray:
@@ -4323,11 +4326,14 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtins::kStringPrototypeConcat:
       return ReduceStringPrototypeConcat(node);
     case Builtins::kTypedArrayPrototypeEntries:
-      return ReduceArrayIterator(node, IterationKind::kEntries);
+      return ReduceArrayIterator(node, ArrayIteratorKind::kTypedArray,
+                                 IterationKind::kEntries);
     case Builtins::kTypedArrayPrototypeKeys:
-      return ReduceArrayIterator(node, IterationKind::kKeys);
+      return ReduceArrayIterator(node, ArrayIteratorKind::kTypedArray,
+                                 IterationKind::kKeys);
     case Builtins::kTypedArrayPrototypeValues:
-      return ReduceArrayIterator(node, IterationKind::kValues);
+      return ReduceArrayIterator(node, ArrayIteratorKind::kTypedArray,
+                                 IterationKind::kValues);
     case Builtins::kPromisePrototypeCatch:
       return ReducePromisePrototypeCatch(node);
     case Builtins::kPromisePrototypeFinally:
@@ -5490,7 +5496,9 @@ Reduction JSCallReducer::ReduceArrayIsArray(Node* node) {
   return Changed(node);
 }
 
-Reduction JSCallReducer::ReduceArrayIterator(Node* node, IterationKind kind) {
+Reduction JSCallReducer::ReduceArrayIterator(Node* node,
+                                             ArrayIteratorKind array_kind,
+                                             IterationKind iteration_kind) {
   DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
@@ -5505,6 +5513,13 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node, IterationKind kind) {
     return NoChange();
   }
 
+  // TypedArray iteration is stricter: it throws if the receiver is not a typed
+  // array. So don't bother optimizing in that case.
+  if (array_kind == ArrayIteratorKind::kTypedArray &&
+      !inference.AllOfInstanceTypesAre(InstanceType::JS_TYPED_ARRAY_TYPE)) {
+    return NoChange();
+  }
+
   // Morph the {node} into a JSCreateArrayIterator with the given {kind}.
   RelaxControls(node);
   node->ReplaceInput(0, receiver);
@@ -5512,7 +5527,8 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node, IterationKind kind) {
   node->ReplaceInput(2, effect);
   node->ReplaceInput(3, control);
   node->TrimInputCount(4);
-  NodeProperties::ChangeOp(node, javascript()->CreateArrayIterator(kind));
+  NodeProperties::ChangeOp(node,
+                           javascript()->CreateArrayIterator(iteration_kind));
   return Changed(node);
 }
 
