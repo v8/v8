@@ -44,11 +44,11 @@ v8_source_set("cppgc_unittests_sources") {
   testonly = true
 
   sources = [
+    "heap/cppgc/allocation_unittest.cc",
     "heap/cppgc/finalizer-trait_unittest.cc",
     "heap/cppgc/garbage-collected_unittest.cc",
     "heap/cppgc/gc-info_unittest.cc",
     "heap/cppgc/heap-object-header_unittest.cc",
-    "heap/cppgc/heap_unittest.cc",
     "heap/cppgc/member_unittests.cc",
     "heap/cppgc/source-location_unittest.cc",
     "heap/cppgc/stack_unittest.cc",

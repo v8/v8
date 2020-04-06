@@ -5,7 +5,6 @@
 #ifndef V8_HEAP_CPPGC_HEAP_H_
 #define V8_HEAP_CPPGC_HEAP_H_
 
-#include <memory>
 #include <vector>
 
 #include "include/cppgc/gc-info.h"
@@ -15,34 +14,18 @@
 namespace cppgc {
 namespace internal {
 
-class Stack;
-
 class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
  public:
-  struct GCConfig {
-    enum class StackState : uint8_t {
-      kEmpty,
-      kNonEmpty,
-    };
-
-    static GCConfig Default() { return {StackState::kNonEmpty}; }
-
-    StackState stack_state = StackState::kNonEmpty;
-  };
-
   static Heap* From(cppgc::Heap* heap) { return static_cast<Heap*>(heap); }
 
-  Heap();
+  Heap() = default;
   ~Heap() final = default;
 
   inline void* Allocate(size_t size, GCInfoIndex index);
 
-  void CollectGarbage(GCConfig config = GCConfig::Default());
+  void CollectGarbage();
 
  private:
-  GCConfig current_config_;
-
-  std::unique_ptr<Stack> stack_;
   std::vector<HeapObjectHeader*> objects_;
 };
 
