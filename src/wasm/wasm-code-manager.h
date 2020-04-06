@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "src/base/address-region.h"
+#include "src/base/bit-field.h"
 #include "src/base/macros.h"
 #include "src/base/optional.h"
 #include "src/builtins/builtins-definitions.h"
@@ -125,9 +126,11 @@ class V8_EXPORT_PRIVATE WasmCode final {
         kRuntimeStubCount
   };
 
-  Vector<byte> instructions() const { return instructions_; }
+  Vector<byte> instructions() const {
+    return VectorOf(instructions_, static_cast<size_t>(instructions_size_));
+  }
   Address instruction_start() const {
-    return reinterpret_cast<Address>(instructions_.begin());
+    return reinterpret_cast<Address>(instructions_);
   }
   Vector<const byte> reloc_info() const {
     return {protected_instructions_data().end(),
@@ -144,9 +147,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
   }
   // Anonymous functions are functions that don't carry an index.
   bool IsAnonymous() const { return index_ == kAnonymousFuncIndex; }
-  Kind kind() const { return kind_; }
+  Kind kind() const { return KindField::decode(flags_); }
   NativeModule* native_module() const { return native_module_; }
-  ExecutionTier tier() const { return tier_; }
+  ExecutionTier tier() const { return ExecutionTierField::decode(flags_); }
   Address constant_pool() const;
   Address handler_table() const;
   int handler_table_size() const;
@@ -159,10 +162,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
   int unpadded_binary_size() const { return unpadded_binary_size_; }
   int stack_slots() const { return stack_slots_; }
   int tagged_parameter_slots() const { return tagged_parameter_slots_; }
-  bool is_liftoff() const { return tier_ == ExecutionTier::kLiftoff; }
+  bool is_liftoff() const { return tier() == ExecutionTier::kLiftoff; }
   bool contains(Address pc) const {
-    return reinterpret_cast<Address>(instructions_.begin()) <= pc &&
-           pc < reinterpret_cast<Address>(instructions_.end());
+    return reinterpret_cast<Address>(instructions_) <= pc &&
+           pc < reinterpret_cast<Address>(instructions_ + instructions_size_);
   }
 
   Vector<const uint8_t> protected_instructions_data() const {
@@ -236,23 +239,23 @@ class V8_EXPORT_PRIVATE WasmCode final {
            Vector<const byte> reloc_info,
            Vector<const byte> source_position_table, Kind kind,
            ExecutionTier tier)
-      : instructions_(instructions),
-        native_module_(native_module),
+      : native_module_(native_module),
+        instructions_(instructions.begin()),
+        flags_(KindField::encode(kind) | ExecutionTierField::encode(tier)),
         meta_data_(ConcatenateBytes(
             {protected_instructions_data, reloc_info, source_position_table})),
+        instructions_size_(instructions.length()),
         reloc_info_size_(reloc_info.length()),
         source_positions_size_(source_position_table.length()),
         protected_instructions_size_(protected_instructions_data.length()),
         index_(index),
-        kind_(kind),
         constant_pool_offset_(constant_pool_offset),
         stack_slots_(stack_slots),
         tagged_parameter_slots_(tagged_parameter_slots),
         safepoint_table_offset_(safepoint_table_offset),
         handler_table_offset_(handler_table_offset),
         code_comments_offset_(code_comments_offset),
-        unpadded_binary_size_(unpadded_binary_size),
-        tier_(tier) {
+        unpadded_binary_size_(unpadded_binary_size) {
     DCHECK_LE(safepoint_table_offset, unpadded_binary_size);
     DCHECK_LE(handler_table_offset, unpadded_binary_size);
     DCHECK_LE(code_comments_offset, unpadded_binary_size);
@@ -282,32 +285,37 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // Returns whether this code becomes dead and needs to be freed.
   V8_NOINLINE bool DecRefOnPotentiallyDeadCode();
 
-  Vector<byte> instructions_;
-  NativeModule* native_module_ = nullptr;
+  NativeModule* const native_module_ = nullptr;
+  byte* const instructions_;
+  const uint8_t flags_;  // Bit field, see below.
   // {meta_data_} contains several byte vectors concatenated into one:
   //  - protected instructions data of size {protected_instructions_size_}
   //  - relocation info of size {reloc_info_size_}
   //  - source positions of size {source_positions_size_}
   // Note that the protected instructions come first to ensure alignment.
   std::unique_ptr<const byte[]> meta_data_;
+  const int instructions_size_;
   const int reloc_info_size_;
   const int source_positions_size_;
   const int protected_instructions_size_;
-  int index_;
-  Kind kind_;
-  int constant_pool_offset_ = 0;
-  int stack_slots_ = 0;
+  const int index_;
+  const int constant_pool_offset_;
+  const int stack_slots_;
   // Number of tagged parameters passed to this function via the stack. This
   // value is used by the stack walker (e.g. GC) to find references.
-  int tagged_parameter_slots_ = 0;
+  const int tagged_parameter_slots_;
   // We care about safepoint data for wasm-to-js functions, since there may be
   // stack/register tagged values for large number conversions.
-  int safepoint_table_offset_ = 0;
-  int handler_table_offset_ = 0;
-  int code_comments_offset_ = 0;
-  int unpadded_binary_size_ = 0;
+  const int safepoint_table_offset_;
+  const int handler_table_offset_;
+  const int code_comments_offset_;
+  const int unpadded_binary_size_;
   int trap_handler_index_ = -1;
-  ExecutionTier tier_;
+
+  // Bits encoded in {flags_}:
+  using KindField = base::BitField8<Kind, 0, 3>;
+  using ExecutionTierField = KindField::Next<ExecutionTier, 2>;
+  // TODO(clemensb): Add "is_debug" flag.
 
   // WasmCode is ref counted. Counters are held by:
   //   1) The jump table / code table.
@@ -328,7 +336,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 // often for rather small functions.
 // Increase the limit if needed, but first check if the size increase is
 // justified.
-STATIC_ASSERT(sizeof(WasmCode) <= 96);
+STATIC_ASSERT(sizeof(WasmCode) <= 88);
 
 WasmCode::Kind GetCodeKind(const WasmCompilationResult& result);
 

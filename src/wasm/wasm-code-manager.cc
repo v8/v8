@@ -212,7 +212,7 @@ void WasmCode::LogCode(Isolate* isolate) const {
   }
 
   std::string name_buffer;
-  if (kind_ == kWasmToJsWrapper) {
+  if (kind() == kWasmToJsWrapper) {
     name_buffer = "wasm-to-js:";
     size_t prefix_len = name_buffer.size();
     constexpr size_t kMaxSigLength = 128;
@@ -305,7 +305,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
                            Address current_pc) const {
   if (name) os << "name: " << name << "\n";
   if (!IsAnonymous()) os << "index: " << index() << "\n";
-  os << "kind: " << GetWasmCodeKindAsString(kind_) << "\n";
+  os << "kind: " << GetWasmCodeKindAsString(kind()) << "\n";
   os << "compiler: " << (is_liftoff() ? "Liftoff" : "TurboFan") << "\n";
   size_t padding = instructions().size() - unpadded_binary_size_;
   os << "Body (size = " << instructions().size() << " = "
@@ -1089,7 +1089,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
         update_code_table && !has_interpreter_redirection(code->index());
 
     // Ensure that interpreter entries always populate to the jump table.
-    if (code->kind_ == WasmCode::Kind::kInterpreterEntry) {
+    if (code->kind() == WasmCode::Kind::kInterpreterEntry) {
       SetInterpreterRedirection(code->index());
       update_jump_table = true;
     }
