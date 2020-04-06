@@ -131,6 +131,31 @@ class WasmGCForegroundTask : public CancelableTask {
   Isolate* isolate_;
 };
 
+class WeakScriptHandle {
+ public:
+  explicit WeakScriptHandle(Handle<Script> handle) {
+    auto global_handle =
+        handle->GetIsolate()->global_handles()->Create(*handle);
+    location_ = std::make_unique<Address*>(global_handle.location());
+    GlobalHandles::MakeWeak(location_.get());
+  }
+
+  WeakScriptHandle(WeakScriptHandle&&) V8_NOEXCEPT = default;
+
+  ~WeakScriptHandle() {
+    if (location_) {
+      GlobalHandles::Destroy(*location_);
+    }
+  }
+
+  Handle<Script> handle() { return Handle<Script>(*location_); }
+
+ private:
+  // Store the location in a unique_ptr so that its address stays the same even
+  // when this object is moved/copied.
+  std::unique_ptr<Address*> location_;
+};
+
 }  // namespace
 
 std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
@@ -320,6 +345,9 @@ struct WasmEngine::IsolateInfo {
   // grows, never shrinks).
   std::set<NativeModule*> native_modules;
 
+  // Scripts created for each native module in this isolate.
+  std::unordered_map<NativeModule*, WeakScriptHandle> scripts;
+
   // Caches whether code needs to be logged on this isolate.
   bool log_codes;
 
@@ -462,9 +490,9 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
 #endif
 
   Handle<Script> script =
-      CreateWasmScript(isolate, bytes.module_bytes(),
-                       VectorOf(native_module->module()->source_map_url),
-                       native_module->module()->name);
+      GetOrCreateScript(isolate, native_module.get(),
+                        VectorOf(native_module->module()->source_map_url),
+                        native_module->module()->name);
 
   // Create the compiled module object and populate with compiled functions
   // and information needed at instantiation time. This object needs to be
@@ -928,6 +956,7 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
     IsolateInfo* info = isolates_[isolate].get();
     DCHECK_EQ(1, info->native_modules.count(native_module));
     info->native_modules.erase(native_module);
+    info->scripts.erase(native_module);
     // If there are {WasmCode} objects of the deleted {NativeModule}
     // outstanding to be logged in this isolate, remove them. Decrementing the
     // ref count is not needed, since the {NativeModule} dies anyway.
@@ -1086,6 +1115,38 @@ void WasmEngine::FreeDeadCodeLocked(const DeadCodeMap& dead_code) {
       info->dead_code.erase(code);
     }
     native_module->FreeCode(VectorOf(code_vec));
+  }
+}
+
+Handle<Script> WasmEngine::GetOrCreateScript(Isolate* isolate,
+                                             NativeModule* native_module,
+                                             Vector<const char> source_map_url,
+                                             WireBytesRef name,
+                                             Vector<const char> source_url) {
+  {
+    base::MutexGuard guard(&mutex_);
+    DCHECK_EQ(1, isolates_.count(isolate));
+    auto& scripts = isolates_[isolate]->scripts;
+    auto it = scripts.find(native_module);
+    if (it != scripts.end()) {
+      Handle<Script> weak_global_handle = it->second.handle();
+      if (weak_global_handle.is_null()) {
+        scripts.erase(it);
+      } else {
+        return Handle<Script>::New(*weak_global_handle, isolate);
+      }
+    }
+  }
+  // Temporarily release the mutex to let the GC collect native modules.
+  auto script = CreateWasmScript(isolate, native_module->wire_bytes(),
+                                 source_map_url, name, source_url);
+  {
+    base::MutexGuard guard(&mutex_);
+    DCHECK_EQ(1, isolates_.count(isolate));
+    auto& scripts = isolates_[isolate]->scripts;
+    DCHECK_EQ(0, scripts.count(native_module));
+    scripts.emplace(native_module, WeakScriptHandle(script));
+    return script;
   }
 }
 
