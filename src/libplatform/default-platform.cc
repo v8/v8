@@ -84,7 +84,7 @@ DefaultPlatform::DefaultPlatform(
 DefaultPlatform::~DefaultPlatform() {
   base::MutexGuard guard(&lock_);
   if (worker_threads_task_runner_) worker_threads_task_runner_->Terminate();
-  for (auto it : foreground_task_runner_map_) {
+  for (const auto& it : foreground_task_runner_map_) {
     it.second->Terminate();
   }
 }

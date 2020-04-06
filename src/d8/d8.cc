@@ -2239,7 +2239,7 @@ void Shell::OnExit(v8::Isolate* isolate) {
 
     if (i::FLAG_dump_counters_nvp) {
       // Dump counters as name-value pairs.
-      for (auto pair : counters) {
+      for (const auto& pair : counters) {
         std::string key = pair.first;
         Counter* counter = pair.second;
         if (counter->is_histogram()) {
@@ -2260,7 +2260,7 @@ void Shell::OnExit(v8::Isolate* isolate) {
                 << std::string(kValueBoxSize - 6, ' ') << "|\n";
       std::cout << "+" << std::string(kNameBoxSize, '-') << "+"
                 << std::string(kValueBoxSize, '-') << "+\n";
-      for (auto pair : counters) {
+      for (const auto& pair : counters) {
         std::string key = pair.first;
         Counter* counter = pair.second;
         if (counter->is_histogram()) {
