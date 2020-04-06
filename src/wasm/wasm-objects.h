@@ -572,9 +572,19 @@ class WasmInstanceObject : public JSObject {
                                                  Handle<WasmInstanceObject>,
                                                  uint32_t global_index);
 
+  // Get the name of a memory in the given instance by index.
+  static MaybeHandle<String> GetMemoryNameOrNull(Isolate*,
+                                                 Handle<WasmInstanceObject>,
+                                                 uint32_t memory_index);
+
   OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject);
 
  private:
+  // Get the name in the given instance by index and kind.
+  static MaybeHandle<String> GetNameFromImportsAndExportsOrNull(
+      Isolate*, Handle<WasmInstanceObject>, wasm::ImportExportKindCode kind,
+      uint32_t index);
+
   static void InitDataSegmentArrays(Handle<WasmInstanceObject>,
                                     Handle<WasmModuleObject>);
   static void InitElemSegmentArrays(Handle<WasmInstanceObject>,

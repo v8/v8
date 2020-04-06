@@ -195,8 +195,10 @@ void WasmCode::LogCode(Isolate* isolate) const {
   if (IsAnonymous()) return;
 
   ModuleWireBytes wire_bytes(native_module()->wire_bytes());
-  WireBytesRef name_ref = native_module()->module()->function_names.Lookup(
-      wire_bytes, index(), VectorOf(native_module()->module()->export_table));
+  WireBytesRef name_ref =
+      native_module()->module()->lazily_generated_names.LookupFunctionName(
+          wire_bytes, index(),
+          VectorOf(native_module()->module()->export_table));
   WasmName name = wire_bytes.GetNameOrNull(name_ref);
 
   const std::string& source_map_url = native_module()->module()->source_map_url;

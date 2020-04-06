@@ -162,8 +162,9 @@ static bool VerifyEvaluatorInterface(const WasmModule* raw_module,
                                      const ModuleWireBytes& bytes,
                                      ErrorThrower* thrower) {
   for (const WasmFunction& F : raw_module->functions) {
-    WireBytesRef name_ref = raw_module->function_names.Lookup(
-        bytes, F.func_index, VectorOf(raw_module->export_table));
+    WireBytesRef name_ref =
+        raw_module->lazily_generated_names.LookupFunctionName(
+            bytes, F.func_index, VectorOf(raw_module->export_table));
     std::string name(bytes.start() + name_ref.offset(),
                      bytes.start() + name_ref.end_offset());
     if (F.exported && name == "wasm_format") {

@@ -164,7 +164,7 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
                 test_module_->num_declared_functions);
   if (name) {
     Vector<const byte> name_vec = Vector<const byte>::cast(CStrVector(name));
-    test_module_->function_names.AddForTesting(
+    test_module_->lazily_generated_names.AddForTesting(
         index, {AddBytes(name_vec), static_cast<uint32_t>(name_vec.length())});
   }
   if (interpreter_) {

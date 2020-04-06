@@ -191,34 +191,33 @@ enum ModuleOrigin : uint8_t {
 
 struct ModuleWireBytes;
 
-class V8_EXPORT_PRIVATE DecodedFunctionNames {
+class V8_EXPORT_PRIVATE LazilyGeneratedNames {
  public:
-  WireBytesRef Lookup(const ModuleWireBytes& wire_bytes,
-                      uint32_t function_index,
-                      Vector<const WasmExport> export_table) const;
+  WireBytesRef LookupFunctionName(const ModuleWireBytes& wire_bytes,
+                                  uint32_t function_index,
+                                  Vector<const WasmExport> export_table) const;
+
+  // For memory and global.
+  std::pair<WireBytesRef, WireBytesRef> LookupNameFromImportsAndExports(
+      ImportExportKindCode kind, uint32_t index,
+      const Vector<const WasmImport> import_table,
+      const Vector<const WasmExport> export_table) const;
+
   void AddForTesting(int function_index, WireBytesRef name);
 
  private:
-  // {function_names_} is populated lazily after decoding, and therefore needs a
-  // mutex to protect concurrent modifications from multiple {WasmModuleObject}.
+  // {function_names_}, {global_names_} and {memory_names_} are
+  // populated lazily after decoding, and therefore need a mutex to protect
+  // concurrent modifications from multiple {WasmModuleObject}.
   mutable base::Mutex mutex_;
   mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>>
       function_names_;
-};
-
-class V8_EXPORT_PRIVATE DecodedGlobalNames {
- public:
-  std::pair<WireBytesRef, WireBytesRef> Lookup(
-      uint32_t global_index, Vector<const WasmImport> import_table,
-      Vector<const WasmExport> export_table) const;
-
- private:
-  // {global_names_} is populated lazily after decoding, and therefore needs a
-  // mutex to protect concurrent modifications from multiple {WasmModuleObject}.
-  mutable base::Mutex mutex_;
   mutable std::unique_ptr<
       std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>>
       global_names_;
+  mutable std::unique_ptr<
+      std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>>
+      memory_names_;
 };
 
 class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
@@ -286,8 +285,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   SignatureMap signature_map;  // canonicalizing map for signature indexes.
 
   ModuleOrigin origin = kWasmOrigin;  // origin of the module
-  DecodedFunctionNames function_names;
-  DecodedGlobalNames global_names;
+  LazilyGeneratedNames lazily_generated_names;
   std::string source_map_url;
 
   // Asm.js source position information. Only available for modules compiled

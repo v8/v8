@@ -519,8 +519,15 @@ Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject> instance) {
   Handle<JSObject> global_scope_object =
       isolate->factory()->NewJSObjectWithNullProto();
   if (instance->has_memory_object()) {
-    Handle<String> name =
-        isolate->factory()->InternalizeString(StaticCharVector("memory"));
+    Handle<String> name;
+    // TODO(duongn): extend the logic when multiple memories are supported.
+    const uint32_t memory_index = 0;
+    if (!WasmInstanceObject::GetMemoryNameOrNull(isolate, instance,
+                                                 memory_index)
+             .ToHandle(&name)) {
+      const char* label = "memory%d";
+      name = PrintFToOneByteString<true>(isolate, label, memory_index);
+    }
     Handle<JSArrayBuffer> memory_buffer(
         instance->memory_object().array_buffer(), isolate);
     Handle<JSTypedArray> uint8_array = isolate->factory()->NewJSTypedArray(

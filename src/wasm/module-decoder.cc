@@ -2257,17 +2257,18 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
   }
 }
 
-void DecodeGlobalNames(
-    const Vector<const WasmImport> import_table,
+void GenerateNamesFromImportsAndExports(
+    ImportExportKindCode kind, const Vector<const WasmImport> import_table,
     const Vector<const WasmExport> export_table,
     std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>*
         names) {
   DCHECK_NOT_NULL(names);
   DCHECK(names->empty());
+  DCHECK(kind == kExternalGlobal || kind == kExternalMemory);
 
   // Extract from import table.
   for (const WasmImport& imp : import_table) {
-    if (imp.kind != kExternalGlobal) continue;
+    if (imp.kind != kind) continue;
     if (!imp.module_name.is_set() || !imp.field_name.is_set()) continue;
     if (names->count(imp.index) == 0) {
       names->insert(std::make_pair(
@@ -2277,7 +2278,7 @@ void DecodeGlobalNames(
 
   // Extract from export table.
   for (const WasmExport& exp : export_table) {
-    if (exp.kind != kExternalGlobal) continue;
+    if (exp.kind != kind) continue;
     if (!exp.name.is_set()) continue;
     if (names->count(exp.index) == 0) {
       names->insert(

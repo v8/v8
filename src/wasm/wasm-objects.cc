@@ -241,9 +241,10 @@ MaybeHandle<String> WasmModuleObject::GetFunctionNameOrNull(
     Isolate* isolate, Handle<WasmModuleObject> module_object,
     uint32_t func_index) {
   DCHECK_LT(func_index, module_object->module()->functions.size());
-  wasm::WireBytesRef name = module_object->module()->function_names.Lookup(
-      wasm::ModuleWireBytes(module_object->native_module()->wire_bytes()),
-      func_index, VectorOf(module_object->module()->export_table));
+  wasm::WireBytesRef name =
+      module_object->module()->lazily_generated_names.LookupFunctionName(
+          wasm::ModuleWireBytes(module_object->native_module()->wire_bytes()),
+          func_index, VectorOf(module_object->module()->export_table));
   if (!name.is_set()) return {};
   return ExtractUtf8StringFromModuleBytes(isolate, module_object, name,
                                           kNoInternalize);
@@ -267,8 +268,9 @@ Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
     uint32_t func_index) {
   DCHECK_GT(module()->functions.size(), func_index);
   wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
-  wasm::WireBytesRef name_ref = module()->function_names.Lookup(
-      wire_bytes, func_index, VectorOf(module()->export_table));
+  wasm::WireBytesRef name_ref =
+      module()->lazily_generated_names.LookupFunctionName(
+          wire_bytes, func_index, VectorOf(module()->export_table));
   wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
   return Vector<const uint8_t>::cast(name);
 }
@@ -1523,27 +1525,48 @@ WasmInstanceObject::GetGlobalBufferAndIndex(Handle<WasmInstanceObject> instance,
 MaybeHandle<String> WasmInstanceObject::GetGlobalNameOrNull(
     Isolate* isolate, Handle<WasmInstanceObject> instance,
     uint32_t global_index) {
+  return WasmInstanceObject::GetNameFromImportsAndExportsOrNull(
+      isolate, instance, wasm::ImportExportKindCode::kExternalGlobal,
+      global_index);
+}
+
+// static
+MaybeHandle<String> WasmInstanceObject::GetMemoryNameOrNull(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    uint32_t global_index) {
+  return WasmInstanceObject::GetNameFromImportsAndExportsOrNull(
+      isolate, instance, wasm::ImportExportKindCode::kExternalMemory,
+      global_index);
+}
+
+// static
+MaybeHandle<String> WasmInstanceObject::GetNameFromImportsAndExportsOrNull(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    wasm::ImportExportKindCode kind, uint32_t index) {
+  DCHECK(kind == wasm::ImportExportKindCode::kExternalGlobal ||
+         kind == wasm::ImportExportKindCode::kExternalMemory);
   wasm::ModuleWireBytes wire_bytes(
       instance->module_object().native_module()->wire_bytes());
 
   // This is pair of <module_name, field_name>.
   // If field_name is not set then we don't generate a name. Else if module_name
-  // is set then it is imported global. Otherwise it is exported global.
+  // is set then it is an imported one. Otherwise it is an exported one.
   std::pair<wasm::WireBytesRef, wasm::WireBytesRef> name_ref =
-      instance->module()->global_names.Lookup(
-          global_index, VectorOf(instance->module()->import_table),
-          VectorOf(instance->module()->export_table));
+      instance->module()
+          ->lazily_generated_names.LookupNameFromImportsAndExports(
+              kind, index, VectorOf(instance->module()->import_table),
+              VectorOf(instance->module()->export_table));
   if (!name_ref.second.is_set()) return {};
   Vector<const char> field_name = wire_bytes.GetNameOrNull(name_ref.second);
   if (!name_ref.first.is_set()) {
     return isolate->factory()->NewStringFromUtf8(VectorOf(field_name));
   }
   Vector<const char> module_name = wire_bytes.GetNameOrNull(name_ref.first);
-  std::string global_name;
-  global_name.append(module_name.begin(), module_name.end());
-  global_name.append(".");
-  global_name.append(field_name.begin(), field_name.end());
-  return isolate->factory()->NewStringFromUtf8(VectorOf(global_name));
+  std::string full_name;
+  full_name.append(module_name.begin(), module_name.end());
+  full_name.append(".");
+  full_name.append(field_name.begin(), field_name.end());
+  return isolate->factory()->NewStringFromUtf8(VectorOf(full_name));
 }
 
 // static
