@@ -122,14 +122,16 @@ void IteratePointersImpl(const Stack* stack, StackVisitor* visitor,
 
 }  // namespace
 
-#ifdef CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
 void Stack::IteratePointers(StackVisitor* visitor) const {
+#ifdef CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
   PushAllRegistersAndIterateStack(this, visitor, &IteratePointersImpl);
   // No need to deal with callee-saved registers as they will be kept alive by
   // the regular conservative stack iteration.
   IterateSafeStackIfNecessary(visitor);
+#else   // !CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
+  FATAL("Conservative stack scan not supported on current platform.");
+#endif  // !CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
 }
-#endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
 
 }  // namespace internal
 }  // namespace cppgc

@@ -28,9 +28,7 @@ class V8_EXPORT_PRIVATE Stack final {
 
   // Word-aligned iteration of the stack. Slot values are passed on to
   // |visitor|.
-#ifdef CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
   void IteratePointers(StackVisitor* visitor) const;
-#endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
 
   // Returns the start of the stack.
   const void* stack_start() const { return stack_start_; }
