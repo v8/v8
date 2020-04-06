@@ -33,6 +33,7 @@ namespace debug {
 class AccessorPair;
 class GeneratorObject;
 class Script;
+class WasmValue;
 class WeakMap;
 }  // namespace debug
 
@@ -129,6 +130,7 @@ class RegisteredExtension {
   V(debug::Script, Script)                     \
   V(debug::WeakMap, JSWeakMap)                 \
   V(debug::AccessorPair, AccessorPair)         \
+  V(debug::WasmValue, WasmValue)               \
   V(Promise, JSPromise)                        \
   V(Primitive, Object)                         \
   V(PrimitiveArray, FixedArray)                \

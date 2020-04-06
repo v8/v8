@@ -587,11 +587,31 @@ class PropertyIterator {
   virtual bool is_array_index() = 0;
 };
 
+// Wrapper around v8::internal::WasmValue.
+class V8_EXPORT_PRIVATE WasmValue : public v8::Value {
+ public:
+  static bool IsWasmValue(v8::Local<v8::Value> obj);
+  V8_INLINE static WasmValue* Cast(v8::Value* obj);
+  int value_type();
+  v8::Local<v8::Value> bytes();
+
+ private:
+  WasmValue();
+  static void CheckCast(v8::Value* obj);
+};
+
 AccessorPair* AccessorPair::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
 #endif
   return static_cast<AccessorPair*>(value);
+}
+
+WasmValue* WasmValue::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<WasmValue*>(value);
 }
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> promise);

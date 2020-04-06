@@ -3810,6 +3810,12 @@ void v8::debug::AccessorPair::CheckCast(Value* that) {
                   "Value is not a debug::AccessorPair");
 }
 
+void v8::debug::WasmValue::CheckCast(Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsWasmValue(), "v8::WasmValue::Cast",
+                  "Value is not a debug::WasmValue");
+}
+
 v8::BackingStore::~BackingStore() {
   auto i_this = reinterpret_cast<const i::BackingStore*>(this);
   i_this->~BackingStore();  // manually call internal destructor
@@ -10400,6 +10406,34 @@ Local<Value> debug::AccessorPair::setter() {
 bool debug::AccessorPair::IsAccessorPair(Local<Value> that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*that);
   return obj->IsAccessorPair();
+}
+
+int debug::WasmValue::value_type() {
+  i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
+  return obj->value_type();
+}
+
+v8::Local<v8::Value> debug::WasmValue::bytes() {
+  i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
+  i::Handle<i::ByteArray> bytes(obj->bytes(), isolate);
+  int length = bytes->length();
+
+  i::Handle<i::FixedArray> fa = isolate->factory()->NewFixedArray(length);
+  i::Handle<i::JSArray> arr = obj->GetIsolate()->factory()->NewJSArray(
+      i::PACKED_SMI_ELEMENTS, length, length);
+  i::JSArray::SetContent(arr, fa);
+
+  for (int i = 0; i < length; i++) {
+    fa->set(i, i::Smi::FromInt(bytes->get(i)));
+  }
+
+  return Utils::ToLocal(arr);
+}
+
+bool debug::WasmValue::IsWasmValue(Local<Value> that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(*that);
+  return obj->IsWasmValue();
 }
 
 MaybeLocal<Message> debug::GetMessageFromPromise(Local<Promise> p) {
