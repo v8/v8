@@ -4473,6 +4473,8 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   if (FLAG_local_heaps) {
     safepoint_->Iterate(&left_trim_visitor);
     safepoint_->Iterate(v);
+    isolate_->persistent_handles_list()->Iterate(&left_trim_visitor);
+    isolate_->persistent_handles_list()->Iterate(v);
   }
 
   isolate_->IterateDeferredHandles(&left_trim_visitor);
@@ -5376,7 +5378,12 @@ void Heap::StartTearDown() {
   // a good time to run heap verification (if requested), before starting to
   // tear down parts of the Isolate.
   if (FLAG_verify_heap) {
-    Verify();
+    if (FLAG_local_heaps) {
+      SafepointScope scope(this);
+      Verify();
+    } else {
+      Verify();
+    }
   }
 #endif
 }

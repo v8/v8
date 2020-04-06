@@ -19,6 +19,7 @@
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
+#include "src/heap/safepoint.h"
 #include "src/heap/sweeper.h"
 #include "src/init/v8.h"
 #include "src/numbers/conversions.h"
@@ -406,8 +407,10 @@ void IncrementalMarking::MarkRoots() {
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
 
+  if (FLAG_local_heaps) heap_->safepoint()->Start();
   IncrementalMarkingRootMarkingVisitor visitor(this);
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG_IGNORE_STACK);
+  if (FLAG_local_heaps) heap_->safepoint()->End();
 }
 
 bool IncrementalMarking::ShouldRetainMap(Map map, int age) {

@@ -85,6 +85,8 @@ class MaterializedObjectStore;
 class Microtask;
 class MicrotaskQueue;
 class OptimizingCompileDispatcher;
+class PersistentHandles;
+class PersistentHandlesList;
 class ReadOnlyDeserializer;
 class RegExpStack;
 class RootVisitor;
@@ -1200,6 +1202,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void LinkDeferredHandles(DeferredHandles* deferred_handles);
   void UnlinkDeferredHandles(DeferredHandles* deferred_handles);
 
+  std::unique_ptr<PersistentHandles> NewPersistentHandles();
+
+  PersistentHandlesList* persistent_handles_list() {
+    return persistent_handles_list_.get();
+  }
+
 #ifdef DEBUG
   bool IsDeferredHandle(Address* location);
 #endif  // DEBUG
@@ -1763,6 +1771,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   DeferredHandles* deferred_handles_head_ = nullptr;
   OptimizingCompileDispatcher* optimizing_compile_dispatcher_ = nullptr;
+
+  std::unique_ptr<PersistentHandlesList> persistent_handles_list_;
 
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_ = 0;

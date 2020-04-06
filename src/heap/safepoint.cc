@@ -5,13 +5,15 @@
 #include "src/heap/safepoint.h"
 
 #include "src/handles/local-handles.h"
+#include "src/handles/persistent-handles.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
 
 namespace v8 {
 namespace internal {
 
-Safepoint::Safepoint(Heap* heap) : heap_(heap), local_heaps_head_(nullptr) {}
+Safepoint::Safepoint(Heap* heap)
+    : heap_(heap), local_heaps_head_(nullptr), is_active_(false) {}
 
 void Safepoint::Start() { StopThreads(); }
 
@@ -35,9 +37,13 @@ void Safepoint::StopThreads() {
       current->state_change_.Wait(&current->state_mutex_);
     }
   }
+
+  is_active_ = true;
 }
 
 void Safepoint::ResumeThreads() {
+  is_active_ = false;
+
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
     current->state_mutex_.Unlock();
@@ -124,6 +130,7 @@ bool Safepoint::ContainsAnyLocalHeap() {
 }
 
 void Safepoint::Iterate(RootVisitor* visitor) {
+  DCHECK(IsActive());
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
     current->handles()->Iterate(visitor);

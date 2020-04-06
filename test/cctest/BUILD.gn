@@ -228,6 +228,7 @@ v8_source_set("cctest_sources") {
     "test-object.cc",
     "test-orderedhashtable.cc",
     "test-parsing.cc",
+    "test-persistent-handles.cc",
     "test-platform.cc",
     "test-profile-generator.cc",
     "test-random-number-generator.cc",

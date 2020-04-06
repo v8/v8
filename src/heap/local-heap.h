@@ -10,6 +10,7 @@
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/execution/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -17,10 +18,13 @@ namespace internal {
 class Heap;
 class Safepoint;
 class LocalHandles;
+class PersistentHandles;
 
 class LocalHeap {
  public:
-  V8_EXPORT_PRIVATE explicit LocalHeap(Heap* heap);
+  V8_EXPORT_PRIVATE explicit LocalHeap(
+      Heap* heap,
+      std::unique_ptr<PersistentHandles> persistent_handles = nullptr);
   V8_EXPORT_PRIVATE ~LocalHeap();
 
   // Invoked by main thread to signal this thread that it needs to halt in a
@@ -32,6 +36,12 @@ class LocalHeap {
   V8_EXPORT_PRIVATE void Safepoint();
 
   LocalHandles* handles() { return handles_.get(); }
+
+  V8_EXPORT_PRIVATE Handle<Object> NewPersistentHandle(Address value);
+  V8_EXPORT_PRIVATE std::unique_ptr<PersistentHandles>
+  DetachPersistentHandles();
+
+  bool IsParked();
 
  private:
   enum class ThreadState {
@@ -65,6 +75,7 @@ class LocalHeap {
   LocalHeap* next_;
 
   std::unique_ptr<LocalHandles> handles_;
+  std::unique_ptr<PersistentHandles> persistent_handles_;
 
   friend class Heap;
   friend class Safepoint;

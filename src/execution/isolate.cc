@@ -42,6 +42,7 @@
 #include "src/execution/simulator.h"
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/handles/persistent-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/ic/stub-cache.h"
@@ -2857,6 +2858,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
       builtins_(this),
       rail_mode_(PERFORMANCE_ANIMATION),
       code_event_dispatcher_(new CodeEventDispatcher()),
+      persistent_handles_list_(new PersistentHandlesList(this)),
       jitless_(FLAG_jitless),
 #if V8_SFI_HAS_UNIQUE_ID
       next_unique_sfi_id_(0),
@@ -3652,6 +3654,10 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
   if (deferred->previous_ != nullptr) {
     deferred->previous_->next_ = deferred->next_;
   }
+}
+
+std::unique_ptr<PersistentHandles> Isolate::NewPersistentHandles() {
+  return std::make_unique<PersistentHandles>(this);
 }
 
 void Isolate::DumpAndResetStats() {
