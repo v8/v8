@@ -391,6 +391,8 @@ TEST(DisasmX64) {
     // Move operation
     __ cvttss2si(rdx, Operand(rbx, rcx, times_4, 10000));
     __ cvttss2si(rdx, xmm1);
+    __ cvtqsi2ss(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ cvtqsi2ss(xmm1, rdx);
     __ cvttps2dq(xmm0, xmm1);
     __ cvttps2dq(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ movaps(xmm0, xmm1);
@@ -402,6 +404,8 @@ TEST(DisasmX64) {
 
     __ ucomiss(xmm0, xmm1);
     __ ucomiss(xmm0, Operand(rbx, rcx, times_4, 10000));
+
+    __ movmskps(rdx, xmm9);
 
 #define EMIT_SSE_INSTR(instruction, notUsed1, notUsed2) \
   __ instruction(xmm1, xmm0);                           \
@@ -423,8 +427,15 @@ TEST(DisasmX64) {
     __ cvttsd2si(rdx, xmm1);
     __ cvttsd2siq(rdx, xmm1);
     __ cvttsd2siq(rdx, Operand(rbx, rcx, times_4, 10000));
+    __ cvtlsi2sd(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ cvtlsi2sd(xmm1, rdx);
     __ cvtqsi2sd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ cvtqsi2sd(xmm1, rdx);
+    __ cvtss2sd(xmm1, xmm9);
+    __ cvtss2sd(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ cvtsd2si(rdx, xmm9);
+    __ cvtsd2siq(rdx, xmm9);
+
     __ movsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ movsd(Operand(rbx, rcx, times_4, 10000), xmm1);
     // 128 bit move instructions.
@@ -434,7 +445,11 @@ TEST(DisasmX64) {
     __ movdqa(Operand(rbx, rcx, times_4, 10000), xmm0);
 
     __ ucomisd(xmm0, xmm1);
+    __ ucomisd(xmm8, Operand(rbx, rdx, times_4, 10000));
 
+    __ cmpltsd(xmm3, xmm11);
+
+    __ movmskpd(rdx, xmm9);
     __ pmovmskb(rdx, xmm9);
 
     __ pcmpeqd(xmm1, xmm0);
@@ -572,6 +587,9 @@ TEST(DisasmX64) {
       __ cvtdq2ps(xmm5, Operand(rdx, 4));
       __ blendvpd(xmm5, xmm1);
       __ blendvpd(xmm5, Operand(rdx, 4));
+
+      __ roundss(xmm8, xmm3, kRoundDown);
+      __ roundsd(xmm8, xmm3, kRoundDown);
 
       SSE4_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
       SSE4_UNOP_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
