@@ -351,7 +351,8 @@ config("cppgc_base_config") {
   # Assume is_clang = false means GCC or other compilers that are compatible
   # with gas inline assembly on non-Windows builds.
   if (is_clang || !is_win) {
-    if (target_cpu == "x64" || target_cpu == "x86" || target_cpu == "arm") {
+    if (target_cpu == "x64" || target_cpu == "x86" || target_cpu == "arm" ||
+        target_cpu == "arm64") {
       defines = [ "CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN" ]
     }
   }
@@ -3976,6 +3977,8 @@ v8_source_set("cppgc_base") {
       sources += [ "src/heap/cppgc/asm/ia32/push_registers_asm.cc" ]
     } else if (target_cpu == "arm") {
       sources += [ "src/heap/cppgc/asm/arm/push_registers_asm.cc" ]
+    } else if (target_cpu == "arm64") {
+      sources += [ "src/heap/cppgc/asm/arm64/push_registers_asm.cc" ]
     }
   }
 
