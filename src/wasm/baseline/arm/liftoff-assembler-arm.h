@@ -1760,13 +1760,15 @@ void LiftoffAssembler::emit_i32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i32x4_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i32x4_min_s");
+  vmin(NeonS32, liftoff::GetSimd128Register(dst),
+       liftoff::GetSimd128Register(lhs), liftoff::GetSimd128Register(rhs));
 }
 
 void LiftoffAssembler::emit_i32x4_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i32x4_min_u");
+  vmin(NeonU32, liftoff::GetSimd128Register(dst),
+       liftoff::GetSimd128Register(lhs), liftoff::GetSimd128Register(rhs));
 }
 
 void LiftoffAssembler::emit_i32x4_max_s(LiftoffRegister dst,
@@ -1821,13 +1823,15 @@ void LiftoffAssembler::emit_i16x8_add_saturate_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8_min_s");
+  vmin(NeonS16, liftoff::GetSimd128Register(dst),
+       liftoff::GetSimd128Register(lhs), liftoff::GetSimd128Register(rhs));
 }
 
 void LiftoffAssembler::emit_i16x8_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8_min_u");
+  vmin(NeonU16, liftoff::GetSimd128Register(dst),
+       liftoff::GetSimd128Register(lhs), liftoff::GetSimd128Register(rhs));
 }
 
 void LiftoffAssembler::emit_i16x8_max_s(LiftoffRegister dst,
@@ -1926,13 +1930,15 @@ void LiftoffAssembler::emit_i8x16_add_saturate_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_min_s");
+  vmin(NeonS8, liftoff::GetSimd128Register(dst),
+       liftoff::GetSimd128Register(lhs), liftoff::GetSimd128Register(rhs));
 }
 
 void LiftoffAssembler::emit_i8x16_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_min_u");
+  vmin(NeonU8, liftoff::GetSimd128Register(dst),
+       liftoff::GetSimd128Register(lhs), liftoff::GetSimd128Register(rhs));
 }
 
 void LiftoffAssembler::emit_i8x16_max_s(LiftoffRegister dst,

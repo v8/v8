@@ -1247,13 +1247,13 @@ void LiftoffAssembler::emit_i32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i32x4_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i32x4_min_s");
+  Smin(dst.fp().V4S(), lhs.fp().V4S(), rhs.fp().V4S());
 }
 
 void LiftoffAssembler::emit_i32x4_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i32x4_min_u");
+  Umin(dst.fp().V4S(), lhs.fp().V4S(), rhs.fp().V4S());
 }
 
 void LiftoffAssembler::emit_i32x4_max_s(LiftoffRegister dst,
@@ -1325,13 +1325,13 @@ void LiftoffAssembler::emit_i16x8_add_saturate_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8_min_s");
+  Smin(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
 void LiftoffAssembler::emit_i16x8_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8_min_u");
+  Umin(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
 void LiftoffAssembler::emit_i16x8_max_s(LiftoffRegister dst,
@@ -1403,13 +1403,13 @@ void LiftoffAssembler::emit_i8x16_add_saturate_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_min_s");
+  Smin(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
 void LiftoffAssembler::emit_i8x16_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_min_u");
+  Umin(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
 void LiftoffAssembler::emit_i8x16_max_s(LiftoffRegister dst,
