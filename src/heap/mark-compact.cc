@@ -1323,7 +1323,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     src.set_map_word(MapWord::FromForwardingAddress(dst));
   }
 
-  EvacuateVisitorBase(Heap* heap, LocalAllocator* local_allocator,
+  EvacuateVisitorBase(Heap* heap, EvacuationAllocator* local_allocator,
                       RecordMigratedSlotVisitor* record_visitor)
       : heap_(heap),
         local_allocator_(local_allocator),
@@ -1382,7 +1382,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 #endif  // VERIFY_HEAP
 
   Heap* heap_;
-  LocalAllocator* local_allocator_;
+  EvacuationAllocator* local_allocator_;
   RecordMigratedSlotVisitor* record_visitor_;
   std::vector<MigrationObserver*> observers_;
   MigrateFunction migration_function_;
@@ -1391,7 +1391,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
  public:
   explicit EvacuateNewSpaceVisitor(
-      Heap* heap, LocalAllocator* local_allocator,
+      Heap* heap, EvacuationAllocator* local_allocator,
       RecordMigratedSlotVisitor* record_visitor,
       Heap::PretenuringFeedbackMap* local_pretenuring_feedback,
       bool always_promote_young)
@@ -1545,7 +1545,7 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
 
 class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
  public:
-  EvacuateOldSpaceVisitor(Heap* heap, LocalAllocator* local_allocator,
+  EvacuateOldSpaceVisitor(Heap* heap, EvacuationAllocator* local_allocator,
                           RecordMigratedSlotVisitor* record_visitor)
       : EvacuateVisitorBase(heap, local_allocator, record_visitor) {}
 
@@ -2869,7 +2869,7 @@ class Evacuator : public Malloced {
   }
 
   Evacuator(Heap* heap, RecordMigratedSlotVisitor* record_visitor,
-            LocalAllocator* local_allocator, bool always_promote_young)
+            EvacuationAllocator* local_allocator, bool always_promote_young)
       : heap_(heap),
         local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
         new_space_visitor_(heap_, local_allocator, record_visitor,
@@ -2927,7 +2927,7 @@ class Evacuator : public Malloced {
   EvacuateOldSpaceVisitor old_space_visitor_;
 
   // Locally cached collector data.
-  LocalAllocator* local_allocator_;
+  EvacuationAllocator* local_allocator_;
 
   // Book keeping info.
   double duration_;
@@ -3015,7 +3015,7 @@ class FullEvacuator : public Evacuator {
   void RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) override;
   EphemeronRememberedSet ephemeron_remembered_set_;
   RecordMigratedSlotVisitor record_visitor_;
-  LocalAllocator local_allocator_;
+  EvacuationAllocator local_allocator_;
 
   MarkCompactCollector* collector_;
 };
@@ -5049,7 +5049,7 @@ class YoungGenerationEvacuator : public Evacuator {
   void RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) override;
 
   YoungGenerationRecordMigratedSlotVisitor record_visitor_;
-  LocalAllocator local_allocator_;
+  EvacuationAllocator local_allocator_;
   MinorMarkCompactCollector* collector_;
 };
 
