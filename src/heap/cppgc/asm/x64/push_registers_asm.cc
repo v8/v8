@@ -18,10 +18,10 @@
 // Otherwise, undefined.
 #ifdef _WIN64
 
-  // We maintain 16-byte alignment at calls. There is an 8-byte return address
-  // on the stack and we push 72 bytes which maintains 16-byte stack alignment
-  // at the call.
-  // Source: https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention
+// We maintain 16-byte alignment at calls. There is an 8-byte return address
+// on the stack and we push 72 bytes which maintains 16-byte stack alignment
+// at the call.
+// Source: https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention
 asm(".globl PushAllRegistersAndIterateStack             \n"
     "PushAllRegistersAndIterateStack:                   \n"
     // rbp is callee-saved. Maintain proper frame pointer for debugging.
@@ -52,10 +52,10 @@ asm(".globl PushAllRegistersAndIterateStack             \n"
 
 #else  // !_WIN64
 
-  // We maintain 16-byte alignment at calls. There is an 8-byte return address
-  // on the stack and we push 56 bytes which maintains 16-byte stack alignment
-  // at the call.
-  // Source: https://github.com/hjl-tools/x86-psABI/wiki/x86-64-psABI-1.0.pdf
+// We maintain 16-byte alignment at calls. There is an 8-byte return address
+// on the stack and we push 56 bytes which maintains 16-byte stack alignment
+// at the call.
+// Source: https://github.com/hjl-tools/x86-psABI/wiki/x86-64-psABI-1.0.pdf
 asm(
 #ifdef __APPLE__
     ".globl _PushAllRegistersAndIterateStack            \n"

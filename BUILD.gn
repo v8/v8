@@ -348,7 +348,9 @@ config("libbase_config") {
 
 # This config should be applied to code using the cppgc_base.
 config("cppgc_base_config") {
-  if (is_clang) {
+  # Assume is_clang = false means GCC or other compilers that are compatible
+  # with gas inline assembly on non-Windows builds.
+  if (is_clang || !is_win) {
     if (target_cpu == "x64" || target_cpu == "x86" || target_cpu == "arm") {
       defines = [ "CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN" ]
     }
@@ -3967,13 +3969,13 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/stack.h",
   ]
 
-  if (is_clang) {
+  if (is_clang || !is_win) {
     if (target_cpu == "x64") {
-      sources += [ "src/heap/cppgc/asm/x64/push_registers_clang.cc" ]
+      sources += [ "src/heap/cppgc/asm/x64/push_registers_asm.cc" ]
     } else if (target_cpu == "x86") {
-      sources += [ "src/heap/cppgc/asm/ia32/push_registers_clang.cc" ]
+      sources += [ "src/heap/cppgc/asm/ia32/push_registers_asm.cc" ]
     } else if (target_cpu == "arm") {
-      sources += [ "src/heap/cppgc/asm/arm/push_registers_clang.cc" ]
+      sources += [ "src/heap/cppgc/asm/arm/push_registers_asm.cc" ]
     }
   }
 
