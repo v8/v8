@@ -440,8 +440,12 @@ void Map::MapVerify(Isolate* isolate) {
     if (GetBackPointer().IsUndefined(isolate)) {
       // Root maps must not have descriptors in the descriptor array that do not
       // belong to the map.
-      CHECK_EQ(NumberOfOwnDescriptors(),
-               instance_descriptors().number_of_descriptors());
+      int nof = instance_descriptors().number_of_descriptors();
+      if (is_prototype_map()) {
+        CHECK(base::IsInRange(NumberOfOwnDescriptors(), 0, nof));
+      } else {
+        CHECK_EQ(NumberOfOwnDescriptors(), nof);
+      }
     } else {
       // If there is a parent map it must be non-stable.
       Map parent = Map::cast(GetBackPointer());
