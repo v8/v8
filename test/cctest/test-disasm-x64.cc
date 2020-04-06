@@ -435,6 +435,8 @@ TEST(DisasmX64) {
 
     __ ucomisd(xmm0, xmm1);
 
+    __ pmovmskb(rdx, xmm9);
+
     __ pcmpeqd(xmm1, xmm0);
 
     __ punpckldq(xmm1, xmm11);
@@ -650,6 +652,7 @@ TEST(DisasmX64) {
       __ vmovupd(xmm0, Operand(rbx, rcx, times_4, 10000));
       __ vmovupd(Operand(rbx, rcx, times_4, 10000), xmm0);
       __ vmovmskpd(r9, xmm4);
+      __ vpmovmskb(r10, xmm9);
 
       __ vmovups(xmm5, xmm1);
       __ vmovups(xmm5, Operand(rdx, 4));

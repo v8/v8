@@ -2730,6 +2730,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4UConvertI16x8Low)  \
   V(I32x4UConvertI16x8High) \
   V(I32x4Abs)               \
+  V(I32x4BitMask)           \
   V(I16x8SConvertI8x16Low)  \
   V(I16x8SConvertI8x16High) \
   V(I16x8Neg)               \
@@ -2738,6 +2739,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8Abs)               \
   V(I8x16Neg)               \
   V(I8x16Abs)               \
+  V(I8x16BitMask)           \
   V(S128Not)
 
 #define SIMD_SHIFT_OPCODES(V) \
@@ -3031,6 +3033,13 @@ void InstructionSelector::VisitI16x8UConvertI32x4(Node* node) {
   X64OperandGenerator g(this);
   Emit(kX64I16x8UConvertI32x4, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitI16x8BitMask(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  Emit(kX64I16x8BitMask, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {
