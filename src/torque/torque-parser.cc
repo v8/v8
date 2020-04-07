@@ -1831,6 +1831,10 @@ struct TorqueGrammar : Grammar {
         }
         continue;
       }
+      if (MatchString("/*", pos)) {
+        while (!MatchString("*/", pos)) ++*pos;
+        continue;
+      }
       return true;
     }
   }
