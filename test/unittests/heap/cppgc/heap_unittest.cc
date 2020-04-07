@@ -48,11 +48,21 @@ TEST_F(GCHeapTest, PreciseGCReclaimsObjectOnStack) {
   EXPECT_EQ(1u, Foo::destructor_callcount);
 }
 
+namespace {
+
+const void* ConservativeGCReturningObject(cppgc::Heap* heap,
+                                          const void* volatile object) {
+  internal::Heap::From(heap)->CollectGarbage(
+      {Heap::GCConfig::StackState::kNonEmpty});
+  return object;
+}
+
+}  // namespace
+
 TEST_F(GCHeapTest, ConservaitveGCRetainsObjectOnStack) {
-  Foo* volatile do_not_access = MakeGarbageCollected<Foo>(GetHeap());
-  USE(do_not_access);
+  Foo* volatile object = MakeGarbageCollected<Foo>(GetHeap());
   EXPECT_EQ(0u, Foo::destructor_callcount);
-  ConservativeGC();
+  EXPECT_EQ(object, ConservativeGCReturningObject(GetHeap(), object));
   EXPECT_EQ(0u, Foo::destructor_callcount);
   PreciseGC();
   EXPECT_EQ(1u, Foo::destructor_callcount);
