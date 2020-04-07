@@ -3,15 +3,20 @@
 // found in the LICENSE file.
 
 #include "src/heap/cppgc/visitor.h"
+#include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/trace-trait.h"
 #include "src/base/macros.h"
+#include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cppgc {
 namespace internal {
 
 namespace {
+
+class TraceTraitTest : public testing::TestSupportingAllocationOnly {};
+class VisitorTest : public testing::TestSupportingAllocationOnly {};
 
 class GCed : public GarbageCollected<GCed> {
  public:
@@ -62,71 +67,83 @@ class DispatchingVisitor final : public VisitorBase {
 
 }  // namespace
 
-TEST(TraceTraitTest, GetObjectStartGCed) {
-  GCed gced;
-  EXPECT_EQ(&gced,
-            TraceTrait<GCed>::GetTraceDescriptor(&gced).base_object_payload);
+TEST_F(TraceTraitTest, GetObjectStartGCed) {
+  auto* gced = MakeGarbageCollected<GCed>(GetHeap());
+  EXPECT_EQ(gced,
+            TraceTrait<GCed>::GetTraceDescriptor(gced).base_object_payload);
 }
 
-TEST(TraceTraitTest, GetObjectStartGCedMixin) {
-  GCedMixinApplication gced_mixin_app;
-  GCedMixin* gced_mixin = static_cast<GCedMixin*>(&gced_mixin_app);
-  EXPECT_EQ(&gced_mixin_app,
+TEST_F(TraceTraitTest, GetObjectStartGCedMixin) {
+  auto* gced_mixin_app = MakeGarbageCollected<GCedMixinApplication>(GetHeap());
+  auto* gced_mixin = static_cast<GCedMixin*>(gced_mixin_app);
+  EXPECT_EQ(gced_mixin_app,
             TraceTrait<GCedMixin>::GetTraceDescriptor(gced_mixin)
                 .base_object_payload);
 }
 
-TEST(TraceTraitTest, TraceGCed) {
-  GCed gced;
+TEST_F(TraceTraitTest, TraceGCed) {
+  auto* gced = MakeGarbageCollected<GCed>(GetHeap());
   EXPECT_EQ(0u, GCed::trace_callcount);
-  TraceTrait<GCed>::Trace(nullptr, &gced);
+  TraceTrait<GCed>::Trace(nullptr, gced);
   EXPECT_EQ(1u, GCed::trace_callcount);
 }
 
-TEST(TraceTraitTest, TraceGCedMixin) {
-  GCedMixinApplication gced_mixin_app;
-  GCedMixin* gced_mixin = static_cast<GCedMixin*>(&gced_mixin_app);
+TEST_F(TraceTraitTest, TraceGCedMixin) {
+  auto* gced_mixin_app = MakeGarbageCollected<GCedMixinApplication>(GetHeap());
+  auto* gced_mixin = static_cast<GCedMixin*>(gced_mixin_app);
   EXPECT_EQ(0u, GCed::trace_callcount);
   TraceTrait<GCedMixin>::Trace(nullptr, gced_mixin);
   EXPECT_EQ(1u, GCed::trace_callcount);
 }
 
-TEST(TraceTraitTest, TraceGCedThroughTraceDescriptor) {
-  GCed gced;
+TEST_F(TraceTraitTest, TraceGCedThroughTraceDescriptor) {
+  auto* gced = MakeGarbageCollected<GCed>(GetHeap());
   EXPECT_EQ(0u, GCed::trace_callcount);
-  TraceDescriptor desc = TraceTrait<GCed>::GetTraceDescriptor(&gced);
+  TraceDescriptor desc = TraceTrait<GCed>::GetTraceDescriptor(gced);
   desc.callback(nullptr, desc.base_object_payload);
   EXPECT_EQ(1u, GCed::trace_callcount);
 }
 
-TEST(TraceTraitTest, TraceGCedMixinThroughTraceDescriptor) {
-  GCedMixinApplication gced_mixin_app;
-  GCedMixin* gced_mixin = static_cast<GCedMixin*>(&gced_mixin_app);
+TEST_F(TraceTraitTest, TraceGCedMixinThroughTraceDescriptor) {
+  auto* gced_mixin_app = MakeGarbageCollected<GCedMixinApplication>(GetHeap());
+  auto* gced_mixin = static_cast<GCedMixin*>(gced_mixin_app);
   EXPECT_EQ(0u, GCed::trace_callcount);
   TraceDescriptor desc = TraceTrait<GCedMixin>::GetTraceDescriptor(gced_mixin);
   desc.callback(nullptr, desc.base_object_payload);
   EXPECT_EQ(1u, GCed::trace_callcount);
 }
 
-TEST(VisitorTest, DispatchTraceGCed) {
-  GCed gced;
-  Member<GCed> ref(&gced);
-  DispatchingVisitor visitor(&gced, &gced);
+namespace {
+
+template <typename T>
+class MemberHolder final : public GarbageCollected<MemberHolder<T>> {
+ public:
+  void Trace(Visitor* visitor) { visitor->Trace(ref); }
+  Member<T> ref;
+};
+
+}  // namespace
+
+TEST_F(VisitorTest, DispatchTraceGCed) {
+  auto* gced = MakeGarbageCollected<GCed>(GetHeap());
+  auto* holder = MakeGarbageCollected<MemberHolder<GCed>>(GetHeap());
+  holder->ref = gced;
+  DispatchingVisitor visitor(gced, gced);
   EXPECT_EQ(0u, GCed::trace_callcount);
-  visitor.Trace(ref);
+  visitor.Trace(holder->ref);
   EXPECT_EQ(1u, GCed::trace_callcount);
 }
 
-TEST(VisitorTest, DispatchTraceGCedMixin) {
-  GCedMixinApplication gced_mixin_app;
-  GCedMixin* gced_mixin = static_cast<GCedMixin*>(&gced_mixin_app);
+TEST_F(VisitorTest, DispatchTraceGCedMixin) {
+  auto* gced_mixin_app = MakeGarbageCollected<GCedMixinApplication>(GetHeap());
+  auto* gced_mixin = static_cast<GCedMixin*>(gced_mixin_app);
   // Ensure that we indeed test dispatching an inner object.
-  EXPECT_NE(static_cast<void*>(&gced_mixin_app),
-            static_cast<void*>(gced_mixin));
-  Member<GCedMixin> ref(gced_mixin);
-  DispatchingVisitor visitor(gced_mixin, &gced_mixin_app);
+  EXPECT_NE(static_cast<void*>(gced_mixin_app), static_cast<void*>(gced_mixin));
+  auto* holder = MakeGarbageCollected<MemberHolder<GCedMixin>>(GetHeap());
+  holder->ref = gced_mixin;
+  DispatchingVisitor visitor(gced_mixin, gced_mixin_app);
   EXPECT_EQ(0u, GCed::trace_callcount);
-  visitor.Trace(ref);
+  visitor.Trace(holder->ref);
   EXPECT_EQ(1u, GCed::trace_callcount);
 }
 

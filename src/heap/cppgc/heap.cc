@@ -49,7 +49,17 @@ class StackMarker final : public StackVisitor {
 Heap::Heap()
     : stack_(std::make_unique<Stack>(v8::base::Stack::GetStackStart())) {}
 
+Heap::~Heap() {
+  for (HeapObjectHeader* header : objects_) {
+    header->Finalize();
+    free(header);
+  }
+}
+
 void Heap::CollectGarbage(GCConfig config) {
+  // No GC calls when in NoGCScope.
+  CHECK(!in_no_gc_scope());
+
   // TODO(chromium:1056170): Replace with proper mark-sweep algorithm.
   // "Marking".
   if (NeedsConservativeStackScan(config)) {
@@ -69,6 +79,10 @@ void Heap::CollectGarbage(GCConfig config) {
     }
   }
 }
+
+Heap::NoGCScope::NoGCScope(Heap* heap) : heap_(heap) { heap_->no_gc_scope_++; }
+
+Heap::NoGCScope::~NoGCScope() { heap_->no_gc_scope_--; }
 
 }  // namespace internal
 }  // namespace cppgc

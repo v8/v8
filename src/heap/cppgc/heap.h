@@ -19,6 +19,15 @@ class Stack;
 
 class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
  public:
+  class V8_EXPORT_PRIVATE NoGCScope final {
+   public:
+    explicit NoGCScope(Heap* heap);
+    ~NoGCScope();
+
+   private:
+    Heap* heap_;
+  };
+
   struct GCConfig {
     enum class StackState : uint8_t {
       kEmpty,
@@ -33,15 +42,19 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   static Heap* From(cppgc::Heap* heap) { return static_cast<Heap*>(heap); }
 
   Heap();
-  ~Heap() final = default;
+  ~Heap() final;
 
   inline void* Allocate(size_t size, GCInfoIndex index);
 
   void CollectGarbage(GCConfig config = GCConfig::Default());
 
  private:
+  bool in_no_gc_scope() { return no_gc_scope_ > 0; }
+
   std::unique_ptr<Stack> stack_;
   std::vector<HeapObjectHeader*> objects_;
+
+  size_t no_gc_scope_ = 0;
 };
 
 }  // namespace internal

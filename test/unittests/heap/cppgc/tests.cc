@@ -4,6 +4,8 @@
 
 #include "test/unittests/heap/cppgc/tests.h"
 
+#include <memory>
+
 namespace cppgc {
 namespace testing {
 
@@ -12,7 +14,7 @@ std::unique_ptr<cppgc::PageAllocator> TestWithPlatform::page_allocator_;
 
 // static
 void TestWithPlatform::SetUpTestSuite() {
-  page_allocator_.reset(new v8::base::PageAllocator());
+  page_allocator_ = std::make_unique<v8::base::PageAllocator>();
   cppgc::InitializePlatform(page_allocator_.get());
 }
 
@@ -22,15 +24,11 @@ void TestWithPlatform::TearDownTestSuite() {
   page_allocator_.reset();
 }
 
-void TestWithHeap::SetUp() {
-  heap_ = Heap::Create();
-  TestWithPlatform::SetUp();
-}
+TestWithHeap::TestWithHeap() : heap_(Heap::Create()) {}
 
-void TestWithHeap::TearDown() {
-  heap_.reset();
-  TestWithPlatform::TearDown();
-}
+TestSupportingAllocationOnly::TestSupportingAllocationOnly()
+    : no_gc_scope_(std::make_unique<internal::Heap::NoGCScope>(
+          internal::Heap::From(GetHeap()))) {}
 
 }  // namespace testing
 }  // namespace cppgc

@@ -8,6 +8,7 @@
 #include "include/cppgc/heap.h"
 #include "include/cppgc/platform.h"
 #include "src/base/page-allocator.h"
+#include "src/heap/cppgc/heap.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cppgc {
@@ -24,13 +25,24 @@ class TestWithPlatform : public ::testing::Test {
 
 class TestWithHeap : public TestWithPlatform {
  protected:
-  void SetUp() override;
-  void TearDown() override;
+  TestWithHeap();
 
   Heap* GetHeap() const { return heap_.get(); }
 
  private:
   std::unique_ptr<cppgc::Heap> heap_;
+};
+
+// Restrictive test fixture that supports allocation but will make sure no
+// garbage collection is triggered. This is useful for writing idiomatic
+// tests where object are allocated on the managed heap while still avoiding
+// far reaching test consquences of full garbage collection calls.
+class TestSupportingAllocationOnly : public TestWithHeap {
+ protected:
+  TestSupportingAllocationOnly();
+
+ private:
+  std::unique_ptr<cppgc::internal::Heap::NoGCScope> no_gc_scope_;
 };
 
 }  // namespace testing

@@ -37,12 +37,8 @@ class GCWithMergedMixins : public GCed, public MergedMixins {
   void Trace(cppgc::Visitor* visitor) override { MergedMixins::Trace(visitor); }
 };
 
-class GarbageCollectedTestWithHeap : public testing::TestWithHeap {
-  void TearDown() override {
-    internal::Heap::From(GetHeap())->CollectGarbage();
-    TestWithHeap::TearDown();
-  }
-};
+class GarbageCollectedTestWithHeap
+    : public testing::TestSupportingAllocationOnly {};
 
 }  // namespace
 
@@ -66,8 +62,6 @@ TEST(GarbageCollectedTest, GarbageCollectedMixinTrait) {
   STATIC_ASSERT(IsGarbageCollectedMixinType<GCWithMergedMixins>::value);
 }
 
-#ifdef CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
-
 TEST_F(GarbageCollectedTestWithHeap, GetObjectStartReturnsCorrentAddress) {
   GCed* gced = MakeGarbageCollected<GCed>(GetHeap());
   GCedWithMixin* gced_with_mixin =
@@ -79,8 +73,6 @@ TEST_F(GarbageCollectedTestWithHeap, GetObjectStartReturnsCorrentAddress) {
                       ->GetTraceDescriptor()
                       .base_object_payload);
 }
-
-#endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
 
 }  // namespace internal
 }  // namespace cppgc
