@@ -39,19 +39,23 @@ size_t Foo::destructor_callcount;
 }  // namespace
 
 TEST_F(GCHeapTest, PreciseGCReclaimsObjectOnStack) {
-  Foo* volatile do_not_acces = MakeGarbageCollected<Foo>(GetHeap());
-  USE(do_not_acces);
+  Foo* volatile do_not_access = MakeGarbageCollected<Foo>(GetHeap());
+  USE(do_not_access);
   EXPECT_EQ(0u, Foo::destructor_callcount);
+  PreciseGC();
+  EXPECT_EQ(1u, Foo::destructor_callcount);
   PreciseGC();
   EXPECT_EQ(1u, Foo::destructor_callcount);
 }
 
 TEST_F(GCHeapTest, ConservaitveGCRetainsObjectOnStack) {
-  Foo* volatile do_not_acces = MakeGarbageCollected<Foo>(GetHeap());
-  USE(do_not_acces);
+  Foo* volatile do_not_access = MakeGarbageCollected<Foo>(GetHeap());
+  USE(do_not_access);
   EXPECT_EQ(0u, Foo::destructor_callcount);
   ConservativeGC();
   EXPECT_EQ(0u, Foo::destructor_callcount);
+  PreciseGC();
+  EXPECT_EQ(1u, Foo::destructor_callcount);
   PreciseGC();
   EXPECT_EQ(1u, Foo::destructor_callcount);
 }

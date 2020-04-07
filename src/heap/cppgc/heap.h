@@ -40,8 +40,6 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   void CollectGarbage(GCConfig config = GCConfig::Default());
 
  private:
-  GCConfig current_config_;
-
   std::unique_ptr<Stack> stack_;
   std::vector<HeapObjectHeader*> objects_;
 };

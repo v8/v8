@@ -50,20 +50,22 @@ Heap::Heap()
     : stack_(std::make_unique<Stack>(v8::base::Stack::GetStackStart())) {}
 
 void Heap::CollectGarbage(GCConfig config) {
-  current_config_ = config;
   // TODO(chromium:1056170): Replace with proper mark-sweep algorithm.
   // "Marking".
-  if (NeedsConservativeStackScan(current_config_)) {
+  if (NeedsConservativeStackScan(config)) {
     StackMarker marker(objects_);
     stack_->IteratePointers(&marker);
   }
   // "Sweeping and finalization".
-  for (HeapObjectHeader* header : objects_) {
+  for (auto it = objects_.begin(); it != objects_.end();) {
+    HeapObjectHeader* header = *it;
     if (header->IsMarked()) {
       header->Unmark();
+      ++it;
     } else {
       header->Finalize();
       free(header);
+      it = objects_.erase(it);
     }
   }
 }
