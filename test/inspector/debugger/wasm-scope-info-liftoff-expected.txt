@@ -17,14 +17,12 @@ at C (interpreted) (0:85):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 0 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at B (liftoff) (0:76):
  - scope (global):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
-   stack: "0": 42 (number), "1": 3 (number)
  - scope (wasm-expression-stack):
    0: 42 (number)
    1: 3 (number)
@@ -33,7 +31,6 @@ at A (liftoff) (0:54):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 42 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -47,7 +44,6 @@ at C (interpreted) (0:87):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 0 (number)
-   stack: "0": 42 (number)
  - scope (wasm-expression-stack):
    0: 42 (number)
 at B (liftoff) (0:76):
@@ -55,7 +51,6 @@ at B (liftoff) (0:76):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
-   stack: "0": 42 (number), "1": 3 (number)
  - scope (wasm-expression-stack):
    0: 42 (number)
    1: 3 (number)
@@ -64,7 +59,6 @@ at A (liftoff) (0:54):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 42 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -78,14 +72,12 @@ at C (interpreted) (0:89):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 0 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at B (liftoff) (0:76):
  - scope (global):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
-   stack: "0": 42 (number), "1": 3 (number)
  - scope (wasm-expression-stack):
    0: 42 (number)
    1: 3 (number)
@@ -94,7 +86,6 @@ at A (liftoff) (0:54):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "var0": 42 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -108,7 +99,6 @@ at C (interpreted) (0:91):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 0 (number)
-   stack: "0": 47 (number)
  - scope (wasm-expression-stack):
    0: 47 (number)
 at B (liftoff) (0:76):
@@ -116,7 +106,6 @@ at B (liftoff) (0:76):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
-   stack: "0": 42 (number), "1": 3 (number)
  - scope (wasm-expression-stack):
    0: 42 (number)
    1: 3 (number)
@@ -125,7 +114,6 @@ at A (liftoff) (0:54):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "var0": 42 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -139,14 +127,12 @@ at C (interpreted) (0:93):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 47 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at B (liftoff) (0:76):
  - scope (global):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
-   stack: "0": 42 (number), "1": 3 (number)
  - scope (wasm-expression-stack):
    0: 42 (number)
    1: 3 (number)
@@ -155,7 +141,6 @@ at A (liftoff) (0:54):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "var0": 42 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -169,7 +154,6 @@ at B (liftoff) (0:78):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
-   stack: "0": 42 (number), "1": 3 (number)
  - scope (wasm-expression-stack):
    0: 42 (number)
    1: 3 (number)
@@ -178,7 +162,6 @@ at A (liftoff) (0:54):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "var0": 42 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -192,7 +175,6 @@ at B (liftoff) (0:79):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
-   stack: "0": 42 (number)
  - scope (wasm-expression-stack):
    0: 42 (number)
 at A (liftoff) (0:54):
@@ -200,7 +182,6 @@ at A (liftoff) (0:54):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "var0": 42 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -214,14 +195,12 @@ at B (liftoff) (0:80):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at A (liftoff) (0:54):
  - scope (global):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "var0": 42 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -235,7 +214,6 @@ at A (liftoff) (0:56):
    globals: "global0": 42 (number)
  - scope (local):
    locals: "var0": 42 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):

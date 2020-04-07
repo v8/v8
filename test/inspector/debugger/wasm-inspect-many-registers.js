@@ -37,18 +37,22 @@ Protocol.Debugger.onPaused(async msg => {
   // Inspect only the top wasm frame.
   var frame = msg.params.callFrames[0];
   for (var scope of frame.scopeChain) {
-    if (scope.type != 'local') continue;
+    if (scope.type == 'global') continue;
     var scope_properties =
         await Protocol.Runtime.getProperties({objectId: scope.object.objectId});
-    for (var value of scope_properties.result.result) {
-      let msg = await Protocol.Runtime.getProperties(
+    if (scope.type == 'local') {
+      for (var value of scope_properties.result.result) {
+        let msg = await Protocol.Runtime.getProperties(
           {objectId: value.value.objectId});
-      let str = msg.result.result.map(elem => elem.value.value).join(', ');
-      line.push(`${value.name} : [${str}]`);
+        let str = msg.result.result.map(elem => elem.value.value).join(', ');
+        line.push(`${value.name}: [${str}]`);
+      }
+    } else {
+      let str = scope_properties.result.result.map(elem => elem.value.value).join(', ');
+      line.push(`${scope.type}: [${str}]`);
     }
-    InspectorTest.log(line.join('; '));
   }
-
+  InspectorTest.log(line.join('; '));
   Protocol.Debugger.resume();
 });
 

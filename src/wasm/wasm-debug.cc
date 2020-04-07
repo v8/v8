@@ -418,24 +418,6 @@ class InterpreterHandle {
             .Check();
       }
     }
-
-    // Fill stack values.
-    int stack_count = frame->GetStackHeight();
-    // Use an object without prototype instead of an Array, for nicer displaying
-    // in DevTools. For Arrays, the length field and prototype is displayed,
-    // which does not make too much sense here.
-    Handle<JSObject> stack_obj =
-        isolate_->factory()->NewJSObjectWithNullProto();
-    Handle<String> stack_name =
-        isolate_->factory()->InternalizeString(StaticCharVector("stack"));
-    JSObject::AddProperty(isolate, local_scope_object, stack_name, stack_obj,
-                          NONE);
-    for (int i = 0; i < stack_count; ++i) {
-      WasmValue value = frame->GetStackValue(i);
-      Handle<Object> value_obj = WasmValueToValueObject(isolate_, value);
-      JSObject::AddDataElement(stack_obj, static_cast<uint32_t>(i), value_obj,
-                               NONE);
-    }
     return local_scope_object;
   }
 
@@ -615,23 +597,6 @@ class DebugInfoImpl {
                                 StoreOrigin::kNamed)
             .Check();
       }
-    }
-
-    // Fill stack values.
-    // Use an object without prototype instead of an Array, for nicer displaying
-    // in DevTools. For Arrays, the length field and prototype is displayed,
-    // which does not make too much sense here.
-    Handle<JSObject> stack_obj = isolate->factory()->NewJSObjectWithNullProto();
-    Handle<String> stack_name =
-        isolate->factory()->InternalizeString(StaticCharVector("stack"));
-    JSObject::AddProperty(isolate, local_scope_object, stack_name, stack_obj,
-                          NONE);
-    int value_count = debug_side_table_entry->num_values();
-    for (int i = num_locals; i < value_count; ++i) {
-      WasmValue value = GetValue(debug_side_table_entry, i, fp, debug_break_fp);
-      Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
-      JSObject::AddDataElement(stack_obj, static_cast<uint32_t>(i - num_locals),
-                               value_obj, NONE);
     }
     return local_scope_object;
   }

@@ -16,14 +16,12 @@ at func (0:69):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 4 (number), "var1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at call_func (0:58):
  - scope (global):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -37,7 +35,6 @@ at func (0:71):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 4 (number), "var1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
-   stack: "0": 11 (number)
  - scope (wasm-expression-stack):
    0: 11 (number)
 at call_func (0:58):
@@ -45,7 +42,6 @@ at call_func (0:58):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -59,14 +55,12 @@ at func (0:73):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at call_func (0:58):
  - scope (global):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -80,7 +74,6 @@ at func (0:75):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
-   stack: "0": 47 (number)
  - scope (wasm-expression-stack):
    0: 47 (number)
 at call_func (0:58):
@@ -88,7 +81,6 @@ at call_func (0:58):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -102,14 +94,12 @@ at func (0:77):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at call_func (0:58):
  - scope (global):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -123,7 +113,6 @@ at func (0:88):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
-   stack: "0": 9223372036854775807 (string)
  - scope (wasm-expression-stack):
    0: 9223372036854775807 (string)
 at call_func (0:58):
@@ -131,7 +120,6 @@ at call_func (0:58):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -145,14 +133,12 @@ at func (0:90):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": 9223372036854775807 (string), "unicode☼f64": 0 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at call_func (0:58):
  - scope (global):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -166,7 +152,6 @@ at func (0:101):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": 9223372036854775807 (string), "unicode☼f64": 0 (number)
-   stack: "0": -9223372036854775808 (string)
  - scope (wasm-expression-stack):
    0: -9223372036854775808 (string)
 at call_func (0:58):
@@ -174,7 +159,6 @@ at call_func (0:58):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -188,14 +172,12 @@ at func (0:103):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at call_func (0:58):
  - scope (global):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -209,7 +191,6 @@ at func (0:105):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
-   stack: "0": 1 (number)
  - scope (wasm-expression-stack):
    0: 1 (number)
 at call_func (0:58):
@@ -217,7 +198,6 @@ at call_func (0:58):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -231,7 +211,6 @@ at func (0:106):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
-   stack: "0": 1 (number)
  - scope (wasm-expression-stack):
    0: 1 (number)
 at call_func (0:58):
@@ -239,7 +218,6 @@ at call_func (0:58):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -253,7 +231,6 @@ at func (0:108):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
-   stack: "0": 1 (number), "1": 7 (number)
  - scope (wasm-expression-stack):
    0: 1 (number)
    1: 7 (number)
@@ -262,7 +239,6 @@ at call_func (0:58):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -276,7 +252,6 @@ at func (0:109):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
-   stack: "0": 1 (number), "1": 7 (number)
  - scope (wasm-expression-stack):
    0: 1 (number)
    1: 7 (number)
@@ -285,7 +260,6 @@ at call_func (0:58):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -299,7 +273,6 @@ at func (0:110):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
-   stack: "0": 0.14285714285714285 (number)
  - scope (wasm-expression-stack):
    0: 0.14285714285714285 (number)
 at call_func (0:58):
@@ -307,7 +280,6 @@ at call_func (0:58):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -321,14 +293,12 @@ at func (0:112):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0.14285714285714285 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at call_func (0:58):
  - scope (global):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -342,7 +312,6 @@ at func (0:114):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0.14285714285714285 (number)
-   stack: "0": 15 (number)
  - scope (wasm-expression-stack):
    0: 15 (number)
 at call_func (0:58):
@@ -350,7 +319,6 @@ at call_func (0:58):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -364,14 +332,12 @@ at func (0:116):
    globals: "global0": 15 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0.14285714285714285 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at call_func (0:58):
  - scope (global):
    globals: "global0": 15 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -385,7 +351,6 @@ at call_func (0:60):
    globals: "global0": 15 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
