@@ -644,6 +644,10 @@ class DebugInfoImpl {
 
   void RecompileLiftoffWithBreakpoints(int func_index, Vector<int> offsets,
                                        Isolate* current_isolate) {
+    // During compilation, we cannot hold the lock, since compilation takes the
+    // {NativeModule} lock, which could lead to deadlocks.
+    mutex_.AssertUnheld();
+
     if (func_index == flooded_function_index_) {
       // We should not be flooding a function that is already flooded.
       DCHECK(!(offsets.size() == 1 && offsets[0] == 0));
@@ -685,33 +689,37 @@ class DebugInfoImpl {
   }
 
   void SetBreakpoint(int func_index, int offset, Isolate* current_isolate) {
-    // Hold the mutex while setting the breakpoint. This guards against multiple
-    // isolates setting breakpoints at the same time. We don't really support
-    // that scenario yet, but concurrently compiling and installing different
-    // Liftoff variants of a function would be problematic.
-    base::MutexGuard guard(&mutex_);
+    std::vector<int> breakpoints_copy;
+    {
+      // Hold the mutex while modifying the set of breakpoints, but release it
+      // before compiling the new code (see comment in
+      // {RecompileLiftoffWithBreakpoints}). This needs to be revisited once we
+      // support setting different breakpoints in different isolates
+      // (https://crbug.com/v8/10351).
+      base::MutexGuard guard(&mutex_);
 
-    // offset == 0 indicates flooding and should not happen here.
-    DCHECK_NE(0, offset);
+      // offset == 0 indicates flooding and should not happen here.
+      DCHECK_NE(0, offset);
 
-    std::vector<int>& breakpoints = breakpoints_per_function_[func_index];
-    auto insertion_point =
-        std::lower_bound(breakpoints.begin(), breakpoints.end(), offset);
-    if (insertion_point != breakpoints.end() && *insertion_point == offset) {
-      // The breakpoint is already set.
-      return;
+      std::vector<int>& breakpoints = breakpoints_per_function_[func_index];
+      auto insertion_point =
+          std::lower_bound(breakpoints.begin(), breakpoints.end(), offset);
+      if (insertion_point != breakpoints.end() && *insertion_point == offset) {
+        // The breakpoint is already set.
+        return;
+      }
+      breakpoints.insert(insertion_point, offset);
+
+      // No need to recompile if the function is already flooded.
+      if (func_index == flooded_function_index_) return;
+      breakpoints_copy = breakpoints;
     }
-    breakpoints.insert(insertion_point, offset);
 
-    // No need to recompile if the function is already flooded.
-    if (func_index == flooded_function_index_) return;
-
-    RecompileLiftoffWithBreakpoints(func_index, VectorOf(breakpoints),
+    RecompileLiftoffWithBreakpoints(func_index, VectorOf(breakpoints_copy),
                                     current_isolate);
   }
 
   void FloodWithBreakpoints(int func_index, Isolate* current_isolate) {
-    base::MutexGuard guard(&mutex_);
     // 0 is an invalid offset used to indicate flooding.
     int offset = 0;
     RecompileLiftoffWithBreakpoints(func_index, Vector<int>(&offset, 1),
@@ -756,18 +764,23 @@ class DebugInfoImpl {
 
   void RemoveBreakpoint(int func_index, int position,
                         Isolate* current_isolate) {
-    base::MutexGuard guard(&mutex_);
-    const auto& function = native_module_->module()->functions[func_index];
-    int offset = position - function.code.offset();
+    std::vector<int> breakpoints_copy;
+    {
+      base::MutexGuard guard(&mutex_);
+      const auto& function = native_module_->module()->functions[func_index];
+      int offset = position - function.code.offset();
 
-    std::vector<int>& breakpoints = breakpoints_per_function_[func_index];
-    DCHECK_LT(0, offset);
-    auto insertion_point =
-        std::lower_bound(breakpoints.begin(), breakpoints.end(), offset);
-    if (insertion_point != breakpoints.end() && *insertion_point == offset) {
+      std::vector<int>& breakpoints = breakpoints_per_function_[func_index];
+      DCHECK_LT(0, offset);
+      auto insertion_point =
+          std::lower_bound(breakpoints.begin(), breakpoints.end(), offset);
+      if (insertion_point == breakpoints.end()) return;
+      if (*insertion_point != offset) return;
       breakpoints.erase(insertion_point);
+      if (func_index == flooded_function_index_) return;
+      breakpoints_copy = breakpoints;
     }
-    RecompileLiftoffWithBreakpoints(func_index, VectorOf(breakpoints),
+    RecompileLiftoffWithBreakpoints(func_index, VectorOf(breakpoints_copy),
                                     current_isolate);
   }
 
@@ -781,9 +794,13 @@ class DebugInfoImpl {
  private:
   const DebugSideTable* GetDebugSideTable(WasmCode* code,
                                           AccountingAllocator* allocator) {
-    base::MutexGuard guard(&mutex_);
-    if (auto& existing_table = debug_side_tables_[code]) {
-      return existing_table.get();
+    {
+      // Only hold the mutex temporarily. We can't hold it while generating the
+      // debug side table, because compilation takes the {NativeModule} lock.
+      base::MutexGuard guard(&mutex_);
+      if (auto& existing_table = debug_side_tables_[code]) {
+        return existing_table.get();
+      }
     }
 
     // Otherwise create the debug side table now.
@@ -799,7 +816,10 @@ class DebugInfoImpl {
     DebugSideTable* ret = debug_side_table.get();
 
     // Install into cache and return.
-    debug_side_tables_[code] = std::move(debug_side_table);
+    {
+      base::MutexGuard guard(&mutex_);
+      debug_side_tables_[code] = std::move(debug_side_table);
+    }
     return ret;
   }
 
