@@ -202,7 +202,7 @@ Heap::Heap()
     : isolate_(isolate()),
       memory_pressure_level_(MemoryPressureLevel::kNone),
       global_pretenuring_feedback_(kInitialFeedbackCapacity),
-      safepoint_(new Safepoint(this)),
+      safepoint_(new GlobalSafepoint(this)),
       external_string_table_(this) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size_ & (Page::kPageSize - 1));

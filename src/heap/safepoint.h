@@ -17,9 +17,11 @@ class Heap;
 class LocalHeap;
 class RootVisitor;
 
-class Safepoint {
+// Used to bring all background threads with heap access to a safepoint such
+// that e.g. a garabge collection can be performed.
+class GlobalSafepoint {
  public:
-  explicit Safepoint(Heap* heap);
+  explicit GlobalSafepoint(Heap* heap);
 
   // Enter the safepoint from a thread
   void EnterFromThread(LocalHeap* local_heap);
@@ -75,7 +77,7 @@ class SafepointScope {
   V8_EXPORT_PRIVATE ~SafepointScope();
 
  private:
-  Safepoint* safepoint_;
+  GlobalSafepoint* safepoint_;
 };
 
 }  // namespace internal

@@ -66,6 +66,7 @@ class ConcurrentMarking;
 class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
 class GCTracer;
+class GlobalSafepoint;
 class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
 class HeapStats;
@@ -83,7 +84,6 @@ class Page;
 class PagedSpace;
 class ReadOnlyHeap;
 class RootVisitor;
-class Safepoint;
 class ScavengeJob;
 class Scavenger;
 class ScavengerCollector;
@@ -620,7 +620,7 @@ class Heap {
   void AppendArrayBufferExtension(JSArrayBuffer object,
                                   ArrayBufferExtension* extension);
 
-  Safepoint* safepoint() { return safepoint_.get(); }
+  GlobalSafepoint* safepoint() { return safepoint_.get(); }
 
   V8_EXPORT_PRIVATE double MonotonicallyIncreasingTimeInMs();
 
@@ -2166,7 +2166,7 @@ class Heap {
   GCCallbackFlags current_gc_callback_flags_ =
       GCCallbackFlags::kNoGCCallbackFlags;
 
-  std::unique_ptr<Safepoint> safepoint_;
+  std::unique_ptr<GlobalSafepoint> safepoint_;
 
   bool is_current_gc_forced_ = false;
 

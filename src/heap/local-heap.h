@@ -11,6 +11,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/execution/isolate.h"
+#include "src/heap/safepoint.h"
 
 namespace v8 {
 namespace internal {
@@ -78,7 +79,7 @@ class LocalHeap {
   std::unique_ptr<PersistentHandles> persistent_handles_;
 
   friend class Heap;
-  friend class Safepoint;
+  friend class GlobalSafepoint;
   friend class ParkedScope;
 };
 
