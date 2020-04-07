@@ -16,19 +16,25 @@ namespace {
 
 class GCed : public GarbageCollected<GCed> {};
 class NotGCed {};
-class Mixin : public GarbageCollectedMixin {
- public:
-  using GarbageCollectedMixin::GetObjectStart;
-};
+class Mixin : public GarbageCollectedMixin {};
 class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {
   USING_GARBAGE_COLLECTED_MIXIN();
 };
 class OtherMixin : public GarbageCollectedMixin {};
 class MergedMixins : public Mixin, public OtherMixin {
   MERGE_GARBAGE_COLLECTED_MIXINS();
+
+ public:
+  void Trace(cppgc::Visitor* visitor) override {
+    Mixin::Trace(visitor);
+    OtherMixin::Trace(visitor);
+  }
 };
 class GCWithMergedMixins : public GCed, public MergedMixins {
   USING_GARBAGE_COLLECTED_MIXIN();
+
+ public:
+  void Trace(cppgc::Visitor* visitor) override { MergedMixins::Trace(visitor); }
 };
 
 class GarbageCollectedTestWithHeap : public testing::TestWithHeap {
@@ -66,9 +72,12 @@ TEST_F(GarbageCollectedTestWithHeap, GetObjectStartReturnsCorrentAddress) {
   GCed* gced = MakeGarbageCollected<GCed>(GetHeap());
   GCedWithMixin* gced_with_mixin =
       MakeGarbageCollected<GCedWithMixin>(GetHeap());
-  EXPECT_EQ(gced_with_mixin,
-            static_cast<Mixin*>(gced_with_mixin)->GetObjectStart());
-  EXPECT_NE(gced, static_cast<Mixin*>(gced_with_mixin)->GetObjectStart());
+  EXPECT_EQ(gced_with_mixin, static_cast<Mixin*>(gced_with_mixin)
+                                 ->GetTraceDescriptor()
+                                 .base_object_payload);
+  EXPECT_NE(gced, static_cast<Mixin*>(gced_with_mixin)
+                      ->GetTraceDescriptor()
+                      .base_object_payload);
 }
 
 #endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN

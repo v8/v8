@@ -6,7 +6,7 @@
 
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/member.h"
-#include "include/cppgc/type_traits.h"
+#include "include/cppgc/type-traits.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 

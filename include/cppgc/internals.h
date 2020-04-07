@@ -13,14 +13,6 @@
 namespace cppgc {
 namespace internal {
 
-// Pre-C++17 custom implementation of std::void_t.
-template <typename... Ts>
-struct make_void {
-  typedef void type;
-};
-template <typename... Ts>
-using void_t = typename make_void<Ts...>::type;
-
 // Embedders should not rely on this code!
 
 // Internal constants to avoid exposing internal types on the API surface.

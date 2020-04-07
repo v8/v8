@@ -12,6 +12,8 @@
 
 namespace cppgc {
 
+class Visitor;
+
 namespace internal {
 
 struct DijkstraWriteBarrierPolicy {
@@ -154,6 +156,8 @@ class BasicMember : private CheckingPolicy {
   }
 
   T* raw_ = nullptr;
+
+  friend class cppgc::Visitor;
 };
 
 template <typename T1, typename WeaknessTag1, typename WriteBarrierPolicy1,
