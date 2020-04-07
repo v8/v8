@@ -143,15 +143,31 @@ namespace promise {
 
   extern macro PromiseResolveThenableJobTaskMapConstant(): Map;
 
+  // https://tc39.es/ecma262/#sec-newpromiseresolvethenablejob
   macro NewPromiseResolveThenableJobTask(implicit context: Context)(
-      promiseToResolve: JSPromise, then: JSReceiver, thenable: JSReceiver,
-      thenContext: Context): PromiseResolveThenableJobTask {
+      promiseToResolve: JSPromise, thenable: JSReceiver,
+      then: Callable): PromiseResolveThenableJobTask {
+    // 2. Let getThenRealmResult be GetFunctionRealm(then).
+    // 3. If getThenRealmResult is a normal completion, then let thenRealm be
+    //    getThenRealmResult.[[Value]].
+    // 4. Otherwise, let thenRealm be null.
+    //
+    // The only cases where |thenRealm| can be null is when |then| is a revoked
+    // Proxy object, which would throw when it is called anyway. So instead of
+    // setting the context to null as the spec does, we just use the current
+    // realm.
+    const thenContext: Context = ExtractHandlerContext(then);
+    const nativeContext = LoadNativeContext(thenContext);
+
+    // 1. Let job be a new Job abstract closure with no parameters that
+    //    captures promiseToResolve, thenable, and then...
+    // 5. Return { [[Job]]: job, [[Realm]]: thenRealm }.
     return new PromiseResolveThenableJobTask{
       map: PromiseResolveThenableJobTaskMapConstant(),
-      context: thenContext,
+      context: nativeContext,
       promise_to_resolve: promiseToResolve,
-      then: then,
-      thenable: thenable
+      thenable,
+      then
     };
   }
 

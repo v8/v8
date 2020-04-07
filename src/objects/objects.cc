@@ -5983,6 +5983,7 @@ Handle<Object> JSPromise::Reject(Handle<JSPromise> promise,
                                  PromiseReaction::kReject);
 }
 
+// https://tc39.es/ecma262/#sec-promise-resolve-functions
 // static
 MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
                                        Handle<Object> resolution) {
@@ -5991,7 +5992,7 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
   isolate->RunPromiseHook(PromiseHookType::kResolve, promise,
                           isolate->factory()->undefined_value());
 
-  // 6. If SameValue(resolution, promise) is true, then
+  // 7. If SameValue(resolution, promise) is true, then
   if (promise.is_identical_to(resolution)) {
     // a. Let selfResolutionError be a newly created TypeError object.
     Handle<Object> self_resolution_error = isolate->factory()->NewTypeError(
@@ -6000,13 +6001,13 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
     return Reject(promise, self_resolution_error);
   }
 
-  // 7. If Type(resolution) is not Object, then
+  // 8. If Type(resolution) is not Object, then
   if (!resolution->IsJSReceiver()) {
     // a. Return FulfillPromise(promise, resolution).
     return Fulfill(promise, resolution);
   }
 
-  // 8. Let then be Get(resolution, "then").
+  // 9. Let then be Get(resolution, "then").
   MaybeHandle<Object> then;
   Handle<JSReceiver> receiver(Handle<JSReceiver>::cast(resolution));
 
@@ -6029,7 +6030,7 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
                                    isolate->factory()->then_string());
   }
 
-  // 9. If then is an abrupt completion, then
+  // 10. If then is an abrupt completion, then
   Handle<Object> then_action;
   if (!then.ToHandle(&then_action)) {
     // a. Return RejectPromise(promise, then.[[Value]]).
@@ -6038,19 +6039,15 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
     return Reject(promise, reason, false);
   }
 
-  // 10. Let thenAction be then.[[Value]].
-  // 11. If IsCallable(thenAction) is false, then
+  // 11. Let thenAction be then.[[Value]].
+  // 12. If IsCallable(thenAction) is false, then
   if (!then_action->IsCallable()) {
     // a. Return FulfillPromise(promise, resolution).
     return Fulfill(promise, resolution);
   }
 
-  // 12. Perform EnqueueJob("PromiseJobs", PromiseResolveThenableJob,
-  //                        «promise, resolution, thenAction»).
-
-  // According to HTML, we use the context of the then function (|thenAction|)
-  // as the context of the microtask. See step 3 of HTML's EnqueueJob:
-  // https://html.spec.whatwg.org/C/#enqueuejob(queuename,-job,-arguments)
+  // 13. Let job be NewPromiseResolveThenableJob(promise, resolution,
+  //                                             thenAction).
   Handle<NativeContext> then_context;
   if (!JSReceiver::GetContextForMicrotask(Handle<JSReceiver>::cast(then_action))
            .ToHandle(&then_context)) {
@@ -6059,8 +6056,8 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
 
   Handle<PromiseResolveThenableJobTask> task =
       isolate->factory()->NewPromiseResolveThenableJobTask(
-          promise, Handle<JSReceiver>::cast(then_action),
-          Handle<JSReceiver>::cast(resolution), then_context);
+          promise, Handle<JSReceiver>::cast(resolution),
+          Handle<JSReceiver>::cast(then_action), then_context);
   if (isolate->debug()->is_active() && resolution->IsJSPromise()) {
     // Mark the dependency of the new {promise} on the {resolution}.
     Object::SetProperty(isolate, resolution,
@@ -6071,7 +6068,7 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
   MicrotaskQueue* microtask_queue = then_context->microtask_queue();
   if (microtask_queue) microtask_queue->EnqueueMicrotask(*task);
 
-  // 13. Return undefined.
+  // 15. Return undefined.
   return isolate->factory()->undefined_value();
 }
 
