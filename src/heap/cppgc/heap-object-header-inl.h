@@ -6,7 +6,7 @@
 #define V8_HEAP_CPPGC_HEAP_OBJECT_HEADER_INL_H_
 
 #include "include/cppgc/allocation.h"
-#include "include/cppgc/gc-info.h"
+#include "include/cppgc/internal/gc-info.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"

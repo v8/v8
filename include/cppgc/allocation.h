@@ -9,9 +9,9 @@
 #include <atomic>
 
 #include "include/cppgc/garbage-collected.h"
-#include "include/cppgc/gc-info.h"
 #include "include/cppgc/heap.h"
-#include "include/cppgc/internals.h"
+#include "include/cppgc/internal/api-constants.h"
+#include "include/cppgc/internal/gc-info.h"
 
 namespace cppgc {
 

@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <atomic>
 
-#include "include/cppgc/gc-info.h"
+#include "include/cppgc/internal/gc-info.h"
 #include "src/base/bit-field.h"
 #include "src/heap/cppgc/globals.h"
 

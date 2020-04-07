@@ -8,8 +8,8 @@
 #include <memory>
 #include <vector>
 
-#include "include/cppgc/gc-info.h"
 #include "include/cppgc/heap.h"
+#include "include/cppgc/internal/gc-info.h"
 #include "src/heap/cppgc/heap-object-header.h"
 
 namespace cppgc {

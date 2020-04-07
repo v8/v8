@@ -7,7 +7,7 @@
 
 #include <type_traits>
 
-#include "include/cppgc/internals.h"
+#include "include/cppgc/internal/api-constants.h"
 #include "include/cppgc/platform.h"
 #include "include/cppgc/trace-trait.h"
 #include "include/cppgc/type-traits.h"

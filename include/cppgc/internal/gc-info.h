@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef INCLUDE_CPPGC_GC_INFO_H_
-#define INCLUDE_CPPGC_GC_INFO_H_
+#ifndef INCLUDE_CPPGC_INTERNAL_GC_INFO_H_
+#define INCLUDE_CPPGC_INTERNAL_GC_INFO_H_
 
 #include <stdint.h>
 
-#include "include/cppgc/finalizer-trait.h"
+#include "include/cppgc/internal/finalizer-trait.h"
 #include "include/v8config.h"
 
 namespace cppgc {
@@ -40,4 +40,4 @@ struct GCInfoTrait {
 }  // namespace internal
 }  // namespace cppgc
 
-#endif  // INCLUDE_CPPGC_GC_INFO_H_
+#endif  // INCLUDE_CPPGC_INTERNAL_GC_INFO_H_

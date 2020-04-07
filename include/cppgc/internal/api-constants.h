@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef INCLUDE_CPPGC_INTERNALS_H_
-#define INCLUDE_CPPGC_INTERNALS_H_
+#ifndef INCLUDE_CPPGC_INTERNAL_API_CONSTANTS_H_
+#define INCLUDE_CPPGC_INTERNAL_API_CONSTANTS_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -32,4 +32,4 @@ static constexpr size_t kLargeObjectSizeThreshold = 65536;
 }  // namespace internal
 }  // namespace cppgc
 
-#endif  // INCLUDE_CPPGC_INTERNALS_H_
+#endif  // INCLUDE_CPPGC_INTERNAL_API_CONSTANTS_H_

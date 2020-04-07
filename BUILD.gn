@@ -3946,11 +3946,11 @@ v8_source_set("cppgc_base") {
 
   sources = [
     "include/cppgc/allocation.h",
-    "include/cppgc/api-constants.h",
-    "include/cppgc/finalizer-trait.h",
     "include/cppgc/garbage-collected.h",
-    "include/cppgc/gc-info.h",
     "include/cppgc/heap.h",
+    "include/cppgc/internal/api-contants.h",
+    "include/cppgc/internal/finalizer-traits.h",
+    "include/cppgc/internal/gc-info.h",
     "include/cppgc/member.h",
     "include/cppgc/platform.h",
     "include/cppgc/source-location.h",
