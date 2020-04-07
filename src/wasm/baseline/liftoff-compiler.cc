@@ -916,6 +916,22 @@ class LiftoffCompiler {
     return {t};
   }
 
+  template <typename EmitFn, typename ArgType>
+  struct EmitFnWithFirstArg {
+    EmitFn fn;
+    ArgType first_arg;
+  };
+
+  template <typename EmitFn, typename ArgType>
+  EmitFnWithFirstArg<EmitFn, ArgType> BindFirst(EmitFn fn, ArgType arg) {
+    return {fn, arg};
+  }
+
+  template <typename EmitFn, typename T, typename... Args>
+  void CallEmitFn(EmitFnWithFirstArg<EmitFn, T> bound_fn, Args... args) {
+    CallEmitFn(bound_fn.fn, bound_fn.first_arg, ConvertAssemblerArg(args)...);
+  }
+
   template <ValueType::Kind src_type, ValueType::Kind result_type, class EmitFn>
   void EmitUnOp(EmitFn fn) {
     constexpr RegClass src_rc = reg_class_for(src_type);
@@ -1172,37 +1188,29 @@ class LiftoffCompiler {
 
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
              const Value& rhs, Value* result) {
-#define CASE_I32_CMPOP(opcode)                                               \
-  case kExpr##opcode:                                                        \
-    DCHECK(decoder->lookahead(0, kExpr##opcode));                            \
-    if (decoder->lookahead(1, kExprBrIf)) {                                  \
-      DCHECK(!has_outstanding_op());                                         \
-      outstanding_op_ = kExpr##opcode;                                       \
-      break;                                                                 \
-    }                                                                        \
-    return EmitBinOp<kI32, kI32>(                                            \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          constexpr Condition cond = GetCompareCondition(kExpr##opcode);     \
-          __ emit_i32_set_cond(cond, dst.gp(), lhs.gp(), rhs.gp());          \
-        });
-#define CASE_I64_CMPOP(opcode, cond)                                         \
-  case kExpr##opcode:                                                        \
-    return EmitBinOp<kI64, kI32>(                                            \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_i64_set_cond(cond, dst.gp(), lhs, rhs);                    \
-        });
-#define CASE_F32_CMPOP(opcode, cond)                                         \
-  case kExpr##opcode:                                                        \
-    return EmitBinOp<kF32, kI32>(                                            \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_f32_set_cond(cond, dst.gp(), lhs.fp(), rhs.fp());          \
-        });
-#define CASE_F64_CMPOP(opcode, cond)                                         \
-  case kExpr##opcode:                                                        \
-    return EmitBinOp<kF64, kI32>(                                            \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_f64_set_cond(cond, dst.gp(), lhs.fp(), rhs.fp());          \
-        });
+#define CASE_I32_CMPOP(opcode)                          \
+  case kExpr##opcode:                                   \
+    DCHECK(decoder->lookahead(0, kExpr##opcode));       \
+    if (decoder->lookahead(1, kExprBrIf)) {             \
+      DCHECK(!has_outstanding_op());                    \
+      outstanding_op_ = kExpr##opcode;                  \
+      break;                                            \
+    }                                                   \
+    return EmitBinOp<kI32, kI32>(                       \
+        BindFirst(&LiftoffAssembler::emit_i32_set_cond, \
+                  GetCompareCondition(kExpr##opcode)));
+#define CASE_I64_CMPOP(opcode, cond) \
+  case kExpr##opcode:                \
+    return EmitBinOp<kI64, kI32>(    \
+        BindFirst(&LiftoffAssembler::emit_i64_set_cond, cond));
+#define CASE_F32_CMPOP(opcode, cond) \
+  case kExpr##opcode:                \
+    return EmitBinOp<kF32, kI32>(    \
+        BindFirst(&LiftoffAssembler::emit_f32_set_cond, cond));
+#define CASE_F64_CMPOP(opcode, cond) \
+  case kExpr##opcode:                \
+    return EmitBinOp<kF64, kI32>(    \
+        BindFirst(&LiftoffAssembler::emit_f64_set_cond, cond));
 #define CASE_I64_SHIFTOP(opcode, fn)                                         \
   case kExpr##opcode:                                                        \
     return EmitBinOpImm<kI64, kI64>(                                         \
