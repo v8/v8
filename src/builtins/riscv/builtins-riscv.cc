@@ -99,7 +99,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
 
     // Copy arguments and receiver to the expression stack.
     Label loop, entry;
-    __ mov(t3, a0);
+    __ Mov(t3, a0);
     // ----------- S t a t e -------------
     //  --                        a0: number of arguments (untagged)
     //  --                        a3: new target
@@ -109,7 +109,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     //  --        sp[1*kPointerSize]: number of arguments (tagged)
     //  --        sp[2*kPointerSize]: context
     // -----------------------------------
-    __ jmp(&entry);
+    __ Branch(&entry);
     __ bind(&loop);
     __ Dlsa(t0, t2, t3, kPointerSizeLog2);
     __ Ld(t1, MemOperand(t0));
@@ -147,9 +147,9 @@ static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
   LoadRealStackLimit(masm, scratch1);
   // Make scratch1 the space we have left. The stack might already be overflowed
   // here which will cause scratch1 to become negative.
-  __ dsubu(scratch1, sp, scratch1);
+  __ Dsubu(scratch1, sp, scratch1);
   // Check if the arguments will overflow the stack.
-  __ dsll(scratch2, num_args, kPointerSizeLog2);
+  __ Dsll(scratch2, num_args, kPointerSizeLog2);
   // Signed comparison.
   __ Branch(stack_overflow, le, scratch1, Operand(scratch2));
 }
@@ -187,7 +187,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // -----------------------------------
 
     __ Ld(t2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-    __ lwu(t2, FieldMemOperand(t2, SharedFunctionInfo::kFlagsOffset));
+    __ Lwu(t2, FieldMemOperand(t2, SharedFunctionInfo::kFlagsOffset));
     __ DecodeField<SharedFunctionInfo::FunctionKindBits>(t2);
     __ JumpIfIsInRange(t2, kDefaultDerivedConstructor, kDerivedConstructor,
                        &not_create_implicit_receiver);
@@ -256,7 +256,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // Copy arguments and receiver to the expression stack.
     Label loop, entry;
-    __ mov(t3, a0);
+    __ Mov(t3, a0);
     // ----------- S t a t e -------------
     //  --                        a0: number of arguments (untagged)
     //  --                        a3: new target
@@ -269,7 +269,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     //  --        sp[4*kPointerSize]: number of arguments (tagged)
     //  --        sp[5*kPointerSize]: context
     // -----------------------------------
-    __ jmp(&entry);
+    __ Branch(&entry);
     __ bind(&loop);
     __ Dlsa(t0, t2, t3, kPointerSizeLog2);
     __ Ld(t1, MemOperand(t0));
@@ -504,9 +504,9 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
   LoadRealStackLimit(masm, scratch1);
   // Make a2 the space we have left. The stack might already be overflowed
   // here which will cause r2 to become negative.
-  __ dsubu(scratch1, sp, scratch1);
+  __ Dsubu(scratch1, sp, scratch1);
   // Check if the arguments will overflow the stack.
-  __ dsll(scratch2, argc, kPointerSizeLog2);
+  __ Dsll(scratch2, argc, kPointerSizeLog2);
   __ Branch(&okay, gt, scratch1, Operand(scratch2));  // Signed comparison.
 
   // Out of stack space.
@@ -559,7 +559,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
     // Initialize the root register.
     // C calling convention. The first argument is passed in a0.
-    __ mov(kRootRegister, a0);
+    __ Mov(kRootRegister, a0);
   }
 
   // a1: entry address
@@ -578,8 +578,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ Ld(s4, MemOperand(s4));
   __ Push(s1, s2, s3, s4);
   // Set up frame pointer for the frame to be pushed.
-  __ daddiu(fp, sp, -EntryFrameConstants::kCallerFPOffset);
-
+  __ Daddu(fp, sp, -EntryFrameConstants::kCallerFPOffset);
   // Registers:
   //  either
   //   a1: entry address
@@ -618,7 +617,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the pending exception.
-  __ jmp(&invoke);
+  __ Branch(&invoke);
   __ bind(&handler_entry);
 
   // Store the current pc as the handler offset. It's used later to create the
@@ -690,7 +689,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ Sd(a5, MemOperand(a4));
 
   // Reset the stack to the callee saved registers.
-  __ daddiu(sp, sp, -EntryFrameConstants::kCallerFPOffset);
+  __ Daddu(sp, sp, -EntryFrameConstants::kCallerFPOffset);
 
   // Restore callee-saved fpu registers.
   __ MultiPopFPU(kCalleeSavedFPU);
@@ -746,9 +745,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     Generate_CheckStackOverflow(masm, a4, a0, a3);
 
     // Setup new.target, function and argc.
-    __ mov(a3, a1);
-    __ mov(a1, a2);
-    __ mov(a0, a4);
+    __ Mov(a3, a1);
+    __ Mov(a1, a2);
+    __ Mov(a0, a4);
 
     // a0: argc
     // a1: function
@@ -765,7 +764,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // s1 points past last arg.
     __ bind(&loop);
     __ Ld(s2, MemOperand(a5));  // Read next parameter.
-    __ daddiu(a5, a5, kPointerSize);
+    __ Daddu(a5, a5, kPointerSize);
     __ Ld(s2, MemOperand(s2));  // Dereference handle.
     __ push(s2);                // Push parameter.
     __ bind(&entry);
@@ -778,12 +777,12 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Initialize all JavaScript callee-saved registers, since they will be seen
     // by the garbage collector as part of handlers.
     __ LoadRoot(a4, RootIndex::kUndefinedValue);
-    __ mov(a5, a4);
-    __ mov(s1, a4);
-    __ mov(s2, a4);
-    __ mov(s3, a4);
-    __ mov(s4, a4);
-    __ mov(s5, a4);
+    __ Mov(a5, a4);
+    __ Mov(s1, a4);
+    __ Mov(s2, a4);
+    __ Mov(s3, a4);
+    __ Mov(s4, a4);
+    __ Mov(s5, a4);
     // s6 holds the root address. Do not clobber.
     // s7 is cp. Do not init.
 
@@ -808,7 +807,7 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 
 void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
   // a1: microtask_queue
-  __ mov(RunMicrotasksDescriptor::MicrotaskQueueRegister(), a1);
+  __ Mov(RunMicrotasksDescriptor::MicrotaskQueueRegister(), a1);
   __ Jump(BUILTIN_CODE(masm->isolate(), RunMicrotasks), RelocInfo::CODE_TARGET);
 }
 
@@ -819,7 +818,7 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
                                                 Register scratch2) {
   // Store code entry in the closure.
   __ Sd(optimized_code, FieldMemOperand(closure, JSFunction::kCodeOffset));
-  __ mov(scratch1, optimized_code);  // Write barrier clobbers scratch1 below.
+  __ Mov(scratch1, optimized_code);  // Write barrier clobbers scratch1 below.
   __ RecordWriteField(closure, JSFunction::kCodeOffset, scratch1, scratch2,
                       kRAHasNotBeenSaved, kDontSaveFPRegs, OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
@@ -951,7 +950,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ Lbu(bytecode, MemOperand(scratch2));
   __ Daddu(bytecode_size_table, bytecode_size_table,
            Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount));
-  __ jmp(&process_bytecode);
+  __ Branch(&process_bytecode);
 
   __ bind(&extra_wide);
   // Load the next bytecode and update table to the extra wide scaled table.
@@ -1140,7 +1139,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   AdvanceBytecodeOffsetOrReturn(masm, kInterpreterBytecodeArrayRegister,
                                 kInterpreterBytecodeOffsetRegister, a1, a2, a3,
                                 &do_return);
-  __ jmp(&do_dispatch);
+  __ Branch(&do_dispatch);
 
   __ bind(&do_return);
   // The return value is in t0.
@@ -1154,7 +1153,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ JumpIfNotSmi(optimized_code_entry, &maybe_has_optimized_code);
   MaybeOptimizeCode(masm, feedback_vector, optimized_code_entry);
   // Fall through if there's no runnable optimized code.
-  __ jmp(&not_optimized);
+  __ Branch(&not_optimized);
 
   __ bind(&maybe_has_optimized_code);
   // Load code entry from the weak reference, if it was cleared, resume
@@ -1177,8 +1176,8 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
                                          Register num_args, Register index,
                                          Register scratch, Register scratch2) {
   // Find the address of the last argument.
-  __ mov(scratch2, num_args);
-  __ dsll(scratch2, scratch2, kPointerSizeLog2);
+  __ Mov(scratch2, num_args);
+  __ Dsll(scratch2, scratch2, kPointerSizeLog2);
   __ Dsubu(scratch2, index, Operand(scratch2));
 
   // Push the arguments.
@@ -1486,8 +1485,7 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
   // Compute the target address = code_obj + header_size + osr_offset
   // <entry_addr> = <code_obj> + #header_size + <osr_offset>
   __ Daddu(t0, t0, a1);
-  __ daddiu(ra, t0, Code::kHeaderSize - kHeapObjectTag);
-
+  __ Daddu(ra, t0, Code::kHeaderSize - kHeapObjectTag);
   // And "return" to the OSR entry point of the function.
   __ Ret();
 }
@@ -1519,7 +1517,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
 
     __ Dsubu(sp, sp, Operand(2 * kPointerSize));
     __ Dlsa(sp, sp, argc, kPointerSizeLog2);
-    __ mov(scratch, argc);
+    __ Mov(scratch, argc);
     __ Pop(this_arg, arg_array);                   // Overwrite argc
     __ Movz(arg_array, undefined_value, scratch);  // if argc == 0
     __ Movz(this_arg, undefined_value, scratch);   // if argc == 0
@@ -1553,7 +1551,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // arguments to the receiver.
   __ bind(&no_arguments);
   {
-    __ mov(a0, zero_reg);
+    __ Mov(a0, zero_reg);
     DCHECK(receiver == a1);
     __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
   }
@@ -1628,7 +1626,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
 
     __ Dsubu(sp, sp, Operand(3 * kPointerSize));
     __ Dlsa(sp, sp, argc, kPointerSizeLog2);
-    __ mov(scratch, argc);
+    __ Mov(scratch, argc);
     __ Pop(target, this_argument, arguments_list);
     __ Movz(arguments_list, undefined_value, scratch);  // if argc == 0
     __ Movz(this_argument, undefined_value, scratch);   // if argc == 0
@@ -1685,7 +1683,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 
     __ Dsubu(sp, sp, Operand(3 * kPointerSize));
     __ Dlsa(sp, sp, argc, kPointerSizeLog2);
-    __ mov(scratch, argc);
+    __ Mov(scratch, argc);
     __ Pop(target, arguments_list, new_target);
     __ Movz(arguments_list, undefined_value, scratch);  // if argc == 0
     __ Movz(new_target, undefined_value, scratch);      // if argc == 0
@@ -1735,7 +1733,7 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // Get the number of arguments passed (as a smi), tear down the frame and
   // then tear down the parameters.
   __ Ld(a1, MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ mov(sp, fp);
+  __ Mov(sp, fp);
   __ MultiPop(fp.bit() | ra.bit());
   __ SmiScale(a4, a1, kPointerSizeLog2);
   __ Daddu(sp, sp, a4);
@@ -1780,11 +1778,10 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     Label done, push, loop;
     Register src = a6;
     Register scratch = len;
-
-    __ daddiu(src, args, FixedArray::kHeaderSize - kHeapObjectTag);
+    __ Daddu(src, args, FixedArray::kHeaderSize - kHeapObjectTag);
     __ Branch(&done, eq, len, Operand(zero_reg), i::USE_DELAY_SLOT);
     __ Daddu(a0, a0, len);  // The 'len' argument for Call() or Construct().
-    __ dsll(scratch, len, kPointerSizeLog2);
+    __ Dsll(scratch, len, kPointerSizeLog2);
     __ Dsubu(scratch, sp, Operand(scratch));
     __ LoadRoot(t1, RootIndex::kTheHoleValue);
     __ bind(&loop);
@@ -1792,7 +1789,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ Branch(&push, ne, a5, Operand(t1));
     __ LoadRoot(a5, RootIndex::kUndefinedValue);
     __ bind(&push);
-    __ daddiu(src, src, kPointerSize);
+    __ Daddu(src, src, kPointerSize);
     __ Push(a5);
     __ Branch(&loop, ne, scratch, Operand(sp));
     __ bind(&done);
@@ -1845,7 +1842,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ Ld(a7, FieldMemOperand(a7, JSFunction::kSharedFunctionInfoOffset));
     __ Lhu(a7, FieldMemOperand(
                    a7, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ mov(a6, fp);
+    __ Mov(a6, fp);
   }
   __ Branch(&arguments_done);
   __ bind(&arguments_adaptor);
@@ -1953,12 +1950,12 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         FrameScope scope(masm, StackFrame::INTERNAL);
         __ SmiTag(a0);
         __ Push(a0, a1);
-        __ mov(a0, a3);
+        __ Mov(a0, a3);
         __ Push(cp);
         __ Call(BUILTIN_CODE(masm->isolate(), ToObject),
                 RelocInfo::CODE_TARGET);
         __ Pop(cp);
-        __ mov(a3, t0);
+        __ Mov(a3, t0);
         __ Pop(a0, a1);
         __ SmiUntag(a0);
       }
@@ -2019,7 +2016,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   // Reserve stack space for the [[BoundArguments]].
   {
     Label done;
-    __ dsll(a5, a4, kPointerSizeLog2);
+    __ Dsll(a5, a4, kPointerSizeLog2);
     __ Dsubu(sp, sp, Operand(a5));
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
@@ -2038,7 +2035,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   // Relocate arguments down the stack.
   {
     Label loop, done_loop;
-    __ mov(a5, zero_reg);
+    __ Mov(a5, zero_reg);
     __ bind(&loop);
     __ Branch(&done_loop, gt, a5, Operand(a0));
     __ Dlsa(a6, sp, a4, kPointerSizeLog2);
@@ -2135,7 +2132,7 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
 
   // Jump to JSBuiltinsConstructStub or JSConstructStubGeneric.
   __ Ld(a4, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ lwu(a4, FieldMemOperand(a4, SharedFunctionInfo::kFlagsOffset));
+  __ Lwu(a4, FieldMemOperand(a4, SharedFunctionInfo::kFlagsOffset));
   __ And(a4, a4, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
   __ Branch(&call_generic_stub, eq, a4, Operand(zero_reg));
 
@@ -2172,7 +2169,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   // Reserve stack space for the [[BoundArguments]].
   {
     Label done;
-    __ dsll(a5, a4, kPointerSizeLog2);
+    __ Dsll(a5, a4, kPointerSizeLog2);
     __ Dsubu(sp, sp, Operand(a5));
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
@@ -2191,7 +2188,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   // Relocate arguments down the stack.
   {
     Label loop, done_loop;
-    __ mov(a5, zero_reg);
+    __ Mov(a5, zero_reg);
     __ bind(&loop);
     __ Branch(&done_loop, ge, a5, Operand(a0));
     __ Dlsa(a6, sp, a4, kPointerSizeLog2);
@@ -2319,8 +2316,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Adjust for return address and receiver.
     __ Daddu(a0, a0, Operand(2 * kPointerSize));
     // Compute copy end address.
-    __ dsll(a4, a2, kPointerSizeLog2);
-    __ dsubu(a4, a0, a4);
+    __ Dsll(a4, a2, kPointerSizeLog2);
+    __ Dsubu(a4, a0, a4);
 
     // Copy the arguments (including the receiver) to the new stack frame.
     // a0: copy start address
@@ -2334,9 +2331,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ Ld(a5, MemOperand(a0));
     __ push(a5);
     __ Branch(USE_DELAY_SLOT, &copy, ne, a0, Operand(a4));
-    __ daddiu(a0, a0, -kPointerSize);  // In delay slot.
+    __ Daddu(a0, a0, -kPointerSize);  // In delay slot.
 
-    __ jmp(&invoke);
+    __ Branch(&invoke);
   }
 
   {  // Too few parameters: Actual < expected.
@@ -2375,7 +2372,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // a2: expected number of arguments
     // a3: new target (passed through to callee)
     __ LoadRoot(a5, RootIndex::kUndefinedValue);
-    __ dsll(a6, a2, kPointerSizeLog2);
+    __ Dsll(a6, a2, kPointerSizeLog2);
     __ Dsubu(a4, fp, Operand(a6));
     // Adjust for frame.
     __ Dsubu(a4, a4,
@@ -2391,7 +2388,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
   // Call the entry point.
   __ bind(&invoke);
-  __ mov(a0, a2);
+  __ Mov(a0, a2);
   // a0 : expected number of arguments
   // a1 : function (passed through to callee)
   // a3: new target (passed through to callee)
@@ -2473,7 +2470,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   if (argv_mode == kArgvInRegister) {
     // Move argv into the correct register.
-    __ mov(s1, a2);
+    __ Mov(s1, a2);
   } else {
     // Compute the argv pointer in a callee-saved register.
     __ Dlsa(s1, sp, a0, kPointerSizeLog2);
@@ -2492,8 +2489,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Prepare arguments for C routine.
   // a0 = argc
-  __ mov(fp, a0);
-  __ mov(s2, a1);
+  __ Mov(fp, a0);
+  __ Mov(s2, a1);
 
   // We are calling compiled C/C++ code. a0 and a1 hold our two arguments. We
   // also need to reserve the 4 argument slots on the stack.
@@ -2502,7 +2499,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // a0 = argc, a1 = argv, a2 = isolate
   __ li(a2, ExternalReference::isolate_address(masm->isolate()));
-  __ mov(a1, s1);
+  __ Mov(a1, s1);
 
   __ StoreReturnAddressAndCall(s2);
 
@@ -2559,8 +2556,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ PrepareCallCFunction(3, 0, a0);
-    __ mov(a0, zero_reg);
-    __ mov(a1, zero_reg);
+    __ Mov(a0, zero_reg);
+    __ Mov(a1, zero_reg);
     __ li(a2, ExternalReference::isolate_address(masm->isolate()));
     __ CallCFunction(find_handler, 3);
   }
@@ -2659,7 +2656,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // If the delta is strictly positive, all bits would be shifted away,
   // which means that we can return 0.
   __ Branch(&normal_exponent, le, result_reg, Operand(zero_reg));
-  __ mov(result_reg, zero_reg);
+  __ Mov(result_reg, zero_reg);
   __ Branch(&done);
 
   __ bind(&normal_exponent);
@@ -2676,7 +2673,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // to check for this specific case.
   Label high_shift_needed, high_shift_done;
   __ Branch(&high_shift_needed, lt, scratch, Operand(32));
-  __ mov(input_high, zero_reg);
+  __ Mov(input_high, zero_reg);
   __ Branch(&high_shift_done);
   __ bind(&high_shift_needed);
 
@@ -2686,7 +2683,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // Shift the mantissa bits to the correct position.
   // We don't need to clear non-mantissa bits as they will be shifted away.
   // If they weren't, it would mean that the answer is in the 32bit range.
-  __ sllv(input_high, input_high, scratch);
+  __ Sllv(input_high, input_high, scratch);
 
   __ bind(&high_shift_done);
 
@@ -2698,7 +2695,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 
   // Negate scratch.
   __ Subu(scratch, zero_reg, scratch);
-  __ sllv(input_low, input_low, scratch);
+  __ Sllv(input_low, input_low, scratch);
   __ Branch(&shift_done);
 
   __ bind(&pos_shift);
@@ -2707,7 +2704,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ bind(&shift_done);
   __ Or(input_high, input_high, Operand(input_low));
   // Restore sign if necessary.
-  __ mov(scratch, sign);
+  __ Mov(scratch, sign);
   result_reg = sign;
   sign = no_reg;
   __ Subu(result_reg, zero_reg, input_high);
@@ -2757,7 +2754,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ Branch(&profiler_enabled, ne, t6, Operand(zero_reg));
   {
     // Call the api function directly.
-    __ mov(t6, function_address);
+    __ Mov(t6, function_address);
     __ Branch(&end_profiler_check);
   }
 
@@ -2832,13 +2829,13 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   // HandleScope limit has changed. Delete allocated extensions.
   __ bind(&delete_allocated_handles);
   __ Sd(s1, MemOperand(s5, kLimitOffset));
-  __ mov(fp, t0);
-  __ mov(a0, t0);
+  __ Mov(fp, t0);
+  __ Mov(a0, t0);
   __ PrepareCallCFunction(1, s1);
   __ li(a0, ExternalReference::isolate_address(isolate));
   __ CallCFunction(ExternalReference::delete_handle_scope_extensions(), 1);
-  __ mov(t0, fp);
-  __ jmp(&leave_exit_frame);
+  __ Mov(t0, fp);
+  __ Branch(&leave_exit_frame);
 }
 
 }  // namespace
@@ -2914,7 +2911,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   // Keep a pointer to kHolder (= implicit_args) in a scratch register.
   // We use it below to set up the FunctionCallbackInfo object.
-  __ mov(scratch, sp);
+  __ Mov(scratch, sp);
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
@@ -3011,7 +3008,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
 
   // Load address of v8::PropertyAccessorInfo::args_ array and name handle.
-  __ mov(a0, sp);                               // a0 = Handle<Name>
+  __ Mov(a0, sp);                               // a0 = Handle<Name>
   __ Daddu(a1, a0, Operand(1 * kPointerSize));  // a1 = v8::PCI::args_
 
   const int kApiStackSpace = 1;
@@ -3052,7 +3049,7 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   // EnterExitFrame/LeaveExitFrame so they handle stack restoring and we don't
   // have to do that here. Any caller must drop kCArgsSlotsSize stack space
   // after the call.
-  __ daddiu(sp, sp, -kCArgsSlotsSize);
+  __ Daddu(sp, sp, -kCArgsSlotsSize);
 
   __ Sd(ra, MemOperand(sp, kCArgsSlotsSize));  // Store the return address.
   __ Call(t6);                                 // Call the C++ function.
