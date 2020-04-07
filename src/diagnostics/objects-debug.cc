@@ -1097,13 +1097,6 @@ void JSFinalizationRegistry::JSFinalizationRegistryVerify(Isolate* isolate) {
         next_dirty().IsJSFinalizationRegistry());
 }
 
-void JSFinalizationRegistryCleanupIterator::
-    JSFinalizationRegistryCleanupIteratorVerify(Isolate* isolate) {
-  CHECK(IsJSFinalizationRegistryCleanupIterator());
-  JSObjectVerify(isolate);
-  VerifyHeapPointer(isolate, finalization_registry());
-}
-
 void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSWeakMapVerify(*this, isolate);
   CHECK(table().IsEphemeronHashTable() || table().IsUndefined(isolate));

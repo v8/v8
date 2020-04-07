@@ -143,7 +143,6 @@ class ZoneForwardList;
   V(JSDate)                                    \
   V(JSError)                                   \
   V(JSFinalizationRegistry)                    \
-  V(JSFinalizationRegistryCleanupIterator)     \
   V(JSFunction)                                \
   V(JSFunctionOrBoundFunction)                 \
   V(JSGeneratorObject)                         \

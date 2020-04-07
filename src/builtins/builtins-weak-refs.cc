@@ -159,24 +159,6 @@ BUILTIN(FinalizationRegistryCleanupSome) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-BUILTIN(FinalizationRegistryCleanupIteratorNext) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSFinalizationRegistryCleanupIterator, iterator, "next");
-
-  Handle<JSFinalizationRegistry> finalization_registry(
-      iterator->finalization_registry(), isolate);
-  if (!finalization_registry->NeedsCleanup()) {
-    return *isolate->factory()->NewJSIteratorResult(
-        handle(ReadOnlyRoots(isolate).undefined_value(), isolate), true);
-  }
-  Handle<Object> holdings =
-      handle(JSFinalizationRegistry::PopClearedCellHoldings(
-                 finalization_registry, isolate),
-             isolate);
-
-  return *isolate->factory()->NewJSIteratorResult(holdings, false);
-}
-
 BUILTIN(WeakRefConstructor) {
   HandleScope scope(isolate);
   Handle<JSFunction> target = args.target();

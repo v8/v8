@@ -4,21 +4,11 @@
 
 // Flags: --harmony-weak-refs --expose-gc --noincremental-marking
 
-let cleanup_called = false;
-let cleanup = function(iter) {
-  assertFalse(cleanup_called);
-  let holdings_list = [];
-  for (holdings of iter) {
-    holdings_list.push(holdings);
-  }
-  assertEquals(holdings_list.length, 2);
-  if (holdings_list[0] == 1) {
-    assertEquals(holdings_list[1], 2);
-  } else {
-    assertEquals(holdings_list[0], 2);
-    assertEquals(holdings_list[1], 1);
-  }
-  cleanup_called = true;
+let cleanup_called = 0;
+let holdings_list = [];
+let cleanup = function(holdings) {
+  holdings_list.push(holdings);
+  cleanup_called++;
 }
 
 let fg = new FinalizationRegistry(cleanup);
@@ -34,7 +24,7 @@ let o2 = {};
 })();
 
 gc();
-assertFalse(cleanup_called);
+assertEquals(cleanup_called, 0);
 
 // Drop the last references to o1 and o2.
 (function() {
@@ -45,10 +35,17 @@ assertFalse(cleanup_called);
 // GC will reclaim the target objects; the cleanup function will be called the
 // next time we enter the event loop.
 gc();
-assertFalse(cleanup_called);
+assertEquals(cleanup_called, 0);
 
 let timeout_func = function() {
-  assertTrue(cleanup_called);
+  assertEquals(cleanup_called, 2);
+  assertEquals(holdings_list.length, 2);
+  if (holdings_list[0] == 1) {
+    assertEquals(holdings_list[1], 2);
+  } else {
+    assertEquals(holdings_list[0], 2);
+    assertEquals(holdings_list[1], 1);
+  }
 }
 
 setTimeout(timeout_func, 0);

@@ -20,7 +20,6 @@ namespace internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakCell)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakRef)
 OBJECT_CONSTRUCTORS_IMPL(JSFinalizationRegistry, JSObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSFinalizationRegistryCleanupIterator)
 
 ACCESSORS(JSFinalizationRegistry, native_context, NativeContext,
           kNativeContextOffset)

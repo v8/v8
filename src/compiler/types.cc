@@ -240,7 +240,6 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_STRING_ITERATOR_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
     case JS_FINALIZATION_REGISTRY_TYPE:
-    case JS_FINALIZATION_REGISTRY_CLEANUP_ITERATOR_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:

@@ -66,8 +66,7 @@ class JSFinalizationRegistry : public JSObject {
   inline static Object PopClearedCellHoldings(
       Handle<JSFinalizationRegistry> finalization_registry, Isolate* isolate);
 
-  // Constructs an iterator for the WeakCells in the cleared_cells list and
-  // calls the user's cleanup function.
+  // Call the user's cleanup function in a loop, once for each cleared cell.
   //
   // Returns Nothing<bool> if exception occurs, otherwise returns Just(true).
   static V8_WARN_UNUSED_RESULT Maybe<bool> Cleanup(
@@ -113,16 +112,6 @@ class JSWeakRef : public TorqueGeneratedJSWeakRef<JSWeakRef, JSObject> {
   class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(JSWeakRef)
-};
-
-class JSFinalizationRegistryCleanupIterator
-    : public TorqueGeneratedJSFinalizationRegistryCleanupIterator<
-          JSFinalizationRegistryCleanupIterator, JSObject> {
- public:
-  DECL_PRINTER(JSFinalizationRegistryCleanupIterator)
-  DECL_VERIFIER(JSFinalizationRegistryCleanupIterator)
-
-  TQ_OBJECT_CONSTRUCTORS(JSFinalizationRegistryCleanupIterator)
 };
 
 }  // namespace internal

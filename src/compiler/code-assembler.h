@@ -65,7 +65,6 @@ class JSSegmenter;
 class JSV8BreakIterator;
 class JSWeakCollection;
 class JSFinalizationRegistry;
-class JSFinalizationRegistryCleanupIterator;
 class JSWeakMap;
 class JSWeakRef;
 class JSWeakSet;

@@ -599,12 +599,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9049
   'language/comments/hashbang/use-strict': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8179
-  'built-ins/FinalizationRegistry/gc-has-one-chance-to-call-cleanupCallback': [FAIL],
-  'built-ins/FinalizationRegistry/prototype/cleanupSome/cleanup-prevented-with-reference': [FAIL],
-  'built-ins/FinalizationRegistry/prototype/cleanupSome/holdings-multiple-values': [FAIL],
-  'built-ins/FinalizationRegistry/prototype/unregister/unregister-cleaned-up-cell': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=10313
   'built-ins/Date/parse/without-utc-offset': [SKIP],
 

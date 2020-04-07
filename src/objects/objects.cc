@@ -8316,9 +8316,9 @@ Maybe<bool> JSFinalizationRegistry::Cleanup(
   // Attempt to shrink key_map now, as unregister tokens are held weakly and the
   // map is not shrinkable when sweeping dead tokens during GC itself.
   if (!finalization_registry->key_map().IsUndefined(isolate)) {
-    Handle<SimpleNumberDictionary> key_map =
-        handle(SimpleNumberDictionary::cast(finalization_registry->key_map()),
-               isolate);
+    Handle<SimpleNumberDictionary> key_map(
+        SimpleNumberDictionary::cast(finalization_registry->key_map()),
+        isolate);
     key_map = SimpleNumberDictionary::Shrink(isolate, key_map);
     finalization_registry->set_key_map(*key_map);
   }
@@ -8326,29 +8326,16 @@ Maybe<bool> JSFinalizationRegistry::Cleanup(
   // It's possible that the cleared_cells list is empty, since
   // FinalizationRegistry.unregister() removed all its elements before this task
   // ran. In that case, don't call the cleanup function.
-  if (!finalization_registry->cleared_cells().IsUndefined(isolate)) {
-    // Construct the iterator.
-    Handle<JSFinalizationRegistryCleanupIterator> iterator;
-    {
-      Handle<Map> cleanup_iterator_map(
-          isolate->native_context()
-              ->js_finalization_registry_cleanup_iterator_map(),
-          isolate);
-      iterator = Handle<JSFinalizationRegistryCleanupIterator>::cast(
-          isolate->factory()->NewJSObjectFromMap(
-              cleanup_iterator_map, AllocationType::kYoung,
-              Handle<AllocationSite>::null()));
-      iterator->set_finalization_registry(*finalization_registry);
-    }
-    Handle<Object> args[] = {iterator};
+  while (!finalization_registry->cleared_cells().IsUndefined(isolate)) {
+    Handle<Object> holding(
+        PopClearedCellHoldings(finalization_registry, isolate), isolate);
+    Handle<Object> args[] = {holding};
     if (Execution::Call(
             isolate, cleanup,
             handle(ReadOnlyRoots(isolate).undefined_value(), isolate), 1, args)
             .is_null()) {
       return Nothing<bool>();
     }
-    // TODO(marja): (spec): Should the iterator be invalidated after the
-    // function returns?
   }
   return Just(true);
 }

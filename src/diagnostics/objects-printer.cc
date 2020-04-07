@@ -1187,13 +1187,6 @@ void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
-void JSFinalizationRegistryCleanupIterator::
-    JSFinalizationRegistryCleanupIteratorPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSFinalizationRegistryCleanupIterator");
-  os << "\n - finalization_registry: " << Brief(finalization_registry());
-  JSObjectPrintBody(os, *this);
-}
-
 void JSWeakMap::JSWeakMapPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSWeakMap");
   os << "\n - table: " << Brief(table());

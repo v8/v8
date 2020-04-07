@@ -4384,30 +4384,6 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     JSObject::AddProperty(isolate(), global, weak_ref_name, weak_ref_fun,
                           DONT_ENUM);
   }
-
-  {
-    // Create cleanup iterator for JSFinalizationRegistry.
-    Handle<JSObject> iterator_prototype(
-        native_context()->initial_iterator_prototype(), isolate());
-
-    Handle<JSObject> cleanup_iterator_prototype = factory->NewJSObject(
-        isolate()->object_function(), AllocationType::kOld);
-    JSObject::ForceSetPrototype(cleanup_iterator_prototype, iterator_prototype);
-
-    InstallToStringTag(isolate(), cleanup_iterator_prototype,
-                       "FinalizationRegistry Cleanup Iterator");
-
-    SimpleInstallFunction(isolate(), cleanup_iterator_prototype, "next",
-                          Builtins::kFinalizationRegistryCleanupIteratorNext, 0,
-                          true);
-    Handle<Map> cleanup_iterator_map =
-        factory->NewMap(JS_FINALIZATION_REGISTRY_CLEANUP_ITERATOR_TYPE,
-                        JSFinalizationRegistryCleanupIterator::kHeaderSize);
-    Map::SetPrototype(isolate(), cleanup_iterator_map,
-                      cleanup_iterator_prototype);
-    native_context()->set_js_finalization_registry_cleanup_iterator_map(
-        *cleanup_iterator_map);
-  }
 }
 
 void Genesis::InitializeGlobal_harmony_promise_all_settled() {

@@ -6,10 +6,8 @@
 
 let cleanup_count = 0;
 let cleanup_holdings = [];
-let cleanup = function(iter) {
-  for (holdings of iter) {
-    cleanup_holdings.push(holdings);
-  }
+let cleanup = function(holdings) {
+  cleanup_holdings.push(holdings);
   ++cleanup_count;
 }
 

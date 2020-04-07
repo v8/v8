@@ -19,11 +19,6 @@ extern class JSFinalizationRegistry extends JSObject {
 }
 
 @generateCppClass
-extern class JSFinalizationRegistryCleanupIterator extends JSObject {
-  finalization_registry: JSFinalizationRegistry;
-}
-
-@generateCppClass
 extern class WeakCell extends HeapObject {
   finalization_registry: Undefined|JSFinalizationRegistry;
   target: Undefined|JSReceiver;

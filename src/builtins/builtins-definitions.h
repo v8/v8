@@ -976,7 +976,6 @@ namespace internal {
   CPP(Trace)                                                                   \
                                                                                \
   /* Weak refs */                                                              \
-  CPP(FinalizationRegistryCleanupIteratorNext)                                 \
   CPP(FinalizationRegistryCleanupSome)                                         \
   CPP(FinalizationRegistryConstructor)                                         \
   CPP(FinalizationRegistryRegister)                                            \
