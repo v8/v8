@@ -7,8 +7,6 @@
 
 #include <type_traits>
 
-#include "include/cppgc/member.h"
-
 namespace cppgc {
 
 class Visitor;
@@ -26,10 +24,6 @@ using void_t = typename make_void<Ts...>::type;
 // Not supposed to be specialized by the user.
 template <typename T>
 struct IsWeak : std::false_type {};
-
-template <typename T, typename WriteBarrierPolicy>
-struct IsWeak<internal::BasicWeakMember<T, WriteBarrierPolicy>>
-    : std::true_type {};
 
 template <typename T, template <typename... V> class U>
 struct IsSubclassOfTemplate {

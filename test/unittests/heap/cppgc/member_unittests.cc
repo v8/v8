@@ -39,7 +39,7 @@ size_t CustomWriteBarrierPolicy::InitializingWriteBarriersTriggered = 0;
 size_t CustomWriteBarrierPolicy::AssigningWriteBarriersTriggered = 0;
 
 using MemberWithCustomBarrier =
-    BasicStrongMember<GCed, CustomWriteBarrierPolicy>;
+    BasicMember<GCed, StrongMemberTag, CustomWriteBarrierPolicy>;
 
 struct CustomCheckingPolicy {
   static std::vector<GCed*> Cached;
@@ -53,8 +53,8 @@ std::vector<GCed*> CustomCheckingPolicy::Cached;
 size_t CustomCheckingPolicy::ChecksTriggered = 0;
 
 using MemberWithCustomChecking =
-    internal::BasicMember<GCed, class StrongMemberTag,
-                          DijkstraWriteBarrierPolicy, CustomCheckingPolicy>;
+    BasicMember<GCed, StrongMemberTag, DijkstraWriteBarrierPolicy,
+                CustomCheckingPolicy>;
 
 class MemberTest : public testing::TestSupportingAllocationOnly {};
 
@@ -227,8 +227,9 @@ TEST_F(MemberTest, WriteBarrierTriggered) {
   // No initializing barriers for std::nullptr_t.
   EXPECT_EQ(1u, CustomWriteBarrierPolicy::InitializingWriteBarriersTriggered);
   EXPECT_EQ(1u, CustomWriteBarrierPolicy::AssigningWriteBarriersTriggered);
-  member2 = kMemberSentinel;
-  // No initializing barriers for member sentinel.
+  member2 = kSentinelPointer;
+  EXPECT_EQ(kSentinelPointer, member2.Get());
+  // No initializing barriers for pointer sentinel.
   EXPECT_EQ(1u, CustomWriteBarrierPolicy::InitializingWriteBarriersTriggered);
   EXPECT_EQ(1u, CustomWriteBarrierPolicy::AssigningWriteBarriersTriggered);
   member2.Swap(member1);

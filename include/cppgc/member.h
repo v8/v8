@@ -7,7 +7,10 @@
 
 #include <atomic>
 #include <cstddef>
+#include <type_traits>
 
+#include "include/cppgc/internal/pointer-policies.h"
+#include "include/cppgc/type-traits.h"
 #include "include/v8config.h"
 
 namespace cppgc {
@@ -16,66 +19,24 @@ class Visitor;
 
 namespace internal {
 
-struct DijkstraWriteBarrierPolicy {
-  static void InitializingBarrier(const void*, const void*) {
-    // Since in initializing writes the source object is always white, having no
-    // barrier doesn't break the tri-color invariant.
-  }
-  static void AssigningBarrier(const void*, const void*) {
-    // TODO(chromium:1056170): Add actual implementation.
-  }
-};
-
-struct NoWriteBarrierPolicy {
-  static void InitializingBarrier(const void*, const void*) {}
-  static void AssigningBarrier(const void*, const void*) {}
-};
-
-class V8_EXPORT EnabledCheckingPolicy {
- public:
-  EnabledCheckingPolicy();
-  void CheckPointer(const void* ptr);
-
- private:
-  void* impl_;
-};
-
-class DisabledCheckingPolicy {
- public:
-  void CheckPointer(const void* raw) {}
-};
-
-#if V8_ENABLE_CHECKS
-using DefaultCheckingPolicy = EnabledCheckingPolicy;
-#else
-using DefaultCheckingPolicy = DisabledCheckingPolicy;
-#endif
-
-// Special tag type used to denote some sentinel member. The semantics of the
-// sentinel is defined by the embedder.
-struct MemberSentinel {};
-constexpr MemberSentinel kMemberSentinel;
-
 // The basic class from which all Member classes are 'generated'.
-template <typename T, class WeaknessTag, class WriteBarrierPolicy,
-          class CheckingPolicy = DefaultCheckingPolicy>
+template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
+          typename CheckingPolicy = DefaultCheckingPolicy>
 class BasicMember : private CheckingPolicy {
  public:
   constexpr BasicMember() = default;
   constexpr BasicMember(std::nullptr_t) {}  // NOLINT
-  constexpr BasicMember(MemberSentinel)     // NOLINT
-      : raw_(reinterpret_cast<T*>(kSentinelValue)) {}
+  BasicMember(SentinelPointer s) : raw_(s) {}  // NOLINT
   BasicMember(T* raw) : raw_(raw) {  // NOLINT
     InitializingWriteBarrier();
     this->CheckPointer(raw_);
   }
-  // TODO(chromium:1056170): Unfortunately, this overload is used ubiquitously
-  // in Blink. Reeavalute the possibility to remove it.
   BasicMember(T& raw) : BasicMember(&raw) {}  // NOLINT
   BasicMember(const BasicMember& other) : BasicMember(other.Get()) {}
   // Allow heterogeneous construction.
   template <typename U, typename OtherBarrierPolicy, typename OtherWeaknessTag,
-            typename OtherCheckingPolicy>
+            typename OtherCheckingPolicy,
+            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
   BasicMember(const BasicMember<U, OtherWeaknessTag, OtherBarrierPolicy,
                                 OtherCheckingPolicy>& other)
       : BasicMember(other.Get()) {}
@@ -85,7 +46,8 @@ class BasicMember : private CheckingPolicy {
   }
   // Allow heterogeneous assignment.
   template <typename U, typename OtherWeaknessTag, typename OtherBarrierPolicy,
-            typename OtherCheckingPolicy>
+            typename OtherCheckingPolicy,
+            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
   BasicMember& operator=(
       const BasicMember<U, OtherWeaknessTag, OtherBarrierPolicy,
                         OtherCheckingPolicy>& other) {
@@ -101,14 +63,14 @@ class BasicMember : private CheckingPolicy {
     Clear();
     return *this;
   }
-  BasicMember& operator=(MemberSentinel) {
-    SetRawAtomic(reinterpret_cast<T*>(kSentinelValue));
+  BasicMember& operator=(SentinelPointer s) {
+    SetRawAtomic(s);
     return *this;
   }
 
-  template <typename U, typename OtherWeaknessTag, typename OtherBarrierPolicy,
+  template <typename OtherWeaknessTag, typename OtherBarrierPolicy,
             typename OtherCheckingPolicy>
-  void Swap(BasicMember<U, OtherWeaknessTag, OtherBarrierPolicy,
+  void Swap(BasicMember<T, OtherWeaknessTag, OtherBarrierPolicy,
                         OtherCheckingPolicy>& other) {
     T* tmp = Get();
     *this = other;
@@ -134,9 +96,6 @@ class BasicMember : private CheckingPolicy {
   }
 
  private:
-  // Must not be odr-used.
-  static constexpr intptr_t kSentinelValue = -1;
-
   void SetRawAtomic(T* raw) {
     reinterpret_cast<std::atomic<T*>*>(&raw_)->store(raw,
                                                      std::memory_order_relaxed);
@@ -180,12 +139,10 @@ bool operator!=(
   return !(member1 == member2);
 }
 
-template <typename T, typename WriteBarrierPolicy>
-using BasicStrongMember =
-    BasicMember<T, class StrongMemberTag, WriteBarrierPolicy>;
-
-template <typename T, typename WriteBarrierPolicy>
-using BasicWeakMember = BasicMember<T, class WeakMemberTag, WriteBarrierPolicy>;
+template <typename T, typename WriteBarrierPolicy, typename CheckingPolicy>
+struct IsWeak<
+    internal::BasicMember<T, WeakMemberTag, WriteBarrierPolicy, CheckingPolicy>>
+    : std::true_type {};
 
 }  // namespace internal
 
@@ -193,8 +150,8 @@ using BasicWeakMember = BasicMember<T, class WeakMemberTag, WriteBarrierPolicy>;
 // collected objects. All Member fields of a class must be traced in the class'
 // trace method.
 template <typename T>
-using Member =
-    internal::BasicStrongMember<T, internal::DijkstraWriteBarrierPolicy>;
+using Member = internal::BasicMember<T, internal::StrongMemberTag,
+                                     internal::DijkstraWriteBarrierPolicy>;
 
 // WeakMember is similar to Member in that it is used to point to other garbage
 // collected objects. However instead of creating a strong pointer to the
@@ -203,15 +160,15 @@ using Member =
 // the object will be garbage collected. At the time of GC the weak pointers
 // will automatically be set to null.
 template <typename T>
-using WeakMember =
-    internal::BasicWeakMember<T, internal::DijkstraWriteBarrierPolicy>;
+using WeakMember = internal::BasicMember<T, internal::WeakMemberTag,
+                                         internal::DijkstraWriteBarrierPolicy>;
 
 // UntracedMember is a pointer to an on-heap object that is not traced for some
 // reason. Do not use this unless you know what you are doing. Keeping raw
 // pointers to on-heap objects is prohibited unless used from stack. Pointee
 // must be kept alive through other means.
 template <typename T>
-using UntracedMember = internal::BasicMember<T, class UntracedMemberTag,
+using UntracedMember = internal::BasicMember<T, internal::UntracedMemberTag,
                                              internal::NoWriteBarrierPolicy>;
 
 }  // namespace cppgc
