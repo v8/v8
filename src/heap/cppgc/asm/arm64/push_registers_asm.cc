@@ -15,15 +15,13 @@
 //
 // Calling convention source:
 // https://en.wikipedia.org/wiki/Calling_convention#ARM_(A64)
+
 asm(
-#ifdef _WIN64
-    ".globl _PushAllRegistersAndIterateStack            \n"
-    "_PushAllRegistersAndIterateStack:                  \n"
-#else   // !_WIN64
     ".globl PushAllRegistersAndIterateStack             \n"
+#ifndef _WIN64
     ".hidden PushAllRegistersAndIterateStack            \n"
+#endif
     "PushAllRegistersAndIterateStack:                   \n"
-#endif  // !_WIN64
     // x19-x29 are callee-saved.
     "  stp x19, x20, [sp, #-16]!                        \n"
     "  stp x21, x22, [sp, #-16]!                        \n"
