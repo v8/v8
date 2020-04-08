@@ -4384,7 +4384,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
 
     const char* verifier_class = "TorqueGeneratedClassVerifiers";
 
-    h_contents << "class " << verifier_class << "{\n";
+    h_contents << "class V8_EXPORT_PRIVATE " << verifier_class << "{\n";
     h_contents << " public:\n";
 
     for (const ClassType* type : TypeOracle::GetClasses()) {
