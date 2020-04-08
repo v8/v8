@@ -70,8 +70,6 @@ using SHRINK = int32_t(int64_t rs);
 #define LARGE_INT_EXCEED_32_BIT 0x01C9'1075'0321'FB01LL
 #define LARGE_INT_UNDER_32_BIT 0x1234'5678
 #define LARGE_UINT_EXCEED_32_BIT 0xFDCB'1234'A034'5691ULL
-#define MAX_UINT32 0xFFFF'FFFFU
-#define MAX_UINT64 0xFFFF'FFFF'FFFF'FFFFULL
 
 #define PRINT_RES(res, expected_res, in_hex)                         \
   if (in_hex) std::cout << "[hex-form]" << std::hex;                 \
@@ -479,7 +477,7 @@ static void GenerateTestCallForLoadStore(Isolate* isolate, MacroAssembler& assm,
                                               rs2_fval, expected_res);    \
   }
 
-#define UTEST_CONV_F_FROM_W(instr_name, input_type, output_type, rs1_val, \
+#define UTEST_CONV_F_FROM_I(instr_name, input_type, output_type, rs1_val, \
                             expected_fres)                                \
   TEST(RISCV_UTEST_##instr_name) {                                        \
     CcTest::InitializeVM();                                               \
@@ -502,7 +500,7 @@ static void GenerateTestCallForLoadStore(Isolate* isolate, MacroAssembler& assm,
                                               expected_fres);             \
   }
 
-#define UTEST_CONV_W_FROM_F(instr_name, input_type, output_type,          \
+#define UTEST_CONV_I_FROM_F(instr_name, input_type, output_type,          \
                             rounding_mode, rs1_fval, expected_res)        \
   TEST(RISCV_UTEST_##instr_name) {                                        \
     CcTest::InitializeVM();                                               \
@@ -519,6 +517,28 @@ static void GenerateTestCallForLoadStore(Isolate* isolate, MacroAssembler& assm,
       __ RV_fmv_d_x(fa0, a0);                                             \
     }                                                                     \
     __ RV_##instr_name(a0, fa0, rounding_mode);                           \
+    __ RV_jr(ra);                                                         \
+                                                                          \
+    GenerateTestCall<input_type, output_type>(isolate, assm, rs1_fval,    \
+                                              expected_res);              \
+  }                                                                       \
+                                                                          \
+  TEST(RISCV_UTEST_dyn_##instr_name) {                                    \
+    CcTest::InitializeVM();                                               \
+    Isolate* isolate = CcTest::i_isolate();                               \
+    HandleScope scope(isolate);                                           \
+                                                                          \
+    assert(std::is_floating_point<input_type>::value&&                    \
+               std::is_integral<output_type>::value);                     \
+                                                                          \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes); \
+    if (std::is_same<input_type, float>::value) {                         \
+      __ RV_fmv_w_x(fa0, a0);                                             \
+    } else {                                                              \
+      __ RV_fmv_d_x(fa0, a0);                                             \
+    }                                                                     \
+    __ RV_csrwi(csr_frm, rounding_mode);                                  \
+    __ RV_##instr_name(a0, fa0, DYN);                                     \
     __ RV_jr(ra);                                                         \
                                                                           \
     GenerateTestCall<input_type, output_type>(isolate, assm, rs1_fval,    \
@@ -551,6 +571,99 @@ static void GenerateTestCallForLoadStore(Isolate* isolate, MacroAssembler& assm,
                                                                           \
     GenerateTestCall<input_type, output_type>(isolate, assm, rs1_val,     \
                                               expected_fres);             \
+  }
+
+#define UTEST_CSRI(csr_reg, csr_write_val, csr_set_clear_val)               \
+  TEST(RISCV_UTEST_CSRI_##csr_reg) {                                        \
+    CcTest::InitializeVM();                                                 \
+    Isolate* isolate = CcTest::i_isolate();                                 \
+    HandleScope scope(isolate);                                             \
+                                                                            \
+    CHECK_EQ(is_uint5(csr_write_val) && is_uint5(csr_set_clear_val), true); \
+                                                                            \
+    Label exit, error;                                                      \
+                                                                            \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);   \
+    /* test csr-write and csr-read */                                       \
+    __ RV_csrwi(csr_reg, csr_write_val);                                    \
+    __ RV_csrr(a0, csr_reg);                                                \
+    __ RV_li(a1, csr_write_val);                                            \
+    __ RV_bne(a0, a1, &error);                                              \
+    /* test csr_set */                                                      \
+    __ RV_csrsi(csr_reg, csr_set_clear_val);                                \
+    __ RV_csrr(a0, csr_reg);                                                \
+    __ RV_li(a1, (csr_write_val) | (csr_set_clear_val));                    \
+    __ RV_bne(a0, a1, &error);                                              \
+    /* test csr_clear */                                                    \
+    __ RV_csrci(csr_reg, csr_set_clear_val);                                \
+    __ RV_csrr(a0, csr_reg);                                                \
+    __ RV_li(a1, (csr_write_val) & (~(csr_set_clear_val)));                 \
+    __ RV_bne(a0, a1, &error);                                              \
+    /* everyhing runs correctly, return 111 */                              \
+    __ RV_li(a0, 111);                                                      \
+    __ RV_j(&exit);                                                         \
+                                                                            \
+    __ RV_bind(&error);                                                     \
+    /* got an error, return 666 */                                          \
+    __ RV_li(a0, 666);                                                      \
+                                                                            \
+    __ RV_bind(&exit);                                                      \
+    __ RV_jr(ra);                                                           \
+                                                                            \
+    CodeDesc desc;                                                          \
+    assm.GetCode(isolate, &desc);                                           \
+    Handle<Code> code =                                                     \
+        Factory::CodeBuilder(isolate, desc, Code::STUB).Build();            \
+    auto f = GeneratedCode<S0>::FromCode(*code);                            \
+    int32_t res = f.Call();                                                 \
+    CHECK_EQ(res, 111);                                                     \
+  }
+
+#define UTEST_CSR(csr_reg, csr_write_val, csr_set_clear_val)              \
+  TEST(RISCV_UTEST_CSR_##csr_reg) {                                       \
+    CcTest::InitializeVM();                                               \
+    Isolate* isolate = CcTest::i_isolate();                               \
+    HandleScope scope(isolate);                                           \
+                                                                          \
+    Label exit, error;                                                    \
+                                                                          \
+    MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes); \
+    /* test csr-write and csr-read */                                     \
+    __ RV_li(t0, csr_write_val);                                          \
+    __ RV_csrw(csr_reg, t0);                                              \
+    __ RV_csrr(a0, csr_reg);                                              \
+    __ RV_li(a1, csr_write_val);                                          \
+    __ RV_bne(a0, a1, &error);                                            \
+    /* test csr_set */                                                    \
+    __ RV_li(t0, csr_set_clear_val);                                      \
+    __ RV_csrs(csr_reg, t0);                                              \
+    __ RV_csrr(a0, csr_reg);                                              \
+    __ RV_li(a1, (csr_write_val) | (csr_set_clear_val));                  \
+    __ RV_bne(a0, a1, &error);                                            \
+    /* test csr_clear */                                                  \
+    __ RV_li(t0, csr_set_clear_val);                                      \
+    __ RV_csrc(csr_reg, t0);                                              \
+    __ RV_csrr(a0, csr_reg);                                              \
+    __ RV_li(a1, (csr_write_val) & (~(csr_set_clear_val)));               \
+    __ RV_bne(a0, a1, &error);                                            \
+    /* everyhing runs correctly, return 111 */                            \
+    __ RV_li(a0, 111);                                                    \
+    __ RV_j(&exit);                                                       \
+                                                                          \
+    __ RV_bind(&error);                                                   \
+    /* got an error, return 666 */                                        \
+    __ RV_li(a0, 666);                                                    \
+                                                                          \
+    __ RV_bind(&exit);                                                    \
+    __ RV_jr(ra);                                                         \
+                                                                          \
+    CodeDesc desc;                                                        \
+    assm.GetCode(isolate, &desc);                                         \
+    Handle<Code> code =                                                   \
+        Factory::CodeBuilder(isolate, desc, Code::STUB).Build();          \
+    auto f = GeneratedCode<S0>::FromCode(*code);                          \
+    int32_t res = f.Call();                                               \
+    CHECK_EQ(res, 111);                                                   \
   }
 
 #define UTEST_R2_FORM_WITH_OP(instr_name, inout_type, rs1_val, rs2_val, \
@@ -634,12 +747,13 @@ UTEST_R2_FORM_WITH_OP(sra, int64_t, -0x1234'5678'0000'0000LL, 33, >>)
 // void RV_unimp();
 
 // -- CSR --
-// void RV_csrrw(Register rd, uint16_t imm12, Register rs1);
-// void RV_csrrs(Register rd, uint16_t imm12, Register rs1);
-// void RV_csrrc(Register rd, uint16_t imm12, Register rs1);
-// void RV_csrrwi(Register rd, uint16_t imm12, uint8_t rs1);
-// void RV_csrrsi(Register rd, uint16_t imm12, uint8_t rs1);
-// void RV_csrrci(Register rd, uint16_t imm12, uint8_t rs1);
+UTEST_CSRI(csr_frm, DYN, RUP)
+UTEST_CSRI(csr_fflags, NX | NV, NV)
+UTEST_CSRI(csr_fcsr, DZ | OF, UF)
+UTEST_CSR(csr_frm, DYN, RUP)
+UTEST_CSR(csr_fflags, NX | NV, NV)
+UTEST_CSR(csr_fcsr, DZ | OF | (RDN << kFcsrFrmShift),
+          UF | (RNE << kFcsrFrmShift))
 
 // -- RV64I --
 UTEST_I_FORM_WITH_OP(addiw, int32_t, LARGE_INT_UNDER_32_BIT, MIN_VAL_IMM12, +)
@@ -723,14 +837,12 @@ UTEST_R3_FORM_WITH_RES_F(fnmadd_s, float, 67.56f, -1012.01f, 3456.13f,
 UTEST_COMPARE_WITH_OP_F(feq_s, float, int32_t, -3456.56, -3456.56, ==)
 UTEST_COMPARE_WITH_OP_F(flt_s, float, int32_t, -3456.56, -3456.56, <)
 UTEST_COMPARE_WITH_OP_F(fle_s, float, int32_t, -3456.56, -3456.56, <=)
-UTEST_CONV_F_FROM_W(fcvt_s_w, int32_t, float, -100, (float)(-100))
-UTEST_CONV_F_FROM_W(fcvt_s_wu, int32_t, float, MAX_UINT32, (float)(MAX_UINT32))
-UTEST_CONV_W_FROM_F(fcvt_w_s, float, int32_t, RTZ, -100.0f, -100)
-// FIXME: this following test fails, need
-// UTEST_CONV_W_FROM_F(fcvt_wu_s, float, int32_t, RTZ,
-// (float)(MAX_UINT32), MAX_UINT32)
-// FIXME: use large UINT32 number and not exactly int
-UTEST_CONV_W_FROM_F(fcvt_wu_s, float, int32_t, RTZ, 100.0f, 100)
+UTEST_CONV_F_FROM_I(fcvt_s_w, int32_t, float, -100, (float)(-100))
+UTEST_CONV_F_FROM_I(fcvt_s_wu, int32_t, float,
+                    std::numeric_limits<uint32_t>::max(),
+                    (float)(std::numeric_limits<uint32_t>::max()))
+UTEST_CONV_I_FROM_F(fcvt_w_s, float, int32_t, RMM, -100.5f, -101)
+UTEST_CONV_I_FROM_F(fcvt_wu_s, float, int32_t, RUP, 256.1f, 257)
 UTEST_R2_FORM_WITH_RES_F(fsgnj_s, float, -100.0f, 200.0f, 100.0f)
 UTEST_R2_FORM_WITH_RES_F(fsgnjn_s, float, 100.0f, 200.0f, -100.0f)
 UTEST_R2_FORM_WITH_RES_F(fsgnjx_s, float, -100.0f, 200.0f, -100.0f)
@@ -759,36 +871,27 @@ UTEST_COMPARE_WITH_OP_F(feq_d, double, int64_t, -3456.56, -3456.56, ==)
 UTEST_COMPARE_WITH_OP_F(flt_d, double, int64_t, -3456.56, -3456.56, <)
 UTEST_COMPARE_WITH_OP_F(fle_d, double, int64_t, -3456.56, -3456.56, <=)
 
-UTEST_CONV_F_FROM_W(fcvt_d_w, int32_t, double, -100, -100.0)
-UTEST_CONV_F_FROM_W(fcvt_d_wu, int32_t, double, MAX_UINT32,
-                    (double)(MAX_UINT32))
-UTEST_CONV_W_FROM_F(fcvt_w_d, double, int32_t, RTZ, -100.0, -100)
-UTEST_CONV_W_FROM_F(fcvt_wu_d, double, int32_t, RTZ, (double)(MAX_UINT32),
-                    MAX_UINT32)
+UTEST_CONV_F_FROM_I(fcvt_d_w, int32_t, double, -100, -100.0)
+UTEST_CONV_F_FROM_I(fcvt_d_wu, int32_t, double,
+                    std::numeric_limits<uint32_t>::max(),
+                    (double)(std::numeric_limits<uint32_t>::max()))
+UTEST_CONV_I_FROM_F(fcvt_w_d, double, int32_t, RTZ, -100.0, -100)
+UTEST_CONV_I_FROM_F(fcvt_wu_d, double, int32_t, RTZ,
+                    (double)(std::numeric_limits<uint32_t>::max()),
+                    std::numeric_limits<uint32_t>::max())
 
 // -- RV64F Standard Extension (in addition to RV32F) --
-// FIXME: this test failed
-/*UTEST_CONV_W_FROM_F(fcvt_l_s, float, int64_t, RTZ,
-                    (float)(-0x1234'5678'0000'0001LL),
-                    (-0x1234'5678'0000'0001LL))*/
-// FIXME: this test reveals a rounding mode bug in the simulator, temporarily
-// comment this out to make the CI happy (will open an issue after the MR is
-// merged)
-// UTEST_CONV_W_FROM_F(fcvt_l_s, float, int64_t, RDN, -100.5f,
-// -101)
-UTEST_CONV_W_FROM_F(fcvt_l_s, float, int64_t, RTZ, -100.5f, -100)
-// FIXME: this test failed
-// UTEST_CONV_W_FROM_F(fcvt_lu_s, float, int64_t, RTZ,
-// (float)(MAX_UINT64), MAX_UINT64)
-UTEST_CONV_W_FROM_F(fcvt_lu_s, float, int64_t, RTZ, (float)100, 100)
-UTEST_CONV_F_FROM_W(fcvt_s_l, int64_t, float, (-0x1234'5678'0000'0001LL),
+UTEST_CONV_I_FROM_F(fcvt_l_s, float, int64_t, RDN, -100.5f, -101)
+UTEST_CONV_I_FROM_F(fcvt_lu_s, float, int64_t, RTZ, 1000001.0f, 1000001)
+UTEST_CONV_F_FROM_I(fcvt_s_l, int64_t, float, (-0x1234'5678'0000'0001LL),
                     (float)(-0x1234'5678'0000'0001LL))
-UTEST_CONV_F_FROM_W(fcvt_s_lu, int64_t, float, MAX_UINT64, (float)(MAX_UINT64))
+UTEST_CONV_F_FROM_I(fcvt_s_lu, int64_t, float,
+                    std::numeric_limits<uint64_t>::max(),
+                    (float)(std::numeric_limits<uint64_t>::max()))
 
 // -- RV32D Standard Extension --
-// FIXME: the following tests failed
-// UTEST_CONV_F_FROM_F(fcvt_s_d, float, double, 100.0, 100.0f)
-// UTEST_CONV_F_FROM_F(fcvt_d_s, double, float, 100.0f, 100.0)
+UTEST_CONV_F_FROM_F(fcvt_s_d, double, float, 100.0, 100.0f)
+UTEST_CONV_F_FROM_F(fcvt_d_s, float, double, 100.0f, 100.0)
 
 UTEST_R2_FORM_WITH_RES_F(fsgnj_d, double, -100.0, 200.0, 100.0)
 UTEST_R2_FORM_WITH_RES_F(fsgnjn_d, double, 100.0, 200.0, -100.0)
@@ -797,29 +900,13 @@ UTEST_R2_FORM_WITH_RES_F(fsgnjx_d, double, -100.0, 200.0, -100.0)
 // void RV_fclass_d(Register rd, FPURegister rs1);
 
 // -- RV64D Standard Extension (in addition to RV32D) --
-// FIXME: this test failed
-// UTEST_CONV_W_FROM_F(fcvt_l_d, double, int64_t, RTZ,
-//                    (double)(-0x1234'5678'0000'0001LL),
-//                    (-0x1234'5678'0000'0001LL))
-UTEST_CONV_W_FROM_F(fcvt_l_d, double, int64_t, RTZ, (double)(-100), (-100))
-// FIXME: this test failed
-// UTEST_CONV_W_FROM_F(fcvt_lu_d, double, int64_t, RTZ,
-// (double)(MAX_UINT64), MAX_UINT64)
-UTEST_CONV_W_FROM_F(fcvt_lu_d, double, int64_t, RTZ, (double)100, 100)
-UTEST_CONV_F_FROM_W(fcvt_d_l, int64_t, double, (-0x1234'5678'0000'0001LL),
+UTEST_CONV_I_FROM_F(fcvt_l_d, double, int64_t, RNE, -100.5, -100)
+UTEST_CONV_I_FROM_F(fcvt_lu_d, double, int64_t, RTZ, -2456.5, -2456)
+UTEST_CONV_F_FROM_I(fcvt_d_l, int64_t, double, (-0x1234'5678'0000'0001LL),
                     (double)(-0x1234'5678'0000'0001LL))
-UTEST_CONV_F_FROM_W(fcvt_d_lu, int64_t, double, MAX_UINT64,
-                    (double)(MAX_UINT64))
-
-/*
-// Privileged
-void RV_uret();
-void RV_sret();
-void RV_mret();
-void RV_wfi();
-void RV_sfence_vma(Register rs1, Register
-rs2);
-*/
+UTEST_CONV_F_FROM_I(fcvt_d_lu, int64_t, double,
+                    std::numeric_limits<uint64_t>::max(),
+                    (double)(std::numeric_limits<uint64_t>::max()))
 
 // -- Assembler Pseudo Instructions --
 UTEST_R1_FORM_WITH_RES(mv, int64_t, int64_t, 0x0f5600ab123400, 0x0f5600ab123400)

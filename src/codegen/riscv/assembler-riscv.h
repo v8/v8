@@ -447,9 +447,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_csrrw(Register rd, ControlStatusReg csr, Register rs1);
   void RV_csrrs(Register rd, ControlStatusReg csr, Register rs1);
   void RV_csrrc(Register rd, ControlStatusReg csr, Register rs1);
-  void RV_csrrwi(Register rd, ControlStatusReg csr, uint8_t rs1);
-  void RV_csrrsi(Register rd, ControlStatusReg csr, uint8_t rs1);
-  void RV_csrrci(Register rd, ControlStatusReg csr, uint8_t rs1);
+  void RV_csrrwi(Register rd, ControlStatusReg csr, uint8_t imm5);
+  void RV_csrrsi(Register rd, ControlStatusReg csr, uint8_t imm5);
+  void RV_csrrci(Register rd, ControlStatusReg csr, uint8_t imm5);
 
   // RV64I
   void RV_lwu(Register rd, Register rs1, int16_t imm12);
