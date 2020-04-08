@@ -42,6 +42,10 @@
 
   # Very slow in stress mode.
   'regress/regress-2318': [SKIP],
+
+  # Currently fails because breakpoint information is inconsistent after
+  # disabling and re-enabling the debugger (https://crbug.com/v8/10403).
+  'debug/wasm/debug-step-into-wasm': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
