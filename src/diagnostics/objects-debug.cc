@@ -280,8 +280,6 @@ void Symbol::SymbolVerify(Isolate* isolate) {
   CHECK_IMPLIES(IsPrivateBrand(), IsPrivateName());
 }
 
-USE_TORQUE_VERIFIER(ByteArray)
-
 void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   // TODO(oth): Walk bytecodes and immediate values to validate sanity.
   // - All bytecodes are known and well formed.
@@ -520,18 +518,12 @@ void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(FixedArrayBase)
-
-USE_TORQUE_VERIFIER(FixedArray)
-
 void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WeakFixedArrayVerify(*this, isolate);
   for (int i = 0; i < length(); i++) {
     MaybeObject::VerifyMaybeObjectPointer(isolate, Get(i));
   }
 }
-
-USE_TORQUE_VERIFIER(WeakArrayList)
 
 void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::PropertyArrayVerify(*this, isolate);

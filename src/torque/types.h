@@ -135,6 +135,7 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   base::Optional<const ClassType*> ClassSupertype() const;
   base::Optional<const StructType*> StructSupertype() const;
   virtual std::vector<RuntimeType> GetRuntimeTypes() const { return {}; }
+  virtual std::string GetRuntimeType() const;
   static const Type* CommonSupertype(const Type* a, const Type* b);
   void AddAlias(std::string alias) const { aliases_.insert(std::move(alias)); }
   size_t id() const { return id_; }
@@ -375,6 +376,9 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
     return "TNode<" + GetGeneratedTNodeTypeName() + ">";
   }
   std::string GetGeneratedTNodeTypeNameImpl() const override;
+  std::string GetRuntimeType() const override {
+    return parent()->GetRuntimeType();
+  }
 
   friend size_t hash_value(const UnionType& p) {
     size_t result = 0;

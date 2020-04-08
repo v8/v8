@@ -3356,7 +3356,7 @@ class CppClassGenerator {
   void GenerateFieldAccessor(const Field& f);
   void GenerateFieldAccessorForUntagged(const Field& f);
   void GenerateFieldAccessorForSmi(const Field& f);
-  void GenerateFieldAccessorForObject(const Field& f);
+  void GenerateFieldAccessorForTagged(const Field& f);
 
   void GenerateClassCasts();
 
@@ -3532,13 +3532,72 @@ void CppClassGenerator::GenerateClassConstructors() {
 
   hdr_ << "protected:\n";
   hdr_ << "  inline explicit " << gen_name_ << "(Address ptr);\n";
+  hdr_ << "  // Special-purpose constructor for subclasses that have fast "
+          "paths where\n";
+  hdr_ << "  // their ptr() is a Smi.\n";
+  hdr_ << "  inline explicit " << gen_name_
+       << "(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi);\n";
 
   inl_ << "template<class D, class P>\n";
   inl_ << "inline " << gen_name_T_ << "::" << gen_name_ << "(Address ptr)\n";
   inl_ << "  : P(ptr) {\n";
   inl_ << "  SLOW_DCHECK(this->Is" << name_ << "());\n";
   inl_ << "}\n";
+
+  inl_ << "template<class D, class P>\n";
+  inl_ << "inline " << gen_name_T_ << "::" << gen_name_
+       << "(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi)\n";
+  inl_ << "  : P(ptr, allow_smi) {\n";
+  inl_ << "  SLOW_DCHECK((allow_smi == "
+          "HeapObject::AllowInlineSmiStorage::kAllowBeingASmi && "
+       << "this->IsSmi()) || this->Is" << name_ << "());\n";
+  inl_ << "}\n";
 }
+
+namespace {
+std::string GenerateRuntimeTypeCheck(const Type* type,
+                                     const std::string& value) {
+  bool maybe_object = !type->IsSubtypeOf(TypeOracle::GetStrongTaggedType());
+  std::stringstream type_check;
+  bool at_start = true;
+  // If weak pointers are allowed, then start by checking for a cleared value.
+  if (maybe_object) {
+    type_check << value << ".IsCleared()";
+    at_start = false;
+  }
+  for (const RuntimeType& runtime_type : type->GetRuntimeTypes()) {
+    if (!at_start) type_check << " || ";
+    at_start = false;
+    if (maybe_object) {
+      bool strong = runtime_type.weak_ref_to.empty();
+      if (strong && runtime_type.type == "MaybeObject") {
+        // Rather than a generic Weak<T>, this is a basic type Tagged or
+        // WeakHeapObject. We can't validate anything more about the type of
+        // the object pointed to, so just check that it's weak.
+        type_check << value << ".IsWeak()";
+      } else {
+        type_check << "(" << (strong ? "!" : "") << value << ".IsWeak() && "
+                   << value << ".GetHeapObjectOrSmi().Is"
+                   << (strong ? runtime_type.type : runtime_type.weak_ref_to)
+                   << "())";
+      }
+    } else {
+      type_check << value << ".Is" << runtime_type.type << "()";
+    }
+  }
+  return type_check.str();
+}
+
+void GenerateBoundsDCheck(std::ostream& os, const std::string& index,
+                          const ClassType* type, const Field& f) {
+  os << "  DCHECK_GE(" << index << ", 0);\n";
+  if (base::Optional<NameAndType> array_length =
+          ExtractSimpleFieldArraySize(*type, *f.index)) {
+    os << "  DCHECK_LT(" << index << ", this->" << array_length->name
+       << "());\n";
+  }
+}
+}  // namespace
 
 // TODO(sigurds): Keep in sync with DECL_ACCESSORS and ACCESSORS macro.
 void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
@@ -3554,8 +3613,8 @@ void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
   if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType())) {
     return GenerateFieldAccessorForSmi(f);
   }
-  if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetObjectType())) {
-    return GenerateFieldAccessorForObject(f);
+  if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    return GenerateFieldAccessorForTagged(f);
   }
 
   Error("Generation of field accessor for ", type_->name(),
@@ -3599,6 +3658,7 @@ void CppClassGenerator::GenerateFieldAccessorForUntagged(const Field& f) {
   }
   inl_ << ") const {\n";
   if (f.index) {
+    GenerateBoundsDCheck(inl_, "i", type_, f);
     size_t field_size;
     std::string size_string;
     std::tie(field_size, size_string) = f.GetFieldSizeInformation();
@@ -3617,6 +3677,7 @@ void CppClassGenerator::GenerateFieldAccessorForUntagged(const Field& f) {
   }
   inl_ << type << " value) {\n";
   if (f.index) {
+    GenerateBoundsDCheck(inl_, "i", type_, f);
     size_t field_size;
     std::string size_string;
     std::tie(field_size, size_string) = f.GetFieldSizeInformation();
@@ -3653,6 +3714,7 @@ void CppClassGenerator::GenerateFieldAccessorForSmi(const Field& f) {
   }
   inl_ << ") const {\n";
   if (f.index) {
+    GenerateBoundsDCheck(inl_, "i", type_, f);
     inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
     inl_ << "  return this->template ReadField<Smi>(offset).value();\n";
     inl_ << "}\n";
@@ -3669,6 +3731,7 @@ void CppClassGenerator::GenerateFieldAccessorForSmi(const Field& f) {
   }
   inl_ << type << " value) {\n";
   if (f.index) {
+    GenerateBoundsDCheck(inl_, "i", type_, f);
     inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
     inl_ << "  WRITE_FIELD(*this, offset, Smi::FromInt(value));\n";
   } else {
@@ -3677,18 +3740,16 @@ void CppClassGenerator::GenerateFieldAccessorForSmi(const Field& f) {
   inl_ << "}\n\n";
 }
 
-void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
+void CppClassGenerator::GenerateFieldAccessorForTagged(const Field& f) {
   const Type* field_type = f.name_and_type.type;
-  DCHECK(field_type->IsSubtypeOf(TypeOracle::GetObjectType()));
+  DCHECK(field_type->IsSubtypeOf(TypeOracle::GetTaggedType()));
   const std::string& name = f.name_and_type.name;
-  const std::string offset = "k" + CamelifyString(name) + "Offset";
-  base::Optional<const ClassType*> class_type = field_type->ClassSupertype();
+  std::string offset = "k" + CamelifyString(name) + "Offset";
+  bool strong_pointer = field_type->IsSubtypeOf(TypeOracle::GetObjectType());
 
-  std::string type =
-      class_type ? (*class_type)->GetGeneratedTNodeTypeName() : "Object";
-
+  std::string type = field_type->GetRuntimeType();
   // Generate declarations in header.
-  if (!class_type && field_type != TypeOracle::GetObjectType()) {
+  if (!field_type->IsClassType() && field_type != TypeOracle::GetObjectType()) {
     hdr_ << "  // Torque type: " << field_type->ToString() << "\n";
   }
 
@@ -3699,11 +3760,7 @@ void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
   hdr_ << "  inline void set_" << name << "(" << (f.index ? "int i, " : "")
        << type << " value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);\n\n";
 
-  std::string type_check;
-  for (const RuntimeType& runtime_type : field_type->GetRuntimeTypes()) {
-    if (!type_check.empty()) type_check += " || ";
-    type_check += "value.Is" + runtime_type.type + "()";
-  }
+  std::string type_check = GenerateRuntimeTypeCheck(field_type, "value");
 
   // Generate implementation in inline header.
   inl_ << "template <class D, class P>\n";
@@ -3719,28 +3776,25 @@ void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
        << "(const Isolate* isolate" << (f.index ? ", int i" : "")
        << ") const {\n";
 
-  if (class_type) {
-    if (f.index) {
-      inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
-      inl_ << "  return " << type
-           << "::cast(RELAXED_READ_FIELD(*this, offset));\n";
-    } else {
-      inl_ << "  return TaggedField<" << type << ", " << offset
-           << ">::load(isolate, *this);\n";
-    }
+  // TODO(tebbi): The distinction between relaxed and non-relaxed accesses here
+  // is pretty arbitrary and just tries to preserve what was there before.
+  // It currently doesn't really make a difference due to concurrent marking
+  // turning all loads and stores to be relaxed. We should probably drop the
+  // distinction at some point, even though in principle non-relaxed operations
+  // would give us TSAN protection.
+  if (f.index) {
+    GenerateBoundsDCheck(inl_, "i", type_, f);
+    inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
+    inl_ << "  auto value = TaggedField<" << type
+         << ">::Relaxed_Load(isolate, *this, offset);\n";
   } else {
-    // TODO(tebbi): load value as HeapObject when possible
-    if (f.index) {
-      inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
-      inl_ << "  Object value = Object::cast(RELAXED_READ_FIELD(*this, "
-              "offset));\n";
-    } else {
-      inl_ << "  Object value = TaggedField<Object, " << offset
-           << ">::load(isolate, *this);\n";
-    }
-    inl_ << "  DCHECK(" << type_check << ");\n";
-    inl_ << "  return value;\n";
+    inl_ << "  auto value = TaggedField<" << type << ", " << offset
+         << ">::load(isolate, *this);\n";
   }
+  if (!type_check.empty()) {
+    inl_ << "  DCHECK(" << type_check << ");\n";
+  }
+  inl_ << "  return value;\n";
   inl_ << "}\n";
 
   inl_ << "template <class D, class P>\n";
@@ -3749,22 +3803,30 @@ void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
     inl_ << "int i, ";
   }
   inl_ << type << " value, WriteBarrierMode mode) {\n";
-  inl_ << "  SLOW_DCHECK(" << type_check << ");\n";
-  if (f.index) {
-    inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
-    inl_ << "  WRITE_FIELD(*this, offset, value);\n";
-  } else {
-    inl_ << "  WRITE_FIELD(*this, " << offset << ", value);\n";
+  if (!type_check.empty()) {
+    inl_ << "  SLOW_DCHECK(" << type_check << ");\n";
   }
-  inl_ << "  CONDITIONAL_WRITE_BARRIER(*this, " << offset
-       << ", value, mode);\n";
+  if (f.index) {
+    GenerateBoundsDCheck(inl_, "i", type_, f);
+    const char* write_macro =
+        strong_pointer ? "WRITE_FIELD" : "RELAXED_WRITE_WEAK_FIELD";
+    inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
+    offset = "offset";
+    inl_ << "  " << write_macro << "(*this, offset, value);\n";
+  } else {
+    const char* write_macro =
+        strong_pointer ? "RELAXED_WRITE_FIELD" : "RELAXED_WRITE_WEAK_FIELD";
+    inl_ << "  " << write_macro << "(*this, " << offset << ", value);\n";
+  }
+  const char* write_barrier = strong_pointer ? "CONDITIONAL_WRITE_BARRIER"
+                                             : "CONDITIONAL_WEAK_WRITE_BARRIER";
+  inl_ << "  " << write_barrier << "(*this, " << offset << ", value, mode);\n";
   inl_ << "}\n\n";
 }
 
 void EmitClassDefinitionHeadersIncludes(const std::string& basename,
                                         std::stringstream& header,
                                         std::stringstream& inline_header) {
-  header << "#include \"src/objects/fixed-array.h\"\n";
   header << "#include \"src/objects/objects.h\"\n";
   header << "#include \"src/objects/smi.h\"\n";
   header << "#include \"torque-generated/field-offsets-tq.h\"\n";
@@ -3834,8 +3896,12 @@ void ImplementationVisitor::GenerateClassDefinitions(
     IncludeGuardScope internal_inline_header_guard(
         inline_internal_header, internal_basename + "-inl.h");
 
-    external_header
+    internal_header << "#include \"torque-generated/class-definitions-tq.h\"\n";
+    internal_header << "#include \"src/objects/fixed-array.h\"\n";
+    inline_internal_header
         << "#include \"torque-generated/internal-class-definitions-tq.h\"\n";
+    inline_internal_header
+        << "#include \"torque-generated/class-definitions-tq-inl.h\"\n";
 
     EmitClassDefinitionHeadersIncludes(basename, external_header,
                                        inline_external_header);
@@ -4255,34 +4321,8 @@ void GenerateFieldValueVerifier(const std::string& class_name,
   // the Object type because it would not check anything beyond what we already
   // checked with VerifyPointer.
   if (field_type != TypeOracle::GetObjectType()) {
-    std::stringstream type_check;
-    bool at_start = true;
-    // If weak pointers are allowed, then start by checking for a cleared value.
-    if (maybe_object) {
-      type_check << value << ".IsCleared()";
-      at_start = false;
-    }
-    for (const RuntimeType& runtime_type : field_type->GetRuntimeTypes()) {
-      if (!at_start) type_check << " || ";
-      at_start = false;
-      if (maybe_object) {
-        bool strong = runtime_type.weak_ref_to.empty();
-        if (strong && runtime_type.type == "MaybeObject") {
-          // Rather than a generic Weak<T>, this is a basic type Tagged or
-          // WeakHeapObject. We can't validate anything more about the type of
-          // the object pointed to, so just check that it's weak.
-          type_check << value << ".IsWeak()";
-        } else {
-          type_check << "(" << (strong ? "!" : "") << value << ".IsWeak() && "
-                     << value << ".GetHeapObjectOrSmi().Is"
-                     << (strong ? runtime_type.type : runtime_type.weak_ref_to)
-                     << "())";
-        }
-      } else {
-        type_check << value << ".Is" << runtime_type.type << "()";
-      }
-    }
-    cc_contents << "    CHECK(" << type_check.str() << ");\n";
+    cc_contents << "    CHECK(" << GenerateRuntimeTypeCheck(field_type, value)
+                << ");\n";
   }
 }
 

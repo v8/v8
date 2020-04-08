@@ -946,6 +946,13 @@ base::Optional<NameAndType> ExtractSimpleFieldArraySize(
   return class_type.LookupField(identifier->name->value).name_and_type;
 }
 
+std::string Type::GetRuntimeType() const {
+  // TODO(tebbi): Other types are currently unsupported, since there the TNode
+  // types and the C++ runtime types disagree.
+  DCHECK(this->IsSubtypeOf(TypeOracle::GetTaggedType()));
+  return GetGeneratedTNodeTypeName();
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8
