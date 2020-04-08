@@ -2455,8 +2455,16 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
   Node* const key = NodeProperties::GetValueInput(node, 1);
   Node* const value = NodeProperties::GetValueInput(node, 2);
+  Node* const flags = NodeProperties::GetValueInput(node, 3);
 
   if (!p.feedback().IsValid()) return NoChange();
+
+  NumberMatcher mflags(flags);
+  CHECK(mflags.HasValue());
+  DataPropertyInLiteralFlags cflags(mflags.Value());
+  DCHECK(!(cflags & DataPropertyInLiteralFlag::kDontEnum));
+  if (cflags & DataPropertyInLiteralFlag::kSetFunctionName) return NoChange();
+
   return ReducePropertyAccess(node, key, base::nullopt, value,
                               FeedbackSource(p.feedback()),
                               AccessMode::kStoreInLiteral);

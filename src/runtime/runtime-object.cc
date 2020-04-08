@@ -916,9 +916,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
     }
   }
 
-  DataPropertyInLiteralFlags flags =
-      static_cast<DataPropertyInLiteralFlag>(flag);
-
+  DataPropertyInLiteralFlags flags(flag);
   PropertyAttributes attrs = (flags & DataPropertyInLiteralFlag::kDontEnum)
                                  ? PropertyAttributes::DONT_ENUM
                                  : PropertyAttributes::NONE;
