@@ -1186,19 +1186,20 @@ class LiftoffCompiler {
     }
   }
 
+  template <WasmOpcode opcode>
+  void EmitI32CmpOp(FullDecoder* decoder) {
+    DCHECK(decoder->lookahead(0, opcode));
+    if (decoder->lookahead(1, kExprBrIf)) {
+      DCHECK(!has_outstanding_op());
+      outstanding_op_ = opcode;
+      return;
+    }
+    return EmitBinOp<kI32, kI32>(BindFirst(&LiftoffAssembler::emit_i32_set_cond,
+                                           GetCompareCondition(opcode)));
+  }
+
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
              const Value& rhs, Value* result) {
-#define CASE_I32_CMPOP(opcode)                          \
-  case kExpr##opcode:                                   \
-    DCHECK(decoder->lookahead(0, kExpr##opcode));       \
-    if (decoder->lookahead(1, kExprBrIf)) {             \
-      DCHECK(!has_outstanding_op());                    \
-      outstanding_op_ = kExpr##opcode;                  \
-      break;                                            \
-    }                                                   \
-    return EmitBinOp<kI32, kI32>(                       \
-        BindFirst(&LiftoffAssembler::emit_i32_set_cond, \
-                  GetCompareCondition(kExpr##opcode)));
 #define CASE_I64_SHIFTOP(opcode, fn)                                         \
   case kExpr##opcode:                                                        \
     return EmitBinOpImm<kI64, kI64>(                                         \
@@ -1237,16 +1238,26 @@ class LiftoffCompiler {
       case kExprI32Xor:
         return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_xor,
                                         &LiftoffAssembler::emit_i32_xori);
-        CASE_I32_CMPOP(I32Eq)
-        CASE_I32_CMPOP(I32Ne)
-        CASE_I32_CMPOP(I32LtS)
-        CASE_I32_CMPOP(I32LtU)
-        CASE_I32_CMPOP(I32GtS)
-        CASE_I32_CMPOP(I32GtU)
-        CASE_I32_CMPOP(I32LeS)
-        CASE_I32_CMPOP(I32LeU)
-        CASE_I32_CMPOP(I32GeS)
-        CASE_I32_CMPOP(I32GeU)
+      case kExprI32Eq:
+        return EmitI32CmpOp<kExprI32Eq>(decoder);
+      case kExprI32Ne:
+        return EmitI32CmpOp<kExprI32Ne>(decoder);
+      case kExprI32LtS:
+        return EmitI32CmpOp<kExprI32LtS>(decoder);
+      case kExprI32LtU:
+        return EmitI32CmpOp<kExprI32LtU>(decoder);
+      case kExprI32GtS:
+        return EmitI32CmpOp<kExprI32GtS>(decoder);
+      case kExprI32GtU:
+        return EmitI32CmpOp<kExprI32GtU>(decoder);
+      case kExprI32LeS:
+        return EmitI32CmpOp<kExprI32LeS>(decoder);
+      case kExprI32LeU:
+        return EmitI32CmpOp<kExprI32LeU>(decoder);
+      case kExprI32GeS:
+        return EmitI32CmpOp<kExprI32GeS>(decoder);
+      case kExprI32GeU:
+        return EmitI32CmpOp<kExprI32GeU>(decoder);
       case kExprI64Add:
         return EmitBinOpImm<kI64, kI64>(&LiftoffAssembler::emit_i64_add,
                                         &LiftoffAssembler::emit_i64_addi);
@@ -1467,7 +1478,6 @@ class LiftoffCompiler {
       default:
         UNREACHABLE();
     }
-#undef CASE_I32_CMPOP
 #undef CASE_I64_SHIFTOP
 #undef CASE_CCALL_BINOP
   }
