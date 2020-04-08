@@ -84,6 +84,7 @@ class Decoder {
   void PrintBranchOffset(Instruction* instr);
   void PrintStoreOffset(Instruction* instr);
   void PrintRoundMode(Instruction* instr);
+  void PrintCSRReg(Instruction* instr);
 
   // Each of these functions decodes one particular instruction type.
   void DecodeRType(Instruction* instr);
@@ -239,6 +240,25 @@ void Decoder::PrintAcquireRelease(Instruction* instr) {
   }
 }
 
+void Decoder::PrintCSRReg(Instruction* instr) {
+  int32_t csr_reg = instr->Imm12Value();
+  std::string s;
+  switch (csr_reg) {
+    case csr_fflags:  // Floating-Point Accrued Exceptions (RW)
+      s = "csr_fflags";
+      break;
+    case csr_frm:  // Floating-Point Dynamic Rounding Mode (RW)
+      s = "csr_frm";
+      break;
+    case csr_fcsr:  // Floating-Point Control and Status Register (RW)
+      s = "csr_fcsr";
+      break;
+    default:
+      UNREACHABLE();
+  }
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%s", s.c_str());
+}
+
 // Printing of instruction name.
 void Decoder::PrintInstructionName(Instruction* instr) {}
 
@@ -299,6 +319,15 @@ int Decoder::FormatFPURegister(Instruction* instr, const char* format) {
 // characters that were consumed from the formatting string.
 int Decoder::FormatOption(Instruction* instr, const char* format) {
   switch (format[0]) {
+    case 'c': {  // `csr: CSR registers
+      if (format[1] == 's') {
+        if (format[2] == 'r') {
+          PrintCSRReg(instr);
+          return 3;
+        }
+      }
+      UNREACHABLE();
+    }
     case 'i': {  // 'imm12, 'imm20U, or 'imm20J: Immediates.
       if (format[3] == '1') {
         if (format[4] == '2') {
@@ -1006,22 +1035,22 @@ void Decoder::DecodeIType(Instruction* instr) {
     // TODO: use Zicsr Standard Extension macro block
     // FIXME(RISC-V): Add special formatting for CSR registers
     case RO_CSRRW:
-      Format(instr, "csrrw   'rd, 'rs1, 'imm12");
+      Format(instr, "csrrw   'rd, 'rs1, 'csr");
       break;
     case RO_CSRRS:
-      Format(instr, "csrrs   'rd, 'rs1, 'imm12");
+      Format(instr, "csrrs   'rd, 'rs1, 'csr");
       break;
     case RO_CSRRC:
-      Format(instr, "csrrc   'rd, 'rs1, 'imm12");
+      Format(instr, "csrrc   'rd, 'rs1, 'csr");
       break;
     case RO_CSRRWI:
-      Format(instr, "csrrwi  'rd, 'vs1, 'imm12");
+      Format(instr, "csrrwi  'rd, 'vs1, 'csr");
       break;
     case RO_CSRRSI:
-      Format(instr, "csrrsi  'rd, 'vs1, 'imm12");
+      Format(instr, "csrrsi  'rd, 'vs1, 'csr");
       break;
     case RO_CSRRCI:
-      Format(instr, "csrrci  'rd, 'vs1, 'imm12");
+      Format(instr, "csrrci  'rd, 'vs1, 'csr");
       break;
     // TODO: use F Extension macro block
     case RO_FLW:

@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Declares a Simulator for RISC-V instructions if we are not generating a native
-// RISC-V binary. This Simulator allows us to run and debug RISC-V code generation
-// on regular desktop machines.
-// V8 calls into generated code via the GeneratedCode wrapper,
-// which will start execution in the Simulator or forwards to the real entry
-// on a RISC-V HW platform.
+// Declares a Simulator for RISC-V instructions if we are not generating a
+// native RISC-V binary. This Simulator allows us to run and debug RISC-V code
+// generation on regular desktop machines. V8 calls into generated code via the
+// GeneratedCode wrapper, which will start execution in the Simulator or
+// forwards to the real entry on a RISC-V HW platform.
 
 #ifndef V8_EXECUTION_RISCV_SIMULATOR_RISCV_H_
 #define V8_EXECUTION_RISCV_SIMULATOR_RISCV_H_
@@ -341,6 +340,17 @@ class Simulator : public SimulatorBase {
   void get_msa_register(int wreg, T* value);
   template <typename T>
   void set_msa_register(int wreg, const T* value);
+
+  // RV CSR manipulation
+  uint32_t read_csr_value(uint32_t csr);
+  void write_csr_value(uint32_t csr, uint64_t value);
+  void set_csr_bits(uint32_t csr, uint64_t flags);
+  void clear_csr_bits(uint32_t csr, uint64_t flags);
+
+  inline uint32_t get_dynamic_rounding_mode();
+  inline bool test_fflags_bits(uint32_t mask);
+
+  // FIXME: MIPS ones to be cleaned up
   void set_fcsr_bit(uint32_t cc, bool value);
   bool test_fcsr_bit(uint32_t cc);
   bool set_fcsr_round_error(double original, double rounded);
@@ -362,6 +372,7 @@ class Simulator : public SimulatorBase {
   void set_msacsr_rounding_mode(FPURoundingMode mode);
   unsigned int get_fcsr_rounding_mode();
   unsigned int get_msacsr_rounding_mode();
+
   // Special case of set_register and get_register to access the raw PC value.
   void set_pc(int64_t value);
   int64_t get_pc() const;
@@ -595,6 +606,8 @@ class Simulator : public SimulatorBase {
   inline int16_t boffset() const { return instr_.BranchOffset(); }
   inline int16_t imm12() const { return instr_.Imm12Value(); }
   inline int32_t imm20J() const { return instr_.Imm20JValue(); }
+  inline int32_t imm5CSR() const { return instr_.Rs1Value(); }
+  inline int16_t csr_reg() const { return instr_.CsrValue(); }
   inline void set_rd(int64_t value) { set_register(RV_rd_reg(), value); }
   inline void set_frd(float value) {
     set_fpu_register_float(RV_rd_reg(), value);
@@ -738,7 +751,7 @@ class Simulator : public SimulatorBase {
   // Note: FPUregisters_[] array is increased to 64 * 8B = 32 * 16B in
   // order to support MSA registers
   int64_t FPUregisters_[kNumFPURegisters * 2];
-  // FPU control register.
+  // Floating-point control and status register.
   uint32_t FCSR_;
   // MSA control register.
   uint32_t MSACSR_;

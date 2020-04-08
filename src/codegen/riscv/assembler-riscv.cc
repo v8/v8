@@ -1462,8 +1462,8 @@ void Assembler::GenInstrCSR_ir(uint8_t funct3, Register rd,
 }
 
 void Assembler::GenInstrCSR_ii(uint8_t funct3, Register rd,
-                               ControlStatusReg csr, uint8_t rs1) {
-  GenInstrI(funct3, SYSTEM, rd, ToRegister(rs1), csr);
+                               ControlStatusReg csr, uint8_t imm5) {
+  GenInstrI(funct3, SYSTEM, rd, ToRegister(imm5), csr);
 }
 
 void Assembler::GenInstrShiftW_ri(bool arithshift, uint8_t funct3, Register rd,
@@ -2403,16 +2403,16 @@ void Assembler::RV_csrrc(Register rd, ControlStatusReg csr, Register rs1) {
   GenInstrCSR_ir(0b011, rd, csr, rs1);
 }
 
-void Assembler::RV_csrrwi(Register rd, ControlStatusReg csr, uint8_t rs1) {
-  GenInstrCSR_ii(0b101, rd, csr, rs1);
+void Assembler::RV_csrrwi(Register rd, ControlStatusReg csr, uint8_t imm5) {
+  GenInstrCSR_ii(0b101, rd, csr, imm5);
 }
 
-void Assembler::RV_csrrsi(Register rd, ControlStatusReg csr, uint8_t rs1) {
-  GenInstrCSR_ii(0b110, rd, csr, rs1);
+void Assembler::RV_csrrsi(Register rd, ControlStatusReg csr, uint8_t imm5) {
+  GenInstrCSR_ii(0b110, rd, csr, imm5);
 }
 
-void Assembler::RV_csrrci(Register rd, ControlStatusReg csr, uint8_t rs1) {
-  GenInstrCSR_ii(0b111, rd, csr, rs1);
+void Assembler::RV_csrrci(Register rd, ControlStatusReg csr, uint8_t imm5) {
+  GenInstrCSR_ii(0b111, rd, csr, imm5);
 }
 
 // RV64I
@@ -3084,18 +3084,10 @@ void Assembler::RV_rdinstret(Register rd) {
 void Assembler::RV_rdinstreth(Register rd) {
   RV_csrrs(rd, csr_instreth, zero_reg);
 }
-void Assembler::RV_rdcycle(Register rd) {
-  RV_csrrs(rd, csr_cycle, zero_reg);
-}
-void Assembler::RV_rdcycleh(Register rd) {
-  RV_csrrs(rd, csr_cycleh, zero_reg);
-}
-void Assembler::RV_rdtime(Register rd) {
-  RV_csrrs(rd, csr_time, zero_reg);
-}
-void Assembler::RV_rdtimeh(Register rd) {
-  RV_csrrs(rd, csr_timeh, zero_reg);
-}
+void Assembler::RV_rdcycle(Register rd) { RV_csrrs(rd, csr_cycle, zero_reg); }
+void Assembler::RV_rdcycleh(Register rd) { RV_csrrs(rd, csr_cycleh, zero_reg); }
+void Assembler::RV_rdtime(Register rd) { RV_csrrs(rd, csr_time, zero_reg); }
+void Assembler::RV_rdtimeh(Register rd) { RV_csrrs(rd, csr_timeh, zero_reg); }
 
 void Assembler::RV_csrr(Register rd, ControlStatusReg csr) {
   RV_csrrs(rd, csr, zero_reg);
@@ -3120,35 +3112,21 @@ void Assembler::RV_csrci(ControlStatusReg csr, uint8_t imm) {
   RV_csrrci(zero_reg, csr, imm);
 }
 
-void Assembler::RV_frcsr(Register rd) {
-  RV_csrrs(rd, csr_fcsr, zero_reg);
-}
+void Assembler::RV_frcsr(Register rd) { RV_csrrs(rd, csr_fcsr, zero_reg); }
 void Assembler::RV_fscsr(Register rd, Register rs) {
   RV_csrrw(rd, csr_fcsr, rs);
 }
-void Assembler::RV_fscsr(Register rs) {
-  RV_csrrw(zero_reg, csr_fcsr, rs);
-}
+void Assembler::RV_fscsr(Register rs) { RV_csrrw(zero_reg, csr_fcsr, rs); }
 
-void Assembler::RV_frrm(Register rd) {
-  RV_csrrs(rd, csr_frm, zero_reg);
-}
-void Assembler::RV_fsrm(Register rd, Register rs) {
-  RV_csrrw(rd, csr_frm, rs);
-}
-void Assembler::RV_fsrm(Register rs) {
-  RV_csrrw(zero_reg, csr_frm, rs);
-}
+void Assembler::RV_frrm(Register rd) { RV_csrrs(rd, csr_frm, zero_reg); }
+void Assembler::RV_fsrm(Register rd, Register rs) { RV_csrrw(rd, csr_frm, rs); }
+void Assembler::RV_fsrm(Register rs) { RV_csrrw(zero_reg, csr_frm, rs); }
 
-void Assembler::RV_frflags(Register rd) {
-  RV_csrrs(rd, csr_fflags, zero_reg);
-}
+void Assembler::RV_frflags(Register rd) { RV_csrrs(rd, csr_fflags, zero_reg); }
 void Assembler::RV_fsflags(Register rd, Register rs) {
   RV_csrrw(rd, csr_fflags, rs);
 }
-void Assembler::RV_fsflags(Register rs) {
-  RV_csrrw(zero_reg, csr_fflags, rs);
-}
+void Assembler::RV_fsflags(Register rs) { RV_csrrw(zero_reg, csr_fflags, rs); }
 
 // Original MIPS Instructions
 

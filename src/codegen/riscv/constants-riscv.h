@@ -295,6 +295,8 @@ const int kShamtWBits = 6;
 const int kArithShiftShift = 30;
 const int kImm20Shift = 12;
 const int kImm20Bits = 20;
+const int kCsrShift = 20;
+const int kCsrBits = 12;
 
 // RISCV Instruction bit masks
 const int kBaseOpcodeMask = ((1 << kBaseOpcodeBits) - 1) << kBaseOpcodeShift;
@@ -317,6 +319,15 @@ const int kRs3FieldMask = ((1 << kRs3Bits) - 1) << kRs3Shift;
 const int RV_kRdFieldMask = ((1 << RV_kRdBits) - 1) << RV_kRdShift;
 const int kBImm12Mask = kFunct7Mask | RV_kRdFieldMask;
 const int kImm20Mask = ((1 << kImm20Bits) - 1) << kImm20Shift;
+
+// CSR related bit mask and shift
+const int kFcsrFlagsBits = 5;
+const int kFcsrFlagsMask = (1 << kFcsrFlagsBits) - 1;
+const int kFcsrFrmBits = 3;
+const int kFcsrFrmShift = kFcsrFlagsBits;
+const int kFcsrFrmMask = ((1 << kFcsrFrmBits) - 1) << kFcsrFrmShift;
+const int kFcsrBits = kFcsrFlagsBits + kFcsrFrmBits;
+const int kFcsrMask = kFcsrFlagsMask | kFcsrFrmMask;
 
 // Original MIPS constants
 const int kOpcodeShift = 26;
@@ -1809,6 +1820,12 @@ class InstructionGetters : public T {
     DCHECK(this->InstructionType() == InstructionBase::kRType &&
            this->BaseOpcode() == OP_FP);
     return this->Bits(kFunct5Shift + kFunct5Bits - 1, kFunct5Shift);
+  }
+
+  inline int CsrValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kIType &&
+           this->BaseOpcode() == SYSTEM);
+    return (this->Bits(kCsrShift + kCsrBits - 1, kCsrShift));
   }
 
   inline int RoundMode() const {

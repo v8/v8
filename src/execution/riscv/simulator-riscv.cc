@@ -10,6 +10,7 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <cfenv>
 #include <cmath>
 
 #include "src/base/bits.h"
@@ -38,7 +39,7 @@ uint32_t get_fcsr_condition_bit(uint32_t cc) {
     return 24 + cc;
   }
 }
-// FIXME(RISCV) This function is not used in RISCV.  commented it out. RY	
+// FIXME(RISCV) This function is not used in RISCV.  commented it out. RY
 /*
 static int64_t MultiplyHighSigned(int64_t u, int64_t v) {
   uint64_t u0, a0, w0;
@@ -333,11 +334,12 @@ void RiscvDebugger::Debug() {
       }
       // Use sscanf to parse the individual parts of the command line. At the
       // moment no command expects more than two parameters.
-      int argc = SScanF(line,
-                        "%" XSTR(COMMAND_SIZE) "s "
-                        "%" XSTR(ARG_SIZE) "s "
-                        "%" XSTR(ARG_SIZE) "s",
-                        cmd, arg1, arg2);
+      int argc = SScanF(
+          line,
+          "%" XSTR(COMMAND_SIZE) "s "
+          "%" XSTR(ARG_SIZE) "s "
+          "%" XSTR(ARG_SIZE) "s",
+          cmd, arg1, arg2);
       if ((strcmp(cmd, "si") == 0) || (strcmp(cmd, "stepi") == 0)) {
         Instruction* instr = reinterpret_cast<Instruction*>(sim_->get_pc());
         if (!(instr->IsTrap()) ||
@@ -1013,6 +1015,89 @@ void Simulator::SetFpResult(const double& result) {
   }
 }
 
+// helper functions to read/write/set/clear CRC values/bits
+uint32_t Simulator::read_csr_value(uint32_t csr) {
+  switch (csr) {
+    case csr_fflags:  // Floating-Point Accrued Exceptions (RW)
+      return (FCSR_ & kFcsrFlagsMask);
+    case csr_frm:  // Floating-Point Dynamic Rounding Mode (RW)
+      return (FCSR_ & kFcsrFrmMask) >> kFcsrFrmShift;
+    case csr_fcsr:  // Floating-Point Control and Status Register (RW)
+      return (FCSR_ & kFcsrMask);
+    default:
+      UNIMPLEMENTED();
+  }
+}
+
+uint32_t Simulator::get_dynamic_rounding_mode() {
+  return read_csr_value(csr_frm);
+}
+
+void Simulator::write_csr_value(uint32_t csr, uint64_t val) {
+  uint32_t value = (uint32_t)val;
+  switch (csr) {
+    case csr_fflags:  // Floating-Point Accrued Exceptions (RW)
+      DCHECK(value <= ((1 << kFcsrFlagsBits) - 1));
+      FCSR_ = (FCSR_ & (~kFcsrFlagsMask)) | value;
+      break;
+    case csr_frm:  // Floating-Point Dynamic Rounding Mode (RW)
+      DCHECK(value <= ((1 << kFcsrFrmBits) - 1));
+      FCSR_ = (FCSR_ & (~kFcsrFrmMask)) | (value << kFcsrFrmShift);
+      break;
+    case csr_fcsr:  // Floating-Point Control and Status Register (RW)
+      DCHECK(value <= ((1 << kFcsrBits) - 1));
+      FCSR_ = (FCSR_ & (~kFcsrMask)) | value;
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+}
+
+void Simulator::set_csr_bits(uint32_t csr, uint64_t val) {
+  uint32_t value = (uint32_t)val;
+  switch (csr) {
+    case csr_fflags:  // Floating-Point Accrued Exceptions (RW)
+      DCHECK(value <= ((1 << kFcsrFlagsBits) - 1));
+      FCSR_ = FCSR_ | value;
+      break;
+    case csr_frm:  // Floating-Point Dynamic Rounding Mode (RW)
+      DCHECK(value <= ((1 << kFcsrFrmBits) - 1));
+      FCSR_ = FCSR_ | (value << kFcsrFrmShift);
+      break;
+    case csr_fcsr:  // Floating-Point Control and Status Register (RW)
+      DCHECK(value <= ((1 << kFcsrBits) - 1));
+      FCSR_ = FCSR_ | value;
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+}
+
+void Simulator::clear_csr_bits(uint32_t csr, uint64_t val) {
+  uint32_t value = (uint32_t)val;
+  switch (csr) {
+    case csr_fflags:  // Floating-Point Accrued Exceptions (RW)
+      DCHECK(value <= ((1 << kFcsrFlagsBits) - 1));
+      FCSR_ = FCSR_ & (~value);
+      break;
+    case csr_frm:  // Floating-Point Dynamic Rounding Mode (RW)
+      DCHECK(value <= ((1 << kFcsrFrmBits) - 1));
+      FCSR_ = FCSR_ & (~(value << kFcsrFrmShift));
+      break;
+    case csr_fcsr:  // Floating-Point Control and Status Register (RW)
+      DCHECK(value <= ((1 << kFcsrBits) - 1));
+      FCSR_ = FCSR_ & (~value);
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+}
+
+bool Simulator::test_fflags_bits(uint32_t mask) {
+  return (FCSR_ & kFcsrFlagsMask & mask) != 0;
+}
+
+// FIXME: the following is for MIPS, to be cleaned up
 // Helper functions for setting and testing the FCSR register's bits.
 void Simulator::set_fcsr_bit(uint32_t cc, bool value) {
   if (value) {
@@ -3675,508 +3760,13 @@ void Simulator::DecodeTypeRegisterCOP1X() {
 }
 
 void Simulator::DecodeTypeRegisterSPECIAL() {
-// FIXME(RISCV) This function is not supported in RISCV.  commented it out. RY
-/*
-  int64_t i64hilo;
-  uint64_t u64hilo;
-  int64_t alu_out;
-  bool do_interrupt = false;
-
-  switch (instr_.FunctionFieldRaw()) {
-    case SELEQZ_S:
-      DCHECK_EQ(kArchVariant, kMips64r6);
-      SetResult(rd_reg(), rt() == 0 ? rs() : 0);
-      break;
-    case SELNEZ_S:
-      DCHECK_EQ(kArchVariant, kMips64r6);
-      SetResult(rd_reg(), rt() != 0 ? rs() : 0);
-      break;
-    case JR: {
-      int64_t next_pc = rs();
-      int64_t current_pc = get_pc();
-      Instruction* branch_delay_instr =
-          reinterpret_cast<Instruction*>(current_pc + kInstrSize);
-      BranchDelayInstructionDecode(branch_delay_instr);
-      set_pc(next_pc);
-      pc_modified_ = true;
-      break;
-    }
-    case JALR: {
-      int64_t next_pc = rs();
-      int64_t current_pc = get_pc();
-      int32_t return_addr_reg = rd_reg();
-      Instruction* branch_delay_instr =
-          reinterpret_cast<Instruction*>(current_pc + kInstrSize);
-      BranchDelayInstructionDecode(branch_delay_instr);
-      set_register(return_addr_reg, current_pc + 2 * kInstrSize);
-      set_pc(next_pc);
-      pc_modified_ = true;
-      break;
-    }
-    case SLL:
-      SetResult(rd_reg(), static_cast<int32_t>(rt()) << sa());
-      break;
-    case DSLL:
-      SetResult(rd_reg(), rt() << sa());
-      break;
-    case DSLL32:
-      SetResult(rd_reg(), rt() << sa() << 32);
-      break;
-    case SRL:
-      if (rs_reg() == 0) {
-        // Regular logical right shift of a word by a fixed number of
-        // bits instruction. RS field is always equal to 0.
-        // Sign-extend the 32-bit result.
-        alu_out = static_cast<int32_t>(static_cast<uint32_t>(rt_u()) >> sa());
-      } else if (rs_reg() == 1) {
-        // Logical right-rotate of a word by a fixed number of bits. This
-        // is special case of SRL instruction, added in MIPS32 Release 2.
-        // RS field is equal to 00001.
-        alu_out = static_cast<int32_t>(
-            base::bits::RotateRight32(static_cast<const uint32_t>(rt_u()),
-                                      static_cast<const uint32_t>(sa())));
-      } else {
-        UNREACHABLE();
-      }
-      SetResult(rd_reg(), alu_out);
-      break;
-    case DSRL:
-      if (rs_reg() == 0) {
-        // Regular logical right shift of a word by a fixed number of
-        // bits instruction. RS field is always equal to 0.
-        // Sign-extend the 64-bit result.
-        alu_out = static_cast<int64_t>(rt_u() >> sa());
-      } else if (rs_reg() == 1) {
-        // Logical right-rotate of a word by a fixed number of bits. This
-        // is special case of SRL instruction, added in MIPS32 Release 2.
-        // RS field is equal to 00001.
-        alu_out = static_cast<int64_t>(base::bits::RotateRight64(rt_u(), sa()));
-      } else {
-        UNREACHABLE();
-      }
-      SetResult(rd_reg(), alu_out);
-      break;
-    case DSRL32:
-      if (rs_reg() == 0) {
-        // Regular logical right shift of a word by a fixed number of
-        // bits instruction. RS field is always equal to 0.
-        // Sign-extend the 64-bit result.
-        alu_out = static_cast<int64_t>(rt_u() >> sa() >> 32);
-      } else if (rs_reg() == 1) {
-        // Logical right-rotate of a word by a fixed number of bits. This
-        // is special case of SRL instruction, added in MIPS32 Release 2.
-        // RS field is equal to 00001.
-        alu_out =
-            static_cast<int64_t>(base::bits::RotateRight64(rt_u(), sa() + 32));
-      } else {
-        UNREACHABLE();
-      }
-      SetResult(rd_reg(), alu_out);
-      break;
-    case SRA:
-      SetResult(rd_reg(), (int32_t)rt() >> sa());
-      break;
-    case DSRA:
-      SetResult(rd_reg(), rt() >> sa());
-      break;
-    case DSRA32:
-      SetResult(rd_reg(), rt() >> sa() >> 32);
-      break;
-    case SLLV:
-      SetResult(rd_reg(), (int32_t)rt() << rs());
-      break;
-    case DSLLV:
-      SetResult(rd_reg(), rt() << rs());
-      break;
-    case SRLV:
-      if (sa() == 0) {
-        // Regular logical right-shift of a word by a variable number of
-        // bits instruction. SA field is always equal to 0.
-        alu_out = static_cast<int32_t>((uint32_t)rt_u() >> rs());
-      } else {
-        // Logical right-rotate of a word by a variable number of bits.
-        // This is special case od SRLV instruction, added in MIPS32
-        // Release 2. SA field is equal to 00001.
-        alu_out = static_cast<int32_t>(
-            base::bits::RotateRight32(static_cast<const uint32_t>(rt_u()),
-                                      static_cast<const uint32_t>(rs_u())));
-      }
-      SetResult(rd_reg(), alu_out);
-      break;
-    case DSRLV:
-      if (sa() == 0) {
-        // Regular logical right-shift of a word by a variable number of
-        // bits instruction. SA field is always equal to 0.
-        alu_out = static_cast<int64_t>(rt_u() >> rs());
-      } else {
-        // Logical right-rotate of a word by a variable number of bits.
-        // This is special case od SRLV instruction, added in MIPS32
-        // Release 2. SA field is equal to 00001.
-        alu_out =
-            static_cast<int64_t>(base::bits::RotateRight64(rt_u(), rs_u()));
-      }
-      SetResult(rd_reg(), alu_out);
-      break;
-    case SRAV:
-      SetResult(rd_reg(), (int32_t)rt() >> rs());
-      break;
-    case DSRAV:
-      SetResult(rd_reg(), rt() >> rs());
-      break;
-    case LSA: {
-      DCHECK_EQ(kArchVariant, kMips64r6);
-      int8_t sa = lsa_sa() + 1;
-      int32_t _rt = static_cast<int32_t>(rt());
-      int32_t _rs = static_cast<int32_t>(rs());
-      int32_t res = _rs << sa;
-      res += _rt;
-      SetResult(rd_reg(), static_cast<int64_t>(res));
-      break;
-    }
-    case DLSA:
-      DCHECK_EQ(kArchVariant, kMips64r6);
-      SetResult(rd_reg(), (rs() << (lsa_sa() + 1)) + rt());
-      break;
-    case MFHI:  // MFHI == CLZ on R6.
-      if (kArchVariant != kMips64r6) {
-        DCHECK_EQ(sa(), 0);
-        alu_out = get_register(HI);
-      } else {
-        // MIPS spec: If no bits were set in GPR rs(), the result written to
-        // GPR rd() is 32.
-        DCHECK_EQ(sa(), 1);
-        alu_out = base::bits::CountLeadingZeros32(static_cast<int32_t>(rs_u()));
-      }
-      SetResult(rd_reg(), alu_out);
-      break;
-    case MFLO:  // MFLO == DCLZ on R6.
-      if (kArchVariant != kMips64r6) {
-        DCHECK_EQ(sa(), 0);
-        alu_out = get_register(LO);
-      } else {
-        // MIPS spec: If no bits were set in GPR rs(), the result written to
-        // GPR rd() is 64.
-        DCHECK_EQ(sa(), 1);
-        alu_out = base::bits::CountLeadingZeros64(static_cast<int64_t>(rs_u()));
-      }
-      SetResult(rd_reg(), alu_out);
-      break;
-    // Instructions using HI and LO registers.
-    case MULT: {  // MULT == D_MUL_MUH.
-      int32_t rs_lo = static_cast<int32_t>(rs());
-      int32_t rt_lo = static_cast<int32_t>(rt());
-      i64hilo = static_cast<int64_t>(rs_lo) * static_cast<int64_t>(rt_lo);
-      if (kArchVariant != kMips64r6) {
-        set_register(LO, static_cast<int32_t>(i64hilo & 0xFFFFFFFF));
-        set_register(HI, static_cast<int32_t>(i64hilo >> 32));
-      } else {
-        switch (sa()) {
-          case MUL_OP:
-            SetResult(rd_reg(), static_cast<int32_t>(i64hilo & 0xFFFFFFFF));
-            break;
-          case MUH_OP:
-            SetResult(rd_reg(), static_cast<int32_t>(i64hilo >> 32));
-            break;
-          default:
-            UNIMPLEMENTED_RISCV();
-            break;
-        }
-      }
-      break;
-    }
-    case MULTU:
-      u64hilo = static_cast<uint64_t>(rs_u() & 0xFFFFFFFF) *
-                static_cast<uint64_t>(rt_u() & 0xFFFFFFFF);
-      if (kArchVariant != kMips64r6) {
-        set_register(LO, static_cast<int32_t>(u64hilo & 0xFFFFFFFF));
-        set_register(HI, static_cast<int32_t>(u64hilo >> 32));
-      } else {
-        switch (sa()) {
-          case MUL_OP:
-            SetResult(rd_reg(), static_cast<int32_t>(u64hilo & 0xFFFFFFFF));
-            break;
-          case MUH_OP:
-            SetResult(rd_reg(), static_cast<int32_t>(u64hilo >> 32));
-            break;
-          default:
-            UNIMPLEMENTED_RISCV();
-            break;
-        }
-      }
-      break;
-    case DMULT:  // DMULT == D_MUL_MUH.
-      if (kArchVariant != kMips64r6) {
-        set_register(LO, rs() * rt());
-        set_register(HI, MultiplyHighSigned(rs(), rt()));
-      } else {
-        switch (sa()) {
-          case MUL_OP:
-            SetResult(rd_reg(), rs() * rt());
-            break;
-          case MUH_OP:
-            SetResult(rd_reg(), MultiplyHighSigned(rs(), rt()));
-            break;
-          default:
-            UNIMPLEMENTED_RISCV();
-            break;
-        }
-      }
-      break;
-    case DMULTU:
-      UNIMPLEMENTED_RISCV();
-      break;
-    case DIV:
-    case DDIV: {
-      const int64_t int_min_value =
-          instr_.FunctionFieldRaw() == DIV ? INT_MIN : LONG_MIN;
-      switch (kArchVariant) {
-        case kMips64r2:
-          // Divide by zero and overflow was not checked in the
-          // configuration step - div and divu do not raise exceptions. On
-          // division by 0 the result will be UNPREDICTABLE. On overflow
-          // (INT_MIN/-1), return INT_MIN which is what the hardware does.
-          if (rs() == int_min_value && rt() == -1) {
-            set_register(LO, int_min_value);
-            set_register(HI, 0);
-          } else if (rt() != 0) {
-            set_register(LO, rs() / rt());
-            set_register(HI, rs() % rt());
-          }
-          break;
-        case kMips64r6:
-          switch (sa()) {
-            case DIV_OP:
-              if (rs() == int_min_value && rt() == -1) {
-                SetResult(rd_reg(), int_min_value);
-              } else if (rt() != 0) {
-                SetResult(rd_reg(), rs() / rt());
-              }
-              break;
-            case MOD_OP:
-              if (rs() == int_min_value && rt() == -1) {
-                SetResult(rd_reg(), 0);
-              } else if (rt() != 0) {
-                SetResult(rd_reg(), rs() % rt());
-              }
-              break;
-            default:
-              UNIMPLEMENTED_RISCV();
-              break;
-          }
-          break;
-        default:
-          break;
-      }
-      break;
-    }
-    case DIVU:
-      switch (kArchVariant) {
-        case kMips64r6: {
-          uint32_t rt_u_32 = static_cast<uint32_t>(rt_u());
-          uint32_t rs_u_32 = static_cast<uint32_t>(rs_u());
-          switch (sa()) {
-            case DIV_OP:
-              if (rt_u_32 != 0) {
-                SetResult(rd_reg(), rs_u_32 / rt_u_32);
-              }
-              break;
-            case MOD_OP:
-              if (rt_u() != 0) {
-                SetResult(rd_reg(), rs_u_32 % rt_u_32);
-              }
-              break;
-            default:
-              UNIMPLEMENTED_RISCV();
-              break;
-          }
-        } break;
-        default: {
-          if (rt_u() != 0) {
-            uint32_t rt_u_32 = static_cast<uint32_t>(rt_u());
-            uint32_t rs_u_32 = static_cast<uint32_t>(rs_u());
-            set_register(LO, rs_u_32 / rt_u_32);
-            set_register(HI, rs_u_32 % rt_u_32);
-          }
-        }
-      }
-      break;
-    case DDIVU:
-      switch (kArchVariant) {
-        case kMips64r6: {
-          switch (instr_.SaValue()) {
-            case DIV_OP:
-              if (rt_u() != 0) {
-                SetResult(rd_reg(), rs_u() / rt_u());
-              }
-              break;
-            case MOD_OP:
-              if (rt_u() != 0) {
-                SetResult(rd_reg(), rs_u() % rt_u());
-              }
-              break;
-            default:
-              UNIMPLEMENTED_RISCV();
-              break;
-          }
-        } break;
-        default: {
-          if (rt_u() != 0) {
-            set_register(LO, rs_u() / rt_u());
-            set_register(HI, rs_u() % rt_u());
-          }
-        }
-      }
-      break;
-    case ADD:
-    case DADD:
-      if (HaveSameSign(rs(), rt())) {
-        if (rs() > 0) {
-          if (rs() > (Registers::kMaxValue - rt())) {
-            SignalException(kIntegerOverflow);
-          }
-        } else if (rs() < 0) {
-          if (rs() < (Registers::kMinValue - rt())) {
-            SignalException(kIntegerUnderflow);
-          }
-        }
-      }
-      SetResult(rd_reg(), rs() + rt());
-      break;
-    case ADDU: {
-      int32_t alu32_out = static_cast<int32_t>(rs() + rt());
-      // Sign-extend result of 32bit operation into 64bit register.
-      SetResult(rd_reg(), static_cast<int64_t>(alu32_out));
-      break;
-    }
-    case DADDU:
-      SetResult(rd_reg(), rs() + rt());
-      break;
-    case SUB:
-    case DSUB:
-      if (!HaveSameSign(rs(), rt())) {
-        if (rs() > 0) {
-          if (rs() > (Registers::kMaxValue + rt())) {
-            SignalException(kIntegerOverflow);
-          }
-        } else if (rs() < 0) {
-          if (rs() < (Registers::kMinValue + rt())) {
-            SignalException(kIntegerUnderflow);
-          }
-        }
-      }
-      SetResult(rd_reg(), rs() - rt());
-      break;
-    case SUBU: {
-      int32_t alu32_out = static_cast<int32_t>(rs() - rt());
-      // Sign-extend result of 32bit operation into 64bit register.
-      SetResult(rd_reg(), static_cast<int64_t>(alu32_out));
-      break;
-    }
-    case DSUBU:
-      SetResult(rd_reg(), rs() - rt());
-      break;
-    case AND:
-      SetResult(rd_reg(), rs() & rt());
-      break;
-    case OR:
-      SetResult(rd_reg(), rs() | rt());
-      break;
-    case XOR:
-      SetResult(rd_reg(), rs() ^ rt());
-      break;
-    case NOR:
-      SetResult(rd_reg(), ~(rs() | rt()));
-      break;
-    case SLT:
-      SetResult(rd_reg(), rs() < rt() ? 1 : 0);
-      break;
-    case SLTU:
-      SetResult(rd_reg(), rs_u() < rt_u() ? 1 : 0);
-      break;
-    // Break and trap instructions.
-    case BREAK:
-      do_interrupt = true;
-      break;
-    case TGE:
-      do_interrupt = rs() >= rt();
-      break;
-    case TGEU:
-      do_interrupt = rs_u() >= rt_u();
-      break;
-    case TLT:
-      do_interrupt = rs() < rt();
-      break;
-    case TLTU:
-      do_interrupt = rs_u() < rt_u();
-      break;
-    case TEQ:
-      do_interrupt = rs() == rt();
-      break;
-    case TNE:
-      do_interrupt = rs() != rt();
-      break;
-    case SYNC:
-      // TODO(palfia): Ignore sync instruction for now.
-      break;
-    // Conditional moves.
-    case MOVN:
-      if (rt()) {
-        SetResult(rd_reg(), rs());
-      }
-      break;
-    case MOVCI: {
-      uint32_t cc = instr_.FBccValue();
-      uint32_t fcsr_cc = get_fcsr_condition_bit(cc);
-      if (instr_.Bit(16)) {  // Read Tf bit.
-        if (test_fcsr_bit(fcsr_cc)) SetResult(rd_reg(), rs());
-      } else {
-        if (!test_fcsr_bit(fcsr_cc)) SetResult(rd_reg(), rs());
-      }
-      break;
-    }
-    case MOVZ:
-      if (!rt()) {
-        SetResult(rd_reg(), rs());
-      }
-      break;
-    default:
-      UNREACHABLE();
-  }
-  if (do_interrupt) {
-    SoftwareInterrupt();
-  }
-*/	
+  // FIXME(RISCV) This function is not supported in RISCV, should remove.
+  UNREACHABLE();
 }
 
 void Simulator::DecodeTypeRegisterSPECIAL2() {
-// FIXME(RISCV) This function is not supported in RISCV.  commented it out. RY
-/*
-  int64_t alu_out;
-  switch (instr_.FunctionFieldRaw()) {
-    case MUL:
-      alu_out = static_cast<int32_t>(rs_u()) * static_cast<int32_t>(rt_u());
-      SetResult(rd_reg(), alu_out);
-      // HI and LO are UNPREDICTABLE after the operation.
-      set_register(LO, Unpredictable);
-      set_register(HI, Unpredictable);
-      break;
-    case CLZ:
-      // MIPS32 spec: If no bits were set in GPR rs(), the result written to
-      // GPR rd is 32.
-      alu_out = base::bits::CountLeadingZeros32(static_cast<uint32_t>(rs_u()));
-      SetResult(rd_reg(), alu_out);
-      break;
-    case DCLZ:
-      // MIPS64 spec: If no bits were set in GPR rs(), the result written to
-      // GPR rd is 64.
-      alu_out = base::bits::CountLeadingZeros64(static_cast<uint64_t>(rs_u()));
-      SetResult(rd_reg(), alu_out);
-      break;
-    default:
-      alu_out = 0x12345678;
-      UNREACHABLE();
-  }
-*/	
+  // FIXME(RISCV) This function is not supported in RISCV.  commented it out. RY
+  UNREACHABLE();
 }
 
 void Simulator::DecodeTypeRegisterSPECIAL3() {
@@ -7490,6 +7080,66 @@ void Simulator::DecodeRVRType() {
   }
 }
 
+static float preround_float(float input_val, int rmode) {
+  // Actual rounding for DYN is specified in fcsr_fmt, so exclude DYN here.
+  assert(rmode != DYN);
+  float result = 0;
+  switch (rmode) {
+    case RNE: {  // Round to Nearest, tiest to Even
+      int curr_mode = fegetround();
+      fesetround(FE_TONEAREST);
+      result = std::nearbyintf(input_val);
+      fesetround(curr_mode);
+      break;
+    }
+    case RTZ:  // Round towards Zero
+      result = std::truncf(input_val);
+      break;
+    case RDN:  // Round Down (towards -infinity)
+      result = std::floorf(input_val);
+      break;
+    case RUP:  // Round Up (towards +infinity)
+      result = std::ceilf(input_val);
+      break;
+    case RMM:  // Round to Nearest, tiest to Max Magnitude
+      result = std::roundf(input_val);
+      break;
+    default:
+      UNREACHABLE();
+  }
+  return result;
+}
+
+static double preround_double(double input_val, int rmode) {
+  // Actual rounding for DYN is specified in fcsr_fmt, so exclude DYN here.
+  assert(rmode != DYN);
+  double result = 0;
+  switch (rmode) {
+    case RNE: {  // Round to Nearest, tiest to Even
+      int curr_mode = fegetround();
+      fesetround(FE_TONEAREST);
+      result = std::nearbyint(input_val);
+      fesetround(curr_mode);
+      break;
+    }
+    case RTZ:  // Round towards Zero
+      result = std::trunc(input_val);
+      break;
+    case RDN:  // Round Down (towards -infinity)
+      result = std::floor(input_val);
+      break;
+    case RUP:  // Round Up (towards +infinity)
+      result = std::ceil(input_val);
+      break;
+    case RMM:  // Round to Nearest, tiest to Max Magnitude
+      result = std::round(input_val);
+      break;
+    default:
+      UNREACHABLE();
+  }
+  return result;
+}
+
 void Simulator::DecodeRVRAType() {
   // TODO: Add macro for RISCV A extension
   // Special handling for A extension instructions because it uses func5
@@ -7697,23 +7347,33 @@ void Simulator::DecodeRVRFPType() {
       }
       break;
     }
+    // FIXME: handle out-of-range conversion, set Invalid Operation
+    // flag
     case RO_FCVT_W_S: {  // RO_FCVT_WU_S , 64F RO_FCVT_L_S RO_FCVT_LU_S
+      float src_val = frs1();
+      // 1. preround float to float according to rounding mode
+      int rounding_mode = instr_.RoundMode();
+      if (rounding_mode == DYN) {
+        rounding_mode = get_dynamic_rounding_mode();
+      }
+      src_val = preround_float(src_val, rounding_mode);
+      // 2. convert rounded float to integer
       switch (instr_.Rs2Value()) {
         case 0b00000: {  // RO_FCVT_W_S
-          set_rd((int32_t)frs1());
+          set_rd((int32_t)src_val);
           break;
         }
         case 0b00001: {  // RO_FCVT_WU_S
-          set_rd((uint32_t)frs1());
+          set_rd((uint32_t)src_val);
           break;
         }
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b00010: {  // RO_FCVT_L_S
-          set_rd((int64_t)frs1());
+          set_rd((int64_t)src_val);
           break;
         }
         case 0b00011: {  // RO_FCVT_LU_S
-          set_rd((uint64_t)frs1());
+          set_rd((uint64_t)src_val);
           break;
         }
 #endif /* V8_TARGET_ARCH_64_BIT */
@@ -7923,22 +7583,30 @@ void Simulator::DecodeRVRFPType() {
       break;
     }
     case RO_FCVT_W_D: {  // RO_FCVT_WU_D , 64F RO_FCVT_L_D RO_FCVT_LU_D
+      double src_val = drs1();
+      // 1. preround float to float according to rounding mode
+      int rounding_mode = instr_.RoundMode();
+      if (rounding_mode == DYN) {
+        rounding_mode = get_dynamic_rounding_mode();
+      }
+      src_val = preround_double(src_val, rounding_mode);
+      // 2. convert rounded float to integer
       switch (instr_.Rs2Value()) {
         case 0b00000: {  // RO_FCVT_W_D
-          set_rd((int32_t)drs1());
+          set_rd((int32_t)src_val);
           break;
         }
         case 0b00001: {  // RO_FCVT_WU_D
-          set_rd((uint32_t)drs1());
+          set_rd((uint32_t)src_val);
           break;
         }
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b00010: {  // RO_FCVT_L_D
-          set_rd((int64_t)drs1());
+          set_rd((int64_t)src_val);
           break;
         }
         case 0b00011: {  // RO_FCVT_LU_D
-          set_rd((uint64_t)drs1());
+          set_rd((uint64_t)src_val);
           break;
         }
 #endif /* V8_TARGET_ARCH_64_BIT */
@@ -8163,27 +7831,45 @@ void Simulator::DecodeRVIType() {
     }
       // TODO: use Zicsr Standard Extension macro block
     case RO_CSRRW: {
-      UNSUPPORTED();
+      if (RV_rd_reg() != zero_reg) {
+        set_rd(zext_xlen(read_csr_value(csr_reg())));
+      }
+      write_csr_value(csr_reg(), rs1());
       break;
     }
     case RO_CSRRS: {
-      UNSUPPORTED();
+      set_rd(zext_xlen(read_csr_value(csr_reg())));
+      if (rs1_reg() != zero_reg) {
+        set_csr_bits(csr_reg(), rs1());
+      }
       break;
     }
     case RO_CSRRC: {
-      UNSUPPORTED();
+      set_rd(zext_xlen(read_csr_value(csr_reg())));
+      if (rs1_reg() != zero_reg) {
+        clear_csr_bits(csr_reg(), rs1());
+      }
       break;
     }
     case RO_CSRRWI: {
-      UNSUPPORTED();
+      if (RV_rd_reg() != zero_reg) {
+        set_rd(zext_xlen(read_csr_value(csr_reg())));
+      }
+      write_csr_value(csr_reg(), imm5CSR());
       break;
     }
     case RO_CSRRSI: {
-      UNSUPPORTED();
+      set_rd(zext_xlen(read_csr_value(csr_reg())));
+      if (imm5CSR() != 0) {
+        set_csr_bits(csr_reg(), imm5CSR());
+      }
       break;
     }
     case RO_CSRRCI: {
-      UNSUPPORTED();
+      set_rd(zext_xlen(read_csr_value(csr_reg())));
+      if (imm5CSR() != 0) {
+        clear_csr_bits(csr_reg(), imm5CSR());
+      }
       break;
     }
     // TODO: use F Extension macro block
