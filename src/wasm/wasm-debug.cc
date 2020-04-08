@@ -1331,19 +1331,21 @@ bool WasmScript::ClearBreakPoint(Handle<Script> script, int position,
     return false;
   }
 
-  // Iterate over all instances and tell them to remove this breakpoint.
-  // We do this using the weak list of all instances from the script.
-  Handle<WeakArrayList> weak_instance_list(script->wasm_weak_instance_list(),
-                                           isolate);
-  for (int i = 0; i < weak_instance_list->length(); ++i) {
-    MaybeObject maybe_instance = weak_instance_list->Get(i);
-    if (maybe_instance->IsWeak()) {
-      Handle<WasmInstanceObject> instance(
-          WasmInstanceObject::cast(maybe_instance->GetHeapObjectAssumeWeak()),
-          isolate);
-      Handle<WasmDebugInfo> debug_info =
-          WasmInstanceObject::GetOrCreateDebugInfo(instance);
-      WasmDebugInfo::ClearBreakpoint(debug_info, func_index, offset_in_func);
+  if (!FLAG_debug_in_liftoff) {
+    // Iterate over all instances and tell them to remove this breakpoint.
+    // We do this using the weak list of all instances from the script.
+    Handle<WeakArrayList> weak_instance_list(script->wasm_weak_instance_list(),
+                                             isolate);
+    for (int i = 0; i < weak_instance_list->length(); ++i) {
+      MaybeObject maybe_instance = weak_instance_list->Get(i);
+      if (maybe_instance->IsWeak()) {
+        Handle<WasmInstanceObject> instance(
+            WasmInstanceObject::cast(maybe_instance->GetHeapObjectAssumeWeak()),
+            isolate);
+        Handle<WasmDebugInfo> debug_info =
+            WasmInstanceObject::GetOrCreateDebugInfo(instance);
+        WasmDebugInfo::ClearBreakpoint(debug_info, func_index, offset_in_func);
+      }
     }
   }
 
