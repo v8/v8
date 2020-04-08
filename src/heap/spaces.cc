@@ -3787,6 +3787,13 @@ bool PagedSpace::SlowRefillLinearAllocationArea(int size_in_bytes,
   VMState<GC> state(heap()->isolate());
   RuntimeCallTimerScope runtime_timer(
       heap()->isolate(), RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
+  base::Optional<base::MutexGuard> optional_mutex;
+
+  if (FLAG_concurrent_allocation && origin != AllocationOrigin::kGC &&
+      identity() == OLD_SPACE) {
+    optional_mutex.emplace(&allocation_mutex_);
+  }
+
   return RawSlowRefillLinearAllocationArea(size_in_bytes, origin);
 }
 

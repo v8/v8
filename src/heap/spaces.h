@@ -2588,6 +2588,9 @@ class V8_EXPORT_PRIVATE PagedSpace
   // Mutex guarding any concurrent access to the space.
   base::Mutex space_mutex_;
 
+  // Mutex guarding concurrent allocation.
+  base::Mutex allocation_mutex_;
+
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
 
