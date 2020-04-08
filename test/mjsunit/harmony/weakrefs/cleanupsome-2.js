@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-weak-refs --expose-gc --noincremental-marking --allow-natives-syntax
+// Flags: --harmony-weak-refs-with-cleanup-some --expose-gc --noincremental-marking --allow-natives-syntax
 
 let cleanup_count = 0;
 let cleanup_holdings = [];

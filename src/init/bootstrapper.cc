@@ -4344,10 +4344,6 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     SimpleInstallFunction(isolate(), finalization_registry_prototype,
                           "unregister",
                           Builtins::kFinalizationRegistryUnregister, 1, false);
-
-    SimpleInstallFunction(isolate(), finalization_registry_prototype,
-                          "cleanupSome",
-                          Builtins::kFinalizationRegistryCleanupSome, 0, false);
   }
   {
     // Create %WeakRefPrototype%
@@ -4384,6 +4380,21 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     JSObject::AddProperty(isolate(), global, weak_ref_name, weak_ref_fun,
                           DONT_ENUM);
   }
+}
+
+void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
+  if (!FLAG_harmony_weak_refs_with_cleanup_some) return;
+  DCHECK(FLAG_harmony_weak_refs);
+
+  Handle<JSFunction> finalization_registry_fun =
+      isolate()->js_finalization_registry_fun();
+  Handle<JSObject> finalization_registry_prototype(
+      JSObject::cast(finalization_registry_fun->instance_prototype()),
+      isolate());
+
+  SimpleInstallFunction(isolate(), finalization_registry_prototype,
+                        "cleanupSome",
+                        Builtins::kFinalizationRegistryCleanupSome, 0, false);
 }
 
 void Genesis::InitializeGlobal_harmony_promise_all_settled() {

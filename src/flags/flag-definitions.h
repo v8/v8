@@ -207,15 +207,19 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 DEFINE_IMPLICATION(es_staging, harmony)
 // Enabling import.meta requires to also enable import()
 DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
+// Enabling FinalizationRegistry#cleanupSome also enables weak refs
+DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 
 // Update bootstrapper.cc whenever adding a new feature flag.
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS_BASE(V)                                    \
-  V(harmony_string_replaceall, "harmony String.prototype.replaceAll") \
-  V(harmony_regexp_sequence, "RegExp Unicode sequence properties")    \
-  V(harmony_weak_refs, "harmony weak references")                     \
-  V(harmony_regexp_match_indices, "harmony regexp match indices")     \
+#define HARMONY_INPROGRESS_BASE(V)                                             \
+  V(harmony_string_replaceall, "harmony String.prototype.replaceAll")          \
+  V(harmony_regexp_sequence, "RegExp Unicode sequence properties")             \
+  V(harmony_weak_refs, "harmony weak references")                              \
+  V(harmony_weak_refs_with_cleanup_some,                                       \
+    "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
+  V(harmony_regexp_match_indices, "harmony regexp match indices")              \
   V(harmony_top_level_await, "harmony top level await")
 
 #ifdef V8_INTL_SUPPORT
