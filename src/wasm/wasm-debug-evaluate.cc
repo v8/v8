@@ -92,9 +92,9 @@ class DebugEvaluatorProxy {
   void GetMemory(uint32_t offset, uint32_t size, uint32_t result) {
     wasm::ScheduledErrorThrower thrower(isolate_, "debug evaluate proxy");
     // Check all overflows.
-    if (CheckRangeOutOfBounds(result, size, debuggee_->memory_size(),
+    if (CheckRangeOutOfBounds(offset, size, debuggee_->memory_size(),
                               &thrower) ||
-        CheckRangeOutOfBounds(offset, size, evaluator_->memory_size(),
+        CheckRangeOutOfBounds(result, size, evaluator_->memory_size(),
                               &thrower)) {
       return;
     }

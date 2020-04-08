@@ -129,7 +129,7 @@ class WasmEvaluatorBuilder {
 
   void CallGetMemory(std::initializer_list<byte> args) {
     push_back(args);
-    push_back({WASM_CALL_FUNCTION0(wasm_format_function->func_index())});
+    push_back({WASM_CALL_FUNCTION0(get_memory_function_index)});
   }
 
   ZoneBuffer bytes() {
