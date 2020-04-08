@@ -175,15 +175,6 @@ namespace internal {
 // Produces (Map, struct_name_map, StructNameMap) entries
 #define STRUCT_MAPS_LIST(V) STRUCT_LIST_GENERATOR(STRUCT_MAPS_LIST_ADAPTER, V)
 
-// Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_LIST entry
-#define TORQUE_INTERNAL_CLASS_LIST_MAPS_ADAPTER(V, NAME, Name, name) \
-  V(Map, name##_map, Name##Map)
-
-// Produces (NAME, Name, name) entries.
-#define TORQUE_INTERNAL_CLASS_MAPS_LIST(V) \
-  TORQUE_INTERNAL_CLASS_LIST_GENERATOR(    \
-      TORQUE_INTERNAL_CLASS_LIST_MAPS_ADAPTER, V)
-
 //
 // The following macros define list of allocation size objects and list of
 // their maps.

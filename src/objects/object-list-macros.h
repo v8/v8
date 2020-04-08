@@ -7,8 +7,6 @@
 
 #include "torque-generated/instance-types-tq.h"
 
-#define TORQUE_INTERNAL_CLASS_NAMES_ADAPTER(V, NAME, Name, name) V(Name)
-
 namespace v8 {
 namespace internal {
 
@@ -238,7 +236,7 @@ class ZoneForwardList;
   V(WeakFixedArray)                            \
   V(WeakArrayList)                             \
   V(WeakCell)                                  \
-  TORQUE_INTERNAL_CLASS_LIST_GENERATOR(TORQUE_INTERNAL_CLASS_NAMES_ADAPTER, V)
+  TORQUE_INTERNAL_CLASS_LIST(V)
 
 #ifdef V8_INTL_SUPPORT
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \

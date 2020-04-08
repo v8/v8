@@ -471,25 +471,16 @@ void StructType::Finalize() const {
   CheckForDuplicateFields();
 }
 
-constexpr ClassFlags ClassType::kInternalFlags;
-
 ClassType::ClassType(const Type* parent, Namespace* nspace,
                      const std::string& name, ClassFlags flags,
                      const std::string& generates, const ClassDeclaration* decl,
                      const TypeAlias* alias)
     : AggregateType(Kind::kClassType, parent, nspace, name),
       size_(ResidueClass::Unknown()),
-      flags_(flags & ~(kInternalFlags)),
+      flags_(flags),
       generates_(generates),
       decl_(decl),
-      alias_(alias) {
-  DCHECK_EQ(flags & kInternalFlags, 0);
-}
-
-bool ClassType::HasIndexedField() const {
-  if (!is_finalized_) Finalize();
-  return flags_ & ClassFlag::kHasIndexedField;
-}
+      alias_(alias) {}
 
 std::string ClassType::GetGeneratedTNodeTypeNameImpl() const {
   return generates_;
@@ -510,11 +501,6 @@ void ClassType::Finalize() const {
   if (is_finalized_) return;
   CurrentScope::Scope scope_activator(alias_->ParentScope());
   CurrentSourcePosition::Scope position_activator(decl_->pos);
-  if (parent()) {
-    if (const ClassType* super_class = ClassType::DynamicCast(parent())) {
-      if (super_class->HasIndexedField()) flags_ |= ClassFlag::kHasIndexedField;
-    }
-  }
   TypeVisitor::VisitClassFieldsAndMethods(const_cast<ClassType*>(this),
                                           this->decl_);
   is_finalized_ = true;
@@ -620,11 +606,11 @@ void ClassType::GenerateAccessors() {
 }
 
 bool ClassType::HasStaticSize() const {
-  if (IsShape()) return true;
-  if (IsSubtypeOf(TypeOracle::GetJSObjectType())) return false;
-  if (IsAbstract()) return false;
-  if (HasIndexedField()) return false;
-  return true;
+  // Abstract classes don't have instances directly, so asking this question
+  // doesn't make sense.
+  DCHECK(!IsAbstract());
+  if (IsSubtypeOf(TypeOracle::GetJSObjectType()) && !IsShape()) return false;
+  return size().SingleValue().has_value();
 }
 
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {

@@ -3112,10 +3112,10 @@ class FieldOffsetsGenerator {
 
     // In the presence of indexed fields, we already emitted kHeaderSize before
     // the indexed field.
-    if (!type_->IsShape() && !type_->HasIndexedField()) {
+    if (!type_->IsShape() && !header_size_emitted_) {
       WriteMarker("kHeaderSize");
     }
-    if (type_->HasStaticSize()) {
+    if (!type_->IsAbstract() && type_->HasStaticSize()) {
       WriteMarker("kSize");
     }
   }

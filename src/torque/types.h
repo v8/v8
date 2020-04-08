@@ -517,8 +517,6 @@ class AggregateType : public Type {
 
   virtual void Finalize() const = 0;
 
-  virtual bool HasIndexedField() const { return false; }
-
   void SetFields(std::vector<Field> fields) { fields_ = std::move(fields); }
   const std::vector<Field>& fields() const {
     if (!is_finalized_) Finalize();
@@ -609,8 +607,6 @@ class TypeAlias;
 
 class ClassType final : public AggregateType {
  public:
-  static constexpr ClassFlags kInternalFlags = ClassFlag::kHasIndexedField;
-
   DECLARE_TYPE_BOILERPLATE(ClassType)
   std::string ToExplicitString() const override;
   std::string GetGeneratedTypeNameImpl() const override;
@@ -639,7 +635,6 @@ class ClassType final : public AggregateType {
   bool ShouldExport() const { return flags_ & ClassFlag::kExport; }
   bool IsShape() const { return flags_ & ClassFlag::kIsShape; }
   bool HasStaticSize() const;
-  bool HasIndexedField() const override;
   size_t header_size() const {
     if (!is_finalized_) Finalize();
     return header_size_;
@@ -655,9 +650,6 @@ class ClassType final : public AggregateType {
   void GenerateAccessors();
   bool AllowInstantiation() const;
   const Field& RegisterField(Field field) override {
-    if (field.index) {
-      flags_ |= ClassFlag::kHasIndexedField;
-    }
     return AggregateType::RegisterField(field);
   }
   void Finalize() const override;

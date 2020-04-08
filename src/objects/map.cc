@@ -84,11 +84,11 @@ Map Map::GetInstanceTypeMap(ReadOnlyRoots roots, InstanceType type) {
     break;
     STRUCT_LIST(MAKE_CASE)
 #undef MAKE_CASE
-#define MAKE_CASE(_, TYPE, Name, name) \
-  case TYPE:                           \
-    map = roots.name##_map();          \
+#define MAKE_CASE(TYPE, Name, name) \
+  case TYPE:                        \
+    map = roots.name##_map();       \
     break;
-    TORQUE_INTERNAL_CLASS_LIST_GENERATOR(MAKE_CASE, _)
+    TORQUE_INTERNAL_INSTANCE_TYPE_LIST(MAKE_CASE)
 #undef MAKE_CASE
     default:
       UNREACHABLE();
