@@ -16,6 +16,29 @@ h1, h2, h3, section {
   padding-left: 15px;
 }
 
+kbd {
+  background-color: #eee;
+  border-radius: 3px;
+  border: 1px solid black;
+  display: inline-block;
+  font-size: .9em;
+  font-weight: bold;
+  padding: 0px 4px 2px 4px;
+  white-space: nowrap;
+}
+dl {
+  display: grid;
+  grid-template-columns: min-content auto;
+  grid-gap: 10px;
+}
+dt {
+  text-align: right;
+  white-space: nowrap;
+}
+dd {
+  margin: 0;
+}
+
 #content {
   opacity: 0.0;
   height: 0px;
@@ -102,25 +125,35 @@ h1, h2, h3, section {
   border: 1px black solid;
 }
 
+#stats {
+  display: flex;
+  height: 250px;
+}
+
 #stats table {
-  display: inline-block;
+  flex: 1;
   padding-right: 50px;
+  max-height: 250px;
+  display: inline-block;
 }
 #stats table td {
   cursor: pointer;
 }
 #stats .transitionTable {
-  max-height: 200px;
   overflow-y: scroll;
 }
+#stats .transitionTable tr {
+  max-width: 200px;
 
+}
 #stats .transitionType {
   text-align: right;
+  max-width: 380px;
 }
 #stats .transitionType tr td:nth-child(2) {
   text-align: left;
 }
-#stats .transitionType tr:nth-child(1) td {
+#stats table thead td {
   border-bottom: 1px black dotted;
 }
 
@@ -1105,7 +1138,7 @@ class StatsView {
   }
   updateGeneralStats() {
     let pairs = [
-      ["Maps", null, e => true],
+      ["Total", null, e => true],
       ["Transitions", 'black', e => e.edge && e.edge.isTransition()],
       ["Fast to Slow", 'violet', e => e.edge && e.edge.isFastToSlow()],
       ["Slow to Fast", 'orange', e => e.edge && e.edge.isSlowToFast()],
@@ -1119,6 +1152,7 @@ class StatsView {
 
     let text = "";
     let tableNode = table("transitionType");
+    tableNode.innerHTML = "<thead><tr><td>Color</td><td>Type</td><td>Count</td><td>Percent</td></tr></thead>";
     let name, filter;
     let total = this.timeline.size();
     pairs.forEach(([name, color, filter]) => {
@@ -1148,6 +1182,7 @@ class StatsView {
   updateNamedTransitionsStats() {
     let tableNode = table("transitionTable");
     let nameMapPairs = Array.from(this.timeline.transitions.entries());
+    tableNode.innerHTML = "<thead><tr><td>Propery Name</td><td>#</td></tr></thead>";
     nameMapPairs
       .sort((a,b) => b[1].length - a[1].length)
       .forEach(([name, maps]) => {
@@ -1222,9 +1257,35 @@ function transitionTypeToColor(type) {
     <section id="mapDetails"></section>
   </div>
 
-  <h2>Instructions</h2>
   <section>
+    <h2>Instructions</h2>
     <p>Visualize Map trees that have been gathered using <code>--trace-maps</code>.</p>
+    <h3>Keyboard Shortcuts</h3>
+    <dl>
+      <dt><kbd>SHIFT</kbd> + <kbd>Arrow Up</kbd></dt>
+      <dd>Follow Map transition forward (first child)</dd>
+
+      <dt><kbd>SHIFT</kbd> + <kbd>Arrow Down</kbd></dt>
+      <dd>Follow Map transition backwards</dd>
+
+      <dt><kbd>Arrow Up</kbd></dt>
+      <dd>Go to previous Map chunk</dd>
+
+      <dt><kbd>Arrow Down</kbd></dt>
+      <dd>Go to next Map in chunk</dd>
+
+      <dt><kbd>Arrow Left</kbd></dt>
+      <dd>Go to previous chunk</dd>
+
+      <dt><kbd>Arrow Right</kbd></dt>
+      <dd>Go to next chunk</dd>
+
+      <dt><kbd>+</kbd></dt>
+      <dd>Timeline zoom in</dd>
+
+      <dt><kbd>-</kbd></dt>
+      <dd>Timeline zoom out</dd>
+    </dl>
   </section>
 
   <div id="tooltip">
