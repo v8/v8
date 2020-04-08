@@ -393,6 +393,8 @@
 
   # Liftoff is not currently supported on ppc and s390
   'test-liftoff-*': [SKIP],
+  'test-wasm-breakpoints/*' : [SKIP],
+  'test-wasm-debug-evaluate/*': [SKIP],
 
   # SIMD not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
