@@ -441,9 +441,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   DEFINE_INSTRUCTION(Xor)
   DEFINE_INSTRUCTION(Nor)
   DEFINE_INSTRUCTION2(Neg)
-  DEFINE_INSTRUCTION2(Mov)
-  DEFINE_INSTRUCTION(Dsll)
-  DEFINE_INSTRUCTION(Sllv)
 
   DEFINE_INSTRUCTION(Slt)
   DEFINE_INSTRUCTION(Sltu)
@@ -453,6 +450,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   DEFINE_INSTRUCTION(Sgtu)
   DEFINE_INSTRUCTION(Sge)
   DEFINE_INSTRUCTION(Sgeu)
+
+  DEFINE_INSTRUCTION(Dsll)
+  DEFINE_INSTRUCTION(Sll)
 
   // MIPS32 R2 instruction macro.
   DEFINE_INSTRUCTION(Ror)
@@ -652,7 +652,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   inline void Move(Register dst, Register src) {
     if (dst != src) {
-      mov(dst, src);
+      RV_mv(dst, src);
     }
   }
 

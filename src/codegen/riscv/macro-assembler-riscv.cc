@@ -24,6 +24,7 @@
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-code-manager.h"
+
 // Satisfy cpplint check, but don't include platform-specific header. It is
 // included recursively via macro-assembler.h.
 #if 0
@@ -386,18 +387,6 @@ void TurboAssembler::Addu(Register rd, Register rs, const Operand& rt) {
       RV_addw(rd, rs, scratch);
     }
   }
-}
-
-void TurboAssembler::Mov(Register rd, const Operand& rt) {
-  RV_mv(rd, zero_reg);
-}
-
-void TurboAssembler::Dsll(Register rd, Register rs, const Operand& imm) {
-  int32_t imm8 = (int32_t)imm.immediate();
-  RV_slli(rd, rs, imm8);
-}
-void TurboAssembler::Sllv(Register rd, Register rs, const Operand& rt) {
-  RV_sll(rd, rs, rt.rm());
 }
 
 void TurboAssembler::Daddu(Register rd, Register rs, const Operand& rt) {
@@ -823,6 +812,24 @@ void TurboAssembler::Sgtu(Register rd, Register rs, const Operand& rt) {
     DCHECK(rs != scratch);
     RV_li(scratch, rt.immediate());
     RV_sltu(rd, scratch, rs);
+  }
+}
+
+void TurboAssembler::Sll(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg())
+    RV_sllw(rd, rs, rt.rm());
+  else {
+    int64_t shamt = rt.immediate();
+    RV_slliw(rd, rs, shamt);
+  }
+}
+
+void TurboAssembler::Dsll(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg())
+    RV_sll(rd, rs, rt.rm());
+  else {
+    int64_t shamt = rt.immediate();
+    RV_slli(rd, rs, shamt);
   }
 }
 
@@ -1856,7 +1863,7 @@ void TurboAssembler::Cvt_s_w(FPURegister fd, Register rs) {
   // Convert rs to a FP value in fd.
   RV_fcvt_s_w(fd, rs);
 }
-	
+
 void TurboAssembler::Cvt_s_ul(FPURegister fd, FPURegister fs) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   // Move the data from fs to t5.
