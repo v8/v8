@@ -4031,6 +4031,8 @@ v8_source_set("cppgc_base") {
       sources += [ "src/heap/cppgc/asm/x64/push_registers_masm.S" ]
     } else if (target_cpu == "x86") {
       sources += [ "src/heap/cppgc/asm/ia32/push_registers_masm.S" ]
+    } else if (target_cpu == "arm64") {
+      sources += [ "src/heap/cppgc/asm/arm64/push_registers_masm.S" ]
     }
   }
 
