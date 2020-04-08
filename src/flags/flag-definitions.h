@@ -1361,8 +1361,13 @@ DEFINE_INT(testing_prng_seed, 42, "Seed used for threading test randomness")
 // Test flag for a check in %OptimizeFunctionOnNextCall
 DEFINE_BOOL(
     testing_d8_test_runner, false,
-    "test runner turns on this flag to enable a check that the funciton was "
+    "test runner turns on this flag to enable a check that the function was "
     "prepared for optimization before marking it for optimization")
+
+DEFINE_BOOL(
+    fuzzing, false,
+    "Fuzzers use this flag to signal that they are ... fuzzing. This causes "
+    "intrinsics to fail silently (e.g. return undefined) on invalid usage.")
 
 // mksnapshot.cc
 DEFINE_STRING(embedded_src, nullptr,
