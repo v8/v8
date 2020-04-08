@@ -1199,18 +1199,6 @@ class LiftoffCompiler {
     return EmitBinOp<kI32, kI32>(                       \
         BindFirst(&LiftoffAssembler::emit_i32_set_cond, \
                   GetCompareCondition(kExpr##opcode)));
-#define CASE_I64_CMPOP(opcode, cond) \
-  case kExpr##opcode:                \
-    return EmitBinOp<kI64, kI32>(    \
-        BindFirst(&LiftoffAssembler::emit_i64_set_cond, cond));
-#define CASE_F32_CMPOP(opcode, cond) \
-  case kExpr##opcode:                \
-    return EmitBinOp<kF32, kI32>(    \
-        BindFirst(&LiftoffAssembler::emit_f32_set_cond, cond));
-#define CASE_F64_CMPOP(opcode, cond) \
-  case kExpr##opcode:                \
-    return EmitBinOp<kF64, kI32>(    \
-        BindFirst(&LiftoffAssembler::emit_f64_set_cond, cond));
 #define CASE_I64_SHIFTOP(opcode, fn)                                         \
   case kExpr##opcode:                                                        \
     return EmitBinOpImm<kI64, kI64>(                                         \
@@ -1275,28 +1263,72 @@ class LiftoffCompiler {
       case kExprI64Xor:
         return EmitBinOpImm<kI64, kI64>(&LiftoffAssembler::emit_i64_xor,
                                         &LiftoffAssembler::emit_i64_xori);
-        CASE_I64_CMPOP(I64Eq, kEqual)
-        CASE_I64_CMPOP(I64Ne, kUnequal)
-        CASE_I64_CMPOP(I64LtS, kSignedLessThan)
-        CASE_I64_CMPOP(I64LtU, kUnsignedLessThan)
-        CASE_I64_CMPOP(I64GtS, kSignedGreaterThan)
-        CASE_I64_CMPOP(I64GtU, kUnsignedGreaterThan)
-        CASE_I64_CMPOP(I64LeS, kSignedLessEqual)
-        CASE_I64_CMPOP(I64LeU, kUnsignedLessEqual)
-        CASE_I64_CMPOP(I64GeS, kSignedGreaterEqual)
-        CASE_I64_CMPOP(I64GeU, kUnsignedGreaterEqual)
-        CASE_F32_CMPOP(F32Eq, kEqual)
-        CASE_F32_CMPOP(F32Ne, kUnequal)
-        CASE_F32_CMPOP(F32Lt, kUnsignedLessThan)
-        CASE_F32_CMPOP(F32Gt, kUnsignedGreaterThan)
-        CASE_F32_CMPOP(F32Le, kUnsignedLessEqual)
-        CASE_F32_CMPOP(F32Ge, kUnsignedGreaterEqual)
-        CASE_F64_CMPOP(F64Eq, kEqual)
-        CASE_F64_CMPOP(F64Ne, kUnequal)
-        CASE_F64_CMPOP(F64Lt, kUnsignedLessThan)
-        CASE_F64_CMPOP(F64Gt, kUnsignedGreaterThan)
-        CASE_F64_CMPOP(F64Le, kUnsignedLessEqual)
-        CASE_F64_CMPOP(F64Ge, kUnsignedGreaterEqual)
+      case kExprI64Eq:
+        return EmitBinOp<kI64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kEqual));
+      case kExprI64Ne:
+        return EmitBinOp<kI64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kUnequal));
+      case kExprI64LtS:
+        return EmitBinOp<kI64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kSignedLessThan));
+      case kExprI64LtU:
+        return EmitBinOp<kI64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kUnsignedLessThan));
+      case kExprI64GtS:
+        return EmitBinOp<kI64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_i64_set_cond, kSignedGreaterThan));
+      case kExprI64GtU:
+        return EmitBinOp<kI64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_i64_set_cond, kUnsignedGreaterThan));
+      case kExprI64LeS:
+        return EmitBinOp<kI64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kSignedLessEqual));
+      case kExprI64LeU:
+        return EmitBinOp<kI64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_i64_set_cond, kUnsignedLessEqual));
+      case kExprI64GeS:
+        return EmitBinOp<kI64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_i64_set_cond, kSignedGreaterEqual));
+      case kExprI64GeU:
+        return EmitBinOp<kI64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_i64_set_cond, kUnsignedGreaterEqual));
+      case kExprF32Eq:
+        return EmitBinOp<kF32, kI32>(
+            BindFirst(&LiftoffAssembler::emit_f32_set_cond, kEqual));
+      case kExprF32Ne:
+        return EmitBinOp<kF32, kI32>(
+            BindFirst(&LiftoffAssembler::emit_f32_set_cond, kUnequal));
+      case kExprF32Lt:
+        return EmitBinOp<kF32, kI32>(
+            BindFirst(&LiftoffAssembler::emit_f32_set_cond, kUnsignedLessThan));
+      case kExprF32Gt:
+        return EmitBinOp<kF32, kI32>(BindFirst(
+            &LiftoffAssembler::emit_f32_set_cond, kUnsignedGreaterThan));
+      case kExprF32Le:
+        return EmitBinOp<kF32, kI32>(BindFirst(
+            &LiftoffAssembler::emit_f32_set_cond, kUnsignedLessEqual));
+      case kExprF32Ge:
+        return EmitBinOp<kF32, kI32>(BindFirst(
+            &LiftoffAssembler::emit_f32_set_cond, kUnsignedGreaterEqual));
+      case kExprF64Eq:
+        return EmitBinOp<kF64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_f64_set_cond, kEqual));
+      case kExprF64Ne:
+        return EmitBinOp<kF64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_f64_set_cond, kUnequal));
+      case kExprF64Lt:
+        return EmitBinOp<kF64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_f64_set_cond, kUnsignedLessThan));
+      case kExprF64Gt:
+        return EmitBinOp<kF64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_f64_set_cond, kUnsignedGreaterThan));
+      case kExprF64Le:
+        return EmitBinOp<kF64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_f64_set_cond, kUnsignedLessEqual));
+      case kExprF64Ge:
+        return EmitBinOp<kF64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_f64_set_cond, kUnsignedGreaterEqual));
       case kExprI32Shl:
         return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_shl,
                                         &LiftoffAssembler::emit_i32_shli);
@@ -1436,9 +1468,6 @@ class LiftoffCompiler {
         UNREACHABLE();
     }
 #undef CASE_I32_CMPOP
-#undef CASE_I64_CMPOP
-#undef CASE_F32_CMPOP
-#undef CASE_F64_CMPOP
 #undef CASE_I64_SHIFTOP
 #undef CASE_CCALL_BINOP
   }
