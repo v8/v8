@@ -815,6 +815,24 @@ void TurboAssembler::Sgtu(Register rd, Register rs, const Operand& rt) {
   }
 }
 
+void TurboAssembler::Sll(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg())
+    RV_sllw(rd, rs, rt.rm());
+  else {
+    int64_t shamt = rt.immediate();
+    RV_slliw(rd, rs, shamt);
+  }
+}
+
+void TurboAssembler::Dsll(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg())
+    RV_sll(rd, rs, rt.rm());
+  else {
+    int64_t shamt = rt.immediate();
+    RV_slli(rd, rs, shamt);
+  }
+}
+
 void TurboAssembler::Ror(Register rd, Register rs, const Operand& rt) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
