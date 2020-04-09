@@ -51,7 +51,6 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/heap-page_unittest.cc",
     "heap/cppgc/heap_unittest.cc",
     "heap/cppgc/member_unittests.cc",
-    "heap/cppgc/page-memory_unittest.cc",
     "heap/cppgc/source-location_unittest.cc",
     "heap/cppgc/stack_unittest.cc",
     "heap/cppgc/tests.cc",
