@@ -8,6 +8,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
+#include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/stack.h"
 
 namespace cppgc {
@@ -47,12 +48,12 @@ class StackMarker final : public StackVisitor {
 };
 
 Heap::Heap()
-    : stack_(std::make_unique<Stack>(v8::base::Stack::GetStackStart())) {}
+    : stack_(std::make_unique<Stack>(v8::base::Stack::GetStackStart())),
+      allocator_(std::make_unique<BasicAllocator>(this)) {}
 
 Heap::~Heap() {
   for (HeapObjectHeader* header : objects_) {
     header->Finalize();
-    free(header);
   }
 }
 
@@ -74,7 +75,6 @@ void Heap::CollectGarbage(GCConfig config) {
       ++it;
     } else {
       header->Finalize();
-      free(header);
       it = objects_.erase(it);
     }
   }
@@ -83,6 +83,22 @@ void Heap::CollectGarbage(GCConfig config) {
 Heap::NoGCScope::NoGCScope(Heap* heap) : heap_(heap) { heap_->no_gc_scope_++; }
 
 Heap::NoGCScope::~NoGCScope() { heap_->no_gc_scope_--; }
+
+Heap::BasicAllocator::BasicAllocator(Heap* heap) : heap_(heap) {}
+
+Heap::BasicAllocator::~BasicAllocator() {
+  for (auto* page : used_pages_) {
+    NormalPage::Destroy(page);
+  }
+}
+
+void Heap::BasicAllocator::GetNewPage() {
+  auto* page = NormalPage::Create(heap_);
+  CHECK(page);
+  used_pages_.push_back(page);
+  current_ = page->PayloadStart();
+  limit_ = page->PayloadEnd();
+}
 
 }  // namespace internal
 }  // namespace cppgc

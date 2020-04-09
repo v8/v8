@@ -15,6 +15,7 @@
 namespace cppgc {
 namespace internal {
 
+class NormalPage;
 class Stack;
 
 class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
@@ -49,9 +50,31 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   void CollectGarbage(GCConfig config = GCConfig::Default());
 
  private:
+  // TODO(chromium:1056170): Remove as soon as arenas are available for
+  // allocation.
+  //
+  // This basic allocator just gets a page from the backend and uses bump
+  // pointer allocation in the payload to allocate objects. No memory is
+  // reused across GC calls.
+  class BasicAllocator final {
+   public:
+    explicit BasicAllocator(Heap* heap);
+    ~BasicAllocator();
+    inline void* Allocate(size_t);
+
+   private:
+    void GetNewPage();
+
+    Heap* heap_;
+    Address current_ = nullptr;
+    Address limit_ = nullptr;
+    std::vector<NormalPage*> used_pages_;
+  };
+
   bool in_no_gc_scope() { return no_gc_scope_ > 0; }
 
   std::unique_ptr<Stack> stack_;
+  std::unique_ptr<BasicAllocator> allocator_;
   std::vector<HeapObjectHeader*> objects_;
 
   size_t no_gc_scope_ = 0;
