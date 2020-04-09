@@ -1424,6 +1424,18 @@ void LiftoffAssembler::emit_i8x16_max_u(LiftoffRegister dst,
   Umax(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
+void LiftoffAssembler::emit_i8x16_rounding_average_u(LiftoffRegister dst,
+                                                     LiftoffRegister lhs,
+                                                     LiftoffRegister rhs) {
+  bailout(kSimd, "i8x16_rounding_average_u");
+}
+
+void LiftoffAssembler::emit_i16x8_rounding_average_u(LiftoffRegister dst,
+                                                     LiftoffRegister lhs,
+                                                     LiftoffRegister rhs) {
+  bailout(kSimd, "i16x8_rounding_average_u");
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   Ldr(limit_address, MemOperand(limit_address));
   Cmp(sp, limit_address);

@@ -2415,6 +2415,12 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_sub);
       case wasm::kExprF64x2Mul:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_mul);
+      case wasm::kExprI8x16RoundingAverageU:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i8x16_rounding_average_u);
+      case wasm::kExprI16x8RoundingAverageU:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_rounding_average_u);
       default:
         unsupported(decoder, kSimd, "simd");
     }
