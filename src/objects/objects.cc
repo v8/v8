@@ -5889,7 +5889,7 @@ void JSPromise::set_status(Promise::PromiseState status) {
 const char* JSPromise::Status(v8::Promise::PromiseState status) {
   switch (status) {
     case v8::Promise::kFulfilled:
-      return "resolved";
+      return "fulfilled";
     case v8::Promise::kPending:
       return "pending";
     case v8::Promise::kRejected:
