@@ -27,6 +27,11 @@ constexpr bool NeedsConservativeStackScan(Heap::GCConfig config) {
 
 }  // namespace
 
+// static
+cppgc::LivenessBroker LivenessBrokerFactory::Create() {
+  return cppgc::LivenessBroker();
+}
+
 // TODO(chromium:1056170): Replace with fast stack scanning once
 // object are allocated actual arenas/spaces.
 class StackMarker final : public StackVisitor {

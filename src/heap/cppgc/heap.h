@@ -10,6 +10,7 @@
 
 #include "include/cppgc/heap.h"
 #include "include/cppgc/internal/gc-info.h"
+#include "include/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/heap-object-header.h"
 
 namespace cppgc {
@@ -17,6 +18,11 @@ namespace internal {
 
 class NormalPage;
 class Stack;
+
+class V8_EXPORT_PRIVATE LivenessBrokerFactory {
+ public:
+  static LivenessBroker Create();
+};
 
 class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
  public:
