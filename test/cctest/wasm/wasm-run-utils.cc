@@ -364,6 +364,10 @@ const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
 }
 
 Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
+  Handle<Script> script =
+      isolate_->factory()->NewScript(isolate_->factory()->empty_string());
+  script->set_type(Script::TYPE_WASM);
+
   const bool kUsesLiftoff = true;
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(test_module_.get(),
@@ -371,8 +375,6 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   auto native_module = isolate_->wasm_engine()->NewNativeModule(
       isolate_, enabled_features_, test_module_, code_size_estimate);
   native_module->SetWireBytes(OwnedVector<const uint8_t>());
-  Handle<Script> script =
-      isolate_->wasm_engine()->GetOrCreateScript(isolate_, native_module);
 
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, std::move(native_module), script);

@@ -150,6 +150,10 @@ class WasmModuleObject : public JSObject {
   V8_EXPORT_PRIVATE static Handle<WasmModuleObject> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
       Handle<Script> script, Handle<FixedArray> export_wrappers);
+  V8_EXPORT_PRIVATE static Handle<WasmModuleObject> New(
+      Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
+      Handle<Script> script, Handle<FixedArray> export_wrappers,
+      size_t code_size_estimate);
 
   // Check whether this module was generated from asm.js source.
   inline bool is_asm_js();
