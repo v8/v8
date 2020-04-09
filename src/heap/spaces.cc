@@ -1762,14 +1762,12 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
         !p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE),
         p->AvailableInFreeList() == p->AvailableInFreeListFromAllocatedBytes());
 
-    if (merging_from_off_thread) {
-      // TODO(leszeks): Allocation groups are currently not handled properly by
-      // the sampling allocation profiler. We'll have to come up with a better
-      // solution for allocation stepping before shipping.
-      AllocationStepAfterMerge(
-          p->area_start(),
-          static_cast<int>(p->HighWaterMark() - p->area_start()));
-    }
+    // TODO(leszeks): Here we should allocation step, but:
+    //   1. Allocation groups are currently not handled properly by the sampling
+    //      allocation profiler, and
+    //   2. Observers might try to take the space lock, which isn't reentrant.
+    // We'll have to come up with a better solution for allocation stepping
+    // before shipping, which will likely be using LocalHeap.
   }
 
   if (merging_from_off_thread) {
@@ -4401,7 +4399,9 @@ void OldLargeObjectSpace::MergeOffThreadSpace(
     other->RemovePage(page, size);
     AddPage(page, size);
 
-    AllocationStepAfterMerge(object.address(), size);
+    // TODO(leszeks): Here we should AllocationStep, see the TODO in
+    // PagedSpace::MergeOffThreadSpace.
+
     if (heap()->incremental_marking()->black_allocation()) {
       heap()->incremental_marking()->marking_state()->WhiteToBlack(object);
     }
