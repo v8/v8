@@ -489,10 +489,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   }
 #endif
 
-  Handle<Script> script =
-      GetOrCreateScript(isolate, native_module.get(),
-                        VectorOf(native_module->module()->source_map_url),
-                        native_module->module()->name);
+  Handle<Script> script = GetOrCreateScript(isolate, native_module);
 
   // Create the compiled module object and populate with compiled functions
   // and information needed at instantiation time. This object needs to be
@@ -656,19 +653,97 @@ std::shared_ptr<NativeModule> WasmEngine::ExportNativeModule(
   return module_object->shared_native_module();
 }
 
+namespace {
+Handle<Script> CreateWasmScript(Isolate* isolate,
+                                std::shared_ptr<NativeModule> native_module,
+                                Vector<const char> source_url = {}) {
+  Handle<Script> script =
+      isolate->factory()->NewScript(isolate->factory()->empty_string());
+  script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
+  script->set_context_data(isolate->native_context()->debug_context_id());
+  script->set_type(Script::TYPE_WASM);
+
+  Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  int hash = StringHasher::HashSequentialString(
+      reinterpret_cast<const char*>(wire_bytes.begin()), wire_bytes.length(),
+      kZeroHashSeed);
+
+  const int kBufferSize = 32;
+  char buffer[kBufferSize];
+
+  // Script name is "<module_name>-hash" if name is available and "hash"
+  // otherwise.
+  const WasmModule* module = native_module->module();
+  Handle<String> name_str;
+  if (module->name.is_set()) {
+    int name_chars = SNPrintF(ArrayVector(buffer), "-%08x", hash);
+    DCHECK(name_chars >= 0 && name_chars < kBufferSize);
+    Handle<String> name_hash =
+        isolate->factory()
+            ->NewStringFromOneByte(
+                VectorOf(reinterpret_cast<uint8_t*>(buffer), name_chars),
+                AllocationType::kOld)
+            .ToHandleChecked();
+    Handle<String> module_name =
+        WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+            isolate, wire_bytes, module->name, kNoInternalize);
+    name_str = isolate->factory()
+                   ->NewConsString(module_name, name_hash)
+                   .ToHandleChecked();
+  } else {
+    int name_chars = SNPrintF(ArrayVector(buffer), "%08x", hash);
+    DCHECK(name_chars >= 0 && name_chars < kBufferSize);
+    name_str = isolate->factory()
+                   ->NewStringFromOneByte(
+                       VectorOf(reinterpret_cast<uint8_t*>(buffer), name_chars),
+                       AllocationType::kOld)
+                   .ToHandleChecked();
+  }
+  script->set_name(*name_str);
+  MaybeHandle<String> url_str;
+  if (!source_url.empty()) {
+    url_str =
+        isolate->factory()->NewStringFromUtf8(source_url, AllocationType::kOld);
+  } else {
+    Handle<String> url_prefix =
+        isolate->factory()->InternalizeString(StaticCharVector("wasm://wasm/"));
+    url_str = isolate->factory()->NewConsString(url_prefix, name_str);
+  }
+  script->set_source_url(*url_str.ToHandleChecked());
+
+  auto source_map_url = VectorOf(module->source_map_url);
+  if (!source_map_url.empty()) {
+    MaybeHandle<String> src_map_str = isolate->factory()->NewStringFromUtf8(
+        source_map_url, AllocationType::kOld);
+    script->set_source_mapping_url(*src_map_str.ToHandleChecked());
+  }
+
+  // Use the given shared {NativeModule}, but increase its reference count by
+  // allocating a new {Managed<T>} that the {Script} references.
+  size_t code_size_estimate = native_module->committed_code_space();
+  size_t memory_estimate =
+      code_size_estimate +
+      wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
+  Handle<Managed<wasm::NativeModule>> managed_native_module =
+      Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,
+                                                 std::move(native_module));
+  script->set_wasm_managed_native_module(*managed_native_module);
+  script->set_wasm_breakpoint_infos(ReadOnlyRoots(isolate).empty_fixed_array());
+  script->set_wasm_weak_instance_list(
+      ReadOnlyRoots(isolate).empty_weak_array_list());
+  return script;
+}
+}  // namespace
+
 Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
     Isolate* isolate, std::shared_ptr<NativeModule> shared_native_module) {
   NativeModule* native_module = shared_native_module.get();
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
-  Handle<Script> script =
-      CreateWasmScript(isolate, wire_bytes.module_bytes(),
-                       VectorOf(native_module->module()->source_map_url),
-                       native_module->module()->name);
+  Handle<Script> script = GetOrCreateScript(isolate, shared_native_module);
   Handle<FixedArray> export_wrappers;
   CompileJsToWasmWrappers(isolate, native_module->module(), &export_wrappers);
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, std::move(shared_native_module), script, export_wrappers,
-      native_module->committed_code_space());
+      isolate, std::move(shared_native_module), script, export_wrappers);
   {
     base::MutexGuard lock(&mutex_);
     DCHECK_EQ(1, isolates_.count(isolate));
@@ -1118,16 +1193,14 @@ void WasmEngine::FreeDeadCodeLocked(const DeadCodeMap& dead_code) {
   }
 }
 
-Handle<Script> WasmEngine::GetOrCreateScript(Isolate* isolate,
-                                             NativeModule* native_module,
-                                             Vector<const char> source_map_url,
-                                             WireBytesRef name,
-                                             Vector<const char> source_url) {
+Handle<Script> WasmEngine::GetOrCreateScript(
+    Isolate* isolate, const std::shared_ptr<NativeModule>& native_module,
+    Vector<const char> source_url) {
   {
     base::MutexGuard guard(&mutex_);
     DCHECK_EQ(1, isolates_.count(isolate));
     auto& scripts = isolates_[isolate]->scripts;
-    auto it = scripts.find(native_module);
+    auto it = scripts.find(native_module.get());
     if (it != scripts.end()) {
       Handle<Script> weak_global_handle = it->second.handle();
       if (weak_global_handle.is_null()) {
@@ -1138,14 +1211,13 @@ Handle<Script> WasmEngine::GetOrCreateScript(Isolate* isolate,
     }
   }
   // Temporarily release the mutex to let the GC collect native modules.
-  auto script = CreateWasmScript(isolate, native_module->wire_bytes(),
-                                 source_map_url, name, source_url);
+  auto script = CreateWasmScript(isolate, native_module, source_url);
   {
     base::MutexGuard guard(&mutex_);
     DCHECK_EQ(1, isolates_.count(isolate));
     auto& scripts = isolates_[isolate]->scripts;
-    DCHECK_EQ(0, scripts.count(native_module));
-    scripts.emplace(native_module, WeakScriptHandle(script));
+    DCHECK_EQ(0, scripts.count(native_module.get()));
+    scripts.emplace(native_module.get(), WeakScriptHandle(script));
     return script;
   }
 }

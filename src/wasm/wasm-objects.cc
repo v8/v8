@@ -165,43 +165,22 @@ Handle<WasmModuleObject> WasmModuleObject::New(
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
     Handle<Script> script, Handle<FixedArray> export_wrappers) {
-  const WasmModule* module = native_module->module();
-  const bool uses_liftoff =
-      FLAG_liftoff && native_module->module()->origin == wasm::kWasmOrigin;
-  size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module, uses_liftoff);
-  return New(isolate, std::move(native_module), script, export_wrappers,
-             code_size_estimate);
-}
-
-// static
-Handle<WasmModuleObject> WasmModuleObject::New(
-    Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-    Handle<Script> script, Handle<FixedArray> export_wrappers,
-    size_t code_size_estimate) {
-  const WasmModule* module = native_module->module();
-
-  // Use the given shared {NativeModule}, but increase its reference count by
-  // allocating a new {Managed<T>} that the {WasmModuleObject} references.
-  size_t memory_estimate =
-      code_size_estimate +
-      wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
-  Handle<Managed<wasm::NativeModule>> managed_native_module =
-      Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,
-                                                 std::move(native_module));
-
   Handle<WasmModuleObject> module_object = Handle<WasmModuleObject>::cast(
       isolate->factory()->NewJSObject(isolate->wasm_module_constructor()));
   module_object->set_export_wrappers(*export_wrappers);
   if (script->type() == Script::TYPE_WASM) {
-    script->set_wasm_breakpoint_infos(
-        ReadOnlyRoots(isolate).empty_fixed_array());
-    script->set_wasm_managed_native_module(*managed_native_module);
-    script->set_wasm_weak_instance_list(
-        ReadOnlyRoots(isolate).empty_weak_array_list());
+    module_object->set_managed_native_module(Managed<wasm::NativeModule>::cast(
+        script->wasm_managed_native_module()));
+  } else {
+    const WasmModule* module = native_module->module();
+    size_t memory_estimate =
+        native_module->committed_code_space() +
+        wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
+    auto managed_native_module = Managed<wasm::NativeModule>::FromSharedPtr(
+        isolate, memory_estimate, std::move(native_module));
+    module_object->set_managed_native_module(*managed_native_module);
   }
   module_object->set_script(*script);
-  module_object->set_managed_native_module(*managed_native_module);
   return module_object;
 }
 

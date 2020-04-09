@@ -1602,11 +1602,9 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
   // Create heap objects for script and module bytes to be stored in the
   // module object. Asm.js is not compiled asynchronously.
   DCHECK(module_object_.is_null());
-  const WasmModule* module = native_module_->module();
   auto source_url = stream_ ? stream_->url() : Vector<const char>();
   auto script = isolate_->wasm_engine()->GetOrCreateScript(
-      isolate_, native_module_.get(), VectorOf(module->source_map_url),
-      module->name, source_url);
+      isolate_, native_module_, source_url);
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, native_module_, script);
 
@@ -2994,71 +2992,6 @@ WasmCode* CompileImportWrapper(
       published_code->instructions().length());
   counters->wasm_reloc_size()->Increment(published_code->reloc_info().length());
   return published_code;
-}
-
-Handle<Script> CreateWasmScript(Isolate* isolate,
-                                Vector<const uint8_t> wire_bytes,
-                                Vector<const char> source_map_url,
-                                WireBytesRef name,
-                                Vector<const char> source_url) {
-  Handle<Script> script =
-      isolate->factory()->NewScript(isolate->factory()->empty_string());
-  script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
-  script->set_context_data(isolate->native_context()->debug_context_id());
-  script->set_type(Script::TYPE_WASM);
-
-  int hash = StringHasher::HashSequentialString(
-      reinterpret_cast<const char*>(wire_bytes.begin()), wire_bytes.length(),
-      kZeroHashSeed);
-
-  const int kBufferSize = 32;
-  char buffer[kBufferSize];
-
-  // Script name is "<module_name>-hash" if name is available and "hash"
-  // otherwise.
-  Handle<String> name_str;
-  if (name.is_set()) {
-    int name_chars = SNPrintF(ArrayVector(buffer), "-%08x", hash);
-    DCHECK(name_chars >= 0 && name_chars < kBufferSize);
-    Handle<String> name_hash =
-        isolate->factory()
-            ->NewStringFromOneByte(
-                VectorOf(reinterpret_cast<uint8_t*>(buffer), name_chars),
-                AllocationType::kOld)
-            .ToHandleChecked();
-    Handle<String> module_name =
-        WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate, wire_bytes, name, kNoInternalize);
-    name_str = isolate->factory()
-                   ->NewConsString(module_name, name_hash)
-                   .ToHandleChecked();
-  } else {
-    int name_chars = SNPrintF(ArrayVector(buffer), "%08x", hash);
-    DCHECK(name_chars >= 0 && name_chars < kBufferSize);
-    name_str = isolate->factory()
-                   ->NewStringFromOneByte(
-                       VectorOf(reinterpret_cast<uint8_t*>(buffer), name_chars),
-                       AllocationType::kOld)
-                   .ToHandleChecked();
-  }
-  script->set_name(*name_str);
-  MaybeHandle<String> url_str;
-  if (!source_url.empty()) {
-    url_str =
-        isolate->factory()->NewStringFromUtf8(source_url, AllocationType::kOld);
-  } else {
-    Handle<String> url_prefix =
-        isolate->factory()->InternalizeString(StaticCharVector("wasm://wasm/"));
-    url_str = isolate->factory()->NewConsString(url_prefix, name_str);
-  }
-  script->set_source_url(*url_str.ToHandleChecked());
-
-  if (!source_map_url.empty()) {
-    MaybeHandle<String> src_map_str = isolate->factory()->NewStringFromUtf8(
-        source_map_url, AllocationType::kOld);
-    script->set_source_mapping_url(*src_map_str.ToHandleChecked());
-  }
-  return script;
 }
 
 }  // namespace wasm
