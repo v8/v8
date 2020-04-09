@@ -548,6 +548,19 @@ LiftoffRegister LiftoffAssembler::PeekToRegister(int index,
   return reg;
 }
 
+void LiftoffAssembler::PrepareLoopArgs(int num) {
+  for (int i = 0; i < num; ++i) {
+    VarState& slot = cache_state_.stack_state.end()[-1 - i];
+    if (!slot.is_const()) continue;
+    RegClass rc =
+        kNeedI64RegPair && slot.type() == kWasmI64 ? kGpRegPair : kGpReg;
+    LiftoffRegister reg = GetUnusedRegister(rc);
+    LoadConstant(reg, slot.constant());
+    slot.MakeRegister(reg);
+    cache_state_.inc_used(reg);
+  }
+}
+
 void LiftoffAssembler::MergeFullStackWith(const CacheState& target,
                                           const CacheState& source) {
   DCHECK_EQ(source.stack_height(), target.stack_height());
