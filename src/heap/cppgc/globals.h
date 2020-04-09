@@ -31,10 +31,6 @@ constexpr size_t kPageSize = 1 << kPageSizeLog2;
 constexpr size_t kPageOffsetMask = kPageSize - 1;
 constexpr size_t kPageBaseMask = ~kPageOffsetMask;
 
-// Guard pages are always put into memory. Whether they are actually protected
-// depends on the allocator provided to the garbage collector.
-constexpr size_t kGuardPageSize = 4096;
-
 constexpr size_t kLargeObjectSizeThreshold = kPageSize / 2;
 
 }  // namespace internal
