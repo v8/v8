@@ -2034,6 +2034,7 @@ bool Heap::PerformGarbageCollection(
       old_generation_allocation_counter_at_last_gc_ +=
           static_cast<size_t>(promoted_objects_size_);
       old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
+      global_memory_at_last_gc_ = GlobalSizeOfObjects();
       break;
     case MINOR_MARK_COMPACTOR:
       MinorMarkCompact();
@@ -4912,6 +4913,22 @@ size_t Heap::GlobalMemoryAvailable() {
              : new_space_->Capacity() + 1;
 }
 
+double Heap::PercentToOldGenerationLimit() {
+  double size_at_gc = old_generation_size_at_last_gc_;
+  double size_now = OldGenerationObjectsAndPromotedExternalMemorySize();
+  double current_bytes = size_now - size_at_gc;
+  double total_bytes = old_generation_allocation_limit_ - size_at_gc;
+  return total_bytes > 0 ? (current_bytes / total_bytes) * 100.0 : 0;
+}
+
+double Heap::PercentToGlobalMemoryLimit() {
+  double size_at_gc = old_generation_size_at_last_gc_;
+  double size_now = OldGenerationObjectsAndPromotedExternalMemorySize();
+  double current_bytes = size_now - size_at_gc;
+  double total_bytes = old_generation_allocation_limit_ - size_at_gc;
+  return total_bytes > 0 ? (current_bytes / total_bytes) * 100.0 : 0;
+}
+
 // This function returns either kNoLimit, kSoftLimit, or kHardLimit.
 // The kNoLimit means that either incremental marking is disabled or it is too
 // early to start incremental marking.
@@ -4939,35 +4956,40 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   }
 
   if (FLAG_stress_marking > 0) {
-    double gained_since_last_gc =
-        PromotedSinceLastGC() +
-        (isolate()->isolate_data()->external_memory_ -
-         isolate()->isolate_data()->external_memory_low_since_mark_compact_);
-    double size_before_gc =
-        OldGenerationObjectsAndPromotedExternalMemorySize() -
-        gained_since_last_gc;
-    double bytes_to_limit = old_generation_allocation_limit_ - size_before_gc;
-    if (bytes_to_limit > 0) {
-      double current_percent = (gained_since_last_gc / bytes_to_limit) * 100.0;
-
+    int current_percent = static_cast<int>(
+        std::max(PercentToOldGenerationLimit(), PercentToGlobalMemoryLimit()));
+    if (current_percent > 0) {
       if (FLAG_trace_stress_marking) {
         isolate()->PrintWithTimestamp(
-            "[IncrementalMarking] %.2lf%% of the memory limit reached\n",
+            "[IncrementalMarking] %d%% of the memory limit reached\n",
             current_percent);
       }
-
       if (FLAG_fuzzer_gc_analysis) {
         // Skips values >=100% since they already trigger marking.
-        if (current_percent < 100.0) {
+        if (current_percent < 100) {
           max_marking_limit_reached_ =
-              std::max(max_marking_limit_reached_, current_percent);
+              std::max<double>(max_marking_limit_reached_, current_percent);
         }
-      } else if (static_cast<int>(current_percent) >=
-                 stress_marking_percentage_) {
+      } else if (current_percent >= stress_marking_percentage_) {
         stress_marking_percentage_ = NextStressMarkingLimit();
         return IncrementalMarkingLimit::kHardLimit;
       }
     }
+  }
+
+  if (FLAG_incremental_marking_soft_trigger > 0 ||
+      FLAG_incremental_marking_hard_trigger > 0) {
+    int current_percent = static_cast<int>(
+        std::max(PercentToOldGenerationLimit(), PercentToGlobalMemoryLimit()));
+    if (current_percent > FLAG_incremental_marking_hard_trigger &&
+        FLAG_incremental_marking_hard_trigger > 0) {
+      return IncrementalMarkingLimit::kHardLimit;
+    }
+    if (current_percent > FLAG_incremental_marking_soft_trigger &&
+        FLAG_incremental_marking_soft_trigger > 0) {
+      return IncrementalMarkingLimit::kSoftLimit;
+    }
+    return IncrementalMarkingLimit::kNoLimit;
   }
 
   size_t old_generation_space_available = OldGenerationSpaceAvailable();

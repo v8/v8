@@ -1816,6 +1816,8 @@ class Heap {
 
   HeapGrowingMode CurrentHeapGrowingMode();
 
+  double PercentToOldGenerationLimit();
+  double PercentToGlobalMemoryLimit();
   enum class IncrementalMarkingLimit { kNoLimit, kSoftLimit, kHardLimit };
   IncrementalMarkingLimit IncrementalMarkingLimitReached();
 
@@ -2135,6 +2137,9 @@ class Heap {
 
   // The size of objects in old generation after the last MarkCompact GC.
   size_t old_generation_size_at_last_gc_ = 0;
+
+  // The size of global memory after the last MarkCompact GC.
+  size_t global_memory_at_last_gc_ = 0;
 
   // The feedback storage is used to store allocation sites (keys) and how often
   // they have been visited (values) by finding a memento behind an object. The
