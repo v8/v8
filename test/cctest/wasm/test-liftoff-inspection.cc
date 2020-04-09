@@ -39,7 +39,8 @@ class LiftoffCompileEnvironment {
     auto test_func = AddFunction(return_types, param_types, raw_function_bytes);
 
     // Now compile the function with Liftoff two times.
-    CompilationEnv env = module_builder_.CreateCompilationEnv();
+    CompilationEnv env =
+        module_builder_.CreateCompilationEnv(TestingModuleBuilder::kDebug);
     WasmFeatures detected1;
     WasmFeatures detected2;
     WasmCompilationResult result1 = ExecuteLiftoffCompilation(
@@ -68,9 +69,8 @@ class LiftoffCompileEnvironment {
       std::vector<int> breakpoints = {}) {
     auto test_func = AddFunction(return_types, param_types, raw_function_bytes);
 
-    CompilationEnv env = module_builder_.CreateCompilationEnv(
-        breakpoints.empty() ? TestingModuleBuilder::kNoDebug
-                            : TestingModuleBuilder::kDebug);
+    CompilationEnv env =
+        module_builder_.CreateCompilationEnv(TestingModuleBuilder::kDebug);
     WasmFeatures detected;
     std::unique_ptr<DebugSideTable> debug_side_table_via_compilation;
     ExecuteLiftoffCompilation(
@@ -306,6 +306,8 @@ TEST(Liftoff_debug_side_table_simple) {
       {WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))});
   CheckDebugSideTable(
       {
+          // function entry, locals in registers.
+          {Register(kWasmI32), Register(kWasmI32)},
           // OOL stack check, locals spilled, stack empty.
           {Stack(kWasmI32), Stack(kWasmI32)},
       },
@@ -320,6 +322,8 @@ TEST(Liftoff_debug_side_table_call) {
                     WASM_GET_LOCAL(0))});
   CheckDebugSideTable(
       {
+          // function entry, local in register.
+          {Register(kWasmI32)},
           // call, local spilled, stack empty.
           {Stack(kWasmI32)},
           // OOL stack check, local spilled, stack empty.
@@ -338,6 +342,8 @@ TEST(Liftoff_debug_side_table_call_const) {
                     WASM_GET_LOCAL(0))});
   CheckDebugSideTable(
       {
+          // function entry, local in register.
+          {Register(kWasmI32)},
           // call, local is kConst.
           {Constant(kWasmI32, kConst)},
           // OOL stack check, local spilled.
@@ -355,6 +361,8 @@ TEST(Liftoff_debug_side_table_indirect_call) {
                     WASM_GET_LOCAL(0))});
   CheckDebugSideTable(
       {
+          // function entry, local in register.
+          {Register(kWasmI32)},
           // indirect call, local spilled, stack empty.
           {Stack(kWasmI32)},
           // OOL stack check, local spilled, stack empty.
@@ -375,6 +383,8 @@ TEST(Liftoff_debug_side_table_loop) {
       {WASM_I32V_1(kConst), WASM_LOOP(WASM_BR_IF(0, WASM_GET_LOCAL(0)))});
   CheckDebugSideTable(
       {
+          // function entry, local in register.
+          {Register(kWasmI32)},
           // OOL stack check, local spilled, stack empty.
           {Stack(kWasmI32)},
           // OOL loop stack check, local spilled, stack has {kConst}.
@@ -390,6 +400,8 @@ TEST(Liftoff_debug_side_table_trap) {
       {WASM_I32_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))});
   CheckDebugSideTable(
       {
+          // function entry, locals in registers.
+          {Register(kWasmI32), Register(kWasmI32)},
           // OOL stack check, local spilled, stack empty.
           {Stack(kWasmI32), Stack(kWasmI32)},
           // OOL trap (div by zero), locals spilled, stack empty.
