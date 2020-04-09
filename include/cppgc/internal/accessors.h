@@ -5,14 +5,16 @@
 #ifndef INCLUDE_CPPGC_INTERNAL_ACCESSORS_H_
 #define INCLUDE_CPPGC_INTERNAL_ACCESSORS_H_
 
-#include "include/cppgc/heap.h"
 #include "include/cppgc/internal/api-constants.h"
 
 namespace cppgc {
+
+class Heap;
+
 namespace internal {
 
 inline cppgc::Heap* GetHeapFromPayload(const void* payload) {
-  return reinterpret_cast<cppgc::Heap*>(
+  return *reinterpret_cast<cppgc::Heap**>(
       (reinterpret_cast<uintptr_t>(payload) & api_constants::kPageBaseMask) +
       api_constants::kHeapOffset);
 }
