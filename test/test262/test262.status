@@ -702,10 +702,6 @@
   'language/expressions/logical-assignment/lgcl-or-assignment-operator-unresolved-rhs-put': [FAIL],
   'language/expressions/logical-assignment/lgcl-or-whitespace': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10396
-  'language/expressions/class/elements/grammar-private-field-optional-chaining': [FAIL],
-  'language/statements/class/elements/grammar-private-field-optional-chaining': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=10397
   'language/statements/for-await-of/iterator-close-throw-get-method-abrupt': [FAIL],
   'language/statements/for-of/iterator-close-throw-get-method-abrupt': [FAIL],
