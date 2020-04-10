@@ -1428,7 +1428,7 @@ macro ClampToIndexRange(indexNumber: Number, limit: uintptr): uintptr {
   }
 }
 
-extern builtin ObjectToString(Context, JSAny): JSAny;
+extern builtin ObjectToString(Context, JSAny): String;
 extern builtin StringRepeat(Context, String, Number): String;
 
 @export

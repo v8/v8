@@ -678,18 +678,12 @@ namespace internal {
   TFJ(ObjectKeys, 1, kReceiver, kObject)                                       \
   CPP(ObjectLookupGetter)                                                      \
   CPP(ObjectLookupSetter)                                                      \
-  /* ES6 #sec-object.prototype.tostring */                                     \
-  TFJ(ObjectPrototypeToString, 0, kReceiver)                                   \
-  /* ES6 #sec-object.prototype.valueof */                                      \
-  TFJ(ObjectPrototypeValueOf, 0, kReceiver)                                    \
   /* ES6 #sec-object.prototype.hasownproperty */                               \
   TFJ(ObjectPrototypeHasOwnProperty, 1, kReceiver, kKey)                       \
   TFJ(ObjectPrototypeIsPrototypeOf, 1, kReceiver, kValue)                      \
   CPP(ObjectPrototypePropertyIsEnumerable)                                     \
   CPP(ObjectPrototypeGetProto)                                                 \
   CPP(ObjectPrototypeSetProto)                                                 \
-  /* ES #sec-object.prototype.tolocalestring */                                \
-  TFJ(ObjectPrototypeToLocaleString, 0, kReceiver)                             \
   CPP(ObjectSeal)                                                              \
   TFS(ObjectToString, kReceiver)                                               \
   TFJ(ObjectValues, 1, kReceiver, kObject)                                     \
