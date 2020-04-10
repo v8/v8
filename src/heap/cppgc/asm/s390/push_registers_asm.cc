@@ -25,7 +25,7 @@ asm(".globl PushAllRegistersAndIterateStack             \n"
     // Pass 2nd parameter (r3) unchanged (StackVisitor*).
     // Save 3rd parameter (r4; IterateStackCallback).
     "  lgr %r5, %r4                                     \n"
-    // Pass sp parameter as sp (stack pointer). 160+48 to point
+    // Pass sp as 3rd parameter. 160+48 to point
     // to callee saved region stored above.
     "  lay %r4, 208(%sp)                                \n"
     // Call the callback.
