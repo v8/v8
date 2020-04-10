@@ -131,29 +131,17 @@ void OS::AdjustSchedulingParams() {}
 
 // static
 void* Stack::GetStackStart() {
-  // Info about this subroutine can be found here:
-  // https://www.ibm.com/support/knowledgecenter/ssw_aix_72/p_bostechref/pthread_getthrds_np.html
-  // as well as the header file located under /usr/include/pthread.h in AIX.
-
   // pthread_getthrds_np creates 3 values:
   // __pi_stackaddr, __pi_stacksize, __pi_stackend
-  // __pi_stackend points to the higher address, stack base, since stack grows
-  // downwards.
-  // __pi_stackaddr points to the lower address, current sp location.
-  // __pi_stacksize is the size of the stack from the base in bytes.
 
-  // higher address   ----------------    __pi_stackend
+  // higher address ----- __pi_stackend, stack base
   //
-  //   |
-  //   |
   //   |
   //   |  __pi_stacksize, stack grows downwards
   //   |
-  //   |
-  //   |
   //   V
   //
-  // lower address    ----------------    __pi_stackaddr
+  // lower address -----  __pi_stackaddr, current sp
 
   pthread_t tid = pthread_self();
   struct __pthrdsinfo buf;
