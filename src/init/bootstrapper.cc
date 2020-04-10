@@ -2441,12 +2441,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<Map> prototype_map(prototype->map(), isolate());
     Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate_);
 
-    {  // Internal: IsPromise
-      Handle<JSFunction> function = SimpleCreateFunction(
-          isolate_, factory->empty_string(), Builtins::kIsPromise, 1, false);
-      native_context()->set_is_promise(*function);
-    }
-
     {
       Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
           isolate_, Builtins::kPromiseCapabilityDefaultResolve,

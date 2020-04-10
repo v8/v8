@@ -696,9 +696,6 @@ namespace internal {
   TFS(ForInEnumerate, kReceiver)                                               \
   TFS(ForInFilter, kKey, kObject)                                              \
                                                                                \
-  /* Promise */                                                                \
-  CPP(IsPromise)                                                               \
-                                                                               \
   /* Reflect */                                                                \
   ASM(ReflectApply, JSTrampoline)                                              \
   ASM(ReflectConstruct, JSTrampoline)                                          \
