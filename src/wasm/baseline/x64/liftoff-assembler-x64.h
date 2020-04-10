@@ -2292,6 +2292,19 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
   Paddq(dst.fp(), tmp2.fp());
 }
 
+void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  if (dst.fp() == src.fp()) {
+    Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+    Psrld(kScratchDoubleReg, static_cast<byte>(1));
+    Andps(dst.fp(), kScratchDoubleReg);
+  } else {
+    Pcmpeqd(dst.fp(), dst.fp());
+    Psrld(dst.fp(), static_cast<byte>(1));
+    Andps(dst.fp(), src.fp());
+  }
+}
+
 void LiftoffAssembler::emit_f32x4_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   if (dst.fp() == src.fp()) {
@@ -2323,6 +2336,19 @@ void LiftoffAssembler::emit_f32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_f64x2_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  if (dst.fp() == src.fp()) {
+    Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+    Psrlq(kScratchDoubleReg, static_cast<byte>(1));
+    Andpd(dst.fp(), kScratchDoubleReg);
+  } else {
+    Pcmpeqd(dst.fp(), dst.fp());
+    Psrlq(dst.fp(), static_cast<byte>(1));
+    Andpd(dst.fp(), src.fp());
+  }
+}
+
 void LiftoffAssembler::emit_f64x2_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   if (dst.fp() == src.fp()) {
@@ -2352,6 +2378,35 @@ void LiftoffAssembler::emit_f64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vmulpd, &Assembler::mulpd>(
       this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i8x16_rounding_average_u(LiftoffRegister dst,
+                                                     LiftoffRegister lhs,
+                                                     LiftoffRegister rhs) {
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpavgb, &Assembler::pavgb>(
+      this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i16x8_rounding_average_u(LiftoffRegister dst,
+                                                     LiftoffRegister lhs,
+                                                     LiftoffRegister rhs) {
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpavgw, &Assembler::pavgw>(
+      this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i8x16_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  Pabsb(dst.fp(), src.fp());
+}
+
+void LiftoffAssembler::emit_i16x8_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  Pabsw(dst.fp(), src.fp());
+}
+
+void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  Pabsd(dst.fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_i8x16_extract_lane_s(LiftoffRegister dst,
@@ -2500,20 +2555,6 @@ void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
       movlhps(dst.fp(), src2.fp());
     }
   }
-}
-
-void LiftoffAssembler::emit_i8x16_rounding_average_u(LiftoffRegister dst,
-                                                     LiftoffRegister lhs,
-                                                     LiftoffRegister rhs) {
-  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpavgb, &Assembler::pavgb>(
-      this, dst, lhs, rhs);
-}
-
-void LiftoffAssembler::emit_i16x8_rounding_average_u(LiftoffRegister dst,
-                                                     LiftoffRegister lhs,
-                                                     LiftoffRegister rhs) {
-  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpavgw, &Assembler::pavgw>(
-      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {

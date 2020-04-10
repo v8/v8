@@ -2423,6 +2423,8 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_sub);
       case wasm::kExprI64x2Mul:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_mul);
+      case wasm::kExprF32x4Abs:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_abs);
       case wasm::kExprF32x4Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_neg);
       case wasm::kExprF32x4Add:
@@ -2431,6 +2433,8 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_sub);
       case wasm::kExprF32x4Mul:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_mul);
+      case wasm::kExprF64x2Abs:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_abs);
       case wasm::kExprF64x2Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_neg);
       case wasm::kExprF64x2Add:
@@ -2445,6 +2449,12 @@ class LiftoffCompiler {
       case wasm::kExprI16x8RoundingAverageU:
         return EmitBinOp<kS128, kS128>(
             &LiftoffAssembler::emit_i16x8_rounding_average_u);
+      case wasm::kExprI8x16Abs:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_abs);
+      case wasm::kExprI16x8Abs:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_abs);
+      case wasm::kExprI32x4Abs:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_abs);
       default:
         unsupported(decoder, kSimd, "simd");
     }

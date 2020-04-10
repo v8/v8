@@ -797,6 +797,7 @@ class LiftoffAssembler : public TurboAssembler {
                              LiftoffRegister rhs);
   inline void emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
+  inline void emit_f32x4_abs(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_neg(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
@@ -804,6 +805,7 @@ class LiftoffAssembler : public TurboAssembler {
                              LiftoffRegister rhs);
   inline void emit_f32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
+  inline void emit_f64x2_abs(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f64x2_neg(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
@@ -817,6 +819,9 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i16x8_rounding_average_u(LiftoffRegister dst,
                                             LiftoffRegister lhs,
                                             LiftoffRegister rhs);
+  inline void emit_i8x16_abs(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_i16x8_abs(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_i32x4_abs(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i8x16_extract_lane_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         uint8_t imm_lane_idx);
