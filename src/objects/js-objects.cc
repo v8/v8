@@ -4550,7 +4550,6 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
 
 // static
 void JSObject::SetImmutableProto(Handle<JSObject> object) {
-  DCHECK(!object->IsAccessCheckNeeded());  // Never called from JS
   Handle<Map> map(object->map(), object->GetIsolate());
 
   // Nothing to do if prototype is already set.
