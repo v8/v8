@@ -2352,6 +2352,14 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_eq);
       case wasm::kExprF64x2Eq:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_eq);
+      case wasm::kExprS128Not:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_s128_not);
+      case wasm::kExprS128And:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_s128_and);
+      case wasm::kExprS128Or:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_s128_or);
+      case wasm::kExprS128Xor:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_s128_xor);
       case wasm::kExprI8x16Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_neg);
       case wasm::kExprI8x16Add:
@@ -2472,6 +2480,8 @@ class LiftoffCompiler {
       case wasm::kExprI16x8UConvertI32x4:
         return EmitBinOp<kS128, kS128>(
             &LiftoffAssembler::emit_i16x8_uconvert_i32x4);
+      case wasm::kExprS128AndNot:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_s128_and_not);
       case wasm::kExprI8x16RoundingAverageU:
         return EmitBinOp<kS128, kS128>(
             &LiftoffAssembler::emit_i8x16_rounding_average_u);

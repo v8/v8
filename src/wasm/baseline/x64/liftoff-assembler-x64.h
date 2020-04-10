@@ -2012,6 +2012,34 @@ void LiftoffAssembler::emit_f64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {
+  if (dst.fp() != src.fp()) {
+    Pcmpeqd(dst.fp(), dst.fp());
+    Pxor(dst.fp(), src.fp());
+  } else {
+    Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+    Pxor(dst.fp(), kScratchDoubleReg);
+  }
+}
+
+void LiftoffAssembler::emit_s128_and(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpand, &Assembler::pand>(
+      this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_s128_or(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpor, &Assembler::por>(
+      this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_s128_xor(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpxor, &Assembler::pxor>(
+      this, dst, lhs, rhs);
+}
+
 void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   if (dst.fp() == src.fp()) {
@@ -2489,6 +2517,13 @@ void LiftoffAssembler::emit_i16x8_uconvert_i32x4(LiftoffRegister dst,
   liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vpackusdw,
                                        &Assembler::packusdw>(this, dst, lhs,
                                                              rhs, SSE4_1);
+}
+
+void LiftoffAssembler::emit_s128_and_not(LiftoffRegister dst,
+                                         LiftoffRegister lhs,
+                                         LiftoffRegister rhs) {
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vandnps, &Assembler::andnps>(
+      this, dst, rhs, lhs);
 }
 
 void LiftoffAssembler::emit_i8x16_rounding_average_u(LiftoffRegister dst,

@@ -739,6 +739,13 @@ class LiftoffAssembler : public TurboAssembler {
                             LiftoffRegister rhs);
   inline void emit_f64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
                             LiftoffRegister rhs);
+  inline void emit_s128_not(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_s128_and(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs);
+  inline void emit_s128_or(LiftoffRegister dst, LiftoffRegister lhs,
+                           LiftoffRegister rhs);
+  inline void emit_s128_xor(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs);
   inline void emit_i8x16_neg(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
@@ -849,6 +856,8 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i16x8_uconvert_i32x4(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs);
+  inline void emit_s128_and_not(LiftoffRegister dst, LiftoffRegister lhs,
+                                LiftoffRegister rhs);
   inline void emit_i8x16_rounding_average_u(LiftoffRegister dst,
                                             LiftoffRegister lhs,
                                             LiftoffRegister rhs);
