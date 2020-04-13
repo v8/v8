@@ -1139,9 +1139,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void class_s(FPURegister fd, FPURegister fs);
   void class_d(FPURegister fd, FPURegister fs);
 
-  void min(SecondaryField fmt, FPURegister fd, FPURegister fs, FPURegister ft);
   void mina(SecondaryField fmt, FPURegister fd, FPURegister fs, FPURegister ft);
-  void max(SecondaryField fmt, FPURegister fd, FPURegister fs, FPURegister ft);
   void maxa(SecondaryField fmt, FPURegister fd, FPURegister fs, FPURegister ft);
   void min_s(FPURegister fd, FPURegister fs, FPURegister ft);
   void min_d(FPURegister fd, FPURegister fs, FPURegister ft);
