@@ -272,6 +272,13 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                                        const byte* input_end, int* output,
                                        int output_size, Isolate* isolate,
                                        JSRegExp regexp);
+  void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
+                                bool check_bounds, int characters,
+                                int eats_at_least) override;
+  // Load a number of characters at the given offset from the
+  // current position, into the current-character register.
+  virtual void LoadCurrentCharacterUnchecked(int cp_offset,
+                                             int character_count) = 0;
 };
 
 }  // namespace internal
