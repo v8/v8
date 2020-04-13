@@ -161,6 +161,9 @@ class WeakScriptHandle {
 std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
     ModuleOrigin origin, Vector<const uint8_t> wire_bytes) {
   if (origin != kWasmOrigin) return nullptr;
+  // Temporarily disabled to fix stability issue on M-81
+  // (https://crbug.com/1070199).
+  if (!FLAG_future) return nullptr;
   base::MutexGuard lock(&mutex_);
   size_t prefix_hash = PrefixHash(wire_bytes);
   NativeModuleCache::Key key{prefix_hash, wire_bytes};
@@ -192,6 +195,9 @@ std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
 }
 
 bool NativeModuleCache::GetStreamingCompilationOwnership(size_t prefix_hash) {
+  // Temporarily disabled to fix stability issue on M-81
+  // (https://crbug.com/1070199).
+  if (!FLAG_future) return true;
   base::MutexGuard lock(&mutex_);
   auto it = map_.lower_bound(Key{prefix_hash, {}});
   if (it != map_.end() && it->first.prefix_hash == prefix_hash) {
@@ -206,6 +212,9 @@ bool NativeModuleCache::GetStreamingCompilationOwnership(size_t prefix_hash) {
 }
 
 void NativeModuleCache::StreamingCompilationFailed(size_t prefix_hash) {
+  // Temporarily disabled to fix stability issue on M-81
+  // (https://crbug.com/1070199).
+  if (!FLAG_future) return;
   base::MutexGuard lock(&mutex_);
   Key key{prefix_hash, {}};
   DCHECK_EQ(1, map_.count(key));
@@ -217,6 +226,9 @@ std::shared_ptr<NativeModule> NativeModuleCache::Update(
     std::shared_ptr<NativeModule> native_module, bool error) {
   DCHECK_NOT_NULL(native_module);
   if (native_module->module()->origin != kWasmOrigin) return native_module;
+  // Temporarily disabled to fix stability issue on M-81
+  // (https://crbug.com/1070199).
+  if (!FLAG_future) return native_module;
   Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   DCHECK(!wire_bytes.empty());
   size_t prefix_hash = PrefixHash(native_module->wire_bytes());
