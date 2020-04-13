@@ -842,6 +842,18 @@ void LiftoffAssembler::emit_i8x16_max_u(LiftoffRegister dst,
   bailout(kUnsupportedArchitecture, "emit_i8x16_max_u");
 }
 
+void LiftoffAssembler::emit_i8x16_rounding_average_u(LiftoffRegister dst,
+                                                     LiftoffRegister lhs,
+                                                     LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i8x16_rounding_average_u");
+}
+
+void LiftoffAssembler::emit_i16x8_rounding_average_u(LiftoffRegister dst,
+                                                     LiftoffRegister lhs,
+                                                     LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i16x8_rounding_average_u");
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   bailout(kUnsupportedArchitecture, "StackCheck");
 }
