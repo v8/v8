@@ -908,7 +908,7 @@ void TurboAssembler::Ulw(Register rd, const MemOperand& rs) {
     Register scratch = temps.Acquire();
     RV_lb(rd, source.rm(), source.offset() + 3);
     RV_slli(rd, rd, 24);
-    for (size_t i = 2; i >= 0; i++) {
+    for (int i = 2; i >= 0; i--) {
       RV_lbu(scratch, source.rm(), source.offset() + i);
       if (i) RV_slli(scratch, scratch, i * 8);
       RV_or_(rd, rd, scratch);
@@ -1037,7 +1037,7 @@ void TurboAssembler::Uld(Register rd, const MemOperand& rs) {
     Register scratch = temps.Acquire();
     RV_lb(rd, source.rm(), source.offset() + 7);
     RV_slli(rd, rd, 56);
-    for (size_t i = 6; i >= 0; i++) {
+    for (int i = 6; i >= 0; i--) {
       RV_lbu(scratch, source.rm(), source.offset() + i);
       if (i) RV_slli(scratch, scratch, i * 8);
       RV_or_(rd, rd, scratch);
@@ -1876,6 +1876,29 @@ void TurboAssembler::Cvt_s_ul(FPURegister fd, Register rs) {
   RV_fcvt_s_lu(fd, rs);
 }
 
+template <typename CvtFunc>
+void TurboAssembler::RoundFloatingPointToInteger(Register rd, FPURegister fs,
+                                                 Register result,
+                                                 CvtFunc fcvt) {
+  if (result.is_valid()) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    // Save csr_fflags to scratch & clear NV
+    RV_csrrci(scratch, csr_fflags, NV);
+    // actual conversion instruction
+    fcvt(this, rd, fs);
+    // check fflags and set result for abnormal status
+    RV_frflags(result);
+    RV_andi(result, result, NV);
+    RV_snez(result, result);
+    // restore csr_fflags
+    RV_csrw(csr_fflags, scratch);
+  } else {
+    // actual conversion instruction
+    fcvt(this, rd, fs);
+  }
+}
+
 void MacroAssembler::Round_l_d(FPURegister fd, FPURegister fs) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
@@ -1904,31 +1927,29 @@ void MacroAssembler::Trunc_l_d(FPURegister fd, FPURegister fs) {
   RV_fmv_d_x(fd, scratch);
 }
 
-void TurboAssembler::Trunc_uw_d(FPURegister fd, FPURegister fs,
-                                FPURegister scratch) {
+void TurboAssembler::Trunc_uw_d(FPURegister fd, FPURegister fs) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Trunc_uw_d(t5, fs, scratch);
+  Trunc_uw_d(t5, fs);
   RV_fmv_w_x(fd, t5);
 }
 
-void TurboAssembler::Trunc_uw_s(FPURegister fd, FPURegister fs,
-                                FPURegister scratch) {
+void TurboAssembler::Trunc_uw_s(FPURegister fd, FPURegister fs) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Trunc_uw_s(t5, fs, scratch);
+  Trunc_uw_s(t5, fs);
   RV_fmv_w_x(fd, t5);
 }
 
 void TurboAssembler::Trunc_ul_d(FPURegister fd, FPURegister fs,
-                                FPURegister scratch, Register result) {
+                                Register result) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Trunc_ul_d(t5, fs, scratch, result);
+  Trunc_ul_d(t5, fs, result);
   RV_fmv_d_x(fd, t5);
 }
 
 void TurboAssembler::Trunc_ul_s(FPURegister fd, FPURegister fs,
-                                FPURegister scratch, Register result) {
+                                Register result) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Trunc_ul_s(t5, fs, scratch, result);
+  Trunc_ul_s(t5, fs, result);
   RV_fmv_d_x(fd, t5);
 }
 
@@ -1960,46 +1981,102 @@ void MacroAssembler::Ceil_w_d(FPURegister fd, FPURegister fs) {
   RV_fmv_w_x(fd, scratch);
 }
 
-void TurboAssembler::Trunc_uw_d(Register rd, FPURegister fs,
-                                FPURegister scratch) {
-  RV_fcvt_wu_d(rd, fs, RTZ);
+void TurboAssembler::Trunc_uw_d(Register rd, FPURegister fs, Register result) {
+  RoundFloatingPointToInteger(
+      rd, fs, result, [](TurboAssembler* tasm, Register dst, FPURegister src) {
+        tasm->RV_fcvt_wu_d(dst, src, RTZ);
+      });
 }
 
-void TurboAssembler::Trunc_uw_s(Register rd, FPURegister fs,
-                                FPURegister scratch) {
-  RV_fcvt_wu_s(rd, fs, RTZ);
+void TurboAssembler::Trunc_w_d(Register rd, FPURegister fs, Register result) {
+  RoundFloatingPointToInteger(
+      rd, fs, result, [](TurboAssembler* tasm, Register dst, FPURegister src) {
+        tasm->RV_fcvt_w_d(dst, src, RTZ);
+      });
 }
 
-void TurboAssembler::Trunc_ul_d(Register rd, FPURegister fs,
-                                FPURegister scratch, Register result) {
-  if (result.is_valid()) {
-    // If a valid result register is passed in, clear the invalid flag before
-    // the convert, so that afterwards, we can check if it was set.
-    RV_csrci(csr_fflags, NV);
-  }
-  RV_fcvt_lu_d(rd, fs, RTZ);
-  if (result.is_valid()) {
-    // Check if the invalid flag was set.
-    RV_frflags(result);
-    RV_andi(result, result, NV);
-    RV_snez(result, result);
-  }
+void TurboAssembler::Trunc_uw_s(Register rd, FPURegister fs, Register result) {
+  RoundFloatingPointToInteger(
+      rd, fs, result, [](TurboAssembler* tasm, Register dst, FPURegister src) {
+        tasm->RV_fcvt_wu_s(dst, src, RTZ);
+      });
 }
 
-void TurboAssembler::Trunc_ul_s(Register rd, FPURegister fs,
-                                FPURegister scratch, Register result) {
-  if (result.is_valid()) {
-    // If a valid result register is passed in, clear the invalid flag before
-    // the convert, so that afterwards, we can check if it was set.
-    RV_csrci(csr_fflags, NV);
-  }
-  RV_fcvt_lu_s(rd, fs, RTZ);
-  if (result.is_valid()) {
-    // Check if the invalid flag was set.
-    RV_frflags(result);
-    RV_andi(result, result, NV);
-    RV_snez(result, result);
-  }
+void TurboAssembler::Trunc_w_s(Register rd, FPURegister fs, Register result) {
+  RoundFloatingPointToInteger(
+      rd, fs, result, [](TurboAssembler* tasm, Register dst, FPURegister src) {
+        tasm->RV_fcvt_w_s(dst, src, RTZ);
+      });
+}
+
+void TurboAssembler::Trunc_ul_d(Register rd, FPURegister fs, Register result) {
+  RoundFloatingPointToInteger(
+      rd, fs, result, [](TurboAssembler* tasm, Register dst, FPURegister src) {
+        tasm->RV_fcvt_lu_d(dst, src, RTZ);
+      });
+}
+
+void TurboAssembler::Trunc_l_d(Register rd, FPURegister fs, Register result) {
+  RoundFloatingPointToInteger(
+      rd, fs, result, [](TurboAssembler* tasm, Register dst, FPURegister src) {
+        tasm->RV_fcvt_l_d(dst, src, RTZ);
+      });
+}
+
+void TurboAssembler::Trunc_ul_s(Register rd, FPURegister fs, Register result) {
+  RoundFloatingPointToInteger(
+      rd, fs, result, [](TurboAssembler* tasm, Register dst, FPURegister src) {
+        tasm->RV_fcvt_lu_s(dst, src, RTZ);
+      });
+}
+
+void TurboAssembler::Trunc_l_s(Register rd, FPURegister fs, Register result) {
+  RoundFloatingPointToInteger(
+      rd, fs, result, [](TurboAssembler* tasm, Register dst, FPURegister src) {
+        tasm->RV_fcvt_l_s(dst, src, RTZ);
+      });
+}
+
+void TurboAssembler::Round_w_s(Register rd, FPURegister fs, Register result) {
+  RoundFloatingPointToInteger(
+      rd, fs, result, [](TurboAssembler* tasm, Register dst, FPURegister src) {
+        tasm->RV_fcvt_w_s(dst, src, RNE);
+      });
+}
+
+void TurboAssembler::Round_w_d(Register rd, FPURegister fs, Register result) {
+  RoundFloatingPointToInteger(
+      rd, fs, result, [](TurboAssembler* tasm, Register dst, FPURegister src) {
+        tasm->RV_fcvt_w_d(dst, src, RNE);
+      });
+}
+
+void TurboAssembler::Ceil_w_s(Register rd, FPURegister fs, Register result) {
+  RoundFloatingPointToInteger(
+      rd, fs, result, [](TurboAssembler* tasm, Register dst, FPURegister src) {
+        tasm->RV_fcvt_w_s(dst, src, RUP);
+      });
+}
+
+void TurboAssembler::Ceil_w_d(Register rd, FPURegister fs, Register result) {
+  RoundFloatingPointToInteger(
+      rd, fs, result, [](TurboAssembler* tasm, Register dst, FPURegister src) {
+        tasm->RV_fcvt_w_d(dst, src, RUP);
+      });
+}
+
+void TurboAssembler::Floor_w_s(Register rd, FPURegister fs, Register result) {
+  RoundFloatingPointToInteger(
+      rd, fs, result, [](TurboAssembler* tasm, Register dst, FPURegister src) {
+        tasm->RV_fcvt_w_s(dst, src, RDN);
+      });
+}
+
+void TurboAssembler::Floor_w_d(Register rd, FPURegister fs, Register result) {
+  RoundFloatingPointToInteger(
+      rd, fs, result, [](TurboAssembler* tasm, Register dst, FPURegister src) {
+        tasm->RV_fcvt_w_d(dst, src, RDN);
+      });
 }
 
 template <typename RoundFunc>

@@ -576,8 +576,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // MIPS64 R6 instruction macros.
 
   // Convert single to unsigned word.
-  void Trunc_uw_s(FPURegister fd, FPURegister fs, FPURegister scratch);
-  void Trunc_uw_s(Register rd, FPURegister fs, FPURegister scratch);
+  void Trunc_uw_s(FPURegister fd, FPURegister fs);
+  void Trunc_uw_s(Register rd, FPURegister fs, Register result = no_reg);
 
   void Ulh(Register rd, const MemOperand& rs);
   void Ulhu(Register rd, const MemOperand& rs);
@@ -762,20 +762,46 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Cvt_s_ul(FPURegister fd, Register rs);
 
   // Convert double to unsigned word.
-  void Trunc_uw_d(FPURegister fd, FPURegister fs, FPURegister scratch);
-  void Trunc_uw_d(Register rd, FPURegister fs, FPURegister scratch);
+  void Trunc_uw_d(FPURegister fd, FPURegister fs);
+  void Trunc_uw_d(Register rd, FPURegister fs, Register result = no_reg);
+
+  // Convert double to signed word.
+  void Trunc_w_d(Register rd, FPURegister fs, Register result = no_reg);
+
+  // Convert single to signed word.
+  void Trunc_w_s(Register rd, FPURegister fs, Register result = no_reg);
 
   // Convert double to unsigned long.
-  void Trunc_ul_d(FPURegister fd, FPURegister fs, FPURegister scratch,
-                  Register result = no_reg);
-  void Trunc_ul_d(Register rd, FPURegister fs, FPURegister scratch,
-                  Register result = no_reg);
+  void Trunc_ul_d(FPURegister fd, FPURegister fs, Register result = no_reg);
+  void Trunc_ul_d(Register rd, FPURegister fs, Register result = no_reg);
+
+  // Convert singled to signed long.
+  void Trunc_l_d(Register rd, FPURegister fs, Register result = no_reg);
 
   // Convert single to unsigned long.
-  void Trunc_ul_s(FPURegister fd, FPURegister fs, FPURegister scratch,
-                  Register result = no_reg);
-  void Trunc_ul_s(Register rd, FPURegister fs, FPURegister scratch,
-                  Register result = no_reg);
+  void Trunc_ul_s(FPURegister fd, FPURegister fs, Register result = no_reg);
+  void Trunc_ul_s(Register rd, FPURegister fs, Register result = no_reg);
+
+  // Convert singled to signed long.
+  void Trunc_l_s(Register rd, FPURegister fs, Register result = no_reg);
+
+  // Round single to signed word.
+  void Round_w_s(Register rd, FPURegister fs, Register result = no_reg);
+
+  // Round double to signed word.
+  void Round_w_d(Register rd, FPURegister fs, Register result = no_reg);
+
+  // Ceil single to signed word.
+  void Ceil_w_s(Register rd, FPURegister fs, Register result = no_reg);
+
+  // Ceil double to signed word.
+  void Ceil_w_d(Register rd, FPURegister fs, Register result = no_reg);
+
+  // Floor single to signed word.
+  void Floor_w_s(Register rd, FPURegister fs, Register result = no_reg);
+
+  // Floor double to signed word.
+  void Floor_w_d(Register rd, FPURegister fs, Register result = no_reg);
 
   // Round double functions
   void Trunc_d_d(FPURegister fd, FPURegister fs);
@@ -886,6 +912,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   template <typename RoundFunc>
   void RoundFloat(FPURegister dst, FPURegister src, FPURoundingMode mode,
                   RoundFunc round);
+
+  template <typename TruncFunc>
+  void RoundFloatingPointToInteger(Register rd, FPURegister fs, Register result,
+                                   TruncFunc trunc);
 
   // Push a fixed frame, consisting of ra, fp.
   void PushCommonFrame(Register marker_reg = no_reg);

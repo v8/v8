@@ -5,8 +5,8 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/codegen/riscv/constants-riscv.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/codegen/riscv/constants-riscv.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/gap-resolver.h"
@@ -1094,15 +1094,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64And32:
-        __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-        __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
+      __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       break;
     case kMips64Or:
       __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Or32:
-        __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-        __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
+      __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       break;
     case kMips64Nor:
       if (instr->InputAt(1)->IsRegister()) {
@@ -1126,8 +1126,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Xor32:
-        __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-        __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
+      __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       break;
     case kMips64Clz:
       __ Clz(i.OutputRegister(), i.InputRegister(0));
@@ -1475,15 +1475,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ cvt_d_s(i.OutputDoubleRegister(), i.InputSingleRegister(0));
       break;
     case kMips64CvtDW: {
-      FPURegister scratch = kScratchDoubleReg;
-      __ mtc1(i.InputRegister(0), scratch);
-      __ cvt_d_w(i.OutputDoubleRegister(), scratch);
+      __ RV_fcvt_d_w(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
     case kMips64CvtSW: {
-      FPURegister scratch = kScratchDoubleReg;
-      __ mtc1(i.InputRegister(0), scratch);
-      __ cvt_s_w(i.OutputDoubleRegister(), scratch);
+      __ RV_fcvt_s_w(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
     case kMips64CvtSUw: {
@@ -1491,15 +1487,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kMips64CvtSL: {
-      FPURegister scratch = kScratchDoubleReg;
-      __ dmtc1(i.InputRegister(0), scratch);
-      __ cvt_s_l(i.OutputDoubleRegister(), scratch);
+      __ RV_fcvt_s_l(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
     case kMips64CvtDL: {
-      FPURegister scratch = kScratchDoubleReg;
-      __ dmtc1(i.InputRegister(0), scratch);
-      __ cvt_d_l(i.OutputDoubleRegister(), scratch);
+      __ RV_fcvt_d_l(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
     case kMips64CvtDUw: {
@@ -1515,141 +1507,73 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kMips64FloorWD: {
-      FPURegister scratch = kScratchDoubleReg;
-      __ floor_w_d(scratch, i.InputDoubleRegister(0));
-      __ mfc1(i.OutputRegister(), scratch);
+      Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
+      __ Floor_w_d(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
     case kMips64CeilWD: {
-      FPURegister scratch = kScratchDoubleReg;
-      __ ceil_w_d(scratch, i.InputDoubleRegister(0));
-      __ mfc1(i.OutputRegister(), scratch);
+      Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
+      __ Ceil_w_d(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
     case kMips64RoundWD: {
-      FPURegister scratch = kScratchDoubleReg;
-      __ round_w_d(scratch, i.InputDoubleRegister(0));
-      __ mfc1(i.OutputRegister(), scratch);
+      Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
+      __ Round_w_d(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
     case kMips64TruncWD: {
-      FPURegister scratch = kScratchDoubleReg;
-      // Other arches use round to zero here, so we follow.
-      __ trunc_w_d(scratch, i.InputDoubleRegister(0));
-      __ mfc1(i.OutputRegister(), scratch);
+      Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
+      __ Trunc_w_d(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
     case kMips64FloorWS: {
-      FPURegister scratch = kScratchDoubleReg;
-      __ floor_w_s(scratch, i.InputDoubleRegister(0));
-      __ mfc1(i.OutputRegister(), scratch);
+      Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
+      __ Floor_w_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
     case kMips64CeilWS: {
-      FPURegister scratch = kScratchDoubleReg;
-      __ ceil_w_s(scratch, i.InputDoubleRegister(0));
-      __ mfc1(i.OutputRegister(), scratch);
+      Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
+      __ Ceil_w_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
     case kMips64RoundWS: {
-      FPURegister scratch = kScratchDoubleReg;
-      __ round_w_s(scratch, i.InputDoubleRegister(0));
-      __ mfc1(i.OutputRegister(), scratch);
+      Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
+      __ Round_w_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
     case kMips64TruncWS: {
-      FPURegister scratch = kScratchDoubleReg;
-      __ trunc_w_s(scratch, i.InputDoubleRegister(0));
-      __ mfc1(i.OutputRegister(), scratch);
-      // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
-      // because INT32_MIN allows easier out-of-bounds detection.
-      __ addiu(kScratchReg, i.OutputRegister(), 1);
-      __ slt(kScratchReg2, kScratchReg, i.OutputRegister());
-      __ Movn(i.OutputRegister(), kScratchReg, kScratchReg2);
+      Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
+      __ Trunc_w_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
     case kMips64TruncLS: {
-      FPURegister scratch = kScratchDoubleReg;
-      Register tmp_fcsr = kScratchReg;
-      Register result = kScratchReg2;
-
-      bool load_status = instr->OutputCount() > 1;
-      if (load_status) {
-        // Save FCSR.
-        __ cfc1(tmp_fcsr, FCSR);
-        // Clear FPU flags.
-        __ ctc1(zero_reg, FCSR);
-      }
-      // Other arches use round to zero here, so we follow.
-      __ trunc_l_s(scratch, i.InputDoubleRegister(0));
-      __ dmfc1(i.OutputRegister(), scratch);
-      if (load_status) {
-        __ cfc1(result, FCSR);
-        // Check for overflow and NaNs.
-        __ andi(result, result,
-                (kFCSROverflowFlagMask | kFCSRInvalidOpFlagMask));
-        __ Slt(result, zero_reg, result);
-        __ xori(result, result, 1);
-        __ mov(i.OutputRegister(1), result);
-        // Restore FCSR
-        __ ctc1(tmp_fcsr, FCSR);
-      }
+      Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
+      __ Trunc_l_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
     case kMips64TruncLD: {
-      FPURegister scratch = kScratchDoubleReg;
-      Register tmp_fcsr = kScratchReg;
-      Register result = kScratchReg2;
-
-      bool load_status = instr->OutputCount() > 1;
-      if (load_status) {
-        // Save FCSR.
-        __ cfc1(tmp_fcsr, FCSR);
-        // Clear FPU flags.
-        __ ctc1(zero_reg, FCSR);
-      }
-      // Other arches use round to zero here, so we follow.
-      __ trunc_l_d(scratch, i.InputDoubleRegister(0));
-      __ dmfc1(i.OutputRegister(0), scratch);
-      if (load_status) {
-        __ cfc1(result, FCSR);
-        // Check for overflow and NaNs.
-        __ andi(result, result,
-                (kFCSROverflowFlagMask | kFCSRInvalidOpFlagMask));
-        __ Slt(result, zero_reg, result);
-        __ xori(result, result, 1);
-        __ mov(i.OutputRegister(1), result);
-        // Restore FCSR
-        __ ctc1(tmp_fcsr, FCSR);
-      }
+      Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
+      __ Trunc_l_d(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
     case kMips64TruncUwD: {
-      FPURegister scratch = kScratchDoubleReg;
-      __ Trunc_uw_d(i.OutputRegister(), i.InputDoubleRegister(0), scratch);
+      Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
+      __ Trunc_uw_d(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
     case kMips64TruncUwS: {
-      FPURegister scratch = kScratchDoubleReg;
-      __ Trunc_uw_s(i.OutputRegister(), i.InputDoubleRegister(0), scratch);
-      // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
-      // because 0 allows easier out-of-bounds detection.
-      __ addiu(kScratchReg, i.OutputRegister(), 1);
-      __ Movz(i.OutputRegister(), zero_reg, kScratchReg);
+      Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
+      __ Trunc_uw_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
     case kMips64TruncUlS: {
-      FPURegister scratch = kScratchDoubleReg;
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
-      __ Trunc_ul_s(i.OutputRegister(), i.InputDoubleRegister(0), scratch,
-                    result);
+      __ Trunc_ul_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
     case kMips64TruncUlD: {
-      FPURegister scratch = kScratchDoubleReg;
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
-      __ Trunc_ul_d(i.OutputRegister(0), i.InputDoubleRegister(0), scratch,
-                    result);
+      __ Trunc_ul_d(i.OutputRegister(0), i.InputDoubleRegister(0), result);
       break;
     }
     case kMips64BitcastDL:
@@ -1670,7 +1594,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMips64Float64InsertHighWord32:
       __ FmoveHigh(i.OutputDoubleRegister(), i.InputRegister(1));
       break;
-    // ... more basic instructions ...
+      // ... more basic instructions ...
 
     case kMips64Seb:
       __ seb(i.OutputRegister(), i.InputRegister(0));
@@ -3880,9 +3804,9 @@ void CodeGenerator::AssembleConstructFrame() {
       // check in the condition code.
       if ((required_slots * kSystemPointerSize) < (FLAG_stack_size * 1024)) {
         __ Ld(
-             kScratchReg,
-             FieldMemOperand(kWasmInstanceRegister,
-                             WasmInstanceObject::kRealStackLimitAddressOffset));
+            kScratchReg,
+            FieldMemOperand(kWasmInstanceRegister,
+                            WasmInstanceObject::kRealStackLimitAddressOffset));
         __ Ld(kScratchReg, MemOperand(kScratchReg));
         __ Daddu(kScratchReg, kScratchReg,
                  Operand(required_slots * kSystemPointerSize));

@@ -3305,8 +3305,11 @@ void Assembler::andi(Register rt, Register rs, int32_t j) {
   }
 }
 
+// FIXME (RISCV): emulation of or_ will trigger DCHECK failure in
+// Assembler::target_at
 void Assembler::or_(Register rd, Register rs, Register rt) {
   GenInstrRegister(SPECIAL, rs, rt, rd, 0, OR);
+  // RV_or_(rd, rs, rt);
 }
 
 void Assembler::ori(Register rt, Register rs, int32_t j) {
@@ -3358,7 +3361,7 @@ void Assembler::sra(Register rd, Register rt, uint16_t sa) {
 }
 
 void Assembler::srav(Register rd, Register rt, Register rs) {
-  GenInstrRegister(SPECIAL, rs, rt, rd, 0, SRAV);
+  RV_sraw(rd, rt, rs);
 }
 
 void Assembler::rotr(Register rd, Register rt, uint16_t sa) {
@@ -3901,19 +3904,19 @@ void Assembler::movf(Register rd, Register rs, uint16_t cc) {
 }
 
 void Assembler::min_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  min(S, fd, fs, ft);
+  RV_fmin_s(fd, fs, ft);
 }
 
 void Assembler::min_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  min(D, fd, fs, ft);
+  RV_fmin_d(fd, fs, ft);
 }
 
 void Assembler::max_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  max(S, fd, fs, ft);
+  RV_fmax_s(fd, fs, ft);
 }
 
 void Assembler::max_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  max(D, fd, fs, ft);
+  RV_fmax_d(fd, fs, ft);
 }
 
 void Assembler::mina_s(FPURegister fd, FPURegister fs, FPURegister ft) {
@@ -3930,20 +3933,6 @@ void Assembler::maxa_s(FPURegister fd, FPURegister fs, FPURegister ft) {
 
 void Assembler::maxa_d(FPURegister fd, FPURegister fs, FPURegister ft) {
   maxa(D, fd, fs, ft);
-}
-
-void Assembler::max(SecondaryField fmt, FPURegister fd, FPURegister fs,
-                    FPURegister ft) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  DCHECK((fmt == D) || (fmt == S));
-  GenInstrRegister(COP1, fmt, ft, fs, fd, MAX);
-}
-
-void Assembler::min(SecondaryField fmt, FPURegister fd, FPURegister fs,
-                    FPURegister ft) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  DCHECK((fmt == D) || (fmt == S));
-  GenInstrRegister(COP1, fmt, ft, fs, fd, MIN);
 }
 
 // GPR.
@@ -4084,13 +4073,13 @@ void Assembler::dshd(Register rd, Register rt) {
 }
 
 void Assembler::seh(Register rd, Register rt) {
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, SEH, BSHFL);
+  RV_slli(rd, rt, 64 - 16);
+  RV_srai(rd, rd, 64 - 16);
 }
 
 void Assembler::seb(Register rd, Register rt) {
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, SEB, BSHFL);
+  RV_slli(rd, rt, 64 - 8);
+  RV_srai(rd, rd, 64 - 8);
 }
 
 // --------Coprocessor-instructions----------------
@@ -4248,27 +4237,27 @@ void Assembler::selnez(SecondaryField fmt, FPURegister fd, FPURegister fs,
 // Arithmetic.
 
 void Assembler::add_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  GenInstrRegister(COP1, S, ft, fs, fd, ADD_D);
+  RV_fadd_s(fd, fs, ft);
 }
 
 void Assembler::add_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  GenInstrRegister(COP1, D, ft, fs, fd, ADD_D);
+  RV_fadd_d(fd, fs, ft);
 }
 
 void Assembler::sub_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  GenInstrRegister(COP1, S, ft, fs, fd, SUB_D);
+  RV_fsub_s(fd, fs, ft);
 }
 
 void Assembler::sub_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  GenInstrRegister(COP1, D, ft, fs, fd, SUB_D);
+  RV_fsub_d(fd, fs, ft);
 }
 
 void Assembler::mul_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  GenInstrRegister(COP1, S, ft, fs, fd, MUL_D);
+  RV_fmul_s(fd, fs, ft);
 }
 
 void Assembler::mul_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  GenInstrRegister(COP1, D, ft, fs, fd, MUL_D);
+  RV_fmul_d(fd, fs, ft);
 }
 
 void Assembler::madd_s(FPURegister fd, FPURegister fr, FPURegister fs,
@@ -4320,20 +4309,16 @@ void Assembler::msubf_d(FPURegister fd, FPURegister fs, FPURegister ft) {
 }
 
 void Assembler::div_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  GenInstrRegister(COP1, S, ft, fs, fd, DIV_D);
+  RV_fdiv_s(fd, fs, ft);
 }
 
 void Assembler::div_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  GenInstrRegister(COP1, D, ft, fs, fd, DIV_D);
+  RV_fdiv_d(fd, fs, ft);
 }
 
-void Assembler::abs_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, fa0, fs, fd, ABS_D);
-}
+void Assembler::abs_s(FPURegister fd, FPURegister fs) { RV_fabs_s(fd, fs); }
 
-void Assembler::abs_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, fa0, fs, fd, ABS_D);
-}
+void Assembler::abs_d(FPURegister fd, FPURegister fs) { RV_fabs_d(fd, fs); }
 
 void Assembler::mov_d(FPURegister fd, FPURegister fs) {
   GenInstrRegister(COP1, D, fa0, fs, fd, MOV_D);
@@ -4351,13 +4336,9 @@ void Assembler::neg_d(FPURegister fd, FPURegister fs) {
   GenInstrRegister(COP1, D, fa0, fs, fd, NEG_D);
 }
 
-void Assembler::sqrt_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, fa0, fs, fd, SQRT_D);
-}
+void Assembler::sqrt_s(FPURegister fd, FPURegister fs) { RV_fsqrt_s(fd, fs); }
 
-void Assembler::sqrt_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, fa0, fs, fd, SQRT_D);
-}
+void Assembler::sqrt_d(FPURegister fd, FPURegister fs) { RV_fsqrt_d(fd, fs); }
 
 void Assembler::rsqrt_s(FPURegister fd, FPURegister fs) {
   GenInstrRegister(COP1, S, fa0, fs, fd, RSQRT_S);
@@ -4502,9 +4483,7 @@ void Assembler::cvt_s_l(FPURegister fd, FPURegister fs) {
   GenInstrRegister(COP1, L, fa0, fs, fd, CVT_S_L);
 }
 
-void Assembler::cvt_s_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, fa0, fs, fd, CVT_S_D);
-}
+void Assembler::cvt_s_d(FPURegister fd, FPURegister fs) { RV_fcvt_s_d(fd, fs); }
 
 void Assembler::cvt_d_w(FPURegister fd, FPURegister fs) {
   GenInstrRegister(COP1, W, fa0, fs, fd, CVT_D_W);
@@ -4515,9 +4494,7 @@ void Assembler::cvt_d_l(FPURegister fd, FPURegister fs) {
   GenInstrRegister(COP1, L, fa0, fs, fd, CVT_D_L);
 }
 
-void Assembler::cvt_d_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, fa0, fs, fd, CVT_D_S);
-}
+void Assembler::cvt_d_s(FPURegister fd, FPURegister fs) { RV_fcvt_d_s(fd, fs); }
 
 // Conditions for >= MIPSr6.
 void Assembler::cmp(FPUCondition cond, SecondaryField fmt, FPURegister fd,
