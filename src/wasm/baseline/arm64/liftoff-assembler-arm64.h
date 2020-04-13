@@ -1491,13 +1491,13 @@ void LiftoffAssembler::emit_i8x16_max_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_rounding_average_u(LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_rounding_average_u");
+  Urhadd(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
 void LiftoffAssembler::emit_i16x8_rounding_average_u(LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8_rounding_average_u");
+  Urhadd(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
 void LiftoffAssembler::emit_i8x16_abs(LiftoffRegister dst,

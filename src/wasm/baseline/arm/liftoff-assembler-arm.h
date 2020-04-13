@@ -2106,13 +2106,15 @@ void LiftoffAssembler::emit_i8x16_max_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_rounding_average_u(LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_rounding_average_u");
+  vrhadd(NeonU8, liftoff::GetSimd128Register(dst),
+         liftoff::GetSimd128Register(lhs), liftoff::GetSimd128Register(rhs));
 }
 
 void LiftoffAssembler::emit_i16x8_rounding_average_u(LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8_rounding_average_u");
+  vrhadd(NeonU16, liftoff::GetSimd128Register(dst),
+         liftoff::GetSimd128Register(lhs), liftoff::GetSimd128Register(rhs));
 }
 
 void LiftoffAssembler::emit_i8x16_abs(LiftoffRegister dst,
