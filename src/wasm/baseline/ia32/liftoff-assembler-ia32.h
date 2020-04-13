@@ -1950,13 +1950,11 @@ void EmitSimdCommutativeBinOp(
 
 template <void (Assembler::*avx_op)(XMMRegister, XMMRegister, XMMRegister),
           void (Assembler::*sse_op)(XMMRegister, XMMRegister)>
-void EmitSimdSub(LiftoffAssembler* assm, LiftoffRegister dst,
-                 LiftoffRegister lhs, LiftoffRegister rhs) {
+void EmitSimdNonCommutativeBinOp(LiftoffAssembler* assm, LiftoffRegister dst,
+                                 LiftoffRegister lhs, LiftoffRegister rhs) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(assm, AVX);
     (assm->*avx_op)(dst.fp(), lhs.fp(), rhs.fp());
-  } else if (lhs.fp() == rhs.fp()) {
-    assm->pxor(dst.fp(), dst.fp());
   } else if (dst.fp() == rhs.fp()) {
     assm->movaps(kScratchDoubleReg, rhs.fp());
     assm->movaps(dst.fp(), lhs.fp());
@@ -2076,22 +2074,23 @@ void LiftoffAssembler::emit_i8x16_add_saturate_u(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  liftoff::EmitSimdSub<&Assembler::vpsubb, &Assembler::psubb>(this, dst, lhs,
-                                                              rhs);
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vpsubb, &Assembler::psubb>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i8x16_sub_saturate_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  liftoff::EmitSimdSub<&Assembler::vpsubsb, &Assembler::psubsb>(this, dst, lhs,
-                                                                rhs);
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vpsubsb, &Assembler::psubsb>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i8x16_sub_saturate_u(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  liftoff::EmitSimdSub<&Assembler::vpsubusb, &Assembler::psubusb>(this, dst,
-                                                                  lhs, rhs);
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vpsubusb,
+                                       &Assembler::psubusb>(this, dst, lhs,
+                                                            rhs);
 }
 
 void LiftoffAssembler::emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2217,22 +2216,23 @@ void LiftoffAssembler::emit_i16x8_add_saturate_u(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  liftoff::EmitSimdSub<&Assembler::vpsubw, &Assembler::psubw>(this, dst, lhs,
-                                                              rhs);
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vpsubw, &Assembler::psubw>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i16x8_sub_saturate_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  liftoff::EmitSimdSub<&Assembler::vpsubsw, &Assembler::psubsw>(this, dst, lhs,
-                                                                rhs);
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vpsubsw, &Assembler::psubsw>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i16x8_sub_saturate_u(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  liftoff::EmitSimdSub<&Assembler::vpsubusw, &Assembler::psubusw>(this, dst,
-                                                                  lhs, rhs);
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vpsubusw,
+                                       &Assembler::psubusw>(this, dst, lhs,
+                                                            rhs);
 }
 
 void LiftoffAssembler::emit_i16x8_mul(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2288,8 +2288,8 @@ void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i32x4_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  liftoff::EmitSimdSub<&Assembler::vpsubd, &Assembler::psubd>(this, dst, lhs,
-                                                              rhs);
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vpsubd, &Assembler::psubd>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2348,8 +2348,8 @@ void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i64x2_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  liftoff::EmitSimdSub<&Assembler::vpsubq, &Assembler::psubq>(this, dst, lhs,
-                                                              rhs);
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vpsubq, &Assembler::psubq>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2405,6 +2405,11 @@ void LiftoffAssembler::emit_f32x4_neg(LiftoffRegister dst,
   }
 }
 
+void LiftoffAssembler::emit_f32x4_sqrt(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  Sqrtps(dst.fp(), src.fp());
+}
+
 void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vaddps, &Assembler::addps>(
@@ -2413,13 +2418,19 @@ void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f32x4_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  liftoff::EmitSimdSub<&Assembler::vsubps, &Assembler::subps>(this, dst, lhs,
-                                                              rhs);
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vsubps, &Assembler::subps>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vmulps, &Assembler::mulps>(
+      this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_f32x4_div(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vdivps, &Assembler::divps>(
       this, dst, lhs, rhs);
 }
 
@@ -2449,6 +2460,11 @@ void LiftoffAssembler::emit_f64x2_neg(LiftoffRegister dst,
   }
 }
 
+void LiftoffAssembler::emit_f64x2_sqrt(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  Sqrtpd(dst.fp(), src.fp());
+}
+
 void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vaddpd, &Assembler::addpd>(
@@ -2457,13 +2473,19 @@ void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  liftoff::EmitSimdSub<&Assembler::vsubpd, &Assembler::subpd>(this, dst, lhs,
-                                                              rhs);
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vsubpd, &Assembler::subpd>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vmulpd, &Assembler::mulpd>(
+      this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_f64x2_div(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vdivpd, &Assembler::divpd>(
       this, dst, lhs, rhs);
 }
 

@@ -1660,6 +1660,11 @@ void LiftoffAssembler::emit_f64x2_neg(LiftoffRegister dst,
   vneg(dst.high_fp(), src.high_fp());
 }
 
+void LiftoffAssembler::emit_f64x2_sqrt(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  bailout(kSimd, "f64x2sqrt");
+}
+
 void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   vadd(dst.low_fp(), lhs.low_fp(), rhs.low_fp());
@@ -1676,6 +1681,11 @@ void LiftoffAssembler::emit_f64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   vmul(dst.low_fp(), lhs.low_fp(), rhs.low_fp());
   vmul(dst.high_fp(), lhs.high_fp(), rhs.high_fp());
+}
+
+void LiftoffAssembler::emit_f64x2_div(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  bailout(kSimd, "f64x2div");
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
@@ -1709,6 +1719,11 @@ void LiftoffAssembler::emit_f32x4_neg(LiftoffRegister dst,
   vneg(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(src));
 }
 
+void LiftoffAssembler::emit_f32x4_sqrt(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  bailout(kSimd, "f32x4sqrt");
+}
+
 void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   vadd(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(lhs),
@@ -1725,6 +1740,11 @@ void LiftoffAssembler::emit_f32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   vmul(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(lhs),
        liftoff::GetSimd128Register(rhs));
+}
+
+void LiftoffAssembler::emit_f32x4_div(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  bailout(kSimd, "f32x4div");
 }
 
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
