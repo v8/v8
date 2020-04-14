@@ -1137,6 +1137,7 @@
 
   # interrupt_budget overrides don't work with TurboProp.
   'interrupt-budget-override': [SKIP],
+  'never-optimize': [SKIP],
 }],  # variant == turboprop
 
 ##############################################################################

@@ -24433,8 +24433,6 @@ TEST(TurboAsmDisablesDetach) {
       "}"
       "var buffer = new ArrayBuffer(4096);"
       "var module = Module(this, {}, buffer);"
-      "%PrepareFunctionForOptimization(module.load);"
-      "%OptimizeFunctionOnNextCall(module.load);"
       "module.load();"
       "buffer";
 
@@ -24450,8 +24448,6 @@ TEST(TurboAsmDisablesDetach) {
       "}"
       "var buffer = new ArrayBuffer(4096);"
       "var module = Module(this, {}, buffer);"
-      "%PrepareFunctionForOptimization(module.store);"
-      "%OptimizeFunctionOnNextCall(module.store);"
       "module.store();"
       "buffer";
 
