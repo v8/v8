@@ -2480,6 +2480,30 @@ class LiftoffCompiler {
       case wasm::kExprI16x8UConvertI32x4:
         return EmitBinOp<kS128, kS128>(
             &LiftoffAssembler::emit_i16x8_uconvert_i32x4);
+      case wasm::kExprI16x8SConvertI8x16Low:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_sconvert_i8x16_low);
+      case wasm::kExprI16x8SConvertI8x16High:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_sconvert_i8x16_high);
+      case wasm::kExprI16x8UConvertI8x16Low:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_uconvert_i8x16_low);
+      case wasm::kExprI16x8UConvertI8x16High:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_uconvert_i8x16_high);
+      case wasm::kExprI32x4SConvertI16x8Low:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_sconvert_i16x8_low);
+      case wasm::kExprI32x4SConvertI16x8High:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_sconvert_i16x8_high);
+      case wasm::kExprI32x4UConvertI16x8Low:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_uconvert_i16x8_low);
+      case wasm::kExprI32x4UConvertI16x8High:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_uconvert_i16x8_high);
       case wasm::kExprS128AndNot:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_s128_and_not);
       case wasm::kExprI8x16RoundingAverageU:
