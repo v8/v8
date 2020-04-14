@@ -627,6 +627,24 @@ void LiftoffAssembler::SpillAllRegisters() {
   cache_state_.reset_used_registers();
 }
 
+void LiftoffAssembler::ClearRegister(
+    Register reg, std::initializer_list<Register*> possible_uses,
+    LiftoffRegList pinned) {
+  if (cache_state()->is_used(LiftoffRegister(reg))) {
+    SpillRegister(LiftoffRegister(reg));
+  }
+  Register replacement = no_reg;
+  for (Register* use : possible_uses) {
+    if (reg != *use) continue;
+    if (replacement == no_reg) {
+      replacement = GetUnusedRegister(kGpReg, pinned).gp();
+      Move(replacement, reg, LiftoffAssembler::kWasmIntPtr);
+    }
+    // We cannot leave this loop early. There may be multiple uses of {reg}.
+    *use = replacement;
+  }
+}
+
 namespace {
 void PrepareStackTransfers(const FunctionSig* sig,
                            compiler::CallDescriptor* call_descriptor,

@@ -548,13 +548,84 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uint32_t offset_imm,
                                   LoadType type, LiftoffRegList pinned) {
-  bailout(kAtomics, "AtomicLoad");
+  if (type.value() != LoadType::kI64Load) {
+    Load(dst, src_addr, offset_reg, offset_imm, type, pinned, nullptr, true);
+    dmb(ISH);
+    return;
+  }
+  // ldrexd loads a 64 bit word into two registers. The first register needs to
+  // have an even index, e.g. r8, the second register needs to be the one with
+  // the next higher index, e.g. r9 if the first register is r8. In the
+  // following code we use the fixed register pair r8/r9 to make the code here
+  // simpler, even though other register pairs would also be possible.
+  constexpr Register dst_low = r8;
+  constexpr Register dst_high = r9;
+  if (cache_state()->is_used(LiftoffRegister(dst_low))) {
+    SpillRegister(LiftoffRegister(dst_low));
+  }
+  if (cache_state()->is_used(LiftoffRegister(dst_high))) {
+    SpillRegister(LiftoffRegister(dst_high));
+  }
+  UseScratchRegisterScope temps(this);
+  Register actual_addr = liftoff::CalculateActualAddress(
+      this, &temps, src_addr, offset_reg, offset_imm);
+  ldrexd(dst_low, dst_high, actual_addr);
+  dmb(ISH);
+
+  LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
+      {dst, LiftoffRegister::ForPair(dst_low, dst_high), kWasmI64}};
+  ParallelRegisterMove(ArrayVector(reg_moves));
 }
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uint32_t offset_imm, LiftoffRegister src,
                                    StoreType type, LiftoffRegList pinned) {
-  bailout(kAtomics, "AtomicStore");
+  if (type.value() != StoreType::kI64Store) {
+    dmb(ISH);
+    Store(dst_addr, offset_reg, offset_imm, src, type, pinned, nullptr, true);
+    dmb(ISH);
+    return;
+  }
+
+  // strexd loads a 64 bit word into two registers. The first register needs
+  // to have an even index, e.g. r8, the second register needs to be the one
+  // with the next higher index, e.g. r9 if the first register is r8. In the
+  // following code we use the fixed register pair r8/r9 to make the code here
+  // simpler, even though other register pairs would also be possible.
+  constexpr Register value_low = r8;
+  constexpr Register value_high = r9;
+  pinned.set(value_low);
+  pinned.set(value_high);
+
+  // We need r8/r9 below as temps as well, so we cannot allow {src} to be
+  // one of these registers.
+  Register src_low = src.low_gp();
+  Register src_high = src.high_gp();
+
+  ClearRegister(value_low, {&dst_addr, &offset_reg, &src_low, &src_high},
+                pinned);
+  ClearRegister(value_high, {&dst_addr, &offset_reg, &src_low, &src_high},
+                pinned);
+
+  UseScratchRegisterScope temps(this);
+  Register actual_addr = liftoff::CalculateActualAddress(
+      this, &temps, dst_addr, offset_reg, offset_imm);
+  Register result = temps.CanAcquire() ? temps.Acquire()
+                                       : GetUnusedRegister(kGpReg, pinned).gp();
+  dmb(ISH);
+  Label store;
+  bind(&store);
+  // {ldrexd} is needed here so that the {strexd} instruction below can
+  // succeed. We don't need the value we are reading. We use {value_low} and
+  // {value_high} as the destination registers because {ldrexd} has the same
+  // restrictions on registers as {strexd}, see the comment above.
+  ldrexd(value_low, value_high, actual_addr);
+  TurboAssembler::Move(value_low, src_low);
+  TurboAssembler::Move(value_high, src_high);
+  strexd(result, value_low, value_high, actual_addr);
+  cmp(result, Operand(0));
+  b(ne, &store);
+  dmb(ISH);
 }
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,

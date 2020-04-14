@@ -461,25 +461,6 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
 
 namespace liftoff {
 #define __ lasm->
-// Checks if a register in {possible_uses} uses {reg}. If so, it allocates a
-// replacement register for that use, and moves the content of {reg} to {use}.
-// The replacement register is written into the pointer stored in
-// {possible_uses}.
-inline void ClearRegister(LiftoffAssembler* lasm, Register reg,
-                          std::initializer_list<Register*> possible_uses,
-                          LiftoffRegList pinned) {
-  liftoff::SpillRegisters(lasm, reg);
-  Register replacement = no_reg;
-  for (Register* use : possible_uses) {
-    if (reg != *use) continue;
-    if (replacement == no_reg) {
-      replacement = __ GetUnusedRegister(kGpReg, pinned).gp();
-      __ movq(replacement, reg);
-    }
-    // We cannot leave this loop early. There may be multiple uses of {reg}.
-    *use = replacement;
-  }
-}
 
 inline void AtomicBinop(LiftoffAssembler* lasm,
                         void (Assembler::*opl)(Register, Register),
@@ -494,7 +475,7 @@ inline void AtomicBinop(LiftoffAssembler* lasm,
   // move any use to another register.
   LiftoffRegList pinned =
       LiftoffRegList::ForRegs(dst_addr, offset_reg, value_reg);
-  ClearRegister(lasm, rax, {&dst_addr, &offset_reg, &value_reg}, pinned);
+  __ ClearRegister(rax, {&dst_addr, &offset_reg, &value_reg}, pinned);
   if (__ emit_debug_code() && offset_reg != no_reg) {
     __ AssertZeroExtended(offset_reg);
   }
@@ -623,8 +604,7 @@ void LiftoffAssembler::AtomicCompareExchange(
   // move any use to another register.
   LiftoffRegList pinned =
       LiftoffRegList::ForRegs(dst_addr, offset_reg, expected, value_reg);
-  liftoff::ClearRegister(this, rax, {&dst_addr, &offset_reg, &value_reg},
-                         pinned);
+  ClearRegister(rax, {&dst_addr, &offset_reg, &value_reg}, pinned);
   if (expected.gp() != rax) {
     movq(rax, expected.gp());
   }

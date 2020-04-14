@@ -386,6 +386,14 @@ class LiftoffAssembler : public TurboAssembler {
   void SpillLocals();
   void SpillAllRegisters();
 
+  // Clear any uses of {reg} in both the cache and in {possible_uses}.
+  // Any use in the stack is spilled. If any register in {possible_uses} matches
+  // {reg}, then the content of {reg} is moved to a new temporary register, and
+  // all matches in {possible_uses} are rewritten to that temporary register.
+  void ClearRegister(Register reg,
+                     std::initializer_list<Register*> possible_uses,
+                     LiftoffRegList pinned);
+
   // Call this method whenever spilling something, such that the number of used
   // spill slot can be tracked and the stack frame will be allocated big enough.
   void RecordUsedSpillOffset(int offset) {
