@@ -519,11 +519,19 @@ class RegExpCompiler {
                              RegExpNode* start, int capture_count,
                              Handle<String> pattern);
 
+  // Preprocessing is the final step of node creation before analysis
+  // and assembly. It includes:
+  // - Wrapping the body of the regexp in capture 0.
+  // - Inserting the implicit .* before/after the regexp if necessary.
+  // - If the input is a one-byte string, filtering out nodes that can't match.
+  // - Fixing up regexp matches that start within a surrogate pair.
+  RegExpNode* PreprocessRegExp(RegExpCompileData* data, JSRegExp::Flags flags,
+                               bool is_one_byte);
+
   // If the regexp matching starts within a surrogate pair, step back to the
   // lead surrogate and start matching from there.
-  static RegExpNode* OptionallyStepBackToLeadSurrogate(RegExpCompiler* compiler,
-                                                       RegExpNode* on_success,
-                                                       JSRegExp::Flags flags);
+  RegExpNode* OptionallyStepBackToLeadSurrogate(RegExpNode* on_success,
+                                                JSRegExp::Flags flags);
 
   inline void AddWork(RegExpNode* node) {
     if (!node->on_work_list() && !node->label()->is_bound()) {

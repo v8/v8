@@ -751,9 +751,6 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
     return false;
   }
 
-  bool is_sticky = IsSticky(flags);
-  bool is_global = IsGlobal(flags);
-  bool is_unicode = IsUnicode(flags);
   RegExpCompiler compiler(isolate, zone, data->capture_count, is_one_byte);
 
   if (compiler.optimize()) {
@@ -772,50 +769,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
     compiler.frequency_collator()->CountCharacter(sample_subject->Get(i));
   }
 
-  // Wrap the body of the regexp in capture #0.
-  RegExpNode* captured_body =
-      RegExpCapture::ToNode(data->tree, 0, &compiler, compiler.accept());
-  RegExpNode* node = captured_body;
-  bool is_end_anchored = data->tree->IsAnchoredAtEnd();
-  bool is_start_anchored = data->tree->IsAnchoredAtStart();
-  int max_length = data->tree->max_match();
-  if (!is_start_anchored && !is_sticky) {
-    // Add a .*? at the beginning, outside the body capture, unless
-    // this expression is anchored at the beginning or sticky.
-    JSRegExp::Flags default_flags = JSRegExp::Flags();
-    RegExpNode* loop_node = RegExpQuantifier::ToNode(
-        0, RegExpTree::kInfinity, false,
-        new (zone) RegExpCharacterClass('*', default_flags), &compiler,
-        captured_body, data->contains_anchor);
-
-    if (data->contains_anchor) {
-      // Unroll loop once, to take care of the case that might start
-      // at the start of input.
-      ChoiceNode* first_step_node = new (zone) ChoiceNode(2, zone);
-      first_step_node->AddAlternative(GuardedAlternative(captured_body));
-      first_step_node->AddAlternative(GuardedAlternative(new (zone) TextNode(
-          new (zone) RegExpCharacterClass('*', default_flags), false,
-          loop_node)));
-      node = first_step_node;
-    } else {
-      node = loop_node;
-    }
-  }
-  if (is_one_byte) {
-    node = node->FilterOneByte(RegExpCompiler::kMaxRecursion);
-    // Do it again to propagate the new nodes to places where they were not
-    // put because they had not been calculated yet.
-    if (node != nullptr) {
-      node = node->FilterOneByte(RegExpCompiler::kMaxRecursion);
-    }
-  } else if (is_unicode && (is_global || is_sticky)) {
-    node = RegExpCompiler::OptionallyStepBackToLeadSurrogate(&compiler, node,
-                                                             flags);
-  }
-
-  if (node == nullptr) node = new (zone) EndNode(EndNode::BACKTRACK, zone);
-  data->node = node;
-  data->error = AnalyzeRegExp(isolate, is_one_byte, node);
+  data->node = compiler.PreprocessRegExp(data, flags, is_one_byte);
+  data->error = AnalyzeRegExp(isolate, is_one_byte, data->node);
   if (data->error != RegExpError::kNone) {
     return false;
   }
@@ -868,17 +823,20 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 
   // Inserted here, instead of in Assembler, because it depends on information
   // in the AST that isn't replicated in the Node structure.
+  bool is_end_anchored = data->tree->IsAnchoredAtEnd();
+  bool is_start_anchored = data->tree->IsAnchoredAtStart();
+  int max_length = data->tree->max_match();
   static const int kMaxBacksearchLimit = 1024;
-  if (is_end_anchored && !is_start_anchored && !is_sticky &&
+  if (is_end_anchored && !is_start_anchored && !IsSticky(flags) &&
       max_length < kMaxBacksearchLimit) {
     macro_assembler->SetCurrentPositionFromEnd(max_length);
   }
 
-  if (is_global) {
+  if (IsGlobal(flags)) {
     RegExpMacroAssembler::GlobalMode mode = RegExpMacroAssembler::GLOBAL;
     if (data->tree->min_match() > 0) {
       mode = RegExpMacroAssembler::GLOBAL_NO_ZERO_LENGTH_CHECK;
-    } else if (is_unicode) {
+    } else if (IsUnicode(flags)) {
       mode = RegExpMacroAssembler::GLOBAL_UNICODE;
     }
     macro_assembler->set_global_mode(mode);
@@ -895,7 +853,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 #endif
 
   RegExpCompiler::CompilationResult result = compiler.Assemble(
-      isolate, macro_assembler_ptr, node, data->capture_count, pattern);
+      isolate, macro_assembler_ptr, data->node, data->capture_count, pattern);
 
   // Code / bytecode printing.
   {
