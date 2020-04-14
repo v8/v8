@@ -6,6 +6,7 @@
 #define INCLUDE_CPPGC_VISITOR_H_
 
 #include "include/cppgc/garbage-collected.h"
+#include "include/cppgc/internal/logging.h"
 #include "include/cppgc/internal/pointer-policies.h"
 #include "include/cppgc/liveness-broker.h"
 #include "include/cppgc/member.h"
@@ -29,8 +30,7 @@ class Visitor {
   template <typename T>
   void Trace(const Member<T>& member) {
     const T* value = member.GetRawAtomic();
-    // TODO(chromium:1056170): DCHECK (or similar) for deleted values as they
-    // should come in at a different path.
+    CPPGC_DCHECK(value != kSentinelPointer);
     Trace(value);
   }
 
