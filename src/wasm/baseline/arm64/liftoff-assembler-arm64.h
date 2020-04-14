@@ -1107,7 +1107,7 @@ void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f64x2_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  bailout(kSimd, "f64x2_abs");
+  Fabs(dst.fp().V2D(), src.fp().V2D());
 }
 
 void LiftoffAssembler::emit_f64x2_neg(LiftoffRegister dst,
@@ -1163,7 +1163,7 @@ void LiftoffAssembler::emit_f32x4_replace_lane(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  bailout(kSimd, "f32x4_abs");
+  Fabs(dst.fp().V4S(), src.fp().V4S());
 }
 
 void LiftoffAssembler::emit_f32x4_neg(LiftoffRegister dst,
@@ -1547,17 +1547,17 @@ void LiftoffAssembler::emit_i16x8_rounding_average_u(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  bailout(kSimd, "i8x16_abs");
+  Abs(dst.fp().V16B(), src.fp().V16B());
 }
 
 void LiftoffAssembler::emit_i16x8_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  bailout(kSimd, "i16x8_abs");
+  Abs(dst.fp().V8H(), src.fp().V8H());
 }
 
 void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  bailout(kSimd, "i32x4_abs");
+  Abs(dst.fp().V4S(), src.fp().V4S());
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
