@@ -3,10 +3,12 @@
 // found in the LICENSE file.
 
 #include "src/heap/cppgc/visitor.h"
+
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/trace-trait.h"
 #include "src/base/macros.h"
+#include "src/heap/cppgc/heap.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -58,6 +60,14 @@ class DispatchingVisitor final : public VisitorBase {
     EXPECT_EQ(object_, t);
     EXPECT_EQ(payload_, desc.base_object_payload);
     desc.callback(this, desc.base_object_payload);
+  }
+
+  void VisitWeak(const void* t, TraceDescriptor desc, WeakCallback callback,
+                 const void* weak_member) final {
+    EXPECT_EQ(object_, t);
+    EXPECT_EQ(payload_, desc.base_object_payload);
+    LivenessBroker broker = LivenessBrokerFactory::Create();
+    callback(broker, weak_member);
   }
 
  private:
@@ -131,6 +141,26 @@ TEST_F(VisitorTest, DispatchTraceGCedMixin) {
   EXPECT_EQ(0u, GCed::trace_callcount);
   visitor.Trace(ref);
   EXPECT_EQ(1u, GCed::trace_callcount);
+}
+
+TEST_F(VisitorTest, DispatchTraceWeakGCed) {
+  WeakMember<GCed> ref = MakeGarbageCollected<GCed>(GetHeap());
+  DispatchingVisitor visitor(ref, ref);
+  visitor.Trace(ref);
+  // No marking, so reference should be cleared.
+  EXPECT_EQ(nullptr, ref.Get());
+}
+
+TEST_F(VisitorTest, DispatchTraceWeakGCedMixin) {
+  auto* gced_mixin_app = MakeGarbageCollected<GCedMixinApplication>(GetHeap());
+  auto* gced_mixin = static_cast<GCedMixin*>(gced_mixin_app);
+  // Ensure that we indeed test dispatching an inner object.
+  EXPECT_NE(static_cast<void*>(gced_mixin_app), static_cast<void*>(gced_mixin));
+  WeakMember<GCedMixin> ref = gced_mixin;
+  DispatchingVisitor visitor(gced_mixin, gced_mixin_app);
+  visitor.Trace(ref);
+  // No marking, so reference should be cleared.
+  EXPECT_EQ(nullptr, ref.Get());
 }
 
 }  // namespace internal

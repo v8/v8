@@ -10,7 +10,8 @@
 namespace cppgc {
 namespace internal {
 
-// Base visitor that is allowed to create a public cppgc::Visitor object.
+// Base visitor that is allowed to create a public cppgc::Visitor object and
+// use its internals.
 class VisitorBase : public cppgc::Visitor {
  public:
   VisitorBase() = default;
