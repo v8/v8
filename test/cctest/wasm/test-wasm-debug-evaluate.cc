@@ -43,14 +43,20 @@ namespace {
 template <typename... FunctionArgsT>
 class TestCode {
  public:
-  TestCode(WasmRunnerBase* runner, std::initializer_list<byte> code)
-      : compiler_(&runner->NewFunction<FunctionArgsT...>()), code_(code) {
+  TestCode(WasmRunnerBase* runner, std::initializer_list<byte> code,
+           std::initializer_list<ValueType::Kind> locals = {})
+      : compiler_(&runner->NewFunction<FunctionArgsT...>()),
+        code_(code),
+        locals_(static_cast<uint32_t>(locals.size())) {
+    for (ValueType::Kind T : locals) {
+      compiler_->AllocateLocal(ValueType(T));
+    }
     compiler_->Build(code.begin(), code.end());
   }
 
   Handle<BreakPoint> BreakOnReturn(WasmRunnerBase* runner) {
     runner->TierDown();
-    uint32_t return_offset_in_function = FindReturn();
+    uint32_t return_offset_in_function = locals_ + FindReturn();
 
     int function_index = compiler_->function_index();
     int function_offset =
@@ -98,6 +104,7 @@ class TestCode {
 
   WasmFunctionCompiler* compiler_;
   std::vector<byte> code_;
+  uint32_t locals_;
 };
 
 class WasmEvaluatorBuilder {
@@ -108,6 +115,9 @@ class WasmEvaluatorBuilder {
       : zone_(&allocator_, ZONE_NAME), builder_(&zone_) {
     get_memory_function_index = AddImport<void, uint32_t, uint32_t, uint32_t>(
         CStrVector("__getMemory"));
+    get_local_function_index =
+        AddImport<void, uint32_t, uint32_t>(CStrVector("__getLocal"));
+    sbrk_function_index = AddImport<uint32_t, uint32_t>(CStrVector("__sbrk"));
     wasm_format_function =
         builder_.AddFunction(WasmRunnerBase::CreateSig<uint32_t>(&zone_));
     wasm_format_function->SetName(CStrVector("wasm_format"));
@@ -119,12 +129,23 @@ class WasmEvaluatorBuilder {
   template <typename ReturnT, typename... ArgTs>
   uint32_t AddImport(Vector<const char> name) {
     return builder_.AddImport(
-        name, WasmRunnerBase::CreateSig<ReturnT, ArgTs...>(&zone_));
+        name, WasmRunnerBase::CreateSig<ReturnT, ArgTs...>(&zone_),
+        CStrVector("env"));
   }
 
   void push_back(std::initializer_list<byte> code) {
     wasm_format_function->EmitCode(code.begin(),
                                    static_cast<uint32_t>(code.size()));
+  }
+
+  void CallSbrk(std::initializer_list<byte> args) {
+    push_back(args);
+    push_back({WASM_CALL_FUNCTION0(sbrk_function_index)});
+  }
+
+  void CallGetLocal(std::initializer_list<byte> args) {
+    push_back(args);
+    push_back({WASM_CALL_FUNCTION0(get_local_function_index)});
   }
 
   void CallGetMemory(std::initializer_list<byte> args) {
@@ -143,6 +164,8 @@ class WasmEvaluatorBuilder {
   Zone zone_;
   WasmModuleBuilder builder_;
   uint32_t get_memory_function_index = 0;
+  uint32_t get_local_function_index = 0;
+  uint32_t sbrk_function_index = 0;
   WasmFunctionBuilder* wasm_format_function = nullptr;
 };
 
@@ -218,7 +241,7 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_CompileFailed) {
   code.BreakOnReturn(&runner);
 
   WasmEvaluatorBuilder evaluator(execution_tier);
-  // Create a module that doesn't compile by missing the END bytecode
+  // Create a module that doesn't compile by missing the END bytecode.
   evaluator.push_back({WASM_RETURN1(WASM_I32V_1(33))});
 
   Isolate* isolate = runner.main_isolate();
@@ -262,11 +285,12 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_ExecuteFailed_SEGV) {
 
   TestCode<int> code(&runner, {WASM_RETURN1(WASM_I32V_1(32))});
 
-  // Create a module that doesn't compile by missing the END bytecode
-  WasmEvaluatorBuilder evaluator(execution_tier);
+  // Use a max memory size of 2 here to verify the precondition for the
+  // GrowMemory test below.
+  WasmEvaluatorBuilder evaluator(execution_tier, 1, 2);
   code.BreakOnReturn(&runner);
 
-  // Load 1 byte from an address that's too high
+  // Load 1 byte from an address that's too high.
   evaluator.CallGetMemory(
       {WASM_I32V_1(32), WASM_I32V_1(1), WASM_I32V_3((1 << 16) + 1)});
   evaluator.push_back({WASM_RETURN1(WASM_I32V_1(33)), WASM_END});
@@ -283,6 +307,34 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_ExecuteFailed_SEGV) {
       std::string::npos);
 }
 
+WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_GrowMemory) {
+  WasmRunner<int> runner(execution_tier);
+  runner.builder().AddMemoryElems<int32_t>(64);
+
+  TestCode<int> code(
+      &runner,
+      {WASM_STORE_MEM(MachineType::Int32(), WASM_I32V_1(32), WASM_I32V_2('A')),
+       WASM_RETURN1(WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V_1(32)))});
+  code.BreakOnReturn(&runner);
+
+  WasmEvaluatorBuilder evaluator(execution_tier, 1, 2);
+  // Grow the memory.
+  evaluator.CallSbrk({WASM_I32V_1(1)});
+  // Load 1 byte from an address that's too high for the default memory.
+  evaluator.CallGetMemory(
+      {WASM_I32V_1(32), WASM_I32V_1(1), WASM_I32V_3((1 << 16) + 1)});
+  evaluator.push_back({WASM_RETURN1(WASM_I32V_3((1 << 16) + 1)), WASM_END});
+
+  Isolate* isolate = runner.main_isolate();
+  WasmBreakHandler break_handler(isolate, evaluator.bytes());
+  CHECK(!code.Run(&runner).is_null());
+
+  WasmBreakHandler::EvaluationResult result =
+      break_handler.result().ToChecked();
+  CHECK(result.error.IsNothing());
+  CHECK_EQ(result.result.ToChecked(), "A");
+}
+
 WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_LinearMemory) {
   WasmRunner<int> runner(execution_tier);
   runner.builder().AddMemoryElems<int32_t>(64);
@@ -297,6 +349,30 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_LinearMemory) {
   // Load 4 bytes from debuggee memory at address 32, and store at the offset 33
   // of the linear memory.
   evaluator.CallGetMemory({WASM_I32V_1(32), WASM_I32V_1(4), WASM_I32V_1(33)});
+  evaluator.push_back({WASM_RETURN1(WASM_I32V_1(33)), WASM_END});
+
+  Isolate* isolate = runner.main_isolate();
+  WasmBreakHandler break_handler(isolate, evaluator.bytes());
+  CHECK(!code.Run(&runner).is_null());
+
+  WasmBreakHandler::EvaluationResult result =
+      break_handler.result().ToChecked();
+  CHECK(result.error.IsNothing());
+  CHECK_EQ(result.result.ToChecked(), "A");
+}
+
+WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_Locals) {
+  WasmRunner<int> runner(execution_tier);
+  runner.builder().AddMemoryElems<int32_t>(64);
+
+  TestCode<int> code(
+      &runner,
+      {WASM_SET_LOCAL(0, WASM_I32V_2('A')), WASM_RETURN1(WASM_GET_LOCAL(0))},
+      {ValueType::kI32});
+  code.BreakOnReturn(&runner);
+
+  WasmEvaluatorBuilder evaluator(execution_tier);
+  evaluator.CallGetLocal({WASM_I32V_1(0), WASM_I32V_1(33)});
   evaluator.push_back({WASM_RETURN1(WASM_I32V_1(33)), WASM_END});
 
   Isolate* isolate = runner.main_isolate();
