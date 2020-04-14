@@ -27,6 +27,11 @@ class TestWithHeap : public TestWithPlatform {
  protected:
   TestWithHeap();
 
+  void PreciseGC() {
+    internal::Heap::From(GetHeap())->CollectGarbage(
+        {internal::Heap::GCConfig::StackState::kEmpty});
+  }
+
   Heap* GetHeap() const { return heap_.get(); }
 
  private:

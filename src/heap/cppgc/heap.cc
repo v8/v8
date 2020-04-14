@@ -54,7 +54,8 @@ class StackMarker final : public StackVisitor {
 
 Heap::Heap()
     : stack_(std::make_unique<Stack>(v8::base::Stack::GetStackStart())),
-      allocator_(std::make_unique<BasicAllocator>(this)) {}
+      allocator_(std::make_unique<BasicAllocator>(this)),
+      prefinalizer_handler_(std::make_unique<PreFinalizerHandler>()) {}
 
 Heap::~Heap() {
   for (HeapObjectHeader* header : objects_) {
@@ -73,6 +74,11 @@ void Heap::CollectGarbage(GCConfig config) {
     stack_->IteratePointers(&marker);
   }
   // "Sweeping and finalization".
+  {
+    // Pre finalizers are forbidden from allocating objects
+    NoAllocationScope no_allocation_scope_(this);
+    prefinalizer_handler_->InvokePreFinalizers();
+  }
   for (auto it = objects_.begin(); it != objects_.end();) {
     HeapObjectHeader* header = *it;
     if (header->IsMarked()) {
@@ -88,6 +94,11 @@ void Heap::CollectGarbage(GCConfig config) {
 Heap::NoGCScope::NoGCScope(Heap* heap) : heap_(heap) { heap_->no_gc_scope_++; }
 
 Heap::NoGCScope::~NoGCScope() { heap_->no_gc_scope_--; }
+
+Heap::NoAllocationScope::NoAllocationScope(Heap* heap) : heap_(heap) {
+  heap_->no_allocation_scope_++;
+}
+Heap::NoAllocationScope::~NoAllocationScope() { heap_->no_allocation_scope_--; }
 
 Heap::BasicAllocator::BasicAllocator(Heap* heap) : heap_(heap) {}
 

@@ -12,6 +12,7 @@
 #include "include/cppgc/internal/gc-info.h"
 #include "include/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/heap-object-header.h"
+#include "src/heap/cppgc/prefinalizer-handler.h"
 
 namespace cppgc {
 namespace internal {
@@ -35,6 +36,21 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
     Heap* heap_;
   };
 
+  // The NoAllocationScope class is used in debug mode to catch unwanted
+  // allocations. E.g. allocations during GC.
+  class V8_EXPORT_PRIVATE NoAllocationScope final {
+    CPPGC_STACK_ALLOCATED();
+
+   public:
+    explicit NoAllocationScope(Heap* heap);
+    ~NoAllocationScope();
+
+   private:
+    Heap* const heap_;
+
+    DISALLOW_COPY_AND_ASSIGN(NoAllocationScope);
+  };
+
   struct GCConfig {
     enum class StackState : uint8_t {
       kEmpty,
@@ -54,6 +70,10 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   inline void* Allocate(size_t size, GCInfoIndex index);
 
   void CollectGarbage(GCConfig config = GCConfig::Default());
+
+  PreFinalizerHandler* prefinalizer_handler() {
+    return prefinalizer_handler_.get();
+  }
 
  private:
   // TODO(chromium:1056170): Remove as soon as arenas are available for
@@ -79,11 +99,15 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
 
   bool in_no_gc_scope() { return no_gc_scope_ > 0; }
 
+  bool is_allocation_allowed() { return no_allocation_scope_ == 0; }
+
   std::unique_ptr<Stack> stack_;
   std::unique_ptr<BasicAllocator> allocator_;
   std::vector<HeapObjectHeader*> objects_;
+  std::unique_ptr<PreFinalizerHandler> prefinalizer_handler_;
 
   size_t no_gc_scope_ = 0;
+  size_t no_allocation_scope_ = 0;
 };
 
 }  // namespace internal

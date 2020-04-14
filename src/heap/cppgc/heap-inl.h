@@ -14,6 +14,7 @@ namespace cppgc {
 namespace internal {
 
 void* Heap::Allocate(size_t size, GCInfoIndex index) {
+  DCHECK(is_allocation_allowed());
   // TODO(chromium:1056170): This is merely a dummy implementation and will be
   // replaced with proper allocation code throughout the migration.
   size_t allocation_size = size + sizeof(HeapObjectHeader);

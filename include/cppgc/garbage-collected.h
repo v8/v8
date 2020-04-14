@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "include/cppgc/internal/api-constants.h"
+#include "include/cppgc/macros.h"
 #include "include/cppgc/platform.h"
 #include "include/cppgc/trace-trait.h"
 #include "include/cppgc/type-traits.h"
@@ -120,12 +121,6 @@ class GarbageCollectedMixin : public internal::GarbageCollectedBase {
    */
   virtual void Trace(cppgc::Visitor*) {}
 };
-
-namespace internal {
-
-class __thisIsHereToForceASemicolonAfterThisMacro {};
-
-}  // namespace internal
 
 /**
  * Macro defines all methods and markers needed for handling mixins. Must be
