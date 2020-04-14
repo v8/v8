@@ -32,10 +32,6 @@
 
   # forcing weak callback in asan build change break order
   'debug/debug-stepin-builtin-callback': [['asan == True or msan == True', SKIP]],
-
-  # Flakes in different configurations, so skipped overall for now.
-  # clemensb is working on that: https://crbug.com/v8/10410
-  'debug/wasm/debug-step-into-wasm': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
