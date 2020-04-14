@@ -1068,11 +1068,9 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
     // tier.
     uint32_t slot_idx = declared_function_index(module(), code->index());
     WasmCode* prior_code = code_table_[slot_idx];
-    // TODO(clemensb): Revisit this logic once tier down is fully working.
-    const bool prefer_liftoff = tier_down_ || debug_info_;
     const bool update_code_table =
-        prefer_liftoff ? !prior_code || code->tier() == ExecutionTier::kLiftoff
-                       : !prior_code || prior_code->tier() < code->tier();
+        tier_down_ ? !prior_code || code->for_debugging()
+                   : !prior_code || prior_code->tier() < code->tier();
     if (update_code_table) {
       code_table_[slot_idx] = code.get();
       if (prior_code) {
