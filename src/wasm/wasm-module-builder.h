@@ -5,15 +5,16 @@
 #ifndef V8_WASM_WASM_MODULE_BUILDER_H_
 #define V8_WASM_WASM_MODULE_BUILDER_H_
 
-#include "src/base/memory.h"
 #include "src/codegen/signature.h"
+#include "src/zone/zone-containers.h"
+
+#include "src/base/memory.h"
 #include "src/utils/vector.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -231,13 +232,12 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   explicit WasmModuleBuilder(Zone* zone);
 
   // Building methods.
-  uint32_t AddImport(Vector<const char> name, FunctionSig* sig,
-                     Vector<const char> module = {});
+  uint32_t AddImport(Vector<const char> name, FunctionSig* sig);
   WasmFunctionBuilder* AddFunction(FunctionSig* sig = nullptr);
   uint32_t AddGlobal(ValueType type, bool mutability = true,
                      const WasmInitExpr& init = WasmInitExpr());
   uint32_t AddGlobalImport(Vector<const char> name, ValueType type,
-                           bool mutability, Vector<const char> module = {});
+                           bool mutability);
   void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
   uint32_t AddSignature(FunctionSig* sig);
   // In the current implementation, it's supported to have uninitialized slots
@@ -271,13 +271,11 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
  private:
   struct WasmFunctionImport {
-    Vector<const char> module;
     Vector<const char> name;
     uint32_t sig_index;
   };
 
   struct WasmGlobalImport {
-    Vector<const char> module;
     Vector<const char> name;
     ValueTypeCode type_code;
     bool mutability;

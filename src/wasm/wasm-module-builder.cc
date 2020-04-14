@@ -2,19 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/wasm/wasm-module-builder.h"
-
-#include "src/base/memory.h"
 #include "src/codegen/signature.h"
+
 #include "src/handles/handles.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
+#include "src/zone/zone-containers.h"
+
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/wasm-constants.h"
+#include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
-#include "src/zone/zone-containers.h"
+
+#include "src/base/memory.h"
 
 namespace v8 {
 namespace internal {
@@ -334,17 +336,16 @@ uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
-uint32_t WasmModuleBuilder::AddImport(Vector<const char> name, FunctionSig* sig,
-                                      Vector<const char> module) {
+uint32_t WasmModuleBuilder::AddImport(Vector<const char> name,
+                                      FunctionSig* sig) {
   DCHECK(adding_imports_allowed_);
-  function_imports_.push_back({module, name, AddSignature(sig)});
+  function_imports_.push_back({name, AddSignature(sig)});
   return static_cast<uint32_t>(function_imports_.size() - 1);
 }
 
 uint32_t WasmModuleBuilder::AddGlobalImport(Vector<const char> name,
-                                            ValueType type, bool mutability,
-                                            Vector<const char> module) {
-  global_imports_.push_back({module, name, type.value_type_code(), mutability});
+                                            ValueType type, bool mutability) {
+  global_imports_.push_back({name, type.value_type_code(), mutability});
   return static_cast<uint32_t>(global_imports_.size() - 1);
 }
 
@@ -423,15 +424,15 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     size_t start = EmitSection(kImportSectionCode, buffer);
     buffer->write_size(global_imports_.size() + function_imports_.size());
     for (auto import : global_imports_) {
-      buffer->write_string(import.module);  // module name
-      buffer->write_string(import.name);    // field name
+      buffer->write_u32v(0);              // module name (length)
+      buffer->write_string(import.name);  // field name
       buffer->write_u8(kExternalGlobal);
       buffer->write_u8(import.type_code);
       buffer->write_u8(import.mutability ? 1 : 0);
     }
     for (auto import : function_imports_) {
-      buffer->write_string(import.module);  // module name
-      buffer->write_string(import.name);    // field name
+      buffer->write_u32v(0);              // module name (length)
+      buffer->write_string(import.name);  // field name
       buffer->write_u8(kExternalFunction);
       buffer->write_u32v(import.sig_index);
     }

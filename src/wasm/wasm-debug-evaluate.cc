@@ -5,7 +5,6 @@
 #include "src/wasm/wasm-debug-evaluate.h"
 
 #include <algorithm>
-#include <limits>
 
 #include "src/api/api-inl.h"
 #include "src/codegen/machine-type.h"
@@ -77,8 +76,7 @@ static bool CheckRangeOutOfBounds(uint32_t offset, uint32_t size,
 
 class DebugEvaluatorProxy {
  public:
-  explicit DebugEvaluatorProxy(Isolate* isolate, InterpretedFrame* frame)
-      : isolate_(isolate), frame_(frame) {}
+  explicit DebugEvaluatorProxy(Isolate* isolate) : isolate_(isolate) {}
 
   static void GetMemoryTrampoline(
       const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -105,68 +103,17 @@ class DebugEvaluatorProxy {
                 &debuggee_->memory_start()[offset], size);
   }
 
-  // void* __sbrk(intptr_t increment);
-  uint32_t Sbrk(uint32_t increment) {
-    if (increment > 0 && evaluator_->memory_size() <=
-                             std::numeric_limits<uint32_t>::max() - increment) {
-      Handle<WasmMemoryObject> memory(evaluator_->memory_object(), isolate_);
-      uint32_t new_pages =
-          (increment - 1 + wasm::kWasmPageSize) / wasm::kWasmPageSize;
-      WasmMemoryObject::Grow(isolate_, memory, new_pages);
-    }
-    return static_cast<uint32_t>(evaluator_->memory_size());
-  }
+  template <typename CallableT>
+  Handle<JSReceiver> WrapAsV8Function(CallableT callback) {
+    v8::Isolate* api_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+    v8::Local<v8::Context> context = api_isolate->GetCurrentContext();
+    std::string data;
+    v8::Local<v8::Function> func =
+        v8::Function::New(context, callback,
+                          v8::External::New(api_isolate, this))
+            .ToLocalChecked();
 
-  static void SbrkTrampoline(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    auto& proxy = GetProxy(args);
-    uint32_t size = proxy.GetArgAsUInt32(args, 0);
-
-    uint32_t result = proxy.Sbrk(size);
-    args.GetReturnValue().Set(result);
-  }
-
-  template <typename T>
-  void write_result(const WasmValue& result, uint32_t result_offset) {
-    wasm::ScheduledErrorThrower thrower(isolate_, "debug evaluate proxy");
-    T val = result.to<T>();
-    static_assert(static_cast<uint32_t>(sizeof(T)) == sizeof(T),
-                  "Unexpected size");
-    if (CheckRangeOutOfBounds(result_offset, sizeof(T),
-                              evaluator_->memory_size(), &thrower)) {
-      return;
-    }
-    memcpy(&evaluator_->memory_start()[result_offset], &val, sizeof(T));
-  }
-
-  // void __getLocal(uint32_t local,  void* result);
-  void GetLocal(uint32_t local, uint32_t result_offset) {
-    WasmValue result = frame_->GetLocalValue(local);
-
-    switch (result.type().kind()) {
-      case ValueType::kI32:
-        write_result<uint32_t>(result, result_offset);
-        break;
-      case ValueType::kI64:
-        write_result<int64_t>(result, result_offset);
-        break;
-      case ValueType::kF32:
-        write_result<float>(result, result_offset);
-        break;
-      case ValueType::kF64:
-        write_result<double>(result, result_offset);
-        break;
-      default:
-        UNIMPLEMENTED();
-    }
-  }
-
-  static void GetLocalTrampoline(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    auto& proxy = GetProxy(args);
-    uint32_t local = proxy.GetArgAsUInt32(args, 0);
-    uint32_t result = proxy.GetArgAsUInt32(args, 1);
-
-    proxy.GetLocal(local, result);
+    return Utils::OpenHandle(*func);
   }
 
   Handle<JSObject> CreateImports() {
@@ -174,16 +121,14 @@ class DebugEvaluatorProxy {
         isolate_->factory()->NewJSObject(isolate_->object_function());
     Handle<JSObject> import_module_obj =
         isolate_->factory()->NewJSObject(isolate_->object_function());
-    Object::SetProperty(isolate_, imports_obj, V8String(isolate_, "env"),
-                        import_module_obj)
+    Object::SetProperty(isolate_, imports_obj,
+                        isolate_->factory()->empty_string(), import_module_obj)
         .Assert();
 
-    AddImport(import_module_obj, "__getLocal",
-              DebugEvaluatorProxy::GetLocalTrampoline);
-    AddImport(import_module_obj, "__getMemory",
-              DebugEvaluatorProxy::GetMemoryTrampoline);
-    AddImport(import_module_obj, "__sbrk", DebugEvaluatorProxy::SbrkTrampoline);
-
+    Object::SetProperty(
+        isolate_, import_module_obj, V8String(isolate_, "__getMemory"),
+        WrapAsV8Function(DebugEvaluatorProxy::GetMemoryTrampoline))
+        .Assert();
     return imports_obj;
   }
 
@@ -208,26 +153,7 @@ class DebugEvaluatorProxy {
         args.Data().As<v8::External>()->Value());
   }
 
-  template <typename CallableT>
-  void AddImport(Handle<JSObject> import_module_obj, const char* function_name,
-                 CallableT callback) {
-    v8::Isolate* api_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-    v8::Local<v8::Context> context = api_isolate->GetCurrentContext();
-    std::string data;
-    v8::Local<v8::Function> v8_function =
-        v8::Function::New(context, callback,
-                          v8::External::New(api_isolate, this))
-            .ToLocalChecked();
-
-    auto wrapped_function = Utils::OpenHandle(*v8_function);
-
-    Object::SetProperty(isolate_, import_module_obj,
-                        V8String(isolate_, function_name), wrapped_function)
-        .Assert();
-  }
-
   Isolate* isolate_;
-  InterpretedFrame* frame_;
   Handle<WasmInstanceObject> evaluator_;
   Handle<WasmInstanceObject> debuggee_;
 };
@@ -245,31 +171,10 @@ static bool VerifyEvaluatorInterface(const WasmModule* raw_module,
       if (!CheckSignature(kWasmI32, {}, F.sig, thrower)) return false;
     } else if (F.imported) {
       if (name == "__getMemory") {
-        // void __getMemory(uint32_t offset, uint32_t size, void* result);
         if (!CheckSignature(kWasmBottom, {kWasmI32, kWasmI32, kWasmI32}, F.sig,
                             thrower)) {
           return false;
         }
-      } else if (name == "__getLocal") {
-        // void __getLocal(uint32_t local,  void* result)
-        if (!CheckSignature(kWasmBottom, {kWasmI32, kWasmI32}, F.sig,
-                            thrower)) {
-          return false;
-        }
-      } else if (name == "__debug") {
-        // void __debug(uint32_t flag, uint32_t value)
-        if (!CheckSignature(kWasmBottom, {kWasmI32, kWasmI32}, F.sig,
-                            thrower)) {
-          return false;
-        }
-      } else if (name == "__sbrk") {
-        // uint32_t __sbrk(uint32_t increment)
-        if (!CheckSignature(kWasmI32, {kWasmI32}, F.sig, thrower)) {
-          return false;
-        }
-      } else {
-        thrower->LinkError("Unknown import \"%s\"", name.c_str());
-        return false;
       }
     }
   }
@@ -302,7 +207,7 @@ Maybe<std::string> DebugEvaluateImpl(
   }
 
   // Set up imports.
-  DebugEvaluatorProxy proxy(isolate, frame.get());
+  DebugEvaluatorProxy proxy(isolate);
   Handle<JSObject> imports = proxy.CreateImports();
 
   // Instantiate Module.
