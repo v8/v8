@@ -568,26 +568,28 @@ class Simulator : public SimulatorBase {
   // Executing is handled based on the instruction type.
   void DecodeTypeRegister();
 
-  inline int32_t rs_reg() const { return instr_.RsValue(); }
-  inline int64_t rs() const { return get_register(rs_reg()); }
-  inline uint64_t rs_u() const {
-    return static_cast<uint64_t>(get_register(rs_reg()));
-  }
-  inline int32_t rt_reg() const { return instr_.RtValue(); }
-  inline int64_t rt() const { return get_register(rt_reg()); }
-  inline uint64_t rt_u() const {
-    return static_cast<uint64_t>(get_register(rt_reg()));
-  }
-  inline int32_t rd_reg() const { return instr_.RdValue(); }
-  inline int32_t fr_reg() const { return instr_.FrValue(); }
-  inline int32_t fs_reg() const { return instr_.FsValue(); }
-  inline int32_t ft_reg() const { return instr_.FtValue(); }
-  inline int32_t fd_reg() const { return instr_.FdValue(); }
-  inline int32_t sa() const { return instr_.SaValue(); }
-  inline int32_t lsa_sa() const { return instr_.LsaSaValue(); }
-  inline int32_t ws_reg() const { return instr_.WsValue(); }
-  inline int32_t wt_reg() const { return instr_.WtValue(); }
-  inline int32_t wd_reg() const { return instr_.WdValue(); }
+  /*
+    inline int32_t rs_reg() const { return instr_.RsValue(); }
+    inline int64_t rs() const { return get_register(rs_reg()); }
+    inline uint64_t rs_u() const {
+      return static_cast<uint64_t>(get_register(rs_reg()));
+    }
+    inline int32_t rt_reg() const { return instr_.RtValue(); }
+    inline int64_t rt() const { return get_register(rt_reg()); }
+    inline uint64_t rt_u() const {
+      return static_cast<uint64_t>(get_register(rt_reg()));
+    }
+    inline int32_t rd_reg() const { return instr_.RdValue(); }
+    inline int32_t fr_reg() const { return instr_.FrValue(); }
+    inline int32_t fs_reg() const { return instr_.FsValue(); }
+    inline int32_t ft_reg() const { return instr_.FtValue(); }
+    inline int32_t fd_reg() const { return instr_.FdValue(); }
+    inline int32_t sa() const { return instr_.SaValue(); }
+    inline int32_t lsa_sa() const { return instr_.LsaSaValue(); }
+    inline int32_t ws_reg() const { return instr_.WsValue(); }
+    inline int32_t wt_reg() const { return instr_.WtValue(); }
+    inline int32_t wd_reg() const { return instr_.WdValue(); }
+  */
 
   // RISCV utlity API to access register value
   inline int32_t rs1_reg() const { return instr_.Rs1Value(); }
@@ -603,6 +605,7 @@ class Simulator : public SimulatorBase {
   inline float frs3() const { return get_fpu_register_float(rs3_reg()); }
   inline double drs3() const { return get_fpu_register_double(rs3_reg()); }
   inline int32_t RV_rd_reg() const { return instr_.RV_RdValue(); }
+  inline int32_t RV_frd_reg() const { return instr_.RV_RdValue(); }
   inline int16_t boffset() const { return instr_.BranchOffset(); }
   inline int16_t imm12() const { return instr_.Imm12Value(); }
   inline int32_t imm20J() const { return instr_.Imm20JValue(); }
@@ -617,7 +620,7 @@ class Simulator : public SimulatorBase {
   }
   inline int16_t shamt() const { return (imm12() & 0x3F); }
   inline int32_t s_imm12() const { return instr_.StoreOffset(); }
-  inline int32_t u_imm() const { return instr_.Imm20UValue(); }
+  inline int32_t u_imm() const { return instr_.Imm20UValue() << 12; }
   inline void require(bool check) {
     if (!check) {
       SignalException(kIllegalInstruction);

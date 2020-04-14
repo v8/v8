@@ -92,11 +92,12 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 
 // Verify that all invocations of the COMPARE macro passed successfully.
 // Exit with a failure if at least one of the tests failed.
-#define VERIFY_RUN()                            \
-  if (failure) {                                \
-    FATAL("MIPS Disassembler tests failed.\n"); \
+#define VERIFY_RUN()                             \
+  if (failure) {                                 \
+    FATAL("RISCV Disassembler tests failed.\n"); \
   }
 
+/*
 #define COMPARE_PC_REL_COMPACT(asm_, compare_string, offset)                   \
   {                                                                            \
     int pc_offset = assm.pc_offset();                                          \
@@ -160,21 +161,313 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
     byte* progcounter = &buffer[pc_offset];                              \
     pc_region = reinterpret_cast<int64_t>(progcounter + 4) & ~0xFFFFFFF; \
   }
+*/
 
-TEST(Type0) {
+TEST(Arith) {
   SET_UP();
 
-  COMPARE(RV_addw(a0, a1, a2), "00c5853b       addw    a0, a1, a2");
-  COMPARE(RV_add(a0, a1, a2), "00c58533       add     a0, a1, a2");
-  COMPARE(RV_addw(a6, a7, t0), "0058883b       addw    a6, a7, t0");
-  COMPARE(RV_add(a6, a7, t0), "00588833       add     a6, a7, t0");
-  COMPARE(RV_addw(t4, t6, fp), "008f8ebb       addw    t4, t6, s0");
-  COMPARE(RV_add(s3, s9, s11), "01bc89b3       add     s3, s9, s11");
+  // Arithmetic with immediate
+  COMPARE(RV_addi(t6, s3, -268), "ef498f93       addi    t6, s3, -268");
+  COMPARE(RV_slti(t5, s4, -268), "ef4a2f13       slti    t5, s4, -268");
+  COMPARE(RV_sltiu(t4, s5, -268), "ef4abe93       sltiu   t4, s5, -268");
+  COMPARE(RV_xori(t3, s6, -268), "ef4b4e13       xori    t3, s6, -268");
+  COMPARE(RV_ori(s11, zero_reg, -268),
+          "ef406d93       ori     s11, zero_reg, -268");
+  COMPARE(RV_andi(s10, ra, -268), "ef40fd13       andi    s10, ra, -268");
+  COMPARE(RV_slli(s9, sp, 17), "01111c93       slli    s9, sp, 17");
+  COMPARE(RV_srli(s8, gp, 17), "0111dc13       srli    s8, gp, 17");
+  COMPARE(RV_srai(s7, tp, 17), "41125b93       srai    s7, tp, 17");
 
-  // TODO: Add more tests!
+  // Arithmetic
+  COMPARE(RV_add(s6, t0, t4), "01d28b33       add     s6, t0, t4");
+  COMPARE(RV_sub(s5, t1, s4), "41430ab3       sub     s5, t1, s4");
+  COMPARE(RV_sll(s4, t2, s4), "01439a33       sll      s4, t2, s4");
+  COMPARE(RV_slt(s3, fp, s4), "014429b3       slt     s3, fp, s4");
+  COMPARE(RV_sltu(s2, s3, t6), "01f9b933       sltu    s2, s3, t6");
+  COMPARE(RV_xor_(a7, s4, s4), "014a48b3       xor     a7, s4, s4");
+  COMPARE(RV_srl(a6, s5, s4), "014ad833       srl     a6, s5, s4");
+  COMPARE(RV_sra(a0, s3, s4), "4149d533       sra     a0, s3, s4");
+  COMPARE(RV_or_(a0, s3, s4), "0149e533       or      a0, s3, s4");
+  COMPARE(RV_and_(a0, s3, s4), "0149f533       and     a0, s3, s4");
 
   VERIFY_RUN();
 }
 
+TEST(LD_ST) {
+  SET_UP();
+  // Loads
+  COMPARE(RV_lb(t0, a0, 0), "00050283       lb      t0, 0(a0)");
+  COMPARE(RV_lh(t1, a1, -1024), "c0059303       lh      t1, -1024(a1)");
+  COMPARE(RV_lw(t2, a2, 100), "06462383       lw      t2, 100(a2)");
+  COMPARE(RV_lbu(fp, a3, -512), "e006c403       lbu     fp, -512(a3)");
+  COMPARE(RV_lhu(s1, a4, 258), "10275483       lhu     s1, 258(a4)");
+
+  // Stores
+  COMPARE(RV_sb(zero_reg, a5, -4), "fe078e23       sb      zero_reg, -4(a5)");
+  COMPARE(RV_sh(a6, s2, 4), "01091223       sh      a6, 4(s2)");
+  COMPARE(RV_sw(a7, s3, 100), "0719a223       sw      a7, 100(s3)");
+
+  VERIFY_RUN();
+}
+
+TEST(MISC) {
+  SET_UP();
+
+  COMPARE(RV_lui(sp, 100), "00064137       lui     sp, 100");
+  COMPARE(RV_auipc(ra, 2046), "007fe097       auipc   ra, 2046");
+
+  // Jumps
+  COMPARE(RV_jal(gp, 100), "064001ef       jal     gp, 100");
+  COMPARE(RV_jalr(tp, zero_reg, 100),
+          "06400267       jalr    tp, 100(zero_reg)");
+
+  // Branches
+  COMPARE(RV_beq(fp, zero_reg, -268),
+          "ee040ae3       beq     fp, zero_reg, -268");
+  COMPARE(RV_bne(t1, s4, -268), "ef431ae3       bne     t1, s4, -268");
+  COMPARE(RV_blt(s3, t4, -268), "efd9cae3       blt     s3, t4, -268");
+  COMPARE(RV_bge(t2, sp, -268), "ee23dae3       bge     t2, sp, -268");
+  COMPARE(RV_bltu(s6, a1, -268), "eebb6ae3       bltu    s6, a1, -268");
+  COMPARE(RV_bgeu(a1, s3, -268), "ef35fae3       bgeu    a1, s3, -268");
+
+  // Memory fences
+  COMPARE(RV_fence(PSO | PSR, PSW | PSI), "0690000f       fence or, iw");
+  COMPARE(RV_fence_tso(), "8330000f       fence rw, rw");
+  COMPARE(RV_fence_i(), "0000100f       fence.i");
+
+  // Environment call / break
+  COMPARE(RV_ecall(), "00000073       ecall");
+  COMPARE(RV_ebreak(), "00100073       ebreak");
+
+  VERIFY_RUN();
+}
+
+TEST(CSR) {
+  SET_UP();
+
+  COMPARE(RV_csrrw(zero_reg, csr_fflags, t3),
+          "001e1073       csrrw   zero_reg, csr_fflags, t3");
+  COMPARE(RV_csrrs(a0, csr_frm, zero_reg),
+          "00202573       csrrs   a0, csr_frm, zero_reg");
+  COMPARE(RV_csrrc(a0, csr_fcsr, s3),
+          "0039b573       csrrc   a0, csr_fcsr, s3");
+  COMPARE(RV_csrrwi(a0, csr_fflags, 0b10000),
+          "00185573       csrrwi  a0, csr_fflags, 16");
+  COMPARE(RV_csrrsi(t3, csr_frm, 0b011),
+          "0021ee73       csrrsi  t3, csr_frm, 3");
+  COMPARE(RV_csrrci(a0, csr_fflags, 0b10000),
+          "00187573       csrrci  a0, csr_fflags, 16");
+
+  VERIFY_RUN();
+}
+
+TEST(RV64I) {
+  SET_UP();
+
+  COMPARE(RV_lwu(a0, s3, -268), "ef49e503       lwu     a0, -268(s3)");
+  COMPARE(RV_ld(a1, s3, -268), "ef49b583       ld      a1, -268(s3)");
+  COMPARE(RV_sd(fp, sp, -268), "ee813a23       sd      fp, -268(sp)");
+  COMPARE(RV_addiw(gp, s3, -268), "ef49819b       addiw   gp, s3, -268");
+  COMPARE(RV_slliw(tp, s3, 17), "0119921b       slliw   tp, s3, 17");
+  COMPARE(RV_srliw(ra, s3, 10), "00a9d09b       srliw   ra, s3, 10");
+  COMPARE(RV_sraiw(sp, s3, 17), "4119d11b       sraiw   sp, s3, 17");
+  COMPARE(RV_addw(t1, zero_reg, s4), "0140033b       addw    t1, zero_reg, s4");
+  COMPARE(RV_subw(t2, s3, s4), "414983bb       subw    t2, s3, s4");
+  COMPARE(RV_sllw(s7, s3, s4), "01499bbb       sllw    s7, s3, s4");
+  COMPARE(RV_srlw(s10, s3, s4), "0149dd3b       srlw    s10, s3, s4");
+  COMPARE(RV_sraw(a7, s3, s4), "4149d8bb       sraw    a7, s3, s4");
+
+  VERIFY_RUN();
+}
+
+TEST(RV32M) {
+  SET_UP();
+
+  COMPARE(RV_mul(a0, s3, t4), "03d98533       mul     a0, s3, t4");
+  COMPARE(RV_mulh(a0, s3, t4), "03d99533       mulh    a0, s3, t4");
+  COMPARE(RV_mulhsu(a0, s3, t4), "03d9a533       mulhsu  a0, s3, t4");
+  COMPARE(RV_mulhu(a0, s3, t4), "03d9b533       mulhu   a0, s3, t4");
+  COMPARE(RV_div(a0, s3, t4), "03d9c533       div     a0, s3, t4");
+  COMPARE(RV_divu(a0, s3, t4), "03d9d533       divu    a0, s3, t4");
+  COMPARE(RV_rem(a0, s3, t4), "03d9e533       rem     a0, s3, t4");
+  COMPARE(RV_remu(a0, s3, t4), "03d9f533       remu    a0, s3, t4");
+
+  VERIFY_RUN();
+}
+
+TEST(RV64M) {
+  SET_UP();
+
+  COMPARE(RV_mulw(a0, s3, s4), "0349853b       mulw    a0, s3, s4");
+  COMPARE(RV_divw(a0, s3, s4), "0349c53b       divw    a0, s3, s4");
+  COMPARE(RV_divuw(a0, s3, s4), "0349d53b       divuw   a0, s3, s4");
+  COMPARE(RV_remw(a0, s3, s4), "0349e53b       remw    a0, s3, s4");
+  COMPARE(RV_remuw(a0, s3, s4), "0349f53b       remuw   a0, s3, s4");
+
+  VERIFY_RUN();
+}
+
+TEST(RV32A) {
+  SET_UP();
+  // RV32A Standard Extension
+  COMPARE(RV_lr_w(true, false, a0, s3), "1409a52f       lr.w.aq    a0, (s3)");
+  COMPARE(RV_sc_w(true, true, a0, s3, s4),
+          "1f49a52f       sc.w.aqrl    a0, s4, (s3)");
+  COMPARE(RV_amoswap_w(false, false, a0, s3, s4),
+          "0949a52f       amoswap.w a0, s4, (s3)");
+  COMPARE(RV_amoadd_w(false, true, a0, s3, s4),
+          "0349a52f       amoadd.w.rl a0, s4, (s3)");
+  COMPARE(RV_amoxor_w(true, false, a0, s3, s4),
+          "2549a52f       amoxor.w.aq a0, s4, (s3)");
+  COMPARE(RV_amoand_w(false, false, a0, s3, s4),
+          "6149a52f       amoand.w a0, s4, (s3)");
+  COMPARE(RV_amoor_w(true, true, a0, s3, s4),
+          "4749a52f       amoor.w.aqrl a0, s4, (s3)");
+  COMPARE(RV_amomin_w(false, true, a0, s3, s4),
+          "8349a52f       amomin.w.rl a0, s4, (s3)");
+  COMPARE(RV_amomax_w(true, false, a0, s3, s4),
+          "a549a52f       amomax.w.aq a0, s4, (s3)");
+  COMPARE(RV_amominu_w(false, false, a0, s3, s4),
+          "c149a52f       amominu.w a0, s4, (s3)");
+  COMPARE(RV_amomaxu_w(true, true, a0, s3, s4),
+          "e749a52f       amomaxu.w.aqrl a0, s4, (s3)");
+  VERIFY_RUN();
+}
+
+TEST(RV64A) {
+  SET_UP();
+
+  COMPARE(RV_lr_d(true, true, a0, s3), "1609b52f       lr.d.aqrl a0, (s3)");
+  COMPARE(RV_sc_d(false, true, a0, s3, s4),
+          "1b49b52f       sc.d.rl a0, s4, (s3)");
+  COMPARE(RV_amoswap_d(true, false, a0, s3, s4),
+          "0d49b52f       amoswap.d.aq a0, s4, (s3)");
+  COMPARE(RV_amoadd_d(false, false, a0, s3, s4),
+          "0149b52f       amoadd.d a0, s4, (s3)");
+  COMPARE(RV_amoxor_d(true, false, a0, s3, s4),
+          "2549b52f       amoxor.d.aq a0, s4, (s3)");
+  COMPARE(RV_amoand_d(true, true, a0, s3, s4),
+          "6749b52f       amoand.d.aqrl a0, s4, (s3)");
+  COMPARE(RV_amoor_d(false, true, a0, s3, s4),
+          "4349b52f       amoor.d.rl a0, s4, (s3)");
+  COMPARE(RV_amomin_d(true, true, a0, s3, s4),
+          "8749b52f       amomin.d.aqrl a0, s4, (s3)");
+  COMPARE(RV_amomax_d(false, true, a0, s3, s4),
+          "a349b52f       amoswap.d.rl a0, s4, (s3)");
+  COMPARE(RV_amominu_d(true, false, a0, s3, s4),
+          "c549b52f       amominu.d.aq a0, s4, (s3)");
+  COMPARE(RV_amomaxu_d(false, true, a0, s3, s4),
+          "e349b52f       amomaxu.d.rl a0, s4, (s3)");
+
+  VERIFY_RUN();
+}
+
+TEST(RV32F) {
+  SET_UP();
+  // RV32F Standard Extension
+  COMPARE(RV_flw(fa0, s3, -268), "ef49a507       flw     fa0, -268(s3)");
+  COMPARE(RV_fsw(ft7, sp, -268), "ee712a27       fsw      ft7, -268(sp)");
+  COMPARE(RV_fmadd_s(fa0, ft8, fa5, fs5),
+          "a8fe0543       fmadd.s fa0, ft8, fa5, fs5");
+  COMPARE(RV_fmsub_s(fa0, ft8, fa5, fs5),
+          "a8fe0547       fmsub.s fa0, ft8, fa5, fs5");
+  COMPARE(RV_fnmsub_s(fa0, ft8, fa5, fs5),
+          "a8fe054b       fnmsub.s fa0, ft8, fa5, fs5");
+  COMPARE(RV_fnmadd_s(fa0, ft8, fa5, fs5),
+          "a8fe054f       fnmadd.s fa0, ft8, fa5, fs5");
+  COMPARE(RV_fadd_s(fa0, ft8, fa5), "00fe0553       fadd.s  fa0, ft8, fa5");
+  COMPARE(RV_fsub_s(fa0, ft8, fa5), "08fe0553       fsub.s  fa0, ft8, fa5");
+  COMPARE(RV_fmul_s(fa0, ft8, fa5), "10fe0553       fmul.s  fa0, ft8, fa5");
+  COMPARE(RV_fdiv_s(ft0, ft8, fa5), "18fe0053       fdiv.s  ft0, ft8, fa5");
+  COMPARE(RV_fsqrt_s(ft0, ft8), "580e0053       fsqrt.s ft0, ft8");
+  COMPARE(RV_fsgnj_s(ft0, ft8, fa5), "20fe0053       fsgnj.s ft0, ft8, fa5");
+  COMPARE(RV_fsgnjn_s(ft0, ft8, fa5), "20fe1053       fsgnjn.s ft0, ft8, fa5");
+  COMPARE(RV_fsgnjx_s(ft0, ft8, fa5), "20fe2053       fsgnjx.s ft0, ft8, fa5");
+  COMPARE(RV_fmin_s(ft0, ft8, fa5), "28fe0053       fmin.s  ft0, ft8, fa5");
+  COMPARE(RV_fmax_s(ft0, ft8, fa5), "28fe1053       fmax.s  ft0, ft8, fa5");
+  COMPARE(RV_fcvt_w_s(a0, ft8, RNE), "c00e0553       fcvt.w.s [RNE] a0, ft8");
+  COMPARE(RV_fcvt_wu_s(a0, ft8, RTZ), "c01e1553       fcvt.wu.s [RTZ] a0, ft8");
+  COMPARE(RV_fmv_x_w(a0, ft8), "e00e0553       fmv.x.w a0, ft8");
+  COMPARE(RV_feq_s(a0, ft8, fa5), "a0fe2553       feq.s a0, ft8, fa5");
+  COMPARE(RV_flt_s(a0, ft8, fa5), "a0fe1553       flt.s a0, ft8, fa5");
+  COMPARE(RV_fle_s(a0, ft8, fa5), "a0fe0553       fle.s a0, ft8, fa5");
+  COMPARE(RV_fclass_s(a0, ft8), "e00e1553       fclass.s a0, ft8");
+  COMPARE(RV_fcvt_s_w(ft0, s3), "d0098053       fcvt.s.w ft0, s3");
+  COMPARE(RV_fcvt_s_wu(ft0, s3), "d0198053       fcvt.s.wu ft0, s3");
+  COMPARE(RV_fmv_w_x(ft0, s3), "f0098053       fmv.w.x ft0, s3");
+  VERIFY_RUN();
+}
+
+TEST(RV64F) {
+  SET_UP();
+  // RV64F Standard Extension (in addition to RV32F)
+  COMPARE(RV_fcvt_l_s(a0, ft8, RNE), "c02e0553       fcvt.l.s [RNE] a0, ft8");
+  COMPARE(RV_fcvt_lu_s(a0, ft8, RMM), "c03e4553       fcvt.lu.s [RMM] a0, ft8");
+  COMPARE(RV_fcvt_s_l(ft0, s3), "d0298053       fcvt.s.l ft0, s3");
+  COMPARE(RV_fcvt_s_lu(ft0, s3), "d0398053       fcvt.s.lu ft0, s3");
+  VERIFY_RUN();
+}
+
+TEST(RV32D) {
+  SET_UP();
+  // RV32D Standard Extension
+  COMPARE(RV_fld(ft0, s3, -268), "ef49b007       fld     ft0, -268(s3)");
+  COMPARE(RV_fsd(ft7, sp, -268), "ee713a27       fsd      ft7, -268(sp)");
+  COMPARE(RV_fmadd_d(ft0, ft8, fa5, fs5),
+          "aafe0043       fmadd.d ft0, ft8, fa5, fs5");
+  COMPARE(RV_fmsub_d(ft0, ft8, fa5, fs1),
+          "4afe0047       fmsub.d ft0, ft8, fa5, fs1");
+  COMPARE(RV_fnmsub_d(ft0, ft8, fa5, fs2),
+          "92fe004b       fnmsub.d ft0, ft8, fa5, fs2");
+  COMPARE(RV_fnmadd_d(ft0, ft8, fa5, fs3),
+          "9afe004f       fnmadd.d ft0, ft8, fa5, fs3");
+  COMPARE(RV_fadd_d(ft0, ft8, fa5), "02fe0053       fadd.d ft0, ft8, fa5");
+  COMPARE(RV_fsub_d(ft0, ft8, fa5), "0afe0053       fsub.d ft0, ft8, fa5");
+  COMPARE(RV_fmul_d(ft0, ft8, fa5), "12fe0053       fmul.d ft0, ft8, fa5");
+  COMPARE(RV_fdiv_d(ft0, ft8, fa5), "1afe0053       fdiv.d ft0, ft8, fa5");
+  COMPARE(RV_fsqrt_d(ft0, ft8), "5a0e0053       fsqrt.d ft0, ft8");
+  COMPARE(RV_fsgnj_d(ft0, ft8, fa5), "22fe0053       fsgnj.d ft0, ft8, fa5");
+  COMPARE(RV_fsgnjn_d(ft0, ft8, fa5), "22fe1053       fsgnjn.d ft0, ft8, fa5");
+  COMPARE(RV_fsgnjx_d(ft0, ft8, fa5), "22fe2053       fsgnjx.d ft0, ft8, fa5");
+  COMPARE(RV_fmin_d(ft0, ft8, fa5), "2afe0053       fmin.d ft0, ft8, fa5");
+  COMPARE(RV_fmax_d(ft0, ft8, fa5), "2afe1053       fmax.d ft0, ft8, fa5");
+  COMPARE(RV_fcvt_s_d(ft0, ft8, RDN), "401e2053       fcvt.s.d [RDN] ft0, t3");
+  COMPARE(RV_fcvt_d_s(ft0, fa0), "42050053       fcvt.d.s ft0, fa0");
+  COMPARE(RV_feq_d(a0, ft8, fa5), "a2fe2553       feq.d a0, ft8, fa5");
+  COMPARE(RV_flt_d(a0, ft8, fa5), "a2fe1553       flt.d a0, ft8, fa5");
+  COMPARE(RV_fle_d(a0, ft8, fa5), "a2fe0553       fle.d a0, ft8, fa5");
+  COMPARE(RV_fclass_d(a0, ft8), "e20e1553       fclass.d a0, ft8");
+  COMPARE(RV_fcvt_w_d(a0, ft8, RNE), "c20e0553       fcvt.w.d [RNE] a0, ft8");
+  COMPARE(RV_fcvt_wu_d(a0, ft8, RUP), "c21e3553       fcvt.wu.d [RUP] a0, ft8");
+  COMPARE(RV_fcvt_d_w(ft0, s3), "d2098053       fcvt.d.w ft0, s3");
+  COMPARE(RV_fcvt_d_wu(ft0, s3), "d2198053       fcvt.d.wu ft0, s3");
+
+  VERIFY_RUN();
+}
+
+TEST(RV64D) {
+  SET_UP();
+  // RV64D Standard Extension (in addition to RV32D)
+  COMPARE(RV_fcvt_l_d(a0, ft8, RMM), "c22e4553       fcvt.l.d [RMM] a0, ft8");
+  COMPARE(RV_fcvt_lu_d(a0, ft8, RDN), "c23e2553       fcvt.lu.d [RDN] a0, ft8");
+  COMPARE(RV_fmv_x_d(a0, ft8), "e20e0553       fmv.x.d a0, ft8");
+  COMPARE(RV_fcvt_d_l(ft0, s3), "d2298053       fcvt.d.l ft0, s3");
+  COMPARE(RV_fcvt_d_lu(ft0, s3), "d2398053       fcvt.d.lu ft0, s3");
+  COMPARE(RV_fmv_d_x(ft0, s3), "f2098053       fmv.d.x ft0, s3");
+  VERIFY_RUN();
+}
+
+/*
+TEST(Previleged) {
+  SET_UP();
+  // Privileged
+  COMPARE(RV_uret(), "");
+  COMPARE(RV_sret(), "");
+  COMPARE(RV_mret(), "");
+  COMPARE(RV_wfi(), "");
+  COMPARE(RV_sfence_vma(s3, s4), "");
+  VERIFY_RUN();
+}
+*/
 }  // namespace internal
 }  // namespace v8

@@ -297,6 +297,9 @@ const int kImm20Shift = 12;
 const int kImm20Bits = 20;
 const int kCsrShift = 20;
 const int kCsrBits = 12;
+const int kMemOrderBits = 4;
+const int kPredOrderShift = 24;
+const int kSuccOrderShift = 20;
 
 // RISCV Instruction bit masks
 const int kBaseOpcodeMask = ((1 << kBaseOpcodeBits) - 1) << kBaseOpcodeShift;
@@ -1379,6 +1382,13 @@ enum RoundingMode {
                 // In Rounding Mode register, Invalid
 };
 
+enum MemoryOdering {
+  PSI = 0b1000,  // PI or SI
+  PSO = 0b0100,  // PO or SO
+  PSR = 0b0010,  // PR or SR
+  PSW = 0b0001   // PW or SW
+};
+
 // Returns the equivalent of !cc.
 // Negation of the default kNoCondition (-1) results in a non-default
 // no_condition value (-2). As long as tests for no_condition check
@@ -1835,6 +1845,16 @@ class InstructionGetters : public T {
     return this->Bits(kFunct3Shift + kFunct3Bits - 1, kFunct3Shift);
   }
 
+  inline int MemoryOrder(bool is_pred) const {
+    DCHECK((this->InstructionType() == InstructionBase::kIType &&
+            this->BaseOpcode() == MISC_MEM));
+    if (is_pred) {
+      return this->Bits(kPredOrderShift + kMemOrderBits - 1, kPredOrderShift);
+    } else {
+      return this->Bits(kSuccOrderShift + kMemOrderBits - 1, kSuccOrderShift);
+    }
+  }
+
   inline int Imm12Value() const {
     DCHECK(this->InstructionType() == InstructionBase::kIType);
     int Value = this->Bits(kImm12Shift + kImm12Bits - 1, kImm12Shift);
@@ -1870,7 +1890,7 @@ class InstructionGetters : public T {
     // | imm[31:12] | rd | opcode |
     //  31        12
     int32_t Bits = this->InstructionBits();
-    return Bits >> 12 << 12;
+    return Bits >> 12;
   }
 
   inline int Imm20JValue() const {
@@ -1953,58 +1973,60 @@ class InstructionGetters : public T {
     return this->Bits(kFunctionShift + kFunctionBits - 1, kFunctionShift);
   }
 
-  inline int FdValue() const {
-    return this->Bits(kFdShift + kFdBits - 1, kFdShift);
-  }
+  /*
+    inline int FdValue() const {
+      return this->Bits(kFdShift + kFdBits - 1, kFdShift);
+    }
 
-  inline int FsValue() const {
-    return this->Bits(kFsShift + kFsBits - 1, kFsShift);
-  }
+    inline int FsValue() const {
+      return this->Bits(kFsShift + kFsBits - 1, kFsShift);
+    }
 
-  inline int FtValue() const {
-    return this->Bits(kFtShift + kFtBits - 1, kFtShift);
-  }
+    inline int FtValue() const {
+      return this->Bits(kFtShift + kFtBits - 1, kFtShift);
+    }
 
-  inline int FrValue() const {
-    return this->Bits(kFrShift + kFrBits - 1, kFrShift);
-  }
+    inline int FrValue() const {
+      return this->Bits(kFrShift + kFrBits - 1, kFrShift);
+    }
 
-  inline int WdValue() const {
-    return this->Bits(kWdShift + kWdBits - 1, kWdShift);
-  }
+    inline int WdValue() const {
+      return this->Bits(kWdShift + kWdBits - 1, kWdShift);
+    }
 
-  inline int WsValue() const {
-    return this->Bits(kWsShift + kWsBits - 1, kWsShift);
-  }
+    inline int WsValue() const {
+      return this->Bits(kWsShift + kWsBits - 1, kWsShift);
+    }
 
-  inline int WtValue() const {
-    return this->Bits(kWtShift + kWtBits - 1, kWtShift);
-  }
+    inline int WtValue() const {
+      return this->Bits(kWtShift + kWtBits - 1, kWtShift);
+    }
 
-  inline int Bp2Value() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
-    return this->Bits(kBp2Shift + kBp2Bits - 1, kBp2Shift);
-  }
+    inline int Bp2Value() const {
+      DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
+      return this->Bits(kBp2Shift + kBp2Bits - 1, kBp2Shift);
+    }
 
-  inline int Bp3Value() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
-    return this->Bits(kBp3Shift + kBp3Bits - 1, kBp3Shift);
-  }
+    inline int Bp3Value() const {
+      DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
+      return this->Bits(kBp3Shift + kBp3Bits - 1, kBp3Shift);
+    }
 
-  // Float Compare condition code instruction bits.
-  inline int FCccValue() const {
-    return this->Bits(kFCccShift + kFCccBits - 1, kFCccShift);
-  }
+    // Float Compare condition code instruction bits.
+    inline int FCccValue() const {
+      return this->Bits(kFCccShift + kFCccBits - 1, kFCccShift);
+    }
 
-  // Float Branch condition code instruction bits.
-  inline int FBccValue() const {
-    return this->Bits(kFBccShift + kFBccBits - 1, kFBccShift);
-  }
+    // Float Branch condition code instruction bits.
+    inline int FBccValue() const {
+      return this->Bits(kFBccShift + kFBccBits - 1, kFBccShift);
+    }
 
-  // Float Branch true/false instruction bit.
-  inline int FBtrueValue() const {
-    return this->Bits(kFBtrueShift + kFBtrueBits - 1, kFBtrueShift);
-  }
+    // Float Branch true/false instruction bit.
+    inline int FBtrueValue() const {
+      return this->Bits(kFBtrueShift + kFBtrueBits - 1, kFBtrueShift);
+    }
+    */
 
   // Return the fields at their original place in the instruction encoding.
   inline Opcode OpcodeFieldRaw() const {
