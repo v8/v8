@@ -554,6 +554,11 @@ void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
   bailout(kUnsupportedArchitecture, "emit_f64x2replacelane");
 }
 
+void LiftoffAssembler::emit_f64x2_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  bailout(kUnsupportedArchitecture, "emit_f64x2_abs");
+}
+
 void LiftoffAssembler::emit_f64x2_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   bailout(kUnsupportedArchitecture, "emit_f64x2neg");
@@ -590,6 +595,11 @@ void LiftoffAssembler::emit_f32x4_replace_lane(LiftoffRegister dst,
                                                LiftoffRegister src2,
                                                uint8_t imm_lane_idx) {
   bailout(kUnsupportedArchitecture, "emit_f32x4replacelane");
+}
+
+void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  bailout(kUnsupportedArchitecture, "emit_f32x4_abs");
 }
 
 void LiftoffAssembler::emit_f32x4_neg(LiftoffRegister dst,
@@ -906,6 +916,21 @@ void LiftoffAssembler::emit_i16x8_rounding_average_u(LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
   bailout(kUnsupportedArchitecture, "emit_i16x8_rounding_average_u");
+}
+
+void LiftoffAssembler::emit_i8x16_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  bailout(kUnsupportedArchitecture, "emit_i8x16_abs");
+}
+
+void LiftoffAssembler::emit_i16x8_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  bailout(kUnsupportedArchitecture, "emit_i16x8_abs");
+}
+
+void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
+                                      LiftoffRegister src) {
+  bailout(kUnsupportedArchitecture, "emit_i32x4_abs");
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
