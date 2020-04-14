@@ -2063,7 +2063,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             // Since we deal with unreachable code, we do not have to keep the
             // values.
             int num_returns = static_cast<int>(this->sig_->return_count());
-            for (int i = 0; i < num_returns; ++i) {
+            for (int i = num_returns - 1; i >= 0; --i) {
               Pop(i, this->sig_->GetReturn(i));
             }
           }
