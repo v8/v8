@@ -116,7 +116,7 @@ TEST(PageMemoryRegionTest, PlatformUsesGuardPages) {
   // This tests that the testing allocator actually uses protected guard
   // regions.
   v8::base::PageAllocator allocator;
-#ifdef V8_HOST_ARCH_PPC64
+#if defined(V8_HOST_ARCH_PPC64) && !defined(_AIX)
   EXPECT_FALSE(SupportsCommittingGuardPages(&allocator));
 #else   // !V8_HOST_ARCH_PPC64
   EXPECT_TRUE(SupportsCommittingGuardPages(&allocator));
