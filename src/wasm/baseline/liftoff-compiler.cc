@@ -306,13 +306,14 @@ class LiftoffCompiler {
                   CompilationEnv* env, Zone* compilation_zone,
                   std::unique_ptr<AssemblerBuffer> buffer,
                   DebugSideTableBuilder* debug_sidetable_builder,
-                  Vector<int> breakpoints = {},
+                  ForDebugging for_debugging, Vector<int> breakpoints = {},
                   Vector<int> extra_source_pos = {})
       : asm_(std::move(buffer)),
         descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
         env_(env),
         debug_sidetable_builder_(debug_sidetable_builder),
+        for_debugging_(for_debugging),
         compilation_zone_(compilation_zone),
         safepoint_table_builder_(compilation_zone_),
         next_breakpoint_ptr_(breakpoints.begin()),
@@ -610,7 +611,7 @@ class LiftoffCompiler {
 
     // If we are generating debug code, do check the "hook on function call"
     // flag. If set, trigger a break.
-    if (V8_UNLIKELY(env_->debug)) {
+    if (V8_UNLIKELY(for_debugging_)) {
       // If there is a breakpoint set on the first instruction (== start of the
       // function), then skip the check for "hook on function call", since we
       // will unconditionally break there anyway.
@@ -741,7 +742,7 @@ class LiftoffCompiler {
 
   void EmitBreakpoint(FullDecoder* decoder) {
     DEBUG_CODE_COMMENT("breakpoint");
-    DCHECK(env_->debug);
+    DCHECK(for_debugging_);
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), false);
     __ CallRuntimeStub(WasmCode::kWasmDebugBreak);
@@ -3208,6 +3209,7 @@ class LiftoffCompiler {
   compiler::CallDescriptor* const descriptor_;
   CompilationEnv* const env_;
   DebugSideTableBuilder* const debug_sidetable_builder_;
+  const ForDebugging for_debugging_;
   LiftoffBailoutReason bailout_reason_ = kSuccess;
   std::vector<OutOfLineCode> out_of_line_code_;
   SourcePositionTableBuilder source_position_table_builder_;
@@ -3256,8 +3258,8 @@ class LiftoffCompiler {
 
 WasmCompilationResult ExecuteLiftoffCompilation(
     AccountingAllocator* allocator, CompilationEnv* env,
-    const FunctionBody& func_body, int func_index, Counters* counters,
-    WasmFeatures* detected, Vector<int> breakpoints,
+    const FunctionBody& func_body, int func_index, ForDebugging for_debugging,
+    Counters* counters, WasmFeatures* detected, Vector<int> breakpoints,
     std::unique_ptr<DebugSideTable>* debug_sidetable,
     Vector<int> extra_source_pos) {
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
@@ -3286,7 +3288,8 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
       &zone, env->module, env->enabled_features, detected, func_body,
       call_descriptor, env, &zone, instruction_buffer->CreateView(),
-      debug_sidetable_builder.get(), breakpoints, extra_source_pos);
+      debug_sidetable_builder.get(), for_debugging, breakpoints,
+      extra_source_pos);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();
@@ -3339,7 +3342,7 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
       &zone, env->module, env->enabled_features, &detected, func_body,
       call_descriptor, env, &zone,
       NewAssemblerBuffer(AssemblerBase::kDefaultBufferSize),
-      &debug_sidetable_builder);
+      &debug_sidetable_builder, kForDebugging);
   decoder.Decode();
   DCHECK(decoder.ok());
   DCHECK(!decoder.interface().did_bailout());

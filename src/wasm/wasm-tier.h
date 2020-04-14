@@ -32,6 +32,8 @@ inline const char* ExecutionTierToString(ExecutionTier tier) {
   }
 }
 
+enum ForDebugging : bool { kForDebugging = true, kNoDebugging = false };
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

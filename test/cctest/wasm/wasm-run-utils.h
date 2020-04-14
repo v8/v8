@@ -260,8 +260,7 @@ class TestingModuleBuilder {
 
   void TierDown() { native_module_->TierDown(isolate_); }
 
-  enum AssumeDebugging : bool { kDebug = true, kNoDebug = false };
-  CompilationEnv CreateCompilationEnv(AssumeDebugging = kNoDebug);
+  CompilationEnv CreateCompilationEnv();
 
   ExecutionTier execution_tier() const { return execution_tier_; }
 

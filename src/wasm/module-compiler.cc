@@ -739,15 +739,16 @@ class CompilationUnitBuilder {
 
   void AddUnits(uint32_t func_index) {
     if (func_index < native_module_->module()->num_imported_functions) {
-      baseline_units_.emplace_back(func_index, ExecutionTier::kNone);
+      baseline_units_.emplace_back(func_index, ExecutionTier::kNone,
+                                   kNoDebugging);
       return;
     }
     ExecutionTierPair tiers = GetRequestedExecutionTiers(
         native_module_->module(), compilation_state()->compile_mode(),
         native_module_->enabled_features(), func_index);
-    baseline_units_.emplace_back(func_index, tiers.baseline_tier);
+    baseline_units_.emplace_back(func_index, tiers.baseline_tier, kNoDebugging);
     if (tiers.baseline_tier != tiers.top_tier) {
-      tiering_units_.emplace_back(func_index, tiers.top_tier);
+      tiering_units_.emplace_back(func_index, tiers.top_tier, kNoDebugging);
     }
   }
 
@@ -770,12 +771,14 @@ class CompilationUnitBuilder {
               GetCompileStrategy(module, native_module_->enabled_features(),
                                  func_index, lazy_module));
 #endif
-    tiering_units_.emplace_back(func_index, tiers.top_tier);
+    tiering_units_.emplace_back(func_index, tiers.top_tier, kNoDebugging);
   }
 
   void AddRecompilationUnit(int func_index, ExecutionTier tier) {
     // For recompilation, just treat all units like baseline units.
-    baseline_units_.emplace_back(func_index, tier);
+    baseline_units_.emplace_back(
+        func_index, tier,
+        tier == ExecutionTier::kLiftoff ? kForDebugging : kNoDebugging);
   }
 
   bool Commit() {
@@ -898,7 +901,8 @@ bool CompileLazy(Isolate* isolate, NativeModule* native_module,
 
   DCHECK_LE(native_module->num_imported_functions(), func_index);
   DCHECK_LT(func_index, native_module->num_functions());
-  WasmCompilationUnit baseline_unit(func_index, tiers.baseline_tier);
+  WasmCompilationUnit baseline_unit{func_index, tiers.baseline_tier,
+                                    kNoDebugging};
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = baseline_unit.ExecuteCompilation(
       isolate->wasm_engine(), &env, compilation_state->GetWireBytesStorage(),
@@ -935,7 +939,7 @@ bool CompileLazy(Isolate* isolate, NativeModule* native_module,
   if (GetCompileStrategy(module, enabled_features, func_index, lazy_module) ==
           CompileStrategy::kLazy &&
       tiers.baseline_tier < tiers.top_tier) {
-    WasmCompilationUnit tiering_unit{func_index, tiers.top_tier};
+    WasmCompilationUnit tiering_unit{func_index, tiers.top_tier, kNoDebugging};
     compilation_state->AddTopTierCompilationUnit(tiering_unit);
   }
 

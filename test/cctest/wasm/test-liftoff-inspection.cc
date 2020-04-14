@@ -39,16 +39,17 @@ class LiftoffCompileEnvironment {
     auto test_func = AddFunction(return_types, param_types, raw_function_bytes);
 
     // Now compile the function with Liftoff two times.
-    CompilationEnv env =
-        module_builder_.CreateCompilationEnv(TestingModuleBuilder::kDebug);
+    CompilationEnv env = module_builder_.CreateCompilationEnv();
     WasmFeatures detected1;
     WasmFeatures detected2;
-    WasmCompilationResult result1 = ExecuteLiftoffCompilation(
-        isolate_->allocator(), &env, test_func.body,
-        test_func.function->func_index, isolate_->counters(), &detected1);
-    WasmCompilationResult result2 = ExecuteLiftoffCompilation(
-        isolate_->allocator(), &env, test_func.body,
-        test_func.function->func_index, isolate_->counters(), &detected2);
+    WasmCompilationResult result1 =
+        ExecuteLiftoffCompilation(isolate_->allocator(), &env, test_func.body,
+                                  test_func.function->func_index, kNoDebugging,
+                                  isolate_->counters(), &detected1);
+    WasmCompilationResult result2 =
+        ExecuteLiftoffCompilation(isolate_->allocator(), &env, test_func.body,
+                                  test_func.function->func_index, kNoDebugging,
+                                  isolate_->counters(), &detected2);
 
     CHECK(result1.succeeded());
     CHECK(result2.succeeded());
@@ -69,13 +70,13 @@ class LiftoffCompileEnvironment {
       std::vector<int> breakpoints = {}) {
     auto test_func = AddFunction(return_types, param_types, raw_function_bytes);
 
-    CompilationEnv env =
-        module_builder_.CreateCompilationEnv(TestingModuleBuilder::kDebug);
+    CompilationEnv env = module_builder_.CreateCompilationEnv();
     WasmFeatures detected;
     std::unique_ptr<DebugSideTable> debug_side_table_via_compilation;
-    ExecuteLiftoffCompilation(
-        CcTest::i_isolate()->allocator(), &env, test_func.body, 0, nullptr,
-        &detected, VectorOf(breakpoints), &debug_side_table_via_compilation);
+    ExecuteLiftoffCompilation(CcTest::i_isolate()->allocator(), &env,
+                              test_func.body, 0, kForDebugging, nullptr,
+                              &detected, VectorOf(breakpoints),
+                              &debug_side_table_via_compilation);
 
     // If there are no breakpoint, then {ExecuteLiftoffCompilation} should
     // provide the same debug side table.

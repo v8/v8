@@ -669,8 +669,9 @@ class DebugInfoImpl {
         StackFramePositions(func_index, current_isolate);
 
     WasmCompilationResult result = ExecuteLiftoffCompilation(
-        native_module_->engine()->allocator(), &env, body, func_index, nullptr,
-        nullptr, offsets, &debug_sidetable, VectorOf(stack_frame_positions));
+        native_module_->engine()->allocator(), &env, body, func_index,
+        kForDebugging, nullptr, nullptr, offsets, &debug_sidetable,
+        VectorOf(stack_frame_positions));
     // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
     // support for debugging.
     if (!result.succeeded()) FATAL("Liftoff compilation failed");

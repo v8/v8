@@ -338,18 +338,14 @@ uint32_t TestingModuleBuilder::AddPassiveElementSegment(
   return index;
 }
 
-CompilationEnv TestingModuleBuilder::CreateCompilationEnv(
-    AssumeDebugging debug) {
+CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
   // This is a hack so we don't need to call
   // trap_handler::IsTrapHandlerEnabled().
   const bool is_trap_handler_enabled =
       V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler;
   return {test_module_ptr_,
           is_trap_handler_enabled ? kUseTrapHandler : kNoTrapHandler,
-          runtime_exception_support_,
-          enabled_features_,
-          lower_simd(),
-          debug};
+          runtime_exception_support_, enabled_features_, lower_simd()};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
@@ -578,7 +574,8 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                          func_wire_bytes.begin(), func_wire_bytes.end()};
   NativeModule* native_module =
       builder_->instance_object()->module_object().native_module();
-  WasmCompilationUnit unit(function_->func_index, builder_->execution_tier());
+  WasmCompilationUnit unit(function_->func_index, builder_->execution_tier(),
+                           kNoDebugging);
   WasmFeatures unused_detected_features;
   WasmCompilationResult result = unit.ExecuteCompilation(
       isolate()->wasm_engine(), &env,

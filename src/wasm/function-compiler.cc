@@ -188,9 +188,9 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       if (V8_LIKELY(FLAG_wasm_tier_mask_for_testing == 0) ||
           func_index_ >= 32 ||
           ((FLAG_wasm_tier_mask_for_testing & (1 << func_index_)) == 0)) {
-        result =
-            ExecuteLiftoffCompilation(wasm_engine->allocator(), env, func_body,
-                                      func_index_, counters, detected);
+        result = ExecuteLiftoffCompilation(wasm_engine->allocator(), env,
+                                           func_body, func_index_,
+                                           for_debugging_, counters, detected);
         if (result.succeeded()) break;
       }
 
@@ -250,7 +250,7 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
 
   DCHECK_LE(native_module->num_imported_functions(), function->func_index);
   DCHECK_LT(function->func_index, native_module->num_functions());
-  WasmCompilationUnit unit(function->func_index, tier);
+  WasmCompilationUnit unit(function->func_index, tier, kNoDebugging);
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = unit.ExecuteCompilation(
       isolate->wasm_engine(), &env,

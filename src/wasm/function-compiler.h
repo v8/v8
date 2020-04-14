@@ -78,8 +78,8 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
  public:
   static ExecutionTier GetBaselineExecutionTier(const WasmModule*);
 
-  WasmCompilationUnit(int index, ExecutionTier tier)
-      : func_index_(index), tier_(tier) {}
+  WasmCompilationUnit(int index, ExecutionTier tier, ForDebugging for_debugging)
+      : func_index_(index), tier_(tier), for_debugging_(for_debugging) {}
 
   WasmCompilationResult ExecuteCompilation(
       WasmEngine*, CompilationEnv*, const std::shared_ptr<WireBytesStorage>&,
@@ -103,6 +103,7 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
 
   int func_index_;
   ExecutionTier tier_;
+  ForDebugging for_debugging_;
 };
 
 // {WasmCompilationUnit} should be trivially copyable and small enough so we can
