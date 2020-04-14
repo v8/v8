@@ -61,6 +61,9 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
     case ValueType::kF64:
       assm->Ldc1(dst.fp(), src);
       break;
+    case ValueType::kS128:
+      assm->ld_d(dst.fp().toW(), src);
+      break;
     default:
       UNREACHABLE();
   }
@@ -103,6 +106,10 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
     case ValueType::kF64:
       assm->daddiu(sp, sp, -kSystemPointerSize);
       assm->Sdc1(reg.fp(), MemOperand(sp, 0));
+      break;
+    case ValueType::kS128:
+      assm->daddiu(sp, sp, -kSystemPointerSize * 2);
+      assm->st_d(reg.fp().toW(), MemOperand(sp, 0));
       break;
     default:
       UNREACHABLE();
@@ -374,6 +381,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kF64Load:
       TurboAssembler::Uldc1(dst.fp(), src_op, t8);
       break;
+    case LoadType::kS128Load:
+      TurboAssembler::ld_d(dst.fp().toW(), src_op);
+      break;
     default:
       UNREACHABLE();
   }
@@ -436,6 +446,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kF64Store:
       TurboAssembler::Usdc1(src.fp(), dst_op, t8);
+      break;
+    case StoreType::kS128Store:
+      TurboAssembler::st_d(src.fp().toW(), dst_op);
       break;
     default:
       UNREACHABLE();
@@ -524,7 +537,11 @@ void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
 void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
                             ValueType type) {
   DCHECK_NE(dst, src);
-  TurboAssembler::Move(dst, src);
+  if (type != kWasmS128) {
+    TurboAssembler::Move(dst, src);
+  } else {
+    TurboAssembler::move_v(dst.toW(), src.toW());
+  }
 }
 
 void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
@@ -542,6 +559,9 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
       break;
     case ValueType::kF64:
       TurboAssembler::Sdc1(reg.fp(), dst);
+      break;
+    case ValueType::kS128:
+      TurboAssembler::st_d(reg.fp().toW(), dst);
       break;
     default:
       UNREACHABLE();
@@ -585,6 +605,9 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
       break;
     case ValueType::kF64:
       TurboAssembler::Ldc1(reg.fp(), src);
+      break;
+    case ValueType::kS128:
+      TurboAssembler::ld_d(reg.fp().toW(), src);
       break;
     default:
       UNREACHABLE();
@@ -2178,15 +2201,20 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   LiftoffRegList fp_regs = regs & kFpCacheRegList;
   unsigned num_fp_regs = fp_regs.GetNumRegsSet();
   if (num_fp_regs) {
-    daddiu(sp, sp, -(num_fp_regs * kStackSlotSize));
+    unsigned slot_size = IsEnabled(MIPS_SIMD) ? 16 : 8;
+    daddiu(sp, sp, -(num_fp_regs * slot_size));
     unsigned offset = 0;
     while (!fp_regs.is_empty()) {
       LiftoffRegister reg = fp_regs.GetFirstRegSet();
-      TurboAssembler::Sdc1(reg.fp(), MemOperand(sp, offset));
+      if (IsEnabled(MIPS_SIMD)) {
+        TurboAssembler::st_d(reg.fp().toW(), MemOperand(sp, offset));
+      } else {
+        TurboAssembler::Sdc1(reg.fp(), MemOperand(sp, offset));
+      }
       fp_regs.clear(reg);
-      offset += sizeof(double);
+      offset += slot_size;
     }
-    DCHECK_EQ(offset, num_fp_regs * sizeof(double));
+    DCHECK_EQ(offset, num_fp_regs * slot_size);
   }
 }
 
@@ -2195,9 +2223,13 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   unsigned fp_offset = 0;
   while (!fp_regs.is_empty()) {
     LiftoffRegister reg = fp_regs.GetFirstRegSet();
-    TurboAssembler::Ldc1(reg.fp(), MemOperand(sp, fp_offset));
+    if (IsEnabled(MIPS_SIMD)) {
+      TurboAssembler::ld_d(reg.fp().toW(), MemOperand(sp, fp_offset));
+    } else {
+      TurboAssembler::Ldc1(reg.fp(), MemOperand(sp, fp_offset));
+    }
     fp_regs.clear(reg);
-    fp_offset += sizeof(double);
+    fp_offset += (IsEnabled(MIPS_SIMD) ? 16 : 8);
   }
   if (fp_offset) daddiu(sp, sp, fp_offset);
   LiftoffRegList gp_regs = regs & kGpCacheRegList;
@@ -2295,8 +2327,15 @@ void LiftoffStackSlots::Construct() {
     const LiftoffAssembler::VarState& src = slot.src_;
     switch (src.loc()) {
       case LiftoffAssembler::VarState::kStack:
-        asm_->ld(kScratchReg, liftoff::GetStackSlot(slot.src_offset_));
-        asm_->push(kScratchReg);
+        if (src.type() != kWasmS128) {
+          asm_->ld(kScratchReg, liftoff::GetStackSlot(slot.src_offset_));
+          asm_->push(kScratchReg);
+        } else {
+          asm_->ld(kScratchReg, liftoff::GetStackSlot(slot.src_offset_ - 8));
+          asm_->push(kScratchReg);
+          asm_->ld(kScratchReg, liftoff::GetStackSlot(slot.src_offset_));
+          asm_->push(kScratchReg);
+        }
         break;
       case LiftoffAssembler::VarState::kRegister:
         liftoff::push(asm_, src.reg(), src.type());
