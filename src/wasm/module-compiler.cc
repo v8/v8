@@ -409,7 +409,7 @@ class CompilationStateImpl {
   void FinalizeJSToWasmWrappers(Isolate* isolate, const WasmModule* module,
                                 Handle<FixedArray>* export_wrappers_out);
 
-  void OnFinishedUnits(Vector<WasmCode*>, Vector<WasmCompilationResult>);
+  void OnFinishedUnits(Vector<WasmCode*>);
   void OnFinishedJSToWasmWrapperUnits(int num);
 
   void OnBackgroundTaskStopped(int task_id, const WasmFeatures& detected);
@@ -564,7 +564,7 @@ class CompilationStateImpl {
   using RequiredBaselineTierField = base::BitField8<ExecutionTier, 0, 2>;
   using RequiredTopTierField = base::BitField8<ExecutionTier, 2, 2>;
   using ReachedTierField = base::BitField8<ExecutionTier, 4, 2>;
-  using ReachedRecompilationTierField = base::BitField8<ExecutionTier, 6, 2>;
+  using MissingRecompilationField = base::BitField8<bool, 6, 1>;
 };
 
 CompilationStateImpl* Impl(CompilationState* compilation_state) {
@@ -1061,6 +1061,7 @@ bool ExecuteCompilationUnits(
     std::vector<std::unique_ptr<WasmCode>> unpublished_code =
         compile_scope->native_module()->AddCompiledCode(
             VectorOf(results_to_publish));
+    results_to_publish.clear();
     // TODO(clemensb): Avoid blocking to publish code
     // (https://crbug.com/v8/10330).
     std::vector<WasmCode*> code_vector =
@@ -1070,7 +1071,6 @@ bool ExecuteCompilationUnits(
     // For import wrapper compilation units, add result to the cache.
     const NativeModule* native_module = compile_scope->native_module();
     int num_imported_functions = native_module->num_imported_functions();
-    DCHECK_EQ(code_vector.size(), results_to_publish.size());
     WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
     for (WasmCode* code : code_vector) {
       int func_index = code->index();
@@ -1092,9 +1092,7 @@ bool ExecuteCompilationUnits(
 
     native_module->engine()->LogCode(VectorOf(code_vector));
 
-    compile_scope->compilation_state()->OnFinishedUnits(
-        VectorOf(code_vector), VectorOf(results_to_publish));
-    results_to_publish.clear();
+    compile_scope->compilation_state()->OnFinishedUnits(VectorOf(code_vector));
   };
 
   bool compilation_failed = false;
@@ -2548,14 +2546,12 @@ void CompilationStateImpl::InitializeRecompilation(
             ReachedTierField::decode(compilation_progress_[slot_index]);
         // Ignore Liftoff code, since we don't know if it was compiled with
         // debugging support.
-        // TODO(clemensb): Introduce {kLiftoffDebug} as a separate tier.
         bool has_correct_tier =
             tier == ExecutionTier::kTurbofan && reached_tier == tier &&
             native_module_->HasCodeWithTier(function_index, tier);
         if (!has_correct_tier) {
-          compilation_progress_[slot_index] =
-              ReachedRecompilationTierField::update(
-                  compilation_progress_[slot_index], ExecutionTier::kNone);
+          compilation_progress_[slot_index] = MissingRecompilationField::update(
+              compilation_progress_[slot_index], true);
           outstanding_recompilation_functions_++;
           builder.AddRecompilationUnit(function_index, tier);
         }
@@ -2649,8 +2645,7 @@ CompilationStateImpl::GetNextCompilationUnit(
   return compilation_unit_queues_.GetNextUnit(task_id, baseline_only);
 }
 
-void CompilationStateImpl::OnFinishedUnits(
-    Vector<WasmCode*> code_vector, Vector<WasmCompilationResult> results) {
+void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "OnFinishedUnits",
                "num_units", code_vector.size());
 
@@ -2715,21 +2710,21 @@ void CompilationStateImpl::OnFinishedUnits(
         outstanding_top_tier_functions_--;
       }
 
-      // If there is recompilation in progress, we would only count the
-      // functions which are not Liftoff already, and would only decrement the
-      // counter once a function reaches Liftoff.
-      if (outstanding_recompilation_functions_ > 0) {
-        // TODO(duongn): extend this logic for tier up.
-        ExecutionTier recompilation_tier =
-            ReachedRecompilationTierField::decode(function_progress);
-        if (results[i].requested_tier == recompilation_tier_ &&
-            recompilation_tier == ExecutionTier::kNone) {
-          DCHECK(code->tier() >= recompilation_tier_);
+      if (V8_UNLIKELY(outstanding_recompilation_functions_ > 0) &&
+          MissingRecompilationField::decode(function_progress)) {
+        // If tiering up, accept any TurboFan code. For tiering down, look at
+        // the {for_debugging} flag. The tier can be Liftoff or TurboFan and is
+        // irrelevant here. In particular, we want to ignore any outstanding
+        // non-debugging units.
+        // TODO(clemensb): Replace {recompilation_tier_} by a better flag.
+        bool matches = recompilation_tier_ == ExecutionTier::kLiftoff
+                           ? code->for_debugging()
+                           : code->tier() == ExecutionTier::kTurbofan;
+        if (matches) {
           outstanding_recompilation_functions_--;
           // Update function's recompilation progress.
-          compilation_progress_[slot_index] =
-              ReachedRecompilationTierField::update(
-                  compilation_progress_[slot_index], code->tier());
+          compilation_progress_[slot_index] = MissingRecompilationField::update(
+              compilation_progress_[slot_index], false);
           if (outstanding_recompilation_functions_ == 0) {
             triggered_events.Add(CompilationEvent::kFinishedRecompilation);
           }
@@ -2988,7 +2983,7 @@ WasmCode* CompileImportWrapper(
       result.tagged_parameter_slots,
       result.protected_instructions_data.as_vector(),
       result.source_positions.as_vector(), GetCodeKind(result),
-      ExecutionTier::kNone);
+      ExecutionTier::kNone, kNoDebugging);
   WasmCode* published_code = native_module->PublishCode(std::move(wasm_code));
   (*cache_scope)[key] = published_code;
   published_code->IncRef();

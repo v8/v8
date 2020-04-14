@@ -896,7 +896,8 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
                    reloc_info.as_vector(),  // reloc_info
                    source_pos.as_vector(),  // source positions
                    WasmCode::kFunction,     // kind
-                   ExecutionTier::kNone}};  // tier
+                   ExecutionTier::kNone,    // tier
+                   kNoDebugging}};          // for_debugging
   new_code->MaybePrint(nullptr);
   new_code->Validate();
 
@@ -942,23 +943,23 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
     int index, const CodeDesc& desc, int stack_slots,
     int tagged_parameter_slots, Vector<const byte> protected_instructions_data,
     Vector<const byte> source_position_table, WasmCode::Kind kind,
-    ExecutionTier tier) {
+    ExecutionTier tier, ForDebugging for_debugging) {
   Vector<byte> code_space =
       code_allocator_.AllocateForCode(this, desc.instr_size);
   auto jump_table_ref =
       FindJumpTablesForRegion(base::AddressRegionOf(code_space));
   return AddCodeWithCodeSpace(index, desc, stack_slots, tagged_parameter_slots,
                               protected_instructions_data,
-                              source_position_table, kind, tier, code_space,
-                              jump_table_ref);
+                              source_position_table, kind, tier, for_debugging,
+                              code_space, jump_table_ref);
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     int index, const CodeDesc& desc, int stack_slots,
     int tagged_parameter_slots, Vector<const byte> protected_instructions_data,
     Vector<const byte> source_position_table, WasmCode::Kind kind,
-    ExecutionTier tier, Vector<uint8_t> dst_code_bytes,
-    const JumpTablesRef& jump_tables) {
+    ExecutionTier tier, ForDebugging for_debugging,
+    Vector<uint8_t> dst_code_bytes, const JumpTablesRef& jump_tables) {
   Vector<byte> reloc_info{desc.buffer + desc.buffer_size - desc.reloc_size,
                           static_cast<size_t>(desc.reloc_size)};
 
@@ -1008,7 +1009,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
       this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comments_offset, instr_size, protected_instructions_data, reloc_info,
-      source_position_table, kind, tier}};
+      source_position_table, kind, tier, for_debugging}};
   code->MaybePrint();
   code->Validate();
 
@@ -1120,7 +1121,7 @@ WasmCode* NativeModule::AddDeserializedCode(
       this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comments_offset, unpadded_binary_size, protected_instructions_data,
-      reloc_info, source_position_table, kind, tier}};
+      reloc_info, source_position_table, kind, tier, kNoDebugging}};
 
   // Note: we do not flush the i-cache here, since the code needs to be
   // relocated anyway. The caller is responsible for flushing the i-cache later.
@@ -1172,21 +1173,22 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegion(
   DCHECK(!code_space.empty());
   ZapCode(reinterpret_cast<Address>(code_space.begin()), code_space.size());
   std::unique_ptr<WasmCode> code{
-      new WasmCode{this,                    // native_module
-                   kAnonymousFuncIndex,     // index
-                   code_space,              // instructions
-                   0,                       // stack_slots
-                   0,                       // tagged_parameter_slots
-                   0,                       // safepoint_table_offset
-                   jump_table_size,         // handler_table_offset
-                   jump_table_size,         // constant_pool_offset
-                   jump_table_size,         // code_comments_offset
-                   jump_table_size,         // unpadded_binary_size
-                   {},                      // protected_instructions
-                   {},                      // reloc_info
-                   {},                      // source_pos
-                   WasmCode::kJumpTable,    // kind
-                   ExecutionTier::kNone}};  // tier
+      new WasmCode{this,                  // native_module
+                   kAnonymousFuncIndex,   // index
+                   code_space,            // instructions
+                   0,                     // stack_slots
+                   0,                     // tagged_parameter_slots
+                   0,                     // safepoint_table_offset
+                   jump_table_size,       // handler_table_offset
+                   jump_table_size,       // constant_pool_offset
+                   jump_table_size,       // code_comments_offset
+                   jump_table_size,       // unpadded_binary_size
+                   {},                    // protected_instructions
+                   {},                    // reloc_info
+                   {},                    // source_pos
+                   WasmCode::kJumpTable,  // kind
+                   ExecutionTier::kNone,  // tier
+                   kNoDebugging}};        // for_debugging
   return PublishCode(std::move(code));
 }
 
@@ -1819,7 +1821,8 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
         result.tagged_parameter_slots,
         result.protected_instructions_data.as_vector(),
         result.source_positions.as_vector(), GetCodeKind(result),
-        result.result_tier, this_code_space, jump_tables));
+        result.result_tier, result.for_debugging, this_code_space,
+        jump_tables));
   }
   DCHECK_EQ(0, code_space.size());
 

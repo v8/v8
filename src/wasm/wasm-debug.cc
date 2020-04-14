@@ -1124,7 +1124,7 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
         result.tagged_parameter_slots,
         result.protected_instructions_data.as_vector(),
         result.source_positions.as_vector(), wasm::WasmCode::kInterpreterEntry,
-        wasm::ExecutionTier::kInterpreter);
+        wasm::ExecutionTier::kInterpreter, wasm::kNoDebugging);
     native_module->PublishCode(std::move(wasm_code));
     DCHECK(native_module->IsRedirectedToInterpreter(func_index));
   }

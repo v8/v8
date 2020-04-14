@@ -3323,6 +3323,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result.func_index = func_index;
   result.result_tier = ExecutionTier::kLiftoff;
+  result.for_debugging = for_debugging;
   if (debug_sidetable) {
     *debug_sidetable = debug_sidetable_builder->GenerateDebugSideTable();
   }

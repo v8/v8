@@ -178,7 +178,7 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
         result.tagged_parameter_slots,
         result.protected_instructions_data.as_vector(),
         result.source_positions.as_vector(), wasm::WasmCode::kInterpreterEntry,
-        wasm::ExecutionTier::kInterpreter);
+        wasm::ExecutionTier::kInterpreter, wasm::kNoDebugging);
     native_module_->PublishCode(std::move(code));
   }
   DCHECK_LT(index, kMaxFunctions);  // limited for testing.

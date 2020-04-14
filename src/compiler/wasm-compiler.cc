@@ -6626,7 +6626,7 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine* wasm_engine,
       result.tagged_parameter_slots,
       result.protected_instructions_data.as_vector(),
       result.source_positions.as_vector(), wasm::WasmCode::kWasmToCapiWrapper,
-      wasm::ExecutionTier::kNone);
+      wasm::ExecutionTier::kNone, wasm::kNoDebugging);
   return native_module->PublishCode(std::move(wasm_code));
 }
 

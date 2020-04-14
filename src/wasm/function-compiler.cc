@@ -202,6 +202,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     case ExecutionTier::kTurbofan:
       result = compiler::ExecuteTurbofanWasmCompilation(
           wasm_engine, env, func_body, func_index_, counters, detected);
+      result.for_debugging = for_debugging_;
       break;
 
     case ExecutionTier::kInterpreter:

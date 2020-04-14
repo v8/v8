@@ -225,6 +225,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // Returns the last source position before {offset}.
   int GetSourcePositionBefore(int offset);
 
+  // Returns whether this code was generated for debugging. If this returns
+  // true, but {tier()} is not {kLiftoff}, then Liftoff compilation bailed out.
+  bool for_debugging() const { return ForDebuggingField::decode(flags_); }
+
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
  private:
@@ -238,10 +242,11 @@ class V8_EXPORT_PRIVATE WasmCode final {
            Vector<const byte> protected_instructions_data,
            Vector<const byte> reloc_info,
            Vector<const byte> source_position_table, Kind kind,
-           ExecutionTier tier)
+           ExecutionTier tier, ForDebugging for_debugging)
       : native_module_(native_module),
         instructions_(instructions.begin()),
-        flags_(KindField::encode(kind) | ExecutionTierField::encode(tier)),
+        flags_(KindField::encode(kind) | ExecutionTierField::encode(tier) |
+               ForDebuggingField::encode(for_debugging)),
         meta_data_(ConcatenateBytes(
             {protected_instructions_data, reloc_info, source_position_table})),
         instructions_size_(instructions.length()),
@@ -315,7 +320,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // Bits encoded in {flags_}:
   using KindField = base::BitField8<Kind, 0, 3>;
   using ExecutionTierField = KindField::Next<ExecutionTier, 2>;
-  // TODO(clemensb): Add "is_debug" flag.
+  using ForDebuggingField = ExecutionTierField::Next<ForDebugging, 1>;
 
   // WasmCode is ref counted. Counters are held by:
   //   1) The jump table / code table.
@@ -447,7 +452,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
                                     int stack_slots, int tagged_parameter_slots,
                                     Vector<const byte> protected_instructions,
                                     Vector<const byte> source_position_table,
-                                    WasmCode::Kind kind, ExecutionTier tier);
+                                    WasmCode::Kind kind, ExecutionTier tier,
+                                    ForDebugging for_debugging);
 
   // {PublishCode} makes the code available to the system by entering it into
   // the code table and patching the jump table. It returns a raw pointer to the
@@ -630,8 +636,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       int tagged_parameter_slots,
       Vector<const byte> protected_instructions_data,
       Vector<const byte> source_position_table, WasmCode::Kind kind,
-      ExecutionTier tier, Vector<uint8_t> code_space,
-      const JumpTablesRef& jump_tables_ref);
+      ExecutionTier tier, ForDebugging for_debugging,
+      Vector<uint8_t> code_space, const JumpTablesRef& jump_tables_ref);
 
   WasmCode* CreateEmptyJumpTableInRegion(
       int jump_table_size, base::AddressRegion,
