@@ -877,18 +877,17 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();
   if (!backing_store) return -1;
 
-  // Compute new size.
-  size_t new_pages = old_pages + pages;
-
   // Try to handle shared memory first.
   if (old_buffer->is_shared()) {
     if (FLAG_wasm_grow_shared_memory) {
+      base::Optional<size_t> result =
+          backing_store->GrowWasmMemoryInPlace(isolate, pages, maximum_pages);
       // Shared memories can only be grown in place; no copying.
-      if (backing_store->GrowWasmMemoryInPlace(isolate, pages, maximum_pages)) {
-        BackingStore::BroadcastSharedWasmMemoryGrow(isolate, backing_store,
-                                                    new_pages);
+      if (result.has_value()) {
+        BackingStore::BroadcastSharedWasmMemoryGrow(isolate, backing_store);
         // Broadcasting the update should update this memory object too.
         CHECK_NE(*old_buffer, memory_object->array_buffer());
+        size_t new_pages = result.value() + pages;
         // If the allocation succeeded, then this can't possibly overflow:
         size_t new_byte_length = new_pages * wasm::kWasmPageSize;
         // This is a less than check, as it is not guaranteed that the SAB
@@ -897,21 +896,29 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
         // It is also possible that a call to Grow was in progress when
         // handling this call.
         CHECK_LE(new_byte_length, memory_object->array_buffer().byte_length());
-        return static_cast<int32_t>(old_pages);  // success
+        // As {old_pages} was read racefully, we return here the synchronized
+        // value provided by {GrowWasmMemoryInPlace}, to provide the atomic
+        // read-modify-write behavior required by the spec.
+        return static_cast<int32_t>(result.value());  // success
       }
     }
     return -1;
   }
 
+  base::Optional<size_t> result =
+      backing_store->GrowWasmMemoryInPlace(isolate, pages, maximum_pages);
   // Try to grow non-shared memory in-place.
-  if (backing_store->GrowWasmMemoryInPlace(isolate, pages, maximum_pages)) {
+  if (result.has_value()) {
     // Detach old and create a new one with the grown backing store.
     old_buffer->Detach(true);
     Handle<JSArrayBuffer> new_buffer =
         isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
     memory_object->update_instances(isolate, new_buffer);
-    return static_cast<int32_t>(old_pages);  // success
+    DCHECK_EQ(result.value(), old_pages);
+    return static_cast<int32_t>(result.value());  // success
   }
+
+  size_t new_pages = old_pages + pages;
   // Try allocating a new backing store and copying.
   std::unique_ptr<BackingStore> new_backing_store =
       backing_store->CopyWasmMemory(isolate, new_pages);
