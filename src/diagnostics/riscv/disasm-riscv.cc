@@ -83,8 +83,9 @@ class Decoder {
   void PrintAcquireRelease(Instruction* instr);
   void PrintBranchOffset(Instruction* instr);
   void PrintStoreOffset(Instruction* instr);
-  void PrintRoundMode(Instruction* instr);
   void PrintCSRReg(Instruction* instr);
+  void PrintRoundingMode(Instruction* instr);
+  void PrintMemoryOrder(Instruction* instr, bool is_pred);
 
   // Each of these functions decodes one particular instruction type.
   void DecodeRType(Instruction* instr);
@@ -102,7 +103,7 @@ class Decoder {
 
   // Handle formatting of instructions and their options.
   int FormatRegister(Instruction* instr, const char* option);
-  int FormatFPURegister(Instruction* instr, const char* option);
+  int FormatFPURegisterOrRoundMode(Instruction* instr, const char* option);
   int FormatOption(Instruction* instr, const char* option);
   void Format(Instruction* instr, const char* format);
   void Unknown(Instruction* instr);
@@ -259,6 +260,52 @@ void Decoder::PrintCSRReg(Instruction* instr) {
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%s", s.c_str());
 }
 
+void Decoder::PrintRoundingMode(Instruction* instr) {
+  int frm = instr->RoundMode();
+  std::string s;
+  switch (frm) {
+    case RNE:
+      s = "RNE";
+      break;
+    case RTZ:
+      s = "RTZ";
+      break;
+    case RDN:
+      s = "RDN";
+      break;
+    case RUP:
+      s = "RUP";
+      break;
+    case RMM:
+      s = "RMM";
+      break;
+    case DYN:
+      s = "DYN";
+      break;
+    default:
+      UNREACHABLE();
+  }
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%s", s.c_str());
+}
+
+void Decoder::PrintMemoryOrder(Instruction* instr, bool is_pred) {
+  int memOrder = instr->MemoryOrder(is_pred);
+  std::string s;
+  if ((memOrder & PSI) == PSI) {
+    s += "i";
+  }
+  if ((memOrder & PSO) == PSO) {
+    s += "o";
+  }
+  if ((memOrder & PSR) == PSR) {
+    s += "r";
+  }
+  if ((memOrder & PSW) == PSW) {
+    s += "w";
+  }
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%s", s.c_str());
+}
+
 // Printing of instruction name.
 void Decoder::PrintInstructionName(Instruction* instr) {}
 
@@ -287,7 +334,8 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
 
 // Handle all FPUregister based formatting in this function to reduce the
 // complexity of FormatOption.
-int Decoder::FormatFPURegister(Instruction* instr, const char* format) {
+int Decoder::FormatFPURegisterOrRoundMode(Instruction* instr,
+                                          const char* format) {
   DCHECK_EQ(format[0], 'f');
   if (format[1] == 's') {  // 'fs[1-3]: Rs register.
     if (format[2] == '1') {
@@ -305,9 +353,13 @@ int Decoder::FormatFPURegister(Instruction* instr, const char* format) {
     }
     UNREACHABLE();
   } else if (format[1] == 'd') {  // 'fd: fd register.
-    int reg = instr->FdValue();
+    int reg = instr->RV_RdValue();
     PrintFPURegister(reg);
     return 2;
+  } else if (format[1] == 'r') {  // 'frm
+    DCHECK(STRING_STARTS_WITH(format, "frm"));
+    PrintRoundingMode(instr);
+    return 3;
   }
   UNREACHABLE();
 }
@@ -366,12 +418,17 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     case 'r': {  // 'r: registers.
       return FormatRegister(instr, format);
     }
-    case 'f': {  // 'f: FPUregisters.
-      return FormatFPURegister(instr, format);
+    case 'f': {  // 'f: FPUregisters or `frm
+      return FormatFPURegisterOrRoundMode(instr, format);
     }
     case 'a': {  // 'a: Atomic acquire and release.
       PrintAcquireRelease(instr);
       return 1;
+    }
+    case 'p': {  // `pre
+      DCHECK(STRING_STARTS_WITH(format, "pre"));
+      PrintMemoryOrder(instr, true);
+      return 3;
     }
     case 's': {  // 's32 or 's64: Shift amount.
       if (format[1] == '3') {
@@ -381,6 +438,10 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       } else if (format[1] == '6') {
         DCHECK(STRING_STARTS_WITH(format, "s64"));
         PrintShamt(instr);
+        return 3;
+      } else if (format[1] == 'u') {
+        DCHECK(STRING_STARTS_WITH(format, "suc"));
+        PrintMemoryOrder(instr, false);
         return 3;
       }
       UNREACHABLE();
@@ -434,7 +495,7 @@ void Decoder::DecodeRType(Instruction* instr) {
       Format(instr, "sub     'rd, 'rs1, 'rs2");
       break;
     case RO_SLL:
-      Format(instr, "ll      'rd, 'rs1, 'rs2");
+      Format(instr, "sll      'rd, 'rs1, 'rs2");
       break;
     case RO_SLT:
       Format(instr, "slt     'rd, 'rs1, 'rs2");
@@ -634,7 +695,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     case RO_FSQRT_S:
       Format(instr, "fsqrt.s 'fd, 'fs1");
       break;
-    case RO_FSGNJ_S: {  // RO_FSGNJN_S  RO_FSQNJX_S
+    case RO_FSGNJ_S: {  // RO_FSGNJN_S  RO_FSGNJX_S
       switch (instr->Funct3Value()) {
         case 0b000:  // RO_FSGNJ_S
           Format(instr, "fsgnj.s 'fd, 'fs1, 'fs2");
@@ -642,8 +703,8 @@ void Decoder::DecodeRFPType(Instruction* instr) {
         case 0b001:  // RO_FSGNJN_S
           Format(instr, "fsgnjn.s 'fd, 'fs1, 'fs2");
           break;
-        case 0b010:  // RO_FSQNJX_S
-          Format(instr, "fsqnjx.s 'fd, 'fs1, 'fs2");
+        case 0b010:  // RO_FSGNJX_S
+          Format(instr, "fsgnjx.s 'fd, 'fs1, 'fs2");
           break;
         default:
           UNSUPPORTED_RISCV();
@@ -666,17 +727,17 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     case RO_FCVT_W_S: {  // RO_FCVT_WU_S , 64F RO_FCVT_L_S RO_FCVT_LU_S
       switch (instr->Rs2Value()) {
         case 0b00000:  // RO_FCVT_W_S
-          Format(instr, "fcvt.w.s 'rd, 'fs1");
+          Format(instr, "fcvt.w.s ['frm] 'rd, 'fs1");
           break;
         case 0b00001:  // RO_FCVT_WU_S
-          Format(instr, "fcvt.wu.s 'rd, 'fs1");
+          Format(instr, "fcvt.wu.s ['frm] 'rd, 'fs1");
           break;
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b00010:  // RO_FCVT_L_S
-          Format(instr, "fcvt.l.s 'rd, 'fs1");
+          Format(instr, "fcvt.l.s ['frm] 'rd, 'fs1");
           break;
         case 0b00011:  // RO_FCVT_LU_S
-          Format(instr, "fcvt.lu.s 'rd, 'fs1");
+          Format(instr, "fcvt.lu.s ['frm] 'rd, 'fs1");
           break;
 #endif /* V8_TARGET_ARCH_64_BIT */
         default:
@@ -685,18 +746,15 @@ void Decoder::DecodeRFPType(Instruction* instr) {
       break;
     }
     case RO_FMV: {  // RO_FCLASS_S
+      if (instr->Rs2Value() != 0b00000) {
+        UNSUPPORTED_RISCV();
+      }
       switch (instr->Funct3Value()) {
-        case 0b000: {
-          if (instr->Rs2Value() == 0b00000) {
-            // RO_FMV_X_W
-            Format(instr, "fmv.x.w 'fd, 'fs1");
-          } else {
-            UNSUPPORTED_RISCV();
-          }
+        case 0b000:  // RO_FMV_X_W
+          Format(instr, "fmv.x.w 'rd, 'fs1");
           break;
-        }
         case 0b001:  // RO_FCLASS_S
-          UNSUPPORTED_RISCV();
+          Format(instr, "fclass.s 'rd, 'fs1");
           break;
         default:
           UNSUPPORTED_RISCV();
@@ -770,7 +828,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
       }
       break;
     }
-    case RO_FSGNJ_D: {  // RO_FSGNJN_D RO_FSQNJX_D
+    case RO_FSGNJ_D: {  // RO_FSGNJN_D RO_FSGNJX_D
       switch (instr->Funct3Value()) {
         case 0b000:  // RO_FSGNJ_D
           Format(instr, "fsgnj.d 'fd, 'fs1, 'fs2");
@@ -778,7 +836,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
         case 0b001:  // RO_FSGNJN_D
           Format(instr, "fsgnjn.d 'fd, 'fs1, 'fs2");
           break;
-        case 0b010:  // RO_FSQNJX_D
+        case 0b010:  // RO_FSGNJX_D
           Format(instr, "fsgnjx.d 'fd, 'fs1, 'fs2");
           break;
         default:
@@ -801,7 +859,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     }
     case (RO_FCVT_S_D & kRFPTypeMask): {
       if (instr->Rs2Value() == 0b00001) {
-        Format(instr, "fcvt.s.d 'fd, 'rs1");
+        Format(instr, "fcvt.s.d ['frm] 'fd, 'rs1");
       } else {
         UNSUPPORTED_RISCV();
       }
@@ -809,7 +867,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     }
     case RO_FCVT_D_S: {
       if (instr->Rs2Value() == 0b00000) {
-        Format(instr, "fcvt.d.s 'rd, 'fs1");
+        Format(instr, "fcvt.d.s 'fd, 'fs1");
       } else {
         UNSUPPORTED_RISCV();
       }
@@ -838,7 +896,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
       }
       switch (instr->Funct3Value()) {
         case 0b001:  // RO_FCLASS_D
-          UNSUPPORTED_RISCV();
+          Format(instr, "fclass.d 'rd, 'fs1");
           break;
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b000:  // RO_FMV_X_D
@@ -853,17 +911,17 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     case RO_FCVT_W_D: {  // RO_FCVT_WU_D , 64F RO_FCVT_L_D RO_FCVT_LU_D
       switch (instr->Rs2Value()) {
         case 0b00000:  // RO_FCVT_W_D
-          Format(instr, "fcvt.w.d 'rd, 'fs1");
+          Format(instr, "fcvt.w.d ['frm] 'rd, 'fs1");
           break;
         case 0b00001:  // RO_FCVT_WU_D
-          Format(instr, "fcvt.wu.d 'rd, 'fs1");
+          Format(instr, "fcvt.wu.d ['frm] 'rd, 'fs1");
           break;
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b00010:  // RO_FCVT_L_D
-          Format(instr, "fcvt.l.d 'rd, 'fs1");
+          Format(instr, "fcvt.l.d ['frm] 'rd, 'fs1");
           break;
         case 0b00011:  // RO_FCVT_LU_D
-          Format(instr, "fcvt.lu.d 'rd, 'fs1");
+          Format(instr, "fcvt.lu.d ['frm] 'rd, 'fs1");
           break;
 #endif /* V8_TARGET_ARCH_64_BIT */
         default:
@@ -912,29 +970,29 @@ void Decoder::DecodeR4Type(Instruction* instr) {
   switch (instr->InstructionBits() & kR4TypeMask) {
     // TODO: use F Extension macro block
     case RO_FMADD_S:
-      Format(instr, "fmadd.s 'fd, 'fs1, 'fs2");
+      Format(instr, "fmadd.s 'fd, 'fs1, 'fs2, 'fs3");
       break;
     case RO_FMSUB_S:
-      Format(instr, "fmsub.s 'fd, 'fs1, 'fs2");
+      Format(instr, "fmsub.s 'fd, 'fs1, 'fs2, 'fs3");
       break;
     case RO_FNMSUB_S:
-      Format(instr, "fnmsub.s 'fd, 'fs1, 'fs2");
+      Format(instr, "fnmsub.s 'fd, 'fs1, 'fs2, 'fs3");
       break;
     case RO_FNMADD_S:
-      Format(instr, "fnmadd.s 'fd, 'fs1, 'fs2");
+      Format(instr, "fnmadd.s 'fd, 'fs1, 'fs2, 'fs3");
       break;
     // TODO: use F Extension macro block
     case RO_FMADD_D:
-      Format(instr, "fmadd.d 'fd, 'fs1, 'fs2");
+      Format(instr, "fmadd.d 'fd, 'fs1, 'fs2, 'fs3");
       break;
     case RO_FMSUB_D:
-      Format(instr, "fmsub.d 'fd, 'fs1, 'fs2");
+      Format(instr, "fmsub.d 'fd, 'fs1, 'fs2, 'fs3");
       break;
     case RO_FNMSUB_D:
-      Format(instr, "fnmsub.d 'fd, 'fs1, 'fs2");
+      Format(instr, "fnmsub.d 'fd, 'fs1, 'fs2, 'fs3");
       break;
     case RO_FNMADD_D:
-      Format(instr, "fnmadd.d 'fd, 'fs1, 'fs2");
+      Format(instr, "fnmadd.d 'fd, 'fs1, 'fs2, 'fs3");
       break;
     default:
       UNSUPPORTED_RISCV();
@@ -1015,8 +1073,7 @@ void Decoder::DecodeIType(Instruction* instr) {
     }
 #endif /*V8_TARGET_ARCH_64_BIT*/
     case RO_FENCE:
-      // FIXME(RISC-V): Need to extract bits for type of fence
-      Format(instr, "fence");
+      Format(instr, "fence 'pre, 'suc");
       break;
     case RO_ECALL: {                   // RO_EBREAK
       if (instr->Imm12Value() == 0) {  // ECALL
@@ -1030,27 +1087,27 @@ void Decoder::DecodeIType(Instruction* instr) {
     }
     // TODO: use Zifencei Standard Extension macro block
     case RO_FENCE_I:
-      Format(instr, "fence");
+      Format(instr, "fence.i");
       break;
     // TODO: use Zicsr Standard Extension macro block
     // FIXME(RISC-V): Add special formatting for CSR registers
     case RO_CSRRW:
-      Format(instr, "csrrw   'rd, 'rs1, 'csr");
+      Format(instr, "csrrw   'rd, 'csr, 'rs1");
       break;
     case RO_CSRRS:
-      Format(instr, "csrrs   'rd, 'rs1, 'csr");
+      Format(instr, "csrrs   'rd, 'csr, 'rs1");
       break;
     case RO_CSRRC:
-      Format(instr, "csrrc   'rd, 'rs1, 'csr");
+      Format(instr, "csrrc   'rd, 'csr, 'rs1");
       break;
     case RO_CSRRWI:
-      Format(instr, "csrrwi  'rd, 'vs1, 'csr");
+      Format(instr, "csrrwi  'rd, 'csr, 'vs1");
       break;
     case RO_CSRRSI:
-      Format(instr, "csrrsi  'rd, 'vs1, 'csr");
+      Format(instr, "csrrsi  'rd, 'csr, 'vs1");
       break;
     case RO_CSRRCI:
-      Format(instr, "csrrci  'rd, 'vs1, 'csr");
+      Format(instr, "csrrci  'rd, 'csr, 'vs1");
       break;
     // TODO: use F Extension macro block
     case RO_FLW:
