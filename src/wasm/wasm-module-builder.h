@@ -83,6 +83,7 @@ class ZoneBuffer : public ZoneObject {
   void write_f64(double val) { write_u64(bit_cast<uint64_t>(val)); }
 
   void write(const byte* data, size_t size) {
+    if (size == 0) return;
     EnsureSpace(size);
     memcpy(pos_, data, size);
     pos_ += size;
