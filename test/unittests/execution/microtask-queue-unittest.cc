@@ -65,7 +65,7 @@ using TestWithNativeContextAndFinalizationRegistry =  //
         WithContextMixin<                             //
             WithFinalizationRegistryMixin<            //
                 WithIsolateScopeMixin<                //
-                    WithSharedIsolateMixin<           //
+                    WithIsolateMixin<                 //
                         ::testing::Test>>>>>;
 
 namespace {

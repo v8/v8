@@ -15,15 +15,7 @@
 namespace v8 {
 namespace internal {
 
-class SpacesTest : public TestWithIsolate {
- protected:
-  void TearDown() final {
-    // Clean up the heap between tests.
-    i_isolate()->heap()->CollectAllAvailableGarbage(
-        GarbageCollectionReason::kTesting);
-    TestWithIsolate::TearDown();
-  }
-};
+using SpacesTest = TestWithIsolate;
 
 TEST_F(SpacesTest, CompactionSpaceMerge) {
   Heap* heap = i_isolate()->heap();
