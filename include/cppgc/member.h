@@ -37,8 +37,9 @@ class BasicMember : private CheckingPolicy {
   template <typename U, typename OtherBarrierPolicy, typename OtherWeaknessTag,
             typename OtherCheckingPolicy,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  BasicMember(const BasicMember<U, OtherWeaknessTag, OtherBarrierPolicy,
-                                OtherCheckingPolicy>& other)
+  BasicMember(  // NOLINT
+      const BasicMember<U, OtherWeaknessTag, OtherBarrierPolicy,
+                        OtherCheckingPolicy>& other)
       : BasicMember(other.Get()) {}
 
   BasicMember& operator=(const BasicMember& other) {
@@ -78,7 +79,7 @@ class BasicMember : private CheckingPolicy {
   }
 
   explicit operator bool() const { return Get(); }
-  operator T*() const { return Get(); }
+  operator T*() const { return Get(); }  // NOLINT
   T* operator->() const { return Get(); }
   T& operator*() const { return *Get(); }
 
@@ -146,27 +147,33 @@ struct IsWeak<
 
 }  // namespace internal
 
-// Members are used in classes to contain strong pointers to other garbage
-// collected objects. All Member fields of a class must be traced in the class'
-// trace method.
+/**
+ * Members are used in classes to contain strong pointers to other garbage
+ * collected objects. All Member fields of a class must be traced in the class'
+ * trace method.
+ */
 template <typename T>
 using Member = internal::BasicMember<T, internal::StrongMemberTag,
                                      internal::DijkstraWriteBarrierPolicy>;
 
-// WeakMember is similar to Member in that it is used to point to other garbage
-// collected objects. However instead of creating a strong pointer to the
-// object, the WeakMember creates a weak pointer, which does not keep the
-// pointee alive. Hence if all pointers to to a heap allocated object are weak
-// the object will be garbage collected. At the time of GC the weak pointers
-// will automatically be set to null.
+/**
+ * WeakMember is similar to Member in that it is used to point to other garbage
+ * collected objects. However instead of creating a strong pointer to the
+ * object, the WeakMember creates a weak pointer, which does not keep the
+ * pointee alive. Hence if all pointers to to a heap allocated object are weak
+ * the object will be garbage collected. At the time of GC the weak pointers
+ * will automatically be set to null.
+ */
 template <typename T>
 using WeakMember = internal::BasicMember<T, internal::WeakMemberTag,
                                          internal::DijkstraWriteBarrierPolicy>;
 
-// UntracedMember is a pointer to an on-heap object that is not traced for some
-// reason. Do not use this unless you know what you are doing. Keeping raw
-// pointers to on-heap objects is prohibited unless used from stack. Pointee
-// must be kept alive through other means.
+/**
+ * UntracedMember is a pointer to an on-heap object that is not traced for some
+ * reason. Do not use this unless you know what you are doing. Keeping raw
+ * pointers to on-heap objects is prohibited unless used from stack. Pointee
+ * must be kept alive through other means.
+ */
 template <typename T>
 using UntracedMember = internal::BasicMember<T, internal::UntracedMemberTag,
                                              internal::NoWriteBarrierPolicy>;

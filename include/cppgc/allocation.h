@@ -41,30 +41,53 @@ class V8_EXPORT MakeGarbageCollectedTraitInternal {
 
 }  // namespace internal
 
-// Users with custom allocation needs (e.g. overriding size) should override
-// MakeGarbageCollectedTrait (see below) and inherit their trait from
-// MakeGarbageCollectedTraitBase to get access to low-level primitives.
+/**
+ * Base trait that provides utilities for advancers users that have custom
+ * allocation needs (e.g., overriding size). It's expected that users override
+ * MakeGarbageCollectedTrait (see below) and inherit from
+ * MakeGarbageCollectedTraitBase and make use of the low-level primitives
+ * offered to allocate and construct an object.
+ */
 template <typename T>
 class MakeGarbageCollectedTraitBase
     : private internal::MakeGarbageCollectedTraitInternal {
  protected:
-  // Allocates an object of |size| bytes on |heap|.
-  //
-  // TODO(mlippautz): Allow specifying arena for specific embedder uses.
+  /**
+   * Allocates memory for an object of type T.
+   *
+   * \param heap The heap to allocate this object on.
+   * \param size The size that should be reserved for the object.
+   * \returns the memory to construct an object of type T on.
+   */
   static void* Allocate(Heap* heap, size_t size) {
+    // TODO(chromium:1056170): Allow specifying arena for specific embedder
+    // uses.
     return internal::MakeGarbageCollectedTraitInternal::Allocate(
         heap, size, internal::GCInfoTrait<T>::Index());
   }
 
-  // Marks an object as being fully constructed, resulting in precise handling
-  // by the garbage collector.
+  /**
+   * Marks an object as fully constructed, resulting in precise handling by the
+   * garbage collector.
+   *
+   * \param payload The base pointer the object is allocated at.
+   */
   static void MarkObjectAsFullyConstructed(const void* payload) {
-    // internal::MarkObjectAsFullyConstructed(payload);
     internal::MakeGarbageCollectedTraitInternal::MarkObjectAsFullyConstructed(
         payload);
   }
 };
 
+/**
+ * Default trait class that specifies how to construct an object of type T.
+ * Advanced users may override how an object is constructed using the utilities
+ * that are provided through MakeGarbageCollectedTraitBase.
+ *
+ * Any trait overriding construction must
+ * - allocate through MakeGarbageCollectedTraitBase<T>::Allocate;
+ * - mark the object as fully constructed using
+ *   MakeGarbageCollectedTraitBase<T>::MarkObjectAsFullyConstructed;
+ */
 template <typename T>
 class MakeGarbageCollectedTrait : public MakeGarbageCollectedTraitBase<T> {
  public:
@@ -83,8 +106,14 @@ class MakeGarbageCollectedTrait : public MakeGarbageCollectedTraitBase<T> {
   }
 };
 
-// Default MakeGarbageCollected: Constructs an instance of T, which is a garbage
-// collected type.
+/**
+ * Constructs a managed object of type T where T transitively inherits from
+ * GarbageCollected.
+ *
+ * \param args List of arguments with which an instance of T will be
+ *   constructed.
+ * \returns an instance of type T.
+ */
 template <typename T, typename... Args>
 T* MakeGarbageCollected(Heap* heap, Args&&... args) {
   return MakeGarbageCollectedTrait<T>::Call(heap, std::forward<Args>(args)...);
