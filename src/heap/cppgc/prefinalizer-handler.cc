@@ -4,6 +4,7 @@
 
 #include "src/heap/cppgc/prefinalizer-handler.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "src/base/platform/platform.h"

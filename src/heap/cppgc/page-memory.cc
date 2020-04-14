@@ -195,7 +195,7 @@ Address PageBackend::AllocateLargePageMemory(size_t size) {
   const PageMemory pm = pmr->GetPageMemory();
   Unprotect(allocator_, pm);
   page_memory_region_tree_.Add(pmr.get());
-  large_page_memory_regions_.insert({pmr.get(), std::move(pmr)});
+  large_page_memory_regions_.insert(std::make_pair(pmr.get(), std::move(pmr)));
   return pm.writeable_region().base();
 }
 
