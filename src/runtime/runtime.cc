@@ -201,6 +201,7 @@ bool Runtime::IsWhitelistedForFuzzing(FunctionId id) {
     case Runtime::kDeoptimizeFunction:
     case Runtime::kDeoptimizeNow:
     case Runtime::kEnableCodeLoggingForTesting:
+    case Runtime::kGetOptimizationStatus:
     case Runtime::kGetUndetectable:
     case Runtime::kNeverOptimizeFunction:
     case Runtime::kOptimizeFunctionOnNextCall:

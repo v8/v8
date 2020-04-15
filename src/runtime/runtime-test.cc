@@ -482,16 +482,23 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
 
   CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
   if (function_object->IsUndefined()) return Smi::FromInt(status);
-  CHECK(function_object->IsJSFunction());
+  if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
   status |= static_cast<int>(OptimizationStatus::kIsFunction);
 
   bool sync_with_compiler_thread = true;
   if (args.length() == 2) {
-    CONVERT_ARG_HANDLE_CHECKED(String, sync, 1);
+    CONVERT_ARG_HANDLE_CHECKED(Object, sync_object, 1);
+    if (!sync_object->IsString()) return CrashUnlessFuzzing(isolate);
+    Handle<String> sync = Handle<String>::cast(sync_object);
     if (sync->IsOneByteEqualTo(StaticCharVector("no sync"))) {
       sync_with_compiler_thread = false;
+    } else if (sync->IsOneByteEqualTo(StaticCharVector("sync")) ||
+               sync->length() == 0) {
+      DCHECK(sync_with_compiler_thread);
+    } else {
+      return CrashUnlessFuzzing(isolate);
     }
   }
 
