@@ -8473,6 +8473,22 @@ class V8_EXPORT Isolate {
     kDateTimeFormatDateTimeStyle = 87,
     kBreakIteratorTypeWord = 88,
     kBreakIteratorTypeLine = 89,
+    kInvalidatedArrayBufferDetachingProtector = 90,
+    kInvalidatedArrayConstructorProtector = 91,
+    kInvalidatedArrayIteratorLookupChainProtector = 92,
+    kInvalidatedArraySpeciesLookupChainProtector = 93,
+    kInvalidatedIsConcatSpreadableLookupChainProtector = 94,
+    kInvalidatedMapIteratorLookupChainProtector = 95,
+    kInvalidatedNoElementsProtector = 96,
+    kInvalidatedPromiseHookProtector = 97,
+    kInvalidatedPromiseResolveLookupChainProtector = 98,
+    kInvalidatedPromiseSpeciesLookupChainProtector = 99,
+    kInvalidatedPromiseThenLookupChainProtector = 100,
+    kInvalidatedRegExpSpeciesLookupChainProtector = 101,
+    kInvalidatedSetIteratorLookupChainProtector = 102,
+    kInvalidatedStringIteratorLookupChainProtector = 103,
+    kInvalidatedStringLengthOverflowLookupChainProtector = 104,
+    kInvalidatedTypedArraySpeciesLookupChainProtector = 105,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
