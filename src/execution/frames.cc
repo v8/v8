@@ -21,7 +21,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/visitors.h"
-#include "src/snapshot/snapshot.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/strings/string-stream.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"

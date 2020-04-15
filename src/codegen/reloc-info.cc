@@ -10,7 +10,8 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code-inl.h"
-#include "src/snapshot/snapshot.h"
+#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/serializer-common.h"  // For ExternalReferenceEncoder.
 
 namespace v8 {
 namespace internal {

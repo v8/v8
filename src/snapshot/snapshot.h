@@ -5,60 +5,17 @@
 #ifndef V8_SNAPSHOT_SNAPSHOT_H_
 #define V8_SNAPSHOT_SNAPSHOT_H_
 
-#include "src/snapshot/partial-serializer.h"
-#include "src/snapshot/startup-serializer.h"
+#include "include/v8.h"
 
-#include "src/utils/utils.h"
+#include "src/base/memory.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
 
-// Forward declarations.
 class Isolate;
-class PartialSerializer;
-class SnapshotCompression;
-class StartupSerializer;
-
-// Wrapper around reservation sizes and the serialization payload.
-class V8_EXPORT_PRIVATE SnapshotData : public SerializedData {
- public:
-  // Used when producing.
-  explicit SnapshotData(const Serializer* serializer);
-
-  // Used when consuming.
-  explicit SnapshotData(const Vector<const byte> snapshot)
-      : SerializedData(const_cast<byte*>(snapshot.begin()), snapshot.length()) {
-  }
-
-  std::vector<Reservation> Reservations() const;
-  virtual Vector<const byte> Payload() const;
-
-  Vector<const byte> RawData() const {
-    return Vector<const byte>(data_, size_);
-  }
-
- protected:
-  // Empty constructor used by SnapshotCompression so it can manually allocate
-  // memory.
-  SnapshotData() : SerializedData() {}
-  friend class SnapshotCompression;
-
-  // Resize used by SnapshotCompression so it can shrink the compressed
-  // SnapshotData.
-  void Resize(uint32_t size) { size_ = size; }
-
-  // The data header consists of uint32_t-sized entries:
-  // [0] magic number and (internal) external reference count
-  // [1] number of reservation size entries
-  // [2] payload length
-  // ... reservations
-  // ... serialized payload
-  static const uint32_t kNumReservationsOffset =
-      kMagicNumberOffset + kUInt32Size;
-  static const uint32_t kPayloadLengthOffset =
-      kNumReservationsOffset + kUInt32Size;
-  static const uint32_t kHeaderSize = kPayloadLengthOffset + kUInt32Size;
-};
+class SnapshotData;
+class JSGlobalProxy;
 
 class Snapshot : public AllStatic {
  public:

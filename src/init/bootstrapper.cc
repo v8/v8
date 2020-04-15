@@ -25,6 +25,7 @@
 #endif  // ENABLE_VTUNE_TRACEMARK
 #include "src/heap/heap-inl.h"
 #include "src/logging/counters.h"
+#include "src/logging/log.h"
 #include "src/numbers/math-random.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments.h"

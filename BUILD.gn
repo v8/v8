@@ -2960,6 +2960,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/snapshot/snapshot-common.cc",
     "src/snapshot/snapshot-compression.cc",
     "src/snapshot/snapshot-compression.h",
+    "src/snapshot/snapshot-data.cc",
+    "src/snapshot/snapshot-data.h",
     "src/snapshot/snapshot-source-sink.cc",
     "src/snapshot/snapshot-source-sink.h",
     "src/snapshot/snapshot.h",

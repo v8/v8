@@ -8,6 +8,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/execution/v8threads.h"
 #include "src/heap/heap-inl.h"
+#include "src/logging/log.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {

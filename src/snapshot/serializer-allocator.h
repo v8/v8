@@ -6,6 +6,7 @@
 #define V8_SNAPSHOT_SERIALIZER_ALLOCATOR_H_
 
 #include "src/snapshot/serializer-common.h"
+#include "src/snapshot/snapshot-data.h"
 
 namespace v8 {
 namespace internal {

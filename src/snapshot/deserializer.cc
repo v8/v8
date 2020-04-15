@@ -22,6 +22,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
 #include "src/roots/roots.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"

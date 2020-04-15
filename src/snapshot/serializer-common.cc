@@ -96,16 +96,6 @@ const char* ExternalReferenceEncoder::NameOfAddress(Isolate* isolate,
   return isolate->external_reference_table()->name(value.index());
 }
 
-void SerializedData::AllocateData(uint32_t size) {
-  DCHECK(!owns_data_);
-  data_ = NewArray<byte>(size);
-  size_ = size;
-  owns_data_ = true;
-}
-
-// static
-constexpr uint32_t SerializedData::kMagicNumber;
-
 // The partial snapshot cache is terminated by undefined. We visit the
 // partial snapshot...
 //  - during deserialization to populate it.
