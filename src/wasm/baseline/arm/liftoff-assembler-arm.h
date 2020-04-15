@@ -1664,7 +1664,8 @@ void LiftoffAssembler::emit_f64x2_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f64x2_sqrt(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  bailout(kSimd, "f64x2sqrt");
+  vsqrt(dst.low_fp(), src.low_fp());
+  vsqrt(dst.high_fp(), src.high_fp());
 }
 
 void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1687,7 +1688,8 @@ void LiftoffAssembler::emit_f64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_div(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "f64x2div");
+  vdiv(dst.low_fp(), lhs.low_fp(), rhs.low_fp());
+  vdiv(dst.high_fp(), lhs.high_fp(), rhs.high_fp());
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
@@ -1723,7 +1725,18 @@ void LiftoffAssembler::emit_f32x4_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f32x4_sqrt(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  bailout(kSimd, "f32x4sqrt");
+  // The list of d registers available to us is from d0 to d15, which always
+  // maps to 2 s registers.
+  LowDwVfpRegister dst_low = LowDwVfpRegister::from_code(dst.low_fp().code());
+  LowDwVfpRegister src_low = LowDwVfpRegister::from_code(src.low_fp().code());
+
+  LowDwVfpRegister dst_high = LowDwVfpRegister::from_code(dst.high_fp().code());
+  LowDwVfpRegister src_high = LowDwVfpRegister::from_code(src.high_fp().code());
+
+  vsqrt(dst_low.low(), src_low.low());
+  vsqrt(dst_low.high(), src_low.high());
+  vsqrt(dst_high.low(), src_high.low());
+  vsqrt(dst_high.high(), src_high.high());
 }
 
 void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1746,7 +1759,20 @@ void LiftoffAssembler::emit_f32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f32x4_div(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "f32x4div");
+  // The list of d registers available to us is from d0 to d15, which always
+  // maps to 2 s registers.
+  LowDwVfpRegister dst_low = LowDwVfpRegister::from_code(dst.low_fp().code());
+  LowDwVfpRegister lhs_low = LowDwVfpRegister::from_code(lhs.low_fp().code());
+  LowDwVfpRegister rhs_low = LowDwVfpRegister::from_code(rhs.low_fp().code());
+
+  LowDwVfpRegister dst_high = LowDwVfpRegister::from_code(dst.high_fp().code());
+  LowDwVfpRegister lhs_high = LowDwVfpRegister::from_code(lhs.high_fp().code());
+  LowDwVfpRegister rhs_high = LowDwVfpRegister::from_code(rhs.high_fp().code());
+
+  vdiv(dst_low.low(), lhs_low.low(), rhs_low.low());
+  vdiv(dst_low.high(), lhs_low.high(), rhs_low.high());
+  vdiv(dst_high.low(), lhs_high.low(), rhs_high.low());
+  vdiv(dst_high.high(), lhs_high.high(), rhs_high.high());
 }
 
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
