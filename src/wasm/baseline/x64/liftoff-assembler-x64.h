@@ -390,8 +390,15 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
-                                 StoreType type) {
-  DCHECK(!cache_state()->is_used(value));
+                                 LiftoffRegister result, StoreType type) {
+  DCHECK(!cache_state()->is_used(result));
+  if (cache_state()->is_used(value)) {
+    // We cannot overwrite {value}, but the {value} register is changed in the
+    // code we generate. Therefore we copy {value} to {result} and use the
+    // {result} register in the code below.
+    movq(result.gp(), value.gp());
+    value = result;
+  }
   if (emit_debug_code() && offset_reg != no_reg) {
     AssertZeroExtended(offset_reg);
   }
@@ -401,19 +408,25 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
     case StoreType::kI32Store8:
     case StoreType::kI64Store8:
       xaddb(dst_op, value.gp());
-      movzxbq(value.gp(), value.gp());
+      movzxbq(result.gp(), value.gp());
       break;
     case StoreType::kI32Store16:
     case StoreType::kI64Store16:
       xaddw(dst_op, value.gp());
-      movzxwq(value.gp(), value.gp());
+      movzxwq(result.gp(), value.gp());
       break;
     case StoreType::kI32Store:
     case StoreType::kI64Store32:
       xaddl(dst_op, value.gp());
+      if (value != result) {
+        movq(result.gp(), value.gp());
+      }
       break;
     case StoreType::kI64Store:
       xaddq(dst_op, value.gp());
+      if (value != result) {
+        movq(result.gp(), value.gp());
+      }
       break;
     default:
       UNREACHABLE();
@@ -422,8 +435,15 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
-                                 StoreType type) {
-  DCHECK(!cache_state()->is_used(value));
+                                 LiftoffRegister result, StoreType type) {
+  DCHECK(!cache_state()->is_used(result));
+  if (cache_state()->is_used(value)) {
+    // We cannot overwrite {value}, but the {value} register is changed in the
+    // code we generate. Therefore we copy {value} to {result} and use the
+    // {result} register in the code below.
+    movq(result.gp(), value.gp());
+    value = result;
+  }
   if (emit_debug_code() && offset_reg != no_reg) {
     AssertZeroExtended(offset_reg);
   }
@@ -434,25 +454,31 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
       negb(value.gp());
       lock();
       xaddb(dst_op, value.gp());
-      movzxbq(value.gp(), value.gp());
+      movzxbq(result.gp(), value.gp());
       break;
     case StoreType::kI32Store16:
     case StoreType::kI64Store16:
       negw(value.gp());
       lock();
       xaddw(dst_op, value.gp());
-      movzxwq(value.gp(), value.gp());
+      movzxwq(result.gp(), value.gp());
       break;
     case StoreType::kI32Store:
     case StoreType::kI64Store32:
       negl(value.gp());
       lock();
       xaddl(dst_op, value.gp());
+      if (value != result) {
+        movq(result.gp(), value.gp());
+      }
       break;
     case StoreType::kI64Store:
       negq(value.gp());
       lock();
       xaddq(dst_op, value.gp());
+      if (value != result) {
+        movq(result.gp(), value.gp());
+      }
       break;
     default:
       UNREACHABLE();
@@ -467,8 +493,8 @@ inline void AtomicBinop(LiftoffAssembler* lasm,
                         void (Assembler::*opq)(Register, Register),
                         Register dst_addr, Register offset_reg,
                         uint32_t offset_imm, LiftoffRegister value,
-                        StoreType type) {
-  DCHECK(!__ cache_state()->is_used(value));
+                        LiftoffRegister result, StoreType type) {
+  DCHECK(!__ cache_state()->is_used(result));
   Register value_reg = value.gp();
   // The cmpxchg instruction uses rax to store the old value of the
   // compare-exchange primitive. Therefore we have to spill the register and
@@ -535,8 +561,8 @@ inline void AtomicBinop(LiftoffAssembler* lasm,
       UNREACHABLE();
   }
 
-  if (value.gp() != rax) {
-    __ movq(value.gp(), rax);
+  if (result.gp() != rax) {
+    __ movq(result.gp(), rax);
   }
 }
 #undef __
@@ -544,29 +570,37 @@ inline void AtomicBinop(LiftoffAssembler* lasm,
 
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
-                                 StoreType type) {
+                                 LiftoffRegister result, StoreType type) {
   liftoff::AtomicBinop(this, &Assembler::andl, &Assembler::andq, dst_addr,
-                       offset_reg, offset_imm, value, type);
+                       offset_reg, offset_imm, value, result, type);
 }
 
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uint32_t offset_imm, LiftoffRegister value,
-                                StoreType type) {
+                                LiftoffRegister result, StoreType type) {
   liftoff::AtomicBinop(this, &Assembler::orl, &Assembler::orq, dst_addr,
-                       offset_reg, offset_imm, value, type);
+                       offset_reg, offset_imm, value, result, type);
 }
 
 void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
-                                 StoreType type) {
+                                 LiftoffRegister result, StoreType type) {
   liftoff::AtomicBinop(this, &Assembler::xorl, &Assembler::xorq, dst_addr,
-                       offset_reg, offset_imm, value, type);
+                       offset_reg, offset_imm, value, result, type);
 }
 
 void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uint32_t offset_imm,
-                                      LiftoffRegister value, StoreType type) {
-  DCHECK(!cache_state()->is_used(value));
+                                      LiftoffRegister value,
+                                      LiftoffRegister result, StoreType type) {
+  DCHECK(!cache_state()->is_used(result));
+  if (cache_state()->is_used(value)) {
+    // We cannot overwrite {value}, but the {value} register is changed in the
+    // code we generate. Therefore we copy {value} to {result} and use the
+    // {result} register in the code below.
+    movq(result.gp(), value.gp());
+    value = result;
+  }
   if (emit_debug_code() && offset_reg != no_reg) {
     AssertZeroExtended(offset_reg);
   }
@@ -575,19 +609,25 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
     case StoreType::kI32Store8:
     case StoreType::kI64Store8:
       xchgb(value.gp(), dst_op);
-      movzxbq(value.gp(), value.gp());
+      movzxbq(result.gp(), value.gp());
       break;
     case StoreType::kI32Store16:
     case StoreType::kI64Store16:
       xchgw(value.gp(), dst_op);
-      movzxwq(value.gp(), value.gp());
+      movzxwq(result.gp(), value.gp());
       break;
     case StoreType::kI32Store:
     case StoreType::kI64Store32:
       xchgl(value.gp(), dst_op);
+      if (value != result) {
+        movq(result.gp(), value.gp());
+      }
       break;
     case StoreType::kI64Store:
       xchgq(value.gp(), dst_op);
+      if (value != result) {
+        movq(result.gp(), value.gp());
+      }
       break;
     default:
       UNREACHABLE();

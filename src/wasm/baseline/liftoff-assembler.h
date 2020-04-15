@@ -478,28 +478,28 @@ class LiftoffAssembler : public TurboAssembler {
                           StoreType type, LiftoffRegList pinned);
 
   inline void AtomicAdd(Register dst_addr, Register offset_reg,
-                        uint32_t offset_imm, LiftoffRegister result,
-                        StoreType type);
+                        uint32_t offset_imm, LiftoffRegister value,
+                        LiftoffRegister result, StoreType type);
 
   inline void AtomicSub(Register dst_addr, Register offset_reg,
-                        uint32_t offset_imm, LiftoffRegister result,
-                        StoreType type);
+                        uint32_t offset_imm, LiftoffRegister value,
+                        LiftoffRegister result, StoreType type);
 
   inline void AtomicAnd(Register dst_addr, Register offset_reg,
-                        uint32_t offset_imm, LiftoffRegister result,
-                        StoreType type);
+                        uint32_t offset_imm, LiftoffRegister value,
+                        LiftoffRegister result, StoreType type);
 
   inline void AtomicOr(Register dst_addr, Register offset_reg,
-                       uint32_t offset_imm, LiftoffRegister result,
-                       StoreType type);
+                       uint32_t offset_imm, LiftoffRegister value,
+                       LiftoffRegister result, StoreType type);
 
   inline void AtomicXor(Register dst_addr, Register offset_reg,
-                        uint32_t offset_imm, LiftoffRegister result,
-                        StoreType type);
+                        uint32_t offset_imm, LiftoffRegister value,
+                        LiftoffRegister result, StoreType type);
 
   inline void AtomicExchange(Register dst_addr, Register offset_reg,
-                             uint32_t offset_imm, LiftoffRegister result,
-                             StoreType type);
+                             uint32_t offset_imm, LiftoffRegister value,
+                             LiftoffRegister result, StoreType type);
 
   inline void AtomicCompareExchange(Register dst_addr, Register offset_reg,
                                     uint32_t offset_imm,

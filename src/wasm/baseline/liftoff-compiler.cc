@@ -2637,10 +2637,12 @@ class LiftoffCompiler {
                    const MemoryAccessImmediate<validate>& imm,
                    void (LiftoffAssembler::*emit_fn)(Register, Register,
                                                      uint32_t, LiftoffRegister,
+                                                     LiftoffRegister,
                                                      StoreType)) {
     ValueType result_type = type.value_type();
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
+#ifdef V8_TARGET_ARCH_IA32
     // We have to reuse the value register as the result register so that we
     //  don't run out of registers on ia32. For this we use the value register
     //  as the result register if it has no other uses. Otherwise  we allocate
@@ -2650,7 +2652,12 @@ class LiftoffCompiler {
       result = pinned.set(__ GetUnusedRegister(value.reg_class(), pinned));
       __ Move(result, value, result_type);
       pinned.clear(value);
+      value = result;
     }
+#else
+    LiftoffRegister result =
+        pinned.set(__ GetUnusedRegister(value.reg_class(), pinned));
+#endif
     Register index = pinned.set(__ PopToRegister(pinned)).gp();
     if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
                        kDoForceCheck)) {
@@ -2663,7 +2670,7 @@ class LiftoffCompiler {
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
 
-    (asm_.*emit_fn)(addr, index, offset, result, type);
+    (asm_.*emit_fn)(addr, index, offset, value, result, type);
     __ PushRegister(result_type, result);
   }
 
