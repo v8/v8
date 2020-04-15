@@ -1748,7 +1748,7 @@ class ThreadImpl {
       DoTrap(kTrapUnalignedAccess, pc);
       return false;
     }
-    *len = 2 + imm.length;
+    *len += imm.length;
     return true;
   }
 
@@ -1777,7 +1777,7 @@ class ThreadImpl {
       DoTrap(kTrapUnalignedAccess, pc);
       return false;
     }
-    *len = 2 + imm.length;
+    *len += imm.length;
     return true;
   }
 
@@ -2167,7 +2167,7 @@ class ThreadImpl {
 #undef ATOMIC_STORE_CASE
       case kExprAtomicFence:
         std::atomic_thread_fence(std::memory_order_seq_cst);
-        *len += 2;
+        *len += 1;
         break;
       case kExprI32AtomicWait: {
         int32_t val;
@@ -3038,13 +3038,16 @@ class ThreadImpl {
       byte orig = code->start[pc];
       WasmOpcode opcode = static_cast<WasmOpcode>(orig);
       if (WasmOpcodes::IsPrefixOpcode(opcode)) {
-        opcode = static_cast<WasmOpcode>(opcode << 8 | code->start[pc + 1]);
+        uint32_t length;
+        opcode = decoder.read_prefixed_opcode<Decoder::kNoValidate>(
+            &code->start[pc], &length);
+        len += length;
       }
       if (V8_UNLIKELY(orig == kInternalBreakpoint)) {
         orig = code->orig_start[pc];
         if (WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(orig))) {
-          opcode =
-              static_cast<WasmOpcode>(orig << 8 | code->orig_start[pc + 1]);
+          opcode = decoder.read_prefixed_opcode<Decoder::kNoValidate>(
+              &code->start[pc]);
         }
         if (SkipBreakpoint(code, pc)) {
           // skip breakpoint by switching on original code.
@@ -3647,7 +3650,6 @@ class ThreadImpl {
           break;
         }
         case kNumericPrefix: {
-          ++len;
           if (!ExecuteNumericOp(opcode, &decoder, code, pc, &len)) return;
           break;
         }
@@ -3656,7 +3658,6 @@ class ThreadImpl {
           break;
         }
         case kSimdPrefix: {
-          ++len;
           if (!ExecuteSimdOp(opcode, &decoder, code, pc, &len)) return;
           break;
         }

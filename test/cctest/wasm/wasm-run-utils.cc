@@ -47,6 +47,11 @@ void AppendSingle(std::vector<byte>* code, WasmOpcode op) {
   }
 }
 
+template <>
+void AppendSingle(std::vector<byte>* code, ValueTypeCode op) {
+  code->push_back(op);
+}
+
 TestingModuleBuilder::TestingModuleBuilder(
     Zone* zone, ManuallyImportedJSFunction* maybe_import, ExecutionTier tier,
     RuntimeExceptionSupport exception_support, LowerSimd lower_simd)

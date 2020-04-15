@@ -86,6 +86,10 @@ void AppendSingle(std::vector<byte>* code, T t) {
 template <>
 void AppendSingle<WasmOpcode>(std::vector<byte>* code, WasmOpcode op);
 
+// Specialized for ValueTypeCode.
+template <>
+void AppendSingle<ValueTypeCode>(std::vector<byte>* code, ValueTypeCode op);
+
 template <typename... T>
 void Append(std::vector<byte>* code, T... ts) {
   static_assert(sizeof...(ts) == 0, "Base case for appending bytes to code.");

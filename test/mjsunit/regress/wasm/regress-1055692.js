@@ -17,7 +17,7 @@ builder.addFunction(undefined, 0 /* sig */)
 kExprI32Const, 0x75,  // i32.const
 kExprI32Const, 0x74,  // i32.const
 kExprI32Const, 0x18,  // i32.const
-kSimdPrefix, kExprS8x16LoadSplat,  // s8x16.load_splat
+kSimdPrefix, ...kExprS8x16LoadSplat,  // s8x16.load_splat
 kExprUnreachable,  // unreachable
 kExprUnreachable,  // unreachable
 kExprI32Const, 0x6f,  // i32.const

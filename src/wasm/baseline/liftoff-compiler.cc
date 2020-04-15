@@ -731,10 +731,8 @@ class LiftoffCompiler {
     TraceCacheState(decoder);
 #ifdef DEBUG
     SLOW_DCHECK(__ ValidateCacheState());
-    if (WasmOpcodes::IsPrefixOpcode(opcode) &&
-        decoder->pc() + 1 < decoder->end()) {
-      byte op_index = *(decoder->pc() + 1);
-      opcode = static_cast<WasmOpcode>(opcode << 8 | op_index);
+    if (WasmOpcodes::IsPrefixOpcode(opcode)) {
+      opcode = decoder->read_prefixed_opcode<Decoder::kValidate>(decoder->pc());
     }
     DEBUG_CODE_COMMENT(WasmOpcodes::OpcodeName(opcode));
 #endif

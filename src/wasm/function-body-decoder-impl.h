@@ -1379,31 +1379,30 @@ class WasmDecoder : public Decoder {
         }
       }
       case kSimdPrefix: {
-        byte simd_index = decoder->read_u8<validate>(pc + 1, "simd_index");
-        WasmOpcode opcode =
-            static_cast<WasmOpcode>(kSimdPrefix << 8 | simd_index);
+        uint32_t length = 0;
+        opcode = decoder->read_prefixed_opcode<validate>(pc, &length);
         switch (opcode) {
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
           FOREACH_SIMD_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
-          return 2;
+          return 1 + length;
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
           FOREACH_SIMD_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
-          return 3;
+          return 2 + length;
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
           FOREACH_SIMD_MEM_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
           {
             MemoryAccessImmediate<validate> imm(decoder, pc + 1, UINT32_MAX);
-            return 2 + imm.length;
+            return 1 + length + imm.length;
           }
           // Shuffles require a byte per lane, or 16 immediate bytes.
           case kExprS8x16Shuffle:
-            return 2 + kSimd128Size;
+            return 1 + length + kSimd128Size;
           default:
             decoder->error(pc, "invalid SIMD opcode");
-            return 2;
+            return 1 + length;
         }
       }
       case kAtomicPrefix: {
@@ -1508,7 +1507,7 @@ class WasmDecoder : public Decoder {
       case kNumericPrefix:
       case kAtomicPrefix:
       case kSimdPrefix: {
-        opcode = static_cast<WasmOpcode>(opcode << 8 | *(pc + 1));
+        opcode = this->read_prefixed_opcode<validate>(pc);
         switch (opcode) {
           FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(DECLARE_OPCODE_CASE)
             return {1, 1};
@@ -1622,12 +1621,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (!WasmOpcodes::IsPrefixOpcode(opcode)) {
       return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(opcode));
     }
-    // We need one more byte.
-    ++pc;
-    if (pc >= this->end_) return "<end>";
-    byte sub_opcode = *pc;
-    opcode = static_cast<WasmOpcode>(opcode << 8 | sub_opcode);
-    return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(opcode));
+    opcode = this->template read_prefixed_opcode<Decoder::kValidate>(pc);
+    return WasmOpcodes::OpcodeName(opcode);
   }
 
   inline Zone* zone() const { return zone_; }
@@ -2355,13 +2350,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         case kSimdPrefix: {
           CHECK_PROTOTYPE_OPCODE(simd);
-          len++;
-          byte simd_index =
-              this->template read_u8<validate>(this->pc_ + 1, "simd index");
-          opcode = static_cast<WasmOpcode>(opcode << 8 | simd_index);
+          uint32_t length = 0;
+          opcode =
+              this->template read_prefixed_opcode<validate>(this->pc_, &length);
+          len += length;
+
           TRACE_PART(TRACE_INST_FORMAT, startrel(this->pc_),
                      WasmOpcodes::OpcodeName(opcode));
-          len += DecodeSimdOpcode(opcode);
+          len += DecodeSimdOpcode(opcode, length);
           break;
         }
         case kAtomicPrefix: {
@@ -2426,7 +2422,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           auto& val = stack_[i];
           WasmOpcode opcode = static_cast<WasmOpcode>(*val.pc);
           if (WasmOpcodes::IsPrefixOpcode(opcode)) {
-            opcode = static_cast<WasmOpcode>(opcode << 8 | *(val.pc + 1));
+            opcode = this->template read_prefixed_opcode<Decoder::kNoValidate>(
+                val.pc);
           }
           TRACE_PART(" %c@%d:%s", val.type.short_name(),
                      static_cast<int>(val.pc - this->start_),
@@ -2546,9 +2543,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return imm.length;
   }
 
-  int DecodeLoadTransformMem(LoadType type, LoadTransformationKind transform) {
+  int DecodeLoadTransformMem(LoadType type, LoadTransformationKind transform,
+                             uint32_t opcode_length) {
     if (!CheckHasMemory()) return 0;
-    MemoryAccessImmediate<validate> imm(this, this->pc_ + 1, type.size_log_2());
+    MemoryAccessImmediate<validate> imm(this, this->pc_ + opcode_length,
+                                        type.size_log_2());
     auto index = Pop(0, kWasmI32);
     auto* result = Push(kWasmS128);
     CALL_INTERFACE_IF_REACHABLE(LoadTransform, type, transform, imm, index,
@@ -2686,8 +2685,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return 16;
   }
 
-  uint32_t DecodeSimdOpcode(WasmOpcode opcode) {
+  uint32_t DecodeSimdOpcode(WasmOpcode opcode, uint32_t opcode_length) {
+    // opcode_length is the number of bytes that this SIMD-specific opcode takes
+    // up in the LEB128 encoded form.
     uint32_t len = 0;
+    // TODO(v8:10258): Most of the decodings below (like SimdExtractLane) should
+    // take opcode_length as a parameter, since that will determine where the
+    // immediate is located. However, for most of these instructions, their
+    // encoded opcodes take up 2 bytes, so they will not be affected by the
+    // variable-length encoding, and will still work correctly.
     switch (opcode) {
       case kExprF64x2ExtractLane: {
         len = SimdExtractLane(opcode, kWasmF64);
@@ -2739,43 +2745,51 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         break;
       case kExprS8x16LoadSplat:
         len = DecodeLoadTransformMem(LoadType::kI32Load8S,
-                                     LoadTransformationKind::kSplat);
+                                     LoadTransformationKind::kSplat,
+                                     opcode_length);
         break;
       case kExprS16x8LoadSplat:
         len = DecodeLoadTransformMem(LoadType::kI32Load16S,
-                                     LoadTransformationKind::kSplat);
+                                     LoadTransformationKind::kSplat,
+                                     opcode_length);
         break;
       case kExprS32x4LoadSplat:
-        len = DecodeLoadTransformMem(LoadType::kI32Load,
-                                     LoadTransformationKind::kSplat);
+        len = DecodeLoadTransformMem(
+            LoadType::kI32Load, LoadTransformationKind::kSplat, opcode_length);
         break;
       case kExprS64x2LoadSplat:
-        len = DecodeLoadTransformMem(LoadType::kI64Load,
-                                     LoadTransformationKind::kSplat);
+        len = DecodeLoadTransformMem(
+            LoadType::kI64Load, LoadTransformationKind::kSplat, opcode_length);
         break;
       case kExprI16x8Load8x8S:
         len = DecodeLoadTransformMem(LoadType::kI32Load8S,
-                                     LoadTransformationKind::kExtend);
+                                     LoadTransformationKind::kExtend,
+                                     opcode_length);
         break;
       case kExprI16x8Load8x8U:
         len = DecodeLoadTransformMem(LoadType::kI32Load8U,
-                                     LoadTransformationKind::kExtend);
+                                     LoadTransformationKind::kExtend,
+                                     opcode_length);
         break;
       case kExprI32x4Load16x4S:
         len = DecodeLoadTransformMem(LoadType::kI32Load16S,
-                                     LoadTransformationKind::kExtend);
+                                     LoadTransformationKind::kExtend,
+                                     opcode_length);
         break;
       case kExprI32x4Load16x4U:
         len = DecodeLoadTransformMem(LoadType::kI32Load16U,
-                                     LoadTransformationKind::kExtend);
+                                     LoadTransformationKind::kExtend,
+                                     opcode_length);
         break;
       case kExprI64x2Load32x2S:
         len = DecodeLoadTransformMem(LoadType::kI64Load32S,
-                                     LoadTransformationKind::kExtend);
+                                     LoadTransformationKind::kExtend,
+                                     opcode_length);
         break;
       case kExprI64x2Load32x2U:
         len = DecodeLoadTransformMem(LoadType::kI64Load32U,
-                                     LoadTransformationKind::kExtend);
+                                     LoadTransformationKind::kExtend,
+                                     opcode_length);
         break;
       default: {
         if (!FLAG_wasm_simd_post_mvp &&

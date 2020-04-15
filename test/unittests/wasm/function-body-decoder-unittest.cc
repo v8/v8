@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/wasm/leb-helper.h"
 #include "test/unittests/test-utils.h"
 
 #include "src/init/v8.h"
@@ -3628,6 +3629,20 @@ class WasmOpcodeLengthTest : public TestWithZone {
     EXPECT_EQ(expected, OpcodeLength(code, code + sizeof(code)))
         << PrintOpcodes{code, code + sizeof...(bytes)};
   }
+
+  // Helper to check for prefixed opcodes, which can have multiple bytes.
+  void ExpectLengthPrefixed(unsigned operands, WasmOpcode opcode) {
+    uint8_t prefix = (opcode >> 8) & 0xff;
+    DCHECK(WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(prefix)));
+    uint8_t index = opcode & 0xff;
+    uint8_t encoded[2] = {0, 0};
+    uint8_t* p = encoded;
+    unsigned len = static_cast<unsigned>(LEBHelper::sizeof_u32v(index));
+    DCHECK_GE(2, len);
+    LEBHelper::write_u32v(&p, index);
+    // length of index, + number of operands + prefix bye
+    ExpectLength(len + operands + 1, prefix, encoded[0], encoded[1]);
+  }
 };
 
 TEST_F(WasmOpcodeLengthTest, Statements) {
@@ -3754,17 +3769,15 @@ TEST_F(WasmOpcodeLengthTest, SimpleExpressions) {
 }
 
 TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
-#define TEST_SIMD(name, opcode, sig) \
-  ExpectLength(2, kSimdPrefix, static_cast<byte>(kExpr##name & 0xFF));
+#define TEST_SIMD(name, opcode, sig) ExpectLengthPrefixed(0, kExpr##name);
   FOREACH_SIMD_0_OPERAND_OPCODE(TEST_SIMD)
 #undef TEST_SIMD
-#define TEST_SIMD(name, opcode, sig) \
-  ExpectLength(3, kSimdPrefix, static_cast<byte>(kExpr##name & 0xFF));
+#define TEST_SIMD(name, opcode, sig) ExpectLengthPrefixed(1, kExpr##name);
   FOREACH_SIMD_1_OPERAND_OPCODE(TEST_SIMD)
 #undef TEST_SIMD
-  ExpectLength(18, kSimdPrefix, static_cast<byte>(kExprS8x16Shuffle & 0xFF));
-  // test for bad simd opcode
-  ExpectLength(2, kSimdPrefix, 0xFF);
+  ExpectLengthPrefixed(16, kExprS8x16Shuffle);
+  // test for bad simd opcode, 0xFF is encoded in two bytes.
+  ExpectLength(3, kSimdPrefix, 0xFF, 0x1);
 }
 
 using TypesOfLocals = ZoneVector<ValueType>;
