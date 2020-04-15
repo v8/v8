@@ -218,6 +218,9 @@ declare_args() {
   # Enable control-flow integrity features, such as pointer authentication for
   # ARM64.
   v8_control_flow_integrity = false
+
+  # Enable object names in cppgc for debug purposes.
+  cppgc_enable_object_names = false
 }
 
 # Derived defaults.
@@ -351,15 +354,19 @@ config("cppgc_base_config") {
   # Assume is_clang = false means GCC or other compilers that are compatible
   # with gas inline assembly on non-Windows builds. Cross builds for
   # Linux->Windows are covered as they use clang.
+  defines = []
   if (is_clang || !is_win) {
     if (target_cpu == "x64" || target_cpu == "x86" || target_cpu == "arm" ||
         target_cpu == "arm64" || target_cpu == "ppc64" ||
         target_cpu == "s390x") {
-      defines = [ "CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN" ]
+      defines += [ "CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN" ]
     }
   } else if (is_win) {
     # Assume that non-clang builds on Windows use native tools.
-    defines = [ "CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN" ]
+    defines += [ "CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN" ]
+  }
+  if (cppgc_enable_object_names) {
+    defines += [ "CPPGC_SUPPORTS_OBJECT_NAMES" ]
   }
 }
 
@@ -3955,12 +3962,14 @@ v8_source_set("cppgc_base") {
     "include/cppgc/internal/compiler-specific.h",
     "include/cppgc/internal/finalizer-traits.h",
     "include/cppgc/internal/gc-info.h",
+    "include/cppgc/internal/persistent-node.h",
     "include/cppgc/internal/pointer-policies.h",
     "include/cppgc/internal/prefinalizer-handler.h",
     "include/cppgc/liveness-broker.h",
     "include/cppgc/liveness-broker.h",
     "include/cppgc/macros.h",
     "include/cppgc/member.h",
+    "include/cppgc/persistent.h",
     "include/cppgc/platform.h",
     "include/cppgc/prefinalizer.h",
     "include/cppgc/source-location.h",
@@ -3985,6 +3994,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/page-memory-inl.h",
     "src/heap/cppgc/page-memory.cc",
     "src/heap/cppgc/page-memory.h",
+    "src/heap/cppgc/persistent-node.cc",
     "src/heap/cppgc/platform.cc",
     "src/heap/cppgc/pointer-policies.cc",
     "src/heap/cppgc/prefinalizer-handler.cc",

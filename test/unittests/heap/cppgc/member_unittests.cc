@@ -8,6 +8,7 @@
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/member.h"
+#include "include/cppgc/persistent.h"
 #include "include/cppgc/type-traits.h"
 
 #include "test/unittests/heap/cppgc/tests.h"
@@ -18,8 +19,12 @@ namespace internal {
 
 namespace {
 
-struct GCed : GarbageCollected<GCed> {};
-struct DerivedGCed : GCed {};
+struct GCed : GarbageCollected<GCed> {
+  virtual void Trace(cppgc::Visitor*) {}
+};
+struct DerivedGCed : GCed {
+  void Trace(cppgc::Visitor* v) override { GCed::Trace(v); }
+};
 
 // Compile tests.
 static_assert(!IsWeakV<Member<GCed>>, "Member is always strong.");
@@ -60,15 +65,15 @@ class MemberTest : public testing::TestSupportingAllocationOnly {};
 
 }  // namespace
 
-template <template <typename> class Member>
+template <template <typename> class MemberType>
 void EmptyTest() {
   {
-    Member<GCed> empty;
+    MemberType<GCed> empty;
     EXPECT_EQ(nullptr, empty.Get());
     EXPECT_EQ(nullptr, empty.Release());
   }
   {
-    Member<GCed> empty = nullptr;
+    MemberType<GCed> empty = nullptr;
     EXPECT_EQ(nullptr, empty.Get());
     EXPECT_EQ(nullptr, empty.Release());
   }
@@ -80,9 +85,9 @@ TEST_F(MemberTest, Empty) {
   EmptyTest<UntracedMember>();
 }
 
-template <template <typename> class Member>
+template <template <typename> class MemberType>
 void ClearTest(cppgc::Heap* heap) {
-  Member<GCed> member = MakeGarbageCollected<GCed>(heap);
+  MemberType<GCed> member = MakeGarbageCollected<GCed>(heap);
   EXPECT_NE(nullptr, member.Get());
   member.Clear();
   EXPECT_EQ(nullptr, member.Get());
@@ -95,10 +100,10 @@ TEST_F(MemberTest, Clear) {
   ClearTest<UntracedMember>(heap);
 }
 
-template <template <typename> class Member>
+template <template <typename> class MemberType>
 void ReleaseTest(cppgc::Heap* heap) {
   GCed* gced = MakeGarbageCollected<GCed>(heap);
-  Member<GCed> member = gced;
+  MemberType<GCed> member = gced;
   EXPECT_NE(nullptr, member.Get());
   GCed* raw = member.Release();
   EXPECT_EQ(gced, raw);
@@ -112,12 +117,13 @@ TEST_F(MemberTest, Release) {
   ReleaseTest<UntracedMember>(heap);
 }
 
-template <template <typename> class Member1, template <typename> class Member2>
+template <template <typename> class MemberType1,
+          template <typename> class MemberType2>
 void SwapTest(cppgc::Heap* heap) {
   GCed* gced1 = MakeGarbageCollected<GCed>(heap);
   GCed* gced2 = MakeGarbageCollected<GCed>(heap);
-  Member1<GCed> member1 = gced1;
-  Member2<GCed> member2 = gced2;
+  MemberType1<GCed> member1 = gced1;
+  MemberType2<GCed> member2 = gced2;
   EXPECT_EQ(gced1, member1.Get());
   EXPECT_EQ(gced2, member2.Get());
   member1.Swap(member2);
@@ -138,27 +144,28 @@ TEST_F(MemberTest, Swap) {
   SwapTest<UntracedMember, UntracedMember>(heap);
 }
 
-template <template <typename> class Member1, template <typename> class Member2>
+template <template <typename> class MemberType1,
+          template <typename> class MemberType2>
 void HeterogeneousConversionTest(cppgc::Heap* heap) {
   {
-    Member1<GCed> member1 = MakeGarbageCollected<GCed>(heap);
-    Member2<GCed> member2 = member1;
+    MemberType1<GCed> member1 = MakeGarbageCollected<GCed>(heap);
+    MemberType2<GCed> member2 = member1;
     EXPECT_EQ(member1.Get(), member2.Get());
   }
   {
-    Member1<DerivedGCed> member1 = MakeGarbageCollected<DerivedGCed>(heap);
-    Member2<GCed> member2 = member1;
+    MemberType1<DerivedGCed> member1 = MakeGarbageCollected<DerivedGCed>(heap);
+    MemberType2<GCed> member2 = member1;
     EXPECT_EQ(member1.Get(), member2.Get());
   }
   {
-    Member1<GCed> member1 = MakeGarbageCollected<GCed>(heap);
-    Member2<GCed> member2;
+    MemberType1<GCed> member1 = MakeGarbageCollected<GCed>(heap);
+    MemberType2<GCed> member2;
     member2 = member1;
     EXPECT_EQ(member1.Get(), member2.Get());
   }
   {
-    Member1<DerivedGCed> member1 = MakeGarbageCollected<DerivedGCed>(heap);
-    Member2<GCed> member2;
+    MemberType1<DerivedGCed> member1 = MakeGarbageCollected<DerivedGCed>(heap);
+    MemberType2<GCed> member2;
     member2 = member1;
     EXPECT_EQ(member1.Get(), member2.Get());
   }
@@ -177,12 +184,52 @@ TEST_F(MemberTest, HeterogeneousInterface) {
   HeterogeneousConversionTest<UntracedMember, UntracedMember>(heap);
 }
 
-template <template <typename> class Member1, template <typename> class Member2>
+template <template <typename> class MemberType,
+          template <typename> class PersistentType>
+void PersistentConversionTest(cppgc::Heap* heap) {
+  {
+    PersistentType<GCed> persistent = MakeGarbageCollected<GCed>(heap);
+    MemberType<GCed> member = persistent;
+    EXPECT_EQ(persistent.Get(), member.Get());
+  }
+  {
+    PersistentType<DerivedGCed> persistent =
+        MakeGarbageCollected<DerivedGCed>(heap);
+    MemberType<GCed> member = persistent;
+    EXPECT_EQ(persistent.Get(), member.Get());
+  }
+  {
+    PersistentType<GCed> persistent = MakeGarbageCollected<GCed>(heap);
+    MemberType<GCed> member;
+    member = persistent;
+    EXPECT_EQ(persistent.Get(), member.Get());
+  }
+  {
+    PersistentType<DerivedGCed> persistent =
+        MakeGarbageCollected<DerivedGCed>(heap);
+    MemberType<GCed> member;
+    member = persistent;
+    EXPECT_EQ(persistent.Get(), member.Get());
+  }
+}
+
+TEST_F(MemberTest, PersistentConversion) {
+  cppgc::Heap* heap = GetHeap();
+  PersistentConversionTest<Member, Persistent>(heap);
+  PersistentConversionTest<Member, WeakPersistent>(heap);
+  PersistentConversionTest<WeakMember, Persistent>(heap);
+  PersistentConversionTest<WeakMember, WeakPersistent>(heap);
+  PersistentConversionTest<UntracedMember, Persistent>(heap);
+  PersistentConversionTest<UntracedMember, WeakPersistent>(heap);
+}
+
+template <template <typename> class MemberType1,
+          template <typename> class MemberType2>
 void EqualityTest(cppgc::Heap* heap) {
   {
     GCed* gced = MakeGarbageCollected<GCed>(heap);
-    Member1<GCed> member1 = gced;
-    Member2<GCed> member2 = gced;
+    MemberType1<GCed> member1 = gced;
+    MemberType2<GCed> member2 = gced;
     EXPECT_TRUE(member1 == member2);
     EXPECT_FALSE(member1 != member2);
     member2 = member1;
@@ -190,8 +237,8 @@ void EqualityTest(cppgc::Heap* heap) {
     EXPECT_FALSE(member1 != member2);
   }
   {
-    Member1<GCed> member1 = MakeGarbageCollected<GCed>(heap);
-    Member2<GCed> member2 = MakeGarbageCollected<GCed>(heap);
+    MemberType1<GCed> member1 = MakeGarbageCollected<GCed>(heap);
+    MemberType2<GCed> member2 = MakeGarbageCollected<GCed>(heap);
     EXPECT_TRUE(member1 != member2);
     EXPECT_FALSE(member1 == member2);
   }
@@ -229,6 +276,7 @@ TEST_F(MemberTest, WriteBarrierTriggered) {
   EXPECT_EQ(1u, CustomWriteBarrierPolicy::AssigningWriteBarriersTriggered);
   member2 = kSentinelPointer;
   EXPECT_EQ(kSentinelPointer, member2.Get());
+  EXPECT_EQ(kSentinelPointer, member2);
   // No initializing barriers for pointer sentinel.
   EXPECT_EQ(1u, CustomWriteBarrierPolicy::InitializingWriteBarriersTriggered);
   EXPECT_EQ(1u, CustomWriteBarrierPolicy::AssigningWriteBarriersTriggered);

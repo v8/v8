@@ -10,6 +10,7 @@
 
 #include "include/cppgc/heap.h"
 #include "include/cppgc/internal/gc-info.h"
+#include "include/cppgc/internal/persistent-node.h"
 #include "include/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
@@ -75,6 +76,19 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
     return prefinalizer_handler_.get();
   }
 
+  PersistentRegion& GetStrongPersistentRegion() {
+    return strong_persistent_region_;
+  }
+  const PersistentRegion& GetStrongPersistentRegion() const {
+    return strong_persistent_region_;
+  }
+  PersistentRegion& GetWeakPersistentRegion() {
+    return weak_persistent_region_;
+  }
+  const PersistentRegion& GetWeakPersistentRegion() const {
+    return weak_persistent_region_;
+  }
+
  private:
   // TODO(chromium:1056170): Remove as soon as arenas are available for
   // allocation.
@@ -105,6 +119,9 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   std::unique_ptr<BasicAllocator> allocator_;
   std::vector<HeapObjectHeader*> objects_;
   std::unique_ptr<PreFinalizerHandler> prefinalizer_handler_;
+
+  PersistentRegion strong_persistent_region_;
+  PersistentRegion weak_persistent_region_;
 
   size_t no_gc_scope_ = 0;
   size_t no_allocation_scope_ = 0;

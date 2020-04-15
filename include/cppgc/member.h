@@ -21,13 +21,15 @@ namespace internal {
 
 // The basic class from which all Member classes are 'generated'.
 template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
-          typename CheckingPolicy = DefaultCheckingPolicy>
+          typename CheckingPolicy>
 class BasicMember : private CheckingPolicy {
  public:
+  using PointeeType = T;
+
   constexpr BasicMember() = default;
-  constexpr BasicMember(std::nullptr_t) {}  // NOLINT
+  constexpr BasicMember(std::nullptr_t) {}     // NOLINT
   BasicMember(SentinelPointer s) : raw_(s) {}  // NOLINT
-  BasicMember(T* raw) : raw_(raw) {  // NOLINT
+  BasicMember(T* raw) : raw_(raw) {            // NOLINT
     InitializingWriteBarrier();
     this->CheckPointer(raw_);
   }
@@ -41,6 +43,16 @@ class BasicMember : private CheckingPolicy {
       const BasicMember<U, OtherWeaknessTag, OtherBarrierPolicy,
                         OtherCheckingPolicy>& other)
       : BasicMember(other.Get()) {}
+  // Construction from Persistent.
+  template <typename U, typename PersistentWeaknessPolicy,
+            typename PersistentLocationPolicy,
+            typename PersistentCheckingPolicy,
+            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+  BasicMember(  // NOLINT
+      const BasicPersistent<U, PersistentWeaknessPolicy,
+                            PersistentLocationPolicy, PersistentCheckingPolicy>&
+          p)
+      : BasicMember(p.Get()) {}
 
   BasicMember& operator=(const BasicMember& other) {
     return operator=(other.Get());
@@ -52,6 +64,17 @@ class BasicMember : private CheckingPolicy {
   BasicMember& operator=(
       const BasicMember<U, OtherWeaknessTag, OtherBarrierPolicy,
                         OtherCheckingPolicy>& other) {
+    return operator=(other.Get());
+  }
+  // Assignment from Persistent.
+  template <typename U, typename PersistentWeaknessPolicy,
+            typename PersistentLocationPolicy,
+            typename PersistentCheckingPolicy,
+            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+  BasicMember& operator=(
+      const BasicPersistent<U, PersistentWeaknessPolicy,
+                            PersistentLocationPolicy, PersistentCheckingPolicy>&
+          other) {
     return operator=(other.Get());
   }
   BasicMember& operator=(T* other) {

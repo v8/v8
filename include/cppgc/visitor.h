@@ -10,14 +10,13 @@
 #include "include/cppgc/internal/pointer-policies.h"
 #include "include/cppgc/liveness-broker.h"
 #include "include/cppgc/member.h"
+#include "include/cppgc/source-location.h"
 #include "include/cppgc/trace-trait.h"
 
 namespace cppgc {
 namespace internal {
 class VisitorBase;
 }  // namespace internal
-
-class Visitor;
 
 using WeakCallback = void (*)(const LivenessBroker&, const void*);
 
@@ -50,24 +49,55 @@ class Visitor {
     // TODO(chromium:1056170): DCHECK (or similar) for deleted values as they
     // should come in at a different path.
     VisitWeak(value, TraceTrait<T>::GetTraceDescriptor(value),
-              &HandleWeakMember<T>, &weak_member);
+              &HandleWeak<WeakMember<T>>, &weak_member);
+  }
+
+  template <typename Persistent,
+            std::enable_if_t<Persistent::IsStrongPersistent::value>* = nullptr>
+  void TraceRoot(const Persistent& p, const SourceLocation& loc) {
+    using PointeeType = typename Persistent::PointeeType;
+    static_assert(sizeof(PointeeType),
+                  "Persistent's pointee type must be fully defined");
+    static_assert(internal::IsGarbageCollectedType<PointeeType>::value,
+                  "Persisent's pointee type must be GarabgeCollected or "
+                  "GarbageCollectedMixin");
+    if (!p.Get()) {
+      return;
+    }
+    VisitRoot(p.Get(), TraceTrait<PointeeType>::GetTraceDescriptor(p.Get()),
+              loc);
+  }
+
+  template <typename Persistent,
+            std::enable_if_t<!Persistent::IsStrongPersistent::value>* = nullptr>
+  void TraceRoot(const Persistent& p, const SourceLocation& loc) {
+    using PointeeType = typename Persistent::PointeeType;
+    static_assert(sizeof(PointeeType),
+                  "Persistent's pointee type must be fully defined");
+    static_assert(internal::IsGarbageCollectedType<PointeeType>::value,
+                  "Persisent's pointee type must be GarabgeCollected or "
+                  "GarbageCollectedMixin");
+    VisitWeakRoot(&p, &HandleWeak<Persistent>);
   }
 
  protected:
   virtual void Visit(const void* self, TraceDescriptor) {}
   virtual void VisitWeak(const void* self, TraceDescriptor, WeakCallback,
                          const void* weak_member) {}
+  virtual void VisitRoot(const void*, TraceDescriptor,
+                         const SourceLocation& loc) {}
+  virtual void VisitWeakRoot(const void*, WeakCallback) {}
 
  private:
-  template <typename T>
-  static void HandleWeakMember(const LivenessBroker& info, const void* object) {
-    const WeakMember<T>* weak_member =
-        reinterpret_cast<const WeakMember<T>*>(object);
-    if (!info.IsHeapObjectAlive(*weak_member)) {
+  template <typename PointerType>
+  static void HandleWeak(const LivenessBroker& info, const void* object) {
+    const PointerType* weak = static_cast<const PointerType*>(object);
+    const auto* raw = weak->Get();
+    if (raw && !info.IsHeapObjectAlive(raw)) {
       // Object is passed down through the marker as const. Alternatives are
       // - non-const Trace method;
       // - mutable pointer in MemberBase;
-      const_cast<WeakMember<T>*>(weak_member)->Clear();
+      const_cast<PointerType*>(weak)->Clear();
     }
   }
 

@@ -6,11 +6,15 @@
 #define INCLUDE_CPPGC_INTERNAL_POINTER_POLICIES_H_
 
 #include <cstdint>
+#include <type_traits>
 
+#include "include/cppgc/source-location.h"
 #include "include/v8config.h"
 
 namespace cppgc {
 namespace internal {
+
+class PersistentRegion;
 
 // Tags to distinguish between strong and weak member types.
 class StrongMemberTag;
@@ -51,6 +55,61 @@ using DefaultCheckingPolicy = EnabledCheckingPolicy;
 #else
 using DefaultCheckingPolicy = DisabledCheckingPolicy;
 #endif
+
+class KeepLocationPolicy {
+ public:
+  constexpr const SourceLocation& Location() const { return location_; }
+
+ protected:
+  constexpr explicit KeepLocationPolicy(const SourceLocation& location)
+      : location_(location) {}
+
+  // KeepLocationPolicy must not copy underlying source locations.
+  KeepLocationPolicy(const KeepLocationPolicy&) = delete;
+  KeepLocationPolicy& operator=(const KeepLocationPolicy&) = delete;
+
+  // Location of the original moved from object should be preserved.
+  KeepLocationPolicy(KeepLocationPolicy&&) = default;
+  KeepLocationPolicy& operator=(KeepLocationPolicy&&) = default;
+
+ private:
+  SourceLocation location_;
+};
+
+class IgnoreLocationPolicy {
+ public:
+  constexpr SourceLocation Location() const { return {}; }
+
+ protected:
+  constexpr explicit IgnoreLocationPolicy(const SourceLocation&) {}
+};
+
+#if CPPGC_SUPPORTS_OBJECT_NAMES
+using DefaultLocationPolicy = KeepLocationPolicy;
+#else
+using DefaultLocationPolicy = IgnoreLocationPolicy;
+#endif
+
+struct StrongPersistentPolicy {
+  using IsStrongPersistent = std::true_type;
+
+  static V8_EXPORT PersistentRegion& GetPersistentRegion(void* object);
+};
+
+struct WeakPersistentPolicy {
+  using IsStrongPersistent = std::false_type;
+
+  static V8_EXPORT PersistentRegion& GetPersistentRegion(void* object);
+};
+
+// Persistent/Member forward declarations.
+template <typename T, typename WeaknessPolicy,
+          typename LocationPolicy = DefaultLocationPolicy,
+          typename CheckingPolicy = DefaultCheckingPolicy>
+class BasicPersistent;
+template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
+          typename CheckingPolicy = DefaultCheckingPolicy>
+class BasicMember;
 
 // Special tag type used to denote some sentinel member. The semantics of the
 // sentinel is defined by the embedder.
