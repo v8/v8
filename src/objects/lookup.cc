@@ -205,8 +205,7 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
 
     if (!Protectors::IsArraySpeciesLookupChainIntact(isolate) &&
         !Protectors::IsPromiseSpeciesLookupChainIntact(isolate) &&
-        !Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
-            native_context) &&
+        !Protectors::IsRegExpSpeciesLookupChainIntact(native_context) &&
         !Protectors::IsTypedArraySpeciesLookupChainIntact(isolate)) {
       return;
     }
@@ -222,12 +221,10 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
       Protectors::InvalidatePromiseSpeciesLookupChain(isolate);
       return;
     } else if (receiver->IsJSRegExp(isolate)) {
-      if (!Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
-              native_context)) {
+      if (!Protectors::IsRegExpSpeciesLookupChainIntact(native_context)) {
         return;
       }
-      Protectors::InvalidateRegExpSpeciesLookupChainProtector(isolate,
-                                                              native_context);
+      Protectors::InvalidateRegExpSpeciesLookupChain(isolate, native_context);
       return;
     } else if (receiver->IsJSTypedArray(isolate)) {
       if (!Protectors::IsTypedArraySpeciesLookupChainIntact(isolate)) return;
@@ -253,12 +250,10 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
         Protectors::InvalidatePromiseSpeciesLookupChain(isolate);
       } else if (isolate->IsInAnyContext(*receiver,
                                          Context::REGEXP_PROTOTYPE_INDEX)) {
-        if (!Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
-                native_context)) {
+        if (!Protectors::IsRegExpSpeciesLookupChainIntact(native_context)) {
           return;
         }
-        Protectors::InvalidateRegExpSpeciesLookupChainProtector(isolate,
-                                                                native_context);
+        Protectors::InvalidateRegExpSpeciesLookupChain(isolate, native_context);
       } else if (isolate->IsInAnyContext(
                      receiver->map(isolate).prototype(isolate),
                      Context::TYPED_ARRAY_PROTOTYPE_INDEX)) {
@@ -301,8 +296,7 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
 
     if (!Protectors::IsArraySpeciesLookupChainIntact(isolate) &&
         !Protectors::IsPromiseSpeciesLookupChainIntact(isolate) &&
-        !Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
-            native_context) &&
+        !Protectors::IsRegExpSpeciesLookupChainIntact(native_context) &&
         !Protectors::IsTypedArraySpeciesLookupChainIntact(isolate)) {
       return;
     }
@@ -319,12 +313,10 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
       Protectors::InvalidatePromiseSpeciesLookupChain(isolate);
     } else if (isolate->IsInAnyContext(*receiver,
                                        Context::REGEXP_FUNCTION_INDEX)) {
-      if (!Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
-              native_context)) {
+      if (!Protectors::IsRegExpSpeciesLookupChainIntact(native_context)) {
         return;
       }
-      Protectors::InvalidateRegExpSpeciesLookupChainProtector(isolate,
-                                                              native_context);
+      Protectors::InvalidateRegExpSpeciesLookupChain(isolate, native_context);
     } else if (IsTypedArrayFunctionInAnyContext(isolate, *receiver)) {
       if (!Protectors::IsTypedArraySpeciesLookupChainIntact(isolate)) return;
       Protectors::InvalidateTypedArraySpeciesLookupChain(isolate);
