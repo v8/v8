@@ -329,6 +329,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP3_XO(Xorpd, xorpd)
   AVX_OP3_XO(Sqrtss, sqrtss)
   AVX_OP3_XO(Sqrtsd, sqrtsd)
+  AVX_OP3_XO(Orps, orps)
   AVX_OP3_XO(Orpd, orpd)
   AVX_OP3_XO(Andnpd, andnpd)
 
@@ -351,6 +352,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, Operand)
 
   AVX_PACKED_OP3(Addpd, addpd)
+  AVX_PACKED_OP3(Subps, subps)
   AVX_PACKED_OP3(Subpd, subpd)
   AVX_PACKED_OP3(Mulpd, mulpd)
   AVX_PACKED_OP3(Divpd, divpd)
@@ -360,6 +362,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3(Cmplepd, cmplepd)
   AVX_PACKED_OP3(Minpd, minpd)
   AVX_PACKED_OP3(Maxpd, maxpd)
+  AVX_PACKED_OP3(Cmpunordps, cmpunordps)
   AVX_PACKED_OP3(Cmpunordpd, cmpunordpd)
   AVX_PACKED_OP3(Psllw, psllw)
   AVX_PACKED_OP3(Pslld, pslld)

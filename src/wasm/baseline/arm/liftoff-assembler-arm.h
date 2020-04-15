@@ -1704,6 +1704,16 @@ void LiftoffAssembler::emit_f64x2_div(LiftoffRegister dst, LiftoffRegister lhs,
   vdiv(dst.high_fp(), lhs.high_fp(), rhs.high_fp());
 }
 
+void LiftoffAssembler::emit_f64x2_min(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  bailout(kSimd, "f64x2min");
+}
+
+void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  bailout(kSimd, "f64x2max");
+}
+
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   vdup(Neon32, liftoff::GetSimd128Register(dst), src.fp(), 0);
@@ -1785,6 +1795,16 @@ void LiftoffAssembler::emit_f32x4_div(LiftoffRegister dst, LiftoffRegister lhs,
   vdiv(dst_low.high(), lhs_low.high(), rhs_low.high());
   vdiv(dst_high.low(), lhs_high.low(), rhs_high.low());
   vdiv(dst_high.high(), lhs_high.high(), rhs_high.high());
+}
+
+void LiftoffAssembler::emit_f32x4_min(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  bailout(kSimd, "f32x4min");
+}
+
+void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  bailout(kSimd, "f32x4max");
 }
 
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
