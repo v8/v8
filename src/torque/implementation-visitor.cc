@@ -2002,6 +2002,20 @@ LocationReference ImplementationVisitor::GenerateFieldAccess(
     const BitField& field = bitfield_struct->LookupField(fieldname);
     return LocationReference::BitFieldAccess(reference, field);
   }
+  if (const auto type_wrapped_in_smi = Type::MatchUnaryGeneric(
+          reference.ReferencedType(), TypeOracle::GetSmiTaggedGeneric())) {
+    const BitFieldStructType* bitfield_struct =
+        BitFieldStructType::DynamicCast(*type_wrapped_in_smi);
+    if (bitfield_struct == nullptr) {
+      ReportError(
+          "When a value of type SmiTagged<T> is used in a field access "
+          "expression, T is expected to be a bitfield struct type. Instead, T "
+          "is ",
+          **type_wrapped_in_smi);
+    }
+    const BitField& field = bitfield_struct->LookupField(fieldname);
+    return LocationReference::BitFieldAccess(reference, field);
+  }
   if (reference.IsHeapReference()) {
     VisitResult ref = reference.heap_reference();
     bool is_const;
@@ -2190,9 +2204,8 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
     // First fetch the bitfield struct, then get the bits out of it.
     VisitResult bit_field_struct =
         GenerateFetchFromLocation(reference.bit_field_struct_location());
-    assembler().Emit(LoadBitFieldInstruction{
-        BitFieldStructType::cast(bit_field_struct.type()),
-        reference.bit_field()});
+    assembler().Emit(LoadBitFieldInstruction{bit_field_struct.type(),
+                                             reference.bit_field()});
     return VisitResult(reference.ReferencedType(), assembler().TopRange(1));
   } else {
     if (reference.IsHeapSlice()) {
@@ -2271,9 +2284,8 @@ void ImplementationVisitor::GenerateAssignToLocation(
         GenerateImplicitConvert(reference.ReferencedType(), assignment_value);
     GenerateCopy(bit_field_struct);
     GenerateCopy(converted_value);
-    assembler().Emit(StoreBitFieldInstruction{
-        BitFieldStructType::cast(bit_field_struct.type()),
-        reference.bit_field()});
+    assembler().Emit(StoreBitFieldInstruction{bit_field_struct.type(),
+                                              reference.bit_field()});
     GenerateAssignToLocation(
         reference.bit_field_struct_location(),
         VisitResult(bit_field_struct.type(), assembler().TopRange(1)));

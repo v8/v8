@@ -104,32 +104,6 @@ namespace regexp {
     return RegExpPrototypeMatchAllImpl(context, receiver, string);
   }
 
-  const kJSRegExpStringIteratorDone:
-      constexpr int31 generates '1 << JSRegExpStringIterator::kDoneBit';
-  const kJSRegExpStringIteratorGlobal: constexpr int31
-  generates '1 << JSRegExpStringIterator::kGlobalBit';
-  const kJSRegExpStringIteratorUnicode: constexpr int31
-  generates '1 << JSRegExpStringIterator::kUnicodeBit';
-
-  extern macro IsSetSmi(Smi, constexpr int31): bool;
-
-  macro HasDoneFlag(flags: Smi): bool {
-    return IsSetSmi(flags, kJSRegExpStringIteratorDone);
-  }
-
-  macro HasGlobalFlag(flags: Smi): bool {
-    return IsSetSmi(flags, kJSRegExpStringIteratorGlobal);
-  }
-
-  macro HasUnicodeFlag(flags: Smi): bool {
-    return IsSetSmi(flags, kJSRegExpStringIteratorUnicode);
-  }
-
-  macro SetDoneFlag(iterator: JSRegExpStringIterator, flags: Smi) {
-    const newFlags: Smi = flags | kJSRegExpStringIteratorDone;
-    iterator.flags = newFlags;
-  }
-
   // https://tc39.github.io/proposal-string-matchall/
   // %RegExpStringIteratorPrototype%.next ( )
   transitioning javascript builtin RegExpStringIteratorPrototypeNext(
@@ -147,8 +121,8 @@ namespace regexp {
     try {
       // 4. If O.[[Done]] is true, then
       //   a. Return ! CreateIterResultObject(undefined, true).
-      const flags: Smi = receiver.flags;
-      if (HasDoneFlag(flags)) goto ReturnEmptyDoneResult;
+      const flags: SmiTagged<JSRegExpStringIteratorFlags> = receiver.flags;
+      if (flags.done) goto ReturnEmptyDoneResult;
 
       // 5. Let R be O.[[iteratingRegExp]].
       const iteratingRegExp: JSReceiver = receiver.iterating_reg_exp;
@@ -180,15 +154,15 @@ namespace regexp {
         }
         // 11. Else,
         // b. Else, handle non-global case first.
-        if (!HasGlobalFlag(flags)) {
+        if (!flags.global) {
           // i. Set O.[[Done]] to true.
-          SetDoneFlag(receiver, flags);
+          receiver.flags.done = true;
 
           // ii. Return ! CreateIterResultObject(match, false).
           return AllocateJSIteratorResult(UnsafeCast<JSAny>(match), False);
         }
         // a. If global is true,
-        assert(HasGlobalFlag(flags));
+        assert(flags.global);
         if (isFastRegExp) {
           // i. Let matchStr be ? ToString(? Get(match, "0")).
           const match = UnsafeCast<JSRegExpResult>(match);
@@ -206,7 +180,7 @@ namespace regexp {
             // 2. Let nextIndex be ! AdvanceStringIndex(S, thisIndex,
             // fullUnicode).
             const nextIndex: Smi = AdvanceStringIndexFast(
-                iteratingString, thisIndex, HasUnicodeFlag(flags));
+                iteratingString, thisIndex, flags.unicode);
 
             // 3. Perform ? Set(R, "lastIndex", nextIndex, true).
             FastStoreLastIndex(iteratingRegExp, nextIndex);
@@ -227,8 +201,8 @@ namespace regexp {
 
           // 2. Let nextIndex be ! AdvanceStringIndex(S, thisIndex,
           // fullUnicode).
-          const nextIndex: Number = AdvanceStringIndexSlow(
-              iteratingString, thisIndex, HasUnicodeFlag(flags));
+          const nextIndex: Number =
+              AdvanceStringIndexSlow(iteratingString, thisIndex, flags.unicode);
 
           // 3. Perform ? Set(R, "lastIndex", nextIndex, true).
           SlowStoreLastIndex(iteratingRegExp, nextIndex);
@@ -239,7 +213,7 @@ namespace regexp {
       // 10. If match is null, then
       label IfNoMatch {
         // a. Set O.[[Done]] to true.
-        SetDoneFlag(receiver, flags);
+        receiver.flags.done = true;
 
         // b. Return ! CreateIterResultObject(undefined, true).
         goto ReturnEmptyDoneResult;

@@ -816,6 +816,8 @@ TypeVector LowerParameterTypes(const ParameterTypes& parameter_types,
 base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type);
 bool IsAnyUnsignedInteger(const Type* type);
 bool IsAllowedAsBitField(const Type* type);
+bool IsPointerSizeIntegralType(const Type* type);
+bool Is32BitIntegralType(const Type* type);
 
 base::Optional<NameAndType> ExtractSimpleFieldArraySize(
     const ClassType& class_type, Expression* array_size);

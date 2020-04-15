@@ -763,6 +763,44 @@ TEST_F(MachineOperatorReducerTest, Word32AndWithComparisonAndConstantOne) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// Word32Or
+
+TEST_F(MachineOperatorReducerTest, Word32OrWithWord32And) {
+  Node* const p0 = Parameter(0);
+  TRACED_FOREACH(int32_t, m, kUint32Values) {
+    TRACED_FOREACH(int32_t, rhs, kUint32Values) {
+      // To get better coverage of interesting cases, run this test twice:
+      // once with the mask from kUint32Values, and once with its inverse.
+      for (int32_t mask : {m, ~m}) {
+        Reduction const r = Reduce(graph()->NewNode(
+            machine()->Word32Or(),
+            graph()->NewNode(machine()->Word32And(), p0, Int32Constant(mask)),
+            Int32Constant(rhs)));
+        switch (rhs) {
+          case 0:  // x | 0 => x
+            ASSERT_TRUE(r.Changed());
+            EXPECT_THAT(r.replacement(),
+                        IsWord32And(p0, IsInt32Constant(mask)));
+            break;
+          case -1:  // x | -1 => -1
+            ASSERT_TRUE(r.Changed());
+            EXPECT_THAT(r.replacement(), IsInt32Constant(-1));
+            break;
+          default:  // (x & K1) | K2 => x | K2, if K1 | K2 == -1
+            if ((mask | rhs) == -1) {
+              ASSERT_TRUE(r.Changed());
+              EXPECT_THAT(r.replacement(),
+                          IsWord32Or(p0, IsInt32Constant(rhs)));
+            } else {
+              ASSERT_TRUE(!r.Changed());
+            }
+            break;
+        }
+      }
+    }
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Word32Xor
