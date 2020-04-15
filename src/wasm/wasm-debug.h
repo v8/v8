@@ -130,9 +130,9 @@ class DebugSideTable {
   std::vector<Entry> entries_;
 };
 
-// Get the global scope for a given instance. This will contain the wasm memory
+// Get the module scope for a given instance. This will contain the wasm memory
 // (if the instance has a memory) and the values of all globals.
-Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject>);
+Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject>);
 
 // Debug info per NativeModule, created lazily on demand.
 // Implementation in {wasm-debug.cc} using PIMPL.

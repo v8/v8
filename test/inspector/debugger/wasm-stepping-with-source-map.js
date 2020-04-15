@@ -102,7 +102,7 @@ async function waitForPauseAndStep(stepAction) {
     InspectorTest.log(`at ${functionName} (${lineNumber}:${columnNumber}):`);
     for (var scope of frame.scopeChain) {
       InspectorTest.logObject(' - scope (' + scope.type + '):');
-      if (scope.type === 'global') {
+      if (scope.type === 'global' || scope.type === 'module') {
         InspectorTest.logObject('   -- skipped');
       } else {
         const {result: {result: {value}}} =

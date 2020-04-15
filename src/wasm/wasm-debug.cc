@@ -495,10 +495,10 @@ Address FindNewPC(WasmCode* wasm_code, int byte_offset,
 
 }  // namespace
 
-Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject> instance) {
+Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject> instance) {
   Isolate* isolate = instance->GetIsolate();
 
-  Handle<JSObject> global_scope_object =
+  Handle<JSObject> module_scope_object =
       isolate->factory()->NewJSObjectWithNullProto();
   if (instance->has_memory_object()) {
     Handle<String> name;
@@ -514,7 +514,7 @@ Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject> instance) {
         instance->memory_object().array_buffer(), isolate);
     Handle<JSTypedArray> uint8_array = isolate->factory()->NewJSTypedArray(
         kExternalUint8Array, memory_buffer, 0, memory_buffer->byte_length());
-    JSObject::AddProperty(isolate, global_scope_object, name, uint8_array,
+    JSObject::AddProperty(isolate, module_scope_object, name, uint8_array,
                           NONE);
   }
 
@@ -524,7 +524,7 @@ Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject> instance) {
         isolate->factory()->NewJSObjectWithNullProto();
     Handle<String> globals_name =
         isolate->factory()->InternalizeString(StaticCharVector("globals"));
-    JSObject::AddProperty(isolate, global_scope_object, globals_name,
+    JSObject::AddProperty(isolate, module_scope_object, globals_name,
                           globals_obj, NONE);
 
     for (uint32_t i = 0; i < globals.size(); ++i) {
@@ -540,8 +540,7 @@ Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject> instance) {
       JSObject::AddProperty(isolate, globals_obj, name, value_obj, NONE);
     }
   }
-
-  return global_scope_object;
+  return module_scope_object;
 }
 
 class DebugInfoImpl {

@@ -56,12 +56,12 @@ async function logMemoryName(msg, Protocol) {
 
   let scopeChain = callFrames[0].scopeChain;
   for (let scope of scopeChain) {
-    if (scope.type != 'global') continue;
-
-    let globalObjectProps = (await Protocol.Runtime.getProperties({
+    if (scope.type != 'module') continue;
+    let moduleObjectProps = (await Protocol.Runtime.getProperties({
                               'objectId': scope.object.objectId
                             })).result.result;
-    for (let prop of globalObjectProps) {
+
+    for (let prop of moduleObjectProps) {
       InspectorTest.log(`name: ${prop.name}`);
     }
   }

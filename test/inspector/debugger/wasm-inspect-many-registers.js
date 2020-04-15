@@ -35,7 +35,7 @@ Protocol.Debugger.onPaused(async msg => {
   // Inspect only the top wasm frame.
   var frame = msg.params.callFrames[0];
   for (var scope of frame.scopeChain) {
-    if (scope.type == 'global') continue;
+    if (scope.type == 'module') continue;
     var scope_properties =
         await Protocol.Runtime.getProperties({objectId: scope.object.objectId});
     if (scope.type == 'local') {

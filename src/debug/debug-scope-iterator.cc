@@ -134,7 +134,7 @@ DebugWasmScopeIterator::DebugWasmScopeIterator(Isolate* isolate,
     : isolate_(isolate),
       frame_(frame),
       inlined_frame_index_(inlined_frame_index),
-      type_(debug::ScopeIterator::ScopeTypeGlobal) {}
+      type_(debug::ScopeIterator::ScopeTypeModule) {}
 
 bool DebugWasmScopeIterator::Done() {
   return type_ == debug::ScopeIterator::ScopeTypeWith;
@@ -143,7 +143,7 @@ bool DebugWasmScopeIterator::Done() {
 void DebugWasmScopeIterator::Advance() {
   DCHECK(!Done());
   switch (type_) {
-    case ScopeTypeGlobal:
+    case ScopeTypeModule:
       type_ = debug::ScopeIterator::ScopeTypeLocal;
       break;
     case ScopeTypeLocal:
@@ -166,10 +166,10 @@ v8::debug::ScopeIterator::ScopeType DebugWasmScopeIterator::GetType() {
 v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
   DCHECK(!Done());
   switch (type_) {
-    case debug::ScopeIterator::ScopeTypeGlobal: {
+    case debug::ScopeIterator::ScopeTypeModule: {
       Handle<WasmInstanceObject> instance =
           FrameSummary::GetTop(frame_).AsWasm().wasm_instance();
-      return Utils::ToLocal(wasm::GetGlobalScopeObject(instance));
+      return Utils::ToLocal(wasm::GetModuleScopeObject(instance));
     }
     case debug::ScopeIterator::ScopeTypeLocal: {
       if (frame_->is_wasm_interpreter_entry()) {
