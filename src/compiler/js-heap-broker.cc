@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/js-heap-broker.h"
+#include "src/common/globals.h"
 #include "src/compiler/heap-refs.h"
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -4668,17 +4669,25 @@ bool JSHeapBroker::FeedbackIsInsufficient(FeedbackSource const& source) const {
 }
 
 namespace {
-MapHandles GetRelevantReceiverMaps(Isolate* isolate, MapHandles const& maps) {
-  MapHandles result;
-  for (Handle<Map> map : maps) {
+// Remove unupdatable and abandoned prototype maps in-place.
+void FilterRelevantReceiverMaps(Isolate* isolate, MapHandles* maps) {
+  auto in = maps->begin();
+  auto out = in;
+  auto end = maps->end();
+
+  for (; in != end; ++in) {
+    Handle<Map> map = *in;
     if (Map::TryUpdate(isolate, map).ToHandle(&map) &&
         !map->is_abandoned_prototype_map()) {
       DCHECK(!map->is_deprecated());
-      result.push_back(map);
+      *out = *in;
+      ++out;
     }
   }
-  return result;
-}  // namespace
+
+  // Remove everything between the last valid map and the end of the vector.
+  maps->erase(out, end);
+}
 }  // namespace
 
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
@@ -4690,14 +4699,19 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
 
   MapHandles maps;
   nexus.ExtractMaps(&maps);
-  if (!maps.empty()) {
-    maps = GetRelevantReceiverMaps(isolate(), maps);
-    if (maps.empty()) return *new (zone()) InsufficientFeedback(kind);
+  FilterRelevantReceiverMaps(isolate(), &maps);
+
+  // If no maps were found for a non-megamorphic access, then our maps died and
+  // we should soft-deopt.
+  if (maps.empty() && nexus.ic_state() != MEGAMORPHIC) {
+    return *new (zone()) InsufficientFeedback(kind);
   }
 
   base::Optional<NameRef> name =
       static_name.has_value() ? static_name : GetNameFeedback(nexus);
   if (name.has_value()) {
+    // We rely on this invariant in JSGenericLowering.
+    DCHECK_IMPLIES(maps.empty(), nexus.ic_state() == MEGAMORPHIC);
     return *new (zone()) NamedAccessFeedback(
         *name, ZoneVector<Handle<Map>>(maps.begin(), maps.end(), zone()), kind);
   } else if (nexus.GetKeyType() == ELEMENT && !maps.empty()) {
@@ -4706,8 +4720,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   } else {
     // No actionable feedback.
     DCHECK(maps.empty());
-    // TODO(neis): Investigate if we really want to treat cleared the same as
-    // megamorphic (also for global accesses).
+    DCHECK_EQ(nexus.ic_state(), MEGAMORPHIC);
     // TODO(neis): Using ElementAccessFeedback here is kind of an abuse.
     return *new (zone())
         ElementAccessFeedback(zone(), KeyedAccessMode::FromNexus(nexus), kind);

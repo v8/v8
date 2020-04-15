@@ -3654,6 +3654,9 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
   TVARIABLE(MaybeObject, var_handler);
   Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
 
+  CSA_ASSERT(this, TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
+                               MegamorphicSymbolConstant()));
+
   TryProbeStubCache(isolate()->load_stub_cache(), receiver, CAST(name),
                     &if_handler, &var_handler, &miss);
 
