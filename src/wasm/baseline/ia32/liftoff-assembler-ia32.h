@@ -1951,12 +1951,19 @@ void EmitSimdCommutativeBinOp(
 
 template <void (Assembler::*avx_op)(XMMRegister, XMMRegister, XMMRegister),
           void (Assembler::*sse_op)(XMMRegister, XMMRegister)>
-void EmitSimdNonCommutativeBinOp(LiftoffAssembler* assm, LiftoffRegister dst,
-                                 LiftoffRegister lhs, LiftoffRegister rhs) {
+void EmitSimdNonCommutativeBinOp(
+    LiftoffAssembler* assm, LiftoffRegister dst, LiftoffRegister lhs,
+    LiftoffRegister rhs, base::Optional<CpuFeature> feature = base::nullopt) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(assm, AVX);
     (assm->*avx_op)(dst.fp(), lhs.fp(), rhs.fp());
-  } else if (dst.fp() == rhs.fp()) {
+    return;
+  }
+
+  base::Optional<CpuFeatureScope> sse_scope;
+  if (feature.has_value()) sse_scope.emplace(assm, *feature);
+
+  if (dst.fp() == rhs.fp()) {
     assm->movaps(kScratchDoubleReg, rhs.fp());
     assm->movaps(dst.fp(), lhs.fp());
     (assm->*sse_op)(dst.fp(), kScratchDoubleReg);
@@ -2488,6 +2495,38 @@ void LiftoffAssembler::emit_f64x2_div(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vdivpd, &Assembler::divpd>(
       this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 LiftoffRegister rhs) {
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vpacksswb,
+                                       &Assembler::packsswb>(this, dst, lhs,
+                                                             rhs);
+}
+
+void LiftoffAssembler::emit_i8x16_uconvert_i16x8(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 LiftoffRegister rhs) {
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vpackuswb,
+                                       &Assembler::packuswb>(this, dst, lhs,
+                                                             rhs);
+}
+
+void LiftoffAssembler::emit_i16x8_sconvert_i32x4(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 LiftoffRegister rhs) {
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vpackssdw,
+                                       &Assembler::packssdw>(this, dst, lhs,
+                                                             rhs);
+}
+
+void LiftoffAssembler::emit_i16x8_uconvert_i32x4(LiftoffRegister dst,
+                                                 LiftoffRegister lhs,
+                                                 LiftoffRegister rhs) {
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vpackusdw,
+                                       &Assembler::packusdw>(this, dst, lhs,
+                                                             rhs, SSE4_1);
 }
 
 void LiftoffAssembler::emit_i8x16_rounding_average_u(LiftoffRegister dst,
