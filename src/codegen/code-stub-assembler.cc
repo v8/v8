@@ -7400,7 +7400,7 @@ TNode<Uint32T> CodeStubAssembler::DecodeWord32(SloppyTNode<Word32T> word32,
 }
 
 TNode<UintPtrT> CodeStubAssembler::DecodeWord(SloppyTNode<WordT> word,
-                                              uint32_t shift, uint32_t mask) {
+                                              uint32_t shift, uintptr_t mask) {
   DCHECK_EQ((mask >> shift) << shift, mask);
   return Unsigned(WordAnd(WordShr(word, static_cast<int>(shift)),
                           IntPtrConstant(mask >> shift)));
@@ -7419,7 +7419,7 @@ TNode<Word32T> CodeStubAssembler::UpdateWord32(TNode<Word32T> word,
 
 TNode<WordT> CodeStubAssembler::UpdateWord(TNode<WordT> word,
                                            TNode<UintPtrT> value,
-                                           uint32_t shift, uint32_t mask) {
+                                           uint32_t shift, uintptr_t mask) {
   DCHECK_EQ((mask >> shift) << shift, mask);
   // Ensure the {value} fits fully in the mask.
   CSA_ASSERT(this,

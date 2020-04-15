@@ -2820,7 +2820,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Decodes an unsigned (!) value from |word| to a word-size node.
   TNode<UintPtrT> DecodeWord(SloppyTNode<WordT> word, uint32_t shift,
-                             uint32_t mask);
+                             uintptr_t mask);
 
   // Returns a node that contains the updated values of a |BitField|.
   template <typename BitField>
@@ -2856,7 +2856,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Returns a node that contains the updated {value} inside {word} starting
   // at {shift} and fitting in {mask}.
   TNode<WordT> UpdateWord(TNode<WordT> word, TNode<UintPtrT> value,
-                          uint32_t shift, uint32_t mask);
+                          uint32_t shift, uintptr_t mask);
 
   // Returns true if any of the |T|'s bits in given |word32| are set.
   template <typename T>
