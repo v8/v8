@@ -1235,6 +1235,7 @@ Handle<Script> WasmEngine::GetOrCreateScript(
 }
 
 void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
+  DCHECK(!mutex_.TryLock());
   DCHECK_NULL(current_gc_info_);
   DCHECK(FLAG_wasm_code_gc);
   new_potentially_dead_code_size_ = 0;
@@ -1262,6 +1263,11 @@ void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
   TRACE_CODE_GC(
       "Starting GC. Total number of potentially dead code objects: %zu\n",
       current_gc_info_->dead_code.size());
+  // Ensure that there are outstanding isolates that will eventually finish this
+  // GC. If there are no outstanding isolates, we finish the GC immediately.
+  PotentiallyFinishCurrentGC();
+  DCHECK(current_gc_info_ == nullptr ||
+         !current_gc_info_->outstanding_isolates.empty());
 }
 
 bool WasmEngine::RemoveIsolateFromCurrentGC(Isolate* isolate) {
