@@ -1062,7 +1062,6 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
     }
   }
 
-  // TODO(yangguo): Queue this structured stack trace for preprocessing on GC.
   return builder.GetElementsAsStackTraceFrameArray();
 }
 

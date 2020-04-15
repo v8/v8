@@ -93,8 +93,6 @@ ParseInfo::ParseInfo(Isolate* isolate, SharedFunctionInfo shared)
     : ParseInfo(isolate, isolate->allocator(),
                 Script::cast(shared.script()).id()) {
   // Do not support re-parsing top-level function of a wrapped script.
-  // TODO(yangguo): consider whether we need a top-level function in a
-  //                wrapped script at all.
   DCHECK_IMPLIES(is_toplevel(), !Script::cast(shared.script()).is_wrapped());
 
   set_allow_lazy_parsing(true);
