@@ -22,7 +22,8 @@ LocalHeap::LocalHeap(Heap* heap,
       prev_(nullptr),
       next_(nullptr),
       handles_(new LocalHandles),
-      persistent_handles_(std::move(persistent_handles)) {
+      persistent_handles_(std::move(persistent_handles)),
+      old_space_allocator_(this, heap->old_space()) {
   heap_->safepoint()->AddLocalHeap(this);
   if (persistent_handles_) {
     persistent_handles_->Attach(this);

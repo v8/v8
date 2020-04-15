@@ -11,6 +11,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/execution/isolate.h"
+#include "src/heap/concurrent-allocator.h"
 #include "src/heap/safepoint.h"
 
 namespace v8 {
@@ -43,6 +44,10 @@ class LocalHeap {
   DetachPersistentHandles();
 
   bool IsParked();
+
+  Heap* heap() { return heap_; }
+
+  ConcurrentAllocator* old_space_allocator() { return &old_space_allocator_; }
 
  private:
   enum class ThreadState {
@@ -77,6 +82,8 @@ class LocalHeap {
 
   std::unique_ptr<LocalHandles> handles_;
   std::unique_ptr<PersistentHandles> persistent_handles_;
+
+  ConcurrentAllocator old_space_allocator_;
 
   friend class Heap;
   friend class GlobalSafepoint;

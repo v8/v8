@@ -11,6 +11,7 @@
 #include "src/base/bits.h"
 #include "src/base/lsan.h"
 #include "src/base/macros.h"
+#include "src/base/optional.h"
 #include "src/base/platform/semaphore.h"
 #include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
@@ -20,6 +21,7 @@
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
+#include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/mark-compact.h"
@@ -30,6 +32,7 @@
 #include "src/init/v8.h"
 #include "src/logging/counters.h"
 #include "src/objects/free-space-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/sanitizer/msan.h"
@@ -2128,6 +2131,97 @@ bool PagedSpace::RefillLinearAllocationAreaFromFreeList(
   SetLinearAllocationArea(start, limit);
 
   return true;
+}
+
+base::Optional<std::pair<Address, size_t>>
+PagedSpace::SlowGetLinearAllocationAreaBackground(size_t min_size_in_bytes,
+                                                  size_t max_size_in_bytes,
+                                                  AllocationAlignment alignment,
+                                                  AllocationOrigin origin) {
+  DCHECK(!is_local_space() && identity() == OLD_SPACE);
+  DCHECK_EQ(origin, AllocationOrigin::kRuntime);
+  base::MutexGuard lock(&allocation_mutex_);
+
+  auto result = TryAllocationFromFreeListBackground(
+      min_size_in_bytes, max_size_in_bytes, alignment, origin);
+  if (result) return result;
+
+  MarkCompactCollector* collector = heap()->mark_compact_collector();
+  // Sweeping is still in progress.
+  if (collector->sweeping_in_progress()) {
+    // First try to refill the free-list, concurrent sweeper threads
+    // may have freed some objects in the meantime.
+    RefillFreeList();
+
+    // Retry the free list allocation.
+    auto result = TryAllocationFromFreeListBackground(
+        min_size_in_bytes, max_size_in_bytes, alignment, origin);
+    if (result) return result;
+
+    Sweeper::FreeSpaceMayContainInvalidatedSlots
+        invalidated_slots_in_free_space =
+            Sweeper::FreeSpaceMayContainInvalidatedSlots::kNo;
+
+    const int kMaxPagesToSweep = 1;
+    int max_freed = collector->sweeper()->ParallelSweepSpace(
+        identity(), static_cast<int>(min_size_in_bytes), kMaxPagesToSweep,
+        invalidated_slots_in_free_space);
+    RefillFreeList();
+    if (static_cast<size_t>(max_freed) >= min_size_in_bytes)
+      return TryAllocationFromFreeListBackground(
+          min_size_in_bytes, max_size_in_bytes, alignment, origin);
+  }
+
+  if (heap()->ShouldExpandOldGenerationOnSlowAllocation() && Expand()) {
+    DCHECK((CountTotalPages() > 1) ||
+           (min_size_in_bytes <= free_list_->Available()));
+    return TryAllocationFromFreeListBackground(
+        min_size_in_bytes, max_size_in_bytes, alignment, origin);
+  }
+
+  // TODO(dinfuehr): Complete sweeping here and try allocation again.
+
+  return {};
+}
+
+base::Optional<std::pair<Address, size_t>>
+PagedSpace::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
+                                                size_t max_size_in_bytes,
+                                                AllocationAlignment alignment,
+                                                AllocationOrigin origin) {
+  DCHECK_LE(min_size_in_bytes, max_size_in_bytes);
+  DCHECK_EQ(identity(), OLD_SPACE);
+
+  size_t new_node_size = 0;
+  FreeSpace new_node =
+      free_list_->Allocate(min_size_in_bytes, &new_node_size, origin);
+  if (new_node.is_null()) return {};
+  DCHECK_GE(new_node_size, min_size_in_bytes);
+
+  // The old-space-step might have finished sweeping and restarted marking.
+  // Verify that it did not turn the page of the new node into an evacuation
+  // candidate.
+  DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(new_node));
+
+  // Memory in the linear allocation area is counted as allocated.  We may free
+  // a little of this again immediately - see below.
+  Page* page = Page::FromHeapObject(new_node);
+  IncreaseAllocatedBytes(new_node_size, page);
+
+  // TODO(dinfuehr): Start incremental marking if allocation limit is reached
+
+  size_t used_size_in_bytes = Min(new_node_size, max_size_in_bytes);
+
+  Address start = new_node.address();
+  Address end = new_node.address() + new_node_size;
+  Address limit = new_node.address() + used_size_in_bytes;
+  DCHECK_LE(limit, end);
+  DCHECK_LE(min_size_in_bytes, limit - start);
+  if (limit != end) {
+    Free(limit, end - limit, SpaceAccountingMode::kSpaceAccounted);
+  }
+
+  return std::make_pair(start, used_size_in_bytes);
 }
 
 #ifdef DEBUG

@@ -19,6 +19,7 @@
 #include "src/base/iterator.h"
 #include "src/base/list.h"
 #include "src/base/macros.h"
+#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
@@ -2188,9 +2189,10 @@ class LocalAllocationBuffer {
   ~LocalAllocationBuffer() { Close(); }
 
   // Convert to C++11 move-semantics once allowed by the style guide.
-  LocalAllocationBuffer(const LocalAllocationBuffer& other) V8_NOEXCEPT;
-  LocalAllocationBuffer& operator=(const LocalAllocationBuffer& other)
+  V8_EXPORT_PRIVATE LocalAllocationBuffer(const LocalAllocationBuffer& other)
       V8_NOEXCEPT;
+  V8_EXPORT_PRIVATE LocalAllocationBuffer& operator=(
+      const LocalAllocationBuffer& other) V8_NOEXCEPT;
 
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawAligned(
       int size_in_bytes, AllocationAlignment alignment);
@@ -2354,6 +2356,14 @@ class V8_EXPORT_PRIVATE PagedSpace
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
       int size_in_bytes, AllocationAlignment alignment,
       AllocationOrigin origin = AllocationOrigin::kRuntime);
+
+  // Allocate the requested number of bytes in the space from a background
+  // thread.
+  V8_WARN_UNUSED_RESULT base::Optional<std::pair<Address, size_t>>
+  SlowGetLinearAllocationAreaBackground(size_t min_size_in_bytes,
+                                        size_t max_size_in_bytes,
+                                        AllocationAlignment alignment,
+                                        AllocationOrigin origin);
 
   size_t Free(Address start, size_t size_in_bytes, SpaceAccountingMode mode) {
     if (size_in_bytes == 0) return 0;
@@ -2575,6 +2585,12 @@ class V8_EXPORT_PRIVATE PagedSpace
   // space and the caller has to retry after collecting garbage.
   V8_WARN_UNUSED_RESULT bool RawSlowRefillLinearAllocationArea(
       int size_in_bytes, AllocationOrigin origin);
+
+  V8_WARN_UNUSED_RESULT base::Optional<std::pair<Address, size_t>>
+  TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
+                                      size_t max_size_in_bytes,
+                                      AllocationAlignment alignment,
+                                      AllocationOrigin origin);
 
   Executability executable_;
 

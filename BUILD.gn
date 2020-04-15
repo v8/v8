@@ -2362,6 +2362,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/code-stats.h",
     "src/heap/combined-heap.cc",
     "src/heap/combined-heap.h",
+    "src/heap/concurrent-allocator-inl.h",
+    "src/heap/concurrent-allocator.h",
     "src/heap/concurrent-marking.cc",
     "src/heap/concurrent-marking.h",
     "src/heap/embedder-tracing.cc",
