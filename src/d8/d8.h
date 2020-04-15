@@ -323,7 +323,7 @@ class Shell : public i::AllStatic {
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
   static Local<String> ReadFile(Isolate* isolate, const char* name);
   static Local<Context> CreateEvaluationContext(Isolate* isolate);
-  static int RunMain(Isolate* isolate, int argc, char* argv[], bool last_run);
+  static int RunMain(Isolate* isolate, bool last_run);
   static int Main(int argc, char* argv[]);
   static void Exit(int exit_code);
   static void OnExit(Isolate* isolate);

@@ -3080,7 +3080,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   return true;
 }
 
-int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
+int Shell::RunMain(Isolate* isolate, bool last_run) {
   for (int i = 1; i < options.num_isolates; ++i) {
     options.isolate_sources[i].StartExecuteInThread();
   }
@@ -3675,7 +3675,7 @@ int Shell::Main(int argc, char* argv[]) {
                options.stress_runs);
         D8Testing::PrepareStressRun(i);
         bool last_run = i == options.stress_runs - 1;
-        result = RunMain(isolate, argc, argv, last_run);
+        result = RunMain(isolate, last_run);
       }
       printf("======== Full Deoptimization =======\n");
       D8Testing::DeoptimizeAll(isolate);
@@ -3685,7 +3685,7 @@ int Shell::Main(int argc, char* argv[]) {
         printf("============ Run %d/%d ============\n", i + 1,
                options.stress_runs);
         bool last_run = i == options.stress_runs - 1;
-        result = RunMain(isolate, argc, argv, last_run);
+        result = RunMain(isolate, last_run);
       }
     } else if (options.code_cache_options !=
                ShellOptions::CodeCacheOptions::kNoProduceCache) {
@@ -3702,7 +3702,7 @@ int Shell::Main(int argc, char* argv[]) {
         PerIsolateData data(isolate2);
         Isolate::Scope isolate_scope(isolate2);
 
-        result = RunMain(isolate2, argc, argv, false);
+        result = RunMain(isolate2, false);
       }
       isolate2->Dispose();
 
@@ -3715,11 +3715,11 @@ int Shell::Main(int argc, char* argv[]) {
 
       printf("============ Run: Consume code cache ============\n");
       // Second run to consume the cache in current isolate
-      result = RunMain(isolate, argc, argv, true);
+      result = RunMain(isolate, true);
       options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
     } else {
       bool last_run = true;
-      result = RunMain(isolate, argc, argv, last_run);
+      result = RunMain(isolate, last_run);
     }
 
     // Run interactive shell if explicitly requested or if no script has been
