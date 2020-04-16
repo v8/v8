@@ -34,7 +34,7 @@ vars = {
   'gn_version': 'git_revision:5ed3c9cc67b090d5e311e4bd2aba072173e82db9',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:de73cf6c4bde86f0a9c8d54151b69b0154a398f1',
+  'luci_go': 'git_revision:56ae79476e3caf14da59d75118408aa778637936',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
