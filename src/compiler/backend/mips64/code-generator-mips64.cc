@@ -2213,6 +2213,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ insert_d(dst, i.InputInt8(1), kScratchReg);
       break;
     }
+    case kMips64I64x2Splat: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ fill_d(i.OutputSimd128Register(), i.InputRegister(0));
+      break;
+    }
+    case kMips64I64x2ExtractLane: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ copy_s_d(i.OutputRegister(), i.InputSimd128Register(0),
+                  i.InputInt8(1));
+      break;
+    }
+    case kMips64I64x2ReplaceLane: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      if (src != dst) {
+        __ move_v(dst, src);
+      }
+      __ insert_d(dst, i.InputInt8(1), i.InputRegister(2));
+      break;
+    }
     case kMips64I64x2Add: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ addv_d(i.OutputSimd128Register(), i.InputSimd128Register(0),

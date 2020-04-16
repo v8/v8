@@ -2733,7 +2733,9 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 }
 
 #define SIMD_TYPE_LIST(V) \
+  V(F64x2)                \
   V(F32x4)                \
+  V(I64x2)                \
   V(I32x4)                \
   V(I16x8)                \
   V(I8x16)
@@ -2883,7 +2885,6 @@ void InstructionSelector::VisitS128Zero(Node* node) {
     VisitRR(this, kMips64##Type##Splat, node);               \
   }
 SIMD_TYPE_LIST(SIMD_VISIT_SPLAT)
-SIMD_VISIT_SPLAT(F64x2)
 #undef SIMD_VISIT_SPLAT
 
 #define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                              \
@@ -2892,6 +2893,7 @@ SIMD_VISIT_SPLAT(F64x2)
   }
 SIMD_VISIT_EXTRACT_LANE(F64x2, )
 SIMD_VISIT_EXTRACT_LANE(F32x4, )
+SIMD_VISIT_EXTRACT_LANE(I64x2, )
 SIMD_VISIT_EXTRACT_LANE(I32x4, )
 SIMD_VISIT_EXTRACT_LANE(I16x8, U)
 SIMD_VISIT_EXTRACT_LANE(I16x8, S)
@@ -2904,7 +2906,6 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, S)
     VisitRRIR(this, kMips64##Type##ReplaceLane, node);             \
   }
 SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
-SIMD_VISIT_REPLACE_LANE(F64x2)
 #undef SIMD_VISIT_REPLACE_LANE
 
 #define SIMD_VISIT_UNOP(Name, instruction)            \

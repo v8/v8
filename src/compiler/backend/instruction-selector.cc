@@ -2612,9 +2612,11 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
 #if !V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI64x2Eq(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Ne(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2GtS(Node* node) { UNIMPLEMENTED(); }
