@@ -1097,37 +1097,12 @@ bool Simulator::test_fflags_bits(uint32_t mask) {
   return (FCSR_ & kFcsrFlagsMask & mask) != 0;
 }
 
-// FIXME: the following is for MIPS, to be cleaned up
-// Helper functions for setting and testing the FCSR register's bits.
-void Simulator::set_fcsr_bit(uint32_t cc, bool value) {
-  if (value) {
-    FCSR_ |= (1 << cc);
-  } else {
-    FCSR_ &= ~(1 << cc);
-  }
-}
-
-bool Simulator::test_fcsr_bit(uint32_t cc) { return FCSR_ & (1 << cc); }
-
-void Simulator::set_fcsr_rounding_mode(FPURoundingMode mode) {
-  FCSR_ |= mode & kFPURoundingModeMask;
-}
-
-void Simulator::set_msacsr_rounding_mode(FPURoundingMode mode) {
-  MSACSR_ |= mode & kFPURoundingModeMask;
-}
-
-unsigned int Simulator::get_fcsr_rounding_mode() {
-  return FCSR_ & kFPURoundingModeMask;
-}
-
-unsigned int Simulator::get_msacsr_rounding_mode() {
-  return MSACSR_ & kFPURoundingModeMask;
-}
-
 // Sets the rounding error codes in FCSR based on the result of the rounding.
 // Returns true if the operation was invalid.
 bool Simulator::set_fcsr_round_error(double original, double rounded) {
+  // FIXME(RISCV): to be ported
+  UNREACHABLE();
+  /*
   bool ret = false;
   double max_int32 = std::numeric_limits<int32_t>::max();
   double min_int32 = std::numeric_limits<int32_t>::min();
@@ -1154,11 +1129,15 @@ bool Simulator::set_fcsr_round_error(double original, double rounded) {
   }
 
   return ret;
+  */
 }
 
 // Sets the rounding error codes in FCSR based on the result of the rounding.
 // Returns true if the operation was invalid.
 bool Simulator::set_fcsr_round64_error(double original, double rounded) {
+  // FIXME(RISCV): to be ported
+  UNREACHABLE();
+  /*
   bool ret = false;
   // The value of INT64_MAX (2^63-1) can't be represented as double exactly,
   // loading the most accurate representation into max_int64, which is 2^63.
@@ -1187,11 +1166,15 @@ bool Simulator::set_fcsr_round64_error(double original, double rounded) {
   }
 
   return ret;
+  */
 }
 
 // Sets the rounding error codes in FCSR based on the result of the rounding.
 // Returns true if the operation was invalid.
 bool Simulator::set_fcsr_round_error(float original, float rounded) {
+  // FIXME(RISCV): to be ported
+  UNREACHABLE();
+  /*
   bool ret = false;
   double max_int32 = std::numeric_limits<int32_t>::max();
   double min_int32 = std::numeric_limits<int32_t>::min();
@@ -1218,6 +1201,7 @@ bool Simulator::set_fcsr_round_error(float original, float rounded) {
   }
 
   return ret;
+  */
 }
 
 void Simulator::set_fpu_register_word_invalid_result(float original,
@@ -5957,11 +5941,12 @@ void Simulator::DecodeTypeMsa2RF() {
   */
 }
 
+/*
 void Simulator::DecodeTypeRegister() {
   // FIXME(RISCV) This function is not supported in RISCV.  commented it out.
   // RY
   UNREACHABLE();
-  /*
+
   // ---------- Execution.
   switch (instr_.OpcodeFieldRaw()) {
     case COP1:
@@ -6010,7 +5995,6 @@ common
     default:
       UNREACHABLE();
   }
-  */
 }
 
 // Type 2: instructions using a 16, 21 or 26 bits immediate. (e.g. beq, beqc).
@@ -6018,7 +6002,6 @@ void Simulator::DecodeTypeImmediate() {
   // FIXME(RISCV) This function is not supported in RISCV.  commented it out.
   // RY
   UNREACHABLE();
-  /*
   // Instruction fields.
   Opcode op = instr_.OpcodeFieldRaw();
   int32_t rs_reg = instr_.RsValue();
@@ -6741,14 +6724,12 @@ slot. Instruction* branch_delay_instr =
   if (next_pc != bad_ra) {
     set_pc(next_pc);
   }
-  */
 }
 
 // Type 3: instructions using a 26 bytes immediate. (e.g. j, jal).
 void Simulator::DecodeTypeJump() {
   // FIXME(RISCV) This function is not supported in RISCV.  commented it out.
   UNREACHABLE();
-  /*
    SimInstruction simInstr = instr_;
     // Get current pc.
     int64_t current_pc = get_pc();
@@ -6772,8 +6753,8 @@ void Simulator::DecodeTypeJump() {
     }
     set_pc(next_pc);
     pc_modified_ = true;
-    */
 }
+*/
 
 // RISCV Instruction Decode Routine
 void Simulator::DecodeRVRType() {
@@ -7924,16 +7905,6 @@ void Simulator::InstructionDecode(Instruction* instr) {
       break;
     case Instruction::kJType:
       DecodeRVJType();
-      break;
-    // Original MIPS decoding
-    case Instruction::kRegisterType:
-      DecodeTypeRegister();
-      break;
-    case Instruction::kImmediateType:
-      DecodeTypeImmediate();
-      break;
-    case Instruction::kJumpType:
-      DecodeTypeJump();
       break;
     default:
       UNSUPPORTED();

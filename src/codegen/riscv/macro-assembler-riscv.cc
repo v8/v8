@@ -593,19 +593,6 @@ void TurboAssembler::Divu(Register res, Register rs, const Operand& rt) {
   }
 }
 
-// void TurboAssembler::Ddivu(Register rs, const Operand& rt) {
-//   if (rt.is_reg()) {
-//     ddivu(rs, rt.rm());
-//   } else {
-//     // li handles the relocation.
-//     UseScratchRegisterScope temps(this);
-//     Register scratch = temps.Acquire();
-//     DCHECK(rs != scratch);
-//     li(scratch, rt);
-//     ddivu(rs, scratch);
-//   }
-// }
-
 void TurboAssembler::Ddivu(Register res, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     RV_divu(res, rs, rt.rm());
@@ -1018,6 +1005,7 @@ void TurboAssembler::Ulhu(Register rd, const MemOperand& rs) {
 void TurboAssembler::Ush(Register rd, const MemOperand& rs, Register scratch) {
   DCHECK(rd != t3);
   DCHECK(rs.rm() != t3);
+  DCHECK(scratch != rs.rm());
   MemOperand source = rs;
   // Adjust offset for two accesses and check if offset + 1 fits into int12.
   AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 1);
@@ -1818,13 +1806,6 @@ void TurboAssembler::Neg_d(FPURegister fd, FPURegister fs) {
   RV_fneg_d(fd, fs);
 }
 
-void TurboAssembler::Cvt_d_uw(FPURegister fd, FPURegister fs) {
-  // Move the data from fs to t5.
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  RV_fmv_x_w(t5, fs);
-  Cvt_d_uw(fd, t5);
-}
-
 void TurboAssembler::Cvt_d_uw(FPURegister fd, Register rs) {
   // Convert rs to a FP value in fd.
   RV_fcvt_d_wu(fd, rs);
@@ -1835,23 +1816,9 @@ void TurboAssembler::Cvt_d_w(FPURegister fd, Register rs) {
   RV_fcvt_d_w(fd, rs);
 }
 
-void TurboAssembler::Cvt_d_ul(FPURegister fd, FPURegister fs) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  // Move the data from fs to t5.
-  RV_fmv_x_d(t5, fs);
-  Cvt_d_ul(fd, t5);
-}
-
 void TurboAssembler::Cvt_d_ul(FPURegister fd, Register rs) {
   // Convert rs to a FP value in fd.
   RV_fcvt_d_lu(fd, rs);
-}
-
-void TurboAssembler::Cvt_s_uw(FPURegister fd, FPURegister fs) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  // Move the data from fs to t5.
-  RV_fmv_x_w(t5, fs);
-  Cvt_s_uw(fd, t5);
 }
 
 void TurboAssembler::Cvt_s_uw(FPURegister fd, Register rs) {
@@ -1862,13 +1829,6 @@ void TurboAssembler::Cvt_s_uw(FPURegister fd, Register rs) {
 void TurboAssembler::Cvt_s_w(FPURegister fd, Register rs) {
   // Convert rs to a FP value in fd.
   RV_fcvt_s_w(fd, rs);
-}
-
-void TurboAssembler::Cvt_s_ul(FPURegister fd, FPURegister fs) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  // Move the data from fs to t5.
-  RV_fmv_x_d(t5, fs);
-  Cvt_s_ul(fd, t5);
 }
 
 void TurboAssembler::Cvt_s_ul(FPURegister fd, Register rs) {
@@ -1918,46 +1878,6 @@ void MacroAssembler::Ceil_l_d(FPURegister fd, FPURegister fs) {
   Register scratch = temps.Acquire();
   RV_fcvt_l_d(scratch, fs, RUP);
   RV_fmv_d_x(fd, scratch);
-}
-
-void MacroAssembler::Trunc_l_d(FPURegister fd, FPURegister fs) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  RV_fcvt_l_d(scratch, fs, RTZ);
-  RV_fmv_d_x(fd, scratch);
-}
-
-void TurboAssembler::Trunc_uw_d(FPURegister fd, FPURegister fs) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Trunc_uw_d(t5, fs);
-  RV_fmv_w_x(fd, t5);
-}
-
-void TurboAssembler::Trunc_uw_s(FPURegister fd, FPURegister fs) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Trunc_uw_s(t5, fs);
-  RV_fmv_w_x(fd, t5);
-}
-
-void TurboAssembler::Trunc_ul_d(FPURegister fd, FPURegister fs,
-                                Register result) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Trunc_ul_d(t5, fs, result);
-  RV_fmv_d_x(fd, t5);
-}
-
-void TurboAssembler::Trunc_ul_s(FPURegister fd, FPURegister fs,
-                                Register result) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Trunc_ul_s(t5, fs, result);
-  RV_fmv_d_x(fd, t5);
-}
-
-void MacroAssembler::Trunc_w_d(FPURegister fd, FPURegister fs) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  RV_fcvt_w_d(scratch, fs, RTZ);
-  RV_fmv_w_x(fd, scratch);
 }
 
 void MacroAssembler::Round_w_d(FPURegister fd, FPURegister fs) {
@@ -2081,25 +2001,7 @@ void TurboAssembler::Floor_w_d(Register rd, FPURegister fs, Register result) {
 
 template <typename RoundFunc>
 void TurboAssembler::RoundDouble(FPURegister dst, FPURegister src,
-                                 FPURoundingMode mode, RoundFunc round) {
-  RoundingMode frm;
-  switch (mode) {
-    case RN:
-      frm = RNE;
-      break;
-    case RZ:
-      frm = RTZ;
-      break;
-    case RP:
-      frm = RUP;
-      break;
-    case RM:
-      frm = RDN;
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
+                                 RoundingMode frm, RoundFunc round) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Register scratch = t5;
   // Round into integer register, then convert back to double
@@ -2108,42 +2010,24 @@ void TurboAssembler::RoundDouble(FPURegister dst, FPURegister src,
 }
 
 void TurboAssembler::Floor_d_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_floor, NULL);
+  RoundDouble(dst, src, RDN, NULL);
 }
 
 void TurboAssembler::Ceil_d_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_ceil, NULL);
+  RoundDouble(dst, src, RUP, NULL);
 }
 
 void TurboAssembler::Trunc_d_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_trunc, NULL);
+  RoundDouble(dst, src, RTZ, NULL);
 }
 
 void TurboAssembler::Round_d_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_round, NULL);
+  RoundDouble(dst, src, RNE, NULL);
 }
 
 template <typename RoundFunc>
 void TurboAssembler::RoundFloat(FPURegister dst, FPURegister src,
-                                FPURoundingMode mode, RoundFunc round) {
-  RoundingMode frm;
-  switch (mode) {
-    case RN:
-      frm = RNE;
-      break;
-    case RZ:
-      frm = RTZ;
-      break;
-    case RP:
-      frm = RUP;
-      break;
-    case RM:
-      frm = RDN;
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
+                                RoundingMode frm, RoundFunc round) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Register scratch = t5;
   // Round into integer register, then convert back to double
@@ -2152,19 +2036,19 @@ void TurboAssembler::RoundFloat(FPURegister dst, FPURegister src,
 }
 
 void TurboAssembler::Floor_s_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_floor, NULL);
+  RoundFloat(dst, src, RDN, NULL);
 }
 
 void TurboAssembler::Ceil_s_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_ceil, NULL);
+  RoundFloat(dst, src, RUP, NULL);
 }
 
 void TurboAssembler::Trunc_s_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_trunc, NULL);
+  RoundFloat(dst, src, RTZ, NULL);
 }
 
 void TurboAssembler::Round_s_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_round, NULL);
+  RoundFloat(dst, src, RNE, NULL);
 }
 
 void MacroAssembler::Madd_s(FPURegister fd, FPURegister fr, FPURegister fs,
@@ -2671,6 +2555,7 @@ void TurboAssembler::Dpopcnt(Register rd, Register rs) {
   dsrl32(rd, rd, shift);
 }
 
+/*
 void MacroAssembler::EmitFPUTruncate(
     FPURoundingMode rounding_mode, Register result, DoubleRegister double_input,
     Register scratch, DoubleRegister double_scratch, Register except_flag,
@@ -2731,6 +2616,7 @@ void MacroAssembler::EmitFPUTruncate(
 
   bind(&done);
 }
+*/
 
 void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
                                                 DoubleRegister double_input,
