@@ -226,8 +226,11 @@ class V8_EXPORT_PRIVATE WasmCode final {
   int GetSourcePositionBefore(int offset);
 
   // Returns whether this code was generated for debugging. If this returns
-  // true, but {tier()} is not {kLiftoff}, then Liftoff compilation bailed out.
-  bool for_debugging() const { return ForDebuggingField::decode(flags_); }
+  // {kForDebugging}, but {tier()} is not {kLiftoff}, then Liftoff compilation
+  // bailed out.
+  ForDebugging for_debugging() const {
+    return ForDebuggingField::decode(flags_);
+  }
 
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
@@ -320,7 +323,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // Bits encoded in {flags_}:
   using KindField = base::BitField8<Kind, 0, 3>;
   using ExecutionTierField = KindField::Next<ExecutionTier, 2>;
-  using ForDebuggingField = ExecutionTierField::Next<ForDebugging, 1>;
+  using ForDebuggingField = ExecutionTierField::Next<ForDebugging, 2>;
 
   // WasmCode is ref counted. Counters are held by:
   //   1) The jump table / code table.

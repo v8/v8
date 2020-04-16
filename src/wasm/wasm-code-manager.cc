@@ -1064,14 +1064,15 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
                       ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                   "Assume an order on execution tiers");
 
-    // Unless tier down to Liftoff: update code table but avoid to fall back to
-    // less optimized code. We use the new code if it was compiled with a higher
-    // tier.
     uint32_t slot_idx = declared_function_index(module(), code->index());
     WasmCode* prior_code = code_table_[slot_idx];
+    // If we are tiered down, install all debugging code (except for stepping
+    // code, which is only used for a single frame and never installed in the
+    // code table of jump table). Otherwise, install code if it was compiled
+    // with a higher tier.
     const bool update_code_table =
         tiering_state_ == kTieredDown
-            ? !prior_code || code->for_debugging()
+            ? !prior_code || code->for_debugging() == kForDebugging
             : !prior_code || prior_code->tier() < code->tier();
     if (update_code_table) {
       code_table_[slot_idx] = code.get();

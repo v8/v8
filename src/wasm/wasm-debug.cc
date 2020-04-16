@@ -669,9 +669,11 @@ class DebugInfoImpl {
                       wire_bytes.begin() + function->code.end_offset()};
     std::unique_ptr<DebugSideTable> debug_sidetable;
 
+    ForDebugging for_debugging =
+        offsets.size() == 1 && offsets[0] == 0 ? kForStepping : kForDebugging;
     WasmCompilationResult result = ExecuteLiftoffCompilation(
         native_module_->engine()->allocator(), &env, body, func_index,
-        kForDebugging, nullptr, nullptr, offsets, &debug_sidetable,
+        for_debugging, nullptr, nullptr, offsets, &debug_sidetable,
         extra_source_positions);
     // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
     // support for debugging.
