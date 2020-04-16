@@ -8429,9 +8429,13 @@ Maybe<bool> FinalizationGroup::Cleanup(
   ENTER_V8(isolate, context, FinalizationGroup, Cleanup, Nothing<bool>(),
            i::HandleScope);
   i::Handle<i::Object> callback(fr->cleanup(), isolate);
+  i::Handle<i::Object> argv[] = {callback};
   fr->set_scheduled_for_cleanup(false);
   has_pending_exception =
-      i::JSFinalizationRegistry::Cleanup(isolate, fr, callback).IsNothing();
+      i::Execution::CallBuiltin(isolate,
+                                isolate->finalization_registry_cleanup_some(),
+                                fr, arraysize(argv), argv)
+          .is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -11245,8 +11249,11 @@ void InvokeFinalizationRegistryCleanupFromTask(
   Local<v8::Context> api_context = Utils::ToLocal(context);
   CallDepthScope<true> call_depth_scope(isolate, api_context);
   VMState<OTHER> state(isolate);
-  if (JSFinalizationRegistry::Cleanup(isolate, finalization_registry, callback)
-          .IsNothing()) {
+  Handle<Object> argv[] = {callback};
+  if (Execution::CallBuiltin(isolate,
+                             isolate->finalization_registry_cleanup_some(),
+                             finalization_registry, arraysize(argv), argv)
+          .is_null()) {
     call_depth_scope.Escape();
   }
 }

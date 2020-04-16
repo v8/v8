@@ -122,43 +122,6 @@ BUILTIN(FinalizationRegistryUnregister) {
   return *isolate->factory()->ToBoolean(success);
 }
 
-BUILTIN(FinalizationRegistryCleanupSome) {
-  HandleScope scope(isolate);
-  const char* method_name = "FinalizationRegistry.prototype.cleanupSome";
-
-  // 1. Let finalizationGroup be the this value.
-  //
-  // 2. If Type(finalizationGroup) is not Object, throw a TypeError
-  //    exception.
-  //
-  // 3. If finalizationGroup does not have a [[Cells]] internal slot,
-  //    throw a TypeError exception.
-  CHECK_RECEIVER(JSFinalizationRegistry, finalization_registry, method_name);
-
-  Handle<Object> callback(finalization_registry->cleanup(), isolate);
-  Handle<Object> callback_obj = args.atOrUndefined(isolate, 1);
-
-  // 4. If callback is not undefined and IsCallable(callback) is
-  //    false, throw a TypeError exception.
-  if (!callback_obj->IsUndefined(isolate)) {
-    if (!callback_obj->IsCallable()) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate,
-          NewTypeError(MessageTemplate::kWeakRefsCleanupMustBeCallable));
-    }
-    callback = callback_obj;
-  }
-
-  // Don't do set_scheduled_for_cleanup(false); we still have the task
-  // scheduled.
-  if (JSFinalizationRegistry::Cleanup(isolate, finalization_registry, callback)
-          .IsNothing()) {
-    DCHECK(isolate->has_pending_exception());
-    return ReadOnlyRoots(isolate).exception();
-  }
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 BUILTIN(WeakRefConstructor) {
   HandleScope scope(isolate);
   Handle<JSFunction> target = args.target();

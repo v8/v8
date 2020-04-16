@@ -578,6 +578,9 @@ namespace internal {
   F(WasmNewMultiReturnJSArray, 1, 1)    \
   F(WasmDebugBreak, 0, 1)
 
+#define FOR_EACH_INTRINSIC_WEAKREF(F, I) \
+  F(ShrinkFinalizationRegistryUnregisterTokenMap, 1, 1)
+
 #define FOR_EACH_INTRINSIC_RETURN_PAIR_IMPL(F, I) \
   F(DebugBreakOnBytecode, 1, 2)                   \
   F(LoadLookupSlotForCall, 1, 2)
@@ -636,7 +639,8 @@ namespace internal {
   FOR_EACH_INTRINSIC_SYMBOL(F, I)                   \
   FOR_EACH_INTRINSIC_TEST(F, I)                     \
   FOR_EACH_INTRINSIC_TYPEDARRAY(F, I)               \
-  FOR_EACH_INTRINSIC_WASM(F, I)
+  FOR_EACH_INTRINSIC_WASM(F, I)                     \
+  FOR_EACH_INTRINSIC_WEAKREF(F, I)
 
 // Defines the list of all intrinsics, coming in 2 flavors, either returning an
 // object or a pair.

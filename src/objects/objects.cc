@@ -8306,35 +8306,50 @@ EXTERN_DEFINE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
 #undef EXTERN_DEFINE_DICTIONARY
 #undef EXTERN_DEFINE_BASE_NAME_DICTIONARY
 
-Maybe<bool> JSFinalizationRegistry::Cleanup(
-    Isolate* isolate, Handle<JSFinalizationRegistry> finalization_registry,
-    Handle<Object> cleanup) {
-  DCHECK(cleanup->IsCallable());
-  // Attempt to shrink key_map now, as unregister tokens are held weakly and the
-  // map is not shrinkable when sweeping dead tokens during GC itself.
-  if (!finalization_registry->key_map().IsUndefined(isolate)) {
-    Handle<SimpleNumberDictionary> key_map(
-        SimpleNumberDictionary::cast(finalization_registry->key_map()),
-        isolate);
-    key_map = SimpleNumberDictionary::Shrink(isolate, key_map);
-    finalization_registry->set_key_map(*key_map);
-  }
+void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
+    Isolate* isolate, Address raw_finalization_registry,
+    Address raw_weak_cell) {
+  DisallowHeapAllocation no_gc;
+  JSFinalizationRegistry finalization_registry =
+      JSFinalizationRegistry::cast(Object(raw_finalization_registry));
+  WeakCell weak_cell = WeakCell::cast(Object(raw_weak_cell));
+  DCHECK(!weak_cell.unregister_token().IsUndefined(isolate));
 
-  // It's possible that the cleared_cells list is empty, since
-  // FinalizationRegistry.unregister() removed all its elements before this task
-  // ran. In that case, don't call the cleanup function.
-  while (!finalization_registry->cleared_cells().IsUndefined(isolate)) {
-    Handle<Object> holding(
-        PopClearedCellHoldings(finalization_registry, isolate), isolate);
-    Handle<Object> args[] = {holding};
-    if (Execution::Call(
-            isolate, cleanup,
-            handle(ReadOnlyRoots(isolate).undefined_value(), isolate), 1, args)
-            .is_null()) {
-      return Nothing<bool>();
+  // Remove weak_cell from the linked list of other WeakCells with the same
+  // unregister token and remove its unregister token from key_map if necessary
+  // without shrinking it. Since shrinking may allocate, it is performed by the
+  // caller after looping, or on exception.
+  if (weak_cell.key_list_prev().IsUndefined(isolate)) {
+    SimpleNumberDictionary key_map =
+        SimpleNumberDictionary::cast(finalization_registry.key_map());
+    Object unregister_token = weak_cell.unregister_token();
+    uint32_t key = Smi::ToInt(unregister_token.GetHash());
+    InternalIndex entry = key_map.FindEntry(isolate, key);
+    DCHECK(entry.is_found());
+
+    if (weak_cell.key_list_next().IsUndefined(isolate)) {
+      // weak_cell is the only one associated with its key; remove the key
+      // from the hash table.
+      key_map.ClearEntry(entry);
+      key_map.ElementRemoved();
+    } else {
+      // weak_cell is the list head for its key; we need to change the value
+      // of the key in the hash table.
+      WeakCell next = WeakCell::cast(weak_cell.key_list_next());
+      DCHECK_EQ(next.key_list_prev(), weak_cell);
+      next.set_key_list_prev(ReadOnlyRoots(isolate).undefined_value());
+      weak_cell.set_key_list_next(ReadOnlyRoots(isolate).undefined_value());
+      key_map.ValueAtPut(entry, next);
+    }
+  } else {
+    // weak_cell is somewhere in the middle of its key list.
+    WeakCell prev = WeakCell::cast(weak_cell.key_list_prev());
+    prev.set_key_list_next(weak_cell.key_list_next());
+    if (!weak_cell.key_list_next().IsUndefined()) {
+      WeakCell next = WeakCell::cast(weak_cell.key_list_next());
+      next.set_key_list_prev(weak_cell.key_list_prev());
     }
   }
-  return Just(true);
 }
 
 }  // namespace internal

@@ -61,17 +61,15 @@ class JSFinalizationRegistry : public JSObject {
   // Returns true if the cleared_cells list is non-empty.
   inline bool NeedsCleanup() const;
 
-  // Remove the first cleared WeakCell from the cleared_cells
-  // list (assumes there is one) and return its holdings.
-  inline static Object PopClearedCellHoldings(
-      Handle<JSFinalizationRegistry> finalization_registry, Isolate* isolate);
-
-  // Call the user's cleanup function in a loop, once for each cleared cell.
+  // Remove the already-popped weak_cell from its unregister token linked list,
+  // as well as removing the entry from the key map if it is the only WeakCell
+  // with its unregister token. This method cannot GC and does not shrink the
+  // key map. Asserts that weak_cell has a non-undefined unregister token.
   //
-  // Returns Nothing<bool> if exception occurs, otherwise returns Just(true).
-  static V8_WARN_UNUSED_RESULT Maybe<bool> Cleanup(
-      Isolate* isolate, Handle<JSFinalizationRegistry> finalization_registry,
-      Handle<Object> callback);
+  // It takes raw Addresses because it is called from CSA and Torque.
+  V8_EXPORT_PRIVATE static void RemoveCellFromUnregisterTokenMap(
+      Isolate* isolate, Address raw_finalization_registry,
+      Address raw_weak_cell);
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(

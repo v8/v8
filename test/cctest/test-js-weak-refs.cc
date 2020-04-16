@@ -97,6 +97,33 @@ void NullifyWeakCell(Handle<WeakCell> weak_cell, Isolate* isolate) {
 #endif  // VERIFY_HEAP
 }
 
+Object PopClearedCellHoldings(
+    Handle<JSFinalizationRegistry> finalization_registry, Isolate* isolate) {
+  // PopClearedCell is implemented in Torque. Reproduce that implementation here
+  // for testing.
+  Handle<WeakCell> weak_cell =
+      handle(WeakCell::cast(finalization_registry->cleared_cells()), isolate);
+  DCHECK(weak_cell->prev().IsUndefined(isolate));
+  finalization_registry->set_cleared_cells(weak_cell->next());
+  weak_cell->set_next(ReadOnlyRoots(isolate).undefined_value());
+
+  if (finalization_registry->cleared_cells().IsWeakCell()) {
+    WeakCell cleared_cells_head =
+        WeakCell::cast(finalization_registry->cleared_cells());
+    DCHECK_EQ(cleared_cells_head.prev(), *weak_cell);
+    cleared_cells_head.set_prev(ReadOnlyRoots(isolate).undefined_value());
+  } else {
+    DCHECK(finalization_registry->cleared_cells().IsUndefined(isolate));
+  }
+
+  if (!weak_cell->unregister_token().IsUndefined(isolate)) {
+    JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
+        isolate, finalization_registry->ptr(), weak_cell->ptr());
+  }
+
+  return weak_cell->holdings();
+}
+
 // Usage: VerifyWeakCellChain(isolate, list_head, n, cell1, cell2, ..., celln);
 // verifies that list_head == cell1 and cell1, cell2, ..., celln. form a list.
 void VerifyWeakCellChain(Isolate* isolate, Object list_head, int n_args, ...) {
@@ -361,15 +388,13 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings1) {
   NullifyWeakCell(weak_cell3, isolate);
 
   CHECK(finalization_registry->NeedsCleanup());
-  Object cleared1 = JSFinalizationRegistry::PopClearedCellHoldings(
-      finalization_registry, isolate);
+  Object cleared1 = PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared1, *holdings3);
   CHECK(weak_cell3->prev().IsUndefined(isolate));
   CHECK(weak_cell3->next().IsUndefined(isolate));
 
   CHECK(finalization_registry->NeedsCleanup());
-  Object cleared2 = JSFinalizationRegistry::PopClearedCellHoldings(
-      finalization_registry, isolate);
+  Object cleared2 = PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared2, *holdings2);
   CHECK(weak_cell2->prev().IsUndefined(isolate));
   CHECK(weak_cell2->next().IsUndefined(isolate));
@@ -379,8 +404,7 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings1) {
   NullifyWeakCell(weak_cell1, isolate);
 
   CHECK(finalization_registry->NeedsCleanup());
-  Object cleared3 = JSFinalizationRegistry::PopClearedCellHoldings(
-      finalization_registry, isolate);
+  Object cleared3 = PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared3, *holdings1);
   CHECK(weak_cell1->prev().IsUndefined(isolate));
   CHECK(weak_cell1->next().IsUndefined(isolate));
@@ -424,8 +448,7 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings2) {
                            *weak_cell1);
   }
 
-  Object cleared1 = JSFinalizationRegistry::PopClearedCellHoldings(
-      finalization_registry, isolate);
+  Object cleared1 = PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared1, *holdings2);
 
   {
@@ -434,8 +457,7 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings2) {
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 1, *weak_cell1);
   }
 
-  Object cleared2 = JSFinalizationRegistry::PopClearedCellHoldings(
-      finalization_registry, isolate);
+  Object cleared2 = PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared2, *holdings1);
 
   {
@@ -621,8 +643,7 @@ TEST(TestWeakCellUnregisterPopped) {
   NullifyWeakCell(weak_cell1, isolate);
 
   CHECK(finalization_registry->NeedsCleanup());
-  Object cleared1 = JSFinalizationRegistry::PopClearedCellHoldings(
-      finalization_registry, isolate);
+  Object cleared1 = PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared1, *holdings1);
 
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 0);

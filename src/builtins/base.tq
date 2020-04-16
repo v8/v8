@@ -303,6 +303,7 @@ extern enum MessageTemplate {
   kProxyGetPrototypeOfNonExtensible,
   kProxySetPrototypeOfNonExtensible,
   kProxyDeletePropertyNonExtensible,
+  kWeakRefsCleanupMustBeCallable,
   ...
 }
 
@@ -701,7 +702,8 @@ macro Float64IsNaN(n: float64): bool {
 }
 
 // The type of all tagged values that can safely be compared with TaggedEqual.
-type TaggedWithIdentity = JSReceiver|FixedArrayBase|Oddball|Map|EmptyString;
+type TaggedWithIdentity =
+    JSReceiver|FixedArrayBase|Oddball|Map|WeakCell|EmptyString;
 
 extern operator '==' macro TaggedEqual(TaggedWithIdentity, Object): bool;
 extern operator '==' macro TaggedEqual(Object, TaggedWithIdentity): bool;

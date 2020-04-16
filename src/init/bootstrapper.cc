@@ -4338,6 +4338,15 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     SimpleInstallFunction(isolate(), finalization_registry_prototype,
                           "unregister",
                           Builtins::kFinalizationRegistryUnregister, 1, false);
+
+    // The cleanupSome function is created but not exposed, as it is used
+    // internally by InvokeFinalizationRegistryCleanupFromTask.
+    //
+    // It is exposed by FLAG_harmony_weak_refs_with_cleanup_some.
+    Handle<JSFunction> cleanup_some_fun = SimpleCreateFunction(
+        isolate(), factory->InternalizeUtf8String("cleanupSome"),
+        Builtins::kFinalizationRegistryPrototypeCleanupSome, 0, false);
+    native_context()->set_finalization_registry_cleanup_some(*cleanup_some_fun);
   }
   {
     // Create %WeakRefPrototype%
@@ -4386,9 +4395,10 @@ void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
       JSObject::cast(finalization_registry_fun->instance_prototype()),
       isolate());
 
-  SimpleInstallFunction(isolate(), finalization_registry_prototype,
-                        "cleanupSome",
-                        Builtins::kFinalizationRegistryCleanupSome, 0, false);
+  JSObject::AddProperty(isolate(), finalization_registry_prototype,
+                        factory()->InternalizeUtf8String("cleanupSome"),
+                        isolate()->finalization_registry_cleanup_some(),
+                        DONT_ENUM);
 }
 
 void Genesis::InitializeGlobal_harmony_promise_all_settled() {

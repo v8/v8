@@ -177,65 +177,6 @@ bool JSFinalizationRegistry::NeedsCleanup() const {
   return cleared_cells().IsWeakCell();
 }
 
-Object JSFinalizationRegistry::PopClearedCellHoldings(
-    Handle<JSFinalizationRegistry> finalization_registry, Isolate* isolate) {
-  Handle<WeakCell> weak_cell =
-      handle(WeakCell::cast(finalization_registry->cleared_cells()), isolate);
-  DCHECK(weak_cell->prev().IsUndefined(isolate));
-  finalization_registry->set_cleared_cells(weak_cell->next());
-  weak_cell->set_next(ReadOnlyRoots(isolate).undefined_value());
-
-  if (finalization_registry->cleared_cells().IsWeakCell()) {
-    WeakCell cleared_cells_head =
-        WeakCell::cast(finalization_registry->cleared_cells());
-    DCHECK_EQ(cleared_cells_head.prev(), *weak_cell);
-    cleared_cells_head.set_prev(ReadOnlyRoots(isolate).undefined_value());
-  } else {
-    DCHECK(finalization_registry->cleared_cells().IsUndefined(isolate));
-  }
-
-  // Also remove the WeakCell from the key_map (if it's there).
-  if (!weak_cell->unregister_token().IsUndefined(isolate)) {
-    if (weak_cell->key_list_prev().IsUndefined(isolate)) {
-      Handle<SimpleNumberDictionary> key_map =
-          handle(SimpleNumberDictionary::cast(finalization_registry->key_map()),
-                 isolate);
-      Handle<Object> unregister_token =
-          handle(weak_cell->unregister_token(), isolate);
-      uint32_t key = Smi::ToInt(unregister_token->GetHash());
-      InternalIndex entry = key_map->FindEntry(isolate, key);
-
-      if (weak_cell->key_list_next().IsUndefined(isolate)) {
-        // weak_cell is the only one associated with its key; remove the key
-        // from the hash table.
-        DCHECK(entry.is_found());
-        key_map = SimpleNumberDictionary::DeleteEntry(isolate, key_map, entry);
-        finalization_registry->set_key_map(*key_map);
-      } else {
-        // weak_cell is the list head for its key; we need to change the value
-        // of the key in the hash table.
-        Handle<WeakCell> next =
-            handle(WeakCell::cast(weak_cell->key_list_next()), isolate);
-        DCHECK_EQ(next->key_list_prev(), *weak_cell);
-        next->set_key_list_prev(ReadOnlyRoots(isolate).undefined_value());
-        weak_cell->set_key_list_next(ReadOnlyRoots(isolate).undefined_value());
-        key_map = SimpleNumberDictionary::Set(isolate, key_map, key, next);
-        finalization_registry->set_key_map(*key_map);
-      }
-    } else {
-      // weak_cell is somewhere in the middle of its key list.
-      WeakCell prev = WeakCell::cast(weak_cell->key_list_prev());
-      prev.set_key_list_next(weak_cell->key_list_next());
-      if (!weak_cell->key_list_next().IsUndefined()) {
-        WeakCell next = WeakCell::cast(weak_cell->key_list_next());
-        next.set_key_list_prev(weak_cell->key_list_prev());
-      }
-    }
-  }
-
-  return weak_cell->holdings();
-}
-
 template <typename GCNotifyUpdatedSlotCallback>
 void WeakCell::Nullify(Isolate* isolate,
                        GCNotifyUpdatedSlotCallback gc_notify_updated_slot) {

@@ -3842,6 +3842,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Smi> RefillMathRandom(TNode<NativeContext> native_context);
 
+  void RemoveFinalizationRegistryCellFromUnregisterTokenMap(
+      TNode<JSFinalizationRegistry> finalization_registry,
+      TNode<WeakCell> weak_cell);
+
  private:
   friend class CodeStubArguments;
 
