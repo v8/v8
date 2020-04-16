@@ -33,6 +33,7 @@ class LocalNames;
 class NativeModule;
 class WasmCode;
 class WireBytesRef;
+class WasmValue;
 
 // Side table storing information used to inspect Liftoff frames at runtime.
 // This table is only created on demand for debugging, so it is not optimized
@@ -143,6 +144,9 @@ class DebugInfo {
 
   // {fp} is the frame pointer of the Liftoff frame, {debug_break_fp} that of
   // the {WasmDebugBreak} frame (if any).
+  WasmValue GetLocalValue(int local, Isolate*, Address pc, Address fp,
+                          Address debug_break_fp);
+
   Handle<JSObject> GetLocalScopeObject(Isolate*, Address pc, Address fp,
                                        Address debug_break_fp);
 

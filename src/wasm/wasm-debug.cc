@@ -24,6 +24,7 @@
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-value.h"
 #include "src/zone/accounting-allocator.h"
 
 namespace v8 {
@@ -548,6 +549,17 @@ class DebugInfoImpl {
   explicit DebugInfoImpl(NativeModule* native_module)
       : native_module_(native_module) {}
 
+  WasmValue GetLocalValue(int local, Isolate* isolate, Address pc, Address fp,
+                          Address debug_break_fp) {
+    wasm::WasmCodeRefScope wasm_code_ref_scope;
+    wasm::WasmCode* code =
+        isolate->wasm_engine()->code_manager()->LookupCode(pc);
+    auto* debug_side_table = GetDebugSideTable(code, isolate->allocator());
+    int pc_offset = static_cast<int>(pc - code->instruction_start());
+    auto* debug_side_table_entry = debug_side_table->GetEntry(pc_offset);
+    return GetValue(debug_side_table_entry, local, fp, debug_break_fp);
+  }
+
   Handle<JSObject> GetLocalScopeObject(Isolate* isolate, Address pc, Address fp,
                                        Address debug_break_fp) {
     Handle<JSObject> local_scope_object =
@@ -956,6 +968,11 @@ DebugInfo::DebugInfo(NativeModule* native_module)
     : impl_(std::make_unique<DebugInfoImpl>(native_module)) {}
 
 DebugInfo::~DebugInfo() = default;
+
+WasmValue DebugInfo::GetLocalValue(int local, Isolate* isolate, Address pc,
+                                   Address fp, Address debug_break_fp) {
+  return impl_->GetLocalValue(local, isolate, pc, fp, debug_break_fp);
+}
 
 Handle<JSObject> DebugInfo::GetLocalScopeObject(Isolate* isolate, Address pc,
                                                 Address fp,
