@@ -653,17 +653,12 @@ class DebugInfoImpl {
     return local_names_->GetName(func_index, local_index);
   }
 
-  void RecompileLiftoffWithBreakpoints(int func_index, Vector<int> offsets,
-                                       Isolate* current_isolate) {
+  WasmCode* RecompileLiftoffWithBreakpoints(
+      int func_index, Vector<int> offsets, Vector<int> extra_source_positions) {
     // During compilation, we cannot hold the lock, since compilation takes the
     // {NativeModule} lock, which could lead to deadlocks.
     mutex_.AssertUnheld();
 
-    if (func_index == flooded_function_index_) {
-      // We should not be flooding a function that is already flooded.
-      DCHECK(!(offsets.size() == 1 && offsets[0] == 0));
-      flooded_function_index_ = -1;
-    }
     // Recompile the function with Liftoff, setting the new breakpoints.
     // Not thread-safe. The caller is responsible for locking {mutex_}.
     CompilationEnv env = native_module_->CreateCompilationEnv();
@@ -674,21 +669,15 @@ class DebugInfoImpl {
                       wire_bytes.begin() + function->code.end_offset()};
     std::unique_ptr<DebugSideTable> debug_sidetable;
 
-    // Generate additional source positions for current stack frame positions.
-    // These source positions are used to find return addresses in the new code.
-    std::vector<int> stack_frame_positions =
-        StackFramePositions(func_index, current_isolate);
-
     WasmCompilationResult result = ExecuteLiftoffCompilation(
         native_module_->engine()->allocator(), &env, body, func_index,
         kForDebugging, nullptr, nullptr, offsets, &debug_sidetable,
-        VectorOf(stack_frame_positions));
+        extra_source_positions);
     // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
     // support for debugging.
     if (!result.succeeded()) FATAL("Liftoff compilation failed");
     DCHECK_NOT_NULL(debug_sidetable);
 
-    WasmCodeRefScope wasm_code_ref_scope;
     WasmCode* new_code = native_module_->PublishCode(
         native_module_->AddCompiledCode(std::move(result)));
 
@@ -697,7 +686,7 @@ class DebugInfoImpl {
     DCHECK(added);
     USE(added);
 
-    UpdateReturnAddresses(current_isolate, new_code);
+    return new_code;
   }
 
   void SetBreakpoint(int func_index, int offset, Isolate* current_isolate) {
@@ -721,21 +710,37 @@ class DebugInfoImpl {
         return;
       }
       breakpoints.insert(insertion_point, offset);
-
-      // No need to recompile if the function is already flooded.
-      if (func_index == flooded_function_index_) return;
       breakpoints_copy = breakpoints;
     }
 
-    RecompileLiftoffWithBreakpoints(func_index, VectorOf(breakpoints_copy),
-                                    current_isolate);
+    UpdateBreakpoints(func_index, VectorOf(breakpoints_copy), current_isolate);
   }
 
-  void FloodWithBreakpoints(int func_index, Isolate* current_isolate) {
+  void UpdateBreakpoints(int func_index, Vector<int> breakpoints,
+                         Isolate* current_isolate) {
+    // Generate additional source positions for current stack frame positions.
+    // These source positions are used to find return addresses in the new code.
+    std::vector<int> stack_frame_positions =
+        StackFramePositions(func_index, current_isolate);
+
+    WasmCodeRefScope wasm_code_ref_scope;
+    WasmCode* new_code = RecompileLiftoffWithBreakpoints(
+        func_index, breakpoints, VectorOf(stack_frame_positions));
+    UpdateReturnAddresses(current_isolate, new_code);
+  }
+
+  void FloodWithBreakpoints(WasmCompiledFrame* frame, Isolate* current_isolate,
+                            ReturnLocation return_location) {
     // 0 is an invalid offset used to indicate flooding.
     int offset = 0;
-    RecompileLiftoffWithBreakpoints(func_index, Vector<int>(&offset, 1),
-                                    current_isolate);
+    WasmCodeRefScope wasm_code_ref_scope;
+    DCHECK(frame->wasm_code()->is_liftoff());
+    // Generate an additional source position for the current byte offset.
+    int byte_offset = frame->byte_offset();
+    WasmCode* new_code = RecompileLiftoffWithBreakpoints(
+        frame->function_index(), VectorOf(&offset, 1),
+        VectorOf(&byte_offset, 1));
+    UpdateReturnAddress(frame, new_code, return_location);
   }
 
   void PrepareStep(Isolate* isolate, StackFrameId break_frame_id) {
@@ -745,24 +750,20 @@ class DebugInfoImpl {
     WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
     StepAction step_action = isolate->debug()->last_step_action();
 
+    // If we are flooding the top frame, the return location is after a
+    // breakpoints. Otherwise, it's after a call.
+    ReturnLocation return_location = kAfterBreakpoint;
+
     // If we are at a return instruction, then any stepping action is equivalent
     // to StepOut, and we need to flood the parent function.
     if (IsAtReturn(frame) || step_action == StepOut) {
       it.Advance();
       if (it.done() || !it.frame()->is_wasm_compiled()) return;
       frame = WasmCompiledFrame::cast(it.frame());
+      return_location = kAfterWasmCall;
     }
 
-    if (static_cast<int>(frame->function_index()) != flooded_function_index_) {
-      if (flooded_function_index_ != -1) {
-        std::vector<int>& breakpoints =
-            breakpoints_per_function_[flooded_function_index_];
-        RecompileLiftoffWithBreakpoints(flooded_function_index_,
-                                        VectorOf(breakpoints), isolate);
-      }
-      FloodWithBreakpoints(frame->function_index(), isolate);
-      flooded_function_index_ = frame->function_index();
-    }
+    FloodWithBreakpoints(frame, isolate, return_location);
     stepping_frame_ = frame->id();
   }
 
@@ -789,11 +790,10 @@ class DebugInfoImpl {
       if (insertion_point == breakpoints.end()) return;
       if (*insertion_point != offset) return;
       breakpoints.erase(insertion_point);
-      if (func_index == flooded_function_index_) return;
       breakpoints_copy = breakpoints;
     }
-    RecompileLiftoffWithBreakpoints(func_index, VectorOf(breakpoints_copy),
-                                    current_isolate);
+
+    UpdateBreakpoints(func_index, VectorOf(breakpoints_copy), current_isolate);
   }
 
   void RemoveDebugSideTables(Vector<WasmCode* const> codes) {
@@ -903,7 +903,6 @@ class DebugInfoImpl {
   // code. The frame layout itself should be independent of breakpoints.
   // TODO(thibaudm): update other threads as well.
   void UpdateReturnAddresses(Isolate* isolate, WasmCode* new_code) {
-    DCHECK(new_code->is_liftoff());
     // The first return location is after the breakpoint, others are after wasm
     // calls.
     ReturnLocation return_location = kAfterBreakpoint;
@@ -916,15 +915,24 @@ class DebugInfoImpl {
       if (frame->native_module() != new_code->native_module()) continue;
       if (frame->function_index() != new_code->index()) continue;
       if (!frame->wasm_code()->is_liftoff()) continue;
-      int position = frame->position();
-      int byte_offset = frame->byte_offset();
-      Address new_pc = FindNewPC(new_code, byte_offset, return_location);
-      PointerAuthentication::ReplacePC(frame->pc_address(), new_pc,
-                                       kSystemPointerSize);
-      USE(position);
-      // The frame position should still be the same after OSR.
-      DCHECK_EQ(position, frame->position());
+      UpdateReturnAddress(frame, new_code, return_location);
     }
+  }
+
+  void UpdateReturnAddress(WasmCompiledFrame* frame, WasmCode* new_code,
+                           ReturnLocation return_location) {
+    DCHECK(new_code->is_liftoff());
+    DCHECK_EQ(frame->function_index(), new_code->index());
+    DCHECK_EQ(frame->native_module(), new_code->native_module());
+    DCHECK(frame->wasm_code()->is_liftoff());
+#ifdef DEBUG
+    int old_position = frame->position();
+#endif
+    Address new_pc = FindNewPC(new_code, frame->byte_offset(), return_location);
+    PointerAuthentication::ReplacePC(frame->pc_address(), new_pc,
+                                     kSystemPointerSize);
+    // The frame position should still be the same after OSR.
+    DCHECK_EQ(old_position, frame->position());
   }
 
   bool IsAtReturn(WasmCompiledFrame* frame) {
@@ -956,10 +964,9 @@ class DebugInfoImpl {
   // function).
   std::unordered_map<int, std::vector<int>> breakpoints_per_function_;
 
-  // Store the frame ID when stepping, to avoid breaking in recursive calls of
-  // the same function.
+  // Store the frame ID when stepping, to avoid overwriting that frame when
+  // setting or removing a breakpoint.
   StackFrameId stepping_frame_ = NO_ID;
-  int flooded_function_index_ = -1;
 
   DISALLOW_COPY_AND_ASSIGN(DebugInfoImpl);
 };
