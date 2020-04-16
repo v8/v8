@@ -50,31 +50,6 @@ class GCedMixinApplication : public GCed,
   }
 };
 
-class DispatchingVisitor final : public VisitorBase {
- public:
-  DispatchingVisitor(const void* object, const void* payload)
-      : object_(object), payload_(payload) {}
-
- protected:
-  void Visit(const void* t, TraceDescriptor desc) final {
-    EXPECT_EQ(object_, t);
-    EXPECT_EQ(payload_, desc.base_object_payload);
-    desc.callback(this, desc.base_object_payload);
-  }
-
-  void VisitWeak(const void* t, TraceDescriptor desc, WeakCallback callback,
-                 const void* weak_member) final {
-    EXPECT_EQ(object_, t);
-    EXPECT_EQ(payload_, desc.base_object_payload);
-    LivenessBroker broker = LivenessBrokerFactory::Create();
-    callback(broker, weak_member);
-  }
-
- private:
-  const void* object_;
-  const void* payload_;
-};
-
 }  // namespace
 
 TEST_F(TraceTraitTest, GetObjectStartGCed) {
@@ -123,6 +98,35 @@ TEST_F(TraceTraitTest, TraceGCedMixinThroughTraceDescriptor) {
   EXPECT_EQ(1u, GCed::trace_callcount);
 }
 
+namespace {
+
+class DispatchingVisitor final : public VisitorBase {
+ public:
+  DispatchingVisitor(const void* object, const void* payload)
+      : object_(object), payload_(payload) {}
+
+ protected:
+  void Visit(const void* t, TraceDescriptor desc) final {
+    EXPECT_EQ(object_, t);
+    EXPECT_EQ(payload_, desc.base_object_payload);
+    desc.callback(this, desc.base_object_payload);
+  }
+
+  void VisitWeak(const void* t, TraceDescriptor desc, WeakCallback callback,
+                 const void* weak_member) final {
+    EXPECT_EQ(object_, t);
+    EXPECT_EQ(payload_, desc.base_object_payload);
+    LivenessBroker broker = LivenessBrokerFactory::Create();
+    callback(broker, weak_member);
+  }
+
+ private:
+  const void* object_;
+  const void* payload_;
+};
+
+}  // namespace
+
 TEST_F(VisitorTest, DispatchTraceGCed) {
   Member<GCed> ref = MakeGarbageCollected<GCed>(GetHeap());
   DispatchingVisitor visitor(ref, ref);
@@ -161,6 +165,67 @@ TEST_F(VisitorTest, DispatchTraceWeakGCedMixin) {
   visitor.Trace(ref);
   // No marking, so reference should be cleared.
   EXPECT_EQ(nullptr, ref.Get());
+}
+
+namespace {
+
+class WeakCallbackVisitor final : public VisitorBase {
+ public:
+  void RegisterWeakCallback(WeakCallback callback, const void* param) final {
+    LivenessBroker broker = LivenessBrokerFactory::Create();
+    callback(broker, param);
+  }
+};
+
+struct WeakCallbackDispatcher {
+  static size_t callback_callcount;
+  static const void* callback_param;
+
+  static void Setup(const void* expected_param) {
+    callback_callcount = 0;
+    callback_param = expected_param;
+  }
+
+  static void Call(const LivenessBroker& broker, const void* param) {
+    EXPECT_EQ(callback_param, param);
+    callback_callcount++;
+  }
+};
+
+size_t WeakCallbackDispatcher::callback_callcount;
+const void* WeakCallbackDispatcher::callback_param;
+
+class GCedWithCustomWeakCallback final
+    : public GarbageCollected<GCedWithCustomWeakCallback> {
+ public:
+  void CustomWeakCallbackMethod(const LivenessBroker& broker) {
+    WeakCallbackDispatcher::Call(broker, this);
+  }
+
+  void Trace(cppgc::Visitor* visitor) {
+    visitor->RegisterWeakCallbackMethod<
+        GCedWithCustomWeakCallback,
+        &GCedWithCustomWeakCallback::CustomWeakCallbackMethod>(this);
+  }
+};
+
+}  // namespace
+
+TEST_F(VisitorTest, DispatchRegisterWeakCallback) {
+  WeakCallbackVisitor visitor;
+  WeakCallbackDispatcher::Setup(&visitor);
+  EXPECT_EQ(0u, WeakCallbackDispatcher::callback_callcount);
+  visitor.RegisterWeakCallback(WeakCallbackDispatcher::Call, &visitor);
+  EXPECT_EQ(1u, WeakCallbackDispatcher::callback_callcount);
+}
+
+TEST_F(VisitorTest, DispatchRegisterWeakCallbackMethod) {
+  WeakCallbackVisitor visitor;
+  auto* gced = MakeGarbageCollected<GCedWithCustomWeakCallback>(GetHeap());
+  WeakCallbackDispatcher::Setup(gced);
+  EXPECT_EQ(0u, WeakCallbackDispatcher::callback_callcount);
+  gced->Trace(&visitor);
+  EXPECT_EQ(1u, WeakCallbackDispatcher::callback_callcount);
 }
 
 }  // namespace internal

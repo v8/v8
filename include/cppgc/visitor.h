@@ -80,6 +80,13 @@ class Visitor {
     VisitWeakRoot(&p, &HandleWeak<Persistent>);
   }
 
+  template <typename T, void (T::*method)(const LivenessBroker&)>
+  void RegisterWeakCallbackMethod(const T* obj) {
+    RegisterWeakCallback(&WeakCallbackMethodDelegate<T, method>, obj);
+  }
+
+  virtual void RegisterWeakCallback(WeakCallback, const void*) {}
+
  protected:
   virtual void Visit(const void* self, TraceDescriptor) {}
   virtual void VisitWeak(const void* self, TraceDescriptor, WeakCallback,
@@ -89,6 +96,14 @@ class Visitor {
   virtual void VisitWeakRoot(const void*, WeakCallback) {}
 
  private:
+  template <typename T, void (T::*method)(const LivenessBroker&)>
+  static void WeakCallbackMethodDelegate(const LivenessBroker& info,
+                                         const void* self) {
+    // Callback is registered through a potential const Trace method but needs
+    // to be able to modify fields. See HandleWeak.
+    (const_cast<T*>(static_cast<const T*>(self))->*method)(info);
+  }
+
   template <typename PointerType>
   static void HandleWeak(const LivenessBroker& info, const void* object) {
     const PointerType* weak = static_cast<const PointerType*>(object);
