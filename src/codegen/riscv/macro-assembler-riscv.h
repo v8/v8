@@ -576,7 +576,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // MIPS64 R6 instruction macros.
 
   // Convert single to unsigned word.
-  void Trunc_uw_s(FPURegister fd, FPURegister fs);
   void Trunc_uw_s(Register rd, FPURegister fs, Register result = no_reg);
 
   void Ulh(Register rd, const MemOperand& rs);
@@ -740,29 +739,24 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // FPU macros. These do not handle special cases like NaN or +- inf.
 
   // Convert unsigned word to double.
-  void Cvt_d_uw(FPURegister fd, FPURegister fs);
   void Cvt_d_uw(FPURegister fd, Register rs);
 
   // convert signed word to double.
   void Cvt_d_w(FPURegister fd, Register rs);
 
   // Convert unsigned long to double.
-  void Cvt_d_ul(FPURegister fd, FPURegister fs);
   void Cvt_d_ul(FPURegister fd, Register rs);
 
   // Convert unsigned word to float.
-  void Cvt_s_uw(FPURegister fd, FPURegister fs);
   void Cvt_s_uw(FPURegister fd, Register rs);
 
   // convert signed word to float.
   void Cvt_s_w(FPURegister fd, Register rs);
 
   // Convert unsigned long to float.
-  void Cvt_s_ul(FPURegister fd, FPURegister fs);
   void Cvt_s_ul(FPURegister fd, Register rs);
 
   // Convert double to unsigned word.
-  void Trunc_uw_d(FPURegister fd, FPURegister fs);
   void Trunc_uw_d(Register rd, FPURegister fs, Register result = no_reg);
 
   // Convert double to signed word.
@@ -772,14 +766,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Trunc_w_s(Register rd, FPURegister fs, Register result = no_reg);
 
   // Convert double to unsigned long.
-  void Trunc_ul_d(FPURegister fd, FPURegister fs, Register result = no_reg);
   void Trunc_ul_d(Register rd, FPURegister fs, Register result = no_reg);
 
   // Convert singled to signed long.
   void Trunc_l_d(Register rd, FPURegister fs, Register result = no_reg);
 
   // Convert single to unsigned long.
-  void Trunc_ul_s(FPURegister fd, FPURegister fs, Register result = no_reg);
   void Trunc_ul_s(Register rd, FPURegister fs, Register result = no_reg);
 
   // Convert singled to signed long.
@@ -906,11 +898,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void BranchAndLinkLong(Label* L, BranchDelaySlot bdslot);
 
   template <typename RoundFunc>
-  void RoundDouble(FPURegister dst, FPURegister src, FPURoundingMode mode,
+  void RoundDouble(FPURegister dst, FPURegister src, RoundingMode mode,
                    RoundFunc round);
 
   template <typename RoundFunc>
-  void RoundFloat(FPURegister dst, FPURegister src, FPURoundingMode mode,
+  void RoundFloat(FPURegister dst, FPURegister src, RoundingMode mode,
                   RoundFunc round);
 
   template <typename TruncFunc>
@@ -996,12 +988,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LoadWordPair(Register rd, const MemOperand& rs, Register scratch = t3);
   void StoreWordPair(Register rd, const MemOperand& rs, Register scratch = t3);
 
-  void Trunc_l_d(FPURegister fd, FPURegister fs);
   void Round_l_d(FPURegister fd, FPURegister fs);
   void Floor_l_d(FPURegister fd, FPURegister fs);
   void Ceil_l_d(FPURegister fd, FPURegister fs);
 
-  void Trunc_w_d(FPURegister fd, FPURegister fs);
   void Round_w_d(FPURegister fd, FPURegister fs);
   void Floor_w_d(FPURegister fd, FPURegister fs);
   void Ceil_w_d(FPURegister fd, FPURegister fs);
@@ -1018,16 +1008,19 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void BranchShortMSA(MSABranchDF df, Label* target, MSABranchCondition cond,
                       MSARegister wt, BranchDelaySlot bd = PROTECT);
 
-  // Truncates a double using a specific rounding mode, and writes the value
-  // to the result register.
-  // The except_flag will contain any exceptions caused by the instruction.
-  // If check_inexact is kDontCheckForInexactConversion, then the inexact
-  // exception is masked.
-  void EmitFPUTruncate(
-      FPURoundingMode rounding_mode, Register result,
-      DoubleRegister double_input, Register scratch,
-      DoubleRegister double_scratch, Register except_flag,
-      CheckForInexactConversion check_inexact = kDontCheckForInexactConversion);
+  /*
+    // Truncates a double using a specific rounding mode, and writes the value
+    // to the result register.
+    // The except_flag will contain any exceptions caused by the instruction.
+    // If check_inexact is kDontCheckForInexactConversion, then the inexact
+    // exception is masked.
+    void EmitFPUTruncate(
+        FPURoundingMode rounding_mode, Register result,
+        DoubleRegister double_input, Register scratch,
+        DoubleRegister double_scratch, Register except_flag,
+        CheckForInexactConversion check_inexact =
+    kDontCheckForInexactConversion);
+  */
 
   // Enter exit frame.
   // argc - argument count to be dropped by LeaveExitFrame.

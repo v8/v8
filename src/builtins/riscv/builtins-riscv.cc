@@ -13,8 +13,8 @@
 #include "src/logging/counters.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
 #include "src/codegen/macro-assembler-inl.h"
-#include "src/codegen/riscv/constants-riscv.h"
 #include "src/codegen/register-configuration.h"
+#include "src/codegen/riscv/constants-riscv.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/cell.h"
 #include "src/objects/foreign.h"
@@ -1219,7 +1219,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   Generate_InterpreterPushArgs(masm, a3, a2, a4, t0);
 
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
-    __ Pop(a2);                   // Pass the spread in a register
+    __ Pop(a2);                    // Pass the spread in a register
     __ Dsubu(a0, a0, Operand(1));  // Subtract one for spread
   }
 
@@ -1261,7 +1261,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   Generate_InterpreterPushArgs(masm, a0, a4, a5, t0);
 
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
-    __ Pop(a2);                   // Pass the spread in a register
+    __ Pop(a2);                    // Pass the spread in a register
     __ Dsubu(a0, a0, Operand(1));  // Subtract one for spread
   } else {
     __ AssertUndefinedOrAllocationSite(a2, t0);
@@ -2092,8 +2092,8 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ And(t1, t1, Operand(Map::Bits1::IsCallableBit::kMask));
   __ Branch(&non_callable, eq, t1, Operand(zero_reg));
 
-  __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy),
-          RelocInfo::CODE_TARGET, eq, t2, Operand(JS_PROXY_TYPE));
+  __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET, eq,
+          t2, Operand(JS_PROXY_TYPE));
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
@@ -2612,9 +2612,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ ctc1(zero_reg, FCSR);
 
   // Try a conversion to a signed integer.
-  __ Trunc_w_d(double_scratch, double_scratch);
-  // Move the converted value into the result register.
-  __ mfc1(scratch3, double_scratch);
+  __ Trunc_w_d(scratch3, double_scratch);
 
   // Retrieve and restore the FCSR.
   __ cfc1(scratch, FCSR);
@@ -2861,8 +2859,8 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   Register scratch = t0;
   Register base = t1;  // For addressing MemOperands on the stack.
 
-  DCHECK(!AreAliased(api_function_address, argc, call_data,
-                     holder, scratch, base));
+  DCHECK(!AreAliased(api_function_address, argc, call_data, holder, scratch,
+                     base));
 
   using FCA = FunctionCallbackArguments;
 
@@ -3008,7 +3006,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
 
   // Load address of v8::PropertyAccessorInfo::args_ array and name handle.
-  __ Move(a0, sp);                               // a0 = Handle<Name>
+  __ Move(a0, sp);                              // a0 = Handle<Name>
   __ Daddu(a1, a0, Operand(1 * kPointerSize));  // a1 = v8::PCI::args_
 
   const int kApiStackSpace = 1;

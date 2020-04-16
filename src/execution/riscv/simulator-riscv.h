@@ -351,12 +351,11 @@ class Simulator : public SimulatorBase {
   inline bool test_fflags_bits(uint32_t mask);
 
   // FIXME: MIPS ones to be cleaned up
-  void set_fcsr_bit(uint32_t cc, bool value);
-  bool test_fcsr_bit(uint32_t cc);
   bool set_fcsr_round_error(double original, double rounded);
   bool set_fcsr_round64_error(double original, double rounded);
   bool set_fcsr_round_error(float original, float rounded);
   bool set_fcsr_round64_error(float original, float rounded);
+
   void round_according_to_fcsr(double toRound, double* rounded,
                                int32_t* rounded_int, double fs);
   void round64_according_to_fcsr(double toRound, double* rounded,
@@ -368,11 +367,7 @@ class Simulator : public SimulatorBase {
   template <typename T_fp, typename T_int>
   void round_according_to_msacsr(T_fp toRound, T_fp* rounded,
                                  T_int* rounded_int);
-  void set_fcsr_rounding_mode(FPURoundingMode mode);
-  void set_msacsr_rounding_mode(FPURoundingMode mode);
-  unsigned int get_fcsr_rounding_mode();
-  unsigned int get_msacsr_rounding_mode();
-
+ 
   // Special case of set_register and get_register to access the raw PC value.
   void set_pc(int64_t value);
   int64_t get_pc() const;

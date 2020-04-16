@@ -323,7 +323,7 @@ const int RV_kRdFieldMask = ((1 << RV_kRdBits) - 1) << RV_kRdShift;
 const int kBImm12Mask = kFunct7Mask | RV_kRdFieldMask;
 const int kImm20Mask = ((1 << kImm20Bits) - 1) << kImm20Shift;
 
-// CSR related bit mask and shift
+// RISCV CSR related bit mask and shift
 const int kFcsrFlagsBits = 5;
 const int kFcsrFlagsMask = (1 << kFcsrFlagsBits) - 1;
 const int kFcsrFrmBits = 3;
@@ -1352,43 +1352,6 @@ enum Condition {
   cc_default = kNoCondition
 };
 
-enum ControlStatusReg {
-  csr_fflags = 0x001,   // Floating-Point Accrued Exceptions (RW)
-  csr_frm = 0x002,      // Floating-Point Dynamic Rounding Mode (RW)
-  csr_fcsr = 0x003,     // Floating-Point Control and Status Register (RW)
-  csr_cycle = 0xc00,    // Cycle counter for RDCYCLE instruction (RO)
-  csr_time = 0xc01,     // Timer for RDTIME instruction (RO)
-  csr_instret = 0xc02,  // Insns-retired counter for RDINSTRET instruction (RO)
-  csr_cycleh = 0xc80,   // Upper 32 bits of cycle, RV32I only (RO)
-  csr_timeh = 0xc81,    // Upper 32 bits of time, RV32I only (RO)
-  csr_instreth = 0xc82  // Upper 32 bits of instret, RV32I only (RO)
-};
-
-enum FFlagsMask {
-  NV = 0b10000,  // Invalid
-  DZ = 0b1000,   // Divide by Zero
-  OF = 0b100,    // Overflow
-  UF = 0b10,     // Underflow
-  NX = 0b1       // Inexact
-};
-
-enum RoundingMode {
-  RNE = 0b000,  // Round to Nearest, ties to Even
-  RTZ = 0b001,  // Round towards Zero
-  RDN = 0b010,  // Round Down (towards -infinity)
-  RUP = 0b011,  // Round Up (towards +infinity)
-  RMM = 0b100,  // Round to Nearest, tiest to Max Magnitude
-  DYN = 0b111   // In instruction’s rm field, selects dynamic rounding mode;
-                // In Rounding Mode register, Invalid
-};
-
-enum MemoryOdering {
-  PSI = 0b1000,  // PI or SI
-  PSO = 0b0100,  // PO or SO
-  PSR = 0b0010,  // PR or SR
-  PSW = 0b0001   // PW or SW
-};
-
 // Returns the equivalent of !cc.
 // Negation of the default kNoCondition (-1) results in a non-default
 // no_condition value (-2). As long as tests for no_condition check
@@ -1482,33 +1445,52 @@ enum FPUCondition {
   NE = 0x13,   // Ordered Greater Than or Less Than. on Mips >= 6 only.
 };
 
-// FPU rounding modes.
-enum FPURoundingMode {
-  RN = 0 << 0,  // Round to Nearest.
-  RZ = 1 << 0,  // Round towards zero.
-  RP = 2 << 0,  // Round towards Plus Infinity.
-  RM = 3 << 0,  // Round towards Minus Infinity.
-
-  // Aliases.
-  kRoundToNearest = RN,
-  kRoundToZero = RZ,
-  kRoundToPlusInf = RP,
-  kRoundToMinusInf = RM,
-
-  mode_round = RN,
-  mode_ceil = RP,
-  mode_floor = RM,
-  mode_trunc = RZ
-};
-
-const uint32_t kFPURoundingModeMask = 3 << 0;
-
 enum CheckForInexactConversion {
   kCheckForInexactConversion,
   kDontCheckForInexactConversion
 };
 
 enum class MaxMinKind : int { kMin = 0, kMax = 1 };
+
+// ----------------------------------------------------------------------------
+// RISCV flags
+
+enum ControlStatusReg {
+  csr_fflags = 0x001,   // Floating-Point Accrued Exceptions (RW)
+  csr_frm = 0x002,      // Floating-Point Dynamic Rounding Mode (RW)
+  csr_fcsr = 0x003,     // Floating-Point Control and Status Register (RW)
+  csr_cycle = 0xc00,    // Cycle counter for RDCYCLE instruction (RO)
+  csr_time = 0xc01,     // Timer for RDTIME instruction (RO)
+  csr_instret = 0xc02,  // Insns-retired counter for RDINSTRET instruction (RO)
+  csr_cycleh = 0xc80,   // Upper 32 bits of cycle, RV32I only (RO)
+  csr_timeh = 0xc81,    // Upper 32 bits of time, RV32I only (RO)
+  csr_instreth = 0xc82  // Upper 32 bits of instret, RV32I only (RO)
+};
+
+enum FFlagsMask {
+  NV = 0b10000,  // Invalid
+  DZ = 0b1000,   // Divide by Zero
+  OF = 0b100,    // Overflow
+  UF = 0b10,     // Underflow
+  NX = 0b1       // Inexact
+};
+
+enum RoundingMode {
+  RNE = 0b000,  // Round to Nearest, ties to Even
+  RTZ = 0b001,  // Round towards Zero
+  RDN = 0b010,  // Round Down (towards -infinity)
+  RUP = 0b011,  // Round Up (towards +infinity)
+  RMM = 0b100,  // Round to Nearest, tiest to Max Magnitude
+  DYN = 0b111   // In instruction’s rm field, selects dynamic rounding mode;
+                // In Rounding Mode register, Invalid
+};
+
+enum MemoryOdering {
+  PSI = 0b1000,  // PI or SI
+  PSO = 0b0100,  // PO or SO
+  PSR = 0b0010,  // PR or SR
+  PSW = 0b0001   // PW or SW
+};
 
 // -----------------------------------------------------------------------------
 // Hints.
@@ -1972,61 +1954,6 @@ class InstructionGetters : public T {
            this->InstructionType() == InstructionBase::kImmediateType);
     return this->Bits(kFunctionShift + kFunctionBits - 1, kFunctionShift);
   }
-
-  /*
-    inline int FdValue() const {
-      return this->Bits(kFdShift + kFdBits - 1, kFdShift);
-    }
-
-    inline int FsValue() const {
-      return this->Bits(kFsShift + kFsBits - 1, kFsShift);
-    }
-
-    inline int FtValue() const {
-      return this->Bits(kFtShift + kFtBits - 1, kFtShift);
-    }
-
-    inline int FrValue() const {
-      return this->Bits(kFrShift + kFrBits - 1, kFrShift);
-    }
-
-    inline int WdValue() const {
-      return this->Bits(kWdShift + kWdBits - 1, kWdShift);
-    }
-
-    inline int WsValue() const {
-      return this->Bits(kWsShift + kWsBits - 1, kWsShift);
-    }
-
-    inline int WtValue() const {
-      return this->Bits(kWtShift + kWtBits - 1, kWtShift);
-    }
-
-    inline int Bp2Value() const {
-      DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
-      return this->Bits(kBp2Shift + kBp2Bits - 1, kBp2Shift);
-    }
-
-    inline int Bp3Value() const {
-      DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
-      return this->Bits(kBp3Shift + kBp3Bits - 1, kBp3Shift);
-    }
-
-    // Float Compare condition code instruction bits.
-    inline int FCccValue() const {
-      return this->Bits(kFCccShift + kFCccBits - 1, kFCccShift);
-    }
-
-    // Float Branch condition code instruction bits.
-    inline int FBccValue() const {
-      return this->Bits(kFBccShift + kFBccBits - 1, kFBccShift);
-    }
-
-    // Float Branch true/false instruction bit.
-    inline int FBtrueValue() const {
-      return this->Bits(kFBtrueShift + kFBtrueBits - 1, kFBtrueShift);
-    }
-    */
 
   // Return the fields at their original place in the instruction encoding.
   inline Opcode OpcodeFieldRaw() const {
