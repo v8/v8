@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
-
 #include "src/heap/cppgc/heap.h"
 #include "include/cppgc/allocation.h"
 #include "test/unittests/heap/cppgc/tests.h"
@@ -72,5 +70,3 @@ TEST_F(GCHeapTest, ConservaitveGCRetainsObjectOnStack) {
 
 }  // namespace internal
 }  // namespace cppgc
-
-#endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN

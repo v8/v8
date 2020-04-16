@@ -46,8 +46,6 @@ TEST_F(GCStackTest, IsOnStackForHeapValue) {
   EXPECT_FALSE(GetStack()->IsOnStack(dummy.get()));
 }
 
-#ifdef CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
-
 namespace {
 
 class StackScanner final : public StackVisitor {
@@ -354,8 +352,6 @@ TEST_F(GCStackTest, StackAlignment) {
   GetStack()->IteratePointers(checker.get());
 }
 #endif  // V8_OS_LINUX && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
-
-#endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
 
 }  // namespace internal
 }  // namespace cppgc
