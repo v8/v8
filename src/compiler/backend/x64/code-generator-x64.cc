@@ -670,13 +670,13 @@ void AdjustStackPointerForTailCall(TurboAssembler* assembler,
   }
 }
 
-void SetupShuffleMaskOnStack(TurboAssembler* assembler, uint32_t* mask) {
-  int64_t shuffle_mask = (mask[2]) | (static_cast<uint64_t>(mask[3]) << 32);
+void SetupShuffleMaskInTempRegister(TurboAssembler* assembler, uint32_t* mask,
+                                    XMMRegister tmp) {
+  uint64_t shuffle_mask = (mask[0]) | (static_cast<uint64_t>(mask[1]) << 32);
+  assembler->Move(tmp, shuffle_mask);
+  shuffle_mask = (mask[2]) | (static_cast<uint64_t>(mask[3]) << 32);
   assembler->movq(kScratchRegister, shuffle_mask);
-  assembler->Push(kScratchRegister);
-  shuffle_mask = (mask[0]) | (static_cast<uint64_t>(mask[1]) << 32);
-  assembler->movq(kScratchRegister, shuffle_mask);
-  assembler->Push(kScratchRegister);
+  assembler->Pinsrq(tmp, kScratchRegister, int8_t{1});
 }
 
 }  // namespace
@@ -3595,10 +3595,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64S8x16Shuffle: {
       XMMRegister dst = i.OutputSimd128Register();
-      Register tmp = i.TempRegister(0);
-      // Prepare 16 byte aligned buffer for shuffle control mask
-      __ movq(tmp, rsp);
-      __ andq(rsp, Immediate(-16));
+      XMMRegister tmp_simd = i.TempSimd128Register(0);
       if (instr->InputCount() == 5) {  // only one input operand
         uint32_t mask[4] = {};
         DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
@@ -3606,22 +3603,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           mask[j - 1] = i.InputUint32(j);
         }
 
-        SetupShuffleMaskOnStack(tasm(), mask);
-        __ Pshufb(dst, Operand(rsp, 0));
+        SetupShuffleMaskInTempRegister(tasm(), mask, tmp_simd);
+        __ Pshufb(dst, tmp_simd);
       } else {  // two input operands
         DCHECK_EQ(6, instr->InputCount());
         ASSEMBLE_SIMD_INSTR(Movups, kScratchDoubleReg, 0);
-        uint32_t mask[4] = {};
+        uint32_t mask1[4] = {};
         for (int j = 5; j > 1; j--) {
           uint32_t lanes = i.InputUint32(j);
           for (int k = 0; k < 32; k += 8) {
             uint8_t lane = lanes >> k;
-            mask[j - 2] |= (lane < kSimd128Size ? lane : 0x80) << k;
+            mask1[j - 2] |= (lane < kSimd128Size ? lane : 0x80) << k;
           }
         }
-        SetupShuffleMaskOnStack(tasm(), mask);
-        __ Pshufb(kScratchDoubleReg, Operand(rsp, 0));
-        uint32_t mask1[4] = {};
+        SetupShuffleMaskInTempRegister(tasm(), mask1, tmp_simd);
+        __ Pshufb(kScratchDoubleReg, tmp_simd);
+        uint32_t mask2[4] = {};
         if (instr->InputAt(1)->IsSimd128Register()) {
           XMMRegister src1 = i.InputSimd128Register(1);
           if (src1 != dst) __ movups(dst, src1);
@@ -3632,14 +3629,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           uint32_t lanes = i.InputUint32(j);
           for (int k = 0; k < 32; k += 8) {
             uint8_t lane = lanes >> k;
-            mask1[j - 2] |= (lane >= kSimd128Size ? (lane & 0x0F) : 0x80) << k;
+            mask2[j - 2] |= (lane >= kSimd128Size ? (lane & 0x0F) : 0x80) << k;
           }
         }
-        SetupShuffleMaskOnStack(tasm(), mask1);
-        __ Pshufb(dst, Operand(rsp, 0));
+        SetupShuffleMaskInTempRegister(tasm(), mask2, tmp_simd);
+        __ Pshufb(dst, tmp_simd);
         __ Por(dst, kScratchDoubleReg);
       }
-      __ movq(rsp, tmp);
       break;
     }
     case kX64S8x16LoadSplat: {

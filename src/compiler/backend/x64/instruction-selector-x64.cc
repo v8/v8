@@ -3338,7 +3338,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
     imms[imm_count++] = Pack4Lanes(shuffle + 4);
     imms[imm_count++] = Pack4Lanes(shuffle + 8);
     imms[imm_count++] = Pack4Lanes(shuffle + 12);
-    temps[temp_count++] = g.TempRegister();
+    temps[temp_count++] = g.TempSimd128Register();
   }
 
   // Use DefineAsRegister(node) and Use(src0) if we can without forcing an extra
@@ -3347,7 +3347,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   InstructionOperand dst =
       no_same_as_first ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
   InstructionOperand src0 =
-      src0_needs_reg ? g.UseRegister(input0) : g.Use(input0);
+      src0_needs_reg ? g.UseUniqueRegister(input0) : g.UseUnique(input0);
 
   int input_count = 0;
   InstructionOperand inputs[2 + kMaxImms + kMaxTemps];
@@ -3355,7 +3355,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   if (!is_swizzle) {
     Node* input1 = node->InputAt(1);
     inputs[input_count++] =
-        src1_needs_reg ? g.UseRegister(input1) : g.Use(input1);
+        src1_needs_reg ? g.UseUniqueRegister(input1) : g.UseUnique(input1);
   }
   for (int i = 0; i < imm_count; ++i) {
     inputs[input_count++] = g.UseImmediate(imms[i]);
