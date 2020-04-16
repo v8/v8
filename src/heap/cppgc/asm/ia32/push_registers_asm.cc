@@ -23,6 +23,7 @@ asm(
     "_PushAllRegistersAndIterateStack:                  \n"
 #else   // !_WIN32
     ".globl PushAllRegistersAndIterateStack             \n"
+    ".type PushAllRegistersAndIterateStack, %function   \n"
     ".hidden PushAllRegistersAndIterateStack            \n"
     "PushAllRegistersAndIterateStack:                   \n"
 #endif  // !_WIN32

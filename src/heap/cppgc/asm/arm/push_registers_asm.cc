@@ -18,6 +18,7 @@
 // https://en.wikipedia.org/wiki/Calling_convention#ARM_(A32)
 // http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.faqs/ka4127.html
 asm(".globl PushAllRegistersAndIterateStack             \n"
+    ".type PushAllRegistersAndIterateStack, %function   \n"
     ".hidden PushAllRegistersAndIterateStack            \n"
     "PushAllRegistersAndIterateStack:                   \n"
     // Push all callee-saved registers and save return address.

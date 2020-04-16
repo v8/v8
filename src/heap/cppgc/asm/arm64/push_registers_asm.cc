@@ -16,9 +16,9 @@
 // Calling convention source:
 // https://en.wikipedia.org/wiki/Calling_convention#ARM_(A64)
 
-asm(
-    ".globl PushAllRegistersAndIterateStack             \n"
+asm(".globl PushAllRegistersAndIterateStack             \n"
 #ifndef _WIN64
+    ".type PushAllRegistersAndIterateStack, %function   \n"
     ".hidden PushAllRegistersAndIterateStack            \n"
 #endif
     "PushAllRegistersAndIterateStack:                   \n"

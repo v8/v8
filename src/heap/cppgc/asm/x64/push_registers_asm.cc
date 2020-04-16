@@ -63,6 +63,7 @@ asm(
     "_PushAllRegistersAndIterateStack:                  \n"
 #else   // !__APPLE__
     ".globl PushAllRegistersAndIterateStack             \n"
+    ".type PushAllRegistersAndIterateStack, %function   \n"
     ".hidden PushAllRegistersAndIterateStack            \n"
     "PushAllRegistersAndIterateStack:                   \n"
 #endif  // !__APPLE__

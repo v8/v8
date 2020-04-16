@@ -22,6 +22,7 @@ asm(
     ".PushAllRegistersAndIterateStack:                  \n"
 #else
     ".globl PushAllRegistersAndIterateStack             \n"
+    ".type PushAllRegistersAndIterateStack, %function   \n"
     ".hidden PushAllRegistersAndIterateStack            \n"
     "PushAllRegistersAndIterateStack:                   \n"
 #endif

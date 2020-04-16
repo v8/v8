@@ -12,6 +12,7 @@
 // GN toolchain (e.g. ChromeOS) and not provide them.
 asm(".set noreorder                                      \n"
     ".global PushAllRegistersAndIterateStack             \n"
+    ".type PushAllRegistersAndIterateStack, %function    \n"
     ".hidden PushAllRegistersAndIterateStack             \n"
     "PushAllRegistersAndIterateStack:                    \n"
     // Push all callee-saved registers and save return address.
