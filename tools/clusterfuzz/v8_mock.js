@@ -159,3 +159,6 @@ Object.defineProperty(
     }
   };
 })();
+
+// Mock Realm.
+Realm.eval = function(realm, code) { return eval(code) };

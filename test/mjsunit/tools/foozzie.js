@@ -77,3 +77,6 @@ if (isBigEndian){
 else {
   testArrayType(Float64Array, [0, 1072693248]);
 }
+
+// Realm.eval is just eval.
+assertEquals(1477662728716, Realm.eval(Realm.create(), `Date.now()`));
