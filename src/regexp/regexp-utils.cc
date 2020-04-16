@@ -185,7 +185,7 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   // property. Similar spots in CSA would use BranchIfFastRegExp_Strict in this
   // case.
 
-  if (!Protectors::IsRegExpSpeciesLookupChainIntact(
+  if (!Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
           recv.GetCreationContext())) {
     return false;
   }

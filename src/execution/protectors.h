@@ -16,7 +16,7 @@ class Protectors : public AllStatic {
   static const int kProtectorInvalid = 0;
 
 #define DECLARED_PROTECTORS_ON_NATIVE_CONTEXT(V) \
-  V(RegExpSpeciesLookupChain, regexp_species_protector)
+  V(RegExpSpeciesLookupChainProtector, regexp_species_protector)
 
 #define DECLARED_PROTECTORS_ON_ISOLATE(V)                                     \
   V(ArrayBufferDetaching, ArrayBufferDetachingProtector,                      \
