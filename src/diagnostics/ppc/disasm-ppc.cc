@@ -832,6 +832,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "sthux   'rs, 'ra, 'rb");
       return;
     }
+    case STVX: {
+      Format(instr, "stvx    'Dt, 'ra, 'rb");
+      return;
+    }
     case LWZX: {
       Format(instr, "lwzx    'rt, 'ra, 'rb");
       return;
@@ -874,6 +878,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
     }
     case LWARX: {
       Format(instr, "lwarx   'rt, 'ra, 'rb");
+      return;
+    }
+    case LVX: {
+      Format(instr, "lvx   'Dt, 'ra, 'rb");
       return;
     }
 #if V8_TARGET_ARCH_PPC64

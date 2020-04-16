@@ -198,9 +198,13 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kPPC_LoadWord64;
       mode = kInt16Imm_4ByteAligned;
       break;
+    case MachineRepresentation::kSimd128:
+      opcode = kPPC_LoadSimd128;
+      // Vectors do not support MRI mode, only MRR is available.
+      mode = kNoImmediate;
+      break;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -321,9 +325,13 @@ void InstructionSelector::VisitStore(Node* node) {
 #else
       case MachineRepresentation::kWord64:  // Fall through.
 #endif
+      case MachineRepresentation::kSimd128:
+        opcode = kPPC_StoreSimd128;
+        // Vectors do not support MRI mode, only MRR is available.
+        mode = kNoImmediate;
+        break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:         // Fall through.
-      case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
