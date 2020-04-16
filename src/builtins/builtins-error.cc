@@ -85,53 +85,5 @@ BUILTIN(ErrorPrototypeToString) {
                            ErrorUtils::ToString(isolate, args.receiver()));
 }
 
-namespace {
-
-Object MakeGenericError(Isolate* isolate, BuiltinArguments args,
-                        Handle<JSFunction> constructor) {
-  Handle<Object> template_index = args.atOrUndefined(isolate, 1);
-  Handle<Object> arg0 = args.atOrUndefined(isolate, 2);
-  Handle<Object> arg1 = args.atOrUndefined(isolate, 3);
-  Handle<Object> arg2 = args.atOrUndefined(isolate, 4);
-
-  DCHECK(template_index->IsSmi());
-
-  return *ErrorUtils::MakeGenericError(
-      isolate, constructor, MessageTemplateFromInt(Smi::ToInt(*template_index)),
-      arg0, arg1, arg2, SKIP_NONE);
-}
-
-}  // namespace
-
-BUILTIN(MakeError) {
-  HandleScope scope(isolate);
-  return MakeGenericError(isolate, args, isolate->error_function());
-}
-
-BUILTIN(MakeRangeError) {
-  HandleScope scope(isolate);
-  return MakeGenericError(isolate, args, isolate->range_error_function());
-}
-
-BUILTIN(MakeSyntaxError) {
-  HandleScope scope(isolate);
-  return MakeGenericError(isolate, args, isolate->syntax_error_function());
-}
-
-BUILTIN(MakeTypeError) {
-  HandleScope scope(isolate);
-  return MakeGenericError(isolate, args, isolate->type_error_function());
-}
-
-BUILTIN(MakeURIError) {
-  HandleScope scope(isolate);
-  Handle<JSFunction> constructor = isolate->uri_error_function();
-  Handle<Object> undefined = isolate->factory()->undefined_value();
-  MessageTemplate template_index = MessageTemplate::kURIMalformed;
-  return *ErrorUtils::MakeGenericError(isolate, constructor, template_index,
-                                       undefined, undefined, undefined,
-                                       SKIP_NONE);
-}
-
 }  // namespace internal
 }  // namespace v8

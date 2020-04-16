@@ -782,11 +782,6 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kFunctionPrototypeApply:
     // Error builtins.
     case Builtins::kErrorConstructor:
-    case Builtins::kMakeError:
-    case Builtins::kMakeTypeError:
-    case Builtins::kMakeSyntaxError:
-    case Builtins::kMakeRangeError:
-    case Builtins::kMakeURIError:
     // RegExp builtins.
     case Builtins::kRegExpConstructor:
     // Internal.

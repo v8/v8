@@ -42,11 +42,6 @@ enum ContextLookupFlags {
   V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal) \
   V(ASYNC_MODULE_EVALUATE_INTERNAL, JSFunction,                   \
     async_module_evaluate_internal)                               \
-  V(MAKE_ERROR_INDEX, JSFunction, make_error)                     \
-  V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)         \
-  V(MAKE_SYNTAX_ERROR_INDEX, JSFunction, make_syntax_error)       \
-  V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)           \
-  V(MAKE_URI_ERROR_INDEX, JSFunction, make_uri_error)             \
   V(OBJECT_CREATE, JSFunction, object_create)                     \
   V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)               \
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)       \

@@ -3669,10 +3669,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapObject> MakeTypeError(MessageTemplate message,
                                   TNode<Context> context, TArgs... args) {
     STATIC_ASSERT(sizeof...(TArgs) <= 3);
-    const TNode<Object> make_type_error = LoadContextElement(
-        LoadNativeContext(context), Context::MAKE_TYPE_ERROR_INDEX);
-    return CAST(Call(context, make_type_error, UndefinedConstant(),
-                     SmiConstant(message), args...));
+    return CAST(CallRuntime(Runtime::kNewTypeError, context,
+                            SmiConstant(message), args...));
   }
 
   void Abort(AbortReason reason) {

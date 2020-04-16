@@ -1396,20 +1396,6 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
   }
 }
 
-namespace {
-
-void InstallMakeError(Isolate* isolate, int builtin_id, int context_index) {
-  NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithPrototype(
-      isolate->factory()->empty_string(), isolate->factory()->the_hole_value(),
-      JS_OBJECT_TYPE, JSObject::kHeaderSize, 0, builtin_id, MUTABLE);
-
-  Handle<JSFunction> function = isolate->factory()->NewFunction(args);
-  function->shared().DontAdaptArguments();
-  isolate->native_context()->set(context_index, *function);
-}
-
-}  // namespace
-
 // This is only called if we are not using snapshots.  The equivalent
 // work in the snapshot case is done in HookUpGlobalObject.
 void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
@@ -2703,49 +2689,33 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         regexp_string_iterator_function->initial_map());
   }
 
-  {  // -- E r r o r
-    InstallError(isolate_, global, factory->Error_string(),
-                 Context::ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate_, Builtins::kMakeError, Context::MAKE_ERROR_INDEX);
-  }
+  // -- E r r o r
+  InstallError(isolate_, global, factory->Error_string(),
+               Context::ERROR_FUNCTION_INDEX);
 
-  {  // -- E v a l E r r o r
-    InstallError(isolate_, global, factory->EvalError_string(),
-                 Context::EVAL_ERROR_FUNCTION_INDEX);
-  }
+  // -- E v a l E r r o r
+  InstallError(isolate_, global, factory->EvalError_string(),
+               Context::EVAL_ERROR_FUNCTION_INDEX);
 
-  {  // -- R a n g e E r r o r
-    InstallError(isolate_, global, factory->RangeError_string(),
-                 Context::RANGE_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate_, Builtins::kMakeRangeError,
-                     Context::MAKE_RANGE_ERROR_INDEX);
-  }
+  // -- R a n g e E r r o r
+  InstallError(isolate_, global, factory->RangeError_string(),
+               Context::RANGE_ERROR_FUNCTION_INDEX);
 
-  {  // -- R e f e r e n c e E r r o r
-    InstallError(isolate_, global, factory->ReferenceError_string(),
-                 Context::REFERENCE_ERROR_FUNCTION_INDEX);
-  }
+  // -- R e f e r e n c e E r r o r
+  InstallError(isolate_, global, factory->ReferenceError_string(),
+               Context::REFERENCE_ERROR_FUNCTION_INDEX);
 
-  {  // -- S y n t a x E r r o r
-    InstallError(isolate_, global, factory->SyntaxError_string(),
-                 Context::SYNTAX_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate_, Builtins::kMakeSyntaxError,
-                     Context::MAKE_SYNTAX_ERROR_INDEX);
-  }
+  // -- S y n t a x E r r o r
+  InstallError(isolate_, global, factory->SyntaxError_string(),
+               Context::SYNTAX_ERROR_FUNCTION_INDEX);
 
-  {  // -- T y p e E r r o r
-    InstallError(isolate_, global, factory->TypeError_string(),
-                 Context::TYPE_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate_, Builtins::kMakeTypeError,
-                     Context::MAKE_TYPE_ERROR_INDEX);
-  }
+  // -- T y p e E r r o r
+  InstallError(isolate_, global, factory->TypeError_string(),
+               Context::TYPE_ERROR_FUNCTION_INDEX);
 
-  {  // -- U R I E r r o r
-    InstallError(isolate_, global, factory->URIError_string(),
-                 Context::URI_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate_, Builtins::kMakeURIError,
-                     Context::MAKE_URI_ERROR_INDEX);
-  }
+  // -- U R I E r r o r
+  InstallError(isolate_, global, factory->URIError_string(),
+               Context::URI_ERROR_FUNCTION_INDEX);
 
   {  // -- C o m p i l e E r r o r
     Handle<JSObject> dummy = factory->NewJSObject(isolate_->object_function());
