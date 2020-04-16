@@ -386,7 +386,7 @@ class CompilationStateImpl {
   // called immediately if no recompilation is needed, or called later
   // otherwise.
   void InitializeRecompilation(
-      ExecutionTier tier,
+      TieringState new_tiering_state,
       CompilationState::callback_t recompilation_finished_callback);
 
   // Add the callback function to be called on compilation events. Needs to be
@@ -556,7 +556,8 @@ class CompilationStateImpl {
   std::vector<uint8_t> compilation_progress_;
 
   int outstanding_recompilation_functions_ = 0;
-  ExecutionTier recompilation_tier_;
+  TieringState tiering_state_ = kTieredUp;
+
   // End of fields protected by {callbacks_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
@@ -1424,22 +1425,22 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
 }
 
 void RecompileNativeModule(Isolate* isolate, NativeModule* native_module,
-                           ExecutionTier tier) {
+                           TieringState tiering_state) {
   // Install a callback to notify us once background recompilation finished.
   auto recompilation_finished_semaphore = std::make_shared<base::Semaphore>(0);
   auto* compilation_state = Impl(native_module->compilation_state());
-  DCHECK(tier == ExecutionTier::kTurbofan || tier == ExecutionTier::kLiftoff);
   // The callback captures a shared ptr to the semaphore.
   // Initialize the compilation units and kick off background compile tasks.
   compilation_state->InitializeRecompilation(
-      tier, [recompilation_finished_semaphore](CompilationEvent event) {
+      tiering_state,
+      [recompilation_finished_semaphore](CompilationEvent event) {
         if (event == CompilationEvent::kFinishedRecompilation) {
           recompilation_finished_semaphore->Signal();
         }
       });
 
-  // For tier down only.
-  if (tier == ExecutionTier::kLiftoff) {
+  // We only wait for tier down. Tier up can happen in the background.
+  if (tiering_state == kTieredDown) {
     // The main thread contributes to the compilation, except if we need
     // deterministic compilation; in that case, the single background task will
     // execute all compilation.
@@ -2461,11 +2462,9 @@ void CompilationStateImpl::InitializeCompilationProgress(bool lazy_module,
   for (int func_index = start; func_index < end; func_index++) {
     if (prefer_liftoff) {
       constexpr uint8_t kLiftoffOnlyFunctionProgress =
-          RequiredTopTierField::update(
-              RequiredBaselineTierField::update(
-                  ReachedTierField::encode(ExecutionTier::kNone),
-                  ExecutionTier::kLiftoff),
-              ExecutionTier::kLiftoff);
+          RequiredTopTierField::encode(ExecutionTier::kLiftoff) |
+          RequiredBaselineTierField::encode(ExecutionTier::kLiftoff) |
+          ReachedTierField::encode(ExecutionTier::kNone);
       compilation_progress_.push_back(kLiftoffOnlyFunctionProgress);
       outstanding_baseline_units_++;
       outstanding_top_tier_functions_++;
@@ -2522,7 +2521,7 @@ void CompilationStateImpl::InitializeCompilationProgress(bool lazy_module,
 }
 
 void CompilationStateImpl::InitializeRecompilation(
-    ExecutionTier tier,
+    TieringState new_tiering_state,
     CompilationState::callback_t recompilation_finished_callback) {
   DCHECK(!failed());
 
@@ -2534,27 +2533,21 @@ void CompilationStateImpl::InitializeRecompilation(
 
     // Restart recompilation if another recompilation is already happening.
     outstanding_recompilation_functions_ = 0;
-    // If compilation hasn't started yet then code would be keep as tiered-down
+    // If compilation hasn't started yet then code would be kept as tiered-down
     // and don't need to recompile.
     if (compilation_progress_.size() > 0) {
-      int start = native_module_->module()->num_imported_functions;
-      int end = start + native_module_->module()->num_declared_functions;
-      for (int function_index = start; function_index < end; function_index++) {
-        int slot_index = function_index - start;
-        DCHECK_LT(slot_index, compilation_progress_.size());
-        ExecutionTier reached_tier =
-            ReachedTierField::decode(compilation_progress_[slot_index]);
-        // Ignore Liftoff code, since we don't know if it was compiled with
-        // debugging support.
-        bool has_correct_tier =
-            tier == ExecutionTier::kTurbofan && reached_tier == tier &&
-            native_module_->HasCodeWithTier(function_index, tier);
-        if (!has_correct_tier) {
-          compilation_progress_[slot_index] = MissingRecompilationField::update(
-              compilation_progress_[slot_index], true);
-          outstanding_recompilation_functions_++;
-          builder.AddRecompilationUnit(function_index, tier);
-        }
+      const WasmModule* module = native_module_->module();
+      int imported = module->num_imported_functions;
+      int declared = module->num_declared_functions;
+      outstanding_recompilation_functions_ = declared;
+      DCHECK_EQ(declared, compilation_progress_.size());
+      for (int slot_index = 0; slot_index < declared; ++slot_index) {
+        compilation_progress_[slot_index] = MissingRecompilationField::update(
+            compilation_progress_[slot_index], true);
+        builder.AddRecompilationUnit(imported + slot_index,
+                                     new_tiering_state == kTieredDown
+                                         ? ExecutionTier::kLiftoff
+                                         : ExecutionTier::kTurbofan);
       }
     }
 
@@ -2564,7 +2557,7 @@ void CompilationStateImpl::InitializeRecompilation(
       recompilation_finished_callback(CompilationEvent::kFinishedRecompilation);
     } else {
       callbacks_.emplace_back(std::move(recompilation_finished_callback));
-      recompilation_tier_ = tier;
+      tiering_state_ = new_tiering_state;
     }
   }
 
@@ -2710,19 +2703,17 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
         outstanding_top_tier_functions_--;
       }
 
-      if (V8_UNLIKELY(outstanding_recompilation_functions_ > 0) &&
-          MissingRecompilationField::decode(function_progress)) {
+      if (V8_UNLIKELY(MissingRecompilationField::decode(function_progress))) {
+        DCHECK_LT(0, outstanding_recompilation_functions_);
         // If tiering up, accept any TurboFan code. For tiering down, look at
         // the {for_debugging} flag. The tier can be Liftoff or TurboFan and is
         // irrelevant here. In particular, we want to ignore any outstanding
         // non-debugging units.
-        // TODO(clemensb): Replace {recompilation_tier_} by a better flag.
-        bool matches = recompilation_tier_ == ExecutionTier::kLiftoff
+        bool matches = tiering_state_ == kTieredDown
                            ? code->for_debugging()
                            : code->tier() == ExecutionTier::kTurbofan;
         if (matches) {
           outstanding_recompilation_functions_--;
-          // Update function's recompilation progress.
           compilation_progress_[slot_index] = MissingRecompilationField::update(
               compilation_progress_[slot_index], false);
           if (outstanding_recompilation_functions_ == 0) {

@@ -45,7 +45,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     Handle<FixedArray>* export_wrappers_out);
 
 void RecompileNativeModule(Isolate* isolate, NativeModule* native_module,
-                           ExecutionTier tier);
+                           TieringState new_tiering_state);
 
 V8_EXPORT_PRIVATE
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,

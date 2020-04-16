@@ -33,6 +33,7 @@ inline const char* ExecutionTierToString(ExecutionTier tier) {
 }
 
 enum ForDebugging : bool { kForDebugging = true, kNoDebugging = false };
+enum TieringState : int8_t { kTieredUp, kTieredDown };
 
 }  // namespace wasm
 }  // namespace internal

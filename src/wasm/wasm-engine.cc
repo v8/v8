@@ -613,12 +613,6 @@ void WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
       &native_module->module()->functions[function_index], tier);
 }
 
-void WasmEngine::RecompileAllFunctions(Isolate* isolate,
-                                       NativeModule* native_module,
-                                       ExecutionTier tier) {
-  RecompileNativeModule(isolate, native_module, tier);
-}
-
 void WasmEngine::TierDownAllModulesPerIsolate(Isolate* isolate) {
   std::vector<NativeModule*> native_modules;
   {

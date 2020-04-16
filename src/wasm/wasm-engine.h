@@ -193,10 +193,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   void CompileFunction(Isolate* isolate, NativeModule* native_module,
                        uint32_t function_index, ExecutionTier tier);
 
-  // Recompiles all functions at a specific compilation tier.
-  void RecompileAllFunctions(Isolate* isolate, NativeModule* native_module,
-                             ExecutionTier tier);
-
   void TierDownAllModulesPerIsolate(Isolate* isolate);
   void TierUpAllModulesPerIsolate(Isolate* isolate);
 

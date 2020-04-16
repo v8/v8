@@ -590,7 +590,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // by publishing an entry stub with the {Kind::kInterpreterEntry} code kind.
   bool IsRedirectedToInterpreter(uint32_t func_index);
 
-  // Set {tier_down_} flag. Return previous state.
+  // Set to tiered down state. Returns {true} if this caused a change, {false}
+  // otherwise.
   bool SetTieredDown();
   bool IsTieredDown();
 
@@ -749,7 +750,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // mutex.
   std::unique_ptr<DebugInfo> debug_info_;
 
-  bool tier_down_ = false;
+  TieringState tiering_state_ = kTieredUp;
+
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 

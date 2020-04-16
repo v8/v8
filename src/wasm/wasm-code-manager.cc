@@ -24,6 +24,7 @@
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/jump-table-assembler.h"
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-module-sourcemap.h"
@@ -1069,8 +1070,9 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
     uint32_t slot_idx = declared_function_index(module(), code->index());
     WasmCode* prior_code = code_table_[slot_idx];
     const bool update_code_table =
-        tier_down_ ? !prior_code || code->for_debugging()
-                   : !prior_code || prior_code->tier() < code->tier();
+        tiering_state_ == kTieredDown
+            ? !prior_code || code->for_debugging()
+            : !prior_code || prior_code->tier() < code->tier();
     if (update_code_table) {
       code_table_[slot_idx] = code.get();
       if (prior_code) {
@@ -1834,44 +1836,40 @@ bool NativeModule::IsRedirectedToInterpreter(uint32_t func_index) {
 
 bool NativeModule::SetTieredDown() {
   // Do not tier down asm.js.
-  if (module()->origin != kWasmOrigin) return false;
+  if (module()->origin != kWasmOrigin) return true;
 
   base::MutexGuard lock(&allocation_mutex_);
-  if (tier_down_) return true;
-  tier_down_ = true;
-  return false;
+  if (tiering_state_ == kTieredDown) return false;
+  tiering_state_ = kTieredDown;
+  return true;
 }
 
 bool NativeModule::IsTieredDown() {
   base::MutexGuard lock(&allocation_mutex_);
-  return tier_down_;
+  return tiering_state_ == kTieredDown;
 }
 
 void NativeModule::TierDown(Isolate* isolate) {
   // Do not tier down asm.js.
   if (module()->origin != kWasmOrigin) return;
 
-  // Set the flag. Return if it is already set.
-  if (SetTieredDown()) return;
+  // Set the module to tiered down state; return if it is already in that state.
+  if (!SetTieredDown()) return;
 
-  // Tier down all functions.
-  isolate->wasm_engine()->RecompileAllFunctions(isolate, this,
-                                                ExecutionTier::kLiftoff);
+  RecompileNativeModule(isolate, this, kTieredDown);
 }
 
 void NativeModule::TierUp(Isolate* isolate) {
   // Do not tier up asm.js.
   if (module()->origin != kWasmOrigin) return;
 
-  // Set the flag.
   {
     base::MutexGuard lock(&allocation_mutex_);
-    tier_down_ = false;
+    if (tiering_state_ == kTieredUp) return;
+    tiering_state_ = kTieredUp;
   }
 
-  // Tier up all functions.
-  isolate->wasm_engine()->RecompileAllFunctions(isolate, this,
-                                                ExecutionTier::kTurbofan);
+  RecompileNativeModule(isolate, this, kTieredUp);
 }
 
 void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
