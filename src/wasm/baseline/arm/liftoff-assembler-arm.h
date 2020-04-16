@@ -112,19 +112,11 @@ template <void (Assembler::*op)(Register, Register, Register, SBit, Condition),
                                            SBit, Condition)>
 inline void I64Binop(LiftoffAssembler* assm, LiftoffRegister dst,
                      LiftoffRegister lhs, LiftoffRegister rhs) {
-  UseScratchRegisterScope temps(assm);
-  Register scratch = dst.low_gp();
-  bool can_use_dst =
-      dst.low_gp() != lhs.high_gp() && dst.low_gp() != rhs.high_gp();
-  if (!can_use_dst) {
-    scratch = temps.Acquire();
-  }
-  (assm->*op)(scratch, lhs.low_gp(), rhs.low_gp(), SetCC, al);
+  DCHECK_NE(dst.low_gp(), lhs.high_gp());
+  DCHECK_NE(dst.low_gp(), rhs.high_gp());
+  (assm->*op)(dst.low_gp(), lhs.low_gp(), rhs.low_gp(), SetCC, al);
   (assm->*op_with_carry)(dst.high_gp(), lhs.high_gp(), Operand(rhs.high_gp()),
                          LeaveCC, al);
-  if (!can_use_dst) {
-    assm->mov(dst.low_gp(), scratch);
-  }
 }
 
 template <void (Assembler::*op)(Register, Register, const Operand&, SBit,
@@ -133,20 +125,12 @@ template <void (Assembler::*op)(Register, Register, const Operand&, SBit,
                                            SBit, Condition)>
 inline void I64BinopI(LiftoffAssembler* assm, LiftoffRegister dst,
                       LiftoffRegister lhs, int32_t imm) {
-  UseScratchRegisterScope temps(assm);
-  Register scratch = dst.low_gp();
-  bool can_use_dst = dst.low_gp() != lhs.high_gp();
-  if (!can_use_dst) {
-    scratch = temps.Acquire();
-  }
-  (assm->*op)(scratch, lhs.low_gp(), Operand(imm), SetCC, al);
+  DCHECK_NE(dst.low_gp(), lhs.high_gp());
+  (assm->*op)(dst.low_gp(), lhs.low_gp(), Operand(imm), SetCC, al);
   // Top half of the immediate sign extended, either 0 or -1.
   int32_t sign_extend = imm < 0 ? -1 : 0;
   (assm->*op_with_carry)(dst.high_gp(), lhs.high_gp(), Operand(sign_extend),
                          LeaveCC, al);
-  if (!can_use_dst) {
-    assm->mov(dst.low_gp(), scratch);
-  }
 }
 
 template <void (TurboAssembler::*op)(Register, Register, Register, Register,
