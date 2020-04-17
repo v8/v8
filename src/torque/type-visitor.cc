@@ -247,7 +247,7 @@ const ClassType* TypeVisitor::ComputeType(
   ClassFlags flags = decl->flags;
   bool is_shape = flags & ClassFlag::kIsShape;
   std::string generates = decl->name->value;
-  const Type* super_type = TypeVisitor::ComputeType(*decl->super);
+  const Type* super_type = TypeVisitor::ComputeType(decl->super);
   if (is_shape) {
     if (!(flags & ClassFlag::kExtern)) {
       ReportError("Shapes must be extern, add \"extern\" to the declaration.");
@@ -265,9 +265,6 @@ const ClassType* TypeVisitor::ComputeType(
     // Shapes use their super class in CSA code since they have incomplete
     // support for type-checks on the C++ side.
     generates = super_class->name();
-  }
-  if (!decl->super) {
-    ReportError("Extern class must extend another type.");
   }
   if (super_type != TypeOracle::GetStrongTaggedType()) {
     const ClassType* super_class = ClassType::DynamicCast(super_type);

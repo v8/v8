@@ -906,8 +906,8 @@ base::Optional<ParseResult> MakeClassDeclaration(
   if (!IsValidTypeName(name->value)) {
     NamingConventionError("Type", name, "UpperCamelCase");
   }
-  auto extends = child_results->NextAs<base::Optional<TypeExpression*>>();
-  if (extends && !BasicTypeExpression::DynamicCast(*extends)) {
+  auto extends = child_results->NextAs<TypeExpression*>();
+  if (!BasicTypeExpression::DynamicCast(extends)) {
     ReportError("Expected type name in extends clause.");
   }
   auto generates = child_results->NextAs<base::Optional<std::string>>();
@@ -2358,8 +2358,7 @@ struct TorqueGrammar : Grammar {
             &externalString, Token(";")},
            AsSingletonVector<Declaration*, MakeExternConstDeclaration>()),
       Rule({annotations, CheckIf(Token("extern")), CheckIf(Token("transient")),
-            OneOf({"class", "shape"}), &name,
-            Optional<TypeExpression*>(Sequence({Token("extends"), &type})),
+            OneOf({"class", "shape"}), &name, Token("extends"), &type,
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),
             &optionalClassBody},

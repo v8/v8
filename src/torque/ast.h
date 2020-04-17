@@ -1175,8 +1175,7 @@ struct ClassBody : AstNode {
 struct ClassDeclaration : TypeDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ClassDeclaration)
   ClassDeclaration(SourcePosition pos, Identifier* name, ClassFlags flags,
-                   base::Optional<TypeExpression*> super,
-                   base::Optional<std::string> generates,
+                   TypeExpression* super, base::Optional<std::string> generates,
                    std::vector<Declaration*> methods,
                    std::vector<ClassFieldExpression> fields,
                    InstanceTypeConstraints instance_type_constraints)
@@ -1188,7 +1187,7 @@ struct ClassDeclaration : TypeDeclaration {
         fields(std::move(fields)),
         instance_type_constraints(std::move(instance_type_constraints)) {}
   ClassFlags flags;
-  base::Optional<TypeExpression*> super;
+  TypeExpression* super;
   base::Optional<std::string> generates;
   std::vector<Declaration*> methods;
   std::vector<ClassFieldExpression> fields;
