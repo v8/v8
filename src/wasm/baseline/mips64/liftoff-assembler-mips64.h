@@ -1413,6 +1413,46 @@ void LiftoffAssembler::emit_f64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
   bailout(kSimd, "emit_f64x2_eq");
 }
 
+void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {
+  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
+  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
+  // 3a4000 support MSA.
+  bailout(kSimd, "emit_s128_not");
+}
+
+void LiftoffAssembler::emit_s128_and(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
+  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
+  // 3a4000 support MSA.
+  bailout(kSimd, "emit_s128_and");
+}
+
+void LiftoffAssembler::emit_s128_or(LiftoffRegister dst, LiftoffRegister lhs,
+                                    LiftoffRegister rhs) {
+  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
+  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
+  // 3a4000 support MSA.
+  bailout(kSimd, "emit_s128_or");
+}
+
+void LiftoffAssembler::emit_s128_xor(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
+  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
+  // 3a4000 support MSA.
+  bailout(kSimd, "emit_s128_xor");
+}
+
+void LiftoffAssembler::emit_s128_and_not(LiftoffRegister dst,
+                                         LiftoffRegister lhs,
+                                         LiftoffRegister rhs) {
+  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
+  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
+  // 3a4000 support MSA.
+  bailout(kSimd, "emit_s128_and_not");
+}
+
 void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
