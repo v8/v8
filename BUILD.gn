@@ -3119,17 +3119,20 @@ v8_source_set("v8_base_without_compiler") {
 
   if (v8_enable_wasm_gdb_remote_debugging) {
     sources += [
+      "src/debug/wasm/gdb-server/gdb-remote-util.cc",
+      "src/debug/wasm/gdb-server/gdb-remote-util.h",
       "src/debug/wasm/gdb-server/gdb-server-thread.cc",
       "src/debug/wasm/gdb-server/gdb-server-thread.h",
       "src/debug/wasm/gdb-server/gdb-server.cc",
       "src/debug/wasm/gdb-server/gdb-server.h",
+      "src/debug/wasm/gdb-server/packet.cc",
+      "src/debug/wasm/gdb-server/packet.h",
       "src/debug/wasm/gdb-server/session.cc",
       "src/debug/wasm/gdb-server/session.h",
       "src/debug/wasm/gdb-server/target.cc",
       "src/debug/wasm/gdb-server/target.h",
       "src/debug/wasm/gdb-server/transport.cc",
       "src/debug/wasm/gdb-server/transport.h",
-      "src/debug/wasm/gdb-server/util.h",
     ]
   }
 

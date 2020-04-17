@@ -47,7 +47,7 @@ class GdbServerThread : public v8::base::Thread {
 
   base::Mutex mutex_;
   // Protected by {mutex_}:
-  std::unique_ptr<Transport> transport_;
+  std::unique_ptr<TransportBase> transport_;
   std::unique_ptr<Target> target_;
 
   DISALLOW_COPY_AND_ASSIGN(GdbServerThread);

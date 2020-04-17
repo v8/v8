@@ -5,10 +5,11 @@
 #include "src/debug/wasm/gdb-server/target.h"
 
 #include "src/base/platform/time.h"
+#include "src/debug/wasm/gdb-server/gdb-remote-util.h"
 #include "src/debug/wasm/gdb-server/gdb-server.h"
+#include "src/debug/wasm/gdb-server/packet.h"
 #include "src/debug/wasm/gdb-server/session.h"
 #include "src/debug/wasm/gdb-server/transport.h"
-#include "src/debug/wasm/gdb-server/util.h"
 
 namespace v8 {
 namespace internal {
@@ -52,11 +53,32 @@ void Target::ProcessCommands() {
     return;
   }
 
-  // TODO(paolosev)
-  // For the moment just discard any packet we receive from the debugger.
+  // Now we are ready to process commands.
+  // Loop through packets until we process a continue packet or a detach.
+  Packet recv, reply;
   do {
-    if (!session_->GetPacket()) continue;
+    if (!session_->GetPacket(&recv)) continue;
+    reply.Clear();
+    if (ProcessPacket(&recv, &reply)) {
+      // If this is a continue type command, break out of this loop.
+      break;
+    }
+    // Otherwise send the response.
+    session_->SendPacket(&reply);
   } while (session_->IsConnected());
+}
+
+bool Target::ProcessPacket(const Packet* pktIn, Packet* pktOut) {
+  // Pull out the sequence.
+  int32_t seq = -1;
+  if (pktIn->GetSequence(&seq)) {
+    pktOut->SetSequence(seq);
+  }
+
+  // Ignore all commands and returns an error.
+  pktOut->SetError(Packet::ErrDef::Failed);
+
+  return false;
 }
 
 }  // namespace gdb_server
