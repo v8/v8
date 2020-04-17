@@ -1711,6 +1711,22 @@ class ModuleDecoderImpl : public Decoder {
             case kLocalExnRef:
               if (enabled_features_.has_eh()) return kWasmExnRef;
               break;
+            case kLocalRef:
+              if (enabled_features_.has_gc()) return ValueType(ValueType::kRef);
+              break;
+            case kLocalOptRef:
+              if (enabled_features_.has_gc()) {
+                return ValueType(ValueType::kOptRef);
+              }
+              break;
+            case kLocalEqRef:
+              if (enabled_features_.has_gc()) {
+                return ValueType(ValueType::kEqRef);
+              }
+              break;
+            case kLocalI31Ref:
+            case kLocalRttRef:
+              UNIMPLEMENTED();  // TODO(7748): Add i31ref and rttref.
             default:
               break;
           }

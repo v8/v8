@@ -751,7 +751,10 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
     case ValueType::kAnyRef:
     case ValueType::kFuncRef:
     case ValueType::kNullRef:
-    case ValueType::kExnRef: {
+    case ValueType::kExnRef:
+    case ValueType::kRef:
+    case ValueType::kOptRef:
+    case ValueType::kEqRef: {
       DCHECK_IMPLIES(global.type == kWasmNullRef, value->GetRef()->IsNull());
       tagged_globals_->set(global.offset, *value->GetRef());
       break;

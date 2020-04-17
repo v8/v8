@@ -1468,7 +1468,10 @@ class ThreadImpl {
         case ValueType::kAnyRef:
         case ValueType::kFuncRef:
         case ValueType::kNullRef:
-        case ValueType::kExnRef: {
+        case ValueType::kExnRef:
+        case ValueType::kRef:
+        case ValueType::kOptRef:
+        case ValueType::kEqRef: {
           val = WasmValue(isolate_->factory()->null_value());
           break;
         }
@@ -2890,6 +2893,11 @@ class ThreadImpl {
           encoded_values->set(encoded_index++, *anyref);
           break;
         }
+        case ValueType::kRef:
+        case ValueType::kOptRef:
+        case ValueType::kEqRef:
+          // TODO(7748): Implement these.
+          UNIMPLEMENTED();
         case ValueType::kStmt:
         case ValueType::kBottom:
           UNREACHABLE();
@@ -2995,6 +3003,11 @@ class ThreadImpl {
           value = WasmValue(anyref);
           break;
         }
+        case ValueType::kRef:
+        case ValueType::kOptRef:
+        case ValueType::kEqRef:
+          // TODO(7748): Implement these.
+          UNIMPLEMENTED();
         case ValueType::kStmt:
         case ValueType::kBottom:
           UNREACHABLE();
@@ -3456,7 +3469,11 @@ class ThreadImpl {
             case ValueType::kAnyRef:
             case ValueType::kFuncRef:
             case ValueType::kNullRef:
-            case ValueType::kExnRef: {
+            case ValueType::kExnRef:
+            case ValueType::kRef:
+            case ValueType::kOptRef:
+            case ValueType::kEqRef: {
+              // TODO(7748): Type checks or DCHECKs for ref types?
               HandleScope handle_scope(isolate_);  // Avoid leaking handles.
               Handle<FixedArray> global_buffer;    // The buffer of the global.
               uint32_t global_index;               // The index into the buffer.
@@ -3868,7 +3885,10 @@ class ThreadImpl {
         case ValueType::kFuncRef:
         case ValueType::kExnRef:
         case ValueType::kNullRef:
-          PrintF("(func|null|exn)ref:unimplemented");
+        case ValueType::kRef:
+        case ValueType::kOptRef:
+        case ValueType::kEqRef:
+          PrintF("(func|null|exn|opt|eq|)ref:unimplemented");
           break;
         case ValueType::kBottom:
           UNREACHABLE();

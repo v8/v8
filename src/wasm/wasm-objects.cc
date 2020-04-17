@@ -1730,6 +1730,9 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
       case wasm::ValueType::kFuncRef:
       case wasm::ValueType::kNullRef:
       case wasm::ValueType::kExnRef:
+      case wasm::ValueType::kRef:
+      case wasm::ValueType::kOptRef:
+      case wasm::ValueType::kEqRef:
         encoded_size += 1;
         break;
       case wasm::ValueType::kStmt:

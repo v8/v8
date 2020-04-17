@@ -988,7 +988,7 @@ class LiftoffAssembler : public TurboAssembler {
     ValueType local_types_[kInlineLocalTypes];
     ValueType* more_local_types_;
   };
-  static_assert(sizeof(ValueType) == 1,
+  static_assert(sizeof(ValueType) == 4,
                 "Reconsider this inlining if ValueType gets bigger");
   CacheState cache_state_;
   int max_used_spill_offset_ = StaticStackFrameSize();

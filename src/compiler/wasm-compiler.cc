@@ -2061,6 +2061,9 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
       case wasm::ValueType::kFuncRef:
       case wasm::ValueType::kNullRef:
       case wasm::ValueType::kExnRef:
+      case wasm::ValueType::kRef:
+      case wasm::ValueType::kOptRef:
+      case wasm::ValueType::kEqRef:
         STORE_FIXED_ARRAY_SLOT_ANY(values_array, index, value);
         ++index;
         break;
@@ -2202,6 +2205,9 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
       case wasm::ValueType::kFuncRef:
       case wasm::ValueType::kNullRef:
       case wasm::ValueType::kExnRef:
+      case wasm::ValueType::kRef:
+      case wasm::ValueType::kOptRef:
+      case wasm::ValueType::kEqRef:
         value = LOAD_FIXED_ARRAY_SLOT_ANY(values_array, index);
         ++index;
         break;
@@ -5332,6 +5338,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::ValueType::kNullRef:
       case wasm::ValueType::kExnRef:
         return node;
+      case wasm::ValueType::kRef:
+      case wasm::ValueType::kOptRef:
+      case wasm::ValueType::kEqRef:
+        // TODO(7748): Implement
+        UNIMPLEMENTED();
       case wasm::ValueType::kStmt:
       case wasm::ValueType::kBottom:
         UNREACHABLE();

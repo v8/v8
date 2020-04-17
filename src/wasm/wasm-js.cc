@@ -1360,6 +1360,11 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       }
       break;
     }
+    case i::wasm::ValueType::kRef:
+    case i::wasm::ValueType::kOptRef:
+    case i::wasm::ValueType::kEqRef:
+      // TODO(7748): Implement these.
+      UNIMPLEMENTED();
     case i::wasm::ValueType::kStmt:
     case i::wasm::ValueType::kS128:
     case i::wasm::ValueType::kBottom:
@@ -1808,6 +1813,11 @@ void WebAssemblyGlobalGetValueCommon(
                      receiver->GetRef()->IsNull());
       return_value.Set(Utils::ToLocal(receiver->GetRef()));
       break;
+    case i::wasm::ValueType::kRef:
+    case i::wasm::ValueType::kOptRef:
+    case i::wasm::ValueType::kEqRef:
+      // TODO(7748): Implement these.
+      UNIMPLEMENTED();
     case i::wasm::ValueType::kBottom:
     case i::wasm::ValueType::kStmt:
     case i::wasm::ValueType::kS128:
@@ -1893,6 +1903,11 @@ void WebAssemblyGlobalSetValue(
       }
       break;
     }
+    case i::wasm::ValueType::kRef:
+    case i::wasm::ValueType::kOptRef:
+    case i::wasm::ValueType::kEqRef:
+      // TODO(7748): Implement these.
+      UNIMPLEMENTED();
     case i::wasm::ValueType::kBottom:
     case i::wasm::ValueType::kStmt:
     case i::wasm::ValueType::kS128:

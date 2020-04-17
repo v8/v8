@@ -17,6 +17,7 @@
 #include "src/runtime/runtime-utils.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/module-compiler.h"
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-debug.h"
@@ -253,7 +254,10 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
       case wasm::ValueType::kAnyRef:
       case wasm::ValueType::kFuncRef:
       case wasm::ValueType::kNullRef:
-      case wasm::ValueType::kExnRef: {
+      case wasm::ValueType::kExnRef:
+      case wasm::ValueType::kRef:
+      case wasm::ValueType::kOptRef:
+      case wasm::ValueType::kEqRef: {
         DCHECK_EQ(sig->GetParam(i).element_size_bytes(), kSystemPointerSize);
         Handle<Object> ref(
             Object(base::ReadUnalignedValue<Address>(arg_buf_ptr)), isolate);
