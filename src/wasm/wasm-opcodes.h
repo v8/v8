@@ -227,9 +227,13 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I64SExtendI16, 0xc3, l_l)     \
   V(I64SExtendI32, 0xc4, l_l)
 
-#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) V(RefIsNull, 0xd1, i_r)
+#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) \
+  V(RefIsNull, 0xd1, i_r)                  \
+  V(RefEq, 0xd3, i_rr) /* made-up opcode, guessing future spec (GC) */
 
 // For compatibility with Asm.js.
+// These opcodes are not spec'ed (or visible) externally; the idea is
+// to use unused ranges for internal purposes.
 #define FOREACH_ASMJS_COMPAT_OPCODE(V) \
   V(F64Acos, 0xc5, d_d)                \
   V(F64Asin, 0xc6, d_d)                \
@@ -242,7 +246,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F64Atan2, 0xcd, d_dd)              \
   V(F64Pow, 0xce, d_dd)                \
   V(F64Mod, 0xcf, d_dd)                \
-  V(I32AsmjsDivS, 0xd3, i_ii)          \
+  V(I32AsmjsDivS, 0xe7, i_ii)          \
   V(I32AsmjsDivU, 0xd4, i_ii)          \
   V(I32AsmjsRemS, 0xd5, i_ii)          \
   V(I32AsmjsRemU, 0xd6, i_ii)          \
@@ -574,6 +578,33 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I64AtomicCompareExchange16U, 0xfe4d, l_ill) \
   V(I64AtomicCompareExchange32U, 0xfe4e, l_ill)
 
+// Opcode values are guesswork for now, see:
+// https://docs.google.com/document/d/1DklC3qVuOdLHSXB5UXghM_syCh-4cMinQ50ICiXnK3Q/edit
+#define FOREACH_GC_OPCODE(V)     \
+  V(StructNew, 0xfb00, _)        \
+  V(StructNewSub, 0xfb01, _)     \
+  V(StructNewDefault, 0xfb02, _) \
+  V(StructGet, 0xfb03, _)        \
+  V(StructGetS, 0xfb04, _)       \
+  V(StructGetU, 0xfb05, _)       \
+  V(StructSet, 0xfb06, _)        \
+  V(ArrayNew, 0xfb10, _)         \
+  V(ArrayNewSub, 0xfb11, _)      \
+  V(ArrayNewDefault, 0xfb12, _)  \
+  V(ArrayGet, 0xfb13, _)         \
+  V(ArrayGetS, 0xfb14, _)        \
+  V(ArrayGetU, 0xfb15, _)        \
+  V(ArraySet, 0xfb16, _)         \
+  V(ArrayLen, 0xfb17, _)         \
+  V(I31New, 0xfb20, _)           \
+  V(I31GetS, 0xfb21, _)          \
+  V(I31GetU, 0xfb22, _)          \
+  V(RttGet, 0xfb30, _)           \
+  V(RttSub, 0xfb31, _)           \
+  V(RefTest, 0xfb40, _)          \
+  V(RefCast, 0xfb41, _)          \
+  V(BrOnCast, 0xfb42, _)
+
 #define FOREACH_ATOMIC_0_OPERAND_OPCODE(V)                      \
   /* AtomicFence does not target a particular linear memory. */ \
   V(AtomicFence, 0xfe03, v_v)
@@ -594,7 +625,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   FOREACH_SIMD_MEM_OPCODE(V)          \
   FOREACH_ATOMIC_OPCODE(V)            \
   FOREACH_ATOMIC_0_OPERAND_OPCODE(V)  \
-  FOREACH_NUMERIC_OPCODE(V)
+  FOREACH_NUMERIC_OPCODE(V)           \
+  FOREACH_GC_OPCODE(V)
 
 // All signatures.
 #define FOREACH_SIGNATURE(V)                        \
@@ -637,7 +669,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(i_iil, kWasmI32, kWasmI32, kWasmI32, kWasmI64)  \
   V(i_ill, kWasmI32, kWasmI32, kWasmI64, kWasmI64)  \
   V(i_r, kWasmI32, kWasmAnyRef)                     \
-  V(i_ai, kWasmI32, kWasmFuncRef, kWasmI32)
+  V(i_ai, kWasmI32, kWasmFuncRef, kWasmI32)         \
+  V(i_rr, kWasmI32, kWasmEqRef, kWasmEqRef)
 
 #define FOREACH_SIMD_SIGNATURE(V)          \
   V(s_s, kWasmS128, kWasmS128)             \
@@ -654,7 +687,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
 #define FOREACH_PREFIX(V) \
   V(Numeric, 0xfc)        \
   V(Simd, 0xfd)           \
-  V(Atomic, 0xfe)
+  V(Atomic, 0xfe)         \
+  V(GC, 0xfb)
 
 enum WasmOpcode {
 // Declare expression opcodes.

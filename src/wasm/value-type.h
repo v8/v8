@@ -200,6 +200,8 @@ constexpr ValueType kWasmI64 = ValueType(ValueType::kI64);
 constexpr ValueType kWasmF32 = ValueType(ValueType::kF32);
 constexpr ValueType kWasmF64 = ValueType(ValueType::kF64);
 constexpr ValueType kWasmAnyRef = ValueType(ValueType::kAnyRef);
+// TODO(jkummerow): introduce ValueType::kEqRef
+constexpr ValueType kWasmEqRef = ValueType(ValueType::kAnyRef);
 constexpr ValueType kWasmExnRef = ValueType(ValueType::kExnRef);
 constexpr ValueType kWasmFuncRef = ValueType(ValueType::kFuncRef);
 constexpr ValueType kWasmNullRef = ValueType(ValueType::kNullRef);

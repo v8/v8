@@ -335,7 +335,38 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_UNSIGNED_ALL_OP(AtomicExchange, "atomic.xchng")
     CASE_UNSIGNED_ALL_OP(AtomicCompareExchange, "atomic.cmpxchng")
 
-    default : return "unknown";
+    // GC operations.
+    CASE_OP(StructNew, "struct.new")
+    CASE_OP(StructNewSub, "struct.new_sub")
+    CASE_OP(StructNewDefault, "struct.new_default")
+    CASE_OP(StructGet, "struct.get")
+    CASE_OP(StructGetS, "struct.get_s")
+    CASE_OP(StructGetU, "struct.get_u")
+    CASE_OP(StructSet, "struct.set")
+    CASE_OP(ArrayNew, "array.new")
+    CASE_OP(ArrayNewSub, "array.new_sub")
+    CASE_OP(ArrayNewDefault, "array.new_default")
+    CASE_OP(ArrayGet, "array.get")
+    CASE_OP(ArrayGetS, "array.get_s")
+    CASE_OP(ArrayGetU, "array.get_u")
+    CASE_OP(ArrayLen, "array.len")
+    CASE_OP(ArraySet, "array.set")
+    CASE_OP(I31New, "i31.new")
+    CASE_OP(I31GetS, "i31.get_s")
+    CASE_OP(I31GetU, "i31.get_u")
+    CASE_OP(RttGet, "rtt.get")
+    CASE_OP(RttSub, "rtt.sub")
+    CASE_OP(RefTest, "ref.test")
+    CASE_OP(RefCast, "ref.cast")
+    CASE_OP(BrOnCast, "br_on_cast")
+    CASE_OP(RefEq, "ref.eq")
+
+
+    case kNumericPrefix:
+    case kSimdPrefix:
+    case kAtomicPrefix:
+    case kGCPrefix:
+      return "unknown";
     // clang-format on
   }
 }
