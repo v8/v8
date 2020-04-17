@@ -279,7 +279,7 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
     uint32_t index = string.resource_as_uint32();
     Address address =
         static_cast<Address>(isolate_->api_external_references()[index]);
-    string.set_address_as_resource(address);
+    string.set_address_as_resource(isolate_, address);
     isolate_->heap()->UpdateExternalString(string, 0,
                                            string.ExternalPayloadSize());
     isolate_->heap()->RegisterExternalString(String::cast(obj));

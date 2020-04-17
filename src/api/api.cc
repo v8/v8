@@ -28,6 +28,7 @@
 #include "src/codegen/compiler.h"
 #include "src/codegen/cpu-features.h"
 #include "src/common/assert-scope.h"
+#include "src/common/external-pointer.h"
 #include "src/common/globals.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/date/date.h"
@@ -5409,7 +5410,10 @@ String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
   }
 
   if (i::StringShape(str).IsExternalTwoByte()) {
-    void* value = I::ReadRawField<void*>(str.ptr(), I::kStringResourceOffset);
+    internal::Isolate* isolate =
+        internal::IsolateFromNeverReadOnlySpaceObject(str.ptr());
+    internal::Address value = I::ReadExternalPointerField(
+        isolate, str.ptr(), I::kStringResourceOffset);
     return reinterpret_cast<String::ExternalStringResource*>(value);
   }
   return nullptr;
@@ -5431,8 +5435,11 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
   *encoding_out = static_cast<Encoding>(type & I::kStringEncodingMask);
   if (i::StringShape(str).IsExternalOneByte() ||
       i::StringShape(str).IsExternalTwoByte()) {
-    void* value = I::ReadRawField<void*>(string, I::kStringResourceOffset);
-    resource = static_cast<ExternalStringResourceBase*>(value);
+    internal::Isolate* isolate =
+        internal::IsolateFromNeverReadOnlySpaceObject(string);
+    internal::Address value =
+        I::ReadExternalPointerField(isolate, string, I::kStringResourceOffset);
+    resource = reinterpret_cast<ExternalStringResourceBase*>(value);
   }
   return resource;
 }

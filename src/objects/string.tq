@@ -19,7 +19,7 @@ extern class ConsString extends String {
 @abstract
 @generateBodyDescriptor
 extern class ExternalString extends String {
-  resource: RawPtr;
+  resource: ExternalPointer;
   resource_data: RawPtr;
 }
 

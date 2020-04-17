@@ -415,7 +415,7 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
     DCHECK(reference.is_from_api());
     string.set_uint32_as_resource(reference.index());
     SerializeObject();
-    string.set_address_as_resource(resource);
+    string.set_address_as_resource(serializer_->isolate(), resource);
   } else {
     SerializeExternalStringAsSequentialString();
   }

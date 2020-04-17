@@ -378,7 +378,7 @@ void Heap::FinalizeExternalString(String string) {
       ExternalBackingStoreType::kExternalString,
       ext_string.ExternalPayloadSize());
 
-  ext_string.DisposeResource();
+  ext_string.DisposeResource(isolate());
 }
 
 Address Heap::NewSpaceTop() { return new_space_->top(); }

@@ -716,13 +716,13 @@ class ExternalString : public String {
   int ExternalPayloadSize() const;
 
   // Used in the serializer/deserializer.
-  inline Address resource_as_address();
-  inline void set_address_as_resource(Address address);
+  DECL_GETTER(resource_as_address, Address)
+  inline void set_address_as_resource(Isolate* isolate, Address address);
   inline uint32_t resource_as_uint32();
   inline void set_uint32_as_resource(uint32_t value);
 
   // Disposes string's resource object if it has not already been disposed.
-  inline void DisposeResource();
+  inline void DisposeResource(Isolate* isolate);
 
   STATIC_ASSERT(kResourceOffset == Internals::kStringResourceOffset);
   static const int kSizeOfAllExternalStrings = kHeaderSize;
@@ -739,13 +739,13 @@ class ExternalOneByteString : public ExternalString {
   using Resource = v8::String::ExternalOneByteStringResource;
 
   // The underlying resource.
-  inline const Resource* resource();
+  DECL_GETTER(resource, const Resource*)
 
   // It is assumed that the previous resource is null. If it is not null, then
   // it is the responsability of the caller the handle the previous resource.
   inline void SetResource(Isolate* isolate, const Resource* buffer);
   // Used only during serialization.
-  inline void set_resource(const Resource* buffer);
+  inline void set_resource(Isolate* isolate, const Resource* buffer);
 
   // Update the pointer cache to the external character array.
   // The cached pointer is always valid, as the external character array does =
@@ -780,13 +780,13 @@ class ExternalTwoByteString : public ExternalString {
   using Resource = v8::String::ExternalStringResource;
 
   // The underlying string resource.
-  inline const Resource* resource();
+  DECL_GETTER(resource, const Resource*)
 
   // It is assumed that the previous resource is null. If it is not null, then
   // it is the responsability of the caller the handle the previous resource.
   inline void SetResource(Isolate* isolate, const Resource* buffer);
   // Used only during serialization.
-  inline void set_resource(const Resource* buffer);
+  inline void set_resource(Isolate* isolate, const Resource* buffer);
 
   // Update the pointer cache to the external character array.
   // The cached pointer is always valid, as the external character array does =
