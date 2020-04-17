@@ -21,6 +21,10 @@ namespace internal {
 template <typename T>
 class Vector {
  public:
+  using value_type = T;
+  using iterator = T*;
+  using const_iterator = const T*;
+
   constexpr Vector() : start_(nullptr), length_(0) {}
 
   constexpr Vector(T* data, size_t length) : start_(data), length_(length) {

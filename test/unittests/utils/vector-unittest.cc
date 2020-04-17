@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
+
 #include "src/utils/utils.h"
+#include "testing/gmock-support.h"
 #include "testing/gtest-support.h"
 
 namespace v8 {
@@ -71,6 +74,25 @@ TEST(OwnedVectorConstruction, Equals) {
   auto init_vec2 = OwnedVector<const int>::Of(ArrayVector(kInit));
   EXPECT_EQ(init_vec1.as_vector(), ArrayVector(kInit));
   EXPECT_EQ(init_vec1.as_vector(), init_vec2.as_vector());
+}
+
+// Test that the constexpr factory methods work.
+TEST(VectorTest, ConstexprFactories) {
+  static constexpr int kInit1[] = {4, 11, 3};
+  static constexpr auto kVec1 = ArrayVector(kInit1);
+  STATIC_ASSERT(kVec1.size() == 3);
+  EXPECT_THAT(kVec1, testing::ElementsAreArray(kInit1));
+
+  static constexpr auto kVec2 = VectorOf(kInit1, 2);
+  STATIC_ASSERT(kVec2.size() == 2);
+  EXPECT_THAT(kVec2, testing::ElementsAre(4, 11));
+
+  // TODO(clemensb): Use StaticCharVector.
+  static constexpr const char kInit3[] = "foobar";
+  static constexpr auto kVec3 =
+      VectorOf(kInit3, 6);  // StaticCharVector(kInit3);
+  STATIC_ASSERT(kVec3.size() == 6);
+  EXPECT_THAT(kVec3, testing::ElementsAreArray(kInit3, kInit3 + 6));
 }
 
 }  // namespace internal
