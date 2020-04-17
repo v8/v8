@@ -19,6 +19,7 @@
 asm(
 #if defined(_AIX)
     ".globl .PushAllRegistersAndIterateStack, hidden    \n"
+    ".csect .text[PR]                                   \n"
     ".PushAllRegistersAndIterateStack:                  \n"
 #else
     ".globl PushAllRegistersAndIterateStack             \n"
