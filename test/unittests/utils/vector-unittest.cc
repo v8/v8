@@ -87,10 +87,8 @@ TEST(VectorTest, ConstexprFactories) {
   STATIC_ASSERT(kVec2.size() == 2);
   EXPECT_THAT(kVec2, testing::ElementsAre(4, 11));
 
-  // TODO(clemensb): Use StaticCharVector.
   static constexpr const char kInit3[] = "foobar";
-  static constexpr auto kVec3 =
-      VectorOf(kInit3, 6);  // StaticCharVector(kInit3);
+  static constexpr auto kVec3 = StaticCharVector(kInit3);
   STATIC_ASSERT(kVec3.size() == 6);
   EXPECT_THAT(kVec3, testing::ElementsAreArray(kInit3, kInit3 + 6));
 }

@@ -331,14 +331,10 @@ class InstantiateBytesResultResolver
         isolate_->factory()->NewJSObject(isolate_->object_function());
 
     i::Handle<i::String> instance_name =
-        isolate_->factory()
-            ->NewStringFromOneByte(i::StaticCharVector("instance"))
-            .ToHandleChecked();
+        isolate_->factory()->NewStringFromStaticChars("instance");
 
     i::Handle<i::String> module_name =
-        isolate_->factory()
-            ->NewStringFromOneByte(i::StaticCharVector("module"))
-            .ToHandleChecked();
+        isolate_->factory()->NewStringFromStaticChars("module");
 
     i::JSObject::AddProperty(isolate_, result, instance_name, instance,
                              i::NONE);

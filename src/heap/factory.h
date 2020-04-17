@@ -234,7 +234,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       const char (&str)[N],
       AllocationType allocation = AllocationType::kYoung) {
     DCHECK_EQ(N, strlen(str) + 1);
-    return NewStringFromOneByte(StaticCharVector(str), allocation)
+    return NewStringFromOneByte(StaticOneByteVector(str), allocation)
         .ToHandleChecked();
   }
 

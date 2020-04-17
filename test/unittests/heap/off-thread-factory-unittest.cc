@@ -123,7 +123,7 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
 };
 
 TEST_F(OffThreadFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
-  Vector<const uint8_t> string_vector = StaticCharVector("foo");
+  Vector<const uint8_t> string_vector = StaticOneByteVector("foo");
   uint32_t hash_field = StringHasher::HashSequentialString<uint8_t>(
       string_vector.begin(), string_vector.length(), HashSeed(isolate()));
 
@@ -162,7 +162,7 @@ TEST_F(OffThreadFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
 
 TEST_F(OffThreadFactoryTest,
        OneByteInternalizedString_DuplicateIsDeduplicated) {
-  Vector<const uint8_t> string_vector = StaticCharVector("foo");
+  Vector<const uint8_t> string_vector = StaticOneByteVector("foo");
   uint32_t hash_field = StringHasher::HashSequentialString<uint8_t>(
       string_vector.begin(), string_vector.length(), HashSeed(isolate()));
 
