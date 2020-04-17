@@ -3301,6 +3301,89 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
   Andnpd(dst.fp(), kScratchDoubleReg);
 }
 
+void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  // NAN->0
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vcmpeqps(kScratchDoubleReg, src.fp(), src.fp());
+    vpand(dst.fp(), src.fp(), kScratchDoubleReg);
+  } else {
+    movaps(kScratchDoubleReg, src.fp());
+    cmpeqps(kScratchDoubleReg, kScratchDoubleReg);
+    if (dst.fp() != src.fp()) movaps(dst.fp(), src.fp());
+    pand(dst.fp(), kScratchDoubleReg);
+  }
+  // Set top bit if >= 0 (but not -0.0!).
+  Pxor(kScratchDoubleReg, dst.fp());
+  // Convert to int.
+  Cvttps2dq(dst.fp(), dst.fp());
+  // Set top bit if >=0 is now < 0.
+  Pand(kScratchDoubleReg, dst.fp());
+  Psrad(kScratchDoubleReg, byte{31});
+  // Set positive overflow lanes to 0x7FFFFFFF.
+  Pxor(dst.fp(), kScratchDoubleReg);
+}
+
+void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  // NAN->0, negative->0.
+  Pxor(kScratchDoubleReg, kScratchDoubleReg);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmaxps(dst.fp(), src.fp(), kScratchDoubleReg);
+  } else {
+    if (dst.fp() != src.fp()) movaps(dst.fp(), src.fp());
+    maxps(dst.fp(), kScratchDoubleReg);
+  }
+  // scratch: float representation of max_signed.
+  Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+  Psrld(kScratchDoubleReg, uint8_t{1});            // 0x7fffffff
+  Cvtdq2ps(kScratchDoubleReg, kScratchDoubleReg);  // 0x4f000000
+  // scratch2: convert (src-max_signed).
+  // Set positive overflow lanes to 0x7FFFFFFF.
+  // Set negative lanes to 0.
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vsubps(liftoff::kScratchDoubleReg2, dst.fp(), kScratchDoubleReg);
+  } else {
+    movaps(liftoff::kScratchDoubleReg2, dst.fp());
+    subps(liftoff::kScratchDoubleReg2, kScratchDoubleReg);
+  }
+  Cmpleps(kScratchDoubleReg, liftoff::kScratchDoubleReg2);
+  Cvttps2dq(liftoff::kScratchDoubleReg2, liftoff::kScratchDoubleReg2);
+  Pxor(liftoff::kScratchDoubleReg2, kScratchDoubleReg);
+  Pxor(kScratchDoubleReg, kScratchDoubleReg);
+  Pmaxsd(liftoff::kScratchDoubleReg2, kScratchDoubleReg);
+  // Convert to int. Overflow lanes above max_signed will be 0x80000000.
+  Cvttps2dq(dst.fp(), dst.fp());
+  // Add (src-max_signed) for overflow lanes.
+  Paddd(dst.fp(), liftoff::kScratchDoubleReg2);
+}
+
+void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  Cvtdq2ps(dst.fp(), src.fp());
+}
+
+void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  Pxor(kScratchDoubleReg, kScratchDoubleReg);           // Zeros.
+  Pblendw(kScratchDoubleReg, src.fp(), uint8_t{0x55});  // Get lo 16 bits.
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpsubd(dst.fp(), src.fp(), kScratchDoubleReg);  // Get hi 16 bits.
+  } else {
+    if (dst.fp() != src.fp()) movaps(dst.fp(), src.fp());
+    psubd(dst.fp(), kScratchDoubleReg);
+  }
+  Cvtdq2ps(kScratchDoubleReg, kScratchDoubleReg);  // Convert lo exactly.
+  Psrld(dst.fp(), byte{1});            // Divide by 2 to get in unsigned range.
+  Cvtdq2ps(dst.fp(), dst.fp());        // Convert hi, exactly.
+  Addps(dst.fp(), dst.fp());           // Double hi, exactly.
+  Addps(dst.fp(), kScratchDoubleReg);  // Add hi and lo, may round.
+}
+
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {

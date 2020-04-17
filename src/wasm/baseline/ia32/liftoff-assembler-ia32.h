@@ -3280,6 +3280,97 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
   Andnpd(dst.fp(), liftoff::kScratchDoubleReg);
 }
 
+void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  // NAN->0
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vcmpeqps(liftoff::kScratchDoubleReg, src.fp(), src.fp());
+    vpand(dst.fp(), src.fp(), liftoff::kScratchDoubleReg);
+  } else {
+    movaps(liftoff::kScratchDoubleReg, src.fp());
+    cmpeqps(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
+    if (dst.fp() != src.fp()) movaps(dst.fp(), src.fp());
+    pand(dst.fp(), liftoff::kScratchDoubleReg);
+  }
+  // Set top bit if >= 0 (but not -0.0!).
+  Pxor(liftoff::kScratchDoubleReg, dst.fp());
+  // Convert to int.
+  Cvttps2dq(dst.fp(), dst.fp());
+  // Set top bit if >=0 is now < 0.
+  Pand(liftoff::kScratchDoubleReg, dst.fp());
+  Psrad(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, byte{31});
+  // Set positive overflow lanes to 0x7FFFFFFF.
+  Pxor(dst.fp(), liftoff::kScratchDoubleReg);
+}
+
+void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  static constexpr RegClass tmp_rc = reg_class_for(ValueType::kS128);
+  DoubleRegister tmp =
+      GetUnusedRegister(tmp_rc, LiftoffRegList::ForRegs(dst, src)).fp();
+  // NAN->0, negative->0.
+  Pxor(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmaxps(dst.fp(), src.fp(), liftoff::kScratchDoubleReg);
+  } else {
+    if (dst.fp() != src.fp()) movaps(dst.fp(), src.fp());
+    maxps(dst.fp(), liftoff::kScratchDoubleReg);
+  }
+  // scratch: float representation of max_signed.
+  Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
+  Psrld(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg,
+        uint8_t{1});  // 0x7fffffff
+  Cvtdq2ps(liftoff::kScratchDoubleReg,
+           liftoff::kScratchDoubleReg);  // 0x4f000000
+  // tmp: convert (src-max_signed).
+  // Set positive overflow lanes to 0x7FFFFFFF.
+  // Set negative lanes to 0.
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vsubps(tmp, dst.fp(), liftoff::kScratchDoubleReg);
+  } else {
+    movaps(tmp, dst.fp());
+    subps(tmp, liftoff::kScratchDoubleReg);
+  }
+  Cmpleps(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, tmp);
+  Cvttps2dq(tmp, tmp);
+  Pxor(tmp, liftoff::kScratchDoubleReg);
+  Pxor(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
+  Pmaxsd(tmp, liftoff::kScratchDoubleReg);
+  // Convert to int. Overflow lanes above max_signed will be 0x80000000.
+  Cvttps2dq(dst.fp(), dst.fp());
+  // Add (src-max_signed) for overflow lanes.
+  Paddd(dst.fp(), dst.fp(), tmp);
+}
+
+void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  Cvtdq2ps(dst.fp(), src.fp());
+}
+
+void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  Pxor(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);  // Zeros.
+  Pblendw(liftoff::kScratchDoubleReg, src.fp(),
+          uint8_t{0x55});  // Get lo 16 bits.
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpsubd(dst.fp(), src.fp(), liftoff::kScratchDoubleReg);  // Get hi 16 bits.
+  } else {
+    if (dst.fp() != src.fp()) movaps(dst.fp(), src.fp());
+    psubd(dst.fp(), liftoff::kScratchDoubleReg);
+  }
+  Cvtdq2ps(liftoff::kScratchDoubleReg,
+           liftoff::kScratchDoubleReg);  // Convert lo exactly.
+  Psrld(dst.fp(), dst.fp(), byte{1});   // Divide by 2 to get in unsigned range.
+  Cvtdq2ps(dst.fp(), dst.fp());         // Convert hi, exactly.
+  Addps(dst.fp(), dst.fp(), dst.fp());  // Double hi, exactly.
+  Addps(dst.fp(), dst.fp(),
+        liftoff::kScratchDoubleReg);  // Add hi and lo, may round.
+}
+
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
