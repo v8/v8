@@ -1670,6 +1670,11 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
 void Heap::StartIncrementalMarking(int gc_flags,
                                    GarbageCollectionReason gc_reason,
                                    GCCallbackFlags gc_callback_flags) {
+  if (V8_UNLIKELY(!FLAG_incremental_marking_on_allocation) &&
+      (gc_reason == GarbageCollectionReason::kAllocationLimit ||
+       gc_reason == GarbageCollectionReason::kGlobalAllocationLimit)) {
+    return;
+  }
   DCHECK(incremental_marking()->IsStopped());
   set_current_gc_flags(gc_flags);
   current_gc_callback_flags_ = gc_callback_flags;

@@ -892,6 +892,8 @@ DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_wrappers, true,
             "use incremental marking for marking wrappers")
 DEFINE_BOOL(incremental_marking_task, true, "use tasks for incremental marking")
+DEFINE_BOOL(incremental_marking_on_allocation, false,
+            "incremental marking on allocation")
 DEFINE_INT(incremental_marking_soft_trigger, 0,
            "threshold for starting incremental marking via a task in percent "
            "of available space: limit - size")
