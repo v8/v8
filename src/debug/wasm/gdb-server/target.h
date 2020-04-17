@@ -6,7 +6,9 @@
 #define V8_DEBUG_WASM_GDB_SERVER_TARGET_H_
 
 #include <atomic>
+#include <map>
 #include "src/base/macros.h"
+#include "src/debug/wasm/gdb-server/gdb-remote-util.h"
 
 namespace v8 {
 namespace internal {
@@ -32,6 +34,10 @@ class Target {
   bool IsTerminated() const { return status_ == Status::Terminated; }
 
  private:
+  // Initializes a map used to make fast lookups when handling query packets
+  // that have a constant response.
+  void InitQueryPropertyMap();
+
   // Blocks waiting for one of these two events to occur:
   // - A network packet arrives from the debugger, or the debugger connection is
   //   closed;
@@ -42,18 +48,42 @@ class Target {
   // This method should be called when the debuggee has suspended its execution.
   void ProcessCommands();
 
-  // This function always succeedes, since all errors
-  // are reported as an error string of "E<##>" where
-  // the two digit number.  The error codes are not
-  // not documented, so this implementation uses
-  // ErrDef as errors codes.  This function returns
-  // true a request to continue (or step) is processed.
-  bool ProcessPacket(const Packet* pktIn, Packet* pktOut);
+  enum class ErrorCode { None = 0, BadFormat = 1, BadArgs = 2, Failed = 3 };
+
+  enum class ProcessPacketResult {
+    Paused,    // The command was processed, debuggee still paused.
+    Continue,  // The debuggee should resume execution.
+    Detach,    // Request to detach from the debugger.
+    Kill       // Request to terminate the debuggee process.
+  };
+  // This function always succeedes, since all errors are reported as an error
+  // string "Exx" where xx is a two digit number.
+  // The return value indicates if the target can resume execution or it is
+  // still paused.
+  ProcessPacketResult ProcessPacket(Packet* pkt_in, Packet* pkt_out);
+
+  // Processes a general query packet
+  ErrorCode ProcessQueryPacket(const Packet* pkt_in, Packet* pkt_out);
+
+  // Formats a 'Stop-reply' packet, which is sent in response of a 'c'
+  // (continue), 's' (step) and '?' (query halt reason) commands.
+  void SetStopReply(Packet* pkt_out) const;
+
+  wasm_addr_t GetCurrentPc() const;
+
+  GdbServer* gdb_server_;
 
   enum class Status { Running, Terminated };
   std::atomic<Status> status_;
 
+  // Signal being processed.
+  int8_t cur_signal_;
+
   Session* session_;  // Session object not owned by the Target.
+
+  // Map used to make fast lookups when handling query packets.
+  typedef std::map<std::string, std::string> QueryPropertyMap;
+  QueryPropertyMap query_properties_;
 
   DISALLOW_COPY_AND_ASSIGN(Target);
 };

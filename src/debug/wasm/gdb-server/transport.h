@@ -124,6 +124,8 @@ class Transport : public TransportBase {
   void Disconnect() override;
   void Close() override;
 
+  static const int kBufSize = 4096;
+
  protected:
   // Copy buffered data to *dst up to len bytes and update dst and len.
   void CopyFromBuffer(char** dst, int32_t* len);
@@ -131,7 +133,6 @@ class Transport : public TransportBase {
   // Read available data from the socket. Return false on EOF or error.
   virtual bool ReadSomeData() = 0;
 
-  static const int kBufSize = 4096;
   std::unique_ptr<char[]> buf_;
   int32_t pos_;
   int32_t size_;

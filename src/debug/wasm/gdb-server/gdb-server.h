@@ -31,6 +31,49 @@ class GdbServer {
   // called once, when the Wasm engine shuts down.
   ~GdbServer();
 
+  // Queries the set of the Wasm modules currently loaded. Each module is
+  // identified by a unique integer module id.
+  struct WasmModuleInfo {
+    uint32_t module_id;
+    std::string module_name;
+  };
+  std::vector<WasmModuleInfo> GetLoadedModules() const;
+
+  // Queries the value of the {index} global value in the Wasm module identified
+  // by {wasm_module_id}.
+  bool GetWasmGlobal(uint32_t wasm_module_id, uint32_t index, uint64_t* value);
+
+  // Queries the value of the {index} local value in the {frame_index}th stack
+  // frame in the Wasm module identified by {wasm_module_id}.
+  bool GetWasmLocal(uint32_t wasm_module_id, uint32_t frame_index,
+                    uint32_t index, uint64_t* value);
+
+  // Reads {size} bytes, starting from {offset}, from the Memory instance
+  // associated to the Wasm module identified by {wasm_module_id}.
+  // Returns the number of bytes copied to {buffer}, or 0 is case of error.
+  // Note: only one Memory for Module is currently supported.
+  uint32_t GetWasmMemory(uint32_t wasm_module_id, uint32_t offset,
+                         uint8_t* buffer, uint32_t size);
+
+  // Reads {size} bytes, starting from {address}, from the Code space of the
+  // Wasm module identified by {wasm_module_id}.
+  // Returns the number of bytes copied to {buffer}, or 0 is case of error.
+  uint32_t GetWasmModuleBytes(wasm_addr_t address, uint8_t* buffer,
+                              uint32_t size);
+
+  // Inserts a breakpoint at the offset {offset} of the Wasm module identified
+  // by {wasm_module_id}.
+  // Returns true if the breakpoint was successfully added.
+  bool AddBreakpoint(uint32_t module_id, uint32_t offset);
+
+  // Removes a breakpoint at the offset {offset} of the Wasm module identified
+  // by {wasm_module_id}.
+  // Returns true if the breakpoint was successfully removed.
+  bool RemoveBreakpoint(uint32_t module_id, uint32_t offset);
+
+  // Returns the current call stack as a vector of program counters.
+  std::vector<wasm_addr_t> GetWasmCallStack() const;
+
  private:
   GdbServer() {}
 

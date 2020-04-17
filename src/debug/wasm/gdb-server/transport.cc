@@ -263,7 +263,6 @@ bool SocketTransport::ReadSomeData() {
     if (result == 0) {
       return false;  // The connection was gracefully closed.
     }
-
     // WSAEventSelect sets socket to non-blocking mode. This is essential
     // for socket event notification to work, there is no workaround.
     // See remarks section at the page

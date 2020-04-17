@@ -43,6 +43,15 @@ void Packet::AddBlock(const void* ptr, uint32_t len) {
   }
 }
 
+void Packet::AddString(const char* str) {
+  DCHECK(str);
+
+  while (*str) {
+    AddRawChar(*str);
+    str++;
+  }
+}
+
 void Packet::AddHexString(const char* str) {
   DCHECK(str);
 

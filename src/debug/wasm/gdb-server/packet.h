@@ -42,9 +42,12 @@ class V8_EXPORT_PRIVATE Packet {
   // separator (non hex digit).
   void AddNumberSep(uint64_t val, char sep);
 
+  // Add a raw string.
+  void AddString(const char* str);
+
   // Add a string stored as a stream of ASCII hex digit pairs.  It is safe
   // to use any non-null character in this stream.  If this does not terminate
-  // the packet, there should be a seperator (non hex digit) immediately
+  // the packet, there should be a separator (non hex digit) immediately
   // following.
   void AddHexString(const char* str);
 

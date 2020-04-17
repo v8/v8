@@ -36,6 +36,35 @@ bool NibbleToUInt8(char ch, uint8_t* byte);
 std::string Mem2Hex(const uint8_t* mem, size_t count);
 std::string Mem2Hex(const std::string& str);
 
+std::vector<std::string> V8_EXPORT_PRIVATE StringSplit(const std::string& instr,
+                                                       const char* delim);
+
+// For LLDB debugging, an address in a Wasm module code space is represented
+// with 64 bits, where the first 32 bits identify the module id:
+//
+// 63             32               0
+// +---------------+---------------+
+// |   module_id   |     offset    |
+// +---------------+---------------+
+class wasm_addr_t {
+ public:
+  wasm_addr_t(uint32_t module_id, uint32_t offset)
+      : module_id_(module_id), offset_(offset) {}
+  explicit wasm_addr_t(uint64_t address)
+      : module_id_(address >> 32), offset_(address & 0xffffffff) {}
+
+  inline uint32_t ModuleId() const { return module_id_; }
+  inline uint32_t Offset() const { return offset_; }
+
+  inline operator uint64_t() const {
+    return static_cast<uint64_t>(module_id_) << 32 | offset_;
+  }
+
+ private:
+  uint32_t module_id_;
+  uint32_t offset_;
+};
+
 }  // namespace gdb_server
 }  // namespace wasm
 }  // namespace internal

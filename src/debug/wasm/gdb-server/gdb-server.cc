@@ -33,6 +33,53 @@ GdbServer::~GdbServer() {
   }
 }
 
+// All the following methods require interaction with the actual V8 Wasm engine.
+// They will be implemented later.
+
+std::vector<GdbServer::WasmModuleInfo> GdbServer::GetLoadedModules() const {
+  // TODO(paolosev)
+  return {};
+}
+
+bool GdbServer::GetWasmGlobal(uint32_t wasm_module_id, uint32_t index,
+                              uint64_t* value) {
+  // TODO(paolosev)
+  return false;
+}
+
+bool GdbServer::GetWasmLocal(uint32_t wasm_module_id, uint32_t frame_index,
+                             uint32_t index, uint64_t* value) {
+  // TODO(paolosev)
+  return false;
+}
+
+uint32_t GdbServer::GetWasmMemory(uint32_t wasm_module_id, uint32_t offset,
+                                  uint8_t* buffer, uint32_t size) {
+  // TODO(paolosev)
+  return 0;
+}
+
+uint32_t GdbServer::GetWasmModuleBytes(wasm_addr_t address, uint8_t* buffer,
+                                       uint32_t size) {
+  // TODO(paolosev)
+  return 0;
+}
+
+bool GdbServer::AddBreakpoint(uint32_t module_id, uint32_t offset) {
+  // TODO(paolosev)
+  return false;
+}
+
+bool GdbServer::RemoveBreakpoint(uint32_t module_id, uint32_t offset) {
+  // TODO(paolosev)
+  return false;
+}
+
+std::vector<wasm_addr_t> GdbServer::GetWasmCallStack() const {
+  // TODO(paolosev)
+  return {};
+}
+
 }  // namespace gdb_server
 }  // namespace wasm
 }  // namespace internal

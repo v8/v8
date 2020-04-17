@@ -54,6 +54,39 @@ bool NibbleToUInt8(char ch, uint8_t* byte) {
   return false;
 }
 
+std::vector<std::string> StringSplit(const string& instr, const char* delim) {
+  std::vector<std::string> result;
+
+  const char* in = instr.data();
+  if (nullptr == in) return result;
+
+  // Check if we have nothing to do
+  if (nullptr == delim) {
+    result.push_back(string(in));
+    return result;
+  }
+
+  while (*in) {
+    // Toss all preceeding delimiters
+    while (*in && strchr(delim, *in)) in++;
+
+    // If we still have something to process
+    if (*in) {
+      const char* start = in;
+      int len = 0;
+      // Keep moving forward for all valid chars
+      while (*in && (strchr(delim, *in) == nullptr)) {
+        len++;
+        in++;
+      }
+
+      // Build this token and add it to the array.
+      result.push_back(string{start, len});
+    }
+  }
+  return result;
+}
+
 std::string Mem2Hex(const uint8_t* mem, size_t count) {
   std::vector<char> result(count * 2 + 1);
   for (size_t i = 0; i < count; i++) UInt8ToHex(*mem++, &result[i * 2]);

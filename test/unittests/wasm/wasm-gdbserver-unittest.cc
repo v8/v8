@@ -143,6 +143,25 @@ TEST_F(WasmGdbRemoteTest, GdbRemotePacketRunLengthEncoded) {
   EXPECT_EQ("123333ab", std::string(packet2.GetPayload()));
 }
 
+TEST_F(WasmGdbRemoteTest, GdbRemoteUtilStringSplit) {
+  std::vector<std::string> parts1 = StringSplit({}, ",");
+  EXPECT_EQ(size_t(0), parts1.size());
+
+  auto parts2 = StringSplit("a", nullptr);
+  EXPECT_EQ(size_t(1), parts2.size());
+  EXPECT_EQ("a", parts2[0]);
+
+  auto parts3 = StringSplit(";a;bc;def;", ",");
+  EXPECT_EQ(size_t(1), parts3.size());
+  EXPECT_EQ(";a;bc;def;", parts3[0]);
+
+  auto parts4 = StringSplit(";a;bc;def;", ";");
+  EXPECT_EQ(size_t(3), parts4.size());
+  EXPECT_EQ("a", parts4[0]);
+  EXPECT_EQ("bc", parts4[1]);
+  EXPECT_EQ("def", parts4[2]);
+}
+
 class MockTransport : public TransportBase {
  public:
   MOCK_METHOD0(AcceptConnection, bool());

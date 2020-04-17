@@ -31,14 +31,16 @@ class JSArrayBuffer;
 
 namespace wasm {
 
+#ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+namespace gdb_server {
+class GdbServer;
+}
+#endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+
 class AsyncCompileJob;
 class ErrorThrower;
 struct ModuleWireBytes;
 class WasmFeatures;
-
-namespace gdb_server {
-class GdbServer;
-}
 
 class V8_EXPORT_PRIVATE CompilationResultResolver {
  public:
