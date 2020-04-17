@@ -76,7 +76,9 @@ DefaultPlatform::DefaultPlatform(
       time_function_for_testing_(nullptr) {
   if (!tracing_controller_) {
     tracing::TracingController* controller = new tracing::TracingController();
+#if !defined(V8_USE_PERFETTO)
     controller->Initialize(nullptr);
+#endif
     tracing_controller_.reset(controller);
   }
 }

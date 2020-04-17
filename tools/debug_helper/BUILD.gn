@@ -12,6 +12,8 @@ config("internal_config") {
     defines = [ "BUILDING_V8_DEBUG_HELPER" ]
   }
 
+  configs = [ "../..:v8_tracing_config" ]
+
   include_dirs = [
     ".",
     "../..",
