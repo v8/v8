@@ -286,22 +286,6 @@ class ParserBase {
 
   V8_INLINE bool has_error() const { return scanner()->has_parser_error(); }
 
-  bool allow_harmony_optional_chaining() const {
-    return scanner()->allow_harmony_optional_chaining();
-  }
-
-  void set_allow_harmony_optional_chaining(bool allow) {
-    scanner()->set_allow_harmony_optional_chaining(allow);
-  }
-
-  bool allow_harmony_nullish() const {
-    return scanner()->allow_harmony_nullish();
-  }
-
-  void set_allow_harmony_nullish(bool allow) {
-    scanner()->set_allow_harmony_nullish(allow);
-  }
-
   uintptr_t stack_limit() const { return stack_limit_; }
 
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }

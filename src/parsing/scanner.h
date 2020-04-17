@@ -410,18 +410,6 @@ class V8_EXPORT_PRIVATE Scanner {
 
   bool FoundHtmlComment() const { return found_html_comment_; }
 
-  bool allow_harmony_optional_chaining() const {
-    return allow_harmony_optional_chaining_;
-  }
-
-  void set_allow_harmony_optional_chaining(bool allow) {
-    allow_harmony_optional_chaining_ = allow;
-  }
-
-  bool allow_harmony_nullish() const { return allow_harmony_nullish_; }
-
-  void set_allow_harmony_nullish(bool allow) { allow_harmony_nullish_ = allow; }
-
   const Utf16CharacterStream* stream() const { return source_; }
 
  private:
@@ -729,10 +717,6 @@ class V8_EXPORT_PRIVATE Scanner {
 
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;
-
-  // Harmony flags to allow ESNext features.
-  bool allow_harmony_optional_chaining_;
-  bool allow_harmony_nullish_;
 
   const bool is_module_;
 

@@ -105,15 +105,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_allow_harmony_dynamic_import)
   FLAG_ACCESSOR(kAllowHarmonyImportMeta, allow_harmony_import_meta,
                 set_allow_harmony_import_meta)
-  FLAG_ACCESSOR(kAllowHarmonyOptionalChaining, allow_harmony_optional_chaining,
-                set_allow_harmony_optional_chaining)
   FLAG_ACCESSOR(kAllowHarmonyPrivateMethods, allow_harmony_private_methods,
                 set_allow_harmony_private_methods)
   FLAG_ACCESSOR(kIsOneshotIIFE, is_oneshot_iife, set_is_oneshot_iife)
   FLAG_ACCESSOR(kCollectSourcePositions, collect_source_positions,
                 set_collect_source_positions)
-  FLAG_ACCESSOR(kAllowHarmonyNullish, allow_harmony_nullish,
-                set_allow_harmony_nullish)
   FLAG_ACCESSOR(kAllowHarmonyTopLevelAwait, allow_harmony_top_level_await,
                 set_allow_harmony_top_level_await)
   FLAG_ACCESSOR(kREPLMode, is_repl_mode, set_repl_mode)

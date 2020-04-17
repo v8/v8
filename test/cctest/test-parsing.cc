@@ -1534,8 +1534,6 @@ enum ParserFlag {
   kAllowHarmonyPrivateMethods,
   kAllowHarmonyDynamicImport,
   kAllowHarmonyImportMeta,
-  kAllowHarmonyNullish,
-  kAllowHarmonyOptionalChaining,
 };
 
 enum ParserSyncTestResult {
@@ -1549,9 +1547,6 @@ void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_private_methods = flags.contains(kAllowHarmonyPrivateMethods);
   i::FLAG_harmony_dynamic_import = flags.contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.contains(kAllowHarmonyImportMeta);
-  i::FLAG_harmony_optional_chaining =
-      flags.contains(kAllowHarmonyOptionalChaining);
-  i::FLAG_harmony_nullish = flags.contains(kAllowHarmonyNullish);
 }
 
 void SetParserFlags(i::PreParser* parser, base::EnumSet<ParserFlag> flags) {
@@ -1562,9 +1557,6 @@ void SetParserFlags(i::PreParser* parser, base::EnumSet<ParserFlag> flags) {
       flags.contains(kAllowHarmonyDynamicImport));
   parser->set_allow_harmony_import_meta(
       flags.contains(kAllowHarmonyImportMeta));
-  parser->set_allow_harmony_optional_chaining(
-      flags.contains(kAllowHarmonyOptionalChaining));
-  parser->set_allow_harmony_nullish(flags.contains(kAllowHarmonyNullish));
 }
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
@@ -1995,10 +1987,7 @@ TEST(OptionalChaining) {
       {"", ""}, {"'use strict';", ""}, {nullptr, nullptr}};
   const char* statement_data[] = {"a?.b", "a?.['b']", "a?.()", nullptr};
 
-  static const ParserFlag flags[] = {kAllowHarmonyOptionalChaining};
-  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0, flags,
-                    1, nullptr, 0, false, true, true);
-  RunParserSyncTest(context_data, statement_data, kError);
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 TEST(OptionalChainingTaggedError) {
@@ -2010,9 +1999,6 @@ TEST(OptionalChainingTaggedError) {
       {"", ""}, {"'use strict';", ""}, {nullptr, nullptr}};
   const char* statement_data[] = {"a?.b``", "a?.['b']``", "a?.()``", nullptr};
 
-  static const ParserFlag flags[] = {kAllowHarmonyOptionalChaining};
-  RunParserSyncTest(context_data, statement_data, kError, nullptr, 9, flags, 1,
-                    nullptr, 0, false, true, true);
   RunParserSyncTest(context_data, statement_data, kError);
 }
 
@@ -2028,10 +2014,7 @@ TEST(Nullish) {
                                   "a ?? b ?? c ? d : e",
                                   nullptr};
 
-  static const ParserFlag flags[] = {kAllowHarmonyNullish};
-  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0, flags,
-                    1, nullptr, 0, false, true, true);
-  RunParserSyncTest(context_data, statement_data, kError);
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 TEST(NullishNotContained) {
@@ -2046,9 +2029,7 @@ TEST(NullishNotContained) {
                                   "a ?? b && c",
                                   nullptr};
 
-  static const ParserFlag flags[] = {kAllowHarmonyNullish};
-  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1,
-                    nullptr, 0, false, true, true);
+  RunParserSyncTest(context_data, statement_data, kError);
 }
 
 TEST(ErrorsEvalAndArguments) {
