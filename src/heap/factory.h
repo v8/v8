@@ -184,10 +184,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     return InternalizeUtf8String(CStrVector(str));
   }
 
-  template <typename Char>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<String> InternalizeString(const Vector<const Char>& str,
+  Handle<String> InternalizeString(Vector<const uint8_t> str,
                                    bool convert_encoding = false);
+  Handle<String> InternalizeString(Vector<const uint16_t> str,
+                                   bool convert_encoding = false);
+  Handle<String> InternalizeString(Vector<const char> str,
+                                   bool convert_encoding = false) {
+    return InternalizeString(Vector<const uint8_t>::cast(str));
+  }
 
   template <typename SeqString>
   Handle<String> InternalizeString(Handle<SeqString>, int from, int length,

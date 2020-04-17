@@ -530,19 +530,19 @@ Handle<String> Factory::InternalizeUtf8String(
       Vector<const uc16>(buffer.get(), decoder.utf16_length()));
 }
 
-template <typename Char>
-Handle<String> Factory::InternalizeString(const Vector<const Char>& string,
+Handle<String> Factory::InternalizeString(Vector<const uint8_t> string,
                                           bool convert_encoding) {
-  SequentialStringKey<Char> key(string, HashSeed(isolate()), convert_encoding);
+  SequentialStringKey<uint8_t> key(string, HashSeed(isolate()),
+                                   convert_encoding);
   return InternalizeStringWithKey(&key);
 }
 
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> Factory::InternalizeString(
-        const Vector<const uint8_t>& string, bool convert_encoding);
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> Factory::InternalizeString(
-        const Vector<const uint16_t>& string, bool convert_encoding);
+Handle<String> Factory::InternalizeString(Vector<const uint16_t> string,
+                                          bool convert_encoding) {
+  SequentialStringKey<uint16_t> key(string, HashSeed(isolate()),
+                                    convert_encoding);
+  return InternalizeStringWithKey(&key);
+}
 
 template <typename SeqString>
 Handle<String> Factory::InternalizeString(Handle<SeqString> string, int from,
