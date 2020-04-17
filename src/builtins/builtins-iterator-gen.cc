@@ -178,14 +178,24 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
 
 TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
     TNode<Context> context, TNode<Object> iterable, TNode<Object> iterator_fn) {
+  GrowableFixedArray values(state());
+  FillFixedArrayFromIterable(context, iterable, iterator_fn, &values);
+  return values.ToJSArray(context);
+}
+
+void IteratorBuiltinsAssembler::FillFixedArrayFromIterable(
+    TNode<Context> context, TNode<Object> iterable, TNode<Object> iterator_fn,
+    GrowableFixedArray* values) {
   // 1. Let iteratorRecord be ? GetIterator(items, method).
   IteratorRecord iterator_record = GetIterator(context, iterable, iterator_fn);
 
   // 2. Let values be a new empty List.
-  GrowableFixedArray values(state());
 
-  Label loop_start(
-      this, {values.var_array(), values.var_length(), values.var_capacity()}),
+  // The GrowableFixedArray has already been created. It's ok if we do this step
+  // out of order, since creating an empty List is not observable.
+
+  Label loop_start(this, {values->var_array(), values->var_length(),
+                          values->var_capacity()}),
       done(this);
   Goto(&loop_start);
   // 3. Let next be true.
@@ -198,12 +208,11 @@ TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
     //   i. Let nextValue be ? IteratorValue(next).
     TNode<Object> next_value = IteratorValue(context, next);
     //   ii. Append nextValue to the end of the List values.
-    values.Push(next_value);
+    values->Push(next_value);
     Goto(&loop_start);
   }
 
   BIND(&done);
-  return values.ToJSArray(context);
 }
 
 TF_BUILTIN(IterableToList, IteratorBuiltinsAssembler) {
@@ -220,25 +229,12 @@ TF_BUILTIN(IterableToFixedArrayForWasm, IteratorBuiltinsAssembler) {
   TNode<Smi> expected_length = CAST(Parameter(Descriptor::kExpectedLength));
 
   TNode<Object> iterator_fn = GetIteratorMethod(context, iterable);
-
-  IteratorRecord iterator_record = GetIterator(context, iterable, iterator_fn);
-
   GrowableFixedArray values(state());
 
-  Label loop_start(
-      this, {values.var_array(), values.var_length(), values.var_capacity()}),
-      compare_length(this), done(this);
-  Goto(&loop_start);
-  BIND(&loop_start);
-  {
-    TNode<JSReceiver> next =
-        IteratorStep(context, iterator_record, &compare_length);
-    TNode<Object> next_value = IteratorValue(context, next);
-    values.Push(next_value);
-    Goto(&loop_start);
-  }
+  Label done(this);
 
-  BIND(&compare_length);
+  FillFixedArrayFromIterable(context, iterable, iterator_fn, &values);
+
   GotoIf(WordEqual(SmiUntag(expected_length), values.var_length()->value()),
          &done);
   Return(CallRuntime(

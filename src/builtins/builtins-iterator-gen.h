@@ -12,6 +12,8 @@ namespace internal {
 
 using compiler::Node;
 
+class GrowableFixedArray;
+
 class IteratorBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit IteratorBuiltinsAssembler(compiler::CodeAssemblerState* state)
@@ -64,6 +66,11 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   // following the ECMAscript operation with the same name.
   TNode<JSArray> IterableToList(TNode<Context> context, TNode<Object> iterable,
                                 TNode<Object> iterator_fn);
+
+  void FillFixedArrayFromIterable(TNode<Context> context,
+                                  TNode<Object> iterable,
+                                  TNode<Object> iterator_fn,
+                                  GrowableFixedArray* values);
 
   // Currently at https://tc39.github.io/proposal-intl-list-format/
   // #sec-createstringlistfromiterable
