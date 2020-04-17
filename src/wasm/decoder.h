@@ -144,7 +144,9 @@ class Decoder {
       index = read_u32v<validate>(pc + 1, length, "prefixed opcode index");
       // Only support SIMD opcodes that go up to 0xFF (when decoded). Anything
       // bigger will need 1 more byte, and the '<< 8' below will be wrong.
-      DCHECK_LE(index, 0xff);
+      if (validate && V8_UNLIKELY(index > 0xff)) {
+        errorf(pc, "Invalid SIMD opcode %d", index);
+      }
     } else {
       index = *(pc + 1);
       *length = 1;
