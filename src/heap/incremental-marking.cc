@@ -435,42 +435,41 @@ void IncrementalMarking::RetainMaps() {
   // - GC is requested by tests or dev-tools (abort_incremental_marking_).
   bool map_retaining_is_disabled = heap()->ShouldReduceMemory() ||
                                    FLAG_retain_maps_for_n_gc == 0;
-  WeakArrayList retained_maps = heap()->retained_maps();
-  int length = retained_maps.length();
-  // The number_of_disposed_maps separates maps in the retained_maps
-  // array that were created before and after context disposal.
-  // We do not age and retain disposed maps to avoid memory leaks.
-  int number_of_disposed_maps = heap()->number_of_disposed_maps_;
-  for (int i = 0; i < length; i += 2) {
-    MaybeObject value = retained_maps.Get(i);
-    HeapObject map_heap_object;
-    if (!value->GetHeapObjectIfWeak(&map_heap_object)) {
-      continue;
-    }
-    int age = retained_maps.Get(i + 1).ToSmi().value();
-    int new_age;
-    Map map = Map::cast(map_heap_object);
-    if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&
-        marking_state()->IsWhite(map)) {
-      if (ShouldRetainMap(map, age)) {
-        WhiteToGreyAndPush(map);
+  std::vector<WeakArrayList> retained_maps_list = heap()->FindAllRetainedMaps();
+
+  for (WeakArrayList retained_maps : retained_maps_list) {
+    int length = retained_maps.length();
+
+    for (int i = 0; i < length; i += 2) {
+      MaybeObject value = retained_maps.Get(i);
+      HeapObject map_heap_object;
+      if (!value->GetHeapObjectIfWeak(&map_heap_object)) {
+        continue;
       }
-      Object prototype = map.prototype();
-      if (age > 0 && prototype.IsHeapObject() &&
-          marking_state()->IsWhite(HeapObject::cast(prototype))) {
-        // The prototype is not marked, age the map.
-        new_age = age - 1;
+      int age = retained_maps.Get(i + 1).ToSmi().value();
+      int new_age;
+      Map map = Map::cast(map_heap_object);
+      if (!map_retaining_is_disabled && marking_state()->IsWhite(map)) {
+        if (ShouldRetainMap(map, age)) {
+          WhiteToGreyAndPush(map);
+        }
+        Object prototype = map.prototype();
+        if (age > 0 && prototype.IsHeapObject() &&
+            marking_state()->IsWhite(HeapObject::cast(prototype))) {
+          // The prototype is not marked, age the map.
+          new_age = age - 1;
+        } else {
+          // The prototype and the constructor are marked, this map keeps only
+          // transition tree alive, not JSObjects. Do not age the map.
+          new_age = age;
+        }
       } else {
-        // The prototype and the constructor are marked, this map keeps only
-        // transition tree alive, not JSObjects. Do not age the map.
-        new_age = age;
+        new_age = FLAG_retain_maps_for_n_gc;
       }
-    } else {
-      new_age = FLAG_retain_maps_for_n_gc;
-    }
-    // Compact the array and update the age.
-    if (new_age != age) {
-      retained_maps.Set(i + 1, MaybeObject::FromSmi(Smi::FromInt(new_age)));
+      // Compact the array and update the age.
+      if (new_age != age) {
+        retained_maps.Set(i + 1, MaybeObject::FromSmi(Smi::FromInt(new_age)));
+      }
     }
   }
 }

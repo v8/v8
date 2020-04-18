@@ -5051,7 +5051,8 @@ TEST(Regress3877) {
   CHECK(weak_prototype_holder->Get(0)->IsCleared());
 }
 
-Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate, Heap* heap) {
+Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate,
+                                      Handle<NativeContext> context) {
   HandleScope inner_scope(isolate);
   Handle<Map> map = Map::Create(isolate, 1);
   v8::Local<v8::Value> result =
@@ -5059,18 +5060,24 @@ Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate, Heap* heap) {
   Handle<JSReceiver> proto =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
   Map::SetPrototype(isolate, map, proto);
-  heap->AddRetainedMap(map);
+  isolate->heap()->AddRetainedMap(context, map);
   Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(1);
   array->Set(0, HeapObjectReference::Weak(*map));
   return inner_scope.CloseAndEscape(array);
 }
 
-
 void CheckMapRetainingFor(int n) {
   FLAG_retain_maps_for_n_gc = n;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
-  Handle<WeakFixedArray> array_with_map = AddRetainedMap(isolate, heap);
+  v8::Local<v8::Context> ctx = v8::Context::New(CcTest::isolate());
+  Handle<Context> context = Utils::OpenHandle(*ctx);
+  CHECK(context->IsNativeContext());
+  Handle<NativeContext> native_context = Handle<NativeContext>::cast(context);
+
+  ctx->Enter();
+  Handle<WeakFixedArray> array_with_map =
+      AddRetainedMap(isolate, native_context);
   CHECK(array_with_map->Get(0)->IsWeak());
   for (int i = 0; i < n; i++) {
     heap::SimulateIncrementalMarking(heap);
@@ -5080,6 +5087,8 @@ void CheckMapRetainingFor(int n) {
   heap::SimulateIncrementalMarking(heap);
   CcTest::CollectGarbage(OLD_SPACE);
   CHECK(array_with_map->Get(0)->IsCleared());
+
+  ctx->Exit();
 }
 
 
@@ -5092,6 +5101,30 @@ TEST(MapRetaining) {
   CheckMapRetainingFor(0);
   CheckMapRetainingFor(1);
   CheckMapRetainingFor(7);
+}
+
+TEST(RetainedMapsCleanup) {
+  if (!FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  v8::Local<v8::Context> ctx = v8::Context::New(CcTest::isolate());
+  Handle<Context> context = Utils::OpenHandle(*ctx);
+  CHECK(context->IsNativeContext());
+  Handle<NativeContext> native_context = Handle<NativeContext>::cast(context);
+
+  ctx->Enter();
+  Handle<WeakFixedArray> array_with_map =
+      AddRetainedMap(isolate, native_context);
+  CHECK(array_with_map->Get(0)->IsWeak());
+  heap->NotifyContextDisposed(true);
+  CcTest::CollectAllGarbage();
+  ctx->Exit();
+
+  CHECK_EQ(ReadOnlyRoots(heap).empty_weak_array_list(),
+           native_context->retained_maps());
 }
 
 TEST(PreprocessStackTrace) {

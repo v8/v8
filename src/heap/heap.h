@@ -668,7 +668,8 @@ class Heap {
 
   void CompactWeakArrayLists(AllocationType allocation);
 
-  V8_EXPORT_PRIVATE void AddRetainedMap(Handle<Map> map);
+  V8_EXPORT_PRIVATE void AddRetainedMap(Handle<NativeContext> context,
+                                        Handle<Map> map);
 
   // This event is triggered after successful allocation of a new object made
   // by runtime. Allocations of target space for object evacuation do not
@@ -1924,6 +1925,7 @@ class Heap {
 #endif  // DEBUG
 
   std::vector<Handle<NativeContext>> FindAllNativeContexts();
+  std::vector<WeakArrayList> FindAllRetainedMaps();
   MemoryMeasurement* memory_measurement() { return memory_measurement_.get(); }
 
   // The amount of memory that has been freed concurrently.
@@ -1979,11 +1981,6 @@ class Heap {
 
   // For keeping track of context disposals.
   int contexts_disposed_ = 0;
-
-  // The length of the retained_maps array at the time of context disposal.
-  // This separates maps in the retained_maps array that were created before
-  // and after context disposal.
-  int number_of_disposed_maps_ = 0;
 
   NewSpace* new_space_ = nullptr;
   OldSpace* old_space_ = nullptr;

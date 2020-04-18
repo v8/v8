@@ -1659,9 +1659,10 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
   isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   if (!isolate()->context().is_null()) {
     RemoveDirtyFinalizationRegistriesOnContext(isolate()->raw_native_context());
+    isolate()->raw_native_context().set_retained_maps(
+        ReadOnlyRoots(this).empty_weak_array_list());
   }
 
-  number_of_disposed_maps_ = retained_maps().length();
   tracer()->AddContextDisposalTime(MonotonicallyIncreasingTimeInMs());
   return ++contexts_disposed_;
 }
@@ -5619,11 +5620,11 @@ void Heap::CompactWeakArrayLists(AllocationType allocation) {
   set_script_list(*scripts);
 }
 
-void Heap::AddRetainedMap(Handle<Map> map) {
+void Heap::AddRetainedMap(Handle<NativeContext> context, Handle<Map> map) {
   if (map->is_in_retained_map_list()) {
     return;
   }
-  Handle<WeakArrayList> array(retained_maps(), isolate());
+  Handle<WeakArrayList> array(context->retained_maps(), isolate());
   if (array->IsFull()) {
     CompactRetainedMaps(*array);
   }
@@ -5632,17 +5633,15 @@ void Heap::AddRetainedMap(Handle<Map> map) {
   array = WeakArrayList::AddToEnd(
       isolate(), array,
       MaybeObjectHandle(Smi::FromInt(FLAG_retain_maps_for_n_gc), isolate()));
-  if (*array != retained_maps()) {
-    set_retained_maps(*array);
+  if (*array != context->retained_maps()) {
+    context->set_retained_maps(*array);
   }
   map->set_is_in_retained_map_list(true);
 }
 
 void Heap::CompactRetainedMaps(WeakArrayList retained_maps) {
-  DCHECK_EQ(retained_maps, this->retained_maps());
   int length = retained_maps.length();
   int new_length = 0;
-  int new_number_of_disposed_maps = 0;
   // This loop compacts the array by removing cleared weak cells.
   for (int i = 0; i < length; i += 2) {
     MaybeObject maybe_object = retained_maps.Get(i);
@@ -5658,12 +5657,8 @@ void Heap::CompactRetainedMaps(WeakArrayList retained_maps) {
       retained_maps.Set(new_length, maybe_object);
       retained_maps.Set(new_length + 1, age);
     }
-    if (i < number_of_disposed_maps_) {
-      new_number_of_disposed_maps += 2;
-    }
     new_length += 2;
   }
-  number_of_disposed_maps_ = new_number_of_disposed_maps;
   HeapObject undefined = ReadOnlyRoots(this).undefined_value();
   for (int i = new_length; i < length; i++) {
     retained_maps.Set(i, HeapObjectReference::Strong(undefined));
@@ -6276,6 +6271,17 @@ std::vector<Handle<NativeContext>> Heap::FindAllNativeContexts() {
   while (!context.IsUndefined(isolate())) {
     NativeContext native_context = NativeContext::cast(context);
     result.push_back(handle(native_context, isolate()));
+    context = native_context.next_context_link();
+  }
+  return result;
+}
+
+std::vector<WeakArrayList> Heap::FindAllRetainedMaps() {
+  std::vector<WeakArrayList> result;
+  Object context = native_contexts_list();
+  while (!context.IsUndefined(isolate())) {
+    NativeContext native_context = NativeContext::cast(context);
+    result.push_back(native_context.retained_maps());
     context = native_context.next_context_link();
   }
   return result;
