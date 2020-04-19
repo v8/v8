@@ -201,7 +201,6 @@ bool Runtime::IsWhitelistedForFuzzing(FunctionId id) {
     case Runtime::kDeoptimizeFunction:
     case Runtime::kDeoptimizeNow:
     case Runtime::kEnableCodeLoggingForTesting:
-    case Runtime::kGetOptimizationStatus:
     case Runtime::kGetUndetectable:
     case Runtime::kNeverOptimizeFunction:
     case Runtime::kOptimizeFunctionOnNextCall:
@@ -213,6 +212,7 @@ bool Runtime::IsWhitelistedForFuzzing(FunctionId id) {
     // Runtime functions only permitted for non-differential fuzzers.
     // This list may contain functions performing extra checks or returning
     // different values in the context of different flags passed to V8.
+    case Runtime::kGetOptimizationStatus:
     case Runtime::kHeapObjectVerify:
     case Runtime::kIsBeingInterpreted:
       return !FLAG_allow_natives_for_differential_fuzzing;
