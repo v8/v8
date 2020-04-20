@@ -953,9 +953,6 @@ class WasmScript : public AllStatic {
   // Helper functions that update the breakpoint info list.
   static void AddBreakpointToInfo(Handle<Script>, int position,
                                   Handle<BreakPoint> break_point);
-
-  static bool RemoveBreakpointFromInfo(Handle<Script>, int position,
-                                       Handle<BreakPoint> break_point);
 };
 
 // Tags provide an object identity for each exception defined in a wasm module

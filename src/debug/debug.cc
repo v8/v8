@@ -872,20 +872,6 @@ void Debug::PrepareStepIn(Handle<JSFunction> function) {
   if (in_debug_scope()) return;
   if (break_disabled()) return;
   Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
-  // If stepping from JS into Wasm, and we are using the wasm interpreter for
-  // debugging, prepare the interpreter for step in.
-  if (shared->HasWasmExportedFunctionData() && !FLAG_debug_in_liftoff) {
-    auto imported_function = Handle<WasmExportedFunction>::cast(function);
-    Handle<WasmInstanceObject> wasm_instance(imported_function->instance(),
-                                             isolate_);
-    Handle<WasmDebugInfo> wasm_debug_info =
-        WasmInstanceObject::GetOrCreateDebugInfo(wasm_instance);
-    int func_index = shared->wasm_exported_function_data().function_index();
-    WasmDebugInfo::PrepareStepIn(wasm_debug_info, func_index);
-    // We need to reset all of this since break would be
-    // handled in Wasm Interpreter now. Otherwise it would be a loop here.
-    ClearStepping();
-  }
   if (IsBlackboxed(shared)) return;
   if (*function == thread_local_.ignore_step_into_function_) return;
   thread_local_.ignore_step_into_function_ = Smi::zero();
@@ -1048,7 +1034,7 @@ void Debug::PrepareStep(StepAction step_action) {
       wasm_frame->debug_info().PrepareStep(step_action);
       return;
     }
-  } else if (FLAG_debug_in_liftoff && frame->is_wasm_compiled()) {
+  } else if (frame->is_wasm_compiled()) {
     // Handle stepping in Liftoff code.
     WasmCompiledFrame* wasm_frame = WasmCompiledFrame::cast(frame);
     wasm::WasmCodeRefScope code_ref_scope;

@@ -721,10 +721,6 @@ DEFINE_BOOL(trace_wasm_memory, false,
 DEFINE_INT(wasm_tier_mask_for_testing, 0,
            "bitmask of functions to compile with TurboFan instead of Liftoff")
 
-DEFINE_BOOL(
-    debug_in_liftoff, true,
-    "use Liftoff instead of the C++ interpreter for debugging WebAssembly")
-
 DEFINE_BOOL(validate_asm, true, "validate asm.js modules before compiling")
 DEFINE_BOOL(suppress_asm_messages, false,
             "don't emit asm.js related messages (for golden file testing)")

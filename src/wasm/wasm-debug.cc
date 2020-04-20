@@ -1318,92 +1318,9 @@ bool WasmScript::SetBreakPointForFunction(Handle<Script> script, int func_index,
   WasmScript::AddBreakpointToInfo(script, func.code.offset() + offset,
                                   break_point);
 
-  if (FLAG_debug_in_liftoff) {
-    native_module->GetDebugInfo()->SetBreakpoint(func_index, offset, isolate);
-  } else {
-    // Iterate over all instances and tell them to set this new breakpoint.
-    // We do this using the weak list of all instances from the script.
-    Handle<WeakArrayList> weak_instance_list(script->wasm_weak_instance_list(),
-                                             isolate);
-    for (int i = 0; i < weak_instance_list->length(); ++i) {
-      MaybeObject maybe_instance = weak_instance_list->Get(i);
-      if (maybe_instance->IsWeak()) {
-        Handle<WasmInstanceObject> instance(
-            WasmInstanceObject::cast(maybe_instance->GetHeapObjectAssumeWeak()),
-            isolate);
-        Handle<WasmDebugInfo> debug_info =
-            WasmInstanceObject::GetOrCreateDebugInfo(instance);
-        WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset);
-      }
-    }
-  }
+  native_module->GetDebugInfo()->SetBreakpoint(func_index, offset, isolate);
 
   return true;
-}
-
-// static
-bool WasmScript::ClearBreakPoint(Handle<Script> script, int position,
-                                 Handle<BreakPoint> break_point) {
-  Isolate* isolate = script->GetIsolate();
-
-  // Find the function for this breakpoint.
-  const wasm::WasmModule* module = script->wasm_native_module()->module();
-  int func_index = GetContainingWasmFunction(module, position);
-  if (func_index < 0) return false;
-  const wasm::WasmFunction& func = module->functions[func_index];
-  int offset_in_func = position - func.code.offset();
-
-  if (!WasmScript::RemoveBreakpointFromInfo(script, position, break_point)) {
-    return false;
-  }
-
-  if (!FLAG_debug_in_liftoff) {
-    // Iterate over all instances and tell them to remove this breakpoint.
-    // We do this using the weak list of all instances from the script.
-    Handle<WeakArrayList> weak_instance_list(script->wasm_weak_instance_list(),
-                                             isolate);
-    for (int i = 0; i < weak_instance_list->length(); ++i) {
-      MaybeObject maybe_instance = weak_instance_list->Get(i);
-      if (maybe_instance->IsWeak()) {
-        Handle<WasmInstanceObject> instance(
-            WasmInstanceObject::cast(maybe_instance->GetHeapObjectAssumeWeak()),
-            isolate);
-        Handle<WasmDebugInfo> debug_info =
-            WasmInstanceObject::GetOrCreateDebugInfo(instance);
-        WasmDebugInfo::ClearBreakpoint(debug_info, func_index, offset_in_func);
-      }
-    }
-  }
-
-  return true;
-}
-
-// static
-bool WasmScript::ClearBreakPointById(Handle<Script> script, int breakpoint_id) {
-  if (!script->has_wasm_breakpoint_infos()) {
-    return false;
-  }
-  Isolate* isolate = script->GetIsolate();
-  Handle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(), isolate);
-  // If the array exists, it should not be empty.
-  DCHECK_LT(0, breakpoint_infos->length());
-
-  for (int i = 0, e = breakpoint_infos->length(); i < e; ++i) {
-    Handle<Object> obj(breakpoint_infos->get(i), isolate);
-    if (obj->IsUndefined(isolate)) {
-      continue;
-    }
-    Handle<BreakPointInfo> breakpoint_info = Handle<BreakPointInfo>::cast(obj);
-    Handle<BreakPoint> breakpoint;
-    if (BreakPointInfo::GetBreakPointById(isolate, breakpoint_info,
-                                          breakpoint_id)
-            .ToHandle(&breakpoint)) {
-      DCHECK(breakpoint->id() == breakpoint_id);
-      return WasmScript::ClearBreakPoint(
-          script, breakpoint_info->source_position(), breakpoint);
-    }
-  }
-  return false;
 }
 
 namespace {
@@ -1437,6 +1354,65 @@ int FindBreakpointInfoInsertPos(Isolate* isolate,
 }
 
 }  // namespace
+
+// static
+bool WasmScript::ClearBreakPoint(Handle<Script> script, int position,
+                                 Handle<BreakPoint> break_point) {
+  if (!script->has_wasm_breakpoint_infos()) return false;
+
+  Isolate* isolate = script->GetIsolate();
+  Handle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(), isolate);
+
+  int pos = FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
+
+  // Does a BreakPointInfo object already exist for this position?
+  if (pos == breakpoint_infos->length()) return false;
+
+  Handle<BreakPointInfo> info(BreakPointInfo::cast(breakpoint_infos->get(pos)),
+                              isolate);
+  BreakPointInfo::ClearBreakPoint(isolate, info, break_point);
+
+  // Check if there are no more breakpoints at this location.
+  if (info->GetBreakPointCount(isolate) == 0) {
+    // Update array by moving breakpoints up one position.
+    for (int i = pos; i < breakpoint_infos->length() - 1; i++) {
+      Object entry = breakpoint_infos->get(i + 1);
+      breakpoint_infos->set(i, entry);
+      if (entry.IsUndefined(isolate)) break;
+    }
+    // Make sure last array element is empty as a result.
+    breakpoint_infos->set_undefined(breakpoint_infos->length() - 1);
+  }
+  return true;
+}
+
+// static
+bool WasmScript::ClearBreakPointById(Handle<Script> script, int breakpoint_id) {
+  if (!script->has_wasm_breakpoint_infos()) {
+    return false;
+  }
+  Isolate* isolate = script->GetIsolate();
+  Handle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(), isolate);
+  // If the array exists, it should not be empty.
+  DCHECK_LT(0, breakpoint_infos->length());
+
+  for (int i = 0, e = breakpoint_infos->length(); i < e; ++i) {
+    Handle<Object> obj(breakpoint_infos->get(i), isolate);
+    if (obj->IsUndefined(isolate)) {
+      continue;
+    }
+    Handle<BreakPointInfo> breakpoint_info = Handle<BreakPointInfo>::cast(obj);
+    Handle<BreakPoint> breakpoint;
+    if (BreakPointInfo::GetBreakPointById(isolate, breakpoint_info,
+                                          breakpoint_id)
+            .ToHandle(&breakpoint)) {
+      DCHECK(breakpoint->id() == breakpoint_id);
+      return WasmScript::ClearBreakPoint(
+          script, breakpoint_info->source_position(), breakpoint);
+    }
+  }
+  return false;
+}
 
 // static
 void WasmScript::AddBreakpointToInfo(Handle<Script> script, int position,
@@ -1492,37 +1468,6 @@ void WasmScript::AddBreakpointToInfo(Handle<Script> script, int position,
 
   // Now insert new position at insert_pos.
   new_breakpoint_infos->set(insert_pos, *breakpoint_info);
-}
-
-// static
-bool WasmScript::RemoveBreakpointFromInfo(Handle<Script> script, int position,
-                                          Handle<BreakPoint> break_point) {
-  if (!script->has_wasm_breakpoint_infos()) return false;
-
-  Isolate* isolate = script->GetIsolate();
-  Handle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(), isolate);
-
-  int pos = FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
-
-  // Does a BreakPointInfo object already exist for this position?
-  if (pos == breakpoint_infos->length()) return false;
-
-  Handle<BreakPointInfo> info(BreakPointInfo::cast(breakpoint_infos->get(pos)),
-                              isolate);
-  BreakPointInfo::ClearBreakPoint(isolate, info, break_point);
-
-  // Check if there are no more breakpoints at this location.
-  if (info->GetBreakPointCount(isolate) == 0) {
-    // Update array by moving breakpoints up one position.
-    for (int i = pos; i < breakpoint_infos->length() - 1; i++) {
-      Object entry = breakpoint_infos->get(i + 1);
-      breakpoint_infos->set(i, entry);
-      if (entry.IsUndefined(isolate)) break;
-    }
-    // Make sure last array element is empty as a result.
-    breakpoint_infos->set_undefined(breakpoint_infos->length() - 1);
-  }
-  return true;
 }
 
 void WasmScript::SetBreakpointsOnNewInstance(
