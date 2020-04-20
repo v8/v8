@@ -405,19 +405,6 @@ String JSReceiver::class_name() {
   if (IsJSWeakSet()) return roots.WeakSet_string();
   if (IsJSGlobalProxy()) return roots.global_string();
 
-  Object maybe_constructor = map().GetConstructor();
-  if (maybe_constructor.IsJSFunction()) {
-    JSFunction constructor = JSFunction::cast(maybe_constructor);
-    if (constructor.shared().IsApiFunction()) {
-      maybe_constructor = constructor.shared().get_api_func_data();
-    }
-  }
-
-  if (maybe_constructor.IsFunctionTemplateInfo()) {
-    FunctionTemplateInfo info = FunctionTemplateInfo::cast(maybe_constructor);
-    if (info.class_name().IsString()) return String::cast(info.class_name());
-  }
-
   return roots.Object_string();
 }
 
@@ -440,12 +427,6 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
           !name.Equals(ReadOnlyRoots(isolate).Object_string())) {
         return std::make_pair(handle(constructor, isolate),
                               handle(name, isolate));
-      }
-    } else if (maybe_constructor.IsFunctionTemplateInfo()) {
-      FunctionTemplateInfo info = FunctionTemplateInfo::cast(maybe_constructor);
-      if (info.class_name().IsString()) {
-        return std::make_pair(MaybeHandle<JSFunction>(),
-                              handle(String::cast(info.class_name()), isolate));
       }
     }
   }
@@ -4510,14 +4491,13 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
         NewTypeError(MessageTemplate::kImmutablePrototypeSet, object));
   }
 
-  // From 8.6.2 Object Internal Methods
-  // ...
-  // In addition, if [[Extensible]] is false the value of the [[Class]] and
-  // [[Prototype]] internal properties of the object may not be modified.
-  // ...
-  // Implementation specific extensions that modify [[Class]], [[Prototype]]
-  // or [[Extensible]] must not violate the invariants defined in the preceding
-  // paragraph.
+  // From 6.1.7.3 Invariants of the Essential Internal Methods
+  //
+  // [[SetPrototypeOf]] ( V )
+  // * ...
+  // * If target is non-extensible, [[SetPrototypeOf]] must return false,
+  //   unless V is the SameValue as the target's observed [[GetPrototypeOf]]
+  //   value.
   if (!all_extensible) {
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kNonExtensibleProto, object));
