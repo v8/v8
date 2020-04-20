@@ -313,7 +313,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ArrayIncludes_Slow)                       \
   V(ArrayIndexOf)                             \
   V(ArrayIsArray)                             \
-  V(ClassOf)                                  \
   V(GetFunctionName)                          \
   V(GetOwnPropertyDescriptor)                 \
   V(GlobalPrint)                              \
