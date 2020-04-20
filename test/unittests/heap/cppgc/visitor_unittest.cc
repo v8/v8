@@ -26,7 +26,7 @@ class GCed : public GarbageCollected<GCed> {
 
   GCed() { trace_callcount = 0; }
 
-  virtual void Trace(cppgc::Visitor* visitor) { trace_callcount++; }
+  virtual void Trace(cppgc::Visitor* visitor) const { trace_callcount++; }
 };
 
 size_t GCed::trace_callcount;
@@ -44,7 +44,7 @@ class GCedMixinApplication : public GCed,
   USING_GARBAGE_COLLECTED_MIXIN();
 
  public:
-  void Trace(cppgc::Visitor* visitor) override {
+  void Trace(cppgc::Visitor* visitor) const override {
     GCed::Trace(visitor);
     GCedMixin::Trace(visitor);
   }

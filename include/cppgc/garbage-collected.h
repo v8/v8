@@ -40,21 +40,21 @@ class GarbageCollectedBase {
 }  // namespace internal
 
 /**
- * Base class for managed objects. Only descendent types of GarbageCollected can
- * be constructed using MakeGarbageCollected. Must be inherited from as
+ * Base class for managed objects. Only descendent types of GarbageCollected
+ * can be constructed using MakeGarbageCollected. Must be inherited from as
  * left-most base class.
  *
  * Types inheriting from GarbageCollected must provide a method of
- * signature `void Trace(cppgc::Visitor*)` that dispatchs all managed pointers
- * to the visitor and delegates to garbage-collected base classes. The method
- * must be virtual if the type is not directly a child of GarbageCollected and
- * marked as final.
+ * signature `void Trace(cppgc::Visitor*) const` that dispatchs all managed
+ * pointers to the visitor and delegates to garbage-collected base classes.
+ * The method must be virtual if the type is not directly a child of
+ * GarbageCollected and marked as final.
  *
  * \code
  * // Example using final class.
  * class FinalType final : public GarbageCollected<FinalType> {
  *  public:
- *   void Trace(cppgc::Visitor* visitor) {
+ *   void Trace(cppgc::Visitor* visitor) const {
  *     // Dispatch using visitor->Trace(...);
  *   }
  * };
@@ -62,12 +62,12 @@ class GarbageCollectedBase {
  * // Example using non-final base class.
  * class NonFinalBase : public GarbageCollected<NonFinalBase> {
  *  public:
- *   virtual void Trace(cppgc::Visitor*) {}
+ *   virtual void Trace(cppgc::Visitor*) const {}
  * };
  *
  * class FinalChild final : public NonFinalBase {
  *  public:
- *   void Trace(cppgc::Visitor* visitor) final {
+ *   void Trace(cppgc::Visitor* visitor) const final {
  *     // Dispatch using visitor->Trace(...);
  *     NonFinalBase::Trace(visitor);
  *   }
@@ -88,14 +88,14 @@ class GarbageCollected : public internal::GarbageCollectedBase {
  * directly but must be mixed into the inheritance hierarchy of a
  * GarbageCollected object.
  *
- * Types inheriting from GarbageCollectedMixin must override a virtual method of
- * signature `void Trace(cppgc::Visitor*)` that dispatchs all managed pointers
- * to the visitor and delegates to base classes.
+ * Types inheriting from GarbageCollectedMixin must override a virtual method
+ * of signature `void Trace(cppgc::Visitor*) const` that dispatchs all managed
+ * pointers to the visitor and delegates to base classes.
  *
  * \code
  * class Mixin : public GarbageCollectedMixin {
  *  public:
- *   void Trace(cppgc::Visitor* visitor) override {
+ *   void Trace(cppgc::Visitor* visitor) const override {
  *     // Dispatch using visitor->Trace(...);
  *   }
  * };
@@ -119,7 +119,7 @@ class GarbageCollectedMixin : public internal::GarbageCollectedBase {
    * This Trace method must be overriden by objects inheriting from
    * GarbageCollectedMixin.
    */
-  virtual void Trace(cppgc::Visitor*) {}
+  virtual void Trace(cppgc::Visitor*) const {}
 };
 
 /**
@@ -130,7 +130,7 @@ class GarbageCollectedMixin : public internal::GarbageCollectedBase {
  * \code
  * class Mixin : public GarbageCollectedMixin {
  *  public:
- *   void Trace(cppgc::Visitor* visitor) override {
+ *   void Trace(cppgc::Visitor* visitor) const override {
  *     // Dispatch using visitor->Trace(...);
  *   }
  * };
@@ -138,7 +138,7 @@ class GarbageCollectedMixin : public internal::GarbageCollectedBase {
  * class Foo : public GarbageCollected<Foo>, public Mixin {
  *   USING_GARBAGE_COLLECTED_MIXIN();
  *  public:
- *   void Trace(cppgc::Visitor* visitor) override {
+ *   void Trace(cppgc::Visitor* visitor) const override {
  *     // Dispatch using visitor->Trace(...);
  *     Mixin::Trace(visitor);
  *   }

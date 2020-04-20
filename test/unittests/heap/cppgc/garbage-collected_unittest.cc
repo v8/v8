@@ -25,7 +25,7 @@ class MergedMixins : public Mixin, public OtherMixin {
   MERGE_GARBAGE_COLLECTED_MIXINS();
 
  public:
-  void Trace(cppgc::Visitor* visitor) override {
+  void Trace(cppgc::Visitor* visitor) const override {
     Mixin::Trace(visitor);
     OtherMixin::Trace(visitor);
   }
@@ -34,7 +34,9 @@ class GCWithMergedMixins : public GCed, public MergedMixins {
   USING_GARBAGE_COLLECTED_MIXIN();
 
  public:
-  void Trace(cppgc::Visitor* visitor) override { MergedMixins::Trace(visitor); }
+  void Trace(cppgc::Visitor* visitor) const override {
+    MergedMixins::Trace(visitor);
+  }
 };
 
 class GarbageCollectedTestWithHeap

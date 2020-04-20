@@ -20,10 +20,10 @@ namespace internal {
 namespace {
 
 struct GCed : GarbageCollected<GCed> {
-  virtual void Trace(cppgc::Visitor*) {}
+  virtual void Trace(cppgc::Visitor*) const {}
 };
 struct DerivedGCed : GCed {
-  void Trace(cppgc::Visitor* v) override { GCed::Trace(v); }
+  void Trace(cppgc::Visitor* v) const override { GCed::Trace(v); }
 };
 
 // Compile tests.

@@ -22,7 +22,7 @@ class GCed : public GarbageCollected<GCed> {
   CPPGC_USING_PRE_FINALIZER(GCed, PreFinalizer);
 
  public:
-  void Trace(Visitor*) {}
+  void Trace(Visitor*) const {}
   void PreFinalizer() { ++prefinalizer_callcount; }
 
   static size_t prefinalizer_callcount;
@@ -175,7 +175,7 @@ class AllocatingPrefinalizer : public GarbageCollected<AllocatingPrefinalizer> {
 
  public:
   explicit AllocatingPrefinalizer(cppgc::Heap* heap) : heap_(heap) {}
-  void Trace(Visitor*) {}
+  void Trace(Visitor*) const {}
   void PreFinalizer() { MakeGarbageCollected<GCed>(heap_); }
 
  private:

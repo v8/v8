@@ -41,8 +41,7 @@ struct TraceTrait {
   }
 
   static void Trace(Visitor* visitor, const void* self) {
-    // TODO(chromium:1056170): Remove const_cast when Trace() methods are const.
-    static_cast<T*>(const_cast<void*>(self))->Trace(visitor);
+    static_cast<const T*>(self)->Trace(visitor);
   }
 };
 

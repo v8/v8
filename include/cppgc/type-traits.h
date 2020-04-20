@@ -37,6 +37,16 @@ struct IsSubclassOfTemplate {
       decltype(SubclassCheck(std::declval<T*>()))::value;
 };
 
+// IsTraceMethodConst is used to verify that all Trace methods are marked as
+// const. It is equivalent to IsTraceable but for a non-const object.
+template <typename T, typename = void>
+struct IsTraceMethodConst : std::false_type {};
+
+template <typename T>
+struct IsTraceMethodConst<T, void_t<decltype(std::declval<const T>().Trace(
+                                 std::declval<Visitor*>()))>> : std::true_type {
+};
+
 template <typename T, typename = void>
 struct IsTraceable : std::false_type {
   static_assert(sizeof(T), "T must be fully defined");
@@ -45,7 +55,13 @@ struct IsTraceable : std::false_type {
 template <typename T>
 struct IsTraceable<
     T, void_t<decltype(std::declval<T>().Trace(std::declval<Visitor*>()))>>
-    : std::true_type {};
+    : std::true_type {
+  // All Trace methods should be marked as const. If an object of type
+  // 'T' is traceable then any object of type 'const T' should also
+  // be traceable.
+  static_assert(IsTraceMethodConst<T>(),
+                "Trace methods should be marked as const.");
+};
 
 template <typename T>
 constexpr bool IsTraceableV = IsTraceable<T>::value;

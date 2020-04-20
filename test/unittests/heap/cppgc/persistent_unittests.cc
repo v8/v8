@@ -22,12 +22,12 @@ namespace {
 
 struct GCed : GarbageCollected<GCed> {
   static size_t trace_call_count;
-  virtual void Trace(cppgc::Visitor*) { ++trace_call_count; }
+  virtual void Trace(cppgc::Visitor*) const { ++trace_call_count; }
 };
 size_t GCed::trace_call_count = 0;
 
 struct DerivedGCed : GCed {
-  void Trace(cppgc::Visitor* v) override { GCed::Trace(v); }
+  void Trace(cppgc::Visitor* v) const override { GCed::Trace(v); }
 };
 
 template <template <typename> class PersistentType>
