@@ -1535,22 +1535,22 @@ void LiftoffAssembler::emit_f64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
 }
 
 void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {
-  bailout(kSimd, "s128_not");
+  Mvn(dst.fp().V16B(), src.fp().V16B());
 }
 
 void LiftoffAssembler::emit_s128_and(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  bailout(kSimd, "s128_and");
+  And(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
 void LiftoffAssembler::emit_s128_or(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
-  bailout(kSimd, "s128_or");
+  Orr(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
 void LiftoffAssembler::emit_s128_xor(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  bailout(kSimd, "s128_xor");
+  Eor(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
@@ -1652,7 +1652,7 @@ void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
 void LiftoffAssembler::emit_s128_and_not(LiftoffRegister dst,
                                          LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
-  bailout(kSimd, "s128_and_not");
+  Bic(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
 void LiftoffAssembler::emit_i8x16_rounding_average_u(LiftoffRegister dst,
