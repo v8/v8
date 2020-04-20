@@ -483,6 +483,8 @@ bool ExpectFused(ExecutionTier tier) {
 
 #define WASM_SIMD_LOAD_SPLAT(opcode, index) \
   index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, ZERO_OFFSET
+#define WASM_SIMD_LOAD_SPLAT_OFFSET(opcode, index, offset) \
+  index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, offset
 #define WASM_SIMD_LOAD_EXTEND(opcode, index) \
   index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, ZERO_OFFSET
 
@@ -3436,6 +3438,29 @@ WASM_SIMD_TEST(SimdLoadStoreLoadMemargOffset) {
     // Index 1 of memory (int32_t) will be bytes 4 to 8.
     r.builder().WriteMemory(&memory[1], expected);
     CHECK_EQ(expected, r.Call());
+  }
+}
+
+// Test a multi-byte opcode with offset values that encode into valid opcodes.
+// This is to exercise decoding logic and make sure we get the lengths right.
+WASM_SIMD_TEST(S8x16LoadSplatOffset) {
+  // This offset is [82, 22] when encoded, which contains valid opcodes.
+  constexpr int offset = 4354;
+  WasmRunner<int32_t> r(execution_tier, lower_simd);
+  int8_t* memory = r.builder().AddMemoryElems<int8_t>(kWasmPageSize);
+  int8_t* global = r.builder().AddGlobal<int8_t>(kWasmS128);
+  BUILD_V(r,
+          WASM_SET_GLOBAL(
+              0, WASM_SIMD_LOAD_SPLAT_OFFSET(kExprS8x16LoadSplat, WASM_I32V(0),
+                                             U32V_2(offset))),
+          WASM_ONE);
+
+  // We don't really care about all valid values, so just test for 1.
+  int8_t x = 7;
+  r.builder().WriteMemory(&memory[offset], x);
+  r.Call();
+  for (int i = 0; i < 16; i++) {
+    CHECK_EQ(x, ReadLittleEndianValue<int8_t>(&global[i]));
   }
 }
 

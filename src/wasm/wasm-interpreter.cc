@@ -2762,8 +2762,11 @@ class ThreadImpl {
   template <typename s_type, typename result_type, typename load_type>
   bool DoSimdLoadSplat(Decoder* decoder, InterpreterCode* code, pc_t pc,
                        int* const len, MachineRepresentation rep) {
+    // len is the number of bytes the make up this op, including prefix byte, so
+    // the prefix_len for ExecuteLoad is len, minus the prefix byte itself.
+    // Think of prefix_len as: number of extra bytes that make up this op.
     if (!ExecuteLoad<result_type, load_type>(decoder, code, pc, len, rep,
-                                             /*prefix_len=*/1)) {
+                                             /*prefix_len=*/*len - 1)) {
       return false;
     }
     result_type v = Pop().to<result_type>();

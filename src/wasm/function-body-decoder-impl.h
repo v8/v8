@@ -1442,7 +1442,8 @@ class WasmDecoder : public Decoder {
           FOREACH_SIMD_MEM_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
           {
-            MemoryAccessImmediate<validate> imm(decoder, pc + 1, UINT32_MAX);
+            MemoryAccessImmediate<validate> imm(decoder, pc + length,
+                                                UINT32_MAX);
             return 1 + length + imm.length;
           }
           // Shuffles require a byte per lane, or 16 immediate bytes.
