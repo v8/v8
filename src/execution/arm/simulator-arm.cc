@@ -5405,7 +5405,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           int Vm = instr->VFPMRegValue(kSimd128Precision);
           NeonSize size = static_cast<NeonSize>(instr->Bits(19, 18));
           bool dst_unsigned = instr->Bit(6) != 0;
-          bool src_unsigned = instr->Bit(7, 6) == 0b11;
+          bool src_unsigned = instr->Bits(7, 6) == 0b11;
           DCHECK_IMPLIES(src_unsigned, dst_unsigned);
           switch (size) {
             case Neon8: {
