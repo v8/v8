@@ -540,16 +540,14 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
       NodeProperties::ChangeOp(node, javascript()->ToString());
       NodeProperties::SetType(
           node, Type::Intersect(r.type(), Type::String(), graph()->zone()));
-      Reduction const reduction = ReduceJSToString(node);
-      return reduction.Changed() ? reduction : Changed(node);
+      return Changed(node).FollowedBy(ReduceJSToString(node));
     } else if (r.RightInputIs(empty_string_type_)) {
       // JSAdd(x:primitive, "") => JSToString(x)
       NodeProperties::ReplaceValueInputs(node, r.left());
       NodeProperties::ChangeOp(node, javascript()->ToString());
       NodeProperties::SetType(
           node, Type::Intersect(r.type(), Type::String(), graph()->zone()));
-      Reduction const reduction = ReduceJSToString(node);
-      return reduction.Changed() ? reduction : Changed(node);
+      return Changed(node).FollowedBy(ReduceJSToString(node));
     }
   }
 
@@ -1009,8 +1007,7 @@ Reduction JSTypedLowering::ReduceJSToNumeric(Node* node) {
   if (input_type.Is(Type::NonBigIntPrimitive())) {
     // ToNumeric(x:primitive\bigint) => ToNumber(x)
     NodeProperties::ChangeOp(node, javascript()->ToNumber());
-    Reduction const reduction = ReduceJSToNumber(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceJSToNumber(node));
   }
   return NoChange();
 }

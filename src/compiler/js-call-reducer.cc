@@ -2419,8 +2419,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
           node, javascript()->CallWithArrayLike(
                     p.frequency(), p.feedback(), p.speculation_mode(),
                     CallFeedbackRelation::kUnrelated));
-      Reduction const reduction = ReduceJSCallWithArrayLike(node);
-      return reduction.Changed() ? reduction : Changed(node);
+      return Changed(node).FollowedBy(ReduceJSCallWithArrayLike(node));
     } else {
       // Check whether {arguments_list} is null.
       Node* check_null =
@@ -2498,8 +2497,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
                                p.speculation_mode(),
                                CallFeedbackRelation::kUnrelated));
   // Try to further reduce the JSCall {node}.
-  Reduction const reduction = ReduceJSCall(node);
-  return reduction.Changed() ? reduction : Changed(node);
+  return Changed(node).FollowedBy(ReduceJSCall(node));
 }
 
 // ES section #sec-function.prototype.bind
@@ -2685,8 +2683,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
                                p.speculation_mode(),
                                CallFeedbackRelation::kUnrelated));
   // Try to further reduce the JSCall {node}.
-  Reduction const reduction = ReduceJSCall(node);
-  return reduction.Changed() ? reduction : Changed(node);
+  return Changed(node).FollowedBy(ReduceJSCall(node));
 }
 
 // ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] (V)
@@ -2918,8 +2915,7 @@ Reduction JSCallReducer::ReduceReflectApply(Node* node) {
       node, javascript()->CallWithArrayLike(p.frequency(), p.feedback(),
                                             p.speculation_mode(),
                                             CallFeedbackRelation::kUnrelated));
-  Reduction const reduction = ReduceJSCallWithArrayLike(node);
-  return reduction.Changed() ? reduction : Changed(node);
+  return Changed(node).FollowedBy(ReduceJSCallWithArrayLike(node));
 }
 
 // ES6 section 26.1.2 Reflect.construct ( target, argumentsList [, newTarget] )
@@ -2942,8 +2938,7 @@ Reduction JSCallReducer::ReduceReflectConstruct(Node* node) {
   }
   NodeProperties::ChangeOp(node,
                            javascript()->ConstructWithArrayLike(p.frequency()));
-  Reduction const reduction = ReduceJSConstructWithArrayLike(node);
-  return reduction.Changed() ? reduction : Changed(node);
+  return Changed(node).FollowedBy(ReduceJSConstructWithArrayLike(node));
 }
 
 // ES6 section 26.1.7 Reflect.getPrototypeOf ( target )
@@ -3766,8 +3761,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
         node, javascript()->Call(arity + 1, frequency, feedback,
                                  ConvertReceiverMode::kAny, speculation_mode,
                                  CallFeedbackRelation::kUnrelated));
-    Reduction const reduction = ReduceJSCall(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceJSCall(node));
   } else {
     NodeProperties::ChangeOp(
         node, javascript()->Construct(arity + 2, frequency, feedback));
@@ -3821,8 +3815,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
         graph()->NewNode(common()->Throw(), check_throw, check_fail);
     NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
 
-    Reduction const reduction = ReduceJSConstruct(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceJSConstruct(node));
   }
 }
 
@@ -3911,8 +3904,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
                                    CallFeedbackRelation::kUnrelated));
 
       // Try to further reduce the JSCall {node}.
-      Reduction const reduction = ReduceJSCall(node);
-      return reduction.Changed() ? reduction : Changed(node);
+      return Changed(node).FollowedBy(ReduceJSCall(node));
     }
 
     // Don't mess with other {node}s that have a constant {target}.
@@ -3965,8 +3957,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
                                  CallFeedbackRelation::kUnrelated));
 
     // Try to further reduce the JSCall {node}.
-    Reduction const reduction = ReduceJSCall(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceJSCall(node));
   }
 
   if (!ShouldUseCallICFeedback(target) ||
@@ -3998,8 +3989,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     NodeProperties::ReplaceEffectInput(node, effect);
 
     // Try to further reduce the JSCall {node}.
-    Reduction const reduction = ReduceJSCall(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceJSCall(node));
   } else if (feedback_target.has_value() && feedback_target->IsFeedbackCell()) {
     FeedbackCellRef feedback_cell(
         broker(), feedback_target.value().AsFeedbackCell().object());
@@ -4022,8 +4012,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       NodeProperties::ReplaceEffectInput(node, effect);
 
       // Try to further reduce the JSCall {node}.
-      Reduction const reduction = ReduceJSCall(node);
-      return reduction.Changed() ? reduction : Changed(node);
+      return Changed(node).FollowedBy(ReduceJSCall(node));
     }
   }
   return NoChange();
@@ -4475,8 +4464,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       }
 
       // Try to further reduce the JSConstruct {node}.
-      Reduction const reduction = ReduceJSConstruct(node);
-      return reduction.Changed() ? reduction : Changed(node);
+      return Changed(node).FollowedBy(ReduceJSConstruct(node));
     }
   }
 
@@ -4594,8 +4582,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           javascript()->Construct(arity + 2, p.frequency(), FeedbackSource()));
 
       // Try to further reduce the JSConstruct {node}.
-      Reduction const reduction = ReduceJSConstruct(node);
-      return reduction.Changed() ? reduction : Changed(node);
+      return Changed(node).FollowedBy(ReduceJSConstruct(node));
     }
 
     // TODO(bmeurer): Also support optimizing proxies here.
@@ -4635,8 +4622,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
         javascript()->Construct(arity + 2, p.frequency(), FeedbackSource()));
 
     // Try to further reduce the JSConstruct {node}.
-    Reduction const reduction = ReduceJSConstruct(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceJSConstruct(node));
   }
 
   return NoChange();
@@ -6233,8 +6219,7 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
                                ConvertReceiverMode::kNotNullOrUndefined,
                                p.speculation_mode(),
                                CallFeedbackRelation::kUnrelated));
-  Reduction const reduction = ReducePromisePrototypeThen(node);
-  return reduction.Changed() ? reduction : Changed(node);
+  return Changed(node).FollowedBy(ReducePromisePrototypeThen(node));
 }
 
 Node* JSCallReducer::CreateClosureFromBuiltinSharedFunctionInfo(
@@ -6361,8 +6346,7 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
                                ConvertReceiverMode::kNotNullOrUndefined,
                                p.speculation_mode(),
                                CallFeedbackRelation::kUnrelated));
-  Reduction const reduction = ReducePromisePrototypeThen(node);
-  return reduction.Changed() ? reduction : Changed(node);
+  return Changed(node).FollowedBy(ReducePromisePrototypeThen(node));
 }
 
 Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
