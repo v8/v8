@@ -2785,7 +2785,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   LoadIndirectFunctionTable(table_index, &ift_size, &ift_sig_ids, &ift_targets,
                             &ift_instances);
 
-  const wasm::FunctionSig* sig = env_->module->signatures[sig_index];
+  const wasm::FunctionSig* sig = env_->module->signature(sig_index);
 
   MachineOperatorBuilder* machine = mcgraph()->machine();
   Node* key = args[0];

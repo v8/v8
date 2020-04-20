@@ -150,12 +150,10 @@ class TestingModuleBuilder {
   }
 
   byte AddSignature(const FunctionSig* sig) {
-    DCHECK_EQ(test_module_->signatures.size(),
-              test_module_->signature_ids.size());
-    test_module_->signatures.push_back(sig);
-    auto canonical_sig_num = test_module_->signature_map.FindOrInsert(*sig);
-    test_module_->signature_ids.push_back(canonical_sig_num);
-    size_t size = test_module_->signatures.size();
+    // TODO(7748): This will need updating for struct/array types support.
+    DCHECK_EQ(test_module_->types.size(), test_module_->signature_ids.size());
+    test_module_->add_signature(sig);
+    size_t size = test_module_->types.size();
     CHECK_GT(127, size);
     return static_cast<byte>(size - 1);
   }

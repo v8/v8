@@ -827,15 +827,15 @@ TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
-  EXPECT_EQ(3u, result.value()->signatures.size());
-  if (result.value()->signatures.size() == 3) {
-    EXPECT_EQ(0u, result.value()->signatures[0]->return_count());
-    EXPECT_EQ(1u, result.value()->signatures[1]->return_count());
-    EXPECT_EQ(1u, result.value()->signatures[2]->return_count());
+  EXPECT_EQ(3u, result.value()->types.size());
+  if (result.value()->types.size() == 3) {
+    EXPECT_EQ(0u, result.value()->signature(0)->return_count());
+    EXPECT_EQ(1u, result.value()->signature(1)->return_count());
+    EXPECT_EQ(1u, result.value()->signature(2)->return_count());
 
-    EXPECT_EQ(0u, result.value()->signatures[0]->parameter_count());
-    EXPECT_EQ(1u, result.value()->signatures[1]->parameter_count());
-    EXPECT_EQ(2u, result.value()->signatures[2]->parameter_count());
+    EXPECT_EQ(0u, result.value()->signature(0)->parameter_count());
+    EXPECT_EQ(1u, result.value()->signature(1)->parameter_count());
+    EXPECT_EQ(2u, result.value()->signature(2)->parameter_count());
   }
 
   EXPECT_OFF_END_FAILURE(data, 1);
@@ -1037,7 +1037,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
   if (result.ok()) {
-    EXPECT_EQ(1u, result.value()->signatures.size());
+    EXPECT_EQ(1u, result.value()->types.size());
     EXPECT_EQ(1u, result.value()->functions.size());
     EXPECT_EQ(1u, result.value()->tables.size());
     EXPECT_EQ(1u, result.value()->tables[0].initial_size);
@@ -1123,7 +1123,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
-  EXPECT_EQ(1u, result.value()->signatures.size());
+  EXPECT_EQ(1u, result.value()->types.size());
   EXPECT_EQ(1u, result.value()->functions.size());
   EXPECT_EQ(1u, result.value()->tables.size());
   EXPECT_EQ(1u, result.value()->tables[0].initial_size);
@@ -1151,7 +1151,7 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
-  EXPECT_EQ(2u, result.value()->signatures.size());
+  EXPECT_EQ(2u, result.value()->types.size());
   EXPECT_EQ(4u, result.value()->functions.size());
   EXPECT_EQ(1u, result.value()->tables.size());
   EXPECT_EQ(8u, result.value()->tables[0].initial_size);

@@ -819,7 +819,7 @@ class SideTable : public ZoneObject {
           BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
                                                        i.pc());
           if (imm.type == kWasmBottom) {
-            imm.sig = module->signatures[imm.sig_index];
+            imm.sig = module->signature(imm.sig_index);
           }
           TRACE("control @%u: %s, arity %d->%d\n", i.pc_offset(),
                 is_loop ? "Loop" : "Block", imm.in_arity(), imm.out_arity());
@@ -835,7 +835,7 @@ class SideTable : public ZoneObject {
           BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
                                                        i.pc());
           if (imm.type == kWasmBottom) {
-            imm.sig = module->signatures[imm.sig_index];
+            imm.sig = module->signature(imm.sig_index);
           }
           TRACE("control @%u: If, arity %d->%d\n", i.pc_offset(),
                 imm.in_arity(), imm.out_arity());
@@ -870,7 +870,7 @@ class SideTable : public ZoneObject {
           BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
                                                        i.pc());
           if (imm.type == kWasmBottom) {
-            imm.sig = module->signatures[imm.sig_index];
+            imm.sig = module->signature(imm.sig_index);
           }
           TRACE("control @%u: Try, arity %d->%d\n", i.pc_offset(),
                 imm.in_arity(), imm.out_arity());
@@ -4046,7 +4046,7 @@ class ThreadImpl {
     HandleScope handle_scope(isolate_);  // Avoid leaking handles.
     uint32_t expected_sig_id = module()->signature_ids[sig_index];
     DCHECK_EQ(expected_sig_id,
-              module()->signature_map.Find(*module()->signatures[sig_index]));
+              module()->signature_map.Find(*module()->signature(sig_index)));
     // Bounds check against table size.
     if (entry_index >=
         static_cast<uint32_t>(WasmInstanceObject::IndirectFunctionTableSize(
@@ -4061,7 +4061,7 @@ class ThreadImpl {
       return {ExternalCallResult::SIGNATURE_MISMATCH};
     }
 
-    const FunctionSig* signature = module()->signatures[sig_index];
+    const FunctionSig* signature = module()->signature(sig_index);
     Handle<Object> object_ref = handle(entry.object_ref(), isolate_);
     WasmCode* code = GetTargetCode(isolate_, entry.target());
 

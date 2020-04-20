@@ -217,9 +217,9 @@ class TestModuleBuilder {
     return static_cast<byte>(mod.globals.size() - 1);
   }
   byte AddSignature(const FunctionSig* sig) {
-    mod.signatures.push_back(sig);
-    CHECK_LE(mod.signatures.size(), kMaxByteSizedLeb128);
-    return static_cast<byte>(mod.signatures.size() - 1);
+    mod.add_signature(sig);
+    CHECK_LE(mod.types.size(), kMaxByteSizedLeb128);
+    return static_cast<byte>(mod.types.size() - 1);
   }
   byte AddFunction(const FunctionSig* sig, bool declared = true) {
     mod.functions.push_back({sig,         // sig
@@ -239,7 +239,7 @@ class TestModuleBuilder {
   }
   byte AddException(WasmExceptionSig* sig) {
     mod.exceptions.emplace_back(sig);
-    CHECK_LE(mod.signatures.size(), kMaxByteSizedLeb128);
+    CHECK_LE(mod.types.size(), kMaxByteSizedLeb128);
     return static_cast<byte>(mod.exceptions.size() - 1);
   }
 

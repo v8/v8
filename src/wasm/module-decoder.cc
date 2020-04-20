@@ -13,6 +13,8 @@
 #include "src/utils/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/struct-types.h"
+#include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 
@@ -550,14 +552,41 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeTypeSection() {
     uint32_t signatures_count = consume_count("types count", kV8MaxWasmTypes);
-    module_->signatures.reserve(signatures_count);
+    module_->types.reserve(signatures_count);
     for (uint32_t i = 0; ok() && i < signatures_count; ++i) {
       TRACE("DecodeSignature[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
-      const FunctionSig* s = consume_sig(module_->signature_zone.get());
-      module_->signatures.push_back(s);
-      uint32_t id = s ? module_->signature_map.FindOrInsert(*s) : 0;
-      module_->signature_ids.push_back(id);
+      uint8_t kind = consume_u8("type kind");
+      switch (kind) {
+        case kWasmFunctionTypeCode: {
+          const FunctionSig* s = consume_sig(module_->signature_zone.get());
+          module_->add_signature(s);
+          break;
+        }
+        case kWasmStructTypeCode: {
+          if (!enabled_features_.has_gc()) {
+            errorf(pc(), "struct types are part of the GC proposal");
+            break;
+          }
+          const StructType* s = consume_struct(module_->signature_zone.get());
+          module_->add_struct_type(s);
+          // TODO(7748): Should we canonicalize struct types, like
+          // {signature_map} does for function signatures?
+          break;
+        }
+        case kWasmArrayTypeCode: {
+          if (!enabled_features_.has_gc()) {
+            errorf(pc(), "array types are part of the GC proposal");
+            break;
+          }
+          const ArrayType* type = consume_array(module_->signature_zone.get());
+          module_->add_array_type(type);
+          break;
+        }
+        default:
+          errorf(pc(), "unknown type form: %d", kind);
+          break;
+      }
     }
     module_->signature_map.Freeze();
   }
@@ -1257,6 +1286,8 @@ class ModuleDecoderImpl : public Decoder {
                                       const WasmModule* module,
                                       std::unique_ptr<WasmFunction> function) {
     pc_ = start_;
+    expect_u8("type form", kWasmFunctionTypeCode);
+    if (!ok()) return FunctionResult{std::move(intermediate_error_)};
     function->sig = consume_sig(zone);
     function->code = {off(pc_), static_cast<uint32_t>(end_ - pc_)};
 
@@ -1274,6 +1305,7 @@ class ModuleDecoderImpl : public Decoder {
   // Decodes a single function signature at {start}.
   const FunctionSig* DecodeFunctionSignature(Zone* zone, const byte* start) {
     pc_ = start;
+    if (!expect_u8("type form", kWasmFunctionTypeCode)) return nullptr;
     const FunctionSig* result = consume_sig(zone);
     return ok() ? result : nullptr;
   }
@@ -1438,13 +1470,13 @@ class ModuleDecoderImpl : public Decoder {
   uint32_t consume_sig_index(WasmModule* module, const FunctionSig** sig) {
     const byte* pos = pc_;
     uint32_t sig_index = consume_u32v("signature index");
-    if (sig_index >= module->signatures.size()) {
+    if (!module->has_signature(sig_index)) {
       errorf(pos, "signature index %u out of bounds (%d signatures)", sig_index,
-             static_cast<int>(module->signatures.size()));
+             static_cast<int>(module->types.size()));
       *sig = nullptr;
       return 0;
     }
-    *sig = module->signatures[sig_index];
+    *sig = module->signature(sig_index);
     return sig_index;
   }
 
@@ -1773,8 +1805,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   const FunctionSig* consume_sig(Zone* zone) {
-    if (!expect_u8("type form", kWasmFunctionTypeCode)) return nullptr;
-    // parse parameter types
+    // Parse parameter types.
     uint32_t param_count =
         consume_count("param count", kV8MaxWasmFunctionParams);
     if (failed()) return nullptr;
@@ -1784,7 +1815,7 @@ class ModuleDecoderImpl : public Decoder {
       params.push_back(param);
     }
     std::vector<ValueType> returns;
-    // parse return types
+    // Parse return types.
     const size_t max_return_count = enabled_features_.has_mv()
                                         ? kV8MaxWasmFunctionMultiReturns
                                         : kV8MaxWasmFunctionReturns;
@@ -1804,6 +1835,28 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; i < param_count; ++i) buffer[b++] = params[i];
 
     return new (zone) FunctionSig(return_count, param_count, buffer);
+  }
+
+  const StructType* consume_struct(Zone* zone) {
+    // TODO(7748): Introduce a proper maximum.
+    uint32_t field_count = consume_count("field count", 999);
+    if (failed()) return nullptr;
+    std::vector<ValueType> fields;
+    for (uint32_t i = 0; ok() && i < field_count; ++i) {
+      ValueType field = consume_value_type();
+      fields.push_back(field);
+    }
+    if (failed()) return nullptr;
+    ValueType* buffer = zone->NewArray<ValueType>(field_count);
+    for (uint32_t i = 0; i < field_count; i++) buffer[i] = fields[i];
+    uint32_t* offsets = zone->NewArray<uint32_t>(field_count);
+    return new (zone) StructType(field_count, offsets, buffer);
+  }
+
+  const ArrayType* consume_array(Zone* zone) {
+    ValueType field = consume_value_type();
+    if (failed()) return nullptr;
+    return new (zone) ArrayType(field);
   }
 
   // Consume the attribute field of an exception.

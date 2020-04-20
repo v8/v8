@@ -1018,10 +1018,10 @@ class WasmDecoder : public Decoder {
 
   inline bool Complete(const byte* pc, CallIndirectImmediate<validate>& imm) {
     if (!VALIDATE(module_ != nullptr &&
-                  imm.sig_index < module_->signatures.size())) {
+                  module_->has_signature(imm.sig_index))) {
       return false;
     }
-    imm.sig = module_->signatures[imm.sig_index];
+    imm.sig = module_->signature(imm.sig_index);
     return true;
   }
 
@@ -1116,17 +1116,17 @@ class WasmDecoder : public Decoder {
 
   inline bool Complete(BlockTypeImmediate<validate>& imm) {
     if (imm.type != kWasmBottom) return true;
-    if (!VALIDATE(module_ && imm.sig_index < module_->signatures.size())) {
+    if (!VALIDATE(module_ && module_->has_signature(imm.sig_index))) {
       return false;
     }
-    imm.sig = module_->signatures[imm.sig_index];
+    imm.sig = module_->signature(imm.sig_index);
     return true;
   }
 
   inline bool Validate(BlockTypeImmediate<validate>& imm) {
     if (!Complete(imm)) {
-      errorf(pc_, "block type index %u out of bounds (%zu signatures)",
-             imm.sig_index, module_ ? module_->signatures.size() : 0);
+      errorf(pc_, "block type index %u out of bounds (%zu types)",
+             imm.sig_index, module_ ? module_->types.size() : 0);
       return false;
     }
     return true;

@@ -172,7 +172,14 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
        << glob.mutability << ");\n";
   }
 
-  for (const FunctionSig* sig : module->signatures) {
+  // TODO(7748): Support array/struct types.
+#if DEBUG
+  for (uint8_t kind : module->type_kinds) {
+    DCHECK_EQ(kWasmFunctionTypeCode, kind);
+  }
+#endif
+  for (TypeDefinition type : module->types) {
+    const FunctionSig* sig = type.function_sig;
     os << "builder.addType(makeSig(" << PrintParameters(sig) << ", "
        << PrintReturns(sig) << "));\n";
   }
