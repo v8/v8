@@ -7,12 +7,12 @@
 
 #include <type_traits>
 
-#include "include/cppgc/internal/persistent-node.h"
-#include "include/cppgc/internal/pointer-policies.h"
-#include "include/cppgc/source-location.h"
-#include "include/cppgc/type-traits.h"
-#include "include/cppgc/visitor.h"
-#include "include/v8config.h"
+#include "cppgc/internal/persistent-node.h"
+#include "cppgc/internal/pointer-policies.h"
+#include "cppgc/source-location.h"
+#include "cppgc/type-traits.h"
+#include "cppgc/visitor.h"
+#include "v8config.h"  // NOLINT(build/include)
 
 namespace cppgc {
 namespace internal {

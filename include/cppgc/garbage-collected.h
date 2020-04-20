@@ -7,11 +7,11 @@
 
 #include <type_traits>
 
-#include "include/cppgc/internal/api-constants.h"
-#include "include/cppgc/macros.h"
-#include "include/cppgc/platform.h"
-#include "include/cppgc/trace-trait.h"
-#include "include/cppgc/type-traits.h"
+#include "cppgc/internal/api-constants.h"
+#include "cppgc/macros.h"
+#include "cppgc/platform.h"
+#include "cppgc/trace-trait.h"
+#include "cppgc/type-traits.h"
 
 namespace cppgc {
 

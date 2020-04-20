@@ -8,10 +8,10 @@
 #include <stdint.h>
 #include <atomic>
 
-#include "include/cppgc/garbage-collected.h"
-#include "include/cppgc/heap.h"
-#include "include/cppgc/internal/api-constants.h"
-#include "include/cppgc/internal/gc-info.h"
+#include "cppgc/garbage-collected.h"
+#include "cppgc/heap.h"
+#include "cppgc/internal/api-constants.h"
+#include "cppgc/internal/gc-info.h"
 
 namespace cppgc {
 

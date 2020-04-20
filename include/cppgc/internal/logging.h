@@ -5,8 +5,8 @@
 #ifndef INCLUDE_CPPGC_INTERNAL_LOGGING_H_
 #define INCLUDE_CPPGC_INTERNAL_LOGGING_H_
 
-#include "include/cppgc/source-location.h"
-#include "include/v8config.h"
+#include "cppgc/source-location.h"
+#include "v8config.h"  // NOLINT(build/include)
 
 namespace cppgc {
 namespace internal {

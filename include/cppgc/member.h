@@ -9,9 +9,9 @@
 #include <cstddef>
 #include <type_traits>
 
-#include "include/cppgc/internal/pointer-policies.h"
-#include "include/cppgc/type-traits.h"
-#include "include/v8config.h"
+#include "cppgc/internal/pointer-policies.h"
+#include "cppgc/type-traits.h"
+#include "v8config.h"  // NOLINT(build/include)
 
 namespace cppgc {
 

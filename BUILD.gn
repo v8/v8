@@ -301,6 +301,7 @@ config("internal_config_base") {
 
   include_dirs = [
     ".",
+    "include",
     "$target_gen_dir",
   ]
 }
@@ -4116,12 +4117,6 @@ v8_static_library("wee8") {
   ]
 }
 
-v8_static_library("cppgc") {
-  deps = [ ":cppgc_base" ]
-
-  configs = [ ":internal_config" ]
-}
-
 ###############################################################################
 # Executables
 #
@@ -4414,6 +4409,14 @@ if (is_component_build) {
     public_configs = [ ":external_config" ]
   }
 
+  v8_component("cppgc") {
+    public_deps = [ ":cppgc_base" ]
+
+    configs = [ ":internal_config" ]
+
+    public_configs = [ ":external_config" ]
+  }
+
   v8_component("cppgc_for_testing") {
     testonly = true
 
@@ -4442,6 +4445,12 @@ if (is_component_build) {
       ":v8_initializers",
       ":v8_snapshot",
     ]
+
+    public_configs = [ ":external_config" ]
+  }
+
+  group("cppgc") {
+    public_deps = [ ":cppgc_base" ]
 
     public_configs = [ ":external_config" ]
   }

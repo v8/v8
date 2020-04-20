@@ -8,7 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "include/v8config.h"
+#include "v8config.h"  // NOLINT(build/include)
 
 namespace cppgc {
 namespace internal {

@@ -5,11 +5,11 @@
 #ifndef INCLUDE_CPPGC_PREFINALIZER_H_
 #define INCLUDE_CPPGC_PREFINALIZER_H_
 
-#include "include/cppgc/internal/accessors.h"
-#include "include/cppgc/internal/compiler-specific.h"
-#include "include/cppgc/internal/prefinalizer-handler.h"
-#include "include/cppgc/liveness-broker.h"
-#include "include/cppgc/macros.h"
+#include "cppgc/internal/accessors.h"
+#include "cppgc/internal/compiler-specific.h"
+#include "cppgc/internal/prefinalizer-handler.h"
+#include "cppgc/liveness-broker.h"
+#include "cppgc/macros.h"
 
 namespace cppgc {
 

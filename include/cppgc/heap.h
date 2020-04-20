@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "include/v8config.h"
+#include "v8config.h"  // NOLINT(build/include)
 
 namespace cppgc {
 namespace internal {

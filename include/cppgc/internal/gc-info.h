@@ -7,8 +7,8 @@
 
 #include <stdint.h>
 
-#include "include/cppgc/internal/finalizer-trait.h"
-#include "include/v8config.h"
+#include "cppgc/internal/finalizer-trait.h"
+#include "v8config.h"  // NOLINT(build/include)
 
 namespace cppgc {
 namespace internal {

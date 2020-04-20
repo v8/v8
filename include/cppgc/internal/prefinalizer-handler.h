@@ -5,8 +5,8 @@
 #ifndef INCLUDE_CPPGC_INTERNAL_PREFINALIZER_HANDLER_H_
 #define INCLUDE_CPPGC_INTERNAL_PREFINALIZER_HANDLER_H_
 
-#include "include/cppgc/heap.h"
-#include "include/cppgc/liveness-broker.h"
+#include "cppgc/heap.h"
+#include "cppgc/liveness-broker.h"
 
 namespace cppgc {
 namespace internal {

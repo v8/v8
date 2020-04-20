@@ -7,7 +7,7 @@
 
 #include <type_traits>
 
-#include "include/cppgc/type-traits.h"
+#include "cppgc/type-traits.h"
 
 namespace cppgc {
 namespace internal {

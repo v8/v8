@@ -5,7 +5,7 @@
 #ifndef INCLUDE_CPPGC_INTERNAL_ACCESSORS_H_
 #define INCLUDE_CPPGC_INTERNAL_ACCESSORS_H_
 
-#include "include/cppgc/internal/api-constants.h"
+#include "cppgc/internal/api-constants.h"
 
 namespace cppgc {
 

@@ -9,9 +9,9 @@
 #include <memory>
 #include <vector>
 
-#include "include/cppgc/internal/logging.h"
-#include "include/cppgc/trace-trait.h"
-#include "include/v8config.h"
+#include "cppgc/internal/logging.h"
+#include "cppgc/trace-trait.h"
+#include "v8config.h"  // NOLINT(build/include)
 
 namespace cppgc {
 

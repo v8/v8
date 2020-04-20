@@ -5,13 +5,13 @@
 #ifndef INCLUDE_CPPGC_VISITOR_H_
 #define INCLUDE_CPPGC_VISITOR_H_
 
-#include "include/cppgc/garbage-collected.h"
-#include "include/cppgc/internal/logging.h"
-#include "include/cppgc/internal/pointer-policies.h"
-#include "include/cppgc/liveness-broker.h"
-#include "include/cppgc/member.h"
-#include "include/cppgc/source-location.h"
-#include "include/cppgc/trace-trait.h"
+#include "cppgc/garbage-collected.h"
+#include "cppgc/internal/logging.h"
+#include "cppgc/internal/pointer-policies.h"
+#include "cppgc/liveness-broker.h"
+#include "cppgc/member.h"
+#include "cppgc/source-location.h"
+#include "cppgc/trace-trait.h"
 
 namespace cppgc {
 namespace internal {

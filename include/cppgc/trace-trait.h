@@ -6,7 +6,7 @@
 #define V8_HEAP_CPPGC_TRACE_TRAIT_H_
 
 #include <type_traits>
-#include "include/cppgc/type-traits.h"
+#include "cppgc/type-traits.h"
 
 namespace cppgc {
 
