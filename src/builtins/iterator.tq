@@ -49,7 +49,7 @@ namespace iterator {
   extern builtin IterableToListMayPreserveHoles(implicit context:
                                                     Context)(JSAny, JSAny);
   extern builtin IterableToListWithSymbolLookup(implicit context:
-                                                    Context)(JSAny);
+                                                    Context)(JSAny): JSArray;
 
   transitioning builtin GetIteratorWithFeedback(
       context: Context, receiver: JSAny, loadSlot: TaggedIndex,

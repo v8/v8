@@ -625,8 +625,6 @@
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9808
-  'built-ins/AggregateError/*': [FAIL],
-  'built-ins/NativeErrors/AggregateError/*': [FAIL],
   'built-ins/Promise/any/*': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=10111

@@ -4,6 +4,7 @@
 
 extern macro IsConstructor(HeapObject): bool;
 extern macro IsFeedbackVector(HeapObject): bool;
+extern macro IsJSAggregateError(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;
 extern macro IsJSProxy(HeapObject): bool;
 extern macro IsJSRegExp(HeapObject): bool;
@@ -55,6 +56,8 @@ extern macro TaggedToSmi(Object): Smi
 extern macro TaggedToPositiveSmi(Object): PositiveSmi
     labels CastError;
 extern macro TaggedToDirectString(Object): DirectString
+    labels CastError;
+extern macro HeapObjectToJSAggregateError(HeapObject): JSAggregateError
     labels CastError;
 extern macro HeapObjectToJSArray(HeapObject): JSArray
     labels CastError;
@@ -362,6 +365,11 @@ Cast<Undefined|Callable>(o: HeapObject): Undefined|Callable
     labels CastError {
   if (o == Undefined) return Undefined;
   return HeapObjectToCallable(o) otherwise CastError;
+}
+
+Cast<JSAggregateError>(o: HeapObject): JSAggregateError
+    labels CastError {
+  return HeapObjectToJSAggregateError(o) otherwise CastError;
 }
 
 Cast<JSArray>(o: HeapObject): JSArray

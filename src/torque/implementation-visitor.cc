@@ -3876,6 +3876,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
         << "#include \"torque-generated/class-definitions-tq.h\"\n\n";
     implementation << "#include \"torque-generated/class-verifiers-tq.h\"\n\n";
     implementation << "#include \"src/objects/arguments-inl.h\"\n";
+    implementation << "#include \"src/objects/js-aggregate-error-inl.h\"\n";
     implementation << "#include \"src/objects/js-collection-inl.h\"\n";
     implementation << "#include \"src/objects/embedder-data-array-inl.h\"\n";
     implementation << "#include \"src/objects/js-generator-inl.h\"\n";

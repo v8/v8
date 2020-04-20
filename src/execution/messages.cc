@@ -991,6 +991,26 @@ MaybeHandle<String> MessageFormatter::Format(Isolate* isolate,
   return builder.Finish();
 }
 
+MaybeHandle<JSObject> ErrorUtils::Construct(Isolate* isolate,
+                                            Handle<JSFunction> target,
+                                            Handle<Object> new_target,
+                                            Handle<Object> message) {
+  FrameSkipMode mode = SKIP_FIRST;
+  Handle<Object> caller;
+
+  // When we're passed a JSFunction as new target, we can skip frames until that
+  // specific function is seen instead of unconditionally skipping the first
+  // frame.
+  if (new_target->IsJSFunction()) {
+    mode = SKIP_UNTIL_SEEN;
+    caller = new_target;
+  }
+
+  return ErrorUtils::Construct(isolate, target, new_target, message, mode,
+                               caller,
+                               ErrorUtils::StackTraceCollection::kDetailed);
+}
+
 MaybeHandle<JSObject> ErrorUtils::Construct(
     Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
     Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,

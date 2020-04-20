@@ -33,6 +33,7 @@
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-aggregate-error.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -1334,21 +1335,24 @@ static void InstallWithIntrinsicDefaultProto(Isolate* isolate,
   isolate->native_context()->set(context_index, *function);
 }
 
-static void InstallError(Isolate* isolate, Handle<JSObject> global,
-                         Handle<String> name, int context_index) {
+static void InstallError(
+    Isolate* isolate, Handle<JSObject> global, Handle<String> name,
+    int context_index,
+    Builtins::Name error_constructor = Builtins::kErrorConstructor,
+    InstanceType error_type = JS_ERROR_TYPE, int error_function_length = 1,
+    int header_size = JSObject::kHeaderSize) {
   Factory* factory = isolate->factory();
 
   // Most Error objects consist of a message and a stack trace.
   // Reserve two in-object properties for these.
   const int kInObjectPropertiesCount = 2;
   const int kErrorObjectSize =
-      JSObject::kHeaderSize + kInObjectPropertiesCount * kTaggedSize;
-  Handle<JSFunction> error_fun =
-      InstallFunction(isolate, global, name, JS_ERROR_TYPE, kErrorObjectSize,
-                      kInObjectPropertiesCount, factory->the_hole_value(),
-                      Builtins::kErrorConstructor);
+      header_size + kInObjectPropertiesCount * kTaggedSize;
+  Handle<JSFunction> error_fun = InstallFunction(
+      isolate, global, name, error_type, kErrorObjectSize,
+      kInObjectPropertiesCount, factory->the_hole_value(), error_constructor);
   error_fun->shared().DontAdaptArguments();
-  error_fun->shared().set_length(1);
+  error_fun->shared().set_length(error_function_length);
 
   if (context_index == Context::ERROR_FUNCTION_INDEX) {
     SimpleInstallFunction(isolate, error_fun, "captureStackTrace",
@@ -4367,6 +4371,39 @@ void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
                         factory()->InternalizeUtf8String("cleanupSome"),
                         isolate()->finalization_registry_cleanup_some(),
                         DONT_ENUM);
+}
+
+void Genesis::InitializeGlobal_harmony_promise_any() {
+  if (!FLAG_harmony_promise_any) {
+    return;
+  }
+
+  Factory* factory = isolate()->factory();
+  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
+
+  InstallError(isolate_, global, factory->AggregateError_string(),
+               Context::AGGREGATE_ERROR_FUNCTION_INDEX,
+               Builtins::kAggregateErrorConstructor, JS_AGGREGATE_ERROR_TYPE, 2,
+               JSAggregateError::kHeaderSize);
+
+  // Setup %AggregateErrorPrototype%.
+  Handle<JSFunction> aggregate_error_function(
+      native_context()->aggregate_error_function(), isolate());
+  Handle<JSObject> prototype(
+      JSObject::cast(aggregate_error_function->instance_prototype()),
+      isolate());
+
+  Handle<String> getter_name =
+      Name::ToFunctionName(isolate_, factory->errors_string(),
+                           isolate_->factory()->get_string())
+          .ToHandleChecked();
+
+  Handle<JSFunction> getter = SimpleCreateFunction(
+      isolate(), getter_name, Builtins::kAggregateErrorPrototypeErrorsGetter, 0,
+      true);
+
+  JSObject::DefineAccessor(prototype, factory->errors_string(), getter,
+                           factory->undefined_value(), DONT_ENUM);
 }
 
 void Genesis::InitializeGlobal_harmony_promise_all_settled() {

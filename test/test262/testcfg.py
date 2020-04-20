@@ -62,6 +62,7 @@ FEATURE_FLAGS = {
   'regexp-named-groups': '--harmony-regexp-match-indices',
   'class-methods-private': '--harmony-private-methods',
   'class-static-methods-private': '--harmony-private-methods',
+  'AggregateError': '--harmony-promise-any',
 }
 
 SKIPPED_FEATURES = set([])

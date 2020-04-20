@@ -257,6 +257,7 @@ extern enum MessageTemplate {
   kInvalidArrayLength,
   kInvalidIndex,
   kNotConstructor,
+  kNotGeneric,
   kCalledNonCallable,
   kCalledOnNullOrUndefined,
   kProtoObjectOrNull,
@@ -373,6 +374,7 @@ extern macro Int32TrueConstant(): bool;
 extern macro Int32FalseConstant(): bool;
 extern macro EmptyStringConstant(): EmptyString;
 extern macro LengthStringConstant(): String;
+extern macro MessageStringConstant(): String;
 extern macro NanConstant(): NaN;
 extern macro IteratorSymbolConstant(): PublicSymbol;
 extern macro MatchSymbolConstant(): Symbol;
@@ -385,6 +387,7 @@ const True: True = TrueConstant();
 const False: False = FalseConstant();
 const kEmptyString: EmptyString = EmptyStringConstant();
 const kLengthString: String = LengthStringConstant();
+const kMessageString: String = MessageStringConstant();
 const kReturnString: String = ReturnStringConstant();
 
 const kNaN: NaN = NanConstant();

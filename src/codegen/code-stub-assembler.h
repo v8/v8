@@ -20,7 +20,6 @@
 #include "src/objects/smi.h"
 #include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"
-
 #include "torque-generated/exported-macros-assembler-tq.h"
 
 namespace v8 {
@@ -103,6 +102,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)          \
   V(match_symbol, match_symbol, MatchSymbol)                                   \
   V(megamorphic_symbol, megamorphic_symbol, MegamorphicSymbol)                 \
+  V(message_string, message_string, MessageString)                             \
   V(MetaMap, meta_map, MetaMap)                                                \
   V(minus_Infinity_string, minus_Infinity_string, MinusInfinityString)         \
   V(MinusZeroValue, minus_zero_value, MinusZero)                               \
@@ -425,6 +425,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     GotoIf(TaggedIsSmi(value), fail);
     return UncheckedCast<HeapObject>(value);
   }
+
+  TNode<JSAggregateError> HeapObjectToJSAggregateError(
+      TNode<HeapObject> heap_object, Label* fail);
 
   TNode<JSArray> HeapObjectToJSArray(TNode<HeapObject> heap_object,
                                      Label* fail) {
@@ -2542,6 +2545,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsOddball(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsOddballInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsIndirectStringInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSAggregateError(TNode<HeapObject> object);
   TNode<BoolT> IsJSArrayBuffer(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSDataView(TNode<HeapObject> object);
   TNode<BoolT> IsJSArrayInstanceType(SloppyTNode<Int32T> instance_type);

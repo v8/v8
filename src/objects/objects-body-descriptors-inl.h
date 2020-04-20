@@ -960,6 +960,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_PRIMITIVE_WRAPPER_TYPE:
     case JS_DATE_TYPE:
+    case JS_AGGREGATE_ERROR_TYPE:
     case JS_ARRAY_TYPE:
     case JS_ARRAY_ITERATOR_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:

@@ -18,24 +18,9 @@ namespace internal {
 // ES6 section 19.5.1.1 Error ( message )
 BUILTIN(ErrorConstructor) {
   HandleScope scope(isolate);
-
-  FrameSkipMode mode = SKIP_FIRST;
-  Handle<Object> caller;
-
-  // When we're passed a JSFunction as new target, we can skip frames until that
-  // specific function is seen instead of unconditionally skipping the first
-  // frame.
-  if (args.new_target()->IsJSFunction()) {
-    mode = SKIP_UNTIL_SEEN;
-    caller = args.new_target();
-  }
-
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      ErrorUtils::Construct(isolate, args.target(),
-                            Handle<Object>::cast(args.new_target()),
-                            args.atOrUndefined(isolate, 1), mode, caller,
-                            ErrorUtils::StackTraceCollection::kDetailed));
+      isolate, ErrorUtils::Construct(isolate, args.target(), args.new_target(),
+                                     args.atOrUndefined(isolate, 1)));
 }
 
 // static
