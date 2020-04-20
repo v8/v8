@@ -369,6 +369,10 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
       return "unknown";
     // clang-format on
   }
+  // Even though the switch above handles all well-defined enum values,
+  // random modules (e.g. fuzzer generated) can call this function with
+  // random (invalid) opcodes. Handle those here:
+  return "invalid opcode";
 }
 
 #undef CASE_OP

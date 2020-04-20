@@ -1726,7 +1726,10 @@ class ModuleDecoderImpl : public Decoder {
               break;
             case kLocalI31Ref:
             case kLocalRttRef:
-              UNIMPLEMENTED();  // TODO(7748): Add i31ref and rttref.
+              if (enabled_features_.has_gc()) {
+                UNIMPLEMENTED();  // TODO(7748): implement.
+              }
+              break;
             default:
               break;
           }
