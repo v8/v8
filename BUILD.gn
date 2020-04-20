@@ -2021,6 +2021,7 @@ v8_source_set("v8_compiler_opt") {
     ":generate_bytecode_builtins_list",
     ":run_torque",
     ":v8_maybe_icu",
+    ":v8_tracing",
   ]
 
   if (is_debug && !v8_optimized_debug && v8_enable_fast_mksnapshot) {
@@ -2045,6 +2046,7 @@ v8_source_set("v8_compiler") {
     ":generate_bytecode_builtins_list",
     ":run_torque",
     ":v8_maybe_icu",
+    ":v8_tracing",
   ]
 
   configs = [ ":internal_config" ]
