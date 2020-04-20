@@ -622,10 +622,12 @@ TEST_F(TyperTest, Manual_Operation_NumberMax) {
   Type f = t(Type::MinusZero(), zero);
   CHECK(zero.Is(f));
   CHECK(f.Is(b));
+  CHECK(f.Is(zero));  // Checks precision, not soundness.
 
   Type g = t(zero, Type::MinusZero());
   CHECK(zero.Is(g));
   CHECK(g.Is(c));
+  CHECK(g.Is(zero));  // Checks precision, not soundness.
 }
 
 TEST_F(TyperTest, Manual_Operation_NumberMin) {
