@@ -1036,8 +1036,7 @@ void IncrementalMarking::AdvanceOnAllocation() {
   // Code using an AlwaysAllocateScope assumes that the GC state does not
   // change; that implies that no marking steps must be performed.
   if (heap_->gc_state() != Heap::NOT_IN_GC || !FLAG_incremental_marking ||
-      (state_ != SWEEPING && state_ != MARKING) || heap_->always_allocate() ||
-      V8_UNLIKELY(!FLAG_incremental_marking_on_allocation)) {
+      (state_ != SWEEPING && state_ != MARKING) || heap_->always_allocate()) {
     return;
   }
   HistogramTimerScope incremental_marking_scope(
