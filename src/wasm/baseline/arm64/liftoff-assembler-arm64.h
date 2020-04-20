@@ -1556,25 +1556,57 @@ void LiftoffAssembler::emit_s128_xor(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_sconvert_i16x8");
+  UseScratchRegisterScope temps(this);
+  VRegister tmp = temps.AcquireV(kFormat8H);
+  VRegister right = rhs.fp().V8H();
+  if (dst == rhs) {
+    Mov(tmp, right);
+    right = tmp;
+  }
+  Sqxtn(dst.fp().V8B(), lhs.fp().V8H());
+  Sqxtn2(dst.fp().V16B(), right);
 }
 
 void LiftoffAssembler::emit_i8x16_uconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_uconvert_i16x8");
+  UseScratchRegisterScope temps(this);
+  VRegister tmp = temps.AcquireV(kFormat8H);
+  VRegister right = rhs.fp().V8H();
+  if (dst == rhs) {
+    Mov(tmp, right);
+    right = tmp;
+  }
+  Sqxtun(dst.fp().V8B(), lhs.fp().V8H());
+  Sqxtun2(dst.fp().V16B(), right);
 }
 
 void LiftoffAssembler::emit_i16x8_sconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8_sconvert_i32x4");
+  UseScratchRegisterScope temps(this);
+  VRegister tmp = temps.AcquireV(kFormat4S);
+  VRegister right = rhs.fp().V4S();
+  if (dst == rhs) {
+    Mov(tmp, right);
+    right = tmp;
+  }
+  Sqxtn(dst.fp().V4H(), lhs.fp().V4S());
+  Sqxtn2(dst.fp().V8H(), right);
 }
 
 void LiftoffAssembler::emit_i16x8_uconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8_uconvert_i32x4");
+  UseScratchRegisterScope temps(this);
+  VRegister tmp = temps.AcquireV(kFormat4S);
+  VRegister right = rhs.fp().V4S();
+  if (dst == rhs) {
+    Mov(tmp, right);
+    right = tmp;
+  }
+  Sqxtun(dst.fp().V4H(), lhs.fp().V4S());
+  Sqxtun2(dst.fp().V8H(), right);
 }
 
 void LiftoffAssembler::emit_i16x8_sconvert_i8x16_low(LiftoffRegister dst,

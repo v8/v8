@@ -223,6 +223,18 @@ inline Register EnsureNoAlias(Assembler* assm, Register reg,
   return tmp;
 }
 
+inline void S128NarrowOp(LiftoffAssembler* assm, NeonDataType dt,
+                         LiftoffRegister dst, LiftoffRegister lhs,
+                         LiftoffRegister rhs) {
+  if (dst == lhs) {
+    assm->vqmovn(dt, dt, dst.low_fp(), liftoff::GetSimd128Register(lhs));
+    assm->vqmovn(dt, dt, dst.high_fp(), liftoff::GetSimd128Register(rhs));
+  } else {
+    assm->vqmovn(dt, dt, dst.high_fp(), liftoff::GetSimd128Register(rhs));
+    assm->vqmovn(dt, dt, dst.low_fp(), liftoff::GetSimd128Register(lhs));
+  }
+}
+
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
@@ -2221,25 +2233,25 @@ void LiftoffAssembler::emit_s128_xor(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_sconvert_i16x8");
+  liftoff::S128NarrowOp(this, NeonS8, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i8x16_uconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_uconvert_i16x8");
+  liftoff::S128NarrowOp(this, NeonU8, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i16x8_sconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8_sconvert_i32x4");
+  liftoff::S128NarrowOp(this, NeonS16, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i16x8_uconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8_uconvert_i32x4");
+  liftoff::S128NarrowOp(this, NeonU16, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i16x8_sconvert_i8x16_low(LiftoffRegister dst,
