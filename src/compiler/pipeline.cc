@@ -1412,6 +1412,7 @@ struct InliningPhase {
       AddReducer(data, &graph_reducer, &inlining);
     }
     graph_reducer.ReduceGraph();
+    info->set_inlined_bytecode_size(inlining.total_inlined_bytecode_size());
   }
 };
 

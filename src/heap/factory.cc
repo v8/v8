@@ -165,6 +165,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     code->initialize_flags(kind_, has_unwinding_info, is_turbofanned_,
                            stack_slots_, kIsNotOffHeapTrampoline);
     code->set_builtin_index(builtin_index_);
+    code->set_inlined_bytecode_size(inlined_bytecode_size_);
     code->set_code_data_container(*data_container);
     code->set_deoptimization_data(*deoptimization_data_);
     code->set_source_position_table(*source_position_table_);

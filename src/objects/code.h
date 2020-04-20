@@ -138,6 +138,9 @@ class Code : public HeapObject {
   inline void set_builtin_index(int id);
   inline bool is_builtin() const;
 
+  inline unsigned inlined_bytecode_size() const;
+  inline void set_inlined_bytecode_size(unsigned size);
+
   inline bool has_safepoint_info() const;
 
   // [stack_slots]: If {has_safepoint_info()}, the number of stack slots
@@ -397,6 +400,7 @@ class Code : public HeapObject {
     FLAG_enable_embedded_constant_pool ? kIntSize : 0)                    \
   V(kCodeCommentsOffsetOffset, kIntSize)                                  \
   V(kBuiltinIndexOffset, kIntSize)                                        \
+  V(kInlinedBytecodeSizeOffset, kIntSize)                                 \
   V(kUnalignedHeaderSize, 0)                                              \
   /* Add padding to align the instruction start following right after */  \
   /* the Code object header. */                                           \
@@ -409,22 +413,22 @@ class Code : public HeapObject {
   // This documents the amount of free space we have in each Code object header
   // due to padding for code alignment.
 #if V8_TARGET_ARCH_ARM64
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 20 : 0;
+  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 16 : 28;
 #elif V8_TARGET_ARCH_MIPS64
-  static constexpr int kHeaderPaddingSize = 0;
+  static constexpr int kHeaderPaddingSize = 28;
 #elif V8_TARGET_ARCH_X64
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 20 : 0;
+  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 16 : 28;
 #elif V8_TARGET_ARCH_ARM
-  static constexpr int kHeaderPaddingSize = 20;
+  static constexpr int kHeaderPaddingSize = 16;
 #elif V8_TARGET_ARCH_IA32
-  static constexpr int kHeaderPaddingSize = 20;
+  static constexpr int kHeaderPaddingSize = 16;
 #elif V8_TARGET_ARCH_MIPS
-  static constexpr int kHeaderPaddingSize = 20;
+  static constexpr int kHeaderPaddingSize = 16;
 #elif V8_TARGET_ARCH_PPC64
   static constexpr int kHeaderPaddingSize =
-      FLAG_enable_embedded_constant_pool ? 28 : 0;
+      FLAG_enable_embedded_constant_pool ? 24 : 28;
 #elif V8_TARGET_ARCH_S390X
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 20 : 0;
+  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 16 : 28;
 #else
 #error Unknown architecture.
 #endif

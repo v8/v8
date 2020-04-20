@@ -319,6 +319,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   bool has_feedback_vector() const;
   bool has_initial_map() const;
   bool has_prototype() const;
+  bool IsOptimized() const;
   bool PrototypeRequiresRuntimeLookup() const;
 
   void Serialize();
@@ -331,6 +332,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
   FeedbackVectorRef feedback_vector() const;
+  CodeRef code() const;
   int InitialMapInstanceSizeWithMinSlack() const;
 };
 
@@ -920,6 +922,8 @@ class CodeRef : public HeapObjectRef {
   DEFINE_REF_CONSTRUCTOR(Code, HeapObjectRef)
 
   Handle<Code> object() const;
+
+  unsigned inlined_bytecode_size() const;
 };
 
 class InternalizedStringRef : public StringRef {

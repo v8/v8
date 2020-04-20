@@ -807,6 +807,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       return *this;
     }
 
+    CodeBuilder& set_inlined_bytecode_size(uint32_t size) {
+      inlined_bytecode_size_ = size;
+      return *this;
+    }
+
     CodeBuilder& set_source_position_table(Handle<ByteArray> table) {
       DCHECK(!table.is_null());
       source_position_table_ = table;
@@ -858,6 +863,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
     MaybeHandle<Object> self_reference_;
     int32_t builtin_index_ = Builtins::kNoBuiltinId;
+    uint32_t inlined_bytecode_size_ = 0;
     int32_t kind_specific_flags_ = 0;
     Handle<ByteArray> source_position_table_;
     Handle<DeoptimizationData> deoptimization_data_ =

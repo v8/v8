@@ -610,6 +610,7 @@ class JSFunctionData : public JSObjectData {
   bool has_feedback_vector() const { return has_feedback_vector_; }
   bool has_initial_map() const { return has_initial_map_; }
   bool has_prototype() const { return has_prototype_; }
+  bool IsOptimized() const { return is_optimized_; }
   bool PrototypeRequiresRuntimeLookup() const {
     return PrototypeRequiresRuntimeLookup_;
   }
@@ -623,6 +624,7 @@ class JSFunctionData : public JSObjectData {
   ObjectData* prototype() const { return prototype_; }
   SharedFunctionInfoData* shared() const { return shared_; }
   FeedbackVectorData* feedback_vector() const { return feedback_vector_; }
+  CodeData* code() const { return code_; }
   int initial_map_instance_size_with_min_slack() const {
     CHECK(serialized_);
     return initial_map_instance_size_with_min_slack_;
@@ -632,6 +634,7 @@ class JSFunctionData : public JSObjectData {
   bool has_feedback_vector_;
   bool has_initial_map_;
   bool has_prototype_;
+  bool is_optimized_;
   bool PrototypeRequiresRuntimeLookup_;
 
   bool serialized_ = false;
@@ -642,6 +645,7 @@ class JSFunctionData : public JSObjectData {
   ObjectData* prototype_ = nullptr;
   SharedFunctionInfoData* shared_ = nullptr;
   FeedbackVectorData* feedback_vector_ = nullptr;
+  CodeData* code_ = nullptr;
   int initial_map_instance_size_with_min_slack_;
 };
 
@@ -1261,6 +1265,7 @@ JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
       has_initial_map_(object->has_prototype_slot() &&
                        object->has_initial_map()),
       has_prototype_(object->has_prototype_slot() && object->has_prototype()),
+      is_optimized_(object->IsOptimized()),
       PrototypeRequiresRuntimeLookup_(
           object->PrototypeRequiresRuntimeLookup()) {}
 
@@ -1277,6 +1282,7 @@ void JSFunctionData::Serialize(JSHeapBroker* broker) {
   DCHECK_NULL(prototype_);
   DCHECK_NULL(shared_);
   DCHECK_NULL(feedback_vector_);
+  DCHECK_NULL(code_);
 
   context_ = broker->GetOrCreateData(function->context())->AsContext();
   native_context_ =
@@ -1286,6 +1292,7 @@ void JSFunctionData::Serialize(JSHeapBroker* broker) {
                          ? broker->GetOrCreateData(function->feedback_vector())
                                ->AsFeedbackVector()
                          : nullptr;
+  code_ = broker->GetOrCreateData(function->code())->AsCode();
   initial_map_ = has_initial_map()
                      ? broker->GetOrCreateData(function->initial_map())->AsMap()
                      : nullptr;
@@ -2024,7 +2031,13 @@ class TemplateObjectDescriptionData : public HeapObjectData {
 class CodeData : public HeapObjectData {
  public:
   CodeData(JSHeapBroker* broker, ObjectData** storage, Handle<Code> object)
-      : HeapObjectData(broker, storage, object) {}
+      : HeapObjectData(broker, storage, object),
+        inlined_bytecode_size_(object->inlined_bytecode_size()) {}
+
+  unsigned inlined_bytecode_size() const { return inlined_bytecode_size_; }
+
+ private:
+  unsigned const inlined_bytecode_size_;
 };
 
 #define DEFINE_IS_AND_AS(Name)                                          \
@@ -3371,6 +3384,7 @@ BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_offset)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_feedback_vector)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
+BIMODAL_ACCESSOR_C(JSFunction, bool, IsOptimized)
 BIMODAL_ACCESSOR_C(JSFunction, bool, PrototypeRequiresRuntimeLookup)
 BIMODAL_ACCESSOR(JSFunction, Context, context)
 BIMODAL_ACCESSOR(JSFunction, NativeContext, native_context)
@@ -3378,6 +3392,7 @@ BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
 BIMODAL_ACCESSOR(JSFunction, Object, prototype)
 BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 BIMODAL_ACCESSOR(JSFunction, FeedbackVector, feedback_vector)
+BIMODAL_ACCESSOR(JSFunction, Code, code)
 
 BIMODAL_ACCESSOR_C(JSGlobalObject, bool, IsDetached)
 
@@ -3412,6 +3427,8 @@ BIMODAL_ACCESSOR_C(Map, InstanceType, instance_type)
 BIMODAL_ACCESSOR(Map, Object, GetConstructor)
 BIMODAL_ACCESSOR(Map, HeapObject, GetBackPointer)
 BIMODAL_ACCESSOR_C(Map, bool, is_abandoned_prototype_map)
+
+BIMODAL_ACCESSOR_C(Code, unsigned, inlined_bytecode_size)
 
 #define DEF_NATIVE_CONTEXT_ACCESSOR(type, name) \
   BIMODAL_ACCESSOR(NativeContext, type, name)
