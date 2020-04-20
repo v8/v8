@@ -38,99 +38,24 @@ class SourceRangeMap;
 class Utf16CharacterStream;
 class Zone;
 
-// The flags for a parse + unoptimized compile operation.
-class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
- public:
-  // Default constructor uses default initialization on the fields, setting them
-  // to zero rather than undefined values.
-  UnoptimizedCompileFlags() = default;
-
-  // Set-up flags for a toplevel compilation.
-  static UnoptimizedCompileFlags ForToplevelCompile(Isolate* isolate,
-                                                    bool is_user_javascript,
-                                                    LanguageMode language_mode,
-                                                    REPLMode repl_mode);
-
-  // Set-up flags for a compiling a particular function (either a lazy compile
-  // or a recompile).
-  static UnoptimizedCompileFlags ForFunctionCompile(Isolate* isolate,
-                                                    SharedFunctionInfo shared);
-
-  // Set-up flags for a full compilation of a given script.
-  static UnoptimizedCompileFlags ForScriptCompile(Isolate* isolate,
-                                                  Script script);
-
-  // Set-up flags for a parallel toplevel function compilation, based on the
-  // flags of an existing toplevel compilation.
-  static UnoptimizedCompileFlags ForToplevelFunction(
-      const UnoptimizedCompileFlags toplevel_flags,
-      const FunctionLiteral* literal);
-
-  // Create flags for a test.
-  static UnoptimizedCompileFlags ForTest(Isolate* isolate);
-
-  bool is_toplevel : 1;
-  bool is_eager : 1;
-  bool is_eval : 1;
-  LanguageMode outer_language_mode : 1;
-  ParseRestriction parse_restriction : 1;
-  bool is_module : 1;
-  bool allow_lazy_parsing : 1;
-  bool is_lazy_compile : 1;
-  bool collect_type_profile : 1;
-  bool coverage_enabled : 1;
-  bool block_coverage_enabled : 1;
-  bool is_asm_wasm_broken : 1;
-  bool class_scope_has_private_brand : 1;
-  bool requires_instance_members_initializer : 1;
-  bool has_static_private_methods_or_accessors : 1;
-  bool might_always_opt : 1;
-  bool allow_natives_syntax : 1;
-  bool allow_lazy_compile : 1;
-  bool allow_harmony_dynamic_import : 1;
-  bool allow_harmony_import_meta : 1;
-  bool allow_harmony_private_methods : 1;
-  bool is_oneshot_iife : 1;
-  bool collect_source_positions : 1;
-  bool allow_harmony_top_level_await : 1;
-  bool is_repl_mode : 1;
-
-  int script_id;
-  FunctionKind function_kind;
-  FunctionSyntaxKind function_syntax_kind;
-
- private:
-  UnoptimizedCompileFlags(Isolate* isolate, int script_id);
-
-  // Set function info flags based on those in either FunctionLiteral or
-  // SharedFunctionInfo |function|
-  template <typename T>
-  void SetFlagsFromFunction(T function);
-  void SetFlagsForToplevelCompile(bool is_collecting_type_profile,
-                                  bool is_user_javascript,
-                                  LanguageMode language_mode,
-                                  REPLMode repl_mode);
-  void SetFlagsForFunctionFromScript(Script script);
-};
-
 // A container for the inputs, configuration options, and outputs of parsing.
 class V8_EXPORT_PRIVATE ParseInfo {
  public:
-  ParseInfo(Isolate*, const UnoptimizedCompileFlags flags);
+  explicit ParseInfo(Isolate*);
+  ParseInfo(Isolate* isolate, Script script);
+  ParseInfo(Isolate* isolate, SharedFunctionInfo shared);
 
   // Creates a new parse info based on parent top-level |outer_parse_info| for
   // function |literal|.
   static std::unique_ptr<ParseInfo> FromParent(
-      const ParseInfo* outer_parse_info, const UnoptimizedCompileFlags flags,
-      AccountingAllocator* zone_allocator, const FunctionLiteral* literal,
-      const AstRawString* function_name);
+      const ParseInfo* outer_parse_info, AccountingAllocator* zone_allocator,
+      const FunctionLiteral* literal, const AstRawString* function_name);
 
   ~ParseInfo();
 
   template <typename LocalIsolate>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   Handle<Script> CreateScript(LocalIsolate* isolate, Handle<String> source,
-                              MaybeHandle<FixedArray> maybe_wrapped_arguments,
                               ScriptOriginOptions origin_options,
                               NativesFlag natives = NOT_NATIVES_CODE);
 
@@ -140,15 +65,65 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   Zone* zone() const { return zone_.get(); }
 
-  const UnoptimizedCompileFlags& flags() const { return flags_; }
+// Convenience accessor methods for flags.
+#define FLAG_ACCESSOR(flag, getter, setter)     \
+  bool getter() const { return GetFlag(flag); } \
+  void setter() { SetFlag(flag); }              \
+  void setter(bool val) { SetFlag(flag, val); }
 
-  // Accessor methods for output flags.
-  bool allow_eval_cache() const { return allow_eval_cache_; }
-  void set_allow_eval_cache(bool value) { allow_eval_cache_ = value; }
-  bool contains_asm_module() const { return contains_asm_module_; }
-  void set_contains_asm_module(bool value) { contains_asm_module_ = value; }
-  LanguageMode language_mode() const { return language_mode_; }
-  void set_language_mode(LanguageMode value) { language_mode_ = value; }
+  FLAG_ACCESSOR(kToplevel, is_toplevel, set_toplevel)
+  FLAG_ACCESSOR(kEager, is_eager, set_eager)
+  FLAG_ACCESSOR(kEval, is_eval, set_eval)
+  FLAG_ACCESSOR(kStrictMode, is_strict_mode, set_strict_mode)
+  FLAG_ACCESSOR(kModule, is_module, set_module)
+  FLAG_ACCESSOR(kAllowLazyParsing, allow_lazy_parsing, set_allow_lazy_parsing)
+  FLAG_ACCESSOR(kLazyCompile, lazy_compile, set_lazy_compile)
+  FLAG_ACCESSOR(kCollectTypeProfile, collect_type_profile,
+                set_collect_type_profile)
+  FLAG_ACCESSOR(kIsAsmWasmBroken, is_asm_wasm_broken, set_asm_wasm_broken)
+  FLAG_ACCESSOR(kContainsAsmModule, contains_asm_module,
+                set_contains_asm_module)
+  FLAG_ACCESSOR(kCoverageEnabled, coverage_enabled, set_coverage_enabled)
+  FLAG_ACCESSOR(kBlockCoverageEnabled, block_coverage_enabled,
+                set_block_coverage_enabled)
+  FLAG_ACCESSOR(kAllowEvalCache, allow_eval_cache, set_allow_eval_cache)
+  FLAG_ACCESSOR(kRequiresInstanceMembersInitializer,
+                requires_instance_members_initializer,
+                set_requires_instance_members_initializer)
+  FLAG_ACCESSOR(kClassScopeHasPrivateBrand, class_scope_has_private_brand,
+                set_class_scope_has_private_brand)
+  FLAG_ACCESSOR(kHasStaticPrivateMethodsOrAccessors,
+                has_static_private_methods_or_accessors,
+                set_has_static_private_methods_or_accessors)
+  FLAG_ACCESSOR(kMightAlwaysOpt, might_always_opt, set_might_always_opt)
+  FLAG_ACCESSOR(kAllowNativeSyntax, allow_natives_syntax,
+                set_allow_natives_syntax)
+  FLAG_ACCESSOR(kAllowLazyCompile, allow_lazy_compile, set_allow_lazy_compile)
+  FLAG_ACCESSOR(kAllowNativeSyntax, allow_native_syntax,
+                set_allow_native_syntax)
+  FLAG_ACCESSOR(kAllowHarmonyDynamicImport, allow_harmony_dynamic_import,
+                set_allow_harmony_dynamic_import)
+  FLAG_ACCESSOR(kAllowHarmonyImportMeta, allow_harmony_import_meta,
+                set_allow_harmony_import_meta)
+  FLAG_ACCESSOR(kAllowHarmonyPrivateMethods, allow_harmony_private_methods,
+                set_allow_harmony_private_methods)
+  FLAG_ACCESSOR(kIsOneshotIIFE, is_oneshot_iife, set_is_oneshot_iife)
+  FLAG_ACCESSOR(kCollectSourcePositions, collect_source_positions,
+                set_collect_source_positions)
+  FLAG_ACCESSOR(kAllowHarmonyTopLevelAwait, allow_harmony_top_level_await,
+                set_allow_harmony_top_level_await)
+  FLAG_ACCESSOR(kREPLMode, is_repl_mode, set_repl_mode)
+
+#undef FLAG_ACCESSOR
+
+  void set_parse_restriction(ParseRestriction restriction) {
+    SetFlag(kParseRestriction, restriction != NO_PARSE_RESTRICTION);
+  }
+
+  ParseRestriction parse_restriction() const {
+    return GetFlag(kParseRestriction) ? ONLY_SINGLE_FUNCTION_LITERAL
+                                      : NO_PARSE_RESTRICTION;
+  }
 
   Utf16CharacterStream* character_stream() const {
     return character_stream_.get();
@@ -193,13 +168,38 @@ class V8_EXPORT_PRIVATE ParseInfo {
   uint64_t hash_seed() const { return hash_seed_; }
   void set_hash_seed(uint64_t hash_seed) { hash_seed_ = hash_seed; }
 
+  int start_position() const { return start_position_; }
+  void set_start_position(int start_position) {
+    start_position_ = start_position;
+  }
+
+  int end_position() const { return end_position_; }
+  void set_end_position(int end_position) { end_position_ = end_position; }
+
   int parameters_end_pos() const { return parameters_end_pos_; }
   void set_parameters_end_pos(int parameters_end_pos) {
     parameters_end_pos_ = parameters_end_pos;
   }
 
+  int function_literal_id() const { return function_literal_id_; }
+  void set_function_literal_id(int function_literal_id) {
+    function_literal_id_ = function_literal_id;
+  }
+
+  FunctionKind function_kind() const { return function_kind_; }
+  void set_function_kind(FunctionKind function_kind) {
+    function_kind_ = function_kind;
+  }
+
+  FunctionSyntaxKind function_syntax_kind() const {
+    return function_syntax_kind_;
+  }
+  void set_function_syntax_kind(FunctionSyntaxKind function_syntax_kind) {
+    function_syntax_kind_ = function_syntax_kind;
+  }
+
   bool is_wrapped_as_function() const {
-    return flags().function_syntax_kind == FunctionSyntaxKind::kWrapped;
+    return function_syntax_kind() == FunctionSyntaxKind::kWrapped;
   }
 
   int max_function_literal_id() const { return max_function_literal_id_; }
@@ -257,22 +257,93 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ParallelTasks* parallel_tasks() { return parallel_tasks_.get(); }
 
+  void SetFlagsForToplevelCompile(bool is_collecting_type_profile,
+                                  bool is_user_javascript,
+                                  LanguageMode language_mode,
+                                  REPLMode repl_mode);
+
   void CheckFlagsForFunctionFromScript(Script script);
 
- private:
-  ParseInfo(AccountingAllocator* zone_allocator, UnoptimizedCompileFlags flags);
+  int script_id() const { return script_id_; }
+  //--------------------------------------------------------------------------
 
+  LanguageMode language_mode() const {
+    return construct_language_mode(is_strict_mode());
+  }
+  void set_language_mode(LanguageMode language_mode) {
+    STATIC_ASSERT(LanguageModeSize == 2);
+    set_strict_mode(is_strict(language_mode));
+  }
+
+ private:
+  ParseInfo(AccountingAllocator* zone_allocator, int script_id);
+  ParseInfo(Isolate*, AccountingAllocator* zone_allocator, int script_id);
+
+  void SetFlagsForFunctionFromScript(Script script);
+
+  template <typename LocalIsolate>
+  void SetFlagsForToplevelCompileFromScript(LocalIsolate* isolate,
+                                            Script script,
+                                            bool is_collecting_type_profile);
   void CheckFlagsForToplevelCompileFromScript(Script script,
                                               bool is_collecting_type_profile);
 
+  // Set function info flags based on those in either FunctionLiteral or
+  // SharedFunctionInfo |function|
+  template <typename T>
+  void SetFunctionInfo(T function);
+
+  // Various configuration flags for parsing.
+  enum Flag : uint32_t {
+    // ---------- Input flags ---------------------------
+    kToplevel = 1u << 0,
+    kEager = 1u << 1,
+    kEval = 1u << 2,
+    kStrictMode = 1u << 3,
+    kNative = 1u << 4,
+    kParseRestriction = 1u << 5,
+    kModule = 1u << 6,
+    kAllowLazyParsing = 1u << 7,
+    kLazyCompile = 1u << 8,
+    kCollectTypeProfile = 1u << 9,
+    kCoverageEnabled = 1u << 10,
+    kBlockCoverageEnabled = 1u << 11,
+    kIsAsmWasmBroken = 1u << 12,
+    kAllowEvalCache = 1u << 13,
+    kRequiresInstanceMembersInitializer = 1u << 14,
+    kContainsAsmModule = 1u << 15,
+    kMightAlwaysOpt = 1u << 16,
+    kAllowLazyCompile = 1u << 17,
+    kAllowNativeSyntax = 1u << 18,
+    kAllowHarmonyPublicFields = 1u << 19,
+    kAllowHarmonyStaticFields = 1u << 20,
+    kAllowHarmonyDynamicImport = 1u << 21,
+    kAllowHarmonyImportMeta = 1u << 22,
+    kAllowHarmonyOptionalChaining = 1u << 23,
+    kHasStaticPrivateMethodsOrAccessors = 1u << 24,
+    kAllowHarmonyPrivateMethods = 1u << 25,
+    kIsOneshotIIFE = 1u << 26,
+    kCollectSourcePositions = 1u << 27,
+    kAllowHarmonyNullish = 1u << 28,
+    kAllowHarmonyTopLevelAwait = 1u << 29,
+    kREPLMode = 1u << 30,
+    kClassScopeHasPrivateBrand = 1u << 31,
+  };
+
   //------------- Inputs to parsing and scope analysis -----------------------
-  const UnoptimizedCompileFlags flags_;
   std::unique_ptr<Zone> zone_;
+  uint32_t flags_;
   v8::Extension* extension_;
   DeclarationScope* script_scope_;
   uintptr_t stack_limit_;
   uint64_t hash_seed_;
+  FunctionKind function_kind_;
+  FunctionSyntaxKind function_syntax_kind_;
+  int script_id_;
+  int start_position_;
+  int end_position_;
   int parameters_end_pos_;
+  int function_literal_id_;
   int max_function_literal_id_;
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
@@ -289,9 +360,10 @@ class V8_EXPORT_PRIVATE ParseInfo {
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
   PendingCompilationErrorHandler pending_error_handler_;
-  bool allow_eval_cache_ : 1;
-  bool contains_asm_module_ : 1;
-  LanguageMode language_mode_ : 1;
+
+  void SetFlag(Flag f) { flags_ |= f; }
+  void SetFlag(Flag f, bool v) { flags_ = v ? flags_ | f : flags_ & ~f; }
+  bool GetFlag(Flag f) const { return (flags_ & f) != 0; }
 };
 
 }  // namespace internal
