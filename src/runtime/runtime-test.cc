@@ -116,6 +116,21 @@ V8_WARN_UNUSED_RESULT Object CrashUnlessFuzzing(Isolate* isolate) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+// Assert that the given argument is a number within the Int32 range
+// and convert it to int32_t.  If the argument is not an Int32 we crash if not
+// in fuzzing mode.
+#define CONVERT_INT32_ARG_FUZZ_SAFE(name, index)                   \
+  if (!args[index].IsNumber()) return CrashUnlessFuzzing(isolate); \
+  int32_t name = 0;                                                \
+  if (!args[index].ToInt32(&name)) return CrashUnlessFuzzing(isolate);
+
+// Cast the given object to a boolean and store it in a variable with
+// the given name.  If the object is not a boolean we crash if not in
+// fuzzing mode.
+#define CONVERT_BOOLEAN_ARG_FUZZ_SAFE(name, index)                  \
+  if (!args[index].IsBoolean()) return CrashUnlessFuzzing(isolate); \
+  bool name = args[index].IsTrue(isolate);
+
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_ClearMegamorphicStubCache) {
@@ -651,15 +666,15 @@ RUNTIME_FUNCTION(Runtime_SetAllocationTimeout) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2 || args.length() == 3);
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-  CONVERT_INT32_ARG_CHECKED(timeout, 1);
+  CONVERT_INT32_ARG_FUZZ_SAFE(timeout, 1);
   isolate->heap()->set_allocation_timeout(timeout);
 #endif
 #ifdef DEBUG
-  CONVERT_INT32_ARG_CHECKED(interval, 0);
+  CONVERT_INT32_ARG_FUZZ_SAFE(interval, 0);
   FLAG_gc_interval = interval;
   if (args.length() == 3) {
     // Enable/disable inline allocation if requested.
-    CONVERT_BOOLEAN_ARG_CHECKED(inline_allocation, 2);
+    CONVERT_BOOLEAN_ARG_FUZZ_SAFE(inline_allocation, 2);
     if (inline_allocation) {
       isolate->heap()->EnableInlineAllocation();
     } else {
