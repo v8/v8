@@ -837,7 +837,7 @@ enum NativesFlag { NOT_NATIVES_CODE, EXTENSION_CODE, INSPECTOR_CODE };
 
 // ParseRestriction is used to restrict the set of valid statements in a
 // unit of compilation.  Restriction violations cause a syntax error.
-enum ParseRestriction : bool {
+enum ParseRestriction {
   NO_PARSE_RESTRICTION,         // All expressions are allowed.
   ONLY_SINGLE_FUNCTION_LITERAL  // Only a single FunctionLiteral expression.
 };
