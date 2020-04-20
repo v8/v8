@@ -2161,10 +2161,20 @@ void LiftoffAssembler::emit_i8x16_eq(LiftoffRegister dst, LiftoffRegister lhs,
        liftoff::GetSimd128Register(lhs), liftoff::GetSimd128Register(rhs));
 }
 
+void LiftoffAssembler::emit_i8x16_ne(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  bailout(kSimd, "i8x16_ne");
+}
+
 void LiftoffAssembler::emit_i16x8_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   vceq(Neon16, liftoff::GetSimd128Register(dst),
        liftoff::GetSimd128Register(lhs), liftoff::GetSimd128Register(rhs));
+}
+
+void LiftoffAssembler::emit_i16x8_ne(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  bailout(kSimd, "i16x8_ne");
 }
 
 void LiftoffAssembler::emit_i32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2173,10 +2183,20 @@ void LiftoffAssembler::emit_i32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
        liftoff::GetSimd128Register(lhs), liftoff::GetSimd128Register(rhs));
 }
 
+void LiftoffAssembler::emit_i32x4_ne(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  bailout(kSimd, "i32x4_ne");
+}
+
 void LiftoffAssembler::emit_f32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   vceq(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(lhs),
        liftoff::GetSimd128Register(rhs));
+}
+
+void LiftoffAssembler::emit_f32x4_ne(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  bailout(kSimd, "f32x4_ne");
 }
 
 void LiftoffAssembler::emit_f64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2197,6 +2217,11 @@ void LiftoffAssembler::emit_f64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
   VFPCompareAndSetFlags(left.high(), right.high());
   mov(scratch, Operand(-1), LeaveCC, eq);
   vmov(dest.high(), scratch, scratch);
+}
+
+void LiftoffAssembler::emit_f64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  bailout(kSimd, "f64x2_ne");
 }
 
 void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {

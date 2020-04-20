@@ -731,13 +731,23 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_f64x2_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i8x16_eq(LiftoffRegister dst, LiftoffRegister lhs,
                             LiftoffRegister rhs);
+  inline void emit_i8x16_ne(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs);
   inline void emit_i16x8_eq(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs);
+  inline void emit_i16x8_ne(LiftoffRegister dst, LiftoffRegister lhs,
                             LiftoffRegister rhs);
   inline void emit_i32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
                             LiftoffRegister rhs);
+  inline void emit_i32x4_ne(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs);
   inline void emit_f32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
                             LiftoffRegister rhs);
+  inline void emit_f32x4_ne(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs);
   inline void emit_f64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
+                            LiftoffRegister rhs);
+  inline void emit_f64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
                             LiftoffRegister rhs);
   inline void emit_s128_not(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_s128_and(LiftoffRegister dst, LiftoffRegister lhs,
