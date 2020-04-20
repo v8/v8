@@ -15,6 +15,7 @@
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/parsing/literal-buffer.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/token.h"
 #include "src/strings/char-predicates.h"
 #include "src/strings/unicode.h"
@@ -269,7 +270,7 @@ class V8_EXPORT_PRIVATE Scanner {
   static const int kNoOctalLocation = -1;
   static const uc32 kEndOfInput = Utf16CharacterStream::kEndOfInput;
 
-  explicit Scanner(Utf16CharacterStream* source, bool is_module);
+  explicit Scanner(Utf16CharacterStream* source, UnoptimizedCompileFlags flags);
 
   void Initialize();
 
@@ -703,6 +704,8 @@ class V8_EXPORT_PRIVATE Scanner {
   const TokenDesc& next() const { return *next_; }
   const TokenDesc& next_next() const { return *next_next_; }
 
+  UnoptimizedCompileFlags flags_;
+
   TokenDesc* current_;    // desc for current token (as returned by Next())
   TokenDesc* next_;       // desc for next token (one token look-ahead)
   TokenDesc* next_next_;  // desc for the token after next (after PeakAhead())
@@ -717,8 +720,6 @@ class V8_EXPORT_PRIVATE Scanner {
 
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;
-
-  const bool is_module_;
 
   // Values parsed from magic comments.
   LiteralBuffer source_url_;

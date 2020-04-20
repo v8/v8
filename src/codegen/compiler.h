@@ -14,6 +14,7 @@
 #include "src/execution/isolate.h"
 #include "src/logging/code-events.h"
 #include "src/objects/contexts.h"
+#include "src/parsing/parse-info.h"
 #include "src/utils/allocation.h"
 #include "src/zone/zone.h"
 
@@ -399,6 +400,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   // Data needed for parsing, and data needed to to be passed between thread
   // between parsing and compilation. These need to be initialized before the
   // compilation starts.
+  UnoptimizedCompileFlags flags_;
   std::unique_ptr<ParseInfo> info_;
   std::unique_ptr<Parser> parser_;
 
@@ -413,6 +415,11 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   std::unique_ptr<OffThreadIsolate> off_thread_isolate_;
   // This is a raw pointer to the off-thread allocated SharedFunctionInfo.
   SharedFunctionInfo outer_function_sfi_;
+
+  // Single function data for top-level function compilation.
+  int start_position_;
+  int end_position_;
+  int function_literal_id_;
 
   int stack_size_;
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;

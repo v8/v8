@@ -23,6 +23,7 @@
 #include "src/objects/function-kind.h"
 #include "src/parsing/expression-scope.h"
 #include "src/parsing/func-name-inferrer.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/scanner.h"
 #include "src/parsing/token.h"
 #include "src/utils/pointer-with-payload.h"
@@ -241,7 +242,7 @@ class ParserBase {
              v8::Extension* extension, AstValueFactory* ast_value_factory,
              PendingCompilationErrorHandler* pending_error_handler,
              RuntimeCallStats* runtime_call_stats, Logger* logger,
-             int script_id, bool parsing_module, bool parsing_on_main_thread)
+             UnoptimizedCompileFlags flags, bool parsing_on_main_thread)
       : scope_(nullptr),
         original_scope_(nullptr),
         function_state_(nullptr),
@@ -252,37 +253,22 @@ class ParserBase {
         runtime_call_stats_(runtime_call_stats),
         logger_(logger),
         parsing_on_main_thread_(parsing_on_main_thread),
-        parsing_module_(parsing_module),
         stack_limit_(stack_limit),
         pending_error_handler_(pending_error_handler),
         zone_(zone),
         expression_scope_(nullptr),
         scanner_(scanner),
+        flags_(flags),
         function_literal_id_(0),
-        script_id_(script_id),
-        default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile),
-        allow_natives_(false),
-        allow_harmony_dynamic_import_(false),
-        allow_harmony_import_meta_(false),
-        allow_harmony_private_methods_(false),
-        allow_harmony_top_level_await_(false),
-        allow_eval_cache_(true) {
+        default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile) {
     pointer_buffer_.reserve(32);
     variable_buffer_.reserve(32);
   }
 
-#define ALLOW_ACCESSORS(name)                           \
-  bool allow_##name() const { return allow_##name##_; } \
-  void set_allow_##name(bool allow) { allow_##name##_ = allow; }
+  const UnoptimizedCompileFlags& flags() const { return flags_; }
 
-  ALLOW_ACCESSORS(natives)
-  ALLOW_ACCESSORS(harmony_dynamic_import)
-  ALLOW_ACCESSORS(harmony_import_meta)
-  ALLOW_ACCESSORS(harmony_private_methods)
-  ALLOW_ACCESSORS(harmony_top_level_await)
-  ALLOW_ACCESSORS(eval_cache)
-
-#undef ALLOW_ACCESSORS
+  bool allow_eval_cache() const { return allow_eval_cache_; }
+  void set_allow_eval_cache(bool allow) { allow_eval_cache_ = allow; }
 
   V8_INLINE bool has_error() const { return scanner()->has_parser_error(); }
 
@@ -869,8 +855,6 @@ class ParserBase {
     // Any further calls to Next or peek will return the illegal token.
     if (GetCurrentStackPosition() < stack_limit_) set_stack_overflow();
   }
-  int script_id() { return script_id_; }
-  void set_script_id(int id) { script_id_ = id; }
 
   V8_INLINE Token::Value peek() { return scanner()->peek(); }
 
@@ -1061,7 +1045,7 @@ class ParserBase {
     return IsResumableFunction(function_state_->kind());
   }
   bool is_await_allowed() const {
-    return is_async_function() || (allow_harmony_top_level_await() &&
+    return is_async_function() || (flags().allow_harmony_top_level_await &&
                                    IsModule(function_state_->kind()));
   }
   const PendingCompilationErrorHandler* pending_error_handler() const {
@@ -1516,7 +1500,6 @@ class ParserBase {
   RuntimeCallStats* runtime_call_stats_;
   internal::Logger* logger_;
   bool parsing_on_main_thread_;
-  const bool parsing_module_;
   uintptr_t stack_limit_;
   PendingCompilationErrorHandler* pending_error_handler_;
 
@@ -1531,8 +1514,8 @@ class ParserBase {
 
   Scanner* scanner_;
 
+  const UnoptimizedCompileFlags flags_;
   int function_literal_id_;
-  int script_id_;
 
   FunctionLiteral::EagerCompileHint default_eager_compile_hint_;
 
@@ -1571,11 +1554,6 @@ class ParserBase {
 
   bool accept_IN_ = true;
 
-  bool allow_natives_;
-  bool allow_harmony_dynamic_import_;
-  bool allow_harmony_import_meta_;
-  bool allow_harmony_private_methods_;
-  bool allow_harmony_top_level_await_;
   bool allow_eval_cache_;
 };
 
@@ -1626,7 +1604,7 @@ ParserBase<Impl>::ParseAndClassifyIdentifier(Token::Value next) {
   }
 
   if (!Token::IsValidIdentifier(next, language_mode(), is_generator(),
-                                parsing_module_ || is_async_function())) {
+                                flags().is_module || is_async_function())) {
     ReportUnexpectedToken(next);
     return impl()->EmptyIdentifierString();
   }
@@ -1650,7 +1628,7 @@ typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParseIdentifier(
 
   if (!Token::IsValidIdentifier(
           next, language_mode(), IsGeneratorFunction(function_kind),
-          parsing_module_ || IsAsyncFunction(function_kind))) {
+          flags().is_module || IsAsyncFunction(function_kind))) {
     ReportUnexpectedToken(next);
     return impl()->EmptyIdentifierString();
   }
@@ -1861,7 +1839,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       return ParseSuperExpression(is_new);
     }
     case Token::IMPORT:
-      if (!allow_harmony_dynamic_import()) break;
+      if (!flags().allow_harmony_dynamic_import) break;
       return ParseImportExpressions();
 
     case Token::LBRACK:
@@ -1924,7 +1902,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       return ParseTemplateLiteral(impl()->NullExpression(), beg_pos, false);
 
     case Token::MOD:
-      if (allow_natives() || extension_ != nullptr) {
+      if (flags().allow_natives_syntax || extension_ != nullptr) {
         return ParseV8Intrinsic();
       }
       break;
@@ -2170,7 +2148,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
         prop_info->kind = ParsePropertyKind::kNotSet;
         return impl()->FailureExpression();
       }
-      if (V8_UNLIKELY(!allow_harmony_private_methods() &&
+      if (V8_UNLIKELY(!flags().allow_harmony_private_methods &&
                       (IsAccessor(prop_info->kind) ||
                        prop_info->kind == ParsePropertyKind::kMethod))) {
         ReportUnexpectedToken(Next());
@@ -2518,7 +2496,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
       DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
 
       if (!Token::IsValidIdentifier(name_token, language_mode(), is_generator(),
-                                    parsing_module_ || is_async_function())) {
+                                    flags().is_module || is_async_function())) {
         ReportUnexpectedToken(Next());
         return impl()->NullLiteralProperty();
       }
@@ -3432,8 +3410,9 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
   if (peek() == Token::SUPER) {
     const bool is_new = true;
     result = ParseSuperExpression(is_new);
-  } else if (allow_harmony_dynamic_import() && peek() == Token::IMPORT &&
-             (!allow_harmony_import_meta() || PeekAhead() == Token::LPAREN)) {
+  } else if (flags().allow_harmony_dynamic_import && peek() == Token::IMPORT &&
+             (!flags().allow_harmony_import_meta ||
+              PeekAhead() == Token::LPAREN)) {
     impl()->ReportMessageAt(scanner()->peek_location(),
                             MessageTemplate::kImportCallNotNewExpression);
     return impl()->FailureExpression();
@@ -3531,14 +3510,14 @@ ParserBase<Impl>::ParseMemberExpression() {
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseImportExpressions() {
-  DCHECK(allow_harmony_dynamic_import());
+  DCHECK(flags().allow_harmony_dynamic_import);
 
   Consume(Token::IMPORT);
   int pos = position();
-  if (allow_harmony_import_meta() && Check(Token::PERIOD)) {
+  if (flags().allow_harmony_import_meta && Check(Token::PERIOD)) {
     ExpectContextualKeyword(ast_value_factory()->meta_string(), "import.meta",
                             pos);
-    if (!parsing_module_) {
+    if (!flags().is_module) {
       impl()->ReportMessageAt(scanner()->location(),
                               MessageTemplate::kImportMetaOutsideModule);
       return impl()->FailureExpression();
@@ -3548,7 +3527,7 @@ ParserBase<Impl>::ParseImportExpressions() {
   }
 
   if (V8_UNLIKELY(peek() != Token::LPAREN)) {
-    if (!parsing_module_) {
+    if (!flags().is_module) {
       impl()->ReportMessageAt(scanner()->location(),
                               MessageTemplate::kImportOutsideModule);
     } else {
@@ -4470,8 +4449,9 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     const char* event_name =
         is_lazy_top_level_function ? "preparse-no-resolution" : "parse";
     const char* name = "arrow function";
-    logger_->FunctionEvent(event_name, script_id(), ms, scope->start_position(),
-                           scope->end_position(), name, strlen(name));
+    logger_->FunctionEvent(event_name, flags().script_id, ms,
+                           scope->start_position(), scope->end_position(), name,
+                           strlen(name));
   }
 
   return function_literal;
