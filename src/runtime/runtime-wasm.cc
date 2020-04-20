@@ -87,6 +87,8 @@ Object ThrowWasmError(Isolate* isolate, MessageTemplate message) {
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmIsValidFuncRefValue) {
+  // This code is called from wrappers, so the "thread is wasm" flag is not set.
+  DCHECK(!trap_handler::IsThreadInWasm());
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, function, 0);
@@ -101,15 +103,13 @@ RUNTIME_FUNCTION(Runtime_WasmIsValidFuncRefValue) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
+  ClearThreadInWasmScope flag_scope;
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   // {delta_pages} is checked to be a positive smi in the WasmMemoryGrow builtin
   // which calls this runtime function.
   CONVERT_UINT32_ARG_CHECKED(delta_pages, 1);
-
-  // This runtime function is always being called from wasm code.
-  ClearThreadInWasmScope flag_scope;
 
   int ret = WasmMemoryObject::Grow(
       isolate, handle(instance->memory_object(), isolate), delta_pages);
@@ -126,12 +126,17 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmStackOverflow) {
+  ClearThreadInWasmScope clear_wasm_flag;
   SealHandleScope shs(isolate);
   DCHECK_LE(0, args.length());
   return isolate->StackOverflow();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
+  // This runtime function is called both from wasm and from e.g. js-to-js
+  // functions. Hence the "thread in wasm" flag can be either set or not. Both
+  // is OK, since throwing will trigger unwinding anyway, which sets the flag
+  // correctly depending on the handler.
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   THROW_NEW_ERROR_RETURN_FAILURE(
@@ -139,6 +144,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
+  ClearThreadInWasmScope clear_wasm_flag;
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -165,6 +171,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmExceptionGetTag) {
+  ClearThreadInWasmScope clear_wasm_flag;
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -182,6 +189,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetTag) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmExceptionGetValues) {
+  ClearThreadInWasmScope clear_wasm_flag;
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -199,8 +207,9 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetValues) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
-  DCHECK_EQ(2, args.length());
+  ClearThreadInWasmScope wasm_flag;
   HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
   CONVERT_NUMBER_CHECKED(int32_t, func_index, Int32, args[0]);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg_buffer_obj, 1);
 
@@ -210,8 +219,6 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   CHECK(!arg_buffer_obj->IsHeapObject());
   CHECK(arg_buffer_obj->IsSmi());
   Address arg_buffer = arg_buffer_obj->ptr();
-
-  ClearThreadInWasmScope wasm_flag;
 
   // Find the frame pointer and instance of the interpreter frame on the stack.
   Handle<WasmInstanceObject> instance;
@@ -328,12 +335,9 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
+  ClearThreadInWasmScope wasm_flag;
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  DCHECK(!trap_handler::IsTrapHandlerEnabled() ||
-         trap_handler::IsThreadInWasm());
-
-  ClearThreadInWasmScope wasm_flag;
 
   // Check if this is a real stack overflow.
   StackLimitCheck check(isolate);
@@ -343,13 +347,11 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
+  ClearThreadInWasmScope wasm_flag;
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_SMI_ARG_CHECKED(func_index, 1);
-
-  // This runtime function is always called from wasm code.
-  ClearThreadInWasmScope flag_scope;
 
 #ifdef DEBUG
   FrameFinder<WasmCompileLazyFrame, StackFrame::EXIT> frame_finder(isolate);
@@ -371,7 +373,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 }
 
 // Should be called from within a handle scope
-Handle<JSArrayBuffer> getSharedArrayBuffer(Handle<WasmInstanceObject> instance,
+Handle<JSArrayBuffer> GetSharedArrayBuffer(Handle<WasmInstanceObject> instance,
                                            Isolate* isolate, uint32_t address) {
   DCHECK(instance->has_memory_object());
   Handle<JSArrayBuffer> array_buffer(instance->memory_object().array_buffer(),
@@ -393,7 +395,7 @@ RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
   CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
   CONVERT_NUMBER_CHECKED(uint32_t, count, Uint32, args[2]);
   Handle<JSArrayBuffer> array_buffer =
-      getSharedArrayBuffer(instance, isolate, address);
+      GetSharedArrayBuffer(instance, isolate, address);
   return FutexEmulation::Wake(array_buffer, address, count);
 }
 
@@ -407,7 +409,7 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   CONVERT_ARG_HANDLE_CHECKED(BigInt, timeout_ns, 3);
 
   Handle<JSArrayBuffer> array_buffer =
-      getSharedArrayBuffer(instance, isolate, address);
+      GetSharedArrayBuffer(instance, isolate, address);
   return FutexEmulation::WaitWasm32(isolate, array_buffer, address,
                                     expected_value, timeout_ns->AsInt64());
 }
@@ -422,7 +424,7 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
   CONVERT_ARG_HANDLE_CHECKED(BigInt, timeout_ns, 3);
 
   Handle<JSArrayBuffer> array_buffer =
-      getSharedArrayBuffer(instance, isolate, address);
+      GetSharedArrayBuffer(instance, isolate, address);
   return FutexEmulation::WaitWasm64(isolate, array_buffer, address,
                                     expected_value->AsInt64(),
                                     timeout_ns->AsInt64());
@@ -443,7 +445,6 @@ Object ThrowTableOutOfBounds(Isolate* isolate,
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
-  // This runtime function is always being called from wasm code.
   ClearThreadInWasmScope flag_scope;
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -461,9 +462,7 @@ RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
-  // This runtime function is always being called from wasm code.
   ClearThreadInWasmScope flag_scope;
-
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -481,9 +480,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
-  // This runtime function is always being called from wasm code.
   ClearThreadInWasmScope flag_scope;
-
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -504,6 +501,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableInit) {
+  ClearThreadInWasmScope flag_scope;
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -522,6 +520,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
+  ClearThreadInWasmScope flag_scope;
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -540,6 +539,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
+  ClearThreadInWasmScope flag_scope;
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   auto instance =
@@ -558,6 +558,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableFill) {
+  ClearThreadInWasmScope flag_scope;
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   auto instance =
@@ -590,6 +591,8 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmNewMultiReturnFixedArray) {
+  // This code is called from wrappers, so the "thread is wasm" flag is not set.
+  DCHECK(!trap_handler::IsThreadInWasm());
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   CONVERT_INT32_ARG_CHECKED(size, 0);
@@ -598,6 +601,8 @@ RUNTIME_FUNCTION(Runtime_WasmNewMultiReturnFixedArray) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmNewMultiReturnJSArray) {
+  // This code is called from wrappers, so the "thread is wasm" flag is not set.
+  DCHECK(!trap_handler::IsThreadInWasm());
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DCHECK(!isolate->context().is_null());
@@ -609,6 +614,7 @@ RUNTIME_FUNCTION(Runtime_WasmNewMultiReturnJSArray) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
+  ClearThreadInWasmScope flag_scope;
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   FrameFinder<WasmCompiledFrame, StackFrame::EXIT, StackFrame::WASM_DEBUG_BREAK>
