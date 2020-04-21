@@ -217,6 +217,7 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
   V(harmony_promise_any, "harmony Promise.any")                                \
   V(harmony_string_replaceall, "harmony String.prototype.replaceAll")          \
   V(harmony_regexp_sequence, "RegExp Unicode sequence properties")             \
+  V(harmony_weak_refs, "harmony weak references")                              \
   V(harmony_weak_refs_with_cleanup_some,                                       \
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
   V(harmony_regexp_match_indices, "harmony regexp match indices")              \
@@ -246,15 +247,14 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 #endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)                                          \
-  V(harmony_namespace_exports,                                            \
-    "harmony namespace exports (export * as foo from 'bar')")             \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")               \
-  V(harmony_import_meta, "harmony import.meta property")                  \
-  V(harmony_dynamic_import, "harmony dynamic import")                     \
-  V(harmony_promise_all_settled, "harmony Promise.allSettled")            \
-  V(harmony_private_methods, "harmony private methods in class literals") \
-  V(harmony_weak_refs, "harmony weak references")
+#define HARMONY_SHIPPING_BASE(V)                                   \
+  V(harmony_namespace_exports,                                     \
+    "harmony namespace exports (export * as foo from 'bar')")      \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")        \
+  V(harmony_import_meta, "harmony import.meta property")           \
+  V(harmony_dynamic_import, "harmony dynamic import")              \
+  V(harmony_promise_all_settled, "harmony Promise.allSettled")     \
+  V(harmony_private_methods, "harmony private methods in class literals")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V)                               \
