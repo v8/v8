@@ -2822,8 +2822,9 @@ void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_extract_lane_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  Pextrb(dst.gp(), lhs.fp(), imm_lane_idx);
-  movsx_b(dst.gp(), dst.gp());
+  Register byte_reg = liftoff::GetTmpByteRegister(this, dst.gp());
+  Pextrb(byte_reg, lhs.fp(), imm_lane_idx);
+  movsx_b(dst.gp(), byte_reg);
 }
 
 void LiftoffAssembler::emit_i8x16_extract_lane_u(LiftoffRegister dst,
