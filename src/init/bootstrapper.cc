@@ -3944,9 +3944,12 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
 void Genesis::InitializeExperimentalGlobal() {
 #define FEATURE_INITIALIZE_GLOBAL(id, descr) InitializeGlobal_##id();
 
-  HARMONY_INPROGRESS(FEATURE_INITIALIZE_GLOBAL)
-  HARMONY_STAGED(FEATURE_INITIALIZE_GLOBAL)
+  // Initialize features from more mature to less mature, because less mature
+  // features may depend on more mature features having been initialized
+  // already.
   HARMONY_SHIPPING(FEATURE_INITIALIZE_GLOBAL)
+  HARMONY_STAGED(FEATURE_INITIALIZE_GLOBAL)
+  HARMONY_INPROGRESS(FEATURE_INITIALIZE_GLOBAL)
 #undef FEATURE_INITIALIZE_GLOBAL
 }
 
