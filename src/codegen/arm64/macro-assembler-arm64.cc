@@ -2966,7 +2966,9 @@ void TurboAssembler::PrintfNoPreserve(const char* format,
 
   // Copies of the printf vararg registers that we can pop from.
   CPURegList pcs_varargs = kPCSVarargs;
+#ifndef V8_OS_WIN
   CPURegList pcs_varargs_fp = kPCSVarargsFP;
+#endif
 
   // Place the arguments. There are lots of clever tricks and optimizations we
   // could use here, but Printf is a debug tool so instead we just try to keep
@@ -2981,7 +2983,14 @@ void TurboAssembler::PrintfNoPreserve(const char* format,
       if (args[i].Is32Bits()) pcs[i] = pcs[i].W();
     } else if (args[i].IsVRegister()) {
       // In C, floats are always cast to doubles for varargs calls.
+#ifdef V8_OS_WIN
+      // In case of variadic functions SIMD and Floating-point registers
+      // aren't used. The general x0-x7 should be used instead.
+      // https://docs.microsoft.com/en-us/cpp/build/arm64-windows-abi-conventions
+      pcs[i] = pcs_varargs.PopLowestIndex().X();
+#else
       pcs[i] = pcs_varargs_fp.PopLowestIndex().D();
+#endif
     } else {
       DCHECK(args[i].IsNone());
       arg_count = i;
@@ -3012,6 +3021,22 @@ void TurboAssembler::PrintfNoPreserve(const char* format,
   // Do a second pass to move values into their final positions and perform any
   // conversions that may be required.
   for (int i = 0; i < arg_count; i++) {
+#ifdef V8_OS_WIN
+    if (args[i].IsVRegister()) {
+      if (pcs[i].SizeInBytes() != args[i].SizeInBytes()) {
+        // If the argument is half- or single-precision
+        // converts to double-precision before that is
+        // moved into the one of X scratch register.
+        VRegister temp0 = temps.AcquireD();
+        Fcvt(temp0.VReg(), args[i].VReg());
+        Fmov(pcs[i].Reg(), temp0);
+      } else {
+        Fmov(pcs[i].Reg(), args[i].VReg());
+      }
+    } else {
+      Mov(pcs[i].Reg(), args[i].Reg(), kDiscardForSameWReg);
+    }
+#else
     DCHECK(pcs[i].type() == args[i].type());
     if (pcs[i].IsRegister()) {
       Mov(pcs[i].Reg(), args[i].Reg(), kDiscardForSameWReg);
@@ -3023,6 +3048,7 @@ void TurboAssembler::PrintfNoPreserve(const char* format,
         Fcvt(pcs[i].VReg(), args[i].VReg());
       }
     }
+#endif
   }
 
   // Load the format string into x0, as per the procedure-call standard.
