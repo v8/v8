@@ -140,13 +140,15 @@ class WeakScriptHandle {
     GlobalHandles::MakeWeak(location_.get());
   }
 
-  WeakScriptHandle(WeakScriptHandle&&) V8_NOEXCEPT = default;
+  // Usually the destructor of this class should always be called after the weak
+  // callback because the Script keeps the NativeModule alive. So we expect the
+  // handle to be destroyed and the location to be reset already.
+  // We cannot check this because of one exception. When the native module is
+  // freed during isolate shutdown, the destructor will be called
+  // first, and the callback will never be called.
+  ~WeakScriptHandle() = default;
 
-  ~WeakScriptHandle() {
-    if (location_) {
-      GlobalHandles::Destroy(*location_);
-    }
-  }
+  WeakScriptHandle(WeakScriptHandle&&) V8_NOEXCEPT = default;
 
   Handle<Script> handle() { return Handle<Script>(*location_); }
 
