@@ -354,16 +354,16 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
                                   size, bin_instr, representation)             \
   do {                                                                         \
     Label binop;                                                               \
-    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
+    __ Daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     if (representation == 32) {                                                \
-      __ andi(i.TempRegister(3), i.TempRegister(0), 0x3);                      \
+      __ And(i.TempRegister(3), i.TempRegister(0), 0x3);                       \
     } else {                                                                   \
       DCHECK_EQ(representation, 64);                                           \
-      __ andi(i.TempRegister(3), i.TempRegister(0), 0x7);                      \
+      __ And(i.TempRegister(3), i.TempRegister(0), 0x7);                       \
     }                                                                          \
     __ Dsubu(i.TempRegister(0), i.TempRegister(0),                             \
              Operand(i.TempRegister(3)));                                      \
-    __ sll(i.TempRegister(3), i.TempRegister(3), 3);                           \
+    __ Sll(i.TempRegister(3), i.TempRegister(3), 3);                           \
     __ sync();                                                                 \
     __ bind(&binop);                                                           \
     __ load_linked(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));       \
@@ -383,9 +383,9 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     Label exchange;                                                            \
     __ sync();                                                                 \
     __ bind(&exchange);                                                        \
-    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
+    __ Daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));     \
-    __ mov(i.TempRegister(1), i.InputRegister(2));                             \
+    __ Move(i.TempRegister(1), i.InputRegister(2));                            \
     __ store_conditional(i.TempRegister(1), MemOperand(i.TempRegister(0), 0)); \
     __ BranchShort(&exchange, eq, i.TempRegister(1), Operand(zero_reg));       \
     __ sync();                                                                 \
@@ -395,16 +395,16 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     load_linked, store_conditional, sign_extend, size, representation)         \
   do {                                                                         \
     Label exchange;                                                            \
-    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
+    __ Daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     if (representation == 32) {                                                \
-      __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                      \
+      __ And(i.TempRegister(1), i.TempRegister(0), 0x3);                       \
     } else {                                                                   \
       DCHECK_EQ(representation, 64);                                           \
-      __ andi(i.TempRegister(1), i.TempRegister(0), 0x7);                      \
+      __ And(i.TempRegister(1), i.TempRegister(0), 0x7);                       \
     }                                                                          \
     __ Dsubu(i.TempRegister(0), i.TempRegister(0),                             \
              Operand(i.TempRegister(1)));                                      \
-    __ sll(i.TempRegister(1), i.TempRegister(1), 3);                           \
+    __ Sll(i.TempRegister(1), i.TempRegister(1), 3);                           \
     __ sync();                                                                 \
     __ bind(&exchange);                                                        \
     __ load_linked(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));       \
@@ -422,13 +422,13 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
   do {                                                                         \
     Label compareExchange;                                                     \
     Label exit;                                                                \
-    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
+    __ Daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     __ sync();                                                                 \
     __ bind(&compareExchange);                                                 \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));     \
     __ BranchShort(&exit, ne, i.InputRegister(2),                              \
                    Operand(i.OutputRegister(0)));                              \
-    __ mov(i.TempRegister(2), i.InputRegister(3));                             \
+    __ Move(i.TempRegister(2), i.InputRegister(3));                            \
     __ store_conditional(i.TempRegister(2), MemOperand(i.TempRegister(0), 0)); \
     __ BranchShort(&compareExchange, eq, i.TempRegister(2),                    \
                    Operand(zero_reg));                                         \
@@ -441,16 +441,16 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
   do {                                                                         \
     Label compareExchange;                                                     \
     Label exit;                                                                \
-    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
+    __ Daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     if (representation == 32) {                                                \
-      __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                      \
+      __ And(i.TempRegister(1), i.TempRegister(0), 0x3);                       \
     } else {                                                                   \
       DCHECK_EQ(representation, 64);                                           \
-      __ andi(i.TempRegister(1), i.TempRegister(0), 0x7);                      \
+      __ And(i.TempRegister(1), i.TempRegister(0), 0x7);                       \
     }                                                                          \
     __ Dsubu(i.TempRegister(0), i.TempRegister(0),                             \
              Operand(i.TempRegister(1)));                                      \
-    __ sll(i.TempRegister(1), i.TempRegister(1), 3);                           \
+    __ Sll(i.TempRegister(1), i.TempRegister(1), 3);                           \
     __ sync();                                                                 \
     __ bind(&compareExchange);                                                 \
     __ load_linked(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));       \
@@ -497,7 +497,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
   } while (0)
 
 void CodeGenerator::AssembleDeconstructFrame() {
-  __ mov(sp, fp);
+  __ Move(sp, fp);
   __ Pop(ra, fp);
 }
 
@@ -597,15 +597,15 @@ void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
   //    poison = ~(difference >> (kBitsPerSystemPointer - 1))
   __ ComputeCodeStartAddress(kScratchReg);
   __ Move(kSpeculationPoisonRegister, kScratchReg);
-  __ subu(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+  __ Subu(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
           kJavaScriptCallCodeStartRegister);
-  __ subu(kJavaScriptCallCodeStartRegister, kJavaScriptCallCodeStartRegister,
+  __ Subu(kJavaScriptCallCodeStartRegister, kJavaScriptCallCodeStartRegister,
           kScratchReg);
-  __ or_(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         kJavaScriptCallCodeStartRegister);
-  __ sra(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         kBitsPerSystemPointer - 1);
-  __ nor(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+  __ RV_or_(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+            kJavaScriptCallCodeStartRegister);
+  __ Dsra(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+          kBitsPerSystemPointer - 1);
+  __ Nor(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
          kSpeculationPoisonRegister);
 }
 
@@ -630,7 +630,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_IMPLIES(
             HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ daddiu(reg, reg, Code::kHeaderSize - kHeapObjectTag);
+        __ Daddu(reg, reg, Code::kHeaderSize - kHeapObjectTag);
         __ Call(reg);
       }
       RecordCallPosition(instr);
@@ -656,7 +656,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         __ Call(wasm_code, constant.rmode());
       } else {
-        __ daddiu(kScratchReg, i.InputRegister(0), 0);
+        __ Daddu(kScratchReg, i.InputRegister(0), 0);
         __ Call(kScratchReg);
       }
       RecordCallPosition(instr);
@@ -677,7 +677,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_IMPLIES(
             HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ daddiu(reg, reg, Code::kHeaderSize - kHeapObjectTag);
+        __ Daddu(reg, reg, Code::kHeaderSize - kHeapObjectTag);
         __ Jump(reg);
       }
       frame_access_state()->ClearSPDelta();
@@ -690,7 +690,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         __ Jump(wasm_code, constant.rmode());
       } else {
-        __ daddiu(kScratchReg, i.InputRegister(0), 0);
+        __ Daddu(kScratchReg, i.InputRegister(0), 0);
         __ Jump(kScratchReg);
       }
       frame_access_state()->ClearSPDelta();
@@ -765,7 +765,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
       // from start_call to return address.
-      int offset = 48;
+      int offset = 48;  // FIXME(RISC-V): This offset may be incorrect
 #if V8_HOST_ARCH_MIPS64
       if (__ emit_debug_code()) {
         offset += 16;
@@ -773,13 +773,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
       if (isWasmCapiFunction) {
         // Put the return address in a stack slot.
-        __ mov(kScratchReg, ra);
         __ bind(&start_call);
-        __ nal();
-        __ nop();
-        __ Daddu(ra, ra, offset - 8);  // 8 = nop + nal
-        __ sd(ra, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
-        __ mov(ra, kScratchReg);
+        __ RV_auipc(kScratchReg, 0);
+        __ Daddu(kScratchReg, kScratchReg, offset);
+        __ Sd(kScratchReg,
+              MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
       }
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
@@ -863,13 +861,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Move(i.OutputRegister(), Smi::FromInt(GetStackCheckOffset()));
       break;
     case kArchFramePointer:
-      __ mov(i.OutputRegister(), fp);
+      __ Move(i.OutputRegister(), fp);
       break;
     case kArchParentFramePointer:
       if (frame_access_state()->has_frame()) {
         __ Ld(i.OutputRegister(), MemOperand(fp, 0));
       } else {
-        __ mov(i.OutputRegister(), fp);
+        __ Move(i.OutputRegister(), fp);
       }
       break;
     case kArchTruncateDoubleToI:
@@ -1035,19 +1033,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMips64Div:
       __ Div(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      if (kArchVariant == kMips64r6) {
-        __ selnez(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
-      } else {
-        __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
-      }
+      __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
     case kMips64DivU:
       __ Divu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      if (kArchVariant == kMips64r6) {
-        __ selnez(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
-      } else {
-        __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
-      }
+      __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
     case kMips64Mod:
       __ Mod(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
@@ -1060,19 +1050,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMips64Ddiv:
       __ Ddiv(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      if (kArchVariant == kMips64r6) {
-        __ selnez(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
-      } else {
-        __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
-      }
+      __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
     case kMips64DdivU:
       __ Ddivu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      if (kArchVariant == kMips64r6) {
-        __ selnez(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
-      } else {
-        __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
-      }
+      __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
     case kMips64Dmod:
       __ Dmod(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
@@ -1095,14 +1077,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMips64And32:
       __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
+      __ Sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       break;
     case kMips64Or:
       __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Or32:
       __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
+      __ Sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       break;
     case kMips64Nor:
       if (instr->InputAt(1)->IsRegister()) {
@@ -1115,11 +1097,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMips64Nor32:
       if (instr->InputAt(1)->IsRegister()) {
         __ Nor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-        __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
+        __ Sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       } else {
         DCHECK_EQ(0, i.InputOperand(1).immediate());
         __ Nor(i.OutputRegister(), i.InputRegister(0), zero_reg);
-        __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
+        __ Sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       }
       break;
     case kMips64Xor:
@@ -1127,13 +1109,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMips64Xor32:
       __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
+      __ Sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       break;
     case kMips64Clz:
       __ Clz(i.OutputRegister(), i.InputRegister(0));
       break;
     case kMips64Dclz:
-      __ dclz(i.OutputRegister(), i.InputRegister(0));
+      __ Dclz(i.OutputRegister(), i.InputRegister(0));
       break;
     case kMips64Ctz: {
       Register src = i.InputRegister(0);
@@ -1157,33 +1139,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     } break;
     case kMips64Shl:
       if (instr->InputAt(1)->IsRegister()) {
-        __ sllv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+        __ Sll(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         int64_t imm = i.InputOperand(1).immediate();
-        __ sll(i.OutputRegister(), i.InputRegister(0),
+        __ Sll(i.OutputRegister(), i.InputRegister(0),
                static_cast<uint16_t>(imm));
       }
       break;
     case kMips64Shr:
       if (instr->InputAt(1)->IsRegister()) {
-        __ sll(i.InputRegister(0), i.InputRegister(0), 0x0);
-        __ srlv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+        __ Sll(i.InputRegister(0), i.InputRegister(0), 0x0);
+        __ Srl(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         int64_t imm = i.InputOperand(1).immediate();
-        __ sll(i.OutputRegister(), i.InputRegister(0), 0x0);
-        __ srl(i.OutputRegister(), i.OutputRegister(),
+        __ Sll(i.OutputRegister(), i.InputRegister(0), 0x0);
+        __ Srl(i.OutputRegister(), i.OutputRegister(),
                static_cast<uint16_t>(imm));
       }
       break;
     case kMips64Sar:
       if (instr->InputAt(1)->IsRegister()) {
-        __ sll(i.InputRegister(0), i.InputRegister(0), 0x0);
-        __ srav(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+        __ Sll(i.InputRegister(0), i.InputRegister(0), 0x0);
+        __ Dsra(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         int64_t imm = i.InputOperand(1).immediate();
-        __ sll(i.OutputRegister(), i.InputRegister(0), 0x0);
-        __ sra(i.OutputRegister(), i.OutputRegister(),
-               static_cast<uint16_t>(imm));
+        __ Sll(i.OutputRegister(), i.InputRegister(0), 0x0);
+        __ Dsra(i.OutputRegister(), i.OutputRegister(),
+                static_cast<uint16_t>(imm));
       }
       break;
     case kMips64Ext:
@@ -1213,41 +1195,43 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMips64Dshl:
       if (instr->InputAt(1)->IsRegister()) {
-        __ dsllv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+        __ Dsll(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         int64_t imm = i.InputOperand(1).immediate();
         if (imm < 32) {
-          __ dsll(i.OutputRegister(), i.InputRegister(0),
+          __ Dsll(i.OutputRegister(), i.InputRegister(0),
                   static_cast<uint16_t>(imm));
         } else {
-          __ dsll32(i.OutputRegister(), i.InputRegister(0),
-                    static_cast<uint16_t>(imm - 32));
+          __ Dsll(i.OutputRegister(), i.InputRegister(0),
+                  static_cast<uint16_t>(imm));
         }
       }
       break;
     case kMips64Dshr:
       if (instr->InputAt(1)->IsRegister()) {
-        __ dsrlv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+        __ Dsrl(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         int64_t imm = i.InputOperand(1).immediate();
         if (imm < 32) {
-          __ dsrl(i.OutputRegister(), i.InputRegister(0),
+          __ Dsrl(i.OutputRegister(), i.InputRegister(0),
                   static_cast<uint16_t>(imm));
         } else {
-          __ dsrl32(i.OutputRegister(), i.InputRegister(0),
-                    static_cast<uint16_t>(imm - 32));
+          __ Dsrl(i.OutputRegister(), i.InputRegister(0),
+                  static_cast<uint16_t>(imm));
         }
       }
       break;
     case kMips64Dsar:
       if (instr->InputAt(1)->IsRegister()) {
-        __ dsrav(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+        __ Dsra(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         int64_t imm = i.InputOperand(1).immediate();
         if (imm < 32) {
-          __ dsra(i.OutputRegister(), i.InputRegister(0), imm);
+          __ Dsra(i.OutputRegister(), i.InputRegister(0),
+                  static_cast<uint16_t>(imm));
         } else {
-          __ dsra32(i.OutputRegister(), i.InputRegister(0), imm - 32);
+          __ Dsra(i.OutputRegister(), i.InputRegister(0),
+                  static_cast<uint16_t>(imm));
         }
       }
       break;
@@ -1268,7 +1252,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // TODO(plind): Should we combine mov/li like this, or use separate instr?
       //    - Also see x64 ASSEMBLE_BINOP & RegisterOrOperandType
       if (HasRegisterInput(instr, 0)) {
-        __ mov(i.OutputRegister(), i.InputRegister(0));
+        __ Move(i.OutputRegister(), i.InputRegister(0));
       } else {
         __ li(i.OutputRegister(), i.InputOperand(0));
       }
@@ -1597,10 +1581,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // ... more basic instructions ...
 
     case kMips64Seb:
-      __ seb(i.OutputRegister(), i.InputRegister(0));
+      __ Seb(i.OutputRegister(), i.InputRegister(0));
       break;
     case kMips64Seh:
-      __ seh(i.OutputRegister(), i.InputRegister(0));
+      __ Seh(i.OutputRegister(), i.InputRegister(0));
       break;
     case kMips64Lbu:
       __ Lbu(i.OutputRegister(), i.MemoryOperand());
@@ -1746,7 +1730,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ Ldc1(i.OutputDoubleRegister(), MemOperand(fp, offset));
         } else {
           DCHECK_EQ(op->representation(), MachineRepresentation::kFloat32);
-          __ lwc1(
+          __ Lwc1(
               i.OutputSingleRegister(0),
               MemOperand(fp, offset + kLessSignificantWordInDoublewordOffset));
         }
@@ -1940,7 +1924,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 16, 32);
       break;
     case kWord32AtomicCompareExchangeWord32:
-      __ sll(i.InputRegister(2), i.InputRegister(2), 0);
+      __ Sll(i.InputRegister(2), i.InputRegister(2), 0);
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc);
       break;
     case kMips64Word64AtomicCompareExchangeUint8:
@@ -3284,8 +3268,8 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
   } else if (instr->arch_opcode() == kMips64Dadd ||
              instr->arch_opcode() == kMips64Dsub) {
     cc = FlagsConditionToConditionOvf(condition);
-    __ dsra32(kScratchReg, i.OutputRegister(), 0);
-    __ sra(kScratchReg2, i.OutputRegister(), 31);
+    __ Dsra(kScratchReg, i.OutputRegister(), 32);
+    __ Dsra(kScratchReg2, i.OutputRegister(), 31);
     __ Branch(tlabel, cc, kScratchReg2, Operand(kScratchReg));
   } else if (instr->arch_opcode() == kMips64DaddOvf ||
              instr->arch_opcode() == kMips64DsubOvf) {
@@ -3388,9 +3372,9 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
     case kMips64Dadd:
     case kMips64Dsub: {
       // Check for overflow creates 1 or 0 for result.
-      __ dsrl32(kScratchReg, i.OutputRegister(), 31);
-      __ srl(kScratchReg2, i.OutputRegister(), 31);
-      __ xor_(kScratchReg2, kScratchReg, kScratchReg2);
+      __ Dsrl(kScratchReg, i.OutputRegister(), -1);
+      __ Srl(kScratchReg2, i.OutputRegister(), 31);
+      __ Xor(kScratchReg2, kScratchReg, kScratchReg2);
       switch (condition) {
         case kOverflow:
           __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister,
@@ -3541,11 +3525,11 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
              instr->arch_opcode() == kMips64Dsub) {
     cc = FlagsConditionToConditionOvf(condition);
     // Check for overflow creates 1 or 0 for result.
-    __ dsrl32(kScratchReg, i.OutputRegister(), 31);
-    __ srl(kScratchReg2, i.OutputRegister(), 31);
-    __ xor_(result, kScratchReg, kScratchReg2);
+    __ Dsrl(kScratchReg, i.OutputRegister(), -1);
+    __ Srl(kScratchReg2, i.OutputRegister(), 31);
+    __ Xor(result, kScratchReg, kScratchReg2);
     if (cc == eq)  // Toggle result for not overflow.
-      __ xori(result, result, 1);
+      __ Xor(result, result, 1);
     return;
   } else if (instr->arch_opcode() == kMips64DaddOvf ||
              instr->arch_opcode() == kMips64DsubOvf) {
@@ -3605,7 +3589,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
         Operand right = i.InputOperand(1);
         __ Slt(result, left, right);
         if (cc == ge) {
-          __ xori(result, result, 1);
+          __ Xor(result, result, 1);
         }
       } break;
       case gt:
@@ -3614,7 +3598,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
         Operand right = i.InputOperand(0);
         __ Slt(result, left, right);
         if (cc == le) {
-          __ xori(result, result, 1);
+          __ Xor(result, result, 1);
         }
       } break;
       case lo:
@@ -3623,7 +3607,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
         Operand right = i.InputOperand(1);
         __ Sltu(result, left, right);
         if (cc == hs) {
-          __ xori(result, result, 1);
+          __ Xor(result, result, 1);
         }
       } break;
       case hi:
@@ -3632,7 +3616,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
         Operand right = i.InputOperand(0);
         __ Sltu(result, left, right);
         if (cc == ls) {
-          __ xori(result, result, 1);
+          __ Xor(result, result, 1);
         }
       } break;
       default:
@@ -3740,7 +3724,7 @@ void CodeGenerator::AssembleConstructFrame() {
         __ Dsubu(sp, sp, Operand(kSystemPointerSize));
       } else {
         __ Push(ra, fp);
-        __ mov(fp, sp);
+        __ Move(fp, sp);
       }
     } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();
@@ -3896,7 +3880,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
     pop_count += g.ToConstant(pop).ToInt32();
   } else {
     Register pop_reg = g.ToRegister(pop);
-    __ dsll(pop_reg, pop_reg, kSystemPointerSizeLog2);
+    __ Dsll(pop_reg, pop_reg, kSystemPointerSizeLog2);
     __ Daddu(sp, sp, pop_reg);
   }
   if (pop_count != 0) {
@@ -3919,7 +3903,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     DCHECK(destination->IsRegister() || destination->IsStackSlot());
     Register src = g.ToRegister(source);
     if (destination->IsRegister()) {
-      __ mov(g.ToRegister(destination), src);
+      __ Move(g.ToRegister(destination), src);
     } else {
       __ Sd(src, g.ToMemOperand(destination));
     }
@@ -4070,7 +4054,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     } else {
       DCHECK(destination->IsStackSlot());
       MemOperand dst = g.ToMemOperand(destination);
-      __ mov(temp, src);
+      __ Move(temp, src);
       __ Ld(src, dst);
       __ Sd(temp, dst);
     }
