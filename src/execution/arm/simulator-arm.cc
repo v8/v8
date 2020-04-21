@@ -4589,7 +4589,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           case 0: {
             // vmov.i32 Qd, #<imm>
             int vd = instr->VFPDRegValue(kSimd128Precision);
-            uint64_t imm = instr->Bit(24, 24) << 7;  // i
+            uint64_t imm = instr->Bit(24) << 7;      // i
             imm |= instr->Bits(18, 16) << 4;         // imm3
             imm |= instr->Bits(3, 0);                // imm4
             imm |= imm << 32;
