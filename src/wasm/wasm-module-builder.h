@@ -241,6 +241,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
                            bool mutability, Vector<const char> module = {});
   void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
   uint32_t AddSignature(FunctionSig* sig);
+  uint32_t AddStructType(StructType* type);
   // In the current implementation, it's supported to have uninitialized slots
   // at the beginning and/or end of the indirect function table, as long as
   // the filled slots form a contiguous block in the middle.
@@ -268,9 +269,25 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   Zone* zone() { return zone_; }
 
-  FunctionSig* GetSignature(uint32_t index) { return signatures_[index]; }
+  FunctionSig* GetSignature(uint32_t index) {
+    DCHECK(types_[index].kind == Type::kFunctionSig);
+    return types_[index].sig;
+  }
 
  private:
+  struct Type {
+    enum Kind { kFunctionSig, kStructType };
+    explicit Type(FunctionSig* signature)
+        : kind(kFunctionSig), sig(signature) {}
+    explicit Type(StructType* struct_type)
+        : kind(kStructType), type(struct_type) {}
+    Kind kind;
+    union {
+      FunctionSig* sig;
+      StructType* type;
+    };
+  };
+
   struct WasmFunctionImport {
     Vector<const char> module;
     Vector<const char> name;
@@ -310,7 +327,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   friend class WasmFunctionBuilder;
   Zone* zone_;
-  ZoneVector<FunctionSig*> signatures_;
+  ZoneVector<Type> types_;
   ZoneVector<WasmFunctionImport> function_imports_;
   ZoneVector<WasmGlobalImport> global_imports_;
   ZoneVector<WasmExport> exports_;
@@ -335,7 +352,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 };
 
 inline FunctionSig* WasmFunctionBuilder::signature() {
-  return builder_->signatures_[signature_index_];
+  return builder_->types_[signature_index_].sig;
 }
 
 }  // namespace wasm

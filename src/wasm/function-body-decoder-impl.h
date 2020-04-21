@@ -2887,7 +2887,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         len += imm.length;
         if (!this->Validate(this->pc_, imm)) break;
         auto args = PopArgs(imm.struct_type);
-        auto* value = Push(ValueType(ValueType::kEqRef, imm.index));
+        auto* value = Push(ValueType(ValueType::kRef, imm.index));
         CALL_INTERFACE_IF_REACHABLE(StructNew, imm, args.begin(), value);
         break;
       }
@@ -2895,7 +2895,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         FieldIndexImmediate<validate> field(this, this->pc_ + len);
         if (!this->Validate(this->pc_ + len, field)) break;
         len += field.length;
-        auto struct_obj = Pop(0, kWasmEqRef);
+        // TODO(7748): This should take an optref, and perform a null-check.
+        auto struct_obj =
+            Pop(0, ValueType(ValueType::kRef, field.struct_index.index));
         auto* value = Push(field.struct_index.struct_type->field(field.index));
         CALL_INTERFACE_IF_REACHABLE(StructGet, struct_obj, field, value);
         break;

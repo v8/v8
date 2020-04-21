@@ -239,7 +239,7 @@ void WasmFunctionBuilder::WriteAsmWasmOffsetTable(ZoneBuffer* buffer) const {
 
 WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
     : zone_(zone),
-      signatures_(zone),
+      types_(zone),
       function_imports_(zone),
       global_imports_(zone),
       exports_(zone),
@@ -274,9 +274,15 @@ void WasmModuleBuilder::AddDataSegment(const byte* data, uint32_t size,
 uint32_t WasmModuleBuilder::AddSignature(FunctionSig* sig) {
   auto sig_entry = signature_map_.find(*sig);
   if (sig_entry != signature_map_.end()) return sig_entry->second;
-  uint32_t index = static_cast<uint32_t>(signatures_.size());
+  uint32_t index = static_cast<uint32_t>(types_.size());
   signature_map_.emplace(*sig, index);
-  signatures_.push_back(sig);
+  types_.push_back(Type(sig));
+  return index;
+}
+
+uint32_t WasmModuleBuilder::AddStructType(StructType* type) {
+  uint32_t index = static_cast<uint32_t>(types_.size());
+  types_.push_back(Type(type));
   return index;
 }
 
@@ -399,25 +405,50 @@ void WasmModuleBuilder::SetMaxMemorySize(uint32_t value) {
 
 void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
 
+namespace {
+void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
+  buffer->write_u8(type.value_type_code());
+  if (type.kind() == ValueType::kRef || type.kind() == ValueType::kOptRef) {
+    buffer->write_u32v(type.ref_index());
+  }
+}
+
+}  // namespace
+
 void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   // == Emit magic =============================================================
   buffer->write_u32(kWasmMagic);
   buffer->write_u32(kWasmVersion);
 
-  // == Emit signatures ========================================================
-  if (signatures_.size() > 0) {
+  // == Emit types =============================================================
+  if (types_.size() > 0) {
     size_t start = EmitSection(kTypeSectionCode, buffer);
-    buffer->write_size(signatures_.size());
+    buffer->write_size(types_.size());
 
-    for (FunctionSig* sig : signatures_) {
-      buffer->write_u8(kWasmFunctionTypeCode);
-      buffer->write_size(sig->parameter_count());
-      for (auto param : sig->parameters()) {
-        buffer->write_u8(param.value_type_code());
-      }
-      buffer->write_size(sig->return_count());
-      for (auto ret : sig->returns()) {
-        buffer->write_u8(ret.value_type_code());
+    for (const Type& type : types_) {
+      switch (type.kind) {
+        case Type::kFunctionSig: {
+          FunctionSig* sig = type.sig;
+          buffer->write_u8(kWasmFunctionTypeCode);
+          buffer->write_size(sig->parameter_count());
+          for (auto param : sig->parameters()) {
+            WriteValueType(buffer, param);
+          }
+          buffer->write_size(sig->return_count());
+          for (auto ret : sig->returns()) {
+            WriteValueType(buffer, ret);
+          }
+          break;
+        }
+        case Type::kStructType: {
+          StructType* struct_type = type.type;
+          buffer->write_u8(kWasmStructTypeCode);
+          buffer->write_size(struct_type->field_count());
+          for (auto field : struct_type->fields()) {
+            WriteValueType(buffer, field);
+          }
+          break;
+        }
       }
     }
     FixupSection(buffer, start);

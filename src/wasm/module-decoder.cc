@@ -1744,11 +1744,15 @@ class ModuleDecoderImpl : public Decoder {
               if (enabled_features_.has_eh()) return kWasmExnRef;
               break;
             case kLocalRef:
-              if (enabled_features_.has_gc()) return ValueType(ValueType::kRef);
+              if (enabled_features_.has_gc()) {
+                uint32_t type_index = consume_u32v("type index");
+                return ValueType(ValueType::kRef, type_index);
+              }
               break;
             case kLocalOptRef:
               if (enabled_features_.has_gc()) {
-                return ValueType(ValueType::kOptRef);
+                uint32_t type_index = consume_u32v("type index");
+                return ValueType(ValueType::kOptRef, type_index);
               }
               break;
             case kLocalEqRef:

@@ -467,6 +467,7 @@
   'test-c-wasm-entry/*': [SKIP],
   'test-compilation-cache/*': [SKIP],
   'test-jump-table-assembler/*': [SKIP],
+  'test-gc/*': [SKIP],
   'test-grow-memory/*': [SKIP],
   'test-run-wasm-64/*': [SKIP],
   'test-run-wasm-asmjs/*': [SKIP],

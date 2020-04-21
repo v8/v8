@@ -5382,8 +5382,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::ValueType::kRef:
       case wasm::ValueType::kOptRef:
       case wasm::ValueType::kEqRef:
-        // TODO(7748): Implement
-        UNIMPLEMENTED();
+        // TODO(7748): Implement properly. For now, we just expose the raw
+        // object for testing.
+        return node;
       case wasm::ValueType::kStmt:
       case wasm::ValueType::kBottom:
         UNREACHABLE();

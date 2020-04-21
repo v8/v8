@@ -1421,7 +1421,7 @@ Handle<Map> WasmInstanceObject::GetOrCreateStructMap(
   const wasm::StructType* type = module->struct_type(struct_index);
 
   int inobject_properties = 0;
-  DCHECK_LE(kMaxInt - WasmStruct::kHeaderSize, type->total_fields_size());
+  DCHECK_LE(type->total_fields_size(), kMaxInt - WasmStruct::kHeaderSize);
   int instance_size =
       WasmStruct::kHeaderSize + static_cast<int>(type->total_fields_size());
   InstanceType instance_type = WASM_STRUCT_TYPE;
