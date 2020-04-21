@@ -1624,42 +1624,42 @@ void LiftoffAssembler::emit_i16x8_uconvert_i32x4(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_sconvert_i8x16_low(LiftoffRegister dst,
                                                      LiftoffRegister src) {
-  bailout(kSimd, "i16x8_sconvert_i8x16_low");
+  Sxtl(dst.fp().V8H(), src.fp().V8B());
 }
 
 void LiftoffAssembler::emit_i16x8_sconvert_i8x16_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  bailout(kSimd, "i16x8_sconvert_i8x16_high");
+  Sxtl2(dst.fp().V8H(), src.fp().V16B());
 }
 
 void LiftoffAssembler::emit_i16x8_uconvert_i8x16_low(LiftoffRegister dst,
                                                      LiftoffRegister src) {
-  bailout(kSimd, "i16x8_uconvert_i8x16_low");
+  Uxtl(dst.fp().V8H(), src.fp().V8B());
 }
 
 void LiftoffAssembler::emit_i16x8_uconvert_i8x16_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  bailout(kSimd, "i16x8_uconvert_i8x16_high");
+  Uxtl2(dst.fp().V8H(), src.fp().V16B());
 }
 
 void LiftoffAssembler::emit_i32x4_sconvert_i16x8_low(LiftoffRegister dst,
                                                      LiftoffRegister src) {
-  bailout(kSimd, "i32x4_sconvert_i16x8_low");
+  Sxtl(dst.fp().V4S(), src.fp().V4H());
 }
 
 void LiftoffAssembler::emit_i32x4_sconvert_i16x8_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  bailout(kSimd, "i32x4_sconvert_i16x8_high");
+  Sxtl2(dst.fp().V4S(), src.fp().V8H());
 }
 
 void LiftoffAssembler::emit_i32x4_uconvert_i16x8_low(LiftoffRegister dst,
                                                      LiftoffRegister src) {
-  bailout(kSimd, "i32x4_uconvert_i16x8_low");
+  Uxtl(dst.fp().V4S(), src.fp().V4H());
 }
 
 void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  bailout(kSimd, "i32x4_uconvert_i16x8_high");
+  Uxtl2(dst.fp().V4S(), src.fp().V8H());
 }
 
 void LiftoffAssembler::emit_s128_and_not(LiftoffRegister dst,
