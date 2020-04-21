@@ -90,21 +90,59 @@ class BackgroundCompileToken {
       : native_module_(native_module) {}
 
   void Cancel() {
-    base::SharedMutexGuard<base::kExclusive> mutex_guard(&mutex_);
+    base::SharedMutexGuard<base::kExclusive> mutex_guard(
+        &compilation_scope_mutex_);
     native_module_.reset();
   }
 
  private:
   friend class BackgroundCompileScope;
-  base::SharedMutex mutex_;
-  std::weak_ptr<NativeModule> native_module_;
 
   std::shared_ptr<NativeModule> StartScope() {
-    mutex_.LockShared();
+    compilation_scope_mutex_.LockShared();
     return native_module_.lock();
   }
 
-  void ExitScope() { mutex_.UnlockShared(); }
+  // This private method can only be called via {BackgroundCompileScope}.
+  void SchedulePublishCode(NativeModule* native_module,
+                           std::vector<std::unique_ptr<WasmCode>> codes) {
+    {
+      base::MutexGuard guard(&publish_mutex_);
+      if (publisher_running_) {
+        // Add new code to the queue and return.
+        publish_queue_.reserve(publish_queue_.size() + codes.size());
+        for (auto& c : codes) publish_queue_.emplace_back(std::move(c));
+        return;
+      }
+      publisher_running_ = true;
+    }
+    while (true) {
+      PublishCode(native_module, VectorOf(codes));
+      codes.clear();
+
+      // Keep publishing new code that came in.
+      base::MutexGuard guard(&publish_mutex_);
+      DCHECK(publisher_running_);
+      if (publish_queue_.empty()) {
+        publisher_running_ = false;
+        return;
+      }
+      codes.swap(publish_queue_);
+    }
+  }
+
+  void PublishCode(NativeModule*, Vector<std::unique_ptr<WasmCode>>);
+
+  void ExitScope() { compilation_scope_mutex_.UnlockShared(); }
+
+  // {compilation_scope_mutex_} protects {native_module_}.
+  base::SharedMutex compilation_scope_mutex_;
+  std::weak_ptr<NativeModule> native_module_;
+
+  // {publish_mutex_} protects {publish_queue_} and {publisher_running_}.
+  base::Mutex publish_mutex_;
+  std::vector<std::unique_ptr<WasmCode>> publish_queue_;
+  bool publisher_running_ = false;
 };
 
 class CompilationStateImpl;
@@ -128,6 +166,12 @@ class BackgroundCompileScope {
   }
 
   inline CompilationStateImpl* compilation_state();
+
+  // Call {SchedulePublishCode} via the {BackgroundCompileScope} to guarantee
+  // that the {NativeModule} stays alive.
+  void SchedulePublishCode(std::vector<std::unique_ptr<WasmCode>> codes) {
+    token_->SchedulePublishCode(native_module_.get(), std::move(codes));
+  }
 
  private:
   BackgroundCompileToken* const token_;
@@ -577,6 +621,16 @@ const CompilationStateImpl* Impl(const CompilationState* compilation_state) {
 
 CompilationStateImpl* BackgroundCompileScope::compilation_state() {
   return Impl(native_module()->compilation_state());
+}
+
+void BackgroundCompileToken::PublishCode(
+    NativeModule* native_module, Vector<std::unique_ptr<WasmCode>> code) {
+  WasmCodeRefScope code_ref_scope;
+  std::vector<WasmCode*> published_code = native_module->PublishCode(code);
+  native_module->engine()->LogCode(VectorOf(published_code));
+
+  Impl(native_module->compilation_state())
+      ->OnFinishedUnits(VectorOf(published_code));
 }
 
 void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
@@ -1058,22 +1112,16 @@ bool ExecuteCompilationUnits(
     TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "PublishResults",
                  "num_results", results_to_publish.size());
     if (results_to_publish.empty()) return;
-    WasmCodeRefScope code_ref_scope;
     std::vector<std::unique_ptr<WasmCode>> unpublished_code =
         compile_scope->native_module()->AddCompiledCode(
             VectorOf(results_to_publish));
     results_to_publish.clear();
-    // TODO(clemensb): Avoid blocking to publish code
-    // (https://crbug.com/v8/10330).
-    std::vector<WasmCode*> code_vector =
-        compile_scope->native_module()->PublishCode(
-            VectorOf(std::move(unpublished_code)));
 
     // For import wrapper compilation units, add result to the cache.
     const NativeModule* native_module = compile_scope->native_module();
     int num_imported_functions = native_module->num_imported_functions();
     WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
-    for (WasmCode* code : code_vector) {
+    for (const auto& code : unpublished_code) {
       int func_index = code->index();
       DCHECK_LE(0, func_index);
       DCHECK_LT(func_index, native_module->num_functions());
@@ -1086,14 +1134,12 @@ bool ExecuteCompilationUnits(
         // have been added as a compilation unit. So it is always the first time
         // we compile a wrapper for this key here.
         DCHECK_NULL((*cache)[key]);
-        (*cache)[key] = code;
+        (*cache)[key] = code.get();
         code->IncRef();
       }
     }
 
-    native_module->engine()->LogCode(VectorOf(code_vector));
-
-    compile_scope->compilation_state()->OnFinishedUnits(VectorOf(code_vector));
+    compile_scope->SchedulePublishCode(std::move(unpublished_code));
   };
 
   bool compilation_failed = false;

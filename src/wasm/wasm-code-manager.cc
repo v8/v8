@@ -267,6 +267,8 @@ void WasmCode::LogCode(Isolate* isolate) const {
 
 void WasmCode::Validate() const {
 #ifdef DEBUG
+  // Scope for foreign WasmCode pointers.
+  WasmCodeRefScope code_ref_scope;
   // We expect certain relocation info modes to never appear in {WasmCode}
   // objects or to be restricted to a small set of valid values. Hence the
   // iteration below does not use a mask, but visits all relocation data.
