@@ -811,6 +811,45 @@ void TurboAssembler::Sll(Register rd, Register rs, const Operand& rt) {
   }
 }
 
+void TurboAssembler::Seb(Register rd, const Operand& rt) {
+  DCHECK(rt.is_reg());
+  RV_slli(rd, rt.rm(), 64 - 8);
+  RV_srai(rd, rt.rm(), 64 - 8);
+}
+
+void TurboAssembler::Seh(Register rd, const Operand& rt) {
+  DCHECK(rt.is_reg());
+  RV_slli(rd, rt.rm(), 64 - 16);
+  RV_srai(rd, rt.rm(), 64 - 16);
+}
+
+void TurboAssembler::Srl(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg())
+    RV_srlw(rd, rs, rt.rm());
+  else {
+    int64_t shamt = rt.immediate();
+    RV_srliw(rd, rs, shamt);
+  }
+}
+
+void TurboAssembler::Dsra(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg())
+    RV_sra(rd, rs, rt.rm());
+  else {
+    int64_t shamt = rt.immediate();
+    RV_srai(rd, rs, shamt);
+  }
+}
+
+void TurboAssembler::Dsrl(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg())
+    RV_srl(rd, rs, rt.rm());
+  else {
+    int64_t shamt = rt.immediate();
+    RV_srli(rd, rs, shamt);
+  }
+}
+
 void TurboAssembler::Dsll(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg())
     RV_sll(rd, rs, rt.rm());
@@ -858,6 +897,14 @@ void TurboAssembler::Dror(Register rd, Register rs, const Operand& rt) {
     RV_slli(rd, rs, 64 - dror_value);
     RV_or_(rd, scratch, rd);
   }
+}
+
+void TurboAssembler::Selnez(Register rd, Register rs, const Operand& rt) {
+  DCHECK(rt.is_reg());
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  RV_snez(scratch, rt.rm());  // scratch = 0 if rt is zero, 1 otherwise.
+  RV_mul(rd, rs, scratch);    // scratch * rs = rs or zero
 }
 
 // void MacroAssembler::Pref(int32_t hint, const MemOperand& rs) {
@@ -2270,25 +2317,17 @@ void TurboAssembler::Move(FPURegister dst, uint64_t src) {
 }
 
 void TurboAssembler::Movz(Register rd, Register rs, Register rt) {
-  if (kArchVariant == kMips64r6) {
-    Label done;
-    Branch(&done, ne, rt, Operand(zero_reg));
-    mov(rd, rs);
-    bind(&done);
-  } else {
-    movz(rd, rs, rt);
-  }
+  Label done;
+  Branch(&done, ne, rt, Operand(zero_reg));
+  mov(rd, rs);
+  bind(&done);
 }
 
 void TurboAssembler::Movn(Register rd, Register rs, Register rt) {
-  if (kArchVariant == kMips64r6) {
-    Label done;
-    Branch(&done, eq, rt, Operand(zero_reg));
-    mov(rd, rs);
-    bind(&done);
-  } else {
-    movn(rd, rs, rt);
-  }
+  Label done;
+  Branch(&done, eq, rt, Operand(zero_reg));
+  mov(rd, rs);
+  bind(&done);
 }
 
 void TurboAssembler::LoadZeroOnCondition(Register rd, Register rs,
@@ -2394,11 +2433,7 @@ void TurboAssembler::LoadZeroIfConditionNotZero(Register dest,
 
 void TurboAssembler::LoadZeroIfConditionZero(Register dest,
                                              Register condition) {
-  if (kArchVariant == kMips64r6) {
-    selnez(dest, dest, condition);
-  } else {
-    Movz(dest, zero_reg, condition);
-  }
+  Movz(dest, zero_reg, condition);
 }
 
 void TurboAssembler::LoadZeroIfFPUCondition(Register dest) {
@@ -2419,60 +2454,138 @@ void TurboAssembler::Movf(Register rd, Register rs, uint16_t cc) {
   movf(rd, rs, cc);
 }
 
-void TurboAssembler::Clz(Register rd, Register rs) { clz(rd, rs); }
+void TurboAssembler::Clz(Register rd, Register xx) {
+  // 32 bit unsigned in lower word: count number of leading zeros.
+  /*
+     int n = 32;
+     unsigned y;
 
-void TurboAssembler::Dclz(Register rd, Register rs) { dclz(rd, rs); }
+     y = x >>16; if (y != 0) { n = n -16; x = y; }
+     y = x >> 8; if (y != 0) { n = n - 8; x = y; }
+     y = x >> 4; if (y != 0) { n = n - 4; x = y; }
+     y = x >> 2; if (y != 0) { n = n - 2; x = y; }
+     y = x >> 1; if (y != 0) {rd = n - 2; return;}
+     rd = n - x;
+  */
+  Label L0, L1, L2, L3, L4;
+  UseScratchRegisterScope temps(this);
+  UseScratchRegisterScope block_trampoline_pool(this);
+  Register x = temps.Acquire();
+  Register y = t5;
+  Register n = t6;
+  Move(x, xx);
+  li(n, Operand(32));
+  RV_srliw(y, x, 16);
+  Branch(&L0, eq, y, Operand(zero_reg));
+  Move(x, y);
+  RV_addiw(n, n, -16);
+  bind(&L0);
+  RV_srliw(y, x, 8);
+  Branch(&L1, eq, y, Operand(zero_reg));
+  RV_addiw(n, n, -8);
+  Move(x, y);
+  bind(&L1);
+  RV_srliw(y, x, 4);
+  Branch(&L2, eq, y, Operand(zero_reg));
+  RV_addiw(n, n, -4);
+  Move(x, y);
+  bind(&L2);
+  RV_srliw(y, x, 2);
+  Branch(&L3, eq, y, Operand(zero_reg));
+  RV_addiw(n, n, -2);
+  Move(x, y);
+  bind(&L3);
+  RV_srliw(y, x, 1);
+  RV_subw(rd, n, x);
+  Branch(&L4, eq, y, Operand(zero_reg));
+  RV_addiw(rd, n, -2);
+  bind(&L4);
+}
+
+void TurboAssembler::Dclz(Register rd, Register xx) {
+  // 64 bit: count number of leading zeros.
+  /*
+     int n = 64;
+     unsigned y;
+
+     y = x >>32; if (y != 0) { n = n - 32; x = y; }
+     y = x >>16; if (y != 0) { n = n - 16; x = y; }
+     y = x >> 8; if (y != 0) { n = n - 8; x = y; }
+     y = x >> 4; if (y != 0) { n = n - 4; x = y; }
+     y = x >> 2; if (y != 0) { n = n - 2; x = y; }
+     y = x >> 1; if (y != 0) {rd = n - 2; return;}
+     rd = n - x;
+  */
+  Label L0, L1, L2, L3, L4;
+  UseScratchRegisterScope temps(this);
+  UseScratchRegisterScope block_trampoline_pool(this);
+  Register x = temps.Acquire();
+  Register y = t5;
+  Register n = t6;
+  Move(x, xx);
+  li(n, Operand(64));
+  RV_srli(y, x, 32);
+  Branch(&L0, eq, y, Operand(zero_reg));
+  RV_addiw(n, n, -32);
+  Move(x, y);
+  bind(&L0);
+  RV_srli(y, x, 16);
+  Branch(&L1, eq, y, Operand(zero_reg));
+  RV_addiw(n, n, -16);
+  Move(x, y);
+  bind(&L1);
+  RV_srli(y, x, 8);
+  Branch(&L2, eq, y, Operand(zero_reg));
+  RV_addiw(n, n, -8);
+  Move(x, y);
+  bind(&L2);
+  RV_srli(y, x, 4);
+  Branch(&L3, eq, y, Operand(zero_reg));
+  RV_addiw(n, n, -4);
+  Move(x, y);
+  bind(&L3);
+  RV_srli(y, x, 2);
+  Branch(&L4, eq, y, Operand(zero_reg));
+  RV_addiw(n, n, -2);
+  Move(x, y);
+  bind(&L4);
+  RV_srli(y, x, 1);
+  RV_subw(rd, n, x);
+  Branch(&L4, eq, y, Operand(zero_reg));
+  RV_addiw(rd, n, -2);
+  bind(&L4);
+}
 
 void TurboAssembler::Ctz(Register rd, Register rs) {
-  if (kArchVariant == kMips64r6) {
-    // We don't have an instruction to count the number of trailing zeroes.
-    // Start by flipping the bits end-for-end so we can count the number of
-    // leading zeroes instead.
-    rotr(rd, rs, 16);
-    wsbh(rd, rd);
-    bitswap(rd, rd);
-    Clz(rd, rd);
-  } else {
-    // Convert trailing zeroes to trailing ones, and bits to their left
-    // to zeroes.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    Daddu(scratch, rs, -1);
-    Xor(rd, scratch, rs);
-    And(rd, rd, scratch);
-    // Count number of leading zeroes.
-    Clz(rd, rd);
-    // Subtract number of leading zeroes from 32 to get number of trailing
-    // ones. Remember that the trailing ones were formerly trailing zeroes.
-    li(scratch, 32);
-    Subu(rd, scratch, rd);
-  }
+  // Convert trailing zeroes to trailing ones, and bits to their left
+  // to zeroes.
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Daddu(scratch, rs, -1);
+  Xor(rd, scratch, rs);
+  And(scratch, rd, scratch);
+  // Count number of leading zeroes.
+  Clz(rd, scratch);
+  // Subtract number of leading zeroes from 32 to get number of trailing
+  // ones. Remember that the trailing ones were formerly trailing zeroes.
+  li(scratch, 32);
+  Subu(rd, scratch, rd);
 }
 
 void TurboAssembler::Dctz(Register rd, Register rs) {
-  if (kArchVariant == kMips64r6) {
-    // We don't have an instruction to count the number of trailing zeroes.
-    // Start by flipping the bits end-for-end so we can count the number of
-    // leading zeroes instead.
-    dsbh(rd, rs);
-    dshd(rd, rd);
-    dbitswap(rd, rd);
-    dclz(rd, rd);
-  } else {
-    // Convert trailing zeroes to trailing ones, and bits to their left
-    // to zeroes.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    Daddu(scratch, rs, -1);
-    Xor(rd, scratch, rs);
-    And(rd, rd, scratch);
-    // Count number of leading zeroes.
-    dclz(rd, rd);
-    // Subtract number of leading zeroes from 64 to get number of trailing
-    // ones. Remember that the trailing ones were formerly trailing zeroes.
-    li(scratch, 64);
-    Dsubu(rd, scratch, rd);
-  }
+  // Convert trailing zeroes to trailing ones, and bits to their left
+  // to zeroes.
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Daddu(scratch, rs, -1);
+  Xor(rd, scratch, rs);
+  And(scratch, rd, scratch);
+  // Count number of leading zeroes.
+  Dclz(rd, scratch);
+  // Subtract number of leading zeroes from 64 to get number of trailing
+  // ones. Remember that the trailing ones were formerly trailing zeroes.
+  li(scratch, 64);
+  Dsubu(rd, scratch, rd);
 }
 
 void TurboAssembler::Popcnt(Register rd, Register rs) {
