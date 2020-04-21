@@ -4275,17 +4275,11 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
 
   {
-    // Create %FinalizationRegistryPrototype%
-    Handle<String> finalization_registry_name =
-        factory->NewStringFromStaticChars("FinalizationRegistry");
-    Handle<JSObject> finalization_registry_prototype = factory->NewJSObject(
-        isolate()->object_function(), AllocationType::kOld);
-
     // Create %FinalizationRegistry%
-    Handle<JSFunction> finalization_registry_fun = CreateFunction(
-        isolate(), finalization_registry_name, JS_FINALIZATION_REGISTRY_TYPE,
-        JSFinalizationRegistry::kHeaderSize, 0, finalization_registry_prototype,
-        Builtins::kFinalizationRegistryConstructor);
+    Handle<JSFunction> finalization_registry_fun = InstallFunction(
+        isolate(), global, factory->FinalizationRegistry_string(),
+        JS_FINALIZATION_REGISTRY_TYPE, JSFinalizationRegistry::kHeaderSize, 0,
+        factory->the_hole_value(), Builtins::kFinalizationRegistryConstructor);
     InstallWithIntrinsicDefaultProto(
         isolate(), finalization_registry_fun,
         Context::JS_FINALIZATION_REGISTRY_FUNCTION_INDEX);
@@ -4293,16 +4287,12 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     finalization_registry_fun->shared().DontAdaptArguments();
     finalization_registry_fun->shared().set_length(1);
 
-    // Install the "constructor" property on the prototype.
-    JSObject::AddProperty(isolate(), finalization_registry_prototype,
-                          factory->constructor_string(),
-                          finalization_registry_fun, DONT_ENUM);
+    Handle<JSObject> finalization_registry_prototype(
+        JSObject::cast(finalization_registry_fun->instance_prototype()),
+        isolate());
 
     InstallToStringTag(isolate(), finalization_registry_prototype,
-                       finalization_registry_name);
-
-    JSObject::AddProperty(isolate(), global, finalization_registry_name,
-                          finalization_registry_fun, DONT_ENUM);
+                       factory->FinalizationRegistry_string());
 
     SimpleInstallFunction(isolate(), finalization_registry_prototype,
                           "register", Builtins::kFinalizationRegistryRegister,
@@ -4322,39 +4312,25 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     native_context()->set_finalization_registry_cleanup_some(*cleanup_some_fun);
   }
   {
-    // Create %WeakRefPrototype%
-    Handle<Map> weak_ref_map =
-        factory->NewMap(JS_WEAK_REF_TYPE, JSWeakRef::kHeaderSize);
-    DCHECK(weak_ref_map->IsJSObjectMap());
-
-    Handle<JSObject> weak_ref_prototype = factory->NewJSObject(
-        isolate()->object_function(), AllocationType::kOld);
-    Map::SetPrototype(isolate(), weak_ref_map, weak_ref_prototype);
-
-    InstallToStringTag(isolate(), weak_ref_prototype,
-                       factory->WeakRef_string());
-
-    SimpleInstallFunction(isolate(), weak_ref_prototype, "deref",
-                          Builtins::kWeakRefDeref, 0, false);
-
     // Create %WeakRef%
-    Handle<String> weak_ref_name = factory->InternalizeUtf8String("WeakRef");
-    Handle<JSFunction> weak_ref_fun = CreateFunction(
-        isolate(), weak_ref_name, JS_WEAK_REF_TYPE, JSWeakRef::kHeaderSize, 0,
-        weak_ref_prototype, Builtins::kWeakRefConstructor);
+    Handle<JSFunction> weak_ref_fun = InstallFunction(
+        isolate(), global, factory->WeakRef_string(), JS_WEAK_REF_TYPE,
+        JSWeakRef::kHeaderSize, 0, factory->the_hole_value(),
+        Builtins::kWeakRefConstructor);
     InstallWithIntrinsicDefaultProto(isolate(), weak_ref_fun,
                                      Context::JS_WEAK_REF_FUNCTION_INDEX);
 
     weak_ref_fun->shared().DontAdaptArguments();
     weak_ref_fun->shared().set_length(1);
 
-    // Install the "constructor" property on the prototype.
-    JSObject::AddProperty(isolate(), weak_ref_prototype,
-                          factory->constructor_string(), weak_ref_fun,
-                          DONT_ENUM);
+    Handle<JSObject> weak_ref_prototype(
+        JSObject::cast(weak_ref_fun->instance_prototype()), isolate());
 
-    JSObject::AddProperty(isolate(), global, weak_ref_name, weak_ref_fun,
-                          DONT_ENUM);
+    InstallToStringTag(isolate(), weak_ref_prototype,
+                       factory->WeakRef_string());
+
+    SimpleInstallFunction(isolate(), weak_ref_prototype, "deref",
+                          Builtins::kWeakRefDeref, 0, false);
   }
 }
 
