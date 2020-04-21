@@ -600,6 +600,24 @@ class WasmGraphBuildingInterface {
     BUILD(TableFill, imm.index, start.node, value.node, count.node);
   }
 
+  void StructNew(FullDecoder* decoder,
+                 const StructIndexImmediate<validate>& imm, const Value args[],
+                 Value* result) {
+    uint32_t field_count = imm.struct_type->field_count();
+    base::SmallVector<TFNode*, 16> arg_nodes(field_count);
+    for (uint32_t i = 0; i < field_count; i++) {
+      arg_nodes[i] = args[i].node;
+    }
+    result->node =
+        BUILD(StructNew, imm.index, imm.struct_type, VectorOf(arg_nodes));
+  }
+
+  void StructGet(FullDecoder* decoder, const Value& struct_object,
+                 const FieldIndexImmediate<validate>& field, Value* result) {
+    result->node = BUILD(StructGet, struct_object.node,
+                         field.struct_index.struct_type, field.index);
+  }
+
  private:
   SsaEnv* ssa_env_ = nullptr;
   compiler::WasmGraphBuilder* builder_;

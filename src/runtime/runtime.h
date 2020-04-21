@@ -577,7 +577,8 @@ namespace internal {
   F(WasmCompileLazy, 2, 1)              \
   F(WasmNewMultiReturnFixedArray, 1, 1) \
   F(WasmNewMultiReturnJSArray, 1, 1)    \
-  F(WasmDebugBreak, 0, 1)
+  F(WasmDebugBreak, 0, 1)               \
+  F(WasmStructNew, 1, 1)
 
 #define FOR_EACH_INTRINSIC_WEAKREF(F, I) \
   F(ShrinkFinalizationRegistryUnregisterTokenMap, 1, 1)

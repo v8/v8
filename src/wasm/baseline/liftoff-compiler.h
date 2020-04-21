@@ -45,6 +45,7 @@ enum LiftoffBailoutReason : int8_t {
   kAtomics = 10,
   kBulkMemory = 11,
   kNonTrappingFloatToInt = 12,
+  kGC = 13,
   // A little gap, for forward compatibility.
   // Any other reason (use rarely; introduce new reasons if this spikes).
   kOtherReason = 20,

@@ -3234,6 +3234,18 @@ class LiftoffCompiler {
     unsupported(decoder, kAnyRef, "table.fill");
   }
 
+  void StructNew(FullDecoder* decoder,
+                 const StructIndexImmediate<validate>& imm, const Value args[],
+                 Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "struct.new");
+  }
+  void StructGet(FullDecoder* decoder, const Value& struct_obj,
+                 const FieldIndexImmediate<validate>& field, Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "struct.get");
+  }
+
  private:
   // Emit additional source positions for return addresses. Used by debugging to
   // OSR frames with different sets of breakpoints.

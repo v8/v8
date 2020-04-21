@@ -385,6 +385,11 @@ class WasmGraphBuilder {
   Node* TableSize(uint32_t table_index);
   Node* TableFill(uint32_t table_index, Node* start, Node* value, Node* count);
 
+  Node* StructNew(uint32_t struct_index, const wasm::StructType* type,
+                  Vector<Node*> fields);
+  Node* StructGet(Node* struct_object, const wasm::StructType* type,
+                  uint32_t field_index);
+
   bool has_simd() const { return has_simd_; }
 
   wasm::UseTrapHandler use_trap_handler() const {

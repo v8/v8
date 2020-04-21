@@ -374,6 +374,29 @@ struct TableIndexImmediate {
 };
 
 template <Decoder::ValidateFlag validate>
+struct StructIndexImmediate {
+  uint32_t index = 0;
+  uint32_t length = 0;
+  const StructType* struct_type = nullptr;
+  inline StructIndexImmediate(Decoder* decoder, const byte* pc) {
+    index = decoder->read_u32v<validate>(pc, &length, "struct index");
+  }
+};
+
+template <Decoder::ValidateFlag validate>
+struct FieldIndexImmediate {
+  StructIndexImmediate<validate> struct_index;
+  uint32_t index = 0;
+  uint32_t length = 0;
+  inline FieldIndexImmediate(Decoder* decoder, const byte* pc)
+      : struct_index(decoder, pc) {
+    index = decoder->read_u32v<validate>(pc + struct_index.length, &length,
+                                         "field index");
+    length += struct_index.length;
+  }
+};
+
+template <Decoder::ValidateFlag validate>
 struct CallIndirectImmediate {
   uint32_t table_index;
   uint32_t sig_index;
@@ -774,7 +797,11 @@ enum class LoadTransformationKind : uint8_t {
     const Value& delta, Value* result)                                        \
   F(TableSize, const TableIndexImmediate<validate>& imm, Value* result)       \
   F(TableFill, const TableIndexImmediate<validate>& imm, const Value& start,  \
-    const Value& value, const Value& count)
+    const Value& value, const Value& count)                                   \
+  F(StructNew, const StructIndexImmediate<validate>& imm, const Value args[], \
+    Value* result)                                                            \
+  F(StructGet, const Value& struct_object,                                    \
+    const FieldIndexImmediate<validate>& field, Value* result)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
 // lengths, etc.
@@ -987,6 +1014,27 @@ class WasmDecoder : public Decoder {
     imm.global = &module_->globals[imm.index];
     imm.type = imm.global->type;
     return true;
+  }
+
+  inline bool Complete(const byte* pc, StructIndexImmediate<validate>& imm) {
+    if (!VALIDATE(module_ != nullptr && module_->has_struct(imm.index))) {
+      return false;
+    }
+    imm.struct_type = module_->struct_type(imm.index);
+    return true;
+  }
+
+  inline bool Validate(const byte* pc, StructIndexImmediate<validate>& imm) {
+    if (Complete(pc, imm)) return true;
+    errorf(pc, "invalid struct index: %u", imm.index);
+    return false;
+  }
+
+  inline bool Validate(const byte* pc, FieldIndexImmediate<validate>& imm) {
+    if (!Validate(pc, imm.struct_index)) return false;
+    if (imm.index < imm.struct_index.struct_type->field_count()) return true;
+    errorf(pc + imm.struct_index.length, "invalid field index: %u", imm.index);
+    return false;
   }
 
   inline bool CanReturnCall(const FunctionSig* target_sig) {
@@ -2371,6 +2419,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           len += DecodeAtomicOpcode(opcode);
           break;
         }
+        case kGCPrefix: {
+          CHECK_PROTOTYPE_OPCODE(gc);
+          byte gc_index =
+              this->template read_u8<validate>(this->pc_ + 1, "gc index");
+          opcode = static_cast<WasmOpcode>(opcode << 8 | gc_index);
+          TRACE_PART(TRACE_INST_FORMAT, startrel(this->pc_),
+                     WasmOpcodes::OpcodeName(opcode));
+          len = DecodeGCOpcode(opcode);
+          break;
+        }
 // Note that prototype opcodes are not handled in the fastpath
 // above this switch, to avoid checking a feature flag.
 #define SIMPLE_PROTOTYPE_CASE(name, opc, sig) \
@@ -2500,6 +2558,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     ArgVector args(count);
     for (int i = count - 1; i >= 0; --i) {
       args[i] = Pop(i, sig->GetParam(i));
+    }
+    return args;
+  }
+
+  V8_INLINE ArgVector PopArgs(const StructType* type) {
+    int count = static_cast<int>(type->field_count());
+    ArgVector args(count);
+    for (int i = count - 1; i >= 0; i--) {
+      args[i] = Pop(i, type->field(i));
     }
     return args;
   }
@@ -2808,6 +2875,49 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             sig->return_count() == 0 ? nullptr : Push(GetReturnType(sig));
         CALL_INTERFACE_IF_REACHABLE(SimdOp, opcode, VectorOf(args), results);
       }
+    }
+    return len;
+  }
+
+  uint32_t DecodeGCOpcode(WasmOpcode opcode) {
+    uint32_t len = 2;
+    switch (opcode) {
+      case kExprStructNew: {
+        StructIndexImmediate<validate> imm(this, this->pc_ + len);
+        len += imm.length;
+        if (!this->Validate(this->pc_, imm)) break;
+        auto args = PopArgs(imm.struct_type);
+        auto* value = Push(ValueType(ValueType::kEqRef, imm.index));
+        CALL_INTERFACE_IF_REACHABLE(StructNew, imm, args.begin(), value);
+        break;
+      }
+      case kExprStructGet: {
+        FieldIndexImmediate<validate> field(this, this->pc_ + len);
+        if (!this->Validate(this->pc_ + len, field)) break;
+        len += field.length;
+        auto struct_obj = Pop(0, kWasmEqRef);
+        auto* value = Push(field.struct_index.struct_type->field(field.index));
+        CALL_INTERFACE_IF_REACHABLE(StructGet, struct_obj, field, value);
+        break;
+      }
+      case kExprStructSet:
+        UNIMPLEMENTED();  // TODO(7748): Implement.
+        break;
+      case kExprArrayNew:
+        UNIMPLEMENTED();  // TODO(7748): Implement.
+        break;
+      case kExprArrayGet:
+        UNIMPLEMENTED();  // TODO(7748): Implement.
+        break;
+      case kExprArraySet:
+        UNIMPLEMENTED();  // TODO(7748): Implement.
+        break;
+      case kExprArrayLen:
+        UNIMPLEMENTED();  // TODO(7748): Implement.
+        break;
+      default:
+        this->error("invalid gc opcode");
+        return 0;
     }
     return len;
   }
@@ -3222,6 +3332,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (WasmOpcodes::IsAnyRefOpcode(opcode)) {
       RET_ON_PROTOTYPE_OPCODE(anyref);
     }
+    // TODO(7748): Add RefEq support here.
     const FunctionSig* sig = WasmOpcodes::Signature(opcode);
     BuildSimpleOperator(opcode, sig);
   }

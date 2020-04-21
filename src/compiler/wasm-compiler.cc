@@ -5054,6 +5054,47 @@ Node* WasmGraphBuilder::TableFill(uint32_t table_index, Node* start,
   return BuildCallToRuntime(Runtime::kWasmTableFill, args, arraysize(args));
 }
 
+MachineType FieldType(const wasm::StructType* type, uint32_t field_index) {
+  return MachineType::TypeForRepresentation(
+      type->field(field_index).machine_representation());
+}
+
+Node* FieldOffset(MachineGraph* graph, const wasm::StructType* type,
+                  uint32_t field_index) {
+  int offset = WasmStruct::kHeaderSize + type->field_offset(field_index) -
+               kHeapObjectTag;
+  return graph->IntPtrConstant(offset);
+}
+
+Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
+                                  const wasm::StructType* type,
+                                  Vector<Node*> fields) {
+  Node* runtime_args[] = {
+      graph()->NewNode(mcgraph()->common()->NumberConstant(struct_index))};
+  // TODO(7748): Make this more efficient: ideally an inline allocation,
+  // or at least go through a builtin to save code size.
+  Node* s = BuildCallToRuntime(Runtime::kWasmStructNew, runtime_args,
+                               arraysize(runtime_args));
+  for (uint32_t i = 0; i < type->field_count(); i++) {
+    wasm::ValueType field_type = type->field(i);
+    WriteBarrierKind write_barrier = type->field(i).IsReferenceType()
+                                         ? kPointerWriteBarrier
+                                         : kNoWriteBarrier;
+    StoreRepresentation rep(field_type.machine_representation(), write_barrier);
+    Node* offset = FieldOffset(mcgraph(), type, i);
+    gasm_->Store(rep, s, offset, fields[i]);
+  }
+  return s;
+}
+
+Node* WasmGraphBuilder::StructGet(Node* struct_object,
+                                  const wasm::StructType* type,
+                                  uint32_t field_index) {
+  MachineType machine_type = FieldType(type, field_index);
+  Node* offset = FieldOffset(mcgraph(), type, field_index);
+  return gasm_->Load(machine_type, struct_object, offset);
+}
+
 class WasmDecorator final : public GraphDecorator {
  public:
   explicit WasmDecorator(NodeOriginTable* origins, wasm::Decoder* decoder)
