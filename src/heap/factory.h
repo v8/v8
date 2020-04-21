@@ -546,6 +546,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSModuleNamespace> NewJSModuleNamespace();
 
+  Handle<WasmStruct> NewWasmStruct(Handle<Map> map);
+
   Handle<SourceTextModule> NewSourceTextModule(Handle<SharedFunctionInfo> code);
   Handle<SyntheticModule> NewSyntheticModule(
       Handle<String> module_name, Handle<FixedArray> export_names,

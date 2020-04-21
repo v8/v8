@@ -1689,6 +1689,45 @@ void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void WasmStruct::WasmStructPrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "WasmStruct");
+  wasm::StructType* struct_type = type();
+  os << "\n - fields (" << struct_type->field_count() << "):";
+  for (uint32_t i = 0; i < struct_type->field_count(); i++) {
+    wasm::ValueType field = struct_type->field(i);
+    os << "\n   - " << field.short_name() << ": ";
+    uint32_t field_offset = struct_type->field_offset(i);
+    Address field_address = RawField(field_offset).address();
+    switch (field.kind()) {
+      case wasm::ValueType::kI32:
+        os << base::ReadUnalignedValue<int32_t>(field_address);
+        break;
+      case wasm::ValueType::kI64:
+        os << base::ReadUnalignedValue<int64_t>(field_address);
+        break;
+      case wasm::ValueType::kF32:
+        os << base::ReadUnalignedValue<float>(field_address);
+        break;
+      case wasm::ValueType::kF64:
+        os << base::ReadUnalignedValue<double>(field_address);
+        break;
+      case wasm::ValueType::kS128:
+      case wasm::ValueType::kAnyRef:
+      case wasm::ValueType::kFuncRef:
+      case wasm::ValueType::kNullRef:
+      case wasm::ValueType::kExnRef:
+      case wasm::ValueType::kRef:
+      case wasm::ValueType::kOptRef:
+      case wasm::ValueType::kEqRef:
+      case wasm::ValueType::kBottom:
+      case wasm::ValueType::kStmt:
+        UNIMPLEMENTED();  // TODO(7748): Implement.
+        break;
+    }
+  }
+  os << "\n";
+}
+
 void WasmDebugInfo::WasmDebugInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmDebugInfo");
   os << "\n - wasm_instance: " << Brief(wasm_instance());

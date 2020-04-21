@@ -367,6 +367,9 @@ VisitorId Map::GetVisitorId(Map map) {
     case SYNTHETIC_MODULE_TYPE:
       return kVisitSyntheticModule;
 
+    case WASM_STRUCT_TYPE:
+      return kVisitWasmStruct;  // TODO(7748): Other Wasm object types.
+
 #define MAKE_TQ_CASE(TYPE, Name) \
   case TYPE:                     \
     return kVisit##Name;

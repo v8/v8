@@ -13,7 +13,9 @@
 #include "src/debug/debug.h"
 #include "src/heap/heap.h"
 #include "src/objects/objects.h"
+#include "src/wasm/struct-types.h"
 #include "src/wasm/value-type.h"
+#include "torque-generated/class-definitions-tq.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
@@ -573,6 +575,10 @@ class WasmInstanceObject : public JSObject {
                                                  Handle<WasmInstanceObject>,
                                                  uint32_t memory_index);
 
+  static Handle<Map> GetOrCreateStructMap(Isolate* isolate,
+                                          Handle<WasmInstanceObject> instance,
+                                          int struct_index);
+
   OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject);
 
  private:
@@ -990,6 +996,21 @@ class AsmWasmData : public Struct {
                                 TORQUE_GENERATED_ASM_WASM_DATA_FIELDS)
 
   OBJECT_CONSTRUCTORS(AsmWasmData, Struct);
+};
+
+class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, HeapObject> {
+ public:
+  static inline wasm::StructType* type(Map map);
+  inline wasm::StructType* type() const;
+
+  inline ObjectSlot RawField(int raw_offset);
+
+  DECL_CAST(WasmStruct)
+  DECL_PRINTER(WasmStruct)
+
+  class BodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(WasmStruct)
 };
 
 #undef DECL_OPTIONAL_ACCESSORS

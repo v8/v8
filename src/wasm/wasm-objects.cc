@@ -1414,6 +1414,29 @@ WasmInstanceObject::GetOrCreateWasmExternalFunction(
   return result;
 }
 
+Handle<Map> WasmInstanceObject::GetOrCreateStructMap(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, int struct_index) {
+  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
+  const WasmModule* module = module_object->module();
+  const wasm::StructType* type = module->struct_type(struct_index);
+
+  int inobject_properties = 0;
+  DCHECK_LE(kMaxInt - WasmStruct::kHeaderSize, type->total_fields_size());
+  int instance_size =
+      WasmStruct::kHeaderSize + static_cast<int>(type->total_fields_size());
+  InstanceType instance_type = WASM_STRUCT_TYPE;
+  // TODO(jkummerow): If NO_ELEMENTS were supported, we could use that here.
+  ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  Handle<Foreign> type_info =
+      isolate->factory()->NewForeign(reinterpret_cast<Address>(type));
+  Handle<Map> map = isolate->factory()->NewMap(
+      instance_type, instance_size, elements_kind, inobject_properties);
+  map->set_constructor_or_backpointer(*type_info);
+
+  // TODO(7748): Cache the map somewhere on the instance.
+  return map;
+}
+
 void WasmInstanceObject::SetWasmExternalFunction(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int index,
     Handle<WasmExternalFunction> val) {

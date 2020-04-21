@@ -2439,6 +2439,13 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
   return Handle<JSGeneratorObject>::cast(NewJSObjectFromMap(map));
 }
 
+Handle<WasmStruct> Factory::NewWasmStruct(Handle<Map> map) {
+  int size = map->instance_size();
+  HeapObject result = AllocateRaw(size, AllocationType::kYoung);
+  result.set_map_after_allocation(*map);
+  return handle(WasmStruct::cast(result), isolate());
+}
+
 Handle<SourceTextModule> Factory::NewSourceTextModule(
     Handle<SharedFunctionInfo> code) {
   Handle<SourceTextModuleInfo> module_info(

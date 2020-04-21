@@ -102,3 +102,7 @@ extern class AsmWasmData extends Struct {
   export_wrappers: FixedArray;
   uses_bitset: HeapNumber;
 }
+
+@generateCppClass
+extern class WasmStruct extends HeapObject {
+}

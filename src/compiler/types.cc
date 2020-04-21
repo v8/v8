@@ -250,6 +250,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
+    case WASM_STRUCT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
     case WEAK_CELL_TYPE:
       DCHECK(!map.is_callable());

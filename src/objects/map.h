@@ -81,6 +81,7 @@ enum InstanceType : uint16_t;
   V(WasmCapiFunctionData)              \
   V(WasmIndirectFunctionTable)         \
   V(WasmInstanceObject)                \
+  V(WasmStruct)                        \
   V(WeakArray)                         \
   V(WeakCell)
 
@@ -573,9 +574,11 @@ class Map : public HeapObject {
   // back pointer chain until they find the map holding their constructor.
   // Returns null_value if there's neither a constructor function nor a
   // FunctionTemplateInfo available.
-  // The field also overlaps with the native context pointer for context maps.
+  // The field also overlaps with the native context pointer for context maps,
+  // and with the Wasm type info for WebAssembly object maps.
   DECL_ACCESSORS(constructor_or_backpointer, Object)
   DECL_ACCESSORS(native_context, NativeContext)
+  DECL_ACCESSORS(wasm_type_info, Foreign)
   DECL_GETTER(GetConstructor, Object)
   DECL_GETTER(GetFunctionTemplateInfo, FunctionTemplateInfo)
   inline void SetConstructor(Object constructor,

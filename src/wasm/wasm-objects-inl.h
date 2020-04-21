@@ -37,6 +37,7 @@ OBJECT_CONSTRUCTORS_IMPL(WasmMemoryObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmModuleObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmTableObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(AsmWasmData, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmStruct)
 
 NEVER_READ_ONLY_SPACE_IMPL(WasmDebugInfo)
 
@@ -49,6 +50,7 @@ CAST_ACCESSOR(WasmMemoryObject)
 CAST_ACCESSOR(WasmModuleObject)
 CAST_ACCESSOR(WasmTableObject)
 CAST_ACCESSOR(AsmWasmData)
+CAST_ACCESSOR(WasmStruct)
 
 #define OPTIONAL_ACCESSORS(holder, name, type, offset)                \
   DEF_GETTER(holder, has_##name, bool) {                              \
@@ -411,6 +413,19 @@ ACCESSORS(AsmWasmData, managed_native_module, Managed<wasm::NativeModule>,
           kManagedNativeModuleOffset)
 ACCESSORS(AsmWasmData, export_wrappers, FixedArray, kExportWrappersOffset)
 ACCESSORS(AsmWasmData, uses_bitset, HeapNumber, kUsesBitsetOffset)
+
+wasm::StructType* WasmStruct::type(Map map) {
+  DCHECK_EQ(WASM_STRUCT_TYPE, map.instance_type());
+  Foreign foreign = Foreign::cast(map.constructor_or_backpointer());
+  return reinterpret_cast<wasm::StructType*>(foreign.foreign_address());
+}
+
+wasm::StructType* WasmStruct::type() const { return type(map()); }
+
+ObjectSlot WasmStruct::RawField(int raw_offset) {
+  int offset = WasmStruct::kHeaderSize + raw_offset;
+  return ObjectSlot(FIELD_ADDR(*this, offset));
+}
 
 #include "src/objects/object-macros-undef.h"
 
