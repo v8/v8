@@ -21,6 +21,76 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+class SnapshotImpl : public AllStatic {
+ public:
+  static uint32_t ExtractNumContexts(const v8::StartupData* data);
+  static uint32_t ExtractContextOffset(const v8::StartupData* data,
+                                       uint32_t index);
+  static Vector<const byte> ExtractStartupData(const v8::StartupData* data);
+  static Vector<const byte> ExtractReadOnlyData(const v8::StartupData* data);
+  static Vector<const byte> ExtractContextData(const v8::StartupData* data,
+                                               uint32_t index);
+
+  static uint32_t GetHeaderValue(const v8::StartupData* data, uint32_t offset) {
+    return base::ReadLittleEndianValue<uint32_t>(
+        reinterpret_cast<Address>(data->data) + offset);
+  }
+  static void SetHeaderValue(char* data, uint32_t offset, uint32_t value) {
+    base::WriteLittleEndianValue(reinterpret_cast<Address>(data) + offset,
+                                 value);
+  }
+
+  static void CheckVersion(const v8::StartupData* data);
+
+  // Snapshot blob layout:
+  // [0] number of contexts N
+  // [1] rehashability
+  // [2] checksum
+  // [3] (128 bytes) version string
+  // [4] offset to readonly
+  // [5] offset to context 0
+  // [6] offset to context 1
+  // ...
+  // ... offset to context N - 1
+  // ... startup snapshot data
+  // ... read-only snapshot data
+  // ... context 0 snapshot data
+  // ... context 1 snapshot data
+
+  static const uint32_t kNumberOfContextsOffset = 0;
+  // TODO(yangguo): generalize rehashing, and remove this flag.
+  static const uint32_t kRehashabilityOffset =
+      kNumberOfContextsOffset + kUInt32Size;
+  static const uint32_t kChecksumOffset = kRehashabilityOffset + kUInt32Size;
+  static const uint32_t kVersionStringOffset = kChecksumOffset + kUInt32Size;
+  static const uint32_t kVersionStringLength = 64;
+  static const uint32_t kReadOnlyOffsetOffset =
+      kVersionStringOffset + kVersionStringLength;
+  static const uint32_t kFirstContextOffsetOffset =
+      kReadOnlyOffsetOffset + kUInt32Size;
+
+  static Vector<const byte> ChecksummedContent(const v8::StartupData* data) {
+    STATIC_ASSERT(kVersionStringOffset == kChecksumOffset + kUInt32Size);
+    const uint32_t kChecksumStart = kVersionStringOffset;
+    return Vector<const byte>(
+        reinterpret_cast<const byte*>(data->data + kChecksumStart),
+        data->raw_size - kChecksumStart);
+  }
+
+  static uint32_t StartupSnapshotOffset(int num_contexts) {
+    return POINTER_SIZE_ALIGN(kFirstContextOffsetOffset +
+                              num_contexts * kInt32Size);
+  }
+
+  static uint32_t ContextSnapshotOffsetOffset(int index) {
+    return kFirstContextOffsetOffset + index * kInt32Size;
+  }
+};
+
+}  // namespace
+
 SnapshotData MaybeDecompress(const Vector<const byte>& snapshot_data) {
 #ifdef V8_SNAPSHOT_COMPRESSION
   return SnapshotCompression::Decompress(snapshot_data);
@@ -31,7 +101,7 @@ SnapshotData MaybeDecompress(const Vector<const byte>& snapshot_data) {
 
 #ifdef DEBUG
 bool Snapshot::SnapshotIsValid(const v8::StartupData* snapshot_blob) {
-  return Snapshot::ExtractNumContexts(snapshot_blob) > 0;
+  return SnapshotImpl::ExtractNumContexts(snapshot_blob) > 0;
 }
 #endif  // DEBUG
 
@@ -40,7 +110,8 @@ bool Snapshot::HasContextSnapshot(Isolate* isolate, size_t index) {
   const v8::StartupData* blob = isolate->snapshot_blob();
   if (blob == nullptr) return false;
   if (blob->data == nullptr) return false;
-  size_t num_contexts = static_cast<size_t>(ExtractNumContexts(blob));
+  size_t num_contexts =
+      static_cast<size_t>(SnapshotImpl::ExtractNumContexts(blob));
   return index < num_contexts;
 }
 
@@ -52,10 +123,10 @@ bool Snapshot::Initialize(Isolate* isolate) {
   if (FLAG_profile_deserialization) timer.Start();
 
   const v8::StartupData* blob = isolate->snapshot_blob();
-  CheckVersion(blob);
+  SnapshotImpl::CheckVersion(blob);
   CHECK(VerifyChecksum(blob));
-  Vector<const byte> startup_data = ExtractStartupData(blob);
-  Vector<const byte> read_only_data = ExtractReadOnlyData(blob);
+  Vector<const byte> startup_data = SnapshotImpl::ExtractStartupData(blob);
+  Vector<const byte> read_only_data = SnapshotImpl::ExtractReadOnlyData(blob);
 
   SnapshotData startup_snapshot_data(MaybeDecompress(startup_data));
   SnapshotData read_only_snapshot_data(MaybeDecompress(read_only_data));
@@ -85,8 +156,8 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   bool can_rehash = ExtractRehashability(blob);
-  Vector<const byte> context_data =
-      ExtractContextData(blob, static_cast<uint32_t>(context_index));
+  Vector<const byte> context_data = SnapshotImpl::ExtractContextData(
+      blob, static_cast<uint32_t>(context_index));
   SnapshotData snapshot_data(MaybeDecompress(context_data));
 
   MaybeHandle<Context> maybe_result = PartialDeserializer::DeserializeContext(
@@ -163,7 +234,8 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
 #endif
 
   uint32_t num_contexts = static_cast<uint32_t>(context_snapshots->size());
-  uint32_t startup_snapshot_offset = StartupSnapshotOffset(num_contexts);
+  uint32_t startup_snapshot_offset =
+      SnapshotImpl::StartupSnapshotOffset(num_contexts);
   uint32_t total_length = startup_snapshot_offset;
   total_length += static_cast<uint32_t>(startup_snapshot->RawData().length());
   total_length += static_cast<uint32_t>(read_only_snapshot->RawData().length());
@@ -176,15 +248,18 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
 
   char* data = new char[total_length];
   // Zero out pre-payload data. Part of that is only used for padding.
-  memset(data, 0, StartupSnapshotOffset(num_contexts));
+  memset(data, 0, SnapshotImpl::StartupSnapshotOffset(num_contexts));
 
-  SetHeaderValue(data, kNumberOfContextsOffset, num_contexts);
-  SetHeaderValue(data, kRehashabilityOffset, can_be_rehashed ? 1 : 0);
+  SnapshotImpl::SetHeaderValue(data, SnapshotImpl::kNumberOfContextsOffset,
+                               num_contexts);
+  SnapshotImpl::SetHeaderValue(data, SnapshotImpl::kRehashabilityOffset,
+                               can_be_rehashed ? 1 : 0);
 
   // Write version string into snapshot data.
-  memset(data + kVersionStringOffset, 0, kVersionStringLength);
-  Version::GetString(
-      Vector<char>(data + kVersionStringOffset, kVersionStringLength));
+  memset(data + SnapshotImpl::kVersionStringOffset, 0,
+         SnapshotImpl::kVersionStringLength);
+  Version::GetString(Vector<char>(data + SnapshotImpl::kVersionStringOffset,
+                                  SnapshotImpl::kVersionStringLength));
 
   // Startup snapshot (isolate-specific data).
   uint32_t payload_offset = startup_snapshot_offset;
@@ -201,7 +276,8 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   payload_offset += payload_length;
 
   // Read-only.
-  SetHeaderValue(data, kReadOnlyOffsetOffset, payload_offset);
+  SnapshotImpl::SetHeaderValue(data, SnapshotImpl::kReadOnlyOffsetOffset,
+                               payload_offset);
   payload_length = read_only_snapshot->RawData().length();
   CopyBytes(
       data + payload_offset,
@@ -214,7 +290,8 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
 
   // Partial snapshots (context-specific data).
   for (uint32_t i = 0; i < num_contexts; i++) {
-    SetHeaderValue(data, ContextSnapshotOffsetOffset(i), payload_offset);
+    SnapshotImpl::SetHeaderValue(
+        data, SnapshotImpl::ContextSnapshotOffsetOffset(i), payload_offset);
     SnapshotData* context_snapshot = (*context_snapshots)[i];
     payload_length = context_snapshot->RawData().length();
     CopyBytes(
@@ -233,12 +310,14 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   DCHECK_EQ(total_length, payload_offset);
   v8::StartupData result = {data, static_cast<int>(total_length)};
 
-  SetHeaderValue(data, kChecksumOffset, Checksum(ChecksummedContent(&result)));
+  SnapshotImpl::SetHeaderValue(
+      data, SnapshotImpl::kChecksumOffset,
+      Checksum(SnapshotImpl::ChecksummedContent(&result)));
 
   return result;
 }
 
-uint32_t Snapshot::ExtractNumContexts(const v8::StartupData* data) {
+uint32_t SnapshotImpl::ExtractNumContexts(const v8::StartupData* data) {
   CHECK_LT(kNumberOfContextsOffset, data->raw_size);
   uint32_t num_contexts = GetHeaderValue(data, kNumberOfContextsOffset);
   return num_contexts;
@@ -247,8 +326,9 @@ uint32_t Snapshot::ExtractNumContexts(const v8::StartupData* data) {
 bool Snapshot::VerifyChecksum(const v8::StartupData* data) {
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
-  uint32_t expected = GetHeaderValue(data, kChecksumOffset);
-  uint32_t result = Checksum(ChecksummedContent(data));
+  uint32_t expected =
+      SnapshotImpl::GetHeaderValue(data, SnapshotImpl::kChecksumOffset);
+  uint32_t result = Checksum(SnapshotImpl::ChecksummedContent(data));
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     PrintF("[Verifying snapshot checksum took %0.3f ms]\n", ms);
@@ -256,8 +336,8 @@ bool Snapshot::VerifyChecksum(const v8::StartupData* data) {
   return result == expected;
 }
 
-uint32_t Snapshot::ExtractContextOffset(const v8::StartupData* data,
-                                        uint32_t index) {
+uint32_t SnapshotImpl::ExtractContextOffset(const v8::StartupData* data,
+                                            uint32_t index) {
   // Extract the offset of the context at a given index from the StartupData,
   // and check that it is within bounds.
   uint32_t context_offset =
@@ -267,8 +347,10 @@ uint32_t Snapshot::ExtractContextOffset(const v8::StartupData* data,
 }
 
 bool Snapshot::ExtractRehashability(const v8::StartupData* data) {
-  CHECK_LT(kRehashabilityOffset, static_cast<uint32_t>(data->raw_size));
-  uint32_t rehashability = GetHeaderValue(data, kRehashabilityOffset);
+  CHECK_LT(SnapshotImpl::kRehashabilityOffset,
+           static_cast<uint32_t>(data->raw_size));
+  uint32_t rehashability =
+      SnapshotImpl::GetHeaderValue(data, SnapshotImpl::kRehashabilityOffset);
   CHECK_IMPLIES(rehashability != 0, rehashability == 1);
   return rehashability != 0;
 }
@@ -285,23 +367,25 @@ Vector<const byte> ExtractData(const v8::StartupData* snapshot,
 }
 }  // namespace
 
-Vector<const byte> Snapshot::ExtractStartupData(const v8::StartupData* data) {
-  DCHECK(SnapshotIsValid(data));
+Vector<const byte> SnapshotImpl::ExtractStartupData(
+    const v8::StartupData* data) {
+  DCHECK(Snapshot::SnapshotIsValid(data));
 
   uint32_t num_contexts = ExtractNumContexts(data);
   return ExtractData(data, StartupSnapshotOffset(num_contexts),
                      GetHeaderValue(data, kReadOnlyOffsetOffset));
 }
 
-Vector<const byte> Snapshot::ExtractReadOnlyData(const v8::StartupData* data) {
-  DCHECK(SnapshotIsValid(data));
+Vector<const byte> SnapshotImpl::ExtractReadOnlyData(
+    const v8::StartupData* data) {
+  DCHECK(Snapshot::SnapshotIsValid(data));
 
   return ExtractData(data, GetHeaderValue(data, kReadOnlyOffsetOffset),
                      GetHeaderValue(data, ContextSnapshotOffsetOffset(0)));
 }
 
-Vector<const byte> Snapshot::ExtractContextData(const v8::StartupData* data,
-                                                uint32_t index) {
+Vector<const byte> SnapshotImpl::ExtractContextData(const v8::StartupData* data,
+                                                    uint32_t index) {
   uint32_t num_contexts = ExtractNumContexts(data);
   CHECK_LT(index, num_contexts);
 
@@ -320,7 +404,7 @@ Vector<const byte> Snapshot::ExtractContextData(const v8::StartupData* data,
   return Vector<const byte>(context_data, context_length);
 }
 
-void Snapshot::CheckVersion(const v8::StartupData* data) {
+void SnapshotImpl::CheckVersion(const v8::StartupData* data) {
   char version[kVersionStringLength];
   memset(version, 0, kVersionStringLength);
   CHECK_LT(kVersionStringOffset + kVersionStringLength,
