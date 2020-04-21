@@ -928,17 +928,10 @@ bool IsAllowedAsBitField(const Type* type) {
   // Any integer-ish type, including bools and enums which inherit from integer
   // types, are allowed. Note, however, that we always zero-extend during
   // decoding regardless of signedness.
-  return IsPointerSizeIntegralType(type) || Is32BitIntegralType(type);
-}
-
-bool IsPointerSizeIntegralType(const Type* type) {
-  return type->IsSubtypeOf(TypeOracle::GetUIntPtrType()) ||
-         type->IsSubtypeOf(TypeOracle::GetIntPtrType());
-}
-
-bool Is32BitIntegralType(const Type* type) {
   return type->IsSubtypeOf(TypeOracle::GetUint32Type()) ||
+         type->IsSubtypeOf(TypeOracle::GetUIntPtrType()) ||
          type->IsSubtypeOf(TypeOracle::GetInt32Type()) ||
+         type->IsSubtypeOf(TypeOracle::GetIntPtrType()) ||
          type->IsSubtypeOf(TypeOracle::GetBoolType());
 }
 

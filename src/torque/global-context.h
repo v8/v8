@@ -93,12 +93,10 @@ class TargetArchitecture : public ContextualClass<TargetArchitecture> {
   static size_t RawPtrSize() { return Get().raw_ptr_size_; }
   static size_t MaxHeapAlignment() { return TaggedSize(); }
   static bool ArePointersCompressed() { return TaggedSize() < RawPtrSize(); }
-  static int SmiTagAndShiftSize() { return Get().smi_tag_and_shift_size_; }
 
  private:
   const size_t tagged_size_;
   const size_t raw_ptr_size_;
-  const int smi_tag_and_shift_size_;
 };
 
 }  // namespace torque
