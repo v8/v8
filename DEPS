@@ -67,7 +67,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_tools-lint_version
   # and whatever else without interference from each other.
-  'android_sdk_tools-lint_version': '89hXqZYzCum3delB5RV7J_QyWkaRodqdtQS0s3LMh3wC',
+  'android_sdk_cmdline-tools_version': 'CR25ixsRhwuRnhdgDpGFyl9S0C_0HO9SUgFrwX46zq8C',
 }
 
 deps = {
@@ -160,8 +160,8 @@ deps = {
               'version': Var('android_sdk_sources_version'),
           },
           {
-              'package': 'chromium/third_party/android_sdk/public/tools-lint',
-              'version': Var('android_sdk_tools-lint_version'),
+              'package': 'chromium/third_party/android_sdk/public/cmdline-tools',
+              'version': Var('android_sdk_cmdline-tools_version'),
           },
       ],
       'condition': 'checkout_android',
