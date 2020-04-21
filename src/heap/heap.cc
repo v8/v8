@@ -2097,6 +2097,9 @@ bool Heap::PerformGarbageCollection(
     Verify();
   }
 #endif
+
+  RecomputeLimits(collector);
+
   if (FLAG_local_heaps) safepoint()->End();
 
   {
@@ -2116,8 +2119,6 @@ bool Heap::PerformGarbageCollection(
 
   // Update relocatables.
   Relocatable::PostGarbageCollectionProcessing(isolate_);
-
-  RecomputeLimits(collector);
 
   {
     GCCallbacksScope scope(this);
