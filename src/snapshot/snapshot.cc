@@ -10,6 +10,7 @@
 #include "src/logging/counters.h"
 #include "src/snapshot/partial-deserializer.h"
 #include "src/snapshot/read-only-deserializer.h"
+#include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/startup-deserializer.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/version.h"

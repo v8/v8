@@ -10,7 +10,6 @@
 #include "src/objects/objects.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
-#include "src/snapshot/serializer-common.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
 #include "src/utils/version.h"

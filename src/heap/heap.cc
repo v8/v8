@@ -71,7 +71,7 @@
 #include "src/objects/slots-inl.h"
 #include "src/regexp/regexp.h"
 #include "src/snapshot/embedded/embedded-data.h"
-#include "src/snapshot/serializer-common.h"
+#include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-decoder.h"

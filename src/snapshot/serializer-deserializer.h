@@ -1,99 +1,18 @@
-// Copyright 2016 the V8 project authors. All rights reserved.
+// Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SNAPSHOT_SERIALIZER_COMMON_H_
-#define V8_SNAPSHOT_SERIALIZER_COMMON_H_
+#ifndef V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
+#define V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
 
-#include "src/base/bits.h"
-#include "src/base/memory.h"
-#include "src/codegen/external-reference-table.h"
-#include "src/common/globals.h"
 #include "src/objects/visitors.h"
-#include "src/sanitizer/msan.h"
 #include "src/snapshot/references.h"
-#include "src/utils/address-map.h"
 
 namespace v8 {
 namespace internal {
 
 class CallHandlerInfo;
 class Isolate;
-
-class ExternalReferenceEncoder {
- public:
-  class Value {
-   public:
-    explicit Value(uint32_t raw) : value_(raw) {}
-    Value() : value_(0) {}
-    static uint32_t Encode(uint32_t index, bool is_from_api) {
-      return Index::encode(index) | IsFromAPI::encode(is_from_api);
-    }
-
-    bool is_from_api() const { return IsFromAPI::decode(value_); }
-    uint32_t index() const { return Index::decode(value_); }
-
-   private:
-    using Index = base::BitField<uint32_t, 0, 31>;
-    using IsFromAPI = base::BitField<bool, 31, 1>;
-    uint32_t value_;
-  };
-
-  explicit ExternalReferenceEncoder(Isolate* isolate);
-  ~ExternalReferenceEncoder();  // NOLINT (modernize-use-equals-default)
-
-  Value Encode(Address key);
-  Maybe<Value> TryEncode(Address key);
-
-  const char* NameOfAddress(Isolate* isolate, Address address) const;
-
- private:
-  AddressToIndexHashMap* map_;
-
-#ifdef DEBUG
-  std::vector<int> count_;
-  const intptr_t* api_references_;
-#endif  // DEBUG
-
-  DISALLOW_COPY_AND_ASSIGN(ExternalReferenceEncoder);
-};
-
-class HotObjectsList {
- public:
-  HotObjectsList() : index_(0) {}
-
-  void Add(HeapObject object) {
-    DCHECK(!AllowHeapAllocation::IsAllowed());
-    circular_queue_[index_] = object;
-    index_ = (index_ + 1) & kSizeMask;
-  }
-
-  HeapObject Get(int index) {
-    DCHECK(!AllowHeapAllocation::IsAllowed());
-    DCHECK(!circular_queue_[index].is_null());
-    return circular_queue_[index];
-  }
-
-  static const int kNotFound = -1;
-
-  int Find(HeapObject object) {
-    DCHECK(!AllowHeapAllocation::IsAllowed());
-    for (int i = 0; i < kSize; i++) {
-      if (circular_queue_[i] == object) return i;
-    }
-    return kNotFound;
-  }
-
-  static const int kSize = 8;
-
- private:
-  static_assert(base::bits::IsPowerOfTwo(kSize), "kSize must be power of two");
-  static const int kSizeMask = kSize - 1;
-  HeapObject circular_queue_[kSize];
-  int index_;
-
-  DISALLOW_COPY_AND_ASSIGN(HotObjectsList);
-};
 
 // The Serializer/Deserializer class is a common superclass for Serializer and
 // Deserializer which is used to store common constants and methods used by
@@ -103,6 +22,43 @@ class SerializerDeserializer : public RootVisitor {
   static void Iterate(Isolate* isolate, RootVisitor* visitor);
 
  protected:
+  class HotObjectsList {
+   public:
+    HotObjectsList() = default;
+
+    void Add(HeapObject object) {
+      DCHECK(!AllowHeapAllocation::IsAllowed());
+      circular_queue_[index_] = object;
+      index_ = (index_ + 1) & kSizeMask;
+    }
+
+    HeapObject Get(int index) {
+      DCHECK(!AllowHeapAllocation::IsAllowed());
+      DCHECK(!circular_queue_[index].is_null());
+      return circular_queue_[index];
+    }
+
+    static const int kNotFound = -1;
+
+    int Find(HeapObject object) {
+      DCHECK(!AllowHeapAllocation::IsAllowed());
+      for (int i = 0; i < kSize; i++) {
+        if (circular_queue_[i] == object) return i;
+      }
+      return kNotFound;
+    }
+
+    static const int kSize = 8;
+
+   private:
+    STATIC_ASSERT(base::bits::IsPowerOfTwo(kSize));
+    static const int kSizeMask = kSize - 1;
+    HeapObject circular_queue_[kSize];
+    int index_ = 0;
+
+    DISALLOW_COPY_AND_ASSIGN(HotObjectsList);
+  };
+
   static bool CanBeDeferred(HeapObject o);
 
   void RestoreExternalReferenceRedirectors(
@@ -293,9 +249,7 @@ class SerializerDeserializer : public RootVisitor {
   HotObjectsList hot_objects_;
 };
 
-V8_EXPORT_PRIVATE uint32_t Checksum(Vector<const byte> payload);
-
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SNAPSHOT_SERIALIZER_COMMON_H_
+#endif  // V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_

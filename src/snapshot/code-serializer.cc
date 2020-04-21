@@ -13,6 +13,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/object-deserializer.h"
+#include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils/version.h"
 

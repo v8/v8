@@ -16,7 +16,7 @@
 #include "src/objects/map.h"
 #include "src/objects/string.h"
 #include "src/snapshot/deserializer-allocator.h"
-#include "src/snapshot/serializer-common.h"
+#include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
 
 namespace v8 {
