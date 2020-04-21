@@ -50,6 +50,10 @@ struct WasmModule;
   FOREACH_WASM_TRAPREASON(VTRAP)         \
   V(WasmCompileLazy)                     \
   V(WasmDebugBreak)                      \
+  V(WasmInt32ToHeapNumber)               \
+  V(WasmTaggedNonSmiToInt32)             \
+  V(WasmFloat64ToNumber)                 \
+  V(WasmTaggedToFloat64)                 \
   V(WasmAtomicNotify)                    \
   V(WasmI32AtomicWait32)                 \
   V(WasmI32AtomicWait64)                 \

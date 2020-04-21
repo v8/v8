@@ -37,6 +37,27 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
   }
 };
 
+TF_BUILTIN(WasmInt32ToHeapNumber, WasmBuiltinsAssembler) {
+  TNode<Int32T> val = UncheckedCast<Int32T>(Parameter(Descriptor::kValue));
+  Return(AllocateHeapNumberWithValue(ChangeInt32ToFloat64(val)));
+}
+
+TF_BUILTIN(WasmTaggedNonSmiToInt32, WasmBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  Return(
+      ChangeTaggedNonSmiToInt32(context, CAST(Parameter(Descriptor::kValue))));
+}
+
+TF_BUILTIN(WasmFloat64ToNumber, WasmBuiltinsAssembler) {
+  TNode<Float64T> val = UncheckedCast<Float64T>(Parameter(Descriptor::kValue));
+  Return(ChangeFloat64ToTagged(val));
+}
+
+TF_BUILTIN(WasmTaggedToFloat64, WasmBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  Return(ChangeTaggedToFloat64(context, CAST(Parameter(Descriptor::kValue))));
+}
+
 TF_BUILTIN(WasmStackGuard, WasmBuiltinsAssembler) {
   TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
   TNode<Context> context = LoadContextFromInstance(instance);

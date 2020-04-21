@@ -435,6 +435,13 @@ void CodeAssembler::Return(TNode<WordT> value) {
   return raw_assembler()->Return(value);
 }
 
+void CodeAssembler::Return(TNode<Float64T> value) {
+  DCHECK_EQ(1, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK_EQ(MachineType::Float64(),
+            raw_assembler()->call_descriptor()->GetReturnType(0));
+  return raw_assembler()->Return(value);
+}
+
 void CodeAssembler::Return(TNode<WordT> value1, TNode<WordT> value2) {
   DCHECK_EQ(2, raw_assembler()->call_descriptor()->ReturnCount());
   DCHECK_EQ(

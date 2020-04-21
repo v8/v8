@@ -5173,52 +5173,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                : GetBuiltinPointerTarget(builtin_id);
   }
 
-  Node* BuildAllocateHeapNumberWithValue(Node* value) {
-    MachineOperatorBuilder* machine = mcgraph()->machine();
-    CommonOperatorBuilder* common = mcgraph()->common();
-    Node* target = GetTargetForBuiltinCall(wasm::WasmCode::kAllocateHeapNumber,
-                                           Builtins::kAllocateHeapNumber);
-    if (!allocate_heap_number_operator_.is_set()) {
-      auto call_descriptor = Linkage::GetStubCallDescriptor(
-          mcgraph()->zone(), AllocateHeapNumberDescriptor(), 0,
-          CallDescriptor::kNoFlags, Operator::kNoThrow, stub_mode_);
-      allocate_heap_number_operator_.set(common->Call(call_descriptor));
-    }
-    Node* heap_number = graph()->NewNode(allocate_heap_number_operator_.get(),
-                                         target, effect(), control());
-    SetEffect(
-        graph()->NewNode(machine->Store(StoreRepresentation(
-                             MachineRepresentation::kFloat64, kNoWriteBarrier)),
-                         heap_number, BuildHeapNumberValueIndexConstant(),
-                         value, heap_number, control()));
-    return heap_number;
-  }
-
-  Node* BuildChangeSmiToFloat32(Node* value) {
-    return graph()->NewNode(mcgraph()->machine()->RoundInt32ToFloat32(),
-                            BuildChangeSmiToInt32(value));
-  }
-
-  Node* BuildChangeSmiToFloat64(Node* value) {
-    return graph()->NewNode(mcgraph()->machine()->ChangeInt32ToFloat64(),
-                            BuildChangeSmiToInt32(value));
-  }
-
-  Node* BuildTestHeapObject(Node* value) {
-    return graph()->NewNode(mcgraph()->machine()->WordAnd(), value,
-                            mcgraph()->IntPtrConstant(kHeapObjectTag));
-  }
-
-  Node* BuildLoadHeapNumberValue(Node* value) {
-    return SetEffect(graph()->NewNode(
-        mcgraph()->machine()->Load(MachineType::Float64()), value,
-        BuildHeapNumberValueIndexConstant(), effect(), control()));
-  }
-
-  Node* BuildHeapNumberValueIndexConstant() {
-    return mcgraph()->IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag);
-  }
-
   Node* BuildLoadUndefinedValueFromInstance() {
     if (undefined_value_node_ == nullptr) {
       Node* isolate_root = graph()->NewNode(
@@ -5235,93 +5189,109 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return undefined_value_node_.get();
   }
 
-  Node* BuildChangeInt32ToTagged(Node* value) {
+  Node* BuildChangeInt32ToNumber(Node* value) {
+    // We expect most integers at runtime to be Smis, so it is important for
+    // wrapper performance that Smi conversion be inlined.
     if (SmiValuesAre32Bits()) {
       return BuildChangeInt32ToSmi(value);
     }
     DCHECK(SmiValuesAre31Bits());
 
-    auto allocate_heap_number = gasm_->MakeDeferredLabel();
+    auto builtin = gasm_->MakeDeferredLabel();
     auto done = gasm_->MakeLabel(MachineRepresentation::kTagged);
 
-    // The smi value is {2 * value}. If that overflows, we need to allocate a
-    // heap number.
+    // Double value to test if value can be a Smi, and if so, to convert it.
     Node* add = gasm_->Int32AddWithOverflow(value, value);
     Node* ovf = gasm_->Projection(1, add);
-    gasm_->GotoIf(ovf, &allocate_heap_number);
+    gasm_->GotoIf(ovf, &builtin);
 
     // If it didn't overflow, the result is {2 * value} as pointer-sized value.
     Node* smi_tagged = BuildChangeInt32ToIntPtr(gasm_->Projection(0, add));
     gasm_->Goto(&done, smi_tagged);
 
-    gasm_->Bind(&allocate_heap_number);
-    Node* heap_number =
-        BuildAllocateHeapNumberWithValue(gasm_->ChangeInt32ToFloat64(value));
-    gasm_->Goto(&done, heap_number);
-
+    // Otherwise, call builtin, to convert to a HeapNumber.
+    gasm_->Bind(&builtin);
+    CommonOperatorBuilder* common = mcgraph()->common();
+    Node* target =
+        GetTargetForBuiltinCall(wasm::WasmCode::kWasmInt32ToHeapNumber,
+                                Builtins::kWasmInt32ToHeapNumber);
+    if (!int32_to_heapnumber_operator_.is_set()) {
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          mcgraph()->zone(), WasmInt32ToHeapNumberDescriptor(), 0,
+          CallDescriptor::kNoFlags, Operator::kNoProperties, stub_mode_);
+      int32_to_heapnumber_operator_.set(common->Call(call_descriptor));
+    }
+    Node* call =
+        gasm_->Call(int32_to_heapnumber_operator_.get(), target, value);
+    gasm_->Goto(&done, call);
     gasm_->Bind(&done);
     return done.PhiAt(0);
   }
 
-  Node* BuildChangeFloat64ToTagged(Node* value) {
-    // Check several conditions:
-    //  i32?
-    //  ├─ true: zero?
-    //  │        ├─ true: positive?
-    //  │        │        ├─ true: potentially Smi
-    //  │        │        └─ false: box (-0)
-    //  │        └─ false: potentially Smi
-    //  └─ false: box (non-int)
-    // For potential Smi values, depending on whether Smis are 31 or 32 bit, we
-    // still need to check whether the value fits in a Smi.
+  Node* BuildChangeTaggedToInt32(Node* value, Node* context) {
+    // We expect most integers at runtime to be Smis, so it is important for
+    // wrapper performance that Smi conversion be inlined.
+    auto builtin = gasm_->MakeDeferredLabel();
+    auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
 
-    auto box_value = gasm_->MakeDeferredLabel();
-    auto potentially_smi = gasm_->MakeLabel();
-    auto done = gasm_->MakeLabel(MachineRepresentation::kTagged);
+    // Test if value is a Smi.
+    Node* is_smi =
+        gasm_->Word32Equal(gasm_->Word32And(BuildTruncateIntPtrToInt32(value),
+                                            gasm_->Int32Constant(kSmiTagMask)),
+                           gasm_->Int32Constant(0));
+    gasm_->GotoIfNot(is_smi, &builtin);
 
-    Node* value32 = gasm_->RoundFloat64ToInt32(value);
-    Node* check_i32 =
-        gasm_->Float64Equal(value, gasm_->ChangeInt32ToFloat64(value32));
-    gasm_->GotoIfNot(check_i32, &box_value);
+    // If Smi, convert to int32.
+    Node* smi = BuildChangeSmiToInt32(value);
+    gasm_->Goto(&done, smi);
 
-    // We only need to check for -0 if the {value} can potentially contain -0.
-    Node* check_zero = gasm_->Word32Equal(value32, gasm_->Int32Constant(0));
-    gasm_->GotoIfNot(check_zero, &potentially_smi);
-
-    // In case of 0, we need to check the MSB (sign bit).
-    Node* check_positive = gasm_->Word32Equal(
-        gasm_->Float64ExtractHighWord32(value), gasm_->Int32Constant(0));
-    gasm_->Branch(check_positive, &potentially_smi, &box_value);
-
-    gasm_->Bind(&potentially_smi);
-
-    // On 64-bit machines we can just wrap the 32-bit integer in a smi, for
-    // 32-bit machines we need to deal with potential overflow and fallback to
-    // boxing.
-    if (SmiValuesAre32Bits()) {
-      gasm_->Goto(&done, BuildChangeInt32ToSmi(value32));
-    } else {
-      DCHECK(SmiValuesAre31Bits());
-      // The smi value is {2 * value}. If that overflows, we need to box.
-      Node* smi_tag = gasm_->Int32AddWithOverflow(value32, value32);
-
-      Node* check_ovf = gasm_->Projection(1, smi_tag);
-      gasm_->GotoIf(check_ovf, &box_value);
-
-      Node* smi_value = gasm_->Projection(0, smi_tag);
-      // With pointer compression, only the lower 32 bits are used.
-      if (!COMPRESS_POINTERS_BOOL) {
-        smi_value = BuildChangeInt32ToIntPtr(smi_value);
-      }
-      gasm_->Goto(&done, smi_value);
+    // Otherwise, call builtin which changes non-Smi to Int32.
+    gasm_->Bind(&builtin);
+    CommonOperatorBuilder* common = mcgraph()->common();
+    Node* target =
+        GetTargetForBuiltinCall(wasm::WasmCode::kWasmTaggedNonSmiToInt32,
+                                Builtins::kWasmTaggedNonSmiToInt32);
+    if (!tagged_non_smi_to_int32_operator_.is_set()) {
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          mcgraph()->zone(), WasmTaggedNonSmiToInt32Descriptor(), 0,
+          CallDescriptor::kNoFlags, Operator::kNoProperties, stub_mode_);
+      tagged_non_smi_to_int32_operator_.set(common->Call(call_descriptor));
     }
-
-    // Allocate the box for the {value}.
-    gasm_->Bind(&box_value);
-    gasm_->Goto(&done, BuildAllocateHeapNumberWithValue(value));
-
+    Node* call = gasm_->Call(tagged_non_smi_to_int32_operator_.get(), target,
+                             value, context);
+    SetSourcePosition(call, 1);
+    gasm_->Goto(&done, call);
     gasm_->Bind(&done);
     return done.PhiAt(0);
+  }
+
+  Node* BuildChangeFloat64ToNumber(Node* value) {
+    CommonOperatorBuilder* common = mcgraph()->common();
+    Node* target = GetTargetForBuiltinCall(wasm::WasmCode::kWasmFloat64ToNumber,
+                                           Builtins::kWasmFloat64ToNumber);
+    if (!float64_to_number_operator_.is_set()) {
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          mcgraph()->zone(), WasmFloat64ToNumberDescriptor(), 0,
+          CallDescriptor::kNoFlags, Operator::kNoProperties, stub_mode_);
+      float64_to_number_operator_.set(common->Call(call_descriptor));
+    }
+    return gasm_->Call(float64_to_number_operator_.get(), target, value);
+  }
+
+  Node* BuildChangeTaggedToFloat64(Node* value, Node* context) {
+    CommonOperatorBuilder* common = mcgraph()->common();
+    Node* target = GetTargetForBuiltinCall(wasm::WasmCode::kWasmTaggedToFloat64,
+                                           Builtins::kWasmTaggedToFloat64);
+    if (!tagged_to_float64_operator_.is_set()) {
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          mcgraph()->zone(), WasmTaggedToFloat64Descriptor(), 0,
+          CallDescriptor::kNoFlags, Operator::kNoProperties, stub_mode_);
+      tagged_to_float64_operator_.set(common->Call(call_descriptor));
+    }
+    Node* call =
+        gasm_->Call(tagged_to_float64_operator_.get(), target, value, context);
+    SetSourcePosition(call, 1);
+    return call;
   }
 
   int AddArgumentNodes(Vector<Node*> args, int pos, int param_count,
@@ -5335,33 +5305,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return pos;
   }
 
-  // Converts a number (Smi or HeapNumber) to float64.
-  Node* BuildChangeNumberToFloat64(Node* value) {
-    // If the input is a HeapNumber, we load the value from it.
-    Node* check_heap_object = BuildTestHeapObject(value);
-    Diamond is_heapnumber(graph(), mcgraph()->common(), check_heap_object,
-                          BranchHint::kFalse);
-    is_heapnumber.Chain(control());
-
-    SetControl(is_heapnumber.if_true);
-    Node* effect_orig = effect();
-    Node* v_heapnumber = BuildLoadHeapNumberValue(value);
-    Node* effect_heapnumber = effect();
-
-    SetControl(is_heapnumber.merge);
-    // If the input is Smi, just convert to float64.
-    Node* v_smi = BuildChangeSmiToFloat64(value);
-
-    SetEffect(is_heapnumber.EffectPhi(effect_heapnumber, effect_orig));
-
-    return is_heapnumber.Phi(MachineRepresentation::kFloat64, v_heapnumber,
-                             v_smi);
-  }
-
   Node* ToJS(Node* node, wasm::ValueType type) {
     switch (type.kind()) {
       case wasm::ValueType::kI32:
-        return BuildChangeInt32ToTagged(node);
+        return BuildChangeInt32ToNumber(node);
       case wasm::ValueType::kS128:
         UNREACHABLE();
       case wasm::ValueType::kI64: {
@@ -5371,9 +5318,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::ValueType::kF32:
         node = graph()->NewNode(mcgraph()->machine()->ChangeFloat32ToFloat64(),
                                 node);
-        return BuildChangeFloat64ToTagged(node);
+        return BuildChangeFloat64ToNumber(node);
       case wasm::ValueType::kF64:
-        return BuildChangeFloat64ToTagged(node);
+        return BuildChangeFloat64ToNumber(node);
       case wasm::ValueType::kAnyRef:
       case wasm::ValueType::kFuncRef:
       case wasm::ValueType::kNullRef:
@@ -5433,41 +5380,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         graph()->NewNode(call, target, input, context, effect(), control()));
   }
 
-  Node* BuildTestSmi(Node* value) {
-    return gasm_->Word32Equal(
-        gasm_->Word32And(BuildTruncateIntPtrToInt32(value),
-                         gasm_->Int32Constant(kSmiTagMask)),
-        gasm_->Int32Constant(0));
-  }
-
-  Node* BuildFloat64ToWasm(Node* value, wasm::ValueType type) {
-    switch (type.kind()) {
-      case wasm::ValueType::kI32:
-        return graph()->NewNode(mcgraph()->machine()->TruncateFloat64ToWord32(),
-                                value);
-      case wasm::ValueType::kF32:
-        return graph()->NewNode(
-            mcgraph()->machine()->TruncateFloat64ToFloat32(), value);
-      case wasm::ValueType::kF64:
-        return value;
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  Node* BuildSmiToWasm(Node* smi, wasm::ValueType type) {
-    switch (type.kind()) {
-      case wasm::ValueType::kI32:
-        return BuildChangeSmiToInt32(smi);
-      case wasm::ValueType::kF32:
-        return BuildChangeSmiToFloat32(smi);
-      case wasm::ValueType::kF64:
-        return BuildChangeSmiToFloat64(smi);
-      default:
-        UNREACHABLE();
-    }
-  }
-
   Node* FromJS(Node* input, Node* js_context, wasm::ValueType type) {
     switch (type.kind()) {
       case wasm::ValueType::kAnyRef:
@@ -5513,65 +5425,26 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         return input;
       }
 
+      case wasm::ValueType::kF32:
+        return graph()->NewNode(
+            mcgraph()->machine()->TruncateFloat64ToFloat32(),
+            BuildChangeTaggedToFloat64(input, js_context));
+
+      case wasm::ValueType::kF64:
+        return BuildChangeTaggedToFloat64(input, js_context);
+
+      case wasm::ValueType::kI32:
+        return BuildChangeTaggedToInt32(input, js_context);
+
       case wasm::ValueType::kI64:
         // i64 values can only come from BigInt.
         DCHECK(enabled_features_.has_bigint());
         return BuildChangeBigIntToInt64(input, js_context);
 
       default:
+        UNREACHABLE();
         break;
     }
-
-    gasm_->InitializeEffectControl(effect(), control());
-
-    // Handle Smis first. The rest goes through the ToNumber stub.
-    // TODO(clemensb): Also handle HeapNumbers specially.
-    STATIC_ASSERT(kSmiTagMask < kMaxUInt32);
-
-    // Build a graph implementing this diagram:
-    //   input smi?
-    //    ├─ true: ──<fast path>──────────┬─ smi-to-wasm ──────┬─ result
-    //    └─ false: ToNumber -> smi?      │                    │
-    //                          ├─ true: ─┘                    │
-    //                          └─ false: load -> f64-to-wasm ─┘
-
-    auto smi_to_wasm = gasm_->MakeLabel(MachineRepresentation::kTaggedSigned);
-    auto call_to_number =
-        gasm_->MakeDeferredLabel(MachineRepresentation::kTaggedPointer);
-    auto done = gasm_->MakeLabel(type.machine_representation());
-
-    // Branch to smi conversion or the ToNumber call.
-    gasm_->Branch(BuildTestSmi(input), &smi_to_wasm, &call_to_number, input);
-
-    // Build the ToNumber path.
-    gasm_->Bind(&call_to_number);
-    auto to_number_descriptor = Linkage::GetStubCallDescriptor(
-        mcgraph()->zone(), TypeConversionDescriptor{}, 0,
-        CallDescriptor::kNoFlags, Operator::kNoProperties, stub_mode_);
-    Node* to_number_target =
-        GetTargetForBuiltinCall(wasm::WasmCode::kToNumber, Builtins::kToNumber);
-    Node* number =
-        gasm_->Call(to_number_descriptor, to_number_target, input, js_context);
-    SetSourcePosition(number, 1);
-
-    // If the ToNumber result is Smi, convert to wasm.
-    gasm_->GotoIf(BuildTestSmi(number), &smi_to_wasm, number);
-
-    // Otherwise the ToNumber result is a HeapNumber. Load its value and convert
-    // to wasm.
-    Node* heap_number_value = gasm_->LoadHeapNumberValue(number);
-    Node* converted_heap_number_value =
-        BuildFloat64ToWasm(heap_number_value, type);
-    gasm_->Goto(&done, converted_heap_number_value);
-
-    // Implement the smi to wasm conversion.
-    gasm_->Bind(&smi_to_wasm);
-    Node* smi_to_wasm_result = BuildSmiToWasm(smi_to_wasm.PhiAt(0), type);
-    gasm_->Goto(&done, smi_to_wasm_result);
-
-    // Done. Update effect and control and return the final Phi.
-    gasm_->Bind(&done);
-    return done.PhiAt(0);
   }
 
   void BuildModifyThreadInWasmFlag(bool new_value) {
@@ -6315,7 +6188,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
  private:
   StubCallMode stub_mode_;
   SetOncePointer<Node> undefined_value_node_;
-  SetOncePointer<const Operator> allocate_heap_number_operator_;
+  SetOncePointer<const Operator> int32_to_heapnumber_operator_;
+  SetOncePointer<const Operator> tagged_non_smi_to_int32_operator_;
+  SetOncePointer<const Operator> float64_to_number_operator_;
+  SetOncePointer<const Operator> tagged_to_float64_operator_;
   wasm::WasmFeatures enabled_features_;
   CallDescriptor* bigint_to_i64_descriptor_ = nullptr;
   CallDescriptor* i64_to_bigint_descriptor_ = nullptr;

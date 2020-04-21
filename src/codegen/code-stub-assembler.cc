@@ -5242,6 +5242,22 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
   }
 }
 
+TNode<Int32T> CodeStubAssembler::TruncateNumberToWord32(TNode<Number> number) {
+  TVARIABLE(Int32T, var_result);
+  Label done(this), if_heapnumber(this);
+  GotoIfNot(TaggedIsSmi(number), &if_heapnumber);
+  var_result = SmiToInt32(CAST(number));
+  Goto(&done);
+
+  BIND(&if_heapnumber);
+  TNode<Float64T> value = LoadHeapNumberValue(CAST(number));
+  var_result = Signed(TruncateFloat64ToWord32(value));
+  Goto(&done);
+
+  BIND(&done);
+  return var_result.value();
+}
+
 TNode<Int32T> CodeStubAssembler::TruncateHeapNumberValueToWord32(
     TNode<HeapNumber> object) {
   TNode<Float64T> value = LoadHeapNumberValue(object);
@@ -5469,6 +5485,42 @@ TNode<Float64T> CodeStubAssembler::ChangeNumberToFloat64(TNode<Number> value) {
 
   BIND(&done);
   return result.value();
+}
+
+TNode<Int32T> CodeStubAssembler::ChangeTaggedNonSmiToInt32(
+    TNode<Context> context, TNode<HeapObject> input) {
+  return Select<Int32T>(
+      IsHeapNumber(input),
+      [=] {
+        return Signed(TruncateFloat64ToWord32(LoadHeapNumberValue(input)));
+      },
+      [=] {
+        return TruncateNumberToWord32(
+            CAST(CallBuiltin(Builtins::kNonNumberToNumber, context, input)));
+      });
+}
+
+TNode<Float64T> CodeStubAssembler::ChangeTaggedToFloat64(TNode<Context> context,
+                                                         TNode<Object> input) {
+  TVARIABLE(Float64T, var_result);
+  Label end(this), not_smi(this);
+
+  GotoIfNot(TaggedIsSmi(input), &not_smi);
+  var_result = SmiToFloat64(CAST(input));
+  Goto(&end);
+
+  BIND(&not_smi);
+  var_result = Select<Float64T>(
+      IsHeapNumber(CAST(input)),
+      [=] { return LoadHeapNumberValue(CAST(input)); },
+      [=] {
+        return ChangeNumberToFloat64(
+            CAST(CallBuiltin(Builtins::kNonNumberToNumber, context, input)));
+      });
+  Goto(&end);
+
+  BIND(&end);
+  return var_result.value();
 }
 
 TNode<WordT> CodeStubAssembler::TimesSystemPointerSize(

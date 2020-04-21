@@ -2414,6 +2414,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           TVariable<BigInt>* var_maybe_bigint,
                                           TVariable<Smi>* var_feedback);
 
+  TNode<Int32T> TruncateNumberToWord32(TNode<Number> value);
   // Truncate the floating point value of a HeapNumber to an Int32.
   TNode<Int32T> TruncateHeapNumberValueToWord32(TNode<HeapNumber> object);
 
@@ -2428,6 +2429,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> ChangeUintPtrToTagged(TNode<UintPtrT> value);
   TNode<Uint32T> ChangeNumberToUint32(TNode<Number> value);
   TNode<Float64T> ChangeNumberToFloat64(TNode<Number> value);
+
+  TNode<Int32T> ChangeTaggedNonSmiToInt32(TNode<Context> context,
+                                          TNode<HeapObject> input);
+  TNode<Float64T> ChangeTaggedToFloat64(TNode<Context> context,
+                                        TNode<Object> input);
 
   void TaggedToNumeric(TNode<Context> context, TNode<Object> value,
                        TVariable<Numeric>* var_numeric);

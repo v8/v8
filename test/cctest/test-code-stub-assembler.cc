@@ -3710,6 +3710,193 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   FLAG_turbo_instruction_scheduling = old_turbo_instruction_scheduling;
 }
 
+TEST(WasmInt32ToHeapNumber) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  int32_t test_values[] = {
+    // Smi values.
+    1,
+    0,
+    -1,
+    kSmiMaxValue,
+    kSmiMinValue,
+  // Test integers that can't be Smis (only possible if Smis are 31 bits).
+#if defined(V8_HOST_ARCH_32_BIT) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+    kSmiMaxValue + 1,
+    kSmiMinValue - 1,
+#endif
+  };
+
+  // FunctionTester can't handle Wasm type arguments, so for each test value,
+  // build a function with the arguments baked in, then generate a no-argument
+  // function to call.
+  const int kNumParams = 1;
+  for (size_t i = 0; i < arraysize(test_values); ++i) {
+    int32_t test_value = test_values[i];
+    CodeAssemblerTester asm_tester(isolate, kNumParams);
+    CodeStubAssembler m(asm_tester.state());
+    Node* context = m.Parameter(kNumParams + 1);
+    const TNode<Int32T> arg = m.Int32Constant(test_value);
+    const TNode<Object> call_result =
+        m.CallBuiltin(Builtins::kWasmInt32ToHeapNumber, context, arg);
+    m.Return(call_result);
+
+    FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+    Handle<Object> result = ft.Call().ToHandleChecked();
+    CHECK(result->IsNumber());
+    Handle<Object> expected(isolate->factory()->NewNumber(test_value));
+    CHECK(result->StrictEquals(*expected));
+  }
+}
+
+int32_t NumberToInt32(Handle<Object> number) {
+  if (number->IsSmi()) {
+    return Smi::ToInt(*number);
+  }
+  if (number->IsHeapNumber()) {
+    double num = HeapNumber::cast(*number).value();
+    return DoubleToInt32(num);
+  }
+  UNREACHABLE();
+}
+
+TEST(WasmTaggedNonSmiToInt32) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  Handle<Object> test_values[] = {
+      // No Smis here; the builtin can't handle them correctly.
+      factory->NewNumber(-0.0),
+      factory->NewNumber(1.5),
+      factory->NewNumber(-1.5),
+      factory->NewNumber(2 * static_cast<double>(kSmiMaxValue)),
+      factory->NewNumber(2 * static_cast<double>(kSmiMinValue)),
+      factory->NewNumber(std::numeric_limits<double>::infinity()),
+      factory->NewNumber(-std::numeric_limits<double>::infinity()),
+      factory->NewNumber(-std::numeric_limits<double>::quiet_NaN()),
+  };
+
+  const int kNumParams = 2;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+  Node* context = m.Parameter(kNumParams + 2);
+  const TNode<Object> arg = m.CAST(m.Parameter(0));
+  int32_t result = 0;
+  Node* base = m.IntPtrConstant(reinterpret_cast<intptr_t>(&result));
+  Node* value = m.CallBuiltin(Builtins::kWasmTaggedNonSmiToInt32, context, arg);
+  m.StoreNoWriteBarrier(MachineRepresentation::kWord32, base, value);
+  m.Return(m.UndefinedConstant());
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  for (size_t i = 0; i < arraysize(test_values); ++i) {
+    Handle<Object> test_value = test_values[i];
+    ft.Call(test_value);
+    int32_t expected = NumberToInt32(test_value);
+    CHECK_EQ(result, expected);
+  }
+}
+
+TEST(WasmFloat64ToNumber) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  double test_values[] = {
+      // Smi values.
+      1,
+      0,
+      -1,
+      kSmiMaxValue,
+      kSmiMinValue,
+      // Non-Smi values.
+      -0.0,
+      1.5,
+      std::numeric_limits<double>::quiet_NaN(),
+      std::numeric_limits<double>::infinity(),
+  };
+
+  // FunctionTester can't handle Wasm type arguments, so for each test value,
+  // build a function with the arguments baked in, then generate a no-argument
+  // function to call.
+  const int kNumParams = 1;
+  for (size_t i = 0; i < arraysize(test_values); ++i) {
+    double test_value = test_values[i];
+    CodeAssemblerTester asm_tester(isolate, kNumParams);
+    CodeStubAssembler m(asm_tester.state());
+    Node* context = m.Parameter(kNumParams + 1);
+    const TNode<Float64T> arg = m.Float64Constant(test_value);
+    const TNode<Object> call_result =
+        m.CallBuiltin(Builtins::kWasmFloat64ToNumber, context, arg);
+    m.Return(call_result);
+
+    FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+    Handle<Object> result = ft.Call().ToHandleChecked();
+    CHECK(result->IsNumber());
+    Handle<Object> expected(isolate->factory()->NewNumber(test_value));
+    CHECK(result->StrictEquals(*expected) ||
+          (std::isnan(test_value) && std::isnan(result->Number())));
+    CHECK_EQ(result->IsSmi(), expected->IsSmi());
+  }
+}
+
+double NumberToFloat64(Handle<Object> number) {
+  if (number->IsSmi()) {
+    return Smi::ToInt(*number);
+  }
+  if (number->IsHeapNumber()) {
+    return HeapNumber::cast(*number).value();
+  }
+  UNREACHABLE();
+}
+
+TEST(WasmTaggedToFloat64) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  Handle<Object> test_values[] = {
+      // Smi values.
+      handle(Smi::FromInt(1), isolate),
+      handle(Smi::FromInt(0), isolate),
+      handle(Smi::FromInt(-1), isolate),
+      handle(Smi::FromInt(kSmiMaxValue), isolate),
+      handle(Smi::FromInt(kSmiMinValue), isolate),
+      // Test some non-Smis.
+      factory->NewNumber(-0.0),
+      factory->NewNumber(1.5),
+      factory->NewNumber(-1.5),
+      factory->NewNumber(2 * kSmiMaxValue),
+      factory->NewNumber(2 * kSmiMinValue),
+      factory->NewNumber(std::numeric_limits<double>::infinity()),
+      factory->NewNumber(-std::numeric_limits<double>::infinity()),
+      factory->NewNumber(-std::numeric_limits<double>::quiet_NaN()),
+  };
+
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+  Node* context = m.Parameter(kNumParams + 2);
+  const TNode<Object> arg = m.CAST(m.Parameter(0));
+  double result = 0;
+  Node* base = m.IntPtrConstant(reinterpret_cast<intptr_t>(&result));
+  Node* value = m.CallBuiltin(Builtins::kWasmTaggedToFloat64, context, arg);
+  m.StoreNoWriteBarrier(MachineRepresentation::kFloat64, base, value);
+  m.Return(m.UndefinedConstant());
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  for (size_t i = 0; i < arraysize(test_values); ++i) {
+    Handle<Object> test_value = test_values[i];
+    ft.Call(test_value);
+    double expected = NumberToFloat64(test_value);
+    if (std::isnan(expected)) {
+      CHECK(std::isnan(result));
+    } else {
+      CHECK_EQ(result, expected);
+    }
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

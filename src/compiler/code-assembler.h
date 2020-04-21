@@ -571,6 +571,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Return(TNode<Int32T> value);
   void Return(TNode<Uint32T> value);
   void Return(TNode<WordT> value);
+  void Return(TNode<Float64T> value);
   void Return(TNode<WordT> value1, TNode<WordT> value2);
   void PopAndReturn(Node* pop, Node* value);
 

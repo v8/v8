@@ -90,6 +90,10 @@ namespace internal {
   V(TypeConversionStackParameter)     \
   V(Typeof)                           \
   V(Void)                             \
+  V(WasmInt32ToHeapNumber)            \
+  V(WasmTaggedNonSmiToInt32)          \
+  V(WasmFloat64ToNumber)              \
+  V(WasmTaggedToFloat64)              \
   V(WasmAtomicNotify)                 \
   V(WasmI32AtomicWait32)              \
   V(WasmI32AtomicWait64)              \
@@ -1308,6 +1312,38 @@ class RunMicrotasksDescriptor final : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(RunMicrotasksDescriptor, CallInterfaceDescriptor)
 
   static Register MicrotaskQueueRegister();
+};
+
+class WasmInt32ToHeapNumberDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kValue)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
+                                    MachineType::Int32())      // value
+  DECLARE_DESCRIPTOR(WasmInt32ToHeapNumberDescriptor, CallInterfaceDescriptor)
+};
+
+class WasmTaggedNonSmiToInt32Descriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kValue)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int32(),      // result
+                                    MachineType::AnyTagged())  // value
+  DECLARE_DESCRIPTOR(WasmTaggedNonSmiToInt32Descriptor, CallInterfaceDescriptor)
+};
+
+class WasmFloat64ToNumberDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kValue)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
+                                    MachineType::Float64())    // value
+  DECLARE_DESCRIPTOR(WasmFloat64ToNumberDescriptor, CallInterfaceDescriptor)
+};
+
+class WasmTaggedToFloat64Descriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kValue)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Float64(),    // result
+                                    MachineType::AnyTagged())  // value
+  DECLARE_DESCRIPTOR(WasmTaggedToFloat64Descriptor, CallInterfaceDescriptor)
 };
 
 class WasmMemoryGrowDescriptor final : public CallInterfaceDescriptor {
