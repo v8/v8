@@ -113,7 +113,11 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static constexpr int kMaxCaptures = 1 << 16;
 
   // Number of captures (without the match itself).
-  inline int CaptureCount();
+  inline int CaptureCount() const;
+  // Each capture (including the match itself) needs two registers.
+  static int RegistersForCaptureCount(int count) { return (count + 1) * 2; }
+
+  inline int MaxRegisterCount() const;
   inline Flags GetFlags();
   inline String Pattern();
   inline Object CaptureNameMap();

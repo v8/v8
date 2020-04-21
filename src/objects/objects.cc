@@ -4212,7 +4212,8 @@ Handle<RegExpMatchInfo> RegExpMatchInfo::ReserveCaptures(
     Isolate* isolate, Handle<RegExpMatchInfo> match_info, int capture_count) {
   DCHECK_GE(match_info->length(), kLastMatchOverhead);
 
-  int capture_register_count = (capture_count + 1) * 2;
+  int capture_register_count =
+      JSRegExp::RegistersForCaptureCount(capture_count);
   const int required_length = kFirstCaptureIndex + capture_register_count;
   Handle<RegExpMatchInfo> result = Handle<RegExpMatchInfo>::cast(
       EnsureSpaceInFixedArray(isolate, match_info, required_length));
