@@ -1252,7 +1252,8 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
                               MessageLocation* location,
                               CallPrinter::ErrorHint* hint) {
   if (ComputeLocation(isolate, location)) {
-    ParseInfo info(isolate, *location->shared());
+    ParseInfo info(isolate, i::UnoptimizedCompileFlags::ForFunctionCompile(
+                                isolate, *location->shared()));
     if (parsing::ParseAny(&info, location->shared(), isolate)) {
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location->shared()->IsUserJavaScript());
@@ -1310,7 +1311,8 @@ Object ErrorUtils::ThrowSpreadArgIsNullOrUndefinedError(Isolate* isolate,
   MessageLocation location;
   Handle<String> callsite;
   if (ComputeLocation(isolate, &location)) {
-    ParseInfo info(isolate, *location.shared());
+    ParseInfo info(isolate, i::UnoptimizedCompileFlags::ForFunctionCompile(
+                                isolate, *location.shared()));
     if (parsing::ParseAny(&info, location.shared(), isolate)) {
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript(),
@@ -1385,7 +1387,8 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
   if (ComputeLocation(isolate, &location)) {
     location_computed = true;
 
-    ParseInfo info(isolate, *location.shared());
+    ParseInfo info(isolate, i::UnoptimizedCompileFlags::ForFunctionCompile(
+                                isolate, *location.shared()));
     if (parsing::ParseAny(&info, location.shared(), isolate)) {
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());

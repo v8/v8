@@ -15,6 +15,7 @@
 #include "src/execution/off-thread-isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/handles.h"
+#include "src/handles/maybe-handles.h"
 #include "src/heap/off-thread-factory-inl.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/script.h"
@@ -55,7 +56,10 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
  public:
   OffThreadFactoryTest()
       : TestWithIsolateAndZone(),
-        parse_info_(isolate()),
+        parse_info_(isolate(), UnoptimizedCompileFlags::ForToplevelCompile(
+                                   isolate(), true,
+                                   construct_language_mode(FLAG_use_strict),
+                                   REPLMode::kNo)),
         off_thread_isolate_(isolate(), parse_info_.zone()) {}
 
   FunctionLiteral* ParseProgram(const char* source) {
@@ -68,8 +72,6 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
 
     parse_info_.set_character_stream(
         ScannerStream::ForTesting(utf16_source.data(), utf16_source.size()));
-    parse_info_.set_toplevel();
-    parse_info_.set_allow_lazy_parsing();
 
     {
       DisallowHeapAllocation no_allocation;
@@ -78,7 +80,7 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
 
       Parser parser(parse_info());
       parser.InitializeEmptyScopeChain(parse_info());
-      parser.ParseOnBackground(parse_info());
+      parser.ParseOnBackground(parse_info(), 0, 0, kFunctionLiteralIdTopLevel);
 
       CHECK(DeclarationScope::Analyze(parse_info()));
     }
@@ -88,7 +90,7 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
 
     script_ = parse_info_.CreateScript(off_thread_isolate(),
                                        off_thread_factory()->empty_string(),
-                                       ScriptOriginOptions());
+                                       kNullMaybeHandle, ScriptOriginOptions());
 
     // Create the SFI list on the script so that SFI SetScript works.
     Handle<WeakFixedArray> infos = off_thread_factory()->NewWeakFixedArray(
