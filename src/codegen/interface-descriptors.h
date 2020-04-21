@@ -1403,18 +1403,18 @@ class WasmTableCopyDescriptor final : public CallInterfaceDescriptor {
 class WasmTableGetDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kTableIndex, kEntryIndex)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),     // result 1
-                                    MachineType::TaggedSigned(),  // kTableIndex
-                                    MachineType::Int32())         // kEntryIndex
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
+                                    MachineType::IntPtr(),     // kTableIndex
+                                    MachineType::Int32())      // kEntryIndex
   DECLARE_DESCRIPTOR(WasmTableGetDescriptor, CallInterfaceDescriptor)
 };
 
 class WasmTableSetDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kTableIndex, kEntryIndex, kValue)
-  DEFINE_PARAMETER_TYPES(MachineType::TaggedSigned(),  // kTableIndex
-                         MachineType::Int32(),         // kEntryIndex
-                         MachineType::AnyTagged())     // kValue
+  DEFINE_PARAMETER_TYPES(MachineType::IntPtr(),     // kTableIndex
+                         MachineType::Int32(),      // kEntryIndex
+                         MachineType::AnyTagged())  // kValue
   DECLARE_DESCRIPTOR(WasmTableSetDescriptor, CallInterfaceDescriptor)
 };
 

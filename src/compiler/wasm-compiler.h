@@ -321,14 +321,6 @@ class WasmGraphBuilder {
   void GetBaseAndOffsetForImportedMutableAnyRefGlobal(
       const wasm::WasmGlobal& global, Node** base, Node** offset);
 
-  void BoundsCheckTable(uint32_t table_index, Node* index,
-                        wasm::WasmCodePosition position,
-                        wasm::TrapReason trap_reason, Node** base_node);
-
-  void GetTableBaseAndOffset(uint32_t table_index, Node* index,
-                             wasm::WasmCodePosition position, Node** base_node,
-                             Node** offset_node);
-
   // Utilities to manipulate sets of instance cache nodes.
   void InitInstanceCache(WasmInstanceCacheNodes* instance_cache);
   void PrepareInstanceCacheForLoop(WasmInstanceCacheNodes* instance_cache,

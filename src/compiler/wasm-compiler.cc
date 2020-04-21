@@ -1938,6 +1938,19 @@ ExternalReference convert_ccall_ref(WasmGraphBuilder* builder,
   }
 }
 
+template <typename BuiltinDescriptor>
+CallDescriptor* GetBuiltinCallDescriptor(WasmGraphBuilder* builder,
+                                         StubCallMode stub_mode) {
+  BuiltinDescriptor interface_descriptor;
+  return Linkage::GetStubCallDescriptor(
+      builder->mcgraph()->zone(),                     // zone
+      interface_descriptor,                           // descriptor
+      interface_descriptor.GetStackParameterCount(),  // stack parameter count
+      CallDescriptor::kNoFlags,                       // flags
+      Operator::kNoProperties,                        // properties
+      stub_mode);                                     // stub call mode
+}
+
 }  // namespace
 
 Node* WasmGraphBuilder::BuildCcallConvertFloat(Node* input,
@@ -3348,73 +3361,10 @@ Node* WasmGraphBuilder::GlobalSet(uint32_t index, Node* val) {
       graph()->NewNode(op, base, offset, val, effect(), control()));
 }
 
-void WasmGraphBuilder::BoundsCheckTable(uint32_t table_index, Node* entry_index,
-                                        wasm::WasmCodePosition position,
-                                        wasm::TrapReason trap_reason,
-                                        Node** base_node) {
-  Node* tables = LOAD_INSTANCE_FIELD(Tables, MachineType::TaggedPointer());
-  Node* table = LOAD_FIXED_ARRAY_SLOT_ANY(tables, table_index);
-
-  int length_field_size = WasmTableObject::kCurrentLengthOffsetEnd -
-                          WasmTableObject::kCurrentLengthOffset + 1;
-  Node* length_smi = gasm_->Load(
-      assert_size(length_field_size, MachineType::TaggedSigned()), table,
-      wasm::ObjectAccess::ToTagged(WasmTableObject::kCurrentLengthOffset));
-  Node* length = BuildChangeSmiToInt32(length_smi);
-
-  // Bounds check against the table size.
-  Node* in_bounds = graph()->NewNode(mcgraph()->machine()->Uint32LessThan(),
-                                     entry_index, length);
-  TrapIfFalse(trap_reason, in_bounds, position);
-
-  if (base_node) {
-    int storage_field_size = WasmTableObject::kEntriesOffsetEnd -
-                             WasmTableObject::kEntriesOffset + 1;
-    *base_node = gasm_->Load(
-        assert_size(storage_field_size, MachineType::TaggedPointer()), table,
-        wasm::ObjectAccess::ToTagged(WasmTableObject::kEntriesOffset));
-  }
-}
-
-void WasmGraphBuilder::GetTableBaseAndOffset(uint32_t table_index,
-                                             Node* entry_index,
-                                             wasm::WasmCodePosition position,
-                                             Node** base_node,
-                                             Node** offset_node) {
-  BoundsCheckTable(table_index, entry_index, position,
-                   wasm::kTrapTableOutOfBounds, base_node);
-  // From the index, calculate the actual offset in the FixeArray. This
-  // is kHeaderSize + (index * kTaggedSize). kHeaderSize can be acquired with
-  // wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0).
-  Node* index_times_tagged_size = graph()->NewNode(
-      mcgraph()->machine()->IntMul(), Uint32ToUintptr(entry_index),
-      mcgraph()->Int32Constant(kTaggedSize));
-
-  *offset_node = graph()->NewNode(
-      mcgraph()->machine()->IntAdd(), index_times_tagged_size,
-      mcgraph()->IntPtrConstant(
-          wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0)));
-}
-
 Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,
                                  wasm::WasmCodePosition position) {
-  if (env_->module->tables[table_index].type == wasm::kWasmAnyRef ||
-      env_->module->tables[table_index].type == wasm::kWasmNullRef ||
-      env_->module->tables[table_index].type == wasm::kWasmExnRef) {
-    Node* base = nullptr;
-    Node* offset = nullptr;
-    GetTableBaseAndOffset(table_index, index, position, &base, &offset);
-    return gasm_->Load(MachineType::AnyTagged(), base, offset);
-  }
-  // We access funcref tables through runtime calls.
-  WasmTableGetDescriptor interface_descriptor;
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      mcgraph()->zone(),                              // zone
-      interface_descriptor,                           // descriptor
-      interface_descriptor.GetStackParameterCount(),  // stack parameter count
-      CallDescriptor::kNoFlags,                       // flags
-      Operator::kNoProperties,                        // properties
-      StubCallMode::kCallWasmRuntimeStub);            // stub call mode
+  auto call_descriptor = GetBuiltinCallDescriptor<WasmTableGetDescriptor>(
+      this, StubCallMode::kCallWasmRuntimeStub);
   // A direct call to a wasm runtime stub defined in this module.
   // Just encode the stub index. This will be patched at relocation.
   Node* call_target = mcgraph()->RelocatableIntPtrConstant(
@@ -3422,40 +3372,21 @@ Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,
 
   return SetEffectControl(graph()->NewNode(
       mcgraph()->common()->Call(call_descriptor), call_target,
-      graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)), index,
-      effect(), control()));
+      IntPtrConstant(table_index), index, effect(), control()));
 }
 
 Node* WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
                                  wasm::WasmCodePosition position) {
-  if (env_->module->tables[table_index].type == wasm::kWasmAnyRef ||
-      env_->module->tables[table_index].type == wasm::kWasmNullRef ||
-      env_->module->tables[table_index].type == wasm::kWasmExnRef) {
-    Node* base = nullptr;
-    Node* offset = nullptr;
-    GetTableBaseAndOffset(table_index, index, position, &base, &offset);
-    return STORE_RAW_NODE_OFFSET(
-        base, offset, val, MachineRepresentation::kTagged, kFullWriteBarrier);
-  } else {
-    // We access funcref tables through runtime calls.
-    WasmTableSetDescriptor interface_descriptor;
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        mcgraph()->zone(),                              // zone
-        interface_descriptor,                           // descriptor
-        interface_descriptor.GetStackParameterCount(),  // stack parameter count
-        CallDescriptor::kNoFlags,                       // flags
-        Operator::kNoProperties,                        // properties
-        StubCallMode::kCallWasmRuntimeStub);            // stub call mode
-    // A direct call to a wasm runtime stub defined in this module.
-    // Just encode the stub index. This will be patched at relocation.
-    Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-        wasm::WasmCode::kWasmTableSet, RelocInfo::WASM_STUB_CALL);
+  auto call_descriptor = GetBuiltinCallDescriptor<WasmTableSetDescriptor>(
+      this, StubCallMode::kCallWasmRuntimeStub);
+  // A direct call to a wasm runtime stub defined in this module.
+  // Just encode the stub index. This will be patched at relocation.
+  Node* call_target = mcgraph()->RelocatableIntPtrConstant(
+      wasm::WasmCode::kWasmTableSet, RelocInfo::WASM_STUB_CALL);
 
-    return SetEffectControl(graph()->NewNode(
-        mcgraph()->common()->Call(call_descriptor), call_target,
-        graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)),
-        index, val, effect(), control()));
-  }
+  return SetEffectControl(graph()->NewNode(
+      mcgraph()->common()->Call(call_descriptor), call_target,
+      IntPtrConstant(table_index), index, val, effect(), control()));
 }
 
 Node* WasmGraphBuilder::CheckBoundsAndAlignment(
@@ -4027,19 +3958,6 @@ Signature<MachineRepresentation>* CreateMachineSignature(
     }
   }
   return builder.Build();
-}
-
-template <typename BuiltinDescriptor>
-CallDescriptor* GetBuiltinCallDescriptor(WasmGraphBuilder* builder,
-                                         StubCallMode stub_mode) {
-  BuiltinDescriptor interface_descriptor;
-  return Linkage::GetStubCallDescriptor(
-      builder->mcgraph()->zone(),                     // zone
-      interface_descriptor,                           // descriptor
-      interface_descriptor.GetStackParameterCount(),  // stack parameter count
-      CallDescriptor::kNoFlags,                       // flags
-      Operator::kNoProperties,                        // properties
-      stub_mode);                                     // stub call mode
 }
 
 }  // namespace

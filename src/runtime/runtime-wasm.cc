@@ -487,6 +487,8 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
   DCHECK_LT(table_index, instance->tables().length());
   auto table = handle(
       WasmTableObject::cast(instance->tables().get(table_index)), isolate);
+  // We only use the runtime call for lazily initialized function references.
+  DCHECK_EQ(table->type(), wasm::kWasmFuncRef);
 
   if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
@@ -508,6 +510,8 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
   DCHECK_LT(table_index, instance->tables().length());
   auto table = handle(
       WasmTableObject::cast(instance->tables().get(table_index)), isolate);
+  // We only use the runtime call for function references.
+  DCHECK_EQ(table->type(), wasm::kWasmFuncRef);
 
   if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
