@@ -5,7 +5,9 @@
 #ifndef V8_SNAPSHOT_SNAPSHOT_COMPRESSION_H_
 #define V8_SNAPSHOT_SNAPSHOT_COMPRESSION_H_
 
-#include "src/snapshot/snapshot-data.h"
+#include "src/snapshot/serializer-common.h"
+#include "src/snapshot/serializer.h"
+#include "src/snapshot/snapshot.h"
 #include "src/utils/vector.h"
 
 namespace v8 {

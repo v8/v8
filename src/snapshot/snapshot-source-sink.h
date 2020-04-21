@@ -8,7 +8,7 @@
 #include <utility>
 
 #include "src/base/logging.h"
-#include "src/snapshot/snapshot-utils.h"
+#include "src/snapshot/serializer-common.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
