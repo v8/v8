@@ -2433,6 +2433,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/objects-visiting.h",
     "src/heap/off-thread-factory.cc",
     "src/heap/off-thread-factory.h",
+    "src/heap/off-thread-heap.cc",
+    "src/heap/off-thread-heap.h",
     "src/heap/read-only-heap-inl.h",
     "src/heap/read-only-heap.cc",
     "src/heap/read-only-heap.h",

@@ -13,10 +13,20 @@ namespace internal {
 
 OffThreadIsolate::OffThreadIsolate(Isolate* isolate, Zone* zone)
     : HiddenOffThreadFactory(isolate),
+      heap_(isolate->heap()),
       isolate_(isolate),
       logger_(new OffThreadLogger()),
       handle_zone_(zone) {}
 OffThreadIsolate::~OffThreadIsolate() { delete logger_; }
+
+void OffThreadIsolate::FinishOffThread() {
+  heap()->FinishOffThread();
+  handle_zone_ = nullptr;
+}
+
+void OffThreadIsolate::Publish(Isolate* isolate) {
+  heap()->Publish(isolate->heap());
+}
 
 int OffThreadIsolate::GetNextScriptId() { return isolate_->GetNextScriptId(); }
 

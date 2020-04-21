@@ -14,8 +14,6 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/label.h"
 #include "src/common/globals.h"
-#include "src/execution/isolate.h"
-#include "src/execution/off-thread-isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/function-syntax-kind.h"
@@ -117,6 +115,9 @@ namespace internal {
   EXPRESSION_NODE_LIST(V)
 
 // Forward declarations
+class Isolate;
+class OffThreadIsolate;
+
 class AstNode;
 class AstNodeFactory;
 class Declaration;

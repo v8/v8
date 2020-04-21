@@ -2418,7 +2418,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
 
       Handle<SharedFunctionInfo> sfi(task->outer_function_sfi(), isolate);
       Handle<Script> script(Script::cast(sfi->script()), isolate);
-      task->off_thread_isolate()->factory()->Publish(isolate);
+      task->off_thread_isolate()->Publish(isolate);
 
       FixUpOffThreadAllocatedScript(isolate, script, source, script_details,
                                     origin_options, NOT_NATIVES_CODE);

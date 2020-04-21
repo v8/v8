@@ -137,11 +137,11 @@ TEST_F(OffThreadFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
 
     off_thread_wrapper =
         *off_thread_factory()->StringWrapperForTest(off_thread_string);
-    off_thread_factory()->FinishOffThread();
+    off_thread_isolate()->FinishOffThread();
   }
 
   Handle<FixedArray> wrapper = handle(off_thread_wrapper, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
 
   Handle<String> string = handle(String::cast(wrapper->get(0)), isolate());
 
@@ -180,12 +180,12 @@ TEST_F(OffThreadFactoryTest,
 
     off_thread_wrapper_1 = *WrapString(off_thread_string_1);
     off_thread_wrapper_2 = *WrapString(off_thread_string_2);
-    off_thread_factory()->FinishOffThread();
+    off_thread_isolate()->FinishOffThread();
   }
 
   Handle<FixedArray> wrapper_1 = handle(off_thread_wrapper_1, isolate());
   Handle<FixedArray> wrapper_2 = handle(off_thread_wrapper_2, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
 
   Handle<String> string_1 = handle(String::cast(wrapper_1->get(0)), isolate());
   Handle<String> string_2 = handle(String::cast(wrapper_2->get(0)), isolate());
@@ -208,11 +208,11 @@ TEST_F(OffThreadFactoryTest, AstRawString_IsInternalized) {
     ast_value_factory.Internalize(off_thread_isolate());
 
     off_thread_wrapper = *WrapString(raw_string->string());
-    off_thread_factory()->FinishOffThread();
+    off_thread_isolate()->FinishOffThread();
   }
 
   Handle<FixedArray> wrapper = handle(off_thread_wrapper, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
 
   Handle<String> string = handle(String::cast(wrapper->get(0)), isolate());
 
@@ -238,11 +238,11 @@ TEST_F(OffThreadFactoryTest, AstConsString_CreatesConsString) {
 
     off_thread_wrapper =
         *WrapString(foobar_string->GetString(off_thread_isolate()));
-    off_thread_factory()->FinishOffThread();
+    off_thread_isolate()->FinishOffThread();
   }
 
   Handle<FixedArray> wrapper = handle(off_thread_wrapper, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
 
   Handle<String> string = handle(String::cast(wrapper->get(0)), isolate());
 
@@ -261,11 +261,11 @@ TEST_F(OffThreadFactoryTest, EmptyScript) {
     shared = *off_thread_factory()->NewSharedFunctionInfoForLiteral(
         program, script(), true);
 
-    off_thread_factory()->FinishOffThread();
+    off_thread_isolate()->FinishOffThread();
   }
 
   Handle<SharedFunctionInfo> root_sfi = handle(shared, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
 
   EXPECT_EQ(root_sfi->function_literal_id(), 0);
 }
@@ -285,11 +285,11 @@ TEST_F(OffThreadFactoryTest, LazyFunction) {
     shared = *off_thread_factory()->NewSharedFunctionInfoForLiteral(
         lazy, script(), true);
 
-    off_thread_factory()->FinishOffThread();
+    off_thread_isolate()->FinishOffThread();
   }
 
   Handle<SharedFunctionInfo> lazy_sfi = handle(shared, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
 
   EXPECT_EQ(lazy_sfi->function_literal_id(), 1);
   EXPECT_TRUE(lazy_sfi->Name().IsOneByteEqualTo(CStrVector("lazy")));
@@ -312,11 +312,11 @@ TEST_F(OffThreadFactoryTest, EagerFunction) {
     shared = *off_thread_factory()->NewSharedFunctionInfoForLiteral(
         eager, script(), true);
 
-    off_thread_factory()->FinishOffThread();
+    off_thread_isolate()->FinishOffThread();
   }
 
   Handle<SharedFunctionInfo> eager_sfi = handle(shared, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
 
   EXPECT_EQ(eager_sfi->function_literal_id(), 1);
   EXPECT_TRUE(eager_sfi->Name().IsOneByteEqualTo(CStrVector("eager")));
@@ -346,11 +346,11 @@ TEST_F(OffThreadFactoryTest, ImplicitNameFunction) {
     shared = *off_thread_factory()->NewSharedFunctionInfoForLiteral(
         implicit_name, script(), true);
 
-    off_thread_factory()->FinishOffThread();
+    off_thread_isolate()->FinishOffThread();
   }
 
   Handle<SharedFunctionInfo> implicit_name_sfi = handle(shared, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
 
   EXPECT_EQ(implicit_name_sfi->function_literal_id(), 1);
   EXPECT_TRUE(

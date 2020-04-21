@@ -9,6 +9,7 @@
 #include "src/execution/thread-id.h"
 #include "src/handles/handles.h"
 #include "src/heap/off-thread-factory.h"
+#include "src/heap/off-thread-heap.h"
 
 namespace v8 {
 namespace internal {
@@ -37,6 +38,8 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
   explicit OffThreadIsolate(Isolate* isolate, Zone* zone);
   ~OffThreadIsolate();
 
+  OffThreadHeap* heap() { return &heap_; }
+
   v8::internal::OffThreadFactory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid
     // undefined behavior (as static_cast cannot cast across private bases).
@@ -47,10 +50,13 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
 
   // This method finishes the use of the off-thread Isolate, and can be safely
   // called off-thread.
-  void FinishOffThread() {
-    factory()->FinishOffThread();
-    handle_zone_ = nullptr;
-  }
+  void FinishOffThread();
+
+  // This method publishes the off-thread Isolate to the main-thread Isolate,
+  // moving all off-thread allocated objects to be visible to the GC, and fixing
+  // up any other state (e.g. internalized strings). This method must be called
+  // on the main thread.
+  void Publish(Isolate* isolate);
 
   template <typename T>
   Handle<T> Throw(Handle<Object> exception) {
@@ -83,6 +89,8 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
 
  private:
   friend class v8::internal::OffThreadFactory;
+
+  OffThreadHeap heap_;
 
   // TODO(leszeks): Extract out the fields of the Isolate we want and store
   // those instead of the whole thing.

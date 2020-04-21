@@ -19,6 +19,7 @@ include_rules = [
   "+src/heap/local-heap.h",
   "+src/heap/off-thread-factory-inl.h",
   "+src/heap/off-thread-factory.h",
+  "+src/heap/off-thread-heap.h",
   "+src/heap/read-only-heap-inl.h",
   "+src/heap/read-only-heap.h",
   "+src/heap/safepoint.h",
