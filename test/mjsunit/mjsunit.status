@@ -1151,6 +1151,12 @@
   # interrupt_budget overrides don't work with TurboProp.
   'interrupt-budget-override': [SKIP],
   'never-optimize': [SKIP],
+
+  # In turboprop we reuse the optimized code on soft deopt. The following tests
+  # test for a soft deopt and they won't work in TurboProp.
+  'deopt-recursive-soft-once': [SKIP],
+  'regress/regress-3709': [SKIP],
+  'regress/regress-5790': [SKIP],
 }],  # variant == turboprop
 
 ##############################################################################

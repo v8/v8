@@ -488,6 +488,24 @@ void Code::set_marked_for_deoptimization(bool flag) {
   code_data_container().set_kind_specific_flags(updated);
 }
 
+int Code::deoptimization_count() const {
+  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  int32_t flags = code_data_container().kind_specific_flags();
+  int count = DeoptCountField::decode(flags);
+  DCHECK_GE(count, 0);
+  return count;
+}
+
+void Code::increment_deoptimization_count() {
+  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  int32_t flags = code_data_container().kind_specific_flags();
+  int32_t count = DeoptCountField::decode(flags);
+  DCHECK_GE(count, 0);
+  CHECK_LE(count + 1, DeoptCountField::kMax);
+  int32_t updated = DeoptCountField::update(flags, count + 1);
+  code_data_container().set_kind_specific_flags(updated);
+}
+
 bool Code::embedded_objects_cleared() const {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
   int32_t flags = code_data_container().kind_specific_flags();

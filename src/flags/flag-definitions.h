@@ -498,6 +498,7 @@ DEFINE_BOOL(turboprop, false,
 DEFINE_NEG_IMPLICATION(turboprop, turbo_inlining)
 DEFINE_IMPLICATION(turboprop, concurrent_inlining)
 DEFINE_VALUE_IMPLICATION(turboprop, interrupt_budget, 15 * KB)
+DEFINE_VALUE_IMPLICATION(turboprop, reuse_opt_code_count, 2)
 
 // Flags for concurrent recompilation.
 DEFINE_BOOL(concurrent_recompilation, true,
@@ -648,6 +649,8 @@ DEFINE_BOOL(
     stress_gc_during_compilation, false,
     "simulate GC/compiler thread race related to https://crbug.com/v8/8520")
 DEFINE_BOOL(turbo_fast_api_calls, false, "enable fast API calls from TurboFan")
+DEFINE_INT(reuse_opt_code_count, 0,
+           "don't discard optimized code for the specified number of deopts.")
 
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, false,
