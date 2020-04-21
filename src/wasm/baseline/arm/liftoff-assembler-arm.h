@@ -557,6 +557,97 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   }
 }
 
+namespace liftoff {
+#define __ lasm->
+
+inline void AtomicOp64(LiftoffAssembler* lasm, Register dst_addr,
+                       Register offset_reg, uint32_t offset_imm,
+                       LiftoffRegister value,
+                       base::Optional<LiftoffRegister> result,
+                       void (*op)(LiftoffAssembler*, LiftoffRegister,
+                                  LiftoffRegister, LiftoffRegister)) {
+  // strexd loads a 64 bit word into two registers. The first register needs
+  // to have an even index, e.g. r8, the second register needs to be the one
+  // with the next higher index, e.g. r9 if the first register is r8. In the
+  // following code we use the fixed register pair r8/r9 to make the code here
+  // simpler, even though other register pairs would also be possible.
+  constexpr Register dst_low = r8;
+  constexpr Register dst_high = r9;
+
+  // Make sure {dst_low} and {dst_high} are not occupied by any other value.
+  Register value_low = value.low_gp();
+  Register value_high = value.high_gp();
+  LiftoffRegList pinned = LiftoffRegList::ForRegs(
+      dst_addr, offset_reg, value_low, value_high, dst_low, dst_high);
+  __ ClearRegister(dst_low, {&dst_addr, &offset_reg, &value_low, &value_high},
+                   pinned);
+  __ ClearRegister(dst_high, {&dst_addr, &offset_reg, &value_low, &value_high},
+                   pinned);
+  pinned = pinned |
+           LiftoffRegList::ForRegs(dst_addr, offset_reg, value_low, value_high);
+
+  // Make sure that {result}, if it exists, also does not overlap with {dst_low}
+  // and {dst_high}. We don't have to transfer the value stored in {result}.
+  Register result_low = no_reg;
+  Register result_high = no_reg;
+  if (result.has_value()) {
+    result_low = result.value().low_gp();
+    if (pinned.has(result_low)) {
+      result_low = __ GetUnusedRegister(kGpReg, pinned).gp();
+    }
+    pinned.set(result_low);
+
+    result_high = result.value().high_gp();
+    if (pinned.has(result_high)) {
+      result_high = __ GetUnusedRegister(kGpReg, pinned).gp();
+    }
+    pinned.set(result_high);
+  }
+
+  UseScratchRegisterScope temps(lasm);
+  Register actual_addr = liftoff::CalculateActualAddress(
+      lasm, &temps, dst_addr, offset_reg, offset_imm);
+  Register store_result = __ GetUnusedRegister(kGpReg, pinned).gp();
+
+  __ dmb(ISH);
+  Label retry;
+  __ bind(&retry);
+  // {ldrexd} is needed here so that the {strexd} instruction below can
+  // succeed. We don't need the value we are reading. We use {dst_low} and
+  // {dst_high} as the destination registers because {ldrexd} has the same
+  // restrictions on registers as {strexd}, see the comment above.
+  __ ldrexd(dst_low, dst_high, actual_addr);
+  if (result.has_value()) {
+    __ mov(result_low, dst_low);
+    __ mov(result_high, dst_high);
+  }
+  op(lasm, LiftoffRegister::ForPair(dst_low, dst_high),
+     LiftoffRegister::ForPair(dst_low, dst_high),
+     LiftoffRegister::ForPair(value_low, value_high));
+  __ strexd(store_result, dst_low, dst_high, actual_addr);
+  __ cmp(store_result, Operand(0));
+  __ b(ne, &retry);
+  __ dmb(ISH);
+
+  if (result.has_value()) {
+    if (result_low != result.value().low_gp()) {
+      __ mov(result.value().low_gp(), result_low);
+    }
+    if (result_high != result.value().high_gp()) {
+      __ mov(result.value().high_gp(), result_high);
+    }
+  }
+}
+
+inline void I64Store(LiftoffAssembler* lasm, LiftoffRegister dst,
+                     LiftoffRegister, LiftoffRegister src) {
+  __ mov(dst.low_gp(), src.low_gp());
+  __ mov(dst.high_gp(), src.high_gp());
+}
+
+#undef __
+}  // namespace liftoff
+
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uint32_t offset_imm,
                                   LoadType type, LiftoffRegList pinned) {
@@ -599,82 +690,75 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     return;
   }
 
-  // strexd loads a 64 bit word into two registers. The first register needs
-  // to have an even index, e.g. r8, the second register needs to be the one
-  // with the next higher index, e.g. r9 if the first register is r8. In the
-  // following code we use the fixed register pair r8/r9 to make the code here
-  // simpler, even though other register pairs would also be possible.
-  constexpr Register value_low = r8;
-  constexpr Register value_high = r9;
-  pinned.set(value_low);
-  pinned.set(value_high);
-
-  // We need r8/r9 below as temps as well, so we cannot allow {src} to be
-  // one of these registers.
-  Register src_low = src.low_gp();
-  Register src_high = src.high_gp();
-
-  ClearRegister(value_low, {&dst_addr, &offset_reg, &src_low, &src_high},
-                pinned);
-  ClearRegister(value_high, {&dst_addr, &offset_reg, &src_low, &src_high},
-                pinned);
-
-  UseScratchRegisterScope temps(this);
-  Register actual_addr = liftoff::CalculateActualAddress(
-      this, &temps, dst_addr, offset_reg, offset_imm);
-  Register result = temps.CanAcquire() ? temps.Acquire()
-                                       : GetUnusedRegister(kGpReg, pinned).gp();
-  dmb(ISH);
-  Label store;
-  bind(&store);
-  // {ldrexd} is needed here so that the {strexd} instruction below can
-  // succeed. We don't need the value we are reading. We use {value_low} and
-  // {value_high} as the destination registers because {ldrexd} has the same
-  // restrictions on registers as {strexd}, see the comment above.
-  ldrexd(value_low, value_high, actual_addr);
-  TurboAssembler::Move(value_low, src_low);
-  TurboAssembler::Move(value_high, src_high);
-  strexd(result, value_low, value_high, actual_addr);
-  cmp(result, Operand(0));
-  b(ne, &store);
-  dmb(ISH);
+  liftoff::AtomicOp64(this, dst_addr, offset_reg, offset_imm, src, {},
+                      liftoff::I64Store);
 }
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicAdd");
+  if (type.value() != StoreType::kI64Store) {
+    bailout(kAtomics, "AtomicAdd");
+    return;
+  }
+  liftoff::AtomicOp64(this, dst_addr, offset_reg, offset_imm, value, {result},
+                      liftoff::I64Binop<&Assembler::add, &Assembler::adc>);
 }
 
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicSub");
+  if (type.value() != StoreType::kI64Store) {
+    bailout(kAtomics, "AtomicSub");
+    return;
+  }
+  liftoff::AtomicOp64(this, dst_addr, offset_reg, offset_imm, value, {result},
+                      liftoff::I64Binop<&Assembler::sub, &Assembler::sbc>);
 }
 
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicAnd");
+  if (type.value() != StoreType::kI64Store) {
+    bailout(kAtomics, "AtomicAnd");
+    return;
+  }
+  liftoff::AtomicOp64(this, dst_addr, offset_reg, offset_imm, value, {result},
+                      liftoff::I64Binop<&Assembler::and_, &Assembler::and_>);
 }
 
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uint32_t offset_imm, LiftoffRegister value,
                                 LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicOr");
+  if (type.value() != StoreType::kI64Store) {
+    bailout(kAtomics, "AtomicOr");
+    return;
+  }
+  liftoff::AtomicOp64(this, dst_addr, offset_reg, offset_imm, value, {result},
+                      liftoff::I64Binop<&Assembler::orr, &Assembler::orr>);
 }
 
 void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicXor");
+  if (type.value() != StoreType::kI64Store) {
+    bailout(kAtomics, "AtomicXor");
+    return;
+  }
+  liftoff::AtomicOp64(this, dst_addr, offset_reg, offset_imm, value, {result},
+                      liftoff::I64Binop<&Assembler::eor, &Assembler::eor>);
 }
 
 void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uint32_t offset_imm,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicExchange");
+  if (type.value() != StoreType::kI64Store) {
+    bailout(kAtomics, "AtomicExchange");
+    return;
+  }
+  liftoff::AtomicOp64(this, dst_addr, offset_reg, offset_imm, value, {result},
+                      liftoff::I64Store);
 }
 
 void LiftoffAssembler::AtomicCompareExchange(
