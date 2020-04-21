@@ -2327,6 +2327,23 @@ class LiftoffCompiler {
     unsupported(decoder, kTailCall, "return_call_indirect");
   }
 
+  template <ValueType::Kind src_type, ValueType::Kind result_type,
+            typename EmitFn>
+  void EmitTerOp(EmitFn fn) {
+    static constexpr RegClass src_rc = reg_class_for(src_type);
+    static constexpr RegClass result_rc = reg_class_for(result_type);
+    LiftoffRegister src3 = __ PopToRegister();
+    LiftoffRegister src2 = __ PopToRegister(LiftoffRegList::ForRegs(src3));
+    LiftoffRegister src1 =
+        __ PopToRegister(LiftoffRegList::ForRegs(src3, src2));
+    LiftoffRegister dst =
+        src_rc == result_rc
+            ? __ GetUnusedRegister(result_rc, {src1, src2, src3})
+            : __ GetUnusedRegister(result_rc);
+    CallEmitFn(fn, dst, src1, src2, src3);
+    __ PushRegister(ValueType(result_type), dst);
+  }
+
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
               Value* result) {
     if (!CpuFeatures::SupportsWasmSimd128()) {
@@ -2401,6 +2418,8 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_s128_or);
       case wasm::kExprS128Xor:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_s128_xor);
+      case wasm::kExprS128Select:
+        return EmitTerOp<kS128, kS128>(&LiftoffAssembler::emit_s128_select);
       case wasm::kExprI8x16Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_neg);
       case wasm::kExprI8x16Add:
