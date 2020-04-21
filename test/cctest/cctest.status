@@ -367,7 +367,7 @@
   'test-macro-assembler-riscv/jump_tables*': [SKIP],
   'test-macro-assembler-riscv/OverflowInstructions': [FAIL],
   'test-macro-assembler-riscv/min_max_nan': [FAIL],
-  'test-macro-assembler-riscv/Ulh_bitextension': [FAIL],
+  'test-macro-assembler-riscv/Ulh_bitextension': [SKIP],
   'test-macro-assembler-riscv/Ulw_*': [FAIL],
   'test-macro-assembler-riscv/Ulw': [FAIL],
   'test-macro-assembler-riscv/Uld': [FAIL],
