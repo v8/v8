@@ -3150,19 +3150,9 @@ void Assembler::lwu(Register rd, const MemOperand& rs) {
   }
 }
 
-// FIXME(RISCV): to be ported
-void Assembler::lwl(Register rd, const MemOperand& rs) {
-  DCHECK(is_int16(rs.offset_));
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  GenInstrImmediate(LWL, rs.rm(), rd, rs.offset_);
-}
+void Assembler::lwl(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
-// FIXME(RISCV): to be ported
-void Assembler::lwr(Register rd, const MemOperand& rs) {
-  DCHECK(is_int16(rs.offset_));
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  GenInstrImmediate(LWR, rs.rm(), rd, rs.offset_);
-}
+void Assembler::lwr(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
 void Assembler::sb(Register rd, const MemOperand& rs) {
   if (is_int12(rs.offset()))
@@ -3203,55 +3193,17 @@ void Assembler::sw(Register rd, const MemOperand& rs) {
   }
 }
 
-// FIXME(RISCV): to be ported
-void Assembler::swl(Register rd, const MemOperand& rs) {
-  DCHECK(is_int16(rs.offset_));
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  GenInstrImmediate(SWL, rs.rm(), rd, rs.offset_);
-}
+void Assembler::swl(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
-// FIXME(RISCV): to be ported
-void Assembler::swr(Register rd, const MemOperand& rs) {
-  DCHECK(is_int16(rs.offset_));
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  GenInstrImmediate(SWR, rs.rm(), rd, rs.offset_);
-}
+void Assembler::swr(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
-// FIXME(RISCV): to be ported
-void Assembler::ll(Register rd, const MemOperand& rs) {
-  if (kArchVariant == kMips64r6) {
-    DCHECK(is_int9(rs.offset_));
-    GenInstrImmediate(SPECIAL3, rs.rm(), rd, rs.offset_, 0, LL_R6);
-  } else {
-    DCHECK_EQ(kArchVariant, kMips64r2);
-    DCHECK(is_int16(rs.offset_));
-    GenInstrImmediate(LL, rs.rm(), rd, rs.offset_);
-  }
-}
+void Assembler::ll(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
 void Assembler::lld(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
-// FIXME(RISCV): to be ported
-void Assembler::sc(Register rd, const MemOperand& rs) {
-  if (kArchVariant == kMips64r6) {
-    DCHECK(is_int9(rs.offset_));
-    GenInstrImmediate(SPECIAL3, rs.rm(), rd, rs.offset_, 0, SC_R6);
-  } else {
-    DCHECK_EQ(kArchVariant, kMips64r2);
-    GenInstrImmediate(SC, rs.rm(), rd, rs.offset_);
-  }
-}
+void Assembler::sc(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
-// FIXME(RISCV): to be ported
-void Assembler::scd(Register rd, const MemOperand& rs) {
-  if (kArchVariant == kMips64r6) {
-    DCHECK(is_int9(rs.offset_));
-    GenInstrImmediate(SPECIAL3, rs.rm(), rd, rs.offset_, 0, SCD_R6);
-  } else {
-    DCHECK_EQ(kArchVariant, kMips64r2);
-    GenInstrImmediate(SCD, rs.rm(), rd, rs.offset_);
-  }
-}
+void Assembler::scd(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
 void Assembler::lui(Register rd, int32_t j) { UNREACHABLE(); }
 
@@ -3263,33 +3215,13 @@ void Assembler::dahi(Register rs, int32_t j) { UNREACHABLE(); }
 
 void Assembler::dati(Register rs, int32_t j) { UNREACHABLE(); }
 
-// FIXME(RISCV): to be ported
-void Assembler::ldl(Register rd, const MemOperand& rs) {
-  DCHECK(is_int16(rs.offset_));
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  GenInstrImmediate(LDL, rs.rm(), rd, rs.offset_);
-}
+void Assembler::ldl(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
-// FIXME(RISCV): to be ported
-void Assembler::ldr(Register rd, const MemOperand& rs) {
-  DCHECK(is_int16(rs.offset_));
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  GenInstrImmediate(LDR, rs.rm(), rd, rs.offset_);
-}
+void Assembler::ldr(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
-// FIXME(RISCV): to be ported
-void Assembler::sdl(Register rd, const MemOperand& rs) {
-  DCHECK(is_int16(rs.offset_));
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  GenInstrImmediate(SDL, rs.rm(), rd, rs.offset_);
-}
+void Assembler::sdl(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
-// FIXME(RISCV): to be ported
-void Assembler::sdr(Register rd, const MemOperand& rs) {
-  DCHECK(is_int16(rs.offset_));
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  GenInstrImmediate(SDR, rs.rm(), rd, rs.offset_);
-}
+void Assembler::sdr(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
 void Assembler::ld(Register rd, const MemOperand& rs) {
   if (is_int12(rs.offset_))
@@ -3875,8 +3807,6 @@ void Assembler::c(FPUCondition cond, SecondaryField fmt, FPURegister fs,
   Instr instr = COP1 | fmt | ft.code() << kFtShift | fs.code() << kFsShift |
                 cc << 8 | 3 << 4 | cond;
   emit(instr);
-
-  // UNREACHABLE();
 }
 
 void Assembler::c_s(FPUCondition cond, FPURegister fs, FPURegister ft,
