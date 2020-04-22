@@ -264,7 +264,7 @@ namespace internal {
   SC(total_compile_size, V8.TotalCompileSize)                      \
   /* Number of contexts created from scratch. */                   \
   SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch) \
-  /* Number of contexts created by partial snapshot. */            \
+  /* Number of contexts created by context snapshot. */            \
   SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)   \
   /* Number of code objects found from pc. */                      \
   SC(pc_to_code, V8.PcToCode)                                      \

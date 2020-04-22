@@ -236,7 +236,7 @@
   'test-cpu-profiler/FunctionCallSample': [SKIP],
 
   # BUG(5920): Flaky crash.
-  'test-serialize/PartialSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
+  'test-serialize/ContextSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
 
   # BUG(10107): Failing flakily
   'test-cpu-profiler/Inlining2': ['arch == ia32 and mode == debug', SKIP],
@@ -246,8 +246,8 @@
 ##############################################################################
 ['system == windows and arch == x64 and mode == debug', {
   # BUG(v8:6328).
-  'test-serialize/PartialSerializerCustomContext': [SKIP],
-  'test-serialize/PartialSerializerObject': [SKIP],
+  'test-serialize/ContextSerializerCustomContext': [SKIP],
+  'test-serialize/ContextSerializerObject': [SKIP],
   'test-serialize/StartupSerializerOnce': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],

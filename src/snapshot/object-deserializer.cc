@@ -41,8 +41,7 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
   {
     DisallowHeapAllocation no_gc;
     Object root;
-    VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
-                     FullObjectSlot(&root));
+    VisitRootPointer(Root::kStartupObjectCache, nullptr, FullObjectSlot(&root));
     DeserializeDeferredObjects();
     FlushICache();
     LinkAllocationSites();

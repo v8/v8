@@ -10,20 +10,20 @@
 namespace v8 {
 namespace internal {
 
-// The partial snapshot cache is terminated by undefined. We visit the
-// partial snapshot...
+// The startup object cache is terminated by undefined. We visit the context
+// snapshot...
 //  - during deserialization to populate it.
 //  - during normal GC to keep its content alive.
-//  - not during serialization. The partial serializer adds to it explicitly.
+//  - not during serialization. The context serializer adds to it explicitly.
 DISABLE_CFI_PERF
 void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
-  std::vector<Object>* cache = isolate->partial_snapshot_cache();
+  std::vector<Object>* cache = isolate->startup_object_cache();
   for (size_t i = 0;; ++i) {
     // Extend the array ready to get a value when deserializing.
     if (cache->size() <= i) cache->push_back(Smi::zero());
-    // During deserialization, the visitor populates the partial snapshot cache
+    // During deserialization, the visitor populates the startup object cache
     // and eventually terminates the cache with undefined.
-    visitor->VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
+    visitor->VisitRootPointer(Root::kStartupObjectCache, nullptr,
                               FullObjectSlot(&cache->at(i)));
     if (cache->at(i).IsUndefined(isolate)) break;
   }

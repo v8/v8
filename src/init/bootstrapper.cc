@@ -190,7 +190,7 @@ class Genesis {
 
   // Creates the global objects using the global proxy and the template passed
   // in through the API.  We call this regardless of whether we are building a
-  // context from scratch or using a deserialized one from the partial snapshot
+  // context from scratch or using a deserialized one from the context snapshot
   // but in the latter case we don't use the objects it produces directly, as
   // we have to use the deserialized ones that are linked together with the
   // rest of the context snapshot. At the end we link the global proxy and the

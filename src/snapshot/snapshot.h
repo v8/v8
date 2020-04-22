@@ -31,7 +31,7 @@ class Snapshot : public AllStatic {
   // snapshot could be found.
   static bool Initialize(Isolate* isolate);
 
-  // Create a new context using the internal partial snapshot.
+  // Create a new context using the internal context snapshot.
   static MaybeHandle<Context> NewContextFromSnapshot(
       Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
       size_t context_index,

@@ -7154,7 +7154,7 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheTable::LookupScript(
     Handle<Context> native_context, LanguageMode language_mode) {
   // We use the empty function SFI as part of the key. Although the
   // empty_function is native context dependent, the SFI is de-duped on
-  // snapshot builds by the PartialSnapshotCache, and so this does not prevent
+  // snapshot builds by the StartupObjectCache, and so this does not prevent
   // reuse of scripts in the compilation cache across native contexts.
   Handle<SharedFunctionInfo> shared(native_context->empty_function().shared(),
                                     native_context->GetIsolate());
@@ -7212,7 +7212,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
   Isolate* isolate = native_context->GetIsolate();
   // We use the empty function SFI as part of the key. Although the
   // empty_function is native context dependent, the SFI is de-duped on
-  // snapshot builds by the PartialSnapshotCache, and so this does not prevent
+  // snapshot builds by the StartupObjectCache, and so this does not prevent
   // reuse of scripts in the compilation cache across native contexts.
   Handle<SharedFunctionInfo> shared(native_context->empty_function().shared(),
                                     isolate);

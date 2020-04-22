@@ -580,10 +580,10 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
       // Find an object in the roots array and write a pointer to it to the
       // current object.
       SINGLE_CASE(kRootArray, SnapshotSpace::kReadOnlyHeap)
-      // Find an object in the partial snapshots cache and write a pointer to it
+      // Find an object in the startup object cache and write a pointer to it
       // to the current object.
-      SINGLE_CASE(kPartialSnapshotCache, SnapshotSpace::kReadOnlyHeap)
-      // Find an object in the partial snapshots cache and write a pointer to it
+      SINGLE_CASE(kStartupObjectCache, SnapshotSpace::kReadOnlyHeap)
+      // Find an object in the read-only object cache and write a pointer to it
       // to the current object.
       SINGLE_CASE(kReadOnlyObjectCache, SnapshotSpace::kReadOnlyHeap)
       // Find an object in the attached references and write a pointer to it to
@@ -829,10 +829,10 @@ TSlot Deserializer::ReadDataCase(Isolate* isolate, TSlot current,
         isolate->read_only_heap()->cached_read_only_object(cache_index));
     DCHECK(!Heap::InYoungGeneration(heap_object));
     emit_write_barrier = false;
-  } else if (bytecode == kPartialSnapshotCache) {
+  } else if (bytecode == kStartupObjectCache) {
     int cache_index = source_.GetInt();
     heap_object =
-        HeapObject::cast(isolate->partial_snapshot_cache()->at(cache_index));
+        HeapObject::cast(isolate->startup_object_cache()->at(cache_index));
     emit_write_barrier = Heap::InYoungGeneration(heap_object);
   } else {
     DCHECK_EQ(bytecode, kAttachedReference);

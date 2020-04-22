@@ -351,9 +351,9 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
   FreeCurrentEmbeddedBlob();
 }
 
-static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
-                                      Vector<const byte>* read_only_blob_out,
-                                      Vector<const byte>* partial_blob_out) {
+static void SerializeContext(Vector<const byte>* startup_blob_out,
+                             Vector<const byte>* read_only_blob_out,
+                             Vector<const byte>* context_blob_out) {
   v8::Isolate* v8_isolate = TestSerializer::NewIsolateInitialized();
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   Heap* heap = isolate->heap();
@@ -392,10 +392,10 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
     StartupSerializer startup_serializer(isolate, &read_only_serializer);
     startup_serializer.SerializeStrongReferences();
 
-    SnapshotByteSink partial_sink;
-    PartialSerializer partial_serializer(isolate, &startup_serializer,
+    SnapshotByteSink context_sink;
+    ContextSerializer context_serializer(isolate, &startup_serializer,
                                          v8::SerializeInternalFieldsCallback());
-    partial_serializer.Serialize(&raw_context, false);
+    context_serializer.Serialize(&raw_context, false);
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
@@ -403,9 +403,9 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
 
     SnapshotData read_only_snapshot(&read_only_serializer);
     SnapshotData startup_snapshot(&startup_serializer);
-    SnapshotData partial_snapshot(&partial_serializer);
+    SnapshotData context_snapshot(&context_serializer);
 
-    *partial_blob_out = WritePayload(partial_snapshot.RawData());
+    *context_blob_out = WritePayload(context_snapshot.RawData());
     *startup_blob_out = WritePayload(startup_snapshot.RawData());
     *read_only_blob_out = WritePayload(read_only_snapshot.RawData());
   }
@@ -417,26 +417,26 @@ UNINITIALIZED_TEST(SnapshotCompression) {
   DisableAlwaysOpt();
   Vector<const byte> startup_blob;
   Vector<const byte> read_only_blob;
-  Vector<const byte> partial_blob;
-  PartiallySerializeContext(&startup_blob, &read_only_blob, &partial_blob);
-  SnapshotData original_snapshot_data(partial_blob);
+  Vector<const byte> context_blob;
+  SerializeContext(&startup_blob, &read_only_blob, &context_blob);
+  SnapshotData original_snapshot_data(context_blob);
   SnapshotData compressed =
       i::SnapshotCompression::Compress(&original_snapshot_data);
   SnapshotData decompressed =
       i::SnapshotCompression::Decompress(compressed.RawData());
-  CHECK_EQ(partial_blob, decompressed.RawData());
+  CHECK_EQ(context_blob, decompressed.RawData());
 
   startup_blob.Dispose();
   read_only_blob.Dispose();
-  partial_blob.Dispose();
+  context_blob.Dispose();
 }
 
-UNINITIALIZED_TEST(PartialSerializerContext) {
+UNINITIALIZED_TEST(ContextSerializerContext) {
   DisableAlwaysOpt();
   Vector<const byte> startup_blob;
   Vector<const byte> read_only_blob;
-  Vector<const byte> partial_blob;
-  PartiallySerializeContext(&startup_blob, &read_only_blob, &partial_blob);
+  Vector<const byte> context_blob;
+  SerializeContext(&startup_blob, &read_only_blob, &context_blob);
 
   StartupBlobs blobs = {startup_blob, read_only_blob};
   v8::Isolate* v8_isolate = TestSerializer::NewIsolateFromBlob(blobs);
@@ -451,8 +451,8 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
         isolate->factory()->NewUninitializedJSGlobalProxy(
             JSGlobalProxy::SizeWithEmbedderFields(0));
     {
-      SnapshotData snapshot_data(partial_blob);
-      root = PartialDeserializer::DeserializeContext(
+      SnapshotData snapshot_data(context_blob);
+      root = ContextDeserializer::DeserializeContext(
                  isolate, &snapshot_data, false, global_proxy,
                  v8::DeserializeInternalFieldsCallback())
                  .ToHandleChecked();
@@ -462,25 +462,24 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
 
     Handle<Object> root2;
     {
-      SnapshotData snapshot_data(partial_blob);
-      root2 = PartialDeserializer::DeserializeContext(
+      SnapshotData snapshot_data(context_blob);
+      root2 = ContextDeserializer::DeserializeContext(
                   isolate, &snapshot_data, false, global_proxy,
                   v8::DeserializeInternalFieldsCallback())
                   .ToHandleChecked();
       CHECK(root2->IsContext());
       CHECK(!root.is_identical_to(root2));
     }
-    partial_blob.Dispose();
+    context_blob.Dispose();
   }
   v8_isolate->Dispose();
   blobs.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 
-static void PartiallySerializeCustomContext(
-    Vector<const byte>* startup_blob_out,
-    Vector<const byte>* read_only_blob_out,
-    Vector<const byte>* partial_blob_out) {
+static void SerializeCustomContext(Vector<const byte>* startup_blob_out,
+                                   Vector<const byte>* read_only_blob_out,
+                                   Vector<const byte>* context_blob_out) {
   v8::Isolate* v8_isolate = TestSerializer::NewIsolateInitialized();
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   {
@@ -540,10 +539,10 @@ static void PartiallySerializeCustomContext(
     StartupSerializer startup_serializer(isolate, &read_only_serializer);
     startup_serializer.SerializeStrongReferences();
 
-    SnapshotByteSink partial_sink;
-    PartialSerializer partial_serializer(isolate, &startup_serializer,
+    SnapshotByteSink context_sink;
+    ContextSerializer context_serializer(isolate, &startup_serializer,
                                          v8::SerializeInternalFieldsCallback());
-    partial_serializer.Serialize(&raw_context, false);
+    context_serializer.Serialize(&raw_context, false);
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
@@ -551,9 +550,9 @@ static void PartiallySerializeCustomContext(
 
     SnapshotData read_only_snapshot(&read_only_serializer);
     SnapshotData startup_snapshot(&startup_serializer);
-    SnapshotData partial_snapshot(&partial_serializer);
+    SnapshotData context_snapshot(&context_serializer);
 
-    *partial_blob_out = WritePayload(partial_snapshot.RawData());
+    *context_blob_out = WritePayload(context_snapshot.RawData());
     *startup_blob_out = WritePayload(startup_snapshot.RawData());
     *read_only_blob_out = WritePayload(read_only_snapshot.RawData());
   }
@@ -561,13 +560,12 @@ static void PartiallySerializeCustomContext(
   ReadOnlyHeap::ClearSharedHeapForTest();
 }
 
-UNINITIALIZED_TEST(PartialSerializerCustomContext) {
+UNINITIALIZED_TEST(ContextSerializerCustomContext) {
   DisableAlwaysOpt();
   Vector<const byte> startup_blob;
   Vector<const byte> read_only_blob;
-  Vector<const byte> partial_blob;
-  PartiallySerializeCustomContext(&startup_blob, &read_only_blob,
-                                  &partial_blob);
+  Vector<const byte> context_blob;
+  SerializeCustomContext(&startup_blob, &read_only_blob, &context_blob);
 
   StartupBlobs blobs = {startup_blob, read_only_blob};
   v8::Isolate* v8_isolate = TestSerializer::NewIsolateFromBlob(blobs);
@@ -582,8 +580,8 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
         isolate->factory()->NewUninitializedJSGlobalProxy(
             JSGlobalProxy::SizeWithEmbedderFields(0));
     {
-      SnapshotData snapshot_data(partial_blob);
-      root = PartialDeserializer::DeserializeContext(
+      SnapshotData snapshot_data(context_blob);
+      root = ContextDeserializer::DeserializeContext(
                  isolate, &snapshot_data, false, global_proxy,
                  v8::DeserializeInternalFieldsCallback())
                  .ToHandleChecked();
@@ -655,7 +653,7 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
                   .FromJust();
       CHECK_EQ(100002, b);
     }
-    partial_blob.Dispose();
+    context_blob.Dispose();
   }
   v8_isolate->Dispose();
   blobs.Dispose();

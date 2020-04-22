@@ -776,7 +776,7 @@ StartupData SnapshotCreator::CreateBlob(
   if (function_code_handling == FunctionCodeHandling::kClear) {
     // Clear out re-compilable data from all shared function infos. Any
     // JSFunctions using these SFIs will have their code pointers reset by the
-    // partial serializer.
+    // context serializer.
     //
     // We have to iterate the heap and collect handles to each clearable SFI,
     // before we disable allocation, since we have to allocate UncompiledDatas
@@ -870,7 +870,7 @@ StartupData SnapshotCreator::CreateBlob(
   i::StartupSerializer startup_serializer(isolate, &read_only_serializer);
   startup_serializer.SerializeStrongReferences();
 
-  // Serialize each context with a new partial serializer.
+  // Serialize each context with a new context serializer.
   std::vector<i::SnapshotData*> context_snapshots;
   context_snapshots.reserve(num_contexts);
 
@@ -879,13 +879,13 @@ StartupData SnapshotCreator::CreateBlob(
 
   for (int i = 0; i < num_contexts; i++) {
     bool is_default_context = i == 0;
-    i::PartialSerializer partial_serializer(
+    i::ContextSerializer context_serializer(
         isolate, &startup_serializer,
         is_default_context ? data->default_embedder_fields_serializer_
                            : data->embedder_fields_serializers_[i - 1]);
-    partial_serializer.Serialize(&contexts[i], !is_default_context);
-    can_be_rehashed = can_be_rehashed && partial_serializer.can_be_rehashed();
-    context_snapshots.push_back(new i::SnapshotData(&partial_serializer));
+    context_serializer.Serialize(&contexts[i], !is_default_context);
+    can_be_rehashed = can_be_rehashed && context_serializer.can_be_rehashed();
+    context_snapshots.push_back(new i::SnapshotData(&context_serializer));
   }
 
   startup_serializer.SerializeWeakReferencesAndDeferred();

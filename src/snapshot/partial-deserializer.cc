@@ -12,11 +12,11 @@
 namespace v8 {
 namespace internal {
 
-MaybeHandle<Context> PartialDeserializer::DeserializeContext(
+MaybeHandle<Context> ContextDeserializer::DeserializeContext(
     Isolate* isolate, const SnapshotData* data, bool can_rehash,
     Handle<JSGlobalProxy> global_proxy,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
-  PartialDeserializer d(data);
+  ContextDeserializer d(data);
   d.SetRehashability(can_rehash);
 
   MaybeHandle<Object> maybe_result =
@@ -27,12 +27,12 @@ MaybeHandle<Context> PartialDeserializer::DeserializeContext(
                                         : MaybeHandle<Context>();
 }
 
-MaybeHandle<Object> PartialDeserializer::Deserialize(
+MaybeHandle<Object> ContextDeserializer::Deserialize(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   Initialize(isolate);
   if (!allocator()->ReserveSpace()) {
-    V8::FatalProcessOutOfMemory(isolate, "PartialDeserializer");
+    V8::FatalProcessOutOfMemory(isolate, "ContextDeserializer");
   }
 
   AddAttachedObject(global_proxy);
@@ -45,8 +45,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
     CodeSpace* code_space = isolate->heap()->code_space();
     Address start_address = code_space->top();
     Object root;
-    VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
-                     FullObjectSlot(&root));
+    VisitRootPointer(Root::kStartupObjectCache, nullptr, FullObjectSlot(&root));
     DeserializeDeferredObjects();
     DeserializeEmbedderFields(embedder_fields_deserializer);
 
@@ -68,7 +67,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
   return result;
 }
 
-void PartialDeserializer::SetupOffHeapArrayBufferBackingStores() {
+void ContextDeserializer::SetupOffHeapArrayBufferBackingStores() {
   for (Handle<JSArrayBuffer> buffer : new_off_heap_array_buffers()) {
     // Serializer writes backing store ref in |backing_store| field.
     size_t store_index = reinterpret_cast<size_t>(buffer->backing_store());
@@ -79,7 +78,7 @@ void PartialDeserializer::SetupOffHeapArrayBufferBackingStores() {
   }
 }
 
-void PartialDeserializer::DeserializeEmbedderFields(
+void ContextDeserializer::DeserializeEmbedderFields(
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!source()->HasMore() || source()->Get() != kEmbedderFieldsData) return;
   DisallowHeapAllocation no_gc;

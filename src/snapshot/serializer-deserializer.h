@@ -139,8 +139,8 @@ class SerializerDeserializer : public RootVisitor {
     // ---------- byte code range 0x10..0x25 ----------
     //
 
-    // Object in the partial snapshot cache.
-    kPartialSnapshotCache = 0x10,
+    // Object in the startup object cache.
+    kStartupObjectCache = 0x10,
     // Root array item.
     kRootArray,
     // Object provided in the attached list.

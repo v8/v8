@@ -161,7 +161,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
       blob, static_cast<uint32_t>(context_index));
   SnapshotData snapshot_data(MaybeDecompress(context_data));
 
-  MaybeHandle<Context> maybe_result = PartialDeserializer::DeserializeContext(
+  MaybeHandle<Context> maybe_result = ContextDeserializer::DeserializeContext(
       isolate, &snapshot_data, can_rehash, global_proxy,
       embedder_fields_deserializer);
 
@@ -289,7 +289,7 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   }
   payload_offset += payload_length;
 
-  // Partial snapshots (context-specific data).
+  // Context snapshots (context-specific data).
   for (uint32_t i = 0; i < num_contexts; i++) {
     SnapshotImpl::SetHeaderValue(
         data, SnapshotImpl::ContextSnapshotOffsetOffset(i), payload_offset);

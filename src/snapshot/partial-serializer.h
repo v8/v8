@@ -14,12 +14,12 @@ namespace internal {
 
 class StartupSerializer;
 
-class V8_EXPORT_PRIVATE PartialSerializer : public Serializer {
+class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
  public:
-  PartialSerializer(Isolate* isolate, StartupSerializer* startup_serializer,
+  ContextSerializer(Isolate* isolate, StartupSerializer* startup_serializer,
                     v8::SerializeEmbedderFieldsCallback callback);
 
-  ~PartialSerializer() override;
+  ~ContextSerializer() override;
 
   // Serialize the objects reachable from a single object pointer.
   void Serialize(Context* o, bool include_global_proxy);
@@ -29,7 +29,7 @@ class V8_EXPORT_PRIVATE PartialSerializer : public Serializer {
  private:
   void SerializeObject(HeapObject o) override;
 
-  bool ShouldBeInThePartialSnapshotCache(HeapObject o);
+  bool ShouldBeInTheStartupObjectCache(HeapObject o);
 
   bool SerializeJSObjectWithEmbedderFields(Object obj);
 
@@ -44,7 +44,7 @@ class V8_EXPORT_PRIVATE PartialSerializer : public Serializer {
 
   // Used to store serialized data for embedder fields.
   SnapshotByteSink embedder_fields_sink_;
-  DISALLOW_COPY_AND_ASSIGN(PartialSerializer);
+  DISALLOW_COPY_AND_ASSIGN(ContextSerializer);
 };
 
 }  // namespace internal

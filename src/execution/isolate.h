@@ -1345,9 +1345,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object);
 
-  std::vector<Object>* partial_snapshot_cache() {
-    return &partial_snapshot_cache_;
-  }
+  std::vector<Object>* startup_object_cache() { return &startup_object_cache_; }
 
   bool IsGeneratingEmbeddedBuiltins() const {
     return builtins_constants_table_builder() != nullptr;
@@ -1796,7 +1794,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   v8::Isolate::UseCounterCallback use_counter_callback_ = nullptr;
 
-  std::vector<Object> partial_snapshot_cache_;
+  std::vector<Object> startup_object_cache_;
 
   // Used during builtins compilation to build the builtins constants table,
   // which is stored on the root list prior to serialization.

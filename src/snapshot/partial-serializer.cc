@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-PartialSerializer::PartialSerializer(
+ContextSerializer::ContextSerializer(
     Isolate* isolate, StartupSerializer* startup_serializer,
     v8::SerializeEmbedderFieldsCallback callback)
     : Serializer(isolate),
@@ -26,17 +26,17 @@ PartialSerializer::PartialSerializer(
   allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
 }
 
-PartialSerializer::~PartialSerializer() {
-  OutputStatistics("PartialSerializer");
+ContextSerializer::~ContextSerializer() {
+  OutputStatistics("ContextSerializer");
 }
 
-void PartialSerializer::Serialize(Context* o, bool include_global_proxy) {
+void ContextSerializer::Serialize(Context* o, bool include_global_proxy) {
   context_ = *o;
   DCHECK(context_.IsNativeContext());
   reference_map()->AddAttachedReference(
       reinterpret_cast<void*>(context_.global_proxy().ptr()));
   // The bootstrap snapshot has a code-stub context. When serializing the
-  // partial snapshot, it is chained into the weak context list on the isolate
+  // context snapshot, it is chained into the weak context list on the isolate
   // and it's next context pointer may point to the code-stub context.  Clear
   // it before serializing, it will get re-added to the context list
   // explicitly when it's loaded.
@@ -55,7 +55,7 @@ void PartialSerializer::Serialize(Context* o, bool include_global_proxy) {
 #endif
   context_.native_context().set_microtask_queue(nullptr);
 
-  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, FullObjectSlot(o));
+  VisitRootPointer(Root::kStartupObjectCache, nullptr, FullObjectSlot(o));
   SerializeDeferredObjects();
 
   // Add section for embedder-serialized embedder fields.
@@ -68,7 +68,7 @@ void PartialSerializer::Serialize(Context* o, bool include_global_proxy) {
   Pad();
 }
 
-void PartialSerializer::SerializeObject(HeapObject obj) {
+void ContextSerializer::SerializeObject(HeapObject obj) {
   DCHECK(!ObjectIsBytecodeHandler(obj));  // Only referenced in dispatch table.
 
   if (SerializeHotObject(obj)) return;
@@ -81,17 +81,17 @@ void PartialSerializer::SerializeObject(HeapObject obj) {
     return;
   }
 
-  if (ShouldBeInThePartialSnapshotCache(obj)) {
-    startup_serializer_->SerializeUsingPartialSnapshotCache(&sink_, obj);
+  if (ShouldBeInTheStartupObjectCache(obj)) {
+    startup_serializer_->SerializeUsingStartupObjectCache(&sink_, obj);
     return;
   }
 
-  // Pointers from the partial snapshot to the objects in the startup snapshot
-  // should go through the root array or through the partial snapshot cache.
+  // Pointers from the context snapshot to the objects in the startup snapshot
+  // should go through the root array or through the startup object cache.
   // If this is not the case you may have to add something to the root array.
   DCHECK(!startup_serializer_->ReferenceMapContains(obj));
-  // All the internalized strings that the partial snapshot needs should be
-  // either in the root table or in the partial snapshot cache.
+  // All the internalized strings that the context snapshot needs should be
+  // either in the root table or in the startup object cache.
   DCHECK(!obj.IsInternalizedString());
   // Function and object templates are not context specific.
   DCHECK(!obj.IsTemplateInfo());
@@ -125,10 +125,10 @@ void PartialSerializer::SerializeObject(HeapObject obj) {
   serializer.Serialize();
 }
 
-bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject o) {
+bool ContextSerializer::ShouldBeInTheStartupObjectCache(HeapObject o) {
   // Scripts should be referred only through shared function infos.  We can't
-  // allow them to be part of the partial snapshot because they contain a
-  // unique ID, and deserializing several partial snapshots containing script
+  // allow them to be part of the context snapshot because they contain a
+  // unique ID, and deserializing several context snapshots containing script
   // would cause dupes.
   DCHECK(!o.IsScript());
   return o.IsName() || o.IsSharedFunctionInfo() || o.IsHeapNumber() ||
@@ -142,7 +142,7 @@ namespace {
 bool DataIsEmpty(const StartupData& data) { return data.raw_size == 0; }
 }  // anonymous namespace
 
-bool PartialSerializer::SerializeJSObjectWithEmbedderFields(Object obj) {
+bool ContextSerializer::SerializeJSObjectWithEmbedderFields(Object obj) {
   if (!obj.IsJSObject()) return false;
   JSObject js_obj = JSObject::cast(obj);
   int embedder_fields_count = js_obj.GetEmbedderFieldCount();
@@ -229,11 +229,11 @@ bool PartialSerializer::SerializeJSObjectWithEmbedderFields(Object obj) {
   // 6) The content of the separate sink is appended eventually to the default
   //    sink. The ensures that during deserialization, we call the deserializer
   //    callback at the end, and can guarantee that the deserialized objects are
-  //    in a consistent state. See PartialSerializer::Serialize.
+  //    in a consistent state. See ContextSerializer::Serialize.
   return true;
 }
 
-void PartialSerializer::CheckRehashability(HeapObject obj) {
+void ContextSerializer::CheckRehashability(HeapObject obj) {
   if (!can_be_rehashed_) return;
   if (!obj.NeedsRehashing()) return;
   if (obj.CanBeRehashed()) return;

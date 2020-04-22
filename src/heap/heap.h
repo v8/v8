@@ -252,7 +252,7 @@ class Heap {
   // object references.
   base::Mutex* relocation_mutex() { return &relocation_mutex_; }
 
-  // Support for partial snapshots.  After calling this we have a linear
+  // Support for context snapshots.  After calling this we have a linear
   // space to write objects in each space.
   struct Chunk {
     uint32_t size;

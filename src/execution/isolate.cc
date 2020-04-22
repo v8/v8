@@ -3415,8 +3415,8 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
   }
 
   if (create_heap_objects) {
-    // Terminate the partial snapshot cache so we can iterate.
-    partial_snapshot_cache_.push_back(ReadOnlyRoots(this).undefined_value());
+    // Terminate the startup object cache so we can iterate.
+    startup_object_cache_.push_back(ReadOnlyRoots(this).undefined_value());
   }
 
   InitializeThreadLocal();

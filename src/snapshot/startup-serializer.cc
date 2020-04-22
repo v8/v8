@@ -125,11 +125,11 @@ void StartupSerializer::SerializeObject(HeapObject obj) {
 }
 
 void StartupSerializer::SerializeWeakReferencesAndDeferred() {
-  // This comes right after serialization of the partial snapshot, where we
-  // add entries to the partial snapshot cache of the startup snapshot. Add
-  // one entry with 'undefined' to terminate the partial snapshot cache.
+  // This comes right after serialization of the context snapshot, where we
+  // add entries to the startup object cache of the startup snapshot. Add
+  // one entry with 'undefined' to terminate the startup object cache.
   Object undefined = ReadOnlyRoots(isolate()).undefined_value();
-  VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
+  VisitRootPointer(Root::kStartupObjectCache, nullptr,
                    FullObjectSlot(&undefined));
   isolate()->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
   SerializeDeferredObjects();
@@ -163,11 +163,11 @@ bool StartupSerializer::SerializeUsingReadOnlyObjectCache(
   return read_only_serializer_->SerializeUsingReadOnlyObjectCache(sink, obj);
 }
 
-void StartupSerializer::SerializeUsingPartialSnapshotCache(
-    SnapshotByteSink* sink, HeapObject obj) {
+void StartupSerializer::SerializeUsingStartupObjectCache(SnapshotByteSink* sink,
+                                                         HeapObject obj) {
   int cache_index = SerializeInObjectCache(obj);
-  sink->Put(kPartialSnapshotCache, "PartialSnapshotCache");
-  sink->PutInt(cache_index, "partial_snapshot_cache_index");
+  sink->Put(kStartupObjectCache, "StartupObjectCache");
+  sink->PutInt(cache_index, "startup_object_cache_index");
 }
 
 void StartupSerializer::CheckNoDirtyFinalizationRegistries() {

@@ -4546,11 +4546,10 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
     } while (microtask_queue != default_microtask_queue);
   }
 
-  // Iterate over the partial snapshot cache unless serializing or
-  // deserializing.
+  // Iterate over the startup object cache unless serializing or deserializing.
   if (mode != VISIT_FOR_SERIALIZATION) {
     SerializerDeserializer::Iterate(isolate_, v);
-    v->Synchronize(VisitorSynchronization::kPartialSnapshotCache);
+    v->Synchronize(VisitorSynchronization::kStartupObjectCache);
   }
 }
 
