@@ -2279,7 +2279,7 @@ void ImplementationVisitor::GenerateAssignToLocation(
         VisitResult(bit_field_struct.type(), assembler().TopRange(1)));
   } else {
     DCHECK(reference.IsTemporary());
-    ReportError("cannot assign to temporary ",
+    ReportError("cannot assign to const-bound or temporary ",
                 reference.temporary_description());
   }
 }
@@ -2669,7 +2669,7 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
   LocationReference target = GetLocationReference(expr->target);
   if (!target.IsVariableAccess()) {
     VisitResult result = GenerateFetchFromLocation(target);
-    target = LocationReference::Temporary(result, "method target result");
+    target = LocationReference::Temporary(result, "this parameter");
   }
   const AggregateType* target_type =
       AggregateType::DynamicCast(target.ReferencedType());
