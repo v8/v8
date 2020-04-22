@@ -269,7 +269,7 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
   isolate->IncreaseTotalRegexpCodeGenerated(code);
   work_list_ = nullptr;
 
-  return {*code, next_register_};
+  return {code, next_register_};
 }
 
 bool Trace::DeferredAction::Mentions(int that) {

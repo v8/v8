@@ -501,7 +501,7 @@ class RegExpCompiler {
 
   struct CompilationResult final {
     explicit CompilationResult(RegExpError err) : error(err) {}
-    CompilationResult(Object code, int registers)
+    CompilationResult(Handle<Object> code, int registers)
         : code(code), num_registers(registers) {}
 
     static CompilationResult RegExpTooBig() {
@@ -511,7 +511,7 @@ class RegExpCompiler {
     bool Succeeded() const { return error == RegExpError::kNone; }
 
     const RegExpError error = RegExpError::kNone;
-    Object code;
+    Handle<Object> code;
     int num_registers = 0;
   };
 
