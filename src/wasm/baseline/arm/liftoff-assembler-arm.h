@@ -1913,12 +1913,26 @@ void LiftoffAssembler::emit_f64x2_div(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_min(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "f64x2min");
+  Simd128Register dest = liftoff::GetSimd128Register(dst);
+  Simd128Register left = liftoff::GetSimd128Register(lhs);
+  Simd128Register right = liftoff::GetSimd128Register(rhs);
+
+  liftoff::EmitFloatMinOrMax(this, dest.low(), left.low(), right.low(),
+                             liftoff::MinOrMax::kMin);
+  liftoff::EmitFloatMinOrMax(this, dest.high(), left.high(), right.high(),
+                             liftoff::MinOrMax::kMin);
 }
 
 void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "f64x2max");
+  Simd128Register dest = liftoff::GetSimd128Register(dst);
+  Simd128Register left = liftoff::GetSimd128Register(lhs);
+  Simd128Register right = liftoff::GetSimd128Register(rhs);
+
+  liftoff::EmitFloatMinOrMax(this, dest.low(), left.low(), right.low(),
+                             liftoff::MinOrMax::kMax);
+  liftoff::EmitFloatMinOrMax(this, dest.high(), left.high(), right.high(),
+                             liftoff::MinOrMax::kMax);
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
@@ -2006,12 +2020,14 @@ void LiftoffAssembler::emit_f32x4_div(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f32x4_min(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "f32x4min");
+  vmin(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(lhs),
+       liftoff::GetSimd128Register(rhs));
 }
 
 void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "f32x4max");
+  vmax(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(lhs),
+       liftoff::GetSimd128Register(rhs));
 }
 
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
