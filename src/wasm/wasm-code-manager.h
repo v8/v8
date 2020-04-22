@@ -6,9 +6,9 @@
 #define V8_WASM_WASM_CODE_MANAGER_H_
 
 #include <atomic>
-#include <list>
 #include <map>
 #include <memory>
+#include <set>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -88,10 +88,9 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
   explicit DisjointAllocationPool(base::AddressRegion region)
       : regions_({region}) {}
 
-  // Merge the parameter region into this object while preserving ordering of
-  // the regions. The assumption is that the passed parameter is not
-  // intersecting this object - for example, it was obtained from a previous
-  // Allocate. Returns the merged region.
+  // Merge the parameter region into this object. The assumption is that the
+  // passed parameter is not intersecting this object - for example, it was
+  // obtained from a previous Allocate. Returns the merged region.
   base::AddressRegion Merge(base::AddressRegion);
 
   // Allocate a contiguous region of size {size}. Return an empty pool on
@@ -103,10 +102,11 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
   base::AddressRegion AllocateInRegion(size_t size, base::AddressRegion);
 
   bool IsEmpty() const { return regions_.empty(); }
-  const std::list<base::AddressRegion>& regions() const { return regions_; }
+
+  const auto& regions() const { return regions_; }
 
  private:
-  std::list<base::AddressRegion> regions_;
+  std::set<base::AddressRegion, base::AddressRegion::StartAddressLess> regions_;
 };
 
 class V8_EXPORT_PRIVATE WasmCode final {
