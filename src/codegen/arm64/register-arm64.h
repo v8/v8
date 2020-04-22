@@ -470,8 +470,9 @@ ALIAS_REGISTER(Register, padreg, x31);
 // Keeps the 0 double value.
 ALIAS_REGISTER(VRegister, fp_zero, d15);
 // MacroAssembler fixed V Registers.
-ALIAS_REGISTER(VRegister, fp_fixed1, d28);
-ALIAS_REGISTER(VRegister, fp_fixed2, d29);
+// d29 is not part of ALLOCATABLE_DOUBLE_REGISTERS, so use 27 and 28.
+ALIAS_REGISTER(VRegister, fp_fixed1, d27);
+ALIAS_REGISTER(VRegister, fp_fixed2, d28);
 
 // MacroAssembler scratch V registers.
 ALIAS_REGISTER(VRegister, fp_scratch, d30);
