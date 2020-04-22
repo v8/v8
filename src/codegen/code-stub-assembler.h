@@ -1780,6 +1780,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                  TNode<IntPtrT> end_address,
                                  TNode<Object> value);
 
+  // Marks the FixedArray copy-on-write without moving it.
+  void MakeFixedArrayCOW(TNode<FixedArray> array);
+
   TNode<Cell> AllocateCellWithValue(
       TNode<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   TNode<Cell> AllocateSmiCell(int value = 0) {

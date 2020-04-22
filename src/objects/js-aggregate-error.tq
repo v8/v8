@@ -6,8 +6,10 @@
 
 @generateCppClass
 extern class JSAggregateError extends JSObject {
-  // Only Undefined during AggregateError object creation.
-  errors: JSAny|Undefined;
+  // Only Undefined during AggregateError object creation. In order to make the
+  // field type FixedArray, we'd need to initialize it in ErrorUtils::Construct
+  // (after it, it's too late) which we don't want.
+  errors: FixedArray|Undefined;
 }
 
 namespace error {
@@ -34,7 +36,9 @@ namespace error {
 
     // 4. Let errorsList be ? IterableToList(errors).
     const errors: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
-    const errorsArray = iterator::IterableToListWithSymbolLookup(errors);
+    const errorsArray =
+        iterator::IterableToFixedArrayWithSymbolLookupSlow(errors);
+    MakeFixedArrayCOW(errorsArray);
 
     // 5. Set O.[[AggregateErrors]] to errorsList.
     obj.errors = errorsArray;
@@ -54,8 +58,8 @@ namespace error {
     // 5. Return ! CreateArrayFromList(E.[[AggregateErrors]]).
     typeswitch (receiver) {
       case (receiver: JSAggregateError): {
-        return CloneFastJSArrayFillingHoles(
-            context, UnsafeCast<JSArray>(receiver.errors));
+        return array::CreateJSArrayWithElements(
+            UnsafeCast<FixedArray>(receiver.errors));
       }
       case (Object): {
         ThrowTypeError(
@@ -68,6 +72,6 @@ namespace error {
   extern runtime ConstructAggregateErrorHelper(
       Context, JSFunction, JSAny, JSAny): JSAggregateError;
 
-  extern transitioning builtin CloneFastJSArrayFillingHoles(Context, JSArray):
-      JSArray;
+  extern macro MakeFixedArrayCOW(FixedArray);
+
 }

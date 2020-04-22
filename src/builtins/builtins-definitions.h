@@ -574,7 +574,9 @@ namespace internal {
   /* IterableToList */                                                         \
   /* ES #sec-iterabletolist */                                                 \
   TFS(IterableToList, kIterable, kIteratorFn)                                  \
+  TFS(IterableToFixedArray, kIterable, kIteratorFn)                            \
   TFS(IterableToListWithSymbolLookup, kIterable)                               \
+  TFS(IterableToFixedArrayWithSymbolLookupSlow, kIterable)                     \
   TFS(IterableToListMayPreserveHoles, kIterable, kIteratorFn)                  \
   TFS(IterableToFixedArrayForWasm, kIterable, kExpectedLength)                 \
                                                                                \

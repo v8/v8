@@ -79,4 +79,13 @@ namespace array {
       goto Bailout;
     }
   }
+
+  macro CreateJSArrayWithElements(implicit context: Context)(array: FixedArray):
+      JSArray {
+    const nativeContext: NativeContext = LoadNativeContext(context);
+    const map: Map =
+        LoadJSArrayElementsMap(ElementsKind::PACKED_ELEMENTS, nativeContext);
+    return AllocateJSArray(map, array, array.length);
+  }
+
 }

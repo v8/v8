@@ -50,6 +50,8 @@ namespace iterator {
                                                     Context)(JSAny, JSAny);
   extern builtin IterableToListWithSymbolLookup(implicit context:
                                                     Context)(JSAny): JSArray;
+  extern builtin IterableToFixedArrayWithSymbolLookupSlow(
+      implicit context: Context)(JSAny): FixedArray;
 
   transitioning builtin GetIteratorWithFeedback(
       context: Context, receiver: JSAny, loadSlot: TaggedIndex,

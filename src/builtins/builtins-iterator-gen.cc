@@ -183,6 +183,14 @@ TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
   return values.ToJSArray(context);
 }
 
+TNode<FixedArray> IteratorBuiltinsAssembler::IterableToFixedArray(
+    TNode<Context> context, TNode<Object> iterable, TNode<Object> iterator_fn) {
+  GrowableFixedArray values(state());
+  FillFixedArrayFromIterable(context, iterable, iterator_fn, &values);
+  TNode<FixedArray> new_array = values.ToFixedArray();
+  return new_array;
+}
+
 void IteratorBuiltinsAssembler::FillFixedArrayFromIterable(
     TNode<Context> context, TNode<Object> iterable, TNode<Object> iterator_fn,
     GrowableFixedArray* values) {
@@ -221,6 +229,14 @@ TF_BUILTIN(IterableToList, IteratorBuiltinsAssembler) {
   TNode<Object> iterator_fn = CAST(Parameter(Descriptor::kIteratorFn));
 
   Return(IterableToList(context, iterable, iterator_fn));
+}
+
+TF_BUILTIN(IterableToFixedArray, IteratorBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
+  TNode<Object> iterator_fn = CAST(Parameter(Descriptor::kIteratorFn));
+
+  Return(IterableToFixedArray(context, iterable, iterator_fn));
 }
 
 TF_BUILTIN(IterableToFixedArrayForWasm, IteratorBuiltinsAssembler) {
@@ -446,6 +462,18 @@ TF_BUILTIN(GetIteratorWithFeedbackLazyDeoptContinuation,
       CallBuiltin(Builtins::kCallIteratorWithFeedback, context, receiver,
                   iterator_method, call_slot, feedback);
   Return(result);
+}
+
+// This builtin creates a FixedArray based on an Iterable and doesn't have a
+// fast path for anything.
+TF_BUILTIN(IterableToFixedArrayWithSymbolLookupSlow,
+           IteratorBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
+
+  TNode<Object> iterator_fn = GetIteratorMethod(context, iterable);
+  TailCallBuiltin(Builtins::kIterableToFixedArray, context, iterable,
+                  iterator_fn);
 }
 
 }  // namespace internal

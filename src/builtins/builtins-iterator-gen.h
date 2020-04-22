@@ -67,6 +67,10 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   TNode<JSArray> IterableToList(TNode<Context> context, TNode<Object> iterable,
                                 TNode<Object> iterator_fn);
 
+  TNode<FixedArray> IterableToFixedArray(TNode<Context> context,
+                                         TNode<Object> iterable,
+                                         TNode<Object> iterator_fn);
+
   void FillFixedArrayFromIterable(TNode<Context> context,
                                   TNode<Object> iterable,
                                   TNode<Object> iterator_fn,

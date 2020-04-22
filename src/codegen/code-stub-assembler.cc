@@ -3688,6 +3688,17 @@ void CodeStubAssembler::StoreFieldsNoWriteBarrier(TNode<IntPtrT> start_address,
       kTaggedSize, IndexAdvanceMode::kPost);
 }
 
+void CodeStubAssembler::MakeFixedArrayCOW(TNode<FixedArray> array) {
+  CSA_ASSERT(this, IsFixedArrayMap(LoadMap(array)));
+  Label done(this);
+  // The empty fixed array is not modifiable anyway. And we shouldn't change its
+  // Map.
+  GotoIf(TaggedEqual(array, EmptyFixedArrayConstant()), &done);
+  StoreMap(array, FixedCOWArrayMapConstant());
+  Goto(&done);
+  BIND(&done);
+}
+
 TNode<BoolT> CodeStubAssembler::IsValidFastJSArrayCapacity(
     TNode<IntPtrT> capacity) {
   return UintPtrLessThanOrEqual(capacity,

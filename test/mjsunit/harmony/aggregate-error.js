@@ -137,6 +137,33 @@
     assertNotSame(errors1, errors2);
 })();
 
+(function ErrorsModified(){
+    let e = new AggregateError([9, 6, 3]);
+    const errors1 = e.errors;
+    errors1[0] = 50;
+    const errors2 = e.errors;
+    assertEquals([50, 6, 3], errors1);
+    assertEquals([9, 6, 3], errors2);
+})();
+
+(function EmptyErrorsModified1(){
+    let e = new AggregateError([]);
+    const errors1 = e.errors;
+    errors1[0] = 50;
+    const errors2 = e.errors;
+    assertEquals([50], errors1);
+    assertEquals([], errors2);
+})();
+
+(function EmptyErrorsModified2(){
+    let e = new AggregateError([]);
+    const errors1 = e.errors;
+    errors1.push(50);
+    const errors2 = e.errors;
+    assertEquals([50], errors1);
+    assertEquals([], errors2);
+})();
+
 (function AggregateErrorCreation() {
     // Verify that we match the spec wrt getting the prototype from the
     // newTarget, iterating the errors array and calling toString on the
