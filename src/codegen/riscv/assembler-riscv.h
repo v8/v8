@@ -182,15 +182,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   //
   // Note: The same Label can be used for forward and backward branches
   // but it may be bound only once.
-  void RV_bind(Label* L);  // Binds an unbound label L to current code position.
-  void bind(Label* L);     // Binds an unbound label L to current code position.
+  void bind(Label* L);  // Binds an unbound label L to current code position.
 
   enum OffsetSize : int {
     kOffset26 = 26,
-    kOffset21 = 21,
+    kOffset21 = 21,  // RISCV jal
     kOffset16 = 16,
     kOffset12 = 12,  // RISCV imm12
     kOffset20 = 20,  // RISCV imm20
+    kOffset13 = 13   // RISCV branch
   };
 
   // Determines if Label is bound and near enough so that branch instruction
@@ -198,31 +198,23 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   bool is_near(Label* L);
   bool is_near(Label* L, OffsetSize bits);
   bool is_near_branch(Label* L);
-  inline bool is_near_pre_r6(Label* L) {
-    DCHECK(!(kArchVariant == kMips64r6));
-    return pc_offset() - L->pos() < kMaxBranchOffset - 4 * kInstrSize;
-  }
-  inline bool is_near_r6(Label* L) {
-    DCHECK_EQ(kArchVariant, kMips64r6);
-    return pc_offset() - L->pos() < kMaxCompactBranchOffset - 4 * kInstrSize;
-  }
 
   int RV_BranchOffset(Instr instr);
+  int RV_JumpOffset(Instr instr);
   int BranchOffset(Instr instr);
 
   // Returns the branch offset to the given label from the current code
   // position. Links the label to the current position if it is still unbound.
   // Manages the jump elimination optimization if the second parameter is true.
   int32_t branch_offset_helper(Label* L, OffsetSize bits);
-  int32_t RV_branch_offset_helper(Label* L, OffsetSize bits);
   inline int32_t RV_branch_offset(Label* L) {
-    return RV_branch_offset_helper(L, OffsetSize::kOffset12);
+    return branch_offset_helper(L, OffsetSize::kOffset13);
   }
   inline int32_t RV_jump_offset(Label* L) {
-    return RV_branch_offset_helper(L, OffsetSize::kOffset20);
+    return branch_offset_helper(L, OffsetSize::kOffset21);
   }
   inline int32_t branch_offset(Label* L) {
-    return branch_offset_helper(L, OffsetSize::kOffset16);
+    return branch_offset_helper(L, OffsetSize::kOffset13);
   }
   inline int32_t branch_offset21(Label* L) {
     return branch_offset_helper(L, OffsetSize::kOffset21);
@@ -313,22 +305,27 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Number of consecutive instructions used to store 32bit/64bit constant.
   // This constant was used in RelocInfo::target_address_address() function
   // to tell serializer address of the instruction that follows
-  // LUI/ORI instruction pair.
+  // LUI/ADDI instruction pair.
   static constexpr int kInstructionsFor32BitConstant = 2;
-  static constexpr int kInstructionsFor64BitConstant = 4;
+  static constexpr int kInstructionsFor64BitConstant = 8;
 
   // Difference between address of current opcode and value read from pc
   // register.
   static constexpr int kPcLoadDelta = 4;
 
-  // Max offset for instructions with 16-bit offset field
-  static constexpr int kMaxBranchOffset = (1 << (18 - 1)) - 1;
+  // Bits available for offset field in branches
+  static constexpr int kBranchOffsetBits = 13;
 
-  // Max offset for compact branch instructions with 26-bit offset field
-  static constexpr int kMaxCompactBranchOffset = (1 << (28 - 1)) - 1;
+  // Bits available for offset field in jump
+  static constexpr int kJumpOffsetBits = 21;
 
-  static constexpr int kTrampolineSlotsSize =
-      kArchVariant == kMips64r6 ? 2 * kInstrSize : 7 * kInstrSize;
+  // Max offset for b instructions with 12-bit offset field (multiple of 2)
+  static constexpr int kMaxBranchOffset = (1 << (13 - 1)) - 1;
+
+  // Max offset for jal instruction with 20-bit offset field (multiple of 2)
+  static constexpr int kMaxJumpOffset = (1 << (21 - 1)) - 1;
+
+  static constexpr int kTrampolineSlotsSize = 1 * kInstrSize;
 
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
 
@@ -604,6 +601,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Assembler Pseudo Instructions (Tables 25.2, 25.3, RISC-V Unprivileged ISA)
   void RV_nop();
   void RV_li(Register rd, int64_t imm);
+  // Returns the number of instructions required to load the immediate
+  static int li_count(int64_t imm);
   // Loads an immediate, always using 8 instructions, regardless of the value,
   // so that it can be modified later.
   void RV_li_constant(Register rd, int64_t imm);
@@ -672,7 +671,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_jr(Register rs);
   void RV_jalr(Register rs);
   void RV_ret();
-  void RV_call(uint32_t offset);
+  void RV_call(int32_t offset);
 
   // Read instructions-retired counter
   void RV_rdinstret(Register rd);
@@ -2078,6 +2077,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline void EmitHelper(T x);
   inline void EmitHelper(Instr x, CompactBranchType is_compact_branch);
 
+  void disassembleInstr(Instr instr);
+
   // Instruction generation.
 
   // ----- Top-level instruction formats match those in the ISA manual
@@ -2277,9 +2278,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Labels.
   void print(const Label* L);
-  void RV_bind_to(Label* L, int pos);
   void bind_to(Label* L, int pos);
-  void RV_next(Label* L, bool is_internal);
   void next(Label* L, bool is_internal);
 
   // One trampoline consists of:

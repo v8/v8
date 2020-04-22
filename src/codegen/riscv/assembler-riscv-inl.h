@@ -114,6 +114,7 @@ void Assembler::set_target_internal_reference_encoded_at(Address pc,
                                                          Address target) {
   // Encoded internal references are j/jal instructions.
   Instr instr = Assembler::instr_at(pc + 0 * kInstrSize);
+  DCHECK(IsJump(instr));
 
   uint64_t imm28 = target & static_cast<uint64_t>(kImm28Mask);
 
@@ -184,6 +185,7 @@ Address RelocInfo::target_internal_reference() {
     // Encoded internal references are j/jal instructions.
     DCHECK(rmode_ == INTERNAL_REFERENCE_ENCODED);
     Instr instr = Assembler::instr_at(pc_ + 0 * kInstrSize);
+    DCHECK(Assembler::IsJump(instr));
     instr &= kImm26Mask;
     uint64_t imm28 = instr << 2;
     uint64_t segment = pc_ & ~static_cast<uint64_t>(kImm28Mask);
@@ -261,6 +263,8 @@ void Assembler::EmitHelper(Instr x, CompactBranchType is_compact_branch) {
     }
     ClearCompactBranchState();
   }
+  DEBUG_PRINTF("%p: ", pc_);
+  disassembleInstr(x);
   *reinterpret_cast<Instr*>(pc_) = x;
   pc_ += kInstrSize;
   if (is_compact_branch == CompactBranchType::COMPACT_BRANCH) {
@@ -274,6 +278,8 @@ inline void Assembler::EmitHelper(uint8_t x);
 
 template <typename T>
 void Assembler::EmitHelper(T x) {
+  DEBUG_PRINTF("%p: ", pc_);
+  disassembleInstr((int)x);
   *reinterpret_cast<T*>(pc_) = x;
   pc_ += sizeof(x);
   CheckTrampolinePoolQuick();
@@ -281,6 +287,8 @@ void Assembler::EmitHelper(T x) {
 
 template <>
 void Assembler::EmitHelper(uint8_t x) {
+  DEBUG_PRINTF("%p: ", pc_);
+  disassembleInstr(x);
   *reinterpret_cast<uint8_t*>(pc_) = x;
   pc_ += sizeof(x);
   if (reinterpret_cast<intptr_t>(pc_) % kInstrSize == 0) {

@@ -603,11 +603,11 @@ static void GenerateTestCallForLoadStore(Isolate* isolate, MacroAssembler& assm,
     __ RV_li(a0, 111);                                                      \
     __ RV_j(&exit);                                                         \
                                                                             \
-    __ RV_bind(&error);                                                     \
+    __ bind(&error);                                                        \
     /* got an error, return 666 */                                          \
     __ RV_li(a0, 666);                                                      \
                                                                             \
-    __ RV_bind(&exit);                                                      \
+    __ bind(&exit);                                                         \
     __ RV_jr(ra);                                                           \
                                                                             \
     CodeDesc desc;                                                          \
@@ -650,11 +650,11 @@ static void GenerateTestCallForLoadStore(Isolate* isolate, MacroAssembler& assm,
     __ RV_li(a0, 111);                                                    \
     __ RV_j(&exit);                                                       \
                                                                           \
-    __ RV_bind(&error);                                                   \
+    __ bind(&error);                                                      \
     /* got an error, return 666 */                                        \
     __ RV_li(a0, 666);                                                    \
                                                                           \
-    __ RV_bind(&exit);                                                    \
+    __ bind(&exit);                                                       \
     __ RV_jr(ra);                                                         \
                                                                           \
     CodeDesc desc;                                                        \
@@ -979,11 +979,11 @@ TEST(RISCV1) {
   __ RV_li(a0, 0l);
   __ RV_j(&C);
 
-  __ RV_bind(&L);
+  __ bind(&L);
   __ RV_add(a0, a0, a1);
   __ RV_addi(a1, a1, -1);
 
-  __ RV_bind(&C);
+  __ bind(&C);
   __ RV_xori(a2, a1, 0);
   __ RV_bnez(a2, &L);
 
@@ -1108,11 +1108,11 @@ TEST(RISCV2) {
   __ RV_li(a0, 0x31415926);
   __ RV_j(&exit);
 
-  __ RV_bind(&error);
+  __ bind(&error);
   // Got an error. Return a wrong result.
   __ RV_li(a0, 666);
 
-  __ RV_bind(&exit);
+  __ bind(&exit);
   __ RV_jr(ra);
 
   CodeDesc desc;
@@ -1470,7 +1470,7 @@ TEST(RISCV7) {
   __ RV_sw(zero_reg, a0, offsetof(T, result));
   __ RV_j(&outa_here);
 
-  __ RV_bind(&neither_is_nan);
+  __ bind(&neither_is_nan);
 
   __ RV_flt_d(t5, ft1, ft0);
   __ RV_bne(t5, zero_reg, &less_than);
@@ -1478,14 +1478,14 @@ TEST(RISCV7) {
   __ RV_sw(zero_reg, a0, offsetof(T, result));
   __ RV_j(&outa_here);
 
-  __ RV_bind(&less_than);
+  __ bind(&less_than);
   __ RV_li(a4, 1);
   __ RV_sw(a4, a0, offsetof(T, result));  // Set true.
 
   // This test-case should have additional
   // tests.
 
-  __ RV_bind(&outa_here);
+  __ bind(&outa_here);
 
   __ RV_jr(ra);
 
@@ -1504,6 +1504,66 @@ TEST(RISCV7) {
   CHECK_EQ(1.5e14, t.a);
   CHECK_EQ(2.75e11, t.b);
   CHECK_EQ(1, t.result);
+}
+
+TEST(RISCV9) {
+  // Test BRANCH improvements.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  Label exit, exit2, exit3;
+
+  __ Branch(&exit, ge, a0, Operand(zero_reg));
+  __ Branch(&exit2, ge, a0, Operand(0x00001FFF));
+  __ Branch(&exit3, ge, a0, Operand(0x0001FFFF));
+
+  __ bind(&exit);
+  __ bind(&exit2);
+  __ bind(&exit3);
+  __ RV_jr(ra);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  USE(code);
+}
+
+TEST(TARGET_ADDR) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  // This is the series of instructions to load 0x123456789abcdef0
+  uint32_t buffer[8] = {0x01234237, 0x5682021b, 0x00c21213, 0x89b20213,
+                        0x00c21213, 0xbce20213, 0x00c21213, 0xef020213};
+
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  uintptr_t addr = reinterpret_cast<uintptr_t>(&buffer[0]);
+  Address res = __ target_address_at(static_cast<Address>(addr));
+
+  CHECK_EQ(0x123456789abcdef0L, res);
+}
+
+TEST(SET_TARGET_ADDR) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  // This is the series of instructions to load 0x123456789abcdef0
+  uint32_t buffer[8] = {0x01234237, 0x5682021b, 0x00c21213, 0x89b20213,
+                        0x00c21213, 0xbce20213, 0x00c21213, 0xef020213};
+
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  uintptr_t addr = reinterpret_cast<uintptr_t>(&buffer[0]);
+  __ set_target_value_at(static_cast<Address>(addr), 0xfedcba9876543210,
+                         FLUSH_ICACHE_IF_NEEDED);
+  Address res = __ target_address_at(static_cast<Address>(addr));
+
+  CHECK_EQ(0xfedcba9876543210, res);
 }
 
 #undef __

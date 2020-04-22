@@ -68,7 +68,7 @@ TEST(LoadConstants) {
   __ RV_mv(a4, a0);
   for (int i = 0; i < 64; i++) {
     // Load constant.
-    __ RV_Li(a5, Operand(refConstants[i]));
+    __ li(a5, Operand(refConstants[i]));
     __ Sd(a5, MemOperand(a4));
     __ Daddu(a4, a4, Operand(kPointerSize));
   }
@@ -104,9 +104,9 @@ TEST(LoadAddress) {
   __ RV_jr(ra);
   __ nop();
   __ bind(&skip);
-  __ RV_Li(a4, Operand(masm->jump_address(&to_jump)), ADDRESS_LOAD);
+  __ li(a4, Operand(masm->jump_address(&to_jump)), ADDRESS_LOAD);
   int check_size = masm->InstructionsGeneratedSince(&skip);
-  // FIXME (RISCV): current RV_Li generates 8 instructions, if the sequenc has
+  // FIXME (RISCV): current li generates 8 instructions, if the sequence has
   // changed, need to adjust the CHECK_EQ value too
   CHECK_EQ(8, check_size);
   __ RV_jr(a4);
@@ -1573,7 +1573,7 @@ TEST(macro_float_minmax_f64) {
 }
 
 static const std::vector<uint32_t> cltz_uint32_test_values() {
-  static const uint32_t kValues[] = {0x00000000, 0x00000001, 0x00FFFF00,
+  static const uint32_t kValues[] = {0x00000001, 0x00FFFF00,
                                      0x7FFBD100, 0x00123400, 0x0000FF10,
                                      0x20FFFF00, 0x8FFFFFFF, 0xFFFFFFFF};
   return std::vector<uint32_t>(&kValues[0], &kValues[arraysize(kValues)]);
@@ -1581,7 +1581,7 @@ static const std::vector<uint32_t> cltz_uint32_test_values() {
 
 static const std::vector<uint64_t> cltz_uint64_test_values() {
   static const uint64_t kValues[] = {
-      0x00000000'00000000, 0x00000001'10002300, 0x00FFFF00'00000000,
+      0x00000001'10002300, 0x00FFFF00'00000000,
       0x100001AB'7FFBD100, 0xF00000F0'00123400, 0x00000001'0000FF10,
       0x0AB10020'FFFF0000, 0x000000FF'8FFFFFFF, 0xFFFFFFFF'FFFFFFFF};
   return std::vector<uint64_t>(&kValues[0], &kValues[arraysize(kValues)]);
