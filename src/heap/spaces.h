@@ -1811,7 +1811,7 @@ class V8_EXPORT_PRIVATE FreeListLegacy : public FreeList {
   inline Page* GetPageForSize(size_t size_in_bytes) override;
 
   FreeListLegacy();
-  ~FreeListLegacy();
+  ~FreeListLegacy() override;
 
   V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
                                            size_t* node_size,
@@ -1895,7 +1895,7 @@ class V8_EXPORT_PRIVATE FreeListFastAlloc : public FreeList {
   inline Page* GetPageForSize(size_t size_in_bytes) override;
 
   FreeListFastAlloc();
-  ~FreeListFastAlloc();
+  ~FreeListFastAlloc() override;
 
   V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
                                            size_t* node_size,
@@ -1941,7 +1941,7 @@ class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
   Page* GetPageForSize(size_t size_in_bytes) override;
 
   FreeListMany();
-  ~FreeListMany();
+  ~FreeListMany() override;
 
   V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
                                            size_t* node_size,
@@ -2137,7 +2137,7 @@ class V8_EXPORT_PRIVATE FreeListMap : public FreeList {
   Page* GetPageForSize(size_t size_in_bytes) override;
 
   FreeListMap();
-  ~FreeListMap();
+  ~FreeListMap() override;
 
   V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
                                            size_t* node_size,
