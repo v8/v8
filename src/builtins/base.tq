@@ -886,6 +886,9 @@ extern macro SmiUntag(Smi): intptr;
 macro SmiUntag<T: type>(value: SmiTagged<T>): T {
   return %RawDownCast<T>(Unsigned(SmiToInt32(Convert<Smi>(value))));
 }
+macro SmiTag<T : type extends uint31>(value: T): SmiTagged<T> {
+  return %RawDownCast<SmiTagged<T>>(SmiFromUint32(value));
+}
 extern macro SmiToInt32(Smi): int32;
 extern macro TaggedIndexToIntPtr(TaggedIndex): intptr;
 extern macro IntPtrToTaggedIndex(intptr): TaggedIndex;

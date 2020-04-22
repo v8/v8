@@ -1085,6 +1085,12 @@ namespace test {
     TestBitFieldLoad(val, !a, b, c, b == c);
   }
 
+  @export
+  macro TestBitFieldInit(a: bool, b: uint16, c: uint32, d: bool) {
+    const val: TestBitFieldStruct = TestBitFieldStruct{a: a, b: b, c: c, d: d};
+    TestBitFieldLoad(val, a, b, c, d);
+  }
+
   // Some other bitfield structs, to verify getting uintptr values out of word32
   // structs and vice versa.
   bitfield struct TestBitFieldStruct2 extends uint32 {

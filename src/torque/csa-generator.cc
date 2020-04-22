@@ -957,7 +957,8 @@ void CSAGenerator::EmitInstruction(const StoreBitFieldInstruction& instruction,
       "CodeStubAssembler(state_)." + encoder + "<" +
       GetBitFieldSpecialization(struct_type, instruction.bit_field) +
       ">(ca_.UncheckedCast<" + struct_word_type + ">(" + bit_field_struct +
-      "), ca_.UncheckedCast<" + field_word_type + ">(" + value + "))";
+      "), ca_.UncheckedCast<" + field_word_type + ">(" + value + ")" +
+      (instruction.starts_as_zero ? ", true" : "") + ")";
 
   if (smi_tagged_type) {
     result_expression =

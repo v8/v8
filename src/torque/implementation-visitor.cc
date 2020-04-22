@@ -1192,30 +1192,6 @@ VisitResult ImplementationVisitor::Visit(StatementExpression* expr) {
   return VisitResult{Visit(expr->statement), assembler().TopRange(0)};
 }
 
-void ImplementationVisitor::CheckInitializersWellformed(
-    const std::string& aggregate_name,
-    const std::vector<Field>& aggregate_fields,
-    const std::vector<NameAndExpression>& initializers,
-    bool ignore_first_field) {
-  size_t fields_offset = ignore_first_field ? 1 : 0;
-  size_t fields_size = aggregate_fields.size() - fields_offset;
-  for (size_t i = 0; i < std::min(fields_size, initializers.size()); i++) {
-    const std::string& field_name =
-        aggregate_fields[i + fields_offset].name_and_type.name;
-    Identifier* found_name = initializers[i].name;
-    if (field_name != found_name->value) {
-      Error("Expected field name \"", field_name, "\" instead of \"",
-            found_name->value, "\"")
-          .Position(found_name->pos)
-          .Throw();
-    }
-  }
-  if (fields_size != initializers.size()) {
-    ReportError("expected ", fields_size, " initializers for ", aggregate_name,
-                " found ", initializers.size());
-  }
-}
-
 InitializerResults ImplementationVisitor::VisitInitializerResults(
     const ClassType* class_type,
     const std::vector<NameAndExpression>& initializers) {
@@ -1924,21 +1900,57 @@ VisitResult ImplementationVisitor::Visit(StructExpression* expr) {
   }
 
   // Compute and check struct type from given struct name and argument types
-  const StructType* struct_type = TypeVisitor::ComputeTypeForStructExpression(
+  const Type* type = TypeVisitor::ComputeTypeForStructExpression(
       expr->type, term_argument_types);
-  CheckInitializersWellformed(struct_type->name(), struct_type->fields(),
-                              initializers);
+  if (const auto* struct_type = StructType::DynamicCast(type)) {
+    CheckInitializersWellformed(struct_type->name(), struct_type->fields(),
+                                initializers);
 
-  // Implicitly convert values and thereby build the struct on the stack
-  StackRange struct_range = assembler().TopRange(0);
-  auto& fields = struct_type->fields();
-  for (size_t i = 0; i < values.size(); i++) {
-    values[i] =
-        GenerateImplicitConvert(fields[i].name_and_type.type, values[i]);
-    struct_range.Extend(values[i].stack_range());
+    // Implicitly convert values and thereby build the struct on the stack
+    StackRange struct_range = assembler().TopRange(0);
+    auto& fields = struct_type->fields();
+    for (size_t i = 0; i < values.size(); i++) {
+      values[i] =
+          GenerateImplicitConvert(fields[i].name_and_type.type, values[i]);
+      struct_range.Extend(values[i].stack_range());
+    }
+
+    return stack_scope.Yield(VisitResult(struct_type, struct_range));
+  } else {
+    const auto* bitfield_struct_type = BitFieldStructType::cast(type);
+    CheckInitializersWellformed(bitfield_struct_type->name(),
+                                bitfield_struct_type->fields(), initializers);
+
+    // Create a zero and cast it to the desired bitfield struct type.
+    VisitResult result{TypeOracle::GetConstInt32Type(), "0"};
+    result = GenerateImplicitConvert(TypeOracle::GetInt32Type(), result);
+    result = GenerateCall("Unsigned", Arguments{{result}, {}}, {});
+    result = GenerateCall("%RawDownCast", Arguments{{result}, {}},
+                          {bitfield_struct_type});
+
+    // Set each field in the result. If these fields are constexpr, then all of
+    // this initialization will end up reduced to a single value during TurboFan
+    // optimization.
+    auto& fields = bitfield_struct_type->fields();
+    for (size_t i = 0; i < values.size(); i++) {
+      values[i] =
+          GenerateImplicitConvert(fields[i].name_and_type.type, values[i]);
+      result = GenerateSetBitField(bitfield_struct_type, fields[i], result,
+                                   values[i], /*starts_as_zero=*/true);
+    }
+
+    return stack_scope.Yield(result);
   }
+}
 
-  return stack_scope.Yield(VisitResult(struct_type, struct_range));
+VisitResult ImplementationVisitor::GenerateSetBitField(
+    const Type* bitfield_struct_type, const BitField& bitfield,
+    VisitResult bitfield_struct, VisitResult value, bool starts_as_zero) {
+  GenerateCopy(bitfield_struct);
+  GenerateCopy(value);
+  assembler().Emit(
+      StoreBitFieldInstruction{bitfield_struct_type, bitfield, starts_as_zero});
+  return VisitResult(bitfield_struct_type, assembler().TopRange(1));
 }
 
 LocationReference ImplementationVisitor::GetLocationReference(
@@ -2282,13 +2294,11 @@ void ImplementationVisitor::GenerateAssignToLocation(
         GenerateFetchFromLocation(reference.bit_field_struct_location());
     VisitResult converted_value =
         GenerateImplicitConvert(reference.ReferencedType(), assignment_value);
-    GenerateCopy(bit_field_struct);
-    GenerateCopy(converted_value);
-    assembler().Emit(StoreBitFieldInstruction{bit_field_struct.type(),
-                                              reference.bit_field()});
-    GenerateAssignToLocation(
-        reference.bit_field_struct_location(),
-        VisitResult(bit_field_struct.type(), assembler().TopRange(1)));
+    VisitResult updated_bit_field_struct =
+        GenerateSetBitField(bit_field_struct.type(), reference.bit_field(),
+                            bit_field_struct, converted_value);
+    GenerateAssignToLocation(reference.bit_field_struct_location(),
+                             updated_bit_field_struct);
   } else {
     DCHECK(reference.IsTemporary());
     ReportError("cannot assign to const-bound or temporary ",

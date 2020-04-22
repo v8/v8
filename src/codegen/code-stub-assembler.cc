@@ -7419,25 +7419,39 @@ TNode<UintPtrT> CodeStubAssembler::DecodeWord(SloppyTNode<WordT> word,
 
 TNode<Word32T> CodeStubAssembler::UpdateWord32(TNode<Word32T> word,
                                                TNode<Uint32T> value,
-                                               uint32_t shift, uint32_t mask) {
+                                               uint32_t shift, uint32_t mask,
+                                               bool starts_as_zero) {
   DCHECK_EQ((mask >> shift) << shift, mask);
   // Ensure the {value} fits fully in the mask.
   CSA_ASSERT(this, Uint32LessThanOrEqual(value, Uint32Constant(mask >> shift)));
   TNode<Word32T> encoded_value = Word32Shl(value, Int32Constant(shift));
-  TNode<Word32T> inverted_mask = Int32Constant(~mask);
-  return Word32Or(Word32And(word, inverted_mask), encoded_value);
+  TNode<Word32T> masked_word;
+  if (starts_as_zero) {
+    CSA_ASSERT(this, Word32Equal(Word32And(word, Int32Constant(~mask)), word));
+    masked_word = word;
+  } else {
+    masked_word = Word32And(word, Int32Constant(~mask));
+  }
+  return Word32Or(masked_word, encoded_value);
 }
 
 TNode<WordT> CodeStubAssembler::UpdateWord(TNode<WordT> word,
                                            TNode<UintPtrT> value,
-                                           uint32_t shift, uintptr_t mask) {
+                                           uint32_t shift, uintptr_t mask,
+                                           bool starts_as_zero) {
   DCHECK_EQ((mask >> shift) << shift, mask);
   // Ensure the {value} fits fully in the mask.
   CSA_ASSERT(this,
              UintPtrLessThanOrEqual(value, UintPtrConstant(mask >> shift)));
   TNode<WordT> encoded_value = WordShl(value, static_cast<int>(shift));
-  TNode<IntPtrT> inverted_mask = IntPtrConstant(~static_cast<intptr_t>(mask));
-  return WordOr(WordAnd(word, inverted_mask), encoded_value);
+  TNode<WordT> masked_word;
+  if (starts_as_zero) {
+    CSA_ASSERT(this, WordEqual(WordAnd(word, UintPtrConstant(~mask)), word));
+    masked_word = word;
+  } else {
+    masked_word = WordAnd(word, UintPtrConstant(~mask));
+  }
+  return WordOr(masked_word, encoded_value);
 }
 
 void CodeStubAssembler::SetCounter(StatsCounter* counter, int value) {

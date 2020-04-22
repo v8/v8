@@ -90,6 +90,10 @@ FromConstexpr<LanguageModeSmi, constexpr LanguageMode>(
     c: constexpr LanguageMode): LanguageModeSmi {
   return %RawDownCast<LanguageModeSmi>(SmiConstant(c));
 }
+FromConstexpr<PromiseState, constexpr PromiseState>(c: constexpr PromiseState):
+    PromiseState {
+  return %RawDownCast<PromiseState>(Int32Constant(c));
+}
 
 macro Convert<To: type, From: type>(i: From): To {
   return i;

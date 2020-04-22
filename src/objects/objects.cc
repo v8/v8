@@ -5876,13 +5876,13 @@ class StringSharedKey : public HashTableKey {
 };
 
 v8::Promise::PromiseState JSPromise::status() const {
-  int value = flags() & kStatusMask;
+  int value = flags() & StatusBits::kMask;
   DCHECK(value == 0 || value == 1 || value == 2);
   return static_cast<v8::Promise::PromiseState>(value);
 }
 
 void JSPromise::set_status(Promise::PromiseState status) {
-  int value = flags() & ~kStatusMask;
+  int value = flags() & ~StatusBits::kMask;
   set_flags(value | status);
 }
 
@@ -5900,11 +5900,11 @@ const char* JSPromise::Status(v8::Promise::PromiseState status) {
 }
 
 int JSPromise::async_task_id() const {
-  return AsyncTaskIdField::decode(flags());
+  return AsyncTaskIdBits::decode(flags());
 }
 
 void JSPromise::set_async_task_id(int id) {
-  set_flags(AsyncTaskIdField::update(flags(), id));
+  set_flags(AsyncTaskIdBits::update(flags(), id));
 }
 
 // static

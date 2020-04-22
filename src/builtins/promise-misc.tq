@@ -28,9 +28,13 @@ namespace promise {
 
   @export
   macro PromiseInit(promise: JSPromise): void {
-    assert(PromiseState::kPending == 0);
     promise.reactions_or_result = kZero;
-    promise.flags = 0;
+    promise.flags = SmiTag(JSPromiseFlags{
+      status: PromiseState::kPending,
+      has_handler: false,
+      handled_hint: false,
+      async_task_id: 0
+    });
     promise_internal::ZeroOutEmbedderOffsets(promise);
   }
 
@@ -46,7 +50,12 @@ namespace promise {
     promise.properties_or_hash = kEmptyFixedArray;
     promise.elements = kEmptyFixedArray;
     promise.reactions_or_result = kZero;
-    promise.flags = 0;
+    promise.flags = SmiTag(JSPromiseFlags{
+      status: PromiseState::kPending,
+      has_handler: false,
+      handled_hint: false,
+      async_task_id: 0
+    });
     return promise;
   }
 
@@ -111,7 +120,6 @@ namespace promise {
   transitioning macro NewJSPromise(implicit context: Context)(
       status: constexpr PromiseState, result: JSAny): JSPromise {
     assert(status != PromiseState::kPending);
-    assert(kJSPromiseStatusShift == 0);
 
     const instance = InnerNewJSPromise();
     instance.reactions_or_result = result;
