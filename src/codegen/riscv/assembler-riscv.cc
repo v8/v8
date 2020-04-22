@@ -3150,12 +3150,14 @@ void Assembler::lwu(Register rd, const MemOperand& rs) {
   }
 }
 
+// FIXME(RISCV): to be ported
 void Assembler::lwl(Register rd, const MemOperand& rs) {
   DCHECK(is_int16(rs.offset_));
   DCHECK_EQ(kArchVariant, kMips64r2);
   GenInstrImmediate(LWL, rs.rm(), rd, rs.offset_);
 }
 
+// FIXME(RISCV): to be ported
 void Assembler::lwr(Register rd, const MemOperand& rs) {
   DCHECK(is_int16(rs.offset_));
   DCHECK_EQ(kArchVariant, kMips64r2);
@@ -3201,18 +3203,21 @@ void Assembler::sw(Register rd, const MemOperand& rs) {
   }
 }
 
+// FIXME(RISCV): to be ported
 void Assembler::swl(Register rd, const MemOperand& rs) {
   DCHECK(is_int16(rs.offset_));
   DCHECK_EQ(kArchVariant, kMips64r2);
   GenInstrImmediate(SWL, rs.rm(), rd, rs.offset_);
 }
 
+// FIXME(RISCV): to be ported
 void Assembler::swr(Register rd, const MemOperand& rs) {
   DCHECK(is_int16(rs.offset_));
   DCHECK_EQ(kArchVariant, kMips64r2);
   GenInstrImmediate(SWR, rs.rm(), rd, rs.offset_);
 }
 
+// FIXME(RISCV): to be ported
 void Assembler::ll(Register rd, const MemOperand& rs) {
   if (kArchVariant == kMips64r6) {
     DCHECK(is_int9(rs.offset_));
@@ -3226,6 +3231,7 @@ void Assembler::ll(Register rd, const MemOperand& rs) {
 
 void Assembler::lld(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
+// FIXME(RISCV): to be ported
 void Assembler::sc(Register rd, const MemOperand& rs) {
   if (kArchVariant == kMips64r6) {
     DCHECK(is_int9(rs.offset_));
@@ -3236,6 +3242,7 @@ void Assembler::sc(Register rd, const MemOperand& rs) {
   }
 }
 
+// FIXME(RISCV): to be ported
 void Assembler::scd(Register rd, const MemOperand& rs) {
   if (kArchVariant == kMips64r6) {
     DCHECK(is_int9(rs.offset_));
@@ -3256,24 +3263,28 @@ void Assembler::dahi(Register rs, int32_t j) { UNREACHABLE(); }
 
 void Assembler::dati(Register rs, int32_t j) { UNREACHABLE(); }
 
+// FIXME(RISCV): to be ported
 void Assembler::ldl(Register rd, const MemOperand& rs) {
   DCHECK(is_int16(rs.offset_));
   DCHECK_EQ(kArchVariant, kMips64r2);
   GenInstrImmediate(LDL, rs.rm(), rd, rs.offset_);
 }
 
+// FIXME(RISCV): to be ported
 void Assembler::ldr(Register rd, const MemOperand& rs) {
   DCHECK(is_int16(rs.offset_));
   DCHECK_EQ(kArchVariant, kMips64r2);
   GenInstrImmediate(LDR, rs.rm(), rd, rs.offset_);
 }
 
+// FIXME(RISCV): to be ported
 void Assembler::sdl(Register rd, const MemOperand& rs) {
   DCHECK(is_int16(rs.offset_));
   DCHECK_EQ(kArchVariant, kMips64r2);
   GenInstrImmediate(SDL, rs.rm(), rd, rs.offset_);
 }
 
+// FIXME(RISCV): to be ported
 void Assembler::sdr(Register rd, const MemOperand& rs) {
   DCHECK(is_int16(rs.offset_));
   DCHECK_EQ(kArchVariant, kMips64r2);
@@ -3329,6 +3340,7 @@ void Assembler::break_(uint32_t code, bool break_as_stop) {
   RV_ebreak();
 }
 
+// FIXME (RISCV): may need to remove MIPS flags
 void Assembler::stop(uint32_t code) {
   DCHECK_GT(code, kMaxWatchpointCode);
   DCHECK_LE(code, kMaxStopCode);
@@ -3555,29 +3567,27 @@ void Assembler::mtc1(Register rt, FPURegister fs) { RV_fmv_w_x(fs, rt); }
 // FIXME (RISCV): need to be ported
 void Assembler::mthc1(Register rt, FPURegister fs) {
   GenInstrRegister(COP1, MTHC1, rt, fs, fa0);
-  /* UNREACHABLE(); */
 }
 
 void Assembler::dmtc1(Register rt, FPURegister fs) { RV_fmv_d_x(fs, rt); }
 
 void Assembler::mfc1(Register rt, FPURegister fs) { RV_fmv_x_w(rt, fs); }
 
-// FIXME (RISCV):
+// FIXME (RISCV): need to be ported
 void Assembler::mfhc1(Register rt, FPURegister fs) {
   GenInstrRegister(COP1, MFHC1, rt, fs, fa0);
-  /* UNREACHABLE(); */
 }
 
 void Assembler::dmfc1(Register rt, FPURegister fs) { RV_fmv_x_d(rt, fs); }
 
 // FIXME (RISCV): to be ported
 void Assembler::ctc1(Register rt, FPUControlRegister fs) {
-  GenInstrRegister(COP1, CTC1, rt, fs); /* UNREACHABLE(); */
+  GenInstrRegister(COP1, CTC1, rt, fs);
 }
 
 // FIXME (RISCV): to be ported
 void Assembler::cfc1(Register rt, FPUControlRegister fs) {
-  GenInstrRegister(COP1, CFC1, rt, fs); /* UNREACHABLE(); */
+  GenInstrRegister(COP1, CFC1, rt, fs);
 }
 
 void Assembler::sel(SecondaryField fmt, FPURegister fd, FPURegister fs,
@@ -3735,10 +3745,7 @@ void Assembler::abs_s(FPURegister fd, FPURegister fs) { RV_fabs_s(fd, fs); }
 
 void Assembler::abs_d(FPURegister fd, FPURegister fs) { RV_fabs_d(fd, fs); }
 
-// FIXME (RISCV): need to port
-void Assembler::mov_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, fa0, fs, fd, MOV_D); /* UNREACHABLE(); */
-}
+void Assembler::mov_d(FPURegister fd, FPURegister fs) { RV_fmv_d(fd, fs); }
 
 void Assembler::mov_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
