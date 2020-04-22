@@ -328,6 +328,7 @@ class CallDepthScope {
   bool CheckKeptObjectsClearedAfterMicrotaskCheckpoint(
       i::MicrotaskQueue* microtask_queue) {
     bool did_perform_microtask_checkpoint =
+        isolate_->thread_local_top()->CallDepthIsZero() &&
         do_callback && microtask_queue &&
         microtask_queue->microtasks_policy() == MicrotasksPolicy::kAuto;
     return !did_perform_microtask_checkpoint ||
