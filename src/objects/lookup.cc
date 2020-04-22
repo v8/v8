@@ -192,20 +192,11 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
   if (!receiver_generic->IsHeapObject()) return;
   Handle<HeapObject> receiver = Handle<HeapObject>::cast(receiver_generic);
 
-  // Getting the native_context from the isolate as a fallback. If possible, we
-  // use the receiver's creation context instead.
-  Handle<NativeContext> native_context = isolate->native_context();
-
   ReadOnlyRoots roots(isolate);
   if (*name == roots.constructor_string()) {
-    // Fetching the context in here since the operation is rather expensive.
-    if (receiver->IsJSReceiver()) {
-      native_context = Handle<JSReceiver>::cast(receiver)->GetCreationContext();
-    }
-
     if (!Protectors::IsArraySpeciesLookupChainIntact(isolate) &&
         !Protectors::IsPromiseSpeciesLookupChainIntact(isolate) &&
-        !Protectors::IsRegExpSpeciesLookupChainIntact(native_context) &&
+        !Protectors::IsRegExpSpeciesLookupChainIntact(isolate) &&
         !Protectors::IsTypedArraySpeciesLookupChainIntact(isolate)) {
       return;
     }
@@ -221,10 +212,8 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
       Protectors::InvalidatePromiseSpeciesLookupChain(isolate);
       return;
     } else if (receiver->IsJSRegExp(isolate)) {
-      if (!Protectors::IsRegExpSpeciesLookupChainIntact(native_context)) {
-        return;
-      }
-      Protectors::InvalidateRegExpSpeciesLookupChain(isolate, native_context);
+      if (!Protectors::IsRegExpSpeciesLookupChainIntact(isolate)) return;
+      Protectors::InvalidateRegExpSpeciesLookupChain(isolate);
       return;
     } else if (receiver->IsJSTypedArray(isolate)) {
       if (!Protectors::IsTypedArraySpeciesLookupChainIntact(isolate)) return;
@@ -250,10 +239,8 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
         Protectors::InvalidatePromiseSpeciesLookupChain(isolate);
       } else if (isolate->IsInAnyContext(*receiver,
                                          Context::REGEXP_PROTOTYPE_INDEX)) {
-        if (!Protectors::IsRegExpSpeciesLookupChainIntact(native_context)) {
-          return;
-        }
-        Protectors::InvalidateRegExpSpeciesLookupChain(isolate, native_context);
+        if (!Protectors::IsRegExpSpeciesLookupChainIntact(isolate)) return;
+        Protectors::InvalidateRegExpSpeciesLookupChain(isolate);
       } else if (isolate->IsInAnyContext(
                      receiver->map(isolate).prototype(isolate),
                      Context::TYPED_ARRAY_PROTOTYPE_INDEX)) {
@@ -289,14 +276,9 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
       Protectors::InvalidateStringIteratorLookupChain(isolate);
     }
   } else if (*name == roots.species_symbol()) {
-    // Fetching the context in here since the operation is rather expensive.
-    if (receiver->IsJSReceiver()) {
-      native_context = Handle<JSReceiver>::cast(receiver)->GetCreationContext();
-    }
-
     if (!Protectors::IsArraySpeciesLookupChainIntact(isolate) &&
         !Protectors::IsPromiseSpeciesLookupChainIntact(isolate) &&
-        !Protectors::IsRegExpSpeciesLookupChainIntact(native_context) &&
+        !Protectors::IsRegExpSpeciesLookupChainIntact(isolate) &&
         !Protectors::IsTypedArraySpeciesLookupChainIntact(isolate)) {
       return;
     }
@@ -313,10 +295,8 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
       Protectors::InvalidatePromiseSpeciesLookupChain(isolate);
     } else if (isolate->IsInAnyContext(*receiver,
                                        Context::REGEXP_FUNCTION_INDEX)) {
-      if (!Protectors::IsRegExpSpeciesLookupChainIntact(native_context)) {
-        return;
-      }
-      Protectors::InvalidateRegExpSpeciesLookupChain(isolate, native_context);
+      if (!Protectors::IsRegExpSpeciesLookupChainIntact(isolate)) return;
+      Protectors::InvalidateRegExpSpeciesLookupChain(isolate);
     } else if (IsTypedArrayFunctionInAnyContext(isolate, *receiver)) {
       if (!Protectors::IsTypedArraySpeciesLookupChainIntact(isolate)) return;
       Protectors::InvalidateTypedArraySpeciesLookupChain(isolate);

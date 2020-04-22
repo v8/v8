@@ -915,6 +915,13 @@ void Heap::CreateInitialObjects() {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
     cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
+    set_regexp_species_protector(*cell);
+  }
+
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_string_iterator_protector(*cell);
   }
 

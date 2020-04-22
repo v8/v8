@@ -729,13 +729,9 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(
 
   // This should only be needed for String.p.(split||matchAll), but we are
   // conservative here.
-  // Note: we are using the current native context here, which may or may not
-  // match the object's native context. That's fine: in case of a mismatch, we
-  // will bail in the next step when comparing the object's map against the
-  // current native context's initial regexp map.
-  TNode<NativeContext> native_context = LoadNativeContext(context);
-  GotoIf(IsRegExpSpeciesProtectorCellInvalid(native_context), if_ismodified);
+  GotoIf(IsRegExpSpeciesProtectorCellInvalid(), if_ismodified);
 
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSFunction> regexp_fun =
       CAST(LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX));
   TNode<Map> initial_map = CAST(

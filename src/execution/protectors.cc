@@ -41,28 +41,9 @@ constexpr bool IsDefined(v8::Isolate::UseCounterFeature) { return true; }
   STATIC_ASSERT(IsDefined(v8::Isolate::kInvalidated##Name##Protector));
 
 DECLARED_PROTECTORS_ON_ISOLATE(V)
-DECLARED_PROTECTORS_ON_NATIVE_CONTEXT(V)
 #undef V
 
 }  // namespace
-
-#define INVALIDATE_PROTECTOR_ON_NATIVE_CONTEXT_DEFINITION(name, cell)       \
-  void Protectors::Invalidate##name(Isolate* isolate,                       \
-                                    Handle<NativeContext> native_context) { \
-    DCHECK(native_context->cell().value().IsSmi());                         \
-    DCHECK(Is##name##Intact(native_context));                               \
-    if (FLAG_trace_protector_invalidation) {                                \
-      TraceProtectorInvalidation(#name);                                    \
-    }                                                                       \
-    Handle<PropertyCell> species_cell(native_context->cell(), isolate);     \
-    PropertyCell::SetValueWithInvalidation(                                 \
-        isolate, #cell, species_cell,                                       \
-        handle(Smi::FromInt(kProtectorInvalid), isolate));                  \
-    DCHECK(!Is##name##Intact(native_context));                              \
-  }
-DECLARED_PROTECTORS_ON_NATIVE_CONTEXT(
-    INVALIDATE_PROTECTOR_ON_NATIVE_CONTEXT_DEFINITION)
-#undef INVALIDATE_PROTECTOR_ON_NATIVE_CONTEXT_DEFINITION
 
 #define INVALIDATE_PROTECTOR_ON_ISOLATE_DEFINITION(name, unused_index, cell) \
   void Protectors::Invalidate##name(Isolate* isolate) {                      \

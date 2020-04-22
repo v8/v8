@@ -44,6 +44,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(PromiseSpeciesProtector, promise_species_protector,                       \
     PromiseSpeciesProtector)                                                  \
   V(PromiseThenProtector, promise_then_protector, PromiseThenProtector)       \
+  V(RegExpSpeciesProtector, regexp_species_protector, RegExpSpeciesProtector) \
   V(SetIteratorProtector, set_iterator_protector, SetIteratorProtector)       \
   V(SingleCharacterStringCache, single_character_string_cache,                \
     SingleCharacterStringCache)                                               \
@@ -2657,8 +2658,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsPromiseThenProtectorCellInvalid();
   TNode<BoolT> IsArraySpeciesProtectorCellInvalid();
   TNode<BoolT> IsTypedArraySpeciesProtectorCellInvalid();
-  TNode<BoolT> IsRegExpSpeciesProtectorCellInvalid(
-      TNode<NativeContext> native_context);
+  TNode<BoolT> IsRegExpSpeciesProtectorCellInvalid();
   TNode<BoolT> IsPromiseSpeciesProtectorCellInvalid();
 
   TNode<BoolT> IsMockArrayBufferAllocatorFlag() {
