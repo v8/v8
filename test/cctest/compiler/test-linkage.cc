@@ -141,8 +141,6 @@ TEST(TestFPLinkageStubCall) {
 
   CHECK_EQ(call_descriptor->GetInputType(1), MachineType::Float64());
   CHECK(call_descriptor->GetInputLocation(1).IsRegister());
-  CHECK_EQ(call_descriptor->GetInputLocation(1).GetLocation(),
-           kFPReturnRegister0.code());
   CHECK_EQ(call_descriptor->GetReturnType(0), MachineType::AnyTagged());
   CHECK(call_descriptor->GetReturnLocation(0).IsRegister());
   CHECK_EQ(call_descriptor->GetReturnLocation(0).GetLocation(),
