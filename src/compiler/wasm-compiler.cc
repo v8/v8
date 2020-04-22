@@ -5183,6 +5183,19 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return done.PhiAt(0);
   }
 
+  Node* BuildChangeFloat32ToNumber(Node* value) {
+    CommonOperatorBuilder* common = mcgraph()->common();
+    Node* target = GetTargetForBuiltinCall(wasm::WasmCode::kWasmFloat32ToNumber,
+                                           Builtins::kWasmFloat32ToNumber);
+    if (!float32_to_number_operator_.is_set()) {
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          mcgraph()->zone(), WasmFloat32ToNumberDescriptor(), 0,
+          CallDescriptor::kNoFlags, Operator::kNoProperties, stub_mode_);
+      float32_to_number_operator_.set(common->Call(call_descriptor));
+    }
+    return gasm_->Call(float32_to_number_operator_.get(), target, value);
+  }
+
   Node* BuildChangeFloat64ToNumber(Node* value) {
     CommonOperatorBuilder* common = mcgraph()->common();
     Node* target = GetTargetForBuiltinCall(wasm::WasmCode::kWasmFloat64ToNumber,
@@ -5234,9 +5247,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         return BuildChangeInt64ToBigInt(node);
       }
       case wasm::ValueType::kF32:
-        node = graph()->NewNode(mcgraph()->machine()->ChangeFloat32ToFloat64(),
-                                node);
-        return BuildChangeFloat64ToNumber(node);
+        return BuildChangeFloat32ToNumber(node);
       case wasm::ValueType::kF64:
         return BuildChangeFloat64ToNumber(node);
       case wasm::ValueType::kAnyRef:
@@ -6108,6 +6119,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   SetOncePointer<Node> undefined_value_node_;
   SetOncePointer<const Operator> int32_to_heapnumber_operator_;
   SetOncePointer<const Operator> tagged_non_smi_to_int32_operator_;
+  SetOncePointer<const Operator> float32_to_number_operator_;
   SetOncePointer<const Operator> float64_to_number_operator_;
   SetOncePointer<const Operator> tagged_to_float64_operator_;
   wasm::WasmFeatures enabled_features_;

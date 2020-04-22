@@ -3798,6 +3798,46 @@ TEST(WasmTaggedNonSmiToInt32) {
   }
 }
 
+TEST(WasmFloat32ToNumber) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  float test_values[] = {
+      // Smi values.
+      1,
+      0,
+      -1,
+      // Max and min Smis can't be represented as floats.
+      // Non-Smi values.
+      -0.0,
+      1.5,
+      std::numeric_limits<float>::quiet_NaN(),
+      std::numeric_limits<float>::infinity(),
+  };
+
+  // FunctionTester can't handle Wasm type arguments, so for each test value,
+  // build a function with the arguments baked in, then generate a no-argument
+  // function to call.
+  const int kNumParams = 1;
+  for (size_t i = 0; i < arraysize(test_values); ++i) {
+    double test_value = test_values[i];
+    CodeAssemblerTester asm_tester(isolate, kNumParams);
+    CodeStubAssembler m(asm_tester.state());
+    Node* context = m.Parameter(kNumParams + 1);
+    const TNode<Float32T> arg = m.Float32Constant(test_value);
+    const TNode<Object> call_result =
+        m.CallBuiltin(Builtins::kWasmFloat32ToNumber, context, arg);
+    m.Return(call_result);
+
+    FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+    Handle<Object> result = ft.Call().ToHandleChecked();
+    CHECK(result->IsNumber());
+    Handle<Object> expected(isolate->factory()->NewNumber(test_value));
+    CHECK(result->StrictEquals(*expected) ||
+          (std::isnan(test_value) && std::isnan(result->Number())));
+    CHECK_EQ(result->IsSmi(), expected->IsSmi());
+  }
+}
+
 TEST(WasmFloat64ToNumber) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 

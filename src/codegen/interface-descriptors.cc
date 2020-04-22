@@ -389,6 +389,12 @@ void WasmTaggedNonSmiToInt32Descriptor::InitializePlatformSpecific(
 
 #if !V8_TARGET_ARCH_IA32
 // We need a custom descriptor on ia32 to avoid using xmm0.
+void WasmFloat32ToNumberDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+// We need a custom descriptor on ia32 to avoid using xmm0.
 void WasmFloat64ToNumberDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);

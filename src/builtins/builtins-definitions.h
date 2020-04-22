@@ -841,6 +841,7 @@ namespace internal {
   ASM(WasmDebugBreak, Dummy)                                                   \
   TFC(WasmInt32ToHeapNumber, WasmInt32ToHeapNumber)                            \
   TFC(WasmTaggedNonSmiToInt32, WasmTaggedNonSmiToInt32)                        \
+  TFC(WasmFloat32ToNumber, WasmFloat32ToNumber)                                \
   TFC(WasmFloat64ToNumber, WasmFloat64ToNumber)                                \
   TFC(WasmTaggedToFloat64, WasmTaggedToFloat64)                                \
   TFC(WasmAtomicNotify, WasmAtomicNotify)                                      \

@@ -92,6 +92,7 @@ namespace internal {
   V(Void)                             \
   V(WasmInt32ToHeapNumber)            \
   V(WasmTaggedNonSmiToInt32)          \
+  V(WasmFloat32ToNumber)              \
   V(WasmFloat64ToNumber)              \
   V(WasmTaggedToFloat64)              \
   V(WasmAtomicNotify)                 \
@@ -1328,6 +1329,14 @@ class WasmTaggedNonSmiToInt32Descriptor final : public CallInterfaceDescriptor {
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int32(),      // result
                                     MachineType::AnyTagged())  // value
   DECLARE_DESCRIPTOR(WasmTaggedNonSmiToInt32Descriptor, CallInterfaceDescriptor)
+};
+
+class WasmFloat32ToNumberDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kValue)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
+                                    MachineType::Float32())    // value
+  DECLARE_DESCRIPTOR(WasmFloat32ToNumberDescriptor, CallInterfaceDescriptor)
 };
 
 class WasmFloat64ToNumberDescriptor final : public CallInterfaceDescriptor {

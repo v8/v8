@@ -52,6 +52,7 @@ struct WasmModule;
   V(WasmDebugBreak)                      \
   V(WasmInt32ToHeapNumber)               \
   V(WasmTaggedNonSmiToInt32)             \
+  V(WasmFloat32ToNumber)                 \
   V(WasmFloat64ToNumber)                 \
   V(WasmTaggedToFloat64)                 \
   V(WasmAtomicNotify)                    \

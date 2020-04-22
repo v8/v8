@@ -5282,6 +5282,38 @@ void CodeStubAssembler::TryHeapNumberToSmi(TNode<HeapNumber> number,
   TryFloat64ToSmi(value, var_result_smi, if_smi);
 }
 
+void CodeStubAssembler::TryFloat32ToSmi(TNode<Float32T> value,
+                                        TVariable<Smi>* var_result_smi,
+                                        Label* if_smi) {
+  TNode<Int32T> ivalue = TruncateFloat32ToInt32(value);
+  TNode<Float32T> fvalue = RoundInt32ToFloat32(ivalue);
+
+  Label if_int32(this), if_heap_number(this);
+
+  GotoIfNot(Float32Equal(value, fvalue), &if_heap_number);
+  GotoIfNot(Word32Equal(ivalue, Int32Constant(0)), &if_int32);
+  Branch(Int32LessThan(UncheckedCast<Int32T>(BitcastFloat32ToInt32(value)),
+                       Int32Constant(0)),
+         &if_heap_number, &if_int32);
+
+  TVARIABLE(Number, var_result);
+  BIND(&if_int32);
+  {
+    if (SmiValuesAre32Bits()) {
+      *var_result_smi = SmiTag(ChangeInt32ToIntPtr(ivalue));
+    } else {
+      DCHECK(SmiValuesAre31Bits());
+      TNode<PairT<Int32T, BoolT>> pair = Int32AddWithOverflow(ivalue, ivalue);
+      TNode<BoolT> overflow = Projection<1>(pair);
+      GotoIf(overflow, &if_heap_number);
+      *var_result_smi =
+          BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
+    }
+    Goto(if_smi);
+  }
+  BIND(&if_heap_number);
+}
+
 void CodeStubAssembler::TryFloat64ToSmi(TNode<Float64T> value,
                                         TVariable<Smi>* var_result_smi,
                                         Label* if_smi) {
@@ -5312,6 +5344,24 @@ void CodeStubAssembler::TryFloat64ToSmi(TNode<Float64T> value,
     Goto(if_smi);
   }
   BIND(&if_heap_number);
+}
+
+TNode<Number> CodeStubAssembler::ChangeFloat32ToTagged(TNode<Float32T> value) {
+  Label if_smi(this), done(this);
+  TVARIABLE(Smi, var_smi_result);
+  TVARIABLE(Number, var_result);
+  TryFloat32ToSmi(value, &var_smi_result, &if_smi);
+
+  var_result = AllocateHeapNumberWithValue(ChangeFloat32ToFloat64(value));
+  Goto(&done);
+
+  BIND(&if_smi);
+  {
+    var_result = var_smi_result.value();
+    Goto(&done);
+  }
+  BIND(&done);
+  return var_result.value();
 }
 
 TNode<Number> CodeStubAssembler::ChangeFloat64ToTagged(

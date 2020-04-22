@@ -284,6 +284,14 @@ void RunMicrotasksEntryDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(0, nullptr);
 }
 
+void WasmFloat32ToNumberDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // Work around using eax, whose register code is 0, and leads to the FP
+  // parameter being passed via xmm0, which is not allocatable on ia32.
+  Register registers[] = {ecx};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 void WasmFloat64ToNumberDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // Work around using eax, whose register code is 0, and leads to the FP
