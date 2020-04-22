@@ -2401,6 +2401,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           uint32_t length = 0;
           opcode =
               this->template read_prefixed_opcode<validate>(this->pc_, &length);
+          if (!VALIDATE(this->ok())) break;
           len += length;
 
           TRACE_PART(TRACE_INST_FORMAT, startrel(this->pc_),
