@@ -2725,7 +2725,7 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
     if (var == nullptr) {
       // It's only possible to fail to resolve private names here if
       // this is at the top level or the private name is accessed through eval.
-      DCHECK(info->is_eval() || outer_scope_->is_script_scope());
+      DCHECK(info->flags().is_eval() || outer_scope_->is_script_scope());
       Scanner::Location loc = proxy->location();
       info->pending_error_handler()->ReportMessageAt(
           loc.beg_pos, loc.end_pos,

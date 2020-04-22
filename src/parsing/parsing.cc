@@ -22,7 +22,7 @@ namespace parsing {
 bool ParseProgram(ParseInfo* info, Handle<Script> script,
                   MaybeHandle<ScopeInfo> maybe_outer_scope_info,
                   Isolate* isolate, ReportErrorsAndStatisticsMode mode) {
-  DCHECK(info->is_toplevel());
+  DCHECK(info->flags().is_toplevel());
   DCHECK_NULL(info->literal());
 
   VMState<PARSER> state(isolate);
@@ -44,7 +44,7 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script,
   info->set_literal(result);
   if (result) {
     info->set_language_mode(info->literal()->language_mode());
-    if (info->is_eval()) {
+    if (info->flags().is_eval()) {
       info->set_allow_eval_cache(parser.allow_eval_cache());
     }
   }
@@ -66,7 +66,7 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script, Isolate* isolate,
 
 bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
                    Isolate* isolate, ReportErrorsAndStatisticsMode mode) {
-  DCHECK(!info->is_toplevel());
+  DCHECK(!info->flags().is_toplevel());
   DCHECK(!shared_info.is_null());
   DCHECK_NULL(info->literal());
 
@@ -91,7 +91,7 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   info->set_literal(result);
   if (result) {
     info->ast_value_factory()->Internalize(isolate);
-    if (info->is_eval()) {
+    if (info->flags().is_eval()) {
       info->set_allow_eval_cache(parser.allow_eval_cache());
     }
   }
@@ -109,7 +109,7 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
 bool ParseAny(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
               Isolate* isolate, ReportErrorsAndStatisticsMode mode) {
   DCHECK(!shared_info.is_null());
-  if (info->is_toplevel()) {
+  if (info->flags().is_toplevel()) {
     MaybeHandle<ScopeInfo> maybe_outer_scope_info;
     if (shared_info->HasOuterScopeInfo()) {
       maybe_outer_scope_info =

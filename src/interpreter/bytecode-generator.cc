@@ -1332,7 +1332,7 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   if (FLAG_trace) builder()->CallRuntime(Runtime::kTraceEnter);
 
   // Emit type profile call.
-  if (info()->collect_type_profile()) {
+  if (info()->flags().collect_type_profile()) {
     feedback_spec()->AddTypeProfileSlot();
     int num_parameters = closure_scope()->num_parameters();
     for (int i = 0; i < num_parameters; i++) {
@@ -2134,7 +2134,7 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   DCHECK(expr->scope()->outer_scope() == current_scope());
   uint8_t flags = CreateClosureFlags::Encode(
       expr->pretenure(), closure_scope()->is_function_scope(),
-      info()->might_always_opt());
+      info()->flags().might_always_opt());
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
   builder()->CreateClosure(entry, GetCachedCreateClosureSlot(expr), flags);
   function_literals_.push_back(std::make_pair(expr, entry));
@@ -3197,7 +3197,7 @@ void BytecodeGenerator::BuildReturn(int source_position) {
     builder()->StoreAccumulatorInRegister(result).CallRuntime(
         Runtime::kTraceExit, result);
   }
-  if (info()->collect_type_profile()) {
+  if (info()->flags().collect_type_profile()) {
     builder()->CollectTypeProfile(info()->literal()->return_position());
   }
   builder()->SetReturnPosition(source_position, info()->literal());
