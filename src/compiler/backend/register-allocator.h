@@ -675,7 +675,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   using RepresentationField = base::BitField<MachineRepresentation, 13, 8>;
   using RecombineField = base::BitField<bool, 21, 1>;
   using ControlFlowRegisterHint = base::BitField<uint8_t, 22, 6>;
-  // Bit 28 is used by TopLevelLiveRange.
+  // Bits 28,29 are used by TopLevelLiveRange.
 
   // Unique among children and splinters of the same virtual register.
   int relative_id_;
@@ -784,6 +784,12 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   bool is_non_loop_phi() const { return IsNonLoopPhiField::decode(bits_); }
   void set_is_non_loop_phi(bool value) {
     bits_ = IsNonLoopPhiField::update(bits_, value);
+  }
+  bool SpillAtLoopHeaderNotBeneficial() const {
+    return SpillAtLoopHeaderNotBeneficialField::decode(bits_);
+  }
+  void set_spilling_at_loop_header_not_beneficial() {
+    bits_ = SpillAtLoopHeaderNotBeneficialField::update(bits_, true);
   }
 
   enum SlotUseKind { kNoSlotUse, kDeferredSlotUse, kGeneralSlotUse };
@@ -991,6 +997,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   using IsNonLoopPhiField = base::BitField<bool, 4, 1>;
   using SpillTypeField = base::BitField<SpillType, 5, 2>;
   using DeferredFixedField = base::BitField<bool, 28, 1>;
+  using SpillAtLoopHeaderNotBeneficialField = base::BitField<bool, 29, 1>;
 
   int vreg_;
   int last_child_id_;
