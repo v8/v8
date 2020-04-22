@@ -493,21 +493,21 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ cmov(zero, dst, tmp);                         \
   } while (false)
 
-#define ASSEMBLE_SIMD_SHIFT(opcode, width)                          \
-  do {                                                              \
-    XMMRegister dst = i.OutputSimd128Register();                    \
-    DCHECK_EQ(dst, i.InputSimd128Register(0));                      \
-    if (HasImmediateInput(instr, 1)) {                              \
-      __ opcode(dst, dst, static_cast<byte>(i.InputInt##width(1))); \
-    } else {                                                        \
-      XMMRegister tmp = i.TempSimd128Register(0);                   \
-      Register tmp_shift = i.TempRegister(1);                       \
-      constexpr int mask = (1 << width) - 1;                        \
-      __ mov(tmp_shift, i.InputRegister(1));                        \
-      __ and_(tmp_shift, Immediate(mask));                          \
-      __ Movd(tmp, tmp_shift);                                      \
-      __ opcode(dst, dst, tmp);                                     \
-    }                                                               \
+#define ASSEMBLE_SIMD_SHIFT(opcode, width)             \
+  do {                                                 \
+    XMMRegister dst = i.OutputSimd128Register();       \
+    DCHECK_EQ(dst, i.InputSimd128Register(0));         \
+    if (HasImmediateInput(instr, 1)) {                 \
+      __ opcode(dst, dst, byte{i.InputInt##width(1)}); \
+    } else {                                           \
+      XMMRegister tmp = i.TempSimd128Register(0);      \
+      Register tmp_shift = i.TempRegister(1);          \
+      constexpr int mask = (1 << width) - 1;           \
+      __ mov(tmp_shift, i.InputRegister(1));           \
+      __ and_(tmp_shift, Immediate(mask));             \
+      __ Movd(tmp, tmp_shift);                         \
+      __ opcode(dst, dst, tmp);                        \
+    }                                                  \
   } while (false)
 
 void CodeGenerator::AssembleDeconstructFrame() {
@@ -3168,7 +3168,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (HasImmediateInput(instr, 1)) {
         // Perform 16-bit shift, then mask away low bits.
         uint8_t shift = i.InputInt3(1);
-        __ Psllw(dst, dst, static_cast<byte>(shift));
+        __ Psllw(dst, dst, byte{shift});
 
         uint8_t bmask = static_cast<uint8_t>(0xff << shift);
         uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
@@ -3469,7 +3469,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (HasImmediateInput(instr, 1)) {
         // Perform 16-bit shift, then mask away high bits.
         uint8_t shift = i.InputInt3(1);
-        __ Psrlw(dst, dst, static_cast<byte>(shift));
+        __ Psrlw(dst, dst, byte{shift});
 
         uint8_t bmask = 0xff >> shift;
         uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
@@ -3715,7 +3715,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32S16x8LoadSplat: {
       __ Pinsrw(i.OutputSimd128Register(), i.MemoryOperand(), 0);
       __ Pshuflw(i.OutputSimd128Register(), i.OutputSimd128Register(),
-                 static_cast<uint8_t>(0));
+                 uint8_t{0});
       __ Punpcklqdq(i.OutputSimd128Register(), i.OutputSimd128Register());
       break;
     }
