@@ -4014,6 +4014,8 @@ v8_source_set("cppgc_base") {
     "include/cppgc/visitor.h",
     "include/v8config.h",
     "src/heap/cppgc/allocation.cc",
+    "src/heap/cppgc/free-list.cc",
+    "src/heap/cppgc/free-list.h",
     "src/heap/cppgc/gc-info-table.cc",
     "src/heap/cppgc/gc-info-table.h",
     "src/heap/cppgc/gc-info.cc",

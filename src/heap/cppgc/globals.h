@@ -8,6 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "include/cppgc/internal/gc-info.h"
+
 namespace cppgc {
 namespace internal {
 
@@ -36,6 +38,9 @@ constexpr size_t kPageBaseMask = ~kPageOffsetMask;
 constexpr size_t kGuardPageSize = 4096;
 
 constexpr size_t kLargeObjectSizeThreshold = kPageSize / 2;
+
+constexpr GCInfoIndex kFreeListGCInfoIndex = 0;
+constexpr size_t kFreeListEntrySize = 2 * sizeof(uintptr_t);
 
 }  // namespace internal
 }  // namespace cppgc

@@ -41,7 +41,7 @@ namespace internal {
 //   stored in |LargeObjectPage::PayloadSize()|.
 // - |mark bit| and |in construction| bits are located in separate 16-bit halves
 //    to allow potentially accessing them non-atomically.
-class HeapObjectHeader final {
+class HeapObjectHeader {
  public:
   enum class AccessMode : uint8_t { kNonAtomic, kAtomic };
 
@@ -77,6 +77,9 @@ class HeapObjectHeader final {
   void Unmark();
   inline bool TryMarkAtomic();
 
+  template <AccessMode = AccessMode::kNonAtomic>
+  bool IsFree() const;
+
   void Finalize();
 
  private:
@@ -102,7 +105,7 @@ class HeapObjectHeader final {
   static constexpr uint16_t EncodeSize(size_t size) {
     // Essentially, gets optimized to >> 1.
     using SizeField = UnusedField2::Next<size_t, 14>;
-    return SizeField::encode(size) / kAllocationGranularity;
+    return SizeField::encode(size / kAllocationGranularity);
   }
 
   V8_EXPORT_PRIVATE void CheckApiConstants();
