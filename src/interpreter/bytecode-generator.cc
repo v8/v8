@@ -4142,9 +4142,23 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
     }
   }
 
-  BinaryOperation* binop = expr->AsCompoundAssignment()->binary_operation();
+  BinaryOperation* binop = expr->binary_operation();
   FeedbackSlot slot = feedback_spec()->AddBinaryOpICSlot();
-  if (expr->value()->IsSmiLiteral()) {
+  BytecodeLabel short_circuit;
+  if (binop->op() == Token::NULLISH) {
+    BytecodeLabel nullish;
+    builder()
+        ->JumpIfUndefinedOrNull(&nullish)
+        .Jump(&short_circuit)
+        .Bind(&nullish);
+    VisitForAccumulatorValue(expr->value());
+  } else if (binop->op() == Token::OR) {
+    builder()->JumpIfTrue(ToBooleanMode::kConvertToBoolean, &short_circuit);
+    VisitForAccumulatorValue(expr->value());
+  } else if (binop->op() == Token::AND) {
+    builder()->JumpIfFalse(ToBooleanMode::kConvertToBoolean, &short_circuit);
+    VisitForAccumulatorValue(expr->value());
+  } else if (expr->value()->IsSmiLiteral()) {
     builder()->BinaryOperationSmiLiteral(
         binop->op(), expr->value()->AsLiteral()->AsSmiLiteral(),
         feedback_index(slot));
@@ -4154,9 +4168,9 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
     VisitForAccumulatorValue(expr->value());
     builder()->BinaryOperation(binop->op(), old_value, feedback_index(slot));
   }
-
   builder()->SetExpressionPosition(expr);
   BuildAssignment(lhs_data, expr->op(), expr->lookup_hoisting_mode());
+  builder()->Bind(&short_circuit);
 }
 
 // Suspends the generator to resume at the next suspend_id, with output stored

@@ -63,6 +63,7 @@ FEATURE_FLAGS = {
   'class-methods-private': '--harmony-private-methods',
   'class-static-methods-private': '--harmony-private-methods',
   'AggregateError': '--harmony-promise-any',
+  'logical-assignment-operators': '--harmony-logical-assignment',
 }
 
 SKIPPED_FEATURES = set([])

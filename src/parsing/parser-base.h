@@ -2750,6 +2750,11 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
   Token::Value op = peek();
 
   if (!Token::IsArrowOrAssignmentOp(op)) return expression;
+  if ((op == Token::ASSIGN_NULLISH || op == Token::ASSIGN_OR ||
+       op == Token::ASSIGN_AND) &&
+      !flags().allow_harmony_logical_assignment()) {
+    return expression;
+  }
 
   // Arrow functions.
   if (V8_UNLIKELY(op == Token::ARROW)) {

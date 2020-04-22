@@ -261,9 +261,6 @@ TEST(ArrowOrAssignmentOp) {
 bool TokenIsBinaryOp(Token::Value token) {
   switch (token) {
     case Token::COMMA:
-    case Token::NULLISH:
-    case Token::OR:
-    case Token::AND:
 #define T(name, string, precedence) case Token::name:
       BINARY_OP_TOKEN_LIST(T, EXPAND_BINOP_TOKEN)
 #undef T

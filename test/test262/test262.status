@@ -659,44 +659,6 @@
   'built-ins/AsyncFromSyncIteratorPrototype/return/absent-value-not-passed': [FAIL],
   'built-ins/AsyncFromSyncIteratorPrototype/throw/absent-value-not-passed': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10394
-  'language/expressions/logical-assignment/lgcl-and-assignment-operator': [FAIL],
-  'language/expressions/logical-assignment/lgcl-and-assignment-operator-bigint': [FAIL],
-  'language/expressions/logical-assignment/lgcl-and-assignment-operator-lhs-before-rhs': [FAIL],
-  'language/expressions/logical-assignment/lgcl-and-assignment-operator-no-set': [FAIL],
-  'language/expressions/logical-assignment/lgcl-and-assignment-operator-no-set-put': [FAIL],
-  'language/expressions/logical-assignment/lgcl-and-assignment-operator-non-extensible': [FAIL],
-  'language/expressions/logical-assignment/lgcl-and-assignment-operator-non-writeable': [FAIL],
-  'language/expressions/logical-assignment/lgcl-and-assignment-operator-non-writeable-put': [FAIL],
-  'language/expressions/logical-assignment/lgcl-and-assignment-operator-unresolved-lhs': [FAIL],
-  'language/expressions/logical-assignment/lgcl-and-assignment-operator-unresolved-rhs': [FAIL],
-  'language/expressions/logical-assignment/lgcl-and-assignment-operator-unresolved-rhs-put': [FAIL],
-  'language/expressions/logical-assignment/lgcl-and-whitespace': [FAIL],
-  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator': [FAIL],
-  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-bigint': [FAIL],
-  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-lhs-before-rhs': [FAIL],
-  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-no-set': [FAIL],
-  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-no-set-put': [FAIL],
-  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-non-extensible': [FAIL],
-  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-non-writeable': [FAIL],
-  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-non-writeable-put': [FAIL],
-  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-unresolved-lhs': [FAIL],
-  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-unresolved-rhs': [FAIL],
-  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-unresolved-rhs-put': [FAIL],
-  'language/expressions/logical-assignment/lgcl-nullish-whitespace': [FAIL],
-  'language/expressions/logical-assignment/lgcl-or-assignment-operator': [FAIL],
-  'language/expressions/logical-assignment/lgcl-or-assignment-operator-bigint': [FAIL],
-  'language/expressions/logical-assignment/lgcl-or-assignment-operator-lhs-before-rhs': [FAIL],
-  'language/expressions/logical-assignment/lgcl-or-assignment-operator-no-set': [FAIL],
-  'language/expressions/logical-assignment/lgcl-or-assignment-operator-no-set-put': [FAIL],
-  'language/expressions/logical-assignment/lgcl-or-assignment-operator-non-extensible': [FAIL],
-  'language/expressions/logical-assignment/lgcl-or-assignment-operator-non-writeable': [FAIL],
-  'language/expressions/logical-assignment/lgcl-or-assignment-operator-non-writeable-put': [FAIL],
-  'language/expressions/logical-assignment/lgcl-or-assignment-operator-unresolved-lhs': [FAIL],
-  'language/expressions/logical-assignment/lgcl-or-assignment-operator-unresolved-rhs': [FAIL],
-  'language/expressions/logical-assignment/lgcl-or-assignment-operator-unresolved-rhs-put': [FAIL],
-  'language/expressions/logical-assignment/lgcl-or-whitespace': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=10397
   'language/statements/for-await-of/iterator-close-throw-get-method-abrupt': [FAIL],
   'language/statements/for-of/iterator-close-throw-get-method-abrupt': [FAIL],
@@ -716,7 +678,10 @@
   # https://github.com/tc39/ecma262/pull/889
   'annexB/language/function-code/block-decl-func-skip-arguments': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6538
+  # Non-simple assignment targets are runtime errors instead of syntax errors for web compat.
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-non-simple-lhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-non-simple-lhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-non-simple-lhs': [FAIL],
 
   ############################ INVALID TESTS #############################
 
