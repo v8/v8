@@ -544,12 +544,14 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     i::Handle<i::String> str = Utils::OpenHandle(*(source));
 
     // Set up ParseInfo.
+    i::UnoptimizedCompileState compile_state(i_isolate);
+
     i::UnoptimizedCompileFlags flags =
         i::UnoptimizedCompileFlags::ForToplevelCompile(
             i_isolate, true, i::construct_language_mode(i::FLAG_use_strict),
             i::REPLMode::kNo);
 
-    i::ParseInfo parse_info(i_isolate, flags);
+    i::ParseInfo parse_info(i_isolate, flags, &compile_state);
 
     i::Handle<i::Script> script = parse_info.CreateScript(
         i_isolate, str, i::kNullMaybeHandle, options.compile_options);

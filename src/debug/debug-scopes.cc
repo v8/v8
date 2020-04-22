@@ -262,7 +262,9 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
            scope_info->scope_type() == FUNCTION_SCOPE);
   }
 
-  info_ = std::make_unique<ParseInfo>(isolate_, flags);
+  UnoptimizedCompileState compile_state(isolate_);
+
+  info_ = std::make_unique<ParseInfo>(isolate_, flags, &compile_state);
 
   const bool parse_result =
       flags.is_toplevel()

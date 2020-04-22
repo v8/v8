@@ -12,6 +12,7 @@
 #include "include/v8.h"
 #include "src/base/bit-field.h"
 #include "src/base/export-template.h"
+#include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/function-kind.h"
@@ -146,17 +147,68 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
 };
 
 #undef FLAG_FIELDS
+class ParseInfo;
+
+// The mutable state for a parse + unoptimized compile operation.
+class V8_EXPORT_PRIVATE UnoptimizedCompileState {
+ public:
+  explicit UnoptimizedCompileState(Isolate*);
+  UnoptimizedCompileState(const UnoptimizedCompileState& other) V8_NOEXCEPT;
+
+  class ParallelTasks {
+   public:
+    explicit ParallelTasks(CompilerDispatcher* compiler_dispatcher)
+        : dispatcher_(compiler_dispatcher) {
+      DCHECK_NOT_NULL(dispatcher_);
+    }
+
+    void Enqueue(ParseInfo* outer_parse_info, const AstRawString* function_name,
+                 FunctionLiteral* literal);
+
+    using EnqueuedJobsIterator =
+        std::forward_list<std::pair<FunctionLiteral*, uintptr_t>>::iterator;
+
+    EnqueuedJobsIterator begin() { return enqueued_jobs_.begin(); }
+    EnqueuedJobsIterator end() { return enqueued_jobs_.end(); }
+
+    CompilerDispatcher* dispatcher() { return dispatcher_; }
+
+   private:
+    CompilerDispatcher* dispatcher_;
+    std::forward_list<std::pair<FunctionLiteral*, uintptr_t>> enqueued_jobs_;
+  };
+
+  uint64_t hash_seed() const { return hash_seed_; }
+  AccountingAllocator* allocator() const { return allocator_; }
+  const AstStringConstants* ast_string_constants() const {
+    return ast_string_constants_;
+  }
+  Logger* logger() const { return logger_; }
+  PendingCompilationErrorHandler* pending_error_handler() {
+    return &pending_error_handler_;
+  }
+  ParallelTasks* parallel_tasks() const { return parallel_tasks_.get(); }
+
+ private:
+  uint64_t hash_seed_;
+  AccountingAllocator* allocator_;
+  const AstStringConstants* ast_string_constants_;
+  PendingCompilationErrorHandler pending_error_handler_;
+  Logger* logger_;
+  std::unique_ptr<ParallelTasks> parallel_tasks_;
+};
 
 // A container for the inputs, configuration options, and outputs of parsing.
 class V8_EXPORT_PRIVATE ParseInfo {
  public:
-  ParseInfo(Isolate*, const UnoptimizedCompileFlags flags);
+  ParseInfo(Isolate* isolate, const UnoptimizedCompileFlags flags,
+            UnoptimizedCompileState* state);
 
   // Creates a new parse info based on parent top-level |outer_parse_info| for
   // function |literal|.
-  static std::unique_ptr<ParseInfo> FromParent(
-      const ParseInfo* outer_parse_info, const UnoptimizedCompileFlags flags,
-      AccountingAllocator* zone_allocator, const FunctionLiteral* literal,
+  static std::unique_ptr<ParseInfo> ForToplevelFunction(
+      const UnoptimizedCompileFlags flags,
+      UnoptimizedCompileState* compile_state, const FunctionLiteral* literal,
       const AstRawString* function_name);
 
   ~ParseInfo();
@@ -175,6 +227,30 @@ class V8_EXPORT_PRIVATE ParseInfo {
   Zone* zone() const { return zone_.get(); }
 
   const UnoptimizedCompileFlags& flags() const { return flags_; }
+
+  // Getters for state.
+  uint64_t hash_seed() const { return state_->hash_seed(); }
+  AccountingAllocator* allocator() const { return state_->allocator(); }
+  const AstStringConstants* ast_string_constants() const {
+    return state_->ast_string_constants();
+  }
+  Logger* logger() const { return state_->logger(); }
+  PendingCompilationErrorHandler* pending_error_handler() {
+    return state_->pending_error_handler();
+  }
+  UnoptimizedCompileState::ParallelTasks* parallel_tasks() const {
+    return state_->parallel_tasks();
+  }
+  const UnoptimizedCompileState* state() const { return state_; }
+
+  // Accessors for per-thread state.
+  uintptr_t stack_limit() const { return stack_limit_; }
+  RuntimeCallStats* runtime_call_stats() const { return runtime_call_stats_; }
+  void SetPerThreadState(uintptr_t stack_limit,
+                         RuntimeCallStats* runtime_call_stats) {
+    stack_limit_ = stack_limit;
+    runtime_call_stats_ = runtime_call_stats;
+  }
 
   // Accessor methods for output flags.
   bool allow_eval_cache() const { return allow_eval_cache_; }
@@ -221,12 +297,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   DeclarationScope* scope() const;
 
-  uintptr_t stack_limit() const { return stack_limit_; }
-  void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
-
-  uint64_t hash_seed() const { return hash_seed_; }
-  void set_hash_seed(uint64_t hash_seed) { hash_seed_ = hash_seed; }
-
   int parameters_end_pos() const { return parameters_end_pos_; }
   void set_parameters_end_pos(int parameters_end_pos) {
     parameters_end_pos_ = parameters_end_pos;
@@ -241,71 +311,29 @@ class V8_EXPORT_PRIVATE ParseInfo {
     max_function_literal_id_ = max_function_literal_id;
   }
 
-  const AstStringConstants* ast_string_constants() const {
-    return ast_string_constants_;
-  }
-  void set_ast_string_constants(
-      const AstStringConstants* ast_string_constants) {
-    ast_string_constants_ = ast_string_constants;
-  }
-
-  RuntimeCallStats* runtime_call_stats() const { return runtime_call_stats_; }
-  void set_runtime_call_stats(RuntimeCallStats* runtime_call_stats) {
-    runtime_call_stats_ = runtime_call_stats;
-  }
-  Logger* logger() const { return logger_; }
-  void set_logger(Logger* logger) { logger_ = logger; }
-
   void AllocateSourceRangeMap();
   SourceRangeMap* source_range_map() const { return source_range_map_; }
   void set_source_range_map(SourceRangeMap* source_range_map) {
     source_range_map_ = source_range_map;
   }
 
-  PendingCompilationErrorHandler* pending_error_handler() {
-    return &pending_error_handler_;
-  }
-
-  class ParallelTasks {
-   public:
-    explicit ParallelTasks(CompilerDispatcher* compiler_dispatcher)
-        : dispatcher_(compiler_dispatcher) {
-      DCHECK(dispatcher_);
-    }
-
-    void Enqueue(ParseInfo* outer_parse_info, const AstRawString* function_name,
-                 FunctionLiteral* literal);
-
-    using EnqueuedJobsIterator =
-        std::forward_list<std::pair<FunctionLiteral*, uintptr_t>>::iterator;
-
-    EnqueuedJobsIterator begin() { return enqueued_jobs_.begin(); }
-    EnqueuedJobsIterator end() { return enqueued_jobs_.end(); }
-
-    CompilerDispatcher* dispatcher() { return dispatcher_; }
-
-   private:
-    CompilerDispatcher* dispatcher_;
-    std::forward_list<std::pair<FunctionLiteral*, uintptr_t>> enqueued_jobs_;
-  };
-
-  ParallelTasks* parallel_tasks() { return parallel_tasks_.get(); }
-
   void CheckFlagsForFunctionFromScript(Script script);
 
  private:
-  ParseInfo(AccountingAllocator* zone_allocator, UnoptimizedCompileFlags flags);
+  ParseInfo(const UnoptimizedCompileFlags flags,
+            UnoptimizedCompileState* state);
 
   void CheckFlagsForToplevelCompileFromScript(Script script,
                                               bool is_collecting_type_profile);
 
   //------------- Inputs to parsing and scope analysis -----------------------
   const UnoptimizedCompileFlags flags_;
+  UnoptimizedCompileState* state_;
+
   std::unique_ptr<Zone> zone_;
   v8::Extension* extension_;
   DeclarationScope* script_scope_;
   uintptr_t stack_limit_;
-  uint64_t hash_seed_;
   int parameters_end_pos_;
   int max_function_literal_id_;
 
@@ -313,16 +341,12 @@ class V8_EXPORT_PRIVATE ParseInfo {
   std::unique_ptr<Utf16CharacterStream> character_stream_;
   std::unique_ptr<ConsumedPreparseData> consumed_preparse_data_;
   std::unique_ptr<AstValueFactory> ast_value_factory_;
-  const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;
   RuntimeCallStats* runtime_call_stats_;
-  Logger* logger_;
   SourceRangeMap* source_range_map_;  // Used when block coverage is enabled.
-  std::unique_ptr<ParallelTasks> parallel_tasks_;
 
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
-  PendingCompilationErrorHandler pending_error_handler_;
   bool allow_eval_cache_ : 1;
   bool contains_asm_module_ : 1;
   LanguageMode language_mode_ : 1;

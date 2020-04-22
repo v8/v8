@@ -56,10 +56,13 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
  public:
   OffThreadFactoryTest()
       : TestWithIsolateAndZone(),
-        parse_info_(isolate(), UnoptimizedCompileFlags::ForToplevelCompile(
-                                   isolate(), true,
-                                   construct_language_mode(FLAG_use_strict),
-                                   REPLMode::kNo)),
+        state_(isolate()),
+        parse_info_(
+            isolate(),
+            UnoptimizedCompileFlags::ForToplevelCompile(
+                isolate(), true, construct_language_mode(FLAG_use_strict),
+                REPLMode::kNo),
+            &state_),
         off_thread_isolate_(isolate(), parse_info_.zone()) {}
 
   FunctionLiteral* ParseProgram(const char* source) {
@@ -118,6 +121,7 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
   }
 
  private:
+  UnoptimizedCompileState state_;
   ParseInfo parse_info_;
   OffThreadIsolate off_thread_isolate_;
   Handle<String> source_string_;

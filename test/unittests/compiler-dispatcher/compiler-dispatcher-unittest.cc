@@ -69,8 +69,9 @@ class CompilerDispatcherTest : public TestWithNativeContext {
   static base::Optional<CompilerDispatcher::JobId> EnqueueUnoptimizedCompileJob(
       CompilerDispatcher* dispatcher, Isolate* isolate,
       Handle<SharedFunctionInfo> shared) {
+    UnoptimizedCompileState state(isolate);
     std::unique_ptr<ParseInfo> outer_parse_info =
-        test::OuterParseInfoForShared(isolate, shared);
+        test::OuterParseInfoForShared(isolate, shared, &state);
     AstValueFactory* ast_value_factory =
         outer_parse_info->GetOrCreateAstValueFactory();
     AstNodeFactory ast_node_factory(ast_value_factory,

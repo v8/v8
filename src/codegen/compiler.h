@@ -364,8 +364,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   // |function_literal| and can be finalized with
   // Compiler::FinalizeBackgroundCompileTask.
   BackgroundCompileTask(
-      AccountingAllocator* allocator, const ParseInfo* outer_parse_info,
-      const AstRawString* function_name,
+      const ParseInfo* outer_parse_info, const AstRawString* function_name,
       const FunctionLiteral* function_literal,
       WorkerThreadRuntimeCallStats* worker_thread_runtime_stats,
       TimedHistogram* timer, int max_stack_size);
@@ -401,6 +400,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   // between parsing and compilation. These need to be initialized before the
   // compilation starts.
   UnoptimizedCompileFlags flags_;
+  UnoptimizedCompileState compile_state_;
   std::unique_ptr<ParseInfo> info_;
   std::unique_ptr<Parser> parser_;
 
@@ -423,7 +423,6 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
 
   int stack_size_;
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
-  AccountingAllocator* allocator_;
   TimedHistogram* timer_;
   LanguageMode language_mode_;
   bool collected_source_positions_;
