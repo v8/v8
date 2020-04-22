@@ -228,7 +228,9 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(Handle<String> source,
   script->set_flags(0);
   script->set_host_defined_options(roots.empty_fixed_array());
 
-  impl()->AddToScriptList(script);
+  if (script_id != Script::kTemporaryScriptId) {
+    impl()->AddToScriptList(script);
+  }
 
   LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
   return script;

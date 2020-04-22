@@ -382,6 +382,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   UnoptimizedCompilationJobList* inner_function_jobs() {
     return &inner_function_jobs_;
   }
+  UnoptimizedCompileFlags flags() const { return flags_; }
   LanguageMode language_mode() { return language_mode_; }
   bool collected_source_positions() { return collected_source_positions_; }
   bool finalize_on_background_thread() {

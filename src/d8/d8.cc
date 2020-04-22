@@ -452,54 +452,6 @@ ArrayBuffer::Allocator* Shell::array_buffer_allocator;
 ShellOptions Shell::options;
 base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
 
-// Dummy external source stream which returns the whole source in one go.
-class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
- public:
-  DummySourceStream(Local<String> source, Isolate* isolate) : done_(false) {
-    source_length_ = source->Utf8Length(isolate);
-    source_buffer_.reset(new uint8_t[source_length_]);
-    source->WriteUtf8(isolate, reinterpret_cast<char*>(source_buffer_.get()),
-                      source_length_);
-  }
-
-  size_t GetMoreData(const uint8_t** src) override {
-    if (done_) {
-      return 0;
-    }
-    *src = source_buffer_.release();
-    done_ = true;
-
-    return source_length_;
-  }
-
- private:
-  int source_length_;
-  std::unique_ptr<uint8_t[]> source_buffer_;
-  bool done_;
-};
-
-class BackgroundCompileThread : public base::Thread {
- public:
-  BackgroundCompileThread(Isolate* isolate, Local<String> source)
-      : base::Thread(GetThreadOptions("BackgroundCompileThread")),
-        source_(source),
-        streamed_source_(std::make_unique<DummySourceStream>(source, isolate),
-                         v8::ScriptCompiler::StreamedSource::UTF8),
-        task_(v8::ScriptCompiler::StartStreamingScript(isolate,
-                                                       &streamed_source_)) {}
-
-  void Run() override { task_->Run(); }
-
-  v8::ScriptCompiler::StreamedSource* streamed_source() {
-    return &streamed_source_;
-  }
-
- private:
-  Local<String> source_;
-  v8::ScriptCompiler::StreamedSource streamed_source_;
-  std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task_;
-};
-
 ScriptCompiler::CachedData* Shell::LookupCodeCache(Isolate* isolate,
                                                    Local<Value> source) {
   base::MutexGuard lock_guard(cached_code_mutex_.Pointer());
@@ -590,23 +542,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
         maybe_script = ScriptCompiler::Compile(
             context, &script_source, ScriptCompiler::kNoCompileOptions);
       }
-    } else if (options.stress_background_compile) {
-      // Start a background thread compiling the script.
-      BackgroundCompileThread background_compile_thread(isolate, source);
-      CHECK(background_compile_thread.Start());
-
-      // In parallel, compile on the main thread to flush out any data races.
-      {
-        TryCatch ignore_try_catch(isolate);
-        ScriptCompiler::Source script_source(source, origin);
-        USE(ScriptCompiler::Compile(context, &script_source,
-                                    ScriptCompiler::kNoCompileOptions));
-      }
-
-      // Join with background thread and finalize compilation.
-      background_compile_thread.Join();
-      maybe_script = v8::ScriptCompiler::Compile(
-          context, background_compile_thread.streamed_source(), source, origin);
     } else {
       ScriptCompiler::Source script_source(source, origin);
       maybe_script = ScriptCompiler::Compile(context, &script_source,
@@ -2910,13 +2845,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--nostress-opt") == 0 ||
                strcmp(argv[i], "--no-stress-opt") == 0) {
       options.stress_opt = false;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--stress-background-compile") == 0) {
-      options.stress_background_compile = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--nostress-background-compile") == 0 ||
-               strcmp(argv[i], "--no-stress-background-compile") == 0) {
-      options.stress_background_compile = false;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--noalways-opt") == 0 ||
                strcmp(argv[i], "--no-always-opt") == 0) {
